@@ -2,20 +2,17 @@
 ================================================================================
 SYNC IMPACT REPORT
 ================================================================================
-Version Change: 1.0.0 → 1.1.0
+Version Change: 1.1.0 → 1.2.0
 Modified Principles: None
 Added Sections:
-  - IX. Layered DSP Architecture (new principle for compositional component design)
-  - X. DSP Processing Constraints (new principle for audio quality guardrails)
-  - XI. Performance Budgets (new principle for CPU/memory targets)
+  - XII. Test-First Development (new principle for mandatory test-first workflow)
 Removed Sections: None
 Templates Requiring Updates:
-  - .specify/templates/plan-template.md: ✅ Compatible (Constitution Check section exists)
-  - .specify/templates/spec-template.md: ✅ Compatible (Requirements section supports constraints)
-  - .specify/templates/tasks-template.md: ✅ Compatible (Phase structure supports all principle areas)
+  - .specify/templates/tasks-template.md: MUST UPDATE (add explicit test-first todo items)
+  - CLAUDE.md: MUST UPDATE (add test-first enforcement rules)
 Follow-up TODOs:
-  - Update CLAUDE.md with layer-specific file organization and DSP patterns
-  - Add layer dependency validation to code review checklist
+  - Update CLAUDE.md with test-first enforcement rules
+  - Update tasks-template.md with explicit todo steps for TESTING-GUIDE check and commits
 ================================================================================
 -->
 
@@ -319,4 +316,25 @@ All components MUST meet defined performance targets to ensure the complete plug
 
 **Rationale:** Performance budgets prevent feature creep from making the plugin unusable and ensure compositions of components remain efficient.
 
-**Version**: 1.1.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2025-12-22
+### XII. Test-First Development
+
+All implementation work MUST follow test-first methodology. Testing guidance MUST be actively referenced during development.
+
+**Non-Negotiable Rules:**
+- **Context Verification**: Before starting ANY implementation task, VERIFY that `specs/TESTING-GUIDE.md` is in the current context. If not, INGEST IT before proceeding.
+- **Test Before Implementation**: Write failing tests BEFORE writing implementation code
+- **Task Completion**: Every implementation task MUST end with a commit of the work completed
+- **Explicit Todo Items**: The following steps MUST appear as explicit items in the task todo list (not implicit rules):
+  1. "Verify TESTING-GUIDE.md is in context (ingest if needed)"
+  2. "Write failing tests for [feature]"
+  3. "Implement [feature] to make tests pass"
+  4. "Commit completed work"
+- **Test Categories**: Follow the testing guide for appropriate test categories:
+  - Unit tests for pure DSP functions
+  - Integration tests for component interactions
+  - Regression tests for audio output stability
+- **No Skipping Tests**: Implementation without corresponding tests is FORBIDDEN except for trivial refactors with existing test coverage
+
+**Rationale:** Test-first development catches bugs early, documents expected behavior, enables safe refactoring, and ensures the TESTING-GUIDE.md patterns are consistently applied.
+
+**Version**: 1.2.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2025-12-22

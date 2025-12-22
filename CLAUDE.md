@@ -1,4 +1,4 @@
-# CLAUDE.md - VST Plugin Development Guidelines
+﻿# CLAUDE.md - VST Plugin Development Guidelines
 
 This file provides guidance for AI assistants working on this VST3 plugin project. All code contributions must comply with the project constitution at `.specify/memory/constitution.md`.
 
@@ -465,6 +465,56 @@ TEST_CASE("Function does X", "[dsp][category]") {
     }
 }
 ```
+
+## Test-First Development Enforcement (MANDATORY)
+
+**CRITICAL**: This section describes non-negotiable workflow requirements for ALL implementation tasks.
+
+### Pre-Task Context Check
+
+Before starting ANY implementation task, you MUST:
+
+1. **Check if `specs/TESTING-GUIDE.md` is in your current context window**
+2. **If NOT in context**: Read the file IMMEDIATELY before proceeding
+3. This check MUST appear as an explicit todo item: "Verify TESTING-GUIDE.md is in context (ingest if needed)"
+
+This is REQUIRED because context compaction may have removed the testing guide from your working memory.
+
+### Test-First Workflow
+
+For every implementation task, the todo list MUST include these explicit items IN ORDER:
+
+```
+1. [ ] Verify TESTING-GUIDE.md is in context (ingest if needed)
+2. [ ] Write failing tests for [feature name]
+3. [ ] Implement [feature name] to make tests pass
+4. [ ] Verify all tests pass
+5. [ ] Commit completed work
+```
+
+**NEVER skip steps 1, 2, or 5.** These are checkpoints, not optional guidelines.
+
+### Why This Matters
+
+- **Step 1** ensures testing patterns are fresh in context
+- **Step 2** (tests first) catches design issues early and documents expected behavior
+- **Step 5** (commit) creates save points and ensures work isn't lost
+
+### Example Todo List for DSP Feature
+
+```
+1. [x] Verify TESTING-GUIDE.md is in context (ingest if needed)
+2. [ ] Write failing tests for dbToGain function
+3. [ ] Implement dbToGain to make tests pass
+4. [ ] Write failing tests for gainToDb function
+5. [ ] Implement gainToDb to make tests pass
+6. [ ] Verify all tests pass
+7. [ ] Commit completed work
+```
+
+### Enforcement
+
+If you find yourself writing implementation code without corresponding test files already created, STOP and write the tests first. This is a constitution-level requirement (Principle XII).
 
 ## Build Commands
 
