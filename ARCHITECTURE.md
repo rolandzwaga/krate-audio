@@ -97,13 +97,13 @@ constexpr std::array<float, 3> presets = {
 |---|---|
 | **Purpose** | Common mathematical constants for DSP |
 | **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `VSTWork::DSP` |
+| **Namespace** | `Iterum::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace VSTWork::DSP {
+namespace Iterum::DSP {
     constexpr float kPi = 3.14159265358979323846f;
     constexpr float kTwoPi = 2.0f * kPi;
 }
@@ -324,13 +324,13 @@ lfo.setNoteValue(Iterum::DSP::NoteValue::Quarter,
 |---|---|
 | **Purpose** | Common buffer manipulation operations |
 | **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `VSTWork::DSP` |
+| **Namespace** | `Iterum::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace VSTWork::DSP {
+namespace Iterum::DSP {
     // Apply gain to buffer in-place
     void applyGain(float* buffer, size_t numSamples, float gain) noexcept;
 
@@ -361,13 +361,13 @@ namespace VSTWork::DSP {
 |---|---|
 | **Purpose** | Parameter smoothing to prevent zipper noise |
 | **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `VSTWork::DSP` |
+| **Namespace** | `Iterum::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace VSTWork::DSP {
+namespace Iterum::DSP {
     class OnePoleSmoother {
     public:
         void setTime(float timeSeconds, float sampleRate) noexcept;
@@ -385,7 +385,7 @@ namespace VSTWork::DSP {
 
 **Example**:
 ```cpp
-VSTWork::DSP::OnePoleSmoother gainSmoother;
+Iterum::DSP::OnePoleSmoother gainSmoother;
 gainSmoother.setTime(0.010f, sampleRate);  // 10ms smoothing
 
 // In process loop
@@ -400,13 +400,13 @@ float smoothedGain = gainSmoother.process(targetGain);
 |---|---|
 | **Purpose** | Hard and soft clipping/limiting |
 | **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `VSTWork::DSP` |
+| **Namespace** | `Iterum::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace VSTWork::DSP {
+namespace Iterum::DSP {
     // Hard clip to [-1, 1]
     [[nodiscard]] constexpr float hardClip(float sample) noexcept;
 
@@ -427,13 +427,13 @@ namespace VSTWork::DSP {
 |---|---|
 | **Purpose** | Audio buffer analysis (RMS, peak detection) |
 | **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `VSTWork::DSP` |
+| **Namespace** | `Iterum::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace VSTWork::DSP {
+namespace Iterum::DSP {
     // Calculate RMS of buffer
     [[nodiscard]] float calculateRMS(const float* buffer, size_t numSamples) noexcept;
 
@@ -513,10 +513,10 @@ Quick lookup by functionality:
 | Set LFO waveform | `LFO::setWaveform()` | primitives/lfo.h |
 | Enable tempo sync | `LFO::setTempoSync()` | primitives/lfo.h |
 | Retrigger LFO | `LFO::retrigger()` | primitives/lfo.h |
-| Apply gain to buffer | `VSTWork::DSP::applyGain()` | dsp_utils.h |
-| Mix two buffers | `VSTWork::DSP::mix()` | dsp_utils.h |
-| Smooth parameter changes | `VSTWork::DSP::OnePoleSmoother` | dsp_utils.h |
-| Hard limit output | `VSTWork::DSP::hardClip()` | dsp_utils.h |
-| Add saturation | `VSTWork::DSP::softClip()` | dsp_utils.h |
-| Measure RMS level | `VSTWork::DSP::calculateRMS()` | dsp_utils.h |
-| Detect peak level | `VSTWork::DSP::findPeak()` | dsp_utils.h |
+| Apply gain to buffer | `Iterum::DSP::applyGain()` | dsp_utils.h |
+| Mix two buffers | `Iterum::DSP::mix()` | dsp_utils.h |
+| Smooth parameter changes | `Iterum::DSP::OnePoleSmoother` | dsp_utils.h |
+| Hard limit output | `Iterum::DSP::hardClip()` | dsp_utils.h |
+| Add saturation | `Iterum::DSP::softClip()` | dsp_utils.h |
+| Measure RMS level | `Iterum::DSP::calculateRMS()` | dsp_utils.h |
+| Detect peak level | `Iterum::DSP::findPeak()` | dsp_utils.h |
