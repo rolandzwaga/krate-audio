@@ -132,31 +132,31 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 4.1 Pre-Implementation (MANDATORY)
 
-- [ ] T019 [US2] **Verify TESTING-GUIDE.md is in context** (ingest if needed)
+- [x] T019 [US2] **Verify TESTING-GUIDE.md is in context** (ingest if needed)
 
 ### 4.2 Tests for User Story 2 (Write FIRST - Must FAIL)
 
-- [ ] T020 [US2] Write tests for readLinear() in tests/unit/primitives/delay_line_test.cpp
+- [x] T020 [US2] Write tests for readLinear() in tests/unit/primitives/delay_line_test.cpp
   - Test readLinear(0.5) between samples [0.0, 1.0] returns 0.5
   - Test readLinear(1.25) interpolates correctly
   - Test readLinear at integer position matches read()
-- [ ] T021 [US2] Write modulation tests (US4 coverage) in tests/unit/primitives/delay_line_test.cpp
+- [x] T021 [US2] Write modulation tests (US4 coverage) in tests/unit/primitives/delay_line_test.cpp
   - Test smooth output when delay time changes gradually
   - Test no discontinuities during delay sweep
   - Test with LFO-like delay time modulation
 
 ### 4.3 Implementation for User Story 2
 
-- [ ] T022 [US2] Implement readLinear(float) method in src/dsp/primitives/delay_line.h
+- [x] T022 [US2] Implement readLinear(float) method in src/dsp/primitives/delay_line.h
   - Split delay into integer and fractional parts
   - Read two adjacent samples
   - Apply linear interpolation: y0 + frac * (y1 - y0)
-- [ ] T023 [US2] Verify all US2 tests pass
-- [ ] T024 [US2] Run full test suite to ensure no regressions
+- [x] T023 [US2] Verify all US2 tests pass
+- [x] T024 [US2] Run full test suite to ensure no regressions
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T025 [US2] **Commit completed User Story 2 work**
+- [x] T025 [US2] **Commit completed User Story 2 work**
 
 **Checkpoint**: Fractional delay with linear interpolation works - ready for chorus/flanger effects
 

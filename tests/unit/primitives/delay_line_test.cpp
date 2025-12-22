@@ -335,3 +335,162 @@ TEST_CASE("DelayLine typical delay effect usage", "[delay][integration][US1]") {
     float finalOutput = delay.read(delaySamples);
     REQUIRE(finalOutput == Approx(1.0f));
 }
+
+// =============================================================================
+// Phase 4: User Story 2 - Linear Interpolation (T020-T021)
+// =============================================================================
+
+TEST_CASE("DelayLine readLinear basic interpolation", "[delay][linear][US2]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.1f);
+
+    SECTION("interpolates between two samples at 0.5") {
+        // Write two known samples
+        delay.write(0.0f);  // position 0
+        delay.write(1.0f);  // position 1
+
+        // readLinear(0.5) should return midpoint between positions 0 and 1
+        // Position 1 is the most recent (read(0)), position 0 is read(1)
+        // readLinear(0.5) reads between these: 0.5 between 1.0 and 0.0 = 0.5
+        float result = delay.readLinear(0.5f);
+        REQUIRE(result == Approx(0.5f));
+    }
+
+    SECTION("interpolates at 0.25") {
+        delay.write(0.0f);
+        delay.write(1.0f);
+
+        // readLinear(0.25): 0.75 * 1.0 + 0.25 * 0.0 = 0.75
+        float result = delay.readLinear(0.25f);
+        REQUIRE(result == Approx(0.75f));
+    }
+
+    SECTION("interpolates at 0.75") {
+        delay.write(0.0f);
+        delay.write(1.0f);
+
+        // readLinear(0.75): 0.25 * 1.0 + 0.75 * 0.0 = 0.25
+        float result = delay.readLinear(0.75f);
+        REQUIRE(result == Approx(0.25f));
+    }
+}
+
+TEST_CASE("DelayLine readLinear at integer position matches read()", "[delay][linear][US2]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.1f);
+
+    // Write a sequence of samples
+    for (int i = 0; i < 100; ++i) {
+        delay.write(static_cast<float>(i));
+    }
+
+    // readLinear at integer positions should match read()
+    REQUIRE(delay.readLinear(0.0f) == Approx(delay.read(0)));
+    REQUIRE(delay.readLinear(1.0f) == Approx(delay.read(1)));
+    REQUIRE(delay.readLinear(10.0f) == Approx(delay.read(10)));
+    REQUIRE(delay.readLinear(50.0f) == Approx(delay.read(50)));
+}
+
+TEST_CASE("DelayLine readLinear interpolation accuracy", "[delay][linear][US2]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.1f);
+
+    // Write samples: values equal to their position for easy verification
+    for (int i = 0; i < 50; ++i) {
+        delay.write(static_cast<float>(i));
+    }
+
+    // readLinear(1.25) should interpolate between read(1) and read(2)
+    // read(1) = 48, read(2) = 47
+    // linear interp: 48 + 0.25 * (47 - 48) = 48 - 0.25 = 47.75
+    float result = delay.readLinear(1.25f);
+    REQUIRE(result == Approx(47.75f));
+
+    // readLinear(5.5) should interpolate between read(5) and read(6)
+    // read(5) = 44, read(6) = 43
+    // linear interp: 44 + 0.5 * (43 - 44) = 44 - 0.5 = 43.5
+    result = delay.readLinear(5.5f);
+    REQUIRE(result == Approx(43.5f));
+}
+
+TEST_CASE("DelayLine readLinear delay clamping", "[delay][linear][edge][US2]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.01f);  // ~441 samples max
+
+    const size_t maxDelay = delay.maxDelaySamples();
+
+    // Fill with known values
+    for (size_t i = 0; i <= maxDelay; ++i) {
+        delay.write(static_cast<float>(i));
+    }
+
+    SECTION("fractional delay beyond max is clamped") {
+        // Should clamp to maxDelay
+        float result = delay.readLinear(static_cast<float>(maxDelay + 100));
+        float expected = delay.read(maxDelay);
+        REQUIRE(result == Approx(expected));
+    }
+
+    SECTION("negative delay clamped to 0") {
+        // Negative values should clamp to 0
+        float result = delay.readLinear(-5.0f);
+        float expected = delay.read(0);
+        REQUIRE(result == Approx(expected));
+    }
+}
+
+TEST_CASE("DelayLine modulated delay (US4 coverage)", "[delay][linear][modulation][US2]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.1f);
+
+    // Fill buffer with a ramp signal
+    for (int i = 0; i < 1000; ++i) {
+        delay.write(static_cast<float>(i) / 1000.0f);
+    }
+
+    SECTION("smooth output when delay time changes gradually") {
+        // Simulate LFO modulating delay time from 100 to 200 samples
+        std::vector<float> outputs;
+        float prevOutput = 0.0f;
+        bool firstSample = true;
+
+        for (int i = 0; i < 100; ++i) {
+            float delayTime = 100.0f + static_cast<float>(i);  // 100 to 199
+            delay.write(static_cast<float>(1000 + i) / 1000.0f);
+            float output = delay.readLinear(delayTime);
+            outputs.push_back(output);
+
+            if (!firstSample) {
+                // Check no large discontinuities (difference should be small)
+                float diff = std::abs(output - prevOutput);
+                // Allow up to 0.02 difference per sample (smooth transition)
+                CHECK(diff < 0.02f);
+            }
+            prevOutput = output;
+            firstSample = false;
+        }
+    }
+
+    SECTION("no discontinuities during delay sweep with constant signal") {
+        // Reset and fill with constant for clean test
+        delay.reset();
+        for (int i = 0; i < 500; ++i) {
+            delay.write(0.5f);
+        }
+
+        // Sweep delay from 50 to 150 samples - output should be constant
+        float maxDiff = 0.0f;
+        float prevOutput = delay.readLinear(50.0f);
+
+        for (float d = 50.1f; d <= 150.0f; d += 0.1f) {
+            float output = delay.readLinear(d);
+            float diff = std::abs(output - prevOutput);
+            maxDiff = std::max(maxDiff, diff);
+            prevOutput = output;
+        }
+
+        // With constant input, output should be constant regardless of delay
+        // Allow tiny tolerance for floating-point rounding
+        CHECK(maxDiff < 0.001f);
+    }
+}

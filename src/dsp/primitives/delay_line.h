@@ -196,8 +196,22 @@ inline float DelayLine::read(size_t delaySamples) const noexcept {
 }
 
 inline float DelayLine::readLinear(float delaySamples) const noexcept {
-    // TODO: Implement in T022
-    return 0.0f;
+    // Clamp delay to valid range [0, maxDelaySamples_]
+    const float clampedDelay = std::clamp(delaySamples, 0.0f, static_cast<float>(maxDelaySamples_));
+
+    // Split into integer and fractional parts
+    const float intPart = std::floor(clampedDelay);
+    const float frac = clampedDelay - intPart;
+
+    // Read two adjacent samples
+    const size_t index0 = static_cast<size_t>(intPart);
+    const size_t index1 = std::min(index0 + 1, maxDelaySamples_);
+
+    const float y0 = read(index0);
+    const float y1 = read(index1);
+
+    // Linear interpolation: y = y0 + frac * (y1 - y0)
+    return y0 + frac * (y1 - y0);
 }
 
 inline float DelayLine::readAllpass(float delaySamples) noexcept {
