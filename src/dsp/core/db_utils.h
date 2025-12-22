@@ -35,12 +35,29 @@ namespace detail {
 
 /// Constexpr-safe NaN check using IEEE 754 bit pattern.
 /// NaN has all exponent bits set (0x7F800000 mask) and non-zero mantissa.
-/// Uses std::bit_cast (C++20) for constexpr bit manipulation.
-/// This cannot be optimized away by -ffast-math or similar flags.
+///
+/// Implementation notes:
+/// - At compile-time: Uses std::bit_cast for constexpr compatibility
+/// - At runtime on GCC/Clang: Uses __builtin_isnan (immune to -ffast-math)
+/// - At runtime on MSVC: Uses std::bit_cast (works correctly)
+///
+/// This approach is necessary because Apple Clang's optimizer can incorrectly
+/// assume NaN doesn't exist at runtime when -ffast-math-like flags are used,
+/// but must evaluate correctly at compile-time.
 constexpr bool isNaN(float x) noexcept {
+    if (std::is_constant_evaluated()) {
+        // Compile-time: use bit_cast (constexpr-compatible)
+        const auto bits = std::bit_cast<std::uint32_t>(x);
+        return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
+    }
+    // Runtime: use compiler intrinsic (immune to -ffast-math)
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_isnan(x);
+#else
+    // MSVC: bit_cast works correctly at runtime
     const auto bits = std::bit_cast<std::uint32_t>(x);
-    // NaN: exponent = 0xFF (all 1s), mantissa != 0
     return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
+#endif
 }
 
 /// Natural log of 10, used in dB conversions
