@@ -80,6 +80,45 @@ case kGainId:
                std::memory_order_relaxed);
 ```
 
+## Cross-Platform Compatibility (CRITICAL)
+
+This project runs CI on Windows (MSVC), macOS (Clang), and Linux (GCC). The following platform differences MUST be considered during specification and implementation:
+
+### NaN and Special Float Handling
+
+**Problem**: `x != x` for NaN detection can be optimized away. `std::is_constant_evaluated()` behaves differently on MSVC vs Clang.
+
+**Solution**: Use bit-level IEEE 754 checks with `std::bit_cast`:
+```cpp
+constexpr bool isNaN(float x) noexcept {
+    const auto bits = std::bit_cast<std::uint32_t>(x);
+    return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
+}
+```
+
+### Floating-Point Precision
+
+**Problem**: MSVC and Clang produce different results at 7th-8th decimal places.
+
+**Solution**:
+- Approval tests: Use ≤6 decimal places (`std::setprecision(6)`)
+- Unit tests: Use `Approx().margin()` for comparisons
+- Never compare floats with `==`
+
+### Constexpr Math Functions
+
+**Problem**: `std::pow`, `std::log10`, `std::exp` are NOT constexpr in MSVC C++20.
+
+**Solution**: Implement custom Taylor series approximations for constexpr contexts. See `src/dsp/core/db_utils.h` for reference implementation.
+
+### Build System
+
+**Problem**: macOS requires Xcode generator for Objective-C++ (VSTGUI). Git clone in CI can hit rate limits.
+
+**Solution**:
+- macOS: Use `-G Xcode` in CMake
+- FetchContent: Use URL downloads with SHA256 hashes, not git clone
+
 ## Code Style
 
 ### Modern C++ Requirements

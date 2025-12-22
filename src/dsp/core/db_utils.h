@@ -14,9 +14,10 @@
 
 #pragma once
 
+#include <bit>
 #include <cmath>
+#include <cstdint>
 #include <limits>
-#include <type_traits>
 
 namespace Iterum {
 namespace DSP {
@@ -32,16 +33,14 @@ constexpr float kSilenceFloorDb = -144.0f;
 
 namespace detail {
 
-/// Constexpr-safe NaN check that works in both compile-time and runtime contexts
-/// Uses std::isnan at runtime (reliable), !(x==x) pattern at compile-time
+/// Constexpr-safe NaN check using IEEE 754 bit pattern.
+/// NaN has all exponent bits set (0x7F800000 mask) and non-zero mantissa.
+/// Uses std::bit_cast (C++20) for constexpr bit manipulation.
+/// This cannot be optimized away by -ffast-math or similar flags.
 constexpr bool isNaN(float x) noexcept {
-    if (std::is_constant_evaluated()) {
-        // Compile-time: use the IEEE 754 property that NaN != NaN
-        return !(x == x);
-    } else {
-        // Runtime: use std::isnan which is always reliable
-        return std::isnan(x);
-    }
+    const auto bits = std::bit_cast<std::uint32_t>(x);
+    // NaN: exponent = 0xFF (all 1s), mantissa != 0
+    return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
 }
 
 /// Natural log of 10, used in dB conversions

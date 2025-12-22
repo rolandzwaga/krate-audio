@@ -67,8 +67,9 @@ TEST_CASE("applyGain output matches approved", "[regression][dsp][gain]") {
     applyGain(buffer.data(), buffer.size(), 0.5f);
 
     // Convert to string for approval (sample every 8th value to keep it manageable)
+    // Use 6 decimal places for cross-platform consistency (8 differs between MSVC/Clang)
     std::ostringstream oss;
-    oss << std::fixed << std::setprecision(8);
+    oss << std::fixed << std::setprecision(6);
     oss << "# applyGain(sine_440Hz, gain=0.5)\n";
     oss << "# Sample Rate: 44100 Hz\n";
     oss << "# Buffer Size: 64 samples\n";
@@ -88,8 +89,9 @@ TEST_CASE("applyGain output matches approved", "[regression][dsp][gain]") {
 
 TEST_CASE("softClip transfer function matches approved", "[regression][dsp][clip]") {
     // Test the transfer function: input -> output mapping
+    // Use 6 decimal places for cross-platform consistency
     std::ostringstream oss;
-    oss << std::fixed << std::setprecision(8);
+    oss << std::fixed << std::setprecision(6);
     oss << "# softClip transfer function\n";
     oss << "# Input range: -3.0 to +3.0\n";
     oss << "#\n";
@@ -112,8 +114,9 @@ TEST_CASE("OnePoleSmoother convergence matches approved", "[regression][dsp][smo
     smoother.setTime(0.01f, 44100.0f);  // 10ms smoothing time
     smoother.reset(0.0f);
 
+    // Use 6 decimal places for cross-platform consistency
     std::ostringstream oss;
-    oss << std::fixed << std::setprecision(8);
+    oss << std::fixed << std::setprecision(6);
     oss << "# OnePoleSmoother convergence\n";
     oss << "# Smooth Time: 10ms\n";
     oss << "# Sample Rate: 44100 Hz\n";

@@ -2,16 +2,13 @@
 ================================================================================
 SYNC IMPACT REPORT
 ================================================================================
-Version Change: 1.2.0 → 1.3.0
+Version Change: 1.3.0 → 1.4.0
 Modified Principles: None
 Added Sections:
-  - XIII. Living Architecture Documentation (mandatory ARCHITECTURE.md updates)
+  - Cross-Platform Compatibility (under Technical Constraints)
 Removed Sections: None
-Templates Requiring Updates:
-  - .specify/templates/tasks-template.md: MUST UPDATE (add ARCHITECTURE.md update task)
-Follow-up TODOs:
-  - Create ARCHITECTURE.md at repository root
-  - Update tasks-template.md with explicit ARCHITECTURE.md update task
+Templates Requiring Updates: None
+Follow-up TODOs: None
 ================================================================================
 -->
 
@@ -198,6 +195,32 @@ The following patterns are BANNED from the codebase:
 - Raw C-style arrays for audio buffers (use `std::array` or aligned custom types)
 - Busy-wait spinlocks as mutex replacements
 
+### Cross-Platform Compatibility
+
+Code MUST work correctly across MSVC (Windows), Clang (macOS), and GCC (Linux). The following platform-specific behaviors have been identified and MUST be accounted for:
+
+**NaN Detection:**
+- `x != x` for NaN detection can be optimized away by compilers with `-ffast-math` or aggressive optimizations
+- `std::is_constant_evaluated()` behaves inconsistently between MSVC and Clang in optimized builds
+- **Required approach**: Use `std::bit_cast<uint32_t>` to check IEEE 754 bit patterns for NaN detection
+- Example: `((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0)`
+
+**Floating-Point Precision:**
+- MSVC and Clang produce slightly different results at the 7th-8th decimal place
+- This is expected behavior due to different floating-point implementations
+- **Required approach**: Approval tests and golden master comparisons MUST use ≤6 decimal places
+- Unit tests should use `Approx().margin()` for floating-point comparisons
+
+**Constexpr Math:**
+- `std::pow`, `std::log10`, `std::exp` are NOT constexpr in MSVC (even in C++20)
+- **Required approach**: Implement custom Taylor series for constexpr math functions
+- Use `std::bit_cast` (C++20) for constexpr bit manipulation
+
+**Build System:**
+- macOS requires Xcode generator (`-G Xcode`) for Objective-C++ support (VSTGUI)
+- FetchContent with git clone can fail in CI due to rate limiting
+- **Required approach**: Use URL-based FetchContent with SHA256 hashes for dependencies
+
 ## Development Workflow
 
 ### Code Review Requirements
@@ -350,4 +373,4 @@ All implementation work MUST follow test-first methodology. Testing guidance MUS
 
 **Rationale:** Test-first development catches bugs early, documents expected behavior, enables safe refactoring, and ensures the TESTING-GUIDE.md patterns are consistently applied.
 
-**Version**: 1.3.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2025-12-22
+**Version**: 1.4.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2025-12-22
