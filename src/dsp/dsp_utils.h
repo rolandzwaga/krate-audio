@@ -92,46 +92,9 @@ inline void clear(float* buffer, size_t numSamples) noexcept {
 // ==============================================================================
 // Smoothing
 // ==============================================================================
-
-/// One-pole lowpass filter for parameter smoothing
-/// Useful for avoiding zipper noise on parameter changes
-class OnePoleSmoother {
-public:
-    OnePoleSmoother() = default;
-
-    /// Set smoothing time in seconds
-    /// @param timeSeconds Smoothing time constant
-    /// @param sampleRate Current sample rate
-    void setTime(float timeSeconds, float sampleRate) noexcept {
-        if (timeSeconds <= 0.0f) {
-            coefficient_ = 0.0f;  // No smoothing
-        } else {
-            coefficient_ = std::exp(-1.0f / (timeSeconds * sampleRate));
-        }
-    }
-
-    /// Process one sample
-    /// @param input Target value
-    /// @return Smoothed value
-    [[nodiscard]] float process(float input) noexcept {
-        state_ = input + coefficient_ * (state_ - input);
-        return state_;
-    }
-
-    /// Reset to a specific value (no smoothing)
-    void reset(float value = 0.0f) noexcept {
-        state_ = value;
-    }
-
-    /// Get current smoothed value without advancing
-    [[nodiscard]] float getValue() const noexcept {
-        return state_;
-    }
-
-private:
-    float coefficient_ = 0.0f;
-    float state_ = 0.0f;
-};
+// NOTE: OnePoleSmoother, LinearRamp, and SlewLimiter have been moved to
+// dsp/primitives/smoother.h per spec 005-parameter-smoother.
+// Use #include "dsp/primitives/smoother.h" for the full implementation.
 
 // ==============================================================================
 // Clipping / Limiting

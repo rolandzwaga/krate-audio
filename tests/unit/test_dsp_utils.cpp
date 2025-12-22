@@ -163,41 +163,8 @@ TEST_CASE("clear zeroes buffer", "[dsp][buffer]") {
 // ==============================================================================
 // Smoother Tests
 // ==============================================================================
-
-TEST_CASE("OnePoleSmoother smooths values", "[dsp][smoother]") {
-    OnePoleSmoother smoother;
-
-    SECTION("Immediate response with zero time") {
-        smoother.setTime(0.0f, 44100.0f);
-        smoother.reset(0.0f);
-
-        float result = smoother.process(1.0f);
-        REQUIRE(result == Approx(1.0f));
-    }
-
-    SECTION("Gradual response with non-zero time") {
-        smoother.setTime(0.01f, 44100.0f);  // 10ms smoothing
-        smoother.reset(0.0f);
-
-        // First sample should be less than target
-        float result = smoother.process(1.0f);
-        REQUIRE(result > 0.0f);
-        REQUIRE(result < 1.0f);
-
-        // After many samples, should approach target
-        // 10ms at 44.1kHz = 441 samples per time constant
-        // Need ~5 time constants for 99% convergence = ~2200 samples
-        for (int i = 0; i < 3000; ++i) {
-            result = smoother.process(1.0f);
-        }
-        REQUIRE(result == Approx(1.0f).margin(0.01f));
-    }
-
-    SECTION("Reset immediately sets value") {
-        smoother.reset(0.5f);
-        REQUIRE(smoother.getValue() == 0.5f);
-    }
-}
+// NOTE: OnePoleSmoother, LinearRamp, and SlewLimiter tests have been moved to
+// tests/unit/primitives/smoother_test.cpp per spec 005-parameter-smoother.
 
 // ==============================================================================
 // Clipping Tests

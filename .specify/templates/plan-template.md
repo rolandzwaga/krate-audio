@@ -38,6 +38,61 @@
 - [ ] Tests will be written BEFORE implementation code
 - [ ] Each task group will end with a commit step
 
+**Required Check - Principle XIV (ODR Prevention):**
+- [ ] Codebase Research section below is complete
+- [ ] No duplicate classes/functions will be created
+
+## Codebase Research (Principle XIV - ODR Prevention)
+
+*GATE: Must complete BEFORE creating any new classes, structs, or functions.*
+
+This section prevents One Definition Rule (ODR) violations by documenting existing components that may be reused or would conflict with new implementations.
+
+### Mandatory Searches Performed
+
+<!--
+  ACTION REQUIRED: Before designing ANY new component, run these searches and document results.
+  This is NON-NEGOTIABLE per Constitution Principle XIV.
+-->
+
+**Classes/Structs to be created**: [List planned new types]
+
+| Planned Type | Search Command | Existing? | Action |
+|--------------|----------------|-----------|--------|
+| [ClassName] | `grep -r "class ClassName" src/` | Yes/No | Reuse / Extend / Create New |
+| [StructName] | `grep -r "struct StructName" src/` | Yes/No | Reuse / Extend / Create New |
+
+**Utility Functions to be created**: [List planned new functions]
+
+| Planned Function | Search Command | Existing? | Location | Action |
+|------------------|----------------|-----------|----------|--------|
+| [functionName] | `grep -r "functionName" src/` | Yes/No | [file.h] | Reuse / Create New |
+
+### Existing Components to Reuse
+
+<!--
+  List components from ARCHITECTURE.md or discovered via search that will be composed/reused.
+  This prevents reinventing functionality and ensures proper layering.
+-->
+
+| Component | Location | Layer | How It Will Be Used |
+|-----------|----------|-------|---------------------|
+| [e.g., dbToGain] | dsp/core/db_utils.h | 0 | [dB conversion in gain parameter] |
+| [e.g., constexprExp] | dsp/core/db_utils.h | 0 | [coefficient calculation] |
+
+### Files Checked for Conflicts
+
+- [ ] `src/dsp/dsp_utils.h` - Legacy utilities (often contains simple implementations)
+- [ ] `src/dsp/core/` - Layer 0 core utilities
+- [ ] `ARCHITECTURE.md` - Component inventory
+- [ ] [Other relevant files for this feature]
+
+### ODR Risk Assessment
+
+**Risk Level**: [Low / Medium / High]
+
+**Justification**: [Why this risk level - e.g., "Low: All planned types are unique and not found in codebase" or "Medium: Similar utility exists in dsp_utils.h, will extend rather than duplicate"]
+
 ## Project Structure
 
 ### Documentation (this feature)
