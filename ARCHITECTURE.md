@@ -4,7 +4,7 @@ This document is the **living inventory** of all functional domains, components,
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document as a final task.
 
-**Last Updated**: 2025-12-22 (001-db-conversion)
+**Last Updated**: 2025-12-22 (002-delay-line)
 
 ---
 
@@ -119,6 +119,84 @@ namespace VSTWork::DSP {
 ## Layer 1: DSP Primitives
 
 DSP primitives depend only on Layer 0. They are the basic building blocks for higher-level processors.
+
+### DelayLine
+
+| | |
+|---|---|
+| **Purpose** | Real-time safe circular buffer delay line with fractional sample interpolation |
+| **Location** | [src/dsp/primitives/delay_line.h](src/dsp/primitives/delay_line.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.2 (002-delay-line) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    class DelayLine {
+    public:
+        // Lifecycle (call before audio processing)
+        void prepare(double sampleRate, float maxDelaySeconds) noexcept;
+        void reset() noexcept;
+
+        // Processing (real-time safe, O(1))
+        void write(float sample) noexcept;
+        [[nodiscard]] float read(size_t delaySamples) const noexcept;
+        [[nodiscard]] float readLinear(float delaySamples) const noexcept;
+        [[nodiscard]] float readAllpass(float delaySamples) noexcept;
+
+        // Query
+        [[nodiscard]] size_t maxDelaySamples() const noexcept;
+        [[nodiscard]] double sampleRate() const noexcept;
+    };
+
+    // Utility
+    [[nodiscard]] constexpr size_t nextPowerOf2(size_t n) noexcept;
+}
+```
+
+**Behavior**:
+- `prepare()` - Allocates buffer (power-of-2 sizing), must call before processing
+- `reset()` - Clears buffer to silence without reallocation
+- `write()` - Stores sample and advances write position
+- `read(N)` - Returns sample written N samples ago (clamped to [0, maxDelay])
+- `readLinear(N.f)` - Fractional delay with linear interpolation
+- `readAllpass(N.f)` - Fractional delay with allpass interpolation (stateful)
+
+**When to use**:
+
+| Use Case | Method | Why |
+|----------|--------|-----|
+| Fixed integer delay | `read()` | Fastest, no interpolation |
+| Modulated delay (chorus, flanger, vibrato) | `readLinear()` | Smooth fractional positions |
+| Feedback loops with fractional delay | `readAllpass()` | Unity gain at all frequencies |
+
+**Important**: Never use `readAllpass()` for modulated delays - the stateful filter causes artifacts when delay time changes. Use `readLinear()` for modulation.
+
+**Example**:
+```cpp
+#include "dsp/primitives/delay_line.h"
+
+Iterum::DSP::DelayLine delay;
+
+// In prepare() - allocates memory
+delay.prepare(44100.0, 1.0f);  // 1 second max delay
+
+// In processBlock() - real-time safe
+delay.write(inputSample);
+
+// Fixed delay (simple echo)
+float echo = delay.read(22050);  // 0.5 second delay
+
+// Modulated delay (chorus with LFO)
+float lfoDelay = 500.0f + 20.0f * lfoValue;  // 500±20 samples
+float chorus = delay.readLinear(lfoDelay);
+
+// Feedback network (fractional comb filter)
+float comb = delay.readAllpass(100.5f);  // Fixed fractional delay
+```
+
+---
 
 ### Buffer Operations
 
@@ -306,6 +384,10 @@ Quick lookup by functionality:
 |------------|-----|----------|
 | Convert dB to linear gain | `Iterum::DSP::dbToGain()` | core/db_utils.h |
 | Convert linear gain to dB | `Iterum::DSP::gainToDb()` | core/db_utils.h |
+| Create delay line | `Iterum::DSP::DelayLine` | primitives/delay_line.h |
+| Read fixed delay | `DelayLine::read()` | primitives/delay_line.h |
+| Read modulated delay | `DelayLine::readLinear()` | primitives/delay_line.h |
+| Fractional delay in feedback | `DelayLine::readAllpass()` | primitives/delay_line.h |
 | Apply gain to buffer | `VSTWork::DSP::applyGain()` | dsp_utils.h |
 | Mix two buffers | `VSTWork::DSP::mix()` | dsp_utils.h |
 | Smooth parameter changes | `VSTWork::DSP::OnePoleSmoother` | dsp_utils.h |
