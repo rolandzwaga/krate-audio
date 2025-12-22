@@ -5,6 +5,98 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2025-12-22
+
+### Added
+
+- **Layer 1 DSP Primitive: Biquad Filter** (`src/dsp/primitives/biquad.h`)
+  - Second-order IIR filter using Transposed Direct Form II topology
+  - 8 filter types from Robert Bristow-Johnson's Audio EQ Cookbook:
+    - `Lowpass` - 12 dB/oct rolloff above cutoff
+    - `Highpass` - 12 dB/oct rolloff below cutoff
+    - `Bandpass` - Peak at center, rolloff both sides
+    - `Notch` - Null at center frequency
+    - `Allpass` - Flat magnitude, phase shift only
+    - `LowShelf` - Boost/cut below shelf frequency
+    - `HighShelf` - Boost/cut above shelf frequency
+    - `Peak` - Parametric EQ bell curve
+  - `BiquadCascade<N>` template for steeper slopes (24/36/48 dB/oct)
+  - `SmoothedBiquad` for click-free coefficient modulation
+  - Butterworth configuration (maximally flat passband)
+  - Linkwitz-Riley configuration (flat sum at crossover)
+  - Constexpr coefficient calculation for compile-time EQ
+  - Denormal flushing (state < 1e-15 → 0)
+  - NaN protection (returns 0, resets state)
+  - Stability validation (Jury criterion)
+
+- **Type aliases for common filter slopes**:
+  - `Biquad12dB` - Single stage, 12 dB/oct
+  - `Biquad24dB` - 2-stage cascade, 24 dB/oct
+  - `Biquad36dB` - 3-stage cascade, 36 dB/oct
+  - `Biquad48dB` - 4-stage cascade, 48 dB/oct
+
+- **Utility functions**:
+  - `butterworthQ(stageIndex, totalStages)` - Q values for Butterworth cascades
+  - `linkwitzRileyQ(stageIndex, totalStages)` - Q values for LR crossovers
+  - `BiquadCoefficients::isStable()` - Stability check
+  - `BiquadCoefficients::isBypass()` - Bypass detection
+
+- **Comprehensive test suite** (180 assertions across 49 test cases)
+  - All 6 user stories covered (US1-US6)
+  - Filter type coefficient verification
+  - Frequency response tests at cutoff
+  - Cascade slope verification (24/48 dB/oct)
+  - Linkwitz-Riley flat sum at crossover
+  - Smoothed coefficient convergence
+  - Click-free modulation verification
+  - Constexpr compile-time evaluation
+  - Edge cases (frequency clamping, Q limits, denormals)
+
+### Technical Details
+
+- **TDF2 processing**: `y = b0*x + s0; s0 = b1*x - a1*y + s1; s1 = b2*x - a2*y`
+- **Constexpr math**: Custom Taylor series for sin/cos (MSVC compatibility)
+- **Smoothing**: One-pole interpolation per coefficient (1-100ms typical)
+- **Stability**: Jury criterion with epsilon tolerance for boundary cases
+- **Namespace**: `Iterum::DSP` (Layer 1 DSP primitives)
+- **Constitution compliance**: Principles II (RT Safety), III (Modern C++), IX (Layered Architecture), X (DSP Constraints), XII (Test-First)
+
+### Usage
+
+```cpp
+#include "dsp/primitives/biquad.h"
+
+using namespace Iterum::DSP;
+
+// Basic lowpass
+Biquad lpf;
+lpf.configure(FilterType::Lowpass, 1000.0f, butterworthQ(), 0.0f, 44100.0f);
+float out = lpf.process(input);
+
+// Steep 24 dB/oct highpass
+Biquad24dB hp;
+hp.setButterworth(FilterType::Highpass, 80.0f, 44100.0f);
+hp.processBlock(buffer, numSamples);
+
+// Click-free filter modulation
+SmoothedBiquad modFilter;
+modFilter.setSmoothingTime(10.0f, 44100.0f);
+modFilter.setTarget(FilterType::Lowpass, 1000.0f, butterworthQ(), 0.0f, 44100.0f);
+modFilter.snapToTarget();
+
+// In audio callback - smoothly modulate cutoff
+float cutoff = baseCutoff + lfo.process() * modAmount;
+modFilter.setTarget(FilterType::Lowpass, cutoff, butterworthQ(), 0.0f, 44100.0f);
+modFilter.processBlock(buffer, numSamples);
+
+// Compile-time coefficients
+constexpr auto staticEQ = BiquadCoefficients::calculateConstexpr(
+    FilterType::Peak, 3000.0f, 2.0f, 6.0f, 44100.0f);
+Biquad eq(staticEQ);
+```
+
+---
+
 ## [0.0.3] - 2025-12-22
 
 ### Added
