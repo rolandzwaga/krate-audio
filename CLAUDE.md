@@ -82,42 +82,110 @@ case kGainId:
 
 ## Cross-Platform Compatibility (CRITICAL)
 
-This project runs CI on Windows (MSVC), macOS (Clang), and Linux (GCC). The following platform differences MUST be considered during specification and implementation:
+This project runs CI on Windows (MSVC), macOS (Clang), and Linux (GCC). The following platform differences MUST be considered during specification and implementation. See constitution section "Cross-Platform Compatibility" for the complete reference.
 
-### NaN and Special Float Handling
+### Floating-Point Behavior
 
-**Problem**: `x != x` for NaN detection can be optimized away. `std::is_constant_evaluated()` behaves differently on MSVC vs Clang.
-
-**Solution**: Use bit-level IEEE 754 checks with `std::bit_cast`:
+**NaN Detection:**
 ```cpp
+// WRONG - can be optimized away
+if (x != x) { /* NaN */ }
+
+// CORRECT - bit-level IEEE 754 check
 constexpr bool isNaN(float x) noexcept {
     const auto bits = std::bit_cast<std::uint32_t>(x);
     return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
 }
 ```
 
-### Floating-Point Precision
-
-**Problem**: MSVC and Clang produce different results at 7th-8th decimal places.
-
-**Solution**:
-- Approval tests: Use ≤6 decimal places (`std::setprecision(6)`)
+**Floating-Point Precision:**
+- MSVC and Clang differ at 7th-8th decimal places
+- Approval tests: Use `std::setprecision(6)` or less
 - Unit tests: Use `Approx().margin()` for comparisons
-- Never compare floats with `==`
 
-### Constexpr Math Functions
+**Denormalized Numbers (Performance Killer):**
+- IIR filters decay into denormals when fed silence → 100x CPU slowdown
+- ARM NEON auto-flushes to zero; x86 requires explicit FTZ/DAZ
+- Solution: Enable FTZ/DAZ in audio thread or add tiny DC offset (~1e-15)
+```cpp
+// Enable FTZ/DAZ on x86 (in setupProcessing or setActive)
+_MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+_MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+```
 
-**Problem**: `std::pow`, `std::log10`, `std::exp` are NOT constexpr in MSVC C++20.
+**Constexpr Math:**
+- `std::pow`, `std::log10`, `std::exp` are NOT constexpr in MSVC
+- Use custom Taylor series (see `src/dsp/core/db_utils.h`)
 
-**Solution**: Implement custom Taylor series approximations for constexpr contexts. See `src/dsp/core/db_utils.h` for reference implementation.
+### SIMD and Memory Alignment
+
+**Alignment Requirements:**
+- SSE: 16-byte; AVX: 32-byte; AVX-512: 64-byte
+- Unaligned SSE access crashes; unaligned AVX is slow
+```cpp
+// Stack/static allocation
+alignas(32) std::array<float, 256> buffer;
+
+// Dynamic allocation (C++17)
+auto* buffer = static_cast<float*>(std::aligned_alloc(32, size * sizeof(float)));
+// Or use _mm_malloc/_mm_free for portability
+```
+
+**Cross-Platform SIMD (SSE/AVX vs NEON):**
+- x86: SSE/AVX intrinsics; ARM: NEON with different API
+- Use abstraction library (sse2neon, SIMDe) for portability
+- Apple Silicon (M1/M2/M3/M4): NEON native; x86 via Rosetta 2 (with overhead)
+- Build universal binaries for macOS: `CMAKE_OSX_ARCHITECTURES="x86_64;arm64"`
+
+### Threading and Atomics
+
+**Real-Time Thread Priority:**
+- Don't manually set thread priority in plugins; let host manage it
+- Windows: MMCSS; macOS: THREAD_TIME_CONSTRAINT_POLICY; Linux: SCHED_FIFO
+
+**Atomic Operations:**
+- Only `std::atomic_flag` is guaranteed lock-free everywhere
+- Verify with `is_lock_free()` for other types (especially `std::atomic<double>`)
+- MSVC may silently use mutex for 128-bit atomics
+
+**Memory Ordering:**
+- x86: Strong model (acquire/release nearly free)
+- ARM: Weak model (seq_cst is expensive)
+- Use `memory_order_relaxed` for counters, `acquire`/`release` for sync
+
+**Spinlocks:**
+- NEVER block-wait on audio thread
+- Use `try_lock()` with fallback, not spin loops
 
 ### Build System
 
-**Problem**: macOS requires Xcode generator for Objective-C++ (VSTGUI). Git clone in CI can hit rate limits.
+**CMake:**
+- macOS: Use `-G Xcode` for Objective-C++ (VSTGUI)
+- FetchContent: Use URL + SHA256, not git clone (CI rate limits)
 
-**Solution**:
-- macOS: Use `-G Xcode` in CMake
-- FetchContent: Use URL downloads with SHA256 hashes, not git clone
+**ABI Compatibility:**
+- Use MSVC on Windows, Clang on macOS, GCC on Linux
+- Mixing compilers can cause vtable/exception handling crashes
+
+**Runtime Libraries (Windows):**
+- Link CRT statically (`/MT`) or ship VCRUNTIME redistributable
+
+### File System
+
+**Path Encoding:**
+- Windows: UTF-16 (`wchar_t` = 2 bytes); macOS/Linux: UTF-8 (`wchar_t` = 4 bytes)
+- Use UTF-8 internally; convert to UTF-16 for Windows file APIs
+- Prefer `std::filesystem` (C++17) for cross-platform paths
+
+**State Persistence:**
+- Use explicit byte order (little-endian preferred)
+- State saved on Windows must load on macOS and vice versa
+
+### Plugin Validation
+
+- Use [pluginval](https://www.tracktion.com/develop/pluginval) at strictness level 5+
+- Test in multiple DAWs (scanning behavior varies)
+- CI should run validation on all platforms before release
 
 ## Code Style
 
