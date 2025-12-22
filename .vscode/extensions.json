@@ -1,0 +1,87 @@
+{
+    // ===========================================================================
+    // Recommended VS Code Extensions for VST Plugin Development
+    // ===========================================================================
+    // Install all: Click "Install All" when VS Code prompts, or run:
+    // code --install-extension <extension-id> for each
+
+    "recommendations": [
+        // -----------------------------------------------------------------------
+        // Essential: C++ Development
+        // -----------------------------------------------------------------------
+
+        // Microsoft C/C++ - IntelliSense, debugging, code browsing
+        "ms-vscode.cpptools",
+
+        // C/C++ Extension Pack - Bundles essential C++ tools
+        "ms-vscode.cpptools-extension-pack",
+
+        // CMake Tools - Configure, build, debug CMake projects
+        "ms-vscode.cmake-tools",
+
+        // CMake Language Support - Syntax highlighting for CMakeLists.txt
+        "twxs.cmake",
+
+        // -----------------------------------------------------------------------
+        // Recommended: Code Quality
+        // -----------------------------------------------------------------------
+
+        // clangd - Better IntelliSense alternative (use instead of ms-vscode.cpptools IntelliSense)
+        // "llvm-vs-code-extensions.vscode-clangd",
+
+        // Clang-Format - Code formatting
+        "xaver.clang-format",
+
+        // C/C++ Advanced Lint - Additional linting
+        "jbenden.c-cpp-flylint",
+
+        // -----------------------------------------------------------------------
+        // Recommended: Productivity
+        // -----------------------------------------------------------------------
+
+        // GitLens - Enhanced Git integration
+        "eamodio.gitlens",
+
+        // Error Lens - Inline error/warning display
+        "usernamehw.errorlens",
+
+        // Todo Tree - Track TODOs in code
+        "gruntfuggly.todo-tree",
+
+        // Bracket Pair Colorizer - Color-coded brackets
+        "coenraads.bracket-pair-colorizer-2",
+
+        // Better Comments - Categorized comments with colors
+        "aaron-bond.better-comments",
+
+        // -----------------------------------------------------------------------
+        // Recommended: Debugging
+        // -----------------------------------------------------------------------
+
+        // CodeLLDB - LLDB debugger (alternative to cppvsdbg on Windows)
+        "vadimcn.vscode-lldb",
+
+        // -----------------------------------------------------------------------
+        // Optional: Audio/DSP Specific
+        // -----------------------------------------------------------------------
+
+        // Hex Editor - Useful for examining binary plugin formats
+        "ms-vscode.hexeditor",
+
+        // XML Tools - For editing .uidesc files
+        "dotjoshjohnson.xml",
+
+        // -----------------------------------------------------------------------
+        // Optional: Documentation
+        // -----------------------------------------------------------------------
+
+        // Doxygen Documentation Generator
+        "cschlosser.doxdocgen",
+
+        // Markdown All in One
+        "yzhang.markdown-all-in-one"
+    ],
+
+    // Extensions that should NOT be used with this project
+    "unwantedRecommendations": []
+}

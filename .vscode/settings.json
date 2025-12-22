@@ -1,0 +1,60 @@
+{
+    // ===========================================================================
+    // VS Code Settings for VST Plugin Development
+    // ===========================================================================
+
+    // ---------------------------------------------------------------------------
+    // CMake Configuration
+    // ---------------------------------------------------------------------------
+    "cmake.configureOnOpen": true,
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.generator": "Visual Studio 17 2022",
+    "cmake.configureSettings": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "SMTG_CXX_STANDARD": "20",
+        "VSTWORK_BUILD_TESTS": "ON"
+    },
+
+    // ---------------------------------------------------------------------------
+    // C++ Configuration
+    // ---------------------------------------------------------------------------
+    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+    "C_Cpp.codeAnalysis.clangTidy.enabled": true,
+    "C_Cpp.codeAnalysis.runAutomatically": true,
+
+    // ---------------------------------------------------------------------------
+    // Editor Settings
+    // ---------------------------------------------------------------------------
+    "editor.formatOnSave": true,
+    "editor.rulers": [100],
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+
+    // ---------------------------------------------------------------------------
+    // File Associations
+    // ---------------------------------------------------------------------------
+    "files.associations": {
+        "*.h": "cpp",
+        "*.hpp": "cpp",
+        "*.uidesc": "xml",
+        "*.rc": "c"
+    },
+
+    // ---------------------------------------------------------------------------
+    // Search Exclusions
+    // ---------------------------------------------------------------------------
+    "search.exclude": {
+        "**/build": true,
+        "**/extern": true,
+        "**/.git": true
+    },
+
+    // ---------------------------------------------------------------------------
+    // File Watcher Exclusions (performance)
+    // ---------------------------------------------------------------------------
+    "files.watcherExclude": {
+        "**/build/**": true,
+        "**/extern/**": true
+    }
+}

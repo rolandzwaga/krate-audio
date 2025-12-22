@@ -1,0 +1,63 @@
+{
+    // ===========================================================================
+    // VS Code Debug Configuration for VST Plugin Development
+    // ===========================================================================
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // -----------------------------------------------------------------
+            // Debug Plugin in DAW (Windows)
+            // -----------------------------------------------------------------
+            // Set the path to your DAW executable
+            "name": "Debug in DAW (Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${env:PROGRAMFILES}/Steinberg/Cubase 13/Cubase13.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            // -----------------------------------------------------------------
+            // Debug Plugin in Reaper (Windows)
+            // -----------------------------------------------------------------
+            "name": "Debug in Reaper (Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${env:PROGRAMFILES}/REAPER (x64)/reaper.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            // -----------------------------------------------------------------
+            // Debug Unit Tests
+            // -----------------------------------------------------------------
+            "name": "Debug DSP Tests",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/Debug/dsp_tests.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            // -----------------------------------------------------------------
+            // Attach to Running DAW
+            // -----------------------------------------------------------------
+            "name": "Attach to Process",
+            "type": "cppvsdbg",
+            "request": "attach",
+            "processId": "${command:pickProcess}"
+        }
+    ]
+}

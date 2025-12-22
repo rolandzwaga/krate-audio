@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+==============================================================================
+VSTGUI UIDescription
+==============================================================================
+Constitution Principle V: VSTGUI Development
+- Use UIDescription XML and the WYSIWYG editor for UI layout
+- This file can be edited with VSTGUI's inline editor during development
+
+To enable inline editing in Debug builds:
+1. Right-click on the plugin UI in your DAW
+2. Select "Open UIDescription Editor"
+3. Make changes and save
+==============================================================================
+-->
+<vstgui-ui-description version="1">
+
+    <!-- ======================================================================
+         Bitmaps (images for knobs, buttons, backgrounds)
+         Add your graphics here
+         ====================================================================== -->
+    <bitmaps>
+        <!-- Example:
+        <bitmap name="background" path="background.png"/>
+        <bitmap name="knob" path="knob.png"/>
+        -->
+    </bitmaps>
+
+    <!-- ======================================================================
+         Fonts
+         ====================================================================== -->
+    <fonts>
+        <font name="label-font" font-name="Arial" size="12"/>
+        <font name="title-font" font-name="Arial" size="16" bold="true"/>
+    </fonts>
+
+    <!-- ======================================================================
+         Colors
+         ====================================================================== -->
+    <colors>
+        <color name="background" rgba="#303030ff"/>
+        <color name="panel" rgba="#404040ff"/>
+        <color name="text" rgba="#ffffffff"/>
+        <color name="accent" rgba="#4a90d9ff"/>
+        <color name="knob-track" rgba="#606060ff"/>
+    </colors>
+
+    <!-- ======================================================================
+         Control Tags (link to parameter IDs)
+         ====================================================================== -->
+    <control-tags>
+        <control-tag name="Bypass" tag="0"/>
+        <control-tag name="Gain" tag="1"/>
+    </control-tags>
+
+    <!-- ======================================================================
+         Templates (reusable UI components)
+         ====================================================================== -->
+    <templates>
+        <!-- Main Editor View -->
+        <template
+            name="Editor"
+            class="CViewContainer"
+            origin="0, 0"
+            size="400, 300"
+            background-color="background"
+            minSize="400, 300"
+            maxSize="800, 600"
+            autosize="left right top bottom">
+
+            <!-- Title -->
+            <view
+                class="CTextLabel"
+                origin="20, 20"
+                size="360, 30"
+                title="VSTWork"
+                font="title-font"
+                font-color="text"
+                text-alignment="center"
+                transparent="true"/>
+
+            <!-- Gain Control Panel -->
+            <view
+                class="CViewContainer"
+                origin="50, 70"
+                size="300, 150"
+                background-color="panel"
+                autosize="left right">
+
+                <!-- Gain Label -->
+                <view
+                    class="CTextLabel"
+                    origin="10, 10"
+                    size="280, 20"
+                    title="Gain"
+                    font="label-font"
+                    font-color="text"
+                    text-alignment="center"
+                    transparent="true"/>
+
+                <!-- Gain Slider -->
+                <view
+                    class="CSlider"
+                    origin="30, 40"
+                    size="240, 30"
+                    control-tag="Gain"
+                    default-value="0.5"
+                    min-value="0"
+                    max-value="1"
+                    orientation="horizontal"
+                    handle-offset="0, 0"
+                    draw-frame="true"
+                    draw-back="true"
+                    draw-value="true"
+                    draw-value-inverted="false"
+                    frame-color="accent"
+                    back-color="knob-track"
+                    value-color="accent"/>
+
+                <!-- Gain Value Display -->
+                <view
+                    class="CTextEdit"
+                    origin="100, 80"
+                    size="100, 25"
+                    control-tag="Gain"
+                    font="label-font"
+                    font-color="text"
+                    back-color="panel"
+                    frame-color="accent"
+                    text-alignment="center"
+                    style-round-rect="true"
+                    round-rect-radius="3"/>
+
+                <!-- Bypass Button -->
+                <view
+                    class="COnOffButton"
+                    origin="125, 115"
+                    size="50, 25"
+                    control-tag="Bypass"
+                    default-value="0"/>
+
+            </view>
+
+            <!-- Version Label -->
+            <view
+                class="CTextLabel"
+                origin="20, 270"
+                size="360, 20"
+                title="v1.0.0"
+                font="label-font"
+                font-color="text"
+                text-alignment="right"
+                transparent="true"/>
+
+        </template>
+    </templates>
+
+</vstgui-ui-description>
