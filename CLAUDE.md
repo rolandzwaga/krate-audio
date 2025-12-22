@@ -88,13 +88,20 @@ This project runs CI on Windows (MSVC), macOS (Clang), and Linux (GCC). The foll
 
 **NaN Detection:**
 ```cpp
-// WRONG - can be optimized away
+// WRONG - can be optimized away by -ffast-math
 if (x != x) { /* NaN */ }
 
-// CORRECT - bit-level IEEE 754 check
+// WRONG - std::is_constant_evaluated() misbehaves on Apple Clang in Release
+if (std::is_constant_evaluated()) { /* compile-time */ } else { /* runtime */ }
+
+// CORRECT - platform-specific approach
 constexpr bool isNaN(float x) noexcept {
-    const auto bits = std::bit_cast<std::uint32_t>(x);
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_isnan(x);  // constexpr + immune to -ffast-math
+#else
+    const auto bits = std::bit_cast<std::uint32_t>(x);  // MSVC
     return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
+#endif
 }
 ```
 

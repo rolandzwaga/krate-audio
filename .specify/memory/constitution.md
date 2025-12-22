@@ -217,9 +217,9 @@ Code MUST work correctly across MSVC (Windows), Clang (macOS), and GCC (Linux). 
 
 **NaN Detection:**
 - `x != x` for NaN detection can be optimized away by compilers with `-ffast-math` or aggressive optimizations
-- `std::is_constant_evaluated()` behaves inconsistently between MSVC and Clang in optimized builds
-- **Required approach**: Use `std::bit_cast<uint32_t>` to check IEEE 754 bit patterns for NaN detection
-- Example: `((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0)`
+- `std::is_constant_evaluated()` behaves inconsistently on Apple Clang in Release builds - runtime calls may incorrectly take the compile-time branch. **Do NOT use this for conditional code paths.**
+- **Required approach**: Use `__builtin_isnan(x)` on GCC/Clang (constexpr + immune to -ffast-math); use `std::bit_cast<uint32_t>` bit pattern check on MSVC
+- Example for MSVC: `((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0)`
 
 **Floating-Point Precision:**
 - MSVC and Clang produce slightly different results at the 7th-8th decimal place

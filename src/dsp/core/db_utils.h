@@ -33,28 +33,23 @@ constexpr float kSilenceFloorDb = -144.0f;
 
 namespace detail {
 
-/// Constexpr-safe NaN check using IEEE 754 bit pattern.
-/// NaN has all exponent bits set (0x7F800000 mask) and non-zero mantissa.
+/// Constexpr-safe NaN check.
 ///
 /// Implementation notes:
-/// - At compile-time: Uses std::bit_cast for constexpr compatibility
-/// - At runtime on GCC/Clang: Uses __builtin_isnan (immune to -ffast-math)
-/// - At runtime on MSVC: Uses std::bit_cast (works correctly)
+/// - GCC/Clang: Uses __builtin_isnan which is both constexpr-compatible
+///   AND immune to -ffast-math optimizations
+/// - MSVC: Uses std::bit_cast with IEEE 754 bit pattern check
 ///
-/// This approach is necessary because Apple Clang's optimizer can incorrectly
-/// assume NaN doesn't exist at runtime when -ffast-math-like flags are used,
-/// but must evaluate correctly at compile-time.
+/// IMPORTANT: Do NOT use std::is_constant_evaluated() here - it behaves
+/// inconsistently on Apple Clang in optimized builds, causing runtime
+/// calls to take the wrong code path.
 constexpr bool isNaN(float x) noexcept {
-    if (std::is_constant_evaluated()) {
-        // Compile-time: use bit_cast (constexpr-compatible)
-        const auto bits = std::bit_cast<std::uint32_t>(x);
-        return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
-    }
-    // Runtime: use compiler intrinsic (immune to -ffast-math)
 #if defined(__GNUC__) || defined(__clang__)
+    // __builtin_isnan is constexpr in modern GCC/Clang and immune to -ffast-math
     return __builtin_isnan(x);
 #else
-    // MSVC: bit_cast works correctly at runtime
+    // MSVC: Use bit_cast with IEEE 754 bit pattern
+    // NaN has exponent = 0xFF (all 1s) and non-zero mantissa
     const auto bits = std::bit_cast<std::uint32_t>(x);
     return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
 #endif
