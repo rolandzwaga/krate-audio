@@ -69,6 +69,7 @@ add_executable(dsp_tests
     unit/primitives/delay_line_test.cpp
     unit/primitives/lfo_test.cpp
     unit/primitives/biquad_test.cpp
+    unit/primitives/smoother_test.cpp
 )
 
 target_include_directories(dsp_tests
