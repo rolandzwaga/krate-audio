@@ -41,3 +41,6 @@
 *.dwo
 /.claude/settings.local.json
 /build
+
+# Generated files
+/src/version.h

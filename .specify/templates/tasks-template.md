@@ -202,7 +202,7 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
-## Phase N: Polish & Cross-Cutting Concerns
+## Phase N-1: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories
 
@@ -212,6 +212,29 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
+
+---
+
+## Phase N: Final Documentation (MANDATORY)
+
+**Purpose**: Update living architecture documentation before spec completion
+
+> **Constitution Principle XIII**: Every spec implementation MUST update ARCHITECTURE.md as a final task
+
+### N.1 Architecture Documentation Update
+
+- [ ] TXXX **Update ARCHITECTURE.md** with new components added by this spec:
+  - Add new component entries to appropriate layer section
+  - Include: purpose, public API summary, file location, "when to use this"
+  - Add usage examples if applicable
+  - Verify no duplicate functionality was introduced
+
+### N.2 Final Commit
+
+- [ ] TXXX **Commit ARCHITECTURE.md updates**
+- [ ] TXXX Verify all spec work is committed to feature branch
+
+**Checkpoint**: Spec implementation complete - ARCHITECTURE.md reflects all new functionality
 
 ---
 
@@ -307,5 +330,6 @@ With multiple developers:
 - **MANDATORY**: Check TESTING-GUIDE.md is in context FIRST
 - **MANDATORY**: Write tests that FAIL before implementing (Principle XII)
 - **MANDATORY**: Commit work at end of each user story
+- **MANDATORY**: Update ARCHITECTURE.md before spec completion (Principle XIII)
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence

@@ -2,17 +2,16 @@
 ================================================================================
 SYNC IMPACT REPORT
 ================================================================================
-Version Change: 1.1.0 → 1.2.0
+Version Change: 1.2.0 → 1.3.0
 Modified Principles: None
 Added Sections:
-  - XII. Test-First Development (new principle for mandatory test-first workflow)
+  - XIII. Living Architecture Documentation (mandatory ARCHITECTURE.md updates)
 Removed Sections: None
 Templates Requiring Updates:
-  - .specify/templates/tasks-template.md: MUST UPDATE (add explicit test-first todo items)
-  - CLAUDE.md: MUST UPDATE (add test-first enforcement rules)
+  - .specify/templates/tasks-template.md: MUST UPDATE (add ARCHITECTURE.md update task)
 Follow-up TODOs:
-  - Update CLAUDE.md with test-first enforcement rules
-  - Update tasks-template.md with explicit todo steps for TESTING-GUIDE check and commits
+  - Create ARCHITECTURE.md at repository root
+  - Update tasks-template.md with explicit ARCHITECTURE.md update task
 ================================================================================
 -->
 
@@ -228,6 +227,20 @@ Before optimization work:
 - Thread safety requirements MUST be documented in header comments
 - Parameter ranges and semantics MUST be documented
 
+### XIII. Living Architecture Documentation
+
+The project MUST maintain an `ARCHITECTURE.md` file that serves as a living inventory of all functional domains, components, and APIs.
+
+**Non-Negotiable Rules:**
+- `ARCHITECTURE.md` MUST exist at the repository root
+- Every spec implementation MUST update `ARCHITECTURE.md` as a final task before completion
+- Updates MUST include: new components added, APIs introduced, layer assignments, and usage examples
+- The document is organized by DSP layer (0-4), not chronologically
+- Each component entry MUST include: purpose, public API, location, and "when to use this"
+- This document serves as the canonical reference when writing new specs to avoid duplication and ensure proper reuse
+
+**Rationale:** A living architecture document prevents reinventing existing functionality, enables proper composition of components, and provides a single source of truth for what exists in the codebase.
+
 ## Governance
 
 ### Constitution Authority
@@ -337,4 +350,4 @@ All implementation work MUST follow test-first methodology. Testing guidance MUS
 
 **Rationale:** Test-first development catches bugs early, documents expected behavior, enables safe refactoring, and ensures the TESTING-GUIDE.md patterns are consistently applied.
 
-**Version**: 1.2.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2025-12-22
+**Version**: 1.3.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2025-12-22
