@@ -83,6 +83,21 @@ target_link_libraries(dsp_tests
 target_compile_features(dsp_tests PRIVATE cxx_std_20)
 
 # ==============================================================================
+# Disable -ffast-math for files that require IEEE 754 compliant NaN handling
+# ==============================================================================
+# The VST3 SDK enables -ffast-math globally (see SMTG_PlatformToolset.cmake)
+# which causes isnan() and __builtin_isnan() to be optimized out.
+# We must disable it for files using db_utils.h NaN detection.
+# This follows the same pattern used by VSTGUI (see uijsonpersistence.cpp)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    set_source_files_properties(
+        unit/test_dsp_utils.cpp
+        unit/core/db_utils_test.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+    )
+endif()
+
+# ==============================================================================
 # Approval Tests (Golden Master / Regression)
 # ==============================================================================
 # For verifying DSP algorithm outputs against approved references

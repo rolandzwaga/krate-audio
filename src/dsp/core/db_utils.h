@@ -33,26 +33,23 @@ constexpr float kSilenceFloorDb = -144.0f;
 
 namespace detail {
 
-/// Constexpr-safe NaN check.
+/// Constexpr-safe NaN check using IEEE 754 bit pattern.
 ///
-/// Implementation notes:
-/// - GCC/Clang: Uses __builtin_isnan which is both constexpr-compatible
-///   AND immune to -ffast-math optimizations
-/// - MSVC: Uses std::bit_cast with IEEE 754 bit pattern check
+/// Uses std::bit_cast to examine the binary representation of the float.
+/// NaN is defined as: exponent = all 1s (0xFF) AND mantissa != 0
 ///
-/// IMPORTANT: Do NOT use std::is_constant_evaluated() here - it behaves
-/// inconsistently on Apple Clang in optimized builds, causing runtime
-/// calls to take the wrong code path.
+/// IMPORTANT: The VST3 SDK enables -ffast-math globally, which causes
+/// __builtin_isnan() and std::isnan() to be optimized out (the compiler
+/// assumes NaN doesn't exist). Source files using this function MUST be
+/// compiled with -fno-fast-math. See tests/CMakeLists.txt for the pattern.
+///
+/// This bit manipulation approach works correctly when -ffast-math is
+/// disabled because it operates on integer bits, not floating-point
+/// semantics.
 constexpr bool isNaN(float x) noexcept {
-#if defined(__GNUC__) || defined(__clang__)
-    // __builtin_isnan is constexpr in modern GCC/Clang and immune to -ffast-math
-    return __builtin_isnan(x);
-#else
-    // MSVC: Use bit_cast with IEEE 754 bit pattern
-    // NaN has exponent = 0xFF (all 1s) and non-zero mantissa
     const auto bits = std::bit_cast<std::uint32_t>(x);
+    // NaN: exponent = 0xFF (all 1s), mantissa != 0
     return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
-#endif
 }
 
 /// Natural log of 10, used in dB conversions

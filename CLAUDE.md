@@ -87,22 +87,29 @@ This project runs CI on Windows (MSVC), macOS (Clang), and Linux (GCC). The foll
 ### Floating-Point Behavior
 
 **NaN Detection:**
+
+The VST3 SDK enables `-ffast-math` globally (see `SMTG_PlatformToolset.cmake`), which causes `std::isnan()`, `__builtin_isnan()`, and even bit manipulation to be optimized away.
+
 ```cpp
-// WRONG - can be optimized away by -ffast-math
+// WRONG - optimized away by -ffast-math
 if (x != x) { /* NaN */ }
+if (std::isnan(x)) { /* NaN */ }  // Also optimized away!
+if (__builtin_isnan(x)) { /* NaN */ }  // Also optimized away!
 
-// WRONG - std::is_constant_evaluated() misbehaves on Apple Clang in Release
-if (std::is_constant_evaluated()) { /* compile-time */ } else { /* runtime */ }
-
-// CORRECT - platform-specific approach
+// CORRECT - bit manipulation WITH -fno-fast-math on the source file
 constexpr bool isNaN(float x) noexcept {
-#if defined(__GNUC__) || defined(__clang__)
-    return __builtin_isnan(x);  // constexpr + immune to -ffast-math
-#else
-    const auto bits = std::bit_cast<std::uint32_t>(x);  // MSVC
+    const auto bits = std::bit_cast<std::uint32_t>(x);
     return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
-#endif
 }
+```
+
+**Critical:** Source files using NaN detection MUST disable fast-math:
+```cmake
+# In CMakeLists.txt - follows VSTGUI's pattern (see uijsonpersistence.cpp)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    set_source_files_properties(my_file.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only")
+endif()
 ```
 
 **Floating-Point Precision:**

@@ -216,10 +216,14 @@ Code MUST work correctly across MSVC (Windows), Clang (macOS), and GCC (Linux). 
 #### Floating-Point Behavior
 
 **NaN Detection:**
-- `x != x` for NaN detection can be optimized away by compilers with `-ffast-math` or aggressive optimizations
-- `std::is_constant_evaluated()` behaves inconsistently on Apple Clang in Release builds - runtime calls may incorrectly take the compile-time branch. **Do NOT use this for conditional code paths.**
-- **Required approach**: Use `__builtin_isnan(x)` on GCC/Clang (constexpr + immune to -ffast-math); use `std::bit_cast<uint32_t>` bit pattern check on MSVC
-- Example for MSVC: `((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0)`
+- The VST3 SDK enables `-ffast-math` globally via `SMTG_PlatformToolset.cmake`
+- This causes `std::isnan()`, `__builtin_isnan()`, and `x != x` to be optimized away (compiler assumes NaN doesn't exist)
+- Even bit manipulation with `std::bit_cast` can be optimized if the compiler recognizes the NaN check pattern
+- **Required approach**:
+  1. Use `std::bit_cast<uint32_t>` to check IEEE 754 bit patterns
+  2. **AND** compile source files with `-fno-fast-math -fno-finite-math-only`
+  3. Use CMake `set_source_files_properties()` (follows VSTGUI's pattern for `uijsonpersistence.cpp`)
+- Example: `((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0)`
 
 **Floating-Point Precision:**
 - MSVC and Clang produce slightly different results at the 7th-8th decimal place
