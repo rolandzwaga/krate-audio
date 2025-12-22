@@ -15,6 +15,7 @@
 #include <numeric>
 
 using namespace Iterum::DSP;
+using Catch::Approx;
 
 // =============================================================================
 // Phase 2: Foundational Tests (T006)
@@ -152,4 +153,185 @@ TEST_CASE("DelayLine unprepared state", "[delay][prepare]") {
     // Before prepare(), should return zeros
     REQUIRE(delay.sampleRate() == 0.0);
     REQUIRE(delay.maxDelaySamples() == 0);
+}
+
+// =============================================================================
+// Phase 3: User Story 1 - Basic Fixed Delay (T011-T013a)
+// =============================================================================
+
+TEST_CASE("DelayLine write advances write index", "[delay][write][US1]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.1f);  // 100ms max delay
+
+    SECTION("write stores sample at current position") {
+        delay.write(0.5f);
+        // Delay of 0 should return the sample just written
+        REQUIRE(delay.read(0) == Approx(0.5f));
+    }
+
+    SECTION("sequential writes store at sequential positions") {
+        delay.write(1.0f);
+        delay.write(2.0f);
+        delay.write(3.0f);
+
+        // read(0) returns most recent (3.0)
+        REQUIRE(delay.read(0) == Approx(3.0f));
+        // read(1) returns second most recent (2.0)
+        REQUIRE(delay.read(1) == Approx(2.0f));
+        // read(2) returns third most recent (1.0)
+        REQUIRE(delay.read(2) == Approx(1.0f));
+    }
+}
+
+TEST_CASE("DelayLine buffer wraps correctly", "[delay][write][US1]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.01f);  // ~441 samples max delay
+
+    // Write more samples than buffer size to test wrap
+    const size_t maxDelay = delay.maxDelaySamples();
+    const size_t samplesToWrite = maxDelay * 2;
+
+    for (size_t i = 0; i < samplesToWrite; ++i) {
+        delay.write(static_cast<float>(i));
+    }
+
+    // Most recent sample should be (samplesToWrite - 1)
+    REQUIRE(delay.read(0) == Approx(static_cast<float>(samplesToWrite - 1)));
+
+    // Sample at maxDelay should be the oldest we can read
+    // It should be (samplesToWrite - 1 - maxDelay)
+    float expectedOldest = static_cast<float>(samplesToWrite - 1 - maxDelay);
+    REQUIRE(delay.read(maxDelay) == Approx(expectedOldest));
+}
+
+TEST_CASE("DelayLine read at integer delay", "[delay][read][US1]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.1f);  // 100ms max delay
+
+    SECTION("read(0) returns current sample just written") {
+        delay.write(0.75f);
+        REQUIRE(delay.read(0) == Approx(0.75f));
+    }
+
+    SECTION("read(N) returns sample written N samples ago") {
+        // Write a sequence: 0, 1, 2, ..., 99
+        for (int i = 0; i < 100; ++i) {
+            delay.write(static_cast<float>(i));
+        }
+
+        // read(0) = 99 (most recent)
+        REQUIRE(delay.read(0) == Approx(99.0f));
+        // read(10) = 89
+        REQUIRE(delay.read(10) == Approx(89.0f));
+        // read(50) = 49
+        REQUIRE(delay.read(50) == Approx(49.0f));
+        // read(99) = 0 (oldest)
+        REQUIRE(delay.read(99) == Approx(0.0f));
+    }
+
+    SECTION("read at maximum delay returns oldest sample") {
+        const size_t maxDelay = delay.maxDelaySamples();
+
+        // Fill buffer with known values
+        for (size_t i = 0; i <= maxDelay; ++i) {
+            delay.write(static_cast<float>(i));
+        }
+
+        // Oldest sample is at maxDelay offset
+        REQUIRE(delay.read(maxDelay) == Approx(0.0f));
+    }
+}
+
+TEST_CASE("DelayLine delay clamping", "[delay][read][edge][US1]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.01f);  // ~441 samples max delay
+
+    const size_t maxDelay = delay.maxDelaySamples();
+
+    // Fill buffer with value 1.0
+    for (size_t i = 0; i <= maxDelay; ++i) {
+        delay.write(1.0f);
+    }
+
+    // Write a marker at position 0
+    delay.write(999.0f);
+
+    SECTION("delay > maxDelay clamped to maxDelay") {
+        // Reading beyond maxDelay should clamp and return oldest sample
+        float result = delay.read(maxDelay + 100);
+        // Should return the oldest sample (1.0), not crash
+        REQUIRE(result == Approx(1.0f));
+    }
+
+    SECTION("delay of exactly maxDelay works") {
+        float result = delay.read(maxDelay);
+        REQUIRE(result == Approx(1.0f));
+    }
+}
+
+TEST_CASE("DelayLine mono operation (FR-011)", "[delay][mono][US1]") {
+    // This test documents that DelayLine handles single channel only
+    // Stereo operation requires two DelayLine instances
+
+    DelayLine delayL;
+    DelayLine delayR;
+
+    delayL.prepare(44100.0, 0.1f);
+    delayR.prepare(44100.0, 0.1f);
+
+    SECTION("two instances operate independently") {
+        // Write different values to each channel
+        delayL.write(0.5f);
+        delayR.write(-0.5f);
+
+        // Each should return its own value
+        REQUIRE(delayL.read(0) == Approx(0.5f));
+        REQUIRE(delayR.read(0) == Approx(-0.5f));
+    }
+
+    SECTION("reset on one channel does not affect other") {
+        delayL.write(1.0f);
+        delayR.write(2.0f);
+
+        delayL.reset();
+
+        // L should be cleared, R should retain value
+        REQUIRE(delayL.read(0) == Approx(0.0f));
+        REQUIRE(delayR.read(0) == Approx(2.0f));
+    }
+}
+
+TEST_CASE("DelayLine typical delay effect usage", "[delay][integration][US1]") {
+    // Simulate typical delay effect: fixed 100ms delay at 44.1kHz
+    DelayLine delay;
+    delay.prepare(44100.0, 0.2f);  // 200ms max delay
+
+    const size_t delaySamples = 4410;  // 100ms at 44.1kHz
+
+    // Process impulse through delay
+    std::array<float, 100> input{};
+    std::array<float, 100> output{};
+    input[0] = 1.0f;  // Impulse at sample 0
+
+    // Process first 100 samples - output should be silent (delay not reached)
+    for (size_t i = 0; i < 100; ++i) {
+        delay.write(input[i]);
+        output[i] = delay.read(delaySamples);
+    }
+
+    // All outputs should be zero (impulse hasn't arrived yet)
+    for (size_t i = 0; i < 100; ++i) {
+        REQUIRE(output[i] == Approx(0.0f));
+    }
+
+    // Continue processing until impulse arrives
+    // After N writes, read(D) returns sample at position (writeIndex - 1 - D) & mask
+    // We need to write enough so the impulse (written at sample 0) appears
+    // After 100 writes, we need D more writes for total of 100+D = 4410+1 writes
+    for (size_t i = 0; i < 4311; ++i) {
+        delay.write(0.0f);
+    }
+
+    float finalOutput = delay.read(delaySamples);
+    REQUIRE(finalOutput == Approx(1.0f));
 }

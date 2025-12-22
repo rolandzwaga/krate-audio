@@ -181,12 +181,18 @@ inline void DelayLine::reset() noexcept {
 }
 
 inline void DelayLine::write(float sample) noexcept {
-    // TODO: Implement in T014
+    buffer_[writeIndex_] = sample;
+    writeIndex_ = (writeIndex_ + 1) & mask_;
 }
 
 inline float DelayLine::read(size_t delaySamples) const noexcept {
-    // TODO: Implement in T015
-    return 0.0f;
+    // Clamp delay to valid range [0, maxDelaySamples_]
+    const size_t clampedDelay = std::min(delaySamples, maxDelaySamples_);
+
+    // Read from position: (writeIndex_ - 1 - clampedDelay) & mask_
+    // writeIndex_ points to next write position, so most recent sample is at writeIndex_ - 1
+    const size_t readIndex = (writeIndex_ - 1 - clampedDelay) & mask_;
+    return buffer_[readIndex];
 }
 
 inline float DelayLine::readLinear(float delaySamples) const noexcept {

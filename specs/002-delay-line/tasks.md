@@ -51,23 +51,23 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
-- [ ] T005 Create initial DelayLine class skeleton in src/dsp/primitives/delay_line.h
+- [x] T004 **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
+- [x] T005 Create initial DelayLine class skeleton in src/dsp/primitives/delay_line.h
   - Include Layer 1 header comment
   - Add namespace Iterum::DSP
   - Add class with default constructor/destructor
   - Add prepare(), reset(), write() method declarations
   - Mark all methods noexcept
-- [ ] T006 Write basic prepare/reset tests in tests/unit/primitives/delay_line_test.cpp
+- [x] T006 Write basic prepare/reset tests in tests/unit/primitives/delay_line_test.cpp
   - Test prepare() allocates buffer
   - Test reset() clears buffer to silence
   - Test prepare() with different sample rates
-- [ ] T007 Implement prepare() and reset() methods
+- [x] T007 Implement prepare() and reset() methods
   - Power-of-2 buffer sizing with nextPowerOf2()
   - std::vector resize and fill with zeros
   - Store mask_, sampleRate_, maxDelaySamples_
-- [ ] T008 Verify foundational tests pass
-- [ ] T009 **Commit foundational work**
+- [x] T008 Verify foundational tests pass
+- [x] T009 **Commit foundational work**
 
 **Checkpoint**: Foundation ready - DelayLine can prepare and reset
 
@@ -81,42 +81,42 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 3.1 Pre-Implementation (MANDATORY)
 
-- [ ] T010 [US1] **Verify TESTING-GUIDE.md is in context** (ingest if needed)
+- [x] T010 [US1] **Verify TESTING-GUIDE.md is in context** (ingest if needed)
 
 ### 3.2 Tests for User Story 1 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T011 [US1] Write tests for write() method in tests/unit/primitives/delay_line_test.cpp
+- [x] T011 [US1] Write tests for write() method in tests/unit/primitives/delay_line_test.cpp
   - Test write advances writeIndex
   - Test buffer wraps correctly at boundary
-- [ ] T012 [US1] Write tests for read() integer delay in tests/unit/primitives/delay_line_test.cpp
+- [x] T012 [US1] Write tests for read() integer delay in tests/unit/primitives/delay_line_test.cpp
   - Test read(0) returns current sample (just written)
   - Test read(N) returns sample written N samples ago
   - Test read at maximum delay returns oldest sample
-- [ ] T013 [US1] Write edge case tests in tests/unit/primitives/delay_line_test.cpp
+- [x] T013 [US1] Write edge case tests in tests/unit/primitives/delay_line_test.cpp
   - Test delay clamped to [0, maxDelay]
   - Test negative delay clamped to 0
   - Test delay > maxDelay clamped to maxDelay
-- [ ] T013a [US1] Write mono operation test (FR-011) in tests/unit/primitives/delay_line_test.cpp
+- [x] T013a [US1] Write mono operation test (FR-011) in tests/unit/primitives/delay_line_test.cpp
   - Verify DelayLine handles single channel only
   - Document that stereo requires two DelayLine instances
 
 ### 3.3 Implementation for User Story 1
 
-- [ ] T014 [US1] Implement write() method in src/dsp/primitives/delay_line.h
+- [x] T014 [US1] Implement write() method in src/dsp/primitives/delay_line.h
   - Store sample at writeIndex_
   - Advance writeIndex with bitwise AND wrap
-- [ ] T015 [US1] Implement read(size_t) method in src/dsp/primitives/delay_line.h
+- [x] T015 [US1] Implement read(size_t) method in src/dsp/primitives/delay_line.h
   - Calculate read index: (writeIndex_ - delaySamples) & mask_
   - Clamp delay to valid range
   - Return buffer sample
-- [ ] T016 [US1] Verify all US1 tests pass
-- [ ] T017 [US1] Run full test suite to ensure no regressions
+- [x] T016 [US1] Verify all US1 tests pass
+- [x] T017 [US1] Run full test suite to ensure no regressions
 
 ### 3.4 Commit (MANDATORY)
 
-- [ ] T018 [US1] **Commit completed User Story 1 work**
+- [x] T018 [US1] **Commit completed User Story 1 work**
 
 **Checkpoint**: Basic fixed delay works - can write and read at integer offsets
 
