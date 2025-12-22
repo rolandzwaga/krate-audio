@@ -32,27 +32,12 @@ constexpr float kPi = 3.14159265358979323846f;
 constexpr float kTwoPi = 2.0f * kPi;
 
 // ==============================================================================
-// Gain Utilities - MIGRATED to Iterum::DSP (core/db_utils.h)
+// Gain Utilities - Use Iterum::DSP (core/db_utils.h)
 // ==============================================================================
-// The following functions have been moved to src/dsp/core/db_utils.h:
-//   - dBToLinear() -> Iterum::DSP::dbToGain()
-//   - linearToDb() -> Iterum::DSP::gainToDb()
-//   - kSilenceThreshold -> Iterum::DSP::kSilenceFloorDb (now -144dB, was -80dB)
-//
-// For backward compatibility, provide inline wrappers:
-
-/// Convert decibels to linear gain (DEPRECATED: use Iterum::DSP::dbToGain)
-[[nodiscard]] [[deprecated("Use Iterum::DSP::dbToGain instead")]]
-inline float dBToLinear(float dB) noexcept {
-    return Iterum::DSP::dbToGain(dB);
-}
-
-/// Convert linear gain to decibels (DEPRECATED: use Iterum::DSP::gainToDb)
-/// NOTE: Now returns -144 dB floor instead of -80 dB
-[[nodiscard]] [[deprecated("Use Iterum::DSP::gainToDb instead - floor changed from -80 to -144 dB")]]
-inline float linearToDb(float linear) noexcept {
-    return Iterum::DSP::gainToDb(linear);
-}
+// dB/linear conversion functions are in src/dsp/core/db_utils.h:
+//   - Iterum::DSP::dbToGain(float dB) -> linear gain
+//   - Iterum::DSP::gainToDb(float gain) -> dB value
+//   - Iterum::DSP::kSilenceFloorDb -> -144 dB floor (24-bit dynamic range)
 
 // ==============================================================================
 // Buffer Operations
