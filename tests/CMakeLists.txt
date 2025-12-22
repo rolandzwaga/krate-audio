@@ -67,6 +67,7 @@ add_executable(dsp_tests
     unit/test_dsp_utils.cpp
     unit/core/db_utils_test.cpp
     unit/primitives/delay_line_test.cpp
+    unit/primitives/lfo_test.cpp
 )
 
 target_include_directories(dsp_tests
