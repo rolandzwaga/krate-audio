@@ -4,7 +4,7 @@ This document is the **living inventory** of all functional domains, components,
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document as a final task.
 
-**Last Updated**: 2025-12-22 (002-delay-line)
+**Last Updated**: 2025-12-22 (003-lfo)
 
 ---
 
@@ -194,6 +194,126 @@ float chorus = delay.readLinear(lfoDelay);
 
 // Feedback network (fractional comb filter)
 float comb = delay.readAllpass(100.5f);  // Fixed fractional delay
+```
+
+---
+
+### LFO (Low Frequency Oscillator)
+
+| | |
+|---|---|
+| **Purpose** | Wavetable-based oscillator for generating modulation signals |
+| **Location** | [src/dsp/primitives/lfo.h](src/dsp/primitives/lfo.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.3 (003-lfo) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    enum class Waveform : uint8_t {
+        Sine, Triangle, Sawtooth, Square, SampleHold, SmoothRandom
+    };
+
+    enum class NoteValue : uint8_t {
+        Whole, Half, Quarter, Eighth, Sixteenth, ThirtySecond
+    };
+
+    enum class NoteModifier : uint8_t { None, Dotted, Triplet };
+
+    class LFO {
+    public:
+        // Lifecycle (call before audio processing)
+        void prepare(double sampleRate) noexcept;
+        void reset() noexcept;
+
+        // Processing (real-time safe, O(1) per sample)
+        [[nodiscard]] float process() noexcept;
+        void processBlock(float* output, size_t numSamples) noexcept;
+
+        // Parameters
+        void setWaveform(Waveform waveform) noexcept;
+        void setFrequency(float hz) noexcept;           // [0.01, 20.0] Hz
+        void setPhaseOffset(float degrees) noexcept;    // [0, 360)
+        void setTempoSync(bool enabled) noexcept;
+        void setTempo(float bpm) noexcept;              // [1, 999] BPM
+        void setNoteValue(NoteValue value, NoteModifier mod = NoteModifier::None) noexcept;
+
+        // Control
+        void retrigger() noexcept;
+        void setRetriggerEnabled(bool enabled) noexcept;
+
+        // Query
+        [[nodiscard]] Waveform waveform() const noexcept;
+        [[nodiscard]] float frequency() const noexcept;
+        [[nodiscard]] float phaseOffset() const noexcept;
+        [[nodiscard]] bool tempoSyncEnabled() const noexcept;
+        [[nodiscard]] bool retriggerEnabled() const noexcept;
+        [[nodiscard]] double sampleRate() const noexcept;
+    };
+}
+```
+
+**Behavior**:
+- `prepare()` - Generates wavetables (2048 samples each), must call before processing
+- `reset()` - Resets phase to zero without regenerating wavetables
+- `process()` - Returns single sample in [-1.0, +1.0] range
+- `processBlock()` - Fills buffer with LFO output
+- `retrigger()` - Resets phase to configured offset (if retrigger enabled)
+
+**Waveform Shapes**:
+- `Sine` - Smooth sinusoidal, starts at 0 (zero crossing)
+- `Triangle` - Linear ramp 0→1→-1→0
+- `Sawtooth` - Linear ramp -1→+1, instant reset
+- `Square` - Binary +1/-1 alternation
+- `SampleHold` - Random value held for each cycle
+- `SmoothRandom` - Interpolated random, smooth transitions
+
+**Tempo Sync Frequencies** (at 120 BPM):
+| Note Value | Normal | Dotted | Triplet |
+|------------|--------|--------|---------|
+| Whole (1/1) | 0.5 Hz | 0.33 Hz | 0.75 Hz |
+| Half (1/2) | 1 Hz | 0.67 Hz | 1.5 Hz |
+| Quarter (1/4) | 2 Hz | 1.33 Hz | 3 Hz |
+| Eighth (1/8) | 4 Hz | 2.67 Hz | 6 Hz |
+| Sixteenth (1/16) | 8 Hz | 5.33 Hz | 12 Hz |
+| ThirtySecond (1/32) | 16 Hz | 10.67 Hz | 24 Hz* |
+
+*Frequencies above 20 Hz are clamped to maximum.
+
+**When to use**:
+
+| Use Case | Configuration |
+|----------|---------------|
+| Chorus modulation | Sine, 0.5-3 Hz, free-running |
+| Tremolo | Sine/Triangle, tempo synced |
+| Vibrato | Sine, 4-8 Hz |
+| Stereo width | Two LFOs with 90° phase offset |
+| Filter sweep | Triangle/Saw, tempo synced |
+| Random modulation | SmoothRandom, slow rate |
+
+**Example**:
+```cpp
+#include "dsp/primitives/lfo.h"
+
+Iterum::DSP::LFO lfo;
+
+// In prepare() - generates wavetables
+lfo.prepare(44100.0);
+lfo.setWaveform(Iterum::DSP::Waveform::Sine);
+lfo.setFrequency(2.0f);  // 2 Hz
+
+// In processBlock() - real-time safe
+for (size_t i = 0; i < numSamples; ++i) {
+    float mod = lfo.process();  // [-1, +1]
+    // Use mod to modulate delay time, filter cutoff, etc.
+}
+
+// Tempo sync example
+lfo.setTempoSync(true);
+lfo.setTempo(120.0f);
+lfo.setNoteValue(Iterum::DSP::NoteValue::Quarter,
+                 Iterum::DSP::NoteModifier::Dotted);  // Dotted 1/4 at 120 BPM = 1.33 Hz
 ```
 
 ---
@@ -388,6 +508,11 @@ Quick lookup by functionality:
 | Read fixed delay | `DelayLine::read()` | primitives/delay_line.h |
 | Read modulated delay | `DelayLine::readLinear()` | primitives/delay_line.h |
 | Fractional delay in feedback | `DelayLine::readAllpass()` | primitives/delay_line.h |
+| Create LFO modulation | `Iterum::DSP::LFO` | primitives/lfo.h |
+| Get LFO sample | `LFO::process()` | primitives/lfo.h |
+| Set LFO waveform | `LFO::setWaveform()` | primitives/lfo.h |
+| Enable tempo sync | `LFO::setTempoSync()` | primitives/lfo.h |
+| Retrigger LFO | `LFO::retrigger()` | primitives/lfo.h |
 | Apply gain to buffer | `VSTWork::DSP::applyGain()` | dsp_utils.h |
 | Mix two buffers | `VSTWork::DSP::mix()` | dsp_utils.h |
 | Smooth parameter changes | `VSTWork::DSP::OnePoleSmoother` | dsp_utils.h |
