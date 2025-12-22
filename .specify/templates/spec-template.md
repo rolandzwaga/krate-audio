@@ -113,3 +113,36 @@
 - **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+
+## Assumptions & Existing Components *(mandatory)*
+
+<!--
+  ACTION REQUIRED: Before proceeding to planning phase, identify existing codebase
+  components that may be relevant to this feature. This prevents ODR violations
+  and duplicate implementations per Constitution Principle XIV.
+-->
+
+### Assumptions
+
+- [Assumption 1: e.g., "Users have accounts before using this feature"]
+- [Assumption 2: e.g., "System has network connectivity"]
+
+### Existing Codebase Components (Principle XIV)
+
+*GATE: Must identify before `/speckit.plan` to prevent ODR violations.*
+
+**Relevant existing components that may be reused or extended:**
+
+| Component | Location | Relevance |
+|-----------|----------|-----------|
+| [e.g., existing Smoother class] | [e.g., dsp_utils.h] | [May conflict / Should reuse / Reference implementation] |
+
+**Initial codebase search for key terms:**
+
+```bash
+# Run these searches to identify existing implementations
+grep -r "[key term 1]" src/
+grep -r "[key term 2]" src/
+```
+
+**Search Results Summary**: [Document what was found or "No existing implementations found"]
