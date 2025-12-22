@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel in-progress runs when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   BUILD_TYPE: Release
 
@@ -52,7 +57,8 @@ jobs:
           submodules: recursive
 
       - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        # Use Xcode generator for proper Objective-C++ support (required by VSTGUI)
+        run: cmake -S . -B build -G Xcode
 
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }}
