@@ -10,22 +10,50 @@
 cmake_minimum_required(VERSION 3.20)
 
 # ==============================================================================
-# Fetch Testing Framework
+# Fetch Testing Frameworks
 # ==============================================================================
 # Using Catch2 v3 for modern C++ testing
-# Alternative: GoogleTest, doctest
+# Using ApprovalTests.cpp for golden master / approval testing
 
 include(FetchContent)
 
 # Ensure consistent runtime library with Catch2
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
+# Catch2 - Unit testing framework
 FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
     GIT_TAG v3.5.0
 )
-FetchContent_MakeAvailable(Catch2)
+
+# ApprovalTests.cpp - Golden master / approval testing
+FetchContent_Declare(
+    ApprovalTests
+    GIT_REPOSITORY https://github.com/approvals/ApprovalTests.cpp.git
+    GIT_TAG v.10.13.0
+)
+
+FetchContent_MakeAvailable(Catch2 ApprovalTests)
+
+# ==============================================================================
+# Test Helper Library
+# ==============================================================================
+# Shared utilities for DSP testing (signal generators, comparators, etc.)
+
+add_library(test_helpers INTERFACE)
+
+target_include_directories(test_helpers
+    INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}  # For test_helpers/xxx.h includes
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(test_helpers
+    INTERFACE
+        Catch2::Catch2
+)
 
 # ==============================================================================
 # DSP Unit Tests
@@ -34,6 +62,7 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(dsp_tests
     unit/test_dsp_utils.cpp
+    unit/core/db_utils_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -45,17 +74,71 @@ target_include_directories(dsp_tests
 target_link_libraries(dsp_tests
     PRIVATE
         Catch2::Catch2
+        test_helpers
 )
-
-# MSVC needs main defined - we'll add it in the test file
 
 target_compile_features(dsp_tests PRIVATE cxx_std_20)
 
-# Enable Catch2's CMake integration
+# ==============================================================================
+# Approval Tests (Golden Master / Regression)
+# ==============================================================================
+# For verifying DSP algorithm outputs against approved references
+
+add_executable(approval_tests
+    regression/test_approvals_main.cpp
+)
+
+target_include_directories(approval_tests
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(approval_tests
+    PRIVATE
+        Catch2::Catch2
+        ApprovalTests::ApprovalTests
+        test_helpers
+)
+
+target_compile_features(approval_tests PRIVATE cxx_std_20)
+
+# ==============================================================================
+# CTest Integration
+# ==============================================================================
+
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(CTest)
 include(Catch)
 catch_discover_tests(dsp_tests)
+catch_discover_tests(approval_tests)
+
+# ==============================================================================
+# VST3 Validator Integration
+# ==============================================================================
+# The vstvalidator tool checks VST3 plugin conformity
+# It's built as part of SMTG_ENABLE_VST3_HOSTING_EXAMPLES
+
+# Custom target to validate the built plugin
+if(TARGET validator)
+    # Path to the built plugin
+    set(PLUGIN_PATH "${CMAKE_BINARY_DIR}/VST3/$<CONFIG>/VSTWork.vst3")
+
+    add_custom_target(validate_plugin
+        COMMAND $<TARGET_FILE:validator> "${PLUGIN_PATH}"
+        DEPENDS VSTWork validator
+        COMMENT "Running VST3 validator on VSTWork.vst3"
+        VERBATIM
+    )
+
+    # Also add a quick validation (basic tests only)
+    add_custom_target(validate_plugin_quick
+        COMMAND $<TARGET_FILE:validator> "${PLUGIN_PATH}" -q
+        DEPENDS VSTWork validator
+        COMMENT "Running quick VST3 validation on VSTWork.vst3"
+        VERBATIM
+    )
+endif()
 
 # ==============================================================================
 # Integration Tests (Optional - requires built plugin)
