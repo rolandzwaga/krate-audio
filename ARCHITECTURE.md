@@ -4,7 +4,7 @@ This document is the **living inventory** of all functional domains, components,
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document as a final task.
 
-**Last Updated**: 2025-12-23 (008-multimode-filter)
+**Last Updated**: 2025-12-23 (010-envelope-follower)
 
 ---
 
@@ -1346,6 +1346,133 @@ filter.setDrive(12.0f);  // 12dB pre-filter saturation
 
 ---
 
+### EnvelopeFollower
+
+| | |
+|---|---|
+| **Purpose** | Amplitude envelope tracking with configurable attack/release times and three detection modes |
+| **Location** | [src/dsp/processors/envelope_follower.h](src/dsp/processors/envelope_follower.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.11 (010-envelope-follower) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    // Detection algorithm selection
+    enum class DetectionMode : uint8_t {
+        Amplitude,  // Full-wave rectification + smoothing
+        RMS,        // Squared signal + smoothing + sqrt
+        Peak        // Instant attack, configurable release
+    };
+
+    class EnvelopeFollower {
+    public:
+        // Constants
+        static constexpr float kMinAttackMs = 0.1f;
+        static constexpr float kMaxAttackMs = 500.0f;
+        static constexpr float kMinReleaseMs = 1.0f;
+        static constexpr float kMaxReleaseMs = 5000.0f;
+        static constexpr float kMinSidechainHz = 20.0f;
+        static constexpr float kMaxSidechainHz = 500.0f;
+
+        // Lifecycle (call before audio processing)
+        void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+        void reset() noexcept;
+
+        // Processing (real-time safe)
+        void process(const float* input, float* output, size_t numSamples) noexcept;
+        void process(float* buffer, size_t numSamples) noexcept;  // In-place
+        [[nodiscard]] float processSample(float input) noexcept;
+        [[nodiscard]] float getCurrentValue() const noexcept;
+
+        // Parameter setters (real-time safe)
+        void setMode(DetectionMode mode) noexcept;
+        void setAttackTime(float ms) noexcept;   // [0.1, 500]
+        void setReleaseTime(float ms) noexcept;  // [1, 5000]
+        void setSidechainEnabled(bool enabled) noexcept;
+        void setSidechainCutoff(float hz) noexcept;  // [20, 500]
+
+        // Parameter getters
+        [[nodiscard]] DetectionMode getMode() const noexcept;
+        [[nodiscard]] float getAttackTime() const noexcept;
+        [[nodiscard]] float getReleaseTime() const noexcept;
+        [[nodiscard]] bool isSidechainEnabled() const noexcept;
+        [[nodiscard]] float getSidechainCutoff() const noexcept;
+
+        // Query
+        [[nodiscard]] size_t getLatency() const noexcept;  // 0 (no latency)
+    };
+}
+```
+
+**Detection Modes**:
+
+| Mode | Description | Output for 0dB Sine |
+|------|-------------|---------------------|
+| `Amplitude` | Full-wave rectification + asymmetric smoothing | ~0.637 (average of |sin|) |
+| `RMS` | Squared signal + blended smoothing + sqrt | ~0.707 (sine RMS) |
+| `Peak` | Instant attack (at min), exponential release | ~1.0 (captures peaks) |
+
+**Behavior**:
+- `prepare()` - Recalculates attack/release coefficients for new sample rate
+- `reset()` - Clears envelope state to zero
+- `processSample()` - Returns envelope value for single input sample
+- `process()` - Block processing with envelope output
+- `getCurrentValue()` - Returns current envelope without advancing state
+- Asymmetric one-pole smoothing: attack coefficient when rising, release when falling
+- RMS mode uses blended coefficient for accurate RMS (within 1% of theoretical)
+- Optional sidechain highpass filter (Biquad) to reduce bass pumping
+
+**Dependencies** (Layer 0/1 primitives):
+- `detail::isNaN()` - NaN input handling (from db_utils.h)
+- `detail::isInf()` - Infinity input handling (from db_utils.h)
+- `detail::flushDenormal()` - Denormal flushing for real-time safety (from db_utils.h)
+- `detail::constexprExp()` - Coefficient calculation (from db_utils.h)
+- `Biquad` - Sidechain highpass filter (from biquad.h)
+
+**When to use**:
+
+| Use Case | Mode | Configuration |
+|----------|------|---------------|
+| Compressor/limiter sidechain | RMS | 10ms attack, 100ms release |
+| Gate trigger | Peak | 0.1ms attack, 50ms release |
+| Ducking (sidechain compression) | RMS + sidechain | 80Hz sidechain filter |
+| Envelope-based modulation | Amplitude | Fast attack (1ms), medium release |
+| Level metering display | RMS | 5ms attack, 300ms release |
+
+**Example**:
+```cpp
+#include "dsp/processors/envelope_follower.h"
+using namespace Iterum::DSP;
+
+EnvelopeFollower env;
+
+// In prepare() - recalculates coefficients
+env.prepare(44100.0, 512);
+env.setMode(DetectionMode::RMS);
+env.setAttackTime(10.0f);   // 10ms attack
+env.setReleaseTime(100.0f); // 100ms release
+
+// Enable sidechain filter to reduce bass pumping
+env.setSidechainEnabled(true);
+env.setSidechainCutoff(80.0f);  // 80Hz highpass
+
+// In processBlock() - per-sample tracking
+for (size_t i = 0; i < numSamples; ++i) {
+    float envelope = env.processSample(input[i]);
+    // Use envelope for compression, ducking, modulation...
+    float gainReduction = calculateGainReduction(envelope);
+    output[i] = input[i] * gainReduction;
+}
+
+// Or block processing
+std::vector<float> envelopeBuffer(numSamples);
+env.process(input, envelopeBuffer.data(), numSamples);
+```
+
+---
+
 ## Layer 3: System Components
 
 *No components yet. Future: Delay Engine, Feedback Network, Modulation Matrix*
@@ -1434,3 +1561,8 @@ Quick lookup by functionality:
 | Selectable filter slope | `MultimodeFilter::setSlope()` | processors/multimode_filter.h |
 | Click-free parameter changes | `MultimodeFilter::setSmoothingTime()` | processors/multimode_filter.h |
 | Pre-filter saturation | `MultimodeFilter::setDrive()` | processors/multimode_filter.h |
+| Track amplitude envelope | `Iterum::DSP::EnvelopeFollower` | processors/envelope_follower.h |
+| Set envelope mode | `EnvelopeFollower::setMode()` | processors/envelope_follower.h |
+| Set attack/release times | `EnvelopeFollower::setAttackTime()` | processors/envelope_follower.h |
+| Enable sidechain filter | `EnvelopeFollower::setSidechainEnabled()` | processors/envelope_follower.h |
+| Get current envelope value | `EnvelopeFollower::getCurrentValue()` | processors/envelope_follower.h |
