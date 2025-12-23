@@ -49,6 +49,60 @@ enum class NoiseType : uint8_t {
 constexpr size_t kNumNoiseTypes = 5;
 
 // =============================================================================
+// PinkNoiseFilter (Internal)
+// =============================================================================
+
+/// @brief Paul Kellet's pink noise filter
+///
+/// Converts white noise to pink noise (-3dB/octave spectral rolloff).
+/// Uses a 7-state recursive filter for excellent accuracy with minimal CPU.
+///
+/// @par Algorithm
+/// Filter coefficients from Paul Kellet's "pink noise generation" article.
+/// Accuracy: -3dB/octave ±0.5dB across audible range.
+///
+/// @par Reference
+/// https://www.firstpr.com.au/dsp/pink-noise/
+class PinkNoiseFilter {
+public:
+    /// @brief Process one white noise sample through the filter
+    /// @param white Input white noise sample (typically [-1, 1])
+    /// @return Pink noise sample
+    [[nodiscard]] float process(float white) noexcept {
+        // Paul Kellet's filter coefficients
+        b0_ = 0.99886f * b0_ + white * 0.0555179f;
+        b1_ = 0.99332f * b1_ + white * 0.0750759f;
+        b2_ = 0.96900f * b2_ + white * 0.1538520f;
+        b3_ = 0.86650f * b3_ + white * 0.3104856f;
+        b4_ = 0.55000f * b4_ + white * 0.5329522f;
+        b5_ = -0.7616f * b5_ - white * 0.0168980f;
+
+        float pink = b0_ + b1_ + b2_ + b3_ + b4_ + b5_ + b6_ + white * 0.5362f;
+        b6_ = white * 0.115926f;
+
+        // Normalize output to stay within [-1, 1] range
+        // The filter has peak gain of approximately 5.0, so we use a conservative factor
+        // and clamp to ensure we never exceed the range
+        float normalized = pink * 0.2f;
+        return (normalized > 1.0f) ? 1.0f : ((normalized < -1.0f) ? -1.0f : normalized);
+    }
+
+    /// @brief Reset filter state to zero
+    void reset() noexcept {
+        b0_ = b1_ = b2_ = b3_ = b4_ = b5_ = b6_ = 0.0f;
+    }
+
+private:
+    float b0_ = 0.0f;
+    float b1_ = 0.0f;
+    float b2_ = 0.0f;
+    float b3_ = 0.0f;
+    float b4_ = 0.0f;
+    float b5_ = 0.0f;
+    float b6_ = 0.0f;
+};
+
+// =============================================================================
 // NoiseGenerator Class
 // =============================================================================
 
@@ -143,10 +197,8 @@ public:
         // This ensures different instances have uncorrelated sequences
         rng_.seed(rng_.next() ^ 0xDEADBEEF);
 
-        // Reset pink noise filter state
-        for (float& s : pinkState_) {
-            s = 0.0f;
-        }
+        // Reset pink noise filter
+        pinkFilter_.reset();
 
         // Reset crackle state
         crackleCounter_ = 0.0f;
@@ -300,9 +352,11 @@ private:
     [[nodiscard]] float generateNoiseSample() noexcept {
         float sample = 0.0f;
 
+        // Generate base white noise sample (used by white, pink, and others)
+        float whiteNoise = rng_.nextFloat();
+
         // White noise (US1)
         if (noiseEnabled_[static_cast<size_t>(NoiseType::White)]) {
-            float whiteNoise = rng_.nextFloat();
             float whiteGain = levelSmoothers_[static_cast<size_t>(NoiseType::White)].process();
             sample += whiteNoise * whiteGain;
         } else {
@@ -310,7 +364,16 @@ private:
             (void)levelSmoothers_[static_cast<size_t>(NoiseType::White)].process();
         }
 
-        // TODO: Pink noise (US2)
+        // Pink noise (US2)
+        if (noiseEnabled_[static_cast<size_t>(NoiseType::Pink)]) {
+            float pinkNoise = pinkFilter_.process(whiteNoise);
+            float pinkGain = levelSmoothers_[static_cast<size_t>(NoiseType::Pink)].process();
+            sample += pinkNoise * pinkGain;
+        } else {
+            // Still process smoother to handle fade-out
+            (void)levelSmoothers_[static_cast<size_t>(NoiseType::Pink)].process();
+        }
+
         // TODO: Tape hiss (US3)
         // TODO: Vinyl crackle (US4)
         // TODO: Asperity (US5)
@@ -349,8 +412,8 @@ private:
     float masterLevelDb_ = 0.0f;
     OnePoleSmoother masterSmoother_;
 
-    // Pink noise filter state (Paul Kellet's 7-term filter)
-    std::array<float, 7> pinkState_ = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    // Pink noise filter (Paul Kellet's algorithm)
+    PinkNoiseFilter pinkFilter_;
 
     // Tape hiss parameters
     float tapeHissFloorDb_ = -60.0f;

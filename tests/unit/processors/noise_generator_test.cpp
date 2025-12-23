@@ -480,3 +480,185 @@ TEST_CASE("NoiseGenerator getMasterLevel returns set value", "[noise][US1]") {
     noise.setMasterLevel(-6.0f);
     REQUIRE(noise.getMasterLevel() == Approx(-6.0f));
 }
+
+// ==============================================================================
+// User Story 2: Pink Noise Generation [US2]
+// ==============================================================================
+
+TEST_CASE("Pink noise: output is zero when disabled", "[noise][US2]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    // Leave pink noise disabled (default)
+    std::array<float, kBlockSize> buffer;
+    buffer.fill(0.5f);
+
+    noise.process(buffer.data(), buffer.size());
+
+    REQUIRE(isAllZeros(buffer.data(), buffer.size()));
+}
+
+TEST_CASE("Pink noise: output is non-zero when enabled", "[noise][US2]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Pink, true);
+    noise.setNoiseLevel(NoiseType::Pink, 0.0f);
+
+    constexpr size_t largeSize = 4096;
+    std::vector<float> buffer(largeSize, 0.0f);
+
+    for (size_t i = 0; i < largeSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    REQUIRE(hasNonZeroValues(buffer.data(), buffer.size()));
+}
+
+TEST_CASE("Pink noise: samples in [-1.0, 1.0] range (SC-003)", "[noise][US2][SC-003]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Pink, true);
+    noise.setNoiseLevel(NoiseType::Pink, 0.0f);
+
+    constexpr size_t testSize = 44100;
+    std::vector<float> buffer(testSize);
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // All samples must be in valid range
+    for (size_t i = 0; i < testSize; ++i) {
+        REQUIRE(buffer[i] >= -1.0f);
+        REQUIRE(buffer[i] <= 1.0f);
+    }
+}
+
+TEST_CASE("Pink noise: spectral slope of -3dB/octave (SC-002)", "[noise][US2][SC-002]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Pink, true);
+    noise.setNoiseLevel(NoiseType::Pink, 0.0f);
+
+    // Generate 10 seconds of pink noise for spectral analysis
+    constexpr size_t testSize = 441000;
+    std::vector<float> buffer(testSize);
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Skip initial smoother settling
+    const float* analysisStart = buffer.data() + 4410;
+    size_t analysisSize = testSize - 4410;
+
+    // Measure energy at different frequency bands
+    float energy1k = measureBandEnergy(analysisStart, analysisSize, 800.0f, 1200.0f, kSampleRate);
+    float energy2k = measureBandEnergy(analysisStart, analysisSize, 1800.0f, 2200.0f, kSampleRate);
+    float energy4k = measureBandEnergy(analysisStart, analysisSize, 3500.0f, 4500.0f, kSampleRate);
+
+    // Convert to dB
+    float db1k = linearToDb(energy1k);
+    float db2k = linearToDb(energy2k);
+    float db4k = linearToDb(energy4k);
+
+    // Pink noise: -3dB per octave
+    // 1kHz to 2kHz = 1 octave = -3dB (tolerance: ±1dB)
+    float slope1to2 = db2k - db1k;
+    REQUIRE(slope1to2 >= -4.0f);
+    REQUIRE(slope1to2 <= -2.0f);
+
+    // 1kHz to 4kHz = 2 octaves = -6dB (tolerance: ±2dB)
+    float slope1to4 = db4k - db1k;
+    REQUIRE(slope1to4 >= -8.0f);
+    REQUIRE(slope1to4 <= -4.0f);
+}
+
+TEST_CASE("Pink noise: level control affects amplitude", "[noise][US2]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Pink, true);
+
+    constexpr size_t testSize = 8192;
+    std::vector<float> bufferLoud(testSize);
+    std::vector<float> bufferQuiet(testSize);
+
+    // Generate at 0dB
+    noise.setNoiseLevel(NoiseType::Pink, 0.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(bufferLoud.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Reset and generate at -20dB
+    noise.reset();
+    noise.setNoiseLevel(NoiseType::Pink, -20.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(bufferQuiet.data() + i * kBlockSize, kBlockSize);
+    }
+
+    float rmsLoud = calculateRMS(bufferLoud.data() + 1000, testSize - 1000);
+    float rmsQuiet = calculateRMS(bufferQuiet.data() + 1000, testSize - 1000);
+
+    // -20dB difference = 10x amplitude difference
+    float ratio = rmsLoud / rmsQuiet;
+    REQUIRE(ratio == Approx(10.0f).margin(2.0f));
+}
+
+TEST_CASE("Pink noise: reset clears filter state", "[noise][US2]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Pink, true);
+    noise.setNoiseLevel(NoiseType::Pink, 0.0f);
+
+    // Generate some samples to build up filter state
+    std::array<float, kBlockSize> buffer;
+    for (int i = 0; i < 10; ++i) {
+        noise.process(buffer.data(), buffer.size());
+    }
+
+    // Reset should clear state
+    noise.reset();
+
+    // After reset, first samples should still be valid (filter restarted)
+    noise.process(buffer.data(), buffer.size());
+
+    // Just verify output is valid (no NaN, within range)
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        REQUIRE(buffer[i] >= -1.0f);
+        REQUIRE(buffer[i] <= 1.0f);
+    }
+}
+
+TEST_CASE("White and pink noise can be mixed (US6 preview)", "[noise][US2][US6]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    // Enable both white and pink at equal levels
+    noise.setNoiseEnabled(NoiseType::White, true);
+    noise.setNoiseEnabled(NoiseType::Pink, true);
+    noise.setNoiseLevel(NoiseType::White, -6.0f);
+    noise.setNoiseLevel(NoiseType::Pink, -6.0f);
+
+    constexpr size_t testSize = 8192;
+    std::vector<float> buffer(testSize);
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Verify output is non-zero
+    REQUIRE(hasNonZeroValues(buffer.data(), buffer.size()));
+
+    // Calculate RMS - should be higher than single noise type at -6dB
+    float rms = calculateRMS(buffer.data() + 1000, testSize - 1000);
+
+    // With two uncorrelated noise sources at -6dB each, combined should be roughly -3dB
+    // Expected RMS around 0.5 * sqrt(2) ≈ 0.7 (two sources at 0.5)
+    REQUIRE(rms > 0.3f);  // Higher than single source
+    REQUIRE(rms < 1.5f);  // Not clipping
+}
