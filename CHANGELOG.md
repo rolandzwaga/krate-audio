@@ -5,6 +5,97 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.12] - 2025-12-23
+
+### Added
+
+- **Layer 2 DSP Processor: DynamicsProcessor** (`src/dsp/processors/dynamics_processor.h`)
+  - Real-time compressor/limiter composing EnvelopeFollower, OnePoleSmoother, DelayLine, and Biquad
+  - Full compressor feature set with 8 user stories:
+    - Threshold control [-60, 0 dB] with hard/soft knee transition
+    - Ratio control [1:1 to 100:1] (1:1 = bypass, 100:1 = limiter mode)
+    - Soft knee [0-24 dB] with quadratic interpolation for smooth transition
+    - Attack time [0.1-500ms] with EnvelopeFollower timing
+    - Release time [1-5000ms] with configurable decay
+    - Makeup gain [-24, +24 dB] with auto-makeup option
+    - Detection mode: RMS (program material) or Peak (transient catching)
+    - Sidechain highpass filter [20-500Hz] to reduce bass pumping
+    - Lookahead [0-10ms] with accurate latency reporting
+  - Gain reduction metering via `getCurrentGainReduction()` (negative dB)
+  - Auto-makeup formula: `-threshold * (1 - 1/ratio)`
+  - Per-sample processing (`processSample()`) and block processing (`process()`)
+  - Real-time safe: `noexcept`, no allocations in `process()`
+  - NaN/Infinity input handling with denormal flushing
+
+- **Comprehensive test suite** (91 assertions across 39 test cases)
+  - US1: Basic compression with threshold/ratio (8 tests)
+  - US2: Attack/release timing verification (6 tests)
+  - US3: Knee control - hard vs soft (6 tests)
+  - US4: Makeup gain - manual and auto (4 tests)
+  - US5: Detection mode - RMS vs Peak (2 tests)
+  - US6: Sidechain filtering effectiveness (3 tests)
+  - US7: Gain reduction metering accuracy (2 tests)
+  - US8: Lookahead delay and latency reporting (5 tests)
+  - Click-free operation verification
+  - Real-time safety verification (noexcept static_assert)
+
+### Technical Details
+
+- **Gain reduction formula** (hard knee):
+  - `GR = (inputLevel_dB - threshold) * (1 - 1/ratio)`
+  - Example: -10dB input, -20dB threshold, 4:1 ratio → 7.5dB GR
+- **Soft knee formula**:
+  - Quadratic interpolation in region `[threshold - knee/2, threshold + knee/2]`
+  - Smooth transition from no compression to full ratio
+- **Auto-makeup formula**:
+  - `makeup = -threshold * (1 - 1/ratio)`
+  - Compensates for average gain reduction at threshold level
+- **Dependencies** (Layer 1-2 primitives):
+  - `EnvelopeFollower` - Level detection (peer Layer 2)
+  - `OnePoleSmoother` - Click-free gain reduction smoothing
+  - `DelayLine` - Lookahead audio delay
+  - `Biquad` - Sidechain highpass filter
+  - `dbToGain()` / `gainToDb()` - dB/linear conversion
+- **Namespace**: `Iterum::DSP` (Layer 2 DSP processors)
+- **Constitution compliance**: Principles II (RT Safety), III (Modern C++), IX (Layered Architecture), X (DSP Constraints), XII (Test-First), XIII (Architecture Docs), XV (Honest Completion)
+
+### Usage
+
+```cpp
+#include "dsp/processors/dynamics_processor.h"
+
+using namespace Iterum::DSP;
+
+DynamicsProcessor comp;
+
+// In prepare() - allocates buffers
+comp.prepare(44100.0, 512);
+comp.setThreshold(-20.0f);     // -20 dB threshold
+comp.setRatio(4.0f);           // 4:1 ratio
+comp.setKneeWidth(6.0f);       // 6 dB soft knee
+comp.setAttackTime(10.0f);     // 10ms attack
+comp.setReleaseTime(100.0f);   // 100ms release
+comp.setAutoMakeup(true);      // Automatic level compensation
+
+// Enable sidechain HPF to reduce bass pumping
+comp.setSidechainEnabled(true);
+comp.setSidechainCutoff(80.0f);
+
+// In processBlock() - real-time safe
+comp.process(buffer, numSamples);
+
+// Read gain reduction for UI metering
+float grDb = comp.getCurrentGainReduction();  // e.g., -7.5
+
+// Limiter mode with lookahead
+comp.setThreshold(-0.3f);
+comp.setRatio(100.0f);
+comp.setLookahead(5.0f);       // 5ms lookahead
+size_t latency = comp.getLatency();  // Report to host
+```
+
+---
+
 ## [0.0.11] - 2025-12-23
 
 ### Added
