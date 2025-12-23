@@ -100,6 +100,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/db_utils_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/oversampler_test.cpp
+        unit/primitives/delay_line_test.cpp
+        unit/primitives/lfo_test.cpp
+        unit/primitives/biquad_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
