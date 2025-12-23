@@ -45,11 +45,12 @@ enum class NoiseType : uint8_t {
     Pink,           ///< -3dB/octave pink noise (Paul Kellet filter)
     TapeHiss,       ///< Signal-dependent tape hiss with high-frequency emphasis
     VinylCrackle,   ///< Impulsive clicks/pops with optional surface noise
-    Asperity        ///< Tape head contact noise varying with signal level
+    Asperity,       ///< Tape head contact noise varying with signal level
+    Brown           ///< -6dB/octave brown/red noise (integrated white noise)
 };
 
 /// @brief Number of noise types available
-constexpr size_t kNumNoiseTypes = 5;
+constexpr size_t kNumNoiseTypes = 6;
 
 // =============================================================================
 // PinkNoiseFilter (Internal)
@@ -231,6 +232,9 @@ public:
 
         // Reset cached envelope value
         lastEnvelopeValue_ = 0.0f;
+
+        // Reset brown noise integrator
+        brownPrevious_ = 0.0f;
     }
 
     // =========================================================================
@@ -455,6 +459,22 @@ private:
             sample += whiteNoise * asperityGain * modulation;
         }
 
+        // Brown noise (US7) - integrated white noise with leaky integrator (-6dB/octave)
+        float brownGain = levelSmoothers_[static_cast<size_t>(NoiseType::Brown)].process();
+        if (noiseEnabled_[static_cast<size_t>(NoiseType::Brown)]) {
+            // Leaky integrator: brown[n] = leak * brown[n-1] + (1-leak) * white[n]
+            // Leak coefficient ~0.98-0.99 for -6dB/octave slope
+            constexpr float kBrownLeak = 0.98f;
+            brownPrevious_ = kBrownLeak * brownPrevious_ + (1.0f - kBrownLeak) * whiteNoise;
+
+            // Normalize and clamp output to [-1, 1] range
+            // The integrator has lower variance, so boost slightly for reasonable level
+            float brownNoise = brownPrevious_ * 5.0f;
+            brownNoise = std::clamp(brownNoise, -1.0f, 1.0f);
+
+            sample += brownNoise * brownGain;
+        }
+
         // Apply master level
         float masterGain = masterSmoother_.process();
         return sample * masterGain;
@@ -480,9 +500,9 @@ private:
     // Per-noise-type configuration
     std::array<float, kNumNoiseTypes> noiseLevels_ = {
         kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb,
-        kDefaultLevelDb, kDefaultLevelDb
+        kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb
     };
-    std::array<bool, kNumNoiseTypes> noiseEnabled_ = {false, false, false, false, false};
+    std::array<bool, kNumNoiseTypes> noiseEnabled_ = {false, false, false, false, false, false};
     std::array<OnePoleSmoother, kNumNoiseTypes> levelSmoothers_;
 
     // Master level
@@ -512,6 +532,9 @@ private:
 
     // Cached envelope value for signal-dependent noise
     float lastEnvelopeValue_ = 0.0f;
+
+    // Brown noise state (leaky integrator)
+    float brownPrevious_ = 0.0f;
 };
 
 } // namespace DSP

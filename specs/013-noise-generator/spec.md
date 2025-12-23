@@ -106,6 +106,155 @@ A DSP developer needs to blend multiple noise types simultaneously with independ
 
 ---
 
+### User Story 7 - Brown/Red Noise (Priority: P7)
+
+A DSP developer needs brown noise (-6dB/octave, 1/f² spectrum) for deep, rumbling ambience similar to thunder or ocean waves.
+
+**Why this priority**: Brown noise completes the colored noise spectrum and is essential for sub-bass character and natural environmental sounds.
+
+**Independent Test**: Can be tested by generating brown noise and performing spectral analysis to verify the -6dB/octave slope characteristic.
+
+**Acceptance Scenarios**:
+
+1. **Given** a prepared NoiseGenerator with brown noise selected, **When** noise is generated for 1 second, **Then** output samples are in the range [-1.0, 1.0]
+2. **Given** brown noise output, **When** spectral analysis compares energy at 1kHz vs 2kHz, **Then** energy at 2kHz is approximately 6dB lower than at 1kHz
+3. **Given** brown noise output over the audible range, **When** measuring the spectral slope, **Then** the slope is -6dB/octave within 1dB tolerance
+
+---
+
+### User Story 8 - Blue Noise (Priority: P8)
+
+A DSP developer needs blue noise (+3dB/octave spectrum) for bright, crisp character suitable for hi-hat and cymbal synthesis.
+
+**Why this priority**: Blue noise provides the bright counterpart to pink noise, completing the spectral slope options.
+
+**Independent Test**: Can be tested by generating blue noise and verifying the +3dB/octave slope via spectral analysis.
+
+**Acceptance Scenarios**:
+
+1. **Given** a prepared NoiseGenerator with blue noise selected, **When** noise is generated, **Then** output samples are in the range [-1.0, 1.0]
+2. **Given** blue noise output, **When** spectral analysis compares energy at 1kHz vs 2kHz, **Then** energy at 2kHz is approximately 3dB higher than at 1kHz
+3. **Given** blue noise output, **When** listening, **Then** the noise sounds brighter/crisper than white noise
+
+---
+
+### User Story 9 - Violet Noise (Priority: P9)
+
+A DSP developer needs violet noise (+6dB/octave, differentiated white noise) for very bright character and dithering applications.
+
+**Why this priority**: Violet noise is useful for specialized applications like dithering and air/breath simulation.
+
+**Independent Test**: Can be tested by generating violet noise and verifying the +6dB/octave slope.
+
+**Acceptance Scenarios**:
+
+1. **Given** a prepared NoiseGenerator with violet noise selected, **When** noise is generated, **Then** output samples are in the range [-1.0, 1.0]
+2. **Given** violet noise output, **When** spectral analysis compares energy at 1kHz vs 2kHz, **Then** energy at 2kHz is approximately 6dB higher than at 1kHz
+3. **Given** violet noise, **When** comparing to blue noise, **Then** violet noise sounds even brighter/harsher
+
+---
+
+### User Story 10 - Grey Noise (Priority: P10)
+
+A DSP developer needs grey noise (inverse A-weighting curve) that sounds equally loud across all frequencies to human perception.
+
+**Why this priority**: Grey noise is useful for acoustic testing and as a psychoacoustically balanced reference noise.
+
+**Independent Test**: Can be tested by generating grey noise and verifying the spectral shape matches an inverted A-weighting curve.
+
+**Acceptance Scenarios**:
+
+1. **Given** a prepared NoiseGenerator with grey noise selected, **When** noise is generated, **Then** output samples are in the range [-1.0, 1.0]
+2. **Given** grey noise output, **When** measuring energy at 100Hz, 1kHz, and 10kHz, **Then** perceived loudness is approximately equal (following ISO 226 equal-loudness contours)
+3. **Given** grey noise, **When** listening, **Then** it sounds more balanced than white noise which appears bright
+
+---
+
+### User Story 11 - Velvet Noise (Priority: P11)
+
+A DSP developer needs velvet noise (sparse random impulses) for smooth noise character and efficient reverb algorithms.
+
+**Why this priority**: Velvet noise is perceptually smoother than white noise and enables efficient time-domain convolution for reverb.
+
+**Independent Test**: Can be tested by generating velvet noise at various densities and verifying impulse sparsity and distribution.
+
+**Acceptance Scenarios**:
+
+1. **Given** a prepared NoiseGenerator with velvet noise at 1000 impulses/second, **When** noise is generated for 1 second, **Then** approximately 1000 non-zero samples exist
+2. **Given** velvet noise output, **When** analyzing impulse polarity, **Then** impulses are randomly positive or negative with approximately 50/50 distribution
+3. **Given** velvet noise at high density (10000+ impulses/sec), **When** listening, **Then** it sounds similar to white noise but perceptually smoother
+4. **Given** velvet noise density parameter, **When** adjusting from 100 to 10000 impulses/sec, **Then** character transitions from sparse clicks to smooth noise
+
+---
+
+### User Story 12 - Vinyl Rumble (Priority: P12)
+
+A DSP developer needs vinyl rumble (low-frequency motor/platter noise) to complement vinyl crackle for authentic record player emulation.
+
+**Why this priority**: Rumble is a key component of vinyl character, providing the subsonic foundation that crackle lacks.
+
+**Independent Test**: Can be tested by generating rumble and verifying energy concentration below 100Hz.
+
+**Acceptance Scenarios**:
+
+1. **Given** a prepared NoiseGenerator with vinyl rumble enabled, **When** noise is generated, **Then** energy is concentrated below 100Hz
+2. **Given** vinyl rumble with motor speed parameter, **When** set to 33 RPM, **Then** fundamental rumble frequency is approximately 0.55Hz (33/60)
+3. **Given** vinyl rumble output, **When** spectral analysis is performed, **Then** harmonics of the rotation frequency are visible
+4. **Given** vinyl rumble combined with vinyl crackle, **When** listening, **Then** it provides authentic vintage record player character
+
+---
+
+### User Story 13 - Wow & Flutter (Priority: P13)
+
+A DSP developer needs wow and flutter modulation for authentic tape speed variation effects.
+
+**Why this priority**: Wow & flutter are essential for tape emulation, providing the characteristic pitch instability of analog playback.
+
+**Independent Test**: Can be tested by processing a test tone and measuring pitch deviation over time.
+
+**Acceptance Scenarios**:
+
+1. **Given** wow enabled at 0.5Hz rate and 0.1% depth, **When** processing a 1kHz sine wave, **Then** output pitch varies ±1Hz at 0.5Hz rate
+2. **Given** flutter enabled at 10Hz rate and 0.05% depth, **When** processing audio, **Then** rapid pitch variations are measurable
+3. **Given** wow and flutter combined, **When** processing audio, **Then** both slow and fast pitch variations are present
+4. **Given** wow/flutter with randomization, **When** analyzing modulation, **Then** rate and depth vary naturally (not perfectly periodic)
+
+---
+
+### User Story 14 - Modulation Noise (Priority: P14)
+
+A DSP developer needs modulation noise (signal-correlated tape noise) that increases with recording level, distinct from tape hiss.
+
+**Why this priority**: Modulation noise is a key tape artifact that cannot be reduced by noise reduction systems, adding authenticity.
+
+**Independent Test**: Can be tested by processing signals at varying levels and measuring noise that scales with signal amplitude.
+
+**Acceptance Scenarios**:
+
+1. **Given** modulation noise enabled, **When** processing silence, **Then** no modulation noise is produced (unlike tape hiss which has a floor)
+2. **Given** modulation noise with loud input signal, **When** measuring noise floor, **Then** noise is proportional to signal level
+3. **Given** modulation noise, **When** comparing to tape hiss on the same signal, **Then** modulation noise tracks signal amplitude while hiss remains constant
+4. **Given** modulation noise roughness parameter, **When** increasing roughness, **Then** the noise becomes more granular/gritty
+
+---
+
+### User Story 15 - Radio Static (Priority: P15)
+
+A DSP developer needs radio static (atmospheric/interference noise) for lo-fi and transmission effects.
+
+**Why this priority**: Radio static provides unique character for shortwave, AM radio, and communication effects.
+
+**Independent Test**: Can be tested by generating static and verifying band-limited noise with characteristic crackling.
+
+**Acceptance Scenarios**:
+
+1. **Given** a prepared NoiseGenerator with radio static enabled, **When** noise is generated, **Then** output has band-limited character (not full spectrum)
+2. **Given** radio static with interference parameter, **When** increasing interference, **Then** more crackles and pops appear
+3. **Given** radio static with fading parameter, **When** enabling fading, **Then** amplitude modulates slowly simulating ionospheric effects
+4. **Given** radio static bandwidth parameter, **When** set to "AM radio", **Then** frequency content is limited to ~5kHz
+
+---
+
 ### Edge Cases
 
 - What happens when all noise levels are set to 0 (off)? Output should be silence.
@@ -157,9 +306,47 @@ A DSP developer needs to blend multiple noise types simultaneously with independ
 - **FR-019**: System MUST provide reset() to clear internal state and reseed random generators
 - **FR-020**: System MUST be composable with other Layer 2 processors
 
+**Extended Colored Noise (US7-US10):**
+
+- **FR-021**: System MUST generate brown/red noise with -6dB/octave spectral rolloff (1/f² spectrum)
+- **FR-022**: System MUST generate blue noise with +3dB/octave spectral rise
+- **FR-023**: System MUST generate violet noise with +6dB/octave spectral rise (differentiated white noise)
+- **FR-024**: System MUST generate grey noise following inverse A-weighting curve for perceptually flat loudness
+
+**Velvet Noise (US11):**
+
+- **FR-025**: System MUST generate velvet noise as sparse random impulses with configurable density (100-20000 impulses/sec)
+- **FR-026**: Velvet noise impulses MUST have random polarity (approximately 50% positive, 50% negative)
+
+**Vinyl Rumble (US12):**
+
+- **FR-027**: System MUST generate vinyl rumble with energy concentrated below 100Hz
+- **FR-028**: Vinyl rumble MUST support configurable motor speed (33, 45, 78 RPM) affecting fundamental frequency
+- **FR-029**: Vinyl rumble MUST include harmonics of the rotation frequency
+
+**Wow & Flutter (US13):**
+
+- **FR-030**: System MUST generate wow modulation (slow pitch variation, <4Hz rate, configurable depth 0-1%)
+- **FR-031**: System MUST generate flutter modulation (fast pitch variation, 4-100Hz rate, configurable depth 0-0.5%)
+- **FR-032**: Wow & flutter MUST support randomization of rate and depth for natural variation
+- **FR-033**: Wow & flutter MUST be implementable via modulated delay line
+
+**Modulation Noise (US14):**
+
+- **FR-034**: System MUST generate modulation noise that scales proportionally with input signal level
+- **FR-035**: Modulation noise MUST produce zero output when input is silent (no floor noise)
+- **FR-036**: Modulation noise MUST have configurable roughness/granularity parameter
+
+**Radio Static (US15):**
+
+- **FR-037**: System MUST generate radio static with band-limited frequency content
+- **FR-038**: Radio static MUST support configurable bandwidth (AM ~5kHz, FM ~15kHz, shortwave variable)
+- **FR-039**: Radio static MUST include optional atmospheric crackle/interference
+- **FR-040**: Radio static MUST support optional slow amplitude fading (ionospheric simulation)
+
 ### Key Entities
 
-- **NoiseType**: Enumeration of available noise types (White, Pink, TapeHiss, VinylCrackle, Asperity)
+- **NoiseType**: Enumeration of available noise types (White, Pink, TapeHiss, VinylCrackle, Asperity, Brown, Blue, Violet, Grey, Velvet, VinylRumble, WowFlutter, ModulationNoise, RadioStatic)
 - **NoiseChannel**: Individual noise generator with type, level, and type-specific parameters
 - **NoiseGenerator**: Main processor containing multiple noise channels with mixing and output control
 
@@ -175,6 +362,19 @@ A DSP developer needs to blend multiple noise types simultaneously with independ
 - **SC-006**: Vinyl crackle produces visually distinct impulses when viewed on a waveform display
 - **SC-007**: Signal-dependent noise types (tape hiss, asperity) show clear modulation when input signal varies
 - **SC-008**: Multiple noise types mixed simultaneously produce perceptually correct blend
+
+**Extended Noise Success Criteria:**
+
+- **SC-009**: Brown noise slope of -6dB/octave with maximum deviation of 1dB across 20Hz-20kHz
+- **SC-010**: Blue noise slope of +3dB/octave with maximum deviation of 1dB across 20Hz-20kHz
+- **SC-011**: Violet noise slope of +6dB/octave with maximum deviation of 1dB across 20Hz-20kHz
+- **SC-012**: Grey noise perceived loudness is approximately equal at 100Hz, 1kHz, and 10kHz
+- **SC-013**: Velvet noise at 1000 impulses/sec contains approximately 1000 non-zero samples per second (±10%)
+- **SC-014**: Vinyl rumble energy is >90% concentrated below 100Hz
+- **SC-015**: Wow modulation produces measurable pitch deviation matching configured depth (within 10% accuracy)
+- **SC-016**: Flutter modulation produces measurable pitch deviation at configured rate (within 10% accuracy)
+- **SC-017**: Modulation noise amplitude correlates with input signal level (correlation coefficient >0.8)
+- **SC-018**: Radio static bandwidth matches configured mode (AM <6kHz, FM <16kHz)
 
 ## Assumptions & Existing Components *(mandatory)*
 
@@ -215,7 +415,7 @@ grep -r "crackle" src/
 
 ### Compliance Status
 
-*Verified 2025-12-24. All 41 tests passing with 229,772 assertions.*
+*Phase 1 (US1-US6) verified 2025-12-24. Phase 2 (US7-US15) pending implementation.*
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
@@ -239,6 +439,26 @@ grep -r "crackle" src/
 | FR-018 | ✅ MET | prepare(sampleRate, maxBlockSize) method implemented and tested |
 | FR-019 | ✅ MET | reset() clears all state, reseeds RNG; "reset clears state" tests verify |
 | FR-020 | ✅ MET | Header-only, depends only on Layer 0-1; no VST dependencies |
+| FR-021 | ⏳ PENDING | Brown noise (-6dB/octave) - US7 |
+| FR-022 | ⏳ PENDING | Blue noise (+3dB/octave) - US8 |
+| FR-023 | ⏳ PENDING | Violet noise (+6dB/octave) - US9 |
+| FR-024 | ⏳ PENDING | Grey noise (inverse A-weighting) - US10 |
+| FR-025 | ⏳ PENDING | Velvet noise (sparse impulses) - US11 |
+| FR-026 | ⏳ PENDING | Velvet noise polarity distribution - US11 |
+| FR-027 | ⏳ PENDING | Vinyl rumble (<100Hz) - US12 |
+| FR-028 | ⏳ PENDING | Vinyl rumble motor speed - US12 |
+| FR-029 | ⏳ PENDING | Vinyl rumble harmonics - US12 |
+| FR-030 | ⏳ PENDING | Wow modulation - US13 |
+| FR-031 | ⏳ PENDING | Flutter modulation - US13 |
+| FR-032 | ⏳ PENDING | Wow/flutter randomization - US13 |
+| FR-033 | ⏳ PENDING | Wow/flutter via delay line - US13 |
+| FR-034 | ⏳ PENDING | Modulation noise signal-proportional - US14 |
+| FR-035 | ⏳ PENDING | Modulation noise zero floor - US14 |
+| FR-036 | ⏳ PENDING | Modulation noise roughness param - US14 |
+| FR-037 | ⏳ PENDING | Radio static band-limited - US15 |
+| FR-038 | ⏳ PENDING | Radio static bandwidth modes - US15 |
+| FR-039 | ⏳ PENDING | Radio static atmospheric crackle - US15 |
+| FR-040 | ⏳ PENDING | Radio static fading - US15 |
 | SC-001 | ✅ MET | "White noise spectral flatness" test verifies ±3dB across bands |
 | SC-002 | ✅ MET | Paul Kellet filter achieves -3dB/octave; spectral tests verify slope |
 | SC-003 | ✅ MET | Pink filter normalizes to [-1,1]; "output range" tests verify clamping |
@@ -247,9 +467,20 @@ grep -r "crackle" src/
 | SC-006 | ✅ MET | "produces visually distinct impulses" test verifies click detection |
 | SC-007 | ✅ MET | US3/US5 modulation tests verify envelope following behavior |
 | SC-008 | ✅ MET | "Multi-noise mixing blends correctly" tests verify combined output |
+| SC-009 | ⏳ PENDING | Brown noise slope verification - US7 |
+| SC-010 | ⏳ PENDING | Blue noise slope verification - US8 |
+| SC-011 | ⏳ PENDING | Violet noise slope verification - US9 |
+| SC-012 | ⏳ PENDING | Grey noise perceptual balance - US10 |
+| SC-013 | ⏳ PENDING | Velvet noise impulse count - US11 |
+| SC-014 | ⏳ PENDING | Vinyl rumble frequency concentration - US12 |
+| SC-015 | ⏳ PENDING | Wow modulation accuracy - US13 |
+| SC-016 | ⏳ PENDING | Flutter modulation accuracy - US13 |
+| SC-017 | ⏳ PENDING | Modulation noise correlation - US14 |
+| SC-018 | ⏳ PENDING | Radio static bandwidth accuracy - US15 |
 
 **Status Key:**
 - ✅ MET: Requirement fully satisfied with test evidence
+- ⏳ PENDING: Not yet implemented
 - ❌ NOT MET: Requirement not satisfied (spec is NOT complete)
 - ⚠️ PARTIAL: Partially met with documented gap
 - 🔄 DEFERRED: Explicitly moved to future work with user approval
@@ -258,18 +489,18 @@ grep -r "crackle" src/
 
 *All items must be checked before claiming completion:*
 
-- [x] All FR-xxx requirements verified against implementation
-- [x] All SC-xxx success criteria measured and documented
+- [ ] All FR-xxx requirements verified against implementation
+- [ ] All SC-xxx success criteria measured and documented
 - [x] No test thresholds relaxed from spec requirements
 - [x] No placeholder values or TODO comments in new code
 - [x] No features quietly removed from scope
-- [x] User would NOT feel cheated by this completion claim
+- [ ] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: COMPLETE
+**Overall Status**: IN PROGRESS (Phase 2)
 
-All 20 functional requirements and 8 success criteria are fully met with test evidence. Implementation includes:
+**Phase 1 Complete (US1-US6):** 20 functional requirements and 8 success criteria met with test evidence:
 - 5 noise types (White, Pink, TapeHiss, VinylCrackle, Asperity)
 - Signal-dependent modulation via EnvelopeFollower
 - Independent level control with 5ms smoothing
@@ -277,4 +508,12 @@ All 20 functional requirements and 8 success criteria are fully met with test ev
 - Real-time safe processing (no allocations)
 - 41 test cases with 229,772 assertions
 
-**Recommendation**: Spec is ready for merge to main branch.
+**Phase 2 Pending (US7-US15):** 20 additional functional requirements and 10 success criteria:
+- Colored noise spectrum (Brown, Blue, Violet, Grey)
+- Velvet noise (sparse impulses)
+- Vinyl rumble (low-frequency motor noise)
+- Wow & Flutter (pitch modulation)
+- Modulation noise (signal-correlated)
+- Radio static (band-limited atmospheric noise)
+
+**Recommendation**: Run `/speckit.tasks` to generate implementation tasks for Phase 2.
