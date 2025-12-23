@@ -4,7 +4,7 @@ This document is the **living inventory** of all functional domains, components,
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document as a final task.
 
-**Last Updated**: 2025-12-23 (011-dynamics-processor)
+**Last Updated**: 2025-12-23 (012-ducking-processor)
 
 ---
 
@@ -1764,6 +1764,154 @@ size_t latency = comp.getLatency();
 
 ---
 
+### DuckingProcessor
+
+| | |
+|---|---|
+| **Purpose** | Sidechain-triggered gain reduction for ducking one audio source when another becomes active |
+| **Location** | [src/dsp/processors/ducking_processor.h](src/dsp/processors/ducking_processor.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.13 (012-ducking-processor) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    // State machine for hold time behavior
+    enum class DuckingState : uint8_t {
+        Idle,     // Sidechain below threshold, no gain reduction
+        Ducking,  // Sidechain above threshold, gain reduction active
+        Holding   // Sidechain dropped, holding before release
+    };
+
+    class DuckingProcessor {
+    public:
+        // Constants
+        static constexpr float kMinThreshold = -60.0f;
+        static constexpr float kMaxThreshold = 0.0f;
+        static constexpr float kDefaultThreshold = -30.0f;
+        static constexpr float kMinDepth = -48.0f;
+        static constexpr float kMaxDepth = 0.0f;
+        static constexpr float kDefaultDepth = -12.0f;
+        static constexpr float kMinAttackMs = 0.1f;
+        static constexpr float kMaxAttackMs = 500.0f;
+        static constexpr float kMinReleaseMs = 1.0f;
+        static constexpr float kMaxReleaseMs = 5000.0f;
+        static constexpr float kMinHoldMs = 0.0f;
+        static constexpr float kMaxHoldMs = 1000.0f;
+        static constexpr float kMinRange = -48.0f;
+        static constexpr float kMaxRange = 0.0f;
+        static constexpr float kMinSidechainHz = 20.0f;
+        static constexpr float kMaxSidechainHz = 500.0f;
+
+        // Lifecycle (call before audio processing)
+        void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+        void reset() noexcept;
+
+        // Dual-input processing (real-time safe)
+        [[nodiscard]] float processSample(float main, float sidechain) noexcept;
+        void process(const float* main, const float* sidechain,
+                     float* output, size_t numSamples) noexcept;
+        void process(float* mainInOut, const float* sidechain,
+                     size_t numSamples) noexcept;
+
+        // Parameter setters (real-time safe)
+        void setThreshold(float dB) noexcept;
+        void setDepth(float dB) noexcept;
+        void setAttackTime(float ms) noexcept;
+        void setReleaseTime(float ms) noexcept;
+        void setHoldTime(float ms) noexcept;
+        void setRange(float dB) noexcept;
+        void setSidechainFilterEnabled(bool enabled) noexcept;
+        void setSidechainFilterCutoff(float hz) noexcept;
+
+        // Parameter getters
+        [[nodiscard]] float getThreshold() const noexcept;
+        [[nodiscard]] float getDepth() const noexcept;
+        [[nodiscard]] float getAttackTime() const noexcept;
+        [[nodiscard]] float getReleaseTime() const noexcept;
+        [[nodiscard]] float getHoldTime() const noexcept;
+        [[nodiscard]] float getRange() const noexcept;
+        [[nodiscard]] bool isSidechainFilterEnabled() const noexcept;
+        [[nodiscard]] float getSidechainFilterCutoff() const noexcept;
+
+        // Metering
+        [[nodiscard]] float getCurrentGainReduction() const noexcept;
+        [[nodiscard]] size_t getLatency() const noexcept;  // Always 0
+    };
+}
+```
+
+**Behavior**:
+- `prepare()` - Configures envelope follower, gain smoother, sidechain filter
+- `reset()` - Clears all state (envelope, smoother, filter, hold timer)
+- `processSample()` - Dual-input processing: main audio + sidechain trigger
+- `getCurrentGainReduction()` - Returns current GR in negative dB (e.g., -8.5 dB)
+
+**State Machine**:
+```
+          sidechain exceeds threshold
+Idle ──────────────────────────────────────► Ducking
+  ▲                                             │
+  │      hold expired                           │ sidechain drops below threshold
+  │                                             ▼
+  └─────────────────────────────────────── Holding
+           (after holdSamplesTotal_)
+```
+
+**Gain Reduction Formula**:
+```
+overshoot = envelopeDb - thresholdDb
+factor = clamp(overshoot / 10.0, 0.0, 1.0)  // Full depth at 10dB overshoot
+targetGR = depth * factor
+actualGR = max(targetGR, range)  // Range limits maximum attenuation
+```
+
+**Dependencies** (Layer 1-2 primitives):
+- `EnvelopeFollower` - Sidechain level detection (peer Layer 2 component)
+- `OnePoleSmoother` - Gain reduction smoothing for click-free transitions
+- `Biquad` - Sidechain highpass filter (removes bass from triggering)
+- `dbToGain()` / `gainToDb()` - dB/linear conversion
+
+**When to use**:
+
+| Use Case | Configuration |
+|----------|---------------|
+| Voiceover ducking (podcast) | -40dB threshold, -15dB depth, 5ms attack, 500ms release, 200ms hold |
+| DJ sidechain pumping | -20dB threshold, -24dB depth, 1ms attack, 100ms release, 0ms hold |
+| Subtle background reduction | -35dB threshold, -6dB depth, 50ms attack, 1000ms release, 500ms hold |
+| Range-limited ducking | -30dB threshold, -48dB depth, -12dB range (limits max attenuation) |
+| Bass-avoiding ducking | Enable sidechain HPF at 200Hz to ignore kick drums |
+
+**Example**:
+```cpp
+#include "dsp/processors/ducking_processor.h"
+using namespace Iterum::DSP;
+
+DuckingProcessor ducker;
+
+// In prepare() - allocates buffers
+ducker.prepare(44100.0, 512);
+ducker.setThreshold(-30.0f);
+ducker.setDepth(-12.0f);
+ducker.setAttackTime(10.0f);
+ducker.setReleaseTime(200.0f);
+ducker.setHoldTime(100.0f);
+
+// Enable sidechain HPF to focus on voice frequencies
+ducker.setSidechainFilterEnabled(true);
+ducker.setSidechainFilterCutoff(150.0f);
+
+// In processBlock() - real-time safe
+// mainBuffer = music, sidechainBuffer = voice
+ducker.process(mainBuffer, sidechainBuffer, outputBuffer, numSamples);
+
+// For metering UI
+float grDb = ducker.getCurrentGainReduction();  // e.g., -8.5
+```
+
+---
+
 ## Layer 3: System Components
 
 *No components yet. Future: Delay Engine, Feedback Network, Modulation Matrix*
@@ -1864,3 +2012,10 @@ Quick lookup by functionality:
 | Enable auto-makeup gain | `DynamicsProcessor::setAutoMakeup()` | processors/dynamics_processor.h |
 | Enable lookahead | `DynamicsProcessor::setLookahead()` | processors/dynamics_processor.h |
 | Get gain reduction (metering) | `DynamicsProcessor::getCurrentGainReduction()` | processors/dynamics_processor.h |
+| Duck audio with sidechain | `Iterum::DSP::DuckingProcessor` | processors/ducking_processor.h |
+| Set ducking threshold | `DuckingProcessor::setThreshold()` | processors/ducking_processor.h |
+| Set ducking depth | `DuckingProcessor::setDepth()` | processors/ducking_processor.h |
+| Set hold time | `DuckingProcessor::setHoldTime()` | processors/ducking_processor.h |
+| Set range limit | `DuckingProcessor::setRange()` | processors/ducking_processor.h |
+| Enable sidechain HPF | `DuckingProcessor::setSidechainFilterEnabled()` | processors/ducking_processor.h |
+| Get ducking GR (metering) | `DuckingProcessor::getCurrentGainReduction()` | processors/ducking_processor.h |
