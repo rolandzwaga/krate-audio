@@ -5,6 +5,112 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.8] - 2025-12-23
+
+### Added
+
+- **Layer 1 DSP Primitive: FFT Processor** (`src/dsp/primitives/fft.h`)
+  - Radix-2 Cooley-Tukey FFT implementation for spectral processing
+  - Forward real-to-complex FFT (`forward()`)
+  - Inverse complex-to-real FFT (`inverse()`)
+  - Power-of-2 sizes: 256, 512, 1024, 2048, 4096, 8192
+  - O(N log N) time complexity
+  - Real-time safe: `noexcept`, pre-allocated twiddle factors and bit-reversal table
+  - N/2+1 complex bins output for N-point real FFT
+
+- **Window Functions** (`src/dsp/primitives/window_functions.h`)
+  - Hann window - cosine-based, good frequency resolution
+  - Hamming window - reduced first sidelobe
+  - Blackman window - excellent sidelobe rejection (-58 dB)
+  - Kaiser window (β=9.0) - configurable main lobe/sidelobe tradeoff
+  - All windows normalized for COLA (Constant Overlap-Add) reconstruction
+  - Pre-computed lookup tables for real-time performance
+
+- **STFT (Short-Time Fourier Transform)** (`src/dsp/primitives/stft.h`)
+  - Frame-by-frame spectral analysis
+  - Configurable hop size (50%/75% overlap)
+  - Window application before FFT
+  - Continuous streaming audio input
+  - `analyze()` returns spectrum when frame is ready
+  - `reset()` clears internal state without reallocation
+
+- **Overlap-Add Synthesis** (`src/dsp/primitives/stft.h`)
+  - Artifact-free audio reconstruction from spectral frames
+  - COLA normalization for perfect reconstruction
+  - Configurable hop size matching analysis
+  - Output accumulator for smooth frame overlap
+  - `synthesize()` accepts spectrum, returns audio when ready
+
+- **SpectralBuffer** (`src/dsp/primitives/spectral_buffer.h`)
+  - Complex spectrum storage and manipulation
+  - Polar access: `getMagnitude()`, `getPhase()`, `setMagnitude()`, `setPhase()`
+  - Cartesian access: `getReal()`, `getImag()`, `setCartesian()`
+  - Raw data access for FFT input/output
+  - Building block for spectral effects (filtering, freeze, morphing)
+
+- **Comprehensive FFT test suite** (421,777 assertions across 287 test cases)
+  - All 6 user stories covered (US1-US6)
+  - Forward FFT frequency bin accuracy (< 1 bin error)
+  - Round-trip reconstruction (< 0.0001% error)
+  - STFT/ISTFT perfect reconstruction (< 0.01% error)
+  - Window function shape verification
+  - O(N log N) complexity verification
+  - Real-time safety verification (noexcept static_assert)
+
+### Technical Details
+
+- **FFT formulas**:
+  - Forward: `X[k] = Σ x[n] * e^(-j2πkn/N)`
+  - Inverse: `x[n] = (1/N) * Σ X[k] * e^(j2πkn/N)`
+  - Twiddle factor: `W_N^k = e^(-j2πk/N) = cos(2πk/N) - j*sin(2πk/N)`
+- **COLA windows**: Hann with 50% overlap, Hann with 75% overlap both sum to constant
+- **Namespace**: `Iterum::DSP` (Layer 1 DSP primitives)
+- **Constitution compliance**: Principles II (RT Safety), III (Modern C++), IX (Layered Architecture), X (DSP Constraints), XII (Test-First), XV (Honest Completion)
+
+### Usage
+
+```cpp
+#include "dsp/primitives/fft.h"
+#include "dsp/primitives/window_functions.h"
+#include "dsp/primitives/stft.h"
+#include "dsp/primitives/spectral_buffer.h"
+
+using namespace Iterum::DSP;
+
+// Basic FFT round-trip
+FFT fft;
+fft.prepare(1024);
+
+std::array<float, 1024> input = { /* audio samples */ };
+SpectralBuffer spectrum;
+spectrum.prepare(1024);
+
+fft.forward(input.data(), spectrum.data());
+// Modify spectrum...
+fft.inverse(spectrum.data(), input.data());
+
+// STFT for continuous spectral processing
+STFT stft;
+stft.prepare(1024, WindowType::Hann, 0.5f);  // 50% overlap
+
+OverlapAdd ola;
+ola.prepare(1024, WindowType::Hann, 0.5f);
+
+// In processBlock()
+for (size_t i = 0; i < numSamples; ++i) {
+    if (stft.analyze(input[i], spectrum)) {
+        // Process spectrum...
+        spectrum.setMagnitude(100, spectrum.getMagnitude(100) * 0.5f);  // Attenuate bin 100
+
+        if (ola.synthesize(spectrum, output[i])) {
+            // Output sample ready
+        }
+    }
+}
+```
+
+---
+
 ## [0.0.7] - 2025-12-23
 
 ### Added
