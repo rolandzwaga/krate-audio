@@ -1400,3 +1400,156 @@ TEST_CASE("Blue noise: reset clears filter state", "[noise][US8]") {
         REQUIRE(buffer[i] <= 1.0f);
     }
 }
+
+// ==============================================================================
+// User Story 9: Violet Noise Generation [US9]
+// ==============================================================================
+
+TEST_CASE("Violet noise: output is zero when disabled", "[noise][US9]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    // Leave violet noise disabled (default)
+    std::array<float, kBlockSize> buffer;
+    buffer.fill(0.5f);
+
+    noise.process(buffer.data(), buffer.size());
+
+    REQUIRE(isAllZeros(buffer.data(), buffer.size()));
+}
+
+TEST_CASE("Violet noise: output is non-zero when enabled", "[noise][US9]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Violet, true);
+    noise.setNoiseLevel(NoiseType::Violet, 0.0f);
+
+    constexpr size_t largeSize = 4096;
+    std::vector<float> buffer(largeSize, 0.0f);
+
+    for (size_t i = 0; i < largeSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    REQUIRE(hasNonZeroValues(buffer.data(), buffer.size()));
+}
+
+TEST_CASE("Violet noise: samples in [-1.0, 1.0] range", "[noise][US9][SC-003]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Violet, true);
+    noise.setNoiseLevel(NoiseType::Violet, 0.0f);
+
+    constexpr size_t testSize = 44100;
+    std::vector<float> buffer(testSize);
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // All samples must be in valid range
+    for (size_t i = 0; i < testSize; ++i) {
+        REQUIRE(buffer[i] >= -1.0f);
+        REQUIRE(buffer[i] <= 1.0f);
+    }
+}
+
+TEST_CASE("Violet noise: setNoiseLevel affects output amplitude", "[noise][US9]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Violet, true);
+
+    constexpr size_t testSize = 8192;
+    std::vector<float> bufferLoud(testSize);
+    std::vector<float> bufferQuiet(testSize);
+
+    // Generate at 0dB
+    noise.setNoiseLevel(NoiseType::Violet, 0.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(bufferLoud.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Reset and generate at -20dB
+    noise.reset();
+    noise.setNoiseLevel(NoiseType::Violet, -20.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(bufferQuiet.data() + i * kBlockSize, kBlockSize);
+    }
+
+    float rmsLoud = calculateRMS(bufferLoud.data() + 1000, testSize - 1000);
+    float rmsQuiet = calculateRMS(bufferQuiet.data() + 1000, testSize - 1000);
+
+    // -20dB difference = 10x amplitude difference
+    float ratio = rmsLoud / rmsQuiet;
+    REQUIRE(ratio == Approx(10.0f).margin(2.0f));
+}
+
+TEST_CASE("Violet noise: spectral slope of +6dB/octave", "[noise][US9][SC-002]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Violet, true);
+    noise.setNoiseLevel(NoiseType::Violet, 0.0f);
+
+    // Generate 10 seconds of violet noise for spectral analysis
+    constexpr size_t testSize = 441000;
+    std::vector<float> buffer(testSize);
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Skip initial smoother settling
+    const float* analysisStart = buffer.data() + 4410;
+    size_t analysisSize = testSize - 4410;
+
+    // Measure energy at different frequency bands
+    float energy1k = measureBandEnergy(analysisStart, analysisSize, 800.0f, 1200.0f, kSampleRate);
+    float energy2k = measureBandEnergy(analysisStart, analysisSize, 1800.0f, 2200.0f, kSampleRate);
+    float energy4k = measureBandEnergy(analysisStart, analysisSize, 3500.0f, 4500.0f, kSampleRate);
+
+    // Convert to dB
+    float db1k = linearToDb(energy1k);
+    float db2k = linearToDb(energy2k);
+    float db4k = linearToDb(energy4k);
+
+    // Violet noise: +6dB per octave (differentiated white noise)
+    // 1kHz to 2kHz = 1 octave = +6dB (tolerance: ±2dB)
+    float slope1to2 = db2k - db1k;
+    REQUIRE(slope1to2 >= 4.0f);
+    REQUIRE(slope1to2 <= 8.0f);
+
+    // 1kHz to 4kHz = 2 octaves = +12dB (tolerance: ±3dB)
+    float slope1to4 = db4k - db1k;
+    REQUIRE(slope1to4 >= 9.0f);
+    REQUIRE(slope1to4 <= 15.0f);
+}
+
+TEST_CASE("Violet noise: reset clears filter state", "[noise][US9]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::Violet, true);
+    noise.setNoiseLevel(NoiseType::Violet, 0.0f);
+
+    // Generate some samples to build up filter state
+    std::array<float, kBlockSize> buffer;
+    for (int i = 0; i < 10; ++i) {
+        noise.process(buffer.data(), buffer.size());
+    }
+
+    // Reset should clear state
+    noise.reset();
+
+    // After reset, first samples should still be valid
+    noise.process(buffer.data(), buffer.size());
+
+    // Verify output is valid (no NaN, within range)
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        REQUIRE(buffer[i] >= -1.0f);
+        REQUIRE(buffer[i] <= 1.0f);
+    }
+}

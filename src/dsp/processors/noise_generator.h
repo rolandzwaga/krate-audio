@@ -47,11 +47,12 @@ enum class NoiseType : uint8_t {
     VinylCrackle,   ///< Impulsive clicks/pops with optional surface noise
     Asperity,       ///< Tape head contact noise varying with signal level
     Brown,          ///< -6dB/octave brown/red noise (integrated white noise)
-    Blue            ///< +3dB/octave blue noise (differentiated white noise)
+    Blue,           ///< +3dB/octave blue noise (differentiated pink noise)
+    Violet          ///< +6dB/octave violet noise (differentiated white noise)
 };
 
 /// @brief Number of noise types available
-constexpr size_t kNumNoiseTypes = 7;
+constexpr size_t kNumNoiseTypes = 8;
 
 // =============================================================================
 // PinkNoiseFilter (Internal)
@@ -239,6 +240,9 @@ public:
 
         // Reset blue noise differentiator
         bluePrevious_ = 0.0f;
+
+        // Reset violet noise differentiator
+        violetPrevious_ = 0.0f;
     }
 
     // =========================================================================
@@ -495,6 +499,21 @@ private:
             sample += blueNoise * blueGain;
         }
 
+        // Violet noise (US9) - differentiated white noise (+6dB/octave)
+        float violetGain = levelSmoothers_[static_cast<size_t>(NoiseType::Violet)].process();
+        if (noiseEnabled_[static_cast<size_t>(NoiseType::Violet)]) {
+            // Differentiate white noise for +6dB/octave
+            float violetNoise = whiteNoise - violetPrevious_;
+            violetPrevious_ = whiteNoise;
+
+            // Scale and clamp to [-1, 1] range
+            // Differentiation emphasizes high frequencies, normalize to maintain levels
+            violetNoise *= 0.5f;
+            violetNoise = std::clamp(violetNoise, -1.0f, 1.0f);
+
+            sample += violetNoise * violetGain;
+        }
+
         // Apply master level
         float masterGain = masterSmoother_.process();
         return sample * masterGain;
@@ -519,10 +538,10 @@ private:
 
     // Per-noise-type configuration
     std::array<float, kNumNoiseTypes> noiseLevels_ = {
-        kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb,
+        kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb,
         kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb
     };
-    std::array<bool, kNumNoiseTypes> noiseEnabled_ = {false, false, false, false, false, false, false};
+    std::array<bool, kNumNoiseTypes> noiseEnabled_ = {false, false, false, false, false, false, false, false};
     std::array<OnePoleSmoother, kNumNoiseTypes> levelSmoothers_;
 
     // Master level
@@ -558,6 +577,9 @@ private:
 
     // Blue noise state (differentiator)
     float bluePrevious_ = 0.0f;
+
+    // Violet noise state (differentiator)
+    float violetPrevious_ = 0.0f;
 };
 
 } // namespace DSP
