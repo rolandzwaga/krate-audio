@@ -5,6 +5,97 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.13] - 2025-12-23
+
+### Added
+
+- **Layer 2 DSP Processor: DuckingProcessor** (`src/dsp/processors/ducking_processor.h`)
+  - Sidechain-triggered gain reduction for ducking audio based on external signal level
+  - Complete feature set with 6 user stories:
+    - Threshold control [-60, 0 dB] with configurable ducking trigger level
+    - Depth control [0, -48 dB] for maximum attenuation amount
+    - Attack time [0.1-500ms] via EnvelopeFollower
+    - Release time [1-5000ms] with smooth recovery
+    - Hold time [0-1000ms] with 3-state machine (Idle → Ducking → Holding)
+    - Range limit [0, -48 dB] to cap maximum attenuation (0 dB = disabled)
+  - Optional sidechain highpass filter [20-500Hz] to ignore bass content in trigger
+  - Dual-input processing API: `processSample(main, sidechain)`
+  - Block processing with separate or in-place output buffers
+  - Gain reduction metering via `getCurrentGainReduction()` (negative dB)
+  - Zero latency (`getLatency()` returns 0)
+  - Real-time safe: `noexcept`, no allocations in `process()`
+  - NaN/Infinity input handling with graceful degradation
+
+- **Comprehensive test suite** (1,493 assertions across 37 test cases)
+  - US1: Basic ducking with threshold/depth (8 tests)
+  - US2: Attack/release timing (6 tests)
+  - US3: Hold time behavior with state machine (5 tests)
+  - US4: Range/maximum attenuation limiting (4 tests)
+  - US5: Sidechain highpass filter (5 tests)
+  - US6: Gain reduction metering accuracy (4 tests)
+  - Click-free transitions (SC-004 verification)
+  - Edge cases (NaN, Inf, silent sidechain)
+
+### Technical Details
+
+- **State machine** for hold time behavior:
+  ```
+  Idle ──(sidechain > threshold)──► Ducking
+    ▲                                  │
+    │  hold expired                    │ sidechain < threshold
+    │                                  ▼
+    └──────────────────────────── Holding
+  ```
+- **Gain reduction formula**:
+  - `overshoot = envelopeDb - thresholdDb`
+  - `factor = clamp(overshoot / 10.0, 0.0, 1.0)` (full depth at 10dB overshoot)
+  - `targetGR = depth * factor`
+  - `actualGR = max(targetGR, range)` (range limits maximum attenuation)
+- **Peak GR tracking**: Stores deepest gain reduction during Ducking state for stable Hold level
+- **Dependencies** (Layer 1-2 primitives):
+  - `EnvelopeFollower` - Sidechain level detection (peer Layer 2)
+  - `OnePoleSmoother` - Click-free gain reduction smoothing
+  - `Biquad` - Sidechain highpass filter
+  - `dbToGain()` / `gainToDb()` - dB/linear conversion
+- **Namespace**: `Iterum::DSP` (Layer 2 DSP processors)
+- **Constitution compliance**: Principles II (RT Safety), III (Modern C++), IX (Layered Architecture), X (DSP Constraints), XII (Test-First), XIII (Architecture Docs), XV (Honest Completion)
+
+### Usage
+
+```cpp
+#include "dsp/processors/ducking_processor.h"
+
+using namespace Iterum::DSP;
+
+DuckingProcessor ducker;
+
+// In prepare() - configures internal components
+ducker.prepare(44100.0, 512);
+ducker.setThreshold(-30.0f);   // Duck when sidechain > -30 dB
+ducker.setDepth(-12.0f);       // -12 dB maximum attenuation
+ducker.setAttackTime(10.0f);   // 10ms attack
+ducker.setReleaseTime(200.0f); // 200ms release
+ducker.setHoldTime(100.0f);    // 100ms hold before release
+
+// Enable sidechain HPF to focus on voice, ignore bass
+ducker.setSidechainFilterEnabled(true);
+ducker.setSidechainFilterCutoff(150.0f);
+
+// In processBlock() - real-time safe
+// mainBuffer = music, sidechainBuffer = voice
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = ducker.processSample(mainBuffer[i], sidechainBuffer[i]);
+}
+
+// Or block processing
+ducker.process(mainBuffer, sidechainBuffer, outputBuffer, numSamples);
+
+// For metering UI
+float grDb = ducker.getCurrentGainReduction();  // e.g., -8.5
+```
+
+---
+
 ## [0.0.12] - 2025-12-23
 
 ### Added
