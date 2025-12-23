@@ -1071,3 +1071,26 @@ TEST_CASE("Multi-noise: samples stay in valid range when combined (SC-003)", "[n
         REQUIRE(std::isfinite(buffer[i]));
     }
 }
+
+TEST_CASE("NoiseGenerator handles maxBlockSize=8192 (FR-014)", "[noise][US6]") {
+    NoiseGenerator noise;
+    constexpr size_t largeBlockSize = 8192;
+
+    noise.prepare(kSampleRate, largeBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::White, true);
+    noise.setNoiseEnabled(NoiseType::Pink, true);
+    noise.setNoiseLevel(NoiseType::White, -20.0f);
+    noise.setNoiseLevel(NoiseType::Pink, -20.0f);
+
+    std::vector<float> buffer(largeBlockSize, 0.0f);
+
+    // Process a single large block
+    noise.process(buffer.data(), largeBlockSize);
+
+    // Verify output is valid
+    REQUIRE(hasNonZeroValues(buffer.data(), buffer.size()));
+    for (size_t i = 0; i < largeBlockSize; ++i) {
+        REQUIRE(std::isfinite(buffer[i]));
+    }
+}
