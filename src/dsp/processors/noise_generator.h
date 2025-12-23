@@ -125,14 +125,12 @@ public:
         // Initialize smoothers for all noise levels
         const float smoothTimeMs = 5.0f; // 5ms smoothing for click-free level changes
         for (size_t i = 0; i < kNumNoiseTypes; ++i) {
-            levelSmoothers_[i].prepare(static_cast<double>(sampleRate), maxBlockSize);
-            levelSmoothers_[i].setSmoothingTime(smoothTimeMs);
+            levelSmoothers_[i].configure(smoothTimeMs, sampleRate);
             levelSmoothers_[i].setTarget(0.0f); // All disabled by default
         }
 
         // Master level smoother
-        masterSmoother_.prepare(static_cast<double>(sampleRate), maxBlockSize);
-        masterSmoother_.setSmoothingTime(smoothTimeMs);
+        masterSmoother_.configure(smoothTimeMs, sampleRate);
         masterSmoother_.setTarget(1.0f); // 0 dB default
 
         reset();
@@ -244,16 +242,15 @@ public:
     }
 
     // =========================================================================
-    // Processing (to be implemented in US1-US6)
+    // Processing
     // =========================================================================
 
     /// @brief Generate noise without sidechain input
     /// @param output Output buffer to fill with noise
     /// @param numSamples Number of samples to generate
     void process(float* output, size_t numSamples) noexcept {
-        // Stub - will be implemented in User Story phases
         for (size_t i = 0; i < numSamples; ++i) {
-            output[i] = 0.0f;
+            output[i] = generateNoiseSample();
         }
     }
 
@@ -262,10 +259,10 @@ public:
     /// @param output Output buffer to fill with noise
     /// @param numSamples Number of samples to process
     void process(const float* input, float* output, size_t numSamples) noexcept {
-        // Stub - will be implemented in User Story phases
+        // For now, sidechain is not used (US3/US5 will add signal-dependent noise)
         (void)input;
         for (size_t i = 0; i < numSamples; ++i) {
-            output[i] = 0.0f;
+            output[i] = generateNoiseSample();
         }
     }
 
@@ -274,11 +271,9 @@ public:
     /// @param output Output buffer (input + noise mixed)
     /// @param numSamples Number of samples to process
     void processMix(const float* input, float* output, size_t numSamples) noexcept {
-        // Stub - will be implemented in User Story phases
-        if (input != output) {
-            for (size_t i = 0; i < numSamples; ++i) {
-                output[i] = input[i];
-            }
+        for (size_t i = 0; i < numSamples; ++i) {
+            float noise = generateNoiseSample();
+            output[i] = input[i] + noise;
         }
     }
 
@@ -299,6 +294,31 @@ private:
     // =========================================================================
     // Internal Helpers
     // =========================================================================
+
+    /// @brief Generate a single sample of mixed noise from all enabled types
+    /// @return Combined noise sample with level and master gain applied
+    [[nodiscard]] float generateNoiseSample() noexcept {
+        float sample = 0.0f;
+
+        // White noise (US1)
+        if (noiseEnabled_[static_cast<size_t>(NoiseType::White)]) {
+            float whiteNoise = rng_.nextFloat();
+            float whiteGain = levelSmoothers_[static_cast<size_t>(NoiseType::White)].process();
+            sample += whiteNoise * whiteGain;
+        } else {
+            // Still process smoother to handle fade-out
+            (void)levelSmoothers_[static_cast<size_t>(NoiseType::White)].process();
+        }
+
+        // TODO: Pink noise (US2)
+        // TODO: Tape hiss (US3)
+        // TODO: Vinyl crackle (US4)
+        // TODO: Asperity (US5)
+
+        // Apply master level
+        float masterGain = masterSmoother_.process();
+        return sample * masterGain;
+    }
 
     void updateLevelTarget(NoiseType type) noexcept {
         const size_t idx = static_cast<size_t>(type);
