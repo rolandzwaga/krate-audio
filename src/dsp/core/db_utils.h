@@ -31,6 +31,11 @@ namespace DSP {
 /// Used as the return value when gain is zero, negative, or NaN.
 constexpr float kSilenceFloorDb = -144.0f;
 
+/// Threshold below which values are flushed to zero (denormal prevention).
+/// Values smaller than this in absolute magnitude become 0 to avoid
+/// denormalized floating-point numbers which cause significant CPU slowdowns.
+inline constexpr float kDenormalThreshold = 1e-15f;
+
 namespace detail {
 
 /// Constexpr-safe NaN check using IEEE 754 bit pattern.
@@ -142,6 +147,22 @@ constexpr float constexprExp(float x) noexcept {
 /// Constexpr pow(10, x) = exp(x * ln(10))
 constexpr float constexprPow10(float x) noexcept {
     return constexprExp(x * kLn10);
+}
+
+/// Flush denormal values to zero for real-time safety.
+/// Denormalized floats can cause 100x CPU slowdowns on some processors.
+/// @param x Value to check
+/// @return 0 if |x| < kDenormalThreshold, otherwise x
+[[nodiscard]] inline constexpr float flushDenormal(float x) noexcept {
+    return (x > -kDenormalThreshold && x < kDenormalThreshold) ? 0.0f : x;
+}
+
+/// Platform-independent infinity check using bit manipulation.
+/// @param x Value to check
+/// @return true if x is positive or negative infinity
+[[nodiscard]] inline bool isInf(float x) noexcept {
+    const auto bits = std::bit_cast<std::uint32_t>(x);
+    return (bits & 0x7FFFFFFFu) == 0x7F800000u;
 }
 
 } // namespace detail

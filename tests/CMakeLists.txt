@@ -75,6 +75,8 @@ add_executable(dsp_tests
     unit/primitives/fft_test.cpp
     unit/primitives/spectral_buffer_test.cpp
     unit/primitives/stft_test.cpp
+    # Layer 2: DSP Processors
+    unit/processors/multimode_filter_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -111,6 +113,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/fft_test.cpp
         unit/primitives/spectral_buffer_test.cpp
         unit/primitives/stft_test.cpp
+        # Layer 2: DSP Processors
+        unit/processors/multimode_filter_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
