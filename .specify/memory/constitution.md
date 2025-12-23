@@ -13,9 +13,10 @@ Added Sections:
     - Mandates honest compliance table in completion report
     - Lesson learned from 006-oversampler incident
 Removed Sections: None
-Templates Requiring Updates:
-  - spec-template.md: Add Implementation Verification section
-  - CLAUDE.md: Add Completion Honesty Enforcement section
+Templates Updated (COMPLETED):
+  - spec-template.md: Added Implementation Verification section ✅
+  - CLAUDE.md: Added Completion Honesty Enforcement section ✅
+  - tasks-template.md: Added Phase N-1 Completion Verification section ✅
 Follow-up TODOs:
   - Update /speckit.implement to include compliance verification step
 ================================================================================

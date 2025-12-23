@@ -250,13 +250,13 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
-## Phase N: Final Documentation (MANDATORY)
+## Phase N-2: Final Documentation (MANDATORY)
 
 **Purpose**: Update living architecture documentation before spec completion
 
 > **Constitution Principle XIII**: Every spec implementation MUST update ARCHITECTURE.md as a final task
 
-### N.1 Architecture Documentation Update
+### N-2.1 Architecture Documentation Update
 
 - [ ] TXXX **Update ARCHITECTURE.md** with new components added by this spec:
   - Add new component entries to appropriate layer section
@@ -264,12 +264,67 @@ Examples of foundational tasks (adjust based on your project):
   - Add usage examples if applicable
   - Verify no duplicate functionality was introduced
 
-### N.2 Final Commit
+### N-2.2 Final Commit
 
 - [ ] TXXX **Commit ARCHITECTURE.md updates**
 - [ ] TXXX Verify all spec work is committed to feature branch
 
-**Checkpoint**: Spec implementation complete - ARCHITECTURE.md reflects all new functionality
+**Checkpoint**: ARCHITECTURE.md reflects all new functionality
+
+---
+
+## Phase N-1: Completion Verification (MANDATORY)
+
+**Purpose**: Honestly verify all requirements are met before claiming completion
+
+> **Constitution Principle XV**: Spec implementations MUST be honestly assessed. Claiming "done" when requirements are not met is a violation of trust.
+
+### N-1.1 Requirements Verification
+
+Before claiming this spec is complete, verify EVERY requirement:
+
+- [ ] TXXX **Review ALL FR-xxx requirements** from spec.md against implementation
+- [ ] TXXX **Review ALL SC-xxx success criteria** and verify measurable targets are achieved
+- [ ] TXXX **Search for cheating patterns** in implementation:
+  - [ ] No `// placeholder` or `// TODO` comments in new code
+  - [ ] No test thresholds relaxed from spec requirements
+  - [ ] No features quietly removed from scope
+
+### N-1.2 Fill Compliance Table in spec.md
+
+- [ ] TXXX **Update spec.md "Implementation Verification" section** with compliance status for each requirement
+- [ ] TXXX **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
+
+### N-1.3 Honest Self-Check
+
+Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
+
+1. Did I change ANY test threshold from what the spec originally required?
+2. Are there ANY "placeholder", "stub", or "TODO" comments in new code?
+3. Did I remove ANY features from scope without telling the user?
+4. Would the spec author consider this "done"?
+5. If I were the user, would I feel cheated?
+
+- [ ] TXXX **All self-check questions answered "no"** (or gaps documented honestly)
+
+**Checkpoint**: Honest assessment complete - ready for final phase
+
+---
+
+## Phase N: Final Completion
+
+**Purpose**: Final commit and completion claim
+
+### N.1 Final Commit
+
+- [ ] TXXX **Commit all spec work** to feature branch
+- [ ] TXXX **Verify all tests pass**
+
+### N.2 Completion Claim
+
+- [ ] TXXX **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
+
+**Checkpoint**: Spec implementation honestly complete
 
 ---
 
@@ -368,5 +423,8 @@ With multiple developers:
 - **MANDATORY**: Verify cross-platform IEEE 754 compliance (add test files to `-fno-fast-math` list)
 - **MANDATORY**: Commit work at end of each user story
 - **MANDATORY**: Update ARCHITECTURE.md before spec completion (Principle XIII)
+- **MANDATORY**: Complete honesty verification before claiming spec complete (Principle XV)
+- **MANDATORY**: Fill Implementation Verification table in spec.md with honest assessment
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
+- **NEVER claim completion if ANY requirement is not met** - document gaps honestly instead
