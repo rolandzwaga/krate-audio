@@ -61,36 +61,8 @@ inline constexpr float kMinSmoothingTimeMs = 0.1f;
 /// Maximum allowed smoothing time in milliseconds
 inline constexpr float kMaxSmoothingTimeMs = 1000.0f;
 
-/// Threshold below which values are flushed to zero (denormal prevention)
-inline constexpr float kDenormalThreshold = 1e-15f;
-
-// =============================================================================
-// Math Helpers (Internal)
-// =============================================================================
-// Note: constexprExp and isNaN are provided by dsp/core/db_utils.h (Layer 0)
-
-namespace detail {
-
-/// @brief Platform-independent infinity check using bit manipulation.
-/// Uses memcpy for bit extraction (works with any optimization level).
-/// @note The calling function should be marked noinline to prevent branch elimination.
-/// @param x Value to check
-/// @return true if x is positive or negative infinity
-[[nodiscard]] inline bool isInf(float x) noexcept {
-    std::uint32_t bits;
-    std::memcpy(&bits, &x, sizeof(bits));
-    // Infinity: exponent = 0xFF, mantissa = 0
-    return (bits & 0x7FFFFFFFu) == 0x7F800000u;
-}
-
-/// @brief Flush denormal values to zero.
-/// @param x Value to check
-/// @return 0 if |x| < threshold, otherwise x
-[[nodiscard]] inline float flushDenormal(float x) noexcept {
-    return (std::abs(x) < kDenormalThreshold) ? 0.0f : x;
-}
-
-}  // namespace detail
+// Note: kDenormalThreshold, isNaN, isInf, flushDenormal, and constexprExp
+// are provided by dsp/core/db_utils.h (Layer 0)
 
 // =============================================================================
 // Utility Functions

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "dsp/core/db_utils.h"
+
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -53,8 +55,7 @@ inline constexpr float kMaxQ = 30.0f;
 /// Butterworth Q (critically damped, maximally flat passband)
 inline constexpr float kButterworthQ = 0.7071067811865476f;
 
-/// Denormal threshold for state flushing
-inline constexpr float kDenormalThreshold = 1e-15f;
+// Note: kDenormalThreshold is defined in dsp/core/db_utils.h (Layer 0)
 
 /// Default smoothing time in milliseconds
 inline constexpr float kDefaultSmoothingMs = 10.0f;
@@ -124,24 +125,7 @@ constexpr float constexprCos(float x) noexcept {
            x8 / 40320.0f - x10 / 3628800.0f;
 }
 
-/// Constexpr power of 10 using Taylor series for exp
-/// 10^x = e^(x * ln(10))
-constexpr float constexprPow10(float x) noexcept {
-    const float ln10 = 2.302585093f;
-    const float y = x * ln10;
-
-    // Taylor series for exp(y)
-    const float y2 = y * y;
-    const float y3 = y2 * y;
-    const float y4 = y3 * y;
-    const float y5 = y4 * y;
-    const float y6 = y5 * y;
-    const float y7 = y6 * y;
-    const float y8 = y7 * y;
-
-    return 1.0f + y + y2 / 2.0f + y3 / 6.0f + y4 / 24.0f +
-           y5 / 120.0f + y6 / 720.0f + y7 / 5040.0f + y8 / 40320.0f;
-}
+// Note: constexprPow10 is defined in dsp/core/db_utils.h (Layer 0)
 
 /// Constexpr square root using Newton-Raphson iteration
 constexpr float constexprSqrt(float x) noexcept {
@@ -167,10 +151,7 @@ inline bool isNaNBits(float x) noexcept {
     return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
 }
 
-/// Flush denormal values to zero
-inline constexpr float flushDenormal(float x) noexcept {
-    return (x > -kDenormalThreshold && x < kDenormalThreshold) ? 0.0f : x;
-}
+// Note: flushDenormal is defined in dsp/core/db_utils.h (Layer 0)
 
 /// Clamp frequency to valid range
 inline constexpr float clampFrequency(float freq, float sampleRate) noexcept {

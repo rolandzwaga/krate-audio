@@ -413,6 +413,25 @@ If you see garbage values or "uninitialized" data in tests:
 
 **Lesson Learned**: In spec 005-parameter-smoother, a new `OnePoleSmoother` was created in `smoother.h` while an older version existed in `dsp_utils.h`. Both were in namespace `Iterum::DSP`. The old class had 2 members, the new had 5. Tests accessed the 5-member layout but got the 2-member class, causing the 3rd-5th members to read uninitialized memory.
 
+**Layer 0 Audit for Utility Functions**:
+
+ODR also applies to **constants and inline functions**, not just classes. Before defining ANY of these in Layer 1+ headers, check if they exist in Layer 0:
+
+```bash
+# Check db_utils.h for math utilities
+grep -E "constexpr|inline" src/dsp/core/db_utils.h | head -30
+
+# Common utilities that MUST live in Layer 0 (db_utils.h):
+# - kDenormalThreshold, flushDenormal() - denormal prevention
+# - isNaN(), isInf() - IEEE 754 checks
+# - constexprExp(), constexprPow10(), constexprLog10() - constexpr math
+# - dbToGain(), gainToDb() - dB conversions
+```
+
+**Rule**: If a utility function/constant could be used by multiple Layer 1 primitives, it belongs in Layer 0. Never duplicate between Layer 1 headers - centralize in `src/dsp/core/`.
+
+**Lesson Learned**: In spec 008-multimode-filter, including both `biquad.h` and `smoother.h` exposed that both defined `kDenormalThreshold` and `flushDenormal()`. These should have been in `db_utils.h` from the start.
+
 ### Adding DSP Processing
 
 1. Create pure function in `src/dsp/`:
