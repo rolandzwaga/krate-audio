@@ -4,7 +4,7 @@ This document is the **living inventory** of all functional domains, components,
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document as a final task.
 
-**Last Updated**: 2025-12-23 (007-fft-processor)
+**Last Updated**: 2025-12-23 (008-multimode-filter)
 
 ---
 
@@ -1200,7 +1200,149 @@ namespace Iterum::DSP {
 
 ## Layer 2: DSP Processors
 
-*No components yet. Future: Filters, Saturators, Pitch Shifters, Envelope Followers, Diffusers*
+DSP Processors compose Layer 1 primitives into higher-level processing modules.
+
+### MultimodeFilter
+
+| | |
+|---|---|
+| **Purpose** | Complete filter module with 8 filter types, selectable slopes, coefficient smoothing, and optional drive |
+| **Location** | [src/dsp/processors/multimode_filter.h](src/dsp/processors/multimode_filter.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.8 (008-multimode-filter) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    // Filter slope selection (LP/HP/BP/Notch only)
+    enum class FilterSlope : uint8_t {
+        Slope12dB = 1,  // 12 dB/oct (1 biquad stage)
+        Slope24dB = 2,  // 24 dB/oct (2 biquad stages)
+        Slope36dB = 3,  // 36 dB/oct (3 biquad stages)
+        Slope48dB = 4   // 48 dB/oct (4 biquad stages)
+    };
+
+    // Utility functions
+    [[nodiscard]] constexpr size_t slopeToStages(FilterSlope slope) noexcept;
+    [[nodiscard]] constexpr float slopeTodBPerOctave(FilterSlope slope) noexcept;
+
+    class MultimodeFilter {
+    public:
+        // Constants
+        static constexpr float kMinCutoff = 20.0f;
+        static constexpr float kMinQ = 0.1f;
+        static constexpr float kMaxQ = 100.0f;
+        static constexpr float kMinGain = -24.0f;
+        static constexpr float kMaxGain = 24.0f;
+        static constexpr float kMinDrive = 0.0f;
+        static constexpr float kMaxDrive = 24.0f;
+        static constexpr float kDefaultSmoothingMs = 5.0f;
+
+        // Lifecycle (call before audio processing)
+        void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+        void reset() noexcept;
+
+        // Processing (real-time safe)
+        void process(float* buffer, size_t numSamples) noexcept;
+        [[nodiscard]] float processSample(float input) noexcept;
+
+        // Parameter setters (real-time safe)
+        void setType(FilterType type) noexcept;
+        void setSlope(FilterSlope slope) noexcept;  // LP/HP/BP/Notch only
+        void setCutoff(float hz) noexcept;          // [20, Nyquist/2]
+        void setResonance(float q) noexcept;        // [0.1, 100]
+        void setGain(float dB) noexcept;            // [-24, +24] Shelf/Peak only
+        void setDrive(float dB) noexcept;           // [0, 24] pre-filter saturation
+        void setSmoothingTime(float ms) noexcept;
+
+        // Parameter getters
+        [[nodiscard]] FilterType getType() const noexcept;
+        [[nodiscard]] FilterSlope getSlope() const noexcept;
+        [[nodiscard]] float getCutoff() const noexcept;
+        [[nodiscard]] float getResonance() const noexcept;
+        [[nodiscard]] float getGain() const noexcept;
+        [[nodiscard]] float getDrive() const noexcept;
+
+        // Query
+        [[nodiscard]] size_t getLatency() const noexcept;  // From oversampler when drive > 0
+        [[nodiscard]] bool isPrepared() const noexcept;
+        [[nodiscard]] double sampleRate() const noexcept;
+    };
+}
+```
+
+**Behavior**:
+- `prepare()` - Allocates buffers, configures smoothers (NOT real-time safe)
+- `process()` - Block processing with per-block coefficient update
+- `processSample()` - Per-sample processing with per-sample coefficient update (expensive)
+- `setSlope()` - Controls number of cascaded biquad stages (1-4)
+- Slope is ignored for Allpass, LowShelf, HighShelf, Peak (always single stage)
+- Drive applies oversampled tanh saturation BEFORE filtering
+- All parameters are smoothed to prevent clicks
+
+**Filter Types** (from FilterType enum in biquad.h):
+
+| Type | Description | Uses Slope | Uses Gain |
+|------|-------------|------------|-----------|
+| `Lowpass` | Attenuates above cutoff | Yes | No |
+| `Highpass` | Attenuates below cutoff | Yes | No |
+| `Bandpass` | Peak at center, rolloff both sides | Yes | No |
+| `Notch` | Null at center frequency | Yes | No |
+| `Allpass` | Flat magnitude, phase shift | No (always 1) | No |
+| `LowShelf` | Boost/cut below shelf frequency | No (always 1) | Yes |
+| `HighShelf` | Boost/cut above shelf frequency | No (always 1) | Yes |
+| `Peak` | Parametric EQ bell curve | No (always 1) | Yes |
+
+**Dependencies** (Layer 1 primitives):
+- `Biquad` - Individual filter stages
+- `OnePoleSmoother` - Parameter smoothing for cutoff, resonance, gain, drive
+- `Oversampler<2,1>` - 2x oversampling for drive saturation
+
+**When to use**:
+
+| Use Case | Configuration |
+|----------|---------------|
+| Delay feedback filtering | Lowpass/Highpass, Slope12dB |
+| Synthesizer filter | Lowpass, Slope24dB, high Q for resonance |
+| Parametric EQ band | Peak type, adjust gain and Q |
+| Rumble removal | Highpass, Slope48dB, 80Hz cutoff |
+| Bass boost | LowShelf, +6dB gain |
+| Pre-saturation filtering | Any type + drive > 0 |
+
+**Example**:
+```cpp
+#include "dsp/processors/multimode_filter.h"
+using namespace Iterum::DSP;
+
+MultimodeFilter filter;
+
+// In prepare() - allocates memory
+filter.prepare(44100.0, 512);
+filter.setType(FilterType::Lowpass);
+filter.setSlope(FilterSlope::Slope24dB);  // 24 dB/oct
+filter.setCutoff(1000.0f);
+filter.setResonance(2.0f);
+filter.setSmoothingTime(5.0f);  // 5ms parameter smoothing
+
+// In processBlock() - real-time safe
+filter.process(buffer, numSamples);
+
+// Modulated filter with LFO
+float modCutoff = 1000.0f + lfo.process() * 800.0f;
+filter.setCutoff(modCutoff);
+filter.process(buffer, numSamples);
+
+// Sample-by-sample for precise modulation
+for (size_t i = 0; i < numSamples; ++i) {
+    filter.setCutoff(envFollower.process() * 5000.0f);
+    buffer[i] = filter.processSample(buffer[i]);
+}
+
+// Add drive for character
+filter.setDrive(12.0f);  // 12dB pre-filter saturation
+// Note: getLatency() will now return oversampler latency
+```
 
 ---
 
@@ -1288,3 +1430,7 @@ Quick lookup by functionality:
 | Streaming spectral analysis | `STFT::pushSamples()` / `analyze()` | primitives/stft.h |
 | Overlap-add synthesis | `OverlapAdd::synthesize()` | primitives/stft.h |
 | Full STFT→modify→ISTFT pipeline | STFT + SpectralBuffer + OverlapAdd | primitives/stft.h |
+| Complete filter with modulation | `Iterum::DSP::MultimodeFilter` | processors/multimode_filter.h |
+| Selectable filter slope | `MultimodeFilter::setSlope()` | processors/multimode_filter.h |
+| Click-free parameter changes | `MultimodeFilter::setSmoothingTime()` | processors/multimode_filter.h |
+| Pre-filter saturation | `MultimodeFilter::setDrive()` | processors/multimode_filter.h |
