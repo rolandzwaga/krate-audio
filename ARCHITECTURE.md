@@ -1346,6 +1346,124 @@ filter.setDrive(12.0f);  // 12dB pre-filter saturation
 
 ---
 
+### SaturationProcessor
+
+| | |
+|---|---|
+| **Purpose** | Analog-style saturation/waveshaping with 5 algorithms, oversampling, and DC blocking |
+| **Location** | [src/dsp/processors/saturation_processor.h](src/dsp/processors/saturation_processor.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.10 (009-saturation-processor) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    // Saturation algorithm selection
+    enum class SaturationType : uint8_t {
+        Tape,       // tanh(x) - symmetric, odd harmonics
+        Tube,       // Asymmetric polynomial - even harmonics
+        Transistor, // Hard-knee soft clip - aggressive
+        Digital,    // Hard clip (clamp) - harsh
+        Diode       // Soft asymmetric - subtle warmth
+    };
+
+    class SaturationProcessor {
+    public:
+        // Constants
+        static constexpr float kMinGainDb = -24.0f;
+        static constexpr float kMaxGainDb = +24.0f;
+        static constexpr float kDefaultSmoothingMs = 5.0f;
+        static constexpr float kDCBlockerCutoffHz = 10.0f;
+
+        // Lifecycle (call before audio processing)
+        void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+        void reset() noexcept;
+
+        // Processing (real-time safe)
+        void process(float* buffer, size_t numSamples) noexcept;
+        [[nodiscard]] float processSample(float input) noexcept;
+
+        // Parameter setters (real-time safe, smoothed)
+        void setType(SaturationType type) noexcept;
+        void setInputGain(float dB) noexcept;   // [-24, +24] dB
+        void setOutputGain(float dB) noexcept;  // [-24, +24] dB
+        void setMix(float mix) noexcept;        // [0.0, 1.0]
+
+        // Parameter getters
+        [[nodiscard]] SaturationType getType() const noexcept;
+        [[nodiscard]] float getInputGain() const noexcept;
+        [[nodiscard]] float getOutputGain() const noexcept;
+        [[nodiscard]] float getMix() const noexcept;
+
+        // Query
+        [[nodiscard]] size_t getLatency() const noexcept;  // From oversampler
+    };
+}
+```
+
+**Saturation Types**:
+
+| Type | Description | Character | Harmonics |
+|------|-------------|-----------|-----------|
+| `Tape` | tanh(x) symmetric curve | Warm, smooth | Odd (3rd, 5th) |
+| `Tube` | Asymmetric polynomial | Rich, musical | Even (2nd, 4th) |
+| `Transistor` | Hard-knee soft clip | Aggressive, punchy | All |
+| `Digital` | Hard clip (clamp) | Harsh, edgy | All (aliased without OS) |
+| `Diode` | Soft asymmetric | Subtle warmth | Even (2nd) |
+
+**Behavior**:
+- `prepare()` - Allocates oversampled buffer, configures DC blocker (NOT real-time safe)
+- `reset()` - Clears filter/smoother states without reallocation
+- `process()` - 2x oversampled processing with DC blocking
+- All parameters are smoothed (5ms) to prevent clicks
+- When mix == 0.0, saturation is bypassed for efficiency
+- DC blocker (10Hz highpass) removes offset introduced by asymmetric saturation
+
+**Dependencies** (Layer 0/1 primitives):
+- `Oversampler<2,1>` - 2x mono oversampling for alias-free nonlinear processing
+- `Biquad` - DC blocking filter (10Hz highpass)
+- `OnePoleSmoother` - Parameter smoothing for input/output gain and mix
+- `dbToGain()` - dB to linear conversion (from db_utils.h)
+
+**When to use**:
+
+| Use Case | Type | Configuration |
+|----------|------|---------------|
+| Tape warmth | Tape | +6dB input, -3dB output |
+| Tube preamp | Tube | +12dB input, variable output |
+| Guitar amp crunch | Transistor | +18dB input, 0dB output |
+| Harsh digital distortion | Digital | High input gain |
+| Subtle analog color | Diode | +3dB input, mix 30-50% |
+| Parallel saturation | Any | mix < 1.0 for parallel blend |
+
+**Example**:
+```cpp
+#include "dsp/processors/saturation_processor.h"
+using namespace Iterum::DSP;
+
+SaturationProcessor sat;
+
+// In prepare() - allocates buffers
+sat.prepare(44100.0, 512);
+sat.setType(SaturationType::Tape);
+sat.setInputGain(12.0f);   // +12dB drive
+sat.setOutputGain(-6.0f);  // -6dB makeup
+sat.setMix(1.0f);          // Full wet
+
+// Report latency to host (from 2x oversampler)
+size_t latency = sat.getLatency();
+
+// In processBlock() - real-time safe
+sat.process(buffer, numSamples);
+
+// Parallel saturation (50% blend)
+sat.setMix(0.5f);
+sat.process(buffer, numSamples);
+```
+
+---
+
 ### EnvelopeFollower
 
 | | |
