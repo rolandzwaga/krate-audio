@@ -5,6 +5,98 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9] - 2025-12-23
+
+### Added
+
+- **Layer 2 DSP Processor: MultimodeFilter** (`src/dsp/processors/multimode_filter.h`)
+  - Complete filter module composing Layer 1 primitives (Biquad, OnePoleSmoother, Oversampler)
+  - 8 filter types from RBJ Audio EQ Cookbook:
+    - `Lowpass` - Low frequencies pass, attenuates above cutoff
+    - `Highpass` - High frequencies pass, attenuates below cutoff
+    - `Bandpass` - Passes band around cutoff frequency
+    - `Notch` - Rejects band around cutoff frequency
+    - `Allpass` - Flat magnitude, phase shift only (for phaser effects)
+    - `LowShelf` - Boost/cut below shelf frequency
+    - `HighShelf` - Boost/cut above shelf frequency
+    - `Peak` - Parametric EQ bell curve (boost/cut at center)
+  - 4 selectable slopes for LP/HP/BP/Notch:
+    - `Slope12dB` - 12 dB/oct (1 biquad stage)
+    - `Slope24dB` - 24 dB/oct (2 biquad stages, Butterworth Q)
+    - `Slope36dB` - 36 dB/oct (3 biquad stages)
+    - `Slope48dB` - 48 dB/oct (4 biquad stages)
+  - Parameter smoothing via OnePoleSmoother (5ms default, configurable)
+  - Pre-filter drive/saturation with 2x oversampled tanh waveshaping
+  - Block processing (`process()`) with per-block coefficient updates
+  - Sample processing (`processSample()`) for sample-accurate modulation
+  - Real-time safe: `noexcept`, no allocations in `process()`
+
+- **Comprehensive test suite** (1,686 assertions across 21 test cases)
+  - All 7 user stories covered (US1-US7)
+  - Slope verification: 24dB LP/HP attenuation at octave boundaries
+  - Bandpass bandwidth verification (Q relationship)
+  - Click-free modulation testing
+  - Self-oscillation at high resonance
+  - Drive THD verification (harmonics added)
+  - Real-time safety verification (noexcept static_assert)
+
+### Technical Details
+
+- **Butterworth Q formula**: `Q[i] = 1 / (2 * cos(π * (2i + 1) / (4 * N)))` for N stages
+- **Slope mapping**: `FilterSlope` enum values 1-4 map directly to stage counts
+- **Smoothing**: One-pole RC filter per parameter (cutoff, resonance, gain, drive)
+- **Drive saturation**: `tanh(sample * driveGain)` at 2x oversampled rate
+- **Latency**: 0 samples (drive disabled) or `oversampler.getLatency()` (drive enabled)
+- **Parameter ranges**:
+  - Cutoff: 20 Hz to Nyquist/2
+  - Resonance (Q): 0.1 to 100
+  - Gain: -24 to +24 dB (for Shelf/Peak types)
+  - Drive: 0 to 24 dB
+- **Namespace**: `Iterum::DSP` (Layer 2 DSP processors)
+- **Constitution compliance**: Principles II (RT Safety), III (Modern C++), IX (Layered Architecture), X (DSP Constraints), XII (Test-First), XV (Honest Completion)
+
+### Usage
+
+```cpp
+#include "dsp/processors/multimode_filter.h"
+
+using namespace Iterum::DSP;
+
+MultimodeFilter filter;
+
+// In prepare() - allocates buffers
+filter.prepare(44100.0, 512);
+filter.setType(FilterType::Lowpass);
+filter.setSlope(FilterSlope::Slope24dB);  // 24 dB/oct
+filter.setCutoff(1000.0f);
+filter.setResonance(0.707f);  // Butterworth Q
+
+// In processBlock() - real-time safe
+filter.process(buffer, numSamples);
+
+// LFO modulated filter
+filter.setSmoothingTime(5.0f);  // 5ms smoothing
+float lfoValue = lfo.process();
+float cutoff = 1000.0f + lfoValue * 800.0f;  // 200-1800 Hz
+filter.setCutoff(cutoff);
+filter.process(buffer, numSamples);
+
+// Pre-filter saturation
+filter.setDrive(12.0f);  // 12dB drive (oversampled)
+filter.process(buffer, numSamples);
+
+// Sample-accurate modulation (more CPU)
+for (size_t i = 0; i < numSamples; ++i) {
+    filter.setCutoff(modulatedCutoff[i]);
+    buffer[i] = filter.processSample(buffer[i]);
+}
+
+// High resonance (self-oscillation)
+filter.setResonance(80.0f);  // Rings at cutoff frequency
+```
+
+---
+
 ## [0.0.8] - 2025-12-23
 
 ### Added
