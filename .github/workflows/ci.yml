@@ -13,12 +13,10 @@ concurrency:
 
 env:
   BUILD_TYPE: Release
-  # ccache settings (used by Linux build)
+  # ccache settings (used by Linux and macOS builds)
   CCACHE_MAXSIZE: 500M
   CCACHE_COMPRESS: true
   CCACHE_COMPRESSLEVEL: 6
-  # sccache settings (used by macOS build)
-  SCCACHE_GHA_ENABLED: "true"
 
 jobs:
   build-windows:
@@ -74,41 +72,36 @@ jobs:
         with:
           submodules: recursive
 
-      # Install Ninja build system (faster than Xcode generator)
-      - name: Install Ninja
-        run: brew install ninja
+      # Install ccache for compiler caching
+      - name: Install ccache
+        run: brew install ccache
 
-      # Setup sccache with native GitHub Actions cache backend
-      # sccache works with Ninja generator and supports Objective-C++ (VSTGUI)
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.9
+      # Setup ccache with GitHub Actions cache backend
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: macos-xcode-${{ env.BUILD_TYPE }}
+          max-size: ${{ env.CCACHE_MAXSIZE }}
 
       # Cache CMake FetchContent downloads
-      # Key includes 'ninja' to avoid conflicts with old Xcode-generated caches
       - name: Cache FetchContent
         uses: actions/cache@v4
         with:
           path: build/_deps
-          key: fetchcontent-${{ runner.os }}-ninja-${{ hashFiles('tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('tests/CMakeLists.txt') }}
           restore-keys: |
-            fetchcontent-${{ runner.os }}-ninja-
+            fetchcontent-${{ runner.os }}-
 
-      # Use Ninja generator with sccache for compiler caching
-      # CMAKE_OBJCXX_COMPILER_LAUNCHER is supported in CMake 3.16+ for Objective-C++
+      # Use Xcode generator with ccache via TheLartians/Ccache.cmake wrapper scripts
+      # This works around Xcode ignoring CMAKE_<LANG>_COMPILER_LAUNCHER
       - name: Configure CMake
-        run: |
-          cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
-            -DCMAKE_OBJC_COMPILER_LAUNCHER=sccache \
-            -DCMAKE_OBJCXX_COMPILER_LAUNCHER=sccache
+        run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON
 
       - name: Build Tests
-        run: cmake --build build --target dsp_tests approval_tests --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests approval_tests --parallel
 
       - name: Build Plugin and Validator
-        run: cmake --build build --target Iterum validator --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum validator --parallel
 
       - name: Run Tests
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure --exclude-regex "vst3_validator_extensive"
@@ -116,10 +109,10 @@ jobs:
       - name: Run VST3 Validator (Extensive)
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
 
-      # Show sccache statistics for debugging cache effectiveness
-      - name: Show sccache stats
+      # Show ccache statistics for debugging cache effectiveness
+      - name: Show ccache stats
         if: always()
-        run: ${SCCACHE_PATH} --show-stats
+        run: ccache --show-stats
 
       - name: Upload Plugin Artifact
         uses: actions/upload-artifact@v4

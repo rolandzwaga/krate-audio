@@ -18,6 +18,23 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ==============================================================================
+# Compiler Cache (ccache) Support
+# ==============================================================================
+# Enable with -DUSE_CCACHE=ON (automatically enabled in CI)
+# Works with all generators including Xcode via wrapper scripts
+option(USE_CCACHE "Use ccache for faster rebuilds" OFF)
+
+if(USE_CCACHE)
+    include(FetchContent)
+    FetchContent_Declare(
+        Ccache.cmake
+        URL https://github.com/TheLartians/Ccache.cmake/archive/refs/tags/v1.2.5.tar.gz
+        URL_HASH SHA256=7d750f42cf8f2f482d4c19ec44e373f369a0d0aaf99ad3e8ea9e12c295fe6fbd
+    )
+    FetchContent_MakeAvailable(Ccache.cmake)
+endif()
+
+# ==============================================================================
 # VST3 SDK Configuration
 # ==============================================================================
 # Path to VST3 SDK (as git submodule in extern/)
