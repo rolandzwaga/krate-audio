@@ -4,7 +4,7 @@ This document is the **living inventory** of all functional domains, components,
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document as a final task.
 
-**Last Updated**: 2025-12-23 (010-envelope-follower)
+**Last Updated**: 2025-12-23 (011-dynamics-processor)
 
 ---
 
@@ -19,7 +19,7 @@ This document is the **living inventory** of all functional domains, components,
 │    (Delay Engine, Modulation Matrix, Feedback Network)      │
 ├─────────────────────────────────────────────────────────────┤
 │                   LAYER 2: DSP PROCESSORS                   │
-│  (Filters, Saturation, Pitch Shifter, Diffuser, Envelope)   │
+│ (Filters, Saturation, Dynamics, Envelope, Pitch, Diffuser)  │
 ├─────────────────────────────────────────────────────────────┤
 │                  LAYER 1: DSP PRIMITIVES                    │
 │  (Delay Line, LFO, Biquad, Smoother, Oversampler, FFT, STFT)│
@@ -1591,6 +1591,179 @@ env.process(input, envelopeBuffer.data(), numSamples);
 
 ---
 
+### DynamicsProcessor (Compressor/Limiter)
+
+| | |
+|---|---|
+| **Purpose** | Real-time compressor/limiter with threshold, ratio, knee, attack/release, makeup gain, lookahead, and sidechain filtering |
+| **Location** | [src/dsp/processors/dynamics_processor.h](src/dsp/processors/dynamics_processor.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.12 (011-dynamics-processor) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    // Detection mode (for EnvelopeFollower)
+    enum class DynamicsDetectionMode : uint8_t {
+        RMS,   // Average-responding, good for program material
+        Peak   // Transient-catching, good for limiting
+    };
+
+    class DynamicsProcessor {
+    public:
+        // Constants
+        static constexpr float kDefaultThreshold = -20.0f;   // dB
+        static constexpr float kDefaultRatio = 4.0f;         // 4:1
+        static constexpr float kDefaultKnee = 0.0f;          // Hard knee
+        static constexpr float kDefaultAttackMs = 10.0f;
+        static constexpr float kDefaultReleaseMs = 100.0f;
+        static constexpr float kDefaultMakeupGain = 0.0f;    // dB
+        static constexpr float kDefaultLookaheadMs = 0.0f;   // Disabled
+        static constexpr float kDefaultSidechainHz = 80.0f;
+
+        // Parameter ranges
+        static constexpr float kMinThreshold = -60.0f;
+        static constexpr float kMaxThreshold = 0.0f;
+        static constexpr float kMinRatio = 1.0f;
+        static constexpr float kMaxRatio = 100.0f;  // Limiter mode
+        static constexpr float kMinKnee = 0.0f;
+        static constexpr float kMaxKnee = 24.0f;
+        static constexpr float kMinAttackMs = 0.1f;
+        static constexpr float kMaxAttackMs = 500.0f;
+        static constexpr float kMinReleaseMs = 1.0f;
+        static constexpr float kMaxReleaseMs = 5000.0f;
+        static constexpr float kMinMakeupGain = -24.0f;
+        static constexpr float kMaxMakeupGain = 24.0f;
+        static constexpr float kMinLookaheadMs = 0.0f;
+        static constexpr float kMaxLookaheadMs = 10.0f;
+        static constexpr float kMinSidechainHz = 20.0f;
+        static constexpr float kMaxSidechainHz = 500.0f;
+
+        // Lifecycle (call before audio processing)
+        void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+        void reset() noexcept;
+
+        // Processing (real-time safe)
+        void process(float* buffer, size_t numSamples) noexcept;
+        [[nodiscard]] float processSample(float input) noexcept;
+
+        // Threshold/Ratio (basic compression)
+        void setThreshold(float dB) noexcept;
+        void setRatio(float ratio) noexcept;
+        [[nodiscard]] float getThreshold() const noexcept;
+        [[nodiscard]] float getRatio() const noexcept;
+
+        // Knee
+        void setKneeWidth(float dB) noexcept;
+        [[nodiscard]] float getKneeWidth() const noexcept;
+
+        // Attack/Release
+        void setAttackTime(float ms) noexcept;
+        void setReleaseTime(float ms) noexcept;
+        [[nodiscard]] float getAttackTime() const noexcept;
+        [[nodiscard]] float getReleaseTime() const noexcept;
+
+        // Makeup Gain
+        void setMakeupGain(float dB) noexcept;
+        void setAutoMakeup(bool enabled) noexcept;
+        [[nodiscard]] float getMakeupGain() const noexcept;
+        [[nodiscard]] bool isAutoMakeupEnabled() const noexcept;
+
+        // Detection Mode
+        void setDetectionMode(DynamicsDetectionMode mode) noexcept;
+        [[nodiscard]] DynamicsDetectionMode getDetectionMode() const noexcept;
+
+        // Sidechain Filtering
+        void setSidechainEnabled(bool enabled) noexcept;
+        void setSidechainCutoff(float hz) noexcept;
+        [[nodiscard]] bool isSidechainEnabled() const noexcept;
+        [[nodiscard]] float getSidechainCutoff() const noexcept;
+
+        // Lookahead
+        void setLookahead(float ms) noexcept;
+        [[nodiscard]] float getLookahead() const noexcept;
+        [[nodiscard]] size_t getLatency() const noexcept;
+
+        // Metering
+        [[nodiscard]] float getCurrentGainReduction() const noexcept;  // Negative dB
+    };
+}
+```
+
+**Behavior**:
+- `prepare()` - Allocates buffers, configures envelope follower (NOT real-time safe)
+- `reset()` - Clears envelope state, gain reduction, lookahead buffer
+- `processSample()` - Real-time processing with gain reduction applied
+- `getCurrentGainReduction()` - Returns current GR in negative dB (e.g., -7.5 dB)
+
+**Gain Reduction Formula**:
+```
+For input above threshold (hard knee):
+  GR = (inputLevel_dB - threshold) * (1 - 1/ratio)
+
+For soft knee:
+  Quadratic interpolation in knee region [threshold - knee/2, threshold + knee/2]
+```
+
+**Auto-Makeup Formula**:
+```
+autoMakeup = -threshold * (1 - 1/ratio)
+```
+
+**Dependencies** (Layer 1-2 primitives):
+- `EnvelopeFollower` - Level detection (peer Layer 2 component)
+- `OnePoleSmoother` - Gain reduction smoothing
+- `DelayLine` - Lookahead delay
+- `Biquad` - Sidechain highpass filter
+- `dbToGain()` / `gainToDb()` - dB/linear conversion
+
+**When to use**:
+
+| Use Case | Configuration |
+|----------|---------------|
+| Vocal compression | -24dB threshold, 3:1, 6dB knee, 15ms attack, 150ms release |
+| Drum bus | -12dB threshold, 4:1, 30ms attack, 80ms release, sidechain 80Hz |
+| Master limiter | -0.3dB threshold, 100:1, 0.1ms attack, 100ms release, 5ms lookahead |
+| Bass compression | -18dB threshold, 4:1, sidechain HPF 100Hz (reduces pumping) |
+| Transparent compression | Wide knee (12dB), low ratio (2:1), auto-makeup |
+
+**Example**:
+```cpp
+#include "dsp/processors/dynamics_processor.h"
+using namespace Iterum::DSP;
+
+DynamicsProcessor comp;
+
+// In prepare() - allocates buffers
+comp.prepare(44100.0, 512);
+comp.setThreshold(-20.0f);
+comp.setRatio(4.0f);
+comp.setKneeWidth(6.0f);  // 6dB soft knee
+comp.setAttackTime(10.0f);
+comp.setReleaseTime(100.0f);
+comp.setAutoMakeup(true);
+
+// Enable sidechain HPF to reduce bass pumping
+comp.setSidechainEnabled(true);
+comp.setSidechainCutoff(80.0f);
+
+// In processBlock() - real-time safe
+comp.process(buffer, numSamples);
+
+// For metering UI
+float grDb = comp.getCurrentGainReduction();  // e.g., -7.5
+
+// Limiter mode
+comp.setThreshold(-0.3f);
+comp.setRatio(100.0f);
+comp.setLookahead(5.0f);  // 5ms lookahead
+// Report latency to host
+size_t latency = comp.getLatency();
+```
+
+---
+
 ## Layer 3: System Components
 
 *No components yet. Future: Delay Engine, Feedback Network, Modulation Matrix*
@@ -1684,3 +1857,10 @@ Quick lookup by functionality:
 | Set attack/release times | `EnvelopeFollower::setAttackTime()` | processors/envelope_follower.h |
 | Enable sidechain filter | `EnvelopeFollower::setSidechainEnabled()` | processors/envelope_follower.h |
 | Get current envelope value | `EnvelopeFollower::getCurrentValue()` | processors/envelope_follower.h |
+| Compress/limit dynamics | `Iterum::DSP::DynamicsProcessor` | processors/dynamics_processor.h |
+| Set compressor threshold | `DynamicsProcessor::setThreshold()` | processors/dynamics_processor.h |
+| Set compression ratio | `DynamicsProcessor::setRatio()` | processors/dynamics_processor.h |
+| Set soft knee | `DynamicsProcessor::setKneeWidth()` | processors/dynamics_processor.h |
+| Enable auto-makeup gain | `DynamicsProcessor::setAutoMakeup()` | processors/dynamics_processor.h |
+| Enable lookahead | `DynamicsProcessor::setLookahead()` | processors/dynamics_processor.h |
+| Get gain reduction (metering) | `DynamicsProcessor::getCurrentGainReduction()` | processors/dynamics_processor.h |
