@@ -5,6 +5,92 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.15] - 2025-12-24
+
+### Added
+
+- **Layer 2 DSP Processor: MidSideProcessor** (`src/dsp/processors/midside_processor.h`)
+  - Stereo Mid/Side encoder, decoder, and manipulator for stereo field control
+  - Complete M/S processing with 6 user stories:
+    - **Encoding**: Mid = (L + R) / 2, Side = (L - R) / 2
+    - **Decoding**: L = Mid + Side, R = Mid - Side
+    - **Width control** [0-200%] via Side channel scaling
+      - 0% = mono (Side removed)
+      - 100% = unity (original stereo image)
+      - 200% = maximum width (Side doubled)
+    - **Independent Mid gain** [-96dB, +24dB] with dB-to-linear conversion
+    - **Independent Side gain** [-96dB, +24dB] with dB-to-linear conversion
+    - **Solo modes** for Mid and Side monitoring (soloMid takes precedence)
+  - Perfect reconstruction at unity settings (roundtrip < 1e-6 error)
+  - Mono input handling: L=R produces zero Side component exactly
+  - 5 OnePoleSmoother instances for click-free parameter transitions:
+    - Width (0.0-2.0 factor), Mid gain (linear), Side gain (linear)
+    - Solo Mid (0.0-1.0), Solo Side (0.0-1.0)
+  - Smooth crossfade for solo mode transitions (prevents clicks)
+  - Block processing with in-place support (leftIn == leftOut OK)
+  - Block sizes 1-8192 samples supported
+  - Real-time safe: `noexcept`, no allocations in `process()`
+  - NaN/Infinity input handling with graceful degradation
+
+- **Comprehensive test suite** (22,910 assertions across 32 test cases)
+  - US1: Basic M/S encoding/decoding with roundtrip verification
+  - US2: Width control (0%, 100%, 200%) with clamping
+  - US3: Independent Mid/Side gain with dB conversion
+  - US4: Solo modes with precedence and smooth transitions
+  - US5: Mono input handling (no phantom stereo)
+  - US6: Real-time safety (block sizes, noexcept verification)
+  - Edge cases: NaN, Infinity, DC offset, sample rate changes
+
+### Technical Details
+
+- **M/S formulas**:
+  - Encode: `Mid = (L + R) * 0.5f`, `Side = (L - R) * 0.5f`
+  - Width: `Side *= widthFactor` where factor = percent / 100
+  - Solo crossfade: `side *= (1.0f - soloMidFade)`, `mid *= (1.0f - soloSideFade)`
+  - Decode: `L = Mid + Side`, `R = Mid - Side`
+- **Parameter smoothing**: 10ms one-pole smoothing (configurable)
+- **Gain conversion**: Uses `dbToGain()` from Layer 0 core utilities
+- **Solo precedence**: When both solos enabled, soloMid crossfade applied first
+- **Dependencies** (Layer 0-1 primitives):
+  - `OnePoleSmoother` - Click-free parameter transitions
+  - `dbToGain()` - dB to linear gain conversion
+- **Namespace**: `Iterum::DSP` (Layer 2 DSP processors)
+- **Constitution compliance**: Principles II (RT Safety), III (Modern C++), IX (Layered Architecture), X (DSP Constraints), XII (Test-First), XV (Honest Completion)
+
+### Usage
+
+```cpp
+#include "dsp/processors/midside_processor.h"
+
+using namespace Iterum::DSP;
+
+MidSideProcessor ms;
+
+// In prepare() - configures smoothers
+ms.prepare(44100.0f, 512);
+
+// Widen stereo image
+ms.setWidth(150.0f);  // 150% width
+
+// Boost mid, cut side (for vocal clarity)
+ms.setMidGain(3.0f);   // +3 dB
+ms.setSideGain(-6.0f); // -6 dB
+
+// Monitor side channel only
+ms.setSoloSide(true);
+
+// In processBlock() - real-time safe, in-place OK
+ms.process(leftIn, rightIn, leftOut, rightOut, numSamples);
+
+// For mono collapse
+ms.setWidth(0.0f);  // L = R = Mid
+
+// For extreme stereo enhancement
+ms.setWidth(200.0f);  // Side doubled
+```
+
+---
+
 ## [0.0.14] - 2025-12-24
 
 ### Added
