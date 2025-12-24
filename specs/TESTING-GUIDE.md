@@ -516,6 +516,77 @@ TEST_CASE("Lowpass attenuates above cutoff", "[filter]") {
 }
 ```
 
+### 7. The Accumulator
+
+**Problem:** Test accumulates many floating-point operations and expects exact results, when it should test single-operation precision.
+
+```cpp
+// BAD: Accumulating 48000 float additions, then expecting exact result
+TEST_CASE("LFO completes one cycle", "[bad]") {
+    constexpr float sampleRate = 48000.0f;
+    constexpr float kTwoPi = 6.28318530718f;
+    const float phaseIncrement = kTwoPi / sampleRate;
+
+    float phase = 0.0f;
+    for (int i = 0; i < static_cast<int>(sampleRate); ++i) {
+        phase += phaseIncrement;  // 48000 additions!
+    }
+
+    // FAILS! Error accumulates to ~0.004 after 48000 additions
+    REQUIRE(phase == Approx(kTwoPi).margin(1e-4f));  // BAD: widening tolerance hides the real issue
+}
+
+// GOOD: Test single-operation precision instead
+TEST_CASE("LFO phase increment is precise", "[dsp][lfo]") {
+    constexpr float lfoFreq = 1.0f;
+    constexpr float sampleRate = 48000.0f;
+    const float phaseIncrement = kTwoPi * lfoFreq / sampleRate;
+
+    // Single operation - tests constant precision, not IEEE 754 accumulation
+    REQUIRE(phaseIncrement * sampleRate == Approx(kTwoPi).margin(1e-5f));
+
+    // Verify exact increment value
+    REQUIRE(phaseIncrement == Approx(0.00013089969f).margin(1e-9f));
+
+    // Verify sin/cos at calculated positions (single multiplication each)
+    REQUIRE(std::sin(phaseIncrement * 12000) == Approx(1.0f).margin(1e-5f));  // sin(π/2)
+    REQUIRE(std::cos(phaseIncrement * 24000) == Approx(-1.0f).margin(1e-5f)); // cos(π)
+}
+```
+
+**Why it's wrong:**
+- Accumulating N float additions tests IEEE 754 limits, not your constant's precision
+- Error grows as O(√N) for random-direction errors, O(N) for systematic bias
+- 48000 additions with ~1e-7 relative error per operation ≈ 0.004 total error
+
+**When you actually need to test accumulation:**
+Real DSP code should use phase wrapping to prevent unbounded error growth:
+
+```cpp
+// GOOD: Test that phase wrapping prevents accumulation error
+TEST_CASE("LFO phase wrapping prevents error accumulation", "[dsp][lfo]") {
+    LFO lfo;
+    lfo.setFrequency(1.0f, 48000.0f);  // 1 Hz at 48kHz
+
+    // Process many cycles (simulates long runtime)
+    for (int cycle = 0; cycle < 1000; ++cycle) {
+        for (int i = 0; i < 48000; ++i) {
+            lfo.process();
+        }
+    }
+
+    // After 1000 cycles, LFO should still produce valid output [-1, 1]
+    float output = lfo.process();
+    REQUIRE(output >= -1.0f);
+    REQUIRE(output <= 1.0f);
+
+    // Phase should still be bounded (not grown to millions)
+    // This is testing the implementation's error management, not the constant
+}
+```
+
+**Key insight:** Distinguish between testing *constant precision* (use single operations) and testing *implementation robustness* (verify real code handles accumulation via wrapping).
+
 ---
 
 ## DSP Testing Strategies
