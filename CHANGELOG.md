@@ -5,6 +5,90 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.16] - 2025-12-24
+
+### Added
+
+- **Layer 2 DSP Processor: DiffusionNetwork** (`src/dsp/processors/diffusion_network.h`)
+  - 8-stage Schroeder allpass diffusion network for reverb-like temporal smearing
+  - Creates smeared, ambient textures by cascading allpass filters with irrational delay ratios
+  - Complete diffusion processing with 6 user stories:
+    - **Basic Diffusion**: Spreads transient energy over time while preserving frequency spectrum
+    - **Size Control** [0-100%]: Scales all delay times proportionally
+      - 0% = bypass (no diffusion)
+      - 50% = ~28ms spread
+      - 100% = ~57ms spread (maximum diffusion)
+    - **Density Control** [0-100%]: Number of active stages
+      - 25% = 2 stages, 50% = 4 stages, 75% = 6 stages, 100% = 8 stages
+    - **Modulation** [0-100% depth, 0.1-5Hz rate]: LFO on delay times for chorus-like movement
+      - Per-stage phase offsets (45°) for decorrelated modulation
+    - **Stereo Width** [0-100%]: Controls L/R decorrelation
+      - 0% = mono (L=R), 100% = full stereo decorrelation
+    - **Real-time Safety**: All methods noexcept, no allocations in process()
+  - Irrational delay ratios: {1.0, 1.127, 1.414, 1.732, 2.236, 2.828, 3.317, 4.123}
+  - Golden ratio allpass coefficient (g = 0.618) for optimal diffusion
+  - First-order allpass interpolation for energy-preserving fractional delays
+  - Single-delay-line Schroeder formulation for efficiency
+  - 10ms parameter smoothing on all controls (no zipper noise)
+  - In-place processing support (input == output buffers)
+  - Block sizes 1-8192 samples supported
+  - Sample rates 44.1kHz to 192kHz supported
+
+- **Comprehensive test suite** (46 test cases with 1,139 assertions)
+  - US1: Basic diffusion processing with energy preservation
+  - US2: Size control with bypass and spread verification
+  - US3: Density control with stage count mapping
+  - US4: Modulation with per-stage phase offsets
+  - US5: Stereo width with mono/decorrelation verification
+  - US6: Real-time safety (noexcept, block sizes, in-place)
+  - Edge cases: NaN/Infinity input, sample rate changes, extreme parameters
+
+### Technical Details
+
+- **Schroeder allpass formula**:
+  - `v[n] = x[n] + g * v[n-D]`
+  - `y[n] = -g * v[n] + v[n-D]`
+  - Where g = 0.618 (golden ratio inverse)
+- **Stereo decorrelation**: Right channel delays multiplied by 1.127 offset
+- **Modulation**: Single LFO with per-stage phase offsets (i × 45°)
+- **Density**: Smooth crossfade for stage enable/disable transitions
+- **Allpass interpolation**: Unity magnitude at all frequencies (energy-preserving)
+- **Dependencies** (Layer 1 primitives):
+  - `DelayLine` - Variable delay with allpass interpolation
+  - `OnePoleSmoother` - Parameter smoothing
+- **Namespace**: `Iterum::DSP` (Layer 2 DSP processors)
+- **Constitution compliance**: Principles II, III, IX, X, XII, XV
+
+### Usage
+
+```cpp
+#include "dsp/processors/diffusion_network.h"
+
+using namespace Iterum::DSP;
+
+DiffusionNetwork diffuser;
+
+// In prepare() - allocates delay buffers
+diffuser.prepare(44100.0f, 512);
+
+// Configure diffusion
+diffuser.setSize(60.0f);       // 60% diffusion size
+diffuser.setDensity(100.0f);   // All 8 stages
+diffuser.setWidth(100.0f);     // Full stereo
+diffuser.setModDepth(25.0f);   // Subtle movement
+diffuser.setModRate(1.0f);     // 1 Hz LFO
+
+// In processBlock() - real-time safe
+diffuser.process(leftIn, rightIn, leftOut, rightOut, numSamples);
+
+// As reverb pre-diffuser (no modulation for cleaner tail)
+diffuser.setModDepth(0.0f);
+diffuser.setSize(80.0f);
+diffuser.process(leftIn, rightIn, leftOut, rightOut, numSamples);
+```
+
+---
+
 ## [0.0.15] - 2025-12-24
 
 ### Added
