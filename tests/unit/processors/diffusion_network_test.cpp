@@ -1287,8 +1287,242 @@ TEST_CASE("DiffusionNetwork modDepth parameter changes are smoothed", "[diffusio
 // Phase 6: User Story 5 Tests - Stereo Width Control (P2)
 // ==============================================================================
 
-// Tests for stereo width parameter
-// (T059-T062)
+// T059: width=0% produces mono output (L=R)
+TEST_CASE("DiffusionNetwork at width=0% produces mono output", "[diffusion][US5]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(100.0f);
+    diffuser.setWidth(0.0f);  // Mono output
+    diffuser.setModDepth(0.0f);
+
+    constexpr size_t kBufferSize = 2048;
+
+    std::vector<float> leftIn(kBufferSize);
+    std::vector<float> rightIn(kBufferSize);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    // Generate stereo content with different signals in L and R
+    constexpr float kFreqL = 440.0f;
+    constexpr float kFreqR = 880.0f;
+    generateSine(leftIn.data(), kBufferSize, kFreqL, kTestSampleRate);
+    generateSine(rightIn.data(), kBufferSize, kFreqR, kTestSampleRate);
+
+    // Warm up and snap smoothers
+    diffuser.reset();
+    for (int i = 0; i < 5; ++i) {
+        diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+    }
+
+    // At width=0%, left and right outputs should be identical (mono)
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < kBufferSize; ++i) {
+        float diff = std::abs(leftOut[i] - rightOut[i]);
+        if (diff > maxDiff) {
+            maxDiff = diff;
+        }
+    }
+
+    INFO("Maximum L-R difference at width=0%: " << maxDiff);
+    // Should be essentially zero (mono output)
+    REQUIRE(maxDiff < 1e-5f);
+}
+
+// T060: width=100% produces decorrelated stereo
+TEST_CASE("DiffusionNetwork at width=100% produces decorrelated stereo", "[diffusion][US5]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(100.0f);
+    diffuser.setWidth(100.0f);  // Full stereo
+    diffuser.setModDepth(0.0f);
+
+    constexpr size_t kBufferSize = 8192;
+
+    std::vector<float> leftIn(kBufferSize);
+    std::vector<float> rightIn(kBufferSize);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    // Use identical mono input
+    generateWhiteNoise(leftIn.data(), kBufferSize, 42);
+    std::copy(leftIn.begin(), leftIn.end(), rightIn.begin());
+
+    // Warm up
+    diffuser.reset();
+    for (int i = 0; i < 3; ++i) {
+        diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+    }
+
+    // Calculate cross-correlation between L and R
+    float sumL = 0.0f, sumR = 0.0f, sumLR = 0.0f;
+    float sumL2 = 0.0f, sumR2 = 0.0f;
+
+    for (size_t i = 0; i < kBufferSize; ++i) {
+        sumL += leftOut[i];
+        sumR += rightOut[i];
+        sumLR += leftOut[i] * rightOut[i];
+        sumL2 += leftOut[i] * leftOut[i];
+        sumR2 += rightOut[i] * rightOut[i];
+    }
+
+    float n = static_cast<float>(kBufferSize);
+    float meanL = sumL / n;
+    float meanR = sumR / n;
+    float varL = sumL2 / n - meanL * meanL;
+    float varR = sumR2 / n - meanR * meanR;
+    float covar = sumLR / n - meanL * meanR;
+
+    float correlation = 0.0f;
+    if (varL > 0.0f && varR > 0.0f) {
+        correlation = covar / std::sqrt(varL * varR);
+    }
+
+    INFO("Cross-correlation at width=100%: " << correlation);
+    // With decorrelated stereo, correlation should be less than 1.0
+    // The stereo offset creates phase differences, reducing correlation
+    // We expect some correlation due to shared input, but not perfect
+    REQUIRE(correlation < 0.95f);
+}
+
+// T061: stereo image preservation
+TEST_CASE("DiffusionNetwork preserves stereo image characteristics", "[diffusion][US5]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(100.0f);
+    diffuser.setModDepth(0.0f);
+
+    constexpr size_t kBufferSize = 4096;
+
+    std::vector<float> leftIn(kBufferSize);
+    std::vector<float> rightIn(kBufferSize);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    // Generate stereo signal
+    generateSine(leftIn.data(), kBufferSize, 440.0f, kTestSampleRate);
+    generateSine(rightIn.data(), kBufferSize, 440.0f, kTestSampleRate);
+
+    SECTION("width=50% produces intermediate stereo") {
+        diffuser.setWidth(50.0f);
+        diffuser.reset();
+
+        // Warm up
+        for (int i = 0; i < 5; ++i) {
+            diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+        }
+
+        // Calculate L-R difference
+        float totalDiff = 0.0f;
+        for (size_t i = 0; i < kBufferSize; ++i) {
+            totalDiff += std::abs(leftOut[i] - rightOut[i]);
+        }
+        float avgDiff50 = totalDiff / static_cast<float>(kBufferSize);
+
+        // Also get width=100% for comparison
+        diffuser.setWidth(100.0f);
+        diffuser.reset();
+        for (int i = 0; i < 5; ++i) {
+            diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+        }
+
+        totalDiff = 0.0f;
+        for (size_t i = 0; i < kBufferSize; ++i) {
+            totalDiff += std::abs(leftOut[i] - rightOut[i]);
+        }
+        float avgDiff100 = totalDiff / static_cast<float>(kBufferSize);
+
+        INFO("Avg L-R diff at width=50%: " << avgDiff50);
+        INFO("Avg L-R diff at width=100%: " << avgDiff100);
+
+        // Width=50% should have less stereo difference than width=100%
+        REQUIRE(avgDiff50 < avgDiff100);
+    }
+}
+
+// T062: width parameter smoothing
+TEST_CASE("DiffusionNetwork width parameter is smoothed", "[diffusion][US5]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(100.0f);
+    diffuser.setModDepth(0.0f);
+
+    constexpr size_t kBufferSize = 4096;
+
+    std::vector<float> leftIn(kBufferSize);
+    std::vector<float> rightIn(kBufferSize);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    // Use a smooth sine wave
+    generateSine(leftIn.data(), kBufferSize, 100.0f, kTestSampleRate);
+    std::copy(leftIn.begin(), leftIn.end(), rightIn.begin());
+
+    // Start at width=0%
+    diffuser.setWidth(0.0f);
+    diffuser.reset();
+
+    // Warm up
+    for (int i = 0; i < 5; ++i) {
+        diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+    }
+
+    // Abruptly change to width=100%
+    diffuser.setWidth(100.0f);
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+
+    // Check for smooth transition (no large jumps)
+    float maxJump = 0.0f;
+    float avgOutput = 0.0f;
+
+    for (size_t i = 0; i < kBufferSize; ++i) {
+        avgOutput += std::abs(leftOut[i]);
+    }
+    avgOutput /= static_cast<float>(kBufferSize);
+
+    for (size_t i = 1; i < kBufferSize; ++i) {
+        float jump = std::abs(leftOut[i] - leftOut[i-1]);
+        if (jump > maxJump) {
+            maxJump = jump;
+        }
+    }
+
+    INFO("Average output level: " << avgOutput);
+    INFO("Maximum sample-to-sample jump: " << maxJump);
+
+    // Max jump should be bounded relative to signal level
+    REQUIRE(maxJump < avgOutput * 3.0f);
+}
+
+// T062b: width parameter clamping
+TEST_CASE("DiffusionNetwork width clamps to 0-100%", "[diffusion][US5]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+
+    SECTION("width clamps to minimum 0%") {
+        diffuser.setWidth(-10.0f);
+        REQUIRE(diffuser.getWidth() == Approx(0.0f).margin(0.001f));
+    }
+
+    SECTION("width clamps to maximum 100%") {
+        diffuser.setWidth(150.0f);
+        REQUIRE(diffuser.getWidth() == Approx(100.0f).margin(0.001f));
+    }
+
+    SECTION("width accepts valid range") {
+        diffuser.setWidth(0.0f);
+        REQUIRE(diffuser.getWidth() == Approx(0.0f).margin(0.001f));
+
+        diffuser.setWidth(50.0f);
+        REQUIRE(diffuser.getWidth() == Approx(50.0f).margin(0.001f));
+
+        diffuser.setWidth(100.0f);
+        REQUIRE(diffuser.getWidth() == Approx(100.0f).margin(0.001f));
+    }
+}
 
 // ==============================================================================
 // Phase 7: User Story 6 Tests - Real-Time Safety (P1)
