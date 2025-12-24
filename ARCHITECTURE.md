@@ -4,7 +4,7 @@ This document is the **living inventory** of all functional domains, components,
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document as a final task.
 
-**Last Updated**: 2025-12-24 (013-noise-generator)
+**Last Updated**: 2025-12-24 (015-diffusion-network)
 
 ---
 
@@ -2112,6 +2112,136 @@ noise.processMix(audioBuffer, audioBuffer, numSamples);  // In-place
 std::vector<float> noiseBuffer(numSamples);
 noise.process(audioBuffer, noiseBuffer.data(), numSamples);
 // Mix manually...
+```
+
+---
+
+### DiffusionNetwork
+
+| | |
+|---|---|
+| **Purpose** | 8-stage Schroeder allpass diffusion network for reverb-like temporal smearing |
+| **Location** | [src/dsp/processors/diffusion_network.h](src/dsp/processors/diffusion_network.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.15 (015-diffusion-network) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    // Constants
+    constexpr size_t kNumDiffusionStages = 8;
+    constexpr float kAllpassCoeff = 0.618033988749895f;  // Golden ratio inverse
+    constexpr float kBaseDelayMs = 3.2f;
+    constexpr float kMaxModDepthMs = 2.0f;
+
+    class DiffusionNetwork {
+    public:
+        // Constants
+        static constexpr float kMinSize = 0.0f;
+        static constexpr float kMaxSize = 100.0f;
+        static constexpr float kMinDensity = 0.0f;
+        static constexpr float kMaxDensity = 100.0f;
+        static constexpr float kMinWidth = 0.0f;
+        static constexpr float kMaxWidth = 100.0f;
+        static constexpr float kMinModDepth = 0.0f;
+        static constexpr float kMaxModDepth = 100.0f;
+        static constexpr float kMinModRate = 0.1f;
+        static constexpr float kMaxModRate = 5.0f;
+
+        // Lifecycle (call before audio processing)
+        void prepare(float sampleRate, size_t maxBlockSize) noexcept;
+        void reset() noexcept;
+
+        // Processing (real-time safe, stereo)
+        void process(const float* leftIn, const float* rightIn,
+                     float* leftOut, float* rightOut,
+                     size_t numSamples) noexcept;
+
+        // Parameter setters (real-time safe, smoothed)
+        void setSize(float sizePercent) noexcept;       // [0%, 100%] scales delay times
+        void setDensity(float densityPercent) noexcept; // [0%, 100%] → 0-8 stages
+        void setWidth(float widthPercent) noexcept;     // [0%, 100%] mono→stereo
+        void setModDepth(float depthPercent) noexcept;  // [0%, 100%] LFO depth
+        void setModRate(float rateHz) noexcept;         // [0.1Hz, 5Hz] LFO speed
+
+        // Parameter getters
+        [[nodiscard]] float getSize() const noexcept;
+        [[nodiscard]] float getDensity() const noexcept;
+        [[nodiscard]] float getWidth() const noexcept;
+        [[nodiscard]] float getModDepth() const noexcept;
+        [[nodiscard]] float getModRate() const noexcept;
+    };
+}
+```
+
+**Parameters**:
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| `size` | [0%, 100%] | Scales all delay times (0%=bypass, 100%=max diffusion) |
+| `density` | [0%, 100%] | Number of active stages (25%=2, 50%=4, 75%=6, 100%=8) |
+| `width` | [0%, 100%] | Stereo spread (0%=mono, 100%=full decorrelation) |
+| `modDepth` | [0%, 100%] | LFO modulation depth for chorus-like movement |
+| `modRate` | [0.1-5Hz] | LFO modulation speed |
+
+**Behavior**:
+- `prepare()` - Allocates delay buffers, configures smoothers (NOT real-time safe)
+- `reset()` - Clears delay lines and snaps smoothers to targets
+- `process()` - Stereo block processing, supports in-place operation
+- Uses irrational delay ratios based on √n: {1.0, 1.127, 1.414, 1.732, 2.236, 2.828, 3.317, 4.123}
+- Right channel has 1.127× delay offset for stereo decorrelation
+- Per-stage LFO phase offsets (45°) create decorrelated modulation
+- All parameters are smoothed (10ms) to prevent zipper noise
+- Preserves frequency spectrum (energy-conserving allpass filters)
+- Uses allpass interpolation for energy-preserving fractional delays
+
+**Technical Details**:
+- Single-delay-line Schroeder allpass formulation: `v[n] = x[n] + g*v[n-D]`, `y[n] = -g*v[n] + v[n-D]`
+- Allpass coefficient g = 0.618 (golden ratio inverse) for optimal diffusion
+- First-order allpass interpolation preserves energy at all frequencies
+- Density control uses crossfade for smooth stage enable/disable
+
+**Dependencies** (Layer 1 primitives):
+- `DelayLine` - Variable delay with allpass interpolation
+- `OnePoleSmoother` - Parameter smoothing for all controls
+
+**When to use**:
+
+| Use Case | Configuration |
+|----------|---------------|
+| Reverb pre-diffuser | size=50-80%, density=100%, modDepth=0% |
+| Smeared/washy delay | size=100%, density=100%, modDepth=20% |
+| Stereo enhancement | size=30%, density=50%, width=100% |
+| Chorus-like texture | size=50%, modDepth=50%, modRate=1.5Hz |
+| Subtle smoothing | size=20%, density=50%, modDepth=0% |
+
+**Example**:
+```cpp
+#include "dsp/processors/diffusion_network.h"
+using namespace Iterum::DSP;
+
+DiffusionNetwork diffuser;
+
+// In prepare() - allocates delay buffers
+diffuser.prepare(44100.0f, 512);
+diffuser.setSize(60.0f);       // 60% diffusion size
+diffuser.setDensity(100.0f);   // All 8 stages
+diffuser.setWidth(100.0f);     // Full stereo
+diffuser.setModDepth(25.0f);   // Subtle movement
+diffuser.setModRate(1.0f);     // 1 Hz LFO
+
+// In processBlock() - real-time safe
+diffuser.process(leftIn, rightIn, leftOut, rightOut, numSamples);
+
+// As reverb pre-diffuser (no modulation for cleaner tail)
+diffuser.setModDepth(0.0f);
+diffuser.setSize(80.0f);
+diffuser.process(leftIn, rightIn, leftOut, rightOut, numSamples);
+// Feed output to reverb tank...
+
+// In-place processing
+diffuser.process(buffer, buffer, buffer, buffer, numSamples);
 ```
 
 ---
