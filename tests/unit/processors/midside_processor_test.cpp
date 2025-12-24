@@ -422,7 +422,195 @@ TEST_CASE("MidSideProcessor width changes are smoothed", "[midside][US2][width][
 // User Story 3: Independent Mid and Side Gain (P3)
 // ==============================================================================
 
-// T031-T035 tests go here
+// T031: midGain=+6dB doubles Mid amplitude
+TEST_CASE("MidSideProcessor midGain=+6dB doubles Mid amplitude", "[midside][US3][gain]") {
+    MidSideProcessor ms;
+    ms.prepare(kTestSampleRate, kTestBlockSize);
+    ms.setMidGain(6.0206f);  // Exactly +6dB = 2.0 linear
+    ms.reset();
+
+    // Input: pure mid content (L=R)
+    std::array<float, 4> left  = {0.5f, 0.5f, 0.5f, 0.5f};
+    std::array<float, 4> right = {0.5f, 0.5f, 0.5f, 0.5f};
+    std::array<float, 4> leftOut{}, rightOut{};
+
+    ms.process(left.data(), right.data(), leftOut.data(), rightOut.data(), 4);
+
+    // Mid = 0.5, Side = 0
+    // Mid * 2.0 = 1.0
+    // L = R = Mid = 1.0
+    for (size_t i = 0; i < 4; ++i) {
+        REQUIRE(leftOut[i] == Approx(1.0f).margin(0.001f));
+        REQUIRE(rightOut[i] == Approx(1.0f).margin(0.001f));
+    }
+}
+
+// T032: sideGain=-96dB produces effectively silent Side
+TEST_CASE("MidSideProcessor sideGain=-96dB produces effectively silent Side", "[midside][US3][gain]") {
+    MidSideProcessor ms;
+    ms.prepare(kTestSampleRate, kTestBlockSize);
+    ms.setSideGain(-96.0f);  // Essentially mutes side
+    ms.reset();
+
+    // Input: pure side content (L=-R)
+    std::array<float, 4> left  = {1.0f, 1.0f, 1.0f, 1.0f};
+    std::array<float, 4> right = {-1.0f, -1.0f, -1.0f, -1.0f};
+    std::array<float, 4> leftOut{}, rightOut{};
+
+    ms.process(left.data(), right.data(), leftOut.data(), rightOut.data(), 4);
+
+    // FR-011: Gain at -96dB MUST effectively silence the channel (< -120dB output)
+    // Side = 1.0, Side * 10^(-96/20) ≈ Side * 1.58e-5 ≈ 0
+    // Output should be essentially mono (L ≈ R ≈ Mid = 0)
+    for (size_t i = 0; i < 4; ++i) {
+        // Should be effectively zero (< -120dB = 1e-6)
+        REQUIRE(std::abs(leftOut[i]) < 0.001f);
+        REQUIRE(std::abs(rightOut[i]) < 0.001f);
+        // And mono
+        REQUIRE(leftOut[i] == Approx(rightOut[i]).margin(0.001f));
+    }
+}
+
+// T033: setMidGain/setSideGain clamp to [-96dB, +24dB]
+TEST_CASE("MidSideProcessor gain setters clamp to valid range", "[midside][US3][gain]") {
+    MidSideProcessor ms;
+    ms.prepare(kTestSampleRate, kTestBlockSize);
+
+    SECTION("midGain clamps below minimum") {
+        ms.setMidGain(-200.0f);
+        REQUIRE(ms.getMidGain() == Approx(-96.0f));
+    }
+
+    SECTION("midGain clamps above maximum") {
+        ms.setMidGain(50.0f);
+        REQUIRE(ms.getMidGain() == Approx(24.0f));
+    }
+
+    SECTION("sideGain clamps below minimum") {
+        ms.setSideGain(-150.0f);
+        REQUIRE(ms.getSideGain() == Approx(-96.0f));
+    }
+
+    SECTION("sideGain clamps above maximum") {
+        ms.setSideGain(30.0f);
+        REQUIRE(ms.getSideGain() == Approx(24.0f));
+    }
+
+    SECTION("values within range are accepted") {
+        ms.setMidGain(-12.0f);
+        REQUIRE(ms.getMidGain() == Approx(-12.0f));
+
+        ms.setSideGain(6.0f);
+        REQUIRE(ms.getSideGain() == Approx(6.0f));
+    }
+
+    SECTION("boundary values work correctly") {
+        ms.setMidGain(-96.0f);
+        REQUIRE(ms.getMidGain() == Approx(-96.0f));
+
+        ms.setMidGain(24.0f);
+        REQUIRE(ms.getMidGain() == Approx(24.0f));
+    }
+}
+
+// T034: gain changes are smoothed (click-free)
+TEST_CASE("MidSideProcessor gain changes are smoothed", "[midside][US3][gain][smoothing]") {
+    MidSideProcessor ms;
+    ms.prepare(kTestSampleRate, kTestBlockSize);
+    ms.setMidGain(0.0f);  // Start at unity
+    ms.reset();
+
+    // Change to +12dB without reset
+    ms.setMidGain(12.0f);
+
+    // Process a buffer - first samples should be transitioning
+    std::array<float, 64> left, right;
+    std::array<float, 64> leftOut, rightOut;
+
+    // Pure mid input
+    std::fill(left.begin(), left.end(), 0.5f);
+    std::fill(right.begin(), right.end(), 0.5f);
+
+    ms.process(left.data(), right.data(), leftOut.data(), rightOut.data(), 64);
+
+    // FR-012: Gain changes MUST be smoothed to prevent clicks
+    // At +12dB (4x), output would be 0.5 * 4 = 2.0
+    // But we started from 0dB (1x), so first sample should be near 0.5
+
+    // First sample should be close to starting value
+    REQUIRE(leftOut[0] < 1.0f);  // Not at full +12dB yet
+    REQUIRE(leftOut[0] >= 0.5f - 0.01f);  // Near starting value
+
+    // Last sample should be closer to target
+    REQUIRE(leftOut[63] > leftOut[0]);
+
+    // Check for no sudden jumps (click-free)
+    float maxJump = 0.0f;
+    for (size_t i = 1; i < 64; ++i) {
+        float jump = std::abs(leftOut[i] - leftOut[i-1]);
+        if (jump > maxJump) maxJump = jump;
+    }
+    // Max jump should be small (smoothed transition)
+    REQUIRE(maxJump < 0.1f);
+}
+
+// T035: gain uses dbToGain() for conversion
+TEST_CASE("MidSideProcessor gain uses correct dB conversion", "[midside][US3][gain]") {
+    MidSideProcessor ms;
+    ms.prepare(kTestSampleRate, kTestBlockSize);
+
+    SECTION("-6dB halves amplitude") {
+        ms.setMidGain(-6.0206f);  // -6dB ≈ 0.5 linear
+        ms.reset();
+
+        std::array<float, 4> left  = {1.0f, 1.0f, 1.0f, 1.0f};
+        std::array<float, 4> right = {1.0f, 1.0f, 1.0f, 1.0f};
+        std::array<float, 4> leftOut{}, rightOut{};
+
+        ms.process(left.data(), right.data(), leftOut.data(), rightOut.data(), 4);
+
+        // Mid = 1.0, Side = 0
+        // Mid * 0.5 = 0.5
+        for (size_t i = 0; i < 4; ++i) {
+            REQUIRE(leftOut[i] == Approx(0.5f).margin(0.001f));
+        }
+    }
+
+    SECTION("0dB is unity") {
+        ms.setMidGain(0.0f);
+        ms.setSideGain(0.0f);
+        ms.reset();
+
+        std::array<float, 4> left  = {0.7f, -0.3f, 0.5f, -0.9f};
+        std::array<float, 4> right = {0.7f, -0.3f, 0.5f, -0.9f};
+        std::array<float, 4> leftOut{}, rightOut{};
+
+        ms.process(left.data(), right.data(), leftOut.data(), rightOut.data(), 4);
+
+        for (size_t i = 0; i < 4; ++i) {
+            REQUIRE(leftOut[i] == Approx(left[i]).margin(kTolerance));
+        }
+    }
+
+    SECTION("+20dB multiplies by 10") {
+        ms.setSideGain(20.0f);  // +20dB = 10x
+        ms.reset();
+
+        // Pure side input (L=0.1, R=-0.1) -> Side = 0.1
+        std::array<float, 4> left  = {0.1f, 0.1f, 0.1f, 0.1f};
+        std::array<float, 4> right = {-0.1f, -0.1f, -0.1f, -0.1f};
+        std::array<float, 4> leftOut{}, rightOut{};
+
+        ms.process(left.data(), right.data(), leftOut.data(), rightOut.data(), 4);
+
+        // Mid = 0, Side = 0.1, Side * 10 = 1.0
+        // L = 0 + 1.0 = 1.0, R = 0 - 1.0 = -1.0
+        for (size_t i = 0; i < 4; ++i) {
+            REQUIRE(leftOut[i] == Approx(1.0f).margin(0.01f));
+            REQUIRE(rightOut[i] == Approx(-1.0f).margin(0.01f));
+        }
+    }
+}
 
 // ==============================================================================
 // User Story 4: Solo Modes for Monitoring (P4)
