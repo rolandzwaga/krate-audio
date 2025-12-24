@@ -5,6 +5,116 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.17] - 2025-12-24
+
+### Added
+
+- **Layer 2 DSP Processor: PitchShiftProcessor** (`src/dsp/processors/pitch_shift_processor.h`)
+  - Complete pitch shifting processor for transposing audio without changing duration
+  - Three quality modes with different latency/quality trade-offs:
+    - `Simple` - Zero latency, delay-line modulation with dual crossfade (audible artifacts)
+    - `Granular` - ~46ms latency, Hann window crossfades, good quality for general use
+    - `PhaseVocoder` - ~116ms latency, STFT-based with phase coherence, excellent quality
+  - Pitch range: ±24 semitones (4 octaves) with fine-tuning via cents (±100)
+  - **Formant Preservation** using cepstral envelope extraction:
+    - Prevents "chipmunk" effect when shifting vocals
+    - Available in PhaseVocoder mode (requires spectral access)
+    - Quefrency cutoff: 1.5ms default (suitable for vocals up to ~666Hz F0)
+  - Real-time parameter automation with click-free transitions
+  - Stable in feedback configurations (verified 1000 iterations at 80% feedback)
+  - In-place processing support (input == output buffers)
+  - Sample rates 44.1kHz to 192kHz supported
+  - Real-time safe: `noexcept`, no allocations in `process()`
+
+- **Internal pitch shifter implementations**:
+  - `SimplePitchShifter` - Dual delay-line with half-sine crossfade, Doppler-based pitch shift
+  - `GranularPitchShifter` - Hann window crossfades, longer crossfade region (33%)
+  - `PhaseVocoderPitchShifter` - STFT with phase vocoder algorithm, instantaneous frequency tracking
+  - `FormantPreserver` - Cepstral low-pass liftering for spectral envelope extraction
+
+- **Utility functions**:
+  - `pitchRatioFromSemitones(float semitones)` - Convert semitones to pitch ratio (2^(s/12))
+  - `semitonesFromPitchRatio(float ratio)` - Convert pitch ratio to semitones (12*log2(r))
+
+- **Comprehensive test suite** (2,815 assertions across 42 test cases)
+  - US1: Basic pitch shifting (440Hz → 880Hz/220Hz verification)
+  - US2: Quality mode latency verification (0/~2029/~5120 samples)
+  - US3: Cents fine control with combined semitone+cents
+  - US4: Formant preservation with cepstral envelope extraction
+  - US5: Feedback path stability (SC-008: 1000 iterations at 80%)
+  - US6: Real-time parameter automation sweeps
+  - Edge cases: Extreme values (±24st), NaN/infinity handling, sample rate changes
+
+### Technical Details
+
+- **Pitch shift physics**: ω_out = ω_in × (1 - dDelay/dt) (Doppler effect)
+  - Pitch up (ratio > 1): delay DECREASES at rate (ratio - 1) samples/sample
+  - Pitch down (ratio < 1): delay INCREASES at rate (1 - ratio) samples/sample
+- **Simple mode crossfade**: Half-sine for constant power, 25% of delay range
+- **Granular mode crossfade**: Hann window for smoother transitions, 33% of delay range
+- **PhaseVocoder algorithm**:
+  - FFT size: 4096 samples (~93ms at 44.1kHz)
+  - Hop size: 1024 samples (25% overlap, 4x redundancy)
+  - Instantaneous frequency from phase difference + expected phase increment
+  - Spectrum scaling with phase accumulation for coherence
+- **Formant preservation**:
+  - Log magnitude spectrum → IFFT → real cepstrum
+  - Hann lifter window at quefrency cutoff → low-pass in cepstral domain
+  - FFT → exp → spectral envelope
+  - Apply envelope ratio: output = shifted × (originalEnv / shiftedEnv)
+- **Dependencies** (Layer 0-1 primitives):
+  - `DelayLine` - Simple mode delay buffer
+  - `STFT` / `FFT` - PhaseVocoder spectral analysis
+  - `SpectralBuffer` - Phase manipulation storage
+  - `OnePoleSmoother` - Parameter smoothing
+  - `WindowFunctions` - Grain windowing (Hann)
+- **Namespace**: `Iterum::DSP` (Layer 2 DSP processors)
+- **Constitution compliance**: Principles II (RT Safety), III (Modern C++), IX (Layered Architecture), X (DSP Constraints), XII (Test-First), XIII (Architecture Docs), XV (Honest Completion)
+
+### Usage
+
+```cpp
+#include "dsp/processors/pitch_shift_processor.h"
+
+using namespace Iterum::DSP;
+
+PitchShiftProcessor shifter;
+
+// In prepare() - allocates all buffers
+shifter.prepare(44100.0, 512);
+
+// Select quality mode
+shifter.setMode(PitchMode::Granular);  // Good balance of quality/latency
+
+// Set pitch shift
+shifter.setSemitones(7.0f);   // Perfect fifth up
+shifter.setCents(0.0f);       // No fine tuning
+
+// Enable formant preservation for vocals (PhaseVocoder mode only)
+shifter.setMode(PitchMode::PhaseVocoder);
+shifter.setFormantPreserve(true);
+
+// In processBlock() - real-time safe
+shifter.process(input, output, numSamples);
+
+// In-place processing also supported
+shifter.process(buffer, buffer, numSamples);
+
+// Query latency for host delay compensation
+size_t latency = shifter.getLatencySamples();
+
+// Zero-latency monitoring mode
+shifter.setMode(PitchMode::Simple);  // 0 samples latency
+shifter.setSemitones(0.0f);          // Pass-through for comparison
+
+// Shimmer delay feedback loop
+shifter.setMode(PitchMode::Simple);
+shifter.setSemitones(12.0f);  // Octave up
+// Route output back to input with feedback gain < 1.0
+```
+
+---
+
 ## [0.0.16] - 2025-12-24
 
 ### Added
