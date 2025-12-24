@@ -40,15 +40,12 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 // ==============================================================================
 // Plugin Metadata
 // ==============================================================================
-
-constexpr const char* kPluginName = "Iterum";
-constexpr const char* kVendorName = "Your Company";
-constexpr const char* kVendorURL = "https://yourcompany.com";
-constexpr const char* kVendorEmail = "info@yourcompany.com";
-constexpr const char* kVersionString = "1.0.0";
+// Note: Vendor info (company name, URL, email, copyright) is defined in
+// version.h.in which CMake uses to generate version.h
+// ==============================================================================
 
 // VST3 Sub-categories (see VST3 SDK documentation for full list)
 // Examples: "Fx", "Instrument", "Analyzer", "Delay", "Reverb", etc.
-constexpr const char* kSubCategories = "Fx";
+constexpr const char* kSubCategories = "Delay";
 
 } // namespace Iterum
