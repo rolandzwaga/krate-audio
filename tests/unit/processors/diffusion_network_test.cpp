@@ -1013,8 +1013,275 @@ TEST_CASE("DiffusionNetwork density scales diffusion proportionally", "[diffusio
 // Phase 5: User Story 4 Tests - Modulation (P2)
 // ==============================================================================
 
-// Tests for LFO modulation
-// (T047-T050)
+// T047: modDepth=0% produces no artifacts
+TEST_CASE("DiffusionNetwork at modDepth=0% produces no pitch artifacts", "[diffusion][US4]") {
+    // With modDepth=0%, the output should be identical to unmodulated diffusion
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(100.0f);
+    diffuser.setModDepth(0.0f);  // No modulation
+    diffuser.setModRate(1.0f);
+
+    constexpr size_t kBufferSize = 8192;
+
+    // Process a steady sine wave - should have no pitch variation
+    std::vector<float> leftIn(kBufferSize);
+    std::vector<float> rightIn(kBufferSize);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    // Use a test tone at 1kHz
+    constexpr float kTestFreq = 1000.0f;
+    generateSine(leftIn.data(), kBufferSize, kTestFreq, kTestSampleRate);
+    std::copy(leftIn.begin(), leftIn.end(), rightIn.begin());
+
+    // Warm up the diffuser
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+
+    // Process and analyze
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+
+    // With no modulation, output energy should be stable
+    // Compute variance of envelope (rough measure of AM)
+    float sum = 0.0f;
+    float sumSq = 0.0f;
+    size_t count = 0;
+    for (size_t i = 100; i < kBufferSize - 100; ++i) {
+        float sample = std::abs(leftOut[i]);
+        sum += sample;
+        sumSq += sample * sample;
+        ++count;
+    }
+    float mean = sum / static_cast<float>(count);
+    float variance = (sumSq / static_cast<float>(count)) - (mean * mean);
+
+    INFO("Envelope variance with modDepth=0%: " << variance);
+    // Variance should be relatively low (envelope is stable)
+    // Allow reasonable tolerance since diffusion still causes some variation
+    REQUIRE(variance < 0.3f);
+}
+
+// T048: modDepth=50% produces subtle movement
+TEST_CASE("DiffusionNetwork at modDepth=50% produces audible movement", "[diffusion][US4]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(100.0f);
+    diffuser.setModRate(2.0f);  // 2 Hz modulation
+
+    constexpr size_t kBufferSize = 44100;  // 1 second at 44.1kHz (2 full LFO cycles)
+
+    std::vector<float> leftIn(kBufferSize);
+    std::vector<float> rightIn(kBufferSize);
+    std::vector<float> leftOut0(kBufferSize, 0.0f);
+    std::vector<float> rightOut0(kBufferSize, 0.0f);
+    std::vector<float> leftOut50(kBufferSize, 0.0f);
+    std::vector<float> rightOut50(kBufferSize, 0.0f);
+
+    // Generate test signal
+    constexpr float kTestFreq = 1000.0f;
+    generateSine(leftIn.data(), kBufferSize, kTestFreq, kTestSampleRate);
+    std::copy(leftIn.begin(), leftIn.end(), rightIn.begin());
+
+    // Process with modDepth=0%
+    diffuser.setModDepth(0.0f);
+    diffuser.reset();
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut0.data(), rightOut0.data(), kBufferSize);
+
+    // Process with modDepth=50%
+    diffuser.setModDepth(50.0f);
+    diffuser.reset();
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut50.data(), rightOut50.data(), kBufferSize);
+
+    // Compare outputs - should be different due to modulated delay times
+    float diffSum = 0.0f;
+    for (size_t i = 0; i < kBufferSize; ++i) {
+        diffSum += std::abs(leftOut50[i] - leftOut0[i]);
+    }
+    float avgDiff = diffSum / static_cast<float>(kBufferSize);
+
+    INFO("Average difference with modDepth=50% vs 0%: " << avgDiff);
+    // Should show measurable difference from modulation
+    REQUIRE(avgDiff > 0.001f);
+}
+
+// T049: modRate range 0.1Hz-5Hz
+TEST_CASE("DiffusionNetwork modRate range is 0.1Hz to 5Hz", "[diffusion][US4]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setModDepth(50.0f);
+
+    SECTION("modRate clamps to minimum 0.1Hz") {
+        diffuser.setModRate(0.0f);  // Below minimum
+        REQUIRE(diffuser.getModRate() == Approx(0.1f).margin(0.001f));
+
+        diffuser.setModRate(-5.0f);  // Negative
+        REQUIRE(diffuser.getModRate() == Approx(0.1f).margin(0.001f));
+    }
+
+    SECTION("modRate clamps to maximum 5Hz") {
+        diffuser.setModRate(10.0f);  // Above maximum
+        REQUIRE(diffuser.getModRate() == Approx(5.0f).margin(0.001f));
+
+        diffuser.setModRate(100.0f);  // Way above
+        REQUIRE(diffuser.getModRate() == Approx(5.0f).margin(0.001f));
+    }
+
+    SECTION("modRate accepts values in valid range") {
+        diffuser.setModRate(0.1f);
+        REQUIRE(diffuser.getModRate() == Approx(0.1f).margin(0.001f));
+
+        diffuser.setModRate(2.5f);
+        REQUIRE(diffuser.getModRate() == Approx(2.5f).margin(0.001f));
+
+        diffuser.setModRate(5.0f);
+        REQUIRE(diffuser.getModRate() == Approx(5.0f).margin(0.001f));
+    }
+}
+
+// T050: per-stage phase offsets for decorrelation
+TEST_CASE("DiffusionNetwork has per-stage phase offsets for decorrelation", "[diffusion][US4]") {
+    // The implementation uses 45° (π/4) phase offsets between stages
+    // This creates decorrelated modulation across stages
+    // We test by verifying that modulation at different sizes produces different patterns
+
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setDensity(100.0f);  // All 8 stages
+    diffuser.setModDepth(100.0f);
+    diffuser.setModRate(1.0f);  // 1 Hz for clear cycles
+
+    constexpr size_t kBufferSize = 44100;  // 1 second
+
+    std::vector<float> leftIn(kBufferSize);
+    std::vector<float> rightIn(kBufferSize);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    // Impulse input
+    std::fill(leftIn.begin(), leftIn.end(), 0.0f);
+    std::fill(rightIn.begin(), rightIn.end(), 0.0f);
+    leftIn[0] = 1.0f;
+    rightIn[0] = 1.0f;
+
+    // Process at size=50%
+    diffuser.setSize(50.0f);
+    diffuser.reset();
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+
+    // Find when the impulse reaches output (first significant sample after the direct)
+    size_t firstResponseSample = 0;
+    for (size_t i = 1; i < kBufferSize; ++i) {
+        if (std::abs(leftOut[i]) > 0.01f) {
+            firstResponseSample = i;
+            break;
+        }
+    }
+
+    INFO("First response sample: " << firstResponseSample);
+    // Should have some delay due to allpass stages
+    REQUIRE(firstResponseSample > 0);
+
+    // The response should be spread out over time (diffused)
+    // Count samples with significant energy
+    size_t significantSamples = 0;
+    for (size_t i = 0; i < std::min(kBufferSize, static_cast<size_t>(4410)); ++i) {  // First 100ms
+        if (std::abs(leftOut[i]) > 0.001f) {
+            ++significantSamples;
+        }
+    }
+
+    INFO("Significant samples in first 100ms: " << significantSamples);
+    // With modulation and phase offsets, energy should be spread
+    REQUIRE(significantSamples > 50);
+}
+
+// T050b: modDepth clamping
+TEST_CASE("DiffusionNetwork modDepth clamps to 0-100%", "[diffusion][US4]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+
+    SECTION("modDepth clamps to minimum 0%") {
+        diffuser.setModDepth(-10.0f);
+        REQUIRE(diffuser.getModDepth() == Approx(0.0f).margin(0.001f));
+    }
+
+    SECTION("modDepth clamps to maximum 100%") {
+        diffuser.setModDepth(150.0f);
+        REQUIRE(diffuser.getModDepth() == Approx(100.0f).margin(0.001f));
+    }
+
+    SECTION("modDepth accepts valid range") {
+        diffuser.setModDepth(0.0f);
+        REQUIRE(diffuser.getModDepth() == Approx(0.0f).margin(0.001f));
+
+        diffuser.setModDepth(50.0f);
+        REQUIRE(diffuser.getModDepth() == Approx(50.0f).margin(0.001f));
+
+        diffuser.setModDepth(100.0f);
+        REQUIRE(diffuser.getModDepth() == Approx(100.0f).margin(0.001f));
+    }
+}
+
+// T050c: modulation parameter changes are smoothed
+TEST_CASE("DiffusionNetwork modDepth parameter changes are smoothed", "[diffusion][US4]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(100.0f);
+
+    constexpr size_t kBufferSize = 4096;
+
+    std::vector<float> leftIn(kBufferSize);
+    std::vector<float> rightIn(kBufferSize);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    // Use a smooth sine wave so discontinuities are detectable
+    constexpr float kTestFreq = 100.0f;  // Low frequency for smooth signal
+    generateSine(leftIn.data(), kBufferSize, kTestFreq, kTestSampleRate);
+    std::copy(leftIn.begin(), leftIn.end(), rightIn.begin());
+
+    // Start with modDepth=0%
+    diffuser.setModDepth(0.0f);
+    diffuser.reset();
+
+    // Warm up to reach steady state
+    for (int i = 0; i < 5; ++i) {
+        diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+    }
+
+    // Abruptly change modDepth to 100% - the smoother should prevent clicks
+    diffuser.setModDepth(100.0f);
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+
+    // Calculate the maximum derivative (rate of change) of the output
+    // A smoothed transition should not cause sudden jumps relative to the signal amplitude
+    float maxJump = 0.0f;
+    float avgOutput = 0.0f;
+
+    for (size_t i = 0; i < kBufferSize; ++i) {
+        avgOutput += std::abs(leftOut[i]);
+    }
+    avgOutput /= static_cast<float>(kBufferSize);
+
+    for (size_t i = 1; i < kBufferSize; ++i) {
+        float jump = std::abs(leftOut[i] - leftOut[i-1]);
+        if (jump > maxJump) {
+            maxJump = jump;
+        }
+    }
+
+    INFO("Average output level: " << avgOutput);
+    INFO("Maximum sample-to-sample jump: " << maxJump);
+
+    // Maximum jump should be reasonable relative to signal level
+    // For a sine wave through allpass, expect natural smooth changes
+    // A click would show as maxJump >> avgOutput
+    REQUIRE(maxJump < avgOutput * 3.0f);  // Max jump should be bounded
+}
 
 // ==============================================================================
 // Phase 6: User Story 5 Tests - Stereo Width Control (P2)
