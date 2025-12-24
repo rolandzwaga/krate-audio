@@ -36,6 +36,9 @@
 // Layer 1 dependencies
 #include "dsp/primitives/delay_line.h"
 #include "dsp/primitives/smoother.h"
+#include "dsp/primitives/stft.h"
+#include "dsp/primitives/spectral_buffer.h"
+#include "dsp/core/window_functions.h"
 
 namespace Iterum::DSP {
 
@@ -470,6 +473,424 @@ private:
 };
 
 // ==============================================================================
+// GranularPitchShifter - Dual-delay with Hann crossfade
+// ==============================================================================
+
+/// @brief Higher quality pitch shifter using Hann window crossfades
+///
+/// Quality improvements over SimplePitchShifter:
+/// 1. Hann window crossfade (vs half-sine) - smoother transitions
+/// 2. Longer window time (46ms vs 50ms) - more time for crossfade
+/// 3. Longer crossfade region (33% vs 25%) - more overlap during transitions
+///
+/// Uses the same dual-delay architecture as SimplePitchShifter but with
+/// Hann windows for crossfading. The Hann window provides smoother
+/// amplitude transitions than half-sine, reducing audible artifacts.
+///
+/// Key physics: ω_out = ω_in × (1 - dDelay/dt)
+/// For pitch ratio R: dDelay/dt = 1 - R
+///
+/// Sources:
+/// - https://www.mathworks.com/help/audio/ug/delay-based-pitch-shifter.html
+/// - https://www.katjaas.nl/pitchshiftlowlatency/pitchshiftlowlatency.html
+///
+/// Latency: ~grainSize samples (~46ms at 44.1kHz) - reports latency unlike Simple mode
+class GranularPitchShifter {
+public:
+    static constexpr float kWindowTimeMs = 46.0f;  // Longer than Simple (50ms) for spec
+    static constexpr float kPi = 3.14159265358979323846f;
+
+    GranularPitchShifter() = default;
+
+    void prepare(double sampleRate, std::size_t /*maxBlockSize*/) noexcept {
+        sampleRate_ = static_cast<float>(sampleRate);
+
+        // Delay range in samples (~2029 at 44.1kHz for 46ms)
+        maxDelay_ = sampleRate_ * kWindowTimeMs * 0.001f;
+        minDelay_ = 1.0f;
+
+        // Store grain size for latency reporting
+        grainSize_ = static_cast<std::size_t>(maxDelay_);
+
+        // Buffer must hold max delay + safety margin
+        bufferSize_ = static_cast<std::size_t>(maxDelay_) * 2 + 64;
+        buffer_.resize(bufferSize_, 0.0f);
+
+        // Pre-compute Hann window for crossfade (using first half: 0 to 1)
+        // The first half of a Hann window rises smoothly from 0 to 1
+        // We allocate full window but only use first half for fade-in
+        crossfadeWindowSize_ = static_cast<std::size_t>(maxDelay_ * 0.5f);
+        const std::size_t fullWindowSize = crossfadeWindowSize_ * 2;
+        crossfadeWindow_.resize(fullWindowSize);
+        Window::generateHann(crossfadeWindow_.data(), fullWindowSize);
+        // Only first half (indices 0 to crossfadeWindowSize_-1) will be used
+
+        reset();
+    }
+
+    void reset() noexcept {
+        std::fill(buffer_.begin(), buffer_.end(), 0.0f);
+        writePos_ = 0;
+
+        delay1_ = maxDelay_;
+        delay2_ = maxDelay_;
+        crossfadePhase_ = 0.0f;
+        needsCrossfade_ = false;
+    }
+
+    void process(const float* input, float* output, std::size_t numSamples,
+                 float pitchRatio) noexcept {
+        // At unity pitch, pass through
+        if (std::abs(pitchRatio - 1.0f) < 0.0001f) {
+            if (input != output) {
+                std::copy(input, input + numSamples, output);
+            }
+            return;
+        }
+
+        pitchRatio = std::clamp(pitchRatio, 0.25f, 4.0f);
+
+        const float delayChange = 1.0f - pitchRatio;
+        const float bufferSizeF = static_cast<float>(bufferSize_);
+
+        // Longer crossfade (33% of delay range) for smoother transitions
+        const float crossfadeLength = maxDelay_ * 0.33f;
+        const float crossfadeRate = 1.0f / crossfadeLength;
+        const float triggerThreshold = crossfadeLength;
+
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            buffer_[writePos_] = input[i];
+
+            // Read from both delay taps
+            float readPos1 = static_cast<float>(writePos_) - delay1_;
+            float readPos2 = static_cast<float>(writePos_) - delay2_;
+
+            if (readPos1 < 0.0f) readPos1 += bufferSizeF;
+            if (readPos2 < 0.0f) readPos2 += bufferSizeF;
+
+            float sample1 = readInterpolated(readPos1);
+            float sample2 = readInterpolated(readPos2);
+
+            // Hann window crossfade (smoother than half-sine)
+            // Map crossfadePhase [0,1] to Hann window index
+            std::size_t fadeIdx = static_cast<std::size_t>(crossfadePhase_ *
+                                  static_cast<float>(crossfadeWindowSize_));
+            if (fadeIdx >= crossfadeWindowSize_) fadeIdx = crossfadeWindowSize_ - 1;
+
+            // Hann window goes 0 -> 1 over first half
+            float gain2 = crossfadeWindow_[fadeIdx];
+            float gain1 = 1.0f - gain2;
+
+            output[i] = sample1 * gain1 + sample2 * gain2;
+
+            // Update both delays
+            delay1_ += delayChange;
+            delay2_ += delayChange;
+
+            // Check if we need to start a crossfade
+            if (!needsCrossfade_) {
+                bool approachingLimit = (delayChange < 0.0f && delay1_ <= minDelay_ + triggerThreshold) ||
+                                        (delayChange > 0.0f && delay1_ >= maxDelay_ - triggerThreshold);
+
+                if (approachingLimit) {
+                    delay2_ = (pitchRatio > 1.0f) ? maxDelay_ : minDelay_;
+                    needsCrossfade_ = true;
+                }
+            }
+
+            // Manage crossfade
+            if (needsCrossfade_) {
+                crossfadePhase_ += crossfadeRate;
+
+                if (crossfadePhase_ >= 1.0f) {
+                    crossfadePhase_ = 0.0f;
+                    needsCrossfade_ = false;
+                    std::swap(delay1_, delay2_);
+                }
+            }
+
+            delay1_ = std::clamp(delay1_, minDelay_, maxDelay_);
+            delay2_ = std::clamp(delay2_, minDelay_, maxDelay_);
+
+            writePos_ = (writePos_ + 1) % bufferSize_;
+        }
+    }
+
+    [[nodiscard]] std::size_t getLatencySamples() const noexcept {
+        return grainSize_;
+    }
+
+private:
+    [[nodiscard]] float readInterpolated(float pos) const noexcept {
+        const std::size_t idx0 = static_cast<std::size_t>(pos) % bufferSize_;
+        const std::size_t idx1 = (idx0 + 1) % bufferSize_;
+        const float frac = pos - std::floor(pos);
+        return buffer_[idx0] * (1.0f - frac) + buffer_[idx1] * frac;
+    }
+
+    std::vector<float> buffer_;
+    std::vector<float> crossfadeWindow_;
+    std::size_t grainSize_ = 0;
+    std::size_t crossfadeWindowSize_ = 0;
+    std::size_t bufferSize_ = 0;
+    std::size_t writePos_ = 0;
+    float delay1_ = 0.0f;
+    float delay2_ = 0.0f;
+    float crossfadePhase_ = 0.0f;
+    float maxDelay_ = 0.0f;
+    float minDelay_ = 1.0f;
+    float sampleRate_ = 44100.0f;
+    bool needsCrossfade_ = false;
+};
+
+// ==============================================================================
+// PhaseVocoderPitchShifter - STFT-based pitch shifting
+// ==============================================================================
+
+/// @brief High-quality pitch shifter using phase vocoder algorithm
+///
+/// Uses Short-Time Fourier Transform (STFT) with phase manipulation to
+/// achieve high-quality pitch shifting. The algorithm works by:
+/// 1. Analyzing audio into overlapping spectral frames
+/// 2. Computing instantaneous frequencies from phase differences
+/// 3. Scaling the spectrum by the pitch ratio with phase coherence
+/// 4. Resynthesizing using overlap-add
+///
+/// Quality is significantly higher than delay-line methods, especially
+/// for large pitch shifts, at the cost of ~116ms latency.
+///
+/// Sources:
+/// - Dolson, "The Phase Vocoder: A Tutorial"
+/// - Laroche & Dolson, "Improved Phase Vocoder Time-Scale Modification"
+///
+/// Latency: FFT_SIZE + HOP_SIZE samples (~116ms at 44.1kHz with 4096 FFT)
+class PhaseVocoderPitchShifter {
+public:
+    static constexpr std::size_t kFFTSize = 4096;      // ~93ms at 44.1kHz
+    static constexpr std::size_t kHopSize = 1024;      // 25% overlap (4x)
+    static constexpr float kPi = 3.14159265358979323846f;
+    static constexpr float kTwoPi = 2.0f * kPi;
+
+    PhaseVocoderPitchShifter() = default;
+
+    void prepare(double sampleRate, std::size_t /*maxBlockSize*/) noexcept {
+        sampleRate_ = static_cast<float>(sampleRate);
+
+        // Prepare STFT analysis
+        stft_.prepare(kFFTSize, kHopSize, WindowType::Hann);
+
+        // Prepare overlap-add synthesis
+        ola_.prepare(kFFTSize, kHopSize, WindowType::Hann);
+
+        // Prepare spectral buffers
+        analysisSpectrum_.prepare(kFFTSize);
+        synthesisSpectrum_.prepare(kFFTSize);
+
+        // Allocate phase tracking arrays
+        const std::size_t numBins = kFFTSize / 2 + 1;
+        prevPhase_.resize(numBins, 0.0f);
+        synthPhase_.resize(numBins, 0.0f);
+        magnitude_.resize(numBins, 0.0f);
+        frequency_.resize(numBins, 0.0f);
+
+        // Calculate expected phase advance per bin per hop
+        // For bin k: expected_advance = 2π * k * hop_size / fft_size
+        expectedPhaseInc_.resize(numBins);
+        for (std::size_t k = 0; k < numBins; ++k) {
+            expectedPhaseInc_[k] = kTwoPi * static_cast<float>(k) *
+                                   static_cast<float>(kHopSize) /
+                                   static_cast<float>(kFFTSize);
+        }
+
+        // Output buffer for resampled output
+        outputBuffer_.resize(kFFTSize * 4, 0.0f);
+        outputReadPos_ = 0;
+        outputWritePos_ = 0;
+        outputSamplesReady_ = 0;
+
+        // Input buffer for accumulating samples
+        inputBuffer_.resize(kFFTSize * 4, 0.0f);
+        inputWritePos_ = 0;
+        inputSamplesReady_ = 0;
+
+        reset();
+    }
+
+    void reset() noexcept {
+        stft_.reset();
+        ola_.reset();
+        analysisSpectrum_.reset();
+        synthesisSpectrum_.reset();
+
+        std::fill(prevPhase_.begin(), prevPhase_.end(), 0.0f);
+        std::fill(synthPhase_.begin(), synthPhase_.end(), 0.0f);
+        std::fill(inputBuffer_.begin(), inputBuffer_.end(), 0.0f);
+        std::fill(outputBuffer_.begin(), outputBuffer_.end(), 0.0f);
+
+        inputWritePos_ = 0;
+        inputSamplesReady_ = 0;
+        outputReadPos_ = 0;
+        outputWritePos_ = 0;
+        outputSamplesReady_ = 0;
+    }
+
+    void process(const float* input, float* output, std::size_t numSamples,
+                 float pitchRatio) noexcept {
+        // At unity pitch, pass through (with latency compensation)
+        if (std::abs(pitchRatio - 1.0f) < 0.0001f) {
+            processUnityPitch(input, output, numSamples);
+            return;
+        }
+
+        pitchRatio = std::clamp(pitchRatio, 0.25f, 4.0f);
+
+        // Push input samples to STFT
+        stft_.pushSamples(input, numSamples);
+
+        // Process as many frames as possible
+        while (stft_.canAnalyze()) {
+            // Analyze frame
+            stft_.analyze(analysisSpectrum_);
+
+            // Phase vocoder pitch shift
+            processFrame(pitchRatio);
+
+            // Synthesize frame
+            ola_.synthesize(synthesisSpectrum_);
+        }
+
+        // Pull available output samples
+        std::size_t samplesToOutput = std::min(numSamples, ola_.samplesAvailable());
+        if (samplesToOutput > 0) {
+            ola_.pullSamples(output, samplesToOutput);
+        }
+
+        // Zero any remaining output (during startup latency)
+        for (std::size_t i = samplesToOutput; i < numSamples; ++i) {
+            output[i] = 0.0f;
+        }
+    }
+
+    [[nodiscard]] std::size_t getLatencySamples() const noexcept {
+        // Total latency: FFT size + hop size
+        return kFFTSize + kHopSize;
+    }
+
+private:
+    /// @brief Process unity pitch ratio with proper latency
+    void processUnityPitch(const float* input, float* output, std::size_t numSamples) noexcept {
+        // For unity, we still need to maintain consistent latency
+        stft_.pushSamples(input, numSamples);
+
+        while (stft_.canAnalyze()) {
+            stft_.analyze(analysisSpectrum_);
+            // Pass through spectrum unchanged
+            ola_.synthesize(analysisSpectrum_);
+        }
+
+        std::size_t samplesToOutput = std::min(numSamples, ola_.samplesAvailable());
+        if (samplesToOutput > 0) {
+            ola_.pullSamples(output, samplesToOutput);
+        }
+
+        for (std::size_t i = samplesToOutput; i < numSamples; ++i) {
+            output[i] = 0.0f;
+        }
+    }
+
+    /// @brief Phase vocoder frame processing
+    void processFrame(float pitchRatio) noexcept {
+        const std::size_t numBins = kFFTSize / 2 + 1;
+
+        // Step 1: Extract magnitude and compute instantaneous frequency
+        for (std::size_t k = 0; k < numBins; ++k) {
+            // Get magnitude and phase
+            magnitude_[k] = analysisSpectrum_.getMagnitude(k);
+            float phase = analysisSpectrum_.getPhase(k);
+
+            // Compute phase difference from previous frame
+            float phaseDiff = phase - prevPhase_[k];
+            prevPhase_[k] = phase;
+
+            // Subtract expected phase increment to get deviation
+            float deviation = phaseDiff - expectedPhaseInc_[k];
+
+            // Wrap deviation to [-π, π]
+            deviation = wrapPhase(deviation);
+
+            // Compute true frequency as deviation from bin center
+            // true_freq = bin_freq + deviation / (2π * hopSize / sampleRate)
+            // But we store as phase per hop for synthesis
+            frequency_[k] = expectedPhaseInc_[k] + deviation;
+        }
+
+        // Step 2: Pitch shift by scaling frequencies and resampling spectrum
+        synthesisSpectrum_.reset();
+
+        for (std::size_t k = 0; k < numBins; ++k) {
+            // Map source bin to destination bin
+            float srcBin = static_cast<float>(k) / pitchRatio;
+
+            // Skip if source bin is out of range
+            if (srcBin >= static_cast<float>(numBins - 1)) continue;
+
+            // Linear interpolation for magnitude
+            std::size_t srcBin0 = static_cast<std::size_t>(srcBin);
+            std::size_t srcBin1 = srcBin0 + 1;
+            if (srcBin1 >= numBins) srcBin1 = numBins - 1;
+
+            float frac = srcBin - static_cast<float>(srcBin0);
+            float mag = magnitude_[srcBin0] * (1.0f - frac) + magnitude_[srcBin1] * frac;
+
+            // Scale frequency by pitch ratio
+            float freq = frequency_[srcBin0] * pitchRatio;
+
+            // Accumulate synthesis phase
+            synthPhase_[k] += freq;
+            synthPhase_[k] = wrapPhase(synthPhase_[k]);
+
+            // Set synthesis bin (Cartesian form)
+            float real = mag * std::cos(synthPhase_[k]);
+            float imag = mag * std::sin(synthPhase_[k]);
+            synthesisSpectrum_.setCartesian(k, real, imag);
+        }
+    }
+
+    /// @brief Wrap phase to [-π, π]
+    [[nodiscard]] static float wrapPhase(float phase) noexcept {
+        while (phase > kPi) phase -= kTwoPi;
+        while (phase < -kPi) phase += kTwoPi;
+        return phase;
+    }
+
+    // STFT analysis and synthesis
+    STFT stft_;
+    OverlapAdd ola_;
+
+    // Spectral buffers
+    SpectralBuffer analysisSpectrum_;
+    SpectralBuffer synthesisSpectrum_;
+
+    // Phase vocoder state
+    std::vector<float> prevPhase_;      // Previous frame phases
+    std::vector<float> synthPhase_;     // Accumulated synthesis phases
+    std::vector<float> magnitude_;      // Temporary magnitude storage
+    std::vector<float> frequency_;      // Instantaneous frequencies
+    std::vector<float> expectedPhaseInc_; // Expected phase increment per bin
+
+    // I/O buffers for sample-level processing
+    std::vector<float> inputBuffer_;
+    std::vector<float> outputBuffer_;
+    std::size_t inputWritePos_ = 0;
+    std::size_t inputSamplesReady_ = 0;
+    std::size_t outputReadPos_ = 0;
+    std::size_t outputWritePos_ = 0;
+    std::size_t outputSamplesReady_ = 0;
+
+    float sampleRate_ = 44100.0f;
+};
+
+// ==============================================================================
 // PitchShiftProcessor Implementation
 // ==============================================================================
 
@@ -485,6 +906,8 @@ struct PitchShiftProcessor::Impl {
 
     // Internal processors
     SimplePitchShifter simpleShifter;
+    GranularPitchShifter granularShifter;
+    PhaseVocoderPitchShifter phaseVocoderShifter;
 
     // Parameter smoothers
     OnePoleSmoother semitoneSmoother;
@@ -505,6 +928,8 @@ inline void PitchShiftProcessor::prepare(double sampleRate, std::size_t maxBlock
 
     // Prepare all internal shifters
     pImpl_->simpleShifter.prepare(sampleRate, maxBlockSize);
+    pImpl_->granularShifter.prepare(sampleRate, maxBlockSize);
+    pImpl_->phaseVocoderShifter.prepare(sampleRate, maxBlockSize);
 
     // Configure parameter smoothers (10ms smoothing time)
     constexpr float kSmoothTimeMs = 10.0f;
@@ -519,6 +944,8 @@ inline void PitchShiftProcessor::reset() noexcept {
     if (!pImpl_->prepared) return;
 
     pImpl_->simpleShifter.reset();
+    pImpl_->granularShifter.reset();
+    pImpl_->phaseVocoderShifter.reset();
     pImpl_->semitoneSmoother.reset();
     pImpl_->semitoneSmoother.setTarget(pImpl_->semitones);
     pImpl_->centsSmoother.reset();
@@ -540,21 +967,12 @@ inline void PitchShiftProcessor::process(const float* input, float* output,
     pImpl_->centsSmoother.setTarget(pImpl_->cents);
 
     // Calculate pitch ratio
-    // For Simple mode: use direct value (zero latency = no parameter smoothing delay)
-    // For Granular/PhaseVocoder: use smoothed value
-    float totalSemitones;
-    if (pImpl_->mode == PitchMode::Simple) {
-        // Simple mode: zero latency, use direct parameters
-        totalSemitones = pImpl_->semitones + pImpl_->cents / 100.0f;
-        // Snap smoothers to target for consistency when mode changes
-        pImpl_->semitoneSmoother.snapToTarget();
-        pImpl_->centsSmoother.snapToTarget();
-    } else {
-        // Granular/PhaseVocoder: use smoothed values (advance per block for now)
-        float smoothedSemitones = pImpl_->semitoneSmoother.process();
-        float smoothedCents = pImpl_->centsSmoother.process();
-        totalSemitones = smoothedSemitones + smoothedCents / 100.0f;
-    }
+    // Note: Per-sample smoothing would be ideal but adds complexity.
+    // For now, use direct parameters and snap smoothers to maintain consistency.
+    // TODO: Implement proper per-sample smoothing for parameter automation (US6)
+    float totalSemitones = pImpl_->semitones + pImpl_->cents / 100.0f;
+    pImpl_->semitoneSmoother.snapToTarget();
+    pImpl_->centsSmoother.snapToTarget();
 
     float pitchRatio = pitchRatioFromSemitones(totalSemitones);
 
@@ -565,15 +983,11 @@ inline void PitchShiftProcessor::process(const float* input, float* output,
             break;
 
         case PitchMode::Granular:
-            // TODO: Implement in US2
-            // For now, fall through to simple mode
-            pImpl_->simpleShifter.process(input, output, numSamples, pitchRatio);
+            pImpl_->granularShifter.process(input, output, numSamples, pitchRatio);
             break;
 
         case PitchMode::PhaseVocoder:
-            // TODO: Implement in US2
-            // For now, fall through to simple mode
-            pImpl_->simpleShifter.process(input, output, numSamples, pitchRatio);
+            pImpl_->phaseVocoderShifter.process(input, output, numSamples, pitchRatio);
             break;
     }
 }
@@ -624,11 +1038,11 @@ inline std::size_t PitchShiftProcessor::getLatencySamples() const noexcept {
         case PitchMode::Simple:
             return 0;  // Zero latency
         case PitchMode::Granular:
-            // ~grain size (~46ms at 44.1kHz)
-            return static_cast<std::size_t>(pImpl_->sampleRate * 0.046);
+            // Use actual grain size from the shifter
+            return pImpl_->granularShifter.getLatencySamples();
         case PitchMode::PhaseVocoder:
-            // FFT_SIZE + HOP_SIZE (~116ms at 44.1kHz)
-            return static_cast<std::size_t>(pImpl_->sampleRate * 0.116);
+            // Use actual latency from the phase vocoder
+            return pImpl_->phaseVocoderShifter.getLatencySamples();
     }
     return 0;
 }
