@@ -50,11 +50,12 @@ enum class NoiseType : uint8_t {
     Blue,           ///< +3dB/octave blue noise (differentiated pink noise)
     Violet,         ///< +6dB/octave violet noise (differentiated white noise)
     Grey,           ///< Inverse A-weighting for perceptually flat loudness
-    Velvet          ///< Sparse random impulses for smooth noise character
+    Velvet,         ///< Sparse random impulses for smooth noise character
+    VinylRumble     ///< Low-frequency motor/platter noise below 100Hz
 };
 
 /// @brief Number of noise types available
-constexpr size_t kNumNoiseTypes = 10;
+constexpr size_t kNumNoiseTypes = 11;
 
 // =============================================================================
 // PinkNoiseFilter (Internal)
@@ -202,6 +203,10 @@ public:
         // A-weighting cuts ~19dB at 100Hz, we boost lows to compensate
         greyLowShelf_.configure(FilterType::LowShelf, 200.0f, 0.707f, 12.0f, sampleRate);
 
+        // Configure vinyl rumble low-pass filter (sub-bass only, ~80Hz cutoff)
+        // Uses 2-pole low-pass for steep rolloff above 100Hz
+        rumbleLowPass_.configure(FilterType::Lowpass, 80.0f, 0.707f, 0.0f, sampleRate);
+
         // Configure envelope followers for signal-dependent noise
         tapeHissEnvelope_.prepare(static_cast<double>(sampleRate), maxBlockSize);
         tapeHissEnvelope_.setMode(DetectionMode::RMS);
@@ -234,6 +239,7 @@ public:
         // Reset biquad filters
         tapeHissFilter_.reset();
         greyLowShelf_.reset();
+        rumbleLowPass_.reset();
 
         // Reset envelope followers
         tapeHissEnvelope_.reset();
@@ -250,6 +256,9 @@ public:
 
         // Reset violet noise differentiator
         violetPrevious_ = 0.0f;
+
+        // Reset vinyl rumble integrator
+        rumblePrevious_ = 0.0f;
     }
 
     // =========================================================================
@@ -559,6 +568,20 @@ private:
             // Otherwise output is 0 (sparse)
         }
 
+        // Vinyl rumble (US12) - low-frequency motor/platter noise
+        // Uses brown noise (leaky integrator) filtered through steep low-pass to concentrate energy below 100Hz
+        float rumbleGain = levelSmoothers_[static_cast<size_t>(NoiseType::VinylRumble)].process();
+        if (noiseEnabled_[static_cast<size_t>(NoiseType::VinylRumble)]) {
+            // Independent leaky integrator (same algorithm as brown noise)
+            constexpr float kRumbleLeak = 0.98f;
+            rumblePrevious_ = kRumbleLeak * rumblePrevious_ + (1.0f - kRumbleLeak) * whiteNoise;
+
+            // Low-pass filter to concentrate energy below 100Hz
+            float rumbleSample = rumbleLowPass_.process(rumblePrevious_ * 5.0f);
+            rumbleSample = std::clamp(rumbleSample, -1.0f, 1.0f);
+            sample += rumbleSample * rumbleGain;
+        }
+
         // Apply master level
         float masterGain = masterSmoother_.process();
         return sample * masterGain;
@@ -585,10 +608,10 @@ private:
     std::array<float, kNumNoiseTypes> noiseLevels_ = {
         kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb,
         kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb,
-        kDefaultLevelDb, kDefaultLevelDb
+        kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb
     };
     std::array<bool, kNumNoiseTypes> noiseEnabled_ = {
-        false, false, false, false, false, false, false, false, false, false
+        false, false, false, false, false, false, false, false, false, false, false
     };
     std::array<OnePoleSmoother, kNumNoiseTypes> levelSmoothers_;
 
@@ -634,6 +657,10 @@ private:
 
     // Velvet noise density (impulses per second)
     float velvetDensity_ = 1000.0f;
+
+    // Vinyl rumble state (independent integrator for when brown is disabled)
+    float rumblePrevious_ = 0.0f;
+    Biquad rumbleLowPass_;
 };
 
 } // namespace DSP
