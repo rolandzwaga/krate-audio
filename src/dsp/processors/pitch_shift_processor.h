@@ -301,6 +301,248 @@ private:
 };
 
 // ==============================================================================
+// FormantPreserver - Cepstral envelope extraction for formant preservation
+// ==============================================================================
+
+/// @brief Extracts and applies spectral envelopes using cepstral analysis
+///
+/// Uses the cepstral method to separate spectral envelope (formants) from
+/// fine harmonic structure. The algorithm:
+/// 1. Compute log magnitude spectrum
+/// 2. IFFT to get real cepstrum
+/// 3. Low-pass lifter to isolate envelope (formants are slow-varying)
+/// 4. FFT to reconstruct smoothed log envelope
+/// 5. Apply envelope ratio to preserve formants during pitch shift
+///
+/// Based on:
+/// - Julius O. Smith: Spectral Audio Signal Processing
+/// - stftPitchShift (https://github.com/jurihock/stftPitchShift)
+/// - Röbel & Rodet: "Efficient Spectral Envelope Estimation"
+///
+/// Quefrency Parameter:
+/// - Controls the low-pass lifter cutoff (in seconds)
+/// - Should be smaller than the fundamental period of the source
+/// - Typical values: 1-2ms for vocals (0.001-0.002)
+/// - Higher quefrency = more smoothing = coarser envelope
+class FormantPreserver {
+public:
+    static constexpr float kPi = 3.14159265358979323846f;
+    static constexpr float kDefaultQuefrencyMs = 1.5f; // 1.5ms default (~666Hz max F0)
+    static constexpr float kMinMagnitude = 1e-10f;     // Avoid log(0)
+
+    FormantPreserver() = default;
+
+    /// @brief Prepare for given FFT size and sample rate
+    /// @param fftSize FFT size (must be power of 2)
+    /// @param sampleRate Sample rate in Hz
+    void prepare(std::size_t fftSize, double sampleRate) noexcept {
+        fftSize_ = fftSize;
+        numBins_ = fftSize / 2 + 1;
+        sampleRate_ = static_cast<float>(sampleRate);
+
+        // Prepare FFT for cepstral analysis
+        fft_.prepare(fftSize);
+
+        // Allocate work buffers
+        logMag_.resize(fftSize, 0.0f);
+        cepstrum_.resize(fftSize, 0.0f);
+        envelope_.resize(numBins_, 1.0f);
+        complexBuf_.resize(numBins_);
+
+        // Calculate quefrency cutoff in samples
+        setQuefrencyMs(kDefaultQuefrencyMs);
+
+        // Generate Hann window for smooth liftering
+        lifterWindow_.resize(fftSize, 0.0f);
+        updateLifterWindow();
+    }
+
+    /// @brief Reset internal state
+    void reset() noexcept {
+        fft_.reset();
+        std::fill(envelope_.begin(), envelope_.end(), 1.0f);
+    }
+
+    /// @brief Set quefrency cutoff in milliseconds
+    /// @param quefrencyMs Cutoff in ms (typical: 1-2ms for vocals)
+    void setQuefrencyMs(float quefrencyMs) noexcept {
+        quefrencyMs_ = std::max(0.5f, std::min(5.0f, quefrencyMs));
+        // Convert to samples
+        quefrencySamples_ = static_cast<std::size_t>(
+            quefrencyMs_ * 0.001f * sampleRate_);
+        // Clamp to valid range (at least 1, at most fftSize/4)
+        quefrencySamples_ = std::max(std::size_t{1},
+                            std::min(quefrencySamples_, fftSize_ / 4));
+        updateLifterWindow();
+    }
+
+    /// @brief Get current quefrency cutoff in milliseconds
+    [[nodiscard]] float getQuefrencyMs() const noexcept {
+        return quefrencyMs_;
+    }
+
+    /// @brief Extract spectral envelope from magnitude spectrum
+    /// @param magnitudes Input magnitude spectrum (numBins values)
+    /// @param outputEnvelope Output envelope (numBins values)
+    void extractEnvelope(const float* magnitudes, float* outputEnvelope) noexcept {
+        if (fftSize_ == 0 || magnitudes == nullptr || outputEnvelope == nullptr) {
+            return;
+        }
+
+        // Step 1: Compute log magnitude spectrum (symmetric for real signal)
+        // First, fill the positive frequencies
+        for (std::size_t k = 0; k < numBins_; ++k) {
+            float mag = std::max(magnitudes[k], kMinMagnitude);
+            logMag_[k] = std::log10(mag);
+        }
+
+        // Mirror to negative frequencies (symmetric log-mag spectrum)
+        // logMag_[fftSize_ - k] = logMag_[k] for k = 1 to numBins_-2
+        for (std::size_t k = 1; k < numBins_ - 1; ++k) {
+            logMag_[fftSize_ - k] = logMag_[k];
+        }
+
+        // Step 2: Compute real cepstrum via IFFT
+        // IFFT of symmetric log-mag gives real cepstrum
+        computeCepstrum();
+
+        // Step 3: Low-pass liftering with Hann window
+        applyLifter();
+
+        // Step 4: Reconstruct envelope via FFT
+        reconstructEnvelope();
+
+        // Copy to output
+        for (std::size_t k = 0; k < numBins_; ++k) {
+            outputEnvelope[k] = envelope_[k];
+        }
+    }
+
+    /// @brief Extract envelope and store internally for later use
+    void extractEnvelope(const float* magnitudes) noexcept {
+        extractEnvelope(magnitudes, envelope_.data());
+    }
+
+    /// @brief Get the last extracted envelope
+    [[nodiscard]] const float* getEnvelope() const noexcept {
+        return envelope_.data();
+    }
+
+    /// @brief Apply formant preservation to pitch-shifted spectrum
+    ///
+    /// Formula: output[k] = shifted[k] * (originalEnv[k] / shiftedEnv[k])
+    /// This preserves the original envelope while keeping the shifted harmonics.
+    ///
+    /// @param shiftedMagnitudes Pitch-shifted magnitude spectrum
+    /// @param originalEnvelope Original spectrum envelope (before shift)
+    /// @param shiftedEnvelope Shifted spectrum envelope
+    /// @param outputMagnitudes Output magnitudes with preserved formants
+    /// @param numBins Number of frequency bins
+    void applyFormantPreservation(
+            const float* shiftedMagnitudes,
+            const float* originalEnvelope,
+            const float* shiftedEnvelope,
+            float* outputMagnitudes,
+            std::size_t numBins) const noexcept {
+
+        for (std::size_t k = 0; k < numBins; ++k) {
+            // Avoid division by zero
+            float shiftedEnv = std::max(shiftedEnvelope[k], kMinMagnitude);
+            float ratio = originalEnvelope[k] / shiftedEnv;
+
+            // Clamp ratio to avoid extreme amplification
+            ratio = std::min(ratio, 100.0f);
+
+            outputMagnitudes[k] = shiftedMagnitudes[k] * ratio;
+        }
+    }
+
+    /// @brief Get number of frequency bins
+    [[nodiscard]] std::size_t numBins() const noexcept { return numBins_; }
+
+private:
+    /// @brief Update Hann lifter window based on current quefrency
+    void updateLifterWindow() noexcept {
+        if (lifterWindow_.empty()) return;
+
+        std::fill(lifterWindow_.begin(), lifterWindow_.end(), 0.0f);
+
+        // Create a Hann window centered at quefrency 0
+        // The window extends from 0 to 2*quefrencySamples_ in positive quefrencies
+        // and is mirrored for negative quefrencies
+
+        const std::size_t windowLen = quefrencySamples_ * 2;
+
+        for (std::size_t q = 0; q <= quefrencySamples_; ++q) {
+            // Hann window: 0.5 * (1 + cos(π * q / quefrencySamples_))
+            float t = static_cast<float>(q) / static_cast<float>(quefrencySamples_);
+            float window = 0.5f * (1.0f + std::cos(kPi * t));
+
+            // Apply to positive quefrency
+            if (q < fftSize_ / 2) {
+                lifterWindow_[q] = window;
+            }
+            // Apply to negative quefrency (mirrored at fftSize_)
+            if (q > 0 && q < fftSize_ / 2) {
+                lifterWindow_[fftSize_ - q] = window;
+            }
+        }
+    }
+
+    /// @brief Compute real cepstrum from log-magnitude spectrum
+    void computeCepstrum() noexcept {
+        // IFFT of log-magnitude spectrum
+        // Since log-mag is real and symmetric, cepstrum will be real
+
+        // Create complex input from log-mag (all real, zero imaginary)
+        for (std::size_t k = 0; k < numBins_; ++k) {
+            complexBuf_[k] = {logMag_[k], 0.0f};
+        }
+
+        // Use FFT inverse to get cepstrum
+        fft_.inverse(complexBuf_.data(), cepstrum_.data());
+    }
+
+    /// @brief Apply low-pass lifter to cepstrum
+    void applyLifter() noexcept {
+        // Multiply cepstrum by lifter window
+        for (std::size_t q = 0; q < fftSize_; ++q) {
+            cepstrum_[q] *= lifterWindow_[q];
+        }
+    }
+
+    /// @brief Reconstruct envelope from liftered cepstrum
+    void reconstructEnvelope() noexcept {
+        // FFT of liftered cepstrum gives log envelope
+        fft_.forward(cepstrum_.data(), complexBuf_.data());
+
+        // Convert log envelope to linear
+        // envelope = 10^(logEnvelope)
+        for (std::size_t k = 0; k < numBins_; ++k) {
+            // Only take real part (imag should be ~0 for real symmetric input)
+            float logEnv = complexBuf_[k].real;
+            envelope_[k] = std::pow(10.0f, logEnv);
+
+            // Clamp to reasonable range
+            envelope_[k] = std::max(kMinMagnitude, std::min(envelope_[k], 1e6f));
+        }
+    }
+
+    FFT fft_;
+    std::size_t fftSize_ = 0;
+    std::size_t numBins_ = 0;
+    std::size_t quefrencySamples_ = 0;
+    float sampleRate_ = 44100.0f;
+    float quefrencyMs_ = kDefaultQuefrencyMs;
+
+    std::vector<float> logMag_;       // Log magnitude spectrum (fftSize)
+    std::vector<float> cepstrum_;     // Real cepstrum (fftSize)
+    std::vector<float> lifterWindow_; // Hann lifter window (fftSize)
+    std::vector<float> envelope_;     // Extracted envelope (numBins)
+    std::vector<Complex> complexBuf_; // Complex buffer for FFT (numBins)
+};
+
+// ==============================================================================
 // SimplePitchShifter - Internal class for delay-line modulation
 // ==============================================================================
 
@@ -713,6 +955,12 @@ public:
         inputWritePos_ = 0;
         inputSamplesReady_ = 0;
 
+        // Prepare formant preservation
+        formantPreserver_.prepare(kFFTSize, sampleRate);
+        originalEnvelope_.resize(numBins, 1.0f);
+        shiftedEnvelope_.resize(numBins, 1.0f);
+        shiftedMagnitude_.resize(numBins, 0.0f);
+
         reset();
     }
 
@@ -721,17 +969,30 @@ public:
         ola_.reset();
         analysisSpectrum_.reset();
         synthesisSpectrum_.reset();
+        formantPreserver_.reset();
 
         std::fill(prevPhase_.begin(), prevPhase_.end(), 0.0f);
         std::fill(synthPhase_.begin(), synthPhase_.end(), 0.0f);
         std::fill(inputBuffer_.begin(), inputBuffer_.end(), 0.0f);
         std::fill(outputBuffer_.begin(), outputBuffer_.end(), 0.0f);
+        std::fill(originalEnvelope_.begin(), originalEnvelope_.end(), 1.0f);
+        std::fill(shiftedEnvelope_.begin(), shiftedEnvelope_.end(), 1.0f);
 
         inputWritePos_ = 0;
         inputSamplesReady_ = 0;
         outputReadPos_ = 0;
         outputWritePos_ = 0;
         outputSamplesReady_ = 0;
+    }
+
+    /// @brief Enable or disable formant preservation
+    void setFormantPreserve(bool enable) noexcept {
+        formantPreserve_ = enable;
+    }
+
+    /// @brief Get formant preservation state
+    [[nodiscard]] bool getFormantPreserve() const noexcept {
+        return formantPreserve_;
     }
 
     void process(const float* input, float* output, std::size_t numSamples,
@@ -824,6 +1085,11 @@ private:
             frequency_[k] = expectedPhaseInc_[k] + deviation;
         }
 
+        // Step 1b: Extract original spectral envelope if formant preservation enabled
+        if (formantPreserve_) {
+            formantPreserver_.extractEnvelope(magnitude_.data(), originalEnvelope_.data());
+        }
+
         // Step 2: Pitch shift by scaling frequencies and resampling spectrum
         synthesisSpectrum_.reset();
 
@@ -842,6 +1108,9 @@ private:
             float frac = srcBin - static_cast<float>(srcBin0);
             float mag = magnitude_[srcBin0] * (1.0f - frac) + magnitude_[srcBin1] * frac;
 
+            // Store shifted magnitude for formant preservation
+            shiftedMagnitude_[k] = mag;
+
             // Scale frequency by pitch ratio
             float freq = frequency_[srcBin0] * pitchRatio;
 
@@ -849,10 +1118,35 @@ private:
             synthPhase_[k] += freq;
             synthPhase_[k] = wrapPhase(synthPhase_[k]);
 
-            // Set synthesis bin (Cartesian form)
+            // Set synthesis bin (Cartesian form) - will be updated if formant preserve enabled
             float real = mag * std::cos(synthPhase_[k]);
             float imag = mag * std::sin(synthPhase_[k]);
             synthesisSpectrum_.setCartesian(k, real, imag);
+        }
+
+        // Step 3: Apply formant preservation if enabled
+        if (formantPreserve_) {
+            // Extract envelope of the shifted spectrum
+            formantPreserver_.extractEnvelope(shiftedMagnitude_.data(), shiftedEnvelope_.data());
+
+            // Apply formant preservation: adjust magnitudes to preserve original envelope
+            for (std::size_t k = 0; k < numBins; ++k) {
+                // Compute envelope ratio: originalEnv / shiftedEnv
+                float shiftedEnv = std::max(shiftedEnvelope_[k], 1e-10f);
+                float ratio = originalEnvelope_[k] / shiftedEnv;
+
+                // Clamp ratio to avoid extreme amplification (especially at extreme shifts)
+                ratio = std::min(ratio, 100.0f);
+                ratio = std::max(ratio, 0.01f);
+
+                // Apply ratio to shifted magnitude
+                float adjustedMag = shiftedMagnitude_[k] * ratio;
+
+                // Reconstruct Cartesian form with adjusted magnitude
+                float real = adjustedMag * std::cos(synthPhase_[k]);
+                float imag = adjustedMag * std::sin(synthPhase_[k]);
+                synthesisSpectrum_.setCartesian(k, real, imag);
+            }
         }
     }
 
@@ -877,6 +1171,13 @@ private:
     std::vector<float> magnitude_;      // Temporary magnitude storage
     std::vector<float> frequency_;      // Instantaneous frequencies
     std::vector<float> expectedPhaseInc_; // Expected phase increment per bin
+
+    // Formant preservation
+    FormantPreserver formantPreserver_;
+    std::vector<float> originalEnvelope_;  // Envelope of original spectrum
+    std::vector<float> shiftedEnvelope_;   // Envelope of shifted spectrum
+    std::vector<float> shiftedMagnitude_;  // Shifted magnitude for formant adjustment
+    bool formantPreserve_ = false;
 
     // I/O buffers for sample-level processing
     std::vector<float> inputBuffer_;
@@ -1025,6 +1326,8 @@ inline float PitchShiftProcessor::getPitchRatio() const noexcept {
 
 inline void PitchShiftProcessor::setFormantPreserve(bool enable) noexcept {
     pImpl_->formantPreserve = enable;
+    // Pass to internal PhaseVocoder shifter (Granular doesn't support formant preservation)
+    pImpl_->phaseVocoderShifter.setFormantPreserve(enable);
 }
 
 inline bool PitchShiftProcessor::getFormantPreserve() const noexcept {

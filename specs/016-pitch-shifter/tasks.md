@@ -196,7 +196,7 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ---
 
-## Phase 6: User Story 4 - Formant Preservation for Vocals (Priority: P2) ⚠️ PARTIAL
+## Phase 6: User Story 4 - Formant Preservation for Vocals (Priority: P2) ✅
 
 **Goal**: Preserve vocal formants when pitch shifting to avoid "chipmunk" effect
 
@@ -217,25 +217,27 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 6.3 Implementation for User Story 4
 
-**Note**: Parameter interface implemented. Full cepstral formant preservation algorithm deferred to future enhancement.
-The setFormantPreserve/getFormantPreserve methods work, but the actual spectral envelope
-preservation requires complex cepstral analysis that is out of scope for initial implementation.
+**Implemented**: Full cepstral formant preservation in PhaseVocoder mode.
+- FormantPreserver class extracts spectral envelope using cepstral low-pass liftering
+- Original envelope is preserved and reapplied after pitch shifting
+- Quefrency cutoff: 1.5ms default (suitable for vocals up to ~666Hz F0)
+- Simple/Granular modes: Formant preservation not supported (no spectral access)
 
-- [ ] T070 [US4] Implement FormantPreserver internal class in src/dsp/processors/pitch_shift_processor.h ⏸️ DEFERRED
-- [ ] T071 [US4] Implement cepstrum calculation (log magnitude → IFFT) in FormantPreserver ⏸️ DEFERRED
-- [ ] T072 [US4] Implement quefrency liftering (low-pass in cepstral domain) in FormantPreserver ⏸️ DEFERRED
-- [ ] T073 [US4] Implement spectral envelope estimation (FFT → exp) in FormantPreserver ⏸️ DEFERRED
-- [ ] T074 [US4] Implement envelope removal and reapplication in FormantPreserver ⏸️ DEFERRED
-- [ ] T075 [US4] Integrate FormantPreserver into GranularPitchShifter ⏸️ DEFERRED
-- [ ] T076 [US4] Integrate FormantPreserver into PhaseVocoderPitchShifter ⏸️ DEFERRED
+- [X] T070 [US4] Implement FormantPreserver internal class in src/dsp/processors/pitch_shift_processor.h
+- [X] T071 [US4] Implement cepstrum calculation (log magnitude → IFFT) in FormantPreserver
+- [X] T072 [US4] Implement quefrency liftering (low-pass in cepstral domain) in FormantPreserver
+- [X] T073 [US4] Implement spectral envelope estimation (FFT → exp) in FormantPreserver
+- [X] T074 [US4] Implement envelope removal and reapplication in FormantPreserver
+- [X] T075 [US4] Integrate FormantPreserver into GranularPitchShifter - N/A (no spectral access)
+- [X] T076 [US4] Integrate FormantPreserver into PhaseVocoderPitchShifter
 - [X] T077 [US4] Add setFormantPreserve()/getFormantPreserve() to PitchShiftProcessor
-- [X] T078 [US4] Verify all US4 tests pass (parameter interface tests)
+- [X] T078 [US4] Verify all US4 tests pass
 
 ### 6.4 Commit (MANDATORY)
 
-- [X] T079 [US4] **Commit completed User Story 4 work** (2b9a290) - Tests + parameter interface; algorithm deferred
+- [X] T079 [US4] **Commit completed User Story 4 work**
 
-**Checkpoint**: Formant preservation parameter interface complete. Algorithm implementation deferred.
+**Checkpoint**: Formant preservation fully implemented in PhaseVocoder mode ✅
 
 ---
 
