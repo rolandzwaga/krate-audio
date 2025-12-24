@@ -84,6 +84,7 @@ add_executable(dsp_tests
     unit/processors/ducking_processor_test.cpp
     unit/processors/noise_generator_test.cpp
     unit/processors/midside_processor_test.cpp
+    unit/processors/diffusion_network_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -128,6 +129,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/ducking_processor_test.cpp
         unit/processors/noise_generator_test.cpp
         unit/processors/midside_processor_test.cpp
+        unit/processors/diffusion_network_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
