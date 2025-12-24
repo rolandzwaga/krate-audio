@@ -2246,6 +2246,160 @@ diffuser.process(buffer, buffer, buffer, buffer, numSamples);
 
 ---
 
+### PitchShiftProcessor
+
+| | |
+|---|---|
+| **Purpose** | Time-preserving pitch shifting with 3 quality modes: Simple (zero-latency), Granular (balanced), PhaseVocoder (high quality) |
+| **Location** | [src/dsp/processors/pitch_shift_processor.h](src/dsp/processors/pitch_shift_processor.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.16 (016-pitch-shifter) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    // Quality mode selection
+    enum class PitchMode : uint8_t {
+        Simple,      // Zero latency, dual delay-line crossfade
+        Granular,    // Low latency (<2048 samples), 4-voice OLA
+        PhaseVocoder // High quality (<8192 samples), STFT-based
+    };
+
+    // Utility functions
+    [[nodiscard]] constexpr float pitchRatioFromSemitones(float semitones) noexcept;
+    [[nodiscard]] constexpr float semitonesFromPitchRatio(float ratio) noexcept;
+
+    class PitchShiftProcessor {
+    public:
+        // Constants
+        static constexpr float kMinSemitones = -24.0f;  // -2 octaves
+        static constexpr float kMaxSemitones = +24.0f;  // +2 octaves
+        static constexpr float kMinCents = -100.0f;     // -1 semitone
+        static constexpr float kMaxCents = +100.0f;     // +1 semitone
+
+        // Lifecycle (call before audio processing)
+        void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+        void reset() noexcept;
+
+        // Processing (real-time safe)
+        void process(const float* input, float* output, size_t numSamples) noexcept;
+
+        // Mode selection
+        void setMode(PitchMode mode) noexcept;
+        [[nodiscard]] PitchMode getMode() const noexcept;
+
+        // Pitch parameters (real-time safe, smoothed)
+        void setSemitones(float semitones) noexcept;   // [-24, +24]
+        void setCents(float cents) noexcept;            // [-100, +100]
+        [[nodiscard]] float getSemitones() const noexcept;
+        [[nodiscard]] float getCents() const noexcept;
+        [[nodiscard]] float getPitchRatio() const noexcept;
+
+        // Formant preservation (PhaseVocoder mode only)
+        void setFormantPreserve(bool enable) noexcept;
+        [[nodiscard]] bool getFormantPreserve() const noexcept;
+
+        // Query
+        [[nodiscard]] size_t getLatencySamples() const noexcept;
+        [[nodiscard]] bool isPrepared() const noexcept;
+    };
+}
+```
+
+**Quality Modes**:
+
+| Mode | Latency | CPU | Quality | Best For |
+|------|---------|-----|---------|----------|
+| `Simple` | 0 samples | ~0.5% | Good | Monitoring, feedback loops |
+| `Granular` | <2048 samples (~46ms) | ~2% | Better | General pitch shifting |
+| `PhaseVocoder` | <8192 samples (~186ms) | ~8% | Best | Vocals, polyphonic material |
+
+**Behavior**:
+- `prepare()` - Allocates buffers for all modes (NOT real-time safe)
+- `reset()` - Clears delay lines, resets phase accumulators
+- `process()` - Supports separate or in-place I/O (input can equal output)
+- Duration is preserved: 100 input samples → 100 output samples
+- Pitch range: ±24 semitones (4 octaves total)
+- Fine control: ±100 cents for detuning effects
+- All parameters smoothed to prevent clicks during automation
+
+**Formant Preservation** (PhaseVocoder only):
+- Uses cepstral envelope extraction to separate formants from harmonics
+- Prevents "chipmunk" effect when pitch-shifting vocals
+- Quefrency cutoff: 1.5ms (suitable for vocals up to ~666Hz F0)
+- Automatically disabled in Simple/Granular modes (no spectral access)
+
+**Algorithm Details**:
+
+| Mode | Algorithm |
+|------|-----------|
+| Simple | Dual delay-line with half-sine crossfade (50ms window), time-varying delay creates Doppler shift |
+| Granular | 4-voice overlap-add with Hann windows (46ms grains), 33% crossfade region |
+| PhaseVocoder | STFT with phase locking (Laroche & Dolson), frequency bin scaling, 4096-sample FFT, 4x overlap |
+
+**Dependencies** (Layer 1 primitives):
+- `DelayLine` - Circular buffer for Simple/Granular modes
+- `STFT` - Short-time Fourier transform for PhaseVocoder
+- `FFT` - Forward/inverse FFT for PhaseVocoder
+- `SpectralBuffer` - Complex spectrum storage for PhaseVocoder
+- `OverlapAdd` - Output reconstruction for Granular/PhaseVocoder
+- `OnePoleSmoother` - Parameter smoothing for semitones/cents
+- `WindowFunctions` - Hann windows for Granular/PhaseVocoder
+
+**When to use**:
+
+| Use Case | Mode | Configuration |
+|----------|------|---------------|
+| Shimmer delay feedback | Simple | +12 semitones, formant off |
+| Vocal pitch correction | PhaseVocoder | ±1-2 semitones, formant on |
+| Harmonizer (+5th) | Granular | +7 semitones |
+| Detuning effect | Simple | 0 semitones, ±25 cents |
+| Octave up for synth | PhaseVocoder | +12 semitones, formant off |
+| Real-time monitoring | Simple | Any (zero latency) |
+
+**Example**:
+```cpp
+#include "dsp/processors/pitch_shift_processor.h"
+using namespace Iterum::DSP;
+
+PitchShiftProcessor shifter;
+
+// In prepare() - allocates buffers
+shifter.prepare(44100.0, 512);
+shifter.setMode(PitchMode::PhaseVocoder);  // Highest quality
+shifter.setSemitones(7.0f);                 // Perfect fifth up
+shifter.setFormantPreserve(true);           // Preserve vocal formants
+
+// In processBlock() - real-time safe
+shifter.process(input, output, numSamples);
+
+// Shimmer delay (zero-latency mode for feedback loop)
+shifter.setMode(PitchMode::Simple);
+shifter.setSemitones(12.0f);  // Octave up
+shifter.setFormantPreserve(false);  // Ignored in Simple mode
+shifter.process(feedbackBuffer, feedbackBuffer, numSamples);  // In-place
+
+// Fine pitch control with cents
+shifter.setSemitones(0.0f);
+shifter.setCents(50.0f);  // Quarter-tone up
+float ratio = shifter.getPitchRatio();  // ≈1.029
+
+// Harmonizer with two instances
+PitchShiftProcessor harmony1, harmony2;
+harmony1.prepare(sampleRate, blockSize);
+harmony2.prepare(sampleRate, blockSize);
+harmony1.setMode(PitchMode::Granular);
+harmony2.setMode(PitchMode::Granular);
+harmony1.setSemitones(4.0f);   // Major third
+harmony2.setSemitones(-3.0f);  // Minor third down
+harmony1.process(input, output1, numSamples);
+harmony2.process(input, output2, numSamples);
+// Mix output1 + output2 + dry...
+```
+
+---
+
 ## Layer 3: System Components
 
 *No components yet. Future: Delay Engine, Feedback Network, Modulation Matrix*
