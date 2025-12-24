@@ -5,6 +5,125 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.14] - 2025-12-24
+
+### Added
+
+- **Layer 2 DSP Processor: NoiseGenerator** (`src/dsp/processors/noise_generator.h`)
+  - Comprehensive noise generator for analog character and lo-fi effects
+  - 13 noise types with distinct spectral and temporal characteristics:
+    - `White` - Flat spectrum white noise (Xorshift32 PRNG)
+    - `Pink` - -3dB/octave rolloff (Paul Kellet 7-state filter)
+    - `TapeHiss` - Signal-modulated high-frequency noise (EnvelopeFollower)
+    - `VinylCrackle` - Poisson-distributed clicks with exponential amplitudes
+    - `Asperity` - Signal-dependent tape head noise
+    - `Brown` - -6dB/octave 1/f² noise (leaky integrator)
+    - `Blue` - +3dB/octave noise (differentiated pink)
+    - `Violet` - +6dB/octave noise (differentiated white)
+    - `Grey` - Inverse A-weighting for perceptually flat loudness (LowShelf filter)
+    - `Velvet` - Sparse random impulses (configurable density 100-20000 imp/sec)
+    - `VinylRumble` - Low-frequency motor noise concentrated <100Hz
+    - `ModulationNoise` - Signal-correlated noise with no floor (correlation >0.8)
+    - `RadioStatic` - Band-limited atmospheric noise (~5kHz AM bandwidth)
+  - Per-type independent level control [-96, 0 dB] with 5ms smoothing
+  - Per-type enable/disable for efficient processing
+  - Master level control [-96, 0 dB]
+  - Two-input processing API: `process(inputBuffer, outputBuffer, numSamples)`
+  - Single-input API for additive-only modes: `process(buffer, numSamples)`
+  - Sample-by-sample generation via `generateNoiseSample(inputSample)`
+  - Real-time safe: `noexcept`, no allocations in `process()`
+  - NaN/Infinity input handling with graceful degradation
+
+- **Configurable noise parameters**:
+  - `setNoiseLevel(type, levelDb)` - Per-type level control
+  - `setNoiseEnabled(type, enabled)` - Per-type enable/disable
+  - `setCrackleParams(density, surfaceNoiseDb)` - Vinyl crackle configuration
+  - `setVelvetDensity(density)` - Velvet impulse rate [100-20000 imp/sec]
+  - `setMasterLevel(levelDb)` - Overall output level
+
+- **Comprehensive test suite** (943,618 assertions across 91 test cases)
+  - Phase 1: US1-US6 (White, Pink, TapeHiss, VinylCrackle, Asperity, Multi-mix)
+  - Phase 2: US7-US15 (Brown, Blue, Violet, Grey, Velvet, Rumble, Modulation, Radio)
+  - Spectral slope verification (±1dB tolerance for colored noise)
+  - Signal-dependent modulation correlation tests
+  - Energy concentration tests (>90% below 100Hz for rumble)
+  - Impulse density verification
+  - Click-free level transitions (SC-004 verification)
+  - Real-time safety verification (noexcept static_assert)
+
+### Technical Details
+
+- **Noise generation algorithms**:
+  - White: Xorshift32 PRNG → uniform distribution → [-1, +1] mapping
+  - Pink: Paul Kellet 7-state filter (b0-b6 coefficients)
+  - Brown: `y = leak * y + white; leak = 0.98` (leaky integrator)
+  - Blue: `y = pink[n] - pink[n-1]` (first-order differentiator)
+  - Violet: `y = white[n] - white[n-1]` (first-order differentiator)
+  - Grey: White noise → LowShelf +12dB @ 200Hz
+  - Velvet: `if (random < density/sampleRate) output ±1.0`
+  - Vinyl: Poisson clicks + exponential amplitudes + surface noise
+  - Rumble: Leaky integrator → 80Hz lowpass
+  - Modulation: EnvelopeFollower(input) × white noise (no floor)
+  - Radio: White noise → 5kHz lowpass
+
+- **Spectral characteristics**:
+  - White: Flat ±3dB across 20Hz-20kHz
+  - Pink: -3dB/octave ±1dB slope
+  - Brown: -6dB/octave ±1dB slope
+  - Blue: +3dB/octave ±1dB slope
+  - Violet: +6dB/octave ±1dB slope
+
+- **Dependencies** (Layer 0-1 primitives):
+  - `Biquad` - Filtering for colored noise and rumble
+  - `OnePoleSmoother` - Click-free level transitions
+  - `EnvelopeFollower` - Signal modulation for TapeHiss, Asperity, Modulation
+  - `dbToGain()` / `gainToDb()` - dB/linear conversion
+- **Namespace**: `Iterum::DSP` (Layer 2 DSP processors)
+- **Constitution compliance**: Principles II (RT Safety), III (Modern C++), IX (Layered Architecture), X (DSP Constraints), XII (Test-First), XIII (Architecture Docs), XV (Honest Completion)
+
+### Usage
+
+```cpp
+#include "dsp/processors/noise_generator.h"
+
+using namespace Iterum::DSP;
+
+NoiseGenerator noise;
+
+// In prepare() - configures internal components
+noise.prepare(44100.0, 512);
+
+// Enable noise types
+noise.setNoiseEnabled(NoiseType::White, true);
+noise.setNoiseEnabled(NoiseType::Pink, true);
+noise.setNoiseEnabled(NoiseType::VinylCrackle, true);
+
+// Set levels
+noise.setNoiseLevel(NoiseType::White, -20.0f);      // -20 dB
+noise.setNoiseLevel(NoiseType::Pink, -24.0f);       // -24 dB
+noise.setNoiseLevel(NoiseType::VinylCrackle, -30.0f);
+
+// Configure vinyl crackle
+noise.setCrackleParams(5.0f, -40.0f);  // 5 clicks/sec, -40dB surface
+
+// Configure velvet noise
+noise.setNoiseEnabled(NoiseType::Velvet, true);
+noise.setVelvetDensity(2000.0f);  // 2000 impulses/sec
+
+// In processBlock() - additive noise (no input signal)
+noise.process(outputBuffer, numSamples);
+
+// Or with input signal (for signal-dependent noise types)
+noise.process(inputBuffer, outputBuffer, numSamples);
+
+// For modulation noise - correlates with input level
+noise.setNoiseEnabled(NoiseType::ModulationNoise, true);
+noise.setNoiseLevel(NoiseType::ModulationNoise, -12.0f);
+noise.process(inputSignal, outputBuffer, numSamples);
+```
+
+---
+
 ## [0.0.13] - 2025-12-23
 
 ### Added
