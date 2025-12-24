@@ -812,8 +812,202 @@ TEST_CASE("DiffusionNetwork size parameter changes are smooth", "[diffusion][US2
 // Phase 4: User Story 3 Tests - Density Control (P2)
 // ==============================================================================
 
-// Tests for density parameter
-// (T035-T039)
+// T035: density=25% (2 stages active)
+TEST_CASE("DiffusionNetwork at density=25% uses 2 stages", "[diffusion][US3]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(25.0f);  // 2 stages
+    diffuser.reset();
+
+    constexpr size_t kBufferSize = 4096;
+    std::vector<float> leftIn(kBufferSize, 0.0f);
+    std::vector<float> rightIn(kBufferSize, 0.0f);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    leftIn[0] = 1.0f;
+    rightIn[0] = 1.0f;
+
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+
+    // With 2 stages, expect less diffusion spread than with 8 stages
+    size_t sample95 = findEnergyThresholdSample(leftOut.data(), kBufferSize, 0.95f);
+    float spreadMs = static_cast<float>(sample95) / kTestSampleRate * 1000.0f;
+
+    // 2 stages = shorter spread than full 8 stages
+    INFO("Density 25% (2 stages) spread: " << spreadMs << " ms");
+    REQUIRE(spreadMs > 2.0f);    // Some diffusion
+    REQUIRE(spreadMs < 30.0f);   // But less than half of max
+}
+
+// T036: density=50% (4 stages active)
+TEST_CASE("DiffusionNetwork at density=50% uses 4 stages", "[diffusion][US3]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(50.0f);  // 4 stages
+    diffuser.reset();
+
+    constexpr size_t kBufferSize = 4096;
+    std::vector<float> leftIn(kBufferSize, 0.0f);
+    std::vector<float> rightIn(kBufferSize, 0.0f);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    leftIn[0] = 1.0f;
+    rightIn[0] = 1.0f;
+
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+
+    size_t sample95 = findEnergyThresholdSample(leftOut.data(), kBufferSize, 0.95f);
+    float spreadMs = static_cast<float>(sample95) / kTestSampleRate * 1000.0f;
+
+    // 4 stages = moderate spread
+    INFO("Density 50% (4 stages) spread: " << spreadMs << " ms");
+    REQUIRE(spreadMs > 5.0f);    // More than 2 stages
+    REQUIRE(spreadMs < 40.0f);   // Less than 8 stages
+}
+
+// T037: density=100% (8 stages active)
+TEST_CASE("DiffusionNetwork at density=100% uses all 8 stages", "[diffusion][US3]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(100.0f);  // All 8 stages
+    diffuser.reset();
+
+    constexpr size_t kBufferSize = 4096;
+    std::vector<float> leftIn(kBufferSize, 0.0f);
+    std::vector<float> rightIn(kBufferSize, 0.0f);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    leftIn[0] = 1.0f;
+    rightIn[0] = 1.0f;
+
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+
+    size_t sample95 = findEnergyThresholdSample(leftOut.data(), kBufferSize, 0.95f);
+    float spreadMs = static_cast<float>(sample95) / kTestSampleRate * 1000.0f;
+
+    // 8 stages = maximum spread for this size setting
+    INFO("Density 100% (8 stages) spread: " << spreadMs << " ms");
+    REQUIRE(spreadMs > 15.0f);   // Full diffusion at size=50%
+}
+
+// T038: density parameter smoothing (no clicks)
+TEST_CASE("DiffusionNetwork density parameter changes are smooth", "[diffusion][US3]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+
+    constexpr size_t kBlockSize = 64;
+    std::array<float, kBlockSize> leftIn{}, rightIn{};
+    std::array<float, kBlockSize> leftOut{}, rightOut{};
+
+    // Fill with constant signal
+    std::fill(leftIn.begin(), leftIn.end(), 0.5f);
+    std::fill(rightIn.begin(), rightIn.end(), 0.5f);
+
+    // Start at density=25%
+    diffuser.setDensity(25.0f);
+    diffuser.reset();
+
+    // Process a few blocks to stabilize
+    for (int i = 0; i < 10; ++i) {
+        diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBlockSize);
+    }
+
+    // Abruptly change density to 100%
+    diffuser.setDensity(100.0f);
+
+    // Process several blocks and check for clicks
+    float maxDiff = 0.0f;
+    float prevSample = leftOut[kBlockSize - 1];
+
+    for (int block = 0; block < 20; ++block) {
+        diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBlockSize);
+
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            float diff = std::abs(leftOut[i] - prevSample);
+            if (diff > maxDiff) maxDiff = diff;
+            prevSample = leftOut[i];
+        }
+    }
+
+    // Max sample-to-sample difference should be reasonable (no clicks)
+    INFO("Max sample-to-sample diff during density change: " << maxDiff);
+    REQUIRE(maxDiff < 0.5f);
+}
+
+// T039: density=0% acts as bypass
+TEST_CASE("DiffusionNetwork at density=0% acts as bypass", "[diffusion][US3]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+    diffuser.setDensity(0.0f);  // Bypass
+    diffuser.reset();
+
+    std::array<float, 256> leftIn{}, rightIn{};
+    std::array<float, 256> leftOut{}, rightOut{};
+
+    // Generate test signal
+    generateSine(leftIn.data(), 256, 440.0f, kTestSampleRate);
+    generateSine(rightIn.data(), 256, 440.0f, kTestSampleRate);
+
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), 256);
+
+    // At density=0%, all stages are bypassed, so output should equal input
+    REQUIRE(buffersEqual(leftIn.data(), leftOut.data(), 256, 0.01f));
+    REQUIRE(buffersEqual(rightIn.data(), rightOut.data(), 256, 0.01f));
+}
+
+// T039b: density scales diffusion proportionally
+TEST_CASE("DiffusionNetwork density scales diffusion proportionally", "[diffusion][US3]") {
+    DiffusionNetwork diffuser;
+    diffuser.prepare(kTestSampleRate, kTestBlockSize);
+    diffuser.setSize(50.0f);
+
+    constexpr size_t kBufferSize = 4096;
+    std::vector<float> leftIn(kBufferSize, 0.0f);
+    std::vector<float> rightIn(kBufferSize, 0.0f);
+    std::vector<float> leftOut(kBufferSize, 0.0f);
+    std::vector<float> rightOut(kBufferSize, 0.0f);
+
+    leftIn[0] = 1.0f;
+
+    // Measure spread at different density levels
+    float spread25 = 0.0f, spread50 = 0.0f, spread100 = 0.0f;
+
+    // Density 25%
+    diffuser.setDensity(25.0f);
+    diffuser.reset();
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+    spread25 = static_cast<float>(findEnergyThresholdSample(leftOut.data(), kBufferSize, 0.95f));
+
+    // Density 50%
+    diffuser.setDensity(50.0f);
+    diffuser.reset();
+    std::fill(leftOut.begin(), leftOut.end(), 0.0f);
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+    spread50 = static_cast<float>(findEnergyThresholdSample(leftOut.data(), kBufferSize, 0.95f));
+
+    // Density 100%
+    diffuser.setDensity(100.0f);
+    diffuser.reset();
+    std::fill(leftOut.begin(), leftOut.end(), 0.0f);
+    diffuser.process(leftIn.data(), rightIn.data(), leftOut.data(), rightOut.data(), kBufferSize);
+    spread100 = static_cast<float>(findEnergyThresholdSample(leftOut.data(), kBufferSize, 0.95f));
+
+    INFO("Spread at density 25%: " << spread25 << " samples");
+    INFO("Spread at density 50%: " << spread50 << " samples");
+    INFO("Spread at density 100%: " << spread100 << " samples");
+
+    // Higher density should produce more spread
+    REQUIRE(spread50 > spread25);
+    REQUIRE(spread100 > spread50);
+}
 
 // ==============================================================================
 // Phase 5: User Story 4 Tests - Modulation (P2)
