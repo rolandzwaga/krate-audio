@@ -2061,3 +2061,165 @@ TEST_CASE("Vinyl rumble: reset clears state", "[noise][US12]") {
         REQUIRE(buffer[i] <= 1.0f);
     }
 }
+
+// ==============================================================================
+// User Story 14: Modulation Noise Generation [US14]
+// ==============================================================================
+
+TEST_CASE("Modulation noise: output is zero when disabled", "[noise][US14]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    // Leave modulation noise disabled (default)
+    std::array<float, kBlockSize> buffer;
+    buffer.fill(0.5f);
+
+    noise.process(buffer.data(), buffer.size());
+
+    REQUIRE(isAllZeros(buffer.data(), buffer.size()));
+}
+
+TEST_CASE("Modulation noise: output is zero with silent input", "[noise][US14]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::ModulationNoise, true);
+    noise.setNoiseLevel(NoiseType::ModulationNoise, 0.0f);
+
+    // Process with silent input - should produce NO noise (no floor)
+    std::vector<float> silentInput(4096, 0.0f);
+    std::vector<float> output(4096, 0.5f); // Pre-fill with non-zero
+
+    for (size_t i = 0; i < 4096 / kBlockSize; ++i) {
+        noise.process(silentInput.data() + i * kBlockSize,
+                     output.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Skip initial settling, then check output is essentially silent
+    // (may have tiny values from smoothers but should be negligible)
+    float rms = calculateRMS(output.data() + 1000, 3000);
+    REQUIRE(rms < 0.001f); // Essentially zero
+}
+
+TEST_CASE("Modulation noise: output scales with input signal level", "[noise][US14]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::ModulationNoise, true);
+    noise.setNoiseLevel(NoiseType::ModulationNoise, -20.0f);
+
+    constexpr size_t testSize = 8192;
+    constexpr size_t skipSamples = 1000;
+
+    // Test with quiet input
+    std::vector<float> quietInput(testSize, 0.1f);
+    std::vector<float> quietOutput(testSize, 0.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(quietInput.data() + i * kBlockSize,
+                     quietOutput.data() + i * kBlockSize, kBlockSize);
+    }
+    float rmsQuiet = calculateRMS(quietOutput.data() + skipSamples, testSize - skipSamples);
+
+    // Reset and test with loud input
+    noise.reset();
+    std::vector<float> loudInput(testSize, 0.8f);
+    std::vector<float> loudOutput(testSize, 0.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(loudInput.data() + i * kBlockSize,
+                     loudOutput.data() + i * kBlockSize, kBlockSize);
+    }
+    float rmsLoud = calculateRMS(loudOutput.data() + skipSamples, testSize - skipSamples);
+
+    // Loud input should produce more noise than quiet input
+    REQUIRE(rmsLoud > rmsQuiet * 2.0f); // At least 2x more noise
+}
+
+TEST_CASE("Modulation noise: samples in [-1.0, 1.0] range", "[noise][US14][SC-003]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::ModulationNoise, true);
+    noise.setNoiseLevel(NoiseType::ModulationNoise, 0.0f);
+
+    constexpr size_t testSize = 44100;
+    std::vector<float> input(testSize);
+    std::vector<float> buffer(testSize);
+
+    // Generate varying input signal
+    for (size_t i = 0; i < testSize; ++i) {
+        input[i] = std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / kSampleRate);
+    }
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(input.data() + i * kBlockSize,
+                     buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // All samples must be in valid range
+    for (size_t i = 0; i < testSize; ++i) {
+        REQUIRE(buffer[i] >= -1.0f);
+        REQUIRE(buffer[i] <= 1.0f);
+    }
+}
+
+TEST_CASE("Modulation noise: setNoiseLevel affects output amplitude", "[noise][US14]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::ModulationNoise, true);
+
+    constexpr size_t testSize = 44100;
+    constexpr size_t skipSamples = 1000;
+    std::vector<float> input(testSize, 0.5f); // Constant input
+
+    // Generate at 0dB
+    noise.setNoiseLevel(NoiseType::ModulationNoise, 0.0f);
+    std::vector<float> bufferLoud(testSize);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(input.data() + i * kBlockSize,
+                     bufferLoud.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Reset and generate at -20dB
+    noise.reset();
+    noise.setNoiseLevel(NoiseType::ModulationNoise, -20.0f);
+    std::vector<float> bufferQuiet(testSize);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(input.data() + i * kBlockSize,
+                     bufferQuiet.data() + i * kBlockSize, kBlockSize);
+    }
+
+    float rmsLoud = calculateRMS(bufferLoud.data() + skipSamples, testSize - skipSamples);
+    float rmsQuiet = calculateRMS(bufferQuiet.data() + skipSamples, testSize - skipSamples);
+
+    // -20dB difference = 10x amplitude difference
+    float ratio = rmsLoud / rmsQuiet;
+    REQUIRE(ratio == Approx(10.0f).margin(3.0f));
+}
+
+TEST_CASE("Modulation noise: reset clears state", "[noise][US14]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::ModulationNoise, true);
+    noise.setNoiseLevel(NoiseType::ModulationNoise, 0.0f);
+
+    // Generate some samples with input
+    std::array<float, kBlockSize> input;
+    std::array<float, kBlockSize> buffer;
+    input.fill(0.5f);
+    for (int i = 0; i < 10; ++i) {
+        noise.process(input.data(), buffer.data(), buffer.size());
+    }
+
+    // Reset
+    noise.reset();
+
+    // After reset, should still generate valid samples
+    noise.process(input.data(), buffer.data(), buffer.size());
+
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        REQUIRE(buffer[i] >= -1.0f);
+        REQUIRE(buffer[i] <= 1.0f);
+    }
+}

@@ -51,11 +51,12 @@ enum class NoiseType : uint8_t {
     Violet,         ///< +6dB/octave violet noise (differentiated white noise)
     Grey,           ///< Inverse A-weighting for perceptually flat loudness
     Velvet,         ///< Sparse random impulses for smooth noise character
-    VinylRumble     ///< Low-frequency motor/platter noise below 100Hz
+    VinylRumble,    ///< Low-frequency motor/platter noise below 100Hz
+    ModulationNoise ///< Signal-correlated noise (scales with input level, no floor)
 };
 
 /// @brief Number of noise types available
-constexpr size_t kNumNoiseTypes = 11;
+constexpr size_t kNumNoiseTypes = 12;
 
 // =============================================================================
 // PinkNoiseFilter (Internal)
@@ -218,6 +219,12 @@ public:
         asperityEnvelope_.setAttackTime(5.0f);   // Very fast attack
         asperityEnvelope_.setReleaseTime(50.0f); // Fast release
 
+        // Configure modulation noise envelope follower (fast response, no floor)
+        modulationEnvelope_.prepare(static_cast<double>(sampleRate), maxBlockSize);
+        modulationEnvelope_.setMode(DetectionMode::RMS);
+        modulationEnvelope_.setAttackTime(2.0f);   // Very fast attack
+        modulationEnvelope_.setReleaseTime(30.0f); // Fast release
+
         reset();
     }
 
@@ -244,6 +251,7 @@ public:
         // Reset envelope followers
         tapeHissEnvelope_.reset();
         asperityEnvelope_.reset();
+        modulationEnvelope_.reset();
 
         // Reset cached envelope value
         lastEnvelopeValue_ = 0.0f;
@@ -582,6 +590,20 @@ private:
             sample += rumbleSample * rumbleGain;
         }
 
+        // Modulation noise (US14) - signal-correlated noise, NO floor
+        // Unlike tape hiss, modulation noise is purely proportional to signal level
+        float modulationGain = levelSmoothers_[static_cast<size_t>(NoiseType::ModulationNoise)].process();
+        if (noiseEnabled_[static_cast<size_t>(NoiseType::ModulationNoise)]) {
+            // Track input signal envelope (no floor - zero when silent)
+            float envelope = modulationEnvelope_.processSample(sidechainInput);
+
+            // Scale noise by envelope directly (no floor)
+            // Use white noise as base, modulated purely by signal level
+            float modulatedNoise = whiteNoise * envelope;
+            modulatedNoise = std::clamp(modulatedNoise, -1.0f, 1.0f);
+            sample += modulatedNoise * modulationGain;
+        }
+
         // Apply master level
         float masterGain = masterSmoother_.process();
         return sample * masterGain;
@@ -608,10 +630,10 @@ private:
     std::array<float, kNumNoiseTypes> noiseLevels_ = {
         kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb,
         kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb,
-        kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb
+        kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb, kDefaultLevelDb
     };
     std::array<bool, kNumNoiseTypes> noiseEnabled_ = {
-        false, false, false, false, false, false, false, false, false, false, false
+        false, false, false, false, false, false, false, false, false, false, false, false
     };
     std::array<OnePoleSmoother, kNumNoiseTypes> levelSmoothers_;
 
@@ -661,6 +683,9 @@ private:
     // Vinyl rumble state (independent integrator for when brown is disabled)
     float rumblePrevious_ = 0.0f;
     Biquad rumbleLowPass_;
+
+    // Modulation noise envelope follower (no floor, scales purely with input)
+    EnvelopeFollower modulationEnvelope_;
 };
 
 } // namespace DSP
