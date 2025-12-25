@@ -3113,7 +3113,130 @@ stereo.process(leftIn, rightIn, leftOut, rightOut, numSamples);
 
 ## Layer 4: User Features
 
-*No components yet. Future: Tape Mode, BBD Mode, Shimmer Mode*
+User-facing delay effect modes that compose Layer 3 systems into complete audio experiences.
+
+### TapeDelay
+
+Classic tape echo emulation (Roland RE-201, Echoplex, Watkins Copicat style).
+
+**File**: `src/dsp/features/tape_delay.h`
+
+**Purpose**: Layer 4 user feature providing vintage tape delay character with motor inertia, wow/flutter, and multi-head echo patterns.
+
+**Composes**:
+- TapManager (Layer 3): Multi-head echo patterns at fixed ratios (1x, 1.5x, 2x)
+- FeedbackNetwork (Layer 3): Feedback with progressive darkening
+- CharacterProcessor (Layer 3): Tape character (wow/flutter, hiss, saturation, rolloff)
+
+**User Controls**:
+- Motor Speed: Delay time 20-2000ms with motor inertia (200-500ms transitions)
+- Wear: Wow/flutter depth + hiss level
+- Saturation: Tape drive/warmth
+- Age: EQ rolloff + noise degradation
+- Echo Heads: 3 playback heads at fixed timing ratios
+- Feedback: 0-120% (>100% enables controlled self-oscillation)
+- Mix: Dry/wet balance
+- Output Level: -96dB to +12dB
+
+**Supporting Components**:
+
+#### TapeHead
+
+Configuration for a single playback head.
+
+```cpp
+struct TapeHead {
+    float ratio = 1.0f;        // Timing ratio relative to Motor Speed
+    float levelDb = 0.0f;      // Output level [-96, +6] dB
+    float pan = 0.0f;          // Stereo position [-100, +100]
+    bool enabled = true;       // Head contribution to output
+};
+```
+
+#### MotorController
+
+Manages delay time with motor inertia simulation.
+
+```cpp
+class MotorController {
+    void prepare(float sampleRate, size_t maxBlockSize) noexcept;
+    void setTargetDelayMs(float ms) noexcept;
+    void setInertiaTimeMs(float ms) noexcept;  // 100-1000ms
+    float getCurrentDelayMs() const noexcept;
+    float process() noexcept;                   // Returns smoothed delay
+    bool isTransitioning() const noexcept;
+};
+```
+
+**Public API**:
+
+```cpp
+class TapeDelay {
+    // Constants
+    static constexpr size_t kNumHeads = 3;
+    static constexpr float kMinDelayMs = 20.0f;
+    static constexpr float kMaxDelayMs = 2000.0f;
+    static constexpr float kHeadRatio1 = 1.0f;
+    static constexpr float kHeadRatio2 = 1.5f;
+    static constexpr float kHeadRatio3 = 2.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize, float maxDelayMs) noexcept;
+    void reset() noexcept;
+    bool isPrepared() const noexcept;
+
+    // Motor Speed
+    void setMotorSpeed(float ms) noexcept;
+    void setMotorInertia(float ms) noexcept;
+    float getCurrentDelayMs() const noexcept;
+    float getTargetDelayMs() const noexcept;
+    bool isTransitioning() const noexcept;
+
+    // Character controls
+    void setWear(float amount) noexcept;        // 0-1
+    void setSaturation(float amount) noexcept;  // 0-1
+    void setAge(float amount) noexcept;         // 0-1
+
+    // Echo Heads
+    void setHeadEnabled(size_t headIndex, bool enabled) noexcept;
+    void setHeadLevel(size_t headIndex, float levelDb) noexcept;
+    void setHeadPan(size_t headIndex, float pan) noexcept;
+    TapeHead getHead(size_t headIndex) const noexcept;
+    bool isHeadEnabled(size_t headIndex) const noexcept;
+    size_t getActiveHeadCount() const noexcept;
+
+    // Output
+    void setFeedback(float amount) noexcept;    // 0-1.2
+    void setMix(float amount) noexcept;         // 0-1
+    void setOutputLevel(float dB) noexcept;     // -96 to +12
+
+    // Processing
+    void process(float* left, float* right, size_t numSamples) noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+};
+```
+
+**Usage Example**:
+
+```cpp
+#include "dsp/features/tape_delay.h"
+
+TapeDelay delay;
+delay.prepare(44100.0, 512, 2000.0f);
+
+// Configure for warm, vintage sound
+delay.setMotorSpeed(375.0f);   // Classic Space Echo tempo
+delay.setWear(0.3f);           // Moderate wow/flutter
+delay.setSaturation(0.4f);     // Warm tape drive
+delay.setAge(0.2f);            // Slight degradation
+delay.setFeedback(0.5f);       // 50% feedback
+delay.setMix(0.4f);            // 40% wet
+
+// In process callback
+delay.process(leftChannel, rightChannel, blockSize);
+```
+
+**When to use**: Creating tape-style delay effects with authentic vintage character. Ideal for adding warmth, movement, and lo-fi texture to delay sounds.
 
 ---
 

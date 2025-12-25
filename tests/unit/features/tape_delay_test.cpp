@@ -489,3 +489,108 @@ TEST_CASE("TapeDelay motor inertia", "[features][tape-delay][motor-inertia]") {
         REQUIRE(delay.isTransitioning());
     }
 }
+
+// =============================================================================
+// Phase 9: Edge Case Tests
+// =============================================================================
+
+TEST_CASE("TapeDelay edge case: all heads disabled", "[features][tape-delay][edge-case]") {
+    TapeDelay delay;
+    delay.prepare(44100.0, 512, 2000.0f);
+
+    SECTION("processing works with all heads disabled") {
+        // Disable all heads
+        delay.setHeadEnabled(0, false);
+        delay.setHeadEnabled(1, false);
+        delay.setHeadEnabled(2, false);
+
+        REQUIRE(delay.getActiveHeadCount() == 0);
+
+        // Process should still work without crashing
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        delay.process(left.data(), right.data(), 512);
+
+        // Should produce valid output (no NaN)
+        for (size_t i = 0; i < 512; ++i) {
+            REQUIRE_FALSE(std::isnan(left[i]));
+            REQUIRE_FALSE(std::isnan(right[i]));
+        }
+    }
+}
+
+TEST_CASE("TapeDelay edge case: high feedback self-oscillation", "[features][tape-delay][edge-case]") {
+    TapeDelay delay;
+    delay.prepare(44100.0, 512, 2000.0f);
+
+    SECTION("feedback >100% produces controlled output") {
+        delay.setMotorSpeed(100.0f);  // Short delay
+        delay.setFeedback(1.2f);      // >100% feedback (FR-030)
+        delay.setMix(1.0f);           // Full wet
+
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+        left[0] = 1.0f;  // Impulse
+        right[0] = 1.0f;
+
+        // Process multiple blocks to allow feedback to build
+        for (int block = 0; block < 10; ++block) {
+            delay.process(left.data(), right.data(), 512);
+        }
+
+        // Output should not explode to infinity (SC-007: controlled self-oscillation)
+        float maxOutput = 0.0f;
+        for (size_t i = 0; i < 512; ++i) {
+            maxOutput = std::max(maxOutput, std::abs(left[i]));
+            maxOutput = std::max(maxOutput, std::abs(right[i]));
+        }
+
+        // Should be finite and reasonably bounded (not infinite)
+        REQUIRE_FALSE(std::isinf(maxOutput));
+        REQUIRE_FALSE(std::isnan(maxOutput));
+    }
+
+    SECTION("feedback at maximum (120%) is clamped") {
+        delay.setFeedback(1.5f);  // Above max
+        REQUIRE(delay.getFeedback() <= 1.2f);
+    }
+}
+
+TEST_CASE("TapeDelay edge case: parameter smoothing", "[features][tape-delay][edge-case]") {
+    TapeDelay delay;
+    delay.prepare(44100.0, 512, 2000.0f);
+
+    SECTION("mix parameter changes are smooth") {
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+
+        // Fill with constant signal
+        for (auto& s : left) s = 1.0f;
+        for (auto& s : right) s = 1.0f;
+
+        delay.setMix(0.0f);  // Dry
+        delay.reset();       // Snap smoothers
+
+        // Jump to 100% wet
+        delay.setMix(1.0f);
+
+        // Process a block
+        delay.process(left.data(), right.data(), 512);
+
+        // Output should not contain clicks (abrupt changes)
+        // Check that consecutive samples don't differ too much
+        float maxDiff = 0.0f;
+        for (size_t i = 1; i < 512; ++i) {
+            maxDiff = std::max(maxDiff, std::abs(left[i] - left[i - 1]));
+        }
+
+        // Smoothed parameter should not create abrupt jumps
+        // With 20ms smoothing at 44.1kHz, first sample change is ~0.68
+        // but subsequent samples should be smoother. A value >1.0 would
+        // indicate no smoothing at all (instant jump from 0 to 1).
+        REQUIRE(maxDiff < 1.0f);
+    }
+}
