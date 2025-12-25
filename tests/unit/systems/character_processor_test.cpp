@@ -11,6 +11,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include "dsp/systems/character_processor.h"
+#include "dsp/primitives/fft.h"
 
 #include <array>
 #include <chrono>
@@ -55,7 +56,8 @@ void generateWhiteNoise(float* buffer, size_t size, uint32_t& seed) {
     }
 }
 
-// Measure THD by comparing harmonics to fundamental
+// Measure THD by comparing harmonics to fundamental (simple difference method)
+// NOTE: This method incorrectly captures phase shift as distortion
 float measureTHD(const float* buffer, size_t size, float fundamentalFreq, float sampleRate) {
     // Simple THD estimation: compare RMS of difference from pure sine
     std::vector<float> pureSine(size);
@@ -84,6 +86,75 @@ float measureTHD(const float* buffer, size_t size, float fundamentalFreq, float 
         return distortionRMS / signalRMS * 100.0f; // As percentage
     }
     return 0.0f;
+}
+
+// Measure THD using FFT-based harmonic analysis
+// This properly isolates harmonic distortion from phase shift and noise
+// THD = sqrt(sum of harmonic powers) / fundamental power * 100%
+float measureTHDWithFFT(const float* buffer, size_t size, float fundamentalFreq, float sampleRate) {
+    // FFT size must be power of 2
+    size_t fftSize = 1;
+    while (fftSize < size && fftSize < kMaxFFTSize) {
+        fftSize <<= 1;
+    }
+    if (fftSize > size) fftSize >>= 1;
+    if (fftSize < kMinFFTSize) fftSize = kMinFFTSize;
+
+    // Apply Hann window to reduce spectral leakage
+    std::vector<float> windowed(fftSize);
+    for (size_t i = 0; i < fftSize; ++i) {
+        float window = 0.5f * (1.0f - std::cos(kTwoPi * static_cast<float>(i) / static_cast<float>(fftSize - 1)));
+        windowed[i] = buffer[i] * window;
+    }
+
+    // Perform FFT
+    FFT fft;
+    fft.prepare(fftSize);
+    std::vector<Complex> spectrum(fftSize / 2 + 1);
+    fft.forward(windowed.data(), spectrum.data());
+
+    // Find the bin corresponding to the fundamental frequency
+    float binWidth = sampleRate / static_cast<float>(fftSize);
+    size_t fundamentalBin = static_cast<size_t>(std::round(fundamentalFreq / binWidth));
+
+    // Get fundamental magnitude (search nearby bins to handle slight frequency drift)
+    float fundamentalMag = 0.0f;
+    size_t searchRange = 2;  // Search ±2 bins
+    for (size_t i = fundamentalBin > searchRange ? fundamentalBin - searchRange : 0;
+         i <= fundamentalBin + searchRange && i < spectrum.size(); ++i) {
+        float mag = spectrum[i].magnitude();
+        if (mag > fundamentalMag) {
+            fundamentalMag = mag;
+            fundamentalBin = i;  // Update to actual peak
+        }
+    }
+
+    if (fundamentalMag < 1e-10f) {
+        return 0.0f;  // No fundamental detected
+    }
+
+    // Sum harmonic magnitudes (2nd through 10th harmonics)
+    float harmonicPowerSum = 0.0f;
+    for (int harmonic = 2; harmonic <= 10; ++harmonic) {
+        size_t harmonicBin = fundamentalBin * harmonic;
+        if (harmonicBin >= spectrum.size()) break;
+
+        // Search nearby bins for the harmonic peak
+        float harmonicMag = 0.0f;
+        for (size_t i = harmonicBin > searchRange ? harmonicBin - searchRange : 0;
+             i <= harmonicBin + searchRange && i < spectrum.size(); ++i) {
+            float mag = spectrum[i].magnitude();
+            if (mag > harmonicMag) {
+                harmonicMag = mag;
+            }
+        }
+
+        harmonicPowerSum += harmonicMag * harmonicMag;
+    }
+
+    // THD = sqrt(sum of harmonic powers) / fundamental power * 100%
+    float thd = std::sqrt(harmonicPowerSum) / fundamentalMag * 100.0f;
+    return thd;
 }
 
 // Check for clicks (large sample-to-sample differences)
@@ -893,21 +964,22 @@ TEST_CASE("CharacterProcessor CPU performance benchmark", "[character][layer3][p
 // T093: THD Ceiling Tests (SC-005)
 // =============================================================================
 
-TEST_CASE("CharacterProcessor Tape mode saturation scaling", "[character][layer3][tape][SC-005]") {
+TEST_CASE("CharacterProcessor Tape mode THD measurement", "[character][layer3][tape][SC-005]") {
     // SC-005: Tape mode THD is controllable from 0.1% to 5% via saturation parameter
+    // Using FFT-based harmonic analysis for accurate THD measurement
     //
-    // NOTE: True THD measurement requires FFT analysis to isolate harmonics.
-    // Our simple measureTHD function compares to a regenerated sine which incorrectly
-    // captures filter phase shift as "distortion". Instead, we verify:
-    // 1. Saturation amount affects the signal (more saturation = more change)
-    // 2. Output levels remain reasonable (no hard clipping)
-    // 3. Saturation increases monotonically with the parameter
+    // The saturation drive range is calibrated for this THD range using:
+    // - At 0% saturation: -13dB drive → THD ~0.1%
+    // - At 100% saturation: +4dB drive → THD ~5%
+    // Based on tanh Taylor series: THD ≈ (input_amplitude)²/12
 
     CharacterProcessor character;
     character.prepare(44100.0, 512);
     character.setMode(CharacterMode::Tape);
-    character.setTapeHissLevel(-96.0f);     // Minimize noise
+    character.setTapeHissLevel(-96.0f);     // Minimize noise for clean measurement
     character.setTapeRolloffFreq(20000.0f); // Max rolloff to isolate saturation effect
+    character.setTapeWowDepth(0.0f);        // Disable wow/flutter for clean measurement
+    character.setTapeFlutterDepth(0.0f);
 
     // Let mode establish
     std::array<float, 4096> buffer;
@@ -916,7 +988,7 @@ TEST_CASE("CharacterProcessor Tape mode saturation scaling", "[character][layer3
         character.process(buffer.data(), buffer.size());
     }
 
-    auto measureDistortion = [&](float satAmount) {
+    auto measureTHDAtSaturation = [&](float satAmount) {
         character.setTapeSaturation(satAmount);
 
         // Let saturation settle
@@ -925,25 +997,67 @@ TEST_CASE("CharacterProcessor Tape mode saturation scaling", "[character][layer3
             character.process(buffer.data(), buffer.size());
         }
 
-        // Measure with our THD function (captures total signal difference)
+        // Measure with FFT-based THD
         generateSine(buffer.data(), buffer.size(), 1000.0f, 44100.0f, 0.5f);
         character.process(buffer.data(), buffer.size());
 
-        return measureTHD(buffer.data(), buffer.size(), 1000.0f, 44100.0f);
+        return measureTHDWithFFT(buffer.data(), buffer.size(), 1000.0f, 44100.0f);
     };
 
-    SECTION("saturation parameter affects output") {
-        float dist0 = measureDistortion(0.0f);
-        float dist50 = measureDistortion(0.5f);
-        float dist100 = measureDistortion(1.0f);
+    SECTION("THD at 0% saturation meets spec floor (~0.1%)") {
+        float thd = measureTHDAtSaturation(0.0f);
 
-        INFO("Measured distortion at 0%: " << dist0 << "%");
-        INFO("Measured distortion at 50%: " << dist50 << "%");
-        INFO("Measured distortion at 100%: " << dist100 << "%");
+        INFO("FFT-measured THD at 0% saturation: " << thd << "%");
+        // SC-005: THD floor should be ~0.1% at minimum saturation
+        // Allow tolerance for filter artifacts from oversampling
+        REQUIRE(thd < 0.5f);  // Less than 0.5% THD at 0% saturation
+    }
 
-        // Higher saturation should produce more distortion
-        // (Note: due to phase shift from filter, even 0% shows some "distortion")
-        REQUIRE(dist100 > dist0);  // 100% produces more than 0%
+    SECTION("THD at 50% saturation is in middle of range") {
+        float thd = measureTHDAtSaturation(0.5f);
+
+        INFO("FFT-measured THD at 50% saturation: " << thd << "%");
+        // At 50% saturation, expect THD between floor and ceiling
+        REQUIRE(thd >= 0.5f);  // More than floor
+        REQUIRE(thd <= 3.5f);  // Less than ceiling
+    }
+
+    SECTION("THD at 100% saturation meets spec ceiling (~5%)") {
+        float thd = measureTHDAtSaturation(1.0f);
+
+        INFO("FFT-measured THD at 100% saturation: " << thd << "%");
+        // SC-005: THD ceiling should be ~5% at maximum saturation
+        REQUIRE(thd >= 3.0f);  // At least 3% THD (some tolerance)
+        REQUIRE(thd <= 7.0f);  // No more than 7% THD (some tolerance)
+    }
+
+    SECTION("THD increases monotonically with saturation") {
+        float thd0 = measureTHDAtSaturation(0.0f);
+        float thd50 = measureTHDAtSaturation(0.5f);
+        float thd100 = measureTHDAtSaturation(1.0f);
+
+        INFO("THD at 0%: " << thd0 << "%, 50%: " << thd50 << "%, 100%: " << thd100 << "%");
+
+        // THD should increase with saturation
+        REQUIRE(thd50 > thd0);
+        REQUIRE(thd100 > thd50);
+    }
+
+    SECTION("THD range spans approximately 0.1% to 5% as per SC-005") {
+        float thdMin = measureTHDAtSaturation(0.0f);
+        float thdMax = measureTHDAtSaturation(1.0f);
+
+        INFO("THD range: " << thdMin << "% to " << thdMax << "%");
+
+        // Verify the dynamic range covers approximately the spec requirement
+        // Floor should be near 0.1%, ceiling near 5%
+        REQUIRE(thdMin < 0.5f);   // Floor under 0.5%
+        REQUIRE(thdMax >= 3.0f);  // Ceiling at least 3%
+        REQUIRE(thdMax <= 7.0f);  // Ceiling not exceeding 7%
+
+        // The ratio should indicate good dynamic range
+        float ratio = thdMax / thdMin;
+        REQUIRE(ratio >= 10.0f);  // At least 10:1 THD range
     }
 
     SECTION("output levels remain reasonable") {

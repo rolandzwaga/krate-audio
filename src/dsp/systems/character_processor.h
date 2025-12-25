@@ -433,8 +433,25 @@ private:
 
         // Update saturation drive from smoother
         float satAmount = tapeSaturationSmoother_.process();
-        float driveDb = satAmount * 18.0f; // 0-18dB drive
+
+        // Map saturation amount [0, 1] to drive for THD range ~0.1% to ~5%
+        //
+        // Empirically calibrated drive range (iteratively tuned):
+        // - At 0% saturation: -17dB drive → THD ~0.1%
+        // - At 100% saturation: +24dB drive → THD ~5%
+        //
+        // THD measured at 0.5 amplitude test signal through tanh saturation.
+        // Note: THD growth slows at high drive due to tanh compression and
+        // the saturation processor's DC blocker attenuating harmonics.
+        float driveDb = -17.0f + satAmount * 41.0f;  // -17dB to +24dB (41dB span)
         tapeSaturation_.setInputGain(driveDb);
+
+        // Apply makeup gain to maintain roughly unity output level
+        // At low saturation: need full compensation for attenuation
+        // At high saturation: tanh compresses heavily, need less makeup
+        float makeupDb = -driveDb * (1.0f - satAmount * 0.75f);
+        makeupDb = std::clamp(makeupDb, -10.0f, 18.0f);
+        tapeSaturation_.setOutputGain(makeupDb);
 
         // Apply saturation
         tapeSaturation_.process(buffer, numSamples);
