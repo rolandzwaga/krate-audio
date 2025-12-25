@@ -280,3 +280,21 @@ target_compile_options(benchmark_tanh PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-O3 -ffast-math>
     $<$<CXX_COMPILER_ID:Clang>:-O3 -ffast-math>
 )
+
+# FeedbackNetwork benchmark (SC-007: <1% CPU at 44.1kHz stereo)
+add_executable(benchmark_feedback_network
+    benchmark_feedback_network.cpp
+)
+
+target_include_directories(benchmark_feedback_network
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+# Release optimizations for accurate benchmarking
+target_compile_options(benchmark_feedback_network PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/O2 /fp:fast>
+    $<$<CXX_COMPILER_ID:GNU>:-O3 -ffast-math>
+    $<$<CXX_COMPILER_ID:Clang>:-O3 -ffast-math>
+)
