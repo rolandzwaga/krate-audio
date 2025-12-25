@@ -183,6 +183,11 @@ public:
             // Calculate feedback signal
             float feedbackSignal = delayed;
 
+            // Apply filter if enabled
+            if (filterEnabled_) {
+                feedbackSignal = filterL_.processSample(feedbackSignal);
+            }
+
             // Apply saturation if enabled
             if (saturationEnabled_) {
                 feedbackSignal = saturatorL_.processSample(feedbackSignal);
