@@ -81,6 +81,7 @@ build\bin\Debug\dsp_tests.exe --list-tests
    - [Test Signal Types](#test-signal-types)
    - [Frequency Domain Testing](#frequency-domain-testing)
    - [THD Measurement](#thd-total-harmonic-distortion-measurement)
+   - [Frequency Estimation](#frequency-estimation-for-pitch-accuracy-tests)
    - [Guard Rail Tests](#guard-rail-tests)
    - [Latency and Delay Testing](#latency-and-delay-testing)
    - [Real-Time Safety Testing](#real-time-safety-testing)
@@ -797,6 +798,95 @@ float measureTHD_WRONG(const float* buffer, size_t size, float freq, float sr) {
     return std::sqrt(diff / size);  // WRONG: includes phase error!
 }
 ```
+
+### Frequency Estimation for Pitch Accuracy Tests
+
+When testing pitch shifters or other frequency-altering DSP, you need to measure the output frequency accurately. Two methods are available:
+
+**1. FFT-based Detection** - Good for pure tones, but fooled by amplitude modulation:
+
+```cpp
+// FFT-based frequency estimation with parabolic interpolation
+// WARNING: Fooled by AM artifacts from crossfading pitch shifters!
+float estimateFrequencyFFT(const float* buffer, size_t size, float sampleRate,
+                            float expectedFreqMin = 50.0f, float expectedFreqMax = 2000.0f) {
+    size_t fftSize = /* power of 2 <= size */;
+
+    // Apply Hann window
+    std::vector<float> windowed(fftSize);
+    for (size_t i = 0; i < fftSize; ++i) {
+        float window = 0.5f * (1.0f - std::cos(kTwoPi * i / (fftSize - 1)));
+        windowed[i] = buffer[i] * window;
+    }
+
+    FFT fft;
+    fft.prepare(fftSize);
+    std::vector<Complex> spectrum(fftSize / 2 + 1);
+    fft.forward(windowed.data(), spectrum.data());
+
+    // Find peak bin in expected range
+    float binWidth = sampleRate / static_cast<float>(fftSize);
+    size_t minBin = static_cast<size_t>(expectedFreqMin / binWidth);
+    size_t maxBin = static_cast<size_t>(expectedFreqMax / binWidth);
+
+    size_t peakBin = minBin;
+    float peakMag = 0.0f;
+    for (size_t i = minBin; i <= maxBin && i < spectrum.size(); ++i) {
+        float mag = spectrum[i].magnitude();
+        if (mag > peakMag) { peakMag = mag; peakBin = i; }
+    }
+
+    // Parabolic interpolation for sub-bin accuracy
+    if (peakBin > 0 && peakBin < spectrum.size() - 1) {
+        float y0 = spectrum[peakBin - 1].magnitude();
+        float y1 = spectrum[peakBin].magnitude();
+        float y2 = spectrum[peakBin + 1].magnitude();
+        float delta = 0.5f * (y2 - y0) / (2.0f * y1 - y0 - y2);
+        return (peakBin + delta) * binWidth;
+    }
+    return peakBin * binWidth;
+}
+```
+
+**2. Autocorrelation-based Detection** - Robust against AM artifacts:
+
+```cpp
+// Autocorrelation-based frequency estimation
+// More robust for pitch shifters with crossfading/windowing artifacts
+float estimateFrequencyAutocorr(const float* buffer, size_t size, float sampleRate,
+                                 float minFreq = 50.0f, float maxFreq = 2000.0f) {
+    size_t minLag = static_cast<size_t>(sampleRate / maxFreq);
+    size_t maxLag = static_cast<size_t>(sampleRate / minFreq);
+    maxLag = std::min(maxLag, size / 2);
+
+    float bestCorr = -1.0f;
+    size_t bestLag = minLag;
+
+    for (size_t lag = minLag; lag <= maxLag; ++lag) {
+        float corr = 0.0f;
+        for (size_t i = 0; i < size - lag; ++i) {
+            corr += buffer[i] * buffer[i + lag];
+        }
+        if (corr > bestCorr) {
+            bestCorr = corr;
+            bestLag = lag;
+        }
+    }
+
+    return sampleRate / static_cast<float>(bestLag);
+}
+```
+
+**When to use which method:**
+
+| Scenario | Recommended Method | Why |
+|----------|-------------------|-----|
+| Pure sine waves | FFT | Sub-bin accuracy via parabolic interpolation |
+| Pitch shifters | Autocorrelation | Immune to AM sidebands from crossfading |
+| Filters | FFT | Need frequency response at specific bins |
+| Oscillators | Either | Both work well for clean sources |
+
+**Lesson learned:** During spec 016 (Pitch Shifter) audit, FFT detection showed 894Hz for an 880Hz target (1.6% error). Autocorrelation correctly measured 882Hz (0.2% error). The difference was caused by crossfade amplitude modulation creating sidebands that shifted the FFT peak.
 
 ### Guard Rail Tests
 
