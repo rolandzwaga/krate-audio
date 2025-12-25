@@ -381,12 +381,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 12.1 Final Commit
 
-- [ ] T096 **Commit all spec work** to feature branch
-- [ ] T097 **Verify all tests pass**
+- [x] T096 **Commit all spec work** to feature branch
+- [x] T097 **Verify all tests pass** (1607 assertions in 23 test cases)
 
 ### 12.2 Completion Claim
 
-- [ ] T098 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
+- [x] T098 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec 024-tape-delay implementation honestly complete
 
