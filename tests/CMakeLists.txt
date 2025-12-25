@@ -94,6 +94,7 @@ add_executable(dsp_tests
     unit/processors/pitch_shift_processor_test.cpp
     # Layer 3: System Components
     unit/systems/delay_engine_test.cpp
+    unit/systems/feedback_network_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -147,6 +148,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/pitch_shift_processor_test.cpp
         # Layer 3: System Components
         unit/systems/delay_engine_test.cpp
+        unit/systems/feedback_network_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
