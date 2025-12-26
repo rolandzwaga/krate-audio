@@ -95,6 +95,7 @@ add_executable(dsp_tests
     unit/processors/midside_processor_test.cpp
     unit/processors/diffusion_network_test.cpp
     unit/processors/pitch_shift_processor_test.cpp
+    unit/processors/reverse_feedback_processor_test.cpp
     # Layer 3: System Components
     unit/systems/delay_engine_test.cpp
     unit/systems/feedback_network_test.cpp
@@ -110,6 +111,7 @@ add_executable(dsp_tests
     unit/features/ping_pong_delay_test.cpp
     unit/features/multi_tap_delay_test.cpp
     unit/features/shimmer_delay_test.cpp
+    unit/features/reverse_delay_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -164,6 +166,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/midside_processor_test.cpp
         unit/processors/diffusion_network_test.cpp
         unit/processors/pitch_shift_processor_test.cpp
+        unit/processors/reverse_feedback_processor_test.cpp
         # Layer 3: System Components
         unit/systems/delay_engine_test.cpp
         unit/systems/feedback_network_test.cpp
@@ -179,6 +182,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/features/ping_pong_delay_test.cpp
         unit/features/multi_tap_delay_test.cpp
         unit/features/shimmer_delay_test.cpp
+        unit/features/reverse_delay_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
