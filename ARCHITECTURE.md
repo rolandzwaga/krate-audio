@@ -1583,6 +1583,84 @@ namespace Iterum::DSP {
 
 ---
 
+### ReverseBuffer
+
+| | |
+|---|---|
+| **Purpose** | Double-buffer primitive for capturing audio and playing back in reverse with crossfade |
+| **Location** | [src/dsp/primitives/reverse_buffer.h](src/dsp/primitives/reverse_buffer.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.30 (030-reverse-delay) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    class ReverseBuffer {
+    public:
+        // Constants
+        static constexpr float kMinChunkMs = 10.0f;
+        static constexpr float kMaxChunkMs = 2000.0f;
+
+        // Lifecycle
+        void prepare(double sampleRate, float maxChunkMs) noexcept;
+        void reset() noexcept;
+
+        // Configuration
+        void setChunkSizeMs(float ms) noexcept;
+        [[nodiscard]] float getChunkSizeMs() const noexcept;
+        void setCrossfadeMs(float ms) noexcept;
+        void setReversed(bool reversed) noexcept;
+
+        // Processing
+        [[nodiscard]] float process(float sample) noexcept;
+
+        // Query
+        [[nodiscard]] bool isAtChunkBoundary() const noexcept;
+        [[nodiscard]] std::size_t getLatencySamples() const noexcept;
+    };
+}
+```
+
+**Behavior**:
+- `prepare()` - Allocates double buffers (A/B) for seamless capture and playback
+- `reset()` - Clears buffers and resets state to initial capture phase
+- `setChunkSizeMs()` - Sets the capture/playback chunk size (clamped to [10, 2000] ms)
+- `setCrossfadeMs()` - Sets crossfade duration for smooth transitions between chunks
+- `setReversed()` - Controls playback direction (true = reversed, false = forward)
+- `process()` - Sample-by-sample processing: captures to one buffer while playing back from other
+- `isAtChunkBoundary()` - Returns true at the moment of buffer swap (for mode changes)
+- `getLatencySamples()` - Returns latency equal to chunk size in samples
+
+**When to use**:
+- Reverse delay effects (capture and play backwards)
+- Granular processing with chunk-based playback
+- Buffer-swap effects where direction can change per chunk
+
+**Example**:
+```cpp
+#include "dsp/primitives/reverse_buffer.h"
+
+Iterum::DSP::ReverseBuffer reverseBuffer;
+
+// In prepare() - allocates memory
+reverseBuffer.prepare(44100.0, 2000.0f);  // Up to 2 seconds
+reverseBuffer.setChunkSizeMs(500.0f);     // 500ms chunks
+reverseBuffer.setCrossfadeMs(20.0f);      // 20ms crossfade
+reverseBuffer.setReversed(true);          // Reverse playback
+
+// In processBlock() - real-time safe
+for (size_t i = 0; i < numSamples; ++i) {
+    // Check for chunk boundary to potentially change direction
+    if (reverseBuffer.isAtChunkBoundary()) {
+        // Could alternate direction here for creative effects
+    }
+    output[i] = reverseBuffer.process(input[i]);
+}
+```
+
+---
+
 ## Layer 2: DSP Processors
 
 DSP Processors compose Layer 1 primitives into higher-level processing modules.
@@ -2704,6 +2782,84 @@ harmony2.setSemitones(-3.0f);  // Minor third down
 harmony1.process(input, output1, numSamples);
 harmony2.process(input, output2, numSamples);
 // Mix output1 + output2 + dry...
+```
+
+---
+
+### ReverseFeedbackProcessor
+
+| | |
+|---|---|
+| **Purpose** | IFeedbackProcessor implementation providing stereo reverse processing with playback modes |
+| **Location** | [src/dsp/processors/reverse_feedback_processor.h](src/dsp/processors/reverse_feedback_processor.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.30 (030-reverse-delay) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    enum class PlaybackMode : std::uint8_t {
+        FullReverse,   // Every chunk plays reversed
+        Alternating,   // Alternates: reverse, forward, reverse, forward...
+        Random         // Random direction per chunk (50/50)
+    };
+
+    class ReverseFeedbackProcessor : public IFeedbackProcessor {
+    public:
+        // IFeedbackProcessor interface
+        void prepare(double sampleRate, std::size_t maxBlockSize) noexcept override;
+        void process(float* left, float* right, std::size_t numSamples) noexcept override;
+        void reset() noexcept override;
+        [[nodiscard]] std::size_t getLatencySamples() const noexcept override;
+
+        // Configuration
+        void setChunkSizeMs(float ms) noexcept;
+        [[nodiscard]] float getChunkSizeMs() const noexcept;
+        void setCrossfadeMs(float ms) noexcept;
+        void setPlaybackMode(PlaybackMode mode) noexcept;
+        [[nodiscard]] PlaybackMode getPlaybackMode() const noexcept;
+        void setReversed(bool reversed) noexcept;
+    };
+}
+```
+
+**Behavior**:
+- Implements `IFeedbackProcessor` for injection into `FlexibleFeedbackNetwork`
+- Wraps stereo pair of `ReverseBuffer` instances with synchronized chunk boundaries
+- Manages playback mode logic:
+  - `FullReverse`: Every chunk is reversed
+  - `Alternating`: Odd chunks reversed, even chunks forward
+  - `Random`: 50/50 random choice per chunk using fast RNG
+
+**When to use**:
+- Injecting reverse processing into feedback networks
+- Creating reverse delay effects with FlexibleFeedbackNetwork
+- Building effects that need chunk-based direction changes
+
+**Example**:
+```cpp
+#include "dsp/processors/reverse_feedback_processor.h"
+#include "dsp/systems/flexible_feedback_network.h"
+
+Iterum::DSP::ReverseFeedbackProcessor reverseProc;
+Iterum::DSP::FlexibleFeedbackNetwork feedbackNet;
+
+// Prepare both
+reverseProc.prepare(44100.0, 512);
+feedbackNet.prepare(44100.0, 512);
+
+// Inject processor into feedback network
+feedbackNet.setProcessor(&reverseProc);
+feedbackNet.setProcessorMix(100.0f);  // 100% reverse processing
+
+// Configure reverse processor
+reverseProc.setChunkSizeMs(500.0f);
+reverseProc.setPlaybackMode(PlaybackMode::FullReverse);
+reverseProc.setCrossfadeMs(20.0f);
+
+// Process through feedback network
+feedbackNet.process(left, right, numSamples, ctx);
 ```
 
 ---
@@ -3868,6 +4024,115 @@ shimmer.process(leftChannel, rightChannel, blockSize, ctx);
 
 ---
 
+### ReverseDelay
+
+Reverse delay effect that captures audio in chunks and plays it back reversed.
+
+**File**: `src/dsp/features/reverse_delay.h`
+
+**Purpose**: Layer 4 user feature providing reverse delay effects with chunk-based backward playback, multiple playback modes, crossfade between chunks, and feedback with optional filtering.
+
+**Composes**:
+- FlexibleFeedbackNetwork (Layer 3): Feedback path with filtering and limiting
+- ReverseFeedbackProcessor (Layer 2): Injected processor for stereo reverse processing
+- OnePoleSmoother (Layer 1): Parameter smoothing for dry/wet and output gain
+
+**User Controls**:
+- Chunk Size: 10-2000ms (size of captured/reversed audio chunks)
+- Time Mode: Free or tempo-synced (1/32 to 1/1 note values)
+- Crossfade: 0-100% (overlap between consecutive chunks)
+- Playback Mode: Full Reverse, Alternating, or Random
+- Feedback: 0-120% (>100% enables controlled self-oscillation)
+- Filter: Optional LP/HP/BP filter in feedback path (20Hz-20kHz)
+- Mix: Dry/wet balance 0-100%
+- Output: -96dB to +6dB
+
+**Enumerations**: Uses `PlaybackMode` from ReverseFeedbackProcessor.
+
+**Public API**:
+
+```cpp
+class ReverseDelay {
+public:
+    // Constants
+    static constexpr float kMinChunkMs = 10.0f;
+    static constexpr float kMaxChunkMs = 2000.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate, std::size_t maxBlockSize, float maxChunkMs) noexcept;
+    void reset() noexcept;
+    void snapParameters() noexcept;
+
+    // Chunk Control
+    void setChunkSizeMs(float ms) noexcept;
+    [[nodiscard]] float getCurrentChunkMs() const noexcept;
+    void setTimeMode(TimeMode mode) noexcept;
+    void setNoteValue(NoteValue note, NoteModifier modifier = NoteModifier::None) noexcept;
+
+    // Crossfade
+    void setCrossfadePercent(float percent) noexcept;
+
+    // Playback Mode
+    void setPlaybackMode(PlaybackMode mode) noexcept;
+    [[nodiscard]] PlaybackMode getPlaybackMode() const noexcept;
+
+    // Feedback
+    void setFeedbackAmount(float amount) noexcept;  // 0-1.2
+    void setFilterEnabled(bool enabled) noexcept;
+    void setFilterCutoff(float hz) noexcept;
+    void setFilterType(FilterType type) noexcept;
+
+    // Output
+    void setDryWetMix(float percent) noexcept;      // 0-100
+    void setOutputGainDb(float dB) noexcept;        // -96 to +6
+
+    // Query
+    [[nodiscard]] std::size_t getLatencySamples() const noexcept;
+
+    // Processing
+    void process(float* left, float* right, std::size_t numSamples, const BlockContext& ctx) noexcept;
+};
+```
+
+**Usage Example**:
+
+```cpp
+#include "dsp/features/reverse_delay.h"
+
+Iterum::DSP::ReverseDelay reverseDelay;
+reverseDelay.prepare(44100.0, 512, 2000.0f);
+
+// Configure basic reverse delay
+reverseDelay.setChunkSizeMs(500.0f);              // 500ms chunks
+reverseDelay.setPlaybackMode(PlaybackMode::FullReverse);
+reverseDelay.setCrossfadePercent(50.0f);          // 50% crossfade
+reverseDelay.setFeedbackAmount(0.5f);             // 50% feedback
+reverseDelay.setDryWetMix(50.0f);                 // 50/50 mix
+reverseDelay.snapParameters();                     // Instant parameter application
+
+// Or configure alternating mode for varied texture
+reverseDelay.setPlaybackMode(PlaybackMode::Alternating);
+
+// Or configure with feedback filtering for darker repeats
+reverseDelay.setFilterEnabled(true);
+reverseDelay.setFilterType(FilterType::Lowpass);
+reverseDelay.setFilterCutoff(2000.0f);            // 2kHz lowpass
+
+// Tempo sync mode
+reverseDelay.setTimeMode(TimeMode::Synced);
+reverseDelay.setNoteValue(NoteValue::Quarter, NoteModifier::None);
+
+// In process callback
+BlockContext ctx;
+ctx.sampleRate = 44100.0;
+ctx.tempoBPM = 120.0;
+reverseDelay.process(leftChannel, rightChannel, blockSize, ctx);
+```
+
+**When to use**: Creating ethereal, otherworldly reverse echo effects. Classic reverse delay captures audio and plays it backwards, making notes "swell" into existence. Use Full Reverse for consistent backward playback, Alternating for varied forward/reverse texture, or Random for unpredictable effects. Combine with feedback filtering for progressively darker/warmer repeats.
+
+---
+
 ## Cross-Cutting Concerns
 
 ### Namespaces
@@ -4010,3 +4275,12 @@ Quick lookup by functionality:
 | Set shimmer mix | `ShimmerDelay::setShimmerMix()` | features/shimmer_delay.h |
 | Set shimmer diffusion | `ShimmerDelay::setDiffusionAmount()` | features/shimmer_delay.h |
 | Set shimmer pitch mode | `ShimmerDelay::setPitchMode()` | features/shimmer_delay.h |
+| Create reverse buffer | `Iterum::DSP::ReverseBuffer` | primitives/reverse_buffer.h |
+| Set reverse chunk size | `ReverseBuffer::setChunkSizeMs()` | primitives/reverse_buffer.h |
+| Set reverse crossfade | `ReverseBuffer::setCrossfadeMs()` | primitives/reverse_buffer.h |
+| Create reverse processor | `Iterum::DSP::ReverseFeedbackProcessor` | processors/reverse_feedback_processor.h |
+| Set reverse playback mode | `ReverseFeedbackProcessor::setPlaybackMode()` | processors/reverse_feedback_processor.h |
+| Create reverse delay | `Iterum::DSP::ReverseDelay` | features/reverse_delay.h |
+| Set reverse delay chunk | `ReverseDelay::setChunkSizeMs()` | features/reverse_delay.h |
+| Set reverse playback mode | `ReverseDelay::setPlaybackMode()` | features/reverse_delay.h |
+| Set reverse crossfade | `ReverseDelay::setCrossfadePercent()` | features/reverse_delay.h |
