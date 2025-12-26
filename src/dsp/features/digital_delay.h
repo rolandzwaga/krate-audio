@@ -28,6 +28,8 @@
 #include "dsp/core/block_context.h"
 #include "dsp/core/db_utils.h"
 #include "dsp/core/note_value.h"
+#include "dsp/core/random.h"
+#include "dsp/primitives/biquad.h"
 #include "dsp/primitives/lfo.h"
 #include "dsp/primitives/smoother.h"
 #include "dsp/processors/dynamics_processor.h"
@@ -133,6 +135,10 @@ public:
     static constexpr float kMediumKneeDb = 3.0f;         ///< Medium knee width
     static constexpr float kHardKneeDb = 0.0f;           ///< Hard knee (brick wall)
 
+    // 80s Digital era constants (FR-009, FR-010)
+    static constexpr float k80sNoiseFloorDb = -80.0f;    ///< 80s era noise floor (FR-010)
+    static constexpr float k80sAntiAliasHz = 14000.0f;   ///< Anti-alias filter for ~32kHz (FR-009)
+
     // =========================================================================
     // Construction / Destruction
     // =========================================================================
@@ -160,8 +166,9 @@ public:
         maxBlockSize_ = maxBlockSize;
         maxDelayMs_ = std::min(maxDelayMs, kMaxDelayMs);
 
-        // Prepare DelayEngine
+        // Prepare DelayEngine (set to 100% wet - DigitalDelay handles dry/wet mixing)
         delayEngine_.prepare(sampleRate, maxBlockSize, maxDelayMs_);
+        delayEngine_.setMix(1.0f);  // 100% wet - we handle mixing ourselves
 
         // Prepare FeedbackNetwork
         feedbackNetwork_.prepare(sampleRate, maxBlockSize, maxDelayMs_);
@@ -199,6 +206,13 @@ public:
         modulationDepthSmoother_.snapTo(0.0f);
         ageSmoother_.snapTo(0.0f);
 
+        // Configure 80s era anti-aliasing filters (FR-009)
+        // Lowpass at 14kHz to simulate ~32kHz ADC Nyquist
+        antiAliasFilterL_.configure(FilterType::Lowpass, k80sAntiAliasHz, 0.707f, 0.0f,
+                                    static_cast<float>(sampleRate));
+        antiAliasFilterR_.configure(FilterType::Lowpass, k80sAntiAliasHz, 0.707f, 0.0f,
+                                    static_cast<float>(sampleRate));
+
         prepared_ = true;
     }
 
@@ -210,6 +224,8 @@ public:
         character_.reset();
         limiter_.reset();
         modulationLfo_.reset();
+        antiAliasFilterL_.reset();
+        antiAliasFilterR_.reset();
 
         timeSmoother_.snapTo(delayTimeMs_);
         feedbackSmoother_.snapTo(feedback_);
@@ -456,6 +472,15 @@ public:
         // Process through delay engine
         delayEngine_.process(left, right, numSamples, ctx);
 
+        // Apply anti-aliasing filter for 80s/Lo-Fi era (FR-009)
+        // Simulates the Nyquist filter of early ~32kHz ADCs
+        if (antiAliasEnabled_) {
+            for (size_t i = 0; i < numSamples; ++i) {
+                left[i] = antiAliasFilterL_.process(left[i]);
+                right[i] = antiAliasFilterR_.process(right[i]);
+            }
+        }
+
         // Apply era-based character processing (for 80s/Lo-Fi)
         if (era_ != DigitalEra::Pristine) {
             character_.processStereo(left, right, numSamples);
@@ -467,7 +492,7 @@ public:
             limiter_.process(right, numSamples);
         }
 
-        // Mix dry/wet and apply output level
+        // Mix dry/wet, add noise, and apply output level
         for (size_t i = 0; i < numSamples; ++i) {
             const float currentMix = mixSmoother_.process();
             const float currentOutputGain = outputLevelSmoother_.process();
@@ -476,8 +501,17 @@ public:
             const float dryMix = 1.0f - wetMix;
 
             const size_t bufIdx = i % kMaxDryBufferSize;
-            left[i] = (dryBufferL_[bufIdx] * dryMix + left[i] * wetMix) * currentOutputGain;
-            right[i] = (dryBufferR_[bufIdx] * dryMix + right[i] * wetMix) * currentOutputGain;
+
+            // Add era-specific noise floor (FR-010)
+            float noiseL = 0.0f;
+            float noiseR = 0.0f;
+            if (noiseGain_ > 0.0f) {
+                noiseL = noiseRng_.nextFloat() * noiseGain_;
+                noiseR = noiseRng_.nextFloat() * noiseGain_;
+            }
+
+            left[i] = (dryBufferL_[bufIdx] * dryMix + (left[i] + noiseL) * wetMix) * currentOutputGain;
+            right[i] = (dryBufferR_[bufIdx] * dryMix + (right[i] + noiseR) * wetMix) * currentOutputGain;
         }
     }
 
@@ -504,6 +538,9 @@ private:
                 // Bypass character processing entirely (FR-006, FR-007, FR-042)
                 character_.setMode(CharacterMode::Clean);
                 feedbackNetwork_.setFilterEnabled(false);
+                // No anti-alias filter or noise in pristine mode
+                antiAliasEnabled_ = false;
+                noiseGain_ = 0.0f;
                 break;
 
             case DigitalEra::EightiesDigital:
@@ -518,6 +555,10 @@ private:
                 feedbackNetwork_.setFilterEnabled(true);
                 feedbackNetwork_.setFilterType(FilterType::Lowpass);
                 feedbackNetwork_.setFilterCutoff(12000.0f - age_ * 2000.0f); // 12-10kHz
+                // Enable anti-alias filter for 32kHz simulation (FR-009)
+                antiAliasEnabled_ = true;
+                // Add characteristic noise floor (FR-010)
+                noiseGain_ = dbToGain(k80sNoiseFloorDb);
                 break;
 
             case DigitalEra::LoFi:
@@ -532,6 +573,10 @@ private:
                 feedbackNetwork_.setFilterEnabled(true);
                 feedbackNetwork_.setFilterType(FilterType::Lowpass);
                 feedbackNetwork_.setFilterCutoff(8000.0f - age_ * 4000.0f); // 8-4kHz
+                // Enable anti-alias filter
+                antiAliasEnabled_ = true;
+                // Higher noise floor for lo-fi character
+                noiseGain_ = dbToGain(-60.0f);  // More noise than 80s
                 break;
         }
     }
@@ -584,6 +629,15 @@ private:
     // Dry signal buffer for mixing (avoid allocation in process)
     std::array<float, kMaxDryBufferSize> dryBufferL_ = {};
     std::array<float, kMaxDryBufferSize> dryBufferR_ = {};
+
+    // 80s era anti-aliasing filter (FR-009)
+    Biquad antiAliasFilterL_;
+    Biquad antiAliasFilterR_;
+    bool antiAliasEnabled_ = false;
+
+    // 80s era noise generator (FR-010)
+    Xorshift32 noiseRng_{54321};
+    float noiseGain_ = 0.0f;  // Linear gain for noise injection
 };
 
 } // namespace DSP

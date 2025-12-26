@@ -943,3 +943,241 @@ TEST_CASE("DigitalDelay default values", "[features][digital-delay][defaults]") 
         REQUIRE(delay.getAge() == Approx(0.0f));
     }
 }
+
+// =============================================================================
+// Phase 10: Precision Audio Measurement Tests (SC-001, SC-002, FR-009, FR-010)
+// =============================================================================
+
+#include "dsp/primitives/fft.h"
+#include "dsp/core/db_utils.h"
+
+TEST_CASE("SC-002: Pristine noise floor below -120dB", "[features][digital-delay][pristine][precision][SC-002]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 4096, 10000.0f);
+    delay.setEra(DigitalEra::Pristine);
+    delay.setMix(1.0f);  // Full wet to hear delay output
+    delay.setFeedback(0.0f);  // No feedback
+    delay.setTime(100.0f);  // 100ms delay
+
+    SECTION("silence produces output below -120dB") {
+        // Process silence for several blocks to let any transients settle
+        std::array<float, 4096> left{};
+        std::array<float, 4096> right{};
+
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = 4096;
+
+        // Settle smoothers
+        for (int settle = 0; settle < 10; ++settle) {
+            std::fill(left.begin(), left.end(), 0.0f);
+            std::fill(right.begin(), right.end(), 0.0f);
+            delay.process(left.data(), right.data(), 4096, ctx);
+        }
+
+        // Process one more block of silence and measure output
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), 4096, ctx);
+
+        // Calculate RMS of output
+        double sumSquares = 0.0;
+        for (size_t i = 0; i < 4096; ++i) {
+            sumSquares += static_cast<double>(left[i]) * static_cast<double>(left[i]);
+            sumSquares += static_cast<double>(right[i]) * static_cast<double>(right[i]);
+        }
+        double rms = std::sqrt(sumSquares / (2.0 * 4096.0));
+
+        // Convert to dB (relative to full scale = 1.0)
+        // -120dB = 1e-6 linear
+        double noiseFloorDb = (rms > 0.0) ? 20.0 * std::log10(rms) : -200.0;
+
+        INFO("Measured noise floor: " << noiseFloorDb << " dB");
+        REQUIRE(noiseFloorDb < -120.0);
+    }
+}
+
+TEST_CASE("SC-001: Pristine 0.1dB flat frequency response 20Hz-20kHz", "[features][digital-delay][pristine][precision][SC-001]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 4096, 10000.0f);
+    delay.setEra(DigitalEra::Pristine);
+    delay.setMix(1.0f);  // Full wet
+    delay.setFeedback(0.0f);
+    delay.setTime(10.0f);  // Short delay to get impulse response quickly
+
+    SECTION("impulse response has flat frequency response") {
+        // Generate impulse
+        std::array<float, 4096> left{};
+        std::array<float, 4096> right{};
+
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = 4096;
+
+        // Settle smoothers first
+        for (int settle = 0; settle < 5; ++settle) {
+            std::fill(left.begin(), left.end(), 0.0f);
+            std::fill(right.begin(), right.end(), 0.0f);
+            delay.process(left.data(), right.data(), 4096, ctx);
+        }
+
+        // Now process impulse
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        left[0] = 1.0f;  // Impulse at sample 0
+        right[0] = 1.0f;
+
+        delay.process(left.data(), right.data(), 4096, ctx);
+
+        // Perform FFT on output
+        FFT fft;
+        fft.prepare(4096);
+        std::vector<Complex> spectrum(fft.numBins());
+        fft.forward(left.data(), spectrum.data());
+
+        // Find peak magnitude (the delay should shift the impulse but preserve amplitude)
+        float peakMagnitude = 0.0f;
+        for (size_t i = 0; i < fft.numBins(); ++i) {
+            peakMagnitude = std::max(peakMagnitude, spectrum[i].magnitude());
+        }
+
+        // Check frequency response flatness from 20Hz to 20kHz
+        // At 44.1kHz, bin spacing = 44100/4096 ≈ 10.77Hz
+        // 20Hz ≈ bin 2, 20kHz ≈ bin 1857
+        const size_t binAt20Hz = static_cast<size_t>(20.0 * 4096.0 / 44100.0);
+        const size_t binAt20kHz = static_cast<size_t>(20000.0 * 4096.0 / 44100.0);
+
+        float minMagnitude = peakMagnitude;
+        float maxMagnitude = 0.0f;
+
+        for (size_t i = binAt20Hz; i <= binAt20kHz && i < fft.numBins(); ++i) {
+            float mag = spectrum[i].magnitude();
+            minMagnitude = std::min(minMagnitude, mag);
+            maxMagnitude = std::max(maxMagnitude, mag);
+        }
+
+        // Calculate deviation in dB
+        // Peak should be close to 1.0 (unit impulse), deviation from flat
+        float deviationDb = (minMagnitude > 0.0f)
+            ? 20.0f * std::log10(maxMagnitude / minMagnitude)
+            : 100.0f;
+
+        INFO("Frequency response deviation: " << deviationDb << " dB");
+        INFO("Peak magnitude: " << peakMagnitude);
+        INFO("Min magnitude in passband: " << minMagnitude);
+        INFO("Max magnitude in passband: " << maxMagnitude);
+
+        // Require flatness within 0.1dB
+        REQUIRE(deviationDb < 0.1f);
+    }
+}
+
+TEST_CASE("FR-010: 80s Digital era has -80dB noise floor", "[features][digital-delay][80s][precision][FR-010]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 4096, 10000.0f);
+    delay.setEra(DigitalEra::EightiesDigital);
+    delay.setAge(0.5f);  // Moderate vintage character
+    delay.setMix(1.0f);  // Full wet
+    delay.setFeedback(0.0f);
+    delay.setTime(100.0f);
+
+    SECTION("80s mode adds characteristic noise floor around -80dB") {
+        std::array<float, 4096> left{};
+        std::array<float, 4096> right{};
+
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = 4096;
+
+        // Settle smoothers
+        for (int settle = 0; settle < 10; ++settle) {
+            std::fill(left.begin(), left.end(), 0.0f);
+            std::fill(right.begin(), right.end(), 0.0f);
+            delay.process(left.data(), right.data(), 4096, ctx);
+        }
+
+        // Process silence and measure output
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), 4096, ctx);
+
+        // Calculate RMS of output
+        double sumSquares = 0.0;
+        for (size_t i = 0; i < 4096; ++i) {
+            sumSquares += static_cast<double>(left[i]) * static_cast<double>(left[i]);
+            sumSquares += static_cast<double>(right[i]) * static_cast<double>(right[i]);
+        }
+        double rms = std::sqrt(sumSquares / (2.0 * 4096.0));
+        double noiseFloorDb = (rms > 0.0) ? 20.0 * std::log10(rms) : -200.0;
+
+        INFO("Measured 80s era noise floor: " << noiseFloorDb << " dB");
+
+        // 80s digital should have audible noise floor around -80dB
+        // Must be louder than pristine (-120dB) but not too loud
+        REQUIRE(noiseFloorDb > -90.0);   // Must have SOME noise (louder than -90dB)
+        REQUIRE(noiseFloorDb < -70.0);   // But not TOO much (quieter than -70dB)
+    }
+}
+
+TEST_CASE("FR-009: 80s Digital era targets ~32kHz effective sample rate", "[features][digital-delay][80s][precision][FR-009]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 4096, 10000.0f);
+    delay.setEra(DigitalEra::EightiesDigital);
+    delay.setAge(0.0f);  // Minimal aging = closest to 32kHz
+    delay.setMix(1.0f);
+    delay.setFeedback(0.0f);
+    delay.setTime(10.0f);
+
+    SECTION("80s mode attenuates frequencies above 16kHz (Nyquist of 32kHz)") {
+        // At 32kHz effective sample rate, Nyquist is 16kHz
+        // Frequencies above 16kHz should be attenuated
+
+        std::array<float, 4096> left{};
+        std::array<float, 4096> right{};
+
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = 4096;
+
+        // Settle smoothers
+        for (int settle = 0; settle < 5; ++settle) {
+            std::fill(left.begin(), left.end(), 0.0f);
+            std::fill(right.begin(), right.end(), 0.0f);
+            delay.process(left.data(), right.data(), 4096, ctx);
+        }
+
+        // Generate impulse
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        delay.process(left.data(), right.data(), 4096, ctx);
+
+        // FFT analysis
+        FFT fft;
+        fft.prepare(4096);
+        std::vector<Complex> spectrum(fft.numBins());
+        fft.forward(left.data(), spectrum.data());
+
+        // Measure energy at 10kHz (should be mostly preserved) vs 18kHz (should be attenuated)
+        const size_t binAt10kHz = static_cast<size_t>(10000.0 * 4096.0 / 44100.0);
+        const size_t binAt18kHz = static_cast<size_t>(18000.0 * 4096.0 / 44100.0);
+
+        float magAt10kHz = spectrum[binAt10kHz].magnitude();
+        float magAt18kHz = spectrum[binAt18kHz].magnitude();
+
+        // Calculate relative attenuation
+        float attenuationDb = (magAt18kHz > 0.0f && magAt10kHz > 0.0f)
+            ? 20.0f * std::log10(magAt18kHz / magAt10kHz)
+            : -100.0f;
+
+        INFO("Magnitude at 10kHz: " << magAt10kHz);
+        INFO("Magnitude at 18kHz: " << magAt18kHz);
+        INFO("Attenuation at 18kHz vs 10kHz: " << attenuationDb << " dB");
+
+        // 80s mode should attenuate 18kHz relative to 10kHz by at least -3dB
+        // This indicates HF rolloff consistent with early digital converters
+        REQUIRE(attenuationDb < -3.0f);
+    }
+}
