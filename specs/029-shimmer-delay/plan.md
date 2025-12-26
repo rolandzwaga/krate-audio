@@ -260,3 +260,48 @@ Input ──┬─────────────────────�
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | — | — | — |
+
+## Design Decisions
+
+### FR-018 Alternative: Direct Feedback Management vs FeedbackNetwork
+
+**Requirement**: FR-018 specifies "System MUST use FeedbackNetwork (Layer 3) for feedback management"
+
+**Implementation Choice**: ShimmerDelay uses direct composition of lower-level components instead:
+- DelayLine (Layer 1) × 2 for stereo delay buffers
+- MultimodeFilter (Layer 2) × 2 for feedback filtering (replaces FeedbackNetwork filter)
+- DynamicsProcessor (Layer 2) for feedback limiting (replaces FeedbackNetwork saturation)
+
+**Rationale**: FeedbackNetwork (spec 019) was designed for simple feedback paths with filter and saturation. It does NOT support:
+1. **Arbitrary signal processing in feedback loop** - ShimmerDelay needs pitch shifting between delay output and feedback input
+2. **Shimmer mix blending** - Mixing pitched and unpitched signals before feedback
+3. **Diffusion in feedback path** - DiffusionNetwork processing between stages
+
+FeedbackNetwork's API only exposes:
+```cpp
+void setFeedbackAmount(float amount) noexcept;
+void setFilterEnabled(bool enabled) noexcept;
+void setFilterCutoff(float hz) noexcept;
+void setSaturationEnabled(bool enabled) noexcept;
+void process(float* left, float* right, size_t numSamples, const BlockContext& ctx) noexcept;
+```
+
+There is no hook for inserting pitch shifting in the feedback path. The signal flow required by shimmer is:
+
+```
+Delay Output → Pitch Shifter → Shimmer Mix → Diffusion → Filter → Limiter → Feedback Sum
+```
+
+But FeedbackNetwork's internal signal flow is:
+```
+Delay Output → Filter → Saturation → Feedback Sum
+```
+
+**Alternative Considered**: Extending FeedbackNetwork to support injectable processors. Rejected because:
+1. Would require significant API changes to an already-shipped component
+2. The "pitch in feedback" pattern is specific to shimmer-type effects
+3. Direct composition is cleaner and follows Layer 4's role as "feature assembly"
+
+**Compliance Status**: FR-018 is **NOT MET** as literally specified, but the functional requirements it supports (FR-019: soft limiting, FR-020: feedback filter, FR-021: filter cutoff range) ARE met through alternative implementation.
+
+**Recommendation**: Mark FR-018 as "ALTERNATIVE" in compliance table with reference to this design decision.

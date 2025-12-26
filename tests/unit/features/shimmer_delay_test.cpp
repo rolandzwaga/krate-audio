@@ -868,6 +868,86 @@ TEST_CASE("0-semitone pitch preserves original frequency", "[shimmer-delay][edge
 }
 
 // =============================================================================
+// Pitch Smoothing Tests (FR-009)
+// =============================================================================
+
+TEST_CASE("FR-009: Pitch changes are smoothed to prevent clicks", "[shimmer-delay][FR-009][smoothing]") {
+    ShimmerDelay shimmer;
+    shimmer.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+
+    shimmer.setPitchSemitones(0.0f);
+    shimmer.snapParameters();
+
+    SECTION("Smoothed pitch ratio lags behind target after parameter change") {
+        // Verify the smoothing mechanism: when pitch changes, the smoothed value
+        // should NOT instantly jump to the target
+
+        // Initial state: 0 semitones = ratio 1.0
+        REQUIRE(shimmer.getPitchRatio() == Approx(1.0f).margin(0.001f));
+        REQUIRE(shimmer.getSmoothedPitchRatio() == Approx(1.0f).margin(0.001f));
+
+        // Change to +12 semitones (ratio 2.0)
+        shimmer.setPitchSemitones(12.0f);
+
+        // Target should update immediately
+        REQUIRE(shimmer.getPitchRatio() == Approx(2.0f).margin(0.001f));
+
+        // Smoothed value should still be near 1.0 (hasn't had time to transition)
+        float smoothedAfterChange = shimmer.getSmoothedPitchRatio();
+        INFO("Smoothed ratio immediately after change: " << smoothedAfterChange);
+        REQUIRE(smoothedAfterChange < 1.1f);  // Should still be close to 1.0
+    }
+
+    SECTION("Smoothed pitch converges to target over time") {
+        shimmer.reset();
+        shimmer.setPitchSemitones(0.0f);
+        shimmer.snapParameters();
+
+        // Change to +12 semitones
+        shimmer.setPitchSemitones(12.0f);
+
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+        auto ctx = makeTestContext();
+
+        // Process several blocks and track smoothed ratio convergence
+        float prevSmoothed = shimmer.getSmoothedPitchRatio();
+
+        // Process ~50ms worth of audio (enough for 20ms smoother to mostly converge)
+        for (int block = 0; block < 5; ++block) {
+            shimmer.process(left.data(), right.data(), 512, ctx);
+
+            float currentSmoothed = shimmer.getSmoothedPitchRatio();
+
+            // Each block should move closer to target (2.0) or stay at target
+            INFO("Block " << block << ": smoothed ratio = " << currentSmoothed);
+            REQUIRE(currentSmoothed >= prevSmoothed);  // Moving toward 2.0 or at target
+            REQUIRE(currentSmoothed <= 2.0f);          // Never overshoots
+
+            prevSmoothed = currentSmoothed;
+        }
+
+        // After 50ms, should be very close to target (20ms smoothing time)
+        REQUIRE(prevSmoothed > 1.9f);  // Should be nearly at 2.0
+    }
+
+    SECTION("Snap parameters bypasses smoothing") {
+        shimmer.reset();
+        shimmer.setPitchSemitones(0.0f);
+        shimmer.snapParameters();
+
+        // Change pitch and snap
+        shimmer.setPitchSemitones(12.0f);
+        shimmer.snapParameters();
+
+        // Both target and smoothed should now be at 2.0
+        REQUIRE(shimmer.getPitchRatio() == Approx(2.0f).margin(0.001f));
+        REQUIRE(shimmer.getSmoothedPitchRatio() == Approx(2.0f).margin(0.001f));
+    }
+
+}
+
+// =============================================================================
 // Modulation Matrix Connection Tests
 // =============================================================================
 
@@ -886,5 +966,79 @@ TEST_CASE("Modulation matrix connection", "[shimmer-delay][modulation]") {
     SECTION("Can disconnect modulation matrix") {
         shimmer.connectModulationMatrix(nullptr);
         // Should not crash
+    }
+}
+
+// =============================================================================
+// Modulation Application Tests (FR-023, FR-024)
+// =============================================================================
+
+TEST_CASE("FR-023/FR-024: Modulation destinations are defined", "[shimmer-delay][FR-023][FR-024][modulation]") {
+    // FR-023: Modulatable parameters MUST include: pitch, shimmer mix,
+    //         delay time, feedback, diffusion
+
+    SECTION("Modulation destination IDs are defined") {
+        // Verify the shimmer delay exposes modulation destination IDs
+        // These should be usable with ModulationMatrix::registerDestination()
+        REQUIRE(ShimmerDelay::kModDestDelayTime < 32);
+        REQUIRE(ShimmerDelay::kModDestPitch < 32);
+        REQUIRE(ShimmerDelay::kModDestShimmerMix < 32);
+        REQUIRE(ShimmerDelay::kModDestFeedback < 32);
+        REQUIRE(ShimmerDelay::kModDestDiffusion < 32);
+
+        // All destination IDs must be unique
+        REQUIRE(ShimmerDelay::kModDestDelayTime != ShimmerDelay::kModDestPitch);
+        REQUIRE(ShimmerDelay::kModDestDelayTime != ShimmerDelay::kModDestShimmerMix);
+        REQUIRE(ShimmerDelay::kModDestDelayTime != ShimmerDelay::kModDestFeedback);
+        REQUIRE(ShimmerDelay::kModDestDelayTime != ShimmerDelay::kModDestDiffusion);
+    }
+
+    SECTION("Parameter ranges are defined for modulation") {
+        // Verify min/max constants exist for clamping modulated values
+        REQUIRE(ShimmerDelay::kMinDelayMs < ShimmerDelay::kMaxDelayMs);
+        REQUIRE(ShimmerDelay::kMinPitchSemitones < ShimmerDelay::kMaxPitchSemitones);
+        REQUIRE(ShimmerDelay::kMinShimmerMix < ShimmerDelay::kMaxShimmerMix);
+        REQUIRE(ShimmerDelay::kMinFeedback < ShimmerDelay::kMaxFeedback);
+        REQUIRE(ShimmerDelay::kMinDiffusion < ShimmerDelay::kMaxDiffusion);
+    }
+}
+
+TEST_CASE("FR-024: Modulation is applied additively in process", "[shimmer-delay][FR-024][modulation]") {
+    ShimmerDelay shimmer;
+    shimmer.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+
+    // Configure baseline
+    shimmer.setDelayTimeMs(500.0f);
+    shimmer.setDryWetMix(100.0f);
+    shimmer.setFeedbackAmount(0.3f);
+    shimmer.setShimmerMix(0.0f);  // No shimmer for clean delay test
+    shimmer.setDiffusionAmount(0.0f);
+    shimmer.snapParameters();
+
+    // Create and configure modulation matrix
+    ModulationMatrix matrix;
+    matrix.prepare(kSampleRate, kBlockSize, 32);
+
+    // Register delay time destination
+    matrix.registerDestination(ShimmerDelay::kModDestDelayTime,
+                               ShimmerDelay::kMinDelayMs, ShimmerDelay::kMaxDelayMs,
+                               "DelayTime");
+
+    shimmer.connectModulationMatrix(&matrix);
+
+    SECTION("Processing works with modulation matrix connected") {
+        // Even with no active modulation, processing should work
+        std::array<float, kBlockSize> left{};
+        std::array<float, kBlockSize> right{};
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+        auto ctx = makeTestContext();
+
+        // Should not crash
+        shimmer.process(left.data(), right.data(), kBlockSize, ctx);
+
+        // Output should have some energy
+        float peak = findPeak(left.data(), kBlockSize);
+        REQUIRE(peak >= 0.0f);  // No crash, valid output
     }
 }

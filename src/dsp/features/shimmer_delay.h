@@ -166,6 +166,14 @@ public:
     static constexpr float kLimiterRatio = 100.0f;
     static constexpr float kLimiterKneeDb = 6.0f;
 
+    // Modulation destination IDs (FR-023)
+    // Use these with ModulationMatrix::registerDestination()
+    static constexpr uint8_t kModDestDelayTime = 0;
+    static constexpr uint8_t kModDestPitch = 1;
+    static constexpr uint8_t kModDestShimmerMix = 2;
+    static constexpr uint8_t kModDestFeedback = 3;
+    static constexpr uint8_t kModDestDiffusion = 4;
+
     // =========================================================================
     // Construction / Destruction
     // =========================================================================
@@ -252,8 +260,12 @@ public:
     /// @brief Get current pitch mode
     [[nodiscard]] PitchMode getPitchMode() const noexcept { return pitchMode_; }
 
-    /// @brief Get current pitch ratio
+    /// @brief Get target pitch ratio (from semitones + cents)
     [[nodiscard]] float getPitchRatio() const noexcept;
+
+    /// @brief Get current smoothed pitch ratio (FR-009)
+    /// @note Returns the actual interpolated value being applied, not the target
+    [[nodiscard]] float getSmoothedPitchRatio() const noexcept;
 
     // =========================================================================
     // Shimmer Configuration (FR-011 to FR-015)
@@ -372,6 +384,9 @@ private:
     /// @brief Convert milliseconds to samples
     [[nodiscard]] float msToSamples(float ms) const noexcept;
 
+    /// @brief Calculate pitch ratio from semitones and cents (FR-009)
+    [[nodiscard]] float calculatePitchRatio() const noexcept;
+
     // =========================================================================
     // Member Variables
     // =========================================================================
@@ -407,6 +422,7 @@ private:
     OnePoleSmoother diffusionSmoother_;
     OnePoleSmoother dryWetSmoother_;
     OnePoleSmoother outputGainSmoother_;
+    OnePoleSmoother pitchRatioSmoother_;  // FR-009: Smooth pitch changes
 
     // Layer 3 - optional modulation matrix
     ModulationMatrix* modulationMatrix_ = nullptr;
@@ -512,6 +528,7 @@ inline void ShimmerDelay::prepare(double sampleRate, size_t maxBlockSize, float 
     diffusionSmoother_.configure(kSmoothingTimeMs, sr);
     dryWetSmoother_.configure(kSmoothingTimeMs, sr);
     outputGainSmoother_.configure(kSmoothingTimeMs, sr);
+    pitchRatioSmoother_.configure(kSmoothingTimeMs, sr);  // FR-009
 
     // Initialize to defaults
     delaySmoother_.snapTo(delayTimeMs_);
@@ -520,6 +537,7 @@ inline void ShimmerDelay::prepare(double sampleRate, size_t maxBlockSize, float 
     diffusionSmoother_.snapTo(diffusionAmount_ / 100.0f);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
     outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
+    pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
 
     prepared_ = true;
 }
@@ -549,6 +567,7 @@ inline void ShimmerDelay::reset() noexcept {
     diffusionSmoother_.snapTo(diffusionAmount_ / 100.0f);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
     outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
+    pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
 }
 
 inline void ShimmerDelay::snapParameters() noexcept {
@@ -558,6 +577,13 @@ inline void ShimmerDelay::snapParameters() noexcept {
     diffusionSmoother_.snapTo(diffusionAmount_ / 100.0f);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
     outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
+    pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
+
+    // Apply snapped pitch to pitch shifters immediately
+    pitchShifterL_.setSemitones(pitchSemitones_);
+    pitchShifterL_.setCents(pitchCents_);
+    pitchShifterR_.setSemitones(pitchSemitones_);
+    pitchShifterR_.setCents(pitchCents_);
 }
 
 inline void ShimmerDelay::setDelayTimeMs(float ms) noexcept {
@@ -572,14 +598,14 @@ inline void ShimmerDelay::setNoteValue(NoteValue note, NoteModifier modifier) no
 
 inline void ShimmerDelay::setPitchSemitones(float semitones) noexcept {
     pitchSemitones_ = std::clamp(semitones, kMinPitchSemitones, kMaxPitchSemitones);
-    pitchShifterL_.setSemitones(pitchSemitones_);
-    pitchShifterR_.setSemitones(pitchSemitones_);
+    // FR-009: Set smoother target instead of applying directly
+    pitchRatioSmoother_.setTarget(calculatePitchRatio());
 }
 
 inline void ShimmerDelay::setPitchCents(float cents) noexcept {
     pitchCents_ = std::clamp(cents, kMinPitchCents, kMaxPitchCents);
-    pitchShifterL_.setCents(pitchCents_);
-    pitchShifterR_.setCents(pitchCents_);
+    // FR-009: Set smoother target instead of applying directly
+    pitchRatioSmoother_.setTarget(calculatePitchRatio());
 }
 
 inline void ShimmerDelay::setPitchMode(PitchMode mode) noexcept {
@@ -589,7 +615,13 @@ inline void ShimmerDelay::setPitchMode(PitchMode mode) noexcept {
 }
 
 inline float ShimmerDelay::getPitchRatio() const noexcept {
-    return pitchShifterL_.getPitchRatio();
+    // Return the TARGET ratio (what user set), not the smoothed value
+    return calculatePitchRatio();
+}
+
+inline float ShimmerDelay::getSmoothedPitchRatio() const noexcept {
+    // Return the current interpolated value being applied (FR-009)
+    return pitchRatioSmoother_.getCurrentValue();
 }
 
 inline void ShimmerDelay::setShimmerMix(float percent) noexcept {
@@ -648,6 +680,12 @@ inline float ShimmerDelay::msToSamples(float ms) const noexcept {
     return static_cast<float>(ms * sampleRate_ / 1000.0);
 }
 
+inline float ShimmerDelay::calculatePitchRatio() const noexcept {
+    // Convert semitones + cents to ratio: ratio = 2^((semitones + cents/100) / 12)
+    const float totalSemitones = pitchSemitones_ + pitchCents_ / 100.0f;
+    return std::pow(2.0f, totalSemitones / 12.0f);
+}
+
 inline void ShimmerDelay::process(float* left, float* right, size_t numSamples,
                                    const BlockContext& ctx) noexcept {
     if (!prepared_ || numSamples == 0) return;
@@ -667,6 +705,18 @@ inline void ShimmerDelay::process(float* left, float* right, size_t numSamples,
         baseDelayMs = calculateTempoSyncedDelay(ctx);
     }
     delaySmoother_.setTarget(baseDelayMs);
+
+    // FR-009: Apply smoothed pitch ratio at start of block
+    // Advance smoother for the full block to get end-of-block value
+    float smoothedRatio = pitchRatioSmoother_.getCurrentValue();
+    for (size_t i = 0; i < numSamples; ++i) {
+        smoothedRatio = pitchRatioSmoother_.process();
+    }
+    const float smoothedSemitones = 12.0f * std::log2(smoothedRatio);
+    pitchShifterL_.setSemitones(smoothedSemitones);
+    pitchShifterL_.setCents(0.0f);  // Cents included in smoothed ratio
+    pitchShifterR_.setSemitones(smoothedSemitones);
+    pitchShifterR_.setCents(0.0f);
 
     // Sample-by-sample processing for feedback loop
     // The pitch shifter is block-based, so we use the PREVIOUS block's
