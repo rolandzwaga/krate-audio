@@ -239,6 +239,12 @@ public:
         if (feedbackAmount_ > 1.0f) {
             limiterL_.process(feedbackL_.data(), numSamples);
             limiterR_.process(feedbackR_.data(), numSamples);
+
+            // Apply soft clipping as safety net (catches transients during attack time)
+            for (std::size_t i = 0; i < numSamples; ++i) {
+                feedbackL_[i] = std::tanh(feedbackL_[i]);
+                feedbackR_[i] = std::tanh(feedbackR_[i]);
+            }
         }
 
         // Copy processed feedback to output

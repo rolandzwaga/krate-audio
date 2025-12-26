@@ -5,13 +5,10 @@
 // Classic shimmer effect (Strymon BigSky, Eventide Space, Valhalla Shimmer).
 //
 // Composes:
-// - DelayLine (Layer 1): 2 instances for stereo delay buffers
-// - LFO (Layer 1): Optional modulation source
-// - OnePoleSmoother (Layer 1): 8+ instances for parameter smoothing
+// - FlexibleFeedbackNetwork (Layer 3): Feedback loop with processor injection
 // - PitchShiftProcessor (Layer 2): 2 instances for stereo pitch shifting
 // - DiffusionNetwork (Layer 2): Smearing for reverb-like texture
-// - MultimodeFilter (Layer 2): 2 instances for feedback filtering
-// - DynamicsProcessor (Layer 2): Feedback limiting for >100%
+// - OnePoleSmoother (Layer 1): Parameter smoothing
 // - ModulationMatrix (Layer 3): Optional external modulation
 //
 // Feature: 029-shimmer-delay
@@ -31,14 +28,13 @@
 #include "dsp/core/block_context.h"
 #include "dsp/core/db_utils.h"
 #include "dsp/core/note_value.h"
-#include "dsp/primitives/delay_line.h"
 #include "dsp/primitives/smoother.h"
 #include "dsp/processors/diffusion_network.h"
-#include "dsp/processors/dynamics_processor.h"
-#include "dsp/processors/multimode_filter.h"
 #include "dsp/processors/pitch_shift_processor.h"
-#include "dsp/systems/delay_engine.h"       // For TimeMode enum
-#include "dsp/systems/modulation_matrix.h"  // For optional modulation
+#include "dsp/systems/delay_engine.h"            // For TimeMode enum
+#include "dsp/systems/flexible_feedback_network.h"
+#include "dsp/systems/i_feedback_processor.h"
+#include "dsp/systems/modulation_matrix.h"       // For optional modulation
 
 #include <algorithm>
 #include <array>
@@ -48,6 +44,135 @@
 
 namespace Iterum {
 namespace DSP {
+
+// =============================================================================
+// ShimmerFeedbackProcessor - IFeedbackProcessor for shimmer effect
+// =============================================================================
+
+/// @brief Feedback path processor that applies pitch shifting and diffusion
+///
+/// Implements IFeedbackProcessor to be injected into FlexibleFeedbackNetwork.
+/// The processor applies:
+/// 1. Pitch shifting (stereo)
+/// 2. Diffusion network (reverb-like smearing)
+/// 3. Shimmer mix blending (pitched vs unpitched ratio)
+class ShimmerFeedbackProcessor : public IFeedbackProcessor {
+public:
+    ShimmerFeedbackProcessor() noexcept = default;
+    ~ShimmerFeedbackProcessor() override = default;
+
+    // IFeedbackProcessor interface
+    void prepare(double sampleRate, std::size_t maxBlockSize) noexcept override {
+        sampleRate_ = sampleRate;
+        maxBlockSize_ = maxBlockSize;
+
+        // Prepare pitch shifters
+        pitchShifterL_.prepare(sampleRate, maxBlockSize);
+        pitchShifterR_.prepare(sampleRate, maxBlockSize);
+
+        // Prepare diffusion network
+        diffusion_.prepare(static_cast<float>(sampleRate), maxBlockSize);
+
+        // Allocate buffers
+        unpitchedL_.resize(maxBlockSize, 0.0f);
+        unpitchedR_.resize(maxBlockSize, 0.0f);
+        diffusionOutL_.resize(maxBlockSize, 0.0f);
+        diffusionOutR_.resize(maxBlockSize, 0.0f);
+    }
+
+    void process(float* left, float* right, std::size_t numSamples) noexcept override {
+        if (numSamples == 0) return;
+
+        // Store unpitched signal for shimmer mix blending
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            unpitchedL_[i] = left[i];
+            unpitchedR_[i] = right[i];
+        }
+
+        // Apply pitch shifting
+        pitchShifterL_.process(left, left, numSamples);
+        pitchShifterR_.process(right, right, numSamples);
+
+        // Apply diffusion to pitched signal if enabled
+        if (diffusionAmount_ > 0.001f) {
+            diffusion_.process(left, right, diffusionOutL_.data(), diffusionOutR_.data(), numSamples);
+
+            // Blend pitched with diffused based on diffusion amount
+            for (std::size_t i = 0; i < numSamples; ++i) {
+                left[i] = left[i] * (1.0f - diffusionAmount_) + diffusionOutL_[i] * diffusionAmount_;
+                right[i] = right[i] * (1.0f - diffusionAmount_) + diffusionOutR_[i] * diffusionAmount_;
+            }
+        }
+
+        // Apply shimmer mix: blend between unpitched and pitched+diffused
+        // At 0% shimmer: output = unpitched (standard delay feedback)
+        // At 100% shimmer: output = pitched+diffused (full shimmer)
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            left[i] = unpitchedL_[i] * (1.0f - shimmerMix_) + left[i] * shimmerMix_;
+            right[i] = unpitchedR_[i] * (1.0f - shimmerMix_) + right[i] * shimmerMix_;
+        }
+    }
+
+    void reset() noexcept override {
+        pitchShifterL_.reset();
+        pitchShifterR_.reset();
+        diffusion_.reset();
+    }
+
+    [[nodiscard]] std::size_t getLatencySamples() const noexcept override {
+        return pitchShifterL_.getLatencySamples();
+    }
+
+    // Configuration methods (called from ShimmerDelay)
+    void setPitchSemitones(float semitones) noexcept {
+        pitchShifterL_.setSemitones(semitones);
+        pitchShifterR_.setSemitones(semitones);
+    }
+
+    void setPitchCents(float cents) noexcept {
+        pitchShifterL_.setCents(cents);
+        pitchShifterR_.setCents(cents);
+    }
+
+    void setPitchMode(PitchMode mode) noexcept {
+        pitchShifterL_.setMode(mode);
+        pitchShifterR_.setMode(mode);
+    }
+
+    void setShimmerMix(float mix) noexcept {
+        shimmerMix_ = std::clamp(mix, 0.0f, 1.0f);
+    }
+
+    void setDiffusionAmount(float amount) noexcept {
+        diffusionAmount_ = std::clamp(amount, 0.0f, 1.0f);
+        diffusion_.setDensity(amount * 100.0f);
+    }
+
+    void setDiffusionSize(float size) noexcept {
+        diffusion_.setSize(size);
+    }
+
+private:
+    double sampleRate_ = 44100.0;
+    std::size_t maxBlockSize_ = 512;
+
+    // Pitch shifters (stereo)
+    PitchShiftProcessor pitchShifterL_;
+    PitchShiftProcessor pitchShifterR_;
+
+    // Diffusion network
+    DiffusionNetwork diffusion_;
+
+    // Parameters
+    float shimmerMix_ = 1.0f;       // 0-1 (0 = unpitched, 1 = fully pitched)
+    float diffusionAmount_ = 0.5f;  // 0-1
+
+    // Scratch buffers
+    std::vector<float> unpitchedL_;
+    std::vector<float> unpitchedR_;
+    std::vector<float> diffusionOutL_;
+    std::vector<float> diffusionOutR_;
+};
 
 // =============================================================================
 // ShimmerDelay Class
@@ -309,7 +434,10 @@ public:
 
     /// @brief Enable/disable feedback filter
     /// @param enabled true to enable lowpass filter in feedback path
-    void setFilterEnabled(bool enabled) noexcept { filterEnabled_ = enabled; }
+    void setFilterEnabled(bool enabled) noexcept {
+        filterEnabled_ = enabled;
+        feedbackNetwork_.setFilterEnabled(enabled);
+    }
 
     /// @brief Get filter enabled state
     [[nodiscard]] bool isFilterEnabled() const noexcept { return filterEnabled_; }
@@ -397,29 +525,14 @@ private:
     float maxDelayMs_ = kMaxDelayMs;
     bool prepared_ = false;
 
-    // Layer 1 primitives - delay lines
-    DelayLine delayLineL_;
-    DelayLine delayLineR_;
+    // Layer 3 - Flexible feedback network (FR-018)
+    FlexibleFeedbackNetwork feedbackNetwork_;
 
-    // Layer 2 processors - pitch shifting (mono, need 2 for stereo)
-    PitchShiftProcessor pitchShifterL_;
-    PitchShiftProcessor pitchShifterR_;
-
-    // Layer 2 processors - diffusion
-    DiffusionNetwork diffusion_;
-
-    // Layer 2 processors - feedback filter
-    MultimodeFilter filterL_;
-    MultimodeFilter filterR_;
-
-    // Layer 2 processors - feedback limiting
-    DynamicsProcessor limiter_;
+    // Shimmer processor (injected into feedback network)
+    ShimmerFeedbackProcessor shimmerProcessor_;
 
     // Layer 1 primitives - parameter smoothers
     OnePoleSmoother delaySmoother_;
-    OnePoleSmoother feedbackSmoother_;
-    OnePoleSmoother shimmerMixSmoother_;
-    OnePoleSmoother diffusionSmoother_;
     OnePoleSmoother dryWetSmoother_;
     OnePoleSmoother outputGainSmoother_;
     OnePoleSmoother pitchRatioSmoother_;  // FR-009: Smooth pitch changes
@@ -454,19 +567,9 @@ private:
     float dryWetMix_ = kDefaultDryWetMix;
     float outputGainDb_ = kDefaultOutputGainDb;
 
-    // Scratch buffers for processing (heap allocated in prepare())
+    // Scratch buffers for dry signal storage
     std::vector<float> dryBufferL_;
     std::vector<float> dryBufferR_;
-    std::vector<float> pitchBufferL_;
-    std::vector<float> pitchBufferR_;
-    std::vector<float> diffusionBufferL_;
-    std::vector<float> diffusionBufferR_;
-
-    // Previous block's processed feedback (for block-based pitch shifter in feedback loop)
-    std::vector<float> prevFeedbackL_;
-    std::vector<float> prevFeedbackR_;
-    size_t prevFeedbackSize_ = 0;
-    size_t prevFeedbackReadPos_ = 0;
 };
 
 // =============================================================================
@@ -478,117 +581,93 @@ inline void ShimmerDelay::prepare(double sampleRate, size_t maxBlockSize, float 
     maxBlockSize_ = maxBlockSize;
     maxDelayMs_ = std::min(maxDelayMs, kMaxDelayMs);
 
-    // Convert to seconds for DelayLine
-    const float maxDelaySeconds = maxDelayMs_ / 1000.0f;
+    // Prepare the shimmer processor (will also be prepared by feedbackNetwork_)
+    shimmerProcessor_.setPitchMode(pitchMode_);
 
-    // Prepare delay lines (Layer 1)
-    delayLineL_.prepare(sampleRate, maxDelaySeconds);
-    delayLineR_.prepare(sampleRate, maxDelaySeconds);
+    // Prepare flexible feedback network (FR-018)
+    feedbackNetwork_.prepare(sampleRate, maxBlockSize);
+    feedbackNetwork_.setProcessor(&shimmerProcessor_);
+    feedbackNetwork_.setProcessorMix(100.0f);  // Full processor effect
+    feedbackNetwork_.setDelayTimeMs(delayTimeMs_);
+    feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
+    feedbackNetwork_.setFilterEnabled(filterEnabled_);
+    feedbackNetwork_.setFilterCutoff(filterCutoffHz_);
+    feedbackNetwork_.setFilterType(FilterType::Lowpass);
 
-    // Prepare pitch shifters (Layer 2) - mono processors
-    pitchShifterL_.prepare(sampleRate, maxBlockSize);
-    pitchShifterR_.prepare(sampleRate, maxBlockSize);
-    pitchShifterL_.setMode(pitchMode_);
-    pitchShifterR_.setMode(pitchMode_);
-
-    // Prepare diffusion network (Layer 2) - takes float sampleRate
-    diffusion_.prepare(static_cast<float>(sampleRate), maxBlockSize);
-
-    // Prepare feedback filters (Layer 2)
-    filterL_.prepare(sampleRate, maxBlockSize);
-    filterR_.prepare(sampleRate, maxBlockSize);
-    filterL_.setType(FilterType::Lowpass);
-    filterR_.setType(FilterType::Lowpass);
-    filterL_.setCutoff(filterCutoffHz_);
-    filterR_.setCutoff(filterCutoffHz_);
-
-    // Prepare limiter (Layer 2) - for feedback > 100%
-    limiter_.prepare(sampleRate, maxBlockSize);
-    limiter_.setThreshold(kLimiterThresholdDb);
-    limiter_.setRatio(kLimiterRatio);
-    limiter_.setKneeWidth(kLimiterKneeDb);
-    limiter_.setDetectionMode(DynamicsDetectionMode::Peak);
-
-    // Allocate scratch buffers (heap, not stack, for large blocks)
+    // Allocate scratch buffers for dry signal storage
     const size_t bufferSize = std::max(maxBlockSize, kMaxDryBufferSize);
     dryBufferL_.resize(bufferSize);
     dryBufferR_.resize(bufferSize);
-    pitchBufferL_.resize(bufferSize);
-    pitchBufferR_.resize(bufferSize);
-    diffusionBufferL_.resize(bufferSize);
-    diffusionBufferR_.resize(bufferSize);
-    prevFeedbackL_.resize(bufferSize);
-    prevFeedbackR_.resize(bufferSize);
 
     // Configure smoothers (Layer 1)
     const float sr = static_cast<float>(sampleRate);
     delaySmoother_.configure(kSmoothingTimeMs, sr);
-    feedbackSmoother_.configure(kSmoothingTimeMs, sr);
-    shimmerMixSmoother_.configure(kSmoothingTimeMs, sr);
-    diffusionSmoother_.configure(kSmoothingTimeMs, sr);
     dryWetSmoother_.configure(kSmoothingTimeMs, sr);
     outputGainSmoother_.configure(kSmoothingTimeMs, sr);
     pitchRatioSmoother_.configure(kSmoothingTimeMs, sr);  // FR-009
 
-    // Initialize to defaults
+    // Initialize smoothers to defaults
     delaySmoother_.snapTo(delayTimeMs_);
-    feedbackSmoother_.snapTo(feedbackAmount_);
-    shimmerMixSmoother_.snapTo(shimmerMix_ / 100.0f);
-    diffusionSmoother_.snapTo(diffusionAmount_ / 100.0f);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
     outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
+
+    // Initialize shimmer processor parameters
+    shimmerProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
+    shimmerProcessor_.setDiffusionAmount(diffusionAmount_ / 100.0f);
+    shimmerProcessor_.setDiffusionSize(diffusionSize_);
+
+    // Snap feedback network parameters
+    feedbackNetwork_.snapParameters();
 
     prepared_ = true;
 }
 
 inline void ShimmerDelay::reset() noexcept {
-    delayLineL_.reset();
-    delayLineR_.reset();
-    pitchShifterL_.reset();
-    pitchShifterR_.reset();
-    diffusion_.reset();
-    filterL_.reset();
-    filterR_.reset();
-    limiter_.reset();
+    // Reset feedback network (includes delay lines, filter, limiter)
+    feedbackNetwork_.reset();
 
-    // Clear previous feedback state
-    prevFeedbackSize_ = 0;
-    prevFeedbackReadPos_ = 0;
-    if (!prevFeedbackL_.empty()) {
-        std::fill(prevFeedbackL_.begin(), prevFeedbackL_.end(), 0.0f);
-        std::fill(prevFeedbackR_.begin(), prevFeedbackR_.end(), 0.0f);
-    }
+    // Reset shimmer processor (includes pitch shifters, diffusion)
+    shimmerProcessor_.reset();
 
-    // Snap smoothers to current targets
+    // Snap local smoothers to current targets
     delaySmoother_.snapTo(delayTimeMs_);
-    feedbackSmoother_.snapTo(feedbackAmount_);
-    shimmerMixSmoother_.snapTo(shimmerMix_ / 100.0f);
-    diffusionSmoother_.snapTo(diffusionAmount_ / 100.0f);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
     outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
+
+    // Snap feedback network parameters
+    feedbackNetwork_.snapParameters();
 }
 
 inline void ShimmerDelay::snapParameters() noexcept {
+    // Snap local smoothers
     delaySmoother_.snapTo(delayTimeMs_);
-    feedbackSmoother_.snapTo(feedbackAmount_);
-    shimmerMixSmoother_.snapTo(shimmerMix_ / 100.0f);
-    diffusionSmoother_.snapTo(diffusionAmount_ / 100.0f);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
     outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
 
-    // Apply snapped pitch to pitch shifters immediately
-    pitchShifterL_.setSemitones(pitchSemitones_);
-    pitchShifterL_.setCents(pitchCents_);
-    pitchShifterR_.setSemitones(pitchSemitones_);
-    pitchShifterR_.setCents(pitchCents_);
+    // Apply snapped pitch to shimmer processor immediately
+    shimmerProcessor_.setPitchSemitones(pitchSemitones_);
+    shimmerProcessor_.setPitchCents(pitchCents_);
+
+    // Update feedback network parameters
+    feedbackNetwork_.setDelayTimeMs(delayTimeMs_);
+    feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
+    feedbackNetwork_.setFilterEnabled(filterEnabled_);
+    feedbackNetwork_.setFilterCutoff(filterCutoffHz_);
+    feedbackNetwork_.snapParameters();
+
+    // Update shimmer processor parameters
+    shimmerProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
+    shimmerProcessor_.setDiffusionAmount(diffusionAmount_ / 100.0f);
+    shimmerProcessor_.setDiffusionSize(diffusionSize_);
 }
 
 inline void ShimmerDelay::setDelayTimeMs(float ms) noexcept {
     delayTimeMs_ = std::clamp(ms, kMinDelayMs, maxDelayMs_);
     delaySmoother_.setTarget(delayTimeMs_);
+    feedbackNetwork_.setDelayTimeMs(delayTimeMs_);
 }
 
 inline void ShimmerDelay::setNoteValue(NoteValue note, NoteModifier modifier) noexcept {
@@ -610,8 +689,7 @@ inline void ShimmerDelay::setPitchCents(float cents) noexcept {
 
 inline void ShimmerDelay::setPitchMode(PitchMode mode) noexcept {
     pitchMode_ = mode;
-    pitchShifterL_.setMode(mode);
-    pitchShifterR_.setMode(mode);
+    shimmerProcessor_.setPitchMode(mode);
 }
 
 inline float ShimmerDelay::getPitchRatio() const noexcept {
@@ -626,29 +704,27 @@ inline float ShimmerDelay::getSmoothedPitchRatio() const noexcept {
 
 inline void ShimmerDelay::setShimmerMix(float percent) noexcept {
     shimmerMix_ = std::clamp(percent, kMinShimmerMix, kMaxShimmerMix);
-    shimmerMixSmoother_.setTarget(shimmerMix_ / 100.0f);
+    shimmerProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
 }
 
 inline void ShimmerDelay::setFeedbackAmount(float amount) noexcept {
     feedbackAmount_ = std::clamp(amount, kMinFeedback, kMaxFeedback);
-    feedbackSmoother_.setTarget(feedbackAmount_);
+    feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
 }
 
 inline void ShimmerDelay::setDiffusionAmount(float percent) noexcept {
     diffusionAmount_ = std::clamp(percent, kMinDiffusion, kMaxDiffusion);
-    diffusionSmoother_.setTarget(diffusionAmount_ / 100.0f);
-    diffusion_.setDensity(diffusionAmount_);
+    shimmerProcessor_.setDiffusionAmount(diffusionAmount_ / 100.0f);
 }
 
 inline void ShimmerDelay::setDiffusionSize(float percent) noexcept {
     diffusionSize_ = std::clamp(percent, kMinDiffusion, kMaxDiffusion);
-    diffusion_.setSize(diffusionSize_);
+    shimmerProcessor_.setDiffusionSize(diffusionSize_);
 }
 
 inline void ShimmerDelay::setFilterCutoff(float hz) noexcept {
     filterCutoffHz_ = std::clamp(hz, kMinFilterCutoff, kMaxFilterCutoff);
-    filterL_.setCutoff(filterCutoffHz_);
-    filterR_.setCutoff(filterCutoffHz_);
+    feedbackNetwork_.setFilterCutoff(filterCutoffHz_);
 }
 
 inline void ShimmerDelay::setDryWetMix(float percent) noexcept {
@@ -666,8 +742,8 @@ inline float ShimmerDelay::getCurrentDelayMs() const noexcept {
 }
 
 inline size_t ShimmerDelay::getLatencySamples() const noexcept {
-    // Latency comes from pitch shifter (Granular ~46ms, PhaseVocoder ~116ms)
-    return pitchShifterL_.getLatencySamples();
+    // Latency comes from feedback network (includes pitch shifter latency)
+    return feedbackNetwork_.getLatencySamples();
 }
 
 inline float ShimmerDelay::calculateTempoSyncedDelay(const BlockContext& ctx) const noexcept {
@@ -690,124 +766,50 @@ inline void ShimmerDelay::process(float* left, float* right, size_t numSamples,
                                    const BlockContext& ctx) noexcept {
     if (!prepared_ || numSamples == 0) return;
 
-    // Limit to buffer size (vectors are sized in prepare())
-    numSamples = std::min(numSamples, dryBufferL_.size());
-
-    // Store dry signal for mixing
-    for (size_t i = 0; i < numSamples; ++i) {
-        dryBufferL_[i] = left[i];
-        dryBufferR_[i] = right[i];
-    }
-
     // Calculate base delay time (tempo sync or free)
     float baseDelayMs = delayTimeMs_;
     if (timeMode_ == TimeMode::Synced) {
         baseDelayMs = calculateTempoSyncedDelay(ctx);
+        feedbackNetwork_.setDelayTimeMs(baseDelayMs);
     }
     delaySmoother_.setTarget(baseDelayMs);
 
-    // FR-009: Apply smoothed pitch ratio at start of block
-    // Advance smoother for the full block to get end-of-block value
-    float smoothedRatio = pitchRatioSmoother_.getCurrentValue();
-    for (size_t i = 0; i < numSamples; ++i) {
-        smoothedRatio = pitchRatioSmoother_.process();
-    }
-    const float smoothedSemitones = 12.0f * std::log2(smoothedRatio);
-    pitchShifterL_.setSemitones(smoothedSemitones);
-    pitchShifterL_.setCents(0.0f);  // Cents included in smoothed ratio
-    pitchShifterR_.setSemitones(smoothedSemitones);
-    pitchShifterR_.setCents(0.0f);
+    // Process in chunks of maxBlockSize_ to handle large buffers
+    size_t samplesProcessed = 0;
+    while (samplesProcessed < numSamples) {
+        const size_t chunkSize = std::min(maxBlockSize_, numSamples - samplesProcessed);
+        float* chunkLeft = left + samplesProcessed;
+        float* chunkRight = right + samplesProcessed;
 
-    // Sample-by-sample processing for feedback loop
-    // The pitch shifter is block-based, so we use the PREVIOUS block's
-    // pitch-shifted output as the feedback source (one-block latency in feedback path)
-    for (size_t i = 0; i < numSamples; ++i) {
-        // Get smoothed parameters
-        const float currentDelayMs = delaySmoother_.process();
-        const float currentFeedback = feedbackSmoother_.process();
-        const float currentShimmerMix = shimmerMixSmoother_.process();
-        const float currentDryWet = dryWetSmoother_.process();
-        const float currentOutputGain = outputGainSmoother_.process();
-        (void)diffusionSmoother_.process();  // Keep smoother advancing
-
-        // Convert delay to samples (no -1 offset; write-after-read pattern)
-        const float delaySamples = msToSamples(currentDelayMs);
-
-        // Read delayed samples (read-before-write) - this is the wet signal
-        float delayedL = delayLineL_.readLinear(delaySamples);
-        float delayedR = delayLineR_.readLinear(delaySamples);
-
-        // Store delay output for pitch processing after this loop
-        pitchBufferL_[i] = delayedL;
-        pitchBufferR_[i] = delayedR;
-
-        // Get previous block's processed feedback (if available)
-        float prevPitchedL = 0.0f;
-        float prevPitchedR = 0.0f;
-        if (prevFeedbackReadPos_ < prevFeedbackSize_) {
-            prevPitchedL = prevFeedbackL_[prevFeedbackReadPos_];
-            prevPitchedR = prevFeedbackR_[prevFeedbackReadPos_];
-            ++prevFeedbackReadPos_;
+        // Store dry signal for mixing
+        for (size_t i = 0; i < chunkSize; ++i) {
+            dryBufferL_[i] = chunkLeft[i];
+            dryBufferR_[i] = chunkRight[i];
         }
 
-        // Shimmer mix: blend between unpitched (delayed) and pitched (previous block)
-        // At 0% shimmer: standard delay (no pitch shift)
-        // At 100% shimmer: fully pitch-shifted feedback
-        float feedbackL = delayedL * (1.0f - currentShimmerMix) + prevPitchedL * currentShimmerMix;
-        float feedbackR = delayedR * (1.0f - currentShimmerMix) + prevPitchedR * currentShimmerMix;
+        // FR-009: Apply smoothed pitch ratio
+        float smoothedRatio = pitchRatioSmoother_.getCurrentValue();
+        for (size_t i = 0; i < chunkSize; ++i) {
+            smoothedRatio = pitchRatioSmoother_.process();
+        }
+        const float smoothedSemitones = 12.0f * std::log2(smoothedRatio);
+        shimmerProcessor_.setPitchSemitones(smoothedSemitones);
+        shimmerProcessor_.setPitchCents(0.0f);
 
-        // Apply filter if enabled
-        if (filterEnabled_) {
-            feedbackL = filterL_.processSample(feedbackL);
-            feedbackR = filterR_.processSample(feedbackR);
+        // Process through feedback network
+        feedbackNetwork_.process(chunkLeft, chunkRight, chunkSize, ctx);
+
+        // Mix dry/wet for output with smoothed parameters
+        for (size_t i = 0; i < chunkSize; ++i) {
+            const float currentDryWet = dryWetSmoother_.process();
+            const float currentOutputGain = outputGainSmoother_.process();
+
+            chunkLeft[i] = (dryBufferL_[i] * (1.0f - currentDryWet) + chunkLeft[i] * currentDryWet) * currentOutputGain;
+            chunkRight[i] = (dryBufferR_[i] * (1.0f - currentDryWet) + chunkRight[i] * currentDryWet) * currentOutputGain;
         }
 
-        // Scale by feedback amount
-        feedbackL *= currentFeedback;
-        feedbackR *= currentFeedback;
-
-        // Apply soft limiting if feedback > 100% to prevent runaway
-        if (currentFeedback > 1.0f) {
-            feedbackL = std::tanh(feedbackL);
-            feedbackR = std::tanh(feedbackR);
-        }
-
-        // Write input + feedback to delay lines
-        delayLineL_.write(dryBufferL_[i] + feedbackL);
-        delayLineR_.write(dryBufferR_[i] + feedbackR);
-
-        // Mix dry/wet for output
-        left[i] = (dryBufferL_[i] * (1.0f - currentDryWet) + delayedL * currentDryWet) * currentOutputGain;
-        right[i] = (dryBufferR_[i] * (1.0f - currentDryWet) + delayedR * currentDryWet) * currentOutputGain;
+        samplesProcessed += chunkSize;
     }
-
-    // Process pitch shifting on this block's delay output
-    // This will be used as feedback source in the NEXT block
-    pitchShifterL_.process(pitchBufferL_.data(), pitchBufferL_.data(), numSamples);
-    pitchShifterR_.process(pitchBufferR_.data(), pitchBufferR_.data(), numSamples);
-
-    // Process diffusion on pitch-shifted signal (if enabled)
-    const float currentDiffusion = diffusionSmoother_.getCurrentValue();
-    if (currentDiffusion > 0.001f) {
-        diffusion_.process(pitchBufferL_.data(), pitchBufferR_.data(),
-                           diffusionBufferL_.data(), diffusionBufferR_.data(), numSamples);
-
-        // Blend pitch-shifted with diffused based on diffusion amount
-        for (size_t i = 0; i < numSamples; ++i) {
-            pitchBufferL_[i] = pitchBufferL_[i] * (1.0f - currentDiffusion) +
-                               diffusionBufferL_[i] * currentDiffusion;
-            pitchBufferR_[i] = pitchBufferR_[i] * (1.0f - currentDiffusion) +
-                               diffusionBufferR_[i] * currentDiffusion;
-        }
-    }
-
-    // Store for next block's feedback
-    for (size_t i = 0; i < numSamples; ++i) {
-        prevFeedbackL_[i] = pitchBufferL_[i];
-        prevFeedbackR_[i] = pitchBufferR_[i];
-    }
-    prevFeedbackSize_ = numSamples;
-    prevFeedbackReadPos_ = 0;
 }
 
 } // namespace DSP

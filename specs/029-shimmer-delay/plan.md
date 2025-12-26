@@ -263,45 +263,28 @@ Input ──┬─────────────────────�
 
 ## Design Decisions
 
-### FR-018 Alternative: Direct Feedback Management vs FeedbackNetwork
+### FR-018: FlexibleFeedbackNetwork with Processor Injection
 
 **Requirement**: FR-018 specifies "System MUST use FeedbackNetwork (Layer 3) for feedback management"
 
-**Implementation Choice**: ShimmerDelay uses direct composition of lower-level components instead:
-- DelayLine (Layer 1) × 2 for stereo delay buffers
-- MultimodeFilter (Layer 2) × 2 for feedback filtering (replaces FeedbackNetwork filter)
-- DynamicsProcessor (Layer 2) for feedback limiting (replaces FeedbackNetwork saturation)
+**Implementation**: ShimmerDelay now uses FlexibleFeedbackNetwork (Layer 3) with IFeedbackProcessor injection:
 
-**Rationale**: FeedbackNetwork (spec 019) was designed for simple feedback paths with filter and saturation. It does NOT support:
-1. **Arbitrary signal processing in feedback loop** - ShimmerDelay needs pitch shifting between delay output and feedback input
-2. **Shimmer mix blending** - Mixing pitched and unpitched signals before feedback
-3. **Diffusion in feedback path** - DiffusionNetwork processing between stages
+- **FlexibleFeedbackNetwork** - Manages delay line, feedback loop, filter, and limiter
+- **ShimmerFeedbackProcessor** - Implements IFeedbackProcessor for pitch shifting + diffusion in feedback path
 
-FeedbackNetwork's API only exposes:
-```cpp
-void setFeedbackAmount(float amount) noexcept;
-void setFilterEnabled(bool enabled) noexcept;
-void setFilterCutoff(float hz) noexcept;
-void setSaturationEnabled(bool enabled) noexcept;
-void process(float* left, float* right, size_t numSamples, const BlockContext& ctx) noexcept;
+**Signal Flow**:
+```
+Input → FlexibleFeedbackNetwork:
+         ├── Delay Line (stereo)
+         ├── ShimmerFeedbackProcessor (injected):
+         │   ├── PitchShiftProcessor × 2
+         │   ├── DiffusionNetwork
+         │   └── Shimmer Mix blending
+         ├── MultimodeFilter (optional)
+         └── DynamicsProcessor + tanh soft limiting
+→ Output
 ```
 
-There is no hook for inserting pitch shifting in the feedback path. The signal flow required by shimmer is:
+**Compliance Status**: FR-018 is **MET** - uses FlexibleFeedbackNetwork which provides all the flexibility needed for shimmer-type effects while maintaining the Layer 3 system component architecture.
 
-```
-Delay Output → Pitch Shifter → Shimmer Mix → Diffusion → Filter → Limiter → Feedback Sum
-```
-
-But FeedbackNetwork's internal signal flow is:
-```
-Delay Output → Filter → Saturation → Feedback Sum
-```
-
-**Alternative Considered**: Extending FeedbackNetwork to support injectable processors. Rejected because:
-1. Would require significant API changes to an already-shipped component
-2. The "pitch in feedback" pattern is specific to shimmer-type effects
-3. Direct composition is cleaner and follows Layer 4's role as "feature assembly"
-
-**Compliance Status**: FR-018 is **NOT MET** as literally specified, but the functional requirements it supports (FR-019: soft limiting, FR-020: feedback filter, FR-021: filter cutoff range) ARE met through alternative implementation.
-
-**Recommendation**: Mark FR-018 as "ALTERNATIVE" in compliance table with reference to this design decision.
+**Historical Note**: Initial implementation used direct composition of lower-level components. This was refactored to use FlexibleFeedbackNetwork once the IFeedbackProcessor interface was established, enabling proper separation of concerns and reusability for future effects like freeze mode.

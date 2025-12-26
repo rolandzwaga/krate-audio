@@ -245,7 +245,7 @@ An advanced user wants to choose between pitch shifting algorithms based on thei
 | FR-015 | ✅ MET | `[US4][tempo-sync]` test verifies tempo sync |
 | FR-016 | ✅ MET | setNoteValue() accepts NoteValue + NoteModifier |
 | FR-017 | ✅ MET | delaySmoother_ configured for 20ms smoothing |
-| FR-018 | ⚠️ ALTERNATIVE | See plan.md "Design Decisions" - FeedbackNetwork doesn't support pitch-in-feedback; uses direct composition instead |
+| FR-018 | ✅ MET | Uses FlexibleFeedbackNetwork with ShimmerFeedbackProcessor injection for pitch-in-feedback |
 | FR-019 | ✅ MET | DynamicsProcessor provides soft limiting (SC-005 verified) |
 | FR-020 | ✅ MET | MultimodeFilter in feedback path, setFilterEnabled() |
 | FR-021 | ✅ MET | kMinFilterCutoff=20Hz, kMaxFilterCutoff=20000Hz |
@@ -288,10 +288,13 @@ An advanced user wants to choose between pitch shifting algorithms based on thei
 
 ### Honest Assessment
 
-**Overall Status**: COMPLETE (with documented alternative for FR-018)
+**Overall Status**: COMPLETE
 
 **Documented deviations:**
-- FR-018: Uses direct component composition instead of FeedbackNetwork - required for pitch-in-feedback signal flow
 - SC-006: Benchmark file created but CMake regeneration issue - functional code verified through 21 passing unit tests
+
+**Implementation Notes:**
+- FR-018 now fully met: Refactored to use FlexibleFeedbackNetwork with ShimmerFeedbackProcessor injection
+- ShimmerFeedbackProcessor implements IFeedbackProcessor interface for pitch shifting + diffusion in feedback path
 
 **Test Results**: All 21 shimmer-delay tests pass (116 assertions)
