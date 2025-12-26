@@ -101,6 +101,7 @@ add_executable(dsp_tests
     unit/systems/character_processor_test.cpp
     unit/systems/stereo_field_test.cpp
     unit/systems/tap_manager_test.cpp
+    unit/systems/flexible_feedback_network_test.cpp
     # Layer 4: User Features
     unit/features/tape_delay_test.cpp
     unit/features/bbd_delay_test.cpp
@@ -168,6 +169,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/character_processor_test.cpp
         unit/systems/stereo_field_test.cpp
         unit/systems/tap_manager_test.cpp
+        unit/systems/flexible_feedback_network_test.cpp
         # Layer 4: User Features
         unit/features/tape_delay_test.cpp
         unit/features/bbd_delay_test.cpp
