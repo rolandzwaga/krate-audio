@@ -456,6 +456,79 @@ Applies analog character/coloration.
 | Pitch | Per-tap pitch shift |
 | Feedback | Per-tap to master feedback |
 
+### 3.7 Flexible Feedback Network (`FlexibleFeedbackNetwork`)
+
+**Purpose**: Extensible feedback network that allows injection of arbitrary processors into the feedback path. Enables shimmer, freeze, and experimental effects that need pitch shifting, granular processing, or other transformations in the feedback loop.
+
+**Composition**:
+- Delay Line (Layer 1) × 2 for stereo
+- Parameter Smoothers (Layer 1)
+- Injectable processor slot (IFeedbackProcessor interface)
+- Filter Processor (Layer 2, in feedback path)
+- Dynamics Processor (Layer 2, feedback limiting)
+
+**Interface**:
+```cpp
+/// Interface for processors that can be injected into feedback path
+class IFeedbackProcessor {
+public:
+    virtual ~IFeedbackProcessor() = default;
+    virtual void prepare(double sampleRate, size_t maxBlockSize) noexcept = 0;
+    virtual void process(float* left, float* right, size_t numSamples) noexcept = 0;
+    virtual void reset() noexcept = 0;
+    [[nodiscard]] virtual size_t getLatencySamples() const noexcept = 0;
+};
+```
+
+**Signal Flow**:
+```
+Input ──┬──────────────────────────────────────────┬──► Mix ──► Output
+        │                                          │
+        ▼                                          │
+   ┌─────────┐                                     │
+   │  Delay  │◄────────────────────────────────────┤
+   │  Line   │                                     │
+   └────┬────┘                                     │
+        │ (feedback path)                          │
+        ▼                                          │
+   ┌─────────────────┐                             │
+   │ Injectable Proc │ ◄── PitchShifter, Granular, │
+   │ (IFeedbackProc) │     Bitcrusher, etc.        │
+   └────────┬────────┘                             │
+            ▼                                      │
+   ┌─────────────────┐                             │
+   │     Filter      │                             │
+   └────────┬────────┘                             │
+            ▼                                      │
+   ┌─────────────────┐                             │
+   │    Limiter      │                             │
+   └────────┬────────┘                             │
+            │                                      │
+            └──────────────────────────────────────┘
+```
+
+| Feature | Description |
+|---------|-------------|
+| Processor Injection | Set any IFeedbackProcessor implementation |
+| Hot-Swap | Change processor without glitches (crossfade) |
+| Bypass | Process with no injected processor (like FeedbackNetwork) |
+| Freeze Mode | 100% feedback + input mute built-in |
+| Latency Reporting | Aggregates latency from injected processor |
+
+| Parameter | Range | Behavior |
+|-----------|-------|----------|
+| Feedback Amount | 0-120% | Self-oscillation at >100% |
+| Delay Time | 0ms-10000ms | Smoothed transitions |
+| Filter Enabled | on/off | LP/HP/BP in feedback |
+| Filter Cutoff | 20Hz-20kHz | Smoothed |
+| Freeze | on/off | Infinite sustain mode |
+| Processor Mix | 0-100% | Blend processed/unprocessed in feedback |
+
+**Consumers**:
+- ShimmerDelay (Layer 4) - inject PitchShifter + DiffusionNetwork
+- FreezeMode (Layer 4) - inject PitchShifter, enable freeze
+- Future experimental modes - inject granular, spectral, bitcrusher, etc.
+
 ---
 
 ## LAYER 4: User Features
@@ -621,6 +694,47 @@ Applies analog character/coloration.
 | Threshold | Input level trigger |
 | Attack/Release | Ducking envelope |
 | Target | Output, feedback, or both |
+
+### 4.11 Freeze Mode
+
+**Components Used**:
+- Flexible Feedback Network (with pitch shifter injection)
+- Diffusion Network (optional)
+- Modulation Matrix (optional, for evolving textures)
+
+| Control | Maps To |
+|---------|---------|
+| Freeze | Toggle infinite hold (100% feedback, input muted) |
+| Pitch | Pitch shift in frozen feedback path (shimmer-style) |
+| Shimmer Mix | Blend pitched/unpitched frozen content |
+| Decay | Fade rate (0 = infinite sustain, 100 = fast decay) |
+| Diffusion | Smear frozen content for pad-like texture |
+| Filter | LP/HP in feedback for tonal shaping |
+
+**Unique behaviors**:
+- Instant capture of current delay buffer contents
+- Smooth fade-in/out of freeze state (no clicks)
+- Optional pitch shifting creates evolving frozen textures
+- Decay control allows frozen content to naturally fade
+- Can be combined with any delay mode as a modifier
+
+**Signal Flow**:
+```
+Input ──┬──► [Muted when frozen] ──► Delay ──┬──► Output
+        │                                    │
+        │    ┌────────────────────────────────┘
+        │    │
+        │    ▼
+        │  [Flexible Feedback Network]
+        │    │
+        │    ├──► Pitch Shifter (optional)
+        │    ├──► Shimmer Mix
+        │    ├──► Diffusion (optional)
+        │    ├──► Filter
+        │    └──► Limiter
+        │         │
+        └─────────┴──► Feedback (100% when frozen)
+```
 
 ---
 

@@ -101,12 +101,14 @@ add_executable(dsp_tests
     unit/systems/character_processor_test.cpp
     unit/systems/stereo_field_test.cpp
     unit/systems/tap_manager_test.cpp
+    unit/systems/flexible_feedback_network_test.cpp
     # Layer 4: User Features
     unit/features/tape_delay_test.cpp
     unit/features/bbd_delay_test.cpp
     unit/features/digital_delay_test.cpp
     unit/features/ping_pong_delay_test.cpp
     unit/features/multi_tap_delay_test.cpp
+    unit/features/shimmer_delay_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -167,12 +169,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/character_processor_test.cpp
         unit/systems/stereo_field_test.cpp
         unit/systems/tap_manager_test.cpp
+        unit/systems/flexible_feedback_network_test.cpp
         # Layer 4: User Features
         unit/features/tape_delay_test.cpp
         unit/features/bbd_delay_test.cpp
         unit/features/digital_delay_test.cpp
         unit/features/ping_pong_delay_test.cpp
         unit/features/multi_tap_delay_test.cpp
+        unit/features/shimmer_delay_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
@@ -318,6 +322,24 @@ target_include_directories(benchmark_feedback_network
 
 # Release optimizations for accurate benchmarking
 target_compile_options(benchmark_feedback_network PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/O2 /fp:fast>
+    $<$<CXX_COMPILER_ID:GNU>:-O3 -ffast-math>
+    $<$<CXX_COMPILER_ID:Clang>:-O3 -ffast-math>
+)
+
+# ShimmerDelay benchmark (SC-006: <1% CPU at 44.1kHz stereo)
+add_executable(benchmark_shimmer_delay
+    benchmark_shimmer_delay.cpp
+)
+
+target_include_directories(benchmark_shimmer_delay
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+# Release optimizations for accurate benchmarking
+target_compile_options(benchmark_shimmer_delay PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/O2 /fp:fast>
     $<$<CXX_COMPILER_ID:GNU>:-O3 -ffast-math>
     $<$<CXX_COMPILER_ID:Clang>:-O3 -ffast-math>
