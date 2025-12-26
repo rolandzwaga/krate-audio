@@ -15,6 +15,14 @@
 // - Latency reporting (aggregates injected processor latency)
 // - Hot-swap with crossfade
 //
+// Design Notes:
+// - Hybrid sample-by-sample delay loop with block-based processor. Within a
+//   block, feedback uses the raw delay output for immediate responsiveness.
+//   The processor runs on the block output, and its result feeds back into
+//   the NEXT block. This gives the best compromise between responsiveness
+//   (no delay for basic feedback) and processor support (one-block latency).
+// - At 512 samples/44.1kHz, processor effects have ~11.6ms feedback latency.
+//
 // All operations are real-time safe (no allocations in process)
 // ==============================================================================
 #pragma once
@@ -166,8 +174,8 @@ public:
             const float inputL = left[i] * (1.0f - freezeMix);
             const float inputR = right[i] * (1.0f - freezeMix);
 
-            // Effective feedback amount (freeze mode = 100%)
-            const float effectiveFeedback = freezeMix > 0.5f ? 1.0f : feedback;
+            // Effective feedback amount (interpolate to 100% in freeze mode)
+            const float effectiveFeedback = feedback + freezeMix * (1.0f - feedback);
 
             // Convert delay time to samples (subtract 1 for read-before-write timing)
             const float delaySamples = std::max(0.0f, delayTimeSamples - 1.0f);
@@ -188,7 +196,11 @@ public:
             feedbackL_[i] = delayedL;
             feedbackR_[i] = delayedR;
 
-            // Update per-sample feedback state (for samples within this block)
+            // Update per-sample feedback for within-block responsiveness.
+            // When a processor is active, this provides "raw" feedback within the block,
+            // while the end-of-block update (after processor) provides processed feedback
+            // for the next block. This is a compromise: within-block gets immediate raw
+            // feedback, cross-block gets processed feedback with one-block latency.
             lastProcessedFeedbackL_ = delayedL;
             lastProcessedFeedbackR_ = delayedR;
         }
@@ -221,9 +233,9 @@ public:
                 }
             }
 
-            // Mix processed with dry feedback based on processor mix
-            const float mix = processorMixSmoother_.getCurrentValue();
+            // Mix processed with dry feedback based on processor mix (smoothed per-sample)
             for (std::size_t i = 0; i < numSamples; ++i) {
+                const float mix = processorMixSmoother_.process();
                 feedbackL_[i] = feedbackL_[i] * (1.0f - mix) + processedL_[i] * mix;
                 feedbackR_[i] = feedbackR_[i] * (1.0f - mix) + processedR_[i] * mix;
             }
