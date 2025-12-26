@@ -5,6 +5,88 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.33] - 2025-12-26
+
+### Added
+
+- **Layer 4 User Feature: DuckingDelay** (`src/dsp/features/ducking_delay.h`)
+  - Delay effect with automatic gain reduction when input signal is present
+  - Classic sidechain ducking for voiceover, podcasts, and live performance
+  - Composes FlexibleFeedbackNetwork (L3) with dual DuckingProcessor (L2) instances
+  - Complete feature set with 4 user stories:
+    - **US1: Basic Ducking Delay**: Threshold-triggered gain reduction with attack/release
+    - **US2: Feedback Path Ducking**: Target selection (Output, Feedback, Both)
+    - **US3: Hold Time Control**: 0-500ms hold before release begins
+    - **US4: Sidechain Filtering**: Optional 20-500Hz highpass on detection signal
+
+- **DuckTarget enum**: Output (duck wet signal), Feedback (duck feedback only), Both
+
+- **Ducking parameters**:
+  - **Threshold**: -60dB to 0dB trigger level
+  - **Duck Amount**: 0-100% (maps to 0 to -48dB depth)
+  - **Attack Time**: 0.1-100ms
+  - **Release Time**: 10-2000ms
+  - **Hold Time**: 0-500ms (prevents pumping)
+  - **Sidechain Filter**: Optional HP filter to ignore bass content
+
+- **User controls**:
+  - **Dry/Wet Mix**: 0-100% with 20ms parameter smoothing
+  - **Output Gain**: -96dB to +6dB master gain
+  - **Gain Reduction Meter**: Real-time ducking depth display
+
+- **Comprehensive test suite** (35 test cases, 110 assertions)
+  - All 24 functional requirements verified
+  - All 8 success criteria measured
+  - Click-free transitions verified via OnePoleSmoother
+  - -48dB attenuation at 100% duck amount verified
+
+### Technical Details
+
+- **Layer 4 architecture**: Composes Layer 1-3 components
+  - Uses: `FlexibleFeedbackNetwork` (L3) - delay engine with feedback and filtering
+  - Uses: `DuckingProcessor` (L2) x 2 - output and feedback ducking instances
+  - Uses: `OnePoleSmoother` (L1) - parameter smoothing for dryWet, outputGain, delayTime
+
+- **Target modes**:
+  - **Output**: Ducks delay output before dry/wet mix (classic ducking)
+  - **Feedback**: Ducks feedback path only (preserves first tap, reduces repeats)
+  - **Both**: Ducks both paths simultaneously (maximum separation)
+
+- **Real-time safe**: `noexcept`, no allocations in `process()`
+- **Constitution compliance**: Principles II, III, IX, X, XII, XIII, XIV, XV
+
+### Usage
+
+```cpp
+#include "dsp/features/ducking_delay.h"
+
+Iterum::DSP::DuckingDelay delay;
+delay.prepare(44100.0, 512);
+
+// Configure ducking
+delay.setDuckingEnabled(true);
+delay.setThreshold(-30.0f);        // Trigger at -30dB
+delay.setDuckAmount(70.0f);        // Duck by 70% (~33.6dB)
+delay.setAttackTime(10.0f);        // 10ms attack
+delay.setReleaseTime(200.0f);      // 200ms release
+delay.setHoldTime(50.0f);          // 50ms hold
+delay.setDuckTarget(DuckTarget::Output);
+
+// Configure delay
+delay.setDelayTimeMs(500.0f);
+delay.setFeedbackAmount(50.0f);
+delay.setDryWetMix(50.0f);
+delay.snapParameters();
+
+// Process audio
+delay.process(left, right, numSamples, ctx);
+
+// Read gain reduction for metering
+float gr = delay.getGainReduction();  // 0 to -48dB
+```
+
+---
+
 ## [0.0.32] - 2025-12-26
 
 ### Added
