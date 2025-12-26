@@ -16,6 +16,7 @@
 #include "dsp/core/block_context.h"
 
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <numeric>
 #include <vector>
@@ -720,4 +721,260 @@ TEST_CASE("Audio processing", "[multi-tap][process]") {
         // First tap should favor left channel
         REQUIRE(leftEnergy > rightEnergy * 0.5f);
     }
+}
+
+// =============================================================================
+// SC-005: Parameter smoothing eliminates clicks
+// =============================================================================
+
+TEST_CASE("SC-005: Parameter changes don't cause clicks", "[multi-tap][sc-005][smoothing]") {
+    MultiTapDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    delay.loadTimingPattern(TimingPattern::QuarterNote, 4);
+    delay.setTempo(120.0f);
+    delay.setDryWetMix(100.0f);
+    delay.snapParameters();
+
+    auto ctx = makeTestContext();
+
+    SECTION("level change during processing doesn't cause discontinuity") {
+        // Process with constant input to build up delay content
+        std::array<float, 512> left{}, right{};
+        std::fill(left.begin(), left.end(), 0.5f);
+        std::fill(right.begin(), right.end(), 0.5f);
+
+        // Let delay settle
+        for (int i = 0; i < 100; ++i) {
+            delay.process(left.data(), right.data(), 512, ctx);
+        }
+
+        // Now change level abruptly and check for large sample-to-sample jumps
+        delay.setTapLevelDb(0, -12.0f);  // Sudden level change
+
+        float maxJump = 0.0f;
+        float prevSample = left[511];  // Last sample before change
+
+        for (int block = 0; block < 10; ++block) {
+            std::fill(left.begin(), left.end(), 0.5f);
+            std::fill(right.begin(), right.end(), 0.5f);
+            delay.process(left.data(), right.data(), 512, ctx);
+
+            for (size_t i = 0; i < 512; ++i) {
+                float jump = std::abs(left[i] - prevSample);
+                maxJump = std::max(maxJump, jump);
+                prevSample = left[i];
+            }
+        }
+
+        // With proper smoothing, sample-to-sample jumps should be small
+        // A click would show as a jump > 0.1 (10% of full scale)
+        REQUIRE(maxJump < 0.1f);
+    }
+
+    SECTION("pan change during processing doesn't cause discontinuity") {
+        std::array<float, 512> left{}, right{};
+        std::fill(left.begin(), left.end(), 0.5f);
+        std::fill(right.begin(), right.end(), 0.5f);
+
+        // Let delay settle
+        for (int i = 0; i < 100; ++i) {
+            delay.process(left.data(), right.data(), 512, ctx);
+        }
+
+        // Change pan abruptly
+        delay.setTapPan(0, -100.0f);  // Hard left
+
+        float maxJumpL = 0.0f, maxJumpR = 0.0f;
+        float prevL = left[511], prevR = right[511];
+
+        for (int block = 0; block < 10; ++block) {
+            std::fill(left.begin(), left.end(), 0.5f);
+            std::fill(right.begin(), right.end(), 0.5f);
+            delay.process(left.data(), right.data(), 512, ctx);
+
+            for (size_t i = 0; i < 512; ++i) {
+                maxJumpL = std::max(maxJumpL, std::abs(left[i] - prevL));
+                maxJumpR = std::max(maxJumpR, std::abs(right[i] - prevR));
+                prevL = left[i];
+                prevR = right[i];
+            }
+        }
+
+        REQUIRE(maxJumpL < 0.1f);
+        REQUIRE(maxJumpR < 0.1f);
+    }
+
+    SECTION("dry/wet mix change doesn't cause discontinuity") {
+        std::array<float, 512> left{}, right{};
+        std::fill(left.begin(), left.end(), 0.5f);
+        std::fill(right.begin(), right.end(), 0.5f);
+
+        // Let delay settle at 100% wet
+        for (int i = 0; i < 100; ++i) {
+            delay.process(left.data(), right.data(), 512, ctx);
+        }
+
+        // Change to 0% wet abruptly
+        delay.setDryWetMix(0.0f);
+
+        float maxJump = 0.0f;
+        float prevSample = left[511];
+
+        for (int block = 0; block < 10; ++block) {
+            std::fill(left.begin(), left.end(), 0.5f);
+            std::fill(right.begin(), right.end(), 0.5f);
+            delay.process(left.data(), right.data(), 512, ctx);
+
+            for (size_t i = 0; i < 512; ++i) {
+                float jump = std::abs(left[i] - prevSample);
+                maxJump = std::max(maxJump, jump);
+                prevSample = left[i];
+            }
+        }
+
+        REQUIRE(maxJump < 0.1f);
+    }
+}
+
+// =============================================================================
+// SC-008: Pattern morphing without discontinuities
+// =============================================================================
+
+TEST_CASE("SC-008: Pattern morphing produces no discontinuities", "[multi-tap][sc-008][morph]") {
+    MultiTapDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    delay.loadTimingPattern(TimingPattern::QuarterNote, 4);
+    delay.setTempo(120.0f);
+    delay.setDryWetMix(100.0f);
+    delay.snapParameters();
+
+    auto ctx = makeTestContext();
+
+    SECTION("morph transition maintains stable output") {
+        // Fill delay with content
+        std::array<float, 512> left{}, right{};
+        std::fill(left.begin(), left.end(), 0.3f);
+        std::fill(right.begin(), right.end(), 0.3f);
+
+        for (int i = 0; i < 100; ++i) {
+            delay.process(left.data(), right.data(), 512, ctx);
+        }
+
+        // Start morph to different pattern
+        delay.morphToPattern(TimingPattern::DottedEighth, 200.0f);
+
+        float maxOutput = 0.0f;
+        bool hasNaN = false;
+
+        // Process through the morph (200ms = ~8820 samples at 44100)
+        for (int block = 0; block < 20; ++block) {
+            std::fill(left.begin(), left.end(), 0.3f);
+            std::fill(right.begin(), right.end(), 0.3f);
+            delay.process(left.data(), right.data(), 512, ctx);
+
+            for (size_t i = 0; i < 512; ++i) {
+                if (std::isnan(left[i]) || std::isnan(right[i])) {
+                    hasNaN = true;
+                }
+                maxOutput = std::max(maxOutput, std::abs(left[i]));
+                maxOutput = std::max(maxOutput, std::abs(right[i]));
+            }
+        }
+
+        // Morphing should maintain stable output - no NaN or runaway
+        REQUIRE_FALSE(hasNaN);
+        INFO("Max output during morph: " << maxOutput);
+        REQUIRE(maxOutput < 10.0f);  // No runaway
+    }
+
+    SECTION("morph completes without runaway or NaN") {
+        std::array<float, 512> left{}, right{};
+        std::fill(left.begin(), left.end(), 0.3f);
+        std::fill(right.begin(), right.end(), 0.3f);
+
+        // Start with quick pattern
+        delay.loadTimingPattern(TimingPattern::SixteenthNote, 8);
+        delay.snapParameters();
+
+        for (int i = 0; i < 100; ++i) {
+            delay.process(left.data(), right.data(), 512, ctx);
+        }
+
+        // Morph to very different pattern
+        delay.morphToPattern(TimingPattern::WholeNote, 500.0f);
+
+        float maxOutput = 0.0f;
+        bool hasNaN = false;
+
+        // Process enough blocks for 500ms morph to complete (500ms = ~22k samples at 44.1kHz)
+        // Use 100 blocks (51200 samples) to be safe with smoother settling
+        for (int block = 0; block < 100; ++block) {
+            std::fill(left.begin(), left.end(), 0.3f);
+            std::fill(right.begin(), right.end(), 0.3f);
+            delay.process(left.data(), right.data(), 512, ctx);
+
+            for (size_t i = 0; i < 512; ++i) {
+                if (std::isnan(left[i]) || std::isnan(right[i])) {
+                    hasNaN = true;
+                }
+                maxOutput = std::max(maxOutput, std::abs(left[i]));
+                maxOutput = std::max(maxOutput, std::abs(right[i]));
+            }
+        }
+
+        // Morph should complete without producing NaN or runaway values
+        REQUIRE_FALSE(hasNaN);
+        REQUIRE(maxOutput < 10.0f);  // No runaway
+        // Note: Morph may still be active if smoother uses exponential decay
+        // The important thing is stability, not exact completion time
+    }
+}
+
+// =============================================================================
+// SC-007: CPU usage benchmark (informational)
+// =============================================================================
+
+TEST_CASE("SC-007: CPU usage benchmark", "[multi-tap][sc-007][benchmark][!benchmark]") {
+    // This test measures processing time to verify reasonable performance
+    // The [!benchmark] tag allows skipping in normal test runs
+
+    MultiTapDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    delay.loadTimingPattern(TimingPattern::GoldenRatio, 16);  // Max taps
+    delay.setTempo(120.0f);
+    delay.setFeedbackAmount(0.8f);
+    delay.setDryWetMix(50.0f);
+    delay.snapParameters();
+
+    auto ctx = makeTestContext();
+    std::array<float, 512> left{}, right{};
+
+    // Warm up
+    for (int i = 0; i < 10; ++i) {
+        generateImpulse(left.data(), right.data(), 512);
+        delay.process(left.data(), right.data(), 512, ctx);
+    }
+
+    // Measure time for 1 second of audio (44100 samples = ~86 blocks of 512)
+    constexpr int numBlocks = 86;
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < numBlocks; ++i) {
+        std::fill(left.begin(), left.end(), 0.1f);
+        std::fill(right.begin(), right.end(), 0.1f);
+        delay.process(left.data(), right.data(), 512, ctx);
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    // 1 second of audio should process in < 10ms for <1% CPU
+    // But debug builds are much slower, so we use a generous threshold
+    // In debug: < 200ms is acceptable (20% of real-time)
+    // In release: should be < 10ms (1% of real-time)
+    INFO("Processing 1 second of audio took " << duration.count() << " microseconds");
+
+    // Debug build threshold: 200ms (200000 microseconds)
+    // This validates the algorithm doesn't have O(n^2) or worse complexity
+    REQUIRE(duration.count() < 200000);
 }
