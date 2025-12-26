@@ -95,6 +95,7 @@ private:
     float diffusionAmount_ = 0.0f;  // 0-1
     float decayAmount_ = 0.0f;      // 0-1 (0 = infinite sustain)
     float decayGain_ = 1.0f;        // Pre-calculated per-sample gain
+    float currentDecayLevel_ = 1.0f; // Running decay level (accumulated across blocks)
 
     // Scratch buffers
     std::vector<float> unpitchedL_;
@@ -526,12 +527,17 @@ inline void FreezeFeedbackProcessor::process(float* left, float* right, std::siz
         right[i] = unpitchedR_[i] * (1.0f - shimmerMix_) + right[i] * shimmerMix_;
     }
 
-    // Apply decay gain (per-sample reduction for fade effect)
+    // Apply decay gain (cumulative per-sample reduction for fade effect)
+    // SC-003: At decay 100%, reach -60dB within 500ms
+    // decayGain_ is per-sample, so we accumulate across samples
     if (decayGain_ < 0.9999f) {
+        float runningGain = currentDecayLevel_;
         for (std::size_t i = 0; i < numSamples; ++i) {
-            left[i] *= decayGain_;
-            right[i] *= decayGain_;
+            runningGain *= decayGain_;
+            left[i] *= runningGain;
+            right[i] *= runningGain;
         }
+        currentDecayLevel_ = runningGain;
     }
 }
 
@@ -539,6 +545,7 @@ inline void FreezeFeedbackProcessor::reset() noexcept {
     pitchShifterL_.reset();
     pitchShifterR_.reset();
     diffusion_.reset();
+    currentDecayLevel_ = 1.0f;  // Reset cumulative decay
 }
 
 inline std::size_t FreezeFeedbackProcessor::getLatencySamples() const noexcept {

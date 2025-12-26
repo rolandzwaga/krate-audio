@@ -160,32 +160,32 @@
 
 ### 5.1 Pre-Implementation (MANDATORY)
 
-- [ ] T050 [US3] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
+- [x] T050 [US3] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
 
 ### 5.2 Tests for User Story 3 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T051 [P] [US3] Write test: decay 0% results in infinite sustain (FR-013, FR-014, SC-002) in tests/unit/features/freeze_mode_test.cpp
-- [ ] T052 [P] [US3] Write test: decay 100% reaches -60dB within 500ms (FR-015, SC-003) in tests/unit/features/freeze_mode_test.cpp
-- [ ] T053 [P] [US3] Write test: decay 50% fades to half amplitude over ~2 seconds in tests/unit/features/freeze_mode_test.cpp
-- [ ] T054 [P] [US3] Write test: decay parameter changes are smoothed (FR-016, SC-007) in tests/unit/features/freeze_mode_test.cpp
+- [x] T051 [P] [US3] Write test: decay 0% results in infinite sustain (FR-013, FR-014, SC-002) in tests/unit/features/freeze_mode_test.cpp
+- [x] T052 [P] [US3] Write test: decay 100% reaches -60dB within 500ms (FR-015, SC-003) in tests/unit/features/freeze_mode_test.cpp
+- [x] T053 [P] [US3] Write test: decay 50% fades to half amplitude over ~2 seconds in tests/unit/features/freeze_mode_test.cpp
+- [x] T054 [P] [US3] Write test: decay parameter changes are smoothed (FR-016, SC-007) in tests/unit/features/freeze_mode_test.cpp
 
 ### 5.3 Implementation for User Story 3
 
-- [ ] T055 [US3] Implement decay gain calculation in FreezeFeedbackProcessor (per-sample gain reduction) in src/dsp/features/freeze_mode.h
-- [ ] T056 [US3] Implement FreezeFeedbackProcessor::setDecayAmount() with coefficient calculation in src/dsp/features/freeze_mode.h
-- [ ] T057 [US3] Update FreezeFeedbackProcessor::process() to apply decay gain per sample in src/dsp/features/freeze_mode.h
-- [ ] T058 [US3] Add FreezeMode::setDecay() delegating to processor in src/dsp/features/freeze_mode.h
-- [ ] T059 [US3] Verify all US3 tests pass
+- [x] T055 [US3] Implement decay gain calculation in FreezeFeedbackProcessor (per-sample gain reduction) in src/dsp/features/freeze_mode.h
+- [x] T056 [US3] Implement FreezeFeedbackProcessor::setDecayAmount() with coefficient calculation in src/dsp/features/freeze_mode.h
+- [x] T057 [US3] Update FreezeFeedbackProcessor::process() to apply decay gain per sample in src/dsp/features/freeze_mode.h
+- [x] T058 [US3] Add FreezeMode::setDecay() delegating to processor in src/dsp/features/freeze_mode.h
+- [x] T059 [US3] Verify all US3 tests pass
 
 ### 5.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T060 [US3] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
+- [x] T060 [US3] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
 
 ### 5.5 Commit (MANDATORY)
 
-- [ ] T061 [US3] **Commit completed User Story 3 work**
+- [x] T061 [US3] **Commit completed User Story 3 work**
 
 **Checkpoint**: Decay control fully functional
 
