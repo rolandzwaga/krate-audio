@@ -690,7 +690,7 @@ TEST_CASE("Edge cases", "[shimmer-delay][edge-case]") {
 // Pitch Accuracy Tests (SC-001: ±5 cents)
 // =============================================================================
 
-TEST_CASE("SC-001: Pitch shift accuracy within ±5 cents", "[shimmer-delay][SC-001][precision]") {
+TEST_CASE("SC-001: Pitch shift accuracy within +/-5 cents", "[shimmer-delay][SC-001][precision]") {
     ShimmerDelay shimmer;
     shimmer.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
 
