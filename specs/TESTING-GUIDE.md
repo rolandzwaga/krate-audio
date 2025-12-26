@@ -25,6 +25,48 @@ build\bin\Debug\approval_tests.exe
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
+### Windows/MSVC Build Commands (Git Bash)
+
+When building on Windows from Git Bash, note these important details:
+
+**Build directory location**: The build directory is `build/` (not `build/windows-x64-debug/`).
+
+**MSBuild from Git Bash**: Use dash-prefix for parameters, not forward slash:
+```bash
+# CORRECT - Build specific test target with MSBuild
+"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" \
+    "F:\\projects\\iterum\\build\\tests\\dsp_tests.vcxproj" \
+    -p:Configuration=Debug -v:m
+
+# WRONG - Forward slashes get misinterpreted in Git Bash
+# ... /p:Configuration=Debug /v:m   <- DON'T DO THIS
+
+# Force rebuild (clean + build)
+"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" \
+    "F:\\projects\\iterum\\build\\tests\\dsp_tests.vcxproj" \
+    -p:Configuration=Debug -v:m -t:Rebuild
+```
+
+**Test executable location**:
+```bash
+# Run all DSP tests
+"F:/projects/iterum/build/bin/Debug/dsp_tests.exe"
+
+# Run tests by tag
+"F:/projects/iterum/build/bin/Debug/dsp_tests.exe" "[digital-delay]"
+"F:/projects/iterum/build/bin/Debug/dsp_tests.exe" "[layer3]"
+
+# List available tests
+"F:/projects/iterum/build/bin/Debug/dsp_tests.exe" --list-tests
+```
+
+**Project file locations**:
+| Target | vcxproj Location |
+|--------|------------------|
+| dsp_tests | `build/tests/dsp_tests.vcxproj` |
+| approval_tests | `build/tests/approval_tests.vcxproj` |
+| Iterum (plugin) | `build/Iterum.vcxproj` |
+
 ### VST3 Validation
 
 ```bash
