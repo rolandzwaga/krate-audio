@@ -54,7 +54,7 @@ TEST_CASE("ReverseDelay basic processing (US1)", "[reverse-delay][US1][processin
         std::vector<float> left(441, 1.0f);
         std::vector<float> right(441, 1.0f);
 
-        BlockContext ctx{44100.0, 120.0, false};
+        BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
         delay.process(left.data(), right.data(), 441, ctx);
 
         // Output should be mostly zero (capturing first chunk)
@@ -76,7 +76,7 @@ TEST_CASE("ReverseDelay basic processing (US1)", "[reverse-delay][US1][processin
             right[i] = static_cast<float>(i);
         }
 
-        BlockContext ctx{44100.0, 120.0, false};
+        BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
         delay.process(left.data(), right.data(), 441, ctx);
 
         // Process second chunk (zeros)
@@ -203,7 +203,7 @@ TEST_CASE("ReverseDelay dry/wet mix (FR-020)", "[reverse-delay][mix]") {
         left[0] = 1.0f;
         right[0] = 1.0f;
 
-        BlockContext ctx{44100.0, 120.0, false};
+        BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
         delay.process(left.data(), right.data(), 441, ctx);
 
         // Output should preserve the impulse
@@ -218,7 +218,7 @@ TEST_CASE("ReverseDelay dry/wet mix (FR-020)", "[reverse-delay][mix]") {
         std::vector<float> left(441, 1.0f);
         std::vector<float> right(441, 1.0f);
 
-        BlockContext ctx{44100.0, 120.0, false};
+        BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
         delay.process(left.data(), right.data(), 441, ctx);
 
         // First chunk output should be near zero (capturing)
@@ -278,7 +278,7 @@ TEST_CASE("ReverseDelay reset behavior (FR-025)", "[reverse-delay][FR-025][reset
     // Process some audio
     std::vector<float> left(441, 1.0f);
     std::vector<float> right(441, 1.0f);
-    BlockContext ctx{44100.0, 120.0, false};
+    BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
 
     delay.process(left.data(), right.data(), 441, ctx);
     delay.process(left.data(), right.data(), 441, ctx);
@@ -311,7 +311,7 @@ TEST_CASE("ReverseDelay noexcept specifications", "[reverse-delay][realtime]") {
 
         std::vector<float> left(512, 0.0f);
         std::vector<float> right(512, 0.0f);
-        BlockContext ctx{44100.0, 120.0, false};
+        BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
 
         static_assert(noexcept(delay.process(left.data(), right.data(), 512, ctx)),
                       "process() must be noexcept");
@@ -334,7 +334,7 @@ TEST_CASE("ReverseDelay integration with FlexibleFeedbackNetwork (FR-015)", "[re
         left[0] = 1.0f;
         right[0] = 1.0f;
 
-        BlockContext ctx{44100.0, 120.0, false};
+        BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
         delay.process(left.data(), right.data(), 441, ctx);
 
         // Process more chunks and look for feedback
@@ -375,7 +375,7 @@ TEST_CASE("ReverseDelay sample rate support (SC-007)", "[reverse-delay][SC-007]"
             // Process some audio
             std::vector<float> left(512, 0.5f);
             std::vector<float> right(512, 0.5f);
-            BlockContext ctx{sr, 120.0, false};
+            BlockContext ctx{.sampleRate = sr, .tempoBPM = 120.0, .isPlaying = false};
 
             delay.process(left.data(), right.data(), 512, ctx);
 
