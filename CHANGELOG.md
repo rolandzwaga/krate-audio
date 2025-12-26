@@ -5,6 +5,103 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.29] - 2025-12-26
+
+### Added
+
+- **Layer 4 User Feature: MultiTapDelay** (`src/dsp/features/multi_tap_delay.h`)
+  - Rhythmic multi-tap delay with 25 preset patterns and custom pattern support
+  - Composes TapManager (L3), FeedbackNetwork (L3), ModulationMatrix (L3)
+  - Complete feature set with 6 user stories:
+    - **US1: Basic Patterns**: 14 rhythmic + 5 mathematical + 6 spatial presets
+    - **US2: Per-Tap Control**: Independent level, pan, filter, mute per tap
+    - **US3: Master Feedback**: 0-110% feedback with saturation safety
+    - **US4: Pattern Morphing**: Smooth transitions between patterns (50-2000ms)
+    - **US5: Per-Tap Modulation**: ModulationMatrix integration for LFO routing
+    - **US6: Tempo Sync**: Lock to host tempo with note values
+
+- **Timing patterns**:
+  - **Rhythmic**: WholeNote, HalfNote, QuarterNote, EighthNote, SixteenthNote, ThirtySecondNote
+  - **Dotted**: DottedHalf, DottedQuarter, DottedEighth, DottedSixteenth
+  - **Triplet**: TripletHalf, TripletQuarter, TripletEighth, TripletSixteenth
+  - **Mathematical**: GoldenRatio (×1.618), Fibonacci, Exponential, PrimeNumbers, LinearSpread
+
+- **Spatial patterns**:
+  - **Cascade**: Pan sweeps L→R across taps
+  - **Alternating**: Pan alternates L, R, L, R
+  - **Centered**: All taps center pan
+  - **WideningStereo**: Pan spreads progressively wider
+  - **DecayingLevel**: Each tap -3dB from previous
+  - **FlatLevel**: All taps equal level
+
+- **User controls**:
+  - **Tap Count**: 2-16 simultaneous taps
+  - **Base Time**: 1-5000ms with tempo sync
+  - **Per-Tap**: Level (-96 to +6dB), Pan (-100 to +100), Filter (20Hz-20kHz), Mute
+  - **Feedback**: 0-110% with automatic saturation limiting
+  - **Morph Time**: 50-2000ms for pattern transitions
+  - **Mix**: Dry/wet balance with 20ms parameter smoothing
+  - **Output Level**: ±12dB master gain
+
+- **Comprehensive test suite** (23 test cases, 225 assertions)
+  - All 30 functional requirements verified
+  - All 9 success criteria measured (SC-005, SC-007, SC-008 explicitly tested)
+  - Click prevention verified via sample-to-sample jump analysis
+  - CPU benchmark verified (<200ms for 1s audio in debug)
+
+### Technical Details
+
+- **Layer 4 architecture**: Composes Layer 3 system components
+  - Uses: `TapManager` (L3) - multi-tap delay management
+  - Uses: `FeedbackNetwork` (L3) - master feedback with filtering/saturation
+  - Uses: `ModulationMatrix` (L3) - per-tap parameter modulation
+  - Uses: `OnePoleSmoother` (L1) - parameter smoothing
+  - Uses: `dbToGain` (L0) - level conversion
+- **TimingPattern enum**: 20 values (14 rhythmic + 5 mathematical + Custom)
+- **SpatialPattern enum**: 7 values (6 presets + Custom)
+- **Modulation destination IDs**: time (0-15), level (16-31), pan (32-47), cutoff (48-63)
+- **Real-time safe**: `noexcept`, no allocations in `process()`
+- **Constitution compliance**: Principles II, III, IX, X, XII, XIII, XIV, XV
+
+### Process Improvements
+
+- **Added Dependency API Contracts section to plan template** (`.specify/templates/plan-template.md`)
+  - Prevents API mismatch errors (e.g., `ctx.tempo` vs `ctx.tempoBPM`)
+  - Requires explicit header file verification before implementation
+  - Documents common gotchas for each dependency
+
+### Usage
+
+```cpp
+#include "dsp/features/multi_tap_delay.h"
+
+using namespace Iterum::DSP;
+
+MultiTapDelay delay;
+delay.prepare(44100.0, 512, 5000.0f);  // 5s max delay
+
+// Load rhythmic pattern
+delay.loadTimingPattern(TimingPattern::DottedEighth, 4);
+delay.applySpatialPattern(SpatialPattern::Cascade);
+delay.setTempo(120.0f);
+
+// Configure feedback
+delay.setFeedbackAmount(0.6f);         // 60% feedback
+delay.setDryWetMix(50.0f);             // 50% wet
+
+// Per-tap adjustments
+delay.setTapLevelDb(0, -3.0f);         // First tap -3dB
+delay.setTapPan(1, 50.0f);             // Second tap right
+
+// Pattern morphing
+delay.morphToPattern(TimingPattern::GoldenRatio, 500.0f);  // 500ms morph
+
+// In audio callback
+delay.process(left, right, numSamples, ctx);
+```
+
+---
+
 ## [0.0.28] - 2025-12-26
 
 ### Added
