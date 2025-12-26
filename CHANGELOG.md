@@ -5,6 +5,93 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.31] - 2025-12-26
+
+### Added
+
+- **Layer 4 User Feature: ReverseDelay** (`src/dsp/features/reverse_delay.h`)
+  - Reverse delay effect that captures audio in chunks and plays it back reversed
+  - Composes FlexibleFeedbackNetwork (L3) with injected ReverseFeedbackProcessor (L2)
+  - Follows ShimmerDelay architectural pattern
+  - Complete feature set with 4 user stories:
+    - **US1: Basic Reverse Echo**: Capture and play backwards with feedback
+    - **US2: Smooth Crossfade**: Equal-power crossfade between chunks eliminates clicks
+    - **US3: Playback Modes**: Full Reverse, Alternating, and Random direction per chunk
+    - **US4: Feedback Filtering**: Optional LP/HP/BP filter in feedback path
+
+- **Layer 2 Processor: ReverseFeedbackProcessor** (`src/dsp/processors/reverse_feedback_processor.h`)
+  - Implements `IFeedbackProcessor` for injection into FlexibleFeedbackNetwork
+  - Wraps stereo ReverseBuffer pair with synchronized chunk boundaries
+  - Manages playback mode logic (FullReverse, Alternating, Random)
+
+- **Layer 1 Primitive: ReverseBuffer** (`src/dsp/primitives/reverse_buffer.h`)
+  - Double-buffer primitive for capturing audio and playing back in reverse
+  - Features: configurable chunk size (10-2000ms), equal-power crossfade, forward/reverse modes
+  - Real-time safe: all methods noexcept, no allocations in process()
+
+- **Chunk control parameters**:
+  - **Chunk Size**: 10-2000ms controls the size of captured/reversed audio segments
+  - **Tempo Sync**: Lock chunk size to note values (1/32 to 1/1)
+  - **Crossfade**: 0-100% overlap between consecutive chunks
+
+- **Playback modes**:
+  - **Full Reverse**: Every chunk plays backwards
+  - **Alternating**: Chunks alternate forward/reverse/forward/reverse
+  - **Random**: 50/50 random direction per chunk using fast RNG
+
+- **Feedback parameters**:
+  - **Amount**: 0-120% with soft limiting for stability
+  - **Filter**: Optional lowpass/highpass/bandpass in feedback path (20Hz-20kHz)
+
+- **User controls**:
+  - **Dry/Wet Mix**: 0-100% with 20ms parameter smoothing
+  - **Output Level**: -96dB to +6dB master gain
+
+- **Comprehensive test suite** (31 test cases, 22,887 assertions)
+  - All 25 functional requirements verified
+  - All 8 success criteria measured
+  - Sample-accurate reverse playback verified
+  - Click-free crossfade transitions verified
+  - All three playback modes verified
+
+### Technical Details
+
+- **Layer 4 architecture**: Composes Layer 1-3 components
+  - Uses: `FlexibleFeedbackNetwork` (L3) - delay + feedback + filtering + limiting
+  - Uses: `ReverseFeedbackProcessor` (L2) - implements `IFeedbackProcessor` interface
+  - Uses: `ReverseBuffer` (L1) x 2 - stereo reverse buffer pair
+  - Uses: `OnePoleSmoother` (L1) - parameter smoothing
+
+- **PlaybackMode enum**: FullReverse, Alternating, Random
+  - Mode changes occur at chunk boundary for glitch-free transitions
+
+- **Latency**: Equal to chunk size (reported via getLatencySamples())
+
+- **Real-time safe**: `noexcept`, no allocations in `process()`
+- **Constitution compliance**: Principles II, III, IX, X, XII, XIII, XIV, XV
+
+### Usage
+
+```cpp
+#include "dsp/features/reverse_delay.h"
+
+Iterum::DSP::ReverseDelay reverseDelay;
+reverseDelay.prepare(44100.0, 512, 2000.0f);
+
+// Configure basic reverse delay
+reverseDelay.setChunkSizeMs(500.0f);
+reverseDelay.setPlaybackMode(PlaybackMode::FullReverse);
+reverseDelay.setCrossfadePercent(50.0f);
+reverseDelay.setFeedbackAmount(0.5f);
+reverseDelay.setDryWetMix(50.0f);
+reverseDelay.snapParameters();
+
+// In process callback
+reverseDelay.process(left, right, numSamples, ctx);
+```
+
+---
+
 ## [0.0.30] - 2025-12-26
 
 ### Added
