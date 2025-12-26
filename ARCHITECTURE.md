@@ -4241,6 +4241,122 @@ freeze.setFreezeEnabled(false); // Return to normal delay operation
 
 ---
 
+### DuckingDelay
+
+| | |
+|---|---|
+| **Purpose** | Delay effect with automatic gain reduction when input signal is present |
+| **Location** | [src/dsp/features/ducking_delay.h](src/dsp/features/ducking_delay.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.33 (032-ducking-delay) |
+
+**Dependencies**:
+- `FlexibleFeedbackNetwork` (Layer 3) - Delay engine with feedback and filtering
+- `DuckingProcessor` (Layer 2) - Sidechain-triggered gain reduction (2 instances)
+- `OnePoleSmoother` (Layer 1) - Parameter smoothing
+
+**Public API**:
+
+```cpp
+enum class DuckTarget : uint8_t {
+    Output = 0,    // Duck delay output before dry/wet mix
+    Feedback = 1,  // Duck feedback path only
+    Both = 2       // Duck both output and feedback
+};
+
+class DuckingDelay {
+public:
+    // Lifecycle
+    void prepare(double sampleRate, std::size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void snapParameters() noexcept;
+
+    // Ducking control
+    void setDuckingEnabled(bool enabled) noexcept;
+    void setThreshold(float dB) noexcept;          // -60 to 0 dB
+    void setDuckAmount(float percent) noexcept;    // 0-100% (maps to 0 to -48 dB)
+    void setAttackTime(float ms) noexcept;         // 0.1-100 ms
+    void setReleaseTime(float ms) noexcept;        // 10-2000 ms
+    void setHoldTime(float ms) noexcept;           // 0-500 ms
+    void setDuckTarget(DuckTarget target) noexcept;
+
+    // Sidechain filter
+    void setSidechainFilterEnabled(bool enabled) noexcept;
+    void setSidechainFilterCutoff(float hz) noexcept;  // 20-500 Hz
+
+    // Delay configuration
+    void setDelayTimeMs(float ms) noexcept;        // 10-5000 ms
+    void setTimeMode(TimeMode mode) noexcept;
+    void setNoteValue(NoteValue note, NoteModifier mod) noexcept;
+    void setFeedbackAmount(float percent) noexcept; // 0-120%
+
+    // Filter configuration
+    void setFilterEnabled(bool enabled) noexcept;
+    void setFilterType(FilterType type) noexcept;
+    void setFilterCutoff(float hz) noexcept;       // 20-20000 Hz
+
+    // Output configuration
+    void setDryWetMix(float percent) noexcept;     // 0-100%
+    void setOutputGainDb(float dB) noexcept;       // -96 to +6 dB
+
+    // Metering
+    [[nodiscard]] float getGainReduction() const noexcept;
+
+    // Processing
+    void process(float* left, float* right, std::size_t numSamples,
+                 const BlockContext& ctx) noexcept;
+
+    // Query
+    [[nodiscard]] std::size_t getLatencySamples() const noexcept;
+};
+```
+
+**Behavior**:
+- **Output Mode**: Ducks delay output when input exceeds threshold, keeps dry signal clear
+- **Feedback Mode**: Ducks feedback path only, delay output stays full but new repeats are quieter
+- **Both Mode**: Ducks both paths simultaneously for maximum separation
+- **Sidechain Filter**: Optional highpass (20-500 Hz) to prevent bass from triggering ducking
+- **Duck Amount**: 0% = no ducking, 100% = full -48 dB attenuation
+
+**Example**:
+
+```cpp
+#include "dsp/features/ducking_delay.h"
+
+Iterum::DSP::DuckingDelay delay;
+delay.prepare(44100.0, 512);
+
+// Configure for voiceover ducking
+delay.setDuckingEnabled(true);
+delay.setThreshold(-30.0f);           // Trigger at -30 dB
+delay.setDuckAmount(70.0f);           // Duck by 70% (~33.6 dB)
+delay.setAttackTime(10.0f);           // 10ms attack
+delay.setReleaseTime(200.0f);         // 200ms release
+delay.setHoldTime(50.0f);             // 50ms hold
+delay.setDuckTarget(DuckTarget::Output);
+
+// Configure delay
+delay.setDelayTimeMs(500.0f);
+delay.setFeedbackAmount(50.0f);
+delay.setDryWetMix(50.0f);
+delay.snapParameters();
+
+// Optional: filter bass from sidechain detection
+delay.setSidechainFilterEnabled(true);
+delay.setSidechainFilterCutoff(80.0f); // 80Hz highpass
+
+// In process callback
+BlockContext ctx{.sampleRate = 44100.0, .blockSize = 512, .tempoBPM = 120.0};
+delay.process(leftChannel, rightChannel, blockSize, ctx);
+
+// Read gain reduction for metering
+float gainReduction = delay.getGainReduction(); // 0 to -48 dB
+```
+
+**When to use**: Creating delay effects that stay out of the way of primary audio content. Classic sidechain ducking automatically reduces delay output when the input signal is present, ideal for voiceover, podcasts, and live performance. Use Output mode for standard ducking, Feedback mode to reduce repeat buildup during performance, or Both for maximum clarity. The sidechain filter prevents bass-heavy content from causing unwanted ducking.
+
+---
+
 ## Cross-Cutting Concerns
 
 ### Namespaces
@@ -4397,3 +4513,9 @@ Quick lookup by functionality:
 | Set freeze shimmer | `FreezeMode::setShimmerMix()` | features/freeze_mode.h |
 | Set freeze decay | `FreezeMode::setDecay()` | features/freeze_mode.h |
 | Set freeze diffusion | `FreezeMode::setDiffusionAmount()` | features/freeze_mode.h |
+| Create ducking delay | `Iterum::DSP::DuckingDelay` | features/ducking_delay.h |
+| Enable/disable ducking | `DuckingDelay::setDuckingEnabled()` | features/ducking_delay.h |
+| Set ducking threshold | `DuckingDelay::setThreshold()` | features/ducking_delay.h |
+| Set duck amount | `DuckingDelay::setDuckAmount()` | features/ducking_delay.h |
+| Set duck target | `DuckingDelay::setDuckTarget()` | features/ducking_delay.h |
+| Get ducking gain reduction | `DuckingDelay::getGainReduction()` | features/ducking_delay.h |
