@@ -305,7 +305,498 @@ TEST_CASE("DuckingDelay latency reports correctly", "[ducking-delay][foundationa
 // =============================================================================
 // Phase 3: User Story 1 Tests - Basic Ducking Delay (MVP)
 // =============================================================================
-// Tests will be added in T015-T024
+
+// T015: Ducking enable/disable control (FR-001)
+TEST_CASE("DuckingDelay enable/disable control", "[ducking-delay][US1][FR-001]") {
+    auto delay = createPreparedDelay();
+
+    SECTION("Ducking is enabled by default") {
+        REQUIRE(delay.isDuckingEnabled());
+    }
+
+    SECTION("Can disable ducking") {
+        delay.setDuckingEnabled(false);
+        REQUIRE_FALSE(delay.isDuckingEnabled());
+    }
+
+    SECTION("Can re-enable ducking") {
+        delay.setDuckingEnabled(false);
+        delay.setDuckingEnabled(true);
+        REQUIRE(delay.isDuckingEnabled());
+    }
+
+    SECTION("Disabled ducking passes delay signal unchanged") {
+        delay.setDuckingEnabled(false);
+        delay.setDelayTimeMs(100.0f);  // Short delay
+        delay.setFeedbackAmount(0.0f);  // No feedback
+        delay.setDryWetMix(100.0f);     // 100% wet
+        delay.setThreshold(-60.0f);     // Low threshold
+        delay.setDuckAmount(100.0f);    // Full ducking
+        delay.snapParameters();
+
+        // Feed impulse through delay
+        std::vector<float> left(kBlockSize * 10, 0.0f);
+        std::vector<float> right(kBlockSize * 10, 0.0f);
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        auto ctx = makeTestContext();
+
+        // Process enough blocks to get impulse through delay
+        for (size_t block = 0; block < 10; ++block) {
+            delay.process(left.data() + block * kBlockSize,
+                         right.data() + block * kBlockSize,
+                         kBlockSize, ctx);
+        }
+
+        // Find delayed impulse - should have energy (not ducked to silence)
+        float delayedPeak = 0.0f;
+        for (size_t i = 100; i < left.size(); ++i) {  // After delay time
+            delayedPeak = std::max(delayedPeak, std::abs(left[i]));
+        }
+        REQUIRE(delayedPeak > 0.1f);  // Should have significant output
+    }
+}
+
+// T016: Threshold triggers ducking (FR-002, SC-001)
+TEST_CASE("DuckingDelay threshold triggers ducking", "[ducking-delay][US1][FR-002][SC-001]") {
+    auto delay = createPreparedDelay();
+    delay.setDuckingEnabled(true);
+    delay.setDuckAmount(100.0f);    // Full ducking for clear test
+    delay.setAttackTime(0.1f);      // Fastest attack
+    delay.setReleaseTime(10.0f);    // Short release
+    delay.setDryWetMix(100.0f);     // 100% wet to see ducking
+    delay.setDelayTimeMs(100.0f);
+    delay.setFeedbackAmount(0.0f);
+
+    SECTION("Signal above threshold triggers ducking") {
+        delay.setThreshold(-20.0f);  // -20dB threshold
+        delay.snapParameters();
+
+        // Prime the delay with an impulse
+        std::vector<float> primeL(kBlockSize, 0.0f);
+        std::vector<float> primeR(kBlockSize, 0.0f);
+        primeL[0] = 0.5f;
+        primeR[0] = 0.5f;
+        auto ctx = makeTestContext();
+        delay.process(primeL.data(), primeR.data(), kBlockSize, ctx);
+
+        // Now feed loud signal (-6dB, above threshold)
+        std::vector<float> left(kBlockSize, 0.5f);  // ~-6dB
+        std::vector<float> right(kBlockSize, 0.5f);
+
+        // Process several blocks to let ducking engage
+        for (int i = 0; i < 5; ++i) {
+            delay.process(left.data(), right.data(), kBlockSize, ctx);
+        }
+
+        // Gain reduction should be significant
+        float gr = delay.getGainReduction();
+        REQUIRE(gr < -6.0f);  // Should show significant reduction
+    }
+
+    SECTION("Signal below threshold does not trigger ducking") {
+        delay.setThreshold(-20.0f);  // -20dB threshold
+        delay.snapParameters();
+
+        // Prime with quiet impulse
+        std::vector<float> primeL(kBlockSize, 0.0f);
+        std::vector<float> primeR(kBlockSize, 0.0f);
+        primeL[0] = 0.01f;  // Very quiet
+        primeR[0] = 0.01f;
+        auto ctx = makeTestContext();
+        delay.process(primeL.data(), primeR.data(), kBlockSize, ctx);
+
+        // Feed quiet signal (-40dB, below threshold)
+        std::vector<float> left(kBlockSize, 0.01f);  // ~-40dB
+        std::vector<float> right(kBlockSize, 0.01f);
+
+        for (int i = 0; i < 5; ++i) {
+            delay.process(left.data(), right.data(), kBlockSize, ctx);
+        }
+
+        // Gain reduction should be minimal
+        float gr = delay.getGainReduction();
+        REQUIRE(gr > -3.0f);  // Little to no reduction
+    }
+
+    SECTION("Threshold range is -60 to 0 dB (FR-002)") {
+        delay.setThreshold(-60.0f);
+        REQUIRE(delay.getThreshold() == Approx(-60.0f));
+
+        delay.setThreshold(0.0f);
+        REQUIRE(delay.getThreshold() == Approx(0.0f));
+
+        delay.setThreshold(-80.0f);  // Below min, should clamp
+        REQUIRE(delay.getThreshold() == Approx(-60.0f));
+
+        delay.setThreshold(10.0f);  // Above max, should clamp
+        REQUIRE(delay.getThreshold() == Approx(0.0f));
+    }
+}
+
+// T017: Duck amount 0% results in no attenuation (FR-005)
+TEST_CASE("DuckingDelay duck amount 0% results in no attenuation", "[ducking-delay][US1][FR-005]") {
+    auto delay = createPreparedDelay();
+    delay.setDuckingEnabled(true);
+    delay.setDuckAmount(0.0f);      // 0% = no ducking
+    delay.setThreshold(-60.0f);     // Very low threshold
+    delay.setAttackTime(0.1f);
+    delay.setDryWetMix(100.0f);
+    delay.setDelayTimeMs(100.0f);
+    delay.setFeedbackAmount(0.0f);
+    delay.snapParameters();
+
+    // Prime delay
+    std::vector<float> primeL(kBlockSize, 0.0f);
+    std::vector<float> primeR(kBlockSize, 0.0f);
+    primeL[0] = 1.0f;
+    primeR[0] = 1.0f;
+    auto ctx = makeTestContext();
+    delay.process(primeL.data(), primeR.data(), kBlockSize, ctx);
+
+    // Feed loud signal
+    std::vector<float> left(kBlockSize, 0.5f);
+    std::vector<float> right(kBlockSize, 0.5f);
+
+    for (int i = 0; i < 10; ++i) {
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+    }
+
+    // With 0% duck amount, gain reduction should be 0
+    float gr = delay.getGainReduction();
+    REQUIRE(gr == Approx(0.0f).margin(0.5f));
+}
+
+// T018: Duck amount 100% results in -48dB attenuation (FR-004, SC-003)
+TEST_CASE("DuckingDelay duck amount 100% results in -48dB attenuation", "[ducking-delay][US1][FR-004][SC-003]") {
+    auto delay = createPreparedDelay();
+    delay.setDuckingEnabled(true);
+    delay.setDuckAmount(100.0f);    // 100% = -48dB
+    delay.setThreshold(-60.0f);     // Very low threshold
+    delay.setAttackTime(0.1f);      // Fast attack
+    delay.setDryWetMix(100.0f);
+    delay.setDelayTimeMs(100.0f);
+    delay.setFeedbackAmount(0.0f);
+    delay.snapParameters();
+
+    // Prime delay
+    std::vector<float> primeL(kBlockSize, 0.0f);
+    std::vector<float> primeR(kBlockSize, 0.0f);
+    primeL[0] = 1.0f;
+    primeR[0] = 1.0f;
+    auto ctx = makeTestContext();
+    delay.process(primeL.data(), primeR.data(), kBlockSize, ctx);
+
+    // Feed loud continuous signal
+    std::vector<float> left(kBlockSize, 0.9f);
+    std::vector<float> right(kBlockSize, 0.9f);
+
+    // Process enough blocks for full attack
+    for (int i = 0; i < 20; ++i) {
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+    }
+
+    // Gain reduction should approach -48dB
+    float gr = delay.getGainReduction();
+    REQUIRE(gr < -40.0f);  // Should be close to -48dB
+}
+
+// T019: Duck amount 50% results in approximately -24dB attenuation (FR-003)
+TEST_CASE("DuckingDelay duck amount 50% results in -24dB attenuation", "[ducking-delay][US1][FR-003]") {
+    auto delay = createPreparedDelay();
+    delay.setDuckingEnabled(true);
+    delay.setDuckAmount(50.0f);     // 50% = -24dB
+    delay.setThreshold(-60.0f);
+    delay.setAttackTime(0.1f);
+    delay.setDryWetMix(100.0f);
+    delay.setDelayTimeMs(100.0f);
+    delay.setFeedbackAmount(0.0f);
+    delay.snapParameters();
+
+    // Prime delay
+    std::vector<float> primeL(kBlockSize, 0.0f);
+    std::vector<float> primeR(kBlockSize, 0.0f);
+    primeL[0] = 1.0f;
+    primeR[0] = 1.0f;
+    auto ctx = makeTestContext();
+    delay.process(primeL.data(), primeR.data(), kBlockSize, ctx);
+
+    // Feed loud continuous signal
+    std::vector<float> left(kBlockSize, 0.9f);
+    std::vector<float> right(kBlockSize, 0.9f);
+
+    for (int i = 0; i < 20; ++i) {
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+    }
+
+    // Gain reduction should be around -24dB
+    float gr = delay.getGainReduction();
+    REQUIRE(gr < -18.0f);
+    REQUIRE(gr > -30.0f);  // Should be roughly -24dB +/- 6dB
+}
+
+// T020: Ducking engages within attack time (FR-006, SC-001)
+TEST_CASE("DuckingDelay engages within attack time", "[ducking-delay][US1][FR-006][SC-001]") {
+    auto delay = createPreparedDelay();
+    delay.setDuckingEnabled(true);
+    delay.setDuckAmount(100.0f);
+    delay.setThreshold(-60.0f);
+    delay.setDryWetMix(100.0f);
+    delay.setDelayTimeMs(50.0f);
+    delay.setFeedbackAmount(0.0f);
+
+    SECTION("Attack time range is 0.1 to 100 ms (FR-006)") {
+        delay.setAttackTime(0.1f);
+        REQUIRE(delay.getAttackTime() == Approx(0.1f));
+
+        delay.setAttackTime(100.0f);
+        REQUIRE(delay.getAttackTime() == Approx(100.0f));
+
+        delay.setAttackTime(0.01f);  // Below min
+        REQUIRE(delay.getAttackTime() == Approx(0.1f));
+
+        delay.setAttackTime(200.0f);  // Above max
+        REQUIRE(delay.getAttackTime() == Approx(100.0f));
+    }
+
+    SECTION("Fast attack engages quickly") {
+        delay.setAttackTime(0.1f);  // 0.1ms = very fast
+        delay.snapParameters();
+
+        // Prime with impulse
+        std::vector<float> primeL(kBlockSize, 0.0f);
+        std::vector<float> primeR(kBlockSize, 0.0f);
+        primeL[0] = 1.0f;
+        primeR[0] = 1.0f;
+        auto ctx = makeTestContext();
+        delay.process(primeL.data(), primeR.data(), kBlockSize, ctx);
+
+        // Start with silence, then loud signal
+        delay.reset();
+        std::vector<float> left(kBlockSize, 0.9f);
+        std::vector<float> right(kBlockSize, 0.9f);
+
+        // One block should be enough for fast attack
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        float gr = delay.getGainReduction();
+        REQUIRE(gr < -10.0f);  // Should have engaged significantly
+    }
+}
+
+// T021: Ducking releases within release time (FR-007, SC-002)
+TEST_CASE("DuckingDelay releases within release time", "[ducking-delay][US1][FR-007][SC-002]") {
+    auto delay = createPreparedDelay();
+
+    SECTION("Release time range is 10 to 2000 ms (FR-007)") {
+        delay.setReleaseTime(10.0f);
+        REQUIRE(delay.getReleaseTime() == Approx(10.0f));
+
+        delay.setReleaseTime(2000.0f);
+        REQUIRE(delay.getReleaseTime() == Approx(2000.0f));
+
+        delay.setReleaseTime(5.0f);  // Below min
+        REQUIRE(delay.getReleaseTime() == Approx(10.0f));
+
+        delay.setReleaseTime(3000.0f);  // Above max
+        REQUIRE(delay.getReleaseTime() == Approx(2000.0f));
+    }
+
+    SECTION("Fast release recovers quickly") {
+        delay.setDuckingEnabled(true);
+        delay.setDuckAmount(100.0f);
+        delay.setThreshold(-60.0f);
+        delay.setAttackTime(0.1f);
+        delay.setReleaseTime(10.0f);  // Fast release
+        delay.setHoldTime(0.0f);      // No hold
+        delay.setDryWetMix(100.0f);
+        delay.setDelayTimeMs(50.0f);
+        delay.setFeedbackAmount(0.0f);
+        delay.snapParameters();
+
+        auto ctx = makeTestContext();
+
+        // Prime and engage ducking with loud signal (separate buffers)
+        for (int i = 0; i < 10; ++i) {
+            std::vector<float> loudL(kBlockSize, 0.9f);
+            std::vector<float> loudR(kBlockSize, 0.9f);
+            delay.process(loudL.data(), loudR.data(), kBlockSize, ctx);
+        }
+
+        // Verify ducking is engaged
+        float engagedGR = delay.getGainReduction();
+        REQUIRE(engagedGR < -30.0f);
+
+        // Now feed silence for release (separate buffers)
+        for (int i = 0; i < 5; ++i) {
+            std::vector<float> silenceL(kBlockSize, 0.0f);
+            std::vector<float> silenceR(kBlockSize, 0.0f);
+            delay.process(silenceL.data(), silenceR.data(), kBlockSize, ctx);
+        }
+
+        // Gain reduction should have recovered
+        float releasedGR = delay.getGainReduction();
+        REQUIRE(releasedGR > engagedGR);  // Should have increased (less negative)
+    }
+}
+
+// T022: Dry/wet mix control (FR-020)
+TEST_CASE("DuckingDelay dry/wet mix control", "[ducking-delay][US1][FR-020]") {
+    auto delay = createPreparedDelay();
+
+    SECTION("Dry/wet range is 0 to 100%") {
+        delay.setDryWetMix(0.0f);
+        REQUIRE(delay.getDryWetMix() == Approx(0.0f));
+
+        delay.setDryWetMix(100.0f);
+        REQUIRE(delay.getDryWetMix() == Approx(100.0f));
+
+        delay.setDryWetMix(50.0f);
+        REQUIRE(delay.getDryWetMix() == Approx(50.0f));
+
+        delay.setDryWetMix(-10.0f);  // Below min
+        REQUIRE(delay.getDryWetMix() == Approx(0.0f));
+
+        delay.setDryWetMix(110.0f);  // Above max
+        REQUIRE(delay.getDryWetMix() == Approx(100.0f));
+    }
+
+    SECTION("0% wet outputs only dry signal") {
+        delay.setDryWetMix(0.0f);
+        delay.setDelayTimeMs(100.0f);
+        delay.setDuckingEnabled(false);
+        delay.snapParameters();
+
+        std::vector<float> left(kBlockSize, 0.5f);
+        std::vector<float> right(kBlockSize, 0.5f);
+        auto ctx = makeTestContext();
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        // Output should be unchanged (dry only)
+        REQUIRE(left[0] == Approx(0.5f).margin(0.01f));
+    }
+
+    SECTION("100% wet outputs only delay signal") {
+        delay.setDryWetMix(100.0f);
+        delay.setDelayTimeMs(100.0f);
+        delay.setFeedbackAmount(0.0f);
+        delay.setDuckingEnabled(false);
+        delay.snapParameters();
+
+        // Process silence - no delayed signal yet
+        std::vector<float> left(kBlockSize, 0.0f);
+        std::vector<float> right(kBlockSize, 0.0f);
+        left[0] = 0.5f;  // Single impulse
+        right[0] = 0.5f;
+        auto ctx = makeTestContext();
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        // First sample should be near zero (only wet, but delay hasn't come through yet)
+        REQUIRE(std::abs(left[0]) < 0.1f);
+    }
+}
+
+// T023: Output gain control (FR-021)
+TEST_CASE("DuckingDelay output gain control", "[ducking-delay][US1][FR-021]") {
+    auto delay = createPreparedDelay();
+
+    SECTION("Output gain range is -96 to +6 dB") {
+        delay.setOutputGainDb(0.0f);
+        REQUIRE(delay.getOutputGainDb() == Approx(0.0f));
+
+        delay.setOutputGainDb(-96.0f);
+        REQUIRE(delay.getOutputGainDb() == Approx(-96.0f));
+
+        delay.setOutputGainDb(6.0f);
+        REQUIRE(delay.getOutputGainDb() == Approx(6.0f));
+
+        delay.setOutputGainDb(-100.0f);  // Below min
+        REQUIRE(delay.getOutputGainDb() == Approx(-96.0f));
+
+        delay.setOutputGainDb(12.0f);  // Above max
+        REQUIRE(delay.getOutputGainDb() == Approx(6.0f));
+    }
+
+    SECTION("+6dB gain boosts output") {
+        delay.setOutputGainDb(6.0f);
+        delay.setDryWetMix(0.0f);  // Dry only for simple test
+        delay.setDuckingEnabled(false);
+        delay.snapParameters();
+
+        std::vector<float> left(kBlockSize, 0.25f);
+        std::vector<float> right(kBlockSize, 0.25f);
+        auto ctx = makeTestContext();
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        // +6dB = approximately 2x gain
+        // Allow for smoothing convergence
+        float expected = 0.25f * std::pow(10.0f, 6.0f / 20.0f);  // ~0.5
+        REQUIRE(left[kBlockSize - 1] == Approx(expected).margin(0.05f));
+    }
+
+    SECTION("-96dB effectively mutes output") {
+        delay.setOutputGainDb(-96.0f);
+        delay.setDryWetMix(0.0f);
+        delay.setDuckingEnabled(false);
+        delay.snapParameters();
+
+        std::vector<float> left(kBlockSize, 0.5f);
+        std::vector<float> right(kBlockSize, 0.5f);
+        auto ctx = makeTestContext();
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        // Should be nearly silent
+        REQUIRE(std::abs(left[kBlockSize - 1]) < 0.001f);
+    }
+}
+
+// T024: Gain reduction meter (FR-022)
+TEST_CASE("DuckingDelay gain reduction meter", "[ducking-delay][US1][FR-022]") {
+    auto delay = createPreparedDelay();
+    delay.setDuckingEnabled(true);
+    delay.setDuckAmount(100.0f);
+    delay.setThreshold(-60.0f);
+    delay.setAttackTime(0.1f);
+    delay.setDryWetMix(100.0f);
+    delay.setDelayTimeMs(50.0f);
+    delay.setFeedbackAmount(0.0f);
+    delay.snapParameters();
+
+    SECTION("Returns 0 dB when not ducking") {
+        // With no signal, no ducking
+        auto ctx = makeTestContext();
+        std::vector<float> silence(kBlockSize, 0.0f);
+
+        delay.process(silence.data(), silence.data(), kBlockSize, ctx);
+
+        float gr = delay.getGainReduction();
+        REQUIRE(gr == Approx(0.0f).margin(1.0f));  // Should be 0 or near 0
+    }
+
+    SECTION("Returns negative dB when ducking") {
+        auto ctx = makeTestContext();
+
+        // Prime with impulse
+        std::vector<float> prime(kBlockSize, 0.0f);
+        prime[0] = 1.0f;
+        delay.process(prime.data(), prime.data(), kBlockSize, ctx);
+
+        // Feed loud signal
+        std::vector<float> loud(kBlockSize, 0.9f);
+        for (int i = 0; i < 10; ++i) {
+            delay.process(loud.data(), loud.data(), kBlockSize, ctx);
+        }
+
+        float gr = delay.getGainReduction();
+        REQUIRE(gr < 0.0f);  // Should be negative when ducking
+        REQUIRE(gr > -60.0f);  // But not beyond reasonable range
+    }
+}
 
 // =============================================================================
 // Phase 4: User Story 2 Tests - Feedback Path Ducking
