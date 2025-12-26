@@ -3357,6 +3357,119 @@ delay.process(leftChannel, rightChannel, blockSize);
 
 **When to use**: Creating analog-style delay effects with authentic BBD character. Ideal for warm, dark delays with subtle modulation and vintage coloration. Use different Era settings to emulate specific vintage units.
 
+### DigitalDelay
+
+Clean digital delay with era presets (Lexicon PCM42, Roland SDE-3000, vintage sampler style).
+
+**File**: `src/dsp/features/digital_delay.h`
+
+**Purpose**: Layer 4 user feature providing pristine digital delay with optional vintage digital character. Three era presets: Pristine (transparent), 80s Digital (vintage warmth), and Lo-Fi (aggressive degradation).
+
+**Composes**:
+- DelayEngine (Layer 3): Core delay with tempo sync
+- FeedbackNetwork (Layer 3): Feedback path with filtering
+- CharacterProcessor (Layer 3): DigitalVintage mode for 80s/Lo-Fi character
+- DynamicsProcessor (Layer 2): Program-dependent feedback limiter
+- LFO (Layer 1): Modulation with 6 waveform shapes
+
+**User Controls**:
+- Time: Delay time 1-10000ms with tempo sync option
+- Feedback: 0-120% (>100% enables controlled self-oscillation via limiter)
+- Era: Character preset (Pristine, 80s Digital, Lo-Fi)
+- Age: Degradation intensity for vintage eras 0-100%
+- Modulation: Depth 0-100%, Rate 0.1-10Hz, 6 waveforms
+- Limiter Character: Soft/Medium/Hard knee
+- Mix: Dry/wet balance
+- Output Level: -96dB to +12dB
+
+**Enumerations**:
+
+```cpp
+enum class DigitalEra : uint8_t {
+    Pristine = 0,        // Crystal-clear, transparent delay
+    EightiesDigital = 1, // Vintage digital character (PCM42, SDE-3000)
+    LoFi = 2             // Aggressive bit-crushed degradation
+};
+
+enum class LimiterCharacter : uint8_t {
+    Soft = 0,   // 6dB knee - gentle, musical limiting
+    Medium = 1, // 3dB knee - balanced response
+    Hard = 2    // 0dB knee - aggressive, brick-wall limiting
+};
+```
+
+**Public API**:
+
+```cpp
+class DigitalDelay {
+    // Constants
+    static constexpr float kMinDelayMs = 1.0f;
+    static constexpr float kMaxDelayMs = 10000.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize, float maxDelayMs) noexcept;
+    void reset() noexcept;
+    bool isPrepared() const noexcept;
+
+    // Time Control
+    void setTime(float ms) noexcept;
+    float getTime() const noexcept;
+    void setTimeMode(TimeMode mode) noexcept;
+    void setNoteValue(NoteValue value) noexcept;
+
+    // Feedback Control
+    void setFeedback(float amount) noexcept;      // 0-1.2
+    void setLimiterCharacter(LimiterCharacter character) noexcept;
+
+    // Era/Character Control
+    void setEra(DigitalEra era) noexcept;
+    void setAge(float amount) noexcept;           // 0-1
+
+    // Modulation Control
+    void setModulationDepth(float depth) noexcept;    // 0-1
+    void setModulationRate(float rateHz) noexcept;    // 0.1-10
+    void setModulationWaveform(Waveform waveform) noexcept;
+
+    // Output Control
+    void setMix(float amount) noexcept;           // 0-1
+    void setOutputLevel(float dB) noexcept;       // -96 to +12
+
+    // Processing
+    void process(float* left, float* right, size_t numSamples, const BlockContext& ctx) noexcept;
+    void process(float* buffer, size_t numSamples, const BlockContext& ctx) noexcept;
+};
+```
+
+**Usage Example**:
+
+```cpp
+#include "dsp/features/digital_delay.h"
+
+DigitalDelay delay;
+delay.prepare(44100.0, 512, 10000.0f);
+
+// Configure for pristine digital delay
+delay.setTime(500.0f);                    // 500ms delay
+delay.setFeedback(0.5f);                  // 50% feedback
+delay.setEra(DigitalEra::Pristine);       // Crystal clear
+delay.setMix(0.4f);                       // 40% wet
+
+// Or configure for vintage 80s digital
+delay.setEra(DigitalEra::EightiesDigital);
+delay.setAge(0.3f);                       // Moderate vintage character
+delay.setModulationDepth(0.2f);           // Subtle modulation
+delay.setModulationRate(1.0f);            // 1Hz rate
+delay.setModulationWaveform(Waveform::Sine);
+
+// In process callback
+BlockContext ctx;
+ctx.sampleRate = 44100.0;
+ctx.tempoBPM = 120.0;
+delay.process(leftChannel, rightChannel, blockSize, ctx);
+```
+
+**When to use**: Creating digital delay effects ranging from pristine transparency to vintage digital character. Ideal for clean, precise delays with optional 80s warmth or lo-fi degradation. Use LFO modulation for chorus-like effects.
+
 ---
 
 ## Cross-Cutting Concerns
@@ -3486,3 +3599,9 @@ Quick lookup by functionality:
 | Set stereo pan | `StereoField::setPan()` | systems/stereo_field.h |
 | Set L/R timing offset | `StereoField::setLROffset()` | systems/stereo_field.h |
 | Set L/R delay ratio | `StereoField::setLRRatio()` | systems/stereo_field.h |
+| Create tape delay effect | `Iterum::DSP::TapeDelay` | features/tape_delay.h |
+| Create BBD delay effect | `Iterum::DSP::BBDDelay` | features/bbd_delay.h |
+| Create digital delay effect | `Iterum::DSP::DigitalDelay` | features/digital_delay.h |
+| Set digital delay era | `DigitalDelay::setEra()` | features/digital_delay.h |
+| Set limiter character | `DigitalDelay::setLimiterCharacter()` | features/digital_delay.h |
+| Set delay modulation | `DigitalDelay::setModulationDepth()` | features/digital_delay.h |

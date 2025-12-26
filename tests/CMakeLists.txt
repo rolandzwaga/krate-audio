@@ -104,6 +104,7 @@ add_executable(dsp_tests
     # Layer 4: User Features
     unit/features/tape_delay_test.cpp
     unit/features/bbd_delay_test.cpp
+    unit/features/digital_delay_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -167,6 +168,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # Layer 4: User Features
         unit/features/tape_delay_test.cpp
         unit/features/bbd_delay_test.cpp
+        unit/features/digital_delay_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
