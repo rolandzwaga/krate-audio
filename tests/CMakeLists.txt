@@ -122,6 +122,18 @@ add_executable(dsp_tests
     unit/features/ducking_delay_test.cpp
     unit/features/spectral_delay_test.cpp
     unit/features/granular_delay_test.cpp
+    # Parameter Normalization Tests
+    unit/parameters/bbd_params_test.cpp
+    unit/parameters/digital_params_test.cpp
+    unit/parameters/pingpong_params_test.cpp
+    unit/parameters/multitap_params_test.cpp
+    unit/parameters/granular_params_test.cpp
+    unit/parameters/spectral_params_test.cpp
+    unit/parameters/shimmer_params_test.cpp
+    unit/parameters/tape_params_test.cpp
+    unit/parameters/reverse_params_test.cpp
+    unit/parameters/freeze_params_test.cpp
+    unit/parameters/ducking_params_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -203,6 +215,18 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/features/ducking_delay_test.cpp
         unit/features/spectral_delay_test.cpp
         unit/features/granular_delay_test.cpp
+        # Parameter Normalization Tests
+        unit/parameters/bbd_params_test.cpp
+        unit/parameters/digital_params_test.cpp
+        unit/parameters/pingpong_params_test.cpp
+        unit/parameters/multitap_params_test.cpp
+        unit/parameters/granular_params_test.cpp
+        unit/parameters/spectral_params_test.cpp
+        unit/parameters/shimmer_params_test.cpp
+        unit/parameters/tape_params_test.cpp
+        unit/parameters/reverse_params_test.cpp
+        unit/parameters/freeze_params_test.cpp
+        unit/parameters/ducking_params_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
