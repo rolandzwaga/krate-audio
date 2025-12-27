@@ -95,6 +95,23 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # DSP (Pure algorithms - Constitution Principle VIII)
     src/dsp/dsp_utils.h
     src/dsp/dsp_utils.cpp
+
+    # DSP Layer 0: Core Utilities
+    src/dsp/core/pitch_utils.h
+    src/dsp/core/grain_envelope.h
+
+    # DSP Layer 1: Primitives
+    src/dsp/primitives/grain_pool.h
+
+    # DSP Layer 2: Processors
+    src/dsp/processors/grain_scheduler.h
+    src/dsp/processors/grain_processor.h
+
+    # DSP Layer 3: Systems
+    src/dsp/systems/granular_engine.h
+
+    # DSP Layer 4: Features
+    src/dsp/features/granular_delay.h
 )
 
 # Link SDK and VSTGUI

@@ -74,6 +74,8 @@ add_executable(dsp_tests
     unit/core/fast_math_test.cpp
     unit/core/interpolation_test.cpp
     unit/core/stereo_utils_test.cpp
+    unit/core/pitch_utils_test.cpp
+    unit/core/grain_envelope_test.cpp
     unit/primitives/delay_line_test.cpp
     unit/primitives/lfo_test.cpp
     unit/primitives/biquad_test.cpp
@@ -85,6 +87,7 @@ add_executable(dsp_tests
     unit/primitives/bit_crusher_test.cpp
     unit/primitives/sample_rate_reducer_test.cpp
     unit/primitives/reverse_buffer_test.cpp
+    unit/primitives/grain_pool_test.cpp
     # Layer 2: DSP Processors
     unit/processors/multimode_filter_test.cpp
     unit/processors/saturation_processor_test.cpp
@@ -96,6 +99,8 @@ add_executable(dsp_tests
     unit/processors/diffusion_network_test.cpp
     unit/processors/pitch_shift_processor_test.cpp
     unit/processors/reverse_feedback_processor_test.cpp
+    unit/processors/grain_scheduler_test.cpp
+    unit/processors/grain_processor_test.cpp
     # Layer 3: System Components
     unit/systems/delay_engine_test.cpp
     unit/systems/feedback_network_test.cpp
@@ -104,6 +109,7 @@ add_executable(dsp_tests
     unit/systems/stereo_field_test.cpp
     unit/systems/tap_manager_test.cpp
     unit/systems/flexible_feedback_network_test.cpp
+    unit/systems/granular_engine_test.cpp
     # Layer 4: User Features
     unit/features/tape_delay_test.cpp
     unit/features/bbd_delay_test.cpp
@@ -115,6 +121,7 @@ add_executable(dsp_tests
     unit/features/freeze_mode_test.cpp
     unit/features/ducking_delay_test.cpp
     unit/features/spectral_delay_test.cpp
+    unit/features/granular_delay_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -148,6 +155,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/block_context_test.cpp
         unit/core/fast_math_test.cpp
         unit/core/interpolation_test.cpp
+        unit/core/pitch_utils_test.cpp
+        unit/core/grain_envelope_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/oversampler_test.cpp
         unit/primitives/delay_line_test.cpp
@@ -159,6 +168,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/bit_crusher_test.cpp
         unit/primitives/sample_rate_reducer_test.cpp
         unit/primitives/reverse_buffer_test.cpp
+        unit/primitives/grain_pool_test.cpp
         # Layer 2: DSP Processors
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
@@ -170,6 +180,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/diffusion_network_test.cpp
         unit/processors/pitch_shift_processor_test.cpp
         unit/processors/reverse_feedback_processor_test.cpp
+        unit/processors/grain_scheduler_test.cpp
+        unit/processors/grain_processor_test.cpp
         # Layer 3: System Components
         unit/systems/delay_engine_test.cpp
         unit/systems/feedback_network_test.cpp
@@ -178,6 +190,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/stereo_field_test.cpp
         unit/systems/tap_manager_test.cpp
         unit/systems/flexible_feedback_network_test.cpp
+        unit/systems/granular_engine_test.cpp
         # Layer 4: User Features
         unit/features/tape_delay_test.cpp
         unit/features/bbd_delay_test.cpp
@@ -189,6 +202,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/features/freeze_mode_test.cpp
         unit/features/ducking_delay_test.cpp
         unit/features/spectral_delay_test.cpp
+        unit/features/granular_delay_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
