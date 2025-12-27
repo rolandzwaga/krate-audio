@@ -29,19 +29,19 @@ static const Steinberg::FUID kControllerUID(0x87654321, 0x87654321, 0x87654321, 
 // Define all automatable parameters here.
 // Constitution Principle V: All parameter values MUST be normalized (0.0 to 1.0)
 //
-// ID Range Allocation:
-//   0-99:    Global parameters
-//   100-119: Granular Delay (spec 034)
-//   120-139: Spectral Delay (spec 033)
-//   140-159: Shimmer Delay (spec 029)
-//   160-179: Tape Delay (spec 024)
-//   180-199: BBD Delay (spec 025)
-//   200-219: Digital Delay (spec 026)
-//   220-239: PingPong Delay (spec 027)
-//   240-259: Reverse Delay (spec 030)
-//   260-299: MultiTap Delay (spec 028) - extended range for per-tap params
-//   300-319: Freeze Mode (spec 031)
-//   320-339: Ducking Delay (spec 032)
+// ID Range Allocation (100-ID gaps for future expansion):
+//   0-99:      Global parameters
+//   100-199:   Granular Delay (spec 034)
+//   200-299:   Spectral Delay (spec 033)
+//   300-399:   Shimmer Delay (spec 029)
+//   400-499:   Tape Delay (spec 024)
+//   500-599:   BBD Delay (spec 025)
+//   600-699:   Digital Delay (spec 026)
+//   700-799:   PingPong Delay (spec 027)
+//   800-899:   Reverse Delay (spec 030)
+//   900-999:   MultiTap Delay (spec 028)
+//   1000-1099: Freeze Mode (spec 031)
+//   1100-1199: Ducking Delay (spec 032)
 // ==============================================================================
 
 enum ParameterIDs : Steinberg::Vst::ParamID {
@@ -52,7 +52,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kGainId = 1,
 
     // ==========================================================================
-    // Granular Delay Parameters (100-119) - spec 034
+    // Granular Delay Parameters (100-199) - spec 034
     // ==========================================================================
     kGranularBaseId = 100,
     kGranularGrainSizeId = 100,      // 10-500ms
@@ -68,81 +68,80 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kGranularDryWetId = 110,         // 0-1
     kGranularOutputGainId = 111,     // -96 to +6 dB
     kGranularEnvelopeTypeId = 112,   // 0-3 (Hann, Trapezoid, Sine, Blackman)
-    kGranularEndId = 119,
+    kGranularEndId = 199,
 
     // ==========================================================================
-    // Spectral Delay Parameters (120-139) - spec 033
+    // Spectral Delay Parameters (200-299) - spec 033
     // ==========================================================================
-    kSpectralBaseId = 120,
+    kSpectralBaseId = 200,
     // Parameters to be added during integration
-    kSpectralEndId = 139,
+    kSpectralEndId = 299,
 
     // ==========================================================================
-    // Shimmer Delay Parameters (140-159) - spec 029
+    // Shimmer Delay Parameters (300-399) - spec 029
     // ==========================================================================
-    kShimmerBaseId = 140,
+    kShimmerBaseId = 300,
     // Parameters to be added during integration
-    kShimmerEndId = 159,
+    kShimmerEndId = 399,
 
     // ==========================================================================
-    // Tape Delay Parameters (160-179) - spec 024
+    // Tape Delay Parameters (400-499) - spec 024
     // ==========================================================================
-    kTapeBaseId = 160,
+    kTapeBaseId = 400,
     // Parameters to be added during integration
-    kTapeEndId = 179,
+    kTapeEndId = 499,
 
     // ==========================================================================
-    // BBD Delay Parameters (180-199) - spec 025
+    // BBD Delay Parameters (500-599) - spec 025
     // ==========================================================================
-    kBBDBaseId = 180,
+    kBBDBaseId = 500,
     // Parameters to be added during integration
-    kBBDEndId = 199,
+    kBBDEndId = 599,
 
     // ==========================================================================
-    // Digital Delay Parameters (200-219) - spec 026
+    // Digital Delay Parameters (600-699) - spec 026
     // ==========================================================================
-    kDigitalBaseId = 200,
+    kDigitalBaseId = 600,
     // Parameters to be added during integration
-    kDigitalEndId = 219,
+    kDigitalEndId = 699,
 
     // ==========================================================================
-    // PingPong Delay Parameters (220-239) - spec 027
+    // PingPong Delay Parameters (700-799) - spec 027
     // ==========================================================================
-    kPingPongBaseId = 220,
+    kPingPongBaseId = 700,
     // Parameters to be added during integration
-    kPingPongEndId = 239,
+    kPingPongEndId = 799,
 
     // ==========================================================================
-    // Reverse Delay Parameters (240-259) - spec 030
+    // Reverse Delay Parameters (800-899) - spec 030
     // ==========================================================================
-    kReverseBaseId = 240,
+    kReverseBaseId = 800,
     // Parameters to be added during integration
-    kReverseEndId = 259,
+    kReverseEndId = 899,
 
     // ==========================================================================
-    // MultiTap Delay Parameters (260-299) - spec 028
-    // Extended range for per-tap parameters (up to 16 taps)
+    // MultiTap Delay Parameters (900-999) - spec 028
     // ==========================================================================
-    kMultiTapBaseId = 260,
+    kMultiTapBaseId = 900,
     // Parameters to be added during integration
-    kMultiTapEndId = 299,
+    kMultiTapEndId = 999,
 
     // ==========================================================================
-    // Freeze Mode Parameters (300-319) - spec 031
+    // Freeze Mode Parameters (1000-1099) - spec 031
     // ==========================================================================
-    kFreezeBaseId = 300,
+    kFreezeBaseId = 1000,
     // Parameters to be added during integration
-    kFreezeEndId = 319,
+    kFreezeEndId = 1099,
 
     // ==========================================================================
-    // Ducking Delay Parameters (320-339) - spec 032
+    // Ducking Delay Parameters (1100-1199) - spec 032
     // ==========================================================================
-    kDuckingBaseId = 320,
+    kDuckingBaseId = 1100,
     // Parameters to be added during integration
-    kDuckingEndId = 339,
+    kDuckingEndId = 1199,
 
     // ==========================================================================
-    kNumParameters = 340
+    kNumParameters = 1200
 };
 
 // ==============================================================================
