@@ -99,6 +99,8 @@ add_executable(dsp_tests
     unit/processors/diffusion_network_test.cpp
     unit/processors/pitch_shift_processor_test.cpp
     unit/processors/reverse_feedback_processor_test.cpp
+    unit/processors/grain_scheduler_test.cpp
+    unit/processors/grain_processor_test.cpp
     # Layer 3: System Components
     unit/systems/delay_engine_test.cpp
     unit/systems/feedback_network_test.cpp
@@ -107,6 +109,7 @@ add_executable(dsp_tests
     unit/systems/stereo_field_test.cpp
     unit/systems/tap_manager_test.cpp
     unit/systems/flexible_feedback_network_test.cpp
+    unit/systems/granular_engine_test.cpp
     # Layer 4: User Features
     unit/features/tape_delay_test.cpp
     unit/features/bbd_delay_test.cpp
@@ -118,6 +121,7 @@ add_executable(dsp_tests
     unit/features/freeze_mode_test.cpp
     unit/features/ducking_delay_test.cpp
     unit/features/spectral_delay_test.cpp
+    unit/features/granular_delay_test.cpp
 )
 
 target_include_directories(dsp_tests
@@ -176,6 +180,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/diffusion_network_test.cpp
         unit/processors/pitch_shift_processor_test.cpp
         unit/processors/reverse_feedback_processor_test.cpp
+        unit/processors/grain_scheduler_test.cpp
+        unit/processors/grain_processor_test.cpp
         # Layer 3: System Components
         unit/systems/delay_engine_test.cpp
         unit/systems/feedback_network_test.cpp
@@ -184,6 +190,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/stereo_field_test.cpp
         unit/systems/tap_manager_test.cpp
         unit/systems/flexible_feedback_network_test.cpp
+        unit/systems/granular_engine_test.cpp
         # Layer 4: User Features
         unit/features/tape_delay_test.cpp
         unit/features/bbd_delay_test.cpp
@@ -195,6 +202,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/features/freeze_mode_test.cpp
         unit/features/ducking_delay_test.cpp
         unit/features/spectral_delay_test.cpp
+        unit/features/granular_delay_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
