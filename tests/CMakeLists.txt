@@ -74,6 +74,8 @@ add_executable(dsp_tests
     unit/core/fast_math_test.cpp
     unit/core/interpolation_test.cpp
     unit/core/stereo_utils_test.cpp
+    unit/core/pitch_utils_test.cpp
+    unit/core/grain_envelope_test.cpp
     unit/primitives/delay_line_test.cpp
     unit/primitives/lfo_test.cpp
     unit/primitives/biquad_test.cpp
@@ -148,6 +150,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/block_context_test.cpp
         unit/core/fast_math_test.cpp
         unit/core/interpolation_test.cpp
+        unit/core/pitch_utils_test.cpp
+        unit/core/grain_envelope_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/oversampler_test.cpp
         unit/primitives/delay_line_test.cpp
