@@ -87,6 +87,7 @@ add_executable(dsp_tests
     unit/primitives/bit_crusher_test.cpp
     unit/primitives/sample_rate_reducer_test.cpp
     unit/primitives/reverse_buffer_test.cpp
+    unit/primitives/grain_pool_test.cpp
     # Layer 2: DSP Processors
     unit/processors/multimode_filter_test.cpp
     unit/processors/saturation_processor_test.cpp
@@ -163,6 +164,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/bit_crusher_test.cpp
         unit/primitives/sample_rate_reducer_test.cpp
         unit/primitives/reverse_buffer_test.cpp
+        unit/primitives/grain_pool_test.cpp
         # Layer 2: DSP Processors
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
