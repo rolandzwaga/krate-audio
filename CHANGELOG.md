@@ -5,6 +5,91 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.35] - 2025-12-27
+
+### Added
+
+- **Layer 4 User Feature: GranularDelay** (`src/dsp/features/granular_delay.h`)
+  - Real-time granular delay effect using tapped delay line architecture
+  - Breaks incoming audio into small grains (10-500ms) with configurable parameters
+  - Complete feature set with 6 user stories:
+    - **US1: Basic Granular Texture**: Grain size (10-500ms) and density (1-100 Hz) control
+    - **US2: Per-Grain Pitch Shifting**: ±24 semitones with pitch spray randomization
+    - **US3: Position Randomization**: Delay time (0-2000ms) with position spray
+    - **US4: Reverse Grain Playback**: Per-grain reverse probability (0-100%)
+    - **US5: Granular Freeze**: Infinite sustain with frozen buffer capture
+    - **US6: Feedback Path**: 0-120% feedback with soft limiting
+
+- **Layered DSP architecture** for granular processing:
+  - **Layer 0**: `pitch_utils.h` - semitone/ratio conversion utilities
+  - **Layer 1**: `GrainPool` - lock-free grain allocation
+  - **Layer 2**: `GrainProcessor`, `GrainScheduler`, `GrainEnvelope` - grain lifecycle
+  - **Layer 3**: `GranularEngine` - grain orchestration and mixing
+  - **Layer 4**: `GranularDelay` - complete user feature
+
+- **Granular delay parameters**:
+  - **Grain Size**: 10-500ms grain duration
+  - **Density**: 1-100 grains/second spawn rate
+  - **Delay Time**: 0-2000ms base read position
+  - **Pitch**: ±24 semitones per-grain pitch shift
+  - **Pitch Spray**: 0-100% pitch randomization
+  - **Position Spray**: 0-100% time scatter
+  - **Pan Spray**: 0-100% stereo field randomization
+  - **Reverse Probability**: 0-100% chance of backwards playback
+  - **Freeze**: Buffer capture for infinite sustain
+  - **Feedback**: 0-120% with tanh() soft limiting
+  - **Dry/Wet Mix**: 0-100% with parameter smoothing
+  - **Output Gain**: -96dB to +6dB
+  - **Envelope Type**: Hann, Trapezoid, Sine, Blackman window shapes
+
+- **VST3 integration**: Full parameter automation support with state save/restore
+
+- **Comprehensive test suite** (1,308 test cases, 4.6M+ assertions)
+  - All functional requirements verified across all layers
+  - Reproducible output via deterministic seeding
+
+### Changed
+
+- **Refactored pitch utilities**: Consolidated `pitchRatioFromSemitones`/`semitonesFromPitchRatio`
+  from `pitch_shift_processor.h` into shared Layer 0 `pitch_utils.h`
+  - `semitonesToRatio()` and `ratioToSemitones()` now used by both PitchShiftProcessor and GranularDelay
+
+### Technical Details
+
+- **Layer 4 architecture**: Composes Layers 0-3 per constitution
+  - Uses: `StereoDelayBuffer` (L1) - 4-second circular buffer
+  - Uses: `GrainPool` (L1) - 128-grain lock-free allocation
+  - Uses: `OnePoleSmoother` (L1) x 4 - parameter smoothing
+  - Uses: `GrainProcessor` (L2) - grain playback with pitch shift
+  - Uses: `GrainScheduler` (L2) - stochastic grain spawning
+  - Uses: `GranularEngine` (L3) - grain orchestration
+
+- **Real-time safe**: `noexcept`, no allocations in `process()`
+- **Constitution compliance**: Principles II, III, VIII, IX, X, XII, XIII, XIV, XV
+
+### Usage
+
+```cpp
+#include "dsp/features/granular_delay.h"
+
+Iterum::DSP::GranularDelay delay;
+delay.prepare(44100.0);
+
+// Configure granular texture
+delay.setGrainSize(100.0f);      // 100ms grains
+delay.setDensity(25.0f);         // 25 grains/sec
+delay.setDelayTime(500.0f);      // 500ms delay
+delay.setPitch(12.0f);           // +12 semitones (octave up)
+delay.setPitchSpray(0.3f);       // 30% pitch randomization
+delay.setPositionSpray(0.5f);    // 50% position scatter
+delay.setReverseProbability(0.2f); // 20% reverse chance
+delay.setFeedback(0.4f);         // 40% feedback
+delay.setDryWet(0.6f);           // 60% wet
+
+// Process audio
+delay.process(inL, inR, outL, outR, numSamples);
+```
+
 ## [0.0.34] - 2025-12-27
 
 ### Added
