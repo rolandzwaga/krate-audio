@@ -29,6 +29,10 @@ jobs:
         with:
           submodules: recursive
 
+      # Setup MSVC environment for Ninja (otherwise it finds MinGW)
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
       # Setup sccache for compiler caching
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.7
