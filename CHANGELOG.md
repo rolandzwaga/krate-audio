@@ -5,6 +5,31 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-12-28
+
+### Fixed
+
+- **TapeDelay Dry/Wet Mix Bug**: The mix parameter now works correctly
+  - Bug: Dry signal was read AFTER TapManager overwrote buffers with wet signal
+  - Result: mix=0% or mix=50% still produced 100% wet output
+  - Fix: Save dry signal to stack-allocated temp buffers BEFORE processing
+  - Real-time safe: Uses `constexpr kMaxBlockSize` (4096), no heap allocations
+  - Applies to both stereo and mono `process()` methods
+
+### Added
+
+- **Regression Tests for Dry/Wet Mix** (`tests/unit/features/tape_delay_test.cpp`)
+  - 7 new tests to prevent reintroduction of the bug:
+    - Mix=0 (dry): output equals input exactly
+    - Mix=1 (wet): dry signal completely absent
+    - Mix=0.5: both dry and wet present with correct proportions
+    - Impulse produces immediate output (dry path)
+    - Wet echo appears at correct delay time
+    - Mono dry signal passthrough
+    - Mono 50% mix produces correct amplitude
+
+---
+
 ## [0.1.0] - 2025-12-28
 
 ### Summary
