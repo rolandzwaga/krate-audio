@@ -181,6 +181,8 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     modeParam->appendString(STR16("MultiTap"));
     modeParam->appendString(STR16("Freeze"));
     modeParam->appendString(STR16("Ducking"));
+    // Set default to Digital (index 5) - normalized value = 5/10 = 0.5
+    modeParam->setNormalized(0.5);
     parameters.addParameter(modeParam);
 
     // ==========================================================================
