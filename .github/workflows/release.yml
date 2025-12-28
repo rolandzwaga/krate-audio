@@ -59,6 +59,7 @@ jobs:
       - name: Prepare Installer Files
         run: |
           Copy-Item -Path "artifact\*" -Destination "installers\windows\" -Recurse -Force
+          Copy-Item -Path "CHANGELOG.md" -Destination "installers\windows\CHANGELOG.txt"
 
       - name: Build Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
@@ -131,6 +132,7 @@ jobs:
           mkdir -p staging
           cp -R artifact/Iterum.vst3 staging/
           cp installers/linux/README.txt staging/
+          cp CHANGELOG.md staging/CHANGELOG.txt
 
       - name: Create Archive
         run: |

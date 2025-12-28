@@ -56,6 +56,9 @@ UsePreviousAppDir=yes
 WizardStyle=modern
 SetupIconFile=compiler:SetupClassicIcon.ico
 
+; Show changelog before installation
+InfoBeforeFile=CHANGELOG.txt
+
 ; Architecture
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -67,6 +70,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; Copy the entire Iterum.vst3 bundle recursively
 ; Source path is relative to where the workflow runs (artifact extraction location)
 Source: "Iterum.vst3\*"; DestDir: "{app}\Iterum.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Install changelog with the plugin
+Source: "CHANGELOG.txt"; DestDir: "{app}\Iterum.vst3"; Flags: ignoreversion
 
 [Icons]
 ; No desktop icons needed for a VST plugin
