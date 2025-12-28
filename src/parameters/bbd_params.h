@@ -33,7 +33,7 @@ struct BBDParams {
     std::atomic<float> age{0.2f};              // 0-1
     std::atomic<int> era{0};                   // 0-3 (MN3005, MN3007, MN3205, SAD1024)
     std::atomic<float> mix{0.5f};              // 0-1
-    std::atomic<float> outputLevel{1.0f};      // linear gain
+    std::atomic<float> outputLevel{0.0f};       // dB (-96 to +12)
 };
 
 // ==============================================================================
@@ -91,11 +91,10 @@ inline void handleBBDParamChange(
                 std::memory_order_relaxed);
             break;
         case kBBDOutputLevelId:
-            // -96 to +12 dB -> linear
+            // -96 to +12 dB (store dB directly, no linear conversion)
             {
-                double dB = -96.0 + normalizedValue * 108.0;
-                double linear = (dB <= -96.0) ? 0.0 : std::pow(10.0, dB / 20.0);
-                params.outputLevel.store(static_cast<float>(linear), std::memory_order_relaxed);
+                float dB = static_cast<float>(-96.0 + normalizedValue * 108.0);
+                params.outputLevel.store(dB, std::memory_order_relaxed);
             }
             break;
     }

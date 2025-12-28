@@ -36,7 +36,7 @@ struct PingPongParams {
     std::atomic<float> modulationDepth{0.0f};   // 0-1
     std::atomic<float> modulationRate{1.0f};    // 0.1-10Hz
     std::atomic<float> mix{0.5f};               // 0-1
-    std::atomic<float> outputLevel{1.0f};       // linear gain
+    std::atomic<float> outputLevel{0.0f};        // dB (-120 to +12)
 };
 
 // ==============================================================================
@@ -112,11 +112,10 @@ inline void handlePingPongParamChange(
                 std::memory_order_relaxed);
             break;
         case kPingPongOutputLevelId:
-            // -120 to +12 dB -> linear
+            // -120 to +12 dB (store dB directly, no linear conversion)
             {
-                double dB = -120.0 + normalizedValue * 132.0;
-                double linear = (dB <= -120.0) ? 0.0 : std::pow(10.0, dB / 20.0);
-                params.outputLevel.store(static_cast<float>(linear), std::memory_order_relaxed);
+                float dB = static_cast<float>(-120.0 + normalizedValue * 132.0);
+                params.outputLevel.store(dB, std::memory_order_relaxed);
             }
             break;
     }

@@ -285,11 +285,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             tapeDelay_.setSpliceIntensity(tapeParams_.spliceIntensity.load(std::memory_order_relaxed));
             tapeDelay_.setFeedback(tapeParams_.feedback.load(std::memory_order_relaxed));
             tapeDelay_.setMix(tapeParams_.mix.load(std::memory_order_relaxed));
-            {
-                float linearGain = tapeParams_.outputLevel.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                tapeDelay_.setOutputLevel(dB);
-            }
+            // Output level is already in dB (no conversion needed)
+            tapeDelay_.setOutputLevel(tapeParams_.outputLevel.load(std::memory_order_relaxed));
             tapeDelay_.setHeadEnabled(0, tapeParams_.head1Enabled.load(std::memory_order_relaxed));
             tapeDelay_.setHeadEnabled(1, tapeParams_.head2Enabled.load(std::memory_order_relaxed));
             tapeDelay_.setHeadEnabled(2, tapeParams_.head3Enabled.load(std::memory_order_relaxed));
@@ -324,14 +321,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             bbdDelay_.setModulation(bbdParams_.modulationDepth.load(std::memory_order_relaxed));
             bbdDelay_.setModulationRate(bbdParams_.modulationRate.load(std::memory_order_relaxed));
             bbdDelay_.setAge(bbdParams_.age.load(std::memory_order_relaxed));
-            bbdDelay_.setEra(static_cast<DSP::BBDChipModel>(
+            bbdDelay_.setEra(DSP::getBBDEraFromDropdown(
                 bbdParams_.era.load(std::memory_order_relaxed)));
             bbdDelay_.setMix(bbdParams_.mix.load(std::memory_order_relaxed));
-            {
-                float linearGain = bbdParams_.outputLevel.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                bbdDelay_.setOutputLevel(dB);
-            }
+            // Output level is already in dB (no conversion needed)
+            bbdDelay_.setOutputLevel(bbdParams_.outputLevel.load(std::memory_order_relaxed));
             // Copy input to output first (BBDDelay processes in-place)
             std::copy_n(inputL, numSamples, outputL);
             std::copy_n(inputR, numSamples, outputR);
@@ -360,11 +354,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             digitalDelay_.setModulationWaveform(static_cast<DSP::Waveform>(
                 digitalParams_.modulationWaveform.load(std::memory_order_relaxed)));
             digitalDelay_.setMix(digitalParams_.mix.load(std::memory_order_relaxed));
-            {
-                float linearGain = digitalParams_.outputLevel.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                digitalDelay_.setOutputLevel(dB);
-            }
+            // Output level is already in dB (no conversion needed)
+            digitalDelay_.setOutputLevel(digitalParams_.outputLevel.load(std::memory_order_relaxed));
             // Copy input to output first (DigitalDelay processes in-place)
             std::copy_n(inputL, numSamples, outputL);
             std::copy_n(inputR, numSamples, outputR);
@@ -382,7 +373,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 const auto noteMapping = DSP::getNoteValueFromDropdown(noteIdx);
                 pingPongDelay_.setNoteValue(noteMapping.note, noteMapping.modifier);
             }
-            pingPongDelay_.setLRRatio(static_cast<DSP::LRRatio>(
+            pingPongDelay_.setLRRatio(DSP::getLRRatioFromDropdown(
                 pingPongParams_.lrRatio.load(std::memory_order_relaxed)));
             pingPongDelay_.setFeedback(pingPongParams_.feedback.load(std::memory_order_relaxed));
             pingPongDelay_.setCrossFeedback(pingPongParams_.crossFeedback.load(std::memory_order_relaxed));
@@ -390,11 +381,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             pingPongDelay_.setModulationDepth(pingPongParams_.modulationDepth.load(std::memory_order_relaxed));
             pingPongDelay_.setModulationRate(pingPongParams_.modulationRate.load(std::memory_order_relaxed));
             pingPongDelay_.setMix(pingPongParams_.mix.load(std::memory_order_relaxed));
-            {
-                float linearGain = pingPongParams_.outputLevel.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -120.0f : 20.0f * std::log10(linearGain);
-                pingPongDelay_.setOutputLevel(dB);
-            }
+            // Output level is already in dB (no conversion needed)
+            pingPongDelay_.setOutputLevel(pingPongParams_.outputLevel.load(std::memory_order_relaxed));
             // Copy input to output first (PingPongDelay processes in-place)
             std::copy_n(inputL, numSamples, outputL);
             std::copy_n(inputR, numSamples, outputR);
@@ -426,10 +414,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         case DelayMode::MultiTap:
             // Update MultiTap parameters
-            multiTapDelay_.loadTimingPattern(static_cast<DSP::TimingPattern>(
+            multiTapDelay_.loadTimingPattern(DSP::getTimingPatternFromDropdown(
                 multiTapParams_.timingPattern.load(std::memory_order_relaxed)),
                 static_cast<size_t>(multiTapParams_.tapCount.load(std::memory_order_relaxed)));
-            multiTapDelay_.applySpatialPattern(static_cast<DSP::SpatialPattern>(
+            multiTapDelay_.applySpatialPattern(DSP::getSpatialPatternFromDropdown(
                 multiTapParams_.spatialPattern.load(std::memory_order_relaxed)));
             multiTapDelay_.setBaseTimeMs(multiTapParams_.baseTime.load(std::memory_order_relaxed));
             multiTapDelay_.setTempo(multiTapParams_.tempo.load(std::memory_order_relaxed));
@@ -438,11 +426,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             multiTapDelay_.setFeedbackHPCutoff(multiTapParams_.feedbackHPCutoff.load(std::memory_order_relaxed));
             multiTapDelay_.setMorphTime(multiTapParams_.morphTime.load(std::memory_order_relaxed));
             multiTapDelay_.setDryWetMix(multiTapParams_.dryWet.load(std::memory_order_relaxed));
-            {
-                float linearGain = multiTapParams_.outputLevel.load(std::memory_order_relaxed);
-                float dB = 20.0f * std::log10(linearGain);
-                multiTapDelay_.setOutputLevel(dB);
-            }
+            // Output level is already in dB (no conversion needed)
+            multiTapDelay_.setOutputLevel(multiTapParams_.outputLevel.load(std::memory_order_relaxed));
             // Copy input to output first (MultiTapDelay processes in-place)
             std::copy_n(inputL, numSamples, outputL);
             std::copy_n(inputR, numSamples, outputR);

@@ -36,7 +36,7 @@ struct MultiTapParams {
     std::atomic<float> feedbackHPCutoff{20.0f};     // 20-20000Hz
     std::atomic<float> morphTime{500.0f};       // 50-2000ms
     std::atomic<float> dryWet{50.0f};           // 0-100%
-    std::atomic<float> outputLevel{1.0f};       // linear gain
+    std::atomic<float> outputLevel{0.0f};        // dB (-12 to +12)
 };
 
 // ==============================================================================
@@ -112,11 +112,10 @@ inline void handleMultiTapParamChange(
                 std::memory_order_relaxed);
             break;
         case kMultiTapOutputLevelId:
-            // -12 to +12 dB -> linear
+            // -12 to +12 dB (store dB directly, no linear conversion)
             {
-                double dB = -12.0 + normalizedValue * 24.0;
-                double linear = std::pow(10.0, dB / 20.0);
-                params.outputLevel.store(static_cast<float>(linear), std::memory_order_relaxed);
+                float dB = static_cast<float>(-12.0 + normalizedValue * 24.0);
+                params.outputLevel.store(dB, std::memory_order_relaxed);
             }
             break;
     }
