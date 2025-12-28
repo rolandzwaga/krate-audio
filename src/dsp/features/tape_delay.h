@@ -520,6 +520,17 @@ public:
         const size_t spliceClickSamples = static_cast<size_t>(
             kSpliceClickDurationMs * 0.001 * sampleRate_);
 
+        // Save dry signal BEFORE processing (required for dry/wet mix)
+        // Use stack-allocated temp buffers for real-time safety
+        constexpr size_t kMaxBlockSize = 4096;
+        const size_t safeSamples = std::min(numSamples, kMaxBlockSize);
+        float dryLeft[kMaxBlockSize];
+        float dryRight[kMaxBlockSize];
+        for (size_t i = 0; i < safeSamples; ++i) {
+            dryLeft[i] = left[i];
+            dryRight[i] = right[i];
+        }
+
         for (size_t i = 0; i < numSamples; ++i) {
             // Get smoothed motor delay and update head times
             const float currentDelayMs = motor_.process();
@@ -568,17 +579,20 @@ public:
             }
         }
 
-        // Apply mix and output level
-        for (size_t i = 0; i < numSamples; ++i) {
-            const float dryL = left[i];
-            const float dryR = right[i];
-
+        // Apply mix and output level using saved dry signal
+        for (size_t i = 0; i < safeSamples; ++i) {
             const float wetMix = mixSmoother_.process();
             const float dryMix = 1.0f - wetMix;
             const float outputGain = outputLevelSmoother_.process();
 
-            left[i] = (dryL * dryMix + left[i] * wetMix) * outputGain;
-            right[i] = (dryR * dryMix + right[i] * wetMix) * outputGain;
+            left[i] = (dryLeft[i] * dryMix + left[i] * wetMix) * outputGain;
+            right[i] = (dryRight[i] * dryMix + right[i] * wetMix) * outputGain;
+        }
+        // Handle any samples beyond kMaxBlockSize (rare edge case)
+        for (size_t i = safeSamples; i < numSamples; ++i) {
+            const float outputGain = outputLevelSmoother_.process();
+            left[i] *= outputGain;
+            right[i] *= outputGain;
         }
     }
 
@@ -591,6 +605,14 @@ public:
         // Calculate splice click duration in samples
         const size_t spliceClickSamples = static_cast<size_t>(
             kSpliceClickDurationMs * 0.001 * sampleRate_);
+
+        // Save dry signal BEFORE processing (required for dry/wet mix)
+        constexpr size_t kMaxBlockSize = 4096;
+        const size_t safeSamples = std::min(numSamples, kMaxBlockSize);
+        float dryBuffer[kMaxBlockSize];
+        for (size_t i = 0; i < safeSamples; ++i) {
+            dryBuffer[i] = buffer[i];
+        }
 
         // For mono, process as dual mono
         for (size_t i = 0; i < numSamples; ++i) {
@@ -634,8 +656,16 @@ public:
             }
         }
 
-        // Apply output level
-        for (size_t i = 0; i < numSamples; ++i) {
+        // Apply mix and output level using saved dry signal
+        for (size_t i = 0; i < safeSamples; ++i) {
+            const float wetMix = mixSmoother_.process();
+            const float dryMix = 1.0f - wetMix;
+            const float outputGain = outputLevelSmoother_.process();
+
+            buffer[i] = (dryBuffer[i] * dryMix + buffer[i] * wetMix) * outputGain;
+        }
+        // Handle any samples beyond kMaxBlockSize (rare edge case)
+        for (size_t i = safeSamples; i < numSamples; ++i) {
             const float outputGain = outputLevelSmoother_.process();
             buffer[i] *= outputGain;
         }

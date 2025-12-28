@@ -949,6 +949,207 @@ TEST_CASE("TapeDelay produces delayed output", "[features][tape-delay][signal-fl
 }
 
 // =============================================================================
+// REGRESSION TESTS: Dry/Wet Mix Bug Fix
+// =============================================================================
+// These tests prevent reintroduction of a critical bug where the dry signal
+// was being read AFTER TapManager had overwritten the buffers with wet signal.
+// Result was that mix=50% still produced 100% wet output.
+//
+// Bug fix: Save dry signal to temp buffers BEFORE processing, then use
+// saved dry signal for mixing.
+// =============================================================================
+
+TEST_CASE("REGRESSION: Dry/wet mix parameter works correctly", "[features][tape-delay][mix][regression]") {
+    TapeDelay delay;
+    delay.prepare(44100.0, 512, 2000.0f);
+
+    // Use long delay so wet signal doesn't appear in our test buffer
+    delay.setMotorSpeed(500.0f);  // 500ms delay
+    delay.setFeedback(0.0f);
+    delay.setWear(0.0f);
+    delay.setSaturation(0.0f);
+    delay.setAge(0.0f);
+    delay.setHeadEnabled(1, false);
+    delay.setHeadEnabled(2, false);
+    delay.setOutputLevel(0.0f);  // Unity gain
+
+    SECTION("Mix=0 (dry): output equals input exactly") {
+        delay.setMix(0.0f);  // 100% dry
+        delay.reset();
+
+        // Create input with known values
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+        for (size_t i = 0; i < 512; ++i) {
+            left[i] = 0.5f;
+            right[i] = 0.5f;
+        }
+
+        delay.process(left.data(), right.data(), 512);
+
+        // At mix=0, output should equal input (no wet signal yet, delay is 500ms)
+        for (size_t i = 0; i < 512; ++i) {
+            REQUIRE(left[i] == Approx(0.5f).margin(0.01f));
+            REQUIRE(right[i] == Approx(0.5f).margin(0.01f));
+        }
+    }
+
+    SECTION("Mix=1 (wet): dry signal is completely absent") {
+        delay.setMix(1.0f);  // 100% wet
+        delay.reset();
+
+        // Input constant signal
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+        for (size_t i = 0; i < 512; ++i) {
+            left[i] = 0.5f;
+            right[i] = 0.5f;
+        }
+
+        delay.process(left.data(), right.data(), 512);
+
+        // At mix=1, output should be near zero (no delayed signal yet)
+        float maxOutput = 0.0f;
+        for (size_t i = 0; i < 512; ++i) {
+            maxOutput = std::max(maxOutput, std::abs(left[i]));
+            maxOutput = std::max(maxOutput, std::abs(right[i]));
+        }
+        // Should be nearly silent (only wet, which hasn't arrived yet)
+        REQUIRE(maxOutput < 0.05f);
+    }
+
+    SECTION("Mix=0.5: both dry and wet present with correct proportions") {
+        delay.setMix(0.5f);  // 50% dry, 50% wet
+        delay.reset();
+
+        // Input constant signal
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+        for (size_t i = 0; i < 512; ++i) {
+            left[i] = 1.0f;
+            right[i] = 1.0f;
+        }
+
+        delay.process(left.data(), right.data(), 512);
+
+        // At mix=0.5: output = 0.5*dry + 0.5*wet
+        // Wet is ~0 (delay hasn't arrived), so output ≈ 0.5*1.0 = 0.5
+        // Allow for parameter smoothing
+        float avgOutput = 0.0f;
+        for (size_t i = 256; i < 512; ++i) {  // Skip first half for smoothing
+            avgOutput += left[i];
+        }
+        avgOutput /= 256.0f;
+
+        // Should be approximately 0.5 (half of dry signal)
+        // THE BUG: Before fix, this was ~0 because dry was overwritten
+        REQUIRE(avgOutput == Approx(0.5f).margin(0.1f));
+    }
+}
+
+TEST_CASE("REGRESSION: Dry signal passes through immediately", "[features][tape-delay][mix][regression]") {
+    TapeDelay delay;
+    delay.prepare(44100.0, 512, 2000.0f);
+
+    delay.setMotorSpeed(100.0f);  // 100ms delay = 4410 samples
+    delay.setFeedback(0.0f);
+    delay.setMix(0.5f);  // 50/50 mix
+    delay.setWear(0.0f);
+    delay.setSaturation(0.0f);
+    delay.setAge(0.0f);
+    delay.setHeadEnabled(1, false);
+    delay.setHeadEnabled(2, false);
+    delay.setOutputLevel(0.0f);
+    delay.reset();
+
+    SECTION("Impulse produces immediate output (dry path)") {
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+        left[0] = 1.0f;  // Impulse at sample 0
+        right[0] = 1.0f;
+
+        delay.process(left.data(), right.data(), 512);
+
+        // The dry portion of the impulse should appear at sample 0
+        // (not delayed by 100ms like the wet portion)
+        // With 50% mix and unity gain: output[0] ≈ 0.5 * 1.0 + 0.5 * 0 = 0.5
+        // THE BUG: Before fix, output[0] was ~0 because dry signal was lost
+        REQUIRE(left[0] > 0.3f);  // Should have significant immediate output
+        REQUIRE(right[0] > 0.3f);
+    }
+
+    SECTION("Wet echo appears at correct delay time while dry passes immediately") {
+        const size_t bufferSize = 8820;  // 200ms worth of samples
+        std::vector<float> left(bufferSize, 0.0f);
+        std::vector<float> right(bufferSize, 0.0f);
+        left[0] = 1.0f;  // Impulse
+        right[0] = 1.0f;
+
+        delay.process(left.data(), right.data(), bufferSize);
+
+        // Check for immediate dry response at sample 0
+        REQUIRE(left[0] > 0.3f);
+
+        // Check for delayed wet response around sample 4410 (100ms)
+        // Find peak in delayed region
+        float peakValue = 0.0f;
+        for (size_t i = 4000; i < 5000; ++i) {
+            peakValue = std::max(peakValue, std::abs(left[i]));
+        }
+        // Should have echo (wet portion arriving at delay time)
+        REQUIRE(peakValue > 0.1f);
+    }
+}
+
+TEST_CASE("REGRESSION: Mono processing dry/wet mix works", "[features][tape-delay][mix][mono][regression]") {
+    TapeDelay delay;
+    delay.prepare(44100.0, 512, 2000.0f);
+
+    delay.setMotorSpeed(500.0f);  // Long delay
+    delay.setFeedback(0.0f);
+    delay.setWear(0.0f);
+    delay.setSaturation(0.0f);
+    delay.setAge(0.0f);
+    delay.setHeadEnabled(1, false);
+    delay.setHeadEnabled(2, false);
+    delay.setOutputLevel(0.0f);
+
+    SECTION("Mono: Mix=0 passes dry signal") {
+        delay.setMix(0.0f);
+        delay.reset();
+
+        std::array<float, 512> buffer{};
+        for (auto& s : buffer) s = 0.5f;
+
+        delay.process(buffer.data(), 512);
+
+        // At mix=0, output should equal input
+        for (size_t i = 100; i < 512; ++i) {  // Skip initial smoothing
+            REQUIRE(buffer[i] == Approx(0.5f).margin(0.01f));
+        }
+    }
+
+    SECTION("Mono: Mix=0.5 produces half amplitude (dry only, wet hasn't arrived)") {
+        delay.setMix(0.5f);
+        delay.reset();
+
+        std::array<float, 512> buffer{};
+        for (auto& s : buffer) s = 1.0f;
+
+        delay.process(buffer.data(), 512);
+
+        // At mix=0.5, output ≈ 0.5 (dry portion only)
+        float avgOutput = 0.0f;
+        for (size_t i = 256; i < 512; ++i) {
+            avgOutput += buffer[i];
+        }
+        avgOutput /= 256.0f;
+
+        REQUIRE(avgOutput == Approx(0.5f).margin(0.1f));
+    }
+}
+
+// =============================================================================
 // FR-024: Age Control Affects Artifact Intensity
 // =============================================================================
 
