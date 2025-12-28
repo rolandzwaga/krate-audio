@@ -441,6 +441,11 @@ target_link_libraries(vst_tests
         sdk
 )
 
+# On macOS, VST3 SDK requires CoreFoundation framework
+if(APPLE)
+    target_link_libraries(vst_tests PRIVATE "-framework CoreFoundation")
+endif()
+
 target_compile_features(vst_tests PRIVATE cxx_std_20)
 
 # Register with CTest
