@@ -217,6 +217,11 @@ if(MSVC)
         /wd4458       # Declaration hides class member (SDK headers)
         # /WX         # Treat warnings as errors (enable for CI)
     )
+    # Override VST3 SDK's /Zi with /Z7 for sccache/ccache compatibility
+    # Must be added after smtg_add_vst3plugin since SDK adds /Zi via add_compile_options
+    if(CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER)
+        target_compile_options(${PLUGIN_NAME} PRIVATE /Z7)
+    endif()
 else()
     target_compile_options(${PLUGIN_NAME} PRIVATE
         -Wall
