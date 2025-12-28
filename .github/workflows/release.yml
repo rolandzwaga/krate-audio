@@ -64,7 +64,9 @@ jobs:
 
       - name: Prepare Installer Files
         run: |
-          Copy-Item -Path "artifact\*" -Destination "installers\windows\" -Recurse -Force
+          # Rename artifact folder to Iterum.vst3 (upload-artifact extracts contents, not folder)
+          Rename-Item -Path "artifact" -NewName "Iterum.vst3"
+          Move-Item -Path "Iterum.vst3" -Destination "installers\windows\"
           # Convert markdown to plain text for installer display
           (Get-Content CHANGELOG.md -Raw) `
             -replace '\[([^\]]+)\]\([^\)]+\)', '$1' `
@@ -111,7 +113,8 @@ jobs:
       - name: Prepare Installer Files
         run: |
           mkdir -p staging/Library/Audio/Plug-Ins/VST3
-          cp -R artifact/Iterum.vst3 staging/Library/Audio/Plug-Ins/VST3/
+          # Rename artifact folder to Iterum.vst3 (upload-artifact extracts contents, not folder)
+          mv artifact staging/Library/Audio/Plug-Ins/VST3/Iterum.vst3
 
       - name: Build Installer
         run: |
@@ -154,7 +157,8 @@ jobs:
       - name: Prepare Archive Files
         run: |
           mkdir -p staging
-          cp -R artifact/Iterum.vst3 staging/
+          # Rename artifact folder to Iterum.vst3 (upload-artifact extracts contents, not folder)
+          mv artifact staging/Iterum.vst3
           cp installers/linux/README.txt staging/
           # Convert markdown to plain text
           sed -e 's/\[\([^]]*\)\]([^)]*)/ \1/g' \
