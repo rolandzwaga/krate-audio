@@ -9,6 +9,7 @@
 
 #include "plugin_ids.h"
 #include "pluginterfaces/base/ftypes.h"
+#include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -34,7 +35,7 @@ struct TapeParams {
     std::atomic<float> spliceIntensity{0.5f};   // 0-1
     std::atomic<float> feedback{0.4f};          // 0-1.2
     std::atomic<float> mix{0.5f};               // 0-1
-    std::atomic<float> outputLevel{1.0f};       // linear gain
+    std::atomic<float> outputLevel{0.0f};        // dB (-96 to +12)
 
     // Head parameters (3 heads like RE-201 Space Echo)
     std::atomic<bool> head1Enabled{true};
@@ -112,11 +113,10 @@ inline void handleTapeParamChange(
                 std::memory_order_relaxed);
             break;
         case kTapeOutputLevelId:
-            // -96 to +12 dB -> linear
+            // -96 to +12 dB (store dB directly, no linear conversion)
             {
-                double dB = -96.0 + normalizedValue * 108.0;
-                double linear = (dB <= -96.0) ? 0.0 : std::pow(10.0, dB / 20.0);
-                params.outputLevel.store(static_cast<float>(linear), std::memory_order_relaxed);
+                float dB = static_cast<float>(-96.0 + normalizedValue * 108.0);
+                params.outputLevel.store(dB, std::memory_order_relaxed);
             }
             break;
         case kTapeHead1EnabledId:

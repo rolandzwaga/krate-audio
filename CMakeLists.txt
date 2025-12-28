@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.20)
 # Project Configuration
 # ==============================================================================
 project(Iterum
-    VERSION 0.0.35
+    VERSION 0.1.0
     DESCRIPTION "Iterum VST3 Delay Plugin"
     LANGUAGES CXX
 )
@@ -32,6 +32,24 @@ if(USE_CCACHE)
         URL_HASH SHA256=5ecd99d8f7e2b8191b0481ffbe31822c96b1a0dbc55eda570b31228dbe39ae6f
     )
     FetchContent_MakeAvailable(Ccache.cmake)
+endif()
+
+# ==============================================================================
+# MSVC PDB Workaround for sccache/ccache
+# ==============================================================================
+# The VST3 SDK (specifically VSTGUI) uses /Zi which creates shared PDB files.
+# When using Ninja with sccache/ccache, multiple compiler processes try to
+# write to the same PDB simultaneously, causing conflicts.
+#
+# Solution: Replace /Zi with /Z7 which embeds debug info in object files.
+# This is the industry-standard approach used by Chromium, Firefox, etc.
+# The linker still creates a proper PDB from the embedded debug info.
+if(MSVC AND (CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER))
+    message(STATUS "[ITERUM] Using /Z7 instead of /Zi for sccache/ccache compatibility")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
 endif()
 
 # ==============================================================================
@@ -121,6 +139,11 @@ target_link_libraries(${PLUGIN_NAME}
         vstgui_support
 )
 
+# Note: VSTGUI bundle support on Windows is automatically enabled by
+# vstgui_support when SMTG_CREATE_BUNDLE_FOR_WINDOWS is ON (default).
+# The vstgui_support library adds SMTG_MODULE_IS_BUNDLE=1 as PUBLIC
+# and includes the bundle support source files.
+
 # Include directories (Constitution Principle VII: include/<project>/ style)
 target_include_directories(${PLUGIN_NAME}
     PRIVATE
@@ -154,6 +177,7 @@ endif()
 smtg_target_add_plugin_resources(${PLUGIN_NAME}
     RESOURCES
         resources/editor.uidesc
+        resources/editor_minimal.uidesc
 )
 
 # ==============================================================================
@@ -193,6 +217,11 @@ if(MSVC)
         /wd4458       # Declaration hides class member (SDK headers)
         # /WX         # Treat warnings as errors (enable for CI)
     )
+    # Override VST3 SDK's /Zi with /Z7 for sccache/ccache compatibility
+    # Must be added after smtg_add_vst3plugin since SDK adds /Zi via add_compile_options
+    if(CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER)
+        target_compile_options(${PLUGIN_NAME} PRIVATE /Z7)
+    endif()
 else()
     target_compile_options(${PLUGIN_NAME} PRIVATE
         -Wall

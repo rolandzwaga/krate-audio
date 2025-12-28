@@ -38,6 +38,7 @@
 #include "parameters/shimmer_params.h"
 #include "parameters/spectral_params.h"
 #include "parameters/tape_params.h"
+#include "parameters/dropdown_mappings.h"
 
 #include <array>
 #include <atomic>
@@ -131,6 +132,7 @@ private:
 
     std::atomic<float> gain_{1.0f};
     std::atomic<bool> bypass_{false};
+    std::atomic<int> mode_{0};  // DelayMode enum value (0 = Granular)
 
     // ==========================================================================
     // Mode-Specific Parameter Packs

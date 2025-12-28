@@ -8,7 +8,9 @@
 // ==============================================================================
 
 #include "plugin_ids.h"
+#include "controller/parameter_helpers.h"
 #include "pluginterfaces/base/ftypes.h"
+#include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -34,7 +36,7 @@ struct PingPongParams {
     std::atomic<float> modulationDepth{0.0f};   // 0-1
     std::atomic<float> modulationRate{1.0f};    // 0.1-10Hz
     std::atomic<float> mix{0.5f};               // 0-1
-    std::atomic<float> outputLevel{1.0f};       // linear gain
+    std::atomic<float> outputLevel{0.0f};        // dB (-120 to +12)
 };
 
 // ==============================================================================
@@ -110,11 +112,10 @@ inline void handlePingPongParamChange(
                 std::memory_order_relaxed);
             break;
         case kPingPongOutputLevelId:
-            // -120 to +12 dB -> linear
+            // -120 to +12 dB (store dB directly, no linear conversion)
             {
-                double dB = -120.0 + normalizedValue * 132.0;
-                double linear = (dB <= -120.0) ? 0.0 : std::pow(10.0, dB / 20.0);
-                params.outputLevel.store(static_cast<float>(linear), std::memory_order_relaxed);
+                float dB = static_cast<float>(-120.0 + normalizedValue * 132.0);
+                params.outputLevel.store(dB, std::memory_order_relaxed);
             }
             break;
     }
@@ -137,41 +138,25 @@ inline void registerPingPongParams(Steinberg::Vst::ParameterContainer& parameter
         ParameterInfo::kCanAutomate,
         kPingPongDelayTimeId);
 
-    // Time Mode (Free/Synced)
-    auto* timeModeParam = parameters.addParameter(
-        STR16("PingPong Time Mode"),
-        nullptr,
-        1,
-        0,  // default: Free
-        ParameterInfo::kCanAutomate | ParameterInfo::kIsList,
-        kPingPongTimeModeId);
-    if (timeModeParam) {
-        timeModeParam->getInfo().stepCount = 1;
-    }
+    // Time Mode (Free/Synced) - MUST use StringListParameter
+    parameters.addParameter(createDropdownParameter(
+        STR16("PingPong Time Mode"), kPingPongTimeModeId,
+        {STR16("Free"), STR16("Synced")}
+    ));
 
-    // Note Value
-    auto* noteValueParam = parameters.addParameter(
-        STR16("PingPong Note Value"),
-        nullptr,
-        9,
-        0.444,  // default: Quarter
-        ParameterInfo::kCanAutomate | ParameterInfo::kIsList,
-        kPingPongNoteValueId);
-    if (noteValueParam) {
-        noteValueParam->getInfo().stepCount = 9;
-    }
+    // Note Value - MUST use StringListParameter
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("PingPong Note Value"), kPingPongNoteValueId,
+        4,  // default: 1/8 (index 4)
+        {STR16("1/32"), STR16("1/16T"), STR16("1/16"), STR16("1/8T"), STR16("1/8"),
+         STR16("1/4T"), STR16("1/4"), STR16("1/2T"), STR16("1/2"), STR16("1/1")}
+    ));
 
-    // L/R Ratio
-    auto* ratioParam = parameters.addParameter(
-        STR16("PingPong L/R Ratio"),
-        nullptr,
-        6,  // stepCount: 7 values
-        0,  // default: 1:1
-        ParameterInfo::kCanAutomate | ParameterInfo::kIsList,
-        kPingPongLRRatioId);
-    if (ratioParam) {
-        ratioParam->getInfo().stepCount = 6;
-    }
+    // L/R Ratio - MUST use StringListParameter
+    parameters.addParameter(createDropdownParameter(
+        STR16("PingPong L/R Ratio"), kPingPongLRRatioId,
+        {STR16("1:1"), STR16("2:1"), STR16("3:2"), STR16("4:3"), STR16("1:2"), STR16("2:3"), STR16("3:4")}
+    ));
 
     // Feedback (0-120%)
     parameters.addParameter(
@@ -261,27 +246,9 @@ inline Steinberg::tresult formatPingPongParam(
             return kResultOk;
         }
 
-        case kPingPongTimeModeId: {
-            Steinberg::UString(string, 128).fromAscii(
-                normalizedValue >= 0.5 ? "Synced" : "Free");
-            return kResultOk;
-        }
-
-        case kPingPongNoteValueId: {
-            int note = static_cast<int>(normalizedValue * 9.0 + 0.5);
-            const char* names[] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2T", "1/2", "1/1"};
-            Steinberg::UString(string, 128).fromAscii(
-                names[note < 0 ? 0 : (note > 9 ? 9 : note)]);
-            return kResultOk;
-        }
-
-        case kPingPongLRRatioId: {
-            int ratio = static_cast<int>(normalizedValue * 6.0 + 0.5);
-            const char* names[] = {"1:1", "2:1", "3:2", "4:3", "1:2", "2:3", "3:4"};
-            Steinberg::UString(string, 128).fromAscii(
-                names[ratio < 0 ? 0 : (ratio > 6 ? 6 : ratio)]);
-            return kResultOk;
-        }
+        // kPingPongTimeModeId: handled by StringListParameter::toString() automatically
+        // kPingPongNoteValueId: handled by StringListParameter::toString() automatically
+        // kPingPongLRRatioId: handled by StringListParameter::toString() automatically
 
         case kPingPongFeedbackId: {
             float percent = static_cast<float>(normalizedValue * 120.0);
