@@ -35,6 +35,24 @@ if(USE_CCACHE)
 endif()
 
 # ==============================================================================
+# MSVC PDB Workaround for sccache/ccache
+# ==============================================================================
+# The VST3 SDK (specifically VSTGUI) uses /Zi which creates shared PDB files.
+# When using Ninja with sccache/ccache, multiple compiler processes try to
+# write to the same PDB simultaneously, causing conflicts.
+#
+# Solution: Replace /Zi with /Z7 which embeds debug info in object files.
+# This is the industry-standard approach used by Chromium, Firefox, etc.
+# The linker still creates a proper PDB from the embedded debug info.
+if(MSVC AND (CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER))
+    message(STATUS "[ITERUM] Using /Z7 instead of /Zi for sccache/ccache compatibility")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+endif()
+
+# ==============================================================================
 # VST3 SDK Configuration
 # ==============================================================================
 # Path to VST3 SDK (as git submodule in extern/)
