@@ -5,6 +5,88 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2025-12-28
+
+### Summary
+
+**First Alpha Milestone** - Iterum is now a fully functional VST3 delay plugin with 11 delay modes,
+complete parameter automation, and a clean layered DSP architecture.
+
+### Added
+
+- **Complete VST3 Parameter Integration for All 11 Delay Modes**
+  - Each mode has dedicated parameter packs with atomic storage for thread-safe access
+  - Full parameter automation support in all major DAWs
+  - State save/restore working correctly across sessions
+  - Modes: Tape, BBD, Digital, PingPong, MultiTap, Shimmer, Reverse, Freeze, Ducking, Spectral, Granular
+
+- **Mode-Specific Parameter Pack Architecture** (`src/parameters/*_params.h`)
+  - Introduced dedicated parameter structs for each delay mode
+  - Clean separation between VST3 parameter IDs and DSP state
+  - Expanded parameter ID ranges for future scalability (100 IDs per mode)
+
+- **CrossfadingDelayLine** (`src/dsp/primitives/crossfading_delay_line.h`)
+  - Layer 1 primitive for click-free delay time changes
+  - Two-tap crossfading algorithm with drift detection
+  - Triggers 20ms crossfade when delay drifts ≥100 samples
+  - Integrated into FeedbackNetwork and FlexibleFeedbackNetwork (Layer 3)
+  - 15 comprehensive tests verifying crossfade behavior
+
+- **Type-Safe Dropdown Mappings** (`src/parameters/dropdown_mappings.h`)
+  - Explicit UI dropdown index → DSP enum conversion functions
+  - Replaces fragile `static_cast<>` that assumed enum values match indices
+  - Functions: `getBBDEraFromDropdown()`, `getLRRatioFromDropdown()`,
+    `getTimingPatternFromDropdown()`, `getSpatialPatternFromDropdown()`
+  - Clean architecture: Parameters layer handles UI translation, DSP layer stays pure
+  - 39 test cases for all mappings
+
+- **Tempo Sync Utilities** (`src/dsp/core/note_value.h`)
+  - `noteToDelayMs()`: Convert note value + modifier to milliseconds at given BPM
+  - `dropdownToDelayMs()`: Direct dropdown index → delay time conversion
+  - `getNoteValueFromDropdown()`: Type-safe note value mapping
+  - Comprehensive tests for all note values, dotted, and triplet variants
+
+- **VST3 StringListParameter Helper** (`src/controller/parameter_helpers.h`)
+  - Type-safe dropdown menu parameter creation
+  - Proper step count and string list handling
+
+- **Parameter Normalization Tests** (`tests/unit/vst/`)
+  - Validates all 11 delay modes have correct parameter normalization
+  - Ensures UI ↔ DSP value conversion is consistent
+
+### Changed
+
+- **TapeDelay**: Removed unused FeedbackNetwork component
+  - Feedback was already working through TapManager's per-tap feedback mechanism
+  - Simplified component composition, no functional change
+
+- **Output Level Parameters**: Fixed double-conversion issue
+  - Previously: normalized → dB → linear → dB → linear (redundant)
+  - Now: Store dB directly in params, pass to delay without conversion
+  - Affected modes: Tape, BBD, Digital, PingPong, MultiTap
+
+- **FeedbackNetwork & FlexibleFeedbackNetwork**: Integrated CrossfadingDelayLine
+  - Delay time changes now click-free via automatic crossfading
+  - Maintains all existing API, internal implementation upgraded
+
+### Fixed
+
+- DigitalDelay tempo sync now uses proper Layer 0 note value utilities
+- Dropdown parameters use explicit mappings instead of assumption-based casts
+
+### Technical Details
+
+- **Test Coverage**: 1,419 DSP test cases + 8 VST test cases, all passing
+- **Architecture**: 5-layer DSP system (Layers 0-4) with clean dependency hierarchy
+- **Real-Time Safe**: All audio processing is `noexcept`, allocation-free
+- **Cross-Platform**: Builds on Windows (MSVC), macOS (Clang), Linux (GCC)
+
+### Breaking Changes
+
+None - this is the first alpha milestone.
+
+---
+
 ## [0.0.35] - 2025-12-27
 
 ### Added
