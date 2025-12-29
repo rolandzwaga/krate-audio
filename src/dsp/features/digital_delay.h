@@ -688,19 +688,13 @@ private:
                 character_.setMode(CharacterMode::DigitalVintage);
                 // Bit depth: 16 -> 4 as age increases (aggressive)
                 character_.setDigitalBitDepth(16.0f - age_ * 12.0f);
-                // Dither scales with Age: less dither at low age, more at high age
-                // Age 0% = 0.5 dither, Age 100% = 1.0 dither (more noise)
-                character_.setDigitalDitherAmount(0.5f + age_ * 0.5f);
-                // Sample rate reduction: TEMPORARILY DISABLED for dither testing
-                //character_.setDigitalSampleRateReduction(1.0f + age_ * 3.0f);
-                character_.setDigitalSampleRateReduction(1.0f); // No SR reduction
-                // More aggressive filtering
-                //feedbackNetwork_.setFilterEnabled(true); // TEMPORARILY DISABLED for testing
+                // NO dither - noise comes from bit crushing, not dither
+                character_.setDigitalDitherAmount(0.0f);
+                // Sample rate reduction for aliasing artifacts
+                character_.setDigitalSampleRateReduction(1.0f + age_ * 3.0f);
+                // NO feedback filtering for LoFi (raw/aggressive sound)
                 feedbackNetwork_.setFilterEnabled(false);
-                feedbackNetwork_.setFilterType(FilterType::Lowpass);
-                feedbackNetwork_.setFilterCutoff(8000.0f - age_ * 4000.0f); // 8-4kHz
-                // Enable anti-alias filter
-                //antiAliasEnabled_ = true; // TEMPORARILY DISABLED for testing
+                // NO anti-aliasing for LoFi (aliasing is part of the character)
                 antiAliasEnabled_ = false;
                 break;
         }
