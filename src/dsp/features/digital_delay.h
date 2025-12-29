@@ -702,8 +702,9 @@ private:
                 feedbackNetwork_.setFilterCutoff(8000.0f - age_ * 4000.0f); // 8-4kHz
                 // Enable anti-alias filter
                 antiAliasEnabled_ = true;
-                // Higher noise floor for lo-fi character
-                noiseGain_ = dbToGain(-60.0f);  // More noise than 80s
+                // Noise floor scales with age: -80dB at age=0, -40dB at age=1.0
+                // This allows clean sound at low age, increasing noise as degradation increases
+                noiseGain_ = dbToGain(-80.0f + age_ * 40.0f);
                 break;
         }
     }
