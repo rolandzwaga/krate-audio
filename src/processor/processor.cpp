@@ -354,6 +354,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             digitalDelay_.setModulationWaveform(static_cast<DSP::Waveform>(
                 digitalParams_.modulationWaveform.load(std::memory_order_relaxed)));
             digitalDelay_.setMix(digitalParams_.mix.load(std::memory_order_relaxed));
+            digitalDelay_.setWidth(digitalParams_.width.load(std::memory_order_relaxed));
             // Output level is already in dB (no conversion needed)
             digitalDelay_.setOutputLevel(digitalParams_.outputLevel.load(std::memory_order_relaxed));
             // Copy input to output first (DigitalDelay processes in-place)
