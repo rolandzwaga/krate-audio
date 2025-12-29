@@ -4,6 +4,7 @@
 
 #include "controller.h"
 #include "plugin_ids.h"
+#include "controller/version_utils.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 
@@ -11,6 +12,7 @@
 #include "vstgui/lib/platform/iplatformframe.h"
 #include "vstgui/lib/controls/ccontrol.h"
 #include "vstgui/lib/controls/coptionmenu.h"
+#include "vstgui/lib/controls/ctextlabel.h"
 #include "vstgui/uidescription/uiviewswitchcontainer.h"
 
 #include "base/source/fobject.h"
@@ -804,6 +806,39 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             if (auto* pingPongTimeMode = getParameterObject(kPingPongTimeModeId)) {
                 pingPongVisibilityController_ = new VisibilityController(
                     editor, pingPongTimeMode, kPingPongDelayTimeId);
+            }
+
+            // =====================================================================
+            // Dynamic Version Label
+            // =====================================================================
+            // Set version label text from version.json instead of hardcoded string
+            // Tag 9999 is assigned to the version label in editor.uidesc
+            // =====================================================================
+            std::function<VSTGUI::CTextLabel*(VSTGUI::CViewContainer*, int32_t)> findTextLabel;
+            findTextLabel = [&findTextLabel](VSTGUI::CViewContainer* container, int32_t tag) -> VSTGUI::CTextLabel* {
+                if (!container) return nullptr;
+                VSTGUI::ViewIterator it(container);
+                while (*it) {
+                    if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(*it)) {
+                        if (label->getTag() == tag) {
+                            return label;
+                        }
+                    }
+                    if (auto* childContainer = (*it)->asViewContainer()) {
+                        if (auto* found = findTextLabel(childContainer, tag)) {
+                            return found;
+                        }
+                    }
+                    ++it;
+                }
+                return nullptr;
+            };
+
+            // Find and update version label (tag 9999)
+            if (auto* versionLabel = findTextLabel(frame, 9999)) {
+                std::string version = readVersionFromFile("version.json");
+                std::string versionText = formatVersionString(version);
+                versionLabel->setText(versionText.c_str());
             }
         }
     }

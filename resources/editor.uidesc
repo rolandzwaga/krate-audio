@@ -569,7 +569,7 @@ Uses CViewSwitchContainer to show only the selected mode's panel.
 
             <!-- Footer -->
             <view class="CViewContainer" origin="0, 560" size="900, 40" background-color="header" autosize="left right bottom">
-                <view class="CTextLabel" origin="15, 12" size="200, 16" title="Iterum v1.0.0" font="value-font" font-color="text-dim" transparent="true"/>
+                <view class="CTextLabel" control-tag="9999" origin="15, 12" size="200, 16" title="Iterum v1.0.0" font="value-font" font-color="text-dim" transparent="true"/>
                 <view class="CTextLabel" origin="680, 12" size="200, 16" title="11 Delay Modes" font="value-font" font-color="text-dim" text-alignment="right" transparent="true"/>
             </view>
 
