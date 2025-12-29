@@ -33,8 +33,8 @@ AppSupportURL={#AppURL}/issues
 AppUpdatesURL={#AppURL}/releases
 AppCopyright={#AppCopyright}
 
-; Installation directory - VST3 standard location
-DefaultDirName={commonpf}\Common Files\VST3
+; Installation directory - VST3 standard location with vendor folder
+DefaultDirName={commonpf}\Common Files\VST3\Krate Audio\Iterum
 ; No user-selectable program group needed for a plugin
 DisableProgramGroupPage=yes
 
