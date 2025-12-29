@@ -15,75 +15,6 @@
 
 #include "base/source/fobject.h"
 
-// ==============================================================================
-// VisibilityController: Thread-safe control visibility manager
-// ==============================================================================
-// Uses IDependent mechanism to receive parameter change notifications on UI thread.
-// This is the CORRECT pattern for updating VSTGUI controls based on parameter values.
-//
-// CRITICAL Threading Rules:
-// - setParamNormalized() can be called from ANY thread (automation, state load, etc.)
-// - VSTGUI controls MUST only be manipulated on the UI thread
-// - Solution: Use Parameter::addDependent() + deferred updates via UpdateHandler
-// ==============================================================================
-class VisibilityController : public Steinberg::FObject {
-public:
-    VisibilityController(
-        Steinberg::Vst::EditController* editController,
-        Steinberg::Vst::Parameter* timeModeParam,
-        VSTGUI::CControl* delayTimeControl)
-    : editController_(editController)
-    , timeModeParam_(timeModeParam)
-    , delayTimeControl_(delayTimeControl)
-    {
-        if (timeModeParam_) {
-            timeModeParam_->addRef();
-            timeModeParam_->addDependent(this);  // Register for parameter change notifications
-            // Trigger initial update on UI thread
-            timeModeParam_->deferUpdate();
-        }
-        if (delayTimeControl_) {
-            delayTimeControl_->remember();
-        }
-    }
-
-    ~VisibilityController() override {
-        if (timeModeParam_) {
-            timeModeParam_->removeDependent(this);
-            timeModeParam_->release();
-        }
-        if (delayTimeControl_) {
-            delayTimeControl_->forget();
-        }
-    }
-
-    // IDependent::update - called on UI thread via deferred update mechanism
-    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
-        if (message == IDependent::kChanged && timeModeParam_ && delayTimeControl_) {
-            // Get current time mode value (normalized: 0.0 = Free, 1.0 = Synced)
-            float normalizedValue = timeModeParam_->getNormalized();
-
-            // Show when Free (< 0.5), hide when Synced (>= 0.5)
-            bool shouldBeVisible = (normalizedValue < 0.5f);
-
-            // SAFE: This is called on UI thread via UpdateHandler::deferedUpdate()
-            delayTimeControl_->setVisible(shouldBeVisible);
-
-            // Trigger redraw if needed
-            if (delayTimeControl_->getFrame()) {
-                delayTimeControl_->invalid();
-            }
-        }
-    }
-
-    OBJ_METHODS(VisibilityController, FObject)
-
-private:
-    Steinberg::Vst::EditController* editController_;
-    Steinberg::Vst::Parameter* timeModeParam_;
-    VSTGUI::CControl* delayTimeControl_;
-};
-
 #if defined(_DEBUG) && defined(_WIN32)
 #include "vstgui/lib/platform/win32/win32factory.h"
 #include "vstgui/uidescription/uiattributes.h"
@@ -157,6 +88,116 @@ static VSTGUI::CControl* findControlByTag(VSTGUI::CViewContainer* container, int
 }
 
 #endif
+
+// ==============================================================================
+// VisibilityController: Thread-safe control visibility manager
+// ==============================================================================
+// Uses IDependent mechanism to receive parameter change notifications on UI thread.
+// This is the CORRECT pattern for updating VSTGUI controls based on parameter values.
+//
+// CRITICAL Threading Rules:
+// - setParamNormalized() can be called from ANY thread (automation, state load, etc.)
+// - VSTGUI controls MUST only be manipulated on the UI thread
+// - Solution: Use Parameter::addDependent() + deferred updates via UpdateHandler
+//
+// CRITICAL View Switching:
+// - UIViewSwitchContainer DESTROYS and RECREATES controls when switching templates
+// - DO NOT cache control pointers - they become invalid (dangling) after view switch
+// - MUST look up control DYNAMICALLY on each update using control tag
+// - Control tag remains constant, pointer changes on every view switch
+// ==============================================================================
+class VisibilityController : public Steinberg::FObject {
+public:
+    VisibilityController(
+        VSTGUI::VST3Editor* editor,
+        Steinberg::Vst::Parameter* timeModeParam,
+        Steinberg::int32 delayTimeControlTag)
+    : editor_(editor)
+    , timeModeParam_(timeModeParam)
+    , delayTimeControlTag_(delayTimeControlTag)
+    {
+        if (timeModeParam_) {
+            timeModeParam_->addRef();
+            timeModeParam_->addDependent(this);  // Register for parameter change notifications
+            // Trigger initial update on UI thread
+            timeModeParam_->deferUpdate();
+        }
+    }
+
+    ~VisibilityController() override {
+        if (timeModeParam_) {
+            timeModeParam_->removeDependent(this);
+            timeModeParam_->release();
+        }
+    }
+
+    // IDependent::update - called on UI thread via deferred update mechanism
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+        if (message == IDependent::kChanged && timeModeParam_ && editor_) {
+            // CRITICAL: Look up control DYNAMICALLY on each update
+            // UIViewSwitchContainer destroys/recreates controls on view switch,
+            // so cached pointers become dangling references
+            auto* delayTimeControl = findControlByTag(delayTimeControlTag_);
+
+            if (delayTimeControl) {
+                // Get current time mode value (normalized: 0.0 = Free, 1.0 = Synced)
+                float normalizedValue = timeModeParam_->getNormalized();
+
+                // Show when Free (< 0.5), hide when Synced (>= 0.5)
+                bool shouldBeVisible = (normalizedValue < 0.5f);
+
+                // SAFE: This is called on UI thread via UpdateHandler::deferedUpdate()
+                delayTimeControl->setVisible(shouldBeVisible);
+
+                // Trigger redraw if needed
+                if (delayTimeControl->getFrame()) {
+                    delayTimeControl->invalid();
+                }
+            }
+        }
+    }
+
+    OBJ_METHODS(VisibilityController, FObject)
+
+private:
+    // Find control by tag in current view hierarchy
+    VSTGUI::CControl* findControlByTag(Steinberg::int32 tag) {
+        if (!editor_) return nullptr;
+        auto* frame = editor_->getFrame();
+        if (!frame) return nullptr;
+
+#if defined(_DEBUG) && defined(_WIN32)
+        // Use debug helper in debug builds
+        return ::findControlByTag(frame, tag);
+#else
+        // Manual traversal in release builds
+        std::function<VSTGUI::CControl*(VSTGUI::CViewContainer*)> search;
+        search = [tag, &search](VSTGUI::CViewContainer* container) -> VSTGUI::CControl* {
+            if (!container) return nullptr;
+            VSTGUI::ViewIterator it(container);
+            while (*it) {
+                if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                    if (control->getTag() == tag) {
+                        return control;
+                    }
+                }
+                if (auto* childContainer = (*it)->asViewContainer()) {
+                    if (auto* found = search(childContainer)) {
+                        return found;
+                    }
+                }
+                ++it;
+            }
+            return nullptr;
+        };
+        return search(frame);
+#endif
+    }
+
+    VSTGUI::VST3Editor* editor_;
+    Steinberg::Vst::Parameter* timeModeParam_;
+    Steinberg::int32 delayTimeControlTag_;
+};
 
 #include "parameters/bbd_params.h"
 #include "parameters/digital_params.h"
@@ -745,52 +786,24 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             // - Parameter changes trigger IDependent::update() on UI thread
             // - UpdateHandler automatically defers updates to UI thread
             // - VSTGUI controls are ONLY manipulated on UI thread
+            //
+            // Dynamic Lookup Pattern:
+            // - UIViewSwitchContainer destroys/recreates controls on view switch
+            // - DO NOT cache control pointers - they become dangling after switch
+            // - VisibilityController uses control TAG for dynamic lookup
+            // - Each update() looks up current control by tag (survives view switch)
             // =====================================================================
 
-            // Helper to find controls in view hierarchy
-            auto findControl = [frame](int32_t tag) -> VSTGUI::CControl* {
-#if defined(_DEBUG) && defined(_WIN32)
-                // Use debug helper in debug builds
-                return findControlByTag(frame, tag);
-#else
-                // Manual traversal in release builds
-                std::function<VSTGUI::CControl*(VSTGUI::CViewContainer*)> search;
-                search = [tag, &search](VSTGUI::CViewContainer* container) -> VSTGUI::CControl* {
-                    if (!container) return nullptr;
-                    VSTGUI::ViewIterator it(container);
-                    while (*it) {
-                        if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
-                            if (control->getTag() == tag) {
-                                return control;
-                            }
-                        }
-                        if (auto* childContainer = (*it)->asViewContainer()) {
-                            if (auto* found = search(childContainer)) {
-                                return found;
-                            }
-                        }
-                        ++it;
-                    }
-                    return nullptr;
-                };
-                return search(frame);
-#endif
-            };
-
             // Create visibility controllers for Digital mode
-            if (auto* digitalDelayTime = findControl(kDigitalDelayTimeId)) {
-                if (auto* digitalTimeMode = getParameterObject(kDigitalTimeModeId)) {
-                    digitalVisibilityController_ = new VisibilityController(
-                        this, digitalTimeMode, digitalDelayTime);
-                }
+            if (auto* digitalTimeMode = getParameterObject(kDigitalTimeModeId)) {
+                digitalVisibilityController_ = new VisibilityController(
+                    editor, digitalTimeMode, kDigitalDelayTimeId);
             }
 
             // Create visibility controllers for PingPong mode
-            if (auto* pingPongDelayTime = findControl(kPingPongDelayTimeId)) {
-                if (auto* pingPongTimeMode = getParameterObject(kPingPongTimeModeId)) {
-                    pingPongVisibilityController_ = new VisibilityController(
-                        this, pingPongTimeMode, pingPongDelayTime);
-                }
+            if (auto* pingPongTimeMode = getParameterObject(kPingPongTimeModeId)) {
+                pingPongVisibilityController_ = new VisibilityController(
+                    editor, pingPongTimeMode, kPingPongDelayTimeId);
             }
         }
     }
