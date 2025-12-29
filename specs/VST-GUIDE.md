@@ -2,7 +2,7 @@
 
 This document captures hard-won insights about VST3 SDK and VSTGUI that are not obvious from the official documentation. These findings prevent repeating debugging sessions that waste hours.
 
-**Version**: 1.0.0 | **Last Updated**: 2025-12-28
+**Version**: 1.1.0 | **Last Updated**: 2025-12-29
 
 ---
 
@@ -13,7 +13,8 @@ This document captures hard-won insights about VST3 SDK and VSTGUI that are not 
 3. [UIViewSwitchContainer and template-switch-control](#3-uiviewswitchcontainer-and-template-switch-control)
 4. [Feedback Loop Prevention](#4-feedback-loop-prevention)
 5. [Dropdown Parameter Helper](#5-dropdown-parameter-helper)
-6. [Common Pitfalls](#6-common-pitfalls)
+6. [Conditional Control Visibility (Thread-Safe Pattern)](#6-conditional-control-visibility-thread-safe-pattern)
+7. [Common Pitfalls](#7-common-pitfalls)
 
 ---
 
@@ -287,7 +288,235 @@ case kModeId: {
 
 ---
 
-## 6. Common Pitfalls
+## 6. Conditional Control Visibility (Thread-Safe Pattern)
+
+### The Problem
+
+Sometimes UI controls should only be visible when another parameter has a specific value. For example:
+- Delay time control should be hidden when time mode is "Synced" (since the time value is ignored)
+- Filter controls should be hidden when filter is bypassed
+
+**CRITICAL**: `setParamNormalized()` can be called from **ANY thread**:
+- User interaction → UI thread
+- Automation → host thread (could be audio thread!)
+- State loading → background thread
+- Host sync → any thread
+
+**VSTGUI controls MUST only be manipulated on the UI thread.** Calling `setVisible()` or any other control method from a non-UI thread causes:
+- Race conditions
+- Host hangs and crashes
+- Undefined behavior
+
+### The WRONG Pattern (Thread Safety Violation)
+
+```cpp
+// BROKEN - DO NOT DO THIS
+Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
+    Steinberg::Vst::ParamID id,
+    Steinberg::Vst::ParamValue value) {
+
+    auto result = EditControllerEx1::setParamNormalized(id, value);
+
+    // Thread safety violation - setParamNormalized can be called from any thread!
+    if (id == kTimeModeId) {
+        bool shouldBeVisible = (value < 0.5f);
+        delayTimeControl_->setVisible(shouldBeVisible);  // CRASH!
+    }
+
+    return result;
+}
+```
+
+**Why This Crashes:**
+1. Automation writes parameter changes → calls `setParamNormalized()` on audio thread
+2. Audio thread calls `setVisible()` on VSTGUI control
+3. UI thread is simultaneously rendering the control
+4. Race condition → crash or hang
+
+### The CORRECT Pattern (IDependent + Deferred Updates)
+
+Use the `IDependent` mechanism with `UpdateHandler` for automatic thread-safe UI updates:
+
+```cpp
+// In controller.cpp - create a visibility controller class
+class VisibilityController : public Steinberg::FObject {
+public:
+    VisibilityController(
+        Steinberg::Vst::EditController* editController,
+        Steinberg::Vst::Parameter* timeModeParam,
+        VSTGUI::CControl* delayTimeControl)
+    : editController_(editController)
+    , timeModeParam_(timeModeParam)
+    , delayTimeControl_(delayTimeControl)
+    {
+        if (timeModeParam_) {
+            timeModeParam_->addRef();
+            timeModeParam_->addDependent(this);  // Register for notifications
+            timeModeParam_->deferUpdate();       // Trigger initial update on UI thread
+        }
+        if (delayTimeControl_) {
+            delayTimeControl_->remember();
+        }
+    }
+
+    ~VisibilityController() override {
+        if (timeModeParam_) {
+            timeModeParam_->removeDependent(this);
+            timeModeParam_->release();
+        }
+        if (delayTimeControl_) {
+            delayTimeControl_->forget();
+        }
+    }
+
+    // IDependent::update - AUTOMATICALLY called on UI thread!
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+        if (message == IDependent::kChanged && timeModeParam_ && delayTimeControl_) {
+            float normalizedValue = timeModeParam_->getNormalized();
+            bool shouldBeVisible = (normalizedValue < 0.5f);
+
+            // SAFE: This is called on UI thread via UpdateHandler::deferedUpdate()
+            delayTimeControl_->setVisible(shouldBeVisible);
+
+            if (delayTimeControl_->getFrame()) {
+                delayTimeControl_->invalid();
+            }
+        }
+    }
+
+    OBJ_METHODS(VisibilityController, FObject)
+
+private:
+    Steinberg::Vst::EditController* editController_;
+    Steinberg::Vst::Parameter* timeModeParam_;
+    VSTGUI::CControl* delayTimeControl_;
+};
+```
+
+### How It Works
+
+1. **Parameter Registration**: `timeModeParam_->addDependent(this)` registers the visibility controller to receive parameter change notifications
+
+2. **Deferred Updates**: When the parameter changes (from ANY thread), it calls `deferUpdate()` internally, which schedules the notification to run on the UI thread via `UpdateHandler`
+
+3. **UI Thread Callback**: The `update()` method is called on the UI thread at 30Hz by a timer (`CVSTGUITimer` in `vst3editor.cpp`)
+
+4. **Safe UI Manipulation**: Since `update()` runs on the UI thread, it's safe to call `setVisible()`, `invalid()`, or any other control method
+
+### Integration in Controller
+
+```cpp
+// In controller.h
+class Controller : public Steinberg::Vst::EditControllerEx1,
+                   public VSTGUI::VST3EditorDelegate {
+private:
+    // Visibility controllers for conditional control visibility (thread-safe)
+    Steinberg::IPtr<Steinberg::FObject> digitalVisibilityController_;
+    Steinberg::IPtr<Steinberg::FObject> pingPongVisibilityController_;
+};
+
+// In controller.cpp - didOpen()
+void Controller::didOpen(VSTGUI::VST3Editor* editor) {
+    activeEditor_ = editor;
+
+    if (editor) {
+        if (auto* frame = editor->getFrame()) {
+            // Find controls in view hierarchy (helper function)
+            auto findControl = [frame](int32_t tag) -> VSTGUI::CControl* {
+                // ... traversal code ...
+            };
+
+            // Create visibility controllers for Digital mode
+            if (auto* digitalDelayTime = findControl(kDigitalDelayTimeId)) {
+                if (auto* digitalTimeMode = getParameterObject(kDigitalTimeModeId)) {
+                    digitalVisibilityController_ = new VisibilityController(
+                        this, digitalTimeMode, digitalDelayTime);
+                }
+            }
+
+            // Create visibility controllers for PingPong mode
+            if (auto* pingPongDelayTime = findControl(kPingPongDelayTimeId)) {
+                if (auto* pingPongTimeMode = getParameterObject(kPingPongTimeModeId)) {
+                    pingPongVisibilityController_ = new VisibilityController(
+                        this, pingPongTimeMode, pingPongDelayTime);
+                }
+            }
+        }
+    }
+}
+
+// In controller.cpp - willClose()
+void Controller::willClose(VSTGUI::VST3Editor* editor) {
+    // Clean up (automatically removes dependents and releases refs)
+    digitalVisibilityController_ = nullptr;
+    pingPongVisibilityController_ = nullptr;
+    activeEditor_ = nullptr;
+}
+```
+
+### Key Benefits
+
+1. **Thread-Safe**: Updates always happen on UI thread via `UpdateHandler`
+2. **Automatic**: No manual synchronization or locks needed
+3. **Framework-Native**: Uses VST3 SDK's built-in dependent notification system
+4. **Clean Lifecycle**: Controllers are created in `didOpen()` and cleaned up in `willClose()`
+5. **Works with Automation**: Handles automation, state loading, and user interaction identically
+
+### UpdateHandler Internals
+
+From `vst3editor.cpp`:
+
+```cpp
+// VST3Editor sets up a 30Hz timer for deferred updates
+class IdleUpdateHandler {
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> timer;
+
+    static void start() {
+        instance.timer = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+            [] (VSTGUI::CVSTGUITimer*) {
+                gUpdateHandlerInit.get()->triggerDeferedUpdates();  // Runs on UI thread
+            },
+            1000 / 30);  // 30Hz
+    }
+};
+```
+
+When `parameter->deferUpdate()` is called (from any thread), it:
+1. Marks the parameter as "needs update"
+2. The 30Hz timer triggers `triggerDeferedUpdates()` on the UI thread
+3. Calls `update()` on all registered dependents
+
+### Alternative: IControlListener (UI-Only)
+
+If you only need to respond to **user interaction** (not automation), you can implement `IControlListener`:
+
+```cpp
+class MyController : public IController, public IControlListener {
+    void valueChanged(CControl* pControl) override {
+        if (pControl->getTag() == kTimeModeId) {
+            float value = pControl->getValue();
+            bool shouldBeVisible = (value < 0.5f);
+            delayTimeControl_->setVisible(shouldBeVisible);  // Safe - always on UI thread
+        }
+    }
+};
+```
+
+**Limitation**: `valueChanged()` is ONLY called for user interaction, NOT for automation or state loading. For comprehensive visibility management, use the `IDependent` pattern.
+
+### Testing Thread Safety
+
+To verify thread safety:
+
+1. **Automation Test**: Record automation for the controlling parameter, play it back while switching modes
+2. **State Loading**: Save and restore plugin state multiple times while changing visibility-controlled parameters
+3. **Stress Test**: Rapidly switch modes while automation is playing
+
+If the plugin crashes, hangs, or exhibits race conditions, the pattern is not thread-safe.
+
+---
+
+## 7. Common Pitfalls
 
 ### Pitfall 1: Using Basic Parameter for Discrete Values
 
@@ -413,3 +642,24 @@ When VSTGUI/VST3 features don't work:
 **Solution:** Created `src/controller/parameter_helpers.h` with `createDropdownParameter()` and `createDropdownParameterWithDefault()` helper functions. Updated all 9 parameter files to use these helpers.
 
 **Prevention:** The helper pattern makes it impossible to accidentally create dropdown parameters with the wrong type. Future developers cannot make this mistake because the correct type is enforced by the helper function.
+
+### 2025-12-29: Conditional Visibility Thread Safety Crash
+
+**Symptom:** Plugin hangs and crashes when switching between Digital and PingPong modes while changing time mode between "Free" and "Synced". Delay time controls would initially show/hide correctly, then stop responding, then crash the host.
+
+**Root Cause:** Called `setVisible()` on VSTGUI controls directly from `setParamNormalized()`, which can be called from ANY thread (automation, state loading, etc.). VSTGUI controls MUST only be manipulated on the UI thread. Direct manipulation from non-UI threads causes race conditions with the UI rendering thread.
+
+**Solution:** Implemented `VisibilityController` class using VST3's `IDependent` mechanism with `UpdateHandler`. The pattern:
+1. Register as dependent on the controlling parameter via `addDependent()`
+2. When parameter changes (any thread), it calls `deferUpdate()`
+3. `UpdateHandler` schedules `update()` callback to run on UI thread at 30Hz
+4. `update()` method safely calls `setVisible()` on UI thread
+
+**Time Wasted:** Multiple hours initially trying to add mode filtering and other workarounds without understanding the fundamental threading violation. Only after deep research into VSTGUI source code (vst3editor.cpp) was the correct pattern discovered.
+
+**Lesson:** NEVER manipulate VSTGUI controls from `setParamNormalized()` or any method that can be called from non-UI threads. ALWAYS use `IDependent` with deferred updates for parameter-driven UI changes. The VST3 SDK provides this mechanism specifically to solve this threading problem.
+
+**Sources:**
+- [VSTGUI VST3Editor sets kDirtyCallAlwaysOnMainThread](https://github.com/steinbergmedia/vstgui/blob/develop/vstgui/plugin-bindings/vst3editor.cpp)
+- [VST3 setParamNormalized must be called on UI thread discussion](https://forums.steinberg.net/t/vst3-hosting-when-to-use-ieditcontroller-setparamnormalized/787800)
+- [JUCE added thread safety for setParamNormalized](https://github.com/juce-framework/JUCE/commit/9f03bbc358d67a3e0d0e3d7082259a4155aebd85)

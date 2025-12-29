@@ -13,6 +13,77 @@
 #include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/uidescription/uiviewswitchcontainer.h"
 
+#include "base/source/fobject.h"
+
+// ==============================================================================
+// VisibilityController: Thread-safe control visibility manager
+// ==============================================================================
+// Uses IDependent mechanism to receive parameter change notifications on UI thread.
+// This is the CORRECT pattern for updating VSTGUI controls based on parameter values.
+//
+// CRITICAL Threading Rules:
+// - setParamNormalized() can be called from ANY thread (automation, state load, etc.)
+// - VSTGUI controls MUST only be manipulated on the UI thread
+// - Solution: Use Parameter::addDependent() + deferred updates via UpdateHandler
+// ==============================================================================
+class VisibilityController : public Steinberg::FObject {
+public:
+    VisibilityController(
+        Steinberg::Vst::EditController* editController,
+        Steinberg::Vst::Parameter* timeModeParam,
+        VSTGUI::CControl* delayTimeControl)
+    : editController_(editController)
+    , timeModeParam_(timeModeParam)
+    , delayTimeControl_(delayTimeControl)
+    {
+        if (timeModeParam_) {
+            timeModeParam_->addRef();
+            timeModeParam_->addDependent(this);  // Register for parameter change notifications
+            // Trigger initial update on UI thread
+            timeModeParam_->deferUpdate();
+        }
+        if (delayTimeControl_) {
+            delayTimeControl_->remember();
+        }
+    }
+
+    ~VisibilityController() override {
+        if (timeModeParam_) {
+            timeModeParam_->removeDependent(this);
+            timeModeParam_->release();
+        }
+        if (delayTimeControl_) {
+            delayTimeControl_->forget();
+        }
+    }
+
+    // IDependent::update - called on UI thread via deferred update mechanism
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+        if (message == IDependent::kChanged && timeModeParam_ && delayTimeControl_) {
+            // Get current time mode value (normalized: 0.0 = Free, 1.0 = Synced)
+            float normalizedValue = timeModeParam_->getNormalized();
+
+            // Show when Free (< 0.5), hide when Synced (>= 0.5)
+            bool shouldBeVisible = (normalizedValue < 0.5f);
+
+            // SAFE: This is called on UI thread via UpdateHandler::deferedUpdate()
+            delayTimeControl_->setVisible(shouldBeVisible);
+
+            // Trigger redraw if needed
+            if (delayTimeControl_->getFrame()) {
+                delayTimeControl_->invalid();
+            }
+        }
+    }
+
+    OBJ_METHODS(VisibilityController, FObject)
+
+private:
+    Steinberg::Vst::EditController* editController_;
+    Steinberg::Vst::Parameter* timeModeParam_;
+    VSTGUI::CControl* delayTimeControl_;
+};
+
 #if defined(_DEBUG) && defined(_WIN32)
 #include "vstgui/lib/platform/win32/win32factory.h"
 #include "vstgui/uidescription/uiattributes.h"
@@ -549,10 +620,10 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // Call base class - this is the ONLY thing that actually happens
     auto result = EditControllerEx1::setParamNormalized(id, value);
 
-    // Handle time mode changes for conditional visibility
-    if (id == kDigitalTimeModeId || id == kPingPongTimeModeId) {
-        updateDelayTimeVisibility(id);
-    }
+    // NOTE: Conditional visibility for delay time controls is handled by
+    // VisibilityController instances via IDependent mechanism (see didOpen).
+    // DO NOT manipulate UI controls here - setParamNormalized can be called
+    // from non-UI threads (automation, state loading).
 
 #if defined(_DEBUG) && defined(_WIN32)
     if (id == kModeId) {
@@ -663,14 +734,26 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             // UIViewSwitchContainer is automatically controlled via
             // template-switch-control="Mode" in editor.uidesc
 
-#if defined(_DEBUG) && defined(_WIN32)
-            // Get delay time control references for conditional visibility
-            digitalDelayTimeControl_ = findControlByTag(frame, kDigitalDelayTimeId);
-            pingPongDelayTimeControl_ = findControlByTag(frame, kPingPongDelayTimeId);
-#else
-            // In release builds, walk the view hierarchy to find controls
-            // (findControlByTag is only available in debug builds)
+            // =====================================================================
+            // Conditional Visibility: Delay Time Controls
+            // =====================================================================
+            // Digital and PingPong modes have a delay time control that should be
+            // hidden when time mode is "Synced" (since time value is ignored).
+            //
+            // Thread-Safe Pattern:
+            // - Create VisibilityController instances that register as IDependent
+            // - Parameter changes trigger IDependent::update() on UI thread
+            // - UpdateHandler automatically defers updates to UI thread
+            // - VSTGUI controls are ONLY manipulated on UI thread
+            // =====================================================================
+
+            // Helper to find controls in view hierarchy
             auto findControl = [frame](int32_t tag) -> VSTGUI::CControl* {
+#if defined(_DEBUG) && defined(_WIN32)
+                // Use debug helper in debug builds
+                return findControlByTag(frame, tag);
+#else
+                // Manual traversal in release builds
                 std::function<VSTGUI::CControl*(VSTGUI::CViewContainer*)> search;
                 search = [tag, &search](VSTGUI::CViewContainer* container) -> VSTGUI::CControl* {
                     if (!container) return nullptr;
@@ -691,15 +774,24 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     return nullptr;
                 };
                 return search(frame);
+#endif
             };
 
-            digitalDelayTimeControl_ = findControl(kDigitalDelayTimeId);
-            pingPongDelayTimeControl_ = findControl(kPingPongDelayTimeId);
-#endif
+            // Create visibility controllers for Digital mode
+            if (auto* digitalDelayTime = findControl(kDigitalDelayTimeId)) {
+                if (auto* digitalTimeMode = getParameterObject(kDigitalTimeModeId)) {
+                    digitalVisibilityController_ = new VisibilityController(
+                        this, digitalTimeMode, digitalDelayTime);
+                }
+            }
 
-            // Initialize visibility based on current time mode values
-            updateDelayTimeVisibility(kDigitalTimeModeId);
-            updateDelayTimeVisibility(kPingPongTimeModeId);
+            // Create visibility controllers for PingPong mode
+            if (auto* pingPongDelayTime = findControl(kPingPongDelayTimeId)) {
+                if (auto* pingPongTimeMode = getParameterObject(kPingPongTimeModeId)) {
+                    pingPongVisibilityController_ = new VisibilityController(
+                        this, pingPongTimeMode, pingPongDelayTime);
+                }
+            }
         }
     }
 
@@ -759,41 +851,12 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // Called before editor closes
     (void)editor;
-    digitalDelayTimeControl_ = nullptr;
-    pingPongDelayTimeControl_ = nullptr;
+
+    // Clean up visibility controllers (automatically removes dependents and releases refs)
+    digitalVisibilityController_ = nullptr;
+    pingPongVisibilityController_ = nullptr;
+
     activeEditor_ = nullptr;
-}
-
-void Controller::updateDelayTimeVisibility(Steinberg::Vst::ParamID timeModeId) {
-    // Determine which delay time control to update
-    VSTGUI::CControl* delayTimeControl = nullptr;
-
-    if (timeModeId == kDigitalTimeModeId) {
-        delayTimeControl = digitalDelayTimeControl_;
-    } else if (timeModeId == kPingPongTimeModeId) {
-        delayTimeControl = pingPongDelayTimeControl_;
-    } else {
-        return;  // Not a time mode parameter we handle
-    }
-
-    // Check if control exists
-    if (!delayTimeControl) return;
-
-    // Get current time mode value (0 = Free, 1 = Synced)
-    auto param = getParameterObject(timeModeId);
-    if (!param) return;
-
-    float normalizedValue = param->getNormalized();
-
-    // Show when Free (0), hide when Synced (1)
-    // Threshold: < 0.5 = Free (visible), >= 0.5 = Synced (hidden)
-    bool isFreeMode = (normalizedValue < 0.5f);
-    delayTimeControl->setVisible(isFreeMode);
-
-    // Mark for redraw if visible state changed
-    if (delayTimeControl->getFrame()) {
-        delayTimeControl->invalid();
-    }
 }
 
 } // namespace Iterum
