@@ -23,6 +23,9 @@
 
 #define VERSION_STR MAJOR_VERSION_STR "." SUB_VERSION_STR "." RELEASE_NUMBER_STR
 
+// UI display version (e.g., "Iterum v0.1.2")
+#define UI_VERSION_STR "@ITERUM_NAME@ v" VERSION_STR
+
 #define stringPluginName "@ITERUM_NAME@"
 #define stringOriginalFilename "@ITERUM_NAME@.vst3"
 #define stringFileDescription "@ITERUM_NAME@ @ITERUM_DESCRIPTION@"

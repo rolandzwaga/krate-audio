@@ -4,7 +4,7 @@
 
 #include "controller.h"
 #include "plugin_ids.h"
-#include "controller/version_utils.h"
+#include "version.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 
@@ -836,9 +836,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 
             // Find and update version label (tag 9999)
             if (auto* versionLabel = findTextLabel(frame, 9999)) {
-                std::string version = readVersionFromFile("version.json");
-                std::string versionText = formatVersionString(version);
-                versionLabel->setText(versionText.c_str());
+                versionLabel->setText(UI_VERSION_STR);
             }
         }
     }
