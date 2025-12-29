@@ -124,8 +124,9 @@ private:
 
     // Visibility controllers for conditional control visibility (thread-safe)
     // Uses IDependent mechanism to receive parameter changes on UI thread
-    Steinberg::IPtr<Steinberg::FObject> digitalVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> pingPongVisibilityController_;
+    Steinberg::IPtr<Steinberg::FObject> digitalDelayTimeVisibilityController_;
+    Steinberg::IPtr<Steinberg::FObject> digitalAgeVisibilityController_;
+    Steinberg::IPtr<Steinberg::FObject> pingPongDelayTimeVisibilityController_;
 };
 
 } // namespace Iterum
