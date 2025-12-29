@@ -33,6 +33,7 @@
 #include "dsp/primitives/lfo.h"
 #include "dsp/primitives/smoother.h"
 #include "dsp/processors/dynamics_processor.h"
+#include "dsp/processors/envelope_follower.h"
 #include "dsp/systems/character_processor.h"
 #include "dsp/systems/delay_engine.h"
 #include "dsp/systems/feedback_network.h"
@@ -193,6 +194,13 @@ public:
         limiter_.setKneeWidth(kSoftKneeDb); // Default soft
         limiter_.setDetectionMode(DynamicsDetectionMode::Peak);
 
+        // Prepare EnvelopeFollower for noise modulation
+        // RMS mode for smooth tracking, fast attack/moderate release for natural dynamics
+        noiseEnvelope_.prepare(sampleRate, maxBlockSize);
+        noiseEnvelope_.setMode(DetectionMode::RMS);
+        noiseEnvelope_.setAttackTime(5.0f);   // 5ms - quick response to transients
+        noiseEnvelope_.setReleaseTime(50.0f); // 50ms - natural decay
+
         // Prepare modulation LFO (Sine default per FR-025)
         modulationLfo_.prepare(sampleRate);
         modulationLfo_.setWaveform(Waveform::Sine);
@@ -230,6 +238,10 @@ public:
         std::fill(dryBufferL_.begin(), dryBufferL_.end(), 0.0f);
         std::fill(dryBufferR_.begin(), dryBufferR_.end(), 0.0f);
 
+        // Allocate envelope buffer for noise modulation
+        envelopeBuffer_.resize(maxBlockSize);
+        std::fill(envelopeBuffer_.begin(), envelopeBuffer_.end(), 0.0f);
+
         prepared_ = true;
     }
 
@@ -240,6 +252,7 @@ public:
         feedbackNetwork_.reset();
         character_.reset();
         limiter_.reset();
+        noiseEnvelope_.reset();
         modulationLfo_.reset();
         antiAliasFilterL_.reset();
         antiAliasFilterR_.reset();
@@ -564,6 +577,15 @@ public:
             right[i] = mid - side;
         }
 
+        // Track wet signal envelope for noise modulation (AFTER all processing)
+        // This ensures noise "breathes" with the actual delayed/processed audio
+        const size_t samplesToProcess = std::min(numSamples, envelopeBuffer_.size());
+        for (size_t i = 0; i < samplesToProcess; ++i) {
+            // Track stereo sum of wet signal for envelope (mono detection)
+            const float wetMono = (left[i] + right[i]) * 0.5f;
+            envelopeBuffer_[i] = noiseEnvelope_.processSample(wetMono);
+        }
+
         // Mix dry/wet, add noise, and apply output level
         // REGRESSION FIX: Use samplesToStore to avoid accessing beyond stored dry samples
         for (size_t i = 0; i < samplesToStore; ++i) {
@@ -573,12 +595,17 @@ public:
             const float wetMix = currentMix;
             const float dryMix = 1.0f - wetMix;
 
-            // Add era-specific noise floor (FR-010)
+            // Add era-specific noise floor with envelope modulation (FR-010)
+            // Noise "breathes" with input: louder during loud passages, quieter during silence
+            // 5% floor prevents complete silence like real analog gear
             float noiseL = 0.0f;
             float noiseR = 0.0f;
             if (noiseGain_ > 0.0f) {
-                noiseL = noiseRng_.nextFloat() * noiseGain_;
-                noiseR = noiseRng_.nextFloat() * noiseGain_;
+                constexpr float kNoiseFloor = 0.05f;  // 5% minimum noise level
+                const float envelope = envelopeBuffer_[i];
+                const float modulatedGain = noiseGain_ * (kNoiseFloor + envelope * (1.0f - kNoiseFloor));
+                noiseL = noiseRng_.nextFloat() * modulatedGain;
+                noiseR = noiseRng_.nextFloat() * modulatedGain;
             }
 
             left[i] = (dryBufferL_[i] * dryMix + (left[i] + noiseL) * wetMix) * currentOutputGain;
@@ -698,6 +725,7 @@ private:
 
     // Layer 2 components
     DynamicsProcessor limiter_;
+    EnvelopeFollower noiseEnvelope_;  ///< Tracks input amplitude for noise modulation
 
     // Modulation LFO (Layer 1)
     LFO modulationLfo_;
@@ -732,6 +760,9 @@ private:
     // Dry signal buffer for mixing (allocated in prepare, not in process)
     std::vector<float> dryBufferL_;
     std::vector<float> dryBufferR_;
+
+    // Envelope buffer for noise modulation (allocated in prepare)
+    std::vector<float> envelopeBuffer_;
 
     // 80s era anti-aliasing filter (FR-009)
     Biquad antiAliasFilterL_;

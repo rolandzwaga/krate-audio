@@ -118,6 +118,7 @@ add_executable(dsp_tests
     unit/features/bbd_delay_test.cpp
     unit/features/digital_delay_test.cpp
     unit/features/digital_width_processing_test.cpp
+    unit/features/digital_envelope_noise_test.cpp
     unit/features/ping_pong_delay_test.cpp
     unit/features/multi_tap_delay_test.cpp
     unit/features/shimmer_delay_test.cpp
@@ -214,6 +215,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/features/bbd_delay_test.cpp
         unit/features/digital_delay_test.cpp
         unit/features/digital_width_processing_test.cpp
+        unit/features/digital_envelope_noise_test.cpp
         unit/features/ping_pong_delay_test.cpp
         unit/features/multi_tap_delay_test.cpp
         unit/features/shimmer_delay_test.cpp
