@@ -28,11 +28,11 @@
 #include "dsp/core/block_context.h"
 #include "dsp/core/db_utils.h"
 #include "dsp/core/note_value.h"
-#include "dsp/core/random.h"
 #include "dsp/primitives/biquad.h"
 #include "dsp/primitives/lfo.h"
 #include "dsp/primitives/smoother.h"
 #include "dsp/processors/dynamics_processor.h"
+#include "dsp/processors/envelope_follower.h"
 #include "dsp/systems/character_processor.h"
 #include "dsp/systems/delay_engine.h"
 #include "dsp/systems/feedback_network.h"
@@ -41,7 +41,13 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+
 #include <cstdint>
+
+// Debug logging
+#if defined(_DEBUG)
+#include <cstdio>
+#endif
 
 namespace Iterum {
 namespace DSP {
@@ -156,6 +162,14 @@ public:
     // Lifecycle Methods (FR-038 to FR-040)
     // =========================================================================
 
+    /// @brief Prepare for processing (allocates memory) - convenience overload
+    /// @param sampleRate Audio sample rate in Hz
+    /// @param maxBlockSize Maximum samples per process() call
+    /// @post Ready for process() calls with default max delay
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept {
+        prepare(sampleRate, maxBlockSize, kMaxDelayMs);
+    }
+
     /// @brief Prepare for processing (allocates memory)
     /// @param sampleRate Audio sample rate in Hz
     /// @param maxBlockSize Maximum samples per process() call
@@ -185,6 +199,14 @@ public:
         limiter_.setKneeWidth(kSoftKneeDb); // Default soft
         limiter_.setDetectionMode(DynamicsDetectionMode::Peak);
 
+        // Prepare EnvelopeFollower for noise modulation
+        // Amplitude mode for fast, responsive dynamics with asymmetric attack/release
+        // Ultra-fast release (2ms) to track rapid changes in input dynamics
+        noiseEnvelope_.prepare(sampleRate, maxBlockSize);
+        noiseEnvelope_.setMode(DetectionMode::Amplitude);
+        noiseEnvelope_.setAttackTime(0.1f);    // 0.1ms - near-instant response to transients
+        noiseEnvelope_.setReleaseTime(2.0f);   // 2ms - ultra-fast decay for tight tracking
+
         // Prepare modulation LFO (Sine default per FR-025)
         modulationLfo_.prepare(sampleRate);
         modulationLfo_.setWaveform(Waveform::Sine);
@@ -197,6 +219,7 @@ public:
         outputLevelSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         modulationDepthSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         ageSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
+        widthSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
 
         // Initialize to defaults
         timeSmoother_.snapTo(kDefaultDelayMs);
@@ -205,6 +228,7 @@ public:
         outputLevelSmoother_.snapTo(1.0f);
         modulationDepthSmoother_.snapTo(0.0f);
         ageSmoother_.snapTo(0.0f);
+        widthSmoother_.snapTo(100.0f);
 
         // Configure 80s era anti-aliasing filters (FR-009)
         // Lowpass at 14kHz to simulate ~32kHz ADC Nyquist
@@ -220,6 +244,10 @@ public:
         std::fill(dryBufferL_.begin(), dryBufferL_.end(), 0.0f);
         std::fill(dryBufferR_.begin(), dryBufferR_.end(), 0.0f);
 
+        // Allocate envelope buffer for noise modulation
+        envelopeBuffer_.resize(maxBlockSize);
+        std::fill(envelopeBuffer_.begin(), envelopeBuffer_.end(), 0.0f);
+
         prepared_ = true;
     }
 
@@ -230,6 +258,7 @@ public:
         feedbackNetwork_.reset();
         character_.reset();
         limiter_.reset();
+        noiseEnvelope_.reset();
         modulationLfo_.reset();
         antiAliasFilterL_.reset();
         antiAliasFilterR_.reset();
@@ -240,6 +269,22 @@ public:
         outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
         modulationDepthSmoother_.snapTo(modulationDepth_);
         ageSmoother_.snapTo(age_);
+        widthSmoother_.snapTo(width_);
+    }
+
+    /// @brief Snap all parameters to current values (skip smoothing, for testing)
+    void snapParameters() noexcept {
+        timeSmoother_.snapTo(delayTimeMs_);
+        feedbackSmoother_.snapTo(feedback_);
+        mixSmoother_.snapTo(mix_);
+        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
+        modulationDepthSmoother_.snapTo(modulationDepth_);
+        ageSmoother_.snapTo(age_);
+        widthSmoother_.snapTo(width_);
+
+        // Snap FeedbackNetwork parameters to avoid transients in tests
+        feedbackNetwork_.setDelayTimeMs(delayTimeMs_);
+        feedbackNetwork_.setFeedbackAmount(feedback_);
     }
 
     /// @brief Check if prepared for processing
@@ -257,6 +302,11 @@ public:
         ms = std::clamp(ms, kMinDelayMs, maxDelayMs_);
         delayTimeMs_ = ms;
         timeSmoother_.setTarget(ms);
+    }
+
+    /// @brief Set delay time in milliseconds (alias for setTime)
+    void setDelayTime(float ms) noexcept {
+        setTime(ms);
     }
 
     /// @brief Get current delay time
@@ -431,6 +481,22 @@ public:
     }
 
     // =========================================================================
+    // Stereo Width Control (spec 036)
+    // =========================================================================
+
+    /// @brief Set stereo width
+    /// @param percent Width percentage [0, 200] (0 = mono, 100 = original, 200 = maximum)
+    void setWidth(float percent) noexcept {
+        width_ = std::clamp(percent, 0.0f, 200.0f);
+        widthSmoother_.setTarget(width_);
+    }
+
+    /// @brief Get stereo width
+    [[nodiscard]] float getWidth() const noexcept {
+        return width_;
+    }
+
+    // =========================================================================
     // Processing (FR-035 to FR-040)
     // =========================================================================
 
@@ -488,6 +554,16 @@ public:
         // Process through feedback network (has delay + feedback built-in)
         feedbackNetwork_.process(left, right, numSamples, ctx);
 
+        // Track envelope of DRY INPUT ONLY for dither modulation (MOVED BEFORE character processing)
+        // CRITICAL: We must track ONLY the dry (input) signal, NOT the wet signal
+        // When user plays notes, dry is loud → envelope high → dither loud
+        // When user stops, dry is silent → envelope drops → dither drops (breathing effect)
+        const size_t samplesToProcess = std::min(numSamples, envelopeBuffer_.size());
+        for (size_t i = 0; i < samplesToProcess; ++i) {
+            const float dryMono = (dryBufferL_[i] + dryBufferR_[i]) * 0.5f;
+            envelopeBuffer_[i] = noiseEnvelope_.processSample(dryMono);
+        }
+
         // Apply anti-aliasing filter for 80s/Lo-Fi era (FR-009)
         // Simulates the Nyquist filter of early ~32kHz ADCs
         if (antiAliasEnabled_) {
@@ -497,7 +573,7 @@ public:
             }
         }
 
-        // Apply era-based character processing (for 80s/Lo-Fi)
+        // Apply era-based character processing
         if (era_ != DigitalEra::Pristine) {
             character_.processStereo(left, right, numSamples);
         }
@@ -508,8 +584,20 @@ public:
             limiter_.process(right, numSamples);
         }
 
-        // Mix dry/wet, add noise, and apply output level
-        // REGRESSION FIX: Use samplesToStore to avoid accessing beyond stored dry samples
+        // Apply stereo width to wet signal (spec 036, FR-013, FR-016)
+        // Width processing uses Mid/Side: mid = (L+R)/2, side = (L-R)/2 * widthFactor
+        for (size_t i = 0; i < numSamples; ++i) {
+            const float currentWidth = widthSmoother_.process();
+            const float widthFactor = currentWidth / 100.0f;
+
+            const float mid = (left[i] + right[i]) * 0.5f;
+            const float side = (left[i] - right[i]) * 0.5f * widthFactor;
+
+            left[i] = mid + side;
+            right[i] = mid - side;
+        }
+
+        // Mix dry/wet and apply output level
         for (size_t i = 0; i < samplesToStore; ++i) {
             const float currentMix = mixSmoother_.process();
             const float currentOutputGain = outputLevelSmoother_.process();
@@ -517,16 +605,8 @@ public:
             const float wetMix = currentMix;
             const float dryMix = 1.0f - wetMix;
 
-            // Add era-specific noise floor (FR-010)
-            float noiseL = 0.0f;
-            float noiseR = 0.0f;
-            if (noiseGain_ > 0.0f) {
-                noiseL = noiseRng_.nextFloat() * noiseGain_;
-                noiseR = noiseRng_.nextFloat() * noiseGain_;
-            }
-
-            left[i] = (dryBufferL_[i] * dryMix + (left[i] + noiseL) * wetMix) * currentOutputGain;
-            right[i] = (dryBufferR_[i] * dryMix + (right[i] + noiseR) * wetMix) * currentOutputGain;
+            left[i] = (dryBufferL_[i] * dryMix + left[i] * wetMix) * currentOutputGain;
+            right[i] = (dryBufferR_[i] * dryMix + right[i] * wetMix) * currentOutputGain;
         }
     }
 
@@ -541,6 +621,35 @@ public:
         process(buffer, buffer, numSamples, ctx);
     }
 
+    /// @brief Process stereo audio with separate input/output buffers (convenience for tests)
+    /// @param leftIn Left input buffer
+    /// @param rightIn Right input buffer
+    /// @param leftOut Left output buffer
+    /// @param rightOut Right output buffer
+    /// @param numSamples Number of samples per channel
+    void processStereo(const float* leftIn, const float* rightIn,
+                       float* leftOut, float* rightOut,
+                       size_t numSamples) noexcept {
+        if (!prepared_ || numSamples == 0) return;
+
+        // Copy input to output (process() works in-place)
+        for (size_t i = 0; i < numSamples; ++i) {
+            leftOut[i] = leftIn[i];
+            rightOut[i] = rightIn[i];
+        }
+
+        // Create default block context for testing
+        BlockContext ctx{
+            .sampleRate = sampleRate_,
+            .blockSize = numSamples,
+            .tempoBPM = 120.0,
+            .isPlaying = false
+        };
+
+        // Process in-place
+        process(leftOut, rightOut, numSamples, ctx);
+    }
+
 private:
     // =========================================================================
     // Internal Helpers
@@ -552,18 +661,18 @@ private:
             case DigitalEra::Pristine:
                 // Bypass character processing entirely (FR-006, FR-007, FR-042)
                 character_.setMode(CharacterMode::Clean);
+                character_.setDigitalDitherAmount(0.0f);  // No dither noise
                 feedbackNetwork_.setFilterEnabled(false);
-                // No anti-alias filter or noise in pristine mode
                 antiAliasEnabled_ = false;
-                noiseGain_ = 0.0f;
                 break;
 
             case DigitalEra::EightiesDigital:
                 // Moderate vintage character (FR-008, FR-009, FR-010)
                 character_.setMode(CharacterMode::DigitalVintage);
-                // Age 0-50% maps to subtle character
                 // Bit depth: 16 -> 12 as age increases
                 character_.setDigitalBitDepth(16.0f - age_ * 2.0f);
+                // Dither amount for -80dB noise floor (FR-010)
+                character_.setDigitalDitherAmount(1.0f);  // Full dither for -80dB noise floor
                 // Sample rate reduction: 1.0 -> 1.5 as age increases
                 character_.setDigitalSampleRateReduction(1.0f + age_ * 0.25f);
                 // High-frequency rolloff via feedback filter
@@ -572,26 +681,21 @@ private:
                 feedbackNetwork_.setFilterCutoff(12000.0f - age_ * 2000.0f); // 12-10kHz
                 // Enable anti-alias filter for 32kHz simulation (FR-009)
                 antiAliasEnabled_ = true;
-                // Add characteristic noise floor (FR-010)
-                noiseGain_ = dbToGain(k80sNoiseFloorDb);
                 break;
 
             case DigitalEra::LoFi:
                 // Aggressive degradation (FR-011, FR-012, FR-013)
                 character_.setMode(CharacterMode::DigitalVintage);
-                // Age 0-100% maps to aggressive bit/SR reduction
                 // Bit depth: 16 -> 4 as age increases (aggressive)
                 character_.setDigitalBitDepth(16.0f - age_ * 12.0f);
-                // Sample rate reduction: 1.0 -> 4.0 as age increases
+                // NO dither - noise comes from bit crushing, not dither
+                character_.setDigitalDitherAmount(0.0f);
+                // Sample rate reduction for aliasing artifacts
                 character_.setDigitalSampleRateReduction(1.0f + age_ * 3.0f);
-                // More aggressive filtering
-                feedbackNetwork_.setFilterEnabled(true);
-                feedbackNetwork_.setFilterType(FilterType::Lowpass);
-                feedbackNetwork_.setFilterCutoff(8000.0f - age_ * 4000.0f); // 8-4kHz
-                // Enable anti-alias filter
-                antiAliasEnabled_ = true;
-                // Higher noise floor for lo-fi character
-                noiseGain_ = dbToGain(-60.0f);  // More noise than 80s
+                // NO feedback filtering for LoFi (raw/aggressive sound)
+                feedbackNetwork_.setFilterEnabled(false);
+                // NO anti-aliasing for LoFi (aliasing is part of the character)
+                antiAliasEnabled_ = false;
                 break;
         }
     }
@@ -613,6 +717,7 @@ private:
 
     // Layer 2 components
     DynamicsProcessor limiter_;
+    EnvelopeFollower noiseEnvelope_;  ///< Tracks input amplitude for noise modulation
 
     // Modulation LFO (Layer 1)
     LFO modulationLfo_;
@@ -625,6 +730,7 @@ private:
     float age_ = 0.0f;                           ///< Age/degradation (FR-041)
     float mix_ = kDefaultMix;                    ///< Dry/wet mix (FR-031)
     float outputLevelDb_ = 0.0f;                 ///< Output level (FR-032)
+    float width_ = 100.0f;                       ///< Stereo width (spec 036)
 
     // Mode selections
     DigitalEra era_ = DigitalEra::Pristine;
@@ -641,19 +747,19 @@ private:
     OnePoleSmoother outputLevelSmoother_;
     OnePoleSmoother modulationDepthSmoother_;
     OnePoleSmoother ageSmoother_;
+    OnePoleSmoother widthSmoother_;
 
     // Dry signal buffer for mixing (allocated in prepare, not in process)
     std::vector<float> dryBufferL_;
     std::vector<float> dryBufferR_;
 
+    // Envelope buffer for noise modulation (allocated in prepare)
+    std::vector<float> envelopeBuffer_;
+
     // 80s era anti-aliasing filter (FR-009)
     Biquad antiAliasFilterL_;
     Biquad antiAliasFilterR_;
     bool antiAliasEnabled_ = false;
-
-    // 80s era noise generator (FR-010)
-    Xorshift32 noiseRng_{54321};
-    float noiseGain_ = 0.0f;  // Linear gain for noise injection
 };
 
 } // namespace DSP

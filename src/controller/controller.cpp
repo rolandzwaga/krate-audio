@@ -17,6 +17,8 @@
 
 #include "base/source/fobject.h"
 
+#include <vector>
+
 #if defined(_DEBUG) && defined(_WIN32)
 #include "vstgui/lib/platform/win32/win32factory.h"
 #include "vstgui/uidescription/uiattributes.h"
@@ -112,48 +114,57 @@ class VisibilityController : public Steinberg::FObject {
 public:
     VisibilityController(
         VSTGUI::VST3Editor* editor,
-        Steinberg::Vst::Parameter* timeModeParam,
-        Steinberg::int32 delayTimeControlTag)
+        Steinberg::Vst::Parameter* watchedParam,
+        std::initializer_list<Steinberg::int32> controlTags,
+        float visibilityThreshold = 0.5f,
+        bool showWhenBelow = true)
     : editor_(editor)
-    , timeModeParam_(timeModeParam)
-    , delayTimeControlTag_(delayTimeControlTag)
+    , watchedParam_(watchedParam)
+    , controlTags_(controlTags)
+    , visibilityThreshold_(visibilityThreshold)
+    , showWhenBelow_(showWhenBelow)
     {
-        if (timeModeParam_) {
-            timeModeParam_->addRef();
-            timeModeParam_->addDependent(this);  // Register for parameter change notifications
+        if (watchedParam_) {
+            watchedParam_->addRef();
+            watchedParam_->addDependent(this);  // Register for parameter change notifications
             // Trigger initial update on UI thread
-            timeModeParam_->deferUpdate();
+            watchedParam_->deferUpdate();
         }
     }
 
     ~VisibilityController() override {
-        if (timeModeParam_) {
-            timeModeParam_->removeDependent(this);
-            timeModeParam_->release();
+        if (watchedParam_) {
+            watchedParam_->removeDependent(this);
+            watchedParam_->release();
         }
     }
 
     // IDependent::update - called on UI thread via deferred update mechanism
     void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
-        if (message == IDependent::kChanged && timeModeParam_ && editor_) {
-            // CRITICAL: Look up control DYNAMICALLY on each update
-            // UIViewSwitchContainer destroys/recreates controls on view switch,
-            // so cached pointers become dangling references
-            auto* delayTimeControl = findControlByTag(delayTimeControlTag_);
+        if (message == IDependent::kChanged && watchedParam_ && editor_) {
+            // Get current parameter value (normalized: 0.0 to 1.0)
+            float normalizedValue = watchedParam_->getNormalized();
 
-            if (delayTimeControl) {
-                // Get current time mode value (normalized: 0.0 = Free, 1.0 = Synced)
-                float normalizedValue = timeModeParam_->getNormalized();
+            // Determine visibility based on threshold and direction
+            bool shouldBeVisible = showWhenBelow_ ?
+                (normalizedValue < visibilityThreshold_) :
+                (normalizedValue >= visibilityThreshold_);
 
-                // Show when Free (< 0.5), hide when Synced (>= 0.5)
-                bool shouldBeVisible = (normalizedValue < 0.5f);
+            // Update visibility for all associated controls (label + slider)
+            for (Steinberg::int32 tag : controlTags_) {
+                // CRITICAL: Look up control DYNAMICALLY on each update
+                // UIViewSwitchContainer destroys/recreates controls on view switch,
+                // so cached pointers become dangling references
+                auto* control = findControlByTag(tag);
 
-                // SAFE: This is called on UI thread via UpdateHandler::deferedUpdate()
-                delayTimeControl->setVisible(shouldBeVisible);
+                if (control) {
+                    // SAFE: This is called on UI thread via UpdateHandler::deferedUpdate()
+                    control->setVisible(shouldBeVisible);
 
-                // Trigger redraw if needed
-                if (delayTimeControl->getFrame()) {
-                    delayTimeControl->invalid();
+                    // Trigger redraw if needed
+                    if (control->getFrame()) {
+                        control->invalid();
+                    }
                 }
             }
         }
@@ -197,8 +208,10 @@ private:
     }
 
     VSTGUI::VST3Editor* editor_;
-    Steinberg::Vst::Parameter* timeModeParam_;
-    Steinberg::int32 delayTimeControlTag_;
+    Steinberg::Vst::Parameter* watchedParam_;
+    std::vector<Steinberg::int32> controlTags_;
+    float visibilityThreshold_;
+    bool showWhenBelow_;
 };
 
 #include "parameters/bbd_params.h"
@@ -797,15 +810,25 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             // =====================================================================
 
             // Create visibility controllers for Digital mode
+            // Hide delay time label + control when time mode is "Synced" (>= 0.5)
             if (auto* digitalTimeMode = getParameterObject(kDigitalTimeModeId)) {
-                digitalVisibilityController_ = new VisibilityController(
-                    editor, digitalTimeMode, kDigitalDelayTimeId);
+                digitalDelayTimeVisibilityController_ = new VisibilityController(
+                    editor, digitalTimeMode, {9901, kDigitalDelayTimeId}, 0.5f, true);
+            }
+
+            // Hide Age label + control when Era is "Pristine" (< 0.25)
+            // Era values: 0 = Pristine (0.0), 1 = 80s (0.5), 2 = LoFi (1.0)
+            // Show Age when Era >= 0.25 (80s or LoFi)
+            if (auto* digitalEra = getParameterObject(kDigitalEraId)) {
+                digitalAgeVisibilityController_ = new VisibilityController(
+                    editor, digitalEra, {9902, kDigitalAgeId}, 0.25f, false);
             }
 
             // Create visibility controllers for PingPong mode
+            // Hide delay time label + control when time mode is "Synced" (>= 0.5)
             if (auto* pingPongTimeMode = getParameterObject(kPingPongTimeModeId)) {
-                pingPongVisibilityController_ = new VisibilityController(
-                    editor, pingPongTimeMode, kPingPongDelayTimeId);
+                pingPongDelayTimeVisibilityController_ = new VisibilityController(
+                    editor, pingPongTimeMode, {9903, kPingPongDelayTimeId}, 0.5f, true);
             }
 
             // =====================================================================
@@ -899,8 +922,9 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     (void)editor;
 
     // Clean up visibility controllers (automatically removes dependents and releases refs)
-    digitalVisibilityController_ = nullptr;
-    pingPongVisibilityController_ = nullptr;
+    digitalDelayTimeVisibilityController_ = nullptr;
+    digitalAgeVisibilityController_ = nullptr;
+    pingPongDelayTimeVisibilityController_ = nullptr;
 
     activeEditor_ = nullptr;
 }

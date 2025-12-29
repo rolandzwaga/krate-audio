@@ -88,6 +88,8 @@ add_executable(dsp_tests
     unit/primitives/spectral_buffer_test.cpp
     unit/primitives/stft_test.cpp
     unit/primitives/bit_crusher_test.cpp
+    unit/primitives/bit_crusher_symmetric_quantization_test.cpp
+    unit/primitives/bit_crusher_rng_bias_test.cpp
     unit/primitives/sample_rate_reducer_test.cpp
     unit/primitives/reverse_buffer_test.cpp
     unit/primitives/grain_pool_test.cpp
@@ -107,8 +109,10 @@ add_executable(dsp_tests
     # Layer 3: System Components
     unit/systems/delay_engine_test.cpp
     unit/systems/feedback_network_test.cpp
+    unit/systems/feedback_network_dc_blocking_test.cpp
     unit/systems/modulation_matrix_test.cpp
     unit/systems/character_processor_test.cpp
+    unit/systems/character_processor_digital_ramping_test.cpp
     unit/systems/stereo_field_test.cpp
     unit/systems/tap_manager_test.cpp
     unit/systems/flexible_feedback_network_test.cpp
@@ -117,6 +121,8 @@ add_executable(dsp_tests
     unit/features/tape_delay_test.cpp
     unit/features/bbd_delay_test.cpp
     unit/features/digital_delay_test.cpp
+    unit/features/digital_width_processing_test.cpp
+    unit/features/digital_delay_age0_ramping_test.cpp
     unit/features/ping_pong_delay_test.cpp
     unit/features/multi_tap_delay_test.cpp
     unit/features/shimmer_delay_test.cpp
@@ -183,6 +189,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/spectral_buffer_test.cpp
         unit/primitives/stft_test.cpp
         unit/primitives/bit_crusher_test.cpp
+        unit/primitives/bit_crusher_symmetric_quantization_test.cpp
+        unit/primitives/bit_crusher_rng_bias_test.cpp
         unit/primitives/sample_rate_reducer_test.cpp
         unit/primitives/reverse_buffer_test.cpp
         unit/primitives/grain_pool_test.cpp
@@ -208,10 +216,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/tap_manager_test.cpp
         unit/systems/flexible_feedback_network_test.cpp
         unit/systems/granular_engine_test.cpp
+        unit/systems/feedback_network_dc_blocking_test.cpp
+        unit/systems/character_processor_digital_ramping_test.cpp
         # Layer 4: User Features
         unit/features/tape_delay_test.cpp
         unit/features/bbd_delay_test.cpp
         unit/features/digital_delay_test.cpp
+        unit/features/digital_width_processing_test.cpp
+        unit/features/digital_delay_age0_ramping_test.cpp
         unit/features/ping_pong_delay_test.cpp
         unit/features/multi_tap_delay_test.cpp
         unit/features/shimmer_delay_test.cpp
@@ -432,6 +444,7 @@ add_executable(vst_tests
     unit/vst/string_list_parameter_test.cpp
     unit/vst/control_visibility_test.cpp
     unit/vst/version_display_test.cpp
+    unit/vst/digital_width_param_test.cpp
 )
 
 target_include_directories(vst_tests

@@ -82,8 +82,18 @@ public:
     /// @param input Input sample [-1, 1]
     /// @return Quantized output sample
     [[nodiscard]] float process(float input) noexcept {
-        // Normalize to [0, 1] range for proper quantization
-        float normalized = (input + 1.0f) * 0.5f;
+        // SYMMETRIC QUANTIZATION AROUND ZERO (DC-free)
+        // This ensures zero maps to zero and positive/negative inputs are symmetric
+        //
+        // For N-bit depth with (2^N - 1) levels:
+        // - Quantization range: [-1.0, +1.0]
+        // - Step size: 2.0 / levels_
+        // - Zero is at the exact center (not offset)
+        //
+        // OLD BUG: Round-trip through [0,1] created 0.0 → 0.00002 offset
+        // NEW: Symmetric quantization guarantees 0.0 → 0.0
+
+        float sample = input;
 
         // Apply TPDF dither before quantization if enabled
         if (dither_ > 0.0f) {
@@ -92,20 +102,28 @@ public:
             float r2 = nextRandom();
 
             // TPDF = sum of two uniform distributions
-            // Scaled by dither amount and quantization step size (1/levels)
-            float ditherNoise = (r1 + r2) * dither_ / levels_;
-            normalized += ditherNoise;
+            // Scaled by dither amount and quantization step size
+            // Step size = 2.0 / levels_ (full range / number of levels)
+            float stepSize = 2.0f / levels_;
+            float ditherNoise = (r1 + r2) * dither_ * stepSize * 0.5f;
+            sample += ditherNoise;
         }
 
-        // Quantize: scale to integer range, round, scale back
-        float scaled = normalized * levels_;
+        // Scale to quantization levels (symmetric around zero)
+        // For 4-bit (15 levels): range is -7.5 to +7.5
+        // For 16-bit (65535 levels): range is -32767.5 to +32767.5
+        float scaled = sample * levels_ * 0.5f;
+
+        // Round to nearest integer level
         float quantized = std::round(scaled);
 
-        // Clamp to valid range [0, levels]
-        quantized = std::clamp(quantized, 0.0f, levels_);
+        // Clamp to valid symmetric range
+        float maxLevel = levels_ * 0.5f;
+        quantized = std::clamp(quantized, -maxLevel, maxLevel);
 
-        // Denormalize back to [-1, 1]
-        return (quantized / levels_) * 2.0f - 1.0f;
+        // Scale back to [-1, 1]
+        // Division by (levels * 0.5) gives us the symmetric quantized value
+        return quantized / maxLevel;
     }
 
     /// @brief Process a buffer in-place
@@ -171,9 +189,15 @@ private:
         rngState_ ^= rngState_ << 5;
 
         // Convert to float in range [-1, 1]
-        // Use all 32 bits for full precision
-        constexpr float kScale = 2.0f / 4294967295.0f; // 2 / (2^32 - 1)
-        return static_cast<float>(rngState_) * kScale - 1.0f;
+        // CRITICAL: Use upper 24 bits only to avoid float precision loss!
+        // float has 24-bit mantissa; values above 2^24 lose precision when cast
+        // This precision loss creates asymmetric rounding → DC bias → ramping in feedback loops!
+        //
+        // OLD BUG: static_cast<float>(rngState_) loses precision for large values
+        // NEW FIX: Use upper 24 bits which fit exactly in float mantissa
+        uint32_t upper24 = rngState_ >> 8;  // Shift down to 24 bits (0 to 16777215)
+        constexpr float kScale = 2.0f / 16777215.0f;  // 2 / (2^24 - 1)
+        return static_cast<float>(upper24) * kScale - 1.0f;
     }
 
     // =========================================================================
