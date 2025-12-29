@@ -88,6 +88,9 @@ add_executable(dsp_tests
     unit/primitives/spectral_buffer_test.cpp
     unit/primitives/stft_test.cpp
     unit/primitives/bit_crusher_test.cpp
+    unit/primitives/bit_crusher_dc_offset_test.cpp
+    unit/primitives/bit_crusher_symmetric_quantization_test.cpp
+    unit/primitives/bit_crusher_rng_bias_test.cpp
     unit/primitives/sample_rate_reducer_test.cpp
     unit/primitives/reverse_buffer_test.cpp
     unit/primitives/grain_pool_test.cpp
@@ -107,8 +110,10 @@ add_executable(dsp_tests
     # Layer 3: System Components
     unit/systems/delay_engine_test.cpp
     unit/systems/feedback_network_test.cpp
+    unit/systems/feedback_network_dc_blocking_test.cpp
     unit/systems/modulation_matrix_test.cpp
     unit/systems/character_processor_test.cpp
+    unit/systems/character_processor_digital_ramping_test.cpp
     unit/systems/stereo_field_test.cpp
     unit/systems/tap_manager_test.cpp
     unit/systems/flexible_feedback_network_test.cpp
@@ -119,6 +124,7 @@ add_executable(dsp_tests
     unit/features/digital_delay_test.cpp
     unit/features/digital_width_processing_test.cpp
     unit/features/digital_envelope_noise_test.cpp
+    unit/features/digital_delay_age0_ramping_test.cpp
     unit/features/ping_pong_delay_test.cpp
     unit/features/multi_tap_delay_test.cpp
     unit/features/shimmer_delay_test.cpp
@@ -185,6 +191,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/spectral_buffer_test.cpp
         unit/primitives/stft_test.cpp
         unit/primitives/bit_crusher_test.cpp
+        unit/primitives/bit_crusher_dc_offset_test.cpp
+        unit/primitives/bit_crusher_symmetric_quantization_test.cpp
         unit/primitives/sample_rate_reducer_test.cpp
         unit/primitives/reverse_buffer_test.cpp
         unit/primitives/grain_pool_test.cpp

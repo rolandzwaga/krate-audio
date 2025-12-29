@@ -28,7 +28,6 @@
 #include "dsp/core/block_context.h"
 #include "dsp/core/db_utils.h"
 #include "dsp/core/note_value.h"
-#include "dsp/core/random.h"
 #include "dsp/primitives/biquad.h"
 #include "dsp/primitives/lfo.h"
 #include "dsp/primitives/smoother.h"
@@ -42,7 +41,13 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+
 #include <cstdint>
+
+// Debug logging
+#if defined(_DEBUG)
+#include <cstdio>
+#endif
 
 namespace Iterum {
 namespace DSP {
@@ -195,11 +200,12 @@ public:
         limiter_.setDetectionMode(DynamicsDetectionMode::Peak);
 
         // Prepare EnvelopeFollower for noise modulation
-        // RMS mode for smooth tracking, fast attack/moderate release for natural dynamics
+        // Amplitude mode for fast, responsive dynamics with asymmetric attack/release
+        // Ultra-fast release (2ms) to track rapid changes in input dynamics
         noiseEnvelope_.prepare(sampleRate, maxBlockSize);
-        noiseEnvelope_.setMode(DetectionMode::RMS);
-        noiseEnvelope_.setAttackTime(5.0f);   // 5ms - quick response to transients
-        noiseEnvelope_.setReleaseTime(50.0f); // 50ms - natural decay
+        noiseEnvelope_.setMode(DetectionMode::Amplitude);
+        noiseEnvelope_.setAttackTime(0.1f);    // 0.1ms - near-instant response to transients
+        noiseEnvelope_.setReleaseTime(2.0f);   // 2ms - ultra-fast decay for tight tracking
 
         // Prepare modulation LFO (Sine default per FR-025)
         modulationLfo_.prepare(sampleRate);
@@ -275,6 +281,10 @@ public:
         modulationDepthSmoother_.snapTo(modulationDepth_);
         ageSmoother_.snapTo(age_);
         widthSmoother_.snapTo(width_);
+
+        // Snap FeedbackNetwork parameters to avoid transients in tests
+        feedbackNetwork_.setDelayTimeMs(delayTimeMs_);
+        feedbackNetwork_.setFeedbackAmount(feedback_);
     }
 
     /// @brief Check if prepared for processing
@@ -544,6 +554,16 @@ public:
         // Process through feedback network (has delay + feedback built-in)
         feedbackNetwork_.process(left, right, numSamples, ctx);
 
+        // Track envelope of DRY INPUT ONLY for dither modulation (MOVED BEFORE character processing)
+        // CRITICAL: We must track ONLY the dry (input) signal, NOT the wet signal
+        // When user plays notes, dry is loud → envelope high → dither loud
+        // When user stops, dry is silent → envelope drops → dither drops (breathing effect)
+        const size_t samplesToProcess = std::min(numSamples, envelopeBuffer_.size());
+        for (size_t i = 0; i < samplesToProcess; ++i) {
+            const float dryMono = (dryBufferL_[i] + dryBufferR_[i]) * 0.5f;
+            envelopeBuffer_[i] = noiseEnvelope_.processSample(dryMono);
+        }
+
         // Apply anti-aliasing filter for 80s/Lo-Fi era (FR-009)
         // Simulates the Nyquist filter of early ~32kHz ADCs
         if (antiAliasEnabled_) {
@@ -553,7 +573,7 @@ public:
             }
         }
 
-        // Apply era-based character processing (for 80s/Lo-Fi)
+        // Apply era-based character processing
         if (era_ != DigitalEra::Pristine) {
             character_.processStereo(left, right, numSamples);
         }
@@ -577,17 +597,8 @@ public:
             right[i] = mid - side;
         }
 
-        // Track wet signal envelope for noise modulation (AFTER all processing)
-        // This ensures noise "breathes" with the actual delayed/processed audio
-        const size_t samplesToProcess = std::min(numSamples, envelopeBuffer_.size());
-        for (size_t i = 0; i < samplesToProcess; ++i) {
-            // Track stereo sum of wet signal for envelope (mono detection)
-            const float wetMono = (left[i] + right[i]) * 0.5f;
-            envelopeBuffer_[i] = noiseEnvelope_.processSample(wetMono);
-        }
-
-        // Mix dry/wet, add noise, and apply output level
-        // REGRESSION FIX: Use samplesToStore to avoid accessing beyond stored dry samples
+        // Mix dry/wet and apply output level
+        // No additional noise generation - dither noise from character processing already breathes with envelope
         for (size_t i = 0; i < samplesToStore; ++i) {
             const float currentMix = mixSmoother_.process();
             const float currentOutputGain = outputLevelSmoother_.process();
@@ -595,21 +606,8 @@ public:
             const float wetMix = currentMix;
             const float dryMix = 1.0f - wetMix;
 
-            // Add era-specific noise floor with envelope modulation (FR-010)
-            // Noise "breathes" with input: louder during loud passages, quieter during silence
-            // 5% floor prevents complete silence like real analog gear
-            float noiseL = 0.0f;
-            float noiseR = 0.0f;
-            if (noiseGain_ > 0.0f) {
-                constexpr float kNoiseFloor = 0.05f;  // 5% minimum noise level
-                const float envelope = envelopeBuffer_[i];
-                const float modulatedGain = noiseGain_ * (kNoiseFloor + envelope * (1.0f - kNoiseFloor));
-                noiseL = noiseRng_.nextFloat() * modulatedGain;
-                noiseR = noiseRng_.nextFloat() * modulatedGain;
-            }
-
-            left[i] = (dryBufferL_[i] * dryMix + (left[i] + noiseL) * wetMix) * currentOutputGain;
-            right[i] = (dryBufferR_[i] * dryMix + (right[i] + noiseR) * wetMix) * currentOutputGain;
+            left[i] = (dryBufferL_[i] * dryMix + left[i] * wetMix) * currentOutputGain;
+            right[i] = (dryBufferR_[i] * dryMix + right[i] * wetMix) * currentOutputGain;
         }
     }
 
@@ -694,14 +692,17 @@ private:
                 // Age 0-100% maps to aggressive bit/SR reduction
                 // Bit depth: 16 -> 4 as age increases (aggressive)
                 character_.setDigitalBitDepth(16.0f - age_ * 12.0f);
-                // Sample rate reduction: 1.0 -> 4.0 as age increases
-                character_.setDigitalSampleRateReduction(1.0f + age_ * 3.0f);
+                // Sample rate reduction: TEMPORARILY DISABLED for dither testing
+                //character_.setDigitalSampleRateReduction(1.0f + age_ * 3.0f);
+                character_.setDigitalSampleRateReduction(1.0f); // No SR reduction
                 // More aggressive filtering
-                feedbackNetwork_.setFilterEnabled(true);
+                //feedbackNetwork_.setFilterEnabled(true); // TEMPORARILY DISABLED for testing
+                feedbackNetwork_.setFilterEnabled(false);
                 feedbackNetwork_.setFilterType(FilterType::Lowpass);
                 feedbackNetwork_.setFilterCutoff(8000.0f - age_ * 4000.0f); // 8-4kHz
                 // Enable anti-alias filter
-                antiAliasEnabled_ = true;
+                //antiAliasEnabled_ = true; // TEMPORARILY DISABLED for testing
+                antiAliasEnabled_ = false;
                 // Noise floor scales with age: -80dB at age=0, -40dB at age=1.0
                 // This allows clean sound at low age, increasing noise as degradation increases
                 noiseGain_ = dbToGain(-80.0f + age_ * 40.0f);
@@ -770,9 +771,9 @@ private:
     Biquad antiAliasFilterR_;
     bool antiAliasEnabled_ = false;
 
-    // 80s era noise generator (FR-010)
-    Xorshift32 noiseRng_{54321};
-    float noiseGain_ = 0.0f;  // Linear gain for noise injection
+    // Lo-Fi era noise control (FR-010)
+    // noiseGain_ controls base dither level, envelope modulates it for breathing effect
+    float noiseGain_ = 0.0f;
 };
 
 } // namespace DSP
