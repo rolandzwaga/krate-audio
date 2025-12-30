@@ -78,6 +78,7 @@ add_executable(dsp_tests
     unit/core/pitch_utils_test.cpp
     unit/core/grain_envelope_test.cpp
     unit/core/dropdown_mappings_test.cpp
+    unit/core/crossfade_utils_test.cpp
     unit/primitives/delay_line_test.cpp
     unit/primitives/crossfading_delay_line_test.cpp
     unit/primitives/lfo_test.cpp
@@ -132,6 +133,8 @@ add_executable(dsp_tests
     unit/features/spectral_delay_test.cpp
     unit/features/granular_delay_test.cpp
     unit/features/granular_delay_tempo_sync_test.cpp
+    # Processor Tests
+    unit/processor/mode_crossfade_tests.cpp
     # Parameter Normalization Tests
     unit/parameters/bbd_params_test.cpp
     unit/parameters/digital_params_test.cpp
@@ -181,6 +184,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/pitch_utils_test.cpp
         unit/core/grain_envelope_test.cpp
         unit/core/dropdown_mappings_test.cpp
+        unit/core/crossfade_utils_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/oversampler_test.cpp
         unit/primitives/delay_line_test.cpp
@@ -234,6 +238,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/features/spectral_delay_test.cpp
         unit/features/granular_delay_test.cpp
         unit/features/granular_delay_tempo_sync_test.cpp
+        # Processor Tests
+        unit/processor/mode_crossfade_tests.cpp
         # Parameter Normalization Tests
         unit/parameters/bbd_params_test.cpp
         unit/parameters/digital_params_test.cpp
@@ -431,6 +437,25 @@ target_include_directories(benchmark_spectral_delay
 # Release optimizations for accurate benchmarking
 # MSVC: Only add /O2 in non-Debug builds to avoid conflict with /RTC1
 target_compile_options(benchmark_spectral_delay PRIVATE
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<NOT:$<CONFIG:Debug>>>:/O2 /fp:fast>
+    $<$<CXX_COMPILER_ID:GNU>:-O3 -ffast-math>
+    $<$<CXX_COMPILER_ID:Clang>:-O3 -ffast-math>
+)
+
+# Mode Crossfade benchmark (T045: verify crossfade adds minimal CPU overhead)
+add_executable(benchmark_mode_crossfade
+    benchmark_mode_crossfade.cpp
+)
+
+target_include_directories(benchmark_mode_crossfade
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+# Release optimizations for accurate benchmarking
+# MSVC: Only add /O2 in non-Debug builds to avoid conflict with /RTC1
+target_compile_options(benchmark_mode_crossfade PRIVATE
     $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<NOT:$<CONFIG:Debug>>>:/O2 /fp:fast>
     $<$<CXX_COMPILER_ID:GNU>:-O3 -ffast-math>
     $<$<CXX_COMPILER_ID:Clang>:-O3 -ffast-math>

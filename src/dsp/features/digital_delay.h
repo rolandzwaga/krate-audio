@@ -101,7 +101,6 @@ enum class LimiterCharacter : uint8_t {
 /// - Age: Degradation intensity 0-100% (FR-041 to FR-044)
 /// - Era: Character preset selection (FR-005 to FR-013)
 /// - Mix: Dry/wet balance 0-100% (FR-031, FR-034)
-/// - Output Level: -inf to +12dB (FR-032)
 ///
 /// @par Constitution Compliance
 /// - Principle II: Real-Time Safety (noexcept, no allocations in process)
@@ -216,7 +215,6 @@ public:
         timeSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         feedbackSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         mixSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
-        outputLevelSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         modulationDepthSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         ageSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         widthSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
@@ -225,7 +223,6 @@ public:
         timeSmoother_.snapTo(kDefaultDelayMs);
         feedbackSmoother_.snapTo(kDefaultFeedback);
         mixSmoother_.snapTo(kDefaultMix);
-        outputLevelSmoother_.snapTo(1.0f);
         modulationDepthSmoother_.snapTo(0.0f);
         ageSmoother_.snapTo(0.0f);
         widthSmoother_.snapTo(100.0f);
@@ -266,7 +263,6 @@ public:
         timeSmoother_.snapTo(delayTimeMs_);
         feedbackSmoother_.snapTo(feedback_);
         mixSmoother_.snapTo(mix_);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
         modulationDepthSmoother_.snapTo(modulationDepth_);
         ageSmoother_.snapTo(age_);
         widthSmoother_.snapTo(width_);
@@ -277,7 +273,6 @@ public:
         timeSmoother_.snapTo(delayTimeMs_);
         feedbackSmoother_.snapTo(feedback_);
         mixSmoother_.snapTo(mix_);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
         modulationDepthSmoother_.snapTo(modulationDepth_);
         ageSmoother_.snapTo(age_);
         widthSmoother_.snapTo(width_);
@@ -468,18 +463,6 @@ public:
         return mix_;
     }
 
-    /// @brief Set output level (FR-032)
-    /// @param dB Output level in dB [-inf, +12]
-    void setOutputLevel(float dB) noexcept {
-        outputLevelDb_ = std::clamp(dB, -96.0f, 12.0f);
-        outputLevelSmoother_.setTarget(dbToGain(outputLevelDb_));
-    }
-
-    /// @brief Get output level
-    [[nodiscard]] float getOutputLevel() const noexcept {
-        return outputLevelDb_;
-    }
-
     // =========================================================================
     // Stereo Width Control (spec 036)
     // =========================================================================
@@ -597,16 +580,15 @@ public:
             right[i] = mid - side;
         }
 
-        // Mix dry/wet and apply output level
+        // Mix dry/wet
         for (size_t i = 0; i < samplesToStore; ++i) {
             const float currentMix = mixSmoother_.process();
-            const float currentOutputGain = outputLevelSmoother_.process();
 
             const float wetMix = currentMix;
             const float dryMix = 1.0f - wetMix;
 
-            left[i] = (dryBufferL_[i] * dryMix + left[i] * wetMix) * currentOutputGain;
-            right[i] = (dryBufferR_[i] * dryMix + right[i] * wetMix) * currentOutputGain;
+            left[i] = dryBufferL_[i] * dryMix + left[i] * wetMix;
+            right[i] = dryBufferR_[i] * dryMix + right[i] * wetMix;
         }
     }
 
@@ -729,7 +711,6 @@ private:
     float modulationRate_ = kDefaultModRate;     ///< Modulation rate (FR-022)
     float age_ = 0.0f;                           ///< Age/degradation (FR-041)
     float mix_ = kDefaultMix;                    ///< Dry/wet mix (FR-031)
-    float outputLevelDb_ = 0.0f;                 ///< Output level (FR-032)
     float width_ = 100.0f;                       ///< Stereo width (spec 036)
 
     // Mode selections
@@ -744,7 +725,6 @@ private:
     OnePoleSmoother timeSmoother_;
     OnePoleSmoother feedbackSmoother_;
     OnePoleSmoother mixSmoother_;
-    OnePoleSmoother outputLevelSmoother_;
     OnePoleSmoother modulationDepthSmoother_;
     OnePoleSmoother ageSmoother_;
     OnePoleSmoother widthSmoother_;

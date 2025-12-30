@@ -36,7 +36,6 @@ struct PingPongParams {
     std::atomic<float> modulationDepth{0.0f};   // 0-1
     std::atomic<float> modulationRate{1.0f};    // 0.1-10Hz
     std::atomic<float> mix{0.5f};               // 0-1
-    std::atomic<float> outputLevel{0.0f};        // dB (-120 to +12)
 };
 
 // ==============================================================================
@@ -110,13 +109,6 @@ inline void handlePingPongParamChange(
             params.mix.store(
                 static_cast<float>(normalizedValue),
                 std::memory_order_relaxed);
-            break;
-        case kPingPongOutputLevelId:
-            // -120 to +12 dB (store dB directly, no linear conversion)
-            {
-                float dB = static_cast<float>(-120.0 + normalizedValue * 132.0);
-                params.outputLevel.store(dB, std::memory_order_relaxed);
-            }
             break;
     }
 }
@@ -212,15 +204,6 @@ inline void registerPingPongParams(Steinberg::Vst::ParameterContainer& parameter
         0.5,  // default: 50%
         ParameterInfo::kCanAutomate,
         kPingPongMixId);
-
-    // Output Level (-120 to +12 dB)
-    parameters.addParameter(
-        STR16("PingPong Output Level"),
-        STR16("dB"),
-        0,
-        0.909,  // default: 0dB normalized = (0+120)/132
-        ParameterInfo::kCanAutomate,
-        kPingPongOutputLevelId);
 }
 
 // ==============================================================================
@@ -298,18 +281,6 @@ inline Steinberg::tresult formatPingPongParam(
             Steinberg::UString(string, 128).fromAscii(text);
             return kResultOk;
         }
-
-        case kPingPongOutputLevelId: {
-            double dB = -120.0 + normalizedValue * 132.0;
-            char8 text[32];
-            if (dB <= -120.0) {
-                snprintf(text, sizeof(text), "-inf dB");
-            } else {
-                snprintf(text, sizeof(text), "%.1f dB", dB);
-            }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
     }
 
     return Steinberg::kResultFalse;
@@ -330,7 +301,6 @@ inline void savePingPongParams(const PingPongParams& params, Steinberg::IBStream
     streamer.writeFloat(params.modulationDepth.load(std::memory_order_relaxed));
     streamer.writeFloat(params.modulationRate.load(std::memory_order_relaxed));
     streamer.writeFloat(params.mix.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.outputLevel.load(std::memory_order_relaxed));
 }
 
 inline void loadPingPongParams(PingPongParams& params, Steinberg::IBStreamer& streamer) {
@@ -366,9 +336,6 @@ inline void loadPingPongParams(PingPongParams& params, Steinberg::IBStreamer& st
 
     streamer.readFloat(floatVal);
     params.mix.store(floatVal, std::memory_order_relaxed);
-
-    streamer.readFloat(floatVal);
-    params.outputLevel.store(floatVal, std::memory_order_relaxed);
 }
 
 // ==============================================================================
@@ -442,13 +409,6 @@ inline void syncPingPongParamsToController(
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kPingPongMixId,
             static_cast<double>(floatVal));
-    }
-
-    // Output Level: linear -> dB -> normalized = (dB+120)/132
-    if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -120.0 : 20.0 * std::log10(floatVal);
-        controller.setParamNormalized(kPingPongOutputLevelId,
-            (dB + 120.0) / 132.0);
     }
 }
 

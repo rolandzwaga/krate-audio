@@ -15,6 +15,7 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
+#include "dsp/core/crossfade_utils.h"
 #include "dsp/dsp_utils.h"
 #include "dsp/features/bbd_delay.h"
 #include "dsp/features/digital_delay.h"
@@ -42,6 +43,7 @@
 
 #include <array>
 #include <atomic>
+#include <vector>
 
 namespace Iterum {
 
@@ -114,6 +116,18 @@ protected:
     /// Called at the start of each process() call
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
 
+    /// Process a single mode's output into the given buffers
+    /// @param mode The delay mode to process
+    /// @param inputL Left input buffer
+    /// @param inputR Right input buffer
+    /// @param outputL Left output buffer (will be overwritten)
+    /// @param outputR Right output buffer (will be overwritten)
+    /// @param numSamples Number of samples to process
+    /// @param ctx Block context with tempo/transport info
+    void processMode(int mode, const float* inputL, const float* inputR,
+                     float* outputL, float* outputR, size_t numSamples,
+                     const DSP::BlockContext& ctx);
+
 private:
     // ==========================================================================
     // Processing State
@@ -124,6 +138,35 @@ private:
 
     // Maximum expected block size (for buffer pre-allocation)
     Steinberg::int32 maxBlockSize_ = 0;
+
+    // ==========================================================================
+    // Mode Crossfade State (spec 041-mode-switch-clicks)
+    // Constitution Principle II: All buffers pre-allocated in setupProcessing()
+    // ==========================================================================
+
+    /// Crossfade duration in milliseconds (50ms for click-free transitions)
+    static constexpr float kCrossfadeTimeMs = 50.0f;
+
+    /// Current mode being processed (target of crossfade)
+    int currentProcessingMode_ = 5;  // Default to Digital
+
+    /// Previous mode (source of crossfade, only valid during crossfade)
+    int previousMode_ = 5;
+
+    /// Crossfade position [0.0 = start, 1.0 = complete]
+    float crossfadePosition_ = 1.0f;
+
+    /// Per-sample increment for crossfade position
+    float crossfadeIncrement_ = 0.0f;
+
+    /// True while crossfade is in progress
+    bool crossfadeActive_ = false;
+
+    /// Work buffer for previous mode's left channel output during crossfade
+    std::vector<float> crossfadeBufferL_;
+
+    /// Work buffer for previous mode's right channel output during crossfade
+    std::vector<float> crossfadeBufferR_;
 
     // ==========================================================================
     // Parameters (atomic for thread-safe access)

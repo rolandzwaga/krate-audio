@@ -186,7 +186,6 @@ TEST_CASE("ShimmerDelay default values", "[shimmer-delay][defaults]") {
 
     SECTION("output defaults") {
         REQUIRE(shimmer.getDryWetMix() == Approx(50.0f));
-        REQUIRE(shimmer.getOutputGainDb() == Approx(0.0f));
     }
 }
 
@@ -260,14 +259,6 @@ TEST_CASE("ShimmerDelay parameter clamping", "[shimmer-delay][clamping]") {
 
         shimmer.setDryWetMix(150.0f);
         REQUIRE(shimmer.getDryWetMix() == Approx(100.0f));
-    }
-
-    SECTION("output gain clamping") {
-        shimmer.setOutputGainDb(-24.0f);  // Below min (-12dB)
-        REQUIRE(shimmer.getOutputGainDb() == Approx(-12.0f));
-
-        shimmer.setOutputGainDb(24.0f);  // Above max (+12dB)
-        REQUIRE(shimmer.getOutputGainDb() == Approx(12.0f));
     }
 }
 

@@ -35,7 +35,6 @@ struct TapeParams {
     std::atomic<float> spliceIntensity{0.5f};   // 0-1
     std::atomic<float> feedback{0.4f};          // 0-1.2
     std::atomic<float> mix{0.5f};               // 0-1
-    std::atomic<float> outputLevel{0.0f};        // dB (-96 to +12)
 
     // Head parameters (3 heads like RE-201 Space Echo)
     std::atomic<bool> head1Enabled{true};
@@ -111,13 +110,6 @@ inline void handleTapeParamChange(
             params.mix.store(
                 static_cast<float>(normalizedValue),
                 std::memory_order_relaxed);
-            break;
-        case kTapeOutputLevelId:
-            // -96 to +12 dB (store dB directly, no linear conversion)
-            {
-                float dB = static_cast<float>(-96.0 + normalizedValue * 108.0);
-                params.outputLevel.store(dB, std::memory_order_relaxed);
-            }
             break;
         case kTapeHead1EnabledId:
             params.head1Enabled.store(normalizedValue >= 0.5, std::memory_order_relaxed);
@@ -258,15 +250,6 @@ inline void registerTapeParams(Steinberg::Vst::ParameterContainer& parameters) {
         ParameterInfo::kCanAutomate,
         kTapeMixId);
 
-    // Output Level (-96 to +12 dB)
-    parameters.addParameter(
-        STR16("Tape Output Level"),
-        STR16("dB"),
-        0,
-        0.889,  // default: 0dB
-        ParameterInfo::kCanAutomate,
-        kTapeOutputLevelId);
-
     // Head 1 Enabled
     parameters.addParameter(
         STR16("Tape Head 1 Enable"),
@@ -405,18 +388,6 @@ inline Steinberg::tresult formatTapeParam(
                 normalizedValue >= 0.5 ? STR16("On") : STR16("Off"));
             return kResultOk;
 
-        case kTapeOutputLevelId: {
-            double dB = -96.0 + normalizedValue * 108.0;
-            char8 text[32];
-            if (dB <= -96.0) {
-                snprintf(text, sizeof(text), "-inf dB");
-            } else {
-                snprintf(text, sizeof(text), "%.1f dB", dB);
-            }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
         case kTapeHead1LevelId:
         case kTapeHead2LevelId:
         case kTapeHead3LevelId: {
@@ -465,7 +436,6 @@ inline void saveTapeParams(const TapeParams& params, Steinberg::IBStreamer& stre
     streamer.writeFloat(params.spliceIntensity.load(std::memory_order_relaxed));
     streamer.writeFloat(params.feedback.load(std::memory_order_relaxed));
     streamer.writeFloat(params.mix.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.outputLevel.load(std::memory_order_relaxed));
     streamer.writeInt32(params.head1Enabled.load(std::memory_order_relaxed) ? 1 : 0);
     streamer.writeInt32(params.head2Enabled.load(std::memory_order_relaxed) ? 1 : 0);
     streamer.writeInt32(params.head3Enabled.load(std::memory_order_relaxed) ? 1 : 0);
@@ -490,7 +460,6 @@ inline void loadTapeParams(TapeParams& params, Steinberg::IBStreamer& streamer) 
     if (streamer.readFloat(floatVal)) params.spliceIntensity.store(floatVal, std::memory_order_relaxed);
     if (streamer.readFloat(floatVal)) params.feedback.store(floatVal, std::memory_order_relaxed);
     if (streamer.readFloat(floatVal)) params.mix.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal)) params.outputLevel.store(floatVal, std::memory_order_relaxed);
     if (streamer.readInt32(intVal)) params.head1Enabled.store(intVal != 0, std::memory_order_relaxed);
     if (streamer.readInt32(intVal)) params.head2Enabled.store(intVal != 0, std::memory_order_relaxed);
     if (streamer.readInt32(intVal)) params.head3Enabled.store(intVal != 0, std::memory_order_relaxed);
@@ -562,12 +531,6 @@ inline void syncTapeParamsToController(
     // Mix: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kTapeMixId, static_cast<double>(floatVal));
-    }
-
-    // Output Level: linear -> dB -> normalized = (dB+96)/108
-    if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        controller.setParamNormalized(kTapeOutputLevelId, (dB + 96.0) / 108.0);
     }
 
     // Head enables

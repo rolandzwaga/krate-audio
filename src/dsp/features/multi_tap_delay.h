@@ -212,11 +212,9 @@ public:
         // Configure smoothers
         morphSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         dryWetSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
-        outputLevelSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
 
         // Initialize smoothers
         dryWetSmoother_.snapTo(dryWetMix_ * 0.01f);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
         morphSmoother_.snapTo(0.0f);
 
         prepared_ = true;
@@ -230,7 +228,6 @@ public:
 
         // Snap smoothers
         dryWetSmoother_.snapTo(dryWetMix_ * 0.01f);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
         morphSmoother_.snapTo(0.0f);
         morphing_ = false;
     }
@@ -238,7 +235,6 @@ public:
     /// @brief Snap all smoothers for immediate parameter application
     void snapParameters() noexcept {
         dryWetSmoother_.snapTo(dryWetMix_ * 0.01f);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
 
         // Snap TapManager internal smoothers via reset
         // Note: We don't want to clear delay lines, just snap smoothers
@@ -502,7 +498,7 @@ public:
     }
 
     // =========================================================================
-    // Output Control (FR-028, FR-029)
+    // Output Control (FR-028)
     // =========================================================================
 
     /// @brief Set dry/wet mix
@@ -515,18 +511,6 @@ public:
     /// @brief Get dry/wet mix
     [[nodiscard]] float getDryWetMix() const noexcept {
         return dryWetMix_;
-    }
-
-    /// @brief Set output level
-    /// @param dB Output level [-12, +12]
-    void setOutputLevel(float dB) noexcept {
-        outputLevelDb_ = std::clamp(dB, -12.0f, 12.0f);
-        outputLevelSmoother_.setTarget(dbToGain(outputLevelDb_));
-    }
-
-    /// @brief Get output level
-    [[nodiscard]] float getOutputLevel() const noexcept {
-        return outputLevelDb_;
     }
 
     // =========================================================================
@@ -569,15 +553,14 @@ public:
         // Process through FeedbackNetwork
         feedbackNetwork_.process(left, right, numSamples, ctx);
 
-        // Mix dry/wet and apply output level
+        // Mix dry/wet
         for (size_t i = 0; i < numSamples; ++i) {
             const float wetMix = dryWetSmoother_.process();
             const float dryMix = 1.0f - wetMix;
-            const float outputGain = outputLevelSmoother_.process();
 
             const size_t bufIdx = i % kMaxDryBufferSize;
-            left[i] = (dryBufferL_[bufIdx] * dryMix + left[i] * wetMix) * outputGain;
-            right[i] = (dryBufferR_[bufIdx] * dryMix + right[i] * wetMix) * outputGain;
+            left[i] = dryBufferL_[bufIdx] * dryMix + left[i] * wetMix;
+            right[i] = dryBufferR_[bufIdx] * dryMix + right[i] * wetMix;
         }
     }
 
@@ -923,9 +906,7 @@ private:
 
     // Output parameters
     float dryWetMix_ = 50.0f;
-    float outputLevelDb_ = 0.0f;
     OnePoleSmoother dryWetSmoother_;
-    OnePoleSmoother outputLevelSmoother_;
 
     // Dry signal buffer
     static constexpr size_t kMaxDryBufferSize = 8192;

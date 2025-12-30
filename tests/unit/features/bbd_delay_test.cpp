@@ -460,24 +460,6 @@ TEST_CASE("BBDDelay mix control", "[features][bbd-delay][mix]") {
     }
 }
 
-TEST_CASE("BBDDelay output level control", "[features][bbd-delay][output-level]") {
-    BBDDelay delay;
-    delay.prepare(44100.0, 512, 1000.0f);
-
-    SECTION("setOutputLevel stores value") {
-        delay.setOutputLevel(-6.0f);
-        REQUIRE(delay.getOutputLevel() == Approx(-6.0f));
-    }
-
-    SECTION("output level clamped to valid range") {
-        delay.setOutputLevel(-100.0f);
-        REQUIRE(delay.getOutputLevel() >= -96.0f);
-
-        delay.setOutputLevel(20.0f);
-        REQUIRE(delay.getOutputLevel() <= 12.0f);
-    }
-}
-
 // =============================================================================
 // Phase 8: Basic Processing Tests
 // =============================================================================

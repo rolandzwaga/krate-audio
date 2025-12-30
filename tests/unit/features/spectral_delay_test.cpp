@@ -102,7 +102,6 @@ TEST_CASE("SpectralDelay default construction", "[spectral-delay][foundational]"
     REQUIRE(delay.getFeedbackTilt() == Approx(0.0f));
     REQUIRE(delay.getDiffusion() == Approx(0.0f));
     REQUIRE(delay.getDryWetMix() == Approx(SpectralDelay::kDefaultDryWet));
-    REQUIRE(delay.getOutputGainDb() == Approx(0.0f));
     REQUIRE_FALSE(delay.isFreezeEnabled());
 }
 
@@ -334,7 +333,6 @@ TEST_CASE("SpectralDelay 0% wet outputs only dry signal", "[spectral-delay][US1]
 
     delay.setBaseDelayMs(100.0f);
     delay.setDryWetMix(0.0f);  // Dry only
-    delay.setOutputGainDb(0.0f);
     delay.snapParameters();
 
     auto ctx = makeTestContext();
@@ -397,7 +395,6 @@ TEST_CASE("SpectralDelay 50% wet blends dry and delayed signal", "[spectral-dela
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
     delay.setDryWetMix(50.0f);  // 50/50 mix
-    delay.setOutputGainDb(0.0f);
     delay.snapParameters();
 
     auto ctx = makeTestContext();
@@ -425,98 +422,6 @@ TEST_CASE("SpectralDelay 50% wet blends dry and delayed signal", "[spectral-dela
     // Should be roughly half (accounting for delay latency eating into wet signal)
     REQUIRE(outputRMS < originalRMS);
     REQUIRE(outputRMS > originalRMS * 0.3f);  // At least 30% of original
-}
-
-TEST_CASE("SpectralDelay +6dB gain boosts output", "[spectral-delay][US1][FR-024]") {
-    SpectralDelay delay;
-    delay.prepare(44100.0, 512);
-
-    delay.setBaseDelayMs(10.0f);  // Short delay
-    delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(0.0f);  // Dry only for predictable measurement
-    delay.setOutputGainDb(6.0f);  // +6dB = ~2x amplitude
-    delay.snapParameters();
-
-    auto ctx = makeTestContext();
-    constexpr std::size_t kBlockSize = 512;
-
-    std::vector<float> left(kBlockSize);
-    std::vector<float> right(kBlockSize);
-
-    // Generate test signal
-    generateSine(left.data(), kBlockSize, 440.0f, 44100.0f, 0.25f);
-    std::copy(left.begin(), left.end(), right.begin());
-
-    float originalRMS = calculateRMS(left.data(), kBlockSize);
-
-    delay.process(left.data(), right.data(), kBlockSize, ctx);
-
-    float outputRMS = calculateRMS(left.data(), kBlockSize);
-
-    INFO("Original RMS: " << originalRMS);
-    INFO("Output RMS: " << outputRMS);
-
-    // +6dB should approximately double the amplitude
-    float expectedRMS = originalRMS * 2.0f;
-    REQUIRE(outputRMS == Approx(expectedRMS).margin(expectedRMS * 0.1f));
-}
-
-TEST_CASE("SpectralDelay -96dB gain effectively mutes output", "[spectral-delay][US1][FR-024]") {
-    SpectralDelay delay;
-    delay.prepare(44100.0, 512);
-
-    delay.setBaseDelayMs(10.0f);
-    delay.setDryWetMix(0.0f);  // Dry only
-    delay.setOutputGainDb(-96.0f);  // Effectively muted
-    delay.snapParameters();
-
-    auto ctx = makeTestContext();
-    constexpr std::size_t kBlockSize = 512;
-
-    std::vector<float> left(kBlockSize);
-    std::vector<float> right(kBlockSize);
-
-    // Generate loud test signal
-    generateSine(left.data(), kBlockSize, 440.0f, 44100.0f, 1.0f);
-    std::copy(left.begin(), left.end(), right.begin());
-
-    delay.process(left.data(), right.data(), kBlockSize, ctx);
-
-    float outputRMS = calculateRMS(left.data(), kBlockSize);
-
-    INFO("Output RMS: " << outputRMS);
-
-    // -96dB is about 1/63000 of original, effectively silent
-    REQUIRE(outputRMS < 0.0001f);
-}
-
-TEST_CASE("SpectralDelay 0dB gain is unity", "[spectral-delay][US1][FR-024]") {
-    SpectralDelay delay;
-    delay.prepare(44100.0, 512);
-
-    delay.setBaseDelayMs(10.0f);
-    delay.setDryWetMix(0.0f);  // Dry only
-    delay.setOutputGainDb(0.0f);  // Unity gain
-    delay.snapParameters();
-
-    auto ctx = makeTestContext();
-    constexpr std::size_t kBlockSize = 512;
-
-    std::vector<float> left(kBlockSize);
-    std::vector<float> right(kBlockSize);
-    std::vector<float> originalLeft(kBlockSize);
-
-    // Generate test signal
-    generateSine(left.data(), kBlockSize, 440.0f, 44100.0f, 0.5f);
-    std::copy(left.begin(), left.end(), right.begin());
-    std::copy(left.begin(), left.end(), originalLeft.begin());
-
-    delay.process(left.data(), right.data(), kBlockSize, ctx);
-
-    // At 0dB with 0% wet, output should match input
-    for (std::size_t i = 0; i < kBlockSize; ++i) {
-        REQUIRE(left[i] == Approx(originalLeft[i]).margin(1e-5f));
-    }
 }
 
 // =============================================================================
@@ -1154,7 +1059,6 @@ TEST_CASE("SpectralDelay processes without errors at all settings", "[spectral-d
     delay.setFeedbackTilt(-0.5f);
     delay.setDiffusion(0.5f);
     delay.setDryWetMix(75.0f);
-    delay.setOutputGainDb(-3.0f);
     delay.snapParameters();
 
     auto ctx = makeTestContext(48000.0);

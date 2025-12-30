@@ -88,7 +88,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kGranularFreezeId = 108,         // on/off
     kGranularFeedbackId = 109,       // 0-1.2
     kGranularDryWetId = 110,         // 0-1
-    kGranularOutputGainId = 111,     // -96 to +6 dB
     kGranularEnvelopeTypeId = 112,   // 0-3 (Hann, Trapezoid, Sine, Blackman)
     kGranularTimeModeId = 113,       // 0-1 (Free, Synced) - spec 038
     kGranularNoteValueId = 114,      // 0-9 (note values) - spec 038
@@ -107,7 +106,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kSpectralFreezeId = 206,         // on/off
     kSpectralDiffusionId = 207,      // 0-1
     kSpectralDryWetId = 208,         // 0-100%
-    kSpectralOutputGainId = 209,     // -96 to +6 dB
     kSpectralEndId = 299,
 
     // ==========================================================================
@@ -124,7 +122,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kShimmerFilterEnabledId = 307,    // on/off
     kShimmerFilterCutoffId = 308,     // 20-20000Hz
     kShimmerDryWetId = 309,           // 0-100%
-    kShimmerOutputGainId = 310,       // -12 to +12 dB
     kShimmerEndId = 399,
 
     // ==========================================================================
@@ -140,7 +137,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kTapeSpliceIntensityId = 406,  // 0-100%
     kTapeFeedbackId = 407,         // 0-120%
     kTapeMixId = 408,              // 0-100%
-    kTapeOutputLevelId = 409,      // -96 to +12 dB
     kTapeHead1EnabledId = 410,     // on/off
     kTapeHead2EnabledId = 411,     // on/off
     kTapeHead3EnabledId = 412,     // on/off
@@ -163,7 +159,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kBBDAgeId = 504,                 // 0-100%
     kBBDEraId = 505,                 // 0-3 (MN3005, MN3007, MN3205, SAD1024)
     kBBDMixId = 506,                 // 0-100%
-    kBBDOutputLevelId = 507,         // -96 to +12 dB
     kBBDEndId = 599,
 
     // ==========================================================================
@@ -181,7 +176,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kDigitalModRateId = 608,         // 0.1-10Hz
     kDigitalModWaveformId = 609,     // 0-5 (waveforms)
     kDigitalMixId = 610,             // 0-100%
-    kDigitalOutputLevelId = 611,     // -96 to +12 dB
     kDigitalWidthId = 612,           // 0-200% (spec 036)
     kDigitalEndId = 699,
 
@@ -199,7 +193,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kPingPongModDepthId = 707,       // 0-100%
     kPingPongModRateId = 708,        // 0.1-10Hz
     kPingPongMixId = 709,            // 0-100%
-    kPingPongOutputLevelId = 710,    // -120 to +12 dB
     kPingPongEndId = 799,
 
     // ==========================================================================
@@ -214,7 +207,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kReverseFilterCutoffId = 805,    // 20-20000Hz
     kReverseFilterTypeId = 806,      // 0-2 (LowPass, HighPass, BandPass)
     kReverseDryWetId = 807,          // 0-100%
-    kReverseOutputGainId = 808,      // -96 to +6 dB
     kReverseEndId = 899,
 
     // ==========================================================================
@@ -231,7 +223,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMultiTapFeedbackHPCutoffId = 907, // 20-20000Hz
     kMultiTapMorphTimeId = 908,      // 50-2000ms
     kMultiTapDryWetId = 909,         // 0-100%
-    kMultiTapOutputLevelId = 910,    // -12 to +12 dB
     kMultiTapEndId = 999,
 
     // ==========================================================================
@@ -251,7 +242,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kFreezeFilterTypeId = 1010,       // 0-2 (LowPass, HighPass, BandPass)
     kFreezeFilterCutoffId = 1011,     // 20-20000Hz
     kFreezeDryWetId = 1012,           // 0-100%
-    kFreezeOutputGainId = 1013,       // -96 to +6 dB
     kFreezeEndId = 1099,
 
     // ==========================================================================
@@ -270,7 +260,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kDuckingDelayTimeId = 1109,         // 10-5000ms
     kDuckingFeedbackId = 1110,          // 0-120%
     kDuckingDryWetId = 1111,            // 0-100%
-    kDuckingOutputGainId = 1112,        // -96 to +6 dB
     kDuckingEndId = 1199,
 
     // ==========================================================================

@@ -67,15 +67,6 @@ float denormDryWet(double normalized) {
     return static_cast<float>(normalized * 100.0);
 }
 
-// Output Gain: -96 to +6 dB (stored as dB, not linear!)
-float denormOutputGain(double normalized) {
-    return static_cast<float>(-96.0 + normalized * 102.0);
-}
-
-double normOutputGain(float dB) {
-    return static_cast<double>((dB + 96.0f) / 102.0f);
-}
-
 } // anonymous namespace
 
 TEST_CASE("Spectral FFT Size normalization", "[params][spectral]") {
@@ -138,24 +129,6 @@ TEST_CASE("Spectral Spread Direction normalization", "[params][spectral]") {
     }
     SECTION("normalized 1.0 -> CenterOut (2)") {
         REQUIRE(denormSpreadDirection(1.0) == 2);
-    }
-}
-
-TEST_CASE("Spectral Output Gain normalization (dB)", "[params][spectral]") {
-    SECTION("normalized 0.0 -> -96dB") {
-        REQUIRE(denormOutputGain(0.0) == Approx(-96.0f));
-    }
-    SECTION("normalized 0.941 -> ~0dB") {
-        REQUIRE(denormOutputGain(0.941) == Approx(0.0f).margin(0.1f));
-    }
-    SECTION("normalized 1.0 -> +6dB") {
-        REQUIRE(denormOutputGain(1.0) == Approx(6.0f));
-    }
-    SECTION("round-trip: 0dB") {
-        float original = 0.0f;
-        double normalized = normOutputGain(original);
-        float result = denormOutputGain(normalized);
-        REQUIRE(result == Approx(original).margin(0.01f));
     }
 }
 

@@ -733,6 +733,67 @@ public:
 
 ---
 
+### Crossfade Utilities
+
+| | |
+|---|---|
+| **Purpose** | Equal-power crossfade calculations for smooth audio transitions |
+| **Location** | [src/dsp/core/crossfade_utils.h](src/dsp/core/crossfade_utils.h) |
+| **Namespace** | `Iterum::DSP` |
+| **Added** | 0.0.41 (041-mode-switch-clicks) |
+
+**Public API**:
+
+```cpp
+namespace Iterum::DSP {
+    // Equal-power crossfade gains (constant power: fadeOut² + fadeIn² ≈ 1)
+    // position: [0.0 = start, 1.0 = complete]
+    inline void equalPowerGains(float position, float& fadeOut, float& fadeIn) noexcept;
+    [[nodiscard]] inline std::pair<float, float> equalPowerGains(float position) noexcept;
+
+    // Per-sample increment for given crossfade duration
+    [[nodiscard]] inline float crossfadeIncrement(float durationMs, double sampleRate) noexcept;
+}
+```
+
+**Behavior**:
+- `equalPowerGains(0.0)` → fadeOut=1.0, fadeIn=0.0 (full outgoing signal)
+- `equalPowerGains(0.5)` → fadeOut≈0.707, fadeIn≈0.707 (equal blend)
+- `equalPowerGains(1.0)` → fadeOut=0.0, fadeIn=1.0 (full incoming signal)
+- Uses sine/cosine curves for constant perceived loudness (unlike linear fade which has -3dB dip at midpoint)
+- `crossfadeIncrement(50.0f, 44100.0)` → ~0.000453 (1/2205 samples)
+
+**When to use**:
+- Mode switching in processors (spec 041: Processor class uses for click-free mode transitions)
+- Character mode transitions (CharacterProcessor uses for clean mode changes)
+- Any audio transition where constant loudness is required
+
+**Example**:
+```cpp
+#include "dsp/core/crossfade_utils.h"
+
+// Setup
+float position = 0.0f;
+float increment = Iterum::DSP::crossfadeIncrement(50.0f, sampleRate);  // 50ms
+
+// In process loop
+while (crossfadeActive) {
+    float fadeOut, fadeIn;
+    Iterum::DSP::equalPowerGains(position, fadeOut, fadeIn);
+
+    output = oldModeOutput * fadeOut + newModeOutput * fadeIn;
+
+    position += increment;
+    if (position >= 1.0f) crossfadeActive = false;
+}
+```
+
+**Used By**:
+- `Processor` (spec 041): 50ms crossfade between 11 delay modes
+- `CharacterProcessor` (Layer 3): Character mode transitions
+
+---
+
 ## Layer 1: DSP Primitives
 
 DSP primitives depend only on Layer 0. They are the basic building blocks for higher-level processors.

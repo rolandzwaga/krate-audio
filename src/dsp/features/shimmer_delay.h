@@ -273,14 +273,10 @@ public:
     static constexpr float kMaxFilterCutoff = 20000.0f;
     static constexpr float kDefaultFilterCutoff = 4000.0f;
 
-    // Output (FR-022, FR-025)
+    // Output (FR-022)
     static constexpr float kMinDryWetMix = 0.0f;
     static constexpr float kMaxDryWetMix = 100.0f;
     static constexpr float kDefaultDryWetMix = 50.0f;
-
-    static constexpr float kMinOutputGainDb = -12.0f;
-    static constexpr float kMaxOutputGainDb = 12.0f;
-    static constexpr float kDefaultOutputGainDb = 0.0f;
 
     // Internal
     static constexpr float kSmoothingTimeMs = 20.0f;
@@ -460,13 +456,6 @@ public:
     /// @brief Get dry/wet mix
     [[nodiscard]] float getDryWetMix() const noexcept { return dryWetMix_; }
 
-    /// @brief Set output level
-    /// @param dB Output gain [-12, +12]
-    void setOutputGainDb(float dB) noexcept;
-
-    /// @brief Get output level
-    [[nodiscard]] float getOutputGainDb() const noexcept { return outputGainDb_; }
-
     // =========================================================================
     // Modulation (FR-026 to FR-028)
     // =========================================================================
@@ -534,7 +523,6 @@ private:
     // Layer 1 primitives - parameter smoothers
     OnePoleSmoother delaySmoother_;
     OnePoleSmoother dryWetSmoother_;
-    OnePoleSmoother outputGainSmoother_;
     OnePoleSmoother pitchRatioSmoother_;  // FR-009: Smooth pitch changes
 
     // Layer 3 - optional modulation matrix
@@ -565,7 +553,6 @@ private:
 
     // Parameters - output
     float dryWetMix_ = kDefaultDryWetMix;
-    float outputGainDb_ = kDefaultOutputGainDb;
 
     // Scratch buffers for dry signal storage
     std::vector<float> dryBufferL_;
@@ -603,13 +590,11 @@ inline void ShimmerDelay::prepare(double sampleRate, size_t maxBlockSize, float 
     const float sr = static_cast<float>(sampleRate);
     delaySmoother_.configure(kSmoothingTimeMs, sr);
     dryWetSmoother_.configure(kSmoothingTimeMs, sr);
-    outputGainSmoother_.configure(kSmoothingTimeMs, sr);
     pitchRatioSmoother_.configure(kSmoothingTimeMs, sr);  // FR-009
 
     // Initialize smoothers to defaults
     delaySmoother_.snapTo(delayTimeMs_);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-    outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
 
     // Initialize shimmer processor parameters
@@ -633,7 +618,6 @@ inline void ShimmerDelay::reset() noexcept {
     // Snap local smoothers to current targets
     delaySmoother_.snapTo(delayTimeMs_);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-    outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
 
     // Snap feedback network parameters
@@ -644,7 +628,6 @@ inline void ShimmerDelay::snapParameters() noexcept {
     // Snap local smoothers
     delaySmoother_.snapTo(delayTimeMs_);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-    outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
 
     // Apply snapped pitch to shimmer processor immediately
@@ -732,11 +715,6 @@ inline void ShimmerDelay::setDryWetMix(float percent) noexcept {
     dryWetSmoother_.setTarget(dryWetMix_ / 100.0f);
 }
 
-inline void ShimmerDelay::setOutputGainDb(float dB) noexcept {
-    outputGainDb_ = std::clamp(dB, kMinOutputGainDb, kMaxOutputGainDb);
-    outputGainSmoother_.setTarget(dbToGain(outputGainDb_));
-}
-
 inline float ShimmerDelay::getCurrentDelayMs() const noexcept {
     return delaySmoother_.getCurrentValue();
 }
@@ -802,10 +780,9 @@ inline void ShimmerDelay::process(float* left, float* right, size_t numSamples,
         // Mix dry/wet for output with smoothed parameters
         for (size_t i = 0; i < chunkSize; ++i) {
             const float currentDryWet = dryWetSmoother_.process();
-            const float currentOutputGain = outputGainSmoother_.process();
 
-            chunkLeft[i] = (dryBufferL_[i] * (1.0f - currentDryWet) + chunkLeft[i] * currentDryWet) * currentOutputGain;
-            chunkRight[i] = (dryBufferR_[i] * (1.0f - currentDryWet) + chunkRight[i] * currentDryWet) * currentOutputGain;
+            chunkLeft[i] = dryBufferL_[i] * (1.0f - currentDryWet) + chunkLeft[i] * currentDryWet;
+            chunkRight[i] = dryBufferR_[i] * (1.0f - currentDryWet) + chunkRight[i] * currentDryWet;
         }
 
         samplesProcessed += chunkSize;

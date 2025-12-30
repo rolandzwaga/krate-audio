@@ -82,7 +82,6 @@ enum class DuckTarget : uint8_t {
 /// - Duck Target: Output, Feedback, Both (FR-010 to FR-013)
 /// - Sidechain Filter: On/Off, 20-500 Hz (FR-014 to FR-016)
 /// - Dry/Wet Mix: 0-100% (FR-020)
-/// - Output Gain: -inf to +6 dB (FR-021)
 ///
 /// @par Constitution Compliance
 /// - Principle II: Real-Time Safety (noexcept, no allocations in process)
@@ -143,14 +142,10 @@ public:
     static constexpr float kMaxSidechainHz = 500.0f;
     static constexpr float kDefaultSidechainHz = 80.0f;
 
-    // Output (FR-020, FR-021)
+    // Output (FR-020)
     static constexpr float kMinDryWetMix = 0.0f;
     static constexpr float kMaxDryWetMix = 100.0f;
     static constexpr float kDefaultDryWetMix = 50.0f;
-
-    static constexpr float kMinOutputGainDb = -96.0f;  // -inf floor per FR-021
-    static constexpr float kMaxOutputGainDb = 6.0f;
-    static constexpr float kDefaultOutputGainDb = 0.0f;
 
     // Filter
     static constexpr float kMinFilterCutoff = 20.0f;
@@ -329,7 +324,7 @@ public:
     [[nodiscard]] float getFilterCutoff() const noexcept { return filterCutoffHz_; }
 
     // =========================================================================
-    // Output (FR-020, FR-021)
+    // Output (FR-020)
     // =========================================================================
 
     /// @brief Set dry/wet mix (FR-020)
@@ -338,13 +333,6 @@ public:
 
     /// @brief Get dry/wet mix
     [[nodiscard]] float getDryWetMix() const noexcept { return dryWetMix_; }
-
-    /// @brief Set output gain (FR-021)
-    /// @param dB Output gain [-96, +6] dB
-    void setOutputGainDb(float dB) noexcept;
-
-    /// @brief Get output gain
-    [[nodiscard]] float getOutputGainDb() const noexcept { return outputGainDb_; }
 
     // =========================================================================
     // Metering (FR-022)
@@ -411,7 +399,6 @@ private:
 
     // Parameter smoothers (Layer 1)
     OnePoleSmoother dryWetSmoother_;
-    OnePoleSmoother outputGainSmoother_;
     OnePoleSmoother delaySmoother_;
 
     // Ducking parameters
@@ -439,7 +426,6 @@ private:
 
     // Output parameters
     float dryWetMix_ = kDefaultDryWetMix;
-    float outputGainDb_ = kDefaultOutputGainDb;
 
     // Scratch buffers (pre-allocated in prepare)
     std::vector<float> dryBufferL_;
@@ -482,12 +468,10 @@ inline void DuckingDelay::prepare(double sampleRate, std::size_t maxBlockSize) n
     // Configure smoothers (Layer 1)
     const float sr = static_cast<float>(sampleRate);
     dryWetSmoother_.configure(kSmoothingTimeMs, sr);
-    outputGainSmoother_.configure(kSmoothingTimeMs, sr);
     delaySmoother_.configure(kSmoothingTimeMs, sr);
 
     // Initialize smoothers to current values
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-    outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     delaySmoother_.snapTo(delayTimeMs_);
 
     // Snap feedback network parameters
@@ -506,7 +490,6 @@ inline void DuckingDelay::reset() noexcept {
 
     // Snap smoothers to current targets
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-    outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     delaySmoother_.snapTo(delayTimeMs_);
 
     // Snap feedback network parameters
@@ -516,7 +499,6 @@ inline void DuckingDelay::reset() noexcept {
 inline void DuckingDelay::snapParameters() noexcept {
     // Snap local smoothers
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-    outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     delaySmoother_.snapTo(delayTimeMs_);
 
     // Update ducking processors
@@ -622,11 +604,6 @@ inline void DuckingDelay::setFilterCutoff(float hz) noexcept {
 inline void DuckingDelay::setDryWetMix(float percent) noexcept {
     dryWetMix_ = std::clamp(percent, kMinDryWetMix, kMaxDryWetMix);
     dryWetSmoother_.setTarget(dryWetMix_ / 100.0f);
-}
-
-inline void DuckingDelay::setOutputGainDb(float dB) noexcept {
-    outputGainDb_ = std::clamp(dB, kMinOutputGainDb, kMaxOutputGainDb);
-    outputGainSmoother_.setTarget(dbToGain(outputGainDb_));
 }
 
 inline float DuckingDelay::getGainReduction() const noexcept {
@@ -745,15 +722,14 @@ inline void DuckingDelay::process(float* left, float* right, std::size_t numSamp
             }
         }
 
-        // Apply dry/wet mix and output gain with smoothed parameters
+        // Apply dry/wet mix with smoothed parameter
         for (std::size_t i = 0; i < chunkSize; ++i) {
             const float currentDryWet = dryWetSmoother_.process();
-            const float currentOutputGain = outputGainSmoother_.process();
 
-            chunkLeft[i] = (dryBufferL_[i] * (1.0f - currentDryWet) +
-                           chunkLeft[i] * currentDryWet) * currentOutputGain;
-            chunkRight[i] = (dryBufferR_[i] * (1.0f - currentDryWet) +
-                            chunkRight[i] * currentDryWet) * currentOutputGain;
+            chunkLeft[i] = dryBufferL_[i] * (1.0f - currentDryWet) +
+                           chunkLeft[i] * currentDryWet;
+            chunkRight[i] = dryBufferR_[i] * (1.0f - currentDryWet) +
+                            chunkRight[i] * currentDryWet;
         }
 
         samplesProcessed += chunkSize;

@@ -553,13 +553,6 @@ TEST_CASE("Output controls", "[multi-tap][output]") {
         REQUIRE(delay.getDryWetMix() == Approx(100.0f));
     }
 
-    SECTION("output level control") {
-        delay.setOutputLevel(-6.0f);
-        REQUIRE(delay.getOutputLevel() == Approx(-6.0f));
-
-        delay.setOutputLevel(6.0f);
-        REQUIRE(delay.getOutputLevel() == Approx(6.0f));
-    }
 }
 
 // =============================================================================

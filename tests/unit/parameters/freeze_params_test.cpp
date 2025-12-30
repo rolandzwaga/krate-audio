@@ -62,13 +62,6 @@ double normFilterCutoff(float hz) {
     return std::log(hz / 20.0f) / std::log(1000.0f);
 }
 
-// Output Gain: -96 to +6 dB -> linear
-float denormOutputGain(double normalized) {
-    double dB = -96.0 + normalized * 102.0;
-    double linear = (dB <= -96.0) ? 0.0 : std::pow(10.0, dB / 20.0);
-    return static_cast<float>(linear);
-}
-
 } // anonymous namespace
 
 TEST_CASE("Freeze Enabled normalization", "[params][freeze]") {
@@ -143,15 +136,6 @@ TEST_CASE("Freeze Filter Type normalization", "[params][freeze]") {
     }
     SECTION("normalized 1.0 -> BandPass (2)") {
         REQUIRE(denormFilterType(1.0) == 2);
-    }
-}
-
-TEST_CASE("Freeze Output Gain normalization", "[params][freeze]") {
-    SECTION("normalized 0.0 -> 0 linear (-96dB)") {
-        REQUIRE(denormOutputGain(0.0) == Approx(0.0f));
-    }
-    SECTION("normalized 0.941 -> ~1.0 linear (0dB)") {
-        REQUIRE(denormOutputGain(0.941) == Approx(1.0f).margin(0.02f));
     }
 }
 

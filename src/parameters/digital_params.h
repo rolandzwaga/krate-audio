@@ -37,7 +37,6 @@ struct DigitalParams {
     std::atomic<float> modulationRate{1.0f};    // 0.1-10Hz
     std::atomic<int> modulationWaveform{0};     // 0-5 (waveforms)
     std::atomic<float> mix{0.5f};               // 0-1
-    std::atomic<float> outputLevel{0.0f};        // dB (-96 to +12)
     std::atomic<float> width{100.0f};           // 0-200% (spec 036)
 };
 
@@ -118,13 +117,6 @@ inline void handleDigitalParamChange(
             params.mix.store(
                 static_cast<float>(normalizedValue),
                 std::memory_order_relaxed);
-            break;
-        case kDigitalOutputLevelId:
-            // -96 to +12 dB (store dB directly, no linear conversion)
-            {
-                float dB = static_cast<float>(-96.0 + normalizedValue * 108.0);
-                params.outputLevel.store(dB, std::memory_order_relaxed);
-            }
             break;
         case kDigitalWidthId:
             // 0-200%
@@ -230,15 +222,6 @@ inline void registerDigitalParams(Steinberg::Vst::ParameterContainer& parameters
         ParameterInfo::kCanAutomate,
         kDigitalMixId);
 
-    // Output Level (-96 to +12 dB)
-    parameters.addParameter(
-        STR16("Digital Output Level"),
-        STR16("dB"),
-        0,
-        0.889,  // default: 0dB
-        ParameterInfo::kCanAutomate,
-        kDigitalOutputLevelId);
-
     // Width (0-200%)
     parameters.addParameter(
         STR16("Digital Width"),
@@ -321,18 +304,6 @@ inline Steinberg::tresult formatDigitalParam(
             return kResultOk;
         }
 
-        case kDigitalOutputLevelId: {
-            double dB = -96.0 + normalizedValue * 108.0;
-            char8 text[32];
-            if (dB <= -96.0) {
-                snprintf(text, sizeof(text), "-inf dB");
-            } else {
-                snprintf(text, sizeof(text), "%.1f dB", dB);
-            }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
         case kDigitalWidthId: {
             float percent = static_cast<float>(normalizedValue * 200.0);
             char8 text[32];
@@ -361,7 +332,6 @@ inline void saveDigitalParams(const DigitalParams& params, Steinberg::IBStreamer
     streamer.writeFloat(params.modulationRate.load(std::memory_order_relaxed));
     streamer.writeInt32(params.modulationWaveform.load(std::memory_order_relaxed));
     streamer.writeFloat(params.mix.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.outputLevel.load(std::memory_order_relaxed));
     streamer.writeFloat(params.width.load(std::memory_order_relaxed));
 }
 
@@ -401,9 +371,6 @@ inline void loadDigitalParams(DigitalParams& params, Steinberg::IBStreamer& stre
 
     streamer.readFloat(floatVal);
     params.mix.store(floatVal, std::memory_order_relaxed);
-
-    streamer.readFloat(floatVal);
-    params.outputLevel.store(floatVal, std::memory_order_relaxed);
 
     streamer.readFloat(floatVal);
     params.width.store(floatVal, std::memory_order_relaxed);
@@ -486,13 +453,6 @@ inline void syncDigitalParamsToController(
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kDigitalMixId,
             static_cast<double>(floatVal));
-    }
-
-    // Output Level: linear -> dB -> normalized = (dB+96)/108
-    if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        controller.setParamNormalized(kDigitalOutputLevelId,
-            (dB + 96.0) / 108.0);
     }
 
     // Width: 0-200% -> normalized = val/200

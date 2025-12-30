@@ -247,11 +247,9 @@ public:
         // Prepare smoothers
         feedbackSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         mixSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
-        outputLevelSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
 
         feedbackSmoother_.snapTo(feedback_);
         mixSmoother_.snapTo(mix_);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
 
         prepared_ = true;
     }
@@ -265,7 +263,6 @@ public:
 
         feedbackSmoother_.snapTo(feedback_);
         mixSmoother_.snapTo(mix_);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
 
         // Reset splice artifact state
         spliceSampleCounter_ = 0;
@@ -488,22 +485,6 @@ public:
     }
 
     // =========================================================================
-    // Output Level (FR-032)
-    // =========================================================================
-
-    /// @brief Set output level
-    /// @param dB Output level in dB [-96, +12]
-    void setOutputLevel(float dB) noexcept {
-        outputLevelDb_ = std::clamp(dB, -96.0f, 12.0f);
-        outputLevelSmoother_.setTarget(dbToGain(outputLevelDb_));
-    }
-
-    /// @brief Get current output level
-    [[nodiscard]] float getOutputLevel() const noexcept {
-        return outputLevelDb_;
-    }
-
-    // =========================================================================
     // Processing
     // =========================================================================
 
@@ -579,20 +560,13 @@ public:
             }
         }
 
-        // Apply mix and output level using saved dry signal
+        // Apply mix using saved dry signal
         for (size_t i = 0; i < safeSamples; ++i) {
             const float wetMix = mixSmoother_.process();
             const float dryMix = 1.0f - wetMix;
-            const float outputGain = outputLevelSmoother_.process();
 
-            left[i] = (dryLeft[i] * dryMix + left[i] * wetMix) * outputGain;
-            right[i] = (dryRight[i] * dryMix + right[i] * wetMix) * outputGain;
-        }
-        // Handle any samples beyond kMaxBlockSize (rare edge case)
-        for (size_t i = safeSamples; i < numSamples; ++i) {
-            const float outputGain = outputLevelSmoother_.process();
-            left[i] *= outputGain;
-            right[i] *= outputGain;
+            left[i] = dryLeft[i] * dryMix + left[i] * wetMix;
+            right[i] = dryRight[i] * dryMix + right[i] * wetMix;
         }
     }
 
@@ -656,18 +630,12 @@ public:
             }
         }
 
-        // Apply mix and output level using saved dry signal
+        // Apply mix using saved dry signal
         for (size_t i = 0; i < safeSamples; ++i) {
             const float wetMix = mixSmoother_.process();
             const float dryMix = 1.0f - wetMix;
-            const float outputGain = outputLevelSmoother_.process();
 
-            buffer[i] = (dryBuffer[i] * dryMix + buffer[i] * wetMix) * outputGain;
-        }
-        // Handle any samples beyond kMaxBlockSize (rare edge case)
-        for (size_t i = safeSamples; i < numSamples; ++i) {
-            const float outputGain = outputLevelSmoother_.process();
-            buffer[i] *= outputGain;
+            buffer[i] = dryBuffer[i] * dryMix + buffer[i] * wetMix;
         }
     }
 
@@ -830,7 +798,6 @@ private:
     float age_ = 0.0f;            // Degradation (0-1)
     float feedback_ = 0.5f;       // Feedback amount (0-1.2)
     float mix_ = 0.5f;            // Dry/wet (0-1)
-    float outputLevelDb_ = 0.0f;  // Output level in dB
 
     // FR-007: Wow rate state (scales with motor speed)
     float currentWowRate_ = kBaseWowRate;
@@ -845,7 +812,6 @@ private:
     // Smoothers
     OnePoleSmoother feedbackSmoother_;
     OnePoleSmoother mixSmoother_;
-    OnePoleSmoother outputLevelSmoother_;
 };
 
 } // namespace DSP

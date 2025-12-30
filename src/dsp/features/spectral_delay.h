@@ -98,9 +98,6 @@ public:
     static constexpr float kMaxDryWet = 100.0f;
     static constexpr float kDefaultDryWet = 50.0f;
 
-    static constexpr float kMinOutputGainDb = -96.0f;
-    static constexpr float kMaxOutputGainDb = 6.0f;
-
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -167,7 +164,6 @@ public:
         tiltSmoother_.configure(smoothTimeMs, sampleRateF);
         diffusionSmoother_.configure(smoothTimeMs, sampleRateF);
         dryWetSmoother_.configure(smoothTimeMs, sampleRateF);
-        outputGainSmoother_.configure(smoothTimeMs, sampleRateF);
 
         // Initialize smoothers to current values
         baseDelaySmoother_.setTarget(baseDelayMs_);
@@ -176,7 +172,6 @@ public:
         tiltSmoother_.setTarget(feedbackTilt_);
         diffusionSmoother_.setTarget(diffusion_);
         dryWetSmoother_.setTarget(dryWetMix_ / 100.0f);
-        outputGainSmoother_.setTarget(dbToGain(outputGainDb_));
 
         // Snap smoothers to initial values
         snapParameters();
@@ -284,28 +279,26 @@ public:
             // Get smoothed parameters for this block
             const float wetMix = dryWetSmoother_.process();
             const float dryMix = 1.0f - wetMix;
-            const float outputGain = outputGainSmoother_.process();
 
-            // Apply dry/wet mix and output gain
+            // Apply dry/wet mix
             for (std::size_t i = 0; i < toPull; ++i) {
-                left[i] = (dryBufferL_[i] * dryMix + tempBufferL_[i] * wetMix) * outputGain;
-                right[i] = (dryBufferR_[i] * dryMix + tempBufferR_[i] * wetMix) * outputGain;
+                left[i] = dryBufferL_[i] * dryMix + tempBufferL_[i] * wetMix;
+                right[i] = dryBufferR_[i] * dryMix + tempBufferR_[i] * wetMix;
             }
 
             // Zero remaining samples if we didn't get enough
             for (std::size_t i = toPull; i < numSamples; ++i) {
-                left[i] = dryBufferL_[i] * dryMix * outputGain;
-                right[i] = dryBufferR_[i] * dryMix * outputGain;
+                left[i] = dryBufferL_[i] * dryMix;
+                right[i] = dryBufferR_[i] * dryMix;
             }
         } else {
             // No processed samples available yet (latency filling)
             const float wetMix = dryWetSmoother_.process();
             const float dryMix = 1.0f - wetMix;
-            const float outputGain = outputGainSmoother_.process();
 
             for (std::size_t i = 0; i < numSamples; ++i) {
-                left[i] = dryBufferL_[i] * dryMix * outputGain;
-                right[i] = dryBufferR_[i] * dryMix * outputGain;
+                left[i] = dryBufferL_[i] * dryMix;
+                right[i] = dryBufferR_[i] * dryMix;
             }
         }
 
@@ -409,13 +402,6 @@ public:
     }
     [[nodiscard]] float getDryWetMix() const noexcept { return dryWetMix_; }
 
-    /// @brief Set output gain in dB (-96 to +6)
-    void setOutputGainDb(float dB) noexcept {
-        outputGainDb_ = std::clamp(dB, kMinOutputGainDb, kMaxOutputGainDb);
-        outputGainSmoother_.setTarget(dbToGain(outputGainDb_));
-    }
-    [[nodiscard]] float getOutputGainDb() const noexcept { return outputGainDb_; }
-
     // =========================================================================
     // Query
     // =========================================================================
@@ -436,7 +422,6 @@ public:
         tiltSmoother_.snapToTarget();
         diffusionSmoother_.snapToTarget();
         dryWetSmoother_.snapToTarget();
-        outputGainSmoother_.snapToTarget();
     }
 
 private:
@@ -667,7 +652,6 @@ private:
     float feedbackTilt_ = 0.0f;
     float diffusion_ = 0.0f;
     float dryWetMix_ = kDefaultDryWet;
-    float outputGainDb_ = 0.0f;
     bool freezeEnabled_ = false;
 
     // Parameter Smoothers
@@ -677,7 +661,6 @@ private:
     OnePoleSmoother tiltSmoother_;
     OnePoleSmoother diffusionSmoother_;
     OnePoleSmoother dryWetSmoother_;
-    OnePoleSmoother outputGainSmoother_;
 
     // Freeze State
     bool wasFrozen_ = false;

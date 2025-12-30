@@ -44,7 +44,6 @@ struct DuckingParams {
     std::atomic<float> delayTime{500.0f};        // 10-5000ms
     std::atomic<float> feedback{0.0f};           // 0-120%
     std::atomic<float> dryWet{50.0f};            // 0-100%
-    std::atomic<float> outputGain{0.0f};         // -96 to +6 dB
 };
 
 // ==============================================================================
@@ -135,13 +134,6 @@ inline void handleDuckingParamChange(
             // 0-100%
             params.dryWet.store(
                 static_cast<float>(normalizedValue * 100.0),
-                std::memory_order_relaxed);
-            break;
-
-        case kDuckingOutputGainId:
-            // -96 to +6 dB
-            params.outputGain.store(
-                static_cast<float>(-96.0 + normalizedValue * 102.0),
                 std::memory_order_relaxed);
             break;
 
@@ -297,18 +289,6 @@ inline void registerDuckingParams(Steinberg::Vst::ParameterContainer& parameters
         0,
         STR16("Mix")
     );
-
-    // Output Gain: -96 to +6 dB
-    parameters.addParameter(
-        STR16("Output Gain"),
-        STR16("dB"),
-        0,
-        0.941,  // 0dB default = (0+96)/102
-        ParameterInfo::kCanAutomate,
-        kDuckingOutputGainId,
-        0,
-        STR16("Out")
-    );
 }
 
 // ==============================================================================
@@ -407,19 +387,6 @@ inline Steinberg::tresult formatDuckingParam(
             return kResultTrue;
         }
 
-        case kDuckingOutputGainId: {
-            // -96 to +6 dB
-            double dB = -96.0 + valueNormalized * 102.0;
-            char text[32];
-            if (dB <= -96.0) {
-                std::snprintf(text, sizeof(text), "-inf");
-            } else {
-                std::snprintf(text, sizeof(text), "%+.1f", dB);
-            }
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
-        }
-
         default:
             return Steinberg::kResultFalse;
     }
@@ -451,7 +418,6 @@ inline void saveDuckingParams(
     streamer.writeFloat(params.delayTime.load(std::memory_order_relaxed));
     streamer.writeFloat(params.feedback.load(std::memory_order_relaxed));
     streamer.writeFloat(params.dryWet.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.outputGain.load(std::memory_order_relaxed));
 }
 
 inline void loadDuckingParams(
@@ -498,9 +464,6 @@ inline void loadDuckingParams(
     }
     if (streamer.readFloat(floatVal)) {
         params.dryWet.store(floatVal, std::memory_order_relaxed);
-    }
-    if (streamer.readFloat(floatVal)) {
-        params.outputGain.store(floatVal, std::memory_order_relaxed);
     }
 }
 
@@ -588,12 +551,6 @@ inline void syncDuckingParamsToController(
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kDuckingDryWetId,
             static_cast<double>(floatVal / 100.0f));
-    }
-
-    // Output Gain: -96 to +6 dB -> normalized = (val+96)/102
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingOutputGainId,
-            static_cast<double>((floatVal + 96.0f) / 102.0f));
     }
 }
 

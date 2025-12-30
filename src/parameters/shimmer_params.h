@@ -36,7 +36,6 @@ struct ShimmerParams {
     std::atomic<bool> filterEnabled{false};      // on/off
     std::atomic<float> filterCutoff{4000.0f};    // 20-20000Hz
     std::atomic<float> dryWet{50.0f};            // 0-100%
-    std::atomic<float> outputGain{0.0f};         // -12 to +12 dB
 };
 
 // ==============================================================================
@@ -116,13 +115,6 @@ inline void handleShimmerParamChange(
             // 0-100%
             params.dryWet.store(
                 static_cast<float>(normalizedValue * 100.0),
-                std::memory_order_relaxed);
-            break;
-
-        case kShimmerOutputGainId:
-            // -12 to +12 dB
-            params.outputGain.store(
-                static_cast<float>(-12.0 + normalizedValue * 24.0),
                 std::memory_order_relaxed);
             break;
 
@@ -260,18 +252,6 @@ inline void registerShimmerParams(Steinberg::Vst::ParameterContainer& parameters
         0,
         STR16("Mix")
     );
-
-    // Output Gain: -12 to +12 dB
-    parameters.addParameter(
-        STR16("Output Gain"),
-        STR16("dB"),
-        0,
-        0.5,  // 0dB default
-        ParameterInfo::kCanAutomate,
-        kShimmerOutputGainId,
-        0,
-        STR16("Out")
-    );
 }
 
 // ==============================================================================
@@ -355,15 +335,6 @@ inline Steinberg::tresult formatShimmerParam(
             return kResultTrue;
         }
 
-        case kShimmerOutputGainId: {
-            // -12 to +12 dB
-            double dB = -12.0 + valueNormalized * 24.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%+.1f", dB);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
-        }
-
         default:
             return Steinberg::kResultFalse;
     }
@@ -390,7 +361,6 @@ inline void saveShimmerParams(
     streamer.writeInt32(filterEnabled);
     streamer.writeFloat(params.filterCutoff.load(std::memory_order_relaxed));
     streamer.writeFloat(params.dryWet.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.outputGain.load(std::memory_order_relaxed));
 }
 
 inline void loadShimmerParams(
@@ -429,9 +399,6 @@ inline void loadShimmerParams(
     }
     if (streamer.readFloat(floatVal)) {
         params.dryWet.store(floatVal, std::memory_order_relaxed);
-    }
-    if (streamer.readFloat(floatVal)) {
-        params.outputGain.store(floatVal, std::memory_order_relaxed);
     }
 }
 
@@ -508,12 +475,6 @@ inline void syncShimmerParamsToController(
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kShimmerDryWetId,
             static_cast<double>(floatVal / 100.0f));
-    }
-
-    // Output Gain: -12 to +12 dB -> normalized = (val+12)/24
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerOutputGainId,
-            static_cast<double>((floatVal + 12.0f) / 24.0f));
     }
 }
 

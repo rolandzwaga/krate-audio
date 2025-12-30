@@ -38,13 +38,6 @@ float denormFeedback(double normalized) {
     return static_cast<float>(normalized * 1.2);
 }
 
-// Output Level: -96 to +12 dB -> linear
-float denormOutputLevel(double normalized) {
-    double dB = -96.0 + normalized * 108.0;
-    double linear = (dB <= -96.0) ? 0.0 : std::pow(10.0, dB / 20.0);
-    return static_cast<float>(linear);
-}
-
 // Head Level: -96 to +6 dB -> linear
 float denormHeadLevel(double normalized) {
     double dB = -96.0 + normalized * 102.0;
@@ -99,18 +92,6 @@ TEST_CASE("Tape Feedback normalization", "[params][tape]") {
     }
     SECTION("normalized 1.0 -> 1.2 (120%)") {
         REQUIRE(denormFeedback(1.0) == Approx(1.2f));
-    }
-}
-
-TEST_CASE("Tape Output Level (dB to linear)", "[params][tape]") {
-    SECTION("normalized 0.0 -> 0 linear (-96dB)") {
-        REQUIRE(denormOutputLevel(0.0) == Approx(0.0f));
-    }
-    SECTION("normalized 0.889 -> ~1.0 linear (0dB)") {
-        REQUIRE(denormOutputLevel(0.889) == Approx(1.0f).margin(0.02f));
-    }
-    SECTION("normalized 1.0 -> ~3.98 linear (+12dB)") {
-        REQUIRE(denormOutputLevel(1.0) == Approx(3.981f).margin(0.01f));
     }
 }
 

@@ -61,15 +61,6 @@ double normFilterCutoff(float hz) {
     return static_cast<double>((hz - 20.0f) / 19980.0f);
 }
 
-// Output Gain: -12 to +12 dB
-float denormOutputGain(double normalized) {
-    return static_cast<float>(-12.0 + normalized * 24.0);
-}
-
-double normOutputGain(float dB) {
-    return static_cast<double>((dB + 12.0f) / 24.0f);
-}
-
 } // anonymous namespace
 
 TEST_CASE("Shimmer Delay Time normalization", "[params][shimmer]") {
@@ -138,24 +129,6 @@ TEST_CASE("Shimmer Filter Cutoff normalization (linear)", "[params][shimmer]") {
         double normalized = normFilterCutoff(original);
         float result = denormFilterCutoff(normalized);
         REQUIRE(result == Approx(original).margin(1.0f));
-    }
-}
-
-TEST_CASE("Shimmer Output Gain normalization (-12 to +12 dB)", "[params][shimmer]") {
-    SECTION("normalized 0.0 -> -12dB") {
-        REQUIRE(denormOutputGain(0.0) == Approx(-12.0f));
-    }
-    SECTION("normalized 0.5 -> 0dB (default)") {
-        REQUIRE(denormOutputGain(0.5) == Approx(0.0f));
-    }
-    SECTION("normalized 1.0 -> +12dB") {
-        REQUIRE(denormOutputGain(1.0) == Approx(12.0f));
-    }
-    SECTION("round-trip: 0dB") {
-        float original = 0.0f;
-        double normalized = normOutputGain(original);
-        float result = denormOutputGain(normalized);
-        REQUIRE(result == Approx(original).margin(0.01f));
     }
 }
 

@@ -39,7 +39,6 @@ struct FreezeParams {
     std::atomic<int> filterType{0};              // 0=LowPass, 1=HighPass, 2=BandPass
     std::atomic<float> filterCutoff{1000.0f};    // 20-20000Hz
     std::atomic<float> dryWet{0.5f};             // 0-1
-    std::atomic<float> outputGain{1.0f};         // linear gain
 };
 
 // ==============================================================================
@@ -125,14 +124,6 @@ inline void handleFreezeParamChange(
             params.dryWet.store(
                 static_cast<float>(normalizedValue),
                 std::memory_order_relaxed);
-            break;
-        case kFreezeOutputGainId:
-            // -96 to +6 dB -> linear
-            {
-                double dB = -96.0 + normalizedValue * 102.0;
-                double linear = (dB <= -96.0) ? 0.0 : std::pow(10.0, dB / 20.0);
-                params.outputGain.store(static_cast<float>(linear), std::memory_order_relaxed);
-            }
             break;
     }
 }
@@ -258,15 +249,6 @@ inline void registerFreezeParams(Steinberg::Vst::ParameterContainer& parameters)
         0.5,  // default: 50%
         ParameterInfo::kCanAutomate,
         kFreezeDryWetId);
-
-    // Output Gain (-96 to +6 dB)
-    parameters.addParameter(
-        STR16("Freeze Output Gain"),
-        STR16("dB"),
-        0,
-        0.941,  // default: 0dB
-        ParameterInfo::kCanAutomate,
-        kFreezeOutputGainId);
 }
 
 // ==============================================================================
@@ -348,18 +330,6 @@ inline Steinberg::tresult formatFreezeParam(
             Steinberg::UString(string, 128).fromAscii(text);
             return kResultOk;
         }
-
-        case kFreezeOutputGainId: {
-            double dB = -96.0 + normalizedValue * 102.0;
-            char8 text[32];
-            if (dB <= -96.0) {
-                snprintf(text, sizeof(text), "-inf dB");
-            } else {
-                snprintf(text, sizeof(text), "%.1f dB", dB);
-            }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
     }
 
     return Steinberg::kResultFalse;
@@ -383,7 +353,6 @@ inline void saveFreezeParams(const FreezeParams& params, Steinberg::IBStreamer& 
     streamer.writeInt32(params.filterType.load(std::memory_order_relaxed));
     streamer.writeFloat(params.filterCutoff.load(std::memory_order_relaxed));
     streamer.writeFloat(params.dryWet.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.outputGain.load(std::memory_order_relaxed));
 }
 
 inline void loadFreezeParams(FreezeParams& params, Steinberg::IBStreamer& streamer) {
@@ -438,10 +407,6 @@ inline void loadFreezeParams(FreezeParams& params, Steinberg::IBStreamer& stream
     float dryWet = 0.5f;
     streamer.readFloat(dryWet);
     params.dryWet.store(dryWet, std::memory_order_relaxed);
-
-    float outputGain = 1.0f;
-    streamer.readFloat(outputGain);
-    params.outputGain.store(outputGain, std::memory_order_relaxed);
 }
 
 // ==============================================================================
@@ -509,12 +474,6 @@ inline void syncFreezeParamsToController(
     // Dry/wet: 0-1
     controller->setParamNormalized(kFreezeDryWetId,
         params.dryWet.load(std::memory_order_relaxed));
-
-    // Output gain: convert linear to normalized (-96 to +6 dB)
-    float gain = params.outputGain.load(std::memory_order_relaxed);
-    double dB = (gain <= 0.0f) ? -96.0 : 20.0 * std::log10(gain);
-    controller->setParamNormalized(kFreezeOutputGainId,
-        (dB + 96.0) / 102.0);
 }
 
 // ==============================================================================
@@ -605,13 +564,6 @@ inline void syncFreezeParamsToController(
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kFreezeDryWetId,
             static_cast<double>(floatVal));
-    }
-
-    // Output Gain: linear -> dB -> normalized = (dB+96)/102
-    if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        controller.setParamNormalized(kFreezeOutputGainId,
-            (dB + 96.0) / 102.0);
     }
 }
 
