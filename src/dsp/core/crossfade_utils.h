@@ -17,12 +17,12 @@
 
 #include <cmath>
 #include <utility>
+#include "dsp/core/math_constants.h"  // For kHalfPi
 
 namespace Iterum {
 namespace DSP {
 
-/// Pi/2 constant for crossfade calculations
-constexpr float kHalfPi = 1.5707963267948966f;
+// Note: kHalfPi is defined in math_constants.h to avoid ODR violations
 
 /// @brief Calculate equal-power crossfade gains (constant power: fadeOut² + fadeIn² ≈ 1)
 ///

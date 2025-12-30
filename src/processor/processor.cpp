@@ -98,6 +98,26 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     // Prepare MultiTapDelay (spec 028)
     multiTapDelay_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_), 5000.0f);
 
+    // ==========================================================================
+    // Allocate Mode Crossfade Buffers (spec 041-mode-switch-clicks)
+    // Constitution Principle II: Pre-allocate ALL buffers here
+    // ==========================================================================
+
+    // Allocate work buffers for crossfade (holds previous mode output)
+    crossfadeBufferL_.resize(static_cast<size_t>(maxBlockSize_));
+    crossfadeBufferR_.resize(static_cast<size_t>(maxBlockSize_));
+    std::fill(crossfadeBufferL_.begin(), crossfadeBufferL_.end(), 0.0f);
+    std::fill(crossfadeBufferR_.begin(), crossfadeBufferR_.end(), 0.0f);
+
+    // Calculate crossfade increment for 50ms transition
+    crossfadeIncrement_ = DSP::crossfadeIncrement(kCrossfadeTimeMs, sampleRate_);
+
+    // Initialize crossfade state as complete (no crossfade in progress)
+    crossfadePosition_ = 1.0f;
+    crossfadeActive_ = false;
+    currentProcessingMode_ = mode_.load(std::memory_order_relaxed);
+    previousMode_ = currentProcessingMode_;
+
     return AudioEffect::setupProcessing(setup);
 }
 
@@ -209,289 +229,56 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     };
 
     // ==========================================================================
-    // Process ONLY the active delay mode
+    // Mode Crossfade Processing (spec 041-mode-switch-clicks)
+    // Constitution Principle II: Real-Time Safety - no allocations, no locks
     // ==========================================================================
 
-    const int currentMode = mode_.load(std::memory_order_relaxed);
+    const int requestedMode = mode_.load(std::memory_order_relaxed);
     const size_t numSamples = static_cast<size_t>(data.numSamples);
 
-    switch (static_cast<DelayMode>(currentMode)) {
-        case DelayMode::Granular:
-            // Update Granular parameters
-            granularDelay_.setGrainSize(granularParams_.grainSize.load(std::memory_order_relaxed));
-            granularDelay_.setDensity(granularParams_.density.load(std::memory_order_relaxed));
-            granularDelay_.setDelayTime(granularParams_.delayTime.load(std::memory_order_relaxed));
-            granularDelay_.setPitch(granularParams_.pitch.load(std::memory_order_relaxed));
-            granularDelay_.setPitchSpray(granularParams_.pitchSpray.load(std::memory_order_relaxed));
-            granularDelay_.setPositionSpray(granularParams_.positionSpray.load(std::memory_order_relaxed));
-            granularDelay_.setPanSpray(granularParams_.panSpray.load(std::memory_order_relaxed));
-            granularDelay_.setReverseProbability(granularParams_.reverseProb.load(std::memory_order_relaxed));
-            granularDelay_.setFreeze(granularParams_.freeze.load(std::memory_order_relaxed));
-            granularDelay_.setFeedback(granularParams_.feedback.load(std::memory_order_relaxed));
-            granularDelay_.setDryWet(granularParams_.dryWet.load(std::memory_order_relaxed));
-            granularDelay_.setOutputGain(granularParams_.outputGain.load(std::memory_order_relaxed));
-            granularDelay_.setEnvelopeType(static_cast<DSP::GrainEnvelopeType>(
-                granularParams_.envelopeType.load(std::memory_order_relaxed)));
-            // Tempo sync parameters (spec 038)
-            granularDelay_.setTimeMode(granularParams_.timeMode.load(std::memory_order_relaxed));
-            granularDelay_.setNoteValue(granularParams_.noteValue.load(std::memory_order_relaxed));
-            granularDelay_.process(inputL, inputR, outputL, outputR, numSamples, ctx);
-            break;
+    // Check for mode change and initiate crossfade if needed
+    if (requestedMode != currentProcessingMode_) {
+        previousMode_ = currentProcessingMode_;
+        currentProcessingMode_ = requestedMode;
+        crossfadePosition_ = 0.0f;
+        crossfadeActive_ = true;
+    }
 
-        case DelayMode::Spectral:
-            // Update Spectral parameters
-            spectralDelay_.setFFTSize(static_cast<size_t>(
-                spectralParams_.fftSize.load(std::memory_order_relaxed)));
-            spectralDelay_.setBaseDelayMs(spectralParams_.baseDelay.load(std::memory_order_relaxed));
-            spectralDelay_.setSpreadMs(spectralParams_.spread.load(std::memory_order_relaxed));
-            spectralDelay_.setSpreadDirection(static_cast<DSP::SpreadDirection>(
-                spectralParams_.spreadDirection.load(std::memory_order_relaxed)));
-            spectralDelay_.setFeedback(spectralParams_.feedback.load(std::memory_order_relaxed));
-            spectralDelay_.setFeedbackTilt(spectralParams_.feedbackTilt.load(std::memory_order_relaxed));
-            spectralDelay_.setFreezeEnabled(spectralParams_.freeze.load(std::memory_order_relaxed));
-            spectralDelay_.setDiffusion(spectralParams_.diffusion.load(std::memory_order_relaxed));
-            spectralDelay_.setDryWetMix(spectralParams_.dryWet.load(std::memory_order_relaxed));
-            spectralDelay_.setOutputGainDb(spectralParams_.outputGain.load(std::memory_order_relaxed));
-            // Copy input to output first (SpectralDelay processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            spectralDelay_.process(outputL, outputR, numSamples, ctx);
-            break;
+    if (crossfadeActive_) {
+        // =======================================================================
+        // Crossfade Active: Process both modes and blend (T022-T024)
+        // =======================================================================
 
-        case DelayMode::Shimmer:
-            // Update Shimmer parameters
-            shimmerDelay_.setDelayTimeMs(shimmerParams_.delayTime.load(std::memory_order_relaxed));
-            shimmerDelay_.setPitchSemitones(shimmerParams_.pitchSemitones.load(std::memory_order_relaxed));
-            shimmerDelay_.setPitchCents(shimmerParams_.pitchCents.load(std::memory_order_relaxed));
-            shimmerDelay_.setShimmerMix(shimmerParams_.shimmerMix.load(std::memory_order_relaxed));
-            shimmerDelay_.setFeedbackAmount(shimmerParams_.feedback.load(std::memory_order_relaxed));
-            shimmerDelay_.setDiffusionAmount(shimmerParams_.diffusionAmount.load(std::memory_order_relaxed));
-            shimmerDelay_.setDiffusionSize(shimmerParams_.diffusionSize.load(std::memory_order_relaxed));
-            shimmerDelay_.setFilterEnabled(shimmerParams_.filterEnabled.load(std::memory_order_relaxed));
-            shimmerDelay_.setFilterCutoff(shimmerParams_.filterCutoff.load(std::memory_order_relaxed));
-            shimmerDelay_.setDryWetMix(shimmerParams_.dryWet.load(std::memory_order_relaxed));
-            shimmerDelay_.setOutputGainDb(shimmerParams_.outputGain.load(std::memory_order_relaxed));
-            // Copy input to output first (ShimmerDelay processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            shimmerDelay_.process(outputL, outputR, numSamples, ctx);
-            break;
+        // Process the NEW mode into the output buffers
+        processMode(currentProcessingMode_, inputL, inputR, outputL, outputR, numSamples, ctx);
 
-        case DelayMode::Tape:
-            // Update Tape parameters
-            tapeDelay_.setMotorSpeed(tapeParams_.motorSpeed.load(std::memory_order_relaxed));
-            tapeDelay_.setMotorInertia(tapeParams_.motorInertia.load(std::memory_order_relaxed));
-            tapeDelay_.setWear(tapeParams_.wear.load(std::memory_order_relaxed));
-            tapeDelay_.setSaturation(tapeParams_.saturation.load(std::memory_order_relaxed));
-            tapeDelay_.setAge(tapeParams_.age.load(std::memory_order_relaxed));
-            tapeDelay_.setSpliceEnabled(tapeParams_.spliceEnabled.load(std::memory_order_relaxed));
-            tapeDelay_.setSpliceIntensity(tapeParams_.spliceIntensity.load(std::memory_order_relaxed));
-            tapeDelay_.setFeedback(tapeParams_.feedback.load(std::memory_order_relaxed));
-            tapeDelay_.setMix(tapeParams_.mix.load(std::memory_order_relaxed));
-            // Output level is already in dB (no conversion needed)
-            tapeDelay_.setOutputLevel(tapeParams_.outputLevel.load(std::memory_order_relaxed));
-            tapeDelay_.setHeadEnabled(0, tapeParams_.head1Enabled.load(std::memory_order_relaxed));
-            tapeDelay_.setHeadEnabled(1, tapeParams_.head2Enabled.load(std::memory_order_relaxed));
-            tapeDelay_.setHeadEnabled(2, tapeParams_.head3Enabled.load(std::memory_order_relaxed));
-            {
-                float linearGain = tapeParams_.head1Level.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                tapeDelay_.setHeadLevel(0, dB);
+        // Process the OLD mode into the crossfade work buffers
+        processMode(previousMode_, inputL, inputR,
+                   crossfadeBufferL_.data(), crossfadeBufferR_.data(), numSamples, ctx);
+
+        // Apply equal-power crossfade sample-by-sample
+        for (size_t i = 0; i < numSamples; ++i) {
+            float fadeOut, fadeIn;
+            DSP::equalPowerGains(crossfadePosition_, fadeOut, fadeIn);
+
+            // Blend: old mode (fading out) + new mode (fading in)
+            outputL[i] = crossfadeBufferL_[i] * fadeOut + outputL[i] * fadeIn;
+            outputR[i] = crossfadeBufferR_[i] * fadeOut + outputR[i] * fadeIn;
+
+            // Advance crossfade position
+            crossfadePosition_ += crossfadeIncrement_;
+            if (crossfadePosition_ >= 1.0f) {
+                crossfadePosition_ = 1.0f;
+                crossfadeActive_ = false;
+                // Remaining samples in this block are processed without crossfade
+                // (already in outputL/outputR from processMode)
             }
-            {
-                float linearGain = tapeParams_.head2Level.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                tapeDelay_.setHeadLevel(1, dB);
-            }
-            {
-                float linearGain = tapeParams_.head3Level.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                tapeDelay_.setHeadLevel(2, dB);
-            }
-            tapeDelay_.setHeadPan(0, tapeParams_.head1Pan.load(std::memory_order_relaxed) * 100.0f);
-            tapeDelay_.setHeadPan(1, tapeParams_.head2Pan.load(std::memory_order_relaxed) * 100.0f);
-            tapeDelay_.setHeadPan(2, tapeParams_.head3Pan.load(std::memory_order_relaxed) * 100.0f);
-            // Copy input to output first (TapeDelay processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            tapeDelay_.process(outputL, outputR, numSamples);
-            break;
-
-        case DelayMode::BBD:
-            // Update BBD parameters
-            bbdDelay_.setTime(bbdParams_.delayTime.load(std::memory_order_relaxed));
-            bbdDelay_.setFeedback(bbdParams_.feedback.load(std::memory_order_relaxed));
-            bbdDelay_.setModulation(bbdParams_.modulationDepth.load(std::memory_order_relaxed));
-            bbdDelay_.setModulationRate(bbdParams_.modulationRate.load(std::memory_order_relaxed));
-            bbdDelay_.setAge(bbdParams_.age.load(std::memory_order_relaxed));
-            bbdDelay_.setEra(Parameters::getBBDEraFromDropdown(
-                bbdParams_.era.load(std::memory_order_relaxed)));
-            bbdDelay_.setMix(bbdParams_.mix.load(std::memory_order_relaxed));
-            // Output level is already in dB (no conversion needed)
-            bbdDelay_.setOutputLevel(bbdParams_.outputLevel.load(std::memory_order_relaxed));
-            // Copy input to output first (BBDDelay processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            bbdDelay_.process(outputL, outputR, numSamples);
-            break;
-
-        case DelayMode::Digital:
-            // Update Digital parameters
-            digitalDelay_.setTime(digitalParams_.delayTime.load(std::memory_order_relaxed));
-            digitalDelay_.setTimeMode(static_cast<DSP::TimeMode>(
-                digitalParams_.timeMode.load(std::memory_order_relaxed)));
-            {
-                // Map dropdown index (0-9) to proper NoteValue + NoteModifier
-                const int noteIdx = digitalParams_.noteValue.load(std::memory_order_relaxed);
-                const auto noteMapping = DSP::getNoteValueFromDropdown(noteIdx);
-                digitalDelay_.setNoteValue(noteMapping.note, noteMapping.modifier);
-            }
-            digitalDelay_.setFeedback(digitalParams_.feedback.load(std::memory_order_relaxed));
-            digitalDelay_.setLimiterCharacter(static_cast<DSP::LimiterCharacter>(
-                digitalParams_.limiterCharacter.load(std::memory_order_relaxed)));
-            digitalDelay_.setEra(static_cast<DSP::DigitalEra>(
-                digitalParams_.era.load(std::memory_order_relaxed)));
-            digitalDelay_.setAge(digitalParams_.age.load(std::memory_order_relaxed));
-            digitalDelay_.setModulationDepth(digitalParams_.modulationDepth.load(std::memory_order_relaxed));
-            digitalDelay_.setModulationRate(digitalParams_.modulationRate.load(std::memory_order_relaxed));
-            digitalDelay_.setModulationWaveform(static_cast<DSP::Waveform>(
-                digitalParams_.modulationWaveform.load(std::memory_order_relaxed)));
-            digitalDelay_.setMix(digitalParams_.mix.load(std::memory_order_relaxed));
-            digitalDelay_.setWidth(digitalParams_.width.load(std::memory_order_relaxed));
-            // Output level is already in dB (no conversion needed)
-            digitalDelay_.setOutputLevel(digitalParams_.outputLevel.load(std::memory_order_relaxed));
-            // Copy input to output first (DigitalDelay processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            digitalDelay_.process(outputL, outputR, numSamples, ctx);
-            break;
-
-        case DelayMode::PingPong:
-            // Update PingPong parameters
-            pingPongDelay_.setDelayTimeMs(pingPongParams_.delayTime.load(std::memory_order_relaxed));
-            pingPongDelay_.setTimeMode(static_cast<DSP::TimeMode>(
-                pingPongParams_.timeMode.load(std::memory_order_relaxed)));
-            {
-                // Map dropdown index (0-9) to proper NoteValue + NoteModifier
-                const int noteIdx = pingPongParams_.noteValue.load(std::memory_order_relaxed);
-                const auto noteMapping = DSP::getNoteValueFromDropdown(noteIdx);
-                pingPongDelay_.setNoteValue(noteMapping.note, noteMapping.modifier);
-            }
-            pingPongDelay_.setLRRatio(Parameters::getLRRatioFromDropdown(
-                pingPongParams_.lrRatio.load(std::memory_order_relaxed)));
-            pingPongDelay_.setFeedback(pingPongParams_.feedback.load(std::memory_order_relaxed));
-            pingPongDelay_.setCrossFeedback(pingPongParams_.crossFeedback.load(std::memory_order_relaxed));
-            pingPongDelay_.setWidth(pingPongParams_.width.load(std::memory_order_relaxed));
-            pingPongDelay_.setModulationDepth(pingPongParams_.modulationDepth.load(std::memory_order_relaxed));
-            pingPongDelay_.setModulationRate(pingPongParams_.modulationRate.load(std::memory_order_relaxed));
-            pingPongDelay_.setMix(pingPongParams_.mix.load(std::memory_order_relaxed));
-            // Output level is already in dB (no conversion needed)
-            pingPongDelay_.setOutputLevel(pingPongParams_.outputLevel.load(std::memory_order_relaxed));
-            // Copy input to output first (PingPongDelay processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            pingPongDelay_.process(outputL, outputR, numSamples, ctx);
-            break;
-
-        case DelayMode::Reverse:
-            // Update Reverse parameters
-            reverseDelay_.setChunkSizeMs(reverseParams_.chunkSize.load(std::memory_order_relaxed));
-            reverseDelay_.setCrossfadePercent(reverseParams_.crossfade.load(std::memory_order_relaxed));
-            reverseDelay_.setPlaybackMode(static_cast<DSP::PlaybackMode>(
-                reverseParams_.playbackMode.load(std::memory_order_relaxed)));
-            reverseDelay_.setFeedbackAmount(reverseParams_.feedback.load(std::memory_order_relaxed));
-            reverseDelay_.setFilterEnabled(reverseParams_.filterEnabled.load(std::memory_order_relaxed));
-            reverseDelay_.setFilterCutoff(reverseParams_.filterCutoff.load(std::memory_order_relaxed));
-            reverseDelay_.setFilterType(static_cast<DSP::FilterType>(
-                reverseParams_.filterType.load(std::memory_order_relaxed)));
-            reverseDelay_.setDryWetMix(reverseParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
-            {
-                float linearGain = reverseParams_.outputGain.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                reverseDelay_.setOutputGainDb(dB);
-            }
-            // Copy input to output first (ReverseDelay processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            reverseDelay_.process(outputL, outputR, numSamples, ctx);
-            break;
-
-        case DelayMode::MultiTap:
-            // Update MultiTap parameters
-            multiTapDelay_.loadTimingPattern(Parameters::getTimingPatternFromDropdown(
-                multiTapParams_.timingPattern.load(std::memory_order_relaxed)),
-                static_cast<size_t>(multiTapParams_.tapCount.load(std::memory_order_relaxed)));
-            multiTapDelay_.applySpatialPattern(Parameters::getSpatialPatternFromDropdown(
-                multiTapParams_.spatialPattern.load(std::memory_order_relaxed)));
-            multiTapDelay_.setBaseTimeMs(multiTapParams_.baseTime.load(std::memory_order_relaxed));
-            multiTapDelay_.setTempo(multiTapParams_.tempo.load(std::memory_order_relaxed));
-            multiTapDelay_.setFeedbackAmount(multiTapParams_.feedback.load(std::memory_order_relaxed));
-            multiTapDelay_.setFeedbackLPCutoff(multiTapParams_.feedbackLPCutoff.load(std::memory_order_relaxed));
-            multiTapDelay_.setFeedbackHPCutoff(multiTapParams_.feedbackHPCutoff.load(std::memory_order_relaxed));
-            multiTapDelay_.setMorphTime(multiTapParams_.morphTime.load(std::memory_order_relaxed));
-            multiTapDelay_.setDryWetMix(multiTapParams_.dryWet.load(std::memory_order_relaxed));
-            // Output level is already in dB (no conversion needed)
-            multiTapDelay_.setOutputLevel(multiTapParams_.outputLevel.load(std::memory_order_relaxed));
-            // Copy input to output first (MultiTapDelay processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            multiTapDelay_.process(outputL, outputR, numSamples, ctx);
-            break;
-
-        case DelayMode::Freeze:
-            // Update Freeze parameters
-            freezeMode_.setFreezeEnabled(freezeParams_.freezeEnabled.load(std::memory_order_relaxed));
-            freezeMode_.setDelayTimeMs(freezeParams_.delayTime.load(std::memory_order_relaxed));
-            freezeMode_.setFeedbackAmount(freezeParams_.feedback.load(std::memory_order_relaxed));
-            freezeMode_.setPitchSemitones(freezeParams_.pitchSemitones.load(std::memory_order_relaxed));
-            freezeMode_.setPitchCents(freezeParams_.pitchCents.load(std::memory_order_relaxed));
-            freezeMode_.setShimmerMix(freezeParams_.shimmerMix.load(std::memory_order_relaxed) * 100.0f);
-            freezeMode_.setDecay(freezeParams_.decay.load(std::memory_order_relaxed) * 100.0f);
-            freezeMode_.setDiffusionAmount(freezeParams_.diffusionAmount.load(std::memory_order_relaxed) * 100.0f);
-            freezeMode_.setDiffusionSize(freezeParams_.diffusionSize.load(std::memory_order_relaxed) * 100.0f);
-            freezeMode_.setFilterEnabled(freezeParams_.filterEnabled.load(std::memory_order_relaxed));
-            freezeMode_.setFilterType(static_cast<DSP::FilterType>(
-                freezeParams_.filterType.load(std::memory_order_relaxed)));
-            freezeMode_.setFilterCutoff(freezeParams_.filterCutoff.load(std::memory_order_relaxed));
-            freezeMode_.setDryWetMix(freezeParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
-            {
-                float linearGain = freezeParams_.outputGain.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                freezeMode_.setOutputGainDb(dB);
-            }
-            // Copy input to output first (FreezeMode processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            freezeMode_.process(outputL, outputR, numSamples, ctx);
-            break;
-
-        case DelayMode::Ducking:
-            // Update Ducking parameters
-            duckingDelay_.setDuckingEnabled(duckingParams_.duckingEnabled.load(std::memory_order_relaxed));
-            duckingDelay_.setThreshold(duckingParams_.threshold.load(std::memory_order_relaxed));
-            duckingDelay_.setDuckAmount(duckingParams_.duckAmount.load(std::memory_order_relaxed));
-            duckingDelay_.setAttackTime(duckingParams_.attackTime.load(std::memory_order_relaxed));
-            duckingDelay_.setReleaseTime(duckingParams_.releaseTime.load(std::memory_order_relaxed));
-            duckingDelay_.setHoldTime(duckingParams_.holdTime.load(std::memory_order_relaxed));
-            duckingDelay_.setDuckTarget(static_cast<DSP::DuckTarget>(
-                duckingParams_.duckTarget.load(std::memory_order_relaxed)));
-            duckingDelay_.setSidechainFilterEnabled(duckingParams_.sidechainFilterEnabled.load(std::memory_order_relaxed));
-            duckingDelay_.setSidechainFilterCutoff(duckingParams_.sidechainFilterCutoff.load(std::memory_order_relaxed));
-            duckingDelay_.setDelayTimeMs(duckingParams_.delayTime.load(std::memory_order_relaxed));
-            duckingDelay_.setFeedbackAmount(duckingParams_.feedback.load(std::memory_order_relaxed));
-            duckingDelay_.setDryWetMix(duckingParams_.dryWet.load(std::memory_order_relaxed));
-            duckingDelay_.setOutputGainDb(duckingParams_.outputGain.load(std::memory_order_relaxed));
-            // Copy input to output first (DuckingDelay processes in-place)
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            duckingDelay_.process(outputL, outputR, numSamples, ctx);
-            break;
-
-        default:
-            // Unknown mode - pass through
-            std::copy_n(inputL, numSamples, outputL);
-            std::copy_n(inputR, numSamples, outputR);
-            break;
+        }
+    } else {
+        // =======================================================================
+        // No Crossfade: Process single mode directly
+        // =======================================================================
+        processMode(currentProcessingMode_, inputL, inputR, outputL, outputR, numSamples, ctx);
     }
 
     // Apply output gain
@@ -691,6 +478,259 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             // Ducking Delay parameters (1100-1199) - spec 032
             handleDuckingParamChange(duckingParams_, paramId, value);
         }
+    }
+}
+
+// ==============================================================================
+// Mode Processing Helper (spec 041-mode-switch-clicks)
+// ==============================================================================
+
+void Processor::processMode(int mode, const float* inputL, const float* inputR,
+                           float* outputL, float* outputR, size_t numSamples,
+                           const DSP::BlockContext& ctx) {
+    // Copy input to output first (most modes process in-place)
+    std::copy_n(inputL, numSamples, outputL);
+    std::copy_n(inputR, numSamples, outputR);
+
+    switch (static_cast<DelayMode>(mode)) {
+        case DelayMode::Granular:
+            // Update Granular parameters
+            granularDelay_.setGrainSize(granularParams_.grainSize.load(std::memory_order_relaxed));
+            granularDelay_.setDensity(granularParams_.density.load(std::memory_order_relaxed));
+            granularDelay_.setDelayTime(granularParams_.delayTime.load(std::memory_order_relaxed));
+            granularDelay_.setPitch(granularParams_.pitch.load(std::memory_order_relaxed));
+            granularDelay_.setPitchSpray(granularParams_.pitchSpray.load(std::memory_order_relaxed));
+            granularDelay_.setPositionSpray(granularParams_.positionSpray.load(std::memory_order_relaxed));
+            granularDelay_.setPanSpray(granularParams_.panSpray.load(std::memory_order_relaxed));
+            granularDelay_.setReverseProbability(granularParams_.reverseProb.load(std::memory_order_relaxed));
+            granularDelay_.setFreeze(granularParams_.freeze.load(std::memory_order_relaxed));
+            granularDelay_.setFeedback(granularParams_.feedback.load(std::memory_order_relaxed));
+            granularDelay_.setDryWet(granularParams_.dryWet.load(std::memory_order_relaxed));
+            granularDelay_.setOutputGain(granularParams_.outputGain.load(std::memory_order_relaxed));
+            granularDelay_.setEnvelopeType(static_cast<DSP::GrainEnvelopeType>(
+                granularParams_.envelopeType.load(std::memory_order_relaxed)));
+            // Tempo sync parameters (spec 038)
+            granularDelay_.setTimeMode(granularParams_.timeMode.load(std::memory_order_relaxed));
+            granularDelay_.setNoteValue(granularParams_.noteValue.load(std::memory_order_relaxed));
+            // GranularDelay takes separate input/output buffers
+            granularDelay_.process(inputL, inputR, outputL, outputR, numSamples, ctx);
+            break;
+
+        case DelayMode::Spectral:
+            // Update Spectral parameters
+            spectralDelay_.setFFTSize(static_cast<size_t>(
+                spectralParams_.fftSize.load(std::memory_order_relaxed)));
+            spectralDelay_.setBaseDelayMs(spectralParams_.baseDelay.load(std::memory_order_relaxed));
+            spectralDelay_.setSpreadMs(spectralParams_.spread.load(std::memory_order_relaxed));
+            spectralDelay_.setSpreadDirection(static_cast<DSP::SpreadDirection>(
+                spectralParams_.spreadDirection.load(std::memory_order_relaxed)));
+            spectralDelay_.setFeedback(spectralParams_.feedback.load(std::memory_order_relaxed));
+            spectralDelay_.setFeedbackTilt(spectralParams_.feedbackTilt.load(std::memory_order_relaxed));
+            spectralDelay_.setFreezeEnabled(spectralParams_.freeze.load(std::memory_order_relaxed));
+            spectralDelay_.setDiffusion(spectralParams_.diffusion.load(std::memory_order_relaxed));
+            spectralDelay_.setDryWetMix(spectralParams_.dryWet.load(std::memory_order_relaxed));
+            spectralDelay_.setOutputGainDb(spectralParams_.outputGain.load(std::memory_order_relaxed));
+            spectralDelay_.process(outputL, outputR, numSamples, ctx);
+            break;
+
+        case DelayMode::Shimmer:
+            // Update Shimmer parameters
+            shimmerDelay_.setDelayTimeMs(shimmerParams_.delayTime.load(std::memory_order_relaxed));
+            shimmerDelay_.setPitchSemitones(shimmerParams_.pitchSemitones.load(std::memory_order_relaxed));
+            shimmerDelay_.setPitchCents(shimmerParams_.pitchCents.load(std::memory_order_relaxed));
+            shimmerDelay_.setShimmerMix(shimmerParams_.shimmerMix.load(std::memory_order_relaxed));
+            shimmerDelay_.setFeedbackAmount(shimmerParams_.feedback.load(std::memory_order_relaxed));
+            shimmerDelay_.setDiffusionAmount(shimmerParams_.diffusionAmount.load(std::memory_order_relaxed));
+            shimmerDelay_.setDiffusionSize(shimmerParams_.diffusionSize.load(std::memory_order_relaxed));
+            shimmerDelay_.setFilterEnabled(shimmerParams_.filterEnabled.load(std::memory_order_relaxed));
+            shimmerDelay_.setFilterCutoff(shimmerParams_.filterCutoff.load(std::memory_order_relaxed));
+            shimmerDelay_.setDryWetMix(shimmerParams_.dryWet.load(std::memory_order_relaxed));
+            shimmerDelay_.setOutputGainDb(shimmerParams_.outputGain.load(std::memory_order_relaxed));
+            shimmerDelay_.process(outputL, outputR, numSamples, ctx);
+            break;
+
+        case DelayMode::Tape:
+            // Update Tape parameters
+            tapeDelay_.setMotorSpeed(tapeParams_.motorSpeed.load(std::memory_order_relaxed));
+            tapeDelay_.setMotorInertia(tapeParams_.motorInertia.load(std::memory_order_relaxed));
+            tapeDelay_.setWear(tapeParams_.wear.load(std::memory_order_relaxed));
+            tapeDelay_.setSaturation(tapeParams_.saturation.load(std::memory_order_relaxed));
+            tapeDelay_.setAge(tapeParams_.age.load(std::memory_order_relaxed));
+            tapeDelay_.setSpliceEnabled(tapeParams_.spliceEnabled.load(std::memory_order_relaxed));
+            tapeDelay_.setSpliceIntensity(tapeParams_.spliceIntensity.load(std::memory_order_relaxed));
+            tapeDelay_.setFeedback(tapeParams_.feedback.load(std::memory_order_relaxed));
+            tapeDelay_.setMix(tapeParams_.mix.load(std::memory_order_relaxed));
+            tapeDelay_.setOutputLevel(tapeParams_.outputLevel.load(std::memory_order_relaxed));
+            tapeDelay_.setHeadEnabled(0, tapeParams_.head1Enabled.load(std::memory_order_relaxed));
+            tapeDelay_.setHeadEnabled(1, tapeParams_.head2Enabled.load(std::memory_order_relaxed));
+            tapeDelay_.setHeadEnabled(2, tapeParams_.head3Enabled.load(std::memory_order_relaxed));
+            {
+                float linearGain = tapeParams_.head1Level.load(std::memory_order_relaxed);
+                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
+                tapeDelay_.setHeadLevel(0, dB);
+            }
+            {
+                float linearGain = tapeParams_.head2Level.load(std::memory_order_relaxed);
+                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
+                tapeDelay_.setHeadLevel(1, dB);
+            }
+            {
+                float linearGain = tapeParams_.head3Level.load(std::memory_order_relaxed);
+                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
+                tapeDelay_.setHeadLevel(2, dB);
+            }
+            tapeDelay_.setHeadPan(0, tapeParams_.head1Pan.load(std::memory_order_relaxed) * 100.0f);
+            tapeDelay_.setHeadPan(1, tapeParams_.head2Pan.load(std::memory_order_relaxed) * 100.0f);
+            tapeDelay_.setHeadPan(2, tapeParams_.head3Pan.load(std::memory_order_relaxed) * 100.0f);
+            tapeDelay_.process(outputL, outputR, numSamples);
+            break;
+
+        case DelayMode::BBD:
+            // Update BBD parameters
+            bbdDelay_.setTime(bbdParams_.delayTime.load(std::memory_order_relaxed));
+            bbdDelay_.setFeedback(bbdParams_.feedback.load(std::memory_order_relaxed));
+            bbdDelay_.setModulation(bbdParams_.modulationDepth.load(std::memory_order_relaxed));
+            bbdDelay_.setModulationRate(bbdParams_.modulationRate.load(std::memory_order_relaxed));
+            bbdDelay_.setAge(bbdParams_.age.load(std::memory_order_relaxed));
+            bbdDelay_.setEra(Parameters::getBBDEraFromDropdown(
+                bbdParams_.era.load(std::memory_order_relaxed)));
+            bbdDelay_.setMix(bbdParams_.mix.load(std::memory_order_relaxed));
+            bbdDelay_.setOutputLevel(bbdParams_.outputLevel.load(std::memory_order_relaxed));
+            bbdDelay_.process(outputL, outputR, numSamples);
+            break;
+
+        case DelayMode::Digital:
+            // Update Digital parameters
+            digitalDelay_.setTime(digitalParams_.delayTime.load(std::memory_order_relaxed));
+            digitalDelay_.setTimeMode(static_cast<DSP::TimeMode>(
+                digitalParams_.timeMode.load(std::memory_order_relaxed)));
+            {
+                const int noteIdx = digitalParams_.noteValue.load(std::memory_order_relaxed);
+                const auto noteMapping = DSP::getNoteValueFromDropdown(noteIdx);
+                digitalDelay_.setNoteValue(noteMapping.note, noteMapping.modifier);
+            }
+            digitalDelay_.setFeedback(digitalParams_.feedback.load(std::memory_order_relaxed));
+            digitalDelay_.setLimiterCharacter(static_cast<DSP::LimiterCharacter>(
+                digitalParams_.limiterCharacter.load(std::memory_order_relaxed)));
+            digitalDelay_.setEra(static_cast<DSP::DigitalEra>(
+                digitalParams_.era.load(std::memory_order_relaxed)));
+            digitalDelay_.setAge(digitalParams_.age.load(std::memory_order_relaxed));
+            digitalDelay_.setModulationDepth(digitalParams_.modulationDepth.load(std::memory_order_relaxed));
+            digitalDelay_.setModulationRate(digitalParams_.modulationRate.load(std::memory_order_relaxed));
+            digitalDelay_.setModulationWaveform(static_cast<DSP::Waveform>(
+                digitalParams_.modulationWaveform.load(std::memory_order_relaxed)));
+            digitalDelay_.setMix(digitalParams_.mix.load(std::memory_order_relaxed));
+            digitalDelay_.setWidth(digitalParams_.width.load(std::memory_order_relaxed));
+            digitalDelay_.setOutputLevel(digitalParams_.outputLevel.load(std::memory_order_relaxed));
+            digitalDelay_.process(outputL, outputR, numSamples, ctx);
+            break;
+
+        case DelayMode::PingPong:
+            // Update PingPong parameters
+            pingPongDelay_.setDelayTimeMs(pingPongParams_.delayTime.load(std::memory_order_relaxed));
+            pingPongDelay_.setTimeMode(static_cast<DSP::TimeMode>(
+                pingPongParams_.timeMode.load(std::memory_order_relaxed)));
+            {
+                const int noteIdx = pingPongParams_.noteValue.load(std::memory_order_relaxed);
+                const auto noteMapping = DSP::getNoteValueFromDropdown(noteIdx);
+                pingPongDelay_.setNoteValue(noteMapping.note, noteMapping.modifier);
+            }
+            pingPongDelay_.setLRRatio(Parameters::getLRRatioFromDropdown(
+                pingPongParams_.lrRatio.load(std::memory_order_relaxed)));
+            pingPongDelay_.setFeedback(pingPongParams_.feedback.load(std::memory_order_relaxed));
+            pingPongDelay_.setCrossFeedback(pingPongParams_.crossFeedback.load(std::memory_order_relaxed));
+            pingPongDelay_.setWidth(pingPongParams_.width.load(std::memory_order_relaxed));
+            pingPongDelay_.setModulationDepth(pingPongParams_.modulationDepth.load(std::memory_order_relaxed));
+            pingPongDelay_.setModulationRate(pingPongParams_.modulationRate.load(std::memory_order_relaxed));
+            pingPongDelay_.setMix(pingPongParams_.mix.load(std::memory_order_relaxed));
+            pingPongDelay_.setOutputLevel(pingPongParams_.outputLevel.load(std::memory_order_relaxed));
+            pingPongDelay_.process(outputL, outputR, numSamples, ctx);
+            break;
+
+        case DelayMode::Reverse:
+            // Update Reverse parameters
+            reverseDelay_.setChunkSizeMs(reverseParams_.chunkSize.load(std::memory_order_relaxed));
+            reverseDelay_.setCrossfadePercent(reverseParams_.crossfade.load(std::memory_order_relaxed));
+            reverseDelay_.setPlaybackMode(static_cast<DSP::PlaybackMode>(
+                reverseParams_.playbackMode.load(std::memory_order_relaxed)));
+            reverseDelay_.setFeedbackAmount(reverseParams_.feedback.load(std::memory_order_relaxed));
+            reverseDelay_.setFilterEnabled(reverseParams_.filterEnabled.load(std::memory_order_relaxed));
+            reverseDelay_.setFilterCutoff(reverseParams_.filterCutoff.load(std::memory_order_relaxed));
+            reverseDelay_.setFilterType(static_cast<DSP::FilterType>(
+                reverseParams_.filterType.load(std::memory_order_relaxed)));
+            reverseDelay_.setDryWetMix(reverseParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
+            {
+                float linearGain = reverseParams_.outputGain.load(std::memory_order_relaxed);
+                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
+                reverseDelay_.setOutputGainDb(dB);
+            }
+            reverseDelay_.process(outputL, outputR, numSamples, ctx);
+            break;
+
+        case DelayMode::MultiTap:
+            // Update MultiTap parameters
+            multiTapDelay_.loadTimingPattern(Parameters::getTimingPatternFromDropdown(
+                multiTapParams_.timingPattern.load(std::memory_order_relaxed)),
+                static_cast<size_t>(multiTapParams_.tapCount.load(std::memory_order_relaxed)));
+            multiTapDelay_.applySpatialPattern(Parameters::getSpatialPatternFromDropdown(
+                multiTapParams_.spatialPattern.load(std::memory_order_relaxed)));
+            multiTapDelay_.setBaseTimeMs(multiTapParams_.baseTime.load(std::memory_order_relaxed));
+            multiTapDelay_.setTempo(multiTapParams_.tempo.load(std::memory_order_relaxed));
+            multiTapDelay_.setFeedbackAmount(multiTapParams_.feedback.load(std::memory_order_relaxed));
+            multiTapDelay_.setFeedbackLPCutoff(multiTapParams_.feedbackLPCutoff.load(std::memory_order_relaxed));
+            multiTapDelay_.setFeedbackHPCutoff(multiTapParams_.feedbackHPCutoff.load(std::memory_order_relaxed));
+            multiTapDelay_.setMorphTime(multiTapParams_.morphTime.load(std::memory_order_relaxed));
+            multiTapDelay_.setDryWetMix(multiTapParams_.dryWet.load(std::memory_order_relaxed));
+            multiTapDelay_.setOutputLevel(multiTapParams_.outputLevel.load(std::memory_order_relaxed));
+            multiTapDelay_.process(outputL, outputR, numSamples, ctx);
+            break;
+
+        case DelayMode::Freeze:
+            // Update Freeze parameters
+            freezeMode_.setFreezeEnabled(freezeParams_.freezeEnabled.load(std::memory_order_relaxed));
+            freezeMode_.setDelayTimeMs(freezeParams_.delayTime.load(std::memory_order_relaxed));
+            freezeMode_.setFeedbackAmount(freezeParams_.feedback.load(std::memory_order_relaxed));
+            freezeMode_.setPitchSemitones(freezeParams_.pitchSemitones.load(std::memory_order_relaxed));
+            freezeMode_.setPitchCents(freezeParams_.pitchCents.load(std::memory_order_relaxed));
+            freezeMode_.setShimmerMix(freezeParams_.shimmerMix.load(std::memory_order_relaxed) * 100.0f);
+            freezeMode_.setDecay(freezeParams_.decay.load(std::memory_order_relaxed) * 100.0f);
+            freezeMode_.setDiffusionAmount(freezeParams_.diffusionAmount.load(std::memory_order_relaxed) * 100.0f);
+            freezeMode_.setDiffusionSize(freezeParams_.diffusionSize.load(std::memory_order_relaxed) * 100.0f);
+            freezeMode_.setFilterEnabled(freezeParams_.filterEnabled.load(std::memory_order_relaxed));
+            freezeMode_.setFilterType(static_cast<DSP::FilterType>(
+                freezeParams_.filterType.load(std::memory_order_relaxed)));
+            freezeMode_.setFilterCutoff(freezeParams_.filterCutoff.load(std::memory_order_relaxed));
+            freezeMode_.setDryWetMix(freezeParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
+            {
+                float linearGain = freezeParams_.outputGain.load(std::memory_order_relaxed);
+                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
+                freezeMode_.setOutputGainDb(dB);
+            }
+            freezeMode_.process(outputL, outputR, numSamples, ctx);
+            break;
+
+        case DelayMode::Ducking:
+            // Update Ducking parameters
+            duckingDelay_.setDuckingEnabled(duckingParams_.duckingEnabled.load(std::memory_order_relaxed));
+            duckingDelay_.setThreshold(duckingParams_.threshold.load(std::memory_order_relaxed));
+            duckingDelay_.setDuckAmount(duckingParams_.duckAmount.load(std::memory_order_relaxed));
+            duckingDelay_.setAttackTime(duckingParams_.attackTime.load(std::memory_order_relaxed));
+            duckingDelay_.setReleaseTime(duckingParams_.releaseTime.load(std::memory_order_relaxed));
+            duckingDelay_.setHoldTime(duckingParams_.holdTime.load(std::memory_order_relaxed));
+            duckingDelay_.setDuckTarget(static_cast<DSP::DuckTarget>(
+                duckingParams_.duckTarget.load(std::memory_order_relaxed)));
+            duckingDelay_.setSidechainFilterEnabled(duckingParams_.sidechainFilterEnabled.load(std::memory_order_relaxed));
+            duckingDelay_.setSidechainFilterCutoff(duckingParams_.sidechainFilterCutoff.load(std::memory_order_relaxed));
+            duckingDelay_.setDelayTimeMs(duckingParams_.delayTime.load(std::memory_order_relaxed));
+            duckingDelay_.setFeedbackAmount(duckingParams_.feedback.load(std::memory_order_relaxed));
+            duckingDelay_.setDryWetMix(duckingParams_.dryWet.load(std::memory_order_relaxed));
+            duckingDelay_.setOutputGainDb(duckingParams_.outputGain.load(std::memory_order_relaxed));
+            duckingDelay_.process(outputL, outputR, numSamples, ctx);
+            break;
+
+        default:
+            // Unknown mode - output is already a copy of input
+            break;
     }
 }
 

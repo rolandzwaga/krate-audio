@@ -83,43 +83,43 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 3.1 Pre-Implementation (MANDATORY)
 
-- [ ] T012 [US1] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
+- [X] T012 [US1] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
 
 ### 3.2 Tests for User Story 1 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T013 [P] [US1] Write unit tests for crossfade state initialization in tests/unit/processor/mode_crossfade_tests.cpp
-- [ ] T014 [P] [US1] Write unit tests for crossfade increment calculation in tests/unit/processor/mode_crossfade_tests.cpp
-- [ ] T015 [P] [US1] Write unit tests verifying crossfade completes in ~2205 samples at 44.1kHz in tests/unit/processor/mode_crossfade_tests.cpp
-- [ ] T016 [P] [US1] Write unit tests for rapid mode switching stability in tests/unit/processor/mode_crossfade_tests.cpp
+- [X] T013 [P] [US1] Write unit tests for crossfade state initialization in tests/unit/processor/mode_crossfade_tests.cpp
+- [X] T014 [P] [US1] Write unit tests for crossfade increment calculation in tests/unit/processor/mode_crossfade_tests.cpp
+- [X] T015 [P] [US1] Write unit tests verifying crossfade completes in ~2205 samples at 44.1kHz in tests/unit/processor/mode_crossfade_tests.cpp
+- [X] T016 [P] [US1] Write unit tests for rapid mode switching stability in tests/unit/processor/mode_crossfade_tests.cpp
 
 ### 3.3 Implementation for User Story 1
 
-- [ ] T017 [US1] Add crossfade state variables to Processor class in src/processor/processor.h:
+- [X] T017 [US1] Add crossfade state variables to Processor class in src/processor/processor.h:
   - `currentProcessingMode_`, `previousMode_`
   - `crossfadePosition_`, `crossfadeIncrement_`
   - `crossfadeBufferL_`, `crossfadeBufferR_`
   - `kCrossfadeTimeMs = 50.0f`
-- [ ] T018 [US1] Add `processMode()` helper method declaration to src/processor/processor.h
-- [ ] T019 [US1] Allocate crossfade work buffers in `setupProcessing()` in src/processor/processor.cpp
-- [ ] T020 [US1] Calculate crossfade increment using `DSP::crossfadeIncrement()` in setupProcessing()
-- [ ] T021 [US1] Extract `processMode()` helper method from existing switch statement in src/processor/processor.cpp
-- [ ] T022 [US1] Implement mode change detection and crossfade initiation in `process()` in src/processor/processor.cpp
-- [ ] T023 [US1] Implement dual-mode processing during crossfade (both modes process simultaneously)
-- [ ] T024 [US1] Implement equal-power crossfade blend using `DSP::equalPowerGains()` in process loop
-- [ ] T025 [US1] Register mode_crossfade_tests.cpp in tests/CMakeLists.txt
+- [X] T018 [US1] Add `processMode()` helper method declaration to src/processor/processor.h
+- [X] T019 [US1] Allocate crossfade work buffers in `setupProcessing()` in src/processor/processor.cpp
+- [X] T020 [US1] Calculate crossfade increment using `DSP::crossfadeIncrement()` in setupProcessing()
+- [X] T021 [US1] Extract `processMode()` helper method from existing switch statement in src/processor/processor.cpp
+- [X] T022 [US1] Implement mode change detection and crossfade initiation in `process()` in src/processor/processor.cpp
+- [X] T023 [US1] Implement dual-mode processing during crossfade (both modes process simultaneously)
+- [X] T024 [US1] Implement equal-power crossfade blend using `DSP::equalPowerGains()` in process loop
+- [X] T025 [US1] Register mode_crossfade_tests.cpp in tests/CMakeLists.txt
 
 ### 3.4 Verification
 
-- [ ] T026 [US1] Build plugin and verify no compiler warnings
-- [ ] T027 [US1] Run all unit tests and verify they pass
-- [ ] T028 [US1] Run pluginval at strictness level 5
+- [X] T026 [US1] Build plugin and verify no compiler warnings
+- [X] T027 [US1] Run all unit tests and verify they pass
+- [X] T028 [US1] Run pluginval at strictness level 5
 - [ ] T029 [US1] **Manual test**: Load plugin in DAW, play audio, switch modes rapidly - verify no clicks
 
 ### 3.5 Cross-Platform Verification (MANDATORY)
 
-- [ ] T030 [US1] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` → add to `-fno-fast-math` list in tests/CMakeLists.txt
+- [X] T030 [US1] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` → add to `-fno-fast-math` list in tests/CMakeLists.txt
 
 ### 3.6 Commit (MANDATORY)
 
