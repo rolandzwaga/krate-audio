@@ -123,9 +123,9 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 3.6 Commit (MANDATORY)
 
-- [ ] T031 [US1] **Commit completed User Story 1 work**
+- [X] T031 [US1] **Commit completed User Story 1 work**
 
-**Checkpoint**: User Story 1 (P1) complete - Click-free mode switching works for all modes
+**Checkpoint**: User Story 1 (P1) complete - Click-free mode switching works for all modes ✅
 
 ---
 
