@@ -241,7 +241,6 @@ endif()
 smtg_target_add_plugin_resources(${PLUGIN_NAME}
     RESOURCES
         resources/editor.uidesc
-        resources/editor_minimal.uidesc
 )
 
 # ==============================================================================
