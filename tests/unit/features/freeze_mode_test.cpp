@@ -196,7 +196,6 @@ TEST_CASE("FreezeMode lifecycle prepare/reset/snapParameters", "[freeze-mode][US
     SECTION("snapParameters snaps all smoothers") {
         freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
         freeze.setDryWetMix(75.0f);
-        freeze.setOutputGainDb(-6.0f);
         REQUIRE_NOTHROW(freeze.snapParameters());
     }
 }
@@ -514,42 +513,6 @@ TEST_CASE("FreezeMode dry/wet mix control 0-100%", "[freeze-mode][US1][FR-024]")
         // With feedback, there should still be some output
         float outputRMS = calculateRMS(left.data(), kBlockSize);
         REQUIRE(outputRMS > 0.001f);  // Not silent due to delay feedback
-    }
-}
-
-TEST_CASE("FreezeMode output gain control -infinity to +6dB", "[freeze-mode][US1][FR-025]") {
-    FreezeMode freeze;
-    freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
-    freeze.setDelayTimeMs(100.0f);
-    freeze.setDryWetMix(0.0f);  // Dry only for simpler test
-    freeze.snapParameters();
-
-    auto ctx = makeTestContext();
-
-    SECTION("+6dB gain amplifies output") {
-        freeze.setOutputGainDb(6.0f);
-        freeze.snapParameters();
-
-        std::array<float, kBlockSize> left, right;
-        fillBuffer(left.data(), kBlockSize, 0.5f);
-        fillBuffer(right.data(), kBlockSize, 0.5f);
-        freeze.process(left.data(), right.data(), kBlockSize, ctx);
-
-        // +6dB ≈ 2x gain
-        REQUIRE(left[kBlockSize - 1] == Approx(0.5f * 2.0f).margin(0.1f));
-    }
-
-    SECTION("-96dB gain effectively mutes output") {
-        freeze.setOutputGainDb(-96.0f);
-        freeze.snapParameters();
-
-        std::array<float, kBlockSize> left, right;
-        fillBuffer(left.data(), kBlockSize, 0.5f);
-        fillBuffer(right.data(), kBlockSize, 0.5f);
-        freeze.process(left.data(), right.data(), kBlockSize, ctx);
-
-        // -96dB is effectively silence
-        REQUIRE(std::abs(left[kBlockSize - 1]) < 0.001f);
     }
 }
 

@@ -38,7 +38,6 @@ struct GranularParams {
     std::atomic<bool> freeze{false};
     std::atomic<float> feedback{0.0f};         // 0-1.2
     std::atomic<float> dryWet{0.5f};           // 0-1
-    std::atomic<float> outputGain{0.0f};       // -96 to +6 dB
     std::atomic<int> envelopeType{0};          // 0-3 (Hann, Trapezoid, Sine, Blackman)
     std::atomic<int> timeMode{0};              // 0=Free, 1=Synced (spec 038)
     std::atomic<int> noteValue{4};             // 0-9 dropdown index, default 4 = 1/8 note (spec 038)
@@ -129,13 +128,6 @@ inline void handleGranularParamChange(
             // 0-1 (already normalized)
             params.dryWet.store(
                 static_cast<float>(normalizedValue),
-                std::memory_order_relaxed);
-            break;
-
-        case kGranularOutputGainId:
-            // -96 to +6 dB
-            params.outputGain.store(
-                static_cast<float>(-96.0 + normalizedValue * 102.0),
                 std::memory_order_relaxed);
             break;
 
@@ -307,18 +299,6 @@ inline void registerGranularParams(Steinberg::Vst::ParameterContainer& parameter
         STR16("Mix")
     );
 
-    // Output Gain: -96 to +6 dB
-    parameters.addParameter(
-        STR16("Output Gain"),
-        STR16("dB"),
-        0,
-        0.941,  // (0+96)/(102) ≈ 0.941 (0dB default)
-        ParameterInfo::kCanAutomate,
-        kGranularOutputGainId,
-        0,
-        STR16("Out")
-    );
-
     // Envelope Type: 0-3 (Hann, Trapezoid, Sine, Blackman) - MUST use StringListParameter
     parameters.addParameter(createDropdownParameter(
         STR16("Envelope"), kGranularEnvelopeTypeId,
@@ -418,19 +398,6 @@ inline Steinberg::tresult formatGranularParam(
             return kResultTrue;
         }
 
-        case kGranularOutputGainId: {
-            // -96 to +6 dB
-            double dB = -96.0 + valueNormalized * 102.0;
-            char text[32];
-            if (dB <= -96.0) {
-                std::snprintf(text, sizeof(text), "-inf");
-            } else {
-                std::snprintf(text, sizeof(text), "%+.1f", dB);
-            }
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
-        }
-
         // kGranularEnvelopeTypeId: handled by StringListParameter::toString() automatically
 
         default:
@@ -460,7 +427,6 @@ inline void saveGranularParams(
     streamer.writeInt32(freeze);
     streamer.writeFloat(params.feedback.load(std::memory_order_relaxed));
     streamer.writeFloat(params.dryWet.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.outputGain.load(std::memory_order_relaxed));
     streamer.writeInt32(params.envelopeType.load(std::memory_order_relaxed));
     // Tempo sync parameters (spec 038) - appended for backward compatibility
     streamer.writeInt32(params.timeMode.load(std::memory_order_relaxed));
@@ -506,9 +472,6 @@ inline void loadGranularParams(
     }
     if (streamer.readFloat(floatVal)) {
         params.dryWet.store(floatVal, std::memory_order_relaxed);
-    }
-    if (streamer.readFloat(floatVal)) {
-        params.outputGain.store(floatVal, std::memory_order_relaxed);
     }
     if (streamer.readInt32(intVal)) {
         params.envelopeType.store(intVal, std::memory_order_relaxed);
@@ -597,12 +560,6 @@ inline void syncGranularParamsToController(
     // Dry/Wet: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kGranularDryWetId, static_cast<double>(floatVal));
-    }
-
-    // Output Gain: -96 to +6 dB -> normalized = (val + 96) / 102
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularOutputGainId,
-            static_cast<double>((floatVal + 96.0f) / 102.0f));
     }
 
     // Envelope Type: 0-3 -> normalized = val / 3

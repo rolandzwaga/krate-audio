@@ -217,14 +217,10 @@ public:
     static constexpr float kMaxFilterCutoff = 20000.0f;
     static constexpr float kDefaultFilterCutoff = 4000.0f;
 
-    // Output (FR-024, FR-025)
+    // Output (FR-024)
     static constexpr float kMinDryWetMix = 0.0f;
     static constexpr float kMaxDryWetMix = 100.0f;
     static constexpr float kDefaultDryWetMix = 50.0f;
-
-    static constexpr float kMinOutputGainDb = -96.0f;  // Effectively -infinity
-    static constexpr float kMaxOutputGainDb = 6.0f;
-    static constexpr float kDefaultOutputGainDb = 0.0f;
 
     // Internal
     static constexpr float kSmoothingTimeMs = 20.0f;
@@ -376,7 +372,7 @@ public:
     [[nodiscard]] float getFilterCutoff() const noexcept { return filterCutoffHz_; }
 
     // =========================================================================
-    // Output Configuration (FR-024, FR-025)
+    // Output Configuration (FR-024)
     // =========================================================================
 
     /// @brief Set dry/wet mix
@@ -384,12 +380,6 @@ public:
 
     /// @brief Get dry/wet mix
     [[nodiscard]] float getDryWetMix() const noexcept { return dryWetMix_; }
-
-    /// @brief Set output level
-    void setOutputGainDb(float dB) noexcept;
-
-    /// @brief Get output level
-    [[nodiscard]] float getOutputGainDb() const noexcept { return outputGainDb_; }
 
     // =========================================================================
     // Query Methods
@@ -433,7 +423,6 @@ private:
     // Layer 1 primitives - parameter smoothers
     OnePoleSmoother delaySmoother_;
     OnePoleSmoother dryWetSmoother_;
-    OnePoleSmoother outputGainSmoother_;
 
     // Parameters - delay
     float delayTimeMs_ = kDefaultDelayMs;
@@ -463,7 +452,6 @@ private:
 
     // Parameters - output
     float dryWetMix_ = kDefaultDryWetMix;
-    float outputGainDb_ = kDefaultOutputGainDb;
 
     // Scratch buffers for dry signal storage
     std::vector<float> dryBufferL_;
@@ -630,12 +618,10 @@ inline void FreezeMode::prepare(double sampleRate, std::size_t maxBlockSize, flo
     const float sr = static_cast<float>(sampleRate);
     delaySmoother_.configure(kSmoothingTimeMs, sr);
     dryWetSmoother_.configure(kSmoothingTimeMs, sr);
-    outputGainSmoother_.configure(kSmoothingTimeMs, sr);
 
     // Initialize smoothers
     delaySmoother_.snapTo(delayTimeMs_);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-    outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
 
     // Initialize freeze processor parameters
     freezeProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
@@ -657,7 +643,6 @@ inline void FreezeMode::reset() noexcept {
 
     delaySmoother_.snapTo(delayTimeMs_);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-    outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
 
     feedbackNetwork_.snapParameters();
 }
@@ -665,7 +650,6 @@ inline void FreezeMode::reset() noexcept {
 inline void FreezeMode::snapParameters() noexcept {
     delaySmoother_.snapTo(delayTimeMs_);
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-    outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
 
     feedbackNetwork_.setDelayTimeMs(delayTimeMs_);
     feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
@@ -756,11 +740,6 @@ inline void FreezeMode::setDryWetMix(float percent) noexcept {
     dryWetSmoother_.setTarget(dryWetMix_ / 100.0f);
 }
 
-inline void FreezeMode::setOutputGainDb(float dB) noexcept {
-    outputGainDb_ = std::clamp(dB, kMinOutputGainDb, kMaxOutputGainDb);
-    outputGainSmoother_.setTarget(dbToGain(outputGainDb_));
-}
-
 inline std::size_t FreezeMode::getLatencySamples() const noexcept {
     return feedbackNetwork_.getLatencySamples();
 }
@@ -802,10 +781,9 @@ inline void FreezeMode::process(float* left, float* right, std::size_t numSample
         // Mix dry/wet with smoothed parameters
         for (std::size_t i = 0; i < chunkSize; ++i) {
             const float currentDryWet = dryWetSmoother_.process();
-            const float currentOutputGain = outputGainSmoother_.process();
 
-            chunkLeft[i] = (dryBufferL_[i] * (1.0f - currentDryWet) + chunkLeft[i] * currentDryWet) * currentOutputGain;
-            chunkRight[i] = (dryBufferR_[i] * (1.0f - currentDryWet) + chunkRight[i] * currentDryWet) * currentOutputGain;
+            chunkLeft[i] = dryBufferL_[i] * (1.0f - currentDryWet) + chunkLeft[i] * currentDryWet;
+            chunkRight[i] = dryBufferR_[i] * (1.0f - currentDryWet) + chunkRight[i] * currentDryWet;
         }
 
         samplesProcessed += chunkSize;

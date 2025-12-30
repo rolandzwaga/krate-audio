@@ -146,12 +146,6 @@ TEST_CASE("GranularDelay global controls", "[features][granular-delay][layer4]")
         delay.setDryWet(0.5f);
         delay.setDryWet(1.0f);
     }
-
-    SECTION("output gain control") {
-        delay.setOutputGain(-12.0f);
-        delay.setOutputGain(0.0f);
-        delay.setOutputGain(6.0f);
-    }
 }
 
 // =============================================================================
@@ -165,7 +159,6 @@ TEST_CASE("GranularDelay audio processing", "[features][granular-delay][layer4]"
 
     SECTION("100% dry outputs input unchanged") {
         delay.setDryWet(0.0f);  // 100% dry
-        delay.setOutputGain(0.0f);
         delay.reset();  // Snap smoothers to new target values
 
         std::array<float, 512> inL{}, inR{}, outL{}, outR{};
@@ -381,48 +374,6 @@ TEST_CASE("GranularDelay freeze mode", "[features][granular-delay][layer4][freez
         }
 
         REQUIRE(hasOutput);  // Grains should still read from frozen buffer
-    }
-}
-
-// =============================================================================
-// Output Gain Tests
-// =============================================================================
-
-TEST_CASE("GranularDelay output gain", "[features][granular-delay][layer4]") {
-    GranularDelay delay;
-    delay.prepare(44100.0);
-
-    SECTION("+6dB gain amplifies output") {
-        delay.setOutputGain(6.0f);
-        delay.setDryWet(0.0f);  // 100% dry for easy testing
-
-        std::array<float, 512> inL{}, inR{}, outL{}, outR{};
-        std::fill(inL.begin(), inL.end(), 0.25f);
-        std::fill(inR.begin(), inR.end(), 0.25f);
-
-        // Process several blocks to let smoother settle
-        for (int i = 0; i < 20; ++i) {
-            delay.process(inL.data(), inR.data(), outL.data(), outR.data(), 512);
-        }
-
-        // +6dB = 2x gain, so 0.25 should become 0.5
-        REQUIRE(outL[500] == Approx(0.5f).margin(0.05f));
-    }
-
-    SECTION("-6dB gain attenuates output") {
-        delay.setOutputGain(-6.0f);
-        delay.setDryWet(0.0f);
-
-        std::array<float, 512> inL{}, inR{}, outL{}, outR{};
-        std::fill(inL.begin(), inL.end(), 0.5f);
-        std::fill(inR.begin(), inR.end(), 0.5f);
-
-        for (int i = 0; i < 20; ++i) {
-            delay.process(inL.data(), inR.data(), outL.data(), outR.data(), 512);
-        }
-
-        // -6dB = 0.5x gain, so 0.5 should become 0.25
-        REQUIRE(outL[500] == Approx(0.25f).margin(0.05f));
     }
 }
 

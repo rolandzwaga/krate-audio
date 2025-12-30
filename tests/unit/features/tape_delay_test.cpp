@@ -262,28 +262,6 @@ TEST_CASE("TapeDelay mix control", "[features][tape-delay][mix]") {
 }
 
 // =============================================================================
-// Phase 3: Output Level Tests
-// =============================================================================
-
-TEST_CASE("TapeDelay output level control", "[features][tape-delay][output-level]") {
-    TapeDelay delay;
-    delay.prepare(44100.0, 512, 2000.0f);
-
-    SECTION("setOutputLevel stores value") {
-        delay.setOutputLevel(-6.0f);
-        REQUIRE(delay.getOutputLevel() == Approx(-6.0f));
-    }
-
-    SECTION("output level clamped to valid range") {
-        delay.setOutputLevel(-100.0f);
-        REQUIRE(delay.getOutputLevel() >= -96.0f);
-
-        delay.setOutputLevel(20.0f);
-        REQUIRE(delay.getOutputLevel() <= 12.0f);
-    }
-}
-
-// =============================================================================
 // Phase 3: Basic Processing Tests
 // =============================================================================
 
@@ -971,7 +949,6 @@ TEST_CASE("REGRESSION: Dry/wet mix parameter works correctly", "[features][tape-
     delay.setAge(0.0f);
     delay.setHeadEnabled(1, false);
     delay.setHeadEnabled(2, false);
-    delay.setOutputLevel(0.0f);  // Unity gain
 
     SECTION("Mix=0 (dry): output equals input exactly") {
         delay.setMix(0.0f);  // 100% dry
@@ -1059,7 +1036,6 @@ TEST_CASE("REGRESSION: Dry signal passes through immediately", "[features][tape-
     delay.setAge(0.0f);
     delay.setHeadEnabled(1, false);
     delay.setHeadEnabled(2, false);
-    delay.setOutputLevel(0.0f);
     delay.reset();
 
     SECTION("Impulse produces immediate output (dry path)") {
@@ -1112,7 +1088,6 @@ TEST_CASE("REGRESSION: Mono processing dry/wet mix works", "[features][tape-dela
     delay.setAge(0.0f);
     delay.setHeadEnabled(1, false);
     delay.setHeadEnabled(2, false);
-    delay.setOutputLevel(0.0f);
 
     SECTION("Mono: Mix=0 passes dry signal") {
         delay.setMix(0.0f);

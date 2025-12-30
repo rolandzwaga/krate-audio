@@ -56,7 +56,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="GranularFreeze" tag="108"/>
         <control-tag name="GranularFeedback" tag="109"/>
         <control-tag name="GranularDryWet" tag="110"/>
-        <control-tag name="GranularOutputGain" tag="111"/>
         <control-tag name="GranularEnvelopeType" tag="112"/>
         <control-tag name="GranularTimeMode" tag="113"/>
         <control-tag name="GranularNoteValue" tag="114"/>
@@ -71,7 +70,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="SpectralFreeze" tag="206"/>
         <control-tag name="SpectralDiffusion" tag="207"/>
         <control-tag name="SpectralDryWet" tag="208"/>
-        <control-tag name="SpectralOutputGain" tag="209"/>
 
         <!-- Shimmer (300-310) -->
         <control-tag name="ShimmerDelayTime" tag="300"/>
@@ -84,7 +82,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="ShimmerFilterEnabled" tag="307"/>
         <control-tag name="ShimmerFilterCutoff" tag="308"/>
         <control-tag name="ShimmerDryWet" tag="309"/>
-        <control-tag name="ShimmerOutputGain" tag="310"/>
 
         <!-- Tape (400-418) -->
         <control-tag name="TapeMotorSpeed" tag="400"/>
@@ -96,7 +93,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="TapeSpliceIntensity" tag="406"/>
         <control-tag name="TapeFeedback" tag="407"/>
         <control-tag name="TapeMix" tag="408"/>
-        <control-tag name="TapeOutputLevel" tag="409"/>
         <control-tag name="TapeHead1Enabled" tag="410"/>
         <control-tag name="TapeHead2Enabled" tag="411"/>
         <control-tag name="TapeHead3Enabled" tag="412"/>
@@ -115,7 +111,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="BBDAge" tag="504"/>
         <control-tag name="BBDEra" tag="505"/>
         <control-tag name="BBDMix" tag="506"/>
-        <control-tag name="BBDOutputLevel" tag="507"/>
 
         <!-- Digital (600-612) -->
         <control-tag name="DigitalDelayTime" tag="600"/>
@@ -129,7 +124,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="DigitalModRate" tag="608"/>
         <control-tag name="DigitalModWaveform" tag="609"/>
         <control-tag name="DigitalMix" tag="610"/>
-        <control-tag name="DigitalOutputLevel" tag="611"/>
         <control-tag name="DigitalWidth" tag="612"/>
 
         <!-- PingPong (700-710) -->
@@ -143,7 +137,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="PingPongModDepth" tag="707"/>
         <control-tag name="PingPongModRate" tag="708"/>
         <control-tag name="PingPongMix" tag="709"/>
-        <control-tag name="PingPongOutputLevel" tag="710"/>
 
         <!-- Reverse (800-808) -->
         <control-tag name="ReverseChunkSize" tag="800"/>
@@ -154,7 +147,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="ReverseFilterCutoff" tag="805"/>
         <control-tag name="ReverseFilterType" tag="806"/>
         <control-tag name="ReverseDryWet" tag="807"/>
-        <control-tag name="ReverseOutputGain" tag="808"/>
 
         <!-- MultiTap (900-910) -->
         <control-tag name="MultiTapTimingPattern" tag="900"/>
@@ -167,7 +159,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="MultiTapFeedbackHPCutoff" tag="907"/>
         <control-tag name="MultiTapMorphTime" tag="908"/>
         <control-tag name="MultiTapDryWet" tag="909"/>
-        <control-tag name="MultiTapOutputLevel" tag="910"/>
 
         <!-- Freeze (1000-1013) -->
         <control-tag name="FreezeEnabled" tag="1000"/>
@@ -183,7 +174,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="FreezeFilterType" tag="1010"/>
         <control-tag name="FreezeFilterCutoff" tag="1011"/>
         <control-tag name="FreezeDryWet" tag="1012"/>
-        <control-tag name="FreezeOutputGain" tag="1013"/>
 
         <!-- Ducking (1100-1112) -->
         <control-tag name="DuckingEnabled" tag="1100"/>
@@ -198,7 +188,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="DuckingDelayTime" tag="1109"/>
         <control-tag name="DuckingFeedback" tag="1110"/>
         <control-tag name="DuckingDryWet" tag="1111"/>
-        <control-tag name="DuckingOutputGain" tag="1112"/>
 
         <!-- UI Label Tags (9900+) - for conditional visibility -->
         <control-tag name="DigitalDelayTimeLabel" tag="9901"/>
@@ -260,12 +249,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CCheckBox" origin="10, 89" size="50, 22" control-tag="GranularFreeze" title="" font="value-font" font-color="text"/>
         </view>
 
-        <!-- Group 4: OUTPUT -->
-        <view class="CViewContainer" origin="580, 30" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="GranularOutputGain" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- Mode 1: SPECTRAL -->
@@ -305,12 +288,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CCheckBox" origin="10, 91" size="50, 22" control-tag="SpectralFreeze" title="" font="value-font" font-color="text"/>
         </view>
 
-        <!-- Group 4: OUTPUT -->
-        <view class="CViewContainer" origin="10, 185" size="280, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="270, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="180, 20" control-tag="SpectralOutputGain" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- Mode 2: SHIMMER -->
@@ -352,12 +329,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSlider" origin="170, 73" size="90, 20" control-tag="ShimmerFilterCutoff" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
 
-        <!-- Group 4: OUTPUT -->
-        <view class="CViewContainer" origin="580, 30" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="ShimmerOutputGain" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- Mode 3: TAPE -->
@@ -416,12 +387,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CTextLabel" origin="185, 103" size="75, 16" title="Pan" font="label-font" font-color="text-dim" text-alignment="center" transparent="true"/>
         </view>
 
-        <!-- Group 5: OUTPUT -->
-        <view class="CViewContainer" origin="580, 30" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="TapeOutputLevel" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- Mode 4: BBD -->
@@ -457,12 +422,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSlider" origin="140, 46" size="120, 20" control-tag="BBDModulationRate" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
 
-        <!-- Group 4: OUTPUT -->
-        <view class="CViewContainer" origin="580, 30" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="BBDOutputLevel" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- Mode 5: DIGITAL -->
@@ -513,12 +472,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSlider" origin="90, 28" size="170, 20" control-tag="DigitalWidth" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
 
-        <!-- Group 5: OUTPUT -->
-        <view class="CViewContainer" origin="580, 100" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="DigitalOutputLevel" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- Mode 6: PINGPONG -->
@@ -560,12 +513,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSlider" origin="140, 46" size="120, 20" control-tag="PingPongModRate" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
 
-        <!-- Group 4: OUTPUT -->
-        <view class="CViewContainer" origin="580, 30" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="PingPongOutputLevel" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- Mode 7: REVERSE -->
@@ -601,13 +548,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="COptionMenu" origin="170, 28" size="90, 22" control-tag="ReverseFilterType" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
             <view class="CTextLabel" origin="10, 55" size="80, 16" title="Cutoff" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="CSlider" origin="90, 55" size="170, 20" control-tag="ReverseFilterCutoff" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
-
-        <!-- Group 4: OUTPUT -->
-        <view class="CViewContainer" origin="580, 30" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="ReverseOutputGain" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
     </template>
 
@@ -660,12 +600,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSlider" origin="90, 28" size="170, 20" control-tag="MultiTapMorphTime" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
 
-        <!-- Group 6: OUTPUT -->
-        <view class="CViewContainer" origin="580, 100" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="MultiTapOutputLevel" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- Mode 9: FREEZE -->
@@ -718,12 +652,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSlider" origin="70, 98" size="190, 18" control-tag="FreezeFilterCutoff" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
 
-        <!-- Group 5: OUTPUT -->
-        <view class="CViewContainer" origin="580, 30" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="FreezeOutputGain" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- Mode 10: DUCKING -->
@@ -769,12 +697,6 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSlider" origin="180, 28" size="80, 20" control-tag="DuckingSidechainFilterCutoff" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
 
-        <!-- Group 4: OUTPUT -->
-        <view class="CViewContainer" origin="580, 30" size="270, 60" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="260, 18" title="OUTPUT" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="80, 16" title="Level" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="90, 28" size="170, 20" control-tag="DuckingOutputGain" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-        </view>
     </template>
 
     <!-- ======================================================================

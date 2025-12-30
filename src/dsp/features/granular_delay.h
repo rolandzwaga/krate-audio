@@ -32,10 +32,9 @@ public:
         // Prepare granular engine
         engine_.prepare(sampleRate, kMaxDelaySeconds);
 
-        // Configure output smoothers
+        // Configure smoothers
         feedbackSmoother_.configure(kDefaultSmoothTimeMs, static_cast<float>(sampleRate));
         dryWetSmoother_.configure(kDefaultSmoothTimeMs, static_cast<float>(sampleRate));
-        gainSmoother_.configure(kDefaultSmoothTimeMs, static_cast<float>(sampleRate));
 
         reset();
     }
@@ -51,7 +50,6 @@ public:
         // Snap smoothers to current values
         feedbackSmoother_.snapTo(feedback_);
         dryWetSmoother_.snapTo(dryWet_);
-        gainSmoother_.snapTo(outputGainLinear_);
     }
 
     // === Core Parameters ===
@@ -105,12 +103,6 @@ public:
     void setDryWet(float mix) noexcept {
         dryWet_ = std::clamp(mix, 0.0f, 1.0f);
         dryWetSmoother_.setTarget(dryWet_);
-    }
-
-    /// Set output gain in dB (-inf to +6)
-    void setOutputGain(float dB) noexcept {
-        outputGainLinear_ = dbToGain(std::clamp(dB, -96.0f, 6.0f));
-        gainSmoother_.setTarget(outputGainLinear_);
     }
 
     // === Tempo Sync Controls (spec 038) ===
@@ -186,7 +178,6 @@ private:
             // Get smoothed parameters
             const float feedback = feedbackSmoother_.process();
             const float dryWet = dryWetSmoother_.process();
-            const float gain = gainSmoother_.process();
 
             // Mix input with feedback
             float inputL = leftIn[i];
@@ -219,12 +210,9 @@ private:
             // Dry/wet mix
             const float dryL = leftIn[i] * (1.0f - dryWet);
             const float dryR = rightIn[i] * (1.0f - dryWet);
-            const float mixL = dryL + wetL * dryWet;
-            const float mixR = dryR + wetR * dryWet;
 
-            // Apply output gain
-            leftOut[i] = mixL * gain;
-            rightOut[i] = mixR * gain;
+            leftOut[i] = dryL + wetL * dryWet;
+            rightOut[i] = dryR + wetR * dryWet;
         }
     }
 
@@ -248,15 +236,13 @@ private:
     float feedbackL_ = 0.0f;
     float feedbackR_ = 0.0f;
 
-    // Output smoothers
+    // Smoothers
     OnePoleSmoother feedbackSmoother_;
     OnePoleSmoother dryWetSmoother_;
-    OnePoleSmoother gainSmoother_;
 
     // Raw parameter values
     float feedback_ = 0.0f;
     float dryWet_ = 0.5f;
-    float outputGainLinear_ = 1.0f;
 
     double sampleRate_ = 44100.0;
 

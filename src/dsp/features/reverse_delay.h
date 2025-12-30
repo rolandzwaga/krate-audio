@@ -87,14 +87,10 @@ public:
     static constexpr float kMaxFilterCutoff = 20000.0f;
     static constexpr float kDefaultFilterCutoff = 4000.0f;
 
-    // Output (FR-020, FR-021)
+    // Output (FR-020)
     static constexpr float kMinDryWetMix = 0.0f;
     static constexpr float kMaxDryWetMix = 100.0f;
     static constexpr float kDefaultDryWetMix = 50.0f;
-
-    static constexpr float kMinOutputGainDb = -96.0f;  // Near -infinity
-    static constexpr float kMaxOutputGainDb = 6.0f;
-    static constexpr float kDefaultOutputGainDb = 0.0f;
 
     // Internal
     static constexpr float kSmoothingTimeMs = 20.0f;
@@ -141,7 +137,6 @@ public:
 
         // Prepare smoothers
         dryWetSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
-        outputGainSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
 
         // Allocate dry signal buffers
         dryBufferL_.resize(maxBlockSize, 0.0f);
@@ -150,7 +145,6 @@ public:
         // Set defaults
         setChunkSizeMs(kDefaultChunkMs);
         setDryWetMix(kDefaultDryWetMix);
-        setOutputGainDb(kDefaultOutputGainDb);
         setFeedbackAmount(kDefaultFeedback);
 
         prepared_ = true;
@@ -161,13 +155,11 @@ public:
         feedbackNetwork_.reset();
         reverseProcessor_.reset();
         dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-        outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
     }
 
     /// @brief Snap all smoothers to current targets
     void snapParameters() noexcept {
         dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
-        outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
         feedbackNetwork_.snapParameters();
     }
 
@@ -199,14 +191,13 @@ public:
         // Process through feedback network (includes reverse processor)
         feedbackNetwork_.process(left, right, numSamples, ctx);
 
-        // Apply dry/wet mix and output gain
+        // Apply dry/wet mix
         for (std::size_t i = 0; i < numSamples; ++i) {
             float wetAmount = dryWetSmoother_.process();
             float dryAmount = 1.0f - wetAmount;
-            float outputGain = outputGainSmoother_.process();
 
-            left[i] = (dryBufferL_[i] * dryAmount + left[i] * wetAmount) * outputGain;
-            right[i] = (dryBufferR_[i] * dryAmount + right[i] * wetAmount) * outputGain;
+            left[i] = dryBufferL_[i] * dryAmount + left[i] * wetAmount;
+            right[i] = dryBufferR_[i] * dryAmount + right[i] * wetAmount;
         }
     }
 
@@ -307,7 +298,7 @@ public:
     }
 
     // =========================================================================
-    // Mixing and Output (FR-020, FR-021)
+    // Mixing and Output (FR-020)
     // =========================================================================
 
     /// @brief Set dry/wet mix
@@ -315,13 +306,6 @@ public:
     void setDryWetMix(float percent) noexcept {
         dryWetMix_ = std::clamp(percent, kMinDryWetMix, kMaxDryWetMix);
         dryWetSmoother_.setTarget(dryWetMix_ / 100.0f);
-    }
-
-    /// @brief Set output gain in dB
-    /// @param dB Output gain [-96, +6]
-    void setOutputGainDb(float dB) noexcept {
-        outputGainDb_ = std::clamp(dB, kMinOutputGainDb, kMaxOutputGainDb);
-        outputGainSmoother_.setTarget(dbToGain(outputGainDb_));
     }
 
     // =========================================================================
@@ -355,7 +339,6 @@ private:
 
     // Parameter smoothers
     OnePoleSmoother dryWetSmoother_;
-    OnePoleSmoother outputGainSmoother_;
 
     // Dry signal buffers
     std::vector<float> dryBufferL_;
@@ -370,7 +353,6 @@ private:
     float chunkSizeMs_ = kDefaultChunkMs;
     float crossfadePercent_ = kDefaultCrossfade;
     float dryWetMix_ = kDefaultDryWetMix;
-    float outputGainDb_ = kDefaultOutputGainDb;
     float feedbackAmount_ = kDefaultFeedback;
     float filterCutoffHz_ = kDefaultFilterCutoff;
     bool filterEnabled_ = false;

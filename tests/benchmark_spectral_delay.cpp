@@ -44,7 +44,6 @@ double benchmarkFFTSize(std::size_t fftSize, int numIterations) {
     delay.setFeedbackTilt(0.2f);
     delay.setDiffusion(0.3f);
     delay.setDryWetMix(50.0f);
-    delay.setOutputGainDb(0.0f);
     delay.snapParameters();
 
     // Allocate buffers

@@ -97,18 +97,6 @@ double normDryWet(float percent) {
     return static_cast<double>(percent / 100.0f);
 }
 
-// Output Level: -12 to +12 dB -> linear (narrower range)
-float denormOutputLevel(double normalized) {
-    double dB = -12.0 + normalized * 24.0;
-    double linear = std::pow(10.0, dB / 20.0);
-    return static_cast<float>(linear);
-}
-
-double normOutputLevel(float linear) {
-    double dB = 20.0 * std::log10(linear);
-    return (dB + 12.0) / 24.0;
-}
-
 } // anonymous namespace
 
 // ==============================================================================
@@ -273,32 +261,6 @@ TEST_CASE("MultiTap Morph Time normalization", "[params][multitap]") {
         double normalized = normMorphTime(original);
         float result = denormMorphTime(normalized);
         REQUIRE(result == Approx(original).margin(0.1f));
-    }
-}
-
-// ==============================================================================
-// Output Level Tests (-12 to +12 dB range)
-// ==============================================================================
-
-TEST_CASE("MultiTap Output Level normalization", "[params][multitap]") {
-    SECTION("normalized 0.0 -> ~0.25 linear (-12dB)") {
-        // -12dB = 10^(-12/20) = 0.251
-        REQUIRE(denormOutputLevel(0.0) == Approx(0.251f).margin(0.01f));
-    }
-
-    SECTION("normalized 0.5 -> 1.0 linear (0dB)") {
-        REQUIRE(denormOutputLevel(0.5) == Approx(1.0f).margin(0.01f));
-    }
-
-    SECTION("normalized 1.0 -> ~3.98 linear (+12dB)") {
-        REQUIRE(denormOutputLevel(1.0) == Approx(3.981f).margin(0.01f));
-    }
-
-    SECTION("round-trip: unity gain") {
-        float original = 1.0f;
-        double normalized = normOutputLevel(original);
-        float result = denormOutputLevel(normalized);
-        REQUIRE(result == Approx(original).margin(0.01f));
     }
 }
 

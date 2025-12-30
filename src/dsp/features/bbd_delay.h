@@ -180,7 +180,6 @@ public:
         timeSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         feedbackSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         mixSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
-        outputLevelSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         modulationDepthSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         ageSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
 
@@ -188,7 +187,6 @@ public:
         timeSmoother_.snapTo(kDefaultDelayMs);
         feedbackSmoother_.snapTo(kDefaultFeedback);
         mixSmoother_.snapTo(kDefaultMix);
-        outputLevelSmoother_.snapTo(1.0f);
         modulationDepthSmoother_.snapTo(0.0f);
         ageSmoother_.snapTo(kDefaultAge);
 
@@ -210,7 +208,6 @@ public:
         timeSmoother_.snapTo(delayTimeMs_);
         feedbackSmoother_.snapTo(feedback_);
         mixSmoother_.snapTo(mix_);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
         modulationDepthSmoother_.snapTo(modulationDepth_);
         ageSmoother_.snapTo(age_);
 
@@ -339,18 +336,6 @@ public:
         return mix_;
     }
 
-    /// @brief Set output level
-    /// @param dB Output level in dB [-96, +12]
-    void setOutputLevel(float dB) noexcept {
-        outputLevelDb_ = std::clamp(dB, -96.0f, 12.0f);
-        outputLevelSmoother_.setTarget(dbToGain(outputLevelDb_));
-    }
-
-    /// @brief Get output level
-    [[nodiscard]] float getOutputLevel() const noexcept {
-        return outputLevelDb_;
-    }
-
     // =========================================================================
     // Processing
     // =========================================================================
@@ -430,7 +415,6 @@ public:
         // Apply compander expansion and mix
         for (size_t i = 0; i < numSamples; ++i) {
             const float currentMix = mixSmoother_.process();
-            const float currentOutputGain = outputLevelSmoother_.process();
             const float currentAge = ageSmoother_.getCurrentValue();
 
             // Apply expansion stage (FR-030)
@@ -448,8 +432,8 @@ public:
             const float dryL = dryBufferL_[i % kMaxDryBufferSize];
             const float dryR = dryBufferR_[i % kMaxDryBufferSize];
 
-            left[i] = (dryL * dryMix + expandedL * wetMix) * currentOutputGain;
-            right[i] = (dryR * dryMix + expandedR * wetMix) * currentOutputGain;
+            left[i] = dryL * dryMix + expandedL * wetMix;
+            right[i] = dryR * dryMix + expandedR * wetMix;
         }
     }
 
@@ -628,14 +612,12 @@ private:
     float modulationRate_ = kDefaultModRate; ///< Modulation rate (FR-010)
     float age_ = kDefaultAge;                ///< Age/degradation (FR-019)
     float mix_ = kDefaultMix;                ///< Dry/wet mix (FR-036)
-    float outputLevelDb_ = 0.0f;             ///< Output level (FR-037)
     BBDChipModel era_ = BBDChipModel::MN3005; ///< Chip model (FR-029)
 
     // Smoothers
     OnePoleSmoother timeSmoother_;
     OnePoleSmoother feedbackSmoother_;
     OnePoleSmoother mixSmoother_;
-    OnePoleSmoother outputLevelSmoother_;
     OnePoleSmoother modulationDepthSmoother_;
     OnePoleSmoother ageSmoother_;
 

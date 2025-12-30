@@ -212,7 +212,6 @@ TEST_CASE("DuckingDelay snapParameters() applies all parameter changes immediate
 
     // Set multiple parameters
     delay.setDryWetMix(75.0f);
-    delay.setOutputGainDb(-6.0f);
     delay.setDelayTimeMs(1000.0f);
     delay.setThreshold(-40.0f);
     delay.setDuckAmount(75.0f);
@@ -222,7 +221,6 @@ TEST_CASE("DuckingDelay snapParameters() applies all parameter changes immediate
 
     // Verify parameters are set
     REQUIRE(delay.getDryWetMix() == Approx(75.0f));
-    REQUIRE(delay.getOutputGainDb() == Approx(-6.0f));
     REQUIRE(delay.getDelayTimeMs() == Approx(1000.0f));
     REQUIRE(delay.getThreshold() == Approx(-40.0f));
     REQUIRE(delay.getDuckAmount() == Approx(75.0f));
@@ -696,62 +694,6 @@ TEST_CASE("DuckingDelay dry/wet mix control", "[ducking-delay][US1][FR-020]") {
 
         // First sample should be near zero (only wet, but delay hasn't come through yet)
         REQUIRE(std::abs(left[0]) < 0.1f);
-    }
-}
-
-// T023: Output gain control (FR-021)
-TEST_CASE("DuckingDelay output gain control", "[ducking-delay][US1][FR-021]") {
-    auto delay = createPreparedDelay();
-
-    SECTION("Output gain range is -96 to +6 dB") {
-        delay.setOutputGainDb(0.0f);
-        REQUIRE(delay.getOutputGainDb() == Approx(0.0f));
-
-        delay.setOutputGainDb(-96.0f);
-        REQUIRE(delay.getOutputGainDb() == Approx(-96.0f));
-
-        delay.setOutputGainDb(6.0f);
-        REQUIRE(delay.getOutputGainDb() == Approx(6.0f));
-
-        delay.setOutputGainDb(-100.0f);  // Below min
-        REQUIRE(delay.getOutputGainDb() == Approx(-96.0f));
-
-        delay.setOutputGainDb(12.0f);  // Above max
-        REQUIRE(delay.getOutputGainDb() == Approx(6.0f));
-    }
-
-    SECTION("+6dB gain boosts output") {
-        delay.setOutputGainDb(6.0f);
-        delay.setDryWetMix(0.0f);  // Dry only for simple test
-        delay.setDuckingEnabled(false);
-        delay.snapParameters();
-
-        std::vector<float> left(kBlockSize, 0.25f);
-        std::vector<float> right(kBlockSize, 0.25f);
-        auto ctx = makeTestContext();
-
-        delay.process(left.data(), right.data(), kBlockSize, ctx);
-
-        // +6dB = approximately 2x gain
-        // Allow for smoothing convergence
-        float expected = 0.25f * std::pow(10.0f, 6.0f / 20.0f);  // ~0.5
-        REQUIRE(left[kBlockSize - 1] == Approx(expected).margin(0.05f));
-    }
-
-    SECTION("-96dB effectively mutes output") {
-        delay.setOutputGainDb(-96.0f);
-        delay.setDryWetMix(0.0f);
-        delay.setDuckingEnabled(false);
-        delay.snapParameters();
-
-        std::vector<float> left(kBlockSize, 0.5f);
-        std::vector<float> right(kBlockSize, 0.5f);
-        auto ctx = makeTestContext();
-
-        delay.process(left.data(), right.data(), kBlockSize, ctx);
-
-        // Should be nearly silent
-        REQUIRE(std::abs(left[kBlockSize - 1]) < 0.001f);
     }
 }
 

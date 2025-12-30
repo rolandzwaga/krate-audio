@@ -8,7 +8,7 @@
 // Composes:
 // - DelayLine (Layer 1): 2 instances for independent L/R delay buffers
 // - LFO (Layer 1): 2 instances for stereo modulation (90° phase offset)
-// - OnePoleSmoother (Layer 1): 8 instances for parameter smoothing
+// - OnePoleSmoother (Layer 1): 6 instances for parameter smoothing
 // - DynamicsProcessor (Layer 2): Feedback limiting for >100%
 // - stereoCrossBlend (Layer 0): Cross-feedback routing
 //
@@ -86,7 +86,6 @@ enum class LRRatio : uint8_t {
 /// - Width: Stereo width 0% (mono) to 200% (ultra-wide) (FR-014 to FR-018)
 /// - Modulation: LFO depth 0-100%, rate 0.1-10Hz (FR-019 to FR-023)
 /// - Mix: Dry/wet balance 0-100% (FR-024, FR-027)
-/// - Output Level: -inf to +12dB (FR-025)
 ///
 /// @par Constitution Compliance
 /// - Principle II: Real-Time Safety (noexcept, no allocations in process)
@@ -180,7 +179,6 @@ public:
         crossFeedbackSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         widthSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         mixSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
-        outputLevelSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         modulationDepthSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
 
         // Initialize to defaults
@@ -189,7 +187,6 @@ public:
         crossFeedbackSmoother_.snapTo(kDefaultCrossFeedback);
         widthSmoother_.snapTo(kDefaultWidth);
         mixSmoother_.snapTo(kDefaultMix);
-        outputLevelSmoother_.snapTo(1.0f);
         modulationDepthSmoother_.snapTo(0.0f);
 
         prepared_ = true;
@@ -210,7 +207,6 @@ public:
         crossFeedbackSmoother_.snapTo(crossFeedback_);
         widthSmoother_.snapTo(width_);
         mixSmoother_.snapTo(mix_);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
         modulationDepthSmoother_.snapTo(modulationDepth_);
     }
 
@@ -222,7 +218,6 @@ public:
         crossFeedbackSmoother_.snapTo(crossFeedback_);
         widthSmoother_.snapTo(width_);
         mixSmoother_.snapTo(mix_);
-        outputLevelSmoother_.snapTo(dbToGain(outputLevelDb_));
         modulationDepthSmoother_.snapTo(modulationDepth_);
     }
 
@@ -362,7 +357,7 @@ public:
     }
 
     // =========================================================================
-    // Mix and Output (FR-024 to FR-027)
+    // Mix (FR-024, FR-027)
     // =========================================================================
 
     /// @brief Set dry/wet mix
@@ -375,18 +370,6 @@ public:
     /// @brief Get mix amount
     [[nodiscard]] float getMix() const noexcept {
         return mix_;
-    }
-
-    /// @brief Set output level
-    /// @param dB Output level in dB [-120, +12]
-    void setOutputLevel(float dB) noexcept {
-        outputLevelDb_ = std::clamp(dB, -120.0f, 12.0f);
-        outputLevelSmoother_.setTarget(dbToGain(outputLevelDb_));
-    }
-
-    /// @brief Get output level
-    [[nodiscard]] float getOutputLevel() const noexcept {
-        return outputLevelDb_;
     }
 
     // =========================================================================
@@ -428,7 +411,6 @@ public:
             const float currentCrossFeedback = crossFeedbackSmoother_.process();
             const float currentWidth = widthSmoother_.process();
             const float currentMix = mixSmoother_.process();
-            const float currentOutputGain = outputLevelSmoother_.process();
             const float currentModDepth = modulationDepthSmoother_.process();
 
             // Calculate L/R delay times with ratio
@@ -484,8 +466,8 @@ public:
 
             // Mix dry/wet
             const size_t bufIdx = i % kMaxDryBufferSize;
-            left[i] = (dryBufferL_[bufIdx] * (1.0f - currentMix) + wetL * currentMix) * currentOutputGain;
-            right[i] = (dryBufferR_[bufIdx] * (1.0f - currentMix) + wetR * currentMix) * currentOutputGain;
+            left[i] = dryBufferL_[bufIdx] * (1.0f - currentMix) + wetL * currentMix;
+            right[i] = dryBufferR_[bufIdx] * (1.0f - currentMix) + wetR * currentMix;
         }
     }
 
@@ -566,7 +548,6 @@ private:
     OnePoleSmoother crossFeedbackSmoother_;
     OnePoleSmoother widthSmoother_;
     OnePoleSmoother mixSmoother_;
-    OnePoleSmoother outputLevelSmoother_;
     OnePoleSmoother modulationDepthSmoother_;
 
     // Parameters
@@ -575,7 +556,6 @@ private:
     float crossFeedback_ = kDefaultCrossFeedback;
     float width_ = kDefaultWidth;
     float mix_ = kDefaultMix;
-    float outputLevelDb_ = 0.0f;
     float modulationDepth_ = 0.0f;
     float modulationRate_ = 1.0f;
 

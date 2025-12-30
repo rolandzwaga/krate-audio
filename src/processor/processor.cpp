@@ -506,7 +506,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             granularDelay_.setFreeze(granularParams_.freeze.load(std::memory_order_relaxed));
             granularDelay_.setFeedback(granularParams_.feedback.load(std::memory_order_relaxed));
             granularDelay_.setDryWet(granularParams_.dryWet.load(std::memory_order_relaxed));
-            granularDelay_.setOutputGain(granularParams_.outputGain.load(std::memory_order_relaxed));
             granularDelay_.setEnvelopeType(static_cast<DSP::GrainEnvelopeType>(
                 granularParams_.envelopeType.load(std::memory_order_relaxed)));
             // Tempo sync parameters (spec 038)
@@ -529,7 +528,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             spectralDelay_.setFreezeEnabled(spectralParams_.freeze.load(std::memory_order_relaxed));
             spectralDelay_.setDiffusion(spectralParams_.diffusion.load(std::memory_order_relaxed));
             spectralDelay_.setDryWetMix(spectralParams_.dryWet.load(std::memory_order_relaxed));
-            spectralDelay_.setOutputGainDb(spectralParams_.outputGain.load(std::memory_order_relaxed));
             spectralDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
@@ -545,7 +543,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             shimmerDelay_.setFilterEnabled(shimmerParams_.filterEnabled.load(std::memory_order_relaxed));
             shimmerDelay_.setFilterCutoff(shimmerParams_.filterCutoff.load(std::memory_order_relaxed));
             shimmerDelay_.setDryWetMix(shimmerParams_.dryWet.load(std::memory_order_relaxed));
-            shimmerDelay_.setOutputGainDb(shimmerParams_.outputGain.load(std::memory_order_relaxed));
             shimmerDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
@@ -560,7 +557,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             tapeDelay_.setSpliceIntensity(tapeParams_.spliceIntensity.load(std::memory_order_relaxed));
             tapeDelay_.setFeedback(tapeParams_.feedback.load(std::memory_order_relaxed));
             tapeDelay_.setMix(tapeParams_.mix.load(std::memory_order_relaxed));
-            tapeDelay_.setOutputLevel(tapeParams_.outputLevel.load(std::memory_order_relaxed));
             tapeDelay_.setHeadEnabled(0, tapeParams_.head1Enabled.load(std::memory_order_relaxed));
             tapeDelay_.setHeadEnabled(1, tapeParams_.head2Enabled.load(std::memory_order_relaxed));
             tapeDelay_.setHeadEnabled(2, tapeParams_.head3Enabled.load(std::memory_order_relaxed));
@@ -595,7 +591,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             bbdDelay_.setEra(Parameters::getBBDEraFromDropdown(
                 bbdParams_.era.load(std::memory_order_relaxed)));
             bbdDelay_.setMix(bbdParams_.mix.load(std::memory_order_relaxed));
-            bbdDelay_.setOutputLevel(bbdParams_.outputLevel.load(std::memory_order_relaxed));
             bbdDelay_.process(outputL, outputR, numSamples);
             break;
 
@@ -621,7 +616,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
                 digitalParams_.modulationWaveform.load(std::memory_order_relaxed)));
             digitalDelay_.setMix(digitalParams_.mix.load(std::memory_order_relaxed));
             digitalDelay_.setWidth(digitalParams_.width.load(std::memory_order_relaxed));
-            digitalDelay_.setOutputLevel(digitalParams_.outputLevel.load(std::memory_order_relaxed));
             digitalDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
@@ -643,7 +637,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             pingPongDelay_.setModulationDepth(pingPongParams_.modulationDepth.load(std::memory_order_relaxed));
             pingPongDelay_.setModulationRate(pingPongParams_.modulationRate.load(std::memory_order_relaxed));
             pingPongDelay_.setMix(pingPongParams_.mix.load(std::memory_order_relaxed));
-            pingPongDelay_.setOutputLevel(pingPongParams_.outputLevel.load(std::memory_order_relaxed));
             pingPongDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
@@ -659,11 +652,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             reverseDelay_.setFilterType(static_cast<DSP::FilterType>(
                 reverseParams_.filterType.load(std::memory_order_relaxed)));
             reverseDelay_.setDryWetMix(reverseParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
-            {
-                float linearGain = reverseParams_.outputGain.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                reverseDelay_.setOutputGainDb(dB);
-            }
             reverseDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
@@ -681,7 +669,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             multiTapDelay_.setFeedbackHPCutoff(multiTapParams_.feedbackHPCutoff.load(std::memory_order_relaxed));
             multiTapDelay_.setMorphTime(multiTapParams_.morphTime.load(std::memory_order_relaxed));
             multiTapDelay_.setDryWetMix(multiTapParams_.dryWet.load(std::memory_order_relaxed));
-            multiTapDelay_.setOutputLevel(multiTapParams_.outputLevel.load(std::memory_order_relaxed));
             multiTapDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
@@ -701,11 +688,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
                 freezeParams_.filterType.load(std::memory_order_relaxed)));
             freezeMode_.setFilterCutoff(freezeParams_.filterCutoff.load(std::memory_order_relaxed));
             freezeMode_.setDryWetMix(freezeParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
-            {
-                float linearGain = freezeParams_.outputGain.load(std::memory_order_relaxed);
-                float dB = (linearGain <= 0.0f) ? -96.0f : 20.0f * std::log10(linearGain);
-                freezeMode_.setOutputGainDb(dB);
-            }
             freezeMode_.process(outputL, outputR, numSamples, ctx);
             break;
 
@@ -724,7 +706,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             duckingDelay_.setDelayTimeMs(duckingParams_.delayTime.load(std::memory_order_relaxed));
             duckingDelay_.setFeedbackAmount(duckingParams_.feedback.load(std::memory_order_relaxed));
             duckingDelay_.setDryWetMix(duckingParams_.dryWet.load(std::memory_order_relaxed));
-            duckingDelay_.setOutputGainDb(duckingParams_.outputGain.load(std::memory_order_relaxed));
             duckingDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 

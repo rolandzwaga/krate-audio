@@ -36,7 +36,6 @@ struct MultiTapParams {
     std::atomic<float> feedbackHPCutoff{20.0f};     // 20-20000Hz
     std::atomic<float> morphTime{500.0f};       // 50-2000ms
     std::atomic<float> dryWet{50.0f};           // 0-100%
-    std::atomic<float> outputLevel{0.0f};        // dB (-12 to +12)
 };
 
 // ==============================================================================
@@ -110,13 +109,6 @@ inline void handleMultiTapParamChange(
             params.dryWet.store(
                 static_cast<float>(normalizedValue * 100.0),
                 std::memory_order_relaxed);
-            break;
-        case kMultiTapOutputLevelId:
-            // -12 to +12 dB (store dB directly, no linear conversion)
-            {
-                float dB = static_cast<float>(-12.0 + normalizedValue * 24.0);
-                params.outputLevel.store(dB, std::memory_order_relaxed);
-            }
             break;
     }
 }
@@ -217,15 +209,6 @@ inline void registerMultiTapParams(Steinberg::Vst::ParameterContainer& parameter
         0.5,  // default: 50%
         ParameterInfo::kCanAutomate,
         kMultiTapDryWetId);
-
-    // Output Level (-12 to +12 dB)
-    parameters.addParameter(
-        STR16("MultiTap Output Level"),
-        STR16("dB"),
-        0,
-        0.5,  // default: 0dB
-        ParameterInfo::kCanAutomate,
-        kMultiTapOutputLevelId);
 }
 
 // ==============================================================================
@@ -307,14 +290,6 @@ inline Steinberg::tresult formatMultiTapParam(
             Steinberg::UString(string, 128).fromAscii(text);
             return kResultOk;
         }
-
-        case kMultiTapOutputLevelId: {
-            double dB = -12.0 + normalizedValue * 24.0;
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.1f dB", dB);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
     }
 
     return Steinberg::kResultFalse;
@@ -335,7 +310,6 @@ inline void saveMultiTapParams(const MultiTapParams& params, Steinberg::IBStream
     streamer.writeFloat(params.feedbackHPCutoff.load(std::memory_order_relaxed));
     streamer.writeFloat(params.morphTime.load(std::memory_order_relaxed));
     streamer.writeFloat(params.dryWet.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.outputLevel.load(std::memory_order_relaxed));
 }
 
 inline void loadMultiTapParams(MultiTapParams& params, Steinberg::IBStreamer& streamer) {
@@ -371,9 +345,6 @@ inline void loadMultiTapParams(MultiTapParams& params, Steinberg::IBStreamer& st
 
     streamer.readFloat(floatVal);
     params.dryWet.store(floatVal, std::memory_order_relaxed);
-
-    streamer.readFloat(floatVal);
-    params.outputLevel.store(floatVal, std::memory_order_relaxed);
 }
 
 // ==============================================================================
@@ -448,13 +419,6 @@ inline void syncMultiTapParamsToController(
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kMultiTapDryWetId,
             static_cast<double>(floatVal / 100.0f));
-    }
-
-    // Output Level: linear -> dB -> normalized = (dB+12)/24
-    if (streamer.readFloat(floatVal)) {
-        double dB = 20.0 * std::log10(floatVal);
-        controller.setParamNormalized(kMultiTapOutputLevelId,
-            (dB + 12.0) / 24.0);
     }
 }
 

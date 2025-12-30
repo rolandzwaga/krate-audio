@@ -85,15 +85,6 @@ float denormDryWet(double normalized) {
     return static_cast<float>(normalized * 100.0);
 }
 
-// Output Gain: -96 to +6 dB (stored as dB!)
-float denormOutputGain(double normalized) {
-    return static_cast<float>(-96.0 + normalized * 102.0);
-}
-
-double normOutputGain(float dB) {
-    return static_cast<double>((dB + 96.0f) / 102.0f);
-}
-
 } // anonymous namespace
 
 TEST_CASE("Ducking Enabled normalization", "[params][ducking]") {
@@ -192,24 +183,6 @@ TEST_CASE("Ducking Sidechain Filter Cutoff normalization", "[params][ducking]") 
         double normalized = normSCFilterCutoff(original);
         float result = denormSCFilterCutoff(normalized);
         REQUIRE(result == Approx(original).margin(0.1f));
-    }
-}
-
-TEST_CASE("Ducking Output Gain normalization (dB)", "[params][ducking]") {
-    SECTION("normalized 0.0 -> -96dB") {
-        REQUIRE(denormOutputGain(0.0) == Approx(-96.0f));
-    }
-    SECTION("normalized 0.941 -> ~0dB (default)") {
-        REQUIRE(denormOutputGain(0.941) == Approx(0.0f).margin(0.1f));
-    }
-    SECTION("normalized 1.0 -> +6dB") {
-        REQUIRE(denormOutputGain(1.0) == Approx(6.0f));
-    }
-    SECTION("round-trip: 0dB") {
-        float original = 0.0f;
-        double normalized = normOutputGain(original);
-        float result = denormOutputGain(normalized);
-        REQUIRE(result == Approx(original).margin(0.01f));
     }
 }
 

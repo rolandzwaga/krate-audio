@@ -33,7 +33,6 @@ struct BBDParams {
     std::atomic<float> age{0.2f};              // 0-1
     std::atomic<int> era{0};                   // 0-3 (MN3005, MN3007, MN3205, SAD1024)
     std::atomic<float> mix{0.5f};              // 0-1
-    std::atomic<float> outputLevel{0.0f};       // dB (-96 to +12)
 };
 
 // ==============================================================================
@@ -89,13 +88,6 @@ inline void handleBBDParamChange(
             params.mix.store(
                 static_cast<float>(normalizedValue),
                 std::memory_order_relaxed);
-            break;
-        case kBBDOutputLevelId:
-            // -96 to +12 dB (store dB directly, no linear conversion)
-            {
-                float dB = static_cast<float>(-96.0 + normalizedValue * 108.0);
-                params.outputLevel.store(dB, std::memory_order_relaxed);
-            }
             break;
     }
 }
@@ -177,15 +169,6 @@ inline void registerBBDParams(Steinberg::Vst::ParameterContainer& parameters) {
         0.5,  // default: 50%
         ParameterInfo::kCanAutomate,
         kBBDMixId);
-
-    // Output Level (-96 to +12 dB)
-    parameters.addParameter(
-        STR16("BBD Output Level"),
-        STR16("dB"),
-        0,
-        0.889,  // default: 0dB normalized = (0+96)/108
-        ParameterInfo::kCanAutomate,
-        kBBDOutputLevelId);
 }
 
 // ==============================================================================
@@ -249,18 +232,6 @@ inline Steinberg::tresult formatBBDParam(
             Steinberg::UString(string, 128).fromAscii(text);
             return kResultOk;
         }
-
-        case kBBDOutputLevelId: {
-            double dB = -96.0 + normalizedValue * 108.0;
-            char8 text[32];
-            if (dB <= -96.0) {
-                snprintf(text, sizeof(text), "-inf dB");
-            } else {
-                snprintf(text, sizeof(text), "%.1f dB", dB);
-            }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
     }
 
     return Steinberg::kResultFalse;
@@ -278,7 +249,6 @@ inline void saveBBDParams(const BBDParams& params, Steinberg::IBStreamer& stream
     streamer.writeFloat(params.age.load(std::memory_order_relaxed));
     streamer.writeInt32(params.era.load(std::memory_order_relaxed));
     streamer.writeFloat(params.mix.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.outputLevel.load(std::memory_order_relaxed));
 }
 
 inline void loadBBDParams(BBDParams& params, Steinberg::IBStreamer& streamer) {
@@ -309,10 +279,6 @@ inline void loadBBDParams(BBDParams& params, Steinberg::IBStreamer& streamer) {
     float mix = 0.5f;
     streamer.readFloat(mix);
     params.mix.store(mix, std::memory_order_relaxed);
-
-    float outputLevel = 1.0f;
-    streamer.readFloat(outputLevel);
-    params.outputLevel.store(outputLevel, std::memory_order_relaxed);
 }
 
 // ==============================================================================
@@ -369,13 +335,6 @@ inline void syncBBDParamsToController(
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kBBDMixId,
             static_cast<double>(floatVal));
-    }
-
-    // Output Level: linear -> dB -> normalized = (dB+96)/108
-    if (streamer.readFloat(floatVal)) {
-        double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        controller.setParamNormalized(kBBDOutputLevelId,
-            (dB + 96.0) / 108.0);
     }
 }
 
