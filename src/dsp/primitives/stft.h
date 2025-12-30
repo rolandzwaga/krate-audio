@@ -259,7 +259,9 @@ public:
         fft_.inverse(input.data(), ifftBuffer_.data());
 
         // Overlap-add: Add IFFT result to output buffer with COLA normalization
-        // The normalization factor ensures unity gain reconstruction regardless of overlap ratio
+        // Note: We use analysis-only windowing (window applied in STFT::analyze() only)
+        // The Hann window at 50% overlap naturally satisfies COLA (sums to 1.0)
+        // Synthesis window is not applied here to avoid Hann² which does NOT satisfy COLA at 50%
         for (size_t i = 0; i < fftSize_; ++i) {
             outputBuffer_[i] += ifftBuffer_[i] * colaNormalization_;
         }

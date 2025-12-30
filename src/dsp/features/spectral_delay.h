@@ -27,6 +27,8 @@
 
 #include "dsp/core/block_context.h"
 #include "dsp/core/db_utils.h"
+#include "dsp/core/math_constants.h"
+#include "dsp/core/random.h"
 #include "dsp/primitives/delay_line.h"
 #include "dsp/primitives/smoother.h"
 #include "dsp/primitives/spectral_buffer.h"
@@ -51,6 +53,13 @@ enum class SpreadDirection : std::uint8_t {
     LowToHigh,  ///< Higher bins get longer delays (rising effect)
     HighToLow,  ///< Lower bins get longer delays (falling effect)
     CenterOut   ///< Edge bins get longer delays, center is base delay
+};
+
+/// @brief Spread curve modes for delay time distribution scaling
+/// Phase 3.1: Linear vs logarithmic frequency distribution
+enum class SpreadCurve : std::uint8_t {
+    Linear,      ///< Linear distribution (perceptually less even)
+    Logarithmic  ///< Logarithmic distribution (perceptually more even)
 };
 
 // =============================================================================
@@ -98,6 +107,10 @@ public:
     static constexpr float kMaxDryWet = 100.0f;
     static constexpr float kDefaultDryWet = 50.0f;
 
+    // Phase 3.2: Stereo width/decorrelation
+    static constexpr float kMinStereoWidth = 0.0f;
+    static constexpr float kMaxStereoWidth = 1.0f;
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -143,16 +156,28 @@ public:
         // Delay lines work at spectral frame rate (sampleRate / hopSize)
         const double frameRate = sampleRate / static_cast<double>(hopSize_);
 
-        binDelaysL_.clear();
-        binDelaysR_.clear();
-        binDelaysL_.reserve(numBins);
-        binDelaysR_.reserve(numBins);
+        // Prepare complex delay lines (real + imaginary parts)
+        binRealDelaysL_.clear();
+        binRealDelaysR_.clear();
+        binImagDelaysL_.clear();
+        binImagDelaysR_.clear();
+        binRealDelaysL_.reserve(numBins);
+        binRealDelaysR_.reserve(numBins);
+        binImagDelaysL_.reserve(numBins);
+        binImagDelaysR_.reserve(numBins);
 
         for (std::size_t i = 0; i < numBins; ++i) {
-            binDelaysL_.emplace_back();
-            binDelaysR_.emplace_back();
-            binDelaysL_.back().prepare(frameRate, maxDelaySeconds);
-            binDelaysR_.back().prepare(frameRate, maxDelaySeconds);
+            // Real part delay lines
+            binRealDelaysL_.emplace_back();
+            binRealDelaysR_.emplace_back();
+            binRealDelaysL_.back().prepare(frameRate, maxDelaySeconds);
+            binRealDelaysR_.back().prepare(frameRate, maxDelaySeconds);
+
+            // Imaginary part delay lines
+            binImagDelaysL_.emplace_back();
+            binImagDelaysR_.emplace_back();
+            binImagDelaysL_.back().prepare(frameRate, maxDelaySeconds);
+            binImagDelaysR_.back().prepare(frameRate, maxDelaySeconds);
         }
 
         // Configure parameter smoothers (10ms smoothing time)
@@ -189,6 +214,11 @@ public:
         dryBufferR_.resize(maxBlockSize, 0.0f);
         blurredMag_.resize(numBins, 0.0f);
 
+        // Seed RNG with unique value per instance (address + sample rate)
+        // This ensures different instances produce different random sequences
+        rng_.seed(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this) ^
+                                        static_cast<uintptr_t>(sampleRate)));
+
         prepared_ = true;
     }
 
@@ -210,11 +240,19 @@ public:
         frozenSpectrumL_.reset();
         frozenSpectrumR_.reset();
 
-        // Reset all per-bin delay lines
-        for (auto& delay : binDelaysL_) {
+        // Reset all per-bin complex delay lines (real parts)
+        for (auto& delay : binRealDelaysL_) {
             delay.reset();
         }
-        for (auto& delay : binDelaysR_) {
+        for (auto& delay : binRealDelaysR_) {
+            delay.reset();
+        }
+
+        // Reset all per-bin complex delay lines (imaginary parts)
+        for (auto& delay : binImagDelaysL_) {
+            delay.reset();
+        }
+        for (auto& delay : binImagDelaysR_) {
             delay.reset();
         }
 
@@ -351,6 +389,15 @@ public:
         return spreadDirection_;
     }
 
+    /// @brief Set spread curve mode (Linear or Logarithmic)
+    /// Phase 3.1: Logarithmic gives perceptually more even distribution
+    void setSpreadCurve(SpreadCurve curve) noexcept {
+        spreadCurve_ = curve;
+    }
+    [[nodiscard]] SpreadCurve getSpreadCurve() const noexcept {
+        return spreadCurve_;
+    }
+
     // =========================================================================
     // Feedback Controls
     // =========================================================================
@@ -403,6 +450,17 @@ public:
     [[nodiscard]] float getDryWetMix() const noexcept { return dryWetMix_; }
 
     // =========================================================================
+    // Stereo Width (Phase 3.2)
+    // =========================================================================
+
+    /// @brief Set stereo width/decorrelation amount (0.0 to 1.0)
+    /// 0.0 = mono-like processing, 1.0 = full stereo decorrelation
+    void setStereoWidth(float amount) noexcept {
+        stereoWidth_ = std::clamp(amount, kMinStereoWidth, kMaxStereoWidth);
+    }
+    [[nodiscard]] float getStereoWidth() const noexcept { return stereoWidth_; }
+
+    // =========================================================================
     // Query
     // =========================================================================
 
@@ -436,8 +494,19 @@ private:
                                             float spread) const noexcept {
         if (numBins <= 1) return baseDelay;
 
-        const float normalizedBin = static_cast<float>(bin) /
-                                    static_cast<float>(numBins - 1);
+        float normalizedBin = static_cast<float>(bin) /
+                              static_cast<float>(numBins - 1);
+
+        // Phase 3.1: Apply logarithmic curve if selected
+        // Log scaling gives more perceptually even distribution across frequencies
+        if (spreadCurve_ == SpreadCurve::Logarithmic) {
+            // Map linear 0-1 to logarithmic 0-1
+            // log2(1 + x) / log2(2) = log2(1 + x) where x ranges 0-1
+            // This maps 0->0, 0.5->0.585, 1->1 with emphasis on lower values
+            constexpr float kLogBase = 2.0f;
+            normalizedBin = std::log2(1.0f + normalizedBin * (kLogBase - 1.0f));
+        }
+
         float delayOffset = 0.0f;
 
         switch (spreadDirection_) {
@@ -516,6 +585,7 @@ private:
                 frozenSpectrumR_.setPhase(i, inputR.getPhase(i));
             }
             freezeCrossfade_ = 0.0f;
+            freezePhaseDrift_ = 0.0f;  // Reset phase drift when entering freeze
         }
         wasFrozen_ = freezing;
 
@@ -524,6 +594,16 @@ private:
             freezeCrossfade_ = std::min(1.0f, freezeCrossfade_ + freezeCrossfadeIncrement_);
         } else if (!freezing && freezeCrossfade_ > 0.0f) {
             freezeCrossfade_ = std::max(0.0f, freezeCrossfade_ - freezeCrossfadeIncrement_);
+        }
+
+        // Phase 2.2: Accumulate phase drift when fully frozen
+        // This prevents static resonance by slowly evolving the frozen spectrum
+        if (freezing && freezeCrossfade_ >= 0.99f) {
+            freezePhaseDrift_ += kPhaseDriftRate;
+            // Wrap to prevent float precision issues over long freezes
+            if (freezePhaseDrift_ > kTwoPi) {
+                freezePhaseDrift_ -= kTwoPi;
+            }
         }
 
         // Process each bin
@@ -544,12 +624,28 @@ private:
             const float inputPhaseL = inputL.getPhase(bin);
             const float inputPhaseR = inputR.getPhase(bin);
 
-            // Read delayed magnitude from delay lines (use linear interpolation)
-            const float delayedMagL = binDelaysL_[bin].readLinear(delayFrames);
-            const float delayedMagR = binDelaysR_[bin].readLinear(delayFrames);
+            // Convert input to complex (real + imaginary) for delay line storage
+            // This avoids phase wrapping issues during linear interpolation
+            const float inputRealL = inputMagL * std::cos(inputPhaseL);
+            const float inputImagL = inputMagL * std::sin(inputPhaseL);
+            const float inputRealR = inputMagR * std::cos(inputPhaseR);
+            const float inputImagR = inputMagR * std::sin(inputPhaseR);
 
-            // Apply feedback: write input + feedback*delayed to delay line
-            // Soft limit feedback signal to prevent runaway
+            // Read delayed complex values from delay lines (linear interpolation is safe here)
+            const float delayedRealL = binRealDelaysL_[bin].readLinear(delayFrames);
+            const float delayedImagL = binImagDelaysL_[bin].readLinear(delayFrames);
+            const float delayedRealR = binRealDelaysR_[bin].readLinear(delayFrames);
+            const float delayedImagR = binImagDelaysR_[bin].readLinear(delayFrames);
+
+            // Convert delayed complex back to magnitude and phase
+            const float delayedMagL = std::sqrt(delayedRealL * delayedRealL +
+                                                 delayedImagL * delayedImagL);
+            const float delayedMagR = std::sqrt(delayedRealR * delayedRealR +
+                                                 delayedImagR * delayedImagR);
+            const float delayedPhaseL = std::atan2(delayedImagL, delayedRealL);
+            const float delayedPhaseR = std::atan2(delayedImagR, delayedRealR);
+
+            // Apply feedback: calculate feedback magnitude (for soft limiting)
             float feedbackMagL = delayedMagL * binFeedback;
             float feedbackMagR = delayedMagR * binFeedback;
             if (binFeedback > 1.0f) {
@@ -557,39 +653,76 @@ private:
                 feedbackMagR = std::tanh(feedbackMagR);
             }
 
+            // Convert feedback to complex using delayed phase
+            const float feedbackRealL = feedbackMagL * std::cos(delayedPhaseL);
+            const float feedbackImagL = feedbackMagL * std::sin(delayedPhaseL);
+            const float feedbackRealR = feedbackMagR * std::cos(delayedPhaseR);
+            const float feedbackImagR = feedbackMagR * std::sin(delayedPhaseR);
+
             // Only write to delay lines when not frozen
             // This ensures freeze truly ignores new input
             if (!freezing) {
-                binDelaysL_[bin].write(inputMagL + feedbackMagL);
-                binDelaysR_[bin].write(inputMagR + feedbackMagR);
+                // Write complex values (input + feedback) to delay lines
+                binRealDelaysL_[bin].write(inputRealL + feedbackRealL);
+                binImagDelaysL_[bin].write(inputImagL + feedbackImagL);
+                binRealDelaysR_[bin].write(inputRealR + feedbackRealR);
+                binImagDelaysR_[bin].write(inputImagR + feedbackImagR);
             }
 
-            // Output is the delayed magnitude
+            // Output is the delayed magnitude and phase
             float outMagL = delayedMagL;
             float outMagR = delayedMagR;
-
-            // Determine output phase - use frozen phase when fully frozen
-            float outPhaseL = inputPhaseL;
-            float outPhaseR = inputPhaseR;
+            float outPhaseL = delayedPhaseL;
+            float outPhaseR = delayedPhaseR;
 
             // Apply freeze crossfade if active
             if (freezeCrossfade_ > 0.0f) {
                 const float frozenMagL = frozenSpectrumL_.getMagnitude(bin);
                 const float frozenMagR = frozenSpectrumR_.getMagnitude(bin);
-                const float frozenPhaseL = frozenSpectrumL_.getPhase(bin);
-                const float frozenPhaseR = frozenSpectrumR_.getPhase(bin);
+                float frozenPhaseL = frozenSpectrumL_.getPhase(bin);
+                float frozenPhaseR = frozenSpectrumR_.getPhase(bin);
+
+                // Phase 2.2: Apply phase drift per-bin with slight frequency variation
+                // Higher bins drift slightly faster for more natural evolution
+                if (freezePhaseDrift_ > 0.0f) {
+                    const float binFactor = 1.0f + 0.5f * static_cast<float>(bin) /
+                                                   static_cast<float>(numBins);
+                    frozenPhaseL += freezePhaseDrift_ * binFactor;
+                    frozenPhaseR += freezePhaseDrift_ * binFactor;
+                }
 
                 outMagL = outMagL * (1.0f - freezeCrossfade_) +
                           frozenMagL * freezeCrossfade_;
                 outMagR = outMagR * (1.0f - freezeCrossfade_) +
                           frozenMagR * freezeCrossfade_;
 
-                // When fully frozen (crossfade >= 0.99), use frozen phase
+                // When fully frozen (crossfade >= 0.99), use frozen phase (with drift)
                 // to ensure new input has no effect on output
                 if (freezeCrossfade_ >= 0.99f) {
                     outPhaseL = frozenPhaseL;
                     outPhaseR = frozenPhaseR;
                 }
+            }
+
+            // Phase 3.2: Apply stereo decorrelation
+            // Add bin-dependent phase offset between L and R for stereo width
+            if (stereoWidth_ > 0.001f) {
+                // Create frequency-dependent phase difference between L and R
+                // Use random offsets that differ between channels to break correlation
+                const float randomOffsetL = rng_.nextFloat() * stereoWidth_ * kHalfPi;
+                const float randomOffsetR = rng_.nextFloat() * stereoWidth_ * kHalfPi;
+                outPhaseL += randomOffsetL;
+                outPhaseR -= randomOffsetR;  // Opposite direction for maximum decorrelation
+            }
+
+            // Apply phase randomization when diffusion is enabled
+            // Random phase offsets create spectral smearing/decorrelation
+            // Phase 2.1: True diffusion requires phase randomization, not just magnitude blur
+            if (diffusion > 0.001f) {
+                // Max phase offset scales from 0 to ±π as diffusion goes 0→1
+                const float maxPhaseOffset = diffusion * kPi;
+                outPhaseL += rng_.nextFloat() * maxPhaseOffset;
+                outPhaseR += rng_.nextFloat() * maxPhaseOffset;
             }
 
             // Set output spectrum
@@ -599,7 +732,8 @@ private:
             outputR.setPhase(bin, outPhaseR);
         }
 
-        // Apply diffusion if enabled
+        // Apply diffusion magnitude blur if enabled
+        // This spreads energy across neighboring frequency bins
         if (diffusion > 0.001f) {
             applyDiffusion(outputL, diffusion);
             for (std::size_t i = 0; i < numBins; ++i) {
@@ -619,6 +753,9 @@ private:
     double sampleRate_ = 44100.0;
     std::size_t maxBlockSize_ = 512;
     bool prepared_ = false;
+
+    // Random number generator for phase randomization (unique seed per instance)
+    Xorshift32 rng_{1};
 
     // FFT Configuration
     std::size_t fftSize_ = kDefaultFFTSize;
@@ -640,18 +777,27 @@ private:
     SpectralBuffer frozenSpectrumL_;
     SpectralBuffer frozenSpectrumR_;
 
-    // Per-Bin Delay Lines (stereo)
-    std::vector<DelayLine> binDelaysL_;
-    std::vector<DelayLine> binDelaysR_;
+    // Per-Bin Delay Lines for Complex Values (stereo)
+    // We delay real and imaginary parts instead of magnitude and phase
+    // to avoid phase wrapping issues during linear interpolation.
+    // When phase wraps from +π to -π, linear interpolation produces incorrect
+    // values (e.g., interp(3.1, -3.1, 0.5) = 0.0 instead of ~±π).
+    // Complex interpolation handles this correctly.
+    std::vector<DelayLine> binRealDelaysL_;
+    std::vector<DelayLine> binRealDelaysR_;
+    std::vector<DelayLine> binImagDelaysL_;
+    std::vector<DelayLine> binImagDelaysR_;
 
     // Parameters
     float baseDelayMs_ = kDefaultDelayMs;
     float spreadMs_ = 0.0f;
     SpreadDirection spreadDirection_ = SpreadDirection::LowToHigh;
+    SpreadCurve spreadCurve_ = SpreadCurve::Linear;  // Phase 3.1: Default to linear
     float feedback_ = 0.0f;
     float feedbackTilt_ = 0.0f;
     float diffusion_ = 0.0f;
     float dryWetMix_ = kDefaultDryWet;
+    float stereoWidth_ = 0.0f;  // Phase 3.2: Stereo decorrelation amount
     bool freezeEnabled_ = false;
 
     // Parameter Smoothers
@@ -667,6 +813,11 @@ private:
     float freezeCrossfade_ = 0.0f;
     static constexpr float kFreezeCrossfadeTimeMs = 75.0f;  // 50-100ms per spec
     float freezeCrossfadeIncrement_ = 0.0f;
+
+    // Phase 2.2: Phase drift during freeze to prevent static resonance
+    // Accumulates slowly over time when frozen to add subtle variation
+    float freezePhaseDrift_ = 0.0f;
+    static constexpr float kPhaseDriftRate = 0.01f;  // Radians per frame (slow drift)
 
     // Internal Buffers
     std::vector<float> tempBufferL_;
