@@ -10,6 +10,10 @@
 // This eliminates discontinuities completely because each tap reads
 // continuously from its position - we just blend between the two outputs.
 //
+// Uses equal-power crossfade (sine/cosine curves) to maintain constant
+// perceived loudness during transitions. This avoids the -3dB dip at the
+// midpoint that occurs with linear crossfading.
+//
 // Reference: https://music.arts.uci.edu/dobrian/maxcookbook/abstraction-crossfading-between-delay-times
 // Reference: https://www.dsprelated.com/freebooks/pasp/Time_Varying_Delay_Effects.html
 //
@@ -18,10 +22,12 @@
 // - Principle III: Modern C++ (RAII, value semantics, C++20)
 // - Principle IX: Layer 1 (depends only on Layer 0 / standard library)
 // - Principle XII: Test-First Development
+// - Principle XIV: ODR Prevention (uses shared crossfade_utils.h)
 // ==============================================================================
 
 #pragma once
 
+#include "dsp/core/crossfade_utils.h"
 #include "dsp/primitives/delay_line.h"
 #include <algorithm>
 #include <cmath>
@@ -107,6 +113,7 @@ public:
         tapBGain_ = 0.0f;
         activeIsTapA_ = true;
         crossfading_ = false;
+        crossfadePosition_ = 0.0f;
 
         // Calculate crossfade increment per sample
         setCrossfadeTime(kDefaultCrossfadeTimeMs);
@@ -122,6 +129,7 @@ public:
         tapBGain_ = 0.0f;
         activeIsTapA_ = true;
         crossfading_ = false;
+        crossfadePosition_ = 0.0f;
     }
 
     // =========================================================================
@@ -133,9 +141,8 @@ public:
     void setCrossfadeTime(float timeMs) noexcept {
         crossfadeTimeMs_ = std::clamp(timeMs, kMinCrossfadeTimeMs, kMaxCrossfadeTimeMs);
 
-        // Calculate per-sample increment for linear crossfade
-        const float crossfadeSamples = crossfadeTimeMs_ * 0.001f * static_cast<float>(sampleRate_);
-        crossfadeIncrement_ = (crossfadeSamples > 0.0f) ? (1.0f / crossfadeSamples) : 1.0f;
+        // Calculate per-sample increment for crossfade position (uses shared utility)
+        crossfadeIncrement_ = crossfadeIncrement(crossfadeTimeMs_, sampleRate_);
     }
 
     /// @brief Set the target delay time in samples.
@@ -177,6 +184,7 @@ public:
             // Large drift - initiate crossfade to the inactive tap
             // The inactive tap is already at the target (updated above)
             crossfading_ = true;
+            crossfadePosition_ = 0.0f;  // Start equal-power crossfade from beginning
         }
         // For small changes: active tap stays put (no pitch artifacts),
         // inactive tap silently tracks the target for when crossfade happens
@@ -197,6 +205,7 @@ public:
         tapADelaySamples_ = clampedDelay;
         tapBDelaySamples_ = clampedDelay;
         crossfading_ = false;
+        crossfadePosition_ = 0.0f;
     }
 
     /// @brief Snap to a delay position immediately without crossfading.
@@ -217,6 +226,10 @@ public:
 
     /// @brief Read from the delay line with crossfading.
     /// @return Crossfaded output from both taps
+    ///
+    /// Uses equal-power crossfade (sine/cosine curves) to maintain constant
+    /// perceived loudness during the transition. This eliminates the -3dB dip
+    /// that occurs with linear crossfading at the midpoint.
     [[nodiscard]] float read() noexcept {
         // Read from both taps
         const float tapAOutput = delayLine_.readLinear(tapADelaySamples_);
@@ -227,32 +240,41 @@ public:
 
         // Update crossfade if in progress
         if (crossfading_) {
-            if (activeIsTapA_) {
-                // Fading from A to B
-                tapAGain_ -= crossfadeIncrement_;
-                tapBGain_ += crossfadeIncrement_;
+            // Advance crossfade position
+            crossfadePosition_ += crossfadeIncrement_;
 
-                if (tapBGain_ >= 1.0f) {
+            // Calculate equal-power gains from position
+            float fadeOut, fadeIn;
+            equalPowerGains(crossfadePosition_, fadeOut, fadeIn);
+
+            if (activeIsTapA_) {
+                // Fading from A (out) to B (in)
+                tapAGain_ = fadeOut;
+                tapBGain_ = fadeIn;
+
+                if (crossfadePosition_ >= 1.0f) {
                     // Crossfade complete - B is now active
                     tapAGain_ = 0.0f;
                     tapBGain_ = 1.0f;
                     activeIsTapA_ = false;
                     crossfading_ = false;
+                    crossfadePosition_ = 0.0f;
 
                     // Sync the inactive tap (A) to current target for next crossfade
                     tapADelaySamples_ = targetDelaySamples_;
                 }
             } else {
-                // Fading from B to A
-                tapBGain_ -= crossfadeIncrement_;
-                tapAGain_ += crossfadeIncrement_;
+                // Fading from B (out) to A (in)
+                tapBGain_ = fadeOut;
+                tapAGain_ = fadeIn;
 
-                if (tapAGain_ >= 1.0f) {
+                if (crossfadePosition_ >= 1.0f) {
                     // Crossfade complete - A is now active
                     tapBGain_ = 0.0f;
                     tapAGain_ = 1.0f;
                     activeIsTapA_ = true;
                     crossfading_ = false;
+                    crossfadePosition_ = 0.0f;
 
                     // Sync the inactive tap (B) to current target for next crossfade
                     tapBDelaySamples_ = targetDelaySamples_;
@@ -306,7 +328,8 @@ private:
     // Crossfade state
     bool activeIsTapA_ = true;          ///< Which tap is currently primary
     bool crossfading_ = false;          ///< Crossfade in progress
-    float crossfadeIncrement_ = 0.01f;  ///< Per-sample gain change
+    float crossfadePosition_ = 0.0f;    ///< Crossfade progress [0.0 = start, 1.0 = complete]
+    float crossfadeIncrement_ = 0.01f;  ///< Per-sample position increment
     float crossfadeTimeMs_ = kDefaultCrossfadeTimeMs;
 
     double sampleRate_ = 44100.0;

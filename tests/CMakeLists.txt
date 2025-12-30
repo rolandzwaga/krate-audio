@@ -442,6 +442,25 @@ target_compile_options(benchmark_spectral_delay PRIVATE
     $<$<CXX_COMPILER_ID:Clang>:-O3 -ffast-math>
 )
 
+# Mode Crossfade benchmark (T045: verify crossfade adds minimal CPU overhead)
+add_executable(benchmark_mode_crossfade
+    benchmark_mode_crossfade.cpp
+)
+
+target_include_directories(benchmark_mode_crossfade
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+# Release optimizations for accurate benchmarking
+# MSVC: Only add /O2 in non-Debug builds to avoid conflict with /RTC1
+target_compile_options(benchmark_mode_crossfade PRIVATE
+    $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<NOT:$<CONFIG:Debug>>>:/O2 /fp:fast>
+    $<$<CXX_COMPILER_ID:GNU>:-O3 -ffast-math>
+    $<$<CXX_COMPILER_ID:Clang>:-O3 -ffast-math>
+)
+
 # ==============================================================================
 # VST3 SDK Unit Tests
 # ==============================================================================

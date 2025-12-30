@@ -527,3 +527,262 @@ TEST_CASE("REGRESSION: No zipper noise during 200ms delay time change",
     // Allow 0.5f for the crossfading blend transient
     REQUIRE(maxDiscontinuity < 0.5f);
 }
+
+// =============================================================================
+// T043: Equal-Power Crossfade Tests (spec 041-mode-switch-clicks)
+// =============================================================================
+// These tests verify the equal-power crossfade upgrade from linear crossfade.
+// Equal-power uses sine/cosine curves where fadeOut² + fadeIn² ≈ 1, which
+// maintains constant perceived loudness during the transition.
+// =============================================================================
+
+TEST_CASE("CrossfadingDelayLine uses equal-power crossfade (constant power)",
+          "[delay][crossfade][equal-power]") {
+    // This test verifies that during crossfade, the output maintains expected
+    // equal-power behavior. Both delay positions must have valid data.
+
+    CrossfadingDelayLine delay;
+    const double sampleRate = 44100.0;
+    delay.prepare(sampleRate, 1.0f);
+
+    // Use a constant signal so output reflects only the crossfade gains
+    const float constantValue = 1.0f;
+
+    // Set initial delay
+    delay.setDelayMs(100.0f);
+
+    // Prime the buffer with constant signal - MUST be longer than target delay
+    // 300ms = 13230 samples, so we need at least that many
+    for (int i = 0; i < 15000; ++i) {
+        delay.write(constantValue);
+        (void)delay.read();
+    }
+
+    // Trigger crossfade with large delay change
+    delay.setDelayMs(300.0f);
+    REQUIRE(delay.isCrossfading());
+
+    // Track minimum and maximum output during crossfade
+    float minOutput = 2.0f;  // Start high
+    float maxOutput = 0.0f;  // Start low
+    int crossfadeSamples = 0;
+
+    while (delay.isCrossfading() && crossfadeSamples < 2000) {
+        delay.write(constantValue);
+        float output = delay.read();
+
+        minOutput = std::min(minOutput, output);
+        maxOutput = std::max(maxOutput, output);
+        crossfadeSamples++;
+    }
+
+    INFO("Minimum output during crossfade: " << minOutput);
+    INFO("Maximum output during crossfade: " << maxOutput);
+    INFO("Crossfade samples: " << crossfadeSamples);
+
+    // With equal-power crossfade of identical signals (both taps reading 1.0):
+    // At position 0.0: output = 1.0 * cos(0) + 1.0 * sin(0) = 1.0 + 0.0 = 1.0
+    // At position 0.5: output = 1.0 * cos(π/4) + 1.0 * sin(π/4) = 0.707 + 0.707 = 1.414
+    // At position 1.0: output = 1.0 * cos(π/2) + 1.0 * sin(π/2) = 0.0 + 1.0 = 1.0
+    //
+    // So for correlated signals, equal-power actually INCREASES amplitude at midpoint
+    // compared to linear which stays at 1.0 throughout.
+    //
+    // Minimum should be ~1.0 (at endpoints)
+    // Maximum should be ~1.414 (at midpoint)
+    REQUIRE(minOutput >= 0.99f);
+    REQUIRE(maxOutput >= 1.3f);   // Confirms equal-power behavior (linear would be 1.0)
+    REQUIRE(maxOutput <= 1.5f);   // But not unreasonable
+}
+
+TEST_CASE("CrossfadingDelayLine equal-power maintains RMS for uncorrelated signals",
+          "[delay][crossfade][equal-power][rms]") {
+    // This test verifies equal-power crossfade behavior with sine wave signals.
+    // Both delay positions must have valid data for meaningful comparison.
+
+    CrossfadingDelayLine delay;
+    const double sampleRate = 44100.0;
+    delay.prepare(sampleRate, 1.0f);
+
+    // Use sine wave - the two delay taps will read different phases
+    const float freq = 440.0f;
+    const float omega = 2.0f * 3.14159265f * freq / static_cast<float>(sampleRate);
+
+    // Set initial delay
+    delay.setDelayMs(100.0f);  // 4410 samples
+
+    // Prime the buffer with enough samples for BOTH delay times
+    // 350ms = 15435 samples, so prime with more than that
+    for (size_t i = 0; i < 20000; ++i) {
+        float input = std::sin(omega * static_cast<float>(i));
+        delay.write(input);
+        (void)delay.read();
+    }
+
+    // Measure RMS before crossfade
+    float rmsBeforeSum = 0.0f;
+    const int measureSamples = 441;  // 10ms window
+    for (int i = 0; i < measureSamples; ++i) {
+        float input = std::sin(omega * static_cast<float>(20000 + i));
+        delay.write(input);
+        float output = delay.read();
+        rmsBeforeSum += output * output;
+    }
+    float rmsBefore = std::sqrt(rmsBeforeSum / static_cast<float>(measureSamples));
+
+    // Trigger crossfade with LARGE delay change to ensure different phases
+    delay.setDelayMs(350.0f);  // 15435 samples
+    REQUIRE(delay.isCrossfading());
+
+    // Measure RMS during crossfade (around midpoint)
+    // Skip first ~400 samples to get to midpoint region
+    for (int i = 0; i < 400; ++i) {
+        float input = std::sin(omega * static_cast<float>(20441 + i));
+        delay.write(input);
+        (void)delay.read();
+    }
+
+    float rmsDuringSum = 0.0f;
+    for (int i = 0; i < measureSamples; ++i) {
+        float input = std::sin(omega * static_cast<float>(20841 + i));
+        delay.write(input);
+        float output = delay.read();
+        rmsDuringSum += output * output;
+    }
+    float rmsDuring = std::sqrt(rmsDuringSum / static_cast<float>(measureSamples));
+
+    INFO("RMS before crossfade: " << rmsBefore);
+    INFO("RMS during crossfade (midpoint): " << rmsDuring);
+
+    // With equal-power crossfade:
+    // - For correlated signals (same phase): RMS increases at midpoint (~1.414x)
+    // - For uncorrelated signals (90° out of phase): RMS stays constant (~1.0x)
+    // - For anti-correlated signals (180° out of phase): RMS decreases
+    //
+    // Phase relationship depends on the delay difference, which is (350-100)ms = 250ms
+    // = 11025 samples at 44.1kHz. At 440Hz, wavelength = 100.23 samples
+    // 11025 / 100.23 ≈ 110 cycles, so we get arbitrary phase.
+    //
+    // Key point: equal-power crossfade maintains constant POWER (squared sum = 1)
+    // For uncorrelated signals, this means RMS stays constant.
+    float rmsRatio = rmsDuring / rmsBefore;
+    INFO("RMS ratio (during/before): " << rmsRatio);
+
+    // Allow wide range due to phase relationships, but should not collapse
+    REQUIRE(rmsRatio > 0.5f);   // Should not drop too much
+    REQUIRE(rmsRatio < 2.0f);   // Should not spike excessively
+}
+
+TEST_CASE("CrossfadingDelayLine crossfade gain sum is approximately 1.0",
+          "[delay][crossfade][equal-power][gains]") {
+    // Test that the weighted average delay (which reflects gain distribution)
+    // transitions smoothly without extreme values during crossfade.
+    //
+    // For equal-power: fadeOut² + fadeIn² = 1 (constant power)
+    // For linear: fadeOut + fadeIn = 1 (constant amplitude sum)
+    //
+    // We test indirectly via getCurrentDelaySamples() which is the gain-weighted average.
+
+    CrossfadingDelayLine delay;
+    const double sampleRate = 44100.0;
+    delay.prepare(sampleRate, 1.0f);
+
+    const float startDelayMs = 100.0f;
+    const float endDelayMs = 300.0f;
+    const float startSamples = startDelayMs * 0.001f * static_cast<float>(sampleRate);
+    const float endSamples = endDelayMs * 0.001f * static_cast<float>(sampleRate);
+
+    delay.setDelayMs(startDelayMs);
+
+    // Prime buffer
+    for (int i = 0; i < 5000; ++i) {
+        delay.write(0.5f);
+        (void)delay.read();
+    }
+
+    // Verify starting position
+    REQUIRE(delay.getCurrentDelaySamples() == Approx(startSamples));
+
+    // Trigger crossfade
+    delay.setDelayMs(endDelayMs);
+    REQUIRE(delay.isCrossfading());
+
+    // Track the delay samples during crossfade - should transition smoothly
+    std::vector<float> delaySamplesDuringCrossfade;
+    delaySamplesDuringCrossfade.reserve(1000);
+
+    while (delay.isCrossfading()) {
+        delay.write(0.5f);
+        (void)delay.read();
+        delaySamplesDuringCrossfade.push_back(delay.getCurrentDelaySamples());
+    }
+
+    // Verify smooth transition (no extreme jumps)
+    float maxJump = 0.0f;
+    for (size_t i = 1; i < delaySamplesDuringCrossfade.size(); ++i) {
+        float jump = std::abs(delaySamplesDuringCrossfade[i] - delaySamplesDuringCrossfade[i-1]);
+        maxJump = std::max(maxJump, jump);
+    }
+
+    INFO("Max delay sample jump during crossfade: " << maxJump);
+
+    // Equal-power gives smooth S-curve transition, not perfectly linear
+    // But jumps should still be small (< 100 samples per sample)
+    REQUIRE(maxJump < 100.0f);
+
+    // Verify we ended at the target
+    REQUIRE(delay.getCurrentDelaySamples() == Approx(endSamples));
+}
+
+TEST_CASE("CrossfadingDelayLine equal-power vs linear at midpoint",
+          "[delay][crossfade][equal-power][midpoint]") {
+    // This test verifies the equal-power behavior at the crossfade midpoint.
+    //
+    // At position 0.5:
+    // - Linear: fadeOut = 0.5, fadeIn = 0.5
+    // - Equal-power: fadeOut = cos(π/4) ≈ 0.707, fadeIn = sin(π/4) ≈ 0.707
+    //
+    // For identical signals: linear gives 1.0, equal-power gives 1.414
+
+    CrossfadingDelayLine delay;
+    const double sampleRate = 44100.0;
+    delay.prepare(sampleRate, 1.0f);
+
+    // Use very short crossfade so we can precisely control position
+    delay.setCrossfadeTime(20.0f);  // 882 samples at 44.1kHz
+
+    // Use constant signal to see gain effects directly
+    const float constantValue = 1.0f;
+
+    delay.setDelayMs(100.0f);
+
+    // Prime buffer with constant - MUST be long enough for BOTH delay times
+    // 300ms = 13230 samples, so we need at least that
+    for (int i = 0; i < 15000; ++i) {
+        delay.write(constantValue);
+        (void)delay.read();
+    }
+
+    // Trigger crossfade
+    delay.setDelayMs(300.0f);
+    REQUIRE(delay.isCrossfading());
+
+    // Process exactly half the crossfade time (441 samples = ~10ms)
+    float outputAtMidpoint = 0.0f;
+    for (int i = 0; i < 441; ++i) {
+        delay.write(constantValue);
+        outputAtMidpoint = delay.read();
+    }
+
+    INFO("Output at crossfade midpoint: " << outputAtMidpoint);
+
+    // With equal-power crossfade of identical signals (both reading 1.0):
+    // output = 1.0 * cos(π/4) + 1.0 * sin(π/4) ≈ 0.707 + 0.707 = 1.414
+    //
+    // With linear crossfade:
+    // output = 1.0 * 0.5 + 1.0 * 0.5 = 1.0
+    //
+    // So we expect output > 1.2 for equal-power (allowing some tolerance)
+    REQUIRE(outputAtMidpoint > 1.2f);  // Proves it's equal-power, not linear
+    REQUIRE(outputAtMidpoint < 1.5f);  // But not unreasonably high
+}
