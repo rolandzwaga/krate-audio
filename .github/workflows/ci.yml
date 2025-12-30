@@ -136,6 +136,7 @@ jobs:
       - name: Run AU Validation
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
+          rm -rf ~/Library/Audio/Plug-Ins/Components/Iterum.component
           cp -R build/VST3/${{ env.BUILD_TYPE }}/Iterum.component ~/Library/Audio/Plug-Ins/Components/
           killall -9 AudioComponentRegistrar 2>/dev/null || true
           sleep 2
