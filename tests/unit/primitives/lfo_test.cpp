@@ -114,7 +114,7 @@ TEST_CASE("LFO reset clears state", "[lfo][foundational]") {
 
     // Process some samples to advance phase
     for (int i = 0; i < 1000; ++i) {
-        lfo.process();
+        (void)lfo.process();
     }
 
     SECTION("reset returns phase to zero") {
@@ -446,7 +446,7 @@ TEST_CASE("Sample & Hold waveform behavior", "[lfo][US2][samplehold]") {
         // Process first cycle
         float firstCycleValue = lfo.process();
         for (int i = 1; i < 100; ++i) {
-            lfo.process();
+            (void)lfo.process();
         }
 
         // Get second cycle value
@@ -457,7 +457,7 @@ TEST_CASE("Sample & Hold waveform behavior", "[lfo][US2][samplehold]") {
         bool foundDifferent = (firstCycleValue != secondCycleValue);
         for (int cycle = 0; cycle < 10 && !foundDifferent; ++cycle) {
             for (int i = 0; i < 100; ++i) {
-                lfo.process();
+                (void)lfo.process();
             }
             float nextValue = lfo.process();
             if (std::abs(nextValue - firstCycleValue) > 0.01f) {
@@ -799,7 +799,7 @@ TEST_CASE("retrigger resets phase to start", "[lfo][US5][retrigger]") {
 
     // Process some samples
     for (int i = 0; i < 50; ++i) {
-        lfo.process();
+        (void)lfo.process();
     }
 
     // Retrigger
@@ -820,7 +820,7 @@ TEST_CASE("retrigger respects phase offset", "[lfo][US5][retrigger]") {
 
     // Process some samples
     for (int i = 0; i < 50; ++i) {
-        lfo.process();
+        (void)lfo.process();
     }
 
     // Retrigger
@@ -1146,7 +1146,7 @@ TEST_CASE("Phase accumulator drift less than 0.0001 degrees over 24 hours (SC-00
 
     // Process all samples
     for (size_t i = 0; i < totalSamples; ++i) {
-        lfo.process();
+        (void)lfo.process();
     }
 
     // After exactly numCycles cycles, LFO should be at phase 0
@@ -1155,7 +1155,7 @@ TEST_CASE("Phase accumulator drift less than 0.0001 degrees over 24 hours (SC-00
 
     // Process same amount again and check final phase
     for (size_t i = 0; i < totalSamples; ++i) {
-        lfo.process();
+        (void)lfo.process();
     }
 
     // Next sample should be at phase 0 (start of new cycle)

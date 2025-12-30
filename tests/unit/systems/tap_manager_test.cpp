@@ -730,7 +730,7 @@ TEST_CASE("TapManager: setTempo() updates tempo-synced taps", "[tap-manager][tem
 
     SECTION("Invalid tempo (0 or negative) is ignored") {
         tm.setTempo(120.0f);
-        const float prevActive = tm.getActiveTapCount();
+        const size_t prevActive = tm.getActiveTapCount();
 
         tm.setTempo(0.0f);   // Should be ignored
         tm.setTempo(-100.0f); // Should be ignored

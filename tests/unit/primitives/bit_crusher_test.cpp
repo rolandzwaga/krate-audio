@@ -476,7 +476,7 @@ TEST_CASE("BitCrusher reset clears state", "[bitcrusher][layer1][foundational]")
 
     // Process some samples
     for (int i = 0; i < 100; ++i) {
-        crusher.process(0.5f);
+        (void)crusher.process(0.5f);
     }
 
     // Reset

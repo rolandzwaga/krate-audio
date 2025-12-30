@@ -54,10 +54,10 @@ TEST_CASE("BitCrusher RNG has zero mean over long runs", "[primitives][bit-crush
         sum_1000_1010 += buffer[1000 + i];
     }
 
-    float mean_0_10 = sum_0_10 / 10.0;
-    float mean_100_110 = sum_100_110 / 10.0;
-    float mean_500_510 = sum_500_510 / 10.0;
-    float mean_1000_1010 = sum_1000_1010 / 10.0;
+    float mean_0_10 = sum_0_10 / 10.0f;
+    float mean_100_110 = sum_100_110 / 10.0f;
+    float mean_500_510 = sum_500_510 / 10.0f;
+    float mean_1000_1010 = sum_1000_1010 / 10.0f;
 
     INFO("Mean at 0-10: " << mean_0_10);
     INFO("Mean at 100-110: " << mean_100_110);
