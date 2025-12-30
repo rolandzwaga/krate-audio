@@ -53,10 +53,10 @@ TEST_CASE("VERSION_STR is defined correctly", "[vst][version]") {
         REQUIRE(secondDot != std::string::npos);
     }
 
-    SECTION("VERSION_STR matches current version") {
-        // This test documents the current version
-        // Update this when version changes in version.json
-        REQUIRE(std::string(VERSION_STR) == "0.1.2");
+    SECTION("VERSION_STR is not empty") {
+        // Just verify version is defined and non-empty
+        // Actual value comes from version.json via CMake
+        REQUIRE_FALSE(std::string(VERSION_STR).empty());
     }
 }
 
@@ -89,7 +89,7 @@ TEST_CASE("getUIVersionString returns correct value", "[vst][version][utility]")
     SECTION("returns formatted version string") {
         std::string uiVersion = getUIVersionString();
         REQUIRE(uiVersion.find("Iterum v") == 0);
-        REQUIRE(uiVersion.find("0.1.2") != std::string::npos);
+        REQUIRE(uiVersion.find(VERSION_STR) != std::string::npos);
     }
 }
 
@@ -100,7 +100,7 @@ TEST_CASE("getVersionString returns correct value", "[vst][version][utility]") {
 
     SECTION("returns version number only") {
         std::string version = getVersionString();
-        REQUIRE(version == "0.1.2");
+        REQUIRE(version == VERSION_STR);
     }
 }
 
