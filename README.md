@@ -76,10 +76,6 @@ cmake --build --preset linux-release
 
 The built plugin will be in `build/<preset>/VST3/Release/`.
 
-## Documentation
-
-Full documentation is available at [rolandzwaga.github.io/iterum](https://rolandzwaga.github.io/iterum/).
-
 ## Technical Highlights
 
 - **Real-Time Safe** - No allocations in audio thread, lock-free parameter updates
