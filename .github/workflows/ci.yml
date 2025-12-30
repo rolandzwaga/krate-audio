@@ -116,8 +116,9 @@ jobs:
       # This works around Xcode ignoring CMAKE_<LANG>_COMPILER_LAUNCHER
       # Note: PCH stays enabled on macOS - ccache handles it better than sccache
       # Note: SMTG_ENABLE_AUV2_BUILDS enables Audio Unit v2 build via VST3 SDK AU wrapper
+      # Note: SMTG_CODE_SIGN_IDENTITY_MAC="-" uses ad-hoc signing (no keychain required in CI)
       - name: Configure CMake
-        run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON
+        run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-"
 
       - name: Build Tests
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests approval_tests vst_tests --parallel
