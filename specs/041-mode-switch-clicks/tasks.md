@@ -115,7 +115,7 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 - [X] T026 [US1] Build plugin and verify no compiler warnings
 - [X] T027 [US1] Run all unit tests and verify they pass
 - [X] T028 [US1] Run pluginval at strictness level 5
-- [ ] T029 [US1] **Manual test**: Load plugin in DAW, play audio, switch modes rapidly - verify no clicks
+- [X] T029 [US1] **Manual test**: Load plugin in DAW, play audio, switch modes rapidly - verify no clicks ✅
 
 ### 3.5 Cross-Platform Verification (MANDATORY)
 
@@ -143,33 +143,33 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 4.1 Pre-Implementation (MANDATORY)
 
-- [ ] T032 [US2] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
+- [X] T032 [US2] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
 
 ### 4.2 Tests for User Story 2 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T033 [P] [US2] Write unit tests verifying RMS level stability during crossfade (no >3dB spike) in tests/unit/processor/mode_crossfade_tests.cpp
-- [ ] T034 [P] [US2] Write unit tests verifying dry signal unaffected during crossfade in tests/unit/processor/mode_crossfade_tests.cpp
+- [X] T033 [P] [US2] Write unit tests verifying RMS level stability during crossfade (no >3dB spike) in tests/unit/processor/mode_crossfade_tests.cpp
+- [X] T034 [P] [US2] Write unit tests verifying dry signal unaffected during crossfade in tests/unit/processor/mode_crossfade_tests.cpp
 
 ### 4.3 Implementation for User Story 2
 
-- [ ] T035 [US2] Review crossfade implementation for RMS stability - adjust if needed in src/processor/processor.cpp
-- [ ] T036 [US2] Verify dry signal path is not affected by crossfade logic in src/processor/processor.cpp
+- [X] T035 [US2] Review crossfade implementation for RMS stability - adjust if needed in src/processor/processor.cpp
+- [X] T036 [US2] Verify dry signal path is not affected by crossfade logic in src/processor/processor.cpp
 - [ ] T037 [US2] **Manual test**: Test all 11 modes with long delay tails - verify smooth fade-out
 
 ### 4.4 Verification
 
-- [ ] T038 [US2] Run all unit tests and verify they pass
-- [ ] T039 [US2] Run pluginval at strictness level 5
+- [X] T038 [US2] Run all unit tests and verify they pass (1486 tests, 4,729,149 assertions)
+- [X] T039 [US2] Run pluginval at strictness level 5
 
 ### 4.5 Cross-Platform Verification (MANDATORY)
 
-- [ ] T040 [US2] **Verify IEEE 754 compliance**: Check if any new test code uses IEEE 754 functions
+- [X] T040 [US2] **Verify IEEE 754 compliance**: Check if any new test code uses IEEE 754 functions (none used)
 
 ### 4.6 Commit (MANDATORY)
 
-- [ ] T041 [US2] **Commit completed User Story 2 work**
+- [X] T041 [US2] **Commit completed User Story 2 work** (commit 09891f7)
 
 **Checkpoint**: User Stories 1 AND 2 complete - Click-free and smooth transitions work
 
