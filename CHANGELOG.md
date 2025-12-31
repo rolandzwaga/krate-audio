@@ -5,6 +5,24 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2025-12-31
+
+### Fixed
+
+- **Spectral Delay Artifact Reduction**
+  - Eliminated pops and crackling when adjusting diffusion, spread, or stereo width
+  - Replaced per-frame random phase generation with smooth random walk approach
+  - Added stereo width parameter smoother (was missing)
+  - Increased smoothing time from 10ms to 50ms for spectral parameters
+  - High diffusion values (50%+) now produce clean, artifact-free output
+
+- **Flaky CPU Benchmark Test**
+  - "FreezeMode CPU usage is reasonable" test now skips in Debug builds
+  - CPU benchmarks on unoptimized code are not meaningful
+  - Test still runs in Release builds to verify 1% CPU target
+
+---
+
 ## [0.6.0] - 2025-12-31
 
 ### Added

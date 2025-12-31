@@ -1686,9 +1686,17 @@ TEST_CASE("FreezeMode process is noexcept (real-time safe signature)", "[freeze-
     REQUIRE(true);
 }
 
-TEST_CASE("FreezeMode CPU usage is reasonable", "[freeze-mode][edge-case][SC-008]") {
+TEST_CASE("FreezeMode CPU usage is reasonable", "[freeze-mode][edge-case][SC-008][!benchmark]") {
     // SC-008: CPU usage below 1% at 44.1kHz stereo
     // We measure processing time relative to real-time budget
+    //
+    // NOTE: This test is tagged [!benchmark] and skipped in Debug builds.
+    // Debug builds are not optimized and produce meaningless CPU measurements.
+    // Run with Release build: ctest -C Release -R "FreezeMode CPU"
+#ifdef _DEBUG
+    SKIP("CPU benchmark skipped in Debug build - run in Release for meaningful results");
+#endif
+
     FreezeMode freeze;
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(500.0f);

@@ -182,8 +182,9 @@ public:
             binImagDelaysR_.back().prepare(frameRate, maxDelaySeconds);
         }
 
-        // Configure parameter smoothers (10ms smoothing time)
-        const float smoothTimeMs = 10.0f;
+        // Configure parameter smoothers (50ms smoothing time for spectral processing)
+        // Increased from 10ms to reduce artifacts during parameter changes
+        const float smoothTimeMs = 50.0f;
         const float sampleRateF = static_cast<float>(sampleRate);
         baseDelaySmoother_.configure(smoothTimeMs, sampleRateF);
         spreadSmoother_.configure(smoothTimeMs, sampleRateF);
@@ -191,6 +192,7 @@ public:
         tiltSmoother_.configure(smoothTimeMs, sampleRateF);
         diffusionSmoother_.configure(smoothTimeMs, sampleRateF);
         dryWetSmoother_.configure(smoothTimeMs, sampleRateF);
+        stereoWidthSmoother_.configure(smoothTimeMs, sampleRateF);
 
         // Initialize smoothers to current values
         baseDelaySmoother_.setTarget(baseDelayMs_);
@@ -199,6 +201,7 @@ public:
         tiltSmoother_.setTarget(feedbackTilt_);
         diffusionSmoother_.setTarget(diffusion_);
         dryWetSmoother_.setTarget(dryWetMix_ / 100.0f);
+        stereoWidthSmoother_.setTarget(stereoWidth_);
 
         // Snap smoothers to initial values
         snapParameters();
@@ -220,6 +223,22 @@ public:
         // This ensures different instances produce different random sequences
         rng_.seed(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this) ^
                                         static_cast<uintptr_t>(sampleRate)));
+
+        // Allocate frame-continuous phase buffers (random walk approach)
+        // These provide smooth phase modulation without frame-boundary clicks
+        // Initialize with random values so each instance starts with unique phase offsets
+        diffusionPhaseL_.resize(numBins);
+        diffusionPhaseR_.resize(numBins);
+        stereoPhaseL_.resize(numBins);
+        stereoPhaseR_.resize(numBins);
+
+        for (std::size_t i = 0; i < numBins; ++i) {
+            // Start with random phase offsets in ±π range
+            diffusionPhaseL_[i] = (rng_.nextFloat() - 0.5f) * kTwoPi;
+            diffusionPhaseR_[i] = (rng_.nextFloat() - 0.5f) * kTwoPi;
+            stereoPhaseL_[i] = (rng_.nextFloat() - 0.5f) * kPi;
+            stereoPhaseR_[i] = (rng_.nextFloat() - 0.5f) * kPi;
+        }
 
         prepared_ = true;
     }
@@ -261,6 +280,15 @@ public:
         // Reset freeze state
         wasFrozen_ = false;
         freezeCrossfade_ = 0.0f;
+
+        // Re-randomize phase state (random walk values)
+        // This ensures each reset produces new random starting phases
+        for (std::size_t i = 0; i < diffusionPhaseL_.size(); ++i) {
+            diffusionPhaseL_[i] = (rng_.nextFloat() - 0.5f) * kTwoPi;
+            diffusionPhaseR_[i] = (rng_.nextFloat() - 0.5f) * kTwoPi;
+            stereoPhaseL_[i] = (rng_.nextFloat() - 0.5f) * kPi;
+            stereoPhaseR_[i] = (rng_.nextFloat() - 0.5f) * kPi;
+        }
 
         // Clear temp buffers
         std::fill(tempBufferL_.begin(), tempBufferL_.end(), 0.0f);
@@ -477,6 +505,7 @@ public:
     /// 0.0 = mono-like processing, 1.0 = full stereo decorrelation
     void setStereoWidth(float amount) noexcept {
         stereoWidth_ = std::clamp(amount, kMinStereoWidth, kMaxStereoWidth);
+        stereoWidthSmoother_.setTarget(stereoWidth_);
     }
     [[nodiscard]] float getStereoWidth() const noexcept { return stereoWidth_; }
 
@@ -519,6 +548,7 @@ public:
         tiltSmoother_.snapToTarget();
         diffusionSmoother_.snapToTarget();
         dryWetSmoother_.snapToTarget();
+        stereoWidthSmoother_.snapToTarget();
     }
 
 private:
@@ -612,6 +642,44 @@ private:
         const float feedback = feedbackSmoother_.process();
         const float tilt = tiltSmoother_.process();
         const float diffusion = diffusionSmoother_.process();
+        const float stereoWidth = stereoWidthSmoother_.process();
+
+        // =====================================================================
+        // Frame-Continuous Phase Update (Random Walk)
+        // =====================================================================
+        // Instead of jumping to random targets (which can cause large swings),
+        // we use a random walk: small random increments each frame that create
+        // smooth continuous drift. This eliminates artifacts even at high diffusion.
+        //
+        // The phase drifts randomly but is bounded by soft clamping to prevent
+        // accumulation to extreme values.
+        for (std::size_t i = 0; i < numBins && i < diffusionPhaseL_.size(); ++i) {
+            // Random walk for diffusion: add small random increment (±0.02 radians/frame)
+            diffusionPhaseL_[i] += (rng_.nextFloat() - 0.5f) * kPhaseWalkRate;
+            diffusionPhaseR_[i] += (rng_.nextFloat() - 0.5f) * kPhaseWalkRate;
+
+            // Random walk for stereo decorrelation
+            stereoPhaseL_[i] += (rng_.nextFloat() - 0.5f) * kPhaseWalkRate;
+            stereoPhaseR_[i] += (rng_.nextFloat() - 0.5f) * kPhaseWalkRate;
+
+            // Soft clamp to prevent unbounded growth while maintaining smoothness
+            // Uses tanh-like soft limiting: value * decay when |value| > threshold
+            constexpr float kMaxPhase = kPi;  // Limit phase to ±π
+            constexpr float kDecay = 0.995f;  // Gentle decay toward zero
+
+            if (std::abs(diffusionPhaseL_[i]) > kMaxPhase) {
+                diffusionPhaseL_[i] *= kDecay;
+            }
+            if (std::abs(diffusionPhaseR_[i]) > kMaxPhase) {
+                diffusionPhaseR_[i] *= kDecay;
+            }
+            if (std::abs(stereoPhaseL_[i]) > kMaxPhase) {
+                stereoPhaseL_[i] *= kDecay;
+            }
+            if (std::abs(stereoPhaseR_[i]) > kMaxPhase) {
+                stereoPhaseR_[i] *= kDecay;
+            }
+        }
 
         // Handle freeze transition
         const bool freezing = freezeEnabled_;
@@ -743,25 +811,26 @@ private:
                 }
             }
 
-            // Phase 3.2: Apply stereo decorrelation
-            // Add bin-dependent phase offset between L and R for stereo width
-            if (stereoWidth_ > 0.001f) {
-                // Create frequency-dependent phase difference between L and R
-                // Use random offsets that differ between channels to break correlation
-                const float randomOffsetL = rng_.nextFloat() * stereoWidth_ * kHalfPi;
-                const float randomOffsetR = rng_.nextFloat() * stereoWidth_ * kHalfPi;
-                outPhaseL += randomOffsetL;
-                outPhaseR -= randomOffsetR;  // Opposite direction for maximum decorrelation
+            // Phase 3.2: Apply stereo decorrelation using frame-continuous phase
+            // Uses smoothly interpolating phase offsets instead of per-frame random values
+            // to avoid clicks at frame boundaries
+            if (stereoWidth > 0.001f) {
+                // Scale the smoothed per-bin phase offsets by stereo width
+                const float stereoScaleL = stereoPhaseL_[bin] * stereoWidth;
+                const float stereoScaleR = stereoPhaseR_[bin] * stereoWidth;
+                outPhaseL += stereoScaleL;
+                outPhaseR -= stereoScaleR;  // Opposite direction for maximum decorrelation
             }
 
-            // Apply phase randomization when diffusion is enabled
-            // Random phase offsets create spectral smearing/decorrelation
+            // Apply phase modulation when diffusion is enabled
+            // Uses frame-continuous phase offsets for smooth diffusion without clicks
             // Phase 2.1: True diffusion requires phase randomization, not just magnitude blur
             if (diffusion > 0.001f) {
-                // Max phase offset scales from 0 to ±π as diffusion goes 0→1
-                const float maxPhaseOffset = diffusion * kPi;
-                outPhaseL += rng_.nextFloat() * maxPhaseOffset;
-                outPhaseR += rng_.nextFloat() * maxPhaseOffset;
+                // Scale the smoothed per-bin phase offsets by diffusion amount
+                const float diffusionScaleL = diffusionPhaseL_[bin] * diffusion;
+                const float diffusionScaleR = diffusionPhaseR_[bin] * diffusion;
+                outPhaseL += diffusionScaleL;
+                outPhaseR += diffusionScaleR;
             }
 
             // Set output spectrum
@@ -861,6 +930,29 @@ private:
     // Accumulates slowly over time when frozen to add subtle variation
     float freezePhaseDrift_ = 0.0f;
     static constexpr float kPhaseDriftRate = 0.01f;  // Radians per frame (slow drift)
+
+    // =========================================================================
+    // Frame-Continuous Phase System (Random Walk)
+    // =========================================================================
+    // Instead of generating new random phase offsets every frame (which causes
+    // clicks at frame boundaries), we use a random walk approach where phase
+    // drifts smoothly with small random increments. This creates diffusion/
+    // decorrelation without discontinuities, even at high parameter values.
+    //
+    // Per-bin phase offsets for diffusion (random walk values)
+    std::vector<float> diffusionPhaseL_;
+    std::vector<float> diffusionPhaseR_;
+
+    // Per-bin phase offsets for stereo width decorrelation (random walk values)
+    std::vector<float> stereoPhaseL_;
+    std::vector<float> stereoPhaseR_;
+
+    // Random walk rate: small random increment per frame (±0.04 radians max)
+    // This creates smooth continuous drift without sudden jumps
+    static constexpr float kPhaseWalkRate = 0.04f;
+
+    // Stereo width parameter smoother
+    OnePoleSmoother stereoWidthSmoother_;
 
     // Internal Buffers
     std::vector<float> tempBufferL_;

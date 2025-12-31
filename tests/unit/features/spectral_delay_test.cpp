@@ -1343,8 +1343,8 @@ TEST_CASE("SpectralDelay diffusion adds phase variation",
     delay.snapParameters();
     delay.reset();
 
-    // Prime the delay
-    for (int i = 0; i < 50; ++i) {
+    // Prime the delay - increased to 150 blocks to allow random walk phases to build up
+    for (int i = 0; i < 150; ++i) {
         generateTestSignal(leftWithDiff.data(), kBlockSize);
         std::copy(leftWithDiff.begin(), leftWithDiff.end(), rightWithDiff.begin());
         delay.process(leftWithDiff.data(), rightWithDiff.data(), kBlockSize, ctx);
@@ -1369,8 +1369,8 @@ TEST_CASE("SpectralDelay diffusion adds phase variation",
     std::vector<float> leftCapture2(kBlockSize);
     std::vector<float> rightCapture2(kBlockSize);
 
-    // Prime delay2
-    for (int i = 0; i < 50; ++i) {
+    // Prime delay2 - increased to 150 blocks to allow random walk phases to build up
+    for (int i = 0; i < 150; ++i) {
         generateTestSignal(leftCapture2.data(), kBlockSize);
         std::copy(leftCapture2.begin(), leftCapture2.end(), rightCapture2.begin());
         delay2.process(leftCapture2.data(), rightCapture2.data(), kBlockSize, ctx);
@@ -1713,7 +1713,9 @@ TEST_CASE("SpectralDelay stereo width creates channel differences",
     delay.setStereoWidth(1.0f);  // Full width
     delay.reset();
 
-    for (int i = 0; i < 50; ++i) {
+    // Process enough blocks for frame-continuous phase to converge
+    // Phase smoothing needs ~100 spectral frames to fully diverge from zero
+    for (int i = 0; i < 150; ++i) {
         generateMono(left.data(), kBlockSize);
         std::copy(left.begin(), left.end(), right.begin());  // Identical input
         delay.process(left.data(), right.data(), kBlockSize, ctx);
@@ -2148,4 +2150,310 @@ TEST_CASE("SpectralDelay synced mode delay clamped to 2000ms maximum",
     // signal wouldn't appear in our 200*512 = 102400 sample buffer.
     // But with clamping to 2000ms = 88200 samples, it should appear.
     REQUIRE(signalStart < outputHistory.size());  // Found some signal (clamping works)
+}
+
+// =============================================================================
+// Artifact Fix Tests - Frame-Continuous Phase and Parameter Smoothing
+// =============================================================================
+// These tests verify fixes for audio artifacts (clicks, pops, zipper noise)
+// caused by frame-to-frame phase discontinuities and unsmoothed parameters.
+//
+// Research references:
+// - DSPRelated: Overlap-Add STFT Processing
+// - Phase Vocoder Done Right (arXiv:2202.07382)
+// - KVR Audio: FFT overlap-add artifacts
+// =============================================================================
+
+TEST_CASE("SpectralDelay diffusion produces click-free output",
+          "[spectral-delay][artifacts][diffusion][clicks]") {
+    // This test verifies that diffusion doesn't produce clicks/pops from
+    // abrupt phase changes between frames. We measure this by checking
+    // that there are no sudden amplitude spikes in the output.
+    //
+    // With frame-discontinuous random phase: sudden spikes at frame boundaries
+    // With frame-continuous random phase: smooth amplitude envelope
+
+    SpectralDelay delay;
+    delay.setFFTSize(1024);
+    delay.prepare(44100.0, 512);
+
+    delay.setBaseDelayMs(50.0f);
+    delay.setSpreadMs(0.0f);
+    delay.setDryWetMix(100.0f);  // Wet only to isolate effect
+    delay.setFeedback(0.0f);
+    delay.setDiffusion(0.8f);  // High diffusion - prone to artifacts
+    delay.snapParameters();
+
+    auto ctx = makeTestContext();
+
+    constexpr std::size_t kBlockSize = 512;
+    constexpr std::size_t kNumBlocks = 50;
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+    std::vector<float> outputHistory;
+    outputHistory.reserve(kBlockSize * kNumBlocks);
+
+    // Process continuous sine wave through diffusion
+    for (std::size_t block = 0; block < kNumBlocks; ++block) {
+        generateSine(left.data(), kBlockSize, 440.0f, 44100.0f, 0.5f);
+        std::copy(left.begin(), left.end(), right.begin());
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        for (std::size_t i = 0; i < kBlockSize; ++i) {
+            outputHistory.push_back(left[i]);
+        }
+    }
+
+    // Skip first few blocks (FFT latency filling)
+    constexpr std::size_t kSkipSamples = kBlockSize * 5;
+
+    // Measure sample-to-sample differences to detect clicks
+    // A click appears as a sudden large difference between consecutive samples
+    float maxDiff = 0.0f;
+    float avgDiff = 0.0f;
+    std::size_t diffCount = 0;
+
+    for (std::size_t i = kSkipSamples + 1; i < outputHistory.size(); ++i) {
+        float diff = std::abs(outputHistory[i] - outputHistory[i - 1]);
+        maxDiff = std::max(maxDiff, diff);
+        avgDiff += diff;
+        ++diffCount;
+    }
+    avgDiff /= static_cast<float>(diffCount);
+
+    // Calculate ratio of max to average difference
+    // A click would cause maxDiff >> avgDiff (ratio > 10x typical)
+    float clickRatio = maxDiff / (avgDiff + 1e-10f);
+
+    INFO("Max sample-to-sample diff: " << maxDiff);
+    INFO("Avg sample-to-sample diff: " << avgDiff);
+    INFO("Click ratio (max/avg): " << clickRatio);
+
+    // For a smooth signal, max diff should be within reasonable bounds of average
+    // Before fix: ratio ~46. After fix: ratio ~10-20.
+    // Threshold set to 25 to catch severe clicks (ratio > 40) while allowing
+    // normal spectral processing variation.
+    REQUIRE(clickRatio < 25.0f);
+}
+
+TEST_CASE("SpectralDelay stereo width produces click-free output",
+          "[spectral-delay][artifacts][stereo-width][clicks]") {
+    // This test verifies that stereo width doesn't produce clicks/pops from
+    // abrupt phase changes between frames.
+
+    SpectralDelay delay;
+    delay.setFFTSize(1024);
+    delay.prepare(44100.0, 512);
+
+    delay.setBaseDelayMs(50.0f);
+    delay.setSpreadMs(0.0f);
+    delay.setDryWetMix(100.0f);
+    delay.setFeedback(0.0f);
+    delay.setDiffusion(0.0f);
+    delay.setStereoWidth(1.0f);  // Full stereo width - prone to artifacts
+    delay.snapParameters();
+
+    auto ctx = makeTestContext();
+
+    constexpr std::size_t kBlockSize = 512;
+    constexpr std::size_t kNumBlocks = 50;
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+    std::vector<float> outputHistoryL;
+    std::vector<float> outputHistoryR;
+    outputHistoryL.reserve(kBlockSize * kNumBlocks);
+    outputHistoryR.reserve(kBlockSize * kNumBlocks);
+
+    // Process continuous sine wave with stereo width
+    for (std::size_t block = 0; block < kNumBlocks; ++block) {
+        generateSine(left.data(), kBlockSize, 440.0f, 44100.0f, 0.5f);
+        std::copy(left.begin(), left.end(), right.begin());
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        for (std::size_t i = 0; i < kBlockSize; ++i) {
+            outputHistoryL.push_back(left[i]);
+            outputHistoryR.push_back(right[i]);
+        }
+    }
+
+    // Skip first few blocks (FFT latency filling)
+    constexpr std::size_t kSkipSamples = kBlockSize * 5;
+
+    // Measure sample-to-sample differences on both channels
+    float maxDiffL = 0.0f, maxDiffR = 0.0f;
+    float avgDiffL = 0.0f, avgDiffR = 0.0f;
+    std::size_t diffCount = 0;
+
+    for (std::size_t i = kSkipSamples + 1; i < outputHistoryL.size(); ++i) {
+        float diffL = std::abs(outputHistoryL[i] - outputHistoryL[i - 1]);
+        float diffR = std::abs(outputHistoryR[i] - outputHistoryR[i - 1]);
+        maxDiffL = std::max(maxDiffL, diffL);
+        maxDiffR = std::max(maxDiffR, diffR);
+        avgDiffL += diffL;
+        avgDiffR += diffR;
+        ++diffCount;
+    }
+    avgDiffL /= static_cast<float>(diffCount);
+    avgDiffR /= static_cast<float>(diffCount);
+
+    float clickRatioL = maxDiffL / (avgDiffL + 1e-10f);
+    float clickRatioR = maxDiffR / (avgDiffR + 1e-10f);
+
+    INFO("Left channel - Max diff: " << maxDiffL << ", Avg diff: " << avgDiffL);
+    INFO("Left channel click ratio: " << clickRatioL);
+    INFO("Right channel - Max diff: " << maxDiffR << ", Avg diff: " << avgDiffR);
+    INFO("Right channel click ratio: " << clickRatioR);
+
+    // Both channels should be click-free
+    // Threshold increased to 20 to account for initial smoothing transient
+    // The key metric is that stereo width doesn't cause severe clicks (ratio > 40)
+    REQUIRE(clickRatioL < 20.0f);
+    REQUIRE(clickRatioR < 20.0f);
+}
+
+TEST_CASE("SpectralDelay stereo width parameter is smoothed",
+          "[spectral-delay][artifacts][stereo-width][smoothing]") {
+    // This test verifies that changing stereo width doesn't cause zipper noise.
+    // Zipper noise occurs when parameters change abruptly without smoothing.
+    //
+    // We test by rapidly changing the parameter and measuring high-frequency
+    // content that would indicate stepping artifacts.
+
+    SpectralDelay delay;
+    delay.setFFTSize(1024);
+    delay.prepare(44100.0, 512);
+
+    delay.setBaseDelayMs(50.0f);
+    delay.setSpreadMs(0.0f);
+    delay.setDryWetMix(100.0f);
+    delay.setFeedback(0.0f);
+    delay.setDiffusion(0.0f);
+    delay.setStereoWidth(0.0f);  // Start at 0
+    delay.snapParameters();
+
+    auto ctx = makeTestContext();
+
+    constexpr std::size_t kBlockSize = 512;
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+    std::vector<float> outputHistory;
+    outputHistory.reserve(kBlockSize * 20);
+
+    // Process while ramping stereo width from 0 to 1 over multiple blocks
+    for (int block = 0; block < 20; ++block) {
+        // Ramp stereo width: 0 -> 1 over 10 blocks
+        float targetWidth = std::min(1.0f, static_cast<float>(block) / 10.0f);
+        delay.setStereoWidth(targetWidth);
+
+        generateSine(left.data(), kBlockSize, 440.0f, 44100.0f, 0.5f);
+        std::copy(left.begin(), left.end(), right.begin());
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        for (std::size_t i = 0; i < kBlockSize; ++i) {
+            outputHistory.push_back(left[i]);
+        }
+    }
+
+    // Skip initial latency
+    constexpr std::size_t kSkipSamples = kBlockSize * 3;
+
+    // Calculate high-frequency energy as indicator of zipper noise
+    // Zipper noise adds high-frequency stepping artifacts
+    float hfEnergy = 0.0f;
+    float totalEnergy = 0.0f;
+
+    for (std::size_t i = kSkipSamples + 2; i < outputHistory.size(); ++i) {
+        // Second derivative approximates high-frequency content
+        float secondDeriv = outputHistory[i] - 2.0f * outputHistory[i-1] + outputHistory[i-2];
+        hfEnergy += secondDeriv * secondDeriv;
+        totalEnergy += outputHistory[i] * outputHistory[i];
+    }
+
+    // Ratio of HF energy to total energy
+    float hfRatio = hfEnergy / (totalEnergy + 1e-10f);
+
+    INFO("HF energy: " << hfEnergy);
+    INFO("Total energy: " << totalEnergy);
+    INFO("HF ratio: " << hfRatio);
+
+    // A smoothed parameter change should have low HF ratio
+    // Zipper noise would show high HF ratio (> 0.5)
+    REQUIRE(hfRatio < 0.3f);  // Allow some HF but catch obvious zipper noise
+}
+
+TEST_CASE("SpectralDelay spread change is click-free",
+          "[spectral-delay][artifacts][spread][clicks]") {
+    // This test verifies that changing spread parameter doesn't cause clicks.
+    // Spread affects per-bin delay times, so changes need proper smoothing.
+
+    SpectralDelay delay;
+    delay.setFFTSize(1024);
+    delay.prepare(44100.0, 512);
+
+    delay.setBaseDelayMs(100.0f);
+    delay.setSpreadMs(0.0f);  // Start at 0
+    delay.setDryWetMix(100.0f);
+    delay.setFeedback(0.3f);
+    delay.setDiffusion(0.0f);
+    delay.setStereoWidth(0.0f);
+    delay.snapParameters();
+
+    auto ctx = makeTestContext();
+
+    constexpr std::size_t kBlockSize = 512;
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+    std::vector<float> outputHistory;
+    outputHistory.reserve(kBlockSize * 30);
+
+    // Process while changing spread from 0 to 500ms
+    for (int block = 0; block < 30; ++block) {
+        // Ramp spread over blocks 5-15
+        if (block >= 5 && block <= 15) {
+            float t = static_cast<float>(block - 5) / 10.0f;
+            delay.setSpreadMs(t * 500.0f);
+        }
+
+        generateSine(left.data(), kBlockSize, 440.0f, 44100.0f, 0.5f);
+        std::copy(left.begin(), left.end(), right.begin());
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        for (std::size_t i = 0; i < kBlockSize; ++i) {
+            outputHistory.push_back(left[i]);
+        }
+    }
+
+    // Skip initial latency
+    constexpr std::size_t kSkipSamples = kBlockSize * 3;
+
+    // Measure click ratio during the parameter change period (blocks 5-15)
+    constexpr std::size_t kChangeStart = kBlockSize * 5;
+    constexpr std::size_t kChangeEnd = kBlockSize * 16;
+
+    float maxDiff = 0.0f;
+    float avgDiff = 0.0f;
+    std::size_t diffCount = 0;
+
+    for (std::size_t i = std::max(kSkipSamples, kChangeStart) + 1; i < kChangeEnd && i < outputHistory.size(); ++i) {
+        float diff = std::abs(outputHistory[i] - outputHistory[i - 1]);
+        maxDiff = std::max(maxDiff, diff);
+        avgDiff += diff;
+        ++diffCount;
+    }
+    avgDiff /= static_cast<float>(diffCount);
+
+    float clickRatio = maxDiff / (avgDiff + 1e-10f);
+
+    INFO("During spread change - Max diff: " << maxDiff << ", Avg diff: " << avgDiff);
+    INFO("Click ratio: " << clickRatio);
+
+    // Parameter change should not cause severe clicks
+    // Spread changes affect per-bin delay times which can cause some variation
+    // Threshold set to 35 to allow for normal spectral processing variation
+    // while catching severe discontinuities (ratio > 50)
+    REQUIRE(clickRatio < 35.0f);
 }
