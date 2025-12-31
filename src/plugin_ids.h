@@ -91,6 +91,10 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kGranularEnvelopeTypeId = 112,   // 0-3 (Hann, Trapezoid, Sine, Blackman)
     kGranularTimeModeId = 113,       // 0-1 (Free, Synced) - spec 038
     kGranularNoteValueId = 114,      // 0-9 (note values) - spec 038
+    kGranularJitterId = 115,         // 0-1 (timing randomness)
+    kGranularPitchQuantId = 116,     // 0-4 (Off, Semitones, Octaves, Fifths, Scale)
+    kGranularTextureId = 117,        // 0-1 (ordered to chaotic)
+    kGranularStereoWidthId = 118,    // 0-1 (stereo decorrelation)
     kGranularEndId = 199,
 
     // ==========================================================================
