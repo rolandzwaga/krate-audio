@@ -5,6 +5,27 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-12-31
+
+### Added
+
+- **Spectral Delay Enhancements**
+  - **Phase Processing** (Phase 2)
+    - Phase randomization in diffusion for true spectral smearing/decorrelation
+    - Phase drift during freeze to prevent static resonance over long freezes
+    - Higher frequency bins drift slightly faster for natural evolution
+  - **Perceptual Improvements** (Phase 3)
+    - Spread Curve control: Linear or Logarithmic frequency distribution
+    - Logarithmic curve provides perceptually even delay spread across frequency bins
+    - Stereo Width control (0-100%) for L/R phase decorrelation
+    - Wider stereo image with frequency-dependent phase offsets
+
+- **Spectral Delay UI Controls**
+  - Curve dropdown in SPECTRAL ANALYSIS group (Linear/Logarithmic)
+  - Stereo Width slider in SPECTRAL CHARACTER group
+
+---
+
 ## [0.3.0] - 2025-12-30
 
 ### Added
