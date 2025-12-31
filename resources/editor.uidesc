@@ -195,6 +195,7 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="DigitalDelayTimeLabel" tag="9901"/>
         <control-tag name="DigitalAgeLabel" tag="9902"/>
         <control-tag name="PingPongDelayTimeLabel" tag="9903"/>
+        <control-tag name="GranularDelayTimeLabel" tag="9904"/>
     </control-tags>
 
     <!-- ======================================================================
@@ -211,7 +212,7 @@ by functionality. Group order: Primary controls first, specialized later.
         <!-- Group 1: TIME & MIX -->
         <view class="CViewContainer" origin="10, 30" size="280, 175" background-color="section" transparent="false">
             <view class="CTextLabel" origin="5, 5" size="270, 18" title="TIME &amp; MIX" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="10, 28" size="120, 16" title="Delay Time" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="CTextLabel" control-tag="GranularDelayTimeLabel" origin="10, 28" size="120, 16" title="Delay Time" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="CSlider" origin="10, 46" size="120, 20" control-tag="GranularDelayTime" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
             <view class="CTextLabel" origin="140, 28" size="130, 16" title="Time Mode" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="COptionMenu" origin="140, 46" size="130, 22" control-tag="GranularTimeMode" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>

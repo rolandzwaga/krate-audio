@@ -840,6 +840,13 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, pingPongTimeMode, {9903, kPingPongDelayTimeId}, 0.5f, true);
             }
 
+            // Create visibility controllers for Granular mode
+            // Hide delay time label + control when time mode is "Synced" (>= 0.5)
+            if (auto* granularTimeMode = getParameterObject(kGranularTimeModeId)) {
+                granularDelayTimeVisibilityController_ = new VisibilityController(
+                    &activeEditor_, granularTimeMode, {9904, kGranularDelayTimeId}, 0.5f, true);
+            }
+
             // =====================================================================
             // Dynamic Version Label
             // =====================================================================
