@@ -69,7 +69,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // ==========================================================================
     // Global Parameters (0-99)
     // ==========================================================================
-    kBypassId = 0,
+    // Note: kBypassId removed - DAWs provide their own bypass functionality
     kGainId = 1,
     kModeId = 2,    // 0-10 (DelayMode enum) - selects active delay mode
 
@@ -91,6 +91,10 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kGranularEnvelopeTypeId = 112,   // 0-3 (Hann, Trapezoid, Sine, Blackman)
     kGranularTimeModeId = 113,       // 0-1 (Free, Synced) - spec 038
     kGranularNoteValueId = 114,      // 0-9 (note values) - spec 038
+    kGranularJitterId = 115,         // 0-1 (timing randomness)
+    kGranularPitchQuantId = 116,     // 0-4 (Off, Semitones, Octaves, Fifths, Scale)
+    kGranularTextureId = 117,        // 0-1 (ordered to chaotic)
+    kGranularStereoWidthId = 118,    // 0-1 (stereo decorrelation)
     kGranularEndId = 199,
 
     // ==========================================================================
@@ -108,6 +112,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kSpectralDryWetId = 208,         // 0-100%
     kSpectralSpreadCurveId = 209,    // 0-1 (Linear, Logarithmic)
     kSpectralStereoWidthId = 210,    // 0-1 (stereo decorrelation amount)
+    kSpectralTimeModeId = 211,       // 0=Free, 1=Synced (spec 041)
+    kSpectralNoteValueId = 212,      // 0-9 note value dropdown (spec 041)
     kSpectralEndId = 299,
 
     // ==========================================================================

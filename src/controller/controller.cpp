@@ -268,18 +268,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     // Constitution Principle V: All values normalized 0.0 to 1.0
     // ==========================================================================
 
-    // Bypass parameter (standard VST3 bypass)
-    parameters.addParameter(
-        STR16("Bypass"),           // title
-        nullptr,                    // units
-        1,                          // stepCount (1 = toggle)
-        0,                          // defaultValue (normalized)
-        Steinberg::Vst::ParameterInfo::kCanAutomate |
-        Steinberg::Vst::ParameterInfo::kIsBypass,
-        kBypassId,                  // parameter ID
-        0,                          // unitId
-        STR16("Bypass")            // shortTitle
-    );
+    // Note: Bypass parameter removed - DAWs provide their own bypass functionality
 
     // Gain parameter
     parameters.addParameter(
@@ -367,10 +356,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         setParamNormalized(kGainId, static_cast<double>(gain / 2.0f));
     }
 
-    Steinberg::int32 bypass = 0;
-    if (streamer.readInt32(bypass)) {
-        setParamNormalized(kBypassId, bypass ? 1.0 : 0.0);
-    }
+    // Note: bypass removed - DAWs provide their own bypass functionality
 
     Steinberg::int32 mode = 0;
     if (streamer.readInt32(mode)) {
@@ -509,11 +495,7 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                 return Steinberg::kResultTrue;
             }
 
-            case kBypassId: {
-                Steinberg::UString(string, 128).fromAscii(
-                    valueNormalized >= 0.5 ? "On" : "Off");
-                return Steinberg::kResultTrue;
-            }
+            // Note: kBypassId removed - DAWs provide their own bypass functionality
 
             // kModeId is handled by StringListParameter automatically
 
@@ -840,6 +822,20 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, pingPongTimeMode, {9903, kPingPongDelayTimeId}, 0.5f, true);
             }
 
+            // Create visibility controllers for Granular mode
+            // Hide delay time label + control when time mode is "Synced" (>= 0.5)
+            if (auto* granularTimeMode = getParameterObject(kGranularTimeModeId)) {
+                granularDelayTimeVisibilityController_ = new VisibilityController(
+                    &activeEditor_, granularTimeMode, {9904, kGranularDelayTimeId}, 0.5f, true);
+            }
+
+            // Create visibility controllers for Spectral mode (spec 041)
+            // Hide base delay label + control when time mode is "Synced" (>= 0.5)
+            if (auto* spectralTimeMode = getParameterObject(kSpectralTimeModeId)) {
+                spectralBaseDelayVisibilityController_ = new VisibilityController(
+                    &activeEditor_, spectralTimeMode, {9912, kSpectralBaseDelayId}, 0.5f, true);
+            }
+
             // =====================================================================
             // Dynamic Version Label
             // =====================================================================
@@ -934,6 +930,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     digitalDelayTimeVisibilityController_ = nullptr;
     digitalAgeVisibilityController_ = nullptr;
     pingPongDelayTimeVisibilityController_ = nullptr;
+    granularDelayTimeVisibilityController_ = nullptr;
+    spectralBaseDelayVisibilityController_ = nullptr;  // spec 041
 
     activeEditor_ = nullptr;
 }

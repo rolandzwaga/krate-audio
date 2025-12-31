@@ -174,7 +174,7 @@ private:
     // ==========================================================================
 
     std::atomic<float> gain_{1.0f};
-    std::atomic<bool> bypass_{false};
+    // Note: bypass_ removed - DAWs provide their own bypass functionality
     std::atomic<int> mode_{5};  // DelayMode enum value (5 = Digital)
 
     // ==========================================================================
