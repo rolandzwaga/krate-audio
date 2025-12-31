@@ -60,7 +60,7 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="GranularTimeMode" tag="113"/>
         <control-tag name="GranularNoteValue" tag="114"/>
 
-        <!-- Spectral (200-209) -->
+        <!-- Spectral (200-210) -->
         <control-tag name="SpectralFFTSize" tag="200"/>
         <control-tag name="SpectralBaseDelay" tag="201"/>
         <control-tag name="SpectralSpread" tag="202"/>
@@ -70,6 +70,8 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="SpectralFreeze" tag="206"/>
         <control-tag name="SpectralDiffusion" tag="207"/>
         <control-tag name="SpectralDryWet" tag="208"/>
+        <control-tag name="SpectralSpreadCurve" tag="209"/>
+        <control-tag name="SpectralStereoWidth" tag="210"/>
 
         <!-- Shimmer (300-310) -->
         <control-tag name="ShimmerDelayTime" tag="300"/>
@@ -273,8 +275,10 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="COptionMenu" origin="10, 46" size="120, 22" control-tag="SpectralFFTSize" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
             <view class="CTextLabel" origin="140, 28" size="120, 16" title="Direction" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="COptionMenu" origin="140, 46" size="120, 22" control-tag="SpectralSpreadDirection" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
-            <view class="CTextLabel" origin="10, 73" size="250, 16" title="Spread" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSlider" origin="10, 91" size="250, 20" control-tag="SpectralSpread" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+            <view class="CTextLabel" origin="10, 73" size="115, 16" title="Spread" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="CSlider" origin="10, 91" size="115, 20" control-tag="SpectralSpread" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+            <view class="CTextLabel" origin="135, 73" size="120, 16" title="Curve" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="COptionMenu" origin="135, 91" size="120, 22" control-tag="SpectralSpreadCurve" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
         </view>
 
         <!-- Group 3: SPECTRAL CHARACTER -->
@@ -286,6 +290,8 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSlider" origin="140, 46" size="120, 20" control-tag="SpectralDiffusion" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
             <view class="CTextLabel" origin="10, 73" size="80, 16" title="Freeze" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="CCheckBox" origin="10, 91" size="50, 22" control-tag="SpectralFreeze" title="" font="value-font" font-color="text"/>
+            <view class="CTextLabel" origin="100, 73" size="155, 16" title="Stereo Width" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="CSlider" origin="100, 91" size="155, 20" control-tag="SpectralStereoWidth" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
 
     </template>

@@ -106,6 +106,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kSpectralFreezeId = 206,         // on/off
     kSpectralDiffusionId = 207,      // 0-1
     kSpectralDryWetId = 208,         // 0-100%
+    kSpectralSpreadCurveId = 209,    // 0-1 (Linear, Logarithmic)
+    kSpectralStereoWidthId = 210,    // 0-1 (stereo decorrelation amount)
     kSpectralEndId = 299,
 
     // ==========================================================================

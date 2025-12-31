@@ -67,6 +67,16 @@ float denormDryWet(double normalized) {
     return static_cast<float>(normalized * 100.0);
 }
 
+// Spread Curve: 0-1 discrete (Linear=0, Logarithmic=1)
+int denormSpreadCurve(double normalized) {
+    return normalized >= 0.5 ? 1 : 0;
+}
+
+// Stereo Width: 0-1 passthrough
+float denormStereoWidth(double normalized) {
+    return static_cast<float>(normalized);
+}
+
 } // anonymous namespace
 
 TEST_CASE("Spectral FFT Size normalization", "[params][spectral]") {
@@ -137,5 +147,25 @@ TEST_CASE("Spectral passthrough parameters", "[params][spectral]") {
         REQUIRE(denormDiffusion(0.0) == Approx(0.0f));
         REQUIRE(denormDiffusion(0.5) == Approx(0.5f));
         REQUIRE(denormDiffusion(1.0) == Approx(1.0f));
+    }
+    SECTION("Stereo Width is 0-1 passthrough") {
+        REQUIRE(denormStereoWidth(0.0) == Approx(0.0f));
+        REQUIRE(denormStereoWidth(0.5) == Approx(0.5f));
+        REQUIRE(denormStereoWidth(1.0) == Approx(1.0f));
+    }
+}
+
+TEST_CASE("Spectral Spread Curve normalization", "[params][spectral]") {
+    SECTION("normalized 0.0 -> Linear (0)") {
+        REQUIRE(denormSpreadCurve(0.0) == 0);
+    }
+    SECTION("normalized 0.49 -> Linear (0)") {
+        REQUIRE(denormSpreadCurve(0.49) == 0);
+    }
+    SECTION("normalized 0.5 -> Logarithmic (1)") {
+        REQUIRE(denormSpreadCurve(0.5) == 1);
+    }
+    SECTION("normalized 1.0 -> Logarithmic (1)") {
+        REQUIRE(denormSpreadCurve(1.0) == 1);
     }
 }

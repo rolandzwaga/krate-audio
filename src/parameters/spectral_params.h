@@ -36,6 +36,8 @@ struct SpectralParams {
     std::atomic<bool> freeze{false};          // on/off
     std::atomic<float> diffusion{0.0f};       // 0-1
     std::atomic<float> dryWet{50.0f};         // 0-100%
+    std::atomic<int> spreadCurve{0};          // 0-1 (Linear, Logarithmic)
+    std::atomic<float> stereoWidth{0.0f};     // 0-1 (stereo decorrelation)
 };
 
 // ==============================================================================
@@ -112,6 +114,20 @@ inline void handleSpectralParamChange(
             // 0-100%
             params.dryWet.store(
                 static_cast<float>(normalizedValue * 100.0),
+                std::memory_order_relaxed);
+            break;
+
+        case kSpectralSpreadCurveId:
+            // 0-1 (Linear=0, Logarithmic=1)
+            params.spreadCurve.store(
+                normalizedValue >= 0.5 ? 1 : 0,
+                std::memory_order_relaxed);
+            break;
+
+        case kSpectralStereoWidthId:
+            // 0-1 (stereo decorrelation)
+            params.stereoWidth.store(
+                static_cast<float>(normalizedValue),
                 std::memory_order_relaxed);
             break;
 
@@ -226,6 +242,24 @@ inline void registerSpectralParams(Steinberg::Vst::ParameterContainer& parameter
         0,
         STR16("Mix")
     );
+
+    // Spread Curve: Linear, Logarithmic - MUST use StringListParameter
+    parameters.addParameter(createDropdownParameter(
+        STR16("Spread Curve"), kSpectralSpreadCurveId,
+        {STR16("Linear"), STR16("Logarithmic")}
+    ));
+
+    // Stereo Width: 0-100%
+    parameters.addParameter(
+        STR16("Stereo Width"),
+        STR16("%"),
+        0,
+        0.0,  // 0% default (mono-like)
+        ParameterInfo::kCanAutomate,
+        kSpectralStereoWidthId,
+        0,
+        STR16("Width")
+    );
 }
 
 // ==============================================================================
@@ -281,7 +315,8 @@ inline Steinberg::tresult formatSpectralParam(
         }
 
         case kSpectralDiffusionId:
-        case kSpectralDryWetId: {
+        case kSpectralDryWetId:
+        case kSpectralStereoWidthId: {
             // 0-100%
             double percent = valueNormalized * 100.0;
             char text[32];
@@ -289,6 +324,8 @@ inline Steinberg::tresult formatSpectralParam(
             UString(string, 128).fromAscii(text);
             return kResultTrue;
         }
+
+        // kSpectralSpreadCurveId: handled by StringListParameter::toString() automatically
 
         default:
             return Steinberg::kResultFalse;
@@ -315,6 +352,8 @@ inline void saveSpectralParams(
     streamer.writeInt32(freeze);
     streamer.writeFloat(params.diffusion.load(std::memory_order_relaxed));
     streamer.writeFloat(params.dryWet.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.spreadCurve.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.stereoWidth.load(std::memory_order_relaxed));
 }
 
 inline void loadSpectralParams(
@@ -350,6 +389,12 @@ inline void loadSpectralParams(
     }
     if (streamer.readFloat(floatVal)) {
         params.dryWet.store(floatVal, std::memory_order_relaxed);
+    }
+    if (streamer.readInt32(intVal)) {
+        params.spreadCurve.store(intVal, std::memory_order_relaxed);
+    }
+    if (streamer.readFloat(floatVal)) {
+        params.stereoWidth.store(floatVal, std::memory_order_relaxed);
     }
 }
 
@@ -425,6 +470,18 @@ inline void syncSpectralParamsToController(
     if (streamer.readFloat(floatVal)) {
         controller.setParamNormalized(kSpectralDryWetId,
             static_cast<double>(floatVal / 100.0f));
+    }
+
+    // Spread Curve: 0-1 -> normalized = val (already 0 or 1)
+    if (streamer.readInt32(intVal)) {
+        controller.setParamNormalized(kSpectralSpreadCurveId,
+            static_cast<double>(intVal));
+    }
+
+    // Stereo Width: 0-1 (already normalized)
+    if (streamer.readFloat(floatVal)) {
+        controller.setParamNormalized(kSpectralStereoWidthId,
+            static_cast<double>(floatVal));
     }
 }
 
