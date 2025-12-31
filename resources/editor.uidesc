@@ -40,7 +40,7 @@ by functionality. Group order: Primary controls first, specialized later.
          ====================================================================== -->
     <control-tags>
         <!-- Global (0-99) -->
-        <control-tag name="Bypass" tag="0"/>
+        <!-- Note: Bypass removed - DAWs provide their own bypass functionality -->
         <control-tag name="Gain" tag="1"/>
         <control-tag name="Mode" tag="2"/>
 
@@ -743,7 +743,7 @@ by functionality. Group order: Primary controls first, specialized later.
                 <view class="CTextLabel" origin="15, 10" size="120, 30" title="ITERUM" font="title-font" font-color="accent" text-alignment="left" transparent="true"/>
                 <view class="CTextLabel" origin="150, 14" size="80, 22" title="Mode:" font="label-font" font-color="text-dim" text-alignment="right" transparent="true"/>
                 <view class="COptionMenu" origin="235, 12" size="160, 26" control-tag="Mode" default-value="0" font="~ NormalFont" font-color="text" back-color="panel" frame-color="border" frame-width="1" menu-popup-style="true" menu-check-style="true" mouse-enabled="true" transparent="false" wants-focus="true" text-alignment="left" text-inset="5, 0"/>
-                <view class="CTextButton" origin="820, 12" size="65, 26" title="Bypass" control-tag="Bypass" font="label-font" font-color="text" frame-color="border" round-radius="3" gradient-start-color="sidebar" gradient-end-color="sidebar" gradient-start-color-highlighted="accent" gradient-end-color-highlighted="accent"/>
+                <!-- Bypass button removed - DAWs provide their own bypass functionality -->
             </view>
 
             <!-- Mode Panel - UIViewSwitchContainer automatically controlled by Mode parameter -->

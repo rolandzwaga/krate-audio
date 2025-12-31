@@ -5,6 +5,28 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-12-31
+
+### Added
+
+- **Spectral Delay Tempo Sync** (spec 041)
+  - **Time Mode** dropdown: Free (manual ms) or Synced (tempo-based)
+  - **Note Value** dropdown: 10 musical divisions from 1/32 to 1/1
+    - Includes triplet values: 1/16T, 1/8T, 1/4T, 1/2T
+  - Base Delay control auto-hides when Synced mode is active
+  - Fallback to 120 BPM when host tempo unavailable
+  - Delay clamped to 2000ms maximum (buffer limit)
+  - Matches pattern established by Digital, PingPong, and Granular delay modes
+
+### Removed
+
+- **Bypass Button**
+  - Removed plugin-level bypass control from UI header
+  - DAWs provide their own bypass functionality, making this redundant
+  - Simplifies interface and reduces parameter count
+
+---
+
 ## [0.5.0] - 2025-12-31
 
 ### Added

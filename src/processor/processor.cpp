@@ -162,28 +162,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // Get current parameter values (atomic reads are lock-free)
     const float currentGain = gain_.load(std::memory_order_relaxed);
-    const bool currentBypass = bypass_.load(std::memory_order_relaxed);
-
-    // Handle bypass mode
-    if (currentBypass) {
-        // Pass through: copy input to output
-        if (data.numInputs > 0 && data.numOutputs > 0) {
-            for (Steinberg::int32 channel = 0;
-                 channel < data.inputs[0].numChannels; ++channel) {
-
-                if (data.inputs[0].channelBuffers32[channel] &&
-                    data.outputs[0].channelBuffers32[channel]) {
-
-                    std::copy_n(
-                        data.inputs[0].channelBuffers32[channel],
-                        static_cast<size_t>(data.numSamples),
-                        data.outputs[0].channelBuffers32[channel]
-                    );
-                }
-            }
-        }
-        return Steinberg::kResultTrue;
-    }
+    // Note: bypass handling removed - DAWs provide their own bypass functionality
 
     // ==========================================================================
     // Main Audio Processing
@@ -318,8 +297,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     float gain = gain_.load(std::memory_order_relaxed);
     streamer.writeFloat(gain);
 
-    Steinberg::int32 bypass = bypass_.load(std::memory_order_relaxed) ? 1 : 0;
-    streamer.writeInt32(bypass);
+    // Note: bypass removed - DAWs provide their own bypass functionality
 
     Steinberg::int32 mode = mode_.load(std::memory_order_relaxed);
     streamer.writeInt32(mode);
@@ -351,10 +329,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         gain_.store(gain, std::memory_order_relaxed);
     }
 
-    Steinberg::int32 bypass = 0;
-    if (streamer.readInt32(bypass)) {
-        bypass_.store(bypass != 0, std::memory_order_relaxed);
-    }
+    // Note: bypass removed - DAWs provide their own bypass functionality
 
     Steinberg::int32 mode = 0;
     if (streamer.readInt32(mode)) {
@@ -420,9 +395,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                std::memory_order_relaxed);
                     break;
 
-                case kBypassId:
-                    bypass_.store(value >= 0.5, std::memory_order_relaxed);
-                    break;
+                // Note: kBypassId removed - DAWs provide their own bypass functionality
 
                 case kModeId:
                     // Convert normalized (0-1) to mode index (0-10)

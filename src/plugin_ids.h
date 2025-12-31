@@ -69,7 +69,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // ==========================================================================
     // Global Parameters (0-99)
     // ==========================================================================
-    kBypassId = 0,
+    // Note: kBypassId removed - DAWs provide their own bypass functionality
     kGainId = 1,
     kModeId = 2,    // 0-10 (DelayMode enum) - selects active delay mode
 
