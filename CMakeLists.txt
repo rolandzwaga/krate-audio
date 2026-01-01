@@ -332,6 +332,20 @@ if(VSTWORK_BUILD_TESTS)
 endif()
 
 # ==============================================================================
+# Tools
+# ==============================================================================
+# Standalone tools for development
+
+# Preset Generator - creates factory preset files
+add_executable(preset_generator
+    tools/preset_generator.cpp
+)
+target_compile_features(preset_generator PRIVATE cxx_std_20)
+set_target_properties(preset_generator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# ==============================================================================
 # Installation
 # ==============================================================================
 # Install to standard VST3 locations
