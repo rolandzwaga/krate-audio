@@ -72,6 +72,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Source: "Iterum.vst3\*"; DestDir: "{app}\Iterum.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Install changelog with the plugin
 Source: "CHANGELOG.txt"; DestDir: "{app}\Iterum.vst3"; Flags: ignoreversion
+; Factory presets - install to system-wide presets location
+; {commonappdata} = C:\ProgramData on modern Windows
+Source: "presets\*"; DestDir: "{commonappdata}\Krate Audio\Iterum"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 ; No desktop icons needed for a VST plugin

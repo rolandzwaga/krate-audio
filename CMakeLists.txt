@@ -129,6 +129,9 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/controller.h
     src/controller/controller.cpp
 
+    # VST3 SDK Common Sources (for MemoryStream used by preset saving)
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+
     # Shared
     src/plugin_ids.h
     src/version.h
@@ -153,6 +156,29 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
 
     # DSP Layer 4: Features
     src/dsp/features/granular_delay.h
+
+    # ==========================================================================
+    # Preset Browser (spec 042)
+    # ==========================================================================
+
+    # Platform Abstraction
+    src/platform/preset_paths.h
+    src/platform/preset_paths.cpp
+
+    # Preset Management
+    src/preset/preset_info.h
+    src/preset/preset_manager.h
+    src/preset/preset_manager.cpp
+
+    # Custom VSTGUI Views
+    src/ui/preset_browser_view.h
+    src/ui/preset_browser_view.cpp
+    src/ui/preset_data_source.h
+    src/ui/preset_data_source.cpp
+    src/ui/save_preset_dialog_view.h
+    src/ui/save_preset_dialog_view.cpp
+    src/ui/mode_tab_bar.h
+    src/ui/mode_tab_bar.cpp
 )
 
 # Link SDK and VSTGUI
@@ -304,6 +330,20 @@ if(VSTWORK_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+# ==============================================================================
+# Tools
+# ==============================================================================
+# Standalone tools for development
+
+# Preset Generator - creates factory preset files
+add_executable(preset_generator
+    tools/preset_generator.cpp
+)
+target_compile_features(preset_generator PRIVATE cxx_std_20)
+set_target_properties(preset_generator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
 
 # ==============================================================================
 # Installation

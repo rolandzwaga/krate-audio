@@ -25,6 +25,24 @@ System-Wide Installation:
    This requires administrator (root) privileges.
 
 
+FACTORY PRESETS
+---------------
+
+Factory presets are included in the presets/ folder within this archive.
+
+User Installation (Recommended):
+   Copy presets to your personal presets folder:
+
+   mkdir -p ~/Documents/Krate\ Audio/Iterum
+   cp -r presets/* ~/Documents/Krate\ Audio/Iterum/
+
+System-Wide Installation:
+   For all users on the system:
+
+   sudo mkdir -p /usr/share/krate-audio/iterum
+   sudo cp -r presets/* /usr/share/krate-audio/iterum/
+
+
 VERIFICATION
 ------------
 

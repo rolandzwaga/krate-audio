@@ -67,6 +67,8 @@ jobs:
           # Rename artifact folder to Iterum.vst3 (upload-artifact extracts contents, not folder)
           Rename-Item -Path "artifact" -NewName "Iterum.vst3"
           Move-Item -Path "Iterum.vst3" -Destination "installers\windows\"
+          # Copy factory presets
+          Copy-Item -Path "resources\presets" -Destination "installers\windows\" -Recurse
           # Convert markdown to plain text for installer display
           (Get-Content CHANGELOG.md -Raw) `
             -replace '\[([^\]]+)\]\([^\)]+\)', '$1' `
@@ -118,6 +120,9 @@ jobs:
           # Move VST3 and AU bundles to appropriate locations
           mv artifact/Iterum.vst3 staging/Library/Audio/Plug-Ins/VST3/
           mv artifact/Iterum.component staging/Library/Audio/Plug-Ins/Components/
+          # Create factory presets directory and copy presets
+          mkdir -p "staging/Library/Application Support/Krate Audio/Iterum"
+          cp -r resources/presets/* "staging/Library/Application Support/Krate Audio/Iterum/"
 
       - name: Build Installer
         run: |
@@ -162,6 +167,8 @@ jobs:
           mkdir -p staging
           # Rename artifact folder to Iterum.vst3 (upload-artifact extracts contents, not folder)
           mv artifact staging/Iterum.vst3
+          # Copy factory presets
+          cp -r resources/presets staging/
           cp installers/linux/README.txt staging/
           # Convert markdown to plain text
           sed -e 's/\[\([^]]*\)\]([^)]*)/ \1/g' \
