@@ -297,6 +297,21 @@ public:
         std::fill(dryBufferR_.begin(), dryBufferR_.end(), 0.0f);
     }
 
+    /// @brief Seed the internal RNG for deterministic testing
+    /// @param seed The seed value to use
+    /// @note This should only be called in tests to ensure reproducible results.
+    ///       After seeding, call reset() to reinitialize phase buffers.
+    void seedRng(uint32_t seed) noexcept {
+        rng_.seed(seed);
+        // Reinitialize phase buffers with deterministic values
+        for (std::size_t i = 0; i < diffusionPhaseL_.size(); ++i) {
+            diffusionPhaseL_[i] = (rng_.nextFloat() - 0.5f) * kTwoPi;
+            diffusionPhaseR_[i] = (rng_.nextFloat() - 0.5f) * kTwoPi;
+            stereoPhaseL_[i] = (rng_.nextFloat() - 0.5f) * kPi;
+            stereoPhaseR_[i] = (rng_.nextFloat() - 0.5f) * kPi;
+        }
+    }
+
     // =========================================================================
     // Processing
     // =========================================================================

@@ -2177,6 +2177,10 @@ TEST_CASE("SpectralDelay diffusion produces click-free output",
     delay.setFFTSize(1024);
     delay.prepare(44100.0, 512);
 
+    // Seed RNG for deterministic, reproducible test results
+    // This eliminates flakiness from random phase initialization
+    delay.seedRng(42);
+
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
     delay.setDryWetMix(100.0f);  // Wet only to isolate effect
@@ -2231,9 +2235,8 @@ TEST_CASE("SpectralDelay diffusion produces click-free output",
     INFO("Click ratio (max/avg): " << clickRatio);
 
     // For a smooth signal, max diff should be within reasonable bounds of average
-    // Before fix: ratio ~46. After fix: ratio ~10-20.
-    // Threshold set to 25 to catch severe clicks (ratio > 40) while allowing
-    // normal spectral processing variation.
+    // Before fix: ratio ~46. After fix with seeded RNG: ratio ~10-20 (deterministic).
+    // With seedRng(42), results are fully reproducible across runs and platforms.
     REQUIRE(clickRatio < 25.0f);
 }
 
@@ -2245,6 +2248,10 @@ TEST_CASE("SpectralDelay stereo width produces click-free output",
     SpectralDelay delay;
     delay.setFFTSize(1024);
     delay.prepare(44100.0, 512);
+
+    // Seed RNG for deterministic, reproducible test results
+    // This eliminates flakiness from random phase initialization
+    delay.seedRng(42);
 
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
@@ -2307,10 +2314,8 @@ TEST_CASE("SpectralDelay stereo width produces click-free output",
     INFO("Right channel click ratio: " << clickRatioR);
 
     // Both channels should be click-free
-    // Threshold set to 25 to account for:
-    //   - Initial smoothing transient
-    //   - Minor floating-point variance between runs (observed up to ~20.5)
-    // The key metric is that stereo width doesn't cause severe clicks (ratio > 40)
+    // With seedRng(42), results are fully reproducible across runs and platforms.
+    // Threshold of 25 catches severe clicks while allowing normal spectral variation.
     REQUIRE(clickRatioL < 25.0f);
     REQUIRE(clickRatioR < 25.0f);
 }
