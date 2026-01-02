@@ -28,7 +28,6 @@
 #include "dsp/systems/flexible_feedback_network.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <vector>
 

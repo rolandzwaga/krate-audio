@@ -33,11 +33,10 @@
 #include "dsp/processors/pitch_shift_processor.h"
 #include "dsp/systems/delay_engine.h"            // For TimeMode enum
 #include "dsp/systems/flexible_feedback_network.h"
-#include "dsp/systems/i_feedback_processor.h"
+#include "dsp/primitives/i_feedback_processor.h"
 #include "dsp/systems/modulation_matrix.h"       // For optional modulation
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>

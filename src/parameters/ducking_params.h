@@ -507,7 +507,107 @@ inline void loadDuckingParams(
 }
 
 // ==============================================================================
-// Controller State Sync
+// Controller State Sync (Template)
+// ==============================================================================
+// Template function that reads ducking state from a stream and calls setParam
+// (paramId, normalizedValue). This allows both syncDuckingParamsToController
+// and loadComponentStateWithNotify to use the same parsing logic.
+// ==============================================================================
+
+template<typename SetParamFunc>
+inline void loadDuckingParamsToController(
+    Steinberg::IBStreamer& streamer,
+    SetParamFunc setParam)
+{
+    using namespace Steinberg;
+
+    int32 intVal = 0;
+    float floatVal = 0.0f;
+
+    // Ducking Enabled
+    if (streamer.readInt32(intVal)) {
+        setParam(kDuckingEnabledId, intVal ? 1.0 : 0.0);
+    }
+
+    // Threshold: -60 to 0 dB -> normalized = (val+60)/60
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDuckingThresholdId,
+            static_cast<double>((floatVal + 60.0f) / 60.0f));
+    }
+
+    // Duck Amount: 0-1 (already normalized)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDuckingDuckAmountId,
+            static_cast<double>(floatVal));
+    }
+
+    // Attack Time: 0.1-100ms -> normalized = (val-0.1)/99.9
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDuckingAttackTimeId,
+            static_cast<double>((floatVal - 0.1f) / 99.9f));
+    }
+
+    // Release Time: 10-2000ms -> normalized = (val-10)/1990
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDuckingReleaseTimeId,
+            static_cast<double>((floatVal - 10.0f) / 1990.0f));
+    }
+
+    // Hold Time: 0-500ms -> normalized = val/500
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDuckingHoldTimeId,
+            static_cast<double>(floatVal / 500.0f));
+    }
+
+    // Duck Target: 0-2 -> normalized = val/2
+    if (streamer.readInt32(intVal)) {
+        setParam(kDuckingDuckTargetId,
+            static_cast<double>(intVal) / 2.0);
+    }
+
+    // Sidechain Filter Enabled
+    if (streamer.readInt32(intVal)) {
+        setParam(kDuckingSidechainFilterEnabledId, intVal ? 1.0 : 0.0);
+    }
+
+    // Sidechain Filter Cutoff: 20-500Hz -> normalized = (val-20)/480
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDuckingSidechainFilterCutoffId,
+            static_cast<double>((floatVal - 20.0f) / 480.0f));
+    }
+
+    // Delay Time: 10-5000ms -> normalized = (val-10)/4990
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDuckingDelayTimeId,
+            static_cast<double>((floatVal - 10.0f) / 4990.0f));
+    }
+
+    // Time Mode: 0-1 -> normalized = val
+    if (streamer.readInt32(intVal)) {
+        setParam(kDuckingTimeModeId, intVal != 0 ? 1.0 : 0.0);
+    }
+
+    // Note Value: 0-9 -> normalized = val/9
+    if (streamer.readInt32(intVal)) {
+        setParam(kDuckingNoteValueId,
+            static_cast<double>(intVal) / 9.0);
+    }
+
+    // Feedback: 0-120% -> normalized = val/120
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDuckingFeedbackId,
+            static_cast<double>(floatVal / 120.0f));
+    }
+
+    // Dry/Wet: 0-1 (already normalized)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDuckingMixId,
+            static_cast<double>(floatVal));
+    }
+}
+
+// ==============================================================================
+// Controller State Sync (Wrapper)
 // ==============================================================================
 // Called from Controller::setComponentState() to sync processor state to UI.
 // ==============================================================================
@@ -516,92 +616,9 @@ inline void syncDuckingParamsToController(
     Steinberg::IBStreamer& streamer,
     Steinberg::Vst::EditControllerEx1& controller)
 {
-    using namespace Steinberg;
-    using namespace Steinberg::Vst;
-
-    int32 intVal = 0;
-    float floatVal = 0.0f;
-
-    // Ducking Enabled
-    if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDuckingEnabledId, intVal ? 1.0 : 0.0);
-    }
-
-    // Threshold: -60 to 0 dB -> normalized = (val+60)/60
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingThresholdId,
-            static_cast<double>((floatVal + 60.0f) / 60.0f));
-    }
-
-    // Duck Amount: 0-1 (already normalized)
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingDuckAmountId,
-            static_cast<double>(floatVal));
-    }
-
-    // Attack Time: 0.1-100ms -> normalized = (val-0.1)/99.9
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingAttackTimeId,
-            static_cast<double>((floatVal - 0.1f) / 99.9f));
-    }
-
-    // Release Time: 10-2000ms -> normalized = (val-10)/1990
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingReleaseTimeId,
-            static_cast<double>((floatVal - 10.0f) / 1990.0f));
-    }
-
-    // Hold Time: 0-500ms -> normalized = val/500
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingHoldTimeId,
-            static_cast<double>(floatVal / 500.0f));
-    }
-
-    // Duck Target: 0-2 -> normalized = val/2
-    if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDuckingDuckTargetId,
-            static_cast<double>(intVal) / 2.0);
-    }
-
-    // Sidechain Filter Enabled
-    if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDuckingSidechainFilterEnabledId, intVal ? 1.0 : 0.0);
-    }
-
-    // Sidechain Filter Cutoff: 20-500Hz -> normalized = (val-20)/480
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingSidechainFilterCutoffId,
-            static_cast<double>((floatVal - 20.0f) / 480.0f));
-    }
-
-    // Delay Time: 10-5000ms -> normalized = (val-10)/4990
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingDelayTimeId,
-            static_cast<double>((floatVal - 10.0f) / 4990.0f));
-    }
-
-    // Time Mode: 0-1 -> normalized = val
-    if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDuckingTimeModeId, intVal != 0 ? 1.0 : 0.0);
-    }
-
-    // Note Value: 0-9 -> normalized = val/9
-    if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDuckingNoteValueId,
-            static_cast<double>(intVal) / 9.0);
-    }
-
-    // Feedback: 0-120% -> normalized = val/120
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingFeedbackId,
-            static_cast<double>(floatVal / 120.0f));
-    }
-
-    // Dry/Wet: 0-1 (already normalized)
-    if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDuckingMixId,
-            static_cast<double>(floatVal));
-    }
+    loadDuckingParamsToController(streamer, [&](Steinberg::Vst::ParamID id, double val) {
+        controller.setParamNormalized(id, val);
+    });
 }
 
 } // namespace Iterum

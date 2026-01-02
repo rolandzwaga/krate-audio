@@ -450,12 +450,14 @@ inline void loadSpectralParams(
 // Called from Controller::setComponentState() to sync processor state to UI.
 // ==============================================================================
 
-inline void syncSpectralParamsToController(
+// Template function that reads spectral params from stream and calls setParam callback
+// SetParamFunc signature: void(Steinberg::Vst::ParamID paramId, double normalizedValue)
+template <typename SetParamFunc>
+inline void loadSpectralParamsToController(
     Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+    SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     int32 intVal = 0;
     float floatVal = 0.0f;
@@ -467,81 +469,80 @@ inline void syncSpectralParamsToController(
         else if (intVal <= 1024) index = 1;
         else if (intVal <= 2048) index = 2;
         else index = 3;
-        controller.setParamNormalized(kSpectralFFTSizeId,
-            static_cast<double>(index) / 3.0);
+        setParam(kSpectralFFTSizeId, static_cast<double>(index) / 3.0);
     }
 
     // Base Delay: 0-2000ms -> normalized = val/2000
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kSpectralBaseDelayId,
-            static_cast<double>(floatVal / 2000.0f));
+        setParam(kSpectralBaseDelayId, static_cast<double>(floatVal / 2000.0f));
     }
 
     // Spread: 0-2000ms -> normalized = val/2000
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kSpectralSpreadId,
-            static_cast<double>(floatVal / 2000.0f));
+        setParam(kSpectralSpreadId, static_cast<double>(floatVal / 2000.0f));
     }
 
     // Spread Direction: 0-2 -> normalized = val/2
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kSpectralSpreadDirectionId,
-            static_cast<double>(intVal) / 2.0);
+        setParam(kSpectralSpreadDirectionId, static_cast<double>(intVal) / 2.0);
     }
 
     // Feedback: 0-1.2 -> normalized = val/1.2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kSpectralFeedbackId,
-            static_cast<double>(floatVal / 1.2f));
+        setParam(kSpectralFeedbackId, static_cast<double>(floatVal / 1.2f));
     }
 
     // Feedback Tilt: -1.0 to +1.0 -> normalized = (val+1)/2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kSpectralFeedbackTiltId,
-            static_cast<double>((floatVal + 1.0f) / 2.0f));
+        setParam(kSpectralFeedbackTiltId, static_cast<double>((floatVal + 1.0f) / 2.0f));
     }
 
     // Freeze: boolean
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kSpectralFreezeId, intVal ? 1.0 : 0.0);
+        setParam(kSpectralFreezeId, intVal ? 1.0 : 0.0);
     }
 
     // Diffusion: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kSpectralDiffusionId,
-            static_cast<double>(floatVal));
+        setParam(kSpectralDiffusionId, static_cast<double>(floatVal));
     }
 
     // Dry/Wet: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kSpectralMixId,
-            static_cast<double>(floatVal));
+        setParam(kSpectralMixId, static_cast<double>(floatVal));
     }
 
     // Spread Curve: 0-1 -> normalized = val (already 0 or 1)
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kSpectralSpreadCurveId,
-            static_cast<double>(intVal));
+        setParam(kSpectralSpreadCurveId, static_cast<double>(intVal));
     }
 
     // Stereo Width: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kSpectralStereoWidthId,
-            static_cast<double>(floatVal));
+        setParam(kSpectralStereoWidthId, static_cast<double>(floatVal));
     }
 
     // Tempo Sync (spec 041)
     // Time Mode: 0=Free, 1=Synced -> normalized = val (already 0 or 1)
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kSpectralTimeModeId,
-            static_cast<double>(intVal));
+        setParam(kSpectralTimeModeId, static_cast<double>(intVal));
     }
 
     // Note Value: 0-9 -> normalized = val/9
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kSpectralNoteValueId,
-            static_cast<double>(intVal) / 9.0);
+        setParam(kSpectralNoteValueId, static_cast<double>(intVal) / 9.0);
     }
+}
+
+// Convenience wrapper for EditControllerEx1
+inline void syncSpectralParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadSpectralParamsToController(streamer,
+        [&controller](Steinberg::Vst::ParamID paramId, double normalizedValue) {
+            controller.setParamNormalized(paramId, normalizedValue);
+        });
 }
 
 } // namespace Iterum

@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include "plugin_ids.h"
+#include "controller/parameter_helpers.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "base/source/fstreamer.h"
@@ -445,87 +446,98 @@ inline void loadShimmerParams(
 // Controller State Sync
 // ==============================================================================
 // Called from Controller::setComponentState() to sync processor state to UI.
+// Template version allows custom parameter setting callback for flexibility.
 // ==============================================================================
 
-inline void syncShimmerParamsToController(
+template<typename SetParamFunc>
+inline void loadShimmerParamsToController(
     Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+    SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     int32 intVal = 0;
     float floatVal = 0.0f;
 
     // Delay Time: 10-5000ms -> normalized = (val-10)/4990
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerDelayTimeId,
+        setParam(kShimmerDelayTimeId,
             static_cast<double>((floatVal - 10.0f) / 4990.0f));
     }
 
     // Time Mode: 0-1 -> normalized = val
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kShimmerTimeModeId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kShimmerTimeModeId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Note Value: 0-9 -> normalized = val/9
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kShimmerNoteValueId,
+        setParam(kShimmerNoteValueId,
             static_cast<double>(intVal) / 9.0);
     }
 
     // Pitch Semitones: -24 to +24 -> normalized = (val+24)/48
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerPitchSemitonesId,
+        setParam(kShimmerPitchSemitonesId,
             static_cast<double>((floatVal + 24.0f) / 48.0f));
     }
 
     // Pitch Cents: -100 to +100 -> normalized = (val+100)/200
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerPitchCentsId,
+        setParam(kShimmerPitchCentsId,
             static_cast<double>((floatVal + 100.0f) / 200.0f));
     }
 
     // Shimmer Mix: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerPitchBlendId,
+        setParam(kShimmerPitchBlendId,
             static_cast<double>(floatVal));
     }
 
     // Feedback: 0-1.2 -> normalized = val/1.2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerFeedbackId,
+        setParam(kShimmerFeedbackId,
             static_cast<double>(floatVal / 1.2f));
     }
 
     // Diffusion Amount: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerDiffusionAmountId,
+        setParam(kShimmerDiffusionAmountId,
             static_cast<double>(floatVal));
     }
 
     // Diffusion Size: 0-100% -> normalized = val/100
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerDiffusionSizeId,
+        setParam(kShimmerDiffusionSizeId,
             static_cast<double>(floatVal / 100.0f));
     }
 
     // Filter Enabled
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kShimmerFilterEnabledId, intVal ? 1.0 : 0.0);
+        setParam(kShimmerFilterEnabledId, intVal ? 1.0 : 0.0);
     }
 
     // Filter Cutoff: 20-20000Hz -> normalized = (val-20)/19980
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerFilterCutoffId,
+        setParam(kShimmerFilterCutoffId,
             static_cast<double>((floatVal - 20.0f) / 19980.0f));
     }
 
     // Dry/Wet: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kShimmerMixId,
+        setParam(kShimmerMixId,
             static_cast<double>(floatVal));
     }
+}
+
+inline void syncShimmerParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadShimmerParamsToController(streamer,
+        [&controller](Steinberg::Vst::ParamID id, double normalizedValue) {
+            controller.setParamNormalized(id, normalizedValue);
+        });
 }
 
 } // namespace Iterum

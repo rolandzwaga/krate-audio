@@ -388,86 +388,99 @@ inline void loadMultiTapParams(MultiTapParams& params, Steinberg::IBStreamer& st
 // Controller State Sync (from IBStreamer)
 // ==============================================================================
 
-inline void syncMultiTapParamsToController(
+// Template function that reads MultiTap params from streamer and calls setParam callback
+// SetParamFunc signature: void(Steinberg::Vst::ParamID paramId, double normalizedValue)
+template<typename SetParamFunc>
+inline void loadMultiTapParamsToController(
     Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+    SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     int32 intVal = 0;
     float floatVal = 0.0f;
 
     // Time Mode: 0-1 -> normalized = val
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kMultiTapTimeModeId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kMultiTapTimeModeId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Note Value: 0-9 -> normalized = val/9
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kMultiTapNoteValueId,
+        setParam(kMultiTapNoteValueId,
             static_cast<double>(intVal) / 9.0);
     }
 
     // Timing Pattern: 0-19 -> normalized = val/19
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kMultiTapTimingPatternId,
+        setParam(kMultiTapTimingPatternId,
             static_cast<double>(intVal) / 19.0);
     }
 
     // Spatial Pattern: 0-6 -> normalized = val/6
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kMultiTapSpatialPatternId,
+        setParam(kMultiTapSpatialPatternId,
             static_cast<double>(intVal) / 6.0);
     }
 
     // Tap Count: 2-16 -> normalized = (val-2)/14
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kMultiTapTapCountId,
+        setParam(kMultiTapTapCountId,
             static_cast<double>(intVal - 2) / 14.0);
     }
 
     // Base Time: 1-5000ms -> normalized = (val-1)/4999
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kMultiTapBaseTimeId,
+        setParam(kMultiTapBaseTimeId,
             static_cast<double>((floatVal - 1.0f) / 4999.0f));
     }
 
     // Tempo: 20-300 BPM -> normalized = (val-20)/280
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kMultiTapTempoId,
+        setParam(kMultiTapTempoId,
             static_cast<double>((floatVal - 20.0f) / 280.0f));
     }
 
     // Feedback: 0-1.1 -> normalized = val/1.1
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kMultiTapFeedbackId,
+        setParam(kMultiTapFeedbackId,
             static_cast<double>(floatVal / 1.1f));
     }
 
     // Feedback LP Cutoff: 20-20000Hz (log) -> normalized = log(val/20)/log(1000)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kMultiTapFeedbackLPCutoffId,
+        setParam(kMultiTapFeedbackLPCutoffId,
             std::log(floatVal / 20.0f) / std::log(1000.0f));
     }
 
     // Feedback HP Cutoff: 20-20000Hz (log) -> normalized = log(val/20)/log(1000)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kMultiTapFeedbackHPCutoffId,
+        setParam(kMultiTapFeedbackHPCutoffId,
             std::log(floatVal / 20.0f) / std::log(1000.0f));
     }
 
     // Morph Time: 50-2000ms -> normalized = (val-50)/1950
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kMultiTapMorphTimeId,
+        setParam(kMultiTapMorphTimeId,
             static_cast<double>((floatVal - 50.0f) / 1950.0f));
     }
 
     // Dry/Wet: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kMultiTapMixId,
+        setParam(kMultiTapMixId,
             static_cast<double>(floatVal));
     }
+}
+
+// Wrapper that uses the template with EditControllerEx1::setParamNormalized
+inline void syncMultiTapParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadMultiTapParamsToController(streamer,
+        [&controller](Steinberg::Vst::ParamID paramId, double normalizedValue) {
+            controller.setParamNormalized(paramId, normalizedValue);
+        });
 }
 
 } // namespace Iterum

@@ -1,23 +1,20 @@
 // ==============================================================================
-// Layer 2: DSP Processor
-// PitchShiftProcessor - Pitch shifting with multiple quality modes
+// Layer 2: DSP Processor - PitchShiftProcessor
 // ==============================================================================
+// Pitch shifting with multiple quality modes (Simple, Granular, PhaseVocoder).
 // Feature: 016-pitch-shifter
-// Constitution Principle VIII: DSP algorithms must be independently testable
-// Constitution Principle XIV: ODR-safe implementation (no duplicate definitions)
-// ==============================================================================
 //
-// Three quality modes:
+// Constitution Compliance:
+// - Principle II: Real-Time Safety (noexcept, no allocations in process)
+// - Principle III: Modern C++ (C++20, RAII)
+// - Principle VIII: DSP algorithms must be independently testable
+// - Principle IX: Layer 2 (depends on Layer 0-1)
+// - Principle XIV: ODR-safe implementation (no duplicate definitions)
+//
+// Quality Modes:
 // - Simple: Delay-line modulation (zero latency, audible artifacts)
 // - Granular: OLA grains (~46ms latency, good quality)
 // - PhaseVocoder: STFT-based (~116ms latency, excellent quality)
-//
-// Dependencies (Layer 1):
-// - DelayLine: For Simple mode delay buffer
-// - STFT: For PhaseVocoder mode
-// - WindowFunctions: For grain windowing
-// - OnePoleSmoother: For parameter smoothing
-//
 // ==============================================================================
 
 #pragma once
@@ -25,7 +22,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cmath>
-#include <array>
 #include <memory>
 #include <vector>
 #include <algorithm>

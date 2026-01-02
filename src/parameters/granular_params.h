@@ -587,114 +587,127 @@ inline void loadGranularParams(
 // Called from Controller::setComponentState() to sync processor state to UI.
 // ==============================================================================
 
-inline void syncGranularParamsToController(
+// Template function that reads granular params from stream and calls setParam callback
+// SetParamFunc signature: void(Steinberg::Vst::ParamID paramId, double normalizedValue)
+template<typename SetParamFunc>
+inline void loadGranularParamsToController(
     Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+    SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     float floatVal = 0.0f;
     int32 intVal = 0;
 
     // Grain Size: 10-500ms -> normalized = (val - 10) / 490
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularGrainSizeId,
+        setParam(kGranularGrainSizeId,
             static_cast<double>((floatVal - 10.0f) / 490.0f));
     }
 
     // Density: 1-100 -> normalized = (val - 1) / 99
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularDensityId,
+        setParam(kGranularDensityId,
             static_cast<double>((floatVal - 1.0f) / 99.0f));
     }
 
     // Delay Time: 0-2000ms -> normalized = val / 2000
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularDelayTimeId,
+        setParam(kGranularDelayTimeId,
             static_cast<double>(floatVal / 2000.0f));
     }
 
     // Pitch: -24 to +24 -> normalized = (val + 24) / 48
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularPitchId,
+        setParam(kGranularPitchId,
             static_cast<double>((floatVal + 24.0f) / 48.0f));
     }
 
     // Pitch Spray: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularPitchSprayId, static_cast<double>(floatVal));
+        setParam(kGranularPitchSprayId, static_cast<double>(floatVal));
     }
 
     // Position Spray: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularPositionSprayId, static_cast<double>(floatVal));
+        setParam(kGranularPositionSprayId, static_cast<double>(floatVal));
     }
 
     // Pan Spray: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularPanSprayId, static_cast<double>(floatVal));
+        setParam(kGranularPanSprayId, static_cast<double>(floatVal));
     }
 
     // Reverse Probability: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularReverseProbId, static_cast<double>(floatVal));
+        setParam(kGranularReverseProbId, static_cast<double>(floatVal));
     }
 
     // Freeze: boolean
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kGranularFreezeId, intVal ? 1.0 : 0.0);
+        setParam(kGranularFreezeId, intVal ? 1.0 : 0.0);
     }
 
     // Feedback: 0-1.2 -> normalized = val / 1.2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularFeedbackId,
+        setParam(kGranularFeedbackId,
             static_cast<double>(floatVal / 1.2f));
     }
 
     // Dry/Wet: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularMixId, static_cast<double>(floatVal));
+        setParam(kGranularMixId, static_cast<double>(floatVal));
     }
 
     // Envelope Type: 0-3 -> normalized = val / 3
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kGranularEnvelopeTypeId,
+        setParam(kGranularEnvelopeTypeId,
             static_cast<double>(intVal) / 3.0);
     }
 
     // Time Mode: 0-1 -> normalized = val / 1 (spec 038)
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kGranularTimeModeId,
+        setParam(kGranularTimeModeId,
             static_cast<double>(intVal));
     }
 
     // Note Value: 0-9 -> normalized = val / 9 (spec 038)
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kGranularNoteValueId,
+        setParam(kGranularNoteValueId,
             static_cast<double>(intVal) / 9.0);
     }
 
     // Jitter: 0-1 (already normalized) - Phase 2.1
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularJitterId, static_cast<double>(floatVal));
+        setParam(kGranularJitterId, static_cast<double>(floatVal));
     }
 
     // Pitch Quantization: 0-4 -> normalized = val / 4 - Phase 2.2
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kGranularPitchQuantId,
+        setParam(kGranularPitchQuantId,
             static_cast<double>(intVal) / 4.0);
     }
 
     // Texture: 0-1 (already normalized) - Phase 2.3
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularTextureId, static_cast<double>(floatVal));
+        setParam(kGranularTextureId, static_cast<double>(floatVal));
     }
 
     // Stereo Width: 0-1 (already normalized) - Phase 2.4
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kGranularStereoWidthId, static_cast<double>(floatVal));
+        setParam(kGranularStereoWidthId, static_cast<double>(floatVal));
     }
+}
+
+// Wrapper function for backward compatibility
+inline void syncGranularParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadGranularParamsToController(streamer,
+        [&controller](Steinberg::Vst::ParamID paramId, double normalizedValue) {
+            controller.setParamNormalized(paramId, normalizedValue);
+        });
 }
 
 } // namespace Iterum

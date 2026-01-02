@@ -138,6 +138,22 @@ When writing or modifying test code, follow this exact sequence:
 
 ### When Tests Don't Appear or Fail Unexpectedly
 
+> **🚨 STOP. DID YOU CHECK THE BUILD OUTPUT? 🚨**
+>
+> If you just added new tests and they don't appear in the test list:
+> 1. **Your code probably doesn't compile**
+> 2. Run: `cmake --build build --config Debug --target dsp_tests 2>&1`
+> 3. Look for `error` in the output
+> 4. **FIX THE COMPILATION ERRORS FIRST**
+>
+> Do NOT:
+> - Try different test filters
+> - Blame CMake cache
+> - Run `--list-tests` repeatedly
+> - Touch files and rebuild without checking output
+>
+> **The build output tells you EXACTLY what's wrong. Read it.**
+
 If tests don't show up in test lists or fail in unexpected ways, follow this troubleshooting checklist **IN ORDER**:
 
 #### 1. Verify Build Success (FIRST)

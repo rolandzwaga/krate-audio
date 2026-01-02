@@ -332,73 +332,83 @@ inline void loadReverseParams(ReverseParams& params, Steinberg::IBStreamer& stre
 // Controller State Sync (from IBStreamer)
 // ==============================================================================
 
-inline void syncReverseParamsToController(
+template<typename SetParamFunc>
+inline void loadReverseParamsToController(
     Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+    SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     int32 intVal = 0;
     float floatVal = 0.0f;
 
     // Chunk Size: 10-2000ms -> normalized = (val-10)/1990
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kReverseChunkSizeId,
+        setParam(kReverseChunkSizeId,
             static_cast<double>((floatVal - 10.0f) / 1990.0f));
     }
 
     // Time Mode: 0-1 -> normalized = val
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kReverseTimeModeId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kReverseTimeModeId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Note Value: 0-9 -> normalized = val/9
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kReverseNoteValueId,
+        setParam(kReverseNoteValueId,
             static_cast<double>(intVal) / 9.0);
     }
 
     // Crossfade: 0-1 (already normalized)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kReverseCrossfadeId,
+        setParam(kReverseCrossfadeId,
             static_cast<double>(floatVal));
     }
 
     // Playback Mode: 0-2 -> normalized = val/2
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kReversePlaybackModeId,
+        setParam(kReversePlaybackModeId,
             static_cast<double>(intVal) / 2.0);
     }
 
     // Feedback: 0-1.2 -> normalized = val/1.2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kReverseFeedbackId,
+        setParam(kReverseFeedbackId,
             static_cast<double>(floatVal / 1.2f));
     }
 
     // Filter Enabled
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kReverseFilterEnabledId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kReverseFilterEnabledId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Filter Cutoff: 20-20000Hz (log scale) -> normalized = log(val/20)/log(1000)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kReverseFilterCutoffId,
+        setParam(kReverseFilterCutoffId,
             std::log(floatVal / 20.0f) / std::log(1000.0f));
     }
 
     // Filter Type: 0-2 -> normalized = val/2
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kReverseFilterTypeId,
+        setParam(kReverseFilterTypeId,
             static_cast<double>(intVal) / 2.0);
     }
 
     // Dry/Wet: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kReverseMixId,
+        setParam(kReverseMixId,
             static_cast<double>(floatVal));
     }
+}
+
+inline void syncReverseParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadReverseParamsToController(streamer,
+        [&controller](Steinberg::Vst::ParamID id, double normalizedValue) {
+            controller.setParamNormalized(id, normalizedValue);
+        });
 }
 
 } // namespace Iterum

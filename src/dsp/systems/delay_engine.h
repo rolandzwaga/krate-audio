@@ -25,6 +25,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 
 namespace Iterum {
 namespace DSP {

@@ -13,7 +13,7 @@
 #include <cmath>
 #include <vector>
 
-#include "dsp/systems/i_feedback_processor.h"
+#include "dsp/primitives/i_feedback_processor.h"
 
 using namespace Iterum::DSP;
 using Catch::Approx;

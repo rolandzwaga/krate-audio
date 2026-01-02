@@ -1,11 +1,14 @@
 // ==============================================================================
 // IFeedbackProcessor - Interface for Feedback Path Processors
 // ==============================================================================
-// Layer 3: System Components
+// Layer 1: DSP Primitives (Interface)
 //
 // Abstract interface enabling injection of arbitrary processors into feedback
 // paths. Designed for use with FlexibleFeedbackNetwork to support advanced
 // effects like shimmer delay (pitch shifting) and freeze mode.
+//
+// Constitution Compliance:
+// - Principle IX: Moved to Layer 1 to allow Layer 2 processors to implement
 //
 // All implementations must be real-time safe:
 // - No allocations in process()

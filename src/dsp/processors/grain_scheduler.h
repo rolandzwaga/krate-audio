@@ -1,5 +1,14 @@
+// ==============================================================================
 // Layer 2: DSP Processor - Grain Scheduler
+// ==============================================================================
+// Controls grain triggering timing with synchronous and asynchronous modes.
 // Part of Granular Delay feature (spec 034)
+//
+// Constitution Compliance:
+// - Principle II: Real-Time Safety (noexcept, no allocations in process)
+// - Principle III: Modern C++ (C++20)
+// - Principle IX: Layer 2 (depends on Layer 0-1)
+// ==============================================================================
 #pragma once
 
 #include "dsp/core/random.h"

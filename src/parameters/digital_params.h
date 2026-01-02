@@ -17,7 +17,6 @@
 #include "base/source/fstreamer.h"
 
 #include <atomic>
-#include <cmath>
 
 namespace Iterum {
 
@@ -379,87 +378,90 @@ inline void loadDigitalParams(DigitalParams& params, Steinberg::IBStreamer& stre
 // ==============================================================================
 // Controller State Sync (from IBStreamer)
 // ==============================================================================
+// Template function that reads stream values and calls a callback with
+// (paramId, normalizedValue). This allows both syncDigitalParamsToController
+// and loadComponentStateWithNotify to use the same parsing logic.
+// ==============================================================================
 
-inline void syncDigitalParamsToController(
+template<typename SetParamFunc>
+inline void loadDigitalParamsToController(
     Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+    SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     int32 intVal = 0;
     float floatVal = 0.0f;
 
     // Delay Time: 1-10000ms -> normalized = (val-1)/9999
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDigitalDelayTimeId,
-            static_cast<double>((floatVal - 1.0f) / 9999.0f));
+        setParam(kDigitalDelayTimeId, static_cast<double>((floatVal - 1.0f) / 9999.0f));
     }
 
     // Time Mode
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDigitalTimeModeId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kDigitalTimeModeId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Note Value: 0-9 -> normalized = val/9
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDigitalNoteValueId,
-            static_cast<double>(intVal) / 9.0);
+        setParam(kDigitalNoteValueId, static_cast<double>(intVal) / 9.0);
     }
 
     // Feedback: 0-1.2 -> normalized = val/1.2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDigitalFeedbackId,
-            static_cast<double>(floatVal / 1.2f));
+        setParam(kDigitalFeedbackId, static_cast<double>(floatVal / 1.2f));
     }
 
     // Limiter Character: 0-2 -> normalized = val/2
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDigitalLimiterCharacterId,
-            static_cast<double>(intVal) / 2.0);
+        setParam(kDigitalLimiterCharacterId, static_cast<double>(intVal) / 2.0);
     }
 
     // Era: 0-2 -> normalized = val/2
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDigitalEraId,
-            static_cast<double>(intVal) / 2.0);
+        setParam(kDigitalEraId, static_cast<double>(intVal) / 2.0);
     }
 
     // Age: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDigitalAgeId,
-            static_cast<double>(floatVal));
+        setParam(kDigitalAgeId, static_cast<double>(floatVal));
     }
 
     // Mod Depth: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDigitalModDepthId,
-            static_cast<double>(floatVal));
+        setParam(kDigitalModDepthId, static_cast<double>(floatVal));
     }
 
     // Mod Rate: 0.1-10Hz -> normalized = (val-0.1)/9.9
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDigitalModRateId,
-            static_cast<double>((floatVal - 0.1f) / 9.9f));
+        setParam(kDigitalModRateId, static_cast<double>((floatVal - 0.1f) / 9.9f));
     }
 
     // Mod Waveform: 0-5 -> normalized = val/5
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kDigitalModWaveformId,
-            static_cast<double>(intVal) / 5.0);
+        setParam(kDigitalModWaveformId, static_cast<double>(intVal) / 5.0);
     }
 
     // Mix: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDigitalMixId,
-            static_cast<double>(floatVal));
+        setParam(kDigitalMixId, static_cast<double>(floatVal));
     }
 
     // Width: 0-200% -> normalized = val/200
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kDigitalWidthId,
-            static_cast<double>(floatVal / 200.0f));
+        setParam(kDigitalWidthId, static_cast<double>(floatVal / 200.0f));
     }
+}
+
+// Convenience wrapper for setComponentState path
+inline void syncDigitalParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadDigitalParamsToController(streamer, [&](Steinberg::Vst::ParamID id, double val) {
+        controller.setParamNormalized(id, val);
+    });
 }
 
 } // namespace Iterum

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include "dsp/core/math_constants.h"
 
 namespace Iterum::DSP {
 
@@ -19,9 +20,7 @@ enum class GrainEnvelopeType : uint8_t {
 
 namespace GrainEnvelope {
 
-/// Mathematical constant
-inline constexpr float kPi = 3.14159265358979323846f;
-inline constexpr float kTwoPi = 6.28318530718f;
+// Note: kPi and kTwoPi are imported from Iterum::DSP (math_constants.h)
 
 /// Pre-compute envelope lookup table (call in prepare, not process)
 /// @param output Pre-allocated buffer for envelope values

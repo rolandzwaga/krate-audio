@@ -17,7 +17,6 @@
 #include "base/source/fstreamer.h"
 
 #include <atomic>
-#include <cmath>
 
 namespace Iterum {
 
@@ -323,69 +322,75 @@ inline void loadBBDParams(BBDParams& params, Steinberg::IBStreamer& streamer) {
 // ==============================================================================
 // Controller State Sync (from IBStreamer)
 // ==============================================================================
+// Template function that reads stream values and calls a callback with
+// (paramId, normalizedValue). This allows both syncBBDParamsToController
+// and loadComponentStateWithNotify to use the same parsing logic.
+// ==============================================================================
 
-inline void syncBBDParamsToController(
+template<typename SetParamFunc>
+inline void loadBBDParamsToController(
     Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+    SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     int32 intVal = 0;
     float floatVal = 0.0f;
 
     // Delay Time: 20-1000ms -> normalized = (val-20)/980
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kBBDDelayTimeId,
-            static_cast<double>((floatVal - 20.0f) / 980.0f));
+        setParam(kBBDDelayTimeId, static_cast<double>((floatVal - 20.0f) / 980.0f));
     }
 
     // Time Mode: 0-1 -> normalized = val
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kBBDTimeModeId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kBBDTimeModeId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Note Value: 0-9 -> normalized = val/9
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kBBDNoteValueId,
-            static_cast<double>(intVal) / 9.0);
+        setParam(kBBDNoteValueId, static_cast<double>(intVal) / 9.0);
     }
 
     // Feedback: 0-1.2 -> normalized = val/1.2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kBBDFeedbackId,
-            static_cast<double>(floatVal / 1.2f));
+        setParam(kBBDFeedbackId, static_cast<double>(floatVal / 1.2f));
     }
 
     // Modulation Depth: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kBBDModDepthId,
-            static_cast<double>(floatVal));
+        setParam(kBBDModDepthId, static_cast<double>(floatVal));
     }
 
     // Modulation Rate: 0.1-10Hz -> normalized = (val-0.1)/9.9
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kBBDModRateId,
-            static_cast<double>((floatVal - 0.1f) / 9.9f));
+        setParam(kBBDModRateId, static_cast<double>((floatVal - 0.1f) / 9.9f));
     }
 
     // Age: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kBBDAgeId,
-            static_cast<double>(floatVal));
+        setParam(kBBDAgeId, static_cast<double>(floatVal));
     }
 
     // Era: 0-3 -> normalized = val/3
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kBBDEraId,
-            static_cast<double>(intVal) / 3.0);
+        setParam(kBBDEraId, static_cast<double>(intVal) / 3.0);
     }
 
     // Mix: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kBBDMixId,
-            static_cast<double>(floatVal));
+        setParam(kBBDMixId, static_cast<double>(floatVal));
     }
+}
+
+// Convenience wrapper for setComponentState path
+inline void syncBBDParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadBBDParamsToController(streamer, [&](Steinberg::Vst::ParamID id, double val) {
+        controller.setParamNormalized(id, val);
+    });
 }
 
 } // namespace Iterum

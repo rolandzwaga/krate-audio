@@ -41,7 +41,6 @@
 #include "parameters/tape_params.h"
 #include "parameters/dropdown_mappings.h"
 
-#include <array>
 #include <atomic>
 #include <vector>
 

@@ -38,8 +38,6 @@
 #include "dsp/systems/feedback_network.h"
 
 #include <algorithm>
-#include <array>
-#include <cmath>
 #include <cstddef>
 
 #include <cstdint>

@@ -18,7 +18,6 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
 #include <bit>
 #include <cmath>
 #include <cstddef>

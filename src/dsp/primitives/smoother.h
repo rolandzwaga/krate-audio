@@ -23,7 +23,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 
 // Layer 0 dependency for shared math utilities
 #include "dsp/core/db_utils.h"

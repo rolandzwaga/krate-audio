@@ -516,105 +516,116 @@ inline void syncFreezeParamsToController(
 }
 
 // ==============================================================================
-// Controller State Sync (from IBStreamer)
+// Controller State Sync (from IBStreamer) - Template Version
 // ==============================================================================
 
-inline void syncFreezeParamsToController(
+template <typename SetParamFunc>
+inline void loadFreezeParamsToController(
     Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+    SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     int32 intVal = 0;
     float floatVal = 0.0f;
 
     // Freeze Enabled
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kFreezeEnabledId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kFreezeEnabledId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Delay Time: 10-5000ms -> normalized = (val-10)/4990
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezeDelayTimeId,
+        setParam(kFreezeDelayTimeId,
             static_cast<double>((floatVal - 10.0f) / 4990.0f));
     }
 
     // Time Mode: 0-1 -> normalized = val
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kFreezeTimeModeId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kFreezeTimeModeId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Note Value: 0-9 -> normalized = val/9
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kFreezeNoteValueId,
+        setParam(kFreezeNoteValueId,
             static_cast<double>(intVal) / 9.0);
     }
 
     // Feedback: 0-1.2 -> normalized = val/1.2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezeFeedbackId,
+        setParam(kFreezeFeedbackId,
             static_cast<double>(floatVal / 1.2f));
     }
 
     // Pitch Semitones: -24 to +24 -> normalized = (val+24)/48
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezePitchSemitonesId,
+        setParam(kFreezePitchSemitonesId,
             static_cast<double>((floatVal + 24.0f) / 48.0f));
     }
 
     // Pitch Cents: -100 to +100 -> normalized = (val+100)/200
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezePitchCentsId,
+        setParam(kFreezePitchCentsId,
             static_cast<double>((floatVal + 100.0f) / 200.0f));
     }
 
     // Shimmer Mix: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezeShimmerMixId,
+        setParam(kFreezeShimmerMixId,
             static_cast<double>(floatVal));
     }
 
     // Decay: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezeDecayId,
+        setParam(kFreezeDecayId,
             static_cast<double>(floatVal));
     }
 
     // Diffusion Amount: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezeDiffusionAmountId,
+        setParam(kFreezeDiffusionAmountId,
             static_cast<double>(floatVal));
     }
 
     // Diffusion Size: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezeDiffusionSizeId,
+        setParam(kFreezeDiffusionSizeId,
             static_cast<double>(floatVal));
     }
 
     // Filter Enabled
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kFreezeFilterEnabledId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kFreezeFilterEnabledId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Filter Type: 0-2 -> normalized = val/2
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kFreezeFilterTypeId,
+        setParam(kFreezeFilterTypeId,
             static_cast<double>(intVal) / 2.0);
     }
 
     // Filter Cutoff: 20-20000Hz (log scale) -> normalized = log(val/20)/log(1000)
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezeFilterCutoffId,
+        setParam(kFreezeFilterCutoffId,
             std::log(floatVal / 20.0f) / std::log(1000.0f));
     }
 
     // Dry/Wet: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kFreezeMixId,
+        setParam(kFreezeMixId,
             static_cast<double>(floatVal));
     }
+}
+
+// Wrapper that calls the template with a controller lambda
+inline void syncFreezeParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadFreezeParamsToController(streamer,
+        [&controller](Steinberg::Vst::ParamID paramId, double normalizedValue) {
+            controller.setParamNormalized(paramId, normalizedValue);
+        });
 }
 
 } // namespace Iterum

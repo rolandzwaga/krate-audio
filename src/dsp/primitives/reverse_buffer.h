@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <vector>
+#include "dsp/core/crossfade_utils.h"
 
 namespace Iterum::DSP {
 
@@ -21,7 +22,8 @@ namespace Iterum::DSP {
 /// then swaps at chunk boundaries. When reversed=true, playback reads from
 /// end to start of the captured buffer, creating backwards audio.
 ///
-/// @note This is a stub implementation. Tests should FAIL until implemented.
+/// Crossfade is applied at chunk boundaries using equal-power curves to
+/// prevent audible clicks from signal discontinuities.
 class ReverseBuffer {
 public:
     // =========================================================================
@@ -93,6 +95,8 @@ private:
     float crossfadeMs_ = 20.0f;
     std::size_t crossfadeSamples_ = 0;
     std::size_t crossfadePos_ = 0;
+    bool crossfadeActive_ = false;
+    float crossfadeSource_ = 0.0f;  // Sample value to fade out from
 
     // Configuration
     double sampleRate_ = 44100.0;
@@ -100,7 +104,7 @@ private:
 };
 
 // =============================================================================
-// Inline Implementation (Stub - tests should FAIL)
+// Inline Implementation
 // =============================================================================
 
 inline void ReverseBuffer::prepare(double sampleRate, float maxChunkMs) noexcept {
@@ -120,6 +124,8 @@ inline void ReverseBuffer::reset() noexcept {
     writePos_ = 0;
     readPos_ = 0;
     crossfadePos_ = 0;
+    crossfadeActive_ = false;
+    crossfadeSource_ = 0.0f;
     atChunkBoundary_ = false;
     activeBufferIsA_ = true;
 
@@ -158,20 +164,30 @@ inline float ReverseBuffer::process(float input) noexcept {
     captureBuffer[writePos_] = input;
 
     // Read from playback buffer
-    float output = 0.0f;
-    if (writePos_ < chunkSizeSamples_) {
-        // During first chunk, playback buffer may be empty
-        if (reversed_) {
-            // Read from end to start
-            std::size_t readIdx = chunkSizeSamples_ - 1 - readPos_;
-            if (readIdx < playbackBuffer.size()) {
-                output = playbackBuffer[readIdx];
-            }
-        } else {
-            // Read forward
-            if (readPos_ < playbackBuffer.size()) {
-                output = playbackBuffer[readPos_];
-            }
+    float newSample = 0.0f;
+    if (reversed_) {
+        // Read from end to start
+        std::size_t readIdx = chunkSizeSamples_ - 1 - readPos_;
+        if (readIdx < playbackBuffer.size()) {
+            newSample = playbackBuffer[readIdx];
+        }
+    } else {
+        // Read forward
+        if (readPos_ < playbackBuffer.size()) {
+            newSample = playbackBuffer[readPos_];
+        }
+    }
+
+    // Apply crossfade if active
+    float output = newSample;
+    if (crossfadeActive_ && crossfadeSamples_ > 0) {
+        float position = static_cast<float>(crossfadePos_) / static_cast<float>(crossfadeSamples_);
+        auto [fadeOut, fadeIn] = equalPowerGains(position);
+        output = crossfadeSource_ * fadeOut + newSample * fadeIn;
+
+        crossfadePos_++;
+        if (crossfadePos_ >= crossfadeSamples_) {
+            crossfadeActive_ = false;
         }
     }
 
@@ -182,6 +198,11 @@ inline float ReverseBuffer::process(float input) noexcept {
 
     // Check for chunk boundary
     if (writePos_ >= chunkSizeSamples_) {
+        // Store last output as crossfade source for next chunk
+        crossfadeSource_ = output;
+        crossfadeActive_ = (crossfadeSamples_ > 0);
+        crossfadePos_ = 0;
+
         // Swap buffers
         activeBufferIsA_ = !activeBufferIsA_;
         writePos_ = 0;

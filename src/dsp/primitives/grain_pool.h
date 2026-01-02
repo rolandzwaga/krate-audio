@@ -1,5 +1,14 @@
+// ==============================================================================
 // Layer 1: DSP Primitive - Grain Pool
+// ==============================================================================
+// Fixed-size pool of grains for granular synthesis with voice stealing.
 // Part of Granular Delay feature (spec 034)
+//
+// Constitution Compliance:
+// - Principle II: Real-Time Safety (noexcept, no allocations in process)
+// - Principle III: Modern C++ (C++20, std::span, value semantics)
+// - Principle IX: Layer 1 (no dependencies on Layer 2+)
+// ==============================================================================
 #pragma once
 
 #include <algorithm>
@@ -32,9 +41,8 @@ public:
     static constexpr size_t kMaxGrains = 64;
 
     /// Prepare the pool for processing
-    /// @param sampleRate Current sample rate
-    void prepare(double sampleRate) noexcept {
-        sampleRate_ = sampleRate;
+    /// @param sampleRate Current sample rate (reserved for future use)
+    void prepare([[maybe_unused]] double sampleRate) noexcept {
         reset();
     }
 
@@ -117,7 +125,6 @@ private:
     std::array<Grain, kMaxGrains> grains_{};
     std::array<Grain*, kMaxGrains> activeList_{};
     size_t activeCount_ = 0;
-    double sampleRate_ = 44100.0;
 };
 
 }  // namespace Iterum::DSP

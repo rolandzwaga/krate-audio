@@ -18,11 +18,11 @@
 #pragma once
 
 #include "dsp/primitives/reverse_buffer.h"
-#include "dsp/systems/i_feedback_processor.h"
+#include "dsp/primitives/i_feedback_processor.h"
+#include "dsp/core/random.h"
 
 #include <cstddef>
 #include <cstdint>
-#include <random>
 
 namespace Iterum::DSP {
 
@@ -198,11 +198,9 @@ private:
                 // Odd chunks are reversed, even are forward
                 return (chunkCounter_ % 2) == 0;
 
-            case PlaybackMode::Random: {
-                // 50/50 random choice
-                std::uniform_int_distribution<int> dist(0, 1);
-                return dist(rng_) == 1;
-            }
+            case PlaybackMode::Random:
+                // 50/50 random choice using LSB of next random value
+                return (rng_.next() & 1) == 1;
 
             default:
                 return true;
@@ -221,8 +219,8 @@ private:
     PlaybackMode mode_ = PlaybackMode::FullReverse;
     std::size_t chunkCounter_ = 0;
 
-    // Random number generator for Random mode
-    std::minstd_rand rng_;
+    // Random number generator for Random mode (Layer 0 Xorshift32)
+    Xorshift32 rng_{42};
 
     // Configuration
     double sampleRate_ = 44100.0;

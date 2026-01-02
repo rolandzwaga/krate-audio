@@ -37,7 +37,6 @@
 #include "dsp/systems/delay_engine.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>

@@ -30,7 +30,6 @@
 #include "dsp/core/crossfade_utils.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>

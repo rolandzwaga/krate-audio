@@ -1,14 +1,16 @@
 // ==============================================================================
-// FlexibleFeedbackNetwork - Feedback Loop with Processor Injection
+// Layer 3: System Component - FlexibleFeedbackNetwork
 // ==============================================================================
-// Layer 3: System Components
+// Feedback loop with processor injection for shimmer, freeze, and effects.
 //
-// A feedback network that supports injecting arbitrary processors (via
-// IFeedbackProcessor interface) into the feedback path. Enables advanced
-// effects like shimmer (pitch shifting in feedback) and freeze mode.
+// Constitution Compliance:
+// - Principle II: Real-Time Safety (noexcept, no allocations in process)
+// - Principle III: Modern C++ (C++20, RAII)
+// - Principle IX: Layer 3 (composes Layer 0-2)
+// - Principle X: DSP Constraints (parameter smoothing, click-free transitions)
 //
 // Features:
-// - Processor injection with mix control
+// - Processor injection with mix control (IFeedbackProcessor interface)
 // - Freeze mode (100% feedback + input mute)
 // - Feedback filtering (via MultimodeFilter)
 // - Feedback limiting for >100% feedback stability
@@ -16,18 +18,12 @@
 // - Hot-swap with crossfade
 //
 // Design Notes:
-// - Hybrid sample-by-sample delay loop with block-based processor. Within a
-//   block, feedback uses the raw delay output for immediate responsiveness.
-//   The processor runs on the block output, and its result feeds back into
-//   the NEXT block. This gives the best compromise between responsiveness
-//   (no delay for basic feedback) and processor support (one-block latency).
-// - At 512 samples/44.1kHz, processor effects have ~11.6ms feedback latency.
-//
-// All operations are real-time safe (no allocations in process)
+// - Hybrid sample-by-sample delay loop with block-based processor
+// - At 512 samples/44.1kHz, processor effects have ~11.6ms feedback latency
 // ==============================================================================
 #pragma once
 
-#include "dsp/systems/i_feedback_processor.h"
+#include "dsp/primitives/i_feedback_processor.h"
 #include "dsp/primitives/crossfading_delay_line.h"
 #include "dsp/primitives/smoother.h"
 #include "dsp/processors/multimode_filter.h"
@@ -37,7 +33,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <memory>
 #include <vector>
 
 namespace Iterum::DSP {

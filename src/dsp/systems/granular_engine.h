@@ -1,5 +1,15 @@
+// ==============================================================================
 // Layer 3: System Component - Granular Engine
+// ==============================================================================
+// Core granular synthesis engine combining pool, scheduler, and processing.
 // Part of Granular Delay feature (spec 034)
+//
+// Constitution Compliance:
+// - Principle II: Real-Time Safety (noexcept, no allocations in process)
+// - Principle III: Modern C++ (C++20, RAII)
+// - Principle IX: Layer 3 (composes Layer 0-2)
+// - Principle X: DSP Constraints (parameter smoothing)
+// ==============================================================================
 #pragma once
 
 #include "dsp/core/grain_envelope.h"

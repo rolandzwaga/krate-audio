@@ -39,11 +39,6 @@
 namespace Iterum {
 namespace DSP {
 
-// Forward declarations for time mode from DelayEngine
-enum class TimeMode : uint8_t;
-enum class NoteValue : uint8_t;
-enum class NoteModifier : uint8_t;
-
 /// @brief Simple one-pole DC blocking filter
 /// @par Algorithm
 /// First-order highpass filter with pole at DC (0 Hz)

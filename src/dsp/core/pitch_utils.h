@@ -7,9 +7,6 @@
 
 namespace Iterum::DSP {
 
-/// Constant for pitch conversion: 2^(1/12)
-inline constexpr float kSemitoneRatio = 1.0594630943592953f;
-
 /// Pitch quantization modes (Phase 2.2)
 enum class PitchQuantMode : uint8_t {
     Off = 0,       ///< No quantization, use raw pitch value

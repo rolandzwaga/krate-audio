@@ -17,7 +17,6 @@
 #include "base/source/fstreamer.h"
 
 #include <atomic>
-#include <cmath>
 
 namespace Iterum {
 
@@ -341,75 +340,80 @@ inline void loadPingPongParams(PingPongParams& params, Steinberg::IBStreamer& st
 // ==============================================================================
 // Controller State Sync (from IBStreamer)
 // ==============================================================================
+// Template function that reads stream values and calls a callback with
+// (paramId, normalizedValue). This allows both syncPingPongParamsToController
+// and loadComponentStateWithNotify to use the same parsing logic.
+// ==============================================================================
 
-inline void syncPingPongParamsToController(
+template<typename SetParamFunc>
+inline void loadPingPongParamsToController(
     Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+    SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     int32 intVal = 0;
     float floatVal = 0.0f;
 
     // Delay Time: 1-10000ms -> normalized = (val-1)/9999
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kPingPongDelayTimeId,
-            static_cast<double>((floatVal - 1.0f) / 9999.0f));
+        setParam(kPingPongDelayTimeId, static_cast<double>((floatVal - 1.0f) / 9999.0f));
     }
 
     // Time Mode
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kPingPongTimeModeId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kPingPongTimeModeId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Note Value: 0-9 -> normalized = val/9
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kPingPongNoteValueId,
-            static_cast<double>(intVal) / 9.0);
+        setParam(kPingPongNoteValueId, static_cast<double>(intVal) / 9.0);
     }
 
     // L/R Ratio: 0-6 -> normalized = val/6
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kPingPongLRRatioId,
-            static_cast<double>(intVal) / 6.0);
+        setParam(kPingPongLRRatioId, static_cast<double>(intVal) / 6.0);
     }
 
     // Feedback: 0-1.2 -> normalized = val/1.2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kPingPongFeedbackId,
-            static_cast<double>(floatVal / 1.2f));
+        setParam(kPingPongFeedbackId, static_cast<double>(floatVal / 1.2f));
     }
 
     // Cross-Feedback: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kPingPongCrossFeedbackId,
-            static_cast<double>(floatVal));
+        setParam(kPingPongCrossFeedbackId, static_cast<double>(floatVal));
     }
 
     // Width: 0-200 -> normalized = val/200
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kPingPongWidthId,
-            static_cast<double>(floatVal / 200.0f));
+        setParam(kPingPongWidthId, static_cast<double>(floatVal / 200.0f));
     }
 
     // Mod Depth: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kPingPongModDepthId,
-            static_cast<double>(floatVal));
+        setParam(kPingPongModDepthId, static_cast<double>(floatVal));
     }
 
     // Mod Rate: 0.1-10Hz -> normalized = (val-0.1)/9.9
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kPingPongModRateId,
-            static_cast<double>((floatVal - 0.1f) / 9.9f));
+        setParam(kPingPongModRateId, static_cast<double>((floatVal - 0.1f) / 9.9f));
     }
 
     // Mix: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kPingPongMixId,
-            static_cast<double>(floatVal));
+        setParam(kPingPongMixId, static_cast<double>(floatVal));
     }
+}
+
+// Convenience wrapper for setComponentState path
+inline void syncPingPongParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadPingPongParamsToController(streamer, [&](Steinberg::Vst::ParamID id, double val) {
+        controller.setParamNormalized(id, val);
+    });
 }
 
 } // namespace Iterum

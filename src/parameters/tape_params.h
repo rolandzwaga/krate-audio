@@ -475,99 +475,106 @@ inline void loadTapeParams(TapeParams& params, Steinberg::IBStreamer& streamer) 
 // Controller State Sync (from IBStreamer)
 // ==============================================================================
 
-inline void syncTapeParamsToController(
-    Steinberg::IBStreamer& streamer,
-    Steinberg::Vst::EditControllerEx1& controller)
+// Template function that reads tape params from streamer and calls setParam callback
+// SetParamFunc signature: void(Steinberg::Vst::ParamID, double normalizedValue)
+template <typename SetParamFunc>
+inline void loadTapeParamsToController(Steinberg::IBStreamer& streamer, SetParamFunc setParam)
 {
     using namespace Steinberg;
-    using namespace Steinberg::Vst;
 
     int32 intVal = 0;
     float floatVal = 0.0f;
 
     // Motor Speed: 20-2000ms -> normalized = (val-20)/1980
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeMotorSpeedId,
-            static_cast<double>((floatVal - 20.0f) / 1980.0f));
+        setParam(kTapeMotorSpeedId, static_cast<double>((floatVal - 20.0f) / 1980.0f));
     }
 
     // Motor Inertia: 100-1000ms -> normalized = (val-100)/900
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeMotorInertiaId,
-            static_cast<double>((floatVal - 100.0f) / 900.0f));
+        setParam(kTapeMotorInertiaId, static_cast<double>((floatVal - 100.0f) / 900.0f));
     }
 
     // Wear: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeWearId, static_cast<double>(floatVal));
+        setParam(kTapeWearId, static_cast<double>(floatVal));
     }
 
     // Saturation: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeSaturationId, static_cast<double>(floatVal));
+        setParam(kTapeSaturationId, static_cast<double>(floatVal));
     }
 
     // Age: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeAgeId, static_cast<double>(floatVal));
+        setParam(kTapeAgeId, static_cast<double>(floatVal));
     }
 
     // Splice Enabled
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kTapeSpliceEnabledId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kTapeSpliceEnabledId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Splice Intensity: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeSpliceIntensityId, static_cast<double>(floatVal));
+        setParam(kTapeSpliceIntensityId, static_cast<double>(floatVal));
     }
 
     // Feedback: 0-1.2 -> normalized = val/1.2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeFeedbackId,
-            static_cast<double>(floatVal / 1.2f));
+        setParam(kTapeFeedbackId, static_cast<double>(floatVal / 1.2f));
     }
 
     // Mix: 0-1 -> normalized = val
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeMixId, static_cast<double>(floatVal));
+        setParam(kTapeMixId, static_cast<double>(floatVal));
     }
 
     // Head enables
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kTapeHead1EnabledId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kTapeHead1EnabledId, intVal != 0 ? 1.0 : 0.0);
     }
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kTapeHead2EnabledId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kTapeHead2EnabledId, intVal != 0 ? 1.0 : 0.0);
     }
     if (streamer.readInt32(intVal)) {
-        controller.setParamNormalized(kTapeHead3EnabledId, intVal != 0 ? 1.0 : 0.0);
+        setParam(kTapeHead3EnabledId, intVal != 0 ? 1.0 : 0.0);
     }
 
     // Head levels: linear -> dB -> normalized = (dB+96)/102
     if (streamer.readFloat(floatVal)) {
         double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        controller.setParamNormalized(kTapeHead1LevelId, (dB + 96.0) / 102.0);
+        setParam(kTapeHead1LevelId, (dB + 96.0) / 102.0);
     }
     if (streamer.readFloat(floatVal)) {
         double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        controller.setParamNormalized(kTapeHead2LevelId, (dB + 96.0) / 102.0);
+        setParam(kTapeHead2LevelId, (dB + 96.0) / 102.0);
     }
     if (streamer.readFloat(floatVal)) {
         double dB = (floatVal <= 0.0f) ? -96.0 : 20.0 * std::log10(floatVal);
-        controller.setParamNormalized(kTapeHead3LevelId, (dB + 96.0) / 102.0);
+        setParam(kTapeHead3LevelId, (dB + 96.0) / 102.0);
     }
 
     // Head pans: -1 to +1 -> normalized = (val+1)/2
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeHead1PanId, static_cast<double>((floatVal + 1.0f) / 2.0f));
+        setParam(kTapeHead1PanId, static_cast<double>((floatVal + 1.0f) / 2.0f));
     }
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeHead2PanId, static_cast<double>((floatVal + 1.0f) / 2.0f));
+        setParam(kTapeHead2PanId, static_cast<double>((floatVal + 1.0f) / 2.0f));
     }
     if (streamer.readFloat(floatVal)) {
-        controller.setParamNormalized(kTapeHead3PanId, static_cast<double>((floatVal + 1.0f) / 2.0f));
+        setParam(kTapeHead3PanId, static_cast<double>((floatVal + 1.0f) / 2.0f));
     }
+}
+
+// Wrapper that calls the template with controller's setParamNormalized
+inline void syncTapeParamsToController(
+    Steinberg::IBStreamer& streamer,
+    Steinberg::Vst::EditControllerEx1& controller)
+{
+    loadTapeParamsToController(streamer, [&controller](Steinberg::Vst::ParamID id, double value) {
+        controller.setParamNormalized(id, value);
+    });
 }
 
 } // namespace Iterum

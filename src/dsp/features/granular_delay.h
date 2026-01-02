@@ -1,6 +1,16 @@
+// ==============================================================================
 // Layer 4: User Feature - Granular Delay
-// Part of Granular Delay feature (spec 034)
-// Tempo sync additions: spec 038
+// ==============================================================================
+// Complete granular delay effect with pitch, position, density controls.
+// Part of Granular Delay feature (spec 034), Tempo sync (spec 038)
+//
+// Constitution Compliance:
+// - Principle II: Real-Time Safety (noexcept, no allocations in process)
+// - Principle III: Modern C++ (C++20, RAII)
+// - Principle IX: Layer 4 (composes Layer 0-3)
+// - Principle X: DSP Constraints (parameter smoothing, click-free)
+// - Principle XII: Test-First Development
+// ==============================================================================
 #pragma once
 
 #include "dsp/core/db_utils.h"

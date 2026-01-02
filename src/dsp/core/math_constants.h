@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <cstddef>
-
 namespace Iterum {
 namespace DSP {
 

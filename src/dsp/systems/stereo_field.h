@@ -13,7 +13,7 @@
 // Feature: 022-stereo-field
 // Layer: 3 (System Component)
 // Dependencies: Layer 0 (db_utils), Layer 1 (DelayLine, OnePoleSmoother),
-//               Layer 2 (MidSideProcessor), Layer 3 (DelayEngine)
+//               Layer 2 (MidSideProcessor)
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations in process)
