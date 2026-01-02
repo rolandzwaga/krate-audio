@@ -559,11 +559,14 @@ public:
             character_.processStereo(left, right, numSamples);
         }
 
-        // Apply limiter in feedback path when feedback > 100%
-        if (feedback_ > 1.0f) {
-            limiter_.process(left, numSamples);
-            limiter_.process(right, numSamples);
-        }
+        // Apply limiter to prevent clipping during feedback transitions
+        // Always apply: the limiter is transparent below threshold (-0.5dB) but
+        // prevents distortion when feedback drops from high values. Previously,
+        // this only ran when feedback_ > 1.0f, but the instant feedback_ drops,
+        // the limiter would stop while the delay line still contains high-amplitude
+        // self-oscillating signal, causing distorted noise during the transition.
+        limiter_.process(left, numSamples);
+        limiter_.process(right, numSamples);
 
         // Apply stereo width to wet signal (spec 036, FR-013, FR-016)
         // Width processing uses Mid/Side: mid = (L+R)/2, side = (L-R)/2 * widthFactor

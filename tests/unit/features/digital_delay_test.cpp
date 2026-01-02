@@ -1346,3 +1346,179 @@ TEST_CASE("REGRESSION: SC-009 zipper noise test must use matching block sizes",
         REQUIRE(maxDiscontinuity < 4.0f);
     }
 }
+
+// =============================================================================
+// Regression Tests
+// =============================================================================
+
+TEST_CASE("DigitalDelay feedback transition doesn't cause distortion",
+          "[features][digital-delay][regression][feedback-transition]") {
+    // REGRESSION TEST: When feedback drops from high values (100%+) to lower
+    // values (50-60%), the signal should decay smoothly without distortion.
+    //
+    // BUG: Previously, the limiter was only applied when feedback_ > 1.0f.
+    // When feedback dropped below 1.0, the limiter instantly stopped, but
+    // the delay line still contained high-amplitude self-oscillating signal.
+    // This caused distorted noise bursts during the transition.
+    //
+    // FIX: Always apply the limiter. It's transparent below threshold (-0.5dB)
+    // but prevents distortion during feedback transitions.
+
+    DigitalDelay delay;
+    delay.prepare(44100.0, 512, 10000.0f);
+    delay.setEra(DigitalEra::Pristine);
+    delay.setTime(50.0f);   // Short delay for faster buildup
+    delay.setMix(0.5f);     // 50% mix to allow input+delay
+    delay.snapParameters();
+
+    BlockContext ctx{
+        .sampleRate = 44100.0,
+        .blockSize = 512,
+        .tempoBPM = 120.0,
+        .isPlaying = true
+    };
+
+    SECTION("high feedback builds up and dropping feedback decays smoothly") {
+        // Phase 1: Feed continuous audio with 120% feedback to build up signal
+        delay.setFeedback(1.2f);  // 120% for self-oscillation
+        delay.snapParameters();
+
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+
+        // Feed continuous sine wave to simulate playing notes
+        // This is more realistic than a single impulse
+        float peakDuringInput = 0.0f;
+        for (int block = 0; block < 50; ++block) {
+            // Generate 440 Hz sine wave input
+            for (size_t i = 0; i < 512; ++i) {
+                float phase = static_cast<float>(block * 512 + i) / 44100.0f;
+                float sample = 0.5f * std::sin(2.0f * 3.14159f * 440.0f * phase);
+                left[i] = sample;
+                right[i] = sample;
+            }
+            delay.process(left.data(), right.data(), 512, ctx);
+            for (size_t i = 0; i < 512; ++i) {
+                peakDuringInput = std::max(peakDuringInput, std::abs(left[i]));
+                peakDuringInput = std::max(peakDuringInput, std::abs(right[i]));
+            }
+        }
+
+        INFO("Peak during input with 120% feedback: " << peakDuringInput);
+
+        // With 120% feedback and continuous input, signal should have grown
+        // The limiter should be active, keeping peaks around 0.944 (-0.5dB)
+        REQUIRE(peakDuringInput > 0.5f);  // Signal built up
+        REQUIRE(peakDuringInput < 2.0f);  // But limiter prevented explosion
+
+        // Phase 2: Stop input, let delay self-oscillate briefly
+        float peakBeforeDrop = 0.0f;
+        for (int block = 0; block < 10; ++block) {
+            std::fill(left.begin(), left.end(), 0.0f);
+            std::fill(right.begin(), right.end(), 0.0f);
+            delay.process(left.data(), right.data(), 512, ctx);
+            for (size_t i = 0; i < 512; ++i) {
+                peakBeforeDrop = std::max(peakBeforeDrop, std::abs(left[i]));
+                peakBeforeDrop = std::max(peakBeforeDrop, std::abs(right[i]));
+            }
+        }
+
+        INFO("Peak before feedback drop: " << peakBeforeDrop);
+        REQUIRE(peakBeforeDrop > 0.3f);  // Still self-oscillating
+
+        // Phase 3: Rapidly drop feedback to 50%
+        delay.setFeedback(0.5f);  // Drop to 50%
+        // DON'T snap - let smoother handle transition
+
+        // Monitor output after feedback drop
+        float maxPeakAfterDrop = 0.0f;
+        for (int block = 0; block < 20; ++block) {
+            std::fill(left.begin(), left.end(), 0.0f);
+            std::fill(right.begin(), right.end(), 0.0f);
+            delay.process(left.data(), right.data(), 512, ctx);
+            for (size_t i = 0; i < 512; ++i) {
+                maxPeakAfterDrop = std::max(maxPeakAfterDrop, std::abs(left[i]));
+                maxPeakAfterDrop = std::max(maxPeakAfterDrop, std::abs(right[i]));
+            }
+        }
+
+        INFO("Max peak after feedback drop: " << maxPeakAfterDrop);
+
+        // KEY ASSERTION: The signal should NOT spike when feedback drops.
+        // Without the fix, the limiter would stop and the accumulated
+        // self-oscillating signal would cause distortion.
+        // With the fix, the limiter continues running during the transition.
+        REQUIRE(maxPeakAfterDrop < peakBeforeDrop * 1.5f);  // No major spike
+
+        // Phase 4: Verify eventual decay
+        for (int block = 0; block < 50; ++block) {
+            std::fill(left.begin(), left.end(), 0.0f);
+            std::fill(right.begin(), right.end(), 0.0f);
+            delay.process(left.data(), right.data(), 512, ctx);
+        }
+
+        float finalPeak = 0.0f;
+        for (size_t i = 0; i < 512; ++i) {
+            finalPeak = std::max(finalPeak, std::abs(left[i]));
+            finalPeak = std::max(finalPeak, std::abs(right[i]));
+        }
+
+        INFO("Final peak after decay: " << finalPeak);
+        REQUIRE(finalPeak < peakBeforeDrop * 0.3f);  // Decayed significantly
+    }
+
+    SECTION("limiter continues through feedback parameter transition") {
+        // Specifically test that the limiter doesn't disengage abruptly
+        delay.setFeedback(1.15f);  // Just above limiter threshold
+        delay.snapParameters();
+
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+
+        // Build up with sine input
+        for (int block = 0; block < 40; ++block) {
+            for (size_t i = 0; i < 512; ++i) {
+                float phase = static_cast<float>(block * 512 + i) / 44100.0f;
+                float sample = 0.6f * std::sin(2.0f * 3.14159f * 220.0f * phase);
+                left[i] = sample;
+                right[i] = sample;
+            }
+            delay.process(left.data(), right.data(), 512, ctx);
+        }
+
+        // Record final output peak with high feedback
+        float peakHighFeedback = 0.0f;
+        for (size_t i = 0; i < 512; ++i) {
+            peakHighFeedback = std::max(peakHighFeedback, std::abs(left[i]));
+        }
+        INFO("Peak at 115% feedback: " << peakHighFeedback);
+
+        // Drop feedback just below 100%
+        delay.setFeedback(0.95f);
+
+        // Process a few blocks and check for no sudden jumps
+        float maxJump = 0.0f;
+        float prevSample = left[511];
+        for (int block = 0; block < 5; ++block) {
+            for (size_t i = 0; i < 512; ++i) {
+                float phase = static_cast<float>(40 * 512 + block * 512 + i) / 44100.0f;
+                float sample = 0.6f * std::sin(2.0f * 3.14159f * 220.0f * phase);
+                left[i] = sample;
+                right[i] = sample;
+            }
+            delay.process(left.data(), right.data(), 512, ctx);
+            for (size_t i = 0; i < 512; ++i) {
+                float jump = std::abs(left[i] - prevSample);
+                maxJump = std::max(maxJump, jump);
+                prevSample = left[i];
+            }
+        }
+
+        INFO("Max sample-to-sample jump during transition: " << maxJump);
+
+        // Jumps should be reasonable (no clicks or glitches)
+        // A 220 Hz sine at 44100 Hz has max slope of about 0.03 per sample
+        // With delay and mixing, we allow more, but should still be smooth
+        REQUIRE(maxJump < 0.5f);
+    }
+}
