@@ -1068,7 +1068,14 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // Called before editor closes
     (void)editor;
 
+    // CRITICAL: Clear activeEditor_ FIRST before destroying visibility controllers
+    // VisibilityController::update() checks *editorPtr_ and returns early if nullptr.
+    // If we destroy controllers first, any deferred update during destruction would
+    // try to access a partially destroyed editor, causing a crash.
+    activeEditor_ = nullptr;
+
     // Clean up visibility controllers (automatically removes dependents and releases refs)
+    // Now safe because any update() callback will see nullptr and return early
     digitalDelayTimeVisibilityController_ = nullptr;
     digitalAgeVisibilityController_ = nullptr;
     pingPongDelayTimeVisibilityController_ = nullptr;
@@ -1085,8 +1092,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
 
     // Preset browser view is owned by the frame and will be cleaned up automatically
     presetBrowserView_ = nullptr;
-
-    activeEditor_ = nullptr;
+    savePresetDialogView_ = nullptr;
 }
 
 // ==============================================================================

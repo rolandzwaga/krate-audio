@@ -153,6 +153,8 @@ add_executable(dsp_tests
     # UI Logic (pure functions, SDK-independent)
     unit/ui/preset_browser_logic_test.cpp
     unit/ui/search_debounce_test.cpp
+    # Controller regression tests (SDK-independent pattern verification)
+    unit/controller/visibility_controller_null_safety_test.cpp
     # Preset source files (SDK-independent, can compile without VST3)
     ${CMAKE_SOURCE_DIR}/src/platform/preset_paths.cpp
 )
