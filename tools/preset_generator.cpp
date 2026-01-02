@@ -575,7 +575,7 @@ std::vector<PresetDef> createAllPresets() {
     {
         PresetDef p; p.mode = DelayMode::Granular; p.category = "Experimental";
         p.name = "Frozen Moment";
-        p.granular = {200.0f, 15.0f, 500.0f, 0.0f, 0.0f, 0.5f, 0.3f, 0.0f, 1, 0.8f, 0.5f, 1, 1, 4, 0.1f, 0, 0.8f, 0.6f};
+        p.granular = {200.0f, 15.0f, 500.0f, 0.0f, 0.0f, 0.5f, 0.3f, 0.0f, 0, 0.8f, 0.5f, 1, 1, 4, 0.1f, 0, 0.8f, 0.6f};
         presets.push_back(p);
     }
     {
