@@ -936,6 +936,33 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, spectralTimeMode, {9912, kSpectralBaseDelayId}, 0.5f, true);
             }
 
+            // Create visibility controllers for 6 delay modes with tempo sync
+            // Hide delay time when time mode is "Synced" (>= 0.5)
+            if (auto* shimmerTimeMode = getParameterObject(kShimmerTimeModeId)) {
+                shimmerDelayTimeVisibilityController_ = new VisibilityController(
+                    &activeEditor_, shimmerTimeMode, {9905, kShimmerDelayTimeId}, 0.5f, true);
+            }
+            if (auto* bbdTimeMode = getParameterObject(kBBDTimeModeId)) {
+                bbdDelayTimeVisibilityController_ = new VisibilityController(
+                    &activeEditor_, bbdTimeMode, {9906, kBBDDelayTimeId}, 0.5f, true);
+            }
+            if (auto* reverseTimeMode = getParameterObject(kReverseTimeModeId)) {
+                reverseChunkSizeVisibilityController_ = new VisibilityController(
+                    &activeEditor_, reverseTimeMode, {9907, kReverseChunkSizeId}, 0.5f, true);
+            }
+            if (auto* multitapTimeMode = getParameterObject(kMultiTapTimeModeId)) {
+                multitapBaseTimeVisibilityController_ = new VisibilityController(
+                    &activeEditor_, multitapTimeMode, {9908, kMultiTapBaseTimeId}, 0.5f, true);
+            }
+            if (auto* freezeTimeMode = getParameterObject(kFreezeTimeModeId)) {
+                freezeDelayTimeVisibilityController_ = new VisibilityController(
+                    &activeEditor_, freezeTimeMode, {9909, kFreezeDelayTimeId}, 0.5f, true);
+            }
+            if (auto* duckingTimeMode = getParameterObject(kDuckingTimeModeId)) {
+                duckingDelayTimeVisibilityController_ = new VisibilityController(
+                    &activeEditor_, duckingTimeMode, {9910, kDuckingDelayTimeId}, 0.5f, true);
+            }
+
             // =====================================================================
             // Dynamic Version Label
             // =====================================================================
@@ -1048,6 +1075,14 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     pingPongDelayTimeVisibilityController_ = nullptr;
     granularDelayTimeVisibilityController_ = nullptr;
     spectralBaseDelayVisibilityController_ = nullptr;  // spec 041
+
+    // Tempo sync visibility controllers
+    shimmerDelayTimeVisibilityController_ = nullptr;
+    bbdDelayTimeVisibilityController_ = nullptr;
+    reverseChunkSizeVisibilityController_ = nullptr;
+    multitapBaseTimeVisibilityController_ = nullptr;
+    freezeDelayTimeVisibilityController_ = nullptr;
+    duckingDelayTimeVisibilityController_ = nullptr;
 
     // Preset browser view is owned by the frame and will be cleaned up automatically
     presetBrowserView_ = nullptr;
@@ -1459,6 +1494,12 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kDuckingDelayTimeId, (floatVal - 10.0f) / 4990.0f);
     }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kDuckingTimeModeId, static_cast<double>(intVal));
+    }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kDuckingNoteValueId, static_cast<double>(intVal) / 9.0);
+    }
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kDuckingFeedbackId, static_cast<double>(floatVal / 1.2f));
     }
@@ -1474,6 +1515,12 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     }
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kFreezeDelayTimeId, (floatVal - 10.0f) / 4990.0f);
+    }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kFreezeTimeModeId, static_cast<double>(intVal));
+    }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kFreezeNoteValueId, static_cast<double>(intVal) / 9.0);
     }
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kFreezeFeedbackId, static_cast<double>(floatVal / 1.2f));
@@ -1515,6 +1562,12 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kReverseChunkSizeId, (floatVal - 10.0f) / 1990.0f);
     }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kReverseTimeModeId, static_cast<double>(intVal));
+    }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kReverseNoteValueId, static_cast<double>(intVal) / 9.0);
+    }
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kReverseCrossfadeId, floatVal / 100.0f);
     }
@@ -1542,6 +1595,12 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     // ==========================================================================
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kShimmerDelayTimeId, (floatVal - 10.0f) / 4990.0f);
+    }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kShimmerTimeModeId, static_cast<double>(intVal));
+    }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kShimmerNoteValueId, static_cast<double>(intVal) / 9.0);
     }
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kShimmerPitchSemitonesId, (floatVal + 24.0f) / 48.0f);
@@ -1634,6 +1693,12 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     // ==========================================================================
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kBBDDelayTimeId, (floatVal - 20.0f) / 980.0f);
+    }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kBBDTimeModeId, static_cast<double>(intVal));
+    }
+    if (streamer.readInt32(intVal)) {
+        editParamWithNotify(kBBDNoteValueId, static_cast<double>(intVal) / 9.0);
     }
     if (streamer.readFloat(floatVal)) {
         editParamWithNotify(kBBDFeedbackId, static_cast<double>(floatVal / 1.2f));
