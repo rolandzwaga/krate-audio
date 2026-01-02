@@ -21,6 +21,9 @@
 #include "vstgui/lib/controls/ctextlabel.h"
 #include "vstgui/lib/controls/cbuttons.h"
 #include "vstgui/lib/controls/icontrollistener.h"
+#include "vstgui/lib/controls/itexteditlistener.h"
+#include "vstgui/lib/cvstguitimer.h"
+#include "search_debouncer.h"
 
 namespace Iterum {
 
@@ -31,6 +34,7 @@ class ModeTabBar;
 // Button tag constants for IControlListener
 enum PresetBrowserButtonTags {
     kSaveButtonTag = 1,
+    kSearchFieldTag = 2,  // Search field (immediate text change)
     kImportButtonTag = 3,
     kDeleteButtonTag = 4,
     kCloseButtonTag = 5,
@@ -49,7 +53,8 @@ enum PresetBrowserButtonTags {
 
 class PresetBrowserView : public VSTGUI::CViewContainer,
                           public VSTGUI::IControlListener,
-                          public VSTGUI::IKeyboardHook {
+                          public VSTGUI::IKeyboardHook,
+                          public VSTGUI::ITextEditListener {
 public:
     PresetBrowserView(const VSTGUI::CRect& size, PresetManager* presetManager);
     ~PresetBrowserView() override;
@@ -62,6 +67,7 @@ public:
 
     // CView overrides
     void draw(VSTGUI::CDrawContext* context) override;
+    void drawBackgroundRect(VSTGUI::CDrawContext* context, const VSTGUI::CRect& rect) override;
     VSTGUI::CMouseEventResult onMouseDown(
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons
@@ -72,6 +78,10 @@ public:
 
     // IKeyboardHook - intercepts keyboard events at frame level BEFORE focus view
     void onKeyboardEvent(VSTGUI::KeyboardEvent& event, VSTGUI::CFrame* frame) override;
+
+    // ITextEditListener - for search field focus events
+    void onTextEditPlatformControlTookFocus(VSTGUI::CTextEdit* textEdit) override;
+    void onTextEditPlatformControlLostFocus(VSTGUI::CTextEdit* textEdit) override;
 
     // Callbacks
     void onModeTabChanged(int newMode);
@@ -141,6 +151,16 @@ private:
     void registerKeyboardHook();
     void unregisterKeyboardHook();
     bool keyboardHookRegistered_ = false;
+
+    // Search debounce
+    SearchDebouncer searchDebouncer_;
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> searchPollTimer_;
+    bool isSearchFieldFocused_ = false;
+
+    void startSearchPolling();
+    void stopSearchPolling();
+    void onSearchPollTimer();
+    uint64_t getSystemTimeMs() const;
 };
 
 } // namespace Iterum

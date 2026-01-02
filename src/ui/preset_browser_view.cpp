@@ -62,11 +62,17 @@ PresetBrowserView::PresetBrowserView(const VSTGUI::CRect& size, PresetManager* p
     : CViewContainer(size)
     , presetManager_(presetManager)
 {
-    setBackgroundColor(VSTGUI::CColor(0, 0, 0, 180)); // Semi-transparent overlay
+    // Background drawing is handled in drawBackgroundRect() for proper layering
     createChildViews();
 }
 
 PresetBrowserView::~PresetBrowserView() {
+    // Stop search polling timer
+    stopSearchPolling();
+    // Unregister text edit listener
+    if (searchField_) {
+        searchField_->unregisterTextEditListener(this);
+    }
     // Ensure keyboard hook is unregistered
     unregisterKeyboardHook();
     // DataSource is owned by us, not by CDataBrowser
@@ -103,6 +109,15 @@ void PresetBrowserView::openWithSaveDialog(int currentMode) {
 }
 
 void PresetBrowserView::close() {
+    // Stop search polling
+    stopSearchPolling();
+
+    // Apply any pending search filter before closing
+    if (searchDebouncer_.hasPendingFilter()) {
+        auto query = searchDebouncer_.consumePendingFilter();
+        onSearchTextChanged(query);
+    }
+
     // Unregister keyboard hook
     unregisterKeyboardHook();
 
@@ -114,12 +129,13 @@ void PresetBrowserView::close() {
 // Drawing
 // =============================================================================
 
-void PresetBrowserView::draw(VSTGUI::CDrawContext* context) {
-    // Draw semi-transparent background overlay
-    CViewContainer::draw(context);
+void PresetBrowserView::drawBackgroundRect(VSTGUI::CDrawContext* context, const VSTGUI::CRect& /*rect*/) {
+    // Draw semi-transparent overlay for the entire view
+    auto viewSize = getViewSize();
+    context->setFillColor(VSTGUI::CColor(0, 0, 0, 180));
+    context->drawRect(viewSize, VSTGUI::kDrawFilled);
 
     // Calculate content rect (centered popup area)
-    auto viewSize = getViewSize();
     auto contentRect = VSTGUI::CRect(
         viewSize.left + Layout::kContentMargin,
         viewSize.top + Layout::kContentMargin,
@@ -127,8 +143,8 @@ void PresetBrowserView::draw(VSTGUI::CDrawContext* context) {
         viewSize.bottom - Layout::kContentMargin
     );
 
-    // Draw content background
-    context->setFillColor(VSTGUI::CColor(50, 50, 55));
+    // Draw OPAQUE content background (no transparency - this is the fix)
+    context->setFillColor(VSTGUI::CColor(50, 50, 55, 255));
     context->drawRect(contentRect, VSTGUI::kDrawFilled);
 
     // Draw border
@@ -136,10 +152,10 @@ void PresetBrowserView::draw(VSTGUI::CDrawContext* context) {
     context->setLineWidth(1.0);
     context->drawRect(contentRect, VSTGUI::kDrawStroked);
 
-    // Draw title bar
+    // Draw title bar background
     auto titleRect = contentRect;
     titleRect.bottom = titleRect.top + Layout::kTitleBarHeight;
-    context->setFillColor(VSTGUI::CColor(35, 35, 40));
+    context->setFillColor(VSTGUI::CColor(35, 35, 40, 255));
     context->drawRect(titleRect, VSTGUI::kDrawFilled);
 
     // Draw title text
@@ -147,6 +163,11 @@ void PresetBrowserView::draw(VSTGUI::CDrawContext* context) {
     auto titleTextRect = titleRect;
     titleTextRect.inset(12, 0);
     context->drawString("Preset Browser", titleTextRect, VSTGUI::kLeftText);
+}
+
+void PresetBrowserView::draw(VSTGUI::CDrawContext* context) {
+    // Draw background (via drawBackgroundRect) then children
+    CViewContainer::draw(context);
 }
 
 // =============================================================================
@@ -175,6 +196,13 @@ VSTGUI::CMouseEventResult PresetBrowserView::onMouseDown(
     if (!anyDialogVisible && !contentRect.pointInside(where)) {
         close();
         return VSTGUI::kMouseEventHandled;
+    }
+
+    // CRITICAL: Capture selection state BEFORE CDataBrowser processes the click!
+    // CDataBrowser calls setSelectedRow() BEFORE dbOnMouseDown(), so we must
+    // capture the current selection here while it's still valid.
+    if (presetList_ && dataSource_) {
+        dataSource_->capturePreClickSelection(presetList_);
     }
 
     // Check if click is in empty space of the preset list (below all rows)
@@ -292,6 +320,21 @@ void PresetBrowserView::valueChanged(VSTGUI::CControl* control) {
         case kSaveButtonTag:
             onSaveClicked();
             break;
+        case kSearchFieldTag:
+            // Search field with immediateTextChange=true fires on every keystroke
+            if (searchField_) {
+                std::string currentText = searchField_->getText().getString();
+#ifdef _WIN32
+                OutputDebugStringA(("[ITERUM] Search text changed: \"" + currentText + "\"\n").c_str());
+#endif
+                bool applyNow = searchDebouncer_.onTextChanged(currentText, getSystemTimeMs());
+                if (applyNow) {
+                    // Empty/whitespace - apply filter immediately
+                    onSearchTextChanged("");
+                }
+                // Otherwise debounce timer will trigger via polling
+            }
+            break;
         case kImportButtonTag:
             onImportClicked();
             break;
@@ -335,8 +378,10 @@ void PresetBrowserView::onModeTabChanged(int newMode) {
     currentModeFilter_ = newMode;
     if (dataSource_) {
         dataSource_->setModeFilter(newMode);
+        dataSource_->clearSelectionState();  // Clear ALL selection tracking state
     }
     if (presetList_) {
+        presetList_->unselectAll();  // Clear visual selection when switching modes
         presetList_->recalculateLayout(true);
         presetList_->invalid();
     }
@@ -476,12 +521,16 @@ void PresetBrowserView::createChildViews() {
         browserRight,
         innerTop + Layout::kSearchHeight
     );
-    searchField_ = new VSTGUI::CTextEdit(searchRect, nullptr, -1, "Search presets...");
+    searchField_ = new VSTGUI::CTextEdit(searchRect, this, kSearchFieldTag, "");
     searchField_->setBackColor(VSTGUI::CColor(35, 35, 40));
     searchField_->setFontColor(VSTGUI::CColor(200, 200, 200));
     searchField_->setFrameColor(VSTGUI::CColor(70, 70, 75));
     searchField_->setStyle(VSTGUI::CTextEdit::kRoundRectStyle);
-    // Note: Text change callback would be set via ITextEditListener in a full implementation
+    searchField_->setPlaceholderString("Search presets...");
+    // Enable immediate text change - valueChanged() called on every keystroke
+    searchField_->setImmediateTextChange(true);
+    // Register for focus events to start/stop debounce timer
+    searchField_->registerTextEditListener(this);
     addView(searchField_);
 
     // ==========================================================================
@@ -1004,6 +1053,92 @@ void PresetBrowserView::unregisterKeyboardHook() {
         frame->unregisterKeyboardHook(this);
     }
     keyboardHookRegistered_ = false;
+}
+
+// =============================================================================
+// ITextEditListener - Search Field Focus Events
+// =============================================================================
+
+void PresetBrowserView::onTextEditPlatformControlTookFocus(VSTGUI::CTextEdit* textEdit) {
+    // Only care about our search field
+    if (textEdit != searchField_) {
+        return;
+    }
+
+#ifdef _WIN32
+    OutputDebugStringA("[ITERUM] Search field took focus\n");
+#endif
+
+    isSearchFieldFocused_ = true;
+    startSearchPolling();
+}
+
+void PresetBrowserView::onTextEditPlatformControlLostFocus(VSTGUI::CTextEdit* textEdit) {
+    // Only care about our search field
+    if (textEdit != searchField_) {
+        return;
+    }
+
+    isSearchFieldFocused_ = false;
+    stopSearchPolling();
+
+    // Apply any pending filter immediately on blur
+    if (searchDebouncer_.hasPendingFilter()) {
+        auto query = searchDebouncer_.consumePendingFilter();
+        onSearchTextChanged(query);
+    }
+}
+
+// =============================================================================
+// Search Polling Timer
+// =============================================================================
+
+void PresetBrowserView::startSearchPolling() {
+    if (searchPollTimer_) {
+        return;  // Already polling
+    }
+
+    // Poll every 50ms to detect text changes
+    constexpr uint32_t kPollIntervalMs = 50;
+
+    searchPollTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+        [this](VSTGUI::CVSTGUITimer* /*timer*/) {
+            onSearchPollTimer();
+        },
+        kPollIntervalMs,
+        true  // Start immediately
+    );
+}
+
+void PresetBrowserView::stopSearchPolling() {
+    if (searchPollTimer_) {
+        searchPollTimer_->stop();
+        searchPollTimer_ = nullptr;
+    }
+    isSearchFieldFocused_ = false;
+}
+
+void PresetBrowserView::onSearchPollTimer() {
+    // Timer only checks if debounce timeout has elapsed
+    // Text changes are detected via valueChanged() with immediateTextChange=true
+    if (searchDebouncer_.shouldApplyFilter(getSystemTimeMs())) {
+        auto query = searchDebouncer_.consumePendingFilter();
+#ifdef _WIN32
+        OutputDebugStringA(("[ITERUM] Debounce fired, applying filter: \"" + query + "\"\n").c_str());
+#endif
+        onSearchTextChanged(query);
+    }
+}
+
+uint64_t PresetBrowserView::getSystemTimeMs() const {
+#ifdef _WIN32
+    return static_cast<uint64_t>(GetTickCount64());
+#else
+    // POSIX fallback using clock_gettime
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return static_cast<uint64_t>(ts.tv_sec) * 1000 + static_cast<uint64_t>(ts.tv_nsec) / 1000000;
+#endif
 }
 
 } // namespace Iterum

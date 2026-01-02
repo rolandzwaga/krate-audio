@@ -1,11 +1,13 @@
 #pragma once
 
 // =============================================================================
-// PresetBrowserLogic - Pure Functions for Keyboard Handling
+// PresetBrowserLogic - Pure Functions for Preset Browser Behavior
 // =============================================================================
-// Extracted from PresetBrowserView for testability (humble object pattern).
+// Extracted from PresetBrowserView/PresetDataSource for testability (humble object pattern).
 // These functions have no VSTGUI dependencies and can be unit tested.
 // =============================================================================
+
+#include <cstdint>
 
 namespace Iterum {
 
@@ -74,5 +76,80 @@ inline KeyAction determineKeyAction(
             return KeyAction::None;
     }
 }
+
+// =============================================================================
+// Selection Actions
+// =============================================================================
+
+/// @brief Result of determining what selection action to take
+enum class SelectionAction {
+    AllowDefault,  ///< Let CDataBrowser handle selection normally
+    Deselect       ///< Deselect the currently selected row (toggle off)
+};
+
+/// @brief Determine what selection action to take based on clicked row and previous selection
+/// @param clickedRow The row that was clicked
+/// @param previousSelectedRow The row that was selected BEFORE this click (-1 if none)
+/// @return SelectionAction indicating what to do
+///
+/// This is a pure function extracted for testability (humble object pattern).
+/// The key insight: CDataBrowser may update selection BEFORE calling the delegate,
+/// so we must track the PREVIOUS selection state ourselves.
+inline SelectionAction determineSelectionAction(int32_t clickedRow, int32_t previousSelectedRow) {
+    // If clicking the same row that was already selected, toggle it off
+    if (previousSelectedRow >= 0 && previousSelectedRow == clickedRow) {
+        return SelectionAction::Deselect;
+    }
+    // Otherwise, let the browser handle selection normally
+    return SelectionAction::AllowDefault;
+}
+
+// =============================================================================
+// Testable Selection Behavior
+// =============================================================================
+
+/// @brief Result of mouse down handling
+struct MouseDownResult {
+    bool shouldDeselect;  ///< True if we should call unselectAll()
+    bool handled;         ///< True if event was handled (don't pass to browser)
+};
+
+/// @brief Testable selection behavior without VSTGUI dependencies
+///
+/// This class encapsulates the selection toggle logic in a way that can be
+/// unit tested without pulling in VSTGUI. PresetDataSource uses this internally.
+class SelectionBehavior {
+public:
+    /// @brief Get the previously selected row
+    int32_t getPreviousSelectedRow() const { return previousSelectedRow_; }
+
+    /// @brief Set the previously selected row (called when selection changes)
+    void setSelectedRow(int32_t row) { previousSelectedRow_ = row; }
+
+    /// @brief Clear selection tracking
+    void clearSelection() { previousSelectedRow_ = -1; }
+
+    /// @brief Handle mouse down and determine what action to take
+    /// @param clickedRow The row that was clicked
+    /// @param isDoubleClick True if this is a double-click
+    /// @param hasDoubleClickCallback True if a double-click callback is registered
+    /// @return MouseDownResult indicating what action to take
+    MouseDownResult handleMouseDown(int32_t clickedRow, bool isDoubleClick, bool hasDoubleClickCallback) {
+        // Double-click with callback is handled separately
+        if (isDoubleClick && hasDoubleClickCallback) {
+            return {false, true};  // Handled, but not deselect
+        }
+
+        auto action = determineSelectionAction(clickedRow, previousSelectedRow_);
+        if (action == SelectionAction::Deselect) {
+            return {true, true};  // Should deselect, handled
+        }
+
+        return {false, false};  // Not handled, let browser do default
+    }
+
+private:
+    int32_t previousSelectedRow_ = -1;
+};
 
 } // namespace Iterum

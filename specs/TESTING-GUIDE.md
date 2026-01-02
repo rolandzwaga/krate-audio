@@ -323,6 +323,8 @@ build\bin\Debug\vst_tests.exe "[parameter]"
 8. [Catch2 Patterns](#catch2-patterns)
 9. [Floating-Point Testing](#floating-point-testing)
 10. [Test Doubles](#test-doubles)
+    - [Mocking Complexity Is NEVER an Excuse](#critical-mocking-complexity-is-never-an-excuse-to-skip-tests)
+    - [UI Testing with VSTGUI Mocks](#ui-testing-with-vstgui-mocks)
 11. [Approval Testing](#approval-testing)
 12. [Continuous Integration](#continuous-integration)
 
@@ -1785,6 +1787,269 @@ TEST_CASE("Controller notifies host of edits", "[controller]") {
     REQUIRE(host.editedParams_.size() == 1);
     REQUIRE(host.editedParams_[0] == kGainId);
 }
+```
+
+### CRITICAL: Mocking Complexity Is NEVER an Excuse to Skip Tests
+
+> **🚨 THIS IS NON-NEGOTIABLE 🚨**
+>
+> "Mocking is complex" or "would require mocking VSTGUI" is **NEVER** a valid reason to skip writing tests.
+>
+> If you find yourself thinking:
+> - "This is just UI code, it doesn't need tests"
+> - "Testing this would require too much mocking"
+> - "The logic is simple enough to verify manually"
+>
+> **STOP. You are about to ship a bug.**
+
+The consequences of skipping tests due to mocking complexity:
+1. **Bugs ship to users** - Manual testing misses edge cases
+2. **Regressions appear** - Future changes break untested code silently
+3. **Debugging time explodes** - Finding bugs in untested code takes 10x longer
+4. **Confidence erodes** - You can never refactor safely
+
+**The solution is always one of:**
+1. Extract pure logic into testable functions (humble object pattern)
+2. Create minimal mocks/fakes for the framework dependencies
+3. Write integration tests that exercise the real components
+4. All of the above
+
+### UI Testing with VSTGUI Mocks
+
+Unlike DSP code where we prefer fakes, **UI testing often requires mocking VSTGUI components**. This is acceptable and necessary.
+
+#### Mock CDataBrowser Example
+
+```cpp
+// tests/test_helpers/mock_data_browser.h
+class MockDataBrowser {
+public:
+    int32_t selectedRow_ = -1;
+    bool unselectAllCalled_ = false;
+
+    int32_t getSelectedRow() const { return selectedRow_; }
+    void setSelectedRow(int32_t row) { selectedRow_ = row; }
+    void unselectAll() {
+        unselectAllCalled_ = true;
+        selectedRow_ = -1;
+    }
+    void resetMockState() {
+        unselectAllCalled_ = false;
+    }
+};
+```
+
+#### Testing Selection Toggle Logic
+
+```cpp
+TEST_CASE("PresetDataSource toggle selection behavior", "[ui][preset-browser]") {
+    MockDataBrowser mockBrowser;
+    PresetDataSource dataSource;
+
+    SECTION("clicking unselected row allows default selection") {
+        mockBrowser.setSelectedRow(-1);  // Nothing selected
+
+        auto result = dataSource.handleMouseDown(0, &mockBrowser);
+
+        REQUIRE(result == kMouseEventNotHandled);  // Let browser handle selection
+        REQUIRE_FALSE(mockBrowser.unselectAllCalled_);
+    }
+
+    SECTION("clicking already-selected row deselects it") {
+        mockBrowser.setSelectedRow(2);  // Row 2 is selected
+
+        auto result = dataSource.handleMouseDown(2, &mockBrowser);  // Click row 2
+
+        REQUIRE(result == kMouseEventHandled);
+        REQUIRE(mockBrowser.unselectAllCalled_);
+    }
+
+    SECTION("clicking different row allows default selection") {
+        mockBrowser.setSelectedRow(2);  // Row 2 is selected
+
+        auto result = dataSource.handleMouseDown(5, &mockBrowser);  // Click row 5
+
+        REQUIRE(result == kMouseEventNotHandled);  // Let browser select row 5
+        REQUIRE_FALSE(mockBrowser.unselectAllCalled_);
+    }
+}
+```
+
+#### The Humble Object Pattern for UI
+
+Extract testable logic from UI components:
+
+```cpp
+// In preset_data_source.h - Add testable pure function
+enum class SelectionAction { AllowDefault, Deselect };
+
+// Pure function - easily testable without mocks
+inline SelectionAction determineSelectionAction(int32_t clickedRow, int32_t currentSelectedRow) {
+    if (currentSelectedRow >= 0 && currentSelectedRow == clickedRow) {
+        return SelectionAction::Deselect;
+    }
+    return SelectionAction::AllowDefault;
+}
+
+// In preset_data_source.cpp - Use the pure function
+VSTGUI::CMouseEventResult PresetDataSource::dbOnMouseDown(...) {
+    // Get selection BEFORE browser updates it (store in member variable)
+    auto action = determineSelectionAction(row, previousSelectedRow_);
+
+    if (action == SelectionAction::Deselect) {
+        browser->unselectAll();
+        return VSTGUI::kMouseEventHandled;
+    }
+    return VSTGUI::kMouseEventNotHandled;
+}
+```
+
+Now the logic is trivially testable:
+
+```cpp
+TEST_CASE("determineSelectionAction", "[ui][preset-browser]") {
+    SECTION("no selection - allow default") {
+        REQUIRE(determineSelectionAction(0, -1) == SelectionAction::AllowDefault);
+    }
+
+    SECTION("clicking selected row - deselect") {
+        REQUIRE(determineSelectionAction(2, 2) == SelectionAction::Deselect);
+    }
+
+    SECTION("clicking different row - allow default") {
+        REQUIRE(determineSelectionAction(5, 2) == SelectionAction::AllowDefault);
+    }
+}
+```
+
+#### Key Insight: Track State BEFORE Framework Updates It
+
+A common UI testing pitfall: framework updates state before calling your delegate. You must track the **previous** state:
+
+```cpp
+class PresetDataSource {
+private:
+    int32_t previousSelectedRow_ = -1;  // Track what WAS selected
+
+public:
+    void dbSelectionChanged(CDataBrowser* browser) override {
+        // Update our tracking AFTER selection changes
+        previousSelectedRow_ = browser->getSelectedRow();
+        // ... rest of callback
+    }
+
+    CMouseEventResult dbOnMouseDown(..., int32_t row, ...) override {
+        // Use previousSelectedRow_, not browser->getSelectedRow()
+        // because browser may have already updated selection
+        auto action = determineSelectionAction(row, previousSelectedRow_);
+        // ...
+    }
+};
+```
+
+### 🚨 ANTI-PATTERN: Tests That Manually Set State Instead of Simulating Real Call Order
+
+**This anti-pattern caused a shipped bug that passed all tests but failed in the real plugin.**
+
+#### The Problem
+
+When testing UI code that interacts with frameworks like VSTGUI, it's tempting to write tests that manually set internal state and then call the method under test. This is **WRONG** because it doesn't simulate the real framework behavior.
+
+#### Example of the BROKEN Test (DO NOT DO THIS)
+
+```cpp
+// ❌ WRONG: This test passes but the implementation is broken!
+TEST_CASE("selection toggle", "[ui]") {
+    PresetDataSource dataSource;
+
+    SECTION("clicking already-selected row triggers deselect") {
+        // Manually set internal state - BYPASSES REAL FRAMEWORK BEHAVIOR
+        dataSource.setPreviousSelectedRowForTesting(2);
+
+        auto result = dataSource.handleMouseDownForTesting(2, false);
+
+        REQUIRE(result.shouldDeselect);  // Test passes!
+    }
+}
+```
+
+**Why this is broken:** The test manually sets `previousSelectedRow_ = 2` and then calls the handler. But in the REAL framework:
+
+1. CDataBrowser calls `setSelectedRow(2)` FIRST
+2. This triggers `dbSelectionChanged()` which updates `previousSelectedRow_ = 2`
+3. THEN CDataBrowser calls `dbOnMouseDown(row=2)`
+4. By step 3, `previousSelectedRow_` is ALREADY 2, so `determineSelectionAction(2, 2)` returns Deselect
+5. **Every first click immediately deselects!**
+
+The test passed because it set `previousSelectedRow_` to represent "row 2 was selected before", but the real framework updates `previousSelectedRow_` during the CURRENT click, not after the previous one.
+
+#### The CORRECT Approach: Simulate Real Framework Call Order
+
+```cpp
+// ✅ CORRECT: Simulate the ACTUAL framework behavior
+TEST_CASE("selection toggle with REAL call order", "[ui]") {
+    PresetDataSource dataSource;
+
+    SECTION("first click should select, not deselect") {
+        // Capture selection BEFORE the click (like PresetBrowserView::onMouseDown does)
+        dataSource.capturePreClickSelection(-1);  // Nothing selected yet
+
+        // Now simulate what happens after CDataBrowser updates selection
+        auto result = dataSource.handleMouseDownForTesting(0, false);
+
+        // First click should allow selection, NOT deselect!
+        REQUIRE_FALSE(result.shouldDeselect);
+        REQUIRE_FALSE(result.handled);
+    }
+
+    SECTION("second click on same row should deselect") {
+        // Row 0 is already selected from previous interaction
+        dataSource.capturePreClickSelection(0);
+
+        auto result = dataSource.handleMouseDownForTesting(0, false);
+
+        REQUIRE(result.shouldDeselect);
+        REQUIRE(result.handled);
+    }
+}
+```
+
+#### How to Avoid This Anti-Pattern
+
+1. **READ THE FRAMEWORK SOURCE CODE** - Understand the actual call order
+   - For CDataBrowser: see `vstgui4/vstgui/lib/cdatabrowser.cpp` lines 930-932
+   - `browser->setSelectedRow(cell.row);` is called BEFORE `db->dbOnMouseDown(...)`
+
+2. **Document the real call order in your test file**
+   ```cpp
+   // CRITICAL: CDataBrowser calls setSelectedRow() BEFORE dbOnMouseDown()!
+   // This means dbSelectionChanged fires BEFORE our mouse handler runs.
+   // Tests MUST simulate this real call order to catch bugs.
+   ```
+
+3. **Add integration points that match the real flow**
+   - Instead of exposing internal state setters, expose methods like `capturePreClickSelection()`
+   - The implementation should call these at the right points in the real flow
+
+4. **When tests pass but manual testing fails, THE TESTS ARE WRONG**
+   - Don't assume the implementation is wrong if tests pass
+   - Investigate whether the tests are simulating the correct behavior
+
+#### The Fix Pattern
+
+The implementation needed to:
+1. Capture selection state in `PresetBrowserView::onMouseDown()` BEFORE forwarding to children
+2. Use this captured state in `dbOnMouseDown()` instead of `previousSelectedRow_`
+
+```cpp
+// In PresetBrowserView::onMouseDown() - BEFORE forwarding to children
+if (presetList_ && dataSource_) {
+    dataSource_->capturePreClickSelection(presetList_);  // Capture NOW
+}
+return CViewContainer::onMouseDown(where, buttons);  // Then forward
+
+// In PresetDataSource::dbOnMouseDown()
+auto action = determineSelectionAction(row, preClickSelectedRow_);  // Use captured state
 ```
 
 ---

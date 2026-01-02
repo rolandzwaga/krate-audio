@@ -152,6 +152,7 @@ add_executable(dsp_tests
     unit/preset/preset_info_test.cpp
     # UI Logic (pure functions, SDK-independent)
     unit/ui/preset_browser_logic_test.cpp
+    unit/ui/search_debounce_test.cpp
     # Preset source files (SDK-independent, can compile without VST3)
     ${CMAKE_SOURCE_DIR}/src/platform/preset_paths.cpp
 )
@@ -485,6 +486,11 @@ add_executable(vst_tests
     # Preset Browser (spec 042) - requires VST3 SDK
     unit/preset/preset_manager_test.cpp
     unit/preset/preset_data_source_test.cpp
+    # UI selection tests - require VSTGUI for PresetDataSource
+    unit/ui/preset_selection_test.cpp
+    unit/ui/preset_search_test.cpp
+    unit/ui/search_integration_test.cpp
+    unit/ui/preset_search_e2e_test.cpp
     # Mix scale consistency test - verifies all modes use 0-1 internally
     unit/parameters/mix_scale_consistency_test.cpp
     # Preset loading consistency tests - verifies save/load roundtrip

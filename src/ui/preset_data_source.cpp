@@ -3,6 +3,12 @@
 #include "vstgui/lib/cfont.h"
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 namespace Iterum {
 
@@ -158,8 +164,18 @@ void PresetDataSource::dbDrawCell(
 }
 
 void PresetDataSource::dbSelectionChanged(VSTGUI::CDataBrowser* browser) {
+    auto newSelection = browser->getSelectedRow();
+#ifdef _WIN32
+    char buf[256];
+    snprintf(buf, sizeof(buf), "[ITERUM] dbSelectionChanged: prev=%d, new=%d\n",
+             previousSelectedRow_, newSelection);
+    OutputDebugStringA(buf);
+#endif
+    // Update our tracking of what's selected AFTER the change completes
+    previousSelectedRow_ = newSelection;
+
     if (selectionCallback_) {
-        selectionCallback_(browser->getSelectedRow());
+        selectionCallback_(newSelection);
     }
 }
 
@@ -168,15 +184,36 @@ VSTGUI::CMouseEventResult PresetDataSource::dbOnMouseDown(
     const VSTGUI::CButtonState& buttons,
     int32_t row,
     int32_t /*column*/,
-    VSTGUI::CDataBrowser* /*browser*/
+    VSTGUI::CDataBrowser* browser
 ) {
     // Note: CDataBrowser only calls this delegate for valid row clicks.
     // Empty space clicks are consumed by CDataBrowser without calling delegate.
     // Empty space deselection is handled in PresetBrowserView::onMouseDown instead.
 
+#ifdef _WIN32
+    char buf[256];
+    snprintf(buf, sizeof(buf), "[ITERUM] dbOnMouseDown: row=%d, preClick=%d, browserSelected=%d\n",
+             row, preClickSelectedRow_, browser->getSelectedRow());
+    OutputDebugStringA(buf);
+#endif
+
     // Handle double-click on valid rows
     if (buttons.isDoubleClick() && doubleClickCallback_) {
         doubleClickCallback_(row);
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    // Toggle selection: use preClickSelectedRow_ which was captured BEFORE
+    // CDataBrowser updated selection. DO NOT use browser->getSelectedRow()
+    // or previousSelectedRow_ - both are already updated by now!
+    auto action = determineSelectionAction(row, preClickSelectedRow_);
+#ifdef _WIN32
+    snprintf(buf, sizeof(buf), "[ITERUM] dbOnMouseDown: action=%s\n",
+             action == SelectionAction::Deselect ? "Deselect" : "AllowDefault");
+    OutputDebugStringA(buf);
+#endif
+    if (action == SelectionAction::Deselect) {
+        browser->unselectAll();
         return VSTGUI::kMouseEventHandled;
     }
 
