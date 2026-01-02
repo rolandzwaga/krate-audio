@@ -442,11 +442,11 @@ public:
             float feedbackL = delayedL * currentFeedback;
             float feedbackR = delayedR * currentFeedback;
 
-            // Apply limiting if feedback > 100%
-            if (currentFeedback > 1.0f) {
-                feedbackL = softLimit(feedbackL);
-                feedbackR = softLimit(feedbackR);
-            }
+            // Always apply soft limiting to prevent distortion during feedback transitions
+            // Previously only ran when feedback > 100%, but when feedback drops, the limiter
+            // stopped instantly while delay line still contained high-amplitude signal
+            feedbackL = softLimit(feedbackL);
+            feedbackR = softLimit(feedbackR);
 
             // Cross inputs for ping-pong routing (stereoCrossBlend from Layer 0)
             // At crossAmount=1.0: left input → right delay, right input → left delay

@@ -766,13 +766,12 @@ private:
             const float delayedPhaseL = std::atan2(delayedImagL, delayedRealL);
             const float delayedPhaseR = std::atan2(delayedImagR, delayedRealR);
 
-            // Apply feedback: calculate feedback magnitude (for soft limiting)
-            float feedbackMagL = delayedMagL * binFeedback;
-            float feedbackMagR = delayedMagR * binFeedback;
-            if (binFeedback > 1.0f) {
-                feedbackMagL = std::tanh(feedbackMagL);
-                feedbackMagR = std::tanh(feedbackMagR);
-            }
+            // Apply feedback: calculate feedback magnitude with soft limiting
+            // Always apply tanh() to prevent distortion during feedback transitions
+            // Previously only ran when feedback > 100%, but when feedback drops, limiting
+            // stopped instantly while delay line still contained high-amplitude signal
+            float feedbackMagL = std::tanh(delayedMagL * binFeedback);
+            float feedbackMagR = std::tanh(delayedMagR * binFeedback);
 
             // Convert feedback to complex using delayed phase
             const float feedbackRealL = feedbackMagL * std::cos(delayedPhaseL);
