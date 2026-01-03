@@ -1,10 +1,32 @@
-# Iterum Architecture
+# Krate Audio Architecture
 
-This document is the **living inventory** of all functional domains, components, and APIs in the Iterum project. It serves as the canonical reference when writing new specs to avoid duplication and ensure proper reuse.
+This document is the **living inventory** of all functional domains, components, and APIs in the Krate Audio monorepo. It serves as the canonical reference when writing new specs to avoid duplication and ensure proper reuse.
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document as a final task.
 
-**Last Updated**: 2026-01-01 (Tempo sync for all 11 delay modes: Shimmer, BBD, Reverse, MultiTap, Freeze, Ducking now join Digital, PingPong, Granular, Spectral, Tape)
+**Last Updated**: 2026-01-03 (Monorepo refactor: namespace `Krate::DSP`, paths `dsp/include/krate/dsp/`)
+
+## Monorepo Structure
+
+```
+dsp/                          # Shared KrateDSP library (Krate::DSP namespace)
+├── include/krate/dsp/        # Public headers (use <krate/dsp/...>)
+│   ├── core/                 # Layer 0: Core utilities
+│   ├── primitives/           # Layer 1: DSP primitives
+│   ├── processors/           # Layer 2: DSP processors
+│   ├── systems/              # Layer 3: System components
+│   └── effects/              # Layer 4: User features
+└── tests/                    # DSP unit tests
+
+plugins/iterum/               # Iterum delay plugin
+├── src/                      # Plugin source
+├── tests/                    # Plugin tests
+└── resources/                # UI, presets, installers
+```
+
+**Include patterns:**
+- DSP headers: `#include <krate/dsp/primitives/delay_line.h>`
+- Plugin headers: `#include "processor/processor.h"`
 
 ---
 
@@ -42,14 +64,14 @@ Core utilities have **no dependencies** on higher layers. They provide fundament
 | | |
 |---|---|
 | **Purpose** | Convert between decibels and linear gain values |
-| **Location** | [src/dsp/core/db_utils.h](src/dsp/core/db_utils.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/db_utils.h](dsp/include/krate/dsp/core/db_utils.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.1 (001-db-conversion) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Constants
     constexpr float kSilenceFloorDb = -144.0f;  // 24-bit dynamic range floor
 
@@ -75,17 +97,17 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/core/db_utils.h"
+#include <krate/dsp/core/db_utils.h>
 
 // Runtime conversion
-float gain = Iterum::DSP::dbToGain(volumeDb);
+float gain = Krate::DSP::dbToGain(volumeDb);
 buffer[i] *= gain;
 
 // Compile-time lookup table
 constexpr std::array<float, 3> presets = {
-    Iterum::DSP::dbToGain(-12.0f),  // Quiet
-    Iterum::DSP::dbToGain(0.0f),    // Unity
-    Iterum::DSP::dbToGain(6.0f)     // Boost
+    Krate::DSP::dbToGain(-12.0f),  // Quiet
+    Krate::DSP::dbToGain(0.0f),    // Unity
+    Krate::DSP::dbToGain(6.0f)     // Boost
 };
 ```
 
@@ -96,14 +118,14 @@ constexpr std::array<float, 3> presets = {
 | | |
 |---|---|
 | **Purpose** | Common mathematical constants for DSP |
-| **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/dsp_utils.h](dsp/include/krate/dsp/core/dsp_utils.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     constexpr float kPi = 3.14159265358979323846f;
     constexpr float kTwoPi = 2.0f * kPi;
 }
@@ -121,14 +143,14 @@ namespace Iterum::DSP {
 | | |
 |---|---|
 | **Purpose** | Window function generators for STFT analysis and spectral processing |
-| **Location** | [src/dsp/core/window_functions.h](src/dsp/core/window_functions.h) |
-| **Namespace** | `Iterum::DSP::Window` |
+| **Location** | [dsp/include/krate/dsp/core/window_functions.h](dsp/include/krate/dsp/core/window_functions.h) |
+| **Namespace** | `Krate::DSP::Window` |
 | **Added** | 0.0.7 (007-fft-processor) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Window type enumeration
     enum class WindowType : uint8_t {
         Hann,       // COLA at 50%/75% overlap
@@ -201,8 +223,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/core/window_functions.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/core/window_functions.h>
+using namespace Krate::DSP;
 
 // Generate Hann window
 std::vector<float> window(1024);
@@ -222,14 +244,14 @@ auto kaiser = Window::generate(WindowType::Kaiser, 1024, 12.0f);  // High reject
 | | |
 |---|---|
 | **Purpose** | Fast, deterministic random number generator for audio noise generation |
-| **Location** | [src/dsp/core/random.h](src/dsp/core/random.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/random.h](dsp/include/krate/dsp/core/random.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.14 (013-noise-generator) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     class Xorshift32 {
     public:
         // Construction
@@ -274,8 +296,8 @@ state ^= state << 5;
 
 **Example**:
 ```cpp
-#include "dsp/core/random.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/core/random.h>
+using namespace Krate::DSP;
 
 Xorshift32 rng{12345};  // Fixed seed for reproducibility
 
@@ -299,14 +321,14 @@ if (rng.nextUnipolar() < clickProb) {
 | | |
 |---|---|
 | **Purpose** | Musical note duration constants and tempo-sync calculations for delay effects |
-| **Location** | [src/dsp/core/note_value.h](src/dsp/core/note_value.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/note_value.h](dsp/include/krate/dsp/core/note_value.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.17 (017-layer0-utilities), expanded 0.0.19 |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Note value enumeration (shortest to longest)
     enum class NoteValue : uint8_t {
         DoubleWhole, Whole, Half, Quarter, Eighth, Sixteenth, ThirtySecond, SixtyFourth
@@ -391,8 +413,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/core/note_value.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/core/note_value.h>
+using namespace Krate::DSP;
 
 // User selects "1/8 Triplet" (index 3) at 100 BPM
 float delayMs = dropdownToDelayMs(3, 100.0);  // 200ms
@@ -408,14 +430,14 @@ float dotted8th = noteToDelayMs(NoteValue::Eighth, NoteModifier::Dotted, 120.0);
 | | |
 |---|---|
 | **Purpose** | Per-block processing context (sample rate, tempo, transport) for tempo-synced DSP |
-| **Location** | [src/dsp/core/block_context.h](src/dsp/core/block_context.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/block_context.h](dsp/include/krate/dsp/core/block_context.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.17 (017-layer0-utilities) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     struct BlockContext {
         // Audio context
         double sampleRate = 44100.0;
@@ -447,8 +469,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/core/block_context.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/core/block_context.h>
+using namespace Krate::DSP;
 
 BlockContext ctx;
 ctx.tempoBPM = 120.0;
@@ -464,14 +486,14 @@ double delaySamples = ctx.tempoToSamples(NoteValue::Quarter);  // 24000 samples
 | | |
 |---|---|
 | **Purpose** | Optimized approximations of transcendental functions for CPU-critical paths |
-| **Location** | [src/dsp/core/fast_math.h](src/dsp/core/fast_math.h) |
-| **Namespace** | `Iterum::DSP::FastMath` |
+| **Location** | [dsp/include/krate/dsp/core/fast_math.h](dsp/include/krate/dsp/core/fast_math.h) |
+| **Namespace** | `Krate::DSP::FastMath` |
 | **Added** | 0.0.17 (017-layer0-utilities) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP::FastMath {
+namespace Krate::DSP::FastMath {
     // Fast hyperbolic tangent using Padé (5,4) approximation
     // ~3x faster than std::tanh (verified benchmark)
     [[nodiscard]] constexpr float fastTanh(float x) noexcept;
@@ -511,12 +533,12 @@ namespace Iterum::DSP::FastMath {
 | Filter coefficient calculation | `std::cos()` | MSVC is faster than polynomial approx |
 | Envelope smoothing | `std::exp()` | MSVC is faster than polynomial approx |
 | Compile-time tanh tables | `fastTanh()` | constexpr capable |
-| Compile-time exp values | `Iterum::DSP::detail::constexprExp()` | In db_utils.h |
+| Compile-time exp values | `Krate::DSP::detail::constexprExp()` | In db_utils.h |
 
 **Example**:
 ```cpp
-#include "dsp/core/fast_math.h"
-using namespace Iterum::DSP::FastMath;
+#include <krate/dsp/core/fast_math.h>
+using namespace Krate::DSP::FastMath;
 
 // Saturation in feedback path (hot code)
 for (size_t i = 0; i < numSamples; ++i) {
@@ -537,14 +559,14 @@ constexpr std::array<float, 5> tanhTable = {
 | | |
 |---|---|
 | **Purpose** | Standalone interpolation functions for fractional sample reading |
-| **Location** | [src/dsp/core/interpolation.h](src/dsp/core/interpolation.h) |
-| **Namespace** | `Iterum::DSP::Interpolation` |
+| **Location** | [dsp/include/krate/dsp/core/interpolation.h](dsp/include/krate/dsp/core/interpolation.h) |
+| **Namespace** | `Krate::DSP::Interpolation` |
 | **Added** | 0.0.17 (017-layer0-utilities) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP::Interpolation {
+namespace Krate::DSP::Interpolation {
     // Linear interpolation (2-point)
     [[nodiscard]] constexpr float linearInterpolate(float y0, float y1, float t) noexcept;
 
@@ -582,8 +604,8 @@ namespace Iterum::DSP::Interpolation {
 
 **Example**:
 ```cpp
-#include "dsp/core/interpolation.h"
-using namespace Iterum::DSP::Interpolation;
+#include <krate/dsp/core/interpolation.h>
+using namespace Krate::DSP::Interpolation;
 
 // Read fractional delay position
 float delaySamples = 100.5f;
@@ -602,14 +624,14 @@ float sample = cubicHermiteInterpolate(
 | | |
 |---|---|
 | **Purpose** | Stereo channel cross-blending for ping-pong delays and stereo field manipulation |
-| **Location** | [src/dsp/core/stereo_utils.h](src/dsp/core/stereo_utils.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/stereo_utils.h](dsp/include/krate/dsp/core/stereo_utils.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.19 (019-feedback-network) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     /// @brief Apply stereo cross-blend routing
     /// @param inL Left input sample
     /// @param inR Right input sample
@@ -651,8 +673,8 @@ outR = inR × (1 - crossAmount) + inL × crossAmount
 
 **Example**:
 ```cpp
-#include "dsp/core/stereo_utils.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/core/stereo_utils.h>
+using namespace Krate::DSP;
 
 // In feedback loop (per sample)
 float feedbackL = delayedL;
@@ -672,14 +694,14 @@ stereoCrossBlend(feedbackL, feedbackR, crossAmount, crossedL, crossedR);
 | | |
 |---|---|
 | **Purpose** | Convert between semitones and playback rate ratios for pitch shifting |
-| **Location** | [src/dsp/core/pitch_utils.h](src/dsp/core/pitch_utils.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/pitch_utils.h](dsp/include/krate/dsp/core/pitch_utils.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.35 (034-granular-delay) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     [[nodiscard]] constexpr float semitonesToRatio(float semitones) noexcept;
     [[nodiscard]] constexpr float ratioToSemitones(float ratio) noexcept;
 }
@@ -700,8 +722,8 @@ namespace Iterum::DSP {
 | | |
 |---|---|
 | **Purpose** | Grain window shape generation and lookup for granular synthesis |
-| **Location** | [src/dsp/core/grain_envelope.h](src/dsp/core/grain_envelope.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/grain_envelope.h](dsp/include/krate/dsp/core/grain_envelope.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.35 (034-granular-delay) |
 
 **Public API**:
@@ -738,14 +760,14 @@ public:
 | | |
 |---|---|
 | **Purpose** | Equal-power crossfade calculations for smooth audio transitions |
-| **Location** | [src/dsp/core/crossfade_utils.h](src/dsp/core/crossfade_utils.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/crossfade_utils.h](dsp/include/krate/dsp/core/crossfade_utils.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.41 (041-mode-switch-clicks) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Equal-power crossfade gains (constant power: fadeOut² + fadeIn² ≈ 1)
     // position: [0.0 = start, 1.0 = complete]
     inline void equalPowerGains(float position, float& fadeOut, float& fadeIn) noexcept;
@@ -770,16 +792,16 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/core/crossfade_utils.h"
+#include <krate/dsp/core/crossfade_utils.h>
 
 // Setup
 float position = 0.0f;
-float increment = Iterum::DSP::crossfadeIncrement(50.0f, sampleRate);  // 50ms
+float increment = Krate::DSP::crossfadeIncrement(50.0f, sampleRate);  // 50ms
 
 // In process loop
 while (crossfadeActive) {
     float fadeOut, fadeIn;
-    Iterum::DSP::equalPowerGains(position, fadeOut, fadeIn);
+    Krate::DSP::equalPowerGains(position, fadeOut, fadeIn);
 
     output = oldModeOutput * fadeOut + newModeOutput * fadeIn;
 
@@ -803,14 +825,14 @@ DSP primitives depend only on Layer 0. They are the basic building blocks for hi
 | | |
 |---|---|
 | **Purpose** | Real-time safe circular buffer delay line with fractional sample interpolation |
-| **Location** | [src/dsp/primitives/delay_line.h](src/dsp/primitives/delay_line.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/delay_line.h](dsp/include/krate/dsp/primitives/delay_line.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.2 (002-delay-line) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     class DelayLine {
     public:
         // Lifecycle (call before audio processing)
@@ -853,9 +875,9 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/primitives/delay_line.h"
+#include <krate/dsp/primitives/delay_line.h>
 
-Iterum::DSP::DelayLine delay;
+Krate::DSP::DelayLine delay;
 
 // In prepare() - allocates memory
 delay.prepare(44100.0, 1.0f);  // 1 second max delay
@@ -881,15 +903,15 @@ float comb = delay.readAllpass(100.5f);  // Fixed fractional delay
 | | |
 |---|---|
 | **Purpose** | Delay line with click-free delay time changes using two-tap crossfading |
-| **Location** | [src/dsp/primitives/crossfading_delay_line.h](src/dsp/primitives/crossfading_delay_line.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/crossfading_delay_line.h](dsp/include/krate/dsp/primitives/crossfading_delay_line.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.19 (019-feedback-network enhancement) |
 | **Dependencies** | DelayLine (L1) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     class CrossfadingDelayLine {
     public:
         // Constants
@@ -961,9 +983,9 @@ When delay time changes:
 
 **Example**:
 ```cpp
-#include "dsp/primitives/crossfading_delay_line.h"
+#include <krate/dsp/primitives/crossfading_delay_line.h>
 
-Iterum::DSP::CrossfadingDelayLine delay;
+Krate::DSP::CrossfadingDelayLine delay;
 
 // In prepare() - allocates memory
 delay.prepare(44100.0, 2.0f);  // 2 second max delay
@@ -987,14 +1009,14 @@ delay.setDelayMs(1000.0f);  // Crossfades smoothly from 500ms to 1000ms
 | | |
 |---|---|
 | **Purpose** | Wavetable-based oscillator for generating modulation signals |
-| **Location** | [src/dsp/primitives/lfo.h](src/dsp/primitives/lfo.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/lfo.h](dsp/include/krate/dsp/primitives/lfo.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.3 (003-lfo) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     enum class Waveform : uint8_t {
         Sine, Triangle, Sawtooth, Square, SampleHold, SmoothRandom
     };
@@ -1078,13 +1100,13 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/primitives/lfo.h"
+#include <krate/dsp/primitives/lfo.h>
 
-Iterum::DSP::LFO lfo;
+Krate::DSP::LFO lfo;
 
 // In prepare() - generates wavetables
 lfo.prepare(44100.0);
-lfo.setWaveform(Iterum::DSP::Waveform::Sine);
+lfo.setWaveform(Krate::DSP::Waveform::Sine);
 lfo.setFrequency(2.0f);  // 2 Hz
 
 // In processBlock() - real-time safe
@@ -1096,8 +1118,8 @@ for (size_t i = 0; i < numSamples; ++i) {
 // Tempo sync example
 lfo.setTempoSync(true);
 lfo.setTempo(120.0f);
-lfo.setNoteValue(Iterum::DSP::NoteValue::Quarter,
-                 Iterum::DSP::NoteModifier::Dotted);  // Dotted 1/4 at 120 BPM = 1.33 Hz
+lfo.setNoteValue(Krate::DSP::NoteValue::Quarter,
+                 Krate::DSP::NoteModifier::Dotted);  // Dotted 1/4 at 120 BPM = 1.33 Hz
 ```
 
 ---
@@ -1107,14 +1129,14 @@ lfo.setNoteValue(Iterum::DSP::NoteValue::Quarter,
 | | |
 |---|---|
 | **Purpose** | Second-order IIR filter (TDF2) with 8 filter types, cascading, and smoothed coefficient updates |
-| **Location** | [src/dsp/primitives/biquad.h](src/dsp/primitives/biquad.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/biquad.h](dsp/include/krate/dsp/primitives/biquad.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.4 (004-biquad-filter) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Filter type enumeration
     enum class FilterType : uint8_t {
         Lowpass, Highpass, Bandpass, Notch,
@@ -1230,9 +1252,9 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/primitives/biquad.h"
+#include <krate/dsp/primitives/biquad.h>
 
-using namespace Iterum::DSP;
+using namespace Krate::DSP;
 
 // Basic lowpass
 Biquad lpf;
@@ -1268,14 +1290,14 @@ Biquad eq(staticEQ);
 | | |
 |---|---|
 | **Purpose** | Upsampling/downsampling primitive for anti-aliased nonlinear processing |
-| **Location** | [src/dsp/primitives/oversampler.h](src/dsp/primitives/oversampler.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/oversampler.h](dsp/include/krate/dsp/primitives/oversampler.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.6 (006-oversampler) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Factor enumeration
     enum class OversamplingFactor : uint8_t {
         TwoX = 2,   // 44.1k -> 88.2k
@@ -1364,8 +1386,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/primitives/oversampler.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/primitives/oversampler.h>
+using namespace Krate::DSP;
 
 Oversampler2x oversampler;
 
@@ -1396,14 +1418,14 @@ oversampler.reset();
 | | |
 |---|---|
 | **Purpose** | Radix-2 DIT FFT for real-to-complex and complex-to-real transforms |
-| **Location** | [src/dsp/primitives/fft.h](src/dsp/primitives/fft.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/fft.h](dsp/include/krate/dsp/primitives/fft.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.7 (007-fft-processor) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Complex number for FFT operations
     struct Complex {
         float real = 0.0f;
@@ -1464,8 +1486,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/primitives/fft.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/primitives/fft.h>
+using namespace Krate::DSP;
 
 FFT fft;
 
@@ -1498,14 +1520,14 @@ fft.inverse(spectrum.data(), output.data());
 | | |
 |---|---|
 | **Purpose** | Complex spectrum storage with magnitude/phase manipulation for spectral effects |
-| **Location** | [src/dsp/primitives/spectral_buffer.h](src/dsp/primitives/spectral_buffer.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/spectral_buffer.h](dsp/include/krate/dsp/primitives/spectral_buffer.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.7 (007-fft-processor) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     class SpectralBuffer {
     public:
         // Lifecycle
@@ -1551,8 +1573,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/primitives/spectral_buffer.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/primitives/spectral_buffer.h>
+using namespace Krate::DSP;
 
 FFT fft;
 SpectralBuffer spectrum;
@@ -1582,14 +1604,14 @@ fft.inverse(spectrum.data(), output);
 | | |
 |---|---|
 | **Purpose** | Streaming spectral analysis with configurable windows and overlap |
-| **Location** | [src/dsp/primitives/stft.h](src/dsp/primitives/stft.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/stft.h](dsp/include/krate/dsp/primitives/stft.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.7 (007-fft-processor) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     class STFT {
     public:
         // Lifecycle (call before audio processing)
@@ -1635,8 +1657,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/primitives/stft.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/primitives/stft.h>
+using namespace Krate::DSP;
 
 STFT stft;
 SpectralBuffer spectrum;
@@ -1669,14 +1691,14 @@ while (stft.canAnalyze()) {
 | | |
 |---|---|
 | **Purpose** | Overlap-add synthesis for artifact-free STFT reconstruction |
-| **Location** | [src/dsp/primitives/stft.h](src/dsp/primitives/stft.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/stft.h](dsp/include/krate/dsp/primitives/stft.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.7 (007-fft-processor) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     class OverlapAdd {
     public:
         // Lifecycle (call before audio processing)
@@ -1714,8 +1736,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/primitives/stft.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/primitives/stft.h>
+using namespace Krate::DSP;
 
 STFT stft;
 OverlapAdd ola;
@@ -1754,14 +1776,14 @@ if (ola.samplesAvailable() >= numSamples) {
 | | |
 |---|---|
 | **Purpose** | Common buffer manipulation operations |
-| **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/dsp_utils.h](dsp/include/krate/dsp/core/dsp_utils.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Apply gain to buffer in-place
     void applyGain(float* buffer, size_t numSamples, float gain) noexcept;
 
@@ -1791,14 +1813,14 @@ namespace Iterum::DSP {
 | | |
 |---|---|
 | **Purpose** | Parameter smoothing to prevent zipper noise |
-| **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/dsp_utils.h](dsp/include/krate/dsp/core/dsp_utils.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     class OnePoleSmoother {
     public:
         void setTime(float timeSeconds, float sampleRate) noexcept;
@@ -1816,7 +1838,7 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-Iterum::DSP::OnePoleSmoother gainSmoother;
+Krate::DSP::OnePoleSmoother gainSmoother;
 gainSmoother.setTime(0.010f, sampleRate);  // 10ms smoothing
 
 // In process loop
@@ -1830,14 +1852,14 @@ float smoothedGain = gainSmoother.process(targetGain);
 | | |
 |---|---|
 | **Purpose** | Hard and soft clipping/limiting |
-| **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/dsp_utils.h](dsp/include/krate/dsp/core/dsp_utils.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Hard clip to [-1, 1]
     [[nodiscard]] constexpr float hardClip(float sample) noexcept;
 
@@ -1857,14 +1879,14 @@ namespace Iterum::DSP {
 | | |
 |---|---|
 | **Purpose** | Audio buffer analysis (RMS, peak detection) |
-| **Location** | [src/dsp/dsp_utils.h](src/dsp/dsp_utils.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/core/dsp_utils.h](dsp/include/krate/dsp/core/dsp_utils.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.0 (initial) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Calculate RMS of buffer
     [[nodiscard]] float calculateRMS(const float* buffer, size_t numSamples) noexcept;
 
@@ -1886,14 +1908,14 @@ namespace Iterum::DSP {
 | | |
 |---|---|
 | **Purpose** | Double-buffer primitive for capturing audio and playing back in reverse with crossfade |
-| **Location** | [src/dsp/primitives/reverse_buffer.h](src/dsp/primitives/reverse_buffer.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/reverse_buffer.h](dsp/include/krate/dsp/primitives/reverse_buffer.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.30 (030-reverse-delay) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     class ReverseBuffer {
     public:
         // Constants
@@ -1937,9 +1959,9 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/primitives/reverse_buffer.h"
+#include <krate/dsp/primitives/reverse_buffer.h>
 
-Iterum::DSP::ReverseBuffer reverseBuffer;
+Krate::DSP::ReverseBuffer reverseBuffer;
 
 // In prepare() - allocates memory
 reverseBuffer.prepare(44100.0, 2000.0f);  // Up to 2 seconds
@@ -1964,8 +1986,8 @@ for (size_t i = 0; i < numSamples; ++i) {
 | | |
 |---|---|
 | **Purpose** | Pre-allocated pool of grain state objects for real-time safe granular synthesis |
-| **Location** | [src/dsp/primitives/grain_pool.h](src/dsp/primitives/grain_pool.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/primitives/grain_pool.h](dsp/include/krate/dsp/primitives/grain_pool.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.35 (034-granular-delay) |
 
 **Public API**:
@@ -2017,14 +2039,14 @@ DSP Processors compose Layer 1 primitives into higher-level processing modules.
 | | |
 |---|---|
 | **Purpose** | Complete filter module with 8 filter types, selectable slopes, coefficient smoothing, and optional drive |
-| **Location** | [src/dsp/processors/multimode_filter.h](src/dsp/processors/multimode_filter.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/multimode_filter.h](dsp/include/krate/dsp/processors/multimode_filter.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.8 (008-multimode-filter) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Filter slope selection (LP/HP/BP/Notch only)
     enum class FilterSlope : uint8_t {
         Slope12dB = 1,  // 12 dB/oct (1 biquad stage)
@@ -2122,8 +2144,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/processors/multimode_filter.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/processors/multimode_filter.h>
+using namespace Krate::DSP;
 
 MultimodeFilter filter;
 
@@ -2161,14 +2183,14 @@ filter.setDrive(12.0f);  // 12dB pre-filter saturation
 | | |
 |---|---|
 | **Purpose** | Analog-style saturation/waveshaping with 5 algorithms, oversampling, and DC blocking |
-| **Location** | [src/dsp/processors/saturation_processor.h](src/dsp/processors/saturation_processor.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/saturation_processor.h](dsp/include/krate/dsp/processors/saturation_processor.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.10 (009-saturation-processor) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Saturation algorithm selection
     enum class SaturationType : uint8_t {
         Tape,       // tanh(x) - symmetric, odd harmonics
@@ -2249,8 +2271,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/processors/saturation_processor.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/processors/saturation_processor.h>
+using namespace Krate::DSP;
 
 SaturationProcessor sat;
 
@@ -2279,14 +2301,14 @@ sat.process(buffer, numSamples);
 | | |
 |---|---|
 | **Purpose** | Amplitude envelope tracking with configurable attack/release times and three detection modes |
-| **Location** | [src/dsp/processors/envelope_follower.h](src/dsp/processors/envelope_follower.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/envelope_follower.h](dsp/include/krate/dsp/processors/envelope_follower.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.11 (010-envelope-follower) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Detection algorithm selection
     enum class DetectionMode : uint8_t {
         Amplitude,  // Full-wave rectification + smoothing
@@ -2371,8 +2393,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/processors/envelope_follower.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/processors/envelope_follower.h>
+using namespace Krate::DSP;
 
 EnvelopeFollower env;
 
@@ -2406,14 +2428,14 @@ env.process(input, envelopeBuffer.data(), numSamples);
 | | |
 |---|---|
 | **Purpose** | Real-time compressor/limiter with threshold, ratio, knee, attack/release, makeup gain, lookahead, and sidechain filtering |
-| **Location** | [src/dsp/processors/dynamics_processor.h](src/dsp/processors/dynamics_processor.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/dynamics_processor.h](dsp/include/krate/dsp/processors/dynamics_processor.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.12 (011-dynamics-processor) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Detection mode (for EnvelopeFollower)
     enum class DynamicsDetectionMode : uint8_t {
         RMS,   // Average-responding, good for program material
@@ -2540,8 +2562,8 @@ autoMakeup = -threshold * (1 - 1/ratio)
 
 **Example**:
 ```cpp
-#include "dsp/processors/dynamics_processor.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/processors/dynamics_processor.h>
+using namespace Krate::DSP;
 
 DynamicsProcessor comp;
 
@@ -2579,14 +2601,14 @@ size_t latency = comp.getLatency();
 | | |
 |---|---|
 | **Purpose** | Sidechain-triggered gain reduction for ducking one audio source when another becomes active |
-| **Location** | [src/dsp/processors/ducking_processor.h](src/dsp/processors/ducking_processor.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/ducking_processor.h](dsp/include/krate/dsp/processors/ducking_processor.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.13 (012-ducking-processor) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // State machine for hold time behavior
     enum class DuckingState : uint8_t {
         Idle,     // Sidechain below threshold, no gain reduction
@@ -2695,8 +2717,8 @@ actualGR = max(targetGR, range)  // Range limits maximum attenuation
 
 **Example**:
 ```cpp
-#include "dsp/processors/ducking_processor.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/processors/ducking_processor.h>
+using namespace Krate::DSP;
 
 DuckingProcessor ducker;
 
@@ -2727,14 +2749,14 @@ float grDb = ducker.getCurrentGainReduction();  // e.g., -8.5
 | | |
 |---|---|
 | **Purpose** | Multi-type noise generator for analog character and lo-fi effects |
-| **Location** | [src/dsp/processors/noise_generator.h](src/dsp/processors/noise_generator.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/noise_generator.h](dsp/include/krate/dsp/processors/noise_generator.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.14 (013-noise-generator) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Noise generation algorithm types
     enum class NoiseType : uint8_t {
         White,        // Flat spectrum white noise
@@ -2820,8 +2842,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/processors/noise_generator.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/processors/noise_generator.h>
+using namespace Krate::DSP;
 
 NoiseGenerator noise;
 
@@ -2854,14 +2876,14 @@ noise.process(audioBuffer, noiseBuffer.data(), numSamples);
 | | |
 |---|---|
 | **Purpose** | 8-stage Schroeder allpass diffusion network for reverb-like temporal smearing |
-| **Location** | [src/dsp/processors/diffusion_network.h](src/dsp/processors/diffusion_network.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/diffusion_network.h](dsp/include/krate/dsp/processors/diffusion_network.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.15 (015-diffusion-network) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Constants
     constexpr size_t kNumDiffusionStages = 8;
     constexpr float kAllpassCoeff = 0.618033988749895f;  // Golden ratio inverse
@@ -2951,8 +2973,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/processors/diffusion_network.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/processors/diffusion_network.h>
+using namespace Krate::DSP;
 
 DiffusionNetwork diffuser;
 
@@ -2984,14 +3006,14 @@ diffuser.process(buffer, buffer, buffer, buffer, numSamples);
 | | |
 |---|---|
 | **Purpose** | Time-preserving pitch shifting with 3 quality modes: Simple (zero-latency), Granular (balanced), PhaseVocoder (high quality) |
-| **Location** | [src/dsp/processors/pitch_shift_processor.h](src/dsp/processors/pitch_shift_processor.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/pitch_shift_processor.h](dsp/include/krate/dsp/processors/pitch_shift_processor.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.16 (016-pitch-shifter) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Quality mode selection
     enum class PitchMode : uint8_t {
         Simple,      // Zero latency, dual delay-line crossfade
@@ -3093,8 +3115,8 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/processors/pitch_shift_processor.h"
-using namespace Iterum::DSP;
+#include <krate/dsp/processors/pitch_shift_processor.h>
+using namespace Krate::DSP;
 
 PitchShiftProcessor shifter;
 
@@ -3138,14 +3160,14 @@ harmony2.process(input, output2, numSamples);
 | | |
 |---|---|
 | **Purpose** | IFeedbackProcessor implementation providing stereo reverse processing with playback modes |
-| **Location** | [src/dsp/processors/reverse_feedback_processor.h](src/dsp/processors/reverse_feedback_processor.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/reverse_feedback_processor.h](dsp/include/krate/dsp/processors/reverse_feedback_processor.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.30 (030-reverse-delay) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     enum class PlaybackMode : std::uint8_t {
         FullReverse,   // Every chunk plays reversed
         Alternating,   // Alternates: reverse, forward, reverse, forward...
@@ -3186,11 +3208,11 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/processors/reverse_feedback_processor.h"
-#include "dsp/systems/flexible_feedback_network.h"
+#include <krate/dsp/processors/reverse_feedback_processor.h>
+#include <krate/dsp/systems/flexible_feedback_network.h>
 
-Iterum::DSP::ReverseFeedbackProcessor reverseProc;
-Iterum::DSP::FlexibleFeedbackNetwork feedbackNet;
+Krate::DSP::ReverseFeedbackProcessor reverseProc;
+Krate::DSP::FlexibleFeedbackNetwork feedbackNet;
 
 // Prepare both
 reverseProc.prepare(44100.0, 512);
@@ -3216,8 +3238,8 @@ feedbackNet.process(left, right, numSamples, ctx);
 | | |
 |---|---|
 | **Purpose** | Timing controller for grain triggering in granular synthesis |
-| **Location** | [src/dsp/processors/grain_scheduler.h](src/dsp/processors/grain_scheduler.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/grain_scheduler.h](dsp/include/krate/dsp/processors/grain_scheduler.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.35 (034-granular-delay) |
 
 **Public API**:
@@ -3248,8 +3270,8 @@ public:
 | | |
 |---|---|
 | **Purpose** | Per-grain audio processing with envelope, pitch, and pan |
-| **Location** | [src/dsp/processors/grain_processor.h](src/dsp/processors/grain_processor.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/processors/grain_processor.h](dsp/include/krate/dsp/processors/grain_processor.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.35 (034-granular-delay) |
 
 **Public API**:
@@ -3298,15 +3320,15 @@ Layer 3 components compose Layer 1-2 primitives and processors into complete aud
 | | |
 |---|---|
 | **Purpose** | High-level delay wrapper with time modes, smoothing, and dry/wet mixing |
-| **Location** | [src/dsp/systems/delay_engine.h](src/dsp/systems/delay_engine.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/systems/delay_engine.h](dsp/include/krate/dsp/systems/delay_engine.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.18 (018-delay-engine) |
 | **Dependencies** | DelayLine (L1), OnePoleSmoother (L1), BlockContext (L0), NoteValue (L0) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     // Time mode enumeration
     enum class TimeMode : uint8_t {
         Free,    // Delay time in milliseconds
@@ -3354,24 +3376,24 @@ namespace Iterum::DSP {
 
 **Example - Free Mode**:
 ```cpp
-#include "dsp/systems/delay_engine.h"
+#include <krate/dsp/systems/delay_engine.h>
 
-Iterum::DSP::DelayEngine delay;
+Krate::DSP::DelayEngine delay;
 delay.prepare(44100.0, 512, 2000.0f);  // 2 second max delay
-delay.setTimeMode(Iterum::DSP::TimeMode::Free);
+delay.setTimeMode(Krate::DSP::TimeMode::Free);
 delay.setDelayTimeMs(250.0f);
 delay.setMix(0.5f);
 
 // In audio callback
-Iterum::DSP::BlockContext ctx;
+Krate::DSP::BlockContext ctx;
 ctx.sampleRate = 44100.0;
 delay.process(buffer, numSamples, ctx);
 ```
 
 **Example - Tempo Synced**:
 ```cpp
-delay.setTimeMode(Iterum::DSP::TimeMode::Synced);
-delay.setNoteValue(Iterum::DSP::NoteValue::Quarter, Iterum::DSP::NoteModifier::Dotted);
+delay.setTimeMode(Krate::DSP::TimeMode::Synced);
+delay.setNoteValue(Krate::DSP::NoteValue::Quarter, Krate::DSP::NoteModifier::Dotted);
 delay.setMix(0.7f);
 
 // BlockContext with tempo info
@@ -3386,15 +3408,15 @@ delay.process(buffer, numSamples, ctx);  // Delay = 750ms (dotted quarter at 120
 | | |
 |---|---|
 | **Purpose** | Manages feedback loops for delay effects with filtering, saturation, and cross-feedback routing |
-| **Location** | [src/dsp/systems/feedback_network.h](src/dsp/systems/feedback_network.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/systems/feedback_network.h](dsp/include/krate/dsp/systems/feedback_network.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.19 (019-feedback-network) |
 | **Dependencies** | CrossfadingDelayLine (L1), MultimodeFilter (L2), SaturationProcessor (L2), OnePoleSmoother (L1), BlockContext (L0), stereoCrossBlend (L0) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     class FeedbackNetwork {
     public:
         // Lifecycle
@@ -3446,15 +3468,15 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/systems/feedback_network.h"
+#include <krate/dsp/systems/feedback_network.h>
 
-Iterum::DSP::FeedbackNetwork feedback;
+Krate::DSP::FeedbackNetwork feedback;
 feedback.prepare(44100.0, 512, 2000.0f);
 
 feedback.setDelayTimeMs(375.0f);
 feedback.setFeedbackAmount(0.6f);
 feedback.setFilterEnabled(true);
-feedback.setFilterType(Iterum::DSP::FilterType::Lowpass);
+feedback.setFilterType(Krate::DSP::FilterType::Lowpass);
 feedback.setFilterCutoff(4000.0f);
 
 // In audio callback
@@ -3468,15 +3490,15 @@ feedback.process(left, right, numSamples, ctx);
 | | |
 |---|---|
 | **Purpose** | Routes modulation sources (LFO, EnvelopeFollower) to parameter destinations with depth control |
-| **Location** | [src/dsp/systems/modulation_matrix.h](src/dsp/systems/modulation_matrix.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/systems/modulation_matrix.h](dsp/include/krate/dsp/systems/modulation_matrix.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.20 (020-modulation-matrix) |
 | **Dependencies** | OnePoleSmoother (L1), db_utils (L0) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     enum class ModulationMode : uint8_t {
         Bipolar,   // Source [-1,+1] maps directly to [-1,+1] × depth
         Unipolar   // Source [-1,+1] maps to [0,1] × depth
@@ -3543,23 +3565,23 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/systems/modulation_matrix.h"
-#include "dsp/primitives/lfo.h"
+#include <krate/dsp/systems/modulation_matrix.h>
+#include <krate/dsp/primitives/lfo.h>
 
 // LFO implements ModulationSource interface
-class LFOModSource : public Iterum::DSP::ModulationSource {
-    Iterum::DSP::LFO& lfo_;
+class LFOModSource : public Krate::DSP::ModulationSource {
+    Krate::DSP::LFO& lfo_;
 public:
-    explicit LFOModSource(Iterum::DSP::LFO& lfo) : lfo_(lfo) {}
+    explicit LFOModSource(Krate::DSP::LFO& lfo) : lfo_(lfo) {}
     float getCurrentValue() const noexcept override { return lfo_.getCurrentValue(); }
     std::pair<float, float> getSourceRange() const noexcept override { return {-1.0f, 1.0f}; }
 };
 
-Iterum::DSP::ModulationMatrix matrix;
+Krate::DSP::ModulationMatrix matrix;
 matrix.prepare(44100.0, 512, 32);
 
 // Setup LFO and wrap as ModulationSource
-Iterum::DSP::LFO lfo;
+Krate::DSP::LFO lfo;
 lfo.prepare(44100.0);
 lfo.setRate(2.0f);  // 2 Hz
 LFOModSource lfoSource(lfo);
@@ -3569,7 +3591,7 @@ matrix.registerSource(0, &lfoSource);
 matrix.registerDestination(0, 0.0f, 100.0f, "Delay Time");
 
 // Create route: LFO → Delay Time, 50% depth, bipolar
-int route = matrix.createRoute(0, 0, 0.5f, Iterum::DSP::ModulationMode::Bipolar);
+int route = matrix.createRoute(0, 0, 0.5f, Krate::DSP::ModulationMode::Bipolar);
 
 // In audio callback
 lfo.process();  // Advance LFO
@@ -3587,15 +3609,15 @@ float modulatedDelayMs = matrix.getModulatedValue(0, baseDelayMs);  // 50 ± 25m
 | | |
 |---|---|
 | **Purpose** | Manages stereo processing modes with width control, panning, L/R offset, and ratio |
-| **Location** | [src/dsp/systems/stereo_field.h](src/dsp/systems/stereo_field.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/systems/stereo_field.h](dsp/include/krate/dsp/systems/stereo_field.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.22 (022-stereo-field) |
 | **Dependencies** | DelayLine (L1), OnePoleSmoother (L1), MidSideProcessor (L2), db_utils (L0) |
 
 **Public API**:
 
 ```cpp
-namespace Iterum::DSP {
+namespace Krate::DSP {
     enum class StereoMode : uint8_t {
         Mono,       // Sum L+R, output to both channels
         Stereo,     // Independent L/R processing with ratio
@@ -3667,13 +3689,13 @@ namespace Iterum::DSP {
 
 **Example**:
 ```cpp
-#include "dsp/systems/stereo_field.h"
+#include <krate/dsp/systems/stereo_field.h>
 
-Iterum::DSP::StereoField stereo;
+Krate::DSP::StereoField stereo;
 stereo.prepare(44100.0, 512, 2000.0f);
 
 // Wide ping-pong delay
-stereo.setMode(Iterum::DSP::StereoMode::PingPong);
+stereo.setMode(Krate::DSP::StereoMode::PingPong);
 stereo.setDelayTimeMs(375.0f);
 stereo.setWidth(150.0f);  // Enhanced stereo
 
@@ -3683,7 +3705,7 @@ stereo.process(leftIn, rightIn, leftOut, rightOut, numSamples);
 
 **Example - Polyrhythmic Delay**:
 ```cpp
-stereo.setMode(Iterum::DSP::StereoMode::Stereo);
+stereo.setMode(Krate::DSP::StereoMode::Stereo);
 stereo.setDelayTimeMs(400.0f);  // Base = 400ms for R
 stereo.setLRRatio(0.75f);       // L = 300ms (3:4 ratio)
 
@@ -3695,7 +3717,7 @@ stereo.process(leftIn, rightIn, leftOut, rightOut, numSamples);
 
 Multi-tap delay system with up to 16 independent taps and preset patterns.
 
-**File**: `src/dsp/systems/tap_manager.h`
+**File**: `dsp/include/krate/dsp/systems/tap_manager.h`
 
 **Purpose**: Layer 3 system component providing multi-tap delay management with per-tap control over timing, level, pan, filtering, and feedback. Includes preset timing patterns for rhythmic delay effects.
 
@@ -3775,7 +3797,7 @@ void setTempo(float bpm) noexcept;
 
 **Example - Basic Multi-Tap Setup**:
 ```cpp
-Iterum::DSP::TapManager taps;
+Krate::DSP::TapManager taps;
 taps.prepare(44100.0f, 512, 5000.0f);  // 5 seconds max delay
 
 // Configure 4 taps manually
@@ -3795,7 +3817,7 @@ taps.process(leftIn, rightIn, leftOut, rightOut, numSamples);
 
 **Example - Preset Pattern with Tempo Sync**:
 ```cpp
-Iterum::DSP::TapManager taps;
+Krate::DSP::TapManager taps;
 taps.prepare(44100.0f, 512, 5000.0f);
 taps.setTempo(120.0f);  // 120 BPM
 
@@ -3828,8 +3850,8 @@ for (size_t i = 0; i < 4; ++i) {
 | | |
 |---|---|
 | **Purpose** | Core granular synthesis engine composing delay buffers, grain pool, scheduler, and processor |
-| **Location** | [src/dsp/systems/granular_engine.h](src/dsp/systems/granular_engine.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/systems/granular_engine.h](dsp/include/krate/dsp/systems/granular_engine.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.35 (034-granular-delay) |
 
 **Dependencies**:
@@ -3893,7 +3915,7 @@ User-facing delay effect modes that compose Layer 3 systems into complete audio 
 
 Classic tape echo emulation (Roland RE-201, Echoplex, Watkins Copicat style).
 
-**File**: `src/dsp/features/tape_delay.h`
+**File**: `dsp/include/krate/dsp/features/tape_delay.h`
 
 **Purpose**: Layer 4 user feature providing vintage tape delay character with motor inertia, wow/flutter, and multi-head echo patterns.
 
@@ -3992,7 +4014,7 @@ class TapeDelay {
 **Usage Example**:
 
 ```cpp
-#include "dsp/features/tape_delay.h"
+#include <krate/dsp/features/tape_delay.h>
 
 TapeDelay delay;
 delay.prepare(44100.0, 512, 2000.0f);
@@ -4015,7 +4037,7 @@ delay.process(leftChannel, rightChannel, blockSize);
 
 Classic bucket-brigade device (BBD) delay emulation (Boss DM-2, EHX Memory Man, Roland Dimension D style).
 
-**File**: `src/dsp/features/bbd_delay.h`
+**File**: `dsp/include/krate/dsp/features/bbd_delay.h`
 
 **Purpose**: Layer 4 user feature providing vintage analog delay character with authentic BBD behaviors including bandwidth tracking, compander artifacts, and era-specific chip characteristics.
 
@@ -4110,7 +4132,7 @@ class BBDDelay {
 **Usage Example**:
 
 ```cpp
-#include "dsp/features/bbd_delay.h"
+#include <krate/dsp/features/bbd_delay.h>
 
 BBDDelay delay;
 delay.prepare(44100.0, 512, 1000.0f);
@@ -4134,7 +4156,7 @@ delay.process(leftChannel, rightChannel, blockSize);
 
 Clean digital delay with era presets (Lexicon PCM42, Roland SDE-3000, vintage sampler style).
 
-**File**: `src/dsp/features/digital_delay.h`
+**File**: `dsp/include/krate/dsp/features/digital_delay.h`
 
 **Purpose**: Layer 4 user feature providing pristine digital delay with optional vintage digital character. Three era presets: Pristine (transparent), 80s Digital (vintage warmth), and Lo-Fi (aggressive degradation).
 
@@ -4217,7 +4239,7 @@ class DigitalDelay {
 **Usage Example**:
 
 ```cpp
-#include "dsp/features/digital_delay.h"
+#include <krate/dsp/features/digital_delay.h>
 
 DigitalDelay delay;
 delay.prepare(44100.0, 512, 10000.0f);
@@ -4248,7 +4270,7 @@ delay.process(leftChannel, rightChannel, blockSize, ctx);
 
 Classic stereo ping-pong delay with alternating left/right bounces.
 
-**File**: `src/dsp/features/ping_pong_delay.h`
+**File**: `dsp/include/krate/dsp/features/ping_pong_delay.h`
 
 **Purpose**: Layer 4 user feature providing stereo ping-pong delay effects with L/R timing ratios for polyrhythmic patterns, adjustable cross-feedback routing, stereo width control, and optional LFO modulation.
 
@@ -4343,7 +4365,7 @@ class PingPongDelay {
 **Usage Example**:
 
 \`\`\`cpp
-#include "dsp/features/ping_pong_delay.h"
+#include <krate/dsp/features/ping_pong_delay.h>
 
 PingPongDelay delay;
 delay.prepare(44100.0, 512, 2000.0f);
@@ -4373,7 +4395,7 @@ delay.process(leftChannel, rightChannel, blockSize, ctx);
 
 Pitch-shifted delay with cascading octaves for ambient/ethereal textures.
 
-**File**: `src/dsp/features/shimmer_delay.h`
+**File**: `dsp/include/krate/dsp/features/shimmer_delay.h`
 
 **Purpose**: Layer 4 user feature providing ambient shimmer delay with pitch shifting in the feedback path. Creates cascading harmonics (each repeat pitched higher/lower than the previous) for ethereal pads and ambient textures. Inspired by effects like Strymon BigSky, Eventide Space, and Valhalla Shimmer.
 
@@ -4478,7 +4500,7 @@ class ShimmerDelay {
 **Usage Example**:
 
 \`\`\`cpp
-#include "dsp/features/shimmer_delay.h"
+#include <krate/dsp/features/shimmer_delay.h>
 
 ShimmerDelay shimmer;
 shimmer.prepare(44100.0, 512, 2000.0f);
@@ -4516,7 +4538,7 @@ shimmer.process(leftChannel, rightChannel, blockSize, ctx);
 
 Reverse delay effect that captures audio in chunks and plays it back reversed.
 
-**File**: `src/dsp/features/reverse_delay.h`
+**File**: `dsp/include/krate/dsp/features/reverse_delay.h`
 
 **Purpose**: Layer 4 user feature providing reverse delay effects with chunk-based backward playback, multiple playback modes, crossfade between chunks, and feedback with optional filtering.
 
@@ -4585,9 +4607,9 @@ public:
 **Usage Example**:
 
 ```cpp
-#include "dsp/features/reverse_delay.h"
+#include <krate/dsp/features/reverse_delay.h>
 
-Iterum::DSP::ReverseDelay reverseDelay;
+Krate::DSP::ReverseDelay reverseDelay;
 reverseDelay.prepare(44100.0, 512, 2000.0f);
 
 // Configure basic reverse delay
@@ -4625,7 +4647,7 @@ reverseDelay.process(leftChannel, rightChannel, blockSize, ctx);
 
 Frequency-domain delay that applies independent delay times to each frequency bin.
 
-**File**: `src/dsp/features/spectral_delay.h`
+**File**: `dsp/include/krate/dsp/features/spectral_delay.h`
 
 **Purpose**: Layer 4 user feature providing spectral delay processing using STFT analysis/resynthesis. Creates unique frequency-dependent echo effects where different frequency bands can have different delay times, enabling ethereal textures, spectral smearing, and freeze effects.
 
@@ -4702,7 +4724,7 @@ public:
 **Usage Example**:
 
 ```cpp
-Iterum::DSP::SpectralDelay spectralDelay;
+Krate::DSP::SpectralDelay spectralDelay;
 spectralDelay.setFFTSize(1024);                        // 1024-point FFT
 spectralDelay.prepare(44100.0, 512);
 
@@ -4734,8 +4756,8 @@ spectralDelay.process(leftChannel, rightChannel, blockSize, ctx);
 | | |
 |---|---|
 | **Purpose** | Infinite sustain of delay buffer contents with shimmer, diffusion, and decay |
-| **Location** | [src/dsp/features/freeze_mode.h](src/dsp/features/freeze_mode.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/features/freeze_mode.h](dsp/include/krate/dsp/features/freeze_mode.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.32 (031-freeze-mode) |
 
 **Dependencies**:
@@ -4805,9 +4827,9 @@ public:
 **Example**:
 
 ```cpp
-#include "dsp/features/freeze_mode.h"
+#include <krate/dsp/features/freeze_mode.h>
 
-Iterum::DSP::FreezeMode freeze;
+Krate::DSP::FreezeMode freeze;
 freeze.prepare(44100.0, 512, 5000.0f);
 
 // Configure for ambient pad
@@ -4842,8 +4864,8 @@ freeze.setFreezeEnabled(false); // Return to normal delay operation
 | | |
 |---|---|
 | **Purpose** | Delay effect with automatic gain reduction when input signal is present |
-| **Location** | [src/dsp/features/ducking_delay.h](src/dsp/features/ducking_delay.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/features/ducking_delay.h](dsp/include/krate/dsp/features/ducking_delay.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.33 (032-ducking-delay) |
 
 **Dependencies**:
@@ -4917,9 +4939,9 @@ public:
 **Example**:
 
 ```cpp
-#include "dsp/features/ducking_delay.h"
+#include <krate/dsp/features/ducking_delay.h>
 
-Iterum::DSP::DuckingDelay delay;
+Krate::DSP::DuckingDelay delay;
 delay.prepare(44100.0, 512);
 
 // Configure for voiceover ducking
@@ -4958,8 +4980,8 @@ float gainReduction = delay.getGainReduction(); // 0 to -48 dB
 | | |
 |---|---|
 | **Purpose** | Granular synthesis-based delay that breaks audio into grains with per-grain pitch, position, and direction control |
-| **Location** | [src/dsp/features/granular_delay.h](src/dsp/features/granular_delay.h) |
-| **Namespace** | `Iterum::DSP` |
+| **Location** | [dsp/include/krate/dsp/features/granular_delay.h](dsp/include/krate/dsp/features/granular_delay.h) |
+| **Namespace** | `Krate::DSP` |
 | **Added** | 0.0.35 (034-granular-delay) |
 
 **Dependencies**:
@@ -5044,9 +5066,9 @@ public:
 **Usage Example**:
 
 ```cpp
-#include "dsp/features/granular_delay.h"
+#include <krate/dsp/features/granular_delay.h>
 
-Iterum::DSP::GranularDelay delay;
+Krate::DSP::GranularDelay delay;
 delay.prepare(44100.0);
 
 // Configure for shimmer-style granular
@@ -5215,9 +5237,9 @@ Spacing: 10px between groups, 10px padding inside groups.
 
 | Namespace | Purpose | Layer |
 |-----------|---------|-------|
-| `Iterum::DSP` | New standardized DSP utilities | 0 |
+| `Krate::DSP` | New standardized DSP utilities | 0 |
 | `VSTWork::DSP` | Legacy/existing DSP utilities | 0-1 |
-| `Iterum::DSP::detail` | Implementation details (not public API) | 0 |
+| `Krate::DSP::detail` | Implementation details (not public API) | 0 |
 
 ### Conventions
 
@@ -5243,33 +5265,33 @@ Quick lookup by functionality:
 
 | Need to... | Use | Location |
 |------------|-----|----------|
-| Convert dB to linear gain | `Iterum::DSP::dbToGain()` | core/db_utils.h |
-| Convert linear gain to dB | `Iterum::DSP::gainToDb()` | core/db_utils.h |
-| Create delay line | `Iterum::DSP::DelayLine` | primitives/delay_line.h |
+| Convert dB to linear gain | `Krate::DSP::dbToGain()` | core/db_utils.h |
+| Convert linear gain to dB | `Krate::DSP::gainToDb()` | core/db_utils.h |
+| Create delay line | `Krate::DSP::DelayLine` | primitives/delay_line.h |
 | Read fixed delay | `DelayLine::read()` | primitives/delay_line.h |
 | Read modulated delay | `DelayLine::readLinear()` | primitives/delay_line.h |
 | Fractional delay in feedback | `DelayLine::readAllpass()` | primitives/delay_line.h |
-| Create LFO modulation | `Iterum::DSP::LFO` | primitives/lfo.h |
+| Create LFO modulation | `Krate::DSP::LFO` | primitives/lfo.h |
 | Get LFO sample | `LFO::process()` | primitives/lfo.h |
 | Set LFO waveform | `LFO::setWaveform()` | primitives/lfo.h |
 | Enable tempo sync | `LFO::setTempoSync()` | primitives/lfo.h |
 | Retrigger LFO | `LFO::retrigger()` | primitives/lfo.h |
-| Filter audio (LP/HP/BP/etc) | `Iterum::DSP::Biquad` | primitives/biquad.h |
+| Filter audio (LP/HP/BP/etc) | `Krate::DSP::Biquad` | primitives/biquad.h |
 | Calculate filter coefficients | `BiquadCoefficients::calculate()` | primitives/biquad.h |
-| Steep filter slope (24+ dB/oct) | `Iterum::DSP::BiquadCascade<N>` | primitives/biquad.h |
+| Steep filter slope (24+ dB/oct) | `Krate::DSP::BiquadCascade<N>` | primitives/biquad.h |
 | Linkwitz-Riley crossover | `BiquadCascade::setLinkwitzRiley()` | primitives/biquad.h |
-| Click-free filter modulation | `Iterum::DSP::SmoothedBiquad` | primitives/biquad.h |
+| Click-free filter modulation | `Krate::DSP::SmoothedBiquad` | primitives/biquad.h |
 | Compile-time filter coeffs | `BiquadCoefficients::calculateConstexpr()` | primitives/biquad.h |
 | Check filter stability | `BiquadCoefficients::isStable()` | primitives/biquad.h |
-| Apply gain to buffer | `Iterum::DSP::applyGain()` | dsp_utils.h |
-| Mix two buffers | `Iterum::DSP::mix()` | dsp_utils.h |
-| Smooth parameter changes | `Iterum::DSP::OnePoleSmoother` | dsp_utils.h |
-| Hard limit output | `Iterum::DSP::hardClip()` | dsp_utils.h |
-| Add saturation | `Iterum::DSP::softClip()` | dsp_utils.h |
-| Measure RMS level | `Iterum::DSP::calculateRMS()` | dsp_utils.h |
-| Detect peak level | `Iterum::DSP::findPeak()` | dsp_utils.h |
-| Oversample for nonlinear DSP | `Iterum::DSP::Oversampler2x` | primitives/oversampler.h |
-| 4x oversample for heavy distortion | `Iterum::DSP::Oversampler4x` | primitives/oversampler.h |
+| Apply gain to buffer | `Krate::DSP::applyGain()` | dsp_utils.h |
+| Mix two buffers | `Krate::DSP::mix()` | dsp_utils.h |
+| Smooth parameter changes | `Krate::DSP::OnePoleSmoother` | dsp_utils.h |
+| Hard limit output | `Krate::DSP::hardClip()` | dsp_utils.h |
+| Add saturation | `Krate::DSP::softClip()` | dsp_utils.h |
+| Measure RMS level | `Krate::DSP::calculateRMS()` | dsp_utils.h |
+| Detect peak level | `Krate::DSP::findPeak()` | dsp_utils.h |
+| Oversample for nonlinear DSP | `Krate::DSP::Oversampler2x` | primitives/oversampler.h |
+| 4x oversample for heavy distortion | `Krate::DSP::Oversampler4x` | primitives/oversampler.h |
 | Zero-latency oversampling | `Oversampler.prepare(..., ZeroLatency)` | primitives/oversampler.h |
 | Get oversampler latency | `Oversampler::getLatency()` | primitives/oversampler.h |
 | Generate window function | `Window::generateHann()` | core/window_functions.h |
@@ -5281,97 +5303,97 @@ Quick lookup by functionality:
 | Streaming spectral analysis | `STFT::pushSamples()` / `analyze()` | primitives/stft.h |
 | Overlap-add synthesis | `OverlapAdd::synthesize()` | primitives/stft.h |
 | Full STFT→modify→ISTFT pipeline | STFT + SpectralBuffer + OverlapAdd | primitives/stft.h |
-| Complete filter with modulation | `Iterum::DSP::MultimodeFilter` | processors/multimode_filter.h |
+| Complete filter with modulation | `Krate::DSP::MultimodeFilter` | processors/multimode_filter.h |
 | Selectable filter slope | `MultimodeFilter::setSlope()` | processors/multimode_filter.h |
 | Click-free parameter changes | `MultimodeFilter::setSmoothingTime()` | processors/multimode_filter.h |
 | Pre-filter saturation | `MultimodeFilter::setDrive()` | processors/multimode_filter.h |
-| Track amplitude envelope | `Iterum::DSP::EnvelopeFollower` | processors/envelope_follower.h |
+| Track amplitude envelope | `Krate::DSP::EnvelopeFollower` | processors/envelope_follower.h |
 | Set envelope mode | `EnvelopeFollower::setMode()` | processors/envelope_follower.h |
 | Set attack/release times | `EnvelopeFollower::setAttackTime()` | processors/envelope_follower.h |
 | Enable sidechain filter | `EnvelopeFollower::setSidechainEnabled()` | processors/envelope_follower.h |
 | Get current envelope value | `EnvelopeFollower::getCurrentValue()` | processors/envelope_follower.h |
-| Compress/limit dynamics | `Iterum::DSP::DynamicsProcessor` | processors/dynamics_processor.h |
+| Compress/limit dynamics | `Krate::DSP::DynamicsProcessor` | processors/dynamics_processor.h |
 | Set compressor threshold | `DynamicsProcessor::setThreshold()` | processors/dynamics_processor.h |
 | Set compression ratio | `DynamicsProcessor::setRatio()` | processors/dynamics_processor.h |
 | Set soft knee | `DynamicsProcessor::setKneeWidth()` | processors/dynamics_processor.h |
 | Enable auto-makeup gain | `DynamicsProcessor::setAutoMakeup()` | processors/dynamics_processor.h |
 | Enable lookahead | `DynamicsProcessor::setLookahead()` | processors/dynamics_processor.h |
 | Get gain reduction (metering) | `DynamicsProcessor::getCurrentGainReduction()` | processors/dynamics_processor.h |
-| Duck audio with sidechain | `Iterum::DSP::DuckingProcessor` | processors/ducking_processor.h |
+| Duck audio with sidechain | `Krate::DSP::DuckingProcessor` | processors/ducking_processor.h |
 | Set ducking threshold | `DuckingProcessor::setThreshold()` | processors/ducking_processor.h |
 | Set ducking depth | `DuckingProcessor::setDepth()` | processors/ducking_processor.h |
 | Set hold time | `DuckingProcessor::setHoldTime()` | processors/ducking_processor.h |
 | Set range limit | `DuckingProcessor::setRange()` | processors/ducking_processor.h |
 | Enable sidechain HPF | `DuckingProcessor::setSidechainFilterEnabled()` | processors/ducking_processor.h |
 | Get ducking GR (metering) | `DuckingProcessor::getCurrentGainReduction()` | processors/ducking_processor.h |
-| Generate random numbers | `Iterum::DSP::Xorshift32` | core/random.h |
+| Generate random numbers | `Krate::DSP::Xorshift32` | core/random.h |
 | Get bipolar random [-1,1] | `Xorshift32::nextFloat()` | core/random.h |
 | Get unipolar random [0,1] | `Xorshift32::nextUnipolar()` | core/random.h |
-| Generate multi-type noise | `Iterum::DSP::NoiseGenerator` | processors/noise_generator.h |
+| Generate multi-type noise | `Krate::DSP::NoiseGenerator` | processors/noise_generator.h |
 | Enable noise type | `NoiseGenerator::setNoiseEnabled()` | processors/noise_generator.h |
 | Set noise level | `NoiseGenerator::setNoiseLevel()` | processors/noise_generator.h |
 | Configure tape hiss | `NoiseGenerator::setTapeHissParams()` | processors/noise_generator.h |
 | Configure vinyl crackle | `NoiseGenerator::setCrackleParams()` | processors/noise_generator.h |
 | Configure asperity | `NoiseGenerator::setAsperityParams()` | processors/noise_generator.h |
 | Mix noise with audio | `NoiseGenerator::processMix()` | processors/noise_generator.h |
-| Create tempo-synced delay | `Iterum::DSP::DelayEngine` | systems/delay_engine.h |
+| Create tempo-synced delay | `Krate::DSP::DelayEngine` | systems/delay_engine.h |
 | Set delay time mode | `DelayEngine::setTimeMode()` | systems/delay_engine.h |
 | Set delay time ms | `DelayEngine::setDelayTimeMs()` | systems/delay_engine.h |
 | Set delay note value | `DelayEngine::setNoteValue()` | systems/delay_engine.h |
-| Create feedback network | `Iterum::DSP::FeedbackNetwork` | systems/feedback_network.h |
+| Create feedback network | `Krate::DSP::FeedbackNetwork` | systems/feedback_network.h |
 | Set feedback amount | `FeedbackNetwork::setFeedbackAmount()` | systems/feedback_network.h |
 | Set cross-feedback (ping-pong) | `FeedbackNetwork::setCrossFeedbackAmount()` | systems/feedback_network.h |
 | Enable feedback freeze | `FeedbackNetwork::setFrozen()` | systems/feedback_network.h |
 | Set feedback filter | `FeedbackNetwork::setFilterCutoff()` | systems/feedback_network.h |
-| Route modulation sources | `Iterum::DSP::ModulationMatrix` | systems/modulation_matrix.h |
+| Route modulation sources | `Krate::DSP::ModulationMatrix` | systems/modulation_matrix.h |
 | Register modulation source | `ModulationMatrix::registerSource()` | systems/modulation_matrix.h |
 | Register modulation destination | `ModulationMatrix::registerDestination()` | systems/modulation_matrix.h |
 | Create modulation route | `ModulationMatrix::createRoute()` | systems/modulation_matrix.h |
 | Set route depth | `ModulationMatrix::setRouteDepth()` | systems/modulation_matrix.h |
 | Get modulated value | `ModulationMatrix::getModulatedValue()` | systems/modulation_matrix.h |
 | Query current modulation | `ModulationMatrix::getCurrentModulation()` | systems/modulation_matrix.h |
-| Create stereo processor | `Iterum::DSP::StereoField` | systems/stereo_field.h |
+| Create stereo processor | `Krate::DSP::StereoField` | systems/stereo_field.h |
 | Set stereo mode | `StereoField::setMode()` | systems/stereo_field.h |
 | Set stereo width | `StereoField::setWidth()` | systems/stereo_field.h |
 | Set stereo pan | `StereoField::setPan()` | systems/stereo_field.h |
 | Set L/R timing offset | `StereoField::setLROffset()` | systems/stereo_field.h |
 | Set L/R delay ratio | `StereoField::setLRRatio()` | systems/stereo_field.h |
-| Create tape delay effect | `Iterum::DSP::TapeDelay` | features/tape_delay.h |
-| Create BBD delay effect | `Iterum::DSP::BBDDelay` | features/bbd_delay.h |
-| Create digital delay effect | `Iterum::DSP::DigitalDelay` | features/digital_delay.h |
+| Create tape delay effect | `Krate::DSP::TapeDelay` | features/tape_delay.h |
+| Create BBD delay effect | `Krate::DSP::BBDDelay` | features/bbd_delay.h |
+| Create digital delay effect | `Krate::DSP::DigitalDelay` | features/digital_delay.h |
 | Set digital delay era | `DigitalDelay::setEra()` | features/digital_delay.h |
 | Set limiter character | `DigitalDelay::setLimiterCharacter()` | features/digital_delay.h |
 | Set delay modulation | `DigitalDelay::setModulationDepth()` | features/digital_delay.h |
-| Create ping-pong delay | `Iterum::DSP::PingPongDelay` | features/ping_pong_delay.h |
+| Create ping-pong delay | `Krate::DSP::PingPongDelay` | features/ping_pong_delay.h |
 | Set L/R ratio (ping-pong) | `PingPongDelay::setLRRatio()` | features/ping_pong_delay.h |
 | Set cross-feedback | `PingPongDelay::setCrossFeedback()` | features/ping_pong_delay.h |
 | Set ping-pong width | `PingPongDelay::setWidth()` | features/ping_pong_delay.h |
-| Create shimmer delay | `Iterum::DSP::ShimmerDelay` | features/shimmer_delay.h |
+| Create shimmer delay | `Krate::DSP::ShimmerDelay` | features/shimmer_delay.h |
 | Set shimmer pitch | `ShimmerDelay::setPitchSemitones()` | features/shimmer_delay.h |
 | Set shimmer mix | `ShimmerDelay::setShimmerMix()` | features/shimmer_delay.h |
 | Set shimmer diffusion | `ShimmerDelay::setDiffusionAmount()` | features/shimmer_delay.h |
 | Set shimmer pitch mode | `ShimmerDelay::setPitchMode()` | features/shimmer_delay.h |
-| Create reverse buffer | `Iterum::DSP::ReverseBuffer` | primitives/reverse_buffer.h |
+| Create reverse buffer | `Krate::DSP::ReverseBuffer` | primitives/reverse_buffer.h |
 | Set reverse chunk size | `ReverseBuffer::setChunkSizeMs()` | primitives/reverse_buffer.h |
 | Set reverse crossfade | `ReverseBuffer::setCrossfadeMs()` | primitives/reverse_buffer.h |
-| Create reverse processor | `Iterum::DSP::ReverseFeedbackProcessor` | processors/reverse_feedback_processor.h |
+| Create reverse processor | `Krate::DSP::ReverseFeedbackProcessor` | processors/reverse_feedback_processor.h |
 | Set reverse playback mode | `ReverseFeedbackProcessor::setPlaybackMode()` | processors/reverse_feedback_processor.h |
-| Create reverse delay | `Iterum::DSP::ReverseDelay` | features/reverse_delay.h |
+| Create reverse delay | `Krate::DSP::ReverseDelay` | features/reverse_delay.h |
 | Set reverse delay chunk | `ReverseDelay::setChunkSizeMs()` | features/reverse_delay.h |
 | Set reverse playback mode | `ReverseDelay::setPlaybackMode()` | features/reverse_delay.h |
 | Set reverse crossfade | `ReverseDelay::setCrossfadePercent()` | features/reverse_delay.h |
-| Create freeze mode | `Iterum::DSP::FreezeMode` | features/freeze_mode.h |
+| Create freeze mode | `Krate::DSP::FreezeMode` | features/freeze_mode.h |
 | Enable/disable freeze | `FreezeMode::setFreezeEnabled()` | features/freeze_mode.h |
 | Set freeze shimmer | `FreezeMode::setShimmerMix()` | features/freeze_mode.h |
 | Set freeze decay | `FreezeMode::setDecay()` | features/freeze_mode.h |
 | Set freeze diffusion | `FreezeMode::setDiffusionAmount()` | features/freeze_mode.h |
-| Create ducking delay | `Iterum::DSP::DuckingDelay` | features/ducking_delay.h |
+| Create ducking delay | `Krate::DSP::DuckingDelay` | features/ducking_delay.h |
 | Enable/disable ducking | `DuckingDelay::setDuckingEnabled()` | features/ducking_delay.h |
 | Set ducking threshold | `DuckingDelay::setThreshold()` | features/ducking_delay.h |
 | Set duck amount | `DuckingDelay::setDuckAmount()` | features/ducking_delay.h |
 | Set duck target | `DuckingDelay::setDuckTarget()` | features/ducking_delay.h |
 | Get ducking gain reduction | `DuckingDelay::getGainReduction()` | features/ducking_delay.h |
-| Create spectral delay | `Iterum::DSP::SpectralDelay` | features/spectral_delay.h |
+| Create spectral delay | `Krate::DSP::SpectralDelay` | features/spectral_delay.h |
 | Set spectral delay FFT size | `SpectralDelay::setFFTSize()` | features/spectral_delay.h |
 | Set spectral spread | `SpectralDelay::setSpreadMs()` | features/spectral_delay.h |
 | Set spectral spread direction | `SpectralDelay::setSpreadDirection()` | features/spectral_delay.h |
