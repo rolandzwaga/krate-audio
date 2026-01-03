@@ -1,9 +1,39 @@
 name: Release
 
-# Manual trigger only
+# ==============================================================================
+# Multi-Plugin Release Workflow
+# ==============================================================================
+# This workflow releases individual plugins from the Krate Audio monorepo.
+#
+# HOW TO ADD A NEW PLUGIN:
+# 1. Add the plugin name (lowercase) to the 'options' list below
+# 2. Create plugins/{name}/version.json with required fields:
+#    {
+#      "name": "PluginName",        // Display name (e.g., "Iterum")
+#      "version": "1.0.0",          // Semantic version
+#      "description": "...",        // One-line description
+#      "publisher": "Krate Audio",  // Publisher name
+#      "url": "https://...",        // Plugin homepage
+#      "identifier": "com.krateaudio.pluginname"  // Optional, for macOS pkg
+#    }
+# 3. Ensure CI workflow builds the plugin (update ci.yml if needed)
+# 4. Create installer scripts in plugins/{name}/installers/
+#
+# TAG FORMAT: {plugin}/v{version} (e.g., iterum/v0.8.0)
+# ==============================================================================
+
+# Manual trigger with plugin selection
 on:
   workflow_dispatch:
     inputs:
+      plugin:
+        description: 'Plugin to release'
+        type: choice
+        required: true
+        # Add new plugins here (lowercase directory name)
+        options:
+          - iterum
+        default: iterum
       prerelease:
         description: 'Mark as pre-release?'
         type: boolean
@@ -11,17 +41,19 @@ on:
 
 # Prevent duplicate runs
 concurrency:
-  group: release
+  group: release-${{ inputs.plugin }}
   cancel-in-progress: false
 
 jobs:
-  # Read version from version.json (single source of truth)
+  # Read version and compute plugin metadata
   version:
     name: Get Version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      plugin: ${{ steps.version.outputs.plugin }}
+      plugin_name: ${{ steps.version.outputs.plugin_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,10 +61,17 @@ jobs:
       - name: Read Version
         id: version
         run: |
-          VERSION=$(jq -r '.version' version.json)
+          PLUGIN="${{ inputs.plugin }}"
+          VERSION=$(jq -r '.version' plugins/${PLUGIN}/version.json)
+          PLUGIN_NAME=$(jq -r '.name' plugins/${PLUGIN}/version.json)
+          TAG="${PLUGIN}/v${VERSION}"
+
+          echo "plugin=$PLUGIN" >> $GITHUB_OUTPUT
+          echo "plugin_name=$PLUGIN_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
-          echo "Release version: $VERSION (tag: v$VERSION)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+          echo "Release: $PLUGIN_NAME v$VERSION (tag: $TAG)"
 
   # Build and test on all platforms using the CI workflow
   build:
@@ -55,7 +94,7 @@ jobs:
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
-          name: Iterum-Windows-x64
+          name: ${{ needs.version.outputs.plugin_name }}-Windows-x64
           path: artifact
           github-token: ${{ github.token }}
 
@@ -63,31 +102,34 @@ jobs:
         run: Get-ChildItem -Recurse artifact | Format-Table FullName
 
       - name: Prepare Installer Files
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
         run: |
-          # Rename artifact folder to Iterum.vst3 (upload-artifact extracts contents, not folder)
-          Rename-Item -Path "artifact" -NewName "Iterum.vst3"
-          Move-Item -Path "Iterum.vst3" -Destination "installers\windows\"
+          # Rename artifact folder to Plugin.vst3 (upload-artifact extracts contents, not folder)
+          Rename-Item -Path "artifact" -NewName "${env:PLUGIN_NAME}.vst3"
+          Move-Item -Path "${env:PLUGIN_NAME}.vst3" -Destination "plugins\${env:PLUGIN}\installers\windows\"
           # Copy factory presets
-          Copy-Item -Path "resources\presets" -Destination "installers\windows\" -Recurse
+          Copy-Item -Path "plugins\${env:PLUGIN}\resources\presets" -Destination "plugins\${env:PLUGIN}\installers\windows\" -Recurse
           # Convert markdown to plain text for installer display
-          (Get-Content CHANGELOG.md -Raw) `
+          (Get-Content "plugins\${env:PLUGIN}\CHANGELOG.md" -Raw) `
             -replace '\[([^\]]+)\]\([^\)]+\)', '$1' `
             -replace '\*\*([^\*]+)\*\*', '$1' `
             -replace '`([^`]+)`', '$1' `
             -replace '^#{1,3}\s*', '' `
-            | Set-Content "installers\windows\CHANGELOG.txt"
+            | Set-Content "plugins\${env:PLUGIN}\installers\windows\CHANGELOG.txt"
 
       - name: Build Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
-          path: installers/windows/setup.iss
+          path: plugins/${{ needs.version.outputs.plugin }}/installers/windows/setup.iss
           options: /DVersion=${{ needs.version.outputs.version }}
 
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: installers/windows/Iterum-${{ needs.version.outputs.version }}-Windows-x64.exe
+          path: plugins/${{ needs.version.outputs.plugin }}/installers/windows/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
           if-no-files-found: error
 
   # macOS installer using pkgbuild
@@ -105,7 +147,7 @@ jobs:
       - name: Download macOS Artifact
         uses: actions/download-artifact@v4
         with:
-          name: Iterum-macOS
+          name: ${{ needs.version.outputs.plugin_name }}-macOS
           path: artifact
           github-token: ${{ github.token }}
 
@@ -113,31 +155,40 @@ jobs:
         run: ls -laR artifact
 
       - name: Prepare Installer Files
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
         run: |
           # Create staging directories for both VST3 and AU
           mkdir -p staging/Library/Audio/Plug-Ins/VST3
           mkdir -p staging/Library/Audio/Plug-Ins/Components
           # Move VST3 and AU bundles to appropriate locations
-          mv artifact/Iterum.vst3 staging/Library/Audio/Plug-Ins/VST3/
-          mv artifact/Iterum.component staging/Library/Audio/Plug-Ins/Components/
+          mv artifact/${PLUGIN_NAME}.vst3 staging/Library/Audio/Plug-Ins/VST3/
+          mv artifact/${PLUGIN_NAME}.component staging/Library/Audio/Plug-Ins/Components/
           # Create factory presets directory and copy presets
-          mkdir -p "staging/Library/Application Support/Krate Audio/Iterum"
-          cp -r resources/presets/* "staging/Library/Application Support/Krate Audio/Iterum/"
+          mkdir -p "staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}"
+          cp -r plugins/${PLUGIN}/resources/presets/* "staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}/"
 
       - name: Build Installer
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
+          # Read identifier from version.json or use default
+          IDENTIFIER=$(jq -r '.identifier // "com.krateaudio.\(.name | ascii_downcase)"' plugins/${PLUGIN}/version.json)
           pkgbuild \
             --root staging \
-            --identifier com.krateaudio.iterum \
-            --version ${{ needs.version.outputs.version }} \
+            --identifier "$IDENTIFIER" \
+            --version "$VERSION" \
             --install-location / \
-            Iterum-${{ needs.version.outputs.version }}-macOS.pkg
+            "${PLUGIN_NAME}-${VERSION}-macOS.pkg"
 
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
           name: macos-installer
-          path: Iterum-${{ needs.version.outputs.version }}-macOS.pkg
+          path: ${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
           if-no-files-found: error
 
   # Linux archive with README
@@ -155,7 +206,7 @@ jobs:
       - name: Download Linux Artifact
         uses: actions/download-artifact@v4
         with:
-          name: Iterum-Linux-x64
+          name: ${{ needs.version.outputs.plugin_name }}-Linux-x64
           path: artifact
           github-token: ${{ github.token }}
 
@@ -163,30 +214,36 @@ jobs:
         run: ls -laR artifact
 
       - name: Prepare Archive Files
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
         run: |
           mkdir -p staging
-          # Rename artifact folder to Iterum.vst3 (upload-artifact extracts contents, not folder)
-          mv artifact staging/Iterum.vst3
+          # Rename artifact folder to Plugin.vst3 (upload-artifact extracts contents, not folder)
+          mv artifact staging/${PLUGIN_NAME}.vst3
           # Copy factory presets
-          cp -r resources/presets staging/
-          cp installers/linux/README.txt staging/
+          cp -r plugins/${PLUGIN}/resources/presets staging/
+          cp plugins/${PLUGIN}/installers/linux/README.txt staging/
           # Convert markdown to plain text
           sed -e 's/\[\([^]]*\)\]([^)]*)/ \1/g' \
               -e 's/\*\*\([^*]*\)\*\*/\1/g' \
               -e 's/`\([^`]*\)`/\1/g' \
               -e 's/^#\{1,3\} *//' \
-              CHANGELOG.md > staging/CHANGELOG.txt
+              plugins/${PLUGIN}/CHANGELOG.md > staging/CHANGELOG.txt
 
       - name: Create Archive
+        env:
+          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           cd staging
-          tar -czvf ../Iterum-${{ needs.version.outputs.version }}-Linux-x64.tar.gz *
+          tar -czvf ../${PLUGIN_NAME}-${VERSION}-Linux-x64.tar.gz *
 
       - name: Upload Archive
         uses: actions/upload-artifact@v4
         with:
           name: linux-archive
-          path: Iterum-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
+          path: ${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
           if-no-files-found: error
 
   # Create GitHub Release with all installers (creates tag automatically)
@@ -227,14 +284,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
-          name: Iterum ${{ needs.version.outputs.tag }}
+          name: ${{ needs.version.outputs.plugin_name }} ${{ needs.version.outputs.tag }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
           files: |
-            installers/Iterum-${{ needs.version.outputs.version }}-Windows-x64.exe
-            installers/Iterum-${{ needs.version.outputs.version }}-macOS.pkg
-            installers/Iterum-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
+            installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
 
   # Deploy landing page to GitHub Pages
   deploy-pages:
@@ -252,18 +309,22 @@ jobs:
 
       - name: Read Metadata
         id: meta
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
         run: |
-          echo "name=$(jq -r '.name' version.json)" >> $GITHUB_OUTPUT
-          echo "description=$(jq -r '.description' version.json)" >> $GITHUB_OUTPUT
-          echo "publisher=$(jq -r '.publisher' version.json)" >> $GITHUB_OUTPUT
-          echo "url=$(jq -r '.url' version.json)" >> $GITHUB_OUTPUT
+          echo "name=$(jq -r '.name' plugins/${PLUGIN}/version.json)" >> $GITHUB_OUTPUT
+          echo "description=$(jq -r '.description' plugins/${PLUGIN}/version.json)" >> $GITHUB_OUTPUT
+          echo "publisher=$(jq -r '.publisher' plugins/${PLUGIN}/version.json)" >> $GITHUB_OUTPUT
+          echo "url=$(jq -r '.url' plugins/${PLUGIN}/version.json)" >> $GITHUB_OUTPUT
 
       - name: Generate Landing Page
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+          VERSION: ${{ needs.version.outputs.version }}
+          TAG: ${{ needs.version.outputs.tag }}
+          REPO: ${{ github.repository }}
         run: |
           mkdir -p _site
-          VERSION="${{ needs.version.outputs.version }}"
-          TAG="${{ needs.version.outputs.tag }}"
-          REPO="${{ github.repository }}"
 
           # Generate index.html from template
           sed -e "s|{{VERSION}}|$VERSION|g" \
@@ -272,10 +333,10 @@ jobs:
               -e "s|{{NAME}}|${{ steps.meta.outputs.name }}|g" \
               -e "s|{{DESCRIPTION}}|${{ steps.meta.outputs.description }}|g" \
               -e "s|{{PUBLISHER}}|${{ steps.meta.outputs.publisher }}|g" \
-              docs/index.html > _site/index.html
+              plugins/${PLUGIN}/docs/index.html > _site/index.html
 
           # Copy assets
-          cp -r docs/assets _site/ 2>/dev/null || true
+          cp -r plugins/${PLUGIN}/docs/assets _site/ 2>/dev/null || true
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

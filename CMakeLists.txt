@@ -1,24 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
 
 # ==============================================================================
-# Version from version.json (Single Source of Truth)
+# Krate Audio Monorepo
 # ==============================================================================
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.json" VERSION_JSON)
-string(JSON ITERUM_VERSION GET ${VERSION_JSON} "version")
-string(JSON ITERUM_NAME GET ${VERSION_JSON} "name")
-string(JSON ITERUM_DESCRIPTION GET ${VERSION_JSON} "description")
-string(JSON ITERUM_PUBLISHER GET ${VERSION_JSON} "publisher")
-string(JSON ITERUM_URL GET ${VERSION_JSON} "url")
-string(JSON ITERUM_COPYRIGHT GET ${VERSION_JSON} "copyright")
+# Constitution Principle VII: Modern CMake with target-based configuration
+#
+# Structure:
+#   dsp/              - KrateDSP shared library (Layers 0-4)
+#   plugins/iterum/   - Iterum VST3 plugin
+#   extern/vst3sdk/   - VST3 SDK (shared by all plugins)
+#   tools/            - Shared development tools
+# ==============================================================================
 
-message(STATUS "[ITERUM] Version: ${ITERUM_VERSION}")
-
-# ==============================================================================
-# Project Configuration
-# ==============================================================================
-project(${ITERUM_NAME}
-    VERSION ${ITERUM_VERSION}
-    DESCRIPTION "${ITERUM_DESCRIPTION}"
+project(KrateAudio
+    VERSION 0.8.0
+    DESCRIPTION "Krate Audio Plugin Suite"
     LANGUAGES CXX
 )
 
@@ -33,8 +29,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # ==============================================================================
 # Compiler Cache (ccache) Support
 # ==============================================================================
-# Enable with -DUSE_CCACHE=ON (automatically enabled in CI)
-# Works with all generators including Xcode via wrapper scripts
 option(USE_CCACHE "Use ccache for faster rebuilds" OFF)
 
 if(USE_CCACHE)
@@ -50,15 +44,8 @@ endif()
 # ==============================================================================
 # MSVC PDB Workaround for sccache/ccache
 # ==============================================================================
-# The VST3 SDK (specifically VSTGUI) uses /Zi which creates shared PDB files.
-# When using Ninja with sccache/ccache, multiple compiler processes try to
-# write to the same PDB simultaneously, causing conflicts.
-#
-# Solution: Replace /Zi with /Z7 which embeds debug info in object files.
-# This is the industry-standard approach used by Chromium, Firefox, etc.
-# The linker still creates a proper PDB from the embedded debug info.
 if(MSVC AND (CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER))
-    message(STATUS "[ITERUM] Using /Z7 instead of /Zi for sccache/ccache compatibility")
+    message(STATUS "[KRATE] Using /Z7 instead of /Zi for sccache/ccache compatibility")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
     string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
@@ -66,12 +53,10 @@ if(MSVC AND (CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER))
 endif()
 
 # ==============================================================================
-# VST3 SDK Configuration
+# VST3 SDK Configuration (Shared by all plugins)
 # ==============================================================================
-# Path to VST3 SDK (as git submodule in extern/)
 set(vst3sdk_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/vst3sdk")
 
-# Verify SDK exists
 if(NOT EXISTS "${vst3sdk_SOURCE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
         "VST3 SDK not found at ${vst3sdk_SOURCE_DIR}\n"
@@ -82,282 +67,63 @@ endif()
 
 # SDK Options
 set(SMTG_ENABLE_VST3_PLUGIN_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES ON CACHE BOOL "" FORCE)  # Enables vstvalidator
+set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES ON CACHE BOOL "" FORCE)
 set(SMTG_ENABLE_VSTGUI_SUPPORT ON CACHE BOOL "" FORCE)
 set(SMTG_CXX_STANDARD "20" CACHE STRING "" FORCE)
-set(SMTG_CREATE_PLUGIN_LINK OFF CACHE BOOL "" FORCE)  # We use our own copy step
-set(SMTG_RUN_VST_VALIDATOR OFF CACHE BOOL "" FORCE)   # Don't auto-run on every build
+set(SMTG_CREATE_PLUGIN_LINK OFF CACHE BOOL "" FORCE)
+set(SMTG_RUN_VST_VALIDATOR OFF CACHE BOOL "" FORCE)
 
-# Add VST3 SDK
 add_subdirectory(${vst3sdk_SOURCE_DIR} ${PROJECT_BINARY_DIR}/vst3sdk)
 smtg_enable_vst3_sdk()
 
 # ==============================================================================
-# Version Header Generation
-# ==============================================================================
-# Generate version.h from template - single source of truth for version
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/version.h"
-    @ONLY
-)
-
-# ==============================================================================
-# Windows Resource Generation
-# ==============================================================================
-# Generate win32resource.rc from template - single source of truth for version
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32resource.rc.in"
-    "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32resource.rc"
-    @ONLY
-)
-
-# ==============================================================================
-# Plugin Target
-# ==============================================================================
-set(PLUGIN_NAME "${PROJECT_NAME}")
-
-smtg_add_vst3plugin(${PLUGIN_NAME}
-    # Plugin Entry
-    src/entry.cpp
-
-    # Processor (Audio Thread)
-    src/processor/processor.h
-    src/processor/processor.cpp
-
-    # Controller (UI Thread)
-    src/controller/controller.h
-    src/controller/controller.cpp
-
-    # VST3 SDK Common Sources (for MemoryStream used by preset saving)
-    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
-
-    # Shared
-    src/plugin_ids.h
-    src/version.h
-
-    # DSP (Pure algorithms - Constitution Principle VIII)
-    src/dsp/dsp_utils.h
-    src/dsp/dsp_utils.cpp
-
-    # DSP Layer 0: Core Utilities
-    src/dsp/core/pitch_utils.h
-    src/dsp/core/grain_envelope.h
-
-    # DSP Layer 1: Primitives
-    src/dsp/primitives/grain_pool.h
-
-    # DSP Layer 2: Processors
-    src/dsp/processors/grain_scheduler.h
-    src/dsp/processors/grain_processor.h
-
-    # DSP Layer 3: Systems
-    src/dsp/systems/granular_engine.h
-
-    # DSP Layer 4: Features
-    src/dsp/features/granular_delay.h
-
-    # ==========================================================================
-    # Preset Browser (spec 042)
-    # ==========================================================================
-
-    # Platform Abstraction
-    src/platform/preset_paths.h
-    src/platform/preset_paths.cpp
-
-    # Preset Management
-    src/preset/preset_info.h
-    src/preset/preset_manager.h
-    src/preset/preset_manager.cpp
-
-    # Custom VSTGUI Views
-    src/ui/preset_browser_view.h
-    src/ui/preset_browser_view.cpp
-    src/ui/preset_data_source.h
-    src/ui/preset_data_source.cpp
-    src/ui/save_preset_dialog_view.h
-    src/ui/save_preset_dialog_view.cpp
-    src/ui/mode_tab_bar.h
-    src/ui/mode_tab_bar.cpp
-)
-
-# Link SDK and VSTGUI
-target_link_libraries(${PLUGIN_NAME}
-    PRIVATE
-        sdk
-        vstgui_support
-)
-
-# Note: VSTGUI bundle support on Windows is automatically enabled by
-# vstgui_support when SMTG_CREATE_BUNDLE_FOR_WINDOWS is ON (default).
-# The vstgui_support library adds SMTG_MODULE_IS_BUNDLE=1 as PUBLIC
-# and includes the bundle support source files.
-
-# Include directories (Constitution Principle VII: include/<project>/ style)
-target_include_directories(${PLUGIN_NAME}
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-# Configure version file
-smtg_target_configure_version_file(${PLUGIN_NAME})
-
-# ==============================================================================
-# Platform-Specific Configuration
-# ==============================================================================
-if(SMTG_MAC)
-    smtg_target_set_bundle(${PLUGIN_NAME}
-        BUNDLE_IDENTIFIER "com.krateaudio.iterum"
-        COMPANY_NAME "Krate Audio"
-    )
-    # Set debug executable (e.g., a DAW for testing)
-    # smtg_target_set_debug_executable(${PLUGIN_NAME} "/Applications/Reaper.app")
-
-    # ==========================================================================
-    # Audio Unit v2 Support (macOS only)
-    # ==========================================================================
-    # Enable with: cmake -DSMTG_ENABLE_AUV2_BUILDS=ON -G Xcode
-    # Requires Xcode generator for Objective-C++ support
-    option(SMTG_ENABLE_AUV2_BUILDS "Enable AudioUnit v2 builds" OFF)
-
-    if(XCODE AND SMTG_ENABLE_AUV2_BUILDS)
-        message(STATUS "[ITERUM] AudioUnit v2 build enabled")
-
-        # Fetch Apple's AudioUnitSDK
-        include(FetchContent)
-        FetchContent_Declare(
-            AudioUnitSDK
-            GIT_REPOSITORY https://github.com/apple/AudioUnitSDK.git
-            GIT_TAG AudioUnitSDK-1.1.0
-        )
-        FetchContent_MakeAvailable(AudioUnitSDK)
-        FetchContent_GetProperties(
-            AudioUnitSDK
-            SOURCE_DIR SMTG_AUDIOUNIT_SDK_PATH
-        )
-
-        # Include the AU wrapper CMake module
-        list(APPEND CMAKE_MODULE_PATH "${vst3sdk_SOURCE_DIR}/cmake/modules")
-        include(SMTG_AddVST3AuV2)
-
-        # Create AU target wrapping the VST3 plugin
-        smtg_target_add_auv2(${PLUGIN_NAME}_AU
-            BUNDLE_NAME ${PLUGIN_NAME}
-            BUNDLE_IDENTIFIER com.krateaudio.iterum.audiounit
-            INFO_PLIST_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/resources/au-info.plist
-            VST3_PLUGIN_TARGET ${PLUGIN_NAME}
-        )
-
-        message(STATUS "[ITERUM] AudioUnit target: ${PLUGIN_NAME}_AU")
-    elseif(SMTG_ENABLE_AUV2_BUILDS AND NOT XCODE)
-        message(WARNING "[ITERUM] AUv2 builds require Xcode generator (-G Xcode)")
-    endif()
-
-elseif(SMTG_WIN)
-    target_sources(${PLUGIN_NAME}
-        PRIVATE
-            resources/win32resource.rc
-    )
-endif()
-
-# ==============================================================================
-# VSTGUI Resources
-# ==============================================================================
-smtg_target_add_plugin_resources(${PLUGIN_NAME}
-    RESOURCES
-        resources/editor.uidesc
-)
-
-# ==============================================================================
-# Post-Build: Copy to VST3 System Folder
-# ==============================================================================
-# Copies the built plugin to the system VST3 folder after each build.
-# NOTE: Requires running build as Administrator on Windows.
-# Disable with: cmake -DVSTWORK_COPY_TO_VST3_FOLDER=OFF
-
-option(VSTWORK_COPY_TO_VST3_FOLDER "Copy plugin to system VST3 folder after build" ON)
-
-if(VSTWORK_COPY_TO_VST3_FOLDER AND SMTG_WIN)
-    set(VST3_SYSTEM_FOLDER "C:/Program Files/Common Files/VST3")
-    set(VST3_BUILD_OUTPUT "${CMAKE_BINARY_DIR}/VST3/$<CONFIG>/${PLUGIN_NAME}.vst3")
-
-    add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo "[VSTWORK] Copying plugin to ${VST3_SYSTEM_FOLDER}..."
-        COMMAND ${CMAKE_COMMAND} -E rm -rf "${VST3_SYSTEM_FOLDER}/${PLUGIN_NAME}.vst3"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${VST3_BUILD_OUTPUT}"
-            "${VST3_SYSTEM_FOLDER}/${PLUGIN_NAME}.vst3"
-        COMMAND ${CMAKE_COMMAND} -E echo "[VSTWORK] Plugin installed to ${VST3_SYSTEM_FOLDER}/${PLUGIN_NAME}.vst3"
-        COMMENT "Installing ${PLUGIN_NAME}.vst3 to system VST3 folder"
-        VERBATIM
-    )
-endif()
-
-# ==============================================================================
-# Compiler Warnings (Constitution Principle III: Modern C++)
-# ==============================================================================
-if(MSVC)
-    target_compile_options(${PLUGIN_NAME} PRIVATE
-        /W4           # Warning level 4
-        /permissive-  # Strict conformance
-        /Zc:__cplusplus  # Report correct C++ version
-        /wd4100       # Unreferenced formal parameter (common in SDK callbacks)
-        /wd4458       # Declaration hides class member (SDK headers)
-        # /WX         # Treat warnings as errors (enable for CI)
-    )
-    # Override VST3 SDK's /Zi with /Z7 for sccache/ccache compatibility
-    # Must be added after smtg_add_vst3plugin since SDK adds /Zi via add_compile_options
-    if(CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER)
-        target_compile_options(${PLUGIN_NAME} PRIVATE /Z7)
-    endif()
-else()
-    target_compile_options(${PLUGIN_NAME} PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Wno-unused-parameter  # VST SDK has many unused params
-        # -Werror     # Treat warnings as errors (enable for CI)
-    )
-endif()
-
-# ==============================================================================
-# Testing (Constitution Principle VIII)
+# Testing Configuration (Constitution Principle VIII)
 # ==============================================================================
 option(VSTWORK_BUILD_TESTS "Build unit tests" ON)
 
 if(VSTWORK_BUILD_TESTS)
     enable_testing()
-    add_subdirectory(tests)
+
+    # Fetch Catch2 for testing
+    include(FetchContent)
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.4.0
+    )
+    FetchContent_MakeAvailable(Catch2)
+    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+    include(Catch)
+
+    # Fetch ApprovalTests for approval testing
+    FetchContent_Declare(
+        ApprovalTests
+        GIT_REPOSITORY https://github.com/approvals/ApprovalTests.cpp.git
+        GIT_TAG v.10.13.0
+    )
+    FetchContent_MakeAvailable(ApprovalTests)
+
+    # Test helpers library (shared by all tests)
+    add_subdirectory(tests/test_helpers)
 endif()
 
 # ==============================================================================
-# Tools
+# KrateDSP Library (Shared by all plugins)
 # ==============================================================================
-# Standalone tools for development
+add_subdirectory(dsp)
 
-# Preset Generator - creates factory preset files
+# ==============================================================================
+# Plugins
+# ==============================================================================
+add_subdirectory(plugins/iterum)
+
+# ==============================================================================
+# Tools (Shared development tools)
+# ==============================================================================
 add_executable(preset_generator
     tools/preset_generator.cpp
 )
 target_compile_features(preset_generator PRIVATE cxx_std_20)
 set_target_properties(preset_generator PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-)
-
-# ==============================================================================
-# Installation
-# ==============================================================================
-# Install to standard VST3 locations
-if(SMTG_WIN)
-    set(VSTWORK_INSTALL_DIR "$ENV{COMMONPROGRAMFILES}/VST3")
-elseif(SMTG_MAC)
-    set(VSTWORK_INSTALL_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/VST3")
-else()
-    set(VSTWORK_INSTALL_DIR "$ENV{HOME}/.vst3")
-endif()
-
-install(TARGETS ${PLUGIN_NAME}
-    LIBRARY DESTINATION "${VSTWORK_INSTALL_DIR}"
-    ARCHIVE DESTINATION "${VSTWORK_INSTALL_DIR}"
 )
