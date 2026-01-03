@@ -141,8 +141,8 @@
 
 ```bash
 # Run these searches to identify existing implementations
-grep -r "[key term 1]" src/
-grep -r "[key term 2]" src/
+grep -r "[key term 1]" dsp/ plugins/
+grep -r "[key term 2]" dsp/ plugins/
 ```
 
 **Search Results Summary**: [Document what was found or "No existing implementations found"]

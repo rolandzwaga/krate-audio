@@ -59,14 +59,14 @@ This section prevents One Definition Rule (ODR) violations by documenting existi
 
 | Planned Type | Search Command | Existing? | Action |
 |--------------|----------------|-----------|--------|
-| [ClassName] | `grep -r "class ClassName" src/` | Yes/No | Reuse / Extend / Create New |
-| [StructName] | `grep -r "struct StructName" src/` | Yes/No | Reuse / Extend / Create New |
+| [ClassName] | `grep -r "class ClassName" dsp/ plugins/` | Yes/No | Reuse / Extend / Create New |
+| [StructName] | `grep -r "struct StructName" dsp/ plugins/` | Yes/No | Reuse / Extend / Create New |
 
 **Utility Functions to be created**: [List planned new functions]
 
 | Planned Function | Search Command | Existing? | Location | Action |
 |------------------|----------------|-----------|----------|--------|
-| [functionName] | `grep -r "functionName" src/` | Yes/No | [file.h] | Reuse / Create New |
+| [functionName] | `grep -r "functionName" dsp/ plugins/` | Yes/No | [file.h] | Reuse / Create New |
 
 ### Existing Components to Reuse
 
@@ -77,13 +77,13 @@ This section prevents One Definition Rule (ODR) violations by documenting existi
 
 | Component | Location | Layer | How It Will Be Used |
 |-----------|----------|-------|---------------------|
-| [e.g., dbToGain] | dsp/core/db_utils.h | 0 | [dB conversion in gain parameter] |
-| [e.g., constexprExp] | dsp/core/db_utils.h | 0 | [coefficient calculation] |
+| [e.g., dbToGain] | dsp/include/krate/dsp/core/db_utils.h | 0 | [dB conversion in gain parameter] |
+| [e.g., constexprExp] | dsp/include/krate/dsp/core/db_utils.h | 0 | [coefficient calculation] |
 
 ### Files Checked for Conflicts
 
-- [ ] `src/dsp/dsp_utils.h` - Legacy utilities (often contains simple implementations)
-- [ ] `src/dsp/core/` - Layer 0 core utilities
+- [ ] `dsp/include/krate/dsp/core/` - Layer 0 core utilities
+- [ ] `dsp/include/krate/dsp/primitives/` - Layer 1 DSP primitives
 - [ ] `ARCHITECTURE.md` - Component inventory
 - [ ] [Other relevant files for this feature]
 
@@ -127,9 +127,9 @@ This section documents the **exact API signatures** of all dependencies that wil
   This creates an audit trail and ensures you actually read the code.
 -->
 
-- [ ] `src/dsp/core/block_context.h` - BlockContext struct
-- [ ] `src/dsp/systems/tap_manager.h` - TapManager class
-- [ ] `src/dsp/systems/feedback_network.h` - FeedbackNetwork class
+- [ ] `dsp/include/krate/dsp/core/block_context.h` - BlockContext struct
+- [ ] `dsp/include/krate/dsp/systems/tap_manager.h` - TapManager class
+- [ ] `dsp/include/krate/dsp/systems/feedback_network.h` - FeedbackNetwork class
 - [ ] [Add more as needed]
 
 ### Common Gotchas Documented
