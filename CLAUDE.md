@@ -4,11 +4,26 @@ This file provides guidance for AI assistants working on this VST3 plugin projec
 
 ## Project Overview
 
-This is a **VST3 plugin** built with:
+This is a **monorepo** for Krate Audio plugins, featuring:
+- **KrateDSP**: Shared DSP library at `dsp/` (namespace: `Krate::DSP`)
+- **Iterum**: Delay plugin at `plugins/iterum/`
 - **Steinberg VST3 SDK** (not JUCE or other frameworks)
 - **VSTGUI** for user interface
 - **Modern C++20**
 - **CMake 3.20+** build system
+
+### Monorepo Structure
+```
+├── dsp/                      # Shared KrateDSP library
+│   ├── include/krate/dsp/    # Public headers (use <krate/dsp/...>)
+│   └── tests/                # DSP unit tests
+├── plugins/iterum/           # Iterum plugin
+│   ├── src/                  # Plugin source
+│   ├── tests/                # Plugin tests
+│   └── resources/            # UI, presets, installers
+├── tests/                    # Shared test infrastructure
+└── extern/vst3sdk/           # VST3 SDK (shared)
+```
 
 ## Critical Rules (Non-Negotiable)
 
@@ -56,10 +71,10 @@ std::cout / printf / logging          // I/O operations
 Processor and Controller are **separate components**:
 
 ```cpp
-// Processor (audio thread) - src/processor/
+// Processor (audio thread) - plugins/iterum/src/processor/
 class Processor : public Steinberg::Vst::AudioEffect { /* Audio ONLY */ };
 
-// Controller (UI thread) - src/controller/
+// Controller (UI thread) - plugins/iterum/src/controller/
 class Controller : public Steinberg::Vst::EditControllerEx1 { /* UI ONLY */ };
 ```
 
@@ -94,7 +109,7 @@ class AudioProcessor {};           // Classes: PascalCase
 void processAudio();               // Functions: camelCase
 float sampleRate_;                 // Members: trailing underscore
 constexpr float kDefaultGain;      // Constants: kPascalCase
-namespace Iterum::DSP {}           // Namespaces: PascalCase
+namespace Krate::DSP {}            // Namespaces: PascalCase
 enum { kBypassId = 0, kGainId };   // Parameter IDs: kNameId
 ```
 
@@ -163,17 +178,27 @@ Use smart pointers, RAII, constexpr, move semantics. Avoid raw `new`/`delete`.
 ## File Organization
 
 ```
-src/
-├── entry.cpp, plugin_ids.h, version.h
-├── processor/processor.{h,cpp}
-├── controller/controller.{h,cpp}
-└── dsp/
-    ├── core/           # Layer 0
-    ├── primitives/     # Layer 1
-    ├── processors/     # Layer 2
-    ├── systems/        # Layer 3
-    └── features/       # Layer 4
+dsp/                              # Shared KrateDSP library (Krate::DSP namespace)
+├── include/krate/dsp/
+│   ├── core/                     # Layer 0
+│   ├── primitives/               # Layer 1
+│   ├── processors/               # Layer 2
+│   ├── systems/                  # Layer 3
+│   └── effects/                  # Layer 4
+└── tests/                        # DSP unit tests
+
+plugins/iterum/                   # Iterum plugin
+├── src/
+│   ├── entry.cpp, plugin_ids.h, version.h
+│   ├── processor/processor.{h,cpp}
+│   └── controller/controller.{h,cpp}
+├── tests/                        # Plugin tests (unit, integration, approval)
+└── resources/                    # UI, presets, installers
 ```
+
+**Include patterns:**
+- DSP headers: `#include <krate/dsp/primitives/delay_line.h>`
+- Plugin headers: `#include "processor/processor.h"`
 
 ## Common Patterns
 
@@ -188,7 +213,10 @@ src/
 
 ### ODR Prevention (CRITICAL)
 
-Before creating ANY new class/struct, search codebase: `grep -r "class ClassName" src/`
+Before creating ANY new class/struct, search codebase:
+```bash
+grep -r "class ClassName" dsp/ plugins/
+```
 
 Two classes with same name in same namespace = undefined behavior (garbage values, mysterious test failures). Check `dsp_utils.h` and ARCHITECTURE.md before adding components.
 
@@ -282,17 +310,18 @@ ctest --preset windows-x64-debug         # Test
 
 | Task | File(s) |
 |------|---------|
-| Add parameter | plugin_ids.h → processor → controller → uidesc |
-| Add Layer N component | src/dsp/{layer}/ → tests/unit/{layer}/ |
-| Change UI | resources/editor.uidesc |
+| Add parameter | plugins/iterum/src/plugin_ids.h → processor → controller → uidesc |
+| Add DSP component | dsp/include/krate/dsp/{layer}/ → dsp/tests/{layer}/ |
+| Add plugin test | plugins/iterum/tests/ |
+| Change UI | plugins/iterum/resources/editor.uidesc |
 
-| Your Layer | Can Include |
-|------------|-------------|
-| 0 (core/) | stdlib only |
-| 1 (primitives/) | Layer 0 |
-| 2 (processors/) | 0, 1 |
-| 3 (systems/) | 0, 1, 2 |
-| 4 (features/) | 0, 1, 2, 3 |
+| Your Layer | Location | Can Include |
+|------------|----------|-------------|
+| 0 (core/) | dsp/include/krate/dsp/core/ | stdlib only |
+| 1 (primitives/) | dsp/include/krate/dsp/primitives/ | Layer 0 |
+| 2 (processors/) | dsp/include/krate/dsp/processors/ | 0, 1 |
+| 3 (systems/) | dsp/include/krate/dsp/systems/ | 0, 1, 2 |
+| 4 (effects/) | dsp/include/krate/dsp/effects/ | 0, 1, 2, 3 |
 
 ## References
 
