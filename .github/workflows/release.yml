@@ -29,7 +29,7 @@ jobs:
       - name: Read Version
         id: version
         run: |
-          VERSION=$(jq -r '.version' version.json)
+          VERSION=$(jq -r '.version' plugins/iterum/version.json)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION (tag: v$VERSION)"
@@ -66,28 +66,28 @@ jobs:
         run: |
           # Rename artifact folder to Iterum.vst3 (upload-artifact extracts contents, not folder)
           Rename-Item -Path "artifact" -NewName "Iterum.vst3"
-          Move-Item -Path "Iterum.vst3" -Destination "installers\windows\"
+          Move-Item -Path "Iterum.vst3" -Destination "plugins\iterum\installers\windows\"
           # Copy factory presets
-          Copy-Item -Path "resources\presets" -Destination "installers\windows\" -Recurse
+          Copy-Item -Path "plugins\iterum\resources\presets" -Destination "plugins\iterum\installers\windows\" -Recurse
           # Convert markdown to plain text for installer display
-          (Get-Content CHANGELOG.md -Raw) `
+          (Get-Content plugins\iterum\CHANGELOG.md -Raw) `
             -replace '\[([^\]]+)\]\([^\)]+\)', '$1' `
             -replace '\*\*([^\*]+)\*\*', '$1' `
             -replace '`([^`]+)`', '$1' `
             -replace '^#{1,3}\s*', '' `
-            | Set-Content "installers\windows\CHANGELOG.txt"
+            | Set-Content "plugins\iterum\installers\windows\CHANGELOG.txt"
 
       - name: Build Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
-          path: installers/windows/setup.iss
+          path: plugins/iterum/installers/windows/setup.iss
           options: /DVersion=${{ needs.version.outputs.version }}
 
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: installers/windows/Iterum-${{ needs.version.outputs.version }}-Windows-x64.exe
+          path: plugins/iterum/installers/windows/Iterum-${{ needs.version.outputs.version }}-Windows-x64.exe
           if-no-files-found: error
 
   # macOS installer using pkgbuild
@@ -122,7 +122,7 @@ jobs:
           mv artifact/Iterum.component staging/Library/Audio/Plug-Ins/Components/
           # Create factory presets directory and copy presets
           mkdir -p "staging/Library/Application Support/Krate Audio/Iterum"
-          cp -r resources/presets/* "staging/Library/Application Support/Krate Audio/Iterum/"
+          cp -r plugins/iterum/resources/presets/* "staging/Library/Application Support/Krate Audio/Iterum/"
 
       - name: Build Installer
         run: |
@@ -168,14 +168,14 @@ jobs:
           # Rename artifact folder to Iterum.vst3 (upload-artifact extracts contents, not folder)
           mv artifact staging/Iterum.vst3
           # Copy factory presets
-          cp -r resources/presets staging/
-          cp installers/linux/README.txt staging/
+          cp -r plugins/iterum/resources/presets staging/
+          cp plugins/iterum/installers/linux/README.txt staging/
           # Convert markdown to plain text
           sed -e 's/\[\([^]]*\)\]([^)]*)/ \1/g' \
               -e 's/\*\*\([^*]*\)\*\*/\1/g' \
               -e 's/`\([^`]*\)`/\1/g' \
               -e 's/^#\{1,3\} *//' \
-              CHANGELOG.md > staging/CHANGELOG.txt
+              plugins/iterum/CHANGELOG.md > staging/CHANGELOG.txt
 
       - name: Create Archive
         run: |
@@ -253,10 +253,10 @@ jobs:
       - name: Read Metadata
         id: meta
         run: |
-          echo "name=$(jq -r '.name' version.json)" >> $GITHUB_OUTPUT
-          echo "description=$(jq -r '.description' version.json)" >> $GITHUB_OUTPUT
-          echo "publisher=$(jq -r '.publisher' version.json)" >> $GITHUB_OUTPUT
-          echo "url=$(jq -r '.url' version.json)" >> $GITHUB_OUTPUT
+          echo "name=$(jq -r '.name' plugins/iterum/version.json)" >> $GITHUB_OUTPUT
+          echo "description=$(jq -r '.description' plugins/iterum/version.json)" >> $GITHUB_OUTPUT
+          echo "publisher=$(jq -r '.publisher' plugins/iterum/version.json)" >> $GITHUB_OUTPUT
+          echo "url=$(jq -r '.url' plugins/iterum/version.json)" >> $GITHUB_OUTPUT
 
       - name: Generate Landing Page
         run: |
@@ -272,10 +272,10 @@ jobs:
               -e "s|{{NAME}}|${{ steps.meta.outputs.name }}|g" \
               -e "s|{{DESCRIPTION}}|${{ steps.meta.outputs.description }}|g" \
               -e "s|{{PUBLISHER}}|${{ steps.meta.outputs.publisher }}|g" \
-              docs/index.html > _site/index.html
+              plugins/iterum/docs/index.html > _site/index.html
 
           # Copy assets
-          cp -r docs/assets _site/ 2>/dev/null || true
+          cp -r plugins/iterum/docs/assets _site/ 2>/dev/null || true
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

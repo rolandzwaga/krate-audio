@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/**'
+      - 'dsp/**'
+      - 'plugins/**'
       - 'tests/**'
-      - 'resources/**'
       - 'extern/**'
       - 'CMakeLists.txt'
       - 'CMakePresets.json'
@@ -14,9 +14,9 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'src/**'
+      - 'dsp/**'
+      - 'plugins/**'
       - 'tests/**'
-      - 'resources/**'
       - 'extern/**'
       - 'CMakeLists.txt'
       - 'CMakePresets.json'
@@ -52,7 +52,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/_deps
-          key: fetchcontent-${{ runner.os }}-vs-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ runner.os }}-vs-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ runner.os }}-vs-
 
@@ -62,7 +62,7 @@ jobs:
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 
       - name: Build Tests
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests approval_tests vst_tests --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests plugin_tests approval_tests --parallel
 
       - name: Build Plugin and Validator
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum validator --parallel
@@ -106,7 +106,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/_deps
-          key: fetchcontent-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ runner.os }}-
 
@@ -119,7 +119,7 @@ jobs:
         run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-"
 
       - name: Build Tests
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests approval_tests vst_tests --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests plugin_tests approval_tests --parallel
 
       - name: Build Plugin, AU, and Validator
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum Iterum_AU validator --parallel
@@ -188,7 +188,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/_deps
-          key: fetchcontent-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ runner.os }}-
 
@@ -202,7 +202,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build Tests
-        run: cmake --build build --target dsp_tests approval_tests vst_tests --parallel
+        run: cmake --build build --target dsp_tests plugin_tests approval_tests --parallel
 
       - name: Build Plugin and Validator
         run: cmake --build build --target Iterum validator --parallel
