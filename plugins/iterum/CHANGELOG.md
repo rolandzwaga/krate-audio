@@ -5,6 +5,40 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-01-03
+
+### Added
+
+- **Real-Time Slider Value Displays** (spec 045)
+  - All 89 slider controls now show their current value next to the label
+  - Values update in real-time as parameters change
+  - Consistent styling across all 11 delay mode panels
+
+- **Segmented Button Controls**
+  - Converted dropdown menus to segmented buttons for Era, TimeMode, and FilterType
+  - Improved visual feedback with rounded corners and hover states
+  - More intuitive single-click selection
+
+- **NoteValue Visibility Toggle**
+  - Note Value dropdown now only visible when TimeMode is set to Synced
+  - Delay Time control hidden when synced (replaced by Note Value)
+  - Cleaner UI with contextual control visibility
+
+### Changed
+
+- **Monorepo Restructure** (spec 044)
+  - Reorganized codebase for shared code across future plugins
+  - DSP code moved to shared KrateDSP library
+  - Plugin code moved to plugins/iterum/
+  - Updated namespace from Iterum::DSP to Krate::DSP
+
+### Fixed
+
+- **Windows Installer Path**
+  - Corrected factory preset installation path in Windows installer
+
+---
+
 ## [0.8.0] - 2026-01-03
 
 ### Added

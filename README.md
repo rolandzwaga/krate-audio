@@ -46,7 +46,7 @@ Download the latest release from the [Releases](https://github.com/rolandzwaga/i
 
 | Platform | Installer | Install Location |
 |----------|-----------|------------------|
-| **Windows** | `Iterum-x.x.x-Windows-x64.exe` | Installs to `C:\Program Files\Common Files\VST3\` |
+| **Windows** | `Iterum-x.x.x-Windows-x64.exe` | Installs to `C:\Program Files\Common Files\VST3\Krate Audio\Iterum` |
 | **macOS** | `Iterum-x.x.x-macOS.pkg` | Installs VST3 to `/Library/Audio/Plug-Ins/VST3/` and AU to `/Library/Audio/Plug-Ins/Components/` |
 | **Linux** | `Iterum-x.x.x-Linux-x64.tar.gz` | Extract and copy `Iterum.vst3` to `~/.vst3/` or `/usr/lib/vst3/` |
 
