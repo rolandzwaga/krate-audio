@@ -148,16 +148,24 @@ public:
         flutterLfo_.setWaveform(Waveform::Sine);
         flutterLfo_.setFrequency(kDefaultFlutterRate);
 
-        // BBD mode components
-        bbdSaturation_.prepare(sampleRate, maxBlockSize);
-        bbdSaturation_.setType(SaturationType::Tape);
-        bbdSaturation_.setMix(1.0f);
+        // BBD mode components (separate L/R for proper stereo processing)
+        bbdSaturationL_.prepare(sampleRate, maxBlockSize);
+        bbdSaturationL_.setType(SaturationType::Tape);
+        bbdSaturationL_.setMix(1.0f);
+        bbdSaturationR_.prepare(sampleRate, maxBlockSize);
+        bbdSaturationR_.setType(SaturationType::Tape);
+        bbdSaturationR_.setMix(1.0f);
 
-        bbdBandwidth_.prepare(sampleRate, maxBlockSize);
-        bbdBandwidth_.setType(FilterType::Lowpass);
-        bbdBandwidth_.setCutoff(kDefaultBBDBandwidth);
-        bbdBandwidth_.setResonance(0.707f);
-        bbdBandwidth_.setSlope(FilterSlope::Slope24dB); // Steeper rolloff
+        bbdBandwidthL_.prepare(sampleRate, maxBlockSize);
+        bbdBandwidthL_.setType(FilterType::Lowpass);
+        bbdBandwidthL_.setCutoff(kDefaultBBDBandwidth);
+        bbdBandwidthL_.setResonance(0.707f);
+        bbdBandwidthL_.setSlope(FilterSlope::Slope24dB); // Steeper rolloff
+        bbdBandwidthR_.prepare(sampleRate, maxBlockSize);
+        bbdBandwidthR_.setType(FilterType::Lowpass);
+        bbdBandwidthR_.setCutoff(kDefaultBBDBandwidth);
+        bbdBandwidthR_.setResonance(0.707f);
+        bbdBandwidthR_.setSlope(FilterSlope::Slope24dB); // Steeper rolloff
 
         bbdClockNoise_.prepare(static_cast<float>(sampleRate), maxBlockSize);
         bbdClockNoise_.setNoiseEnabled(NoiseType::RadioStatic, true); // High-frequency noise
@@ -214,8 +222,10 @@ public:
         wowLfo_.reset();
         flutterLfo_.reset();
 
-        bbdSaturation_.reset();
-        bbdBandwidth_.reset();
+        bbdSaturationL_.reset();
+        bbdSaturationR_.reset();
+        bbdBandwidthL_.reset();
+        bbdBandwidthR_.reset();
         bbdClockNoise_.reset();
         bbdClockNoiseR_.reset();
 
@@ -381,7 +391,8 @@ public:
 
     /// @brief Set BBD bandwidth limit (Hz)
     void setBBDBandwidth(float freqHz) noexcept {
-        bbdBandwidth_.setCutoff(freqHz);
+        bbdBandwidthL_.setCutoff(freqHz);
+        bbdBandwidthR_.setCutoff(freqHz);
     }
 
     /// @brief Set BBD saturation amount [0, 1]
@@ -495,25 +506,43 @@ private:
 
     /// @brief Process BBD mode
     void processBBD(float* buffer, size_t numSamples) noexcept {
-        // Apply bandwidth limiting first
-        bbdBandwidth_.process(buffer, numSamples);
-
-        // Update saturation from smoother
-        float satAmount = bbdSaturationSmoother_.process();
+        // Update saturation from smoother ONCE per stereo frame
+        // Only advance smoother on left channel to ensure L and R get same value
+        float satAmount;
+        if (isRightChannel_) {
+            satAmount = bbdSaturationSmoother_.getCurrentValue();
+        } else {
+            satAmount = bbdSaturationSmoother_.process();
+        }
         float driveDb = satAmount * 12.0f; // 0-12dB drive (softer than tape)
-        bbdSaturation_.setInputGain(driveDb);
 
-        // Apply soft saturation
-        bbdSaturation_.process(buffer, numSamples);
+        // Use separate L/R instances for proper stereo (each has independent state)
+        if (isRightChannel_) {
+            // Apply bandwidth limiting first
+            bbdBandwidthR_.process(buffer, numSamples);
 
-        // Add clock noise - use appropriate generator for each channel
-        // This ensures balanced stereo noise from the first sample
-        NoiseGenerator& noiseGen = isRightChannel_ ? bbdClockNoiseR_ : bbdClockNoise_;
-        std::vector<float>& noiseBuf = isRightChannel_ ? noiseBufferR_ : noiseBuffer_;
+            // Apply soft saturation
+            bbdSaturationR_.setInputGain(driveDb);
+            bbdSaturationR_.process(buffer, numSamples);
 
-        noiseGen.process(noiseBuf.data(), numSamples);
-        for (size_t i = 0; i < numSamples; ++i) {
-            buffer[i] += noiseBuf[i];
+            // Add clock noise
+            bbdClockNoiseR_.process(noiseBufferR_.data(), numSamples);
+            for (size_t i = 0; i < numSamples; ++i) {
+                buffer[i] += noiseBufferR_[i];
+            }
+        } else {
+            // Apply bandwidth limiting first
+            bbdBandwidthL_.process(buffer, numSamples);
+
+            // Apply soft saturation
+            bbdSaturationL_.setInputGain(driveDb);
+            bbdSaturationL_.process(buffer, numSamples);
+
+            // Add clock noise
+            bbdClockNoise_.process(noiseBuffer_.data(), numSamples);
+            for (size_t i = 0; i < numSamples; ++i) {
+                buffer[i] += noiseBuffer_[i];
+            }
         }
     }
 
@@ -559,9 +588,11 @@ private:
     float wowDepth_ = kDefaultWowDepth;
     float flutterDepth_ = kDefaultFlutterDepth;
 
-    // BBD mode components
-    SaturationProcessor bbdSaturation_;
-    MultimodeFilter bbdBandwidth_;
+    // BBD mode components (separate L/R for independent state)
+    SaturationProcessor bbdSaturationL_;
+    SaturationProcessor bbdSaturationR_;
+    MultimodeFilter bbdBandwidthL_;
+    MultimodeFilter bbdBandwidthR_;
     NoiseGenerator bbdClockNoise_;      ///< Left channel clock noise
     NoiseGenerator bbdClockNoiseR_;     ///< Right channel clock noise (independent smoother)
 

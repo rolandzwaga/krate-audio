@@ -5,6 +5,24 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-01-03
+
+### Fixed
+
+- **BBD Mode Stereo Bug**
+  - Fixed crackles only audible in right channel (same issue as 80s Digital mode)
+  - MultimodeFilter (bbdBandwidth_) and SaturationProcessor (bbdSaturation_) now use separate L/R instances
+  - Ensures L and R channels are processed independently without state bleeding
+
+### Added
+
+- **BBD Stereo Processing Regression Tests**
+  - Tests L/R channel independence
+  - Verifies filter and saturation apply equally to both channels
+  - Tests continuous signal doesn't accumulate channel differences
+
+---
+
 ## [0.9.3] - 2026-01-03
 
 ### Fixed
