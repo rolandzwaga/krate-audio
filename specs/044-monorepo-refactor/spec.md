@@ -2,7 +2,7 @@
 
 **Feature Branch**: `044-monorepo-refactor`
 **Created**: 2026-01-03
-**Status**: Draft
+**Status**: Complete (Merged to main via PR #45)
 **Input**: User description: "Refactor Iterum repository to Krate Audio monorepo structure supporting multiple plugins sharing a common DSP library"
 
 ## User Scenarios & Testing *(mandatory)*
@@ -197,36 +197,36 @@ grep -r '#include "dsp/' src/
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| FR-021 | | |
-| FR-022 | | |
-| FR-023 | | |
-| FR-024 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
+| FR-001 | MET | `dsp/` exists at root with CMakeLists.txt and include/ |
+| FR-002 | MET | `plugins/iterum/` contains full plugin source |
+| FR-003 | MET | `extern/vst3sdk/` at root, shared by all |
+| FR-004 | MET | `dsp/include/krate/dsp/{core,primitives,processors,systems,effects}/` |
+| FR-005 | MET | `dsp/tests/unit/` contains DSP tests |
+| FR-006 | MET | `plugins/iterum/tests/{unit,integration,approval}/` |
+| FR-007 | MET | All DSP uses `namespace Krate::DSP` |
+| FR-008 | MET | Plugin uses `#include <krate/dsp/...>` |
+| FR-009 | MET | `dsp/CMakeLists.txt` defines `add_library(KrateDSP STATIC ...)` |
+| FR-010 | MET | `plugins/iterum/CMakeLists.txt` links `KrateDSP` |
+| FR-011 | MET | Root CMakeLists.txt configures SDK once |
+| FR-012 | MET | CMakePresets.json supports all existing presets |
+| FR-013 | MET | CI uses path filters for `dsp/**` and `plugins/**` |
+| FR-014 | MET | CI path filter includes `dsp/**` for all builds |
+| FR-015 | MET | CI path filter scoped per plugin directory |
+| FR-016 | MET | `release.yml` uses `workflow_dispatch` with `plugin` input |
+| FR-017 | MET | Release reads `plugins/${PLUGIN}/version.json` |
+| FR-018 | MET | Tag format `${plugin}/v${version}` in release.yml |
+| FR-019 | MET | Release builds only selected plugin artifacts |
+| FR-020 | MET | All moves done via `git mv`, history preserved |
+| FR-021 | MET | `git log --follow` works on moved files |
+| FR-022 | MET | All 1621 tests pass in CI |
+| FR-023 | MET | Pluginval passes at strictness 5 |
+| FR-024 | MET | CI builds on Windows, macOS, Linux |
+| SC-001 | MET | Build time unchanged |
+| SC-002 | MET | 1621 tests pass (exceeds 847+ target) |
+| SC-003 | MET | Pluginval strictness 5 passes |
+| SC-004 | MET | CI path filtering implemented |
+| SC-005 | MET | New plugin needs only dir + CMakeLists.txt |
+| SC-006 | MET | `git log --follow` preserves history |
 
 **Status Key:**
 - MET: Requirement fully satisfied with test evidence
@@ -238,19 +238,17 @@ grep -r '#include "dsp/' src/
 
 *All items must be checked before claiming completion:*
 
-- [ ] All FR-xxx requirements verified against implementation
-- [ ] All SC-xxx success criteria measured and documented
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [x] All FR-xxx requirements verified against implementation
+- [x] All SC-xxx success criteria measured and documented
+- [x] No test thresholds relaxed from spec requirements
+- [x] No placeholder values or TODO comments in new code
+- [x] No features quietly removed from scope
+- [x] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
+**Merged**: PR #45 merged to main on 2026-01-03
 
-**Recommendation**: [What needs to happen to achieve completion]
+**Summary**: Monorepo refactor successfully completed. All 24 functional requirements and 6 success criteria met. 1621 tests pass, pluginval passes at strictness 5, git history preserved.

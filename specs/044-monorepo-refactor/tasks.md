@@ -178,30 +178,30 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 5.1 Build Verification
 
-- [ ] T053 [US1] Configure CMake: `cmake --preset windows-x64-release`
-- [ ] T054 [US1] Build all targets: `cmake --build --preset windows-x64-release` and measure build time (target: under 5 minutes for SC-001)
-- [ ] T055 [US1] Fix any compilation errors in DSP library
-- [ ] T056 [US1] Fix any compilation errors in plugin
+- [x] T053 [US1] Configure CMake: `cmake --preset windows-x64-release`
+- [x] T054 [US1] Build all targets: `cmake --build --preset windows-x64-release` and measure build time (target: under 5 minutes for SC-001)
+- [x] T055 [US1] Fix any compilation errors in DSP library
+- [x] T056 [US1] Fix any compilation errors in plugin
 
 ### 5.2 Test Verification
 
-- [ ] T057 [US1] Run all unit tests: `ctest --preset windows-x64-release`
-- [ ] T058 [US1] Verify all 847+ tests pass (no regressions)
-- [ ] T059 [US1] Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/VST3/Release/Iterum.vst3"`
+- [x] T057 [US1] Run all unit tests: `ctest --preset windows-x64-release`
+- [x] T058 [US1] Verify all 847+ tests pass (no regressions)
+- [x] T059 [US1] Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/VST3/Release/Iterum.vst3"`
 
 ### 5.3 Git History Verification
 
-- [ ] T060 [US1] Verify git history preserved for key DSP files: `git log --follow dsp/include/krate/dsp/primitives/delay_line.h`
-- [ ] T061 [US1] Verify git blame works for refactored files
+- [x] T060 [US1] Verify git history preserved for key DSP files: `git log --follow dsp/include/krate/dsp/primitives/delay_line.h`
+- [x] T061 [US1] Verify git blame works for refactored files
 
 ### 5.4 Cross-Platform Verification (FR-024)
 
-- [ ] T061a [US1] Push branch and verify CI builds pass on all platforms (Windows, macOS, Linux)
-- [ ] T061b [US1] If CI fails on any platform, fix issues before proceeding
+- [x] T061a [US1] Push branch and verify CI builds pass on all platforms (Windows, macOS, Linux)
+- [x] T061b [US1] If CI fails on any platform, fix issues before proceeding
 
 ### 5.5 Commit
 
-- [ ] T062 [US1] **Commit completed monorepo restructure**: "refactor: restructure to Krate Audio monorepo"
+- [x] T062 [US1] **Commit completed monorepo restructure**: "refactor: restructure to Krate Audio monorepo"
 
 **Checkpoint**: User Story 1 complete - plugin builds and tests pass
 
@@ -215,7 +215,7 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 6.1 Update CI Workflow
 
-- [ ] T063 [US2] Update `.github/workflows/ci.yml` with path-based trigger filters:
+- [x] T063 [US2] Update `.github/workflows/ci.yml` with path-based trigger filters:
   - Changes to `dsp/**` trigger all plugin builds
   - Changes to `plugins/iterum/**` trigger only Iterum build
   - Changes to `extern/**` trigger all builds
@@ -223,12 +223,12 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 6.2 Test CI Configuration
 
-- [ ] T064 [US2] Create test commit touching `dsp/` file to verify all plugins rebuild
-- [ ] T065 [US2] Create test commit touching `plugins/iterum/` file to verify only Iterum rebuilds
+- [x] T064 [US2] Create test commit touching `dsp/` file to verify all plugins rebuild
+- [x] T065 [US2] Create test commit touching `plugins/iterum/` file to verify only Iterum rebuilds
 
 ### 6.3 Commit
 
-- [ ] T066 [US2] **Commit CI workflow updates**: "ci: add path-based plugin detection"
+- [x] T066 [US2] **Commit CI workflow updates**: "ci: add path-based plugin detection"
 
 **Checkpoint**: User Story 2 complete - CI path detection works
 
@@ -242,7 +242,7 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 7.1 Update Release Workflow
 
-- [ ] T067 [US3] Update `.github/workflows/release.yml` with:
+- [x] T067 [US3] Update `.github/workflows/release.yml` with:
   - `workflow_dispatch` trigger with `plugin` dropdown parameter
   - Read version from `plugins/<plugin>/version.json`
   - Create tag in format `<plugin>/v<version>` (e.g., `iterum/v0.8.0`)
@@ -251,13 +251,13 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 7.2 Update Installer Paths
 
-- [ ] T068 [US3] Update Windows installer script to use new paths: `plugins/iterum/installers/windows/setup.iss`
-- [ ] T069 [US3] Update macOS installer script to use new paths: `plugins/iterum/installers/macos/create-pkg.sh`
-- [ ] T070 [US3] Update Linux installer script to use new paths: `plugins/iterum/installers/linux/create-tarball.sh`
+- [x] T068 [US3] Update Windows installer script to use new paths: `plugins/iterum/installers/windows/setup.iss`
+- [x] T069 [US3] Update macOS installer script to use new paths: `plugins/iterum/installers/macos/create-pkg.sh`
+- [x] T070 [US3] Update Linux installer script to use new paths: `plugins/iterum/installers/linux/create-tarball.sh`
 
 ### 7.3 Commit
 
-- [ ] T071 [US3] **Commit release workflow updates**: "ci: parameterize release workflow for plugin selection"
+- [x] T071 [US3] **Commit release workflow updates**: "ci: parameterize release workflow for plugin selection"
 
 **Checkpoint**: User Story 3 complete - release workflow parameterized
 
@@ -271,7 +271,7 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 8.1 Validate Architecture
 
-- [ ] T072 [US4] Document how to add a new plugin in `plugins/README.md`:
+- [x] T072 [US4] Document how to add a new plugin in `plugins/README.md`:
   - Create directory structure
   - Create CMakeLists.txt linking KrateDSP
   - Add to root CMakeLists.txt
@@ -279,7 +279,7 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 8.2 Optional Validation (Minimal Test Plugin)
 
-- [ ] T073 [US4] (Optional) Create minimal `plugins/test-plugin/` with:
+- [x] T073 [US4] (Optional) Create minimal `plugins/test-plugin/` with:
   - Basic CMakeLists.txt linking KrateDSP
   - Minimal source file using `Krate::DSP::` classes
   - Verify it compiles
@@ -287,7 +287,7 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 8.3 Commit
 
-- [ ] T074 [US4] **Commit plugin documentation**: "docs: add new plugin creation guide"
+- [x] T074 [US4] **Commit plugin documentation**: "docs: add new plugin creation guide"
 
 **Checkpoint**: User Story 4 complete - architecture validated for future plugins
 
@@ -297,11 +297,11 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 **Purpose**: Final cleanup and documentation updates
 
-- [ ] T075 [P] Update root README.md with new project structure
-- [ ] T076 [P] Update CLAUDE.md with new file paths if needed
-- [ ] T077 [P] Update any hardcoded paths in tools/ scripts
-- [ ] T078 Remove any leftover empty directories from old structure
-- [ ] T079 Verify no broken symlinks or references remain
+- [x] T075 [P] Update root README.md with new project structure
+- [x] T076 [P] Update CLAUDE.md with new file paths if needed
+- [x] T077 [P] Update any hardcoded paths in tools/ scripts
+- [x] T078 Remove any leftover empty directories from old structure
+- [x] T079 Verify no broken symlinks or references remain
 
 **Checkpoint**: Repository clean and documented
 
@@ -315,7 +315,7 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 10.1 Architecture Documentation Update
 
-- [ ] T080 **Update ARCHITECTURE.md** with new monorepo structure:
+- [x] T080 **Update ARCHITECTURE.md** with new monorepo structure:
   - Update directory tree to reflect `dsp/` and `plugins/iterum/` structure
   - Update include path documentation (`#include <krate/dsp/...>`)
   - Update namespace documentation (`Krate::DSP::`)
@@ -323,8 +323,8 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 ### 10.2 Final Commit
 
-- [ ] T081 **Commit ARCHITECTURE.md updates**
-- [ ] T082 Verify all spec work is committed to feature branch
+- [x] T081 **Commit ARCHITECTURE.md updates**
+- [x] T082 Verify all spec work is committed to feature branch
 
 **Checkpoint**: ARCHITECTURE.md reflects new monorepo structure
 
@@ -340,9 +340,9 @@ This is a **refactoring task**, not new feature development. The workflow differ
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T083 **Review ALL FR-xxx requirements** from spec.md against implementation:
+- [x] T083 **Review ALL FR-xxx requirements** from spec.md against implementation:
   - FR-001 through FR-024 (directory structure, namespaces, CMake, CI/CD, git history, compatibility)
-- [ ] T084 **Review ALL SC-xxx success criteria**:
+- [x] T084 **Review ALL SC-xxx success criteria**:
   - SC-001: Build time under 5 minutes
   - SC-002: All 847+ tests pass
   - SC-003: Pluginval passes at level 5
@@ -352,12 +352,12 @@ Before claiming this spec is complete, verify EVERY requirement:
 
 ### 11.2 Fill Compliance Table in spec.md
 
-- [ ] T085 **Update spec.md "Implementation Verification" section** with compliance status for each requirement
-- [ ] T086 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
+- [x] T085 **Update spec.md "Implementation Verification" section** with compliance status for each requirement
+- [x] T086 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 11.3 Honest Self-Check
 
-- [ ] T087 **All self-check questions answered "no"** (or gaps documented honestly):
+- [x] T087 **All self-check questions answered "no"** (or gaps documented honestly):
   1. Did I change ANY test threshold from what the spec originally required?
   2. Are there ANY "placeholder", "stub", or "TODO" comments in new code?
   3. Did I remove ANY features from scope without telling the user?
@@ -374,14 +374,22 @@ Before claiming this spec is complete, verify EVERY requirement:
 
 ### 12.1 Final Commit
 
-- [ ] T088 **Commit all spec work** to feature branch
-- [ ] T089 **Verify all tests pass** one final time
+- [x] T088 **Commit all spec work** to feature branch
+- [x] T089 **Verify all tests pass** one final time
 
 ### 12.2 Completion Claim
 
-- [ ] T090 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
+- [x] T090 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
+
+---
+
+## ✅ SPEC COMPLETE
+
+**Merged**: PR #45 merged to main on 2026-01-03
+
+All 90 tasks completed. All 24 functional requirements and 6 success criteria met.
 
 ---
 
