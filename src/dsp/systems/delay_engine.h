@@ -30,15 +30,8 @@
 namespace Iterum {
 namespace DSP {
 
-// =============================================================================
-// TimeMode Enumeration (FR-002, FR-003)
-// =============================================================================
-
-/// @brief Determines how delay time is specified.
-enum class TimeMode : uint8_t {
-    Free,    ///< Delay time in milliseconds (FR-002)
-    Synced   ///< Delay time from NoteValue + host tempo (FR-003)
-};
+// Note: TimeMode is now defined in note_value.h (Layer 0)
+// and imported via that include
 
 // =============================================================================
 // DelayEngine Class

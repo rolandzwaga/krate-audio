@@ -23,6 +23,14 @@ namespace DSP {
 // Enumerations
 // =============================================================================
 
+/// @brief Determines how delay time is specified.
+///
+/// Used by delay effects to select between free (ms) and synced (tempo) modes.
+enum class TimeMode : uint8_t {
+    Free,    ///< Delay time in milliseconds
+    Synced   ///< Delay time from NoteValue + host tempo
+};
+
 /// @brief Musical note divisions for tempo sync.
 ///
 /// Used by BlockContext::tempoToSamples() and LFO tempo sync features.

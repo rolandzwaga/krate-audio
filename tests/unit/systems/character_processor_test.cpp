@@ -1084,3 +1084,131 @@ TEST_CASE("CharacterProcessor Tape mode THD measurement", "[character][layer3][t
         REQUIRE(maxAbs >= 0.1f);  // Should still have signal
     }
 }
+
+// =============================================================================
+// BBD Stereo Noise Balance Test
+// =============================================================================
+// BUG: CharacterProcessor uses a single noise generator for both channels.
+// When processStereo() calls process() on left then right, the noise level
+// smoother advances during left channel processing, causing right channel
+// to receive higher-amplitude noise.
+//
+// FIX: Use separate noise generators for left and right channels.
+
+TEST_CASE("CharacterProcessor BBD mode produces balanced stereo noise from first block",
+          "[systems][character-processor][bbd][stereo-noise]") {
+    // This test verifies that L and R channels receive equal amplitude noise
+    // from the very first block after prepare(), not just after warmup.
+    //
+    // BUG: With a single shared noise generator, the level smoother advances
+    // during left channel processing. On the first block after prepare():
+    // - Left channel gets low amplitude (smoother starting from 0)
+    // - Right channel gets higher amplitude (smoother has advanced)
+    //
+    // FIX: Use separate noise generators (with separate smoothers) per channel.
+
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    CharacterProcessor character;
+    character.prepare(kSampleRate, kBlockSize);
+    character.setMode(CharacterMode::BBD);
+    // Call reset() after setMode() to cancel the crossfade from Clean to BBD.
+    // This isolates the noise generator balance issue from the crossfade behavior.
+    character.reset();
+    character.setBBDClockNoiseLevel(-40.0f);
+
+    // Process the FIRST block immediately after prepare - no warmup!
+    std::vector<float> left(kBlockSize, 0.0f);
+    std::vector<float> right(kBlockSize, 0.0f);
+    character.processStereo(left.data(), right.data(), kBlockSize);
+
+    // Calculate RMS for each channel
+    double sumSquaredL = 0.0, sumSquaredR = 0.0;
+    for (size_t i = 0; i < kBlockSize; ++i) {
+        sumSquaredL += static_cast<double>(left[i]) * static_cast<double>(left[i]);
+        sumSquaredR += static_cast<double>(right[i]) * static_cast<double>(right[i]);
+    }
+    double rmsL = std::sqrt(sumSquaredL / static_cast<double>(kBlockSize));
+    double rmsR = std::sqrt(sumSquaredR / static_cast<double>(kBlockSize));
+
+    // Convert to dB
+    double rmsDbL = 20.0 * std::log10(std::max(rmsL, 1e-10));
+    double rmsDbR = 20.0 * std::log10(std::max(rmsR, 1e-10));
+
+    INFO("First block - Left RMS: " << rmsDbL << " dB");
+    INFO("First block - Right RMS: " << rmsDbR << " dB");
+    INFO("Difference: " << std::abs(rmsDbL - rmsDbR) << " dB");
+
+    // Both channels should have noise
+    REQUIRE(rmsL > 1e-8);
+    REQUIRE(rmsR > 1e-8);
+
+    // The noise levels should be within 1dB of each other even on the first block
+    // With shared smoother, right channel would be significantly louder
+    REQUIRE(std::abs(rmsDbL - rmsDbR) < 1.0);
+}
+
+// =============================================================================
+// Lifecycle Stress Test
+// =============================================================================
+// Test repeated creation/destruction to catch memory corruption issues
+// that might manifest during heap operations.
+
+TEST_CASE("CharacterProcessor lifecycle stress test",
+          "[systems][character-processor][lifecycle]") {
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+    constexpr int kIterations = 100;
+
+    SECTION("BBD mode: create, process, destroy repeatedly") {
+        for (int i = 0; i < kIterations; ++i) {
+            CharacterProcessor character;
+            character.prepare(kSampleRate, kBlockSize);
+            character.setMode(CharacterMode::BBD);
+            character.setBBDClockNoiseLevel(-40.0f);
+
+            // Process some audio
+            std::vector<float> left(kBlockSize, 0.0f);
+            std::vector<float> right(kBlockSize, 0.0f);
+            character.processStereo(left.data(), right.data(), kBlockSize);
+
+            // CharacterProcessor destructor is called here
+        }
+        // If we get here without crashing, the lifecycle is stable
+        REQUIRE(true);
+    }
+
+    SECTION("All modes: cycle through modes and destroy") {
+        for (int i = 0; i < kIterations; ++i) {
+            CharacterProcessor character;
+            character.prepare(kSampleRate, kBlockSize);
+
+            // Cycle through all modes
+            character.setMode(CharacterMode::Clean);
+            character.setMode(CharacterMode::Tape);
+            character.setMode(CharacterMode::BBD);
+            character.setMode(CharacterMode::DigitalVintage);
+
+            // Process in each mode
+            std::vector<float> left(kBlockSize, 0.0f);
+            std::vector<float> right(kBlockSize, 0.0f);
+            character.processStereo(left.data(), right.data(), kBlockSize);
+        }
+        REQUIRE(true);
+    }
+
+    SECTION("BBD mode with variable block sizes") {
+        for (size_t blockSize = 1; blockSize <= kBlockSize; blockSize *= 2) {
+            CharacterProcessor character;
+            character.prepare(kSampleRate, kBlockSize);  // Always prepare with max size
+            character.setMode(CharacterMode::BBD);
+            character.reset();  // Cancel crossfade
+
+            std::vector<float> left(blockSize, 0.0f);
+            std::vector<float> right(blockSize, 0.0f);
+            character.processStereo(left.data(), right.data(), blockSize);
+        }
+        REQUIRE(true);
+    }
+}

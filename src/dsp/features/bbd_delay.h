@@ -5,8 +5,7 @@
 // Emulates vintage analog delays (Boss DM-2, EHX Memory Man, Roland Dimension D).
 //
 // Composes:
-// - DelayEngine (Layer 3): Core delay with tempo sync
-// - FeedbackNetwork (Layer 3): Feedback path with filtering and saturation
+// - FeedbackNetwork (Layer 3): Delay with feedback path, filtering and saturation
 // - CharacterProcessor (Layer 3): BBD character (bandwidth limiting, clock noise)
 // - LFO (Layer 1): Triangle modulation for chorus effect
 //
@@ -35,8 +34,8 @@
 #include "dsp/core/note_value.h"
 #include "dsp/primitives/lfo.h"
 #include "dsp/primitives/smoother.h"
+#include "dsp/processors/saturation_processor.h"
 #include "dsp/systems/character_processor.h"
-#include "dsp/systems/delay_engine.h"
 #include "dsp/systems/feedback_network.h"
 
 #include <algorithm>
@@ -70,7 +69,7 @@ enum class BBDChipModel : uint8_t {
 /// @brief Layer 4 User Feature - Classic BBD Delay Emulation
 ///
 /// Emulates vintage bucket-brigade device delays (Boss DM-2, EHX Memory Man).
-/// Composes Layer 3 components: DelayEngine, FeedbackNetwork, CharacterProcessor.
+/// Composes Layer 3 components: FeedbackNetwork, CharacterProcessor.
 ///
 /// @par User Controls
 /// - Time: Delay time 20-1000ms with bandwidth tracking (FR-001 to FR-004)
@@ -160,13 +159,15 @@ public:
         maxBlockSize_ = maxBlockSize;
         maxDelayMs_ = std::min(maxDelayMs, kMaxDelayMs);
 
-        // Prepare DelayEngine
-        delayEngine_.prepare(sampleRate, maxBlockSize, maxDelayMs_);
-
         // Prepare FeedbackNetwork
         feedbackNetwork_.prepare(sampleRate, maxBlockSize, maxDelayMs_);
         feedbackNetwork_.setFilterEnabled(true);
         feedbackNetwork_.setFilterType(FilterType::Lowpass);
+        // Enable saturation for smooth feedback transitions (prevents distortion when
+        // rapidly changing from high feedback to lower values)
+        feedbackNetwork_.setSaturationEnabled(true);
+        feedbackNetwork_.setSaturationType(SaturationType::Tape);  // Tape uses tanh
+        feedbackNetwork_.setSaturationDrive(0.0f);  // Transparent until needed
 
         // Prepare CharacterProcessor in BBD mode
         character_.prepare(sampleRate, maxBlockSize);
@@ -201,7 +202,6 @@ public:
     /// @brief Reset all internal state
     /// @post Delay lines cleared, smoothers snapped to current values
     void reset() noexcept {
-        delayEngine_.reset();
         feedbackNetwork_.reset();
         character_.reset();
         modulationLfo_.reset();
@@ -439,10 +439,7 @@ public:
                 (void)modulationLfo_.process(); // Keep LFO running even when depth is 0
             }
 
-            // Update delay engine time
-            delayEngine_.setDelayTimeMs(modulatedDelay);
-
-            // Update feedback network
+            // Update feedback network parameters
             feedbackNetwork_.setDelayTimeMs(modulatedDelay);
             feedbackNetwork_.setFeedbackAmount(currentFeedback);
 
@@ -461,8 +458,8 @@ public:
             right[i] = compressedR;
         }
 
-        // Process through delay engine (requires BlockContext)
-        delayEngine_.process(left, right, numSamples, ctx);
+        // Process through feedback network (handles delay + feedback loop + saturation)
+        feedbackNetwork_.process(left, right, numSamples, ctx);
 
         // Process through CharacterProcessor (BBD mode)
         character_.processStereo(left, right, numSamples);
@@ -653,7 +650,6 @@ private:
     bool prepared_ = false;
 
     // Layer 3 components
-    DelayEngine delayEngine_;
     FeedbackNetwork feedbackNetwork_;
     CharacterProcessor character_;
 

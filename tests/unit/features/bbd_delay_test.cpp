@@ -1103,3 +1103,219 @@ TEST_CASE("BBDDelay tempo sync: minimum delay time enforced", "[features][bbd-de
     // No NaN should occur
     REQUIRE_FALSE(std::isnan(left[0]));
 }
+
+// =============================================================================
+// Feedback Functionality Tests (Bug Fix)
+// =============================================================================
+// These tests verify that the feedback parameter actually affects the output.
+// Previously, feedbackNetwork_ was configured but never processed, so feedback
+// had no effect on the sound.
+
+TEST_CASE("BBDDelay feedback produces repeating echoes", "[features][bbd-delay][feedback]") {
+    // This test verifies that feedback > 0 produces multiple echoes,
+    // not just a single delayed copy of the input.
+
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+    constexpr float kDelayMs = 100.0f;  // 100ms = 4410 samples
+
+    BBDDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, 1000.0f);
+    delay.setTime(kDelayMs);
+    delay.setMix(1.0f);       // Full wet to measure echoes
+    delay.setModulation(0.0f); // No modulation for clean measurement
+    delay.setAge(0.0f);        // Minimal character effects
+
+    SECTION("with feedback 0%, only one echo appears") {
+        delay.setFeedback(0.0f);
+        delay.reset();
+
+        // Send an impulse
+        std::vector<float> left(44100, 0.0f);
+        std::vector<float> right(44100, 0.0f);
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        // Process 1 second of audio
+        for (size_t i = 0; i < 44100; i += kBlockSize) {
+            size_t samplesToProcess = std::min(kBlockSize, 44100 - i);
+            delay.process(left.data() + i, right.data() + i, samplesToProcess);
+        }
+
+        // Find peaks (echoes)
+        // With 0% feedback, we should see signal around 4410 samples (first echo)
+        // but NOT around 8820 samples (second echo would require feedback)
+
+        // First echo window (around 4410 samples ± 500)
+        float firstEchoPeak = 0.0f;
+        for (size_t i = 3900; i < 4900; ++i) {
+            firstEchoPeak = std::max(firstEchoPeak, std::abs(left[i]));
+        }
+
+        // Second echo window (around 8820 samples ± 500) - should be quiet
+        float secondEchoPeak = 0.0f;
+        for (size_t i = 8300; i < 9300; ++i) {
+            secondEchoPeak = std::max(secondEchoPeak, std::abs(left[i]));
+        }
+
+        // First echo should exist
+        REQUIRE(firstEchoPeak > 0.1f);
+
+        // Second echo should be negligible (no feedback)
+        REQUIRE(secondEchoPeak < 0.05f);
+    }
+
+    SECTION("with feedback 50%, multiple echoes appear") {
+        delay.setFeedback(0.5f);
+        delay.reset();
+
+        // Send an impulse
+        std::vector<float> left(44100, 0.0f);
+        std::vector<float> right(44100, 0.0f);
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+
+        // Process 1 second of audio
+        for (size_t i = 0; i < 44100; i += kBlockSize) {
+            size_t samplesToProcess = std::min(kBlockSize, 44100 - i);
+            delay.process(left.data() + i, right.data() + i, samplesToProcess);
+        }
+
+        // Find peaks
+        float firstEchoPeak = 0.0f;
+        for (size_t i = 3900; i < 4900; ++i) {
+            firstEchoPeak = std::max(firstEchoPeak, std::abs(left[i]));
+        }
+
+        float secondEchoPeak = 0.0f;
+        for (size_t i = 8300; i < 9300; ++i) {
+            secondEchoPeak = std::max(secondEchoPeak, std::abs(left[i]));
+        }
+
+        float thirdEchoPeak = 0.0f;
+        for (size_t i = 12700; i < 13700; ++i) {
+            thirdEchoPeak = std::max(thirdEchoPeak, std::abs(left[i]));
+        }
+
+        // All three echoes should be present with decreasing amplitude
+        REQUIRE(firstEchoPeak > 0.1f);
+        REQUIRE(secondEchoPeak > 0.05f);  // ~50% of first
+        REQUIRE(thirdEchoPeak > 0.02f);   // ~25% of first
+
+        // Each echo should be smaller than the previous
+        REQUIRE(secondEchoPeak < firstEchoPeak);
+        REQUIRE(thirdEchoPeak < secondEchoPeak);
+    }
+}
+
+TEST_CASE("BBDDelay feedback transition doesn't cause distortion",
+          "[regression][bbd-delay][feedback-transition]") {
+    // Regression test for feedback transition bug.
+    //
+    // BUG: When feedback was set high (>100% for self-oscillation) and then
+    // dropped to lower values, distortion could occur because the soft limiting
+    // in the feedback path stopped being applied while the delay line still
+    // contained high-amplitude self-oscillating signal.
+    //
+    // FIX: FeedbackNetwork includes saturation that is always applied (when
+    // enabled), providing smooth limiting regardless of feedback value.
+    //
+    // This test:
+    // 1. Builds up signal in the delay with moderate feedback
+    // 2. Increases to self-oscillating feedback (>100%)
+    // 3. Drops feedback to low value
+    // 4. Verifies output decays smoothly without distortion spikes
+
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+    constexpr float kDelayMs = 50.0f;
+
+    BBDDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, 1000.0f);
+    delay.setTime(kDelayMs);
+    delay.setMix(1.0f);       // Full wet
+    delay.setModulation(0.0f); // No modulation
+    delay.setAge(0.0f);        // Minimal character effects
+
+    // Phase 1: Build up signal with moderate feedback
+    delay.setFeedback(0.7f);
+    delay.reset();
+
+    std::vector<float> left(kBlockSize, 0.0f);
+    std::vector<float> right(kBlockSize, 0.0f);
+
+    // Feed in a burst of signal
+    for (int block = 0; block < 20; ++block) {
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            // 440 Hz sine burst
+            float phase = static_cast<float>(block * kBlockSize + i) / static_cast<float>(kSampleRate);
+            left[i] = 0.5f * std::sin(2.0f * 3.14159f * 440.0f * phase);
+            right[i] = left[i];
+        }
+        delay.process(left.data(), right.data(), kBlockSize);
+    }
+
+    // Measure peak during input phase
+    float peakDuringInput = 0.0f;
+    for (size_t i = 0; i < kBlockSize; ++i) {
+        peakDuringInput = std::max(peakDuringInput, std::abs(left[i]));
+    }
+
+    // Phase 2: Self-oscillate with high feedback
+    delay.setFeedback(1.15f);  // 115% feedback
+
+    for (int block = 0; block < 30; ++block) {
+        // No new input, let it self-oscillate
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), kBlockSize);
+    }
+
+    // Measure peak during self-oscillation
+    float peakDuringSelfOsc = 0.0f;
+    for (size_t i = 0; i < kBlockSize; ++i) {
+        peakDuringSelfOsc = std::max(peakDuringSelfOsc, std::abs(left[i]));
+    }
+
+    // Phase 3: DROP feedback - this is where the bug would occur
+    delay.setFeedback(0.3f);  // Drop to 30%
+
+    // Process several blocks and track peak values
+    float maxPeakAfterDrop = 0.0f;
+    std::vector<float> blockPeaks;
+
+    for (int block = 0; block < 50; ++block) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), kBlockSize);
+
+        float blockPeak = 0.0f;
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            blockPeak = std::max(blockPeak, std::abs(left[i]));
+        }
+        blockPeaks.push_back(blockPeak);
+        maxPeakAfterDrop = std::max(maxPeakAfterDrop, blockPeak);
+    }
+
+    // Verification:
+    // 1. We had signal during input phase
+    REQUIRE(peakDuringInput > 0.1f);
+
+    // 2. Self-oscillation built up (saturation should limit it)
+    REQUIRE(peakDuringSelfOsc > 0.2f);
+    REQUIRE(peakDuringSelfOsc < 10.0f);  // Saturation should prevent explosion
+
+    // 3. After dropping feedback, output should decay smoothly
+    // The key test: the peak after dropping should NOT exceed the self-oscillation peak
+    // significantly - if it did, that would indicate distortion from the transition
+    REQUIRE(maxPeakAfterDrop <= peakDuringSelfOsc * 1.5f);
+
+    // 4. The signal should eventually decay (not stuck in oscillation)
+    REQUIRE(blockPeaks.back() < blockPeaks.front());
+
+    // 5. No NaN or Inf
+    for (float peak : blockPeaks) {
+        REQUIRE_FALSE(std::isnan(peak));
+        REQUIRE_FALSE(std::isinf(peak));
+    }
+}

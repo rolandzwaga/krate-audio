@@ -5,8 +5,7 @@
 // Features program-dependent limiter, flexible LFO modulation, and tempo sync.
 //
 // Composes:
-// - DelayEngine (Layer 3): Core delay with tempo sync
-// - FeedbackNetwork (Layer 3): Feedback path with filtering
+// - FeedbackNetwork (Layer 3): Delay with feedback path and filtering
 // - CharacterProcessor (Layer 3): DigitalVintage mode for 80s/Lo-Fi
 // - DynamicsProcessor (Layer 2): Program-dependent limiter
 // - LFO (Layer 1): Modulation with 6 waveform shapes
@@ -34,7 +33,6 @@
 #include "dsp/processors/dynamics_processor.h"
 #include "dsp/processors/envelope_follower.h"
 #include "dsp/systems/character_processor.h"
-#include "dsp/systems/delay_engine.h"
 #include "dsp/systems/feedback_network.h"
 
 #include <algorithm>
@@ -177,11 +175,7 @@ public:
         maxBlockSize_ = maxBlockSize;
         maxDelayMs_ = std::min(maxDelayMs, kMaxDelayMs);
 
-        // Prepare DelayEngine (set to 100% wet - DigitalDelay handles dry/wet mixing)
-        delayEngine_.prepare(sampleRate, maxBlockSize, maxDelayMs_);
-        delayEngine_.setMix(1.0f);  // 100% wet - we handle mixing ourselves
-
-        // Prepare FeedbackNetwork
+        // Prepare FeedbackNetwork (handles delay + feedback loop)
         feedbackNetwork_.prepare(sampleRate, maxBlockSize, maxDelayMs_);
         feedbackNetwork_.setFilterEnabled(false); // Pristine default
 
@@ -249,7 +243,6 @@ public:
     /// @brief Reset all internal state
     /// @post Delay lines cleared, smoothers snapped to current values
     void reset() noexcept {
-        delayEngine_.reset();
         feedbackNetwork_.reset();
         character_.reset();
         limiter_.reset();
@@ -311,7 +304,6 @@ public:
     /// @param mode TimeMode::Free or TimeMode::Synced
     void setTimeMode(TimeMode mode) noexcept {
         timeMode_ = mode;
-        delayEngine_.setTimeMode(mode);
     }
 
     /// @brief Get current time mode
@@ -325,7 +317,6 @@ public:
     void setNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept {
         noteValue_ = value;
         noteModifier_ = modifier;
-        delayEngine_.setNoteValue(value, modifier);
     }
 
     /// @brief Get current note value
@@ -694,7 +685,6 @@ private:
     bool prepared_ = false;
 
     // Layer 3 components
-    DelayEngine delayEngine_;
     FeedbackNetwork feedbackNetwork_;
     CharacterProcessor character_;
 

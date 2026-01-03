@@ -160,6 +160,11 @@ public:
         bbdClockNoise_.setNoiseEnabled(NoiseType::RadioStatic, true); // High-frequency noise
         bbdClockNoise_.setNoiseLevel(NoiseType::RadioStatic, kDefaultBBDClockNoise);
 
+        // Right channel noise generator (independent smoother for balanced stereo)
+        bbdClockNoiseR_.prepare(static_cast<float>(sampleRate), maxBlockSize);
+        bbdClockNoiseR_.setNoiseEnabled(NoiseType::RadioStatic, true);
+        bbdClockNoiseR_.setNoiseLevel(NoiseType::RadioStatic, kDefaultBBDClockNoise);
+
         // Digital vintage components
         bitCrusher_.prepare(sampleRate);
         bitCrusher_.setBitDepth(kDefaultDigitalBitDepth);
@@ -183,6 +188,7 @@ public:
         previousModeBufferL_.resize(maxBlockSize);
         previousModeBufferR_.resize(maxBlockSize);
         noiseBuffer_.resize(maxBlockSize);
+        noiseBufferR_.resize(maxBlockSize);
 
         reset();
     }
@@ -201,6 +207,7 @@ public:
         bbdSaturation_.reset();
         bbdBandwidth_.reset();
         bbdClockNoise_.reset();
+        bbdClockNoiseR_.reset();
 
         bitCrusher_.reset();
         sampleRateReducer_.reset();
@@ -210,6 +217,7 @@ public:
         std::fill(previousModeBufferL_.begin(), previousModeBufferL_.end(), 0.0f);
         std::fill(previousModeBufferR_.begin(), previousModeBufferR_.end(), 0.0f);
         std::fill(noiseBuffer_.begin(), noiseBuffer_.end(), 0.0f);
+        std::fill(noiseBufferR_.begin(), noiseBufferR_.end(), 0.0f);
     }
 
     // =========================================================================
@@ -277,10 +285,13 @@ public:
     /// @param right Right channel buffer (modified in-place)
     /// @param numSamples Number of samples per channel
     void processStereo(float* left, float* right, size_t numSamples) noexcept {
-        // Process each channel independently for now
-        // (A more sophisticated implementation could share modulation sources)
+        // Process each channel with independent noise generators
+        // This ensures balanced stereo noise from the first sample
+        isRightChannel_ = false;
         process(left, numSamples);
+        isRightChannel_ = true;
         process(right, numSamples);
+        isRightChannel_ = false;  // Reset to default
     }
 
     // =========================================================================
@@ -370,6 +381,7 @@ public:
     /// @brief Set BBD clock noise level in dB
     void setBBDClockNoiseLevel(float levelDb) noexcept {
         bbdClockNoise_.setNoiseLevel(NoiseType::RadioStatic, levelDb);
+        bbdClockNoiseR_.setNoiseLevel(NoiseType::RadioStatic, levelDb);
     }
 
     // =========================================================================
@@ -479,10 +491,14 @@ private:
         // Apply soft saturation
         bbdSaturation_.process(buffer, numSamples);
 
-        // Add clock noise
-        bbdClockNoise_.process(noiseBuffer_.data(), numSamples);
+        // Add clock noise - use appropriate generator for each channel
+        // This ensures balanced stereo noise from the first sample
+        NoiseGenerator& noiseGen = isRightChannel_ ? bbdClockNoiseR_ : bbdClockNoise_;
+        std::vector<float>& noiseBuf = isRightChannel_ ? noiseBufferR_ : noiseBuffer_;
+
+        noiseGen.process(noiseBuf.data(), numSamples);
         for (size_t i = 0; i < numSamples; ++i) {
-            buffer[i] += noiseBuffer_[i];
+            buffer[i] += noiseBuf[i];
         }
     }
 
@@ -524,7 +540,8 @@ private:
     // BBD mode components
     SaturationProcessor bbdSaturation_;
     MultimodeFilter bbdBandwidth_;
-    NoiseGenerator bbdClockNoise_;
+    NoiseGenerator bbdClockNoise_;      ///< Left channel clock noise
+    NoiseGenerator bbdClockNoiseR_;     ///< Right channel clock noise (independent smoother)
 
     // Digital vintage components
     BitCrusher bitCrusher_;
@@ -540,6 +557,10 @@ private:
     std::vector<float> previousModeBufferL_;
     std::vector<float> previousModeBufferR_;
     std::vector<float> noiseBuffer_;
+    std::vector<float> noiseBufferR_;    ///< Right channel noise buffer
+
+    // Channel tracking for stereo processing
+    bool isRightChannel_ = false;        ///< Used to select correct noise generator
 };
 
 } // namespace DSP
