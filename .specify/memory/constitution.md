@@ -2,14 +2,17 @@
 ================================================================================
 SYNC IMPACT REPORT
 ================================================================================
-Version Change: 1.10.0 → 1.11.0
+Version Change: 1.11.0 → 1.12.0
 Modified Principles:
-  - Principle XIII: Test-First Development (ENHANCED)
-    - REQUIRES both TESTING-GUIDE.md AND VST-GUIDE.md in context before implementation
-    - REQUIRES writing failing test BEFORE any source code change (not just new features)
-    - ADDS Bug-First Testing workflow: reproduce bug with test FIRST, then fix
-    - Updated explicit todo items to include both guide files
-    - Added "Bug reproduction tests for reported issues" to test categories
+  - Principle VII: Project Structure & Build System (UPDATED)
+    - Directory structure updated for monorepo layout (dsp/, plugins/<plugin>/)
+    - Added KrateDSP library structure with layer directories
+    - Added plugin directory layout (src/, tests/, resources/)
+    - Updated include patterns: angle brackets for DSP (<krate/dsp/...>), relative for plugins
+  - Principle VIII: Testing Discipline (UPDATED)
+    - DSP path updated from src/dsp/ to dsp/include/krate/dsp/
+  - Principle XV: Pre-Implementation Research (UPDATED)
+    - ODR search command updated to search dsp/ and plugins/ instead of src/
 Added Sections: None
 Removed Sections: None
 Templates Updated: None
@@ -145,19 +148,30 @@ Project organization MUST follow modern CMake practices and maintain clear separ
 
 **Non-Negotiable Rules:**
 - Use Modern CMake (3.20+) with target-based configuration; NEVER modify global variables like `CMAKE_CXX_FLAGS`
-- Directory structure MUST follow:
+- Directory structure MUST follow monorepo layout:
   ```
-  include/<project>/    # Public headers
-  src/                  # Implementation files
-  src/processor/        # Audio processor implementation
-  src/controller/       # Edit controller and UI
-  src/dsp/              # DSP algorithms (pure, testable)
-  tests/                # All test code
-  extern/               # External dependencies (git submodules)
-  cmake/                # CMake helper modules
-  resources/            # UI resources, uidesc files
+  dsp/                          # Shared KrateDSP library (Krate::DSP namespace)
+  ├── include/krate/dsp/        # Public headers (use <krate/dsp/...>)
+  │   ├── core/                 # Layer 0
+  │   ├── primitives/           # Layer 1
+  │   ├── processors/           # Layer 2
+  │   ├── systems/              # Layer 3
+  │   └── effects/              # Layer 4
+  └── tests/                    # DSP unit tests
+
+  plugins/<plugin>/             # Individual plugins (e.g., plugins/iterum/)
+  ├── src/                      # Plugin source
+  │   ├── processor/            # Audio processor implementation
+  │   └── controller/           # Edit controller and UI
+  ├── tests/                    # Plugin tests (unit, integration, approval)
+  └── resources/                # UI resources, uidesc files, installers
+
+  tests/                        # Shared test infrastructure
+  extern/                       # External dependencies (git submodules)
+  cmake/                        # CMake helper modules
   ```
-- Headers in `include/<project>/` MUST use `#include <project/header.h>` style
+- DSP headers MUST use angle bracket includes: `#include <krate/dsp/primitives/delay_line.h>`
+- Plugin headers use relative includes: `#include "processor/processor.h"`
 - External dependencies MUST use git submodules in `extern/` with pinned versions
 - VST3 SDK and VSTGUI MUST be included as submodules, not system installations
 - Build configurations MUST support Debug, Release, and RelWithDebInfo
@@ -170,7 +184,7 @@ Project organization MUST follow modern CMake practices and maintain clear separ
 All code MUST be testable, and critical paths MUST have automated tests.
 
 **Non-Negotiable Rules:**
-- DSP algorithms in `src/dsp/` MUST be pure functions testable without VST infrastructure
+- DSP algorithms in `dsp/include/krate/dsp/` MUST be pure functions testable without VST infrastructure
 - Unit tests MUST cover all DSP algorithms with known input/output pairs
 - Integration tests MUST verify plugin loads correctly in a test host
 - Regression tests MUST compare audio output between versions for critical processing
@@ -395,7 +409,7 @@ The project MUST maintain an `ARCHITECTURE.md` file that serves as a living inve
 Before implementing ANY new class, struct, or significant component, the codebase MUST be searched for existing implementations to prevent One Definition Rule (ODR) violations and duplicate functionality.
 
 **Non-Negotiable Rules:**
-- **Search Before Creating**: Before writing a new class/struct, ALWAYS search the codebase: `grep -r "class ClassName" src/`
+- **Search Before Creating**: Before writing a new class/struct, ALWAYS search the codebase: `grep -r "class ClassName" dsp/ plugins/`
 - **Check ARCHITECTURE.md**: Read the architecture document to identify existing components that may already provide the needed functionality
 - **Check dsp_utils.h and Common Files**: Legacy utility files often contain simple implementations that may conflict with new ones
 - **Same Namespace = ODR Violation**: Two classes with the same name in the same namespace cause undefined behavior, even if in different files
@@ -729,4 +743,4 @@ git ls-remote --heads origin | grep 'digital-stereo-width'  # MEANINGLESS - bran
 
 **Rationale:** Spec numbers must be unique and sequential. Branches are temporary and deleted after merge. Only the specs/ directory provides a permanent, reliable record of all specifications created.
 
-**Version**: 1.11.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2025-12-30
+**Version**: 1.12.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2026-01-03
