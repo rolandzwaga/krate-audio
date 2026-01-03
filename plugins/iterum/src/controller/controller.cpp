@@ -74,7 +74,7 @@ static void logViewHierarchy(VSTGUI::CView* view, std::ofstream& log, int depth 
     }
 }
 
-// Debug helper to find control by tag
+// Debug helper to find first control with a given tag
 static VSTGUI::CControl* findControlByTag(VSTGUI::CViewContainer* container, int32_t tag) {
     if (!container) return nullptr;
 
@@ -93,6 +93,32 @@ static VSTGUI::CControl* findControlByTag(VSTGUI::CViewContainer* container, int
         ++it;
     }
     return nullptr;
+}
+
+// Debug helper to find ALL controls with a given tag
+// Returns all controls (e.g., slider + value display) that share the same tag
+static std::vector<VSTGUI::CControl*> findAllControlsByTag(VSTGUI::CViewContainer* container, int32_t tag) {
+    std::vector<VSTGUI::CControl*> results;
+    if (!container) return results;
+
+    std::function<void(VSTGUI::CViewContainer*)> search;
+    search = [tag, &results, &search](VSTGUI::CViewContainer* cont) {
+        if (!cont) return;
+        VSTGUI::ViewIterator it(cont);
+        while (*it) {
+            if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                if (control->getTag() == tag) {
+                    results.push_back(control);
+                }
+            }
+            if (auto* childContainer = (*it)->asViewContainer()) {
+                search(childContainer);
+            }
+            ++it;
+        }
+    };
+    search(container);
+    return results;
 }
 
 #endif
@@ -158,14 +184,15 @@ public:
                 (normalizedValue < visibilityThreshold_) :
                 (normalizedValue >= visibilityThreshold_);
 
-            // Update visibility for all associated controls (label + slider)
+            // Update visibility for all associated controls (label + slider + value display)
             for (Steinberg::int32 tag : controlTags_) {
-                // CRITICAL: Look up control DYNAMICALLY on each update
+                // CRITICAL: Look up ALL controls DYNAMICALLY on each update
                 // UIViewSwitchContainer destroys/recreates controls on view switch,
-                // so cached pointers become dangling references
-                auto* control = findControlByTag(tag);
+                // so cached pointers become dangling references.
+                // IMPORTANT: Multiple controls can have the same tag (e.g., slider + value display)
+                auto controls = findAllControlsByTag(tag);
 
-                if (control) {
+                for (auto* control : controls) {
                     // SAFE: This is called on UI thread via UpdateHandler::deferedUpdate()
                     control->setVisible(shouldBeVisible);
 
@@ -181,39 +208,39 @@ public:
     OBJ_METHODS(VisibilityController, FObject)
 
 private:
-    // Find control by tag in current view hierarchy
-    VSTGUI::CControl* findControlByTag(Steinberg::int32 tag) {
+    // Find ALL controls with given tag in current view hierarchy
+    // Returns vector because multiple controls can share a tag (slider + value display)
+    std::vector<VSTGUI::CControl*> findAllControlsByTag(Steinberg::int32 tag) {
+        std::vector<VSTGUI::CControl*> results;
         // Get current editor - may be nullptr if closed
         VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
-        if (!editor) return nullptr;
+        if (!editor) return results;
         auto* frame = editor->getFrame();
-        if (!frame) return nullptr;
+        if (!frame) return results;
 
 #if defined(_DEBUG) && defined(_WIN32)
         // Use debug helper in debug builds
-        return ::findControlByTag(frame, tag);
+        return ::findAllControlsByTag(frame, tag);
 #else
         // Manual traversal in release builds
-        std::function<VSTGUI::CControl*(VSTGUI::CViewContainer*)> search;
-        search = [tag, &search](VSTGUI::CViewContainer* container) -> VSTGUI::CControl* {
-            if (!container) return nullptr;
+        std::function<void(VSTGUI::CViewContainer*)> search;
+        search = [tag, &results, &search](VSTGUI::CViewContainer* container) {
+            if (!container) return;
             VSTGUI::ViewIterator it(container);
             while (*it) {
                 if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
                     if (control->getTag() == tag) {
-                        return control;
+                        results.push_back(control);
                     }
                 }
                 if (auto* childContainer = (*it)->asViewContainer()) {
-                    if (auto* found = search(childContainer)) {
-                        return found;
-                    }
+                    search(childContainer);
                 }
                 ++it;
             }
-            return nullptr;
         };
-        return search(frame);
+        search(frame);
+        return results;
 #endif
     }
 

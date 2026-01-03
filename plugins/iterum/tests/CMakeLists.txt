@@ -11,6 +11,7 @@
 # ==============================================================================
 add_executable(plugin_tests
     # Controller tests
+    unit/controller/visibility_controller_multi_control_test.cpp
     unit/controller/visibility_controller_null_safety_test.cpp
 
     # Parameter tests
