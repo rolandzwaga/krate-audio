@@ -15,8 +15,8 @@
 // ==============================================================================
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,8,0,1
- PRODUCTVERSION 0,8,0,1
+ FILEVERSION 0,9,4,1
+ PRODUCTVERSION 0,9,4,1
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 #ifdef _DEBUG
  FILEFLAGS VS_FF_DEBUG
@@ -33,12 +33,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Krate Audio\0"
             VALUE "FileDescription", "Iterum VST3 Delay Plugin\0"
-            VALUE "FileVersion", "0.8.0.1\0"
+            VALUE "FileVersion", "0.9.4.1\0"
             VALUE "InternalName", "Iterum\0"
             VALUE "LegalCopyright", "Copyright (c) 2025 Krate Audio\0"
             VALUE "OriginalFilename", "Iterum.vst3\0"
             VALUE "ProductName", "Iterum\0"
-            VALUE "ProductVersion", "0.8.0.1\0"
+            VALUE "ProductVersion", "0.9.4.1\0"
         END
     END
     BLOCK "VarFileInfo"

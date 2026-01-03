@@ -15,7 +15,13 @@ string(JSON ITERUM_PUBLISHER GET ${VERSION_JSON} "publisher")
 string(JSON ITERUM_URL GET ${VERSION_JSON} "url")
 string(JSON ITERUM_COPYRIGHT GET ${VERSION_JSON} "copyright")
 
-message(STATUS "[ITERUM] Version: ${ITERUM_VERSION}")
+# Parse version string (e.g., "0.9.4") into components for configure_file
+string(REPLACE "." ";" VERSION_LIST ${ITERUM_VERSION})
+list(GET VERSION_LIST 0 PROJECT_VERSION_MAJOR)
+list(GET VERSION_LIST 1 PROJECT_VERSION_MINOR)
+list(GET VERSION_LIST 2 PROJECT_VERSION_PATCH)
+
+message(STATUS "[ITERUM] Version: ${ITERUM_VERSION} (${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})")
 
 # ==============================================================================
 # Version Header Generation
