@@ -168,13 +168,20 @@ public:
         bbdClockNoiseR_.setNoiseEnabled(NoiseType::RadioStatic, true);
         bbdClockNoiseR_.setNoiseLevel(NoiseType::RadioStatic, kDefaultBBDClockNoise);
 
-        // Digital vintage components
-        bitCrusher_.prepare(sampleRate);
-        bitCrusher_.setBitDepth(kDefaultDigitalBitDepth);
-        bitCrusher_.setDither(kDefaultDigitalDither);
+        // Digital vintage components (separate L/R for proper stereo)
+        bitCrusherL_.prepare(sampleRate);
+        bitCrusherL_.setBitDepth(kDefaultDigitalBitDepth);
+        bitCrusherL_.setDither(kDefaultDigitalDither);
+        bitCrusherR_.prepare(sampleRate);
+        bitCrusherR_.setBitDepth(kDefaultDigitalBitDepth);
+        bitCrusherR_.setDither(kDefaultDigitalDither);
+        // Use different RNG seed for right channel so dither is uncorrelated between channels
+        bitCrusherR_.setSeed(0x87654321u);
 
-        sampleRateReducer_.prepare(sampleRate);
-        sampleRateReducer_.setReductionFactor(kDefaultDigitalSampleRateReduction);
+        sampleRateReducerL_.prepare(sampleRate);
+        sampleRateReducerL_.setReductionFactor(kDefaultDigitalSampleRateReduction);
+        sampleRateReducerR_.prepare(sampleRate);
+        sampleRateReducerR_.setReductionFactor(kDefaultDigitalSampleRateReduction);
 
         // Parameter smoothers
         tapeSaturationSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
@@ -212,8 +219,10 @@ public:
         bbdClockNoise_.reset();
         bbdClockNoiseR_.reset();
 
-        bitCrusher_.reset();
-        sampleRateReducer_.reset();
+        bitCrusherL_.reset();
+        bitCrusherR_.reset();
+        sampleRateReducerL_.reset();
+        sampleRateReducerR_.reset();
 
         std::fill(workBufferL_.begin(), workBufferL_.end(), 0.0f);
         std::fill(workBufferR_.begin(), workBufferR_.end(), 0.0f);
@@ -393,17 +402,20 @@ public:
 
     /// @brief Set bit depth [4, 16]
     void setDigitalBitDepth(float bits) noexcept {
-        bitCrusher_.setBitDepth(bits);
+        bitCrusherL_.setBitDepth(bits);
+        bitCrusherR_.setBitDepth(bits);
     }
 
     /// @brief Set sample rate reduction factor [1, 8]
     void setDigitalSampleRateReduction(float factor) noexcept {
-        sampleRateReducer_.setReductionFactor(factor);
+        sampleRateReducerL_.setReductionFactor(factor);
+        sampleRateReducerR_.setReductionFactor(factor);
     }
 
     /// @brief Set dither amount [0, 1]
     void setDigitalDitherAmount(float amount) noexcept {
-        bitCrusher_.setDither(amount);
+        bitCrusherL_.setDither(amount);
+        bitCrusherR_.setDither(amount);
     }
 
 private:
@@ -507,11 +519,18 @@ private:
 
     /// @brief Process Digital Vintage mode
     void processDigitalVintage(float* buffer, size_t numSamples) noexcept {
-        // Apply sample rate reduction first (creates aliasing)
-        sampleRateReducer_.process(buffer, numSamples);
-
-        // Apply bit crushing
-        bitCrusher_.process(buffer, numSamples);
+        // Use separate L/R instances for proper stereo (each has independent state)
+        if (isRightChannel_) {
+            // Apply sample rate reduction first (creates aliasing)
+            sampleRateReducerR_.process(buffer, numSamples);
+            // Apply bit crushing
+            bitCrusherR_.process(buffer, numSamples);
+        } else {
+            // Apply sample rate reduction first (creates aliasing)
+            sampleRateReducerL_.process(buffer, numSamples);
+            // Apply bit crushing
+            bitCrusherL_.process(buffer, numSamples);
+        }
     }
 
     // =========================================================================
@@ -546,9 +565,11 @@ private:
     NoiseGenerator bbdClockNoise_;      ///< Left channel clock noise
     NoiseGenerator bbdClockNoiseR_;     ///< Right channel clock noise (independent smoother)
 
-    // Digital vintage components
-    BitCrusher bitCrusher_;
-    SampleRateReducer sampleRateReducer_;
+    // Digital vintage components (separate L/R for independent state)
+    BitCrusher bitCrusherL_;
+    BitCrusher bitCrusherR_;
+    SampleRateReducer sampleRateReducerL_;
+    SampleRateReducer sampleRateReducerR_;
 
     // Parameter smoothers
     OnePoleSmoother tapeSaturationSmoother_;

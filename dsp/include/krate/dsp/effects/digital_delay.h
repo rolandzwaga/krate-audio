@@ -641,18 +641,20 @@ private:
                 break;
 
             case DigitalEra::EightiesDigital:
-                // Moderate vintage character (FR-008, FR-009, FR-010)
+                // Vintage 80s digital character (FR-008, FR-009, FR-010)
+                // Based on units like Roland SDE-3000, Lexicon PCM42
                 character_.setMode(CharacterMode::DigitalVintage);
-                // Bit depth: 16 -> 12 as age increases
-                character_.setDigitalBitDepth(16.0f - age_ * 2.0f);
-                // Dither amount for -80dB noise floor (FR-010)
-                character_.setDigitalDitherAmount(1.0f);  // Full dither for -80dB noise floor
-                // Sample rate reduction: 1.0 -> 1.5 as age increases
-                character_.setDigitalSampleRateReduction(1.0f + age_ * 0.25f);
-                // High-frequency rolloff via feedback filter
+                // Bit depth: 14 -> 8 as age increases (audible quantization at high age)
+                // Age=0: 14-bit (subtle), Age=1: 8-bit (clearly audible crunch)
+                character_.setDigitalBitDepth(14.0f - age_ * 6.0f);
+                // Dither amount - reduced to let quantization artifacts through
+                character_.setDigitalDitherAmount(0.5f);
+                // Sample rate reduction: 1.0 -> 2.0 as age increases (more aliasing)
+                character_.setDigitalSampleRateReduction(1.0f + age_ * 1.0f);
+                // High-frequency rolloff via feedback filter (80s anti-alias character)
                 feedbackNetwork_.setFilterEnabled(true);
                 feedbackNetwork_.setFilterType(FilterType::Lowpass);
-                feedbackNetwork_.setFilterCutoff(12000.0f - age_ * 2000.0f); // 12-10kHz
+                feedbackNetwork_.setFilterCutoff(12000.0f - age_ * 4000.0f); // 12kHz -> 8kHz
                 // Enable anti-alias filter for 32kHz simulation (FR-009)
                 antiAliasEnabled_ = true;
                 break;

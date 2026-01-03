@@ -121,24 +121,24 @@ inline void handleTapeParamChange(
             params.head3Enabled.store(normalizedValue >= 0.5, std::memory_order_relaxed);
             break;
         case kTapeHead1LevelId:
-            // -96 to +6 dB -> linear
+            // -30 to +6 dB -> linear (36dB range for usable control)
             {
-                double dB = -96.0 + normalizedValue * 102.0;
-                double linear = (dB <= -96.0) ? 0.0 : std::pow(10.0, dB / 20.0);
+                double dB = -30.0 + normalizedValue * 36.0;
+                double linear = std::pow(10.0, dB / 20.0);
                 params.head1Level.store(static_cast<float>(linear), std::memory_order_relaxed);
             }
             break;
         case kTapeHead2LevelId:
             {
-                double dB = -96.0 + normalizedValue * 102.0;
-                double linear = (dB <= -96.0) ? 0.0 : std::pow(10.0, dB / 20.0);
+                double dB = -30.0 + normalizedValue * 36.0;
+                double linear = std::pow(10.0, dB / 20.0);
                 params.head2Level.store(static_cast<float>(linear), std::memory_order_relaxed);
             }
             break;
         case kTapeHead3LevelId:
             {
-                double dB = -96.0 + normalizedValue * 102.0;
-                double linear = (dB <= -96.0) ? 0.0 : std::pow(10.0, dB / 20.0);
+                double dB = -30.0 + normalizedValue * 36.0;
+                double linear = std::pow(10.0, dB / 20.0);
                 params.head3Level.store(static_cast<float>(linear), std::memory_order_relaxed);
             }
             break;

@@ -71,7 +71,14 @@ public:
     /// @brief Reset internal state
     void reset() noexcept {
         // Reset RNG state to initial seed
-        rngState_ = kDefaultRngSeed;
+        rngState_ = initialSeed_;
+    }
+
+    /// @brief Set RNG seed for dither (use different seeds for L/R channels)
+    /// @param seed Initial seed value
+    void setSeed(uint32_t seed) noexcept {
+        initialSeed_ = seed;
+        rngState_ = seed;
     }
 
     // =========================================================================
@@ -211,6 +218,7 @@ private:
     float levels_ = 65535.0f; // 2^16 - 1
 
     // RNG state for TPDF dither
+    uint32_t initialSeed_ = kDefaultRngSeed;
     uint32_t rngState_ = kDefaultRngSeed;
 };
 

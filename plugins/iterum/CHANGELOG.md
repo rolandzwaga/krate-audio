@@ -5,6 +5,37 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-01-03
+
+### Fixed
+
+- **80s Digital Mode Stereo Bug**
+  - Fixed crackles only audible in right channel
+  - BitCrusher and SampleRateReducer now use separate L/R instances
+  - Right channel uses different RNG seed for uncorrelated dither
+
+- **80s Digital Mode Too Subtle**
+  - Made effect more pronounced and audible at higher Age settings
+  - Bit depth now ranges 14→8 (was 16→12) for noticeable quantization
+  - Sample rate reduction now ranges 1.0→2.0 (was 1.0→1.5)
+  - Reduced dither to 50% to let quantization artifacts through
+
+- **Compiler Warnings in Tests**
+  - Fixed C4244 warnings (double-to-float conversion) in bit_crusher_rng_bias_test.cpp
+
+- **Tape Delay Head Level Sensitivity**
+  - Fixed needing to set head levels to ~80% before hearing audible delay
+  - Changed dB range from -96dB to +6dB (102dB) to -30dB to +6dB (36dB)
+  - 50% slider position now produces audible output instead of -45dB silence
+
+### Added
+
+- **Granular Delay Diagnostic Tests**
+  - Comprehensive test suite verifying dry signal is always present
+  - Tests impulse response, continuous signal, repeated notes, grain scheduler independence
+
+---
+
 ## [0.9.2] - 2026-01-03
 
 ### Fixed
