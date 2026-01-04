@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implemented 3-phase shutdown in `willClose()`: deactivate → clear editor → destroy
   - Added regression tests documenting the SafeVisibilityController pattern
 
+- **MultiTap Morph Time Parameter Non-Functional**
+  - Fixed Morph Time slider having no effect when changing patterns
+  - Root cause: Processor called `loadTimingPattern()` (immediate) instead of `morphToPattern()`
+  - Now tracks previous pattern and uses `morphToPattern()` for smooth transitions
+  - Morph Time (50-2000ms) controls how smoothly tap times transition between patterns
+
 ### Added
 
 - **MultiTap Visibility Controls**

@@ -135,6 +135,9 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         digitalDelay_.reset();
         pingPongDelay_.reset();
         multiTapDelay_.reset();
+        // Reset pattern tracking so next activation uses immediate load
+        lastMultiTapPattern_ = -1;
+        lastMultiTapTapCount_ = -1;
     }
 
     return AudioEffect::setActive(state);
@@ -670,9 +673,35 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
                 const auto noteMapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
                 multiTapDelay_.setNoteValue(noteMapping.note, noteMapping.modifier);
             }
-            multiTapDelay_.loadTimingPattern(Parameters::getTimingPatternFromDropdown(
-                multiTapParams_.timingPattern.load(std::memory_order_relaxed)),
-                static_cast<size_t>(multiTapParams_.tapCount.load(std::memory_order_relaxed)));
+            // Pattern morphing: detect pattern/tap count changes and morph smoothly
+            {
+                const int currentPattern = multiTapParams_.timingPattern.load(std::memory_order_relaxed);
+                const int currentTapCount = multiTapParams_.tapCount.load(std::memory_order_relaxed);
+                const float morphTime = multiTapParams_.morphTime.load(std::memory_order_relaxed);
+
+                // Set morph time before checking for changes (used by morphToPattern)
+                multiTapDelay_.setMorphTime(morphTime);
+
+                const bool patternChanged = (currentPattern != lastMultiTapPattern_);
+                const bool tapCountChanged = (currentTapCount != lastMultiTapTapCount_);
+
+                if (lastMultiTapPattern_ < 0 || tapCountChanged) {
+                    // First call OR tap count changed: use immediate load
+                    // (morphing only works for pattern changes with same tap count)
+                    multiTapDelay_.loadTimingPattern(
+                        Parameters::getTimingPatternFromDropdown(currentPattern),
+                        static_cast<size_t>(currentTapCount));
+                    lastMultiTapPattern_ = currentPattern;
+                    lastMultiTapTapCount_ = currentTapCount;
+                } else if (patternChanged) {
+                    // Only pattern changed (same tap count): use smooth morph transition
+                    multiTapDelay_.morphToPattern(
+                        Parameters::getTimingPatternFromDropdown(currentPattern),
+                        morphTime);
+                    lastMultiTapPattern_ = currentPattern;
+                }
+                // else: no change, let any in-progress morph continue
+            }
             multiTapDelay_.applySpatialPattern(Parameters::getSpatialPatternFromDropdown(
                 multiTapParams_.spatialPattern.load(std::memory_order_relaxed)));
             multiTapDelay_.setBaseTimeMs(multiTapParams_.baseTime.load(std::memory_order_relaxed));
@@ -680,7 +709,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             multiTapDelay_.setFeedbackAmount(multiTapParams_.feedback.load(std::memory_order_relaxed));
             multiTapDelay_.setFeedbackLPCutoff(multiTapParams_.feedbackLPCutoff.load(std::memory_order_relaxed));
             multiTapDelay_.setFeedbackHPCutoff(multiTapParams_.feedbackHPCutoff.load(std::memory_order_relaxed));
-            multiTapDelay_.setMorphTime(multiTapParams_.morphTime.load(std::memory_order_relaxed));
             multiTapDelay_.setDryWetMix(multiTapParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
             multiTapDelay_.process(outputL, outputR, numSamples, ctx);
             break;

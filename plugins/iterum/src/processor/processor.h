@@ -207,6 +207,12 @@ private:
     Krate::DSP::DigitalDelay digitalDelay_;
     Krate::DSP::PingPongDelay pingPongDelay_;
     Krate::DSP::MultiTapDelay multiTapDelay_;
+
+    // ==========================================================================
+    // MultiTap pattern change tracking (for morphing)
+    // ==========================================================================
+    int lastMultiTapPattern_ = -1;  // -1 = uninitialized (use loadTimingPattern first time)
+    int lastMultiTapTapCount_ = -1;
 };
 
 } // namespace Iterum

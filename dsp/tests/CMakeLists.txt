@@ -84,6 +84,7 @@ add_executable(dsp_tests
     unit/effects/digital_delay_age0_ramping_test.cpp
     unit/effects/ping_pong_delay_test.cpp
     unit/effects/multi_tap_delay_test.cpp
+    unit/effects/multi_tap_morph_test.cpp
     unit/effects/shimmer_delay_test.cpp
     unit/effects/reverse_delay_test.cpp
     unit/effects/freeze_mode_test.cpp
@@ -167,6 +168,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/effects/digital_delay_age0_ramping_test.cpp
         unit/effects/ping_pong_delay_test.cpp
         unit/effects/multi_tap_delay_test.cpp
+        unit/effects/multi_tap_morph_test.cpp
         unit/effects/shimmer_delay_test.cpp
         unit/effects/reverse_delay_test.cpp
         unit/effects/freeze_mode_test.cpp
