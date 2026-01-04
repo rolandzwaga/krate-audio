@@ -49,3 +49,5 @@
 # Approval test artifacts (received files are generated, approved files are committed)
 *.received.txt
 tools/
+/plugins/iterum/resources/win32resource.rc
+/plugins/iterum/src/version.h
