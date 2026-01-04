@@ -1033,6 +1033,34 @@ private:
     Controller* controller_ = nullptr;
 };
 
+// =============================================================================
+// ResetPatternButton: Reset custom pattern to default linear spread (Spec 046)
+// =============================================================================
+class ResetPatternButton : public VSTGUI::CTextButton {
+public:
+    ResetPatternButton(const VSTGUI::CRect& size, Controller* controller)
+        : CTextButton(size, nullptr, -1, "Reset")
+        , controller_(controller)
+    {
+        setFrameColor(VSTGUI::CColor(80, 80, 85));
+        setTextColor(VSTGUI::CColor(255, 255, 255));
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton() && controller_) {
+            controller_->resetPatternToDefault();
+            return VSTGUI::kMouseEventHandled;
+        }
+        return CTextButton::onMouseDown(where, buttons);
+    }
+
+private:
+    Controller* controller_ = nullptr;
+};
+
 VSTGUI::CView* Controller::createCustomView(
     VSTGUI::UTF8StringPtr name,
     const VSTGUI::UIAttributes& attributes,
@@ -1075,7 +1103,21 @@ VSTGUI::CView* Controller::createCustomView(
         attributes.getPointAttribute("origin", origin);
         attributes.getPointAttribute("size", size);
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new CopyPatternButton(rect, this);
+        auto* button = new CopyPatternButton(rect, this);
+        button->setTag(kMultiTapCopyPatternButtonTagId);  // For visibility control
+        return button;
+    }
+
+    // Reset Pattern Button (Spec 046 - T075)
+    if (VSTGUI::UTF8StringView(name) == "ResetPatternButton") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(60, 22);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        auto* button = new ResetPatternButton(rect, this);
+        button->setTag(kMultiTapResetPatternButtonTagId);  // For visibility control
+        return button;
     }
 
     // TapPatternEditor (Spec 046) - Custom tap pattern visual editor
@@ -1115,6 +1157,9 @@ VSTGUI::CView* Controller::createCustomView(
             int snapIndex = static_cast<int>(normalized * 5.0f + 0.5f);
             patternEditor->setSnapDivision(static_cast<SnapDivision>(snapIndex));
         }
+
+        // Set tag for visibility control
+        patternEditor->setTag(kMultiTapPatternEditorTagId);
 
         // Store reference for parameter updates
         tapPatternEditor_ = patternEditor;
@@ -1283,6 +1328,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, multitapPattern,
                     {9931, 9927, 9930, kMultiTapNoteValueId, kMultiTapNoteModifierId},  // Section + labels + dropdowns
                     14.0f / 19.0f, false);  // Show when pattern >= 14/19 (mathematical)
+
+                // Custom Pattern Editor (Spec 046 FR-008): Show only when pattern == Custom (index 19)
+                // Pattern 19 is at normalized 1.0, pattern 18 is at 18/19 ≈ 0.947
+                // Use threshold 0.99 to select only pattern 19
+                patternEditorVisibilityController_ = new VisibilityController(
+                    &activeEditor_, multitapPattern,
+                    {kMultiTapPatternEditorTagId, kMultiTapCopyPatternButtonTagId, kMultiTapResetPatternButtonTagId, kMultiTapSnapDivisionId},
+                    0.99f, false);  // Show when pattern >= 0.99 (Custom pattern only)
             }
             if (auto* freezeTimeMode = getParameterObject(kFreezeTimeModeId)) {
                 freezeNoteValueVisibilityController_ = new VisibilityController(
@@ -1432,6 +1485,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     deactivateController(pingPongNoteValueVisibilityController_);
     deactivateController(reverseNoteValueVisibilityController_);
     deactivateController(multitapNoteValueVisibilityController_);
+    deactivateController(patternEditorVisibilityController_);  // Spec 046
     deactivateController(freezeNoteValueVisibilityController_);
     deactivateController(duckingNoteValueVisibilityController_);
 
@@ -1464,6 +1518,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     pingPongNoteValueVisibilityController_ = nullptr;
     reverseNoteValueVisibilityController_ = nullptr;
     multitapNoteValueVisibilityController_ = nullptr;
+    patternEditorVisibilityController_ = nullptr;  // Spec 046
     freezeNoteValueVisibilityController_ = nullptr;
     duckingNoteValueVisibilityController_ = nullptr;
 
@@ -1572,6 +1627,13 @@ void Controller::copyCurrentPatternToCustom() {
         for (int i = 0; i < tapCount; ++i) {
             tapPatternEditor_->setTapTimeRatio(static_cast<size_t>(i), ratios[i]);
         }
+    }
+}
+
+void Controller::resetPatternToDefault() {
+    // Delegate to TapPatternEditor which handles the logic
+    if (tapPatternEditor_) {
+        tapPatternEditor_->resetToDefault();
     }
 }
 

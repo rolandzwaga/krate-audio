@@ -126,6 +126,9 @@ public:
     /// Copy current timing pattern to custom pattern parameters
     void copyCurrentPatternToCustom();
 
+    /// Reset custom pattern to default linear spread with full levels
+    void resetPatternToDefault();
+
     /// Create a memory stream containing the current component state
     /// Used for preset saving - serializes controller's parameter values
     /// in the same format as Processor::getState()
@@ -195,6 +198,8 @@ private:
     // ==========================================================================
 
     TapPatternEditor* tapPatternEditor_ = nullptr;  // Owned by frame
+    // Visibility controller: show pattern editor only when pattern == Custom (index 19)
+    Steinberg::IPtr<Steinberg::FObject> patternEditorVisibilityController_;
 
     // ==========================================================================
     // Preset Browser (Spec 042)

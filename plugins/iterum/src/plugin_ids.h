@@ -224,6 +224,13 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMultiTapNoteModifierId = 912,   // 0-2 (none, triplet, dotted) - for mathematical patterns only
     kMultiTapSnapDivisionId = 913,   // 0-5 (off, 1/4, 1/8, 1/16, 1/32, triplet) - spec 046
 
+    // Custom Pattern Editor UI Tags (920-929) - spec 046
+    // Used for visibility control (not parameters, just UI control tags)
+    kMultiTapPatternEditorTagId = 920,      // TapPatternEditor visibility tag
+    kMultiTapCopyPatternButtonTagId = 921,  // CopyPatternButton visibility tag
+    kMultiTapPatternEditorLabelTagId = 922, // Label visibility tag
+    kMultiTapResetPatternButtonTagId = 923, // ResetPatternButton visibility tag
+
     // Custom Pattern Time Ratios (950-965) - spec 046
     kMultiTapCustomTime0Id = 950,
     kMultiTapCustomTime1Id = 951,

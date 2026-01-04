@@ -65,6 +65,9 @@ public:
     void setSnapDivision(SnapDivision division) { snapDivision_ = division; }
     SnapDivision getSnapDivision() const { return snapDivision_; }
 
+    // Reset to default linear spread pattern (T076)
+    void resetToDefault();
+
     // Check if currently in Custom pattern mode
     static constexpr int kCustomPatternIndex = 19;
 

@@ -403,4 +403,35 @@ void TapPatternEditor::onPatternChanged(int patternIndex) {
     }
 }
 
+// =============================================================================
+// Reset to Default (T076)
+// =============================================================================
+
+void TapPatternEditor::resetToDefault() {
+    // Set all taps to evenly-spaced linear spread with full levels
+    for (size_t i = 0; i < kMaxPatternTaps; ++i) {
+        // Linear spread: tap i at position i / (tapCount - 1) for tapCount > 1
+        // For single tap, position at 0.5
+        float ratio = (activeTapCount_ > 1)
+            ? static_cast<float>(i) / static_cast<float>(activeTapCount_ - 1)
+            : 0.5f;
+
+        if (i < activeTapCount_) {
+            tapTimeRatios_[i] = ratio;
+            tapLevels_[i] = 1.0f;
+
+            // Notify host of changes
+            notifyTimeRatioChanged(i, ratio);
+            notifyLevelChanged(i, 1.0f);
+        } else {
+            // Inactive taps reset to 0
+            tapTimeRatios_[i] = 0.0f;
+            tapLevels_[i] = 0.0f;
+        }
+    }
+
+    // Trigger redraw
+    invalid();
+}
+
 } // namespace Iterum
