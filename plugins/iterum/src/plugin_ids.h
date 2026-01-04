@@ -222,6 +222,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMultiTapMixId = 909,            // 0-100%
     kMultiTapNoteValueId = 911,      // 0-9 (note value) - for mathematical patterns only
     kMultiTapNoteModifierId = 912,   // 0-2 (none, triplet, dotted) - for mathematical patterns only
+    kMultiTapSnapDivisionId = 913,   // 0-5 (off, 1/4, 1/8, 1/16, 1/32, triplet) - spec 046
 
     // Custom Pattern Time Ratios (950-965) - spec 046
     kMultiTapCustomTime0Id = 950,

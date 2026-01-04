@@ -259,6 +259,9 @@ VSTGUI::CMouseEventResult TapPatternEditor::onMouseMoved(
         newLevel = constrainedLevel;
     }
 
+    // Apply grid snapping to time ratio (Phase 5 - T057)
+    newTimeRatio = snapToGrid(newTimeRatio, snapDivision_);
+
     // Update tap values
     size_t tapIdx = static_cast<size_t>(selectedTap_);
     tapTimeRatios_[tapIdx] = newTimeRatio;

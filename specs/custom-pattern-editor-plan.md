@@ -7,11 +7,12 @@ This document details the implementation of a custom tap pattern editor for the 
 **Estimated Complexity: MEDIUM-HIGH**
 
 The implementation requires:
-- 2-3 new custom VSTGUI view classes
-- 12-16 new VST3 parameters (for custom tap data)
+- 1-2 new custom VSTGUI view classes
+- 32 new VST3 parameters (16 time ratios + 16 levels)
 - Significant drawing code for visualization
 - Mouse interaction handling for draggable elements
 - Real-time parameter synchronization
+- Reuses existing `kMultiTapTapCountId` for tap count
 
 ---
 
@@ -83,10 +84,10 @@ Our codebase already implements custom views:
    - Vertical drag adjusts tap level
    - Visual feedback during drag (highlight, snap indicators)
 
-3. **Tap Management**
-   - Add tap: Click on empty area
-   - Remove tap: Double-click or right-click context menu
-   - Constrained to `kMaxTaps` (16)
+3. **Tap Count**
+   - Tap count controlled by existing `kMultiTapTapCountId` (2-16 taps)
+   - Editor displays only the active number of taps
+   - No add/remove in editor - use existing Tap Count slider
 
 4. **Grid Snapping**
    - Optional snap-to-grid for timing
@@ -178,12 +179,13 @@ public:
     // Called when any tap is modified
     virtual void onTapChanged(int tapIndex, float timeRatio, float level) = 0;
 
-    // Called when tap count changes (add/remove)
-    virtual void onTapCountChanged(int newCount) = 0;
-
     // Called when entire pattern is replaced (preset load, etc.)
     virtual void onPatternChanged() = 0;
 };
+
+// NOTE: Tap count is controlled by existing kMultiTapTapCountId parameter.
+// The editor observes this parameter and displays/edits only the active taps.
+// Users change tap count via the existing Tap Count slider, not via the editor.
 ```
 
 ### 3.3 Parameter Layout
@@ -202,8 +204,8 @@ constexpr int32_t kMultiTapCustomLevel0Id = 966;
 constexpr int32_t kMultiTapCustomLevel1Id = 967;
 // ... through kMultiTapCustomLevel15Id = 981
 
-// Custom pattern active tap count
-constexpr int32_t kMultiTapCustomTapCountId = 982;
+// NOTE: Tap count uses existing kMultiTapTapCountId (902)
+// No separate custom tap count parameter needed
 ```
 
 ---
@@ -286,7 +288,7 @@ constexpr int32_t kMultiTapCustomTapCountId = 982;
 - [ ] Taps display with correct positions and heights
 - [ ] Labels are readable and positioned correctly
 
-### Phase 3: Mouse Interaction (5-6 hours)
+### Phase 3: Mouse Interaction (4-5 hours)
 
 **Tasks:**
 1. Implement `hitTestTap()` for tap detection
@@ -295,15 +297,14 @@ constexpr int32_t kMultiTapCustomTapCountId = 982;
 4. Implement `onMouseUp()` for drag completion
 5. Add snap-to-grid logic
 6. Add visual feedback during drag (highlight, cursor change)
-7. Add double-click to add/remove taps
+7. Listen for tap count parameter changes and redraw
 
 **Test:**
 - [ ] Clicking selects tap
 - [ ] Dragging horizontally changes time
 - [ ] Dragging vertically changes level
 - [ ] Snap works when enabled
-- [ ] Double-click adds tap in empty area
-- [ ] Double-click removes existing tap
+- [ ] Changing tap count slider updates editor display
 
 ### Phase 4: Parameter Integration (4-5 hours)
 
@@ -314,13 +315,13 @@ constexpr int32_t kMultiTapCustomTapCountId = 982;
 - `plugins/iterum/src/controller/controller.cpp`
 
 **Tasks:**
-1. Add 33 new parameter IDs (16 time + 16 level + 1 count)
+1. Add 32 new parameter IDs (16 time + 16 level)
 2. Add atomics to `MultiTapParams` struct
 3. Add parameter handlers in processor
 4. Register parameters in controller
 5. Add state save/load for custom pattern
 6. Implement `beginEdit()`/`endEdit()` calls in editor
-7. Sync editor display with parameter values
+7. Sync editor display with parameter values (including existing tap count)
 
 **Test:**
 - [ ] Parameters appear in host automation
@@ -348,16 +349,16 @@ constexpr int32_t kMultiTapCustomTapCountId = 982;
 
 **Tasks:**
 1. Add "From Pattern" dropdown to copy mathematical patterns
-2. Add "Clear All" button
+2. Add "Reset" button (restore default evenly-spaced pattern)
 3. Improve visual feedback (hover states, animations)
-4. Add keyboard shortcuts (delete selected, etc.)
-5. Handle edge cases (0 taps, maximum taps)
-6. Add visibility controller (show only when Custom pattern selected)
+4. Add keyboard shortcuts (arrow keys nudge selected tap)
+5. Add visibility controller (show only when Custom pattern selected)
 
 **Test:**
-- [ ] All buttons work correctly
-- [ ] Edge cases handled gracefully
+- [ ] "From Pattern" copies current pattern to custom
+- [ ] Reset restores default pattern
 - [ ] View appears/disappears with pattern selection
+- [ ] Keyboard navigation works
 
 ---
 
@@ -503,18 +504,18 @@ None required. All functionality available in VSTGUI.
 |-------|-----------------|
 | Phase 1: Core Framework | 3-4 |
 | Phase 2: Drawing | 4-5 |
-| Phase 3: Mouse Interaction | 5-6 |
+| Phase 3: Mouse Interaction | 4-5 |
 | Phase 4: Parameter Integration | 4-5 |
 | Phase 5: DSP Integration | 3-4 |
 | Phase 6: Polish | 3-4 |
-| **Total** | **22-28 hours** |
+| **Total** | **21-27 hours** |
 
 **Complexity Assessment: MEDIUM-HIGH**
 
 This is a substantial feature requiring:
 - Custom VSTGUI view with complex drawing
 - 2D drag interaction with hit testing
-- 33 new VST3 parameters
+- 32 new VST3 parameters (reuses existing tap count)
 - DSP modifications for level support
 - Extensive testing across platforms
 
@@ -542,7 +543,7 @@ This is a substantial feature requiring:
 ## 12. Approval
 
 - [ ] Technical approach reviewed
-- [ ] Parameter count approved (33 new parameters)
+- [ ] Parameter count approved (32 new parameters)
 - [ ] UI design approved
 - [ ] Integration points identified
 - [ ] Testing strategy approved

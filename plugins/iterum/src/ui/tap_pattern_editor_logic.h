@@ -198,6 +198,49 @@ inline float calculateDefaultTapTime(size_t tapIndex, size_t totalTaps) noexcept
 inline constexpr float kDefaultTapLevel = 1.0f;
 
 // =============================================================================
+// Grid Snapping Functions (Phase 5 - User Story 3)
+// =============================================================================
+
+/// Snap division options for grid snapping
+enum class SnapDivision {
+    Off,           ///< No snapping
+    Quarter,       ///< 1/4 note (4 divisions)
+    Eighth,        ///< 1/8 note (8 divisions)
+    Sixteenth,     ///< 1/16 note (16 divisions)
+    ThirtySecond,  ///< 1/32 note (32 divisions)
+    Triplet        ///< Triplet grid (12 divisions for quarter-note triplets)
+};
+
+/// Get the number of grid divisions for a snap setting
+inline int getSnapDivisions(SnapDivision division) noexcept {
+    switch (division) {
+        case SnapDivision::Quarter:      return 4;
+        case SnapDivision::Eighth:       return 8;
+        case SnapDivision::Sixteenth:    return 16;
+        case SnapDivision::ThirtySecond: return 32;
+        case SnapDivision::Triplet:      return 12;
+        case SnapDivision::Off:
+        default:                         return 0;
+    }
+}
+
+/// Snap a time ratio to the nearest grid position
+/// @param timeRatio The input time ratio (0.0 - 1.0)
+/// @param division The snap division setting
+/// @return The snapped time ratio, or original if snap is off
+inline float snapToGrid(float timeRatio, SnapDivision division) noexcept {
+    int divisions = getSnapDivisions(division);
+    if (divisions == 0) {
+        return timeRatio;  // No snapping
+    }
+
+    // Snap to nearest grid line: round(ratio * divisions) / divisions
+    float scaled = timeRatio * static_cast<float>(divisions);
+    float snapped = std::round(scaled) / static_cast<float>(divisions);
+    return std::clamp(snapped, 0.0f, 1.0f);
+}
+
+// =============================================================================
 // Mouse Button Handling Functions (T018.5)
 // =============================================================================
 

@@ -61,6 +61,10 @@ public:
     // Called when timing pattern changes - cancels drag if pattern != Custom
     void onPatternChanged(int patternIndex);
 
+    // Grid snapping (Phase 5 - User Story 3)
+    void setSnapDivision(SnapDivision division) { snapDivision_ = division; }
+    SnapDivision getSnapDivision() const { return snapDivision_; }
+
     // Check if currently in Custom pattern mode
     static constexpr int kCustomPatternIndex = 19;
 
@@ -104,6 +108,9 @@ private:
 
     // Callback for parameter updates
     ParameterCallback paramCallback_;
+
+    // Grid snapping (Phase 5)
+    SnapDivision snapDivision_ = SnapDivision::Off;
 
     // Colors
     static constexpr VSTGUI::CColor kBackgroundColor{35, 35, 38, 255};

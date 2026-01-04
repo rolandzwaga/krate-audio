@@ -26,6 +26,7 @@ namespace Iterum {
 // Forward declarations
 class PresetBrowserView;
 class SavePresetDialogView;
+class TapPatternEditor;
 
 // ==============================================================================
 // Controller Class
@@ -181,6 +182,12 @@ private:
     Steinberg::IPtr<Steinberg::FObject> multitapNoteValueVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> freezeNoteValueVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> duckingNoteValueVisibilityController_;
+
+    // ==========================================================================
+    // Custom Pattern Editor (Spec 046)
+    // ==========================================================================
+
+    TapPatternEditor* tapPatternEditor_ = nullptr;  // Owned by frame
 
     // ==========================================================================
     // Preset Browser (Spec 042)

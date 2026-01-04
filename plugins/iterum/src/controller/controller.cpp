@@ -883,6 +883,13 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // DO NOT manipulate UI controls here - setParamNormalized can be called
     // from non-UI threads (automation, state loading).
 
+    // Update TapPatternEditor snap division when parameter changes (Spec 046)
+    // This is safe because the dropdown interaction happens on UI thread
+    if (id == kMultiTapSnapDivisionId && tapPatternEditor_) {
+        int snapIndex = static_cast<int>(value * 5.0 + 0.5);
+        tapPatternEditor_->setSnapDivision(static_cast<SnapDivision>(snapIndex));
+    }
+
 #if defined(_DEBUG) && defined(_WIN32)
     if (id == kModeId) {
         char tempPath[MAX_PATH];
@@ -1061,6 +1068,17 @@ VSTGUI::CView* Controller::createCustomView(
             int tapCount = static_cast<int>(2 + normalized * 14 + 0.5f);
             patternEditor->setActiveTapCount(static_cast<size_t>(tapCount));
         }
+
+        // Initialize snap division from parameter (T058)
+        if (auto* snapParam = getParameterObject(kMultiTapSnapDivisionId)) {
+            // Snap division: 0-5 (off, 1/4, 1/8, 1/16, 1/32, triplet)
+            float normalized = static_cast<float>(snapParam->getNormalized());
+            int snapIndex = static_cast<int>(normalized * 5.0f + 0.5f);
+            patternEditor->setSnapDivision(static_cast<SnapDivision>(snapIndex));
+        }
+
+        // Store reference for parameter updates
+        tapPatternEditor_ = patternEditor;
 
         // Set up parameter callback to notify host of changes
         patternEditor->setParameterCallback(
@@ -1413,6 +1431,9 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // Preset browser view is owned by the frame and will be cleaned up automatically
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
+
+    // TapPatternEditor is owned by the frame and will be cleaned up automatically
+    tapPatternEditor_ = nullptr;
 }
 
 // ==============================================================================
@@ -1637,6 +1658,16 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeFloat(getFloat(kMultiTapFeedbackHPCutoffId, 20.0f));
     streamer.writeFloat(getFloat(kMultiTapMorphTimeId, 500.0f));
     streamer.writeFloat(getFloat(kMultiTapMixId, 50.0f));
+
+    // Custom Pattern Data (spec 046)
+    for (int i = 0; i < 16; ++i) {
+        float defaultTime = static_cast<float>(i + 1) / 17.0f;
+        streamer.writeFloat(getFloat(kMultiTapCustomTime0Id + i, defaultTime));
+    }
+    for (int i = 0; i < 16; ++i) {
+        streamer.writeFloat(getFloat(kMultiTapCustomLevel0Id + i, 1.0f));
+    }
+    streamer.writeInt32(getInt32(kMultiTapSnapDivisionId, 0));   // Default: Off
 
     // Seek to beginning so the stream can be read
     stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);

@@ -44,6 +44,7 @@ struct MultiTapParams {
     std::atomic<int> timingPattern{2};          // 0-19 (pattern presets)
     std::atomic<int> spatialPattern{2};         // 0-6 (spatial presets)
     std::atomic<int> tapCount{4};               // 2-16 taps
+    std::atomic<int> snapDivision{0};           // 0-5 (off, 1/4, 1/8, 1/16, 1/32, triplet) - spec 046
     std::atomic<float> feedback{0.5f};          // 0-1.1 (110%)
     std::atomic<float> feedbackLPCutoff{20000.0f};  // 20-20000Hz
     std::atomic<float> feedbackHPCutoff{20.0f};     // 20-20000Hz
@@ -90,6 +91,12 @@ inline void handleMultiTapParamChange(
             // 0-2 (none, triplet, dotted) - for mathematical patterns
             params.noteModifier.store(
                 static_cast<int>(normalizedValue * 2.0 + 0.5),
+                std::memory_order_relaxed);
+            break;
+        case kMultiTapSnapDivisionId:
+            // 0-5 (off, 1/4, 1/8, 1/16, 1/32, triplet) - spec 046
+            params.snapDivision.store(
+                static_cast<int>(normalizedValue * 5.0 + 0.5),
                 std::memory_order_relaxed);
             break;
         case kMultiTapTimingPatternId:
@@ -181,6 +188,13 @@ inline void registerMultiTapParams(Steinberg::Vst::ParameterContainer& parameter
         STR16("MultiTap Note Modifier"), kMultiTapNoteModifierId,
         0,  // default: None (index 0)
         {STR16("None"), STR16("Triplet"), STR16("Dotted")}
+    ));
+
+    // Snap Division (spec 046 - grid snapping for custom pattern editor)
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("MultiTap Snap"), kMultiTapSnapDivisionId,
+        0,  // default: Off (index 0)
+        {STR16("Off"), STR16("1/4"), STR16("1/8"), STR16("1/16"), STR16("1/32"), STR16("Triplet")}
     ));
 
     // Timing Pattern (20 patterns) - MUST use StringListParameter
@@ -401,6 +415,9 @@ inline void saveMultiTapParams(const MultiTapParams& params, Steinberg::IBStream
     for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
         streamer.writeFloat(params.customLevels[i].load(std::memory_order_relaxed));
     }
+
+    // Snap Division (spec 046 - grid snapping)
+    streamer.writeInt32(params.snapDivision.load(std::memory_order_relaxed));
 }
 
 inline void loadMultiTapParams(MultiTapParams& params, Steinberg::IBStreamer& streamer) {
@@ -448,6 +465,11 @@ inline void loadMultiTapParams(MultiTapParams& params, Steinberg::IBStreamer& st
         if (streamer.readFloat(floatVal)) {
             params.customLevels[i].store(floatVal, std::memory_order_relaxed);
         }
+    }
+
+    // Snap Division (spec 046 - grid snapping) - read if available
+    if (streamer.readInt32(intVal)) {
+        params.snapDivision.store(intVal, std::memory_order_relaxed);
     }
 }
 
@@ -541,6 +563,12 @@ inline void loadMultiTapParamsToController(
             setParam(kMultiTapCustomLevel0Id + static_cast<Steinberg::Vst::ParamID>(i),
                 static_cast<double>(floatVal));
         }
+    }
+
+    // Snap Division (spec 046): 0-5 -> normalized = val/5
+    if (streamer.readInt32(intVal)) {
+        setParam(kMultiTapSnapDivisionId,
+            static_cast<double>(intVal) / 5.0);
     }
 }
 
