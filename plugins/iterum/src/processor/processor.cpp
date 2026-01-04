@@ -506,7 +506,7 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             spectralDelay_.setFeedbackTilt(spectralParams_.feedbackTilt.load(std::memory_order_relaxed));
             spectralDelay_.setFreezeEnabled(spectralParams_.freeze.load(std::memory_order_relaxed));
             spectralDelay_.setDiffusion(spectralParams_.diffusion.load(std::memory_order_relaxed));
-            spectralDelay_.setDryWetMix(spectralParams_.dryWet.load(std::memory_order_relaxed));
+            spectralDelay_.setDryWetMix(spectralParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
             spectralDelay_.setSpreadCurve(static_cast<Krate::DSP::SpreadCurve>(
                 spectralParams_.spreadCurve.load(std::memory_order_relaxed)));
             spectralDelay_.setStereoWidth(spectralParams_.stereoWidth.load(std::memory_order_relaxed));
@@ -534,7 +534,7 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             shimmerDelay_.setDiffusionSize(shimmerParams_.diffusionSize.load(std::memory_order_relaxed));
             shimmerDelay_.setFilterEnabled(shimmerParams_.filterEnabled.load(std::memory_order_relaxed));
             shimmerDelay_.setFilterCutoff(shimmerParams_.filterCutoff.load(std::memory_order_relaxed));
-            shimmerDelay_.setDryWetMix(shimmerParams_.dryWet.load(std::memory_order_relaxed));
+            shimmerDelay_.setDryWetMix(shimmerParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
             shimmerDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
@@ -681,7 +681,7 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             multiTapDelay_.setFeedbackLPCutoff(multiTapParams_.feedbackLPCutoff.load(std::memory_order_relaxed));
             multiTapDelay_.setFeedbackHPCutoff(multiTapParams_.feedbackHPCutoff.load(std::memory_order_relaxed));
             multiTapDelay_.setMorphTime(multiTapParams_.morphTime.load(std::memory_order_relaxed));
-            multiTapDelay_.setDryWetMix(multiTapParams_.dryWet.load(std::memory_order_relaxed));
+            multiTapDelay_.setDryWetMix(multiTapParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
             multiTapDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
@@ -732,7 +732,7 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
                 duckingDelay_.setNoteValue(noteMapping.note, noteMapping.modifier);
             }
             duckingDelay_.setFeedbackAmount(duckingParams_.feedback.load(std::memory_order_relaxed));
-            duckingDelay_.setDryWetMix(duckingParams_.dryWet.load(std::memory_order_relaxed));
+            duckingDelay_.setDryWetMix(duckingParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
             duckingDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
