@@ -891,6 +891,12 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         tapPatternEditor_->setSnapDivision(static_cast<SnapDivision>(snapIndex));
     }
 
+    // Update TapPatternEditor tap count when parameter changes (Spec 046)
+    if (id == kMultiTapTapCountId && tapPatternEditor_) {
+        int tapCount = static_cast<int>(2.0 + value * 14.0 + 0.5);
+        tapPatternEditor_->setActiveTapCount(static_cast<size_t>(tapCount));
+    }
+
 #if defined(_DEBUG) && defined(_WIN32)
     if (id == kModeId) {
         char tempPath[MAX_PATH];
