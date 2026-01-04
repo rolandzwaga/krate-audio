@@ -3,20 +3,33 @@
 // ==============================================================================
 // Tests for safe handling of editor pointer lifecycle in VisibilityController.
 //
-// BUG BACKGROUND (2025-12-30):
+// BUG BACKGROUND #1 (2025-12-30):
 // - VisibilityController stored a direct pointer to VST3Editor (editor_)
 // - When editor closed and reopened, the stored pointer became dangling
 // - Pending IDependent::update() callbacks would access the dangling pointer
 // - CRASH on editor reopen
 //
-// FIX:
+// FIX #1:
 // - Store a pointer-to-pointer (editorPtr_) that points to controller's activeEditor_
 // - When editor closes, activeEditor_ is set to nullptr
 // - update() checks *editorPtr_ which is now nullptr, safely exits
 // - When editor reopens, activeEditor_ points to new editor
 // - update() works correctly with new editor
 //
-// This test verifies the PATTERN that prevents the crash.
+// BUG BACKGROUND #2 (2026-01-04):
+// - VisibilityController constructor calls deferUpdate() to trigger initial update
+// - If user closes editor very quickly, the deferred update fires AFTER destruction
+// - The update() callback is called on a deallocated object
+// - CRASH on editor close (host crashes)
+//
+// FIX #2:
+// - Add atomic<bool> isActive_ flag to VisibilityController
+// - Check isActive_ at the VERY START of update() before accessing any member
+// - Set isActive_ = false in destructor BEFORE removing dependent
+// - willClose() calls deactivate() on ALL controllers BEFORE destroying them
+// - This creates a safe "deactivation window" where any pending updates are ignored
+//
+// This test verifies the PATTERNS that prevent both crashes.
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -245,6 +258,140 @@ TEST_CASE("Editor lifecycle sequence is handled correctly",
 }
 
 // ==============================================================================
+// TEST: Deferred update race condition (Bug #2 - 2026-01-04)
+// ==============================================================================
+// Simulates the race between deferUpdate() and controller destruction.
+// ==============================================================================
+
+#include <atomic>
+
+// Simulates VisibilityController with the isActive_ guard
+class SafeVisibilityController {
+public:
+    explicit SafeVisibilityController(MockEditor** editorPtr)
+        : editorPtr_(editorPtr) {}
+
+    // Called when controller is being destroyed or editor is closing
+    void deactivate() {
+        isActive_.store(false, std::memory_order_release);
+    }
+
+    // Simulates the update() callback from deferUpdate()
+    bool tryUpdate() {
+        // CRITICAL: Check isActive_ FIRST before accessing any member
+        if (!isActive_.load(std::memory_order_acquire)) {
+            return false;  // Safely ignored
+        }
+
+        // Then check for valid editor
+        MockEditor* editor = editorPtr_ ? *editorPtr_ : nullptr;
+        if (!editor) {
+            return false;  // No editor
+        }
+
+        // Would do visibility update here
+        return true;  // Update succeeded
+    }
+
+    bool isActive() const {
+        return isActive_.load(std::memory_order_acquire);
+    }
+
+private:
+    MockEditor** editorPtr_;
+    std::atomic<bool> isActive_{true};
+};
+
+TEST_CASE("Deferred update race condition is handled safely",
+          "[vst][lifecycle][regression][deferred]") {
+
+    SECTION("Update after deactivate() is safely ignored") {
+        MockEditor* activeEditor = nullptr;
+        MockEditor editor;
+        activeEditor = &editor;
+
+        SafeVisibilityController controller(&activeEditor);
+
+        // Normal update works
+        REQUIRE(controller.tryUpdate() == true);
+
+        // Simulate: willClose() calls deactivate() BEFORE destroying controller
+        controller.deactivate();
+
+        // Now update should be safely ignored, even if editor is still valid
+        REQUIRE(controller.tryUpdate() == false);
+        REQUIRE(controller.isActive() == false);
+    }
+
+    SECTION("Deactivation order: deactivate -> clear editor -> destroy") {
+        MockEditor* activeEditor = nullptr;
+        MockEditor editor;
+        activeEditor = &editor;
+
+        SafeVisibilityController controller(&activeEditor);
+        REQUIRE(controller.tryUpdate() == true);
+
+        // Step 1: deactivate() - any pending updates are now ignored
+        controller.deactivate();
+        REQUIRE(controller.tryUpdate() == false);
+
+        // Step 2: clear activeEditor_ - double safety
+        activeEditor = nullptr;
+        REQUIRE(controller.tryUpdate() == false);
+
+        // Step 3: controller would be destroyed here
+        // Even if a deferred update fires during destruction,
+        // it will return early because isActive_ == false
+    }
+
+    SECTION("Rapid open/close scenario") {
+        // Simulates: open editor, immediately close before deferUpdate fires
+        MockEditor* activeEditor = nullptr;
+
+        // Open editor
+        MockEditor editor;
+        activeEditor = &editor;
+        SafeVisibilityController controller(&activeEditor);
+
+        // Before any update fires, user closes editor
+        controller.deactivate();
+        activeEditor = nullptr;
+
+        // Deferred update fires now - should be safely ignored
+        REQUIRE(controller.tryUpdate() == false);
+    }
+
+    SECTION("Multiple controllers watching same parameter") {
+        // Two controllers watch the same parameter (like multitap base time + tempo)
+        MockEditor* activeEditor = nullptr;
+        MockEditor editor;
+        activeEditor = &editor;
+
+        SafeVisibilityController controller1(&activeEditor);
+        SafeVisibilityController controller2(&activeEditor);
+
+        // Both work initially
+        REQUIRE(controller1.tryUpdate() == true);
+        REQUIRE(controller2.tryUpdate() == true);
+
+        // Deactivate both in willClose()
+        controller1.deactivate();
+        controller2.deactivate();
+
+        // Both ignore updates
+        REQUIRE(controller1.tryUpdate() == false);
+        REQUIRE(controller2.tryUpdate() == false);
+
+        // Clear editor
+        activeEditor = nullptr;
+
+        // Still safe
+        REQUIRE(controller1.tryUpdate() == false);
+        REQUIRE(controller2.tryUpdate() == false);
+    }
+}
+
+// ==============================================================================
 // Manual Testing Requirements (cannot be automated)
 // ==============================================================================
 // 1. Load plugin in a DAW
@@ -256,4 +403,5 @@ TEST_CASE("Editor lifecycle sequence is handled correctly",
 // 7. Verify UI is responsive and controls work
 // 8. Switch between modes (to trigger visibility controller updates)
 // 9. Close and reopen again while rapidly switching modes
+// 10. CRITICAL: Open editor, then IMMEDIATELY close (< 100ms) - tests deferred update race
 // ==============================================================================

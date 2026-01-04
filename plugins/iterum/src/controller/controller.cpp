@@ -23,6 +23,7 @@
 #include "base/source/fobject.h"
 
 #include <vector>
+#include <atomic>
 
 #if defined(_DEBUG) && defined(_WIN32)
 #include "vstgui/lib/platform/win32/win32factory.h"
@@ -165,14 +166,31 @@ public:
     }
 
     ~VisibilityController() override {
+        // CRITICAL: Set inactive FIRST to prevent any in-flight deferred updates
+        // from accessing members during destruction. This fixes the race condition
+        // where deferUpdate() schedules an update that fires after destruction begins.
+        isActive_.store(false, std::memory_order_release);
+
         if (watchedParam_) {
             watchedParam_->removeDependent(this);
             watchedParam_->release();
         }
     }
 
+    // Deactivate this controller to safely handle editor close.
+    // Must be called BEFORE setting activeEditor_ = nullptr and BEFORE destruction.
+    void deactivate() {
+        isActive_.store(false, std::memory_order_release);
+    }
+
     // IDependent::update - called on UI thread via deferred update mechanism
     void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+        // CRITICAL: Check isActive FIRST before accessing ANY member.
+        // This prevents use-after-free when deferred updates fire during/after destruction.
+        if (!isActive_.load(std::memory_order_acquire)) {
+            return;
+        }
+
         // Get current editor from controller's member - may be nullptr if editor closed
         VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
         if (message == IDependent::kChanged && watchedParam_ && editor) {
@@ -249,6 +267,7 @@ private:
     std::vector<Steinberg::int32> controlTags_;
     float visibilityThreshold_;
     bool showWhenBelow_;
+    std::atomic<bool> isActive_{true};  // Guards against use-after-free in deferred updates
 };
 
 #include "parameters/bbd_params.h"
@@ -979,6 +998,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             if (auto* multitapTimeMode = getParameterObject(kMultiTapTimeModeId)) {
                 multitapBaseTimeVisibilityController_ = new VisibilityController(
                     &activeEditor_, multitapTimeMode, {9908, kMultiTapBaseTimeId}, 0.5f, true);
+                // Hide internal tempo control in Synced mode (host provides tempo)
+                multitapTempoVisibilityController_ = new VisibilityController(
+                    &activeEditor_, multitapTimeMode, {9911, kMultiTapTempoId}, 0.5f, true);
             }
             if (auto* freezeTimeMode = getParameterObject(kFreezeTimeModeId)) {
                 freezeDelayTimeVisibilityController_ = new VisibilityController(
@@ -1135,18 +1157,51 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 #endif
 }
 
+// Helper to safely deactivate a visibility controller
+static void deactivateController(Steinberg::IPtr<Steinberg::FObject>& controller) {
+    if (controller) {
+        if (auto* vc = dynamic_cast<VisibilityController*>(controller.get())) {
+            vc->deactivate();
+        }
+    }
+}
+
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // Called before editor closes
     (void)editor;
 
-    // CRITICAL: Clear activeEditor_ FIRST before destroying visibility controllers
-    // VisibilityController::update() checks *editorPtr_ and returns early if nullptr.
-    // If we destroy controllers first, any deferred update during destruction would
-    // try to access a partially destroyed editor, causing a crash.
+    // PHASE 1: Deactivate ALL visibility controllers FIRST
+    // This ensures any in-flight or pending deferred updates will be safely ignored.
+    // The atomic isActive_ flag is checked at the very start of update().
+    deactivateController(digitalDelayTimeVisibilityController_);
+    deactivateController(digitalAgeVisibilityController_);
+    deactivateController(pingPongDelayTimeVisibilityController_);
+    deactivateController(granularDelayTimeVisibilityController_);
+    deactivateController(spectralBaseDelayVisibilityController_);
+    deactivateController(shimmerDelayTimeVisibilityController_);
+    deactivateController(bbdDelayTimeVisibilityController_);
+    deactivateController(reverseChunkSizeVisibilityController_);
+    deactivateController(multitapBaseTimeVisibilityController_);
+    deactivateController(multitapTempoVisibilityController_);
+    deactivateController(freezeDelayTimeVisibilityController_);
+    deactivateController(duckingDelayTimeVisibilityController_);
+    deactivateController(granularNoteValueVisibilityController_);
+    deactivateController(spectralNoteValueVisibilityController_);
+    deactivateController(shimmerNoteValueVisibilityController_);
+    deactivateController(bbdNoteValueVisibilityController_);
+    deactivateController(digitalNoteValueVisibilityController_);
+    deactivateController(pingPongNoteValueVisibilityController_);
+    deactivateController(reverseNoteValueVisibilityController_);
+    deactivateController(multitapNoteValueVisibilityController_);
+    deactivateController(freezeNoteValueVisibilityController_);
+    deactivateController(duckingNoteValueVisibilityController_);
+
+    // PHASE 2: Clear activeEditor_ so any update() that passes the isActive check
+    // will still return early when it checks for a valid editor.
     activeEditor_ = nullptr;
 
-    // Clean up visibility controllers (automatically removes dependents and releases refs)
-    // Now safe because any update() callback will see nullptr and return early
+    // PHASE 3: Destroy visibility controllers (removes dependents and releases refs)
+    // Now safe because: (1) isActive_ is false, (2) activeEditor_ is nullptr
     digitalDelayTimeVisibilityController_ = nullptr;
     digitalAgeVisibilityController_ = nullptr;
     pingPongDelayTimeVisibilityController_ = nullptr;
@@ -1158,6 +1213,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     bbdDelayTimeVisibilityController_ = nullptr;
     reverseChunkSizeVisibilityController_ = nullptr;
     multitapBaseTimeVisibilityController_ = nullptr;
+    multitapTempoVisibilityController_ = nullptr;
     freezeDelayTimeVisibilityController_ = nullptr;
     duckingDelayTimeVisibilityController_ = nullptr;
 

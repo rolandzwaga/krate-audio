@@ -165,6 +165,7 @@ private:
     Steinberg::IPtr<Steinberg::FObject> bbdDelayTimeVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> reverseChunkSizeVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> multitapBaseTimeVisibilityController_;
+    Steinberg::IPtr<Steinberg::FObject> multitapTempoVisibilityController_;  // spec: hide internal tempo in Synced mode
     Steinberg::IPtr<Steinberg::FObject> freezeDelayTimeVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> duckingDelayTimeVisibilityController_;
 

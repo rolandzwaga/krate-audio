@@ -306,6 +306,28 @@ cmake --build --preset windows-x64-debug # Build
 ctest --preset windows-x64-debug         # Test
 ```
 
+### AddressSanitizer (ASan)
+
+Use ASan to detect memory errors (use-after-free, buffer overflows, etc.) that cause crashes but don't throw exceptions:
+
+```bash
+# Configure with ASan enabled
+cmake -S . -B build-asan -G "Visual Studio 17 2022" -A x64 -DENABLE_ASAN=ON
+
+# Build (use Debug for better stack traces)
+cmake --build build-asan --config Debug
+
+# Run tests - ASan will abort and report if memory errors occur
+ctest --test-dir build-asan -C Debug --output-on-failure
+```
+
+**When to use ASan:**
+- Investigating crashes that don't have clear stack traces
+- After fixing editor lifecycle bugs (to verify no use-after-free)
+- Before releases to catch latent memory issues
+
+**Note:** ASan increases memory usage and slows execution. Use a separate build directory.
+
 ## Quick Reference
 
 | Task | File(s) |

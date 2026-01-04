@@ -53,6 +53,44 @@ if(MSVC AND (CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER))
 endif()
 
 # ==============================================================================
+# AddressSanitizer (ASan) Support
+# ==============================================================================
+# Detects memory errors at runtime:
+# - Use-after-free (heap and stack)
+# - Heap buffer overflow
+# - Stack buffer overflow
+# - Memory leaks
+#
+# Usage:
+#   cmake -DENABLE_ASAN=ON -DCMAKE_BUILD_TYPE=Debug ..
+#   cmake --build . --config Debug
+#   ctest  # ASan will report errors if memory issues are detected
+#
+# NOTE: ASan adds ~2x runtime overhead. Use for debugging, not release.
+# ==============================================================================
+option(ENABLE_ASAN "Enable AddressSanitizer for memory error detection" OFF)
+
+if(ENABLE_ASAN)
+    message(STATUS "[KRATE] AddressSanitizer ENABLED - memory errors will be detected at runtime")
+
+    if(MSVC)
+        # MSVC ASan support (Visual Studio 2019 16.9+)
+        add_compile_options(/fsanitize=address)
+        # MSVC doesn't need link options for ASan - it's handled automatically
+        # Disable incremental linking (incompatible with ASan)
+        add_link_options(/INCREMENTAL:NO)
+        message(STATUS "[KRATE] Using MSVC AddressSanitizer (/fsanitize=address)")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        # Clang/GCC ASan support
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)
+        add_link_options(-fsanitize=address)
+        message(STATUS "[KRATE] Using Clang/GCC AddressSanitizer (-fsanitize=address)")
+    else()
+        message(WARNING "[KRATE] AddressSanitizer not supported for this compiler")
+    endif()
+endif()
+
+# ==============================================================================
 # VST3 SDK Configuration (Shared by all plugins)
 # ==============================================================================
 set(vst3sdk_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/vst3sdk")

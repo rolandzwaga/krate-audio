@@ -51,6 +51,7 @@ add_executable(plugin_tests
     # VST tests
     unit/vst/control_visibility_test.cpp
     unit/vst/digital_width_param_test.cpp
+    unit/vst/multitap_visibility_test.cpp
     unit/vst/editor_lifecycle_test.cpp
     unit/vst/granular_tempo_sync_ui_test.cpp
     unit/vst/string_list_parameter_test.cpp

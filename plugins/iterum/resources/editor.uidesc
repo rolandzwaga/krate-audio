@@ -233,6 +233,7 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="BBDDelayTimeLabel" tag="9906"/>
         <control-tag name="ReverseChunkSizeLabel" tag="9907"/>
         <control-tag name="MultiTapBaseTimeLabel" tag="9908"/>
+        <control-tag name="MultiTapTempoLabel" tag="9911"/>
         <control-tag name="FreezeDelayTimeLabel" tag="9909"/>
         <control-tag name="DuckingDelayTimeLabel" tag="9910"/>
 
@@ -709,7 +710,7 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSegmentButton" origin="130, 46" size="85, 22" control-tag="MultiTapTimeMode" style="horizontal" segment-names="Free,Synced" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
             <view class="CTextLabel" control-tag="MultiTapNoteValueLabel" origin="220, 28" size="50, 16" title="Note" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="COptionMenu" origin="220, 46" size="50, 22" control-tag="MultiTapNoteValue" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
-            <view class="CTextLabel" origin="10, 73" size="65, 16" title="Int Tempo" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="CTextLabel" control-tag="MultiTapTempoLabel" origin="10, 73" size="65, 16" title="Int Tempo" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="CParamDisplay" control-tag="MultiTapTempo" origin="75, 73" size="65, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
             <view class="CSlider" origin="140, 73" size="130, 20" control-tag="MultiTapTempo" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
