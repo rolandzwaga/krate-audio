@@ -28,6 +28,7 @@ void TapPatternEditor::draw(VSTGUI::CDrawContext* context) {
     drawGridLines(context);
     drawTaps(context);
     drawLabels(context);
+    drawRuler(context);
 
     setDirty(false);
 }
@@ -48,21 +49,23 @@ void TapPatternEditor::drawBackground(VSTGUI::CDrawContext* context) {
 void TapPatternEditor::drawGridLines(VSTGUI::CDrawContext* context) {
     auto viewRect = getViewSize();
     float width = static_cast<float>(viewRect.getWidth());
-    float height = static_cast<float>(viewRect.getHeight());
+    // Tap area height excludes the ruler at bottom
+    float tapAreaHeight = static_cast<float>(viewRect.getHeight()) - kRulerHeight;
+    float tapAreaBottom = static_cast<float>(viewRect.bottom) - kRulerHeight;
 
     context->setFrameColor(kGridColor);
     context->setLineWidth(1.0);
 
-    // Vertical grid lines at 1/4 intervals
+    // Vertical grid lines at 1/4 intervals (stop at ruler)
     for (int i = 1; i < 4; ++i) {
         float x = viewRect.left + width * (static_cast<float>(i) / 4.0f);
         context->drawLine(
             VSTGUI::CPoint(x, viewRect.top),
-            VSTGUI::CPoint(x, viewRect.bottom));
+            VSTGUI::CPoint(x, tapAreaBottom));
     }
 
-    // Horizontal grid line at 50% level
-    float y = viewRect.top + height * 0.5f;
+    // Horizontal grid line at 50% level (within tap area)
+    float y = viewRect.top + tapAreaHeight * 0.5f;
     context->drawLine(
         VSTGUI::CPoint(viewRect.left, y),
         VSTGUI::CPoint(viewRect.right, y));
@@ -71,7 +74,8 @@ void TapPatternEditor::drawGridLines(VSTGUI::CDrawContext* context) {
 void TapPatternEditor::drawTaps(VSTGUI::CDrawContext* context) {
     auto viewRect = getViewSize();
     float width = static_cast<float>(viewRect.getWidth());
-    float height = static_cast<float>(viewRect.getHeight());
+    // Tap area height excludes the ruler at bottom
+    float tapAreaHeight = static_cast<float>(viewRect.getHeight()) - kRulerHeight;
 
     // Set up font for tap numbers
     auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 8);
@@ -81,10 +85,10 @@ void TapPatternEditor::drawTaps(VSTGUI::CDrawContext* context) {
         float timeRatio = tapTimeRatios_[i];
         float level = tapLevels_[i];
 
-        // Calculate tap bar position
+        // Calculate tap bar position (within tap area, above ruler)
         float centerX = viewRect.left + timeRatio * width;
-        float barTop = viewRect.top + (1.0f - level) * height;
-        float barBottom = viewRect.bottom;
+        float barTop = viewRect.top + (1.0f - level) * tapAreaHeight;
+        float barBottom = static_cast<float>(viewRect.bottom) - kRulerHeight;
 
         // Tap bar rectangle
         float halfBarWidth = kTapBarWidth / 2.0f;
@@ -138,8 +142,63 @@ void TapPatternEditor::drawLabels(VSTGUI::CDrawContext* context) {
     VSTGUI::CRect labelRect100(viewRect.left + 2, viewRect.top, viewRect.left + 30, viewRect.top + 12);
     context->drawString("100%", labelRect100, VSTGUI::kLeftText);
 
-    VSTGUI::CRect labelRect0(viewRect.left + 2, viewRect.bottom - 12, viewRect.left + 30, viewRect.bottom);
+    // Adjust label position to account for ruler at bottom
+    float rulerTop = static_cast<float>(viewRect.bottom) - kRulerHeight;
+    VSTGUI::CRect labelRect0(viewRect.left + 2, rulerTop - 12, viewRect.left + 30, rulerTop);
     context->drawString("0%", labelRect0, VSTGUI::kLeftText);
+}
+
+void TapPatternEditor::drawRuler(VSTGUI::CDrawContext* context) {
+    auto viewRect = getViewSize();
+    float width = static_cast<float>(viewRect.getWidth());
+    float rulerTop = static_cast<float>(viewRect.bottom) - kRulerHeight;
+    float rulerBottom = static_cast<float>(viewRect.bottom);
+
+    // Draw ruler background (slightly darker than main background)
+    VSTGUI::CRect rulerRect(viewRect.left, rulerTop, viewRect.right, rulerBottom);
+    context->setFillColor(VSTGUI::CColor(30, 30, 33, 255));
+    context->drawRect(rulerRect, VSTGUI::kDrawFilled);
+
+    // Draw horizontal baseline at top of ruler
+    context->setFrameColor(kGridColor);
+    context->setLineWidth(1.0);
+    context->drawLine(
+        VSTGUI::CPoint(viewRect.left, rulerTop),
+        VSTGUI::CPoint(viewRect.right, rulerTop));
+
+    // Get number of divisions based on snap setting
+    int divisions = getSnapDivisions(snapDivision_);
+
+    // If snap is off, just show major divisions (0, 0.25, 0.5, 0.75, 1.0)
+    if (divisions == 0) {
+        divisions = 4;  // Show quarter markers when snap is off
+    }
+
+    // Draw tick marks
+    context->setFrameColor(kTextColor);
+
+    for (int i = 0; i <= divisions; ++i) {
+        float ratio = static_cast<float>(i) / static_cast<float>(divisions);
+        float x = static_cast<float>(viewRect.left) + ratio * width;
+
+        // Determine if this is a major tick (at 1/4 positions: 0, 0.25, 0.5, 0.75, 1.0)
+        bool isMajorTick = false;
+        if (divisions >= 4) {
+            // Check if this tick falls on a quarter position
+            float quarterCheck = ratio * 4.0f;
+            isMajorTick = (std::abs(quarterCheck - std::round(quarterCheck)) < 0.001f);
+        } else {
+            // For triplets (12 divisions), all are minor except 0 and 1
+            isMajorTick = (i == 0 || i == divisions);
+        }
+
+        float tickHeight = isMajorTick ? kRulerMajorTickHeight : kRulerMinorTickHeight;
+        float tickTop = rulerTop + 2.0f;  // Small gap from baseline
+
+        context->drawLine(
+            VSTGUI::CPoint(x, tickTop),
+            VSTGUI::CPoint(x, tickTop + tickHeight));
+    }
 }
 
 // =============================================================================
@@ -156,8 +215,9 @@ float TapPatternEditor::xToTimeRatio(float x) const {
 float TapPatternEditor::yToLevel(float y) const {
     auto viewRect = getViewSize();
     float localY = y - static_cast<float>(viewRect.top);
-    float height = static_cast<float>(viewRect.getHeight());
-    return levelFromYPosition(localY, height);
+    // Use tap area height (excluding ruler) for level calculation
+    float tapAreaHeight = static_cast<float>(viewRect.getHeight()) - kRulerHeight;
+    return levelFromYPosition(localY, tapAreaHeight);
 }
 
 float TapPatternEditor::timeRatioToX(float ratio) const {
@@ -168,8 +228,9 @@ float TapPatternEditor::timeRatioToX(float ratio) const {
 
 float TapPatternEditor::levelToY(float level) const {
     auto viewRect = getViewSize();
-    float height = static_cast<float>(viewRect.getHeight());
-    return static_cast<float>(viewRect.top) + Iterum::levelToYPosition(level, height);
+    // Use tap area height (excluding ruler) for level calculation
+    float tapAreaHeight = static_cast<float>(viewRect.getHeight()) - kRulerHeight;
+    return static_cast<float>(viewRect.top) + Iterum::levelToYPosition(level, tapAreaHeight);
 }
 
 // =============================================================================
@@ -181,13 +242,14 @@ int TapPatternEditor::hitTestTapAtPoint(float x, float y) const {
     float localX = x - static_cast<float>(viewRect.left);
     float localY = y - static_cast<float>(viewRect.top);
     float width = static_cast<float>(viewRect.getWidth());
-    float height = static_cast<float>(viewRect.getHeight());
+    // Use tap area height (excluding ruler) for hit testing
+    float tapAreaHeight = static_cast<float>(viewRect.getHeight()) - kRulerHeight;
 
     return hitTestTap(
         localX, localY,
         tapTimeRatios_.data(), tapLevels_.data(),
         activeTapCount_,
-        width, height
+        width, tapAreaHeight
     );
 }
 
@@ -239,6 +301,14 @@ VSTGUI::CMouseEventResult TapPatternEditor::onMouseDown(
     dragStartX_ = x;
     dragStartY_ = y;
 
+    // Check if click started on handle (enables Y-axis control)
+    // Handle is at top of bar, height = kTapHandleHeight
+    auto viewRect = getViewSize();
+    float tapAreaHeight = static_cast<float>(viewRect.getHeight()) - kRulerHeight;
+    float barTop = static_cast<float>(viewRect.top) + (1.0f - preDragLevel_) * tapAreaHeight;
+    float handleBottom = barTop + kTapHandleHeight;
+    dragStartedOnHandle_ = (y >= barTop && y <= handleBottom);
+
     beginEdit();
     invalid();
 
@@ -258,7 +328,10 @@ VSTGUI::CMouseEventResult TapPatternEditor::onMouseMoved(
 
     // Calculate new values (clamped via logic functions - T018.1)
     float newTimeRatio = xToTimeRatio(x);
-    float newLevel = yToLevel(y);
+
+    // Level only changes if drag started on handle (top of bar)
+    // Otherwise, only horizontal (time) movement is allowed
+    float newLevel = dragStartedOnHandle_ ? yToLevel(y) : preDragLevel_;
 
     // Apply axis constraint if Shift is held (T018.2)
     if (buttons.isShiftSet()) {
@@ -302,6 +375,7 @@ VSTGUI::CMouseEventResult TapPatternEditor::onMouseUp(
     endEdit();
 
     isDragging_ = false;
+    dragStartedOnHandle_ = false;
     selectedTap_ = -1;
 
     invalid();
@@ -340,6 +414,7 @@ void TapPatternEditor::cancelDrag() {
     endEdit();
 
     isDragging_ = false;
+    dragStartedOnHandle_ = false;
     selectedTap_ = -1;
 
     invalid();

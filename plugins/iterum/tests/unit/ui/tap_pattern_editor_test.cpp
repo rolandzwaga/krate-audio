@@ -515,93 +515,116 @@ TEST_CASE("snapToGrid with various divisions", "[tap_pattern_editor][snap]") {
         REQUIRE(snapToGrid(1.0f, SnapDivision::Off) == Approx(1.0f));
     }
 
-    SECTION("snap Quarter (1/4) - 4 divisions") {
+    SECTION("snap N4 (1/4) - 4 divisions") {
         // Grid lines at 0, 0.25, 0.5, 0.75, 1.0
-        REQUIRE(snapToGrid(0.0f, SnapDivision::Quarter) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.1f, SnapDivision::Quarter) == Approx(0.0f));    // Rounds down
-        REQUIRE(snapToGrid(0.13f, SnapDivision::Quarter) == Approx(0.25f));  // Rounds up
-        REQUIRE(snapToGrid(0.25f, SnapDivision::Quarter) == Approx(0.25f));
-        REQUIRE(snapToGrid(0.38f, SnapDivision::Quarter) == Approx(0.5f));  // > 0.375 midpoint
-        REQUIRE(snapToGrid(0.5f, SnapDivision::Quarter) == Approx(0.5f));
-        REQUIRE(snapToGrid(0.63f, SnapDivision::Quarter) == Approx(0.75f));
-        REQUIRE(snapToGrid(0.75f, SnapDivision::Quarter) == Approx(0.75f));
-        REQUIRE(snapToGrid(0.88f, SnapDivision::Quarter) == Approx(1.0f));  // > 0.875 midpoint
-        REQUIRE(snapToGrid(1.0f, SnapDivision::Quarter) == Approx(1.0f));
+        REQUIRE(snapToGrid(0.0f, SnapDivision::N4) == Approx(0.0f));
+        REQUIRE(snapToGrid(0.1f, SnapDivision::N4) == Approx(0.0f));    // Rounds down
+        REQUIRE(snapToGrid(0.13f, SnapDivision::N4) == Approx(0.25f));  // Rounds up
+        REQUIRE(snapToGrid(0.25f, SnapDivision::N4) == Approx(0.25f));
+        REQUIRE(snapToGrid(0.38f, SnapDivision::N4) == Approx(0.5f));  // > 0.375 midpoint
+        REQUIRE(snapToGrid(0.5f, SnapDivision::N4) == Approx(0.5f));
+        REQUIRE(snapToGrid(0.63f, SnapDivision::N4) == Approx(0.75f));
+        REQUIRE(snapToGrid(0.75f, SnapDivision::N4) == Approx(0.75f));
+        REQUIRE(snapToGrid(0.88f, SnapDivision::N4) == Approx(1.0f));  // > 0.875 midpoint
+        REQUIRE(snapToGrid(1.0f, SnapDivision::N4) == Approx(1.0f));
     }
 
-    SECTION("snap Eighth (1/8) - 8 divisions") {
+    SECTION("snap N8 (1/8) - 8 divisions") {
         // Grid lines at 0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0
-        REQUIRE(snapToGrid(0.0f, SnapDivision::Eighth) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.125f, SnapDivision::Eighth) == Approx(0.125f));
-        REQUIRE(snapToGrid(0.19f, SnapDivision::Eighth) == Approx(0.25f));
-        REQUIRE(snapToGrid(0.5f, SnapDivision::Eighth) == Approx(0.5f));
-        REQUIRE(snapToGrid(0.875f, SnapDivision::Eighth) == Approx(0.875f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::Eighth) == Approx(1.0f));
+        REQUIRE(snapToGrid(0.0f, SnapDivision::N8) == Approx(0.0f));
+        REQUIRE(snapToGrid(0.125f, SnapDivision::N8) == Approx(0.125f));
+        REQUIRE(snapToGrid(0.19f, SnapDivision::N8) == Approx(0.25f));
+        REQUIRE(snapToGrid(0.5f, SnapDivision::N8) == Approx(0.5f));
+        REQUIRE(snapToGrid(0.875f, SnapDivision::N8) == Approx(0.875f));
+        REQUIRE(snapToGrid(1.0f, SnapDivision::N8) == Approx(1.0f));
     }
 
-    SECTION("snap Sixteenth (1/16) - 16 divisions") {
+    SECTION("snap N16 (1/16) - 16 divisions") {
         // Grid lines at 0, 0.0625, 0.125, ...
-        REQUIRE(snapToGrid(0.0f, SnapDivision::Sixteenth) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.0625f, SnapDivision::Sixteenth) == Approx(0.0625f));
-        REQUIRE(snapToGrid(0.06f, SnapDivision::Sixteenth) == Approx(0.0625f));
-        REQUIRE(snapToGrid(0.5f, SnapDivision::Sixteenth) == Approx(0.5f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::Sixteenth) == Approx(1.0f));
+        REQUIRE(snapToGrid(0.0f, SnapDivision::N16) == Approx(0.0f));
+        REQUIRE(snapToGrid(0.0625f, SnapDivision::N16) == Approx(0.0625f));
+        REQUIRE(snapToGrid(0.06f, SnapDivision::N16) == Approx(0.0625f));
+        REQUIRE(snapToGrid(0.5f, SnapDivision::N16) == Approx(0.5f));
+        REQUIRE(snapToGrid(1.0f, SnapDivision::N16) == Approx(1.0f));
     }
 
-    SECTION("snap ThirtySecond (1/32) - 32 divisions") {
+    SECTION("snap N32 (1/32) - 32 divisions") {
         // Grid lines at 0, 0.03125, 0.0625, ...
-        REQUIRE(snapToGrid(0.0f, SnapDivision::ThirtySecond) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.03125f, SnapDivision::ThirtySecond) == Approx(0.03125f));
-        REQUIRE(snapToGrid(0.03f, SnapDivision::ThirtySecond) == Approx(0.03125f));
-        REQUIRE(snapToGrid(0.5f, SnapDivision::ThirtySecond) == Approx(0.5f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::ThirtySecond) == Approx(1.0f));
+        REQUIRE(snapToGrid(0.0f, SnapDivision::N32) == Approx(0.0f));
+        REQUIRE(snapToGrid(0.03125f, SnapDivision::N32) == Approx(0.03125f));
+        REQUIRE(snapToGrid(0.03f, SnapDivision::N32) == Approx(0.03125f));
+        REQUIRE(snapToGrid(0.5f, SnapDivision::N32) == Approx(0.5f));
+        REQUIRE(snapToGrid(1.0f, SnapDivision::N32) == Approx(1.0f));
     }
 
-    SECTION("snap Triplet (12 divisions for quarter-note triplets)") {
+    SECTION("snap N8T (1/8 triplet) - 12 divisions") {
         // Grid lines at 0, 1/12, 2/12, ..., 12/12
         float oneThird = 1.0f / 3.0f;
         float twoThirds = 2.0f / 3.0f;
-        REQUIRE(snapToGrid(0.0f, SnapDivision::Triplet) == Approx(0.0f));
-        REQUIRE(snapToGrid(1.0f / 12.0f, SnapDivision::Triplet) == Approx(1.0f / 12.0f).margin(0.001f));
-        REQUIRE(snapToGrid(0.08f, SnapDivision::Triplet) == Approx(1.0f / 12.0f).margin(0.001f));
-        REQUIRE(snapToGrid(oneThird, SnapDivision::Triplet) == Approx(oneThird).margin(0.001f));
-        REQUIRE(snapToGrid(twoThirds, SnapDivision::Triplet) == Approx(twoThirds).margin(0.001f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::Triplet) == Approx(1.0f));
+        REQUIRE(snapToGrid(0.0f, SnapDivision::N8T) == Approx(0.0f));
+        REQUIRE(snapToGrid(1.0f / 12.0f, SnapDivision::N8T) == Approx(1.0f / 12.0f).margin(0.001f));
+        REQUIRE(snapToGrid(0.08f, SnapDivision::N8T) == Approx(1.0f / 12.0f).margin(0.001f));
+        REQUIRE(snapToGrid(oneThird, SnapDivision::N8T) == Approx(oneThird).margin(0.001f));
+        REQUIRE(snapToGrid(twoThirds, SnapDivision::N8T) == Approx(twoThirds).margin(0.001f));
+        REQUIRE(snapToGrid(1.0f, SnapDivision::N8T) == Approx(1.0f));
     }
 }
 
 TEST_CASE("snapToGrid edge cases", "[tap_pattern_editor][snap][edge]") {
 
     SECTION("values at exact grid lines remain unchanged") {
-        // Quarter note grid: exact values
-        REQUIRE(snapToGrid(0.0f, SnapDivision::Quarter) == Approx(0.0f));
-        REQUIRE(snapToGrid(0.25f, SnapDivision::Quarter) == Approx(0.25f));
-        REQUIRE(snapToGrid(0.5f, SnapDivision::Quarter) == Approx(0.5f));
-        REQUIRE(snapToGrid(0.75f, SnapDivision::Quarter) == Approx(0.75f));
-        REQUIRE(snapToGrid(1.0f, SnapDivision::Quarter) == Approx(1.0f));
+        // 1/4 note grid: exact values
+        REQUIRE(snapToGrid(0.0f, SnapDivision::N4) == Approx(0.0f));
+        REQUIRE(snapToGrid(0.25f, SnapDivision::N4) == Approx(0.25f));
+        REQUIRE(snapToGrid(0.5f, SnapDivision::N4) == Approx(0.5f));
+        REQUIRE(snapToGrid(0.75f, SnapDivision::N4) == Approx(0.75f));
+        REQUIRE(snapToGrid(1.0f, SnapDivision::N4) == Approx(1.0f));
     }
 
     SECTION("values out of bounds are clamped") {
-        REQUIRE(snapToGrid(-0.1f, SnapDivision::Quarter) == Approx(0.0f));
-        REQUIRE(snapToGrid(1.1f, SnapDivision::Quarter) == Approx(1.0f));
+        REQUIRE(snapToGrid(-0.1f, SnapDivision::N4) == Approx(0.0f));
+        REQUIRE(snapToGrid(1.1f, SnapDivision::N4) == Approx(1.0f));
     }
 
     SECTION("midpoint values round correctly (banker's rounding)") {
-        // 0.125 is exactly between 0 and 0.25 for quarter grid
+        // 0.125 is exactly between 0 and 0.25 for 1/4 grid
         // std::round should round to nearest even (0.0) or away from zero (0.25)
-        float snapped = snapToGrid(0.125f, SnapDivision::Quarter);
+        float snapped = snapToGrid(0.125f, SnapDivision::N4);
         // Either 0.0 or 0.25 is acceptable for exact midpoint
         REQUIRE((snapped == Approx(0.0f) || snapped == Approx(0.25f)));
     }
 }
 
 TEST_CASE("getSnapDivisions returns correct counts", "[tap_pattern_editor][snap]") {
+    // Test key snap divisions
     REQUIRE(getSnapDivisions(SnapDivision::Off) == 0);
-    REQUIRE(getSnapDivisions(SnapDivision::Quarter) == 4);
-    REQUIRE(getSnapDivisions(SnapDivision::Eighth) == 8);
-    REQUIRE(getSnapDivisions(SnapDivision::Sixteenth) == 16);
-    REQUIRE(getSnapDivisions(SnapDivision::ThirtySecond) == 32);
-    REQUIRE(getSnapDivisions(SnapDivision::Triplet) == 12);
+
+    // Standard note values
+    REQUIRE(getSnapDivisions(SnapDivision::N64) == 64);
+    REQUIRE(getSnapDivisions(SnapDivision::N32) == 32);
+    REQUIRE(getSnapDivisions(SnapDivision::N16) == 16);
+    REQUIRE(getSnapDivisions(SnapDivision::N8) == 8);
+    REQUIRE(getSnapDivisions(SnapDivision::N4) == 4);
+    REQUIRE(getSnapDivisions(SnapDivision::N2) == 2);
+    REQUIRE(getSnapDivisions(SnapDivision::N1) == 1);
+
+    // Triplet values
+    REQUIRE(getSnapDivisions(SnapDivision::N64T) == 96);
+    REQUIRE(getSnapDivisions(SnapDivision::N32T) == 48);
+    REQUIRE(getSnapDivisions(SnapDivision::N16T) == 24);
+    REQUIRE(getSnapDivisions(SnapDivision::N8T) == 12);
+    REQUIRE(getSnapDivisions(SnapDivision::N4T) == 6);
+    REQUIRE(getSnapDivisions(SnapDivision::N2T) == 3);
+    REQUIRE(getSnapDivisions(SnapDivision::N1T) == 2);  // Rounded
+
+    // Dotted values
+    REQUIRE(getSnapDivisions(SnapDivision::N64D) == 43);
+    REQUIRE(getSnapDivisions(SnapDivision::N32D) == 21);
+    REQUIRE(getSnapDivisions(SnapDivision::N16D) == 11);
+    REQUIRE(getSnapDivisions(SnapDivision::N8D) == 5);
+    REQUIRE(getSnapDivisions(SnapDivision::N4D) == 3);
+    REQUIRE(getSnapDivisions(SnapDivision::N2D) == 1);  // Rounded
+    REQUIRE(getSnapDivisions(SnapDivision::N1D) == 1);  // Rounded
 }
 
 // =============================================================================

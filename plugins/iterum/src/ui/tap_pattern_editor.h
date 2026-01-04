@@ -62,7 +62,7 @@ public:
     void onPatternChanged(int patternIndex);
 
     // Grid snapping (Phase 5 - User Story 3)
-    void setSnapDivision(SnapDivision division) { snapDivision_ = division; }
+    void setSnapDivision(SnapDivision division) { snapDivision_ = division; invalid(); }
     SnapDivision getSnapDivision() const { return snapDivision_; }
 
     // Reset to default linear spread pattern (T076)
@@ -79,6 +79,7 @@ private:
     void drawGridLines(VSTGUI::CDrawContext* context);
     void drawTaps(VSTGUI::CDrawContext* context);
     void drawLabels(VSTGUI::CDrawContext* context);
+    void drawRuler(VSTGUI::CDrawContext* context);
 
     // Coordinate conversion (using logic functions)
     float xToTimeRatio(float x) const;
@@ -104,6 +105,7 @@ private:
     // Drag state
     int selectedTap_ = -1;
     bool isDragging_ = false;
+    bool dragStartedOnHandle_ = false;  // True if drag started on handle (enables Y-axis control)
     float preDragTimeRatio_ = 0.0f;
     float preDragLevel_ = 0.0f;
     float dragStartX_ = 0.0f;
@@ -113,7 +115,7 @@ private:
     ParameterCallback paramCallback_;
 
     // Grid snapping (Phase 5)
-    SnapDivision snapDivision_ = SnapDivision::Quarter;
+    SnapDivision snapDivision_ = SnapDivision::N4;
 
     // Colors
     static constexpr VSTGUI::CColor kBackgroundColor{35, 35, 38, 255};

@@ -44,7 +44,7 @@ struct MultiTapParams {
     std::atomic<int> timingPattern{2};          // 0-19 (pattern presets)
     std::atomic<int> spatialPattern{2};         // 0-6 (spatial presets)
     std::atomic<int> tapCount{4};               // 2-16 taps
-    std::atomic<int> snapDivision{1};           // 0-5 (off, 1/4, 1/8, 1/16, 1/32, triplet) - spec 046, default: 1/4
+    std::atomic<int> snapDivision{14};          // 0-21 (off + 21 note values) - spec 046, default: 1/4 (index 14)
     std::atomic<float> feedback{0.5f};          // 0-1.1 (110%)
     std::atomic<float> feedbackLPCutoff{20000.0f};  // 20-20000Hz
     std::atomic<float> feedbackHPCutoff{20.0f};     // 20-20000Hz
@@ -94,9 +94,9 @@ inline void handleMultiTapParamChange(
                 std::memory_order_relaxed);
             break;
         case kMultiTapSnapDivisionId:
-            // 0-5 (off, 1/4, 1/8, 1/16, 1/32, triplet) - spec 046
+            // 0-21 (off + 21 note values) - spec 046
             params.snapDivision.store(
-                static_cast<int>(normalizedValue * 5.0 + 0.5),
+                static_cast<int>(normalizedValue * 21.0 + 0.5),
                 std::memory_order_relaxed);
             break;
         case kMultiTapTimingPatternId:
@@ -191,10 +191,25 @@ inline void registerMultiTapParams(Steinberg::Vst::ParameterContainer& parameter
     ));
 
     // Snap Division (spec 046 - grid snapping for custom pattern editor)
+    // Uses same note values as delay time dropdown, with "Off" at index 0
     parameters.addParameter(createDropdownParameterWithDefault(
         STR16("MultiTap Snap"), kMultiTapSnapDivisionId,
-        1,  // default: 1/4 (index 1)
-        {STR16("Off"), STR16("1/4"), STR16("1/8"), STR16("1/16"), STR16("1/32"), STR16("Triplet")}
+        14,  // default: 1/4 (index 14)
+        {STR16("Off"),
+         // 1/64 variants
+         STR16("1/64T"), STR16("1/64"), STR16("1/64D"),
+         // 1/32 variants
+         STR16("1/32T"), STR16("1/32"), STR16("1/32D"),
+         // 1/16 variants
+         STR16("1/16T"), STR16("1/16"), STR16("1/16D"),
+         // 1/8 variants
+         STR16("1/8T"), STR16("1/8"), STR16("1/8D"),
+         // 1/4 variants
+         STR16("1/4T"), STR16("1/4"), STR16("1/4D"),
+         // 1/2 variants
+         STR16("1/2T"), STR16("1/2"), STR16("1/2D"),
+         // 1/1 variants
+         STR16("1/1T"), STR16("1/1"), STR16("1/1D")}
     ));
 
     // Timing Pattern (20 patterns) - MUST use StringListParameter
@@ -565,10 +580,10 @@ inline void loadMultiTapParamsToController(
         }
     }
 
-    // Snap Division (spec 046): 0-5 -> normalized = val/5
+    // Snap Division (spec 046): 0-21 -> normalized = val/21
     if (streamer.readInt32(intVal)) {
         setParam(kMultiTapSnapDivisionId,
-            static_cast<double>(intVal) / 5.0);
+            static_cast<double>(intVal) / 21.0);
     }
 }
 

@@ -200,6 +200,8 @@ private:
     TapPatternEditor* tapPatternEditor_ = nullptr;  // Owned by frame
     // Visibility controller: show pattern editor only when pattern == Custom (index 19)
     Steinberg::IPtr<Steinberg::FObject> patternEditorVisibilityController_;
+    // Visibility controller: show Copy Pattern button only when pattern != Custom
+    Steinberg::IPtr<Steinberg::FObject> copyPatternButtonVisibilityController_;
 
     // ==========================================================================
     // Preset Browser (Spec 042)

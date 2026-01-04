@@ -243,9 +243,6 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="DigitalNoteValueLabel" tag="9924"/>
         <control-tag name="PingPongNoteValueLabel" tag="9925"/>
         <control-tag name="ReverseNoteValueLabel" tag="9926"/>
-        <control-tag name="MultiTapNoteValueLabel" tag="9927"/>
-        <control-tag name="MultiTapNoteModifierLabel" tag="9930"/>
-        <control-tag name="MultiTapNoteValueSection" tag="9931"/>
         <control-tag name="FreezeNoteValueLabel" tag="9928"/>
         <control-tag name="DuckingNoteValueLabel" tag="9929"/>
     </control-tags>
@@ -701,12 +698,12 @@ by functionality. Group order: Primary controls first, specialized later.
         <view class="CTextLabel" origin="10, 5" size="200, 22" title="MULTI-TAP DELAY" font="section-font" font-color="accent" transparent="true"/>
 
         <!-- Group 1: NOTE VALUE (for mathematical patterns only) -->
-        <!-- Visibility controlled by pattern selection: hidden for rhythmic patterns (0-13), shown for mathematical (14+) -->
-        <view class="CViewContainer" control-tag="MultiTapNoteValueSection" origin="10, 30" size="280, 75" background-color="section" transparent="false">
+        <!-- Container hidden/shown via ContainerVisibilityController (finds by child MultiTapNoteValue tag 911) -->
+        <view class="CViewContainer" origin="10, 30" size="280, 75" background-color="section" transparent="false">
             <view class="CTextLabel" origin="5, 5" size="270, 18" title="NOTE VALUE (Mathematical Patterns)" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" control-tag="MultiTapNoteValueLabel" origin="10, 28" size="50, 16" title="Note" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="CTextLabel" origin="10, 28" size="50, 16" title="Note" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="COptionMenu" origin="10, 46" size="70, 22" control-tag="MultiTapNoteValue" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
-            <view class="CTextLabel" control-tag="MultiTapNoteModifierLabel" origin="90, 28" size="60, 16" title="Modifier" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="CTextLabel" origin="90, 28" size="60, 16" title="Modifier" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="COptionMenu" origin="90, 46" size="80, 22" control-tag="MultiTapNoteModifier" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
         </view>
 
@@ -715,6 +712,8 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CTextLabel" origin="5, 5" size="260, 18" title="PATTERN" font="section-font" font-color="accent" transparent="true"/>
             <view class="CTextLabel" origin="10, 28" size="80, 16" title="Timing" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="COptionMenu" origin="10, 46" size="80, 22" control-tag="MultiTapTimingPattern" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
+            <!-- Copy Pattern button: DISABLED - needs more work, will revisit later -->
+            <!-- <view class="CView" origin="10, 75" size="130, 22" custom-view-name="CopyPatternButton"/> -->
             <view class="CTextLabel" origin="100, 28" size="80, 16" title="Spatial" font="label-font" font-color="text-dim" transparent="true"/>
             <view class="COptionMenu" origin="100, 46" size="80, 22" control-tag="MultiTapSpatialPattern" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
             <view class="CTextLabel" origin="190, 28" size="35, 16" title="Taps" font="label-font" font-color="text-dim" transparent="true"/>
@@ -754,13 +753,13 @@ by functionality. Group order: Primary controls first, specialized later.
 
         <!-- Group 6: CUSTOM PATTERN EDITOR (Spec 046) -->
         <!-- Visible only when Timing Pattern == Custom (index 19) -->
-        <view class="CViewContainer" origin="10, 240" size="640, 155" background-color="section" transparent="false">
+        <!-- Container hidden/shown via ContainerVisibilityController (finds by child TapPatternEditor tag 920) -->
+        <view class="CViewContainer" origin="10, 240" size="840, 170" background-color="section" transparent="false">
             <view class="CTextLabel" origin="5, 5" size="200, 18" title="CUSTOM PATTERN EDITOR" font="section-font" font-color="accent" transparent="true"/>
             <view class="CView" origin="210, 3" size="60, 22" custom-view-name="ResetPatternButton"/>
-            <view class="CView" origin="275, 3" size="90, 22" custom-view-name="CopyPatternButton"/>
-            <view class="CTextLabel" origin="460, 5" size="35, 18" title="Snap" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="COptionMenu" origin="495, 3" size="100, 22" control-tag="MultiTapSnapDivision" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
-            <view class="CView" origin="10, 28" size="620, 120" custom-view-name="TapPatternEditor"/>
+            <view class="CTextLabel" origin="695, 5" size="35, 18" title="Snap" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="COptionMenu" origin="730, 3" size="100, 22" control-tag="MultiTapSnapDivision" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
+            <view class="CView" origin="10, 28" size="820, 135" custom-view-name="TapPatternEditor"/>
         </view>
 
     </template>

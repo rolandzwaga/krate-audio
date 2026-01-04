@@ -26,6 +26,18 @@ static constexpr float kTapHandleWidth = 20.0f;
 /// Tap bar width for visual representation
 static constexpr float kTapBarWidth = 16.0f;
 
+/// Tap handle height for hit testing (light-colored region at top of bar)
+static constexpr float kTapHandleHeight = 8.0f;
+
+/// Ruler height at bottom of editor (for snap grid visualization)
+static constexpr float kRulerHeight = 15.0f;
+
+/// Major tick height on ruler (at 1/4 positions)
+static constexpr float kRulerMajorTickHeight = 8.0f;
+
+/// Minor tick height on ruler
+static constexpr float kRulerMinorTickHeight = 4.0f;
+
 // =============================================================================
 // Coordinate Conversion Functions (T016, T018)
 // =============================================================================
@@ -202,25 +214,74 @@ inline constexpr float kDefaultTapLevel = 1.0f;
 // =============================================================================
 
 /// Snap division options for grid snapping
+/// Matches note value dropdown order: Off, then 21 note values
+/// Order: 1/64T, 1/64, 1/64D, 1/32T, 1/32, 1/32D, ... 1/1T, 1/1, 1/1D
 enum class SnapDivision {
-    Off,           ///< No snapping
-    Quarter,       ///< 1/4 note (4 divisions)
-    Eighth,        ///< 1/8 note (8 divisions)
-    Sixteenth,     ///< 1/16 note (16 divisions)
-    ThirtySecond,  ///< 1/32 note (32 divisions)
-    Triplet        ///< Triplet grid (12 divisions for quarter-note triplets)
+    Off = 0,       ///< No snapping
+    // 1/64 variants
+    N64T = 1,      ///< 1/64 triplet (96 divisions)
+    N64 = 2,       ///< 1/64 note (64 divisions)
+    N64D = 3,      ///< 1/64 dotted (43 divisions)
+    // 1/32 variants
+    N32T = 4,      ///< 1/32 triplet (48 divisions)
+    N32 = 5,       ///< 1/32 note (32 divisions)
+    N32D = 6,      ///< 1/32 dotted (21 divisions)
+    // 1/16 variants
+    N16T = 7,      ///< 1/16 triplet (24 divisions)
+    N16 = 8,       ///< 1/16 note (16 divisions)
+    N16D = 9,      ///< 1/16 dotted (11 divisions)
+    // 1/8 variants
+    N8T = 10,      ///< 1/8 triplet (12 divisions)
+    N8 = 11,       ///< 1/8 note (8 divisions)
+    N8D = 12,      ///< 1/8 dotted (5 divisions)
+    // 1/4 variants
+    N4T = 13,      ///< 1/4 triplet (6 divisions)
+    N4 = 14,       ///< 1/4 note (4 divisions)
+    N4D = 15,      ///< 1/4 dotted (3 divisions)
+    // 1/2 variants
+    N2T = 16,      ///< 1/2 triplet (3 divisions)
+    N2 = 17,       ///< 1/2 note (2 divisions)
+    N2D = 18,      ///< 1/2 dotted (1 division)
+    // 1/1 variants
+    N1T = 19,      ///< 1/1 triplet (2 divisions)
+    N1 = 20,       ///< 1/1 whole note (1 division)
+    N1D = 21       ///< 1/1 dotted (1 division)
 };
 
 /// Get the number of grid divisions for a snap setting
 inline int getSnapDivisions(SnapDivision division) noexcept {
     switch (division) {
-        case SnapDivision::Quarter:      return 4;
-        case SnapDivision::Eighth:       return 8;
-        case SnapDivision::Sixteenth:    return 16;
-        case SnapDivision::ThirtySecond: return 32;
-        case SnapDivision::Triplet:      return 12;
+        // 1/64 variants
+        case SnapDivision::N64T: return 96;
+        case SnapDivision::N64:  return 64;
+        case SnapDivision::N64D: return 43;
+        // 1/32 variants
+        case SnapDivision::N32T: return 48;
+        case SnapDivision::N32:  return 32;
+        case SnapDivision::N32D: return 21;
+        // 1/16 variants
+        case SnapDivision::N16T: return 24;
+        case SnapDivision::N16:  return 16;
+        case SnapDivision::N16D: return 11;
+        // 1/8 variants
+        case SnapDivision::N8T:  return 12;
+        case SnapDivision::N8:   return 8;
+        case SnapDivision::N8D:  return 5;
+        // 1/4 variants
+        case SnapDivision::N4T:  return 6;
+        case SnapDivision::N4:   return 4;
+        case SnapDivision::N4D:  return 3;
+        // 1/2 variants
+        case SnapDivision::N2T:  return 3;
+        case SnapDivision::N2:   return 2;
+        case SnapDivision::N2D:  return 1;
+        // 1/1 variants
+        case SnapDivision::N1T:  return 2;
+        case SnapDivision::N1:   return 1;
+        case SnapDivision::N1D:  return 1;
+        // Off
         case SnapDivision::Off:
-        default:                         return 0;
+        default:                 return 0;
     }
 }
 
