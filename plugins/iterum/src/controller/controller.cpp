@@ -166,21 +166,30 @@ public:
     }
 
     ~VisibilityController() override {
-        // CRITICAL: Set inactive FIRST to prevent any in-flight deferred updates
-        // from accessing members during destruction. This fixes the race condition
-        // where deferUpdate() schedules an update that fires after destruction begins.
-        isActive_.store(false, std::memory_order_release);
+        // Ensure we're deactivated (handles case of direct destruction without deactivate())
+        deactivate();
 
+        // Release our reference to the parameter
         if (watchedParam_) {
-            watchedParam_->removeDependent(this);
             watchedParam_->release();
+            watchedParam_ = nullptr;
         }
     }
 
     // Deactivate this controller to safely handle editor close.
-    // Must be called BEFORE setting activeEditor_ = nullptr and BEFORE destruction.
+    // CRITICAL: This must be called BEFORE destruction to prevent use-after-free.
+    // It removes us as a dependent BEFORE the object is destroyed, ensuring that
+    // any queued deferred updates won't be delivered to a destroyed object.
     void deactivate() {
-        isActive_.store(false, std::memory_order_release);
+        // Use exchange to ensure we only do this once (idempotent)
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            // Was active, now deactivated - remove dependent to stop receiving updates
+            // This must happen BEFORE destruction to prevent the race condition where
+            // a deferred update fires during/after the destructor runs.
+            if (watchedParam_) {
+                watchedParam_->removeDependent(this);
+            }
+        }
     }
 
     // IDependent::update - called on UI thread via deferred update mechanism

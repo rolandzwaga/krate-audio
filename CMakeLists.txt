@@ -75,11 +75,37 @@ if(ENABLE_ASAN)
 
     if(MSVC)
         # MSVC ASan support (Visual Studio 2019 16.9+)
+        # Reference: https://learn.microsoft.com/en-us/cpp/sanitizers/asan
         add_compile_options(/fsanitize=address)
-        # MSVC doesn't need link options for ASan - it's handled automatically
+
+        # CRITICAL: ASan is INCOMPATIBLE with /RTC1 (Runtime Checks)
+        # /RTC1 is enabled by default in Debug builds. We must remove it.
+        # Reference: https://devblogs.microsoft.com/cppblog/addresssanitizer-asan-for-windows-with-msvc/
+        string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTCs" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTCu" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/RTC1" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+        string(REPLACE "/RTCs" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+        string(REPLACE "/RTCu" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+
+        # CRITICAL: ASan is INCOMPATIBLE with /ZI (Edit and Continue debug info)
+        # Must use /Zi instead. Replace globally in Debug flags.
+        string(REPLACE "/ZI" "/Zi" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REPLACE "/ZI" "/Zi" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+        # Force these into the cache so they apply to subdirectories (VST SDK)
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" CACHE STRING "" FORCE)
+        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}" CACHE STRING "" FORCE)
+
+        # Tell the VST SDK to use ASan mode (prevents it from adding /ZI)
+        # The SDK uses SMTG_ENABLE_ADDRESS_SANITIZER
+        set(SMTG_ENABLE_ADDRESS_SANITIZER ON CACHE BOOL "" FORCE)
+
         # Disable incremental linking (incompatible with ASan)
         add_link_options(/INCREMENTAL:NO)
+        add_link_options(/DEBUG)
+
         message(STATUS "[KRATE] Using MSVC AddressSanitizer (/fsanitize=address)")
+        message(STATUS "[KRATE] Disabled /RTC1 and /ZI (incompatible with ASan)")
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # Clang/GCC ASan support
         add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)

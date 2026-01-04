@@ -5,11 +5,31 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2026-01-04
+
+### Fixed
+
+- **Editor Close Crash (PresetBrowserView Use-After-Free)**
+  - Fixed host crash when closing plugin window after opening preset browser
+  - Root cause: `PresetBrowserView::~PresetBrowserView()` called `unregisterTextEditListener()` on already-freed child view
+  - VSTGUI's `CViewContainer` destroys child views via `beforeDelete()` → `removeAll()` BEFORE parent destructor runs
+  - Solution: Removed the listener unregistration call (child views are already gone by destructor time)
+  - Diagnosed using AddressSanitizer (ASan) build
+
+### Added
+
+- **VST-GUIDE.md: VSTGUI CViewContainer Child Destruction Order**
+  - Documented VSTGUI's destruction order where child views are destroyed before parent destructor
+  - Added quick reference table for what actions are safe/unsafe in CViewContainer destructors
+  - Added example code patterns showing wrong vs correct approaches
+
+---
+
 ## [0.9.5] - 2026-01-04
 
 ### Fixed
 
-- **Editor Close Crash (Use-After-Free)**
+- **Editor Close Crash (VisibilityController Use-After-Free)**
   - Fixed host crash when closing plugin window quickly after opening
   - Root cause: `deferUpdate()` scheduled updates that fired after controller destruction
   - Added atomic `isActive_` guard to VisibilityController checked before accessing any member

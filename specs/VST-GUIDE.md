@@ -2,7 +2,7 @@
 
 This document captures hard-won insights about VST3 SDK and VSTGUI that are not obvious from the official documentation. These findings prevent repeating debugging sessions that waste hours.
 
-**Version**: 1.1.0 | **Last Updated**: 2025-12-29
+**Version**: 1.2.0 | **Last Updated**: 2026-01-04
 
 ---
 
@@ -14,8 +14,9 @@ This document captures hard-won insights about VST3 SDK and VSTGUI that are not 
 4. [Feedback Loop Prevention](#4-feedback-loop-prevention)
 5. [Dropdown Parameter Helper](#5-dropdown-parameter-helper)
 6. [Conditional Control Visibility (Thread-Safe Pattern)](#6-conditional-control-visibility-thread-safe-pattern)
-7. [Common Pitfalls](#7-common-pitfalls)
-8. [Cross-Platform Custom Views](#8-cross-platform-custom-views)
+7. [Editor Lifecycle and IDependent Safety](#7-editor-lifecycle-and-idependent-safety)
+8. [Common Pitfalls](#8-common-pitfalls)
+9. [Cross-Platform Custom Views](#9-cross-platform-custom-views)
 
 ---
 
@@ -517,7 +518,265 @@ If the plugin crashes, hangs, or exhibits race conditions, the pattern is not th
 
 ---
 
-## 7. Common Pitfalls
+## 7. Editor Lifecycle and IDependent Safety
+
+When using `IDependent` with `deferUpdate()` for parameter-driven UI updates (see section 6), proper lifecycle management is **critical** to prevent use-after-free crashes.
+
+### The Problem: deferUpdate Race Condition
+
+The `deferUpdate()` mechanism queues updates to be delivered later on the UI thread. If the editor is closed before the deferred update fires, the callback can be invoked on a **destroyed object**, causing a crash.
+
+**The Dangerous Sequence:**
+1. `VisibilityController` constructor calls `deferUpdate()` → update is queued
+2. User closes editor quickly (before update fires)
+3. `willClose()` is called
+4. `willClose()` destroys the VisibilityController
+5. Destructor calls `removeDependent(this)` → **TOO LATE**
+6. The queued update fires → calls `update()` on destroyed object → **CRASH**
+
+### The WRONG Pattern (Crashes on Quick Editor Close)
+
+```cpp
+class VisibilityController : public Steinberg::FObject {
+public:
+    VisibilityController(VSTGUI::VST3Editor** editorPtr,
+                         Steinberg::Vst::Parameter* param, ...)
+    : editorPtr_(editorPtr), watchedParam_(param) {
+        if (watchedParam_) {
+            watchedParam_->addRef();
+            watchedParam_->addDependent(this);
+            watchedParam_->deferUpdate();  // Queues initial update
+        }
+    }
+
+    ~VisibilityController() override {
+        isActive_.store(false, std::memory_order_release);
+        if (watchedParam_) {
+            // BUG: Called during/after destruction - too late!
+            // Deferred updates can still fire on destroyed object.
+            watchedParam_->removeDependent(this);
+            watchedParam_->release();
+        }
+    }
+
+    void deactivate() {
+        // BUG: Only sets flag, doesn't stop pending updates
+        isActive_.store(false, std::memory_order_release);
+    }
+
+    void PLUGIN_API update(...) override {
+        // BUG: Even with this check, if the object is destroyed,
+        // we can't safely read isActive_ because vtable is corrupted
+        if (!isActive_.load(std::memory_order_acquire)) return;
+        // ... update UI ...
+    }
+
+private:
+    std::atomic<bool> isActive_{true};
+    Steinberg::Vst::Parameter* watchedParam_;
+};
+```
+
+**Why This Crashes:**
+- `removeDependent()` in the destructor is too late
+- The deferred update was already queued and will fire
+- When it fires, the object is destroyed → undefined behavior
+
+### The CORRECT Pattern (Safe Editor Lifecycle)
+
+```cpp
+class VisibilityController : public Steinberg::FObject {
+public:
+    VisibilityController(VSTGUI::VST3Editor** editorPtr,
+                         Steinberg::Vst::Parameter* param, ...)
+    : editorPtr_(editorPtr), watchedParam_(param) {
+        if (watchedParam_) {
+            watchedParam_->addRef();
+            watchedParam_->addDependent(this);
+            watchedParam_->deferUpdate();
+        }
+    }
+
+    ~VisibilityController() override {
+        // Ensure deactivation (handles direct destruction without deactivate())
+        deactivate();
+
+        // Release reference (removeDependent already called in deactivate)
+        if (watchedParam_) {
+            watchedParam_->release();
+            watchedParam_ = nullptr;
+        }
+    }
+
+    // CRITICAL: Must be called BEFORE destruction
+    void deactivate() {
+        // Use exchange to ensure we only do this once (idempotent)
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            // Stop receiving updates BEFORE destruction begins
+            // This prevents the race where a deferred update fires
+            // during or after the destructor runs.
+            if (watchedParam_) {
+                watchedParam_->removeDependent(this);
+            }
+        }
+    }
+
+    void PLUGIN_API update(...) override {
+        // Double-check isActive (defense in depth)
+        if (!isActive_.load(std::memory_order_acquire)) return;
+        // ... update UI safely ...
+    }
+
+private:
+    std::atomic<bool> isActive_{true};
+    Steinberg::Vst::Parameter* watchedParam_;
+};
+```
+
+**Key Changes:**
+1. `removeDependent()` is called in `deactivate()`, not the destructor
+2. `deactivate()` uses atomic exchange to be idempotent (safe to call multiple times)
+3. Destructor calls `deactivate()` for safety (handles direct destruction)
+
+### willClose() Order of Operations
+
+The controller's `willClose()` must follow this exact sequence:
+
+```cpp
+void Controller::willClose(VSTGUI::VST3Editor* editor) {
+    (void)editor;
+
+    // PHASE 1: Deactivate ALL controllers FIRST
+    // This calls removeDependent() and stops any pending updates
+    // from being delivered to these objects.
+    deactivateController(visibilityController1_);
+    deactivateController(visibilityController2_);
+    // ... all controllers ...
+
+    // PHASE 2: Clear the editor pointer
+    // Any update() that passes the isActive check will now
+    // return early when it checks for a valid editor.
+    activeEditor_ = nullptr;
+
+    // PHASE 3: Destroy controllers (set IPtrs to nullptr)
+    // Now safe because:
+    // 1. isActive_ is false (no more updates processed)
+    // 2. removeDependent() was called (no more updates queued)
+    // 3. activeEditor_ is nullptr (extra safety check in update())
+    visibilityController1_ = nullptr;
+    visibilityController2_ = nullptr;
+    // ... all controllers ...
+}
+
+// Helper function
+static void deactivateController(Steinberg::IPtr<Steinberg::FObject>& controller) {
+    if (controller) {
+        if (auto* vc = dynamic_cast<VisibilityController*>(controller.get())) {
+            vc->deactivate();
+        }
+    }
+}
+```
+
+### Why This Order Matters
+
+| Phase | Action | Effect |
+|-------|--------|--------|
+| 1 | `deactivate()` | Removes dependent, stops receiving updates |
+| 2 | `activeEditor_ = nullptr` | Any in-flight update safely returns early |
+| 3 | Destroy controllers | Object destroyed, no race condition |
+
+If you skip Phase 1 or combine it with Phase 3, pending deferred updates can fire on destroyed objects.
+
+### Testing Editor Lifecycle
+
+To verify your implementation is safe:
+
+1. **Rapid Open/Close Test**: Open editor, immediately close (< 100ms), repeat 50+ times
+2. **Close During Mode Switch**: Change a visibility-controlling parameter, immediately close editor
+3. **Automation During Close**: Play automation while rapidly opening/closing editor
+4. **AddressSanitizer Test**: Build with ASan enabled to detect use-after-free:
+   ```bash
+   cmake -B build-asan -DENABLE_ASAN=ON
+   cmake --build build-asan --config Debug
+   ```
+
+### Summary: IDependent Lifecycle Rules
+
+1. **Constructor**: Call `addDependent()` and optionally `deferUpdate()` for initial sync
+2. **deactivate()**: Call `removeDependent()` here, not in destructor
+3. **willClose()**: Call `deactivate()` on ALL controllers BEFORE destroying them
+4. **Destructor**: Only release references, deactivation already done
+5. **update()**: Check `isActive_` first, then check for valid editor
+
+### VSTGUI CViewContainer Child Destruction Order
+
+**Critical Rule:** Child views are destroyed BEFORE the parent's destructor runs.
+
+VSTGUI's `CViewContainer` destroys all child views via `beforeDelete()` → `removeAll()` before the parent class destructor is called. This means:
+
+```cpp
+// WRONG - Crashes on editor close
+class MyContainer : public CViewContainer {
+    CTextEdit* textField_ = nullptr;  // Child view added via addView()
+
+    ~MyContainer() {
+        // BUG: textField_ was already destroyed by CViewContainer::removeAll()!
+        if (textField_) {
+            textField_->unregisterTextEditListener(this);  // USE-AFTER-FREE!
+        }
+    }
+};
+```
+
+**Why This Crashes:**
+1. Host closes editor
+2. VSTGUI calls `beforeDelete()` on MyContainer
+3. `beforeDelete()` calls `removeAll()` which destroys all child views (including `textField_`)
+4. Now `~MyContainer()` destructor runs
+5. `textField_` still points to the freed memory (dangling pointer)
+6. Calling any method on `textField_` is undefined behavior → crash
+
+**The Solution:** Don't unregister from child views in the destructor - they're already gone:
+
+```cpp
+// CORRECT - Safe for editor close
+class MyContainer : public CViewContainer {
+    CTextEdit* textField_ = nullptr;
+
+    ~MyContainer() {
+        // NOTE: Do NOT call textField_->unregisterTextEditListener() here!
+        // VSTGUI's CViewContainer destroys child views via beforeDelete()->removeAll()
+        // BEFORE the parent destructor runs. By this point, textField_ is already freed.
+
+        // Only cleanup non-child-view resources here
+        delete ownedDataSource_;  // We own this directly, not via addView()
+    }
+};
+```
+
+**What About IKeyboardHook?** Keyboard hooks are registered on the **frame**, not a child view. The frame is not destroyed by the container, so `unregisterKeyboardHook()` in the destructor is safe:
+
+```cpp
+~MyContainer() {
+    unregisterKeyboardHook();  // Safe - frame outlives us
+    // Do NOT access child views here
+}
+```
+
+**Quick Reference: What Can You Do in Destructor?**
+
+| Action | Safe? | Why |
+|--------|-------|-----|
+| Unregister from child views | **NO** | Already destroyed by `removeAll()` |
+| Unregister keyboard hook from frame | Yes | Frame outlives us |
+| Delete objects we own directly | Yes | We created them, we destroy them |
+| Stop timers we own | Yes | Timer is not a child view |
+| Set `activeEditor_ = nullptr` | Yes | Raw pointer, no method calls |
+
+---
+
+## 8. Common Pitfalls
 
 ### Pitfall 1: Using Basic Parameter for Discrete Values
 
@@ -574,7 +833,7 @@ Don't override - let the base class delegate to StringListParameter's toString()
 
 ---
 
-## 8. Cross-Platform Custom Views
+## 9. Cross-Platform Custom Views
 
 When creating custom VSTGUI views (e.g., preset browsers, visualizers, custom controls), follow these rules to ensure cross-platform compatibility.
 

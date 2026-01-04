@@ -34,6 +34,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdint>
+
 // ==============================================================================
 // PATTERN TEST: Direct Pointer vs Indirect Pointer
 // ==============================================================================
@@ -44,7 +46,7 @@
 // Simulates a simplified VST3Editor for testing
 struct MockEditor {
     bool isValid = true;
-    int frameId = 0;  // Simulates getFrame() returning different objects
+    intptr_t frameId = 0;  // Simulates getFrame() returning different objects
 
     // Simulate getFrame() - returns nullptr if editor was destroyed
     void* getFrame() { return isValid ? reinterpret_cast<void*>(frameId) : nullptr; }

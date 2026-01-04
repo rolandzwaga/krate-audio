@@ -69,10 +69,12 @@ PresetBrowserView::PresetBrowserView(const VSTGUI::CRect& size, PresetManager* p
 PresetBrowserView::~PresetBrowserView() {
     // Stop search polling timer
     stopSearchPolling();
-    // Unregister text edit listener
-    if (searchField_) {
-        searchField_->unregisterTextEditListener(this);
-    }
+
+    // NOTE: Do NOT call searchField_->unregisterTextEditListener() here!
+    // VSTGUI's CViewContainer destroys child views via beforeDelete()->removeAll()
+    // BEFORE the parent destructor runs. By this point, searchField_ is already freed.
+    // See VST-GUIDE.md Section 7 for details on VSTGUI destruction order.
+
     // Ensure keyboard hook is unregistered
     unregisterKeyboardHook();
     // DataSource is owned by us, not by CDataBrowser
