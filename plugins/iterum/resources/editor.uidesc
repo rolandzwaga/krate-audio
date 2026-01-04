@@ -756,8 +756,9 @@ by functionality. Group order: Primary controls first, specialized later.
         <!-- Visible only when Timing Pattern == Custom (index 19) -->
         <view class="CViewContainer" origin="10, 240" size="560, 155" background-color="section" transparent="false">
             <view class="CTextLabel" origin="5, 5" size="300, 18" title="CUSTOM PATTERN EDITOR" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" origin="450, 5" size="35, 18" title="Snap" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="COptionMenu" origin="485, 3" size="65, 22" control-tag="MultiTapSnapDivision" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
+            <view class="CView" origin="310, 3" size="90, 22" custom-view-name="CopyPatternButton"/>
+            <view class="CTextLabel" origin="415, 5" size="35, 18" title="Snap" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="COptionMenu" origin="450, 3" size="100, 22" control-tag="MultiTapSnapDivision" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
             <view class="CView" origin="10, 28" size="540, 120" custom-view-name="TapPatternEditor"/>
         </view>
 

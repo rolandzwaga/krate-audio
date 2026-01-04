@@ -415,6 +415,7 @@ private:
 #include "parameters/freeze_params.h"
 #include "parameters/granular_params.h"
 #include "parameters/multitap_params.h"
+#include "parameters/pattern_calculator.h"
 #include "parameters/pingpong_params.h"
 #include "parameters/reverse_params.h"
 #include "parameters/shimmer_params.h"
@@ -1004,6 +1005,34 @@ private:
     Controller* controller_ = nullptr;
 };
 
+// =============================================================================
+// CopyPatternButton: Copy current pattern to Custom (Spec 046 - User Story 4)
+// =============================================================================
+class CopyPatternButton : public VSTGUI::CTextButton {
+public:
+    CopyPatternButton(const VSTGUI::CRect& size, Controller* controller)
+        : CTextButton(size, nullptr, -1, "Copy Pattern")
+        , controller_(controller)
+    {
+        setFrameColor(VSTGUI::CColor(80, 80, 85));
+        setTextColor(VSTGUI::CColor(255, 255, 255));
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton() && controller_) {
+            controller_->copyCurrentPatternToCustom();
+            return VSTGUI::kMouseEventHandled;
+        }
+        return CTextButton::onMouseDown(where, buttons);
+    }
+
+private:
+    Controller* controller_ = nullptr;
+};
+
 VSTGUI::CView* Controller::createCustomView(
     VSTGUI::UTF8StringPtr name,
     const VSTGUI::UIAttributes& attributes,
@@ -1037,6 +1066,16 @@ VSTGUI::CView* Controller::createCustomView(
         attributes.getPointAttribute("size", size);
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
         return new SavePresetButton(rect, this);
+    }
+
+    // Copy Pattern Button (Spec 046 - User Story 4)
+    if (VSTGUI::UTF8StringView(name) == "CopyPatternButton") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(90, 22);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new CopyPatternButton(rect, this);
     }
 
     // TapPatternEditor (Spec 046) - Custom tap pattern visual editor
@@ -1467,6 +1506,72 @@ void Controller::openSavePresetDialog() {
 void Controller::closePresetBrowser() {
     if (presetBrowserView_ && presetBrowserView_->isOpen()) {
         presetBrowserView_->close();
+    }
+}
+
+// ==============================================================================
+// Custom Pattern Editor - Copy from Pattern
+// ==============================================================================
+
+void Controller::copyCurrentPatternToCustom() {
+    using namespace Steinberg::Vst;
+
+    // Get current pattern index
+    int patternIndex = 0;
+    if (auto* param = getParameterObject(kMultiTapTimingPatternId)) {
+        patternIndex = static_cast<int>(param->toPlain(param->getNormalized()));
+    }
+
+    // Don't copy if already on Custom pattern (index 19)
+    if (patternIndex == 19) {
+        return;
+    }
+
+    // Get current tap count
+    int tapCount = 4;
+    if (auto* param = getParameterObject(kMultiTapTapCountId)) {
+        tapCount = static_cast<int>(param->toPlain(param->getNormalized()));
+    }
+    tapCount = std::clamp(tapCount, 1, 8);
+
+    // Calculate pattern ratios
+    float ratios[8] = {0.0f};
+    calculatePatternRatios(patternIndex, static_cast<size_t>(tapCount), ratios);
+
+    // Update custom tap time parameters (normalized 0-1)
+    static constexpr ParamID customTimeIds[8] = {
+        kMultiTapCustomTime0Id, kMultiTapCustomTime1Id, kMultiTapCustomTime2Id, kMultiTapCustomTime3Id,
+        kMultiTapCustomTime4Id, kMultiTapCustomTime5Id, kMultiTapCustomTime6Id, kMultiTapCustomTime7Id
+    };
+
+    for (int i = 0; i < 8; ++i) {
+        float value = (i < tapCount) ? ratios[i] : 0.0f;
+        setParamNormalized(customTimeIds[i], value);
+
+        // Notify host of parameter change
+        if (componentHandler) {
+            componentHandler->beginEdit(customTimeIds[i]);
+            componentHandler->performEdit(customTimeIds[i], value);
+            componentHandler->endEdit(customTimeIds[i]);
+        }
+    }
+
+    // Switch to Custom pattern (index 19)
+    // Pattern has 20 options (0-19), so normalized = 19/19 = 1.0
+    double customPatternNormalized = 19.0 / 19.0;
+    setParamNormalized(kMultiTapTimingPatternId, customPatternNormalized);
+
+    if (componentHandler) {
+        componentHandler->beginEdit(kMultiTapTimingPatternId);
+        componentHandler->performEdit(kMultiTapTimingPatternId, customPatternNormalized);
+        componentHandler->endEdit(kMultiTapTimingPatternId);
+    }
+
+    // Update TapPatternEditor if active
+    if (tapPatternEditor_) {
+        for (int i = 0; i < tapCount; ++i) {
+            tapPatternEditor_->setTapTimeRatio(static_cast<size_t>(i), ratios[i]);
+        }
     }
 }
 

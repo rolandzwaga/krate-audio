@@ -603,3 +603,119 @@ TEST_CASE("getSnapDivisions returns correct counts", "[tap_pattern_editor][snap]
     REQUIRE(getSnapDivisions(SnapDivision::ThirtySecond) == 32);
     REQUIRE(getSnapDivisions(SnapDivision::Triplet) == 12);
 }
+
+// =============================================================================
+// T064-T065: Pattern Calculator Tests (User Story 4 - Copy from Pattern)
+// =============================================================================
+
+#include "parameters/pattern_calculator.h"
+
+TEST_CASE("calculatePatternRatios linear pattern", "[tap_pattern_editor][copy]") {
+    std::array<float, 16> ratios{};
+
+    SECTION("4 taps linear spread") {
+        calculatePatternRatios(static_cast<int>(PatternIndex::LinearSpread), 4, ratios.data());
+
+        // Linear: 1, 2, 3, 4 -> normalized: 0.25, 0.5, 0.75, 1.0
+        REQUIRE(ratios[0] == Approx(0.25f));
+        REQUIRE(ratios[1] == Approx(0.5f));
+        REQUIRE(ratios[2] == Approx(0.75f));
+        REQUIRE(ratios[3] == Approx(1.0f));
+    }
+
+    SECTION("8 taps linear spread") {
+        calculatePatternRatios(static_cast<int>(PatternIndex::LinearSpread), 8, ratios.data());
+
+        // Linear: 1..8 -> normalized: 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0
+        REQUIRE(ratios[0] == Approx(0.125f));
+        REQUIRE(ratios[4] == Approx(0.625f));
+        REQUIRE(ratios[7] == Approx(1.0f));
+    }
+}
+
+TEST_CASE("calculatePatternRatios golden ratio pattern", "[tap_pattern_editor][copy]") {
+    std::array<float, 16> ratios{};
+
+    SECTION("4 taps golden ratio") {
+        calculatePatternRatios(static_cast<int>(PatternIndex::GoldenRatio), 4, ratios.data());
+
+        // Golden: 1, 1.618, 2.618, 4.236 -> normalized
+        // Last tap is 1.0
+        REQUIRE(ratios[3] == Approx(1.0f));
+
+        // Each ratio should be phi times the previous
+        float expectedRatio = kGoldenRatio;
+        REQUIRE(ratios[1] / ratios[0] == Approx(expectedRatio).margin(0.01f));
+        REQUIRE(ratios[2] / ratios[1] == Approx(expectedRatio).margin(0.01f));
+        REQUIRE(ratios[3] / ratios[2] == Approx(expectedRatio).margin(0.01f));
+    }
+}
+
+TEST_CASE("calculatePatternRatios fibonacci pattern", "[tap_pattern_editor][copy]") {
+    std::array<float, 16> ratios{};
+
+    SECTION("6 taps fibonacci") {
+        calculatePatternRatios(static_cast<int>(PatternIndex::Fibonacci), 6, ratios.data());
+
+        // Fibonacci: 1, 1, 2, 3, 5, 8 -> normalized by 8: 0.125, 0.125, 0.25, 0.375, 0.625, 1.0
+        REQUIRE(ratios[0] == Approx(0.125f));
+        REQUIRE(ratios[1] == Approx(0.125f));  // Same as first (both 1)
+        REQUIRE(ratios[2] == Approx(0.25f));   // 2/8
+        REQUIRE(ratios[5] == Approx(1.0f));    // Last is always 1.0
+    }
+}
+
+TEST_CASE("calculatePatternRatios exponential pattern", "[tap_pattern_editor][copy]") {
+    std::array<float, 16> ratios{};
+
+    SECTION("4 taps exponential") {
+        calculatePatternRatios(static_cast<int>(PatternIndex::Exponential), 4, ratios.data());
+
+        // Exponential: 1, 2, 4, 8 -> normalized: 0.125, 0.25, 0.5, 1.0
+        REQUIRE(ratios[0] == Approx(0.125f));
+        REQUIRE(ratios[1] == Approx(0.25f));
+        REQUIRE(ratios[2] == Approx(0.5f));
+        REQUIRE(ratios[3] == Approx(1.0f));
+    }
+}
+
+TEST_CASE("calculatePatternRatios prime numbers pattern", "[tap_pattern_editor][copy]") {
+    std::array<float, 16> ratios{};
+
+    SECTION("4 taps primes") {
+        calculatePatternRatios(static_cast<int>(PatternIndex::PrimeNumbers), 4, ratios.data());
+
+        // Primes: 2, 3, 5, 7 -> normalized by 7
+        REQUIRE(ratios[0] == Approx(2.0f / 7.0f));
+        REQUIRE(ratios[1] == Approx(3.0f / 7.0f));
+        REQUIRE(ratios[2] == Approx(5.0f / 7.0f));
+        REQUIRE(ratios[3] == Approx(1.0f));
+    }
+}
+
+TEST_CASE("calculatePatternRatios edge cases", "[tap_pattern_editor][copy]") {
+    std::array<float, 16> ratios{};
+
+    SECTION("minimum 2 taps") {
+        calculatePatternRatios(static_cast<int>(PatternIndex::LinearSpread), 2, ratios.data());
+
+        REQUIRE(ratios[0] == Approx(0.5f));
+        REQUIRE(ratios[1] == Approx(1.0f));
+    }
+
+    SECTION("maximum 16 taps") {
+        calculatePatternRatios(static_cast<int>(PatternIndex::LinearSpread), 16, ratios.data());
+
+        REQUIRE(ratios[0] == Approx(1.0f / 16.0f));
+        REQUIRE(ratios[15] == Approx(1.0f));
+    }
+
+    SECTION("rhythmic pattern uses linear spread") {
+        // Rhythmic patterns (0-13) use evenly spaced taps
+        calculatePatternRatios(static_cast<int>(PatternIndex::QuarterNote), 4, ratios.data());
+
+        // Same as linear spread
+        REQUIRE(ratios[0] == Approx(0.25f));
+        REQUIRE(ratios[3] == Approx(1.0f));
+    }
+}

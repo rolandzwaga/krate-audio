@@ -119,6 +119,13 @@ public:
     /// Get the preset manager instance
     PresetManager* getPresetManager() const { return presetManager_.get(); }
 
+    // ===========================================================================
+    // Custom Pattern Editor (Spec 046)
+    // ===========================================================================
+
+    /// Copy current timing pattern to custom pattern parameters
+    void copyCurrentPatternToCustom();
+
     /// Create a memory stream containing the current component state
     /// Used for preset saving - serializes controller's parameter values
     /// in the same format as Processor::getState()
