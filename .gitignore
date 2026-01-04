@@ -41,6 +41,7 @@
 *.dwo
 /.claude/settings.local.json
 /build
+/build-asan
 
 # Generated files
 /src/version.h
