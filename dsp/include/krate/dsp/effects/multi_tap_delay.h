@@ -400,23 +400,14 @@ public:
     }
 
     // =========================================================================
-    // Tempo Sync Control (spec 043)
+    // Note Value Control (for mathematical patterns)
     // =========================================================================
 
-    /// @brief Set time mode (Free or Synced)
-    /// @param mode TimeMode::Free uses setBaseTimeMs(), TimeMode::Synced uses tempo from BlockContext
-    void setTimeMode(TimeMode mode) noexcept {
-        timeMode_ = mode;
-    }
-
-    /// @brief Get current time mode
-    [[nodiscard]] TimeMode getTimeMode() const noexcept {
-        return timeMode_;
-    }
-
-    /// @brief Set note value for tempo sync (determines base time in Synced mode)
+    /// @brief Set note value for mathematical patterns
     /// @param note Note value (Quarter, Eighth, etc.)
     /// @param modifier Optional modifier (None, Triplet, Dotted)
+    /// @note Only affects mathematical patterns (GoldenRatio and above).
+    ///       Rhythmic patterns (0-13) derive timing from pattern name + tempo.
     void setNoteValue(NoteValue note, NoteModifier modifier = NoteModifier::None) noexcept {
         noteValue_ = note;
         noteModifier_ = modifier;
@@ -555,7 +546,7 @@ public:
                  const BlockContext& ctx) noexcept {
         if (!prepared_ || numSamples == 0) return;
 
-        // Update tempo from host if available
+        // Update tempo from host if available (during playback)
         if (ctx.isPlaying && ctx.tempoBPM > 0.0) {
             const float newTempo = static_cast<float>(ctx.tempoBPM);
             const bool tempoChanged = std::abs(newTempo - bpm_) > 0.1f;
@@ -569,16 +560,20 @@ public:
                     applyTimingPattern(currentTimingPattern_, activeTapCount_);
                 }
             }
+        }
 
-            // In Synced mode, update base time from note value and tempo
-            if (timeMode_ == TimeMode::Synced) {
-                float syncedBaseTime = noteToDelayMs(noteValue_, noteModifier_, ctx.tempoBPM);
-                // Clamp to valid range
-                syncedBaseTime = std::clamp(syncedBaseTime, kMinDelayMs, maxDelayMs_);
-                // Update base time if different (avoid unnecessary pattern recalc)
-                if (std::abs(syncedBaseTime - baseTimeMs_) > 0.1f) {
-                    setBaseTimeMs(syncedBaseTime);
-                }
+        // For mathematical patterns, update base time from note value and tempo
+        // Mathematical patterns: GoldenRatio (14), Fibonacci (15), Exponential (16),
+        //                        PrimeNumbers (17), LinearSpread (18), Custom (19)
+        // Rhythmic patterns (0-13) use tempo-derived timing from pattern name directly.
+        // This runs regardless of isPlaying so Note Value changes work when DAW is stopped.
+        if (currentTimingPattern_ >= TimingPattern::GoldenRatio && ctx.tempoBPM > 0.0) {
+            float syncedBaseTime = noteToDelayMs(noteValue_, noteModifier_, ctx.tempoBPM);
+            // Clamp to valid range
+            syncedBaseTime = std::clamp(syncedBaseTime, kMinDelayMs, maxDelayMs_);
+            // Update base time if different (avoid unnecessary pattern recalc)
+            if (std::abs(syncedBaseTime - baseTimeMs_) > 0.1f) {
+                setBaseTimeMs(syncedBaseTime);
             }
         }
 
@@ -621,55 +616,113 @@ private:
     // =========================================================================
 
     /// @brief Apply timing pattern to TapManager
+    /// @note Preset patterns (0-13) ALWAYS derive timing from pattern name + tempo
+    ///       Mathematical patterns (14-19) use baseTimeMs_ (from Note Value + tempo)
     void applyTimingPattern(TimingPattern pattern, size_t tapCount) noexcept {
-        // Map TimingPattern to TapManager's TapPattern or NoteValue
+        // Start with baseTimeMs_ which is calculated from noteValue + tempo in process()
+        // for mathematical patterns. Preset patterns override this with tempo-derived timing.
+        float patternBaseTime = baseTimeMs_;
+
+        // Preset patterns ALWAYS use tempo-derived timing (that's their purpose)
+        // Only mathematical patterns (GoldenRatio and above) use baseTimeMs_
+        if (bpm_ > 0.0f) {
+            const float quarterNoteMs = 60000.0f / bpm_;
+
+            switch (pattern) {
+                // Basic note values - each defines its own timing
+                case TimingPattern::WholeNote:
+                    patternBaseTime = quarterNoteMs * 4.0f;
+                    break;
+                case TimingPattern::HalfNote:
+                    patternBaseTime = quarterNoteMs * 2.0f;
+                    break;
+                case TimingPattern::QuarterNote:
+                    patternBaseTime = quarterNoteMs;
+                    break;
+                case TimingPattern::EighthNote:
+                    patternBaseTime = quarterNoteMs * 0.5f;
+                    break;
+                case TimingPattern::SixteenthNote:
+                    patternBaseTime = quarterNoteMs * 0.25f;
+                    break;
+                case TimingPattern::ThirtySecondNote:
+                    patternBaseTime = quarterNoteMs * 0.125f;
+                    break;
+
+                // Dotted variants - note value × 1.5
+                case TimingPattern::DottedHalf:
+                    patternBaseTime = quarterNoteMs * 2.0f * 1.5f;  // 3 quarters
+                    break;
+                case TimingPattern::DottedQuarter:
+                    patternBaseTime = quarterNoteMs * 1.5f;
+                    break;
+                case TimingPattern::DottedEighth:
+                    patternBaseTime = quarterNoteMs * 0.5f * 1.5f;  // 0.75 quarter
+                    break;
+                case TimingPattern::DottedSixteenth:
+                    patternBaseTime = quarterNoteMs * 0.25f * 1.5f;
+                    break;
+
+                // Triplet variants - note value × (2/3)
+                case TimingPattern::TripletHalf:
+                    patternBaseTime = quarterNoteMs * 2.0f * (2.0f / 3.0f);
+                    break;
+                case TimingPattern::TripletQuarter:
+                    patternBaseTime = quarterNoteMs * (2.0f / 3.0f);
+                    break;
+                case TimingPattern::TripletEighth:
+                    patternBaseTime = quarterNoteMs * 0.5f * (2.0f / 3.0f);
+                    break;
+                case TimingPattern::TripletSixteenth:
+                    patternBaseTime = quarterNoteMs * 0.25f * (2.0f / 3.0f);
+                    break;
+
+                // Mathematical patterns always use baseTimeMs_
+                default:
+                    break;
+            }
+        }
+
+        // Clamp to valid range
+        patternBaseTime = std::clamp(patternBaseTime, kMinDelayMs, maxDelayMs_);
+
+        // Apply pattern with calculated base time
         switch (pattern) {
+            // Rhythmic patterns use even spacing
+            case TimingPattern::WholeNote:
+            case TimingPattern::HalfNote:
             case TimingPattern::QuarterNote:
-                tapManager_.loadPattern(TapPattern::QuarterNote, tapCount);
+            case TimingPattern::EighthNote:
+            case TimingPattern::SixteenthNote:
+            case TimingPattern::ThirtySecondNote:
+                tapManager_.loadPatternWithBaseTime(TapPattern::QuarterNote, tapCount, patternBaseTime);
                 break;
+
+            // Dotted patterns use even spacing (base time already includes dotted multiplier)
+            case TimingPattern::DottedHalf:
+            case TimingPattern::DottedQuarter:
             case TimingPattern::DottedEighth:
-                tapManager_.loadPattern(TapPattern::DottedEighth, tapCount);
+            case TimingPattern::DottedSixteenth:
+                tapManager_.loadPatternWithBaseTime(TapPattern::QuarterNote, tapCount, patternBaseTime);
                 break;
+
+            // Triplet patterns use even spacing (base time already includes triplet multiplier)
+            case TimingPattern::TripletHalf:
             case TimingPattern::TripletQuarter:
             case TimingPattern::TripletEighth:
-            case TimingPattern::TripletHalf:
             case TimingPattern::TripletSixteenth:
-                tapManager_.loadPattern(TapPattern::Triplet, tapCount);
+                tapManager_.loadPatternWithBaseTime(TapPattern::QuarterNote, tapCount, patternBaseTime);
                 break;
+
+            // Mathematical patterns use baseTimeMs_
             case TimingPattern::GoldenRatio:
-                tapManager_.loadPattern(TapPattern::GoldenRatio, tapCount);
+                tapManager_.loadPatternWithBaseTime(TapPattern::GoldenRatio, tapCount, baseTimeMs_);
                 break;
             case TimingPattern::Fibonacci:
-                tapManager_.loadPattern(TapPattern::Fibonacci, tapCount);
+                tapManager_.loadPatternWithBaseTime(TapPattern::Fibonacci, tapCount, baseTimeMs_);
                 break;
 
-            // For patterns not directly in TapPattern, use loadNotePattern
-            case TimingPattern::WholeNote:
-                tapManager_.loadNotePattern(NoteValue::Whole, NoteModifier::None, tapCount);
-                break;
-            case TimingPattern::HalfNote:
-                tapManager_.loadNotePattern(NoteValue::Half, NoteModifier::None, tapCount);
-                break;
-            case TimingPattern::EighthNote:
-                tapManager_.loadNotePattern(NoteValue::Eighth, NoteModifier::None, tapCount);
-                break;
-            case TimingPattern::SixteenthNote:
-                tapManager_.loadNotePattern(NoteValue::Sixteenth, NoteModifier::None, tapCount);
-                break;
-            case TimingPattern::ThirtySecondNote:
-                tapManager_.loadNotePattern(NoteValue::ThirtySecond, NoteModifier::None, tapCount);
-                break;
-            case TimingPattern::DottedHalf:
-                tapManager_.loadNotePattern(NoteValue::Half, NoteModifier::Dotted, tapCount);
-                break;
-            case TimingPattern::DottedQuarter:
-                tapManager_.loadNotePattern(NoteValue::Quarter, NoteModifier::Dotted, tapCount);
-                break;
-            case TimingPattern::DottedSixteenth:
-                tapManager_.loadNotePattern(NoteValue::Sixteenth, NoteModifier::Dotted, tapCount);
-                break;
-
-            // Mathematical patterns (Layer 4 extensions)
+            // Layer 4 extension patterns (manually apply with baseTimeMs_)
             case TimingPattern::Exponential:
                 applyExponentialPattern(tapCount);
                 break;
@@ -682,17 +735,16 @@ private:
 
             case TimingPattern::Custom:
             default:
-                // Custom pattern handled separately
+                // Custom pattern handled separately via applyCustomTimingPattern()
                 break;
         }
     }
 
     /// @brief Apply exponential pattern (1×, 2×, 4×, 8×... base time)
     void applyExponentialPattern(size_t tapCount) noexcept {
-        const float quarterNoteMs = 60000.0f / bpm_;
         for (size_t i = 0; i < tapCount; ++i) {
             float multiplier = std::pow(2.0f, static_cast<float>(i));
-            float timeMs = std::min(quarterNoteMs * multiplier, maxDelayMs_);
+            float timeMs = std::min(baseTimeMs_ * multiplier, maxDelayMs_);
             tapManager_.setTapEnabled(i, true);
             tapManager_.setTapTimeMs(i, timeMs);
             tapManager_.setTapLevelDb(i, -3.0f * static_cast<float>(i));
@@ -705,13 +757,13 @@ private:
 
     /// @brief Apply prime numbers pattern (2×, 3×, 5×, 7×, 11×... base time)
     void applyPrimeNumbersPattern(size_t tapCount) noexcept {
-        static constexpr std::array<float, 16> primes = {
-            2.0f, 3.0f, 5.0f, 7.0f, 11.0f, 13.0f, 17.0f, 19.0f,
-            23.0f, 29.0f, 31.0f, 37.0f, 41.0f, 43.0f, 47.0f, 53.0f
+        // Prime number multipliers (scaled by 0.25 to fit reasonable delay range)
+        static constexpr std::array<float, 16> primeRatios = {
+            0.5f, 0.75f, 1.25f, 1.75f, 2.75f, 3.25f, 4.25f, 4.75f,
+            5.75f, 7.25f, 7.75f, 9.25f, 10.25f, 10.75f, 11.75f, 13.25f
         };
-        const float baseMs = 60000.0f / bpm_ * 0.25f; // Sixteenth note base
         for (size_t i = 0; i < tapCount; ++i) {
-            float timeMs = std::min(baseMs * primes[i], maxDelayMs_);
+            float timeMs = std::min(baseTimeMs_ * primeRatios[i], maxDelayMs_);
             tapManager_.setTapEnabled(i, true);
             tapManager_.setTapTimeMs(i, timeMs);
             tapManager_.setTapLevelDb(i, -3.0f * static_cast<float>(i));
@@ -824,28 +876,99 @@ private:
     }
 
     /// @brief Calculate pattern times for morphing target
+    /// @note Uses baseTimeMs_ as the fundamental unit
     void calculatePatternTimes(TimingPattern pattern, size_t tapCount, float* times) noexcept {
-        const float quarterNoteMs = 60000.0f / bpm_;
+        // Calculate base time same as applyTimingPattern
+        float patternBaseTime = baseTimeMs_;
+
+        // Preset patterns ALWAYS use tempo-derived timing (same as applyTimingPattern)
+        if (bpm_ > 0.0f) {
+            const float quarterNoteMs = 60000.0f / bpm_;
+
+            switch (pattern) {
+                case TimingPattern::WholeNote:
+                    patternBaseTime = quarterNoteMs * 4.0f;
+                    break;
+                case TimingPattern::HalfNote:
+                    patternBaseTime = quarterNoteMs * 2.0f;
+                    break;
+                case TimingPattern::QuarterNote:
+                    patternBaseTime = quarterNoteMs;
+                    break;
+                case TimingPattern::EighthNote:
+                    patternBaseTime = quarterNoteMs * 0.5f;
+                    break;
+                case TimingPattern::SixteenthNote:
+                    patternBaseTime = quarterNoteMs * 0.25f;
+                    break;
+                case TimingPattern::ThirtySecondNote:
+                    patternBaseTime = quarterNoteMs * 0.125f;
+                    break;
+                case TimingPattern::DottedHalf:
+                    patternBaseTime = quarterNoteMs * 2.0f * 1.5f;
+                    break;
+                case TimingPattern::DottedQuarter:
+                    patternBaseTime = quarterNoteMs * 1.5f;
+                    break;
+                case TimingPattern::DottedEighth:
+                    patternBaseTime = quarterNoteMs * 0.5f * 1.5f;
+                    break;
+                case TimingPattern::DottedSixteenth:
+                    patternBaseTime = quarterNoteMs * 0.25f * 1.5f;
+                    break;
+                case TimingPattern::TripletHalf:
+                    patternBaseTime = quarterNoteMs * 2.0f * (2.0f / 3.0f);
+                    break;
+                case TimingPattern::TripletQuarter:
+                    patternBaseTime = quarterNoteMs * (2.0f / 3.0f);
+                    break;
+                case TimingPattern::TripletEighth:
+                    patternBaseTime = quarterNoteMs * 0.5f * (2.0f / 3.0f);
+                    break;
+                case TimingPattern::TripletSixteenth:
+                    patternBaseTime = quarterNoteMs * 0.25f * (2.0f / 3.0f);
+                    break;
+                default:
+                    // Mathematical patterns use baseTimeMs_
+                    break;
+            }
+        }
+
+        patternBaseTime = std::clamp(patternBaseTime, kMinDelayMs, maxDelayMs_);
 
         for (size_t i = 0; i < tapCount; ++i) {
             const size_t n = i + 1;
             float timeMs = 0.0f;
 
             switch (pattern) {
+                // All rhythmic patterns use even spacing with tempo-derived base time
+                case TimingPattern::WholeNote:
+                case TimingPattern::HalfNote:
                 case TimingPattern::QuarterNote:
-                    timeMs = static_cast<float>(n) * quarterNoteMs;
-                    break;
+                case TimingPattern::EighthNote:
+                case TimingPattern::SixteenthNote:
+                case TimingPattern::ThirtySecondNote:
+                case TimingPattern::DottedHalf:
+                case TimingPattern::DottedQuarter:
                 case TimingPattern::DottedEighth:
-                    timeMs = static_cast<float>(n) * quarterNoteMs * 0.75f;
+                case TimingPattern::DottedSixteenth:
+                case TimingPattern::TripletHalf:
+                case TimingPattern::TripletQuarter:
+                case TimingPattern::TripletEighth:
+                case TimingPattern::TripletSixteenth:
+                    timeMs = static_cast<float>(n) * patternBaseTime;
                     break;
+
+                // Mathematical patterns use baseTimeMs_
                 case TimingPattern::GoldenRatio:
-                    timeMs = (i == 0) ? quarterNoteMs : times[i - 1] * kGoldenRatio;
+                    timeMs = (i == 0) ? baseTimeMs_ : times[i - 1] * kGoldenRatio;
                     break;
                 case TimingPattern::Exponential:
-                    timeMs = quarterNoteMs * std::pow(2.0f, static_cast<float>(i));
+                    timeMs = baseTimeMs_ * std::pow(2.0f, static_cast<float>(i));
                     break;
+
                 default:
-                    timeMs = static_cast<float>(n) * quarterNoteMs;
+                    timeMs = static_cast<float>(n) * baseTimeMs_;
                     break;
             }
 
@@ -940,8 +1063,7 @@ private:
     float baseTimeMs_ = kDefaultDelayMs;
     float bpm_ = 120.0f;
 
-    // Tempo sync state (spec 043)
-    TimeMode timeMode_ = TimeMode::Free;     ///< Free (ms) or Synced (tempo)
+    // Note value state (for mathematical patterns)
     NoteValue noteValue_ = NoteValue::Eighth; ///< Base note value
     NoteModifier noteModifier_ = NoteModifier::None; ///< Note modifier
 

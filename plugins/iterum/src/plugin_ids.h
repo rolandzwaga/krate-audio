@@ -207,20 +207,21 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // ==========================================================================
     // MultiTap Delay Parameters (900-999) - spec 028
+    // Simplified design: No TimeMode toggle, no Base Time slider, no Internal Tempo
+    // - Rhythmic patterns (0-13): Use host tempo. Pattern name defines note value.
+    // - Mathematical patterns (14-19): Use Note Value + host tempo for baseTimeMs.
     // ==========================================================================
     kMultiTapBaseId = 900,
     kMultiTapTimingPatternId = 900,  // 0-19 (pattern presets)
     kMultiTapSpatialPatternId = 901, // 0-6 (spatial presets)
     kMultiTapTapCountId = 902,       // 2-16 taps
-    kMultiTapBaseTimeId = 903,       // 1-5000ms
-    kMultiTapTempoId = 904,          // 20-300 BPM
     kMultiTapFeedbackId = 905,       // 0-110%
     kMultiTapFeedbackLPCutoffId = 906, // 20-20000Hz
     kMultiTapFeedbackHPCutoffId = 907, // 20-20000Hz
     kMultiTapMorphTimeId = 908,      // 50-2000ms
-    kMultiTapMixId = 909,            // 0-100% (renamed from kMultiTapDryWetId)
-    kMultiTapTimeModeId = 910,       // 0=Free, 1=Synced (spec 043)
-    kMultiTapNoteValueId = 911,      // 0-9 (note value dropdown) (spec 043)
+    kMultiTapMixId = 909,            // 0-100%
+    kMultiTapNoteValueId = 911,      // 0-9 (note value) - for mathematical patterns only
+    kMultiTapNoteModifierId = 912,   // 0-2 (none, triplet, dotted) - for mathematical patterns only
     kMultiTapEndId = 999,
 
     // ==========================================================================

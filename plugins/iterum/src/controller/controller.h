@@ -164,8 +164,7 @@ private:
     Steinberg::IPtr<Steinberg::FObject> shimmerDelayTimeVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> bbdDelayTimeVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> reverseChunkSizeVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> multitapBaseTimeVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> multitapTempoVisibilityController_;  // spec: hide internal tempo in Synced mode
+    // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
     Steinberg::IPtr<Steinberg::FObject> freezeDelayTimeVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> duckingDelayTimeVisibilityController_;
 
@@ -177,6 +176,8 @@ private:
     Steinberg::IPtr<Steinberg::FObject> digitalNoteValueVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> pingPongNoteValueVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> reverseNoteValueVisibilityController_;
+    // MultiTap Note Value: Show when Pattern is Mathematical (GoldenRatio+)
+    // Simplified design - no TimeMode dependency, just pattern-based visibility
     Steinberg::IPtr<Steinberg::FObject> multitapNoteValueVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> freezeNoteValueVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> duckingNoteValueVisibilityController_;

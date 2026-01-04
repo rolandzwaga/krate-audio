@@ -1277,119 +1277,86 @@ TEST_CASE("SpectralDelay phase interpolation correctness",
 }
 
 // =============================================================================
-// Phase 2.1: Diffusion with Phase Randomization Tests
+// Diffusion Tests
 // =============================================================================
-// Research shows that proper spectral diffusion requires phase randomization,
-// not just magnitude blur. Without phase randomization, diffusion sounds like
-// a soft EQ rather than a rich, reverb-like smear.
+// Diffusion applies magnitude blur across frequency bins, creating a softer,
+// more diffuse spectral character. This is a deterministic operation that
+// spreads energy across neighboring bins without phase randomization.
 // =============================================================================
 
-TEST_CASE("SpectralDelay diffusion adds phase variation",
-          "[spectral-delay][diffusion][phase-randomization]") {
-    // This test verifies that applying diffusion causes phase variation
-    // in the output spectrum, not just magnitude blur.
-    //
-    // With magnitude-only blur (current implementation): phases stay correlated
-    // With phase randomization: phases become decorrelated between bins
+TEST_CASE("SpectralDelay diffusion is deterministic",
+          "[spectral-delay][diffusion][deterministic]") {
+    // This test verifies that diffusion is deterministic - two instances
+    // processing the same input should produce identical outputs.
+    // Diffusion uses magnitude blur only (no phase randomization).
 
-    SpectralDelay delay;
-    delay.setFFTSize(1024);
-    delay.prepare(44100.0, 512);
+    SpectralDelay delay1;
+    delay1.setFFTSize(1024);
+    delay1.prepare(44100.0, 512);
+    delay1.seedRng(12345);  // Deterministic seeding
 
-    delay.setBaseDelayMs(100.0f);
-    delay.setFeedback(0.0f);  // No feedback to isolate diffusion effect
-    delay.setDryWetMix(100.0f);
-    delay.snapParameters();
+    delay1.setBaseDelayMs(100.0f);
+    delay1.setFeedback(0.0f);
+    delay1.setDiffusion(1.0f);
+    delay1.setDryWetMix(100.0f);
+    delay1.snapParameters();
 
-    auto ctx = makeTestContext();
-    constexpr std::size_t kBlockSize = 512;
-
-    std::vector<float> leftNoDiff(kBlockSize);
-    std::vector<float> rightNoDiff(kBlockSize);
-    std::vector<float> leftWithDiff(kBlockSize);
-    std::vector<float> rightWithDiff(kBlockSize);
-
-    // Generate a test signal - harmonic content where phases matter
-    auto generateTestSignal = [](float* buffer, std::size_t size) {
-        constexpr float kTwoPi = 6.28318530718f;
-        for (std::size_t i = 0; i < size; ++i) {
-            float t = static_cast<float>(i) / 44100.0f;
-            // Three harmonically related tones with aligned phases
-            buffer[i] = 0.4f * std::sin(kTwoPi * 440.0f * t) +
-                        0.3f * std::sin(kTwoPi * 880.0f * t) +
-                        0.2f * std::sin(kTwoPi * 1320.0f * t);
-        }
-    };
-
-    // First pass: NO diffusion
-    delay.setDiffusion(0.0f);
-    delay.snapParameters();
-    delay.reset();
-
-    // Prime the delay
-    for (int i = 0; i < 50; ++i) {
-        generateTestSignal(leftNoDiff.data(), kBlockSize);
-        std::copy(leftNoDiff.begin(), leftNoDiff.end(), rightNoDiff.begin());
-        delay.process(leftNoDiff.data(), rightNoDiff.data(), kBlockSize, ctx);
-    }
-
-    // Capture output without diffusion
-    generateTestSignal(leftNoDiff.data(), kBlockSize);
-    std::copy(leftNoDiff.begin(), leftNoDiff.end(), rightNoDiff.begin());
-    delay.process(leftNoDiff.data(), rightNoDiff.data(), kBlockSize, ctx);
-
-    // Second pass: WITH diffusion
-    delay.setDiffusion(1.0f);  // Full diffusion
-    delay.snapParameters();
-    delay.reset();
-
-    // Prime the delay - increased to 150 blocks to allow random walk phases to build up
-    for (int i = 0; i < 150; ++i) {
-        generateTestSignal(leftWithDiff.data(), kBlockSize);
-        std::copy(leftWithDiff.begin(), leftWithDiff.end(), rightWithDiff.begin());
-        delay.process(leftWithDiff.data(), rightWithDiff.data(), kBlockSize, ctx);
-    }
-
-    // Capture output with diffusion
-    generateTestSignal(leftWithDiff.data(), kBlockSize);
-    std::copy(leftWithDiff.begin(), leftWithDiff.end(), rightWithDiff.begin());
-    delay.process(leftWithDiff.data(), rightWithDiff.data(), kBlockSize, ctx);
-
-    // Measure waveform correlation between multiple captures with diffusion
-    // Phase randomization should cause each capture to be different
     SpectralDelay delay2;
     delay2.setFFTSize(1024);
     delay2.prepare(44100.0, 512);
+    delay2.seedRng(12345);  // Same seed
+
     delay2.setBaseDelayMs(100.0f);
     delay2.setFeedback(0.0f);
     delay2.setDiffusion(1.0f);
     delay2.setDryWetMix(100.0f);
     delay2.snapParameters();
 
-    std::vector<float> leftCapture2(kBlockSize);
-    std::vector<float> rightCapture2(kBlockSize);
+    auto ctx = makeTestContext();
+    constexpr std::size_t kBlockSize = 512;
 
-    // Prime delay2 - increased to 150 blocks to allow random walk phases to build up
-    for (int i = 0; i < 150; ++i) {
-        generateTestSignal(leftCapture2.data(), kBlockSize);
-        std::copy(leftCapture2.begin(), leftCapture2.end(), rightCapture2.begin());
-        delay2.process(leftCapture2.data(), rightCapture2.data(), kBlockSize, ctx);
+    std::vector<float> left1(kBlockSize);
+    std::vector<float> right1(kBlockSize);
+    std::vector<float> left2(kBlockSize);
+    std::vector<float> right2(kBlockSize);
+
+    // Generate a test signal
+    auto generateTestSignal = [](float* buffer, std::size_t size) {
+        constexpr float kTwoPi = 6.28318530718f;
+        for (std::size_t i = 0; i < size; ++i) {
+            float t = static_cast<float>(i) / 44100.0f;
+            buffer[i] = 0.4f * std::sin(kTwoPi * 440.0f * t) +
+                        0.3f * std::sin(kTwoPi * 880.0f * t) +
+                        0.2f * std::sin(kTwoPi * 1320.0f * t);
+        }
+    };
+
+    // Process identical input through both delays
+    for (int i = 0; i < 50; ++i) {
+        generateTestSignal(left1.data(), kBlockSize);
+        std::copy(left1.begin(), left1.end(), right1.begin());
+        generateTestSignal(left2.data(), kBlockSize);
+        std::copy(left2.begin(), left2.end(), right2.begin());
+        delay1.process(left1.data(), right1.data(), kBlockSize, ctx);
+        delay2.process(left2.data(), right2.data(), kBlockSize, ctx);
     }
 
-    // Capture second output
-    generateTestSignal(leftCapture2.data(), kBlockSize);
-    std::copy(leftCapture2.begin(), leftCapture2.end(), rightCapture2.begin());
-    delay2.process(leftCapture2.data(), rightCapture2.data(), kBlockSize, ctx);
+    // Final capture
+    generateTestSignal(left1.data(), kBlockSize);
+    std::copy(left1.begin(), left1.end(), right1.begin());
+    generateTestSignal(left2.data(), kBlockSize);
+    std::copy(left2.begin(), left2.end(), right2.begin());
+    delay1.process(left1.data(), right1.data(), kBlockSize, ctx);
+    delay2.process(left2.data(), right2.data(), kBlockSize, ctx);
 
-    // Calculate correlation between two diffused outputs
-    // With phase randomization, they should be decorrelated
+    // Calculate correlation - should be identical (correlation ≈ 1.0)
     float correlation = 0.0f;
     float energy1 = 0.0f;
     float energy2 = 0.0f;
     for (std::size_t i = 0; i < kBlockSize; ++i) {
-        correlation += leftWithDiff[i] * leftCapture2[i];
-        energy1 += leftWithDiff[i] * leftWithDiff[i];
-        energy2 += leftCapture2[i] * leftCapture2[i];
+        correlation += left1[i] * left2[i];
+        energy1 += left1[i] * left1[i];
+        energy2 += left2[i] * left2[i];
     }
 
     float normalizedCorrelation = 1.0f;
@@ -1399,10 +1366,8 @@ TEST_CASE("SpectralDelay diffusion adds phase variation",
 
     INFO("Normalized correlation between diffused outputs: " << normalizedCorrelation);
 
-    // With phase randomization, two separate instances processing the same input
-    // should produce DIFFERENT outputs (low correlation)
-    // Without phase randomization, they would be identical (correlation ≈ 1.0)
-    REQUIRE(normalizedCorrelation < 0.9f);  // Should NOT be highly correlated
+    // Diffusion is deterministic - outputs should be highly correlated
+    REQUIRE(normalizedCorrelation > 0.99f);
 }
 
 TEST_CASE("SpectralDelay diffusion creates spectral smear",

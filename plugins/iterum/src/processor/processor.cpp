@@ -665,13 +665,33 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             break;
 
         case DelayMode::MultiTap:
-            // Update MultiTap parameters
-            multiTapDelay_.setTimeMode(static_cast<Krate::DSP::TimeMode>(
-                multiTapParams_.timeMode.load(std::memory_order_relaxed)));
+            // Update MultiTap parameters (simplified design)
+            // Note Value for mathematical patterns (host tempo used directly from ctx)
             {
                 const int noteIdx = multiTapParams_.noteValue.load(std::memory_order_relaxed);
-                const auto noteMapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
-                multiTapDelay_.setNoteValue(noteMapping.note, noteMapping.modifier);
+                const int modifierIdx = multiTapParams_.noteModifier.load(std::memory_order_relaxed);
+                // Map dropdown indices to DSP enum values
+                // Note Value dropdown: Whole, Half, Quarter, 8th, 16th, 32nd, 64th, (last 3 unused)
+                static constexpr Krate::DSP::NoteValue noteValues[] = {
+                    Krate::DSP::NoteValue::Whole,
+                    Krate::DSP::NoteValue::Half,
+                    Krate::DSP::NoteValue::Quarter,
+                    Krate::DSP::NoteValue::Eighth,
+                    Krate::DSP::NoteValue::Sixteenth,
+                    Krate::DSP::NoteValue::ThirtySecond,
+                    Krate::DSP::NoteValue::SixtyFourth,
+                    Krate::DSP::NoteValue::SixtyFourth,   // 128th not in enum, use 64th
+                    Krate::DSP::NoteValue::Half,          // Unused
+                    Krate::DSP::NoteValue::Quarter        // Unused
+                };
+                static constexpr Krate::DSP::NoteModifier modifiers[] = {
+                    Krate::DSP::NoteModifier::None,
+                    Krate::DSP::NoteModifier::Triplet,
+                    Krate::DSP::NoteModifier::Dotted
+                };
+                const auto note = noteValues[std::min(noteIdx, 9)];
+                const auto modifier = modifiers[std::min(modifierIdx, 2)];
+                multiTapDelay_.setNoteValue(note, modifier);
             }
             // Pattern morphing: detect pattern/tap count changes and morph smoothly
             {
@@ -704,8 +724,8 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             }
             multiTapDelay_.applySpatialPattern(Parameters::getSpatialPatternFromDropdown(
                 multiTapParams_.spatialPattern.load(std::memory_order_relaxed)));
-            multiTapDelay_.setBaseTimeMs(multiTapParams_.baseTime.load(std::memory_order_relaxed));
-            multiTapDelay_.setTempo(multiTapParams_.tempo.load(std::memory_order_relaxed));
+            // Note: baseTimeMs is derived from Note Value + host tempo in process() for mathematical patterns
+            // Rhythmic patterns derive timing from pattern name + host tempo directly
             multiTapDelay_.setFeedbackAmount(multiTapParams_.feedback.load(std::memory_order_relaxed));
             multiTapDelay_.setFeedbackLPCutoff(multiTapParams_.feedbackLPCutoff.load(std::memory_order_relaxed));
             multiTapDelay_.setFeedbackHPCutoff(multiTapParams_.feedbackHPCutoff.load(std::memory_order_relaxed));

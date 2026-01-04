@@ -279,6 +279,135 @@ private:
     std::atomic<bool> isActive_{true};  // Guards against use-after-free in deferred updates
 };
 
+// ==============================================================================
+// CompoundVisibilityController: Visibility based on TWO parameters (AND logic)
+// ==============================================================================
+// Shows controls when BOTH conditions are met:
+// - param1 condition is true (based on threshold1 and showWhenBelow1)
+// - param2 condition is true (based on threshold2 and showWhenBelow2)
+//
+// Use case: MultiTap Note Value visibility
+// - Show when TimeMode is Synced (>= 0.5) AND Pattern is Mathematical (>= 14/19)
+// ==============================================================================
+class CompoundVisibilityController : public Steinberg::FObject {
+public:
+    CompoundVisibilityController(
+        VSTGUI::VST3Editor** editorPtr,
+        Steinberg::Vst::Parameter* param1,
+        float threshold1,
+        bool showWhenBelow1,
+        Steinberg::Vst::Parameter* param2,
+        float threshold2,
+        bool showWhenBelow2,
+        std::initializer_list<Steinberg::int32> controlTags)
+    : editorPtr_(editorPtr)
+    , param1_(param1)
+    , param2_(param2)
+    , controlTags_(controlTags)
+    , threshold1_(threshold1)
+    , threshold2_(threshold2)
+    , showWhenBelow1_(showWhenBelow1)
+    , showWhenBelow2_(showWhenBelow2)
+    {
+        if (param1_) {
+            param1_->addRef();
+            param1_->addDependent(this);
+        }
+        if (param2_) {
+            param2_->addRef();
+            param2_->addDependent(this);
+        }
+        // Trigger initial update
+        if (param1_) param1_->deferUpdate();
+    }
+
+    ~CompoundVisibilityController() override {
+        deactivate();
+        if (param1_) {
+            param1_->release();
+            param1_ = nullptr;
+        }
+        if (param2_) {
+            param2_->release();
+            param2_ = nullptr;
+        }
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            if (param1_) param1_->removeDependent(this);
+            if (param2_) param2_->removeDependent(this);
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) {
+            return;
+        }
+
+        VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
+        if (message == IDependent::kChanged && editor && param1_ && param2_) {
+            float val1 = param1_->getNormalized();
+            float val2 = param2_->getNormalized();
+
+            // Check both conditions
+            bool cond1 = showWhenBelow1_ ? (val1 < threshold1_) : (val1 >= threshold1_);
+            bool cond2 = showWhenBelow2_ ? (val2 < threshold2_) : (val2 >= threshold2_);
+            bool shouldBeVisible = cond1 && cond2;
+
+            for (Steinberg::int32 tag : controlTags_) {
+                auto controls = findAllControlsByTag(tag);
+                for (auto* control : controls) {
+                    control->setVisible(shouldBeVisible);
+                    if (control->getFrame()) {
+                        control->invalid();
+                    }
+                }
+            }
+        }
+    }
+
+    OBJ_METHODS(CompoundVisibilityController, FObject)
+
+private:
+    std::vector<VSTGUI::CControl*> findAllControlsByTag(Steinberg::int32 tag) {
+        std::vector<VSTGUI::CControl*> results;
+        VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
+        if (!editor) return results;
+        auto* frame = editor->getFrame();
+        if (!frame) return results;
+
+        std::function<void(VSTGUI::CViewContainer*)> search;
+        search = [tag, &results, &search](VSTGUI::CViewContainer* container) {
+            if (!container) return;
+            VSTGUI::ViewIterator it(container);
+            while (*it) {
+                if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                    if (control->getTag() == tag) {
+                        results.push_back(control);
+                    }
+                }
+                if (auto* childContainer = (*it)->asViewContainer()) {
+                    search(childContainer);
+                }
+                ++it;
+            }
+        };
+        search(frame);
+        return results;
+    }
+
+    VSTGUI::VST3Editor** editorPtr_;
+    Steinberg::Vst::Parameter* param1_;
+    Steinberg::Vst::Parameter* param2_;
+    std::vector<Steinberg::int32> controlTags_;
+    float threshold1_;
+    float threshold2_;
+    bool showWhenBelow1_;
+    bool showWhenBelow2_;
+    std::atomic<bool> isActive_{true};
+};
+
 #include "parameters/bbd_params.h"
 #include "parameters/digital_params.h"
 #include "parameters/ducking_params.h"
@@ -1004,13 +1133,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 reverseChunkSizeVisibilityController_ = new VisibilityController(
                     &activeEditor_, reverseTimeMode, {9907, kReverseChunkSizeId}, 0.5f, true);
             }
-            if (auto* multitapTimeMode = getParameterObject(kMultiTapTimeModeId)) {
-                multitapBaseTimeVisibilityController_ = new VisibilityController(
-                    &activeEditor_, multitapTimeMode, {9908, kMultiTapBaseTimeId}, 0.5f, true);
-                // Hide internal tempo control in Synced mode (host provides tempo)
-                multitapTempoVisibilityController_ = new VisibilityController(
-                    &activeEditor_, multitapTimeMode, {9911, kMultiTapTempoId}, 0.5f, true);
-            }
+            // MultiTap has no TimeMode - BaseTime and Tempo controls removed (simplified design)
             if (auto* freezeTimeMode = getParameterObject(kFreezeTimeModeId)) {
                 freezeDelayTimeVisibilityController_ = new VisibilityController(
                     &activeEditor_, freezeTimeMode, {9909, kFreezeDelayTimeId}, 0.5f, true);
@@ -1051,9 +1174,15 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 reverseNoteValueVisibilityController_ = new VisibilityController(
                     &activeEditor_, reverseTimeMode, {9926, kReverseNoteValueId}, 0.5f, false);
             }
-            if (auto* multitapTimeMode = getParameterObject(kMultiTapTimeModeId)) {
+            // MultiTap Note Value: Show when Pattern is Mathematical (GoldenRatio+)
+            // Simplified design: No TimeMode dependency. Pattern >= 14/19 means mathematical.
+            // Preset patterns (0-13) derive timing from pattern name + tempo.
+            // Mathematical patterns (14-19) use Note Value + tempo for baseTimeMs.
+            if (auto* multitapPattern = getParameterObject(kMultiTapTimingPatternId)) {
                 multitapNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, multitapTimeMode, {9927, kMultiTapNoteValueId}, 0.5f, false);
+                    &activeEditor_, multitapPattern,
+                    {9931, 9927, 9930, kMultiTapNoteValueId, kMultiTapNoteModifierId},  // Section + labels + dropdowns
+                    14.0f / 19.0f, false);  // Show when pattern >= 14/19 (mathematical)
             }
             if (auto* freezeTimeMode = getParameterObject(kFreezeTimeModeId)) {
                 freezeNoteValueVisibilityController_ = new VisibilityController(
@@ -1171,6 +1300,8 @@ static void deactivateController(Steinberg::IPtr<Steinberg::FObject>& controller
     if (controller) {
         if (auto* vc = dynamic_cast<VisibilityController*>(controller.get())) {
             vc->deactivate();
+        } else if (auto* cvc = dynamic_cast<CompoundVisibilityController*>(controller.get())) {
+            cvc->deactivate();
         }
     }
 }
@@ -1190,8 +1321,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     deactivateController(shimmerDelayTimeVisibilityController_);
     deactivateController(bbdDelayTimeVisibilityController_);
     deactivateController(reverseChunkSizeVisibilityController_);
-    deactivateController(multitapBaseTimeVisibilityController_);
-    deactivateController(multitapTempoVisibilityController_);
+    // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
     deactivateController(freezeDelayTimeVisibilityController_);
     deactivateController(duckingDelayTimeVisibilityController_);
     deactivateController(granularNoteValueVisibilityController_);
@@ -1221,8 +1351,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     shimmerDelayTimeVisibilityController_ = nullptr;
     bbdDelayTimeVisibilityController_ = nullptr;
     reverseChunkSizeVisibilityController_ = nullptr;
-    multitapBaseTimeVisibilityController_ = nullptr;
-    multitapTempoVisibilityController_ = nullptr;
+    // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
     freezeDelayTimeVisibilityController_ = nullptr;
     duckingDelayTimeVisibilityController_ = nullptr;
 
@@ -1454,11 +1583,12 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeFloat(getFloat(kPingPongMixId, 0.5f));
 
     // MultiTap params - must match saveMultiTapParams order exactly
+    // Simplified design: No TimeMode, BaseTime, or Tempo parameters
+    streamer.writeInt32(getInt32(kMultiTapNoteValueId, 2));      // Default: Quarter
+    streamer.writeInt32(getInt32(kMultiTapNoteModifierId, 0));   // Default: None
     streamer.writeInt32(getInt32(kMultiTapTimingPatternId, 2));
     streamer.writeInt32(getInt32(kMultiTapSpatialPatternId, 2));
     streamer.writeInt32(getInt32(kMultiTapTapCountId, 4));
-    streamer.writeFloat(getFloat(kMultiTapBaseTimeId, 500.0f));
-    streamer.writeFloat(getFloat(kMultiTapTempoId, 120.0f));
     streamer.writeFloat(getFloat(kMultiTapFeedbackId, 0.5f));
     streamer.writeFloat(getFloat(kMultiTapFeedbackLPCutoffId, 20000.0f));
     streamer.writeFloat(getFloat(kMultiTapFeedbackHPCutoffId, 20.0f));

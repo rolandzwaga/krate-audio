@@ -265,7 +265,19 @@ public:
     /// @param tapCount Number of taps to create [1, 16]
     /// @note All existing taps are disabled first. Pattern is applied based on
     ///       current tempo. Completes within 1ms (SC-008).
+    /// @deprecated Use loadPatternWithBaseTime() for explicit base time control.
     void loadPattern(TapPattern pattern, size_t tapCount) noexcept;
+
+    /// @brief Load a preset pattern with explicit base time
+    /// @param pattern Pattern type (defines the RATIOS between taps)
+    /// @param tapCount Number of taps to create [1, 16]
+    /// @param baseTimeMs Base time in milliseconds (the fundamental unit)
+    /// @note Patterns multiply the base time by ratios:
+    ///       - QuarterNote: 1×, 2×, 3×, 4×... (evenly spaced)
+    ///       - DottedEighth: 0.75×, 1.5×, 2.25×... (dotted feel)
+    ///       - GoldenRatio: 1×, 1.618×, 2.618×... (organic spacing)
+    ///       All existing taps are disabled first. Completes within 1ms.
+    void loadPatternWithBaseTime(TapPattern pattern, size_t tapCount, float baseTimeMs) noexcept;
 
     /// @brief Load a note-based pattern (extended preset patterns)
     /// @param noteValue Base note value (SixtyFourth to DoubleWhole)
@@ -274,6 +286,7 @@ public:
     /// @note Creates evenly-spaced taps at multiples of the note duration.
     ///       All existing taps are disabled first. Pattern is applied based on
     ///       current tempo. Completes within 1ms.
+    /// @deprecated Use loadPatternWithBaseTime() with explicit base time.
     void loadNotePattern(NoteValue noteValue, NoteModifier modifier, size_t tapCount) noexcept;
 
     /// @brief Set tempo for tempo-synced taps (US6)
@@ -593,6 +606,76 @@ inline void TapManager::loadPattern(TapPattern pattern, size_t tapCount) noexcep
             case TapPattern::Fibonacci:
                 // tap[n] = fib(n) × baseMs, where fib = 1, 1, 2, 3, 5, 8...
                 timeMs = static_cast<float>(fibonacci(n)) * (quarterNoteMs * 0.25f);
+                break;
+
+            case TapPattern::Custom:
+            default:
+                // Custom pattern keeps existing times
+                timeMs = taps_[i].timeMs;
+                break;
+        }
+
+        // Clamp to max delay and enable tap
+        taps_[i].timeMs = std::min(timeMs, maxDelayMs_);
+        taps_[i].timeMode = TapTimeMode::FreeRunning;
+        taps_[i].enabled = true;
+
+        // Set default level with progressive decay
+        taps_[i].levelDb = -3.0f * static_cast<float>(i);  // -0, -3, -6, -9...
+    }
+}
+
+inline void TapManager::loadPatternWithBaseTime(TapPattern pattern, size_t tapCount,
+                                                 float baseTimeMs) noexcept {
+    // Clamp tap count
+    tapCount = std::clamp(tapCount, size_t{1}, kMaxTaps);
+
+    // Disable all taps first
+    for (auto& tap : taps_) {
+        tap.enabled = false;
+    }
+
+    pattern_ = pattern;
+
+    // Calculate tap times based on pattern RATIOS × baseTimeMs
+    // Patterns define spacing RATIOS, not absolute note values
+    for (size_t i = 0; i < tapCount; ++i) {
+        const size_t n = i + 1;  // 1-based tap number
+        float timeMs = 0.0f;
+
+        switch (pattern) {
+            case TapPattern::QuarterNote:
+                // Even spacing: tap[n] = n × baseTimeMs
+                // Ratios: 1×, 2×, 3×, 4×...
+                timeMs = static_cast<float>(n) * baseTimeMs;
+                break;
+
+            case TapPattern::DottedEighth:
+                // Dotted feel: tap[n] = n × baseTimeMs × 0.75
+                // Ratios: 0.75×, 1.5×, 2.25×, 3×...
+                timeMs = static_cast<float>(n) * baseTimeMs * kDottedEighthMultiplier;
+                break;
+
+            case TapPattern::Triplet:
+                // Triplet feel: tap[n] = n × baseTimeMs × 0.667
+                // Ratios: 0.667×, 1.333×, 2×, 2.667×...
+                timeMs = static_cast<float>(n) * baseTimeMs * kTripletMultiplier;
+                break;
+
+            case TapPattern::GoldenRatio:
+                // Golden ratio spacing: tap[1] = baseTimeMs, tap[n] = tap[n-1] × 1.618
+                // Ratios: 1×, 1.618×, 2.618×, 4.236×...
+                if (i == 0) {
+                    timeMs = baseTimeMs;
+                } else {
+                    timeMs = taps_[i - 1].timeMs * kGoldenRatio;
+                }
+                break;
+
+            case TapPattern::Fibonacci:
+                // Fibonacci spacing: tap[n] = fib(n) × baseTimeMs × 0.25
+                // Ratios: 0.25×, 0.25×, 0.5×, 0.75×, 1.25×...
+                timeMs = static_cast<float>(fibonacci(n)) * (baseTimeMs * 0.25f);
                 break;
 
             case TapPattern::Custom:

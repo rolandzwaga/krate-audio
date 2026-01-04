@@ -5,6 +5,11 @@
 // ==============================================================================
 // Parameter pack for MultiTap Delay (spec 028)
 // ID Range: 900-999
+//
+// SIMPLIFIED DESIGN:
+// - No TimeMode toggle, no Base Time slider, no Internal Tempo slider
+// - Rhythmic patterns (0-13): Use host tempo. Pattern name defines note value.
+// - Mathematical patterns (14-19): Use Note Value + host tempo for baseTimeMs.
 // ==============================================================================
 
 #include "plugin_ids.h"
@@ -27,13 +32,11 @@ namespace Iterum {
 // ==============================================================================
 
 struct MultiTapParams {
-    std::atomic<int> timeMode{0};               // 0=Free, 1=Synced (spec 043)
-    std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};  // 0-19 (note values)
+    std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};  // 0-19 (note values) - for mathematical patterns
+    std::atomic<int> noteModifier{0};           // 0-2 (none, triplet, dotted) - for mathematical patterns
     std::atomic<int> timingPattern{2};          // 0-19 (pattern presets)
     std::atomic<int> spatialPattern{2};         // 0-6 (spatial presets)
     std::atomic<int> tapCount{4};               // 2-16 taps
-    std::atomic<float> baseTime{500.0f};        // 1-5000ms
-    std::atomic<float> tempo{120.0f};           // 20-300 BPM
     std::atomic<float> feedback{0.5f};          // 0-1.1 (110%)
     std::atomic<float> feedbackLPCutoff{20000.0f};  // 20-20000Hz
     std::atomic<float> feedbackHPCutoff{20.0f};     // 20-20000Hz
@@ -53,16 +56,16 @@ inline void handleMultiTapParamChange(
     using namespace Steinberg;
 
     switch (id) {
-        case kMultiTapTimeModeId:
-            // 0=Free, 1=Synced
-            params.timeMode.store(
-                normalizedValue >= 0.5 ? 1 : 0,
+        case kMultiTapNoteValueId:
+            // 0-9 (note values) - for mathematical patterns
+            params.noteValue.store(
+                static_cast<int>(normalizedValue * 9.0 + 0.5),
                 std::memory_order_relaxed);
             break;
-        case kMultiTapNoteValueId:
-            // 0-19 (note values)
-            params.noteValue.store(
-                static_cast<int>(normalizedValue * (Parameters::kNoteValueDropdownCount - 1) + 0.5),
+        case kMultiTapNoteModifierId:
+            // 0-2 (none, triplet, dotted) - for mathematical patterns
+            params.noteModifier.store(
+                static_cast<int>(normalizedValue * 2.0 + 0.5),
                 std::memory_order_relaxed);
             break;
         case kMultiTapTimingPatternId:
@@ -81,18 +84,6 @@ inline void handleMultiTapParamChange(
             // 2-16
             params.tapCount.store(
                 static_cast<int>(2.0 + normalizedValue * 14.0 + 0.5),
-                std::memory_order_relaxed);
-            break;
-        case kMultiTapBaseTimeId:
-            // 1-5000ms
-            params.baseTime.store(
-                static_cast<float>(1.0 + normalizedValue * 4999.0),
-                std::memory_order_relaxed);
-            break;
-        case kMultiTapTempoId:
-            // 20-300 BPM
-            params.tempo.store(
-                static_cast<float>(20.0 + normalizedValue * 280.0),
                 std::memory_order_relaxed);
             break;
         case kMultiTapFeedbackId:
@@ -136,19 +127,19 @@ inline void registerMultiTapParams(Steinberg::Vst::ParameterContainer& parameter
     using namespace Steinberg;
     using namespace Steinberg::Vst;
 
-    // Time Mode (Free/Synced) - spec 043
+    // Note Value (for mathematical patterns) - 0-9 basic note values
     parameters.addParameter(createDropdownParameterWithDefault(
-        STR16("MultiTap Time Mode"), kMultiTapTimeModeId,
-        0,  // default: Free (index 0)
-        {STR16("Free"), STR16("Synced")}
+        STR16("MultiTap Note Value"), kMultiTapNoteValueId,
+        2,  // default: Quarter (index 2)
+        {STR16("Whole"), STR16("Half"), STR16("Quarter"), STR16("8th"), STR16("16th"),
+         STR16("32nd"), STR16("64th"), STR16("128th"), STR16("1/2T"), STR16("1/4T")}
     ));
 
-    // Note Value - uses centralized dropdown strings (spec 043)
-    parameters.addParameter(createNoteValueDropdown(
-        STR16("MultiTap Note Value"), kMultiTapNoteValueId,
-        Parameters::kNoteValueDropdownStrings,
-        Parameters::kNoteValueDropdownCount,
-        Parameters::kNoteValueDefaultIndex
+    // Note Modifier (for mathematical patterns) - None, Triplet, Dotted
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("MultiTap Note Modifier"), kMultiTapNoteModifierId,
+        0,  // default: None (index 0)
+        {STR16("None"), STR16("Triplet"), STR16("Dotted")}
     ));
 
     // Timing Pattern (20 patterns) - MUST use StringListParameter
@@ -176,24 +167,6 @@ inline void registerMultiTapParams(Steinberg::Vst::ParameterContainer& parameter
         0.143,  // default: 4 taps normalized = (4-2)/14
         ParameterInfo::kCanAutomate,
         kMultiTapTapCountId);
-
-    // Base Time (1-5000ms)
-    parameters.addParameter(
-        STR16("MultiTap Base Time"),
-        STR16("ms"),
-        0,
-        0.100,  // default: 500ms normalized = (500-1)/4999
-        ParameterInfo::kCanAutomate,
-        kMultiTapBaseTimeId);
-
-    // Tempo (20-300 BPM)
-    parameters.addParameter(
-        STR16("MultiTap Tempo"),
-        STR16("BPM"),
-        0,
-        0.357,  // default: 120 BPM normalized = (120-20)/280
-        ParameterInfo::kCanAutomate,
-        kMultiTapTempoId);
 
     // Feedback (0-110%)
     parameters.addParameter(
@@ -255,31 +228,13 @@ inline Steinberg::tresult formatMultiTapParam(
     switch (id) {
         // kMultiTapTimingPatternId: handled by StringListParameter::toString() automatically
         // kMultiTapSpatialPatternId: handled by StringListParameter::toString() automatically
+        // kMultiTapNoteValueId: handled by StringListParameter::toString() automatically
+        // kMultiTapNoteModifierId: handled by StringListParameter::toString() automatically
 
         case kMultiTapTapCountId: {
             int count = static_cast<int>(2.0 + normalizedValue * 14.0 + 0.5);
             char8 text[32];
             snprintf(text, sizeof(text), "%d", count);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
-        case kMultiTapBaseTimeId: {
-            float ms = static_cast<float>(1.0 + normalizedValue * 4999.0);
-            char8 text[32];
-            if (ms >= 1000.0f) {
-                snprintf(text, sizeof(text), "%.2f s", ms / 1000.0f);
-            } else {
-                snprintf(text, sizeof(text), "%.1f ms", ms);
-            }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
-        case kMultiTapTempoId: {
-            float bpm = static_cast<float>(20.0 + normalizedValue * 280.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.1f BPM", bpm);
             Steinberg::UString(string, 128).fromAscii(text);
             return kResultOk;
         }
@@ -330,13 +285,11 @@ inline Steinberg::tresult formatMultiTapParam(
 // ==============================================================================
 
 inline void saveMultiTapParams(const MultiTapParams& params, Steinberg::IBStreamer& streamer) {
-    streamer.writeInt32(params.timeMode.load(std::memory_order_relaxed));
     streamer.writeInt32(params.noteValue.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.noteModifier.load(std::memory_order_relaxed));
     streamer.writeInt32(params.timingPattern.load(std::memory_order_relaxed));
     streamer.writeInt32(params.spatialPattern.load(std::memory_order_relaxed));
     streamer.writeInt32(params.tapCount.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.baseTime.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.tempo.load(std::memory_order_relaxed));
     streamer.writeFloat(params.feedback.load(std::memory_order_relaxed));
     streamer.writeFloat(params.feedbackLPCutoff.load(std::memory_order_relaxed));
     streamer.writeFloat(params.feedbackHPCutoff.load(std::memory_order_relaxed));
@@ -349,10 +302,10 @@ inline void loadMultiTapParams(MultiTapParams& params, Steinberg::IBStreamer& st
     Steinberg::int32 intVal = 0;
 
     streamer.readInt32(intVal);
-    params.timeMode.store(intVal, std::memory_order_relaxed);
+    params.noteValue.store(intVal, std::memory_order_relaxed);
 
     streamer.readInt32(intVal);
-    params.noteValue.store(intVal, std::memory_order_relaxed);
+    params.noteModifier.store(intVal, std::memory_order_relaxed);
 
     streamer.readInt32(intVal);
     params.timingPattern.store(intVal, std::memory_order_relaxed);
@@ -362,12 +315,6 @@ inline void loadMultiTapParams(MultiTapParams& params, Steinberg::IBStreamer& st
 
     streamer.readInt32(intVal);
     params.tapCount.store(intVal, std::memory_order_relaxed);
-
-    streamer.readFloat(floatVal);
-    params.baseTime.store(floatVal, std::memory_order_relaxed);
-
-    streamer.readFloat(floatVal);
-    params.tempo.store(floatVal, std::memory_order_relaxed);
 
     streamer.readFloat(floatVal);
     params.feedback.store(floatVal, std::memory_order_relaxed);
@@ -401,15 +348,16 @@ inline void loadMultiTapParamsToController(
     int32 intVal = 0;
     float floatVal = 0.0f;
 
-    // Time Mode: 0-1 -> normalized = val
-    if (streamer.readInt32(intVal)) {
-        setParam(kMultiTapTimeModeId, intVal != 0 ? 1.0 : 0.0);
-    }
-
-    // Note Value: 0-19 -> normalized = val/19
+    // Note Value: 0-9 -> normalized = val/9
     if (streamer.readInt32(intVal)) {
         setParam(kMultiTapNoteValueId,
-            static_cast<double>(intVal) / (Parameters::kNoteValueDropdownCount - 1));
+            static_cast<double>(intVal) / 9.0);
+    }
+
+    // Note Modifier: 0-2 -> normalized = val/2
+    if (streamer.readInt32(intVal)) {
+        setParam(kMultiTapNoteModifierId,
+            static_cast<double>(intVal) / 2.0);
     }
 
     // Timing Pattern: 0-19 -> normalized = val/19
@@ -428,18 +376,6 @@ inline void loadMultiTapParamsToController(
     if (streamer.readInt32(intVal)) {
         setParam(kMultiTapTapCountId,
             static_cast<double>(intVal - 2) / 14.0);
-    }
-
-    // Base Time: 1-5000ms -> normalized = (val-1)/4999
-    if (streamer.readFloat(floatVal)) {
-        setParam(kMultiTapBaseTimeId,
-            static_cast<double>((floatVal - 1.0f) / 4999.0f));
-    }
-
-    // Tempo: 20-300 BPM -> normalized = (val-20)/280
-    if (streamer.readFloat(floatVal)) {
-        setParam(kMultiTapTempoId,
-            static_cast<double>((floatVal - 20.0f) / 280.0f));
     }
 
     // Feedback: 0-1.1 -> normalized = val/1.1

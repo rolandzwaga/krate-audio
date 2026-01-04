@@ -177,19 +177,17 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="ReverseTimeMode" tag="808"/>
         <control-tag name="ReverseNoteValue" tag="809"/>
 
-        <!-- MultiTap (900-910) -->
+        <!-- MultiTap (900-912) - Simplified design: No TimeMode, BaseTime, or Tempo -->
         <control-tag name="MultiTapTimingPattern" tag="900"/>
         <control-tag name="MultiTapSpatialPattern" tag="901"/>
         <control-tag name="MultiTapTapCount" tag="902"/>
-        <control-tag name="MultiTapBaseTime" tag="903"/>
-        <control-tag name="MultiTapTempo" tag="904"/>
         <control-tag name="MultiTapFeedback" tag="905"/>
         <control-tag name="MultiTapFeedbackLPCutoff" tag="906"/>
         <control-tag name="MultiTapFeedbackHPCutoff" tag="907"/>
         <control-tag name="MultiTapMorphTime" tag="908"/>
         <control-tag name="MultiTapDryWet" tag="909"/>
-        <control-tag name="MultiTapTimeMode" tag="910"/>
         <control-tag name="MultiTapNoteValue" tag="911"/>
+        <control-tag name="MultiTapNoteModifier" tag="912"/>
 
         <!-- Freeze (1000-1013) -->
         <control-tag name="FreezeEnabled" tag="1000"/>
@@ -232,8 +230,7 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="ShimmerDelayTimeLabel" tag="9905"/>
         <control-tag name="BBDDelayTimeLabel" tag="9906"/>
         <control-tag name="ReverseChunkSizeLabel" tag="9907"/>
-        <control-tag name="MultiTapBaseTimeLabel" tag="9908"/>
-        <control-tag name="MultiTapTempoLabel" tag="9911"/>
+        <!-- MultiTap has no BaseTime/Tempo labels (simplified design) -->
         <control-tag name="FreezeDelayTimeLabel" tag="9909"/>
         <control-tag name="DuckingDelayTimeLabel" tag="9910"/>
 
@@ -246,6 +243,8 @@ by functionality. Group order: Primary controls first, specialized later.
         <control-tag name="PingPongNoteValueLabel" tag="9925"/>
         <control-tag name="ReverseNoteValueLabel" tag="9926"/>
         <control-tag name="MultiTapNoteValueLabel" tag="9927"/>
+        <control-tag name="MultiTapNoteModifierLabel" tag="9930"/>
+        <control-tag name="MultiTapNoteValueSection" tag="9931"/>
         <control-tag name="FreezeNoteValueLabel" tag="9928"/>
         <control-tag name="DuckingNoteValueLabel" tag="9929"/>
     </control-tags>
@@ -700,19 +699,14 @@ by functionality. Group order: Primary controls first, specialized later.
     <template name="MultiTapPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
         <view class="CTextLabel" origin="10, 5" size="200, 22" title="MULTI-TAP DELAY" font="section-font" font-color="accent" transparent="true"/>
 
-        <!-- Group 1: TIME -->
-        <view class="CViewContainer" origin="10, 30" size="280, 100" background-color="section" transparent="false">
-            <view class="CTextLabel" origin="5, 5" size="270, 18" title="TIME" font="section-font" font-color="accent" transparent="true"/>
-            <view class="CTextLabel" control-tag="MultiTapBaseTimeLabel" origin="10, 28" size="55, 16" title="Time" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CParamDisplay" control-tag="MultiTapBaseTime" origin="65, 28" size="60, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-            <view class="CSlider" origin="10, 46" size="115, 20" control-tag="MultiTapBaseTime" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-            <view class="CTextLabel" origin="130, 28" size="85, 16" title="Mode" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CSegmentButton" origin="130, 46" size="85, 22" control-tag="MultiTapTimeMode" style="horizontal" segment-names="Free,Synced" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
-            <view class="CTextLabel" control-tag="MultiTapNoteValueLabel" origin="220, 28" size="50, 16" title="Note" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="COptionMenu" origin="220, 46" size="50, 22" control-tag="MultiTapNoteValue" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
-            <view class="CTextLabel" control-tag="MultiTapTempoLabel" origin="10, 73" size="65, 16" title="Int Tempo" font="label-font" font-color="text-dim" transparent="true"/>
-            <view class="CParamDisplay" control-tag="MultiTapTempo" origin="75, 73" size="65, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-            <view class="CSlider" origin="140, 73" size="130, 20" control-tag="MultiTapTempo" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+        <!-- Group 1: NOTE VALUE (for mathematical patterns only) -->
+        <!-- Visibility controlled by pattern selection: hidden for rhythmic patterns (0-13), shown for mathematical (14+) -->
+        <view class="CViewContainer" control-tag="MultiTapNoteValueSection" origin="10, 30" size="280, 75" background-color="section" transparent="false">
+            <view class="CTextLabel" origin="5, 5" size="270, 18" title="NOTE VALUE (Mathematical Patterns)" font="section-font" font-color="accent" transparent="true"/>
+            <view class="CTextLabel" control-tag="MultiTapNoteValueLabel" origin="10, 28" size="50, 16" title="Note" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="COptionMenu" origin="10, 46" size="70, 22" control-tag="MultiTapNoteValue" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
+            <view class="CTextLabel" control-tag="MultiTapNoteModifierLabel" origin="90, 28" size="60, 16" title="Modifier" font="label-font" font-color="text-dim" transparent="true"/>
+            <view class="COptionMenu" origin="90, 46" size="80, 22" control-tag="MultiTapNoteModifier" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
         </view>
 
         <!-- Group 2: PATTERN -->

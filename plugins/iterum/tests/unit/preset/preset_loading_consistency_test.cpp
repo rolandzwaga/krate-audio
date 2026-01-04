@@ -359,14 +359,13 @@ TEST_CASE("Shimmer params roundtrip preserves values", "[preset][shimmer][roundt
 }
 
 TEST_CASE("MultiTap params roundtrip preserves values", "[preset][multitap][roundtrip]") {
+    // Simplified design: No TimeMode, BaseTime, or Tempo parameters
     Iterum::MultiTapParams params;
-    params.timeMode.store(1);
-    params.noteValue.store(4);
+    params.noteValue.store(4);        // Note value for mathematical patterns
+    params.noteModifier.store(1);     // Triplet
     params.timingPattern.store(3);
     params.spatialPattern.store(2);
     params.tapCount.store(6);
-    params.baseTime.store(400.0f);
-    params.tempo.store(140.0f);
     params.feedback.store(0.5f);
     params.feedbackLPCutoff.store(10000.0f);
     params.feedbackHPCutoff.store(100.0f);
@@ -382,9 +381,10 @@ TEST_CASE("MultiTap params roundtrip preserves values", "[preset][multitap][roun
     MockController controller;
     Iterum::syncMultiTapParamsToController(reader, controller);
 
-    constexpr double noteValDivisor = Iterum::Parameters::kNoteValueDropdownCount - 1;
-    REQUIRE(controller.paramValues[Iterum::kMultiTapTimeModeId] == Approx(1.0).margin(0.001));
-    REQUIRE(controller.paramValues[Iterum::kMultiTapNoteValueId] == Approx(4.0 / noteValDivisor).margin(0.001));
+    // Note Value: 0-9 -> normalized = val/9
+    REQUIRE(controller.paramValues[Iterum::kMultiTapNoteValueId] == Approx(4.0 / 9.0).margin(0.001));
+    // Note Modifier: 0-2 -> normalized = val/2
+    REQUIRE(controller.paramValues[Iterum::kMultiTapNoteModifierId] == Approx(1.0 / 2.0).margin(0.001));
     REQUIRE(controller.paramValues[Iterum::kMultiTapMixId] == Approx(0.6).margin(0.001));
 }
 
