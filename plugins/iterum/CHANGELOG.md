@@ -5,6 +5,31 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] - 2026-01-04
+
+### Fixed
+
+- **Editor Close Crash (Use-After-Free)**
+  - Fixed host crash when closing plugin window quickly after opening
+  - Root cause: `deferUpdate()` scheduled updates that fired after controller destruction
+  - Added atomic `isActive_` guard to VisibilityController checked before accessing any member
+  - Implemented 3-phase shutdown in `willClose()`: deactivate → clear editor → destroy
+  - Added regression tests documenting the SafeVisibilityController pattern
+
+### Added
+
+- **MultiTap Visibility Controls**
+  - BaseTime and Internal Tempo controls now hide in Synced mode (host provides tempo)
+  - NoteValue control now shows in Synced mode
+  - Added 27 test cases for MultiTap visibility logic
+
+- **AddressSanitizer (ASan) Build Support**
+  - Added `ENABLE_ASAN` CMake option for detecting memory errors at runtime
+  - Supports MSVC (`/fsanitize=address`) and Clang/GCC (`-fsanitize=address`)
+  - Documented usage in CLAUDE.md
+
+---
+
 ## [0.9.4] - 2026-01-03
 
 ### Fixed
