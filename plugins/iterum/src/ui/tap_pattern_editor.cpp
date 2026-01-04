@@ -73,6 +73,10 @@ void TapPatternEditor::drawTaps(VSTGUI::CDrawContext* context) {
     float width = static_cast<float>(viewRect.getWidth());
     float height = static_cast<float>(viewRect.getHeight());
 
+    // Set up font for tap numbers
+    auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 8);
+    context->setFont(font);
+
     for (size_t i = 0; i < activeTapCount_; ++i) {
         float timeRatio = tapTimeRatios_[i];
         float level = tapLevels_[i];
@@ -107,6 +111,18 @@ void TapPatternEditor::drawTaps(VSTGUI::CDrawContext* context) {
             VSTGUI::CColor(180, 220, 255, 255) :
             VSTGUI::CColor(120, 180, 220, 255));
         context->drawRect(handleRect, VSTGUI::kDrawFilled);
+
+        // Draw tap number label at bottom of bar
+        char tapNumStr[4];
+        snprintf(tapNumStr, sizeof(tapNumStr), "%zu", i + 1);
+        VSTGUI::CRect labelRect(
+            centerX - halfBarWidth - 2,
+            barBottom - 12,
+            centerX + halfBarWidth + 2,
+            barBottom - 1
+        );
+        context->setFontColor(VSTGUI::CColor(255, 255, 255, 200));
+        context->drawString(tapNumStr, labelRect, VSTGUI::kCenterText);
     }
 }
 
@@ -362,11 +378,30 @@ float TapPatternEditor::getTapLevel(size_t tapIndex) const {
 }
 
 void TapPatternEditor::setActiveTapCount(size_t count) {
-    activeTapCount_ = std::min(count, kMaxPatternTaps);
+    size_t oldCount = activeTapCount_;
+    size_t newCount = std::min(count, kMaxPatternTaps);
+    activeTapCount_ = newCount;
 
     // Cancel drag if selected tap is now out of range (T018.6)
     if (isDragging_ && selectedTap_ >= static_cast<int>(activeTapCount_)) {
         cancelDrag();
+    }
+
+    // Initialize new taps with snapped positions when count increases
+    if (newCount > oldCount) {
+        for (size_t i = oldCount; i < newCount; ++i) {
+            // Calculate default linear spread position for new tap
+            float defaultPosition = static_cast<float>(i + 1) / static_cast<float>(newCount + 1);
+            // Apply current snap setting
+            float snappedPosition = snapToGrid(defaultPosition, snapDivision_);
+
+            tapTimeRatios_[i] = snappedPosition;
+            tapLevels_[i] = kDefaultTapLevel;
+
+            // Notify parameters of the new tap values
+            notifyTimeRatioChanged(i, snappedPosition);
+            notifyLevelChanged(i, kDefaultTapLevel);
+        }
     }
 
     invalid();

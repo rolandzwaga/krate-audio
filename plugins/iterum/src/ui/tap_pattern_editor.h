@@ -113,7 +113,7 @@ private:
     ParameterCallback paramCallback_;
 
     // Grid snapping (Phase 5)
-    SnapDivision snapDivision_ = SnapDivision::Off;
+    SnapDivision snapDivision_ = SnapDivision::Quarter;
 
     // Colors
     static constexpr VSTGUI::CColor kBackgroundColor{35, 35, 38, 255};
