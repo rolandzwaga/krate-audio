@@ -751,6 +751,13 @@ by functionality. Group order: Primary controls first, specialized later.
             <view class="CSlider" origin="90, 28" size="170, 20" control-tag="MultiTapMorphTime" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
         </view>
 
+        <!-- Group 6: CUSTOM PATTERN EDITOR (Spec 046) -->
+        <!-- Visible only when Timing Pattern == Custom (index 19) -->
+        <view class="CViewContainer" origin="10, 240" size="560, 155" background-color="section" transparent="false">
+            <view class="CTextLabel" origin="5, 5" size="300, 18" title="CUSTOM PATTERN EDITOR" font="section-font" font-color="accent" transparent="true"/>
+            <view class="CView" origin="10, 28" size="540, 120" custom-view-name="TapPatternEditor"/>
+        </view>
+
     </template>
 
     <!-- Mode 9: FREEZE -->

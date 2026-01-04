@@ -101,6 +101,9 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/ui/mode_tab_bar.cpp
     src/ui/preset_browser_logic.h
     src/ui/search_debouncer.h
+    src/ui/tap_pattern_editor.h
+    src/ui/tap_pattern_editor.cpp
+    src/ui/tap_pattern_editor_logic.h
 )
 
 # Link SDK, VSTGUI, and KrateDSP

@@ -308,6 +308,42 @@ public:
         applyCustomTimingPattern();
     }
 
+    /// @brief Set single custom time ratio (for UI editor)
+    /// @param tapIndex Tap index [0, 15]
+    /// @param ratio Time ratio 0.0-1.0 (ratio of max delay)
+    void setCustomTimeRatio(size_t tapIndex, float ratio) noexcept {
+        if (tapIndex < kMaxTaps) {
+            customTimeRatios_[tapIndex] = std::clamp(ratio, 0.0f, 1.0f);
+            if (currentTimingPattern_ == TimingPattern::Custom) {
+                applyCustomTimingPattern();
+            }
+        }
+    }
+
+    /// @brief Get custom time ratio for a tap
+    /// @param tapIndex Tap index [0, 15]
+    [[nodiscard]] float getCustomTimeRatio(size_t tapIndex) const noexcept {
+        return (tapIndex < kMaxTaps) ? customTimeRatios_[tapIndex] : 0.0f;
+    }
+
+    /// @brief Set single custom level ratio (for UI editor)
+    /// @param tapIndex Tap index [0, 15]
+    /// @param level Level ratio 0.0-1.0 (linear gain)
+    void setCustomLevelRatio(size_t tapIndex, float level) noexcept {
+        if (tapIndex < kMaxTaps) {
+            customLevels_[tapIndex] = std::clamp(level, 0.0f, 1.0f);
+            if (currentTimingPattern_ == TimingPattern::Custom) {
+                applyCustomTimingPattern();
+            }
+        }
+    }
+
+    /// @brief Get custom level ratio for a tap
+    /// @param tapIndex Tap index [0, 15]
+    [[nodiscard]] float getCustomLevelRatio(size_t tapIndex) const noexcept {
+        return (tapIndex < kMaxTaps) ? customLevels_[tapIndex] : 1.0f;
+    }
+
     /// @brief Set base delay time for patterns
     /// @param ms Base time in milliseconds [1, 5000]
     void setBaseTimeMs(float ms) noexcept {
@@ -790,12 +826,19 @@ private:
         }
     }
 
-    /// @brief Apply custom timing pattern from stored ratios
+    /// @brief Apply custom timing pattern from stored ratios and levels
     void applyCustomTimingPattern() noexcept {
         for (size_t i = 0; i < activeTapCount_; ++i) {
-            float timeMs = std::min(baseTimeMs_ * customTimeRatios_[i], maxDelayMs_);
+            // Apply time: ratio is 0-1 representing position in max delay range
+            float timeMs = std::clamp(maxDelayMs_ * customTimeRatios_[i], kMinDelayMs, maxDelayMs_);
             tapManager_.setTapEnabled(i, true);
             tapManager_.setTapTimeMs(i, timeMs);
+
+            // Apply level: convert 0-1 linear gain to dB
+            // 0.0 = -infinity (use -96dB), 1.0 = 0dB
+            float level = customLevels_[i];
+            float levelDb = (level > 0.001f) ? gainToDb(level) : -96.0f;
+            tapManager_.setTapLevelDb(i, std::clamp(levelDb, -96.0f, 6.0f));
         }
         for (size_t i = activeTapCount_; i < kMaxTaps; ++i) {
             tapManager_.setTapEnabled(i, false);
@@ -1069,6 +1112,10 @@ private:
 
     // Custom pattern storage
     std::array<float, kMaxTaps> customTimeRatios_ = {};
+    std::array<float, kMaxTaps> customLevels_ = {
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+    };
 
     // Morphing state
     bool morphing_ = false;

@@ -9,6 +9,7 @@
 #include "preset/preset_manager.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "ui/tap_pattern_editor.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 
@@ -1029,6 +1030,48 @@ VSTGUI::CView* Controller::createCustomView(
         attributes.getPointAttribute("size", size);
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
         return new SavePresetButton(rect, this);
+    }
+
+    // TapPatternEditor (Spec 046) - Custom tap pattern visual editor
+    if (VSTGUI::UTF8StringView(name) == "TapPatternEditor") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(400, 150);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+
+        auto* patternEditor = new TapPatternEditor(rect);
+
+        // Initialize with current parameter values (T033)
+        for (size_t i = 0; i < 16; ++i) {
+            // Time ratios (IDs 950-965)
+            if (auto* timeParam = getParameterObject(kMultiTapCustomTime0Id + static_cast<Steinberg::Vst::ParamID>(i))) {
+                patternEditor->setTapTimeRatio(i, static_cast<float>(timeParam->getNormalized()));
+            }
+            // Levels (IDs 966-981)
+            if (auto* levelParam = getParameterObject(kMultiTapCustomLevel0Id + static_cast<Steinberg::Vst::ParamID>(i))) {
+                patternEditor->setTapLevel(i, static_cast<float>(levelParam->getNormalized()));
+            }
+        }
+
+        // Initialize tap count from parameter
+        if (auto* tapCountParam = getParameterObject(kMultiTapTapCountId)) {
+            // Tap count is 2-16, normalized 0-1 maps to 2-16
+            float normalized = static_cast<float>(tapCountParam->getNormalized());
+            int tapCount = static_cast<int>(2 + normalized * 14 + 0.5f);
+            patternEditor->setActiveTapCount(static_cast<size_t>(tapCount));
+        }
+
+        // Set up parameter callback to notify host of changes
+        patternEditor->setParameterCallback(
+            [this](Steinberg::Vst::ParamID paramId, float normalizedValue) {
+                if (auto* param = getParameterObject(paramId)) {
+                    param->setNormalized(static_cast<Steinberg::Vst::ParamValue>(normalizedValue));
+                    performEdit(paramId, static_cast<Steinberg::Vst::ParamValue>(normalizedValue));
+                }
+            });
+
+        return patternEditor;
     }
 
     return nullptr;

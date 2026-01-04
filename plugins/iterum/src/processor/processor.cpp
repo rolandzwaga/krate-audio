@@ -724,6 +724,22 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             }
             multiTapDelay_.applySpatialPattern(Parameters::getSpatialPatternFromDropdown(
                 multiTapParams_.spatialPattern.load(std::memory_order_relaxed)));
+
+            // Custom pattern wiring (spec 046): when pattern is Custom (index 19),
+            // update the DSP with user-defined time ratios and levels
+            {
+                const int currentPattern = multiTapParams_.timingPattern.load(std::memory_order_relaxed);
+                if (currentPattern == 19) {  // Custom pattern index
+                    // Transfer custom time ratios and levels from params to DSP
+                    for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+                        multiTapDelay_.setCustomTimeRatio(i,
+                            multiTapParams_.customTimeRatios[i].load(std::memory_order_relaxed));
+                        multiTapDelay_.setCustomLevelRatio(i,
+                            multiTapParams_.customLevels[i].load(std::memory_order_relaxed));
+                    }
+                }
+            }
+
             // Note: baseTimeMs is derived from Note Value + host tempo in process() for mathematical patterns
             // Rhythmic patterns derive timing from pattern name + host tempo directly
             multiTapDelay_.setFeedbackAmount(multiTapParams_.feedback.load(std::memory_order_relaxed));
