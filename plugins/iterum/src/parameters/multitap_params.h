@@ -23,9 +23,16 @@
 #include "base/source/fstreamer.h"
 
 #include <atomic>
+#include <array>
 #include <cmath>
 
 namespace Iterum {
+
+// ==============================================================================
+// Custom Pattern Constants
+// ==============================================================================
+
+static constexpr size_t kCustomPatternMaxTaps = 16;
 
 // ==============================================================================
 // Parameter Storage
@@ -37,11 +44,29 @@ struct MultiTapParams {
     std::atomic<int> timingPattern{2};          // 0-19 (pattern presets)
     std::atomic<int> spatialPattern{2};         // 0-6 (spatial presets)
     std::atomic<int> tapCount{4};               // 2-16 taps
+    std::atomic<int> snapDivision{14};          // 0-21 (off + 21 note values) - spec 046, default: 1/4 (index 14)
     std::atomic<float> feedback{0.5f};          // 0-1.1 (110%)
     std::atomic<float> feedbackLPCutoff{20000.0f};  // 20-20000Hz
     std::atomic<float> feedbackHPCutoff{20.0f};     // 20-20000Hz
     std::atomic<float> morphTime{500.0f};       // 50-2000ms
     std::atomic<float> dryWet{0.5f};            // 0-1 (dry/wet mix)
+
+    // Custom Pattern Data (spec 046) - 16 taps × 2 values
+    // Time ratios: 0.0-1.0 (ratio of max delay time)
+    // Levels: 0.0-1.0 (linear gain)
+    std::array<std::atomic<float>, kCustomPatternMaxTaps> customTimeRatios{};
+    std::array<std::atomic<float>, kCustomPatternMaxTaps> customLevels{};
+
+    // Initialize custom pattern to defaults (evenly spaced, full levels)
+    MultiTapParams() {
+        for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+            // Default: evenly spaced from 0 to 1
+            customTimeRatios[i].store(static_cast<float>(i + 1) / (kCustomPatternMaxTaps + 1),
+                                       std::memory_order_relaxed);
+            // Default: full level (1.0)
+            customLevels[i].store(1.0f, std::memory_order_relaxed);
+        }
+    }
 };
 
 // ==============================================================================
@@ -66,6 +91,12 @@ inline void handleMultiTapParamChange(
             // 0-2 (none, triplet, dotted) - for mathematical patterns
             params.noteModifier.store(
                 static_cast<int>(normalizedValue * 2.0 + 0.5),
+                std::memory_order_relaxed);
+            break;
+        case kMultiTapSnapDivisionId:
+            // 0-21 (off + 21 note values) - spec 046
+            params.snapDivision.store(
+                static_cast<int>(normalizedValue * 21.0 + 0.5),
                 std::memory_order_relaxed);
             break;
         case kMultiTapTimingPatternId:
@@ -116,6 +147,23 @@ inline void handleMultiTapParamChange(
                 static_cast<float>(normalizedValue),
                 std::memory_order_relaxed);
             break;
+
+        // Custom Pattern Time Ratios (950-965)
+        default:
+            if (id >= kMultiTapCustomTime0Id && id <= kMultiTapCustomTime15Id) {
+                size_t tapIndex = id - kMultiTapCustomTime0Id;
+                params.customTimeRatios[tapIndex].store(
+                    static_cast<float>(normalizedValue),
+                    std::memory_order_relaxed);
+            }
+            // Custom Pattern Levels (966-981)
+            else if (id >= kMultiTapCustomLevel0Id && id <= kMultiTapCustomLevel15Id) {
+                size_t tapIndex = id - kMultiTapCustomLevel0Id;
+                params.customLevels[tapIndex].store(
+                    static_cast<float>(normalizedValue),
+                    std::memory_order_relaxed);
+            }
+            break;
     }
 }
 
@@ -140,6 +188,28 @@ inline void registerMultiTapParams(Steinberg::Vst::ParameterContainer& parameter
         STR16("MultiTap Note Modifier"), kMultiTapNoteModifierId,
         0,  // default: None (index 0)
         {STR16("None"), STR16("Triplet"), STR16("Dotted")}
+    ));
+
+    // Snap Division (spec 046 - grid snapping for custom pattern editor)
+    // Uses same note values as delay time dropdown, with "Off" at index 0
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("MultiTap Snap"), kMultiTapSnapDivisionId,
+        14,  // default: 1/4 (index 14)
+        {STR16("Off"),
+         // 1/64 variants
+         STR16("1/64T"), STR16("1/64"), STR16("1/64D"),
+         // 1/32 variants
+         STR16("1/32T"), STR16("1/32"), STR16("1/32D"),
+         // 1/16 variants
+         STR16("1/16T"), STR16("1/16"), STR16("1/16D"),
+         // 1/8 variants
+         STR16("1/8T"), STR16("1/8"), STR16("1/8D"),
+         // 1/4 variants
+         STR16("1/4T"), STR16("1/4"), STR16("1/4D"),
+         // 1/2 variants
+         STR16("1/2T"), STR16("1/2"), STR16("1/2D"),
+         // 1/1 variants
+         STR16("1/1T"), STR16("1/1"), STR16("1/1D")}
     ));
 
     // Timing Pattern (20 patterns) - MUST use StringListParameter
@@ -212,6 +282,44 @@ inline void registerMultiTapParams(Steinberg::Vst::ParameterContainer& parameter
         0.5,  // default: 50%
         ParameterInfo::kCanAutomate,
         kMultiTapMixId);
+
+    // Custom Pattern Time Ratios (950-965) - spec 046
+    // 16 parameters for custom tap time ratios (0.0-1.0)
+    static const Steinberg::Vst::TChar* customTimeNames[16] = {
+        STR16("Custom Time 1"), STR16("Custom Time 2"), STR16("Custom Time 3"), STR16("Custom Time 4"),
+        STR16("Custom Time 5"), STR16("Custom Time 6"), STR16("Custom Time 7"), STR16("Custom Time 8"),
+        STR16("Custom Time 9"), STR16("Custom Time 10"), STR16("Custom Time 11"), STR16("Custom Time 12"),
+        STR16("Custom Time 13"), STR16("Custom Time 14"), STR16("Custom Time 15"), STR16("Custom Time 16")
+    };
+    for (int i = 0; i < 16; ++i) {
+        // Default: evenly spaced (i+1)/17
+        float defaultTime = static_cast<float>(i + 1) / 17.0f;
+        parameters.addParameter(
+            customTimeNames[i],
+            nullptr,
+            0,
+            defaultTime,
+            ParameterInfo::kCanAutomate,
+            kMultiTapCustomTime0Id + i);
+    }
+
+    // Custom Pattern Levels (966-981) - spec 046
+    // 16 parameters for custom tap levels (0.0-1.0 linear gain)
+    static const Steinberg::Vst::TChar* customLevelNames[16] = {
+        STR16("Custom Level 1"), STR16("Custom Level 2"), STR16("Custom Level 3"), STR16("Custom Level 4"),
+        STR16("Custom Level 5"), STR16("Custom Level 6"), STR16("Custom Level 7"), STR16("Custom Level 8"),
+        STR16("Custom Level 9"), STR16("Custom Level 10"), STR16("Custom Level 11"), STR16("Custom Level 12"),
+        STR16("Custom Level 13"), STR16("Custom Level 14"), STR16("Custom Level 15"), STR16("Custom Level 16")
+    };
+    for (int i = 0; i < 16; ++i) {
+        parameters.addParameter(
+            customLevelNames[i],
+            nullptr,
+            0,
+            1.0,  // default: full level
+            ParameterInfo::kCanAutomate,
+            kMultiTapCustomLevel0Id + i);
+    }
 }
 
 // ==============================================================================
@@ -275,6 +383,25 @@ inline Steinberg::tresult formatMultiTapParam(
             Steinberg::UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+
+        // Custom Pattern Time Ratios (950-965)
+        default:
+            if (id >= kMultiTapCustomTime0Id && id <= kMultiTapCustomTime15Id) {
+                float percent = static_cast<float>(normalizedValue * 100.0);
+                char8 text[32];
+                snprintf(text, sizeof(text), "%.0f%%", percent);
+                Steinberg::UString(string, 128).fromAscii(text);
+                return kResultOk;
+            }
+            // Custom Pattern Levels (966-981)
+            else if (id >= kMultiTapCustomLevel0Id && id <= kMultiTapCustomLevel15Id) {
+                float percent = static_cast<float>(normalizedValue * 100.0);
+                char8 text[32];
+                snprintf(text, sizeof(text), "%.0f%%", percent);
+                Steinberg::UString(string, 128).fromAscii(text);
+                return kResultOk;
+            }
+            break;
     }
 
     return Steinberg::kResultFalse;
@@ -295,6 +422,17 @@ inline void saveMultiTapParams(const MultiTapParams& params, Steinberg::IBStream
     streamer.writeFloat(params.feedbackHPCutoff.load(std::memory_order_relaxed));
     streamer.writeFloat(params.morphTime.load(std::memory_order_relaxed));
     streamer.writeFloat(params.dryWet.load(std::memory_order_relaxed));
+
+    // Custom Pattern Data (spec 046)
+    for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+        streamer.writeFloat(params.customTimeRatios[i].load(std::memory_order_relaxed));
+    }
+    for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+        streamer.writeFloat(params.customLevels[i].load(std::memory_order_relaxed));
+    }
+
+    // Snap Division (spec 046 - grid snapping)
+    streamer.writeInt32(params.snapDivision.load(std::memory_order_relaxed));
 }
 
 inline void loadMultiTapParams(MultiTapParams& params, Steinberg::IBStreamer& streamer) {
@@ -330,6 +468,24 @@ inline void loadMultiTapParams(MultiTapParams& params, Steinberg::IBStreamer& st
 
     streamer.readFloat(floatVal);
     params.dryWet.store(floatVal, std::memory_order_relaxed);
+
+    // Custom Pattern Data (spec 046) - read if available for backward compatibility
+    // Old presets without custom pattern data will retain defaults
+    for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+        if (streamer.readFloat(floatVal)) {
+            params.customTimeRatios[i].store(floatVal, std::memory_order_relaxed);
+        }
+    }
+    for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+        if (streamer.readFloat(floatVal)) {
+            params.customLevels[i].store(floatVal, std::memory_order_relaxed);
+        }
+    }
+
+    // Snap Division (spec 046 - grid snapping) - read if available
+    if (streamer.readInt32(intVal)) {
+        params.snapDivision.store(intVal, std::memory_order_relaxed);
+    }
 }
 
 // ==============================================================================
@@ -406,6 +562,28 @@ inline void loadMultiTapParamsToController(
     if (streamer.readFloat(floatVal)) {
         setParam(kMultiTapMixId,
             static_cast<double>(floatVal));
+    }
+
+    // Custom Pattern Time Ratios (spec 046) - already normalized 0-1
+    for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+        if (streamer.readFloat(floatVal)) {
+            setParam(kMultiTapCustomTime0Id + static_cast<Steinberg::Vst::ParamID>(i),
+                static_cast<double>(floatVal));
+        }
+    }
+
+    // Custom Pattern Levels (spec 046) - already normalized 0-1
+    for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+        if (streamer.readFloat(floatVal)) {
+            setParam(kMultiTapCustomLevel0Id + static_cast<Steinberg::Vst::ParamID>(i),
+                static_cast<double>(floatVal));
+        }
+    }
+
+    // Snap Division (spec 046): 0-21 -> normalized = val/21
+    if (streamer.readInt32(intVal)) {
+        setParam(kMultiTapSnapDivisionId,
+            static_cast<double>(intVal) / 21.0);
     }
 }
 

@@ -26,6 +26,7 @@ namespace Iterum {
 // Forward declarations
 class PresetBrowserView;
 class SavePresetDialogView;
+class TapPatternEditor;
 
 // ==============================================================================
 // Controller Class
@@ -118,6 +119,16 @@ public:
     /// Get the preset manager instance
     PresetManager* getPresetManager() const { return presetManager_.get(); }
 
+    // ===========================================================================
+    // Custom Pattern Editor (Spec 046)
+    // ===========================================================================
+
+    /// Copy current timing pattern to custom pattern parameters
+    void copyCurrentPatternToCustom();
+
+    /// Reset custom pattern to default linear spread with full levels
+    void resetPatternToDefault();
+
     /// Create a memory stream containing the current component state
     /// Used for preset saving - serializes controller's parameter values
     /// in the same format as Processor::getState()
@@ -181,6 +192,16 @@ private:
     Steinberg::IPtr<Steinberg::FObject> multitapNoteValueVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> freezeNoteValueVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> duckingNoteValueVisibilityController_;
+
+    // ==========================================================================
+    // Custom Pattern Editor (Spec 046)
+    // ==========================================================================
+
+    TapPatternEditor* tapPatternEditor_ = nullptr;  // Owned by frame
+    // Visibility controller: show pattern editor only when pattern == Custom (index 19)
+    Steinberg::IPtr<Steinberg::FObject> patternEditorVisibilityController_;
+    // Visibility controller: show Copy Pattern button only when pattern != Custom
+    Steinberg::IPtr<Steinberg::FObject> copyPatternButtonVisibilityController_;
 
     // ==========================================================================
     // Preset Browser (Spec 042)

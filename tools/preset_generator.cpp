@@ -180,18 +180,26 @@ struct ReversePreset {
 };
 
 struct MultiTapPreset {
+    int noteValue = 2;              // 0-9 (note values for mathematical patterns)
+    int noteModifier = 0;           // 0-2 (none, triplet, dotted)
     int timingPattern = 2;          // 0-19
     int spatialPattern = 2;         // 0-6
     int tapCount = 4;               // 2-16
-    float baseTime = 500.0f;
-    float tempo = 120.0f;
     float feedback = 0.5f;          // 0-1.1
     float feedbackLPCutoff = 20000.0f;
     float feedbackHPCutoff = 20.0f;
     float morphTime = 500.0f;
-    float dryWet = 0.5f;            // 0-1 (params file stores 0-1, not 0-100)
-    int timeMode = 0;               // 0=Free, 1=Synced
-    int noteValue = 10;             // 0-20 (default: 1/8 = index 10)
+    float dryWet = 0.5f;            // 0-1
+    // Custom pattern data (spec 046) - 16 taps
+    float customTimeRatios[16] = {
+        1.0f/17, 2.0f/17, 3.0f/17, 4.0f/17, 5.0f/17, 6.0f/17, 7.0f/17, 8.0f/17,
+        9.0f/17, 10.0f/17, 11.0f/17, 12.0f/17, 13.0f/17, 14.0f/17, 15.0f/17, 16.0f/17
+    };
+    float customLevels[16] = {
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+    };
+    int snapDivision = 14;          // 0-21 (off + 21 note values), default: 1/4
 };
 
 struct FreezePreset {
@@ -391,18 +399,27 @@ void writeReverseState(BinaryWriter& w, const ReversePreset& p) {
 
 void writeMultiTapState(BinaryWriter& w, const MultiTapPreset& p) {
     // Order MUST match multitap_params.h saveMultiTapParams()
-    w.writeInt32(p.timeMode);
     w.writeInt32(p.noteValue);
+    w.writeInt32(p.noteModifier);
     w.writeInt32(p.timingPattern);
     w.writeInt32(p.spatialPattern);
     w.writeInt32(p.tapCount);
-    w.writeFloat(p.baseTime);
-    w.writeFloat(p.tempo);
     w.writeFloat(p.feedback);
     w.writeFloat(p.feedbackLPCutoff);
     w.writeFloat(p.feedbackHPCutoff);
     w.writeFloat(p.morphTime);
     w.writeFloat(p.dryWet);
+
+    // Custom Pattern Data (spec 046)
+    for (int i = 0; i < 16; ++i) {
+        w.writeFloat(p.customTimeRatios[i]);
+    }
+    for (int i = 0; i < 16; ++i) {
+        w.writeFloat(p.customLevels[i]);
+    }
+
+    // Snap Division (spec 046)
+    w.writeInt32(p.snapDivision);
 }
 
 void writeFreezeState(BinaryWriter& w, const FreezePreset& p) {
@@ -1071,65 +1088,158 @@ std::vector<PresetDef> createAllPresets() {
 
     // =========================================================================
     // MULTITAP MODE (8) - Rhythmic Interest, Complex Delays
+    // New struct: noteValue, noteModifier, timingPattern, spatialPattern, tapCount,
+    //             feedback, lpCutoff, hpCutoff, morphTime, dryWet,
+    //             customTimeRatios[16], customLevels[16], snapDivision
     // =========================================================================
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Rhythmic";
         p.name = "Cascading Echoes";
-        p.multitap = {3, 0, 6, 400.0f, 120.0f, 0.4f, 20000.0f, 20.0f, 500.0f, 0.5f, 1, 13};  // 1/4
+        p.multitap.noteValue = 2;           // Quarter
+        p.multitap.noteModifier = 0;        // None
+        p.multitap.timingPattern = 3;       // Eighth
+        p.multitap.spatialPattern = 0;      // Cascade
+        p.multitap.tapCount = 6;
+        p.multitap.feedback = 0.4f;
+        p.multitap.feedbackLPCutoff = 20000.0f;
+        p.multitap.feedbackHPCutoff = 20.0f;
+        p.multitap.morphTime = 500.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Creative";
         p.name = "Golden Ratio";
-        p.multitap = {14, 2, 8, 500.0f, 120.0f, 0.45f, 20000.0f, 20.0f, 500.0f, 0.5f, 1, 13};  // 1/4
+        p.multitap.noteValue = 2;           // Quarter
+        p.multitap.noteModifier = 0;        // None
+        p.multitap.timingPattern = 14;      // Golden Ratio
+        p.multitap.spatialPattern = 2;      // Centered
+        p.multitap.tapCount = 8;
+        p.multitap.feedback = 0.45f;
+        p.multitap.feedbackLPCutoff = 20000.0f;
+        p.multitap.feedbackHPCutoff = 20.0f;
+        p.multitap.morphTime = 500.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Creative";
         p.name = "Fibonacci Rhythm";
-        p.multitap = {15, 3, 5, 450.0f, 120.0f, 0.5f, 20000.0f, 20.0f, 500.0f, 0.5f, 1, 13};  // 1/4
+        p.multitap.noteValue = 2;           // Quarter
+        p.multitap.noteModifier = 0;        // None
+        p.multitap.timingPattern = 15;      // Fibonacci
+        p.multitap.spatialPattern = 3;      // Widening
+        p.multitap.tapCount = 5;
+        p.multitap.feedback = 0.5f;
+        p.multitap.feedbackLPCutoff = 20000.0f;
+        p.multitap.feedbackHPCutoff = 20.0f;
+        p.multitap.morphTime = 500.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Stereo";
         p.name = "Wide Taps";
-        p.multitap = {2, 1, 4, 375.0f, 120.0f, 0.35f, 20000.0f, 20.0f, 500.0f, 0.5f, 1, 12};  // 1/4T
+        p.multitap.noteValue = 2;           // Quarter
+        p.multitap.noteModifier = 1;        // Triplet
+        p.multitap.timingPattern = 2;       // Quarter
+        p.multitap.spatialPattern = 1;      // Alternating
+        p.multitap.tapCount = 4;
+        p.multitap.feedback = 0.35f;
+        p.multitap.feedbackLPCutoff = 20000.0f;
+        p.multitap.feedbackHPCutoff = 20.0f;
+        p.multitap.morphTime = 500.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Drums";
         p.name = "Tight Pocket";
-        p.multitap = {4, 2, 3, 125.0f, 120.0f, 0.2f, 15000.0f, 100.0f, 300.0f, 0.5f, 1, 7};  // 1/16
+        p.multitap.noteValue = 4;           // 16th
+        p.multitap.noteModifier = 0;        // None
+        p.multitap.timingPattern = 4;       // 16th
+        p.multitap.spatialPattern = 2;      // Centered
+        p.multitap.tapCount = 3;
+        p.multitap.feedback = 0.2f;
+        p.multitap.feedbackLPCutoff = 15000.0f;
+        p.multitap.feedbackHPCutoff = 100.0f;
+        p.multitap.morphTime = 300.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Dub";
         p.name = "Dub Echoes";
-        p.multitap = {2, 0, 4, 500.0f, 120.0f, 0.6f, 8000.0f, 80.0f, 600.0f, 0.5f, 1, 13};  // 1/4
+        p.multitap.noteValue = 2;           // Quarter
+        p.multitap.noteModifier = 0;        // None
+        p.multitap.timingPattern = 2;       // Quarter
+        p.multitap.spatialPattern = 0;      // Cascade
+        p.multitap.tapCount = 4;
+        p.multitap.feedback = 0.6f;
+        p.multitap.feedbackLPCutoff = 8000.0f;
+        p.multitap.feedbackHPCutoff = 80.0f;
+        p.multitap.morphTime = 600.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Rhythmic";
         p.name = "Sixteenth Grid";
-        p.multitap = {4, 2, 8, 125.0f, 120.0f, 0.3f, 20000.0f, 20.0f, 400.0f, 0.5f, 1, 7};  // 1/16
+        p.multitap.noteValue = 4;           // 16th
+        p.multitap.noteModifier = 0;        // None
+        p.multitap.timingPattern = 4;       // 16th
+        p.multitap.spatialPattern = 2;      // Centered
+        p.multitap.tapCount = 8;
+        p.multitap.feedback = 0.3f;
+        p.multitap.feedbackLPCutoff = 20000.0f;
+        p.multitap.feedbackHPCutoff = 20.0f;
+        p.multitap.morphTime = 400.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Ambient";
         p.name = "Slow Buildup";
-        p.multitap = {16, 4, 12, 800.0f, 80.0f, 0.55f, 12000.0f, 40.0f, 800.0f, 0.5f, 1, 16};  // 1/2
+        p.multitap.noteValue = 1;           // Half
+        p.multitap.noteModifier = 0;        // None
+        p.multitap.timingPattern = 16;      // Exponential
+        p.multitap.spatialPattern = 4;      // Decaying
+        p.multitap.tapCount = 12;
+        p.multitap.feedback = 0.55f;
+        p.multitap.feedbackLPCutoff = 12000.0f;
+        p.multitap.feedbackHPCutoff = 40.0f;
+        p.multitap.morphTime = 800.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Stereo";
         p.name = "Alternating Stereo";
-        p.multitap = {3, 1, 6, 333.0f, 120.0f, 0.4f, 20000.0f, 20.0f, 500.0f, 0.5f, 1, 12};  // 1/4T
+        p.multitap.noteValue = 2;           // Quarter
+        p.multitap.noteModifier = 1;        // Triplet
+        p.multitap.timingPattern = 3;       // Eighth
+        p.multitap.spatialPattern = 1;      // Alternating
+        p.multitap.tapCount = 6;
+        p.multitap.feedback = 0.4f;
+        p.multitap.feedbackLPCutoff = 20000.0f;
+        p.multitap.feedbackHPCutoff = 20.0f;
+        p.multitap.morphTime = 500.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::MultiTap; p.category = "Experimental";
         p.name = "Prime Numbers";
-        p.multitap = {17, 2, 7, 400.0f, 120.0f, 0.45f, 20000.0f, 20.0f, 500.0f, 0.5f, 1, 13};  // 1/4
+        p.multitap.noteValue = 2;           // Quarter
+        p.multitap.noteModifier = 0;        // None
+        p.multitap.timingPattern = 17;      // Primes
+        p.multitap.spatialPattern = 2;      // Centered
+        p.multitap.tapCount = 7;
+        p.multitap.feedback = 0.45f;
+        p.multitap.feedbackLPCutoff = 20000.0f;
+        p.multitap.feedbackHPCutoff = 20.0f;
+        p.multitap.morphTime = 500.0f;
+        p.multitap.dryWet = 0.5f;
         presets.push_back(p);
     }
 

@@ -17,6 +17,7 @@ This document captures hard-won insights about VST3 SDK and VSTGUI that are not 
 7. [Editor Lifecycle and IDependent Safety](#7-editor-lifecycle-and-idependent-safety)
 8. [Common Pitfalls](#8-common-pitfalls)
 9. [Cross-Platform Custom Views](#9-cross-platform-custom-views)
+10. [CViewContainer Visibility (setVisible Works)](#10-cviewcontainer-visibility-setvisible-works)
 
 ---
 
@@ -1080,6 +1081,95 @@ if (flags & kRowSelected) {
 | Default filename | Respected | Respected | Respected |
 
 **Recommendation:** Always set `setInitialDirectory()` and `setDefaultSaveName()` but don't rely on exact behavior. Test on all platforms.
+
+---
+
+## 10. CViewContainer Visibility (setVisible Works)
+
+### The Misconception
+
+Some older forum posts (VSTGUI 3.6 era) mention problems with `setVisible()` on CViewContainer, leading developers to use workarounds like moving views off-screen. **This is outdated information for VSTGUI 4.x.**
+
+### The Reality: setVisible() Works Correctly
+
+In modern VSTGUI (4.x), calling `setVisible(false)` on a CViewContainer correctly hides the container and all its children. This was verified by reading the VSTGUI source code.
+
+### Source Code Evidence
+
+**Drawing is skipped for invisible children** (`cviewcontainer.cpp:849-851`):
+
+```cpp
+for (const auto& pV : pImpl->children)
+{
+    if (pV->isVisible ())  // Parent checks visibility before drawing
+    {
+        // draw the child...
+```
+
+**Invalidation respects visibility** (`cviewcontainer.cpp:737-740`):
+
+```cpp
+void CViewContainer::invalid ()
+{
+    if (!isVisible ())
+        return;  // Won't invalidate if not visible
+```
+
+**Mouse events are blocked for invisible views** (`cviewcontainer.cpp:962`):
+
+```cpp
+if (pV && pV->isVisible () && pV->getMouseEnabled () && pV->hitTest(...))
+```
+
+**setVisible() invalidates before hiding** (`cview.cpp:1041-1056`):
+
+```cpp
+void CView::setVisible (bool state)
+{
+    if (hasViewFlag (kVisible) != state)
+    {
+        if (state)
+        {
+            setViewFlag (kVisible, true);
+            invalid ();
+        }
+        else
+        {
+            invalid ();  // Invalidates BEFORE setting invisible
+            setViewFlag (kVisible, false);  // Ensures proper redraw
+        }
+    }
+}
+```
+
+### Using setVisible() with CViewContainer
+
+You can use the `IDependent` / `VisibilityController` pattern (section 6) with CViewContainer just as easily as with CControl:
+
+```cpp
+// In didOpen(), find the container and create a visibility controller
+if (auto* containerView = findViewByName(frame, "MyContainer")) {
+    if (auto* param = getParameterObject(kControllingParamId)) {
+        myContainerVisibilityController_ = new VisibilityController(
+            this, param, containerView);
+    }
+}
+```
+
+The container and all its children will be hidden/shown together.
+
+### Key Points
+
+1. **setVisible(false) on CViewContainer** hides the entire container and all children
+2. **Mouse events** are blocked for invisible views and their children
+3. **Invalidation** is handled correctly (triggers redraw of parent area)
+4. **Old workarounds** (moving off-screen, add/remove) are unnecessary in VSTGUI 4.x
+
+### Sources
+
+- [CViewContainer source code](https://github.com/steinbergmedia/vstgui/blob/master/vstgui/lib/cviewcontainer.cpp)
+- [CView::setVisible source code](https://github.com/steinbergmedia/vstgui/blob/master/vstgui/lib/cview.cpp)
+- [VSTGUI View System Overview](https://github.com/steinbergmedia/vstgui/wiki/View-system-overview)
 
 ---
 

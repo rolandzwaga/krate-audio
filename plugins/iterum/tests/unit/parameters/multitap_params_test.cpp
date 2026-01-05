@@ -288,3 +288,156 @@ TEST_CASE("MultiTap Dry/Wet normalization", "[params][multitap]") {
         REQUIRE(result == Approx(original).margin(0.1f));
     }
 }
+
+// ==============================================================================
+// Custom Pattern Persistence Tests (Phase 4 - User Story 2)
+// ==============================================================================
+
+#include "parameters/multitap_params.h"
+#include "base/source/fstreamer.h"
+#include "public.sdk/source/common/memorystream.h"
+#include <map>
+
+TEST_CASE("MultiTap Custom Pattern save/load round-trip", "[params][multitap][persistence]") {
+    using namespace Iterum;
+    using namespace Steinberg;
+
+    SECTION("custom time ratios are saved and loaded correctly") {
+        MultiTapParams original;
+        for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+            float customTime = static_cast<float>(i) / 20.0f + 0.1f;
+            original.customTimeRatios[i].store(customTime, std::memory_order_relaxed);
+        }
+
+        auto memStream = Steinberg::owned(new MemoryStream());
+        IBStreamer saveStreamer(memStream, kLittleEndian);
+        saveMultiTapParams(original, saveStreamer);
+
+        memStream->seek(0, IBStream::kIBSeekSet, nullptr);
+        IBStreamer loadStreamer(memStream, kLittleEndian);
+        MultiTapParams loaded;
+        loadMultiTapParams(loaded, loadStreamer);
+
+        for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+            float expected = static_cast<float>(i) / 20.0f + 0.1f;
+            REQUIRE(loaded.customTimeRatios[i].load(std::memory_order_relaxed)
+                    == Approx(expected).margin(0.0001f));
+        }
+    }
+
+    SECTION("custom levels are saved and loaded correctly") {
+        MultiTapParams original;
+        for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+            float customLevel = 1.0f - (static_cast<float>(i) / 20.0f);
+            original.customLevels[i].store(customLevel, std::memory_order_relaxed);
+        }
+
+        auto memStream = Steinberg::owned(new MemoryStream());
+        IBStreamer saveStreamer(memStream, kLittleEndian);
+        saveMultiTapParams(original, saveStreamer);
+
+        memStream->seek(0, IBStream::kIBSeekSet, nullptr);
+        IBStreamer loadStreamer(memStream, kLittleEndian);
+        MultiTapParams loaded;
+        loadMultiTapParams(loaded, loadStreamer);
+
+        for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+            float expected = 1.0f - (static_cast<float>(i) / 20.0f);
+            REQUIRE(loaded.customLevels[i].load(std::memory_order_relaxed)
+                    == Approx(expected).margin(0.0001f));
+        }
+    }
+
+    SECTION("full round-trip with all parameters including custom pattern") {
+        MultiTapParams original;
+        original.noteValue.store(5, std::memory_order_relaxed);
+        original.noteModifier.store(1, std::memory_order_relaxed);
+        original.timingPattern.store(19, std::memory_order_relaxed);
+        original.spatialPattern.store(4, std::memory_order_relaxed);
+        original.tapCount.store(8, std::memory_order_relaxed);
+        original.feedback.store(0.75f, std::memory_order_relaxed);
+        original.feedbackLPCutoff.store(5000.0f, std::memory_order_relaxed);
+        original.feedbackHPCutoff.store(200.0f, std::memory_order_relaxed);
+        original.morphTime.store(1000.0f, std::memory_order_relaxed);
+        original.dryWet.store(0.7f, std::memory_order_relaxed);
+
+        const float fibTimes[] = {0.05f, 0.08f, 0.13f, 0.21f, 0.34f, 0.55f, 0.75f, 0.95f,
+                                   0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        const float fibLevels[] = {1.0f, 0.9f, 0.8f, 0.7f, 0.6f, 0.5f, 0.4f, 0.3f,
+                                   0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+        for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+            original.customTimeRatios[i].store(fibTimes[i], std::memory_order_relaxed);
+            original.customLevels[i].store(fibLevels[i], std::memory_order_relaxed);
+        }
+
+        auto memStream = Steinberg::owned(new MemoryStream());
+        IBStreamer saveStreamer(memStream, kLittleEndian);
+        saveMultiTapParams(original, saveStreamer);
+
+        memStream->seek(0, IBStream::kIBSeekSet, nullptr);
+        IBStreamer loadStreamer(memStream, kLittleEndian);
+        MultiTapParams loaded;
+        loadMultiTapParams(loaded, loadStreamer);
+
+        REQUIRE(loaded.noteValue.load(std::memory_order_relaxed) == 5);
+        REQUIRE(loaded.noteModifier.load(std::memory_order_relaxed) == 1);
+        REQUIRE(loaded.timingPattern.load(std::memory_order_relaxed) == 19);
+        REQUIRE(loaded.spatialPattern.load(std::memory_order_relaxed) == 4);
+        REQUIRE(loaded.tapCount.load(std::memory_order_relaxed) == 8);
+        REQUIRE(loaded.feedback.load(std::memory_order_relaxed) == Approx(0.75f).margin(0.0001f));
+        REQUIRE(loaded.feedbackLPCutoff.load(std::memory_order_relaxed) == Approx(5000.0f).margin(0.1f));
+        REQUIRE(loaded.feedbackHPCutoff.load(std::memory_order_relaxed) == Approx(200.0f).margin(0.1f));
+        REQUIRE(loaded.morphTime.load(std::memory_order_relaxed) == Approx(1000.0f).margin(0.1f));
+        REQUIRE(loaded.dryWet.load(std::memory_order_relaxed) == Approx(0.7f).margin(0.0001f));
+
+        for (size_t i = 0; i < kCustomPatternMaxTaps; ++i) {
+            REQUIRE(loaded.customTimeRatios[i].load(std::memory_order_relaxed)
+                    == Approx(fibTimes[i]).margin(0.0001f));
+            REQUIRE(loaded.customLevels[i].load(std::memory_order_relaxed)
+                    == Approx(fibLevels[i]).margin(0.0001f));
+        }
+    }
+}
+
+TEST_CASE("MultiTap Custom Pattern controller sync", "[params][multitap][persistence]") {
+    using namespace Iterum;
+    using namespace Steinberg;
+
+    SECTION("loadMultiTapParamsToController syncs custom pattern values") {
+        MultiTapParams params;
+        params.timingPattern.store(19, std::memory_order_relaxed);
+        params.tapCount.store(6, std::memory_order_relaxed);
+
+        for (size_t i = 0; i < 6; ++i) {
+            params.customTimeRatios[i].store(static_cast<float>(i + 1) / 10.0f, std::memory_order_relaxed);
+            params.customLevels[i].store(1.0f - static_cast<float>(i) / 10.0f, std::memory_order_relaxed);
+        }
+
+        auto memStream = Steinberg::owned(new MemoryStream());
+        IBStreamer saveStreamer(memStream, kLittleEndian);
+        saveMultiTapParams(params, saveStreamer);
+
+        std::map<Vst::ParamID, double> capturedParams;
+        auto mockSetParam = [&capturedParams](Vst::ParamID id, double value) {
+            capturedParams[id] = value;
+        };
+
+        memStream->seek(0, IBStream::kIBSeekSet, nullptr);
+        IBStreamer loadStreamer(memStream, kLittleEndian);
+        loadMultiTapParamsToController(loadStreamer, mockSetParam);
+
+        for (size_t i = 0; i < 6; ++i) {
+            float expectedTime = static_cast<float>(i + 1) / 10.0f;
+            auto it = capturedParams.find(kMultiTapCustomTime0Id + static_cast<Vst::ParamID>(i));
+            REQUIRE(it != capturedParams.end());
+            REQUIRE(it->second == Approx(expectedTime).margin(0.0001));
+        }
+
+        for (size_t i = 0; i < 6; ++i) {
+            float expectedLevel = 1.0f - static_cast<float>(i) / 10.0f;
+            auto it = capturedParams.find(kMultiTapCustomLevel0Id + static_cast<Vst::ParamID>(i));
+            REQUIRE(it != capturedParams.end());
+            REQUIRE(it->second == Approx(expectedLevel).margin(0.0001));
+        }
+    }
+}

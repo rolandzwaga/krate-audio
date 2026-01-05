@@ -222,6 +222,51 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMultiTapMixId = 909,            // 0-100%
     kMultiTapNoteValueId = 911,      // 0-9 (note value) - for mathematical patterns only
     kMultiTapNoteModifierId = 912,   // 0-2 (none, triplet, dotted) - for mathematical patterns only
+    kMultiTapSnapDivisionId = 913,   // 0-21 (off + 21 note values) - spec 046
+
+    // Custom Pattern Editor UI Tags (920-929) - spec 046
+    // Used for visibility control (not parameters, just UI control tags)
+    kMultiTapPatternEditorTagId = 920,      // TapPatternEditor visibility tag
+    kMultiTapCopyPatternButtonTagId = 921,  // CopyPatternButton visibility tag
+    kMultiTapPatternEditorLabelTagId = 922, // Label visibility tag
+    kMultiTapResetPatternButtonTagId = 923, // ResetPatternButton visibility tag
+
+    // Custom Pattern Time Ratios (950-965) - spec 046
+    kMultiTapCustomTime0Id = 950,
+    kMultiTapCustomTime1Id = 951,
+    kMultiTapCustomTime2Id = 952,
+    kMultiTapCustomTime3Id = 953,
+    kMultiTapCustomTime4Id = 954,
+    kMultiTapCustomTime5Id = 955,
+    kMultiTapCustomTime6Id = 956,
+    kMultiTapCustomTime7Id = 957,
+    kMultiTapCustomTime8Id = 958,
+    kMultiTapCustomTime9Id = 959,
+    kMultiTapCustomTime10Id = 960,
+    kMultiTapCustomTime11Id = 961,
+    kMultiTapCustomTime12Id = 962,
+    kMultiTapCustomTime13Id = 963,
+    kMultiTapCustomTime14Id = 964,
+    kMultiTapCustomTime15Id = 965,
+
+    // Custom Pattern Levels (966-981) - spec 046
+    kMultiTapCustomLevel0Id = 966,
+    kMultiTapCustomLevel1Id = 967,
+    kMultiTapCustomLevel2Id = 968,
+    kMultiTapCustomLevel3Id = 969,
+    kMultiTapCustomLevel4Id = 970,
+    kMultiTapCustomLevel5Id = 971,
+    kMultiTapCustomLevel6Id = 972,
+    kMultiTapCustomLevel7Id = 973,
+    kMultiTapCustomLevel8Id = 974,
+    kMultiTapCustomLevel9Id = 975,
+    kMultiTapCustomLevel10Id = 976,
+    kMultiTapCustomLevel11Id = 977,
+    kMultiTapCustomLevel12Id = 978,
+    kMultiTapCustomLevel13Id = 979,
+    kMultiTapCustomLevel14Id = 980,
+    kMultiTapCustomLevel15Id = 981,
+
     kMultiTapEndId = 999,
 
     // ==========================================================================

@@ -5,6 +5,52 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-01-05
+
+### Added
+
+- **Custom Tap Pattern Editor (Spec 046)**
+  - Visual editor for creating custom MultiTap delay patterns
+  - Drag tap bars horizontally to adjust timing (0-100% of delay time)
+  - Drag tap handles vertically to adjust level (0-100%)
+  - Grid snapping with 22 divisions (Off + all 21 note values including triplets and dotted)
+  - Shift+drag constrains to horizontal or vertical axis
+  - Double-click resets tap to default position
+  - Escape cancels drag and restores pre-drag values
+  - Ruler at bottom shows grid divisions based on snap setting
+  - Pattern persists across editor open/close and plugin reload
+  - Editor automatically shows when "Custom" timing pattern is selected
+
+- **Simplified MultiTap UI**
+  - Removed TimeMode, BaseTime, and Internal Tempo controls
+  - Rhythmic patterns (indices 0-13) use host tempo directly
+  - Mathematical patterns (indices 14-19) use Note Value dropdown with host tempo
+
+### Fixed
+
+- **TapPatternEditor Initialization Order**
+  - Fixed custom pattern not displaying correctly when reopening plugin window
+  - Tap count now set before loading tap values to prevent defaults overwriting saved data
+
+- **Preset Generator MultiTap Format**
+  - Fixed MultiTapPreset struct to match actual save format
+  - Added missing fields: noteModifier, customTimeRatios[16], customLevels[16], snapDivision
+  - Removed obsolete fields: timeMode, baseTime, tempo
+  - Regenerated all 110 factory presets with correct format
+
+- **TapPatternEditor Tap Count Reactivity**
+  - Tap count changes now immediately update the editor display
+  - New taps initialize with snapped positions based on current grid setting
+
+### Changed
+
+- **Snap Dropdown Expanded**
+  - Changed from 6 options (Off, Quarter, Eighth, Sixteenth, ThirtySecond, Triplet) to 22 options
+  - Now includes all note values: 1/64T through 1/1D (triplets and dotted variants)
+  - Default changed from Quarter (index 1) to 1/4 (index 14) to match new ordering
+
+---
+
 ## [0.9.6] - 2026-01-04
 
 ### Fixed

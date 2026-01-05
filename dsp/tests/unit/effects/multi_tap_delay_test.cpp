@@ -623,18 +623,17 @@ TEST_CASE("Custom user-defined patterns", "[multi-tap][custom]") {
     delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
 
     SECTION("can set custom timing pattern via span") {
-        // Custom patterns use Note Value + tempo → baseTimeMs, then multiply by ratios
-        // At 120 BPM, Quarter note = 500ms base
-        std::array<float, 4> timeRatios = {1.0f, 2.5f, 3.7f, 5.0f};
+        // Custom patterns use ratios 0.0-1.0 as fractions of max delay time
+        // With maxDelayMs = 5000ms, ratio 0.1 = 500ms, 0.25 = 1250ms, etc.
+        std::array<float, 4> timeRatios = {0.1f, 0.25f, 0.37f, 0.5f};
         delay.setCustomTimingPattern(std::span<float>(timeRatios));
-        delay.setNoteValue(NoteValue::Quarter, NoteModifier::None);
         delay.snapParameters();
 
         auto ctx = makeTestContext(kSampleRate, 120.0);
         std::array<float, 512> left{}, right{};
         delay.process(left.data(), right.data(), 512, ctx);
 
-        // Base time = 500ms (quarter at 120 BPM), multiplied by ratios
+        // Times are maxDelayMs (5000ms) multiplied by ratios
         REQUIRE(delay.getTapTimeMs(0) == Approx(500.0f).margin(5.0f));
         REQUIRE(delay.getTapTimeMs(1) == Approx(1250.0f).margin(5.0f));
         REQUIRE(delay.getTapTimeMs(2) == Approx(1850.0f).margin(10.0f));

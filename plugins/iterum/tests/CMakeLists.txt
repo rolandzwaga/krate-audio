@@ -47,6 +47,7 @@ add_executable(plugin_tests
     unit/ui/preset_selection_test.cpp
     unit/ui/search_debounce_test.cpp
     unit/ui/search_integration_test.cpp
+    unit/ui/tap_pattern_editor_test.cpp
 
     # VST tests
     unit/vst/control_visibility_test.cpp

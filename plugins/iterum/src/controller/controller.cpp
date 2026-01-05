@@ -9,6 +9,7 @@
 #include "preset/preset_manager.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "ui/tap_pattern_editor.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 
@@ -280,6 +281,154 @@ private:
 };
 
 // ==============================================================================
+// ContainerVisibilityController: Hide/show entire CViewContainer by child tag
+// ==============================================================================
+// Finds a container by locating a child control with a known tag, then
+// toggling the PARENT container's visibility based on a parameter value.
+// Per VST-GUIDE Section 10: setVisible() on CViewContainer correctly hides
+// the container and all its children in VSTGUI 4.x.
+//
+// Supports two modes:
+// 1. Threshold mode (upperThreshold < 0): show when value >= threshold (or < if showWhenBelow)
+// 2. Range mode (upperThreshold >= 0): show when lowerThreshold <= value < upperThreshold
+// ==============================================================================
+class ContainerVisibilityController : public Steinberg::FObject {
+public:
+    // Threshold mode: show when value >= threshold (or < if showWhenBelow)
+    ContainerVisibilityController(
+        VSTGUI::VST3Editor** editorPtr,
+        Steinberg::Vst::Parameter* watchedParam,
+        Steinberg::int32 childControlTag,  // Tag of a control INSIDE the container
+        float visibilityThreshold = 0.5f,
+        bool showWhenBelow = true)
+    : editorPtr_(editorPtr)
+    , watchedParam_(watchedParam)
+    , childControlTag_(childControlTag)
+    , lowerThreshold_(visibilityThreshold)
+    , upperThreshold_(-1.0f)  // Negative = threshold mode
+    , showWhenBelow_(showWhenBelow)
+    {
+        if (watchedParam_) {
+            watchedParam_->addRef();
+            watchedParam_->addDependent(this);
+            watchedParam_->deferUpdate();  // Trigger initial update
+        }
+    }
+
+    // Range mode: show when lowerThreshold <= value < upperThreshold
+    ContainerVisibilityController(
+        VSTGUI::VST3Editor** editorPtr,
+        Steinberg::Vst::Parameter* watchedParam,
+        Steinberg::int32 childControlTag,
+        float lowerThreshold,
+        float upperThreshold)
+    : editorPtr_(editorPtr)
+    , watchedParam_(watchedParam)
+    , childControlTag_(childControlTag)
+    , lowerThreshold_(lowerThreshold)
+    , upperThreshold_(upperThreshold)
+    , showWhenBelow_(false)  // Not used in range mode
+    {
+        if (watchedParam_) {
+            watchedParam_->addRef();
+            watchedParam_->addDependent(this);
+            watchedParam_->deferUpdate();  // Trigger initial update
+        }
+    }
+
+    ~ContainerVisibilityController() override {
+        deactivate();
+        if (watchedParam_) {
+            watchedParam_->release();
+            watchedParam_ = nullptr;
+        }
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            if (watchedParam_) {
+                watchedParam_->removeDependent(this);
+            }
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) {
+            return;
+        }
+
+        VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
+        if (message == IDependent::kChanged && watchedParam_ && editor) {
+            float normalizedValue = watchedParam_->getNormalized();
+            bool shouldBeVisible;
+
+            if (upperThreshold_ >= 0.0f) {
+                // Range mode: show when lowerThreshold <= value < upperThreshold
+                shouldBeVisible = (normalizedValue >= lowerThreshold_ && normalizedValue < upperThreshold_);
+            } else {
+                // Threshold mode: show when value >= threshold (or < if showWhenBelow)
+                shouldBeVisible = showWhenBelow_ ?
+                    (normalizedValue < lowerThreshold_) :
+                    (normalizedValue >= lowerThreshold_);
+            }
+
+            // Find the container by locating its child control (handles view switches)
+            if (auto* container = findContainerByChildTag(childControlTag_)) {
+                container->setVisible(shouldBeVisible);
+                if (container->getFrame()) {
+                    container->invalid();
+                }
+            }
+        }
+    }
+
+    OBJ_METHODS(ContainerVisibilityController, FObject)
+
+private:
+    // Find a CViewContainer by locating a child control with the given tag
+    // and returning its parent container
+    VSTGUI::CViewContainer* findContainerByChildTag(Steinberg::int32 tag) {
+        VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
+        if (!editor) return nullptr;
+        auto* frame = editor->getFrame();
+        if (!frame) return nullptr;
+
+        VSTGUI::CViewContainer* result = nullptr;
+        std::function<void(VSTGUI::CViewContainer*)> search;
+        search = [tag, &result, &search](VSTGUI::CViewContainer* container) {
+            if (!container || result) return;
+
+            VSTGUI::ViewIterator it(container);
+            while (*it && !result) {
+                // Check if this view is a control with the target tag
+                if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                    if (control->getTag() == tag) {
+                        // Found the child - return its parent container
+                        result = container;
+                        return;
+                    }
+                }
+                // Recursively search child containers
+                if (auto* childContainer = (*it)->asViewContainer()) {
+                    search(childContainer);
+                }
+                ++it;
+            }
+        };
+        search(frame);
+        return result;
+    }
+
+    VSTGUI::VST3Editor** editorPtr_;
+    Steinberg::Vst::Parameter* watchedParam_;
+    Steinberg::int32 childControlTag_;
+    float lowerThreshold_;
+    float upperThreshold_;  // Negative = threshold mode, >= 0 = range mode
+    bool showWhenBelow_;
+    std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
 // CompoundVisibilityController: Visibility based on TWO parameters (AND logic)
 // ==============================================================================
 // Shows controls when BOTH conditions are met:
@@ -414,6 +563,7 @@ private:
 #include "parameters/freeze_params.h"
 #include "parameters/granular_params.h"
 #include "parameters/multitap_params.h"
+#include "parameters/pattern_calculator.h"
 #include "parameters/pingpong_params.h"
 #include "parameters/reverse_params.h"
 #include "parameters/shimmer_params.h"
@@ -882,6 +1032,19 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // DO NOT manipulate UI controls here - setParamNormalized can be called
     // from non-UI threads (automation, state loading).
 
+    // Update TapPatternEditor snap division when parameter changes (Spec 046)
+    // This is safe because the dropdown interaction happens on UI thread
+    if (id == kMultiTapSnapDivisionId && tapPatternEditor_) {
+        int snapIndex = static_cast<int>(value * 21.0 + 0.5);
+        tapPatternEditor_->setSnapDivision(static_cast<SnapDivision>(snapIndex));
+    }
+
+    // Update TapPatternEditor tap count when parameter changes (Spec 046)
+    if (id == kMultiTapTapCountId && tapPatternEditor_) {
+        int tapCount = static_cast<int>(2.0 + value * 14.0 + 0.5);
+        tapPatternEditor_->setActiveTapCount(static_cast<size_t>(tapCount));
+    }
+
 #if defined(_DEBUG) && defined(_WIN32)
     if (id == kModeId) {
         char tempPath[MAX_PATH];
@@ -996,6 +1159,62 @@ private:
     Controller* controller_ = nullptr;
 };
 
+// =============================================================================
+// CopyPatternButton: Copy current pattern to Custom (Spec 046 - User Story 4)
+// =============================================================================
+class CopyPatternButton : public VSTGUI::CTextButton {
+public:
+    CopyPatternButton(const VSTGUI::CRect& size, Controller* controller)
+        : CTextButton(size, nullptr, -1, "Copy to custom pattern")
+        , controller_(controller)
+    {
+        setFrameColor(VSTGUI::CColor(80, 80, 85));
+        setTextColor(VSTGUI::CColor(255, 255, 255));
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton() && controller_) {
+            controller_->copyCurrentPatternToCustom();
+            return VSTGUI::kMouseEventHandled;
+        }
+        return CTextButton::onMouseDown(where, buttons);
+    }
+
+private:
+    Controller* controller_ = nullptr;
+};
+
+// =============================================================================
+// ResetPatternButton: Reset custom pattern to default linear spread (Spec 046)
+// =============================================================================
+class ResetPatternButton : public VSTGUI::CTextButton {
+public:
+    ResetPatternButton(const VSTGUI::CRect& size, Controller* controller)
+        : CTextButton(size, nullptr, -1, "Reset")
+        , controller_(controller)
+    {
+        setFrameColor(VSTGUI::CColor(80, 80, 85));
+        setTextColor(VSTGUI::CColor(255, 255, 255));
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton() && controller_) {
+            controller_->resetPatternToDefault();
+            return VSTGUI::kMouseEventHandled;
+        }
+        return CTextButton::onMouseDown(where, buttons);
+    }
+
+private:
+    Controller* controller_ = nullptr;
+};
+
 VSTGUI::CView* Controller::createCustomView(
     VSTGUI::UTF8StringPtr name,
     const VSTGUI::UIAttributes& attributes,
@@ -1029,6 +1248,89 @@ VSTGUI::CView* Controller::createCustomView(
         attributes.getPointAttribute("size", size);
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
         return new SavePresetButton(rect, this);
+    }
+
+    // Copy Pattern Button (Spec 046 - User Story 4)
+    if (VSTGUI::UTF8StringView(name) == "CopyPatternButton") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(90, 22);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        auto* button = new CopyPatternButton(rect, this);
+        button->setTag(kMultiTapCopyPatternButtonTagId);  // For visibility control
+        return button;
+    }
+
+    // Reset Pattern Button (Spec 046 - T075)
+    if (VSTGUI::UTF8StringView(name) == "ResetPatternButton") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(60, 22);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        auto* button = new ResetPatternButton(rect, this);
+        button->setTag(kMultiTapResetPatternButtonTagId);  // For visibility control
+        return button;
+    }
+
+    // TapPatternEditor (Spec 046) - Custom tap pattern visual editor
+    if (VSTGUI::UTF8StringView(name) == "TapPatternEditor") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(400, 150);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+
+        auto* patternEditor = new TapPatternEditor(rect);
+
+        // Initialize tap count FIRST (before loading tap values)
+        // This is critical because setActiveTapCount() initializes new taps with defaults,
+        // and we need to load the actual saved values AFTER that.
+        if (auto* tapCountParam = getParameterObject(kMultiTapTapCountId)) {
+            // Tap count is 2-16, normalized 0-1 maps to 2-16
+            float normalized = static_cast<float>(tapCountParam->getNormalized());
+            int tapCount = static_cast<int>(2 + normalized * 14 + 0.5f);
+            patternEditor->setActiveTapCount(static_cast<size_t>(tapCount));
+        }
+
+        // Initialize snap division from parameter (T058)
+        if (auto* snapParam = getParameterObject(kMultiTapSnapDivisionId)) {
+            // Snap division: 0-21 (off + 21 note values)
+            float normalized = static_cast<float>(snapParam->getNormalized());
+            int snapIndex = static_cast<int>(normalized * 21.0f + 0.5f);
+            patternEditor->setSnapDivision(static_cast<SnapDivision>(snapIndex));
+        }
+
+        // Load saved tap values AFTER tap count is set (T033)
+        // This overwrites any defaults that setActiveTapCount() initialized
+        for (size_t i = 0; i < 16; ++i) {
+            // Time ratios (IDs 950-965)
+            if (auto* timeParam = getParameterObject(kMultiTapCustomTime0Id + static_cast<Steinberg::Vst::ParamID>(i))) {
+                patternEditor->setTapTimeRatio(i, static_cast<float>(timeParam->getNormalized()));
+            }
+            // Levels (IDs 966-981)
+            if (auto* levelParam = getParameterObject(kMultiTapCustomLevel0Id + static_cast<Steinberg::Vst::ParamID>(i))) {
+                patternEditor->setTapLevel(i, static_cast<float>(levelParam->getNormalized()));
+            }
+        }
+
+        // Set tag for visibility control
+        patternEditor->setTag(kMultiTapPatternEditorTagId);
+
+        // Store reference for parameter updates
+        tapPatternEditor_ = patternEditor;
+
+        // Set up parameter callback to notify host of changes
+        patternEditor->setParameterCallback(
+            [this](Steinberg::Vst::ParamID paramId, float normalizedValue) {
+                if (auto* param = getParameterObject(paramId)) {
+                    param->setNormalized(static_cast<Steinberg::Vst::ParamValue>(normalizedValue));
+                    performEdit(paramId, static_cast<Steinberg::Vst::ParamValue>(normalizedValue));
+                }
+            });
+
+        return patternEditor;
     }
 
     return nullptr;
@@ -1174,15 +1476,32 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 reverseNoteValueVisibilityController_ = new VisibilityController(
                     &activeEditor_, reverseTimeMode, {9926, kReverseNoteValueId}, 0.5f, false);
             }
-            // MultiTap Note Value: Show when Pattern is Mathematical (GoldenRatio+)
-            // Simplified design: No TimeMode dependency. Pattern >= 14/19 means mathematical.
-            // Preset patterns (0-13) derive timing from pattern name + tempo.
-            // Mathematical patterns (14-19) use Note Value + tempo for baseTimeMs.
+            // MultiTap Note Value: Show when Pattern is Mathematical (14-18), NOT Custom (19)
+            // Patterns 14-18 need Note Value for baseTimeMs calculation.
+            // Pattern 19 (Custom) has its own editor and doesn't use Note Value.
+            // Uses range mode: show when 14/19 <= value < 19/19
             if (auto* multitapPattern = getParameterObject(kMultiTapTimingPatternId)) {
-                multitapNoteValueVisibilityController_ = new VisibilityController(
+                multitapNoteValueVisibilityController_ = new ContainerVisibilityController(
                     &activeEditor_, multitapPattern,
-                    {9931, 9927, 9930, kMultiTapNoteValueId, kMultiTapNoteModifierId},  // Section + labels + dropdowns
-                    14.0f / 19.0f, false);  // Show when pattern >= 14/19 (mathematical)
+                    kMultiTapNoteValueId,  // Find container by child control's tag (Note Value dropdown)
+                    14.0f / 19.0f, 19.0f / 19.0f);  // Range mode: patterns 14-18 only (excludes Custom at 19)
+
+                // Custom Pattern Editor (Spec 046 FR-008): Show only when pattern == Custom (index 19)
+                // Pattern 19 is at normalized 1.0, pattern 18 is at 18/19 ≈ 0.947
+                // Use threshold 0.99 to select only pattern 19
+                // Uses ContainerVisibilityController to hide the entire container (simpler than individual controls)
+                // Finds container by locating TapPatternEditor child (tag 920) and hiding its parent
+                patternEditorVisibilityController_ = new ContainerVisibilityController(
+                    &activeEditor_, multitapPattern,
+                    kMultiTapPatternEditorTagId,  // Find container by child control's tag
+                    0.99f, false);  // Show when pattern >= 0.99 (Custom pattern only)
+
+                // Copy Pattern button: visible when NOT Custom pattern (patterns 0-18)
+                // Button allows copying current pattern to Custom before editing
+                copyPatternButtonVisibilityController_ = new VisibilityController(
+                    &activeEditor_, multitapPattern,
+                    {kMultiTapCopyPatternButtonTagId},  // Button tag
+                    0.99f, true);  // Show when pattern < 0.99 (NOT Custom)
             }
             if (auto* freezeTimeMode = getParameterObject(kFreezeTimeModeId)) {
                 freezeNoteValueVisibilityController_ = new VisibilityController(
@@ -1332,6 +1651,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     deactivateController(pingPongNoteValueVisibilityController_);
     deactivateController(reverseNoteValueVisibilityController_);
     deactivateController(multitapNoteValueVisibilityController_);
+    deactivateController(patternEditorVisibilityController_);  // Spec 046
+    deactivateController(copyPatternButtonVisibilityController_);  // Spec 046
     deactivateController(freezeNoteValueVisibilityController_);
     deactivateController(duckingNoteValueVisibilityController_);
 
@@ -1364,12 +1685,17 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     pingPongNoteValueVisibilityController_ = nullptr;
     reverseNoteValueVisibilityController_ = nullptr;
     multitapNoteValueVisibilityController_ = nullptr;
+    patternEditorVisibilityController_ = nullptr;  // Spec 046
+    copyPatternButtonVisibilityController_ = nullptr;  // Spec 046
     freezeNoteValueVisibilityController_ = nullptr;
     duckingNoteValueVisibilityController_ = nullptr;
 
     // Preset browser view is owned by the frame and will be cleaned up automatically
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
+
+    // TapPatternEditor is owned by the frame and will be cleaned up automatically
+    tapPatternEditor_ = nullptr;
 }
 
 // ==============================================================================
@@ -1403,6 +1729,82 @@ void Controller::openSavePresetDialog() {
 void Controller::closePresetBrowser() {
     if (presetBrowserView_ && presetBrowserView_->isOpen()) {
         presetBrowserView_->close();
+    }
+}
+
+// ==============================================================================
+// Custom Pattern Editor - Copy from Pattern
+// ==============================================================================
+
+void Controller::copyCurrentPatternToCustom() {
+    using namespace Steinberg::Vst;
+
+    // Get current pattern index
+    int patternIndex = 0;
+    if (auto* param = getParameterObject(kMultiTapTimingPatternId)) {
+        patternIndex = static_cast<int>(param->toPlain(param->getNormalized()));
+    }
+
+    // Don't copy if already on Custom pattern (index 19)
+    if (patternIndex == 19) {
+        return;
+    }
+
+    // Get current tap count (2-16 range)
+    int tapCount = 4;
+    if (auto* param = getParameterObject(kMultiTapTapCountId)) {
+        tapCount = static_cast<int>(param->toPlain(param->getNormalized()));
+    }
+    tapCount = std::clamp(tapCount, 2, 16);
+
+    // Calculate pattern ratios for all taps
+    float ratios[16] = {0.0f};
+    calculatePatternRatios(patternIndex, static_cast<size_t>(tapCount), ratios);
+
+    // Update all 16 custom tap time parameters (normalized 0-1)
+    static constexpr ParamID customTimeIds[16] = {
+        kMultiTapCustomTime0Id, kMultiTapCustomTime1Id, kMultiTapCustomTime2Id, kMultiTapCustomTime3Id,
+        kMultiTapCustomTime4Id, kMultiTapCustomTime5Id, kMultiTapCustomTime6Id, kMultiTapCustomTime7Id,
+        kMultiTapCustomTime8Id, kMultiTapCustomTime9Id, kMultiTapCustomTime10Id, kMultiTapCustomTime11Id,
+        kMultiTapCustomTime12Id, kMultiTapCustomTime13Id, kMultiTapCustomTime14Id, kMultiTapCustomTime15Id
+    };
+
+    for (int i = 0; i < 16; ++i) {
+        float value = (i < tapCount) ? ratios[i] : 0.0f;
+        setParamNormalized(customTimeIds[i], value);
+
+        // Notify host of parameter change
+        if (componentHandler) {
+            componentHandler->beginEdit(customTimeIds[i]);
+            componentHandler->performEdit(customTimeIds[i], value);
+            componentHandler->endEdit(customTimeIds[i]);
+        }
+    }
+
+    // Update TapPatternEditor BEFORE switching pattern (ensures editor has correct values)
+    if (tapPatternEditor_) {
+        for (int i = 0; i < 16; ++i) {
+            float value = (i < tapCount) ? ratios[i] : 0.0f;
+            tapPatternEditor_->setTapTimeRatio(static_cast<size_t>(i), value);
+        }
+    }
+
+    // Switch to Custom pattern (index 19)
+    // Pattern has 20 options (0-19), so normalized = 19/19 = 1.0
+    double customPatternNormalized = 19.0 / 19.0;
+    setParamNormalized(kMultiTapTimingPatternId, customPatternNormalized);
+
+    if (componentHandler) {
+        componentHandler->beginEdit(kMultiTapTimingPatternId);
+        componentHandler->performEdit(kMultiTapTimingPatternId, customPatternNormalized);
+        componentHandler->endEdit(kMultiTapTimingPatternId);
+    }
+}
+
+void Controller::resetPatternToDefault() {
+    // Delegate to TapPatternEditor which handles the logic
+    if (tapPatternEditor_) {
+        tapPatternEditor_->resetToDefault();
     }
 }
 
@@ -1594,6 +1996,16 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeFloat(getFloat(kMultiTapFeedbackHPCutoffId, 20.0f));
     streamer.writeFloat(getFloat(kMultiTapMorphTimeId, 500.0f));
     streamer.writeFloat(getFloat(kMultiTapMixId, 50.0f));
+
+    // Custom Pattern Data (spec 046)
+    for (int i = 0; i < 16; ++i) {
+        float defaultTime = static_cast<float>(i + 1) / 17.0f;
+        streamer.writeFloat(getFloat(kMultiTapCustomTime0Id + i, defaultTime));
+    }
+    for (int i = 0; i < 16; ++i) {
+        streamer.writeFloat(getFloat(kMultiTapCustomLevel0Id + i, 1.0f));
+    }
+    streamer.writeInt32(getInt32(kMultiTapSnapDivisionId, 14));   // Default: 1/4 (index 14)
 
     // Seek to beginning so the stream can be read
     stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
