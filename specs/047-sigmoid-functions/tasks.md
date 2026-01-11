@@ -286,11 +286,11 @@ This is a DSP library feature:
 
 ### 9.1 Refactoring
 
-- [ ] T084 Refactor `SaturationProcessor::saturateTape()` to call `Sigmoid::tanh()` in `dsp/include/krate/dsp/processors/saturation_processor.h`
-- [ ] T085 Refactor `SaturationProcessor::saturateTube()` to call `Asymmetric::tube()` in `dsp/include/krate/dsp/processors/saturation_processor.h`
-- [ ] T086 Refactor `SaturationProcessor::saturateDiode()` to call `Asymmetric::diode()` in `dsp/include/krate/dsp/processors/saturation_processor.h`
-- [ ] T087 Run existing SaturationProcessor tests to verify bit-exact or -120dB tolerance (SC-006)
-- [ ] T088 Fix any refactoring issues
+- [x] T084 Refactor `SaturationProcessor::saturateTape()` to call `Sigmoid::tanh()` in `dsp/include/krate/dsp/processors/saturation_processor.h`
+- [x] T085 Refactor `SaturationProcessor::saturateTube()` to call `Asymmetric::tube()` in `dsp/include/krate/dsp/processors/saturation_processor.h`
+- [x] T086 Refactor `SaturationProcessor::saturateDiode()` to call `Asymmetric::diode()` in `dsp/include/krate/dsp/processors/saturation_processor.h`
+- [x] T087 Run existing SaturationProcessor tests to verify bit-exact or -120dB tolerance (SC-006)
+- [x] T088 Fix any refactoring issues
 
 ### 9.2 Commit
 
