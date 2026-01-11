@@ -308,7 +308,7 @@ This is a DSP library feature:
 
 ### 10.1 Architecture Documentation Update
 
-- [ ] T090 **Update ARCHITECTURE.md** with new components:
+- [x] T090 **Update ARCHITECTURE.md** with new components:
   - Add `Sigmoid` namespace to Layer 0 section
   - Add `Asymmetric` namespace to Layer 0 section
   - Document public API: tanh, tanhVariable, atan, atanVariable, softClipCubic, softClipQuintic, recipSqrt, erf, erfApprox, hardClip
