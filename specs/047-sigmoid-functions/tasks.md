@@ -195,19 +195,19 @@ This is a DSP library feature:
 
 ### 6.1 Pre-Implementation (MANDATORY)
 
-- [ ] T053 [US4] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
+- [x] T053 [US4] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
 
 ### 6.2 Tests for User Story 4 (Write FIRST - Must FAIL)
 
-- [ ] T054 [P] [US4] Write test verifying `Sigmoid::tanh()` produces only odd harmonics in `dsp/tests/core/sigmoid_test.cpp`
-- [ ] T055 [P] [US4] Write test verifying symmetric functions produce no even harmonics in `dsp/tests/core/sigmoid_test.cpp`
-- [ ] T056 [US4] Verify harmonic tests compile and can analyze spectrum
+- [x] T054 [P] [US4] Write test verifying `Sigmoid::tanh()` produces only odd harmonics in `dsp/tests/core/sigmoid_test.cpp`
+- [x] T055 [P] [US4] Write test verifying symmetric functions produce no even harmonics in `dsp/tests/core/sigmoid_test.cpp`
+- [x] T056 [US4] Verify harmonic tests compile and can analyze spectrum
 
 ### 6.3 Implementation for User Story 4
 
-- [ ] T057 [US4] Run harmonic tests and verify odd-harmonic-only for symmetric functions
-- [ ] T058 [US4] Update Doxygen with harmonic characteristics per research.md (FR-021)
-- [ ] T059 [US4] Verify all US4 tests pass
+- [x] T057 [US4] Run harmonic tests and verify odd-harmonic-only for symmetric functions
+- [x] T058 [US4] Update Doxygen with harmonic characteristics per research.md (FR-021)
+- [x] T059 [US4] Verify all US4 tests pass
 
 ### 6.4 Commit (MANDATORY)
 

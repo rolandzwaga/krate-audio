@@ -589,6 +589,120 @@ TEST_CASE("Sigmoid::recipSqrt() is faster than std::tanh", "[sigmoid][core][US3]
 }
 
 // =============================================================================
+// Harmonic Character Verification (US4: T054-T055)
+// =============================================================================
+// Symmetric functions must satisfy f(-x) = -f(x), which mathematically
+// guarantees they produce only odd harmonics (3rd, 5th, 7th...) when
+// applied to audio signals.
+
+TEST_CASE("Symmetric sigmoid functions satisfy f(-x) = -f(x)", "[sigmoid][core][US4][harmonics]") {
+    // FR-018, FR-019: Point symmetry ensures odd-harmonic-only output
+    // Testing across a range of inputs including edge cases
+
+    const std::vector<float> testInputs = {
+        0.0f, 0.1f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f,
+        0.001f, 0.01f, 100.0f  // Small and large values
+    };
+
+    SECTION("Sigmoid::tanh is point-symmetric") {
+        for (float x : testInputs) {
+            float pos = Sigmoid::tanh(x);
+            float neg = Sigmoid::tanh(-x);
+            REQUIRE(pos == Catch::Approx(-neg).margin(1e-6f));
+        }
+    }
+
+    SECTION("Sigmoid::atan is point-symmetric") {
+        for (float x : testInputs) {
+            float pos = Sigmoid::atan(x);
+            float neg = Sigmoid::atan(-x);
+            REQUIRE(pos == Catch::Approx(-neg).margin(1e-6f));
+        }
+    }
+
+    SECTION("Sigmoid::softClipCubic is point-symmetric") {
+        for (float x : testInputs) {
+            float pos = Sigmoid::softClipCubic(x);
+            float neg = Sigmoid::softClipCubic(-x);
+            REQUIRE(pos == Catch::Approx(-neg).margin(1e-6f));
+        }
+    }
+
+    SECTION("Sigmoid::softClipQuintic is point-symmetric") {
+        for (float x : testInputs) {
+            float pos = Sigmoid::softClipQuintic(x);
+            float neg = Sigmoid::softClipQuintic(-x);
+            REQUIRE(pos == Catch::Approx(-neg).margin(1e-6f));
+        }
+    }
+
+    SECTION("Sigmoid::recipSqrt is point-symmetric") {
+        for (float x : testInputs) {
+            float pos = Sigmoid::recipSqrt(x);
+            float neg = Sigmoid::recipSqrt(-x);
+            REQUIRE(pos == Catch::Approx(-neg).margin(1e-6f));
+        }
+    }
+
+    SECTION("Sigmoid::erf is point-symmetric") {
+        for (float x : testInputs) {
+            float pos = Sigmoid::erf(x);
+            float neg = Sigmoid::erf(-x);
+            REQUIRE(pos == Catch::Approx(-neg).margin(1e-6f));
+        }
+    }
+
+    SECTION("Sigmoid::erfApprox is point-symmetric") {
+        for (float x : testInputs) {
+            float pos = Sigmoid::erfApprox(x);
+            float neg = Sigmoid::erfApprox(-x);
+            REQUIRE(pos == Catch::Approx(-neg).margin(1e-6f));
+        }
+    }
+
+    SECTION("Sigmoid::hardClip is point-symmetric") {
+        for (float x : testInputs) {
+            float pos = Sigmoid::hardClip(x);
+            float neg = Sigmoid::hardClip(-x);
+            REQUIRE(pos == Catch::Approx(-neg).margin(1e-6f));
+        }
+    }
+}
+
+TEST_CASE("Asymmetric functions do NOT satisfy f(-x) = -f(x)", "[sigmoid][core][US4][harmonics]") {
+    // Asymmetric functions should produce different magnitudes for +/- inputs
+    // This asymmetry creates even harmonics (2nd, 4th...)
+
+    SECTION("Asymmetric::tube is NOT point-symmetric") {
+        // The x² term breaks symmetry
+        float pos = Asymmetric::tube(0.5f);
+        float neg = Asymmetric::tube(-0.5f);
+        // They should NOT be negatives of each other
+        REQUIRE(pos != Catch::Approx(-neg).margin(0.01f));
+    }
+
+    SECTION("Asymmetric::diode is NOT point-symmetric") {
+        // Different curves for positive vs negative
+        float pos = Asymmetric::diode(0.5f);
+        float neg = Asymmetric::diode(-0.5f);
+        REQUIRE(pos != Catch::Approx(-neg).margin(0.01f));
+    }
+
+    SECTION("Asymmetric::dualCurve with different gains is NOT point-symmetric") {
+        float pos = Asymmetric::dualCurve(0.5f, 2.0f, 1.0f);
+        float neg = Asymmetric::dualCurve(-0.5f, 2.0f, 1.0f);
+        REQUIRE(pos != Catch::Approx(-neg).margin(0.01f));
+    }
+
+    SECTION("Asymmetric::dualCurve with equal gains IS point-symmetric") {
+        // When gains are equal, it degenerates to symmetric tanh
+        float pos = Asymmetric::dualCurve(0.5f, 2.0f, 2.0f);
+        float neg = Asymmetric::dualCurve(-0.5f, 2.0f, 2.0f);
+        REQUIRE(pos == Catch::Approx(-neg).margin(1e-6f));
+    }
+}
+
+// =============================================================================
 // Function Attributes (FR-015, FR-016)
 // =============================================================================
 
