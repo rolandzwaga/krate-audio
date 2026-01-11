@@ -155,8 +155,8 @@ TEST_CASE("Sigmoid::softClipQuintic() polynomial correctness", "[sigmoid][core][
     }
 }
 
-TEST_CASE("Sigmoid::recipSqrt() accuracy vs x/sqrt(x²+1)", "[sigmoid][core][US1]") {
-    // FR-007: Implements x / sqrt(x² + 1) as fast tanh alternative
+TEST_CASE("Sigmoid::recipSqrt() accuracy vs x/sqrt(x^2+1)", "[sigmoid][core][US1]") {
+    // FR-007: Implements x / sqrt(x^2 + 1) as fast tanh alternative
 
     SECTION("matches x/sqrt(x²+1) within 0.1%") {
         std::vector<float> testValues = {-3.0f, -2.0f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 2.0f, 3.0f};
