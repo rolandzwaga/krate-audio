@@ -4,7 +4,7 @@ Living inventory of components and APIs. Reference before writing specs to avoid
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document.
 
-**Last Updated**: 2026-01-04 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
+**Last Updated**: 2026-01-11 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
 
 ## Repository Structure
 
@@ -136,6 +136,51 @@ namespace FastMath {
 ```
 
 **Recommendations:** Use `fastTanh()` for saturation/waveshaping (3x speedup). Use `std::sin/cos/exp` for LFOs and filters (MSVC already optimized).
+
+### Sigmoid Transfer Functions
+**Path:** [sigmoid.h](dsp/include/krate/dsp/core/sigmoid.h) • **Since:** 0.10.0
+
+Unified library of sigmoid (soft-clipping) transfer functions for audio saturation.
+
+```cpp
+namespace Sigmoid {
+    // Symmetric functions (odd harmonics only)
+    [[nodiscard]] constexpr float tanh(float x) noexcept;           // Wraps FastMath::fastTanh
+    [[nodiscard]] constexpr float tanhVariable(float x, float drive) noexcept;  // Variable drive
+    [[nodiscard]] inline float atan(float x) noexcept;              // (2/π)*atan(x)
+    [[nodiscard]] inline float atanVariable(float x, float drive) noexcept;
+    [[nodiscard]] inline float softClipCubic(float x) noexcept;     // 1.5x - 0.5x³
+    [[nodiscard]] inline float softClipQuintic(float x) noexcept;   // 5th-order Legendre
+    [[nodiscard]] inline float recipSqrt(float x) noexcept;         // x/sqrt(x²+1), ~5x faster
+    [[nodiscard]] inline float erf(float x) noexcept;               // Wraps std::erf
+    [[nodiscard]] inline float erfApprox(float x) noexcept;         // Abramowitz-Stegun, <0.1% error
+    [[nodiscard]] inline constexpr float hardClip(float x, float threshold = 1.0f) noexcept;
+}
+
+namespace Asymmetric {
+    // Asymmetric functions (even + odd harmonics)
+    [[nodiscard]] inline float tube(float x) noexcept;              // x + 0.3x² - 0.15x³, tanh limited
+    [[nodiscard]] inline float diode(float x) noexcept;             // Forward/reverse bias modeling
+    template<typename Func>
+    [[nodiscard]] inline float withBias(float x, float bias, Func func) noexcept;  // DC bias wrapper
+    [[nodiscard]] inline float dualCurve(float x, float posGain, float negGain) noexcept;
+}
+```
+
+| Function | Speed vs std::tanh | Harmonics | Best For |
+|----------|-------------------|-----------|----------|
+| `Sigmoid::tanh` | 3x faster | Odd only | General saturation |
+| `Sigmoid::recipSqrt` | 5x faster | Odd only | CPU-critical paths |
+| `Sigmoid::softClipCubic` | 8x faster | Odd (3rd dominant) | Gentle limiting |
+| `Sigmoid::erf` | 1x (wraps std) | Odd + nulls | Tape character |
+| `Asymmetric::tube` | 3x faster | Even + Odd | Tube warmth |
+| `Asymmetric::diode` | ~1x | Even + Odd | Subtle asymmetry |
+
+**When to use:**
+- **Variable drive:** Use `tanhVariable(x, drive)` for "drive knob" UI control
+- **Performance critical:** Use `recipSqrt()` for 5x speedup over tanh
+- **Tube warmth:** Use `Asymmetric::tube()` for 2nd harmonic richness
+- **Tape character:** Use `erf()` for characteristic spectral nulls
 
 ### Interpolation Utilities
 **Path:** [interpolation.h](dsp/include/krate/dsp/core/interpolation.h) • **Since:** 0.0.17

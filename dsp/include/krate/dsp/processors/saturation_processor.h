@@ -26,6 +26,7 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/oversampler.h>
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/sigmoid.h>
 
 #include <algorithm>
 #include <cmath>
@@ -338,26 +339,21 @@ public:
 private:
     // -------------------------------------------------------------------------
     // Saturation Functions (FR-001 to FR-005)
+    // Refactored to use Sigmoid library (spec 047-sigmoid-functions)
     // -------------------------------------------------------------------------
 
     /// @brief Tape saturation using tanh curve
     [[nodiscard]] static float saturateTape(float x) noexcept {
         // FR-001: tanh(x) - symmetric, odd harmonics
-        return std::tanh(x);
+        // Uses Sigmoid::tanh() which wraps FastMath::fastTanh() for ~3x performance
+        return Sigmoid::tanh(x);
     }
 
     /// @brief Tube saturation using asymmetric polynomial
     [[nodiscard]] static float saturateTube(float x) noexcept {
         // FR-002: Asymmetric polynomial - even harmonics
-        // Classic tube-style asymmetric transfer function:
-        // y = x + a*x² - b*x³, then soft limited via tanh
-        // The x² term introduces even harmonics (2nd, 4th, etc.)
-        const float x2 = x * x;
-        const float x3 = x2 * x;
-        // Coefficients tuned for musical character and even harmonic content
-        const float asymmetric = x + 0.3f * x2 - 0.15f * x3;
-        // Soft limit to prevent runaway for high input levels
-        return std::tanh(asymmetric);
+        // Delegates to Asymmetric::tube() for consistent implementation
+        return Asymmetric::tube(x);
     }
 
     /// @brief Transistor saturation using hard-knee soft clip
@@ -372,33 +368,24 @@ private:
             // Linear region
             return x;
         }
-        // Above threshold: soft clip with hard knee
-        // Maps (threshold, inf) -> (threshold, 1.0)
+        // Above threshold: soft clip with hard knee using Sigmoid::tanh
         const float excess = absX - kThreshold;
-        const float compressed = kThreshold + kKnee * std::tanh(excess / kKnee);
+        const float compressed = kThreshold + kKnee * Sigmoid::tanh(excess / kKnee);
         return (x >= 0.0f) ? compressed : -compressed;
     }
 
     /// @brief Digital saturation using hard clip
     [[nodiscard]] static float saturateDigital(float x) noexcept {
         // FR-004: Hard clip (clamp) - harsh
-        return std::clamp(x, -1.0f, 1.0f);
+        // Uses Sigmoid::hardClip() for API consistency
+        return Sigmoid::hardClip(x);
     }
 
     /// @brief Diode saturation using soft asymmetric curve
     [[nodiscard]] static float saturateDiode(float x) noexcept {
         // FR-005: Soft asymmetric - subtle warmth
-        // Models diode conduction: soft knee in forward bias,
-        // harder cutoff in reverse bias. Creates even harmonics.
-        if (x >= 0.0f) {
-            // Forward bias: soft exponential saturation
-            // y = 1 - exp(-x), but scaled for unity gain at low levels
-            return 1.0f - std::exp(-x * 1.5f);
-        } else {
-            // Reverse bias: harder, more linear with soft limit
-            // Creates asymmetry for even harmonic content
-            return x / (1.0f - 0.5f * x);  // Soft inverse curve
-        }
+        // Delegates to Asymmetric::diode() for consistent implementation
+        return Asymmetric::diode(x);
     }
 
     /// @brief Apply current saturation type to sample

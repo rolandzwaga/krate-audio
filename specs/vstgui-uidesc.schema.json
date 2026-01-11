@@ -1,0 +1,809 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://steinbergmedia.github.io/vstgui/uidesc.schema.json",
+  "title": "VSTGUI UI Description",
+  "description": "Schema for VSTGUI uidesc JSON format - declarative UI definition for VST3 plugins",
+  "type": "object",
+  "required": ["vstgui-ui-description"],
+  "properties": {
+    "vstgui-ui-description": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": ["1"],
+          "description": "VSTGUI UI Description format version"
+        },
+        "colors": {
+          "$ref": "#/$defs/colorsDefinition"
+        },
+        "fonts": {
+          "$ref": "#/$defs/fontsDefinition"
+        },
+        "bitmaps": {
+          "$ref": "#/$defs/bitmapsDefinition"
+        },
+        "gradients": {
+          "$ref": "#/$defs/gradientsDefinition"
+        },
+        "control-tags": {
+          "$ref": "#/$defs/controlTagsDefinition"
+        },
+        "variables": {
+          "$ref": "#/$defs/variablesDefinition"
+        },
+        "templates": {
+          "$ref": "#/$defs/templatesDefinition"
+        },
+        "custom": {
+          "$ref": "#/$defs/customDefinition"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "colorValue": {
+      "type": "string",
+      "description": "Color value: hex (#RRGGBBAA or #RRGGBB), color name reference, or predefined (~ BlackCColor)",
+      "pattern": "^(#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?|~\\s*\\w+|var\\.\\w+|[a-zA-Z][a-zA-Z0-9_-]*)$"
+    },
+    "pointValue": {
+      "type": "string",
+      "description": "Point value: 'x, y' coordinates",
+      "pattern": "^-?\\d+(\\.\\d+)?\\s*,\\s*-?\\d+(\\.\\d+)?$"
+    },
+    "sizeValue": {
+      "type": "string",
+      "description": "Size value: 'width, height'",
+      "pattern": "^\\d+(\\.\\d+)?\\s*,\\s*\\d+(\\.\\d+)?$"
+    },
+    "rectValue": {
+      "type": "string",
+      "description": "Rectangle value: 'x, y, width, height'",
+      "pattern": "^-?\\d+(\\.\\d+)?\\s*,\\s*-?\\d+(\\.\\d+)?\\s*,\\s*\\d+(\\.\\d+)?\\s*,\\s*\\d+(\\.\\d+)?$"
+    },
+    "booleanValue": {
+      "type": "string",
+      "enum": ["true", "false"],
+      "description": "Boolean value as string"
+    },
+    "numericValue": {
+      "type": "string",
+      "description": "Numeric value (integer or float)",
+      "pattern": "^-?\\d+(\\.\\d+)?$"
+    },
+    "autosizeValue": {
+      "type": "string",
+      "description": "Autosize anchors: combination of 'left', 'right', 'top', 'bottom', 'row', 'column'",
+      "pattern": "^(left|right|top|bottom|row|column)(\\s+(left|right|top|bottom|row|column))*$"
+    },
+    "colorsDefinition": {
+      "type": "object",
+      "description": "Color definitions",
+      "additionalProperties": {
+        "$ref": "#/$defs/colorValue"
+      }
+    },
+    "fontDefinition": {
+      "type": "object",
+      "description": "Font definition",
+      "required": ["font-name", "size"],
+      "properties": {
+        "font-name": {
+          "type": "string",
+          "description": "System font name (e.g., 'Arial', 'Helvetica')"
+        },
+        "size": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Font size in points"
+        },
+        "bold": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "italic": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "underline": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "strike-through": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "alternative-font-names": {
+          "type": "string",
+          "description": "Comma-separated fallback font names"
+        }
+      },
+      "additionalProperties": false
+    },
+    "fontsDefinition": {
+      "type": "object",
+      "description": "Font definitions",
+      "additionalProperties": {
+        "$ref": "#/$defs/fontDefinition"
+      }
+    },
+    "bitmapData": {
+      "type": "object",
+      "description": "Embedded bitmap data",
+      "required": ["encoding", "data"],
+      "properties": {
+        "encoding": {
+          "type": "string",
+          "enum": ["base64"],
+          "description": "Data encoding format"
+        },
+        "data": {
+          "type": "string",
+          "description": "Base64-encoded image data"
+        }
+      },
+      "additionalProperties": false
+    },
+    "bitmapDefinition": {
+      "type": "object",
+      "description": "Bitmap definition",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "File path relative to uidesc location"
+        },
+        "scale-factor": {
+          "$ref": "#/$defs/numericValue",
+          "description": "DPI scale factor (1, 1.5, 2, etc.)"
+        },
+        "nineparttiled-offsets": {
+          "type": "string",
+          "description": "Nine-part tiling offsets: 'top, left, bottom, right'",
+          "pattern": "^\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+$"
+        },
+        "data": {
+          "$ref": "#/$defs/bitmapData"
+        }
+      },
+      "additionalProperties": false
+    },
+    "bitmapsDefinition": {
+      "type": "object",
+      "description": "Bitmap definitions",
+      "additionalProperties": {
+        "$ref": "#/$defs/bitmapDefinition"
+      }
+    },
+    "gradientColorStop": {
+      "type": "object",
+      "description": "Gradient color stop",
+      "required": ["rgba", "start"],
+      "properties": {
+        "rgba": {
+          "$ref": "#/$defs/colorValue",
+          "description": "Color at this stop"
+        },
+        "start": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Stop position (0.0 to 1.0)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "gradientDefinition": {
+      "type": "array",
+      "description": "Gradient definition as array of color stops",
+      "items": {
+        "$ref": "#/$defs/gradientColorStop"
+      },
+      "minItems": 2
+    },
+    "gradientsDefinition": {
+      "type": "object",
+      "description": "Gradient definitions",
+      "additionalProperties": {
+        "$ref": "#/$defs/gradientDefinition"
+      }
+    },
+    "controlTagValue": {
+      "type": "string",
+      "description": "Control tag: numeric ID, string tag ('name'), or expression",
+      "pattern": "^(\\d+|'[^']{1,4}'|[\\d+\\-*/\\s]+)$"
+    },
+    "controlTagsDefinition": {
+      "type": "object",
+      "description": "Control tag mappings (name -> parameter ID)",
+      "additionalProperties": {
+        "$ref": "#/$defs/controlTagValue"
+      }
+    },
+    "variablesDefinition": {
+      "type": "object",
+      "description": "Variable definitions (name -> value)",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "viewClass": {
+      "type": "string",
+      "description": "VSTGUI view class name",
+      "enum": [
+        "CView",
+        "CViewContainer",
+        "CLayeredViewContainer",
+        "CRowColumnView",
+        "CScrollView",
+        "CSplitView",
+        "CShadowViewContainer",
+        "UIViewSwitchContainer",
+        "CControl",
+        "CTextLabel",
+        "CMultiLineTextLabel",
+        "CTextEdit",
+        "CSearchTextEdit",
+        "CTextButton",
+        "COnOffButton",
+        "CCheckBox",
+        "CSegmentButton",
+        "CKickButton",
+        "CRockerSwitch",
+        "CVerticalSwitch",
+        "CHorizontalSwitch",
+        "CMovieButton",
+        "CMovieBitmap",
+        "CKnob",
+        "CAnimKnob",
+        "CSlider",
+        "CVuMeter",
+        "CParamDisplay",
+        "CXYPad",
+        "COptionMenu",
+        "CGradientView",
+        "CStringListControl",
+        "CAutoAnimation",
+        "CAnimationSplashScreen"
+      ]
+    },
+    "baseViewAttributes": {
+      "type": "object",
+      "description": "Attributes common to all views",
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/viewClass"
+        },
+        "origin": {
+          "$ref": "#/$defs/pointValue",
+          "description": "Top-left corner position"
+        },
+        "size": {
+          "$ref": "#/$defs/sizeValue",
+          "description": "View dimensions"
+        },
+        "autosize": {
+          "$ref": "#/$defs/autosizeValue",
+          "description": "Resize anchor behavior"
+        },
+        "transparent": {
+          "$ref": "#/$defs/booleanValue",
+          "description": "Allow mouse events to pass through"
+        },
+        "mouse-enabled": {
+          "$ref": "#/$defs/booleanValue",
+          "description": "Respond to mouse events"
+        },
+        "opacity": {
+          "$ref": "#/$defs/numericValue",
+          "description": "View opacity (0 to 1)"
+        },
+        "wants-focus": {
+          "$ref": "#/$defs/booleanValue",
+          "description": "Can receive keyboard focus"
+        },
+        "tooltip": {
+          "type": "string",
+          "description": "Hover tooltip text"
+        },
+        "uidesc-label": {
+          "type": "string",
+          "description": "Editor label for identification"
+        },
+        "custom-view-name": {
+          "type": "string",
+          "description": "Reference to custom plugin view"
+        },
+        "sub-controller": {
+          "type": "string",
+          "description": "Sub-controller name for this view"
+        },
+        "template": {
+          "type": "string",
+          "description": "Template name to instantiate"
+        }
+      }
+    },
+    "containerAttributes": {
+      "type": "object",
+      "description": "Attributes for container views",
+      "allOf": [
+        { "$ref": "#/$defs/baseViewAttributes" }
+      ],
+      "properties": {
+        "background-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "background-color-draw-style": {
+          "type": "string",
+          "enum": ["filled", "stroked", "filled and stroked"]
+        }
+      }
+    },
+    "controlAttributes": {
+      "type": "object",
+      "description": "Attributes for control views",
+      "allOf": [
+        { "$ref": "#/$defs/baseViewAttributes" }
+      ],
+      "properties": {
+        "control-tag": {
+          "type": "string",
+          "description": "Reference to control-tags entry"
+        },
+        "default-value": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Initial value (0.0 to 1.0)"
+        },
+        "min-value": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "max-value": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "wheel-inc-value": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Mouse wheel increment"
+        },
+        "font": {
+          "type": "string",
+          "description": "Reference to fonts entry"
+        },
+        "font-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "font-antialias": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "text-alignment": {
+          "type": "string",
+          "enum": ["left", "center", "right"]
+        },
+        "text-inset": {
+          "$ref": "#/$defs/pointValue"
+        },
+        "text-rotation": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "value-precision": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Decimal places displayed"
+        },
+        "style-3D-in": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "style-3D-out": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "style-no-frame": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "style-no-text": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "style-no-draw": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "style-shadow-text": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "style-round-rect": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "back-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "frame-color": {
+          "$ref": "#/$defs/colorValue"
+        }
+      }
+    },
+    "sliderAttributes": {
+      "type": "object",
+      "description": "Slider-specific attributes",
+      "allOf": [
+        { "$ref": "#/$defs/controlAttributes" }
+      ],
+      "properties": {
+        "bitmap": {
+          "type": "string",
+          "description": "Slider track/background bitmap"
+        },
+        "handle-bitmap": {
+          "type": "string",
+          "description": "Slider thumb bitmap"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["free click", "touch"]
+        },
+        "orientation": {
+          "type": "string",
+          "enum": ["horizontal", "vertical", "horizontal-inverse", "vertical-inverse"]
+        },
+        "reverse-orientation": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "bitmap-offset": {
+          "$ref": "#/$defs/pointValue"
+        },
+        "handle-offset": {
+          "$ref": "#/$defs/pointValue"
+        },
+        "draw-frame": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "draw-back": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "draw-value": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "draw-value-from-center": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "draw-value-inverted": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "draw-frame-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "draw-back-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "draw-value-color": {
+          "$ref": "#/$defs/colorValue"
+        }
+      }
+    },
+    "knobAttributes": {
+      "type": "object",
+      "description": "Knob-specific attributes",
+      "allOf": [
+        { "$ref": "#/$defs/controlAttributes" }
+      ],
+      "properties": {
+        "bitmap": {
+          "type": "string"
+        },
+        "angle-start": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Starting angle in degrees"
+        },
+        "angle-range": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Rotation range in degrees"
+        },
+        "zoom-factor": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "value-inset": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "handle-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "handle-shadow-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "handle-line-width": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "circle-drawing": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "corona-drawing": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "corona-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "corona-inset": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "corona-outline": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "corona-inverted": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "corona-from-center": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "corona-dash-dot": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "corona-line-cap-butt": {
+          "$ref": "#/$defs/booleanValue"
+        }
+      }
+    },
+    "textButtonAttributes": {
+      "type": "object",
+      "description": "Text button attributes",
+      "allOf": [
+        { "$ref": "#/$defs/controlAttributes" }
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Button text"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Icon bitmap"
+        },
+        "icon-highlighted": {
+          "type": "string"
+        },
+        "icon-position": {
+          "type": "string",
+          "enum": ["left", "right", "center above text", "center below text"]
+        },
+        "icon-text-margin": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "gradient": {
+          "type": "string",
+          "description": "Gradient name"
+        },
+        "gradient-highlighted": {
+          "type": "string"
+        },
+        "text-color-highlighted": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "frame-color-highlighted": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "round-radius": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "kick-style": {
+          "$ref": "#/$defs/booleanValue"
+        }
+      }
+    },
+    "scrollViewAttributes": {
+      "type": "object",
+      "description": "Scroll view attributes",
+      "allOf": [
+        { "$ref": "#/$defs/containerAttributes" }
+      ],
+      "properties": {
+        "container-size": {
+          "$ref": "#/$defs/sizeValue",
+          "description": "Scrollable content size"
+        },
+        "horizontal-scrollbar": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "vertical-scrollbar": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "auto-drag-scrolling": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "overlay-scrollbars": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "auto-hide-scrollbars": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "bordered": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "scrollbar-width": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "scrollbar-background-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "scrollbar-frame-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "scrollbar-scroller-color": {
+          "$ref": "#/$defs/colorValue"
+        }
+      }
+    },
+    "rowColumnViewAttributes": {
+      "type": "object",
+      "description": "Row/column view attributes",
+      "allOf": [
+        { "$ref": "#/$defs/containerAttributes" }
+      ],
+      "properties": {
+        "row-style": {
+          "$ref": "#/$defs/booleanValue",
+          "description": "true for rows, false for columns"
+        },
+        "spacing": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Pixels between items"
+        },
+        "margin": {
+          "type": "string",
+          "description": "Margins: 'left, top, right, bottom'"
+        },
+        "equal-size-layout": {
+          "type": "string",
+          "enum": ["left-top", "center", "right-bottom", "stretch"]
+        },
+        "animate-view-resizing": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "view-resize-animation-time": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Animation duration in ms"
+        }
+      }
+    },
+    "viewSwitchContainerAttributes": {
+      "type": "object",
+      "description": "View switch container attributes",
+      "allOf": [
+        { "$ref": "#/$defs/containerAttributes" }
+      ],
+      "properties": {
+        "template-names": {
+          "type": "string",
+          "description": "Comma-separated template names"
+        },
+        "template-switch-control": {
+          "type": "string",
+          "description": "Control tag to switch templates"
+        },
+        "animation-style": {
+          "type": "string",
+          "enum": ["fade", "move", "push"]
+        },
+        "animation-time": {
+          "$ref": "#/$defs/numericValue",
+          "description": "Animation duration in ms"
+        }
+      }
+    },
+    "viewAttributes": {
+      "type": "object",
+      "description": "Generic view attributes (union of all view types)",
+      "additionalProperties": true,
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/viewClass"
+        },
+        "origin": {
+          "$ref": "#/$defs/pointValue"
+        },
+        "size": {
+          "$ref": "#/$defs/sizeValue"
+        },
+        "autosize": {
+          "$ref": "#/$defs/autosizeValue"
+        },
+        "transparent": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "mouse-enabled": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "opacity": {
+          "$ref": "#/$defs/numericValue"
+        },
+        "wants-focus": {
+          "$ref": "#/$defs/booleanValue"
+        },
+        "tooltip": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string"
+        },
+        "custom-view-name": {
+          "type": "string"
+        },
+        "sub-controller": {
+          "type": "string"
+        },
+        "control-tag": {
+          "type": "string"
+        },
+        "bitmap": {
+          "type": "string"
+        },
+        "font": {
+          "type": "string"
+        },
+        "font-color": {
+          "$ref": "#/$defs/colorValue"
+        },
+        "title": {
+          "type": "string"
+        },
+        "background-color": {
+          "$ref": "#/$defs/colorValue"
+        }
+      }
+    },
+    "viewDefinition": {
+      "type": "object",
+      "description": "View definition with attributes and optional children",
+      "required": ["attributes"],
+      "properties": {
+        "attributes": {
+          "$ref": "#/$defs/viewAttributes"
+        },
+        "children": {
+          "type": "object",
+          "description": "Child views (keyed by unique identifier)",
+          "additionalProperties": {
+            "$ref": "#/$defs/viewDefinition"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "templatesDefinition": {
+      "type": "object",
+      "description": "Template definitions",
+      "additionalProperties": {
+        "$ref": "#/$defs/viewDefinition"
+      }
+    },
+    "customAttributeSet": {
+      "type": "object",
+      "description": "Custom attribute set",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "customDefinition": {
+      "type": "object",
+      "description": "Custom metadata and editor state",
+      "properties": {
+        "UIEditController": {
+          "$ref": "#/$defs/customAttributeSet"
+        },
+        "FocusDrawing": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "$ref": "#/$defs/booleanValue"
+            },
+            "width": {
+              "$ref": "#/$defs/numericValue"
+            },
+            "color-name": {
+              "type": "string"
+            }
+          }
+        },
+        "UITemplateController": {
+          "$ref": "#/$defs/customAttributeSet"
+        },
+        "UIAttributesController": {
+          "$ref": "#/$defs/customAttributeSet"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/customAttributeSet"
+      }
+    }
+  }
+}
