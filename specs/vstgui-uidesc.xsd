@@ -1,0 +1,693 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <xs:annotation>
+    <xs:documentation>
+      VSTGUI UI Description XML Schema
+      Declarative UI definition format for VST3 plugins using VSTGUI framework
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- ============================================================ -->
+  <!-- Simple Types -->
+  <!-- ============================================================ -->
+
+  <xs:simpleType name="versionType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="booleanType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="true"/>
+      <xs:enumeration value="false"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="colorValueType">
+    <xs:annotation>
+      <xs:documentation>
+        Color value: hex (#RRGGBBAA or #RRGGBB), named reference, or predefined (~ BlackCColor)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="(#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?|~\s*\w+|var\.\w+|[a-zA-Z][a-zA-Z0-9_-]*)"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="pointType">
+    <xs:annotation>
+      <xs:documentation>Point value: 'x, y' coordinates</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="sizeType">
+    <xs:annotation>
+      <xs:documentation>Size value: 'width, height'</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d+(\.\d+)?\s*,\s*\d+(\.\d+)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="rectType">
+    <xs:annotation>
+      <xs:documentation>Rectangle value: 'x, y, width, height'</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*,\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="autosizeType">
+    <xs:annotation>
+      <xs:documentation>Autosize anchors: combination of left, right, top, bottom, row, column</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="(left|right|top|bottom|row|column)(\s+(left|right|top|bottom|row|column))*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="textAlignmentType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="left"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="right"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="orientationType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="horizontal"/>
+      <xs:enumeration value="vertical"/>
+      <xs:enumeration value="horizontal-inverse"/>
+      <xs:enumeration value="vertical-inverse"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="sliderModeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="free click"/>
+      <xs:enumeration value="touch"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="drawStyleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="filled"/>
+      <xs:enumeration value="stroked"/>
+      <xs:enumeration value="filled and stroked"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="iconPositionType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="left"/>
+      <xs:enumeration value="right"/>
+      <xs:enumeration value="center above text"/>
+      <xs:enumeration value="center below text"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="layoutType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="left-top"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="right-bottom"/>
+      <xs:enumeration value="stretch"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="animationStyleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="fade"/>
+      <xs:enumeration value="move"/>
+      <xs:enumeration value="push"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="gradientStyleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="linear"/>
+      <xs:enumeration value="radial"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="viewClassType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="CView"/>
+      <xs:enumeration value="CViewContainer"/>
+      <xs:enumeration value="CLayeredViewContainer"/>
+      <xs:enumeration value="CRowColumnView"/>
+      <xs:enumeration value="CScrollView"/>
+      <xs:enumeration value="CSplitView"/>
+      <xs:enumeration value="CShadowViewContainer"/>
+      <xs:enumeration value="UIViewSwitchContainer"/>
+      <xs:enumeration value="CControl"/>
+      <xs:enumeration value="CTextLabel"/>
+      <xs:enumeration value="CMultiLineTextLabel"/>
+      <xs:enumeration value="CTextEdit"/>
+      <xs:enumeration value="CSearchTextEdit"/>
+      <xs:enumeration value="CTextButton"/>
+      <xs:enumeration value="COnOffButton"/>
+      <xs:enumeration value="CCheckBox"/>
+      <xs:enumeration value="CSegmentButton"/>
+      <xs:enumeration value="CKickButton"/>
+      <xs:enumeration value="CRockerSwitch"/>
+      <xs:enumeration value="CVerticalSwitch"/>
+      <xs:enumeration value="CHorizontalSwitch"/>
+      <xs:enumeration value="CMovieButton"/>
+      <xs:enumeration value="CMovieBitmap"/>
+      <xs:enumeration value="CKnob"/>
+      <xs:enumeration value="CAnimKnob"/>
+      <xs:enumeration value="CSlider"/>
+      <xs:enumeration value="CVuMeter"/>
+      <xs:enumeration value="CParamDisplay"/>
+      <xs:enumeration value="CXYPad"/>
+      <xs:enumeration value="COptionMenu"/>
+      <xs:enumeration value="CGradientView"/>
+      <xs:enumeration value="CStringListControl"/>
+      <xs:enumeration value="CAutoAnimation"/>
+      <xs:enumeration value="CAnimationSplashScreen"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ============================================================ -->
+  <!-- Attribute Groups -->
+  <!-- ============================================================ -->
+
+  <xs:attributeGroup name="baseViewAttributes">
+    <xs:attribute name="class" type="viewClassType"/>
+    <xs:attribute name="origin" type="pointType"/>
+    <xs:attribute name="size" type="sizeType"/>
+    <xs:attribute name="autosize" type="autosizeType"/>
+    <xs:attribute name="transparent" type="booleanType"/>
+    <xs:attribute name="mouse-enabled" type="booleanType"/>
+    <xs:attribute name="opacity" type="xs:decimal"/>
+    <xs:attribute name="wants-focus" type="booleanType"/>
+    <xs:attribute name="tooltip" type="xs:string"/>
+    <xs:attribute name="uidesc-label" type="xs:string"/>
+    <xs:attribute name="custom-view-name" type="xs:string"/>
+    <xs:attribute name="sub-controller" type="xs:string"/>
+    <xs:attribute name="template" type="xs:string"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="containerAttributes">
+    <xs:attributeGroup ref="baseViewAttributes"/>
+    <xs:attribute name="background-color" type="colorValueType"/>
+    <xs:attribute name="background-color-draw-style" type="drawStyleType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="controlAttributes">
+    <xs:attributeGroup ref="baseViewAttributes"/>
+    <xs:attribute name="control-tag" type="xs:string"/>
+    <xs:attribute name="default-value" type="xs:decimal"/>
+    <xs:attribute name="min-value" type="xs:decimal"/>
+    <xs:attribute name="max-value" type="xs:decimal"/>
+    <xs:attribute name="wheel-inc-value" type="xs:decimal"/>
+    <xs:attribute name="font" type="xs:string"/>
+    <xs:attribute name="font-color" type="colorValueType"/>
+    <xs:attribute name="font-antialias" type="booleanType"/>
+    <xs:attribute name="text-alignment" type="textAlignmentType"/>
+    <xs:attribute name="text-inset" type="pointType"/>
+    <xs:attribute name="text-rotation" type="xs:decimal"/>
+    <xs:attribute name="value-precision" type="xs:integer"/>
+    <xs:attribute name="style-3D-in" type="booleanType"/>
+    <xs:attribute name="style-3D-out" type="booleanType"/>
+    <xs:attribute name="style-no-frame" type="booleanType"/>
+    <xs:attribute name="style-no-text" type="booleanType"/>
+    <xs:attribute name="style-no-draw" type="booleanType"/>
+    <xs:attribute name="style-shadow-text" type="booleanType"/>
+    <xs:attribute name="style-round-rect" type="booleanType"/>
+    <xs:attribute name="back-color" type="colorValueType"/>
+    <xs:attribute name="frame-color" type="colorValueType"/>
+    <xs:attribute name="title" type="xs:string"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="sliderAttributes">
+    <xs:attributeGroup ref="controlAttributes"/>
+    <xs:attribute name="bitmap" type="xs:string"/>
+    <xs:attribute name="handle-bitmap" type="xs:string"/>
+    <xs:attribute name="mode" type="sliderModeType"/>
+    <xs:attribute name="orientation" type="orientationType"/>
+    <xs:attribute name="reverse-orientation" type="booleanType"/>
+    <xs:attribute name="bitmap-offset" type="pointType"/>
+    <xs:attribute name="handle-offset" type="pointType"/>
+    <xs:attribute name="draw-frame" type="booleanType"/>
+    <xs:attribute name="draw-back" type="booleanType"/>
+    <xs:attribute name="draw-value" type="booleanType"/>
+    <xs:attribute name="draw-value-from-center" type="booleanType"/>
+    <xs:attribute name="draw-value-inverted" type="booleanType"/>
+    <xs:attribute name="draw-frame-color" type="colorValueType"/>
+    <xs:attribute name="draw-back-color" type="colorValueType"/>
+    <xs:attribute name="draw-value-color" type="colorValueType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="knobAttributes">
+    <xs:attributeGroup ref="controlAttributes"/>
+    <xs:attribute name="bitmap" type="xs:string"/>
+    <xs:attribute name="angle-start" type="xs:decimal"/>
+    <xs:attribute name="angle-range" type="xs:decimal"/>
+    <xs:attribute name="zoom-factor" type="xs:decimal"/>
+    <xs:attribute name="value-inset" type="xs:decimal"/>
+    <xs:attribute name="handle-color" type="colorValueType"/>
+    <xs:attribute name="handle-shadow-color" type="colorValueType"/>
+    <xs:attribute name="handle-line-width" type="xs:decimal"/>
+    <xs:attribute name="circle-drawing" type="booleanType"/>
+    <xs:attribute name="corona-drawing" type="booleanType"/>
+    <xs:attribute name="corona-color" type="colorValueType"/>
+    <xs:attribute name="corona-inset" type="xs:decimal"/>
+    <xs:attribute name="corona-outline" type="booleanType"/>
+    <xs:attribute name="corona-inverted" type="booleanType"/>
+    <xs:attribute name="corona-from-center" type="booleanType"/>
+    <xs:attribute name="corona-dash-dot" type="booleanType"/>
+    <xs:attribute name="corona-line-cap-butt" type="booleanType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="textButtonAttributes">
+    <xs:attributeGroup ref="controlAttributes"/>
+    <xs:attribute name="icon" type="xs:string"/>
+    <xs:attribute name="icon-highlighted" type="xs:string"/>
+    <xs:attribute name="icon-position" type="iconPositionType"/>
+    <xs:attribute name="icon-text-margin" type="xs:decimal"/>
+    <xs:attribute name="gradient" type="xs:string"/>
+    <xs:attribute name="gradient-highlighted" type="xs:string"/>
+    <xs:attribute name="text-color-highlighted" type="colorValueType"/>
+    <xs:attribute name="frame-color-highlighted" type="colorValueType"/>
+    <xs:attribute name="round-radius" type="xs:decimal"/>
+    <xs:attribute name="kick-style" type="booleanType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="scrollViewAttributes">
+    <xs:attributeGroup ref="containerAttributes"/>
+    <xs:attribute name="container-size" type="sizeType"/>
+    <xs:attribute name="horizontal-scrollbar" type="booleanType"/>
+    <xs:attribute name="vertical-scrollbar" type="booleanType"/>
+    <xs:attribute name="auto-drag-scrolling" type="booleanType"/>
+    <xs:attribute name="overlay-scrollbars" type="booleanType"/>
+    <xs:attribute name="auto-hide-scrollbars" type="booleanType"/>
+    <xs:attribute name="bordered" type="booleanType"/>
+    <xs:attribute name="scrollbar-width" type="xs:decimal"/>
+    <xs:attribute name="scrollbar-background-color" type="colorValueType"/>
+    <xs:attribute name="scrollbar-frame-color" type="colorValueType"/>
+    <xs:attribute name="scrollbar-scroller-color" type="colorValueType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="rowColumnViewAttributes">
+    <xs:attributeGroup ref="containerAttributes"/>
+    <xs:attribute name="row-style" type="booleanType"/>
+    <xs:attribute name="spacing" type="xs:decimal"/>
+    <xs:attribute name="margin" type="xs:string"/>
+    <xs:attribute name="equal-size-layout" type="layoutType"/>
+    <xs:attribute name="animate-view-resizing" type="booleanType"/>
+    <xs:attribute name="view-resize-animation-time" type="xs:decimal"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="viewSwitchContainerAttributes">
+    <xs:attributeGroup ref="containerAttributes"/>
+    <xs:attribute name="template-names" type="xs:string"/>
+    <xs:attribute name="template-switch-control" type="xs:string"/>
+    <xs:attribute name="animation-style" type="animationStyleType"/>
+    <xs:attribute name="animation-time" type="xs:decimal"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="gradientViewAttributes">
+    <xs:attributeGroup ref="baseViewAttributes"/>
+    <xs:attribute name="gradient" type="xs:string"/>
+    <xs:attribute name="gradient-angle" type="xs:decimal"/>
+    <xs:attribute name="gradient-style" type="gradientStyleType"/>
+    <xs:attribute name="draw-antialiased" type="booleanType"/>
+    <xs:attribute name="radial-center" type="pointType"/>
+    <xs:attribute name="radial-radius" type="xs:decimal"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="checkBoxAttributes">
+    <xs:attributeGroup ref="controlAttributes"/>
+    <xs:attribute name="boxframe-color" type="colorValueType"/>
+    <xs:attribute name="boxfill-color" type="colorValueType"/>
+    <xs:attribute name="checkmark-color" type="colorValueType"/>
+    <xs:attribute name="draw-crossbox" type="booleanType"/>
+    <xs:attribute name="autosize-to-fit" type="booleanType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="textEditAttributes">
+    <xs:attributeGroup ref="controlAttributes"/>
+    <xs:attribute name="placeholder-title" type="xs:string"/>
+    <xs:attribute name="immediate-text-change" type="booleanType"/>
+    <xs:attribute name="secure-style" type="booleanType"/>
+    <xs:attribute name="style-doubleclick" type="booleanType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="vuMeterAttributes">
+    <xs:attributeGroup ref="controlAttributes"/>
+    <xs:attribute name="off-bitmap" type="xs:string"/>
+    <xs:attribute name="num-led" type="xs:integer"/>
+    <xs:attribute name="decrease-step-value" type="xs:decimal"/>
+  </xs:attributeGroup>
+
+  <!-- ============================================================ -->
+  <!-- Complex Types -->
+  <!-- ============================================================ -->
+
+  <!-- Color definition -->
+  <xs:complexType name="colorType">
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="rgba" type="colorValueType"/>
+    <xs:attribute name="rgb" type="xs:string"/>
+    <xs:attribute name="red" type="xs:integer"/>
+    <xs:attribute name="green" type="xs:integer"/>
+    <xs:attribute name="blue" type="xs:integer"/>
+    <xs:attribute name="alpha" type="xs:integer"/>
+  </xs:complexType>
+
+  <!-- Font definition -->
+  <xs:complexType name="fontType">
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="font-name" type="xs:string" use="required"/>
+    <xs:attribute name="size" type="xs:decimal" use="required"/>
+    <xs:attribute name="bold" type="booleanType"/>
+    <xs:attribute name="italic" type="booleanType"/>
+    <xs:attribute name="underline" type="booleanType"/>
+    <xs:attribute name="strike-through" type="booleanType"/>
+    <xs:attribute name="alternative-font-names" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- Bitmap data (embedded) -->
+  <xs:complexType name="bitmapDataType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="encoding" type="xs:string" default="base64"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- Bitmap description (multi-frame) -->
+  <xs:complexType name="bitmapDescriptionType">
+    <xs:attribute name="frame-width" type="xs:integer"/>
+    <xs:attribute name="frame-height" type="xs:integer"/>
+    <xs:attribute name="num-frames" type="xs:integer"/>
+    <xs:attribute name="format" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- Bitmap definition -->
+  <xs:complexType name="bitmapType">
+    <xs:sequence>
+      <xs:element name="data" type="bitmapDataType" minOccurs="0"/>
+      <xs:element name="bitmap-description" type="bitmapDescriptionType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="path" type="xs:string" use="required"/>
+    <xs:attribute name="scale-factor" type="xs:decimal"/>
+    <xs:attribute name="nineparttiled-offsets" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- Gradient color stop -->
+  <xs:complexType name="colorStopType">
+    <xs:attribute name="rgba" type="colorValueType" use="required"/>
+    <xs:attribute name="start" type="xs:decimal" use="required"/>
+  </xs:complexType>
+
+  <!-- Gradient definition -->
+  <xs:complexType name="gradientType">
+    <xs:sequence>
+      <xs:element name="color-stop" type="colorStopType" minOccurs="2" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- Control tag definition -->
+  <xs:complexType name="controlTagType">
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="tag" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- Variable definition -->
+  <xs:complexType name="variableType">
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="value" type="xs:string" use="required"/>
+    <xs:attribute name="type" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- Custom attributes -->
+  <xs:complexType name="customAttributesType">
+    <xs:anyAttribute processContents="lax"/>
+  </xs:complexType>
+
+  <!-- View type (generic with all possible attributes) -->
+  <xs:complexType name="viewType">
+    <xs:sequence>
+      <xs:element name="view" type="viewType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <!-- Base view attributes -->
+    <xs:attribute name="class" type="viewClassType"/>
+    <xs:attribute name="origin" type="pointType"/>
+    <xs:attribute name="size" type="sizeType"/>
+    <xs:attribute name="autosize" type="autosizeType"/>
+    <xs:attribute name="transparent" type="booleanType"/>
+    <xs:attribute name="mouse-enabled" type="booleanType"/>
+    <xs:attribute name="opacity" type="xs:decimal"/>
+    <xs:attribute name="wants-focus" type="booleanType"/>
+    <xs:attribute name="tooltip" type="xs:string"/>
+    <xs:attribute name="uidesc-label" type="xs:string"/>
+    <xs:attribute name="custom-view-name" type="xs:string"/>
+    <xs:attribute name="sub-controller" type="xs:string"/>
+    <xs:attribute name="template" type="xs:string"/>
+    <!-- Container attributes -->
+    <xs:attribute name="background-color" type="colorValueType"/>
+    <xs:attribute name="background-color-draw-style" type="drawStyleType"/>
+    <!-- Control attributes -->
+    <xs:attribute name="control-tag" type="xs:string"/>
+    <xs:attribute name="default-value" type="xs:decimal"/>
+    <xs:attribute name="min-value" type="xs:decimal"/>
+    <xs:attribute name="max-value" type="xs:decimal"/>
+    <xs:attribute name="wheel-inc-value" type="xs:decimal"/>
+    <xs:attribute name="font" type="xs:string"/>
+    <xs:attribute name="font-color" type="colorValueType"/>
+    <xs:attribute name="font-antialias" type="booleanType"/>
+    <xs:attribute name="text-alignment" type="textAlignmentType"/>
+    <xs:attribute name="text-inset" type="pointType"/>
+    <xs:attribute name="text-rotation" type="xs:decimal"/>
+    <xs:attribute name="value-precision" type="xs:integer"/>
+    <xs:attribute name="style-3D-in" type="booleanType"/>
+    <xs:attribute name="style-3D-out" type="booleanType"/>
+    <xs:attribute name="style-no-frame" type="booleanType"/>
+    <xs:attribute name="style-no-text" type="booleanType"/>
+    <xs:attribute name="style-no-draw" type="booleanType"/>
+    <xs:attribute name="style-shadow-text" type="booleanType"/>
+    <xs:attribute name="style-round-rect" type="booleanType"/>
+    <xs:attribute name="back-color" type="colorValueType"/>
+    <xs:attribute name="frame-color" type="colorValueType"/>
+    <xs:attribute name="title" type="xs:string"/>
+    <!-- Slider attributes -->
+    <xs:attribute name="bitmap" type="xs:string"/>
+    <xs:attribute name="handle-bitmap" type="xs:string"/>
+    <xs:attribute name="mode" type="sliderModeType"/>
+    <xs:attribute name="orientation" type="orientationType"/>
+    <xs:attribute name="reverse-orientation" type="booleanType"/>
+    <xs:attribute name="bitmap-offset" type="pointType"/>
+    <xs:attribute name="handle-offset" type="pointType"/>
+    <xs:attribute name="draw-frame" type="booleanType"/>
+    <xs:attribute name="draw-back" type="booleanType"/>
+    <xs:attribute name="draw-value" type="booleanType"/>
+    <xs:attribute name="draw-value-from-center" type="booleanType"/>
+    <xs:attribute name="draw-value-inverted" type="booleanType"/>
+    <xs:attribute name="draw-frame-color" type="colorValueType"/>
+    <xs:attribute name="draw-back-color" type="colorValueType"/>
+    <xs:attribute name="draw-value-color" type="colorValueType"/>
+    <!-- Knob attributes -->
+    <xs:attribute name="angle-start" type="xs:decimal"/>
+    <xs:attribute name="angle-range" type="xs:decimal"/>
+    <xs:attribute name="zoom-factor" type="xs:decimal"/>
+    <xs:attribute name="value-inset" type="xs:decimal"/>
+    <xs:attribute name="handle-color" type="colorValueType"/>
+    <xs:attribute name="handle-shadow-color" type="colorValueType"/>
+    <xs:attribute name="handle-line-width" type="xs:decimal"/>
+    <xs:attribute name="circle-drawing" type="booleanType"/>
+    <xs:attribute name="corona-drawing" type="booleanType"/>
+    <xs:attribute name="corona-color" type="colorValueType"/>
+    <xs:attribute name="corona-inset" type="xs:decimal"/>
+    <xs:attribute name="corona-outline" type="booleanType"/>
+    <xs:attribute name="corona-inverted" type="booleanType"/>
+    <xs:attribute name="corona-from-center" type="booleanType"/>
+    <xs:attribute name="corona-dash-dot" type="booleanType"/>
+    <xs:attribute name="corona-line-cap-butt" type="booleanType"/>
+    <!-- Text button attributes -->
+    <xs:attribute name="icon" type="xs:string"/>
+    <xs:attribute name="icon-highlighted" type="xs:string"/>
+    <xs:attribute name="icon-position" type="iconPositionType"/>
+    <xs:attribute name="icon-text-margin" type="xs:decimal"/>
+    <xs:attribute name="gradient" type="xs:string"/>
+    <xs:attribute name="gradient-highlighted" type="xs:string"/>
+    <xs:attribute name="text-color-highlighted" type="colorValueType"/>
+    <xs:attribute name="frame-color-highlighted" type="colorValueType"/>
+    <xs:attribute name="round-radius" type="xs:decimal"/>
+    <xs:attribute name="kick-style" type="booleanType"/>
+    <!-- Scroll view attributes -->
+    <xs:attribute name="container-size" type="sizeType"/>
+    <xs:attribute name="horizontal-scrollbar" type="booleanType"/>
+    <xs:attribute name="vertical-scrollbar" type="booleanType"/>
+    <xs:attribute name="auto-drag-scrolling" type="booleanType"/>
+    <xs:attribute name="overlay-scrollbars" type="booleanType"/>
+    <xs:attribute name="auto-hide-scrollbars" type="booleanType"/>
+    <xs:attribute name="bordered" type="booleanType"/>
+    <xs:attribute name="scrollbar-width" type="xs:decimal"/>
+    <xs:attribute name="scrollbar-background-color" type="colorValueType"/>
+    <xs:attribute name="scrollbar-frame-color" type="colorValueType"/>
+    <xs:attribute name="scrollbar-scroller-color" type="colorValueType"/>
+    <!-- Row/column view attributes -->
+    <xs:attribute name="row-style" type="booleanType"/>
+    <xs:attribute name="spacing" type="xs:decimal"/>
+    <xs:attribute name="margin" type="xs:string"/>
+    <xs:attribute name="equal-size-layout" type="layoutType"/>
+    <xs:attribute name="animate-view-resizing" type="booleanType"/>
+    <xs:attribute name="view-resize-animation-time" type="xs:decimal"/>
+    <!-- View switch container attributes -->
+    <xs:attribute name="template-names" type="xs:string"/>
+    <xs:attribute name="template-switch-control" type="xs:string"/>
+    <xs:attribute name="animation-style" type="animationStyleType"/>
+    <xs:attribute name="animation-time" type="xs:decimal"/>
+    <!-- Gradient view attributes -->
+    <xs:attribute name="gradient-angle" type="xs:decimal"/>
+    <xs:attribute name="gradient-style" type="gradientStyleType"/>
+    <xs:attribute name="draw-antialiased" type="booleanType"/>
+    <xs:attribute name="radial-center" type="pointType"/>
+    <xs:attribute name="radial-radius" type="xs:decimal"/>
+    <!-- Checkbox attributes -->
+    <xs:attribute name="boxframe-color" type="colorValueType"/>
+    <xs:attribute name="boxfill-color" type="colorValueType"/>
+    <xs:attribute name="checkmark-color" type="colorValueType"/>
+    <xs:attribute name="draw-crossbox" type="booleanType"/>
+    <xs:attribute name="autosize-to-fit" type="booleanType"/>
+    <!-- Text edit attributes -->
+    <xs:attribute name="placeholder-title" type="xs:string"/>
+    <xs:attribute name="immediate-text-change" type="booleanType"/>
+    <xs:attribute name="secure-style" type="booleanType"/>
+    <xs:attribute name="style-doubleclick" type="booleanType"/>
+    <!-- VU meter attributes -->
+    <xs:attribute name="off-bitmap" type="xs:string"/>
+    <xs:attribute name="num-led" type="xs:integer"/>
+    <xs:attribute name="decrease-step-value" type="xs:decimal"/>
+    <!-- Segment button attributes -->
+    <xs:attribute name="segment-names" type="xs:string"/>
+    <xs:attribute name="style" type="xs:string"/>
+    <xs:attribute name="selection-mode" type="xs:string"/>
+    <!-- Option menu attributes -->
+    <xs:attribute name="menu-popup-style" type="booleanType"/>
+    <xs:attribute name="menu-check-style" type="booleanType"/>
+    <!-- Shadow container attributes -->
+    <xs:attribute name="shadow-intensity" type="xs:decimal"/>
+    <xs:attribute name="shadow-blur-size" type="xs:decimal"/>
+    <xs:attribute name="shadow-offset" type="pointType"/>
+    <!-- Multi-line text label attributes -->
+    <xs:attribute name="line-layout" type="xs:string"/>
+    <xs:attribute name="auto-height" type="booleanType"/>
+    <xs:attribute name="vertical-centered" type="booleanType"/>
+    <!-- Animation splash screen attributes -->
+    <xs:attribute name="splash-bitmap" type="xs:string"/>
+    <xs:attribute name="splash-origin" type="pointType"/>
+    <xs:attribute name="splash-size" type="sizeType"/>
+    <xs:attribute name="animation-index" type="xs:integer"/>
+    <!-- String list control attributes -->
+    <xs:attribute name="row-height" type="xs:decimal"/>
+    <xs:attribute name="line-color" type="colorValueType"/>
+    <xs:attribute name="line-width" type="xs:decimal"/>
+    <xs:attribute name="hover-color" type="colorValueType"/>
+    <xs:attribute name="font-color-selected" type="colorValueType"/>
+    <xs:attribute name="back-color-selected" type="colorValueType"/>
+    <xs:attribute name="style-hover" type="booleanType"/>
+    <!-- Allow any additional attributes for extensibility -->
+    <xs:anyAttribute processContents="lax"/>
+  </xs:complexType>
+
+  <!-- Template type -->
+  <xs:complexType name="templateType">
+    <xs:complexContent>
+      <xs:extension base="viewType">
+        <xs:attribute name="name" type="xs:string" use="required"/>
+        <xs:attribute name="minSize" type="sizeType"/>
+        <xs:attribute name="maxSize" type="sizeType"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- Custom element with attributes child -->
+  <xs:complexType name="customType">
+    <xs:sequence>
+      <xs:element name="attributes" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="name" type="xs:string" use="required"/>
+          <xs:anyAttribute processContents="lax"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Colors container -->
+  <xs:complexType name="colorsContainerType">
+    <xs:sequence>
+      <xs:element name="color" type="colorType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Fonts container -->
+  <xs:complexType name="fontsContainerType">
+    <xs:sequence>
+      <xs:element name="font" type="fontType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Bitmaps container -->
+  <xs:complexType name="bitmapsContainerType">
+    <xs:sequence>
+      <xs:element name="bitmap" type="bitmapType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Gradients container -->
+  <xs:complexType name="gradientsContainerType">
+    <xs:sequence>
+      <xs:element name="gradient" type="gradientType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Control tags container -->
+  <xs:complexType name="controlTagsContainerType">
+    <xs:sequence>
+      <xs:element name="control-tag" type="controlTagType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Variables container -->
+  <xs:complexType name="variablesContainerType">
+    <xs:sequence>
+      <xs:element name="var" type="variableType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ============================================================ -->
+  <!-- Root Element -->
+  <!-- ============================================================ -->
+
+  <xs:element name="vstgui-ui-description">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="colors" type="colorsContainerType" minOccurs="0"/>
+        <xs:element name="fonts" type="fontsContainerType" minOccurs="0"/>
+        <xs:element name="bitmaps" type="bitmapsContainerType" minOccurs="0"/>
+        <xs:element name="gradients" type="gradientsContainerType" minOccurs="0"/>
+        <xs:element name="control-tags" type="controlTagsContainerType" minOccurs="0"/>
+        <xs:element name="variables" type="variablesContainerType" minOccurs="0"/>
+        <xs:element name="template" type="templateType" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="custom" type="customType" minOccurs="0"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="versionType" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
