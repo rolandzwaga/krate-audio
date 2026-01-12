@@ -1,252 +1,328 @@
 # Quick Start: Running Tests
 
-## Build and Run All Tests
+This document provides **exact, verified commands** for building and running tests on Windows with Visual Studio 2022.
+
+---
+
+## Test Executables Overview
+
+| Executable | Purpose | Location |
+|------------|---------|----------|
+| `dsp_tests.exe` | DSP algorithm unit tests (Layer 0-4) | `build/bin/{Config}/dsp_tests.exe` |
+| `plugin_tests.exe` | Plugin tests (controller, params, preset, UI, VST) | `build/bin/{Config}/plugin_tests.exe` |
+| `approval_tests.exe` | Golden master / regression tests | `build/bin/{Config}/approval_tests.exe` |
+| `validator.exe` | VST3 SDK validator | `build/bin/{Config}/validator.exe` |
+
+`{Config}` is `Debug` or `Release`.
+
+---
+
+## 1. Building Tests
+
+### Configure (First Time Only)
 
 ```bash
-# Configure (first time or after CMakeLists.txt changes)
+# Standard configuration
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 
-# Build everything (including tests and validator)
-cmake --build build --config Debug
+# Or use presets
+cmake --preset windows-x64-release
+cmake --preset windows-x64-debug
+```
 
-# Run unit tests
-build\bin\Debug\dsp_tests.exe
+### Build Specific Test Target
 
-# Run approval tests (golden master / regression tests)
-build\bin\Debug\approval_tests.exe
+```bash
+# Build DSP tests (Release)
+cmake --build build --config Release --target dsp_tests
 
-# Run all tests via CTest
-ctest --test-dir build -C Debug --output-on-failure
+# Build DSP tests (Debug)
+cmake --build build --config Debug --target dsp_tests
+
+# Build plugin tests (Release)
+cmake --build build --config Release --target plugin_tests
+
+# Build approval tests
+cmake --build build --config Release --target approval_tests
+
+# Build everything
+cmake --build build --config Release
+```
+
+### Force Clean Rebuild
+
+```bash
+cmake --build build --config Release --target dsp_tests --clean-first
 ```
 
 ---
 
-## Windows/MSVC Build Commands (Git Bash)
+## 2. Running Tests Directly (Recommended)
 
-### Build Directory Location
-
-The build directory is `build/` (not `build/windows-x64-debug/`).
-
-### MSBuild from Git Bash
-
-Use dash-prefix for parameters, not forward slash:
+### Run All Tests in an Executable
 
 ```bash
-# CORRECT - Build specific test target with MSBuild
-"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" \
-    "F:\\projects\\iterum\\build\\tests\\dsp_tests.vcxproj" \
-    -p:Configuration=Debug -v:m
+# DSP tests (Release build)
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe"
 
-# WRONG - Forward slashes get misinterpreted in Git Bash
-# ... /p:Configuration=Debug /v:m   <- DON'T DO THIS
-
-# Force rebuild (clean + build)
-"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe" \
-    "F:\\projects\\iterum\\build\\tests\\dsp_tests.vcxproj" \
-    -p:Configuration=Debug -v:m -t:Rebuild
-```
-
-### Test Executable Location
-
-```bash
-# Run all DSP tests
+# DSP tests (Debug build)
 "F:/projects/iterum/build/bin/Debug/dsp_tests.exe"
 
-# Run tests by tag
-"F:/projects/iterum/build/bin/Debug/dsp_tests.exe" "[digital-delay]"
-"F:/projects/iterum/build/bin/Debug/dsp_tests.exe" "[layer3]"
+# Plugin tests
+"F:/projects/iterum/build/bin/Release/plugin_tests.exe"
 
-# List available tests
-"F:/projects/iterum/build/bin/Debug/dsp_tests.exe" --list-tests
+# Approval tests
+"F:/projects/iterum/build/bin/Release/approval_tests.exe"
 ```
 
-### Project File Locations
+### Run Tests by Tag
 
-| Target | vcxproj Location |
-|--------|------------------|
-| dsp_tests | `build/tests/dsp_tests.vcxproj` |
-| vst_tests | `build/tests/vst_tests.vcxproj` |
-| approval_tests | `build/tests/approval_tests.vcxproj` |
-| Iterum (plugin) | `build/Iterum.vcxproj` |
+Tags are in square brackets `[tag]`. Common tags:
+
+| Tag | Description |
+|-----|-------------|
+| `[wavefold_math]` | Wavefolding math functions |
+| `[biquad]` | Biquad filter tests |
+| `[delay]` | Delay line tests |
+| `[digital-delay]` | Digital delay effect tests |
+| `[tape-delay]` | Tape delay effect tests |
+| `[preset]` | Preset manager tests |
+| `[params]` | Parameter tests |
+| `[controller]` | Controller tests |
+| `[dsp]` | General DSP tests |
+
+```bash
+# Run tests with a specific tag
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[wavefold_math]"
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[biquad]"
+"F:/projects/iterum/build/bin/Release/plugin_tests.exe" "[preset]"
+
+# Combine tags (AND)
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[dsp][filter]"
+
+# Exclude a tag
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "~[slow]"
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "~[!mayfail]"
+```
+
+### Run Tests by Name Pattern
+
+Use glob patterns to match test names:
+
+```bash
+# Run all tests containing "lambert"
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "*lambert*"
+
+# Run all tests containing "sineFold"
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "*sineFold*"
+
+# Run a specific test by exact name
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "lambertW: basic values W(0)=0, W(e)=1"
+```
+
+### List Available Tests
+
+```bash
+# List all test names
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tests
+
+# List tests matching a pattern
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tests "*delay*"
+
+# List all tags
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tags
+```
+
+### Output Options
+
+```bash
+# Compact output (one line per test)
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --reporter compact
+
+# Show test durations
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --durations yes
+
+# Verbose output with section info
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" -s
+```
 
 ---
 
-## VST3 Validation
+## 3. Running Tests via CTest
+
+CTest integrates with CMake and can run tests across all executables.
+
+**IMPORTANT**: Use the full path to ctest.exe since the PATH may point to Python's cmake:
 
 ```bash
-# Full validation (all tests) - via CMake target
-cmake --build build --config Debug --target validate_plugin
+# Full path to ctest
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release
+```
 
-# Quick validation (basic conformity only)
-cmake --build build --config Debug --target validate_plugin_quick
+### Run All Tests
 
-# Or run validator directly
-build\bin\Debug\validator.exe "build\VST3\Debug\Iterum.vst3"
+```bash
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release --output-on-failure
+```
 
-# Show all validator options
-build\bin\Debug\validator.exe --help
+### Run Tests by Name Pattern
 
-# Run extensive tests (may take a long time)
-build\bin\Debug\validator.exe -e "build\VST3\Debug\Iterum.vst3"
+```bash
+# Run tests matching "sineFold"
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -R "sineFold" --output-on-failure
+
+# Run tests matching "lambert"
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -R "lambert" --output-on-failure
+```
+
+### List All CTest Tests
+
+```bash
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -N
+```
+
+### Verbose Output
+
+```bash
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -V
 ```
 
 ---
 
-## Run Specific Tests
+## 4. VST3 Validation
+
+### Run Validator
 
 ```bash
-# Run only tests tagged [filter]
-build\bin\Debug\dsp_tests.exe "[filter]"
+# Basic validation
+"F:/projects/iterum/build/bin/Release/validator.exe" "F:/projects/iterum/build/VST3/Release/Iterum.vst3"
 
-# Run only regression tests
-build\bin\Debug\approval_tests.exe "[regression]"
+# Extensive validation (slow)
+"F:/projects/iterum/build/bin/Release/validator.exe" -e "F:/projects/iterum/build/VST3/Release/Iterum.vst3"
 
-# Run only gain-related tests
-build\bin\Debug\dsp_tests.exe "[gain]"
+# Quiet mode (errors only)
+"F:/projects/iterum/build/bin/Release/validator.exe" -q "F:/projects/iterum/build/VST3/Release/Iterum.vst3"
 
-# Exclude slow tests
-build\bin\Debug\dsp_tests.exe "~[slow]"
-
-# List all available tests
-build\bin\Debug\dsp_tests.exe --list-tests
+# Show validator help
+"F:/projects/iterum/build/bin/Release/validator.exe" --help
 ```
+
+### Plugin Location
+
+| Build Config | VST3 Location |
+|--------------|---------------|
+| Release | `build/VST3/Release/Iterum.vst3` |
+| Debug | `build/VST3/Debug/Iterum.vst3` |
 
 ---
 
-## Build Verification Workflow
+## 5. Complete Workflow Examples
 
-### MANDATORY: Verify Build Before Running Tests
-
-When writing or modifying test code, follow this exact sequence:
-
-1. **Write your test code** (following test-first development)
-
-2. **Build the test target**:
-   ```bash
-   cmake --build build --config Debug --target dsp_tests
-   ```
-
-3. **Check for compilation errors**:
-   - Look for `error` or `error C` in build output
-   - If ANY errors appear, **STOP** and fix them
-
-4. **Verify clean build**: Build must succeed with zero errors
-
-5. **Check test binary timestamp**:
-   ```bash
-   ls -la build/bin/Debug/dsp_tests.exe
-   ```
-   Ensure the timestamp is recent (just updated)
-
-6. **ONLY THEN run the tests**
-
----
-
-## Troubleshooting: Tests Don't Appear
-
-If tests don't show up in test lists or fail in unexpected ways, follow this checklist **IN ORDER**:
-
-### 1. Verify Build Success (FIRST)
+### Example 1: Implement and Test a New DSP Function
 
 ```bash
-# Rebuild and check for errors
-cmake --build build --config Debug --target dsp_tests 2>&1 | grep -i "error"
+# 1. Write your code in dsp/include/krate/dsp/...
+
+# 2. Write tests in dsp/tests/unit/...
+
+# 3. Build (check for compilation errors!)
+cmake --build build --config Release --target dsp_tests
+
+# 4. If build failed, fix errors and repeat step 3
+
+# 5. Run your specific tests
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[your_tag]"
+
+# 6. Run all DSP tests to check for regressions
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe"
 ```
 
-- If you see ANY compilation errors, fix them before proceeding
-- Common errors: missing includes, type mismatches, syntax errors
-
-### 2. Verify Test Binary Exists and Is Current
+### Example 2: Debug a Failing Test
 
 ```bash
-# Check if binary exists
-ls -la build/bin/Debug/dsp_tests.exe
+# 1. Run with verbose output to see which assertion failed
+"F:/projects/iterum/build/bin/Debug/dsp_tests.exe" "test name here" -s
 
-# Check timestamp - should be within last few minutes
-stat build/bin/Debug/dsp_tests.exe
-```
-
-### 3. Verify Test Registration
-
-- Check that test file is listed in `tests/CMakeLists.txt`
-- For `dsp_tests`: File must be in `add_executable(dsp_tests ...)` block
-- For `vst_tests`: File must be in `add_executable(vst_tests ...)` block
-
-### 4. Force Clean Rebuild
-
-```bash
-# Delete object files and rebuild
-cmake --build build --config Debug --target dsp_tests --clean-first
-```
-
-### 5. Check Catch2 Test Registration
-
-```bash
-# List all registered tests
-build/bin/Debug/dsp_tests.exe --list-tests
-```
-
-### 6. LAST RESORT: CMake Reconfigure
-
-```bash
-# Only if steps 1-5 didn't reveal the issue
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+# 2. Build and run in Debug for better stack traces
 cmake --build build --config Debug --target dsp_tests
+"F:/projects/iterum/build/bin/Debug/dsp_tests.exe" "[tag]"
 ```
 
----
-
-## Real Example: The int32 Incident
-
-**What Happened:**
-1. Wrote `int32 currentMode = ...` in controller.cpp
-2. Immediately tried to run tests
-3. Tests didn't appear in test list
-4. Blamed "CMake cache issues"
-5. Spent 10+ attempts trying different test invocations
-6. **Never checked build output**
-7. Build output clearly showed: `error C2065: 'int32': undeclared identifier`
-8. Should have been `Steinberg::int32`
-
-**What Should Have Happened:**
-1. Wrote code
-2. **Built immediately**: `cmake --build build --config Debug --target vst_tests`
-3. **Saw compilation error in output**
-4. Fixed error (changed to `Steinberg::int32`)
-5. Rebuilt successfully
-6. Ran tests
-7. Problem solved in 2 minutes instead of 20
-
----
-
-## CMake Presets (Alternative)
+### Example 3: Validate Plugin After Changes
 
 ```bash
-cmake --preset windows-x64-debug        # Configure
-cmake --build --preset windows-x64-debug # Build
-ctest --preset windows-x64-debug         # Test
+# 1. Build the plugin
+cmake --build build --config Release --target Iterum
+
+# 2. Run validator
+"F:/projects/iterum/build/bin/Release/validator.exe" "F:/projects/iterum/build/VST3/Release/Iterum.vst3"
+```
+
+### Example 4: Run Only Fast Tests
+
+```bash
+# Exclude slow and benchmark tests
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "~[slow]~[benchmark]"
 ```
 
 ---
 
-## AddressSanitizer (ASan)
+## 6. Troubleshooting
 
-Use ASan to detect memory errors (use-after-free, buffer overflows, etc.):
+### Tests Don't Appear After Adding New Test File
 
-```bash
-# Configure with ASan enabled
-cmake -S . -B build-asan -G "Visual Studio 17 2022" -A x64 -DENABLE_ASAN=ON
+1. **Check build output for compilation errors first!**
+   ```bash
+   cmake --build build --config Release --target dsp_tests 2>&1 | grep -i error
+   ```
 
-# Build (use Debug for better stack traces)
-cmake --build build-asan --config Debug
+2. **Verify test file is listed in CMakeLists.txt**
+   - DSP tests: `dsp/tests/CMakeLists.txt`
+   - Plugin tests: `plugins/iterum/tests/CMakeLists.txt`
 
-# Run tests - ASan will abort and report if memory errors occur
-ctest --test-dir build-asan -C Debug --output-on-failure
-```
+3. **Force clean rebuild**
+   ```bash
+   cmake --build build --config Release --target dsp_tests --clean-first
+   ```
 
-**When to use ASan:**
-- Investigating crashes that don't have clear stack traces
-- After fixing editor lifecycle bugs (to verify no use-after-free)
-- Before releases to catch latent memory issues
+### Tests Run But Tag Filter Returns Nothing
 
-**Note:** ASan increases memory usage and slows execution. Use a separate build directory.
+- Tags are case-sensitive: `[WaveFold]` != `[wavefold]`
+- List actual tags: `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tags`
+- List tests to see their tags: `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tests`
+
+### CTest Shows No Output
+
+- Use full path to ctest: `"/c/Program Files/CMake/bin/ctest.exe"`
+- The Python cmake in PATH doesn't include ctest
+
+### Debug vs Release Build Mismatch
+
+- Tests must be run from the same config they were built with
+- `cmake --build build --config Release` -> `build/bin/Release/dsp_tests.exe`
+- `cmake --build build --config Debug` -> `build/bin/Debug/dsp_tests.exe`
+
+---
+
+## 7. Quick Reference Card
+
+| Task | Command |
+|------|---------|
+| Build DSP tests | `cmake --build build --config Release --target dsp_tests` |
+| Build plugin tests | `cmake --build build --config Release --target plugin_tests` |
+| Run all DSP tests | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe"` |
+| Run tests by tag | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[tag]"` |
+| Run tests by name | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "*pattern*"` |
+| List all tags | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tags` |
+| List all tests | `"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tests` |
+| Validate plugin | `"F:/projects/iterum/build/bin/Release/validator.exe" "F:/projects/iterum/build/VST3/Release/Iterum.vst3"` |
+
+---
+
+## 8. DO NOT DO THIS
+
+- **DO NOT run Python scripts to "verify" C++ code** - All testing is done through the C++ test executables
+- **DO NOT use `grep` or `rg` to search test output** - Run the tests directly
+- **DO NOT guess test binary locations** - They are always in `build/bin/{Config}/`
+- **DO NOT skip the build step** - Tests cannot run if code doesn't compile
+- **DO NOT use ctest from Python's cmake** - Use full path `/c/Program Files/CMake/bin/ctest.exe`

@@ -1,6 +1,7 @@
 ---
 name: speckit-specify
 color: purple
+model: opus
 description: Feature specification agent. Creates or updates feature specs from natural language descriptions.
 tools:
   - Read
@@ -13,6 +14,7 @@ tools:
   - WebFetch
   - mcp__context7__resolve-library-id
   - mcp__context7__get-library-docs
+skills: vst-guide, dsp-architecture
 ---
 
 # Specification Agent

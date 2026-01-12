@@ -1,5 +1,6 @@
 ---
 name: speckit-tasks
+model: opus
 color: yellow
 description: Task generation agent. Breaks implementation plans into actionable, dependency-ordered tasks organized by user story.
 tools:

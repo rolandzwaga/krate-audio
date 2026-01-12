@@ -1,5 +1,6 @@
 ---
 name: speckit-clarify
+model: opus
 color: orange
 description: Specification clarification agent. Identifies underspecified areas and asks targeted questions to reduce ambiguity.
 tools:

@@ -276,6 +276,41 @@ namespace Chebyshev {
 - **Exciter/enhancer:** Blend higher harmonics (T5-T8) at low levels
 - **Waveshaping design:** Combine with `Sigmoid::` functions for complex transfer curves
 
+### Wavefolding Math Functions
+**Path:** [wavefold_math.h](dsp/include/krate/dsp/core/wavefold_math.h) • **Since:** 0.10.0
+
+Pure mathematical functions for wavefolding algorithms. Three fundamental approaches with different harmonic characters.
+
+```cpp
+namespace WavefoldMath {
+    constexpr float kMinThreshold = 0.01f;                    // Triangle fold minimum
+    constexpr float kLambertWDomainMin = -0.36787944117144233f;  // -1/e
+    constexpr float kSineFoldGainEpsilon = 0.001f;            // Passthrough threshold
+
+    // Lambert W function - Lockhart wavefolder foundation
+    [[nodiscard]] inline float lambertW(float x) noexcept;        // Principal branch W0, 4 iterations
+    [[nodiscard]] inline float lambertWApprox(float x) noexcept;  // Fast version, 1 iteration
+
+    // Triangle fold - geometric wavefolding
+    [[nodiscard]] inline float triangleFold(float x, float threshold = 1.0f) noexcept;
+
+    // Sine fold - Serge synthesizer style
+    [[nodiscard]] inline float sineFold(float x, float gain) noexcept;
+}
+```
+
+| Function | Character | Use Case |
+|----------|-----------|----------|
+| `lambertW` | Rich even/odd harmonics, nulls | Lockhart wavefolder circuits |
+| `lambertWApprox` | Same, ~3x faster | Real-time when precision not critical |
+| `triangleFold` | Dense odd harmonics, smooth rolloff | Guitar effects, general distortion |
+| `sineFold` | FM-like sparse spectrum, Bessel distribution | Serge wavefolder emulation |
+
+**When to use:**
+- **Lockhart wavefolder:** Use `lambertW()` for precise transfer function design
+- **Serge modular emulation:** Use `sineFold()` with gain ~pi for characteristic sound
+- **General distortion:** Use `triangleFold()` for predictable, symmetric clipping
+
 ---
 
 ## Layer 1: DSP Primitives

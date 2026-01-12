@@ -8,6 +8,51 @@ allowed-tools: Read, Grep, Glob, Bash
 
 This skill provides comprehensive guidelines for writing effective tests for this VST3 plugin project.
 
+---
+
+## CRITICAL: How to Run Tests (READ THIS FIRST)
+
+**All tests are C++ executables. There is NO Python involved in testing.**
+
+### Test Executables
+
+| Executable | Purpose | Location |
+|------------|---------|----------|
+| `dsp_tests.exe` | DSP algorithm tests | `build/bin/Release/dsp_tests.exe` |
+| `plugin_tests.exe` | Plugin tests | `build/bin/Release/plugin_tests.exe` |
+| `approval_tests.exe` | Golden master tests | `build/bin/Release/approval_tests.exe` |
+
+### Build and Run Tests
+
+```bash
+# 1. BUILD FIRST (always!)
+cmake --build build --config Release --target dsp_tests
+
+# 2. Run all tests
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe"
+
+# 3. Run tests by tag
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "[wavefold_math]"
+
+# 4. Run tests by name pattern
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" "*lambert*"
+
+# 5. List all tags
+"F:/projects/iterum/build/bin/Release/dsp_tests.exe" --list-tags
+```
+
+### DO NOT DO THIS
+
+- **DO NOT run Python scripts** - This is a C++ project. Tests are C++ executables.
+- **DO NOT use pytest, unittest, or any Python test framework**
+- **DO NOT try to "generate reference values" with Python** - Use mathematical constants or Wolfram Alpha
+- **DO NOT skip the build step** - Code must compile before tests can run
+- **DO NOT guess binary locations** - Binaries are in `build/bin/{Config}/`
+
+For complete commands and examples, see [QUICK-START.md](QUICK-START.md).
+
+---
+
 ## Quick Reference
 
 - **Build commands**: See [QUICK-START.md](QUICK-START.md)
