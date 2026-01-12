@@ -14,7 +14,7 @@ tools:
   - WebFetch
   - mcp__context7__resolve-library-id
   - mcp__context7__get-library-docs
-skills: vst-guide, dsp-architecture
+skills: vst-guide, dsp-architecture, claude-file
 ---
 
 # Planning Agent

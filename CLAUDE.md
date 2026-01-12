@@ -256,11 +256,31 @@ The `vst-guide` skill auto-loads with documented pitfalls and patterns.
 
 ## Build Commands
 
+**CRITICAL: On Windows, the Python cmake wrapper in PATH does not work. You MUST use the full path to CMake:**
+
 ```bash
-cmake --preset windows-x64-debug        # Configure
-cmake --build --preset windows-x64-debug # Build
-ctest --preset windows-x64-debug         # Test
+# Set alias for convenience (or use full path every time)
+CMAKE="/c/Program Files/CMake/bin/cmake.exe"
+
+# Configure (Release)
+"$CMAKE" --preset windows-x64-release
+
+# Build (Release)
+"$CMAKE" --build build/windows-x64-release --config Release
+
+# Run DSP tests
+"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests
+build/windows-x64-release/dsp/tests/Release/dsp_tests.exe
+
+# Run all tests via CTest
+ctest --test-dir build/windows-x64-release -C Release --output-on-failure
+
+# Debug build (same pattern)
+"$CMAKE" --preset windows-x64-debug
+"$CMAKE" --build build/windows-x64-debug --config Debug
 ```
+
+**Note:** The plugin build may fail on the post-build copy step (permission error copying to `C:/Program Files/Common Files/VST3/`). This is fine - the actual compilation succeeded. The built plugin is at `build/windows-x64-release/VST3/Release/Iterum.vst3/`.
 
 ### AddressSanitizer (ASan)
 
@@ -308,6 +328,7 @@ ctest --test-dir build-asan -C Debug --output-on-failure
 - Project Constitution: `.specify/memory/constitution.md`
 
 **Skills (auto-load when relevant):**
+- `.claude/skills/claude-file/` - Display project CLAUDE.md with all development guidelines
 - `.claude/skills/testing-guide/` - Test patterns, Catch2, DSP testing strategies
 - `.claude/skills/vst-guide/` - VST3/VSTGUI patterns, thread safety, UI components
 - `.claude/skills/dsp-architecture/` - Real-time safety, layers, interpolation, performance

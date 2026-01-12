@@ -10,7 +10,7 @@ tools:
   - Bash
   - Glob
   - Grep
-skills: testing-guide, vst-guide, dsp-architecture
+skills: testing-guide, vst-guide, dsp-architecture, claude-file
 ---
 
 # Implementation Agent
