@@ -46,9 +46,9 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 **Purpose**: Create the required file structure for the wavefolding math library
 
-- [ ] T001 Create header file structure at `dsp/include/krate/dsp/core/wavefold_math.h` with namespace boilerplate
-- [ ] T002 Create test file structure at `dsp/tests/unit/core/test_wavefold_math.cpp` with Catch2 boilerplate
-- [ ] T003 Update `dsp/tests/CMakeLists.txt` to include new test file
+- [X] T001 Create header file structure at `dsp/include/krate/dsp/core/wavefold_math.h` with namespace boilerplate
+- [X] T002 Create test file structure at `dsp/tests/unit/core/test_wavefold_math.cpp` with Catch2 boilerplate
+- [X] T003 Update `dsp/tests/CMakeLists.txt` to include new test file
 
 **Checkpoint**: Project structure ready for implementation
 
@@ -74,32 +74,32 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 3.1 Pre-Implementation (MANDATORY)
 
-- [ ] T004 [US1] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
+- [X] T004 [US1] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
 
 ### 3.2 Tests for User Story 1 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T005 [US1] Write failing test: `sineFold: linear passthrough at gain=0` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T006 [US1] Write failing test: `sineFold: basic folding with sin(gain*x)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T007 [US1] Write failing test: `sineFold: negative gain treated as absolute value` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T008 [US1] Write failing test: `sineFold: output bounded to [-1, 1]` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T009 [US1] Write failing test: `sineFold: NaN propagation` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T005 [US1] Write failing test: `sineFold: linear passthrough at gain=0` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T006 [US1] Write failing test: `sineFold: basic folding with sin(gain*x)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T007 [US1] Write failing test: `sineFold: negative gain treated as absolute value` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T008 [US1] Write failing test: `sineFold: output bounded to [-1, 1]` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T009 [US1] Write failing test: `sineFold: NaN propagation` in `dsp/tests/unit/core/test_wavefold_math.cpp`
 
 ### 3.3 Implementation for User Story 1
 
-- [ ] T010 [US1] Implement `sineFold(float x, float gain)` in `dsp/include/krate/dsp/core/wavefold_math.h`:
+- [X] T010 [US1] Implement `sineFold(float x, float gain)` in `dsp/include/krate/dsp/core/wavefold_math.h`:
   - Add constants `kSineFoldGainEpsilon = 0.001f`
   - Return x if gain < kSineFoldGainEpsilon (linear passthrough)
   - Take absolute value of negative gain
   - Return `std::sin(gain * x)` for normal case
   - Propagate NaN
-- [ ] T011 [US1] Verify all sineFold tests pass
-- [ ] T012 [US1] Add Doxygen documentation to sineFold function (FR-013)
+- [X] T011 [US1] Verify all sineFold tests pass
+- [X] T012 [US1] Add Doxygen documentation to sineFold function (FR-013)
 
 ### 3.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T013 [US1] **Verify IEEE 754 compliance**: Add `dsp/tests/unit/core/test_wavefold_math.cpp` to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` (uses std::isnan)
+- [X] T013 [US1] **Verify IEEE 754 compliance**: Add `dsp/tests/unit/core/test_wavefold_math.cpp` to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` (uses std::isnan)
 
 ### 3.5 Commit (MANDATORY)
 
@@ -119,23 +119,23 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 4.1 Pre-Implementation (MANDATORY)
 
-- [ ] T015 [US2] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
+- [X] T015 [US2] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
 
 ### 4.2 Tests for User Story 2 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T016 [US2] Write failing test: `triangleFold: no folding within threshold` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T017 [US2] Write failing test: `triangleFold: single fold at 1.5x threshold` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T017a [US2] Write failing test: `triangleFold: multi-fold for large inputs (FR-005)` - test x=5.0, x=10.0, x=100.0 with threshold=1.0, verify output always in [-1, 1] and follows predictable pattern
-- [ ] T018 [US2] Write failing test: `triangleFold: symmetry triangleFold(-x) == -triangleFold(x)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T019 [US2] Write failing test: `triangleFold: output always bounded to [-threshold, threshold]` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T020 [US2] Write failing test: `triangleFold: threshold clamped to minimum 0.01f` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T021 [US2] Write failing test: `triangleFold: NaN propagation` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T016 [US2] Write failing test: `triangleFold: no folding within threshold` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T017 [US2] Write failing test: `triangleFold: single fold at 1.5x threshold` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T017a [US2] Write failing test: `triangleFold: multi-fold for large inputs (FR-005)` - test x=5.0, x=10.0, x=100.0 with threshold=1.0, verify output always in [-1, 1] and follows predictable pattern
+- [X] T018 [US2] Write failing test: `triangleFold: symmetry triangleFold(-x) == -triangleFold(x)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T019 [US2] Write failing test: `triangleFold: output always bounded to [-threshold, threshold]` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T020 [US2] Write failing test: `triangleFold: threshold clamped to minimum 0.01f` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T021 [US2] Write failing test: `triangleFold: NaN propagation` in `dsp/tests/unit/core/test_wavefold_math.cpp`
 
 ### 4.3 Implementation for User Story 2
 
-- [ ] T022 [US2] Implement `triangleFold(float x, float threshold)` in `dsp/include/krate/dsp/core/wavefold_math.h`:
+- [X] T022 [US2] Implement `triangleFold(float x, float threshold)` in `dsp/include/krate/dsp/core/wavefold_math.h`:
   - Add constant `kMinThreshold = 0.01f`
   - Clamp threshold to minimum kMinThreshold
   - Use modular arithmetic: period = 4.0f * threshold
@@ -143,12 +143,12 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
   - Map phase to triangle wave within [-threshold, threshold]
   - Preserve odd symmetry with copysign
   - Propagate NaN
-- [ ] T023 [US2] Verify all triangleFold tests pass
-- [ ] T024 [US2] Add Doxygen documentation to triangleFold function (FR-013)
+- [X] T023 [US2] Verify all triangleFold tests pass
+- [X] T024 [US2] Add Doxygen documentation to triangleFold function (FR-013)
 
 ### 4.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T025 [US2] **Verify IEEE 754 compliance**: Confirm test file already in `-fno-fast-math` list (from US1)
+- [X] T025 [US2] **Verify IEEE 754 compliance**: Confirm test file already in `-fno-fast-math` list (from US1)
 
 ### 4.5 Commit (MANDATORY)
 
@@ -168,22 +168,22 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 5.1 Pre-Implementation (MANDATORY)
 
-- [ ] T027 [US3] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
+- [X] T027 [US3] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
 
 ### 5.2 Tests for User Story 3 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T028 [US3] Write failing test: `lambertW: basic values W(0)=0, W(e)=1` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T029 [US3] Write failing test: `lambertW: known values W(0.1)~0.0953, W(1.0)~0.567` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T030 [US3] Write failing test: `lambertW: domain boundary W(-1/e)=-1, NaN below` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T031 [US3] Write failing test: `lambertW: special values NaN->NaN, Inf->Inf` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T031a [US3] Write failing test: `lambertW: large inputs x>100` - verify no overflow and reasonable approximation for x=100, x=1000
-- [ ] T032 [US3] Write failing test: `lambertW: accuracy within 0.001 tolerance (SC-002)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T028 [US3] Write failing test: `lambertW: basic values W(0)=0, W(e)=1` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T029 [US3] Write failing test: `lambertW: known values W(0.1)~0.0913, W(1.0)~0.567` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T030 [US3] Write failing test: `lambertW: domain boundary W(-1/e)=-1, NaN below` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T031 [US3] Write failing test: `lambertW: special values NaN->NaN, Inf->Inf` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T031a [US3] Write failing test: `lambertW: large inputs x>100` - verify no overflow and reasonable approximation for x=100, x=1000
+- [X] T032 [US3] Write failing test: `lambertW: accuracy within 0.001 tolerance (SC-002)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
 
 ### 5.3 Implementation for User Story 3
 
-- [ ] T033 [US3] Implement `lambertW(float x)` in `dsp/include/krate/dsp/core/wavefold_math.h`:
+- [X] T033 [US3] Implement `lambertW(float x)` in `dsp/include/krate/dsp/core/wavefold_math.h`:
   - Add constant `kLambertWDomainMin = -0.36787944117144233f` (-1/e)
   - Return NaN for x < kLambertWDomainMin
   - Return NaN for NaN input
@@ -191,12 +191,12 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
   - Return Inf for Inf input
   - Initial estimate: Halley approximation w0 = x / (1 + x)
   - 4 Newton-Raphson iterations: w = w - (w * exp(w) - x) / (exp(w) * (w + 1))
-- [ ] T034 [US3] Verify all lambertW tests pass
-- [ ] T035 [US3] Add Doxygen documentation to lambertW function (FR-013)
+- [X] T034 [US3] Verify all lambertW tests pass
+- [X] T035 [US3] Add Doxygen documentation to lambertW function (FR-013)
 
 ### 5.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T036 [US3] **Verify IEEE 754 compliance**: Confirm test file already in `-fno-fast-math` list (from US1)
+- [X] T036 [US3] **Verify IEEE 754 compliance**: Confirm test file already in `-fno-fast-math` list (from US1)
 
 ### 5.5 Commit (MANDATORY)
 
@@ -216,29 +216,29 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 6.1 Pre-Implementation (MANDATORY)
 
-- [ ] T038 [US4] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
+- [X] T038 [US4] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
 
 ### 6.2 Tests for User Story 4 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T039 [US4] Write failing test: `lambertWApprox: accuracy vs exact within 0.01 relative error` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T040 [US4] Write failing test: `lambertWApprox: domain boundary returns NaN below -1/e` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T041 [US4] Write failing test: `lambertWApprox: speedup at least 3x vs lambertW (SC-003)` in `dsp/tests/unit/core/test_wavefold_math.cpp` (benchmark tag)
+- [X] T039 [US4] Write failing test: `lambertWApprox: accuracy vs exact within 0.01 relative error` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T040 [US4] Write failing test: `lambertWApprox: domain boundary returns NaN below -1/e` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T041 [US4] Write failing test: `lambertWApprox: speedup at least 3x vs lambertW (SC-003)` in `dsp/tests/unit/core/test_wavefold_math.cpp` (benchmark tag)
 
 ### 6.3 Implementation for User Story 4
 
-- [ ] T042 [US4] Implement `lambertWApprox(float x)` in `dsp/include/krate/dsp/core/wavefold_math.h`:
+- [X] T042 [US4] Implement `lambertWApprox(float x)` in `dsp/include/krate/dsp/core/wavefold_math.h`:
   - Same domain handling as lambertW (return NaN for x < -1/e)
   - Same special value handling (NaN, 0.0f, Inf)
   - Initial estimate: Halley approximation w0 = x / (1 + x)
   - Single Newton-Raphson iteration (1 iteration total)
-- [ ] T043 [US4] Verify all lambertWApprox tests pass
-- [ ] T044 [US4] Add Doxygen documentation to lambertWApprox function (FR-013)
+- [X] T043 [US4] Verify all lambertWApprox tests pass
+- [X] T044 [US4] Add Doxygen documentation to lambertWApprox function (FR-013)
 
 ### 6.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T045 [US4] **Verify IEEE 754 compliance**: Confirm test file already in `-fno-fast-math` list (from US1)
+- [X] T045 [US4] **Verify IEEE 754 compliance**: Confirm test file already in `-fno-fast-math` list (from US1)
 
 ### 6.5 Commit (MANDATORY)
 
@@ -254,21 +254,21 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 7.1 Stress Tests
 
-- [ ] T047 [P] Write stress test: `all functions: 1M sample stress test zero NaN outputs (SC-006)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
-- [ ] T048 [P] Write stress test: `all functions: bounded outputs for inputs in [-10, 10] (SC-001)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T047 [P] Write stress test: `all functions: 1M sample stress test zero NaN outputs (SC-006)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
+- [X] T048 [P] Write stress test: `all functions: bounded outputs for inputs in [-10, 10] (SC-001)` in `dsp/tests/unit/core/test_wavefold_math.cpp`
 
 ### 7.2 Documentation Completion
 
-- [ ] T049 Add file header with copyright and description to `dsp/include/krate/dsp/core/wavefold_math.h`
-- [ ] T050 Verify all function documentation includes @par Harmonic Character sections
-- [ ] T051 Verify all function documentation includes @note Performance sections
+- [X] T049 Add file header with copyright and description to `dsp/include/krate/dsp/core/wavefold_math.h`
+- [X] T050 Verify all function documentation includes @par Harmonic Character sections
+- [X] T051 Verify all function documentation includes @note Performance sections
 
 ### 7.3 Verification
 
-- [ ] T052 Run full build: `cmake --build build --config Release`
-- [ ] T053 Run all tests: `ctest --test-dir build -C Release --output-on-failure`
+- [X] T052 Run full build: `cmake --build build --config Release`
+- [X] T053 Run all tests: `ctest --test-dir build -C Release --output-on-failure`
 - [ ] T054 Verify zero compiler warnings
-- [ ] T054a Verify 100% test coverage (SC-007) - all public functions have corresponding tests
+- [X] T054a Verify 100% test coverage (SC-007) - all public functions have corresponding tests
 
 **Checkpoint**: All stress tests pass, documentation complete, coverage verified
 
@@ -282,7 +282,7 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 ### 8.1 Architecture Documentation Update
 
-- [ ] T055 **Update ARCHITECTURE.md** with new Layer 0 component:
+- [X] T055 **Update ARCHITECTURE.md** with new Layer 0 component:
   - Add `wavefold_math.h` entry to Layer 0 (Core Utilities) section
   - Include: purpose, public API summary (`lambertW`, `lambertWApprox`, `triangleFold`, `sineFold`)
   - Include: file location `dsp/include/krate/dsp/core/wavefold_math.h`
