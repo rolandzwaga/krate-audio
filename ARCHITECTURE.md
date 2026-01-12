@@ -4,7 +4,7 @@ Living inventory of components and APIs. Reference before writing specs to avoid
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document.
 
-**Last Updated**: 2026-01-11 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
+**Last Updated**: 2026-01-12 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
 
 ## Repository Structure
 
@@ -235,6 +235,46 @@ inline void equalPowerGains(float position, float& fadeOut, float& fadeIn) noexc
 [[nodiscard]] inline float crossfadeIncrement(float durationMs, double sampleRate) noexcept;
 // position: 0.0=full fadeOut, 0.5=equal blend, 1.0=full fadeIn
 ```
+
+### Chebyshev Polynomials
+**Path:** [chebyshev.h](dsp/include/krate/dsp/core/chebyshev.h) • **Since:** 0.10.0
+
+Chebyshev polynomials of the first kind for harmonic control in waveshaping.
+Key property: `T_n(cos(theta)) = cos(n*theta)` - produces pure nth harmonic from sine wave input.
+
+```cpp
+namespace Chebyshev {
+    constexpr int kMaxHarmonics = 32;
+
+    // Individual polynomials T1-T8 (Horner's method)
+    [[nodiscard]] constexpr float T1(float x) noexcept;  // x (fundamental)
+    [[nodiscard]] constexpr float T2(float x) noexcept;  // 2x^2 - 1 (2nd harmonic)
+    [[nodiscard]] constexpr float T3(float x) noexcept;  // 4x^3 - 3x (3rd harmonic)
+    [[nodiscard]] constexpr float T4(float x) noexcept;  // 8x^4 - 8x^2 + 1
+    [[nodiscard]] constexpr float T5(float x) noexcept;  // 16x^5 - 20x^3 + 5x
+    [[nodiscard]] constexpr float T6(float x) noexcept;  // 32x^6 - 48x^4 + 18x^2 - 1
+    [[nodiscard]] constexpr float T7(float x) noexcept;  // 64x^7 - 112x^5 + 56x^3 - 7x
+    [[nodiscard]] constexpr float T8(float x) noexcept;  // 128x^8 - 256x^6 + 160x^4 - 32x^2 + 1
+
+    // Arbitrary order (recurrence relation)
+    [[nodiscard]] constexpr float Tn(float x, int n) noexcept;  // T_n = 2x*T_{n-1} - T_{n-2}
+
+    // Weighted sum (Clenshaw algorithm)
+    [[nodiscard]] inline float harmonicMix(float x, const float* weights, std::size_t numHarmonics) noexcept;
+    // weights[0]=T1, weights[1]=T2, ..., weights[n-1]=Tn
+}
+```
+
+| Function | Use Case |
+|----------|----------|
+| `T1-T8` | Direct harmonic generation (compile-time) |
+| `Tn(x, n)` | Dynamic order selection at runtime |
+| `harmonicMix` | Custom harmonic spectra (tube amp, exciter) |
+
+**When to use:**
+- **Tube amp modeling:** Use `harmonicMix()` with emphasis on T2/T3 for even/odd harmonic character
+- **Exciter/enhancer:** Blend higher harmonics (T5-T8) at low levels
+- **Waveshaping design:** Combine with `Sigmoid::` functions for complex transfer curves
 
 ---
 

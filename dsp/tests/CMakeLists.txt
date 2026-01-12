@@ -31,6 +31,7 @@ add_executable(dsp_tests
     unit/core/grain_envelope_test.cpp
     unit/core/crossfade_utils_test.cpp
     unit/core/sigmoid_test.cpp
+    unit/core/chebyshev_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/delay_line_test.cpp
@@ -125,6 +126,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/grain_envelope_test.cpp
         unit/core/crossfade_utils_test.cpp
         unit/core/sigmoid_test.cpp
+        unit/core/chebyshev_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/oversampler_test.cpp
         unit/primitives/delay_line_test.cpp
