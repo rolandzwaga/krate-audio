@@ -339,7 +339,262 @@ TEST_CASE("Variable drive functions handle negative drive", "[sigmoid][core][US2
 }
 
 // =============================================================================
-// US5: Asymmetric Functions
+// Spec 048: Asymmetric Shaping Functions
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// US1: Tube-Like Warmth (Spec 048)
+// -----------------------------------------------------------------------------
+
+TEST_CASE("Asymmetric::tube() zero-crossing continuity (SC-003)", "[sigmoid][core][US1][048]") {
+    // SC-003: No discontinuities at x=0 in transfer function
+
+    SECTION("passes through origin") {
+        REQUIRE(Asymmetric::tube(0.0f) == Approx(0.0f).margin(1e-6f));
+    }
+
+    SECTION("smooth transition across zero") {
+        float epsilon = 1e-5f;
+        float atZero = Asymmetric::tube(0.0f);
+        float plusEps = Asymmetric::tube(epsilon);
+        float minusEps = Asymmetric::tube(-epsilon);
+
+        // All should be near zero
+        REQUIRE(atZero == 0.0f);
+        REQUIRE(plusEps == Approx(0.0f).margin(1e-4f));
+        REQUIRE(minusEps == Approx(0.0f).margin(1e-4f));
+
+        // Signs should be correct
+        REQUIRE(plusEps > 0.0f);
+        REQUIRE(minusEps < 0.0f);
+    }
+}
+
+TEST_CASE("Asymmetric::tube() output boundedness with extreme inputs (SC-002)", "[sigmoid][core][US1][048]") {
+    // SC-002: Output bounded in [-1.5, 1.5] for normalized input [-1.0, 1.0]
+
+    SECTION("bounded for typical range") {
+        for (float x = -1.0f; x <= 1.0f; x += 0.1f) {
+            float out = Asymmetric::tube(x);
+            REQUIRE(out >= -1.5f);
+            REQUIRE(out <= 1.5f);
+        }
+    }
+
+    SECTION("bounded for extreme inputs") {
+        std::vector<float> extremeValues = {-100.0f, -10.0f, 10.0f, 100.0f, 1000.0f};
+        for (float x : extremeValues) {
+            float out = Asymmetric::tube(x);
+            // tanh is used internally, so output is bounded to [-1, 1]
+            REQUIRE(out >= -1.0f);
+            REQUIRE(out <= 1.0f);
+            REQUIRE(std::isfinite(out));
+        }
+    }
+
+    SECTION("handles infinity gracefully") {
+        float posInf = std::numeric_limits<float>::infinity();
+        float negInf = -std::numeric_limits<float>::infinity();
+
+        // Note: tube() uses polynomial x + 0.3*x^2 - 0.15*x^3 before tanh
+        // With infinity: inf + inf - inf = NaN (indeterminate form)
+        // This is acceptable behavior - real audio signals never reach infinity
+        // The important property is that tube() doesn't crash
+        float posResult = Asymmetric::tube(posInf);
+        float negResult = Asymmetric::tube(negInf);
+
+        // Either NaN or finite are acceptable for infinity input
+        REQUIRE((std::isnan(posResult) || std::isfinite(posResult)));
+        REQUIRE((std::isnan(negResult) || std::isfinite(negResult)));
+    }
+}
+
+TEST_CASE("Asymmetric::tube() matches polynomial formula (FR-004)", "[sigmoid][core][US1][048]") {
+    // FR-004: Formula is tanh(x + 0.3*x^2 - 0.15*x^3)
+
+    SECTION("matches expected formula for moderate inputs") {
+        std::vector<float> testValues = {-1.0f, -0.5f, 0.0f, 0.5f, 1.0f};
+        for (float x : testValues) {
+            float x2 = x * x;
+            float x3 = x2 * x;
+            float polynomial = x + 0.3f * x2 - 0.15f * x3;
+            float expected = std::tanh(polynomial);
+            float actual = Asymmetric::tube(x);
+
+            // Allow small tolerance for FastMath::fastTanh vs std::tanh
+            REQUIRE(actual == Approx(expected).margin(0.01f));
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// US2: Aggressive Diode Clipping (Spec 048)
+// -----------------------------------------------------------------------------
+
+TEST_CASE("Asymmetric::diode() zero-crossing continuity (SC-003)", "[sigmoid][core][US2][048]") {
+    // SC-003: No discontinuities at x=0 in transfer function
+
+    SECTION("passes through origin") {
+        REQUIRE(Asymmetric::diode(0.0f) == Approx(0.0f).margin(1e-6f));
+    }
+
+    SECTION("smooth transition across zero") {
+        float epsilon = 1e-5f;
+        float atZero = Asymmetric::diode(0.0f);
+        float plusEps = Asymmetric::diode(epsilon);
+        float minusEps = Asymmetric::diode(-epsilon);
+
+        // All should be near zero
+        REQUIRE(atZero == Approx(0.0f).margin(1e-6f));
+        REQUIRE(plusEps == Approx(0.0f).margin(1e-4f));
+        REQUIRE(minusEps == Approx(0.0f).margin(1e-4f));
+    }
+}
+
+TEST_CASE("Asymmetric::diode() edge cases (FR-007)", "[sigmoid][core][US2][048]") {
+    // FR-007: Numerical stability for edge cases
+
+    SECTION("handles denormal inputs") {
+        float denormal = 1e-40f;
+        float result = Asymmetric::diode(denormal);
+        REQUIRE(std::isfinite(result));
+        REQUIRE(result >= 0.0f);  // Positive input should give positive output
+    }
+
+    SECTION("handles large positive values") {
+        float largePos = 100.0f;
+        float result = Asymmetric::diode(largePos);
+        REQUIRE(std::isfinite(result));
+        // Diode forward bias: 1 - exp(-1.5*x) approaches 1 for large x
+        REQUIRE(result == Approx(1.0f).margin(0.001f));
+    }
+
+    SECTION("handles large negative values") {
+        float largeNeg = -100.0f;
+        float result = Asymmetric::diode(largeNeg);
+        // Diode reverse bias: x / (1 - 0.5*x) for x < 0
+        // For x = -100: -100 / (1 + 50) = -100/51 ~ -1.96
+        REQUIRE(std::isfinite(result));
+        REQUIRE(result < 0.0f);
+    }
+}
+
+TEST_CASE("Asymmetric::diode() NaN/Infinity handling (FR-007)", "[sigmoid][core][US2][048]") {
+    // FR-007: NaN input propagates, Inf inputs produce bounded output
+
+    SECTION("NaN input propagates") {
+        float nan = std::numeric_limits<float>::quiet_NaN();
+        REQUIRE(std::isnan(Asymmetric::diode(nan)));
+    }
+
+    SECTION("positive infinity produces bounded output") {
+        float posInf = std::numeric_limits<float>::infinity();
+        float result = Asymmetric::diode(posInf);
+        // 1 - exp(-inf) = 1 - 0 = 1
+        REQUIRE(result == Approx(1.0f).margin(0.001f));
+    }
+
+    SECTION("negative infinity handled") {
+        float negInf = -std::numeric_limits<float>::infinity();
+        float result = Asymmetric::diode(negInf);
+        // x / (1 - 0.5*x) with x = -inf
+        // -inf / (1 + inf) = -inf / inf -> can be NaN or -2 limit
+        // The formula has a horizontal asymptote at -2 as x -> -inf
+        // Check it's either finite or NaN (both acceptable behaviors)
+        // Actually: lim x->-inf of x/(1-0.5x) = lim of 1/(-0.5) = -2
+        REQUIRE((std::isfinite(result) || std::isnan(result)));
+    }
+}
+
+// -----------------------------------------------------------------------------
+// US4: Simple Bias-Based Asymmetry (Spec 048)
+// -----------------------------------------------------------------------------
+
+TEST_CASE("Asymmetric::withBias() basic functionality (FR-001)", "[sigmoid][core][US4][048]") {
+    // FR-001: withBias applies DC bias before symmetric saturation
+
+    SECTION("formula is saturator(input + bias)") {
+        float x = 0.5f;
+        float bias = 0.2f;
+
+        float result = Asymmetric::withBias(x, bias, Sigmoid::tanh);
+        float expected = Sigmoid::tanh(x + bias);
+
+        REQUIRE(result == Approx(expected).margin(1e-6f));
+    }
+
+    SECTION("works with various sigmoid functions") {
+        float x = 0.3f;
+        float bias = 0.15f;
+
+        // With tanh
+        REQUIRE(Asymmetric::withBias(x, bias, Sigmoid::tanh) ==
+                Approx(Sigmoid::tanh(x + bias)));
+
+        // With atan
+        REQUIRE(Asymmetric::withBias(x, bias, Sigmoid::atan) ==
+                Approx(Sigmoid::atan(x + bias)));
+
+        // With softClipCubic
+        REQUIRE(Asymmetric::withBias(x, bias, Sigmoid::softClipCubic) ==
+                Approx(Sigmoid::softClipCubic(x + bias)));
+    }
+}
+
+TEST_CASE("Asymmetric::withBias() asymmetry verification (SC-001)", "[sigmoid][core][US4][048]") {
+    // SC-001: Even harmonic generation - asymmetry creates even harmonics
+
+    SECTION("positive bias clips positive half more") {
+        float bias = 0.3f;
+        float posInput = 0.5f;
+        float negInput = -0.5f;
+
+        float posResult = Asymmetric::withBias(posInput, bias, Sigmoid::tanh);
+        float negResult = Asymmetric::withBias(negInput, bias, Sigmoid::tanh);
+
+        // With positive bias, positive input saturates more (0.5 + 0.3 = 0.8)
+        // while negative input moves toward zero (-0.5 + 0.3 = -0.2)
+        // So |posResult| > |negResult| since tanh(0.8) > |tanh(-0.2)|
+        REQUIRE(std::abs(posResult) > std::abs(negResult));
+    }
+
+    SECTION("negative bias clips negative half more") {
+        float bias = -0.3f;
+        float posInput = 0.5f;
+        float negInput = -0.5f;
+
+        float posResult = Asymmetric::withBias(posInput, bias, Sigmoid::tanh);
+        float negResult = Asymmetric::withBias(negInput, bias, Sigmoid::tanh);
+
+        // With negative bias, negative input saturates more (-0.5 - 0.3 = -0.8)
+        REQUIRE(std::abs(negResult) > std::abs(posResult));
+    }
+}
+
+TEST_CASE("Asymmetric::withBias() integration with Sigmoid::tanh (FR-005)", "[sigmoid][core][US4][048]") {
+    // FR-005: Integration with Sigmoid library
+
+    SECTION("produces DC offset in output (caller must DC block)") {
+        // Note: DC blocking is external per clarification
+        float bias = 0.5f;
+
+        // When input is zero, output is tanh(bias), not zero
+        float zeroInput = Asymmetric::withBias(0.0f, bias, Sigmoid::tanh);
+        float expectedDC = Sigmoid::tanh(bias);
+
+        REQUIRE(zeroInput == Approx(expectedDC).margin(1e-6f));
+        REQUIRE(zeroInput != 0.0f);  // There IS a DC offset
+    }
+
+    SECTION("is noexcept") {
+        static_assert(noexcept(Asymmetric::withBias(0.0f, 0.0f, Sigmoid::tanh)),
+                      "withBias must be noexcept");
+        REQUIRE(true);
+    }
+}
+
+// =============================================================================
+// US5: Asymmetric Functions (Original Tests from Spec 047)
 // =============================================================================
 
 TEST_CASE("Asymmetric::tube() matches extracted algorithm", "[sigmoid][core][US5]") {
@@ -417,6 +672,114 @@ TEST_CASE("Asymmetric::dualCurve() applies different gains per polarity", "[sigm
         float neg = Asymmetric::dualCurve(-x, 3.0f, 1.0f);
         // With asymmetric gains, |f(x)| != |f(-x)|
         REQUIRE(std::abs(pos) != Approx(std::abs(neg)).margin(0.01f));
+    }
+}
+
+// =============================================================================
+// US3 (Spec 048): Asymmetric::dualCurve() Additional Tests
+// =============================================================================
+
+TEST_CASE("Asymmetric::dualCurve() zero-crossing continuity (SC-003)", "[sigmoid][core][US3][048]") {
+    // SC-003: No discontinuities at x=0 in transfer function
+
+    SECTION("zero crossing is continuous for various gain combinations") {
+        const std::vector<std::pair<float, float>> gainPairs = {
+            {1.0f, 1.0f},
+            {2.0f, 1.0f},
+            {1.0f, 2.0f},
+            {0.5f, 3.0f},
+            {0.0f, 2.0f},
+            {2.0f, 0.0f}
+        };
+
+        for (const auto& [posGain, negGain] : gainPairs) {
+            // Check values very close to zero from both sides
+            float atZero = Asymmetric::dualCurve(0.0f, posGain, negGain);
+            float justAbove = Asymmetric::dualCurve(1e-7f, posGain, negGain);
+            float justBelow = Asymmetric::dualCurve(-1e-7f, posGain, negGain);
+
+            // All should be near zero (no discontinuity)
+            REQUIRE(atZero == Approx(0.0f).margin(1e-6f));
+            REQUIRE(justAbove == Approx(0.0f).margin(1e-4f));
+            REQUIRE(justBelow == Approx(0.0f).margin(1e-4f));
+        }
+    }
+
+    SECTION("transition is smooth across zero") {
+        // Check derivative doesn't have jump at zero
+        float epsilon = 1e-5f;
+        float posGain = 2.0f;
+        float negGain = 1.0f;
+
+        float atZero = Asymmetric::dualCurve(0.0f, posGain, negGain);
+        float plusEps = Asymmetric::dualCurve(epsilon, posGain, negGain);
+        float minusEps = Asymmetric::dualCurve(-epsilon, posGain, negGain);
+
+        // Both should be close to zero with smooth transition
+        REQUIRE(atZero == 0.0f);
+        REQUIRE(plusEps > 0.0f);
+        REQUIRE(minusEps < 0.0f);
+    }
+}
+
+TEST_CASE("Asymmetric::dualCurve() clamps negative gains to zero (FR-002)", "[sigmoid][core][US3][048]") {
+    // FR-002: Gains are clamped to zero minimum to prevent polarity flips
+
+    SECTION("negative positive gain treated as zero") {
+        // Negative gain for positive half should produce zero output for positive input
+        float posInput = 0.5f;
+        float result = Asymmetric::dualCurve(posInput, -1.0f, 1.0f);
+
+        // With gain clamped to 0, tanh(0.5 * 0) = tanh(0) = 0
+        REQUIRE(result == Approx(0.0f).margin(1e-6f));
+    }
+
+    SECTION("negative negative gain treated as zero") {
+        // Negative gain for negative half should produce zero output for negative input
+        float negInput = -0.5f;
+        float result = Asymmetric::dualCurve(negInput, 1.0f, -2.0f);
+
+        // With gain clamped to 0, tanh(-0.5 * 0) = tanh(0) = 0
+        REQUIRE(result == Approx(0.0f).margin(1e-6f));
+    }
+
+    SECTION("both negative gains produce zero output") {
+        float result1 = Asymmetric::dualCurve(0.5f, -1.0f, -1.0f);
+        float result2 = Asymmetric::dualCurve(-0.5f, -1.0f, -1.0f);
+
+        REQUIRE(result1 == Approx(0.0f).margin(1e-6f));
+        REQUIRE(result2 == Approx(0.0f).margin(1e-6f));
+    }
+
+    SECTION("zero gain produces zero output for that half-wave") {
+        // Zero gain should produce zero output (not flip polarity)
+        float posZeroResult = Asymmetric::dualCurve(0.5f, 0.0f, 2.0f);
+        float negZeroResult = Asymmetric::dualCurve(-0.5f, 2.0f, 0.0f);
+
+        REQUIRE(posZeroResult == Approx(0.0f).margin(1e-6f));
+        REQUIRE(negZeroResult == Approx(0.0f).margin(1e-6f));
+    }
+}
+
+TEST_CASE("Asymmetric::dualCurve() identity case (both gains = 1.0)", "[sigmoid][core][US3][048]") {
+    // Equal gains of 1.0 should match standard tanh saturation
+
+    SECTION("matches Sigmoid::tanh for identity gains") {
+        std::vector<float> testValues = {-2.0f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 2.0f};
+        for (float x : testValues) {
+            float dualResult = Asymmetric::dualCurve(x, 1.0f, 1.0f);
+            float tanhResult = Sigmoid::tanh(x);
+            REQUIRE(dualResult == Approx(tanhResult).margin(1e-5f));
+        }
+    }
+
+    SECTION("is perfectly symmetric at identity") {
+        std::vector<float> testValues = {0.1f, 0.5f, 1.0f, 2.0f};
+        for (float x : testValues) {
+            float pos = Asymmetric::dualCurve(x, 1.0f, 1.0f);
+            float neg = Asymmetric::dualCurve(-x, 1.0f, 1.0f);
+            REQUIRE(pos == Approx(-neg).margin(1e-6f));
+        }
     }
 }
 

@@ -162,8 +162,8 @@ namespace Asymmetric {
     [[nodiscard]] inline float tube(float x) noexcept;              // x + 0.3x² - 0.15x³, tanh limited
     [[nodiscard]] inline float diode(float x) noexcept;             // Forward/reverse bias modeling
     template<typename Func>
-    [[nodiscard]] inline float withBias(float x, float bias, Func func) noexcept;  // DC bias wrapper
-    [[nodiscard]] inline float dualCurve(float x, float posGain, float negGain) noexcept;
+    [[nodiscard]] inline float withBias(float x, float bias, Func func) noexcept;  // DC bias (caller DC-blocks)
+    [[nodiscard]] inline float dualCurve(float x, float posGain, float negGain) noexcept;  // Gains clamped >= 0
 }
 ```
 
