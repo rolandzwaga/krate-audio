@@ -1,6 +1,7 @@
 ---
 name: speckit-specify
 color: purple
+model: opus
 description: Feature specification agent. Creates or updates feature specs from natural language descriptions.
 tools:
   - Read

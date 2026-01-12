@@ -1,5 +1,6 @@
 ---
 name: speckit-plan
+model: opus
 color: blue
 description: Implementation planning agent. Creates technical plans with research on libraries, APIs, and best practices. PRIMARY research agent.
 tools:
