@@ -13,6 +13,7 @@ tools:
   - WebFetch
   - mcp__context7__resolve-library-id
   - mcp__context7__get-library-docs
+skills: vst-guide, dsp-architecture
 ---
 
 # Planning Agent

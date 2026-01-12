@@ -9,6 +9,7 @@ tools:
   - Bash
   - Glob
   - Grep
+skills: testing-guide, vst-guide, dsp-architecture
 ---
 
 # Implementation Agent
