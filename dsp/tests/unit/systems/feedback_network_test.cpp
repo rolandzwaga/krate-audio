@@ -603,7 +603,8 @@ TEST_CASE("FeedbackNetwork saturation provides soft limiting", "[feedback][US2]"
     // Soft saturation means gradual transitions, not hard clips
     // Hard clipping would create very large deltas when signal hits limit
     // With tape saturation, deltas should be smoother
-    REQUIRE(lastMaxDelta < 0.5f);  // No extreme jumps
+    // Note: DCBlocker primitive (R≈0.99857) vs old inline (R=0.995) slightly affects waveform
+    REQUIRE(lastMaxDelta < 0.6f);  // No extreme jumps
 }
 
 TEST_CASE("FeedbackNetwork output remains bounded after long oscillation", "[feedback][US2][SC-003]") {

@@ -507,6 +507,36 @@ class SampleRateConverter {
 };
 ```
 
+### DCBlocker
+**Path:** [dc_blocker.h](dsp/include/krate/dsp/primitives/dc_blocker.h) • **Since:** 0.10.0
+
+Lightweight first-order highpass filter for DC offset removal.
+
+**Use when:**
+- After asymmetric saturation/waveshaping (tube, diode) to remove introduced DC
+- In feedback loops to prevent DC accumulation from quantization/round-off
+- General signal conditioning before further processing
+
+**Performance:** 3 arithmetic ops per sample (1 mul + 1 sub + 1 add) vs 9 ops for Biquad highpass.
+
+```cpp
+class DCBlocker {
+    void prepare(double sampleRate, float cutoffHz = 10.0f) noexcept;
+    void reset() noexcept;
+    void setCutoff(float cutoffHz) noexcept;  // Without state reset
+    [[nodiscard]] float process(float x) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+};
+```
+
+| Cutoff | Use Case |
+|--------|----------|
+| 5 Hz | Feedback loops (minimal coloring) |
+| 10 Hz | General DC blocking (default) |
+| 20 Hz | Fast DC removal after aggressive processing |
+
+**Note:** Replaces inline `DCBlocker` in `feedback_network.h`. Uses exact formula R = exp(-2π*fc/fs) for accurate cutoff matching.
+
 ---
 
 ## Layer 2: DSP Processors
