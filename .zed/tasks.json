@@ -1,0 +1,43 @@
+[
+  {
+    "label": "Build Release + Install VST3",
+    "command": "& 'C:/Program Files/CMake/bin/cmake.exe' --build build --config Release --target Iterum",
+    "args": [],
+    "cwd": "$ZED_WORKTREE_ROOT",
+  },
+  {
+    "label": "Build Debug",
+    "command": "& 'C:/Program Files/CMake/bin/cmake.exe' --build build --config Debug",
+    "args": [],
+    "cwd": "$ZED_WORKTREE_ROOT",
+  },
+  {
+    "label": "Run DSP Tests",
+    "command": "./build/bin/Debug/dsp_tests.exe",
+    "args": [],
+    "cwd": "$ZED_WORKTREE_ROOT",
+  },
+  {
+    "label": "Run Plugin Tests",
+    "command": "./build/bin/Debug/plugin_tests.exe",
+    "args": [],
+    "cwd": "$ZED_WORKTREE_ROOT",
+  },
+  {
+    "label": "Run All Tests",
+    "command": "& 'C:/Program Files/CMake/bin/cmake.exe' --build build --config Debug --target RUN_TESTS",
+    "args": [],
+    "cwd": "$ZED_WORKTREE_ROOT",
+  },
+  {
+    "label": "Run Pluginval",
+    "command": "./tools/pluginval.exe",
+    "args": [
+      "--strictness-level",
+      "5",
+      "--validate",
+      "build/VST3/Release/Iterum.vst3",
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+  },
+]
