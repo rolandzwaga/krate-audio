@@ -362,12 +362,19 @@ template <typename Func>
 /// and negative input. Useful for germanium fuzz modeling.
 ///
 /// @param x Input value
-/// @param posGain Drive gain for positive half-wave
-/// @param negGain Drive gain for negative half-wave
+/// @param posGain Drive gain for positive half-wave (clamped to >= 0)
+/// @param negGain Drive gain for negative half-wave (clamped to >= 0)
 /// @return Asymmetrically saturated output
+///
+/// @note Negative gains are clamped to zero to prevent polarity flips.
+///       Zero gain produces zero output for that half-wave.
 ///
 /// @harmonics Even + Odd when posGain != negGain
 [[nodiscard]] inline float dualCurve(float x, float posGain, float negGain) noexcept {
+    // FR-002: Clamp negative gains to zero to prevent polarity flips
+    posGain = std::max(0.0f, posGain);
+    negGain = std::max(0.0f, negGain);
+
     if (x >= 0.0f) {
         return FastMath::fastTanh(x * posGain);
     } else {
