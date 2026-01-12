@@ -1,8 +1,8 @@
-<!-- SYNC: v1.11.0→1.12.0 | VII: Monorepo layout | VIII: DSP path | XV: ODR search path -->
+<!-- SYNC: v1.12.0→1.12.1 | IX-XI,XV: Skill references | XVII: vst-guide skill -->
 
 # VST Plugin Development Constitution
 
-**Version**: 1.12.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2026-01-03
+**Version**: 1.12.1 | **Ratified**: 2025-12-21 | **Last Amended**: 2026-01-12
 
 ---
 
@@ -191,34 +191,30 @@
 ### IX. Layered DSP Architecture
 
 **Non-Negotiable Rules:**
-- Layer 0 (Core): Memory pools, fast math, SIMD - NO deps on higher layers
-- Layer 1 (Primitives): Delay lines, LFOs, biquads - depend ONLY on Layer 0
-- Layer 2 (Processors): Filters, saturators, pitch shifters - compose from 0-1
-- Layer 3 (Systems): Delay engine, feedback network - compose from 0-2
-- Layer 4 (Features): Complete modes (Tape, BBD) - compose from 0-3
-- NEVER circular dependencies; NEVER skip layers
+- 5-layer architecture: Layer 0 (core) → Layer 1 (primitives) → Layer 2 (processors) → Layer 3 (systems) → Layer 4 (effects)
+- Each layer can ONLY depend on layers below; NEVER circular dependencies
 - Each layer independently testable
+
+See `dsp-architecture` skill for layer details, file locations, and examples.
 
 ### X. DSP Processing Constraints
 
 **Non-Negotiable Rules:**
-- All timing-critical ops at sample granularity
 - Oversampling (min 2x) for saturation/distortion/waveshaping
-- DC blocking (~5-20Hz highpass) after asymmetric saturation
-- Interpolation: Allpass for fixed feedback delays; Linear for modulated; Cubic for pitch
-- TDF2 for floating-point biquads; validate stability at extremes
+- DC blocking after asymmetric saturation
+- Interpolation: Allpass for fixed delays; Linear/Cubic for modulated
 - Feedback >100% MUST include soft limiting
-- FFT: power-of-2 sizes, proper windowing, maintain COLA
+
+See `dsp-architecture` skill for interpolation selection, oversampling guidance, and implementation details.
 
 ### XI. Performance Budgets
 
-| Component | CPU Target |
-|-----------|------------|
-| Total plugin | < 5% single core @ 44.1kHz stereo |
-| Layer 1 primitive | < 0.1% per instance |
-| Layer 2 processor | < 0.5% per instance |
-| Layer 3 system | < 1% per instance |
-| Max delay buffer | 10s @ 192kHz (1.92M samples) |
+**Non-Negotiable Rules:**
+- Total plugin < 5% single core @ 44.1kHz stereo
+- Max delay buffer: 10s @ 192kHz (1.92M samples)
+- Zero allocations in audio thread
+
+See `dsp-architecture` skill for per-layer CPU targets and memory guidelines.
 
 ### XII. Debugging Discipline (Anti-Pivot)
 
@@ -237,15 +233,14 @@
 ### XIII. Test-First Development
 
 **Non-Negotiable Rules:**
-- **Context Verification**: Before ANY implementation, verify `specs/TESTING-GUIDE.md` and `specs/VST-GUIDE.md` are in context
+- **Context Verification**: Skills auto-load (testing-guide, vst-guide) - no manual context verification needed
 - **Test Before Implementation**: Write failing test FIRST, then implement
 - **Bug-First Testing**: Reproduce bug in test → verify fails → fix → verify passes
 - **Explicit Todo Items**:
-  1. Verify guides in context
-  2. Write failing test
-  3. Implement to make test pass
-  4. Verify all tests pass
-  5. Commit
+  1. Write failing test
+  2. Implement to make test pass
+  3. Verify all tests pass
+  4. Commit
 
 ### XIV. Living Architecture Documentation
 
@@ -261,9 +256,8 @@
 - **Search Before Creating**: `grep -r "class ClassName" dsp/ plugins/`
 - **Check ARCHITECTURE.md** for existing components
 - Same namespace + same name = undefined behavior (ODR violation)
-- Symptoms: garbage values, uninitialized-looking data, mysterious test failures
 
-**First action for strange failures**: Search for duplicate class definitions before debugging logic.
+See `dsp-architecture` skill for ODR symptoms and prevention patterns.
 
 ### XVI. Honest Completion (Anti-Cheating)
 
@@ -286,7 +280,7 @@
 ### XVII. Framework Knowledge Documentation
 
 **Non-Negotiable Rules:**
-- **Read Before Working**: Check `specs/VST-GUIDE.md` before VSTGUI/VST3 work
+- **Read Before Working**: The `vst-guide` skill auto-loads for VSTGUI/VST3 work
 - **Document Discoveries**: Log non-obvious framework behavior immediately after fix
 - **Incident Log**: Date, symptom, root cause, solution, time wasted, lesson
 

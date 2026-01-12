@@ -22,16 +22,16 @@ description: "Task list template for feature implementation"
 
 Before starting ANY implementation task, include these as EXPLICIT todo items:
 
-1. **Context Check**: Verify `specs/TESTING-GUIDE.md` is in context window. If not, READ IT FIRST.
-2. **Write Failing Tests**: Create test file and write tests that FAIL (no implementation yet)
-3. **Implement**: Write code to make tests pass
-4. **Verify**: Run tests and confirm they pass
-5. **Commit**: Commit the completed work
+1. **Write Failing Tests**: Create test file and write tests that FAIL (no implementation yet)
+2. **Implement**: Write code to make tests pass
+3. **Verify**: Run tests and confirm they pass
+4. **Commit**: Commit the completed work
+
+Skills auto-load when needed (testing-guide, vst-guide) - no manual context verification required.
 
 ### Example Todo List Structure
 
 ```
-[ ] Verify TESTING-GUIDE.md is in context (ingest if needed)
 [ ] Write failing tests for [feature]
 [ ] Implement [feature] to make tests pass
 [ ] Verify all tests pass
@@ -39,7 +39,7 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 [ ] Commit completed work
 ```
 
-**DO NOT** skip the context check or commit steps. These appear as checkboxes because they MUST be tracked.
+**DO NOT** skip the commit step. These appear as checkboxes because they MUST be tracked.
 
 ### Cross-Platform Compatibility Check (After Each User Story)
 
@@ -130,11 +130,7 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### 3.1 Pre-Implementation (MANDATORY)
-
-- [ ] T010 [US1] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
-
-### 3.2 Tests for User Story 1 (Write FIRST - Must FAIL)
+### 3.1 Tests for User Story 1 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
@@ -168,11 +164,7 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### 4.1 Pre-Implementation (MANDATORY)
-
-- [ ] T020 [US2] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
-
-### 4.2 Tests for User Story 2 (Write FIRST - Must FAIL)
+### 4.1 Tests for User Story 2 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
@@ -204,11 +196,7 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### 5.1 Pre-Implementation (MANDATORY)
-
-- [ ] T030 [US3] **Verify TESTING-GUIDE.md is in context** (ingest `specs/TESTING-GUIDE.md` if needed)
-
-### 5.2 Tests for User Story 3 (Write FIRST - Must FAIL)
+### 5.1 Tests for User Story 3 (Write FIRST - Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
@@ -347,7 +335,6 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### Within Each User Story
 
-- **TESTING-GUIDE check**: FIRST task - verify testing guide is in context
 - **Tests FIRST**: Tests MUST be written and FAIL before implementation (Principle XII)
 - Models/entities before services
 - Services before endpoints
@@ -418,7 +405,7 @@ With multiple developers:
 - [P] tasks = different files, no dependencies
 - [Story] label maps task to specific user story for traceability
 - Each user story should be independently completable and testable
-- **MANDATORY**: Check TESTING-GUIDE.md is in context FIRST
+- Skills auto-load when needed (testing-guide, vst-guide)
 - **MANDATORY**: Write tests that FAIL before implementing (Principle XII)
 - **MANDATORY**: Verify cross-platform IEEE 754 compliance (add test files to `-fno-fast-math` list)
 - **MANDATORY**: Commit work at end of each user story

@@ -1,0 +1,349 @@
+# Testing Anti-Patterns to Avoid
+
+## 1. The Mockery
+
+**Problem:** Test uses so many mocks that it tests mock behavior, not real code.
+
+```cpp
+// BAD: Testing mocks, not the actual implementation
+TEST_CASE("Processor processes audio", "[bad]") {
+    MockParameterHandler mockParams;
+    MockAudioBuffer mockInput;
+    MockAudioBuffer mockOutput;
+    MockDSPEngine mockDSP;
+
+    EXPECT_CALL(mockParams, getGain()).WillReturn(0.5f);
+    EXPECT_CALL(mockDSP, process(_, _)).WillReturn(true);
+
+    Processor proc(mockParams, mockDSP);
+    proc.process(mockInput, mockOutput);
+
+    // What did we actually test? Just that mocks were called.
+}
+
+// GOOD: Test real DSP with real data
+TEST_CASE("Processor applies gain correctly", "[processor]") {
+    Processor proc;
+    proc.prepare(44100.0, 512);
+    proc.setParameter(kGainId, 0.5f);
+
+    std::array<float, 512> buffer;
+    std::fill(buffer.begin(), buffer.end(), 1.0f);
+
+    proc.processBlock(buffer.data(), 512);
+
+    REQUIRE(buffer[0] == Approx(0.5f));
+}
+```
+
+---
+
+## 2. The Inspector
+
+**Problem:** Test violates encapsulation to achieve coverage.
+
+```cpp
+// BAD: Accessing private members, testing implementation
+TEST_CASE("LFO internal phase increments", "[bad]") {
+    LFO lfo;
+    lfo.setFrequency(1.0f, 44100.0f);
+
+    REQUIRE(lfo.phase_ == 0.0f);  // Accessing private - fragile!
+    lfo.process();
+    REQUIRE(lfo.phase_ == Approx(1.0f / 44100.0f));
+}
+
+// GOOD: Test observable behavior
+TEST_CASE("LFO completes one cycle at specified frequency", "[dsp][lfo]") {
+    LFO lfo;
+    lfo.setFrequency(1.0f, 100.0f);  // 1 Hz at 100 samples/sec
+
+    float startValue = lfo.process();
+
+    // Process one full cycle
+    for (int i = 1; i < 100; ++i) {
+        lfo.process();
+    }
+
+    // Should return to approximately the same value
+    REQUIRE(lfo.process() == Approx(startValue).margin(0.01f));
+}
+```
+
+---
+
+## 3. The Happy Path Only
+
+**Problem:** Tests only the successful case, missing error conditions.
+
+```cpp
+// BAD: Only tests success
+TEST_CASE("loadPreset loads preset", "[preset]") {
+    PresetManager pm;
+    pm.loadPreset("valid_preset.json");
+    REQUIRE(pm.isLoaded());
+}
+
+// GOOD: Tests error handling too
+TEST_CASE("loadPreset handles missing files", "[preset]") {
+    PresetManager pm;
+
+    SECTION("returns false for missing file") {
+        REQUIRE_FALSE(pm.loadPreset("nonexistent.json"));
+    }
+
+    SECTION("returns false for corrupted file") {
+        REQUIRE_FALSE(pm.loadPreset("corrupted.json"));
+    }
+
+    SECTION("previous state preserved on failure") {
+        pm.loadPreset("valid_preset.json");
+        float originalValue = pm.getParameter("delay_time");
+
+        pm.loadPreset("nonexistent.json");
+        REQUIRE(pm.getParameter("delay_time") == originalValue);
+    }
+}
+```
+
+---
+
+## 4. The Flaky Test
+
+**Problem:** Test fails intermittently due to timing, randomness, or external dependencies.
+
+```cpp
+// BAD: Depends on timing
+TEST_CASE("async operation completes", "[bad]") {
+    AsyncLoader loader;
+    loader.startLoading();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));  // Race!
+
+    REQUIRE(loader.isComplete());
+}
+
+// GOOD: Use deterministic synchronization or test synchronously
+TEST_CASE("loader processes all items", "[loader]") {
+    SyncLoader loader;  // Synchronous test double
+    loader.loadAll(testItems);
+
+    REQUIRE(loader.processedCount() == testItems.size());
+}
+```
+
+For DSP with randomness, see [DSP-TESTING.md](DSP-TESTING.md#deterministic-testing-of-dsp-with-randomness).
+
+---
+
+## 5. The Coverage Chaser
+
+**Problem:** Writing tests just to hit coverage numbers, not to verify behavior.
+
+```cpp
+// BAD: Meaningless test that inflates coverage
+TEST_CASE("constructor constructs", "[bad]") {
+    Filter f;
+    REQUIRE(true);  // Pointless
+}
+
+// BAD: Testing getters/setters with no logic
+TEST_CASE("setGain sets gain", "[bad]") {
+    Processor p;
+    p.setGain(0.5f);
+    REQUIRE(p.getGain() == 0.5f);  // Tests nothing meaningful
+}
+
+// GOOD: Test meaningful behavior
+TEST_CASE("Gain parameter is smoothed to prevent clicks", "[processor]") {
+    Processor p;
+    p.prepare(44100.0, 64);
+    p.setGain(0.0f);
+    p.processBlock(silence, 64);  // Let smoother settle
+
+    p.setGain(1.0f);
+    std::array<float, 64> output;
+    std::fill(output.begin(), output.end(), 1.0f);
+    p.processBlock(output.data(), 64);
+
+    // First sample should NOT be at full gain (smoothing)
+    REQUIRE(output[0] < 0.5f);
+    // Last sample should be closer to target
+    REQUIRE(output[63] > output[0]);
+}
+```
+
+---
+
+## 6. The Copy-Paste Test
+
+**Problem:** Duplicated test code that becomes inconsistent.
+
+```cpp
+// BAD: Copy-paste with slight modifications
+TEST_CASE("lowpass at 1kHz", "[filter]") {
+    Filter f;
+    f.setLowpass(1000.0f, 44100.0f);
+    // ... 20 lines of test code ...
+}
+
+TEST_CASE("lowpass at 2kHz", "[filter]") {
+    Filter f;
+    f.setLowpass(2000.0f, 44100.0f);  // Only this changed
+    // ... same 20 lines of test code ...
+}
+
+// GOOD: Parameterized test or shared setup
+TEST_CASE("Lowpass attenuates above cutoff", "[filter]") {
+    const std::array<float, 3> cutoffs = {500.0f, 1000.0f, 2000.0f};
+
+    for (float cutoff : cutoffs) {
+        DYNAMIC_SECTION("cutoff: " << cutoff << " Hz") {
+            Filter f;
+            f.setLowpass(cutoff, 44100.0f);
+
+            auto response = measureFrequencyResponse(f, cutoff * 2);
+            REQUIRE(response < -6.0f);
+        }
+    }
+}
+```
+
+---
+
+## 7. The Accumulator
+
+**Problem:** Test accumulates many floating-point operations expecting exact results.
+
+```cpp
+// BAD: 48000 float additions, then expecting exact result
+TEST_CASE("LFO completes one cycle", "[bad]") {
+    constexpr float sampleRate = 48000.0f;
+    const float phaseIncrement = kTwoPi / sampleRate;
+
+    float phase = 0.0f;
+    for (int i = 0; i < static_cast<int>(sampleRate); ++i) {
+        phase += phaseIncrement;  // 48000 additions!
+    }
+
+    // FAILS! Error accumulates to ~0.004
+    REQUIRE(phase == Approx(kTwoPi).margin(1e-4f));
+}
+
+// GOOD: Test single-operation precision instead
+TEST_CASE("LFO phase increment is precise", "[dsp][lfo]") {
+    constexpr float lfoFreq = 1.0f;
+    constexpr float sampleRate = 48000.0f;
+    const float phaseIncrement = kTwoPi * lfoFreq / sampleRate;
+
+    // Single operation - tests constant precision
+    REQUIRE(phaseIncrement * sampleRate == Approx(kTwoPi).margin(1e-5f));
+
+    // Verify sin/cos at calculated positions
+    REQUIRE(std::sin(phaseIncrement * 12000) == Approx(1.0f).margin(1e-5f));
+}
+```
+
+**Key insight:** Distinguish between testing *constant precision* (single operations) and testing *implementation robustness* (verify code handles accumulation via wrapping).
+
+---
+
+## 8. Mocking Complexity as an Excuse
+
+> **THIS IS NON-NEGOTIABLE**
+>
+> "Mocking is complex" or "would require mocking VSTGUI" is **NEVER** a valid reason to skip tests.
+
+### If You Find Yourself Thinking:
+- "This is just UI code, it doesn't need tests"
+- "Testing this would require too much mocking"
+- "The logic is simple enough to verify manually"
+
+**STOP. You are about to ship a bug.**
+
+### The Solution Is Always One Of:
+1. Extract pure logic into testable functions (humble object pattern)
+2. Create minimal mocks/fakes for framework dependencies
+3. Write integration tests that exercise real components
+4. All of the above
+
+See [PATTERNS.md](PATTERNS.md#the-humble-object-pattern-for-ui) for examples.
+
+---
+
+## 9. Tests That Manually Set State (Framework Anti-Pattern)
+
+**This anti-pattern caused a shipped bug that passed all tests.**
+
+### The Problem
+
+When testing UI code, it's tempting to manually set internal state and then call the method under test. This is **WRONG** because it doesn't simulate real framework behavior.
+
+### Example of BROKEN Test
+
+```cpp
+// WRONG: This test passes but the implementation is broken!
+TEST_CASE("selection toggle", "[ui]") {
+    PresetDataSource dataSource;
+
+    SECTION("clicking already-selected row triggers deselect") {
+        // Manually set internal state - BYPASSES REAL FRAMEWORK BEHAVIOR
+        dataSource.setPreviousSelectedRowForTesting(2);
+
+        auto result = dataSource.handleMouseDownForTesting(2, false);
+
+        REQUIRE(result.shouldDeselect);  // Test passes!
+    }
+}
+```
+
+**Why this is broken:** In the REAL framework:
+1. CDataBrowser calls `setSelectedRow(2)` FIRST
+2. This triggers `dbSelectionChanged()` which updates `previousSelectedRow_ = 2`
+3. THEN CDataBrowser calls `dbOnMouseDown(row=2)`
+4. By step 3, `previousSelectedRow_` is ALREADY 2
+5. **Every first click immediately deselects!**
+
+### The CORRECT Approach
+
+```cpp
+// CORRECT: Simulate the ACTUAL framework behavior
+TEST_CASE("selection toggle with REAL call order", "[ui]") {
+    PresetDataSource dataSource;
+
+    SECTION("first click should select, not deselect") {
+        // Capture selection BEFORE the click
+        dataSource.capturePreClickSelection(-1);
+
+        auto result = dataSource.handleMouseDownForTesting(0, false);
+
+        // First click should allow selection, NOT deselect!
+        REQUIRE_FALSE(result.shouldDeselect);
+    }
+}
+```
+
+### How to Avoid This
+
+1. **READ THE FRAMEWORK SOURCE CODE** - Understand actual call order
+2. **Document the real call order** in your test file
+3. **Add integration points** that match the real flow
+4. **When tests pass but manual testing fails, THE TESTS ARE WRONG**
+
+---
+
+## Summary: Test Smells Checklist
+
+Before committing, check for these smells:
+
+| Smell | What to Look For | Fix |
+|-------|------------------|-----|
+| Mockery | More mock setup than test code | Use fakes or test real code |
+| Inspector | Accessing `private_` members | Test observable behavior |
+| Happy Path | No SECTION for error cases | Add failure mode tests |
+| Flaky | `sleep()` or random values | Use sync or seed RNG |
+| Coverage Chaser | `REQUIRE(true)` or trivial getters | Test meaningful behavior |
+| Copy-Paste | Duplicated test code | Use DYNAMIC_SECTION |
+| Accumulator | Loops with tight tolerance | Test single operations |
+| Excuses | "Too complex to test" | Extract pure logic |
+| Manual State | `setXForTesting()` before call | Simulate real call order |

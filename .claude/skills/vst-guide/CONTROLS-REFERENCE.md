@@ -1,13 +1,10 @@
 # VSTGUI Controls Reference
 
-**Created**: 2026-01-03
-**Purpose**: Quick reference for UI control selection in Iterum plugin development
+Quick reference for UI control selection in plugin development.
 
 ---
 
-## Control Selection Guidelines
-
-### Decision Matrix: Which Control to Use
+## Control Selection Decision Matrix
 
 | # Options | Visibility Need | Recommended Control |
 |-----------|-----------------|---------------------|
@@ -56,7 +53,7 @@
   - `kMultiple` - Multiple segments can be selected
 - **Styles**: `kHorizontal`, `kVertical`, `kHorizontalInverse`, `kVerticalInverse`
 - **Best for**: 2-5 mutually exclusive options that should all be visible
-- **XML Attributes**:
+- **XML**:
   ```xml
   <view class="CSegmentButton"
         segment-names="Option1,Option2,Option3"
@@ -184,6 +181,7 @@
 - `N`: Discrete with N+1 states - N steps between them
 
 ### StringListParameter
+
 Use for enum-style parameters with named options:
 ```cpp
 auto* param = new StringListParameter(
@@ -197,6 +195,7 @@ param->appendString(USTRING("Bandpass"));
 ```
 
 ### Matching UI Control to Stepped Parameters
+
 1. **2 options**: COnOffButton, CSegmentButton (2), or CHorizontalSwitch (2 frames)
 2. **3-5 options**: CSegmentButton or CHorizontalSwitch
 3. **Stepped knob**: CAnimKnob with frameCount = stepCount + 1
@@ -207,6 +206,7 @@ param->appendString(USTRING("Bandpass"));
 ## Bitmap Requirements
 
 ### Multi-Frame Bitmaps
+
 For switch and animated knob controls:
 - **CAnimKnob**: Vertical strip, N frames for N positions
 - **CHorizontalSwitch**: Vertical strip, N frames, set `height-of-one-image`

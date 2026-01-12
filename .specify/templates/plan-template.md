@@ -34,7 +34,7 @@
 [Gates determined based on constitution file]
 
 **Required Check - Principle XII (Test-First Development):**
-- [ ] Tasks will include TESTING-GUIDE.md context verification step
+- [ ] Skills auto-load (testing-guide, vst-guide) - no manual context verification needed
 - [ ] Tests will be written BEFORE implementation code
 - [ ] Each task group will end with a commit step
 

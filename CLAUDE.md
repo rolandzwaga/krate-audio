@@ -54,17 +54,7 @@ If tests don't appear/run, the FIRST action is to check build output for errors,
 
 ## Real-Time Audio Thread Safety
 
-The audio thread (`Processor::process()`) has **hard real-time constraints**. FORBIDDEN:
-
-```cpp
-new / delete / malloc / free          // Memory allocation
-std::vector::push_back()              // May reallocate
-std::mutex / std::lock_guard          // Blocking synchronization
-throw / catch                         // Exception handling
-std::cout / printf / logging          // I/O operations
-```
-
-**ALWAYS:** Pre-allocate in `setupProcessing()`, use `std::atomic` with relaxed ordering, use lock-free SPSC queues.
+The audio thread has **hard real-time constraints**. No allocations, locks, exceptions, or I/O on audio thread. See `dsp-architecture` skill for details.
 
 ## VST3 Architecture Separation
 
@@ -159,21 +149,7 @@ Use smart pointers, RAII, constexpr, move semantics. Avoid raw `new`/`delete`.
 
 ## Layered DSP Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    LAYER 4: USER FEATURES                   │
-├─────────────────────────────────────────────────────────────┤
-│                  LAYER 3: SYSTEM COMPONENTS                 │
-├─────────────────────────────────────────────────────────────┤
-│                   LAYER 2: DSP PROCESSORS                   │
-├─────────────────────────────────────────────────────────────┤
-│                  LAYER 1: DSP PRIMITIVES                    │
-├─────────────────────────────────────────────────────────────┤
-│                    LAYER 0: CORE UTILITIES                  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Rules:** Each layer can ONLY depend on layers below. No circular dependencies. Extract utilities to Layer 0 if used by 2+ Layer 1 primitives.
+5-layer architecture: Layer 0 (core) → Layer 1 (primitives) → Layer 2 (processors) → Layer 3 (systems) → Layer 4 (effects). Each layer can only depend on layers below. See `dsp-architecture` skill for details.
 
 ## File Organization
 
@@ -222,42 +198,22 @@ Two classes with same name in same namespace = undefined behavior (garbage value
 
 ## DSP Implementation Rules
 
-| Use Case | Interpolation |
-|----------|---------------|
-| Fixed delay in feedback | Allpass |
-| LFO-modulated delay | Linear/Cubic (NOT allpass) |
-| Pitch shifting | Lagrange/Sinc |
-
-**Oversampling:** Required for nonlinear processing. 2x is practical limit.
-
-**DC Blocking:** Apply ~5-20Hz highpass after asymmetric saturation.
-
-**Feedback Safety:** Soft-limit with `std::tanh()` when feedback > 100%.
-
-## Performance Budgets
-
-| Component | CPU Target | Memory |
-|-----------|------------|--------|
-| Layer 1 primitive | < 0.1% | Minimal |
-| Layer 2 processor | < 0.5% | Pre-allocated |
-| Layer 3 system | < 1% | Fixed buffers |
-| Full plugin | < 5% | 10s @ 192kHz max |
+See `dsp-architecture` skill for interpolation selection, oversampling, DC blocking, feedback safety, and performance budgets.
 
 ## Workflow Requirements (MANDATORY)
 
 ### Canonical Todo List for Implementation Tasks
 
 ```
-1. [ ] Verify TESTING-GUIDE.md and VST-GUIDE.md are in context
-2. [ ] Write failing test for feature/change
-3. [ ] Implement to make test pass
-4. [ ] Fix all compiler warnings
-5. [ ] Verify all tests pass
-6. [ ] Run pluginval (if plugin code changed)
-7. [ ] Commit
+1. [ ] Write failing test for feature/change (skills auto-load: testing-guide, vst-guide)
+2. [ ] Implement to make test pass
+3. [ ] Fix all compiler warnings
+4. [ ] Verify all tests pass
+5. [ ] Run pluginval (if plugin code changed)
+6. [ ] Commit
 ```
 
-For **bug fixes**, step 2 is "Write test reproducing the bug" and verify it fails before fixing.
+For **bug fixes**, step 1 is "Write test reproducing the bug" and verify it fails before fixing.
 
 ### Pluginval
 
@@ -296,7 +252,7 @@ When VSTGUI/VST3 SDK doesn't work as expected:
 3. **DO** investigate: read logs, trace values, read framework source
 4. Before pivoting, complete: debug logs checked, values traced, source read, divergence point identified
 
-**Before any VSTGUI/VST3 work:** Read `specs/VST-GUIDE.md` for documented pitfalls.
+The `vst-guide` skill auto-loads with documented pitfalls and patterns.
 
 ## Build Commands
 
@@ -350,5 +306,8 @@ ctest --test-dir build-asan -C Debug --output-on-failure
 - [VST3 Developer Portal](https://steinbergmedia.github.io/vst3_dev_portal/)
 - [VSTGUI Documentation](https://steinbergmedia.github.io/vst3_doc/vstgui/html/)
 - Project Constitution: `.specify/memory/constitution.md`
-- VST Pitfalls: `specs/VST-GUIDE.md`
-- Testing Patterns: `specs/TESTING-GUIDE.md`
+
+**Skills (auto-load when relevant):**
+- `.claude/skills/testing-guide/` - Test patterns, Catch2, DSP testing strategies
+- `.claude/skills/vst-guide/` - VST3/VSTGUI patterns, thread safety, UI components
+- `.claude/skills/dsp-architecture/` - Real-time safety, layers, interpolation, performance
