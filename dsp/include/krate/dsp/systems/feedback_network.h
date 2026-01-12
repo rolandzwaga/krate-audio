@@ -27,6 +27,7 @@
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/stereo_utils.h>
 #include <krate/dsp/primitives/crossfading_delay_line.h>
+#include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/multimode_filter.h>
 #include <krate/dsp/processors/saturation_processor.h>
@@ -38,42 +39,6 @@
 
 namespace Krate {
 namespace DSP {
-
-/// @brief Simple one-pole DC blocking filter
-/// @par Algorithm
-/// First-order highpass filter with pole at DC (0 Hz)
-/// Transfer function: H(z) = (1 - z^-1) / (1 - R*z^-1)
-/// Cutoff frequency ~10 Hz at 44.1 kHz
-///
-/// @par Usage
-/// Industry standard practice for feedback loops to prevent DC accumulation
-/// from quantization errors, IIR filter round-off, and asymmetric nonlinearities.
-class DCBlocker {
-public:
-    DCBlocker() noexcept = default;
-
-    void reset() noexcept {
-        x1_ = 0.0f;
-        y1_ = 0.0f;
-    }
-
-    /// @brief Process a single sample
-    /// @param x Input sample
-    /// @return DC-blocked output
-    [[nodiscard]] float process(float x) noexcept {
-        // One-pole highpass: y[n] = x[n] - x[n-1] + R*y[n-1]
-        // R = pole location (0.995 gives ~10Hz cutoff at 44.1kHz)
-        constexpr float R = 0.995f;
-        float y = x - x1_ + R * y1_;
-        x1_ = x;
-        y1_ = y;
-        return y;
-    }
-
-private:
-    float x1_ = 0.0f;  ///< Previous input
-    float y1_ = 0.0f;  ///< Previous output
-};
 
 /// @brief Layer 3 System Component - Feedback Network for Delay Effects
 ///
@@ -154,6 +119,10 @@ public:
         saturatorR_.setType(SaturationType::Tape);
         saturatorL_.setInputGain(0.0f);  // No extra drive by default
         saturatorR_.setInputGain(0.0f);
+
+        // Prepare DC blockers (10 Hz cutoff for feedback path)
+        dcBlockerL_.prepare(sampleRate, 10.0f);
+        dcBlockerR_.prepare(sampleRate, 10.0f);
 
         // Allocate feedback buffers
         feedbackBufferL_.resize(maxBlockSize);

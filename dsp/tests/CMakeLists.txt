@@ -40,6 +40,7 @@ add_executable(dsp_tests
     unit/primitives/lfo_test.cpp
     unit/primitives/biquad_test.cpp
     unit/primitives/smoother_test.cpp
+    unit/primitives/dc_blocker_test.cpp
     unit/primitives/oversampler_test.cpp
     unit/primitives/fft_test.cpp
     unit/primitives/spectral_buffer_test.cpp
@@ -130,6 +131,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/chebyshev_test.cpp
         unit/core/test_wavefold_math.cpp
         unit/primitives/smoother_test.cpp
+        unit/primitives/dc_blocker_test.cpp
         unit/primitives/oversampler_test.cpp
         unit/primitives/delay_line_test.cpp
         unit/primitives/lfo_test.cpp
