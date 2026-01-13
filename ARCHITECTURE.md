@@ -663,6 +663,52 @@ y[n] = (F1(x[n]*drive) - F1(x[n-1]*drive)) / (drive * (x[n] - x[n-1]))
 
 **Dependencies:** `core/fast_math.h` (fastTanh, NaN/Inf detection)
 
+### Wavefolder
+**Path:** [wavefolder.h](dsp/include/krate/dsp/primitives/wavefolder.h) | **Since:** 0.10.0
+
+Unified wavefolding primitive with three selectable algorithms for distinct harmonic characters.
+
+**Use when:**
+- Creating wavefolding distortion effects (synth-style or guitar)
+- Need different harmonic flavors (dense odd harmonics, FM-like, circuit-derived)
+- Building Serge-style wavefolder emulations
+- Want soft saturation with Lockhart circuit character
+
+**Note:** This is a stateless primitive - `process()` is const, no `reset()` needed. Compose with Oversampler for anti-aliasing and DCBlocker for asymmetric processing.
+
+```cpp
+enum class WavefoldType : uint8_t {
+    Triangle,   // Dense odd harmonics, smooth rolloff (guitar effects)
+    Sine,       // FM-like sparse spectrum (Serge style)
+    Lockhart    // Rich even/odd harmonics with spectral nulls (circuit-derived)
+};
+
+class Wavefolder {
+    void setType(WavefoldType type) noexcept;              // Algorithm selection
+    void setFoldAmount(float amount) noexcept;             // Intensity [0.0, 10.0], abs() applied
+    [[nodiscard]] WavefoldType getType() const noexcept;
+    [[nodiscard]] float getFoldAmount() const noexcept;
+    [[nodiscard]] float process(float x) const noexcept;   // Single sample (stateless)
+    void processBlock(float* buffer, size_t n) const noexcept;  // Block processing
+};
+```
+
+| Type | Output Bounds | Harmonics | Character |
+|------|---------------|-----------|-----------|
+| Triangle | [-1/foldAmount, 1/foldAmount] | Dense odd | Smooth, guitar-like |
+| Sine | [-1, 1] | Sparse FM-like | Serge wavefolder |
+| Lockhart | tanh bounded | Even + Odd | Soft saturation, nulls |
+
+| foldAmount | Triangle | Sine | Lockhart |
+|------------|----------|------|----------|
+| 0.0 | Returns 0 | Passthrough | Returns ~0.514 |
+| 1.0 | threshold=1.0 | gain=1.0 | moderate saturation |
+| 10.0 | threshold=0.1 | gain=10.0 | heavy saturation |
+
+**Performance:** Triangle ~5us, Sine ~5us, Lockhart ~50us for 512 samples.
+
+**Dependencies:** `core/wavefold_math.h` (triangleFold, sineFold, lambertW), `core/fast_math.h` (fastTanh), `core/db_utils.h` (NaN/Inf detection)
+
 ---
 
 ## Layer 2: DSP Processors
