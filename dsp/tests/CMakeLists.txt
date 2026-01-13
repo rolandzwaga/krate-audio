@@ -52,6 +52,7 @@ add_executable(dsp_tests
     unit/primitives/reverse_buffer_test.cpp
     unit/primitives/grain_pool_test.cpp
     unit/primitives/waveshaper_test.cpp
+    unit/primitives/hard_clip_adaa_test.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
@@ -147,6 +148,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/reverse_buffer_test.cpp
         unit/primitives/grain_pool_test.cpp
         unit/primitives/waveshaper_test.cpp
+        unit/primitives/hard_clip_adaa_test.cpp
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
         unit/processors/envelope_follower_test.cpp
