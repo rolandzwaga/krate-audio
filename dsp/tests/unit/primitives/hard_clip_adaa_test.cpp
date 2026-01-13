@@ -808,3 +808,173 @@ TEST_CASE("SC-002 - Second-order ADAA produces valid bounded output",
     REQUIRE_FALSE(std::isinf(secondOrderResult.aliasingPowerDb));
     REQUIRE(secondOrderResult.aliasingPowerDb < 100.0f);  // Sanity check: not ridiculously high
 }
+
+// ==============================================================================
+// SignalMetrics THD Tests
+// ==============================================================================
+
+#include <signal_metrics.h>
+#include <test_signals.h>
+
+TEST_CASE("HardClipADAA SignalMetrics: THD increases with drive level",
+          "[hard_clip_adaa][signalmetrics][thd]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t numSamples = 8192;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float fundamentalHz = 440.0f;
+
+    std::vector<float> input(numSamples);
+    std::vector<float> output(numSamples);
+    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
+
+    HardClipADAA clipper;
+    clipper.setOrder(HardClipADAA::Order::First);
+
+    SECTION("Low amplitude produces low THD") {
+        // Process at low amplitude (no clipping)
+        for (size_t i = 0; i < numSamples; ++i) {
+            output[i] = clipper.process(input[i] * 0.3f);
+        }
+
+        float thd = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                fundamentalHz, sampleRate);
+        INFO("Low amplitude THD: " << thd << "%");
+        REQUIRE(thd < 5.0f);  // Minimal distortion when not clipping
+    }
+
+    SECTION("High amplitude produces higher THD") {
+        clipper.reset();
+        // Process at high amplitude (heavy clipping)
+        for (size_t i = 0; i < numSamples; ++i) {
+            output[i] = clipper.process(input[i] * 4.0f);
+        }
+
+        float thd = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                fundamentalHz, sampleRate);
+        INFO("High amplitude THD: " << thd << "%");
+        REQUIRE(thd > 10.0f);  // Noticeable distortion when clipping
+    }
+}
+
+TEST_CASE("HardClipADAA SignalMetrics: compare first-order vs naive THD",
+          "[hard_clip_adaa][signalmetrics][thd][compare]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t numSamples = 8192;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float fundamentalHz = 440.0f;
+    constexpr float drive = 4.0f;
+
+    std::vector<float> input(numSamples);
+    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
+
+    std::vector<float> naiveOutput(numSamples);
+    std::vector<float> adaaOutput(numSamples);
+
+    // Naive hard clip
+    for (size_t i = 0; i < numSamples; ++i) {
+        naiveOutput[i] = hardClip(input[i] * drive);
+    }
+
+    // ADAA hard clip
+    HardClipADAA clipper;
+    clipper.setOrder(HardClipADAA::Order::First);
+    for (size_t i = 0; i < numSamples; ++i) {
+        adaaOutput[i] = clipper.process(input[i] * drive);
+    }
+
+    float naiveTHD = SignalMetrics::calculateTHD(naiveOutput.data(), numSamples,
+                                                  fundamentalHz, sampleRate);
+    float adaaTHD = SignalMetrics::calculateTHD(adaaOutput.data(), numSamples,
+                                                 fundamentalHz, sampleRate);
+
+    INFO("Naive hard clip THD: " << naiveTHD << "%");
+    INFO("ADAA hard clip THD: " << adaaTHD << "%");
+
+    // Both should have significant THD (they're clipping)
+    REQUIRE(naiveTHD > 10.0f);
+    REQUIRE(adaaTHD > 10.0f);
+
+    // THD values should be similar - ADAA primarily reduces aliasing, not THD
+    // (THD is expected harmonic content, aliasing is unintended intermodulation)
+    REQUIRE(std::abs(naiveTHD - adaaTHD) < 20.0f);  // Reasonably similar
+}
+
+TEST_CASE("HardClipADAA SignalMetrics: threshold affects THD",
+          "[hard_clip_adaa][signalmetrics][thd][threshold]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t numSamples = 8192;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float fundamentalHz = 440.0f;
+
+    std::vector<float> input(numSamples);
+    std::vector<float> output(numSamples);
+    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
+
+    SECTION("Lower threshold increases THD") {
+        HardClipADAA lowThreshold;
+        lowThreshold.setThreshold(0.5f);
+        lowThreshold.setOrder(HardClipADAA::Order::First);
+
+        HardClipADAA highThreshold;
+        highThreshold.setThreshold(1.0f);
+        highThreshold.setOrder(HardClipADAA::Order::First);
+
+        // Process with same input amplitude
+        constexpr float amplitude = 0.8f;
+
+        for (size_t i = 0; i < numSamples; ++i) {
+            output[i] = lowThreshold.process(input[i] * amplitude);
+        }
+        float lowThreshTHD = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                          fundamentalHz, sampleRate);
+
+        highThreshold.reset();
+        for (size_t i = 0; i < numSamples; ++i) {
+            output[i] = highThreshold.process(input[i] * amplitude);
+        }
+        float highThreshTHD = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                           fundamentalHz, sampleRate);
+
+        INFO("Low threshold (0.5) THD: " << lowThreshTHD << "%");
+        INFO("High threshold (1.0) THD: " << highThreshTHD << "%");
+
+        // Lower threshold clips more, producing more THD
+        REQUIRE(lowThreshTHD > highThreshTHD);
+    }
+}
+
+TEST_CASE("HardClipADAA SignalMetrics: measureQuality aggregate metrics",
+          "[hard_clip_adaa][signalmetrics][quality]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t numSamples = 8192;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float fundamentalHz = 440.0f;
+    constexpr float drive = 4.0f;
+
+    std::vector<float> input(numSamples);
+    std::vector<float> output(numSamples);
+    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
+
+    HardClipADAA clipper;
+    clipper.setOrder(HardClipADAA::Order::First);
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        output[i] = clipper.process(input[i] * drive);
+    }
+
+    auto metrics = SignalMetrics::measureQuality(
+        output.data(), input.data(), numSamples, fundamentalHz, sampleRate);
+
+    INFO("SNR: " << metrics.snrDb << " dB");
+    INFO("THD: " << metrics.thdPercent << "%");
+    INFO("THD (dB): " << metrics.thdDb << " dB");
+    INFO("Crest factor: " << metrics.crestFactorDb << " dB");
+    INFO("Kurtosis: " << metrics.kurtosis);
+
+    REQUIRE(metrics.isValid());
+    REQUIRE(metrics.thdPercent > 10.0f);  // Significant distortion at drive=4.0
+}
