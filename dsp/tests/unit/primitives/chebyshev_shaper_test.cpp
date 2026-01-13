@@ -121,7 +121,7 @@ TEST_CASE("ChebyshevShaper single harmonic output matches Chebyshev::Tn", "[cheb
         for (float x : testInputs) {
             float expected = Chebyshev::T1(x);
             float actual = shaper.process(x);
-            REQUIRE(actual == Approx(expected).epsilon(1e-5f));
+            REQUIRE(actual == Approx(expected).margin(1e-5f));
         }
     }
 
@@ -130,7 +130,7 @@ TEST_CASE("ChebyshevShaper single harmonic output matches Chebyshev::Tn", "[cheb
         for (float x : testInputs) {
             float expected = Chebyshev::T2(x);
             float actual = shaper.process(x);
-            REQUIRE(actual == Approx(expected).epsilon(1e-5f));
+            REQUIRE(actual == Approx(expected).margin(1e-5f));
         }
     }
 
@@ -139,7 +139,7 @@ TEST_CASE("ChebyshevShaper single harmonic output matches Chebyshev::Tn", "[cheb
         for (float x : testInputs) {
             float expected = Chebyshev::T3(x);
             float actual = shaper.process(x);
-            REQUIRE(actual == Approx(expected).epsilon(1e-5f));
+            REQUIRE(actual == Approx(expected).margin(1e-5f));
         }
     }
 
@@ -148,7 +148,7 @@ TEST_CASE("ChebyshevShaper single harmonic output matches Chebyshev::Tn", "[cheb
         for (float x : testInputs) {
             float expected = Chebyshev::T4(x);
             float actual = shaper.process(x);
-            REQUIRE(actual == Approx(expected).epsilon(1e-5f));
+            REQUIRE(actual == Approx(expected).margin(1e-5f));
         }
     }
 
@@ -157,7 +157,7 @@ TEST_CASE("ChebyshevShaper single harmonic output matches Chebyshev::Tn", "[cheb
         for (float x : testInputs) {
             float expected = Chebyshev::T5(x);
             float actual = shaper.process(x);
-            REQUIRE(actual == Approx(expected).epsilon(1e-5f));
+            REQUIRE(actual == Approx(expected).margin(1e-5f));
         }
     }
 
@@ -166,7 +166,7 @@ TEST_CASE("ChebyshevShaper single harmonic output matches Chebyshev::Tn", "[cheb
         for (float x : testInputs) {
             float expected = Chebyshev::T6(x);
             float actual = shaper.process(x);
-            REQUIRE(actual == Approx(expected).epsilon(1e-5f));
+            REQUIRE(actual == Approx(expected).margin(1e-5f));
         }
     }
 
@@ -175,7 +175,7 @@ TEST_CASE("ChebyshevShaper single harmonic output matches Chebyshev::Tn", "[cheb
         for (float x : testInputs) {
             float expected = Chebyshev::T7(x);
             float actual = shaper.process(x);
-            REQUIRE(actual == Approx(expected).epsilon(1e-5f));
+            REQUIRE(actual == Approx(expected).margin(1e-5f));
         }
     }
 
@@ -184,7 +184,7 @@ TEST_CASE("ChebyshevShaper single harmonic output matches Chebyshev::Tn", "[cheb
         for (float x : testInputs) {
             float expected = Chebyshev::T8(x);
             float actual = shaper.process(x);
-            REQUIRE(actual == Approx(expected).epsilon(1e-5f));
+            REQUIRE(actual == Approx(expected).margin(1e-5f));
         }
     }
 }
@@ -206,7 +206,7 @@ TEST_CASE("ChebyshevShaper multiple harmonics produce weighted sum output", "[ch
                          0.3f * Chebyshev::T3(x) +
                          0.2f * Chebyshev::T5(x);
         float actual = shaper.process(x);
-        REQUIRE(actual == Approx(expected).epsilon(1e-5f));
+        REQUIRE(actual == Approx(expected).margin(1e-5f));
     }
 }
 
@@ -353,7 +353,7 @@ TEST_CASE("ChebyshevShaper negative harmonic levels are valid for phase inversio
     // Verify processing works with negative levels (phase inversion)
     float input = 0.5f;
     float expected = -1.0f * Chebyshev::T1(input) + -0.5f * Chebyshev::T2(input);
-    REQUIRE(shaper.process(input) == Approx(expected).epsilon(1e-5f));
+    REQUIRE(shaper.process(input) == Approx(expected).margin(1e-5f));
 }
 
 TEST_CASE("ChebyshevShaper harmonic levels greater than 1.0 are valid for amplification", "[chebyshev_shaper][setter]") {
@@ -368,7 +368,7 @@ TEST_CASE("ChebyshevShaper harmonic levels greater than 1.0 are valid for amplif
     // Verify processing works with levels > 1.0
     float input = 0.5f;
     float expected = 2.0f * Chebyshev::T1(input) + 1.5f * Chebyshev::T3(input);
-    REQUIRE(shaper.process(input) == Approx(expected).epsilon(1e-5f));
+    REQUIRE(shaper.process(input) == Approx(expected).margin(1e-5f));
 }
 
 // =============================================================================
