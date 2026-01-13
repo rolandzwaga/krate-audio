@@ -285,18 +285,26 @@ namespace Asymmetric {
 
 /// @brief Tube-style asymmetric saturation with even harmonics.
 ///
-/// Classic tube polynomial: x + 0.3x² - 0.15x³, then soft-limited via tanh.
-/// The x² term introduces even harmonics (2nd, 4th...) for warmth.
-/// Extracted from SaturationProcessor for Layer 0 reuse.
+/// Uses a polynomial (x + 0.3x² - 0.15x³) with pre-limiting to create
+/// asymmetric saturation that produces even harmonics (2nd, 4th...).
+/// The x² term creates asymmetry; the x³ term adds odd harmonic content.
 ///
-/// @param x Input value
-/// @return Asymmetrically saturated output
+/// The polynomial has a turning point at x ≈ 2.3, so inputs are soft-limited
+/// via tanh to stay in the stable operating range. This ensures correct
+/// saturation behavior (compression, not inversion) at all drive levels.
+///
+/// @param x Input value (unbounded)
+/// @return Asymmetrically saturated output in range approximately [-1, 1]
 ///
 /// @harmonics Even + Odd (rich, warm, 2nd harmonic emphasis)
 [[nodiscard]] inline float tube(float x) noexcept {
-    const float x2 = x * x;
-    const float x3 = x2 * x;
-    const float asymmetric = x + 0.3f * x2 - 0.15f * x3;
+    // Pre-limit input to keep polynomial in stable range (|x| < ~2.3)
+    // tanh(x * 0.5) * 2.0 soft-limits to approximately [-2, 2]
+    const float limited = FastMath::fastTanh(x * 0.5f) * 2.0f;
+
+    const float x2 = limited * limited;
+    const float x3 = x2 * limited;
+    const float asymmetric = limited + 0.3f * x2 - 0.15f * x3;
     return FastMath::fastTanh(asymmetric);
 }
 
