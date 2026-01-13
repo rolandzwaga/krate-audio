@@ -70,6 +70,7 @@ add_executable(dsp_tests
     unit/processors/reverse_feedback_processor_test.cpp
     unit/processors/grain_scheduler_test.cpp
     unit/processors/grain_processor_test.cpp
+    unit/processors/tube_stage_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -178,6 +179,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/reverse_feedback_processor_test.cpp
         unit/processors/grain_scheduler_test.cpp
         unit/processors/grain_processor_test.cpp
+        unit/processors/tube_stage_test.cpp
         unit/systems/delay_engine_test.cpp
         unit/systems/feedback_network_test.cpp
         unit/systems/modulation_matrix_test.cpp
