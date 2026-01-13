@@ -15,6 +15,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <spectral_analysis.h>
 
 #include <cmath>
 #include <limits>
@@ -1085,4 +1086,227 @@ TEST_CASE("Sigmoid functions are noexcept", "[sigmoid][core][attributes]") {
     static_assert(noexcept(Sigmoid::atanVariable(0.0f, 1.0f)), "atanVariable must be noexcept");
 
     REQUIRE(true);  // Test passes if compilation succeeds
+}
+
+// =============================================================================
+// Spectral Analysis Tests - Aliasing Characteristics
+// =============================================================================
+
+TEST_CASE("Sigmoid::tanh spectral analysis", "[sigmoid][tanh][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,  // Will be modified per section
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("low drive produces less aliasing than high drive") {
+        // Low drive (0.5x) is still slightly nonlinear (tanh(0.5) ≈ 0.462, ~7% compression)
+        // but should produce less aliasing than high drive
+        config.driveGain = 0.5f;
+        auto lowResult = measureAliasing(config, [](float x) {
+            return Sigmoid::tanh(x);
+        });
+
+        config.driveGain = 4.0f;
+        auto highResult = measureAliasing(config, [](float x) {
+            return Sigmoid::tanh(x);
+        });
+
+        INFO("Low drive (0.5x) aliasing: " << lowResult.aliasingPowerDb << " dB");
+        INFO("High drive (4x) aliasing: " << highResult.aliasingPowerDb << " dB");
+        // Low drive should produce less aliasing than high drive
+        REQUIRE(lowResult.aliasingPowerDb < highResult.aliasingPowerDb);
+    }
+
+    SECTION("high drive generates significant harmonics") {
+        // High drive (4x) saturates tanh significantly
+        config.driveGain = 4.0f;
+        auto result = measureAliasing(config, [](float x) {
+            return Sigmoid::tanh(x);
+        });
+
+        // Saturation should generate measurable harmonics (above FFT noise floor)
+        INFO("High drive aliasing: " << result.aliasingPowerDb << " dB");
+        INFO("High drive harmonics: " << result.harmonicPowerDb << " dB");
+        REQUIRE(result.harmonicPowerDb > -80.0f);
+    }
+
+    SECTION("higher drive produces more aliasing than lower drive") {
+        config.driveGain = 1.0f;
+        auto lowResult = measureAliasing(config, [](float x) {
+            return Sigmoid::tanh(x);
+        });
+
+        config.driveGain = 4.0f;
+        auto highResult = measureAliasing(config, [](float x) {
+            return Sigmoid::tanh(x);
+        });
+
+        INFO("Low drive (1x) aliasing: " << lowResult.aliasingPowerDb << " dB");
+        INFO("High drive (4x) aliasing: " << highResult.aliasingPowerDb << " dB");
+        // Higher drive should produce more aliasing
+        REQUIRE(highResult.aliasingPowerDb > lowResult.aliasingPowerDb);
+    }
+}
+
+TEST_CASE("Sigmoid::softClipCubic spectral analysis", "[sigmoid][softClipCubic][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 4.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("cubic soft clip generates odd harmonics") {
+        auto result = measureAliasing(config, [](float x) {
+            return Sigmoid::softClipCubic(x);
+        });
+
+        INFO("Cubic soft clip aliasing: " << result.aliasingPowerDb << " dB");
+        INFO("Signal-to-aliasing: " << result.signalToAliasingDb << " dB");
+        // Should have measurable harmonic content
+        REQUIRE(result.harmonicPowerDb > -80.0f);
+    }
+}
+
+TEST_CASE("Sigmoid::softClipQuintic spectral analysis", "[sigmoid][softClipQuintic][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 4.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("quintic soft clip generates harmonics") {
+        auto result = measureAliasing(config, [](float x) {
+            return Sigmoid::softClipQuintic(x);
+        });
+
+        INFO("Quintic soft clip aliasing: " << result.aliasingPowerDb << " dB");
+        INFO("Signal-to-aliasing: " << result.signalToAliasingDb << " dB");
+        REQUIRE(result.harmonicPowerDb > -80.0f);
+    }
+}
+
+TEST_CASE("Sigmoid saturation curve comparison", "[sigmoid][aliasing][comparison]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 4.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("soft clip and hard clip both generate significant harmonics") {
+        // Note: softClipCubic uses polynomial (1.5x - 0.5x³) which explicitly generates
+        // 3rd harmonic via the x³ term. Hard clip generates broad spectrum from discontinuity.
+        // At high drive (4x), both saturate heavily - the aliasing difference is not
+        // straightforward (polynomial harmonics vs discontinuity harmonics).
+        auto hardResult = measureAliasing(config, [](float x) {
+            return Sigmoid::hardClip(x);
+        });
+
+        auto softResult = measureAliasing(config, [](float x) {
+            return Sigmoid::softClipCubic(x);
+        });
+
+        INFO("Hard clip aliasing: " << hardResult.aliasingPowerDb << " dB");
+        INFO("Soft clip aliasing: " << softResult.aliasingPowerDb << " dB");
+
+        // Both should generate significant harmonics when driven hard
+        REQUIRE(hardResult.harmonicPowerDb > -80.0f);
+        REQUIRE(softResult.harmonicPowerDb > -80.0f);
+    }
+
+    SECTION("tanh produces less aliasing than hard clip") {
+        auto hardResult = measureAliasing(config, [](float x) {
+            return Sigmoid::hardClip(x);
+        });
+
+        auto tanhResult = measureAliasing(config, [](float x) {
+            return Sigmoid::tanh(x);
+        });
+
+        INFO("Hard clip aliasing: " << hardResult.aliasingPowerDb << " dB");
+        INFO("Tanh aliasing: " << tanhResult.aliasingPowerDb << " dB");
+
+        // Tanh's smooth curve should produce less aliasing
+        REQUIRE(tanhResult.aliasingPowerDb < hardResult.aliasingPowerDb);
+    }
+}
+
+TEST_CASE("Asymmetric::tube spectral analysis", "[sigmoid][asymmetric][tube][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 4.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("tube saturation generates harmonics") {
+        auto result = measureAliasing(config, [](float x) {
+            return Asymmetric::tube(x);
+        });
+
+        INFO("Tube aliasing: " << result.aliasingPowerDb << " dB");
+        INFO("Tube harmonics: " << result.harmonicPowerDb << " dB");
+        // Asymmetric clipping generates both even and odd harmonics
+        REQUIRE(result.harmonicPowerDb > -80.0f);
+    }
+
+    SECTION("tube asymmetry creates different spectral content than symmetric tanh") {
+        auto tubeResult = measureAliasing(config, [](float x) {
+            return Asymmetric::tube(x);
+        });
+
+        auto tanhResult = measureAliasing(config, [](float x) {
+            return Sigmoid::tanh(x);
+        });
+
+        INFO("Tube aliasing: " << tubeResult.aliasingPowerDb << " dB");
+        INFO("Tanh aliasing: " << tanhResult.aliasingPowerDb << " dB");
+
+        // Both should generate harmonics, but may differ in amount/distribution
+        // Just verify both produce measurable content
+        REQUIRE(tubeResult.harmonicPowerDb > -80.0f);
+        REQUIRE(tanhResult.harmonicPowerDb > -80.0f);
+    }
+}
+
+TEST_CASE("Asymmetric::diode spectral analysis", "[sigmoid][asymmetric][diode][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 4.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("diode clipping generates harmonics") {
+        auto result = measureAliasing(config, [](float x) {
+            return Asymmetric::diode(x);
+        });
+
+        INFO("Diode aliasing: " << result.aliasingPowerDb << " dB");
+        INFO("Diode harmonics: " << result.harmonicPowerDb << " dB");
+        // Strong asymmetry generates rich even harmonic content
+        REQUIRE(result.harmonicPowerDb > -80.0f);
+    }
 }

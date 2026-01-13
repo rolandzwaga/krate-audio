@@ -17,6 +17,7 @@
 #include <chrono>
 #include <cmath>
 #include <numeric>
+#include <vector>
 
 using Catch::Approx;
 using namespace Krate::DSP;
@@ -27,7 +28,7 @@ using namespace Krate::DSP;
 
 namespace {
 
-constexpr float kTwoPi = 6.28318530718f;
+// Note: kTwoPi is available from Krate::DSP::kTwoPi via using directive
 
 // Calculate RMS of a buffer
 float calculateRMS(const float* buffer, size_t size) {
@@ -1210,5 +1211,226 @@ TEST_CASE("CharacterProcessor lifecycle stress test",
             character.processStereo(left.data(), right.data(), blockSize);
         }
         REQUIRE(true);
+    }
+}
+
+// =============================================================================
+// Spectral Analysis Tests - Saturation Harmonic Characteristics
+// =============================================================================
+
+TEST_CASE("CharacterProcessor spectral analysis: Tape saturation creates harmonics",
+          "[character][layer3][aliasing]") {
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 1000.0f;
+
+    SECTION("high saturation creates more harmonics than low saturation") {
+        CharacterProcessor charLow;
+        charLow.prepare(sampleRate, 512);
+        charLow.setMode(CharacterMode::Tape);
+        charLow.setTapeSaturation(0.1f);  // Low saturation
+        charLow.setTapeHissLevel(-96.0f); // Minimize noise
+        charLow.setTapeWowDepth(0.0f);
+        charLow.setTapeFlutterDepth(0.0f);
+        charLow.reset();
+
+        CharacterProcessor charHigh;
+        charHigh.prepare(sampleRate, 512);
+        charHigh.setMode(CharacterMode::Tape);
+        charHigh.setTapeSaturation(0.9f); // High saturation
+        charHigh.setTapeHissLevel(-96.0f);
+        charHigh.setTapeWowDepth(0.0f);
+        charHigh.setTapeFlutterDepth(0.0f);
+        charHigh.reset();
+
+        const size_t totalSamples = fftSize * 4;
+        std::vector<float> lowBuf(totalSamples);
+        std::vector<float> highBuf(totalSamples);
+
+        // Generate test signal (use local kTwoPi from anonymous namespace)
+        for (size_t i = 0; i < totalSamples; ++i) {
+            float sample = 0.8f * std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+            lowBuf[i] = sample;
+            highBuf[i] = sample;
+        }
+
+        // Process through both processors
+        for (size_t offset = 0; offset < totalSamples; offset += 512) {
+            size_t blockSize = std::min(size_t{512}, totalSamples - offset);
+            charLow.process(lowBuf.data() + offset, blockSize);
+            charHigh.process(highBuf.data() + offset, blockSize);
+        }
+
+        // Analyze harmonics
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrumLow(fftSize / 2 + 1);
+        std::vector<Complex> spectrumHigh(fftSize / 2 + 1);
+        fft.forward(lowBuf.data() + totalSamples - fftSize, spectrumLow.data());
+        fft.forward(highBuf.data() + totalSamples - fftSize, spectrumHigh.data());
+
+        // Calculate harmonic power (2nd through 6th)
+        float lowHarmonicPower = 0.0f;
+        float highHarmonicPower = 0.0f;
+        for (int h = 2; h <= 6; ++h) {
+            size_t bin = static_cast<size_t>(testFreq * static_cast<float>(h) * fftSize / sampleRate);
+            if (bin < fftSize / 2) {
+                lowHarmonicPower += spectrumLow[bin].real * spectrumLow[bin].real +
+                                    spectrumLow[bin].imag * spectrumLow[bin].imag;
+                highHarmonicPower += spectrumHigh[bin].real * spectrumHigh[bin].real +
+                                     spectrumHigh[bin].imag * spectrumHigh[bin].imag;
+            }
+        }
+
+        float lowHarmonicDb = 10.0f * std::log10(lowHarmonicPower + 1e-20f);
+        float highHarmonicDb = 10.0f * std::log10(highHarmonicPower + 1e-20f);
+
+        INFO("Tape low saturation harmonics: " << lowHarmonicDb << " dB");
+        INFO("Tape high saturation harmonics: " << highHarmonicDb << " dB");
+
+        // Higher saturation should produce more harmonics
+        REQUIRE(highHarmonicDb > lowHarmonicDb);
+    }
+}
+
+TEST_CASE("CharacterProcessor spectral analysis: BBD saturation creates harmonics",
+          "[character][layer3][aliasing]") {
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 1000.0f;
+
+    SECTION("high saturation creates more harmonics than low saturation") {
+        CharacterProcessor charLow;
+        charLow.prepare(sampleRate, 512);
+        charLow.setMode(CharacterMode::BBD);
+        charLow.setBBDSaturation(0.1f);       // Low saturation
+        charLow.setBBDClockNoiseLevel(-96.0f); // Minimize noise
+        charLow.reset();
+
+        CharacterProcessor charHigh;
+        charHigh.prepare(sampleRate, 512);
+        charHigh.setMode(CharacterMode::BBD);
+        charHigh.setBBDSaturation(0.9f);      // High saturation
+        charHigh.setBBDClockNoiseLevel(-96.0f);
+        charHigh.reset();
+
+        const size_t totalSamples = fftSize * 4;
+        std::vector<float> lowBuf(totalSamples);
+        std::vector<float> highBuf(totalSamples);
+
+        // Generate test signal
+        for (size_t i = 0; i < totalSamples; ++i) {
+            float sample = 0.8f * std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+            lowBuf[i] = sample;
+            highBuf[i] = sample;
+        }
+
+        // Process through both processors
+        for (size_t offset = 0; offset < totalSamples; offset += 512) {
+            size_t blockSize = std::min(size_t{512}, totalSamples - offset);
+            charLow.process(lowBuf.data() + offset, blockSize);
+            charHigh.process(highBuf.data() + offset, blockSize);
+        }
+
+        // Analyze harmonics
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrumLow(fftSize / 2 + 1);
+        std::vector<Complex> spectrumHigh(fftSize / 2 + 1);
+        fft.forward(lowBuf.data() + totalSamples - fftSize, spectrumLow.data());
+        fft.forward(highBuf.data() + totalSamples - fftSize, spectrumHigh.data());
+
+        // Calculate harmonic power (2nd through 6th)
+        float lowHarmonicPower = 0.0f;
+        float highHarmonicPower = 0.0f;
+        for (int h = 2; h <= 6; ++h) {
+            size_t bin = static_cast<size_t>(testFreq * static_cast<float>(h) * fftSize / sampleRate);
+            if (bin < fftSize / 2) {
+                lowHarmonicPower += spectrumLow[bin].real * spectrumLow[bin].real +
+                                    spectrumLow[bin].imag * spectrumLow[bin].imag;
+                highHarmonicPower += spectrumHigh[bin].real * spectrumHigh[bin].real +
+                                     spectrumHigh[bin].imag * spectrumHigh[bin].imag;
+            }
+        }
+
+        float lowHarmonicDb = 10.0f * std::log10(lowHarmonicPower + 1e-20f);
+        float highHarmonicDb = 10.0f * std::log10(highHarmonicPower + 1e-20f);
+
+        INFO("BBD low saturation harmonics: " << lowHarmonicDb << " dB");
+        INFO("BBD high saturation harmonics: " << highHarmonicDb << " dB");
+
+        // Higher saturation should produce more harmonics
+        REQUIRE(highHarmonicDb > lowHarmonicDb);
+    }
+}
+
+TEST_CASE("CharacterProcessor spectral analysis: DigitalVintage bit reduction creates harmonics",
+          "[character][layer3][aliasing]") {
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 1000.0f;
+
+    SECTION("lower bit depth creates more harmonics") {
+        CharacterProcessor char16bit;
+        char16bit.prepare(sampleRate, 512);
+        char16bit.setMode(CharacterMode::DigitalVintage);
+        char16bit.setDigitalBitDepth(16.0f);  // High quality
+        char16bit.setDigitalDitherAmount(0.0f); // No dither for cleaner measurement
+        char16bit.reset();
+
+        CharacterProcessor char8bit;
+        char8bit.prepare(sampleRate, 512);
+        char8bit.setMode(CharacterMode::DigitalVintage);
+        char8bit.setDigitalBitDepth(8.0f);   // Lower quality
+        char8bit.setDigitalDitherAmount(0.0f);
+        char8bit.reset();
+
+        const size_t totalSamples = fftSize * 4;
+        std::vector<float> buf16(totalSamples);
+        std::vector<float> buf8(totalSamples);
+
+        // Generate test signal
+        for (size_t i = 0; i < totalSamples; ++i) {
+            float sample = 0.8f * std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+            buf16[i] = sample;
+            buf8[i] = sample;
+        }
+
+        // Process through both processors
+        for (size_t offset = 0; offset < totalSamples; offset += 512) {
+            size_t blockSize = std::min(size_t{512}, totalSamples - offset);
+            char16bit.process(buf16.data() + offset, blockSize);
+            char8bit.process(buf8.data() + offset, blockSize);
+        }
+
+        // Analyze harmonics
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrum16(fftSize / 2 + 1);
+        std::vector<Complex> spectrum8(fftSize / 2 + 1);
+        fft.forward(buf16.data() + totalSamples - fftSize, spectrum16.data());
+        fft.forward(buf8.data() + totalSamples - fftSize, spectrum8.data());
+
+        // Calculate harmonic power (2nd through 6th)
+        float harmonic16Power = 0.0f;
+        float harmonic8Power = 0.0f;
+        for (int h = 2; h <= 6; ++h) {
+            size_t bin = static_cast<size_t>(testFreq * static_cast<float>(h) * fftSize / sampleRate);
+            if (bin < fftSize / 2) {
+                harmonic16Power += spectrum16[bin].real * spectrum16[bin].real +
+                                   spectrum16[bin].imag * spectrum16[bin].imag;
+                harmonic8Power += spectrum8[bin].real * spectrum8[bin].real +
+                                  spectrum8[bin].imag * spectrum8[bin].imag;
+            }
+        }
+
+        float harmonic16Db = 10.0f * std::log10(harmonic16Power + 1e-20f);
+        float harmonic8Db = 10.0f * std::log10(harmonic8Power + 1e-20f);
+
+        INFO("16-bit harmonics: " << harmonic16Db << " dB");
+        INFO("8-bit harmonics: " << harmonic8Db << " dB");
+
+        // Lower bit depth (8-bit) should have more quantization harmonics than 16-bit
+        REQUIRE(harmonic8Db > harmonic16Db);
     }
 }

@@ -14,6 +14,7 @@
 #include <krate/dsp/processors/pitch_shift_processor.h>
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/primitives/fft.h>
+#include <spectral_analysis.h>
 
 #include <array>
 #include <cmath>
@@ -2125,5 +2126,174 @@ TEST_CASE("PitchShiftProcessor clamps out-of-range parameters", "[pitch][edge][T
         ratio = shifter.getPitchRatio();
         float minRatio = std::pow(2.0f, -25.0f / 12.0f);
         REQUIRE(ratio >= minRatio * 0.99f);
+    }
+}
+
+// ==============================================================================
+// Spectral Analysis Tests - Pitch Shift Artifacts
+// ==============================================================================
+
+TEST_CASE("PitchShiftProcessor spectral analysis: unity pitch is near transparent",
+          "[pitch][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 1000.0f;
+
+    // Generate input sine wave with extra samples for latency
+    std::vector<float> input(fftSize * 4);
+    std::vector<float> output(fftSize * 4);
+    for (size_t i = 0; i < input.size(); ++i) {
+        input[i] = std::sin(kTestTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+    }
+
+    SECTION("Simple mode at unity pitch") {
+        PitchShiftProcessor shifter;
+        shifter.prepare(sampleRate, 512);
+        shifter.setMode(PitchMode::Simple);
+        shifter.setSemitones(0.0f);
+
+        // Process in blocks
+        for (size_t offset = 0; offset < input.size(); offset += 512) {
+            size_t blockSize = std::min(size_t{512}, input.size() - offset);
+            shifter.process(input.data() + offset, output.data() + offset, blockSize);
+        }
+
+        // Perform FFT on output (skip some initial samples for stability)
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrum(fftSize / 2 + 1);
+        fft.forward(output.data() + fftSize, spectrum.data());
+
+        // Find fundamental bin and measure power
+        size_t fundBin = static_cast<size_t>(testFreq * fftSize / sampleRate);
+        float fundPower = spectrum[fundBin].real * spectrum[fundBin].real +
+                          spectrum[fundBin].imag * spectrum[fundBin].imag;
+
+        // Calculate noise power (excluding fundamental and neighbors)
+        float noisePower = 0.0f;
+        size_t noiseCount = 0;
+        for (size_t k = 1; k < fftSize / 2; ++k) {
+            if (k < fundBin - 3 || k > fundBin + 3) {
+                noisePower += spectrum[k].real * spectrum[k].real +
+                              spectrum[k].imag * spectrum[k].imag;
+                noiseCount++;
+            }
+        }
+        if (noiseCount > 0) noisePower /= static_cast<float>(noiseCount);
+
+        float snrDb = 10.0f * std::log10(fundPower / (noisePower + 1e-20f));
+        INFO("Simple mode unity pitch SNR: " << snrDb << " dB");
+
+        // Unity pitch should be fairly clean (>20dB SNR)
+        REQUIRE(snrDb > 20.0f);
+    }
+
+    SECTION("Granular mode at unity pitch") {
+        PitchShiftProcessor shifter;
+        shifter.prepare(sampleRate, 512);
+        shifter.setMode(PitchMode::Granular);
+        shifter.setSemitones(0.0f);
+
+        // Process with extra samples for latency
+        for (size_t offset = 0; offset < input.size(); offset += 512) {
+            size_t blockSize = std::min(size_t{512}, input.size() - offset);
+            shifter.process(input.data() + offset, output.data() + offset, blockSize);
+        }
+
+        // Skip latency and analyze
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrum(fftSize / 2 + 1);
+        fft.forward(output.data() + fftSize * 2, spectrum.data());
+
+        size_t fundBin = static_cast<size_t>(testFreq * fftSize / sampleRate);
+        float fundPower = spectrum[fundBin].real * spectrum[fundBin].real +
+                          spectrum[fundBin].imag * spectrum[fundBin].imag;
+
+        float noisePower = 0.0f;
+        size_t noiseCount = 0;
+        for (size_t k = 1; k < fftSize / 2; ++k) {
+            if (k < fundBin - 3 || k > fundBin + 3) {
+                noisePower += spectrum[k].real * spectrum[k].real +
+                              spectrum[k].imag * spectrum[k].imag;
+                noiseCount++;
+            }
+        }
+        if (noiseCount > 0) noisePower /= static_cast<float>(noiseCount);
+
+        float snrDb = 10.0f * std::log10(fundPower / (noisePower + 1e-20f));
+        INFO("Granular mode unity pitch SNR: " << snrDb << " dB");
+
+        REQUIRE(snrDb > 20.0f);
+    }
+}
+
+TEST_CASE("PitchShiftProcessor spectral analysis: pitch shift moves fundamental",
+          "[pitch][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 1000.0f;
+    constexpr float shiftSemitones = 12.0f;  // Octave up
+
+    // Generate input with lots of extra samples
+    std::vector<float> input(fftSize * 8);
+    std::vector<float> output(fftSize * 8);
+    for (size_t i = 0; i < input.size(); ++i) {
+        input[i] = std::sin(kTestTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+    }
+
+    SECTION("Simple mode shifts frequency correctly") {
+        PitchShiftProcessor shifter;
+        shifter.prepare(sampleRate, 512);
+        shifter.setMode(PitchMode::Simple);
+        shifter.setSemitones(shiftSemitones);
+
+        // Process all blocks
+        for (size_t offset = 0; offset < input.size(); offset += 512) {
+            size_t blockSize = std::min(size_t{512}, input.size() - offset);
+            shifter.process(input.data() + offset, output.data() + offset, blockSize);
+        }
+
+        // Analyze after warmup
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrum(fftSize / 2 + 1);
+        fft.forward(output.data() + fftSize * 4, spectrum.data());
+
+        // Expected shifted frequency (1000Hz * 2^1 = 2000Hz)
+        float expectedFreq = testFreq * std::pow(2.0f, shiftSemitones / 12.0f);
+        size_t expectedBin = static_cast<size_t>(expectedFreq * fftSize / sampleRate);
+        size_t originalBin = static_cast<size_t>(testFreq * fftSize / sampleRate);
+
+        // Find peak in spectrum
+        float maxPower = 0.0f;
+        size_t peakBin = 0;
+        for (size_t k = 1; k < fftSize / 2; ++k) {
+            float power = spectrum[k].real * spectrum[k].real +
+                          spectrum[k].imag * spectrum[k].imag;
+            if (power > maxPower) {
+                maxPower = power;
+                peakBin = k;
+            }
+        }
+
+        float peakFreq = static_cast<float>(peakBin) * sampleRate / static_cast<float>(fftSize);
+        INFO("Simple mode: expected peak at " << expectedFreq << " Hz, found at " << peakFreq << " Hz");
+
+        // Peak should be near the expected shifted frequency (within 100Hz tolerance)
+        REQUIRE(std::abs(peakFreq - expectedFreq) < 100.0f);
+
+        // Original frequency should be attenuated
+        float originalPower = spectrum[originalBin].real * spectrum[originalBin].real +
+                              spectrum[originalBin].imag * spectrum[originalBin].imag;
+        float peakPower = spectrum[peakBin].real * spectrum[peakBin].real +
+                          spectrum[peakBin].imag * spectrum[peakBin].imag;
+
+        // Shifted peak should be stronger than original
+        REQUIRE(peakPower > originalPower);
     }
 }

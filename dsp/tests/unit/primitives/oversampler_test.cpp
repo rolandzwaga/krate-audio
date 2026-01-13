@@ -11,6 +11,8 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
 
 #include <krate/dsp/primitives/oversampler.h>
+#include <krate/dsp/core/sigmoid.h>
+#include <spectral_analysis.h>
 
 #include <array>
 #include <cmath>
@@ -1139,4 +1141,155 @@ TEST_CASE("Quality modes produce different filter responses", "[oversampler][qua
         REQUIRE(osZero.isUsingFir() == false);
         REQUIRE(osLinear.isUsingFir() == true);
     }
+}
+
+// =============================================================================
+// Spectral Analysis Tests - Aliasing Reduction Verification
+// =============================================================================
+
+TEST_CASE("Oversampler 2x reduces aliasing from nonlinear processing",
+          "[oversampler][aliasing][2x]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Test configuration
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 5000.0f;
+    constexpr float drive = 4.0f;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = testFreq,
+        .sampleRate = sampleRate,
+        .driveGain = drive,
+        .fftSize = blockSize,
+        .maxHarmonic = 10
+    };
+
+    SECTION("2x oversampling reduces aliasing vs no oversampling") {
+        // Measure aliasing without oversampling (raw tanh)
+        auto rawResult = measureAliasing(config, [](float x) {
+            return Sigmoid::tanh(x);
+        });
+
+        // Measure with 2x oversampling
+        Oversampler<2, 1> os2x;
+        os2x.prepare(sampleRate, blockSize);
+
+        // Generate test signal
+        std::vector<float> buffer(blockSize);
+        for (size_t i = 0; i < blockSize; ++i) {
+            float phase = kTwoPi * testFreq * static_cast<float>(i) / sampleRate;
+            buffer[i] = drive * std::sin(phase);
+        }
+
+        // Process with oversampling
+        os2x.process(buffer.data(), blockSize, [](float* upsampled, size_t n) {
+            for (size_t i = 0; i < n; ++i) {
+                upsampled[i] = Sigmoid::tanh(upsampled[i]);
+            }
+        });
+
+        // Analyze aliasing in oversampled result
+        std::vector<float> window(blockSize);
+        Window::generateHann(window.data(), blockSize);
+        for (size_t i = 0; i < blockSize; ++i) {
+            buffer[i] *= window[i];
+        }
+
+        FFT fft;
+        fft.prepare(blockSize);
+        std::vector<Complex> spectrum(fft.numBins());
+        fft.forward(buffer.data(), spectrum.data());
+
+        // Get aliased bin indices
+        auto aliasedBins = getAliasedBins(config);
+
+        // Sum power in aliased bins
+        float aliasedPower = 0.0f;
+        for (size_t bin : aliasedBins) {
+            if (bin < spectrum.size()) {
+                float mag = spectrum[bin].magnitude();
+                aliasedPower += mag * mag;
+            }
+        }
+        float os2xAliasingDb = 10.0f * std::log10(aliasedPower + 1e-10f);
+
+        INFO("Raw tanh aliasing: " << rawResult.aliasingPowerDb << " dB");
+        INFO("2x oversampling aliasing: " << os2xAliasingDb << " dB");
+
+        // 2x oversampling should reduce aliasing significantly
+        REQUIRE(os2xAliasingDb < rawResult.aliasingPowerDb);
+    }
+}
+
+TEST_CASE("Oversampler 4x reduces aliasing more than 2x",
+          "[oversampler][aliasing][4x]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Test configuration
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 5000.0f;
+    constexpr float drive = 4.0f;
+
+    // Helper lambda to measure aliasing with given oversampler
+    auto measureOversampledAliasing = [&](auto& oversampler) {
+        std::vector<float> buffer(blockSize);
+        for (size_t i = 0; i < blockSize; ++i) {
+            float phase = kTwoPi * testFreq * static_cast<float>(i) / sampleRate;
+            buffer[i] = drive * std::sin(phase);
+        }
+
+        oversampler.process(buffer.data(), blockSize, [](float* upsampled, size_t n) {
+            for (size_t i = 0; i < n; ++i) {
+                upsampled[i] = Sigmoid::tanh(upsampled[i]);
+            }
+        });
+
+        // Window and FFT
+        std::vector<float> window(blockSize);
+        Window::generateHann(window.data(), blockSize);
+        for (size_t i = 0; i < blockSize; ++i) {
+            buffer[i] *= window[i];
+        }
+
+        FFT fft;
+        fft.prepare(blockSize);
+        std::vector<Complex> spectrum(fft.numBins());
+        fft.forward(buffer.data(), spectrum.data());
+
+        AliasingTestConfig config{
+            .testFrequencyHz = testFreq,
+            .sampleRate = sampleRate,
+            .driveGain = drive,
+            .fftSize = blockSize,
+            .maxHarmonic = 10
+        };
+
+        auto aliasedBins = getAliasedBins(config);
+        float aliasedPower = 0.0f;
+        for (size_t bin : aliasedBins) {
+            if (bin < spectrum.size()) {
+                float mag = spectrum[bin].magnitude();
+                aliasedPower += mag * mag;
+            }
+        }
+        return 10.0f * std::log10(aliasedPower + 1e-10f);
+    };
+
+    // Measure with 2x oversampling
+    Oversampler<2, 1> os2x;
+    os2x.prepare(sampleRate, blockSize);
+    float aliasing2x = measureOversampledAliasing(os2x);
+
+    // Measure with 4x oversampling
+    Oversampler<4, 1> os4x;
+    os4x.prepare(sampleRate, blockSize);
+    float aliasing4x = measureOversampledAliasing(os4x);
+
+    INFO("2x oversampling aliasing: " << aliasing2x << " dB");
+    INFO("4x oversampling aliasing: " << aliasing4x << " dB");
+
+    // 4x should have less aliasing than 2x
+    REQUIRE(aliasing4x < aliasing2x);
 }

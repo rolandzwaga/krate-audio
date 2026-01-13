@@ -14,6 +14,8 @@
 
 #include <krate/dsp/effects/shimmer_delay.h>
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/primitives/fft.h>
+#include <spectral_analysis.h>
 
 #include <array>
 #include <cmath>
@@ -1031,5 +1033,138 @@ TEST_CASE("FR-024: Modulation is applied additively in process", "[shimmer-delay
         // Output should have some energy
         float peak = findPeak(left.data(), kBlockSize);
         REQUIRE(peak >= 0.0f);  // No crash, valid output
+    }
+}
+
+// =============================================================================
+// Spectral Analysis Tests - Shimmer Pitch Shift Characteristics
+// =============================================================================
+
+TEST_CASE("ShimmerDelay spectral analysis: shimmer creates shifted harmonics",
+          "[shimmer-delay][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 440.0f;  // A4
+
+    ShimmerDelay shimmer;
+    shimmer.prepare(sampleRate, kBlockSize, kMaxDelayMs);
+
+    // Configure for maximum shimmer effect
+    shimmer.setDelayTimeMs(100.0f);  // Short delay for fast buildup
+    shimmer.setDryWetMix(100.0f);    // 100% wet
+    shimmer.setFeedbackAmount(0.7f); // Strong feedback
+    shimmer.setShimmerMix(100.0f);   // Full shimmer
+    shimmer.setPitchSemitones(12.0f); // Octave up
+    shimmer.setDiffusionAmount(0.0f); // No diffusion for clean test
+    shimmer.snapParameters();
+
+    // Generate test signal - sine wave
+    const size_t totalSamples = fftSize * 4;  // Process enough for feedback buildup
+    std::vector<float> left(totalSamples);
+    std::vector<float> right(totalSamples);
+
+    for (size_t i = 0; i < totalSamples; ++i) {
+        float sample = std::sin(2.0f * 3.14159265f * testFreq * static_cast<float>(i) / sampleRate);
+        left[i] = sample;
+        right[i] = sample;
+    }
+
+    // Process in blocks
+    auto ctx = makeTestContext();
+    for (size_t offset = 0; offset < totalSamples; offset += kBlockSize) {
+        size_t blockSize = std::min(kBlockSize, totalSamples - offset);
+        shimmer.process(left.data() + offset, right.data() + offset, blockSize, ctx);
+    }
+
+    SECTION("output contains shifted frequency components") {
+        // Analyze final portion of output
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrum(fftSize / 2 + 1);
+        fft.forward(left.data() + totalSamples - fftSize, spectrum.data());
+
+        // Expected frequencies: original (440Hz) and octave up (880Hz)
+        size_t originalBin = static_cast<size_t>(testFreq * fftSize / sampleRate);
+        size_t octaveBin = static_cast<size_t>(testFreq * 2.0f * fftSize / sampleRate);
+
+        float originalPower = spectrum[originalBin].real * spectrum[originalBin].real +
+                              spectrum[originalBin].imag * spectrum[originalBin].imag;
+        float octavePower = spectrum[octaveBin].real * spectrum[octaveBin].real +
+                            spectrum[octaveBin].imag * spectrum[octaveBin].imag;
+
+        float originalPowerDb = 10.0f * std::log10(originalPower + 1e-20f);
+        float octavePowerDb = 10.0f * std::log10(octavePower + 1e-20f);
+
+        INFO("Original (" << testFreq << " Hz) power: " << originalPowerDb << " dB");
+        INFO("Octave (" << testFreq * 2.0f << " Hz) power: " << octavePowerDb << " dB");
+
+        // With shimmer, we should have energy at both the original and shifted frequencies
+        // The exact balance depends on feedback amount and shimmer mix
+        // Just verify we have measurable energy at the octave
+        REQUIRE(octavePowerDb > -60.0f);
+    }
+}
+
+TEST_CASE("ShimmerDelay spectral analysis: no shimmer passes through cleanly",
+          "[shimmer-delay][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 440.0f;
+
+    ShimmerDelay shimmer;
+    shimmer.prepare(sampleRate, kBlockSize, kMaxDelayMs);
+
+    // Configure for no shimmer - should act as plain delay
+    shimmer.setDelayTimeMs(100.0f);
+    shimmer.setDryWetMix(100.0f);
+    shimmer.setFeedbackAmount(0.5f);
+    shimmer.setShimmerMix(0.0f);   // NO shimmer
+    shimmer.setPitchSemitones(12.0f);  // Pitch set but shimmer off
+    shimmer.setDiffusionAmount(0.0f);
+    shimmer.snapParameters();
+
+    const size_t totalSamples = fftSize * 4;
+    std::vector<float> left(totalSamples);
+    std::vector<float> right(totalSamples);
+
+    for (size_t i = 0; i < totalSamples; ++i) {
+        float sample = std::sin(2.0f * 3.14159265f * testFreq * static_cast<float>(i) / sampleRate);
+        left[i] = sample;
+        right[i] = sample;
+    }
+
+    auto ctx = makeTestContext();
+    for (size_t offset = 0; offset < totalSamples; offset += kBlockSize) {
+        size_t blockSize = std::min(kBlockSize, totalSamples - offset);
+        shimmer.process(left.data() + offset, right.data() + offset, blockSize, ctx);
+    }
+
+    SECTION("octave frequency is minimal when shimmer is off") {
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrum(fftSize / 2 + 1);
+        fft.forward(left.data() + totalSamples - fftSize, spectrum.data());
+
+        size_t originalBin = static_cast<size_t>(testFreq * fftSize / sampleRate);
+        size_t octaveBin = static_cast<size_t>(testFreq * 2.0f * fftSize / sampleRate);
+
+        float originalPower = spectrum[originalBin].real * spectrum[originalBin].real +
+                              spectrum[originalBin].imag * spectrum[originalBin].imag;
+        float octavePower = spectrum[octaveBin].real * spectrum[octaveBin].real +
+                            spectrum[octaveBin].imag * spectrum[octaveBin].imag;
+
+        float originalPowerDb = 10.0f * std::log10(originalPower + 1e-20f);
+        float octavePowerDb = 10.0f * std::log10(octavePower + 1e-20f);
+
+        INFO("Original power: " << originalPowerDb << " dB");
+        INFO("Octave power: " << octavePowerDb << " dB");
+
+        // With shimmer off, octave should be much weaker than original
+        // (only natural harmonics from any internal nonlinearities)
+        REQUIRE(originalPowerDb > octavePowerDb + 10.0f);
     }
 }

@@ -12,6 +12,7 @@
 // ==============================================================================
 
 #include <krate/dsp/core/wavefold_math.h>
+#include <spectral_analysis.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
@@ -431,12 +432,205 @@ TEST_CASE("all functions are noexcept (FR-010)", "[wavefold_math][attributes]") 
 }
 
 // =============================================================================
+// Phase 8: Spectral Analysis Tests (Aliasing Measurement)
+// =============================================================================
+// These tests use FFT-based spectral analysis to quantitatively measure
+// aliasing characteristics of the wavefolding functions.
+
+TEST_CASE("sineFold: spectral analysis shows harmonic generation", "[wavefold_math][sineFold][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Use 5kHz fundamental to ensure harmonics alias (5kHz * 5 = 25kHz > 22.05kHz Nyquist)
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("linear passthrough at gain=0 produces minimal aliasing") {
+        auto result = measureAliasing(config, [](float x) {
+            return WavefoldMath::sineFold(x, 0.0f);  // Linear passthrough
+        });
+
+        INFO("Fundamental: " << result.fundamentalPowerDb << " dB");
+        INFO("Harmonics: " << result.harmonicPowerDb << " dB");
+        INFO("Aliasing: " << result.aliasingPowerDb << " dB");
+
+        // At gain=0, sineFold returns x unchanged, so no actual harmonic generation
+        // Measured aliasing is FFT/windowing noise floor (~-50dB)
+        // This should be much lower than active folding scenarios
+        REQUIRE(result.aliasingPowerDb < -40.0f);  // Well below folding scenarios
+    }
+
+    SECTION("gentle gain generates harmonics with measurable aliasing") {
+        constexpr float pi = 3.14159265358979f;
+
+        // Use higher drive to ensure clipping/folding occurs
+        AliasingTestConfig driveConfig = config;
+        driveConfig.driveGain = 3.0f;
+
+        auto result = measureAliasing(driveConfig, [pi](float x) {
+            return WavefoldMath::sineFold(x, pi);  // Classic Serge gain
+        });
+
+        INFO("Fundamental: " << result.fundamentalPowerDb << " dB");
+        INFO("Harmonics: " << result.harmonicPowerDb << " dB");
+        INFO("Aliasing: " << result.aliasingPowerDb << " dB");
+
+        // With gain=pi on a driven signal, harmonics are generated
+        // Some will alias, output should be valid
+        REQUIRE_FALSE(std::isnan(result.aliasingPowerDb));
+        REQUIRE(result.isValid());
+        // Should have measurable aliasing (not at noise floor)
+        REQUIRE(result.aliasingPowerDb > -100.0f);
+    }
+
+    SECTION("folding produces significantly more aliasing than linear passthrough") {
+        // Use higher drive to ensure folding occurs
+        AliasingTestConfig driveConfig = config;
+        driveConfig.driveGain = 2.0f;
+
+        auto linearResult = measureAliasing(config, [](float x) {
+            return WavefoldMath::sineFold(x, 0.0f);  // Linear passthrough
+        });
+
+        auto foldingResult = measureAliasing(driveConfig, [](float x) {
+            return WavefoldMath::sineFold(x, 5.0f);  // Active folding
+        });
+
+        INFO("Linear passthrough aliasing: " << linearResult.aliasingPowerDb << " dB");
+        INFO("Active folding aliasing: " << foldingResult.aliasingPowerDb << " dB");
+
+        // Both should be valid measurements
+        REQUIRE(linearResult.isValid());
+        REQUIRE(foldingResult.isValid());
+        // Active folding produces dramatically more aliasing than passthrough
+        // (Note: sineFold aliasing isn't monotonic with gain due to sin() wrapping)
+        REQUIRE(foldingResult.aliasingPowerDb > linearResult.aliasingPowerDb + 50.0f);
+    }
+}
+
+TEST_CASE("triangleFold: spectral analysis shows harmonic generation", "[wavefold_math][triangleFold][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Use 5kHz fundamental to ensure harmonics alias (5kHz * 5 = 25kHz > 22.05kHz Nyquist)
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("no folding when within threshold produces minimal aliasing") {
+        // Input amplitude 1.0, threshold 2.0 -> no folding occurs
+        auto result = measureAliasing(config, [](float x) {
+            return WavefoldMath::triangleFold(x, 2.0f);  // Threshold > amplitude
+        });
+
+        INFO("Fundamental: " << result.fundamentalPowerDb << " dB");
+        INFO("Harmonics: " << result.harmonicPowerDb << " dB");
+        INFO("Aliasing: " << result.aliasingPowerDb << " dB");
+
+        // No folding means output = input (linear), no actual harmonic generation
+        // Measured aliasing is FFT numeric noise floor (~-50dB)
+        REQUIRE(result.aliasingPowerDb < -40.0f);
+    }
+
+    SECTION("folding with drive > threshold generates harmonics") {
+        // Increase drive to cause folding
+        AliasingTestConfig driveConfig = config;
+        driveConfig.driveGain = 3.0f;  // 3x amplitude with threshold 1.0
+
+        auto result = measureAliasing(driveConfig, [](float x) {
+            return WavefoldMath::triangleFold(x, 1.0f);
+        });
+
+        INFO("Fundamental: " << result.fundamentalPowerDb << " dB");
+        INFO("Harmonics: " << result.harmonicPowerDb << " dB");
+        INFO("Aliasing: " << result.aliasingPowerDb << " dB");
+
+        // With folding, harmonics are generated
+        REQUIRE(result.isValid());
+        // Aliasing should be measurable (not at noise floor)
+        REQUIRE(result.aliasingPowerDb > -100.0f);
+    }
+
+    SECTION("more drive produces more aliasing") {
+        AliasingTestConfig config2x = config;
+        config2x.driveGain = 2.0f;
+
+        AliasingTestConfig config5x = config;
+        config5x.driveGain = 5.0f;
+
+        auto result2x = measureAliasing(config2x, [](float x) {
+            return WavefoldMath::triangleFold(x, 1.0f);
+        });
+
+        auto result5x = measureAliasing(config5x, [](float x) {
+            return WavefoldMath::triangleFold(x, 1.0f);
+        });
+
+        INFO("Drive 2x aliasing: " << result2x.aliasingPowerDb << " dB");
+        INFO("Drive 5x aliasing: " << result5x.aliasingPowerDb << " dB");
+
+        // Both should produce measurable aliasing
+        REQUIRE(result2x.aliasingPowerDb > -100.0f);
+        REQUIRE(result5x.aliasingPowerDb > -100.0f);
+        // More drive = more folds = more aliasing
+        REQUIRE(result5x.aliasingPowerDb > result2x.aliasingPowerDb);
+    }
+}
+
+TEST_CASE("wavefold comparison: sineFold vs triangleFold aliasing characteristics",
+          "[wavefold_math][aliasing][comparison]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Use same test conditions for both
+    AliasingTestConfig config{
+        .testFrequencyHz = 2000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 3.0f,  // Drive to cause folding
+        .fftSize = 4096,
+        .maxHarmonic = 15
+    };
+
+    constexpr float pi = 3.14159265358979f;
+
+    // Measure sineFold with typical Serge gain
+    auto sineResult = measureAliasing(config, [pi](float x) {
+        return WavefoldMath::sineFold(x, pi);
+    });
+
+    // Measure triangleFold with threshold 1.0
+    auto triangleResult = measureAliasing(config, [](float x) {
+        return WavefoldMath::triangleFold(x, 1.0f);
+    });
+
+    INFO("sineFold (gain=pi) aliasing: " << sineResult.aliasingPowerDb << " dB");
+    INFO("triangleFold (threshold=1) aliasing: " << triangleResult.aliasingPowerDb << " dB");
+
+    // Both should produce valid measurements
+    REQUIRE(sineResult.isValid());
+    REQUIRE(triangleResult.isValid());
+
+    // Document the characteristic: triangleFold typically produces more aliasing
+    // than sineFold at equivalent settings because it has sharp corners (discontinuous
+    // first derivative) while sineFold uses smooth sine function
+    // Note: This is a characterization test, not a strict requirement
+    INFO("Aliasing difference: " << (triangleResult.aliasingPowerDb - sineResult.aliasingPowerDb) << " dB");
+}
+
+// =============================================================================
 // Test Coverage Summary (SC-007)
 // =============================================================================
 // All 4 public functions have tests:
 // - lambertW: 6 test cases
 // - lambertWApprox: 4 test cases
-// - triangleFold: 7 test cases
-// - sineFold: 6 test cases
+// - triangleFold: 7 test cases + 3 spectral analysis tests
+// - sineFold: 6 test cases + 3 spectral analysis tests
 // - Cross-cutting: 3 test cases (stress, bounds, attributes)
-// Total: 26 test cases covering all functional requirements and success criteria
+// - Spectral comparison: 1 test case
+// Total: 29 test cases covering all functional requirements and success criteria
