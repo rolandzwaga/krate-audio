@@ -14,4 +14,5 @@ target_include_directories(test_helpers
 target_link_libraries(test_helpers
     INTERFACE
         Catch2::Catch2
+        KrateDSP
 )

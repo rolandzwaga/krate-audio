@@ -13,6 +13,8 @@
 #include <catch2/catch_approx.hpp>
 
 #include <krate/dsp/effects/bbd_delay.h>
+#include <krate/dsp/primitives/fft.h>
+#include <spectral_analysis.h>
 
 #include <array>
 #include <cmath>
@@ -1317,5 +1319,160 @@ TEST_CASE("BBDDelay feedback transition doesn't cause distortion",
     for (float peak : blockPeaks) {
         REQUIRE_FALSE(std::isnan(peak));
         REQUIRE_FALSE(std::isinf(peak));
+    }
+}
+
+// =============================================================================
+// Spectral Analysis Tests - BBD Soft Clipping Characteristics
+// =============================================================================
+
+TEST_CASE("BBDDelay spectral analysis: older era creates more harmonics",
+          "[bbd-delay][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 440.0f;
+    constexpr float kTwoPi = 6.28318530718f;
+
+    SECTION("SAD1024 era has more harmonics than MN3005") {
+        // MN3005: cleanest chip (saturation = 0.2)
+        // SAD1024: oldest/noisiest chip (saturation = 0.3)
+        BBDDelay delayClean;
+        delayClean.prepare(sampleRate, 512, 1000.0f);
+        delayClean.setTime(100.0f);
+        delayClean.setMix(1.0f);
+        delayClean.setFeedback(0.0f);
+        delayClean.setEra(BBDChipModel::MN3005);  // Cleanest chip
+        delayClean.setModulation(0.0f);
+        delayClean.reset();
+
+        BBDDelay delayVintage;
+        delayVintage.prepare(sampleRate, 512, 1000.0f);
+        delayVintage.setTime(100.0f);
+        delayVintage.setMix(1.0f);
+        delayVintage.setFeedback(0.0f);
+        delayVintage.setEra(BBDChipModel::SAD1024);  // Oldest/noisiest chip
+        delayVintage.setModulation(0.0f);
+        delayVintage.reset();
+
+        const size_t totalSamples = fftSize * 4;
+        std::vector<float> cleanL(totalSamples);
+        std::vector<float> cleanR(totalSamples);
+        std::vector<float> vintageL(totalSamples);
+        std::vector<float> vintageR(totalSamples);
+
+        // Generate test signal
+        for (size_t i = 0; i < totalSamples; ++i) {
+            float sample = 0.8f * std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+            cleanL[i] = sample;
+            cleanR[i] = sample;
+            vintageL[i] = sample;
+            vintageR[i] = sample;
+        }
+
+        // Process
+        for (size_t offset = 0; offset < totalSamples; offset += 512) {
+            size_t blockSize = std::min(size_t{512}, totalSamples - offset);
+            delayClean.process(cleanL.data() + offset, cleanR.data() + offset, blockSize);
+            delayVintage.process(vintageL.data() + offset, vintageR.data() + offset, blockSize);
+        }
+
+        // Analyze harmonics
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrumClean(fftSize / 2 + 1);
+        std::vector<Complex> spectrumVintage(fftSize / 2 + 1);
+        fft.forward(cleanL.data() + totalSamples - fftSize, spectrumClean.data());
+        fft.forward(vintageL.data() + totalSamples - fftSize, spectrumVintage.data());
+
+        // Calculate harmonic power (2nd through 6th)
+        float cleanHarmonicPower = 0.0f;
+        float vintageHarmonicPower = 0.0f;
+        for (int h = 2; h <= 6; ++h) {
+            size_t bin = static_cast<size_t>(testFreq * h * fftSize / sampleRate);
+            if (bin < fftSize / 2) {
+                cleanHarmonicPower += spectrumClean[bin].real * spectrumClean[bin].real +
+                                      spectrumClean[bin].imag * spectrumClean[bin].imag;
+                vintageHarmonicPower += spectrumVintage[bin].real * spectrumVintage[bin].real +
+                                        spectrumVintage[bin].imag * spectrumVintage[bin].imag;
+            }
+        }
+
+        float cleanHarmonicDb = 10.0f * std::log10(cleanHarmonicPower + 1e-20f);
+        float vintageHarmonicDb = 10.0f * std::log10(vintageHarmonicPower + 1e-20f);
+
+        INFO("MN3005 (clean) harmonics: " << cleanHarmonicDb << " dB");
+        INFO("SAD1024 (vintage) harmonics: " << vintageHarmonicDb << " dB");
+
+        // Older/noisier era should produce more harmonics from higher saturation
+        REQUIRE(vintageHarmonicDb > cleanHarmonicDb);
+    }
+}
+
+TEST_CASE("BBDDelay spectral analysis: feedback saturation creates harmonics",
+          "[bbd-delay][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 440.0f;
+    constexpr float kTwoPi = 6.28318530718f;
+
+    BBDDelay delay;
+    delay.prepare(sampleRate, 512, 1000.0f);
+    delay.setTime(100.0f);
+    delay.setMix(1.0f);
+    delay.setFeedback(0.8f);   // High feedback to exercise saturation
+    delay.setAge(0.5f);
+    delay.setModulation(0.0f);
+    delay.reset();
+
+    const size_t totalSamples = fftSize * 6;  // Extra for feedback buildup
+    std::vector<float> left(totalSamples);
+    std::vector<float> right(totalSamples);
+
+    // Generate test signal
+    for (size_t i = 0; i < totalSamples; ++i) {
+        float sample = 0.7f * std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+        left[i] = sample;
+        right[i] = sample;
+    }
+
+    // Process
+    for (size_t offset = 0; offset < totalSamples; offset += 512) {
+        size_t blockSize = std::min(size_t{512}, totalSamples - offset);
+        delay.process(left.data() + offset, right.data() + offset, blockSize);
+    }
+
+    SECTION("output contains harmonic content from saturation") {
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrum(fftSize / 2 + 1);
+        fft.forward(left.data() + totalSamples - fftSize, spectrum.data());
+
+        size_t fundBin = static_cast<size_t>(testFreq * fftSize / sampleRate);
+        float fundPower = spectrum[fundBin].real * spectrum[fundBin].real +
+                          spectrum[fundBin].imag * spectrum[fundBin].imag;
+
+        // Calculate harmonic power
+        float harmonicPower = 0.0f;
+        for (int h = 2; h <= 5; ++h) {
+            size_t bin = static_cast<size_t>(testFreq * h * fftSize / sampleRate);
+            if (bin < fftSize / 2) {
+                harmonicPower += spectrum[bin].real * spectrum[bin].real +
+                                 spectrum[bin].imag * spectrum[bin].imag;
+            }
+        }
+
+        float fundDb = 10.0f * std::log10(fundPower + 1e-20f);
+        float harmDb = 10.0f * std::log10(harmonicPower + 1e-20f);
+
+        INFO("Fundamental power: " << fundDb << " dB");
+        INFO("Harmonic power: " << harmDb << " dB");
+
+        // Should have measurable harmonic content from BBD saturation
+        // (BBD always adds some character, similar to tape)
+        REQUIRE(harmDb > -60.0f);
     }
 }

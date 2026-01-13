@@ -16,6 +16,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/generators/catch_generators.hpp>
+#include <spectral_analysis.h>
 
 #include <array>
 #include <cmath>
@@ -696,5 +697,157 @@ TEST_CASE("Extreme drive values (>100): bounded types still produce bounded outp
         REQUIRE(output <= 1.0f);
         REQUIRE_FALSE(std::isnan(output));
         REQUIRE_FALSE(std::isinf(output));
+    }
+}
+
+// =============================================================================
+// Spectral Analysis Tests - Harmonic Generation
+// =============================================================================
+
+TEST_CASE("Waveshaper spectral analysis: low drive produces minimal aliasing",
+          "[waveshaper][aliasing][drive]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,  // Will be overridden by Waveshaper's drive
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("low drive (0.5x) produces less aliasing than high drive (4x)") {
+        Waveshaper lowDrive;
+        lowDrive.setType(WaveshapeType::Tanh);
+        lowDrive.setDrive(0.5f);
+
+        Waveshaper highDrive;
+        highDrive.setType(WaveshapeType::Tanh);
+        highDrive.setDrive(4.0f);
+
+        auto lowResult = measureAliasing(config, [&lowDrive](float x) {
+            return lowDrive.process(x);
+        });
+
+        auto highResult = measureAliasing(config, [&highDrive](float x) {
+            return highDrive.process(x);
+        });
+
+        INFO("Low drive (0.5x) aliasing: " << lowResult.aliasingPowerDb << " dB");
+        INFO("High drive (4x) aliasing: " << highResult.aliasingPowerDb << " dB");
+        REQUIRE(lowResult.aliasingPowerDb < highResult.aliasingPowerDb);
+    }
+}
+
+TEST_CASE("Waveshaper spectral analysis: different types have different aliasing",
+          "[waveshaper][aliasing][types]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("HardClip generates more aliasing than Tanh") {
+        Waveshaper hardClip;
+        hardClip.setType(WaveshapeType::HardClip);
+        hardClip.setDrive(4.0f);
+
+        Waveshaper tanh;
+        tanh.setType(WaveshapeType::Tanh);
+        tanh.setDrive(4.0f);
+
+        auto hardResult = measureAliasing(config, [&hardClip](float x) {
+            return hardClip.process(x);
+        });
+
+        auto tanhResult = measureAliasing(config, [&tanh](float x) {
+            return tanh.process(x);
+        });
+
+        INFO("HardClip aliasing: " << hardResult.aliasingPowerDb << " dB");
+        INFO("Tanh aliasing: " << tanhResult.aliasingPowerDb << " dB");
+        // HardClip (sharp discontinuity) should produce more aliasing than smooth Tanh
+        REQUIRE(hardResult.aliasingPowerDb > tanhResult.aliasingPowerDb);
+    }
+}
+
+TEST_CASE("Waveshaper spectral analysis: all bounded types generate harmonics",
+          "[waveshaper][aliasing][bounded]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    // Test all bounded types generate harmonics when driven
+    auto type = GENERATE(
+        WaveshapeType::Tanh,
+        WaveshapeType::Atan,
+        WaveshapeType::Cubic,
+        WaveshapeType::Quintic,
+        WaveshapeType::ReciprocalSqrt,
+        WaveshapeType::Erf,
+        WaveshapeType::HardClip,
+        WaveshapeType::Tube
+    );
+
+    Waveshaper shaper;
+    shaper.setType(type);
+    shaper.setDrive(4.0f);
+
+    auto result = measureAliasing(config, [&shaper](float x) {
+        return shaper.process(x);
+    });
+
+    INFO("Type " << static_cast<int>(type) << " harmonics: " << result.harmonicPowerDb << " dB");
+    // All saturation types should generate measurable harmonic content when driven hard
+    REQUIRE(result.harmonicPowerDb > -80.0f);
+}
+
+TEST_CASE("Waveshaper spectral analysis: asymmetry affects spectrum",
+          "[waveshaper][aliasing][asymmetry]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("asymmetry produces different spectral content") {
+        Waveshaper symmetric;
+        symmetric.setType(WaveshapeType::Tanh);
+        symmetric.setDrive(2.0f);
+        symmetric.setAsymmetry(0.0f);
+
+        Waveshaper asymmetric;
+        asymmetric.setType(WaveshapeType::Tanh);
+        asymmetric.setDrive(2.0f);
+        asymmetric.setAsymmetry(0.5f);
+
+        auto symResult = measureAliasing(config, [&symmetric](float x) {
+            return symmetric.process(x);
+        });
+
+        auto asymResult = measureAliasing(config, [&asymmetric](float x) {
+            return asymmetric.process(x);
+        });
+
+        INFO("Symmetric harmonics: " << symResult.harmonicPowerDb << " dB");
+        INFO("Asymmetric harmonics: " << asymResult.harmonicPowerDb << " dB");
+
+        // Both should generate harmonics
+        REQUIRE(symResult.harmonicPowerDb > -80.0f);
+        REQUIRE(asymResult.harmonicPowerDb > -80.0f);
     }
 }

@@ -375,3 +375,4 @@ For detailed information, see the supporting files:
 - [VST3-TESTING.md](VST3-TESTING.md) - Validator, state tests, processor/controller separation
 - [PATTERNS.md](PATTERNS.md) - Catch2 patterns, test doubles, UI testing with mocks
 - [ANTI-PATTERNS.md](ANTI-PATTERNS.md) - Common mistakes and how to avoid them
+- [SPECTRAL-ANALYSIS.md](SPECTRAL-ANALYSIS.md) - FFT-based aliasing measurement for waveshaper and ADAA tests

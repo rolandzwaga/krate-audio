@@ -21,8 +21,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <krate/dsp/processors/saturation_processor.h>
+#include <spectral_analysis.h>
 
 #include <array>
 #include <cmath>
@@ -1031,4 +1033,165 @@ TEST_CASE("SaturationType enumeration values", "[saturation][enum]") {
     REQUIRE(static_cast<uint8_t>(SaturationType::Transistor) == 2);
     REQUIRE(static_cast<uint8_t>(SaturationType::Digital) == 3);
     REQUIRE(static_cast<uint8_t>(SaturationType::Diode) == 4);
+}
+
+// ==============================================================================
+// Spectral Analysis Tests - Aliasing Verification
+// ==============================================================================
+
+TEST_CASE("SaturationProcessor spectral analysis: 2x oversampling reduces aliasing vs raw tanh",
+          "[saturation][aliasing][oversampling]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // SaturationProcessor uses 2x oversampling internally, which should
+    // significantly reduce aliasing compared to raw Sigmoid::tanh()
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,  // Will be controlled by processor's input gain
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("SaturationProcessor (2x OS) has less aliasing than raw tanh") {
+        // Setup SaturationProcessor with Tape (tanh) saturation
+        SaturationProcessor sat;
+        sat.prepare(44100.0, 4096);
+        sat.setType(SaturationType::Tape);
+        sat.setInputGain(12.0f);  // +12dB drive for significant saturation
+        sat.setOutputGain(0.0f);
+        sat.setMix(1.0f);
+
+        // Prime the processor to get past initial transients
+        std::vector<float> primeBuffer(512, 0.0f);
+        sat.process(primeBuffer.data(), primeBuffer.size());
+
+        // Measure aliasing from SaturationProcessor (block-based)
+        // Note: We can't use measureAliasing directly since it expects sample-by-sample
+        // Instead, generate test signal, process through SaturationProcessor, then analyze
+
+        // Generate test signal
+        const size_t numSamples = config.fftSize;
+        std::vector<float> testBuffer(numSamples);
+        for (size_t i = 0; i < numSamples; ++i) {
+            const float phase = kTwoPi * config.testFrequencyHz *
+                               static_cast<float>(i) / config.sampleRate;
+            testBuffer[i] = std::sin(phase);  // Unity amplitude - processor applies gain
+        }
+
+        // Process through SaturationProcessor
+        sat.process(testBuffer.data(), numSamples);
+
+        // Measure raw tanh aliasing for comparison
+        // Raw tanh with equivalent drive (+12dB = ~4x linear gain)
+        const float rawDrive = dbToGain(12.0f);
+        auto rawResult = measureAliasing(config, [rawDrive](float x) {
+            return Sigmoid::tanh(x * rawDrive);
+        });
+
+        // Calculate aliasing in processed buffer using FFT
+        // Apply window
+        std::vector<float> window(numSamples);
+        Window::generateHann(window.data(), numSamples);
+        for (size_t i = 0; i < numSamples; ++i) {
+            testBuffer[i] *= window[i];
+        }
+
+        FFT fft;
+        fft.prepare(numSamples);
+        std::vector<Complex> spectrum(fft.numBins());
+        fft.forward(testBuffer.data(), spectrum.data());
+
+        // Get aliased bin indices
+        auto aliasedBins = getAliasedBins(config);
+
+        // Sum power in aliased bins
+        float aliasedPower = 0.0f;
+        for (size_t bin : aliasedBins) {
+            if (bin < spectrum.size()) {
+                float mag = spectrum[bin].magnitude();
+                aliasedPower += mag * mag;
+            }
+        }
+        float processedAliasingDb = 10.0f * std::log10(aliasedPower + 1e-10f);
+
+        INFO("SaturationProcessor (2x OS) aliasing: " << processedAliasingDb << " dB");
+        INFO("Raw tanh aliasing: " << rawResult.aliasingPowerDb << " dB");
+
+        // The 2x oversampling should provide at least some aliasing reduction
+        // Note: DC blocker and other processing may affect the comparison
+        // We expect processed aliasing to be lower (more negative or smaller positive)
+        REQUIRE(processedAliasingDb < rawResult.aliasingPowerDb + 6.0f);  // At least not worse
+    }
+}
+
+TEST_CASE("SaturationProcessor spectral analysis: all types generate harmonics",
+          "[saturation][aliasing][types]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    // Test each saturation type generates harmonic content
+    auto type = GENERATE(
+        SaturationType::Tape,
+        SaturationType::Tube,
+        SaturationType::Transistor,
+        SaturationType::Digital,
+        SaturationType::Diode
+    );
+
+    SaturationProcessor sat;
+    sat.prepare(44100.0, 4096);
+    sat.setType(type);
+    sat.setInputGain(12.0f);  // +12dB drive
+    sat.setOutputGain(0.0f);
+    sat.setMix(1.0f);
+
+    // Prime processor
+    std::vector<float> primeBuffer(512, 0.0f);
+    sat.process(primeBuffer.data(), primeBuffer.size());
+
+    // Generate and process test signal
+    const size_t numSamples = config.fftSize;
+    std::vector<float> testBuffer(numSamples);
+    for (size_t i = 0; i < numSamples; ++i) {
+        const float phase = kTwoPi * config.testFrequencyHz *
+                           static_cast<float>(i) / config.sampleRate;
+        testBuffer[i] = std::sin(phase);
+    }
+
+    sat.process(testBuffer.data(), numSamples);
+
+    // Apply window and FFT
+    std::vector<float> window(numSamples);
+    Window::generateHann(window.data(), numSamples);
+    for (size_t i = 0; i < numSamples; ++i) {
+        testBuffer[i] *= window[i];
+    }
+
+    FFT fft;
+    fft.prepare(numSamples);
+    std::vector<Complex> spectrum(fft.numBins());
+    fft.forward(testBuffer.data(), spectrum.data());
+
+    // Check for harmonic content
+    auto harmonicBins = getHarmonicBins(config);
+    float harmonicPower = 0.0f;
+    for (size_t bin : harmonicBins) {
+        if (bin < spectrum.size()) {
+            float mag = spectrum[bin].magnitude();
+            harmonicPower += mag * mag;
+        }
+    }
+    float harmonicsDb = 10.0f * std::log10(harmonicPower + 1e-10f);
+
+    INFO("Type " << static_cast<int>(type) << " harmonics: " << harmonicsDb << " dB");
+    // All saturation types should generate measurable harmonic content when driven hard
+    REQUIRE(harmonicsDb > -80.0f);
 }

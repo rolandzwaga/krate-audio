@@ -99,6 +99,7 @@ public:
         , threshold_(1.0f)
         , order_(Order::First)
         , hasPreviousSample_(false)
+        , hasValidD1Prev_(false)
     {
     }
 
@@ -227,6 +228,7 @@ private:
     float threshold_;           ///< Clipping threshold (>= 0)
     Order order_;               ///< Selected ADAA algorithm
     bool hasPreviousSample_;    ///< True after first sample processed
+    bool hasValidD1Prev_;       ///< True when D1_prev_ is valid for second-order
 };
 
 // =============================================================================
@@ -247,6 +249,7 @@ inline void HardClipADAA::reset() noexcept {
     x1_ = 0.0f;
     D1_prev_ = 0.0f;
     hasPreviousSample_ = false;
+    hasValidD1Prev_ = false;
 }
 
 inline HardClipADAA::Order HardClipADAA::getOrder() const noexcept {
@@ -320,12 +323,13 @@ inline float HardClipADAA::processFirstOrder(float x) noexcept {
 
 inline float HardClipADAA::processSecondOrder(float x) noexcept {
     // FR-018 to FR-021: Second-order ADAA
-    // y = 2 * (F2(x[n]) - F2(x[n-1]) - (x[n] - x[n-1]) * D1_prev) / (x[n] - x[n-1])^2
+    // Using polynomial extrapolation form: D2[n] = 2*D1[n] - D1[n-1]
+    // This provides a better approximation by extrapolating the trend in D1.
 
     const float dx = x - x1_;
     const float absDx = (dx >= 0.0f) ? dx : -dx;
 
-    // Compute first-order ADAA result (needed for D1_prev update)
+    // Compute first-order ADAA result (needed for D1_prev update and fallback)
     float D1;
     if (absDx < kEpsilon) {
         // Fallback for first-order
@@ -335,20 +339,22 @@ inline float HardClipADAA::processSecondOrder(float x) noexcept {
         D1 = (F1(x, threshold_) - F1(x1_, threshold_)) / dx;
     }
 
-    // FR-020: When samples are near-identical, fall back to first-order result
+    // FR-020: Fall back to first-order if:
+    // - Samples are near-identical (dx < epsilon), OR
+    // - We don't have a valid D1_prev_ yet (need 2+ samples for second-order)
     float y;
-    if (absDx < kEpsilon) {
+    if (absDx < kEpsilon || !hasValidD1Prev_) {
         y = D1;
     } else {
-        // Second-order ADAA formula
-        const float dx2 = dx * dx;
-        const float F2_curr = F2(x, threshold_);
-        const float F2_prev = F2(x1_, threshold_);
-        y = 2.0f * (F2_curr - F2_prev - dx * D1_prev_) / dx2;
+        // Second-order ADAA using polynomial extrapolation:
+        // D2[n] = 2*D1[n] - D1[n-1]
+        // This extrapolates based on the slope of D1 values
+        y = 2.0f * D1 - D1_prev_;
     }
 
     // FR-021: Update D1_prev for next sample
     D1_prev_ = D1;
+    hasValidD1Prev_ = true;  // After first valid D1 computation, D1_prev_ is valid
 
     return y;
 }
@@ -377,7 +383,9 @@ inline float HardClipADAA::process(float x) noexcept {
     if (!hasPreviousSample_) {
         hasPreviousSample_ = true;
         x1_ = x;
-        D1_prev_ = Sigmoid::hardClip(x, threshold_);  // Initialize D1_prev for second-order
+        // Note: D1_prev_ is NOT set here - it will be set on the second sample
+        // when processSecondOrder() computes the first valid D1 value.
+        // hasValidD1Prev_ remains false until then.
         return Sigmoid::hardClip(x, threshold_);
     }
 

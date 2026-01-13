@@ -13,6 +13,8 @@
 #include <catch2/catch_approx.hpp>
 
 #include <krate/dsp/effects/tape_delay.h>
+#include <krate/dsp/primitives/fft.h>
+#include <spectral_analysis.h>
 
 #include <array>
 #include <cmath>
@@ -1198,5 +1200,162 @@ TEST_CASE("FR-024: Age control affects splice artifact intensity", "[features][t
 
         // Aged should have more residual noise/artifacts
         REQUIRE(agedNoise > cleanNoise);
+    }
+}
+
+// =============================================================================
+// Spectral Analysis Tests - Tape Saturation Characteristics
+// =============================================================================
+
+TEST_CASE("TapeDelay spectral analysis: saturation creates harmonics",
+          "[tape-delay][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 1000.0f;
+    constexpr float kTwoPi = 6.28318530718f;
+
+    SECTION("high saturation creates more harmonics than low saturation") {
+        TapeDelay delayLow;
+        delayLow.prepare(sampleRate, 512, 2000.0f);
+        delayLow.setMotorSpeed(100.0f);
+        delayLow.setMix(1.0f);
+        delayLow.setFeedback(0.0f);  // No feedback to isolate saturation
+        delayLow.setSaturation(0.1f);  // Low saturation
+        delayLow.setAge(0.0f);  // Minimal age effects
+        delayLow.setWear(0.0f);  // No wow/flutter/hiss
+        delayLow.setSpliceEnabled(false);
+        delayLow.reset();
+
+        TapeDelay delayHigh;
+        delayHigh.prepare(sampleRate, 512, 2000.0f);
+        delayHigh.setMotorSpeed(100.0f);
+        delayHigh.setMix(1.0f);
+        delayHigh.setFeedback(0.0f);
+        delayHigh.setSaturation(0.9f);  // High saturation
+        delayHigh.setAge(0.0f);
+        delayHigh.setWear(0.0f);  // No wow/flutter/hiss
+        delayHigh.setSpliceEnabled(false);
+        delayHigh.reset();
+
+        const size_t totalSamples = fftSize * 4;
+        std::vector<float> lowL(totalSamples);
+        std::vector<float> lowR(totalSamples);
+        std::vector<float> highL(totalSamples);
+        std::vector<float> highR(totalSamples);
+
+        // Generate high-amplitude sine wave to exercise saturation
+        for (size_t i = 0; i < totalSamples; ++i) {
+            float sample = 0.9f * std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+            lowL[i] = sample;
+            lowR[i] = sample;
+            highL[i] = sample;
+            highR[i] = sample;
+        }
+
+        // Process
+        for (size_t offset = 0; offset < totalSamples; offset += 512) {
+            size_t blockSize = std::min(size_t{512}, totalSamples - offset);
+            delayLow.process(lowL.data() + offset, lowR.data() + offset, blockSize);
+            delayHigh.process(highL.data() + offset, highR.data() + offset, blockSize);
+        }
+
+        // Analyze harmonics in the output
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrumLow(fftSize / 2 + 1);
+        std::vector<Complex> spectrumHigh(fftSize / 2 + 1);
+        fft.forward(lowL.data() + totalSamples - fftSize, spectrumLow.data());
+        fft.forward(highL.data() + totalSamples - fftSize, spectrumHigh.data());
+
+        // Calculate total harmonic power (2nd through 6th harmonic)
+        float lowHarmonicPower = 0.0f;
+        float highHarmonicPower = 0.0f;
+        for (int h = 2; h <= 6; ++h) {
+            size_t bin = static_cast<size_t>(testFreq * h * fftSize / sampleRate);
+            if (bin < fftSize / 2) {
+                lowHarmonicPower += spectrumLow[bin].real * spectrumLow[bin].real +
+                                    spectrumLow[bin].imag * spectrumLow[bin].imag;
+                highHarmonicPower += spectrumHigh[bin].real * spectrumHigh[bin].real +
+                                     spectrumHigh[bin].imag * spectrumHigh[bin].imag;
+            }
+        }
+
+        float lowHarmonicDb = 10.0f * std::log10(lowHarmonicPower + 1e-20f);
+        float highHarmonicDb = 10.0f * std::log10(highHarmonicPower + 1e-20f);
+
+        INFO("Low saturation harmonics: " << lowHarmonicDb << " dB");
+        INFO("High saturation harmonics: " << highHarmonicDb << " dB");
+
+        // High saturation should create more harmonics
+        REQUIRE(highHarmonicDb > lowHarmonicDb);
+    }
+}
+
+TEST_CASE("TapeDelay spectral analysis: zero saturation is cleaner",
+          "[tape-delay][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t fftSize = 4096;
+    constexpr float testFreq = 1000.0f;
+    constexpr float kTwoPi = 6.28318530718f;
+
+    TapeDelay delay;
+    delay.prepare(sampleRate, 512, 2000.0f);
+    delay.setMotorSpeed(100.0f);
+    delay.setMix(1.0f);
+    delay.setFeedback(0.0f);
+    delay.setSaturation(0.0f);  // No saturation
+    delay.setAge(0.0f);
+    delay.setWear(0.0f);  // No wow/flutter/hiss
+    delay.setSpliceEnabled(false);
+    delay.reset();
+
+    const size_t totalSamples = fftSize * 4;
+    std::vector<float> left(totalSamples);
+    std::vector<float> right(totalSamples);
+
+    for (size_t i = 0; i < totalSamples; ++i) {
+        float sample = 0.9f * std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+        left[i] = sample;
+        right[i] = sample;
+    }
+
+    for (size_t offset = 0; offset < totalSamples; offset += 512) {
+        size_t blockSize = std::min(size_t{512}, totalSamples - offset);
+        delay.process(left.data() + offset, right.data() + offset, blockSize);
+    }
+
+    SECTION("minimal harmonic content at zero saturation") {
+        FFT fft;
+        fft.prepare(fftSize);
+        std::vector<Complex> spectrum(fftSize / 2 + 1);
+        fft.forward(left.data() + totalSamples - fftSize, spectrum.data());
+
+        size_t fundBin = static_cast<size_t>(testFreq * fftSize / sampleRate);
+        float fundPower = spectrum[fundBin].real * spectrum[fundBin].real +
+                          spectrum[fundBin].imag * spectrum[fundBin].imag;
+
+        // Calculate harmonic power
+        float harmonicPower = 0.0f;
+        for (int h = 2; h <= 5; ++h) {
+            size_t bin = static_cast<size_t>(testFreq * h * fftSize / sampleRate);
+            if (bin < fftSize / 2) {
+                harmonicPower += spectrum[bin].real * spectrum[bin].real +
+                                 spectrum[bin].imag * spectrum[bin].imag;
+            }
+        }
+
+        float fundDb = 10.0f * std::log10(fundPower + 1e-20f);
+        float harmDb = 10.0f * std::log10(harmonicPower + 1e-20f);
+
+        INFO("Fundamental power: " << fundDb << " dB");
+        INFO("Harmonic power: " << harmDb << " dB");
+
+        // Harmonics should be significantly below fundamental
+        // (TapeDelay has some internal processing that may add minor harmonics)
+        REQUIRE(fundDb > harmDb + 15.0f);
     }
 }

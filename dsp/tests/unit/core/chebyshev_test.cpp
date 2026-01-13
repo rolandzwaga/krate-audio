@@ -15,6 +15,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <spectral_analysis.h>
 
 #include <cmath>
 #include <limits>
@@ -23,12 +24,7 @@
 using Catch::Approx;
 using namespace Krate::DSP;
 
-// =============================================================================
-// Mathematical Constants
-// =============================================================================
-
-constexpr float kPi = 3.14159265358979323846f;
-constexpr float kTwoPi = 2.0f * kPi;
+// Use kPi and kTwoPi from Krate::DSP namespace (via math_constants.h)
 
 // =============================================================================
 // US1: Individual Chebyshev Polynomials T1-T8
@@ -735,4 +731,186 @@ TEST_CASE("Chebyshev functions handle denormal input", "[chebyshev][core][edge]"
 
     // T2(denormal) ~ -1 (since 2*denormal^2 - 1 ~ -1)
     REQUIRE(Chebyshev::T2(denormal) == Approx(-1.0f).margin(1e-6f));
+}
+
+// =============================================================================
+// Spectral Analysis Tests - Harmonic Generation
+// =============================================================================
+
+TEST_CASE("Chebyshev::T1 (identity) spectral analysis", "[chebyshev][aliasing][T1]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // T1(x) = x, should pass signal unchanged with no harmonic generation
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,  // Keep input in [-1, 1]
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("T1 (identity) generates no additional harmonics") {
+        auto result = measureAliasing(config, [](float x) {
+            return Chebyshev::T1(x);
+        });
+
+        INFO("T1 aliasing: " << result.aliasingPowerDb << " dB");
+        INFO("T1 harmonics: " << result.harmonicPowerDb << " dB");
+        // Identity function should have minimal harmonic content (FFT noise floor)
+        REQUIRE(result.aliasingPowerDb < -40.0f);
+    }
+}
+
+TEST_CASE("Chebyshev::T2 spectral analysis", "[chebyshev][aliasing][T2]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // T2 generates 2nd harmonic from input
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("T2 generates harmonic content") {
+        auto result = measureAliasing(config, [](float x) {
+            return Chebyshev::T2(x);
+        });
+
+        INFO("T2 aliasing: " << result.aliasingPowerDb << " dB");
+        INFO("T2 harmonics: " << result.harmonicPowerDb << " dB");
+        // T2 creates 2nd harmonic (10kHz at 5kHz input), which is below Nyquist
+        // Should have measurable harmonic content
+        REQUIRE(result.harmonicPowerDb > -80.0f);
+    }
+}
+
+TEST_CASE("Chebyshev::T3 spectral analysis", "[chebyshev][aliasing][T3]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // T3 generates 3rd harmonic from input
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("T3 generates harmonic content") {
+        auto result = measureAliasing(config, [](float x) {
+            return Chebyshev::T3(x);
+        });
+
+        INFO("T3 aliasing: " << result.aliasingPowerDb << " dB");
+        INFO("T3 harmonics: " << result.harmonicPowerDb << " dB");
+        // T3 creates 3rd harmonic (15kHz at 5kHz input), below Nyquist
+        REQUIRE(result.harmonicPowerDb > -80.0f);
+    }
+}
+
+TEST_CASE("Chebyshev higher order polynomials generate more aliasing", "[chebyshev][aliasing][comparison]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Higher order Chebyshev polynomials generate higher harmonics, which alias more
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("T2 vs T8: higher order generates more aliased harmonics") {
+        // T2 generates 2nd harmonic (10kHz) - below Nyquist
+        auto t2Result = measureAliasing(config, [](float x) {
+            return Chebyshev::T2(x);
+        });
+
+        // T8 generates 8th harmonic (40kHz) - well above Nyquist, aliases to 4.1kHz
+        auto t8Result = measureAliasing(config, [](float x) {
+            return Chebyshev::T8(x);
+        });
+
+        INFO("T2 aliasing: " << t2Result.aliasingPowerDb << " dB");
+        INFO("T8 aliasing: " << t8Result.aliasingPowerDb << " dB");
+        // T8 should have more aliased content since 8th harmonic folds back
+        REQUIRE(t8Result.aliasingPowerDb > t2Result.aliasingPowerDb);
+    }
+}
+
+TEST_CASE("Chebyshev::harmonicMix spectral analysis", "[chebyshev][aliasing][harmonicMix]") {
+    using namespace Krate::DSP::TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("harmonicMix with T1 only is like identity") {
+        float weights[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+
+        auto result = measureAliasing(config, [&weights](float x) {
+            return Chebyshev::harmonicMix(x, weights, 4);
+        });
+
+        INFO("harmonicMix(T1 only) aliasing: " << result.aliasingPowerDb << " dB");
+        // T1 only should have minimal harmonic content
+        REQUIRE(result.aliasingPowerDb < -40.0f);
+    }
+
+    SECTION("harmonicMix with multiple harmonics generates richer spectrum") {
+        // Mix of T1 + T2 + T3
+        float weights[4] = {0.5f, 0.3f, 0.2f, 0.0f};
+
+        auto mixResult = measureAliasing(config, [&weights](float x) {
+            return Chebyshev::harmonicMix(x, weights, 4);
+        });
+
+        // Compare to T1 only
+        float weightsT1[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+        auto t1Result = measureAliasing(config, [&weightsT1](float x) {
+            return Chebyshev::harmonicMix(x, weightsT1, 4);
+        });
+
+        INFO("harmonicMix(T1+T2+T3) harmonics: " << mixResult.harmonicPowerDb << " dB");
+        INFO("harmonicMix(T1 only) harmonics: " << t1Result.harmonicPowerDb << " dB");
+        // Mix should have more harmonic content than T1 alone
+        REQUIRE(mixResult.harmonicPowerDb > t1Result.harmonicPowerDb);
+    }
+}
+
+TEST_CASE("Chebyshev with out-of-range input spectral analysis", "[chebyshev][aliasing][edge]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // When input exceeds [-1, 1], Chebyshev polynomials grow rapidly
+    // and generate rich harmonic content (including aliased components)
+    AliasingTestConfig config{
+        .testFrequencyHz = 5000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 1.5f,  // Drive input to [-1.5, 1.5] - outside normal range
+        .fftSize = 4096,
+        .maxHarmonic = 10
+    };
+
+    SECTION("out-of-range input produces more harmonics than in-range") {
+        config.driveGain = 1.0f;  // In-range
+        auto inRangeResult = measureAliasing(config, [](float x) {
+            return Chebyshev::T3(x);
+        });
+
+        config.driveGain = 1.5f;  // Out-of-range
+        auto outRangeResult = measureAliasing(config, [](float x) {
+            return Chebyshev::T3(x);
+        });
+
+        INFO("T3 in-range (gain=1.0) aliasing: " << inRangeResult.aliasingPowerDb << " dB");
+        INFO("T3 out-of-range (gain=1.5) aliasing: " << outRangeResult.aliasingPowerDb << " dB");
+        // Out-of-range input should generate more harmonic/aliased content
+        REQUIRE(outRangeResult.aliasingPowerDb > inRangeResult.aliasingPowerDb);
+    }
 }

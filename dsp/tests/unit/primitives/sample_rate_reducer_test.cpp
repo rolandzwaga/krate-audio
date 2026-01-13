@@ -11,6 +11,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include <krate/dsp/primitives/sample_rate_reducer.h>
+#include <spectral_analysis.h>
 
 #include <array>
 #include <cmath>
@@ -139,7 +140,7 @@ TEST_CASE("SampleRateReducer reset clears hold state", "[samplerate][layer1][fou
 
     // Process some samples to build up hold state
     for (int i = 0; i < 10; ++i) {
-        reducer.process(static_cast<float>(i) * 0.1f);
+        (void)reducer.process(static_cast<float>(i) * 0.1f);
     }
 
     // Reset
@@ -356,4 +357,82 @@ TEST_CASE("SampleRateReducer produces staircased output", "[samplerate][layer1][
     // With factor 8, most consecutive samples should be equal
     // 64 samples -> 63 transitions, most should be holds
     REQUIRE(holds >= 50);
+}
+
+// =============================================================================
+// Spectral Analysis Tests - Aliasing Characteristics
+// =============================================================================
+
+TEST_CASE("SampleRateReducer spectral analysis: higher reduction creates more aliasing",
+          "[samplerate][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 5000.0f;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = testFreq,
+        .sampleRate = sampleRate,
+        .driveGain = 1.0f,
+        .fftSize = blockSize,
+        .maxHarmonic = 10
+    };
+
+    SECTION("reduction factor 2 creates less aliasing than factor 4") {
+        // Measure with factor 2
+        SampleRateReducer reducer2;
+        reducer2.prepare(sampleRate);
+        reducer2.setReductionFactor(2.0f);
+
+        auto result2 = measureAliasing(config, [&reducer2](float x) {
+            return reducer2.process(x);
+        });
+
+        // Reset for factor 4 measurement
+        SampleRateReducer reducer4;
+        reducer4.prepare(sampleRate);
+        reducer4.setReductionFactor(4.0f);
+
+        auto result4 = measureAliasing(config, [&reducer4](float x) {
+            return reducer4.process(x);
+        });
+
+        INFO("Factor 2 aliasing: " << result2.aliasingPowerDb << " dB");
+        INFO("Factor 4 aliasing: " << result4.aliasingPowerDb << " dB");
+
+        // Higher reduction factor should create more aliasing
+        REQUIRE(result4.aliasingPowerDb > result2.aliasingPowerDb);
+    }
+}
+
+TEST_CASE("SampleRateReducer spectral analysis: factor 1 produces minimal aliasing",
+          "[samplerate][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 5000.0f;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = testFreq,
+        .sampleRate = sampleRate,
+        .driveGain = 1.0f,
+        .fftSize = blockSize,
+        .maxHarmonic = 10
+    };
+
+    SECTION("factor 1 (no reduction) is nearly transparent") {
+        SampleRateReducer reducer;
+        reducer.prepare(sampleRate);
+        reducer.setReductionFactor(1.0f);
+
+        auto result = measureAliasing(config, [&reducer](float x) {
+            return reducer.process(x);
+        });
+
+        INFO("Factor 1 aliasing: " << result.aliasingPowerDb << " dB");
+        // Factor 1 should produce minimal aliasing (near FFT noise floor)
+        REQUIRE(result.aliasingPowerDb < -30.0f);
+    }
 }

@@ -12,6 +12,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include <krate/dsp/primitives/bit_crusher.h>
+#include <spectral_analysis.h>
 
 #include <array>
 #include <cmath>
@@ -489,4 +490,116 @@ TEST_CASE("BitCrusher reset clears state", "[bitcrusher][layer1][foundational]")
     // Should still process normally
     float result = crusher.process(0.0f);
     REQUIRE(std::isfinite(result));
+}
+
+// =============================================================================
+// Spectral Analysis Tests - Aliasing Characteristics
+// =============================================================================
+
+TEST_CASE("BitCrusher spectral analysis: lower bit depth creates more harmonics",
+          "[bitcrusher][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 1000.0f;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = testFreq,
+        .sampleRate = sampleRate,
+        .driveGain = 0.9f,  // High amplitude to exercise quantization
+        .fftSize = blockSize,
+        .maxHarmonic = 10
+    };
+
+    SECTION("4-bit creates more harmonics than 8-bit") {
+        // Measure with 8-bit
+        BitCrusher crusher8;
+        crusher8.prepare(sampleRate);
+        crusher8.setBitDepth(8.0f);
+        crusher8.setDither(0.0f);
+
+        auto result8 = measureAliasing(config, [&crusher8](float x) {
+            return crusher8.process(x);
+        });
+
+        // Measure with 4-bit
+        BitCrusher crusher4;
+        crusher4.prepare(sampleRate);
+        crusher4.setBitDepth(4.0f);
+        crusher4.setDither(0.0f);
+
+        auto result4 = measureAliasing(config, [&crusher4](float x) {
+            return crusher4.process(x);
+        });
+
+        INFO("8-bit harmonics: " << result8.harmonicPowerDb << " dB");
+        INFO("4-bit harmonics: " << result4.harmonicPowerDb << " dB");
+
+        // 4-bit has much coarser quantization - should generate more harmonics
+        REQUIRE(result4.harmonicPowerDb > result8.harmonicPowerDb);
+    }
+
+    SECTION("8-bit creates more harmonics than 16-bit") {
+        // Measure with 16-bit
+        BitCrusher crusher16;
+        crusher16.prepare(sampleRate);
+        crusher16.setBitDepth(16.0f);
+        crusher16.setDither(0.0f);
+
+        auto result16 = measureAliasing(config, [&crusher16](float x) {
+            return crusher16.process(x);
+        });
+
+        // Measure with 8-bit
+        BitCrusher crusher8;
+        crusher8.prepare(sampleRate);
+        crusher8.setBitDepth(8.0f);
+        crusher8.setDither(0.0f);
+
+        auto result8 = measureAliasing(config, [&crusher8](float x) {
+            return crusher8.process(x);
+        });
+
+        INFO("16-bit harmonics: " << result16.harmonicPowerDb << " dB");
+        INFO("8-bit harmonics: " << result8.harmonicPowerDb << " dB");
+
+        // 8-bit should have more quantization noise/harmonics than 16-bit
+        REQUIRE(result8.harmonicPowerDb > result16.harmonicPowerDb);
+    }
+}
+
+TEST_CASE("BitCrusher spectral analysis: 16-bit produces minimal harmonics",
+          "[bitcrusher][aliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 1000.0f;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = testFreq,
+        .sampleRate = sampleRate,
+        .driveGain = 0.9f,
+        .fftSize = blockSize,
+        .maxHarmonic = 10
+    };
+
+    SECTION("16-bit is nearly transparent") {
+        BitCrusher crusher;
+        crusher.prepare(sampleRate);
+        crusher.setBitDepth(16.0f);
+        crusher.setDither(0.0f);
+
+        auto result = measureAliasing(config, [&crusher](float x) {
+            return crusher.process(x);
+        });
+
+        INFO("16-bit aliasing: " << result.aliasingPowerDb << " dB");
+        INFO("16-bit harmonics: " << result.harmonicPowerDb << " dB");
+
+        // 16-bit should be near noise floor (96dB theoretical SNR)
+        // Allow some margin for FFT numeric noise
+        REQUIRE(result.aliasingPowerDb < -40.0f);
+    }
 }
