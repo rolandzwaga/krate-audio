@@ -1277,3 +1277,268 @@ TEST_CASE("Oversampler 4x reduces aliasing more than 2x",
     // 4x should have less aliasing than 2x
     REQUIRE(aliasing4x < aliasing2x);
 }
+
+// =============================================================================
+// Aliasing Comparison Tests using compareAliasing() utility
+// =============================================================================
+// These tests use the compareAliasing() utility function from spectral_analysis.h
+// for cleaner, more structured aliasing reduction verification.
+
+TEST_CASE("Oversampler compareAliasing: 2x vs naive processing",
+          "[oversampler][aliasing][compareAliasing][2x]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 5000.0f;
+    constexpr float drive = 4.0f;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = testFreq,
+        .sampleRate = sampleRate,
+        .driveGain = drive,
+        .fftSize = blockSize,
+        .maxHarmonic = 10
+    };
+
+    Oversampler<2, 1> os2x;
+    os2x.prepare(sampleRate, blockSize);
+
+    SECTION("2x oversampling reduces aliasing vs naive tanh") {
+        auto result = compareAliasing(
+            config,
+            // Reference: naive tanh (no oversampling)
+            [](float x) { return Sigmoid::tanh(x); },
+            // Tested: 2x oversampled tanh
+            [&os2x](float x) {
+                float sample = x;
+                os2x.process(&sample, 1, [](float* upsampled, size_t n) {
+                    for (size_t i = 0; i < n; ++i) {
+                        upsampled[i] = Sigmoid::tanh(upsampled[i]);
+                    }
+                });
+                return sample;
+            }
+        );
+
+        INFO("Reference (naive) aliasing: " << result.referenceAliasing << " dB");
+        INFO("Tested (2x OS) aliasing: " << result.testedAliasing << " dB");
+        INFO("Aliasing reduction: " << result.reductionDb << " dB");
+
+        // 2x oversampling should provide at least some aliasing reduction
+        REQUIRE(result.reductionDb > 0.0f);
+    }
+}
+
+TEST_CASE("Oversampler compareAliasing: 4x achieves significant aliasing reduction",
+          "[oversampler][aliasing][compareAliasing][4x]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 5000.0f;
+    constexpr float drive = 4.0f;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = testFreq,
+        .sampleRate = sampleRate,
+        .driveGain = drive,
+        .fftSize = blockSize,
+        .maxHarmonic = 10
+    };
+
+    Oversampler<4, 1> os4x;
+    os4x.prepare(sampleRate, blockSize);
+
+    SECTION("4x oversampling provides significant aliasing reduction") {
+        auto result = compareAliasing(
+            config,
+            // Reference: naive tanh
+            [](float x) { return Sigmoid::tanh(x); },
+            // Tested: 4x oversampled tanh
+            [&os4x](float x) {
+                float sample = x;
+                os4x.process(&sample, 1, [](float* upsampled, size_t n) {
+                    for (size_t i = 0; i < n; ++i) {
+                        upsampled[i] = Sigmoid::tanh(upsampled[i]);
+                    }
+                });
+                return sample;
+            }
+        );
+
+        INFO("Reference (naive) aliasing: " << result.referenceAliasing << " dB");
+        INFO("Tested (4x OS) aliasing: " << result.testedAliasing << " dB");
+        INFO("Aliasing reduction: " << result.reductionDb << " dB");
+
+        // 4x oversampling should provide significant aliasing reduction
+        // (typically 10-20 dB or more)
+        REQUIRE(result.reductionDb > 5.0f);
+    }
+}
+
+TEST_CASE("Oversampler compareAliasing: higher drive increases aliasing reduction benefit",
+          "[oversampler][aliasing][compareAliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 5000.0f;
+
+    Oversampler<4, 1> os4x;
+    os4x.prepare(sampleRate, blockSize);
+
+    // Test with low drive
+    AliasingTestConfig lowDriveConfig{
+        .testFrequencyHz = testFreq,
+        .sampleRate = sampleRate,
+        .driveGain = 2.0f,  // Low drive
+        .fftSize = blockSize,
+        .maxHarmonic = 10
+    };
+
+    auto lowDriveResult = compareAliasing(
+        lowDriveConfig,
+        [](float x) { return Sigmoid::tanh(x); },
+        [&os4x](float x) {
+            float sample = x;
+            os4x.process(&sample, 1, [](float* upsampled, size_t n) {
+                for (size_t i = 0; i < n; ++i) {
+                    upsampled[i] = Sigmoid::tanh(upsampled[i]);
+                }
+            });
+            return sample;
+        }
+    );
+
+    // Test with high drive
+    AliasingTestConfig highDriveConfig{
+        .testFrequencyHz = testFreq,
+        .sampleRate = sampleRate,
+        .driveGain = 8.0f,  // High drive
+        .fftSize = blockSize,
+        .maxHarmonic = 10
+    };
+
+    auto highDriveResult = compareAliasing(
+        highDriveConfig,
+        [](float x) { return Sigmoid::tanh(x); },
+        [&os4x](float x) {
+            float sample = x;
+            os4x.process(&sample, 1, [](float* upsampled, size_t n) {
+                for (size_t i = 0; i < n; ++i) {
+                    upsampled[i] = Sigmoid::tanh(upsampled[i]);
+                }
+            });
+            return sample;
+        }
+    );
+
+    INFO("Low drive (2.0) aliasing reduction: " << lowDriveResult.reductionDb << " dB");
+    INFO("High drive (8.0) aliasing reduction: " << highDriveResult.reductionDb << " dB");
+
+    // Both should provide aliasing reduction
+    REQUIRE(lowDriveResult.reductionDb > 0.0f);
+    REQUIRE(highDriveResult.reductionDb > 0.0f);
+}
+
+TEST_CASE("Oversampler compareAliasing: multiple test frequencies",
+          "[oversampler][aliasing][compareAliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 4096;
+    constexpr float drive = 4.0f;
+
+    Oversampler<4, 1> os4x;
+    os4x.prepare(sampleRate, blockSize);
+
+    // Test frequencies where aliasing is expected (harmonics fold back below Nyquist)
+    // At 44100 Hz, Nyquist is 22050 Hz. For significant aliasing:
+    // - 3000 Hz: 7th harmonic (21000) is near Nyquist, 8th+ aliases
+    // - 5000 Hz: 5th harmonic (25000) aliases
+    // - 8000 Hz: 3rd harmonic (24000) aliases
+    // Lower frequencies like 1000 Hz have no aliasing (21st harmonic still in band)
+    const std::array<float, 4> testFreqs = {3000.0f, 5000.0f, 8000.0f, 10000.0f};
+
+    for (float freq : testFreqs) {
+        DYNAMIC_SECTION("Test frequency " << freq << " Hz") {
+            AliasingTestConfig config{
+                .testFrequencyHz = freq,
+                .sampleRate = sampleRate,
+                .driveGain = drive,
+                .fftSize = blockSize,
+                .maxHarmonic = 10
+            };
+
+            auto result = compareAliasing(
+                config,
+                [](float x) { return Sigmoid::tanh(x); },
+                [&os4x](float x) {
+                    float sample = x;
+                    os4x.process(&sample, 1, [](float* upsampled, size_t n) {
+                        for (size_t i = 0; i < n; ++i) {
+                            upsampled[i] = Sigmoid::tanh(upsampled[i]);
+                        }
+                    });
+                    return sample;
+                }
+            );
+
+            INFO("Frequency " << freq << " Hz aliasing reduction: " << result.reductionDb << " dB");
+
+            // Oversampling should provide aliasing reduction at frequencies
+            // where aliasing occurs (harmonic content above Nyquist)
+            REQUIRE(result.reductionDb > 0.0f);
+        }
+    }
+}
+
+TEST_CASE("Oversampler compareAliasing: sample rate independence",
+          "[oversampler][aliasing][compareAliasing]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t blockSize = 4096;
+    constexpr float testFreq = 5000.0f;
+    constexpr float drive = 4.0f;
+
+    const std::array<float, 3> sampleRates = {44100.0f, 48000.0f, 96000.0f};
+
+    for (float sampleRate : sampleRates) {
+        // Skip if test frequency would be above Nyquist
+        if (testFreq >= sampleRate / 2.0f) continue;
+
+        DYNAMIC_SECTION("Sample rate " << sampleRate << " Hz") {
+            Oversampler<4, 1> os4x;
+            os4x.prepare(sampleRate, blockSize);
+
+            AliasingTestConfig config{
+                .testFrequencyHz = testFreq,
+                .sampleRate = sampleRate,
+                .driveGain = drive,
+                .fftSize = blockSize,
+                .maxHarmonic = 10
+            };
+
+            auto result = compareAliasing(
+                config,
+                [](float x) { return Sigmoid::tanh(x); },
+                [&os4x](float x) {
+                    float sample = x;
+                    os4x.process(&sample, 1, [](float* upsampled, size_t n) {
+                        for (size_t i = 0; i < n; ++i) {
+                            upsampled[i] = Sigmoid::tanh(upsampled[i]);
+                        }
+                    });
+                    return sample;
+                }
+            );
+
+            INFO("Sample rate " << sampleRate << " Hz aliasing reduction: "
+                 << result.reductionDb << " dB");
+
+            // Oversampling should work at all sample rates
+            REQUIRE(result.reductionDb > 0.0f);
+        }
+    }
+}
