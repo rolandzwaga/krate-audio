@@ -99,6 +99,9 @@ add_executable(dsp_tests
     unit/effects/granular_delay_test.cpp
     unit/effects/granular_delay_tempo_sync_test.cpp
     unit/effects/granular_delay_dry_signal_test.cpp
+
+    # Test Helpers tests
+    ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
 )
 
 target_link_libraries(dsp_tests
@@ -189,6 +192,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/effects/granular_delay_test.cpp
         unit/effects/granular_delay_tempo_sync_test.cpp
         unit/effects/granular_delay_dry_signal_test.cpp
+        ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
