@@ -10,13 +10,16 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
 
 #include <krate/dsp/primitives/smoother.h>
+#include <artifact_detection.h>
 
 #include <array>
 #include <cmath>
 #include <limits>
+#include <vector>
 
 using Catch::Approx;
 using namespace Krate::DSP;
+using namespace Krate::DSP::TestUtils;
 
 // =============================================================================
 // Phase 2: Constants Tests (T005)
@@ -1316,4 +1319,247 @@ TEST_CASE("Performance benchmark", "[smoother][benchmark][!benchmark]") {
     BENCHMARK("SlewLimiter single sample") {
         return limiter.process();
     };
+}
+
+// =============================================================================
+// Parameter Sweep Tests - Zipper Noise Verification
+// =============================================================================
+// These tests use the artifact detection infrastructure to verify that
+// smoothers don't produce clicks when parameters are swept during continuous
+// processing. Note: Step responses inherently have high initial derivatives -
+// that's correct behavior, not zipper noise.
+
+TEST_CASE("OnePoleSmoother no zipper noise when changing smoothing time mid-processing",
+          "[smoother][clickdetector][zipper]") {
+    // Test that changing the smoothing time DURING continuous operation
+    // doesn't produce clicks. This tests actual zipper noise scenarios.
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t numSamples = 8192;
+
+    OnePoleSmoother smoother;
+    smoother.configure(20.0f, sampleRate);
+
+    // Start at equilibrium at 0.5
+    smoother.snapTo(0.5f);
+
+    std::vector<float> outputs(numSamples);
+
+    // Smoothing times to sweep through
+    const std::array<float, 5> smoothingTimes = {5.0f, 10.0f, 20.0f, 50.0f, 100.0f};
+    size_t sweepIdx = 0;
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        // Change smoothing time every 1000 samples during processing
+        if (i % 1000 == 0) {
+            smoother.configure(smoothingTimes[sweepIdx % smoothingTimes.size()], sampleRate);
+            sweepIdx++;
+        }
+
+        // Also modulate target slowly to keep smoother active
+        float target = 0.5f + 0.3f * std::sin(2.0f * 3.14159f * static_cast<float>(i) / 4000.0f);
+        smoother.setTarget(target);
+
+        outputs[i] = smoother.process();
+    }
+
+    // Check for clicks using ClickDetector
+    ClickDetectorConfig clickConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,  // 5 sigma threshold
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(outputs.data(), outputs.size());
+
+    INFO("Clicks detected during smoothing time sweep: " << clicks.size());
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("LinearRamp no zipper noise when changing ramp time mid-processing",
+          "[smoother][clickdetector][zipper]") {
+    // Test that changing the ramp time DURING continuous operation
+    // doesn't produce clicks. LinearRamp should handle parameter changes smoothly.
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t numSamples = 8192;
+
+    LinearRamp ramp;
+    ramp.configure(20.0f, sampleRate);
+
+    // Start at equilibrium at 0.5
+    ramp.snapTo(0.5f);
+
+    std::vector<float> outputs(numSamples);
+
+    // Ramp times to sweep through
+    const std::array<float, 5> rampTimes = {5.0f, 10.0f, 20.0f, 30.0f, 50.0f};
+    size_t sweepIdx = 0;
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        // Change ramp time every 1000 samples during processing
+        if (i % 1000 == 0) {
+            ramp.configure(rampTimes[sweepIdx % rampTimes.size()], sampleRate);
+            sweepIdx++;
+        }
+
+        // Modulate target slowly to keep ramp active
+        float target = 0.5f + 0.3f * std::sin(2.0f * 3.14159f * static_cast<float>(i) / 4000.0f);
+        ramp.setTarget(target);
+
+        outputs[i] = ramp.process();
+    }
+
+    // Check for clicks using ClickDetector
+    ClickDetectorConfig clickConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(outputs.data(), outputs.size());
+
+    INFO("Clicks detected during ramp time sweep: " << clicks.size());
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("OnePoleSmoother exponential curve is monotonic and continuous",
+          "[smoother][clickdetector]") {
+    // Test that the smoother output is a proper exponential curve
+    // without discontinuities. The exponential curve naturally has its
+    // highest derivative at t=0, so we verify monotonicity and check
+    // that there are no unexpected jumps in the curve.
+
+    constexpr float sampleRate = 44100.0f;
+    OnePoleSmoother smoother;
+
+    // Test various smoothing times
+    const std::array<float, 4> smoothingTimes = {10.0f, 25.0f, 50.0f, 100.0f};
+
+    for (float smoothTime : smoothingTimes) {
+        smoother.configure(smoothTime, sampleRate);
+        smoother.reset();
+        smoother.setTarget(1.0f);
+
+        const size_t numSamples = static_cast<size_t>(smoothTime * sampleRate / 1000.0f * 10);
+        std::vector<float> outputs(numSamples);
+
+        for (size_t i = 0; i < numSamples; ++i) {
+            outputs[i] = smoother.process();
+        }
+
+        // Verify monotonic increase (primary test for smoothness)
+        for (size_t i = 1; i < numSamples; ++i) {
+            // Output should be monotonically increasing toward target
+            REQUIRE(outputs[i] >= outputs[i - 1]);
+            // And should never exceed target
+            REQUIRE(outputs[i] <= 1.0f);
+        }
+
+        // Verify the exponential coefficient consistency:
+        // For an exponential approach, consecutive derivative ratios should be constant
+        // (d[n+1]/d[n] = coefficient for all n)
+        if (numSamples > 100) {
+            // Check that the decay rate is consistent (no sudden changes)
+            float prevDelta = outputs[50] - outputs[49];
+            for (size_t i = 51; i < std::min(numSamples, size_t(500)); ++i) {
+                float delta = outputs[i] - outputs[i - 1];
+                // Delta should decrease exponentially (ratio should be consistent)
+                if (prevDelta > 1e-8f && delta > 1e-8f) {
+                    float ratio = delta / prevDelta;
+                    // Ratio should be near the coefficient (between 0.9 and 1.0 typically)
+                    INFO("Testing smoothing time: " << smoothTime << " ms at sample " << i);
+                    REQUIRE(ratio >= 0.85f);
+                    REQUIRE(ratio <= 1.01f);  // Small tolerance for floating point
+                }
+                prevDelta = delta;
+            }
+        }
+    }
+}
+
+TEST_CASE("Smoothers click-free during rapid target changes",
+          "[smoother][clickdetector]") {
+    // Test that rapidly changing the target value doesn't produce clicks
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t numSamples = 4096;
+
+    SECTION("OnePoleSmoother handles rapid target changes") {
+        OnePoleSmoother smoother;
+        smoother.configure(5.0f, sampleRate);
+
+        std::vector<float> outputs(numSamples);
+
+        for (size_t i = 0; i < numSamples; ++i) {
+            // Change target every 100 samples
+            if (i % 100 == 0) {
+                float target = (i / 100) % 2 == 0 ? 1.0f : -1.0f;
+                smoother.setTarget(target);
+            }
+            outputs[i] = smoother.process();
+        }
+
+        ClickDetectorConfig clickConfig{
+            .sampleRate = sampleRate,
+            .frameSize = 256,
+            .hopSize = 128,
+            .detectionThreshold = 5.0f,
+            .energyThresholdDb = -60.0f,
+            .mergeGap = 3
+        };
+
+        ClickDetector detector(clickConfig);
+        detector.prepare();
+
+        auto clicks = detector.detect(outputs.data(), outputs.size());
+
+        INFO("Clicks during rapid target changes: " << clicks.size());
+        REQUIRE(clicks.empty());
+    }
+
+    SECTION("LinearRamp handles rapid target changes") {
+        LinearRamp ramp;
+        ramp.configure(5.0f, sampleRate);
+
+        std::vector<float> outputs(numSamples);
+
+        for (size_t i = 0; i < numSamples; ++i) {
+            // Change target every 100 samples
+            if (i % 100 == 0) {
+                float target = (i / 100) % 2 == 0 ? 1.0f : -1.0f;
+                ramp.setTarget(target);
+            }
+            outputs[i] = ramp.process();
+        }
+
+        ClickDetectorConfig clickConfig{
+            .sampleRate = sampleRate,
+            .frameSize = 256,
+            .hopSize = 128,
+            .detectionThreshold = 5.0f,
+            .energyThresholdDb = -60.0f,
+            .mergeGap = 3
+        };
+
+        ClickDetector detector(clickConfig);
+        detector.prepare();
+
+        auto clicks = detector.detect(outputs.data(), outputs.size());
+
+        INFO("Clicks during rapid target changes: " << clicks.size());
+        REQUIRE(clicks.empty());
+    }
 }
