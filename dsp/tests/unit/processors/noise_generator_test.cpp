@@ -23,6 +23,8 @@
 #include <krate/dsp/processors/noise_generator.h>
 #include <krate/dsp/primitives/fft.h>
 
+#include <signal_metrics.h>
+
 #include <array>
 #include <cmath>
 #include <vector>
@@ -2445,4 +2447,186 @@ TEST_CASE("Radio static: reset clears state", "[noise][US15]") {
         REQUIRE(buffer[i] >= -1.0f);
         REQUIRE(buffer[i] <= 1.0f);
     }
+}
+
+// ==============================================================================
+// SignalMetrics: Spectral Flatness Tests
+// ==============================================================================
+
+using Krate::DSP::TestUtils::SignalMetrics::calculateSpectralFlatness;
+using Krate::DSP::TestUtils::SignalMetrics::calculateCrestFactorDb;
+using Krate::DSP::TestUtils::SignalMetrics::calculateKurtosis;
+
+TEST_CASE("NoiseGenerator SignalMetrics: white noise has high spectral flatness",
+          "[noise][signalmetrics][spectral]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::White, true);
+    noise.setNoiseLevel(NoiseType::White, 0.0f);
+
+    // Generate 1 second of white noise
+    constexpr size_t testSize = 44100;
+    std::vector<float> buffer(testSize, 0.0f);
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // White noise should have spectral flatness close to 1.0 (pure noise)
+    // Skip initial samples for filter settling
+    float flatness = calculateSpectralFlatness(
+        buffer.data() + 1000, testSize - 1000, kSampleRate);
+
+    // White noise: high spectral flatness (> 0.8)
+    REQUIRE(flatness > 0.8f);
+}
+
+TEST_CASE("NoiseGenerator SignalMetrics: pink noise has lower spectral flatness than white",
+          "[noise][signalmetrics][spectral][compare]") {
+    constexpr size_t testSize = 44100;
+
+    // Generate white noise
+    NoiseGenerator noiseWhite;
+    noiseWhite.prepare(kSampleRate, kBlockSize);
+    noiseWhite.setNoiseEnabled(NoiseType::White, true);
+    noiseWhite.setNoiseLevel(NoiseType::White, 0.0f);
+
+    std::vector<float> whiteBuffer(testSize, 0.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noiseWhite.process(whiteBuffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Generate pink noise
+    NoiseGenerator noisePink;
+    noisePink.prepare(kSampleRate, kBlockSize);
+    noisePink.setNoiseEnabled(NoiseType::Pink, true);
+    noisePink.setNoiseLevel(NoiseType::Pink, 0.0f);
+
+    std::vector<float> pinkBuffer(testSize, 0.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noisePink.process(pinkBuffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    float whiteFlatness = calculateSpectralFlatness(
+        whiteBuffer.data() + 1000, testSize - 1000, kSampleRate);
+    float pinkFlatness = calculateSpectralFlatness(
+        pinkBuffer.data() + 1000, testSize - 1000, kSampleRate);
+
+    // Pink noise has 1/f spectrum (less energy at high frequencies),
+    // so it should have lower spectral flatness than white noise
+    REQUIRE(whiteFlatness > pinkFlatness);
+
+    // Both should still be reasonably noise-like
+    REQUIRE(whiteFlatness > 0.7f);
+    REQUIRE(pinkFlatness > 0.3f);
+}
+
+TEST_CASE("NoiseGenerator SignalMetrics: brown noise has even lower spectral flatness",
+          "[noise][signalmetrics][spectral][compare]") {
+    constexpr size_t testSize = 88200;  // 2 seconds for better low-frequency resolution
+
+    // Generate brown noise
+    NoiseGenerator noiseBrown;
+    noiseBrown.prepare(kSampleRate, kBlockSize);
+    noiseBrown.setNoiseEnabled(NoiseType::Brown, true);
+    noiseBrown.setNoiseLevel(NoiseType::Brown, 0.0f);
+
+    std::vector<float> brownBuffer(testSize, 0.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noiseBrown.process(brownBuffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Generate white noise for comparison
+    NoiseGenerator noiseWhite;
+    noiseWhite.prepare(kSampleRate, kBlockSize);
+    noiseWhite.setNoiseEnabled(NoiseType::White, true);
+    noiseWhite.setNoiseLevel(NoiseType::White, 0.0f);
+
+    std::vector<float> whiteBuffer(testSize, 0.0f);
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noiseWhite.process(whiteBuffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    float whiteFlatness = calculateSpectralFlatness(
+        whiteBuffer.data() + 1000, testSize - 1000, kSampleRate);
+    float brownFlatness = calculateSpectralFlatness(
+        brownBuffer.data() + 1000, testSize - 1000, kSampleRate);
+
+    // Brown noise has 1/f² spectrum (even steeper roll-off),
+    // so it should have lower spectral flatness than white
+    REQUIRE(whiteFlatness > brownFlatness);
+}
+
+TEST_CASE("NoiseGenerator SignalMetrics: vinyl crackle has high crest factor",
+          "[noise][signalmetrics][crest]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::VinylCrackle, true);
+    noise.setNoiseLevel(NoiseType::VinylCrackle, 0.0f);
+    noise.setCrackleParams(15.0f, -96.0f);  // High density, minimal surface noise
+
+    constexpr size_t testSize = 44100;  // 1 second
+    std::vector<float> buffer(testSize, 0.0f);
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Vinyl crackle is impulsive - should have high crest factor
+    float crestDb = calculateCrestFactorDb(buffer.data(), testSize);
+
+    // Impulsive signals: crest factor > 10 dB (sine wave = 3 dB)
+    REQUIRE(crestDb > 10.0f);
+}
+
+TEST_CASE("NoiseGenerator SignalMetrics: white noise has near-zero kurtosis",
+          "[noise][signalmetrics][kurtosis]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::White, true);
+    noise.setNoiseLevel(NoiseType::White, 0.0f);
+
+    constexpr size_t testSize = 88200;  // 2 seconds for statistical stability
+    std::vector<float> buffer(testSize, 0.0f);
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // White noise (uniform or Gaussian) should have near-zero excess kurtosis
+    // Uniform: excess kurtosis = -1.2
+    // Gaussian: excess kurtosis = 0
+    // Our implementation uses uniform random, so expect ~ -1.2
+    float kurtosis = calculateKurtosis(buffer.data() + 1000, testSize - 1000);
+
+    // Accept range for uniform distribution: [-1.5, -0.5]
+    REQUIRE(kurtosis >= -1.5f);
+    REQUIRE(kurtosis <= 0.5f);
+}
+
+TEST_CASE("NoiseGenerator SignalMetrics: vinyl crackle has high kurtosis (impulsive)",
+          "[noise][signalmetrics][kurtosis][compare]") {
+    NoiseGenerator noise;
+    noise.prepare(kSampleRate, kBlockSize);
+
+    noise.setNoiseEnabled(NoiseType::VinylCrackle, true);
+    noise.setNoiseLevel(NoiseType::VinylCrackle, 0.0f);
+    noise.setCrackleParams(15.0f, -96.0f);
+
+    constexpr size_t testSize = 88200;  // 2 seconds
+    std::vector<float> buffer(testSize, 0.0f);
+
+    for (size_t i = 0; i < testSize / kBlockSize; ++i) {
+        noise.process(buffer.data() + i * kBlockSize, kBlockSize);
+    }
+
+    // Impulsive signals have heavy tails = high positive kurtosis
+    float kurtosis = calculateKurtosis(buffer.data(), testSize);
+
+    // Vinyl crackle should have high excess kurtosis (> 3)
+    // due to sparse impulsive clicks
+    REQUIRE(kurtosis > 3.0f);
 }
