@@ -13,6 +13,9 @@
 
 #include <krate/dsp/primitives/bit_crusher.h>
 #include <spectral_analysis.h>
+#include <test_signals.h>
+#include <buffer_comparison.h>
+#include <signal_metrics.h>
 
 #include <array>
 #include <cmath>
@@ -20,6 +23,8 @@
 
 using Catch::Approx;
 using namespace Krate::DSP;
+using namespace TestHelpers;
+using Krate::DSP::TestUtils::SignalMetrics::calculateSNR;
 
 // =============================================================================
 // Test Helpers
@@ -27,31 +32,7 @@ using namespace Krate::DSP;
 
 namespace {
 
-// Calculate RMS of a buffer
-float calculateRMS(const float* buffer, size_t size) {
-    if (size == 0) return 0.0f;
-    float sum = 0.0f;
-    for (size_t i = 0; i < size; ++i) {
-        sum += buffer[i] * buffer[i];
-    }
-    return std::sqrt(sum / static_cast<float>(size));
-}
-
-// Calculate SNR in dB between signal and noise
-float calculateSNRdB(float signalRMS, float noiseRMS) {
-    if (noiseRMS == 0.0f) return 144.0f; // Effectively infinite
-    return 20.0f * std::log10(signalRMS / noiseRMS);
-}
-
-// Generate a sine wave
-void generateSine(float* buffer, size_t size, float frequency, float sampleRate, float amplitude = 1.0f) {
-    constexpr float kTwoPi = 6.28318530718f;
-    for (size_t i = 0; i < size; ++i) {
-        buffer[i] = amplitude * std::sin(kTwoPi * frequency * static_cast<float>(i) / sampleRate);
-    }
-}
-
-// Count unique quantization levels in a buffer
+// Count unique quantization levels in a buffer (test-specific helper)
 size_t countUniqueLevels(const float* buffer, size_t size, float tolerance = 0.0001f) {
     std::vector<float> uniqueValues;
     for (size_t i = 0; i < size; ++i) {
@@ -213,15 +194,8 @@ TEST_CASE("BitCrusher 8-bit mode quantization", "[bitcrusher][layer1][US3]") {
 
         crusher.process(processed.data(), processed.size());
 
-        // Calculate noise (difference between original and processed)
-        std::array<float, 4096> noise;
-        for (size_t i = 0; i < noise.size(); ++i) {
-            noise[i] = processed[i] - original[i];
-        }
-
-        float signalRMS = calculateRMS(original.data(), original.size());
-        float noiseRMS = calculateRMS(noise.data(), noise.size());
-        float snr = calculateSNRdB(signalRMS, noiseRMS);
+        // Use SignalMetrics::calculateSNR (computes SNR = 10*log10(signal²/noise²) where noise = processed - original)
+        float snr = calculateSNR(processed.data(), original.data(), original.size());
 
         // 8-bit should give ~48dB SNR (±3dB tolerance per SC-007)
         REQUIRE(snr >= 45.0f);
@@ -259,14 +233,8 @@ TEST_CASE("BitCrusher 4-bit mode quantization", "[bitcrusher][layer1][US3]") {
 
         crusher.process(processed.data(), processed.size());
 
-        std::array<float, 4096> noise;
-        for (size_t i = 0; i < noise.size(); ++i) {
-            noise[i] = processed[i] - original[i];
-        }
-
-        float signalRMS = calculateRMS(original.data(), original.size());
-        float noiseRMS = calculateRMS(noise.data(), noise.size());
-        float snr = calculateSNRdB(signalRMS, noiseRMS);
+        // Use SignalMetrics::calculateSNR
+        float snr = calculateSNR(processed.data(), original.data(), original.size());
 
         // 4-bit should give ~24dB SNR (±3dB tolerance)
         REQUIRE(snr >= 21.0f);

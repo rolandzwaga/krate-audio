@@ -13,6 +13,8 @@
 #include <krate/dsp/primitives/oversampler.h>
 #include <krate/dsp/core/sigmoid.h>
 #include <spectral_analysis.h>
+#include <test_signals.h>
+#include <buffer_comparison.h>
 
 #include <array>
 #include <cmath>
@@ -21,6 +23,7 @@
 
 using Catch::Approx;
 using namespace Krate::DSP;
+using namespace TestHelpers;
 
 // =============================================================================
 // Test Helpers
@@ -28,26 +31,7 @@ using namespace Krate::DSP;
 
 namespace {
 
-// Generate a sine wave at given frequency
-void generateSineWave(float* buffer, size_t numSamples, float frequency,
-                      float sampleRate, float amplitude = 1.0f) {
-    const float omega = 2.0f * 3.14159265358979323846f * frequency / sampleRate;
-    for (size_t i = 0; i < numSamples; ++i) {
-        buffer[i] = amplitude * std::sin(omega * static_cast<float>(i));
-    }
-}
-
-// Calculate RMS of a buffer
-float calculateRMS(const float* buffer, size_t numSamples) {
-    if (numSamples == 0) return 0.0f;
-    float sumSquares = 0.0f;
-    for (size_t i = 0; i < numSamples; ++i) {
-        sumSquares += buffer[i] * buffer[i];
-    }
-    return std::sqrt(sumSquares / static_cast<float>(numSamples));
-}
-
-// Simple tanh saturation for testing
+// Simple tanh saturation for testing (test-specific helper)
 void applySaturation(float* left, float* right, size_t numSamples, float drive = 2.0f) {
     for (size_t i = 0; i < numSamples; ++i) {
         left[i] = std::tanh(left[i] * drive);
@@ -159,8 +143,8 @@ TEST_CASE("Oversampler2x process() with callback", "[oversampler][US1]") {
     std::array<float, blockSize> left{}, right{};
 
     // Fill with test signal
-    generateSineWave(left.data(), blockSize, 1000.0f, 44100.0f);
-    generateSineWave(right.data(), blockSize, 1000.0f, 44100.0f);
+    generateSine(left.data(), blockSize, 1000.0f, 44100.0f);
+    generateSine(right.data(), blockSize, 1000.0f, 44100.0f);
 
     SECTION("output buffer size equals input buffer size") {
         std::array<float, blockSize> leftCopy = left;
@@ -220,7 +204,7 @@ TEST_CASE("Oversampler2x upsample/downsample separate calls", "[oversampler][US1
     std::array<float, oversampledSize> oversampled{};
     std::array<float, blockSize> output{};
 
-    generateSineWave(input.data(), blockSize, 1000.0f, 44100.0f);
+    generateSine(input.data(), blockSize, 1000.0f, 44100.0f);
 
     SECTION("upsample produces 2x samples") {
         os.upsample(input.data(), oversampled.data(), blockSize, 0);
@@ -262,8 +246,8 @@ TEST_CASE("Oversampler2x reset()", "[oversampler][US1]") {
 
     SECTION("reset clears filter state") {
         // Process some audio to build up filter state
-        generateSineWave(left.data(), blockSize, 1000.0f, 44100.0f);
-        generateSineWave(right.data(), blockSize, 1000.0f, 44100.0f);
+        generateSine(left.data(), blockSize, 1000.0f, 44100.0f);
+        generateSine(right.data(), blockSize, 1000.0f, 44100.0f);
 
         os.process(left.data(), right.data(), blockSize,
             [](float*, float*, size_t) {});
@@ -302,8 +286,8 @@ TEST_CASE("Oversampler4x process() with callback", "[oversampler][US2]") {
     constexpr size_t blockSize = 64;
     std::array<float, blockSize> left{}, right{};
 
-    generateSineWave(left.data(), blockSize, 1000.0f, 48000.0f);
-    generateSineWave(right.data(), blockSize, 1000.0f, 48000.0f);
+    generateSine(left.data(), blockSize, 1000.0f, 48000.0f);
+    generateSine(right.data(), blockSize, 1000.0f, 48000.0f);
 
     SECTION("callback receives 4x samples") {
         size_t callbackSamples = 0;
@@ -336,7 +320,7 @@ TEST_CASE("Oversampler4x upsample produces 4x samples", "[oversampler][US2]") {
     std::array<float, blockSize> input{};
     std::array<float, oversampledSize> oversampled{};
 
-    generateSineWave(input.data(), blockSize, 1000.0f, 48000.0f);
+    generateSine(input.data(), blockSize, 1000.0f, 48000.0f);
 
     os.upsample(input.data(), oversampled.data(), blockSize, 0);
 
@@ -382,8 +366,8 @@ TEST_CASE("Oversampler zero-latency mode", "[oversampler][US4]") {
         constexpr size_t blockSize = 64;
         std::array<float, blockSize> left{}, right{};
 
-        generateSineWave(left.data(), blockSize, 1000.0f, 44100.0f);
-        generateSineWave(right.data(), blockSize, 1000.0f, 44100.0f);
+        generateSine(left.data(), blockSize, 1000.0f, 44100.0f);
+        generateSine(right.data(), blockSize, 1000.0f, 44100.0f);
 
         float inputRMS = calculateRMS(left.data(), blockSize);
 
@@ -426,8 +410,8 @@ TEST_CASE("Oversampler sample rate changes", "[oversampler][US5]") {
         constexpr size_t blockSize = 64;
         std::array<float, blockSize> left{}, right{};
 
-        generateSineWave(left.data(), blockSize, 1000.0f, 22050.0f);
-        generateSineWave(right.data(), blockSize, 1000.0f, 22050.0f);
+        generateSine(left.data(), blockSize, 1000.0f, 22050.0f);
+        generateSine(right.data(), blockSize, 1000.0f, 22050.0f);
 
         os.process(left.data(), right.data(), blockSize,
             [](float*, float*, size_t) {});
@@ -447,8 +431,8 @@ TEST_CASE("Oversampler sample rate changes", "[oversampler][US5]") {
         std::array<float, blockSize> left{}, right{};
 
         // Process at 44.1kHz
-        generateSineWave(left.data(), blockSize, 1000.0f, 44100.0f);
-        generateSineWave(right.data(), blockSize, 1000.0f, 44100.0f);
+        generateSine(left.data(), blockSize, 1000.0f, 44100.0f);
+        generateSine(right.data(), blockSize, 1000.0f, 44100.0f);
         os.process(left.data(), right.data(), blockSize,
             [](float*, float*, size_t) {});
 
@@ -456,8 +440,8 @@ TEST_CASE("Oversampler sample rate changes", "[oversampler][US5]") {
         os.prepare(96000.0, 512);
 
         // Process first block at new rate
-        generateSineWave(left.data(), blockSize, 1000.0f, 96000.0f);
-        generateSineWave(right.data(), blockSize, 1000.0f, 96000.0f);
+        generateSine(left.data(), blockSize, 1000.0f, 96000.0f);
+        generateSine(right.data(), blockSize, 1000.0f, 96000.0f);
         os.process(left.data(), right.data(), blockSize,
             [](float*, float*, size_t) {});
 
@@ -531,8 +515,8 @@ TEST_CASE("Oversampler process() before prepare()", "[oversampler][edge]") {
     constexpr size_t blockSize = 64;
     std::array<float, blockSize> left{}, right{};
 
-    generateSineWave(left.data(), blockSize, 1000.0f, 44100.0f);
-    generateSineWave(right.data(), blockSize, 1000.0f, 44100.0f);
+    generateSine(left.data(), blockSize, 1000.0f, 44100.0f);
+    generateSine(right.data(), blockSize, 1000.0f, 44100.0f);
 
     SECTION("does not crash") {
         // Should either passthrough, output silence, or do nothing
@@ -566,8 +550,8 @@ TEST_CASE("Oversampler at low sample rate 22.05kHz", "[oversampler][edge]") {
         std::array<float, blockSize> left{}, right{};
 
         // Generate a lower frequency sine (Nyquist is ~11kHz)
-        generateSineWave(left.data(), blockSize, 1000.0f, 22050.0f);
-        generateSineWave(right.data(), blockSize, 1000.0f, 22050.0f);
+        generateSine(left.data(), blockSize, 1000.0f, 22050.0f);
+        generateSine(right.data(), blockSize, 1000.0f, 22050.0f);
 
         float inputRMS = calculateRMS(left.data(), blockSize);
 
@@ -594,7 +578,7 @@ TEST_CASE("Oversampler2xMono", "[oversampler][mono]") {
         constexpr size_t blockSize = 64;
         std::array<float, blockSize> buffer{};
 
-        generateSineWave(buffer.data(), blockSize, 1000.0f, 44100.0f);
+        generateSine(buffer.data(), blockSize, 1000.0f, 44100.0f);
         float inputRMS = calculateRMS(buffer.data(), blockSize);
 
         os.process(buffer.data(), blockSize,
@@ -618,7 +602,7 @@ TEST_CASE("Oversampler4xMono", "[oversampler][mono]") {
         std::array<float, blockSize> buffer{};
         size_t callbackSamples = 0;
 
-        generateSineWave(buffer.data(), blockSize, 1000.0f, 44100.0f);
+        generateSine(buffer.data(), blockSize, 1000.0f, 44100.0f);
 
         os.process(buffer.data(), blockSize,
             [&callbackSamples](float*, size_t n) {
@@ -640,8 +624,8 @@ TEST_CASE("Oversampler2x benchmark", "[oversampler][benchmark][!benchmark]") {
     constexpr size_t blockSize = 512;
     std::array<float, blockSize> left{}, right{};
 
-    generateSineWave(left.data(), blockSize, 1000.0f, 44100.0f);
-    generateSineWave(right.data(), blockSize, 1000.0f, 44100.0f);
+    generateSine(left.data(), blockSize, 1000.0f, 44100.0f);
+    generateSine(right.data(), blockSize, 1000.0f, 44100.0f);
 
     BENCHMARK("2x stereo 512 samples") {
         os.process(left.data(), right.data(), blockSize,
@@ -662,8 +646,8 @@ TEST_CASE("Oversampler4x benchmark", "[oversampler][benchmark][!benchmark]") {
     constexpr size_t blockSize = 512;
     std::array<float, blockSize> left{}, right{};
 
-    generateSineWave(left.data(), blockSize, 1000.0f, 44100.0f);
-    generateSineWave(right.data(), blockSize, 1000.0f, 44100.0f);
+    generateSine(left.data(), blockSize, 1000.0f, 44100.0f);
+    generateSine(right.data(), blockSize, 1000.0f, 44100.0f);
 
     BENCHMARK("4x stereo 512 samples") {
         os.process(left.data(), right.data(), blockSize,
@@ -793,7 +777,7 @@ TEST_CASE("Oversampler2x passband preservation", "[oversampler][spectral][passba
         os.prepare(sampleRate, blockSize, OversamplingQuality::Economy, OversamplingMode::ZeroLatency);
 
         std::array<float, blockSize> left{}, right{};
-        generateSineWave(left.data(), blockSize, testFreq, sampleRate);
+        generateSine(left.data(), blockSize, testFreq, sampleRate);
         std::copy(left.begin(), left.end(), right.begin());
 
         float inputLevel = calculateRMS(left.data(), blockSize);
@@ -815,7 +799,7 @@ TEST_CASE("Oversampler2x passband preservation", "[oversampler][spectral][passba
         os.prepare(sampleRate, blockSize, OversamplingQuality::Standard, OversamplingMode::LinearPhase);
 
         std::array<float, blockSize> left{}, right{};
-        generateSineWave(left.data(), blockSize, testFreq, sampleRate);
+        generateSine(left.data(), blockSize, testFreq, sampleRate);
         std::copy(left.begin(), left.end(), right.begin());
 
         float inputLevel = calculateRMS(left.data(), blockSize);
@@ -837,7 +821,7 @@ TEST_CASE("Oversampler2x passband preservation", "[oversampler][spectral][passba
         os.prepare(sampleRate, blockSize, OversamplingQuality::High, OversamplingMode::LinearPhase);
 
         std::array<float, blockSize> left{}, right{};
-        generateSineWave(left.data(), blockSize, testFreq, sampleRate);
+        generateSine(left.data(), blockSize, testFreq, sampleRate);
         std::copy(left.begin(), left.end(), right.begin());
 
         float inputLevel = calculateRMS(left.data(), blockSize);
@@ -869,7 +853,7 @@ TEST_CASE("Oversampler aliasing suppression", "[oversampler][spectral][aliasing]
         os.prepare(sampleRate, blockSize, OversamplingQuality::Economy, OversamplingMode::ZeroLatency);
 
         std::array<float, blockSize> left{}, right{};
-        generateSineWave(left.data(), blockSize, testFreq, sampleRate);
+        generateSine(left.data(), blockSize, testFreq, sampleRate);
         std::copy(left.begin(), left.end(), right.begin());
 
         // Apply saturation in oversampled domain
@@ -896,7 +880,7 @@ TEST_CASE("Oversampler aliasing suppression", "[oversampler][spectral][aliasing]
         os.prepare(sampleRate, blockSize, OversamplingQuality::Economy, OversamplingMode::ZeroLatency);
 
         std::array<float, blockSize> left{}, right{};
-        generateSineWave(left.data(), blockSize, testFreq, sampleRate);
+        generateSine(left.data(), blockSize, testFreq, sampleRate);
         std::copy(left.begin(), left.end(), right.begin());
 
         // Apply saturation in oversampled domain
@@ -1049,7 +1033,7 @@ TEST_CASE("Oversampler SC-003 passband flatness compliance", "[oversampler][SC-0
             if (testFreq >= sampleRate * 0.45f) continue;
 
             std::array<float, blockSize> left{}, right{};
-            generateSineWave(left.data(), blockSize, testFreq, sampleRate);
+            generateSine(left.data(), blockSize, testFreq, sampleRate);
             std::copy(left.begin(), left.end(), right.begin());
 
             float inputLevel = calculateRMS(left.data(), blockSize);
@@ -1078,7 +1062,7 @@ TEST_CASE("Oversampler SC-003 passband flatness compliance", "[oversampler][SC-0
             if (testFreq >= sampleRate * 0.45f) continue;
 
             std::array<float, blockSize> left{}, right{};
-            generateSineWave(left.data(), blockSize, testFreq, sampleRate);
+            generateSine(left.data(), blockSize, testFreq, sampleRate);
             std::copy(left.begin(), left.end(), right.begin());
 
             float inputLevel = calculateRMS(left.data(), blockSize);
@@ -1178,7 +1162,7 @@ TEST_CASE("Oversampler 2x reduces aliasing from nonlinear processing",
         // Generate test signal
         std::vector<float> buffer(blockSize);
         for (size_t i = 0; i < blockSize; ++i) {
-            float phase = kTwoPi * testFreq * static_cast<float>(i) / sampleRate;
+            float phase = Krate::DSP::kTwoPi * testFreq * static_cast<float>(i) / sampleRate;
             buffer[i] = drive * std::sin(phase);
         }
 
@@ -1236,7 +1220,7 @@ TEST_CASE("Oversampler 4x reduces aliasing more than 2x",
     auto measureOversampledAliasing = [&](auto& oversampler) {
         std::vector<float> buffer(blockSize);
         for (size_t i = 0; i < blockSize; ++i) {
-            float phase = kTwoPi * testFreq * static_cast<float>(i) / sampleRate;
+            float phase = Krate::DSP::kTwoPi * testFreq * static_cast<float>(i) / sampleRate;
             buffer[i] = drive * std::sin(phase);
         }
 

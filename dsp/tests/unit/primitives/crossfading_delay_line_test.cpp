@@ -8,6 +8,7 @@
 #include <catch2/catch_all.hpp>
 
 #include <krate/dsp/primitives/crossfading_delay_line.h>
+#include <artifact_detection.h>
 
 #include <cmath>
 #include <array>
@@ -15,6 +16,7 @@
 #include <numeric>
 
 using namespace Krate::DSP;
+using namespace Krate::DSP::TestUtils;
 using Catch::Approx;
 
 // =============================================================================
@@ -170,22 +172,31 @@ TEST_CASE("CrossfadingDelayLine eliminates clicks during large delay changes",
         outputs.push_back(output);
     }
 
-    // Check for discontinuities
-    float maxDiscontinuity = 0.0f;
-    prevOutput = outputs[0];
+    // Use ClickDetector for robust discontinuity detection
+    // Previous ad hoc approach used: max(|output[i] - output[i-1]|) < 0.2
+    // ClickDetector uses statistical sigma-based thresholds which is more robust
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 256,     // Smaller frames for short buffer
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,  // 5-sigma threshold
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
 
-    for (size_t i = 1; i < outputs.size(); ++i) {
-        float discontinuity = std::abs(outputs[i] - prevOutput);
-        maxDiscontinuity = std::max(maxDiscontinuity, discontinuity);
-        prevOutput = outputs[i];
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(outputs.data(), outputs.size());
+
+    INFO("Clicks detected during 200ms delay jump: " << clicks.size());
+    for (const auto& click : clicks) {
+        INFO("  Click at sample " << static_cast<size_t>(click.timeSeconds * sampleRate)
+             << " (t=" << click.timeSeconds << "s), amplitude: " << click.amplitude);
     }
 
-    INFO("Maximum discontinuity during 200ms delay jump: " << maxDiscontinuity);
-
-    // With crossfading, discontinuity should be minimal
-    // A sine wave at 440Hz has max sample-to-sample change of about 0.06
-    // Allow 0.2 for crossfading transient (should be much smoother than without)
-    REQUIRE(maxDiscontinuity < 0.2f);
+    // With crossfading, there should be no detectable clicks
+    REQUIRE(clicks.empty());
 }
 
 TEST_CASE("CrossfadingDelayLine vs plain delay line during large jumps",
@@ -239,13 +250,23 @@ TEST_CASE("CrossfadingDelayLine vs plain delay line during large jumps",
     // After 100 samples, crossfade should still be in progress (takes ~882 samples)
     REQUIRE(crossfadingDelay.isCrossfading() == true);
 
-    // Verify crossfading output is smooth (no large discontinuities)
-    float maxDiscontinuity = 0.0f;
-    for (size_t i = 1; i < crossfadingOutputs.size(); ++i) {
-        float disc = std::abs(crossfadingOutputs[i] - crossfadingOutputs[i - 1]);
-        maxDiscontinuity = std::max(maxDiscontinuity, disc);
-    }
-    REQUIRE(maxDiscontinuity < 0.2f);  // Smooth output
+    // Use ClickDetector to verify crossfading output is smooth
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 64,      // Very small frames for 100-sample buffer
+        .hopSize = 32,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 2
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(crossfadingOutputs.data(), crossfadingOutputs.size());
+
+    INFO("Clicks in crossfading output: " << clicks.size());
+    REQUIRE(clicks.empty());  // Smooth output = no clicks
 }
 
 TEST_CASE("CrossfadingDelayLine crossfade completes correctly", "[delay][crossfade][completion]") {
@@ -502,30 +523,42 @@ TEST_CASE("REGRESSION: No zipper noise during 200ms delay time change",
     // Now make the 200ms jump (same as original failing test)
     delay.setDelayMs(100.0f);
 
-    // Process and check for discontinuities
-    float maxDiscontinuity = 0.0f;
-    float prevOutput = delay.read();
-    delay.write(0.0f);  // Advance buffer
+    // Process and collect outputs for click detection
+    std::vector<float> outputs;
+    outputs.reserve(44100);
 
     for (size_t i = 0; i < 44100; ++i) {
         float input = std::sin(omega * static_cast<float>(44100 + i));
         float output = delay.process(input);
-
-        float discontinuity = std::abs(output - prevOutput);
-        if (discontinuity > maxDiscontinuity) {
-            maxDiscontinuity = discontinuity;
-            INFO("New max discontinuity " << discontinuity << " at sample " << i);
-        }
-        prevOutput = output;
+        outputs.push_back(output);
     }
 
-    INFO("Maximum discontinuity during 200ms delay jump: " << maxDiscontinuity);
-
+    // Use ClickDetector to verify no zipper noise/clicks
     // The original failing test saw 3.20724f discontinuity.
-    // With crossfading, this should be well under 1.0f (a sine wave's
-    // maximum sample-to-sample change is ~0.063 at 440Hz/44.1kHz)
-    // Allow 0.5f for the crossfading blend transient
-    REQUIRE(maxDiscontinuity < 0.5f);
+    // With crossfading, ClickDetector should find no clicks.
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 512,
+        .hopSize = 256,
+        .detectionThreshold = 5.0f,  // 5-sigma threshold
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 5
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(outputs.data(), outputs.size());
+
+    INFO("Clicks detected during 200ms delay jump: " << clicks.size());
+    for (const auto& click : clicks) {
+        INFO("  Click at sample " << static_cast<size_t>(click.timeSeconds * sampleRate)
+             << " (t=" << click.timeSeconds << "s), amplitude: " << click.amplitude);
+    }
+
+    // With crossfading, there should be no detectable clicks
+    // (the original bug produced 3.20724f discontinuity which would be obvious)
+    REQUIRE(clicks.empty());
 }
 
 // =============================================================================
