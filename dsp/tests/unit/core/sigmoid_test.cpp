@@ -411,14 +411,17 @@ TEST_CASE("Asymmetric::tube() output boundedness with extreme inputs (SC-002)", 
 }
 
 TEST_CASE("Asymmetric::tube() matches polynomial formula (FR-004)", "[sigmoid][core][US1][048]") {
-    // FR-004: Formula is tanh(x + 0.3*x^2 - 0.15*x^3)
+    // FR-004: Formula is tanh(polynomial) where polynomial uses pre-limited input
+    // Pre-limiting: limited = tanh(x * 0.5) * 2.0 keeps polynomial in stable range
 
     SECTION("matches expected formula for moderate inputs") {
         std::vector<float> testValues = {-1.0f, -0.5f, 0.0f, 0.5f, 1.0f};
         for (float x : testValues) {
-            float x2 = x * x;
-            float x3 = x2 * x;
-            float polynomial = x + 0.3f * x2 - 0.15f * x3;
+            // Pre-limit input to prevent polynomial inversion at high values
+            float limited = std::tanh(x * 0.5f) * 2.0f;
+            float x2 = limited * limited;
+            float x3 = x2 * limited;
+            float polynomial = limited + 0.3f * x2 - 0.15f * x3;
             float expected = std::tanh(polynomial);
             float actual = Asymmetric::tube(x);
 

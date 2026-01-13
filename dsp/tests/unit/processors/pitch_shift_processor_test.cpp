@@ -1923,7 +1923,9 @@ TEST_CASE("PitchShiftProcessor handles NaN/Inf input gracefully", "[pitch][edge]
         shifter.setMode(PitchMode::Simple);
         shifter.setSemitones(5.0f);
 
-        constexpr size_t numSamples = 4096;
+        // Use more samples to ensure buffer is fully flushed
+        // Buffer size is ~4474 samples, so we need more than that to flush NaN
+        constexpr size_t numSamples = 8192;
         std::vector<float> input(numSamples);
         std::vector<float> output(numSamples);
 
@@ -1938,7 +1940,8 @@ TEST_CASE("PitchShiftProcessor handles NaN/Inf input gracefully", "[pitch][edge]
         }
 
         // Output should recover - later blocks should produce valid audio
-        float lateRMS = calculateRMS(output.data() + 2048, numSamples - 2048);
+        // Check the last portion after buffer is fully flushed
+        float lateRMS = calculateRMS(output.data() + 6144, numSamples - 6144);
         REQUIRE(lateRMS > 0.01f);  // Has audible signal
     }
 }
@@ -2296,4 +2299,222 @@ TEST_CASE("PitchShiftProcessor spectral analysis: pitch shift moves fundamental"
         // Shifted peak should be stronger than original
         REQUIRE(peakPower > originalPower);
     }
+}
+
+// ==============================================================================
+// ClickDetector Tests - Pitch Change Artifacts
+// ==============================================================================
+// These tests use the artifact detection infrastructure to verify that the
+// pitch shifter doesn't produce clicks or pops when pitch parameters change.
+
+#include <artifact_detection.h>
+
+TEST_CASE("PitchShiftProcessor no clicks during pitch parameter changes",
+          "[pitch_shift][clickdetector]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 256;
+    constexpr size_t numBlocks = 64;  // ~370ms of audio
+    constexpr size_t totalSamples = blockSize * numBlocks;
+
+    PitchShiftProcessor shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setMode(PitchMode::Simple);
+    shifter.setSemitones(0.0f);
+
+    // Generate continuous sine wave input
+    std::vector<float> input(totalSamples);
+    std::vector<float> output(totalSamples);
+    generateSine(input.data(), totalSamples, 440.0f, sampleRate);
+
+    // Process blocks while changing pitch
+    constexpr std::array<float, 8> pitchValues = {0.0f, 3.0f, 7.0f, 12.0f, 5.0f, -3.0f, -7.0f, 0.0f};
+
+    for (size_t block = 0; block < numBlocks; ++block) {
+        // Change pitch every 8 blocks
+        if (block % 8 == 0) {
+            size_t pitchIdx = (block / 8) % pitchValues.size();
+            shifter.setSemitones(pitchValues[pitchIdx]);
+        }
+
+        size_t offset = block * blockSize;
+        shifter.process(input.data() + offset, output.data() + offset, blockSize);
+    }
+
+    // Check for clicks using ClickDetector
+    // Note: Large pitch jumps (7-12 semitones) cause some detectable transitions
+    // even with 5ms per-sample smoothing. This is inherent to delay-based pitch
+    // shifting - the algorithm trades latency for quality. Allow up to 2 mild
+    // artifacts per sweep, but catch severe clicking that would indicate a bug.
+    ClickDetectorConfig clickConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,  // Standard threshold
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    // Skip first few blocks (warmup) and analyze the rest
+    constexpr size_t skipSamples = blockSize * 4;
+    auto clicks = detector.detect(output.data() + skipSamples, totalSamples - skipSamples);
+
+    INFO("Clicks detected during pitch changes: " << clicks.size());
+    // Allow up to 2 mild artifacts for large jumps - more would indicate a regression
+    REQUIRE(clicks.size() <= 2);
+}
+
+TEST_CASE("PitchShiftProcessor no clicks during rapid pitch sweeps",
+          "[pitch_shift][clickdetector]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 128;  // Smaller blocks for more frequent changes
+    constexpr size_t numBlocks = 128;
+    constexpr size_t totalSamples = blockSize * numBlocks;
+
+    PitchShiftProcessor shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setMode(PitchMode::Simple);
+
+    // Generate continuous audio input
+    std::vector<float> input(totalSamples);
+    std::vector<float> output(totalSamples);
+    generateSine(input.data(), totalSamples, 440.0f, sampleRate);
+
+    // Process blocks with rapid pitch changes (every block)
+    for (size_t block = 0; block < numBlocks; ++block) {
+        // Sweep pitch from -12 to +12 semitones
+        float pitchSemitones = -12.0f + 24.0f * static_cast<float>(block) / static_cast<float>(numBlocks);
+        shifter.setSemitones(pitchSemitones);
+
+        size_t offset = block * blockSize;
+        shifter.process(input.data() + offset, output.data() + offset, blockSize);
+    }
+
+    // Check for clicks with higher threshold for pitch transitions
+    ClickDetectorConfig clickConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,  // Standard threshold - per-sample smoothing handles transitions
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    // Skip warmup
+    constexpr size_t skipSamples = blockSize * 8;
+    auto clicks = detector.detect(output.data() + skipSamples, totalSamples - skipSamples);
+
+    INFO("Clicks detected during rapid pitch sweep: " << clicks.size());
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("PitchShiftProcessor no clicks at extreme pitch values",
+          "[pitch_shift][clickdetector]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 256;
+    constexpr size_t blocksPerPitch = 16;
+
+    PitchShiftProcessor shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setMode(PitchMode::Simple);
+
+    // Test extreme pitch values
+    constexpr std::array<float, 6> extremePitches = {-24.0f, -12.0f, 0.0f, 12.0f, 24.0f, 0.0f};
+
+    for (float pitchSemitones : extremePitches) {
+        DYNAMIC_SECTION("Pitch " << pitchSemitones << " semitones") {
+            shifter.setSemitones(pitchSemitones);
+
+            constexpr size_t totalSamples = blockSize * blocksPerPitch;
+            std::vector<float> input(totalSamples);
+            std::vector<float> output(totalSamples);
+            generateSine(input.data(), totalSamples, 440.0f, sampleRate);
+
+            for (size_t block = 0; block < blocksPerPitch; ++block) {
+                size_t offset = block * blockSize;
+                shifter.process(input.data() + offset, output.data() + offset, blockSize);
+            }
+
+            // Check for clicks with higher threshold for pitch shift artifacts
+            ClickDetectorConfig clickConfig{
+                .sampleRate = sampleRate,
+                .frameSize = 256,
+                .hopSize = 128,
+                .detectionThreshold = 5.0f,  // Standard threshold - per-sample smoothing handles transitions
+                .energyThresholdDb = -60.0f,
+                .mergeGap = 3
+            };
+
+            ClickDetector detector(clickConfig);
+            detector.prepare();
+
+            // Skip first few blocks for warmup
+            constexpr size_t skipSamples = blockSize * 4;
+            auto clicks = detector.detect(output.data() + skipSamples, totalSamples - skipSamples);
+
+            INFO("Clicks at pitch " << pitchSemitones << ": " << clicks.size());
+            REQUIRE(clicks.empty());
+        }
+    }
+}
+
+TEST_CASE("PitchShiftProcessor no clicks during cents changes",
+          "[pitch_shift][clickdetector]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 256;
+    constexpr size_t numBlocks = 64;
+    constexpr size_t totalSamples = blockSize * numBlocks;
+
+    PitchShiftProcessor shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setMode(PitchMode::Simple);
+    shifter.setSemitones(0.0f);
+
+    // Generate continuous audio input
+    std::vector<float> input(totalSamples);
+    std::vector<float> output(totalSamples);
+    generateSine(input.data(), totalSamples, 440.0f, sampleRate);
+
+    // Process blocks while changing fine-tune cents
+    for (size_t block = 0; block < numBlocks; ++block) {
+        // Sweep cents from -50 to +50
+        float cents = -50.0f + 100.0f * static_cast<float>(block) / static_cast<float>(numBlocks);
+        shifter.setCents(cents);
+
+        size_t offset = block * blockSize;
+        shifter.process(input.data() + offset, output.data() + offset, blockSize);
+    }
+
+    // Check for clicks with higher threshold for pitch transitions
+    ClickDetectorConfig clickConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,  // Standard threshold - per-sample smoothing handles transitions
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    // Skip warmup
+    constexpr size_t skipSamples = blockSize * 4;
+    auto clicks = detector.detect(output.data() + skipSamples, totalSamples - skipSamples);
+
+    INFO("Clicks detected during cents sweep: " << clicks.size());
+    REQUIRE(clicks.empty());
 }
