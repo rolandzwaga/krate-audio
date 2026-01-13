@@ -1434,3 +1434,122 @@ TEST_CASE("CharacterProcessor spectral analysis: DigitalVintage bit reduction cr
         REQUIRE(harmonic8Db > harmonic16Db);
     }
 }
+
+// =============================================================================
+// Tape Mode: Oversampling Verification
+// =============================================================================
+
+TEST_CASE("CharacterProcessor tape mode uses 2x oversampling for anti-aliasing", "[character][tape][oversampling]") {
+    // This test verifies that tape saturation uses 2x oversampling to reduce aliasing.
+    // Aliasing occurs when harmonics from saturation exceed Nyquist and fold back.
+    //
+    // Test approach: Process a high-frequency sine through heavy saturation.
+    // Without oversampling, harmonics would alias into unexpected bins.
+    // With 2x oversampling, harmonics that would alias are attenuated by ~48dB.
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr float testFreq = 8000.0f;      // High frequency to stress aliasing
+    constexpr float amplitude = 0.8f;        // Strong signal into saturation
+    constexpr size_t fftSize = 4096;
+
+    CharacterProcessor character;
+    character.prepare(sampleRate, 512);
+    character.setMode(CharacterMode::Tape);
+    character.setTapeSaturation(1.0f);       // Maximum saturation for heavy harmonics
+    character.setTapeRolloffFreq(20000.0f);  // Disable rolloff to isolate aliasing test
+    character.setTapeHissLevel(-120.0f);     // Disable hiss for clean measurement
+
+    // Prime the processor
+    std::vector<float> primeBuffer(512, 0.0f);
+    character.process(primeBuffer.data(), 512);
+
+    // Generate test signal (multiple blocks for FFT)
+    const size_t totalSamples = fftSize * 4;
+    std::vector<float> testBuffer(totalSamples);
+    for (size_t i = 0; i < totalSamples; ++i) {
+        testBuffer[i] = amplitude * std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
+    }
+
+    // Process through tape mode
+    for (size_t offset = 0; offset < totalSamples; offset += 512) {
+        size_t blockSize = std::min(size_t{512}, totalSamples - offset);
+        character.process(testBuffer.data() + offset, blockSize);
+    }
+
+    // Analyze spectrum of output
+    FFT fft;
+    fft.prepare(fftSize);
+    std::vector<Complex> spectrum(fftSize / 2 + 1);
+    fft.forward(testBuffer.data() + totalSamples - fftSize, spectrum.data());
+
+    // Find fundamental bin
+    const size_t fundamentalBin = static_cast<size_t>(testFreq * fftSize / sampleRate);
+    float fundamentalPower = spectrum[fundamentalBin].real * spectrum[fundamentalBin].real +
+                              spectrum[fundamentalBin].imag * spectrum[fundamentalBin].imag;
+    float fundamentalDb = 10.0f * std::log10(fundamentalPower + 1e-20f);
+
+    // Check true harmonics (2nd, 3rd, etc.) up to Nyquist
+    float trueHarmonicPower = 0.0f;
+    for (int h = 2; h <= 5; ++h) {
+        float harmonicFreq = testFreq * static_cast<float>(h);
+        if (harmonicFreq < sampleRate / 2.0f) {  // Below Nyquist
+            size_t bin = static_cast<size_t>(harmonicFreq * fftSize / sampleRate);
+            if (bin < fftSize / 2) {
+                trueHarmonicPower += spectrum[bin].real * spectrum[bin].real +
+                                     spectrum[bin].imag * spectrum[bin].imag;
+            }
+        }
+    }
+    float trueHarmonicDb = 10.0f * std::log10(trueHarmonicPower + 1e-20f);
+
+    // Calculate where aliased harmonics would appear
+    // 3rd harmonic of 8kHz = 24kHz, aliases to 44.1kHz - 24kHz = 20.1kHz
+    // 4th harmonic of 8kHz = 32kHz, aliases to 44.1kHz - 32kHz = 12.1kHz
+    // 5th harmonic of 8kHz = 40kHz, aliases to 44.1kHz - 40kHz = 4.1kHz
+    float aliasedPower = 0.0f;
+    std::vector<float> aliasedFreqs;
+    for (int h = 3; h <= 7; ++h) {
+        float harmonicFreq = testFreq * static_cast<float>(h);
+        if (harmonicFreq >= sampleRate / 2.0f) {  // Would alias
+            // Calculate aliased frequency (fold back from Nyquist)
+            float aliasedFreq = sampleRate - harmonicFreq;
+            while (aliasedFreq < 0) aliasedFreq += sampleRate;
+            while (aliasedFreq > sampleRate / 2.0f) aliasedFreq = sampleRate - aliasedFreq;
+
+            aliasedFreqs.push_back(aliasedFreq);
+            size_t bin = static_cast<size_t>(aliasedFreq * fftSize / sampleRate);
+            if (bin < fftSize / 2 && bin > 0) {
+                // Check a window around the expected bin
+                float localPower = 0.0f;
+                for (int offset = -2; offset <= 2; ++offset) {
+                    size_t checkBin = std::max(size_t{1}, std::min(bin + offset, fftSize / 2 - 1));
+                    localPower += spectrum[checkBin].real * spectrum[checkBin].real +
+                                  spectrum[checkBin].imag * spectrum[checkBin].imag;
+                }
+                aliasedPower += localPower;
+            }
+        }
+    }
+    float aliasedDb = 10.0f * std::log10(aliasedPower + 1e-20f);
+
+    INFO("Test frequency: " << testFreq << " Hz");
+    INFO("Fundamental power: " << fundamentalDb << " dB");
+    INFO("True harmonic power: " << trueHarmonicDb << " dB");
+    INFO("Aliased power: " << aliasedDb << " dB");
+    INFO("Aliased frequencies checked: ");
+    for (float f : aliasedFreqs) {
+        INFO("  " << f << " Hz");
+    }
+
+    // With 2x oversampling (Economy/IIR mode), aliased content should be attenuated.
+    // The IIR filter provides ~48dB stopband rejection, so aliased harmonics should
+    // be significantly below the fundamental.
+    //
+    // Test: aliased content should be at least 30dB below fundamental
+    // (allowing margin for measurement noise and imperfect filtering)
+    float aliasRejection = fundamentalDb - aliasedDb;
+    INFO("Alias rejection: " << aliasRejection << " dB");
+
+    // With oversampling, aliased content should be well suppressed
+    REQUIRE(aliasRejection > 30.0f);
+}

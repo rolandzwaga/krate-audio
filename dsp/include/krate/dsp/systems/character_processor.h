@@ -23,6 +23,7 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/bit_crusher.h>
 #include <krate/dsp/primitives/sample_rate_reducer.h>
+#include <krate/dsp/primitives/oversampler.h>
 #include <krate/dsp/processors/saturation_processor.h>
 #include <krate/dsp/processors/noise_generator.h>
 #include <krate/dsp/processors/multimode_filter.h>
@@ -123,8 +124,10 @@ public:
         crossfadeIncrement_ = 1.0f / static_cast<float>(crossfadeSamples_);
 
         // Prepare sub-components
-        // Tape mode components
-        tapeSaturation_.prepare(sampleRate, maxBlockSize);
+        // Tape mode components - saturation runs at 2x sample rate for anti-aliasing
+        tapeOversampler_.prepare(sampleRate, maxBlockSize,
+                                  OversamplingQuality::Economy, OversamplingMode::ZeroLatency);
+        tapeSaturation_.prepare(sampleRate * 2.0, maxBlockSize * 2);  // 2x oversampled rate
         tapeSaturation_.setType(SaturationType::Tape);
         tapeSaturation_.setMix(1.0f);
 
@@ -217,6 +220,7 @@ public:
         previousMode_ = currentMode_;
 
         tapeSaturation_.reset();
+        tapeOversampler_.reset();
         tapeHiss_.reset();
         tapeRolloff_.reset();
         wowLfo_.reset();
@@ -491,8 +495,11 @@ private:
         makeupDb = std::clamp(makeupDb, -10.0f, 18.0f);
         tapeSaturation_.setOutputGain(makeupDb);
 
-        // Apply saturation
-        tapeSaturation_.process(buffer, numSamples);
+        // Apply saturation with 2x oversampling for anti-aliasing
+        // The oversampler upsamples, calls the callback at 2x rate, then downsamples
+        tapeOversampler_.process(buffer, numSamples, [this](float* upsampled, size_t n) {
+            tapeSaturation_.process(upsampled, n);
+        });
 
         // Apply high-frequency rolloff
         tapeRolloff_.process(buffer, numSamples);
@@ -581,6 +588,7 @@ private:
 
     // Tape mode components
     SaturationProcessor tapeSaturation_;
+    Oversampler<2, 1> tapeOversampler_;  ///< 2x oversampler for tape saturation anti-aliasing
     NoiseGenerator tapeHiss_;
     MultimodeFilter tapeRolloff_;
     LFO wowLfo_;
