@@ -14,6 +14,8 @@
 #include <krate/dsp/systems/feedback_network.h>
 #include <krate/dsp/core/block_context.h>
 
+#include <artifact_detection.h>
+
 using Catch::Approx;
 using namespace Krate::DSP;
 
@@ -1767,4 +1769,228 @@ TEST_CASE("FeedbackNetwork cross-feedback works with freeze mode", "[feedback][U
     // Both channels should have signal (ping-pong pattern)
     REQUIRE(leftMax > 0.01f);
     REQUIRE(rightMax > 0.01f);
+}
+
+// ==============================================================================
+// ClickDetector: Feedback Stability Tests
+// ==============================================================================
+
+using Krate::DSP::TestUtils::ClickDetector;
+using Krate::DSP::TestUtils::ClickDetectorConfig;
+
+TEST_CASE("FeedbackNetwork ClickDetector: no clicks during feedback amount changes",
+          "[feedback][clickdetector][stability]") {
+    FeedbackNetwork network;
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    network.prepare(sampleRate, kBlockSize, 500.0f);
+    network.setDelayTimeMs(100.0f);
+    network.setFeedbackAmount(0.3f);
+
+    auto ctx = createTestContext(sampleRate);
+
+    // Set up click detector
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -80.0f,
+        .mergeGap = 5
+    };
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    // Process audio with changing feedback - should be smooth
+    std::vector<float> allOutput;
+    constexpr size_t kNumBlocks = 40;  // ~0.47 seconds
+    allOutput.reserve(kBlockSize * kNumBlocks);
+
+    for (size_t block = 0; block < kNumBlocks; ++block) {
+        std::array<float, kBlockSize> buffer;
+        // Low-level continuous input to keep feedback path active
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            buffer[i] = 0.1f * std::sin(2.0f * 3.14159f * 440.0f *
+                static_cast<float>(block * kBlockSize + i) / static_cast<float>(sampleRate));
+        }
+
+        // Change feedback amount during processing
+        if (block == 10) {
+            network.setFeedbackAmount(0.8f);  // Jump high
+        } else if (block == 20) {
+            network.setFeedbackAmount(0.2f);  // Jump low
+        } else if (block == 30) {
+            network.setFeedbackAmount(0.6f);  // Jump moderate
+        }
+
+        network.process(buffer.data(), buffer.size(), ctx);
+        allOutput.insert(allOutput.end(), buffer.begin(), buffer.end());
+    }
+
+    // Check for clicks
+    auto clicks = detector.detect(allOutput.data(), allOutput.size());
+
+    // Feedback changes should be smoothed - no clicks expected
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("FeedbackNetwork ClickDetector: no clicks during delay time changes",
+          "[feedback][clickdetector][stability]") {
+    FeedbackNetwork network;
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    network.prepare(sampleRate, kBlockSize, 1000.0f);
+    network.setDelayTimeMs(100.0f);
+    network.setFeedbackAmount(0.5f);
+
+    auto ctx = createTestContext(sampleRate);
+
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -80.0f,
+        .mergeGap = 5
+    };
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    std::vector<float> allOutput;
+    constexpr size_t kNumBlocks = 50;
+    allOutput.reserve(kBlockSize * kNumBlocks);
+
+    for (size_t block = 0; block < kNumBlocks; ++block) {
+        std::array<float, kBlockSize> buffer;
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            buffer[i] = 0.1f * std::sin(2.0f * 3.14159f * 440.0f *
+                static_cast<float>(block * kBlockSize + i) / static_cast<float>(sampleRate));
+        }
+
+        // Change delay time during processing
+        if (block == 15) {
+            network.setDelayTimeMs(200.0f);  // Double delay
+        } else if (block == 30) {
+            network.setDelayTimeMs(50.0f);   // Half of original
+        } else if (block == 40) {
+            network.setDelayTimeMs(300.0f);  // Triple original
+        }
+
+        network.process(buffer.data(), buffer.size(), ctx);
+        allOutput.insert(allOutput.end(), buffer.begin(), buffer.end());
+    }
+
+    auto clicks = detector.detect(allOutput.data(), allOutput.size());
+
+    // Delay time changes use crossfading - should be click-free
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("FeedbackNetwork ClickDetector: no clicks on freeze mode transitions",
+          "[feedback][clickdetector][stability][freeze]") {
+    FeedbackNetwork network;
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    network.prepare(sampleRate, kBlockSize, 500.0f);
+    network.setDelayTimeMs(100.0f);
+    network.setFeedbackAmount(0.6f);
+
+    auto ctx = createTestContext(sampleRate);
+
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -80.0f,
+        .mergeGap = 5
+    };
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    std::vector<float> allOutput;
+    constexpr size_t kNumBlocks = 50;
+    allOutput.reserve(kBlockSize * kNumBlocks);
+
+    for (size_t block = 0; block < kNumBlocks; ++block) {
+        std::array<float, kBlockSize> buffer;
+        // Use quieter input to make freeze transitions more audible
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            buffer[i] = 0.1f * std::sin(2.0f * 3.14159f * 440.0f *
+                static_cast<float>(block * kBlockSize + i) / static_cast<float>(sampleRate));
+        }
+
+        // Toggle freeze mode during processing
+        if (block == 10) {
+            network.setFreeze(true);
+        } else if (block == 25) {
+            network.setFreeze(false);
+        } else if (block == 40) {
+            network.setFreeze(true);
+        }
+
+        network.process(buffer.data(), buffer.size(), ctx);
+        allOutput.insert(allOutput.end(), buffer.begin(), buffer.end());
+    }
+
+    auto clicks = detector.detect(allOutput.data(), allOutput.size());
+
+    // Freeze transitions should be smooth
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("FeedbackNetwork ClickDetector: stable at high feedback levels",
+          "[feedback][clickdetector][stability][highfeedback]") {
+    FeedbackNetwork network;
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    network.prepare(sampleRate, kBlockSize, 500.0f);
+    network.setDelayTimeMs(50.0f);
+    network.setFeedbackAmount(0.95f);  // Very high feedback
+
+    auto ctx = createTestContext(sampleRate);
+
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -80.0f,
+        .mergeGap = 5
+    };
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    std::vector<float> allOutput;
+    constexpr size_t kNumBlocks = 100;  // Longer test for stability
+    allOutput.reserve(kBlockSize * kNumBlocks);
+
+    // Use continuous low-level audio to test stability under sustained high feedback
+    // (An impulse test produces legitimate transients from delay reflections)
+    for (size_t block = 0; block < kNumBlocks; ++block) {
+        std::array<float, kBlockSize> buffer;
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            // Low-level continuous tone
+            buffer[i] = 0.05f * std::sin(2.0f * 3.14159f * 440.0f *
+                static_cast<float>(block * kBlockSize + i) / static_cast<float>(sampleRate));
+        }
+        network.process(buffer.data(), buffer.size(), ctx);
+        allOutput.insert(allOutput.end(), buffer.begin(), buffer.end());
+    }
+
+    auto clicks = detector.detect(allOutput.data(), allOutput.size());
+
+    // High feedback with continuous audio should not cause clicks
+    REQUIRE(clicks.empty());
+
+    // Verify signal doesn't blow up (saturation should prevent runaway)
+    float maxVal = 0.0f;
+    for (float s : allOutput) {
+        maxVal = std::max(maxVal, std::abs(s));
+    }
+    REQUIRE(maxVal <= 1.5f);  // May exceed 1.0 due to feedback buildup but should be limited
 }
