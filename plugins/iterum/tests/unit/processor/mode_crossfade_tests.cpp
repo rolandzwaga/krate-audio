@@ -18,6 +18,8 @@
 #include <catch2/catch_approx.hpp>
 
 #include <krate/dsp/core/crossfade_utils.h>
+#include <artifact_detection.h>
+#include <test_signals.h>
 
 #include <array>
 #include <cmath>
@@ -25,6 +27,7 @@
 
 using Catch::Approx;
 using namespace Krate::DSP;
+using namespace Krate::DSP::TestUtils;
 
 // =============================================================================
 // CrossfadeState - Test Harness for Mode Crossfade Logic
@@ -861,6 +864,357 @@ TEST_CASE("Dry signal unaffected during crossfade (FR-005)", "[processor][crossf
             float delta = std::abs(outputs[i] - outputs[i - 1]);
             // Maximum change per sample should be small
             REQUIRE(delta < 0.01f);
+        }
+    }
+}
+
+// =============================================================================
+// Automated ClickDetector Regression Tests (SC-001)
+// =============================================================================
+// These tests use the artifact detection infrastructure to verify that the
+// crossfade produces truly click-free audio output, providing automated
+// regression testing beyond mathematical verification.
+// =============================================================================
+
+namespace {
+
+/// Generate a simulated delay mode output (sine wave with phase offset)
+void generateModeOutput(float* buffer, size_t size, float frequency, float sampleRate,
+                        float phaseOffset, float amplitude) {
+    constexpr float kTwoPi = 6.28318530718f;
+    for (size_t i = 0; i < size; ++i) {
+        float phase = kTwoPi * frequency * static_cast<float>(i) / sampleRate + phaseOffset;
+        buffer[i] = amplitude * std::sin(phase);
+    }
+}
+
+/// Generate white noise for simulating uncorrelated mode outputs
+void generateNoise(float* buffer, size_t size, float amplitude, unsigned int seed) {
+    std::srand(seed);
+    for (size_t i = 0; i < size; ++i) {
+        float random = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
+        buffer[i] = amplitude * (random * 2.0f - 1.0f);
+    }
+}
+
+} // namespace
+
+TEST_CASE("ClickDetector regression: crossfade between sine waves is click-free",
+          "[processor][crossfade][clickdetector][SC-001]") {
+    // Automated test for SC-001: Zero audible clicks detectable when switching
+    // between any two modes during continuous audio playback
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t numSamples = 8192;
+
+    CrossfadeState state;
+    state.prepare(sampleRate);
+
+    // Generate two different "mode" outputs (sine waves at different frequencies)
+    std::vector<float> oldModeOutput(numSamples);
+    std::vector<float> newModeOutput(numSamples);
+    std::vector<float> blendedOutput(numSamples);
+
+    // Mode A: 440 Hz sine wave
+    generateModeOutput(oldModeOutput.data(), numSamples, 440.0f, sampleRate, 0.0f, 0.8f);
+    // Mode B: 880 Hz sine wave (different frequency, different character)
+    generateModeOutput(newModeOutput.data(), numSamples, 880.0f, sampleRate, 0.0f, 0.8f);
+
+    SECTION("single mode switch produces no clicks") {
+        state.checkModeChange(1);
+
+        // Process all samples with crossfade
+        for (size_t i = 0; i < numSamples; ++i) {
+            float fadeOut, fadeIn;
+            state.getGains(fadeOut, fadeIn);
+
+            blendedOutput[i] = oldModeOutput[i] * fadeOut + newModeOutput[i] * fadeIn;
+
+            state.advanceSample();
+        }
+
+        // Use ClickDetector to verify no clicks
+        ClickDetectorConfig clickConfig{
+            .sampleRate = sampleRate,
+            .frameSize = 256,
+            .hopSize = 128,
+            .detectionThreshold = 5.0f,
+            .energyThresholdDb = -60.0f,
+            .mergeGap = 3
+        };
+
+        ClickDetector detector(clickConfig);
+        detector.prepare();
+
+        auto clicks = detector.detect(blendedOutput.data(), blendedOutput.size());
+
+        INFO("Clicks detected during single mode switch: " << clicks.size());
+        REQUIRE(clicks.empty());
+    }
+
+    SECTION("rapid mode switching at 10/sec produces no clicks (SC-005)") {
+        // Per SC-005: 10 switches per second should produce no artifacts
+        // 10 switches/sec at 44.1kHz = 4410 samples between switches
+        // This is longer than the 50ms crossfade (2205 samples), so each
+        // crossfade should complete before the next switch.
+        constexpr size_t samplesPerSwitch = 4410;  // 100ms at 44.1kHz
+
+        size_t currentMode = 0;
+
+        for (size_t i = 0; i < numSamples; ++i) {
+            // Switch mode every 4410 samples (10/sec per SC-005)
+            if (i % samplesPerSwitch == 0 && i > 0) {
+                currentMode = (currentMode + 1) % 11;
+                state.checkModeChange(static_cast<int>(currentMode));
+            }
+
+            float fadeOut, fadeIn;
+            state.getGains(fadeOut, fadeIn);
+
+            blendedOutput[i] = oldModeOutput[i] * fadeOut + newModeOutput[i] * fadeIn;
+
+            state.advanceSample();
+        }
+
+        ClickDetectorConfig clickConfig{
+            .sampleRate = sampleRate,
+            .frameSize = 256,
+            .hopSize = 128,
+            .detectionThreshold = 5.0f,
+            .energyThresholdDb = -60.0f,
+            .mergeGap = 3
+        };
+
+        ClickDetector detector(clickConfig);
+        detector.prepare();
+
+        auto clicks = detector.detect(blendedOutput.data(), blendedOutput.size());
+
+        INFO("Clicks detected during rapid mode switching (10/sec): " << clicks.size());
+        REQUIRE(clicks.empty());
+    }
+}
+
+TEST_CASE("ClickDetector regression: crossfade between opposite phase signals is click-free",
+          "[processor][crossfade][clickdetector][SC-001]") {
+    // Test with opposite phase signals (worst case for phase cancellation)
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t numSamples = 8192;
+
+    CrossfadeState state;
+    state.prepare(sampleRate);
+
+    std::vector<float> oldModeOutput(numSamples);
+    std::vector<float> newModeOutput(numSamples);
+    std::vector<float> blendedOutput(numSamples);
+
+    // Mode A: 440 Hz sine wave
+    generateModeOutput(oldModeOutput.data(), numSamples, 440.0f, sampleRate, 0.0f, 0.8f);
+    // Mode B: 440 Hz sine wave, opposite phase (π radians offset)
+    generateModeOutput(newModeOutput.data(), numSamples, 440.0f, sampleRate, 3.14159f, 0.8f);
+
+    state.checkModeChange(1);
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        float fadeOut, fadeIn;
+        state.getGains(fadeOut, fadeIn);
+
+        blendedOutput[i] = oldModeOutput[i] * fadeOut + newModeOutput[i] * fadeIn;
+
+        state.advanceSample();
+    }
+
+    ClickDetectorConfig clickConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(blendedOutput.data(), blendedOutput.size());
+
+    INFO("Clicks detected with opposite phase signals: " << clicks.size());
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("ClickDetector regression: crossfade between uncorrelated signals is click-free",
+          "[processor][crossfade][clickdetector][SC-001]") {
+    // Test with noise (uncorrelated signals, realistic simulation of different modes)
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t numSamples = 8192;
+
+    CrossfadeState state;
+    state.prepare(sampleRate);
+
+    std::vector<float> oldModeOutput(numSamples);
+    std::vector<float> newModeOutput(numSamples);
+    std::vector<float> blendedOutput(numSamples);
+
+    // Two different noise sources (simulating uncorrelated mode outputs)
+    generateNoise(oldModeOutput.data(), numSamples, 0.5f, 12345);
+    generateNoise(newModeOutput.data(), numSamples, 0.5f, 67890);
+
+    state.checkModeChange(1);
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        float fadeOut, fadeIn;
+        state.getGains(fadeOut, fadeIn);
+
+        blendedOutput[i] = oldModeOutput[i] * fadeOut + newModeOutput[i] * fadeIn;
+
+        state.advanceSample();
+    }
+
+    ClickDetectorConfig clickConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -40.0f,  // Higher threshold for noise
+        .mergeGap = 3
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(blendedOutput.data(), blendedOutput.size());
+
+    INFO("Clicks detected with noise signals: " << clicks.size());
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("ClickDetector regression: all 11 mode-to-mode combinations click-free (SC-004)",
+          "[processor][crossfade][clickdetector][SC-004]") {
+    // Automated test for SC-004: All 110 mode-to-mode combinations pass click-free test
+    // We test a representative subset (all 11 modes transitioning to a different mode)
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t numSamples = 4096;
+
+    CrossfadeState state;
+    state.prepare(sampleRate);
+
+    ClickDetectorConfig clickConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
+
+    // Simulate each mode with a unique sine frequency
+    std::array<float, 11> modeFrequencies = {
+        200.0f,  // Granular
+        300.0f,  // Spectral
+        400.0f,  // Shimmer
+        500.0f,  // Tape
+        600.0f,  // BBD
+        700.0f,  // Digital
+        800.0f,  // PingPong
+        900.0f,  // Reverse
+        1000.0f, // MultiTap
+        1100.0f, // Freeze
+        1200.0f  // Ducking
+    };
+
+    for (int fromMode = 0; fromMode < 11; ++fromMode) {
+        int toMode = (fromMode + 1) % 11;  // Switch to next mode
+
+        DYNAMIC_SECTION("Mode " << fromMode << " to mode " << toMode) {
+            // Generate outputs for both modes
+            std::vector<float> oldModeOutput(numSamples);
+            std::vector<float> newModeOutput(numSamples);
+            std::vector<float> blendedOutput(numSamples);
+
+            generateModeOutput(oldModeOutput.data(), numSamples,
+                               modeFrequencies[fromMode], sampleRate, 0.0f, 0.7f);
+            generateModeOutput(newModeOutput.data(), numSamples,
+                               modeFrequencies[toMode], sampleRate, 0.0f, 0.7f);
+
+            // Reset state for this test
+            state.currentMode = fromMode;
+            state.previousMode = fromMode;
+            state.position = 1.0f;
+            state.active = false;
+
+            // Start crossfade
+            state.checkModeChange(toMode);
+
+            for (size_t i = 0; i < numSamples; ++i) {
+                float fadeOut, fadeIn;
+                state.getGains(fadeOut, fadeIn);
+
+                blendedOutput[i] = oldModeOutput[i] * fadeOut + newModeOutput[i] * fadeIn;
+
+                state.advanceSample();
+            }
+
+            ClickDetector detector(clickConfig);
+            detector.prepare();
+
+            auto clicks = detector.detect(blendedOutput.data(), blendedOutput.size());
+
+            INFO("Mode " << fromMode << " -> " << toMode << " clicks: " << clicks.size());
+            REQUIRE(clicks.empty());
+        }
+    }
+}
+
+TEST_CASE("ClickDetector regression: crossfade at multiple sample rates",
+          "[processor][crossfade][clickdetector][SC-001]") {
+    // Verify click-free transitions at different sample rates
+
+    const std::array<float, 6> sampleRates = {44100.0f, 48000.0f, 88200.0f, 96000.0f, 176400.0f, 192000.0f};
+
+    for (float sampleRate : sampleRates) {
+        DYNAMIC_SECTION("Sample rate " << sampleRate << " Hz") {
+            constexpr size_t numSamples = 8192;
+
+            CrossfadeState state;
+            state.prepare(sampleRate);
+
+            std::vector<float> oldModeOutput(numSamples);
+            std::vector<float> newModeOutput(numSamples);
+            std::vector<float> blendedOutput(numSamples);
+
+            generateModeOutput(oldModeOutput.data(), numSamples, 440.0f, sampleRate, 0.0f, 0.8f);
+            generateModeOutput(newModeOutput.data(), numSamples, 880.0f, sampleRate, 0.0f, 0.8f);
+
+            state.checkModeChange(1);
+
+            for (size_t i = 0; i < numSamples; ++i) {
+                float fadeOut, fadeIn;
+                state.getGains(fadeOut, fadeIn);
+
+                blendedOutput[i] = oldModeOutput[i] * fadeOut + newModeOutput[i] * fadeIn;
+
+                state.advanceSample();
+            }
+
+            ClickDetectorConfig clickConfig{
+                .sampleRate = sampleRate,
+                .frameSize = 256,
+                .hopSize = 128,
+                .detectionThreshold = 5.0f,
+                .energyThresholdDb = -60.0f,
+                .mergeGap = 3
+            };
+
+            ClickDetector detector(clickConfig);
+            detector.prepare();
+
+            auto clicks = detector.detect(blendedOutput.data(), blendedOutput.size());
+
+            INFO("Clicks at " << sampleRate << " Hz: " << clicks.size());
+            REQUIRE(clicks.empty());
         }
     }
 }

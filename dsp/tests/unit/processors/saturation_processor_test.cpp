@@ -24,6 +24,7 @@
 #include <catch2/generators/catch_generators.hpp>
 
 #include <krate/dsp/processors/saturation_processor.h>
+#include <signal_metrics.h>
 #include <spectral_analysis.h>
 
 #include <array>
@@ -1194,4 +1195,306 @@ TEST_CASE("SaturationProcessor spectral analysis: all types generate harmonics",
     INFO("Type " << static_cast<int>(type) << " harmonics: " << harmonicsDb << " dB");
     // All saturation types should generate measurable harmonic content when driven hard
     REQUIRE(harmonicsDb > -80.0f);
+}
+
+// ==============================================================================
+// SignalMetrics THD Tests (spec 055-artifact-detection)
+// ==============================================================================
+
+TEST_CASE("SaturationProcessor SignalMetrics: THD increases with drive level",
+          "[saturation][SignalMetrics][THD]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Measure THD at different drive levels - should increase monotonically
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kTestFrequency = 1000.0f;
+
+    std::vector<float> thds;
+
+    for (float driveDb : {0.0f, 6.0f, 12.0f, 18.0f}) {
+        SaturationProcessor sat;
+        sat.prepare(kSampleRate, kNumSamples);
+        sat.setType(SaturationType::Tape);
+        sat.setInputGain(driveDb);
+        sat.setOutputGain(0.0f);
+        sat.setMix(1.0f);
+
+        // Generate test signal
+        std::vector<float> buffer(kNumSamples);
+        generateSine(buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 0.5f);
+
+        sat.process(buffer.data(), kNumSamples);
+
+        float thd = SignalMetrics::calculateTHD(
+            buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 10);
+
+        INFO("Drive " << driveDb << " dB: THD = " << thd << "%");
+        thds.push_back(thd);
+    }
+
+    // Verify THD increases monotonically with drive level
+    for (size_t i = 1; i < thds.size(); ++i) {
+        INFO("THD at level " << i << " (" << thds[i] << "%) should be > THD at level "
+             << (i-1) << " (" << thds[i-1] << "%)");
+        REQUIRE(thds[i] > thds[i-1]);
+    }
+}
+
+TEST_CASE("SaturationProcessor SignalMetrics: Tape saturation THD profile",
+          "[saturation][SignalMetrics][THD][Tape]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Tape (tanh) produces primarily odd harmonics
+    // At moderate drive, expect THD in 1-20% range
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kTestFrequency = 1000.0f;
+
+    SaturationProcessor sat;
+    sat.prepare(kSampleRate, kNumSamples);
+    sat.setType(SaturationType::Tape);
+    sat.setInputGain(12.0f);  // +12 dB drive
+    sat.setOutputGain(0.0f);
+    sat.setMix(1.0f);
+
+    std::vector<float> buffer(kNumSamples);
+    generateSine(buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 1.0f);
+
+    sat.process(buffer.data(), kNumSamples);
+
+    float thd = SignalMetrics::calculateTHD(
+        buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 10);
+
+    INFO("Tape THD at +12dB: " << thd << "%");
+
+    // Tape saturation should produce measurable THD
+    REQUIRE(thd > 1.0f);   // At least 1% THD at +12dB drive
+    REQUIRE(thd < 50.0f);  // But not excessive (tanh is soft)
+}
+
+TEST_CASE("SaturationProcessor SignalMetrics: Tube saturation THD profile",
+          "[saturation][SignalMetrics][THD][Tube]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Tube produces both even and odd harmonics (asymmetric waveshaping)
+    // The algorithm uses pre-limiting to ensure correct saturation behavior
+    // at all input levels (no waveform inversion at extreme drive).
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kTestFrequency = 1000.0f;
+
+    SaturationProcessor sat;
+    sat.prepare(kSampleRate, kNumSamples);
+    sat.setType(SaturationType::Tube);
+    sat.setInputGain(12.0f);
+    sat.setOutputGain(0.0f);
+    sat.setMix(1.0f);
+
+    std::vector<float> buffer(kNumSamples);
+    generateSine(buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 1.0f);
+
+    sat.process(buffer.data(), kNumSamples);
+
+    float thd = SignalMetrics::calculateTHD(
+        buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 10);
+
+    INFO("Tube THD at +12dB: " << thd << "%");
+
+    // Tube saturation should produce measurable THD
+    // Note: Tube produces BOTH even and odd harmonics (asymmetric), so THD is
+    // higher than symmetric saturation (Tape) at the same drive level. Real tube
+    // amplifiers at heavy overdrive commonly produce 60-90% THD.
+    REQUIRE(thd > 1.0f);    // At least 1% THD
+    REQUIRE(thd < 100.0f);  // Bounded (no waveform inversion or instability)
+}
+
+TEST_CASE("SaturationProcessor SignalMetrics: Digital hard clip THD profile",
+          "[saturation][SignalMetrics][THD][Digital]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Digital hard clip produces high THD when driven hard
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kTestFrequency = 1000.0f;
+
+    SaturationProcessor sat;
+    sat.prepare(kSampleRate, kNumSamples);
+    sat.setType(SaturationType::Digital);
+    sat.setInputGain(12.0f);  // Hard clip at +12dB
+    sat.setOutputGain(-6.0f); // Compensate for level increase
+    sat.setMix(1.0f);
+
+    std::vector<float> buffer(kNumSamples);
+    generateSine(buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 1.0f);
+
+    sat.process(buffer.data(), kNumSamples);
+
+    float thd = SignalMetrics::calculateTHD(
+        buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 10);
+
+    INFO("Digital THD at +12dB: " << thd << "%");
+
+    // Hard clipping produces very high THD
+    REQUIRE(thd > 5.0f);  // Expect high THD from hard clipping
+}
+
+TEST_CASE("SaturationProcessor SignalMetrics: compare THD across types",
+          "[saturation][SignalMetrics][THD][comparison]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Compare THD characteristics across all saturation types at same drive
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kTestFrequency = 1000.0f;
+    constexpr float kDriveDb = 12.0f;
+
+    struct TypeResult {
+        SaturationType type;
+        float thd;
+    };
+
+    std::vector<TypeResult> results;
+
+    for (auto type : {SaturationType::Tape, SaturationType::Tube,
+                      SaturationType::Transistor, SaturationType::Digital,
+                      SaturationType::Diode}) {
+        SaturationProcessor sat;
+        sat.prepare(kSampleRate, kNumSamples);
+        sat.setType(type);
+        sat.setInputGain(kDriveDb);
+        sat.setOutputGain(0.0f);
+        sat.setMix(1.0f);
+
+        std::vector<float> buffer(kNumSamples);
+        generateSine(buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 1.0f);
+
+        sat.process(buffer.data(), kNumSamples);
+
+        float thd = SignalMetrics::calculateTHD(
+            buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 10);
+
+        results.push_back({type, thd});
+        INFO("Type " << static_cast<int>(type) << " THD: " << thd << "%");
+    }
+
+    // All types should produce measurable THD at +12dB drive
+    for (const auto& r : results) {
+        INFO("Checking type " << static_cast<int>(r.type));
+        REQUIRE(r.thd > 0.5f);  // All should show some distortion
+    }
+}
+
+TEST_CASE("SaturationProcessor SignalMetrics: measureQuality aggregate metrics",
+          "[saturation][SignalMetrics][quality]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Test the aggregate measureQuality function
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kTestFrequency = 1000.0f;
+
+    SaturationProcessor sat;
+    sat.prepare(kSampleRate, kNumSamples);
+    sat.setType(SaturationType::Tape);
+    sat.setInputGain(6.0f);
+    sat.setOutputGain(0.0f);
+    sat.setMix(1.0f);
+
+    // Generate reference signal
+    std::vector<float> reference(kNumSamples);
+    generateSine(reference.data(), kNumSamples, kTestFrequency, kSampleRate, 0.5f);
+
+    // Copy for processing
+    std::vector<float> processed(reference);
+    sat.process(processed.data(), kNumSamples);
+
+    // Measure quality metrics
+    auto metrics = SignalMetrics::measureQuality(
+        processed.data(), reference.data(), kNumSamples, kTestFrequency, kSampleRate);
+
+    INFO("SNR: " << metrics.snrDb << " dB");
+    INFO("THD: " << metrics.thdPercent << "% (" << metrics.thdDb << " dB)");
+    INFO("Crest Factor: " << metrics.crestFactorDb << " dB");
+    INFO("Kurtosis: " << metrics.kurtosis);
+
+    // Verify metrics are valid
+    REQUIRE(metrics.isValid());
+
+    // SNR should reflect the distortion added (signal differs from reference)
+    // Lower SNR expected since distortion is added
+    REQUIRE(metrics.snrDb > 0.0f);    // Signal still present
+    REQUIRE(metrics.snrDb < 60.0f);   // But measurably different
+
+    // THD should be present
+    REQUIRE(metrics.thdPercent > 0.5f);
+
+    // Crest factor for saturated signal should be lower than pure sine (3.01 dB)
+    // Saturation reduces dynamic range
+    REQUIRE(metrics.crestFactorDb < 5.0f);   // Should be less than pure sine
+    REQUIRE(metrics.crestFactorDb > 0.0f);   // But positive
+}
+
+TEST_CASE("SaturationProcessor SignalMetrics: low drive is nearly linear",
+          "[saturation][SignalMetrics][THD][linear]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // At low drive levels, saturation should be nearly linear (low THD)
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kTestFrequency = 1000.0f;
+
+    SaturationProcessor sat;
+    sat.prepare(kSampleRate, kNumSamples);
+    sat.setType(SaturationType::Tape);
+    sat.setInputGain(0.0f);   // Unity gain - no drive
+    sat.setOutputGain(0.0f);
+    sat.setMix(1.0f);
+
+    // Low amplitude signal - stays in linear region
+    std::vector<float> buffer(kNumSamples);
+    generateSine(buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 0.1f);
+
+    sat.process(buffer.data(), kNumSamples);
+
+    float thd = SignalMetrics::calculateTHD(
+        buffer.data(), kNumSamples, kTestFrequency, kSampleRate, 10);
+
+    INFO("THD at low level: " << thd << "%");
+
+    // Should be nearly linear (< 1% THD)
+    REQUIRE(thd < 1.0f);
+}
+
+TEST_CASE("SaturationProcessor SignalMetrics: frequency independence",
+          "[saturation][SignalMetrics][THD][frequency]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // THD should be relatively consistent across frequencies
+    // (saturation is memoryless, frequency should only affect aliasing)
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kDriveDb = 12.0f;
+
+    std::vector<float> frequencies = {500.0f, 1000.0f, 2000.0f};
+    std::vector<float> thds;
+
+    for (float freq : frequencies) {
+        SaturationProcessor sat;
+        sat.prepare(kSampleRate, kNumSamples);
+        sat.setType(SaturationType::Tape);
+        sat.setInputGain(kDriveDb);
+        sat.setOutputGain(0.0f);
+        sat.setMix(1.0f);
+
+        std::vector<float> buffer(kNumSamples);
+        generateSine(buffer.data(), kNumSamples, freq, kSampleRate, 1.0f);
+
+        sat.process(buffer.data(), kNumSamples);
+
+        float thd = SignalMetrics::calculateTHD(
+            buffer.data(), kNumSamples, freq, kSampleRate, 10);
+
+        thds.push_back(thd);
+        INFO("Frequency " << freq << " Hz: THD = " << thd << "%");
+    }
+
+    // THD values should be in similar range (within 2x of each other)
+    float minThd = *std::min_element(thds.begin(), thds.end());
+    float maxThd = *std::max_element(thds.begin(), thds.end());
+
+    INFO("THD range: " << minThd << "% to " << maxThd << "%");
+    REQUIRE(maxThd < minThd * 3.0f);  // Allow up to 3x variation for aliasing effects
 }

@@ -534,6 +534,7 @@ private:
 class SimplePitchShifter {
 public:
     static constexpr float kWindowTimeMs = 50.0f;  // 50ms crossfade window
+    static constexpr float kRatioSmoothTimeMs = 5.0f;  // 5ms smoothing for ratio changes
     // Note: kPi is now defined in math_constants.h (Layer 0)
 
     SimplePitchShifter() = default;
@@ -549,6 +550,11 @@ public:
         bufferSize_ = static_cast<std::size_t>(maxDelay_) * 2 + 64;
         buffer_.resize(bufferSize_, 0.0f);
 
+        // Calculate smoothing coefficient for ratio changes
+        // One-pole filter: coeff = 1 - exp(-1 / (tau * sampleRate))
+        const float tau = kRatioSmoothTimeMs * 0.001f;  // Convert ms to seconds
+        ratioSmoothCoeff_ = 1.0f - std::exp(-1.0f / (tau * sampleRate_));
+
         reset();
     }
 
@@ -562,12 +568,18 @@ public:
         delay2_ = maxDelay_;  // Will be reset when needed
         crossfadePhase_ = 0.0f;  // 0 = use delay1 only
         needsCrossfade_ = false;
+        // Mark smoothedRatio_ as uninitialized - will snap to first ratio
+        smoothedRatioInitialized_ = false;
     }
 
     void process(const float* input, float* output, std::size_t numSamples,
                  float pitchRatio) noexcept {
         // At unity pitch, just pass through
-        if (std::abs(pitchRatio - 1.0f) < 0.0001f) {
+        // Check both target and current smoothed value (or uninitialized state)
+        const bool targetIsUnity = std::abs(pitchRatio - 1.0f) < 0.0001f;
+        const bool smoothedIsUnity = !smoothedRatioInitialized_ ||
+                                     std::abs(smoothedRatio_ - 1.0f) < 0.0001f;
+        if (targetIsUnity && smoothedIsUnity) {
             if (input != output) {
                 std::copy(input, input + numSamples, output);
             }
@@ -587,8 +599,9 @@ public:
         // 2. When delay1 approaches its limit, reset delay2 to the START and crossfade
         // 3. After crossfade completes, delay2 becomes active (swap roles)
         // 4. Repeat
+        //
+        // Per-sample smoothing of pitchRatio prevents clicks during parameter changes
 
-        const float delayChange = 1.0f - pitchRatio;  // Negative for pitch up
         const float bufferSizeF = static_cast<float>(bufferSize_);
 
         // Crossfade over ~25% of the delay range for smooth transitions
@@ -599,6 +612,16 @@ public:
         const float triggerThreshold = crossfadeLength;
 
         for (std::size_t i = 0; i < numSamples; ++i) {
+            // Per-sample smoothing of pitch ratio to prevent clicks
+            // On first use, snap to target to avoid startup transients
+            if (!smoothedRatioInitialized_) {
+                smoothedRatio_ = pitchRatio;
+                smoothedRatioInitialized_ = true;
+            } else {
+                smoothedRatio_ += ratioSmoothCoeff_ * (pitchRatio - smoothedRatio_);
+            }
+            const float delayChange = 1.0f - smoothedRatio_;  // Negative for pitch up
+
             // Write input to buffer
             buffer_[writePos_] = input[i];
 
@@ -632,7 +655,7 @@ public:
 
                 if (approachingLimit) {
                     // Reset delay2 to the START of the cycle
-                    delay2_ = (pitchRatio > 1.0f) ? maxDelay_ : minDelay_;
+                    delay2_ = (smoothedRatio_ > 1.0f) ? maxDelay_ : minDelay_;
                     needsCrossfade_ = true;
                 }
             }
@@ -678,6 +701,11 @@ private:
     float minDelay_ = 1.0f;
     float sampleRate_ = 44100.0f;
     bool needsCrossfade_ = false;
+
+    // Ratio smoothing for click-free parameter changes
+    float smoothedRatio_ = 1.0f;
+    float ratioSmoothCoeff_ = 0.0f;
+    bool smoothedRatioInitialized_ = false;
 };
 
 // ==============================================================================
@@ -1232,13 +1260,19 @@ inline void PitchShiftProcessor::process(const float* input, float* output,
     pImpl_->semitoneSmoother.setTarget(pImpl_->semitones);
     pImpl_->centsSmoother.setTarget(pImpl_->cents);
 
-    // Calculate pitch ratio
-    // Note: Per-sample smoothing would be ideal but adds complexity.
-    // For now, use direct parameters and snap smoothers to maintain consistency.
-    // TODO: Implement proper per-sample smoothing for parameter automation (US6)
-    float totalSemitones = pImpl_->semitones + pImpl_->cents / 100.0f;
-    pImpl_->semitoneSmoother.snapToTarget();
-    pImpl_->centsSmoother.snapToTarget();
+    // Advance smoothers through the block for click-free parameter changes
+    // Note: This provides block-rate smoothing. Per-sample smoothing would be
+    // ideal but requires passing per-sample pitch ratios to underlying shifters.
+    // TODO: Implement per-sample smoothing for parameter automation (US6)
+    for (size_t i = 0; i < numSamples; ++i) {
+        (void)pImpl_->semitoneSmoother.process();
+        (void)pImpl_->centsSmoother.process();
+    }
+
+    // Calculate pitch ratio from smoothed parameters
+    float smoothedSemitones = pImpl_->semitoneSmoother.getCurrentValue();
+    float smoothedCents = pImpl_->centsSmoother.getCurrentValue();
+    float totalSemitones = smoothedSemitones + smoothedCents / 100.0f;
 
     float pitchRatio = semitonesToRatio(totalSemitones);
 

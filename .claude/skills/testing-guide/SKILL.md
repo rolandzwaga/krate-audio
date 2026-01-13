@@ -136,6 +136,12 @@ tests/
 - **Signal generators**: `tests/test_helpers/test_signals.h`
 - **Buffer comparison**: `tests/test_helpers/buffer_comparison.h`
 - **Allocation detector**: `tests/test_helpers/allocation_detector.h`
+- **Spectral analysis**: `tests/test_helpers/spectral_analysis.h` - FFT-based aliasing measurement
+- **Statistical utilities**: `tests/test_helpers/statistical_utils.h` - Mean, stddev, median, MAD
+- **Signal metrics**: `tests/test_helpers/signal_metrics.h` - SNR, THD, crest factor, kurtosis, ZCR
+- **Artifact detection**: `tests/test_helpers/artifact_detection.h` - ClickDetector, LPCDetector, SpectralAnomalyDetector
+- **Golden reference**: `tests/test_helpers/golden_reference.h` - Reference comparison, A/B testing
+- **Parameter sweep**: `tests/test_helpers/parameter_sweep.h` - Automated parameter range testing
 
 ---
 
@@ -376,3 +382,4 @@ For detailed information, see the supporting files:
 - [PATTERNS.md](PATTERNS.md) - Catch2 patterns, test doubles, UI testing with mocks
 - [ANTI-PATTERNS.md](ANTI-PATTERNS.md) - Common mistakes and how to avoid them
 - [SPECTRAL-ANALYSIS.md](SPECTRAL-ANALYSIS.md) - FFT-based aliasing measurement for waveshaper and ADAA tests
+- [ARTIFACT-DETECTION.md](ARTIFACT-DETECTION.md) - Click detection, LPC analysis, spectral flatness, signal quality metrics, parameter sweep testing

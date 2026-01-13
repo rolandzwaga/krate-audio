@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <map>
 
 using namespace Krate::DSP;
 using Catch::Approx;
@@ -850,4 +851,216 @@ TEST_CASE("Waveshaper spectral analysis: asymmetry affects spectrum",
         REQUIRE(symResult.harmonicPowerDb > -80.0f);
         REQUIRE(asymResult.harmonicPowerDb > -80.0f);
     }
+}
+
+// =============================================================================
+// SignalMetrics THD Tests
+// =============================================================================
+
+#include <signal_metrics.h>
+#include <test_signals.h>
+
+TEST_CASE("Waveshaper SignalMetrics: THD increases with drive level",
+          "[waveshaper][signalmetrics][thd]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t numSamples = 8192;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float fundamentalHz = 440.0f;
+
+    std::vector<float> input(numSamples);
+    std::vector<float> output(numSamples);
+    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
+
+    SECTION("Tanh: THD increases with drive") {
+        Waveshaper shaper;
+        shaper.setType(WaveshapeType::Tanh);
+
+        // Low drive - nearly linear
+        shaper.setDrive(0.5f);
+        std::copy(input.begin(), input.end(), output.begin());
+        shaper.processBlock(output.data(), numSamples);
+        float lowDriveTHD = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                        fundamentalHz, sampleRate);
+
+        // Medium drive
+        shaper.setDrive(2.0f);
+        std::copy(input.begin(), input.end(), output.begin());
+        shaper.processBlock(output.data(), numSamples);
+        float medDriveTHD = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                        fundamentalHz, sampleRate);
+
+        // High drive
+        shaper.setDrive(8.0f);
+        std::copy(input.begin(), input.end(), output.begin());
+        shaper.processBlock(output.data(), numSamples);
+        float highDriveTHD = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                         fundamentalHz, sampleRate);
+
+        INFO("Low drive (0.5) THD: " << lowDriveTHD << "%");
+        INFO("Medium drive (2.0) THD: " << medDriveTHD << "%");
+        INFO("High drive (8.0) THD: " << highDriveTHD << "%");
+
+        REQUIRE(lowDriveTHD < medDriveTHD);
+        REQUIRE(medDriveTHD < highDriveTHD);
+    }
+}
+
+TEST_CASE("Waveshaper SignalMetrics: compare THD across types",
+          "[waveshaper][signalmetrics][thd][compare]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t numSamples = 8192;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float fundamentalHz = 440.0f;
+
+    std::vector<float> input(numSamples);
+    std::vector<float> output(numSamples);
+    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
+
+    // Fixed drive for fair comparison
+    constexpr float drive = 4.0f;
+
+    SECTION("Different types produce different THD profiles") {
+        std::map<WaveshapeType, float> thdByType;
+
+        for (auto type : {WaveshapeType::Tanh, WaveshapeType::Cubic,
+                          WaveshapeType::HardClip, WaveshapeType::Erf}) {
+            Waveshaper shaper;
+            shaper.setType(type);
+            shaper.setDrive(drive);
+
+            std::copy(input.begin(), input.end(), output.begin());
+            shaper.processBlock(output.data(), numSamples);
+
+            thdByType[type] = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                          fundamentalHz, sampleRate);
+        }
+
+        INFO("Tanh THD: " << thdByType[WaveshapeType::Tanh] << "%");
+        INFO("Cubic THD: " << thdByType[WaveshapeType::Cubic] << "%");
+        INFO("HardClip THD: " << thdByType[WaveshapeType::HardClip] << "%");
+        INFO("Erf THD: " << thdByType[WaveshapeType::Erf] << "%");
+
+        // All types should produce measurable distortion at drive=4.0
+        REQUIRE(thdByType[WaveshapeType::Tanh] > 10.0f);
+        REQUIRE(thdByType[WaveshapeType::Cubic] > 10.0f);
+        REQUIRE(thdByType[WaveshapeType::HardClip] > 10.0f);
+        REQUIRE(thdByType[WaveshapeType::Erf] > 10.0f);
+
+        // Different types should produce noticeably different THD
+        // (not necessarily in a specific order, as characteristics vary)
+        REQUIRE(thdByType[WaveshapeType::Tanh] != thdByType[WaveshapeType::Cubic]);
+        REQUIRE(thdByType[WaveshapeType::Tanh] != thdByType[WaveshapeType::HardClip]);
+    }
+}
+
+TEST_CASE("Waveshaper SignalMetrics: low drive is nearly linear",
+          "[waveshaper][signalmetrics][thd][linear]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t numSamples = 8192;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float fundamentalHz = 440.0f;
+
+    std::vector<float> input(numSamples);
+    std::vector<float> output(numSamples);
+    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
+
+    // Test that very low drive produces minimal distortion
+    auto type = GENERATE(
+        WaveshapeType::Tanh,
+        WaveshapeType::Atan,
+        WaveshapeType::Cubic,
+        WaveshapeType::Erf
+    );
+
+    Waveshaper shaper;
+    shaper.setType(type);
+    shaper.setDrive(0.1f);  // Very low drive
+
+    std::copy(input.begin(), input.end(), output.begin());
+    shaper.processBlock(output.data(), numSamples);
+
+    float thd = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                            fundamentalHz, sampleRate);
+
+    INFO("Type " << static_cast<int>(type) << " THD at drive=0.1: " << thd << "%");
+    // At very low drive, THD should be minimal (<1%)
+    REQUIRE(thd < 1.0f);
+}
+
+TEST_CASE("Waveshaper SignalMetrics: asymmetry adds even harmonics",
+          "[waveshaper][signalmetrics][thd][asymmetry]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t numSamples = 8192;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float fundamentalHz = 440.0f;
+
+    std::vector<float> input(numSamples);
+    std::vector<float> output(numSamples);
+    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
+
+    SECTION("asymmetry changes THD profile") {
+        Waveshaper symmetric;
+        symmetric.setType(WaveshapeType::Tanh);
+        symmetric.setDrive(2.0f);
+        symmetric.setAsymmetry(0.0f);
+
+        Waveshaper asymmetric;
+        asymmetric.setType(WaveshapeType::Tanh);
+        asymmetric.setDrive(2.0f);
+        asymmetric.setAsymmetry(0.5f);
+
+        std::copy(input.begin(), input.end(), output.begin());
+        symmetric.processBlock(output.data(), numSamples);
+        float symTHD = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                   fundamentalHz, sampleRate);
+
+        std::copy(input.begin(), input.end(), output.begin());
+        asymmetric.processBlock(output.data(), numSamples);
+        float asymTHD = SignalMetrics::calculateTHD(output.data(), numSamples,
+                                                    fundamentalHz, sampleRate);
+
+        INFO("Symmetric THD: " << symTHD << "%");
+        INFO("Asymmetric THD: " << asymTHD << "%");
+
+        // Both should produce measurable distortion
+        REQUIRE(symTHD > 1.0f);
+        REQUIRE(asymTHD > 1.0f);
+    }
+}
+
+TEST_CASE("Waveshaper SignalMetrics: measureQuality aggregate metrics",
+          "[waveshaper][signalmetrics][quality]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr size_t numSamples = 8192;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float fundamentalHz = 440.0f;
+
+    std::vector<float> input(numSamples);
+    std::vector<float> output(numSamples);
+    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
+
+    Waveshaper shaper;
+    shaper.setType(WaveshapeType::Tanh);
+    shaper.setDrive(4.0f);
+
+    std::copy(input.begin(), input.end(), output.begin());
+    shaper.processBlock(output.data(), numSamples);
+
+    auto metrics = SignalMetrics::measureQuality(
+        output.data(), input.data(), numSamples, fundamentalHz, sampleRate);
+
+    INFO("SNR: " << metrics.snrDb << " dB");
+    INFO("THD: " << metrics.thdPercent << "%");
+    INFO("THD (dB): " << metrics.thdDb << " dB");
+    INFO("Crest factor: " << metrics.crestFactorDb << " dB");
+    INFO("Kurtosis: " << metrics.kurtosis);
+
+    REQUIRE(metrics.isValid());
+    REQUIRE(metrics.thdPercent > 5.0f);  // Noticeable distortion at drive=4.0
+    REQUIRE(metrics.thdPercent < 100.0f); // But not extreme
 }

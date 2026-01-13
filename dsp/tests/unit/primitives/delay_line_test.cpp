@@ -9,12 +9,16 @@
 #include <catch2/catch_all.hpp>
 
 #include <krate/dsp/primitives/delay_line.h>
+#include <artifact_detection.h>
+#include <test_signals.h>
 
 #include <cmath>
 #include <array>
 #include <numeric>
+#include <vector>
 
 using namespace Krate::DSP;
+using namespace Krate::DSP::TestUtils;
 using Catch::Approx;
 
 // =============================================================================
@@ -1028,4 +1032,177 @@ TEST_CASE("DelayLine works at all sample rates (SC-007)", "[delay][SC-007][sampl
             REQUIRE(std::isfinite(allpassResult));
         }
     }
+}
+
+// =============================================================================
+// ClickDetector-Based Artifact Detection Tests
+// =============================================================================
+// These tests use the artifact detection infrastructure for robust click
+// detection during interpolation edge cases.
+
+TEST_CASE("DelayLine readLinear no clicks during rapid modulation",
+          "[delay][linear][clickdetector]") {
+    // Test that rapid delay time modulation doesn't produce clicks
+    // This is more robust than fixed threshold checks
+
+    DelayLine delay;
+    const double sampleRate = 44100.0;
+    delay.prepare(sampleRate, 0.5f);  // 500ms max delay
+
+    // Fill buffer with a sine wave
+    const float freq = 440.0f;
+    const float omega = 2.0f * 3.14159265f * freq / static_cast<float>(sampleRate);
+
+    for (size_t i = 0; i < 22050; ++i) {
+        delay.write(std::sin(omega * static_cast<float>(i)));
+    }
+
+    // Generate output while rapidly modulating delay time with LFO
+    const size_t numSamples = 4096;
+    std::vector<float> outputs(numSamples);
+
+    const float lfoFreq = 10.0f;  // 10Hz modulation
+    const float lfoOmega = 2.0f * 3.14159265f * lfoFreq / static_cast<float>(sampleRate);
+    const float baseDelay = 500.0f;
+    const float modDepth = 200.0f;  // ±200 samples modulation
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        // LFO modulated delay time
+        float delayTime = baseDelay + modDepth * std::sin(lfoOmega * static_cast<float>(i));
+
+        // Continue feeding signal
+        delay.write(std::sin(omega * static_cast<float>(22050 + i)));
+
+        // Read with interpolation
+        outputs[i] = delay.readLinear(delayTime);
+    }
+
+    // Use ClickDetector to verify no clicks
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(outputs.data(), outputs.size());
+
+    INFO("Clicks detected during LFO modulation: " << clicks.size());
+    for (const auto& click : clicks) {
+        INFO("  Click at sample " << static_cast<size_t>(click.timeSeconds * sampleRate)
+             << " (t=" << click.timeSeconds << "s), amplitude: " << click.amplitude);
+    }
+
+    // Linear interpolation should produce no clicks
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("DelayLine readAllpass no clicks during delay sweeps",
+          "[delay][allpass][clickdetector]") {
+    // Test that allpass interpolation doesn't produce clicks during sweeps
+
+    DelayLine delay;
+    const double sampleRate = 44100.0;
+    delay.prepare(sampleRate, 0.5f);
+
+    // Fill buffer with a sine wave
+    const float freq = 880.0f;
+    const float omega = 2.0f * 3.14159265f * freq / static_cast<float>(sampleRate);
+
+    for (size_t i = 0; i < 22050; ++i) {
+        delay.write(std::sin(omega * static_cast<float>(i)));
+    }
+
+    // Sweep delay from 100 to 1000 samples and back
+    const size_t numSamples = 4096;
+    std::vector<float> outputs(numSamples);
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        // Triangle wave sweep
+        float t = static_cast<float>(i) / static_cast<float>(numSamples);
+        float sweepPhase = t < 0.5f ? (t * 2.0f) : (2.0f - t * 2.0f);
+        float delayTime = 100.0f + sweepPhase * 900.0f;  // 100 to 1000 samples
+
+        delay.write(std::sin(omega * static_cast<float>(22050 + i)));
+        outputs[i] = delay.readAllpass(delayTime);
+    }
+
+    // Use ClickDetector
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 3
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(outputs.data(), outputs.size());
+
+    INFO("Clicks detected during delay sweep: " << clicks.size());
+    for (const auto& click : clicks) {
+        INFO("  Click at sample " << static_cast<size_t>(click.timeSeconds * sampleRate)
+             << ", amplitude: " << click.amplitude);
+    }
+
+    // Allpass interpolation should produce no clicks
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("DelayLine interpolation at buffer wraparound boundary",
+          "[delay][edge][clickdetector]") {
+    // Test that reading across the circular buffer wraparound point
+    // doesn't produce clicks
+
+    DelayLine delay;
+    const double sampleRate = 44100.0;
+    delay.prepare(sampleRate, 0.1f);  // 100ms = 4410 samples
+
+    // Fill buffer completely with a sine wave
+    const float freq = 220.0f;
+    const float omega = 2.0f * 3.14159265f * freq / static_cast<float>(sampleRate);
+
+    for (size_t i = 0; i < 4410; ++i) {
+        delay.write(std::sin(omega * static_cast<float>(i)));
+    }
+
+    // Now continue writing and reading at a delay close to max,
+    // which forces wraparound
+    const size_t numSamples = 8820;  // 2x buffer size
+    std::vector<float> outputs(numSamples);
+
+    const float delayNearMax = 4400.0f;  // Near buffer end
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        delay.write(std::sin(omega * static_cast<float>(4410 + i)));
+        outputs[i] = delay.readLinear(delayNearMax + 0.5f);  // Fractional delay
+    }
+
+    // Use ClickDetector
+    ClickDetectorConfig clickConfig{
+        .sampleRate = static_cast<float>(sampleRate),
+        .frameSize = 512,
+        .hopSize = 256,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 5
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    auto clicks = detector.detect(outputs.data(), outputs.size());
+
+    INFO("Clicks detected at wraparound: " << clicks.size());
+
+    // Buffer wraparound should be seamless
+    REQUIRE(clicks.empty());
 }

@@ -102,6 +102,14 @@ add_executable(dsp_tests
 
     # Test Helpers tests
     ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
+    unit/test_helpers/statistical_utils_tests.cpp
+    unit/test_helpers/artifact_detection_tests.cpp
+    unit/test_helpers/signal_metrics_tests.cpp
+    unit/test_helpers/parameter_sweep_tests.cpp
+    unit/test_helpers/lpc_detection_tests.cpp
+    unit/test_helpers/spectral_anomaly_tests.cpp
+    unit/test_helpers/golden_reference_tests.cpp
+    unit/test_helpers/artifact_detection_integration_tests.cpp
 )
 
 target_link_libraries(dsp_tests
@@ -193,6 +201,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/effects/granular_delay_tempo_sync_test.cpp
         unit/effects/granular_delay_dry_signal_test.cpp
         ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
+        unit/test_helpers/statistical_utils_tests.cpp
+        unit/test_helpers/artifact_detection_tests.cpp
+        unit/test_helpers/signal_metrics_tests.cpp
+        unit/test_helpers/parameter_sweep_tests.cpp
+        unit/test_helpers/lpc_detection_tests.cpp
+        unit/test_helpers/spectral_anomaly_tests.cpp
+        unit/test_helpers/golden_reference_tests.cpp
+        unit/test_helpers/artifact_detection_integration_tests.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
