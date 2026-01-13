@@ -133,6 +133,8 @@ tests/
 
 ### Test Helpers
 
+Determine which of the following helpers make sense for the code under test. The types of potential problems they help identify are vital, so consider carefully.
+
 - **Signal generators**: `tests/test_helpers/test_signals.h`
 - **Buffer comparison**: `tests/test_helpers/buffer_comparison.h`
 - **Allocation detector**: `tests/test_helpers/allocation_detector.h`
