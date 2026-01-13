@@ -709,6 +709,55 @@ class Wavefolder {
 
 **Dependencies:** `core/wavefold_math.h` (triangleFold, sineFold, lambertW), `core/fast_math.h` (fastTanh), `core/db_utils.h` (NaN/Inf detection)
 
+### ChebyshevShaper
+**Path:** [chebyshev_shaper.h](dsp/include/krate/dsp/primitives/chebyshev_shaper.h) | **Since:** 0.10.0
+
+Harmonic control primitive using Chebyshev polynomial mixing. Unlike traditional waveshapers that add a fixed harmonic series, ChebyshevShaper allows independent control of each harmonic's level (1st through 8th), enabling precise timbral shaping.
+
+**Use when:**
+- Creating custom harmonic spectra (tube amp character, exciter effects)
+- Need precise control over individual harmonics vs. generic saturation
+- Building harmonic enhancers or exciters with specific harmonic emphasis
+- Want phase-accurate harmonic addition (no aliasing from Chebyshev property)
+
+**Note:** This is a stateless primitive - `process()` is const, no `reset()` needed. Compose with Oversampler for anti-aliasing at high drives and DCBlocker if even harmonics create DC offset.
+
+```cpp
+class ChebyshevShaper {
+    static constexpr int kMaxHarmonics = 8;
+
+    void setHarmonicLevel(int harmonic, float level) noexcept;  // harmonic 1-8, level unbounded
+    void setAllHarmonics(const std::array<float, kMaxHarmonics>& levels) noexcept;
+    [[nodiscard]] float getHarmonicLevel(int harmonic) const noexcept;
+    [[nodiscard]] const std::array<float, kMaxHarmonics>& getHarmonicLevels() const noexcept;
+    [[nodiscard]] float process(float x) const noexcept;
+    void processBlock(float* buffer, size_t n) const noexcept;
+};
+```
+
+| Harmonic Level | Effect |
+|----------------|--------|
+| 0.0 | Harmonic disabled |
+| 1.0 | Full harmonic level |
+| -1.0 | Phase-inverted harmonic |
+| > 1.0 | Amplified harmonic |
+
+**Typical Presets:**
+```cpp
+// Odd harmonics only (guitar distortion character)
+shaper.setAllHarmonics({0.5f, 0.0f, 0.3f, 0.0f, 0.2f, 0.0f, 0.1f, 0.0f});
+
+// Even harmonics (tube warmth)
+shaper.setAllHarmonics({0.0f, 0.4f, 0.0f, 0.2f, 0.0f, 0.1f, 0.0f, 0.05f});
+
+// Fundamental emphasis with light overtones
+shaper.setAllHarmonics({1.0f, 0.1f, 0.05f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+```
+
+**Performance:** ~1.6us for 512 samples (well under Layer 1 budget).
+
+**Dependencies:** `core/chebyshev.h` (Chebyshev::harmonicMix)
+
 ---
 
 ## Layer 2: DSP Processors

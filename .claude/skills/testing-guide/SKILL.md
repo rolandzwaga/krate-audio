@@ -1,6 +1,6 @@
 ---
 name: testing-guide
-description: VST3 plugin testing patterns and practices. Use when writing tests, debugging test failures, adding new test cases, when tests don't appear after changes, or when working with DSP algorithms that need verification. Covers build verification, DSP testing strategies, Catch2 patterns, and VST3 validation.
+description: VST3 plugin testing patterns and practices. Use when writing tests, debugging test failures, adding new test cases, when tests don't appear after changes, or when working with DSP algorithms that need verification. Covers build verification, DSP testing strategies, artifact detection, spectral analysis, Catch2 patterns, and VST3 validation.
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
