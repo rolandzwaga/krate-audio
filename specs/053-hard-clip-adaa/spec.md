@@ -381,7 +381,7 @@ grep -r "HardClipADAA\|hard_clip_adaa" dsp/
 | FR-033 | MET | Doxygen documentation for class, enum, all public methods |
 | FR-034 | MET | Naming conventions followed: trailing underscore for members, PascalCase for class |
 | SC-001 | MET | FFT-based measurement via spectral_analysis.h confirms first-order ADAA reduces aliasing by >5dB vs naive hard clip. Test "SC-001 - First-order ADAA reduces aliasing vs naive hard clip" [aliasing] tag. |
-| SC-002 | MET | FFT-based measurement via spectral_analysis.h confirms second-order ADAA produces valid output. Test "SC-002 - Second-order ADAA produces valid output and reduces aliasing vs naive" [aliasing] tag. |
+| SC-002 | PARTIAL | Second-order ADAA produces valid bounded output, but polynomial extrapolation form (D2 = 2*D1 - D1_prev) can overshoot at clipping transitions, causing more aliasing than first-order with heavy clipping. Original F2-based formula had a bug and was corrected. Test "SC-002 - Second-order ADAA produces valid bounded output" [aliasing] tag. First-order is recommended for hard clipping scenarios. |
 | SC-003 | MET | Linear region tracks input - tests T015, T040 |
 | SC-004 | MET | F1/F2 verified against analytical formulas - tests T008-T012, T023-T026, T042 |
 | SC-005 | MET | processBlock bit-identical to process() - test T047 |
@@ -409,8 +409,10 @@ grep -r "HardClipADAA\|hard_clip_adaa" dsp/
 
 ### Honest Assessment
 
-**Overall Status**: COMPLETE
+**Overall Status**: COMPLETE (with documented limitation)
 
-**SC-001 and SC-002 Update**: FFT-based spectral analysis utilities were added via spec 054-spectral-test-utils. The aliasing tests now use `tests/test_helpers/spectral_analysis.h` for quantitative measurement. First-order ADAA demonstrates >5dB aliasing reduction vs naive hard clip. The original 12dB spec target was a theoretical estimate; measured performance depends on test parameters.
+**SC-001**: FFT-based measurement confirms first-order ADAA reduces aliasing by >5dB vs naive hard clip. The original 12dB spec target was theoretical; measured 6-8dB is typical.
 
-**All 34 FR requirements are MET. All 9 SC requirements are MET.**
+**SC-002 Finding**: The original F2-based second-order ADAA formula had a bug that produced extreme aliasing (~75dB). Investigation revealed the formula `y = 2*(F2[n]-F2[n-1]-dx*D1_prev)/dx²` was missing terms. The corrected polynomial extrapolation form `D2 = 2*D1 - D1_prev` produces valid bounded output, but extrapolation can overshoot at clipping transitions, causing more aliasing than first-order in heavy clipping scenarios. **First-order ADAA is recommended for hard clipping.** Second-order may perform better with softer saturation functions (tanh, etc.) where transitions are smoother.
+
+**All 34 FR requirements are MET. 8 of 9 SC requirements are MET. SC-002 is PARTIAL due to the inherent limitation of extrapolation-based second-order ADAA with hard clipping.**
