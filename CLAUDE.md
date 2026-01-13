@@ -1,4 +1,4 @@
-﻿# CLAUDE.md - VST Plugin Development Guidelines
+# CLAUDE.md - VST Plugin Development Guidelines
 
 This file provides guidance for AI assistants working on this VST3 plugin project. All code contributions must comply with the project constitution at `.specify/memory/constitution.md`.
 

@@ -537,6 +537,58 @@ class DCBlocker {
 
 **Note:** Replaces inline `DCBlocker` in `feedback_network.h`. Uses exact formula R = exp(-2π*fc/fs) for accurate cutoff matching.
 
+### Waveshaper
+**Path:** [waveshaper.h](dsp/include/krate/dsp/primitives/waveshaper.h) • **Since:** 0.10.0
+
+Unified waveshaping primitive with selectable transfer function types.
+
+**Use when:**
+- Applying saturation/distortion effects with different harmonic characters
+- Need a "drive knob" to control saturation intensity
+- Want even harmonics (warmth) via asymmetry parameter
+- Building saturation processors, tube stages, or fuzz effects
+
+**Note:** Compose with DCBlocker when using non-zero asymmetry to remove DC offset.
+
+```cpp
+enum class WaveshapeType : uint8_t {
+    Tanh,           // Warm, smooth saturation
+    Atan,           // Slightly brighter than tanh
+    Cubic,          // 3rd harmonic dominant
+    Quintic,        // Smoother knee than cubic
+    ReciprocalSqrt, // Fast tanh alternative
+    Erf,            // Tape-like with spectral nulls
+    HardClip,       // Harsh, all harmonics
+    Diode,          // Subtle even harmonics (UNBOUNDED)
+    Tube            // Warm even harmonics (bounded)
+};
+
+class Waveshaper {
+    void setType(WaveshapeType type) noexcept;
+    void setDrive(float drive) noexcept;        // Pre-gain (abs value stored)
+    void setAsymmetry(float bias) noexcept;     // DC bias [-1, 1] for even harmonics
+    [[nodiscard]] WaveshapeType getType() const noexcept;
+    [[nodiscard]] float getDrive() const noexcept;
+    [[nodiscard]] float getAsymmetry() const noexcept;
+    [[nodiscard]] float process(float x) const noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+};
+```
+
+| Type | Output Bounds | Harmonics | Character |
+|------|---------------|-----------|-----------|
+| Tanh | [-1, 1] | Odd only | Warm, smooth |
+| Atan | [-1, 1] | Odd only | Brighter |
+| Cubic | [-1, 1] | Odd (3rd dominant) | Gentle |
+| Quintic | [-1, 1] | Odd (smooth) | Very gentle |
+| ReciprocalSqrt | [-1, 1] | Odd only | Fast tanh alt |
+| Erf | [-1, 1] | Odd + nulls | Tape-like |
+| HardClip | [-1, 1] | All | Harsh, digital |
+| Diode | Unbounded | Even + Odd | Subtle warmth |
+| Tube | [-1, 1] | Even + Odd | Rich warmth |
+
+**Important:** Only Diode is unbounded (can exceed [-1, 1]). All other types, including Tube, are bounded to [-1, 1].
+
 ---
 
 ## Layer 2: DSP Processors
