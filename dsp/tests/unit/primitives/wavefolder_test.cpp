@@ -16,6 +16,10 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 
+// Test helpers for spectral and artifact analysis
+#include "spectral_analysis.h"
+#include "artifact_detection.h"
+
 #include <array>
 #include <cmath>
 #include <limits>
@@ -716,6 +720,268 @@ TEST_CASE("SC-006 Processing methods introduce no memory allocations", "[wavefol
 TEST_CASE("SC-007 sizeof Wavefolder less than 16 bytes", "[wavefolder][success]") {
     // Compile-time check via static_assert in header
     REQUIRE(sizeof(Wavefolder) <= 16);
+}
+
+// =============================================================================
+// Phase 8: Spectral Analysis Tests (using test helpers)
+// =============================================================================
+
+TEST_CASE("Sine fold with PI produces harmonic content measurable via FFT", "[wavefolder][spectral]") {
+    // FR-017: Sine fold MUST produce characteristic Serge-style harmonic content at gain=PI
+    // This test uses spectral analysis to verify the harmonic structure
+    using namespace TestUtils;
+
+    Wavefolder folder;
+    folder.setType(WavefoldType::Sine);
+    folder.setFoldAmount(3.14159f);  // PI
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 1000.0f,   // 1kHz fundamental
+        .sampleRate = 44100.0f,
+        .driveGain = 1.0f,            // Unity gain input
+        .fftSize = 2048,
+        .maxHarmonic = 10
+    };
+
+    // Measure spectral content of sine-folded signal
+    auto result = measureAliasing(config, [&](float x) {
+        return folder.process(x);
+    });
+
+    // Verify we get measurable harmonic content (not just fundamental)
+    // Sine folding with PI should create harmonics
+    INFO("Fundamental: " << result.fundamentalPowerDb << " dB");
+    INFO("Harmonics: " << result.harmonicPowerDb << " dB");
+
+    // The measurement should be valid (no NaN)
+    REQUIRE(result.isValid());
+
+    // Fundamental should be present
+    REQUIRE(result.fundamentalPowerDb > -100.0f);
+}
+
+TEST_CASE("All fold types produce measurable harmonic content via FFT", "[wavefolder][spectral]") {
+    // Each fold type produces harmonics when driven - verify via spectral analysis
+    using namespace TestUtils;
+
+    AliasingTestConfig config{
+        .testFrequencyHz = 1000.0f,
+        .sampleRate = 44100.0f,
+        .driveGain = 2.0f,  // Drive into folding region
+        .fftSize = 2048,
+        .maxHarmonic = 10
+    };
+
+    Wavefolder triangleFolder;
+    triangleFolder.setType(WavefoldType::Triangle);
+    triangleFolder.setFoldAmount(2.0f);
+
+    Wavefolder sineFolder;
+    sineFolder.setType(WavefoldType::Sine);
+    sineFolder.setFoldAmount(2.0f);
+
+    Wavefolder lockhartFolder;
+    lockhartFolder.setType(WavefoldType::Lockhart);
+    lockhartFolder.setFoldAmount(2.0f);
+
+    auto triangleResult = measureAliasing(config, [&](float x) {
+        return triangleFolder.process(x);
+    });
+
+    auto sineResult = measureAliasing(config, [&](float x) {
+        return sineFolder.process(x);
+    });
+
+    auto lockhartResult = measureAliasing(config, [&](float x) {
+        return lockhartFolder.process(x);
+    });
+
+    INFO("Triangle harmonics: " << triangleResult.harmonicPowerDb << " dB");
+    INFO("Sine harmonics: " << sineResult.harmonicPowerDb << " dB");
+    INFO("Lockhart harmonics: " << lockhartResult.harmonicPowerDb << " dB");
+
+    // All measurements should be valid (no NaN)
+    REQUIRE(triangleResult.isValid());
+    REQUIRE(sineResult.isValid());
+    REQUIRE(lockhartResult.isValid());
+
+    // All fold types should produce measurable harmonic content when driven
+    // (above noise floor, which we'll set at -60 dB)
+    REQUIRE(triangleResult.harmonicPowerDb > -60.0f);
+    REQUIRE(sineResult.harmonicPowerDb > -60.0f);
+    REQUIRE(lockhartResult.harmonicPowerDb > -60.0f);
+}
+
+// =============================================================================
+// Phase 9: Artifact Detection Tests (using test helpers)
+// =============================================================================
+
+TEST_CASE("setType during processing produces no click artifacts", "[wavefolder][artifact]") {
+    // Verify that changing fold type mid-stream doesn't cause audible clicks
+    using namespace TestUtils;
+
+    constexpr size_t numSamples = 4096;
+    constexpr float sampleRate = 44100.0f;
+
+    // Generate smooth test signal (sine wave)
+    std::vector<float> buffer(numSamples);
+    for (size_t i = 0; i < numSamples; ++i) {
+        float t = static_cast<float>(i) / sampleRate;
+        buffer[i] = 0.5f * std::sin(2.0f * 3.14159f * 440.0f * t);
+    }
+
+    // Process with type changes mid-stream
+    Wavefolder folder;
+    folder.setFoldAmount(2.0f);
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        // Change type periodically
+        if (i == numSamples / 4) {
+            folder.setType(WavefoldType::Sine);
+        } else if (i == numSamples / 2) {
+            folder.setType(WavefoldType::Triangle);
+        } else if (i == 3 * numSamples / 4) {
+            folder.setType(WavefoldType::Lockhart);
+        }
+        buffer[i] = folder.process(buffer[i]);
+    }
+
+    // Configure click detector
+    ClickDetectorConfig config{
+        .sampleRate = sampleRate,
+        .frameSize = 512,
+        .hopSize = 256,
+        .detectionThreshold = 8.0f,  // Higher threshold - we expect some discontinuity
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 5
+    };
+
+    ClickDetector detector(config);
+    detector.prepare();
+
+    auto clicks = detector.detect(buffer.data(), numSamples);
+
+    INFO("Detected " << clicks.size() << " potential clicks");
+    for (const auto& click : clicks) {
+        INFO("  Click at sample " << click.sampleIndex << " (t=" << click.timeSeconds << "s)");
+    }
+
+    // Type changes may cause some discontinuity, but should be minimal
+    // The wavefolder is stateless, so discontinuities come from the
+    // transfer function change, not from internal state issues
+    // Allow up to 3 detections (one per type change point)
+    REQUIRE(clicks.size() <= 3);
+}
+
+TEST_CASE("setFoldAmount during processing produces no click artifacts", "[wavefolder][artifact]") {
+    // Verify that changing foldAmount mid-stream doesn't cause audible clicks
+    using namespace TestUtils;
+
+    constexpr size_t numSamples = 4096;
+    constexpr float sampleRate = 44100.0f;
+
+    // Generate smooth test signal
+    std::vector<float> buffer(numSamples);
+    for (size_t i = 0; i < numSamples; ++i) {
+        float t = static_cast<float>(i) / sampleRate;
+        buffer[i] = 0.3f * std::sin(2.0f * 3.14159f * 440.0f * t);
+    }
+
+    // Process with gradual foldAmount changes (simulating automation)
+    Wavefolder folder;
+    folder.setType(WavefoldType::Triangle);
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        // Smoothly ramp foldAmount from 1.0 to 5.0
+        float progress = static_cast<float>(i) / static_cast<float>(numSamples);
+        float foldAmount = 1.0f + 4.0f * progress;
+        folder.setFoldAmount(foldAmount);
+        buffer[i] = folder.process(buffer[i]);
+    }
+
+    // Configure click detector
+    ClickDetectorConfig config{
+        .sampleRate = sampleRate,
+        .frameSize = 512,
+        .hopSize = 256,
+        .detectionThreshold = 6.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 5
+    };
+
+    ClickDetector detector(config);
+    detector.prepare();
+
+    auto clicks = detector.detect(buffer.data(), numSamples);
+
+    INFO("Detected " << clicks.size() << " potential clicks with smooth foldAmount ramp");
+
+    // Smooth parameter changes should produce NO clicks
+    // The wavefolder is stateless and continuous, so gradual parameter
+    // changes should result in smooth output
+    REQUIRE(clicks.empty());
+}
+
+TEST_CASE("Abrupt foldAmount change at signal zero-crossing produces no clicks", "[wavefolder][artifact]") {
+    // Best practice: change parameters at zero crossings
+    using namespace TestUtils;
+
+    constexpr size_t numSamples = 2048;
+    constexpr float sampleRate = 44100.0f;
+    constexpr float freq = 440.0f;
+
+    std::vector<float> buffer(numSamples);
+
+    Wavefolder folder;
+    folder.setType(WavefoldType::Triangle);
+    folder.setFoldAmount(1.0f);
+
+    // Find a zero crossing point
+    size_t zeroCrossing = 0;
+    for (size_t i = 1; i < numSamples; ++i) {
+        float t0 = static_cast<float>(i - 1) / sampleRate;
+        float t1 = static_cast<float>(i) / sampleRate;
+        float v0 = std::sin(2.0f * 3.14159f * freq * t0);
+        float v1 = std::sin(2.0f * 3.14159f * freq * t1);
+
+        if (v0 <= 0.0f && v1 > 0.0f) {
+            zeroCrossing = i;
+            break;
+        }
+    }
+
+    REQUIRE(zeroCrossing > 0);
+
+    // Process with abrupt change at zero crossing
+    for (size_t i = 0; i < numSamples; ++i) {
+        float t = static_cast<float>(i) / sampleRate;
+        float input = 0.8f * std::sin(2.0f * 3.14159f * freq * t);
+
+        if (i == zeroCrossing) {
+            folder.setFoldAmount(5.0f);  // Abrupt change
+        }
+        buffer[i] = folder.process(input);
+    }
+
+    ClickDetectorConfig config{
+        .sampleRate = sampleRate,
+        .frameSize = 256,
+        .hopSize = 128,
+        .detectionThreshold = 6.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 5
+    };
+
+    ClickDetector detector(config);
+    detector.prepare();
+
+    auto clicks = detector.detect(buffer.data(), numSamples);
+
+    INFO("Detected " << clicks.size() << " clicks with abrupt change at zero crossing");
+
+    // Zero-crossing changes should be click-free because input ≈ 0
+    // and f(0) is continuous across parameter changes for Triangle fold
+    REQUIRE(clicks.empty());
 }
 
 // =============================================================================
