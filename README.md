@@ -40,7 +40,7 @@ krate-audio/
 
 A feature-rich VST3/AU delay plugin with 11 distinct delay algorithms - from vintage tape and analog emulations to modern granular and spectral processing.
 
-[**Website & Documentation**](https://rolandzwaga.github.io/iterum/) | [**Plugin README**](plugins/iterum/README.md)
+[**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/) | [**Plugin README**](plugins/iterum/README.md)
 
 ## KrateDSP Library
 
