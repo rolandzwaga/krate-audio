@@ -150,16 +150,15 @@ TEST_CASE("SaturationProcessor prepare and reset", "[saturation][foundational]")
     sat.reset();
 }
 
-TEST_CASE("SaturationProcessor getLatency before oversampling", "[saturation][foundational]") {
-    // Note: getLatency() returns 0 until Oversampler integrated in US5 (T024)
+TEST_CASE("SaturationProcessor getLatency is zero (no internal oversampling)", "[saturation][foundational]") {
+    // SaturationProcessor is "pure" - no internal oversampling
+    // Users wrap in Oversampler externally if needed
     SaturationProcessor sat;
     sat.prepare(44100.0, 512);
 
-    // Before oversampling integration, latency should be 0
-    // This test will be updated in Phase 4 to expect actual oversampler latency
+    // No internal oversampling = zero latency
     size_t latency = sat.getLatency();
-    // At minimum, it should return a value (not crash)
-    REQUIRE(latency >= 0);  // Trivially true but ensures method works
+    REQUIRE(latency == 0);
 }
 
 // ==============================================================================
@@ -695,67 +694,54 @@ TEST_CASE("US4: Mix change is smoothed", "[saturation][US4][SC-005]") {
 }
 
 // ==============================================================================
-// User Story 5: Oversampling [US5]
+// User Story 5: Pure Processor (No Internal Oversampling) [US5]
 // ==============================================================================
 
-TEST_CASE("US5: High frequency aliasing is rejected", "[saturation][US5][SC-003]") {
-    // SC-003: Processing 10kHz sine at 44.1kHz with +18dB drive
-    // produces alias rejection > 48dB
-
-    SaturationProcessor sat;
-    sat.prepare(44100.0, 8192);
-    sat.setType(SaturationType::Tape);
-    sat.setInputGain(18.0f);  // +18 dB heavy drive
-    sat.setMix(1.0f);
-
-    // Generate 10kHz sine
-    constexpr size_t kNumSamples = 8192;
-    std::vector<float> buffer(kNumSamples);
-    generateSine(buffer.data(), kNumSamples, 10000.0f, kSampleRate, 1.0f);
-
-    // Process
-    sat.process(buffer.data(), kNumSamples);
-
-    // Analyze: look for aliased frequencies below 10kHz
-    // With 2x oversampling at 44.1kHz:
-    // - Original Nyquist: 22.05kHz
-    // - Oversampled Nyquist: 44.1kHz
-    // Harmonics of 10kHz: 20kHz, 30kHz, 40kHz...
-    // Without oversampling, 30kHz would alias to 44.1-30=14.1kHz
-    // With oversampling, this should be greatly attenuated
-
-    // Check that there's minimal energy below 10kHz (where aliases would appear)
-    // Looking at around 3.5kHz bin where potential aliases could appear
-    constexpr size_t kFundamentalBin = 1857;  // 10kHz at 44.1kHz/8192
-    constexpr size_t kAliasBin = 650;         // ~3.5kHz where potential aliases could appear
-
-    float fundamentalMag = measureHarmonicMagnitude(buffer.data(), kNumSamples, kFundamentalBin);
-    float aliasMag = measureHarmonicMagnitude(buffer.data(), kNumSamples, kAliasBin);
-
-    // Alias rejection should be > 48dB
-    float aliasRejectionDb = linearToDb(fundamentalMag / aliasMag);
-
-    INFO("Alias rejection: " << aliasRejectionDb << " dB");
-    REQUIRE(aliasRejectionDb > 48.0f);
-}
-
-TEST_CASE("US5: getLatency reports correct value", "[saturation][US5]") {
-    // Given: Prepared processor with 2x oversampling
-    // Then: getLatency() returns oversampler latency
+TEST_CASE("US5: Processor is pure (no internal oversampling)", "[saturation][US5]") {
+    // SaturationProcessor is intentionally "pure" - no internal oversampling.
+    // Users wrap in Oversampler<> externally if aliasing reduction is needed.
+    // This follows the DST-ROADMAP design: composable anti-aliasing.
 
     SaturationProcessor sat;
     sat.prepare(44100.0, 512);
 
-    // Latency should match the oversampler's latency
-    size_t latency = sat.getLatency();
+    // Zero latency confirms no internal oversampling
+    REQUIRE(sat.getLatency() == 0);
 
-    // With 2x oversampling using IIR filters, typical latency is small
-    // (depends on oversampler implementation)
-    // At minimum, it should be >= 0
-    INFO("Reported latency: " << latency << " samples");
+    // Process a simple test to verify it works
+    std::vector<float> buffer(512);
+    generateSine(buffer.data(), 512, 1000.0f, kSampleRate, 0.5f);
+    sat.setType(SaturationType::Tape);
+    sat.setInputGain(6.0f);
+    sat.setMix(1.0f);
 
-    // The Oversampler<2,1> should report its actual latency
-    REQUIRE(latency >= 0);  // Sanity check - method doesn't crash
+    sat.process(buffer.data(), 512);
+
+    // Should produce output (not all zeros)
+    float rms = calculateRMS(buffer.data(), 512);
+    REQUIRE(rms > 0.1f);
+}
+
+TEST_CASE("US5: External oversampling example", "[saturation][US5][.example]") {
+    // This test documents how to use external oversampling.
+    // Tagged [.example] so it's skipped by default (documentation only).
+    //
+    // Usage pattern:
+    //   Oversampler<4, 1> oversampler;  // 4x oversampling
+    //   SaturationProcessor sat;
+    //   oversampler.prepare(sampleRate, maxBlockSize);
+    //   sat.prepare(sampleRate * 4, maxBlockSize * 4);  // At oversampled rate
+    //
+    //   oversampler.process(buffer, numSamples, [&](float* up, size_t n) {
+    //       sat.process(up, n);  // Process at 4x sample rate
+    //   });
+    //
+    // Benefits:
+    // - User chooses oversampling factor based on aliasing needs
+    // - Multiple processors can share one oversample cycle
+    // - Zero latency when oversampling not needed
+
+    SUCCEED("Documentation test - see code comments for usage pattern");
 }
 
 // ==============================================================================
@@ -1037,25 +1023,24 @@ TEST_CASE("SaturationType enumeration values", "[saturation][enum]") {
 }
 
 // ==============================================================================
-// Spectral Analysis Tests - Aliasing Verification
+// Spectral Analysis Tests - Harmonic Generation Verification
 // ==============================================================================
 
-TEST_CASE("SaturationProcessor spectral analysis: 2x oversampling reduces aliasing vs raw tanh",
-          "[saturation][aliasing][oversampling]") {
+TEST_CASE("SaturationProcessor spectral analysis: generates expected harmonics",
+          "[saturation][spectral]") {
     using namespace Krate::DSP::TestUtils;
 
-    // SaturationProcessor uses 2x oversampling internally, which should
-    // significantly reduce aliasing compared to raw Sigmoid::tanh()
+    // SaturationProcessor is "pure" (no internal oversampling).
+    // This test verifies harmonic generation behavior.
     AliasingTestConfig config{
-        .testFrequencyHz = 5000.0f,
+        .testFrequencyHz = 1000.0f,  // Use lower frequency to avoid aliasing artifacts
         .sampleRate = 44100.0f,
-        .driveGain = 1.0f,  // Will be controlled by processor's input gain
+        .driveGain = 1.0f,
         .fftSize = 4096,
         .maxHarmonic = 10
     };
 
-    SECTION("SaturationProcessor (2x OS) has less aliasing than raw tanh") {
-        // Setup SaturationProcessor with Tape (tanh) saturation
+    SECTION("Tape saturation produces harmonics") {
         SaturationProcessor sat;
         sat.prepare(44100.0, 4096);
         sat.setType(SaturationType::Tape);
@@ -1063,13 +1048,9 @@ TEST_CASE("SaturationProcessor spectral analysis: 2x oversampling reduces aliasi
         sat.setOutputGain(0.0f);
         sat.setMix(1.0f);
 
-        // Prime the processor to get past initial transients
+        // Prime the processor
         std::vector<float> primeBuffer(512, 0.0f);
         sat.process(primeBuffer.data(), primeBuffer.size());
-
-        // Measure aliasing from SaturationProcessor (block-based)
-        // Note: We can't use measureAliasing directly since it expects sample-by-sample
-        // Instead, generate test signal, process through SaturationProcessor, then analyze
 
         // Generate test signal
         const size_t numSamples = config.fftSize;
@@ -1077,21 +1058,12 @@ TEST_CASE("SaturationProcessor spectral analysis: 2x oversampling reduces aliasi
         for (size_t i = 0; i < numSamples; ++i) {
             const float phase = kTwoPi * config.testFrequencyHz *
                                static_cast<float>(i) / config.sampleRate;
-            testBuffer[i] = std::sin(phase);  // Unity amplitude - processor applies gain
+            testBuffer[i] = std::sin(phase);
         }
 
-        // Process through SaturationProcessor
         sat.process(testBuffer.data(), numSamples);
 
-        // Measure raw tanh aliasing for comparison
-        // Raw tanh with equivalent drive (+12dB = ~4x linear gain)
-        const float rawDrive = dbToGain(12.0f);
-        auto rawResult = measureAliasing(config, [rawDrive](float x) {
-            return Sigmoid::tanh(x * rawDrive);
-        });
-
-        // Calculate aliasing in processed buffer using FFT
-        // Apply window
+        // Apply window and FFT
         std::vector<float> window(numSamples);
         Window::generateHann(window.data(), numSamples);
         for (size_t i = 0; i < numSamples; ++i) {
@@ -1103,26 +1075,22 @@ TEST_CASE("SaturationProcessor spectral analysis: 2x oversampling reduces aliasi
         std::vector<Complex> spectrum(fft.numBins());
         fft.forward(testBuffer.data(), spectrum.data());
 
-        // Get aliased bin indices
-        auto aliasedBins = getAliasedBins(config);
+        // Get harmonic bin indices
+        auto harmonicBins = getHarmonicBins(config);
 
-        // Sum power in aliased bins
-        float aliasedPower = 0.0f;
-        for (size_t bin : aliasedBins) {
+        // Sum power in harmonic bins
+        float harmonicPower = 0.0f;
+        for (size_t bin : harmonicBins) {
             if (bin < spectrum.size()) {
                 float mag = spectrum[bin].magnitude();
-                aliasedPower += mag * mag;
+                harmonicPower += mag * mag;
             }
         }
-        float processedAliasingDb = 10.0f * std::log10(aliasedPower + 1e-10f);
+        float harmonicsDb = 10.0f * std::log10(harmonicPower + 1e-10f);
 
-        INFO("SaturationProcessor (2x OS) aliasing: " << processedAliasingDb << " dB");
-        INFO("Raw tanh aliasing: " << rawResult.aliasingPowerDb << " dB");
-
-        // The 2x oversampling should provide at least some aliasing reduction
-        // Note: DC blocker and other processing may affect the comparison
-        // We expect processed aliasing to be lower (more negative or smaller positive)
-        REQUIRE(processedAliasingDb < rawResult.aliasingPowerDb + 6.0f);  // At least not worse
+        INFO("Harmonic content: " << harmonicsDb << " dB");
+        // Tape saturation should generate measurable harmonic content
+        REQUIRE(harmonicsDb > -60.0f);
     }
 }
 

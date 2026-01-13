@@ -2,19 +2,22 @@
 // Layer 2: DSP Processor - Saturation Processor
 // ==============================================================================
 // Analog-style saturation/waveshaping processor composing Layer 1 primitives
-// (Oversampler, Biquad, OnePoleSmoother) into a unified saturation module with:
+// (Biquad, OnePoleSmoother) into a unified saturation module with:
 // - 5 saturation types (Tape/Tube/Transistor/Digital/Diode)
-// - 2x oversampling for alias-free nonlinear processing
 // - Automatic DC blocking after saturation
 // - Input/output gain staging [-24dB, +24dB]
 // - Dry/wet mix for parallel saturation
 // - Parameter smoothing for click-free modulation
 //
+// NOTE: This processor is "pure" - no internal oversampling. Users should wrap
+// in Oversampler<> externally if aliasing reduction is required. This follows
+// the DST-ROADMAP design principle of composable anti-aliasing.
+//
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations in process)
 // - Principle III: Modern C++ (C++20, RAII)
 // - Principle IX: Layer 2 (depends only on Layer 0/1)
-// - Principle X: DSP Constraints (oversampling for nonlinear, DC blocking)
+// - Principle X: DSP Constraints (DC blocking; oversampling is external)
 // - Principle XII: Test-First Development
 //
 // Reference: specs/009-saturation-processor/spec.md
@@ -24,7 +27,6 @@
 
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/smoother.h>
-#include <krate/dsp/primitives/oversampler.h>
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/sigmoid.h>
 
@@ -61,21 +63,24 @@ enum class SaturationType : uint8_t {
 // SaturationProcessor Class
 // =============================================================================
 
-/// @brief Layer 2 DSP Processor - Saturation with oversampling and DC blocking
+/// @brief Layer 2 DSP Processor - Saturation with DC blocking
 ///
 /// Provides analog-style saturation/waveshaping with 5 distinct algorithms.
 /// Features:
-/// - 2x oversampling for alias-free processing (FR-013, FR-014)
 /// - Automatic DC blocking after saturation (FR-016, FR-017)
 /// - Input/output gain staging [-24, +24] dB (FR-006, FR-007)
 /// - Dry/wet mix for parallel saturation (FR-009, FR-010, FR-011)
 /// - Parameter smoothing for click-free modulation (FR-008, FR-012)
 ///
+/// @note This processor has NO internal oversampling. For aliasing reduction,
+/// wrap in Oversampler<Factor, Channels> externally. This design enables
+/// composable anti-aliasing (multiple processors share one oversample cycle).
+///
 /// @par Constitution Compliance
 /// - Principle II: Real-Time Safety (noexcept, no allocations in process)
 /// - Principle III: Modern C++ (C++20, RAII)
 /// - Principle IX: Layer 2 (depends only on Layer 0/1)
-/// - Principle X: DSP Constraints (oversampling for nonlinear, DC blocking)
+/// - Principle X: DSP Constraints (DC blocking; external oversampling)
 ///
 /// @par Usage
 /// @code
@@ -127,11 +132,8 @@ public:
         outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
         mixSmoother_.snapTo(mix_);
 
-        // Prepare oversampler
-        oversampler_.prepare(sampleRate, maxBlockSize);
-
-        // Allocate oversampled buffer (2x for 2x oversampling)
-        oversampledBuffer_.resize(maxBlockSize * 2);
+        // Allocate dry buffer for mix blending
+        dryBuffer_.resize(maxBlockSize);
 
         // Prepare DC blocker (10Hz highpass biquad)
         dcBlocker_.configure(FilterType::Highpass, kDCBlockerCutoffHz, 0.707f, 0.0f,
@@ -150,14 +152,11 @@ public:
         outputGainSmoother_.snapTo(dbToGain(outputGainDb_));
         mixSmoother_.snapTo(mix_);
 
-        // Reset oversampler
-        oversampler_.reset();
-
         // Reset DC blocker
         dcBlocker_.reset();
 
-        // Clear oversampled buffer
-        std::fill(oversampledBuffer_.begin(), oversampledBuffer_.end(), 0.0f);
+        // Clear dry buffer
+        std::fill(dryBuffer_.begin(), dryBuffer_.end(), 0.0f);
     }
 
     // -------------------------------------------------------------------------
@@ -176,47 +175,45 @@ public:
     void process(float* buffer, size_t numSamples) noexcept {
         // Store dry signal for mix blending
         for (size_t i = 0; i < numSamples; ++i) {
-            oversampledBuffer_[i] = buffer[i];  // Temporarily use as dry buffer
+            dryBuffer_[i] = buffer[i];
         }
 
-        // Advance smoothers first to reach target values
-        // Run at base sample rate for click-free modulation
-        for (size_t i = 0; i < numSamples; ++i) {
-            (void)inputGainSmoother_.process();
-            (void)outputGainSmoother_.process();
-            (void)mixSmoother_.process();
-        }
+        // Get current smoothed mix value to check for full dry
+        const float currentMix = mixSmoother_.getCurrentValue();
 
-        // Cache smoothed values for use in oversampled callback
-        const float inputGain = inputGainSmoother_.getCurrentValue();
-        const float outputGain = outputGainSmoother_.getCurrentValue();
-
-        // Process with oversampling
-        oversampler_.process(buffer, numSamples, [this, inputGain, outputGain](float* upsampled, size_t numOversampledSamples) {
-            // Apply saturation at oversampled rate
-            for (size_t i = 0; i < numOversampledSamples; ++i) {
-                // Apply input gain (drive)
-                float signal = upsampled[i] * inputGain;
-
-                // Apply saturation
-                signal = applySaturation(signal);
-
-                // Apply output gain (makeup)
-                upsampled[i] = signal * outputGain;
+        // Early exit for full dry (bypass saturation entirely for efficiency)
+        if (currentMix < 0.0001f) {
+            // Still advance smoothers to keep them converged
+            for (size_t i = 0; i < numSamples; ++i) {
+                (void)inputGainSmoother_.process();
+                (void)outputGainSmoother_.process();
+                (void)mixSmoother_.process();
             }
-        });
+            return;  // Buffer unchanged = dry signal
+        }
+
+        // Process each sample with smoothed parameters
+        for (size_t i = 0; i < numSamples; ++i) {
+            // Get smoothed parameter values
+            const float inputGain = inputGainSmoother_.process();
+            const float outputGain = outputGainSmoother_.process();
+            const float mix = mixSmoother_.process();
+
+            // Apply input gain (drive)
+            float signal = buffer[i] * inputGain;
+
+            // Apply saturation
+            signal = applySaturation(signal);
+
+            // Apply output gain (makeup)
+            signal *= outputGain;
+
+            // Blend dry/wet
+            buffer[i] = dryBuffer_[i] * (1.0f - mix) + signal * mix;
+        }
 
         // Apply DC blocking after saturation
         dcBlocker_.processBlock(buffer, numSamples);
-
-        // Blend dry/wet using smoothed mix value
-        const float mix = mixSmoother_.getCurrentValue();
-        if (mix < 0.9999f) {  // Skip blending if fully wet
-            const float dryMix = 1.0f - mix;
-            for (size_t i = 0; i < numSamples; ++i) {
-                buffer[i] = oversampledBuffer_[i] * dryMix + buffer[i] * mix;
-            }
-        }
     }
 
     /// @brief Process a single sample
@@ -226,8 +223,8 @@ public:
     ///
     /// @pre prepare() has been called
     ///
-    /// @note Less efficient than process() for buffers due to per-sample
-    ///       oversampling overhead. Use for modular/per-sample contexts only.
+    /// @note Does NOT apply DC blocking (no state for single sample).
+    ///       Use process() for block-based processing with DC blocking.
     [[nodiscard]] float processSample(float input) noexcept {
         // Store dry signal for mix blending
         const float dry = input;
@@ -329,11 +326,11 @@ public:
 
     /// @brief Get processing latency in samples
     ///
-    /// @return Latency from oversampling filters
+    /// @return Always 0 (no internal oversampling)
     ///
-    /// @note Report this to host for delay compensation
+    /// @note If using external Oversampler, add its latency to host compensation
     [[nodiscard]] size_t getLatency() const noexcept {
-        return oversampler_.getLatency();
+        return 0;  // No internal oversampling = no latency
     }
 
 private:
@@ -425,11 +422,10 @@ private:
     OnePoleSmoother mixSmoother_;
 
     // DSP components
-    Oversampler<2, 1> oversampler_;  // 2x oversampling (FR-013, FR-014)
-    Biquad dcBlocker_;               // DC blocking filter (FR-016, FR-017, FR-018)
+    Biquad dcBlocker_;  // DC blocking filter (FR-016, FR-017, FR-018)
 
-    // Pre-allocated buffer (FR-025)
-    std::vector<float> oversampledBuffer_;
+    // Pre-allocated buffer for dry signal (FR-025)
+    std::vector<float> dryBuffer_;
 };
 
 } // namespace DSP
