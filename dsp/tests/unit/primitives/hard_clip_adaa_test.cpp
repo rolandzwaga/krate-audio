@@ -594,7 +594,7 @@ TEST_CASE("NaN input propagates NaN output (FR-028)", "[hard_clip_adaa][primitiv
 }
 
 // T062: +Infinity input clamps to +threshold
-TEST_CASE("+Infinity input clamps to +threshold (FR-029)", "[hard_clip_adaa][primitives][edge]") {
+TEST_CASE("Positive infinity input clamps to +threshold (FR-029)", "[hard_clip_adaa][primitives][edge]") {
     HardClipADAA clipper;
     clipper.setThreshold(0.8f);
 
@@ -605,7 +605,7 @@ TEST_CASE("+Infinity input clamps to +threshold (FR-029)", "[hard_clip_adaa][pri
 }
 
 // T063: -Infinity input clamps to -threshold
-TEST_CASE("-Infinity input clamps to -threshold (FR-029)", "[hard_clip_adaa][primitives][edge]") {
+TEST_CASE("Negative infinity input clamps to -threshold (FR-029)", "[hard_clip_adaa][primitives][edge]") {
     HardClipADAA clipper;
     clipper.setThreshold(0.8f);
 
