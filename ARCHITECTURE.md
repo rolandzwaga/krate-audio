@@ -623,6 +623,46 @@ class HardClipADAA {
 
 **Dependencies:** `core/sigmoid.h` (fallback), `core/db_utils.h` (NaN/Inf detection)
 
+### TanhADAA
+**Path:** [tanh_adaa.h](dsp/include/krate/dsp/primitives/tanh_adaa.h) | **Since:** 0.10.0
+
+Anti-aliased tanh saturation using Antiderivative Anti-Aliasing (ADAA). Provides 3-12dB aliasing reduction compared to naive tanh without oversampling CPU cost.
+
+**Use when:**
+- Smooth saturation is needed with reduced aliasing artifacts
+- Building tube amp simulations or warm distortion effects
+- Processing high-frequency content through nonlinear waveshaping
+- CPU budget doesn't allow for oversampling
+
+**Note:** This is a stateful primitive - requires `reset()` between unrelated audio regions. Compose with DCBlocker if using asymmetric drive settings.
+
+```cpp
+class TanhADAA {
+    void setDrive(float drive) noexcept;           // Pre-gain (abs value stored)
+    void reset() noexcept;                         // Clear state, preserves config
+    [[nodiscard]] float getDrive() const noexcept;
+    [[nodiscard]] float process(float x) noexcept;                   // Single sample
+    void processBlock(float* buffer, size_t n) noexcept;             // Block processing
+    [[nodiscard]] static float F1(float x) noexcept;                 // 1st antiderivative: ln(cosh(x))
+};
+```
+
+| Feature | Value |
+|---------|-------|
+| Aliasing Reduction | ~3-12 dB vs naive tanh |
+| CPU Cost vs Naive | ~8-10x |
+| Output Range | [-1, 1] (bounded) |
+| Antiderivative | F1(x) = ln(cosh(x)) |
+
+**ADAA Formula:**
+```
+y[n] = (F1(x[n]*drive) - F1(x[n-1]*drive)) / (drive * (x[n] - x[n-1]))
+```
+
+**Epsilon Fallback:** When |x[n] - x[n-1]| < 1e-5, uses `fastTanh(midpoint * drive)` to avoid division by near-zero.
+
+**Dependencies:** `core/fast_math.h` (fastTanh, NaN/Inf detection)
+
 ---
 
 ## Layer 2: DSP Processors

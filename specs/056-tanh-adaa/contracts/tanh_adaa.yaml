@@ -1,0 +1,217 @@
+# API Contract: TanhADAA
+# Anti-aliased tanh saturation primitive
+#
+# Feature: 056-tanh-adaa
+# Layer: 1 (Primitives)
+# Location: dsp/include/krate/dsp/primitives/tanh_adaa.h
+
+apiVersion: dsp/v1
+kind: Primitive
+metadata:
+  name: TanhADAA
+  namespace: Krate::DSP
+  layer: 1
+  header: primitives/tanh_adaa.h
+  since: "0.11.0"
+  spec: specs/056-tanh-adaa/spec.md
+
+spec:
+  description: |
+    First-order ADAA tanh saturation. Reduces aliasing from tanh waveshaping
+    without oversampling. Uses F1(x) = ln(cosh(x)) as antiderivative with
+    asymptotic approximation for overflow prevention.
+
+  # Constructor
+  constructor:
+    signature: TanhADAA() noexcept
+    postconditions:
+      - drive_ == 1.0f
+      - x1_ == 0.0f
+      - hasPreviousSample_ == false
+    requirement: FR-001
+
+  # Configuration methods
+  configuration:
+    - method: setDrive
+      signature: void setDrive(float drive) noexcept
+      params:
+        - name: drive
+          type: float
+          description: Saturation intensity (negative treated as positive)
+      behavior: |
+        drive_ = abs(drive)
+        Takes effect on next process() call
+      requirements: [FR-002, FR-003]
+
+    - method: reset
+      signature: void reset() noexcept
+      behavior: |
+        x1_ = 0.0f
+        hasPreviousSample_ = false
+        drive_ unchanged
+      postcondition: Next process() returns naive tanh
+      requirement: FR-005
+
+  # Getter methods
+  getters:
+    - method: getDrive
+      signature: "[[nodiscard]] float getDrive() const noexcept"
+      returns: Current drive value (>= 0)
+      requirement: FR-014
+
+  # Processing methods
+  processing:
+    - method: process
+      signature: "[[nodiscard]] float process(float x) noexcept"
+      params:
+        - name: x
+          type: float
+          description: Input sample
+      returns: Anti-aliased tanh-saturated output
+      algorithm: |
+        1. If drive == 0: return 0.0f
+        2. If isNaN(x): return x (propagate)
+        3. If isInf(x): return sign(x) * 1.0f
+        4. If !hasPreviousSample_:
+             hasPreviousSample_ = true
+             x1_ = x
+             return fastTanh(x * drive)
+        5. dx = x - x1_
+           If |dx| < epsilon:
+             return fastTanh((x + x1_) / 2 * drive)
+        6. y = (F1(x * drive) - F1(x1_ * drive)) / (drive * dx)
+           x1_ = x
+           return y
+      realTimeSafe: true
+      complexity: O(1)
+      requirements: [FR-009, FR-012, FR-013, FR-018, FR-019, FR-020]
+
+    - method: processBlock
+      signature: void processBlock(float* buffer, size_t n) noexcept
+      params:
+        - name: buffer
+          type: float*
+          description: Audio buffer (in-place modification)
+        - name: n
+          type: size_t
+          description: Number of samples
+      behavior: Equivalent to N sequential process() calls
+      bitIdentical: true
+      realTimeSafe: true
+      requirements: [FR-010, FR-011]
+
+  # Static methods
+  statics:
+    - method: F1
+      signature: "[[nodiscard]] static float F1(float x) noexcept"
+      params:
+        - name: x
+          type: float
+          description: Input (already drive-scaled)
+      returns: First antiderivative of tanh at x
+      formula: |
+        if |x| < 20.0:
+          return log(cosh(x))
+        else:
+          return |x| - ln(2)  # asymptotic approximation
+      requirements: [FR-006, FR-007, FR-008]
+
+  # Constants
+  constants:
+    - name: kEpsilon
+      value: 1e-5f
+      description: Threshold for near-identical sample detection
+
+    - name: kOverflowThreshold
+      value: 20.0f
+      description: Switch to asymptotic F1 approximation
+
+    - name: kLn2
+      value: 0.693147180559945f
+      description: ln(2) for asymptotic formula
+
+  # Member variables
+  members:
+    - name: x1_
+      type: float
+      default: 0.0f
+      description: Previous input sample
+
+    - name: drive_
+      type: float
+      default: 1.0f
+      description: Saturation intensity (always >= 0)
+
+    - name: hasPreviousSample_
+      type: bool
+      default: false
+      description: State flag for first sample handling
+
+  # Edge cases
+  edgeCases:
+    - condition: drive == 0
+      behavior: Always output 0.0f
+      requirement: FR-004
+
+    - condition: NaN input
+      behavior: Propagate NaN
+      requirement: FR-019
+
+    - condition: +/- Infinity input
+      behavior: Return +/- 1.0f
+      requirement: FR-020
+
+    - condition: First sample after reset
+      behavior: Return naive fastTanh(x * drive)
+      requirement: FR-018
+
+    - condition: |x - x1_| < epsilon
+      behavior: Return fastTanh(midpoint * drive)
+      requirement: FR-013
+
+  # Dependencies
+  dependencies:
+    layer0:
+      - header: core/fast_math.h
+        usage: FastMath::fastTanh() for fallback
+      - header: core/db_utils.h
+        usage: detail::isNaN(), detail::isInf()
+    stdlib:
+      - header: cmath
+        functions: [std::log, std::cosh, std::abs]
+      - header: cstddef
+        types: [size_t]
+
+  # Success criteria verification
+  verification:
+    SC-001:
+      description: >= 3dB aliasing reduction vs naive tanh at 5kHz/44.1kHz
+      testMethod: spectral_analysis.h compareAliasing()
+
+    SC-002:
+      description: Near-linear region matches naive tanh within 1e-4
+      testMethod: Direct comparison at low drive
+
+    SC-003:
+      description: F1() produces correct antiderivative values
+      testMethod: Compare against analytical formula
+
+    SC-004:
+      description: processBlock() bit-identical to N process() calls
+      testMethod: Direct buffer comparison
+
+    SC-005:
+      description: 1M samples, no unexpected NaN/Inf
+      testMethod: Extended stress test
+
+    SC-006:
+      description: 100% test coverage of public methods
+      testMethod: Coverage analysis
+
+    SC-007:
+      description: Constant input converges to tanh(input * drive)
+      testMethod: Steady-state test
+
+    SC-008:
+      description: <= 10x naive tanh cost
+      testMethod: Benchmark comparison
