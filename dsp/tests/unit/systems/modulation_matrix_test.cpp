@@ -23,6 +23,9 @@
 
 #include <krate/dsp/systems/modulation_matrix.h>
 
+#include <parameter_sweep.h>
+#include <test_signals.h>
+
 using Catch::Approx;
 using namespace Krate::DSP;
 
@@ -1085,4 +1088,163 @@ TEST_CASE("Depth changes are glitch-free with smoothing", "[modulation][polish]"
     // Maximum change in 1.45ms should be small fraction of full range
     // 5 time constants for 99% = 100ms, so 1.45ms ≈ 7.25% of full transition
     REQUIRE(maxChange < 0.5f); // Conservative limit - smoothing prevents full jumps
+}
+
+// ==============================================================================
+// Parameter Sweep Tests: Modulation Smoothness
+// ==============================================================================
+// Note: ModulationMatrix produces parameter values, not audio signals.
+// ClickDetector is designed for audio, so we test parameter smoothness directly.
+
+using Krate::DSP::TestUtils::generateParameterValues;
+using Krate::DSP::TestUtils::ParameterSweepConfig;
+using Krate::DSP::TestUtils::StepType;
+
+TEST_CASE("ModulationMatrix parameter sweep: depth range produces smooth output",
+          "[modulation][sweep][smoothness]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 64;
+    constexpr size_t numBlocks = 100;  // ~145ms per depth value
+
+    ModulationMatrix matrix;
+    matrix.prepare(sampleRate, blockSize, 32);
+
+    MockModulationSource source(0.5f);  // Constant source
+    matrix.registerSource(0, &source);
+    matrix.registerDestination(0, 0.0f, 100.0f, "TestParam");
+    int route = matrix.createRoute(0, 0, 0.0f, ModulationMode::Bipolar);
+
+    // Configure sweep over modulation depth
+    ParameterSweepConfig config{
+        .parameterName = "ModulationDepth",
+        .minValue = 0.0f,
+        .maxValue = 1.0f,
+        .numSteps = 11,
+        .stepType = StepType::Linear
+    };
+
+    auto depthValues = generateParameterValues(config);
+    bool allSmooth = true;
+    float maxTransitionJump = 0.0f;
+
+    for (float depth : depthValues) {
+        matrix.setRouteDepth(route, depth);
+
+        // Process several blocks and collect modulated values
+        std::vector<float> modValues;
+        modValues.reserve(numBlocks * blockSize);
+
+        for (size_t block = 0; block < numBlocks; ++block) {
+            matrix.process(blockSize);
+            for (size_t i = 0; i < blockSize; ++i) {
+                float modulated = matrix.getModulatedValue(0, 50.0f);
+                modValues.push_back(modulated);
+            }
+        }
+
+        // Check for smooth transitions (no sudden jumps)
+        float maxDelta = 0.0f;
+        for (size_t i = 1; i < modValues.size(); ++i) {
+            float delta = std::abs(modValues[i] - modValues[i - 1]);
+            maxDelta = std::max(maxDelta, delta);
+        }
+
+        // With smoothing, deltas should be small
+        // Allow some change due to smoothing convergence, but not sudden jumps
+        if (maxDelta > 2.0f) {  // More than 2% of destination range per sample
+            allSmooth = false;
+            maxTransitionJump = std::max(maxTransitionJump, maxDelta);
+        }
+    }
+
+    INFO("Max transition jump: " << maxTransitionJump);
+    REQUIRE(allSmooth);
+}
+
+TEST_CASE("ModulationMatrix parameter sweep: source value changes are smooth",
+          "[modulation][sweep][smoothness]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 64;
+
+    ModulationMatrix matrix;
+    matrix.prepare(sampleRate, blockSize, 32);
+
+    MockModulationSource source(0.0f);
+    matrix.registerSource(0, &source);
+    matrix.registerDestination(0, 0.0f, 100.0f, "TestParam");
+    matrix.createRoute(0, 0, 1.0f, ModulationMode::Bipolar);
+
+    // Sweep source value from -1 to 1 over time
+    std::vector<float> modValues;
+    constexpr size_t totalSamples = 44100;  // 1 second
+
+    for (size_t sample = 0; sample < totalSamples; sample += blockSize) {
+        // Ramp source value
+        float t = static_cast<float>(sample) / static_cast<float>(totalSamples);
+        float sourceValue = -1.0f + 2.0f * t;  // -1 to +1
+        source.setValue(sourceValue);
+
+        matrix.process(std::min(blockSize, totalSamples - sample));
+
+        for (size_t i = 0; i < std::min(blockSize, totalSamples - sample); ++i) {
+            float modulated = matrix.getModulatedValue(0, 50.0f);
+            modValues.push_back(modulated);
+        }
+    }
+
+    // Check smoothness: modulated values should change gradually
+    float maxDelta = 0.0f;
+    for (size_t i = 1; i < modValues.size(); ++i) {
+        float delta = std::abs(modValues[i] - modValues[i - 1]);
+        maxDelta = std::max(maxDelta, delta);
+    }
+
+    // With 20ms smoothing, max change per sample should be very small
+    // Full range is 100, 1 second = 44100 samples
+    // Expected max delta ≈ 100 / 44100 ≈ 0.002 per sample for linear ramp
+    // With smoothing, could be slightly higher at transitions
+    INFO("Max delta between samples: " << maxDelta);
+    REQUIRE(maxDelta < 1.0f);  // Less than 1% of range per sample
+}
+
+TEST_CASE("ModulationMatrix parameter sweep: rapid depth changes stay bounded",
+          "[modulation][sweep][stability]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 64;
+
+    ModulationMatrix matrix;
+    matrix.prepare(sampleRate, blockSize, 32);
+
+    MockModulationSource source(1.0f);  // Full modulation
+    matrix.registerSource(0, &source);
+    matrix.registerDestination(0, 0.0f, 100.0f, "TestParam");
+    int route = matrix.createRoute(0, 0, 0.0f, ModulationMode::Bipolar);
+
+    std::vector<float> modValues;
+
+    // Rapidly oscillate depth between 0 and 1
+    for (int i = 0; i < 200; ++i) {
+        float targetDepth = (i % 2 == 0) ? 1.0f : 0.0f;
+        matrix.setRouteDepth(route, targetDepth);
+        matrix.process(blockSize);
+
+        float modulated = matrix.getModulatedValue(0, 50.0f);
+        modValues.push_back(modulated);
+    }
+
+    // All values should stay within destination range
+    for (float val : modValues) {
+        REQUIRE(val >= 0.0f);
+        REQUIRE(val <= 100.0f);
+    }
+
+    // Values should not exhibit wild oscillation - smoothing should dampen
+    float minVal = *std::min_element(modValues.begin(), modValues.end());
+    float maxVal = *std::max_element(modValues.begin(), modValues.end());
+
+    // With smoothing, range should be limited even with rapid changes
+    // Full range would be 0-100, smoothed should be much less
+    float observedRange = maxVal - minVal;
+    INFO("Observed range with rapid depth changes: " << observedRange);
+    REQUIRE(observedRange < 80.0f);  // Not full range due to smoothing
 }
