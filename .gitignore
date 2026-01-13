@@ -52,3 +52,4 @@
 tools/
 /plugins/iterum/resources/win32resource.rc
 /plugins/iterum/src/version.h
+tmpclaude-*
