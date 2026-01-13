@@ -347,3 +347,52 @@ Before committing, check for these smells:
 | Accumulator | Loops with tight tolerance | Test single operations |
 | Excuses | "Too complex to test" | Extract pure logic |
 | Manual State | `setXForTesting()` before call | Simulate real call order |
+| CLI-Hostile Names | Test names starting with `-`, `+`, `--` | Use descriptive words |
+
+---
+
+## 10. The CLI-Hostile Test Name
+
+**Problem:** Test names starting with special characters (`-`, `+`, `--`, `/`) are interpreted as command-line flags by the test runner on some platforms (especially Linux).
+
+```cpp
+// BAD: Test names that look like CLI flags
+TEST_CASE("-Infinity input handled gracefully", "[edge]") { ... }
+TEST_CASE("+Infinity input clamps to threshold", "[edge]") { ... }
+TEST_CASE("--verbose mode enables logging", "[config]") { ... }
+
+// On Linux, running these produces:
+// Error(s) in input:
+//   Unrecognised token: -Infinity
+// Run with -? for usage
+
+// GOOD: Use descriptive words instead of symbols
+TEST_CASE("Negative infinity input handled gracefully", "[edge]") { ... }
+TEST_CASE("Positive infinity input clamps to threshold", "[edge]") { ... }
+TEST_CASE("Verbose flag enables logging", "[config]") { ... }
+```
+
+### Why This Happens
+
+Catch2 test discovery uses `--list-tests` and test selection uses regex matching. When CTest or the test runner parses test names, leading `-` or `+` characters can be misinterpreted as:
+- Command-line options (`-v`, `--help`)
+- Numeric arguments (`+5`, `-10`)
+
+This often passes on Windows but fails on Linux/macOS where the shell handles arguments differently.
+
+### Rules for Test Names
+
+1. **Never start with `-`, `+`, `--`, or `/`**
+2. **Use words:** "Negative" not "-", "Positive" not "+"
+3. **Describe the scenario:** What is being tested, not the literal value
+4. **If testing special values, name them:** "NaN", "Infinity", "MinFloat"
+
+### Quick Fix Pattern
+
+| Instead of... | Use... |
+|---------------|--------|
+| `-Infinity` | `Negative infinity` |
+| `+Infinity` | `Positive infinity` |
+| `-1.0 input` | `Negative one input` |
+| `+0.0 vs -0.0` | `Positive zero vs negative zero` |
+| `--flag` | `Double-dash flag` or `Verbose flag`|

@@ -589,6 +589,40 @@ class Waveshaper {
 
 **Important:** Only Diode is unbounded (can exceed [-1, 1]). All other types, including Tube, are bounded to [-1, 1].
 
+### HardClipADAA
+**Path:** [hard_clip_adaa.h](dsp/include/krate/dsp/primitives/hard_clip_adaa.h) • **Since:** 0.10.0
+
+Anti-aliased hard clipping using Antiderivative Anti-Aliasing (ADAA). Provides 12-30dB aliasing reduction compared to naive hard clip without oversampling CPU cost.
+
+**Use when:**
+- Hard clipping is needed with minimal aliasing artifacts
+- CPU budget doesn't allow for oversampling
+- Building guitar/bass amp simulations or aggressive distortion
+- Processing high-frequency content that would cause audible aliasing
+
+**Note:** This is a stateful primitive - requires `reset()` between unrelated audio regions. Compose with DCBlocker if using in feedback loops.
+
+```cpp
+enum class Order : uint8_t { First, Second };  // Quality vs CPU tradeoff
+
+class HardClipADAA {
+    void setOrder(Order order) noexcept;           // First: ~6-8x, Second: ~12-15x vs naive
+    void setThreshold(float threshold) noexcept;   // Clipping level (abs value stored)
+    void reset() noexcept;                         // Clear state, preserves config
+    [[nodiscard]] float process(float x) noexcept;                       // Single sample
+    void processBlock(float* buffer, size_t n) noexcept;                 // Block processing
+    [[nodiscard]] static float F1(float x, float threshold) noexcept;    // 1st antiderivative
+    [[nodiscard]] static float F2(float x, float threshold) noexcept;    // 2nd antiderivative
+};
+```
+
+| Order | Aliasing Reduction | CPU Cost vs Naive | Use Case |
+|-------|-------------------|-------------------|----------|
+| First | ~12-20 dB | ~6-8x | General use, real-time |
+| Second | ~18-30 dB | ~12-15x | Quality-critical, may exceed 10x budget |
+
+**Dependencies:** `core/sigmoid.h` (fallback), `core/db_utils.h` (NaN/Inf detection)
+
 ---
 
 ## Layer 2: DSP Processors
