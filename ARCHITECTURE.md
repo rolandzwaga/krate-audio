@@ -796,6 +796,36 @@ class Saturation {
 };
 ```
 
+### TubeStage
+**Path:** [tube_stage.h](dsp/include/krate/dsp/processors/tube_stage.h) • **Since:** 0.10.0
+
+Tube gain stage with configurable drive, bias, and saturation for warm, musical tube saturation.
+
+```cpp
+class TubeStage {
+    static constexpr float kMinGainDb = -24.0f;
+    static constexpr float kMaxGainDb = +24.0f;
+    static constexpr float kDefaultSmoothingMs = 5.0f;
+    static constexpr float kDCBlockerCutoffHz = 10.0f;
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+    void setInputGain(float dB) noexcept;     // [-24, +24] dB
+    void setOutputGain(float dB) noexcept;    // [-24, +24] dB
+    void setBias(float bias) noexcept;        // [-1, +1] asymmetry
+    void setSaturationAmount(float amount) noexcept;  // [0, 1] wet/dry mix
+    [[nodiscard]] float getInputGain() const noexcept;
+    [[nodiscard]] float getOutputGain() const noexcept;
+    [[nodiscard]] float getBias() const noexcept;
+    [[nodiscard]] float getSaturationAmount() const noexcept;
+};
+```
+
+**Signal Chain:** Input -> [Input Gain] -> [Waveshaper (Tube)] -> [DC Blocker] -> [Output Gain] -> [Mix Blend]
+
+**Dependencies:** Layer 0 (db_utils.h), Layer 1 (waveshaper.h, dc_blocker.h, smoother.h)
+
 ### DynamicsProcessor
 **Path:** [dynamics_processor.h](dsp/include/krate/dsp/processors/dynamics_processor.h) • **Since:** 0.0.12
 
