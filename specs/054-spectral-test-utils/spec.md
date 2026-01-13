@@ -10,7 +10,7 @@
 This specification defines test utilities for measuring aliasing and harmonic distortion using FFT-based spectral analysis. These utilities enable quantitative verification of anti-aliasing success criteria (e.g., "reduces aliasing by 12dB").
 
 **Layer**: Test Infrastructure (not production DSP)
-**Location**: `tests/test_utils/spectral_analysis.h`
+**Location**: `tests/test_helpers/spectral_analysis.h`
 **Namespace**: `Krate::DSP::TestUtils`
 
 ### Motivation
@@ -103,8 +103,7 @@ struct AliasingTestConfig {
     float testFrequencyHz = 5000.0f;   ///< Fundamental frequency
     float sampleRate = 44100.0f;       ///< Sample rate
     float driveGain = 4.0f;            ///< Pre-gain to induce clipping
-    size_t fftSize = 2048;             ///< FFT size (power of 2)
-    size_t numCycles = 20;             ///< Number of cycles to analyze
+    size_t fftSize = 2048;             ///< FFT size (power of 2, determines buffer length)
     int maxHarmonic = 10;              ///< Highest harmonic to consider
 };
 
@@ -154,9 +153,10 @@ float calculateAliasedFrequency(float fundamentalHz, int harmonicNumber, float s
 bool willAlias(float fundamentalHz, int harmonicNumber, float sampleRate);
 
 /// Get all aliased bin indices for a given test setup
+/// Note: Harmonics exactly at Nyquist (freq == sampleRate/2) are categorized as aliased
 std::vector<size_t> getAliasedBins(const AliasingTestConfig& config);
 
-/// Get all intended harmonic bin indices (below Nyquist)
+/// Get all intended harmonic bin indices (strictly below Nyquist)
 std::vector<size_t> getHarmonicBins(const AliasingTestConfig& config);
 
 }
@@ -165,7 +165,7 @@ std::vector<size_t> getHarmonicBins(const AliasingTestConfig& config);
 ## Implementation Plan
 
 ### Phase 1: Core Measurement (Priority: HIGH)
-1. Create `tests/test_utils/spectral_analysis.h`
+1. Create `tests/test_helpers/spectral_analysis.h`
 2. Implement `frequencyToBin()`, `calculateAliasedFrequency()`
 3. Implement `measureAliasing()` using existing `FFT` class
 4. Add windowing (reuse `window_functions.h`)
@@ -320,13 +320,13 @@ TEST_CASE("SC-002: Second-order ADAA provides 6dB additional reduction",
 
 | File | Action | Lines |
 |------|--------|-------|
-| `tests/test_utils/spectral_analysis.h` | NEW | ~120 |
-| `tests/test_utils/spectral_analysis.cpp` | NEW | ~80 |
-| `tests/CMakeLists.txt` | MODIFY | +5 |
+| `tests/test_helpers/spectral_analysis.h` | NEW | ~200 (header-only) |
+| `tests/test_helpers/spectral_analysis_test.cpp` | NEW | ~150 |
+| `tests/test_helpers/CMakeLists.txt` | MODIFY | +5 |
 | `dsp/tests/unit/primitives/hard_clip_adaa_test.cpp` | MODIFY | +60 |
 | `specs/053-hard-clip-adaa/spec.md` | MODIFY | Update SC-001, SC-002 to MET |
 
-**Total**: ~265 lines of new code
+**Total**: ~415 lines of new code
 
 ## Success Criteria
 
