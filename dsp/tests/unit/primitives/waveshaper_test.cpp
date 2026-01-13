@@ -466,7 +466,7 @@ TEST_CASE("HardClip NaN handling is implementation-defined", "[waveshaper][edge]
     REQUIRE((std::isnan(result) || (result >= -1.0f && result <= 1.0f)));
 }
 
-TEST_CASE("+Infinity input handled gracefully (FR-029)", "[waveshaper][edge][infinity][positive]") {
+TEST_CASE("Positive infinity input handled gracefully (FR-029)", "[waveshaper][edge][infinity][positive]") {
     Waveshaper shaper;
     const float posInf = std::numeric_limits<float>::infinity();
 
@@ -523,7 +523,7 @@ TEST_CASE("+Infinity input handled gracefully (FR-029)", "[waveshaper][edge][inf
     }
 }
 
-TEST_CASE("-Infinity input handled gracefully (FR-029)", "[waveshaper][edge][infinity][negative]") {
+TEST_CASE("Negative infinity input handled gracefully (FR-029)", "[waveshaper][edge][infinity][negative]") {
     Waveshaper shaper;
     const float negInf = -std::numeric_limits<float>::infinity();
 
