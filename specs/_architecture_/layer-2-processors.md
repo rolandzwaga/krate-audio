@@ -286,6 +286,67 @@ class TapeSaturator {
 
 ---
 
+## FuzzProcessor
+**Path:** [fuzz_processor.h](../../dsp/include/krate/dsp/processors/fuzz_processor.h) | **Since:** 0.10.0
+
+Fuzz Face style distortion with Germanium and Silicon transistor types, bias control for "dying battery" effects, and optional octave-up mode.
+
+**Use when:**
+- Creating classic fuzz pedal effects (Fuzz Face, Tone Bender emulation)
+- Need selectable transistor character (Germanium warm/saggy, Silicon bright/tight)
+- Want bias control for gating/dying battery effects
+- Building guitar or synth fuzz effects with octave-up capability
+
+**Note:** No internal oversampling - compose with Oversampler for anti-aliasing when needed. Type switching uses 5ms crossfade to prevent clicks.
+
+```cpp
+enum class FuzzType : uint8_t { Germanium, Silicon };
+
+class FuzzProcessor {
+    static constexpr float kMinVolumeDb = -24.0f;
+    static constexpr float kMaxVolumeDb = +24.0f;
+    static constexpr float kToneMinHz = 400.0f;
+    static constexpr float kToneMaxHz = 8000.0f;
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    void setFuzzType(FuzzType type) noexcept;      // Germanium, Silicon
+    void setFuzz(float amount) noexcept;           // [0, 1] saturation intensity
+    void setVolume(float dB) noexcept;             // [-24, +24] dB output
+    void setBias(float bias) noexcept;             // [0, 1] 0=dying battery, 1=normal
+    void setTone(float tone) noexcept;             // [0, 1] dark to bright (400-8000Hz LP)
+    void setOctaveUp(bool enabled) noexcept;       // Self-modulation octave effect
+
+    [[nodiscard]] FuzzType getFuzzType() const noexcept;
+    [[nodiscard]] float getFuzz() const noexcept;
+    [[nodiscard]] float getVolume() const noexcept;
+    [[nodiscard]] float getBias() const noexcept;
+    [[nodiscard]] float getTone() const noexcept;
+    [[nodiscard]] bool getOctaveUp() const noexcept;
+};
+```
+
+| FuzzType | Harmonics | Clipping | Character |
+|----------|-----------|----------|-----------|
+| Germanium | Even + Odd | Soft (tube) | Warm, saggy, vintage |
+| Silicon | Odd dominant | Hard (tanh) | Bright, tight, aggressive |
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| fuzz | 0.5 | [0, 1] | Drive/saturation amount |
+| volume | 0 dB | [-24, +24] | Output level |
+| bias | 0.7 | [0, 1] | Gating (0=dying battery, 1=normal) |
+| tone | 0.5 | [0, 1] | LP filter freq (400-8000Hz) |
+| octaveUp | false | bool | Self-modulation for octave-up |
+
+**Signal Chain:** Input -> [Octave-Up (opt)] -> [Drive] -> [Type Saturation + Sag (Ge only)] -> [Bias Gate] -> [DC Blocker] -> [Tone LP] -> [Volume] -> Output
+
+**Dependencies:** Layer 0 (db_utils.h, sigmoid.h, crossfade_utils.h), Layer 1 (biquad.h, dc_blocker.h, smoother.h)
+
+---
+
 ## DynamicsProcessor
 **Path:** [dynamics_processor.h](../../dsp/include/krate/dsp/processors/dynamics_processor.h) | **Since:** 0.0.12
 
@@ -416,3 +477,74 @@ class TiltEQ {
     void setCenterFrequency(float hz) noexcept;    // Pivot point
 };
 ```
+
+---
+
+## BitcrusherProcessor
+**Path:** [bitcrusher_processor.h](../../dsp/include/krate/dsp/processors/bitcrusher_processor.h) | **Since:** 0.10.0
+
+Bitcrusher effect composing bit depth reduction, sample rate decimation, gain staging, dither gating, and configurable processing order.
+
+**Use when:**
+- Creating lo-fi effects with bit depth reduction and sample rate decimation
+- Need drive/makeup gain staging for creative control
+- Want dither with automatic gating to prevent noise during silence
+- Building retro game audio or vintage digital emulation effects
+
+**Note:** Bit depth and sample rate factor changes are immediate (no smoothing). Gain and mix parameters use 5ms smoothing for click-free automation.
+
+```cpp
+enum class ProcessingOrder : uint8_t { BitCrushFirst, SampleReduceFirst };
+
+class BitcrusherProcessor {
+    static constexpr float kMinBitDepth = 4.0f;
+    static constexpr float kMaxBitDepth = 16.0f;
+    static constexpr float kMinReductionFactor = 1.0f;
+    static constexpr float kMaxReductionFactor = 8.0f;
+    static constexpr float kMinGainDb = -24.0f;
+    static constexpr float kMaxGainDb = +24.0f;
+    static constexpr float kDefaultSmoothingMs = 5.0f;
+    static constexpr float kDCBlockerCutoffHz = 10.0f;
+    static constexpr float kDitherGateThresholdDb = -60.0f;
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    void setBitDepth(float bits) noexcept;                  // [4, 16] bits
+    void setReductionFactor(float factor) noexcept;         // [1, 8] sample rate factor
+    void setDitherAmount(float amount) noexcept;            // [0, 1] TPDF dither
+    void setPreGain(float dB) noexcept;                     // [-24, +24] dB drive
+    void setPostGain(float dB) noexcept;                    // [-24, +24] dB makeup
+    void setMix(float mix) noexcept;                        // [0, 1] dry/wet
+    void setProcessingOrder(ProcessingOrder order) noexcept;
+    void setDitherGateEnabled(bool enabled) noexcept;
+
+    [[nodiscard]] float getBitDepth() const noexcept;
+    [[nodiscard]] float getReductionFactor() const noexcept;
+    [[nodiscard]] float getDitherAmount() const noexcept;
+    [[nodiscard]] float getPreGain() const noexcept;
+    [[nodiscard]] float getPostGain() const noexcept;
+    [[nodiscard]] float getMix() const noexcept;
+    [[nodiscard]] ProcessingOrder getProcessingOrder() const noexcept;
+    [[nodiscard]] bool isDitherGateEnabled() const noexcept;
+    [[nodiscard]] constexpr size_t getLatency() const noexcept;  // Always 0
+};
+```
+
+| Parameter | Default | Range | Smoothed | Effect |
+|-----------|---------|-------|----------|--------|
+| bitDepth | 16 | [4, 16] | No | Quantization levels (2^N) |
+| reductionFactor | 1 | [1, 8] | No | Sample rate decimation |
+| ditherAmount | 0 | [0, 1] | No | TPDF dither intensity |
+| preGain | 0 dB | [-24, +24] | Yes (5ms) | Drive before crushing |
+| postGain | 0 dB | [-24, +24] | Yes (5ms) | Makeup after crushing |
+| mix | 1.0 | [0, 1] | Yes (5ms) | Dry/wet blend |
+| processingOrder | BitCrushFirst | enum | No | Effect chain order |
+| ditherGateEnabled | true | bool | No | Gate dither during silence |
+
+**Signal Chain (BitCrushFirst):** Input -> [Store Dry] -> [Pre-Gain] -> [BitCrusher + Dither Gate] -> [SampleRateReducer] -> [Post-Gain] -> [DC Blocker] -> [Mix Blend] -> Output
+
+**Signal Chain (SampleReduceFirst):** Input -> [Store Dry] -> [Pre-Gain] -> [SampleRateReducer] -> [BitCrusher + Dither Gate] -> [Post-Gain] -> [DC Blocker] -> [Mix Blend] -> Output
+
+**Dependencies:** Layer 0 (db_utils.h), Layer 1 (bit_crusher.h, sample_rate_reducer.h, dc_blocker.h, smoother.h), Layer 2 peer (envelope_follower.h)
