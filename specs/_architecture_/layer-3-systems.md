@@ -170,3 +170,65 @@ Input -> [Input Gain] -> [Bright Cap] -> [Tone Stack Pre?] ->
 - Bright cap: +6dB at -24dB input, linear attenuation to 0dB at +12dB
 - Deferred oversampling: factor change applies on reset()/prepare()
 - 5ms parameter smoothing for click-free operation
+
+---
+
+## TapeMachine
+**Path:** [tape_machine.h](../../dsp/include/krate/dsp/systems/tape_machine.h) | **Since:** 0.0.66
+
+Complete tape machine emulation composing saturation, filters, and modulation.
+
+```cpp
+enum class MachineModel : uint8_t { Studer, Ampex };
+enum class TapeSpeed : uint8_t { IPS_7_5, IPS_15, IPS_30 };
+enum class TapeType : uint8_t { Type456, Type900, TypeGP9 };
+
+class TapeMachine {
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    // Machine configuration
+    void setMachineModel(MachineModel model) noexcept;
+    void setTapeSpeed(TapeSpeed speed) noexcept;
+    void setTapeType(TapeType type) noexcept;
+
+    // Gain staging
+    void setInputLevel(float dB) noexcept;
+    void setOutputLevel(float dB) noexcept;
+
+    // Saturation
+    void setBias(float bias) noexcept;
+    void setSaturation(float amount) noexcept;
+    void setHysteresisModel(HysteresisSolver solver) noexcept;
+
+    // Frequency shaping
+    void setHeadBumpAmount(float amount) noexcept;
+    void setHeadBumpFrequency(float hz) noexcept;
+    void setHighFreqRolloffAmount(float amount) noexcept;
+    void setHighFreqRolloffFrequency(float hz) noexcept;
+
+    // Modulation
+    void setHiss(float amount) noexcept;
+    void setWow(float amount) noexcept;
+    void setFlutter(float amount) noexcept;
+    void setWowRate(float hz) noexcept;
+    void setFlutterRate(float hz) noexcept;
+    void setWowDepth(float cents) noexcept;
+    void setFlutterDepth(float cents) noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Input -> [Input Gain] -> [TapeSaturator] -> [Head Bump] ->
+[HF Rolloff] -> [Wow/Flutter] -> [Hiss] -> [Output Gain] -> Output
+```
+
+**Key Features:**
+- Composes TapeSaturator (Layer 2), NoiseGenerator (Layer 2), LFO x2 (Layer 1), Biquad x2 (Layer 1)
+- Machine models: Studer (transparent), Ampex (warm)
+- Tape speeds: 7.5/15/30 ips with speed-dependent frequency characteristics
+- Tape types: Type456/Type900/TypeGP9 affecting saturation character
+- Full manual override for all preset defaults
+- 5ms parameter smoothing for click-free operation

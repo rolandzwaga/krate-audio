@@ -90,6 +90,7 @@ add_executable(dsp_tests
     unit/systems/flexible_feedback_network_test.cpp
     unit/systems/granular_engine_test.cpp
     unit/systems/amp_channel_test.cpp
+    unit/systems/tape_machine_test.cpp
 
     # Layer 4: Effects
     unit/effects/tape_delay_test.cpp
@@ -203,6 +204,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/character_processor_digital_ramping_test.cpp
         unit/systems/character_processor_bbd_stereo_test.cpp
         unit/systems/amp_channel_test.cpp
+        unit/systems/tape_machine_test.cpp
         unit/effects/tape_delay_test.cpp
         unit/effects/tape_delay_params_diagnostic_test.cpp
         unit/effects/bbd_delay_test.cpp
