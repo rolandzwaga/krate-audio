@@ -117,3 +117,56 @@ class GrainCloud {
     void setEnvelopeType(GrainEnvelopeType type) noexcept;
 };
 ```
+
+---
+
+## AmpChannel
+**Path:** [amp_channel.h](../../dsp/include/krate/dsp/systems/amp_channel.h) | **Since:** 0.0.65
+
+Guitar amp channel with multi-stage gain, Baxandall tone stack, and optional oversampling.
+
+```cpp
+enum class ToneStackPosition : uint8_t { Pre, Post };
+
+class AmpChannel {
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    // Gain staging
+    void setInputGain(float dB) noexcept;      // [-24, +24] dB
+    void setPreampGain(float dB) noexcept;     // [-24, +24] dB
+    void setPowerampGain(float dB) noexcept;   // [-24, +24] dB
+    void setMasterVolume(float dB) noexcept;   // [-60, +6] dB
+
+    // Preamp configuration
+    void setPreampStages(int count) noexcept;  // [1, 3]
+
+    // Tone stack (Baxandall-style)
+    void setToneStackPosition(ToneStackPosition pos) noexcept;
+    void setBass(float value) noexcept;        // [0, 1] -> +/-12dB
+    void setMid(float value) noexcept;         // [0, 1] -> +/-12dB
+    void setTreble(float value) noexcept;      // [0, 1] -> +/-12dB
+    void setPresence(float value) noexcept;    // [0, 1] -> +/-6dB
+
+    // Character controls
+    void setBrightCap(bool enabled) noexcept;  // Gain-dependent HF boost
+
+    // Oversampling
+    void setOversamplingFactor(int factor) noexcept;  // 1, 2, or 4
+    [[nodiscard]] size_t getLatency() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Input -> [Input Gain] -> [Bright Cap] -> [Tone Stack Pre?] ->
+[Preamp 1-3] -> [Tone Stack Post?] -> [Poweramp] -> [Master] -> Output
+```
+
+**Key Features:**
+- Composes 3 TubeStage processors for preamp + 1 for poweramp
+- Baxandall tone stack with independent bass/treble (100Hz/800Hz/3kHz/5kHz)
+- Bright cap: +6dB at -24dB input, linear attenuation to 0dB at +12dB
+- Deferred oversampling: factor change applies on reset()/prepare()
+- 5ms parameter smoothing for click-free operation
