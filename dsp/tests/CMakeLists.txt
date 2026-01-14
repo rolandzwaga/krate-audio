@@ -73,6 +73,7 @@ add_executable(dsp_tests
     unit/processors/tube_stage_test.cpp
     unit/processors/diode_clipper_test.cpp
     unit/processors/wavefolder_processor_test.cpp
+    unit/processors/tape_saturator_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -184,6 +185,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/tube_stage_test.cpp
         unit/processors/diode_clipper_test.cpp
         unit/processors/wavefolder_processor_test.cpp
+        unit/processors/tape_saturator_test.cpp
         unit/systems/delay_engine_test.cpp
         unit/systems/feedback_network_test.cpp
         unit/systems/modulation_matrix_test.cpp
