@@ -826,6 +826,74 @@ class TubeStage {
 
 **Dependencies:** Layer 0 (db_utils.h), Layer 1 (waveshaper.h, dc_blocker.h, smoother.h)
 
+### DiodeClipper
+**Path:** [diode_clipper.h](dsp/include/krate/dsp/processors/diode_clipper.h) | **Since:** 0.10.0
+
+Configurable diode clipping circuit modeling with four diode types and three topologies.
+
+**Use when:**
+- Emulating analog diode clipping circuits (overdrive pedals, guitar amps)
+- Need selectable diode character (Silicon, Germanium, LED, Schottky)
+- Want topology control (Symmetric for odd harmonics, Asymmetric for even+odd)
+- Building distortion effects with authentic analog character
+
+**Note:** No internal oversampling - compose with Oversampler for anti-aliasing when needed.
+
+```cpp
+enum class DiodeType : uint8_t { Silicon, Germanium, LED, Schottky };
+enum class ClipperTopology : uint8_t { Symmetric, Asymmetric, SoftHard };
+
+class DiodeClipper {
+    static constexpr float kMinDriveDb = -24.0f;
+    static constexpr float kMaxDriveDb = +48.0f;
+    static constexpr float kMinOutputDb = -24.0f;
+    static constexpr float kMaxOutputDb = +24.0f;
+    static constexpr float kMinVoltage = 0.05f;
+    static constexpr float kMaxVoltage = 5.0f;
+    static constexpr float kMinKnee = 0.5f;
+    static constexpr float kMaxKnee = 20.0f;
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+    [[nodiscard]] float processSample(float input) noexcept;
+
+    void setDiodeType(DiodeType type) noexcept;          // Silicon, Germanium, LED, Schottky
+    void setTopology(ClipperTopology topology) noexcept; // Symmetric, Asymmetric, SoftHard
+    void setDrive(float dB) noexcept;                    // [-24, +48] dB input gain
+    void setMix(float mix) noexcept;                     // [0, 1] dry/wet blend
+    void setForwardVoltage(float voltage) noexcept;      // [0.05, 5.0] V threshold
+    void setKneeSharpness(float knee) noexcept;          // [0.5, 20.0] transition sharpness
+    void setOutputLevel(float dB) noexcept;              // [-24, +24] dB output gain
+
+    [[nodiscard]] DiodeType getDiodeType() const noexcept;
+    [[nodiscard]] ClipperTopology getTopology() const noexcept;
+    [[nodiscard]] float getDrive() const noexcept;
+    [[nodiscard]] float getMix() const noexcept;
+    [[nodiscard]] float getForwardVoltage() const noexcept;
+    [[nodiscard]] float getKneeSharpness() const noexcept;
+    [[nodiscard]] float getOutputLevel() const noexcept;
+    [[nodiscard]] constexpr size_t getLatency() const noexcept;  // Always 0
+};
+```
+
+| DiodeType | Forward Voltage | Knee | Character |
+|-----------|-----------------|------|-----------|
+| Silicon | 0.6V | 5.0 | Classic overdrive |
+| Germanium | 0.3V | 2.0 | Warm, vintage |
+| LED | 1.8V | 15.0 | Aggressive, hard |
+| Schottky | 0.2V | 1.5 | Subtle, early clipping |
+
+| Topology | Harmonics | Use Case |
+|----------|-----------|----------|
+| Symmetric | Odd only | Classic distortion |
+| Asymmetric | Even + Odd | Tube-like warmth |
+| SoftHard | Even + Odd | Unique character |
+
+**Signal Chain:** Input -> [Drive Gain] -> [Diode Clipping] -> [DC Blocker] -> [Output Gain] -> [Mix Blend]
+
+**Dependencies:** Layer 0 (db_utils.h, sigmoid.h), Layer 1 (dc_blocker.h, smoother.h)
+
 ### DynamicsProcessor
 **Path:** [dynamics_processor.h](dsp/include/krate/dsp/processors/dynamics_processor.h) • **Since:** 0.0.12
 
