@@ -71,7 +71,7 @@ This section prevents One Definition Rule (ODR) violations by documenting existi
 ### Existing Components to Reuse
 
 <!--
-  List components from ARCHITECTURE.md or discovered via search that will be composed/reused.
+  List components from specs/_architecture_/ or discovered via search that will be composed/reused.
   This prevents reinventing functionality and ensures proper layering.
 -->
 
@@ -84,7 +84,7 @@ This section prevents One Definition Rule (ODR) violations by documenting existi
 
 - [ ] `dsp/include/krate/dsp/core/` - Layer 0 core utilities
 - [ ] `dsp/include/krate/dsp/primitives/` - Layer 1 DSP primitives
-- [ ] `ARCHITECTURE.md` - Component inventory
+- [ ] `specs/_architecture_/` - Component inventory (README.md for index, layer files for details)
 - [ ] [Other relevant files for this feature]
 
 ### ODR Risk Assessment

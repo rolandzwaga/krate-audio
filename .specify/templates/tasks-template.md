@@ -242,22 +242,22 @@ Examples of foundational tasks (adjust based on your project):
 
 **Purpose**: Update living architecture documentation before spec completion
 
-> **Constitution Principle XIII**: Every spec implementation MUST update ARCHITECTURE.md as a final task
+> **Constitution Principle XIII**: Every spec implementation MUST update architecture documentation as a final task
 
 ### N-2.1 Architecture Documentation Update
 
-- [ ] TXXX **Update ARCHITECTURE.md** with new components added by this spec:
-  - Add new component entries to appropriate layer section
+- [ ] TXXX **Update `specs/_architecture_/`** with new components added by this spec:
+  - Add new component entries to appropriate layer section file (layer-0-core.md, layer-1-primitives.md, etc.)
   - Include: purpose, public API summary, file location, "when to use this"
   - Add usage examples if applicable
   - Verify no duplicate functionality was introduced
 
 ### N-2.2 Final Commit
 
-- [ ] TXXX **Commit ARCHITECTURE.md updates**
+- [ ] TXXX **Commit architecture documentation updates**
 - [ ] TXXX Verify all spec work is committed to feature branch
 
-**Checkpoint**: ARCHITECTURE.md reflects all new functionality
+**Checkpoint**: Architecture documentation reflects all new functionality
 
 ---
 
@@ -409,7 +409,7 @@ With multiple developers:
 - **MANDATORY**: Write tests that FAIL before implementing (Principle XII)
 - **MANDATORY**: Verify cross-platform IEEE 754 compliance (add test files to `-fno-fast-math` list)
 - **MANDATORY**: Commit work at end of each user story
-- **MANDATORY**: Update ARCHITECTURE.md before spec completion (Principle XIII)
+- **MANDATORY**: Update `specs/_architecture_/` before spec completion (Principle XIII)
 - **MANDATORY**: Complete honesty verification before claiming spec complete (Principle XV)
 - **MANDATORY**: Fill Implementation Verification table in spec.md with honest assessment
 - Stop at any checkpoint to validate story independently

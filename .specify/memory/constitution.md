@@ -245,16 +245,17 @@ See `dsp-architecture` skill for per-layer CPU targets and memory guidelines.
 ### XIV. Living Architecture Documentation
 
 **Non-Negotiable Rules:**
-- `ARCHITECTURE.md` MUST exist at repository root
-- Every spec implementation MUST update it as final task
+- Architecture documentation MUST exist at `specs/_architecture_/`
+- Every spec implementation MUST update relevant section files as final task
 - Organized by DSP layer (0-4), not chronologically
 - Each component: purpose, API, location, "when to use"
+- Index file at `specs/_architecture_/README.md` provides overview and links to sections
 
 ### XV. Pre-Implementation Research (ODR Prevention)
 
 **Non-Negotiable Rules:**
 - **Search Before Creating**: `grep -r "class ClassName" dsp/ plugins/`
-- **Check ARCHITECTURE.md** for existing components
+- **Check `specs/_architecture_/`** for existing components
 - Same namespace + same name = undefined behavior (ODR violation)
 
 See `dsp-architecture` skill for ODR symptoms and prevention patterns.

@@ -198,8 +198,8 @@ dsp/
 # Search for existing class with same name
 grep -r "class ClassName" dsp/ plugins/
 
-# Check the architecture document
-cat ARCHITECTURE.md | grep ClassName
+# Check the architecture documentation
+grep -r "ClassName" specs/_architecture_/
 ```
 
 ### Symptoms of ODR Violation

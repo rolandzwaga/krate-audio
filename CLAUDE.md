@@ -194,7 +194,7 @@ Before creating ANY new class/struct, search codebase:
 grep -r "class ClassName" dsp/ plugins/
 ```
 
-Two classes with same name in same namespace = undefined behavior (garbage values, mysterious test failures). Check `dsp_utils.h` and ARCHITECTURE.md before adding components.
+Two classes with same name in same namespace = undefined behavior (garbage values, mysterious test failures). Check `dsp_utils.h` and `specs/_architecture_/` before adding components.
 
 ## DSP Implementation Rules
 
