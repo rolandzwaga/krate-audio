@@ -1,6 +1,6 @@
 ---
 name: speckit-analyze
-model: opus
+model: sonnet
 color: cyan
 description: Specification analysis agent. Performs read-only consistency and quality analysis across spec, plan, and tasks.
 tools:
