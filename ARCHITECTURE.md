@@ -894,6 +894,64 @@ class DiodeClipper {
 
 **Dependencies:** Layer 0 (db_utils.h, sigmoid.h), Layer 1 (dc_blocker.h, smoother.h)
 
+### WavefolderProcessor
+**Path:** [wavefolder_processor.h](dsp/include/krate/dsp/processors/wavefolder_processor.h) | **Since:** 0.10.0
+
+Full-featured wavefolding processor with four distinct models, symmetry control for even harmonics, DC blocking, and dry/wet mix. No internal oversampling (compose with Oversampler for anti-aliasing).
+
+**Use when:**
+- Creating wavefolding distortion effects (synthesizers, guitar effects)
+- Need different harmonic flavors with single processor (triangle, sine, Buchla, Lockhart)
+- Want even harmonic control via symmetry parameter (tube-like warmth)
+- Building harmonic enhancement or exciter effects
+
+**Note:** Model change is immediate (no smoothing), parameter changes (foldAmount, symmetry, mix) are smoothed over 5ms. Compose with Oversampler for anti-aliasing when needed.
+
+```cpp
+enum class WavefolderModel : uint8_t { Simple, Serge, Buchla259, Lockhart };
+enum class BuchlaMode : uint8_t { Classic, Custom };
+
+class WavefolderProcessor {
+    static constexpr float kMinFoldAmount = 0.1f;
+    static constexpr float kMaxFoldAmount = 10.0f;
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    void setModel(WavefolderModel model) noexcept;           // Simple, Serge, Buchla259, Lockhart
+    void setBuchlaMode(BuchlaMode mode) noexcept;            // Classic (fixed), Custom (user-defined)
+    void setBuchlaThresholds(const std::array<float, 5>& thresholds) noexcept;  // Custom mode
+    void setBuchlaGains(const std::array<float, 5>& gains) noexcept;            // Custom mode
+    void setFoldAmount(float amount) noexcept;               // [0.1, 10.0] intensity
+    void setSymmetry(float symmetry) noexcept;               // [-1, +1] even harmonics
+    void setMix(float mix) noexcept;                         // [0, 1] dry/wet (0 = bypass)
+
+    [[nodiscard]] WavefolderModel getModel() const noexcept;
+    [[nodiscard]] BuchlaMode getBuchlaMode() const noexcept;
+    [[nodiscard]] float getFoldAmount() const noexcept;
+    [[nodiscard]] float getSymmetry() const noexcept;
+    [[nodiscard]] float getMix() const noexcept;
+};
+```
+
+| Model | Output Bounds | Harmonics | Character |
+|-------|---------------|-----------|-----------|
+| Simple | Bounded | Dense odd | Guitar distortion, general |
+| Serge | [-1, 1] | Sparse FM-like | Serge modular emulation |
+| Buchla259 | Bounded | Complex | 5-stage parallel, Buchla style |
+| Lockhart | tanh bounded | Even + Odd | Soft saturation, nulls |
+
+| Symmetry | Effect |
+|----------|--------|
+| 0.0 | Odd harmonics only (30dB+ 2nd harmonic rejection) |
+| +/-0.5 | Measurable even harmonics (2nd within 20dB of 3rd) |
+| +/-1.0 | Maximum asymmetry (strong even harmonics) |
+
+**Signal Chain:** Input -> [Symmetry DC Offset] -> [Wavefolder (model)] -> [DC Blocker] -> [Mix Blend] -> Output
+
+**Dependencies:** Layer 0 (wavefold_math.h), Layer 1 (wavefolder.h, dc_blocker.h, smoother.h)
+
 ### DynamicsProcessor
 **Path:** [dynamics_processor.h](dsp/include/krate/dsp/processors/dynamics_processor.h) • **Since:** 0.0.12
 
