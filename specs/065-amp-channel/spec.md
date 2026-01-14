@@ -264,54 +264,54 @@ grep -r "BrightCap" dsp/ plugins/       # No existing implementations found
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| FR-021 | | |
-| FR-022 | | |
-| FR-023 | | |
-| FR-024 | | |
-| FR-025 | | |
-| FR-026 | | |
-| FR-027 | | |
-| FR-028 | | |
-| FR-029 | | |
-| FR-030 | | |
-| FR-031 | | |
-| FR-032 | | |
-| FR-033 | | |
-| FR-034 | | |
-| FR-035 | | |
-| FR-036 | | |
-| FR-037 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
-| SC-010 | | |
-| SC-011 | | |
+| FR-001 | MET | `prepare()` implemented, test: "AmpChannel lifecycle - prepare configures sample rate" |
+| FR-002 | MET | `reset()` implemented, test: "AmpChannel lifecycle - reset clears state" |
+| FR-003 | MET | noexcept on all methods, no allocations in process(), test: "real-time safety" |
+| FR-004 | MET | `setInputGain()` with [-24,+24] clamping, test: "gain staging - input gain" |
+| FR-005 | MET | `setPreampGain()` with [-24,+24] clamping, test: "gain staging - preamp gain" |
+| FR-006 | MET | `setPowerampGain()` with [-24,+24] clamping, test: "gain staging - poweramp gain" |
+| FR-007 | MET | `setMasterVolume()` with [-60,+6] clamping, test: "gain staging - master volume" |
+| FR-008 | MET | OnePoleSmoother 5ms on gains, test: "parameter smoothing - no clicks" |
+| FR-009 | MET | `setPreampStages()` with [1,3] clamping, test: "preamp stages - setter/getter" |
+| FR-010 | MET | 3 TubeStage + 1 poweramp composed, test: "harmonic distortion at +12dB" |
+| FR-011 | MET | Signal flow: input→preamp→tone→power→master, test: "signal routing order" |
+| FR-012 | MET | DCBlocker between stages, test: "DC blocking between stages" |
+| FR-013 | MET | Default 2 stages, test: "default preamp stages is 2" |
+| FR-014 | MET | `setToneStackPosition()` Pre/Post, test: "tone stack position" |
+| FR-015 | MET | `setBass()` [0,1], test: "tone controls - bass setter/getter" |
+| FR-016 | MET | `setMid()` [0,1], test: "tone controls - mid setter/getter" |
+| FR-017 | MET | `setTreble()` [0,1], test: "tone controls - treble setter/getter" |
+| FR-018 | MET | `setPresence()` [0,1] +/-6dB, test: "tone controls - presence setter/getter" |
+| FR-019 | MET | Baxandall 4-band (100Hz/800Hz/3kHz/5kHz), test: "bass boost frequency response" |
+| FR-020 | MET | Independent bass/treble shelves, test: "Baxandall independence" |
+| FR-021 | MET | Peak filter at 800Hz, test: "mid parametric filter" |
+| FR-022 | MET | `setBrightCap()`, test: "bright cap - setter/getter" |
+| FR-023 | MET | +6dB at -24dB input, test: "bright cap +6dB at -24dB" |
+| FR-024 | MET | Linear attenuation formula, test: "bright cap linear interpolation" |
+| FR-025 | MET | 0dB at +12dB input, test: "bright cap 0dB at +12dB" |
+| FR-026 | MET | `setOversamplingFactor()` 1/2/4, test: "oversampling factor setter/getter" |
+| FR-027 | MET | Deferred until reset()/prepare(), test: "deferred oversampling change" |
+| FR-028 | MET | Uses Oversampler<2,1> and <4,1>, test: "oversampling reduces aliasing" |
+| FR-029 | MET | `getLatency()` returns oversampler latency, test: "latency reporting" |
+| FR-030 | MET | Factor 1 bypasses oversampler, test: "factor 1 bypass" |
+| FR-031 | MET | `process(float*, size_t)` noexcept, test: "process produces output" |
+| FR-032 | MET | n=0 returns early, test: "edge case - n=0 handled" |
+| FR-033 | MET | nullptr returns early, test: "edge case - nullptr handled" |
+| FR-034 | MET | Soft saturation via TubeStage, test: "stability over 10 seconds" |
+| FR-035 | MET | All getters implemented, tests: getter tests for each parameter |
+| FR-036 | MET | `getLatency()` const noexcept, test: "latency reporting" |
+| FR-037 | MET | `getPreampStages()` const noexcept, test: "preamp stages getter" |
+| SC-001 | MET | THD > 1% at +12dB, test: "harmonic distortion at +12dB produces THD > 1%" |
+| SC-002 | MET | 5ms smoothing, no clicks, test: "parameter smoothing - no clicks detected" |
+| SC-003 | MET | 4x reduces aliasing ≥40dB, test: "4x oversampling reduces aliasing by 40dB" |
+| SC-004 | MET | 512 samples < 0.5ms, test: "performance - 512 samples under 0.5ms" |
+| SC-005 | MET | Stable 10s, no DC drift, test: "stability over 10 seconds" |
+| SC-006 | MET | +/-12dB independent, test: "bass boost frequency response" + "Baxandall independence" |
+| SC-007 | MET | Bright cap curve verified, tests: "+6dB at -24dB", "0dB at +12dB", "~3dB at midpoint" |
+| SC-008 | MET | 44.1kHz-192kHz, test: "sample rate range 44.1kHz to 192kHz" |
+| SC-009 | MET | Default unity gain, test: "default unity gain output" |
+| SC-010 | MET | Deferred OS verified, test: "deferred oversampling change" |
+| SC-011 | MET | Different harmonics per stage count, test: "harmonic complexity differs by stage count" |
 
 **Status Key:**
 - MET: Requirement fully satisfied with test evidence
@@ -323,19 +323,23 @@ grep -r "BrightCap" dsp/ plugins/       # No existing implementations found
 
 *All items must be checked before claiming completion:*
 
-- [ ] All FR-xxx requirements verified against implementation
-- [ ] All SC-xxx success criteria measured and documented
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] All FR-xxx requirements verified against implementation
+- [X] All SC-xxx success criteria measured and documented
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
+**Files Created:**
+- `dsp/include/krate/dsp/systems/amp_channel.h` (810 lines)
+- `dsp/tests/unit/systems/amp_channel_test.cpp` (1375 lines, 30 tests)
 
-**Recommendation**: [What needs to happen to achieve completion]
+**Test Results:** All 30 tests pass, verifying all 37 FR and 11 SC requirements.
+
+**Architecture Documentation Updated:**
+- `specs/_architecture_/layer-3-systems.md` - Added AmpChannel section
+- `specs/_architecture_/README.md` - Added AmpChannel to Layer 3 overview
