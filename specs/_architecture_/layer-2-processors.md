@@ -206,6 +206,86 @@ class WavefolderProcessor {
 
 ---
 
+## TapeSaturator
+**Path:** [tape_saturator.h](../../dsp/include/krate/dsp/processors/tape_saturator.h) | **Since:** 0.10.0
+
+Tape saturation with Simple (tanh + pre/de-emphasis) and Hysteresis (Jiles-Atherton magnetic) models.
+
+**Use when:**
+- Creating tape delay effects with authentic saturation (TapeDelay, BBDDelay)
+- Need tape-style HF compression (pre-emphasis boosts HF before saturation)
+- Want magnetic hysteresis memory effects for unique saturation character
+- Building lo-fi or vintage tape emulation effects
+
+**Note:** No internal oversampling - compose with Oversampler for anti-aliasing when needed. Model switching uses 10ms crossfade to prevent clicks.
+
+```cpp
+enum class TapeModel : uint8_t { Simple, Hysteresis };
+enum class HysteresisSolver : uint8_t { RK2, RK4, NR4, NR8 };
+
+class TapeSaturator {
+    static constexpr float kMinDriveDb = -24.0f;
+    static constexpr float kMaxDriveDb = +24.0f;
+    static constexpr float kDefaultSmoothingMs = 5.0f;
+    static constexpr float kDCBlockerCutoffHz = 10.0f;
+    static constexpr float kPreEmphasisFreqHz = 3000.0f;
+    static constexpr float kPreEmphasisGainDb = 9.0f;
+    static constexpr float kCrossfadeDurationMs = 10.0f;
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    void setModel(TapeModel model) noexcept;               // Simple, Hysteresis
+    void setSolver(HysteresisSolver solver) noexcept;      // RK2, RK4, NR4, NR8
+    void setDrive(float dB) noexcept;                      // [-24, +24] dB input gain
+    void setSaturation(float amount) noexcept;             // [0, 1] saturation intensity
+    void setBias(float bias) noexcept;                     // [-1, +1] asymmetry
+    void setMix(float mix) noexcept;                       // [0, 1] dry/wet (0 = bypass)
+    void setJAParams(float a, float alpha, float c,
+                     float k, float Ms) noexcept;          // Expert J-A params
+
+    [[nodiscard]] TapeModel getModel() const noexcept;
+    [[nodiscard]] HysteresisSolver getSolver() const noexcept;
+    [[nodiscard]] float getDrive() const noexcept;
+    [[nodiscard]] float getSaturation() const noexcept;
+    [[nodiscard]] float getBias() const noexcept;
+    [[nodiscard]] float getMix() const noexcept;
+    [[nodiscard]] float getJA_a() const noexcept;
+    [[nodiscard]] float getJA_alpha() const noexcept;
+    [[nodiscard]] float getJA_c() const noexcept;
+    [[nodiscard]] float getJA_k() const noexcept;
+    [[nodiscard]] float getJA_Ms() const noexcept;
+};
+```
+
+| Model | CPU Budget | Saturation Type | Character |
+|-------|------------|-----------------|-----------|
+| Simple | < 0.3% | tanh + emphasis | Classic tape HF compression |
+| Hysteresis/RK4 | < 1.5% | Jiles-Atherton | Magnetic memory effects |
+
+| Solver | Speed | Accuracy | Use Case |
+|--------|-------|----------|----------|
+| RK2 | Fastest | Lower | Live performance |
+| RK4 | Balanced | Good | Default, general use |
+| NR4 | Slower | Higher | Mixing, mastering |
+| NR8 | Slowest | Highest | Critical listening |
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| drive | 0 dB | [-24, +24] | Input gain before saturation |
+| saturation | 0.5 | [0, 1] | Linear (0) to full distortion (1) |
+| bias | 0.0 | [-1, +1] | Asymmetry, even harmonics |
+| mix | 1.0 | [0, 1] | Dry/wet blend |
+
+**Signal Chain:**
+- Simple: Input -> [Drive] -> [Pre-emphasis +9dB @ 3kHz] -> [tanh blend] -> [De-emphasis -9dB @ 3kHz] -> [DC Blocker] -> [Mix]
+- Hysteresis: Input -> [Drive + Bias] -> [J-A Hysteresis] -> [DC Blocker] -> [Mix]
+
+**Dependencies:** Layer 0 (db_utils.h, sigmoid.h, crossfade_utils.h), Layer 1 (biquad.h, dc_blocker.h, smoother.h)
+
+---
+
 ## DynamicsProcessor
 **Path:** [dynamics_processor.h](../../dsp/include/krate/dsp/processors/dynamics_processor.h) | **Since:** 0.0.12
 
