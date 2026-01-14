@@ -86,7 +86,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 ### 2.5 Foundational Commit
 
 - [X] T025 Verify all foundational tests pass
-- [ ] T026 **Commit completed Foundational phase work**
+- [X] T026 **Commit completed Foundational phase work**
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -129,7 +129,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 3.5 Commit (MANDATORY)
 
-- [ ] T042 [US1] **Commit completed User Story 1 work**
+- [X] T042 [US1] **Commit completed User Story 1 work**
 
 **Checkpoint**: User Story 1 should be fully functional, tested, and committed
 
@@ -168,7 +168,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 4.5 Commit (MANDATORY)
 
-- [ ] T054 [US2] **Commit completed User Story 2 work**
+- [X] T054 [US2] **Commit completed User Story 2 work**
 
 **Checkpoint**: User Stories 1 AND 2 should both work independently and be committed
 
@@ -203,7 +203,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T065 [US3] **Commit completed User Story 3 work**
+- [X] T065 [US3] **Commit completed User Story 3 work**
 
 **Checkpoint**: Bias control fully functional
 
@@ -230,7 +230,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 6.3 Commit (MANDATORY)
 
-- [ ] T071 [US4] **Commit completed User Story 4 work**
+- [X] T071 [US4] **Commit completed User Story 4 work**
 
 **Checkpoint**: Fuzz amount control fully functional
 
@@ -266,7 +266,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 7.4 Commit (MANDATORY)
 
-- [ ] T083 [US5] **Commit completed User Story 5 work**
+- [X] T083 [US5] **Commit completed User Story 5 work**
 
 **Checkpoint**: Tone control fully functional
 
@@ -294,7 +294,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 8.3 Commit (MANDATORY)
 
-- [ ] T090 [US6] **Commit completed User Story 6 work**
+- [X] T090 [US6] **Commit completed User Story 6 work**
 
 **Checkpoint**: Volume control fully functional
 
@@ -320,7 +320,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.3 Commit (MANDATORY)
 
-- [ ] T097 **Commit completed Octave-Up work**
+- [X] T097 **Commit completed Octave-Up work**
 
 **Checkpoint**: Octave-up mode fully functional
 
@@ -347,7 +347,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 10.3 Commit (MANDATORY)
 
-- [ ] T105 **Commit completed DC Blocking work**
+- [X] T105 **Commit completed DC Blocking work**
 
 **Checkpoint**: DC blocking fully functional
 
@@ -383,7 +383,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 11.4 Commit (MANDATORY)
 
-- [ ] T119 **Commit completed Parameter Smoothing work**
+- [X] T119 **Commit completed Parameter Smoothing work**
 
 **Checkpoint**: Parameter smoothing fully functional
 
@@ -397,22 +397,22 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 12.1 Tests for Type Crossfade (Write FIRST - Must FAIL)
 
-- [ ] T120 [P] Write failing tests for crossfade activation on type change in setFuzzType()
-- [ ] T121 [P] Write failing tests for 5ms crossfade duration using `crossfadeIncrement()` from Layer 0
-- [ ] T122 [P] Write failing tests for equal-power crossfade using `equalPowerGains()` from Layer 0
-- [ ] T123 [P] Write failing tests for crossfade completes without clicks
+- [X] T120 [P] Write failing tests for crossfade activation on type change in setFuzzType()
+- [X] T121 [P] Write failing tests for 5ms crossfade duration using `crossfadeIncrement()` from Layer 0
+- [X] T122 [P] Write failing tests for equal-power crossfade using `equalPowerGains()` from Layer 0
+- [X] T123 [P] Write failing tests for crossfade completes without clicks
 
 ### 12.2 Implementation for Type Crossfade
 
-- [ ] T124 Implement crossfade state variables: crossfadeActive_, crossfadePosition_, crossfadeIncrement_, previousType_
-- [ ] T125 Implement crossfade trigger in `setFuzzType()` when type changes
-- [ ] T126 Implement parallel type processing during crossfade: process both Germanium and Silicon, blend outputs
-- [ ] T127 Implement crossfade completion detection and cleanup
-- [ ] T128 Verify crossfade tests pass
+- [X] T124 Implement crossfade state variables: crossfadeActive_, crossfadePosition_, crossfadeIncrement_, previousType_
+- [X] T125 Implement crossfade trigger in `setFuzzType()` when type changes
+- [X] T126 Implement parallel type processing during crossfade: process both Germanium and Silicon, blend outputs
+- [X] T127 Implement crossfade completion detection and cleanup
+- [X] T128 Verify crossfade tests pass
 
 ### 12.3 Commit (MANDATORY)
 
-- [ ] T129 **Commit completed Type Crossfade work**
+- [X] T129 **Commit completed Type Crossfade work**
 
 **Checkpoint**: Type switching is click-free
 
@@ -426,10 +426,10 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 13.1 Benchmark Tests
 
-- [ ] T130 Write benchmark test for FuzzProcessor: verify < 0.5% CPU (SC-005)
-- [ ] T131 Write benchmark test comparing Germanium vs Silicon CPU costs
-- [ ] T132 Write benchmark test with octave-up enabled vs disabled
-- [ ] T133 Run benchmarks and document results in test output
+- [X] T130 Write benchmark test for FuzzProcessor: verify < 0.5% CPU (SC-005)
+- [X] T131 Write benchmark test comparing Germanium vs Silicon CPU costs
+- [X] T132 Write benchmark test with octave-up enabled vs disabled
+- [X] T133 Run benchmarks and document results in test output
 
 **Benchmark Implementation Notes (Cross-Platform):**
 - Windows: Use `__rdtsc()` for cycle counting
@@ -440,7 +440,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 13.2 Commit (MANDATORY)
 
-- [ ] T134 **Commit completed Benchmark work**
+- [X] T134 **Commit completed Benchmark work**
 
 **Checkpoint**: CPU budget compliance verified
 
@@ -454,15 +454,15 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 14.1 Sample Rate Tests
 
-- [ ] T135 Write parameterized tests for sample rates: 44.1kHz, 48kHz, 88.2kHz, 96kHz, 192kHz (SC-007)
-- [ ] T136 Verify tone filter cutoff scales appropriately at high sample rates (192kHz edge case)
-- [ ] T137 Verify sag envelope coefficients are recalculated correctly for each sample rate
-- [ ] T138 Verify crossfade duration is consistent across sample rates
-- [ ] T139 Run multi-sample-rate tests and verify all pass
+- [X] T135 Write parameterized tests for sample rates: 44.1kHz, 48kHz, 88.2kHz, 96kHz, 192kHz (SC-007)
+- [X] T136 Verify tone filter cutoff scales appropriately at high sample rates (192kHz edge case)
+- [X] T137 Verify sag envelope coefficients are recalculated correctly for each sample rate
+- [X] T138 Verify crossfade duration is consistent across sample rates
+- [X] T139 Run multi-sample-rate tests and verify all pass
 
 ### 14.2 Commit (MANDATORY)
 
-- [ ] T140 **Commit completed Multi-Sample-Rate work**
+- [X] T140 **Commit completed Multi-Sample-Rate work**
 
 **Checkpoint**: Sample rate independence verified
 
@@ -472,14 +472,14 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T141 Write test verifying denormal inputs produce valid outputs without CPU spike (flushDenormal usage)
-- [ ] T142 Add Doxygen documentation to FuzzProcessor class and all public methods (FR-048)
-- [ ] T143 Verify naming conventions: trailing underscore for members, PascalCase for class, camelCase for methods (FR-049)
-- [ ] T144 Verify all includes use `<krate/dsp/...>` pattern for Layer 0/1 dependencies (FR-047)
-- [ ] T145 Verify namespace is `Krate::DSP` (FR-046)
-- [ ] T146 Verify header-only implementation (FR-045)
-- [ ] T147 Code cleanup: remove any unused code, ensure consistent formatting
-- [ ] T148 Run full test suite: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure`
+- [X] T141 Write test verifying denormal inputs produce valid outputs without CPU spike (flushDenormal usage)
+- [X] T142 Add Doxygen documentation to FuzzProcessor class and all public methods (FR-048)
+- [X] T143 Verify naming conventions: trailing underscore for members, PascalCase for class, camelCase for methods (FR-049)
+- [X] T144 Verify all includes use `<krate/dsp/...>` pattern for Layer 0/1 dependencies (FR-047)
+- [X] T145 Verify namespace is `Krate::DSP` (FR-046)
+- [X] T146 Verify header-only implementation (FR-045)
+- [X] T147 Code cleanup: remove any unused code, ensure consistent formatting
+- [X] T148 Run full test suite: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure`
 
 ---
 
@@ -491,7 +491,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 16.1 Architecture Documentation Update
 
-- [ ] T149 **Update `specs/_architecture_/layer-2-processors.md`** with FuzzProcessor entry:
+- [X] T149 **Update `specs/_architecture_/layer-2-processors.md`** with FuzzProcessor entry:
   - Purpose: Fuzz Face style distortion with Germanium (warm, saggy) and Silicon (bright, tight) transistor types
   - Public API summary: prepare(), reset(), process(), setFuzzType/Fuzz/Volume/Bias/Tone/OctaveUp, getters
   - File location: `dsp/include/krate/dsp/processors/fuzz_processor.h`
@@ -499,8 +499,8 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 16.2 Final Commit
 
-- [ ] T150 **Commit architecture documentation updates**
-- [ ] T151 Verify all spec work is committed to feature branch
+- [X] T150 **Commit architecture documentation updates**
+- [X] T151 Verify all spec work is committed to feature branch
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
@@ -516,17 +516,17 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T152 **Review ALL FR-xxx requirements** from spec.md against implementation (FR-001 through FR-053)
-- [ ] T153 **Review ALL SC-xxx success criteria** and verify measurable targets are achieved (SC-001 through SC-011)
-- [ ] T154 **Search for cheating patterns** in implementation:
-  - [ ] No `// placeholder` or `// TODO` comments in new code
-  - [ ] No test thresholds relaxed from spec requirements
-  - [ ] No features quietly removed from scope
+- [X] T152 **Review ALL FR-xxx requirements** from spec.md against implementation (FR-001 through FR-053)
+- [X] T153 **Review ALL SC-xxx success criteria** and verify measurable targets are achieved (SC-001 through SC-011)
+- [X] T154 **Search for cheating patterns** in implementation:
+  - [X] No `// placeholder` or `// TODO` comments in new code
+  - [X] No test thresholds relaxed from spec requirements
+  - [X] No features quietly removed from scope
 
 ### 17.2 Fill Compliance Table in spec.md
 
-- [ ] T155 **Update spec.md "Implementation Verification" section** with compliance status for each requirement
-- [ ] T156 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T155 **Update spec.md "Implementation Verification" section** with compliance status for each requirement
+- [X] T156 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 17.3 Honest Self-Check
 
@@ -538,7 +538,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T157 **All self-check questions answered "no"** (or gaps documented honestly)
+- [X] T157 **All self-check questions answered "no"** (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -550,12 +550,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 18.1 Final Commit
 
-- [ ] T158 **Commit all spec work** to feature branch
-- [ ] T159 **Verify all tests pass**
+- [X] T158 **Commit all spec work** to feature branch
+- [X] T159 **Verify all tests pass**
 
 ### 18.2 Completion Claim
 
-- [ ] T160 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
+- [X] T160 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 
