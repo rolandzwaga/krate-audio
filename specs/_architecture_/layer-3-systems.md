@@ -298,3 +298,63 @@ Input -> [Input Buffer if enabled] -> [FuzzProcessor] ->
 - 5ms equal-power crossfade for gate type changes (click-free)
 - 5ms parameter smoothing on volume control
 - Default: Input buffer disabled, Gate disabled, Volume 0dB
+
+---
+
+## DistortionRack
+**Path:** [distortion_rack.h](../../dsp/include/krate/dsp/systems/distortion_rack.h) | **Since:** 0.0.68
+
+Multi-stage distortion rack with 4 configurable slots for chaining different distortion types.
+
+```cpp
+enum class SlotType : uint8_t {
+    Empty, Waveshaper, TubeStage, DiodeClipper, Wavefolder, TapeSaturator, Fuzz, Bitcrusher
+};
+
+class DistortionRack {
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* left, float* right, size_t numSamples) noexcept;
+
+    // Slot configuration
+    void setSlotType(size_t slot, SlotType type) noexcept;
+    void setSlotEnabled(size_t slot, bool enabled) noexcept;
+    void setSlotMix(size_t slot, float mix) noexcept;      // [0, 1]
+    void setSlotGain(size_t slot, float dB) noexcept;      // [-24, +24] dB
+
+    // Processor access
+    template<typename T>
+    [[nodiscard]] T* getProcessor(size_t slot, size_t channel = 0) noexcept;
+
+    // Global controls
+    void setOversamplingFactor(int factor) noexcept;       // 1, 2, or 4
+    void setOutputGain(float dB) noexcept;                 // [-24, +24] dB
+    void setDCBlockingEnabled(bool enabled) noexcept;
+
+    // Getters
+    [[nodiscard]] SlotType getSlotType(size_t slot) const noexcept;
+    [[nodiscard]] bool getSlotEnabled(size_t slot) const noexcept;
+    [[nodiscard]] float getSlotMix(size_t slot) const noexcept;
+    [[nodiscard]] float getSlotGain(size_t slot) const noexcept;
+    [[nodiscard]] int getOversamplingFactor() const noexcept;
+    [[nodiscard]] float getOutputGain() const noexcept;
+    [[nodiscard]] bool getDCBlockingEnabled() const noexcept;
+    [[nodiscard]] size_t getLatency() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Input -> [Oversample Up] -> Slot 0 (process -> mix -> gain -> DC block) ->
+Slot 1 -> Slot 2 -> Slot 3 -> [Oversample Down] -> [Output Gain] -> Output
+```
+
+**Key Features:**
+- 4 configurable slots with 8 processor types (Empty + 7 distortions)
+- Composes Waveshaper (L1), TubeStage, DiodeClipper, WavefolderProcessor, TapeSaturator, FuzzProcessor, BitcrusherProcessor (L2)
+- Per-slot enable, mix [0-1], and gain [-24,+24 dB] with 5ms smoothing
+- Per-slot DC blocking (10Hz cutoff) active when slot enabled
+- Global oversampling (1x/2x/4x) applied once around entire chain
+- Type-safe processor access via getProcessor<T>() template
+- std::variant with compile-time dispatch (zero virtual overhead)
+- Stereo processing with independent L/R processor instances

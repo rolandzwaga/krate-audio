@@ -364,6 +364,23 @@ public:
     [[nodiscard]] size_t getLatency() const noexcept;
 
     // =========================================================================
+    // Global Output Gain (FR-028 to FR-032)
+    // =========================================================================
+
+    /// @brief Set the global output gain in dB (FR-028).
+    ///
+    /// Applied after the entire processing chain (FR-029).
+    /// Gain changes are smoothed over 5ms (FR-032).
+    ///
+    /// @param dB Gain in dB [-24, +24], clamped (FR-030)
+    void setOutputGain(float dB) noexcept;
+
+    /// @brief Get the global output gain in dB.
+    ///
+    /// @return Gain in dB (FR-031: default 0.0)
+    [[nodiscard]] float getOutputGain() const noexcept;
+
+    // =========================================================================
     // DC Blocking (FR-048 to FR-052)
     // =========================================================================
 
@@ -463,6 +480,10 @@ private:
     // DC blocking global flag
     bool dcBlockingEnabled_ = true;
 
+    // Global output gain
+    float outputGainDb_ = 0.0f;
+    OnePoleSmoother outputGainSmoother_;
+
     // Cached configuration
     double sampleRate_ = 44100.0;
     size_t maxBlockSize_ = 512;
@@ -531,6 +552,11 @@ inline void DistortionRack::prepare(double sampleRate, size_t maxBlockSize) noex
     oversampler2x_.prepare(sampleRate, maxBlockSize, OversamplingQuality::Economy, OversamplingMode::ZeroLatency);
     oversampler4x_.prepare(sampleRate, maxBlockSize, OversamplingQuality::Economy, OversamplingMode::ZeroLatency);
 
+    // Configure global output gain smoother (FR-032: 5ms smoothing)
+    outputGainSmoother_.configure(kDefaultSmoothingMs, sr);
+    outputGainSmoother_.setTarget(dbToGain(outputGainDb_));
+    outputGainSmoother_.snapToTarget();
+
     prepared_ = true;
 }
 
@@ -553,6 +579,9 @@ inline void DistortionRack::reset() noexcept {
     // Reset oversamplers
     oversampler2x_.reset();
     oversampler4x_.reset();
+
+    // Snap output gain smoother
+    outputGainSmoother_.snapToTarget();
 }
 
 inline void DistortionRack::process(float* left, float* right, size_t numSamples) noexcept {
@@ -582,6 +611,13 @@ inline void DistortionRack::process(float* left, float* right, size_t numSamples
             [this](float* osLeft, float* osRight, size_t osNumSamples) {
                 processChain(osLeft, osRight, osNumSamples);
             });
+    }
+
+    // FR-029: Apply global output gain after entire processing chain
+    for (size_t i = 0; i < numSamples; ++i) {
+        const float gain = outputGainSmoother_.process();
+        left[i] *= gain;
+        right[i] *= gain;
     }
 }
 
@@ -735,6 +771,16 @@ inline size_t DistortionRack::getLatency() const noexcept {
     } else {
         return oversampler4x_.getLatency();
     }
+}
+
+inline void DistortionRack::setOutputGain(float dB) noexcept {
+    // FR-030: Clamp to [-24, +24] dB range
+    outputGainDb_ = std::clamp(dB, kMinGainDb, kMaxGainDb);
+    outputGainSmoother_.setTarget(dbToGain(outputGainDb_));
+}
+
+inline float DistortionRack::getOutputGain() const noexcept {
+    return outputGainDb_;
 }
 
 inline void DistortionRack::setDCBlockingEnabled(bool enabled) noexcept {
