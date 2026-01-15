@@ -5,6 +5,41 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-01-15
+
+### Added
+
+- **Pitch-Synchronized Low-Latency Pitch Shifting (PitchSync Mode)**
+  - New `PitchMode::PitchSync` option for pitch shifting with ~5-10ms latency (vs ~46ms for Granular)
+  - Autocorrelation-based `PitchDetector` primitive detects fundamental frequency in real-time
+  - `PitchSyncGranularShifter` adapts grain size to 2x detected pitch period
+  - Falls back to short fixed grains (~10ms) for unpitched/noisy content
+  - Ideal for shimmer effects where feedback is already highly tonal
+
+- **Route-Based Crossfading in FlexibleFeedbackNetwork**
+  - Equal-power crossfade between bypass and processed feedback paths
+  - Avoids comb filtering artifacts from latency mismatch when blending signals
+  - At extremes (0% or 100%), uses direct path to preserve correct feedback loop timing
+
+- **Required Diffusion for Shimmer Effects**
+  - Shimmer delay now enforces 100% diffusion when shimmer mix > 1%
+  - Commercial shimmer effects always use diffusion to mask granular pitch shift artifacts
+  - This is why professional shimmer effects sound smooth at all mix levels
+
+### Changed
+
+- **Shimmer Delay Default Pitch Mode**
+  - Changed default from `Granular` (~46ms latency) to `PitchSync` (~5-10ms latency)
+  - Improves shimmer response time and reduces latency in feedback path
+
+### Fixed
+
+- **Shimmer Mix Unit Mismatch**
+  - Fixed shimmer mix parameter expecting 0-1 range but receiving 0-100%
+  - Processor now correctly converts percentage to normalized value
+
+---
+
 ## [0.10.0] - 2026-01-05
 
 ### Added
