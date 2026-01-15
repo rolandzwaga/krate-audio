@@ -760,36 +760,101 @@ inline constexpr int kMaxModRoutings = 32;
 
 ## 8. Preset System
 
-### File Format (JSON)
-```json
-{
-  "torqueo_preset": {
-    "version": 1,
-    "meta": {
-      "name": "Sweeping Destruction",
-      "author": "Factory",
-      "tags": ["sweep", "morph", "aggressive"]
-    },
-    "global": { "inputGain": 0.0, "outputGain": -3.0, "globalMix": 1.0 },
-    "bands": [{
-      "lowFreq": 20, "highFreq": 200,
-      "morphMode": "linear1d", "morphX": 0.3,
-      "nodes": [
-        { "type": "fuzz", "params": { "drive": 5.0, "mix": 1.0 } },
-        { "type": "bitcrush", "params": { "bitDepth": 6 } }
-      ]
-    }],
-    "sweep": { "enabled": true, "frequency": 500, "morphLink": "linear" },
-    "modulation": {
-      "routings": [
-        { "source": "lfo1", "destination": "sweep.frequency", "amount": 0.7 }
-      ]
+### Standard VST3 Preset Format
+
+Torqueo uses the **standard VST3 preset format** (`.vstpreset` files). This ensures:
+- Full host integration (preset browsers, save/load dialogs)
+- Cross-DAW compatibility
+- No custom file I/O code required
+
+### Implementation
+
+The Processor implements `getState()`/`setState()` to serialize all parameters:
+
+```cpp
+// processor.cpp
+tresult PLUGIN_API Processor::getState(IBStream* state) {
+    IBStreamer streamer(state, kLittleEndian);
+
+    // Version for future compatibility
+    streamer.writeInt32(kPresetVersion);
+
+    // Global parameters
+    streamer.writeFloat(inputGain_);
+    streamer.writeFloat(outputGain_);
+    streamer.writeFloat(globalMix_);
+    streamer.writeInt32(bandCount_);
+    streamer.writeInt32(maxOversample_);
+
+    // Sweep parameters
+    streamer.writeBool(sweepEnabled_);
+    streamer.writeFloat(sweepFrequency_);
+    streamer.writeFloat(sweepWidth_);
+    streamer.writeFloat(sweepIntensity_);
+    streamer.writeInt32(static_cast<int32>(sweepMorphLink_));
+
+    // Per-band state (fixed 8 bands for format stability)
+    for (int b = 0; b < kMaxBands; ++b) {
+        const auto& band = bands_[b];
+        streamer.writeFloat(band.lowFreqHz);
+        streamer.writeFloat(band.highFreqHz);
+        streamer.writeInt32(static_cast<int32>(band.morphMode));
+        streamer.writeFloat(band.morphX);
+        streamer.writeFloat(band.morphY);
+        streamer.writeInt32(band.activeNodeCount);
+        streamer.writeFloat(band.gainDb);
+        streamer.writeFloat(band.pan);
+        streamer.writeBool(band.solo);
+        streamer.writeBool(band.bypass);
+        streamer.writeBool(band.mute);
+
+        // Per-node state (fixed 4 nodes)
+        for (int n = 0; n < 4; ++n) {
+            const auto& node = band.nodes[n];
+            streamer.writeInt32(static_cast<int32>(node.type));
+            streamer.writeFloat(node.params.drive);
+            streamer.writeFloat(node.params.mix);
+            streamer.writeFloat(node.params.tone);
+            streamer.writeFloat(node.params.bias);
+            streamer.writeFloat(node.params.folds);
+            streamer.writeFloat(node.params.bitDepth);
+            streamer.writeFloat(node.posX);
+            streamer.writeFloat(node.posY);
+        }
     }
-  }
+
+    // Modulation routings
+    streamer.writeInt32(activeRoutingCount_);
+    for (int r = 0; r < kMaxModRoutings; ++r) {
+        const auto& routing = modRoutings_[r];
+        streamer.writeInt32(static_cast<int32>(routing.source));
+        streamer.writeInt32(routing.destParamId);
+        streamer.writeFloat(routing.amount);
+        streamer.writeInt32(static_cast<int32>(routing.curve));
+    }
+
+    return kResultOk;
+}
+
+tresult PLUGIN_API Processor::setState(IBStream* state) {
+    IBStreamer streamer(state, kLittleEndian);
+
+    int32 version;
+    if (!streamer.readInt32(version)) return kResultFalse;
+    if (version > kPresetVersion) return kResultFalse;  // Future version
+
+    // Read all parameters (mirror of getState)...
+    return kResultOk;
 }
 ```
 
-### Factory Preset Categories
+### Factory Presets
+
+Factory presets are `.vstpreset` files installed to the standard location:
+- **Windows**: `C:\Program Files\Common Files\VST3\Presets\Krate Audio\Torqueo\`
+- **macOS**: `/Library/Audio/Presets/Krate Audio/Torqueo/`
+- **Linux**: `~/.vst3/presets/Krate Audio/Torqueo/`
+
 | Category | Count |
 |----------|-------|
 | Init | 5 |
@@ -801,6 +866,13 @@ inline constexpr int kMaxModRoutings = 32;
 | Drums | 10 |
 | Experimental | 15 |
 | **Total** | **90** |
+
+### Preset Versioning
+
+The preset format includes a version number to handle future additions:
+- Version 1: Initial release
+- Future versions add parameters at the end
+- `setState()` gracefully handles older versions by using defaults for missing data
 
 ---
 
@@ -1048,7 +1120,7 @@ krate-audio/
 │       │   └── approval/                  # Regression tests
 │       └── resources/
 │           ├── editor.uidesc              # VSTGUI UI definition
-│           ├── presets/factory/           # Factory presets (JSON)
+│           ├── presets/                   # Factory presets (.vstpreset)
 │           └── installers/                # Platform installers
 │
 └── specs/
