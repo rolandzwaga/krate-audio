@@ -62,7 +62,7 @@
     <control-tag name="ShimmerPitchCents" tag="302"/>
     <control-tag name="ShimmerShimmerMix" tag="303"/>
     <control-tag name="ShimmerFeedback" tag="304"/>
-    <control-tag name="ShimmerDiffusionAmount" tag="305"/>
+    <!-- Note: ShimmerDiffusionAmount (305) removed - diffusion is always 100% -->
     <control-tag name="ShimmerDiffusionSize" tag="306"/>
     <control-tag name="ShimmerFilterEnabled" tag="307"/>
     <control-tag name="ShimmerFilterCutoff" tag="308"/>
@@ -335,12 +335,10 @@
     </view>
     <view class="CViewContainer" origin="580, 30" size="270, 145" background-color="section" transparent="false">
       <view class="CTextLabel" origin="5, 5" size="260, 18" title="DIFFUSION &amp; FILTER" font="section-font" font-color="accent" transparent="true"/>
-      <view class="CTextLabel" origin="10, 28" size="35, 16" title="Amt" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="ShimmerDiffusionAmount" origin="45, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 46" size="75, 20" control-tag="ShimmerDiffusionAmount" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="95, 28" size="35, 16" title="Size" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="ShimmerDiffusionSize" origin="130, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="95, 46" size="75, 20" control-tag="ShimmerDiffusionSize" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <!-- Note: Diffusion Amount removed - diffusion is always 100% -->
+      <view class="CTextLabel" origin="10, 28" size="35, 16" title="Size" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="ShimmerDiffusionSize" origin="45, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="10, 46" size="75, 20" control-tag="ShimmerDiffusionSize" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
       <view class="CTextLabel" origin="10, 73" size="50, 16" title="Filter" font="label-font" font-color="text-dim" transparent="true"/>
       <view class="CCheckBox" origin="60, 73" size="40, 20" control-tag="ShimmerFilterEnabled" title="" font="value-font" font-color="text"/>
       <view class="CTextLabel" origin="110, 73" size="35, 16" title="Cut" font="label-font" font-color="text-dim" transparent="true"/>

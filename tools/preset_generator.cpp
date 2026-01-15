@@ -96,7 +96,7 @@ struct ShimmerPreset {
     float pitchCents = 0.0f;
     float shimmerMix = 1.0f;            // 0-1 (params file stores 0-1, not 0-100)
     float feedback = 0.5f;
-    float diffusionAmount = 0.5f;       // 0-1 (params file stores 0-1, not 0-100)
+    // Note: diffusionAmount removed from plugin - always write 1.0f for stream compatibility
     float diffusionSize = 50.0f;
     int filterEnabled = 0;
     float filterCutoff = 4000.0f;
@@ -310,7 +310,7 @@ void writeShimmerState(BinaryWriter& w, const ShimmerPreset& p) {
     w.writeFloat(p.pitchCents);
     w.writeFloat(p.shimmerMix);
     w.writeFloat(p.feedback);
-    w.writeFloat(p.diffusionAmount);
+    w.writeFloat(1.0f);  // Legacy diffusionAmount slot (always 100%)
     w.writeFloat(p.diffusionSize);
     w.writeInt32(p.filterEnabled);
     w.writeFloat(p.filterCutoff);
@@ -704,65 +704,66 @@ std::vector<PresetDef> createAllPresets() {
 
     // =========================================================================
     // SHIMMER MODE (2) - Vocals, Ambient, Guitars
+    // Note: diffusionAmount removed from struct - diffusion is always 100%
     // =========================================================================
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Ambient";
         p.name = "Heavenly";
-        p.shimmer = {800.0f, 12.0f, 0.0f, 1.0f, 0.6f, 0.6f, 50.0f, 0, 4000.0f, 0.5f, 1, 16};  // 1/2
+        p.shimmer = {800.0f, 12.0f, 0.0f, 1.0f, 0.6f, 50.0f, 0, 4000.0f, 0.5f, 1, 16};  // 1/2
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Dark";
         p.name = "Octave Below";
-        p.shimmer = {600.0f, -12.0f, 0.0f, 1.0f, 0.5f, 0.5f, 60.0f, 0, 4000.0f, 0.5f, 1, 15};  // 1/2T
+        p.shimmer = {600.0f, -12.0f, 0.0f, 1.0f, 0.5f, 60.0f, 0, 4000.0f, 0.5f, 1, 15};  // 1/2T
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Creative";
         p.name = "Fifth Up";
-        p.shimmer = {500.0f, 7.0f, 0.0f, 0.8f, 0.45f, 0.4f, 45.0f, 0, 4000.0f, 0.5f, 1, 13};  // 1/4
+        p.shimmer = {500.0f, 7.0f, 0.0f, 0.8f, 0.45f, 45.0f, 0, 4000.0f, 0.5f, 1, 13};  // 1/4
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Ambient";
         p.name = "Cathedral";
-        p.shimmer = {1500.0f, 12.0f, 0.0f, 1.0f, 0.75f, 0.8f, 70.0f, 0, 4000.0f, 0.5f, 1, 19};  // 1/1
+        p.shimmer = {1500.0f, 12.0f, 0.0f, 1.0f, 0.75f, 70.0f, 0, 4000.0f, 0.5f, 1, 19};  // 1/1
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Vocals";
         p.name = "Subtle Shine";
-        p.shimmer = {400.0f, 12.0f, 0.0f, 0.4f, 0.3f, 0.3f, 40.0f, 0, 4000.0f, 0.5f, 1, 13};  // 1/4
+        p.shimmer = {400.0f, 12.0f, 0.0f, 0.4f, 0.3f, 40.0f, 0, 4000.0f, 0.5f, 1, 13};  // 1/4
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Dark";
         p.name = "Dark Shimmer";
-        p.shimmer = {700.0f, 12.0f, 0.0f, 1.0f, 0.55f, 0.5f, 55.0f, 1, 2000.0f, 0.5f, 1, 15};  // 1/2T
+        p.shimmer = {700.0f, 12.0f, 0.0f, 1.0f, 0.55f, 55.0f, 1, 2000.0f, 0.5f, 1, 15};  // 1/2T
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Bright";
         p.name = "Bright Stars";
-        p.shimmer = {600.0f, 12.0f, 0.0f, 1.0f, 0.5f, 0.45f, 50.0f, 1, 8000.0f, 0.5f, 1, 15};  // 1/2T
+        p.shimmer = {600.0f, 12.0f, 0.0f, 1.0f, 0.5f, 50.0f, 1, 8000.0f, 0.5f, 1, 15};  // 1/2T
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Experimental";
         p.name = "Infinite Rise";
-        p.shimmer = {1000.0f, 12.0f, 0.0f, 1.0f, 0.9f, 0.7f, 65.0f, 0, 4000.0f, 0.5f, 1, 16};  // 1/2
+        p.shimmer = {1000.0f, 12.0f, 0.0f, 1.0f, 0.9f, 65.0f, 0, 4000.0f, 0.5f, 1, 16};  // 1/2
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Creative";
         p.name = "Detune Wash";
-        p.shimmer = {550.0f, 0.0f, 15.0f, 0.7f, 0.4f, 0.55f, 50.0f, 0, 4000.0f, 0.5f, 1, 13};  // 1/4
+        p.shimmer = {550.0f, 0.0f, 15.0f, 0.7f, 0.4f, 50.0f, 0, 4000.0f, 0.5f, 1, 13};  // 1/4
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Shimmer; p.category = "Vocals";
         p.name = "Vocal Halo";
-        p.shimmer = {450.0f, 12.0f, 0.0f, 0.6f, 0.35f, 0.4f, 45.0f, 1, 6000.0f, 0.5f, 1, 13};  // 1/4
+        p.shimmer = {450.0f, 12.0f, 0.0f, 0.6f, 0.35f, 45.0f, 1, 6000.0f, 0.5f, 1, 13};  // 1/4
         presets.push_back(p);
     }
 
@@ -1379,7 +1380,7 @@ std::vector<PresetDef> createAllPresets() {
 // ==============================================================================
 
 int main(int argc, char* argv[]) {
-    std::filesystem::path outputDir = "resources/presets";
+    std::filesystem::path outputDir = "plugins/iterum/resources/presets";
 
     if (argc > 1) {
         outputDir = argv[1];

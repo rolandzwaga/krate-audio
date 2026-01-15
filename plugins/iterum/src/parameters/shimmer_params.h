@@ -35,7 +35,7 @@ struct ShimmerParams {
     std::atomic<float> pitchCents{0.0f};         // -100 to +100 cents
     std::atomic<float> shimmerMix{1.0f};         // 0-1 (shimmer blend)
     std::atomic<float> feedback{0.5f};           // 0-1.2 (0-120%)
-    std::atomic<float> diffusionAmount{0.5f};    // 0-1 (diffusion amount)
+    // Note: diffusionAmount removed - diffusion is always 100%
     std::atomic<float> diffusionSize{50.0f};     // 0-100%
     std::atomic<bool> filterEnabled{false};      // on/off
     std::atomic<float> filterCutoff{4000.0f};    // 20-20000Hz
@@ -104,12 +104,7 @@ inline void handleShimmerParamChange(
                 std::memory_order_relaxed);
             break;
 
-        case kShimmerDiffusionAmountId:
-            // 0-1 (passthrough)
-            params.diffusionAmount.store(
-                static_cast<float>(normalizedValue),
-                std::memory_order_relaxed);
-            break;
+        // Note: kShimmerDiffusionAmountId removed - diffusion is always 100%
 
         case kShimmerDiffusionSizeId:
             // 0-100%
@@ -226,17 +221,7 @@ inline void registerShimmerParams(Steinberg::Vst::ParameterContainer& parameters
         STR16("Fdbk")
     );
 
-    // Diffusion Amount: 0-100%
-    parameters.addParameter(
-        STR16("Diffusion"),
-        STR16("%"),
-        0,
-        0.5,  // 50% default
-        ParameterInfo::kCanAutomate,
-        kShimmerDiffusionAmountId,
-        0,
-        STR16("Diff")
-    );
+    // Note: Diffusion Amount removed - diffusion is always 100%
 
     // Diffusion Size: 0-100%
     parameters.addParameter(
@@ -329,7 +314,6 @@ inline Steinberg::tresult formatShimmerParam(
         }
 
         case kShimmerPitchBlendId:
-        case kShimmerDiffusionAmountId:
         case kShimmerDiffusionSizeId:
         case kShimmerMixId: {
             // 0-100%
@@ -390,7 +374,8 @@ inline void saveShimmerParams(
     streamer.writeFloat(params.pitchCents.load(std::memory_order_relaxed));
     streamer.writeFloat(params.shimmerMix.load(std::memory_order_relaxed));
     streamer.writeFloat(params.feedback.load(std::memory_order_relaxed));
-    streamer.writeFloat(params.diffusionAmount.load(std::memory_order_relaxed));
+    // Note: diffusionAmount parameter removed - always write 1.0 for stream compatibility
+    streamer.writeFloat(1.0f);  // Legacy diffusionAmount slot (always 100%)
     streamer.writeFloat(params.diffusionSize.load(std::memory_order_relaxed));
     Steinberg::int32 filterEnabled = params.filterEnabled.load(std::memory_order_relaxed) ? 1 : 0;
     streamer.writeInt32(filterEnabled);
@@ -426,9 +411,8 @@ inline void loadShimmerParams(
     if (streamer.readFloat(floatVal)) {
         params.feedback.store(floatVal, std::memory_order_relaxed);
     }
-    if (streamer.readFloat(floatVal)) {
-        params.diffusionAmount.store(floatVal, std::memory_order_relaxed);
-    }
+    // Legacy diffusionAmount slot - read and discard for stream compatibility
+    streamer.readFloat(floatVal);  // Discard (diffusion is always 100%)
     if (streamer.readFloat(floatVal)) {
         params.diffusionSize.store(floatVal, std::memory_order_relaxed);
     }
@@ -501,11 +485,8 @@ inline void loadShimmerParamsToController(
             static_cast<double>(floatVal / 1.2f));
     }
 
-    // Diffusion Amount: 0-1 (already normalized)
-    if (streamer.readFloat(floatVal)) {
-        setParam(kShimmerDiffusionAmountId,
-            static_cast<double>(floatVal));
-    }
+    // Legacy diffusionAmount slot - read and discard for stream compatibility
+    streamer.readFloat(floatVal);  // Discard (diffusion is always 100%)
 
     // Diffusion Size: 0-100% -> normalized = val/100
     if (streamer.readFloat(floatVal)) {

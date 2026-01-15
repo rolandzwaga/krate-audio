@@ -177,7 +177,7 @@ TEST_CASE("ShimmerDelay default values", "[shimmer-delay][defaults]") {
     }
 
     SECTION("diffusion defaults") {
-        REQUIRE(shimmer.getDiffusionAmount() == Approx(50.0f));
+        // Note: diffusionAmount removed - diffusion is always 100%
         REQUIRE(shimmer.getDiffusionSize() == Approx(50.0f));
     }
 
@@ -239,13 +239,7 @@ TEST_CASE("ShimmerDelay parameter clamping", "[shimmer-delay][clamping]") {
         REQUIRE(shimmer.getFeedbackAmount() == Approx(1.2f));  // 120% max
     }
 
-    SECTION("diffusion clamping") {
-        shimmer.setDiffusionAmount(-10.0f);
-        REQUIRE(shimmer.getDiffusionAmount() == Approx(0.0f));
-
-        shimmer.setDiffusionAmount(150.0f);
-        REQUIRE(shimmer.getDiffusionAmount() == Approx(100.0f));
-    }
+    // Note: "diffusion clamping" section removed - diffusion amount is always 100%
 
     SECTION("filter cutoff clamping") {
         shimmer.setFilterCutoff(5.0f);  // Below min (20Hz)
@@ -280,7 +274,7 @@ TEST_CASE("US1: Classic shimmer creates audible output", "[shimmer-delay][US1]")
     shimmer.setShimmerMix(100.0f);
     shimmer.setFeedbackAmount(0.5f);
     shimmer.setDryWetMix(100.0f);  // Full wet for testing
-    shimmer.setDiffusionAmount(0.0f);  // No diffusion for simpler test
+    // Note: diffusion is now always 100%
     shimmer.snapParameters();
 
     constexpr size_t kBufferSize = 44100;  // 1 second
@@ -307,7 +301,6 @@ TEST_CASE("US1: Shimmer mix at 0% produces standard delay", "[shimmer-delay][US1
     shimmer.setShimmerMix(0.0f);  // No shimmer
     shimmer.setFeedbackAmount(0.3f);
     shimmer.setDryWetMix(100.0f);
-    shimmer.setDiffusionAmount(0.0f);
     shimmer.snapParameters();
 
     constexpr size_t kBufferSize = 22050;
@@ -354,7 +347,6 @@ TEST_CASE("US2: Tempo sync calculates correct delay", "[shimmer-delay][US2][temp
 
     shimmer.setDryWetMix(100.0f);
     shimmer.setFeedbackAmount(0.3f);
-    shimmer.setDiffusionAmount(0.0f);
     shimmer.setShimmerMix(0.0f);  // Clean delay for timing test
     shimmer.snapParameters();
 
@@ -384,7 +376,6 @@ TEST_CASE("US3: Negative pitch creates downward shimmer", "[shimmer-delay][US3]"
     shimmer.setShimmerMix(100.0f);
     shimmer.setFeedbackAmount(0.5f);
     shimmer.setDryWetMix(100.0f);
-    shimmer.setDiffusionAmount(0.0f);
     shimmer.snapParameters();
 
     REQUIRE(shimmer.getPitchSemitones() == Approx(-12.0f));
@@ -438,7 +429,6 @@ TEST_CASE("US5: High feedback remains stable", "[shimmer-delay][US5][SC-005]") {
     shimmer.setShimmerMix(100.0f);
     shimmer.setFeedbackAmount(1.2f);  // 120% feedback
     shimmer.setDryWetMix(100.0f);
-    shimmer.setDiffusionAmount(0.0f);
     shimmer.snapParameters();
 
     // Process for 10 seconds
@@ -483,7 +473,7 @@ TEST_CASE("US6: Diffusion creates smeared texture", "[shimmer-delay][US6]") {
     shimmer.setPitchSemitones(12.0f);
     shimmer.setShimmerMix(100.0f);
     shimmer.setFeedbackAmount(0.5f);
-    shimmer.setDiffusionAmount(100.0f);  // Maximum diffusion
+    // Note: diffusion is now always 100%
     shimmer.setDiffusionSize(50.0f);
     shimmer.setDryWetMix(100.0f);
     shimmer.snapParameters();
@@ -746,7 +736,6 @@ TEST_CASE("SC-001: Pitch shift accuracy within +/-5 cents", "[shimmer-delay][SC-
         shimmer.setShimmerMix(50.0f);
         shimmer.setFeedbackAmount(0.8f);
         shimmer.setDryWetMix(100.0f);
-        shimmer.setDiffusionAmount(0.0f);
         shimmer.setFilterEnabled(false);
         shimmer.snapParameters();
 
@@ -817,7 +806,6 @@ TEST_CASE("0-semitone pitch preserves original frequency", "[shimmer-delay][edge
         shimmer.setShimmerMix(50.0f);
         shimmer.setFeedbackAmount(0.7f);
         shimmer.setDryWetMix(100.0f);
-        shimmer.setDiffusionAmount(0.0f);
         shimmer.setFilterEnabled(false);
         shimmer.snapParameters();
 
@@ -1005,7 +993,6 @@ TEST_CASE("FR-024: Modulation is applied additively in process", "[shimmer-delay
     shimmer.setDryWetMix(100.0f);
     shimmer.setFeedbackAmount(0.3f);
     shimmer.setShimmerMix(0.0f);  // No shimmer for clean delay test
-    shimmer.setDiffusionAmount(0.0f);
     shimmer.snapParameters();
 
     // Create and configure modulation matrix
@@ -1057,7 +1044,6 @@ TEST_CASE("ShimmerDelay spectral analysis: shimmer creates shifted harmonics",
     shimmer.setFeedbackAmount(0.7f); // Strong feedback
     shimmer.setShimmerMix(100.0f);   // Full shimmer
     shimmer.setPitchSemitones(12.0f); // Octave up
-    shimmer.setDiffusionAmount(0.0f); // No diffusion for clean test
     shimmer.snapParameters();
 
     // Generate test signal - sine wave
@@ -1124,7 +1110,6 @@ TEST_CASE("ShimmerDelay spectral analysis: no shimmer passes through cleanly",
     shimmer.setFeedbackAmount(0.5f);
     shimmer.setShimmerMix(0.0f);   // NO shimmer
     shimmer.setPitchSemitones(12.0f);  // Pitch set but shimmer off
-    shimmer.setDiffusionAmount(0.0f);
     shimmer.snapParameters();
 
     const size_t totalSamples = fftSize * 4;
@@ -1354,7 +1339,7 @@ TEST_CASE("ShimmerDelay steady-state artifacts at various shimmer mix levels",
             shimmer.setPitchSemitones(12.0f);  // Octave up - common shimmer setting
             shimmer.setShimmerMix(shimmerMix);
             shimmer.setDryWetMix(100.0f);  // Full wet to hear artifacts clearly
-            shimmer.setDiffusionAmount(0.0f);  // No diffusion to isolate pitch shifter
+            // Note: diffusion is now always 100%
             shimmer.snapParameters();
 
             // Generate continuous sine wave input

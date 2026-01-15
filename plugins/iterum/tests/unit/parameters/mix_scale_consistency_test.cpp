@@ -70,13 +70,7 @@ TEST_CASE("All modes store dryWet as 0-1 scale", "[params][consistency][mix]") {
         REQUIRE(params.shimmerMix.load() == Approx(0.5f).margin(0.01f));
     }
 
-    SECTION("Shimmer delay stores diffusionAmount as 0-1") {
-        ShimmerParams params;
-        handleShimmerParamChange(params, kShimmerDiffusionAmountId, 0.5);
-        // CURRENT: stores 50.0 (0-100 scale) - THIS SHOULD FAIL
-        // EXPECTED: 0.5 (0-1 scale)
-        REQUIRE(params.diffusionAmount.load() == Approx(0.5f).margin(0.01f));
-    }
+    // Note: Shimmer diffusionAmount removed - diffusion is always 100%
 
     SECTION("MultiTap delay stores dryWet as 0-1") {
         MultiTapParams params;

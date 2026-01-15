@@ -1923,7 +1923,7 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeFloat(getFloat(kShimmerPitchCentsId, 0.0f));
     streamer.writeFloat(getFloat(kShimmerPitchBlendId, 100.0f));
     streamer.writeFloat(getFloat(kShimmerFeedbackId, 0.5f));
-    streamer.writeFloat(getFloat(kShimmerDiffusionAmountId, 50.0f));
+    streamer.writeFloat(1.0f);  // Legacy diffusionAmount slot (always 100%)
     streamer.writeFloat(getFloat(kShimmerDiffusionSizeId, 50.0f));
     streamer.writeInt32(getInt32(kShimmerFilterEnabledId, 0));
     streamer.writeFloat(getFloat(kShimmerFilterCutoffId, 4000.0f));

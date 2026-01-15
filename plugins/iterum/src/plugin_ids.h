@@ -107,7 +107,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kShimmerPitchCentsId = 302,       // -100 to +100 cents
     kShimmerPitchBlendId = 303,       // 0-100% (renamed from kShimmerShimmerMixId)
     kShimmerFeedbackId = 304,         // 0-120%
-    kShimmerDiffusionAmountId = 305,  // 0-100%
+    // Note: kShimmerDiffusionAmountId (305) removed - diffusion is always 100%
     kShimmerDiffusionSizeId = 306,    // 0-100%
     kShimmerFilterEnabledId = 307,    // on/off
     kShimmerFilterCutoffId = 308,     // 20-20000Hz

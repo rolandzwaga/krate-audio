@@ -79,10 +79,45 @@ jobs:
     needs: version
     uses: ./.github/workflows/ci.yml
 
+  # Generate factory presets using the preset generator tool
+  generate-presets:
+    name: Generate Presets
+    needs: [version, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Preset Generator
+        run: cmake --build build --target preset_generator --config Release
+
+      - name: Generate Presets
+        run: |
+          mkdir -p generated-presets
+          ./build/bin/preset_generator generated-presets
+
+      - name: Upload Presets
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-presets
+          path: generated-presets/
+          if-no-files-found: error
+
   # Windows installer using Inno Setup
   windows-installer:
     name: Windows Installer
-    needs: [version, build]
+    needs: [version, build, generate-presets]
     runs-on: windows-latest
     permissions:
       actions: read
@@ -98,8 +133,19 @@ jobs:
           path: artifact
           github-token: ${{ github.token }}
 
-      - name: List Downloaded Artifact
-        run: Get-ChildItem -Recurse artifact | Format-Table FullName
+      - name: Download Factory Presets
+        uses: actions/download-artifact@v4
+        with:
+          name: factory-presets
+          path: presets
+          github-token: ${{ github.token }}
+
+      - name: List Downloaded Artifacts
+        run: |
+          Write-Host "=== Plugin Artifact ==="
+          Get-ChildItem -Recurse artifact | Format-Table FullName
+          Write-Host "=== Factory Presets ==="
+          Get-ChildItem -Recurse presets | Format-Table FullName
 
       - name: Prepare Installer Files
         env:
@@ -109,8 +155,8 @@ jobs:
           # Rename artifact folder to Plugin.vst3 (upload-artifact extracts contents, not folder)
           Rename-Item -Path "artifact" -NewName "${env:PLUGIN_NAME}.vst3"
           Move-Item -Path "${env:PLUGIN_NAME}.vst3" -Destination "plugins\${env:PLUGIN}\installers\windows\"
-          # Copy factory presets
-          Copy-Item -Path "plugins\${env:PLUGIN}\resources\presets" -Destination "plugins\${env:PLUGIN}\installers\windows\" -Recurse
+          # Copy freshly generated factory presets
+          Copy-Item -Path "presets" -Destination "plugins\${env:PLUGIN}\installers\windows\" -Recurse
           # Convert markdown to plain text for installer display
           (Get-Content "plugins\${env:PLUGIN}\CHANGELOG.md" -Raw) `
             -replace '\[([^\]]+)\]\([^\)]+\)', '$1' `
@@ -135,7 +181,7 @@ jobs:
   # macOS installer using pkgbuild
   macos-installer:
     name: macOS Installer
-    needs: [version, build]
+    needs: [version, build, generate-presets]
     runs-on: macos-latest
     permissions:
       actions: read
@@ -151,8 +197,19 @@ jobs:
           path: artifact
           github-token: ${{ github.token }}
 
-      - name: List Downloaded Artifact
-        run: ls -laR artifact
+      - name: Download Factory Presets
+        uses: actions/download-artifact@v4
+        with:
+          name: factory-presets
+          path: presets
+          github-token: ${{ github.token }}
+
+      - name: List Downloaded Artifacts
+        run: |
+          echo "=== Plugin Artifact ==="
+          ls -laR artifact
+          echo "=== Factory Presets ==="
+          ls -laR presets
 
       - name: Prepare Installer Files
         env:
@@ -165,9 +222,9 @@ jobs:
           # Move VST3 and AU bundles to appropriate locations
           mv artifact/${PLUGIN_NAME}.vst3 staging/Library/Audio/Plug-Ins/VST3/
           mv artifact/${PLUGIN_NAME}.component staging/Library/Audio/Plug-Ins/Components/
-          # Create factory presets directory and copy presets
+          # Create factory presets directory and copy freshly generated presets
           mkdir -p "staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}"
-          cp -r plugins/${PLUGIN}/resources/presets/* "staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}/"
+          cp -r presets/* "staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}/"
 
       - name: Build Installer
         env:
@@ -194,7 +251,7 @@ jobs:
   # Linux archive with README
   linux-archive:
     name: Linux Archive
-    needs: [version, build]
+    needs: [version, build, generate-presets]
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -210,8 +267,19 @@ jobs:
           path: artifact
           github-token: ${{ github.token }}
 
-      - name: List Downloaded Artifact
-        run: ls -laR artifact
+      - name: Download Factory Presets
+        uses: actions/download-artifact@v4
+        with:
+          name: factory-presets
+          path: presets
+          github-token: ${{ github.token }}
+
+      - name: List Downloaded Artifacts
+        run: |
+          echo "=== Plugin Artifact ==="
+          ls -laR artifact
+          echo "=== Factory Presets ==="
+          ls -laR presets
 
       - name: Prepare Archive Files
         env:
@@ -221,8 +289,8 @@ jobs:
           mkdir -p staging
           # Rename artifact folder to Plugin.vst3 (upload-artifact extracts contents, not folder)
           mv artifact staging/${PLUGIN_NAME}.vst3
-          # Copy factory presets
-          cp -r plugins/${PLUGIN}/resources/presets staging/
+          # Copy freshly generated factory presets
+          cp -r presets staging/
           cp plugins/${PLUGIN}/installers/linux/README.txt staging/
           # Convert markdown to plain text
           sed -e 's/\[\([^]]*\)\]([^)]*)/ \1/g' \

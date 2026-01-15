@@ -208,7 +208,7 @@ private:
 /// shimmer.setPitchSemitones(12.0f);   // Octave up
 /// shimmer.setShimmerMix(100.0f);      // Full shimmer
 /// shimmer.setFeedbackAmount(0.6f);    // 60% feedback
-/// shimmer.setDiffusionAmount(70.0f);  // Lush diffusion
+/// shimmer.setDiffusionSize(70.0f);    // Diffusion size
 /// shimmer.setDryWetMix(50.0f);        // 50/50 mix
 /// shimmer.snapParameters();
 ///
@@ -246,14 +246,12 @@ public:
     static constexpr float kDefaultFeedback = 0.5f;
 
     // Diffusion (FR-016, FR-017)
+    // Note: Diffusion amount is always 100% to mask pitch shifting artifacts.
+    // Commercial shimmer effects always use full diffusion - this is why they sound smooth.
+    // Only diffusion size is user-controllable.
     static constexpr float kMinDiffusion = 0.0f;
     static constexpr float kMaxDiffusion = 100.0f;
-    static constexpr float kDefaultDiffusionAmount = 50.0f;
     static constexpr float kDefaultDiffusionSize = 50.0f;
-
-    // Minimum diffusion when shimmer is active (masks granular pitch shift artifacts)
-    // Commercial shimmer effects always use diffusion - this is why they sound smooth
-    static constexpr float kMinShimmerDiffusion = 100.0f;  // 100% minimum when shimmer > 0
 
     // Filter (FR-020, FR-021)
     static constexpr float kMinFilterCutoff = 20.0f;
@@ -397,13 +395,8 @@ public:
     // =========================================================================
     // Diffusion Configuration (FR-016 to FR-019)
     // =========================================================================
-
-    /// @brief Set diffusion amount
-    /// @param percent Diffusion [0, 100] (0 = no smearing, 100 = maximum diffusion)
-    void setDiffusionAmount(float percent) noexcept;
-
-    /// @brief Get diffusion amount
-    [[nodiscard]] float getDiffusionAmount() const noexcept { return diffusionAmount_; }
+    // Note: Diffusion amount is always 100% (full) to mask pitch shifting artifacts.
+    // Only diffusion size is user-controllable.
 
     /// @brief Set diffusion size (time scaling)
     /// @param percent Size [0, 100]
@@ -492,16 +485,6 @@ private:
     /// @brief Calculate pitch ratio from semitones and cents (FR-009)
     [[nodiscard]] float calculatePitchRatio() const noexcept;
 
-    /// @brief Update effective diffusion based on shimmer mix and user setting
-    ///
-    /// Commercial shimmer effects always use diffusion to mask granular pitch
-    /// shift artifacts. This method enforces a minimum diffusion amount scaled
-    /// by shimmer mix:
-    /// - At 0% shimmer: use user's diffusion setting (no minimum)
-    /// - At 100% shimmer: enforce at least kMinShimmerDiffusion (40%)
-    /// - In between: scale proportionally
-    void updateEffectiveDiffusion() noexcept;
-
     // =========================================================================
     // Member Variables
     // =========================================================================
@@ -543,7 +526,7 @@ private:
     float feedbackAmount_ = kDefaultFeedback;
 
     // Parameters - diffusion
-    float diffusionAmount_ = kDefaultDiffusionAmount;
+    // Note: Diffusion amount is always 100% to mask pitch shift artifacts
     float diffusionSize_ = kDefaultDiffusionSize;
 
     // Parameters - filter
@@ -597,8 +580,8 @@ inline void ShimmerDelay::prepare(double sampleRate, size_t maxBlockSize, float 
     pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
 
     // Initialize shimmer processor parameters (pitch shifting + diffusion only)
-    // Use updateEffectiveDiffusion to apply shimmer-based minimum
-    updateEffectiveDiffusion();
+    // Diffusion is always 100% to mask pitch shift artifacts
+    shimmerProcessor_.setDiffusionAmount(1.0f);  // 100%
     shimmerProcessor_.setDiffusionSize(diffusionSize_);
 
     // Snap feedback network parameters (includes route mix smoother)
@@ -642,8 +625,8 @@ inline void ShimmerDelay::snapParameters() noexcept {
     feedbackNetwork_.snapParameters();
 
     // Update shimmer processor parameters (pitch shifting + diffusion only)
-    // Use updateEffectiveDiffusion to apply shimmer-based minimum
-    updateEffectiveDiffusion();
+    // Diffusion is always 100% to mask pitch shift artifacts
+    shimmerProcessor_.setDiffusionAmount(1.0f);  // 100%
     shimmerProcessor_.setDiffusionSize(diffusionSize_);
 }
 
@@ -690,19 +673,11 @@ inline void ShimmerDelay::setShimmerMix(float percent) noexcept {
     // Route shimmer mix through feedback network's route-based crossfading
     // This avoids comb filtering from latency mismatch when blending
     feedbackNetwork_.setProcessorRouteMix(shimmerMix_);
-    // Update diffusion to enforce minimum when shimmer is active
-    updateEffectiveDiffusion();
 }
 
 inline void ShimmerDelay::setFeedbackAmount(float amount) noexcept {
     feedbackAmount_ = std::clamp(amount, kMinFeedback, kMaxFeedback);
     feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
-}
-
-inline void ShimmerDelay::setDiffusionAmount(float percent) noexcept {
-    diffusionAmount_ = std::clamp(percent, kMinDiffusion, kMaxDiffusion);
-    // Use updateEffectiveDiffusion to apply with shimmer-based minimum
-    updateEffectiveDiffusion();
 }
 
 inline void ShimmerDelay::setDiffusionSize(float percent) noexcept {
@@ -743,19 +718,6 @@ inline float ShimmerDelay::calculatePitchRatio() const noexcept {
     // Convert semitones + cents to ratio: ratio = 2^((semitones + cents/100) / 12)
     const float totalSemitones = pitchSemitones_ + pitchCents_ / 100.0f;
     return std::pow(2.0f, totalSemitones / 12.0f);
-}
-
-inline void ShimmerDelay::updateEffectiveDiffusion() noexcept {
-    // When shimmer is active (>1%), enforce full minimum diffusion to mask
-    // granular pitch shift artifacts. Diffusion is essential for smooth shimmer.
-    const bool shimmerActive = shimmerMix_ > 1.0f;
-    const float minimumDiffusion = shimmerActive ? kMinShimmerDiffusion : 0.0f;
-
-    // Effective diffusion is the maximum of user setting and shimmer-based minimum
-    const float effectiveDiffusion = std::max(diffusionAmount_, minimumDiffusion);
-
-    // Apply to processor
-    shimmerProcessor_.setDiffusionAmount(effectiveDiffusion / 100.0f);
 }
 
 inline void ShimmerDelay::process(float* left, float* right, size_t numSamples,

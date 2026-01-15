@@ -47,7 +47,7 @@ float denormFeedback(double normalized) {
     return static_cast<float>(normalized * 1.2);
 }
 
-// Diffusion Amount/Size: 0-100%
+// Diffusion Size: 0-100% (Note: Diffusion Amount removed - always 100%)
 float denormDiffusion(double normalized) {
     return static_cast<float>(normalized * 100.0);
 }
@@ -138,7 +138,8 @@ TEST_CASE("Shimmer percentage parameters", "[params][shimmer]") {
         REQUIRE(denormShimmerMix(0.5) == Approx(50.0f));
         REQUIRE(denormShimmerMix(1.0) == Approx(100.0f));
     }
-    SECTION("Diffusion Amount 0-100%") {
+    SECTION("Diffusion Size 0-100%") {
+        // Note: Diffusion Amount removed - always 100%
         REQUIRE(denormDiffusion(0.0) == Approx(0.0f));
         REQUIRE(denormDiffusion(0.5) == Approx(50.0f));
         REQUIRE(denormDiffusion(1.0) == Approx(100.0f));

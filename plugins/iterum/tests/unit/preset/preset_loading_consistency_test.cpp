@@ -337,7 +337,7 @@ TEST_CASE("Shimmer params roundtrip preserves values", "[preset][shimmer][roundt
     params.pitchCents.store(5.0f);
     params.shimmerMix.store(0.6f);
     params.feedback.store(0.4f);
-    params.diffusionAmount.store(0.5f);
+    // Note: diffusionAmount removed - diffusion is always 100%
     params.diffusionSize.store(50.0f);
     params.filterEnabled.store(true);
     params.filterCutoff.store(5000.0f);
