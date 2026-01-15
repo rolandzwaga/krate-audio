@@ -232,3 +232,69 @@ Input -> [Input Gain] -> [TapeSaturator] -> [Head Bump] ->
 - Tape types: Type456/Type900/TypeGP9 affecting saturation character
 - Full manual override for all preset defaults
 - 5ms parameter smoothing for click-free operation
+
+---
+
+## FuzzPedal
+**Path:** [fuzz_pedal.h](../../dsp/include/krate/dsp/systems/fuzz_pedal.h) | **Since:** 0.0.67
+
+Complete fuzz pedal system with input buffer, noise gate, and volume control.
+
+```cpp
+enum class GateType : uint8_t { SoftKnee, HardGate, LinearRamp };
+enum class GateTiming : uint8_t { Fast, Normal, Slow };
+enum class BufferCutoff : uint8_t { Hz5, Hz10, Hz20 };
+
+class FuzzPedal {
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    // FuzzProcessor controls
+    void setFuzzType(FuzzType type) noexcept;   // Germanium, Silicon
+    void setFuzz(float amount) noexcept;        // [0, 1]
+    void setTone(float tone) noexcept;          // [0, 1] (0=dark, 1=bright)
+    void setBias(float bias) noexcept;          // [0, 1] (0=dying battery)
+
+    // Output volume
+    void setVolume(float dB) noexcept;          // [-24, +24] dB
+
+    // Input buffer (DC blocking high-pass)
+    void setInputBuffer(bool enabled) noexcept;
+    void setBufferCutoff(BufferCutoff cutoff) noexcept;  // Hz5, Hz10, Hz20
+
+    // Noise gate
+    void setGateEnabled(bool enabled) noexcept;
+    void setGateThreshold(float dB) noexcept;   // [-80, 0] dB
+    void setGateType(GateType type) noexcept;
+    void setGateTiming(GateTiming timing) noexcept;
+
+    // Getters
+    [[nodiscard]] FuzzType getFuzzType() const noexcept;
+    [[nodiscard]] float getFuzz() const noexcept;
+    [[nodiscard]] float getTone() const noexcept;
+    [[nodiscard]] float getBias() const noexcept;
+    [[nodiscard]] float getVolume() const noexcept;
+    [[nodiscard]] bool getInputBuffer() const noexcept;
+    [[nodiscard]] BufferCutoff getBufferCutoff() const noexcept;
+    [[nodiscard]] bool getGateEnabled() const noexcept;
+    [[nodiscard]] float getGateThreshold() const noexcept;
+    [[nodiscard]] GateType getGateType() const noexcept;
+    [[nodiscard]] GateTiming getGateTiming() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Input -> [Input Buffer if enabled] -> [FuzzProcessor] ->
+[Noise Gate if enabled] -> [Volume] -> Output
+```
+
+**Key Features:**
+- Composes FuzzProcessor (Layer 2), Biquad (Layer 1), EnvelopeFollower (Layer 2), OnePoleSmoother (Layer 1)
+- Input buffer: Butterworth high-pass at 5/10/20 Hz for DC blocking
+- Three noise gate types: SoftKnee (musical), HardGate (binary), LinearRamp (gradual)
+- Three gate timing presets: Fast (0.5ms/20ms), Normal (1ms/50ms), Slow (2ms/100ms)
+- 5ms equal-power crossfade for gate type changes (click-free)
+- 5ms parameter smoothing on volume control
+- Default: Input buffer disabled, Gate disabled, Volume 0dB
