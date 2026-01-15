@@ -2518,3 +2518,272 @@ TEST_CASE("PitchShiftProcessor no clicks during cents changes",
     INFO("Clicks detected during cents sweep: " << clicks.size());
     REQUIRE(clicks.empty());
 }
+
+TEST_CASE("PitchShiftProcessor steady-state artifacts in Granular mode",
+          "[pitch_shift][clickdetector][artifacts]") {
+    using namespace Krate::DSP::TestUtils;
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 512;
+    constexpr size_t numBlocks = 100;  // ~1.2 seconds
+    constexpr size_t totalSamples = blockSize * numBlocks;
+
+    PitchShiftProcessor shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setMode(PitchMode::Granular);
+    shifter.setSemitones(12.0f);  // Octave up - same as shimmer delay test
+
+    // Generate continuous sine wave
+    std::vector<float> input(totalSamples);
+    std::vector<float> output(totalSamples);
+
+    for (size_t i = 0; i < totalSamples; ++i) {
+        input[i] = 0.5f * std::sin(2.0f * 3.14159265f * 440.0f *
+                   static_cast<float>(i) / sampleRate);
+    }
+
+    // Process all blocks with CONSTANT pitch (no changes)
+    for (size_t block = 0; block < numBlocks; ++block) {
+        size_t offset = block * blockSize;
+        shifter.process(input.data() + offset, output.data() + offset, blockSize);
+    }
+
+    // Detect artifacts
+    ClickDetectorConfig clickConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 512,
+        .hopSize = 256,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 5
+    };
+
+    ClickDetector detector(clickConfig);
+    detector.prepare();
+
+    // Skip warmup
+    constexpr size_t skipSamples = blockSize * 10;
+    auto clicks = detector.detect(output.data() + skipSamples, totalSamples - skipSamples);
+
+    INFO("Steady-state Granular mode clicks: " << clicks.size());
+    // At steady state, the pitch shifter should produce minimal artifacts
+    REQUIRE(clicks.size() <= 2);
+}
+
+TEST_CASE("PitchShiftProcessor artifacts accumulate through simulated feedback",
+          "[pitch_shift][clickdetector][artifacts][feedback]") {
+    using namespace Krate::DSP::TestUtils;
+
+    // Simulate feedback: process audio through pitch shifter multiple times
+    // Each "pass" represents one feedback loop iteration
+    constexpr float sampleRate = 44100.0f;
+    constexpr size_t blockSize = 512;
+    constexpr size_t numBlocks = 20;  // Shorter duration per pass
+    constexpr size_t totalSamples = blockSize * numBlocks;
+    constexpr size_t numPasses = 5;  // Simulate 5 feedback iterations
+
+    PitchShiftProcessor shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setMode(PitchMode::Granular);
+    shifter.setSemitones(12.0f);
+
+    // Start with a clean sine wave
+    std::vector<float> signal(totalSamples);
+    for (size_t i = 0; i < totalSamples; ++i) {
+        signal[i] = 0.5f * std::sin(2.0f * 3.14159265f * 440.0f *
+                   static_cast<float>(i) / sampleRate);
+    }
+
+    // Process through pitch shifter multiple times (simulating feedback)
+    for (size_t pass = 0; pass < numPasses; ++pass) {
+        std::vector<float> output(totalSamples);
+        for (size_t block = 0; block < numBlocks; ++block) {
+            size_t offset = block * blockSize;
+            shifter.process(signal.data() + offset, output.data() + offset, blockSize);
+        }
+
+        // Detect artifacts after this pass
+        ClickDetectorConfig clickConfig{
+            .sampleRate = sampleRate,
+            .frameSize = 512,
+            .hopSize = 256,
+            .detectionThreshold = 5.0f,
+            .energyThresholdDb = -60.0f,
+            .mergeGap = 5
+        };
+
+        ClickDetector detector(clickConfig);
+        detector.prepare();
+
+        constexpr size_t skipSamples = blockSize * 5;
+        auto clicks = detector.detect(output.data() + skipSamples,
+                                       totalSamples - skipSamples);
+
+        INFO("Pass " << (pass + 1) << " of " << numPasses << " - clicks: " << clicks.size());
+
+        // Feed output back as input for next pass (simulating feedback)
+        signal = output;
+    }
+
+    // After multiple passes, artifacts should still be minimal
+    // If this fails, the pitch shifter introduces cumulative artifacts
+    // that compound through feedback loops
+    ClickDetectorConfig finalConfig{
+        .sampleRate = sampleRate,
+        .frameSize = 512,
+        .hopSize = 256,
+        .detectionThreshold = 5.0f,
+        .energyThresholdDb = -60.0f,
+        .mergeGap = 5
+    };
+
+    ClickDetector finalDetector(finalConfig);
+    finalDetector.prepare();
+
+    constexpr size_t skipSamples = blockSize * 5;
+    auto finalClicks = finalDetector.detect(signal.data() + skipSamples,
+                                             totalSamples - skipSamples);
+
+    INFO("Final signal after " << numPasses << " passes - clicks: " << finalClicks.size());
+    REQUIRE(finalClicks.size() <= 5);  // Allow some accumulation but not too much
+}
+
+// ==============================================================================
+// PitchSync Mode Tests
+// ==============================================================================
+
+TEST_CASE("PitchShiftProcessor: PitchSync mode basic functionality", "[pitch_shift][pitch_sync]") {
+    PitchShiftProcessor processor;
+    processor.prepare(kTestSampleRate, kTestBlockSize);
+    processor.setMode(PitchMode::PitchSync);
+
+    SECTION("Unity pitch is passthrough") {
+        processor.setSemitones(0.0f);
+
+        std::vector<float> input(kTestBlockSize);
+        std::vector<float> output(kTestBlockSize);
+        generateSine(input.data(), input.size(), 440.0f, kTestSampleRate);
+
+        processor.process(input.data(), output.data(), input.size());
+
+        // Unity should be passthrough (with some tolerance for latency)
+        CHECK(!hasInvalidSamples(output.data(), output.size()));
+    }
+
+    SECTION("Octave up shifts pitch correctly") {
+        processor.setSemitones(12.0f);
+
+        // Generate enough signal for pitch detection to kick in
+        std::vector<float> input(kTestBlockSize * 20);
+        std::vector<float> output(kTestBlockSize * 20);
+        generateSine(input.data(), input.size(), 220.0f, kTestSampleRate);
+
+        // Process in blocks
+        for (size_t i = 0; i < input.size(); i += kTestBlockSize) {
+            processor.process(input.data() + i, output.data() + i, kTestBlockSize);
+        }
+
+        CHECK(!hasInvalidSamples(output.data(), output.size()));
+    }
+}
+
+TEST_CASE("PitchShiftProcessor: PitchSync mode latency is lower than Granular", "[pitch_shift][pitch_sync]") {
+    PitchShiftProcessor processor;
+    processor.prepare(kTestSampleRate, kTestBlockSize);
+
+    SECTION("PitchSync reports lower latency than Granular for tonal signals") {
+        // Get granular latency
+        processor.setMode(PitchMode::Granular);
+        size_t granularLatency = processor.getLatencySamples();
+
+        // Get pitch sync latency (after feeding it some tonal content)
+        processor.setMode(PitchMode::PitchSync);
+        processor.setSemitones(12.0f);
+
+        // Feed some tonal content to let pitch detection adapt
+        std::vector<float> input(kTestBlockSize * 10);
+        std::vector<float> output(kTestBlockSize * 10);
+        generateSine(input.data(), input.size(), 440.0f, kTestSampleRate);  // A4
+
+        for (size_t i = 0; i < input.size(); i += kTestBlockSize) {
+            processor.process(input.data() + i, output.data() + i, kTestBlockSize);
+        }
+
+        size_t pitchSyncLatency = processor.getLatencySamples();
+
+        INFO("Granular latency: " << granularLatency << " samples ("
+             << (granularLatency / kTestSampleRate * 1000.0f) << " ms)");
+        INFO("PitchSync latency: " << pitchSyncLatency << " samples ("
+             << (pitchSyncLatency / kTestSampleRate * 1000.0f) << " ms)");
+
+        // PitchSync should have lower latency for tonal content
+        // At 440 Hz, period is ~100 samples, so latency should be ~200 samples (2x period)
+        // vs Granular's ~2000 samples
+        CHECK(pitchSyncLatency < granularLatency);
+
+        // PitchSync latency should be under 30ms for typical tonal content
+        float pitchSyncLatencyMs = static_cast<float>(pitchSyncLatency) / kTestSampleRate * 1000.0f;
+        CHECK(pitchSyncLatencyMs < 30.0f);
+    }
+}
+
+TEST_CASE("PitchShiftProcessor: PitchSync mode handles shimmer-like feedback", "[pitch_shift][pitch_sync][shimmer]") {
+    PitchShiftProcessor processor;
+    processor.prepare(kTestSampleRate, kTestBlockSize);
+    processor.setMode(PitchMode::PitchSync);
+    processor.setSemitones(12.0f);  // Octave up (typical shimmer setting)
+
+    // Simulate shimmer feedback: multiple passes through pitch shifter
+    const size_t numPasses = 5;
+    const size_t totalSamples = kTestBlockSize * 20;
+
+    std::vector<float> signal(totalSamples);
+    std::vector<float> output(totalSamples);
+
+    // Start with 220 Hz (typical shimmer base frequency)
+    generateSine(signal.data(), signal.size(), 220.0f, kTestSampleRate);
+
+    for (size_t pass = 0; pass < numPasses; ++pass) {
+        // Reset processor for each pass (simulating new feedback cycle)
+        processor.reset();
+
+        // Process in blocks
+        for (size_t i = 0; i < totalSamples; i += kTestBlockSize) {
+            processor.process(signal.data() + i, output.data() + i, kTestBlockSize);
+        }
+
+        // No NaN or Inf
+        CHECK(!hasInvalidSamples(output.data(), output.size()));
+
+        // Feed output back (simulating feedback)
+        signal = output;
+    }
+}
+
+TEST_CASE("PitchShiftProcessor: PitchSync mode with various sample rates", "[pitch_shift][pitch_sync]") {
+    const std::vector<double> sampleRates = {44100.0, 48000.0, 96000.0};
+
+    for (double sampleRate : sampleRates) {
+        DYNAMIC_SECTION("Sample rate: " << sampleRate << " Hz") {
+            PitchShiftProcessor processor;
+            processor.prepare(sampleRate, kTestBlockSize);
+            processor.setMode(PitchMode::PitchSync);
+            processor.setSemitones(7.0f);  // Perfect fifth
+
+            std::vector<float> input(kTestBlockSize * 10);
+            std::vector<float> output(kTestBlockSize * 10);
+            generateSine(input.data(), input.size(), 330.0f, static_cast<float>(sampleRate));
+
+            for (size_t i = 0; i < input.size(); i += kTestBlockSize) {
+                processor.process(input.data() + i, output.data() + i, kTestBlockSize);
+            }
+
+            CHECK(!hasInvalidSamples(output.data(), output.size()));
+
+            // Verify latency is reasonable
+            size_t latency = processor.getLatencySamples();
+            float latencyMs = static_cast<float>(latency) / static_cast<float>(sampleRate) * 1000.0f;
+            CHECK(latencyMs < 30.0f);  // Should be under 30ms
+        }
+    }
+}

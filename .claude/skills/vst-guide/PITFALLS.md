@@ -90,6 +90,31 @@ Child views are destroyed by `CViewContainer::removeAll()` before destructor run
 **Right:**
 Don't access child views in destructor - they're already gone.
 
+### Pitfall 7: Parameter Unit Mismatch Between Processor and DSP
+
+**Wrong:**
+```cpp
+// Processor stores normalized 0-1 value
+shimmerParams_.shimmerMix.store(normalizedValue, std::memory_order_relaxed);
+
+// Later in process(), pass directly to DSP component
+shimmerDelay_.setShimmerMix(shimmerParams_.shimmerMix.load(std::memory_order_relaxed));
+// BUG: DSP expects 0-100 percent, but we're passing 0-1!
+```
+
+**Symptom:** Parameter appears to have no effect because the value is ~100x smaller than expected.
+
+**Right:**
+```cpp
+// Convert to the units the DSP API expects
+shimmerDelay_.setShimmerMix(shimmerParams_.shimmerMix.load(std::memory_order_relaxed) * 100.0f);
+```
+
+**Prevention checklist:**
+1. Document expected units in DSP setter comments (e.g., "percent 0-100", "dB", "Hz")
+2. Check if similar parameters in the same mode use conversion - follow the pattern
+3. When a parameter "doesn't work", first check if it's a unit mismatch
+
 ---
 
 ## Debugging Checklist
@@ -166,6 +191,27 @@ When VSTGUI/VST3 features don't work:
 
 ---
 
+### 2026-01-15: Shimmer Pitch Shift Has No Effect
+
+**Symptom:** In Shimmer delay mode, changing pitch shift parameters (semitones, cents, shimmer mix) appeared to have no audible effect on the output.
+
+**Root Cause:** Parameter unit mismatch in `processor.cpp:534`. The shimmer mix parameter was stored as normalized 0-1 in `shimmerParams_.shimmerMix`, but `ShimmerDelay::setShimmerMix()` expects 0-100 percent. The value was passed directly without conversion, so when user set shimmer mix to 50%, it actually became 0.5%, making the pitched feedback almost completely blended out.
+
+**The Bug:**
+```cpp
+// Line 534 - WRONG
+shimmerDelay_.setShimmerMix(shimmerParams_.shimmerMix.load(std::memory_order_relaxed));
+
+// Line 540 - CORRECT (same file, different parameter)
+shimmerDelay_.setDryWetMix(shimmerParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
+```
+
+**Solution:** Add `* 100.0f` conversion to match the pattern used for `setDryWetMix()` on line 540.
+
+**Lesson:** When a parameter appears to have no effect, check if there's a unit mismatch between how the processor stores it (often normalized 0-1) and what the DSP API expects (often percent 0-100, Hz, dB, etc.). Look at similar parameters in the same code block for the correct pattern.
+
+---
+
 ## Key Takeaways
 
 1. **Use the right parameter type** - `StringListParameter` for dropdowns, `RangeParameter` for ranges
@@ -174,3 +220,4 @@ When VSTGUI/VST3 features don't work:
 4. **Thread safety is critical** - Never manipulate UI from non-UI threads
 5. **Read the source** - When stuck, read VSTGUI/VST3 SDK source code
 6. **Create helpers** - Prevent future mistakes with helper functions that enforce correct usage
+7. **Check parameter units** - Verify normalized values are converted to the units DSP APIs expect

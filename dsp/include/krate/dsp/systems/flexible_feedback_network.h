@@ -25,14 +25,17 @@
 
 #include <krate/dsp/primitives/i_feedback_processor.h>
 #include <krate/dsp/primitives/crossfading_delay_line.h>
+#include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/multimode_filter.h>
 #include <krate/dsp/processors/dynamics_processor.h>
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/crossfade_utils.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 #include <vector>
 
 namespace Krate::DSP {
@@ -73,6 +76,14 @@ public:
         processedR_.resize(maxBlockSize, 0.0f);
         oldProcessedL_.resize(maxBlockSize, 0.0f);
         oldProcessedR_.resize(maxBlockSize, 0.0f);
+        bypassL_.resize(maxBlockSize, 0.0f);
+        bypassR_.resize(maxBlockSize, 0.0f);
+
+        // Prepare latency compensation delay lines for bypass path alignment
+        // Max 200ms to handle any pitch mode (Granular ~46ms, PhaseVocoder ~116ms)
+        constexpr float kMaxLatencyCompSeconds = 0.2f;
+        bypassCompL_.prepare(sampleRate, kMaxLatencyCompSeconds);
+        bypassCompR_.prepare(sampleRate, kMaxLatencyCompSeconds);
 
         // Configure smoothers (20ms smoothing time)
         constexpr float kSmoothTimeMs = 20.0f;
@@ -80,6 +91,7 @@ public:
         processorMixSmoother_.configure(kSmoothTimeMs, static_cast<float>(sampleRate));
         freezeMixSmoother_.configure(kSmoothTimeMs, static_cast<float>(sampleRate));
         delayTimeSmoother_.configure(kSmoothTimeMs, static_cast<float>(sampleRate));
+        routeMixSmoother_.configure(kSmoothTimeMs, static_cast<float>(sampleRate));
 
         // Prepare filters
         filterL_.prepare(sampleRate, maxBlockSize);
@@ -123,6 +135,10 @@ public:
         limiterL_.reset();
         limiterR_.reset();
 
+        // Reset latency compensation delay lines
+        bypassCompL_.reset();
+        bypassCompR_.reset();
+
         // Clear all processing buffers
         std::fill(feedbackL_.begin(), feedbackL_.end(), 0.0f);
         std::fill(feedbackR_.begin(), feedbackR_.end(), 0.0f);
@@ -130,6 +146,8 @@ public:
         std::fill(processedR_.begin(), processedR_.end(), 0.0f);
         std::fill(oldProcessedL_.begin(), oldProcessedL_.end(), 0.0f);
         std::fill(oldProcessedR_.begin(), oldProcessedR_.end(), 0.0f);
+        std::fill(bypassL_.begin(), bypassL_.end(), 0.0f);
+        std::fill(bypassR_.begin(), bypassR_.end(), 0.0f);
 
         // Clear processed feedback state
         lastProcessedFeedbackL_ = 0.0f;
@@ -207,12 +225,17 @@ public:
 
         // Apply injected processor to feedback signal (if present)
         if (processor_) {
+            // Copy feedback to bypass buffer BEFORE processing
+            // This preserves the unprocessed signal for route-based crossfading
+            std::copy(feedbackL_.begin(), feedbackL_.begin() + numSamples, bypassL_.begin());
+            std::copy(feedbackR_.begin(), feedbackR_.begin() + numSamples, bypassR_.begin());
+
             std::copy(feedbackL_.begin(), feedbackL_.begin() + numSamples, processedL_.begin());
             std::copy(feedbackR_.begin(), feedbackR_.begin() + numSamples, processedR_.begin());
 
             processor_->process(processedL_.data(), processedR_.data(), numSamples);
 
-            // Handle crossfade if hot-swapping
+            // Handle crossfade if hot-swapping processors
             if (oldProcessor_ && crossfadePosition_ < crossfadeSamples_) {
                 std::copy(feedbackL_.begin(), feedbackL_.begin() + numSamples, oldProcessedL_.begin());
                 std::copy(feedbackR_.begin(), feedbackR_.begin() + numSamples, oldProcessedR_.begin());
@@ -233,11 +256,30 @@ public:
                 }
             }
 
-            // Mix processed with dry feedback based on processor mix (smoothed per-sample)
+            // Route-based crossfade between bypass and processed paths
+            // At extremes (0% or 100%), use direct path to avoid feedback loop changes.
+            // In between, use equal-power crossfade for smooth transition.
+            // Note: There IS comb filtering potential at intermediate values due to
+            // processor latency mismatch, but latency-compensating the bypass path
+            // in a feedback loop changes the loop timing and creates worse artifacts.
             for (std::size_t i = 0; i < numSamples; ++i) {
-                const float mix = processorMixSmoother_.process();
-                feedbackL_[i] = feedbackL_[i] * (1.0f - mix) + processedL_[i] * mix;
-                feedbackR_[i] = feedbackR_[i] * (1.0f - mix) + processedR_[i] * mix;
+                const float routeMix = routeMixSmoother_.process();
+
+                // At extremes, use direct path to preserve correct feedback loop timing
+                if (routeMix <= 0.001f) {
+                    // Full bypass - feedbackL_ stays unchanged (already has unprocessed signal)
+                    // No operation needed - feedbackL_ already contains bypassL_
+                } else if (routeMix >= 0.999f) {
+                    // Full processed
+                    feedbackL_[i] = processedL_[i];
+                    feedbackR_[i] = processedR_[i];
+                } else {
+                    // Intermediate - equal-power crossfade
+                    float bypassGain, processGain;
+                    equalPowerGains(routeMix, bypassGain, processGain);
+                    feedbackL_[i] = bypassL_[i] * bypassGain + processedL_[i] * processGain;
+                    feedbackR_[i] = bypassR_[i] * bypassGain + processedR_[i] * processGain;
+                }
             }
         }
 
@@ -297,11 +339,36 @@ public:
         }
     }
 
-    /// @brief Set the mix amount for the injected processor
+    /// @brief Set the mix amount for the injected processor (DEPRECATED)
     /// @param mix Mix amount (0-100%, 0 = bypass processor)
+    /// @note Use setProcessorRouteMix() for shimmer-style effects to avoid
+    ///       comb filtering artifacts from latency mismatch
     void setProcessorMix(float mix) noexcept {
         processorMix_ = std::clamp(mix / 100.0f, 0.0f, 1.0f);
         processorMixSmoother_.setTarget(processorMix_);
+        // Also update route mix for backward compatibility
+        processorRouteMix_ = processorMix_;
+        routeMixSmoother_.setTarget(processorRouteMix_);
+    }
+
+    /// @brief Set the routing mix between bypass and processor paths
+    /// @param mix Route mix (0-100%, 0 = full bypass, 100 = full processor)
+    ///
+    /// Uses equal-power crossfade between bypass (unprocessed feedback) and
+    /// processed feedback to avoid comb filtering artifacts that occur when
+    /// blending signals with different latencies at the sample level.
+    ///
+    /// For shimmer effects, use this instead of setProcessorMix() and remove
+    /// internal blending from the processor. The processor should do ONLY
+    /// pitch shifting, while this method controls the wet/dry routing.
+    void setProcessorRouteMix(float mix) noexcept {
+        processorRouteMix_ = std::clamp(mix / 100.0f, 0.0f, 1.0f);
+        routeMixSmoother_.setTarget(processorRouteMix_);
+    }
+
+    /// @brief Snap route mix to target value immediately (no smoothing)
+    void snapRouteMix() noexcept {
+        routeMixSmoother_.snapTo(processorRouteMix_);
     }
 
     // -------------------------------------------------------------------------
@@ -388,6 +455,7 @@ public:
         processorMixSmoother_.snapTo(processorMix_);
         freezeMixSmoother_.snapTo(freezeEnabled_ ? 1.0f : 0.0f);
         delayTimeSmoother_.snapTo(msToSamples(delayTimeMs_));
+        routeMixSmoother_.snapTo(processorRouteMix_);
 
         // Also snap CrossfadingDelayLines to avoid crossfade transient on init
         delayL_.snapToDelayMs(delayTimeMs_);
@@ -403,6 +471,12 @@ private:
     CrossfadingDelayLine delayL_;
     CrossfadingDelayLine delayR_;
 
+    // Latency compensation delay lines for bypass path alignment
+    // These delay the bypass signal to match the processor's internal latency,
+    // ensuring both paths are time-aligned when crossfading to avoid comb filtering.
+    DelayLine bypassCompL_;
+    DelayLine bypassCompR_;
+
     // Injected processor
     IFeedbackProcessor* processor_ = nullptr;
     IFeedbackProcessor* oldProcessor_ = nullptr;  // For crossfade
@@ -414,10 +488,12 @@ private:
     OnePoleSmoother processorMixSmoother_;
     OnePoleSmoother freezeMixSmoother_;
     OnePoleSmoother delayTimeSmoother_;
+    OnePoleSmoother routeMixSmoother_;
 
     // Target values
     float feedbackAmount_ = 0.5f;
     float processorMix_ = 1.0f;
+    float processorRouteMix_ = 1.0f;  // Route mix: 0 = bypass, 1 = full processor
     float delayTimeMs_ = 500.0f;
     bool freezeEnabled_ = false;
 
@@ -437,6 +513,8 @@ private:
     std::vector<float> processedR_;
     std::vector<float> oldProcessedL_;
     std::vector<float> oldProcessedR_;
+    std::vector<float> bypassL_;      // Unprocessed feedback for route-based crossfade
+    std::vector<float> bypassR_;
 
     // Last processed feedback (for block-based processor feedback path)
     float lastProcessedFeedbackL_ = 0.0f;

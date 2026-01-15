@@ -531,7 +531,7 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             }
             shimmerDelay_.setPitchSemitones(shimmerParams_.pitchSemitones.load(std::memory_order_relaxed));
             shimmerDelay_.setPitchCents(shimmerParams_.pitchCents.load(std::memory_order_relaxed));
-            shimmerDelay_.setShimmerMix(shimmerParams_.shimmerMix.load(std::memory_order_relaxed));
+            shimmerDelay_.setShimmerMix(shimmerParams_.shimmerMix.load(std::memory_order_relaxed) * 100.0f);
             shimmerDelay_.setFeedbackAmount(shimmerParams_.feedback.load(std::memory_order_relaxed));
             shimmerDelay_.setDiffusionAmount(shimmerParams_.diffusionAmount.load(std::memory_order_relaxed));
             shimmerDelay_.setDiffusionSize(shimmerParams_.diffusionSize.load(std::memory_order_relaxed));

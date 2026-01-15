@@ -54,7 +54,10 @@ namespace DSP {
 /// The processor applies:
 /// 1. Pitch shifting (stereo)
 /// 2. Diffusion network (reverb-like smearing)
-/// 3. Shimmer mix blending (pitched vs unpitched ratio)
+///
+/// Note: Shimmer mix (bypass vs processed routing) is handled by
+/// FlexibleFeedbackNetwork::setProcessorRouteMix() to avoid comb filtering
+/// artifacts from latency mismatch when blending different-latency signals.
 class ShimmerFeedbackProcessor : public IFeedbackProcessor {
 public:
     ShimmerFeedbackProcessor() noexcept = default;
@@ -73,8 +76,6 @@ public:
         diffusion_.prepare(static_cast<float>(sampleRate), maxBlockSize);
 
         // Allocate buffers
-        unpitchedL_.resize(maxBlockSize, 0.0f);
-        unpitchedR_.resize(maxBlockSize, 0.0f);
         diffusionOutL_.resize(maxBlockSize, 0.0f);
         diffusionOutR_.resize(maxBlockSize, 0.0f);
     }
@@ -82,13 +83,7 @@ public:
     void process(float* left, float* right, std::size_t numSamples) noexcept override {
         if (numSamples == 0) return;
 
-        // Store unpitched signal for shimmer mix blending
-        for (std::size_t i = 0; i < numSamples; ++i) {
-            unpitchedL_[i] = left[i];
-            unpitchedR_[i] = right[i];
-        }
-
-        // Apply pitch shifting
+        // Apply pitch shifting (always - routing is handled by FlexibleFeedbackNetwork)
         pitchShifterL_.process(left, left, numSamples);
         pitchShifterR_.process(right, right, numSamples);
 
@@ -103,13 +98,9 @@ public:
             }
         }
 
-        // Apply shimmer mix: blend between unpitched and pitched+diffused
-        // At 0% shimmer: output = unpitched (standard delay feedback)
-        // At 100% shimmer: output = pitched+diffused (full shimmer)
-        for (std::size_t i = 0; i < numSamples; ++i) {
-            left[i] = unpitchedL_[i] * (1.0f - shimmerMix_) + left[i] * shimmerMix_;
-            right[i] = unpitchedR_[i] * (1.0f - shimmerMix_) + right[i] * shimmerMix_;
-        }
+        // NO shimmer mix blending here - that's now handled by
+        // FlexibleFeedbackNetwork using route-based crossfading to avoid
+        // comb filtering from latency mismatch
     }
 
     void reset() noexcept override {
@@ -138,10 +129,6 @@ public:
         pitchShifterR_.setMode(mode);
     }
 
-    void setShimmerMix(float mix) noexcept {
-        shimmerMix_ = std::clamp(mix, 0.0f, 1.0f);
-    }
-
     void setDiffusionAmount(float amount) noexcept {
         diffusionAmount_ = std::clamp(amount, 0.0f, 1.0f);
         diffusion_.setDensity(amount * 100.0f);
@@ -163,12 +150,9 @@ private:
     DiffusionNetwork diffusion_;
 
     // Parameters
-    float shimmerMix_ = 1.0f;       // 0-1 (0 = unpitched, 1 = fully pitched)
     float diffusionAmount_ = 0.5f;  // 0-1
 
     // Scratch buffers
-    std::vector<float> unpitchedL_;
-    std::vector<float> unpitchedR_;
     std::vector<float> diffusionOutL_;
     std::vector<float> diffusionOutR_;
 };
@@ -267,6 +251,10 @@ public:
     static constexpr float kDefaultDiffusionAmount = 50.0f;
     static constexpr float kDefaultDiffusionSize = 50.0f;
 
+    // Minimum diffusion when shimmer is active (masks granular pitch shift artifacts)
+    // Commercial shimmer effects always use diffusion - this is why they sound smooth
+    static constexpr float kMinShimmerDiffusion = 100.0f;  // 100% minimum when shimmer > 0
+
     // Filter (FR-020, FR-021)
     static constexpr float kMinFilterCutoff = 20.0f;
     static constexpr float kMaxFilterCutoff = 20000.0f;
@@ -279,6 +267,7 @@ public:
 
     // Internal
     static constexpr float kSmoothingTimeMs = 20.0f;
+    // Note: Shimmer mix smoothing now handled by FlexibleFeedbackNetwork (20ms default)
     static constexpr size_t kMaxDryBufferSize = 65536;  // Supports ~1.5s blocks at 44.1kHz
 
     // Limiter constants (for feedback > 100%)
@@ -503,6 +492,16 @@ private:
     /// @brief Calculate pitch ratio from semitones and cents (FR-009)
     [[nodiscard]] float calculatePitchRatio() const noexcept;
 
+    /// @brief Update effective diffusion based on shimmer mix and user setting
+    ///
+    /// Commercial shimmer effects always use diffusion to mask granular pitch
+    /// shift artifacts. This method enforces a minimum diffusion amount scaled
+    /// by shimmer mix:
+    /// - At 0% shimmer: use user's diffusion setting (no minimum)
+    /// - At 100% shimmer: enforce at least kMinShimmerDiffusion (40%)
+    /// - In between: scale proportionally
+    void updateEffectiveDiffusion() noexcept;
+
     // =========================================================================
     // Member Variables
     // =========================================================================
@@ -523,6 +522,7 @@ private:
     OnePoleSmoother delaySmoother_;
     OnePoleSmoother dryWetSmoother_;
     OnePoleSmoother pitchRatioSmoother_;  // FR-009: Smooth pitch changes
+    // Note: shimmerMix smoothing is now handled by FlexibleFeedbackNetwork's routeMixSmoother_
 
     // Layer 3 - optional modulation matrix
     ModulationMatrix* modulationMatrix_ = nullptr;
@@ -536,7 +536,7 @@ private:
     // Parameters - pitch
     float pitchSemitones_ = kDefaultPitchSemitones;
     float pitchCents_ = kDefaultPitchCents;
-    PitchMode pitchMode_ = PitchMode::Granular;  // Default per FR-008
+    PitchMode pitchMode_ = PitchMode::PitchSync;  // PitchSync for low-latency shimmer
 
     // Parameters - shimmer
     float shimmerMix_ = kDefaultShimmerMix;
@@ -573,7 +573,7 @@ inline void ShimmerDelay::prepare(double sampleRate, size_t maxBlockSize, float 
     // Prepare flexible feedback network (FR-018)
     feedbackNetwork_.prepare(sampleRate, maxBlockSize);
     feedbackNetwork_.setProcessor(&shimmerProcessor_);
-    feedbackNetwork_.setProcessorMix(100.0f);  // Full processor effect
+    feedbackNetwork_.setProcessorRouteMix(shimmerMix_);  // Route shimmer mix through FFN
     feedbackNetwork_.setDelayTimeMs(delayTimeMs_);
     feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
     feedbackNetwork_.setFilterEnabled(filterEnabled_);
@@ -596,12 +596,12 @@ inline void ShimmerDelay::prepare(double sampleRate, size_t maxBlockSize, float 
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
     pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
 
-    // Initialize shimmer processor parameters
-    shimmerProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
-    shimmerProcessor_.setDiffusionAmount(diffusionAmount_ / 100.0f);
+    // Initialize shimmer processor parameters (pitch shifting + diffusion only)
+    // Use updateEffectiveDiffusion to apply shimmer-based minimum
+    updateEffectiveDiffusion();
     shimmerProcessor_.setDiffusionSize(diffusionSize_);
 
-    // Snap feedback network parameters
+    // Snap feedback network parameters (includes route mix smoother)
     feedbackNetwork_.snapParameters();
 
     prepared_ = true;
@@ -619,7 +619,7 @@ inline void ShimmerDelay::reset() noexcept {
     dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
     pitchRatioSmoother_.snapTo(calculatePitchRatio());  // FR-009
 
-    // Snap feedback network parameters
+    // Snap feedback network parameters (includes route mix smoother)
     feedbackNetwork_.snapParameters();
 }
 
@@ -633,16 +633,17 @@ inline void ShimmerDelay::snapParameters() noexcept {
     shimmerProcessor_.setPitchSemitones(pitchSemitones_);
     shimmerProcessor_.setPitchCents(pitchCents_);
 
-    // Update feedback network parameters
+    // Update feedback network parameters (including route mix for shimmer)
     feedbackNetwork_.setDelayTimeMs(delayTimeMs_);
     feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
     feedbackNetwork_.setFilterEnabled(filterEnabled_);
     feedbackNetwork_.setFilterCutoff(filterCutoffHz_);
+    feedbackNetwork_.setProcessorRouteMix(shimmerMix_);
     feedbackNetwork_.snapParameters();
 
-    // Update shimmer processor parameters
-    shimmerProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
-    shimmerProcessor_.setDiffusionAmount(diffusionAmount_ / 100.0f);
+    // Update shimmer processor parameters (pitch shifting + diffusion only)
+    // Use updateEffectiveDiffusion to apply shimmer-based minimum
+    updateEffectiveDiffusion();
     shimmerProcessor_.setDiffusionSize(diffusionSize_);
 }
 
@@ -686,7 +687,11 @@ inline float ShimmerDelay::getSmoothedPitchRatio() const noexcept {
 
 inline void ShimmerDelay::setShimmerMix(float percent) noexcept {
     shimmerMix_ = std::clamp(percent, kMinShimmerMix, kMaxShimmerMix);
-    shimmerProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
+    // Route shimmer mix through feedback network's route-based crossfading
+    // This avoids comb filtering from latency mismatch when blending
+    feedbackNetwork_.setProcessorRouteMix(shimmerMix_);
+    // Update diffusion to enforce minimum when shimmer is active
+    updateEffectiveDiffusion();
 }
 
 inline void ShimmerDelay::setFeedbackAmount(float amount) noexcept {
@@ -696,7 +701,8 @@ inline void ShimmerDelay::setFeedbackAmount(float amount) noexcept {
 
 inline void ShimmerDelay::setDiffusionAmount(float percent) noexcept {
     diffusionAmount_ = std::clamp(percent, kMinDiffusion, kMaxDiffusion);
-    shimmerProcessor_.setDiffusionAmount(diffusionAmount_ / 100.0f);
+    // Use updateEffectiveDiffusion to apply with shimmer-based minimum
+    updateEffectiveDiffusion();
 }
 
 inline void ShimmerDelay::setDiffusionSize(float percent) noexcept {
@@ -739,6 +745,19 @@ inline float ShimmerDelay::calculatePitchRatio() const noexcept {
     return std::pow(2.0f, totalSemitones / 12.0f);
 }
 
+inline void ShimmerDelay::updateEffectiveDiffusion() noexcept {
+    // When shimmer is active (>1%), enforce full minimum diffusion to mask
+    // granular pitch shift artifacts. Diffusion is essential for smooth shimmer.
+    const bool shimmerActive = shimmerMix_ > 1.0f;
+    const float minimumDiffusion = shimmerActive ? kMinShimmerDiffusion : 0.0f;
+
+    // Effective diffusion is the maximum of user setting and shimmer-based minimum
+    const float effectiveDiffusion = std::max(diffusionAmount_, minimumDiffusion);
+
+    // Apply to processor
+    shimmerProcessor_.setDiffusionAmount(effectiveDiffusion / 100.0f);
+}
+
 inline void ShimmerDelay::process(float* left, float* right, size_t numSamples,
                                    const BlockContext& ctx) noexcept {
     if (!prepared_ || numSamples == 0) return;
@@ -772,6 +791,9 @@ inline void ShimmerDelay::process(float* left, float* right, size_t numSamples,
         const float smoothedSemitones = 12.0f * std::log2(smoothedRatio);
         shimmerProcessor_.setPitchSemitones(smoothedSemitones);
         shimmerProcessor_.setPitchCents(0.0f);
+
+        // Shimmer mix is handled by FlexibleFeedbackNetwork's route-based crossfading
+        // No need to smooth here - FFN's routeMixSmoother_ handles it
 
         // Process through feedback network
         feedbackNetwork_.process(chunkLeft, chunkRight, chunkSize, ctx);
