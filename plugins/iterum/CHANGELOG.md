@@ -5,6 +5,34 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-01-16
+
+### Added
+
+- **Wavefold Distortion for Digital Delay**
+  - New wavefold processing stage in Digital Delay signal chain
+  - Wavefold Amount parameter (0-100%): 0% bypasses, 1-100% maps to fold intensity [0.1, 10.0]
+  - Wavefold Type selector: Simple, Serge, Buchla259, Lockhart models
+  - Wavefold Symmetry parameter (-100% to +100%): introduces even harmonics at extremes
+  - Applied post-feedback network, pre-anti-alias filter for maximum harmonic content
+  - UI controls: slider for amount, segment button for type, knob for symmetry
+
+### Fixed
+
+- **Wavefold Model Switching Clicks**
+  - Fixed audible clicks when changing wavefold type during playback
+  - Corrected Lockhart algorithm DC offset (0.514 → 0) for consistent zero-crossing
+  - Improved crossfade state management: primary wavefolder state now preserved during transitions
+  - Extended crossfade duration from 10ms to 100ms for smoother transitions
+  - DC blocker continuity maintained via state copying before model change
+
+### Changed
+
+- **Rename Torqueo to Disrumpo**
+  - Renamed internal distortion component from Torqueo to Disrumpo
+
+---
+
 ## [0.11.0] - 2026-01-15
 
 ### Added
