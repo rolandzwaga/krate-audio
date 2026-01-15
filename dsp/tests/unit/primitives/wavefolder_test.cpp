@@ -204,9 +204,10 @@ TEST_CASE("Lockhart fold produces soft saturation characteristics", "[wavefolder
     folder.setType(WavefoldType::Lockhart);
     folder.setFoldAmount(1.0f);
 
-    // Zero input should produce tanh(lambertW(exp(0))) = tanh(lambertW(1)) ~ tanh(0.567) ~ 0.514
+    // Zero input should produce 0 (DC offset corrected)
+    // Original formula produces tanh(lambertW(1)) ~ 0.514, but we subtract this offset
     float zeroOutput = folder.process(0.0f);
-    REQUIRE(zeroOutput == Approx(0.514f).margin(0.01f));
+    REQUIRE(zeroOutput == Approx(0.0f).margin(0.01f));
 
     // Positive input should produce higher output (soft saturation)
     float posOutput = folder.process(1.0f);
@@ -234,19 +235,19 @@ TEST_CASE("Lockhart fold scales input by foldAmount before transfer function", "
     REQUIRE(high > low);
 }
 
-TEST_CASE("Lockhart fold with foldAmount 0 returns approximately 0.514 for any input", "[wavefolder][lockhart]") {
-    // FR-022: foldAmount=0 returns tanh(lambertW(1)) ~ 0.514
+TEST_CASE("Lockhart fold with foldAmount 0 returns approximately 0 for any input", "[wavefolder][lockhart]") {
+    // FR-022: foldAmount=0 returns 0 (DC offset corrected)
     // When foldAmount = 0: exp(x * 0) = exp(0) = 1 for all x
-    // lambertW(1) ~ 0.567, tanh(0.567) ~ 0.514
+    // lambertW(1) ~ 0.567, tanh(0.567) ~ 0.514, minus DC offset (0.514) = 0
     Wavefolder folder;
     folder.setType(WavefoldType::Lockhart);
     folder.setFoldAmount(0.0f);
 
-    // Various inputs should all produce the same output
-    REQUIRE(folder.process(0.0f) == Approx(0.514f).margin(0.01f));
-    REQUIRE(folder.process(1.0f) == Approx(0.514f).margin(0.01f));
-    REQUIRE(folder.process(-1.0f) == Approx(0.514f).margin(0.01f));
-    REQUIRE(folder.process(100.0f) == Approx(0.514f).margin(0.01f));
+    // Various inputs should all produce approximately 0 (DC offset corrected)
+    REQUIRE(folder.process(0.0f) == Approx(0.0f).margin(0.01f));
+    REQUIRE(folder.process(1.0f) == Approx(0.0f).margin(0.01f));
+    REQUIRE(folder.process(-1.0f) == Approx(0.0f).margin(0.01f));
+    REQUIRE(folder.process(100.0f) == Approx(0.0f).margin(0.01f));
 }
 
 // -----------------------------------------------------------------------------
@@ -591,16 +592,16 @@ TEST_CASE("Sine fold with foldAmount 0 returns input unchanged", "[wavefolder][e
     REQUIRE(folder.process(1.0f) == Approx(1.0f).margin(1e-6f));
 }
 
-TEST_CASE("Lockhart fold with foldAmount 0 returns approximately 0.514 for any input", "[wavefolder][edge]") {
-    // FR-022: tanh(lambertW(1)) ~ 0.514
+TEST_CASE("Lockhart fold with foldAmount 0 returns approximately 0 for any input (edge)", "[wavefolder][edge]") {
+    // FR-022: DC offset corrected - all inputs produce 0 when foldAmount=0
     Wavefolder folder;
     folder.setType(WavefoldType::Lockhart);
     folder.setFoldAmount(0.0f);
 
-    REQUIRE(folder.process(0.0f) == Approx(0.514f).margin(0.01f));
-    REQUIRE(folder.process(1.0f) == Approx(0.514f).margin(0.01f));
-    REQUIRE(folder.process(-1.0f) == Approx(0.514f).margin(0.01f));
-    REQUIRE(folder.process(10.0f) == Approx(0.514f).margin(0.01f));
+    REQUIRE(folder.process(0.0f) == Approx(0.0f).margin(0.01f));
+    REQUIRE(folder.process(1.0f) == Approx(0.0f).margin(0.01f));
+    REQUIRE(folder.process(-1.0f) == Approx(0.0f).margin(0.01f));
+    REQUIRE(folder.process(10.0f) == Approx(0.0f).margin(0.01f));
 }
 
 TEST_CASE("SC-008 NaN propagation is consistent across all fold types", "[wavefolder][edge][stability]") {

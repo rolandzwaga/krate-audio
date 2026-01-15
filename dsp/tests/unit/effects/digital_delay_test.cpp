@@ -1786,3 +1786,381 @@ TEST_CASE("DigitalDelay wavefold symmetry clamping", "[features][digital-delay][
         REQUIRE(delay.getWavefoldSymmetry() == Approx(0.5f));
     }
 }
+
+// =============================================================================
+// Wavefold Model Change Click Detection Tests
+// =============================================================================
+// These tests use the click ratio pattern (maxDiff/avgDiff) to detect
+// discontinuities during wavefold model transitions.
+// =============================================================================
+
+TEST_CASE("DigitalDelay wavefold model change with silence produces no clicks",
+          "[digital-delay][wavefold][click-free][silence]") {
+    // This test verifies that changing wavefold models with NO input signal
+    // doesn't produce clicks. This catches DC offset or state discontinuities.
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 512;
+    constexpr size_t numBlocks = 20;
+
+    DigitalDelay delay;
+    delay.prepare(sampleRate, blockSize);
+    delay.reset();  // Ensure delay lines are cleared
+
+    // Enable wavefold with moderate amount
+    delay.setWavefoldAmount(50.0f);
+    delay.setWavefoldModel(WavefolderModel::Simple);
+    delay.setFeedback(0.0f);  // No feedback
+    delay.setMix(1.0f);       // Full wet
+
+    std::vector<float> left(blockSize, 0.0f);
+    std::vector<float> right(blockSize, 0.0f);
+    std::vector<float> outputHistory;
+    outputHistory.reserve(numBlocks * blockSize);
+
+    BlockContext ctx{.sampleRate = sampleRate, .tempoBPM = 120.0, .isPlaying = false};
+
+    // Process silence for a few blocks
+    for (size_t block = 0; block < 5; ++block) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+    }
+
+    // Change model and continue processing silence
+    delay.setWavefoldModel(WavefolderModel::Serge);
+
+    for (size_t block = 0; block < 5; ++block) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+    }
+
+    // Change to another model
+    delay.setWavefoldModel(WavefolderModel::Buchla259);
+
+    for (size_t block = 0; block < 5; ++block) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+    }
+
+    // Change to Lockhart
+    delay.setWavefoldModel(WavefolderModel::Lockhart);
+
+    for (size_t block = 0; block < 5; ++block) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+    }
+
+    // With silence input and no feedback, output should be silence (or near-silence)
+    // Any non-zero output indicates a click or discontinuity
+    float maxAbs = 0.0f;
+    size_t maxAbsIndex = 0;
+    for (size_t i = 0; i < outputHistory.size(); ++i) {
+        if (std::abs(outputHistory[i]) > maxAbs) {
+            maxAbs = std::abs(outputHistory[i]);
+            maxAbsIndex = i;
+        }
+    }
+
+    // Calculate which block and sample the max occurred
+    size_t maxBlock = maxAbsIndex / blockSize;
+    size_t maxSampleInBlock = maxAbsIndex % blockSize;
+
+    INFO("Max absolute output with silence input: " << maxAbs);
+    INFO("Max at block " << maxBlock << ", sample " << maxSampleInBlock << " (total sample " << maxAbsIndex << ")");
+
+    // Check output in different regions
+    float maxBeforeChange = 0.0f;
+    for (size_t i = 0; i < 5 * blockSize; ++i) {
+        maxBeforeChange = std::max(maxBeforeChange, std::abs(outputHistory[i]));
+    }
+    INFO("Max output BEFORE first model change: " << maxBeforeChange);
+
+    // Should be essentially zero (allow tiny numerical noise)
+    REQUIRE(maxAbs < 0.001f);
+}
+
+TEST_CASE("DigitalDelay wavefold model change with signal produces no clicks",
+          "[digital-delay][wavefold][click-free][signal]") {
+    // This test verifies that changing wavefold models during active signal
+    // doesn't produce clicks. Uses click ratio detection.
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 512;
+    constexpr size_t numBlocks = 30;
+    constexpr float kPi = 3.14159265f;
+
+    DigitalDelay delay;
+    delay.prepare(sampleRate, blockSize);
+    delay.reset();  // Ensure delay lines are cleared
+
+    // Enable wavefold with moderate amount
+    delay.setWavefoldAmount(50.0f);
+    delay.setWavefoldModel(WavefolderModel::Simple);
+    delay.setFeedback(0.3f);  // Some feedback
+    delay.setMix(1.0f);       // Full wet
+    delay.setDelayTime(100.0f);  // 100ms delay
+
+    std::vector<float> left(blockSize);
+    std::vector<float> right(blockSize);
+    std::vector<float> outputHistory;
+    outputHistory.reserve(numBlocks * blockSize);
+
+    BlockContext ctx{.sampleRate = sampleRate, .tempoBPM = 120.0, .isPlaying = false};
+
+    size_t sampleCount = 0;
+    auto fillSine = [&]() {
+        for (size_t i = 0; i < blockSize; ++i) {
+            float t = static_cast<float>(sampleCount + i) / static_cast<float>(sampleRate);
+            left[i] = 0.5f * std::sin(2.0f * kPi * 440.0f * t);
+            right[i] = left[i];
+        }
+    };
+
+    // Process signal for several blocks to establish state
+    for (size_t block = 0; block < 10; ++block) {
+        fillSine();
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+        sampleCount += blockSize;
+    }
+
+    // Change model to Serge and continue
+    delay.setWavefoldModel(WavefolderModel::Serge);
+
+    for (size_t block = 0; block < 5; ++block) {
+        fillSine();
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+        sampleCount += blockSize;
+    }
+
+    // Change model to Buchla
+    delay.setWavefoldModel(WavefolderModel::Buchla259);
+
+    for (size_t block = 0; block < 5; ++block) {
+        fillSine();
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+        sampleCount += blockSize;
+    }
+
+    // Change model to Lockhart
+    delay.setWavefoldModel(WavefolderModel::Lockhart);
+
+    for (size_t block = 0; block < 5; ++block) {
+        fillSine();
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+        sampleCount += blockSize;
+    }
+
+    // Change back to Simple
+    delay.setWavefoldModel(WavefolderModel::Simple);
+
+    for (size_t block = 0; block < 5; ++block) {
+        fillSine();
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+        sampleCount += blockSize;
+    }
+
+    // Calculate click ratio (maxDiff/avgDiff)
+    // Skip initial samples to let delay fill
+    constexpr size_t kSkipSamples = blockSize * 5;
+
+    float maxDiff = 0.0f;
+    float avgDiff = 0.0f;
+    size_t diffCount = 0;
+
+    for (size_t i = kSkipSamples + 1; i < outputHistory.size(); ++i) {
+        float diff = std::abs(outputHistory[i] - outputHistory[i - 1]);
+        maxDiff = std::max(maxDiff, diff);
+        avgDiff += diff;
+        ++diffCount;
+    }
+    avgDiff /= static_cast<float>(diffCount);
+
+    float clickRatio = maxDiff / (avgDiff + 1e-10f);
+
+    INFO("Max sample-to-sample diff: " << maxDiff);
+    INFO("Avg sample-to-sample diff: " << avgDiff);
+    INFO("Click ratio (max/avg): " << clickRatio);
+
+    // For smooth crossfade, click ratio should be reasonable
+    // High ratios (> 25-35) indicate discontinuities
+    REQUIRE(clickRatio < 35.0f);
+}
+
+TEST_CASE("DigitalDelay wavefold model change during feedback produces no clicks",
+          "[digital-delay][wavefold][click-free][feedback]") {
+    // This test specifically checks model changes while audio is in the
+    // feedback loop - the most likely scenario to produce clicks.
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 512;
+    constexpr float kPi = 3.14159265f;
+
+    DigitalDelay delay;
+    delay.prepare(sampleRate, blockSize);
+    delay.reset();  // Ensure delay lines are cleared
+
+    // High feedback to ensure signal is looping
+    delay.setWavefoldAmount(70.0f);
+    delay.setWavefoldModel(WavefolderModel::Simple);
+    delay.setFeedback(0.7f);  // High feedback
+    delay.setMix(1.0f);
+    delay.setDelayTime(50.0f);  // Short delay for faster feedback
+
+    std::vector<float> left(blockSize);
+    std::vector<float> right(blockSize);
+    std::vector<float> outputHistory;
+
+    BlockContext ctx{.sampleRate = sampleRate, .tempoBPM = 120.0, .isPlaying = false};
+
+    // Feed a burst of signal to fill delay buffer
+    for (size_t block = 0; block < 5; ++block) {
+        for (size_t i = 0; i < blockSize; ++i) {
+            float t = static_cast<float>(block * blockSize + i) / static_cast<float>(sampleRate);
+            left[i] = 0.7f * std::sin(2.0f * kPi * 220.0f * t);
+            right[i] = left[i];
+        }
+        delay.process(left.data(), right.data(), blockSize, ctx);
+        outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+    }
+
+    // Now process silence but with feedback - audio should continue looping
+    // Change model during this feedback decay
+    const WavefolderModel models[] = {
+        WavefolderModel::Serge,
+        WavefolderModel::Buchla259,
+        WavefolderModel::Lockhart,
+        WavefolderModel::Simple
+    };
+
+    for (auto model : models) {
+        delay.setWavefoldModel(model);
+
+        // Process a few blocks of silence after model change
+        for (size_t block = 0; block < 5; ++block) {
+            std::fill(left.begin(), left.end(), 0.0f);
+            std::fill(right.begin(), right.end(), 0.0f);
+            delay.process(left.data(), right.data(), blockSize, ctx);
+            outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+        }
+    }
+
+    // Calculate click ratio focusing on the model change regions
+    // Skip initial signal burst
+    constexpr size_t kSkipSamples = blockSize * 5;
+
+    float maxDiff = 0.0f;
+    float avgDiff = 0.0f;
+    size_t diffCount = 0;
+
+    for (size_t i = kSkipSamples + 1; i < outputHistory.size(); ++i) {
+        float diff = std::abs(outputHistory[i] - outputHistory[i - 1]);
+        maxDiff = std::max(maxDiff, diff);
+        avgDiff += diff;
+        ++diffCount;
+    }
+    avgDiff /= static_cast<float>(diffCount);
+
+    float clickRatio = maxDiff / (avgDiff + 1e-10f);
+
+    INFO("Max sample-to-sample diff during feedback: " << maxDiff);
+    INFO("Avg sample-to-sample diff during feedback: " << avgDiff);
+    INFO("Click ratio (max/avg): " << clickRatio);
+
+    // Feedback with model changes will have higher click ratios than normal signal
+    // because different wavefold models have inherently different gain characteristics.
+    // With 70% feedback and 70% wavefold amount, some level transition is expected.
+    // The crossfade smooths the transition but cannot eliminate level differences
+    // between fundamentally different wavefold algorithms.
+    REQUIRE(clickRatio < 60.0f);
+}
+
+TEST_CASE("DigitalDelay wavefold rapid model changes produce no clicks",
+          "[digital-delay][wavefold][click-free][rapid]") {
+    // This tests rapid successive model changes - worst case scenario
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 128;  // Small blocks for rapid changes
+    constexpr float kPi = 3.14159265f;
+
+    DigitalDelay delay;
+    delay.prepare(sampleRate, blockSize);
+    delay.reset();  // Ensure delay lines are cleared
+
+    delay.setWavefoldAmount(60.0f);
+    delay.setWavefoldModel(WavefolderModel::Simple);
+    delay.setFeedback(0.4f);
+    delay.setMix(1.0f);
+    delay.setDelayTime(80.0f);
+
+    std::vector<float> left(blockSize);
+    std::vector<float> right(blockSize);
+    std::vector<float> outputHistory;
+
+    BlockContext ctx{.sampleRate = sampleRate, .tempoBPM = 120.0, .isPlaying = false};
+
+    size_t sampleCount = 0;
+    const WavefolderModel models[] = {
+        WavefolderModel::Simple,
+        WavefolderModel::Serge,
+        WavefolderModel::Buchla259,
+        WavefolderModel::Lockhart
+    };
+
+    // Rapidly cycle through models
+    for (size_t cycle = 0; cycle < 10; ++cycle) {
+        for (auto model : models) {
+            delay.setWavefoldModel(model);
+
+            // Process just one block per model change
+            for (size_t i = 0; i < blockSize; ++i) {
+                float t = static_cast<float>(sampleCount + i) / static_cast<float>(sampleRate);
+                left[i] = 0.5f * std::sin(2.0f * kPi * 330.0f * t);
+                right[i] = left[i];
+            }
+            delay.process(left.data(), right.data(), blockSize, ctx);
+            outputHistory.insert(outputHistory.end(), left.begin(), left.end());
+            sampleCount += blockSize;
+        }
+    }
+
+    // Calculate click ratio
+    constexpr size_t kSkipSamples = blockSize * 4;
+
+    float maxDiff = 0.0f;
+    float avgDiff = 0.0f;
+    size_t diffCount = 0;
+
+    for (size_t i = kSkipSamples + 1; i < outputHistory.size(); ++i) {
+        float diff = std::abs(outputHistory[i] - outputHistory[i - 1]);
+        maxDiff = std::max(maxDiff, diff);
+        avgDiff += diff;
+        ++diffCount;
+    }
+    avgDiff /= static_cast<float>(diffCount);
+
+    float clickRatio = maxDiff / (avgDiff + 1e-10f);
+
+    INFO("Rapid model changes - Max diff: " << maxDiff);
+    INFO("Rapid model changes - Avg diff: " << avgDiff);
+    INFO("Rapid model changes - Click ratio: " << clickRatio);
+
+    // Even rapid changes should not produce severe clicks
+    REQUIRE(clickRatio < 50.0f);
+}

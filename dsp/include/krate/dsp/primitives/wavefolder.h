@@ -272,7 +272,12 @@ private:
         const float scaled = x * foldAmount_;
         const float expValue = std::exp(scaled);
         const float w = WavefoldMath::lambertW(expValue);
-        return FastMath::fastTanh(w);
+        // DC offset correction: subtract tanh(W(1)) so that Lockhart(0) = 0
+        // W(1) ≈ 0.5671432904 (omega constant), tanh(W(1)) ≈ 0.5138683936
+        // Without this, Lockhart produces ~0.514 for zero input, causing clicks
+        // when crossfading with other models that produce 0 for zero input.
+        constexpr float kLockhartDcOffset = 0.5138683936f;
+        return FastMath::fastTanh(w) - kLockhartDcOffset;
     }
 
     // =========================================================================

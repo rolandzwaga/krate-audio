@@ -27,6 +27,7 @@
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/crossfade_utils.h>
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/lfo.h>
 #include <krate/dsp/primitives/smoother.h>
@@ -128,6 +129,7 @@ public:
     static constexpr float kDefaultMix = 0.5f;         ///< Default mix
     static constexpr float kDefaultModRate = 1.0f;     ///< Default mod rate Hz
     static constexpr float kSmoothingTimeMs = 20.0f;   ///< Parameter smoothing (FR-033)
+    static constexpr float kWavefoldCrossfadeMs = 100.0f;  ///< Crossfade time for wavefold model changes
     static constexpr size_t kDefaultDryBufferSize = 8192;  ///< Default dry buffer (resized in prepare)
 
     // Limiter constants (per plan.md)
@@ -204,6 +206,13 @@ public:
         wavefolderR_.prepare(sampleRate, maxBlockSize);
         wavefolderL_.setMix(0.0f);  // Default off
         wavefolderR_.setMix(0.0f);
+        // Secondary wavefolders for crossfading during model changes
+        wavefolderL2_.prepare(sampleRate, maxBlockSize);
+        wavefolderR2_.prepare(sampleRate, maxBlockSize);
+        wavefolderL2_.setMix(0.0f);
+        wavefolderR2_.setMix(0.0f);
+        // Calculate crossfade increment based on sample rate
+        wavefoldCrossfadeInc_ = crossfadeIncrement(kWavefoldCrossfadeMs, static_cast<float>(sampleRate));
 
         // Prepare modulation LFO (Sine default per FR-025)
         modulationLfo_.prepare(sampleRate);
@@ -244,6 +253,12 @@ public:
         envelopeBuffer_.resize(maxBlockSize);
         std::fill(envelopeBuffer_.begin(), envelopeBuffer_.end(), 0.0f);
 
+        // Allocate wavefold crossfade temp buffers
+        wavefoldTempL_.resize(maxBlockSize);
+        wavefoldTempR_.resize(maxBlockSize);
+        std::fill(wavefoldTempL_.begin(), wavefoldTempL_.end(), 0.0f);
+        std::fill(wavefoldTempR_.begin(), wavefoldTempR_.end(), 0.0f);
+
         prepared_ = true;
     }
 
@@ -256,6 +271,10 @@ public:
         noiseEnvelope_.reset();
         wavefolderL_.reset();
         wavefolderR_.reset();
+        wavefolderL2_.reset();
+        wavefolderR2_.reset();
+        wavefoldCrossfadePos_ = 0.0f;
+        wavefoldCrossfading_ = false;
         modulationLfo_.reset();
         antiAliasFilterL_.reset();
         antiAliasFilterR_.reset();
@@ -489,6 +508,8 @@ public:
             // Effectively disabled - set mix to 0 for efficient bypass
             wavefolderL_.setMix(0.0f);
             wavefolderR_.setMix(0.0f);
+            wavefolderL2_.setMix(0.0f);
+            wavefolderR2_.setMix(0.0f);
         } else {
             // Map 1-100% to fold amount [0.1, 10.0]
             const float foldAmount = 0.1f + (wavefoldAmount_ / 100.0f) * 9.9f;
@@ -496,6 +517,11 @@ public:
             wavefolderR_.setFoldAmount(foldAmount);
             wavefolderL_.setMix(1.0f);
             wavefolderR_.setMix(1.0f);
+            // Also update secondary (for crossfade consistency)
+            wavefolderL2_.setFoldAmount(foldAmount);
+            wavefolderR2_.setFoldAmount(foldAmount);
+            wavefolderL2_.setMix(1.0f);
+            wavefolderR2_.setMix(1.0f);
         }
     }
 
@@ -504,12 +530,34 @@ public:
         return wavefoldAmount_;
     }
 
-    /// @brief Set wavefold model type
+    /// @brief Set wavefold model type with crossfade to prevent clicks
     /// @param model Wavefolder model (Simple, Serge, Buchla259, Lockhart)
     void setWavefoldModel(WavefolderModel model) noexcept {
+        if (model == wavefoldModel_) {
+            return;  // No change needed
+        }
+
+        // CRITICAL: Copy PRIMARY to SECONDARY first to preserve DC blocker state
+        // This ensures SECONDARY starts from the same state as PRIMARY, preventing
+        // discontinuities caused by divergent DC blocker states during crossfade.
+        wavefolderL2_ = wavefolderL_;
+        wavefolderR2_ = wavefolderR_;
+
+        // Now set new model on secondary pair (preserves DC blocker state)
         wavefoldModel_ = model;
-        wavefolderL_.setModel(model);
-        wavefolderR_.setModel(model);
+        wavefolderL2_.setModel(model);
+        wavefolderR2_.setModel(model);
+        // Parameters already copied from PRIMARY, but ensure they match current settings
+        const float foldAmount = 0.1f + (wavefoldAmount_ / 100.0f) * 9.9f;
+        wavefolderL2_.setFoldAmount(foldAmount);
+        wavefolderR2_.setFoldAmount(foldAmount);
+        wavefolderL2_.setSymmetry(wavefoldSymmetry_);
+        wavefolderR2_.setSymmetry(wavefoldSymmetry_);
+        wavefolderL2_.setMix(1.0f);
+        wavefolderR2_.setMix(1.0f);
+        // Start crossfade
+        wavefoldCrossfadePos_ = 0.0f;
+        wavefoldCrossfading_ = true;
     }
 
     /// @brief Get wavefold model type
@@ -523,6 +571,9 @@ public:
         wavefoldSymmetry_ = std::clamp(symmetry, -1.0f, 1.0f);
         wavefolderL_.setSymmetry(wavefoldSymmetry_);
         wavefolderR_.setSymmetry(wavefoldSymmetry_);
+        // Also update secondary (for crossfade consistency)
+        wavefolderL2_.setSymmetry(wavefoldSymmetry_);
+        wavefolderR2_.setSymmetry(wavefoldSymmetry_);
     }
 
     /// @brief Get wavefold symmetry
@@ -591,8 +642,45 @@ public:
         // Apply wavefold distortion to feedback output (before era character)
         // WavefolderProcessor has internal DC blocking and parameter smoothing
         if (wavefoldAmount_ > 0.0f) {
-            wavefolderL_.process(left, numSamples);
-            wavefolderR_.process(right, numSamples);
+            if (wavefoldCrossfading_) {
+                // Crossfading between models - process both and blend
+                // Copy input to temp buffers for primary wavefolder
+                std::copy(left, left + numSamples, wavefoldTempL_.begin());
+                std::copy(right, right + numSamples, wavefoldTempR_.begin());
+
+                // Process temp with primary (old model)
+                wavefolderL_.process(wavefoldTempL_.data(), numSamples);
+                wavefolderR_.process(wavefoldTempR_.data(), numSamples);
+
+                // Process original with secondary (new model) in-place
+                wavefolderL2_.process(left, numSamples);
+                wavefolderR2_.process(right, numSamples);
+
+                // Blend sample-by-sample with equal-power crossfade
+                for (size_t i = 0; i < numSamples; ++i) {
+                    const auto [fadeOut, fadeIn] = equalPowerGains(wavefoldCrossfadePos_);
+                    left[i] = wavefoldTempL_[i] * fadeOut + left[i] * fadeIn;
+                    right[i] = wavefoldTempR_[i] * fadeOut + right[i] * fadeIn;
+
+                    // Advance crossfade
+                    wavefoldCrossfadePos_ += wavefoldCrossfadeInc_;
+                    if (wavefoldCrossfadePos_ >= 1.0f) {
+                        // Crossfade complete
+                        wavefoldCrossfadePos_ = 1.0f;
+                        wavefoldCrossfading_ = false;
+                        // CRITICAL: Swap wavefolders instead of just updating model
+                        // The secondary has the correct DC blocker state from processing
+                        // during crossfade. Swapping ensures state continuity.
+                        std::swap(wavefolderL_, wavefolderL2_);
+                        std::swap(wavefolderR_, wavefolderR2_);
+                        break;
+                    }
+                }
+            } else {
+                // Normal processing - single model
+                wavefolderL_.process(left, numSamples);
+                wavefolderR_.process(right, numSamples);
+            }
         }
 
         // Track envelope of DRY INPUT ONLY for dither modulation (MOVED BEFORE character processing)
@@ -762,8 +850,13 @@ private:
     // Layer 2 components
     DynamicsProcessor limiter_;
     EnvelopeFollower noiseEnvelope_;  ///< Tracks input amplitude for noise modulation
-    WavefolderProcessor wavefolderL_; ///< Left channel wavefolder
-    WavefolderProcessor wavefolderR_; ///< Right channel wavefolder
+    WavefolderProcessor wavefolderL_; ///< Left channel wavefolder (primary)
+    WavefolderProcessor wavefolderR_; ///< Right channel wavefolder (primary)
+    WavefolderProcessor wavefolderL2_; ///< Left channel wavefolder (secondary, for crossfade)
+    WavefolderProcessor wavefolderR2_; ///< Right channel wavefolder (secondary, for crossfade)
+    float wavefoldCrossfadePos_ = 0.0f;   ///< Crossfade position (0=primary, 1=secondary)
+    float wavefoldCrossfadeInc_ = 0.0f;   ///< Per-sample crossfade increment
+    bool wavefoldCrossfading_ = false;     ///< True during model change crossfade
 
     // Modulation LFO (Layer 1)
     LFO modulationLfo_;
@@ -802,6 +895,8 @@ private:
 
     // Envelope buffer for noise modulation (allocated in prepare)
     std::vector<float> envelopeBuffer_;
+    std::vector<float> wavefoldTempL_;  ///< Temp buffer for wavefold crossfade
+    std::vector<float> wavefoldTempR_;  ///< Temp buffer for wavefold crossfade
 
     // 80s era anti-aliasing filter (FR-009)
     Biquad antiAliasFilterL_;

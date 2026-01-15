@@ -62,7 +62,6 @@
     <control-tag name="ShimmerPitchCents" tag="302"/>
     <control-tag name="ShimmerShimmerMix" tag="303"/>
     <control-tag name="ShimmerFeedback" tag="304"/>
-    <!-- Note: ShimmerDiffusionAmount (305) removed - diffusion is always 100% -->
     <control-tag name="ShimmerDiffusionSize" tag="306"/>
     <control-tag name="ShimmerFilterEnabled" tag="307"/>
     <control-tag name="ShimmerFilterCutoff" tag="308"/>
@@ -107,7 +106,10 @@
     <control-tag name="DigitalModRate" tag="608"/>
     <control-tag name="DigitalModWaveform" tag="609"/>
     <control-tag name="DigitalMix" tag="610"/>
+    <control-tag name="DigitalWavefoldAmount" tag="611"/>
     <control-tag name="DigitalWidth" tag="612"/>
+    <control-tag name="DigitalWavefoldType" tag="613"/>
+    <control-tag name="DigitalWavefoldSymmetry" tag="614"/>
     <control-tag name="PingPongDelayTime" tag="700"/>
     <control-tag name="PingPongTimeMode" tag="701"/>
     <control-tag name="PingPongNoteValue" tag="702"/>
@@ -335,7 +337,6 @@
     </view>
     <view class="CViewContainer" origin="580, 30" size="270, 145" background-color="section" transparent="false">
       <view class="CTextLabel" origin="5, 5" size="260, 18" title="DIFFUSION &amp; FILTER" font="section-font" font-color="accent" transparent="true"/>
-      <!-- Note: Diffusion Amount removed - diffusion is always 100% -->
       <view class="CTextLabel" origin="10, 28" size="35, 16" title="Size" font="label-font" font-color="text-dim" transparent="true"/>
       <view class="CParamDisplay" control-tag="ShimmerDiffusionSize" origin="45, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
       <view class="CSlider" origin="10, 46" size="75, 20" control-tag="ShimmerDiffusionSize" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
@@ -481,6 +482,17 @@
       <view class="CTextLabel" origin="10, 28" size="40, 16" title="Width" font="label-font" font-color="text-dim" transparent="true"/>
       <view class="CParamDisplay" control-tag="DigitalWidth" origin="54, 28" size="30, 20" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
       <view class="CSlider" origin="90, 28" size="170, 20" control-tag="DigitalWidth" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+    </view>
+    <view class="CViewContainer" origin="10, 230" size="280, 140" background-color="section" transparent="false">
+      <view class="CTextLabel" origin="5, 5" size="270, 18" title="WAVEFOLD" font="section-font" font-color="accent" transparent="true"/>
+      <view class="CTextLabel" origin="10, 28" size="50, 16" title="Amount" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="DigitalWavefoldAmount" origin="60, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="10, 46" size="160, 20" control-tag="DigitalWavefoldAmount" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="10, 110" size="35, 16" title="Type" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSegmentButton" origin="50, 108" size="220, 22" control-tag="DigitalWavefoldType" style="horizontal" segment-names="Simple,Serge,Buchla,Lock" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
+      <view class="CTextLabel" origin="180, 28" size="40, 16" title="Sym" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="DigitalWavefoldSymmetry" origin="220, 28" size="50, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CKnob" origin="220, 46" size="50, 50" control-tag="DigitalWavefoldSymmetry" angle-start="135" angle-range="270" value-inset="3" zoom-factor="1.5" corona-color="accent" handle-color="text" handle-line-width="2"/>
     </view>
   </template>
   <template name="PingPongPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
