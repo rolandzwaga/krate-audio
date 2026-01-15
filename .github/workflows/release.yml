@@ -94,7 +94,11 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential
+          sudo apt-get install -y cmake build-essential \
+            libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
+            libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
 
       - name: Configure CMake
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
