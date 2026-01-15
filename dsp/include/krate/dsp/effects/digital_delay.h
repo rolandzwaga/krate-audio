@@ -32,6 +32,7 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/dynamics_processor.h>
 #include <krate/dsp/processors/envelope_follower.h>
+#include <krate/dsp/processors/wavefolder_processor.h>
 #include <krate/dsp/systems/character_processor.h>
 #include <krate/dsp/systems/feedback_network.h>
 
@@ -198,6 +199,12 @@ public:
         noiseEnvelope_.setAttackTime(0.1f);    // 0.1ms - near-instant response to transients
         noiseEnvelope_.setReleaseTime(2.0f);   // 2ms - ultra-fast decay for tight tracking
 
+        // Prepare WavefolderProcessors for feedback harmonic distortion
+        wavefolderL_.prepare(sampleRate, maxBlockSize);
+        wavefolderR_.prepare(sampleRate, maxBlockSize);
+        wavefolderL_.setMix(0.0f);  // Default off
+        wavefolderR_.setMix(0.0f);
+
         // Prepare modulation LFO (Sine default per FR-025)
         modulationLfo_.prepare(sampleRate);
         modulationLfo_.setWaveform(Waveform::Sine);
@@ -247,6 +254,8 @@ public:
         character_.reset();
         limiter_.reset();
         noiseEnvelope_.reset();
+        wavefolderL_.reset();
+        wavefolderR_.reset();
         modulationLfo_.reset();
         antiAliasFilterL_.reset();
         antiAliasFilterR_.reset();
@@ -469,6 +478,59 @@ public:
     }
 
     // =========================================================================
+    // Wavefold Distortion Control
+    // =========================================================================
+
+    /// @brief Set wavefold amount (0 = disabled)
+    /// @param amount Amount percentage [0, 100] - maps to fold amount [0.1, 10.0]
+    void setWavefoldAmount(float amount) noexcept {
+        wavefoldAmount_ = std::clamp(amount, 0.0f, 100.0f);
+        if (wavefoldAmount_ < 0.01f) {
+            // Effectively disabled - set mix to 0 for efficient bypass
+            wavefolderL_.setMix(0.0f);
+            wavefolderR_.setMix(0.0f);
+        } else {
+            // Map 1-100% to fold amount [0.1, 10.0]
+            const float foldAmount = 0.1f + (wavefoldAmount_ / 100.0f) * 9.9f;
+            wavefolderL_.setFoldAmount(foldAmount);
+            wavefolderR_.setFoldAmount(foldAmount);
+            wavefolderL_.setMix(1.0f);
+            wavefolderR_.setMix(1.0f);
+        }
+    }
+
+    /// @brief Get wavefold amount
+    [[nodiscard]] float getWavefoldAmount() const noexcept {
+        return wavefoldAmount_;
+    }
+
+    /// @brief Set wavefold model type
+    /// @param model Wavefolder model (Simple, Serge, Buchla259, Lockhart)
+    void setWavefoldModel(WavefolderModel model) noexcept {
+        wavefoldModel_ = model;
+        wavefolderL_.setModel(model);
+        wavefolderR_.setModel(model);
+    }
+
+    /// @brief Get wavefold model type
+    [[nodiscard]] WavefolderModel getWavefoldModel() const noexcept {
+        return wavefoldModel_;
+    }
+
+    /// @brief Set wavefold symmetry for even/odd harmonic balance
+    /// @param symmetry Symmetry value [-1, +1] (0 = symmetric/odd harmonics only)
+    void setWavefoldSymmetry(float symmetry) noexcept {
+        wavefoldSymmetry_ = std::clamp(symmetry, -1.0f, 1.0f);
+        wavefolderL_.setSymmetry(wavefoldSymmetry_);
+        wavefolderR_.setSymmetry(wavefoldSymmetry_);
+    }
+
+    /// @brief Get wavefold symmetry
+    [[nodiscard]] float getWavefoldSymmetry() const noexcept {
+        return wavefoldSymmetry_;
+    }
+
+    // =========================================================================
     // Processing (FR-035 to FR-040)
     // =========================================================================
 
@@ -525,6 +587,13 @@ public:
 
         // Process through feedback network (has delay + feedback built-in)
         feedbackNetwork_.process(left, right, numSamples, ctx);
+
+        // Apply wavefold distortion to feedback output (before era character)
+        // WavefolderProcessor has internal DC blocking and parameter smoothing
+        if (wavefoldAmount_ > 0.0f) {
+            wavefolderL_.process(left, numSamples);
+            wavefolderR_.process(right, numSamples);
+        }
 
         // Track envelope of DRY INPUT ONLY for dither modulation (MOVED BEFORE character processing)
         // CRITICAL: We must track ONLY the dry (input) signal, NOT the wet signal
@@ -693,6 +762,8 @@ private:
     // Layer 2 components
     DynamicsProcessor limiter_;
     EnvelopeFollower noiseEnvelope_;  ///< Tracks input amplitude for noise modulation
+    WavefolderProcessor wavefolderL_; ///< Left channel wavefolder
+    WavefolderProcessor wavefolderR_; ///< Right channel wavefolder
 
     // Modulation LFO (Layer 1)
     LFO modulationLfo_;
@@ -705,6 +776,9 @@ private:
     float age_ = 0.0f;                           ///< Age/degradation (FR-041)
     float mix_ = kDefaultMix;                    ///< Dry/wet mix (FR-031)
     float width_ = 100.0f;                       ///< Stereo width (spec 036)
+    float wavefoldAmount_ = 0.0f;                ///< Wavefold amount 0-100%
+    float wavefoldSymmetry_ = 0.0f;              ///< Wavefold symmetry -1 to +1
+    WavefolderModel wavefoldModel_ = WavefolderModel::Simple; ///< Wavefold type
 
     // Mode selections
     DigitalEra era_ = DigitalEra::Pristine;

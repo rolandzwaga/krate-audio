@@ -1533,3 +1533,256 @@ TEST_CASE("DigitalDelay feedback transition doesn't cause distortion",
         REQUIRE(maxJump < 0.5f);
     }
 }
+
+// =============================================================================
+// Wavefold Distortion Tests
+// =============================================================================
+
+TEST_CASE("DigitalDelay wavefold default disabled", "[features][digital-delay][wavefold]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 512);
+
+    // Default wavefold should be disabled (0%)
+    REQUIRE(delay.getWavefoldAmount() == Approx(0.0f));
+    REQUIRE(delay.getWavefoldModel() == WavefolderModel::Simple);
+    REQUIRE(delay.getWavefoldSymmetry() == Approx(0.0f));
+}
+
+TEST_CASE("DigitalDelay wavefold amount 0 passes signal unchanged", "[features][digital-delay][wavefold]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 512);
+    delay.setWavefoldAmount(0.0f);  // Explicitly disabled
+    delay.setDelayTime(100.0f);
+    delay.setFeedback(0.5f);
+    delay.setMix(1.0f);  // 100% wet
+    delay.snapParameters();
+
+    // Process enough blocks to get stable delayed output
+    std::array<float, 512> left{}, right{};
+    BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
+
+    // Fill with test signal and let delay build up
+    for (int warmup = 0; warmup < 20; ++warmup) {
+        for (size_t i = 0; i < 512; ++i) {
+            left[i] = 0.5f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+            right[i] = left[i];
+        }
+        delay.process(left.data(), right.data(), 512, ctx);
+    }
+
+    // Capture reference output with wavefold disabled
+    std::vector<float> referenceL(512);
+    for (size_t i = 0; i < 512; ++i) {
+        left[i] = 0.5f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+        right[i] = left[i];
+    }
+    delay.process(left.data(), right.data(), 512, ctx);
+    std::copy(left.begin(), left.end(), referenceL.begin());
+
+    // Reset and process with same input - should match
+    delay.reset();
+    delay.snapParameters();
+    for (int warmup = 0; warmup < 20; ++warmup) {
+        for (size_t i = 0; i < 512; ++i) {
+            left[i] = 0.5f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+            right[i] = left[i];
+        }
+        delay.process(left.data(), right.data(), 512, ctx);
+    }
+
+    for (size_t i = 0; i < 512; ++i) {
+        left[i] = 0.5f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+        right[i] = left[i];
+    }
+    delay.process(left.data(), right.data(), 512, ctx);
+
+    // Outputs should match (wavefold disabled has no effect)
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < 512; ++i) {
+        maxDiff = std::max(maxDiff, std::abs(left[i] - referenceL[i]));
+    }
+    REQUIRE(maxDiff < 0.001f);
+}
+
+TEST_CASE("DigitalDelay wavefold enabled modifies signal", "[features][digital-delay][wavefold]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 512);
+    delay.setDelayTime(100.0f);
+    delay.setFeedback(0.5f);
+    delay.setMix(1.0f);
+    delay.setWavefoldAmount(50.0f);  // Enable wavefold
+    delay.snapParameters();
+
+    std::array<float, 512> left{}, right{};
+    BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
+
+    // Process signal through delay with wavefold
+    for (int warmup = 0; warmup < 20; ++warmup) {
+        for (size_t i = 0; i < 512; ++i) {
+            left[i] = 0.7f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+            right[i] = left[i];
+        }
+        delay.process(left.data(), right.data(), 512, ctx);
+    }
+
+    // Capture output with wavefold enabled
+    std::vector<float> wavefoldOutput(512);
+    for (size_t i = 0; i < 512; ++i) {
+        left[i] = 0.7f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+        right[i] = left[i];
+    }
+    delay.process(left.data(), right.data(), 512, ctx);
+    std::copy(left.begin(), left.end(), wavefoldOutput.begin());
+
+    // Now reset and capture WITHOUT wavefold
+    delay.reset();
+    delay.setWavefoldAmount(0.0f);  // Disable
+    delay.snapParameters();
+
+    for (int warmup = 0; warmup < 20; ++warmup) {
+        for (size_t i = 0; i < 512; ++i) {
+            left[i] = 0.7f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+            right[i] = left[i];
+        }
+        delay.process(left.data(), right.data(), 512, ctx);
+    }
+
+    std::vector<float> cleanOutput(512);
+    for (size_t i = 0; i < 512; ++i) {
+        left[i] = 0.7f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+        right[i] = left[i];
+    }
+    delay.process(left.data(), right.data(), 512, ctx);
+    std::copy(left.begin(), left.end(), cleanOutput.begin());
+
+    // Outputs should be DIFFERENT (wavefold modifies signal)
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < 512; ++i) {
+        maxDiff = std::max(maxDiff, std::abs(wavefoldOutput[i] - cleanOutput[i]));
+    }
+    INFO("Max difference between wavefold and clean: " << maxDiff);
+    REQUIRE(maxDiff > 0.01f);  // Should be noticeably different
+}
+
+TEST_CASE("DigitalDelay wavefold model selection", "[features][digital-delay][wavefold]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 512);
+
+    SECTION("Simple model") {
+        delay.setWavefoldModel(WavefolderModel::Simple);
+        REQUIRE(delay.getWavefoldModel() == WavefolderModel::Simple);
+    }
+
+    SECTION("Serge model") {
+        delay.setWavefoldModel(WavefolderModel::Serge);
+        REQUIRE(delay.getWavefoldModel() == WavefolderModel::Serge);
+    }
+
+    SECTION("Buchla259 model") {
+        delay.setWavefoldModel(WavefolderModel::Buchla259);
+        REQUIRE(delay.getWavefoldModel() == WavefolderModel::Buchla259);
+    }
+
+    SECTION("Lockhart model") {
+        delay.setWavefoldModel(WavefolderModel::Lockhart);
+        REQUIRE(delay.getWavefoldModel() == WavefolderModel::Lockhart);
+    }
+}
+
+TEST_CASE("DigitalDelay wavefold symmetry affects harmonics", "[features][digital-delay][wavefold]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 512);
+    delay.setDelayTime(50.0f);
+    delay.setFeedback(0.3f);
+    delay.setMix(1.0f);
+    delay.setWavefoldAmount(70.0f);
+    delay.snapParameters();
+
+    BlockContext ctx{.sampleRate = 44100.0, .tempoBPM = 120.0, .isPlaying = false};
+    std::array<float, 512> left{}, right{};
+
+    // Process with symmetric (0)
+    delay.setWavefoldSymmetry(0.0f);
+    for (int warmup = 0; warmup < 20; ++warmup) {
+        for (size_t i = 0; i < 512; ++i) {
+            left[i] = 0.6f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+            right[i] = left[i];
+        }
+        delay.process(left.data(), right.data(), 512, ctx);
+    }
+    std::vector<float> symmetricOutput(512);
+    for (size_t i = 0; i < 512; ++i) {
+        left[i] = 0.6f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+        right[i] = left[i];
+    }
+    delay.process(left.data(), right.data(), 512, ctx);
+    std::copy(left.begin(), left.end(), symmetricOutput.begin());
+
+    // Process with asymmetric (+1)
+    delay.reset();
+    delay.setWavefoldSymmetry(1.0f);
+    delay.snapParameters();
+
+    for (int warmup = 0; warmup < 20; ++warmup) {
+        for (size_t i = 0; i < 512; ++i) {
+            left[i] = 0.6f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+            right[i] = left[i];
+        }
+        delay.process(left.data(), right.data(), 512, ctx);
+    }
+    std::vector<float> asymmetricOutput(512);
+    for (size_t i = 0; i < 512; ++i) {
+        left[i] = 0.6f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+        right[i] = left[i];
+    }
+    delay.process(left.data(), right.data(), 512, ctx);
+    std::copy(left.begin(), left.end(), asymmetricOutput.begin());
+
+    // Outputs should be different due to symmetry change
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < 512; ++i) {
+        maxDiff = std::max(maxDiff, std::abs(symmetricOutput[i] - asymmetricOutput[i]));
+    }
+    INFO("Max difference between symmetric and asymmetric: " << maxDiff);
+    REQUIRE(maxDiff > 0.001f);  // Should produce different output
+}
+
+TEST_CASE("DigitalDelay wavefold amount clamping", "[features][digital-delay][wavefold]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 512);
+
+    SECTION("clamps below 0") {
+        delay.setWavefoldAmount(-10.0f);
+        REQUIRE(delay.getWavefoldAmount() == Approx(0.0f));
+    }
+
+    SECTION("clamps above 100") {
+        delay.setWavefoldAmount(150.0f);
+        REQUIRE(delay.getWavefoldAmount() == Approx(100.0f));
+    }
+
+    SECTION("valid range passes through") {
+        delay.setWavefoldAmount(50.0f);
+        REQUIRE(delay.getWavefoldAmount() == Approx(50.0f));
+    }
+}
+
+TEST_CASE("DigitalDelay wavefold symmetry clamping", "[features][digital-delay][wavefold]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 512);
+
+    SECTION("clamps below -1") {
+        delay.setWavefoldSymmetry(-2.0f);
+        REQUIRE(delay.getWavefoldSymmetry() == Approx(-1.0f));
+    }
+
+    SECTION("clamps above +1") {
+        delay.setWavefoldSymmetry(2.0f);
+        REQUIRE(delay.getWavefoldSymmetry() == Approx(1.0f));
+    }
+
+    SECTION("valid range passes through") {
+        delay.setWavefoldSymmetry(0.5f);
+        REQUIRE(delay.getWavefoldSymmetry() == Approx(0.5f));
+    }
+}

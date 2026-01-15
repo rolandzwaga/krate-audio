@@ -170,7 +170,10 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kDigitalModRateId = 608,         // 0.1-10Hz
     kDigitalModWaveformId = 609,     // 0-5 (waveforms)
     kDigitalMixId = 610,             // 0-100%
+    kDigitalWavefoldAmountId = 611,  // 0-100% (0 = disabled)
     kDigitalWidthId = 612,           // 0-200% (spec 036)
+    kDigitalWavefoldTypeId = 613,    // 0-3 (Simple, Serge, Buchla, Lockhart)
+    kDigitalWavefoldSymmetryId = 614, // -100 to +100%
     kDigitalEndId = 699,
 
     // ==========================================================================

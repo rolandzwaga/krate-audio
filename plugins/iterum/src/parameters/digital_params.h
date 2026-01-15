@@ -37,7 +37,10 @@ struct DigitalParams {
     std::atomic<float> modulationRate{1.0f};    // 0.1-10Hz
     std::atomic<int> modulationWaveform{0};     // 0-5 (waveforms)
     std::atomic<float> mix{0.5f};               // 0-1
+    std::atomic<float> wavefoldAmount{0.0f};    // 0-100% (0 = disabled)
     std::atomic<float> width{100.0f};           // 0-200% (spec 036)
+    std::atomic<int> wavefoldType{0};           // 0-3 (Simple, Serge, Buchla, Lockhart)
+    std::atomic<float> wavefoldSymmetry{0.0f};  // -1 to +1
 };
 
 // ==============================================================================
@@ -122,6 +125,24 @@ inline void handleDigitalParamChange(
             // 0-200%
             params.width.store(
                 static_cast<float>(normalizedValue * 200.0),
+                std::memory_order_relaxed);
+            break;
+        case kDigitalWavefoldAmountId:
+            // 0-100%
+            params.wavefoldAmount.store(
+                static_cast<float>(normalizedValue * 100.0),
+                std::memory_order_relaxed);
+            break;
+        case kDigitalWavefoldTypeId:
+            // 0-3
+            params.wavefoldType.store(
+                static_cast<int>(normalizedValue * 3.0 + 0.5),
+                std::memory_order_relaxed);
+            break;
+        case kDigitalWavefoldSymmetryId:
+            // -1 to +1 (normalized 0-1 maps to -1 to +1)
+            params.wavefoldSymmetry.store(
+                static_cast<float>(normalizedValue * 2.0 - 1.0),
                 std::memory_order_relaxed);
             break;
     }
@@ -230,6 +251,30 @@ inline void registerDigitalParams(Steinberg::Vst::ParameterContainer& parameters
         0.5,  // default: 100%
         ParameterInfo::kCanAutomate,
         kDigitalWidthId);
+
+    // Wavefold Amount (0-100%)
+    parameters.addParameter(
+        STR16("Digital Wavefold"),
+        STR16("%"),
+        0,
+        0.0,  // default: 0% (disabled)
+        ParameterInfo::kCanAutomate,
+        kDigitalWavefoldAmountId);
+
+    // Wavefold Type - MUST use StringListParameter
+    parameters.addParameter(createDropdownParameter(
+        STR16("Digital Wavefold Type"), kDigitalWavefoldTypeId,
+        {STR16("Simple"), STR16("Serge"), STR16("Buchla"), STR16("Lockhart")}
+    ));
+
+    // Wavefold Symmetry (-100% to +100%)
+    parameters.addParameter(
+        STR16("Digital Wavefold Sym"),
+        STR16("%"),
+        0,
+        0.5,  // default: 0% (centered)
+        ParameterInfo::kCanAutomate,
+        kDigitalWavefoldSymmetryId);
 }
 
 // ==============================================================================
@@ -311,6 +356,24 @@ inline Steinberg::tresult formatDigitalParam(
             Steinberg::UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+
+        case kDigitalWavefoldAmountId: {
+            float percent = static_cast<float>(normalizedValue * 100.0);
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f%%", percent);
+            Steinberg::UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+
+        // kDigitalWavefoldTypeId: handled by StringListParameter::toString() automatically
+
+        case kDigitalWavefoldSymmetryId: {
+            float percent = static_cast<float>((normalizedValue - 0.5) * 200.0);  // -100 to +100
+            char8 text[32];
+            snprintf(text, sizeof(text), "%+.0f%%", percent);
+            Steinberg::UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
     }
 
     return Steinberg::kResultFalse;
@@ -333,6 +396,9 @@ inline void saveDigitalParams(const DigitalParams& params, Steinberg::IBStreamer
     streamer.writeInt32(params.modulationWaveform.load(std::memory_order_relaxed));
     streamer.writeFloat(params.mix.load(std::memory_order_relaxed));
     streamer.writeFloat(params.width.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.wavefoldAmount.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.wavefoldType.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.wavefoldSymmetry.load(std::memory_order_relaxed));
 }
 
 inline void loadDigitalParams(DigitalParams& params, Steinberg::IBStreamer& streamer) {
@@ -374,6 +440,15 @@ inline void loadDigitalParams(DigitalParams& params, Steinberg::IBStreamer& stre
 
     streamer.readFloat(floatVal);
     params.width.store(floatVal, std::memory_order_relaxed);
+
+    streamer.readFloat(floatVal);
+    params.wavefoldAmount.store(floatVal, std::memory_order_relaxed);
+
+    streamer.readInt32(intVal);
+    params.wavefoldType.store(intVal, std::memory_order_relaxed);
+
+    streamer.readFloat(floatVal);
+    params.wavefoldSymmetry.store(floatVal, std::memory_order_relaxed);
 }
 
 // ==============================================================================
@@ -452,6 +527,21 @@ inline void loadDigitalParamsToController(
     // Width: 0-200% -> normalized = val/200
     if (streamer.readFloat(floatVal)) {
         setParam(kDigitalWidthId, static_cast<double>(floatVal / 200.0f));
+    }
+
+    // Wavefold Amount: 0-100% -> normalized = val/100
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDigitalWavefoldAmountId, static_cast<double>(floatVal / 100.0f));
+    }
+
+    // Wavefold Type: 0-3 -> normalized = val/3
+    if (streamer.readInt32(intVal)) {
+        setParam(kDigitalWavefoldTypeId, static_cast<double>(intVal) / 3.0);
+    }
+
+    // Wavefold Symmetry: -1 to +1 -> normalized = (val+1)/2
+    if (streamer.readFloat(floatVal)) {
+        setParam(kDigitalWavefoldSymmetryId, static_cast<double>((floatVal + 1.0f) / 2.0f));
     }
 }
 

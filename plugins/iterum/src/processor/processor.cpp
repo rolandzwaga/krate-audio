@@ -618,6 +618,10 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
                 digitalParams_.modulationWaveform.load(std::memory_order_relaxed)));
             digitalDelay_.setMix(digitalParams_.mix.load(std::memory_order_relaxed));
             digitalDelay_.setWidth(digitalParams_.width.load(std::memory_order_relaxed));
+            digitalDelay_.setWavefoldAmount(digitalParams_.wavefoldAmount.load(std::memory_order_relaxed));
+            digitalDelay_.setWavefoldModel(static_cast<Krate::DSP::WavefolderModel>(
+                digitalParams_.wavefoldType.load(std::memory_order_relaxed)));
+            digitalDelay_.setWavefoldSymmetry(digitalParams_.wavefoldSymmetry.load(std::memory_order_relaxed));
             digitalDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
