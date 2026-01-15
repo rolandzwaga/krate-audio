@@ -1,9 +1,9 @@
-# Torqueo - Multiband Morphing Distortion Plugin
+# Disrumpo - Multiband Morphing Distortion Plugin
 ## Software Requirements Specification & Development Roadmap
 
 | Field | Value |
 |-------|-------|
-| Project | Torqueo |
+| Project | Disrumpo |
 | Version | 1.0 |
 | Date | January 2026 |
 | Platforms | Windows, macOS, Linux |
@@ -14,7 +14,7 @@
 
 ## 1. Executive Summary
 
-Torqueo is a multiband morphing distortion plugin for synthesizer processing and sound design.
+Disrumpo is a multiband morphing distortion plugin for synthesizer processing and sound design.
 
 ### Key Differentiators
 - Per-band morphable distortion with multi-point morph spaces (A↔B↔C↔D)
@@ -43,11 +43,11 @@ Torqueo is a multiband morphing distortion plugin for synthesizer processing and
 
 ## 1a. KrateDSP Implementation Coverage
 
-> **Note**: This section analyzes which Torqueo requirements are already implemented in the KrateDSP library.
+> **Note**: This section analyzes which Disrumpo requirements are already implemented in the KrateDSP library.
 
 ### Distortion Types (FR-DIST-001)
 
-| Torqueo ID | Type | KrateDSP Component | Status |
+| Disrumpo ID | Type | KrateDSP Component | Status |
 |------------|------|-------------------|--------|
 | D01 | Soft Clip | `SaturationProcessor::Tape`, `Waveshaper::Tanh` | **EXISTS** |
 | D02 | Hard Clip | `SaturationProcessor::Digital`, `Sigmoid::hardClip()` | **EXISTS** |
@@ -95,7 +95,7 @@ Existing distortion plugins offer either:
 No current solution provides fluid morphing across multiple distortion types per band, combined with frequency-sweeping distortion that evolves as it moves through the spectrum.
 
 ### Solution
-Torqueo provides a unified environment where:
+Disrumpo provides a unified environment where:
 1. Users split audio into configurable frequency bands (1-8)
 2. Each band has a 2D morph space with up to 4 distortion nodes
 3. A sweepable distortion focus traverses the spectrum
@@ -297,7 +297,7 @@ Per-Band: Morph X/Y, Drive, Mix, Band Gain, Band Pan
 ### High-Level Component Diagram
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Torqueo Plugin                        │
+│                    Disrumpo Plugin                        │
 ├─────────────────────────────────────────────────────────┤
 │  UI Layer (VSTGUI)                                      │
 │  ├─ Spectrum Display                                    │
@@ -412,7 +412,7 @@ Band Output
 ### Level 1: Essential View
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  TORQUEO                               [≡ Menu] [? Help]   │
+│  Disrumpo                               [≡ Menu] [? Help]   │
 ├────────────────────────────────────────────────────────────┤
 │  ┌──────────────────────────────────────────────────────┐ │
 │  │              SPECTRUM DISPLAY                         │ │
@@ -512,12 +512,12 @@ Band Output
 Following the Iterum plugin pattern from `plugins/iterum/src/plugin_ids.h`:
 
 ```cpp
-// torqueo/src/plugin_ids.h
+// Disrumpo/src/plugin_ids.h
 #pragma once
 
 #include "pluginterfaces/vst/vsttypes.h"
 
-namespace Torqueo {
+namespace Disrumpo {
 
 // Parameter IDs follow kNameId convention per CLAUDE.md
 // Encoding: band index (0-7) in bits 8-11, node index (0-3) in bits 12-15
@@ -572,7 +572,7 @@ constexpr Steinberg::Vst::ParamID makeNodeParamId(uint8_t band, uint8_t node, No
     return static_cast<Steinberg::Vst::ParamID>((node << 12) | (band << 8) | param);
 }
 
-} // namespace Torqueo
+} // namespace Disrumpo
 ```
 
 ### Core Structures
@@ -580,14 +580,14 @@ constexpr Steinberg::Vst::ParamID makeNodeParamId(uint8_t band, uint8_t node, No
 Following KrateDSP conventions (`Krate::DSP` namespace, `kConstantName` constants):
 
 ```cpp
-// dsp/include/krate/dsp/systems/torqueo/distortion_types.h
+// dsp/include/krate/dsp/systems/Disrumpo/distortion_types.h
 #pragma once
 
 #include <cstdint>
 
 namespace Krate::DSP {
 
-/// @brief Distortion algorithm types for Torqueo morph engine.
+/// @brief Distortion algorithm types for Disrumpo morph engine.
 /// Maps to existing KrateDSP processors where available.
 enum class DistortionType : uint8_t {
     // Saturation (use SaturationProcessor, TubeStage, TapeSaturator, FuzzProcessor)
@@ -652,7 +652,7 @@ inline constexpr float kMinCrossoverSpacingOctaves = 0.5f;
 ```
 
 ```cpp
-// dsp/include/krate/dsp/systems/torqueo/morph_node.h
+// dsp/include/krate/dsp/systems/Disrumpo/morph_node.h
 #pragma once
 
 #include "distortion_types.h"
@@ -715,7 +715,7 @@ struct BandState {
 ```
 
 ```cpp
-// dsp/include/krate/dsp/systems/torqueo/modulation_types.h
+// dsp/include/krate/dsp/systems/Disrumpo/modulation_types.h
 #pragma once
 
 #include <cstdint>
@@ -762,7 +762,7 @@ inline constexpr int kMaxModRoutings = 32;
 
 ### Standard VST3 Preset Format
 
-Torqueo uses the **standard VST3 preset format** (`.vstpreset` files). This ensures:
+Disrumpo uses the **standard VST3 preset format** (`.vstpreset` files). This ensures:
 - Full host integration (preset browsers, save/load dialogs)
 - Cross-DAW compatibility
 - No custom file I/O code required
@@ -851,9 +851,9 @@ tresult PLUGIN_API Processor::setState(IBStream* state) {
 ### Factory Presets
 
 Factory presets are `.vstpreset` files installed to the standard location:
-- **Windows**: `C:\Program Files\Common Files\VST3\Presets\Krate Audio\Torqueo\`
-- **macOS**: `/Library/Audio/Presets/Krate Audio/Torqueo/`
-- **Linux**: `~/.vst3/presets/Krate Audio/Torqueo/`
+- **Windows**: `C:\Program Files\Common Files\VST3\Presets\Krate Audio\Disrumpo\`
+- **macOS**: `/Library/Audio/Presets/Krate Audio/Disrumpo/`
+- **Linux**: `~/.vst3/presets/Krate Audio/Disrumpo/`
 
 | Category | Count |
 |----------|-------|
@@ -1092,14 +1092,14 @@ krate-audio/
 │           └── crossover_network_test.cpp # Tests for new generic component
 │
 ├── plugins/
-│   └── torqueo/                           # Torqueo VST3 plugin
+│   └── Disrumpo/                           # Disrumpo VST3 plugin
 │       ├── CMakeLists.txt
 │       ├── src/
 │       │   ├── entry.cpp                  # VST3 entry point
 │       │   ├── plugin_ids.h               # Parameter ID definitions
 │       │   ├── version.h                  # Plugin version info
 │       │   ├── dsp/                       # PLUGIN-SPECIFIC DSP composition
-│       │   │   ├── distortion_types.h     # Torqueo distortion enum
+│       │   │   ├── distortion_types.h     # Disrumpo distortion enum
 │       │   │   ├── distortion_adapter.h   # Unified interface to KrateDSP processors
 │       │   │   ├── morph_engine.h         # Weight computation, interpolation
 │       │   │   ├── band_processor.h       # Per-band morph + distortion
@@ -1124,7 +1124,7 @@ krate-audio/
 │           └── installers/                # Platform installers
 │
 └── specs/
-    └── torqueo/                           # Feature specifications
+    └── Disrumpo/                           # Feature specifications
         ├── spec.md                        # Requirements
         ├── plan.md                        # Implementation plan
         └── tasks.md                       # Task breakdown
@@ -1134,7 +1134,7 @@ krate-audio/
 
 1. **DSP library is plugin-agnostic**: KrateDSP contains only generic, reusable building blocks. No plugin-specific code lives there.
 
-2. **Plugin-specific DSP in plugin folder**: Torqueo-specific composition (morph engine, distortion adapter, band processor) lives in `plugins/torqueo/src/dsp/`. This follows the same pattern as Iterum.
+2. **Plugin-specific DSP in plugin folder**: Disrumpo-specific composition (morph engine, distortion adapter, band processor) lives in `plugins/Disrumpo/src/dsp/`. This follows the same pattern as Iterum.
 
 3. **Compose existing processors**: The `DistortionAdapter` in the plugin composes existing KrateDSP processors (`SaturationProcessor`, `TubeStage`, `FuzzProcessor`, `WavefolderProcessor`, `BitcrusherProcessor`).
 
@@ -1142,18 +1142,18 @@ krate-audio/
 
 5. **Test hierarchy**:
    - `dsp/tests/`: Tests for generic KrateDSP components
-   - `plugins/torqueo/tests/`: Tests for Torqueo-specific composition
+   - `plugins/Disrumpo/tests/`: Tests for Disrumpo-specific composition
 
 ---
 
 ## Appendix C: Composing Existing KrateDSP Processors
 
-Example code showing how to use existing KrateDSP components for Torqueo:
+Example code showing how to use existing KrateDSP components for Disrumpo:
 
 ### Distortion Adapter Pattern
 
 ```cpp
-// dsp/include/krate/dsp/systems/torqueo/distortion_adapter.h
+// dsp/include/krate/dsp/systems/Disrumpo/distortion_adapter.h
 #pragma once
 
 #include <krate/dsp/processors/saturation_processor.h>
@@ -1334,7 +1334,7 @@ private:
 ### Crossover Network (Linkwitz-Riley 4th Order)
 
 ```cpp
-// dsp/include/krate/dsp/systems/torqueo/crossover_network.h
+// dsp/include/krate/dsp/systems/Disrumpo/crossover_network.h
 #pragma once
 
 #include <krate/dsp/primitives/biquad.h>
@@ -1445,7 +1445,7 @@ private:
 
 namespace Krate::DSP {
 
-class TorqueoModulationEngine {
+class DisrumpoModulationEngine {
 public:
     void prepare(double sampleRate) noexcept {
         lfo1_.prepare(sampleRate);
