@@ -93,6 +93,7 @@ add_executable(dsp_tests
     unit/systems/amp_channel_test.cpp
     unit/systems/tape_machine_test.cpp
     unit/systems/fuzz_pedal_test.cpp
+    unit/systems/distortion_rack_tests.cpp
 
     # Layer 4: Effects
     unit/effects/tape_delay_test.cpp
@@ -209,6 +210,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/amp_channel_test.cpp
         unit/systems/tape_machine_test.cpp
         unit/systems/fuzz_pedal_test.cpp
+        unit/systems/distortion_rack_tests.cpp
         unit/effects/tape_delay_test.cpp
         unit/effects/tape_delay_params_diagnostic_test.cpp
         unit/effects/bbd_delay_test.cpp
