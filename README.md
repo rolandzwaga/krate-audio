@@ -1,6 +1,6 @@
 # Krate Audio
 
-**A monorepo for professional audio plugins and the KrateDSP library**
+**A monorepo for audio plugins and the KrateDSP library**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)]()
@@ -22,7 +22,7 @@ krate-audio/
 │   │   ├── processors/       # Layer 2: Composed processors (saturation, waveshaping)
 │   │   ├── systems/          # Layer 3: Complex systems (feedback networks, character)
 │   │   └── effects/          # Layer 4: Complete effect algorithms
-│   └── tests/                # DSP unit tests (1900+ test cases)
+│   └── tests/                # DSP unit tests (2200+ test cases)
 │
 ├── plugins/
 │   └── iterum/               # Iterum - Delay plugin with 11 modes
@@ -49,17 +49,17 @@ The KrateDSP library provides reusable DSP components organized in a 5-layer arc
 | Layer | Directory | Purpose | Examples |
 |-------|-----------|---------|----------|
 | 0 | `core/` | Math utilities, constants | dB conversion, sigmoid functions, interpolation |
-| 1 | `primitives/` | Basic DSP blocks | Biquad filters, delay lines, LFOs, smoothers |
-| 2 | `processors/` | Composed processors | Saturation, waveshaping, noise generators |
-| 3 | `systems/` | Complex systems | Feedback networks, character processors |
-| 4 | `effects/` | Complete algorithms | Tape delay, granular delay, shimmer |
+| 1 | `primitives/` | Basic DSP blocks | Biquad filters, delay lines, LFOs, waveshapers |
+| 2 | `processors/` | Composed processors | Saturation, fuzz, bitcrusher, pitch shifting |
+| 3 | `systems/` | Complex systems | Tape machine, amp channel, fuzz pedal |
+| 4 | `effects/` | Complete algorithms | Tape delay, granular delay, shimmer, spectral |
 
 ### Key Features
 
 - **Real-Time Safe** - No allocations in audio processing, lock-free operations
 - **Modern C++20** - RAII, constexpr, concepts, value semantics
 - **Cross-Platform** - Windows, macOS (Intel & Apple Silicon), Linux
-- **Extensively Tested** - 1900+ unit tests with spectral analysis and approval testing
+- **Extensively Tested** - 2200+ unit tests with spectral analysis and approval testing
 - **Composable Anti-Aliasing** - Oversampling applied at appropriate abstraction levels
 
 ## Building
@@ -89,7 +89,7 @@ ctest --preset linux-release
 
 # Run DSP tests only
 cmake --build build/windows-x64-release --target dsp_tests
-./build/windows-x64-release/bin/Release/dsp_tests
+./build/windows-x64-release/dsp/tests/Release/dsp_tests
 ```
 
 ### Build Outputs
@@ -97,8 +97,8 @@ cmake --build build/windows-x64-release --target dsp_tests
 | Target | Location |
 |--------|----------|
 | Iterum plugin | `build/<preset>/VST3/Release/Iterum.vst3` |
-| DSP tests | `build/<preset>/bin/Release/dsp_tests` |
-| KrateDSP library | `build/<preset>/lib/Release/KrateDSP.lib` |
+| DSP tests | `build/<preset>/dsp/tests/Release/dsp_tests` |
+| KrateDSP library | `build/<preset>/dsp/Release/KrateDSP.lib` |
 
 ## Technical Highlights
 
