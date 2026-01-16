@@ -523,49 +523,109 @@ inline Steinberg::tresult formatFreezeParam(
 // ==============================================================================
 
 inline void saveFreezeParams(const FreezeParams& params, Steinberg::IBStreamer& streamer) {
-    // Write placeholder values for backwards compatibility with older versions
-    // that expect the legacy freeze parameters in the state
-    streamer.writeInt32(1);       // freezeEnabled (always on)
-    streamer.writeFloat(500.0f);  // delayTime
-    streamer.writeInt32(0);       // timeMode
-    streamer.writeInt32(4);       // noteValue
-    streamer.writeFloat(0.5f);    // feedback
-    streamer.writeFloat(0.0f);    // pitchSemitones
-    streamer.writeFloat(0.0f);    // pitchCents
-    streamer.writeFloat(0.0f);    // shimmerMix
-    streamer.writeFloat(0.5f);    // decay
-    streamer.writeFloat(0.3f);    // diffusionAmount
-    streamer.writeFloat(0.5f);    // diffusionSize
-    streamer.writeInt32(0);       // filterEnabled
-    streamer.writeInt32(0);       // filterType
-    streamer.writeFloat(1000.0f); // filterCutoff
+    // Pattern Freeze state format (spec 069)
+    // All parameters saved for full preset support
+
+    // Core parameters
     streamer.writeFloat(params.dryWet.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.patternType.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.sliceLengthMs.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.sliceMode.load(std::memory_order_relaxed));
+
+    // Euclidean parameters
+    streamer.writeInt32(params.euclideanSteps.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.euclideanHits.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.euclideanRotation.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.patternRate.load(std::memory_order_relaxed));
+
+    // Granular parameters
+    streamer.writeFloat(params.granularDensity.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.granularPositionJitter.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.granularSizeJitter.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.granularGrainSize.load(std::memory_order_relaxed));
+
+    // Drone parameters
+    streamer.writeInt32(params.droneVoiceCount.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.droneInterval.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.droneDrift.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.droneDriftRate.load(std::memory_order_relaxed));
+
+    // Noise parameters
+    streamer.writeInt32(params.noiseColor.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.noiseBurstRate.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.noiseFilterType.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.noiseFilterCutoff.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.noiseFilterSweep.load(std::memory_order_relaxed));
+
+    // Envelope parameters
+    streamer.writeFloat(params.envelopeAttackMs.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.envelopeReleaseMs.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.envelopeShape.load(std::memory_order_relaxed));
 }
 
 inline void loadFreezeParams(FreezeParams& params, Steinberg::IBStreamer& streamer) {
-    // Read and discard legacy freeze parameters for backwards compatibility
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 
-    streamer.readInt32(intVal);   // freezeEnabled (discarded)
-    streamer.readFloat(floatVal); // delayTime (discarded)
-    streamer.readInt32(intVal);   // timeMode (discarded)
-    streamer.readInt32(intVal);   // noteValue (discarded)
-    streamer.readFloat(floatVal); // feedback (discarded)
-    streamer.readFloat(floatVal); // pitchSemitones (discarded)
-    streamer.readFloat(floatVal); // pitchCents (discarded)
-    streamer.readFloat(floatVal); // shimmerMix (discarded)
-    streamer.readFloat(floatVal); // decay (discarded)
-    streamer.readFloat(floatVal); // diffusionAmount (discarded)
-    streamer.readFloat(floatVal); // diffusionSize (discarded)
-    streamer.readInt32(intVal);   // filterEnabled (discarded)
-    streamer.readInt32(intVal);   // filterType (discarded)
-    streamer.readFloat(floatVal); // filterCutoff (discarded)
+    // Core parameters
+    if (streamer.readFloat(floatVal))
+        params.dryWet.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.patternType.store(intVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.sliceLengthMs.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.sliceMode.store(intVal, std::memory_order_relaxed);
 
-    // Read actual dryWet parameter
-    float dryWet = 0.5f;
-    streamer.readFloat(dryWet);
-    params.dryWet.store(dryWet, std::memory_order_relaxed);
+    // Euclidean parameters
+    if (streamer.readInt32(intVal))
+        params.euclideanSteps.store(intVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.euclideanHits.store(intVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.euclideanRotation.store(intVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.patternRate.store(intVal, std::memory_order_relaxed);
+
+    // Granular parameters
+    if (streamer.readFloat(floatVal))
+        params.granularDensity.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.granularPositionJitter.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.granularSizeJitter.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.granularGrainSize.store(floatVal, std::memory_order_relaxed);
+
+    // Drone parameters
+    if (streamer.readInt32(intVal))
+        params.droneVoiceCount.store(intVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.droneInterval.store(intVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.droneDrift.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.droneDriftRate.store(floatVal, std::memory_order_relaxed);
+
+    // Noise parameters
+    if (streamer.readInt32(intVal))
+        params.noiseColor.store(intVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.noiseBurstRate.store(intVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.noiseFilterType.store(intVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.noiseFilterCutoff.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.noiseFilterSweep.store(floatVal, std::memory_order_relaxed);
+
+    // Envelope parameters
+    if (streamer.readFloat(floatVal))
+        params.envelopeAttackMs.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.envelopeReleaseMs.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.envelopeShape.store(intVal, std::memory_order_relaxed);
 }
 
 // ==============================================================================
@@ -578,9 +638,117 @@ inline void syncFreezeParamsToController(
 
     using namespace Steinberg::Vst;
 
-    // Dry/wet: 0-1
+    // Core parameters
     controller->setParamNormalized(kFreezeMixId,
         params.dryWet.load(std::memory_order_relaxed));
+
+    // Pattern type (4 types: 0-3)
+    controller->setParamNormalized(kFreezePatternTypeId,
+        params.patternType.load(std::memory_order_relaxed) / 3.0);
+
+    // Slice length (10-2000ms)
+    controller->setParamNormalized(kFreezeSliceLengthId,
+        (params.sliceLengthMs.load(std::memory_order_relaxed) -
+         Krate::DSP::PatternFreezeConstants::kMinSliceLengthMs) /
+        (Krate::DSP::PatternFreezeConstants::kMaxSliceLengthMs -
+         Krate::DSP::PatternFreezeConstants::kMinSliceLengthMs));
+
+    // Slice mode (0 or 1)
+    controller->setParamNormalized(kFreezeSliceModeId,
+        params.sliceMode.load(std::memory_order_relaxed) >= 1 ? 1.0 : 0.0);
+
+    // Euclidean parameters
+    controller->setParamNormalized(kFreezeEuclideanStepsId,
+        static_cast<double>(params.euclideanSteps.load(std::memory_order_relaxed) -
+                            Krate::DSP::PatternFreezeConstants::kMinEuclideanSteps) /
+        static_cast<double>(Krate::DSP::PatternFreezeConstants::kMaxEuclideanSteps -
+                            Krate::DSP::PatternFreezeConstants::kMinEuclideanSteps));
+
+    int steps = params.euclideanSteps.load(std::memory_order_relaxed);
+    controller->setParamNormalized(kFreezeEuclideanHitsId,
+        static_cast<double>(params.euclideanHits.load(std::memory_order_relaxed) - 1) /
+        static_cast<double>(steps - 1));
+
+    controller->setParamNormalized(kFreezeEuclideanRotationId,
+        static_cast<double>(params.euclideanRotation.load(std::memory_order_relaxed)) /
+        static_cast<double>(steps - 1));
+
+    controller->setParamNormalized(kFreezePatternRateId,
+        params.patternRate.load(std::memory_order_relaxed) /
+        static_cast<double>(Parameters::kNoteValueDropdownCount - 1));
+
+    // Granular parameters
+    controller->setParamNormalized(kFreezeGranularDensityId,
+        (params.granularDensity.load(std::memory_order_relaxed) -
+         Krate::DSP::PatternFreezeConstants::kMinGranularDensityHz) /
+        (Krate::DSP::PatternFreezeConstants::kMaxGranularDensityHz -
+         Krate::DSP::PatternFreezeConstants::kMinGranularDensityHz));
+
+    controller->setParamNormalized(kFreezeGranularPositionJitterId,
+        params.granularPositionJitter.load(std::memory_order_relaxed));
+
+    controller->setParamNormalized(kFreezeGranularSizeJitterId,
+        params.granularSizeJitter.load(std::memory_order_relaxed));
+
+    controller->setParamNormalized(kFreezeGranularGrainSizeId,
+        (params.granularGrainSize.load(std::memory_order_relaxed) -
+         Krate::DSP::PatternFreezeConstants::kMinGranularGrainSizeMs) /
+        (Krate::DSP::PatternFreezeConstants::kMaxGranularGrainSizeMs -
+         Krate::DSP::PatternFreezeConstants::kMinGranularGrainSizeMs));
+
+    // Drone parameters
+    controller->setParamNormalized(kFreezeDroneVoiceCountId,
+        static_cast<double>(params.droneVoiceCount.load(std::memory_order_relaxed) -
+                            Krate::DSP::PatternFreezeConstants::kMinDroneVoices) /
+        static_cast<double>(Krate::DSP::PatternFreezeConstants::kMaxDroneVoices -
+                            Krate::DSP::PatternFreezeConstants::kMinDroneVoices));
+
+    controller->setParamNormalized(kFreezeDroneIntervalId,
+        params.droneInterval.load(std::memory_order_relaxed) / 5.0);
+
+    controller->setParamNormalized(kFreezeDroneDriftId,
+        params.droneDrift.load(std::memory_order_relaxed));
+
+    controller->setParamNormalized(kFreezeDroneDriftRateId,
+        (params.droneDriftRate.load(std::memory_order_relaxed) -
+         Krate::DSP::PatternFreezeConstants::kMinDroneDriftRateHz) /
+        (Krate::DSP::PatternFreezeConstants::kMaxDroneDriftRateHz -
+         Krate::DSP::PatternFreezeConstants::kMinDroneDriftRateHz));
+
+    // Noise parameters
+    controller->setParamNormalized(kFreezeNoiseColorId,
+        params.noiseColor.load(std::memory_order_relaxed) / 7.0);
+
+    controller->setParamNormalized(kFreezeNoiseBurstRateId,
+        params.noiseBurstRate.load(std::memory_order_relaxed) /
+        static_cast<double>(Parameters::kNoteValueDropdownCount - 1));
+
+    controller->setParamNormalized(kFreezeNoiseFilterTypeId,
+        params.noiseFilterType.load(std::memory_order_relaxed) / 2.0);
+
+    // Noise filter cutoff (log scale: 20-20000Hz)
+    controller->setParamNormalized(kFreezeNoiseFilterCutoffId,
+        std::log(params.noiseFilterCutoff.load(std::memory_order_relaxed) / 20.0f) /
+        std::log(1000.0f));
+
+    controller->setParamNormalized(kFreezeNoiseFilterSweepId,
+        params.noiseFilterSweep.load(std::memory_order_relaxed));
+
+    // Envelope parameters
+    controller->setParamNormalized(kFreezeEnvelopeAttackId,
+        (params.envelopeAttackMs.load(std::memory_order_relaxed) -
+         Krate::DSP::PatternFreezeConstants::kMinEnvelopeAttackMs) /
+        (Krate::DSP::PatternFreezeConstants::kMaxEnvelopeAttackMs -
+         Krate::DSP::PatternFreezeConstants::kMinEnvelopeAttackMs));
+
+    controller->setParamNormalized(kFreezeEnvelopeReleaseId,
+        (params.envelopeReleaseMs.load(std::memory_order_relaxed) -
+         Krate::DSP::PatternFreezeConstants::kMinEnvelopeReleaseMs) /
+        (Krate::DSP::PatternFreezeConstants::kMaxEnvelopeReleaseMs -
+         Krate::DSP::PatternFreezeConstants::kMinEnvelopeReleaseMs));
+
+    controller->setParamNormalized(kFreezeEnvelopeShapeId,
+        params.envelopeShape.load(std::memory_order_relaxed) >= 1 ? 1.0 : 0.0);
 }
 
 // ==============================================================================
@@ -597,26 +765,155 @@ inline void loadFreezeParamsToController(
     int32 intVal = 0;
     float floatVal = 0.0f;
 
-    // Read and discard legacy freeze parameters for backwards compatibility
-    streamer.readInt32(intVal);   // freezeEnabled (discarded)
-    streamer.readFloat(floatVal); // delayTime (discarded)
-    streamer.readInt32(intVal);   // timeMode (discarded)
-    streamer.readInt32(intVal);   // noteValue (discarded)
-    streamer.readFloat(floatVal); // feedback (discarded)
-    streamer.readFloat(floatVal); // pitchSemitones (discarded)
-    streamer.readFloat(floatVal); // pitchCents (discarded)
-    streamer.readFloat(floatVal); // shimmerMix (discarded)
-    streamer.readFloat(floatVal); // decay (discarded)
-    streamer.readFloat(floatVal); // diffusionAmount (discarded)
-    streamer.readFloat(floatVal); // diffusionSize (discarded)
-    streamer.readInt32(intVal);   // filterEnabled (discarded)
-    streamer.readInt32(intVal);   // filterType (discarded)
-    streamer.readFloat(floatVal); // filterCutoff (discarded)
-
-    // Dry/Wet: 0-1 -> normalized = val
+    // Core parameters - dryWet (0-1)
     if (streamer.readFloat(floatVal)) {
-        setParam(kFreezeMixId,
-            static_cast<double>(floatVal));
+        setParam(kFreezeMixId, static_cast<double>(floatVal));
+    }
+
+    // Pattern type (0-3 -> normalize to 0-1)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezePatternTypeId, intVal / 3.0);
+    }
+
+    // Slice length (10-2000ms)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeSliceLengthId,
+            (floatVal - Krate::DSP::PatternFreezeConstants::kMinSliceLengthMs) /
+            (Krate::DSP::PatternFreezeConstants::kMaxSliceLengthMs -
+             Krate::DSP::PatternFreezeConstants::kMinSliceLengthMs));
+    }
+
+    // Slice mode (0 or 1)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezeSliceModeId, intVal >= 1 ? 1.0 : 0.0);
+    }
+
+    // Euclidean steps (2-32)
+    int steps = Krate::DSP::PatternFreezeConstants::kDefaultEuclideanSteps;
+    if (streamer.readInt32(intVal)) {
+        steps = intVal;
+        setParam(kFreezeEuclideanStepsId,
+            static_cast<double>(intVal - Krate::DSP::PatternFreezeConstants::kMinEuclideanSteps) /
+            static_cast<double>(Krate::DSP::PatternFreezeConstants::kMaxEuclideanSteps -
+                                Krate::DSP::PatternFreezeConstants::kMinEuclideanSteps));
+    }
+
+    // Euclidean hits (1-steps)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezeEuclideanHitsId,
+            static_cast<double>(intVal - 1) / static_cast<double>(steps - 1));
+    }
+
+    // Euclidean rotation (0 to steps-1)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezeEuclideanRotationId,
+            static_cast<double>(intVal) / static_cast<double>(steps - 1));
+    }
+
+    // Pattern rate (note value index)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezePatternRateId,
+            intVal / static_cast<double>(Parameters::kNoteValueDropdownCount - 1));
+    }
+
+    // Granular density (1-50 Hz)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeGranularDensityId,
+            (floatVal - Krate::DSP::PatternFreezeConstants::kMinGranularDensityHz) /
+            (Krate::DSP::PatternFreezeConstants::kMaxGranularDensityHz -
+             Krate::DSP::PatternFreezeConstants::kMinGranularDensityHz));
+    }
+
+    // Granular position jitter (0-1)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeGranularPositionJitterId, static_cast<double>(floatVal));
+    }
+
+    // Granular size jitter (0-1)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeGranularSizeJitterId, static_cast<double>(floatVal));
+    }
+
+    // Granular grain size (10-500ms)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeGranularGrainSizeId,
+            (floatVal - Krate::DSP::PatternFreezeConstants::kMinGranularGrainSizeMs) /
+            (Krate::DSP::PatternFreezeConstants::kMaxGranularGrainSizeMs -
+             Krate::DSP::PatternFreezeConstants::kMinGranularGrainSizeMs));
+    }
+
+    // Drone voice count (1-4)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezeDroneVoiceCountId,
+            static_cast<double>(intVal - Krate::DSP::PatternFreezeConstants::kMinDroneVoices) /
+            static_cast<double>(Krate::DSP::PatternFreezeConstants::kMaxDroneVoices -
+                                Krate::DSP::PatternFreezeConstants::kMinDroneVoices));
+    }
+
+    // Drone interval (0-5)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezeDroneIntervalId, intVal / 5.0);
+    }
+
+    // Drone drift (0-1)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeDroneDriftId, static_cast<double>(floatVal));
+    }
+
+    // Drone drift rate (0.1-2.0 Hz)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeDroneDriftRateId,
+            (floatVal - Krate::DSP::PatternFreezeConstants::kMinDroneDriftRateHz) /
+            (Krate::DSP::PatternFreezeConstants::kMaxDroneDriftRateHz -
+             Krate::DSP::PatternFreezeConstants::kMinDroneDriftRateHz));
+    }
+
+    // Noise color (0-7)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezeNoiseColorId, intVal / 7.0);
+    }
+
+    // Noise burst rate (note value index)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezeNoiseBurstRateId,
+            intVal / static_cast<double>(Parameters::kNoteValueDropdownCount - 1));
+    }
+
+    // Noise filter type (0-2)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezeNoiseFilterTypeId, intVal / 2.0);
+    }
+
+    // Noise filter cutoff (20-20000 Hz, log scale)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeNoiseFilterCutoffId,
+            std::log(floatVal / 20.0f) / std::log(1000.0f));
+    }
+
+    // Noise filter sweep (0-1)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeNoiseFilterSweepId, static_cast<double>(floatVal));
+    }
+
+    // Envelope attack (0-500ms)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeEnvelopeAttackId,
+            (floatVal - Krate::DSP::PatternFreezeConstants::kMinEnvelopeAttackMs) /
+            (Krate::DSP::PatternFreezeConstants::kMaxEnvelopeAttackMs -
+             Krate::DSP::PatternFreezeConstants::kMinEnvelopeAttackMs));
+    }
+
+    // Envelope release (0-2000ms)
+    if (streamer.readFloat(floatVal)) {
+        setParam(kFreezeEnvelopeReleaseId,
+            (floatVal - Krate::DSP::PatternFreezeConstants::kMinEnvelopeReleaseMs) /
+            (Krate::DSP::PatternFreezeConstants::kMaxEnvelopeReleaseMs -
+             Krate::DSP::PatternFreezeConstants::kMinEnvelopeReleaseMs));
+    }
+
+    // Envelope shape (0 or 1)
+    if (streamer.readInt32(intVal)) {
+        setParam(kFreezeEnvelopeShapeId, intVal >= 1 ? 1.0 : 0.0);
     }
 }
 
