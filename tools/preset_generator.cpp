@@ -202,22 +202,12 @@ struct MultiTapPreset {
     int snapDivision = 14;          // 0-21 (off + 21 note values), default: 1/4
 };
 
+// Pattern Freeze mode (spec 069)
+// Note: Only dryWet is persisted in component state. Pattern-specific parameters
+// (patternType, sliceLength, envelope, etc.) are handled via VST3 parameter system.
+// Legacy parameters are written as placeholders for backwards compatibility.
 struct FreezePreset {
-    int freezeEnabled = 0;
-    float delayTime = 500.0f;
-    float feedback = 0.5f;
-    float pitchSemitones = 0.0f;
-    float pitchCents = 0.0f;
-    float shimmerMix = 0.0f;
-    float decay = 0.5f;
-    float diffusionAmount = 0.3f;
-    float diffusionSize = 0.5f;
-    int filterEnabled = 0;
-    int filterType = 0;
-    float filterCutoff = 1000.0f;
-    float dryWet = 0.5f;
-    int timeMode = 0;               // 0=Free, 1=Synced
-    int noteValue = 10;             // 0-20 (default: 1/8 = index 10)
+    float dryWet = 0.5f;            // 0-1 (the only parameter actually persisted)
 };
 
 struct DuckingPreset {
@@ -424,20 +414,22 @@ void writeMultiTapState(BinaryWriter& w, const MultiTapPreset& p) {
 
 void writeFreezeState(BinaryWriter& w, const FreezePreset& p) {
     // Order MUST match freeze_params.h saveFreezeParams()
-    w.writeInt32(p.freezeEnabled);
-    w.writeFloat(p.delayTime);
-    w.writeInt32(p.timeMode);
-    w.writeInt32(p.noteValue);
-    w.writeFloat(p.feedback);
-    w.writeFloat(p.pitchSemitones);
-    w.writeFloat(p.pitchCents);
-    w.writeFloat(p.shimmerMix);
-    w.writeFloat(p.decay);
-    w.writeFloat(p.diffusionAmount);
-    w.writeFloat(p.diffusionSize);
-    w.writeInt32(p.filterEnabled);
-    w.writeInt32(p.filterType);
-    w.writeFloat(p.filterCutoff);
+    // Legacy placeholder values for backwards compatibility
+    w.writeInt32(1);          // freezeEnabled (always on)
+    w.writeFloat(500.0f);     // delayTime
+    w.writeInt32(0);          // timeMode
+    w.writeInt32(4);          // noteValue
+    w.writeFloat(0.5f);       // feedback
+    w.writeFloat(0.0f);       // pitchSemitones
+    w.writeFloat(0.0f);       // pitchCents
+    w.writeFloat(0.0f);       // shimmerMix
+    w.writeFloat(0.5f);       // decay
+    w.writeFloat(0.3f);       // diffusionAmount
+    w.writeFloat(0.5f);       // diffusionSize
+    w.writeInt32(0);          // filterEnabled
+    w.writeInt32(0);          // filterType
+    w.writeFloat(1000.0f);    // filterCutoff
+    // Actual parameter
     w.writeFloat(p.dryWet);
 }
 
@@ -1245,66 +1237,68 @@ std::vector<PresetDef> createAllPresets() {
     }
 
     // =========================================================================
-    // FREEZE MODE (9) - Drones, Textures, Sustain
+    // FREEZE MODE (9) - Pattern Freeze (spec 069)
+    // Note: Only dryWet is persisted. Pattern parameters set via VST3 params.
+    // Presets provide starting points for different pattern freeze use cases.
     // =========================================================================
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Sustain";
-        p.name = "Infinite Sustain";
-        p.freeze = {0, 500.0f, 0.95f, 0.0f, 0.0f, 0.0f, 0.9f, 0.3f, 0.5f, 0, 0, 1000.0f, 0.5f, 1, 13};  // 1/4
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Rhythmic";
+        p.name = "Euclidean Pulse";
+        p.freeze = {0.7f};  // 70% wet for rhythmic slices
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Freeze; p.category = "Ambient";
-        p.name = "Drone Bed";
-        p.freeze = {0, 800.0f, 0.9f, 0.0f, 0.0f, 0.0f, 0.95f, 0.5f, 0.6f, 0, 0, 1000.0f, 0.5f, 1, 16};  // 1/2
+        p.name = "Granular Cloud";
+        p.freeze = {0.5f};  // 50% blend for textural layers
         presets.push_back(p);
     }
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Shimmer";
-        p.name = "Shimmer Freeze";
-        p.freeze = {0, 600.0f, 0.85f, 12.0f, 0.0f, 0.6f, 0.8f, 0.4f, 0.5f, 0, 0, 1000.0f, 0.5f, 1, 15};  // 1/2T
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Drone";
+        p.name = "Harmonic Bed";
+        p.freeze = {0.6f};  // 60% wet for sustained drones
         presets.push_back(p);
     }
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Dark";
-        p.name = "Dark Frozen";
-        p.freeze = {0, 700.0f, 0.9f, 0.0f, 0.0f, 0.0f, 0.85f, 0.4f, 0.55f, 1, 0, 800.0f, 0.5f, 1, 15};  // 1/2T
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Experimental";
+        p.name = "Noise Texture";
+        p.freeze = {0.45f};  // Balanced mix for noise bursts
         presets.push_back(p);
     }
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Bright";
-        p.name = "Bright Freeze";
-        p.freeze = {0, 500.0f, 0.88f, 0.0f, 0.0f, 0.0f, 0.82f, 0.35f, 0.5f, 1, 1, 2000.0f, 0.5f, 1, 13};  // 1/4
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Subtle";
+        p.name = "Ghost Pattern";
+        p.freeze = {0.3f};  // Subtle frozen layer
+        presets.push_back(p);
+    }
+    {
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Full";
+        p.name = "Total Freeze";
+        p.freeze = {1.0f};  // 100% wet - full frozen output
+        presets.push_back(p);
+    }
+    {
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Rhythmic";
+        p.name = "Slice Machine";
+        p.freeze = {0.8f};  // Heavy wet for prominent slicing
+        presets.push_back(p);
+    }
+    {
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Ambient";
+        p.name = "Scatter Drift";
+        p.freeze = {0.55f};  // Moderate mix for evolving textures
         presets.push_back(p);
     }
     {
         PresetDef p; p.mode = DelayMode::Freeze; p.category = "Creative";
-        p.name = "Evolving Texture";
-        p.freeze = {0, 650.0f, 0.8f, 7.0f, 10.0f, 0.3f, 0.75f, 0.5f, 0.6f, 0, 0, 1000.0f, 0.5f, 1, 15};  // 1/2T
+        p.name = "Radio Static";
+        p.freeze = {0.4f};  // Lower mix for noise coloration
         presets.push_back(p);
     }
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Synth";
-        p.name = "Pad Machine";
-        p.freeze = {0, 550.0f, 0.92f, 0.0f, 0.0f, 0.2f, 0.88f, 0.45f, 0.55f, 0, 0, 1000.0f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Vocals";
-        p.name = "Vocal Hold";
-        p.freeze = {0, 400.0f, 0.85f, 0.0f, 0.0f, 0.0f, 0.8f, 0.3f, 0.45f, 0, 0, 1000.0f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Guitar";
-        p.name = "Guitar Sustainer";
-        p.freeze = {0, 450.0f, 0.9f, 0.0f, 0.0f, 0.15f, 0.85f, 0.35f, 0.5f, 0, 0, 1000.0f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Ambient";
-        p.name = "Ambient Layer";
-        p.freeze = {0, 750.0f, 0.88f, 0.0f, 0.0f, 0.1f, 0.9f, 0.5f, 0.6f, 0, 0, 1000.0f, 0.5f, 1, 16};  // 1/2
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Parallel";
+        p.name = "Pattern Blend";
+        p.freeze = {0.65f};  // Balanced parallel processing
         presets.push_back(p);
     }
 
