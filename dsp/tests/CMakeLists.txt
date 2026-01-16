@@ -33,6 +33,8 @@ add_executable(dsp_tests
     unit/core/sigmoid_test.cpp
     unit/core/chebyshev_test.cpp
     unit/core/test_wavefold_math.cpp
+    unit/core/pattern_freeze_types_test.cpp
+    unit/core/test_euclidean_pattern.cpp
 
     # Layer 1: Primitives
     unit/primitives/delay_line_test.cpp
@@ -57,6 +59,8 @@ add_executable(dsp_tests
     unit/primitives/wavefolder_test.cpp
     unit/primitives/chebyshev_shaper_test.cpp
     unit/primitives/pitch_detector_test.cpp
+    unit/primitives/test_rolling_capture_buffer.cpp
+    unit/primitives/test_slice_pool.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
@@ -77,6 +81,7 @@ add_executable(dsp_tests
     unit/processors/tape_saturator_test.cpp
     unit/processors/fuzz_processor_test.cpp
     unit/processors/bitcrusher_processor_test.cpp
+    unit/processors/test_pattern_scheduler.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -113,6 +118,7 @@ add_executable(dsp_tests
     unit/effects/granular_delay_test.cpp
     unit/effects/granular_delay_tempo_sync_test.cpp
     unit/effects/granular_delay_dry_signal_test.cpp
+    unit/effects/test_pattern_freeze_mode.cpp
 
     # Test Helpers tests
     ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
@@ -157,6 +163,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/sigmoid_test.cpp
         unit/core/chebyshev_test.cpp
         unit/core/test_wavefold_math.cpp
+        unit/core/pattern_freeze_types_test.cpp
+        unit/core/test_euclidean_pattern.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/dc_blocker_test.cpp
         unit/primitives/oversampler_test.cpp
@@ -178,6 +186,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/wavefolder_test.cpp
         unit/primitives/chebyshev_shaper_test.cpp
         unit/primitives/pitch_detector_test.cpp
+        unit/primitives/test_rolling_capture_buffer.cpp
+        unit/primitives/test_slice_pool.cpp
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
         unit/processors/envelope_follower_test.cpp
@@ -196,6 +206,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/tape_saturator_test.cpp
         unit/processors/fuzz_processor_test.cpp
         unit/processors/bitcrusher_processor_test.cpp
+        unit/processors/test_pattern_scheduler.cpp
         unit/systems/delay_engine_test.cpp
         unit/systems/feedback_network_test.cpp
         unit/systems/modulation_matrix_test.cpp
@@ -228,6 +239,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/effects/granular_delay_test.cpp
         unit/effects/granular_delay_tempo_sync_test.cpp
         unit/effects/granular_delay_dry_signal_test.cpp
+        unit/effects/test_pattern_freeze_mode.cpp
         ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
         unit/test_helpers/statistical_utils_tests.cpp
         unit/test_helpers/artifact_detection_tests.cpp

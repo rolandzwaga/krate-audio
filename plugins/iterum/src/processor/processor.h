@@ -20,7 +20,7 @@
 #include <krate/dsp/effects/bbd_delay.h>
 #include <krate/dsp/effects/digital_delay.h>
 #include <krate/dsp/effects/ducking_delay.h>
-#include <krate/dsp/effects/freeze_mode.h>
+#include <krate/dsp/effects/pattern_freeze_mode.h>
 #include <krate/dsp/effects/granular_delay.h>
 #include <krate/dsp/effects/multi_tap_delay.h>
 #include <krate/dsp/effects/ping_pong_delay.h>
@@ -199,7 +199,7 @@ private:
     Krate::DSP::GranularDelay granularDelay_;
     Krate::DSP::SpectralDelay spectralDelay_;
     Krate::DSP::DuckingDelay duckingDelay_;
-    Krate::DSP::FreezeMode freezeMode_;
+    Krate::DSP::PatternFreezeMode patternFreezeMode_;
     Krate::DSP::ReverseDelay reverseDelay_;
     Krate::DSP::ShimmerDelay shimmerDelay_;
     Krate::DSP::TapeDelay tapeDelay_;

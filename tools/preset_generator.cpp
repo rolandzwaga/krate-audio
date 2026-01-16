@@ -202,22 +202,44 @@ struct MultiTapPreset {
     int snapDivision = 14;          // 0-21 (off + 21 note values), default: 1/4
 };
 
+// Pattern Freeze mode (spec 069)
+// All 24 pattern freeze parameters are saved to preset for full recall.
 struct FreezePreset {
-    int freezeEnabled = 0;
-    float delayTime = 500.0f;
-    float feedback = 0.5f;
-    float pitchSemitones = 0.0f;
-    float pitchCents = 0.0f;
-    float shimmerMix = 0.0f;
-    float decay = 0.5f;
-    float diffusionAmount = 0.3f;
-    float diffusionSize = 0.5f;
-    int filterEnabled = 0;
-    int filterType = 0;
-    float filterCutoff = 1000.0f;
-    float dryWet = 0.5f;
-    int timeMode = 0;               // 0=Free, 1=Synced
-    int noteValue = 10;             // 0-20 (default: 1/8 = index 10)
+    // Core parameters
+    float dryWet = 0.5f;            // 0-1
+    int patternType = 0;            // 0=Euclidean, 1=GranularScatter, 2=HarmonicDrones, 3=NoiseBursts
+    float sliceLengthMs = 200.0f;   // 10-2000ms
+    int sliceMode = 0;              // 0=Fixed, 1=Variable
+
+    // Euclidean parameters
+    int euclideanSteps = 8;         // 2-32
+    int euclideanHits = 3;          // 1-steps
+    int euclideanRotation = 0;      // 0 to steps-1
+    int patternRate = 10;           // note value index (0-20, default 1/8 = 10)
+
+    // Granular parameters
+    float granularDensity = 10.0f;      // 1-50 Hz
+    float granularPositionJitter = 0.5f; // 0-1
+    float granularSizeJitter = 0.25f;    // 0-1
+    float granularGrainSize = 100.0f;    // 10-500ms
+
+    // Drone parameters
+    int droneVoiceCount = 2;        // 1-4
+    int droneInterval = 5;          // 0-5 (Unison to Octave, default Octave)
+    float droneDrift = 0.3f;        // 0-1
+    float droneDriftRate = 0.5f;    // 0.1-2.0 Hz
+
+    // Noise parameters
+    int noiseColor = 1;             // 0-7 (White to Radio, default Pink)
+    int noiseBurstRate = 10;        // note value index (0-20)
+    int noiseFilterType = 0;        // 0=LowPass, 1=HighPass, 2=BandPass
+    float noiseFilterCutoff = 2000.0f;  // 20-20000 Hz
+    float noiseFilterSweep = 0.5f;  // 0-1
+
+    // Envelope parameters
+    float envelopeAttackMs = 10.0f;     // 0-500ms
+    float envelopeReleaseMs = 100.0f;   // 0-2000ms
+    int envelopeShape = 0;              // 0=Linear, 1=Exponential
 };
 
 struct DuckingPreset {
@@ -424,21 +446,42 @@ void writeMultiTapState(BinaryWriter& w, const MultiTapPreset& p) {
 
 void writeFreezeState(BinaryWriter& w, const FreezePreset& p) {
     // Order MUST match freeze_params.h saveFreezeParams()
-    w.writeInt32(p.freezeEnabled);
-    w.writeFloat(p.delayTime);
-    w.writeInt32(p.timeMode);
-    w.writeInt32(p.noteValue);
-    w.writeFloat(p.feedback);
-    w.writeFloat(p.pitchSemitones);
-    w.writeFloat(p.pitchCents);
-    w.writeFloat(p.shimmerMix);
-    w.writeFloat(p.decay);
-    w.writeFloat(p.diffusionAmount);
-    w.writeFloat(p.diffusionSize);
-    w.writeInt32(p.filterEnabled);
-    w.writeInt32(p.filterType);
-    w.writeFloat(p.filterCutoff);
+
+    // Core parameters
     w.writeFloat(p.dryWet);
+    w.writeInt32(p.patternType);
+    w.writeFloat(p.sliceLengthMs);
+    w.writeInt32(p.sliceMode);
+
+    // Euclidean parameters
+    w.writeInt32(p.euclideanSteps);
+    w.writeInt32(p.euclideanHits);
+    w.writeInt32(p.euclideanRotation);
+    w.writeInt32(p.patternRate);
+
+    // Granular parameters
+    w.writeFloat(p.granularDensity);
+    w.writeFloat(p.granularPositionJitter);
+    w.writeFloat(p.granularSizeJitter);
+    w.writeFloat(p.granularGrainSize);
+
+    // Drone parameters
+    w.writeInt32(p.droneVoiceCount);
+    w.writeInt32(p.droneInterval);
+    w.writeFloat(p.droneDrift);
+    w.writeFloat(p.droneDriftRate);
+
+    // Noise parameters
+    w.writeInt32(p.noiseColor);
+    w.writeInt32(p.noiseBurstRate);
+    w.writeInt32(p.noiseFilterType);
+    w.writeFloat(p.noiseFilterCutoff);
+    w.writeFloat(p.noiseFilterSweep);
+
+    // Envelope parameters
+    w.writeFloat(p.envelopeAttackMs);
+    w.writeFloat(p.envelopeReleaseMs);
+    w.writeInt32(p.envelopeShape);
 }
 
 void writeDuckingState(BinaryWriter& w, const DuckingPreset& p) {
@@ -1245,66 +1288,180 @@ std::vector<PresetDef> createAllPresets() {
     }
 
     // =========================================================================
-    // FREEZE MODE (9) - Drones, Textures, Sustain
+    // FREEZE MODE (9) - Pattern Freeze (spec 069)
+    // Each preset configures a complete pattern with all 24 parameters.
+    // Pattern types: 0=Euclidean, 1=GranularScatter, 2=HarmonicDrones, 3=NoiseBursts
     // =========================================================================
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Sustain";
-        p.name = "Infinite Sustain";
-        p.freeze = {0, 500.0f, 0.95f, 0.0f, 0.0f, 0.0f, 0.9f, 0.3f, 0.5f, 0, 0, 1000.0f, 0.5f, 1, 13};  // 1/4
+        // Classic 8-step Euclidean with 3 hits - rhythmic freeze
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Rhythmic";
+        p.name = "Euclidean Pulse";
+        p.freeze.dryWet = 0.7f;
+        p.freeze.patternType = 0;  // Euclidean
+        p.freeze.sliceLengthMs = 150.0f;
+        p.freeze.sliceMode = 0;     // Fixed
+        p.freeze.euclideanSteps = 8;
+        p.freeze.euclideanHits = 3;
+        p.freeze.euclideanRotation = 0;
+        p.freeze.patternRate = 10;   // 1/8 note
+        p.freeze.envelopeAttackMs = 5.0f;
+        p.freeze.envelopeReleaseMs = 80.0f;
+        p.freeze.envelopeShape = 0;  // Linear
         presets.push_back(p);
     }
     {
+        // Dense granular cloud for ambient textures
         PresetDef p; p.mode = DelayMode::Freeze; p.category = "Ambient";
-        p.name = "Drone Bed";
-        p.freeze = {0, 800.0f, 0.9f, 0.0f, 0.0f, 0.0f, 0.95f, 0.5f, 0.6f, 0, 0, 1000.0f, 0.5f, 1, 16};  // 1/2
+        p.name = "Granular Cloud";
+        p.freeze.dryWet = 0.5f;
+        p.freeze.patternType = 1;  // GranularScatter
+        p.freeze.sliceLengthMs = 300.0f;
+        p.freeze.sliceMode = 1;     // Variable
+        p.freeze.granularDensity = 15.0f;  // 15 grains/sec
+        p.freeze.granularPositionJitter = 0.7f;
+        p.freeze.granularSizeJitter = 0.4f;
+        p.freeze.granularGrainSize = 120.0f;
+        p.freeze.envelopeAttackMs = 25.0f;
+        p.freeze.envelopeReleaseMs = 150.0f;
+        p.freeze.envelopeShape = 0;  // Linear
         presets.push_back(p);
     }
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Shimmer";
-        p.name = "Shimmer Freeze";
-        p.freeze = {0, 600.0f, 0.85f, 12.0f, 0.0f, 0.6f, 0.8f, 0.4f, 0.5f, 0, 0, 1000.0f, 0.5f, 1, 15};  // 1/2T
+        // Rich octave drones for pad layering
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Drone";
+        p.name = "Harmonic Bed";
+        p.freeze.dryWet = 0.6f;
+        p.freeze.patternType = 2;  // HarmonicDrones
+        p.freeze.sliceLengthMs = 500.0f;
+        p.freeze.sliceMode = 0;     // Fixed
+        p.freeze.droneVoiceCount = 3;
+        p.freeze.droneInterval = 5;  // Octave
+        p.freeze.droneDrift = 0.4f;
+        p.freeze.droneDriftRate = 0.3f;
+        p.freeze.envelopeAttackMs = 50.0f;
+        p.freeze.envelopeReleaseMs = 300.0f;
+        p.freeze.envelopeShape = 1;  // Exponential
         presets.push_back(p);
     }
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Dark";
-        p.name = "Dark Frozen";
-        p.freeze = {0, 700.0f, 0.9f, 0.0f, 0.0f, 0.0f, 0.85f, 0.4f, 0.55f, 1, 0, 800.0f, 0.5f, 1, 15};  // 1/2T
+        // Pink noise bursts with LP sweep
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Experimental";
+        p.name = "Noise Texture";
+        p.freeze.dryWet = 0.45f;
+        p.freeze.patternType = 3;  // NoiseBursts
+        p.freeze.sliceLengthMs = 200.0f;
+        p.freeze.sliceMode = 0;     // Fixed
+        p.freeze.noiseColor = 1;     // Pink
+        p.freeze.noiseBurstRate = 10;  // 1/8 note
+        p.freeze.noiseFilterType = 0;  // LowPass
+        p.freeze.noiseFilterCutoff = 3000.0f;
+        p.freeze.noiseFilterSweep = 0.6f;
+        p.freeze.envelopeAttackMs = 15.0f;
+        p.freeze.envelopeReleaseMs = 120.0f;
+        p.freeze.envelopeShape = 0;  // Linear
         presets.push_back(p);
     }
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Bright";
-        p.name = "Bright Freeze";
-        p.freeze = {0, 500.0f, 0.88f, 0.0f, 0.0f, 0.0f, 0.82f, 0.35f, 0.5f, 1, 1, 2000.0f, 0.5f, 1, 13};  // 1/4
+        // Subtle 16-step Euclidean with sparse hits
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Subtle";
+        p.name = "Ghost Pattern";
+        p.freeze.dryWet = 0.3f;
+        p.freeze.patternType = 0;  // Euclidean
+        p.freeze.sliceLengthMs = 100.0f;
+        p.freeze.sliceMode = 0;     // Fixed
+        p.freeze.euclideanSteps = 16;
+        p.freeze.euclideanHits = 5;
+        p.freeze.euclideanRotation = 3;
+        p.freeze.patternRate = 7;   // 1/16 note
+        p.freeze.envelopeAttackMs = 20.0f;
+        p.freeze.envelopeReleaseMs = 200.0f;
+        p.freeze.envelopeShape = 1;  // Exponential
         presets.push_back(p);
     }
     {
+        // Full wet 4-on-floor Euclidean
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Full";
+        p.name = "Total Freeze";
+        p.freeze.dryWet = 1.0f;
+        p.freeze.patternType = 0;  // Euclidean
+        p.freeze.sliceLengthMs = 250.0f;
+        p.freeze.sliceMode = 0;     // Fixed
+        p.freeze.euclideanSteps = 4;
+        p.freeze.euclideanHits = 4;
+        p.freeze.euclideanRotation = 0;
+        p.freeze.patternRate = 13;  // 1/4 note
+        p.freeze.envelopeAttackMs = 3.0f;
+        p.freeze.envelopeReleaseMs = 50.0f;
+        p.freeze.envelopeShape = 0;  // Linear
+        presets.push_back(p);
+    }
+    {
+        // Aggressive 32-step slicer
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Rhythmic";
+        p.name = "Slice Machine";
+        p.freeze.dryWet = 0.8f;
+        p.freeze.patternType = 0;  // Euclidean
+        p.freeze.sliceLengthMs = 80.0f;
+        p.freeze.sliceMode = 1;     // Variable
+        p.freeze.euclideanSteps = 32;
+        p.freeze.euclideanHits = 12;
+        p.freeze.euclideanRotation = 5;
+        p.freeze.patternRate = 4;   // 1/32 note
+        p.freeze.envelopeAttackMs = 2.0f;
+        p.freeze.envelopeReleaseMs = 30.0f;
+        p.freeze.envelopeShape = 0;  // Linear
+        presets.push_back(p);
+    }
+    {
+        // Sparse granular scatter for evolving textures
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Ambient";
+        p.name = "Scatter Drift";
+        p.freeze.dryWet = 0.55f;
+        p.freeze.patternType = 1;  // GranularScatter
+        p.freeze.sliceLengthMs = 400.0f;
+        p.freeze.sliceMode = 1;     // Variable
+        p.freeze.granularDensity = 6.0f;  // Sparse
+        p.freeze.granularPositionJitter = 0.9f;
+        p.freeze.granularSizeJitter = 0.6f;
+        p.freeze.granularGrainSize = 200.0f;
+        p.freeze.envelopeAttackMs = 40.0f;
+        p.freeze.envelopeReleaseMs = 250.0f;
+        p.freeze.envelopeShape = 1;  // Exponential
+        presets.push_back(p);
+    }
+    {
+        // Radio static noise bursts with bandpass
         PresetDef p; p.mode = DelayMode::Freeze; p.category = "Creative";
-        p.name = "Evolving Texture";
-        p.freeze = {0, 650.0f, 0.8f, 7.0f, 10.0f, 0.3f, 0.75f, 0.5f, 0.6f, 0, 0, 1000.0f, 0.5f, 1, 15};  // 1/2T
+        p.name = "Radio Static";
+        p.freeze.dryWet = 0.4f;
+        p.freeze.patternType = 3;  // NoiseBursts
+        p.freeze.sliceLengthMs = 150.0f;
+        p.freeze.sliceMode = 0;     // Fixed
+        p.freeze.noiseColor = 7;     // Radio
+        p.freeze.noiseBurstRate = 7;   // 1/16 note
+        p.freeze.noiseFilterType = 2;  // BandPass
+        p.freeze.noiseFilterCutoff = 5000.0f;
+        p.freeze.noiseFilterSweep = 0.8f;
+        p.freeze.envelopeAttackMs = 8.0f;
+        p.freeze.envelopeReleaseMs = 60.0f;
+        p.freeze.envelopeShape = 0;  // Linear
         presets.push_back(p);
     }
     {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Synth";
-        p.name = "Pad Machine";
-        p.freeze = {0, 550.0f, 0.92f, 0.0f, 0.0f, 0.2f, 0.88f, 0.45f, 0.55f, 0, 0, 1000.0f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Vocals";
-        p.name = "Vocal Hold";
-        p.freeze = {0, 400.0f, 0.85f, 0.0f, 0.0f, 0.0f, 0.8f, 0.3f, 0.45f, 0, 0, 1000.0f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Guitar";
-        p.name = "Guitar Sustainer";
-        p.freeze = {0, 450.0f, 0.9f, 0.0f, 0.0f, 0.15f, 0.85f, 0.35f, 0.5f, 0, 0, 1000.0f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Ambient";
-        p.name = "Ambient Layer";
-        p.freeze = {0, 750.0f, 0.88f, 0.0f, 0.0f, 0.1f, 0.9f, 0.5f, 0.6f, 0, 0, 1000.0f, 0.5f, 1, 16};  // 1/2
+        // Perfect fifth drones with slow drift
+        PresetDef p; p.mode = DelayMode::Freeze; p.category = "Parallel";
+        p.name = "Fifths Drone";
+        p.freeze.dryWet = 0.65f;
+        p.freeze.patternType = 2;  // HarmonicDrones
+        p.freeze.sliceLengthMs = 600.0f;
+        p.freeze.sliceMode = 0;     // Fixed
+        p.freeze.droneVoiceCount = 4;
+        p.freeze.droneInterval = 4;  // Perfect Fifth
+        p.freeze.droneDrift = 0.5f;
+        p.freeze.droneDriftRate = 0.2f;  // Very slow
+        p.freeze.envelopeAttackMs = 80.0f;
+        p.freeze.envelopeReleaseMs = 400.0f;
+        p.freeze.envelopeShape = 1;  // Exponential
         presets.push_back(p);
     }
 

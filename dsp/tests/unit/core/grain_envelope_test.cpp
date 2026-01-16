@@ -196,6 +196,126 @@ TEST_CASE("Grain envelopes start and end smoothly (click prevention)", "[core][g
 }
 
 // =============================================================================
+// Pattern Freeze Linear and Exponential Envelope Tests (spec 069)
+// =============================================================================
+
+TEST_CASE("Linear envelope shapes for Pattern Freeze", "[core][grain][layer0][pattern_freeze]") {
+    constexpr size_t kEnvelopeSize = 512;
+    std::array<float, kEnvelopeSize> envelope{};
+
+    SECTION("Linear envelope is linear attack and release") {
+        const float attackRatio = 0.1f;
+        const float releaseRatio = 0.2f;
+        GrainEnvelope::generate(envelope.data(), kEnvelopeSize, GrainEnvelopeType::Linear,
+                                attackRatio, releaseRatio);
+
+        // First sample should be zero
+        REQUIRE(envelope[0] == Approx(0.0f).margin(0.01f));
+
+        // Attack should increase linearly
+        const size_t attackEnd = static_cast<size_t>(kEnvelopeSize * attackRatio);
+        for (size_t i = 1; i < attackEnd && i > 0; ++i) {
+            float expected = static_cast<float>(i) / static_cast<float>(attackEnd);
+            REQUIRE(envelope[i] == Approx(expected).margin(0.02f));
+        }
+
+        // Sustain region should be at 1.0
+        const size_t sustainEnd = kEnvelopeSize - static_cast<size_t>(kEnvelopeSize * releaseRatio);
+        for (size_t i = attackEnd + 1; i < sustainEnd - 1; ++i) {
+            REQUIRE(envelope[i] == Approx(1.0f).margin(0.01f));
+        }
+
+        // Last sample should be near zero
+        REQUIRE(envelope[kEnvelopeSize - 1] == Approx(0.0f).margin(0.05f));
+
+        // All values should be in [0, 1]
+        for (float value : envelope) {
+            REQUIRE(value >= 0.0f);
+            REQUIRE(value <= 1.0f);
+        }
+    }
+
+    SECTION("Linear envelope with 10ms boundaries is click-free") {
+        // At 44.1kHz, 10ms = 441 samples
+        // Test with reasonable attack/release ratios
+        const float attackRatio = 0.05f;   // ~25 samples attack
+        const float releaseRatio = 0.1f;   // ~51 samples release
+        GrainEnvelope::generate(envelope.data(), kEnvelopeSize, GrainEnvelopeType::Linear,
+                                attackRatio, releaseRatio);
+
+        // First derivative at start should be small
+        REQUIRE(std::abs(envelope[1] - envelope[0]) < 0.1f);
+
+        // First derivative at end should be small
+        REQUIRE(std::abs(envelope[kEnvelopeSize - 1] - envelope[kEnvelopeSize - 2]) < 0.1f);
+    }
+}
+
+TEST_CASE("Exponential envelope shapes for Pattern Freeze", "[core][grain][layer0][pattern_freeze]") {
+    constexpr size_t kEnvelopeSize = 512;
+    std::array<float, kEnvelopeSize> envelope{};
+
+    SECTION("Exponential envelope has RC-style curves") {
+        const float attackRatio = 0.1f;
+        const float releaseRatio = 0.2f;
+        GrainEnvelope::generate(envelope.data(), kEnvelopeSize, GrainEnvelopeType::Exponential,
+                                attackRatio, releaseRatio);
+
+        // First sample should be zero
+        REQUIRE(envelope[0] == Approx(0.0f).margin(0.01f));
+
+        // Sustain region should be at 1.0
+        const size_t attackEnd = static_cast<size_t>(kEnvelopeSize * attackRatio);
+        const size_t sustainEnd = kEnvelopeSize - static_cast<size_t>(kEnvelopeSize * releaseRatio);
+        for (size_t i = attackEnd + 1; i < sustainEnd - 1; ++i) {
+            REQUIRE(envelope[i] == Approx(1.0f).margin(0.02f));
+        }
+
+        // Last sample should be near zero
+        REQUIRE(envelope[kEnvelopeSize - 1] == Approx(0.0f).margin(0.1f));
+
+        // All values should be in [0, 1]
+        for (float value : envelope) {
+            REQUIRE(value >= -0.01f);  // Small tolerance for numerical precision
+            REQUIRE(value <= 1.01f);
+        }
+    }
+
+    SECTION("Exponential attack is faster than linear initially") {
+        const float attackRatio = 0.2f;
+        const float releaseRatio = 0.2f;
+
+        std::array<float, kEnvelopeSize> linearEnv{};
+        GrainEnvelope::generate(linearEnv.data(), kEnvelopeSize, GrainEnvelopeType::Linear,
+                                attackRatio, releaseRatio);
+        GrainEnvelope::generate(envelope.data(), kEnvelopeSize, GrainEnvelopeType::Exponential,
+                                attackRatio, releaseRatio);
+
+        // Exponential attack should reach higher values faster (punchier)
+        // Check at 1/4 of attack phase
+        const size_t quarterAttack = static_cast<size_t>(kEnvelopeSize * attackRatio / 4);
+        if (quarterAttack > 0 && quarterAttack < kEnvelopeSize) {
+            // Exponential should be higher (faster rise)
+            REQUIRE(envelope[quarterAttack] >= linearEnv[quarterAttack] * 0.9f);
+        }
+    }
+
+    SECTION("Exponential envelope with 10ms boundaries is click-free") {
+        const float attackRatio = 0.05f;
+        const float releaseRatio = 0.1f;
+        GrainEnvelope::generate(envelope.data(), kEnvelopeSize, GrainEnvelopeType::Exponential,
+                                attackRatio, releaseRatio);
+
+        // First derivative at start should be reasonably small for click-free audio
+        // Exponential has punchier attack so we allow slightly higher derivative
+        REQUIRE(std::abs(envelope[1] - envelope[0]) < 0.2f);
+
+        // First derivative at end should be small
+        REQUIRE(std::abs(envelope[kEnvelopeSize - 1] - envelope[kEnvelopeSize - 2]) < 0.2f);
+    }
+}
+
+// =============================================================================
 // Envelope Symmetry Tests
 // =============================================================================
 

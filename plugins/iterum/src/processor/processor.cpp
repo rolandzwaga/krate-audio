@@ -77,8 +77,8 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     // Prepare ShimmerDelay (spec 029)
     shimmerDelay_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_), 5000.0f);
 
-    // Prepare FreezeMode (spec 031)
-    freezeMode_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_), 5000.0f);
+    // Prepare PatternFreezeMode (spec 069)
+    patternFreezeMode_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_), 5000.0f);
 
     // Prepare ReverseDelay (spec 030)
     reverseDelay_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_), 2000.0f);
@@ -127,7 +127,7 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         granularDelay_.reset();
         spectralDelay_.reset();
         duckingDelay_.reset();
-        freezeMode_.reset();
+        patternFreezeMode_.reset();
         reverseDelay_.reset();
         shimmerDelay_.reset();
         tapeDelay_.reset();
@@ -754,29 +754,63 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             break;
 
         case DelayMode::Freeze:
-            // Update Freeze parameters
-            freezeMode_.setFreezeEnabled(freezeParams_.freezeEnabled.load(std::memory_order_relaxed));
-            freezeMode_.setDelayTimeMs(freezeParams_.delayTime.load(std::memory_order_relaxed));
-            freezeMode_.setTimeMode(static_cast<Krate::DSP::TimeMode>(
-                freezeParams_.timeMode.load(std::memory_order_relaxed)));
+            // Pattern Freeze is always active when in Freeze mode (no checkbox needed)
+            patternFreezeMode_.setFreezeEnabled(true);
+            patternFreezeMode_.setPatternType(static_cast<Krate::DSP::PatternType>(
+                freezeParams_.patternType.load(std::memory_order_relaxed)));
+
+            // Slice parameters
+            patternFreezeMode_.setSliceLengthMs(freezeParams_.sliceLengthMs.load(std::memory_order_relaxed));
+            patternFreezeMode_.setSliceMode(static_cast<Krate::DSP::SliceMode>(
+                freezeParams_.sliceMode.load(std::memory_order_relaxed)));
+
+            // Euclidean parameters
+            patternFreezeMode_.setEuclideanSteps(freezeParams_.euclideanSteps.load(std::memory_order_relaxed));
+            patternFreezeMode_.setEuclideanHits(freezeParams_.euclideanHits.load(std::memory_order_relaxed));
+            patternFreezeMode_.setEuclideanRotation(freezeParams_.euclideanRotation.load(std::memory_order_relaxed));
             {
-                const int noteIdx = freezeParams_.noteValue.load(std::memory_order_relaxed);
-                const auto noteMapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
-                freezeMode_.setNoteValue(noteMapping.note, noteMapping.modifier);
+                const int patternRateIdx = freezeParams_.patternRate.load(std::memory_order_relaxed);
+                const auto noteMapping = Krate::DSP::getNoteValueFromDropdown(patternRateIdx);
+                patternFreezeMode_.setNoteValue(noteMapping.note);
+                patternFreezeMode_.setNoteModifier(noteMapping.modifier);
             }
-            freezeMode_.setFeedbackAmount(freezeParams_.feedback.load(std::memory_order_relaxed));
-            freezeMode_.setPitchSemitones(freezeParams_.pitchSemitones.load(std::memory_order_relaxed));
-            freezeMode_.setPitchCents(freezeParams_.pitchCents.load(std::memory_order_relaxed));
-            freezeMode_.setShimmerMix(freezeParams_.shimmerMix.load(std::memory_order_relaxed) * 100.0f);
-            freezeMode_.setDecay(freezeParams_.decay.load(std::memory_order_relaxed) * 100.0f);
-            freezeMode_.setDiffusionAmount(freezeParams_.diffusionAmount.load(std::memory_order_relaxed) * 100.0f);
-            freezeMode_.setDiffusionSize(freezeParams_.diffusionSize.load(std::memory_order_relaxed) * 100.0f);
-            freezeMode_.setFilterEnabled(freezeParams_.filterEnabled.load(std::memory_order_relaxed));
-            freezeMode_.setFilterType(static_cast<Krate::DSP::FilterType>(
-                freezeParams_.filterType.load(std::memory_order_relaxed)));
-            freezeMode_.setFilterCutoff(freezeParams_.filterCutoff.load(std::memory_order_relaxed));
-            freezeMode_.setDryWetMix(freezeParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
-            freezeMode_.process(outputL, outputR, numSamples, ctx);
+
+            // Granular Scatter parameters
+            patternFreezeMode_.setGranularDensity(freezeParams_.granularDensity.load(std::memory_order_relaxed));
+            patternFreezeMode_.setGranularPositionJitter(freezeParams_.granularPositionJitter.load(std::memory_order_relaxed));
+            patternFreezeMode_.setGranularSizeJitter(freezeParams_.granularSizeJitter.load(std::memory_order_relaxed));
+            patternFreezeMode_.setGranularGrainSize(freezeParams_.granularGrainSize.load(std::memory_order_relaxed));
+
+            // Harmonic Drones parameters
+            patternFreezeMode_.setDroneVoiceCount(freezeParams_.droneVoiceCount.load(std::memory_order_relaxed));
+            patternFreezeMode_.setDroneInterval(static_cast<Krate::DSP::PitchInterval>(
+                freezeParams_.droneInterval.load(std::memory_order_relaxed)));
+            patternFreezeMode_.setDroneDrift(freezeParams_.droneDrift.load(std::memory_order_relaxed));
+            patternFreezeMode_.setDroneDriftRate(freezeParams_.droneDriftRate.load(std::memory_order_relaxed));
+
+            // Noise Bursts parameters
+            patternFreezeMode_.setNoiseColor(static_cast<Krate::DSP::NoiseColor>(
+                freezeParams_.noiseColor.load(std::memory_order_relaxed)));
+            {
+                const int burstRateIdx = freezeParams_.noiseBurstRate.load(std::memory_order_relaxed);
+                const auto noteMapping = Krate::DSP::getNoteValueFromDropdown(burstRateIdx);
+                patternFreezeMode_.setNoiseBurstRate(noteMapping.note, noteMapping.modifier);
+            }
+            patternFreezeMode_.setNoiseFilterType(static_cast<Krate::DSP::FilterType>(
+                freezeParams_.noiseFilterType.load(std::memory_order_relaxed)));
+            patternFreezeMode_.setNoiseFilterCutoff(freezeParams_.noiseFilterCutoff.load(std::memory_order_relaxed));
+            patternFreezeMode_.setNoiseFilterSweep(freezeParams_.noiseFilterSweep.load(std::memory_order_relaxed));
+
+            // Envelope parameters
+            patternFreezeMode_.setEnvelopeAttackMs(freezeParams_.envelopeAttackMs.load(std::memory_order_relaxed));
+            patternFreezeMode_.setEnvelopeReleaseMs(freezeParams_.envelopeReleaseMs.load(std::memory_order_relaxed));
+            patternFreezeMode_.setEnvelopeShape(static_cast<Krate::DSP::EnvelopeShape>(
+                freezeParams_.envelopeShape.load(std::memory_order_relaxed)));
+
+            // Mix parameter
+            patternFreezeMode_.setDryWetMix(freezeParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
+
+            patternFreezeMode_.process(outputL, outputR, numSamples, ctx);
             break;
 
         case DelayMode::Ducking:

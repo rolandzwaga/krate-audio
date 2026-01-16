@@ -141,21 +141,30 @@
     <control-tag name="MultiTapNoteValue" tag="911"/>
     <control-tag name="MultiTapNoteModifier" tag="912"/>
     <control-tag name="MultiTapSnapDivision" tag="913"/>
-    <control-tag name="FreezeEnabled" tag="1000"/>
-    <control-tag name="FreezeDelayTime" tag="1001"/>
-    <control-tag name="FreezeFeedback" tag="1002"/>
-    <control-tag name="FreezePitchSemitones" tag="1003"/>
-    <control-tag name="FreezePitchCents" tag="1004"/>
-    <control-tag name="FreezeShimmerMix" tag="1005"/>
-    <control-tag name="FreezeDecay" tag="1006"/>
-    <control-tag name="FreezeDiffusionAmount" tag="1007"/>
-    <control-tag name="FreezeDiffusionSize" tag="1008"/>
-    <control-tag name="FreezeFilterEnabled" tag="1009"/>
-    <control-tag name="FreezeFilterType" tag="1010"/>
-    <control-tag name="FreezeFilterCutoff" tag="1011"/>
     <control-tag name="FreezeDryWet" tag="1012"/>
-    <control-tag name="FreezeTimeMode" tag="1013"/>
-    <control-tag name="FreezeNoteValue" tag="1014"/>
+    <control-tag name="FreezePatternType" tag="1015"/>
+    <control-tag name="FreezeSliceLength" tag="1016"/>
+    <control-tag name="FreezeSliceMode" tag="1017"/>
+    <control-tag name="FreezeEuclideanSteps" tag="1020"/>
+    <control-tag name="FreezeEuclideanHits" tag="1021"/>
+    <control-tag name="FreezeEuclideanRotation" tag="1022"/>
+    <control-tag name="FreezePatternRate" tag="1023"/>
+    <control-tag name="FreezeGranularDensity" tag="1030"/>
+    <control-tag name="FreezeGranularPositionJitter" tag="1031"/>
+    <control-tag name="FreezeGranularSizeJitter" tag="1032"/>
+    <control-tag name="FreezeGranularGrainSize" tag="1033"/>
+    <control-tag name="FreezeDroneVoiceCount" tag="1040"/>
+    <control-tag name="FreezeDroneInterval" tag="1041"/>
+    <control-tag name="FreezeDroneDrift" tag="1042"/>
+    <control-tag name="FreezeDroneDriftRate" tag="1043"/>
+    <control-tag name="FreezeNoiseColor" tag="1050"/>
+    <control-tag name="FreezeNoiseBurstRate" tag="1051"/>
+    <control-tag name="FreezeNoiseFilterType" tag="1052"/>
+    <control-tag name="FreezeNoiseFilterCutoff" tag="1053"/>
+    <control-tag name="FreezeNoiseFilterSweep" tag="1054"/>
+    <control-tag name="FreezeEnvelopeAttack" tag="1060"/>
+    <control-tag name="FreezeEnvelopeRelease" tag="1061"/>
+    <control-tag name="FreezeEnvelopeShape" tag="1062"/>
     <control-tag name="DuckingEnabled" tag="1100"/>
     <control-tag name="DuckingThreshold" tag="1101"/>
     <control-tag name="DuckingDuckAmount" tag="1102"/>
@@ -177,7 +186,6 @@
     <control-tag name="ShimmerDelayTimeLabel" tag="9905"/>
     <control-tag name="BBDDelayTimeLabel" tag="9906"/>
     <control-tag name="ReverseChunkSizeLabel" tag="9907"/>
-    <control-tag name="FreezeDelayTimeLabel" tag="9909"/>
     <control-tag name="DuckingDelayTimeLabel" tag="9910"/>
     <control-tag name="GranularNoteValueLabel" tag="9920"/>
     <control-tag name="SpectralNoteValueLabel" tag="9921"/>
@@ -186,7 +194,6 @@
     <control-tag name="DigitalNoteValueLabel" tag="9924"/>
     <control-tag name="PingPongNoteValueLabel" tag="9925"/>
     <control-tag name="ReverseNoteValueLabel" tag="9926"/>
-    <control-tag name="FreezeNoteValueLabel" tag="9928"/>
     <control-tag name="DuckingNoteValueLabel" tag="9929"/>
   </control-tags>
   <gradients>
@@ -492,7 +499,7 @@
       <view class="CSegmentButton" origin="50, 108" size="220, 22" control-tag="DigitalWavefoldType" style="horizontal" segment-names="Simple,Serge,Buchla,Lock" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
       <view class="CTextLabel" origin="180, 28" size="40, 16" title="Sym" font="label-font" font-color="text-dim" transparent="true"/>
       <view class="CParamDisplay" control-tag="DigitalWavefoldSymmetry" origin="220, 28" size="50, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CKnob" origin="220, 46" size="50, 50" control-tag="DigitalWavefoldSymmetry" angle-start="135" angle-range="270" value-inset="3" zoom-factor="1.5" corona-color="accent" handle-color="text" handle-line-width="2"/>
+      <view class="CKnob" origin="200, 50" size="50, 50" control-tag="DigitalWavefoldSymmetry" angle-start="135" angle-range="270" value-inset="3" zoom-factor="1.5" corona-color="accent" handle-color="text" handle-line-width="2"/>
     </view>
   </template>
   <template name="PingPongPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
@@ -623,58 +630,85 @@
     </view>
   </template>
   <template name="FreezePanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
-    <view class="CTextLabel" origin="10, 5" size="200, 22" title="FREEZE MODE" font="section-font" font-color="accent" transparent="true"/>
-    <view class="CViewContainer" origin="580, 30" size="270, 260" background-color="section" transparent="false">
-      <view class="CTextLabel" origin="5, 5" size="255, 20" title="FREEZE CONTROL" font="section-font" font-color="accent" transparent="true"/>
-      <view class="CTextLabel" origin="10, 28" size="60, 16" title="Freeze" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CCheckBox" origin="10, 46" size="50, 22" control-tag="FreezeEnabled" title="" font="value-font" font-color="text"/>
-      <view class="CTextLabel" origin="10, 110" size="45, 16" title="Decay" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezeDecay" origin="215, 110" size="45, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 130" size="250, 20" control-tag="FreezeDecay" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="10, 160" size="50, 20" title="Feedback" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezeFeedback" origin="220, 160" size="40, 20" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 178" size="250, 20" control-tag="FreezeFeedback" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+    <view class="CTextLabel" origin="10, 5" size="200, 22" title="PATTERN FREEZE MODE" font="section-font" font-color="accent" transparent="true"/>
+    <view class="CViewContainer" origin="10, 30" size="280, 95" background-color="section" transparent="false">
+      <view class="CTextLabel" origin="5, 5" size="270, 18" title="PATTERN" font="section-font" font-color="accent" transparent="true"/>
+      <view class="CTextLabel" origin="10, 28" size="50, 16" title="Type" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="COptionMenu" origin="60, 26" size="100, 22" control-tag="FreezePatternType" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
+      <view class="CTextLabel" origin="10, 52" size="65, 16" title="Dry/Wet" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeDryWet" origin="225, 52" size="45, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="10, 70" size="260, 20" control-tag="FreezeDryWet" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
     </view>
-    <view class="CViewContainer" origin="10, 30" size="280, 130" background-color="section" transparent="false">
-      <view class="CTextLabel" origin="5, 5" size="270, 18" title="TIME &amp; MIX" font="section-font" font-color="accent" transparent="true"/>
-      <view class="CTextLabel" control-tag="FreezeDelayTimeLabel" origin="100, 30" size="55, 16" title="Delay" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezeDelayTime" origin="155, 30" size="60, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="100, 48" size="115, 20" control-tag="FreezeDelayTime" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="10, 30" size="85, 16" title="Mode" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CSegmentButton" origin="10, 48" size="85, 22" control-tag="FreezeTimeMode" style="horizontal" segment-names="Free,Synced" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
-      <view class="CTextLabel" control-tag="FreezeNoteValueLabel" origin="220, 28" size="50, 16" title="Note" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="COptionMenu" origin="220, 46" size="50, 22" control-tag="FreezeNoteValue" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
-      <view class="CTextLabel" origin="10, 73" size="130, 16" title="Dry/Wet" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezeDryWet" origin="140, 73" size="130, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 91" size="260, 20" control-tag="FreezeDryWet" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+    <view class="CViewContainer" origin="10, 130" size="280, 80" background-color="section" transparent="false">
+      <view class="CTextLabel" origin="5, 5" size="270, 18" title="SLICE" font="section-font" font-color="accent" transparent="true"/>
+      <view class="CTextLabel" origin="10, 28" size="50, 16" title="Length" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeSliceLength" origin="60, 28" size="45, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="10, 46" size="100, 20" control-tag="FreezeSliceLength" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="120, 28" size="50, 16" title="Mode" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSegmentButton" origin="120, 46" size="150, 22" control-tag="FreezeSliceMode" style="horizontal" segment-names="Fixed,Variable" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
     </view>
-    <view class="CViewContainer" origin="10, 170" size="280, 120" background-color="section" transparent="false">
-      <view class="CTextLabel" origin="5, 5" size="260, 18" title="PITCH &amp; SHIMMER" font="section-font" font-color="accent" transparent="true"/>
-      <view class="CTextLabel" origin="10, 28" size="40, 16" title="Semi" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezePitchSemitones" origin="50, 28" size="35, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 46" size="75, 20" control-tag="FreezePitchSemitones" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="95, 28" size="35, 16" title="Cent" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezePitchCents" origin="130, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="95, 46" size="75, 20" control-tag="FreezePitchCents" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="180, 28" size="40, 16" title="Shim" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezeShimmerMix" origin="220, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="180, 46" size="80, 20" control-tag="FreezeShimmerMix" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+    <view class="CViewContainer" origin="300, 30" size="270, 95" background-color="section" transparent="false">
+      <view class="CTextLabel" origin="5, 5" size="255, 20" title="EUCLIDEAN" font="section-font" font-color="accent" transparent="true"/>
+      <view class="CTextLabel" origin="10, 28" size="35, 16" title="Steps" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeEuclideanSteps" origin="45, 28" size="25, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="10, 46" size="60, 20" control-tag="FreezeEuclideanSteps" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="75, 28" size="30, 16" title="Hits" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeEuclideanHits" origin="105, 28" size="25, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="75, 46" size="60, 20" control-tag="FreezeEuclideanHits" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="140, 28" size="35, 16" title="Rot" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeEuclideanRotation" origin="175, 28" size="25, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="140, 46" size="60, 20" control-tag="FreezeEuclideanRotation" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="205, 28" size="35, 16" title="Rate" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="COptionMenu" origin="205, 46" size="55, 22" control-tag="FreezePatternRate" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
     </view>
-    <view class="CViewContainer" origin="300, 30" size="270, 260" background-color="section" transparent="false">
-      <view class="CTextLabel" origin="5, 5" size="260, 18" title="DIFFUSION &amp; FILTER" font="section-font" font-color="accent" transparent="true"/>
-      <view class="CTextLabel" origin="10, 28" size="35, 16" title="Amt" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezeDiffusionAmount" origin="45, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 46" size="75, 20" control-tag="FreezeDiffusionAmount" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="95, 28" size="35, 16" title="Size" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezeDiffusionSize" origin="130, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="95, 46" size="75, 20" control-tag="FreezeDiffusionSize" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="10, 80" size="50, 16" title="Filter" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CCheckBox" origin="60, 80" size="40, 20" control-tag="FreezeFilterEnabled" title="" font="value-font" font-color="text"/>
-      <view class="CTextLabel" origin="10, 110" size="30, 16" title="Type" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CSegmentButton" origin="10, 130" size="250, 22" control-tag="FreezeFilterType" style="horizontal" segment-names="LP,HP,BP" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
-      <view class="CTextLabel" origin="10, 160" size="30, 16" title="Cut" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="FreezeFilterCutoff" origin="230, 160" size="30, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 180" size="250, 20" control-tag="FreezeFilterCutoff" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+    <view class="CViewContainer" origin="300, 30" size="270, 95" background-color="section" transparent="false">
+      <view class="CTextLabel" origin="5, 5" size="260, 18" title="GRANULAR SCATTER" font="section-font" font-color="accent" transparent="true"/>
+      <view class="CTextLabel" origin="10, 28" size="45, 16" title="Density" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeGranularDensity" origin="55, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="10, 46" size="90, 20" control-tag="FreezeGranularDensity" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="105, 28" size="35, 16" title="Grain" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeGranularGrainSize" origin="140, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="105, 46" size="75, 20" control-tag="FreezeGranularGrainSize" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="185, 28" size="40, 16" title="PosJit" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSlider" origin="185, 46" size="35, 20" control-tag="FreezeGranularPositionJitter" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="225, 28" size="35, 16" title="SzJit" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSlider" origin="225, 46" size="35, 20" control-tag="FreezeGranularSizeJitter" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+    </view>
+    <view class="CViewContainer" origin="300, 30" size="270, 100" background-color="section" transparent="false">
+      <view class="CTextLabel" origin="5, 5" size="260, 18" title="HARMONIC DRONES" font="section-font" font-color="accent" transparent="true"/>
+      <view class="CTextLabel" origin="10, 28" size="40, 16" title="Voices" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeDroneVoiceCount" origin="50, 28" size="25, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="10, 46" size="65, 20" control-tag="FreezeDroneVoiceCount" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="80, 28" size="40, 16" title="Intrvl" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="COptionMenu" origin="80, 46" size="60, 22" control-tag="FreezeDroneInterval" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
+      <view class="CTextLabel" origin="145, 28" size="30, 16" title="Drift" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSlider" origin="145, 46" size="55, 20" control-tag="FreezeDroneDrift" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="205, 28" size="35, 16" title="Rate" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSlider" origin="205, 46" size="55, 20" control-tag="FreezeDroneDriftRate" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+    </view>
+    <view class="CViewContainer" origin="300, 30" size="270, 165" background-color="section" transparent="false">
+      <view class="CTextLabel" origin="5, 5" size="260, 18" title="NOISE BURSTS" font="section-font" font-color="accent" transparent="true"/>
+      <view class="CTextLabel" origin="10, 28" size="35, 16" title="Color" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="COptionMenu" origin="10, 46" size="60, 22" control-tag="FreezeNoiseColor" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
+      <view class="CTextLabel" origin="75, 28" size="35, 16" title="Rate" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="COptionMenu" origin="75, 46" size="55, 22" control-tag="FreezeNoiseBurstRate" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
+      <view class="CTextLabel" origin="10, 71" size="35, 16" title="Filter" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSegmentButton" origin="10, 91" size="240, 22" control-tag="FreezeNoiseFilterType" style="horizontal" segment-names="LP,HP,BP" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
+      <view class="CTextLabel" origin="137, 29" size="35, 16" title="Cut" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSlider" origin="137, 47" size="113, 20" control-tag="FreezeNoiseFilterCutoff" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="10, 120" size="40, 10" title="Sweep" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSlider" origin="10, 140" size="240, 20" control-tag="FreezeNoiseFilterSweep" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+    </view>
+    <view class="CViewContainer" origin="10, 220" size="280, 120" background-color="section" transparent="false">
+      <view class="CTextLabel" origin="5, 5" size="260, 18" title="ENVELOPE" font="section-font" font-color="accent" transparent="true"/>
+      <view class="CTextLabel" origin="10, 28" size="35, 16" title="Atk" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeEnvelopeAttack" origin="50, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="10, 46" size="80, 20" control-tag="FreezeEnvelopeAttack" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="95, 28" size="35, 16" title="Rel" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CParamDisplay" control-tag="FreezeEnvelopeRelease" origin="135, 28" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
+      <view class="CSlider" origin="95, 46" size="80, 20" control-tag="FreezeEnvelopeRelease" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
+      <view class="CTextLabel" origin="10, 74" size="40, 16" title="Shape" font="label-font" font-color="text-dim" transparent="true"/>
+      <view class="CSegmentButton" origin="10, 92" size="250, 22" control-tag="FreezeEnvelopeShape" style="horizontal" segment-names="Lin,Exp" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
     </view>
   </template>
   <template name="DuckingPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">

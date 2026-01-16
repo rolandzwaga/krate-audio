@@ -273,24 +273,50 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMultiTapEndId = 999,
 
     // ==========================================================================
-    // Freeze Mode Parameters (1000-1099) - spec 031
+    // Freeze Mode Parameters (1000-1099) - spec 069 (Pattern Freeze)
+    // Legacy shimmer/diffusion parameters (1001-1011, 1013-1014) removed in v0.12
     // ==========================================================================
     kFreezeBaseId = 1000,
-    kFreezeEnabledId = 1000,          // on/off
-    kFreezeDelayTimeId = 1001,        // 10-5000ms
-    kFreezeFeedbackId = 1002,         // 0-120%
-    kFreezePitchSemitonesId = 1003,   // -24 to +24
-    kFreezePitchCentsId = 1004,       // -100 to +100
-    kFreezeShimmerMixId = 1005,       // 0-100%
-    kFreezeDecayId = 1006,            // 0-100%
-    kFreezeDiffusionAmountId = 1007,  // 0-100%
-    kFreezeDiffusionSizeId = 1008,    // 0-100%
-    kFreezeFilterEnabledId = 1009,    // on/off
-    kFreezeFilterTypeId = 1010,       // 0-2 (LowPass, HighPass, BandPass)
-    kFreezeFilterCutoffId = 1011,     // 20-20000Hz
-    kFreezeMixId = 1012,              // 0-100% (renamed from kFreezeDryWetId)
-    kFreezeTimeModeId = 1013,         // 0=Free, 1=Synced (spec 043)
-    kFreezeNoteValueId = 1014,        // 0-9 (note value dropdown) (spec 043)
+    kFreezeMixId = 1012,              // 0-100% dry/wet mix
+
+    // --------------------------------------------------------------------------
+    // Pattern Freeze Parameters (1015-1060) - spec 069
+    // --------------------------------------------------------------------------
+    // Pattern Type & Core
+    kFreezePatternTypeId = 1015,      // 0-3 (PatternType enum: Euclidean, GranularScatter, HarmonicDrones, NoiseBursts)
+    kFreezeSliceLengthId = 1016,      // 10-2000ms
+    kFreezeSliceModeId = 1017,        // 0-1 (SliceMode enum: Fixed, Variable)
+
+    // Euclidean Parameters
+    kFreezeEuclideanStepsId = 1020,   // 2-32
+    kFreezeEuclideanHitsId = 1021,    // 1-steps
+    kFreezeEuclideanRotationId = 1022, // 0-(steps-1)
+    kFreezePatternRateId = 1023,      // 0-20 (NoteValue dropdown)
+
+    // Granular Scatter Parameters
+    kFreezeGranularDensityId = 1030,       // 1-50 Hz
+    kFreezeGranularPositionJitterId = 1031, // 0-100%
+    kFreezeGranularSizeJitterId = 1032,    // 0-100%
+    kFreezeGranularGrainSizeId = 1033,     // 10-500ms
+
+    // Harmonic Drones Parameters
+    kFreezeDroneVoiceCountId = 1040,  // 1-4
+    kFreezeDroneIntervalId = 1041,    // 0-5 (PitchInterval enum)
+    kFreezeDroneDriftId = 1042,       // 0-100%
+    kFreezeDroneDriftRateId = 1043,   // 0.1-2.0 Hz
+
+    // Noise Bursts Parameters
+    kFreezeNoiseColorId = 1050,       // 0-2 (NoiseColor enum: White, Pink, Brown)
+    kFreezeNoiseBurstRateId = 1051,   // 0-20 (NoteValue dropdown)
+    kFreezeNoiseFilterTypeId = 1052,  // 0-2 (LowPass, HighPass, BandPass)
+    kFreezeNoiseFilterCutoffId = 1053, // 20-20000 Hz
+    kFreezeNoiseFilterSweepId = 1054, // 0-100%
+
+    // Envelope Parameters (shared across patterns)
+    kFreezeEnvelopeAttackId = 1060,   // 0-500ms
+    kFreezeEnvelopeReleaseId = 1061,  // 0-2000ms
+    kFreezeEnvelopeShapeId = 1062,    // 0-1 (EnvelopeShape enum: Linear, Exponential)
+
     kFreezeEndId = 1099,
 
     // ==========================================================================

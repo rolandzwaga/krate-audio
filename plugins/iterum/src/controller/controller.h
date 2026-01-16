@@ -176,7 +176,7 @@ private:
     Steinberg::IPtr<Steinberg::FObject> bbdDelayTimeVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> reverseChunkSizeVisibilityController_;
     // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
-    Steinberg::IPtr<Steinberg::FObject> freezeDelayTimeVisibilityController_;
+    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
     Steinberg::IPtr<Steinberg::FObject> duckingDelayTimeVisibilityController_;
 
     // NoteValue visibility controllers (show note value when synced)
@@ -190,7 +190,7 @@ private:
     // MultiTap Note Value: Show when Pattern is Mathematical (GoldenRatio+)
     // Simplified design - no TimeMode dependency, just pattern-based visibility
     Steinberg::IPtr<Steinberg::FObject> multitapNoteValueVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> freezeNoteValueVisibilityController_;
+    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
     Steinberg::IPtr<Steinberg::FObject> duckingNoteValueVisibilityController_;
 
     // ==========================================================================
@@ -202,6 +202,16 @@ private:
     Steinberg::IPtr<Steinberg::FObject> patternEditorVisibilityController_;
     // Visibility controller: show Copy Pattern button only when pattern != Custom
     Steinberg::IPtr<Steinberg::FObject> copyPatternButtonVisibilityController_;
+
+    // ==========================================================================
+    // Freeze Mode Pattern Containers (Spec 069)
+    // ==========================================================================
+    // Show pattern-specific containers based on FreezePatternType selection
+
+    Steinberg::IPtr<Steinberg::FObject> freezeEuclideanContainerController_;
+    Steinberg::IPtr<Steinberg::FObject> freezeGranularContainerController_;
+    Steinberg::IPtr<Steinberg::FObject> freezeDronesContainerController_;
+    Steinberg::IPtr<Steinberg::FObject> freezeNoiseBurstsContainerController_;
 
     // ==========================================================================
     // Preset Browser (Spec 042)

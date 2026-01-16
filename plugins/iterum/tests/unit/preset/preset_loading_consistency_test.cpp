@@ -450,20 +450,8 @@ TEST_CASE("Reverse params roundtrip preserves values", "[preset][reverse][roundt
 
 TEST_CASE("Freeze params roundtrip preserves values", "[preset][freeze][roundtrip]") {
     Iterum::FreezeParams params;
-    params.freezeEnabled.store(false);
-    params.delayTime.store(500.0f);
-    params.timeMode.store(1);
-    params.noteValue.store(5);
-    params.feedback.store(0.95f);
-    params.pitchSemitones.store(0.0f);
-    params.pitchCents.store(0.0f);
-    params.shimmerMix.store(0.0f);
-    params.decay.store(0.5f);
-    params.diffusionAmount.store(0.3f);
-    params.diffusionSize.store(0.5f);
-    params.filterEnabled.store(true);
-    params.filterType.store(0);
-    params.filterCutoff.store(8000.0f);
+    // Legacy shimmer/diffusion parameters removed in v0.12
+    // Only dryWet remains as a non-pattern-freeze parameter
     params.dryWet.store(0.8f);
 
     MemoryStream stream;
@@ -475,8 +463,5 @@ TEST_CASE("Freeze params roundtrip preserves values", "[preset][freeze][roundtri
     MockController controller;
     Iterum::syncFreezeParamsToController(reader, controller);
 
-    constexpr double noteValDivisor = Iterum::Parameters::kNoteValueDropdownCount - 1;
-    REQUIRE(controller.paramValues[Iterum::kFreezeTimeModeId] == Approx(1.0).margin(0.001));
-    REQUIRE(controller.paramValues[Iterum::kFreezeNoteValueId] == Approx(5.0 / noteValDivisor).margin(0.001));
     REQUIRE(controller.paramValues[Iterum::kFreezeMixId] == Approx(0.8).margin(0.001));
 }

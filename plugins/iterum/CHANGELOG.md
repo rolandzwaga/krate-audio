@@ -5,6 +5,60 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-01-16
+
+### Added
+
+- **Pattern Freeze Mode (Spec 069)**
+  - Complete redesign of Freeze mode with 4 distinct pattern types
+  - Replaces legacy shimmer/diffusion freeze parameters
+
+- **Euclidean Pattern Type**
+  - Rhythmic slice triggering using Bjorklund algorithm
+  - Configurable steps (1-16) and pulses (1-16) for even beat distribution
+  - Rotation parameter to shift pattern phase
+  - Tempo-synced note value for pattern rate
+
+- **Granular Scatter Pattern Type**
+  - Randomized slice triggering with configurable density
+  - Jitter parameter (0-100%) for timing variation
+  - Creates unpredictable, organic textures from captured audio
+
+- **Harmonic Drones Pattern Type**
+  - Pitched slice playback creating sustained chord voicings
+  - Voice count (1-4) for layered harmonics
+  - Pitch interval selection: Unison, Fifth, Octave, Fourth, Major Third
+  - Drift rate parameter for subtle pitch modulation
+
+- **Noise Bursts Pattern Type**
+  - Captured audio mixed with filtered noise
+  - 8 noise colors: White, Pink, Brown, Blue, Violet, Grey, Velvet, Radio
+  - Tempo-synced burst rate with note value selection
+  - Filter type (LP/HP/BP) with cutoff and sweep parameters
+
+- **Shared Envelope Section**
+  - Configurable attack and release (1-500ms) for all pattern types
+  - Envelope shape selection: Hann or Blackman window curves
+  - Automatically scales to fit slice length
+
+- **Pattern-Specific UI Containers**
+  - Dynamic visibility controllers show only relevant parameters
+  - Containers switch based on selected pattern type
+
+- **New DSP Components**
+  - `EuclideanPattern`: Bjorklund algorithm implementation
+  - `RollingCaptureBuffer`: Continuous audio capture with slice extraction
+  - `SlicePool`: Lock-free allocation for real-time slice management
+  - `PatternScheduler`: Tempo-synced pattern triggering
+
+### Changed
+
+- **Freeze Mode Parameter IDs**
+  - Legacy shimmer/diffusion parameters (1001-1011, 1013-1014) removed
+  - New pattern freeze parameters use IDs 1015-1060
+
+---
+
 ## [0.12.0] - 2026-01-16
 
 ### Added
