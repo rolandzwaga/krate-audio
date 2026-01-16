@@ -630,7 +630,7 @@
     </view>
   </template>
   <template name="FreezePanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
-    <view class="CTextLabel" origin="10, 5" size="200, 22" title="FREEZE MODE" font="section-font" font-color="accent" transparent="true"/>
+    <view class="CTextLabel" origin="10, 5" size="200, 22" title="PATTERN FREEZE MODE" font="section-font" font-color="accent" transparent="true"/>
     <view class="CViewContainer" origin="10, 30" size="280, 95" background-color="section" transparent="false">
       <view class="CTextLabel" origin="5, 5" size="270, 18" title="PATTERN" font="section-font" font-color="accent" transparent="true"/>
       <view class="CTextLabel" origin="10, 28" size="50, 16" title="Type" font="label-font" font-color="text-dim" transparent="true"/>
