@@ -1436,10 +1436,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, reverseTimeMode, {9907, kReverseChunkSizeId}, 0.5f, true);
             }
             // MultiTap has no TimeMode - BaseTime and Tempo controls removed (simplified design)
-            if (auto* freezeTimeMode = getParameterObject(kFreezeTimeModeId)) {
-                freezeDelayTimeVisibilityController_ = new VisibilityController(
-                    &activeEditor_, freezeTimeMode, {9909, kFreezeDelayTimeId}, 0.5f, true);
-            }
+            // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
             if (auto* duckingTimeMode = getParameterObject(kDuckingTimeModeId)) {
                 duckingDelayTimeVisibilityController_ = new VisibilityController(
                     &activeEditor_, duckingTimeMode, {9910, kDuckingDelayTimeId}, 0.5f, true);
@@ -1503,10 +1500,42 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     {kMultiTapCopyPatternButtonTagId},  // Button tag
                     0.99f, true);  // Show when pattern < 0.99 (NOT Custom)
             }
-            if (auto* freezeTimeMode = getParameterObject(kFreezeTimeModeId)) {
-                freezeNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, freezeTimeMode, {9928, kFreezeNoteValueId}, 0.5f, false);
+
+            // =====================================================================
+            // Freeze Mode Pattern Container Visibility (Spec 069)
+            // =====================================================================
+            // Show pattern-specific containers based on FreezePatternType selection.
+            // 4 patterns: Euclidean(0), GranularScatter(1), HarmonicDrones(2), NoiseBursts(3)
+            // Normalized values: 0.0, 0.333, 0.667, 1.0
+            // Range thresholds at midpoints: 0.166, 0.5, 0.833
+            // =====================================================================
+            if (auto* patternType = getParameterObject(kFreezePatternTypeId)) {
+                // Euclidean container: visible when pattern type == 0 (value < 0.166)
+                freezeEuclideanContainerController_ = new ContainerVisibilityController(
+                    &activeEditor_, patternType,
+                    kFreezeEuclideanStepsId,  // Child control tag to find container
+                    -0.01f, 0.166f);  // Range: show when value < 0.166
+
+                // Granular Scatter container: visible when pattern type == 1 (0.166 <= value < 0.5)
+                freezeGranularContainerController_ = new ContainerVisibilityController(
+                    &activeEditor_, patternType,
+                    kFreezeGranularDensityId,  // Child control tag
+                    0.166f, 0.5f);  // Range: show when 0.166 <= value < 0.5
+
+                // Harmonic Drones container: visible when pattern type == 2 (0.5 <= value < 0.833)
+                freezeDronesContainerController_ = new ContainerVisibilityController(
+                    &activeEditor_, patternType,
+                    kFreezeDroneVoiceCountId,  // Child control tag
+                    0.5f, 0.833f);  // Range: show when 0.5 <= value < 0.833
+
+                // Noise Bursts container: visible when pattern type == 3 (value >= 0.833)
+                freezeNoiseBurstsContainerController_ = new ContainerVisibilityController(
+                    &activeEditor_, patternType,
+                    kFreezeNoiseColorId,  // Child control tag
+                    0.833f, 1.01f);  // Range: show when value >= 0.833
             }
+
+            // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
             if (auto* duckingTimeMode2 = getParameterObject(kDuckingTimeModeId)) {
                 duckingNoteValueVisibilityController_ = new VisibilityController(
                     &activeEditor_, duckingTimeMode2, {9929, kDuckingNoteValueId}, 0.5f, false);
@@ -1621,6 +1650,8 @@ static void deactivateController(Steinberg::IPtr<Steinberg::FObject>& controller
             vc->deactivate();
         } else if (auto* cvc = dynamic_cast<CompoundVisibilityController*>(controller.get())) {
             cvc->deactivate();
+        } else if (auto* ccvc = dynamic_cast<ContainerVisibilityController*>(controller.get())) {
+            ccvc->deactivate();
         }
     }
 }
@@ -1641,7 +1672,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     deactivateController(bbdDelayTimeVisibilityController_);
     deactivateController(reverseChunkSizeVisibilityController_);
     // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
-    deactivateController(freezeDelayTimeVisibilityController_);
+    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
     deactivateController(duckingDelayTimeVisibilityController_);
     deactivateController(granularNoteValueVisibilityController_);
     deactivateController(spectralNoteValueVisibilityController_);
@@ -1653,7 +1684,12 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     deactivateController(multitapNoteValueVisibilityController_);
     deactivateController(patternEditorVisibilityController_);  // Spec 046
     deactivateController(copyPatternButtonVisibilityController_);  // Spec 046
-    deactivateController(freezeNoteValueVisibilityController_);
+    // Freeze mode pattern container visibility (Spec 069)
+    deactivateController(freezeEuclideanContainerController_);
+    deactivateController(freezeGranularContainerController_);
+    deactivateController(freezeDronesContainerController_);
+    deactivateController(freezeNoiseBurstsContainerController_);
+    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
     deactivateController(duckingNoteValueVisibilityController_);
 
     // PHASE 2: Clear activeEditor_ so any update() that passes the isActive check
@@ -1673,7 +1709,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     bbdDelayTimeVisibilityController_ = nullptr;
     reverseChunkSizeVisibilityController_ = nullptr;
     // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
-    freezeDelayTimeVisibilityController_ = nullptr;
+    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
     duckingDelayTimeVisibilityController_ = nullptr;
 
     // NoteValue visibility controllers
@@ -1687,7 +1723,12 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     multitapNoteValueVisibilityController_ = nullptr;
     patternEditorVisibilityController_ = nullptr;  // Spec 046
     copyPatternButtonVisibilityController_ = nullptr;  // Spec 046
-    freezeNoteValueVisibilityController_ = nullptr;
+    // Freeze mode pattern container visibility (Spec 069)
+    freezeEuclideanContainerController_ = nullptr;
+    freezeGranularContainerController_ = nullptr;
+    freezeDronesContainerController_ = nullptr;
+    freezeNoiseBurstsContainerController_ = nullptr;
+    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
     duckingNoteValueVisibilityController_ = nullptr;
 
     // Preset browser view is owned by the frame and will be cleaned up automatically
@@ -1893,18 +1934,22 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeFloat(getFloat(kDuckingMixId, 50.0f));
 
     // Freeze params - must match saveFreezeParams order exactly
-    streamer.writeInt32(getInt32(kFreezeEnabledId, 0));
-    streamer.writeFloat(getFloat(kFreezeDelayTimeId, 500.0f));
-    streamer.writeFloat(getFloat(kFreezeFeedbackId, 0.5f));
-    streamer.writeFloat(getFloat(kFreezePitchSemitonesId, 0.0f));
-    streamer.writeFloat(getFloat(kFreezePitchCentsId, 0.0f));
-    streamer.writeFloat(getFloat(kFreezeShimmerMixId, 0.0f));
-    streamer.writeFloat(getFloat(kFreezeDecayId, 0.5f));
-    streamer.writeFloat(getFloat(kFreezeDiffusionAmountId, 0.3f));
-    streamer.writeFloat(getFloat(kFreezeDiffusionSizeId, 0.5f));
-    streamer.writeInt32(getInt32(kFreezeFilterEnabledId, 0));
-    streamer.writeInt32(getInt32(kFreezeFilterTypeId, 0));
-    streamer.writeFloat(getFloat(kFreezeFilterCutoffId, 1000.0f));
+    // Write placeholder values for backwards compatibility with older versions
+    // Legacy shimmer/diffusion parameters removed in v0.12
+    streamer.writeInt32(1);       // freezeEnabled (always on)
+    streamer.writeFloat(500.0f);  // delayTime
+    streamer.writeInt32(0);       // timeMode
+    streamer.writeInt32(4);       // noteValue
+    streamer.writeFloat(0.5f);    // feedback
+    streamer.writeFloat(0.0f);    // pitchSemitones
+    streamer.writeFloat(0.0f);    // pitchCents
+    streamer.writeFloat(0.0f);    // shimmerMix
+    streamer.writeFloat(0.5f);    // decay
+    streamer.writeFloat(0.3f);    // diffusionAmount
+    streamer.writeFloat(0.5f);    // diffusionSize
+    streamer.writeInt32(0);       // filterEnabled
+    streamer.writeInt32(0);       // filterType
+    streamer.writeFloat(1000.0f); // filterCutoff
     streamer.writeFloat(getFloat(kFreezeMixId, 0.5f));
 
     // Reverse params - must match saveReverseParams order exactly

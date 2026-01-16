@@ -77,10 +77,7 @@ TEST_CASE("Feature toggle parameter IDs are correctly defined", "[vst][toggle]")
 
         // Spectral freeze
         REQUIRE(kSpectralFreezeId == 206);
-
-        // Freeze mode enable
-        REQUIRE(kFreezeEnabledId == 1000);
-        REQUIRE(kFreezeFilterEnabledId == 1009);
+        // Freeze mode legacy shimmer/diffusion parameters removed in v0.12
     }
 
     SECTION("Filter enable toggles") {

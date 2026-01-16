@@ -12,10 +12,12 @@ namespace Krate::DSP {
 
 /// Grain envelope types for granular synthesis
 enum class GrainEnvelopeType : uint8_t {
-    Hann,       ///< Raised cosine (smooth, general purpose)
-    Trapezoid,  ///< Attack-sustain-decay (preserves transients)
-    Sine,       ///< Half-cosine (better for pitch shifting)
-    Blackman    ///< Low sidelobe (less coloration)
+    Hann,        ///< Raised cosine (smooth, general purpose)
+    Trapezoid,   ///< Attack-sustain-decay (preserves transients)
+    Sine,        ///< Half-cosine (better for pitch shifting)
+    Blackman,    ///< Low sidelobe (less coloration)
+    Linear,      ///< Linear attack-sustain-decay (Pattern Freeze spec 069)
+    Exponential  ///< RC-style curves with punchier attack (Pattern Freeze spec 069)
 };
 
 namespace GrainEnvelope {
@@ -91,6 +93,67 @@ inline void generate(float* output, size_t size, GrainEnvelopeType type,
                 output[i] = std::max(0.0f, value);
             }
             break;
+
+        case GrainEnvelopeType::Linear: {
+            // Linear attack-sustain-decay envelope (same as Trapezoid but explicit)
+            // Pattern Freeze spec 069 - simple linear ramps
+            const size_t attackSamples =
+                static_cast<size_t>(sizeFloat * std::clamp(attackRatio, 0.0f, 0.5f));
+            const size_t releaseSamples =
+                static_cast<size_t>(sizeFloat * std::clamp(releaseRatio, 0.0f, 0.5f));
+            const size_t sustainEnd = size - releaseSamples;
+
+            for (size_t i = 0; i < size; ++i) {
+                if (i < attackSamples && attackSamples > 0) {
+                    // Linear attack ramp
+                    output[i] = static_cast<float>(i) / static_cast<float>(attackSamples);
+                } else if (i >= sustainEnd && releaseSamples > 0) {
+                    // Linear release ramp
+                    output[i] = static_cast<float>(size - 1 - i) /
+                                static_cast<float>(releaseSamples);
+                } else {
+                    // Sustain
+                    output[i] = 1.0f;
+                }
+            }
+            break;
+        }
+
+        case GrainEnvelopeType::Exponential: {
+            // RC-style exponential curves with punchier attack
+            // Pattern Freeze spec 069 - faster initial rise, smoother sustain approach
+            const size_t attackSamples =
+                static_cast<size_t>(sizeFloat * std::clamp(attackRatio, 0.0f, 0.5f));
+            const size_t releaseSamples =
+                static_cast<size_t>(sizeFloat * std::clamp(releaseRatio, 0.0f, 0.5f));
+            const size_t sustainEnd = size - releaseSamples;
+
+            // Time constant for exponential curves (controls steepness)
+            // Larger value = faster initial slope, smoother approach to target
+            constexpr float kTimeConstant = 4.0f;
+
+            for (size_t i = 0; i < size; ++i) {
+                if (i < attackSamples && attackSamples > 0) {
+                    // Exponential attack: 1 - exp(-t*k)
+                    // Normalized to reach ~1.0 at end of attack
+                    const float t = static_cast<float>(i) / static_cast<float>(attackSamples);
+                    output[i] = 1.0f - std::exp(-t * kTimeConstant);
+                    // Normalize to ensure we reach 1.0 at end of attack
+                    const float endValue = 1.0f - std::exp(-kTimeConstant);
+                    output[i] /= endValue;
+                } else if (i >= sustainEnd && releaseSamples > 0) {
+                    // Exponential release: exp(-t*k)
+                    // Starts from 1.0, decays toward 0
+                    const float t = static_cast<float>(i - sustainEnd) /
+                                    static_cast<float>(releaseSamples);
+                    output[i] = std::exp(-t * kTimeConstant);
+                } else {
+                    // Sustain
+                    output[i] = 1.0f;
+                }
+            }
+            break;
+        }
     }
 }
 
