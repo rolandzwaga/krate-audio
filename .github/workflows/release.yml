@@ -85,26 +85,53 @@ jobs:
     needs: [version, build]
     runs-on: ubuntu-latest
 
+    env:
+      CCACHE_MAXSIZE: 200M
+      CCACHE_COMPRESS: true
+      CCACHE_COMPRESSLEVEL: 6
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake build-essential \
-            libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
-            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
-            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
+      # Cache apt packages (same as CI Linux build)
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: >-
+            ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
             libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
+          version: 1.0
+
+      # Cache ccache data
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: linux-gcc-preset-generator
+          max-size: ${{ env.CCACHE_MAXSIZE }}
+
+      # Cache CMake FetchContent downloads
+      - name: Cache FetchContent
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ github.repository }}-${{ runner.os }}-
 
       - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build Preset Generator
-        run: cmake --build build --target preset_generator --config Release
+        run: cmake --build build --target preset_generator --parallel
 
       - name: Generate Presets
         run: |
