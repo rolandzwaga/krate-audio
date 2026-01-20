@@ -480,3 +480,68 @@ shaper.setAllHarmonics({1.0f, 0.1f, 0.05f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
 **Performance:** ~1.6us for 512 samples (well under Layer 1 budget).
 
 **Dependencies:** `core/chebyshev.h` (Chebyshev::harmonicMix)
+
+---
+
+## One-Pole Audio Filters
+**Path:** [one_pole.h](../../dsp/include/krate/dsp/primitives/one_pole.h) | **Since:** 0.12.0
+
+Simple first-order filters for audio signal processing. Three classes for different use cases:
+
+**Note:** These are distinct from `OnePoleSmoother` (which is for parameter smoothing). These filters are optimized for audio signals with proper frequency response and DC blocking.
+
+```cpp
+// First-order lowpass (6dB/octave)
+class OnePoleLP {
+    void prepare(double sampleRate) noexcept;
+    void setCutoff(float hz) noexcept;
+    [[nodiscard]] float getCutoff() const noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+    void reset() noexcept;
+};
+
+// First-order highpass (6dB/octave)
+class OnePoleHP {
+    void prepare(double sampleRate) noexcept;
+    void setCutoff(float hz) noexcept;
+    [[nodiscard]] float getCutoff() const noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+    void reset() noexcept;
+};
+
+// Leaky integrator for envelope detection (sample-rate independent)
+class LeakyIntegrator {
+    explicit LeakyIntegrator(float leak = 0.999f) noexcept;
+    void setLeak(float a) noexcept;      // [0, 1) - typically 0.99-0.9999
+    [[nodiscard]] float getLeak() const noexcept;
+    [[nodiscard]] float getState() const noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+    void reset() noexcept;
+};
+```
+
+| Class | Formula | Use Case |
+|-------|---------|----------|
+| `OnePoleLP` | y[n] = (1-a)*x[n] + a*y[n-1] | Tone control, feedback damping |
+| `OnePoleHP` | y[n] = ((1+a)/2)*(x[n]-x[n-1]) + a*y[n-1] | DC blocking, bass reduction |
+| `LeakyIntegrator` | y[n] = x[n] + leak*y[n-1] | Envelope detection, smoothing |
+
+**Comparison with OnePoleSmoother:**
+
+| Feature | OnePoleLP/HP | OnePoleSmoother |
+|---------|--------------|-----------------|
+| Purpose | Audio filtering | Parameter smoothing |
+| Frequency response | Accurate 6dB/oct | Approximation |
+| NaN/Inf handling | Returns 0, resets | Undefined |
+| DC blocking (HP) | Yes | No |
+| Time constant | Frequency-based | Time-based |
+
+**When to use:**
+- **OnePoleLP:** Feedback loop damping, simple tone control, high-frequency rolloff
+- **OnePoleHP:** DC blocking before effects, subsonic removal, crossover networks
+- **LeakyIntegrator:** Envelope followers, level detection, smoothing rectified signals
+
+**Dependencies:** `core/math_constants.h`, `core/db_utils.h` (flushDenormal, isNaN, isInf)
