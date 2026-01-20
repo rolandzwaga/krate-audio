@@ -306,3 +306,78 @@ namespace WavefoldMath {
 - **Lockhart wavefolder:** Use `lambertW()` for precise transfer function design
 - **Serge modular emulation:** Use `sineFold()` with gain ~pi for characteristic sound
 - **General distortion:** Use `triangleFold()` for predictable, symmetric clipping
+
+---
+
+## Formant Tables
+**Path:** [filter_tables.h](../../dsp/include/krate/dsp/core/filter_tables.h) | **Since:** 0.12.0
+
+Constexpr formant frequency and bandwidth data for vowel synthesis and formant filtering.
+
+```cpp
+enum class Vowel : uint8_t { A = 0, E = 1, I = 2, O = 3, U = 4 };
+
+struct FormantData {
+    float f1;   // First formant frequency (Hz)
+    float f2;   // Second formant frequency (Hz)
+    float f3;   // Third formant frequency (Hz)
+    float bw1;  // First formant bandwidth (Hz)
+    float bw2;  // Second formant bandwidth (Hz)
+    float bw3;  // Third formant bandwidth (Hz)
+};
+
+inline constexpr std::array<FormantData, 5> kVowelFormants;  // Bass male voice data
+[[nodiscard]] inline constexpr const FormantData& getFormant(Vowel v) noexcept;
+```
+
+| Vowel | F1 (Hz) | F2 (Hz) | F3 (Hz) | BW1 (Hz) | BW2 (Hz) | BW3 (Hz) |
+|-------|---------|---------|---------|----------|----------|----------|
+| A | 600 | 1040 | 2250 | 60 | 70 | 110 |
+| E | 400 | 1620 | 2400 | 40 | 80 | 100 |
+| I | 250 | 1750 | 2600 | 60 | 90 | 100 |
+| O | 400 | 750 | 2400 | 40 | 80 | 100 |
+| U | 350 | 600 | 2400 | 40 | 80 | 100 |
+
+**When to use:**
+- **Formant filter design:** Configure parallel bandpass filters using F1/F2/F3 frequencies
+- **Vowel morphing:** Interpolate between formant data for different vowels
+- **Vocal synthesis:** Build formant-based voice effects (talker, vocoder)
+
+---
+
+## Filter Design Utilities
+**Path:** [filter_design.h](../../dsp/include/krate/dsp/core/filter_design.h) | **Since:** 0.12.0
+
+Filter design utility functions for bilinear transform, RT60 calculation, and Q values.
+
+```cpp
+namespace FilterDesign {
+    // Frequency prewarping for bilinear transform
+    [[nodiscard]] inline float prewarpFrequency(float freq, double sampleRate) noexcept;
+
+    // Comb filter feedback for desired reverb decay time
+    [[nodiscard]] inline float combFeedbackForRT60(float delayMs, float rt60Seconds) noexcept;
+
+    // Chebyshev Type I Q values for cascade stages
+    [[nodiscard]] inline float chebyshevQ(size_t stage, size_t numStages, float rippleDb) noexcept;
+
+    // Bessel filter Q values (lookup table, constexpr)
+    [[nodiscard]] constexpr float besselQ(size_t stage, size_t numStages) noexcept;
+
+    // Butterworth pole angles (constexpr)
+    [[nodiscard]] constexpr float butterworthPoleAngle(size_t k, size_t N) noexcept;
+}
+```
+
+| Function | Purpose | Use Case |
+|----------|---------|----------|
+| `prewarpFrequency` | Compensate bilinear transform warping | SVF, Ladder, any bilinear-derived filter |
+| `combFeedbackForRT60` | Calculate feedback for reverb decay | Comb filters, Schroeder reverb |
+| `chebyshevQ` | Chebyshev Type I cascade Q values | Steeper rolloff filters with ripple |
+| `besselQ` | Bessel cascade Q values (orders 2-8) | Maximally flat group delay filters |
+| `butterworthPoleAngle` | Butterworth pole positions | Reference for filter design |
+
+**When to use:**
+- **Bilinear transform filters:** Call `prewarpFrequency()` before calculating analog prototype
+- **Reverb design:** Use `combFeedbackForRT60()` for Schroeder comb filters
+- **Advanced cascades:** Use `chebyshevQ()`/`besselQ()` for multi-stage biquad cascades

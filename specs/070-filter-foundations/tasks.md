@@ -310,20 +310,20 @@ Skills auto-load when needed (testing-guide, dsp-architecture) - no manual conte
 
 ### 8.1 Architecture Documentation Update
 
-- [ ] T043 Update specs/_architecture_/layer-0-core.md with new Layer 0 components:
+- [X] T043 Update specs/_architecture_/layer-0-core.md with new Layer 0 components:
   - filter_tables.h: FormantData struct, Vowel enum, kVowelFormants array, getFormant() function
   - filter_design.h: FilterDesign namespace with prewarpFrequency(), combFeedbackForRT60(), chebyshevQ(), besselQ(), butterworthPoleAngle()
   - Include purpose, public API summary, file location, "when to use this" for each
-- [ ] T044 Update specs/_architecture_/layer-1-primitives.md with new Layer 1 components:
+- [X] T044 Update specs/_architecture_/layer-1-primitives.md with new Layer 1 components:
   - one_pole.h: OnePoleLP, OnePoleHP, LeakyIntegrator classes
   - Include purpose, public API summary, file location, "when to use this"
   - Note difference from OnePoleSmoother (parameter smoothing vs audio filtering)
-- [ ] T045 Verify no duplicate functionality was introduced (ODR check)
+- [X] T045 Verify no duplicate functionality was introduced (ODR check)
 
 ### 8.2 Final Commit
 
-- [ ] T046 Commit architecture documentation updates
-- [ ] T047 Verify all spec work is committed to feature branch 070-filter-foundations
+- [X] T046 Commit architecture documentation updates
+- [X] T047 Verify all spec work is committed to feature branch 070-filter-foundations
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
@@ -339,18 +339,18 @@ Skills auto-load when needed (testing-guide, dsp-architecture) - no manual conte
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T048 Review ALL FR-xxx requirements (FR-001 through FR-033) from spec.md against implementation
-- [ ] T049 Review ALL SC-xxx success criteria (SC-001 through SC-012) and verify measurable targets are achieved
-- [ ] T050 Search for cheating patterns in implementation:
-  - [ ] No `// placeholder` or `// TODO` comments in new code
-  - [ ] No test thresholds relaxed from spec requirements
-  - [ ] No features quietly removed from scope
-  - [ ] grep -r "TODO\|FIXME\|placeholder" dsp/include/krate/dsp/core/filter_tables.h dsp/include/krate/dsp/core/filter_design.h dsp/include/krate/dsp/primitives/one_pole.h
+- [X] T048 Review ALL FR-xxx requirements (FR-001 through FR-034) from spec.md against implementation
+- [X] T049 Review ALL SC-xxx success criteria (SC-001 through SC-012) and verify measurable targets are achieved
+- [X] T050 Search for cheating patterns in implementation:
+  - [X] No `// placeholder` or `// TODO` comments in new code
+  - [X] No test thresholds relaxed from spec requirements
+  - [X] No features quietly removed from scope
+  - [X] grep -r "TODO\|FIXME\|placeholder" dsp/include/krate/dsp/core/filter_tables.h dsp/include/krate/dsp/core/filter_design.h dsp/include/krate/dsp/primitives/one_pole.h
 
 ### 9.2 Fill Compliance Table in spec.md
 
-- [ ] T051 Update specs/070-filter-foundations/spec.md "Implementation Verification" section with compliance status for each requirement (MET/NOT MET/PARTIAL/DEFERRED)
-- [ ] T052 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T051 Update specs/070-filter-foundations/spec.md "Implementation Verification" section with compliance status for each requirement (MET/NOT MET/PARTIAL/DEFERRED)
+- [X] T052 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 9.3 Honest Self-Check
 
@@ -362,7 +362,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T053 All self-check questions answered "no" (or gaps documented honestly)
+- [X] T053 All self-check questions answered "no" (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -374,12 +374,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 10.1 Final Commit
 
-- [ ] T054 Commit all spec work to feature branch 070-filter-foundations
-- [ ] T055 Verify all tests pass: "/c/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/dsp/tests/Release/dsp_tests.exe
+- [X] T054 Commit all spec work to feature branch 070-filter-foundations
+- [X] T055 Verify all tests pass: "/c/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/dsp/tests/Release/dsp_tests.exe
 
 ### 10.2 Completion Claim
 
-- [ ] T056 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T056 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 
