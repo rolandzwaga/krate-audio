@@ -35,6 +35,8 @@ add_executable(dsp_tests
     unit/core/test_wavefold_math.cpp
     unit/core/pattern_freeze_types_test.cpp
     unit/core/test_euclidean_pattern.cpp
+    unit/core/filter_design_test.cpp
+    unit/core/filter_tables_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/delay_line_test.cpp
@@ -61,6 +63,7 @@ add_executable(dsp_tests
     unit/primitives/pitch_detector_test.cpp
     unit/primitives/test_rolling_capture_buffer.cpp
     unit/primitives/test_slice_pool.cpp
+    unit/primitives/one_pole_test.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
@@ -165,6 +168,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/test_wavefold_math.cpp
         unit/core/pattern_freeze_types_test.cpp
         unit/core/test_euclidean_pattern.cpp
+        unit/core/filter_design_test.cpp
+        unit/core/filter_tables_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/dc_blocker_test.cpp
         unit/primitives/oversampler_test.cpp
@@ -188,6 +193,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/pitch_detector_test.cpp
         unit/primitives/test_rolling_capture_buffer.cpp
         unit/primitives/test_slice_pool.cpp
+        unit/primitives/one_pole_test.cpp
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
         unit/processors/envelope_follower_test.cpp
