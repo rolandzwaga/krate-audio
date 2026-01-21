@@ -4,11 +4,11 @@
 // This file defines the PUBLIC API contract for the SVF implementation.
 // The actual implementation will be in: dsp/include/krate/dsp/primitives/svf.h
 //
-// Feature: 080-svf
+// Feature: 071-svf
 // Layer: 1 (Primitive)
 // Dependencies: Layer 0 only (math_constants.h, db_utils.h)
 //
-// Reference: specs/080-svf/spec.md
+// Reference: specs/071-svf/spec.md
 // ==============================================================================
 
 #pragma once

@@ -65,6 +65,7 @@ add_executable(dsp_tests
     unit/primitives/test_slice_pool.cpp
     unit/primitives/one_pole_test.cpp
     unit/primitives/svf_test.cpp
+    unit/primitives/sample_rate_converter_test.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
@@ -196,6 +197,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/test_slice_pool.cpp
         unit/primitives/one_pole_test.cpp
         unit/primitives/svf_test.cpp
+        unit/primitives/sample_rate_converter_test.cpp
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
         unit/processors/envelope_follower_test.cpp

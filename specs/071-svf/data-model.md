@@ -1,6 +1,6 @@
 # Data Model: State Variable Filter (SVF)
 
-**Feature**: 080-svf | **Date**: 2026-01-21 | **Layer**: 1 (Primitive)
+**Feature**: 071-svf | **Date**: 2026-01-21 | **Layer**: 1 (Primitive)
 
 ## Entities
 

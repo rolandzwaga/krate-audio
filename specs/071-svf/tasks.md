@@ -1,6 +1,6 @@
 # Tasks: State Variable Filter (SVF)
 
-**Input**: Design documents from `/specs/080-svf/`
+**Input**: Design documents from `/specs/071-svf/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/svf.h, quickstart.md
 
 **Tests**: This project follows TEST-FIRST methodology (Constitution Principle XII). Tests MUST be written before implementation.
@@ -318,7 +318,7 @@ Skills auto-load when needed (testing-guide, dsp-architecture) - no manual conte
 - [X] T047 [P] Verify namespace correctness (FR-025): All components in Krate::DSP namespace
 - [X] T047a [P] Verify Doxygen documentation completeness (FR-026): All public methods, classes, and enums have Doxygen comments
 - [X] T047b [P] Add static noexcept verification tests: Use STATIC_REQUIRE(noexcept(filter.process(0.0f))) for process(), processBlock(), processMulti() to verify noexcept contracts at compile time
-- [ ] T048 Run quickstart.md validation: Follow implementation steps in specs/080-svf/quickstart.md to verify guide is accurate
+- [ ] T048 Run quickstart.md validation: Follow implementation steps in specs/071-svf/quickstart.md to verify guide is accurate
 
 ---
 
@@ -343,7 +343,7 @@ Skills auto-load when needed (testing-guide, dsp-architecture) - no manual conte
 ### 8.2 Final Commit
 
 - [ ] T051 Commit architecture documentation updates
-- [ ] T052 Verify all spec work is committed to feature branch 080-svf
+- [ ] T052 Verify all spec work is committed to feature branch 071-svf
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
@@ -410,7 +410,7 @@ Before claiming this spec is complete, verify EVERY requirement:
 
 ### 9.2 Fill Compliance Table in spec.md
 
-- [ ] T056 Update specs/080-svf/spec.md "Implementation Verification" section with compliance status for each requirement (MET/NOT MET/PARTIAL/DEFERRED) with evidence
+- [ ] T056 Update specs/071-svf/spec.md "Implementation Verification" section with compliance status for each requirement (MET/NOT MET/PARTIAL/DEFERRED) with evidence
 - [ ] T057 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 9.3 Honest Self-Check
@@ -435,7 +435,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 10.1 Final Commit
 
-- [ ] T059 Commit all spec work to feature branch 080-svf
+- [ ] T059 Commit all spec work to feature branch 071-svf
 - [ ] T060 Verify all tests pass: "/c/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[svf]"
 
 ### 10.2 Completion Claim
