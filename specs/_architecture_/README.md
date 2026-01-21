@@ -43,7 +43,7 @@ This architecture documentation is split into the following sections:
 | Section | Description |
 |---------|-------------|
 | [Layer 0: Core Utilities](layer-0-core.md) | Mathematical utilities, constants, window functions, PRNG, tempo sync, fast math, interpolation |
-| [Layer 1: DSP Primitives](layer-1-primitives.md) | DelayLine, LFO, Biquad, Oversampler, FFT, STFT, DCBlocker, Waveshaper, Wavefolder |
+| [Layer 1: DSP Primitives](layer-1-primitives.md) | DelayLine, LFO, Biquad, Oversampler, FFT, STFT, DCBlocker, Waveshaper, Wavefolder, LadderFilter |
 | [Layer 2: DSP Processors](layer-2-processors.md) | EnvelopeFollower, Saturation, TubeStage, DiodeClipper, WavefolderProcessor, TapeSaturator, FuzzProcessor, BitcrusherProcessor, DynamicsProcessor |
 | [Layer 3: System Components](layer-3-systems.md) | DelayEngine, FeedbackNetwork, ModulationMatrix, CharacterProcessor, TapManager, GrainCloud, AmpChannel |
 | [Layer 4: User Features](layer-4-features.md) | Complete delay modes: Tape, BBD, Digital, PingPong, MultiTap, Reverse, Shimmer, Spectral, Freeze, Ducking, Granular |

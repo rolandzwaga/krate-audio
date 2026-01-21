@@ -754,3 +754,85 @@ diffuser.setDelayMs(30.0f);
 ```
 
 **Dependencies:** `core/db_utils.h` (flushDenormal, isNaN, isInf), `primitives/delay_line.h`
+
+---
+
+## LadderFilter (Moog Ladder)
+**Path:** [ladder_filter.h](../../dsp/include/krate/dsp/primitives/ladder_filter.h) | **Since:** 0.13.0
+
+Moog-style 4-pole resonant lowpass ladder filter with two processing models: Linear (Stilson/Smith) for CPU efficiency and Nonlinear (Huovilainen) for analog-like saturation character.
+
+**Use when:**
+- Classic Moog filter sound for synth-style processing
+- Variable slope filtering (6-24 dB/oct)
+- Self-oscillating filter for sine generation
+- Delay effects requiring resonant lowpass character
+
+**Note:** Use oversampling (2x/4x) with Nonlinear model to reduce aliasing from tanh saturation. Parameter smoothing (~5ms) prevents zipper noise during modulation.
+
+```cpp
+enum class LadderModel : uint8_t { Linear, Nonlinear };
+
+class LadderFilter {
+    static constexpr float kMinCutoff = 20.0f;
+    static constexpr float kMaxCutoffRatio = 0.45f;
+    static constexpr float kMinResonance = 0.0f;
+    static constexpr float kMaxResonance = 4.0f;  // Self-oscillation at ~3.9
+    static constexpr float kMinDriveDb = 0.0f;
+    static constexpr float kMaxDriveDb = 24.0f;
+
+    void prepare(double sampleRate, int maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    void setModel(LadderModel model) noexcept;
+    void setOversamplingFactor(int factor) noexcept;    // 1, 2, or 4
+    void setResonanceCompensation(bool enabled) noexcept;
+    void setSlope(int poles) noexcept;                  // 1-4
+
+    void setCutoff(float hz) noexcept;
+    void setResonance(float amount) noexcept;           // 0-4
+    void setDrive(float db) noexcept;                   // 0-24 dB
+
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+    [[nodiscard]] int getLatency() const noexcept;
+};
+```
+
+| Model | CPU Budget | Oversampling | Character |
+|-------|------------|--------------|-----------|
+| Linear | <50ns/sample | None needed | Clean, CPU-efficient |
+| Nonlinear | <150ns/sample (2x) | 2x recommended | Analog saturation |
+| Nonlinear | <250ns/sample (4x) | 4x for HQ | Smooth harmonics |
+
+| Slope | Attenuation at 1 Octave | Use Case |
+|-------|------------------------|----------|
+| 1 pole | -6 dB | Gentle tilt |
+| 2 poles | -12 dB | Moderate rolloff |
+| 3 poles | -18 dB | Steep rolloff |
+| 4 poles | -24 dB | Classic Moog |
+
+| Resonance | Behavior |
+|-----------|----------|
+| 0.0 | No resonance (pure lowpass) |
+| 1.0-2.0 | Moderate emphasis at cutoff |
+| 3.0-3.8 | Strong resonant peak |
+| 3.9+ | Self-oscillation (sine output) |
+| 4.0 | Maximum (capped for stability) |
+
+**Example Usage:**
+```cpp
+LadderFilter filter;
+filter.prepare(44100.0, 512);
+filter.setModel(LadderModel::Nonlinear);
+filter.setOversamplingFactor(2);
+filter.setCutoff(1000.0f);
+filter.setResonance(2.5f);
+filter.setSlope(4);
+
+float output = filter.process(input);
+```
+
+**Resonance Compensation:** Enable via `setResonanceCompensation(true)` to maintain consistent output level as resonance increases (uses formula `1.0 / (1.0 + resonance * 0.25)`).
+
+**Dependencies:** `primitives/oversampler.h`, `primitives/smoother.h`, `core/fast_math.h`, `core/db_utils.h`, `core/math_constants.h`
