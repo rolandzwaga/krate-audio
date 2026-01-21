@@ -7,7 +7,7 @@
 // Performance optimizations:
 // - JUCE-style coefficient formula (2π factor) for faster response
 // - No NaN/Inf input validation (caller responsibility for max speed)
-// - RMS mode uses symmetric smoothing for true RMS measurement
+// - RMS mode uses asymmetric smoothing in squared domain (for dynamics)
 // - Denormal flushing retained (host FTZ/DAZ not guaranteed)
 //
 // Constitution Compliance:
@@ -306,16 +306,20 @@ private:
         }
     }
 
-    /// Process RMS mode: squared signal + symmetric smoothing + square root
-    /// Uses release coefficient for smooth, symmetric averaging (true RMS behavior).
-    /// For level metering, symmetric smoothing gives accurate RMS readings.
+    /// Process RMS mode: squared signal + asymmetric smoothing + square root
+    /// Uses attack/release coefficients in the squared domain for dynamics processing.
     /// Technical note: True RMS of sine = peak/sqrt(2) = 0.707
     void processRMS(float sample) noexcept {
         const float squared = sample * sample;
 
-        // True RMS uses symmetric smoothing (same coeff for rising/falling)
-        // Release coefficient provides smooth averaging suitable for level metering
-        squaredEnvelope_ = squared + releaseCoeff_ * (squaredEnvelope_ - squared);
+        // Asymmetric smoothing in squared domain (for dynamics processing)
+        if (squared > squaredEnvelope_) {
+            // Attack: power level rising
+            squaredEnvelope_ = squared + attackCoeff_ * (squaredEnvelope_ - squared);
+        } else {
+            // Release: power level falling
+            squaredEnvelope_ = squared + releaseCoeff_ * (squaredEnvelope_ - squared);
+        }
 
         // Output is square root of smoothed squared envelope
         envelope_ = std::sqrt(squaredEnvelope_);
