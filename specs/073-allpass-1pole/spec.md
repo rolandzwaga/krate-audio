@@ -115,7 +115,7 @@ A DSP developer building modulation systems needs utility functions to convert b
 **State Management:**
 - **FR-013**: Filter MUST provide a `reset()` method to clear internal state to zero
 - **FR-014**: Filter MUST handle NaN/infinity input by resetting state and returning 0.0. Detection: `process()` checks every input; `processBlock()` checks first sample and aborts entire block with zeros if invalid
-- **FR-015**: Filter MUST flush denormal values in state variables to prevent CPU spikes. Strategy: `processBlock()` flushes state once at end; `process()` flushes after each call
+- **FR-015**: Filter MUST flush denormal values in state variables to prevent CPU spikes. Strategy: Both `process()` and `processBlock()` flush per-sample to ensure SC-007 bit-identical output
 
 **Utility Functions:**
 - **FR-016**: Filter MUST provide `static float coeffFromFrequency(float hz, double sampleRate)` to calculate coefficient from break frequency. Sample rate cast to float for calculation

@@ -156,7 +156,7 @@ public:
     /// @param numSamples Number of samples to process
     /// @note FR-011, FR-012: Block processing, identical to N x process()
     /// @note FR-014: First sample NaN/Inf check - fills with zeros on invalid
-    /// @note FR-015: Denormal flushing once at block end
+    /// @note FR-015: Denormal flushing per-sample (required for SC-007 bit-identical output)
     /// @note FR-019, FR-020, FR-021: Real-time safe
     void processBlock(float* buffer, size_t numSamples) noexcept {
         if (buffer == nullptr || numSamples == 0) {
@@ -172,7 +172,7 @@ public:
             return;
         }
 
-        // Process block without per-sample denormal flushing
+        // Process block with per-sample denormal flushing (SC-007: bit-identical to process())
         for (size_t i = 0; i < numSamples; ++i) {
             // FR-001: y[n] = a*x[n] + x[n-1] - a*y[n-1]
             const float input = buffer[i];
@@ -182,12 +182,12 @@ public:
             z1_ = input;
             y1_ = output;
 
+            // FR-015: Flush denormals per-sample to match process()
+            z1_ = detail::flushDenormal(z1_);
+            y1_ = detail::flushDenormal(y1_);
+
             buffer[i] = output;
         }
-
-        // FR-015: Flush denormals once at block end
-        z1_ = detail::flushDenormal(z1_);
-        y1_ = detail::flushDenormal(y1_);
     }
 
     // =========================================================================
