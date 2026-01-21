@@ -13,9 +13,13 @@
 #include <catch2/catch_approx.hpp>
 
 #include <krate/dsp/primitives/svf.h>
+#include <krate/dsp/primitives/fft.h>
+#include <krate/dsp/core/window_functions.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <random>
 #include <vector>
 
 using namespace Krate::DSP;
@@ -1191,6 +1195,392 @@ TEST_CASE("SVFOutputs struct has expected members", "[svf][struct]") {
     CHECK(out.high == 2.0f);
     CHECK(out.band == 3.0f);
     CHECK(out.notch == 4.0f);
+}
+
+// ==============================================================================
+// FFT-Based Frequency Response Tests
+// ==============================================================================
+// These tests use FFT analysis to verify the complete frequency response
+// curves of the SVF across different modes, rather than spot-checking
+// specific frequencies.
+
+namespace {
+
+/// @brief Measure SVF frequency response using FFT analysis of white noise
+/// @param filter The SVF filter to test (must be prepared)
+/// @param sampleRate Sample rate in Hz
+/// @param fftSize FFT size (power of 2)
+/// @return Vector of magnitude responses in dB for each FFT bin
+std::vector<float> measureSVFFrequencyResponse(
+    SVF& filter,
+    float sampleRate,
+    size_t fftSize = 4096
+) {
+    // Use longer buffer with transient skipping for accurate steady-state
+    const size_t settlingTime = 4096;
+    const size_t totalSamples = settlingTime + fftSize;
+
+    // Generate white noise input
+    std::vector<float> input(totalSamples);
+    std::mt19937 rng(42);  // Fixed seed for reproducibility
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    for (size_t i = 0; i < totalSamples; ++i) {
+        input[i] = dist(rng);
+    }
+
+    // Process through filter
+    std::vector<float> output(totalSamples);
+    filter.reset();
+    for (size_t i = 0; i < totalSamples; ++i) {
+        output[i] = filter.process(input[i]);
+    }
+
+    // Extract steady-state portion (skip transient)
+    std::vector<float> inputSteady(input.begin() + settlingTime, input.end());
+    std::vector<float> outputSteady(output.begin() + settlingTime, output.end());
+
+    // Apply Hann window
+    std::vector<float> window(fftSize);
+    Window::generateHann(window.data(), fftSize);
+    for (size_t i = 0; i < fftSize; ++i) {
+        inputSteady[i] *= window[i];
+        outputSteady[i] *= window[i];
+    }
+
+    // FFT both signals
+    FFT fft;
+    fft.prepare(fftSize);
+    std::vector<Complex> inputSpectrum(fft.numBins());
+    std::vector<Complex> outputSpectrum(fft.numBins());
+    fft.forward(inputSteady.data(), inputSpectrum.data());
+    fft.forward(outputSteady.data(), outputSpectrum.data());
+
+    // Calculate magnitude ratio in dB for each bin
+    std::vector<float> responseDb(fft.numBins());
+    for (size_t i = 0; i < fft.numBins(); ++i) {
+        float inputMag = inputSpectrum[i].magnitude();
+        float outputMag = outputSpectrum[i].magnitude();
+        if (inputMag > 1e-10f) {
+            responseDb[i] = 20.0f * std::log10(outputMag / inputMag);
+        } else {
+            responseDb[i] = -144.0f;
+        }
+    }
+
+    return responseDb;
+}
+
+/// @brief Get the frequency corresponding to a bin index
+inline float fftBinToFrequency(size_t bin, float sampleRate, size_t fftSize) {
+    return static_cast<float>(bin) * sampleRate / static_cast<float>(fftSize);
+}
+
+/// @brief Find the bin index closest to a given frequency
+inline size_t frequencyToFftBin(float freq, float sampleRate, size_t fftSize) {
+    return static_cast<size_t>(freq * static_cast<float>(fftSize) / sampleRate + 0.5f);
+}
+
+/// @brief Calculate average response in a frequency band
+float averageResponseInBand(
+    const std::vector<float>& responseDb,
+    float lowFreq,
+    float highFreq,
+    float sampleRate,
+    size_t fftSize
+) {
+    size_t lowBin = frequencyToFftBin(lowFreq, sampleRate, fftSize);
+    size_t highBin = frequencyToFftBin(highFreq, sampleRate, fftSize);
+
+    float sum = 0.0f;
+    size_t count = 0;
+    for (size_t i = lowBin; i <= highBin && i < responseDb.size(); ++i) {
+        sum += responseDb[i];
+        ++count;
+    }
+    return count > 0 ? sum / static_cast<float>(count) : -144.0f;
+}
+
+} // anonymous namespace
+
+// -----------------------------------------------------------------------------
+// FFT-Based Tests: Lowpass Mode
+// -----------------------------------------------------------------------------
+
+TEST_CASE("SVF FFT lowpass shows correct frequency response shape", "[svf][fft][lowpass]") {
+    SVF filter;
+    filter.prepare(kTestSampleRate);
+    filter.setMode(SVFMode::Lowpass);
+    filter.setCutoff(1000.0f);
+    filter.setResonance(SVF::kButterworthQ);
+
+    constexpr size_t fftSize = 4096;
+    auto responseDb = measureSVFFrequencyResponse(filter, kTestSampleRate, fftSize);
+
+    // Measure response at key frequencies
+    float avgLow = averageResponseInBand(responseDb, 50.0f, 200.0f, kTestSampleRate, fftSize);
+    float avgMid = averageResponseInBand(responseDb, 800.0f, 1200.0f, kTestSampleRate, fftSize);
+    float avgHigh = averageResponseInBand(responseDb, 5000.0f, 10000.0f, kTestSampleRate, fftSize);
+
+    INFO("Low band (50-200Hz) average: " << avgLow << " dB");
+    INFO("Mid band (800-1200Hz) average: " << avgMid << " dB");
+    INFO("High band (5k-10kHz) average: " << avgHigh << " dB");
+
+    // Lowpass characteristics:
+    // - Low frequencies should pass (near 0dB)
+    // - High frequencies should be attenuated
+    CHECK(avgLow > -3.0f);  // Pass band within 3dB
+    CHECK(avgHigh < avgLow - 12.0f);  // At least 12dB below passband at 5-10kHz
+    CHECK(avgHigh < -15.0f);  // Significant attenuation at high frequencies
+}
+
+// -----------------------------------------------------------------------------
+// FFT-Based Tests: Highpass Mode
+// -----------------------------------------------------------------------------
+
+TEST_CASE("SVF FFT highpass shows correct frequency response shape", "[svf][fft][highpass]") {
+    SVF filter;
+    filter.prepare(kTestSampleRate);
+    filter.setMode(SVFMode::Highpass);
+    filter.setCutoff(1000.0f);
+    filter.setResonance(SVF::kButterworthQ);
+
+    constexpr size_t fftSize = 4096;
+    auto responseDb = measureSVFFrequencyResponse(filter, kTestSampleRate, fftSize);
+
+    float avgLow = averageResponseInBand(responseDb, 50.0f, 200.0f, kTestSampleRate, fftSize);
+    float avgHigh = averageResponseInBand(responseDb, 5000.0f, 15000.0f, kTestSampleRate, fftSize);
+
+    INFO("Low band (50-200Hz) average: " << avgLow << " dB");
+    INFO("High band (5k-15kHz) average: " << avgHigh << " dB");
+
+    // Highpass characteristics:
+    // - High frequencies should pass (near 0dB)
+    // - Low frequencies should be attenuated
+    CHECK(avgHigh > -3.0f);  // Pass band within 3dB
+    CHECK(avgLow < avgHigh - 12.0f);  // At least 12dB below passband at low freqs
+    CHECK(avgLow < -15.0f);  // Significant attenuation at low frequencies
+}
+
+// -----------------------------------------------------------------------------
+// FFT-Based Tests: Bandpass Mode
+// -----------------------------------------------------------------------------
+
+TEST_CASE("SVF FFT bandpass shows peak at cutoff", "[svf][fft][bandpass]") {
+    SVF filter;
+    filter.prepare(kTestSampleRate);
+    filter.setMode(SVFMode::Bandpass);
+    filter.setCutoff(2000.0f);
+    filter.setResonance(2.0f);  // Higher Q for narrower band
+
+    constexpr size_t fftSize = 4096;
+    auto responseDb = measureSVFFrequencyResponse(filter, kTestSampleRate, fftSize);
+
+    float avgLow = averageResponseInBand(responseDb, 100.0f, 400.0f, kTestSampleRate, fftSize);
+    float avgMid = averageResponseInBand(responseDb, 1500.0f, 2500.0f, kTestSampleRate, fftSize);
+    float avgHigh = averageResponseInBand(responseDb, 8000.0f, 15000.0f, kTestSampleRate, fftSize);
+
+    INFO("Low band (100-400Hz) average: " << avgLow << " dB");
+    INFO("Mid band (1.5k-2.5kHz) average: " << avgMid << " dB");
+    INFO("High band (8k-15kHz) average: " << avgHigh << " dB");
+
+    // Bandpass characteristics:
+    // - Center frequency region should be highest
+    // - Both low and high frequencies should be attenuated
+    CHECK(avgMid > avgLow);  // Mid higher than low
+    CHECK(avgMid > avgHigh);  // Mid higher than high
+    CHECK(avgLow < -6.0f);  // Low frequencies attenuated
+    CHECK(avgHigh < -6.0f);  // High frequencies attenuated
+}
+
+// -----------------------------------------------------------------------------
+// FFT-Based Tests: Notch Mode
+// -----------------------------------------------------------------------------
+
+TEST_CASE("SVF FFT notch shows dip at cutoff", "[svf][fft][notch]") {
+    SVF filter;
+    filter.prepare(kTestSampleRate);
+    filter.setMode(SVFMode::Notch);
+    filter.setCutoff(2000.0f);
+    filter.setResonance(2.0f);
+
+    constexpr size_t fftSize = 4096;
+    auto responseDb = measureSVFFrequencyResponse(filter, kTestSampleRate, fftSize);
+
+    float avgLow = averageResponseInBand(responseDb, 100.0f, 500.0f, kTestSampleRate, fftSize);
+    float avgNotch = averageResponseInBand(responseDb, 1800.0f, 2200.0f, kTestSampleRate, fftSize);
+    float avgHigh = averageResponseInBand(responseDb, 8000.0f, 15000.0f, kTestSampleRate, fftSize);
+
+    INFO("Low band (100-500Hz) average: " << avgLow << " dB");
+    INFO("Notch band (1.8k-2.2kHz) average: " << avgNotch << " dB");
+    INFO("High band (8k-15kHz) average: " << avgHigh << " dB");
+
+    // Notch characteristics:
+    // - Low and high frequencies should pass (near 0dB)
+    // - Notch region should be attenuated
+    CHECK(avgLow > -3.0f);  // Pass band
+    CHECK(avgHigh > -3.0f);  // Pass band
+    CHECK(avgNotch < avgLow - 6.0f);  // Notch significantly below passband
+    CHECK(avgNotch < avgHigh - 6.0f);
+}
+
+// -----------------------------------------------------------------------------
+// FFT-Based Tests: Allpass Mode
+// -----------------------------------------------------------------------------
+
+TEST_CASE("SVF FFT allpass shows flat magnitude", "[svf][fft][allpass]") {
+    SVF filter;
+    filter.prepare(kTestSampleRate);
+    filter.setMode(SVFMode::Allpass);
+    filter.setCutoff(2000.0f);
+    filter.setResonance(SVF::kButterworthQ);
+
+    constexpr size_t fftSize = 4096;
+    auto responseDb = measureSVFFrequencyResponse(filter, kTestSampleRate, fftSize);
+
+    // Calculate min/max across audible range
+    size_t startBin = frequencyToFftBin(100.0f, kTestSampleRate, fftSize);
+    size_t endBin = frequencyToFftBin(18000.0f, kTestSampleRate, fftSize);
+
+    float minDb = 100.0f;
+    float maxDb = -100.0f;
+    float sum = 0.0f;
+    size_t count = 0;
+
+    for (size_t i = startBin; i <= endBin && i < responseDb.size(); ++i) {
+        minDb = std::min(minDb, responseDb[i]);
+        maxDb = std::max(maxDb, responseDb[i]);
+        sum += responseDb[i];
+        ++count;
+    }
+    float avgDb = sum / static_cast<float>(count);
+
+    INFO("Min magnitude: " << minDb << " dB");
+    INFO("Max magnitude: " << maxDb << " dB");
+    INFO("Average magnitude: " << avgDb << " dB");
+    INFO("Max deviation: " << (maxDb - minDb) << " dB");
+
+    // Allpass should have flat magnitude response
+    CHECK(maxDb - minDb < 4.0f);  // Less than 4dB variation
+    CHECK(avgDb > -2.0f);  // Near unity gain
+    CHECK(avgDb < 2.0f);
+}
+
+// -----------------------------------------------------------------------------
+// FFT-Based Tests: Shelf Modes
+// -----------------------------------------------------------------------------
+
+TEST_CASE("SVF FFT low shelf shows boost/cut below cutoff", "[svf][fft][lowshelf]") {
+    SVF filterBoost;
+    SVF filterCut;
+    filterBoost.prepare(kTestSampleRate);
+    filterCut.prepare(kTestSampleRate);
+
+    filterBoost.setMode(SVFMode::LowShelf);
+    filterBoost.setCutoff(500.0f);
+    filterBoost.setResonance(SVF::kButterworthQ);
+    filterBoost.setGain(6.0f);  // +6dB boost
+
+    filterCut.setMode(SVFMode::LowShelf);
+    filterCut.setCutoff(500.0f);
+    filterCut.setResonance(SVF::kButterworthQ);
+    filterCut.setGain(-6.0f);  // -6dB cut
+
+    constexpr size_t fftSize = 4096;
+    auto responseBoost = measureSVFFrequencyResponse(filterBoost, kTestSampleRate, fftSize);
+    auto responseCut = measureSVFFrequencyResponse(filterCut, kTestSampleRate, fftSize);
+
+    // Measure in low and high bands
+    float boostLow = averageResponseInBand(responseBoost, 50.0f, 150.0f, kTestSampleRate, fftSize);
+    float boostHigh = averageResponseInBand(responseBoost, 2000.0f, 10000.0f, kTestSampleRate, fftSize);
+    float cutLow = averageResponseInBand(responseCut, 50.0f, 150.0f, kTestSampleRate, fftSize);
+    float cutHigh = averageResponseInBand(responseCut, 2000.0f, 10000.0f, kTestSampleRate, fftSize);
+
+    INFO("Boost - Low band: " << boostLow << " dB, High band: " << boostHigh << " dB");
+    INFO("Cut - Low band: " << cutLow << " dB, High band: " << cutHigh << " dB");
+
+    // Low shelf boost: low frequencies boosted, high frequencies unchanged
+    CHECK(boostLow > boostHigh + 3.0f);  // Low band boosted relative to high
+    CHECK(boostHigh > -3.0f);  // High band near unity
+    CHECK(boostHigh < 3.0f);
+
+    // Low shelf cut: low frequencies cut, high frequencies unchanged
+    CHECK(cutLow < cutHigh - 3.0f);  // Low band cut relative to high
+    CHECK(cutHigh > -3.0f);  // High band near unity
+    CHECK(cutHigh < 3.0f);
+}
+
+TEST_CASE("SVF FFT high shelf shows boost/cut above cutoff", "[svf][fft][highshelf]") {
+    SVF filterBoost;
+    SVF filterCut;
+    filterBoost.prepare(kTestSampleRate);
+    filterCut.prepare(kTestSampleRate);
+
+    filterBoost.setMode(SVFMode::HighShelf);
+    filterBoost.setCutoff(2000.0f);
+    filterBoost.setResonance(SVF::kButterworthQ);
+    filterBoost.setGain(6.0f);  // +6dB boost
+
+    filterCut.setMode(SVFMode::HighShelf);
+    filterCut.setCutoff(2000.0f);
+    filterCut.setResonance(SVF::kButterworthQ);
+    filterCut.setGain(-6.0f);  // -6dB cut
+
+    constexpr size_t fftSize = 4096;
+    auto responseBoost = measureSVFFrequencyResponse(filterBoost, kTestSampleRate, fftSize);
+    auto responseCut = measureSVFFrequencyResponse(filterCut, kTestSampleRate, fftSize);
+
+    // Measure in low and high bands
+    float boostLow = averageResponseInBand(responseBoost, 100.0f, 500.0f, kTestSampleRate, fftSize);
+    float boostHigh = averageResponseInBand(responseBoost, 8000.0f, 15000.0f, kTestSampleRate, fftSize);
+    float cutLow = averageResponseInBand(responseCut, 100.0f, 500.0f, kTestSampleRate, fftSize);
+    float cutHigh = averageResponseInBand(responseCut, 8000.0f, 15000.0f, kTestSampleRate, fftSize);
+
+    INFO("Boost - Low band: " << boostLow << " dB, High band: " << boostHigh << " dB");
+    INFO("Cut - Low band: " << cutLow << " dB, High band: " << cutHigh << " dB");
+
+    // High shelf boost: high frequencies boosted, low frequencies unchanged
+    CHECK(boostHigh > boostLow + 3.0f);  // High band boosted relative to low
+    CHECK(boostLow > -3.0f);  // Low band near unity
+    CHECK(boostLow < 3.0f);
+
+    // High shelf cut: high frequencies cut, low frequencies unchanged
+    CHECK(cutHigh < cutLow - 3.0f);  // High band cut relative to low
+    CHECK(cutLow > -3.0f);  // Low band near unity
+    CHECK(cutLow < 3.0f);
+}
+
+// -----------------------------------------------------------------------------
+// FFT-Based Tests: Peak Mode
+// -----------------------------------------------------------------------------
+
+TEST_CASE("SVF FFT peak shows boost at cutoff", "[svf][fft][peak]") {
+    SVF filter;
+    filter.prepare(kTestSampleRate);
+    filter.setMode(SVFMode::Peak);
+    filter.setCutoff(2000.0f);
+    filter.setResonance(2.0f);  // Higher Q for narrower peak
+    filter.setGain(9.0f);  // +9dB boost
+
+    constexpr size_t fftSize = 4096;
+    auto responseDb = measureSVFFrequencyResponse(filter, kTestSampleRate, fftSize);
+
+    float avgLow = averageResponseInBand(responseDb, 100.0f, 500.0f, kTestSampleRate, fftSize);
+    float avgPeak = averageResponseInBand(responseDb, 1500.0f, 2500.0f, kTestSampleRate, fftSize);
+    float avgHigh = averageResponseInBand(responseDb, 8000.0f, 15000.0f, kTestSampleRate, fftSize);
+
+    INFO("Low band (100-500Hz) average: " << avgLow << " dB");
+    INFO("Peak band (1.5k-2.5kHz) average: " << avgPeak << " dB");
+    INFO("High band (8k-15kHz) average: " << avgHigh << " dB");
+
+    // Peak characteristics:
+    // - Peak region should be boosted
+    // - Away from peak should be near unity
+    CHECK(avgPeak > avgLow + 3.0f);  // Peak higher than low
+    CHECK(avgPeak > avgHigh + 3.0f);  // Peak higher than high
+    CHECK(avgLow > -3.0f);  // Low band near unity
+    CHECK(avgLow < 3.0f);
+    CHECK(avgHigh > -3.0f);  // High band near unity
+    CHECK(avgHigh < 3.0f);
 }
 
 // ==============================================================================
