@@ -10,6 +10,18 @@ handoffs:
     prompt: Create a checklist for the following domain...
 ---
 
+## Environment
+
+This project runs on **Windows**. All scripts are PowerShell (.ps1) files in `.specify/scripts/powershell/`. When executing scripts via the Bash tool, use:
+
+```
+powershell -ExecutionPolicy Bypass -File <script.ps1> [parameters]
+```
+
+Do NOT look for or run .sh files.
+
+---
+
 Spawn the `speckit-plan` agent to handle this task.
 
 **User Input:**

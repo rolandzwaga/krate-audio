@@ -6,6 +6,18 @@ handoffs:
     prompt: Implement the feature specification based on the updated constitution. I want to build...
 ---
 
+## Environment
+
+This project runs on **Windows**. All scripts are PowerShell (.ps1) files in `.specify/scripts/powershell/`. When executing scripts via the Bash tool, use:
+
+```
+powershell -ExecutionPolicy Bypass -File <script.ps1> [parameters]
+```
+
+Do NOT look for or run .sh files.
+
+---
+
 ## User Input
 
 ```text
