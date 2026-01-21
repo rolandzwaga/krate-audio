@@ -545,3 +545,69 @@ class LeakyIntegrator {
 - **LeakyIntegrator:** Envelope followers, level detection, smoothing rectified signals
 
 **Dependencies:** `core/math_constants.h`, `core/db_utils.h` (flushDenormal, isNaN, isInf)
+
+---
+
+## State Variable Filter (SVF)
+**Path:** [svf.h](../../dsp/include/krate/dsp/primitives/svf.h) | **Since:** 0.12.0
+
+TPT (Topology-Preserving Transform) State Variable Filter using Cytomic's trapezoidal integration. Provides 8 filter modes with audio-rate modulation stability.
+
+**Use when:**
+- Building synth-style filters with LFO/envelope cutoff modulation
+- Need simultaneous lowpass, highpass, bandpass, notch outputs (processMulti)
+- Parametric EQ with peak/shelf modes
+- Modulation stability is critical (biquad clicks on fast sweeps)
+
+**Note:** SVF is preferred over Biquad when cutoff will be modulated at audio rate. For static filtering, Biquad is equally suitable.
+
+```cpp
+enum class SVFMode : uint8_t {
+    Lowpass, Highpass, Bandpass, Notch, Allpass, Peak, LowShelf, HighShelf
+};
+
+struct SVFOutputs { float low, high, band, notch; };
+
+class SVF {
+    static constexpr float kButterworthQ = 0.7071067811865476f;
+
+    void prepare(double sampleRate) noexcept;
+    void setMode(SVFMode mode) noexcept;
+    void setCutoff(float hz) noexcept;           // [1 Hz, sampleRate * 0.495]
+    void setResonance(float q) noexcept;         // [0.1, 30.0]
+    void setGain(float dB) noexcept;             // [-24, +24] for peak/shelf
+    void reset() noexcept;
+
+    [[nodiscard]] float process(float input) noexcept;       // Single mode output
+    void processBlock(float* buffer, size_t n) noexcept;     // In-place block
+    [[nodiscard]] SVFOutputs processMulti(float input) noexcept;  // All 4 outputs
+};
+```
+
+| Mode | Use Case |
+|------|----------|
+| Lowpass | Synth filter, tone control |
+| Highpass | Bass removal, sub filtering |
+| Bandpass | Wah, formant emphasis |
+| Notch | Frequency cancellation |
+| Allpass | Phase manipulation, phaser |
+| Peak | Parametric EQ band |
+| LowShelf | Bass boost/cut |
+| HighShelf | Treble boost/cut |
+
+**Comparison with Biquad:**
+
+| Feature | SVF | Biquad |
+|---------|-----|--------|
+| Modulation stability | Excellent | Poor (clicks on fast sweeps) |
+| Multi-output | Yes (processMulti) | No |
+| Parameter orthogonality | Cutoff/Q independent | Interdependent |
+| CPU cost | Similar | Similar |
+| Mode switching | Instant (m0/m1/m2 mix) | Requires coefficient recalc |
+
+**TPT Topology:**
+- Coefficients: `g = tan(π * fc / fs)`, `k = 1/Q`
+- Mode mixing: `output = m0*high + m1*band + m2*low`
+- State: Two integrators (ic1eq, ic2eq) with trapezoidal update
+
+**Dependencies:** `core/math_constants.h`, `core/db_utils.h` (flushDenormal, isNaN, isInf, constexprPow10)
