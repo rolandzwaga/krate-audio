@@ -619,3 +619,52 @@ converter.processBlock(capturedSlice, sliceSize, output, 512);
 ```
 
 **Dependencies:** `core/interpolation.h` (linearInterpolate, cubicHermiteInterpolate, lagrangeInterpolate)
+
+---
+
+## Allpass1Pole (First-Order Allpass Filter)
+**Path:** [allpass_1pole.h](../../dsp/include/krate/dsp/primitives/allpass_1pole.h) | **Since:** 0.13.0
+
+First-order allpass filter for frequency-dependent phase shifting. Provides unity magnitude response with phase shift from 0 degrees (DC) to -180 degrees (Nyquist).
+
+**Use when:**
+- Building phaser effects (cascade 2-12 stages with LFO modulation)
+- Phase correction in crossover networks
+- Any application requiring phase shift without magnitude change
+
+```cpp
+class Allpass1Pole {
+    void prepare(double sampleRate) noexcept;
+    void setFrequency(float hz) noexcept;        // Break frequency (clamped to [1 Hz, Nyquist*0.99])
+    void setCoefficient(float a) noexcept;       // Direct control (clamped to [-0.9999, +0.9999])
+    [[nodiscard]] float getFrequency() const noexcept;
+    [[nodiscard]] float getCoefficient() const noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+    void reset() noexcept;
+
+    [[nodiscard]] static float coeffFromFrequency(float hz, double sampleRate) noexcept;
+    [[nodiscard]] static float frequencyFromCoeff(float a, double sampleRate) noexcept;
+};
+```
+
+| Coefficient | Break Frequency | Phase at Break |
+|-------------|-----------------|----------------|
+| a -> +1.0 | Near DC | -90 deg near 0 Hz |
+| a = 0.0 | fs/4 | -90 deg at quarter sample rate |
+| a -> -1.0 | Near Nyquist | -90 deg near fs/2 |
+
+**Difference Equation:** `y[n] = a*x[n] + x[n-1] - a*y[n-1]`
+
+**Coefficient Formula:** `a = (1 - tan(pi*f/fs)) / (1 + tan(pi*f/fs))`
+
+**Comparison with Biquad Allpass:**
+
+| Feature | Allpass1Pole | Biquad (Allpass) |
+|---------|--------------|------------------|
+| Order | 1st order | 2nd order |
+| Phase range | 0 to -180 deg | 0 to -360 deg |
+| Memory | 20 bytes | ~24 bytes |
+| Use case | Phasers, simple phase correction | Wider phase range, parametric |
+
+**Dependencies:** `core/math_constants.h` (kPi), `core/db_utils.h` (flushDenormal, isNaN, isInf)
