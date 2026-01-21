@@ -73,7 +73,7 @@ class LFO {
 ---
 
 ## OnePoleSmoother
-**Path:** [one_pole_smoother.h](../../dsp/include/krate/dsp/primitives/one_pole_smoother.h) | **Since:** 0.0.4
+**Path:** [smoother.h](../../dsp/include/krate/dsp/primitives/smoother.h) | **Since:** 0.0.4
 
 Exponential parameter smoothing (RC filter).
 
@@ -168,53 +168,6 @@ class STFT {
     void prepare(size_t fftSize, size_t hopSize, WindowType windowType) noexcept;
     void process(const float* input, size_t numSamples, STFTCallback callback) noexcept;
     [[nodiscard]] size_t getLatency() const noexcept;  // fftSize samples
-};
-```
-
----
-
-## AllpassFilter
-**Path:** [allpass_filter.h](../../dsp/include/krate/dsp/primitives/allpass_filter.h) | **Since:** 0.0.9
-
-First-order allpass for diffusion and dispersion.
-
-```cpp
-class AllpassFilter {
-    void prepare(size_t maxDelaySamples) noexcept;
-    void setDelay(size_t samples) noexcept;
-    void setCoefficient(float g) noexcept;  // [-1, 1]
-    [[nodiscard]] float process(float input) noexcept;
-};
-```
-
----
-
-## Comb Filters
-**Path:** [comb_filter.h](../../dsp/include/krate/dsp/primitives/comb_filter.h) | **Since:** 0.0.9
-
-```cpp
-class FeedbackCombFilter {
-    void prepare(size_t maxDelaySamples) noexcept;
-    void setDelay(size_t samples) noexcept;
-    void setFeedback(float g) noexcept;
-    [[nodiscard]] float process(float input) noexcept;
-};
-
-class FeedforwardCombFilter { /* Same API, feedforward topology */ };
-```
-
----
-
-## Sample Rate Converter
-**Path:** [sample_rate_converter.h](../../dsp/include/krate/dsp/primitives/sample_rate_converter.h) | **Since:** 0.0.35
-
-Variable-rate playback for granular synthesis.
-
-```cpp
-class SampleRateConverter {
-    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
-    [[nodiscard]] float process(float* buffer, size_t bufferSize, float& readPosition, float rate) noexcept;
-    void setInterpolationQuality(InterpolationQuality quality) noexcept;
 };
 ```
 
@@ -611,3 +564,58 @@ class SVF {
 - State: Two integrators (ic1eq, ic2eq) with trapezoidal update
 
 **Dependencies:** `core/math_constants.h`, `core/db_utils.h` (flushDenormal, isNaN, isInf, constexprPow10)
+
+---
+
+## SampleRateConverter
+**Path:** [sample_rate_converter.h](../../dsp/include/krate/dsp/primitives/sample_rate_converter.h) | **Since:** 0.13.0
+
+Variable-rate linear buffer playback with high-quality interpolation.
+
+**Use when:**
+- Playing back captured audio slices at different pitches (freeze mode)
+- Simple pitch shifting of buffered audio
+- Granular effect grain playback
+- Building time-stretch effects
+
+```cpp
+enum class SRCInterpolationType : uint8_t { Linear, Cubic, Lagrange };
+
+class SampleRateConverter {
+    static constexpr float kMinRate = 0.25f;   // 2 octaves down
+    static constexpr float kMaxRate = 4.0f;    // 2 octaves up
+    static constexpr float kDefaultRate = 1.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    void setRate(float rate) noexcept;           // Clamped to [0.25, 4.0]
+    void setInterpolation(SRCInterpolationType type) noexcept;
+    void setPosition(float samples) noexcept;    // Set read position
+    [[nodiscard]] float getPosition() const noexcept;
+    [[nodiscard]] float process(const float* buffer, size_t bufferSize) noexcept;
+    void processBlock(const float* src, size_t srcSize, float* dst, size_t dstSize) noexcept;
+    [[nodiscard]] bool isComplete() const noexcept;
+};
+```
+
+| Interpolation | Quality | Use Case |
+|---------------|---------|----------|
+| Linear | Low | Modulation, fast pitch sweeps |
+| Cubic | Medium | General pitch shifting |
+| Lagrange | High | Critical audio, offline rendering |
+
+**Edge Handling:** For 4-point interpolation (Cubic, Lagrange) at buffer boundaries, edge clamping duplicates edge samples to ensure valid 4-sample windows.
+
+**Example Usage:**
+```cpp
+SampleRateConverter converter;
+converter.prepare(44100.0);
+converter.setRate(2.0f);  // Octave up
+converter.setInterpolation(SRCInterpolationType::Cubic);
+
+// Play back captured slice
+float output[512];
+converter.processBlock(capturedSlice, sliceSize, output, 512);
+```
+
+**Dependencies:** `core/interpolation.h` (linearInterpolate, cubicHermiteInterpolate, lagrangeInterpolate)
