@@ -14,6 +14,8 @@
 
 #include <krate/dsp/processors/crossover_filter.h>
 #include <krate/dsp/core/math_constants.h>
+#include <krate/dsp/primitives/fft.h>
+#include <krate/dsp/core/window_functions.h>
 
 #include <array>
 #include <cmath>
@@ -130,6 +132,123 @@ inline float measureBandResponseDb(CrossoverLR4& crossover,
 /// Check if sample is valid (not NaN or Inf)
 inline bool isValidSample(float sample) {
     return std::isfinite(sample);
+}
+
+// =============================================================================
+// FFT-Based Frequency Response Helpers
+// =============================================================================
+
+/// Measure frequency response using FFT analysis of impulse response
+/// @param impulseResponse The filter's impulse response
+/// @param fftSize FFT size (must be power of 2)
+/// @return Vector of magnitude values in dB for each bin
+inline std::vector<float> measureFrequencyResponseDb(
+    const std::vector<float>& impulseResponse,
+    size_t fftSize = 4096)
+{
+    FFT fft;
+    fft.prepare(fftSize);
+
+    // Copy impulse response into FFT buffer (zero-pad if needed)
+    std::vector<float> buffer(fftSize, 0.0f);
+    const size_t copySize = std::min(impulseResponse.size(), fftSize);
+    std::copy(impulseResponse.begin(), impulseResponse.begin() + copySize, buffer.begin());
+
+    // Apply Hann window to reduce spectral leakage
+    std::vector<float> window(fftSize);
+    Window::generateHann(window.data(), fftSize);
+    for (size_t i = 0; i < fftSize; ++i) {
+        buffer[i] *= window[i];
+    }
+
+    // Perform FFT
+    std::vector<Complex> spectrum(fft.numBins());
+    fft.forward(buffer.data(), spectrum.data());
+
+    // Convert to dB magnitude
+    std::vector<float> magnitudeDb(fft.numBins());
+    for (size_t i = 0; i < fft.numBins(); ++i) {
+        float mag = spectrum[i].magnitude();
+        magnitudeDb[i] = (mag > 1e-10f) ? 20.0f * std::log10(mag) : -200.0f;
+    }
+
+    return magnitudeDb;
+}
+
+/// Get the frequency corresponding to a bin index
+inline float binToFrequency(size_t bin, float sampleRate, size_t fftSize) {
+    return static_cast<float>(bin) * sampleRate / static_cast<float>(fftSize);
+}
+
+/// Measure flat sum error using white noise and FFT
+/// Returns max deviation from 0dB across the spectrum (excluding DC and near-Nyquist)
+/// Uses longer buffer with transient skipping for accurate steady-state measurement
+template<typename CrossoverType, typename ProcessFunc>
+inline float measureFlatSumErrorDb(
+    CrossoverType& crossover,
+    ProcessFunc processFunc,
+    float sampleRate,
+    size_t fftSize = 4096)
+{
+    // Use longer buffer: transient portion + FFT analysis portion
+    const size_t transientSamples = 4096;  // Skip first 4096 samples for filter settling
+    const size_t totalSamples = transientSamples + fftSize;
+
+    // Generate white noise
+    std::vector<float> input(totalSamples);
+    std::mt19937 gen(42);  // Deterministic seed
+    std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
+    for (size_t i = 0; i < totalSamples; ++i) {
+        input[i] = dist(gen);
+    }
+
+    // Process through crossover and sum bands
+    std::vector<float> sum(totalSamples);
+    for (size_t i = 0; i < totalSamples; ++i) {
+        sum[i] = processFunc(crossover, input[i]);
+    }
+
+    // FFT both input and output - use only the steady-state portion
+    FFT fft;
+    fft.prepare(fftSize);
+
+    // Apply window to both (on steady-state portion only)
+    std::vector<float> window(fftSize);
+    Window::generateHann(window.data(), fftSize);
+
+    std::vector<float> inputWindowed(fftSize);
+    std::vector<float> sumWindowed(fftSize);
+    for (size_t i = 0; i < fftSize; ++i) {
+        inputWindowed[i] = input[transientSamples + i] * window[i];
+        sumWindowed[i] = sum[transientSamples + i] * window[i];
+    }
+
+    std::vector<Complex> inputSpectrum(fft.numBins());
+    std::vector<Complex> sumSpectrum(fft.numBins());
+    fft.forward(inputWindowed.data(), inputSpectrum.data());
+    fft.forward(sumWindowed.data(), sumSpectrum.data());
+
+    // Compare magnitudes across spectrum (skip DC bin 0 and near-Nyquist)
+    // Focus on 50Hz to 18kHz range (avoid extreme edges where error accumulates)
+    const size_t minBin = static_cast<size_t>(50.0f * static_cast<float>(fftSize) / sampleRate);
+    const size_t maxBin = std::min(
+        static_cast<size_t>(18000.0f * static_cast<float>(fftSize) / sampleRate),
+        fft.numBins() - 1
+    );
+
+    float maxError = 0.0f;
+    for (size_t i = minBin; i <= maxBin; ++i) {
+        float inputMag = inputSpectrum[i].magnitude();
+        float sumMag = sumSpectrum[i].magnitude();
+
+        if (inputMag > 1e-6f) {  // Avoid division by near-zero
+            float ratio = sumMag / inputMag;
+            float errorDb = std::abs(20.0f * std::log10(ratio));
+            maxError = std::max(maxError, errorDb);
+        }
+    }
+
+    return maxError;
 }
 
 }  // anonymous namespace
@@ -1744,4 +1863,137 @@ TEST_CASE("Crossover4Way allpass compensation frequency sweep is click-free", "[
 
     // Max jump should be small (no clicks)
     REQUIRE(maxJump < 1.0f);
+}
+
+// ==============================================================================
+// FFT-Based Frequency Response Verification Tests
+// ==============================================================================
+
+// -----------------------------------------------------------------------------
+// CrossoverLR4: FFT flat sum verification across full spectrum
+// -----------------------------------------------------------------------------
+TEST_CASE("CrossoverLR4 FFT flat sum across full spectrum", "[crossover][fft][flatsum][SC-001]") {
+    CrossoverLR4 crossover;
+    crossover.prepare(44100.0);
+    crossover.setCrossoverFrequency(1000.0f);
+
+    // Let filter settle
+    for (int i = 0; i < 1000; ++i) {
+        (void)crossover.process(0.0f);
+    }
+
+    // Process function that sums low + high bands
+    auto processAndSum = [](CrossoverLR4& xo, float input) {
+        auto outputs = xo.process(input);
+        return outputs.low + outputs.high;
+    };
+
+    float maxError = measureFlatSumErrorDb(crossover, processAndSum, 44100.0f, 8192);
+
+    INFO("Max flat sum error across spectrum: " << maxError << " dB");
+    // FFT measures max error across entire spectrum - expect higher than spot-frequency tests
+    // Time-domain tests verify 0.1dB at specific frequencies; FFT captures worst-case across all
+    REQUIRE(maxError < 1.5f);
+}
+
+// -----------------------------------------------------------------------------
+// Crossover3Way: FFT flat sum verification across full spectrum
+// -----------------------------------------------------------------------------
+TEST_CASE("Crossover3Way FFT flat sum across full spectrum", "[crossover][fft][flatsum][SC-004]") {
+    Crossover3Way crossover;
+    crossover.prepare(44100.0);
+    crossover.setLowMidFrequency(300.0f);
+    crossover.setMidHighFrequency(3000.0f);
+
+    // Let filter settle
+    for (int i = 0; i < 1000; ++i) {
+        (void)crossover.process(0.0f);
+    }
+
+    auto processAndSum = [](Crossover3Way& xo, float input) {
+        auto outputs = xo.process(input);
+        return outputs.low + outputs.mid + outputs.high;
+    };
+
+    float maxError = measureFlatSumErrorDb(crossover, processAndSum, 44100.0f, 8192);
+
+    INFO("Max 3-way flat sum error across spectrum: " << maxError << " dB");
+    // 3-way serial topology has phase errors near crossover frequencies
+    REQUIRE(maxError < 5.0f);
+}
+
+TEST_CASE("Crossover3Way with allpass FFT flat sum across full spectrum", "[crossover][fft][flatsum][allpass][SC-004]") {
+    Crossover3Way crossover;
+    crossover.prepare(44100.0);
+    crossover.setLowMidFrequency(300.0f);
+    crossover.setMidHighFrequency(3000.0f);
+    crossover.setAllpassCompensation(true);
+
+    // Let filter settle
+    for (int i = 0; i < 1000; ++i) {
+        (void)crossover.process(0.0f);
+    }
+
+    auto processAndSum = [](Crossover3Way& xo, float input) {
+        auto outputs = xo.process(input);
+        return outputs.low + outputs.mid + outputs.high;
+    };
+
+    float maxError = measureFlatSumErrorDb(crossover, processAndSum, 44100.0f, 8192);
+
+    INFO("Max 3-way (allpass) flat sum error across spectrum: " << maxError << " dB");
+    // Allpass compensation improves phase alignment
+    REQUIRE(maxError < 5.0f);
+}
+
+// -----------------------------------------------------------------------------
+// Crossover4Way: FFT flat sum verification across full spectrum
+// -----------------------------------------------------------------------------
+TEST_CASE("Crossover4Way FFT flat sum across full spectrum", "[crossover][fft][flatsum][SC-005]") {
+    Crossover4Way crossover;
+    crossover.prepare(44100.0);
+    crossover.setSubLowFrequency(80.0f);
+    crossover.setLowMidFrequency(300.0f);
+    crossover.setMidHighFrequency(3000.0f);
+
+    // Let filter settle
+    for (int i = 0; i < 1000; ++i) {
+        (void)crossover.process(0.0f);
+    }
+
+    auto processAndSum = [](Crossover4Way& xo, float input) {
+        auto outputs = xo.process(input);
+        return outputs.sub + outputs.low + outputs.mid + outputs.high;
+    };
+
+    float maxError = measureFlatSumErrorDb(crossover, processAndSum, 44100.0f, 8192);
+
+    INFO("Max 4-way flat sum error across spectrum: " << maxError << " dB");
+    // 4-way has cumulative phase errors from serial topology
+    REQUIRE(maxError < 7.0f);
+}
+
+TEST_CASE("Crossover4Way with allpass FFT flat sum across full spectrum", "[crossover][fft][flatsum][allpass][SC-005]") {
+    Crossover4Way crossover;
+    crossover.prepare(44100.0);
+    crossover.setSubLowFrequency(80.0f);
+    crossover.setLowMidFrequency(300.0f);
+    crossover.setMidHighFrequency(3000.0f);
+    crossover.setAllpassCompensation(true);
+
+    // Let filter settle
+    for (int i = 0; i < 1000; ++i) {
+        (void)crossover.process(0.0f);
+    }
+
+    auto processAndSum = [](Crossover4Way& xo, float input) {
+        auto outputs = xo.process(input);
+        return outputs.sub + outputs.low + outputs.mid + outputs.high;
+    };
+
+    float maxError = measureFlatSumErrorDb(crossover, processAndSum, 44100.0f, 8192);
+
+    INFO("Max 4-way (allpass) flat sum error across spectrum: " << maxError << " dB");
+    // Allpass compensation should reduce max error
+    REQUIRE(maxError < 7.0f);
 }
