@@ -1,6 +1,6 @@
 # Feature Specification: State Variable Filter (SVF)
 
-**Feature Branch**: `080-svf`
+**Feature Branch**: `071-svf`
 **Created**: 2026-01-21
 **Status**: Draft
 **Input**: User description: "State Variable Filter (SVF) based on Cytomic TPT/Trapezoidal topology - Phase 2 Sprint 2 item 4 from FLT-ROADMAP.md"

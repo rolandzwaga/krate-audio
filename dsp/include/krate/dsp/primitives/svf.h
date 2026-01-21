@@ -2,7 +2,7 @@
 // Layer 1: DSP Primitives
 // svf.h - TPT State Variable Filter
 // ==============================================================================
-// API Contract for specs/080-svf
+// API Contract for specs/071-svf
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, zero allocations in process)

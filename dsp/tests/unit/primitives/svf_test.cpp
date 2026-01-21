@@ -5,7 +5,7 @@
 // Tests written before implementation.
 //
 // Tests for: dsp/include/krate/dsp/primitives/svf.h
-// Contract: specs/080-svf/contracts/svf.h
+// Contract: specs/071-svf/contracts/svf.h
 // Reference: Cytomic SvfLinearTrapOptimised2.pdf
 // ==============================================================================
 

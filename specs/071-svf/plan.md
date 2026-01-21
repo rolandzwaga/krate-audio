@@ -1,7 +1,7 @@
 # Implementation Plan: State Variable Filter (SVF)
 
-**Branch**: `080-svf` | **Date**: 2026-01-21 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `specs/080-svf/spec.md`
+**Branch**: `071-svf` | **Date**: 2026-01-21 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `specs/071-svf/spec.md`
 
 ## Summary
 
@@ -194,7 +194,7 @@ After implementing **ladder_filter.h**, review this section:
 ### Documentation (this feature)
 
 ```text
-specs/080-svf/
+specs/071-svf/
 ├── plan.md              # This file
 ├── research.md          # Phase 0: Cytomic TPT research
 ├── data-model.md        # Phase 1: Entity definitions

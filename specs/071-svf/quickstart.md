@@ -1,6 +1,6 @@
 # Quickstart: State Variable Filter (SVF) Implementation
 
-**Feature**: 080-svf | **Date**: 2026-01-21 | **Estimated Effort**: 6-10 hours
+**Feature**: 071-svf | **Date**: 2026-01-21 | **Estimated Effort**: 6-10 hours
 
 ## Overview
 
@@ -360,7 +360,7 @@ Before claiming completion, verify:
 - [ ] All 14 SC-xxx success criteria pass tests
 - [ ] No compiler warnings
 - [ ] `dsp_tests` target passes
-- [ ] `specs/080-svf/spec.md` compliance table filled
+- [ ] `specs/071-svf/spec.md` compliance table filled
 
 ## Common Pitfalls
 

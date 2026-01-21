@@ -1,6 +1,6 @@
 # Research: State Variable Filter (SVF)
 
-**Feature**: 080-svf | **Date**: 2026-01-21 | **Status**: Complete
+**Feature**: 071-svf | **Date**: 2026-01-21 | **Status**: Complete
 
 ## Research Questions
 
