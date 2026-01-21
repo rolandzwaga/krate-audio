@@ -668,3 +668,89 @@ class Allpass1Pole {
 | Use case | Phasers, simple phase correction | Wider phase range, parametric |
 
 **Dependencies:** `core/math_constants.h` (kPi), `core/db_utils.h` (flushDenormal, isNaN, isInf)
+
+---
+
+## Comb Filters (FeedforwardComb, FeedbackComb, SchroederAllpass)
+**Path:** [comb_filter.h](../../dsp/include/krate/dsp/primitives/comb_filter.h) | **Since:** 0.13.0
+
+Three comb filter primitives for modulation effects, physical modeling, and reverb diffusion.
+
+**Use when:**
+- Building flanger/chorus effects (FeedforwardComb - creates spectral notches)
+- Karplus-Strong plucked string synthesis (FeedbackComb - creates resonant peaks)
+- Reverb diffusion networks (SchroederAllpass - unity magnitude, phase dispersion)
+
+**Note:** `SchroederAllpass` is distinct from `AllpassStage` in `diffusion_network.h` (Layer 2). `SchroederAllpass` is a reusable Layer 1 primitive with standard formulation and linear interpolation for modulation support, while `AllpassStage` is a composed processor using allpass interpolation.
+
+```cpp
+// Feedforward (FIR) comb: y[n] = x[n] + g * x[n-D]
+class FeedforwardComb {
+    void prepare(double sampleRate, float maxDelaySeconds) noexcept;
+    void reset() noexcept;
+    void setGain(float g) noexcept;           // [0.0, 1.0]
+    void setDelaySamples(float samples) noexcept;
+    void setDelayMs(float ms) noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+};
+
+// Feedback (IIR) comb with damping: y[n] = x[n] + g * LP(y[n-D])
+class FeedbackComb {
+    void prepare(double sampleRate, float maxDelaySeconds) noexcept;
+    void reset() noexcept;
+    void setFeedback(float g) noexcept;       // [-0.9999, 0.9999]
+    void setDamping(float d) noexcept;        // [0.0, 1.0] (0=bright, 1=dark)
+    void setDelaySamples(float samples) noexcept;
+    void setDelayMs(float ms) noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+};
+
+// Schroeder allpass: y[n] = -g*x[n] + x[n-D] + g*y[n-D]
+class SchroederAllpass {
+    void prepare(double sampleRate, float maxDelaySeconds) noexcept;
+    void reset() noexcept;
+    void setCoefficient(float g) noexcept;    // [-0.9999, 0.9999]
+    void setDelaySamples(float samples) noexcept;
+    void setDelayMs(float ms) noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+};
+```
+
+| Class | Difference Equation | Use Case |
+|-------|---------------------|----------|
+| `FeedforwardComb` | y[n] = x[n] + g*x[n-D] | Flanger, chorus (notches) |
+| `FeedbackComb` | y[n] = x[n] + g*LP(y[n-D]) | Karplus-Strong, reverb (peaks) |
+| `SchroederAllpass` | y[n] = -g*x[n] + x[n-D] + g*y[n-D] | Reverb diffusion (unity mag) |
+
+**Damping (FeedbackComb):**
+```cpp
+// Damping = 0.0: No filtering (bright, full bandwidth)
+// Damping = 1.0: Maximum lowpass (dark, heavily filtered)
+comb.setDamping(0.3f);  // Light high-frequency rolloff
+```
+
+**Example Usage:**
+```cpp
+// Flanger effect
+FeedforwardComb flanger;
+flanger.prepare(44100.0, 0.02f);  // 20ms max
+flanger.setGain(0.7f);
+flanger.setDelayMs(5.0f);  // Modulate with LFO for sweep
+
+// Karplus-Strong string
+FeedbackComb string;
+string.prepare(44100.0, 0.05f);   // 50ms max (low note ~20Hz)
+string.setFeedback(0.995f);       // Long decay
+string.setDamping(0.2f);          // Natural string damping
+
+// Reverb diffusion
+SchroederAllpass diffuser;
+diffuser.prepare(44100.0, 0.1f);
+diffuser.setCoefficient(0.7f);
+diffuser.setDelayMs(30.0f);
+```
+
+**Dependencies:** `core/db_utils.h` (flushDenormal, isNaN, isInf), `primitives/delay_line.h`
