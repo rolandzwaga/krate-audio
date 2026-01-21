@@ -304,47 +304,47 @@ grep -r "SVFMode\|SVFOutputs" dsp/
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| FR-021 | | |
-| FR-022 | | |
-| FR-023 | | |
-| FR-024 | | |
-| FR-025 | | |
-| FR-026 | | |
-| FR-027 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
-| SC-010 | | |
-| SC-011 | | |
-| SC-012 | | |
-| SC-013 | | |
-| SC-014 | | |
+| FR-001 | MET | `SVFMode` enum with 8 values in svf.h:31-33 |
+| FR-002 | MET | `SVFOutputs` struct with low/high/band/notch in svf.h:39-48 |
+| FR-003 | MET | `SVF` class defined in svf.h:65-260 |
+| FR-004 | MET | `prepare(double)` at svf.h:147-153 |
+| FR-005 | MET | `setMode(SVFMode)` at svf.h:155-159 |
+| FR-006 | MET | `setCutoff(float)` at svf.h:161-165, clamps to [1, nyquist*0.495] |
+| FR-007 | MET | `setResonance(float)` at svf.h:167-171, clamps to [0.1, 30] |
+| FR-008 | MET | `setGain(float)` at svf.h:173-179, recalculates A immediately |
+| FR-009 | MET | `reset()` noexcept at svf.h:181-185 |
+| FR-010 | MET | `process(float)` [[nodiscard]] noexcept at svf.h:190-222 |
+| FR-011 | MET | `processBlock(float*, size_t)` noexcept at svf.h:224-229 |
+| FR-012 | MET | `processMulti(float)` returns SVFOutputs at svf.h:231-260 |
+| FR-013 | MET | TPT coefficients g=tan(pi*fc/fs), k=1/Q in updateCoefficients() |
+| FR-014 | MET | Derived a1, a2, a3 computed in updateCoefficients() |
+| FR-015 | MET | ic1eq_, ic2eq_ state variables at svf.h:137-138 |
+| FR-016 | MET | Per-sample computation v3/v1/v2 in process()/processMulti() |
+| FR-017 | MET | Mode mixing m0/m1/m2 for all 8 modes in updateMixCoefficients() |
+| FR-018 | MET | All processing methods declared noexcept |
+| FR-019 | MET | flushDenormal() on ic1eq_/ic2eq_ after every process call |
+| FR-020 | MET | No allocations/exceptions/IO in processing paths |
+| FR-021 | MET | Returns input/zeros if !prepared_, test: "unprepared filter" |
+| FR-022 | MET | NaN/Inf returns 0.0f + reset, test: "NaN/Inf handling" |
+| FR-023 | MET | Only includes math_constants.h and db_utils.h |
+| FR-024 | MET | Header-only, no svf.cpp exists |
+| FR-025 | MET | All components in namespace Krate::DSP |
+| FR-026 | MET | Doxygen on SVF, SVFMode, SVFOutputs, all public methods |
+| FR-027 | MET | Trailing underscore members, PascalCase classes |
+| SC-001 | MET | Test "SC-001: LP attenuates 10kHz" passes (-26.1dB >= -22dB) |
+| SC-002 | MET | Test "SC-002: LP passes 100Hz" passes (-0.001dB < 0.5dB) |
+| SC-003 | MET | Test "SC-003: HP attenuates 10Hz" passes (-25.7dB >= -22dB) |
+| SC-004 | MET | Test "SC-004: HP passes 1kHz" passes (-0.001dB < 0.5dB) |
+| SC-005 | MET | Test "SC-005: BP peak at cutoff" passes (0.0dB within 1dB) |
+| SC-006 | MET | Test "SC-006: Notch attenuates" passes (-53dB >= -20dB) |
+| SC-007 | MET | Test "SC-007: Allpass flat response" passes (max 0.0dB within 0.1dB) |
+| SC-008 | MET | Test "SC-008: Peak +6dB" passes (5.99dB within 1dB of 6dB) |
+| SC-009 | MET | Test "SC-009: Low shelf" passes (6.0dB within 1dB) |
+| SC-010 | MET | Test "SC-010: High shelf" passes (6.0dB within 1dB) |
+| SC-011 | MET | Test "SC-011: modulation stability" passes (max change 0.07 < 0.5) |
+| SC-012 | MET | Test "SC-012: processBlock bit-identical" passes |
+| SC-013 | MET | Test "SC-013: 1M samples stability" passes (all modes, no NaN/Inf) |
+| SC-014 | MET | 45 tests cover all public methods and edge cases |
 
 **Status Key:**
 - MET: Requirement fully satisfied with test evidence
@@ -356,19 +356,23 @@ grep -r "SVFMode\|SVFOutputs" dsp/
 
 *All items must be checked before claiming completion:*
 
-- [ ] All FR-xxx requirements verified against implementation
-- [ ] All SC-xxx success criteria measured and documented
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] All FR-xxx requirements verified against implementation
+- [X] All SC-xxx success criteria measured and documented
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
+**All 27 functional requirements (FR-001 to FR-027) are MET.**
+**All 14 success criteria (SC-001 to SC-014) are MET.**
 
-**Recommendation**: [What needs to happen to achieve completion]
+- 45 tests pass covering all requirements
+- Zero compiler warnings
+- No TODO/FIXME comments in implementation
+- All test thresholds match or exceed spec requirements
+
+**Recommendation**: Spec implementation is complete. Ready for integration testing with downstream components (envelope_filter.h in Phase 9).
