@@ -4,6 +4,12 @@
 // Tracks the amplitude envelope of an audio signal with configurable
 // attack/release times and three detection modes (Amplitude, RMS, Peak).
 //
+// Performance optimizations:
+// - JUCE-style coefficient formula (2π factor) for faster response
+// - No NaN/Inf input validation (caller responsibility for max speed)
+// - RMS mode uses asymmetric smoothing in squared domain (for dynamics)
+// - Denormal flushing retained (host FTZ/DAZ not guaranteed)
+//
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations in process)
 // - Principle III: Modern C++ (C++20, RAII, constexpr)
@@ -154,22 +160,10 @@ public:
     /// @param input Input sample
     /// @return Current envelope value
     /// @pre prepare() has been called
+    /// @note Does NOT validate input - caller must ensure no NaN/Inf for maximum speed
     [[nodiscard]] float processSample(float input) noexcept {
-        // Handle NaN input (T094)
-        if (detail::isNaN(input)) {
-            input = 0.0f;
-        }
-
-        // Handle Inf input (T095)
-        if (detail::isInf(input)) {
-            input = (input > 0.0f) ? 1e10f : -1e10f;
-        }
-
         // Apply sidechain filter if enabled
-        float sample = input;
-        if (sidechainEnabled_) {
-            sample = sidechainFilter_.process(sample);
-        }
+        float sample = sidechainEnabled_ ? sidechainFilter_.process(input) : input;
 
         // Detection based on mode
         switch (mode_) {
@@ -312,21 +306,20 @@ private:
         }
     }
 
-    /// Process RMS mode: squared signal + smoothing + square root
-    /// Uses a blended coefficient for perceptually-meaningful RMS that responds
-    /// to both fast transients (attack) and smooth decay (release)
+    /// Process RMS mode: squared signal + asymmetric smoothing + square root
+    /// Uses attack/release coefficients in the squared domain for dynamics processing.
+    /// Technical note: True RMS of sine = peak/sqrt(2) = 0.707
     void processRMS(float sample) noexcept {
         const float squared = sample * sample;
 
-        // For true RMS, we need to compute the mean of squared values
-        // Using asymmetric smoothing would bias toward peaks
-        // Instead, use a blended coefficient that averages attack and release
-        // This gives accurate RMS while still allowing some response to transients
-        //
-        // Technical note: True RMS of sine = peak/sqrt(2) = 0.707
-        // With attack=10ms and release=100ms, the blended coeff gives ~50ms response
-        const float rmsCoeff = attackCoeff_ * 0.25f + releaseCoeff_ * 0.75f;
-        squaredEnvelope_ = squared + rmsCoeff * (squaredEnvelope_ - squared);
+        // Asymmetric smoothing in squared domain (for dynamics processing)
+        if (squared > squaredEnvelope_) {
+            // Attack: power level rising
+            squaredEnvelope_ = squared + attackCoeff_ * (squaredEnvelope_ - squared);
+        } else {
+            // Release: power level falling
+            squaredEnvelope_ = squared + releaseCoeff_ * (squaredEnvelope_ - squared);
+        }
 
         // Output is square root of smoothed squared envelope
         envelope_ = std::sqrt(squaredEnvelope_);
@@ -353,17 +346,22 @@ private:
     }
 
     // =========================================================================
-    // Coefficient Calculation
+    // Coefficient Calculation (JUCE-style for faster response)
     // =========================================================================
 
-    /// Calculate one-pole coefficient from time constant (63.2% settling)
-    /// Formula: coeff = exp(-1.0 / (time_ms * 0.001 * sampleRate))
+    // 2π constant for coefficient calculation
+    static constexpr float kTwoPi = 6.283185307f;
+
+    /// Calculate one-pole coefficient using JUCE-style formula (~99% settling)
+    /// Formula: coeff = exp(-2π / (time_ms * 0.001 * sampleRate))
+    /// This gives faster response than traditional 63% time constant formula.
+    /// With this formula, attack/release time represents near-complete settling.
     [[nodiscard]] float calculateCoefficient(float timeMs) const noexcept {
         if (sampleRate_ <= 0.0f || timeMs <= 0.0f) {
             return 0.0f;
         }
         const float timeSamples = timeMs * 0.001f * sampleRate_;
-        return detail::constexprExp(-1.0f / timeSamples);
+        return detail::constexprExp(-kTwoPi / timeSamples);
     }
 
     void updateAttackCoeff() noexcept {

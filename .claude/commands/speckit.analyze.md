@@ -2,6 +2,18 @@
 description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
 ---
 
+## Environment
+
+This project runs on **Windows**. All scripts are PowerShell (.ps1) files in `.specify/scripts/powershell/`. When executing scripts via the Bash tool, use:
+
+```
+powershell -ExecutionPolicy Bypass -File <script.ps1> [parameters]
+```
+
+Do NOT look for or run .sh files.
+
+---
+
 Spawn the `speckit-analyze` agent to handle this task.
 
 **User Input:**

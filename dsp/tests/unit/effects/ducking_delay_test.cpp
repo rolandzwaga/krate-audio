@@ -470,7 +470,7 @@ TEST_CASE("DuckingDelay duck amount 0% results in no attenuation", "[ducking-del
 TEST_CASE("DuckingDelay duck amount 100% results in -48dB attenuation", "[ducking-delay][US1][FR-004][SC-003]") {
     auto delay = createPreparedDelay();
     delay.setDuckingEnabled(true);
-    delay.setDuckAmount(100.0f);    // 100% = -48dB
+    delay.setDuckAmount(100.0f);    // 100% = -48dB target depth
     delay.setThreshold(-60.0f);     // Very low threshold
     delay.setAttackTime(0.1f);      // Fast attack
     delay.setDryWetMix(100.0f);
@@ -486,18 +486,18 @@ TEST_CASE("DuckingDelay duck amount 100% results in -48dB attenuation", "[duckin
     auto ctx = makeTestContext();
     delay.process(primeL.data(), primeR.data(), kBlockSize, ctx);
 
-    // Feed loud continuous signal
-    std::vector<float> left(kBlockSize, 0.9f);
-    std::vector<float> right(kBlockSize, 0.9f);
-
     // Process enough blocks for full attack
+    // IMPORTANT: Create FRESH buffers each iteration because process() is in-place
     for (int i = 0; i < 20; ++i) {
+        std::vector<float> left(kBlockSize, 0.9f);
+        std::vector<float> right(kBlockSize, 0.9f);
         delay.process(left.data(), right.data(), kBlockSize, ctx);
     }
 
-    // Gain reduction should approach -48dB
+    // Gain reduction should be around -48dB
     float gr = delay.getGainReduction();
-    REQUIRE(gr < -40.0f);  // Should be close to -48dB
+    REQUIRE(gr < -40.0f);
+    REQUIRE(gr > -55.0f);  // Should be roughly -48dB +/- 7dB
 }
 
 // T019: Duck amount 50% results in approximately -24dB attenuation (FR-003)
@@ -520,11 +520,11 @@ TEST_CASE("DuckingDelay duck amount 50% results in -24dB attenuation", "[ducking
     auto ctx = makeTestContext();
     delay.process(primeL.data(), primeR.data(), kBlockSize, ctx);
 
-    // Feed loud continuous signal
-    std::vector<float> left(kBlockSize, 0.9f);
-    std::vector<float> right(kBlockSize, 0.9f);
-
+    // Process enough blocks for full attack
+    // IMPORTANT: Create FRESH buffers each iteration because process() is in-place
     for (int i = 0; i < 20; ++i) {
+        std::vector<float> left(kBlockSize, 0.9f);
+        std::vector<float> right(kBlockSize, 0.9f);
         delay.process(left.data(), right.data(), kBlockSize, ctx);
     }
 

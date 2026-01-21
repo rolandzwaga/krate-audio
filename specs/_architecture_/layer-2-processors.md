@@ -676,3 +676,132 @@ Low + High = Flat (0dB across spectrum)
 ```
 
 **Dependencies:** Layer 1 (biquad.h, smoother.h)
+
+---
+
+## FormantFilter
+**Path:** [formant_filter.h](../../dsp/include/krate/dsp/processors/formant_filter.h) | **Since:** 0.13.0
+
+Vocal formant filtering using 3 parallel bandpass filters (F1, F2, F3) for creating "talking" effects on non-vocal audio sources.
+
+**Use when:**
+- Creating vocal/talking wah effects on synths, guitars, or pads
+- Need discrete vowel selection (A, E, I, O, U) for distinct vocal characters
+- Want smooth vowel morphing for animated "talking" effects
+- Building formant synthesizers or vocoders
+- Need pitch-independent formant shift for voice character adjustment
+
+**Features:**
+- 5 discrete vowels using formant data from Csound (bass male voice)
+- Continuous vowel morphing (0-4 position, interpolates between adjacent vowels)
+- Formant frequency shift (+/-24 semitones) for pitch-independent character changes
+- Gender parameter (-1 male to +1 female) for quick character adjustment
+- Click-free automation with configurable smoothing (default 5ms)
+- Parallel bandpass topology preserves natural formant characteristics
+
+```cpp
+class FormantFilter {
+    static constexpr int kNumFormants = 3;
+    static constexpr float kMinFrequency = 20.0f;
+    static constexpr float kMaxFrequencyRatio = 0.45f;
+    static constexpr float kMinQ = 0.5f;
+    static constexpr float kMaxQ = 20.0f;
+    static constexpr float kMinShift = -24.0f;
+    static constexpr float kMaxShift = 24.0f;
+    static constexpr float kMinGender = -1.0f;
+    static constexpr float kMaxGender = 1.0f;
+    static constexpr float kDefaultSmoothingMs = 5.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    void setVowel(Vowel vowel) noexcept;              // Discrete: A, E, I, O, U
+    void setVowelMorph(float position) noexcept;       // Continuous: 0-4
+    void setFormantShift(float semitones) noexcept;    // [-24, +24] semitones
+    void setGender(float amount) noexcept;             // [-1, +1] male/female
+    void setSmoothingTime(float ms) noexcept;          // Default 5ms
+
+    [[nodiscard]] Vowel getVowel() const noexcept;
+    [[nodiscard]] float getVowelMorph() const noexcept;
+    [[nodiscard]] float getFormantShift() const noexcept;
+    [[nodiscard]] float getGender() const noexcept;
+    [[nodiscard]] float getSmoothingTime() const noexcept;
+    [[nodiscard]] bool isInMorphMode() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Vowel | F1 (Hz) | F2 (Hz) | F3 (Hz) | Character |
+|-------|---------|---------|---------|-----------|
+| A | 600 | 1040 | 2250 | Open, "ah" as in father |
+| E | 400 | 1620 | 2400 | Mid, "eh" as in bed |
+| I | 250 | 1750 | 2600 | Close, "ee" as in see |
+| O | 400 | 750 | 2400 | Back rounded, "oh" as in go |
+| U | 350 | 600 | 2400 | Close back, "oo" as in boot |
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| vowel | A | enum | Discrete vowel selection |
+| vowelMorph | 0.0 | [0, 4] | Continuous position (0=A, 1=E, 2=I, 3=O, 4=U) |
+| formantShift | 0 | [-24, +24] | Semitone shift (pow(2, semitones/12)) |
+| gender | 0.0 | [-1, +1] | Scale factor (pow(2, gender*0.25)) |
+| smoothingTime | 5ms | [0.1, 1000] | Parameter transition time |
+
+**Usage Example (Basic vowel selection):**
+```cpp
+FormantFilter filter;
+filter.prepare(44100.0);
+filter.setVowel(Vowel::A);
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(input[i]);
+}
+```
+
+**Usage Example (Animated talking wah):**
+```cpp
+FormantFilter filter;
+filter.prepare(44100.0);
+
+// Modulate morph position with LFO for talking effect
+float lfoPhase = 0.0f;
+for (size_t i = 0; i < numSamples; ++i) {
+    float morphPos = 2.0f + 2.0f * std::sin(lfoPhase);  // Sweep 0-4
+    filter.setVowelMorph(morphPos);
+    output[i] = filter.process(input[i]);
+    lfoPhase += 2.0f * kPi * 0.5f / sampleRate;  // 0.5 Hz LFO
+}
+```
+
+**Usage Example (Gender adjustment):**
+```cpp
+FormantFilter filter;
+filter.prepare(44100.0);
+filter.setVowel(Vowel::A);
+filter.setGender(1.0f);   // Female character (+19% formant shift)
+// or
+filter.setGender(-1.0f);  // Male character (-17% formant shift)
+```
+
+**Topology:**
+```
+                 +-----------------+
+                 | Bandpass F1     |
+Input -------+-->| (600Hz, Q=10)   |---+
+             |   +-----------------+   |
+             |                         |
+             |   +-----------------+   |
+             +-->| Bandpass F2     |---+--> Sum --> Output
+             |   | (1040Hz, Q=15)  |   |
+             |   +-----------------+   |
+             |                         |
+             |   +-----------------+   |
+             +-->| Bandpass F3     |---+
+                 | (2250Hz, Q=20)  |
+                 +-----------------+
+```
+
+**Dependencies:** Layer 0 (filter_tables.h), Layer 1 (biquad.h, smoother.h)
