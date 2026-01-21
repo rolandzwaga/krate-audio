@@ -171,7 +171,7 @@ TEST_CASE("EnvelopeFollower parameter getters/setters with clamping", "[envelope
 // Phase 3: User Story 1 - Basic Envelope Tracking (Amplitude Mode)
 // =============================================================================
 
-TEST_CASE("Amplitude mode attack time constant accuracy", "[envelope][US1]") {
+TEST_CASE("Amplitude mode attack time accuracy (JUCE-style ~99% settling)", "[envelope][US1]") {
     constexpr double kSampleRate = 44100.0;
     constexpr float kAttackMs = 10.0f;
 
@@ -181,7 +181,7 @@ TEST_CASE("Amplitude mode attack time constant accuracy", "[envelope][US1]") {
     env.setAttackTime(kAttackMs);
     env.setReleaseTime(1000.0f);  // Long release to isolate attack behavior
 
-    // Calculate samples for one time constant (should reach 63% of target)
+    // Calculate samples for attack time (JUCE-style: ~99% settling)
     const size_t attackSamples = msToSamples(kAttackMs, kSampleRate);
 
     // Feed step input from 0 to 1.0
@@ -189,13 +189,13 @@ TEST_CASE("Amplitude mode attack time constant accuracy", "[envelope][US1]") {
         env.processSample(1.0f);
     }
 
-    // After one time constant, should be at ~63% of target
+    // After attack time, should be at ~99% of target (JUCE uses 2π formula)
     float envelopeValue = env.getCurrentValue();
-    REQUIRE(envelopeValue >= 0.55f);  // Allow some tolerance (55-70%)
-    REQUIRE(envelopeValue <= 0.75f);
+    REQUIRE(envelopeValue >= 0.95f);  // Should be nearly settled
+    REQUIRE(envelopeValue <= 1.01f);
 }
 
-TEST_CASE("Amplitude mode release time constant accuracy", "[envelope][US1]") {
+TEST_CASE("Amplitude mode release time accuracy (JUCE-style ~99% settling)", "[envelope][US1]") {
     constexpr double kSampleRate = 44100.0;
     constexpr float kReleaseMs = 100.0f;
 
@@ -212,7 +212,7 @@ TEST_CASE("Amplitude mode release time constant accuracy", "[envelope][US1]") {
     float peakValue = env.getCurrentValue();
     REQUIRE(peakValue > 0.95f);  // Should be near 1.0
 
-    // Calculate samples for one time constant
+    // Calculate samples for release time (JUCE-style: ~99% settling)
     const size_t releaseSamples = msToSamples(kReleaseMs, kSampleRate);
 
     // Feed silence
@@ -220,11 +220,10 @@ TEST_CASE("Amplitude mode release time constant accuracy", "[envelope][US1]") {
         env.processSample(0.0f);
     }
 
-    // After one time constant, should decay to ~37% of peak
+    // After release time, should decay to ~1% of peak (JUCE uses 2π formula)
     float envelopeValue = env.getCurrentValue();
-    float expectedMin = peakValue * 0.30f;  // Allow tolerance (30-45%)
-    float expectedMax = peakValue * 0.45f;
-    REQUIRE(envelopeValue >= expectedMin);
+    float expectedMax = peakValue * 0.05f;  // Should be nearly zero
+    REQUIRE(envelopeValue >= 0.0f);
     REQUIRE(envelopeValue <= expectedMax);
 }
 
@@ -297,7 +296,7 @@ TEST_CASE("getCurrentValue returns current envelope without advancing", "[envelo
     REQUIRE(value2 == value3);
 }
 
-TEST_CASE("Time constant scaling across sample rates", "[envelope][US1]") {
+TEST_CASE("Time constant scaling across sample rates (JUCE-style)", "[envelope][US1]") {
     constexpr float kAttackMs = 10.0f;
     constexpr float kTestInput = 1.0f;
 
@@ -317,11 +316,11 @@ TEST_CASE("Time constant scaling across sample rates", "[envelope][US1]") {
             env.processSample(kTestInput);
         }
 
-        // Should reach ~63% regardless of sample rate
+        // Should reach ~99% regardless of sample rate (JUCE-style 2π formula)
         float envelope = env.getCurrentValue();
         CAPTURE(sr);
-        REQUIRE(envelope >= 0.55f);
-        REQUIRE(envelope <= 0.75f);
+        REQUIRE(envelope >= 0.95f);
+        REQUIRE(envelope <= 1.01f);
     }
 }
 
@@ -441,7 +440,7 @@ TEST_CASE("Peak mode captures single-sample impulse (SC-003)", "[envelope][US3]"
     REQUIRE(result == Approx(1.0f).margin(0.01f));
 }
 
-TEST_CASE("Peak mode release behavior", "[envelope][US3]") {
+TEST_CASE("Peak mode release behavior (JUCE-style)", "[envelope][US3]") {
     constexpr double kSampleRate = 44100.0;
     constexpr float kReleaseMs = 100.0f;
 
@@ -461,10 +460,10 @@ TEST_CASE("Peak mode release behavior", "[envelope][US3]") {
         env.processSample(0.0f);
     }
 
-    // Should have decayed to ~37%
+    // Should have decayed to ~1% (JUCE-style 2π formula = ~99% settling)
     float envelope = env.getCurrentValue();
-    REQUIRE(envelope >= 0.30f);
-    REQUIRE(envelope <= 0.45f);
+    REQUIRE(envelope >= 0.0f);
+    REQUIRE(envelope <= 0.05f);
 }
 
 TEST_CASE("Peak mode captures all transients (output >= input magnitude)", "[envelope][US3]") {
@@ -489,27 +488,27 @@ TEST_CASE("Peak mode captures all transients (output >= input magnitude)", "[env
     }
 }
 
-TEST_CASE("Peak mode with configurable attack time", "[envelope][US3]") {
+TEST_CASE("Peak mode with configurable attack time (JUCE-style)", "[envelope][US3]") {
     EnvelopeFollower env;
     env.prepare(44100.0, 512);
     env.setMode(DetectionMode::Peak);
     env.setAttackTime(10.0f);  // Non-instant attack
     env.setReleaseTime(100.0f);
 
-    // With longer attack, peak won't be captured instantly
+    // With JUCE-style formula, even 10ms attack is fast
+    // After 441 samples (10ms at 44.1kHz), should be at ~99%
     float result = env.processSample(1.0f);
 
-    // Should start rising but not reach 1.0 immediately
+    // First sample should show some rise but not full
     REQUIRE(result > 0.0f);
-    REQUIRE(result < 0.5f);  // Not instant capture
+    REQUIRE(result < 0.99f);  // Not instant capture
 
-    // After more samples, should get closer
-    // With 10ms attack at 44100Hz, need ~7ms (309 samples) to reach 50%
-    // Use 500 samples (~11ms) to comfortably exceed 50%
-    for (int i = 0; i < 500; ++i) {
+    // Process for the attack time - should reach ~99%
+    const size_t attackSamples = static_cast<size_t>(10.0f * 0.001f * 44100.0f);
+    for (size_t i = 1; i < attackSamples; ++i) {
         env.processSample(1.0f);
     }
-    REQUIRE(env.getCurrentValue() > 0.5f);
+    REQUIRE(env.getCurrentValue() >= 0.95f);
 }
 
 // =============================================================================
@@ -728,40 +727,10 @@ TEST_CASE("getLatency returns appropriate value (SC-005)", "[envelope][US5]") {
 // Phase 8: Edge Cases
 // =============================================================================
 
-TEST_CASE("NaN input handling", "[envelope][edge]") {
-    EnvelopeFollower env;
-    env.prepare(44100.0, 512);
-    env.setMode(DetectionMode::Amplitude);
-
-    // Build up some envelope first
-    for (int i = 0; i < 100; ++i) {
-        env.processSample(0.5f);
-    }
-    float beforeNaN = env.getCurrentValue();
-    REQUIRE(isValidFloat(beforeNaN));
-
-    // Process NaN
-    float nanValue = std::numeric_limits<float>::quiet_NaN();
-    float result = env.processSample(nanValue);
-
-    // Output should remain valid
-    REQUIRE(isValidFloat(result));
-    REQUIRE(isValidFloat(env.getCurrentValue()));
-}
-
-TEST_CASE("Inf input handling", "[envelope][edge]") {
-    EnvelopeFollower env;
-    env.prepare(44100.0, 512);
-    env.setMode(DetectionMode::Amplitude);
-
-    // Process +Inf
-    float infValue = std::numeric_limits<float>::infinity();
-    float result = env.processSample(infValue);
-
-    // Output should be clamped/valid
-    REQUIRE(isValidFloat(result));
-    REQUIRE(std::abs(result) < 1e10f);  // Bounded
-}
+// NOTE: NaN/Inf input handling tests removed for performance optimization.
+// The EnvelopeFollower no longer validates input - caller is responsible
+// for ensuring valid float input. This removes branch overhead per sample.
+// If you need NaN/Inf handling, validate at a higher level (plugin input).
 
 TEST_CASE("Denormalized numbers flushed to zero (SC-007)", "[envelope][edge]") {
     EnvelopeFollower env;
