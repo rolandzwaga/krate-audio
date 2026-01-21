@@ -879,7 +879,7 @@ TEST_CASE("Allpass1Pole process infinity handling", "[allpass_1pole][edge][FR-01
 
         // State should be reset
         const float nextResult = filter.process(1.0f);
-        REQUIRE_FALSE(std::isinf(nextResult));
+        REQUIRE_FALSE(detail::isInf(nextResult));
     }
 
     SECTION("Negative infinity") {
@@ -887,7 +887,7 @@ TEST_CASE("Allpass1Pole process infinity handling", "[allpass_1pole][edge][FR-01
         REQUIRE(result == 0.0f);
 
         const float nextResult = filter.process(1.0f);
-        REQUIRE_FALSE(std::isinf(nextResult));
+        REQUIRE_FALSE(detail::isInf(nextResult));
     }
 }
 
@@ -975,8 +975,8 @@ TEST_CASE("Allpass1Pole low sample rate 8kHz", "[allpass_1pole][edge][sample_rat
 
     for (size_t i = 0; i < kNumSamples; ++i) {
         buffer[i] = filter.process(buffer[i]);
-        REQUIRE_FALSE(std::isnan(buffer[i]));
-        REQUIRE_FALSE(std::isinf(buffer[i]));
+        REQUIRE_FALSE(detail::isNaN(buffer[i]));
+        REQUIRE_FALSE(detail::isInf(buffer[i]));
     }
 }
 
@@ -998,8 +998,8 @@ TEST_CASE("Allpass1Pole high sample rate 192kHz", "[allpass_1pole][edge][sample_
 
     for (size_t i = 0; i < kNumSamples; ++i) {
         buffer[i] = filter.process(buffer[i]);
-        REQUIRE_FALSE(std::isnan(buffer[i]));
-        REQUIRE_FALSE(std::isinf(buffer[i]));
+        REQUIRE_FALSE(detail::isNaN(buffer[i]));
+        REQUIRE_FALSE(detail::isInf(buffer[i]));
     }
 }
 
@@ -1013,7 +1013,7 @@ TEST_CASE("Allpass1Pole zero frequency clamped", "[allpass_1pole][edge][FR-009][
 
     // Verify filter still works
     const float output = filter.process(1.0f);
-    REQUIRE_FALSE(std::isnan(output));
+    REQUIRE_FALSE(detail::isNaN(output));
 }
 
 // T069: Frequency above Nyquist clamped to Nyquist*0.99 (FR-009)
