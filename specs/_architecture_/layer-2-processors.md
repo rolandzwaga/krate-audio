@@ -548,3 +548,131 @@ class BitcrusherProcessor {
 **Signal Chain (SampleReduceFirst):** Input -> [Store Dry] -> [Pre-Gain] -> [SampleRateReducer] -> [BitCrusher + Dither Gate] -> [Post-Gain] -> [DC Blocker] -> [Mix Blend] -> Output
 
 **Dependencies:** Layer 0 (db_utils.h), Layer 1 (bit_crusher.h, sample_rate_reducer.h, dc_blocker.h, smoother.h), Layer 2 peer (envelope_follower.h)
+
+---
+
+## CrossoverFilter
+**Path:** [crossover_filter.h](../../dsp/include/krate/dsp/processors/crossover_filter.h) | **Since:** 0.12.0
+
+Linkwitz-Riley crossover filters for phase-coherent multiband signal splitting. Outputs sum to perfectly flat frequency response.
+
+**Use when:**
+- Building multiband compressors, limiters, or dynamics processors
+- Creating multiband saturation, distortion, or waveshaping effects
+- Need bass management systems with sub/low/mid/high separation
+- Want frequency-specific processing (e.g., high-frequency de-essing, low-frequency tightening)
+- Implementing mastering-grade multiband processors
+
+**Features:**
+- Phase-coherent: all band outputs sum to flat response (within 0.1dB for 2/3-way, 1dB for 4-way)
+- LR4 characteristic: -6dB at crossover frequency, 24dB/octave slopes
+- Click-free automation: configurable smoothing (default 5ms)
+- Tracking modes: Efficient (0.1Hz hysteresis) or HighAccuracy (per-sample coefficient updates)
+- Thread-safe: lock-free atomic parameter updates for UI/audio thread safety
+
+```cpp
+enum class TrackingMode : uint8_t { Efficient, HighAccuracy };
+
+struct CrossoverLR4Outputs { float low, high; };
+struct Crossover3WayOutputs { float low, mid, high; };
+struct Crossover4WayOutputs { float sub, low, mid, high; };
+
+class CrossoverLR4 {
+    static constexpr float kMinFrequency = 20.0f;
+    static constexpr float kMaxFrequencyRatio = 0.45f;
+    static constexpr float kDefaultSmoothingMs = 5.0f;
+    static constexpr float kDefaultFrequency = 1000.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] CrossoverLR4Outputs process(float input) noexcept;
+    void processBlock(const float* input, float* low, float* high, size_t numSamples) noexcept;
+
+    void setCrossoverFrequency(float hz) noexcept;  // [20, sampleRate*0.45]
+    void setSmoothingTime(float ms) noexcept;       // Default 5ms
+    void setTrackingMode(TrackingMode mode) noexcept;
+
+    [[nodiscard]] float getCrossoverFrequency() const noexcept;
+    [[nodiscard]] float getSmoothingTime() const noexcept;
+    [[nodiscard]] TrackingMode getTrackingMode() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+
+class Crossover3Way {
+    static constexpr float kDefaultLowMidFrequency = 300.0f;
+    static constexpr float kDefaultMidHighFrequency = 3000.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] Crossover3WayOutputs process(float input) noexcept;
+    void processBlock(const float* input, float* low, float* mid, float* high, size_t numSamples) noexcept;
+
+    void setLowMidFrequency(float hz) noexcept;
+    void setMidHighFrequency(float hz) noexcept;    // Auto-clamped to >= lowMid
+    void setSmoothingTime(float ms) noexcept;
+    void setTrackingMode(TrackingMode mode) noexcept;
+};
+
+class Crossover4Way {
+    static constexpr float kDefaultSubLowFrequency = 80.0f;
+    static constexpr float kDefaultLowMidFrequency = 300.0f;
+    static constexpr float kDefaultMidHighFrequency = 3000.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] Crossover4WayOutputs process(float input) noexcept;
+    void processBlock(const float* input, float* sub, float* low, float* mid, float* high, size_t numSamples) noexcept;
+
+    void setSubLowFrequency(float hz) noexcept;
+    void setLowMidFrequency(float hz) noexcept;     // Auto-clamped to [subLow, midHigh]
+    void setMidHighFrequency(float hz) noexcept;    // Auto-clamped to >= lowMid
+    void setSmoothingTime(float ms) noexcept;
+    void setTrackingMode(TrackingMode mode) noexcept;
+};
+```
+
+| Class | Bands | Typical Use Case | Performance |
+|-------|-------|------------------|-------------|
+| CrossoverLR4 | 2 (Low/High) | Simple multiband split | <100ns/sample |
+| Crossover3Way | 3 (Low/Mid/High) | Standard multiband processing | ~200ns/sample |
+| Crossover4Way | 4 (Sub/Low/Mid/High) | Bass management, advanced effects | ~300ns/sample |
+
+| TrackingMode | Coefficient Updates | CPU Usage | Use Case |
+|--------------|---------------------|-----------|----------|
+| Efficient | When freq changes >= 0.1Hz | Lower | Most applications |
+| HighAccuracy | Every sample during smoothing | Higher | Critical automation |
+
+**Usage Example (2-way):**
+```cpp
+CrossoverLR4 crossover;
+crossover.prepare(44100.0);
+crossover.setCrossoverFrequency(1000.0f);
+
+// In audio callback
+auto [low, high] = crossover.process(inputSample);
+// Process bands independently, then sum for flat output
+float output = processedLow + processedHigh;
+```
+
+**Usage Example (3-way mastering):**
+```cpp
+Crossover3Way crossover;
+crossover.prepare(44100.0);
+crossover.setLowMidFrequency(300.0f);
+crossover.setMidHighFrequency(3000.0f);
+
+// Process block
+crossover.processBlock(input, lowBand, midBand, highBand, blockSize);
+// Apply different compression to each band, then sum
+```
+
+**Topology (LR4 2-way):**
+```
+Input --> [Butterworth LP Q=0.7071] --> [Butterworth LP Q=0.7071] --> Low (-6dB @ crossover)
+      \
+       -> [Butterworth HP Q=0.7071] --> [Butterworth HP Q=0.7071] --> High (-6dB @ crossover)
+
+Low + High = Flat (0dB across spectrum)
+```
+
+**Dependencies:** Layer 1 (biquad.h, smoother.h)
