@@ -1550,3 +1550,198 @@ TEST_CASE("CrossoverLR4 getters return correct values", "[crossover][edge]") {
     crossover.setTrackingMode(TrackingMode::HighAccuracy);
     REQUIRE(crossover.getTrackingMode() == TrackingMode::HighAccuracy);
 }
+
+// ==============================================================================
+// Allpass Compensation Tests (SC-005 improvement)
+// ==============================================================================
+// These tests verify that allpass compensation achieves tighter flat sum tolerance
+// for 3-way and 4-way crossovers (0.1dB instead of 1dB).
+//
+// Reference: D'Appolito, J.A. "Active Realization of Multiway All-Pass Crossover
+// Systems" - Journal of the Audio Engineering Society, Vol. 35, No. 4, April 1987
+
+// -----------------------------------------------------------------------------
+// Test: setAllpassCompensation API exists on Crossover3Way
+// -----------------------------------------------------------------------------
+TEST_CASE("Crossover3Way setAllpassCompensation API", "[crossover][allpass][API]") {
+    Crossover3Way crossover;
+    crossover.prepare(44100.0);
+
+    SECTION("Default is disabled") {
+        REQUIRE(crossover.isAllpassCompensationEnabled() == false);
+    }
+
+    SECTION("Can enable allpass compensation") {
+        crossover.setAllpassCompensation(true);
+        REQUIRE(crossover.isAllpassCompensationEnabled() == true);
+    }
+
+    SECTION("Can disable allpass compensation") {
+        crossover.setAllpassCompensation(true);
+        crossover.setAllpassCompensation(false);
+        REQUIRE(crossover.isAllpassCompensationEnabled() == false);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Test: setAllpassCompensation API exists on Crossover4Way
+// -----------------------------------------------------------------------------
+TEST_CASE("Crossover4Way setAllpassCompensation API", "[crossover][allpass][API]") {
+    Crossover4Way crossover;
+    crossover.prepare(44100.0);
+
+    SECTION("Default is disabled") {
+        REQUIRE(crossover.isAllpassCompensationEnabled() == false);
+    }
+
+    SECTION("Can enable allpass compensation") {
+        crossover.setAllpassCompensation(true);
+        REQUIRE(crossover.isAllpassCompensationEnabled() == true);
+    }
+
+    SECTION("Can disable allpass compensation") {
+        crossover.setAllpassCompensation(true);
+        crossover.setAllpassCompensation(false);
+        REQUIRE(crossover.isAllpassCompensationEnabled() == false);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Test: Crossover3Way with allpass compensation sums to 0.1dB flat (SC-004 strict)
+// -----------------------------------------------------------------------------
+TEST_CASE("Crossover3Way with allpass compensation sums to 0.1dB flat", "[crossover][allpass][flatsum][SC-004]") {
+    Crossover3Way crossover;
+    crossover.prepare(44100.0);
+    crossover.setLowMidFrequency(300.0f);
+    crossover.setMidHighFrequency(3000.0f);
+    crossover.setAllpassCompensation(true);  // Enable allpass compensation
+
+    const float sampleRate = 44100.0f;
+    const size_t numSamples = 16384;
+
+    // Test at various frequencies across the spectrum
+    std::vector<float> testFreqs = {50.0f, 100.0f, 200.0f, 500.0f, 1000.0f,
+                                    2000.0f, 5000.0f, 8000.0f, 12000.0f};
+
+    for (float testFreq : testFreqs) {
+        DYNAMIC_SECTION("Sum is flat at " << testFreq << "Hz") {
+            crossover.reset();
+
+            std::vector<float> input(numSamples);
+            std::vector<float> low(numSamples);
+            std::vector<float> mid(numSamples);
+            std::vector<float> high(numSamples);
+            std::vector<float> sum(numSamples);
+
+            generateSine(input.data(), numSamples, testFreq, sampleRate);
+            crossover.processBlock(input.data(), low.data(), mid.data(), high.data(), numSamples);
+
+            for (size_t i = 0; i < numSamples; ++i) {
+                sum[i] = low[i] + mid[i] + high[i];
+            }
+
+            // Measure RMS of second half (after transient settles)
+            const size_t startSample = numSamples / 2;
+            const float inputRms = calculateRMS(input.data() + startSample, numSamples - startSample);
+            const float sumRms = calculateRMS(sum.data() + startSample, numSamples - startSample);
+            const float responseDb = linearToDb(sumRms / inputRms);
+
+            // With allpass compensation: 0.1dB tolerance (strict SC-004)
+            REQUIRE(responseDb == Approx(0.0f).margin(0.1f));
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Test: Crossover4Way with allpass compensation sums to 0.1dB flat (SC-005 strict)
+// -----------------------------------------------------------------------------
+TEST_CASE("Crossover4Way with allpass compensation sums to 0.1dB flat", "[crossover][allpass][flatsum][SC-005]") {
+    Crossover4Way crossover;
+    crossover.prepare(44100.0);
+    crossover.setSubLowFrequency(80.0f);
+    crossover.setLowMidFrequency(300.0f);
+    crossover.setMidHighFrequency(3000.0f);
+    crossover.setAllpassCompensation(true);  // Enable allpass compensation
+
+    const float sampleRate = 44100.0f;
+    const size_t numSamples = 16384;
+
+    // Test at various frequencies across the spectrum
+    std::vector<float> testFreqs = {30.0f, 60.0f, 100.0f, 200.0f, 500.0f,
+                                    1000.0f, 2000.0f, 5000.0f, 10000.0f};
+
+    for (float testFreq : testFreqs) {
+        DYNAMIC_SECTION("Sum is flat at " << testFreq << "Hz") {
+            crossover.reset();
+
+            std::vector<float> input(numSamples);
+            std::vector<float> sub(numSamples);
+            std::vector<float> low(numSamples);
+            std::vector<float> mid(numSamples);
+            std::vector<float> high(numSamples);
+            std::vector<float> sum(numSamples);
+
+            generateSine(input.data(), numSamples, testFreq, sampleRate);
+            crossover.processBlock(input.data(), sub.data(), low.data(), mid.data(), high.data(), numSamples);
+
+            for (size_t i = 0; i < numSamples; ++i) {
+                sum[i] = sub[i] + low[i] + mid[i] + high[i];
+            }
+
+            // Measure RMS of second half (after transient settles)
+            const size_t startSample = numSamples / 2;
+            const float inputRms = calculateRMS(input.data() + startSample, numSamples - startSample);
+            const float sumRms = calculateRMS(sum.data() + startSample, numSamples - startSample);
+            const float responseDb = linearToDb(sumRms / inputRms);
+
+            // With allpass compensation: 0.1dB tolerance (strict SC-005)
+            REQUIRE(responseDb == Approx(0.0f).margin(0.1f));
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Test: Allpass compensation does not affect frequency sweep smoothness
+// -----------------------------------------------------------------------------
+TEST_CASE("Crossover4Way allpass compensation frequency sweep is click-free", "[crossover][allpass][SC-006]") {
+    Crossover4Way crossover;
+    crossover.prepare(44100.0);
+    crossover.setSubLowFrequency(80.0f);
+    crossover.setLowMidFrequency(300.0f);
+    crossover.setMidHighFrequency(3000.0f);
+    crossover.setAllpassCompensation(true);
+
+    const size_t numSamples = 4410;  // 100ms
+    std::vector<float> input(numSamples, 0.5f);  // Constant input to detect clicks
+    std::vector<float> sub(numSamples);
+    std::vector<float> low(numSamples);
+    std::vector<float> mid(numSamples);
+    std::vector<float> high(numSamples);
+
+    // Sweep mid-high frequency during processing
+    float freqStart = 1000.0f;
+    float freqEnd = 5000.0f;
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        float t = static_cast<float>(i) / static_cast<float>(numSamples);
+        float freq = freqStart + (freqEnd - freqStart) * t;
+        crossover.setMidHighFrequency(freq);
+
+        auto outputs = crossover.process(input[i]);
+        sub[i] = outputs.sub;
+        low[i] = outputs.low;
+        mid[i] = outputs.mid;
+        high[i] = outputs.high;
+    }
+
+    // Check for clicks (large sample-to-sample jumps)
+    float maxJump = 0.0f;
+    for (size_t i = 1; i < numSamples; ++i) {
+        float jump = std::abs((sub[i] + low[i] + mid[i] + high[i]) -
+                              (sub[i-1] + low[i-1] + mid[i-1] + high[i-1]));
+        maxJump = std::max(maxJump, jump);
+    }
+
+    // Max jump should be small (no clicks)
+    REQUIRE(maxJump < 1.0f);
+}

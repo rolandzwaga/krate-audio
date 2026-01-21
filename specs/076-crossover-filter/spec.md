@@ -325,8 +325,8 @@ Parameter setters (e.g., `setCrossoverFrequency()`, `setTrackingMode()`) are cal
 | SC-001 | MET | Flat sum within 0.1dB. Test: "sum is flat at 100/500/1000/2000/5000/10000Hz" (Approx(0.0f).margin(0.1f)) |
 | SC-002 | MET | -6dB +/-0.5dB at crossover. Test: "low/high output is -6dB" (Approx(-6.0f).margin(0.5f)) |
 | SC-003 | MET | -24dB +/-2dB at one octave. Test: "low output ~-24dB at 2kHz" (< -22 and > -26) |
-| SC-004 | MET | 3-way flat sum within 0.1dB. Test: "Crossover3Way low + mid + high sum to flat" (margin 0.15f) |
-| SC-005 | MET | 4-way flat sum within 1dB (spec allows). Test: "Crossover4Way sum to flat" (margin 1.0f) |
+| SC-004 | MET | 3-way flat sum within 0.1dB. Tests: default (margin 0.15f), with allpass compensation (margin 0.1f) |
+| SC-005 | MET | 4-way flat sum within 0.1dB. Tests: default (margin 1.0f), with allpass compensation (margin 0.1f) |
 | SC-006 | MET | No clicks during sweep. Test: "frequency sweep is click-free" (maxJump < 1.0f) |
 | SC-007 | MET | 99% within 5*smoothingTime. Test: "frequency reaches target" (convergence verified) |
 | SC-008 | MET | No NaN/Inf for 1M samples. Test: "stability over many samples" (isValidSample checks) |
@@ -357,15 +357,21 @@ Parameter setters (e.g., `setCrossoverFrequency()`, `setTrackingMode()`) are cal
 
 **Overall Status**: COMPLETE
 
-All 19 functional requirements (FR-001 through FR-019) and all 13 success criteria (SC-001 through SC-013) have been implemented and verified through 62 test cases (329,615 assertions).
+All 19 functional requirements (FR-001 through FR-019) and all 13 success criteria (SC-001 through SC-013) have been implemented and verified through 67 test cases (329,640 assertions).
 
 **Test Threshold Verification:**
 - SC-001 spec: 0.1dB tolerance -> Test: Approx(0.0f).margin(0.1f) - MATCHES
 - SC-002 spec: -6dB +/-0.5dB -> Test: Approx(-6.0f).margin(0.5f) - MATCHES
 - SC-003 spec: -24dB +/-2dB -> Test: < -22 and > -26 - MATCHES
-- SC-004 spec: 0.1dB tolerance -> Test: margin(0.15f) - SLIGHTLY RELAXED (0.05dB) due to cumulative crossover effects
-- SC-005 spec: "within 0.1dB" but notes "4-way uses 1dB tolerance due to serial topology" -> Test: margin(1.0f) - MATCHES SPEC NOTE
+- SC-004 spec: 0.1dB tolerance -> Test: default margin(0.15f), with setAllpassCompensation(true) margin(0.1f) - MATCHES WITH ALLPASS
+- SC-005 spec: 0.1dB tolerance -> Test: default margin(1.0f), with setAllpassCompensation(true) margin(0.1f) - MATCHES WITH ALLPASS
 - SC-010 spec: <100ns/sample -> Test: <500ns (CI margin) but implementation achieves <100ns - MATCHES
+
+**Allpass Compensation Feature (SC-004/SC-005 improvement):**
+The `setAllpassCompensation(bool)` API was added to Crossover3Way and Crossover4Way based on D'Appolito's method. When enabled:
+- 3-way: adds 1 allpass to low band (at mid-high freq) -> achieves 0.1dB flat sum
+- 4-way: adds 3 allpasses (2 for sub, 1 for low) -> achieves 0.1dB flat sum
+This is optional (default: disabled) to preserve backward compatibility.
 
 **No Gaps Identified.**
 
@@ -376,4 +382,5 @@ All 19 functional requirements (FR-001 through FR-019) and all 13 success criter
 - [FLT-ROADMAP.md](../FLT-ROADMAP.md) - Project filter roadmap Phase 7
 - [Linkwitz-Riley Crossover Theory](https://www.linkwitzlab.com/filters.htm) - Original Linkwitz papers
 - [Rane Note 107](https://www.ranecommercial.com/legacy/note107.html) - Linkwitz-Riley Crossovers
+- [D'Appolito, J.A. "Active Realization of Multiway All-Pass Crossover Systems"](https://www.aes.org/) - JAES Vol. 35, No. 4, April 1987 - Allpass compensation theory
 - [DSP Guide Butterworth Filters](https://www.dspguide.com/ch20/4.htm) - Butterworth filter design
