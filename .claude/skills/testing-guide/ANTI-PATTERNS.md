@@ -348,7 +348,8 @@ Before committing, check for these smells:
 | Excuses | "Too complex to test" | Extract pure logic |
 | Manual State | `setXForTesting()` before call | Simulate real call order |
 | CLI-Hostile Names | Test names starting with `-`, `+`, `--` | Use descriptive words |
-| Relaxing on Crash | Loosening thresholds when tests crash | Add `-fno-fast-math` flag |
+| Relaxing on Crash | Loosening thresholds when tests crash | Use `detail::isNaN()`/`detail::isInf()` |
+| Using std::isfinite | `std::isnan()`, `std::isfinite()`, `std::isinf()` | Use bit-level checks from `db_utils.h` |
 
 ---
 
@@ -438,27 +439,53 @@ On macOS/Linux with `-ffast-math`, these functions **DO NOT WORK**:
 
 This causes NaN/Inf values to propagate through DSP code, eventually causing crashes when used in math operations.
 
-### The Correct Fix
+### The Correct Fix: Use Bit-Level Checks (PREFERRED)
 
-**Add the source file to the `-fno-fast-math` list in CMakeLists.txt:**
+**This codebase has bit-level NaN/Inf checks in `db_utils.h` that work with `-ffast-math`:**
+
+```cpp
+// In dsp/include/krate/dsp/core/db_utils.h
+namespace detail {
+    constexpr bool isNaN(float x) noexcept;   // Bit-level NaN check
+    constexpr bool isInf(float x) noexcept;   // Bit-level Inf check
+}
+```
+
+**ALWAYS use these instead of std library functions:**
+
+```cpp
+// BAD - breaks with -ffast-math
+if (!std::isfinite(input)) { ... }
+if (std::isnan(value)) { ... }
+
+// GOOD - works everywhere
+if (detail::isNaN(input) || detail::isInf(input)) { ... }
+if (detail::isNaN(value)) { ... }
+```
+
+**Why this works:** These functions use `std::bit_cast` to examine IEEE 754 bit patterns directly, which works regardless of fast-math optimization flags.
+
+### Alternative Fix: `-fno-fast-math` (FALLBACK)
+
+If you must use `std::isfinite()` etc., add the source file to the `-fno-fast-math` list:
 
 ```cmake
 # In dsp/tests/CMakeLists.txt
 if(NOT MSVC)
     set_source_files_properties(
-        unit/processors/spectral_gate_test.cpp  # ADD THIS LINE
-        unit/test_helpers/artifact_detection_tests.cpp
-        # ... other files needing IEEE 754 compliance
+        unit/processors/spectral_gate_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
 ```
 
+**WARNING:** This only works for test files. For DSP implementation headers (which are header-only and get inlined), you MUST use the bit-level checks.
+
 ### How to Diagnose
 
 1. **Exit code 8 on macOS** = likely SIGFPE (floating-point exception)
 2. **Test crashes but works locally on Windows** = `-ffast-math` issue
-3. **Code uses `std::isnan()`, `std::isfinite()`, or `std::isinf()`** = needs `-fno-fast-math`
+3. **Code uses `std::isnan()`, `std::isfinite()`, or `std::isinf()`** = replace with `detail::isNaN()`/`detail::isInf()`
 
 ### The Rule
 
@@ -467,12 +494,18 @@ endif()
 > - Crashes are NOT precision issues
 > - Crashes are NOT "CI is different"
 > - Crashes ARE bugs that need fixing
+> - **ALWAYS use `detail::isNaN()` and `detail::isInf()` from `db_utils.h`**
 
-### Files That Need `-fno-fast-math`
+### Quick Reference: Safe NaN/Inf Checking
 
-Any file that uses:
-- `std::isnan()`, `std::isfinite()`, `std::isinf()`
-- NaN/Inf input validation
-- IEEE 754 special value handling
-- Division that could produce Inf
-- Operations that could produce NaN (0/0, sqrt(-1), etc.)
+| Instead of... | Use... |
+|---------------|--------|
+| `std::isnan(x)` | `detail::isNaN(x)` |
+| `std::isinf(x)` | `detail::isInf(x)` |
+| `std::isfinite(x)` | `!detail::isNaN(x) && !detail::isInf(x)` |
+| `!std::isfinite(x)` | `detail::isNaN(x) \|\| detail::isInf(x)` |
+
+**Note:** In Catch2 `REQUIRE()` macros, wrap `&&` expressions in parentheses:
+```cpp
+REQUIRE((!detail::isNaN(x) && !detail::isInf(x)));  // Extra parens required
+```
