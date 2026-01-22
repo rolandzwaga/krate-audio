@@ -805,3 +805,147 @@ Input -------+-->| (600Hz, Q=10)   |---+
 ```
 
 **Dependencies:** Layer 0 (filter_tables.h), Layer 1 (biquad.h, smoother.h)
+
+---
+
+## EnvelopeFilter
+**Path:** [envelope_filter.h](../../dsp/include/krate/dsp/processors/envelope_filter.h) | **Since:** 0.13.0
+
+Envelope-controlled filter (auto-wah) combining EnvelopeFollower with SVF for touch-sensitive filter effects.
+
+**Use when:**
+- Creating classic auto-wah effects for guitar or synth
+- Need touch-sensitive filter sweeps that respond to playing dynamics
+- Want multiple filter types (lowpass, bandpass, highpass) with envelope control
+- Building funk-style touch wah or bass filter effects
+- Need inverse wah (Down direction) for unique tonal effects
+
+**Features:**
+- Three filter types: Lowpass, Bandpass, Highpass (12dB/oct SVF)
+- Two direction modes: Up (classic wah) and Down (inverse wah)
+- Exponential frequency mapping for perceptually linear sweeps
+- Sensitivity control for input level matching (-24 to +24 dB)
+- Configurable attack/release for envelope response (0.1ms to 5000ms)
+- Depth control for modulation amount
+- Dry/wet mix for parallel filtering
+
+```cpp
+enum class Direction : uint8_t { Up, Down };
+enum class FilterType : uint8_t { Lowpass, Bandpass, Highpass };
+
+class EnvelopeFilter {
+    static constexpr float kMinSensitivity = -24.0f;
+    static constexpr float kMaxSensitivity = 24.0f;
+    static constexpr float kMinFrequency = 20.0f;
+    static constexpr float kMinResonance = 0.5f;
+    static constexpr float kMaxResonance = 20.0f;
+    static constexpr float kDefaultMinFrequency = 200.0f;
+    static constexpr float kDefaultMaxFrequency = 2000.0f;
+    static constexpr float kDefaultResonance = 8.0f;
+    static constexpr float kDefaultAttackMs = 10.0f;
+    static constexpr float kDefaultReleaseMs = 100.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    // Envelope parameters
+    void setSensitivity(float dB) noexcept;        // [-24, +24] pre-gain for envelope
+    void setAttack(float ms) noexcept;             // [0.1, 500] envelope attack
+    void setRelease(float ms) noexcept;            // [1, 5000] envelope release
+    void setDirection(Direction dir) noexcept;     // Up or Down
+
+    // Filter parameters
+    void setFilterType(FilterType type) noexcept;  // Lowpass, Bandpass, Highpass
+    void setMinFrequency(float hz) noexcept;       // [20, maxFreq-1] sweep start
+    void setMaxFrequency(float hz) noexcept;       // [minFreq+1, Nyquist*0.45] sweep end
+    void setResonance(float q) noexcept;           // [0.5, 20.0] filter Q
+    void setDepth(float amount) noexcept;          // [0, 1] modulation depth
+
+    // Output
+    void setMix(float dryWet) noexcept;            // [0, 1] dry/wet
+
+    // Monitoring
+    [[nodiscard]] float getCurrentCutoff() const noexcept;
+    [[nodiscard]] float getCurrentEnvelope() const noexcept;
+
+    // Getters for all parameters
+    [[nodiscard]] float getSensitivity() const noexcept;
+    [[nodiscard]] float getAttack() const noexcept;
+    [[nodiscard]] float getRelease() const noexcept;
+    [[nodiscard]] Direction getDirection() const noexcept;
+    [[nodiscard]] FilterType getFilterType() const noexcept;
+    [[nodiscard]] float getMinFrequency() const noexcept;
+    [[nodiscard]] float getMaxFrequency() const noexcept;
+    [[nodiscard]] float getResonance() const noexcept;
+    [[nodiscard]] float getDepth() const noexcept;
+    [[nodiscard]] float getMix() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| sensitivity | 0 dB | [-24, +24] | Pre-gain for envelope detection only |
+| attack | 10 ms | [0.1, 500] | Envelope attack time |
+| release | 100 ms | [1, 5000] | Envelope release time |
+| direction | Up | enum | Higher envelope = higher/lower cutoff |
+| filterType | Lowpass | enum | Filter response type |
+| minFrequency | 200 Hz | [20, maxFreq-1] | Sweep range minimum |
+| maxFrequency | 2000 Hz | [minFreq+1, Nyquist*0.45] | Sweep range maximum |
+| resonance | 8.0 | [0.5, 20.0] | Filter Q factor |
+| depth | 1.0 | [0, 1] | Modulation amount |
+| mix | 1.0 | [0, 1] | Dry/wet blend |
+
+**Usage Example (Classic auto-wah):**
+```cpp
+EnvelopeFilter filter;
+filter.prepare(44100.0);
+filter.setFilterType(EnvelopeFilter::FilterType::Bandpass);
+filter.setMinFrequency(200.0f);
+filter.setMaxFrequency(2000.0f);
+filter.setResonance(8.0f);
+filter.setAttack(10.0f);
+filter.setRelease(100.0f);
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(input[i]);
+}
+```
+
+**Usage Example (Inverse wah for bass):**
+```cpp
+EnvelopeFilter filter;
+filter.prepare(44100.0);
+filter.setDirection(EnvelopeFilter::Direction::Down);
+filter.setFilterType(EnvelopeFilter::FilterType::Lowpass);
+filter.setMinFrequency(100.0f);
+filter.setMaxFrequency(1000.0f);
+filter.setResonance(4.0f);
+```
+
+**Topology:**
+```
+                   +------------------+
+Input --> +------->| Sensitivity Gain |---> EnvelopeFollower
+          |        +------------------+              |
+          |                                          v
+          |                            +-----------------------+
+          |                            | Exponential Mapping   |
+          |                            | (minFreq to maxFreq)  |
+          |                            +-----------------------+
+          |                                          |
+          |        +------------------+              v
+          +------->|       SVF        |<--- Cutoff Frequency
+                   | (LP/BP/HP @Q)    |
+                   +------------------+
+                            |
+                            v
+                   +------------------+
+                   | Dry/Wet Mix      |---> Output
+                   +------------------+
+```
+
+**Dependencies:** Layer 0 (db_utils.h), Layer 1 (svf.h), Layer 2 peer (envelope_follower.h)
