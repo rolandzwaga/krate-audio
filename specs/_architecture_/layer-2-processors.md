@@ -1336,3 +1336,170 @@ Input --> [OnePoleSmoother (tilt)] --+
 ```
 
 **Dependencies:** Layer 0 (db_utils.h, math_constants.h), Layer 1 (biquad.h, smoother.h)
+
+---
+
+## ResonatorBank
+**Path:** [resonator_bank.h](../../dsp/include/krate/dsp/processors/resonator_bank.h) | **Since:** 0.14.0
+
+Bank of 16 tuned resonant bandpass filters for physical modeling applications. Supports harmonic, inharmonic, and custom tuning modes with per-resonator control of frequency, decay, gain, and Q.
+
+**Use when:**
+- Creating physical modeling effects (marimba bars, bells, strings)
+- Need tuned resonance added to percussive or noise sources
+- Want harmonic series tuning (strings, flutes) or inharmonic (bells, bars)
+- Building pitched percussion synthesizers
+- Need spectral shaping via global tilt and damping controls
+
+**Features:**
+- 16 parallel bandpass resonators using Biquad filters
+- Three tuning modes: Harmonic, Inharmonic, Custom frequencies
+- Per-resonator control: frequency, decay (RT60), gain (dB), Q factor
+- Global damping to scale all decay times proportionally
+- Global spectral tilt for brightness/darkness control (-12 to +12 dB/octave)
+- Exciter mix for dry/wet blend
+- Trigger function for percussive excitation
+- Parameter smoothing (20ms) for click-free automation
+- Real-time safe (noexcept, no allocations in process)
+
+```cpp
+enum class TuningMode : uint8_t { Harmonic, Inharmonic, Custom };
+
+class ResonatorBank {
+    static constexpr size_t kMaxResonators = 16;
+    static constexpr float kMinResonatorFrequency = 20.0f;
+    static constexpr float kMaxResonatorFrequencyRatio = 0.45f;
+    static constexpr float kMinResonatorQ = 0.1f;
+    static constexpr float kMaxResonatorQ = 100.0f;
+    static constexpr float kMinDecayTime = 0.001f;
+    static constexpr float kMaxDecayTime = 30.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Tuning configuration
+    void setHarmonicSeries(float fundamentalHz, int numPartials) noexcept;
+    void setInharmonicSeries(float baseHz, float inharmonicity) noexcept;
+    void setCustomFrequencies(const float* frequencies, size_t count) noexcept;
+    [[nodiscard]] TuningMode getTuningMode() const noexcept;
+    [[nodiscard]] size_t getNumActiveResonators() const noexcept;
+
+    // Per-resonator control
+    void setFrequency(size_t index, float hz) noexcept;
+    void setDecay(size_t index, float seconds) noexcept;
+    void setGain(size_t index, float dB) noexcept;
+    void setQ(size_t index, float q) noexcept;
+    void setEnabled(size_t index, bool enabled) noexcept;
+    [[nodiscard]] float getFrequency(size_t index) const noexcept;
+    [[nodiscard]] float getDecay(size_t index) const noexcept;
+    [[nodiscard]] float getGain(size_t index) const noexcept;
+    [[nodiscard]] float getQ(size_t index) const noexcept;
+    [[nodiscard]] bool isEnabled(size_t index) const noexcept;
+
+    // Global controls
+    void setDamping(float amount) noexcept;          // [0, 1] 0=full decay, 1=silent
+    void setExciterMix(float amount) noexcept;       // [0, 1] 0=wet, 1=dry
+    void setSpectralTilt(float dBPerOctave) noexcept; // [-12, +12]
+    [[nodiscard]] float getDamping() const noexcept;
+    [[nodiscard]] float getExciterMix() const noexcept;
+    [[nodiscard]] float getSpectralTilt() const noexcept;
+
+    // Trigger
+    void trigger(float velocity = 1.0f) noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| frequency | 440 Hz | [20, sampleRate*0.45] | Center frequency per resonator |
+| decay | 1.0 s | [0.001, 30] | RT60 decay time per resonator |
+| gain | 0 dB | - | Output gain per resonator |
+| Q | 10.0 | [0.1, 100] | Quality factor per resonator |
+| damping | 0.0 | [0, 1] | Global decay scaling |
+| exciterMix | 0.0 | [0, 1] | Dry/wet mix |
+| spectralTilt | 0.0 | [-12, +12] | dB/octave with 1kHz pivot |
+
+**Tuning Modes:**
+
+| Mode | Formula | Use Case |
+|------|---------|----------|
+| Harmonic | f_n = f_0 * n | Strings, flutes, ideal resonators |
+| Inharmonic | f_n = f_0 * n * sqrt(1 + B*n^2) | Bells, marimba bars, stiff strings |
+| Custom | User-specified frequencies | Experimental tunings, specific instruments |
+
+**Usage Example (Harmonic series):**
+```cpp
+ResonatorBank bank;
+bank.prepare(44100.0);
+bank.setHarmonicSeries(440.0f, 8);  // A4 with 8 partials
+bank.setDamping(0.2f);               // Light damping
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = bank.process(input[i]);
+}
+```
+
+**Usage Example (Percussive trigger):**
+```cpp
+ResonatorBank bank;
+bank.prepare(44100.0);
+bank.setInharmonicSeries(110.0f, 0.01f);  // Bell-like partials
+
+// On MIDI note-on
+bank.trigger(velocity / 127.0f);
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = bank.process(0.0f);  // No audio input needed
+}
+```
+
+**Usage Example (Custom tuning):**
+```cpp
+ResonatorBank bank;
+bank.prepare(44100.0);
+
+// Gamelan-style tuning
+std::array<float, 5> pelog = {293.0f, 329.0f, 349.0f, 415.0f, 466.0f};
+bank.setCustomFrequencies(pelog.data(), pelog.size());
+```
+
+**Utility Functions:**
+
+```cpp
+// Convert RT60 decay time to filter Q
+[[nodiscard]] float rt60ToQ(float frequency, float rt60Seconds) noexcept;
+
+// Calculate inharmonic partial frequency
+[[nodiscard]] float calculateInharmonicFrequency(
+    float fundamental, int partial, float inharmonicity) noexcept;
+
+// Calculate spectral tilt gain for a frequency
+[[nodiscard]] float calculateTiltGain(
+    float frequency, float tiltDbPerOctave) noexcept;
+```
+
+**Topology:**
+```
+                   +------------------------+
+                   | Bandpass Resonator 0   |---+
+                   +------------------------+   |
+                                                |
+Input ----+------->| Bandpass Resonator 1   |---+----> [Spectral Tilt] --> [Exciter Mix] --> Output
+          |        +------------------------+   |
+          |                   ...               |
+          |        +------------------------+   |
+          +------->| Bandpass Resonator 15  |---+
+                   +------------------------+
+
+Each resonator: Input -> [Biquad Bandpass @ freq, Q] -> [Gain] -> [Damping Scale] -> [Tilt Gain]
+```
+
+**Dependencies:** Layer 0 (db_utils.h, math_constants.h), Layer 1 (biquad.h, smoother.h)
