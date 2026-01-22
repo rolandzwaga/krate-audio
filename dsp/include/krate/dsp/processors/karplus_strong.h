@@ -20,6 +20,7 @@
 #include <krate/dsp/primitives/two_pole_lp.h>
 #include <krate/dsp/primitives/allpass_1pole.h>
 #include <krate/dsp/primitives/dc_blocker.h>
+#include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/random.h>
 #include <krate/dsp/core/db_utils.h>
 
@@ -108,14 +109,24 @@ public:
         // Pre-allocate excitation buffer for maximum delay length
         size_t maxDelaySamples = static_cast<size_t>(sampleRate_ / minFrequency_) + 10;
         excitationBuffer_.resize(maxDelaySamples, 0.0f);
+        pickPositionBuffer_.resize(maxDelaySamples, 0.0f);  // FR-027: Pre-allocate
+
+        // SC-008: Initialize parameter smoothers (20ms smoothing time)
+        constexpr float kSmoothingTimeMs = 20.0f;
+        frequencySmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate_));
+        dampingSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate_));
+        brightnessSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate_));
 
         prepared_ = true;
 
-        // Apply default settings
+        // Apply default settings (snap smoothers to initial values)
         setFrequency(440.0f);
+        frequencySmoother_.snapTo(frequency_);
         setDecay(1.0f);
         setDamping(0.3f);
+        dampingSmoother_.snapTo(damping_);
         setBrightness(1.0f);
+        brightnessSmoother_.snapTo(brightness_);
         setPickPosition(0.0f);
         setStretch(0.0f);
     }
@@ -128,6 +139,9 @@ public:
         stretchFilter_.reset();
         dcBlocker_.reset();
         brightnessFilter_.reset();
+        frequencySmoother_.snapTo(frequency_);
+        dampingSmoother_.snapTo(damping_);
+        brightnessSmoother_.snapTo(brightness_);
         bowPressure_ = 0.0f;
         std::fill(excitationBuffer_.begin(), excitationBuffer_.end(), 0.0f);
     }
@@ -176,17 +190,19 @@ public:
 
     /// @brief Set the damping amount (high-frequency loss).
     /// @param amount Damping 0.0 (bright) to 1.0 (dark)
-    /// @note FR-011, FR-012: Controls feedback loop lowpass cutoff
+    /// @note FR-011, FR-012, SC-008: Controls feedback loop lowpass cutoff with smoothing
     void setDamping(float amount) noexcept {
         damping_ = std::clamp(amount, 0.0f, 1.0f);
+        dampingSmoother_.setTarget(damping_);
         updateDampingCutoff();
     }
 
     /// @brief Set the excitation brightness.
     /// @param amount Brightness 0.0 (dark) to 1.0 (bright)
-    /// @note FR-013, FR-014: Controls excitation lowpass filter
+    /// @note FR-013, FR-014, SC-008: Controls excitation lowpass filter with smoothing
     void setBrightness(float amount) noexcept {
         brightness_ = std::clamp(amount, 0.0f, 1.0f);
+        brightnessSmoother_.setTarget(brightness_);
 
         // Map brightness to cutoff: 0.0 = 200Hz, 1.0 = Nyquist * 0.45
         float minCutoff = 200.0f;
@@ -246,31 +262,32 @@ public:
         }
 
         // FR-016: Apply pick position comb filtering
+        // Use pre-allocated pickPositionBuffer_ (FR-027: no allocation in pluck)
         if (pickPosition_ > 0.001f && pickPosition_ < 0.999f) {
             size_t tapOffset = static_cast<size_t>(pickPosition_ * static_cast<float>(delayLength));
             if (tapOffset > 0 && tapOffset < delayLength) {
                 // Create comb effect by reading from tapped position
-                std::vector<float> tempBuffer(delayLength);
                 for (size_t i = 0; i < delayLength; ++i) {
                     size_t tapIndex = (i + tapOffset) % delayLength;
                     // Mix direct and tapped signal for comb filtering
-                    tempBuffer[i] = excitationBuffer_[i] - excitationBuffer_[tapIndex];
+                    pickPositionBuffer_[i] = excitationBuffer_[i] - excitationBuffer_[tapIndex];
                 }
-                std::copy(tempBuffer.begin(), tempBuffer.begin() + static_cast<ptrdiff_t>(delayLength),
+                std::copy(pickPositionBuffer_.begin(),
+                          pickPositionBuffer_.begin() + static_cast<ptrdiff_t>(delayLength),
                           excitationBuffer_.begin());
             }
         }
 
-        // FR-033: Add to existing buffer with normalization if needed
+        // FR-033: Read existing delay content and add new excitation
+        // Use peekNext() to read what's currently at each position
         float maxAbs = 0.0f;
         for (size_t i = 0; i < delayLength; ++i) {
-            // Read current delay content and add excitation
-            // Note: We can't easily read from DelayLine, so we just write
-            // For re-pluck, the existing content will mix in the feedback loop
+            float existing = delay_.peekNext(i);
+            excitationBuffer_[i] += existing;
             maxAbs = std::max(maxAbs, std::abs(excitationBuffer_[i]));
         }
 
-        // Normalize if needed
+        // Normalize if sum exceeds ±1.0 to prevent clipping
         if (maxAbs > 1.0f) {
             float scale = 1.0f / maxAbs;
             for (size_t i = 0; i < delayLength; ++i) {
@@ -278,7 +295,7 @@ public:
             }
         }
 
-        // Write to delay line
+        // Write combined signal to delay line
         for (size_t i = 0; i < delayLength; ++i) {
             delay_.write(excitationBuffer_[i]);
         }
@@ -315,7 +332,7 @@ public:
     /// @brief Process one sample.
     /// @param input External excitation input (default 0)
     /// @return Output sample
-    /// @note FR-026, FR-027, FR-028, FR-029, FR-030
+    /// @note FR-026, FR-027, FR-028, FR-029, FR-030, SC-008
     [[nodiscard]] float process(float input = 0.0f) noexcept {
         // FR-025: Return input unchanged if not prepared
         if (!prepared_) {
@@ -326,6 +343,27 @@ public:
         if (detail::isNaN(input) || detail::isInf(input)) {
             reset();
             return 0.0f;
+        }
+
+        // SC-008: Apply parameter smoothing
+        const float smoothedDamping = dampingSmoother_.process();
+        const float smoothedBrightness = brightnessSmoother_.process();
+
+        // Update damping filter if smoothing is active
+        if (!dampingSmoother_.isComplete()) {
+            float multiplier = 1.0f + 19.0f * (1.0f - smoothedDamping);
+            float cutoff = frequency_ * multiplier;
+            float maxCutoff = static_cast<float>(sampleRate_) * 0.45f;
+            cutoff = std::clamp(cutoff, frequency_, maxCutoff);
+            dampingFilter_.setCutoff(cutoff);
+        }
+
+        // Update brightness filter if smoothing is active
+        if (!brightnessSmoother_.isComplete()) {
+            float minCutoff = 200.0f;
+            float maxCutoff = static_cast<float>(sampleRate_) * 0.45f;
+            float cutoff = minCutoff + smoothedBrightness * (maxCutoff - minCutoff);
+            brightnessFilter_.setCutoff(cutoff);
         }
 
         // FR-003: Read from delay with allpass interpolation
@@ -410,7 +448,13 @@ private:
     TwoPoleLP brightnessFilter_;  ///< Excitation brightness filter
     Xorshift32 rng_{12345};       ///< Noise generator for excitation
 
-    std::vector<float> excitationBuffer_;  ///< Pre-allocated excitation buffer
+    // SC-008: Parameter smoothers for click-free automation
+    OnePoleSmoother frequencySmoother_;   ///< Frequency smoothing (not used in feedback)
+    OnePoleSmoother dampingSmoother_;     ///< Damping smoothing
+    OnePoleSmoother brightnessSmoother_;  ///< Brightness smoothing
+
+    std::vector<float> excitationBuffer_;     ///< Pre-allocated excitation buffer
+    std::vector<float> pickPositionBuffer_;   ///< FR-027: Pre-allocated pick position buffer
 
     // =========================================================================
     // Parameters

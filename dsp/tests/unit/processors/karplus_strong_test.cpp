@@ -1028,6 +1028,123 @@ TEST_CASE("KarplusStrong re-pluck normalization", "[karplus_strong][edge]") {
             REQUIRE(sample >= -2.0f);
         }
     }
+
+    SECTION("FR-033: Re-pluck adds to existing content (verified additive)") {
+        // First instance: single pluck
+        KarplusStrong ksSingle;
+        ksSingle.prepare(44100.0, 20.0f);
+        ksSingle.setFrequency(220.0f);  // Low frequency for longer period
+        ksSingle.setDecay(2.0f);
+        ksSingle.pluck(0.5f);
+
+        // Second instance: pluck then re-pluck during active
+        KarplusStrong ksDouble;
+        ksDouble.prepare(44100.0, 20.0f);
+        ksDouble.setFrequency(220.0f);
+        ksDouble.setDecay(2.0f);
+        ksDouble.pluck(0.5f);
+
+        // Process a few samples so string is still ringing
+        for (int i = 0; i < 100; ++i) {
+            (void)ksSingle.process();
+            (void)ksDouble.process();
+        }
+
+        // Re-pluck the double instance
+        ksDouble.pluck(0.5f);
+
+        // Process and compare energy
+        constexpr size_t kNumSamples = 4410;
+        float energySingle = 0.0f;
+        float energyDouble = 0.0f;
+
+        for (size_t i = 0; i < kNumSamples; ++i) {
+            float s = ksSingle.process();
+            float d = ksDouble.process();
+            energySingle += s * s;
+            energyDouble += d * d;
+        }
+
+        // Double-plucked should have more energy (additive)
+        // But not excessive (normalized)
+        REQUIRE(energyDouble > energySingle);
+        REQUIRE(energyDouble < energySingle * 10.0f);  // Not unbounded
+    }
+}
+
+TEST_CASE("KarplusStrong parameter smoothing", "[karplus_strong][smoothing]") {
+
+    SECTION("SC-008: Rapid damping changes don't cause clicks") {
+        KarplusStrong ks;
+        ks.prepare(44100.0, 20.0f);
+        ks.setFrequency(440.0f);
+        ks.setDecay(2.0f);
+        ks.setDamping(0.3f);
+        ks.pluck(1.0f);
+
+        // Process some samples to get stable output
+        for (int i = 0; i < 1000; ++i) {
+            (void)ks.process();
+        }
+
+        // Now rapidly change damping while processing
+        constexpr size_t kNumSamples = 4410;
+        std::vector<float> buffer(kNumSamples);
+
+        for (size_t i = 0; i < kNumSamples; ++i) {
+            // Rapidly oscillate damping every 100 samples
+            if (i % 100 == 0) {
+                ks.setDamping((i / 100) % 2 == 0 ? 0.1f : 0.9f);
+            }
+            buffer[i] = ks.process();
+        }
+
+        // Check for no sudden large jumps (clicks)
+        // A "click" would be a sudden sample-to-sample change > 0.5
+        int clickCount = 0;
+        for (size_t i = 1; i < kNumSamples; ++i) {
+            float diff = std::abs(buffer[i] - buffer[i - 1]);
+            if (diff > 0.5f) {
+                clickCount++;
+            }
+        }
+
+        // Should have very few large jumps (some at pluck attack is OK)
+        REQUIRE(clickCount < 50);  // Generous threshold
+    }
+
+    SECTION("SC-008: Rapid brightness changes don't cause clicks") {
+        KarplusStrong ks;
+        ks.prepare(44100.0, 20.0f);
+        ks.setFrequency(440.0f);
+        ks.setDecay(2.0f);
+        ks.setBrightness(0.5f);
+        ks.pluck(1.0f);
+
+        for (int i = 0; i < 1000; ++i) {
+            (void)ks.process();
+        }
+
+        constexpr size_t kNumSamples = 4410;
+        std::vector<float> buffer(kNumSamples);
+
+        for (size_t i = 0; i < kNumSamples; ++i) {
+            if (i % 100 == 0) {
+                ks.setBrightness((i / 100) % 2 == 0 ? 0.1f : 1.0f);
+            }
+            buffer[i] = ks.process();
+        }
+
+        int clickCount = 0;
+        for (size_t i = 1; i < kNumSamples; ++i) {
+            float diff = std::abs(buffer[i] - buffer[i - 1]);
+            if (diff > 0.5f) {
+                clickCount++;
+            }
+        }
+
+        REQUIRE(clickCount < 50);
+    }
 }
 
 TEST_CASE("KarplusStrong extreme decay times", "[karplus_strong][edge]") {
