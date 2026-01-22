@@ -249,18 +249,23 @@ TEST_CASE("SpectralTilt: Positive tilt boosts above pivot (+6 dB/octave)", "[spe
     INFO("Gain at 2 kHz: " << gainAt2k << " dB");
     INFO("Gain at 4 kHz: " << gainAt4k << " dB");
 
-    // Key characteristics of positive tilt:
+    // Key characteristics of positive tilt (dual-shelf implementation):
     // 1. Gain increases monotonically with frequency
     REQUIRE(gainAt500 < gainAtPivot);
     REQUIRE(gainAtPivot < gainAt2k);
     REQUIRE(gainAt2k < gainAt4k);
 
-    // 2. Below pivot is near 0 dB (passband)
-    REQUIRE(gainAt500 >= -3.0f);
-    REQUIRE(gainAt500 <= 3.0f);
+    // 2. Pivot is at unity gain (FR-006)
+    REQUIRE(gainAtPivot == Approx(0.0f).margin(0.1f));
 
-    // 3. Above pivot has significant boost
-    REQUIRE(gainAt4k > gainAtPivot + 5.0f);
+    // 3. Below pivot is cut (approximately -6 to -9 dB at 1 octave below)
+    // Dual-shelf tilt affects both sides of the pivot
+    REQUIRE(gainAt500 >= -12.0f);
+    REQUIRE(gainAt500 <= -3.0f);
+
+    // 4. Above pivot has significant boost
+    REQUIRE(gainAt2k > 5.0f);
+    REQUIRE(gainAt4k > gainAt2k);
 }
 
 // =============================================================================
@@ -301,19 +306,23 @@ TEST_CASE("SpectralTilt: Negative tilt cuts above pivot (-6 dB/octave)", "[spect
     INFO("Gain at 2 kHz: " << gainAt2k << " dB");
     INFO("Gain at 4 kHz: " << gainAt4k << " dB");
 
-    // Key characteristics of negative tilt:
+    // Key characteristics of negative tilt (dual-shelf implementation):
     // 1. Gain decreases monotonically with frequency
     REQUIRE(gainAt500 > gainAtPivot);
     REQUIRE(gainAtPivot > gainAt2k);
     REQUIRE(gainAt2k > gainAt4k);
 
-    // 2. Below pivot is closer to 0 dB than above pivot
-    // (high-shelf transition region may affect slightly below cutoff)
-    REQUIRE(gainAt500 >= -5.0f);
-    REQUIRE(gainAt500 <= 3.0f);
+    // 2. Pivot is at unity gain (FR-006)
+    REQUIRE(gainAtPivot == Approx(0.0f).margin(0.1f));
 
-    // 3. Above pivot has significant cut
-    REQUIRE(gainAt4k < gainAtPivot - 5.0f);
+    // 3. Below pivot is boosted (approximately +6 to +9 dB at 1 octave below)
+    // Dual-shelf tilt affects both sides of the pivot
+    REQUIRE(gainAt500 >= 3.0f);
+    REQUIRE(gainAt500 <= 12.0f);
+
+    // 4. Above pivot has significant cut
+    REQUIRE(gainAt2k < -5.0f);
+    REQUIRE(gainAt4k < gainAt2k);
 }
 
 // =============================================================================
@@ -374,10 +383,10 @@ TEST_CASE("SpectralTilt: Transition at pivot frequency", "[spectral_tilt][pivot]
     }
 
     SECTION("Pivot position affects where transition occurs") {
-        // With +6 dB/octave tilt at 1 kHz pivot:
-        // - 500 Hz (1 octave below): near 0 dB
-        // - 1 kHz (pivot): in transition region (some boost due to shelf shape)
-        // - 2 kHz (1 octave above): significant boost
+        // With +6 dB/octave tilt at 1 kHz pivot (dual-shelf):
+        // - 500 Hz (1 octave below): approximately -6 to -9 dB (cut)
+        // - 1 kHz (pivot): 0 dB (unity)
+        // - 2 kHz (1 octave above): approximately +6 to +9 dB (boost)
 
         tilt.setPivotFrequency(1000.0f);
         tilt.setTilt(6.0f);
@@ -395,14 +404,20 @@ TEST_CASE("SpectralTilt: Transition at pivot frequency", "[spectral_tilt][pivot]
         INFO("Gain at 1 kHz: " << gain1k << " dB");
         INFO("Gain at 2 kHz: " << gain2k << " dB");
 
-        // 500 Hz should have less boost than 1 kHz
-        // 1 kHz should have less boost than 2 kHz
+        // Monotonic increase with frequency
         REQUIRE(gain500 < gain1k);
         REQUIRE(gain1k < gain2k);
 
-        // 500 Hz should be near 0 dB (below transition)
-        REQUIRE(gain500 >= -3.0f);
-        REQUIRE(gain500 <= 3.0f);
+        // Pivot at unity (FR-006)
+        REQUIRE(gain1k == Approx(0.0f).margin(0.1f));
+
+        // 500 Hz should be cut (1 octave below pivot)
+        REQUIRE(gain500 >= -12.0f);
+        REQUIRE(gain500 <= -3.0f);
+
+        // 2 kHz should be boosted (1 octave above pivot)
+        REQUIRE(gain2k >= 3.0f);
+        REQUIRE(gain2k <= 12.0f);
     }
 }
 
@@ -414,7 +429,7 @@ TEST_CASE("SpectralTilt: Different pivot positions shift transition region", "[s
     tilt.prepare(sampleRate);
     tilt.setTilt(6.0f);
 
-    SECTION("Pivot at 500 Hz: frequencies below 500 Hz are less affected") {
+    SECTION("Pivot at 500 Hz: frequencies below 500 Hz are cut") {
         tilt.setPivotFrequency(500.0f);
 
         // Settle
@@ -423,20 +438,25 @@ TEST_CASE("SpectralTilt: Different pivot positions shift transition region", "[s
         }
 
         float gain250 = measureGainAtFrequency(tilt, 250.0f, sampleRate);
+        float gain500 = measureGainAtFrequency(tilt, 500.0f, sampleRate);
         float gain1k = measureGainAtFrequency(tilt, 1000.0f, sampleRate);
 
         INFO("Gain at 250 Hz: " << gain250 << " dB");
+        INFO("Gain at 500 Hz (pivot): " << gain500 << " dB");
         INFO("Gain at 1 kHz: " << gain1k << " dB");
 
-        // 250 Hz (below pivot) should be near unity
-        REQUIRE(gain250 >= -3.0f);
-        REQUIRE(gain250 <= 3.0f);
+        // Pivot at unity
+        REQUIRE(gain500 == Approx(0.0f).margin(0.1f));
+
+        // 250 Hz (below pivot) should be cut
+        REQUIRE(gain250 >= -12.0f);
+        REQUIRE(gain250 <= -3.0f);
 
         // 1 kHz (above pivot) should have significant boost
         REQUIRE(gain1k > 5.0f);
     }
 
-    SECTION("Pivot at 2 kHz: frequencies below 2 kHz are less affected") {
+    SECTION("Pivot at 2 kHz: frequencies below 2 kHz are cut") {
         tilt.setPivotFrequency(2000.0f);
 
         // Settle
@@ -445,14 +465,19 @@ TEST_CASE("SpectralTilt: Different pivot positions shift transition region", "[s
         }
 
         float gain1k = measureGainAtFrequency(tilt, 1000.0f, sampleRate);
+        float gain2k = measureGainAtFrequency(tilt, 2000.0f, sampleRate);
         float gain4k = measureGainAtFrequency(tilt, 4000.0f, sampleRate);
 
         INFO("Gain at 1 kHz: " << gain1k << " dB");
+        INFO("Gain at 2 kHz (pivot): " << gain2k << " dB");
         INFO("Gain at 4 kHz: " << gain4k << " dB");
 
-        // 1 kHz (below pivot) should be near unity
-        REQUIRE(gain1k >= -3.0f);
-        REQUIRE(gain1k <= 3.0f);
+        // Pivot at unity
+        REQUIRE(gain2k == Approx(0.0f).margin(0.1f));
+
+        // 1 kHz (below pivot) should be cut
+        REQUIRE(gain1k >= -12.0f);
+        REQUIRE(gain1k <= -3.0f);
 
         // 4 kHz (above pivot) should have significant boost
         REQUIRE(gain4k > 5.0f);

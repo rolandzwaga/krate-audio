@@ -2,7 +2,7 @@
 // Layer 2: DSP Processor - Spectral Tilt Filter
 // ==============================================================================
 // Applies a linear dB/octave gain slope across the frequency spectrum using
-// an efficient IIR (single high-shelf biquad) approximation.
+// an efficient dual-shelf IIR implementation (low-shelf + high-shelf cascade).
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations in process)
@@ -14,17 +14,28 @@
 // Reference: specs/082-spectral-tilt/spec.md
 //
 // Algorithm:
-// Uses a single high-shelf biquad filter centered at the pivot frequency.
-// The shelf gain is set to the tilt amount in dB/octave, which provides
-// approximately correct gain at 1 octave from pivot. This is an approximation
-// that provides good accuracy (~1 dB) within 2-3 octaves of the pivot.
+// Uses a dual-shelf cascade (low-shelf + high-shelf) meeting at the pivot
+// frequency. This approach provides:
+// - Exact 0 dB gain at the pivot frequency (FR-006)
+// - Better slope linearity near the pivot
+// - Proper tilt behavior above and below pivot
 //
-// The shelf gain is clamped to prevent extreme boost/cut that would cause
+// For positive tilt (boost highs, cut lows):
+// - Low-shelf: cuts frequencies below pivot
+// - High-shelf: boosts frequencies above pivot
+// - At pivot: both shelves are at their half-gain point, summing to 0 dB
+//
+// The shelf gains are clamped to prevent extreme boost/cut that would cause
 // numerical instability or excessive gain at frequency extremes.
 //
 // Denormal Prevention:
 // Uses the Biquad's built-in flushDenormal() method which flushes small values
 // to zero in the filter state variables.
+//
+// Research References:
+// - CCRMA Stanford: Spectral Tilt Filters (J.O. Smith)
+// - Audio EQ Cookbook (R. Bristow-Johnson)
+// - GroupDIY/Gearspace: Tilt EQ design discussions
 // ==============================================================================
 
 #pragma once
@@ -43,7 +54,7 @@ namespace DSP {
 /// @brief Spectral Tilt Filter - Layer 2 Processor
 ///
 /// Applies a linear dB/octave gain slope across the frequency spectrum
-/// using an efficient IIR (high-shelf biquad) approximation.
+/// using an efficient dual-shelf IIR cascade (low-shelf + high-shelf).
 ///
 /// @par Features
 /// - Configurable tilt amount (-12 to +12 dB/octave)
@@ -176,7 +187,8 @@ public:
         updateCoefficients(tilt_, pivotFrequency_);
 
         // Reset filter state
-        filter_.reset();
+        lowShelf_.reset();
+        highShelf_.reset();
     }
 
     /// @brief Reset internal state without changing parameters
@@ -185,7 +197,8 @@ public:
     /// @note Real-time safe
     /// @note FR-016
     void reset() noexcept {
-        filter_.reset();
+        lowShelf_.reset();
+        highShelf_.reset();
     }
 
     // =========================================================================
@@ -251,8 +264,9 @@ public:
             updateCoefficients(smoothedTilt, smoothedPivot);
         }
 
-        // Process through filter (Biquad handles denormals and NaN)
-        return filter_.process(input);
+        // Process through dual-shelf cascade (Biquad handles denormals and NaN)
+        // Low-shelf first, then high-shelf
+        return highShelf_.process(lowShelf_.process(input));
     }
 
     /// @brief Process a block of samples in-place
@@ -313,52 +327,70 @@ private:
     /// @brief Update filter coefficients based on current tilt and pivot
     /// @param tilt Current (smoothed) tilt value in dB/octave
     /// @param pivot Current (smoothed) pivot frequency in Hz
+    ///
+    /// Dual-Shelf Algorithm:
+    /// For a spectral tilt of X dB/octave, we configure two shelves with SYMMETRIC
+    /// gains meeting at the pivot frequency:
+    /// - Low-shelf at pivot: gain = -G (cuts below pivot for positive tilt)
+    /// - High-shelf at pivot: gain = +G (boosts above pivot for positive tilt)
+    ///
+    /// At the pivot frequency, both shelves are at their half-gain transition point:
+    /// - Low-shelf contributes -G/2
+    /// - High-shelf contributes +G/2
+    /// - Sum = 0 dB at pivot (FR-006)
+    ///
+    /// The gain G is calculated to give the desired tilt slope. Since a single
+    /// first-order shelf has ~6 dB/octave slope, and the tilt has two slopes
+    /// working together, G is scaled by a reference octave span.
+    ///
+    /// Using a 4-octave reference span: G = tilt * 4 = 24 dB for ±6 dB/octave tilt.
+    /// This gives approximately correct slope near the pivot.
     void updateCoefficients(float tilt, float pivot) noexcept {
-        // A high-shelf filter provides gain above its cutoff frequency.
-        // For a spectral tilt of X dB/octave, we need the gain at Nyquist to be:
-        //   shelfGainDb = tiltDb * log2(nyquist / pivotFreq)
-        //
-        // This formula gives us the correct gain at Nyquist based on the number
-        // of octaves from pivot to Nyquist. The high-shelf then transitions
-        // from 0 dB at pivot to shelfGainDb at Nyquist.
-        //
-        // Example: +6 dB/octave tilt with pivot at 1 kHz, sample rate 44100 Hz
-        //   Nyquist = 22050 Hz
-        //   octaves = log2(22050 / 1000) = ~4.46 octaves
-        //   shelfGainDb = 6 * 4.46 = ~26.8 dB at Nyquist
-
         // Clamp pivot frequency to valid range for the current sample rate
-        const float nyquist = static_cast<float>(sampleRate_) * 0.5f;
         const float maxFreq = static_cast<float>(sampleRate_) * 0.495f;
         const float clampedPivot = std::clamp(pivot, kMinPivot, std::min(kMaxPivot, maxFreq));
 
-        // Calculate number of octaves from pivot to Nyquist
-        const float octavesToNyquist = std::log2(nyquist / clampedPivot);
-
-        // Calculate shelf gain for the target tilt slope
-        float shelfGainDb = tilt * octavesToNyquist;
+        // Calculate symmetric shelf gain for the target tilt slope
+        // With Q=0.7071, at 1 octave from pivot each shelf provides ~75% of its gain.
+        // For 6 dB/octave tilt, we want ~6 dB at 1 octave, so:
+        // 0.75 * G = tilt → G = tilt / 0.75 ≈ tilt * 1.33
+        // Using 1.5 as reference gives slightly more headroom.
+        constexpr float kReferenceMultiplier = 1.5f;
+        float shelfGainDb = tilt * kReferenceMultiplier;
 
         // Clamp gain to safe limits (FR-023, FR-024, FR-025)
         shelfGainDb = std::clamp(shelfGainDb, kMinGainDb, kMaxGainDb);
 
-        // Calculate high-shelf coefficients
-        auto coeffs = BiquadCoefficients::calculate(
+        // Calculate low-shelf coefficients (cuts below pivot for positive tilt)
+        // Symmetric negative gain ensures half-gains cancel at pivot
+        auto lowCoeffs = BiquadCoefficients::calculate(
+            FilterType::LowShelf,
+            clampedPivot,
+            kButterworthQ,
+            -shelfGainDb,  // Negative for low-shelf
+            static_cast<float>(sampleRate_)
+        );
+        lowShelf_.setCoefficients(lowCoeffs);
+
+        // Calculate high-shelf coefficients (boosts above pivot for positive tilt)
+        // Symmetric positive gain ensures half-gains cancel at pivot
+        auto highCoeffs = BiquadCoefficients::calculate(
             FilterType::HighShelf,
             clampedPivot,
             kButterworthQ,
-            shelfGainDb,
+            shelfGainDb,   // Positive for high-shelf
             static_cast<float>(sampleRate_)
         );
-
-        filter_.setCoefficients(coeffs);
+        highShelf_.setCoefficients(highCoeffs);
     }
 
     // =========================================================================
     // Member Variables
     // =========================================================================
 
-    // Processing components
-    Biquad filter_;
+    // Processing components - dual-shelf cascade
+    Biquad lowShelf_;   ///< Low-shelf filter (cuts below pivot for positive tilt)
+    Biquad highShelf_;  ///< High-shelf filter (boosts above pivot for positive tilt)
 
     // Parameter smoothers
     OnePoleSmoother tiltSmoother_;
