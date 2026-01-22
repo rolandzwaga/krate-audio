@@ -277,6 +277,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/test_helpers/spectral_anomaly_tests.cpp
         unit/test_helpers/golden_reference_tests.cpp
         unit/test_helpers/artifact_detection_integration_tests.cpp
+        unit/processors/spectral_gate_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
