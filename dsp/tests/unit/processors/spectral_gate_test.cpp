@@ -92,8 +92,9 @@ inline void generateNoiseWithLevel(float* buffer, std::size_t size, float rmsLev
 }
 
 /// Check if sample is valid (not NaN or Inf)
+/// Uses bit-level checks that work with -ffast-math
 inline bool isValidSample(float sample) {
-    return std::isfinite(sample);
+    return !detail::isNaN(sample) && !detail::isInf(sample);
 }
 
 /// Convert bin index to frequency
@@ -478,9 +479,9 @@ TEST_CASE("SpectralGate envelope release phase", "[spectral_gate][US2]") {
 
     // With release time, we might see some decay, but silence input means output should also approach silence
     // The key is that the gate doesn't snap shut instantly
-    // All values should be valid
+    // All values should be valid (using bit-level checks that work with -ffast-math)
     for (auto rms : rmsValues) {
-        REQUIRE(std::isfinite(rms));
+        REQUIRE((!detail::isNaN(rms) && !detail::isInf(rms)));
     }
 }
 

@@ -242,8 +242,8 @@ public:
             return 0.0f;
         }
 
-        // Check for NaN/Inf
-        if (!std::isfinite(input)) {
+        // Check for NaN/Inf using bit-level checks (works with -ffast-math)
+        if (detail::isNaN(input) || detail::isInf(input)) {
             reset();
             return 0.0f;
         }
@@ -292,10 +292,10 @@ public:
             return;
         }
 
-        // Check for NaN/Inf in input
+        // Check for NaN/Inf in input using bit-level checks (works with -ffast-math)
         bool hasInvalidInput = false;
         for (std::size_t i = 0; i < numSamples; ++i) {
-            if (!std::isfinite(buffer[i])) {
+            if (detail::isNaN(buffer[i]) || detail::isInf(buffer[i])) {
                 hasInvalidInput = true;
                 break;
             }
