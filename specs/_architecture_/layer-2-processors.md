@@ -1503,3 +1503,127 @@ Each resonator: Input -> [Biquad Bandpass @ freq, Q] -> [Gain] -> [Damping Scale
 ```
 
 **Dependencies:** Layer 0 (db_utils.h, math_constants.h), Layer 1 (biquad.h, smoother.h)
+
+---
+
+## KarplusStrong
+**Path:** [karplus_strong.h](../../dsp/include/krate/dsp/processors/karplus_strong.h) | **Since:** 0.14.0
+
+Karplus-Strong plucked string synthesizer for realistic plucked and bowed string sounds. Implements the classic algorithm with extensions for tone shaping, inharmonicity, and continuous excitation.
+
+**Use when:**
+- Creating realistic plucked string sounds (guitar, harp, harpsichord, koto)
+- Need sustained/bowed string sounds with infinite sustain capability
+- Want piano-like inharmonicity for bell-like or metallic timbres
+- Building physical modeling instruments or effects
+- Need resonant string response to external audio (sympathetic resonance)
+
+**Features:**
+- Allpass fractional delay interpolation for pitch accuracy within 20 cents
+- Noise burst excitation with configurable brightness filtering
+- Pick position simulation via comb filtering
+- Damping control for high-frequency loss (tone darkening)
+- Decay time control (RT60) with feedback coefficient limiting
+- Inharmonicity (stretch) via allpass dispersion for piano/bell character
+- Continuous bowing mode for sustained tones
+- Custom excitation signal injection for hybrid sounds
+- DC blocking in feedback path
+- External audio input for sympathetic resonance
+- All methods noexcept for real-time safety
+
+```cpp
+class KarplusStrong {
+    void prepare(double sampleRate, float minFrequency = 20.0f) noexcept;
+    void reset() noexcept;
+
+    // Pitch control
+    void setFrequency(float hz) noexcept;           // [minFrequency, Nyquist*0.5]
+    void setDecay(float seconds) noexcept;          // RT60 decay time
+    void setDamping(float amount) noexcept;         // [0, 1] HF loss
+    void setBrightness(float amount) noexcept;      // [0, 1] excitation spectrum
+    void setPickPosition(float position) noexcept;  // [0, 1] comb filtering
+    void setStretch(float amount) noexcept;         // [0, 1] inharmonicity
+
+    // Excitation
+    void pluck(float velocity = 1.0f) noexcept;     // Noise burst
+    void bow(float pressure) noexcept;              // Continuous excitation
+    void excite(const float* signal, size_t length) noexcept;  // Custom
+
+    // Processing
+    [[nodiscard]] float process(float input = 0.0f) noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+    void processBlock(const float* input, float* output, size_t numSamples) noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| frequency | 440 Hz | [minFreq, Nyquist*0.5] | Fundamental pitch |
+| decay | 1.0 s | [0.001, 60] | RT60 decay time |
+| damping | 0.3 | [0, 1] | 0=bright, 1=dark |
+| brightness | 1.0 | [0, 1] | Excitation HF content |
+| pickPosition | 0.0 | [0, 1] | 0=bridge, 0.5=middle, 1=nut |
+| stretch | 0.0 | [0, 1] | 0=harmonic, 1=bell-like |
+
+**Excitation Modes:**
+
+| Mode | Method | Use Case |
+|------|--------|----------|
+| Pluck | pluck(velocity) | Guitar, harp, harpsichord |
+| Bow | bow(pressure) | Sustained strings, drones |
+| Custom | excite(signal, length) | Hybrid synthesis, special effects |
+
+**Usage Example (Basic pluck):**
+```cpp
+KarplusStrong ks;
+ks.prepare(44100.0, 20.0f);
+ks.setFrequency(440.0f);
+ks.setDecay(2.0f);
+ks.setDamping(0.3f);
+
+ks.pluck(1.0f);  // Full velocity pluck
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = ks.process();
+}
+```
+
+**Usage Example (Sustained bowing):**
+```cpp
+KarplusStrong ks;
+ks.prepare(44100.0, 20.0f);
+ks.setFrequency(220.0f);
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    ks.bow(0.5f);  // Continuous pressure
+    output[i] = ks.process();
+}
+```
+
+**Usage Example (Piano-like inharmonicity):**
+```cpp
+KarplusStrong ks;
+ks.prepare(44100.0, 20.0f);
+ks.setFrequency(440.0f);
+ks.setStretch(0.3f);  // Moderate inharmonicity
+ks.pluck(1.0f);
+```
+
+**Topology:**
+```
+Excitation (pluck/bow/excite) --> [TwoPoleLP brightness]
+                                        |
+                                        v
+                                  (fills delay line with pick position comb)
+
+Feedback loop:
+DelayLine --> OnePoleLP --> Allpass1Pole --> DCBlocker2 --> * feedback --> DelayLine
+(allpass)    (damping)     (stretch)        (DC block)
+                                        |
+                                        v
+                                     Output
+```
+
+**Dependencies:** Layer 0 (random.h, db_utils.h), Layer 1 (delay_line.h, one_pole.h, two_pole_lp.h, allpass_1pole.h, dc_blocker.h)
