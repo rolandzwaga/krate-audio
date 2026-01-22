@@ -96,6 +96,7 @@ add_executable(dsp_tests
     unit/processors/phaser_test.cpp
     unit/processors/spectral_morph_filter_test.cpp
     unit/processors/spectral_gate_test.cpp
+    unit/processors/spectral_tilt_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -278,6 +279,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/test_helpers/golden_reference_tests.cpp
         unit/test_helpers/artifact_detection_integration_tests.cpp
         unit/processors/spectral_gate_test.cpp
+        unit/processors/spectral_tilt_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
