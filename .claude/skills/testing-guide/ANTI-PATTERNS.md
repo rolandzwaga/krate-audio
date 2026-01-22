@@ -348,6 +348,8 @@ Before committing, check for these smells:
 | Excuses | "Too complex to test" | Extract pure logic |
 | Manual State | `setXForTesting()` before call | Simulate real call order |
 | CLI-Hostile Names | Test names starting with `-`, `+`, `--` | Use descriptive words |
+| Relaxing on Crash | Loosening thresholds when tests crash | Use `detail::isNaN()`/`detail::isInf()` |
+| Using std::isfinite | `std::isnan()`, `std::isfinite()`, `std::isinf()` | Use bit-level checks from `db_utils.h` |
 
 ---
 
@@ -396,3 +398,114 @@ This often passes on Windows but fails on Linux/macOS where the shell handles ar
 | `-1.0 input` | `Negative one input` |
 | `+0.0 vs -0.0` | `Positive zero vs negative zero` |
 | `--flag` | `Double-dash flag` or `Verbose flag`|
+
+---
+
+## 11. Relaxing Test Expectations When Tests Crash
+
+> **THIS IS A CRITICAL MISTAKE**
+>
+> When a test CRASHES (non-zero exit code, SIGFPE, SIGABRT, etc.), the solution is **NEVER** to relax test expectations or thresholds.
+
+### The Scenario
+
+CI reports a test failure with an exit code (e.g., exit code 8 on macOS). You think "maybe the threshold is too tight on this platform" and relax the test:
+
+```cpp
+// WRONG: Test is crashing, so you "fix" it by loosening thresholds
+// Before:
+REQUIRE(reductionDb >= 20.0f);
+
+// "Fix":
+REQUIRE(reductionDb >= 19.5f);  // "margin for float precision"
+```
+
+**This is completely wrong.** A crash is not a threshold issue - it's a fatal error in the code.
+
+### Why This Is Wrong
+
+| Symptom | What You Think | What's Actually Happening |
+|---------|----------------|---------------------------|
+| Exit code 8 on macOS | "Float precision is different" | Code is crashing (SIGFPE, invalid operation) |
+| Test "fails" on Linux | "Thresholds need adjustment" | `std::isnan()` doesn't work with `-ffast-math` |
+| "Works locally, fails in CI" | "CI runner is slower/different" | Platform-specific undefined behavior |
+
+### The Real Cause: `-ffast-math` and IEEE 754
+
+On macOS/Linux with `-ffast-math`, these functions **DO NOT WORK**:
+- `std::isnan()`
+- `std::isfinite()`
+- `std::isinf()`
+
+This causes NaN/Inf values to propagate through DSP code, eventually causing crashes when used in math operations.
+
+### The Correct Fix: Use Bit-Level Checks (PREFERRED)
+
+**This codebase has bit-level NaN/Inf checks in `db_utils.h` that work with `-ffast-math`:**
+
+```cpp
+// In dsp/include/krate/dsp/core/db_utils.h
+namespace detail {
+    constexpr bool isNaN(float x) noexcept;   // Bit-level NaN check
+    constexpr bool isInf(float x) noexcept;   // Bit-level Inf check
+}
+```
+
+**ALWAYS use these instead of std library functions:**
+
+```cpp
+// BAD - breaks with -ffast-math
+if (!std::isfinite(input)) { ... }
+if (std::isnan(value)) { ... }
+
+// GOOD - works everywhere
+if (detail::isNaN(input) || detail::isInf(input)) { ... }
+if (detail::isNaN(value)) { ... }
+```
+
+**Why this works:** These functions use `std::bit_cast` to examine IEEE 754 bit patterns directly, which works regardless of fast-math optimization flags.
+
+### Alternative Fix: `-fno-fast-math` (FALLBACK)
+
+If you must use `std::isfinite()` etc., add the source file to the `-fno-fast-math` list:
+
+```cmake
+# In dsp/tests/CMakeLists.txt
+if(NOT MSVC)
+    set_source_files_properties(
+        unit/processors/spectral_gate_test.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+    )
+endif()
+```
+
+**WARNING:** This only works for test files. For DSP implementation headers (which are header-only and get inlined), you MUST use the bit-level checks.
+
+### How to Diagnose
+
+1. **Exit code 8 on macOS** = likely SIGFPE (floating-point exception)
+2. **Test crashes but works locally on Windows** = `-ffast-math` issue
+3. **Code uses `std::isnan()`, `std::isfinite()`, or `std::isinf()`** = replace with `detail::isNaN()`/`detail::isInf()`
+
+### The Rule
+
+> **When tests CRASH, NEVER relax expectations. Find the root cause.**
+>
+> - Crashes are NOT precision issues
+> - Crashes are NOT "CI is different"
+> - Crashes ARE bugs that need fixing
+> - **ALWAYS use `detail::isNaN()` and `detail::isInf()` from `db_utils.h`**
+
+### Quick Reference: Safe NaN/Inf Checking
+
+| Instead of... | Use... |
+|---------------|--------|
+| `std::isnan(x)` | `detail::isNaN(x)` |
+| `std::isinf(x)` | `detail::isInf(x)` |
+| `std::isfinite(x)` | `!detail::isNaN(x) && !detail::isInf(x)` |
+| `!std::isfinite(x)` | `detail::isNaN(x) \|\| detail::isInf(x)` |
+
+**Note:** In Catch2 `REQUIRE()` macros, wrap `&&` expressions in parentheses:
+```cpp
+REQUIRE((!detail::isNaN(x) && !detail::isInf(x)));  // Extra parens required
+```
