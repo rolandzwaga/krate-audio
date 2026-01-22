@@ -348,6 +348,7 @@ Before committing, check for these smells:
 | Excuses | "Too complex to test" | Extract pure logic |
 | Manual State | `setXForTesting()` before call | Simulate real call order |
 | CLI-Hostile Names | Test names starting with `-`, `+`, `--` | Use descriptive words |
+| Relaxing on Crash | Loosening thresholds when tests crash | Add `-fno-fast-math` flag |
 
 ---
 
@@ -396,3 +397,82 @@ This often passes on Windows but fails on Linux/macOS where the shell handles ar
 | `-1.0 input` | `Negative one input` |
 | `+0.0 vs -0.0` | `Positive zero vs negative zero` |
 | `--flag` | `Double-dash flag` or `Verbose flag`|
+
+---
+
+## 11. Relaxing Test Expectations When Tests Crash
+
+> **THIS IS A CRITICAL MISTAKE**
+>
+> When a test CRASHES (non-zero exit code, SIGFPE, SIGABRT, etc.), the solution is **NEVER** to relax test expectations or thresholds.
+
+### The Scenario
+
+CI reports a test failure with an exit code (e.g., exit code 8 on macOS). You think "maybe the threshold is too tight on this platform" and relax the test:
+
+```cpp
+// WRONG: Test is crashing, so you "fix" it by loosening thresholds
+// Before:
+REQUIRE(reductionDb >= 20.0f);
+
+// "Fix":
+REQUIRE(reductionDb >= 19.5f);  // "margin for float precision"
+```
+
+**This is completely wrong.** A crash is not a threshold issue - it's a fatal error in the code.
+
+### Why This Is Wrong
+
+| Symptom | What You Think | What's Actually Happening |
+|---------|----------------|---------------------------|
+| Exit code 8 on macOS | "Float precision is different" | Code is crashing (SIGFPE, invalid operation) |
+| Test "fails" on Linux | "Thresholds need adjustment" | `std::isnan()` doesn't work with `-ffast-math` |
+| "Works locally, fails in CI" | "CI runner is slower/different" | Platform-specific undefined behavior |
+
+### The Real Cause: `-ffast-math` and IEEE 754
+
+On macOS/Linux with `-ffast-math`, these functions **DO NOT WORK**:
+- `std::isnan()`
+- `std::isfinite()`
+- `std::isinf()`
+
+This causes NaN/Inf values to propagate through DSP code, eventually causing crashes when used in math operations.
+
+### The Correct Fix
+
+**Add the source file to the `-fno-fast-math` list in CMakeLists.txt:**
+
+```cmake
+# In dsp/tests/CMakeLists.txt
+if(NOT MSVC)
+    set_source_files_properties(
+        unit/processors/spectral_gate_test.cpp  # ADD THIS LINE
+        unit/test_helpers/artifact_detection_tests.cpp
+        # ... other files needing IEEE 754 compliance
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+    )
+endif()
+```
+
+### How to Diagnose
+
+1. **Exit code 8 on macOS** = likely SIGFPE (floating-point exception)
+2. **Test crashes but works locally on Windows** = `-ffast-math` issue
+3. **Code uses `std::isnan()`, `std::isfinite()`, or `std::isinf()`** = needs `-fno-fast-math`
+
+### The Rule
+
+> **When tests CRASH, NEVER relax expectations. Find the root cause.**
+>
+> - Crashes are NOT precision issues
+> - Crashes are NOT "CI is different"
+> - Crashes ARE bugs that need fixing
+
+### Files That Need `-fno-fast-math`
+
+Any file that uses:
+- `std::isnan()`, `std::isfinite()`, `std::isinf()`
+- NaN/Inf input validation
+- IEEE 754 special value handling
+- Division that could produce Inf
+- Operations that could produce NaN (0/0, sqrt(-1), etc.)
