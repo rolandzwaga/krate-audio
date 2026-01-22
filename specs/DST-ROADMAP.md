@@ -706,6 +706,474 @@ private:
 
 ---
 
+## Phase 5: Novel Distortion - Spectral & Chaos (Sound Design)
+
+Creative distortion techniques targeting sound design and special effects.
+
+### 5.1 Spectral Distortion Processor (`processors/spectral_distortion.h`)
+
+Apply distortion algorithms per-frequency-bin in the spectral domain.
+
+```cpp
+enum class SpectralDistortionMode : uint8_t {
+    PerBinSaturate,     // Apply saturation to each bin's magnitude
+    MagnitudeOnly,      // Saturate magnitudes, preserve phase exactly
+    BinSelective,       // Different distortion per frequency range
+    SpectralBitcrush    // Quantize magnitudes per bin
+};
+
+class SpectralDistortion {
+public:
+    void prepare(double sampleRate, size_t fftSize = 2048);
+    void reset();
+
+    void setMode(SpectralDistortionMode mode);
+    void setDrive(float drive);                    // Global drive
+    void setSaturationCurve(WaveshapeType curve);  // Which waveshaper
+
+    // Bin-selective mode
+    void setLowBand(float freqHz, float drive);    // Below this freq
+    void setMidBand(float lowHz, float highHz, float drive);
+    void setHighBand(float freqHz, float drive);   // Above this freq
+
+    // Spectral bitcrush
+    void setMagnitudeBits(float bits);             // Quantize magnitudes
+
+    void processBlock(const float* input, float* output, size_t n) noexcept;
+
+    [[nodiscard]] size_t latency() const noexcept; // FFT size
+
+private:
+    STFT stft_;
+    OverlapAdd overlapAdd_;
+    SpectralBuffer spectrumA_;
+    Waveshaper waveshaper_;
+    // ...
+};
+```
+
+**Reuses:** STFT, OverlapAdd, SpectralBuffer (Layer 1), Waveshaper
+**Novel:** Impossible distortion characteristics - saturate magnitudes while preserving phase perfectly
+
+### 5.2 Chaos Attractor Waveshaper (`primitives/chaos_waveshaper.h`)
+
+Use chaotic mathematical systems for organic, unpredictable transfer functions.
+
+```cpp
+enum class ChaosModel : uint8_t {
+    Lorenz,     // Classic Lorenz attractor - swirling, unpredictable
+    Rossler,    // Smoother chaos, less harsh
+    Chua,       // Electronic chaos circuit - analog character
+    Henon       // 2D map - discrete, sharp transitions
+};
+
+class ChaosWaveshaper {
+public:
+    void prepare(double sampleRate);
+    void reset();
+
+    void setModel(ChaosModel model);
+    void setChaosAmount(float amount);      // Blend with input (0=bypass, 1=full chaos)
+    void setAttractorSpeed(float speed);    // How fast attractor evolves
+    void setInputCoupling(float coupling);  // How much input affects attractor state
+
+    float process(float x) noexcept;
+    void processBlock(float* buffer, size_t n) noexcept;
+
+private:
+    ChaosModel model_;
+    // Lorenz state: x, y, z
+    float lx_, ly_, lz_;
+    // Attractor parameters (sigma, rho, beta for Lorenz)
+    float sigma_, rho_, beta_;
+    // ...
+};
+```
+
+**Novel:** Living, breathing distortion that evolves over time. Input drives attractor state for signal-reactive chaos.
+
+### 5.3 Formant Distortion Processor (`processors/formant_distortion.h`)
+
+Distort through vocal-tract-like resonances (leverages FormantFilter from filter roadmap).
+
+```cpp
+class FormantDistortion {
+public:
+    void prepare(double sampleRate, size_t maxBlockSize);
+    void reset();
+
+    void setVowel(FormantVowel vowel);         // A, E, I, O, U
+    void setVowelBlend(float blend);           // Morph between vowels
+    void setFormantShift(float semitones);     // Shift formants up/down
+    void setDistortionType(WaveshapeType type);
+    void setDrive(float drive);
+    void setEnvelopeFollow(float amount);      // Modulate formants by input level
+
+    void process(float* buffer, size_t n) noexcept;
+
+private:
+    FormantFilter formantPre_;   // Pre-distortion formant shaping
+    Waveshaper waveshaper_;
+    FormantFilter formantPost_;  // Post-distortion (optional)
+    OnePoleSmoother envFollower_;
+    // ...
+};
+```
+
+**Reuses:** FormantFilter (Phase 11.1), Waveshaper, OnePoleSmoother
+**Novel:** "Talking distortion" - vowel shapes combined with saturation for alien textures
+
+---
+
+## Phase 6: Novel Distortion - Stochastic & Temporal (Analog Character)
+
+Distortion techniques that add analog-like variation and input-reactive behavior.
+
+### 6.1 Stochastic Waveshaper (`primitives/stochastic_shaper.h`)
+
+Add controlled randomness to the transfer function itself.
+
+```cpp
+class StochasticShaper {
+public:
+    void prepare(double sampleRate);
+    void reset();
+
+    void setBaseType(WaveshapeType type);      // Underlying curve
+    void setJitterAmount(float amount);        // Random offset per sample
+    void setJitterRate(float hz);              // How fast jitter changes
+    void setCoefficientNoise(float amount);    // Randomize curve shape
+    void setSeed(uint32_t seed);               // For reproducible randomness
+
+    float process(float x) noexcept;
+    void processBlock(float* buffer, size_t n) noexcept;
+
+private:
+    Waveshaper baseShaper_;
+    Xorshift32 rng_;
+    OnePoleSmoother jitterSmoother_;
+    float jitterAmount_;
+    float coeffNoise_;
+    // ...
+};
+```
+
+**Reuses:** Waveshaper, Xorshift32, OnePoleSmoother
+**Novel:** Simulates analog component tolerance variation - each sample gets slightly different curve
+
+### 6.2 Temporal Distortion Processor (`processors/temporal_distortion.h`)
+
+Transfer function changes based on signal history (memory-based distortion).
+
+```cpp
+enum class TemporalMode : uint8_t {
+    EnvelopeFollow,     // Louder = more distortion
+    InverseEnvelope,    // Quiet = more distortion (expansion)
+    Derivative,         // Transients get different curve
+    Hysteresis          // Deep memory of recent samples
+};
+
+class TemporalDistortion {
+public:
+    void prepare(double sampleRate, size_t maxBlockSize);
+    void reset();
+
+    void setMode(TemporalMode mode);
+    void setBaseDrive(float drive);            // Drive at reference level
+    void setDriveModulation(float amount);     // How much envelope affects drive
+    void setAttackTime(float ms);              // Envelope follower attack
+    void setReleaseTime(float ms);             // Envelope follower release
+    void setSaturationCurve(WaveshapeType type);
+
+    // For Hysteresis mode
+    void setHysteresisDepth(float depth);      // How much history matters
+    void setHysteresisDecay(float ms);         // How fast memory fades
+
+    void process(float* buffer, size_t n) noexcept;
+
+private:
+    TemporalMode mode_;
+    Waveshaper waveshaper_;
+    OnePoleSmoother envFollower_;
+    OnePoleSmoother derivativeFilter_;
+    DCBlocker dcBlocker_;
+    // Hysteresis state
+    float memoryState_;
+    float hysteresisDecay_;
+    // ...
+};
+```
+
+**Reuses:** Waveshaper, OnePoleSmoother, DCBlocker
+**Novel:** Compressive distortion (loud=more), expansion distortion (quiet=more), transient-reactive curves
+
+---
+
+## Phase 7: Novel Distortion - Hybrid & Network (Complex Routing)
+
+Distortion through complex signal routing and self-interaction.
+
+### 7.1 Ring-Saturation Hybrid (`primitives/ring_saturation.h`)
+
+Self-modulation: multiply signal with saturated version of itself.
+
+```cpp
+class RingSaturation {
+public:
+    void prepare(double sampleRate);
+    void reset();
+
+    void setSaturationCurve(WaveshapeType type);
+    void setDrive(float drive);          // Drive into saturation
+    void setModulationDepth(float depth); // Blend of ring mod (0=none, 1=full)
+    void setStages(int stages);           // Stack multiple self-mods (1-4)
+
+    float process(float x) noexcept;
+    void processBlock(float* buffer, size_t n) noexcept;
+
+private:
+    Waveshaper saturator_;
+    int stages_;
+    float modDepth_;
+    DCBlocker dcBlocker_;
+};
+```
+
+**Formula:** `output = input * saturate(input * drive) * depth + input * (1-depth)`
+**Novel:** Creates inharmonic sidebands like ring mod, but signal-coherent. Metallic, bell-like character.
+
+### 7.2 Allpass-Saturator Network (`processors/allpass_saturator.h`)
+
+Place saturation inside allpass filter feedback loops for resonant distortion.
+
+```cpp
+enum class NetworkTopology : uint8_t {
+    SingleAllpass,      // One allpass with saturation in feedback
+    AllpassChain,       // Series of allpass filters with saturation
+    KarplusStrong,      // Delay + saturator + feedback (plucked string)
+    FeedbackMatrix      // 4x4 matrix of cross-fed saturators
+};
+
+class AllpassSaturator {
+public:
+    void prepare(double sampleRate, size_t maxBlockSize);
+    void reset();
+
+    void setTopology(NetworkTopology topology);
+    void setFrequency(float hz);           // Resonant frequency / pitch
+    void setFeedback(float feedback);      // 0-1 (>0.9 can self-oscillate)
+    void setSaturationCurve(WaveshapeType type);
+    void setDrive(float drive);            // Saturation intensity
+    void setDecay(float seconds);          // For Karplus-Strong
+
+    void process(float* buffer, size_t n) noexcept;
+
+private:
+    NetworkTopology topology_;
+    std::array<Biquad, 4> allpassFilters_;  // For chain
+    DelayLine delay_;                        // For Karplus-Strong
+    Waveshaper saturator_;
+    DCBlocker dcBlocker_;
+    // ...
+};
+```
+
+**Reuses:** Biquad (allpass mode), DelayLine, Waveshaper, DCBlocker
+**Novel:** Pitched/resonant distortion that can self-oscillate. Input "excites" resonance.
+
+### 7.3 Feedback Distortion Processor (`processors/feedback_distortion.h`)
+
+Controlled feedback runaway with limiting.
+
+```cpp
+class FeedbackDistortion {
+public:
+    void prepare(double sampleRate, size_t maxBlockSize);
+    void reset();
+
+    void setDelayTime(float ms);           // Feedback delay (1-100ms)
+    void setFeedback(float amount);        // 0-1.5 (>1 = runaway with limiter)
+    void setSaturationCurve(WaveshapeType type);
+    void setDrive(float drive);
+    void setLimiterThreshold(float dB);    // Catches runaway
+    void setToneFrequency(float hz);       // Filter in feedback path
+
+    void process(float* buffer, size_t n) noexcept;
+
+private:
+    DelayLine delay_;
+    Waveshaper saturator_;
+    Biquad toneFilter_;
+    float limiterThreshold_;
+    DCBlocker dcBlocker_;
+    // ...
+};
+```
+
+**Reuses:** DelayLine, Waveshaper, Biquad, DCBlocker
+**Novel:** Creates sustained, singing distortion. Near-oscillation with limiter for controlled chaos.
+
+---
+
+## Phase 8: Novel Distortion - Digital Destruction (Lo-Fi & Granular)
+
+Intentional digital artifacts and granular processing for creative destruction.
+
+### 8.1 Bitwise Mangler (`primitives/bitwise_mangler.h`)
+
+Operations on the bit representation of samples (beyond bitcrushing).
+
+```cpp
+enum class BitwiseOperation : uint8_t {
+    XorPattern,     // XOR with repeating pattern
+    XorPrevious,    // XOR with previous sample
+    BitRotate,      // Rotate bits left/right
+    BitShuffle,     // Reorder bits within sample
+    BitAverage,     // AND/OR with adjacent samples
+    OverflowWrap    // Let values wrap instead of clip
+};
+
+class BitwiseMangler {
+public:
+    void prepare(double sampleRate);
+    void reset();
+
+    void setOperation(BitwiseOperation op);
+    void setIntensity(float intensity);    // Blend with original
+    void setPattern(uint32_t pattern);     // For XorPattern
+    void setRotateAmount(int bits);        // For BitRotate (-16 to +16)
+    void setSeed(uint32_t seed);           // For random operations
+
+    float process(float x) noexcept;
+    void processBlock(float* buffer, size_t n) noexcept;
+
+private:
+    BitwiseOperation operation_;
+    uint32_t pattern_;
+    int rotateAmount_;
+    Xorshift32 rng_;
+    float prevSample_;
+    // ...
+};
+```
+
+**Reuses:** Xorshift32
+**Novel:** Wild tonal shifts from bit manipulation. XOR creates harmonically complex results.
+
+### 8.2 Aliasing Effect Processor (`processors/aliasing_effect.h`)
+
+Intentional aliasing as a creative effect (anti-anti-aliasing).
+
+```cpp
+class AliasingEffect {
+public:
+    void prepare(double sampleRate, size_t maxBlockSize);
+    void reset();
+
+    void setDownsampleFactor(float factor);  // 2-32 (no AA filter)
+    void setFrequencyShift(float hz);        // Shift before downsample
+    void setAliasingBand(float lowHz, float highHz);  // Only alias this band
+    void setMix(float mix);
+
+    void process(float* buffer, size_t n) noexcept;
+
+private:
+    float downsampleFactor_;
+    float phaseIncrement_;       // For frequency shifter
+    float phase_;
+    Biquad bandFilter_;          // Isolate aliasing band
+    SampleRateReducer reducer_;  // Without AA
+    // ...
+};
+```
+
+**Reuses:** SampleRateReducer (with AA disabled), Biquad
+**Novel:** Digital grunge aesthetic - fold high frequencies back intentionally
+
+### 8.3 Granular Distortion Processor (`processors/granular_distortion.h`)
+
+Distort audio in time-windowed micro-grains.
+
+```cpp
+class GranularDistortion {
+public:
+    void prepare(double sampleRate, size_t maxBlockSize);
+    void reset();
+
+    void setGrainSize(float ms);             // 5-100ms
+    void setGrainDensity(float density);     // Overlapping grains (1-8)
+    void setDistortionType(WaveshapeType type);
+    void setDriveVariation(float amount);    // Random drive per grain
+    void setAlgorithmVariation(bool enabled); // Random algorithm per grain
+    void setPositionJitter(float ms);        // Random grain start offset
+
+    void process(float* buffer, size_t n) noexcept;
+
+private:
+    // Simple grain engine
+    std::array<float, 8192> grainBuffer_;    // Circular buffer
+    size_t writePos_;
+    float grainSizeMs_;
+    int grainDensity_;
+
+    // Per-grain state
+    struct Grain {
+        size_t startPos;
+        size_t length;
+        float drive;
+        WaveshapeType algorithm;
+        float windowPos;
+    };
+    std::array<Grain, 8> activeGrains_;
+
+    Waveshaper waveshaper_;
+    Xorshift32 rng_;
+    // ...
+};
+```
+
+**Reuses:** Waveshaper, Xorshift32
+**Novel:** Each micro-grain gets different distortion. Creates evolving, textured destruction.
+
+### 8.4 Fractal/Recursive Distortion (`processors/fractal_distortion.h`)
+
+Apply distortion at multiple scales recursively.
+
+```cpp
+class FractalDistortion {
+public:
+    void prepare(double sampleRate, size_t maxBlockSize);
+    void reset();
+
+    void setIterations(int iterations);      // 1-8 recursive levels
+    void setScaleFactor(float scale);        // Amplitude reduction per level
+    void setDistortionType(WaveshapeType type);
+    void setDrive(float drive);
+    void setMix(float mix);
+
+    void process(float* buffer, size_t n) noexcept;
+
+private:
+    int iterations_;
+    float scaleFactor_;
+    Waveshaper waveshaper_;
+    DCBlocker dcBlocker_;
+    // ...
+};
+```
+
+**Algorithm:**
+```
+level0 = saturate(input)
+level1 = saturate((input - level0) * scale)
+level2 = saturate((input - level0 - level1) * scale^2)
+output = level0 + level1 + level2 + ...
+```
+
+**Novel:** Self-similar harmonic structure. Residual distortion creates unusual detail.
+
+---
+
 ## Implementation Order
 
 ### Priority 1: Foundation (Layer 0)
@@ -735,6 +1203,26 @@ private:
 18. `systems/tape_machine.h` - Tape machine
 19. `systems/fuzz_pedal.h` - Fuzz pedal
 20. `systems/distortion_rack.h` - Chainable rack
+
+### Priority 5: Spectral & Chaos (Layer 1-2) - Sound Design
+21. `primitives/chaos_waveshaper.h` - Lorenz/Rössler attractors
+22. `processors/spectral_distortion.h` - Per-bin FFT distortion
+23. `processors/formant_distortion.h` - Vocal tract + saturation
+
+### Priority 6: Stochastic & Temporal (Layer 1-2) - Analog Character
+24. `primitives/stochastic_shaper.h` - Randomized transfer function
+25. `processors/temporal_distortion.h` - Envelope-reactive distortion
+
+### Priority 7: Hybrid & Network (Layer 1-2) - Complex Routing
+26. `primitives/ring_saturation.h` - Self-modulation distortion
+27. `processors/allpass_saturator.h` - Resonant distortion networks
+28. `processors/feedback_distortion.h` - Controlled feedback runaway
+
+### Priority 8: Digital Destruction (Layer 1-2) - Lo-Fi & Granular
+29. `primitives/bitwise_mangler.h` - XOR, bit rotation, shuffle
+30. `processors/aliasing_effect.h` - Intentional aliasing
+31. `processors/granular_distortion.h` - Per-grain distortion
+32. `processors/fractal_distortion.h` - Recursive multi-scale
 
 ---
 
@@ -815,6 +1303,22 @@ Use existing test infrastructure in `dsp/tests/`.
 - [ ] `fuzz_pedal.h`
 - [ ] `distortion_rack.h`
 
+**Novel Distortion - Layer 1 (primitives/)**
+- [ ] `chaos_waveshaper.h` - Lorenz/Rössler/Chua attractor transfer functions
+- [ ] `stochastic_shaper.h` - Randomized transfer function (analog tolerance sim)
+- [ ] `ring_saturation.h` - Self-modulation (signal × saturated signal)
+- [ ] `bitwise_mangler.h` - XOR, bit rotation, shuffle, overflow wrap
+
+**Novel Distortion - Layer 2 (processors/)**
+- [ ] `spectral_distortion.h` - Per-bin FFT domain saturation
+- [ ] `formant_distortion.h` - Vowel shaping + saturation
+- [ ] `temporal_distortion.h` - Envelope-following drive modulation
+- [ ] `allpass_saturator.h` - Resonant distortion networks
+- [ ] `feedback_distortion.h` - Controlled feedback with limiting
+- [ ] `aliasing_effect.h` - Intentional aliasing (anti-AA)
+- [ ] `granular_distortion.h` - Per-grain variable distortion
+- [ ] `fractal_distortion.h` - Recursive multi-scale distortion
+
 **Tests**
 - [ ] `tests/core/sigmoid_test.cpp`
 - [ ] `tests/core/chebyshev_test.cpp`
@@ -828,6 +1332,20 @@ Use existing test infrastructure in `dsp/tests/`.
 - [ ] `tests/processors/fuzz_processor_test.cpp`
 - [ ] `tests/systems/amp_channel_test.cpp`
 - [ ] `tests/systems/tape_machine_test.cpp`
+
+**Novel Distortion Tests**
+- [ ] `tests/primitives/chaos_waveshaper_test.cpp`
+- [ ] `tests/primitives/stochastic_shaper_test.cpp`
+- [ ] `tests/primitives/ring_saturation_test.cpp`
+- [ ] `tests/primitives/bitwise_mangler_test.cpp`
+- [ ] `tests/processors/spectral_distortion_test.cpp`
+- [ ] `tests/processors/formant_distortion_test.cpp`
+- [ ] `tests/processors/temporal_distortion_test.cpp`
+- [ ] `tests/processors/allpass_saturator_test.cpp`
+- [ ] `tests/processors/feedback_distortion_test.cpp`
+- [ ] `tests/processors/aliasing_effect_test.cpp`
+- [ ] `tests/processors/granular_distortion_test.cpp`
+- [ ] `tests/processors/fractal_distortion_test.cpp`
 
 ---
 

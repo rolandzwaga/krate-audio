@@ -1010,11 +1010,554 @@ interface KrateOscillator {
 
 ### Feature Priority
 
+**Core Oscillators:**
 1. **Phase 1:** Basic oscillators with PolyBLEP (saw, square, pulse, triangle)
 2. **Phase 2:** Wavetable oscillator with mipmap support
 3. **Phase 3:** FM/PM synthesis module
 4. **Phase 4:** Hard sync with minBLEP
-5. **Phase 5:** Advanced features (vector, morphing, chaos)
+5. **Phase 5:** Advanced features (vector, morphing)
+
+**Sound Design / Special FX Oscillators:**
+6. **Phase 6:** Chaos attractors (Lorenz, Rössler, Chua)
+7. **Phase 7:** Particle/Swarm oscillators
+8. **Phase 8:** Rungler/Shift register oscillators
+9. **Phase 9:** Granular oscillator
+10. **Phase 10:** Formant oscillator (FOF synthesis)
+
+---
+
+## 16. Novel Oscillator Techniques (Sound Design & Special FX)
+
+Creative oscillator approaches beyond traditional synthesis, targeting experimental sound design.
+
+### 16.1 Chaos Attractor Oscillators
+
+Use mathematical chaotic systems as waveform generators rather than periodic functions.
+
+**Lorenz Oscillator:**
+```cpp
+// State variables (x, y, z) trace a butterfly-shaped attractor
+float sigma = 10.0f, rho = 28.0f, beta = 8.0f/3.0f;
+float dt = frequency / sampleRate;
+
+x += sigma * (y - x) * dt;
+y += (x * (rho - z) - y) * dt;
+z += (x * y - beta * z) * dt;
+
+output = x * 0.05f;  // Scale to audio range
+```
+
+**Characteristics:**
+- Never exactly repeats - organic, living quality
+- Pitch loosely controllable via `dt` scaling
+- Can transition between periodic and chaotic regimes
+- **Rössler attractor:** Smoother, less harsh chaos
+- **Chua circuit:** Electronic chaos, analog character
+- **Duffing oscillator:** Driven nonlinear spring, controllable chaos threshold
+
+**Sound:** Breathy, evolving textures; pitched noise; organic drones; alien atmospheres
+
+---
+
+### 16.2 Rungler / Shift Register Oscillators
+
+Inspired by Rob Hordijk's Benjolin and Buchla's Source of Uncertainty.
+
+**Concept:**
+Two oscillators with a shift register creating pseudo-random CV that modulates both oscillators' frequencies, creating complex feedback loops.
+
+```cpp
+struct Rungler {
+    uint8_t shiftRegister = 0;  // 8-bit shift register
+    float osc1Phase, osc2Phase;
+    float osc1Freq, osc2Freq;
+
+    float process() {
+        // Osc1 clocks the shift register
+        if (osc1Phase wrapped) {
+            bool newBit = (osc2Phase > 0.5f);  // Sample osc2
+            shiftRegister = (shiftRegister << 1) | newBit;
+        }
+
+        // Shift register modulates osc2 frequency
+        float runglerCV = shiftRegister / 255.0f;
+        osc2Freq = baseFreq * (1.0f + runglerCV * depth);
+
+        return osc1Sample + osc2Sample;
+    }
+};
+```
+
+**Sound:** Stepped random sequences, pitched chaos, self-generating patterns, analog computer vibes
+
+---
+
+### 16.3 Particle/Swarm Oscillators
+
+Many tiny oscillators ("particles") with individual behaviors that emerge into complex timbres.
+
+**Particle Cloud:**
+```cpp
+struct ParticleOscillator {
+    static constexpr int kNumParticles = 64;
+
+    struct Particle {
+        float phase;
+        float frequency;    // Drifts around center
+        float amplitude;    // Fades in/out
+        float lifetime;
+    };
+    std::array<Particle, kNumParticles> particles;
+
+    float process(float centerFreq) {
+        float output = 0.0f;
+        for (auto& p : particles) {
+            // Each particle drifts, fades, respawns
+            p.phase += p.frequency / sampleRate;
+            p.lifetime -= 1.0f / sampleRate;
+
+            if (p.lifetime <= 0) respawn(p, centerFreq);
+
+            output += std::sin(kTwoPi * p.phase) * p.amplitude;
+        }
+        return output / kNumParticles;
+    }
+};
+```
+
+**Parameters:**
+- Particle density (how many active)
+- Frequency scatter (how far from center pitch)
+- Lifetime (short = granular, long = unison)
+- Spawn pattern (regular, random, burst)
+
+**Sound:** Shimmering textures, granular clouds, evolving pads, spectral smearing
+
+---
+
+### 16.4 Cellular Automata Oscillators
+
+Use 1D cellular automata (like Rule 110, Rule 30) to generate waveforms.
+
+```cpp
+struct CellularAutomataOsc {
+    std::array<uint8_t, 256> cells;  // Current generation
+    uint8_t rule = 110;  // Wolfram rule number
+    size_t readPosition = 0;
+
+    float process() {
+        // Read current cell as sample
+        float sample = (cells[readPosition] ? 1.0f : -1.0f);
+        readPosition = (readPosition + 1) % cells.size();
+
+        // Evolve to next generation when we've read all cells
+        if (readPosition == 0) evolve();
+
+        return sample;
+    }
+
+    void evolve() {
+        std::array<uint8_t, 256> next;
+        for (size_t i = 0; i < cells.size(); ++i) {
+            uint8_t neighborhood =
+                (cells[(i-1) % 256] << 2) |
+                (cells[i] << 1) |
+                cells[(i+1) % 256];
+            next[i] = (rule >> neighborhood) & 1;
+        }
+        cells = next;
+    }
+};
+```
+
+**Rules to explore:**
+- **Rule 30:** Chaotic, noise-like
+- **Rule 110:** Complex patterns, Turing-complete
+- **Rule 90:** Sierpinski triangle, more structured
+
+**Sound:** Digital textures, evolving patterns, bit-based timbres, generative sequences
+
+---
+
+### 16.5 Physical Modeling Micro-Oscillators
+
+Beyond Karplus-Strong - unusual physical systems as oscillators.
+
+**Double Pendulum (Chaotic):**
+```cpp
+// Two coupled pendulums exhibit chaotic motion
+struct DoublePendulum {
+    float theta1, theta2;      // Angles
+    float omega1, omega2;      // Angular velocities
+    float m1, m2, L1, L2;      // Masses and lengths
+
+    float process() {
+        // Equations of motion (simplified)
+        float g = 9.81f;
+        // ... complex coupled differential equations ...
+
+        // Output is tip position or angular velocity
+        return omega1 * 0.1f;
+    }
+};
+```
+
+**Bouncing Ball:**
+```cpp
+// Ball bouncing with damping - creates rhythmic impulses
+struct BouncingBall {
+    float height, velocity;
+    float gravity = 9.81f;
+    float damping = 0.7f;
+
+    float process() {
+        velocity -= gravity * dt;
+        height += velocity * dt;
+
+        if (height <= 0) {
+            height = 0;
+            velocity = -velocity * damping;
+            return 1.0f;  // Impact impulse
+        }
+        return 0.0f;
+    }
+};
+```
+
+**Sound:** Organic rhythms, accelerating patterns, natural chaos
+
+---
+
+### 16.6 Formant Oscillators
+
+Direct synthesis of vowel-like spectra without filters.
+
+**FOF (Fonction d'Onde Formantique):**
+IRCAM's technique - damped sinusoids creating formant peaks.
+
+```cpp
+struct FormantOscillator {
+    struct Formant {
+        float frequency;    // Formant center (e.g., 800 Hz for "a")
+        float bandwidth;    // Width of formant
+        float amplitude;
+    };
+    std::array<Formant, 5> formants;  // 5 formants for vowels
+
+    float process(float fundamentalPhase) {
+        float output = 0.0f;
+        for (const auto& f : formants) {
+            // Damped sinusoid at formant frequency
+            float decay = std::exp(-kPi * f.bandwidth * time);
+            output += decay * std::sin(kTwoPi * f.frequency * time)
+                    * f.amplitude;
+        }
+        // Reset on fundamental period
+        if (fundamentalPhase wrapped) resetFormants();
+        return output;
+    }
+};
+```
+
+**Vowel presets:**
+- A: [800, 1200, 2500, 3500, 4500] Hz
+- E: [400, 2000, 2600, 3200, 3700] Hz
+- I: [300, 2300, 3000, 3500, 4500] Hz
+
+**Sound:** Voice-like tones, talking synths, choir pads
+
+---
+
+### 16.7 Glitch / Artifact Oscillators
+
+Intentionally create digital errors as musical elements.
+
+**Buffer Glitch Oscillator:**
+```cpp
+struct GlitchOscillator {
+    std::array<float, 2048> buffer;
+    size_t writePos = 0, readPos = 0;
+    float glitchProbability = 0.01f;
+
+    float process(float input) {
+        buffer[writePos] = input;
+        writePos = (writePos + 1) % buffer.size();
+
+        // Occasionally corrupt read position
+        if (random() < glitchProbability) {
+            readPos = random() * buffer.size();  // Jump
+            // Or: readPos += random() * 100 - 50;  // Stutter
+            // Or: readPos = writePos - random() * 10;  // Micro-repeat
+        }
+
+        readPos = (readPos + 1) % buffer.size();
+        return buffer[readPos];
+    }
+};
+```
+
+**Bit Error Oscillator:**
+```cpp
+float process(float phase) {
+    float sample = std::sin(kTwoPi * phase);
+
+    // Randomly flip bits in the float representation
+    if (random() < errorRate) {
+        uint32_t bits = std::bit_cast<uint32_t>(sample);
+        bits ^= (1 << (random() * 23));  // Flip random mantissa bit
+        sample = std::bit_cast<float>(bits);
+        sample = std::clamp(sample, -1.0f, 1.0f);
+    }
+    return sample;
+}
+```
+
+**Sound:** Digital destruction, stuttering, data corruption aesthetics
+
+---
+
+### 16.8 Spectral Freeze Oscillator
+
+Capture and loop a single FFT frame indefinitely.
+
+```cpp
+struct SpectralFreezeOsc {
+    SpectralBuffer frozenSpectrum;
+    float phase = 0.0f;
+    bool frozen = false;
+
+    void freeze(const SpectralBuffer& currentSpectrum) {
+        frozenSpectrum = currentSpectrum;  // Capture magnitudes + phases
+        frozen = true;
+    }
+
+    float process() {
+        if (!frozen) return 0.0f;
+
+        // Resynthesize from frozen spectrum with advancing phase
+        float output = 0.0f;
+        for (size_t bin = 0; bin < frozenSpectrum.numBins(); ++bin) {
+            float freq = binToFrequency(bin);
+            float mag = frozenSpectrum.getMagnitude(bin);
+            float ph = frozenSpectrum.getPhase(bin);
+            output += mag * std::sin(kTwoPi * freq * time + ph);
+        }
+        return output;
+    }
+};
+```
+
+**Sound:** Frozen moments, spectral drones, timestop effects
+
+---
+
+### 16.9 Feedback Network Oscillators
+
+Complex self-modulating oscillator networks.
+
+**Cross-Coupled FM:**
+```cpp
+struct CrossCoupledFM {
+    float phase1, phase2, phase3;
+    float freq1, freq2, freq3;
+    float fb12, fb23, fb31;  // Cross-feedback amounts
+
+    float process() {
+        // Each oscillator modulates the next in a ring
+        float out1 = std::sin(kTwoPi * phase1 + fb31 * out3);
+        float out2 = std::sin(kTwoPi * phase2 + fb12 * out1);
+        float out3 = std::sin(kTwoPi * phase3 + fb23 * out2);
+
+        phase1 += freq1 / sampleRate;
+        phase2 += freq2 / sampleRate;
+        phase3 += freq3 / sampleRate;
+
+        return (out1 + out2 + out3) / 3.0f;
+    }
+};
+```
+
+**Sound:** Complex evolving timbres, FM-like but less predictable, rich harmonics
+
+---
+
+### 16.10 Granular Oscillator
+
+Generate waveforms from overlapping micro-grains.
+
+```cpp
+struct GranularOscillator {
+    std::array<float, 4096> sourceWave;  // Base waveform
+
+    struct Grain {
+        float position;     // Where in source
+        float playhead;     // Current read position
+        float length;       // Grain duration
+        float pitch;        // Playback rate
+        float pan;
+    };
+    std::array<Grain, 16> grains;
+
+    float process(float frequency) {
+        float output = 0.0f;
+
+        for (auto& g : grains) {
+            if (g.playhead < g.length) {
+                // Hann window envelope
+                float env = 0.5f * (1.0f - std::cos(kTwoPi * g.playhead / g.length));
+
+                // Read from source with interpolation
+                float readPos = g.position + g.playhead * g.pitch;
+                float sample = interpolate(sourceWave, readPos);
+
+                output += sample * env;
+                g.playhead += 1.0f / sampleRate;
+            }
+        }
+
+        // Spawn new grains at regular intervals (based on frequency)
+        maybeSpawnGrain(frequency);
+
+        return output;
+    }
+};
+```
+
+**Parameters:**
+- Grain size (1-100ms)
+- Grain density (overlap)
+- Position scatter (read from different parts of source)
+- Pitch scatter (each grain at different pitch)
+
+**Sound:** Textured tones, granular clouds, formant-like effects, spectral smearing
+
+---
+
+### 16.11 Fractal Waveform Oscillator
+
+Self-similar waveforms at multiple scales.
+
+```cpp
+struct FractalOscillator {
+    int iterations = 5;
+    float roughness = 0.5f;  // Amplitude scaling per octave
+
+    float process(float phase) {
+        float output = 0.0f;
+        float amplitude = 1.0f;
+        float freq = 1.0f;
+
+        for (int i = 0; i < iterations; ++i) {
+            // Each iteration adds detail at higher frequency
+            output += std::sin(kTwoPi * phase * freq) * amplitude;
+            freq *= 2.0f;           // Double frequency
+            amplitude *= roughness;  // Reduce amplitude
+        }
+
+        return output / (1.0f / (1.0f - roughness));  // Normalize
+    }
+};
+```
+
+**Variations:**
+- Use different base waveforms per iteration
+- Non-integer frequency ratios for inharmonic fractals
+- Modulate roughness over time
+
+**Sound:** Rich harmonics, organ-like, additive character with coherent structure
+
+---
+
+### 16.12 Pendulum Wave Oscillator
+
+Based on the pendulum wave phenomenon - multiple oscillators with carefully chosen frequency ratios.
+
+```cpp
+struct PendulumWaveOsc {
+    static constexpr int kNumPendulums = 15;
+    std::array<float, kNumPendulums> phases;
+    float baseFreq;
+
+    float process() {
+        float output = 0.0f;
+
+        for (int i = 0; i < kNumPendulums; ++i) {
+            // Each pendulum has slightly different period
+            // Creating beating patterns
+            float freq = baseFreq * (kNumPendulums + i) / kNumPendulums;
+            phases[i] += freq / sampleRate;
+            if (phases[i] >= 1.0f) phases[i] -= 1.0f;
+
+            output += std::sin(kTwoPi * phases[i]);
+        }
+
+        return output / kNumPendulums;
+    }
+};
+```
+
+**Sound:** Phase-shifting patterns, evolving interference, mesmerizing beating textures
+
+---
+
+### 16.13 Waveset Oscillator
+
+Treat individual waveform cycles as discrete units that can be manipulated.
+
+```cpp
+struct WavesetOscillator {
+    std::vector<std::vector<float>> wavesets;  // Stored individual cycles
+    size_t currentSet = 0;
+    size_t readPos = 0;
+
+    enum Mode { Normal, Reverse, Repeat, Skip, Shuffle };
+    Mode mode = Normal;
+    int repeatCount = 1;
+
+    float process() {
+        auto& current = wavesets[currentSet];
+        float sample = current[readPos++];
+
+        if (readPos >= current.size()) {
+            readPos = 0;
+            advanceToNextWaveset();
+        }
+
+        return sample;
+    }
+
+    void advanceToNextWaveset() {
+        switch (mode) {
+            case Normal: currentSet++; break;
+            case Reverse: currentSet--; break;
+            case Repeat: if (--repeatCount <= 0) { currentSet++; repeatCount = repeatAmount; } break;
+            case Skip: currentSet += skipAmount; break;
+            case Shuffle: currentSet = random() * wavesets.size(); break;
+        }
+        currentSet %= wavesets.size();
+    }
+};
+```
+
+**Sound:** Granular-like but cycle-coherent, time-stretching, pitch-shifting artifacts, glitchy loops
+
+---
+
+### 16.14 Implementation Recommendations
+
+**Priority for Sound Design:**
+
+1. **Phase 1:** Chaos attractors (Lorenz, Rössler) - immediate impact, simple to implement
+2. **Phase 2:** Particle/Swarm oscillators - rich textures, scalable complexity
+3. **Phase 3:** Rungler/shift register - unique analog-computer aesthetic
+4. **Phase 4:** Granular oscillator - versatile, industry-proven
+5. **Phase 5:** Formant oscillator - voice synthesis, musical utility
+
+**Existing Infrastructure Reuse:**
+- Particle oscillators → existing LFO for parameter modulation
+- Granular oscillator → existing window functions
+- Spectral freeze → existing STFT/SpectralBuffer
+- Formant oscillator → existing Biquad for filtering
 
 ---
 
@@ -1038,3 +1581,12 @@ interface KrateOscillator {
 - VCV Rack (open source): https://github.com/VCVRack/Rack
 - Surge Synthesizer: https://github.com/surge-synthesizer/surge
 - Dexed (DX7 emulator): https://github.com/asb2m10/dexed
+
+### Novel Oscillator References
+- Lorenz system: https://en.wikipedia.org/wiki/Lorenz_system
+- Rob Hordijk Benjolin: https://www.modulargrid.net/e/rob-hordijk-benjolin
+- Mutable Instruments Plaits (open source): https://github.com/pichenettes/eurorack
+- FOF synthesis: IRCAM "Chant" project, Xavier Rodet papers
+- Cellular Automata: Stephen Wolfram "A New Kind of Science"
+- Curtis Roads "Microsound" (granular synthesis bible)
+- Pendulum wave: Harvard Natural Sciences demonstrations

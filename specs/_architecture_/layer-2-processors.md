@@ -1085,3 +1085,164 @@ Input
 ```
 
 **Dependencies:** Layer 0 (db_utils.h, note_value.h), Layer 1 (allpass_1pole.h, lfo.h, smoother.h)
+
+---
+
+## SpectralMorphFilter
+**Path:** [spectral_morph_filter.h](../../dsp/include/krate/dsp/processors/spectral_morph_filter.h) | **Since:** 0.14.0
+
+Spectral morphing processor that blends two audio signals by interpolating their magnitude spectra while providing phase source selection, spectral pitch shifting, and spectral tilt control.
+
+**Use when:**
+- Creating cross-synthesis effects between two audio sources (vocals/instruments)
+- Need spectral "freeze" effects using snapshot mode for static textures
+- Want vocoder-like spectral morphing with smooth parameter transitions
+- Building hybrid/crossfade effects that blend timbres rather than waveforms
+- Creating formant-shifted or "chipmunk/monster" effects via spectral shift
+
+**Features:**
+- Dual-input spectral morphing (FR-002) with magnitude interpolation
+- Single-input snapshot mode (FR-003) for morphing with captured spectrum
+- Phase source selection: A, B, or Blend (complex vector interpolation)
+- Spectral pitch shift (+/-24 semitones) via bin rotation
+- Spectral tilt (+/-12 dB/octave) with 1 kHz pivot for brightness control
+- COLA-compliant overlap-add synthesis (50% overlap with Hann window)
+- Parameter smoothing (50ms) for click-free automation
+- Real-time safe processing (noexcept, pre-allocated buffers)
+
+```cpp
+enum class PhaseSource : uint8_t { A, B, Blend };
+
+class SpectralMorphFilter {
+    static constexpr std::size_t kMinFFTSize = 256;
+    static constexpr std::size_t kMaxFFTSize = 4096;
+    static constexpr std::size_t kDefaultFFTSize = 2048;
+    static constexpr float kMinMorphAmount = 0.0f;
+    static constexpr float kMaxMorphAmount = 1.0f;
+    static constexpr float kMinSpectralShift = -24.0f;
+    static constexpr float kMaxSpectralShift = +24.0f;
+    static constexpr float kMinSpectralTilt = -12.0f;
+    static constexpr float kMaxSpectralTilt = +12.0f;
+    static constexpr float kTiltPivotHz = 1000.0f;
+    static constexpr float kSmoothingTimeMs = 50.0f;
+
+    void prepare(double sampleRate, std::size_t fftSize = kDefaultFFTSize) noexcept;
+    void reset() noexcept;
+
+    // Dual-input processing (cross-synthesis)
+    void processBlock(const float* inputA, const float* inputB,
+                      float* output, std::size_t numSamples) noexcept;
+
+    // Single-input processing (snapshot mode)
+    [[nodiscard]] float process(float input) noexcept;
+
+    // Snapshot capture
+    void captureSnapshot() noexcept;
+    void setSnapshotFrameCount(std::size_t frames) noexcept;
+
+    // Morphing parameters
+    void setMorphAmount(float amount) noexcept;        // [0, 1]
+    void setPhaseSource(PhaseSource source) noexcept;  // A, B, Blend
+
+    // Spectral effects
+    void setSpectralShift(float semitones) noexcept;   // [-24, +24]
+    void setSpectralTilt(float dBPerOctave) noexcept;  // [-12, +12]
+
+    // Query
+    [[nodiscard]] std::size_t getLatencySamples() const noexcept;
+    [[nodiscard]] std::size_t getFftSize() const noexcept;
+    [[nodiscard]] float getMorphAmount() const noexcept;
+    [[nodiscard]] PhaseSource getPhaseSource() const noexcept;
+    [[nodiscard]] float getSpectralShift() const noexcept;
+    [[nodiscard]] float getSpectralTilt() const noexcept;
+    [[nodiscard]] bool hasSnapshot() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| morphAmount | 0.0 | [0, 1] | Magnitude interpolation (0=A, 1=B) |
+| phaseSource | A | enum | Phase from A, B, or complex blend |
+| spectralShift | 0 | [-24, +24] | Semitone shift via bin rotation |
+| spectralTilt | 0 | [-12, +12] | dB/octave with 1kHz pivot |
+| snapshotFrameCount | 4 | [1, 16] | Frames to average for snapshot |
+
+**Usage Example (Dual-input morphing):**
+```cpp
+SpectralMorphFilter filter;
+filter.prepare(44100.0, 2048);
+filter.setMorphAmount(0.5f);
+filter.setPhaseSource(PhaseSource::A);
+
+// In audio callback
+filter.processBlock(inputA, inputB, output, blockSize);
+```
+
+**Usage Example (Snapshot mode):**
+```cpp
+SpectralMorphFilter filter;
+filter.prepare(44100.0, 2048);
+
+// Capture spectral fingerprint from current input
+filter.captureSnapshot();
+for (size_t i = 0; i < warmupSamples; ++i) {
+    (void)filter.process(input[i]);  // Feed samples for capture
+}
+
+// Now morph live input against snapshot
+filter.setMorphAmount(0.7f);
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(liveInput[i]);
+}
+```
+
+**Usage Example (Spectral effects):**
+```cpp
+SpectralMorphFilter filter;
+filter.prepare(44100.0, 2048);
+filter.setMorphAmount(0.0f);          // Pure source A
+filter.setSpectralShift(12.0f);       // +1 octave shift
+filter.setSpectralTilt(6.0f);         // Boost highs +6dB/octave
+
+// Creates "chipmunk" effect with brightness boost
+filter.processBlock(input, nullptr, output, blockSize);
+```
+
+**Signal Flow:**
+```
+Input A ---> STFT Analyze ---+
+                             |
+                             v
+                     +-----------------+
+                     | Magnitude       |
+                     | Interpolation   |<--- morphAmount
+                     +-----------------+
+                             |
+Input B ---> STFT Analyze ---+
+                             |
+                             v
+                     +-----------------+
+                     | Phase Selection |<--- phaseSource
+                     +-----------------+
+                             |
+                             v
+                     +-----------------+
+                     | Spectral Shift  |<--- spectralShift (semitones)
+                     +-----------------+
+                             |
+                             v
+                     +-----------------+
+                     | Spectral Tilt   |<--- spectralTilt (dB/octave)
+                     +-----------------+
+                             |
+                             v
+                     +-----------------+
+                     | Overlap-Add     |---> Output
+                     | Synthesis       |
+                     +-----------------+
+```
+
+**Performance:** < 50ms for two 1-second mono buffers at 44.1kHz (SC-001)
+
+**Dependencies:** Layer 0 (math_constants.h, window_functions.h), Layer 1 (fft.h, stft.h, spectral_buffer.h, smoother.h)
