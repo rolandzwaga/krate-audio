@@ -19,10 +19,10 @@ krate-audio/
 │   ├── include/krate/dsp/    # Public headers
 │   │   ├── core/             # Layer 0: Math utilities, constants
 │   │   ├── primitives/       # Layer 1: Basic DSP blocks (filters, delay lines, LFOs)
-│   │   ├── processors/       # Layer 2: Composed processors (saturation, waveshaping)
+│   │   ├── processors/       # Layer 2: Composed processors (filters, saturation, dynamics)
 │   │   ├── systems/          # Layer 3: Complex systems (feedback networks, character)
 │   │   └── effects/          # Layer 4: Complete effect algorithms
-│   └── tests/                # DSP unit tests (2200+ test cases)
+│   └── tests/                # DSP unit tests (3000+ test cases)
 │
 ├── plugins/
 │   └── iterum/               # Iterum - Delay plugin with 11 modes
@@ -46,21 +46,22 @@ A feature-rich VST3/AU delay plugin with 11 distinct delay algorithms - from vin
 
 The KrateDSP library provides reusable DSP components organized in a 5-layer architecture where each layer can only depend on layers below it:
 
-| Layer | Directory | Purpose | Examples |
-|-------|-----------|---------|----------|
-| 0 | `core/` | Math utilities, constants | dB conversion, sigmoid functions, interpolation |
-| 1 | `primitives/` | Basic DSP blocks | Biquad filters, delay lines, LFOs, waveshapers |
-| 2 | `processors/` | Composed processors | Saturation, fuzz, bitcrusher, pitch shifting |
-| 3 | `systems/` | Complex systems | Tape machine, amp channel, fuzz pedal |
-| 4 | `effects/` | Complete algorithms | Tape delay, granular delay, shimmer, spectral |
+| Layer | Directory | Components | Examples |
+|-------|-----------|------------|----------|
+| 0 | `core/` | Math utilities | dB conversion, sigmoid functions, interpolation |
+| 1 | `primitives/` | 29 basic DSP blocks | Biquad, SVF, ladder filter, delay lines, LFOs, FFT/STFT |
+| 2 | `processors/` | 27 composed processors | Filters (formant, phaser, spectral morph), saturation, resonator bank |
+| 3 | `systems/` | 12 complex systems | Tape machine, amp channel, feedback networks, granular engine |
+| 4 | `effects/` | 12 complete algorithms | Tape delay, granular delay, shimmer, spectral, BBD |
 
 ### Key Features
 
 - **Real-Time Safe** - No allocations in audio processing, lock-free operations
 - **Modern C++20** - RAII, constexpr, concepts, value semantics
 - **Cross-Platform** - Windows, macOS (Intel & Apple Silicon), Linux
-- **Extensively Tested** - 2200+ unit tests with spectral analysis and approval testing
+- **Extensively Tested** - 3000+ test cases with 13M+ assertions, spectral analysis, and approval testing
 - **Composable Anti-Aliasing** - Oversampling applied at appropriate abstraction levels
+- **Physical Modeling** - Resonator banks, formant filters, waveguide primitives
 
 ## Building
 
