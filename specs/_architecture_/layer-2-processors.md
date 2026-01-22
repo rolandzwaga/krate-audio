@@ -1246,3 +1246,93 @@ Input B ---> STFT Analyze ---+
 **Performance:** < 50ms for two 1-second mono buffers at 44.1kHz (SC-001)
 
 **Dependencies:** Layer 0 (math_constants.h, window_functions.h), Layer 1 (fft.h, stft.h, spectral_buffer.h, smoother.h)
+
+---
+
+## SpectralTilt
+**Path:** [spectral_tilt.h](../../dsp/include/krate/dsp/processors/spectral_tilt.h) | **Since:** 0.14.0
+
+IIR spectral tilt filter using a single high-shelf biquad for efficient brightness/darkness control with configurable pivot frequency.
+
+**Use when:**
+- Creating tonal shaping effects (brightness or darkness control)
+- Need efficient spectral slope adjustment in feedback paths
+- Want real-time parameter automation without clicks
+- Building pre/post-emphasis filters
+- Need lightweight alternative to FFT-based spectral tilt (SpectralMorphFilter)
+
+**Features:**
+- Configurable tilt amount (-12 to +12 dB/octave)
+- Configurable pivot frequency (20 Hz to 20 kHz)
+- Parameter smoothing (default 50ms) for click-free automation
+- Gain limiting (+24 dB max, -48 dB min) for stability
+- Zero latency (pure IIR implementation)
+- Passthrough when not prepared
+
+**Note:** This is a single high-shelf approximation that provides good accuracy (~1 dB) within 2-3 octaves of the pivot frequency. For precise frequency-domain tilt, use SpectralMorphFilter with its setSpectralTilt() method.
+
+```cpp
+class SpectralTilt {
+    static constexpr float kMinTilt = -12.0f;
+    static constexpr float kMaxTilt = +12.0f;
+    static constexpr float kMinPivot = 20.0f;
+    static constexpr float kMaxPivot = 20000.0f;
+    static constexpr float kMinSmoothing = 1.0f;
+    static constexpr float kMaxSmoothing = 500.0f;
+    static constexpr float kDefaultSmoothing = 50.0f;
+    static constexpr float kDefaultPivot = 1000.0f;
+    static constexpr float kDefaultTilt = 0.0f;
+    static constexpr float kMaxGainDb = +24.0f;
+    static constexpr float kMinGainDb = -48.0f;
+
+    void prepare(double sampleRate);
+    void reset() noexcept;
+
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, int numSamples) noexcept;
+
+    void setTilt(float dBPerOctave);          // [-12, +12]
+    void setPivotFrequency(float hz);          // [20, 20000]
+    void setSmoothing(float ms);               // [1, 500]
+
+    [[nodiscard]] float getTilt() const noexcept;
+    [[nodiscard]] float getPivotFrequency() const noexcept;
+    [[nodiscard]] float getSmoothing() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| tilt | 0 | [-12, +12] dB/oct | Positive = brighter, Negative = darker |
+| pivotFrequency | 1000 Hz | [20, 20000] | Pivot point (0 dB transition) |
+| smoothing | 50 ms | [1, 500] | Parameter transition time |
+
+**Usage Example (Brightness control):**
+```cpp
+SpectralTilt tilt;
+tilt.prepare(44100.0);
+tilt.setTilt(6.0f);              // +6 dB/octave brightness
+tilt.setPivotFrequency(1000.0f); // Pivot at 1 kHz
+
+// In audio callback
+for (int i = 0; i < numSamples; ++i) {
+    output[i] = tilt.process(input[i]);
+}
+```
+
+**Usage Example (Block processing):**
+```cpp
+SpectralTilt tilt;
+tilt.prepare(44100.0);
+tilt.setTilt(-3.0f);  // Slight darkness
+tilt.processBlock(buffer, blockSize);
+```
+
+**Topology:**
+```
+Input --> [OnePoleSmoother (tilt)] --+
+      --> [OnePoleSmoother (pivot)] -+--> [Coefficient Calc] --> [High-Shelf Biquad] --> Output
+```
+
+**Dependencies:** Layer 0 (db_utils.h, math_constants.h), Layer 1 (biquad.h, smoother.h)
