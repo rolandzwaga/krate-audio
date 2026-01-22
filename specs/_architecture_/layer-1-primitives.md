@@ -836,3 +836,57 @@ float output = filter.process(input);
 **Resonance Compensation:** Enable via `setResonanceCompensation(true)` to maintain consistent output level as resonance increases (uses formula `1.0 / (1.0 + resonance * 0.25)`).
 
 **Dependencies:** `primitives/oversampler.h`, `primitives/smoother.h`, `core/fast_math.h`, `core/db_utils.h`, `core/math_constants.h`
+
+---
+
+## TwoPoleLP (Two-Pole Butterworth Lowpass)
+**Path:** [two_pole_lp.h](../../dsp/include/krate/dsp/primitives/two_pole_lp.h) | **Since:** 0.14.0
+
+12dB/octave Butterworth lowpass filter wrapper around Biquad. Provides maximally flat passband response for tone shaping applications.
+
+**Use when:**
+- Excitation filtering in physical models (Karplus-Strong brightness control)
+- Simple tone shaping with smooth frequency response
+- Any application requiring 2-pole lowpass with Butterworth characteristics
+
+**Note:** This is a thin wrapper around `Biquad` configured as lowpass with Q = 0.7071 (Butterworth). For more filter types or variable Q, use `Biquad` directly.
+
+```cpp
+class TwoPoleLP {
+    void prepare(double sampleRate) noexcept;
+    void setCutoff(float hz) noexcept;           // [1 Hz, Nyquist*0.495]
+    [[nodiscard]] float getCutoff() const noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+    void reset() noexcept;
+};
+```
+
+| Frequency | Response |
+|-----------|----------|
+| < cutoff/2 | Flat within 0.5 dB |
+| At cutoff | -3 dB (Butterworth) |
+| 1 octave above | -12 dB |
+| 2 octaves above | -24 dB |
+
+**Comparison with Biquad Lowpass:**
+
+| Feature | TwoPoleLP | Biquad |
+|---------|-----------|--------|
+| Q control | Fixed (0.7071) | Variable |
+| API | Simple (prepare/setCutoff) | Full (configure with all params) |
+| Use case | Butterworth-only applications | General filtering |
+
+**Example Usage:**
+```cpp
+TwoPoleLP brightnessFilter;
+brightnessFilter.prepare(44100.0);
+brightnessFilter.setCutoff(2000.0f);  // 2kHz cutoff
+
+// Filter excitation noise
+for (auto& sample : noiseBuffer) {
+    sample = brightnessFilter.process(sample);
+}
+```
+
+**Dependencies:** `primitives/biquad.h`

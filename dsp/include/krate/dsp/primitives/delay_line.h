@@ -147,6 +147,19 @@ public:
     /// @return Sample rate in Hz, or 0 if not prepared.
     [[nodiscard]] double sampleRate() const noexcept;
 
+    /// @brief Peek at a sample that will be overwritten after N write() calls.
+    ///
+    /// This is useful for reading existing delay content before overwriting it,
+    /// e.g., for additive excitation in physical modeling synthesis.
+    ///
+    /// @param offset Number of write() calls until this position is overwritten.
+    ///               offset=0 returns the sample at current writeIndex_.
+    /// @return The sample value at that position.
+    ///
+    /// @note O(1) time complexity, no allocations.
+    /// @note FR-033: Enables reading existing content for additive excitation.
+    [[nodiscard]] float peekNext(size_t offset) const noexcept;
+
 private:
     std::vector<float> buffer_;      ///< Circular buffer (power-of-2 size)
     size_t mask_ = 0;                ///< Bitmask for wraparound (bufferSize - 1)
@@ -251,6 +264,12 @@ inline size_t DelayLine::maxDelaySamples() const noexcept {
 
 inline double DelayLine::sampleRate() const noexcept {
     return sampleRate_;
+}
+
+inline float DelayLine::peekNext(size_t offset) const noexcept {
+    // Read from position that will be overwritten after 'offset' write() calls
+    const size_t readIndex = (writeIndex_ + offset) & mask_;
+    return buffer_[readIndex];
 }
 
 } // namespace DSP
