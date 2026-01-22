@@ -27,6 +27,10 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 
 ## Critical Rules (Non-Negotiable)
 
+### No Background Agents
+
+**NEVER run Task agents in the background.** Always use `run_in_background: false` (or omit the parameter). The user needs to monitor agent progress in real-time. Background execution obscures what's happening and is forbidden.
+
 ### Windows Path Workaround
 
 For Edit/Glob/Grep/Read tools: Use Windows backslash paths (`C:\path\file.txt`). Expand `~` to full path (e.g., `C:\Users\name`). Does NOT apply to Bash.
