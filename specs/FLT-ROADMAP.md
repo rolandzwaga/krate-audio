@@ -7,10 +7,29 @@ A step-by-step plan for implementing comprehensive filter support using the exis
 This roadmap covers implementing all filter types from `DSP-FILTER-TECHNIQUES.md` using the Krate::DSP layered architecture. The plan maximizes reuse of existing components and follows strict layer dependencies.
 
 **Estimated Components:**
-- Layer 0 (Core): 2 new files
-- Layer 1 (Primitives): 5 new files
-- Layer 2 (Processors): 4 new files
-- Layer 3 (Systems): 2 new files
+- Layer 0 (Core): 0 new files (all exist)
+- Layer 1 (Primitives): 1 new file (`hilbert_transform.h`)
+- Layer 2 (Processors): 14 new files
+- Layer 3 (Systems): 4 new files (spectral_delay, granular, feedback_network exist)
+
+**Roadmap Sections:**
+- **Phases 1-11**: Foundation filters (COMPLETE - specs 070-078, 079)
+- **Phases 12-18**: Advanced sound design & special FX filters
+
+**Existing Infrastructure (reusable for Phases 12-18):**
+| Component | Location | Reuse For |
+|-----------|----------|-----------|
+| `random.h` | `core/` | Stochastic, S&H filters |
+| `window_functions.h` | `core/` | Spectral/granular processing |
+| `fft.h`, `stft.h` | `primitives/` | All spectral filters |
+| `spectral_buffer.h` | `primitives/` | Spectral morph, gate, tilt |
+| `pitch_detector.h` | `primitives/` | Pitch-tracking filter |
+| `noise_generator.h` | `processors/` | Karplus-Strong excitation |
+| `envelope_follower.h` | `processors/` | Sidechain, transient filters |
+| `spectral_delay.h` | `effects/` | **Already implements Phase 18.2** |
+| `granular_engine.h` | `systems/` | Granular filter foundation |
+| `feedback_network.h` | `systems/` | Filter matrix routing |
+| `modulation_matrix.h` | `systems/` | Complex modulation routing |
 
 ---
 
@@ -692,6 +711,1016 @@ constexpr float prewarpFrequency(float freq, double sampleRate) {
 
 ---
 
+### Phase 12: Spectral & FFT-Based Filters (Layer 2/3)
+
+**Goal:** Frequency-domain processing for advanced spectral manipulation beyond what time-domain filters can achieve.
+
+**Existing Infrastructure (no new implementation needed):**
+- `primitives/fft.h` - Radix-2 FFT/IFFT (256-8192 sizes)
+- `primitives/stft.h` - STFT analysis + OverlapAdd synthesis
+- `primitives/spectral_buffer.h` - Magnitude/phase storage
+- `core/window_functions.h` - Hann, Hamming, Blackman, Kaiser with COLA verification
+
+#### 12.1 Spectral Morph Filter (`spectral_morph_filter.h`)
+```
+Location: dsp/include/krate/dsp/processors/spectral_morph_filter.h
+Layer: 2
+Dependencies: stft.h (EXISTING), spectral_buffer.h (EXISTING)
+Status: NEW (uses existing FFT infrastructure)
+```
+
+**Description:** Morph between two audio signals by interpolating their magnitude spectra while preserving phase from one source.
+
+```cpp
+class SpectralMorphFilter {
+public:
+    void prepare(double sampleRate, int fftSize = 2048);
+
+    void setMorphAmount(float amount);     // 0 = source A, 1 = source B
+    void setPreservePhaseFrom(Source src); // A, B, or Blend
+    void setSpectralShift(float semitones); // Pitch shift via bin rotation
+    void setSpectralTilt(float dB);        // Tilt spectral balance
+
+    // Process stereo pair or two mono signals for morphing
+    void process(const float* inputA, const float* inputB,
+                 float* output, int numSamples);
+
+    // Single input mode - morph with internal spectral snapshot
+    void captureSnapshot();               // Freeze current spectrum
+    float process(float input);           // Morph with snapshot
+
+private:
+    int fftSize_;
+    std::vector<float> windowFunction_;
+    std::vector<std::complex<float>> spectrumA_, spectrumB_;
+    // COLA overlap-add for continuous processing
+    std::vector<float> overlapBuffer_;
+};
+```
+
+**Use Cases:**
+- Vocal-to-synth morphing
+- Evolving pad textures
+- Spectral freeze effects
+- Cross-synthesis between instruments
+
+#### 12.2 Spectral Gate (`spectral_gate.h`)
+```
+Location: dsp/include/krate/dsp/processors/spectral_gate.h
+Layer: 2
+Dependencies: fft.h, envelope_follower.h
+```
+
+**Description:** Per-bin noise gate that only passes frequency components above a threshold, creating spectral "holes" in the sound.
+
+```cpp
+class SpectralGate {
+public:
+    void prepare(double sampleRate, int fftSize = 1024);
+
+    void setThreshold(float dB);           // Gate threshold
+    void setAttack(float ms);              // Per-bin attack
+    void setRelease(float ms);             // Per-bin release
+    void setRatio(float ratio);            // Expansion ratio below threshold
+    void setFrequencyRange(float lowHz, float highHz); // Affected range
+    void setSmearing(float amount);        // Spectral smoothing (0-1)
+
+    float process(float input);
+    void processBlock(float* buffer, int numSamples);
+
+private:
+    std::vector<float> binEnvelopes_;     // Per-bin envelope states
+    std::vector<float> binGains_;         // Per-bin gain reduction
+};
+```
+
+**Use Cases:**
+- Extreme noise reduction
+- Spectral "skeletonization" effects
+- Creating sparse, pointillist textures
+- Isolating tonal from noise components
+
+#### 12.3 Spectral Tilt Filter (`spectral_tilt.h`)
+```
+Location: dsp/include/krate/dsp/processors/spectral_tilt.h
+Layer: 2
+Dependencies: fft.h (or IIR approximation)
+```
+
+**Description:** Apply a linear dB/octave tilt across the entire spectrum - simpler than EQ but powerful for tonal shaping.
+
+```cpp
+class SpectralTilt {
+public:
+    void prepare(double sampleRate);
+
+    void setTilt(float dBPerOctave);      // -12 to +12 typical
+    void setPivotFrequency(float hz);      // Frequency with 0dB change
+    void setSmoothing(float ms);           // Transition smoothing
+
+    float process(float input);
+    void processBlock(float* buffer, int numSamples);
+
+private:
+    // Can be implemented as FFT or approximated with shelving EQ cascade
+    // IIR approximation is more efficient for real-time
+    Biquad lowShelf_, highShelf_;
+};
+```
+
+---
+
+### Phase 13: Physical Modeling Resonators (Layer 2)
+
+**Goal:** Resonant structures that model physical vibrating systems for natural, musical filtering.
+
+**Existing Infrastructure:**
+- `processors/noise_generator.h` - 13 noise types (white, pink, brown, etc.) for excitation
+- `primitives/delay_line.h` - With linear + allpass interpolation
+- `primitives/one_pole.h`, `allpass_1pole.h` - For damping and dispersion
+- `primitives/biquad.h` - For resonant bandpass filters
+
+#### 13.1 Resonator Bank (`resonator_bank.h`)
+```
+Location: dsp/include/krate/dsp/processors/resonator_bank.h
+Layer: 2
+Dependencies: biquad.h, smoother.h
+```
+
+**Description:** Bank of tuned resonant filters that can model marimba bars, bells, strings, or arbitrary tunings.
+
+```cpp
+class ResonatorBank {
+public:
+    static constexpr int kMaxResonators = 16;
+
+    void prepare(double sampleRate);
+
+    // Tuning modes
+    void setHarmonicSeries(float fundamentalHz, int numPartials);
+    void setInharmonicSeries(float baseHz, float inharmonicity);
+    void setCustomFrequencies(const float* frequencies, int count);
+
+    // Per-resonator control
+    void setFrequency(int index, float hz);
+    void setDecay(int index, float seconds);  // RT60
+    void setGain(int index, float dB);
+    void setQ(int index, float q);            // Alternative to decay
+
+    // Global
+    void setDamping(float amount);            // Reduce all decays
+    void setExciterMix(float amount);         // Blend dry input
+    void setSpectralTilt(float dB);           // High-freq rolloff
+
+    float process(float input);
+    void processBlock(float* buffer, int numSamples);
+
+    // Trigger for percussive use (optional impulse excitation)
+    void trigger(float velocity = 1.0f);
+
+private:
+    struct Resonator {
+        Biquad filter;                        // Bandpass at resonant freq
+        float decay;
+        float gain;
+    };
+    std::array<Resonator, kMaxResonators> resonators_;
+    int activeCount_ = 8;
+};
+```
+
+**Preset Tunings:**
+```cpp
+// Marimba: f, 4f, 10f, 20f (approximately)
+// Bell: f, 2.2f, 3.4f, 4.9f, 6.3f (inharmonic)
+// Guitar string: f, 2f, 3f... (harmonic with slight inharmonicity)
+```
+
+#### 13.2 Karplus-Strong String (`karplus_strong.h`)
+```
+Location: dsp/include/krate/dsp/processors/karplus_strong.h
+Layer: 2
+Dependencies: delay_line.h, one_pole.h, noise_generator.h (new)
+```
+
+**Description:** Classic plucked string synthesis using filtered delay line feedback.
+
+```cpp
+class KarplusStrong {
+public:
+    void prepare(double sampleRate, float maxFrequency = 20.0f);
+
+    void setFrequency(float hz);              // Pitch (determines delay)
+    void setDecay(float seconds);             // String decay time
+    void setDamping(float amount);            // High-freq loss (0-1)
+    void setBrightness(float amount);         // Excitation spectrum
+    void setPickPosition(float position);     // 0-1, affects harmonics
+    void setStretch(float amount);            // Inharmonicity (piano-like)
+
+    // Excitation
+    void pluck(float velocity = 1.0f);        // Noise burst
+    void bow(float pressure);                 // Continuous excitation
+    void excite(const float* signal, int len); // Custom excitation
+
+    float process(float input = 0.0f);        // External excitation input
+
+private:
+    DelayLine delay_;
+    OnePoleLP dampingFilter_;
+    float feedback_;
+    bool isExcited_ = false;
+};
+```
+
+**Extensions:**
+- Two delay lines for bowed strings
+- Allpass in loop for inharmonicity
+- Nonlinear elements for distortion
+
+#### 13.3 Waveguide Resonator (`waveguide_resonator.h`)
+```
+Location: dsp/include/krate/dsp/processors/waveguide_resonator.h
+Layer: 2
+Dependencies: delay_line.h, allpass_1pole.h, dc_blocker.h
+```
+
+**Description:** Digital waveguide implementing bidirectional wave propagation for flute/pipe-like resonances.
+
+```cpp
+class WaveguideResonator {
+public:
+    void prepare(double sampleRate);
+
+    void setLength(float hz);                 // Resonant frequency
+    void setEndReflection(float left, float right); // -1 to +1
+    void setLoss(float amount);               // Per-round-trip loss
+    void setDispersion(float amount);         // Frequency-dependent delay
+    void setExcitationPoint(float position);  // 0-1 along waveguide
+
+    float process(float input);
+
+private:
+    DelayLine rightGoing_, leftGoing_;
+    Allpass1Pole dispersionAP_;
+    float reflectL_, reflectR_;
+};
+```
+
+#### 13.4 Modal Resonator (`modal_resonator.h`)
+```
+Location: dsp/include/krate/dsp/processors/modal_resonator.h
+Layer: 2
+Dependencies: biquad.h, smoother.h
+```
+
+**Description:** Models vibrating bodies as sum of decaying sinusoidal modes. More physically accurate than resonator bank for complex bodies.
+
+```cpp
+class ModalResonator {
+public:
+    static constexpr int kMaxModes = 32;
+
+    void prepare(double sampleRate);
+
+    // Load modal data (from analysis or synthesis)
+    void setModes(const ModalData* modes, int count);
+    void setModeFrequency(int index, float hz);
+    void setModeDecay(int index, float t60Seconds);
+    void setModeAmplitude(int index, float amplitude);
+
+    // Material modeling
+    void setMaterial(Material mat);           // Preset: Wood, Metal, Glass, etc.
+    void setSize(float scale);                // Frequency scaling
+    void setDamping(float amount);            // Global decay modifier
+
+    float process(float input);
+    void processBlock(float* buffer, int numSamples);
+
+    // Excite all modes simultaneously
+    void strike(float velocity);
+
+private:
+    struct Mode {
+        float freq;
+        float decay;      // Exponential decay rate
+        float amplitude;
+        float phase;
+        // State for modal oscillator
+        float cosW, sinW; // Precomputed
+        float y1, y2;     // State
+    };
+    std::array<Mode, kMaxModes> modes_;
+};
+```
+
+---
+
+### Phase 14: Chaos & Randomization Filters (Layer 2)
+
+**Goal:** Unpredictable, evolving filter behaviors for experimental sound design.
+
+**Existing Infrastructure:**
+- `core/random.h` - `Xorshift32` PRNG (real-time safe, deterministic seeding)
+- `primitives/svf.h` - TPT filter with excellent modulation stability
+- `primitives/lfo.h` - Multiple waveforms for S&H clock
+
+#### 14.1 Stochastic Filter (`stochastic_filter.h`)
+```
+Location: dsp/include/krate/dsp/processors/stochastic_filter.h
+Layer: 2
+Dependencies: svf.h (or multimode_filter.h), random_generator.h (new)
+```
+
+**Description:** Filter with randomly varying parameters - cutoff, Q, or type can drift or jump stochastically.
+
+```cpp
+class StochasticFilter {
+public:
+    enum class RandomMode {
+        Walk,           // Brownian motion (smooth drift)
+        Jump,           // Discrete random jumps
+        Lorenz,         // Chaotic attractor
+        Perlin          // Smooth coherent noise
+    };
+
+    void prepare(double sampleRate);
+
+    // What to randomize
+    void setRandomizeCutoff(bool enabled, float range); // Range in octaves
+    void setRandomizeQ(bool enabled, float range);
+    void setRandomizeType(bool enabled);      // Random filter type switching
+
+    // How to randomize
+    void setRandomMode(RandomMode mode);
+    void setChangeRate(float hz);             // Rate of parameter changes
+    void setSmoothing(float ms);              // Transition smoothing
+    void setSeed(uint32_t seed);              // For reproducibility
+
+    // Base values (center of random range)
+    void setCutoff(float hz);
+    void setResonance(float q);
+    void setFilterType(FilterType type);
+
+    float process(float input);
+
+private:
+    SVF filter_;
+    RandomGenerator rng_;
+    // Chaos state (for Lorenz mode)
+    float x_, y_, z_;
+};
+```
+
+**Lorenz Attractor:**
+```cpp
+// Classic chaotic system
+dx/dt = σ(y - x)
+dy/dt = x(ρ - z) - y
+dz/dt = xy - βz
+// Where σ=10, ρ=28, β=8/3
+```
+
+#### 14.2 Self-Oscillating Feedback (`self_osc_filter.h`)
+```
+Location: dsp/include/krate/dsp/processors/self_osc_filter.h
+Layer: 2
+Dependencies: ladder_filter.h (or svf.h), dc_blocker.h
+```
+
+**Description:** Push resonant filters into self-oscillation for sine-wave generation that can be played melodically.
+
+```cpp
+class SelfOscillatingFilter {
+public:
+    void prepare(double sampleRate);
+
+    void setFrequency(float hz);              // Oscillation pitch
+    void setResonance(float amount);          // 0-1, >0.95 for oscillation
+    void setOscillationLevel(float dB);       // Output level limiter
+    void setExternalInput(float mix);         // Blend external signal
+    void setWaveShape(float amount);          // Soft clip shaping
+
+    // Pitch control (for melodic use)
+    void setGlide(float ms);
+    void noteOn(int midiNote, float velocity);
+    void noteOff();
+
+    float process(float input = 0.0f);
+
+private:
+    LadderFilter filter_;
+    DCBlocker2 dcBlock_;
+    float targetFreq_, currentFreq_;
+    float glideRate_;
+};
+```
+
+#### 14.3 Sample & Hold Filter (`sample_hold_filter.h`)
+```
+Location: dsp/include/krate/dsp/processors/sample_hold_filter.h
+Layer: 2
+Dependencies: svf.h, random_generator.h, lfo.h
+```
+
+**Description:** Filter parameters are sampled and held at regular intervals, creating stepped modulation.
+
+```cpp
+class SampleHoldFilter {
+public:
+    void prepare(double sampleRate);
+
+    // S&H timing
+    void setHoldTime(float ms);               // Time between samples
+    void setTriggerSource(TriggerSource src); // Clock, Audio, Random
+    void setRandomTriggerProbability(float p); // For Random mode
+
+    // What to sample
+    void setSampleCutoff(bool enabled, float range);
+    void setSampleQ(bool enabled, float range);
+    void setSamplePan(bool enabled);          // For stereo
+
+    // Sample source
+    void setSourceLFO(float rate);            // Internal LFO
+    void setSourceRandom(float range);        // Random values
+    void setSourceEnvelope();                 // Follow input amplitude
+    void setSourceExternal(float value);      // External CV
+
+    void setSlew(float ms);                   // Smoothing between steps
+
+    float process(float input);
+    void processStereo(float& left, float& right);
+
+private:
+    SVF filter_;
+    LFO lfo_;
+    float holdCounter_ = 0.0f;
+    float heldCutoff_, heldQ_;
+};
+```
+
+---
+
+### Phase 15: Sidechain & Reactive Filters (Layer 2/3)
+
+**Goal:** Filters that respond to external signals or audio analysis.
+
+**Existing Infrastructure:**
+- `processors/envelope_follower.h` - Amplitude/RMS/Peak detection with sidechain HP
+- `primitives/pitch_detector.h` - Autocorrelation-based (50-1000Hz range, ~6ms latency)
+- `primitives/svf.h` - For cutoff modulation
+- `primitives/delay_line.h` - For lookahead
+
+#### 15.1 Sidechain Filter (`sidechain_filter.h`)
+```
+Location: dsp/include/krate/dsp/processors/sidechain_filter.h
+Layer: 2
+Dependencies: envelope_follower.h, svf.h (or multimode_filter.h)
+```
+
+**Description:** Filter cutoff controlled by a sidechain signal's envelope - classic ducking and pumping effects.
+
+```cpp
+class SidechainFilter {
+public:
+    void prepare(double sampleRate);
+
+    // Sidechain detection
+    void setSidechainInput(bool external);    // External vs. self-sidechain
+    void setAttack(float ms);
+    void setRelease(float ms);
+    void setThreshold(float dB);
+    void setSensitivity(float amount);
+
+    // Filter response
+    void setDirection(Direction dir);         // Up or Down
+    void setMinCutoff(float hz);
+    void setMaxCutoff(float hz);
+    void setResonance(float q);
+    void setFilterType(FilterType type);
+
+    // Timing
+    void setLookahead(float ms);              // Anticipate transients
+    void setHold(float ms);                   // Hold before release
+
+    float process(float input, float sidechain);
+    float process(float input);               // Self-sidechain mode
+
+private:
+    EnvelopeFollower envelope_;
+    SVF filter_;
+    DelayLine lookahead_;
+};
+```
+
+#### 15.2 Transient-Aware Filter (`transient_filter.h`)
+```
+Location: dsp/include/krate/dsp/processors/transient_filter.h
+Layer: 2
+Dependencies: envelope_follower.h, svf.h
+```
+
+**Description:** Detects transients and momentarily opens/closes filter for dynamic tonal shaping.
+
+```cpp
+class TransientAwareFilter {
+public:
+    void prepare(double sampleRate);
+
+    // Transient detection
+    void setTransientSensitivity(float amount);
+    void setTransientAttack(float ms);        // Detection speed
+    void setTransientDecay(float ms);         // Return to normal
+
+    // Filter behavior
+    void setIdleCutoff(float hz);             // Cutoff when no transient
+    void setTransientCutoff(float hz);        // Cutoff during transient
+    void setResonance(float q);
+    void setTransientQBoost(float amount);    // Extra Q during transient
+
+    float process(float input);
+
+private:
+    EnvelopeFollower fastEnv_, slowEnv_;      // For transient detection
+    SVF filter_;
+};
+```
+
+#### 15.3 Pitch-Tracking Filter (`pitch_tracking_filter.h`)
+```
+Location: dsp/include/krate/dsp/processors/pitch_tracking_filter.h
+Layer: 2
+Dependencies: pitch_detector.h (new), svf.h, smoother.h
+```
+
+**Description:** Filter cutoff follows the detected pitch of the input - creates harmonic filtering.
+
+```cpp
+class PitchTrackingFilter {
+public:
+    void prepare(double sampleRate, int maxBlockSize);
+
+    // Pitch detection
+    void setDetectionRange(float minHz, float maxHz);
+    void setConfidenceThreshold(float threshold); // Ignore uncertain pitches
+    void setTrackingSpeed(float ms);          // Smoothing
+
+    // Filter relationship to pitch
+    void setHarmonicRatio(float ratio);       // cutoff = pitch * ratio
+    void setOffset(float semitones);          // Additional offset
+    void setResonance(float q);
+    void setFilterType(FilterType type);
+
+    // Behavior when pitch uncertain
+    void setFallbackCutoff(float hz);
+    void setFallbackSmoothing(float ms);
+
+    float process(float input);
+    void processBlock(float* buffer, int numSamples);
+
+private:
+    PitchDetector pitchDetector_;
+    SVF filter_;
+    OnePoleSmoother cutoffSmoother_;
+    float lastValidPitch_ = 440.0f;
+};
+```
+
+---
+
+### Phase 16: Exotic Modulation Filters (Layer 2/3)
+
+**Goal:** Unusual modulation sources and routing for experimental effects.
+
+#### 16.1 Audio-Rate Filter FM (`audio_rate_filter_fm.h`)
+```
+Location: dsp/include/krate/dsp/processors/audio_rate_filter_fm.h
+Layer: 2
+Dependencies: svf.h, oversampler.h
+```
+
+**Description:** Modulate filter cutoff at audio rates for metallic, bell-like, or aggressive tones.
+
+```cpp
+class AudioRateFilterFM {
+public:
+    void prepare(double sampleRate, int maxBlockSize);
+
+    // Carrier filter
+    void setCarrierCutoff(float hz);          // Center frequency
+    void setCarrierQ(float q);
+    void setFilterType(FilterType type);
+
+    // Modulator
+    void setModulatorSource(ModSource src);   // Internal, External, Self
+    void setModulatorFrequency(float hz);     // Internal oscillator freq
+    void setModulatorWaveform(Waveform wave); // Sine, Saw, Square, etc.
+
+    // FM depth
+    void setFMDepth(float octaves);           // Modulation range
+    void setFMIndex(float index);             // Alternative: FM synthesis style
+
+    // Requires oversampling for stability
+    void setOversamplingFactor(int factor);   // 2x or 4x recommended
+
+    float process(float input, float modulator = 0.0f);
+
+private:
+    SVF filter_;
+    Oversampler<4, 1> oversampler_;
+    LFO internalModulator_;
+    float fmDepth_;
+};
+```
+
+**Warning:** Audio-rate modulation can cause aliasing - oversample or use carefully!
+
+#### 16.2 Filter Feedback Matrix (`filter_matrix.h`)
+```
+Location: dsp/include/krate/dsp/systems/filter_matrix.h
+Layer: 3
+Dependencies: svf.h, delay_line.h
+```
+
+**Description:** Multiple filters with configurable feedback routing between them - creates complex resonant networks.
+
+```cpp
+class FilterFeedbackMatrix {
+public:
+    static constexpr int kMaxFilters = 4;
+
+    void prepare(double sampleRate);
+
+    // Per-filter settings
+    void setFilterCutoff(int index, float hz);
+    void setFilterQ(int index, float q);
+    void setFilterType(int index, FilterType type);
+
+    // Matrix routing: feedbackMatrix[from][to] = amount
+    void setFeedbackAmount(int from, int to, float amount);
+    void setFeedbackDelay(int from, int to, float ms);
+    void setFeedbackMatrix(const float matrix[kMaxFilters][kMaxFilters]);
+
+    // Global
+    void setInputRouting(const float* gains);  // Input to each filter
+    void setOutputMix(const float* gains);     // Output from each filter
+    void setGlobalFeedback(float amount);      // Scale all feedback
+
+    float process(float input);
+    void processStereo(float& left, float& right);
+
+private:
+    SVF filters_[kMaxFilters];
+    DelayLine delays_[kMaxFilters][kMaxFilters];
+    float matrix_[kMaxFilters][kMaxFilters];
+};
+```
+
+#### 16.3 Frequency Shifter (`frequency_shifter.h`)
+```
+Location: dsp/include/krate/dsp/processors/frequency_shifter.h
+Layer: 2
+Dependencies: hilbert_transform.h (new), lfo.h
+```
+
+**Description:** Shifts all frequencies by a constant Hz amount (not pitch shifting!) - creates inharmonic, metallic effects.
+
+```cpp
+class FrequencyShifter {
+public:
+    void prepare(double sampleRate);
+
+    void setShiftAmount(float hz);            // -1000 to +1000 typical
+    void setFeedback(float amount);           // Creates spiraling effects
+    void setMix(float dryWet);
+    void setDirection(Direction dir);         // Up, Down, or Both (ring mod)
+
+    // LFO modulation of shift
+    void setModRate(float hz);
+    void setModDepth(float hz);               // Shift range
+
+    float process(float input);
+    void processStereo(float& left, float& right); // Opposite shifts
+
+private:
+    // Hilbert transform for analytic signal
+    Biquad hilbertAP_[8];                     // Allpass approximation
+    float quadOscPhase_ = 0.0f;               // Quadrature oscillator
+    float shiftFreq_;
+    LFO modLFO_;
+};
+```
+
+**Hilbert Transform:** Creates 90° phase shift across spectrum, enabling single-sideband modulation.
+
+---
+
+### Phase 17: Sequenced & Patterned Filters (Layer 2/3)
+
+**Goal:** Rhythmic, pattern-based filter movements synchronized to tempo.
+
+#### 17.1 Filter Step Sequencer (`filter_sequencer.h`)
+```
+Location: dsp/include/krate/dsp/systems/filter_sequencer.h
+Layer: 3
+Dependencies: svf.h, smoother.h
+```
+
+**Description:** Step sequencer controlling filter parameters - cutoff, Q, type per step.
+
+```cpp
+class FilterStepSequencer {
+public:
+    static constexpr int kMaxSteps = 16;
+
+    void prepare(double sampleRate);
+
+    // Sequence setup
+    void setNumSteps(int steps);
+    void setStepCutoff(int step, float hz);
+    void setStepQ(int step, float q);
+    void setStepType(int step, FilterType type);
+    void setStepGain(int step, float dB);     // Per-step volume
+
+    // Timing
+    void setTempo(float bpm);
+    void setStepDivision(NoteValue division); // 1/4, 1/8, 1/16, etc.
+    void setSwing(float amount);              // Shuffle timing
+    void setGlide(float ms);                  // Transition smoothing
+
+    // Playback
+    void setDirection(Direction dir);         // Forward, Backward, PingPong, Random
+    void setGateLength(float percent);        // 0-100% of step
+
+    // Sync
+    void sync(double ppqPosition);
+    void trigger();                           // Manual step advance
+
+    float process(float input);
+
+private:
+    struct Step {
+        float cutoff, q, gain;
+        FilterType type;
+    };
+    std::array<Step, kMaxSteps> steps_;
+    SVF filter_;
+    int currentStep_ = 0;
+    float stepProgress_ = 0.0f;
+};
+```
+
+#### 17.2 Vowel Sequencer (`vowel_sequencer.h`)
+```
+Location: dsp/include/krate/dsp/systems/vowel_sequencer.h
+Layer: 3
+Dependencies: formant_filter.h, smoother.h
+```
+
+**Description:** Sequence through vowel sounds rhythmically - "talking" filter effect.
+
+```cpp
+class VowelSequencer {
+public:
+    static constexpr int kMaxSteps = 8;
+
+    void prepare(double sampleRate);
+
+    // Sequence setup
+    void setNumSteps(int steps);
+    void setStepVowel(int step, Vowel vowel);
+    void setStepFormantShift(int step, float semitones);
+    void setPattern(const Vowel* pattern, int length); // Bulk set
+
+    // Timing
+    void setTempo(float bpm);
+    void setStepDivision(NoteValue division);
+    void setMorphTime(float ms);              // Transition between vowels
+
+    // Presets
+    void setTalkingPreset(const char* word);  // "aeiou", "wow", etc.
+
+    float process(float input);
+
+private:
+    FormantFilter formant_;
+    std::array<Vowel, kMaxSteps> pattern_;
+    int currentStep_ = 0;
+};
+```
+
+#### 17.3 Multi-Stage Envelope Filter (`multistage_env_filter.h`)
+```
+Location: dsp/include/krate/dsp/processors/multistage_env_filter.h
+Layer: 2
+Dependencies: svf.h, smoother.h
+```
+
+**Description:** Complex envelope shapes (not just ADSR) driving filter movement - for evolving pads and textures.
+
+```cpp
+class MultiStageEnvelopeFilter {
+public:
+    static constexpr int kMaxStages = 8;
+
+    void prepare(double sampleRate);
+
+    // Envelope shape
+    void setNumStages(int stages);
+    void setStageTarget(int stage, float cutoffHz);
+    void setStageTime(int stage, float ms);
+    void setStageCurve(int stage, float curve); // -1 to +1 (log/lin/exp)
+    void setLoop(bool enabled);
+    void setLoopStart(int stage);
+    void setLoopEnd(int stage);
+
+    // Filter settings
+    void setResonance(float q);
+    void setFilterType(FilterType type);
+
+    // Trigger
+    void trigger();
+    void release();                           // Jump to release stage
+    void setVelocitySensitivity(float amount);
+
+    float process(float input);
+
+private:
+    struct Stage {
+        float targetCutoff;
+        float timeMs;
+        float curve;
+    };
+    std::array<Stage, kMaxStages> stages_;
+    SVF filter_;
+    float envelopeValue_ = 0.0f;
+    int currentStage_ = 0;
+};
+```
+
+---
+
+### Phase 18: Granular & Time-Domain Filters (Layer 3)
+
+**Goal:** Granular and time-based spectral processing for otherworldly textures.
+
+**Existing Infrastructure (substantial reuse possible):**
+- `systems/granular_engine.h` - Complete granular synthesis engine
+- `effects/spectral_delay.h` - **Already implements per-bin spectral delay with freeze**
+- `primitives/comb_filter.h` - FeedforwardComb, FeedbackComb, SchroederAllpass
+- `primitives/lfo.h` - For modulating comb delays
+
+#### 18.1 Granular Filter (`granular_filter.h`)
+```
+Location: dsp/include/krate/dsp/systems/granular_filter.h
+Layer: 3
+Dependencies: granular_engine.h (EXISTING), svf.h
+Status: NEW (extends existing granular infrastructure)
+```
+
+**Description:** Extends existing `GranularEngine` with per-grain filtering. The base granular synthesis (grain pool, scheduler, processor) already exists.
+
+**Existing Infrastructure:**
+- `systems/granular_engine.h` - Core engine with grain pool, scheduler
+- `processors/grain_processor.h`, `grain_scheduler.h` - Grain lifecycle
+- `primitives/grain_pool.h` - Grain allocation
+- `core/grain_envelope.h` - Window functions for grains
+
+**New Addition:** Per-grain SVF filter instance with randomized cutoff.
+
+```cpp
+class GranularFilter {
+public:
+    void prepare(double sampleRate, float maxGrainMs = 100.0f);
+
+    // Grain parameters
+    void setGrainSize(float ms);              // 10-100ms typical
+    void setGrainDensity(float grainsPerSec); // Overlap amount
+    void setGrainShape(WindowType window);    // Hann, Gaussian, etc.
+    void setGrainPitch(float semitones);      // Per-grain pitch shift
+    void setGrainPitchRandom(float range);    // Random pitch variation
+
+    // Filter per grain
+    void setFilterCutoff(float hz);
+    void setFilterCutoffRandom(float octaves); // Per-grain randomization
+    void setFilterQ(float q);
+    void setFilterType(FilterType type);
+
+    // Grain playback
+    void setPlaybackSpeed(float speed);       // Time stretch
+    void setPlaybackPosition(float position); // Scrub position (0-1)
+    void setPlaybackRandom(float amount);     // Position jitter
+    void setReverse(float probability);       // Chance of reverse grains
+
+    float process(float input);
+
+private:
+    struct Grain {
+        int startSample;
+        int length;
+        float pitch;
+        float filterCutoff;
+        float phase;
+        bool reverse;
+        SVF filter;
+    };
+    std::vector<Grain> activeGrains_;
+    DelayLine buffer_;
+};
+```
+
+#### 18.2 Spectral Delay Filter - **ALREADY EXISTS**
+```
+Location: dsp/include/krate/dsp/effects/spectral_delay.h
+Layer: 4 (User Feature)
+Dependencies: stft.h, spectral_buffer.h, delay_line.h
+Status: COMPLETE (spec 033-spectral-delay)
+```
+
+**Already Implemented Features:**
+- Per-bin delay lines with linear interpolation
+- Spread control (LowToHigh, HighToLow, CenterOut)
+- Linear and logarithmic spread curves
+- Feedback with frequency-dependent tilt
+- Spectral freeze with crossfade
+- Diffusion blur
+- Stereo decorrelation
+- Tempo sync
+
+*No new implementation needed - see `effects/spectral_delay.h`*
+
+**Existing API (reference):**
+```cpp
+// Already in effects/spectral_delay.h
+class SpectralDelay {
+    void prepare(double sampleRate, std::size_t maxBlockSize);
+    void setBaseDelayMs(float ms);            // 0-2000ms
+    void setSpreadMs(float ms);               // Per-bin spread
+    void setSpreadDirection(SpreadDirection); // LowToHigh, HighToLow, CenterOut
+    void setSpreadCurve(SpreadCurve);         // Linear or Logarithmic
+    void setFeedback(float amount);           // 0-120%
+    void setFeedbackTilt(float tilt);         // -1 to +1
+    void setDiffusion(float amount);          // Spectral blur
+    void setFreezeEnabled(bool enabled);
+    void setStereoWidth(float amount);
+    void setTimeMode(int mode);               // Free/Synced
+    void setNoteValue(int index);             // Tempo sync
+    void process(float* left, float* right, std::size_t numSamples, const BlockContext& ctx);
+};
+```
+
+#### 18.3 Time-Varying Comb Bank (`timevar_comb_bank.h`)
+```
+Location: dsp/include/krate/dsp/systems/timevar_comb_bank.h
+Layer: 3
+Dependencies: comb_filter.h, lfo.h, smoother.h
+```
+
+**Description:** Bank of comb filters with independently modulated delay times - creates evolving metallic/resonant textures.
+
+```cpp
+class TimeVaryingCombBank {
+public:
+    static constexpr int kMaxCombs = 8;
+
+    void prepare(double sampleRate, float maxDelayMs = 50.0f);
+
+    // Comb configuration
+    void setNumCombs(int count);
+    void setCombDelay(int index, float ms);
+    void setCombFeedback(int index, float amount);
+    void setCombDamping(int index, float amount);
+    void setCombGain(int index, float dB);
+
+    // Global settings
+    void setTuning(Tuning tuning);            // Harmonic, Inharmonic, Custom
+    void setFundamental(float hz);            // Base frequency
+    void setSpread(float amount);             // Detune between combs
+
+    // Time variation
+    void setModRate(float hz);                // Global LFO rate
+    void setModDepth(float percent);          // Delay modulation depth
+    void setModPhaseSpread(float degrees);    // LFO phase between combs
+    void setRandomModulation(float amount);   // Per-comb random drift
+
+    // Stereo
+    void setStereoSpread(float amount);       // Pan distribution
+
+    float process(float input);
+    void processStereo(float& left, float& right);
+
+private:
+    struct CombChannel {
+        FeedbackComb comb;
+        LFO modLfo;
+        float baseDelay;
+        float pan;
+    };
+    std::array<CombChannel, kMaxCombs> combs_;
+};
+```
+
+---
+
 ## Implementation Order
 
 ### Sprint 1: Foundation (Estimated: 2-3 days)
@@ -713,42 +1742,125 @@ constexpr float prewarpFrequency(float freq, double sampleRate) {
 10. **`envelope_filter.h`** (Layer 2) - Auto-wah
 11. **`phaser.h`** (Layer 2) - Phaser effect
 
+### Sprint 5: Spectral Processing (Estimated: 2-3 days)
+*Note: `fft.h`, `stft.h`, `window_functions.h`, `spectral_buffer.h` already exist*
+
+12. **`spectral_morph_filter.h`** (Layer 2) - Spectral morphing ← uses existing STFT
+13. **`spectral_gate.h`** (Layer 2) - Per-bin gating ← uses existing FFT + envelope_follower
+14. **`spectral_tilt.h`** (Layer 2) - Tilt filter (IIR approximation or FFT)
+
+### Sprint 6: Physical Modeling (Estimated: 3-4 days)
+*Note: `noise_generator.h` already exists with 13 noise types*
+
+15. **`resonator_bank.h`** (Layer 2) - Modal resonator bank ← uses existing biquad
+16. **`karplus_strong.h`** (Layer 2) - Plucked string ← uses existing delay_line, one_pole
+17. **`waveguide_resonator.h`** (Layer 2) - Waveguide pipe ← uses existing delay_line, allpass_1pole
+18. **`modal_resonator.h`** (Layer 2) - Modal synthesis ← uses existing biquad
+
+### Sprint 7: Chaos & Randomization (Estimated: 2-3 days)
+*Note: `random.h` (Xorshift32) already exists*
+
+19. **`stochastic_filter.h`** (Layer 2) - Random parameter drift ← uses existing svf, random
+20. **`self_osc_filter.h`** (Layer 2) - Self-oscillating filter ← uses existing ladder_filter
+21. **`sample_hold_filter.h`** (Layer 2) - S&H modulation ← uses existing svf, random, lfo
+
+### Sprint 8: Reactive Filters (Estimated: 2-3 days)
+*Note: `pitch_detector.h`, `envelope_follower.h` already exist*
+
+22. **`sidechain_filter.h`** (Layer 2) - Envelope-controlled filter ← uses existing components
+23. **`transient_filter.h`** (Layer 2) - Transient-aware filter ← uses existing envelope_follower
+24. **`pitch_tracking_filter.h`** (Layer 2) - Pitch-following filter ← uses existing pitch_detector
+
+### Sprint 9: Exotic Modulation (Estimated: 3-4 days)
+25. **`hilbert_transform.h`** (Layer 1) - Analytic signal via allpass cascade (NEW primitive)
+26. **`audio_rate_filter_fm.h`** (Layer 2) - Audio-rate modulation ← uses existing svf, oversampler
+27. **`frequency_shifter.h`** (Layer 2) - Single-sideband shifting ← uses NEW hilbert_transform
+28. **`filter_matrix.h`** (Layer 3) - Feedback matrix ← extends existing feedback_network concepts
+
+### Sprint 10: Sequenced Filters (Estimated: 2-3 days)
+29. **`filter_sequencer.h`** (Layer 3) - Step sequencer ← uses existing svf, smoother
+30. **`vowel_sequencer.h`** (Layer 3) - Vowel pattern sequencer ← uses existing formant_filter
+31. **`multistage_env_filter.h`** (Layer 2) - Complex envelopes ← uses existing svf, smoother
+
+### Sprint 11: Granular & Time-Domain (Estimated: 2-3 days)
+*Note: `spectral_delay.h` (Layer 4) and `granular_engine.h` already exist*
+
+32. **`granular_filter.h`** (Layer 3) - Per-grain filtering ← extends existing granular_engine
+33. **`timevar_comb_bank.h`** (Layer 3) - Modulated comb bank ← uses existing comb_filter, lfo
+    *(spectral_delay_filter.h removed - already implemented as `effects/spectral_delay.h`)*
+
 ---
 
 ## Dependency Graph
 
 ```
-Layer 0 (Core)
-├── math_constants.h (existing)
-├── db_utils.h (existing)
-├── filter_tables.h (new)
-└── filter_design.h (new)
+Layer 0 (Core) - ALL EXISTING
+├── math_constants.h
+├── db_utils.h
+├── filter_tables.h (Phase 1)
+├── filter_design.h (Phase 11)
+├── window_functions.h ← used by spectral processing
+└── random.h (Xorshift32) ← used by stochastic/S&H filters
 
-Layer 1 (Primitives)
-├── biquad.h (existing)
-├── dc_blocker.h (existing)
-├── smoother.h (existing)
-├── delay_line.h (existing)
-├── oversampler.h (existing)
-├── lfo.h (existing)
-├── one_pole.h (new) ← math_constants
-├── svf.h (new) ← math_constants, db_utils
-├── allpass_1pole.h (new) ← math_constants
-├── comb_filter.h (new) ← delay_line, dc_blocker
-└── ladder_filter.h (new) ← oversampler, math_constants
+Layer 1 (Primitives) - MOSTLY EXISTING
+├── biquad.h
+├── dc_blocker.h
+├── smoother.h
+├── delay_line.h
+├── oversampler.h
+├── lfo.h
+├── fft.h ← used by all spectral filters
+├── stft.h ← STFT + OverlapAdd
+├── spectral_buffer.h
+├── one_pole.h (Phase 6)
+├── svf.h (Phase 2)
+├── allpass_1pole.h (Phase 4)
+├── comb_filter.h (Phase 3)
+├── ladder_filter.h (Phase 5)
+├── pitch_detector.h ← autocorrelation-based
+└── hilbert_transform.h (NEW) ← allpass approximation for freq shifter
 
-Layer 2 (Processors)
-├── multimode_filter.h (existing)
-├── envelope_follower.h (existing)
-├── crossover_filter.h (new) ← biquad, smoother
-├── formant_filter.h (new) ← biquad, filter_tables, smoother
-├── envelope_filter.h (new) ← envelope_follower, svf
-└── phaser.h (new) ← allpass_1pole, lfo, smoother
+Layer 2 (Processors) - MIXED
+├── multimode_filter.h
+├── envelope_follower.h
+├── noise_generator.h ← 13 noise types (white, pink, brown, etc.)
+├── crossover_filter.h (Phase 7)
+├── formant_filter.h (Phase 8)
+├── envelope_filter.h (Phase 9)
+├── phaser.h (Phase 10)
+├── spectral_morph_filter.h (NEW) ← stft, spectral_buffer
+├── spectral_gate.h (NEW) ← fft, envelope_follower
+├── spectral_tilt.h (NEW) ← biquad cascade or fft
+├── resonator_bank.h (NEW) ← biquad, smoother
+├── karplus_strong.h (NEW) ← delay_line, one_pole, noise_generator
+├── waveguide_resonator.h (NEW) ← delay_line, allpass_1pole, dc_blocker
+├── modal_resonator.h (NEW) ← biquad, smoother
+├── stochastic_filter.h (NEW) ← svf, random
+├── self_osc_filter.h (NEW) ← ladder_filter, dc_blocker
+├── sample_hold_filter.h (NEW) ← svf, random, lfo
+├── sidechain_filter.h (NEW) ← envelope_follower, svf, delay_line
+├── transient_filter.h (NEW) ← envelope_follower, svf
+├── pitch_tracking_filter.h (NEW) ← pitch_detector, svf, smoother
+├── audio_rate_filter_fm.h (NEW) ← svf, oversampler, lfo
+├── frequency_shifter.h (NEW) ← hilbert_transform, lfo
+└── multistage_env_filter.h (NEW) ← svf, smoother
 
-Layer 3 (Systems) - Future extensions
-├── multiband_processor.h ← crossover_filter
-└── vocal_processor.h ← formant_filter, envelope_filter
+Layer 3 (Systems) - MOSTLY EXISTING
+├── granular_engine.h ← complete granular synthesis
+├── feedback_network.h ← feedback routing with filters/saturation
+├── modulation_matrix.h ← source→dest routing
+├── filter_matrix.h (NEW) ← extends feedback_network for multi-filter routing
+├── filter_sequencer.h (NEW) ← svf, smoother
+├── vowel_sequencer.h (NEW) ← formant_filter, smoother
+├── granular_filter.h (NEW) ← extends granular_engine with per-grain filtering
+└── timevar_comb_bank.h (NEW) ← comb_filter, lfo, smoother
+
+Layer 4 (Effects) - MOSTLY EXISTING
+└── spectral_delay.h ← ALREADY IMPLEMENTS per-bin delays, freeze, tilt, diffusion
 ```
+
+**Summary:** Of 39 components in the original roadmap, approximately 22 already exist.
+The remaining 17 NEW components can all leverage existing primitives.
 
 ---
 
@@ -794,9 +1906,43 @@ Each new component needs:
 - [CCRMA Formant Filtering](https://ccrma.stanford.edu/~jos/filters/Formant_Filtering_Example.html)
 - [Formant Frequency Tables](https://www.researchgate.net/figure/Formant-Frequencies-Hz-F1-F2-F3-for-Typical-Vowels_tbl1_332054208)
 
+### Spectral Processing (Phases 12+)
+- [DAFX Book - Spectral Processing](http://dafx.de/)
+- [Phase Vocoder Tutorial (CCRMA)](https://ccrma.stanford.edu/~jos/sasp/Phase_Vocoder.html)
+- [Spectral Morphing (Miller Puckette)](http://msp.ucsd.edu/techniques/v0.11/book-html/node115.html)
+- [STFT/ISTFT Implementation](https://www.dsprelated.com/freebooks/sasp/STFT_Processing.html)
+
+### Physical Modeling (Phase 13)
+- [Karplus-Strong (CCRMA)](https://ccrma.stanford.edu/~jos/pasp/Karplus_Strong_Synthesis.html)
+- [Digital Waveguides (Smith)](https://ccrma.stanford.edu/~jos/waveguide/)
+- [Modal Synthesis Tutorial](https://ccrma.stanford.edu/~bilbao/booktop/node14.html)
+- [Physical Audio Signal Processing](https://ccrma.stanford.edu/~jos/pasp/)
+
+### Chaos & Randomization (Phase 14)
+- [Lorenz Attractor](https://en.wikipedia.org/wiki/Lorenz_system)
+- [Perlin Noise for Audio](https://www.musicdsp.org/en/latest/Synthesis/216-perlin-noise.html)
+- [Chaotic Oscillators in Sound Synthesis](https://www.researchgate.net/publication/228981389_Chaotic_oscillators_for_sound_synthesis)
+
+### Pitch Detection (Phase 15)
+- [YIN Algorithm Paper](https://audition.ens.fr/adc/pdf/2002_JASA_YIN.pdf)
+- [Autocorrelation Pitch Detection (CCRMA)](https://ccrma.stanford.edu/~jos/sasp/Autocorrelation_Pitch_Detector.html)
+- [pYIN Probabilistic YIN](https://www.eecs.qmul.ac.uk/~siMDirrty/papers/pyin.pdf)
+
+### Frequency Shifting (Phase 16)
+- [Hilbert Transform for SSB (CCRMA)](https://ccrma.stanford.edu/~jos/st/Hilbert_Transform.html)
+- [Frequency Shifting vs Pitch Shifting](https://www.soundonsound.com/techniques/frequency-shifting-vs-pitch-shifting)
+- [Bode Frequency Shifter](https://www.muffwiggler.com/forum/viewtopic.php?t=15289)
+
+### Granular Processing (Phase 18)
+- [Granular Synthesis (Roads)](https://www.mitpress.mit.edu/books/computer-music-tutorial)
+- [Real-time Granular Synthesis (CCRMA)](https://ccrma.stanford.edu/~jos/parshl/Granular_Synthesis.html)
+- [Spectral Delay Networks](https://www.dafx.de/paper-archive/2009/papers/paper_45.pdf)
+
 ---
 
 ## Appendix: Filter Selection Quick Reference
+
+### Foundation Filters (Phases 1-11)
 
 | Use Case | Recommended Component | Layer |
 |----------|----------------------|-------|
@@ -813,3 +1959,32 @@ Each new component needs:
 | Vowel effects | `FormantFilter` | 2 |
 | Auto-wah | `EnvelopeFilter` | 2 |
 | Feedback tone | `Biquad` cascade + `DCBlocker2` | 1 |
+
+### Advanced Sound Design (Phases 12-18)
+
+| Use Case | Recommended Component | Layer | Status |
+|----------|----------------------|-------|--------|
+| Spectral morphing | `SpectralMorphFilter` | 2 | NEW |
+| Spectral gating | `SpectralGate` | 2 | NEW |
+| Tilt EQ | `SpectralTilt` | 2 | NEW |
+| Marimba/bell resonance | `ResonatorBank` | 2 | NEW |
+| Plucked strings | `KarplusStrong` | 2 | NEW |
+| Flute/pipe resonance | `WaveguideResonator` | 2 | NEW |
+| Complex body resonance | `ModalResonator` | 2 | NEW |
+| Random filter drift | `StochasticFilter` | 2 | NEW |
+| Sine generator from filter | `SelfOscillatingFilter` | 2 | NEW |
+| Stepped modulation | `SampleHoldFilter` | 2 | NEW |
+| Ducking/pumping filter | `SidechainFilter` | 2 | NEW |
+| Transient shaping | `TransientAwareFilter` | 2 | NEW |
+| Harmonic tracking | `PitchTrackingFilter` | 2 | NEW |
+| Metallic FM tones | `AudioRateFilterFM` | 2 | NEW |
+| Complex resonant networks | `FilterFeedbackMatrix` | 3 | NEW |
+| Inharmonic shifting | `FrequencyShifter` | 2 | NEW |
+| Rhythmic filter patterns | `FilterStepSequencer` | 3 | NEW |
+| Talking filter | `VowelSequencer` | 3 | NEW |
+| Complex envelope shapes | `MultiStageEnvelopeFilter` | 2 | NEW |
+| Per-grain processing | `GranularFilter` | 3 | NEW (extends existing) |
+| Spectral smearing/freeze | `SpectralDelay` | 4 | **EXISTS** |
+| Evolving metallic textures | `TimeVaryingCombBank` | 3 | NEW |
+
+**Note:** `SpectralDelay` (effects/spectral_delay.h) already provides per-bin delays with freeze, tilt, and diffusion. The remaining 21 components are NEW but heavily reuse existing primitives.
