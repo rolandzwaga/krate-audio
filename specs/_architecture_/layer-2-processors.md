@@ -949,3 +949,139 @@ Input --> +------->| Sensitivity Gain |---> EnvelopeFollower
 ```
 
 **Dependencies:** Layer 0 (db_utils.h), Layer 1 (svf.h), Layer 2 peer (envelope_follower.h)
+
+---
+
+## Phaser
+**Path:** [phaser.h](../../dsp/include/krate/dsp/processors/phaser.h) | **Since:** 0.13.0
+
+Classic phaser effect with cascaded first-order allpass filters and LFO modulation for creating sweeping notches and jets.
+
+**Use when:**
+- Creating classic phaser modulation effects on synths, guitars, or pads
+- Need variable stage count (2-12) for subtle to intense phasing
+- Want stereo processing with configurable LFO phase offset for width
+- Building vintage phaser pedal emulations with feedback resonance
+- Need tempo-synchronized modulation for rhythmic effects
+
+**Features:**
+- 2-12 cascaded allpass stages (even numbers only, N stages = N/2 notches)
+- LFO waveform selection (Sine, Triangle, Square, Sawtooth)
+- Exponential frequency mapping for perceptually even sweeps
+- Bipolar feedback (-1 to +1) with tanh soft-clipping for resonance
+- Stereo processing with 0-360 degree LFO phase offset
+- Tempo sync with note value and modifier support
+- Mix-before-feedback topology for classic phaser sound
+- Parameter smoothing (5ms) for click-free automation
+
+```cpp
+class Phaser {
+    static constexpr int kMaxStages = 12;
+    static constexpr int kMinStages = 2;
+    static constexpr int kDefaultStages = 4;
+    static constexpr float kMinRate = 0.01f;
+    static constexpr float kMaxRate = 20.0f;
+    static constexpr float kMinCenterFreq = 100.0f;
+    static constexpr float kMaxCenterFreq = 10000.0f;
+    static constexpr float kSmoothingTimeMs = 5.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+    void processStereo(float* left, float* right, size_t numSamples) noexcept;
+
+    // Stage control
+    void setNumStages(int stages) noexcept;         // [2, 12] even numbers
+    [[nodiscard]] int getNumStages() const noexcept;
+
+    // LFO parameters
+    void setRate(float hz) noexcept;                // [0.01, 20] Hz
+    void setDepth(float amount) noexcept;           // [0, 1] sweep range
+    void setWaveform(Waveform waveform) noexcept;   // Sine, Triangle, Square, Sawtooth
+
+    // Frequency control
+    void setCenterFrequency(float hz) noexcept;     // [100, 10000] Hz
+
+    // Feedback and mix
+    void setFeedback(float amount) noexcept;        // [-1, +1] bipolar resonance
+    void setMix(float dryWet) noexcept;             // [0, 1] dry/wet
+
+    // Stereo
+    void setStereoSpread(float degrees) noexcept;   // [0, 360] phase offset
+
+    // Tempo sync
+    void setTempoSync(bool enabled) noexcept;
+    void setNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept;
+    void setTempo(float bpm) noexcept;
+
+    // Getters for all parameters...
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| numStages | 4 | [2, 12] even | Number of notches = stages/2 |
+| rate | 0.5 Hz | [0.01, 20] | LFO frequency (free-running) |
+| depth | 0.5 | [0, 1] | Sweep range around center |
+| centerFrequency | 1000 Hz | [100, 10000] | Sweep midpoint |
+| feedback | 0.0 | [-1, +1] | Resonance/notch emphasis |
+| mix | 0.5 | [0, 1] | Dry/wet blend |
+| stereoSpread | 0 deg | [0, 360] | LFO phase offset L/R |
+| waveform | Sine | enum | LFO shape |
+
+**Usage Example (Basic phaser):**
+```cpp
+Phaser phaser;
+phaser.prepare(44100.0);
+phaser.setNumStages(4);       // Classic 4-stage phaser
+phaser.setRate(0.5f);         // 0.5 Hz sweep
+phaser.setDepth(0.8f);        // 80% depth
+phaser.setFeedback(0.5f);     // 50% feedback for resonance
+phaser.setMix(0.5f);          // 50/50 dry/wet
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = phaser.process(input[i]);
+}
+```
+
+**Usage Example (Stereo with spread):**
+```cpp
+Phaser phaser;
+phaser.prepare(44100.0);
+phaser.setStereoSpread(180.0f);  // Inverted L/R modulation
+phaser.setRate(1.0f);
+phaser.setDepth(1.0f);
+
+// Process stereo in-place
+phaser.processStereo(left, right, numSamples);
+```
+
+**Usage Example (Tempo-synced):**
+```cpp
+Phaser phaser;
+phaser.prepare(44100.0);
+phaser.setTempoSync(true);
+phaser.setTempo(120.0f);                          // 120 BPM
+phaser.setNoteValue(NoteValue::Quarter);          // Quarter note = 2 Hz at 120 BPM
+```
+
+**Topology (mix-before-feedback):**
+```
+Input
+  |
+  +-- feedbackState * feedback (tanh soft-clipped) --->+
+  |                                                    |
+  v                                                    |
+[Allpass Cascade (N stages)] ---> wet                  |
+  |                                                    |
+  v                                                    |
+[Mix: dry * (1-mix) + wet * mix] ---> output           |
+  |                                                    |
+  +---------------------------------------------------+
+  (feedbackState = output for next sample)
+```
+
+**Dependencies:** Layer 0 (db_utils.h, note_value.h), Layer 1 (allpass_1pole.h, lfo.h, smoother.h)
