@@ -1939,3 +1939,149 @@ where: R = exp(-6.91 / (T60 * sampleRate)), theta = 2*pi*freq/sampleRate
 **Performance:** < 1% CPU @ 192kHz for 32 modes (target: 26.7 microseconds per 512-sample block)
 
 **Dependencies:** Layer 0 (db_utils.h, math_constants.h), Layer 1 (smoother.h)
+
+---
+
+## StochasticFilter
+**Path:** [stochastic_filter.h](../../dsp/include/krate/dsp/processors/stochastic_filter.h) | **Since:** 0.15.0
+
+Filter with stochastically varying parameters (cutoff, Q, type) for experimental sound design and evolving textures.
+
+**Use when:**
+- Creating evolving pad textures with organic filter movement (Walk mode)
+- Building glitch effects with sudden random filter changes (Jump mode)
+- Need complex, non-repeating modulation patterns (Lorenz chaotic attractor)
+- Want smooth, coherent random modulation (Perlin noise)
+- Experimenting with random filter type switching
+
+**Features:**
+- Four random modulation modes: Walk (Brownian), Jump (discrete), Lorenz (chaotic), Perlin (coherent noise)
+- Randomizable cutoff (octave-based range), resonance (Q), and filter type
+- Independent enable/disable for each randomizable parameter
+- Deterministic seeding for reproducible behavior
+- Click-free transitions via parameter smoothing and parallel crossfade (type switching)
+- Control-rate updates (32 samples) for CPU efficiency
+- Uses TPT SVF for modulation stability
+
+```cpp
+enum class RandomMode : uint8_t { Walk, Jump, Lorenz, Perlin };
+
+namespace FilterTypeMask {
+    constexpr uint8_t Lowpass = 0x01, Highpass = 0x02, Bandpass = 0x04;
+    constexpr uint8_t Notch = 0x08, Allpass = 0x10, Peak = 0x20;
+    constexpr uint8_t LowShelf = 0x40, HighShelf = 0x80, All = 0xFF;
+}
+
+class StochasticFilter {
+    static constexpr float kMinChangeRate = 0.01f;
+    static constexpr float kMaxChangeRate = 100.0f;
+    static constexpr float kDefaultChangeRate = 1.0f;
+    static constexpr float kMinSmoothing = 0.0f;
+    static constexpr float kMaxSmoothing = 1000.0f;
+    static constexpr float kDefaultSmoothing = 50.0f;
+    static constexpr float kMinOctaveRange = 0.0f;
+    static constexpr float kMaxOctaveRange = 8.0f;
+    static constexpr size_t kControlRateInterval = 32;
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    // Mode selection
+    void setMode(RandomMode mode) noexcept;
+    [[nodiscard]] RandomMode getMode() const noexcept;
+
+    // Randomization enable
+    void setCutoffRandomEnabled(bool enabled) noexcept;
+    void setResonanceRandomEnabled(bool enabled) noexcept;
+    void setTypeRandomEnabled(bool enabled) noexcept;
+
+    // Base parameters
+    void setBaseCutoff(float hz) noexcept;
+    void setBaseResonance(float q) noexcept;
+    void setBaseFilterType(SVFMode type) noexcept;
+
+    // Ranges
+    void setCutoffOctaveRange(float octaves) noexcept;  // [0, 8]
+    void setResonanceRange(float range) noexcept;       // [0, 1]
+    void setEnabledFilterTypes(uint8_t mask) noexcept;  // FilterTypeMask bitmask
+
+    // Control
+    void setChangeRate(float hz) noexcept;              // [0.01, 100]
+    void setSmoothingTime(float ms) noexcept;           // [0, 1000]
+    void setSeed(uint32_t seed) noexcept;
+
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] double sampleRate() const noexcept;
+};
+```
+
+| Mode | Character | Use Case |
+|------|-----------|----------|
+| Walk | Smooth drift, bounded | Evolving pad textures |
+| Jump | Discrete, sudden | Glitch effects, rhythmic chaos |
+| Lorenz | Chaotic, non-repeating | Complex evolving modulation |
+| Perlin | Smooth, band-limited | Organic coherent movement |
+
+**Usage Example (Evolving pad with Walk mode):**
+```cpp
+StochasticFilter filter;
+filter.prepare(44100.0, 512);
+filter.setMode(RandomMode::Walk);
+filter.setCutoffRandomEnabled(true);
+filter.setBaseCutoff(1000.0f);
+filter.setCutoffOctaveRange(2.0f);  // +/- 2 octaves
+filter.setChangeRate(1.0f);         // 1 Hz drift rate
+filter.setSeed(42);                 // Reproducible
+
+// In audio callback
+filter.processBlock(buffer, numSamples);
+```
+
+**Usage Example (Glitchy rhythm with Jump mode):**
+```cpp
+StochasticFilter filter;
+filter.prepare(44100.0, 512);
+filter.setMode(RandomMode::Jump);
+filter.setCutoffRandomEnabled(true);
+filter.setBaseCutoff(2000.0f);
+filter.setCutoffOctaveRange(4.0f);
+filter.setChangeRate(8.0f);         // 8 jumps per second
+filter.setSmoothingTime(20.0f);     // Click-free
+
+filter.processBlock(buffer, numSamples);
+```
+
+**Topology:**
+```
+                    +-------------------+
+                    | Random Generator  |
+                    | (Walk/Jump/Lorenz/|
+                    |  Perlin based on  |
+                    |  mode + seed)     |
+                    +-------------------+
+                            |
+                    +-------v-------+
+                    | Modulation    |
+                    | Scaling       |
+                    | (octave/range)|
+                    +---------------+
+                            |
+                    +-------v-------+       +-------+
+                    | Parameter     |<------| One-  |
+                    | Smoother      |       | Pole  |
+                    +---------------+       +-------+
+                            |
+                            v
+Input -----> [FilterA (SVF)] --+---> Output
+                               |
+                  (when transitioning types)
+                               |
+             [FilterB (SVF)] --+
+                  (crossfade)
+```
+
+**Performance:** < 0.5% CPU @ 44.1kHz stereo per instance (control-rate updates every 32 samples)
+
+**Dependencies:** Layer 0 (random.h), Layer 1 (svf.h, smoother.h)
