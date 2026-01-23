@@ -350,6 +350,7 @@ Before committing, check for these smells:
 | CLI-Hostile Names | Test names starting with `-`, `+`, `--` | Use descriptive words |
 | Relaxing on Crash | Loosening thresholds when tests crash | Use `detail::isNaN()`/`detail::isInf()` |
 | Using std::isfinite | `std::isnan()`, `std::isfinite()`, `std::isinf()` | Use bit-level checks from `db_utils.h` |
+| Build Paranoia | Rebuilding when tests ran successfully | Trust the output; only `--clean-first` if tests don't appear |
 
 ---
 
@@ -509,3 +510,38 @@ endif()
 ```cpp
 REQUIRE((!detail::isNaN(x) && !detail::isInf(x)));  // Extra parens required
 ```
+
+---
+
+## 12. The Build Paranoia Loop
+
+**Problem:** Tests compile, run, and produce output—but you doubt whether they "really" compiled and start making changes just to verify.
+
+**Signs you're doing this:**
+- Tests ran and printed results, but you rebuild "to make sure"
+- Adding whitespace or comments to "force" recompilation
+- Checking build output multiple times for the same change
+- Assuming test results are "stale" when they don't match expectations
+
+**The Rule:**
+
+> **If tests RUN and produce OUTPUT, the build SUCCEEDED. Period.**
+>
+> Do not second-guess the build system. If Catch2 printed test names and results, your code compiled and linked correctly.
+
+**When to actually suspect stale builds:**
+
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| New test file added but 0 tests appear | File not in CMakeLists.txt | Add to `target_sources()` |
+| Code change has zero effect on behavior | Linker used cached `.obj` | `--clean-first` |
+| Unexplained crash after header-only change | Stale object files | `--clean-first` |
+| Wrong function signature in error | ODR violation (duplicate names) | Search for duplicate class/function |
+
+**The fix when staleness is confirmed:**
+
+```bash
+cmake --build build --config Release --target dsp_tests --clean-first
+```
+
+**STOP:** Do not rebuild unless one of the above symptoms applies. If tests run and fail, the failure is real—investigate the code, not the build.

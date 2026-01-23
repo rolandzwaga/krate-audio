@@ -1627,3 +1627,124 @@ DelayLine --> OnePoleLP --> Allpass1Pole --> DCBlocker2 --> * feedback --> Delay
 ```
 
 **Dependencies:** Layer 0 (random.h, db_utils.h), Layer 1 (delay_line.h, one_pole.h, two_pole_lp.h, allpass_1pole.h, dc_blocker.h)
+
+---
+
+### WaveguideResonator
+
+**File:** `dsp/include/krate/dsp/processors/waveguide_resonator.h`
+
+**Purpose:** Digital waveguide resonator for flute/pipe-like resonances with configurable end reflections, frequency-dependent loss, dispersion for inharmonicity, and excitation point control.
+
+**When to use this:**
+- For modeling blown/sustained pipe and flute resonances
+- When you need configurable end reflections (open-open, closed-closed, open-closed)
+- For resonant effects with frequency-dependent damping
+- When inharmonicity via dispersion is desired (bell-like tones)
+- Compare to KarplusStrong for plucked string synthesis
+
+**Public API:**
+```cpp
+class WaveguideResonator {
+public:
+    // Lifecycle
+    void prepare(double sampleRate, float maxDelaySeconds = 0.1f) noexcept;
+    void reset() noexcept;
+
+    // Frequency control (FR-001, FR-002)
+    void setFrequency(float hz) noexcept;
+    [[nodiscard]] float getFrequency() const noexcept;
+
+    // End reflection control (FR-003, FR-004, FR-005)
+    void setEndReflection(float left, float right) noexcept;
+    [[nodiscard]] float getLeftReflection() const noexcept;
+    [[nodiscard]] float getRightReflection() const noexcept;
+
+    // Loss/damping control (FR-008, FR-009, FR-010)
+    void setLoss(float amount) noexcept;
+    [[nodiscard]] float getLoss() const noexcept;
+
+    // Dispersion/inharmonicity control (FR-011, FR-012, FR-013)
+    void setDispersion(float amount) noexcept;
+    [[nodiscard]] float getDispersion() const noexcept;
+
+    // Excitation point control (FR-014, FR-015, FR-016)
+    void setExcitationPoint(float position) noexcept;
+    [[nodiscard]] float getExcitationPoint() const noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+    void processBlock(const float* input, float* output, size_t numSamples) noexcept;
+};
+```
+
+**Key Features:**
+- **End Reflections:** Configurable reflection coefficients for left and right ends (-1 to +1)
+  - Open-Open (-1, -1): All harmonics, flute-like
+  - Closed-Closed (+1, +1): All harmonics, organ pipe
+  - Open-Closed (-1, +1): Odd harmonics only, clarinet-like
+- **Frequency-Dependent Loss:** OnePoleLP filters simulate air absorption (highs decay faster)
+- **Dispersion:** Allpass filter introduces inharmonicity for bell-like tones
+- **Excitation Point:** Position affects harmonic content via comb filtering effect
+
+**Usage Example (Basic flute-like resonance):**
+```cpp
+WaveguideResonator waveguide;
+waveguide.prepare(44100.0);
+
+waveguide.setFrequency(440.0f);           // A4 pitch
+waveguide.setEndReflection(-1.0f, -1.0f); // Open-open (flute)
+waveguide.setLoss(0.1f);                  // Light damping
+waveguide.setDispersion(0.0f);            // Pure harmonics
+waveguide.setExcitationPoint(0.5f);       // Center excitation
+
+// Excite with noise or impulse
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = waveguide.process(input[i]);
+}
+```
+
+**Usage Example (Clarinet-like odd harmonics):**
+```cpp
+WaveguideResonator waveguide;
+waveguide.prepare(44100.0);
+
+waveguide.setFrequency(440.0f);           // Set to 2x desired fundamental
+waveguide.setEndReflection(-1.0f, +1.0f); // Open-closed (clarinet)
+waveguide.setLoss(0.15f);
+// Produces odd harmonics only (fundamental at 220 Hz)
+```
+
+**Usage Example (Bell-like inharmonic tone):**
+```cpp
+WaveguideResonator waveguide;
+waveguide.prepare(44100.0);
+
+waveguide.setFrequency(440.0f);
+waveguide.setEndReflection(-1.0f, -1.0f);
+waveguide.setDispersion(0.5f);  // Shifts partials away from harmonics
+waveguide.setLoss(0.2f);
+```
+
+**Topology:**
+```
+Input --> [Excitation Point Distribution]
+                    |
+                    v
+              [DelayLine]
+                    |
+                    v
+          [OnePoleLP loss] --> [Allpass1Pole dispersion]
+                    |
+                    v
+      * leftReflection_ * rightReflection_ (combined reflection)
+                    |
+                    v
+          [Feedback to DelayLine]
+                    |
+                    v
+    [Excitation Point Output Tap] --> Output
+```
+
+**Dependencies:** Layer 0 (none), Layer 1 (delay_line.h, one_pole.h, allpass_1pole.h, one_pole_smoother.h)
