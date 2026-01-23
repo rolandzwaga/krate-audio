@@ -592,7 +592,9 @@ private:
 
     /// @brief Update lookahead delay samples from ms
     void updateLookaheadSamples() noexcept {
-        lookaheadSamples_ = static_cast<size_t>((lookaheadMs_ / 1000.0f) * sampleRate_);
+        // Use lround to avoid cross-platform truncation differences
+        lookaheadSamples_ = static_cast<size_t>(
+            std::lround((lookaheadMs_ / 1000.0f) * sampleRate_));
     }
 
     /// @brief Update hold time in samples
