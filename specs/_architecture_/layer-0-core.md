@@ -381,3 +381,40 @@ namespace FilterDesign {
 - **Bilinear transform filters:** Call `prewarpFrequency()` before calculating analog prototype
 - **Reverb design:** Use `combFeedbackForRT60()` for Schroeder comb filters
 - **Advanced cascades:** Use `chebyshevQ()`/`besselQ()` for multi-stage biquad cascades
+
+---
+
+## MIDI Utilities
+**Path:** [midi_utils.h](../../dsp/include/krate/dsp/core/midi_utils.h) | **Since:** 0.13.0
+
+MIDI note and velocity conversion utilities for melodic DSP components.
+
+```cpp
+// Constants
+constexpr float kA4FrequencyHz = 440.0f;  // A4 reference frequency
+constexpr int kA4MidiNote = 69;           // MIDI note for A4
+constexpr int kMinMidiNote = 0;           // Minimum MIDI note
+constexpr int kMaxMidiNote = 127;         // Maximum MIDI note
+constexpr int kMinMidiVelocity = 0;       // Minimum MIDI velocity
+constexpr int kMaxMidiVelocity = 127;     // Maximum MIDI velocity
+
+// MIDI note to frequency (12-TET tuning)
+[[nodiscard]] constexpr float midiNoteToFrequency(int midiNote, float a4Frequency = 440.0f) noexcept;
+
+// MIDI velocity to linear gain
+[[nodiscard]] constexpr float velocityToGain(int velocity) noexcept;
+```
+
+| Function | Formula | Examples |
+|----------|---------|----------|
+| `midiNoteToFrequency` | `a4 * 2^((note - 69) / 12)` | 69 -> 440 Hz, 60 -> 261.63 Hz |
+| `velocityToGain` | `velocity / 127` | 127 -> 1.0, 64 -> ~0.5 (-6 dB) |
+
+**When to use:**
+- **Melodic DSP components:** Convert MIDI notes to oscillator/filter frequencies
+- **MIDI-controlled effects:** Map velocity to amplitude or modulation depth
+- **Custom tuning:** Pass alternate A4 frequency for non-standard tuning (e.g., 432 Hz)
+
+**Do NOT use when:**
+- You need a non-linear velocity curve (implement your own with `dbToGain()`)
+- You need microtonal tuning (this is strictly 12-TET)

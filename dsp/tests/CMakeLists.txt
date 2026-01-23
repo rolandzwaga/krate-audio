@@ -37,6 +37,7 @@ add_executable(dsp_tests
     unit/core/test_euclidean_pattern.cpp
     unit/core/filter_design_test.cpp
     unit/core/filter_tables_test.cpp
+    unit/core/midi_utils_tests.cpp
 
     # Layer 1: Primitives
     unit/primitives/delay_line_test.cpp
@@ -103,6 +104,7 @@ add_executable(dsp_tests
     unit/processors/waveguide_resonator_test.cpp
     unit/processors/modal_resonator_test.cpp
     unit/processors/stochastic_filter_test.cpp
+    unit/processors/self_oscillating_filter_tests.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -188,6 +190,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/test_euclidean_pattern.cpp
         unit/core/filter_design_test.cpp
         unit/core/filter_tables_test.cpp
+        unit/core/midi_utils_tests.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/dc_blocker_test.cpp
         unit/primitives/oversampler_test.cpp
@@ -292,6 +295,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/waveguide_resonator_test.cpp
         unit/processors/modal_resonator_test.cpp
         unit/processors/stochastic_filter_test.cpp
+        unit/processors/self_oscillating_filter_tests.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

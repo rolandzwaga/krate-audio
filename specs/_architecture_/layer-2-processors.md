@@ -2085,3 +2085,180 @@ Input -----> [FilterA (SVF)] --+---> Output
 **Performance:** < 0.5% CPU @ 44.1kHz stereo per instance (control-rate updates every 32 samples)
 
 **Dependencies:** Layer 0 (random.h), Layer 1 (svf.h, smoother.h)
+
+---
+
+## SelfOscillatingFilter
+**Path:** [self_oscillating_filter.h](../../dsp/include/krate/dsp/processors/self_oscillating_filter.h) | **Since:** 0.13.0
+
+Melodically playable self-oscillating filter using LadderFilter for sine-wave generation from filter resonance.
+
+**Use when:**
+- Creating oscillator-like effects from filter resonance (analog synth technique)
+- Need MIDI-controlled melodic filter (noteOn/noteOff with velocity)
+- Building filter ping effects (transient excitation of resonant filter)
+- Want configurable attack/release envelope for shaped oscillation
+- Need glide/portamento for pitch sweeps between notes
+
+**Do NOT use when:**
+- You just need a standard filter (use LadderFilter or SVF directly)
+- You need polyphony (this is monophonic - use multiple instances)
+- You need precise waveform shape (this produces sine-like, not pure sine)
+
+**Features:**
+- Self-oscillation at resonance >= 0.95 (normalized 0-1 maps to LadderFilter 0-4)
+- MIDI control: noteOn(midiNote, velocity), noteOff() with 12-TET tuning
+- Configurable attack (0-20ms) and release (10-2000ms) envelope
+- Glide/portamento (0-5000ms) with linear frequency ramp
+- External input mixing for filter ping effects
+- Wave shaping via soft saturation (tanh, 1x-3x gain)
+- Output level control (-60 to +6 dB)
+- DC blocking for clean output
+
+```cpp
+class SelfOscillatingFilter {
+    // Constants
+    static constexpr float kMinFrequency = 20.0f;
+    static constexpr float kMaxFrequency = 20000.0f;
+    static constexpr float kMinAttackMs = 0.0f;
+    static constexpr float kMaxAttackMs = 20.0f;
+    static constexpr float kMinReleaseMs = 10.0f;
+    static constexpr float kMaxReleaseMs = 2000.0f;
+    static constexpr float kMinGlideMs = 0.0f;
+    static constexpr float kMaxGlideMs = 5000.0f;
+    static constexpr float kMinLevelDb = -60.0f;
+    static constexpr float kMaxLevelDb = 6.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate, int maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    // Processing (real-time safe, noexcept)
+    [[nodiscard]] float process(float externalInput) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    // MIDI control
+    void noteOn(int midiNote, int velocity) noexcept;  // velocity 0 = noteOff
+    void noteOff() noexcept;
+
+    // Parameters (smoothed for click-free changes)
+    void setFrequency(float hz) noexcept;           // [20, 20000] or sampleRate*0.45
+    void setResonance(float amount) noexcept;       // [0.0, 1.0], >= 0.95 for self-osc
+    void setGlide(float ms) noexcept;               // [0, 5000] portamento time
+    void setAttack(float ms) noexcept;              // [0, 20] envelope attack
+    void setRelease(float ms) noexcept;             // [10, 2000] envelope release
+    void setExternalMix(float mix) noexcept;        // [0, 1] 0=osc only, 1=ext only
+    void setWaveShape(float amount) noexcept;       // [0, 1] soft saturation
+    void setOscillationLevel(float dB) noexcept;    // [-60, +6] output level
+
+    // Getters
+    [[nodiscard]] float getFrequency() const noexcept;
+    [[nodiscard]] float getResonance() const noexcept;
+    [[nodiscard]] float getGlide() const noexcept;
+    [[nodiscard]] float getAttack() const noexcept;
+    [[nodiscard]] float getRelease() const noexcept;
+    [[nodiscard]] float getExternalMix() const noexcept;
+    [[nodiscard]] float getWaveShape() const noexcept;
+    [[nodiscard]] float getOscillationLevel() const noexcept;
+    [[nodiscard]] bool isOscillating() const noexcept;  // UI feedback
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| frequency | 440 Hz | [20, 20000] | Oscillation/cutoff frequency |
+| resonance | 1.0 | [0, 1] | >= 0.95 enables self-oscillation |
+| glide | 0 ms | [0, 5000] | Portamento between notes |
+| attack | 0 ms | [0, 20] | Envelope attack time |
+| release | 500 ms | [10, 2000] | Envelope release time |
+| externalMix | 0.0 | [0, 1] | Blend oscillation with external input |
+| waveShape | 0.0 | [0, 1] | Soft saturation amount (tanh) |
+| level | 0 dB | [-60, +6] | Output level |
+
+**Usage Example (Pure oscillator):**
+```cpp
+SelfOscillatingFilter filter;
+filter.prepare(44100.0, 512);
+filter.setResonance(1.0f);  // Enable self-oscillation
+filter.setFrequency(440.0f);
+
+// Process as pure oscillator (no external input)
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(0.0f);
+}
+```
+
+**Usage Example (MIDI-controlled melodic filter):**
+```cpp
+SelfOscillatingFilter filter;
+filter.prepare(44100.0, 512);
+filter.setResonance(1.0f);
+filter.setGlide(50.0f);   // 50ms portamento
+filter.setAttack(5.0f);   // 5ms attack
+filter.setRelease(300.0f); // 300ms release
+
+// On MIDI noteOn event
+filter.noteOn(60, 100);  // C4, velocity 100
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(0.0f);
+}
+
+// On MIDI noteOff event
+filter.noteOff();
+```
+
+**Usage Example (Filter ping):**
+```cpp
+SelfOscillatingFilter filter;
+filter.prepare(44100.0, 512);
+filter.setResonance(0.9f);    // High but below self-oscillation
+filter.setFrequency(1000.0f);
+filter.setExternalMix(1.0f);  // Process external input
+
+// Process transient audio (drum hits, etc.)
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(input[i]);
+}
+```
+
+**Topology:**
+```
+                    +-------------+
+   External Input ->| Mix Control |--+
+                    +-------------+  |
+                                     v
+                    +-------------+  |  +-------------+
+   (self-osc) ----->|   Ladder    |--+->|  DC Block   |
+                    |   Filter    |     +-------------+
+                    +-------------+            |
+                           ^                   v
+                           |            +-------------+
+                    Cutoff (from glide) | Wave Shape  |
+                    Resonance (fixed    +-------------+
+                     at ~3.95 for osc)         |
+                                               v
+                                        +-------------+
+                                        |  Envelope   |
+                                        |    * Gain   |
+                                        +-------------+
+                                               |
+                                               v
+                                        +-------------+
+                                        | Level Gain  |
+                                        +-------------+
+                                               |
+                                               v
+                                            Output
+```
+
+**Gotchas:**
+- Resonance mapping: User 0-1 maps to LadderFilter 0-4 with special handling above 0.95
+- Self-oscillation frequency may differ slightly from cutoff due to ladder topology phase shift
+- Per-sample cutoff updates required for accurate pitch during glide (FR-004)
+- DC blocker required after filter to remove oscillation DC offset
+
+**Performance:** < 0.5% CPU @ 44.1kHz stereo (2 instances) per Layer 2 budget
+
+**Dependencies:** Layer 0 (midi_utils.h, db_utils.h, fast_math.h), Layer 1 (ladder_filter.h, dc_blocker.h, smoother.h)
