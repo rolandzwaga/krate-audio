@@ -105,6 +105,7 @@ add_executable(dsp_tests
     unit/processors/modal_resonator_test.cpp
     unit/processors/stochastic_filter_test.cpp
     unit/processors/self_oscillating_filter_tests.cpp
+    unit/processors/sample_hold_filter_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -296,6 +297,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/modal_resonator_test.cpp
         unit/processors/stochastic_filter_test.cpp
         unit/processors/self_oscillating_filter_tests.cpp
+        unit/processors/sample_hold_filter_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
