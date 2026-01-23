@@ -708,10 +708,12 @@ private:
     /// @brief Initialize Lorenz attractor state from seed
     void initializeLorenzState() noexcept {
         // Initialize from seed for deterministic behavior
+        // IMPORTANT: X and Y must start with different values to kickstart
+        // chaotic dynamics. Classic starting point is (1, 0, 0) with perturbation.
         Xorshift32 initRng{seed_};
-        lorenzX_ = initRng.nextFloat() * 0.1f + 0.1f;
-        lorenzY_ = initRng.nextFloat() * 0.1f + 0.1f;
-        lorenzZ_ = initRng.nextFloat() * 0.1f + 25.0f;
+        lorenzX_ = 1.0f + initRng.nextFloat() * 0.01f;   // ~1.0
+        lorenzY_ = initRng.nextFloat() * 0.01f;          // ~0.0 (different from X!)
+        lorenzZ_ = initRng.nextFloat() * 0.01f;          // ~0.0
     }
 
     /// @brief 1D Perlin noise with 3 octaves (research.md section 4)
