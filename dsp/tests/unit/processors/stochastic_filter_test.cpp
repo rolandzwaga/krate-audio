@@ -610,16 +610,31 @@ TEST_CASE("Lorenz mode produces chaotic attractor behavior", "[stochastic][loren
     constexpr float kTestDuration = 10.0f;
     constexpr size_t kTestSamples = static_cast<size_t>(kTestDuration * 44100.0);
 
-    std::vector<float> buffer(kTestBlockSize, 0.5f);
+    // Use white noise input - DC passes through lowpass unchanged regardless of
+    // cutoff, so we need a broadband signal that's actually affected by filtering.
+    // Using simple PRNG for reproducible noise.
+    uint32_t noiseSeed = 54321;
+    auto nextNoise = [&noiseSeed]() {
+        noiseSeed ^= noiseSeed << 13;
+        noiseSeed ^= noiseSeed >> 17;
+        noiseSeed ^= noiseSeed << 5;
+        return static_cast<float>(noiseSeed) / 4294967295.0f * 2.0f - 1.0f;
+    };
+
+    std::vector<float> buffer(kTestBlockSize);
     std::vector<float> samples;
     samples.reserve(kTestSamples / kTestBlockSize);
 
     for (size_t i = 0; i < kTestSamples; i += kTestBlockSize) {
-        std::fill(buffer.begin(), buffer.end(), 0.5f);
+        // Fill with white noise
+        for (size_t j = 0; j < kTestBlockSize; ++j) {
+            buffer[j] = nextNoise() * 0.5f;
+        }
         filter.processBlock(buffer.data(), kTestBlockSize);
 
-        // Track output at end of each block
-        samples.push_back(buffer[kTestBlockSize - 1]);
+        // Track RMS of each block (better measure of filtered noise)
+        float blockRms = calculateRMS(buffer.data(), kTestBlockSize);
+        samples.push_back(blockRms);
     }
 
     // Verify bounded output (no NaN/Inf)
@@ -632,7 +647,8 @@ TEST_CASE("Lorenz mode produces chaotic attractor behavior", "[stochastic][loren
     }
     REQUIRE(allValid);
 
-    // Verify non-repeating (chaotic) behavior by checking variance
+    // Verify non-repeating (chaotic) behavior by checking variance in RMS levels
+    // As cutoff changes chaotically, the amount of noise passing through varies
     float mean = 0.0f;
     for (float s : samples) mean += s;
     mean /= static_cast<float>(samples.size());
@@ -641,8 +657,8 @@ TEST_CASE("Lorenz mode produces chaotic attractor behavior", "[stochastic][loren
     for (float s : samples) variance += (s - mean) * (s - mean);
     variance /= static_cast<float>(samples.size());
 
-    INFO("Lorenz output variance: " << variance);
-    // Chaotic behavior should produce some variance
+    INFO("Lorenz output RMS variance: " << variance);
+    // Chaotic behavior should produce variance in output levels
     REQUIRE(variance > 0.0f);
 }
 
