@@ -381,3 +381,51 @@ TEST_CASE("TapeMode output matches approved", "[regression]") {
 **Never update because:**
 - Tests are "red" after unrelated changes
 - You don't understand why output changed
+
+---
+
+## Debugging Failing Tests
+
+When a test fails, use Catch2's diagnostic tools BEFORE changing code.
+
+### CAPTURE and INFO
+
+```cpp
+TEST_CASE("Filter frequency response", "[filter]") {
+    float cutoff = 1000.0f;
+    float response = measureResponse(filter, 2000.0f);
+
+    CAPTURE(cutoff, response);  // Printed on failure
+    INFO("Expected ~-6dB at 2x cutoff");
+
+    REQUIRE(response < -3.0f);
+}
+```
+
+**Output on failure:**
+```
+with expansion:
+  -1.2f < -3.0f
+with messages:
+  cutoff := 1000.0f
+  response := -1.2f
+  Expected ~-6dB at 2x cutoff
+```
+
+### When to Use What
+
+| Tool | When | Output |
+|------|------|--------|
+| `CAPTURE(x, y)` | See variable values | On failure only |
+| `INFO("msg")` | Add context | On failure only |
+| `WARN("msg")` | Always see output | Always printed |
+| `-s` flag | Verbose run | All sections shown |
+
+### The Debugging Workflow
+
+1. **Test fails** → Read the failure message first
+2. **Add `CAPTURE()`** for suspicious variables
+3. **Re-run the test** → See values on failure
+4. **Fix the code** (not the test expectations)
+
+**DO NOT:** Rebuild "to make sure" the test compiled. If it ran and failed, it compiled
