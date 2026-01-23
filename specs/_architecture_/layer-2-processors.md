@@ -1748,3 +1748,194 @@ Input --> [Excitation Point Distribution]
 ```
 
 **Dependencies:** Layer 0 (none), Layer 1 (delay_line.h, one_pole.h, allpass_1pole.h, one_pole_smoother.h)
+
+---
+
+## ModalResonator
+**Path:** [modal_resonator.h](../../dsp/include/krate/dsp/processors/modal_resonator.h) | **Since:** 0.14.0
+
+Modal resonator modeling vibrating bodies as a sum of decaying sinusoidal modes for physically accurate resonance of complex bodies like bells, bars, and plates.
+
+**Use when:**
+- Creating physically accurate resonant bodies (bells, marimba bars, gongs, plates)
+- Need independent T60 decay control per mode (not Q-based like ResonatorBank)
+- Want material presets for quick timbre selection (Wood, Metal, Glass, Ceramic, Nylon)
+- Building percussion synthesizers that respond to velocity
+- Need strike excitation with energy accumulation for realistic percussion
+- Require precise T60 decay timing (within 10%) for physical modeling
+
+**Differentiators from ResonatorBank:**
+- **Oscillator topology:** Two-pole decaying sinusoidal oscillators vs bandpass biquad filters
+- **Decay accuracy:** T60 decay time accurate within 10% vs Q-based approximation
+- **Strike behavior:** Energy accumulation (multiple strikes add energy) vs trigger impulse
+- **Mode count:** 32 modes vs 16 resonators
+- **Material presets:** Frequency-dependent decay based on physical material properties
+
+**Features:**
+- 32 parallel modes using impulse-invariant two-pole oscillators
+- Per-mode control: frequency, T60 decay time, amplitude
+- Material presets with frequency-dependent decay (R_k = b1 + b3*f^2)
+- Size scaling (inverse frequency relationship for larger/smaller objects)
+- Global damping (scales all decay times proportionally)
+- Strike excitation with velocity scaling and energy accumulation
+- Parameter smoothing (default 20ms) for click-free automation
+- Real-time safe (noexcept, zero allocations in process)
+
+```cpp
+struct ModalData {
+    float frequency;   // Mode frequency in Hz [20, sampleRate * 0.45]
+    float t60;         // Decay time in seconds (RT60) [0.001, 30.0]
+    float amplitude;   // Mode amplitude [0.0, 1.0]
+};
+
+enum class Material : uint8_t { Wood, Metal, Glass, Ceramic, Nylon };
+
+class ModalResonator {
+    static constexpr size_t kMaxModes = 32;
+    static constexpr float kMinModeFrequency = 20.0f;
+    static constexpr float kMaxModeFrequencyRatio = 0.45f;
+    static constexpr float kMinModeDecay = 0.001f;
+    static constexpr float kMaxModeDecay = 30.0f;
+    static constexpr float kMinSizeScale = 0.1f;
+    static constexpr float kMaxSizeScale = 10.0f;
+
+    explicit ModalResonator(float smoothingTimeMs = 20.0f) noexcept;
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Per-mode control
+    void setModeFrequency(int index, float hz) noexcept;
+    void setModeDecay(int index, float t60Seconds) noexcept;
+    void setModeAmplitude(int index, float amplitude) noexcept;
+    void setModes(const ModalData* modes, int count) noexcept;
+
+    // Material presets
+    void setMaterial(Material mat) noexcept;
+
+    // Global controls
+    void setSize(float scale) noexcept;       // [0.1, 10.0] inverse freq scaling
+    void setDamping(float amount) noexcept;   // [0.0, 1.0] decay reduction
+
+    // Excitation
+    void strike(float velocity = 1.0f) noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, int numSamples) noexcept;
+
+    // Query
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] int getNumActiveModes() const noexcept;
+    [[nodiscard]] float getModeFrequency(int index) const noexcept;
+    [[nodiscard]] float getModeDecay(int index) const noexcept;
+    [[nodiscard]] float getModeAmplitude(int index) const noexcept;
+    [[nodiscard]] bool isModeEnabled(int index) const noexcept;
+    [[nodiscard]] float getSize() const noexcept;
+    [[nodiscard]] float getDamping() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| frequency | 440 Hz | [20, sampleRate*0.45] | Mode center frequency |
+| t60 | 1.0 s | [0.001, 30] | Time to decay by 60 dB |
+| amplitude | 0.0 | [0, 1] | Mode output level |
+| size | 1.0 | [0.1, 10] | Frequency scaling (2.0 = octave down) |
+| damping | 0.0 | [0, 1] | Decay reduction (1.0 = instant silence) |
+
+**Material Presets:**
+
+| Material | b1 (Hz) | b3 (s) | Character |
+|----------|---------|--------|-----------|
+| Wood | 2.0 | 1e-7 | Warm, quick HF decay (marimba-like) |
+| Metal | 0.3 | 1e-9 | Bright, sustained (bell-like) |
+| Glass | 0.5 | 5e-8 | Bright, ringing (glass bowl-like) |
+| Ceramic | 1.5 | 8e-8 | Warm/bright, medium (tile-like) |
+| Nylon | 4.0 | 2e-7 | Dull, heavily damped (string-like) |
+
+**Usage Example (Basic percussion):**
+```cpp
+ModalResonator resonator;
+resonator.prepare(44100.0);
+resonator.setMaterial(Material::Metal);
+
+// Strike with velocity
+resonator.strike(1.0f);
+
+// In audio callback
+for (int i = 0; i < numSamples; ++i) {
+    output[i] = resonator.process(0.0f);
+}
+```
+
+**Usage Example (Custom mode configuration):**
+```cpp
+ModalResonator resonator;
+resonator.prepare(44100.0);
+
+// Configure bell-like inharmonic partials
+std::array<ModalData, 6> modes = {{
+    {440.0f, 3.0f, 1.0f},      // Fundamental
+    {687.0f, 2.5f, 0.8f},      // 1.56x (inharmonic)
+    {1023.0f, 2.0f, 0.6f},     // 2.33x
+    {1479.0f, 1.5f, 0.4f},     // 3.36x
+    {2012.0f, 1.0f, 0.3f},     // 4.57x
+    {2631.0f, 0.8f, 0.2f}      // 5.98x
+}};
+resonator.setModes(modes.data(), modes.size());
+
+resonator.strike(0.8f);
+```
+
+**Usage Example (Size and damping control):**
+```cpp
+ModalResonator resonator;
+resonator.prepare(44100.0);
+resonator.setMaterial(Material::Wood);
+
+// Make it sound like a larger instrument (lower pitch)
+resonator.setSize(2.0f);  // Frequencies halved
+
+// Add some dampening (like a muted marimba)
+resonator.setDamping(0.3f);  // 30% decay reduction
+
+resonator.strike(1.0f);
+```
+
+**Usage Example (Resonant filter effect):**
+```cpp
+ModalResonator resonator;
+resonator.prepare(44100.0);
+
+// Configure resonant modes
+resonator.setModeFrequency(0, 440.0f);
+resonator.setModeDecay(0, 0.5f);
+resonator.setModeAmplitude(0, 1.0f);
+
+// Process audio through the resonator (acts as filter)
+for (int i = 0; i < numSamples; ++i) {
+    output[i] = resonator.process(input[i]);
+}
+```
+
+**Topology:**
+```
+                   +---------------------------+
+strike(vel) ---+-->| Mode 0: y[n] = in*amp +   |---+
+               |   | a1*y[n-1] - a2*y[n-2]     |   |
+               |   +---------------------------+   |
+               |                                   |
+Input -----+---+-->| Mode 1: two-pole oscillator|---+---> Sum ---> Output
+           |   |   +---------------------------+   |
+           |   |              ...                  |
+           |   |   +---------------------------+   |
+           +---+-->| Mode 31: two-pole oscillator|--+
+                   +---------------------------+
+
+Each mode: y[n] = input * amplitude + 2*R*cos(theta)*y[n-1] - R^2*y[n-2]
+where: R = exp(-6.91 / (T60 * sampleRate)), theta = 2*pi*freq/sampleRate
+```
+
+**Performance:** < 1% CPU @ 192kHz for 32 modes (target: 26.7 microseconds per 512-sample block)
+
+**Dependencies:** Layer 0 (db_utils.h, math_constants.h), Layer 1 (smoother.h)
