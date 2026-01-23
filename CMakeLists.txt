@@ -191,3 +191,17 @@ target_compile_features(preset_generator PRIVATE cxx_std_20)
 set_target_properties(preset_generator PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
+
+# ==============================================================================
+# Control Testbench (UI Development Tool)
+# ==============================================================================
+# Standalone application for testing custom VSTGUI controls without loading
+# the full plugin in a DAW. Provides fast iteration for UI development.
+#
+# Build with: cmake --build build --target control_testbench
+# ==============================================================================
+option(BUILD_CONTROL_TESTBENCH "Build the control testbench tool" ON)
+
+if(BUILD_CONTROL_TESTBENCH)
+    add_subdirectory(tools/control_testbench)
+endif()

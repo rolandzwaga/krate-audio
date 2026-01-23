@@ -49,7 +49,11 @@
 
 # Approval test artifacts (received files are generated, approved files are committed)
 *.received.txt
-tools/
+# Tools - ignore binaries and logs but track source code
+tools/*.exe
+tools/*.dll
+tools/*.zip
+tools/*.txt
 /plugins/iterum/resources/win32resource.rc
 /plugins/iterum/src/version.h
 tmpclaude-*

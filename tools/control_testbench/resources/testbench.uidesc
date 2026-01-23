@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vstgui-ui-description version="1">
+    <!--
+    Control Testbench UI Description
+    ================================
+    Main layout for the control testing application.
+
+    Structure:
+    - Left panel: Control under test (TapPatternEditor)
+    - Right panel: Parameter log
+    - Bottom: Control options/settings
+    -->
+
+    <colors>
+        <color name="background" rgba="#1e1e22ff"/>
+        <color name="panel.background" rgba="#252528ff"/>
+        <color name="panel.border" rgba="#3c3c40ff"/>
+        <color name="text.primary" rgba="#e0e0e5ff"/>
+        <color name="text.secondary" rgba="#a0a0a5ff"/>
+        <color name="accent" rgba="#5090c8ff"/>
+    </colors>
+
+    <fonts>
+        <font name="title" font-name="Arial" size="12" bold="true"/>
+        <font name="label" font-name="Arial" size="10"/>
+        <font name="mono" font-name="Consolas" size="9"/>
+    </fonts>
+
+    <template name="view" size="750, 450" background-color="background">
+        <!-- Main container with TestbenchController -->
+        <view class="CViewContainer"
+              origin="0, 0"
+              size="750, 450"
+              background-color="background"
+              sub-controller="TestbenchController">
+
+            <!-- Title bar -->
+            <view class="CTextLabel"
+                  origin="10, 8"
+                  size="200, 20"
+                  title="Control Testbench"
+                  font="title"
+                  font-color="text.primary"
+                  text-alignment="left"
+                  background-color="~ TransparentCColor"
+                  frame-color="~ TransparentCColor"/>
+
+            <!-- Control panel (left side) -->
+            <view class="CViewContainer"
+                  origin="10, 35"
+                  size="480, 280"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="Tap Pattern Editor"
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- The actual control under test -->
+                <view class="CView"
+                      origin="10, 25"
+                      size="460, 245"
+                      custom-view-name="TapPatternEditor"/>
+            </view>
+
+            <!-- Parameter log panel (right side) -->
+            <view class="CViewContainer"
+                  origin="500, 35"
+                  size="240, 280"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- The parameter log view -->
+                <view class="CView"
+                      origin="5, 5"
+                      size="230, 270"
+                      custom-view-name="ParameterLog"/>
+            </view>
+
+            <!-- Control settings panel (bottom) -->
+            <view class="CViewContainer"
+                  origin="10, 325"
+                  size="730, 115"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Settings title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="Control Settings"
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Tap Count label -->
+                <view class="CTextLabel"
+                      origin="10, 30"
+                      size="80, 20"
+                      title="Tap Count:"
+                      font="label"
+                      font-color="text.primary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Tap count display -->
+                <view class="CTextLabel"
+                      origin="90, 30"
+                      size="30, 20"
+                      title="4"
+                      font="label"
+                      font-color="accent"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Snap Division label -->
+                <view class="CTextLabel"
+                      origin="150, 30"
+                      size="90, 20"
+                      title="Snap Division:"
+                      font="label"
+                      font-color="text.primary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Snap display -->
+                <view class="CTextLabel"
+                      origin="240, 30"
+                      size="50, 20"
+                      title="1/4"
+                      font="label"
+                      font-color="accent"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Instructions -->
+                <view class="CTextLabel"
+                      origin="10, 55"
+                      size="700, 50"
+                      title="Drag tap bars horizontally to adjust timing. Drag handles (top of bars) vertically to adjust level.&#10;Double-click to reset a tap. Hold Shift while dragging to constrain to one axis.&#10;Press Escape during drag to cancel."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+        </view>
+    </template>
+
+</vstgui-ui-description>
