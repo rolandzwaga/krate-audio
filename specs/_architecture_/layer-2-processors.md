@@ -952,6 +952,186 @@ Input --> +------->| Sensitivity Gain |---> EnvelopeFollower
 
 ---
 
+## SidechainFilter
+**Path:** [sidechain_filter.h](../../dsp/include/krate/dsp/processors/sidechain_filter.h) | **Since:** 0.14.0
+
+Dynamically controls filter cutoff based on sidechain signal envelope for ducking/pumping effects.
+
+**Use when:**
+- External signal controls filter dynamics (kick drum ducking bass)
+- Creating rhythmic pumping/ducking effects in electronic music
+- Need auto-wah with hold time and lookahead features
+- Building sidechain filter effects where one signal controls another's tonal character
+
+**Differences from EnvelopeFilter:**
+- External sidechain input (vs self-analysis only)
+- Hold time to prevent chattering on decaying transients
+- Lookahead for anticipating transients before they occur
+- State machine (Idle/Active/Holding) for precise timing control
+
+```cpp
+enum class SidechainFilterState : uint8_t { Idle, Active, Holding };
+enum class SidechainDirection : uint8_t { Up, Down };
+enum class SidechainFilterMode : uint8_t { Lowpass, Bandpass, Highpass };
+
+class SidechainFilter {
+    static constexpr float kMinAttackMs = 0.1f;
+    static constexpr float kMaxAttackMs = 500.0f;
+    static constexpr float kMinReleaseMs = 1.0f;
+    static constexpr float kMaxReleaseMs = 5000.0f;
+    static constexpr float kMinThresholdDb = -60.0f;
+    static constexpr float kMaxThresholdDb = 0.0f;
+    static constexpr float kMinSensitivityDb = -24.0f;
+    static constexpr float kMaxSensitivityDb = 24.0f;
+    static constexpr float kMinCutoffHz = 20.0f;
+    static constexpr float kMinResonance = 0.5f;
+    static constexpr float kMaxResonance = 20.0f;
+    static constexpr float kMinLookaheadMs = 0.0f;
+    static constexpr float kMaxLookaheadMs = 50.0f;
+    static constexpr float kMinHoldMs = 0.0f;
+    static constexpr float kMaxHoldMs = 1000.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] size_t getLatency() const noexcept;  // Equals lookahead samples
+
+    // Processing - External sidechain
+    [[nodiscard]] float processSample(float mainInput, float sidechainInput) noexcept;
+    void process(const float* mainInput, const float* sidechainInput,
+                 float* output, size_t numSamples) noexcept;
+    void process(float* mainInOut, const float* sidechainInput, size_t numSamples) noexcept;
+
+    // Processing - Self-sidechain
+    [[nodiscard]] float processSample(float input) noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    // Sidechain detection parameters
+    void setAttackTime(float ms) noexcept;            // [0.1, 500]
+    void setReleaseTime(float ms) noexcept;           // [1, 5000]
+    void setThreshold(float dB) noexcept;             // [-60, 0] trigger threshold
+    void setSensitivity(float dB) noexcept;           // [-24, +24] sidechain pre-gain
+
+    // Filter response parameters
+    void setDirection(SidechainDirection dir) noexcept;  // Up or Down
+    void setMinCutoff(float hz) noexcept;             // [20, maxCutoff-1]
+    void setMaxCutoff(float hz) noexcept;             // [minCutoff+1, Nyquist*0.45]
+    void setResonance(float q) noexcept;              // [0.5, 20.0]
+    void setFilterType(SidechainFilterMode type) noexcept;
+
+    // Timing parameters
+    void setLookahead(float ms) noexcept;             // [0, 50] adds latency
+    void setHoldTime(float ms) noexcept;              // [0, 1000] delays release
+
+    // Sidechain filter parameters
+    void setSidechainFilterEnabled(bool enabled) noexcept;
+    void setSidechainFilterCutoff(float hz) noexcept; // [20, 500] HP for sidechain
+
+    // Monitoring
+    [[nodiscard]] float getCurrentCutoff() const noexcept;
+    [[nodiscard]] float getCurrentEnvelope() const noexcept;
+
+    // Getters for all parameters...
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| attackTime | 10 ms | [0.1, 500] | Envelope attack speed |
+| releaseTime | 100 ms | [1, 5000] | Envelope release speed |
+| threshold | -30 dB | [-60, 0] | Trigger level (dB domain comparison) |
+| sensitivity | 0 dB | [-24, +24] | Sidechain pre-gain |
+| direction | Down | enum | Up (louder=higher cutoff), Down (louder=lower cutoff) |
+| minCutoff | 200 Hz | [20, max-1] | Sweep range minimum |
+| maxCutoff | 2000 Hz | [min+1, Nyquist*0.45] | Sweep range maximum |
+| resonance | 8.0 | [0.5, 20.0] | Filter Q factor |
+| filterType | Lowpass | enum | LP/BP/HP response |
+| lookahead | 0 ms | [0, 50] | Anticipate transients (adds latency) |
+| holdTime | 0 ms | [0, 1000] | Delay release phase |
+
+**Usage Example (Kick drum ducking bass):**
+```cpp
+SidechainFilter filter;
+filter.prepare(48000.0, 512);
+filter.setDirection(SidechainDirection::Down);  // Louder = lower cutoff
+filter.setThreshold(-30.0f);
+filter.setMinCutoff(200.0f);
+filter.setMaxCutoff(4000.0f);
+filter.setAttackTime(5.0f);
+filter.setReleaseTime(200.0f);
+filter.setHoldTime(20.0f);
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.processSample(bassInput[i], kickInput[i]);
+}
+```
+
+**Usage Example (Self-sidechain auto-wah with lookahead):**
+```cpp
+SidechainFilter filter;
+filter.prepare(48000.0, 512);
+filter.setDirection(SidechainDirection::Up);
+filter.setLookahead(5.0f);  // 5ms lookahead
+filter.setHoldTime(50.0f);
+
+// Self-sidechain: input controls its own filtering
+filter.process(buffer, numSamples);
+```
+
+**State Machine:**
+```
+                    +------------------+
+                    |      Idle        |  Filter at resting position
+                    | (below threshold)|
+                    +--------+---------+
+                             |
+                    envelope > threshold
+                             |
+                             v
+                    +------------------+
+                    |     Active       |  Filter follows envelope
+                    | (above threshold)|
+                    +--------+---------+
+                             |
+                    envelope <= threshold
+                             |
+                             v
+                    +------------------+
+                    |    Holding       |  Filter frozen at last value
+                    | (hold timer > 0) |  Re-trigger resets timer
+                    +--------+---------+
+                             |
+                    hold timer expires
+                             |
+                             v
+                    (back to Idle, release begins)
+```
+
+**Topology:**
+```
+Sidechain Input --> [HP Filter (opt)] --> [Sensitivity Gain] --> EnvelopeFollower
+                                                                        |
+                                                                        v
+                                                              [Threshold Compare]
+                                                                        |
+                                                                        v
+                                                               [State Machine]
+                                                                        |
+                                                                        v
+                                                              [Log-space Mapping]
+                                                                        |
+                                                                        v
+Main Input ---------> [Lookahead Delay] ---------------------> SVF <--- Cutoff
+                                                                |
+                                                                v
+                                                             Output
+```
+
+**Dependencies:** Layer 0 (db_utils.h), Layer 1 (svf.h, delay_line.h, biquad.h, smoother.h), Layer 2 peer (envelope_follower.h)
+
+---
+
 ## Phaser
 **Path:** [phaser.h](../../dsp/include/krate/dsp/processors/phaser.h) | **Since:** 0.13.0
 
