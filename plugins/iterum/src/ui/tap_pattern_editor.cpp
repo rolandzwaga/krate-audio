@@ -111,9 +111,17 @@ void TapPatternEditor::drawTaps(VSTGUI::CDrawContext* context) {
             centerX + halfBarWidth,
             barTop + 8.0f
         );
-        context->setFillColor(isSelected ?
-            VSTGUI::CColor(180, 220, 255, 255) :
-            VSTGUI::CColor(120, 180, 220, 255));
+        // Handle color: white when hovered, lighter blue when selected, normal blue otherwise
+        bool isHandleHovered = (static_cast<int>(i) == hoveredHandleTap_);
+        VSTGUI::CColor handleColor;
+        if (isHandleHovered) {
+            handleColor = VSTGUI::CColor(255, 255, 255, 255);  // White when hovered
+        } else if (isSelected) {
+            handleColor = VSTGUI::CColor(180, 220, 255, 255);  // Lighter blue when selected
+        } else {
+            handleColor = VSTGUI::CColor(120, 180, 220, 255);  // Normal blue
+        }
+        context->setFillColor(handleColor);
         context->drawRect(handleRect, VSTGUI::kDrawFilled);
 
         // Draw tap number label at bottom of bar
@@ -319,12 +327,14 @@ VSTGUI::CMouseEventResult TapPatternEditor::onMouseMoved(
     VSTGUI::CPoint& where,
     const VSTGUI::CButtonState& buttons)
 {
-    if (!isDragging_ || selectedTap_ < 0) {
-        return VSTGUI::kMouseEventNotHandled;
-    }
-
     float x = static_cast<float>(where.x);
     float y = static_cast<float>(where.y);
+
+    if (!isDragging_ || selectedTap_ < 0) {
+        // Not dragging - update cursor based on hover position
+        updateCursorForPosition(x, y);
+        return VSTGUI::kMouseEventNotHandled;
+    }
 
     // Calculate new values (clamped via logic functions - T018.1)
     float newTimeRatio = xToTimeRatio(x);
@@ -418,6 +428,76 @@ void TapPatternEditor::cancelDrag() {
     selectedTap_ = -1;
 
     invalid();
+}
+
+VSTGUI::CMouseEventResult TapPatternEditor::onMouseExited(
+    VSTGUI::CPoint& /*where*/,
+    const VSTGUI::CButtonState& /*buttons*/)
+{
+    // Reset cursor to default when leaving the control
+    if (auto frame = getFrame()) {
+        frame->setCursor(VSTGUI::kCursorDefault);
+    }
+    // Clear hover state
+    if (hoveredHandleTap_ != -1) {
+        hoveredHandleTap_ = -1;
+        invalid();
+    }
+    return VSTGUI::kMouseEventHandled;
+}
+
+// =============================================================================
+// Cursor Management
+// =============================================================================
+
+bool TapPatternEditor::isPointOverTapHandle(float x, float y) const {
+    return hitTestTapHandleAtPoint(x, y) >= 0;
+}
+
+int TapPatternEditor::hitTestTapHandleAtPoint(float x, float y) const {
+    auto viewRect = getViewSize();
+    float width = static_cast<float>(viewRect.getWidth());
+    float tapAreaHeight = static_cast<float>(viewRect.getHeight()) - kRulerHeight;
+
+    // Check each active tap's handle region (reverse order for front-to-back)
+    for (int i = static_cast<int>(activeTapCount_) - 1; i >= 0; --i) {
+        float tapCenterX = static_cast<float>(viewRect.left) +
+                           tapTimeRatios_[static_cast<size_t>(i)] * width;
+        float barTop = static_cast<float>(viewRect.top) +
+                       (1.0f - tapLevels_[static_cast<size_t>(i)]) * tapAreaHeight;
+
+        // Handle region: tap bar width, from barTop to barTop + kTapHandleHeight
+        float halfWidth = kTapHandleWidth / 2.0f;
+        if (x >= tapCenterX - halfWidth && x <= tapCenterX + halfWidth &&
+            y >= barTop && y <= barTop + kTapHandleHeight) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void TapPatternEditor::updateCursorForPosition(float x, float y) {
+    auto frame = getFrame();
+    if (!frame) return;
+
+    int handleTap = hitTestTapHandleAtPoint(x, y);
+
+    // Update hover state and trigger redraw if changed
+    if (handleTap != hoveredHandleTap_) {
+        hoveredHandleTap_ = handleTap;
+        invalid();
+    }
+
+    if (handleTap >= 0) {
+        // Show vertical resize cursor when over a tap handle (level adjustment)
+        frame->setCursor(VSTGUI::kCursorVSize);
+    } else if (hitTestTapAtPoint(x, y) >= 0) {
+        // Show horizontal resize cursor when over tap bar body (time adjustment)
+        frame->setCursor(VSTGUI::kCursorHSize);
+    } else {
+        // Default cursor elsewhere
+        frame->setCursor(VSTGUI::kCursorDefault);
+    }
 }
 
 // =============================================================================

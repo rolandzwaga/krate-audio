@@ -37,6 +37,9 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override;
     VSTGUI::CMouseEventResult onMouseCancel() override;
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override;
     int32_t onKeyDown(VstKeyCode& keyCode) override;
 
     // Tap data accessors
@@ -89,6 +92,11 @@ private:
 
     // Hit testing
     int hitTestTapAtPoint(float x, float y) const;
+    bool isPointOverTapHandle(float x, float y) const;
+    int hitTestTapHandleAtPoint(float x, float y) const;
+
+    // Cursor management
+    void updateCursorForPosition(float x, float y);
 
     // Parameter notification
     void notifyTimeRatioChanged(size_t tapIndex, float ratio);
@@ -110,6 +118,9 @@ private:
     float preDragLevel_ = 0.0f;
     float dragStartX_ = 0.0f;
     float dragStartY_ = 0.0f;
+
+    // Hover state
+    int hoveredHandleTap_ = -1;  // Index of tap whose handle is being hovered, -1 if none
 
     // Callback for parameter updates
     ParameterCallback paramCallback_;
