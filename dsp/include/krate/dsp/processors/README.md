@@ -68,6 +68,7 @@ Processors handle specific audio processing tasks like filtering, saturation, pi
 | `resonator_bank.h` | Bank of tuned resonators for body resonance and modal synthesis. |
 | `karplus_strong.h` | Karplus-Strong string synthesis algorithm. |
 | `waveguide_resonator.h` | Digital waveguide resonator for physical modeling synthesis. |
+| `modal_resonator.h` | Modal synthesis using 32 decaying sinusoidal oscillators for bells, bars, and plates. |
 
 ### Feedback
 
