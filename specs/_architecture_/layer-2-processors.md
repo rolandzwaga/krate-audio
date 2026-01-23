@@ -2262,3 +2262,169 @@ for (size_t i = 0; i < numSamples; ++i) {
 **Performance:** < 0.5% CPU @ 44.1kHz stereo (2 instances) per Layer 2 budget
 
 **Dependencies:** Layer 0 (midi_utils.h, db_utils.h, fast_math.h), Layer 1 (ladder_filter.h, dc_blocker.h, smoother.h)
+
+---
+
+## SampleHoldFilter
+**Path:** [sample_hold_filter.h](../../dsp/include/krate/dsp/processors/sample_hold_filter.h) | **Since:** 0.13.0
+
+Sample & Hold filter processor that samples and holds filter parameters at configurable intervals, creating stepped modulation effects.
+
+**Use when:**
+- Creating rhythmic, stepped filter patterns synchronized to a clock
+- Building audio-reactive filter effects that respond to transients (drum hits, etc.)
+- Need random/generative stepped modulation with probability control
+- Want multi-dimensional spatial modulation (cutoff + Q + pan sampling)
+- Creating distinctive "stepped" sound moving in time with music
+
+**Do NOT use when:**
+- You need continuous/smooth filter modulation (use StochasticFilter with Walk mode)
+- You only need basic filter without modulation (use SVF directly)
+- You need complex LFO shapes (use ModulationMatrix with LFO)
+
+**Features:**
+- Three trigger modes: Clock (regular intervals), Audio (transient detection), Random (probability-based)
+- Four sample sources per parameter: LFO, Random, Envelope, External
+- Per-parameter independent source selection (cutoff from LFO, Q from Random, pan from Envelope)
+- Stereo processing with symmetric pan offset formula for spatial modulation
+- Slew limiting for smooth transitions (0-500ms) applied only to sampled values
+- Sample-accurate timing across buffer boundaries
+- Deterministic seeding for reproducible random sequences
+- Real-time safe: all process methods noexcept, zero allocations
+
+```cpp
+enum class TriggerSource : uint8_t { Clock, Audio, Random };
+enum class SampleSource : uint8_t { LFO, Random, Envelope, External };
+
+class SampleHoldFilter {
+    // Constants
+    static constexpr float kMinHoldTimeMs = 0.1f;
+    static constexpr float kMaxHoldTimeMs = 10000.0f;
+    static constexpr float kMinSlewTimeMs = 0.0f;
+    static constexpr float kMaxSlewTimeMs = 500.0f;
+    static constexpr float kMinLFORate = 0.01f;
+    static constexpr float kMaxLFORate = 20.0f;
+    static constexpr float kMinCutoffOctaves = 0.0f;
+    static constexpr float kMaxCutoffOctaves = 8.0f;
+    static constexpr float kMinQRange = 0.0f;
+    static constexpr float kMaxQRange = 1.0f;
+    static constexpr float kMinPanOctaveRange = 0.0f;
+    static constexpr float kMaxPanOctaveRange = 4.0f;
+    static constexpr float kDefaultBaseQ = 0.707f;
+
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Processing (real-time safe, noexcept)
+    [[nodiscard]] float process(float input) noexcept;
+    void processStereo(float& left, float& right) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+    void processBlockStereo(float* left, float* right, size_t numSamples) noexcept;
+
+    // Trigger configuration
+    void setTriggerSource(TriggerSource source) noexcept;
+    void setHoldTime(float ms) noexcept;              // [0.1, 10000]
+    void setTransientThreshold(float threshold) noexcept;  // [0, 1] audio mode
+    void setTriggerProbability(float probability) noexcept;  // [0, 1] random mode
+
+    // Sample source configuration
+    void setLFORate(float hz) noexcept;              // [0.01, 20]
+    void setExternalValue(float value) noexcept;     // [0, 1] external source
+
+    // Cutoff parameter
+    void setCutoffSamplingEnabled(bool enabled) noexcept;
+    void setCutoffSource(SampleSource source) noexcept;
+    void setCutoffOctaveRange(float octaves) noexcept;  // [0, 8]
+
+    // Q parameter
+    void setQSamplingEnabled(bool enabled) noexcept;
+    void setQSource(SampleSource source) noexcept;
+    void setQRange(float range) noexcept;            // [0, 1]
+
+    // Pan parameter (stereo)
+    void setPanSamplingEnabled(bool enabled) noexcept;
+    void setPanSource(SampleSource source) noexcept;
+    void setPanOctaveRange(float octaves) noexcept;  // [0, 4]
+
+    // Slew limiting
+    void setSlewTime(float ms) noexcept;             // [0, 500]
+
+    // Filter core
+    void setFilterMode(SVFMode mode) noexcept;       // LP, HP, BP, Notch
+    void setBaseCutoff(float hz) noexcept;           // [20, 20000]
+    void setBaseQ(float q) noexcept;                 // [0.1, 30]
+
+    // Reproducibility
+    void setSeed(uint32_t seed) noexcept;
+
+    // Getters for all parameters...
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] double sampleRate() const noexcept;
+};
+```
+
+| TriggerSource | Description | Use Case |
+|---------------|-------------|----------|
+| Clock | Regular intervals based on hold time | Rhythmic stepped patterns |
+| Audio | Transient detection from input | Drum-reactive effects |
+| Random | Probability-based at hold intervals | Generative/chaotic patterns |
+
+| SampleSource | Output | Use Case |
+|--------------|--------|----------|
+| LFO | [-1, 1] direct | Predictable modulation shape |
+| Random | [-1, 1] Xorshift32 | Chaotic/generative effects |
+| Envelope | [0,1] -> [-1,1] | Input-following modulation |
+| External | [0,1] -> [-1,1] | Host automation / CV input |
+
+**Usage Example (Basic stepped filter):**
+```cpp
+SampleHoldFilter filter;
+filter.prepare(44100.0);
+filter.setTriggerSource(TriggerSource::Clock);
+filter.setHoldTime(100.0f);  // 100ms intervals
+filter.setCutoffSamplingEnabled(true);
+filter.setCutoffSource(SampleSource::LFO);
+filter.setLFORate(2.0f);     // 2Hz LFO
+filter.setCutoffOctaveRange(2.0f);  // +/- 2 octaves
+filter.setBaseCutoff(1000.0f);
+
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(input[i]);
+}
+```
+
+**Usage Example (Audio-reactive stereo):**
+```cpp
+SampleHoldFilter filter;
+filter.prepare(44100.0);
+filter.setTriggerSource(TriggerSource::Audio);
+filter.setTransientThreshold(0.3f);  // Trigger on drum hits
+filter.setCutoffSamplingEnabled(true);
+filter.setCutoffSource(SampleSource::Random);
+filter.setPanSamplingEnabled(true);
+filter.setPanSource(SampleSource::Random);
+filter.setPanOctaveRange(1.0f);
+filter.setSlewTime(10.0f);  // Smooth transitions
+filter.setSeed(42);
+
+filter.processBlockStereo(left, right, numSamples);
+```
+
+**Pan Formula:**
+```
+leftCutoff = baseCutoff * pow(2, -panValue * panOctaveRange)
+rightCutoff = baseCutoff * pow(2, +panValue * panOctaveRange)
+```
+Where panValue is in [-1, 1] and panOctaveRange is [0, 4] octaves.
+
+**Gotchas:**
+- Hold time uses double precision for sample-accurate timing at high sample rates (192kHz)
+- Audio mode uses EnvelopeFollower with DetectionMode::Peak, attack=0.1ms, release=50ms
+- Slew applies ONLY to sampled modulation values; base parameter changes are instant
+- Envelope and External sources output [0,1] which is converted to [-1,1] via `(value * 2) - 1`
+- Random trigger mode evaluates probability at each hold interval using same Xorshift32 as sample source
+
+**Performance:** < 0.5% CPU @ 44.1kHz stereo per Layer 2 budget
+
+**Dependencies:** Layer 0 (random.h), Layer 1 (svf.h, lfo.h, smoother.h), Layer 2 (envelope_follower.h)
