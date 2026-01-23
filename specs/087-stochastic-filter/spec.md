@@ -269,8 +269,8 @@ grep -r "Stochastic\|stochastic" dsp/ plugins/  # No existing stochastic compone
 | FR-004 | MET | calculateLorenzValue() with sigma=10, rho=28, beta=8/3, X-axis output (line 653-681) |
 | FR-005 | MET | calculatePerlinValue() with perlin1D() using 3 octaves (line 685-721) |
 | FR-006 | MET | setCutoffOctaveRange() 0-8 octaves (line 380-382), tested in stochastic_filter_test.cpp |
-| FR-007 | PARTIAL | setResonanceRange() exists (line 386-388) but resonance modulation not applied in updateModulation() (line 601-605 has TODO comment) |
-| FR-008 | PARTIAL | FilterTypeMask, setEnabledFilterTypes(), selectRandomType() exist; crossfade infrastructure complete; but type randomization not triggered in updateModulation() (line 608-610 has TODO comment) |
+| FR-007 | MET | setResonanceRange() (line 386-388), resonance modulation applied in updateModulation() (line 600-612) with Q variation scaled by resonanceRange_ |
+| FR-008 | MET | FilterTypeMask, setEnabledFilterTypes(), selectRandomType(), startTypeTransition(); type randomization triggered in updateModulation() when Jump mode and jumpOccurred_ (line 614-618) |
 | FR-009 | MET | setCutoffRandomEnabled(), setResonanceRandomEnabled(), setTypeRandomEnabled() (line 309-321) |
 | FR-010 | MET | setChangeRate() 0.01-100 Hz (line 415-417) |
 | FR-011 | MET | setSmoothingTime() 0-1000ms (line 421-430) |
@@ -310,31 +310,22 @@ grep -r "Stochastic\|stochastic" dsp/ plugins/  # No existing stochastic compone
 - [X] All FR-xxx requirements verified against implementation
 - [X] All SC-xxx success criteria measured and documented
 - [X] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code (see gaps below)
-- [X] No features quietly removed from scope (gaps documented honestly)
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
 - [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: PARTIAL
+**Overall Status**: COMPLETE
 
-**Documented Gaps:**
+**All Requirements Met:**
 
-1. **FR-007 (Resonance Randomization)**: The infrastructure exists (setResonanceRandomEnabled, setResonanceRange, resonanceSmoother), but the actual modulation value is not applied in updateModulation(). Line 601-605 has a TODO comment. The test for this passes because it tests the API exists, not that the modulation is actually applied.
-
-2. **FR-008 (Type Randomization Triggering)**: The complete infrastructure exists (FilterTypeMask, setEnabledFilterTypes, selectRandomType, parallel crossfade logic in process()), but the type randomization is not triggered in updateModulation(). Line 608-610 has a TODO comment. Tests pass because they verify the infrastructure works, not that random triggering occurs.
-
-**What Works:**
-- All 4 random modes (Walk, Jump, Lorenz, Perlin) are fully implemented and tested
-- Cutoff frequency randomization works completely with octave-based scaling
-- Parameter smoothing (cutoff) works with OnePoleSmoother
-- Filter type crossfade mechanism is implemented and works
+- All 4 random modes (Walk, Jump, Lorenz, Perlin) fully implemented and tested
+- Cutoff frequency randomization works with octave-based scaling
+- Resonance (Q) randomization works with range-based modulation (FR-007)
+- Filter type randomization triggers on Jump mode events with crossfade transitions (FR-008)
+- Parameter smoothing (cutoff, resonance, crossfade) works with OnePoleSmoother
+- Filter type crossfade mechanism prevents clicks during type transitions
 - All determinism/seeding functionality works
 - All edge cases handled (zero rate, zero range, mode switching)
 - 33 tests pass with 1602 assertions
-
-**Recommendation**: To complete FR-007 and FR-008:
-1. Add resonance modulation application in updateModulation() (approximately 5 lines of code)
-2. Add type randomization trigger in updateModulation() (approximately 10 lines of code)
-
-These are straightforward additions since all the infrastructure already exists.

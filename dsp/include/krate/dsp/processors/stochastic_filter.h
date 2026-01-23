@@ -170,6 +170,7 @@ public:
         walkValue_ = 0.0f;
         jumpValue_ = 0.0f;
         samplesUntilNextJump_ = 0.0f;
+        jumpOccurred_ = false;
         initializeLorenzState();
         perlinTime_ = 0.0f;
 
@@ -201,6 +202,7 @@ public:
         walkValue_ = 0.0f;
         jumpValue_ = 0.0f;
         samplesUntilNextJump_ = 0.0f;
+        jumpOccurred_ = false;
         initializeLorenzState();
         perlinTime_ = 0.0f;
 
@@ -503,6 +505,7 @@ private:
 
     float jumpValue_ = 0.0f;
     float samplesUntilNextJump_ = 0.0f;
+    bool jumpOccurred_ = false;  ///< Flag indicating a jump just occurred (for FR-008)
 
     // =========================================================================
     // Lorenz Mode State
@@ -597,16 +600,24 @@ private:
             cutoffSmoother_.setTarget(baseCutoffHz_);
         }
 
-        // Apply modulation to resonance if enabled (to be implemented in Phase 4)
+        // Apply modulation to resonance if enabled (FR-007)
         if (resonanceRandomEnabled_) {
-            // Will be implemented in T035
+            // Scale modulation by resonanceRange_ (normalized 0-1)
+            // Map from [-1, 1] to [baseResonance_ - range, baseResonance_ + range]
+            // resonanceRange_ represents how much Q can vary from base
+            const float qVariation = modulation * resonanceRange_ * (SVF::kMaxQ - SVF::kMinQ);
+            const float modulatedQ = baseResonance_ + qVariation;
+            const float clampedQ = std::clamp(modulatedQ, SVF::kMinQ, SVF::kMaxQ);
+            resonanceSmoother_.setTarget(clampedQ);
         } else {
             resonanceSmoother_.setTarget(baseResonance_);
         }
 
-        // Handle type randomization if enabled (to be implemented in Phase 7)
-        if (typeRandomEnabled_) {
-            // Will be implemented in T082
+        // Handle type randomization if enabled (FR-008)
+        // Type changes occur when a jump happens in Jump mode
+        if (typeRandomEnabled_ && mode_ == RandomMode::Jump && jumpOccurred_) {
+            SVFMode newType = selectRandomType();
+            startTypeTransition(newType);
         }
     }
 
@@ -637,12 +648,15 @@ private:
         // Timer-based trigger (research.md section 2)
         samplesUntilNextJump_ -= static_cast<float>(kControlRateInterval);
 
+        jumpOccurred_ = false;  // Reset flag each update
         if (samplesUntilNextJump_ <= 0.0f) {
             // Generate new random value
             jumpValue_ = rng_.nextFloat();  // [-1, 1]
 
             // Reset timer based on change rate
             samplesUntilNextJump_ += static_cast<float>(sampleRate_) / changeRateHz_;
+
+            jumpOccurred_ = true;  // Signal that a jump occurred (for FR-008)
         }
 
         return jumpValue_;
@@ -787,6 +801,26 @@ private:
         }
 
         return SVFMode::Lowpass;  // Fallback
+    }
+
+    /// @brief Start a type transition to a new filter type (FR-008)
+    /// @param newType The new filter type to transition to
+    void startTypeTransition(SVFMode newType) noexcept {
+        if (newType == currentTypeA_ || isTransitioning_) {
+            return;  // Already at this type or already transitioning
+        }
+
+        // Set up filterB with the new type
+        currentTypeB_ = newType;
+        filterB_.setMode(newType);
+
+        // Copy current parameters to filterB
+        filterB_.setCutoff(cutoffSmoother_.getCurrentValue());
+        filterB_.setResonance(resonanceSmoother_.getCurrentValue());
+
+        // Start crossfade
+        crossfadeSmoother_.setTarget(1.0f);
+        isTransitioning_ = true;
     }
 };
 
