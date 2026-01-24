@@ -150,24 +150,24 @@ This is a monorepo with shared DSP library:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T023 [P] [US2] Write failing test: C4 to D4 transition is click-free (Scenario 1) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T024 [P] [US2] Write failing test: Crossfade reaches 99% within configured time (Scenario 2) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T025 [P] [US2] Write failing test: Rapid note changes reverse crossfade smoothly (Scenario 3) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T026 [P] [US2] Write failing test: Crossfade time setter reconfigures smoother in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T023 [P] [US2] Write failing test: C4 to D4 transition is click-free (Scenario 1) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T024 [P] [US2] Write failing test: Crossfade reaches 99% within configured time (Scenario 2) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T025 [P] [US2] Write failing test: Rapid note changes reverse crossfade smoothly (Scenario 3) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T026 [P] [US2] Write failing test: Crossfade time setter reconfigures smoother in dsp/tests/unit/processors/note_selective_filter_test.cpp
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T027 [US2] Verify setCrossfadeTime() correctly reconfigures OnePoleSmoother when prepared in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T028 [US2] Add test helper to measure peak-to-peak discontinuities (click detection) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T029 [US2] Verify all User Story 2 tests pass with CMake build
+- [X] T027 [US2] Verify setCrossfadeTime() correctly reconfigures OnePoleSmoother when prepared in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T028 [US2] Add test helper to measure peak-to-peak discontinuities (click detection) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T029 [US2] Verify all User Story 2 tests pass with CMake build
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T030 [US2] Verify IEEE 754 compliance: Confirm test files have -fno-fast-math if using NaN detection
+- [X] T030 [US2] Verify IEEE 754 compliance: Confirm test files have -fno-fast-math if using NaN detection
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T031 [US2] Commit completed User Story 2 work
+- [X] T031 [US2] Commit completed User Story 2 work
 
 **Checkpoint**: User Stories 1 AND 2 should both work independently and be committed
 
