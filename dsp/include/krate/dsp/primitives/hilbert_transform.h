@@ -6,9 +6,9 @@
 //
 // Primary use case: Single-sideband modulation for frequency shifting.
 //
-// Implementation uses two parallel cascades of 4 first-order allpass filters
+// Implementation uses two parallel cascades of 4 second-order allpass filters
 // with coefficients optimized by Olli Niemitalo for wideband 90-degree
-// phase accuracy.
+// phase accuracy. The second-order allpass uses H(z) = (a² - z⁻²) / (1 - a²z⁻²).
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations in process)
@@ -33,15 +33,18 @@ namespace DSP {
 // =============================================================================
 // Olli Niemitalo Hilbert Transform Coefficients
 // =============================================================================
-// Two parallel cascades of 4 first-order allpass filters.
+// Two parallel cascades of 4 second-order allpass filters.
 // Optimized for wideband 90-degree phase accuracy (+/- 0.7 degrees over
 // 0.002 to 0.998 of Nyquist frequency).
 //
-// IMPORTANT: These coefficients are designed for the allpass transfer function:
-//   H(z) = (z^-1 - a) / (1 - a*z^-1)
-// Difference equation: y[n] = -a*x[n] + x[n-1] + a*y[n-1]
+// IMPORTANT: These coefficients require SQUARING before use in the allpass.
+// Reference: Olli Niemitalo - https://yehar.com/blog/?p=368
+//   Transfer function: H(z) = (a² - z⁻²) / (1 - a²z⁻²)
+//   Difference equation: y[n] = a²*(x[n] + y[n-2]) - x[n-2]
 //
-// This is DIFFERENT from the standard allpass form used by Allpass1Pole.
+// Structure per Niemitalo:
+// - Filter 1: input → allpass cascade → 1-sample delay → output I
+// - Filter 2: input → allpass cascade → output Q
 // =============================================================================
 
 namespace {
@@ -109,9 +112,9 @@ struct HilbertOutput {
 ///   shifted = i * cos(wt) - q * sin(wt)  // upper sideband
 ///   shifted = i * cos(wt) + q * sin(wt)  // lower sideband
 ///
-/// Implementation uses two parallel cascades of 4 first-order allpass filters
+/// Implementation uses two parallel cascades of 4 second-order allpass filters
 /// with coefficients optimized by Olli Niemitalo for wideband 90-degree
-/// phase accuracy.
+/// phase accuracy. Uses transfer function H(z) = (a² - z⁻²) / (1 - a²z⁻²).
 ///
 /// @par Effective Bandwidth
 /// At 44.1kHz: approximately 40Hz to 20kHz with +/- 1 degree accuracy.
@@ -161,15 +164,20 @@ public:
     ///
     /// @note FR-002
     void reset() noexcept {
-        // Clear all 8 allpass filter states (x[n-1] and y[n-1] for each)
+        // Clear all second-order allpass filter states
+        // Each stage needs x[n-1], x[n-2], y[n-1], y[n-2]
         for (int i = 0; i < 4; ++i) {
             ap1_x1_[i] = 0.0f;
+            ap1_x2_[i] = 0.0f;
             ap1_y1_[i] = 0.0f;
+            ap1_y2_[i] = 0.0f;
             ap2_x1_[i] = 0.0f;
+            ap2_x2_[i] = 0.0f;
             ap2_y1_[i] = 0.0f;
+            ap2_y2_[i] = 0.0f;
         }
 
-        // Clear the delay element
+        // Clear the delay element (applied AFTER Filter 1 allpass cascade)
         delay_ = 0.0f;
     }
 
@@ -191,56 +199,64 @@ public:
         }
 
         // Niemitalo Hilbert transform structure:
-        // Path 1 (odd-indexed coefficients a1,a3,a5,a7): input -> allpass cascade -> output I
-        // Path 2 (even-indexed coefficients a0,a2,a4,a6): input -> allpass cascade -> z^-1 -> output Q
+        // - Filter 1: input → allpass cascade → 1-sample delay → output I
+        // - Filter 2: input → allpass cascade → output Q
         //
-        // CRITICAL: Uses Niemitalo's allpass form:
-        //   H(z) = (z^-1 - a) / (1 - a*z^-1)
-        //   y[n] = -a*x[n] + x[n-1] + a*y[n-1]
+        // Second-order allpass transfer function: H(z) = (a² - z⁻²) / (1 - a²z⁻²)
+        // Difference equation: y[n] = a²*(x[n] + y[n-2]) - x[n-2]
+        //
+        // Coefficients are SQUARED before use (a → a²).
 
-        // Path 1: 4 allpass stages with odd-indexed coefficients (a1, a3, a5, a7)
-        // The delay is applied to THIS path's output
+        // Filter 1 (kHilbertPath1Coeffs): input → allpass cascade → delay → I
         float path1 = input;
         for (int i = 0; i < 4; ++i) {
-            // Niemitalo allpass form: y[n] = -a*x[n] + x[n-1] + a*y[n-1]
+            // Second-order allpass: y[n] = a²*(x[n] + y[n-2]) - x[n-2]
             const float a = kHilbertPath1Coeffs[i];
-            const float out = -a * path1 + ap1_x1_[i] + a * ap1_y1_[i];
+            const float a2 = a * a;  // Square the coefficient
+            const float out = a2 * (path1 + ap1_y2_[i]) - ap1_x2_[i];
 
-            // Update state
+            // Shift state registers: [n-2] <- [n-1] <- [n]
+            ap1_x2_[i] = ap1_x1_[i];
             ap1_x1_[i] = path1;
+            ap1_y2_[i] = ap1_y1_[i];
             ap1_y1_[i] = out;
 
             // Denormal flushing (FR-018)
             if (std::abs(ap1_x1_[i]) < kHilbertDenormalThreshold) ap1_x1_[i] = 0.0f;
+            if (std::abs(ap1_x2_[i]) < kHilbertDenormalThreshold) ap1_x2_[i] = 0.0f;
             if (std::abs(ap1_y1_[i]) < kHilbertDenormalThreshold) ap1_y1_[i] = 0.0f;
+            if (std::abs(ap1_y2_[i]) < kHilbertDenormalThreshold) ap1_y2_[i] = 0.0f;
 
             path1 = out;
         }
 
-        // Path 2: 4 allpass stages with even-indexed coefficients (a0, a2, a4, a6)
-        // No delay on this path
+        // Filter 2 (kHilbertPath2Coeffs): input → allpass cascade → Q
         float path2 = input;
         for (int i = 0; i < 4; ++i) {
-            // Niemitalo allpass form: y[n] = -a*x[n] + x[n-1] + a*y[n-1]
+            // Second-order allpass: y[n] = a²*(x[n] + y[n-2]) - x[n-2]
             const float a = kHilbertPath2Coeffs[i];
-            const float out = -a * path2 + ap2_x1_[i] + a * ap2_y1_[i];
+            const float a2 = a * a;  // Square the coefficient
+            const float out = a2 * (path2 + ap2_y2_[i]) - ap2_x2_[i];
 
-            // Update state
+            // Shift state registers: [n-2] <- [n-1] <- [n]
+            ap2_x2_[i] = ap2_x1_[i];
             ap2_x1_[i] = path2;
+            ap2_y2_[i] = ap2_y1_[i];
             ap2_y1_[i] = out;
 
             // Denormal flushing (FR-018)
             if (std::abs(ap2_x1_[i]) < kHilbertDenormalThreshold) ap2_x1_[i] = 0.0f;
+            if (std::abs(ap2_x2_[i]) < kHilbertDenormalThreshold) ap2_x2_[i] = 0.0f;
             if (std::abs(ap2_y1_[i]) < kHilbertDenormalThreshold) ap2_y1_[i] = 0.0f;
+            if (std::abs(ap2_y2_[i]) < kHilbertDenormalThreshold) ap2_y2_[i] = 0.0f;
 
             path2 = out;
         }
 
-        // Apply 1-sample delay to path 1 (odd-indexed coefficients)
-        // This configuration achieves ~93 degree phase shift (CV ~0.016)
+        // Apply 1-sample delay AFTER Filter 1's allpass cascade (per Niemitalo)
         float outI = delay_;
-        float outQ = path2;
         delay_ = path1;
+        float outQ = path2;
 
         // Denormal flushing for outputs and delay state (FR-018)
         if (std::abs(outI) < kHilbertDenormalThreshold) outI = 0.0f;
@@ -301,15 +317,20 @@ private:
     // Internal State
     // =========================================================================
 
-    // Path 1 allpass filter states (4 stages)
+    // Filter 1 second-order allpass filter states (4 stages)
+    // Each stage needs x[n-1], x[n-2], y[n-1], y[n-2] for proper second-order operation
     float ap1_x1_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< x[n-1] for each stage
+    float ap1_x2_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< x[n-2] for each stage
     float ap1_y1_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< y[n-1] for each stage
+    float ap1_y2_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< y[n-2] for each stage
 
-    // Path 2 allpass filter states (4 stages)
+    // Filter 2 second-order allpass filter states (4 stages)
     float ap2_x1_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< x[n-1] for each stage
+    float ap2_x2_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< x[n-2] for each stage
     float ap2_y1_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< y[n-1] for each stage
+    float ap2_y2_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< y[n-2] for each stage
 
-    /// One-sample delay for path 2 output alignment
+    /// One-sample delay applied AFTER Filter 1 allpass cascade (per Niemitalo)
     float delay_ = 0.0f;
 
     /// Configured sample rate
