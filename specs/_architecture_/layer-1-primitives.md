@@ -890,3 +890,70 @@ for (auto& sample : noiseBuffer) {
 ```
 
 **Dependencies:** `primitives/biquad.h`
+
+---
+
+## HilbertTransform (Analytic Signal Generation)
+**Path:** [hilbert_transform.h](../../dsp/include/krate/dsp/primitives/hilbert_transform.h) | **Since:** 0.14.0
+
+Hilbert transform using Olli Niemitalo's allpass filter cascade approximation. Creates an analytic signal with 90-degree phase-shifted quadrature output for single-sideband modulation (frequency shifting).
+
+**Use when:**
+- Creating frequency shifter effects (single-sideband modulation)
+- Ring modulation with precise frequency control
+- Envelope detection via analytic signal magnitude
+- Any application requiring a 90-degree phase-shifted signal pair
+
+**Note:** Uses two parallel cascades of 4 first-order allpass filters with coefficients optimized for wideband 90-degree phase accuracy. Fixed 5-sample latency regardless of sample rate.
+
+```cpp
+struct HilbertOutput {
+    float i;  ///< In-phase component (original signal, delayed)
+    float q;  ///< Quadrature component (90 degrees phase-shifted)
+};
+
+class HilbertTransform {
+    void prepare(double sampleRate) noexcept;       // 22050-192000 Hz (clamped)
+    void reset() noexcept;                          // Clear all filter states
+    [[nodiscard]] HilbertOutput process(float input) noexcept;
+    void processBlock(const float* input, float* outI, float* outQ, int numSamples) noexcept;
+    [[nodiscard]] double getSampleRate() const noexcept;
+    [[nodiscard]] int getLatencySamples() const noexcept;  // Always returns 5
+};
+```
+
+| Frequency Range | Phase Accuracy | Notes |
+|-----------------|----------------|-------|
+| 40Hz - 2kHz | Excellent (<1 deg) | Optimal range for frequency shifting |
+| 2kHz - 5kHz | Good (<5 deg) | Acceptable for most audio |
+| 5kHz - 10kHz | Degraded (<10 deg) | High frequency limitation |
+| >0.9*Nyquist | Not guaranteed | Known limitation of allpass approximation |
+
+**Frequency Shifting Pattern:**
+```cpp
+HilbertTransform hilbert;
+LFO modulator;
+
+hilbert.prepare(44100.0);
+modulator.prepare(44100.0);
+modulator.setFrequency(5.0f);  // 5 Hz shift
+
+for (auto& sample : buffer) {
+    HilbertOutput h = hilbert.process(sample);
+    float phase = modulator.getPhase() * 2.0f * kPi;
+    // Upper sideband (frequency shift up)
+    sample = h.i * std::cos(phase) - h.q * std::sin(phase);
+    // Lower sideband (frequency shift down)
+    // sample = h.i * std::cos(phase) + h.q * std::sin(phase);
+    modulator.process();
+}
+```
+
+**Implementation Notes:**
+- Uses Olli Niemitalo coefficients (8 allpass sections total)
+- Path 1: odd-indexed coefficients (a1, a3, a5, a7) with 1-sample delay
+- Path 2: even-indexed coefficients (a0, a2, a4, a6)
+- Niemitalo allpass form: y[n] = -a*x[n] + x[n-1] + a*y[n-1]
+- Denormal flushing on all filter states and outputs
+
+**Dependencies:** `core/db_utils.h` (isNaN, isInf)
