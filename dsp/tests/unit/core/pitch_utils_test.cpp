@@ -251,3 +251,148 @@ TEST_CASE("quantizePitch Scale mode rounds to major scale degrees", "[core][pitc
         REQUIRE(quantizePitch(-5.0f, PitchQuantMode::Scale) == Approx(-5.0f));
     }
 }
+
+// =============================================================================
+// frequencyToNoteClass Tests (spec 093-note-selective-filter, FR-011)
+// =============================================================================
+
+TEST_CASE("frequencyToNoteClass converts frequency to note class (0-11)", "[core][pitch][layer0][note-selective]") {
+
+    SECTION("A440 maps to note class 9 (A)") {
+        // MIDI note 69 = A4 (440Hz), noteClass = 69 % 12 = 9
+        REQUIRE(frequencyToNoteClass(440.0f) == 9);
+    }
+
+    SECTION("C4 (261.63Hz) maps to note class 0 (C)") {
+        // MIDI note 60 = C4, noteClass = 60 % 12 = 0
+        REQUIRE(frequencyToNoteClass(261.63f) == 0);
+    }
+
+    SECTION("C0 (16.35Hz) maps to note class 0 (C)") {
+        // MIDI note 12 = C0, noteClass = 12 % 12 = 0
+        REQUIRE(frequencyToNoteClass(16.35f) == 0);
+    }
+
+    SECTION("D4 (293.66Hz) maps to note class 2 (D)") {
+        // MIDI note 62 = D4, noteClass = 62 % 12 = 2
+        REQUIRE(frequencyToNoteClass(293.66f) == 2);
+    }
+
+    SECTION("E4 (329.63Hz) maps to note class 4 (E)") {
+        // MIDI note 64 = E4, noteClass = 64 % 12 = 4
+        REQUIRE(frequencyToNoteClass(329.63f) == 4);
+    }
+
+    SECTION("G4 (392.0Hz) maps to note class 7 (G)") {
+        // MIDI note 67 = G4, noteClass = 67 % 12 = 7
+        REQUIRE(frequencyToNoteClass(392.0f) == 7);
+    }
+
+    SECTION("B4 (493.88Hz) maps to note class 11 (B)") {
+        // MIDI note 71 = B4, noteClass = 71 % 12 = 11
+        REQUIRE(frequencyToNoteClass(493.88f) == 11);
+    }
+
+    SECTION("C#4/Db4 (277.18Hz) maps to note class 1 (C#)") {
+        // MIDI note 61 = C#4, noteClass = 61 % 12 = 1
+        REQUIRE(frequencyToNoteClass(277.18f) == 1);
+    }
+
+    SECTION("High octave C8 (4186Hz) maps to note class 0 (C)") {
+        // MIDI note 108 = C8, noteClass = 108 % 12 = 0
+        REQUIRE(frequencyToNoteClass(4186.0f) == 0);
+    }
+
+    SECTION("Low octave A1 (55Hz) maps to note class 9 (A)") {
+        // MIDI note 33 = A1, noteClass = 33 % 12 = 9
+        REQUIRE(frequencyToNoteClass(55.0f) == 9);
+    }
+
+    SECTION("Invalid frequency (0 or negative) returns -1") {
+        REQUIRE(frequencyToNoteClass(0.0f) == -1);
+        REQUIRE(frequencyToNoteClass(-100.0f) == -1);
+    }
+
+    SECTION("All 12 note classes from chromatic scale") {
+        // Standard frequencies for octave 4 (all A=440 based)
+        // C4=261.63, C#4=277.18, D4=293.66, D#4=311.13, E4=329.63, F4=349.23,
+        // F#4=369.99, G4=392.00, G#4=415.30, A4=440.00, A#4=466.16, B4=493.88
+        const float freqs[] = {261.63f, 277.18f, 293.66f, 311.13f, 329.63f, 349.23f,
+                               369.99f, 392.00f, 415.30f, 440.00f, 466.16f, 493.88f};
+        for (int i = 0; i < 12; ++i) {
+            REQUIRE(frequencyToNoteClass(freqs[i]) == i);
+        }
+    }
+}
+
+// =============================================================================
+// frequencyToCentsDeviation Tests (spec 093-note-selective-filter, FR-036)
+// =============================================================================
+
+TEST_CASE("frequencyToCentsDeviation returns cents deviation from nearest note center", "[core][pitch][layer0][note-selective]") {
+
+    SECTION("Exact A440 returns 0 cents deviation") {
+        REQUIRE(frequencyToCentsDeviation(440.0f) == Approx(0.0f).margin(0.5f));
+    }
+
+    SECTION("Exact C4 (261.63Hz) returns 0 cents deviation") {
+        REQUIRE(frequencyToCentsDeviation(261.63f) == Approx(0.0f).margin(0.5f));
+    }
+
+    SECTION("Slightly sharp A440 (A4 + 10 cents)") {
+        // 10 cents sharp: 440 * 2^(10/1200) ≈ 442.55Hz
+        float sharpA = 440.0f * std::pow(2.0f, 10.0f / 1200.0f);
+        REQUIRE(frequencyToCentsDeviation(sharpA) == Approx(10.0f).margin(0.5f));
+    }
+
+    SECTION("Slightly flat A440 (A4 - 10 cents)") {
+        // 10 cents flat: 440 * 2^(-10/1200) ≈ 437.47Hz
+        float flatA = 440.0f * std::pow(2.0f, -10.0f / 1200.0f);
+        REQUIRE(frequencyToCentsDeviation(flatA) == Approx(-10.0f).margin(0.5f));
+    }
+
+    SECTION("13 cents flat from C4 (260Hz, per spec example)") {
+        // 260Hz is approximately 13 cents flat from C4 (261.63Hz)
+        float deviation = frequencyToCentsDeviation(260.0f);
+        REQUIRE(deviation == Approx(-10.75f).margin(1.0f));  // Close to -11 cents
+    }
+
+    SECTION("44 cents flat from C4 (255Hz, per spec example)") {
+        // 255Hz is approximately 44 cents flat from C4
+        float deviation = frequencyToCentsDeviation(255.0f);
+        REQUIRE(deviation == Approx(-44.0f).margin(2.0f));
+    }
+
+    SECTION("Boundary case: exactly between two notes (50 cents)") {
+        // Halfway between A4 and A#4 (50 cents from each)
+        // A#4 = 466.16Hz, midpoint = sqrt(440 * 466.16) ≈ 452.89Hz
+        // At exactly 50 cents, the rounded MIDI note could go either way,
+        // but the deviation from the chosen note should be close to 50 or -50
+        float midpoint = std::sqrt(440.0f * 466.16f);
+        float deviation = std::abs(frequencyToCentsDeviation(midpoint));
+        REQUIRE(deviation == Approx(50.0f).margin(1.0f));
+    }
+
+    SECTION("Deviation range is approximately -50 to +50 cents") {
+        // 25 cents sharp of A4
+        float sharp25 = 440.0f * std::pow(2.0f, 25.0f / 1200.0f);
+        REQUIRE(frequencyToCentsDeviation(sharp25) == Approx(25.0f).margin(0.5f));
+
+        // 25 cents flat of A4
+        float flat25 = 440.0f * std::pow(2.0f, -25.0f / 1200.0f);
+        REQUIRE(frequencyToCentsDeviation(flat25) == Approx(-25.0f).margin(0.5f));
+
+        // 49 cents sharp of A4 (still closer to A4)
+        float sharp49 = 440.0f * std::pow(2.0f, 49.0f / 1200.0f);
+        REQUIRE(frequencyToCentsDeviation(sharp49) == Approx(49.0f).margin(0.5f));
+
+        // 49 cents flat of A4 (still closer to A4)
+        float flat49 = 440.0f * std::pow(2.0f, -49.0f / 1200.0f);
+        REQUIRE(frequencyToCentsDeviation(flat49) == Approx(-49.0f).margin(0.5f));
+    }
+
+    SECTION("Invalid frequency returns 0") {
+        REQUIRE(frequencyToCentsDeviation(0.0f) == 0.0f);
+        REQUIRE(frequencyToCentsDeviation(-100.0f) == 0.0f);
+    }
+}
