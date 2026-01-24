@@ -358,3 +358,68 @@ Slot 1 -> Slot 2 -> Slot 3 -> [Oversample Down] -> [Output Gain] -> Output
 - Type-safe processor access via getProcessor<T>() template
 - std::variant with compile-time dispatch (zero virtual overhead)
 - Stereo processing with independent L/R processor instances
+
+---
+
+## FilterFeedbackMatrix
+**Path:** [filter_feedback_matrix.h](../../dsp/include/krate/dsp/systems/filter_feedback_matrix.h) | **Since:** 0.0.96
+
+Matrix of SVF filters with configurable cross-feedback routing for complex resonant textures.
+
+```cpp
+template <size_t N>  // N = 2, 3, or 4
+class FilterFeedbackMatrix {
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processStereo(float& left, float& right) noexcept;
+
+    // Filter configuration
+    void setActiveFilters(size_t count) noexcept;          // [1, N]
+    void setFilterMode(size_t i, SVFMode mode) noexcept;
+    void setFilterCutoff(size_t i, float hz) noexcept;     // [20, 20000]
+    void setFilterResonance(size_t i, float q) noexcept;   // [0.5, 30]
+
+    // Feedback routing
+    void setFeedbackAmount(size_t from, size_t to, float amount) noexcept;  // [-1, 1]
+    void setFeedbackMatrix(const std::array<std::array<float, N>, N>& matrix) noexcept;
+    void setFeedbackDelay(size_t from, size_t to, float ms) noexcept;       // [0, 100]
+
+    // Input/Output routing
+    void setInputGain(size_t i, float gain) noexcept;      // [0, 1]
+    void setOutputGain(size_t i, float gain) noexcept;     // [0, 1]
+    void setInputGains(const std::array<float, N>& gains) noexcept;
+    void setOutputGains(const std::array<float, N>& gains) noexcept;
+
+    // Global control
+    void setGlobalFeedback(float amount) noexcept;         // [0, 1]
+    [[nodiscard]] float getGlobalFeedback() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Input -> [inputGains] -> Filters -> [tanh] -> [feedback matrix with delays]
+                              |                         |
+                              v                         v
+                         [outputGains] <----- [dcBlocker] <---- [from other filters]
+                              |
+                              v
+                           Output
+```
+
+**Key Features:**
+- Template parameter N (2-4) sets compile-time array sizes for efficiency
+- Runtime setActiveFilters() for CPU optimization when fewer filters needed
+- Per-filter soft clipping (tanh) before feedback routing prevents instability
+- Per-feedback-path DC blocking (10Hz) prevents DC accumulation
+- Linear interpolation (readLinear()) for feedback path delays
+- Dual-mono stereo: independent filter networks per channel
+- 20ms parameter smoothing for click-free operation
+- Composes SVF (L1), DelayLine (L1), DCBlocker (L1), OnePoleSmoother (L1)
+
+**When to Use:**
+- Creating complex resonant textures and filter networks
+- Building FDN-style (Feedback Delay Network) effects with filters instead of pure delays
+- Designing custom cross-modulating filter topologies (serial, parallel, hybrid)
