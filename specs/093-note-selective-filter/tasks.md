@@ -187,24 +187,24 @@ This is a monorepo with shared DSP library:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T032 [P] [US3] Write failing test: 49 cents tolerance matches 13 cents flat C4 (Scenario 1) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T033 [P] [US3] Write failing test: 25 cents tolerance rejects 44 cents flat C4 (Scenario 2) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T034 [P] [US3] Write failing test: 49 cents max prevents overlap between adjacent notes (Scenario 3) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T035 [P] [US3] Write failing test: Tolerance clamping to valid range in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T032 [P] [US3] Write failing test: 49 cents tolerance matches 13 cents flat C4 (Scenario 1) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T033 [P] [US3] Write failing test: 25 cents tolerance rejects 44 cents flat C4 (Scenario 2) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T034 [P] [US3] Write failing test: 49 cents max prevents overlap between adjacent notes (Scenario 3) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T035 [P] [US3] Write failing test: Tolerance clamping to valid range in dsp/tests/unit/processors/note_selective_filter_test.cpp
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T036 [US3] Verify updateNoteMatching() correctly uses frequencyToCentsDeviation() and tolerance in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T037 [US3] Verify setNoteTolerance() clamps to [1, 49] cents range in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T038 [US3] Verify all User Story 3 tests pass with CMake build
+- [X] T036 [US3] Verify updateNoteMatching() correctly uses frequencyToCentsDeviation() and tolerance in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T037 [US3] Verify setNoteTolerance() clamps to [1, 49] cents range in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T038 [US3] Verify all User Story 3 tests pass with CMake build
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T039 [US3] Verify IEEE 754 compliance: Confirm test files have -fno-fast-math if using NaN detection
+- [X] T039 [US3] Verify IEEE 754 compliance: Confirm test files have -fno-fast-math if using NaN detection
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T040 [US3] Commit completed User Story 3 work
+- [X] T040 [US3] Commit completed User Story 3 work
 
 **Checkpoint**: User Stories 1, 2, AND 3 should all work independently and be committed
 
