@@ -1132,6 +1132,164 @@ Main Input ---------> [Lookahead Delay] ---------------------> SVF <--- Cutoff
 
 ---
 
+## TransientAwareFilter
+**Path:** [transient_filter.h](../../dsp/include/krate/dsp/processors/transient_filter.h) | **Since:** 0.14.0
+
+Transient-triggered filter with dual envelope detection for dynamic tonal shaping of attacks.
+
+**Use when:**
+- Adding "snap" or "click" to drums/percussion by opening filter on transients
+- Softening harsh synth attacks by closing filter on transients
+- Creating rhythmic resonance "ping" effects on bass and plucked sounds
+- Need attack-specific tonal shaping without affecting sustained portions
+
+**Key Differentiator from EnvelopeFilter:**
+- EnvelopeFilter: Responds to overall amplitude (auto-wah, touch-sensitive)
+- TransientAwareFilter: Responds only to transients (attacks), sustained notes do NOT trigger
+
+**Key Differentiator from SidechainFilter:**
+- SidechainFilter: External sidechain input, lookahead, hold time
+- TransientAwareFilter: Self-analysis only, level-independent detection
+
+**Features:**
+- Dual envelope transient detection (1ms fast, 50ms slow envelopes)
+- Level-independent normalization (`diff / max(slowEnv, epsilon)`)
+- Configurable sensitivity threshold (0.0-1.0)
+- Bidirectional cutoff modulation (transient can be higher OR lower than idle)
+- Resonance boost during transients with stability clamping (max Q=30)
+- Exponential attack/decay response curves via OnePoleSmoother
+- Log-space frequency interpolation for perceptual sweeps
+- Three filter types: Lowpass, Bandpass, Highpass (SVF for modulation stability)
+
+```cpp
+enum class TransientFilterMode : uint8_t { Lowpass, Bandpass, Highpass };
+
+class TransientAwareFilter {
+    static constexpr float kFastEnvelopeAttackMs = 1.0f;
+    static constexpr float kSlowEnvelopeAttackMs = 50.0f;
+    static constexpr float kMinSensitivity = 0.0f;
+    static constexpr float kMaxSensitivity = 1.0f;
+    static constexpr float kMinAttackMs = 0.1f;
+    static constexpr float kMaxAttackMs = 50.0f;
+    static constexpr float kMinDecayMs = 1.0f;
+    static constexpr float kMaxDecayMs = 1000.0f;
+    static constexpr float kMinCutoffHz = 20.0f;
+    static constexpr float kMinResonance = 0.5f;
+    static constexpr float kMaxResonance = 20.0f;
+    static constexpr float kMaxTotalResonance = 30.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] size_t getLatency() const noexcept;  // Always 0
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    // Transient detection parameters
+    void setSensitivity(float sensitivity) noexcept;  // [0, 1] threshold control
+    void setTransientAttack(float ms) noexcept;       // [0.1, 50] filter response speed
+    void setTransientDecay(float ms) noexcept;        // [1, 1000] return to idle speed
+
+    // Filter cutoff parameters
+    void setIdleCutoff(float hz) noexcept;            // [20, Nyquist*0.45] at rest
+    void setTransientCutoff(float hz) noexcept;       // [20, Nyquist*0.45] at peak
+
+    // Filter resonance parameters
+    void setIdleResonance(float q) noexcept;          // [0.5, 20.0] Q at rest
+    void setTransientQBoost(float boost) noexcept;    // [0.0, 20.0] additional Q
+
+    // Filter configuration
+    void setFilterType(TransientFilterMode type) noexcept;
+
+    // Monitoring (for UI)
+    [[nodiscard]] float getCurrentCutoff() const noexcept;
+    [[nodiscard]] float getCurrentResonance() const noexcept;
+    [[nodiscard]] float getTransientLevel() const noexcept;  // [0, 1] detection level
+
+    // Getters for all parameters...
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| sensitivity | 0.5 | [0, 1] | Detection threshold (higher = more sensitive) |
+| transientAttack | 1.0 ms | [0.1, 50] | Filter response speed to transients |
+| transientDecay | 50 ms | [1, 1000] | Return to idle speed |
+| idleCutoff | 200 Hz | [20, Nyquist*0.45] | Cutoff at rest |
+| transientCutoff | 4000 Hz | [20, Nyquist*0.45] | Cutoff at peak transient |
+| idleResonance | 0.7071 | [0.5, 20] | Q at rest (Butterworth default) |
+| transientQBoost | 0.0 | [0, 20] | Additional Q during transient |
+| filterType | Lowpass | enum | LP/BP/HP response |
+
+**Usage Example (Drum Attack Enhancement):**
+```cpp
+TransientAwareFilter filter;
+filter.prepare(48000.0);
+filter.setIdleCutoff(200.0f);         // Dark at rest
+filter.setTransientCutoff(4000.0f);   // Bright on hits
+filter.setSensitivity(0.5f);
+filter.setTransientAttack(1.0f);
+filter.setTransientDecay(50.0f);
+filter.setFilterType(TransientFilterMode::Lowpass);
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(input[i]);
+}
+```
+
+**Usage Example (Synth Attack Softening):**
+```cpp
+TransientAwareFilter filter;
+filter.prepare(48000.0);
+filter.setIdleCutoff(8000.0f);        // Bright at rest
+filter.setTransientCutoff(500.0f);    // Dark on attacks (inverse)
+filter.setSensitivity(0.5f);
+```
+
+**Topology:**
+```
+                   +------------------+     +------------------+
+Input ------------>| Fast Envelope    |---->|                  |
+          |        | (1ms att/rel)    |     | Normalized Diff  |
+          |        +------------------+     | = (fast-slow)    |
+          |                                 |   / max(slow,e)  |
+          |        +------------------+     |                  |
+          +------->| Slow Envelope    |---->|                  |
+          |        | (50ms att/rel)   |     +--------+---------+
+          |        +------------------+              |
+          |                                          v
+          |                            +-------------------------+
+          |                            | Threshold Compare       |
+          |                            | (1.0 - sensitivity)     |
+          |                            +-------------------------+
+          |                                          |
+          |                            +-------------------------+
+          |                            | Response Smoother       |
+          |                            | (attack/decay dynamic)  |
+          |                            +-------------------------+
+          |                                          |
+          |                            +-------------------------+
+          |                            | Log-space Freq Mapping  |
+          |                            | + Linear Q Mapping      |
+          |                            +-------------------------+
+          |                                          |
+          |        +------------------+              v
+          +------->|       SVF        |<---- Cutoff + Resonance
+                   | (LP/BP/HP)       |
+                   +------------------+
+                            |
+                            v
+                         Output
+```
+
+**Dependencies:** Layer 0 (db_utils.h), Layer 1 (svf.h, smoother.h), Layer 2 peer (envelope_follower.h)
+
+---
+
 ## Phaser
 **Path:** [phaser.h](../../dsp/include/krate/dsp/processors/phaser.h) | **Since:** 0.13.0
 
