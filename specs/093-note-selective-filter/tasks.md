@@ -85,10 +85,10 @@ This is a monorepo with shared DSP library:
 
 **⚠️ CRITICAL**: This phase creates the skeleton. Processing logic comes in user story phases.
 
-- [ ] T007 Create dsp/include/krate/dsp/processors/note_selective_filter.h with NoDetectionMode enum and class skeleton
-- [ ] T008 Implement prepare(), reset(), and all parameter setters (FR-001 through FR-025) in note_selective_filter.h
-- [ ] T009 Verify header compiles cleanly with zero warnings
-- [ ] T010 Commit header skeleton
+- [X] T007 Create dsp/include/krate/dsp/processors/note_selective_filter.h with NoDetectionMode enum and class skeleton
+- [X] T008 Implement prepare(), reset(), and all parameter setters (FR-001 through FR-025) in note_selective_filter.h
+- [X] T009 Verify header compiles cleanly with zero warnings
+- [X] T010 Commit header skeleton
 
 **Checkpoint**: NoteSelectiveFilter header exists and compiles - ready for user story implementation
 
