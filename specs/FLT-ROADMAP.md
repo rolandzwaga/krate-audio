@@ -1964,19 +1964,19 @@ Each new component needs:
 
 | Use Case | Recommended Component | Layer | Status |
 |----------|----------------------|-------|--------|
-| Spectral morphing | `SpectralMorphFilter` | 2 | NEW |
-| Spectral gating | `SpectralGate` | 2 | NEW |
-| Tilt EQ | `SpectralTilt` | 2 | NEW |
-| Marimba/bell resonance | `ResonatorBank` | 2 | NEW |
-| Plucked strings | `KarplusStrong` | 2 | NEW |
-| Flute/pipe resonance | `WaveguideResonator` | 2 | NEW |
-| Complex body resonance | `ModalResonator` | 2 | NEW |
-| Random filter drift | `StochasticFilter` | 2 | NEW |
-| Sine generator from filter | `SelfOscillatingFilter` | 2 | NEW |
-| Stepped modulation | `SampleHoldFilter` | 2 | NEW |
-| Ducking/pumping filter | `SidechainFilter` | 2 | NEW |
-| Transient shaping | `TransientAwareFilter` | 2 | NEW |
-| Harmonic tracking | `PitchTrackingFilter` | 2 | NEW |
+| Spectral morphing | `SpectralMorphFilter` | 2 | COMPLETE (spec-080) |
+| Spectral gating | `SpectralGate` | 2 | COMPLETE (spec-081) |
+| Tilt EQ | `SpectralTilt` | 2 | COMPLETE (spec-082) |
+| Marimba/bell resonance | `ResonatorBank` | 2 | COMPLETE (spec-083) |
+| Plucked strings | `KarplusStrong` | 2 | COMPLETE (spec-084) |
+| Flute/pipe resonance | `WaveguideResonator` | 2 | COMPLETE (spec-085) |
+| Complex body resonance | `ModalResonator` | 2 | COMPLETE (spec-086) |
+| Random filter drift | `StochasticFilter` | 2 | COMPLETE (spec-087) |
+| Sine generator from filter | `SelfOscillatingFilter` | 2 | COMPLETE (spec-088) |
+| Stepped modulation | `SampleHoldFilter` | 2 | COMPLETE (spec-089) |
+| Ducking/pumping filter | `SidechainFilter` | 2 | COMPLETE (spec-090) |
+| Transient shaping | `TransientAwareFilter` | 2 | COMPLETE (spec-091) |
+| Harmonic tracking | `PitchTrackingFilter` | 2 | COMPLETE (spec-092) |
 | Metallic FM tones | `AudioRateFilterFM` | 2 | NEW |
 | Complex resonant networks | `FilterFeedbackMatrix` | 3 | NEW |
 | Inharmonic shifting | `FrequencyShifter` | 2 | NEW |
@@ -1987,4 +1987,4 @@ Each new component needs:
 | Spectral smearing/freeze | `SpectralDelay` | 4 | **EXISTS** |
 | Evolving metallic textures | `TimeVaryingCombBank` | 3 | NEW |
 
-**Note:** `SpectralDelay` (effects/spectral_delay.h) already provides per-bin delays with freeze, tilt, and diffusion. The remaining 21 components are NEW but heavily reuse existing primitives.
+**Note:** `SpectralDelay` (effects/spectral_delay.h) already provides per-bin delays with freeze, tilt, and diffusion. 13 of 22 advanced filter components are now complete (specs 080-092). The remaining 9 components are planned for future sprints.
