@@ -1285,6 +1285,71 @@ private:
 };
 ```
 
+#### 15.3a Note-Selective Filter (`note_selective_filter.h`)
+```
+Location: dsp/include/krate/dsp/processors/note_selective_filter.h
+Layer: 2
+Dependencies: pitch_detector.h, pitch_utils.h, svf.h, smoother.h
+```
+
+**Description:** Filter that processes only notes matching a configurable note class (C, C#, D, etc.), passing non-matching notes through dry. Useful for creative effects like filtering only root notes in a melody, or applying resonance only to specific scale degrees.
+
+**Concept:** Detects input pitch, determines note class (0-11 for C through B), and crossfades between dry and filtered signal based on whether the detected note matches the target set. Crossfade prevents clicks during note transitions.
+
+```cpp
+class NoteSelectiveFilter {
+public:
+    void prepare(double sampleRate, int maxBlockSize);
+    void reset();
+
+    // Note selection (note class 0=C, 1=C#, 2=D, ..., 11=B)
+    void setTargetNotes(std::bitset<12> notes);   // Which notes to filter
+    void setTargetNote(int noteClass, bool enabled);
+    void clearAllNotes();
+    void setAllNotes();                           // Filter all notes
+
+    // Tolerance for pitch matching
+    void setNoteTolerance(float cents);           // How close to note center (default 50 cents)
+
+    // Crossfade to prevent clicks
+    void setCrossfadeTime(float ms);              // Transition time (default 5ms)
+
+    // Filter settings (applied to matching notes)
+    void setCutoff(float hz);
+    void setResonance(float q);
+    void setFilterType(FilterType type);
+
+    // Pitch detection settings
+    void setDetectionRange(float minHz, float maxHz);
+    void setConfidenceThreshold(float threshold);
+
+    // Behavior when no pitch detected
+    void setNoDetectionBehavior(NoDetectionMode mode);  // Dry, Filtered, LastState
+
+    float process(float input);
+    void processBlock(float* buffer, int numSamples);
+
+    // Query state
+    [[nodiscard]] int getDetectedNoteClass() const;     // -1 if no pitch
+    [[nodiscard]] bool isCurrentlyFiltering() const;
+
+private:
+    PitchDetector pitchDetector_;
+    SVF filter_;
+    OnePoleSmoother crossfadeSmoother_;           // Smooth dry/wet transitions
+    std::bitset<12> targetNotes_;
+    float noteTolerance_ = 50.0f;                 // cents
+    float crossfadeState_ = 0.0f;                 // 0=dry, 1=filtered
+    int lastDetectedNote_ = -1;
+};
+```
+
+**Use Cases:**
+- Filter only root notes in a chord progression
+- Apply resonance sweep only to specific scale degrees
+- Create "harmonic gating" effects where certain notes get enhanced
+- Build adaptive EQ that responds to musical content
+
 ---
 
 ### Phase 16: Exotic Modulation Filters (Layer 2/3)
@@ -1964,19 +2029,20 @@ Each new component needs:
 
 | Use Case | Recommended Component | Layer | Status |
 |----------|----------------------|-------|--------|
-| Spectral morphing | `SpectralMorphFilter` | 2 | NEW |
-| Spectral gating | `SpectralGate` | 2 | NEW |
-| Tilt EQ | `SpectralTilt` | 2 | NEW |
-| Marimba/bell resonance | `ResonatorBank` | 2 | NEW |
-| Plucked strings | `KarplusStrong` | 2 | NEW |
-| Flute/pipe resonance | `WaveguideResonator` | 2 | NEW |
-| Complex body resonance | `ModalResonator` | 2 | NEW |
-| Random filter drift | `StochasticFilter` | 2 | NEW |
-| Sine generator from filter | `SelfOscillatingFilter` | 2 | NEW |
-| Stepped modulation | `SampleHoldFilter` | 2 | NEW |
-| Ducking/pumping filter | `SidechainFilter` | 2 | NEW |
-| Transient shaping | `TransientAwareFilter` | 2 | NEW |
-| Harmonic tracking | `PitchTrackingFilter` | 2 | NEW |
+| Spectral morphing | `SpectralMorphFilter` | 2 | COMPLETE (spec-080) |
+| Spectral gating | `SpectralGate` | 2 | COMPLETE (spec-081) |
+| Tilt EQ | `SpectralTilt` | 2 | COMPLETE (spec-082) |
+| Marimba/bell resonance | `ResonatorBank` | 2 | COMPLETE (spec-083) |
+| Plucked strings | `KarplusStrong` | 2 | COMPLETE (spec-084) |
+| Flute/pipe resonance | `WaveguideResonator` | 2 | COMPLETE (spec-085) |
+| Complex body resonance | `ModalResonator` | 2 | COMPLETE (spec-086) |
+| Random filter drift | `StochasticFilter` | 2 | COMPLETE (spec-087) |
+| Sine generator from filter | `SelfOscillatingFilter` | 2 | COMPLETE (spec-088) |
+| Stepped modulation | `SampleHoldFilter` | 2 | COMPLETE (spec-089) |
+| Ducking/pumping filter | `SidechainFilter` | 2 | COMPLETE (spec-090) |
+| Transient shaping | `TransientAwareFilter` | 2 | COMPLETE (spec-091) |
+| Harmonic tracking | `PitchTrackingFilter` | 2 | COMPLETE (spec-092) |
+| Note-selective filtering | `NoteSelectiveFilter` | 2 | NEW |
 | Metallic FM tones | `AudioRateFilterFM` | 2 | NEW |
 | Complex resonant networks | `FilterFeedbackMatrix` | 3 | NEW |
 | Inharmonic shifting | `FrequencyShifter` | 2 | NEW |
@@ -1987,4 +2053,4 @@ Each new component needs:
 | Spectral smearing/freeze | `SpectralDelay` | 4 | **EXISTS** |
 | Evolving metallic textures | `TimeVaryingCombBank` | 3 | NEW |
 
-**Note:** `SpectralDelay` (effects/spectral_delay.h) already provides per-bin delays with freeze, tilt, and diffusion. The remaining 21 components are NEW but heavily reuse existing primitives.
+**Note:** `SpectralDelay` (effects/spectral_delay.h) already provides per-bin delays with freeze, tilt, and diffusion. 13 of 23 advanced filter components are now complete (specs 080-092). The remaining 10 components are planned for future sprints.

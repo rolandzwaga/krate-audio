@@ -1290,6 +1290,178 @@ Input ------------>| Fast Envelope    |---->|                  |
 
 ---
 
+## PitchTrackingFilter
+**Path:** [pitch_tracking_filter.h](../../dsp/include/krate/dsp/processors/pitch_tracking_filter.h) | **Since:** 0.14.0
+
+Pitch-tracking dynamic filter for harmonic-aware filtering where cutoff follows detected pitch.
+
+**Use when:**
+- Filter cutoff should follow input pitch for harmonic emphasis/suppression
+- Creating resonant filters that track a musical relationship to the input fundamental
+- Need harmonic-aware filtering that maintains consistent tonal character across different notes
+- Building pitch-following auto-filter effects for synths or monophonic sources
+
+**Key Differentiator from EnvelopeFilter:**
+- EnvelopeFilter: Cutoff follows amplitude (touch-sensitive, auto-wah)
+- PitchTrackingFilter: Cutoff follows detected pitch (harmonic tracking)
+
+**Key Differentiator from TransientAwareFilter:**
+- TransientAwareFilter: Responds to transients/attacks only
+- PitchTrackingFilter: Continuously tracks pitch content
+
+**Features:**
+- Autocorrelation-based pitch detection via PitchDetector (50-1000Hz range)
+- Configurable harmonic ratio (0.125-16x) for cutoff = pitch * ratio
+- Semitone offset (-48 to +48) for creative detuning effects
+- Confidence threshold for reliable pitch tracking
+- Configurable tracking speed (1-500ms smoothing)
+- Fallback cutoff with smooth transitions for unpitched material
+- Three filter types: Lowpass, Bandpass, Highpass (SVF for modulation stability)
+- Monitoring outputs: currentCutoff, detectedPitch, pitchConfidence
+
+```cpp
+enum class PitchTrackingFilterMode : uint8_t { Lowpass, Bandpass, Highpass };
+
+class PitchTrackingFilter {
+    static constexpr float kMinCutoffHz = 20.0f;
+    static constexpr float kMinResonance = 0.5f;
+    static constexpr float kMaxResonance = 30.0f;
+    static constexpr float kMinTrackingMs = 1.0f;
+    static constexpr float kMaxTrackingMs = 500.0f;
+    static constexpr float kMinHarmonicRatio = 0.125f;
+    static constexpr float kMaxHarmonicRatio = 16.0f;
+    static constexpr float kMinSemitoneOffset = -48.0f;
+    static constexpr float kMaxSemitoneOffset = 48.0f;
+    static constexpr float kDefaultConfidenceThreshold = 0.5f;
+    static constexpr float kDefaultTrackingMs = 50.0f;
+    static constexpr float kDefaultHarmonicRatio = 1.0f;
+    static constexpr float kDefaultFallbackCutoff = 1000.0f;
+    static constexpr float kDefaultResonance = 0.7071067811865476f;  // Butterworth
+
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] size_t getLatency() const noexcept;  // ~256 samples (PitchDetector window)
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    // Pitch detection parameters
+    void setDetectionRange(float minHz, float maxHz) noexcept;  // [50, 1000] Hz
+    void setConfidenceThreshold(float threshold) noexcept;      // [0, 1]
+    void setTrackingSpeed(float ms) noexcept;                   // [1, 500] ms
+
+    // Filter-pitch relationship
+    void setHarmonicRatio(float ratio) noexcept;                // [0.125, 16] cutoff multiplier
+    void setSemitoneOffset(float semitones) noexcept;           // [-48, +48] semitones
+
+    // Filter configuration
+    void setResonance(float q) noexcept;                        // [0.5, 30]
+    void setFilterType(PitchTrackingFilterMode type) noexcept;
+
+    // Fallback behavior
+    void setFallbackCutoff(float hz) noexcept;                  // [20, Nyquist*0.45]
+    void setFallbackSmoothing(float ms) noexcept;               // [1, 500] ms
+
+    // Monitoring
+    [[nodiscard]] float getCurrentCutoff() const noexcept;
+    [[nodiscard]] float getDetectedPitch() const noexcept;
+    [[nodiscard]] float getPitchConfidence() const noexcept;
+
+    // Getters for all parameters...
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| confidenceThreshold | 0.5 | [0, 1] | Minimum pitch confidence for tracking |
+| trackingSpeed | 50 ms | [1, 500] | Smoothing time for cutoff changes |
+| harmonicRatio | 1.0 | [0.125, 16] | Cutoff = pitch * ratio |
+| semitoneOffset | 0 | [-48, +48] | Additional offset in semitones |
+| resonance | 0.707 | [0.5, 30] | Filter Q factor (Butterworth default) |
+| filterType | Lowpass | enum | LP/BP/HP response |
+| fallbackCutoff | 1000 Hz | [20, Nyquist*0.45] | Cutoff when pitch uncertain |
+| fallbackSmoothing | 50 ms | [1, 500] | Transition speed to/from fallback |
+| detectionRange | 50-1000 Hz | [50, 1000] | Valid pitch detection range |
+
+**Usage Example (Harmonic Filter Tracking):**
+```cpp
+PitchTrackingFilter filter;
+filter.prepare(48000.0, 512);
+filter.setHarmonicRatio(2.0f);       // Cutoff at 2nd harmonic (octave)
+filter.setResonance(8.0f);           // Resonant peak
+filter.setFilterType(PitchTrackingFilterMode::Lowpass);
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(input[i]);
+}
+```
+
+**Usage Example (Creative Semitone Offset):**
+```cpp
+PitchTrackingFilter filter;
+filter.prepare(48000.0, 512);
+filter.setHarmonicRatio(1.0f);       // Follow fundamental
+filter.setSemitoneOffset(7.0f);      // Fifth up from fundamental
+filter.setResonance(4.0f);
+
+// Play a melody - cutoff stays a fifth above each note
+filter.processBlock(buffer, numSamples);
+```
+
+**Usage Example (Robust Fallback for Mixed Material):**
+```cpp
+PitchTrackingFilter filter;
+filter.prepare(48000.0, 512);
+filter.setConfidenceThreshold(0.6f);  // Require good confidence
+filter.setFallbackCutoff(1500.0f);    // Use 1.5kHz during uncertainty
+filter.setFallbackSmoothing(100.0f);  // Smooth 100ms transitions
+
+// Works with mixed pitched/unpitched material
+filter.processBlock(buffer, numSamples);
+```
+
+**Topology:**
+```
+                   +------------------+
+Input ------------>| PitchDetector    |---> Pitch (Hz) + Confidence
+          |        | (autocorrelation)|
+          |        +------------------+
+          |                   |
+          |                   v
+          |        +------------------+     +-------------------+
+          |        | Confidence Gate  |---->| Harmonic Calc     |
+          |        | (threshold)      |     | cutoff = pitch *  |
+          |        +------------------+     | ratio * 2^(s/12)  |
+          |                   |             +-------------------+
+          |                   |                       |
+          |          (low confidence)                 v
+          |                   |             +-------------------+
+          |                   +------------>| Target Selection  |
+          |                   |             | (tracking/fallback)|
+          |                   v             +-------------------+
+          |        +------------------+               |
+          |        | Fallback Cutoff  |               v
+          |        | (1000Hz default) |     +-------------------+
+          |        +------------------+     | Cutoff Smoother   |
+          |                                 +-------------------+
+          |                                           |
+          |        +------------------+               v
+          +------->|       SVF        |<---- Cutoff Frequency
+                   | (LP/BP/HP @ Q)   |
+                   +------------------+
+                            |
+                            v
+                         Output
+```
+
+**Dependencies:** Layer 0 (db_utils.h, pitch_utils.h), Layer 1 (pitch_detector.h, svf.h, smoother.h)
+
+---
+
 ## Phaser
 **Path:** [phaser.h](../../dsp/include/krate/dsp/processors/phaser.h) | **Since:** 0.13.0
 
