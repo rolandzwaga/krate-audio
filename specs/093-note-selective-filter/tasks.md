@@ -273,14 +273,14 @@ This is a monorepo with shared DSP library:
 
 ### 8.1 Architecture Documentation Update
 
-- [ ] T060 Update specs/_architecture_/layer-0-core.md with frequencyToNoteClass() and frequencyToCentsDeviation() entries
-- [ ] T061 Update specs/_architecture_/layer-2-processors.md with NoteSelectiveFilter entry including purpose, API summary, usage examples, and "when to use this"
-- [ ] T062 Verify no duplicate functionality was introduced (ODR check)
+- [X] T060 Update specs/_architecture_/layer-0-core.md with frequencyToNoteClass() and frequencyToCentsDeviation() entries
+- [X] T061 Update specs/_architecture_/layer-2-processors.md with NoteSelectiveFilter entry including purpose, API summary, usage examples, and "when to use this"
+- [X] T062 Verify no duplicate functionality was introduced (ODR check)
 
 ### 8.2 Final Commit
 
-- [ ] T063 Commit architecture documentation updates
-- [ ] T064 Verify all spec work is committed to feature branch
+- [X] T063 Commit architecture documentation updates
+- [X] T064 Verify all spec work is committed to feature branch
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 

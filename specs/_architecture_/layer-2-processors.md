@@ -1462,6 +1462,158 @@ Input ------------>| PitchDetector    |---> Pitch (Hz) + Confidence
 
 ---
 
+## NoteSelectiveFilter
+**Path:** [note_selective_filter.h](../../dsp/include/krate/dsp/processors/note_selective_filter.h) | **Since:** 0.14.0
+
+Note-selective dynamic filter that processes only audio matching specific note classes (C, C#, D, etc.), passing non-matching notes through dry.
+
+**Use when:**
+- Filtering only specific notes in a musical context (e.g., filter only root notes of a chord)
+- Creating note-specific effects that apply processing to certain pitches while leaving others unchanged
+- Building intelligent effects that respond to musical content rather than just amplitude/frequency
+
+**Key Differentiator from PitchTrackingFilter:**
+- PitchTrackingFilter: Cutoff follows detected pitch (filter moves with pitch)
+- NoteSelectiveFilter: Applies filter only when detected pitch matches target notes (selective application)
+
+**Features:**
+- Note class selection via bitset (all 12 chromatic notes independently selectable)
+- Configurable note tolerance (1-49 cents, default 49) for tuning variance
+- Smooth crossfade transitions (0.5-50ms, default 5ms) for click-free state changes
+- Filter always processes (stays hot) for instant response when note matches
+- Block-rate pitch detection updates (~512 samples) for stability
+- Three no-detection behaviors: Dry, Filtered, LastState
+- Thread-safe parameter updates via atomics (FR-035)
+
+```cpp
+enum class NoDetectionMode : uint8_t { Dry, Filtered, LastState };
+
+class NoteSelectiveFilter {
+    static constexpr float kDefaultNoteTolerance = 49.0f;    // Cents
+    static constexpr float kDefaultCrossfadeTimeMs = 5.0f;
+    static constexpr float kMinCutoffHz = 20.0f;
+
+    void prepare(double sampleRate, int maxBlockSize = 512) noexcept;
+    void reset() noexcept;
+
+    // Note selection
+    void setTargetNotes(std::bitset<12> notes) noexcept;    // 0=C, 1=C#, ..., 11=B
+    void setTargetNote(int noteClass, bool enabled) noexcept;
+    void clearAllNotes() noexcept;
+    void setAllNotes() noexcept;
+
+    // Pitch matching
+    void setNoteTolerance(float cents) noexcept;            // [1, 49]
+
+    // Crossfade
+    void setCrossfadeTime(float ms) noexcept;               // [0.5, 50]
+
+    // Filter configuration
+    void setCutoff(float hz) noexcept;                      // [20, Nyquist*0.45]
+    void setResonance(float q) noexcept;                    // [0.1, 30]
+    void setFilterType(SVFMode type) noexcept;              // All 8 SVF modes
+
+    // No-detection behavior
+    void setNoDetectionBehavior(NoDetectionMode mode) noexcept;
+    void setConfidenceThreshold(float threshold) noexcept;  // [0, 1]
+    void setDetectionRange(float minHz, float maxHz) noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, int numSamples) noexcept;
+
+    // State query
+    [[nodiscard]] int getDetectedNoteClass() const noexcept;    // -1 if no detection
+    [[nodiscard]] bool isCurrentlyFiltering() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Description |
+|-----------|---------|-------|-------------|
+| targetNotes | none | bitset<12> | Which note classes to filter |
+| noteTolerance | 49 | [1, 49] | Cents tolerance for pitch matching |
+| crossfadeTime | 5 ms | [0.5, 50] | Transition time (99% settling) |
+| cutoff | 1000 Hz | [20, Nyquist] | Filter cutoff frequency |
+| resonance | 0.7071 | [0.1, 30] | Filter Q (0.7071 = Butterworth) |
+| filterType | Lowpass | SVFMode | LP/HP/BP/Notch/Allpass/Peak/Shelves |
+| noDetectionMode | Dry | enum | Behavior when no pitch detected |
+| confidenceThreshold | 0.3 | [0, 1] | Minimum pitch detection confidence |
+
+**Usage Example (Filter Root Notes Only):**
+```cpp
+NoteSelectiveFilter filter;
+filter.prepare(48000.0, 512);
+
+// Enable filtering for C and G (root and fifth)
+filter.setTargetNote(0, true);   // C
+filter.setTargetNote(7, true);   // G
+
+filter.setCutoff(500.0f);
+filter.setResonance(4.0f);
+filter.setFilterType(SVFMode::Lowpass);
+
+// In audio callback
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(input[i]);
+}
+```
+
+**Usage Example (Tight Tolerance for Well-Tuned Input):**
+```cpp
+NoteSelectiveFilter filter;
+filter.prepare(48000.0, 512);
+filter.setTargetNote(9, true);   // A notes only
+filter.setNoteTolerance(10.0f);  // Only ±10 cents (strict tuning)
+filter.setCrossfadeTime(2.0f);   // Fast transitions
+```
+
+**Usage Example (Handle Unpitched Material):**
+```cpp
+NoteSelectiveFilter filter;
+filter.prepare(48000.0, 512);
+filter.setAllNotes();            // Filter all pitched content
+filter.setNoDetectionBehavior(NoDetectionMode::Dry);  // Pass drums dry
+filter.setConfidenceThreshold(0.5f);  // Require moderate confidence
+```
+
+**Topology:**
+```
+                   +------------------+
+Input ------------>| PitchDetector    |---> Pitch (Hz) + Confidence
+          |        | (autocorrelation)|
+          |        +------------------+
+          |                   |
+          |                   v
+          |        +------------------+     +-------------------+
+          |        | Note Matching    |---->| Target Notes      |
+          |        | (frequencyTo-    |     | (bitset<12>)      |
+          |        |  NoteClass)      |     +-------------------+
+          |        +------------------+
+          |                   |
+          |    +--- Match ----+---- No Match ---+
+          |    |                                |
+          |    v                                v
+          |  Target: 1.0 (Filtered)        Target: 0.0 (Dry)
+          |                   |
+          |                   v
+          |        +------------------+
+          |        | OnePoleSmoother  | (crossfade)
+          |        +------------------+
+          |                   |
+          |                   v
+          |        +------------------+
+          +------->|       SVF        |----> Filtered signal
+          |        | (always active)  |
+          |        +------------------+
+          |                   |
+          |                   v
+          +-------> Dry/Filtered crossfade mix -----> Output
+```
+
+**Dependencies:** Layer 0 (db_utils.h, pitch_utils.h), Layer 1 (pitch_detector.h, svf.h, smoother.h)
+
+---
+
 ## Phaser
 **Path:** [phaser.h](../../dsp/include/krate/dsp/processors/phaser.h) | **Since:** 0.13.0
 
