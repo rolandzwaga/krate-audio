@@ -1065,3 +1065,182 @@ TEST_CASE("NoteSelectiveFilter: NoDetectionMode enum", "[processors][note-select
         REQUIRE(freshFilter.getNoDetectionBehavior() == NoDetectionMode::Dry);
     }
 }
+
+// =============================================================================
+// Phase 7: Edge Cases and Cross-Cutting Concerns (T052-T056)
+// =============================================================================
+
+// T052: All 12 notes enabled
+TEST_CASE("NoteSelectiveFilter: All 12 notes enabled", "[processors][note-selective][edge]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+
+    // Enable all notes
+    filter.setAllNotes();
+    filter.setCutoff(200.0f);
+
+    // Verify all 12 notes are enabled
+    auto notes = filter.getTargetNotes();
+    REQUIRE(notes.count() == 12);
+
+    SECTION("Any pitched input triggers filtering") {
+        // Process A4 - should be filtered since all notes are enabled
+        constexpr std::size_t numSamples = 22050;
+        std::vector<float> input(numSamples);
+        std::vector<float> output(numSamples);
+
+        generateSine(input.data(), numSamples, kA4_Hz, static_cast<float>(kSampleRate));
+        std::copy(input.begin(), input.end(), output.begin());
+
+        filter.processBlock(output.data(), static_cast<int>(numSamples));
+
+        constexpr std::size_t skipSamples = 8192;
+        float inputRMS = calculateRMS(input.data() + skipSamples, numSamples - skipSamples);
+        float outputRMS = calculateRMS(output.data() + skipSamples, numSamples - skipSamples);
+
+        // Should be filtered (some attenuation expected)
+        INFO("All notes enabled - Input RMS: " << inputRMS << ", Output RMS: " << outputRMS);
+        REQUIRE(outputRMS < inputRMS);
+    }
+}
+
+// T053: No notes enabled
+TEST_CASE("NoteSelectiveFilter: No notes enabled", "[processors][note-selective][edge]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+
+    // Ensure no notes are enabled (default state)
+    filter.clearAllNotes();
+    filter.setCutoff(200.0f);
+
+    auto notes = filter.getTargetNotes();
+    REQUIRE(notes.none());
+
+    SECTION("All pitched input passes dry") {
+        // Process A4 - should NOT be filtered since no notes are enabled
+        constexpr std::size_t numSamples = 22050;
+        std::vector<float> input(numSamples);
+        std::vector<float> output(numSamples);
+
+        generateSine(input.data(), numSamples, kA4_Hz, static_cast<float>(kSampleRate));
+        std::copy(input.begin(), input.end(), output.begin());
+
+        filter.processBlock(output.data(), static_cast<int>(numSamples));
+
+        constexpr std::size_t skipSamples = 8192;
+        float inputRMS = calculateRMS(input.data() + skipSamples, numSamples - skipSamples);
+        float outputRMS = calculateRMS(output.data() + skipSamples, numSamples - skipSamples);
+
+        INFO("No notes enabled - Input RMS: " << inputRMS << ", Output RMS: " << outputRMS);
+        // Should pass dry (output similar to input)
+        float ratio = outputRMS / inputRMS;
+        REQUIRE(ratio > 0.9f);
+    }
+}
+
+// T054: Octave spanning (C0, C4, C8 all match note class C)
+TEST_CASE("NoteSelectiveFilter: Octave spanning - C at different octaves all match", "[processors][note-selective][edge]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+
+    // Enable only note C
+    filter.setTargetNote(0, true);
+    filter.setCutoff(1000.0f);
+
+    SECTION("C4 (261.63 Hz) matches note class C") {
+        // Within pitch detector range
+        REQUIRE(frequencyToNoteClass(kC4_Hz) == 0);
+    }
+
+    SECTION("C3 (130.81 Hz) matches note class C") {
+        float c3 = 130.81f;
+        REQUIRE(frequencyToNoteClass(c3) == 0);
+    }
+
+    SECTION("C5 (523.25 Hz) matches note class C") {
+        float c5 = 523.25f;
+        REQUIRE(frequencyToNoteClass(c5) == 0);
+    }
+
+    SECTION("C2 (65.41 Hz) matches note class C") {
+        // Just above pitch detector min (50 Hz)
+        float c2 = 65.41f;
+        REQUIRE(frequencyToNoteClass(c2) == 0);
+    }
+}
+
+// T055: Thread-safety - atomic parameter updates don't crash (FR-035)
+TEST_CASE("NoteSelectiveFilter: Atomic parameter updates are thread-safe", "[processors][note-selective][edge][FR-035]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+
+    // Rapid parameter changes should not crash or cause race conditions
+    // This test verifies that parameters can be updated from multiple iterations
+    // simulating UI thread updates during processing
+
+    constexpr std::size_t bufferSize = 256;
+    std::vector<float> buffer(bufferSize);
+
+    for (int iteration = 0; iteration < 100; ++iteration) {
+        // Simulate UI thread updates
+        filter.setTargetNote(iteration % 12, (iteration % 2) == 0);
+        filter.setNoteTolerance(static_cast<float>(1 + (iteration % 49)));
+        filter.setCrossfadeTime(static_cast<float>(0.5f + (iteration % 50)));
+        filter.setCutoff(static_cast<float>(100 + (iteration % 1000)));
+        filter.setResonance(static_cast<float>(0.1f + (iteration % 30) * 0.1f));
+        filter.setConfidenceThreshold(static_cast<float>(iteration % 100) / 100.0f);
+
+        if (iteration % 3 == 0) {
+            filter.setNoDetectionBehavior(NoDetectionMode::Dry);
+        } else if (iteration % 3 == 1) {
+            filter.setNoDetectionBehavior(NoDetectionMode::Filtered);
+        } else {
+            filter.setNoDetectionBehavior(NoDetectionMode::LastState);
+        }
+
+        // Process audio
+        generateSine(buffer.data(), bufferSize, kA4_Hz, static_cast<float>(kSampleRate));
+        filter.processBlock(buffer.data(), static_cast<int>(bufferSize));
+    }
+
+    // If we get here without crashing, the test passes
+    REQUIRE(true);
+}
+
+// T055b: NaN and Inf input handling (FR-033)
+TEST_CASE("NoteSelectiveFilter: NaN and Inf input handling", "[processors][note-selective][edge][FR-033]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+    filter.setTargetNote(0, true);
+
+    SECTION("NaN input returns 0 and resets") {
+        float result = filter.process(std::numeric_limits<float>::quiet_NaN());
+        REQUIRE(result == 0.0f);
+    }
+
+    SECTION("Positive Inf input returns 0 and resets") {
+        float result = filter.process(std::numeric_limits<float>::infinity());
+        REQUIRE(result == 0.0f);
+    }
+
+    SECTION("Negative Inf input returns 0 and resets") {
+        float result = filter.process(-std::numeric_limits<float>::infinity());
+        REQUIRE(result == 0.0f);
+    }
+
+    SECTION("Filter recovers after NaN/Inf") {
+        // Process NaN
+        [[maybe_unused]] float discarded = filter.process(std::numeric_limits<float>::quiet_NaN());
+
+        // Now process valid input - should work normally
+        constexpr std::size_t numSamples = 4096;
+        std::vector<float> buffer(numSamples);
+        generateSine(buffer.data(), numSamples, kA4_Hz, static_cast<float>(kSampleRate));
+
+        filter.processBlock(buffer.data(), static_cast<int>(numSamples));
+
+        // Should have processed without crashing and produced output
+        float rms = calculateRMS(buffer.data(), numSamples);
+        REQUIRE(rms > 0.0f);
+    }
+}

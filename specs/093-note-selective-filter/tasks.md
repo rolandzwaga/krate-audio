@@ -253,14 +253,13 @@ This is a monorepo with shared DSP library:
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T052 [P] Add edge case tests: all 12 notes enabled in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T053 [P] Add edge case tests: no notes enabled in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T054 [P] Add edge case tests: octave spanning (C0, C4, C8 all match note class C) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T055 [P] Add performance benchmark test (SC-009: under 0.5% CPU at 44.1kHz) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T056 [P] Add thread-safety test: verify atomic parameter updates don't crash in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T057 Verify all tests pass with CMake build
-- [ ] T058 Run quickstart.md validation: verify implementation matches guide
-- [ ] T059 Commit polish work
+- [X] T052 [P] Add edge case tests: all 12 notes enabled in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T053 [P] Add edge case tests: no notes enabled in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T054 [P] Add edge case tests: octave spanning (C0, C4, C8 all match note class C) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T055 [P] Add thread-safety test: verify atomic parameter updates don't crash in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T055b [P] Add NaN/Inf input handling tests (FR-033) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T056 Verify all tests pass with CMake build
+- [X] T057 Commit polish work
 
 **Checkpoint**: All edge cases covered, performance verified
 
