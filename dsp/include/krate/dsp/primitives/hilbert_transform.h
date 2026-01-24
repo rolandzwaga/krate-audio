@@ -43,14 +43,19 @@ namespace DSP {
 //   Difference equation: y[n] = a²*(x[n] + y[n-2]) - x[n-2]
 //
 // Structure per Niemitalo:
-// - Filter 1: input → allpass cascade → 1-sample delay → output I
-// - Filter 2: input → allpass cascade → output Q
+// - Path 1 (odd coefficients): input → allpass cascade → 1-sample delay → output I
+// - Path 2 (even coefficients): input → allpass cascade → output Q (negated)
+//
+// The delay on Path 1 aligns the outputs in time. Q is negated to match
+// the textbook SSB modulation sign convention:
+//   upper_sideband = I*cos(wt) - Q*sin(wt)
+//   lower_sideband = I*cos(wt) + Q*sin(wt)
 // =============================================================================
 
 namespace {
 
 /// Path 1 (In-phase): Odd-indexed coefficients from Niemitalo table (a1,a3,a5,a7)
-/// "The ones with odd index go in one path" - this is the non-delayed path
+/// "The ones with odd index go in one path" - 1-sample delay AFTER this cascade
 constexpr float kHilbertPath1Coeffs[4] = {
     0.6923878f,           // a1
     0.9360654322959f,     // a3
@@ -59,8 +64,7 @@ constexpr float kHilbertPath1Coeffs[4] = {
 };
 
 /// Path 2 (Quadrature): Even-indexed coefficients from Niemitalo table (a0,a2,a4,a6)
-/// "The ones with even index go in the other, and there is a delay of one sample
-///  in the path with even-index coefficients" - this is the delayed path
+/// "The ones with even index go in the other" - output is negated for SSB convention
 constexpr float kHilbertPath2Coeffs[4] = {
     0.4021921162426f,     // a0
     0.8561710882420f,     // a2
@@ -253,10 +257,15 @@ public:
             path2 = out;
         }
 
-        // Apply 1-sample delay AFTER Filter 1's allpass cascade (per Niemitalo)
+        // Apply 1-sample delay AFTER Path 1's allpass cascade
+        // This compensates for the group delay difference between the two paths.
+        // Note: Q is negated to match the textbook SSB modulation convention where
+        // Q leads I by 90 degrees. This ensures the standard formulas work correctly:
+        //   upper_sideband = I*cos(wt) - Q*sin(wt)
+        //   lower_sideband = I*cos(wt) + Q*sin(wt)
         float outI = delay_;
         delay_ = path1;
-        float outQ = path2;
+        float outQ = -path2;  // Negate for correct SSB convention
 
         // Denormal flushing for outputs and delay state (FR-018)
         if (std::abs(outI) < kHilbertDenormalThreshold) outI = 0.0f;
@@ -330,7 +339,7 @@ private:
     float ap2_y1_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< y[n-1] for each stage
     float ap2_y2_[4] = {0.0f, 0.0f, 0.0f, 0.0f};  ///< y[n-2] for each stage
 
-    /// One-sample delay applied AFTER Filter 1 allpass cascade (per Niemitalo)
+    /// One-sample delay applied AFTER Path 1 allpass cascade
     float delay_ = 0.0f;
 
     /// Configured sample rate
