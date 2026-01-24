@@ -1357,3 +1357,151 @@ TEST_CASE("FilterFeedbackMatrix template instantiation", "[FilterFeedbackMatrix]
         REQUIRE_FALSE(std::isnan(out));
     }
 }
+
+// =============================================================================
+// SC-006: Impulse Response Decay Test
+// Verifies: "Impulse response decays to -60dB within expected time"
+// The formula T60 ≈ -ln(0.001) / ln(|feedback|) provides theoretical guidance.
+// This test verifies that all configurations eventually decay (no infinite sustain).
+// =============================================================================
+
+TEST_CASE("FilterFeedbackMatrix impulse decay verification", "[FilterFeedbackMatrix][SC-006][decay]") {
+
+    SECTION("All feedback < 1.0 eventually decays to -60dB") {
+        // Core SC-006 verification: signal must decay for any feedback < 1.0
+        // The tanh limiting ensures bounded output even with high feedback
+
+        for (float fb : {0.0f, 0.3f, 0.5f, 0.7f, 0.9f, 0.95f, 0.99f}) {
+            FilterFeedbackMatrix<2> matrix;
+            matrix.prepare(44100.0);
+
+            matrix.setActiveFilters(1);
+            matrix.setFilterCutoff(0, 1000.0f);
+            matrix.setFilterResonance(0, 2.0f);
+            matrix.setFeedbackAmount(0, 0, fb);
+            matrix.setInputGain(0, 1.0f);
+            matrix.setOutputGain(0, 1.0f);
+
+            // Process impulse and measure initial output
+            float initialOut = std::abs(matrix.process(1.0f));
+
+            // Let it decay for 10 seconds (441000 samples at 44.1kHz)
+            float finalLevel = initialOut;
+            for (int i = 0; i < 441000; ++i) {
+                finalLevel = std::abs(matrix.process(0.0f));
+            }
+
+            // Should have decayed to near-zero
+            INFO("Feedback: " << fb << ", Initial: " << initialOut << ", Final: " << finalLevel);
+            REQUIRE(finalLevel < 0.001f);  // Must reach -60dB (relative to 1.0 input)
+        }
+    }
+
+    SECTION("Extreme feedback (>100% total) stays bounded due to tanh limiting") {
+        // With extreme cross-feedback totaling >100%, tanh prevents infinite growth
+        // The signal may sustain but will never exceed tanh bounds (~1.0)
+
+        FilterFeedbackMatrix<4> matrix;
+        matrix.prepare(44100.0);
+
+        // Set up cross-feedback totaling 200% per filter
+        for (size_t i = 0; i < 4; ++i) {
+            for (size_t j = 0; j < 4; ++j) {
+                matrix.setFeedbackAmount(i, j, 0.5f);  // 4 x 0.5 = 200% feedback to each
+            }
+            matrix.setFilterCutoff(i, 500.0f + i * 300.0f);
+            matrix.setInputGain(i, 1.0f);
+            matrix.setOutputGain(i, 0.25f);
+        }
+
+        // Process impulse
+        [[maybe_unused]] float impulse = matrix.process(1.0f);
+
+        // Track maximum level over time - should stay bounded
+        float maxLevel = 0.0f;
+        for (int i = 0; i < 44100; ++i) {  // 1 second
+            float out = std::abs(matrix.process(0.0f));
+            if (out > maxLevel) maxLevel = out;
+        }
+
+        // With tanh limiting, output should stay bounded (< 2.0 even with extreme feedback)
+        INFO("Max level with 200% total feedback: " << maxLevel);
+        REQUIRE(maxLevel < 2.0f);  // Bounded, not infinite
+        REQUIRE_FALSE(std::isnan(maxLevel));
+        REQUIRE_FALSE(std::isinf(maxLevel));
+    }
+
+    SECTION("Cross-feedback network decays") {
+        // Test a more complex configuration with cross-feedback
+
+        FilterFeedbackMatrix<2> matrix;
+        matrix.prepare(44100.0);
+
+        matrix.setFilterCutoff(0, 500.0f);
+        matrix.setFilterCutoff(1, 1500.0f);
+        matrix.setFeedbackAmount(0, 1, 0.7f);  // 0 -> 1
+        matrix.setFeedbackAmount(1, 0, 0.7f);  // 1 -> 0
+        matrix.setInputGain(0, 1.0f);
+        matrix.setInputGain(1, 0.0f);
+        matrix.setOutputGain(0, 0.5f);
+        matrix.setOutputGain(1, 0.5f);
+
+        // Process impulse
+        [[maybe_unused]] float impulse = matrix.process(1.0f);
+
+        // Let it decay
+        float finalLevel = 1.0f;
+        for (int i = 0; i < 441000; ++i) {
+            finalLevel = std::abs(matrix.process(0.0f));
+        }
+
+        REQUIRE(finalLevel < 0.001f);
+    }
+
+    SECTION("Decay rate relationship: higher feedback = slower decay") {
+        // Measure time to reach 10% of initial level (not -60dB, just showing relationship)
+        auto measureTimeToTenPercent = [](float feedback) -> int {
+            FilterFeedbackMatrix<2> matrix;
+            matrix.prepare(44100.0);
+
+            matrix.setActiveFilters(1);
+            matrix.setFilterCutoff(0, 1000.0f);
+            matrix.setFilterResonance(0, 5.0f);  // Higher Q for more sustain
+            matrix.setFeedbackAmount(0, 0, feedback);
+            matrix.setFeedbackDelay(0, 0, 1.0f);  // 1ms delay to create actual feedback loop
+            matrix.setInputGain(0, 1.0f);
+            matrix.setOutputGain(0, 1.0f);
+
+            // Pump some signal through first
+            for (int i = 0; i < 100; ++i) {
+                [[maybe_unused]] float out = matrix.process(i < 10 ? 1.0f : 0.0f);
+            }
+
+            // Measure peak after settling
+            float peak = 0.0f;
+            for (int i = 0; i < 1000; ++i) {
+                float out = std::abs(matrix.process(0.0f));
+                if (out > peak) peak = out;
+            }
+
+            // Now measure decay from that peak
+            float threshold = peak * 0.1f;
+            if (threshold < 0.0001f) threshold = 0.0001f;
+
+            int samples = 0;
+            float level = peak;
+            while (level > threshold && samples < 50000) {
+                level = std::abs(matrix.process(0.0f));
+                samples++;
+            }
+            return samples;
+        };
+
+        int time_00 = measureTimeToTenPercent(0.0f);
+        int time_90 = measureTimeToTenPercent(0.9f);
+
+        // Higher feedback should sustain longer (take more samples to decay)
+        INFO("Time at 0.0 feedback: " << time_00 << ", Time at 0.9 feedback: " << time_90);
+        REQUIRE(time_90 >= time_00);  // At minimum, should not be shorter
+    }
+}
