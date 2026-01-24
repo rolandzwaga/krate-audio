@@ -3090,3 +3090,125 @@ Where panValue is in [-1, 1] and panOctaveRange is [0, 4] octaves.
 **Performance:** < 0.5% CPU @ 44.1kHz stereo per Layer 2 budget
 
 **Dependencies:** Layer 0 (random.h), Layer 1 (svf.h, lfo.h, smoother.h), Layer 2 (envelope_follower.h)
+
+---
+
+## AudioRateFilterFM
+**Path:** [audio_rate_filter_fm.h](../../dsp/include/krate/dsp/processors/audio_rate_filter_fm.h) | **Since:** 0.13.0
+
+Audio-rate filter frequency modulation processor that modulates SVF filter cutoff at audio rates (20Hz-20kHz) to create metallic, bell-like, ring modulation-style, and aggressive timbres.
+
+**Use when:**
+- Creating FM synthesis-style metallic or bell-like timbres from simple input signals
+- Need sidechain-based timbral modulation between instruments
+- Building chaotic/experimental feedback-based filtering effects
+- Want precise control over modulation depth in musical octave units
+- Need anti-aliased audio-rate filter modulation via configurable oversampling
+
+**Features:**
+- Three modulation sources: Internal wavetable oscillator, External (sidechain), Self (feedback)
+- Four filter types: Lowpass, Highpass, Bandpass, Notch (12 dB/oct via SVF)
+- Four internal oscillator waveforms: Sine, Triangle, Sawtooth, Square
+- 2048-sample wavetables with linear interpolation for low THD
+- FM depth in octaves (0-6) for intuitive musical control
+- Per-sample cutoff updates for true audio-rate modulation
+- Configurable oversampling (1x, 2x, 4x) for anti-aliasing
+- Self-modulation with hard-clipping to [-1, +1] for bounded feedback
+- NaN/Inf detection with automatic state reset
+
+```cpp
+class AudioRateFilterFM {
+    static constexpr size_t kWavetableSize = 2048;
+    static constexpr float kMinCutoff = 20.0f;
+    static constexpr float kMinModFreq = 0.1f;
+    static constexpr float kMaxModFreq = 20000.0f;
+    static constexpr float kMinQ = 0.5f;
+    static constexpr float kMaxQ = 20.0f;
+    static constexpr float kMaxFMDepth = 6.0f;
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Carrier filter
+    void setCarrierCutoff(float hz) noexcept;       // [20, sr*0.495] Hz
+    void setCarrierQ(float q) noexcept;             // [0.5, 20.0]
+    void setFilterType(FMFilterType type) noexcept; // LP/HP/BP/Notch
+
+    // Modulator
+    void setModulatorSource(FMModSource source) noexcept;  // Internal/External/Self
+    void setModulatorFrequency(float hz) noexcept;         // [0.1, 20000] Hz
+    void setModulatorWaveform(FMWaveform waveform) noexcept; // Sine/Tri/Saw/Sqr
+
+    // FM control
+    void setFMDepth(float octaves) noexcept;        // [0.0, 6.0] octaves
+    void setOversamplingFactor(int factor) noexcept; // 1, 2, or 4
+    [[nodiscard]] size_t getLatency() const noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input, float externalMod = 0.0f) noexcept;
+    void processBlock(float* buffer, const float* modulator, size_t numSamples) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+};
+```
+
+**FM Formula:**
+```
+modulatedCutoff = carrierCutoff * 2^(modulator * fmDepth)
+```
+Where modulator is in [-1, +1] and fmDepth is in octaves [0, 6].
+
+**Usage Example (Internal Oscillator FM):**
+```cpp
+AudioRateFilterFM fm;
+fm.prepare(44100.0, 512);
+fm.setModulatorSource(FMModSource::Internal);
+fm.setModulatorFrequency(440.0f);      // 440 Hz modulator
+fm.setModulatorWaveform(FMWaveform::Sine);
+fm.setFMDepth(2.0f);                   // +/- 2 octaves
+fm.setCarrierCutoff(1000.0f);
+fm.setCarrierQ(8.0f);
+fm.setFilterType(FMFilterType::Lowpass);
+fm.setOversamplingFactor(2);           // 2x oversampling
+
+fm.processBlock(buffer, numSamples);
+```
+
+**Usage Example (External Sidechain FM):**
+```cpp
+AudioRateFilterFM fm;
+fm.prepare(44100.0, 512);
+fm.setModulatorSource(FMModSource::External);
+fm.setFMDepth(1.0f);                   // 1 octave depth
+fm.setCarrierCutoff(2000.0f);
+fm.setFilterType(FMFilterType::Bandpass);
+
+// sidechainBuffer drives filter cutoff modulation
+fm.processBlock(audioBuffer, sidechainBuffer, numSamples);
+```
+
+**Usage Example (Self-Modulation/Feedback FM):**
+```cpp
+AudioRateFilterFM fm;
+fm.prepare(44100.0, 512);
+fm.setModulatorSource(FMModSource::Self);
+fm.setFMDepth(1.5f);                   // Moderate feedback depth
+fm.setCarrierCutoff(1000.0f);
+fm.setCarrierQ(12.0f);                 // High resonance for character
+fm.setOversamplingFactor(4);           // 4x for chaotic stability
+
+fm.processBlock(buffer, numSamples);
+```
+
+**Gotchas:**
+- FM depth = 0 produces identical output to static SVF (useful for A/B testing)
+- Self-modulation output is hard-clipped to [-1, +1] before use as modulator
+- Oversampling factors other than 1, 2, 4 are clamped to nearest valid value
+- External modulator nullptr is treated as 0.0 (no modulation)
+- NaN/Inf input triggers state reset and returns 0.0f for that sample
+- Phase continuity maintained when modulator frequency changes mid-stream
+- Calling process() before prepare() returns input unchanged (safe bypass)
+
+**Performance:** < 2ms per 512-sample block at 4x oversampling (SC-010)
+
+**Dependencies:** Layer 0 (math_constants.h, db_utils.h), Layer 1 (svf.h, oversampler.h)
