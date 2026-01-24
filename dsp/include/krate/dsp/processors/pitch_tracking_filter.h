@@ -122,6 +122,9 @@ public:
     /// @brief Fast tracking speed in ms for rapid pitch changes
     static constexpr float kFastTrackingMs = 10.0f;
 
+    /// @brief Hold time for fast tracking mode after rapid change ends (ms)
+    static constexpr float kFastModeHoldTimeMs = 50.0f;
+
     /// @brief Default confidence threshold (FR-003)
     static constexpr float kDefaultConfidenceThreshold = 0.5f;
 
@@ -382,6 +385,72 @@ private:
     }
 
     // =========================================================================
+    // Adaptive Tracking Helpers (FR-004a)
+    // =========================================================================
+
+    /// @brief Calculate instantaneous semitone rate between current and previous pitch
+    /// @param currentPitch Current detected pitch in Hz
+    /// @return Instantaneous rate in semitones/second, or 0 if insufficient data
+    [[nodiscard]] float calculateInstantaneousRate(float currentPitch) const noexcept {
+        // Need a previous valid pitch to calculate rate
+        if (previousValidPitch_ <= 0.0f || currentPitch <= 0.0f || samplesSincePreviousPitch_ == 0) {
+            return 0.0f;
+        }
+
+        // Calculate semitone difference: 12 * log2(f2/f1)
+        float semitoneChange = 12.0f * std::log2(currentPitch / previousValidPitch_);
+
+        // Calculate time span in seconds
+        float timeSpanSeconds = static_cast<float>(samplesSincePreviousPitch_) /
+                                static_cast<float>(sampleRate_);
+
+        if (timeSpanSeconds <= 0.0f) {
+            return 0.0f;
+        }
+
+        // Return absolute rate (we care about magnitude, not direction)
+        return std::abs(semitoneChange / timeSpanSeconds);
+    }
+
+    /// @brief Store current pitch for next rate calculation
+    /// @param pitch Current valid pitch
+    void recordPitchForRateCalculation(float pitch) noexcept {
+        previousValidPitch_ = pitch;
+        samplesSincePreviousPitch_ = 0;
+    }
+
+    /// @brief Update adaptive tracking mode based on instantaneous pitch change rate
+    /// @param instantaneousRate Current rate in semitones/second
+    /// Uses "peak detect with hold" behavior like envelope followers:
+    /// - Fast attack: immediately switch to fast mode when rate exceeds threshold
+    /// - Slow release: hold timer prevents flickering back to normal mode
+    void updateAdaptiveTracking(float instantaneousRate) noexcept {
+        // Store for debugging/monitoring
+        lastInstantaneousRate_ = instantaneousRate;
+
+        // Peak detection: if rate exceeds threshold, immediately trigger fast mode
+        if (instantaneousRate >= kRapidChangeThreshold) {
+            // Activate fast tracking mode
+            if (!inFastTrackingMode_) {
+                trackingSmoother_.configure(kFastTrackingMs, static_cast<float>(sampleRate_));
+                inFastTrackingMode_ = true;
+            }
+            // Reset hold timer on every threshold exceedance
+            fastModeHoldSamples_ = static_cast<size_t>(
+                kFastModeHoldTimeMs * 0.001f * static_cast<float>(sampleRate_));
+        } else {
+            // Decrement hold timer when below threshold
+            if (fastModeHoldSamples_ > 0) {
+                --fastModeHoldSamples_;
+            } else if (inFastTrackingMode_) {
+                // Hold period expired, return to normal tracking
+                trackingSmoother_.configure(trackingSpeedMs_, static_cast<float>(sampleRate_));
+                inFastTrackingMode_ = false;
+            }
+        }
+    }
+
+    // =========================================================================
     // Composed Components
     // =========================================================================
 
@@ -422,6 +491,16 @@ private:
     float lastValidPitch_ = 0.0f;       ///< Last valid detected pitch for smooth transitions
     bool wasTracking_ = false;          ///< Whether we were tracking pitch in previous sample
     size_t samplesSinceLastValid_ = 0;  ///< For adaptive tracking speed calculation
+
+    // =========================================================================
+    // Adaptive Tracking State (FR-004a)
+    // =========================================================================
+
+    float previousValidPitch_ = 0.0f;        ///< Previous valid pitch for rate calculation
+    size_t samplesSincePreviousPitch_ = 0;   ///< Samples since previous pitch was recorded
+    float lastInstantaneousRate_ = 0.0f;     ///< Last calculated rate (for hysteresis)
+    bool inFastTrackingMode_ = false;        ///< Whether fast tracking is currently active
+    size_t fastModeHoldSamples_ = 0;         ///< Remaining samples to hold fast mode
 };
 
 // =============================================================================
@@ -458,6 +537,13 @@ inline void PitchTrackingFilter::prepare(double sampleRate, size_t /*maxBlockSiz
     wasTracking_ = false;
     samplesSinceLastValid_ = 0;
 
+    // Initialize adaptive tracking state (FR-004a)
+    previousValidPitch_ = 0.0f;
+    samplesSincePreviousPitch_ = 0;
+    lastInstantaneousRate_ = 0.0f;
+    inFastTrackingMode_ = false;
+    fastModeHoldSamples_ = 0;
+
     prepared_ = true;
 }
 
@@ -473,6 +559,13 @@ inline void PitchTrackingFilter::reset() noexcept {
     lastValidPitch_ = 0.0f;
     wasTracking_ = false;
     samplesSinceLastValid_ = 0;
+
+    // Reset adaptive tracking state (FR-004a)
+    previousValidPitch_ = 0.0f;
+    samplesSincePreviousPitch_ = 0;
+    lastInstantaneousRate_ = 0.0f;
+    inFastTrackingMode_ = false;
+    fastModeHoldSamples_ = 0;
 }
 
 inline float PitchTrackingFilter::process(float input) noexcept {
@@ -502,15 +595,45 @@ inline float PitchTrackingFilter::process(float input) noexcept {
     float targetCutoff;
     const bool isTracking = (confidence >= confidenceThreshold_) && isPitchInRange(detectedFreq);
 
+    // Always increment sample counter for rate calculation timing
+    ++samplesSincePreviousPitch_;
+
     if (isTracking) {
         // Valid pitch detected - calculate cutoff from pitch
         targetCutoff = calculateCutoff(detectedFreq);
         lastValidPitch_ = detectedFreq;
         samplesSinceLastValid_ = 0;
+
+        // Step 3a-3c: Adaptive tracking (FR-004a)
+        // Only calculate rate when pitch has actually changed from last recording
+        // (Pitch detector only updates every ~64 samples)
+        constexpr float kPitchChangeThreshold = 0.5f;  // Hz - ignore tiny changes
+        bool pitchChanged = std::abs(detectedFreq - previousValidPitch_) > kPitchChangeThreshold;
+
+        if (pitchChanged && previousValidPitch_ > 0.0f) {
+            // Calculate instantaneous rate from pitch change
+            float instantRate = calculateInstantaneousRate(detectedFreq);
+
+            // Update adaptive tracking mode (peak detect with hold)
+            updateAdaptiveTracking(instantRate);
+
+            // Record current pitch for next rate calculation
+            recordPitchForRateCalculation(detectedFreq);
+        } else if (previousValidPitch_ <= 0.0f) {
+            // First valid pitch - just record it
+            recordPitchForRateCalculation(detectedFreq);
+            updateAdaptiveTracking(0.0f);
+        } else {
+            // Pitch hasn't changed - just update hold timer
+            updateAdaptiveTracking(0.0f);
+        }
     } else {
         // No valid pitch - use fallback
         targetCutoff = fallbackCutoff_;
         ++samplesSinceLastValid_;
+
+        // Still update adaptive tracking to allow hold timer to count down
+        updateAdaptiveTracking(0.0f);
     }
 
     // Step 4: Smooth the cutoff transition

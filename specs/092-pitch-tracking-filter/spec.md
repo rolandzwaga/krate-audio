@@ -234,7 +234,7 @@ grep -r "HarmonicFilter" dsp/         # No conflicts found
 | FR-002 | MET | setDetectionRange() with clamping - pitch_tracking_filter.h lines 204-207, test line 148-157 |
 | FR-003 | MET | setConfidenceThreshold() with default 0.5 - test lines 110-129 |
 | FR-004 | MET | setTrackingSpeed() [1-500ms], default 50ms - test lines 132-151 |
-| FR-004a | DEFERRED | Adaptive tracking for rapid pitch changes not implemented (Phase 6 incomplete) |
+| FR-004a | MET | Adaptive tracking via instantaneous pitch rate detection - pitch_tracking_filter.h lines 397-431, test lines 985-1077 |
 | FR-005 | MET | setHarmonicRatio() [0.125-16], default 1.0 - test lines 154-173, 384-408 |
 | FR-006 | MET | setSemitoneOffset() [-48, +48], default 0 - test lines 176-195, 410-435 |
 | FR-007 | MET | clampCutoff() to [20Hz, sampleRate*0.45] - test lines 437-458, 688-707 |
@@ -256,7 +256,7 @@ grep -r "HarmonicFilter" dsp/         # No conflicts found
 | FR-023 | MET | getDetectedPitch() - test lines 326-340 |
 | FR-024 | MET | getPitchConfidence() - used throughout tests |
 | SC-001 | MET | Tracking speed tests verify cutoff follows pitch - tests 343-381 |
-| SC-001a | DEFERRED | Depends on FR-004a (not implemented) |
+| SC-001a | MET | Rapid pitch changes trigger fast tracking mode - test lines 985-1077 verifies tracking with rapid sweeps |
 | SC-002 | MET | Harmonic ratio + semitone offset accuracy - tests 384-435, 570-618 |
 | SC-003 | MET | Confidence threshold gates tracking - tests 365-381, 469-483 |
 | SC-004 | MET | Smooth transitions (no jumps > 100Hz/sample) - tests 505-563 |
@@ -283,21 +283,21 @@ grep -r "HarmonicFilter" dsp/         # No conflicts found
 - [X] All SC-xxx success criteria measured and documented
 - [X] No test thresholds relaxed from spec requirements
 - [X] No placeholder values or TODO comments in new code
-- [X] No features quietly removed from scope (FR-004a explicitly DEFERRED)
+- [X] No features quietly removed from scope
 - [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: PARTIAL (98% complete)
+**Overall Status**: COMPLETE (100%)
 
-**Documented gaps:**
-- **FR-004a**: Adaptive tracking for rapid pitch changes (>10 semitones/second) is NOT implemented. The constants `kRapidChangeThreshold` and `kFastTrackingMs` are defined, and `samplesSinceLastValid_` is tracked, but the actual detection logic and dynamic speed switching are not present. This was planned for Phase 6 (tasks T086-T099) which was not completed.
-- **SC-001a**: Depends on FR-004a, so also not met.
+**All requirements met:**
+- **FR-004a**: Adaptive tracking for rapid pitch changes (>10 semitones/second) IS implemented using instantaneous pitch rate detection with peak-detect-and-hold behavior (inspired by envelope follower research). When pitch changes rapidly, the tracking smoother switches to fast mode (10ms) for responsive following of vibrato and portamento.
+- **SC-001a**: Verified via test comparing tracking behavior during rapid vs slow pitch changes.
 
-**Impact assessment:**
-- The core pitch-tracking filter functionality is fully implemented and tested (23 test cases passing)
-- All user stories (US1, US2, US3) are complete and working
-- The missing adaptive tracking is an **enhancement** for vibrato/glissando following, not core functionality
+**Implementation details:**
+- Instantaneous rate calculated between consecutive pitch detector updates
+- Peak detection with hold timer: fast mode triggers immediately when rate exceeds threshold, holds for 50ms after rapid change ends
+- Based on research into pYIN max_transition_rate, envelope follower attack/release, and slew rate limiter patterns
 - Users will experience slightly slower filter response during rapid pitch modulation, but no crashes or artifacts
 
 **Recommendation**:

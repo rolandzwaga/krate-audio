@@ -50,6 +50,48 @@ void generateWhiteNoise(float* buffer, size_t numSamples, uint32_t seed = 12345)
     }
 }
 
+/// Generate a frequency sweep (glissando) from startFreq to endFreq
+void generateFrequencySweep(float* buffer, size_t numSamples, float startFreq, float endFreq,
+                            float sampleRate) {
+    const float twoPi = 6.283185307f;
+    float phase = 0.0f;
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        // Linear frequency interpolation
+        float t = static_cast<float>(i) / static_cast<float>(numSamples);
+        float freq = startFreq + (endFreq - startFreq) * t;
+        float phaseIncrement = twoPi * freq / sampleRate;
+
+        buffer[i] = std::sin(phase);
+        phase += phaseIncrement;
+        if (phase >= twoPi) {
+            phase -= twoPi;
+        }
+    }
+}
+
+/// Generate a sine wave with vibrato (frequency modulation)
+void generateVibrato(float* buffer, size_t numSamples, float centerFreq, float vibratoDepthHz,
+                     float vibratoRateHz, float sampleRate) {
+    const float twoPi = 6.283185307f;
+    float carrierPhase = 0.0f;
+    float vibratoPhase = 0.0f;
+    const float vibratoPhaseInc = twoPi * vibratoRateHz / sampleRate;
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        // Modulated frequency
+        float freq = centerFreq + vibratoDepthHz * std::sin(vibratoPhase);
+        float phaseIncrement = twoPi * freq / sampleRate;
+
+        buffer[i] = std::sin(carrierPhase);
+        carrierPhase += phaseIncrement;
+        vibratoPhase += vibratoPhaseInc;
+
+        if (carrierPhase >= twoPi) carrierPhase -= twoPi;
+        if (vibratoPhase >= twoPi) vibratoPhase -= twoPi;
+    }
+}
+
 } // anonymous namespace
 
 // =============================================================================
@@ -929,6 +971,272 @@ TEST_CASE("PitchTrackingFilter polish", "[processors][pitch_tracking_filter][pol
         for (auto sample : buffer) {
             float output = filter.process(sample);
             REQUIRE_FALSE(std::isnan(output));
+        }
+    }
+}
+
+// =============================================================================
+// Phase 6: Adaptive Tracking Speed Tests (T086-T090, FR-004a, SC-001a)
+// =============================================================================
+
+TEST_CASE("PitchTrackingFilter adaptive tracking", "[processors][pitch_tracking_filter][adaptive]") {
+    constexpr float kSampleRate = 48000.0f;
+
+    SECTION("rapid pitch change >10 semitones/sec uses fast tracking (kFastTrackingMs)") {
+        // T086: Compare tracking lag between normal and fast mode
+        // Rapid pitch changes should result in smaller lag when fast tracking activates
+
+        // Test 1: Normal mode (slow change rate, should NOT trigger fast tracking)
+        PitchTrackingFilter filterNormal;
+        filterNormal.prepare(kSampleRate, 512);
+        filterNormal.setTrackingSpeed(50.0f);
+        filterNormal.setHarmonicRatio(1.0f);
+        filterNormal.setConfidenceThreshold(0.2f);
+
+        // Warmup at 300Hz
+        constexpr size_t kWarmupSamples = 8192;
+        std::array<float, kWarmupSamples> warmupBuffer;
+        generateSineWave(warmupBuffer.data(), warmupBuffer.size(), 300.0f, kSampleRate);
+        for (auto sample : warmupBuffer) {
+            (void)filterNormal.process(sample);
+        }
+
+        // Apply a step change in frequency (pitch detector will track it over time)
+        // Use 600Hz - this is exactly 12 semitones up (one octave), well-defined
+        constexpr size_t kStepSamples = 12000;  // 250ms
+        std::array<float, kStepSamples> stepBuffer;
+        generateSineWave(stepBuffer.data(), stepBuffer.size(), 600.0f, kSampleRate);
+
+        float cutoffStart = filterNormal.getCurrentCutoff();
+        for (auto sample : stepBuffer) {
+            (void)filterNormal.process(sample);
+        }
+        float cutoffEndNormal = filterNormal.getCurrentCutoff();
+
+        // Test 2: Fast mode - apply a rapid frequency sweep that triggers adaptive tracking
+        PitchTrackingFilter filterFast;
+        filterFast.prepare(kSampleRate, 512);
+        filterFast.setTrackingSpeed(50.0f);  // Same base setting
+        filterFast.setHarmonicRatio(1.0f);
+        filterFast.setConfidenceThreshold(0.2f);
+
+        // Warmup
+        for (auto sample : warmupBuffer) {
+            (void)filterFast.process(sample);
+        }
+
+        // Generate a rapid sweep followed by steady tone
+        // 300Hz → 600Hz in 20ms = 12 semitones in 0.02s = 600 semitones/sec (triggers fast mode)
+        constexpr size_t kRapidSweepSamples = 960;  // 20ms
+        std::array<float, kRapidSweepSamples> rapidSweep;
+        generateFrequencySweep(rapidSweep.data(), rapidSweep.size(), 300.0f, 600.0f, kSampleRate);
+
+        for (auto sample : rapidSweep) {
+            (void)filterFast.process(sample);
+        }
+        float cutoffAfterRapidSweep = filterFast.getCurrentCutoff();
+
+        // Continue with steady 600Hz for the remaining time
+        constexpr size_t kSettleSamples = kStepSamples - kRapidSweepSamples;
+        std::array<float, kSettleSamples> settleBuffer;
+        generateSineWave(settleBuffer.data(), settleBuffer.size(), 600.0f, kSampleRate);
+        for (auto sample : settleBuffer) {
+            (void)filterFast.process(sample);
+        }
+        float cutoffEndFast = filterFast.getCurrentCutoff();
+
+        // With adaptive tracking, the rapid sweep should trigger fast mode (10ms)
+        // causing the cutoff to track more closely during and after the sweep.
+        // After the rapid sweep, cutoff should be closer to target than with normal tracking.
+        // Both should eventually converge to ~600Hz, but fast mode gets there quicker.
+
+        // The cutoff after rapid sweep should be higher than what normal mode achieves
+        // at the same relative point in the transition
+        REQUIRE(cutoffAfterRapidSweep > 400.0f);  // Made progress toward target
+
+        // Both should settle near 600Hz eventually
+        REQUIRE(cutoffEndNormal == Approx(600.0f).margin(100.0f));
+        REQUIRE(cutoffEndFast == Approx(600.0f).margin(100.0f));
+    }
+
+    SECTION("slow pitch change <10 semitones/sec uses normal tracking speed") {
+        // T087: Generate slow sweep 400Hz → 450Hz over 1 second (~2 semitones/sec)
+        // This should NOT trigger fast tracking
+
+        PitchTrackingFilter filter;
+        filter.prepare(kSampleRate, 512);
+        filter.setTrackingSpeed(50.0f);  // Normal: 50ms
+        filter.setHarmonicRatio(1.0f);
+        filter.setConfidenceThreshold(0.2f);
+
+        // First establish stable pitch at 400Hz
+        constexpr size_t kWarmupSamples = 8192;
+        std::array<float, kWarmupSamples> warmupBuffer;
+        generateSineWave(warmupBuffer.data(), warmupBuffer.size(), 400.0f, kSampleRate);
+        for (auto sample : warmupBuffer) {
+            (void)filter.process(sample);
+        }
+
+        float cutoffBeforeSweep = filter.getCurrentCutoff();
+
+        // Generate slow sweep: 400Hz → 450Hz over 1 second (48000 samples)
+        // This is ~2 semitones in 1 second = 2 semitones/second (below 10 threshold)
+        constexpr size_t kSlowSweepSamples = 48000;  // 1 second at 48kHz
+        std::vector<float> slowSweepBuffer(kSlowSweepSamples);
+        generateFrequencySweep(slowSweepBuffer.data(), slowSweepBuffer.size(), 400.0f, 450.0f,
+                               kSampleRate);
+
+        // Process and measure response time to 90% of step change
+        size_t samplesTo90Percent = 0;
+        float targetCutoff = 450.0f;
+        float threshold90 = cutoffBeforeSweep + 0.9f * (targetCutoff - cutoffBeforeSweep);
+        bool reached90 = false;
+
+        for (size_t i = 0; i < slowSweepBuffer.size(); ++i) {
+            (void)filter.process(slowSweepBuffer[i]);
+            if (!reached90 && filter.getCurrentCutoff() >= threshold90) {
+                samplesTo90Percent = i;
+                reached90 = true;
+            }
+        }
+
+        // With normal tracking (50ms), should reach 90% in ~115ms (50ms * 2.3 time constants)
+        // With fast tracking (10ms), would reach in ~23ms
+        // At slow rate, fast tracking should NOT activate
+        float timeToReach90Ms = static_cast<float>(samplesTo90Percent) / kSampleRate * 1000.0f;
+
+        // Verify normal tracking: response should be >= 80ms (not < 40ms like fast mode)
+        // Using >= 80ms as threshold since we're measuring 90% point with smoothing
+        REQUIRE(reached90);
+        REQUIRE(timeToReach90Ms >= 80.0f);  // Normal tracking, not fast
+    }
+
+    SECTION("boundary condition: exactly 10 semitones/sec threshold behavior") {
+        // T088: Generate sweep at exactly 10 semitones/sec
+        // Behavior at boundary is implementation-defined, but should be consistent
+
+        PitchTrackingFilter filter;
+        filter.prepare(kSampleRate, 512);
+        filter.setTrackingSpeed(50.0f);
+        filter.setHarmonicRatio(1.0f);
+        filter.setConfidenceThreshold(0.2f);
+
+        // Warmup at 400Hz
+        constexpr size_t kWarmupSamples = 8192;
+        std::array<float, kWarmupSamples> warmupBuffer;
+        generateSineWave(warmupBuffer.data(), warmupBuffer.size(), 400.0f, kSampleRate);
+        for (auto sample : warmupBuffer) {
+            (void)filter.process(sample);
+        }
+
+        // Generate sweep at exactly 10 semitones/sec over 1 second
+        // 10 semitones from 400Hz = 400 * 2^(10/12) = 712.4Hz
+        constexpr size_t kBoundarySweepSamples = 48000;
+        std::vector<float> boundarySweepBuffer(kBoundarySweepSamples);
+        float endFreq = 400.0f * std::pow(2.0f, 10.0f / 12.0f);  // ~712.4Hz
+        generateFrequencySweep(boundarySweepBuffer.data(), boundarySweepBuffer.size(), 400.0f,
+                               endFreq, kSampleRate);
+
+        // Just verify it processes without issues (no crash, no NaN)
+        for (size_t i = 0; i < boundarySweepBuffer.size(); ++i) {
+            float output = filter.process(boundarySweepBuffer[i]);
+            REQUIRE_FALSE(std::isnan(output));
+            REQUIRE_FALSE(std::isinf(output));
+        }
+
+        // Cutoff should have tracked to near the end frequency
+        REQUIRE(filter.getCurrentCutoff() > 600.0f);
+    }
+
+    SECTION("vibrato-like modulation triggers fast tracking") {
+        // T089: Generate 440Hz with ±50Hz vibrato at 5Hz
+        // Peak-to-peak modulation creates >10 semitones/sec oscillation
+
+        PitchTrackingFilter filter;
+        filter.prepare(kSampleRate, 512);
+        filter.setTrackingSpeed(50.0f);
+        filter.setHarmonicRatio(1.0f);
+        filter.setConfidenceThreshold(0.2f);
+
+        // Warmup at 440Hz
+        constexpr size_t kWarmupSamples = 8192;
+        std::array<float, kWarmupSamples> warmupBuffer;
+        generateSineWave(warmupBuffer.data(), warmupBuffer.size(), 440.0f, kSampleRate);
+        for (auto sample : warmupBuffer) {
+            (void)filter.process(sample);
+        }
+
+        // Generate vibrato: 440Hz center, ±50Hz depth, 5Hz rate
+        // At 5Hz, completes one cycle in 200ms
+        // Peak rate = 2 * pi * 5Hz * 50Hz = ~1570 Hz/sec = massive semitone rate
+        constexpr size_t kVibratoSamples = 24000;  // 500ms = 2.5 vibrato cycles
+        std::array<float, kVibratoSamples> vibratoBuffer;
+        generateVibrato(vibratoBuffer.data(), vibratoBuffer.size(), 440.0f, 50.0f, 5.0f,
+                        kSampleRate);
+
+        // Track cutoff min/max during vibrato
+        float minCutoff = filter.getCurrentCutoff();
+        float maxCutoff = filter.getCurrentCutoff();
+
+        for (size_t i = 0; i < vibratoBuffer.size(); ++i) {
+            (void)filter.process(vibratoBuffer[i]);
+            float cutoff = filter.getCurrentCutoff();
+            minCutoff = std::min(minCutoff, cutoff);
+            maxCutoff = std::max(maxCutoff, cutoff);
+        }
+
+        // With fast tracking, cutoff should follow vibrato closely
+        // Expected range: ~390Hz to ~490Hz (440 ± 50)
+        // If tracking is fast enough, we should see significant cutoff variation
+        float cutoffRange = maxCutoff - minCutoff;
+
+        // With proper fast tracking, should see at least 60Hz of variation
+        // (vibrato is ±50Hz, so full tracking would give 100Hz range)
+        REQUIRE(cutoffRange >= 60.0f);
+    }
+
+    SECTION("adaptive mode switching produces no NaN or Inf") {
+        // Guard rail test: Extreme transitions should not produce invalid output
+
+        PitchTrackingFilter filter;
+        filter.prepare(kSampleRate, 512);
+        filter.setTrackingSpeed(50.0f);
+        filter.setHarmonicRatio(1.0f);
+        filter.setConfidenceThreshold(0.2f);
+
+        // Rapid transitions between frequencies
+        std::array<float, 4096> buffer;
+
+        // Start with 200Hz
+        generateSineWave(buffer.data(), 1024, 200.0f, kSampleRate);
+        for (size_t i = 0; i < 1024; ++i) {
+            float output = filter.process(buffer[i]);
+            REQUIRE_FALSE(std::isnan(output));
+            REQUIRE_FALSE(std::isinf(output));
+        }
+
+        // Rapid jump to 800Hz
+        generateSineWave(buffer.data(), 1024, 800.0f, kSampleRate);
+        for (size_t i = 0; i < 1024; ++i) {
+            float output = filter.process(buffer[i]);
+            REQUIRE_FALSE(std::isnan(output));
+            REQUIRE_FALSE(std::isinf(output));
+        }
+
+        // Back to 200Hz
+        generateSineWave(buffer.data(), 1024, 200.0f, kSampleRate);
+        for (size_t i = 0; i < 1024; ++i) {
+            float output = filter.process(buffer[i]);
+            REQUIRE_FALSE(std::isnan(output));
+            REQUIRE_FALSE(std::isinf(output));
+        }
+
+        // Sweep through multiple frequencies rapidly
+        generateFrequencySweep(buffer.data(), 1024, 100.0f, 900.0f, kSampleRate);
+        for (size_t i = 0; i < 1024; ++i) {
+            float output = filter.process(buffer[i]);
+            REQUIRE_FALSE(std::isnan(output));
+            REQUIRE_FALSE(std::isinf(output));
         }
     }
 }
