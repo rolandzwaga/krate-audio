@@ -679,6 +679,127 @@ Low + High = Flat (0dB across spectrum)
 
 ---
 
+## FrequencyShifter
+**Path:** [frequency_shifter.h](../../dsp/include/krate/dsp/processors/frequency_shifter.h) | **Since:** 0.13.0
+
+Frequency shifter using Hilbert transform for single-sideband modulation. Shifts all frequencies by a constant Hz amount (not pitch shifting), creating inharmonic, metallic effects. Based on the Bode frequency shifter principle.
+
+**Use when:**
+- Creating inharmonic, metallic, bell-like textures
+- Building Shepard tone / barber pole effects (with feedback)
+- Need stereo widening with complementary frequency content
+- Creating ring modulation effects (Both mode)
+- Want animated modulation with LFO-controlled shift
+
+**Unlike pitch shifting**, frequency shifting adds/subtracts a fixed Hz value:
+- Pitch shift: 200Hz -> 400Hz, 400Hz -> 800Hz (preserves harmonics)
+- Freq shift +100Hz: 200Hz -> 300Hz, 400Hz -> 500Hz (destroys harmonic relationship)
+
+**Features:**
+- Three direction modes: Up (upper sideband), Down (lower), Both (ring mod)
+- LFO modulation of shift amount with configurable rate and depth
+- Feedback path with tanh saturation for spiraling Shepard-tone effects
+- Stereo mode: L=+shift, R=-shift for width
+- Click-free parameter smoothing
+- Quadrature oscillator with periodic renormalization (every 1024 samples)
+
+```cpp
+enum class ShiftDirection : uint8_t { Up, Down, Both };
+
+class FrequencyShifter {
+    static constexpr float kMaxShiftHz = 5000.0f;
+    static constexpr float kMaxModDepthHz = 500.0f;
+    static constexpr float kMaxFeedback = 0.99f;
+    static constexpr float kMinModRate = 0.01f;
+    static constexpr float kMaxModRate = 20.0f;
+    static constexpr int kRenormInterval = 1024;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    void setShiftAmount(float hz) noexcept;         // [-5000, +5000] Hz
+    void setDirection(ShiftDirection dir) noexcept;
+    void setModRate(float hz) noexcept;             // [0.01, 20] Hz
+    void setModDepth(float hz) noexcept;            // [0, 500] Hz
+    void setFeedback(float amount) noexcept;        // [0.0, 0.99]
+    void setMix(float dryWet) noexcept;             // [0.0, 1.0]
+
+    [[nodiscard]] float process(float input) noexcept;
+    void processStereo(float& left, float& right) noexcept;
+
+    [[nodiscard]] float getShiftAmount() const noexcept;
+    [[nodiscard]] ShiftDirection getDirection() const noexcept;
+    [[nodiscard]] float getModRate() const noexcept;
+    [[nodiscard]] float getModDepth() const noexcept;
+    [[nodiscard]] float getFeedback() const noexcept;
+    [[nodiscard]] float getMix() const noexcept;
+};
+```
+
+**SSB Formulas (I = in-phase, Q = quadrature from Hilbert, w = carrier freq):**
+- Up: `output = I*cos(wt) - Q*sin(wt)` (upper sideband)
+- Down: `output = I*cos(wt) + Q*sin(wt)` (lower sideband)
+- Both: `output = I*cos(wt)` (ring modulation, Q terms cancel)
+
+**Usage Example (Basic Frequency Shift):**
+```cpp
+FrequencyShifter shifter;
+shifter.prepare(44100.0);
+shifter.setShiftAmount(100.0f);        // +100Hz shift
+shifter.setDirection(ShiftDirection::Up);
+shifter.setFeedback(0.0f);
+shifter.setMix(1.0f);
+
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = shifter.process(input[i]);
+}
+```
+
+**Usage Example (Shepard Tone / Spiraling Effect):**
+```cpp
+FrequencyShifter shifter;
+shifter.prepare(44100.0);
+shifter.setShiftAmount(50.0f);         // Small shift for slow spiral
+shifter.setDirection(ShiftDirection::Up);
+shifter.setFeedback(0.7f);             // High feedback for spiraling
+shifter.setMix(1.0f);
+```
+
+**Usage Example (Stereo Widening):**
+```cpp
+FrequencyShifter shifter;
+shifter.prepare(44100.0);
+shifter.setShiftAmount(5.0f);          // Subtle shift for width
+shifter.setDirection(ShiftDirection::Up);
+shifter.setFeedback(0.0f);
+shifter.setMix(0.5f);                  // Blend with dry
+
+// Process stereo: L=+5Hz, R=-5Hz
+for (size_t i = 0; i < numSamples; ++i) {
+    shifter.processStereo(left[i], right[i]);
+}
+```
+
+**Usage Example (LFO Modulated Shift):**
+```cpp
+shifter.setShiftAmount(50.0f);         // Base shift
+shifter.setModRate(0.5f);              // 0.5Hz LFO
+shifter.setModDepth(30.0f);            // +/-30Hz variation
+// Effective shift oscillates between 20Hz and 80Hz
+```
+
+**Gotchas:**
+- 5-sample latency from Hilbert transform (not compensated)
+- Aliasing at extreme shifts (>Nyquist/2) - documented limitation, no oversampling
+- Feedback >99% is clamped to prevent infinite sustain
+- NaN/Inf input resets state and returns 0.0f
+- prepare() is NOT real-time safe (LFO allocates wavetables)
+
+**Dependencies:** Layer 0 (math_constants.h, db_utils.h), Layer 1 (hilbert_transform.h, lfo.h, smoother.h)
+
+---
+
 ## FormantFilter
 **Path:** [formant_filter.h](../../dsp/include/krate/dsp/processors/formant_filter.h) | **Since:** 0.13.0
 
