@@ -108,29 +108,29 @@ This is a monorepo with shared DSP library:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T011 [P] [US1] Write failing test: C4 filtered when note C enabled (Scenario 1) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T012 [P] [US1] Write failing test: D4 passes dry when only C enabled (Scenario 2) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T013 [P] [US1] Write failing test: Multiple notes (C, E, G) filter correctly (Scenario 3) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T014 [P] [US1] Write failing test: Filter always processes (stays hot) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T015 [P] [US1] Write failing test: Real-time safety (no allocations, noexcept) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T015a [P] [US1] Write failing test: prepare() configures PitchDetector, SVF, and OnePoleSmoother (FR-003) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T015b [P] [US1] Write failing test: setTargetNote() with noteClass outside 0-11 is ignored (FR-008) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T011 [P] [US1] Write failing test: C4 filtered when note C enabled (Scenario 1) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T012 [P] [US1] Write failing test: D4 passes dry when only C enabled (Scenario 2) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T013 [P] [US1] Write failing test: Multiple notes (C, E, G) filter correctly (Scenario 3) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T014 [P] [US1] Write failing test: Filter always processes (stays hot) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T015 [P] [US1] Write failing test: Real-time safety (no allocations, noexcept) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T015a [P] [US1] Write failing test: prepare() configures PitchDetector, SVF, and OnePoleSmoother (FR-003) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T015b [P] [US1] Write failing test: setTargetNote() with noteClass outside 0-11 is ignored (FR-008) in dsp/tests/unit/processors/note_selective_filter_test.cpp
 
 ### 3.2 Implementation for User Story 1
 
-- [ ] T016 [US1] Implement process() method with pitch detection, note matching, and crossfade in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T017 [US1] Implement updateNoteMatching() internal method for block-rate matching in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T018 [US1] Implement processBlock() method in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T019 [US1] Implement state query methods getDetectedNoteClass() and isCurrentlyFiltering() in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T020 [US1] Verify all User Story 1 tests pass with CMake build
+- [X] T016 [US1] Implement process() method with pitch detection, note matching, and crossfade in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T017 [US1] Implement updateNoteMatching() internal method for block-rate matching in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T018 [US1] Implement processBlock() method in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T019 [US1] Implement state query methods getDetectedNoteClass() and isCurrentlyFiltering() in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T020 [US1] Verify all User Story 1 tests pass with CMake build
 
 ### 3.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T021 [US1] Verify IEEE 754 compliance: Check if note_selective_filter_test.cpp uses std::isnan/std::isfinite/std::isinf and add to -fno-fast-math list in dsp/tests/CMakeLists.txt
+- [X] T021 [US1] Verify IEEE 754 compliance: Check if note_selective_filter_test.cpp uses std::isnan/std::isfinite/std::isinf and add to -fno-fast-math list in dsp/tests/CMakeLists.txt
 
 ### 3.4 Commit (MANDATORY)
 
-- [ ] T022 [US1] Commit completed User Story 1 work
+- [X] T022 [US1] Commit completed User Story 1 work
 
 **Checkpoint**: User Story 1 (note matching and filtering) is fully functional, tested, and committed
 

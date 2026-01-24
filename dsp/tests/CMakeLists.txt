@@ -109,6 +109,7 @@ add_executable(dsp_tests
     unit/processors/sidechain_filter_test.cpp
     unit/processors/transient_filter_test.cpp
     unit/processors/pitch_tracking_filter_test.cpp
+    unit/processors/note_selective_filter_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -304,6 +305,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/sidechain_filter_test.cpp
         unit/processors/transient_filter_test.cpp
         unit/processors/pitch_tracking_filter_test.cpp
+        unit/processors/note_selective_filter_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
