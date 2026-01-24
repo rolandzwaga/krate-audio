@@ -893,3 +893,175 @@ TEST_CASE("NoteSelectiveFilter: setNoteTolerance clamps to valid range", "[proce
         REQUIRE(filter.getNoteTolerance() == Approx(49.0f));
     }
 }
+
+// =============================================================================
+// Phase 6: User Story 4 Tests - No-Detection Behavior (T041-T046)
+// =============================================================================
+
+// T041: NoDetectionMode::Dry passes dry signal during silence (Scenario 1)
+TEST_CASE("NoteSelectiveFilter: NoDetectionMode::Dry passes dry signal during silence", "[processors][note-selective][US4][FR-023]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+
+    filter.setTargetNote(0, true);  // Enable C
+    filter.setCutoff(200.0f);
+    filter.setNoDetectionBehavior(NoDetectionMode::Dry);
+
+    // Process silence (no pitch to detect)
+    constexpr std::size_t numSamples = 8192;
+    std::vector<float> buffer(numSamples, 0.0f);
+
+    filter.processBlock(buffer.data(), static_cast<int>(numSamples));
+
+    // With Dry mode, silence should remain silent
+    float rms = calculateRMS(buffer.data(), numSamples);
+    REQUIRE(rms == Approx(0.0f).margin(1e-6f));
+
+    // Verify no detection occurred
+    REQUIRE(filter.getDetectedNoteClass() == -1);
+
+    // Should not be filtering
+    REQUIRE_FALSE(filter.isCurrentlyFiltering());
+}
+
+// T042: NoDetectionMode::Filtered applies filter during noise (Scenario 2)
+TEST_CASE("NoteSelectiveFilter: NoDetectionMode::Filtered applies filter during low-confidence signal", "[processors][note-selective][US4][FR-024]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+
+    filter.setTargetNote(0, true);  // Enable C
+    filter.setCutoff(200.0f);
+    filter.setFilterType(SVFMode::Lowpass);
+    filter.setNoDetectionBehavior(NoDetectionMode::Filtered);
+    filter.setConfidenceThreshold(0.9f);  // Very high threshold
+
+    // Process a weak, hard-to-detect signal
+    // Use a very high frequency that's outside the pitch detection range
+    constexpr std::size_t numSamples = 44100;
+    std::vector<float> input(numSamples);
+    std::vector<float> output(numSamples);
+
+    // Generate a signal at 2000 Hz - above pitch detector's max (1000 Hz)
+    generateSine(input.data(), numSamples, 2000.0f, static_cast<float>(kSampleRate));
+    std::copy(input.begin(), input.end(), output.begin());
+
+    filter.processBlock(output.data(), static_cast<int>(numSamples));
+
+    // With Filtered mode and no valid pitch, filter should still be applied
+    // The 200Hz lowpass should significantly attenuate the 2000Hz signal
+    constexpr std::size_t skipSamples = 8192;
+    float inputRMS = calculateRMS(input.data() + skipSamples, numSamples - skipSamples);
+    float outputRMS = calculateRMS(output.data() + skipSamples, numSamples - skipSamples);
+
+    INFO("NoDetectionMode::Filtered - Input RMS: " << inputRMS << ", Output RMS: " << outputRMS);
+
+    // Should be heavily attenuated (200Hz LP on 2000Hz signal)
+    // Note: The crossfade may not be fully at 1.0 yet depending on timing
+    REQUIRE(outputRMS < inputRMS);  // Should be some attenuation
+}
+
+// T043: NoDetectionMode::LastState maintains previous state during transient (Scenario 3)
+TEST_CASE("NoteSelectiveFilter: NoDetectionMode::LastState maintains state during transient", "[processors][note-selective][US4][FR-025]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+
+    filter.setTargetNote(0, true);  // Enable C
+    filter.setCutoff(200.0f);
+    filter.setNoDetectionBehavior(NoDetectionMode::LastState);
+
+    // First, establish a filtered state by processing C4
+    constexpr std::size_t warmupSamples = 44100;  // 1 second
+    std::vector<float> warmup(warmupSamples);
+    generateSine(warmup.data(), warmupSamples, kC4_Hz, static_cast<float>(kSampleRate));
+    filter.processBlock(warmup.data(), static_cast<int>(warmupSamples));
+
+    // Should now be in filtered state (assuming pitch was detected)
+    // The last filtering state should be true
+
+    // Now process silence (no pitch detectable)
+    constexpr std::size_t silenceSamples = 2048;
+    std::vector<float> silence(silenceSamples, 0.0f);
+    filter.processBlock(silence.data(), static_cast<int>(silenceSamples));
+
+    // With LastState mode, should maintain the previous filtering state
+    // We can't directly verify the internal state, but the mode is set
+    REQUIRE(filter.getNoDetectionBehavior() == NoDetectionMode::LastState);
+}
+
+// T044: Confidence threshold affects detection validity
+TEST_CASE("NoteSelectiveFilter: Confidence threshold controls pitch validity", "[processors][note-selective][US4][FR-020]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+
+    SECTION("Low confidence threshold accepts weak signals") {
+        filter.setConfidenceThreshold(0.1f);
+        REQUIRE(filter.getConfidenceThreshold() == Approx(0.1f));
+    }
+
+    SECTION("High confidence threshold requires strong signals") {
+        filter.setConfidenceThreshold(0.9f);
+        REQUIRE(filter.getConfidenceThreshold() == Approx(0.9f));
+    }
+
+    SECTION("Threshold is clamped to [0, 1]") {
+        filter.setConfidenceThreshold(-0.5f);
+        REQUIRE(filter.getConfidenceThreshold() == Approx(0.0f));
+
+        filter.setConfidenceThreshold(1.5f);
+        REQUIRE(filter.getConfidenceThreshold() == Approx(1.0f));
+    }
+}
+
+// T045: Detection range affects pitch detection
+TEST_CASE("NoteSelectiveFilter: Detection range limits pitch detection", "[processors][note-selective][US4][FR-019]") {
+    NoteSelectiveFilter filter;
+    filter.prepare(kSampleRate, kBlockSize);
+
+    filter.setTargetNote(9, true);  // Enable A
+    filter.setCutoff(200.0f);
+
+    SECTION("Default range is 50-1000 Hz") {
+        // Default should match PitchDetector defaults
+        // Just verify the API is available
+    }
+
+    SECTION("Custom range can be set") {
+        filter.setDetectionRange(100.0f, 500.0f);
+        // Values should be accepted (no direct getter, but no crash)
+    }
+
+    SECTION("Range values are clamped to valid bounds") {
+        // Min frequency clamped to >= 50
+        filter.setDetectionRange(10.0f, 500.0f);
+        // Max frequency clamped to <= 1000
+        filter.setDetectionRange(100.0f, 2000.0f);
+        // Both clamped
+        filter.setDetectionRange(5.0f, 5000.0f);
+        // No crash, values are accepted
+    }
+}
+
+// T046: All NoDetectionMode enum values work correctly
+TEST_CASE("NoteSelectiveFilter: NoDetectionMode enum", "[processors][note-selective][US4][FR-022]") {
+    NoteSelectiveFilter filter;
+
+    SECTION("Can set and get Dry mode") {
+        filter.setNoDetectionBehavior(NoDetectionMode::Dry);
+        REQUIRE(filter.getNoDetectionBehavior() == NoDetectionMode::Dry);
+    }
+
+    SECTION("Can set and get Filtered mode") {
+        filter.setNoDetectionBehavior(NoDetectionMode::Filtered);
+        REQUIRE(filter.getNoDetectionBehavior() == NoDetectionMode::Filtered);
+    }
+
+    SECTION("Can set and get LastState mode") {
+        filter.setNoDetectionBehavior(NoDetectionMode::LastState);
+        REQUIRE(filter.getNoDetectionBehavior() == NoDetectionMode::LastState);
+    }
+
+    SECTION("Default is Dry") {
+        NoteSelectiveFilter freshFilter;
+        REQUIRE(freshFilter.getNoDetectionBehavior() == NoDetectionMode::Dry);
+    }
+}

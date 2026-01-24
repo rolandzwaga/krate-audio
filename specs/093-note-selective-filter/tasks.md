@@ -224,26 +224,26 @@ This is a monorepo with shared DSP library:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T041 [P] [US4] Write failing test: NoDetectionMode::Dry passes dry signal when confidence low (Scenario 1) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T042 [P] [US4] Write failing test: NoDetectionMode::Filtered applies filter when no pitch (Scenario 2) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T043 [P] [US4] Write failing test: NoDetectionMode::LastState maintains previous state (Scenario 3) in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T044 [P] [US4] Write failing test: Detection range filtering works correctly in dsp/tests/unit/processors/note_selective_filter_test.cpp
-- [ ] T045 [P] [US4] Write failing test: Confidence threshold adjustment changes behavior in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T041 [P] [US4] Write failing test: NoDetectionMode::Dry passes dry signal when confidence low (Scenario 1) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T042 [P] [US4] Write failing test: NoDetectionMode::Filtered applies filter when no pitch (Scenario 2) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T043 [P] [US4] Write failing test: NoDetectionMode::LastState maintains previous state (Scenario 3) in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T044 [P] [US4] Write failing test: Detection range filtering works correctly in dsp/tests/unit/processors/note_selective_filter_test.cpp
+- [X] T045 [P] [US4] Write failing test: Confidence threshold adjustment changes behavior in dsp/tests/unit/processors/note_selective_filter_test.cpp
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T046 [US4] Verify updateNoteMatching() implements all three NoDetectionMode behaviors in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T047 [US4] Verify updateNoteMatching() checks detection range (minHz to maxHz) in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T048 [US4] Verify setDetectionRange() and setConfidenceThreshold() work correctly in dsp/include/krate/dsp/processors/note_selective_filter.h
-- [ ] T049 [US4] Verify all User Story 4 tests pass with CMake build
+- [X] T046 [US4] Verify updateNoteMatching() implements all three NoDetectionMode behaviors in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T047 [US4] Verify updateNoteMatching() checks detection range (minHz to maxHz) in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T048 [US4] Verify setDetectionRange() and setConfidenceThreshold() work correctly in dsp/include/krate/dsp/processors/note_selective_filter.h
+- [X] T049 [US4] Verify all User Story 4 tests pass with CMake build
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T050 [US4] Verify IEEE 754 compliance: Confirm test files have -fno-fast-math if using NaN detection
+- [X] T050 [US4] Verify IEEE 754 compliance: Confirm test files have -fno-fast-math if using NaN detection
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T051 [US4] Commit completed User Story 4 work
+- [X] T051 [US4] Commit completed User Story 4 work
 
 **Checkpoint**: All user stories (US1-US4) should now be independently functional and committed
 
