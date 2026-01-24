@@ -319,4 +319,4 @@ endif()
 # ==============================================================================
 # CTest Integration
 # ==============================================================================
-catch_discover_tests(dsp_tests)
+catch_discover_tests(dsp_tests REPORTER compact)

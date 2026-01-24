@@ -112,7 +112,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 endif()
 
 # CTest Integration
-catch_discover_tests(plugin_tests)
+catch_discover_tests(plugin_tests REPORTER compact)
 
 # ==============================================================================
 # Approval Tests
@@ -143,4 +143,5 @@ set_target_properties(approval_tests PROPERTIES
 
 catch_discover_tests(approval_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/approval
+    REPORTER compact
 )
