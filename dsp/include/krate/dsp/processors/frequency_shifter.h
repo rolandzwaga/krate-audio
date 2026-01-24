@@ -481,16 +481,24 @@ inline void FrequencyShifter::advanceOscillator() noexcept {
 }
 
 inline float FrequencyShifter::applySSB(float I, float Q, float shiftSign) noexcept {
-    // Adjust sin term sign for shift direction
+    // Adjust sin term sign for shift direction (stereo: L=+1, R=-1)
     const float adjustedSin = sinTheta_ * shiftSign;
+
+    // Standard SSB modulation formulas (per Hilbert transform documentation):
+    //   upper_sideband = I*cos(wt) - Q*sin(wt)
+    //   lower_sideband = I*cos(wt) + Q*sin(wt)
+    //
+    // These formulas shift the input frequency by the carrier frequency:
+    // - Up: input_freq + shift_freq (upper sideband)
+    // - Down: input_freq - shift_freq (lower sideband)
 
     switch (direction_) {
         case ShiftDirection::Up:
-            // Upper sideband: I*cos - Q*sin
+            // Upper sideband: I*cos - Q*sin (input + shift)
             return I * cosTheta_ - Q * adjustedSin;
 
         case ShiftDirection::Down:
-            // Lower sideband: I*cos + Q*sin
+            // Lower sideband: I*cos + Q*sin (input - shift)
             return I * cosTheta_ + Q * adjustedSin;
 
         case ShiftDirection::Both:

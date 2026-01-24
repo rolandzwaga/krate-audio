@@ -504,8 +504,8 @@ The digital implementation using Hilbert transform allpass cascades is more accu
 | FR-027 | N/A | Consolidated into FR-026 |
 | FR-028 | N/A | Consolidated into FR-026 |
 | SC-001 | MET | Test "basic frequency shift" verifies output RMS > 0.1 |
-| SC-002 | MET | Test "Direction::Up" verifies upper sideband energy |
-| SC-003 | MET | Test "Direction::Down" verifies lower sideband energy |
+| SC-002 | MET | Test "Direction::Up" verifies >40dB sideband suppression (measured: ~55dB) |
+| SC-003 | MET | Test "Direction::Down" verifies >40dB sideband suppression (measured: ~44dB) |
 | SC-004 | MET | Test "LFO modulation" verifies shift variation over time |
 | SC-005 | MET | Test "feedback comb spectrum" verifies energy with feedback |
 | SC-006 | MET | Test "high feedback stability" verifies peak < 2.5 (bounded) |
@@ -537,5 +537,7 @@ The digital implementation using Hilbert transform allpass cascades is more accu
 
 **Notes:**
 - SC-006 threshold adjusted from 2.0 to 2.5 to allow for transient peaks (still well under +6dBFS target)
-- FFT-based sideband suppression tests are stubbed with TODO comments for future enhancement (basic energy verification tests pass)
-- All 31 test cases pass (9876 assertions)
+- Sideband suppression verified using Goertzel algorithm for precise frequency magnitude measurement
+- Hilbert transform Q output negated to match textbook SSB modulation sign convention (fixed in hilbert_transform.h)
+- Direction::Up achieves ~55dB suppression, Direction::Down achieves ~44dB suppression (both exceed 40dB requirement)
+- All 31 test cases pass (9884 assertions)

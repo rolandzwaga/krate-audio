@@ -88,6 +88,47 @@ float linearToDb(float linear) {
     return 20.0f * std::log10(linear);
 }
 
+/// Goertzel algorithm for measuring magnitude at a specific frequency
+/// More efficient than full FFT when only a few frequencies are needed
+float measureMagnitudeAtFrequency(const float* buffer, size_t numSamples, float targetFrequency, double sampleRate) {
+    // Calculate the bin (k) for the target frequency
+    // k = targetFreq * N / sampleRate
+    const double k = targetFrequency * static_cast<double>(numSamples) / sampleRate;
+    const double omega = 2.0 * std::numbers::pi * k / static_cast<double>(numSamples);
+    const double coeff = 2.0 * std::cos(omega);
+
+    double s0 = 0.0;
+    double s1 = 0.0;
+    double s2 = 0.0;
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        s0 = static_cast<double>(buffer[i]) + coeff * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+
+    // Calculate magnitude
+    const double real = s1 - s2 * std::cos(omega);
+    const double imag = s2 * std::sin(omega);
+    const double magnitude = std::sqrt(real * real + imag * imag);
+
+    // Normalize by number of samples
+    return static_cast<float>(magnitude / static_cast<double>(numSamples));
+}
+
+/// Measure sideband suppression ratio in dB
+/// Returns the difference in dB between wanted and unwanted sideband magnitudes
+float measureSidebandSuppressionDb(const float* buffer, size_t numSamples,
+                                    float wantedFreq, float unwantedFreq, double sampleRate) {
+    const float wantedMag = measureMagnitudeAtFrequency(buffer, numSamples, wantedFreq, sampleRate);
+    const float unwantedMag = measureMagnitudeAtFrequency(buffer, numSamples, unwantedFreq, sampleRate);
+
+    if (wantedMag <= 0.0f) return 0.0f;  // Invalid measurement
+    if (unwantedMag <= 0.0f) return -144.0f;  // Essentially infinite suppression
+
+    return linearToDb(unwantedMag / wantedMag);
+}
+
 } // anonymous namespace
 
 // =============================================================================
@@ -263,8 +304,8 @@ TEST_CASE("FrequencyShifter Direction::Up (SC-002)", "[FrequencyShifter][US2][di
     shifter.setFeedback(0.0f);
     shifter.setMix(1.0f);
 
-    // Generate 440Hz test tone
-    constexpr int numSamples = 8192;
+    // Generate 440Hz test tone - use longer buffer for better frequency resolution
+    constexpr int numSamples = 16384;
     auto input = generateSineWave(440.0f, kTestSampleRate, numSamples);
 
     // Process
@@ -273,16 +314,34 @@ TEST_CASE("FrequencyShifter Direction::Up (SC-002)", "[FrequencyShifter][US2][di
         output[i] = shifter.process(input[i]);
     }
 
-    // Skip settling time
-    constexpr int skipSamples = 512;
-    const float outputRMS = calculateRMS(std::vector<float>(output.begin() + skipSamples, output.end()));
+    // Skip settling time (Hilbert transform latency + some settling)
+    constexpr int skipSamples = 1024;
+    const float* analysisBuffer = output.data() + skipSamples;
+    const size_t analysisSize = numSamples - skipSamples;
 
     // Verify output has energy
+    const float outputRMS = calculateRMS(std::vector<float>(analysisBuffer, analysisBuffer + analysisSize));
     REQUIRE(outputRMS > 0.1f);
 
-    // TODO: FFT analysis to verify:
-    // - Peak at 540Hz (upper sideband)
-    // - 340Hz (lower sideband) suppressed by >40dB
+    // Measure magnitudes at expected frequencies
+    const float upperMag = measureMagnitudeAtFrequency(analysisBuffer, analysisSize, 540.0f, kTestSampleRate);
+    const float lowerMag = measureMagnitudeAtFrequency(analysisBuffer, analysisSize, 340.0f, kTestSampleRate);
+    const float inputMag = measureMagnitudeAtFrequency(analysisBuffer, analysisSize, 440.0f, kTestSampleRate);
+
+    INFO("Input (440Hz) magnitude: " << inputMag);
+    INFO("Upper sideband (540Hz) magnitude: " << upperMag);
+    INFO("Lower sideband (340Hz) magnitude: " << lowerMag);
+
+    // Verify upper sideband (wanted) has energy - threshold based on normalized magnitude
+    REQUIRE(upperMag > 0.001f);
+
+    // Verify lower sideband (unwanted) at 340Hz (440 - 100) is suppressed
+    const float suppressionDb = measureSidebandSuppressionDb(
+        analysisBuffer, analysisSize, 540.0f, 340.0f, kTestSampleRate);
+
+    // SC-002: unwanted sideband suppressed by at least 40dB
+    INFO("Sideband suppression: " << suppressionDb << " dB");
+    REQUIRE(suppressionDb < kSidebandSuppressionDb);
 }
 
 TEST_CASE("FrequencyShifter Direction::Down (SC-003)", "[FrequencyShifter][US2][direction]") {
@@ -294,8 +353,8 @@ TEST_CASE("FrequencyShifter Direction::Down (SC-003)", "[FrequencyShifter][US2][
     shifter.setFeedback(0.0f);
     shifter.setMix(1.0f);
 
-    // Generate 440Hz test tone
-    constexpr int numSamples = 8192;
+    // Generate 440Hz test tone - use longer buffer for better frequency resolution
+    constexpr int numSamples = 16384;
     auto input = generateSineWave(440.0f, kTestSampleRate, numSamples);
 
     // Process
@@ -304,16 +363,34 @@ TEST_CASE("FrequencyShifter Direction::Down (SC-003)", "[FrequencyShifter][US2][
         output[i] = shifter.process(input[i]);
     }
 
-    // Skip settling time
-    constexpr int skipSamples = 512;
-    const float outputRMS = calculateRMS(std::vector<float>(output.begin() + skipSamples, output.end()));
+    // Skip settling time (Hilbert transform latency + some settling)
+    constexpr int skipSamples = 1024;
+    const float* analysisBuffer = output.data() + skipSamples;
+    const size_t analysisSize = numSamples - skipSamples;
 
     // Verify output has energy
+    const float outputRMS = calculateRMS(std::vector<float>(analysisBuffer, analysisBuffer + analysisSize));
     REQUIRE(outputRMS > 0.1f);
 
-    // TODO: FFT analysis to verify:
-    // - Peak at 340Hz (lower sideband)
-    // - 540Hz (upper sideband) suppressed by >40dB
+    // Measure magnitudes at expected frequencies
+    const float lowerMag = measureMagnitudeAtFrequency(analysisBuffer, analysisSize, 340.0f, kTestSampleRate);
+    const float upperMag = measureMagnitudeAtFrequency(analysisBuffer, analysisSize, 540.0f, kTestSampleRate);
+    const float inputMag = measureMagnitudeAtFrequency(analysisBuffer, analysisSize, 440.0f, kTestSampleRate);
+
+    INFO("Input (440Hz) magnitude: " << inputMag);
+    INFO("Lower sideband (340Hz) magnitude: " << lowerMag);
+    INFO("Upper sideband (540Hz) magnitude: " << upperMag);
+
+    // Verify lower sideband (wanted) has energy - threshold based on normalized magnitude
+    REQUIRE(lowerMag > 0.001f);
+
+    // Verify upper sideband (unwanted) at 540Hz (440 + 100) is suppressed
+    const float suppressionDb = measureSidebandSuppressionDb(
+        analysisBuffer, analysisSize, 340.0f, 540.0f, kTestSampleRate);
+
+    // SC-003: unwanted sideband suppressed by at least 40dB
+    INFO("Sideband suppression: " << suppressionDb << " dB");
+    REQUIRE(suppressionDb < kSidebandSuppressionDb);
 }
 
 TEST_CASE("FrequencyShifter Direction::Both (ring modulation)", "[FrequencyShifter][US2][direction]") {
@@ -325,8 +402,8 @@ TEST_CASE("FrequencyShifter Direction::Both (ring modulation)", "[FrequencyShift
     shifter.setFeedback(0.0f);
     shifter.setMix(1.0f);
 
-    // Generate 440Hz test tone
-    constexpr int numSamples = 8192;
+    // Generate 440Hz test tone - use longer buffer for better frequency resolution
+    constexpr int numSamples = 16384;
     auto input = generateSineWave(440.0f, kTestSampleRate, numSamples);
 
     // Process
@@ -335,15 +412,31 @@ TEST_CASE("FrequencyShifter Direction::Both (ring modulation)", "[FrequencyShift
         output[i] = shifter.process(input[i]);
     }
 
-    // Skip settling time
-    constexpr int skipSamples = 512;
-    const float outputRMS = calculateRMS(std::vector<float>(output.begin() + skipSamples, output.end()));
+    // Skip settling time (Hilbert transform latency + some settling)
+    constexpr int skipSamples = 1024;
+    const float* analysisBuffer = output.data() + skipSamples;
+    const size_t analysisSize = numSamples - skipSamples;
 
     // Verify output has energy
+    const float outputRMS = calculateRMS(std::vector<float>(analysisBuffer, analysisBuffer + analysisSize));
     REQUIRE(outputRMS > 0.1f);
 
-    // TODO: FFT analysis to verify:
-    // - Peaks at both 340Hz AND 540Hz (both sidebands)
+    // Verify BOTH sidebands have energy (ring modulation)
+    const float upperMag = measureMagnitudeAtFrequency(analysisBuffer, analysisSize, 540.0f, kTestSampleRate);
+    const float lowerMag = measureMagnitudeAtFrequency(analysisBuffer, analysisSize, 340.0f, kTestSampleRate);
+    const float inputMag = measureMagnitudeAtFrequency(analysisBuffer, analysisSize, 440.0f, kTestSampleRate);
+
+    INFO("Input (440Hz) magnitude: " << inputMag);
+    INFO("Upper sideband (540Hz) magnitude: " << upperMag);
+    INFO("Lower sideband (340Hz) magnitude: " << lowerMag);
+
+    // Both sidebands should have significant energy
+    REQUIRE(upperMag > 0.001f);
+    REQUIRE(lowerMag > 0.001f);
+
+    // Sidebands should be approximately equal in amplitude (within 6dB)
+    const float ratioDb = linearToDb(upperMag / lowerMag);
+    REQUIRE(std::abs(ratioDb) < 6.0f);
 }
 
 // =============================================================================
@@ -946,31 +1039,69 @@ TEST_CASE("FrequencyShifter CPU performance (SC-008)", "[FrequencyShifter][perfo
 }
 
 TEST_CASE("FrequencyShifter sideband suppression measurement (SC-002, SC-003)", "[FrequencyShifter][performance][SSB]") {
-    // Verify sideband suppression is at least 40dB
-    FrequencyShifter shifter;
-    shifter.prepare(kTestSampleRate);
-    shifter.setShiftAmount(200.0f);
-    shifter.setDirection(ShiftDirection::Up);
-    shifter.setFeedback(0.0f);
-    shifter.setMix(1.0f);
+    // Verify sideband suppression is at least 40dB for different configurations
 
-    // Generate 1000Hz test tone (gives 1200Hz upper, 800Hz lower sideband)
-    constexpr int numSamples = 16384;  // Good FFT resolution
-    auto input = generateSineWave(1000.0f, kTestSampleRate, numSamples);
+    SECTION("Direction Up with 200Hz shift at 1000Hz input") {
+        FrequencyShifter shifter;
+        shifter.prepare(kTestSampleRate);
+        shifter.setShiftAmount(200.0f);
+        shifter.setDirection(ShiftDirection::Up);
+        shifter.setFeedback(0.0f);
+        shifter.setMix(1.0f);
 
-    // Process
-    std::vector<float> output(numSamples);
-    for (int i = 0; i < numSamples; ++i) {
-        output[i] = shifter.process(input[i]);
+        // Generate 1000Hz test tone (gives 1200Hz upper, 800Hz lower sideband)
+        constexpr int numSamples = 16384;
+        auto input = generateSineWave(1000.0f, kTestSampleRate, numSamples);
+
+        // Process
+        std::vector<float> output(numSamples);
+        for (int i = 0; i < numSamples; ++i) {
+            output[i] = shifter.process(input[i]);
+        }
+
+        // Skip settling time
+        constexpr int skipSamples = 1024;
+        const float* analysisBuffer = output.data() + skipSamples;
+        const size_t analysisSize = numSamples - skipSamples;
+
+        // Measure sideband suppression
+        const float suppressionDb = measureSidebandSuppressionDb(
+            analysisBuffer, analysisSize, 1200.0f, 800.0f, kTestSampleRate);
+
+        INFO("Sideband suppression at 1000Hz input, 200Hz shift (Up): " << suppressionDb << " dB");
+        REQUIRE(suppressionDb < kSidebandSuppressionDb);
     }
 
-    // Skip settling and verify output has energy
-    constexpr int skipSamples = 512;
-    const float outputRMS = calculateRMS(std::vector<float>(output.begin() + skipSamples, output.end()));
-    REQUIRE(outputRMS > 0.1f);
+    SECTION("Direction Down with 200Hz shift at 1000Hz input") {
+        FrequencyShifter shifter;
+        shifter.prepare(kTestSampleRate);
+        shifter.setShiftAmount(200.0f);
+        shifter.setDirection(ShiftDirection::Down);
+        shifter.setFeedback(0.0f);
+        shifter.setMix(1.0f);
 
-    // TODO: Add FFT analysis to measure exact sideband suppression
-    // Expected: 1200Hz peak, 800Hz suppressed by >40dB
+        // Generate 1000Hz test tone (gives 800Hz lower, 1200Hz upper sideband)
+        constexpr int numSamples = 16384;
+        auto input = generateSineWave(1000.0f, kTestSampleRate, numSamples);
+
+        // Process
+        std::vector<float> output(numSamples);
+        for (int i = 0; i < numSamples; ++i) {
+            output[i] = shifter.process(input[i]);
+        }
+
+        // Skip settling time
+        constexpr int skipSamples = 1024;
+        const float* analysisBuffer = output.data() + skipSamples;
+        const size_t analysisSize = numSamples - skipSamples;
+
+        // Measure sideband suppression
+        const float suppressionDb = measureSidebandSuppressionDb(
+            analysisBuffer, analysisSize, 800.0f, 1200.0f, kTestSampleRate);
+
+        INFO("Sideband suppression at 1000Hz input, 200Hz shift (Down): " << suppressionDb << " dB");
+        REQUIRE(suppressionDb < kSidebandSuppressionDb);
+    }
 }
 
 // =============================================================================
