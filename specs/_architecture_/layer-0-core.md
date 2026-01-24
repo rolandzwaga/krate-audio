@@ -199,9 +199,19 @@ constexpr void stereoCrossBlend(float inL, float inR, float crossAmount, float& 
 **Path:** [pitch_utils.h](../../dsp/include/krate/dsp/core/pitch_utils.h) | **Since:** 0.0.35
 
 ```cpp
+// Semitone/ratio conversion
 [[nodiscard]] constexpr float semitonesToRatio(float semitones) noexcept;  // 12→2.0, -12→0.5
 [[nodiscard]] constexpr float ratioToSemitones(float ratio) noexcept;      // 2.0→12, 0.5→-12
+
+// Frequency-to-note conversion (spec 093)
+[[nodiscard]] inline int frequencyToNoteClass(float hz) noexcept;          // 440→9 (A), 261.63→0 (C), 0→-1
+[[nodiscard]] inline float frequencyToCentsDeviation(float hz) noexcept;   // 442.55→+10 cents, 437.47→-10 cents
 ```
+
+| Function | Description | Use Case |
+|----------|-------------|----------|
+| `frequencyToNoteClass` | Maps Hz to note class (0-11, 0=C) | Note-selective filtering, pitch detection |
+| `frequencyToCentsDeviation` | Cents deviation from nearest note (-50 to +50) | Pitch tolerance matching, tuning analysis |
 
 ---
 

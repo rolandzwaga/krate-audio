@@ -115,4 +115,60 @@ enum class PitchQuantMode : uint8_t {
     }
 }
 
+// =============================================================================
+// Frequency-to-Note Conversion (spec 093-note-selective-filter, FR-011, FR-036)
+// =============================================================================
+
+/// Convert frequency in Hz to note class (0-11)
+///
+/// Uses standard frequency-to-MIDI conversion:
+/// MIDI note = 12 * log2(frequency / 440) + 69
+/// Note class = MIDI note mod 12
+///
+/// Where note class mapping is: 0=C, 1=C#, 2=D, 3=D#, 4=E, 5=F,
+/// 6=F#, 7=G, 8=G#, 9=A, 10=A#, 11=B
+///
+/// @param hz Frequency in Hz (must be > 0)
+/// @return Note class (0-11), or -1 if invalid frequency
+/// @note Real-time safe: noexcept, no allocations
+[[nodiscard]] inline int frequencyToNoteClass(float hz) noexcept {
+    if (hz <= 0.0f) return -1;
+
+    // MIDI note = 12 * log2(hz/440) + 69
+    float midiNote = 12.0f * std::log2(hz / 440.0f) + 69.0f;
+
+    // Round to nearest MIDI note, then get note class (0-11)
+    int noteClass = static_cast<int>(std::round(midiNote)) % 12;
+
+    // Handle negative modulo for very low frequencies (< C-1)
+    if (noteClass < 0) noteClass += 12;
+
+    return noteClass;
+}
+
+/// Calculate deviation from nearest note center in cents
+///
+/// Returns the signed cents deviation from the nearest chromatic note.
+/// Positive values mean the frequency is sharp (above note center),
+/// negative values mean flat (below note center).
+///
+/// The returned value is in the range approximately [-50, +50] cents,
+/// since values outside this range would round to a different note.
+///
+/// @param hz Frequency in Hz (must be > 0)
+/// @return Cents deviation from nearest note center (-50 to +50), or 0 if invalid
+/// @note Real-time safe: noexcept, no allocations
+[[nodiscard]] inline float frequencyToCentsDeviation(float hz) noexcept {
+    if (hz <= 0.0f) return 0.0f;
+
+    // MIDI note (continuous) = 12 * log2(hz/440) + 69
+    float midiNote = 12.0f * std::log2(hz / 440.0f) + 69.0f;
+
+    // Nearest integer MIDI note
+    float roundedNote = std::round(midiNote);
+
+    // Deviation in semitones, then convert to cents (100 cents = 1 semitone)
+    return (midiNote - roundedNote) * 100.0f;
+}
+
 }  // namespace Krate::DSP
