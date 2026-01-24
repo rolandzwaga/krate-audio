@@ -1517,11 +1517,14 @@ TEST_CASE("CrossoverLR4 thread safety", "[crossover][thread][FR-019][SC-013]") {
     SECTION("concurrent parameter writes do not crash") {
         std::atomic<bool> running{true};
         std::atomic<int> paramChanges{0};
+        std::atomic<bool> uiThreadStarted{false};
 
         // UI thread - writes parameters
         std::thread uiThread([&]() {
             std::mt19937 gen(42);
             std::uniform_real_distribution<float> freqDist(100.0f, 10000.0f);
+            // Signal that we've started
+            uiThreadStarted.store(true, std::memory_order_release);
             while (running.load(std::memory_order_relaxed)) {
                 crossover.setCrossoverFrequency(freqDist(gen));
                 crossover.setSmoothingTime(5.0f);
@@ -1532,6 +1535,10 @@ TEST_CASE("CrossoverLR4 thread safety", "[crossover][thread][FR-019][SC-013]") {
 
         // Audio thread - reads and processes
         std::thread audioThread([&]() {
+            // Wait for UI thread to start before processing
+            while (!uiThreadStarted.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
             for (int i = 0; i < 100000; ++i) {
                 auto outputs = crossover.process(0.5f);
                 REQUIRE(isValidSample(outputs.low));
