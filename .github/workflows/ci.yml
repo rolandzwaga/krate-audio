@@ -69,10 +69,10 @@ jobs:
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum validator --parallel
 
       - name: Run Tests
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure --exclude-regex "vst3_validator_extensive"
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --progress --output-on-failure --exclude-regex "vst3_validator_extensive"
 
       - name: Run VST3 Validator (Extensive)
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --progress --output-on-failure -R "vst3_validator_extensive"
 
       - name: Upload Plugin Artifact
         uses: actions/upload-artifact@v4
@@ -127,10 +127,10 @@ jobs:
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum Iterum_AU validator --parallel
 
       - name: Run Tests
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure --exclude-regex "vst3_validator_extensive"
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --progress --output-on-failure --exclude-regex "vst3_validator_extensive"
 
       - name: Run VST3 Validator (Extensive)
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --progress --output-on-failure -R "vst3_validator_extensive"
 
       # Install AU and run auval validation
       - name: Run AU Validation
@@ -211,10 +211,10 @@ jobs:
         run: cmake --build build --target Iterum validator --parallel
 
       - name: Run Tests
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure --exclude-regex "vst3_validator_extensive"
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --progress --output-on-failure --exclude-regex "vst3_validator_extensive"
 
       - name: Run VST3 Validator (Extensive)
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --progress --output-on-failure -R "vst3_validator_extensive"
 
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
