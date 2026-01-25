@@ -4,14 +4,14 @@
 // Constitution Principle VIII: Testing Discipline
 // Constitution Principle XII: Test-First Development
 //
-// Tests for: dsp/include/krate/dsp/primitives/allpass_1pole.h
-// Contract: specs/073-allpass-1pole/contracts/allpass_1pole.h
+// Tests for: dsp/include/krate/dsp/primitives/one_pole_allpass.h
+// Contract: specs/073-allpass-1pole/contracts/allpass_1pole.h (original spec)
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
-#include <krate/dsp/primitives/allpass_1pole.h>
+#include <krate/dsp/primitives/one_pole_allpass.h>
 
 #include <array>
 #include <cmath>
@@ -95,8 +95,8 @@ float measurePhaseDegrees(const float* input, const float* output, size_t numSam
 // ==============================================================================
 
 // T004: Default constructor creates filter with coefficient 0.0 and zero state
-TEST_CASE("Allpass1Pole default constructor", "[allpass_1pole][US1][constructor]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass default constructor", "[allpass_1pole][US1][constructor]") {
+    OnePoleAllpass filter;
 
     REQUIRE(filter.getCoefficient() == 0.0f);
 
@@ -111,8 +111,8 @@ TEST_CASE("Allpass1Pole default constructor", "[allpass_1pole][US1][constructor]
 }
 
 // T005: prepare() stores sample rate correctly
-TEST_CASE("Allpass1Pole prepare stores sample rate", "[allpass_1pole][US1][prepare]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass prepare stores sample rate", "[allpass_1pole][US1][prepare]") {
+    OnePoleAllpass filter;
 
     SECTION("44100 Hz sample rate") {
         filter.prepare(44100.0);
@@ -141,32 +141,32 @@ TEST_CASE("Allpass1Pole prepare stores sample rate", "[allpass_1pole][US1][prepa
 }
 
 // T006: setFrequency() with valid frequency updates coefficient via coeffFromFrequency()
-TEST_CASE("Allpass1Pole setFrequency updates coefficient", "[allpass_1pole][US1][setFrequency]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass setFrequency updates coefficient", "[allpass_1pole][US1][setFrequency]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
 
     SECTION("1000 Hz break frequency") {
         filter.setFrequency(1000.0f);
-        const float expectedCoeff = Allpass1Pole::coeffFromFrequency(1000.0f, 44100.0);
+        const float expectedCoeff = OnePoleAllpass::coeffFromFrequency(1000.0f, 44100.0);
         REQUIRE(filter.getCoefficient() == expectedCoeff);
     }
 
     SECTION("5000 Hz break frequency") {
         filter.setFrequency(5000.0f);
-        const float expectedCoeff = Allpass1Pole::coeffFromFrequency(5000.0f, 44100.0);
+        const float expectedCoeff = OnePoleAllpass::coeffFromFrequency(5000.0f, 44100.0);
         REQUIRE(filter.getCoefficient() == expectedCoeff);
     }
 
     SECTION("100 Hz break frequency") {
         filter.setFrequency(100.0f);
-        const float expectedCoeff = Allpass1Pole::coeffFromFrequency(100.0f, 44100.0);
+        const float expectedCoeff = OnePoleAllpass::coeffFromFrequency(100.0f, 44100.0);
         REQUIRE(filter.getCoefficient() == expectedCoeff);
     }
 }
 
 // T007: setFrequency() clamps to [1 Hz, Nyquist*0.99] (FR-009)
-TEST_CASE("Allpass1Pole setFrequency clamping", "[allpass_1pole][US1][FR-009][clamping]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass setFrequency clamping", "[allpass_1pole][US1][FR-009][clamping]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
 
     const float nyquist = 44100.0f / 2.0f;
@@ -194,8 +194,8 @@ TEST_CASE("Allpass1Pole setFrequency clamping", "[allpass_1pole][US1][FR-009][cl
 }
 
 // T008: process() implements difference equation y[n] = a*x[n] + x[n-1] - a*y[n-1] (FR-001)
-TEST_CASE("Allpass1Pole process implements difference equation", "[allpass_1pole][US1][FR-001][process]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass process implements difference equation", "[allpass_1pole][US1][FR-001][process]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
 
     // Use known coefficient for manual verification
@@ -217,8 +217,8 @@ TEST_CASE("Allpass1Pole process implements difference equation", "[allpass_1pole
 }
 
 // T009: process() maintains unity magnitude response (FR-002, SC-001)
-TEST_CASE("Allpass1Pole unity magnitude response", "[allpass_1pole][US1][FR-002][SC-001][magnitude]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass unity magnitude response", "[allpass_1pole][US1][FR-002][SC-001][magnitude]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setFrequency(1000.0f);
 
@@ -258,7 +258,7 @@ TEST_CASE("Allpass1Pole unity magnitude response", "[allpass_1pole][US1][FR-002]
 }
 
 // T010: Filter provides -90 degree phase shift at break frequency (FR-004, SC-002)
-TEST_CASE("Allpass1Pole -90 degree phase at break frequency", "[allpass_1pole][US1][FR-004][SC-002][phase]") {
+TEST_CASE("OnePoleAllpass -90 degree phase at break frequency", "[allpass_1pole][US1][FR-004][SC-002][phase]") {
     // For a first-order allpass, the phase at the break frequency is -90 degrees.
     // This means when input is at its peak (sine = 1), output should be at zero
     // (or vice versa), because -90 degree phase shift turns sin into -cos.
@@ -271,7 +271,7 @@ TEST_CASE("Allpass1Pole -90 degree phase at break frequency", "[allpass_1pole][U
     // We verify this by checking that when input peaks, output is near zero,
     // and when input is zero, output peaks.
 
-    Allpass1Pole filter;
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
 
     // Use exactly fs/4 where coefficient a = 0, giving exact -90 phase shift
@@ -311,8 +311,8 @@ TEST_CASE("Allpass1Pole -90 degree phase at break frequency", "[allpass_1pole][U
 }
 
 // T011: Filter provides 0 degree phase shift at DC (FR-003)
-TEST_CASE("Allpass1Pole 0 degree phase at DC", "[allpass_1pole][US1][FR-003][phase_dc]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass 0 degree phase at DC", "[allpass_1pole][US1][FR-003][phase_dc]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setFrequency(1000.0f);
 
@@ -330,8 +330,8 @@ TEST_CASE("Allpass1Pole 0 degree phase at DC", "[allpass_1pole][US1][FR-003][pha
 }
 
 // T012: Filter approaches -180 degree phase shift at Nyquist (FR-003)
-TEST_CASE("Allpass1Pole approaches -180 degree phase at Nyquist", "[allpass_1pole][US1][FR-003][phase_nyquist]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass approaches -180 degree phase at Nyquist", "[allpass_1pole][US1][FR-003][phase_nyquist]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setFrequency(1000.0f);
 
@@ -357,8 +357,8 @@ TEST_CASE("Allpass1Pole approaches -180 degree phase at Nyquist", "[allpass_1pol
 }
 
 // T013: reset() clears state variables to zero (FR-013)
-TEST_CASE("Allpass1Pole reset clears state", "[allpass_1pole][US1][FR-013][reset]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass reset clears state", "[allpass_1pole][US1][FR-013][reset]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setCoefficient(0.5f);
 
@@ -380,8 +380,8 @@ TEST_CASE("Allpass1Pole reset clears state", "[allpass_1pole][US1][FR-013][reset
 }
 
 // T014: getFrequency() returns current break frequency matching coefficient
-TEST_CASE("Allpass1Pole getFrequency returns correct value", "[allpass_1pole][US1][getFrequency]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass getFrequency returns correct value", "[allpass_1pole][US1][getFrequency]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
 
     SECTION("After setFrequency") {
@@ -400,11 +400,11 @@ TEST_CASE("Allpass1Pole getFrequency returns correct value", "[allpass_1pole][US
 }
 
 // T015: Memory footprint < 32 bytes (SC-004)
-TEST_CASE("Allpass1Pole memory footprint", "[allpass_1pole][US1][SC-004][memory]") {
+TEST_CASE("OnePoleAllpass memory footprint", "[allpass_1pole][US1][SC-004][memory]") {
     // SC-004: Memory footprint is less than 32 bytes per filter instance
     // State: a_ (4), z1_ (4), y1_ (4), sampleRate_ (8) = 20 bytes minimum
     // With padding, should still be < 32 bytes
-    REQUIRE(sizeof(Allpass1Pole) <= 32);
+    REQUIRE(sizeof(OnePoleAllpass) <= 32);
 }
 
 // ==============================================================================
@@ -412,8 +412,8 @@ TEST_CASE("Allpass1Pole memory footprint", "[allpass_1pole][US1][SC-004][memory]
 // ==============================================================================
 
 // T028: setCoefficient() accepts valid coefficient and updates state
-TEST_CASE("Allpass1Pole setCoefficient accepts valid values", "[allpass_1pole][US2][setCoefficient]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass setCoefficient accepts valid values", "[allpass_1pole][US2][setCoefficient]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
 
     SECTION("Positive coefficient") {
@@ -441,34 +441,34 @@ TEST_CASE("Allpass1Pole setCoefficient accepts valid values", "[allpass_1pole][U
 }
 
 // T029: setCoefficient() clamps to [-0.9999, +0.9999] (FR-008)
-TEST_CASE("Allpass1Pole setCoefficient clamping", "[allpass_1pole][US2][FR-008][clamping]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass setCoefficient clamping", "[allpass_1pole][US2][FR-008][clamping]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
 
     SECTION("Coefficient +1.0 clamped to +0.9999") {
         filter.setCoefficient(1.0f);
-        REQUIRE(filter.getCoefficient() == kMaxAllpass1PoleCoeff);
+        REQUIRE(filter.getCoefficient() == kOnePoleAllpassMaxCoeff);
     }
 
     SECTION("Coefficient -1.0 clamped to -0.9999") {
         filter.setCoefficient(-1.0f);
-        REQUIRE(filter.getCoefficient() == kMinAllpass1PoleCoeff);
+        REQUIRE(filter.getCoefficient() == kOnePoleAllpassMinCoeff);
     }
 
     SECTION("Coefficient +2.0 clamped to +0.9999") {
         filter.setCoefficient(2.0f);
-        REQUIRE(filter.getCoefficient() == kMaxAllpass1PoleCoeff);
+        REQUIRE(filter.getCoefficient() == kOnePoleAllpassMaxCoeff);
     }
 
     SECTION("Coefficient -2.0 clamped to -0.9999") {
         filter.setCoefficient(-2.0f);
-        REQUIRE(filter.getCoefficient() == kMinAllpass1PoleCoeff);
+        REQUIRE(filter.getCoefficient() == kOnePoleAllpassMinCoeff);
     }
 }
 
 // T030: getCoefficient() returns current coefficient
-TEST_CASE("Allpass1Pole getCoefficient returns current value", "[allpass_1pole][US2][getCoefficient]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass getCoefficient returns current value", "[allpass_1pole][US2][getCoefficient]") {
+    OnePoleAllpass filter;
 
     // Default coefficient is 0
     REQUIRE(filter.getCoefficient() == 0.0f);
@@ -481,8 +481,8 @@ TEST_CASE("Allpass1Pole getCoefficient returns current value", "[allpass_1pole][
 }
 
 // T031: Coefficient 0.0 acts as one-sample delay
-TEST_CASE("Allpass1Pole coefficient 0 is one-sample delay", "[allpass_1pole][US2][coefficient_zero]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass coefficient 0 is one-sample delay", "[allpass_1pole][US2][coefficient_zero]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setCoefficient(0.0f);
 
@@ -504,8 +504,8 @@ TEST_CASE("Allpass1Pole coefficient 0 is one-sample delay", "[allpass_1pole][US2
 }
 
 // T032: Coefficient approaching +1.0 concentrates phase shift at low frequencies
-TEST_CASE("Allpass1Pole positive coefficient phase concentration", "[allpass_1pole][US2][phase_low]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass positive coefficient phase concentration", "[allpass_1pole][US2][phase_low]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setCoefficient(0.99f);  // Near +1
 
@@ -515,8 +515,8 @@ TEST_CASE("Allpass1Pole positive coefficient phase concentration", "[allpass_1po
 }
 
 // T033: Coefficient approaching -1.0 concentrates phase shift at high frequencies
-TEST_CASE("Allpass1Pole negative coefficient phase concentration", "[allpass_1pole][US2][phase_high]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass negative coefficient phase concentration", "[allpass_1pole][US2][phase_high]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setCoefficient(-0.99f);  // Near -1
 
@@ -531,9 +531,9 @@ TEST_CASE("Allpass1Pole negative coefficient phase concentration", "[allpass_1po
 // ==============================================================================
 
 // T041: processBlock() produces identical output to N calls of process() (FR-012, SC-007)
-TEST_CASE("Allpass1Pole processBlock matches process", "[allpass_1pole][US3][FR-012][SC-007][block]") {
-    Allpass1Pole filter1;
-    Allpass1Pole filter2;
+TEST_CASE("OnePoleAllpass processBlock matches process", "[allpass_1pole][US3][FR-012][SC-007][block]") {
+    OnePoleAllpass filter1;
+    OnePoleAllpass filter2;
     filter1.prepare(44100.0);
     filter2.prepare(44100.0);
     filter1.setFrequency(1000.0f);
@@ -567,10 +567,10 @@ TEST_CASE("Allpass1Pole processBlock matches process", "[allpass_1pole][US3][FR-
 }
 
 // T042: processBlock() identical for various block sizes (FR-012)
-TEST_CASE("Allpass1Pole processBlock various sizes", "[allpass_1pole][US3][FR-012][block_sizes]") {
+TEST_CASE("OnePoleAllpass processBlock various sizes", "[allpass_1pole][US3][FR-012][block_sizes]") {
     auto testBlockSize = [](size_t blockSize) {
-        Allpass1Pole filter1;
-        Allpass1Pole filter2;
+        OnePoleAllpass filter1;
+        OnePoleAllpass filter2;
         filter1.prepare(44100.0);
         filter2.prepare(44100.0);
         filter1.setFrequency(2000.0f);
@@ -606,8 +606,8 @@ TEST_CASE("Allpass1Pole processBlock various sizes", "[allpass_1pole][US3][FR-01
 }
 
 // T043: processBlock() with NaN in first sample fills buffer with zeros (FR-014)
-TEST_CASE("Allpass1Pole processBlock NaN handling", "[allpass_1pole][US3][FR-014][nan_block]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass processBlock NaN handling", "[allpass_1pole][US3][FR-014][nan_block]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setFrequency(1000.0f);
 
@@ -637,8 +637,8 @@ TEST_CASE("Allpass1Pole processBlock NaN handling", "[allpass_1pole][US3][FR-014
 }
 
 // T044: processBlock() flushes denormals once at block end (FR-015)
-TEST_CASE("Allpass1Pole processBlock denormal flushing", "[allpass_1pole][US3][FR-015][denormal]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass processBlock denormal flushing", "[allpass_1pole][US3][FR-015][denormal]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setCoefficient(0.9999f);  // Near 1 to encourage small values
 
@@ -662,8 +662,8 @@ TEST_CASE("Allpass1Pole processBlock denormal flushing", "[allpass_1pole][US3][F
 }
 
 // T045: No discontinuities at block boundaries
-TEST_CASE("Allpass1Pole no discontinuities at block boundaries", "[allpass_1pole][US3][continuity]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass no discontinuities at block boundaries", "[allpass_1pole][US3][continuity]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setFrequency(1000.0f);
 
@@ -697,8 +697,8 @@ TEST_CASE("Allpass1Pole no discontinuities at block boundaries", "[allpass_1pole
 }
 
 // T046: Performance test - processBlock < 10 ns/sample (SC-003)
-TEST_CASE("Allpass1Pole performance", "[allpass_1pole][US3][SC-003][performance]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass performance", "[allpass_1pole][US3][SC-003][performance]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setFrequency(1000.0f);
 
@@ -736,38 +736,38 @@ TEST_CASE("Allpass1Pole performance", "[allpass_1pole][US3][SC-003][performance]
 // ==============================================================================
 
 // T052: coeffFromFrequency() produces correct values for known break frequencies (SC-005)
-TEST_CASE("Allpass1Pole coeffFromFrequency known values", "[allpass_1pole][US4][SC-005][coeffFromFrequency]") {
+TEST_CASE("OnePoleAllpass coeffFromFrequency known values", "[allpass_1pole][US4][SC-005][coeffFromFrequency]") {
     constexpr double sampleRate = 44100.0;
 
     SECTION("1kHz at 44.1kHz") {
         // Reference calculation: a = (1 - tan(pi * 1000 / 44100)) / (1 + tan(pi * 1000 / 44100))
         // tan(pi * 1000 / 44100) = tan(0.07135) = 0.0715
         // a = (1 - 0.0715) / (1 + 0.0715) = 0.9285 / 1.0715 = 0.8666
-        const float coeff = Allpass1Pole::coeffFromFrequency(1000.0f, sampleRate);
+        const float coeff = OnePoleAllpass::coeffFromFrequency(1000.0f, sampleRate);
         REQUIRE(coeff == Approx(0.8668f).margin(1e-3f));
     }
 
     SECTION("5kHz at 44.1kHz") {
         // tan(pi * 5000 / 44100) = tan(0.3566) = 0.3759
         // a = (1 - 0.3759) / (1 + 0.3759) = 0.6241 / 1.3759 = 0.4536
-        const float coeff = Allpass1Pole::coeffFromFrequency(5000.0f, sampleRate);
+        const float coeff = OnePoleAllpass::coeffFromFrequency(5000.0f, sampleRate);
         REQUIRE(coeff == Approx(0.4577f).margin(1e-3f));
     }
 
     SECTION("11025Hz (fs/4) at 44.1kHz") {
-        const float coeff = Allpass1Pole::coeffFromFrequency(11025.0f, sampleRate);
+        const float coeff = OnePoleAllpass::coeffFromFrequency(11025.0f, sampleRate);
         // At fs/4, tan(pi/4) = 1, so a = (1-1)/(1+1) = 0
         REQUIRE(coeff == Approx(0.0f).margin(1e-3f));
     }
 }
 
 // T053: Round-trip conversion freq->coeff->freq (SC-005)
-TEST_CASE("Allpass1Pole round-trip freq to coeff to freq", "[allpass_1pole][US4][SC-005][roundtrip_freq]") {
+TEST_CASE("OnePoleAllpass round-trip freq to coeff to freq", "[allpass_1pole][US4][SC-005][roundtrip_freq]") {
     constexpr double sampleRate = 44100.0;
 
     auto testRoundTrip = [sampleRate](float freq) {
-        const float coeff = Allpass1Pole::coeffFromFrequency(freq, sampleRate);
-        const float freqBack = Allpass1Pole::frequencyFromCoeff(coeff, sampleRate);
+        const float coeff = OnePoleAllpass::coeffFromFrequency(freq, sampleRate);
+        const float freqBack = OnePoleAllpass::frequencyFromCoeff(coeff, sampleRate);
         REQUIRE(freqBack == Approx(freq).margin(freq * 1e-4f));  // 0.01% tolerance
     };
 
@@ -778,12 +778,12 @@ TEST_CASE("Allpass1Pole round-trip freq to coeff to freq", "[allpass_1pole][US4]
 }
 
 // T054: Round-trip conversion coeff->freq->coeff (SC-005)
-TEST_CASE("Allpass1Pole round-trip coeff to freq to coeff", "[allpass_1pole][US4][SC-005][roundtrip_coeff]") {
+TEST_CASE("OnePoleAllpass round-trip coeff to freq to coeff", "[allpass_1pole][US4][SC-005][roundtrip_coeff]") {
     constexpr double sampleRate = 44100.0;
 
     auto testRoundTrip = [sampleRate](float coeff) {
-        const float freq = Allpass1Pole::frequencyFromCoeff(coeff, sampleRate);
-        const float coeffBack = Allpass1Pole::coeffFromFrequency(freq, sampleRate);
+        const float freq = OnePoleAllpass::frequencyFromCoeff(coeff, sampleRate);
+        const float coeffBack = OnePoleAllpass::coeffFromFrequency(freq, sampleRate);
         REQUIRE(coeffBack == Approx(coeff).margin(1e-4f));
     };
 
@@ -795,60 +795,60 @@ TEST_CASE("Allpass1Pole round-trip coeff to freq to coeff", "[allpass_1pole][US4
 }
 
 // T055: Static methods work without filter instantiation
-TEST_CASE("Allpass1Pole static methods standalone", "[allpass_1pole][US4][static]") {
+TEST_CASE("OnePoleAllpass static methods standalone", "[allpass_1pole][US4][static]") {
     // coeffFromFrequency
-    const float coeff1 = Allpass1Pole::coeffFromFrequency(1000.0f, 44100.0);
-    REQUIRE(coeff1 >= kMinAllpass1PoleCoeff);
-    REQUIRE(coeff1 <= kMaxAllpass1PoleCoeff);
+    const float coeff1 = OnePoleAllpass::coeffFromFrequency(1000.0f, 44100.0);
+    REQUIRE(coeff1 >= kOnePoleAllpassMinCoeff);
+    REQUIRE(coeff1 <= kOnePoleAllpassMaxCoeff);
 
     // frequencyFromCoeff
-    const float freq1 = Allpass1Pole::frequencyFromCoeff(0.5f, 44100.0);
-    REQUIRE(freq1 >= kMinAllpass1PoleFrequency);
+    const float freq1 = OnePoleAllpass::frequencyFromCoeff(0.5f, 44100.0);
+    REQUIRE(freq1 >= kOnePoleAllpassMinFrequency);
     REQUIRE(freq1 <= 44100.0f * 0.5f);
 }
 
 // T056: Static methods apply same clamping as instance methods
-TEST_CASE("Allpass1Pole static methods clamping", "[allpass_1pole][US4][static_clamping]") {
+TEST_CASE("OnePoleAllpass static methods clamping", "[allpass_1pole][US4][static_clamping]") {
     constexpr double sampleRate = 44100.0;
     const float nyquist = 44100.0f / 2.0f;
     const float maxFreq = nyquist * 0.99f;
 
     SECTION("Frequency 0 clamped to 1 Hz") {
-        const float coeff = Allpass1Pole::coeffFromFrequency(0.0f, sampleRate);
-        const float freq = Allpass1Pole::frequencyFromCoeff(coeff, sampleRate);
+        const float coeff = OnePoleAllpass::coeffFromFrequency(0.0f, sampleRate);
+        const float freq = OnePoleAllpass::frequencyFromCoeff(coeff, sampleRate);
         REQUIRE(freq >= 1.0f);
     }
 
     SECTION("Frequency above Nyquist clamped") {
-        const float coeff = Allpass1Pole::coeffFromFrequency(30000.0f, sampleRate);
-        const float freq = Allpass1Pole::frequencyFromCoeff(coeff, sampleRate);
+        const float coeff = OnePoleAllpass::coeffFromFrequency(30000.0f, sampleRate);
+        const float freq = OnePoleAllpass::frequencyFromCoeff(coeff, sampleRate);
         REQUIRE(freq <= maxFreq);
     }
 
     SECTION("Coefficient clamping in frequencyFromCoeff") {
         // Even with extreme coefficient, should return valid frequency
-        const float freq1 = Allpass1Pole::frequencyFromCoeff(2.0f, sampleRate);
-        REQUIRE(freq1 >= kMinAllpass1PoleFrequency);
+        const float freq1 = OnePoleAllpass::frequencyFromCoeff(2.0f, sampleRate);
+        REQUIRE(freq1 >= kOnePoleAllpassMinFrequency);
         REQUIRE(freq1 <= maxFreq);
 
-        const float freq2 = Allpass1Pole::frequencyFromCoeff(-2.0f, sampleRate);
-        REQUIRE(freq2 >= kMinAllpass1PoleFrequency);
+        const float freq2 = OnePoleAllpass::frequencyFromCoeff(-2.0f, sampleRate);
+        REQUIRE(freq2 >= kOnePoleAllpassMinFrequency);
         REQUIRE(freq2 <= maxFreq);
     }
 }
 
 // T057: Static methods work at multiple sample rates
-TEST_CASE("Allpass1Pole static methods multiple sample rates", "[allpass_1pole][US4][sample_rates]") {
+TEST_CASE("OnePoleAllpass static methods multiple sample rates", "[allpass_1pole][US4][sample_rates]") {
     auto testSampleRate = [](double sampleRate) {
         // 1kHz should give consistent relative coefficient
-        const float coeff1k = Allpass1Pole::coeffFromFrequency(1000.0f, sampleRate);
+        const float coeff1k = OnePoleAllpass::coeffFromFrequency(1000.0f, sampleRate);
 
         // Verify coefficient is in valid range
-        REQUIRE(coeff1k >= kMinAllpass1PoleCoeff);
-        REQUIRE(coeff1k <= kMaxAllpass1PoleCoeff);
+        REQUIRE(coeff1k >= kOnePoleAllpassMinCoeff);
+        REQUIRE(coeff1k <= kOnePoleAllpassMaxCoeff);
 
         // Round-trip should work
-        const float freq = Allpass1Pole::frequencyFromCoeff(coeff1k, sampleRate);
+        const float freq = OnePoleAllpass::frequencyFromCoeff(coeff1k, sampleRate);
         REQUIRE(freq == Approx(1000.0f).margin(1.0f));
     };
 
@@ -863,8 +863,8 @@ TEST_CASE("Allpass1Pole static methods multiple sample rates", "[allpass_1pole][
 // ==============================================================================
 
 // T062: process() with infinity input resets and returns 0.0 (FR-014, SC-006)
-TEST_CASE("Allpass1Pole process infinity handling", "[allpass_1pole][edge][FR-014][SC-006][infinity]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass process infinity handling", "[allpass_1pole][edge][FR-014][SC-006][infinity]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setFrequency(1000.0f);
 
@@ -892,8 +892,8 @@ TEST_CASE("Allpass1Pole process infinity handling", "[allpass_1pole][edge][FR-01
 }
 
 // T063: processBlock() with infinity in first sample fills with zeros (FR-014, SC-006)
-TEST_CASE("Allpass1Pole processBlock infinity handling", "[allpass_1pole][edge][FR-014][SC-006][infinity_block]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass processBlock infinity handling", "[allpass_1pole][edge][FR-014][SC-006][infinity_block]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setFrequency(1000.0f);
 
@@ -917,8 +917,8 @@ TEST_CASE("Allpass1Pole processBlock infinity handling", "[allpass_1pole][edge][
 }
 
 // T064: Denormal values in state flushed to zero (FR-015, SC-006)
-TEST_CASE("Allpass1Pole denormal flushing", "[allpass_1pole][edge][FR-015][SC-006][denormal_flush]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass denormal flushing", "[allpass_1pole][edge][FR-015][SC-006][denormal_flush]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setCoefficient(0.99999f);  // Very close to 1
 
@@ -935,8 +935,8 @@ TEST_CASE("Allpass1Pole denormal flushing", "[allpass_1pole][edge][FR-015][SC-00
 }
 
 // T065: reset() during processing clears state without artifacts
-TEST_CASE("Allpass1Pole reset during processing", "[allpass_1pole][edge][reset_mid]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass reset during processing", "[allpass_1pole][edge][reset_mid]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
     filter.setFrequency(1000.0f);
 
@@ -958,15 +958,15 @@ TEST_CASE("Allpass1Pole reset during processing", "[allpass_1pole][edge][reset_m
 }
 
 // T066: Filter works at very low sample rate (8kHz)
-TEST_CASE("Allpass1Pole low sample rate 8kHz", "[allpass_1pole][edge][sample_rate_low]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass low sample rate 8kHz", "[allpass_1pole][edge][sample_rate_low]") {
+    OnePoleAllpass filter;
     filter.prepare(8000.0);
     filter.setFrequency(1000.0f);
 
     // Verify coefficient is valid
     const float coeff = filter.getCoefficient();
-    REQUIRE(coeff >= kMinAllpass1PoleCoeff);
-    REQUIRE(coeff <= kMaxAllpass1PoleCoeff);
+    REQUIRE(coeff >= kOnePoleAllpassMinCoeff);
+    REQUIRE(coeff <= kOnePoleAllpassMaxCoeff);
 
     // Process some samples
     constexpr size_t kNumSamples = 800;
@@ -981,15 +981,15 @@ TEST_CASE("Allpass1Pole low sample rate 8kHz", "[allpass_1pole][edge][sample_rat
 }
 
 // T067: Filter works at very high sample rate (192kHz)
-TEST_CASE("Allpass1Pole high sample rate 192kHz", "[allpass_1pole][edge][sample_rate_high]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass high sample rate 192kHz", "[allpass_1pole][edge][sample_rate_high]") {
+    OnePoleAllpass filter;
     filter.prepare(192000.0);
     filter.setFrequency(10000.0f);
 
     // Verify coefficient is valid
     const float coeff = filter.getCoefficient();
-    REQUIRE(coeff >= kMinAllpass1PoleCoeff);
-    REQUIRE(coeff <= kMaxAllpass1PoleCoeff);
+    REQUIRE(coeff >= kOnePoleAllpassMinCoeff);
+    REQUIRE(coeff <= kOnePoleAllpassMaxCoeff);
 
     // Process some samples
     constexpr size_t kNumSamples = 19200;
@@ -1004,8 +1004,8 @@ TEST_CASE("Allpass1Pole high sample rate 192kHz", "[allpass_1pole][edge][sample_
 }
 
 // T068: Frequency at exactly 0 Hz clamped to 1 Hz (FR-009)
-TEST_CASE("Allpass1Pole zero frequency clamped", "[allpass_1pole][edge][FR-009][zero_freq]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass zero frequency clamped", "[allpass_1pole][edge][FR-009][zero_freq]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
 
     filter.setFrequency(0.0f);
@@ -1017,8 +1017,8 @@ TEST_CASE("Allpass1Pole zero frequency clamped", "[allpass_1pole][edge][FR-009][
 }
 
 // T069: Frequency above Nyquist clamped to Nyquist*0.99 (FR-009)
-TEST_CASE("Allpass1Pole above Nyquist clamped", "[allpass_1pole][edge][FR-009][above_nyquist]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass above Nyquist clamped", "[allpass_1pole][edge][FR-009][above_nyquist]") {
+    OnePoleAllpass filter;
     filter.prepare(44100.0);
 
     const float nyquist = 44100.0f / 2.0f;
@@ -1032,8 +1032,8 @@ TEST_CASE("Allpass1Pole above Nyquist clamped", "[allpass_1pole][edge][FR-009][a
 // noexcept verification (FR-019)
 // ==============================================================================
 
-TEST_CASE("Allpass1Pole methods are noexcept", "[allpass_1pole][FR-019][safety]") {
-    Allpass1Pole filter;
+TEST_CASE("OnePoleAllpass methods are noexcept", "[allpass_1pole][FR-019][safety]") {
+    OnePoleAllpass filter;
     float buffer[16];
 
     STATIC_REQUIRE(noexcept(filter.prepare(44100.0)));
@@ -1044,6 +1044,6 @@ TEST_CASE("Allpass1Pole methods are noexcept", "[allpass_1pole][FR-019][safety]"
     STATIC_REQUIRE(noexcept(filter.process(0.5f)));
     STATIC_REQUIRE(noexcept(filter.processBlock(buffer, 16)));
     STATIC_REQUIRE(noexcept(filter.reset()));
-    STATIC_REQUIRE(noexcept(Allpass1Pole::coeffFromFrequency(1000.0f, 44100.0)));
-    STATIC_REQUIRE(noexcept(Allpass1Pole::frequencyFromCoeff(0.5f, 44100.0)));
+    STATIC_REQUIRE(noexcept(OnePoleAllpass::coeffFromFrequency(1000.0f, 44100.0)));
+    STATIC_REQUIRE(noexcept(OnePoleAllpass::frequencyFromCoeff(0.5f, 44100.0)));
 }

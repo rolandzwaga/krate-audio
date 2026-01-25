@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <krate/dsp/primitives/allpass_1pole.h>
+#include <krate/dsp/primitives/one_pole_allpass.h>
 #include <krate/dsp/primitives/lfo.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/db_utils.h>
@@ -66,7 +66,7 @@ namespace DSP {
 ///
 /// @par Constitution Compliance
 /// - Real-time safe: noexcept, no allocations, no locks
-/// - Layer 2: Depends on Layer 0 (math, note_value) and Layer 1 (Allpass1Pole, LFO, OnePoleSmoother)
+/// - Layer 2: Depends on Layer 0 (math, note_value) and Layer 1 (OnePoleAllpass, LFO, OnePoleSmoother)
 ///
 /// @par Example Usage
 /// @code
@@ -642,8 +642,8 @@ private:
     // =========================================================================
 
     // Allpass filter stages (L/R channels)
-    std::array<Allpass1Pole, kMaxStages> stagesL_;
-    std::array<Allpass1Pole, kMaxStages> stagesR_;
+    std::array<OnePoleAllpass, kMaxStages> stagesL_;
+    std::array<OnePoleAllpass, kMaxStages> stagesR_;
 
     // LFOs for modulation
     LFO lfoL_;

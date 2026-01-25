@@ -20,7 +20,7 @@
 
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/one_pole.h>
-#include <krate/dsp/primitives/allpass_1pole.h>
+#include <krate/dsp/primitives/one_pole_allpass.h>
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/db_utils.h>
@@ -280,7 +280,7 @@ public:
 
     /// @brief Set the dispersion amount (inharmonicity).
     /// @param amount Dispersion [0.0 = harmonic, higher = more inharmonic]
-    /// @note FR-011, FR-012, FR-013: Controls Allpass1Pole frequency
+    /// @note FR-011, FR-012, FR-013: Controls OnePoleAllpass frequency
     /// @note FR-018: Uses parameter smoothing
     void setDispersion(float amount) noexcept {
         dispersion_ = std::clamp(amount, 0.0f, 1.0f);
@@ -565,8 +565,8 @@ private:
 
     OnePoleLP lossFilter_;       ///< Loss filter for right reflection path
     OnePoleLP leftLossFilter_;   ///< Loss filter for left reflection path (FR-009)
-    Allpass1Pole dispersionFilter_;      ///< Dispersion filter for right path
-    Allpass1Pole leftDispersionFilter_;  ///< Dispersion filter for left path (FR-012)
+    OnePoleAllpass dispersionFilter_;      ///< Dispersion filter for right path
+    OnePoleAllpass leftDispersionFilter_;  ///< Dispersion filter for left path (FR-012)
 
     DCBlocker dcBlocker_;  ///< DC blocking at output
 

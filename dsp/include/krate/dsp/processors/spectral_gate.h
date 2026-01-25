@@ -36,6 +36,7 @@
 #include <krate/dsp/primitives/fft.h>
 #include <krate/dsp/primitives/stft.h>
 #include <krate/dsp/primitives/spectral_buffer.h>
+#include <krate/dsp/primitives/spectral_utils.h>
 #include <krate/dsp/primitives/smoother.h>
 
 // Standard library
@@ -688,8 +689,9 @@ private:
 
     /// @brief Update frequency range bin indices
     void updateFrequencyRange() noexcept {
-        lowBin_ = hzToBin(lowHz_);
-        highBin_ = hzToBin(highHz_);
+        // Use shared spectral utility for Hz to bin conversion
+        lowBin_ = frequencyToBinNearest(lowHz_, fftSize_, static_cast<float>(sampleRate_));
+        highBin_ = frequencyToBinNearest(highHz_, fftSize_, static_cast<float>(sampleRate_));
 
         // Ensure valid range
         if (highBin_ >= numBins_) highBin_ = numBins_ - 1;
@@ -706,13 +708,6 @@ private:
         if (smearKernelSize_ % 2 == 0 && smearKernelSize_ > 1) {
             smearKernelSize_ += 1;
         }
-    }
-
-    /// @brief Convert Hz to bin index (round to nearest)
-    [[nodiscard]] std::size_t hzToBin(float hz) const noexcept {
-        if (sampleRate_ <= 0.0 || fftSize_ == 0) return 0;
-        const float bin = hz * static_cast<float>(fftSize_) / static_cast<float>(sampleRate_);
-        return static_cast<std::size_t>(std::round(std::max(0.0f, bin)));
     }
 
     // =========================================================================

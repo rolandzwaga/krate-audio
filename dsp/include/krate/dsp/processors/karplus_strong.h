@@ -18,7 +18,7 @@
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/one_pole.h>
 #include <krate/dsp/primitives/two_pole_lp.h>
-#include <krate/dsp/primitives/allpass_1pole.h>
+#include <krate/dsp/primitives/one_pole_allpass.h>
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/random.h>
@@ -50,7 +50,7 @@ namespace DSP {
 ///                                   (fills delay line with pick position comb)
 ///
 /// Feedback loop:
-/// DelayLine --> OnePoleLP --> Allpass1Pole --> DCBlocker2 --> * feedback --> DelayLine
+/// DelayLine --> OnePoleLP --> OnePoleAllpass --> DCBlocker2 --> * feedback --> DelayLine
 /// (allpass)    (damping)     (stretch)        (DC block)
 ///                                         |
 ///                                         v
@@ -443,7 +443,7 @@ private:
 
     DelayLine delay_;             ///< Main delay line with allpass interpolation
     OnePoleLP dampingFilter_;     ///< Damping lowpass in feedback loop
-    Allpass1Pole stretchFilter_;  ///< Dispersion for inharmonicity
+    OnePoleAllpass stretchFilter_;  ///< Dispersion for inharmonicity
     DCBlocker2 dcBlocker_;        ///< DC blocking in feedback path
     TwoPoleLP brightnessFilter_;  ///< Excitation brightness filter
     Xorshift32 rng_{12345};       ///< Noise generator for excitation

@@ -622,8 +622,8 @@ converter.processBlock(capturedSlice, sliceSize, output, 512);
 
 ---
 
-## Allpass1Pole (First-Order Allpass Filter)
-**Path:** [allpass_1pole.h](../../dsp/include/krate/dsp/primitives/allpass_1pole.h) | **Since:** 0.13.0
+## OnePoleAllpass (First-Order Allpass Filter)
+**Path:** [one_pole_allpass.h](../../dsp/include/krate/dsp/primitives/one_pole_allpass.h) | **Since:** 0.13.0 | **Renamed:** 0.14.0 (was `Allpass1Pole` in `allpass_1pole.h`)
 
 First-order allpass filter for frequency-dependent phase shifting. Provides unity magnitude response with phase shift from 0 degrees (DC) to -180 degrees (Nyquist).
 
@@ -632,8 +632,10 @@ First-order allpass filter for frequency-dependent phase shifting. Provides unit
 - Phase correction in crossover networks
 - Any application requiring phase shift without magnitude change
 
+> **Naming Convention:** Follows `one_pole.h` pattern (`OnePoleLP`, `OnePoleHP` → `OnePoleAllpass`)
+
 ```cpp
-class Allpass1Pole {
+class OnePoleAllpass {
     void prepare(double sampleRate) noexcept;
     void setFrequency(float hz) noexcept;        // Break frequency (clamped to [1 Hz, Nyquist*0.99])
     void setCoefficient(float a) noexcept;       // Direct control (clamped to [-0.9999, +0.9999])
@@ -646,6 +648,9 @@ class Allpass1Pole {
     [[nodiscard]] static float coeffFromFrequency(float hz, double sampleRate) noexcept;
     [[nodiscard]] static float frequencyFromCoeff(float a, double sampleRate) noexcept;
 };
+
+// Backwards compatibility alias
+using Allpass1Pole = OnePoleAllpass;
 ```
 
 | Coefficient | Break Frequency | Phase at Break |

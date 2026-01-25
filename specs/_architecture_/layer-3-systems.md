@@ -608,6 +608,111 @@ Grain: Read position -> [Pitch shift] -> [Envelope] -> [Per-grain SVF filter] ->
 
 ---
 
+## TimeVaryingCombBank
+**Path:** [timevar_comb_bank.h](../../dsp/include/krate/dsp/systems/timevar_comb_bank.h) | **Since:** 0.14.0
+
+Bank of up to 8 comb filters with independently modulated delay times for evolving metallic and resonant textures.
+
+```cpp
+enum class Tuning : uint8_t { Harmonic, Inharmonic, Custom };
+
+class TimeVaryingCombBank {
+    // Lifecycle
+    void prepare(double sampleRate, float maxDelayMs = 50.0f) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Comb configuration (1-8 combs)
+    void setNumCombs(size_t count) noexcept;              // [1, 8]
+    [[nodiscard]] size_t getNumCombs() const noexcept;
+    void setCombDelay(size_t index, float ms) noexcept;   // Switches to Custom mode
+    void setCombFeedback(size_t index, float amount) noexcept;  // [-0.9999, 0.9999]
+    void setCombDamping(size_t index, float amount) noexcept;   // [0, 1] (0=bright)
+    void setCombGain(size_t index, float dB) noexcept;
+
+    // Tuning modes
+    void setTuningMode(Tuning mode) noexcept;
+    [[nodiscard]] Tuning getTuningMode() const noexcept;
+    void setFundamental(float hz) noexcept;               // [20, 1000] Hz
+    [[nodiscard]] float getFundamental() const noexcept;
+    void setSpread(float amount) noexcept;                // [0, 1] (Inharmonic only)
+    [[nodiscard]] float getSpread() const noexcept;
+
+    // Modulation
+    void setModRate(float hz) noexcept;                   // [0.01, 20] Hz
+    [[nodiscard]] float getModRate() const noexcept;
+    void setModDepth(float percent) noexcept;             // [0, 100]%
+    [[nodiscard]] float getModDepth() const noexcept;
+    void setModPhaseSpread(float degrees) noexcept;       // [0, 360)
+    [[nodiscard]] float getModPhaseSpread() const noexcept;
+    void setRandomModulation(float amount) noexcept;      // [0, 1]
+    [[nodiscard]] float getRandomModulation() const noexcept;
+
+    // Stereo
+    void setStereoSpread(float amount) noexcept;          // [0, 1]
+    [[nodiscard]] float getStereoSpread() const noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processStereo(float& left, float& right) noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Input -> [For each active comb]:
+           +-> Comb[n] with modulated delay -> gain -> pan -> L/R sum
+Output <- [L/R stereo output]
+```
+
+**Key Features:**
+- Composes FeedbackComb x8 (L1), LFO x8 (L1), OnePoleSmoother x32 (L1), Xorshift32 x8 (L0)
+- Three tuning modes:
+  - Harmonic: f[n] = fundamental * (n+1) - musical harmonic series
+  - Inharmonic: f[n] = fundamental * sqrt(1 + n*spread) - bell-like partials
+  - Custom: manual per-comb delay times via setCombDelay()
+- Per-comb modulation with independent LFO phase offsets
+- Random drift modulation using Xorshift32 PRNG (deterministic on reset)
+- Parameter smoothing: 20ms delay, 10ms feedback/damping, 5ms gain
+- Stereo output with equal-power pan distribution
+- Linear interpolation for modulated delays (not allpass)
+- NaN/Inf detection per comb with auto-reset
+
+**When to Use:**
+- Creating time-varying resonances and metallic textures
+- Bell-like and gong sounds with inharmonic tuning
+- Evolving ambient textures with modulated comb delays
+- Karplus-Strong style physical modeling with multiple strings
+
+**Example:**
+```cpp
+TimeVaryingCombBank bank;
+bank.prepare(44100.0);
+
+// Set up 4 harmonically-tuned combs
+bank.setNumCombs(4);
+bank.setTuningMode(Tuning::Harmonic);
+bank.setFundamental(100.0f);  // 100 Hz fundamental
+
+// Add modulation
+bank.setModRate(1.0f);        // 1 Hz LFO rate
+bank.setModDepth(10.0f);      // 10% modulation depth
+bank.setModPhaseSpread(45.0f);// 45-degree phase offset per comb
+
+// Stereo spread
+bank.setStereoSpread(0.5f);
+
+// Process audio
+for (size_t i = 0; i < numSamples; ++i) {
+    float left = input[i], right = input[i];
+    bank.processStereo(left, right);
+    outputL[i] = left;
+    outputR[i] = right;
+}
+```
+
+---
+
 ## VowelSequencer
 **Path:** [vowel_sequencer.h](../../dsp/include/krate/dsp/systems/vowel_sequencer.h) | **Since:** 0.14.0
 

@@ -8,7 +8,7 @@ This roadmap covers implementing all filter types from `DSP-FILTER-TECHNIQUES.md
 
 **Estimated Components:**
 - Layer 0 (Core): 0 new files (all exist)
-- Layer 1 (Primitives): 1 new file (`hilbert_transform.h`)
+- Layer 1 (Primitives): 2 new files (`hilbert_transform.h`, `spectral_utils.h`)
 - Layer 2 (Processors): 14 new files
 - Layer 3 (Systems): 4 new files (spectral_delay, granular, feedback_network exist)
 
@@ -58,12 +58,14 @@ This roadmap covers implementing all filter types from `DSP-FILTER-TECHNIQUES.md
 | LFO | `lfo.h` | Complete | Modulation source |
 | Oversampler | `oversampler.h` | Complete | 2x/4x, IIR/FIR modes |
 
-### Layer 2 (Processors) - Composed Modules
+### Layer 2 (Processors) - Signal Processors
 | Component | File | Status | Notes |
 |-----------|------|--------|-------|
 | MultimodeFilter | `multimode_filter.h` | Complete | 8 types, 4 slopes, smoothing, drive |
 | EnvelopeFollower | `envelope_follower.h` | Complete | Amplitude/RMS/Peak + sidechain HP |
 | DiffusionNetwork | `diffusion_network.h` | Complete | Allpass chains for reverb |
+
+> **Architecture Note:** Layer 2 components are "signal processors built from primitives", not strictly "filters" in the classical LTI sense. Many components (`pitch_tracking_filter`, `transient_filter`, `sidechain_filter`, `audio_rate_filter_fm`) are control systems or envelope-controlled effects. The `*_filter` naming is convention for DSP components that modify frequency content, not a strict taxonomy.
 
 ---
 
@@ -273,9 +275,9 @@ private:
 
 **Goal:** Add first-order allpass for phasers and phase correction.
 
-#### 4.1 First-Order Allpass (`allpass_1pole.h`)
+#### 4.1 First-Order Allpass (`one_pole_allpass.h`)
 ```
-Location: dsp/include/krate/dsp/primitives/allpass_1pole.h
+Location: dsp/include/krate/dsp/primitives/one_pole_allpass.h
 Layer: 1
 Dependencies: math_constants.h
 Reuses: None
@@ -626,7 +628,7 @@ private:
 ```
 Location: dsp/include/krate/dsp/processors/phaser.h
 Layer: 2
-Dependencies: allpass_1pole.h, lfo.h, smoother.h
+Dependencies: one_pole_allpass.h, lfo.h, smoother.h
 Reuses: Allpass1Pole, LFO, OnePoleSmoother
 ```
 
@@ -837,7 +839,7 @@ private:
 **Existing Infrastructure:**
 - `processors/noise_generator.h` - 13 noise types (white, pink, brown, etc.) for excitation
 - `primitives/delay_line.h` - With linear + allpass interpolation
-- `primitives/one_pole.h`, `allpass_1pole.h` - For damping and dispersion
+- `primitives/one_pole.h`, `one_pole_allpass.h` - For damping and dispersion
 - `primitives/biquad.h` - For resonant bandpass filters
 
 #### 13.1 Resonator Bank (`resonator_bank.h`)
@@ -941,7 +943,7 @@ private:
 ```
 Location: dsp/include/krate/dsp/processors/waveguide_resonator.h
 Layer: 2
-Dependencies: delay_line.h, allpass_1pole.h, dc_blocker.h
+Dependencies: delay_line.h, one_pole_allpass.h, dc_blocker.h
 ```
 
 **Description:** Digital waveguide implementing bidirectional wave propagation for flute/pipe-like resonances.
@@ -1356,9 +1358,9 @@ private:
 
 **Goal:** Unusual modulation sources and routing for experimental effects.
 
-#### 16.1 Audio-Rate Filter FM (`audio_rate_filter_fm.h`)
+#### 16.1 Audio-Rate Filter FM (`filter_fm.h`)
 ```
-Location: dsp/include/krate/dsp/processors/audio_rate_filter_fm.h
+Location: dsp/include/krate/dsp/processors/filter_fm.h
 Layer: 2
 Dependencies: svf.h, oversampler.h
 ```
@@ -1795,7 +1797,7 @@ private:
 
 ### Sprint 2: Core Filters (Estimated: 3-4 days)
 4. **`svf.h`** (Layer 1) - TPT State Variable Filter
-5. **`allpass_1pole.h`** (Layer 1) - First-order allpass
+5. **`one_pole_allpass.h`** (Layer 1) - First-order allpass
 6. **`comb_filter.h`** (Layer 1) - FF/FB/Schroeder combs
 
 ### Sprint 3: Advanced Filters (Estimated: 3-4 days)
@@ -1838,7 +1840,7 @@ private:
 
 ### Sprint 9: Exotic Modulation (Estimated: 3-4 days)
 25. **`hilbert_transform.h`** (Layer 1) - Analytic signal via allpass cascade (NEW primitive)
-26. **`audio_rate_filter_fm.h`** (Layer 2) - Audio-rate modulation ← uses existing svf, oversampler
+26. **`filter_fm.h`** (Layer 2) - Audio-rate modulation ← uses existing svf, oversampler
 27. **`frequency_shifter.h`** (Layer 2) - Single-sideband shifting ← uses NEW hilbert_transform
 28. **`filter_matrix.h`** (Layer 3) - Feedback matrix ← extends existing feedback_network concepts
 
@@ -1879,13 +1881,15 @@ Layer 1 (Primitives) - MOSTLY EXISTING
 ├── spectral_buffer.h
 ├── one_pole.h (Phase 6)
 ├── svf.h (Phase 2)
-├── allpass_1pole.h (Phase 4)
+├── one_pole_allpass.h (Phase 4)
 ├── comb_filter.h (Phase 3)
 ├── ladder_filter.h (Phase 5)
 ├── pitch_detector.h ← autocorrelation-based
-└── hilbert_transform.h (NEW) ← allpass approximation for freq shifter
+├── hilbert_transform.h (NEW) ← allpass approximation for freq shifter
+└── spectral_utils.h (NEW) ← bin mapping, magnitude interpolation, phase helpers
 
-Layer 2 (Processors) - MIXED
+Layer 2 (Processors) - Signal Processors
+> *Note: "Processors" not "Filters" - many components are control systems or envelope-controlled effects*
 ├── multimode_filter.h
 ├── envelope_follower.h
 ├── noise_generator.h ← 13 noise types (white, pink, brown, etc.)
@@ -1906,7 +1910,7 @@ Layer 2 (Processors) - MIXED
 ├── sidechain_filter.h (NEW) ← envelope_follower, svf, delay_line
 ├── transient_filter.h (NEW) ← envelope_follower, svf
 ├── pitch_tracking_filter.h (NEW) ← pitch_detector, svf, smoother
-├── audio_rate_filter_fm.h (NEW) ← svf, oversampler, lfo
+├── filter_fm.h (NEW) ← svf, oversampler, lfo
 ├── frequency_shifter.h (NEW) ← hilbert_transform, lfo
 └── multistage_env_filter.h (NEW) ← svf, smoother
 
