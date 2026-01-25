@@ -532,6 +532,82 @@ for (size_t i = 0; i < numSamples; ++i) {
 
 ---
 
+## GranularFilter
+**Path:** [granular_filter.h](../../dsp/include/krate/dsp/systems/granular_filter.h) | **Since:** 0.14.0
+
+Granular synthesis engine with per-grain SVF filtering.
+
+```cpp
+class GranularFilter {
+    // Lifecycle
+    void prepare(double sampleRate, float maxDelaySeconds = 2.0f) noexcept;
+    void reset() noexcept;
+    void seed(uint32_t seedValue) noexcept;
+
+    // Granular parameters
+    void setGrainSize(float ms) noexcept;            // [10, 500]
+    void setDensity(float grainsPerSecond) noexcept; // [1, 100]
+    void setPitch(float semitones) noexcept;         // [-24, +24]
+    void setPitchSpray(float amount) noexcept;       // [0, 1]
+    void setPosition(float ms) noexcept;             // [0, 2000]
+    void setPositionSpray(float amount) noexcept;    // [0, 1]
+    void setReverseProbability(float prob) noexcept; // [0, 1]
+    void setPanSpray(float amount) noexcept;         // [0, 1]
+    void setJitter(float amount) noexcept;           // [0, 1]
+    void setEnvelopeType(GrainEnvelopeType type) noexcept;
+    void setPitchQuantMode(PitchQuantMode mode) noexcept;
+    void setTexture(float amount) noexcept;          // [0, 1]
+    void setFreeze(bool frozen) noexcept;
+
+    // Filter parameters (per-grain)
+    void setFilterEnabled(bool enabled) noexcept;
+    void setFilterCutoff(float hz) noexcept;         // [20, Nyquist*0.495]
+    void setFilterResonance(float q) noexcept;       // [0.5, 20]
+    void setFilterType(SVFMode mode) noexcept;
+    void setCutoffRandomization(float octaves) noexcept;  // [0, 4]
+
+    // Processing
+    void process(float inputL, float inputR, float& outputL, float& outputR) noexcept;
+    [[nodiscard]] size_t activeGrainCount() const noexcept;
+
+    // Getters
+    [[nodiscard]] float getTexture() const noexcept;
+    [[nodiscard]] bool isFrozen() const noexcept;
+    [[nodiscard]] PitchQuantMode getPitchQuantMode() const noexcept;
+    [[nodiscard]] bool isFilterEnabled() const noexcept;
+    [[nodiscard]] float getFilterCutoff() const noexcept;
+    [[nodiscard]] float getFilterResonance() const noexcept;
+    [[nodiscard]] SVFMode getFilterType() const noexcept;
+    [[nodiscard]] float getCutoffRandomization() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Grain: Read position -> [Pitch shift] -> [Envelope] -> [Per-grain SVF filter] -> [Pan] -> Output mix
+                                                               ^
+                                                               |
+                                               [Cutoff randomization: base +/- N octaves]
+```
+
+**Key Features:**
+- Composes GrainPool (L1), GrainScheduler (L2), GrainProcessor (L2), DelayLine (L1), SVF (L1) x 128
+- Per-grain filtering with independent filter state (64 slots x 2 channels)
+- Cutoff randomization: 0-4 octaves around base frequency
+- Filter type applies globally, cutoff can vary per grain
+- Filter state reset on grain acquisition (no artifacts from previous grains)
+- Signal flow: envelope BEFORE filter (no click at grain start)
+- 1/sqrt(n) gain scaling prevents output explosion with high grain counts
+- All existing granular parameters supported (pitch, position, spray, reverse, etc.)
+
+**When to Use:**
+- Spectral variations impossible with post-granular filtering
+- Creating evolving textures with different spectral content per grain
+- "Shimmer" and "sparkle" effects with high cutoff randomization
+- Filtered granular delay effects
+
+---
+
 ## VowelSequencer
 **Path:** [vowel_sequencer.h](../../dsp/include/krate/dsp/systems/vowel_sequencer.h) | **Since:** 0.14.0
 
