@@ -1,6 +1,6 @@
 // ==============================================================================
 // Layer 3: DSP Systems
-// vowel_sequencer.h - 16-step Vowel Formant Sequencer
+// vowel_sequencer.h - 8-step Vowel Formant Sequencer
 // ==============================================================================
 // API Contract for specs/099-vowel-sequencer
 //
@@ -31,41 +31,44 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 namespace Krate {
 namespace DSP {
 
 // =============================================================================
-// VowelStep
+// VowelStep (FR-016, FR-017)
 // =============================================================================
 
 /// @brief Single step configuration for vowel sequencer.
 ///
-/// Contains both discrete vowel selection and continuous morph position.
-/// Which is used depends on the VowelSequencer's morphMode setting.
+/// Each step specifies a vowel sound and an optional per-step formant shift.
 struct VowelStep {
-    Vowel vowel = Vowel::A;     ///< Discrete vowel selection (when morphMode=false)
-    float morph = 0.0f;         ///< Continuous morph position [0,4] (when morphMode=true)
+    Vowel vowel = Vowel::A;           ///< Vowel sound (A, E, I, O, U)
+    float formantShift = 0.0f;        ///< Formant shift in semitones [-24, +24]
 
-    /// @brief Clamp morph to valid range
+    /// @brief Clamp formant shift to valid range
     void clamp() noexcept {
-        morph = std::clamp(morph, 0.0f, 4.0f);
+        formantShift = std::clamp(formantShift, -24.0f, 24.0f);
     }
 };
 
 // =============================================================================
-// VowelSequencer Class
+// VowelSequencer Class (FR-015 through FR-025)
 // =============================================================================
 
-/// @brief 16-step vowel formant sequencer synchronized to tempo.
+/// @brief 8-step vowel formant sequencer synchronized to tempo.
 ///
 /// Composes SequencerCore for timing and FormantFilter for sound generation.
-/// Each step can specify a discrete vowel (A, E, I, O, U) or a continuous
-/// morph position (0.0-4.0) for interpolated vowels.
+/// Each step specifies a vowel (A, E, I, O, U) and optional per-step formant
+/// shift for pitch-varied talking effects.
 ///
 /// @par Layer
 /// Layer 3 (System) - composes Layer 1 primitives (SequencerCore)
 /// and Layer 2 processors (FormantFilter)
+///
+/// @par Default Pattern (FR-015a)
+/// Steps default to palindrome: A, E, I, O, U, O, I, E
 ///
 /// @par Thread Safety
 /// Not thread-safe. Use separate instances for each audio thread.
@@ -73,21 +76,23 @@ struct VowelStep {
 /// @par Real-Time Safety
 /// All processing methods are noexcept with zero allocations.
 ///
-/// @par Gate Behavior
-/// When gate is off, output = input (dry signal at unity).
-/// Formula: output = wet * gateRamp + input * (1.0 - gateRamp)
+/// @par Gate Behavior (FR-012a)
+/// Bypass-safe design: dry signal always at unity, wet fades out.
+/// Formula: output = wet * gateRamp + input
 ///
 /// @example Basic Usage
 /// @code
 /// VowelSequencer seq;
 /// seq.prepare(44100.0);
 ///
-/// // Set up 4 steps with different vowels
+/// // Use preset pattern
+/// seq.setPreset("wow");  // O, A, O
+///
+/// // Or configure manually
 /// seq.setNumSteps(4);
 /// seq.setStepVowel(0, Vowel::A);
 /// seq.setStepVowel(1, Vowel::E);
-/// seq.setStepVowel(2, Vowel::I);
-/// seq.setStepVowel(3, Vowel::U);
+/// seq.setStepFormantShift(1, 12.0f);  // +1 octave on step 1
 ///
 /// // Configure timing
 /// seq.setTempo(120.0f);
@@ -104,16 +109,18 @@ public:
     // Constants
     // =========================================================================
 
-    static constexpr size_t kMaxSteps = 16;           ///< Maximum programmable steps
-    static constexpr float kMinGlideMs = 0.0f;        ///< Minimum glide time
-    static constexpr float kMaxGlideMs = 500.0f;      ///< Maximum glide time
+    static constexpr size_t kMaxSteps = 8;            ///< Maximum programmable steps (FR-015)
+    static constexpr float kMinMorphTimeMs = 0.0f;    ///< Minimum morph time
+    static constexpr float kMaxMorphTimeMs = 500.0f;  ///< Maximum morph time (FR-020)
 
     // =========================================================================
     // Lifecycle
     // =========================================================================
 
-    /// @brief Default constructor
-    VowelSequencer() noexcept = default;
+    /// @brief Default constructor - initializes default pattern A,E,I,O,U,O,I,E
+    VowelSequencer() noexcept {
+        initializeDefaultPattern();
+    }
 
     /// @brief Prepare the sequencer for audio processing.
     ///
@@ -135,20 +142,20 @@ public:
     [[nodiscard]] bool isPrepared() const noexcept;
 
     // =========================================================================
-    // Step Configuration
+    // Step Configuration (FR-016, FR-017)
     // =========================================================================
 
     /// @brief Set number of active steps.
-    /// @param numSteps Number of steps to use (clamped to [1, 16])
+    /// @param numSteps Number of steps to use (clamped to [1, 8])
     void setNumSteps(size_t numSteps) noexcept;
 
     /// @brief Get the number of active steps.
-    /// @return Current number of active steps (1-16)
+    /// @return Current number of active steps (1-8)
     [[nodiscard]] size_t getNumSteps() const noexcept;
 
     /// @brief Set all parameters for a step at once.
     /// @param stepIndex Step index (0 to kMaxSteps-1, out of range is ignored)
-    /// @param step Step configuration
+    /// @param step Step configuration (formantShift will be clamped)
     void setStep(size_t stepIndex, const VowelStep& step) noexcept;
 
     /// @brief Get step parameters (read-only).
@@ -156,43 +163,29 @@ public:
     /// @return Reference to step configuration (default step if index out of range)
     [[nodiscard]] const VowelStep& getStep(size_t stepIndex) const noexcept;
 
-    /// @brief Set step vowel (discrete mode).
+    /// @brief Set step vowel.
     /// @param stepIndex Step index (0 to kMaxSteps-1, out of range is ignored)
     /// @param vowel Vowel selection (A, E, I, O, U)
     void setStepVowel(size_t stepIndex, Vowel vowel) noexcept;
 
-    /// @brief Set step morph position (continuous mode).
+    /// @brief Set step formant shift in semitones (FR-017).
     /// @param stepIndex Step index (0 to kMaxSteps-1, out of range is ignored)
-    /// @param morph Morph position (clamped to [0, 4])
-    void setStepMorph(size_t stepIndex, float morph) noexcept;
+    /// @param semitones Formant shift (clamped to [-24, +24])
+    void setStepFormantShift(size_t stepIndex, float semitones) noexcept;
 
     // =========================================================================
-    // Mode Configuration
+    // Presets (FR-021)
     // =========================================================================
 
-    /// @brief Set morph mode (discrete vs continuous).
-    /// @param enabled true for continuous morph, false for discrete vowels
-    void setMorphMode(bool enabled) noexcept;
-
-    /// @brief Check if morph mode is enabled.
-    /// @return true if using continuous morph positions
-    [[nodiscard]] bool isMorphMode() const noexcept;
-
-    // =========================================================================
-    // Global Formant Modification
-    // =========================================================================
-
-    /// @brief Shift all formant frequencies by semitones.
-    /// @param semitones Shift amount (clamped to [-24, +24])
-    void setFormantShift(float semitones) noexcept;
-
-    /// @brief Set gender scaling parameter.
-    /// @param amount Gender value (clamped to [-1, +1])
-    ///               -1.0 = male (formants down), +1.0 = female (formants up)
-    void setGender(float amount) noexcept;
+    /// @brief Load a preset vowel pattern.
+    /// @param name Preset name: "aeiou", "wow", or "yeah"
+    /// @return true if preset was found and loaded, false otherwise
+    /// @note When preset loads, numSteps updates to match preset length.
+    ///       Remaining steps (beyond preset) preserve previous values (FR-021a).
+    bool setPreset(const char* name) noexcept;
 
     // =========================================================================
-    // Timing Configuration
+    // Timing Configuration (FR-020)
     // =========================================================================
 
     /// @brief Set tempo in beats per minute.
@@ -208,13 +201,14 @@ public:
     /// @param swing Swing amount (clamped to [0, 1]). 0 = no swing, 0.5 = 3:1 ratio
     void setSwing(float swing) noexcept;
 
-    /// @brief Set glide/portamento time for parameter transitions.
-    /// @param ms Glide time in milliseconds (clamped to [0, 500])
-    void setGlideTime(float ms) noexcept;
+    /// @brief Set morph time for smooth vowel transitions (FR-020).
+    /// @param ms Morph time in milliseconds (clamped to [0, 500])
+    /// @note If step duration < morph time, morph is truncated (FR-020a)
+    void setMorphTime(float ms) noexcept;
 
     /// @brief Set gate length as fraction of step duration.
     /// @param gateLength Gate length (clamped to [0, 1]). 1 = full step active
-    /// @note When gate < 1, output crossfades to dry input during the off portion
+    /// @note When gate < 1, wet signal fades to zero while dry passes through
     void setGateLength(float gateLength) noexcept;
 
     // =========================================================================
@@ -245,17 +239,17 @@ public:
     [[nodiscard]] int getCurrentStep() const noexcept;
 
     // =========================================================================
-    // Processing
+    // Processing (FR-022, FR-023)
     // =========================================================================
 
     /// @brief Process a single audio sample through the sequenced filter.
     ///
-    /// Gate behavior: output = wet * gateRamp + input * (1.0 - gateRamp)
-    /// When gate is off, output approaches input (dry at unity).
+    /// Gate behavior (FR-012a): output = wet * gateRamp + input
+    /// Dry signal always at unity, wet fades out when gate closes.
     ///
     /// @param input Input audio sample
     /// @return Filtered/sequenced output sample
-    /// @note Real-time safe: noexcept, zero allocations
+    /// @note Real-time safe: noexcept, zero allocations (FR-024, FR-025)
     [[nodiscard]] float process(float input) noexcept;
 
     /// @brief Process a block of audio samples with optional host context.
@@ -271,6 +265,9 @@ private:
     // Internal Methods
     // =========================================================================
 
+    /// @brief Initialize default palindrome pattern A,E,I,O,U,O,I,E
+    void initializeDefaultPattern() noexcept;
+
     /// @brief Apply parameters from current step to formant filter
     void applyStepParameters(int stepIndex) noexcept;
 
@@ -282,18 +279,11 @@ private:
     bool prepared_ = false;
     double sampleRate_ = 44100.0;
 
-    // Step configuration
+    // Step configuration (FR-015a: default pattern set in constructor)
     std::array<VowelStep, kMaxSteps> steps_{};
 
-    // Mode
-    bool morphMode_ = false;
-
-    // Global formant modification
-    float formantShift_ = 0.0f;
-    float gender_ = 0.0f;
-
-    // Glide time
-    float glideTimeMs_ = 0.0f;
+    // Morph time (FR-020)
+    float morphTimeMs_ = 50.0f;
 
     // Components
     SequencerCore core_;          ///< Timing engine
@@ -307,6 +297,21 @@ private:
 // Inline Implementation
 // =============================================================================
 
+inline void VowelSequencer::initializeDefaultPattern() noexcept {
+    // FR-015a: Default pattern is palindrome A,E,I,O,U,O,I,E
+    steps_[0] = VowelStep{Vowel::A, 0.0f};
+    steps_[1] = VowelStep{Vowel::E, 0.0f};
+    steps_[2] = VowelStep{Vowel::I, 0.0f};
+    steps_[3] = VowelStep{Vowel::O, 0.0f};
+    steps_[4] = VowelStep{Vowel::U, 0.0f};
+    steps_[5] = VowelStep{Vowel::O, 0.0f};
+    steps_[6] = VowelStep{Vowel::I, 0.0f};
+    steps_[7] = VowelStep{Vowel::E, 0.0f};
+
+    // Default to 8 steps
+    core_.setNumSteps(kMaxSteps);
+}
+
 inline void VowelSequencer::prepare(double sampleRate) noexcept {
     sampleRate_ = (sampleRate >= 1000.0) ? sampleRate : 1000.0;
     prepared_ = true;
@@ -316,7 +321,7 @@ inline void VowelSequencer::prepare(double sampleRate) noexcept {
 
     // Prepare formant filter
     filter_.prepare(sampleRate_);
-    filter_.setSmoothingTime(glideTimeMs_ > 0.0f ? glideTimeMs_ : 5.0f);
+    filter_.setSmoothingTime(morphTimeMs_ > 0.0f ? morphTimeMs_ : 5.0f);
 
     // Apply initial step parameters
     applyStepParameters(core_.getCurrentStep());
@@ -339,6 +344,8 @@ inline bool VowelSequencer::isPrepared() const noexcept {
 }
 
 inline void VowelSequencer::setNumSteps(size_t numSteps) noexcept {
+    // Clamp to VowelSequencer's max of 8, then pass to SequencerCore
+    numSteps = std::clamp(numSteps, size_t{1}, kMaxSteps);
     core_.setNumSteps(numSteps);
 }
 
@@ -363,35 +370,46 @@ inline const VowelStep& VowelSequencer::getStep(size_t stepIndex) const noexcept
 inline void VowelSequencer::setStepVowel(size_t stepIndex, Vowel vowel) noexcept {
     if (stepIndex >= kMaxSteps) return;
     steps_[stepIndex].vowel = vowel;
-    // Also set morph to match vowel for consistency
-    steps_[stepIndex].morph = static_cast<float>(static_cast<int>(vowel));
 }
 
-inline void VowelSequencer::setStepMorph(size_t stepIndex, float morph) noexcept {
+inline void VowelSequencer::setStepFormantShift(size_t stepIndex, float semitones) noexcept {
     if (stepIndex >= kMaxSteps) return;
-    steps_[stepIndex].morph = std::clamp(morph, 0.0f, 4.0f);
-    // Also update vowel to nearest discrete value for consistency
-    int nearestVowel = static_cast<int>(std::round(steps_[stepIndex].morph));
-    nearestVowel = std::clamp(nearestVowel, 0, 4);
-    steps_[stepIndex].vowel = static_cast<Vowel>(nearestVowel);
+    steps_[stepIndex].formantShift = std::clamp(semitones, -24.0f, 24.0f);
 }
 
-inline void VowelSequencer::setMorphMode(bool enabled) noexcept {
-    morphMode_ = enabled;
-}
+inline bool VowelSequencer::setPreset(const char* name) noexcept {
+    if (name == nullptr) return false;
 
-inline bool VowelSequencer::isMorphMode() const noexcept {
-    return morphMode_;
-}
+    // FR-021: Built-in presets
+    if (std::strcmp(name, "aeiou") == 0) {
+        steps_[0].vowel = Vowel::A;
+        steps_[1].vowel = Vowel::E;
+        steps_[2].vowel = Vowel::I;
+        steps_[3].vowel = Vowel::O;
+        steps_[4].vowel = Vowel::U;
+        // FR-021a: numSteps updates to match preset length
+        core_.setNumSteps(5);
+        return true;
+    }
 
-inline void VowelSequencer::setFormantShift(float semitones) noexcept {
-    formantShift_ = std::clamp(semitones, -24.0f, 24.0f);
-    filter_.setFormantShift(formantShift_);
-}
+    if (std::strcmp(name, "wow") == 0) {
+        steps_[0].vowel = Vowel::O;
+        steps_[1].vowel = Vowel::A;
+        steps_[2].vowel = Vowel::O;
+        core_.setNumSteps(3);
+        return true;
+    }
 
-inline void VowelSequencer::setGender(float amount) noexcept {
-    gender_ = std::clamp(amount, -1.0f, 1.0f);
-    filter_.setGender(gender_);
+    if (std::strcmp(name, "yeah") == 0) {
+        steps_[0].vowel = Vowel::I;
+        steps_[1].vowel = Vowel::E;
+        steps_[2].vowel = Vowel::A;
+        core_.setNumSteps(3);
+        return true;
+    }
+
+    // Unknown preset - return false, pattern unchanged
+    return false;
 }
 
 inline void VowelSequencer::setTempo(float bpm) noexcept {
@@ -406,10 +424,10 @@ inline void VowelSequencer::setSwing(float swing) noexcept {
     core_.setSwing(swing);
 }
 
-inline void VowelSequencer::setGlideTime(float ms) noexcept {
-    glideTimeMs_ = std::clamp(ms, kMinGlideMs, kMaxGlideMs);
+inline void VowelSequencer::setMorphTime(float ms) noexcept {
+    morphTimeMs_ = std::clamp(ms, kMinMorphTimeMs, kMaxMorphTimeMs);
     if (prepared_) {
-        filter_.setSmoothingTime(glideTimeMs_ > 0.0f ? glideTimeMs_ : 5.0f);
+        filter_.setSmoothingTime(morphTimeMs_ > 0.0f ? morphTimeMs_ : 5.0f);
     }
 }
 
@@ -462,10 +480,10 @@ inline float VowelSequencer::process(float input) noexcept {
     // Process through formant filter
     float wet = filter_.process(input);
 
-    // Apply gate with crossfade to dry signal
-    // Gate behavior: output = wet * gateRamp + input * (1.0 - gateRamp)
+    // FR-012a: Bypass-safe gate behavior
+    // output = wet * gateRamp + input (dry always at unity, wet fades)
     float gateValue = core_.getGateRampValue();
-    float output = wet * gateValue + input * (1.0f - gateValue);
+    float output = wet * gateValue + input;
 
     return output;
 }
@@ -490,12 +508,11 @@ inline void VowelSequencer::applyStepParameters(int stepIndex) noexcept {
 
     const auto& step = steps_[static_cast<size_t>(stepIndex)];
 
-    // Apply vowel or morph position based on mode
-    if (morphMode_) {
-        filter_.setVowelMorph(step.morph);
-    } else {
-        filter_.setVowel(step.vowel);
-    }
+    // Apply vowel
+    filter_.setVowel(step.vowel);
+
+    // Apply per-step formant shift (FR-017)
+    filter_.setFormantShift(step.formantShift);
 }
 
 } // namespace DSP

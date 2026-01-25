@@ -155,8 +155,8 @@ struct VowelStep {
 ```cpp
 /// @brief 8-step vowel sequencer with tempo sync (Layer 3 System)
 ///
-/// Composes SequencerCore (timing) + FormantFilter (sound) + LinearRamp (morphing)
-/// to create rhythmic "talking" vowel effects.
+/// Composes SequencerCore (timing) + FormantFilter (sound) to create
+/// rhythmic "talking" vowel effects. Gate uses bypass-safe design.
 class VowelSequencer {
 public:
     // =========================================================================
@@ -176,23 +176,20 @@ private:
     bool prepared_ = false;
     double sampleRate_ = 44100.0;
 
-    // Step configuration
+    // Step configuration (FR-015a: initialized to A,E,I,O,U,O,I,E in constructor)
     std::array<VowelStep, kMaxSteps> steps_{};
 
     // Timing (delegated to SequencerCore)
-    SequencerCore sequencer_;
+    SequencerCore core_;
 
-    // Morph time
+    // Morph time (FR-020)
     float morphTimeMs_ = 50.0f;
 
     // Processing components
-    FormantFilter formantFilter_;
-    LinearRamp morphRamp_;       // For vowel morph position
-    LinearRamp gateRamp_;        // VowelSequencer's own gate crossfade (separate from SequencerCore's internal gate tracking)
+    FormantFilter filter_;
 
-    // Current morph state
-    float currentMorphPosition_ = 0.0f;
-    float targetMorphPosition_ = 0.0f;
+    // Previous step tracking for change detection
+    int lastAppliedStep_ = -1;
 };
 ```
 
