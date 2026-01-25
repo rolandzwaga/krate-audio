@@ -114,6 +114,7 @@ add_executable(dsp_tests
     unit/processors/note_selective_filter_test.cpp
     unit/processors/audio_rate_filter_fm_test.cpp
     unit/processors/frequency_shifter_test.cpp
+    unit/processors/multistage_env_filter_tests.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -320,6 +321,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/note_selective_filter_test.cpp
         unit/processors/audio_rate_filter_fm_test.cpp
         unit/processors/frequency_shifter_test.cpp
+        unit/processors/multistage_env_filter_tests.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

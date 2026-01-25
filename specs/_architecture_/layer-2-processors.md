@@ -1073,6 +1073,178 @@ Input --> +------->| Sensitivity Gain |---> EnvelopeFollower
 
 ---
 
+## MultiStageEnvelopeFilter
+**Path:** [multistage_env_filter.h](../../dsp/include/krate/dsp/processors/multistage_env_filter.h) | **Since:** 0.15.0
+
+Complex envelope shapes beyond ADSR driving filter movement for evolving pads and textures. Supports up to 8 programmable stages with independent target frequency, transition time, and curve shape.
+
+**Use when:**
+- Creating filter sweeps with complex, evolving shapes (pads, ambient textures)
+- Need rhythmic filter patterns via envelope looping
+- Want expressive filter sweeps with velocity sensitivity
+- Building filter animations with logarithmic/exponential curves
+- Need programmatic multi-stage filter automation
+
+**Differentiators from EnvelopeFilter:**
+- EnvelopeFilter: Input amplitude-driven (auto-wah), single attack/release response
+- MultiStageEnvelopeFilter: Programmable stages with independent targets, times, curves, looping
+
+**Features:**
+- Up to 8 programmable stages with target frequency, time (0-10000ms), and curve shape
+- Three curve types per stage: logarithmic (curve=-1), linear (curve=0), exponential (curve=+1)
+- Loopable envelope section (configurable loop start/end) for rhythmic patterns
+- Velocity-sensitive modulation depth scaling
+- Independent release time (not tied to stage times)
+- Three filter types: Lowpass, Bandpass, Highpass (SVF 12dB/oct)
+- Smooth transitions at loop points (no clicks)
+- Real-time safe: all methods noexcept, zero allocations in process
+
+```cpp
+enum class EnvelopeState : uint8_t { Idle, Running, Releasing, Complete };
+
+struct EnvelopeStage {
+    float targetHz = 1000.0f;  // Target cutoff [1, sampleRate*0.45] Hz
+    float timeMs = 100.0f;     // Transition time [0, 10000] ms
+    float curve = 0.0f;        // Curve shape [-1 (log), 0 (linear), +1 (exp)]
+};
+
+class MultiStageEnvelopeFilter {
+    static constexpr int kMaxStages = 8;
+    static constexpr float kMinResonance = 0.1f;
+    static constexpr float kMaxResonance = 30.0f;
+    static constexpr float kMinFrequency = 1.0f;
+    static constexpr float kMaxStageTimeMs = 10000.0f;
+    static constexpr float kMaxReleaseTimeMs = 10000.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Stage configuration
+    void setNumStages(int stages) noexcept;              // [1, 8]
+    void setStageTarget(int stage, float cutoffHz) noexcept;
+    void setStageTime(int stage, float ms) noexcept;     // [0, 10000]
+    void setStageCurve(int stage, float curve) noexcept; // [-1, +1]
+
+    // Loop control
+    void setLoop(bool enabled) noexcept;
+    void setLoopStart(int stage) noexcept;
+    void setLoopEnd(int stage) noexcept;
+
+    // Filter settings
+    void setResonance(float q) noexcept;                 // [0.1, 30.0]
+    void setFilterType(SVFMode type) noexcept;           // Lowpass, Bandpass, Highpass
+    void setBaseFrequency(float hz) noexcept;            // Starting frequency
+
+    // Trigger & control
+    void trigger() noexcept;                             // Start from stage 0
+    void trigger(float velocity) noexcept;               // With velocity [0, 1]
+    void release() noexcept;                             // Exit loop, decay to base
+    void setReleaseTime(float ms) noexcept;              // [0, 10000]
+    void setVelocitySensitivity(float amount) noexcept;  // [0, 1]
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    // State monitoring
+    [[nodiscard]] float getCurrentCutoff() const noexcept;
+    [[nodiscard]] int getCurrentStage() const noexcept;
+    [[nodiscard]] float getEnvelopeValue() const noexcept;  // [0, 1] within stage
+    [[nodiscard]] bool isComplete() const noexcept;
+    [[nodiscard]] bool isRunning() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| numStages | 1 | [1, 8] | Number of active stages |
+| stageTarget | 1000 Hz | [1, sampleRate*0.45] | Target cutoff per stage |
+| stageTime | 100 ms | [0, 10000] | Transition time per stage |
+| stageCurve | 0.0 | [-1, +1] | Curve shape per stage |
+| baseFrequency | 100 Hz | [1, sampleRate*0.45] | Starting/release frequency |
+| resonance | 0.7071 | [0.1, 30] | Filter Q factor |
+| releaseTime | 500 ms | [0, 10000] | Decay time after release() |
+| velocitySensitivity | 0.0 | [0, 1] | How much velocity affects depth |
+
+**Curve Shapes:**
+
+| Curve | Value | Effect | Use Case |
+|-------|-------|--------|----------|
+| Logarithmic | -1.0 | Fast start, slow finish | Punchy attacks |
+| Linear | 0.0 | Constant rate | Predictable sweeps |
+| Exponential | +1.0 | Slow start, fast finish | Dramatic plunges |
+
+**Usage Example (Basic 4-stage sweep):**
+```cpp
+MultiStageEnvelopeFilter filter;
+filter.prepare(44100.0);
+
+filter.setNumStages(4);
+filter.setStageTarget(0, 200.0f);   // Stage 0: 200 Hz
+filter.setStageTarget(1, 2000.0f);  // Stage 1: 2000 Hz
+filter.setStageTarget(2, 500.0f);   // Stage 2: 500 Hz
+filter.setStageTarget(3, 800.0f);   // Stage 3: 800 Hz
+filter.setStageTime(0, 100.0f);
+filter.setStageTime(1, 200.0f);
+filter.setStageTime(2, 150.0f);
+filter.setStageTime(3, 100.0f);
+filter.setStageCurve(1, 1.0f);      // Exponential for stage 1
+
+filter.trigger();
+
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = filter.process(input[i]);
+}
+```
+
+**Usage Example (Rhythmic looping):**
+```cpp
+MultiStageEnvelopeFilter filter;
+filter.prepare(44100.0);
+
+filter.setNumStages(4);
+filter.setStageTarget(0, 500.0f);
+filter.setStageTarget(1, 2000.0f);
+filter.setStageTarget(2, 800.0f);
+filter.setStageTarget(3, 1500.0f);
+filter.setLoop(true);
+filter.setLoopStart(1);
+filter.setLoopEnd(3);
+
+filter.trigger();
+// Loops stages 1-3 indefinitely until release() called
+```
+
+**Usage Example (Velocity-sensitive):**
+```cpp
+MultiStageEnvelopeFilter filter;
+filter.prepare(44100.0);
+filter.setVelocitySensitivity(1.0f);  // Full sensitivity
+
+// On MIDI note-on
+filter.trigger(midiVelocity / 127.0f);  // velocity 64 = 50% depth
+```
+
+**Topology:**
+```
+trigger() --> [Stage State Machine] --> Cutoff Frequency
+                      |
+                      v
+              [Curve Shaping]
+                      |
+                      v
+Input ---------> [SVF Filter] ---------> Output
+                      ^
+                      |
+              Cutoff (smoothed), Q, Mode
+```
+
+**Dependencies:** Layer 0 (db_utils.h), Layer 1 (svf.h, smoother.h)
+
+---
+
 ## SidechainFilter
 **Path:** [sidechain_filter.h](../../dsp/include/krate/dsp/processors/sidechain_filter.h) | **Since:** 0.14.0
 
