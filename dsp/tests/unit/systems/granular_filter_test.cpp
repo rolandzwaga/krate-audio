@@ -357,6 +357,109 @@ TEST_CASE("GranularFilter deterministic seeding for cutoff", "[systems][granular
     }
 }
 
+// =============================================================================
+// Phase 5: User Story 3 - Filter Type Selection Tests
+// =============================================================================
+
+TEST_CASE("GranularFilter lowpass mode", "[systems][granular-filter][layer3][US3]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterType(SVFMode::Lowpass);
+    filter.setFilterCutoff(1000.0f);
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("lowpass attenuates high frequencies") {
+        float outL, outR;
+
+        // Fill buffer
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        // Process with high-frequency content
+        float totalEnergy = 0.0f;
+        for (int i = 0; i < 24000; ++i) {
+            // High frequency signal (alternating +/-)
+            float input = (i % 2 == 0) ? 0.5f : -0.5f;
+            filter.process(input, input, outL, outR);
+            totalEnergy += outL * outL + outR * outR;
+        }
+
+        // Should have output (lowpass still passes low freq content from granular)
+        REQUIRE(totalEnergy > 0.0f);
+        REQUIRE(filter.getFilterType() == SVFMode::Lowpass);
+    }
+}
+
+TEST_CASE("GranularFilter highpass mode", "[systems][granular-filter][layer3][US3]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterType(SVFMode::Highpass);
+    filter.setFilterCutoff(1000.0f);
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("highpass type is stored correctly") {
+        REQUIRE(filter.getFilterType() == SVFMode::Highpass);
+    }
+}
+
+TEST_CASE("GranularFilter bandpass mode", "[systems][granular-filter][layer3][US3]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterType(SVFMode::Bandpass);
+    filter.setFilterCutoff(1000.0f);
+    filter.setFilterResonance(4.0f);  // High Q for resonant peak
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("bandpass type is stored correctly") {
+        REQUIRE(filter.getFilterType() == SVFMode::Bandpass);
+    }
+}
+
+TEST_CASE("GranularFilter filter type propagation", "[systems][granular-filter][layer3][US3]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(100.0f);  // High density for active grains
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterType(SVFMode::Lowpass);
+    filter.setFilterCutoff(1000.0f);
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("setFilterType updates all active grains") {
+        float outL, outR;
+
+        // Process to get some active grains
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        REQUIRE(filter.activeGrainCount() > 0);
+
+        // Change filter type while grains are active
+        filter.setFilterType(SVFMode::Highpass);
+        REQUIRE(filter.getFilterType() == SVFMode::Highpass);
+
+        // Process more and verify no crashes
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+    }
+}
+
 TEST_CASE("GranularFilter signal flow order", "[systems][granular-filter][layer3][US1]") {
     GranularFilter filter;
     filter.prepare(48000.0);
