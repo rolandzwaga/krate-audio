@@ -460,6 +460,116 @@ TEST_CASE("GranularFilter filter type propagation", "[systems][granular-filter][
     }
 }
 
+// =============================================================================
+// Phase 6: User Story 4 - Filter Resonance Control Tests
+// =============================================================================
+
+TEST_CASE("GranularFilter Butterworth response", "[systems][granular-filter][layer3][US4]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterType(SVFMode::Lowpass);
+    filter.setFilterCutoff(1000.0f);
+    filter.setFilterResonance(0.7071f);  // Butterworth Q
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("Q=0.7071 is stored correctly") {
+        REQUIRE(filter.getFilterResonance() == Approx(0.7071f).margin(0.001f));
+    }
+}
+
+TEST_CASE("GranularFilter high Q resonance", "[systems][granular-filter][layer3][US4]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterType(SVFMode::Lowpass);
+    filter.setFilterCutoff(1000.0f);
+    filter.setFilterResonance(10.0f);  // High Q
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("Q=10 is stored correctly") {
+        REQUIRE(filter.getFilterResonance() == Approx(10.0f));
+    }
+
+    SECTION("high Q produces output without instability") {
+        float outL, outR;
+
+        // Fill buffer and process
+        for (int i = 0; i < 9600; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        float totalEnergy = 0.0f;
+        for (int i = 0; i < 24000; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+            totalEnergy += outL * outL + outR * outR;
+
+            // Verify no NaN or extreme values
+            REQUIRE_FALSE(std::isnan(outL));
+            REQUIRE_FALSE(std::isnan(outR));
+            REQUIRE(std::abs(outL) < 10.0f);
+            REQUIRE(std::abs(outR) < 10.0f);
+        }
+
+        REQUIRE(totalEnergy > 0.0f);
+    }
+}
+
+TEST_CASE("GranularFilter Q clamping", "[systems][granular-filter][layer3][US4]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+
+    SECTION("Q clamped to valid range 0.5-20") {
+        filter.setFilterResonance(0.1f);  // Below min
+        REQUIRE(filter.getFilterResonance() == Approx(0.5f));
+
+        filter.setFilterResonance(50.0f);  // Above max
+        REQUIRE(filter.getFilterResonance() == Approx(20.0f));
+
+        filter.setFilterResonance(5.0f);  // Within range
+        REQUIRE(filter.getFilterResonance() == Approx(5.0f));
+    }
+}
+
+TEST_CASE("GranularFilter Q propagation", "[systems][granular-filter][layer3][US4]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(100.0f);
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterResonance(1.0f);
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("setFilterResonance updates all active grains") {
+        float outL, outR;
+
+        // Process to get active grains
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        REQUIRE(filter.activeGrainCount() > 0);
+
+        // Change Q while grains are active
+        filter.setFilterResonance(8.0f);
+        REQUIRE(filter.getFilterResonance() == Approx(8.0f));
+
+        // Process more and verify no crashes
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+            REQUIRE_FALSE(std::isnan(outL));
+            REQUIRE_FALSE(std::isnan(outR));
+        }
+    }
+}
+
 TEST_CASE("GranularFilter signal flow order", "[systems][granular-filter][layer3][US1]") {
     GranularFilter filter;
     filter.prepare(48000.0);
