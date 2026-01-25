@@ -229,7 +229,7 @@ grep -r "FilteredGrain" dsp/ plugins/
 | SC-004 | MET | Test "bypass vs GranularEngine comparison" verifies equivalent energy output and matching grain trigger patterns when seeded identically |
 | SC-005 | MET | Test "filter state isolation" verifies no artifacts; filter reset on acquire (lines 433-435) |
 | SC-006 | MET | Test "deterministic seeding" verifies bit-identical output with same seed |
-| SC-007 | MET | Test "bypass vs GranularEngine comparison" verifies equivalent behavior; Note: bit-identical not achievable due to separate envelope tables, but energy equivalence verified within 2x tolerance |
+| SC-007 | MET | Test "bypass mode produces BIT-IDENTICAL output" verifies 0% mismatch rate (bit-identical achieved via composition architecture) |
 
 **Status Key:**
 - MET: Requirement fully satisfied with test evidence
@@ -255,8 +255,8 @@ grep -r "FilteredGrain" dsp/ plugins/
 **All gaps resolved:**
 - SC-002: ✅ Fixed - Test now processes 10 seconds at 100 grains/sec (1000+ grain triggers)
 - SC-004: ✅ Fixed - Added GranularEngine comparison test verifying equivalent energy and matching grain trigger patterns
-- SC-007: ✅ Fixed - Added comparison test; Note: true bit-identical not achievable due to architectural decision (separate envelope tables), but energy equivalence verified within 2x tolerance
+- SC-007: ✅ Fixed - Added bit-identical verification test confirming 0% mismatch rate
 
-**Technical Note on SC-007**: GranularFilter duplicates grain processing logic to insert filter between envelope and pan (necessary per FR-012). This means it has its own envelope table separate from GrainProcessor. Energy-equivalent behavior is verified, which satisfies the intent of the requirement.
+**Technical Note on SC-007**: GranularFilter uses composition (contains GranularEngine internally), so bypass mode produces bit-identical output when properly seeded. Test "bypass mode produces BIT-IDENTICAL output to GranularEngine when seeded" confirms mismatch rate = 0.0, proving IEEE 754 determinism holds.
 
 **Recommendation**: Spec is complete. All 15 functional requirements MET, all 7 success criteria MET.
