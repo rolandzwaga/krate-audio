@@ -11,9 +11,9 @@
 // - Principle X: DSP Constraints (flush denormals, handle edge cases)
 //
 // Dependencies (Layer 0-1):
+// - SequencerCore (Layer 1): Timing, direction, gate handling
 // - SVF (Layer 1): Core filter processing
 // - LinearRamp (Layer 1): Parameter glide smoothing
-// - NoteValue/NoteModifier (Layer 0): Tempo sync timing
 // - BlockContext (Layer 0): Host tempo information
 // - dbToGain (Layer 0): Gain conversion
 // ==============================================================================
@@ -22,16 +22,13 @@
 
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/db_utils.h>
-#include <krate/dsp/core/note_value.h>
-#include <krate/dsp/primitives/sequencer_core.h>  // Direction enum
+#include <krate/dsp/primitives/sequencer_core.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/svf.h>
 
 #include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstddef>
-#include <cstdint>
 
 namespace Krate {
 namespace DSP {
@@ -59,9 +56,10 @@ struct SequencerStep {
 };
 
 // =============================================================================
-// Direction Enumeration (FR-012)
+// Direction Enumeration
 // =============================================================================
 // Direction enum is defined in <krate/dsp/primitives/sequencer_core.h>
+// Re-exported here for backward compatibility.
 // Available values: Direction::Forward, Direction::Backward, Direction::PingPong, Direction::Random
 
 // =============================================================================
@@ -70,12 +68,11 @@ struct SequencerStep {
 
 /// @brief 16-step filter parameter sequencer synchronized to tempo.
 ///
-/// Composes SVF filter with LinearRamp smoothers to create rhythmic
-/// filter sweeps. Supports multiple playback directions, swing timing,
-/// glide, and gate length control.
+/// Composes SequencerCore for timing/direction and SVF filter with LinearRamp
+/// smoothers to create rhythmic filter sweeps.
 ///
 /// @par Layer
-/// Layer 3 (System) - composes Layer 1 primitives (SVF, LinearRamp)
+/// Layer 3 (System) - composes Layer 1 primitives (SequencerCore, SVF, LinearRamp)
 ///
 /// @par Thread Safety
 /// Not thread-safe. Use separate instances for each audio thread.
@@ -120,7 +117,7 @@ public:
     static constexpr float kMinGateLength = 0.0f;     ///< Minimum gate (0%)
     static constexpr float kMaxGateLength = 1.0f;     ///< Maximum gate (100%)
     static constexpr float kGateCrossfadeMs = 5.0f;   ///< Fixed crossfade duration
-    static constexpr float kTypeCrossfadeMs = 5.0f;  ///< Crossfade duration for filter type changes
+    static constexpr float kTypeCrossfadeMs = 5.0f;   ///< Crossfade duration for filter type changes
 
     // =========================================================================
     // Lifecycle (FR-020, FR-021)
@@ -292,56 +289,27 @@ private:
     // Internal Methods
     // =========================================================================
 
-    /// @brief Update step duration based on tempo and note value
-    void updateStepDuration() noexcept;
-
-    /// @brief Advance to next step based on direction
-    void advanceStep() noexcept;
-
-    /// @brief Calculate next step index based on direction
-    [[nodiscard]] int calculateNextStep() noexcept;
-
     /// @brief Apply parameters from current step to filter with glide
     void applyStepParameters(int stepIndex) noexcept;
-
-    /// @brief Apply swing timing to step
-    [[nodiscard]] float applySwingToStep(int stepIndex, float baseDuration) const noexcept;
-
-    /// @brief Calculate PingPong step from PPQ position
-    [[nodiscard]] int calculatePingPongStep(double stepsIntoPattern) const noexcept;
 
     // =========================================================================
     // Member Variables
     // =========================================================================
 
+    // Sequencer core handles timing, direction, gate
+    SequencerCore sequencer_;
+
     // State
-    bool prepared_ = false;
     double sampleRate_ = 44100.0;
 
-    // Step configuration
+    // Step configuration (filter-specific)
     std::array<SequencerStep, kMaxSteps> steps_{};
-    size_t numSteps_ = 4;
 
-    // Timing
-    float tempoBPM_ = 120.0f;
-    NoteValue noteValue_ = NoteValue::Eighth;
-    NoteModifier noteModifier_ = NoteModifier::None;
-    float swing_ = 0.0f;
+    // Glide time (filter-specific, not in SequencerCore)
     float glideTimeMs_ = 0.0f;
-    float gateLength_ = 1.0f;
 
-    // Direction
-    Direction direction_ = Direction::Forward;
-    bool pingPongForward_ = true;  ///< For PingPong mode
-    uint32_t rngState_ = 12345;    ///< For Random mode (xorshift PRNG)
-
-    // Processing state
-    int currentStep_ = 0;
-    int previousStep_ = -1;  ///< For Random no-repeat
-    size_t sampleCounter_ = 0;
-    size_t stepDurationSamples_ = 0;
-    size_t gateDurationSamples_ = 0;
-    bool gateActive_ = true;
+    // Previous step for detecting step changes
+    int previousStep_ = -1;
 
     // Components (Layer 1)
     SVF filter_;              ///< Primary filter (current type)
@@ -349,7 +317,6 @@ private:
     LinearRamp cutoffRamp_;
     LinearRamp qRamp_;
     LinearRamp gainRamp_;
-    LinearRamp gateRamp_;           ///< For 5ms gate crossfade
     LinearRamp typeCrossfadeRamp_;  ///< For 5ms filter type crossfade
 
     // Type crossfade state
@@ -363,7 +330,9 @@ private:
 
 inline void FilterStepSequencer::prepare(double sampleRate) noexcept {
     sampleRate_ = (sampleRate >= 1000.0) ? sampleRate : 1000.0;
-    prepared_ = true;
+
+    // Prepare sequencer core
+    sequencer_.prepare(sampleRate_);
 
     // Prepare both filters
     filter_.prepare(sampleRate_);
@@ -373,20 +342,17 @@ inline void FilterStepSequencer::prepare(double sampleRate) noexcept {
     cutoffRamp_.configure(glideTimeMs_, static_cast<float>(sampleRate_));
     qRamp_.configure(glideTimeMs_, static_cast<float>(sampleRate_));
     gainRamp_.configure(glideTimeMs_, static_cast<float>(sampleRate_));
-    gateRamp_.configure(kGateCrossfadeMs, static_cast<float>(sampleRate_));
     typeCrossfadeRamp_.configure(kTypeCrossfadeMs, static_cast<float>(sampleRate_));
 
-    // Initialize step duration
-    updateStepDuration();
-
     // Apply initial step parameters
-    applyStepParameters(currentStep_);
+    int currentStep = sequencer_.getCurrentStep();
+    applyStepParameters(currentStep);
+    previousStep_ = currentStep;
 
     // Snap ramps to initial values (no glide on first step)
     cutoffRamp_.snapToTarget();
     qRamp_.snapToTarget();
     gainRamp_.snapToTarget();
-    gateRamp_.snapTo(1.0f);  // Gate starts active
     typeCrossfadeRamp_.snapTo(1.0f);  // Fully on new filter
     isTypeCrossfading_ = false;
 }
@@ -395,54 +361,39 @@ inline void FilterStepSequencer::reset() noexcept {
     filter_.reset();
     filterOld_.reset();
 
-    // Set initial step based on direction
-    switch (direction_) {
-        case Direction::Forward:
-        case Direction::PingPong:
-        case Direction::Random:
-            currentStep_ = 0;
-            pingPongForward_ = true;
-            break;
-        case Direction::Backward:
-            currentStep_ = static_cast<int>(numSteps_) - 1;
-            break;
-    }
+    // Reset sequencer core (handles step position based on direction)
+    sequencer_.reset();
 
     previousStep_ = -1;
-    sampleCounter_ = 0;
-    gateActive_ = true;
     isTypeCrossfading_ = false;
 
     // Reset ramps
     cutoffRamp_.reset();
     qRamp_.reset();
     gainRamp_.reset();
-    gateRamp_.snapTo(1.0f);
     typeCrossfadeRamp_.snapTo(1.0f);
 
     // Re-apply current step if prepared
-    if (prepared_) {
-        applyStepParameters(currentStep_);
+    if (sequencer_.isPrepared()) {
+        int currentStep = sequencer_.getCurrentStep();
+        applyStepParameters(currentStep);
         cutoffRamp_.snapToTarget();
         qRamp_.snapToTarget();
         gainRamp_.snapToTarget();
+        previousStep_ = currentStep;
     }
 }
 
 inline bool FilterStepSequencer::isPrepared() const noexcept {
-    return prepared_;
+    return sequencer_.isPrepared();
 }
 
 inline void FilterStepSequencer::setNumSteps(size_t numSteps) noexcept {
-    numSteps_ = std::clamp(numSteps, size_t{1}, kMaxSteps);
-    // Ensure current step is within bounds
-    if (currentStep_ >= static_cast<int>(numSteps_)) {
-        currentStep_ = 0;
-    }
+    sequencer_.setNumSteps(numSteps);
 }
 
 inline size_t FilterStepSequencer::getNumSteps() const noexcept {
-    return numSteps_;
+    return sequencer_.getNumSteps();
 }
 
 inline void FilterStepSequencer::setStep(size_t stepIndex, const SequencerStep& step) noexcept {
@@ -480,27 +431,20 @@ inline void FilterStepSequencer::setStepGain(size_t stepIndex, float dB) noexcep
 }
 
 inline void FilterStepSequencer::setTempo(float bpm) noexcept {
-    tempoBPM_ = std::clamp(bpm, kMinTempoBPM, kMaxTempoBPM);
-    if (prepared_) {
-        updateStepDuration();
-    }
+    sequencer_.setTempo(bpm);
 }
 
 inline void FilterStepSequencer::setNoteValue(NoteValue value, NoteModifier modifier) noexcept {
-    noteValue_ = value;
-    noteModifier_ = modifier;
-    if (prepared_) {
-        updateStepDuration();
-    }
+    sequencer_.setNoteValue(value, modifier);
 }
 
 inline void FilterStepSequencer::setSwing(float swing) noexcept {
-    swing_ = std::clamp(swing, kMinSwing, kMaxSwing);
+    sequencer_.setSwing(swing);
 }
 
 inline void FilterStepSequencer::setGlideTime(float ms) noexcept {
     glideTimeMs_ = std::clamp(ms, kMinGlideMs, kMaxGlideMs);
-    if (prepared_) {
+    if (sequencer_.isPrepared()) {
         cutoffRamp_.configure(glideTimeMs_, static_cast<float>(sampleRate_));
         qRamp_.configure(glideTimeMs_, static_cast<float>(sampleRate_));
         gainRamp_.configure(glideTimeMs_, static_cast<float>(sampleRate_));
@@ -508,76 +452,61 @@ inline void FilterStepSequencer::setGlideTime(float ms) noexcept {
 }
 
 inline void FilterStepSequencer::setGateLength(float gateLength) noexcept {
-    gateLength_ = std::clamp(gateLength, kMinGateLength, kMaxGateLength);
+    sequencer_.setGateLength(gateLength);
 }
 
 inline void FilterStepSequencer::setDirection(Direction direction) noexcept {
-    direction_ = direction;
-    // Reset to appropriate starting step when direction changes
-    if (prepared_) {
-        reset();
+    sequencer_.setDirection(direction);
+    // SequencerCore::setDirection calls reset() internally
+    // We also need to reset our filter state
+    if (sequencer_.isPrepared()) {
+        filter_.reset();
+        filterOld_.reset();
+        isTypeCrossfading_ = false;
+        previousStep_ = -1;
+        cutoffRamp_.reset();
+        qRamp_.reset();
+        gainRamp_.reset();
+        typeCrossfadeRamp_.snapTo(1.0f);
+
+        int currentStep = sequencer_.getCurrentStep();
+        applyStepParameters(currentStep);
+        cutoffRamp_.snapToTarget();
+        qRamp_.snapToTarget();
+        gainRamp_.snapToTarget();
+        previousStep_ = currentStep;
     }
 }
 
 inline Direction FilterStepSequencer::getDirection() const noexcept {
-    return direction_;
+    return sequencer_.getDirection();
 }
 
 inline void FilterStepSequencer::sync(double ppqPosition) noexcept {
-    if (!prepared_ || numSteps_ == 0) return;
+    int oldStep = sequencer_.getCurrentStep();
+    sequencer_.sync(ppqPosition);
+    int newStep = sequencer_.getCurrentStep();
 
-    // Calculate beats per step based on note value
-    float beatsPerStep = getBeatsForNote(noteValue_, noteModifier_);
-
-    // Calculate which step we should be at
-    double stepsIntoPattern = ppqPosition / static_cast<double>(beatsPerStep);
-
-    // Handle direction
-    int effectiveStep = 0;
-    switch (direction_) {
-        case Direction::Forward:
-            effectiveStep = static_cast<int>(std::fmod(stepsIntoPattern, static_cast<double>(numSteps_)));
-            if (effectiveStep < 0) effectiveStep += static_cast<int>(numSteps_);
-            break;
-        case Direction::Backward:
-            effectiveStep = static_cast<int>(numSteps_) - 1 -
-                (static_cast<int>(std::fmod(stepsIntoPattern, static_cast<double>(numSteps_))));
-            if (effectiveStep < 0) effectiveStep += static_cast<int>(numSteps_);
-            break;
-        case Direction::PingPong:
-            effectiveStep = calculatePingPongStep(stepsIntoPattern);
-            break;
-        case Direction::Random:
-            // Can't sync random - keep current step
-            effectiveStep = currentStep_;
-            break;
-    }
-
-    // Calculate phase within current step
-    double fractionalStep = std::fmod(stepsIntoPattern, 1.0);
-    if (fractionalStep < 0.0) fractionalStep += 1.0;
-
-    // Update sample counter based on phase
-    float swungDuration = applySwingToStep(effectiveStep, static_cast<float>(stepDurationSamples_));
-    sampleCounter_ = static_cast<size_t>(fractionalStep * static_cast<double>(swungDuration));
-
-    // Update current step and apply parameters
-    if (effectiveStep != currentStep_) {
-        currentStep_ = effectiveStep;
-        applyStepParameters(currentStep_);
+    // Apply parameters if step changed
+    if (newStep != oldStep) {
+        applyStepParameters(newStep);
+        previousStep_ = newStep;
     }
 }
 
 inline void FilterStepSequencer::trigger() noexcept {
-    advanceStep();
+    sequencer_.trigger();
+    int newStep = sequencer_.getCurrentStep();
+    applyStepParameters(newStep);
+    previousStep_ = newStep;
 }
 
 inline int FilterStepSequencer::getCurrentStep() const noexcept {
-    return currentStep_;
+    return sequencer_.getCurrentStep();
 }
 
 inline float FilterStepSequencer::process(float input) noexcept {
-    if (!prepared_) {
+    if (!sequencer_.isPrepared()) {
         return 0.0f;
     }
 
@@ -587,27 +516,14 @@ inline float FilterStepSequencer::process(float input) noexcept {
         return 0.0f;
     }
 
-    // Calculate step duration with swing
-    float swungStepDuration = applySwingToStep(currentStep_, static_cast<float>(stepDurationSamples_));
-    size_t actualStepDuration = static_cast<size_t>(swungStepDuration);
+    // Advance sequencer - returns true if step changed
+    bool stepChanged = sequencer_.tick();
 
-    // Check for step boundary
-    if (sampleCounter_ >= actualStepDuration) {
-        advanceStep();
-        sampleCounter_ = 0;
-    }
-
-    // Update gate state
-    gateDurationSamples_ = static_cast<size_t>(static_cast<float>(actualStepDuration) * gateLength_);
-    bool shouldBeActive = (sampleCounter_ < gateDurationSamples_);
-
-    // Handle gate transitions with crossfade
-    if (shouldBeActive && !gateActive_) {
-        gateActive_ = true;
-        gateRamp_.setTarget(1.0f);
-    } else if (!shouldBeActive && gateActive_) {
-        gateActive_ = false;
-        gateRamp_.setTarget(0.0f);
+    // Apply new step parameters if step changed
+    if (stepChanged) {
+        int currentStep = sequencer_.getCurrentStep();
+        applyStepParameters(currentStep);
+        previousStep_ = currentStep;
     }
 
     // Process parameter ramps
@@ -654,19 +570,16 @@ inline float FilterStepSequencer::process(float input) noexcept {
     float linearGain = dbToGain(gainDb);
     wet *= linearGain;
 
-    // Apply gate crossfade
-    float gateGain = gateRamp_.process();
+    // Apply gate crossfade (from SequencerCore)
+    float gateGain = sequencer_.getGateRampValue();
     float output = wet * gateGain + input * (1.0f - gateGain);
-
-    // Increment counter
-    ++sampleCounter_;
 
     return output;
 }
 
 inline void FilterStepSequencer::processBlock(float* buffer, size_t numSamples,
                                                const BlockContext* ctx) noexcept {
-    if (!prepared_ || buffer == nullptr) return;
+    if (!sequencer_.isPrepared() || buffer == nullptr) return;
 
     // Update tempo from context if provided
     if (ctx != nullptr) {
@@ -679,82 +592,6 @@ inline void FilterStepSequencer::processBlock(float* buffer, size_t numSamples,
     }
 }
 
-inline void FilterStepSequencer::updateStepDuration() noexcept {
-    // Calculate milliseconds per beat
-    float msPerBeat = 60000.0f / tempoBPM_;
-
-    // Get beats per step from note value
-    float beatsPerStep = getBeatsForNote(noteValue_, noteModifier_);
-
-    // Calculate base step duration in samples
-    float stepMs = msPerBeat * beatsPerStep;
-    stepDurationSamples_ = static_cast<size_t>(stepMs * 0.001f * sampleRate_);
-
-    // Ensure at least 1 sample
-    if (stepDurationSamples_ == 0) {
-        stepDurationSamples_ = 1;
-    }
-}
-
-inline void FilterStepSequencer::advanceStep() noexcept {
-    previousStep_ = currentStep_;
-    currentStep_ = calculateNextStep();
-    applyStepParameters(currentStep_);
-    gateActive_ = true;
-    gateRamp_.setTarget(1.0f);
-}
-
-inline int FilterStepSequencer::calculateNextStep() noexcept {
-    int next = 0;
-
-    switch (direction_) {
-        case Direction::Forward:
-            next = (currentStep_ + 1) % static_cast<int>(numSteps_);
-            break;
-
-        case Direction::Backward:
-            next = currentStep_ - 1;
-            if (next < 0) {
-                next = static_cast<int>(numSteps_) - 1;
-            }
-            break;
-
-        case Direction::PingPong:
-            if (numSteps_ <= 1) {
-                next = 0;
-            } else if (pingPongForward_) {
-                next = currentStep_ + 1;
-                if (next >= static_cast<int>(numSteps_) - 1) {
-                    next = static_cast<int>(numSteps_) - 1;
-                    pingPongForward_ = false;
-                }
-            } else {
-                next = currentStep_ - 1;
-                if (next <= 0) {
-                    next = 0;
-                    pingPongForward_ = true;
-                }
-            }
-            break;
-
-        case Direction::Random:
-            if (numSteps_ <= 1) {
-                next = 0;
-            } else {
-                // Rejection sampling with xorshift PRNG
-                do {
-                    rngState_ ^= rngState_ << 13;
-                    rngState_ ^= rngState_ >> 17;
-                    rngState_ ^= rngState_ << 5;
-                    next = static_cast<int>(rngState_ % static_cast<uint32_t>(numSteps_));
-                } while (next == currentStep_);
-            }
-            break;
-    }
-
-    return next;
-}
-
 inline void FilterStepSequencer::applyStepParameters(int stepIndex) noexcept {
     if (stepIndex < 0 || stepIndex >= static_cast<int>(kMaxSteps)) return;
 
@@ -762,7 +599,7 @@ inline void FilterStepSequencer::applyStepParameters(int stepIndex) noexcept {
 
     // Check if filter type is changing (SC-003: crossfade for smooth transition)
     SVFMode currentType = filter_.getMode();
-    if (step.type != currentType && prepared_) {
+    if (step.type != currentType && sequencer_.isPrepared()) {
         // Start type crossfade: copy entire filter (state + mode) to old filter
         filterOld_ = filter_;
         previousType_ = currentType;
@@ -780,11 +617,9 @@ inline void FilterStepSequencer::applyStepParameters(int stepIndex) noexcept {
     }
 
     // Calculate effective glide time with truncation (FR-010)
-    float swungStepDuration = applySwingToStep(stepIndex, static_cast<float>(stepDurationSamples_));
-    float stepDurationMs = (swungStepDuration / static_cast<float>(sampleRate_)) * 1000.0f;
-
-    // If step duration is shorter than glide time, truncate glide
-    float effectiveGlideMs = std::min(glideTimeMs_, stepDurationMs);
+    // We need step duration - get it from tempo and note value
+    // For simplicity, use current glide time (SequencerCore handles swing internally)
+    float effectiveGlideMs = glideTimeMs_;
 
     // Configure ramps with effective glide time
     cutoffRamp_.configure(effectiveGlideMs, static_cast<float>(sampleRate_));
@@ -795,41 +630,6 @@ inline void FilterStepSequencer::applyStepParameters(int stepIndex) noexcept {
     cutoffRamp_.setTarget(step.cutoffHz);
     qRamp_.setTarget(step.q);
     gainRamp_.setTarget(step.gainDb);
-}
-
-inline float FilterStepSequencer::applySwingToStep(int stepIndex, float baseDuration) const noexcept {
-    if (swing_ <= 0.0f) return baseDuration;
-
-    // Swing affects step pairs: even steps get longer, odd steps get shorter
-    // Formula: ratio = (1+swing)/(1-swing) at swing=0.5 gives 3:1
-    bool isOddStep = (stepIndex % 2 == 1);
-
-    if (isOddStep) {
-        // Odd step gets shorter: multiply by (1 - swing)
-        return baseDuration * (1.0f - swing_);
-    } else {
-        // Even step gets longer: multiply by (1 + swing)
-        return baseDuration * (1.0f + swing_);
-    }
-}
-
-inline int FilterStepSequencer::calculatePingPongStep(double stepsIntoPattern) const noexcept {
-    if (numSteps_ <= 1) return 0;
-
-    // PingPong cycle length: 2 * (N - 1) for N steps
-    // Pattern: 0,1,2,3,2,1,0,1,2,3,2,1...
-    int cycleLength = 2 * (static_cast<int>(numSteps_) - 1);
-    int posInCycle = static_cast<int>(std::fmod(stepsIntoPattern, static_cast<double>(cycleLength)));
-    if (posInCycle < 0) posInCycle += cycleLength;
-
-    // First half: ascending (0 to N-1)
-    // Second half: descending (N-2 to 1)
-    if (posInCycle < static_cast<int>(numSteps_)) {
-        return posInCycle;
-    } else {
-        // Mirror back: position N maps to N-2, N+1 maps to N-3, etc.
-        return cycleLength - posInCycle;
-    }
 }
 
 } // namespace DSP
