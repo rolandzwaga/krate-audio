@@ -90,6 +90,9 @@ public:
         // Configure freeze crossfade
         freezeCrossfade_.configure(kFreezeCrossfadeMs, static_cast<float>(sampleRate));
 
+        // Generate default envelope table
+        regenerateEnvelope(envelopeType_);
+
         reset();
     }
 

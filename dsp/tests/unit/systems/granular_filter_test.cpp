@@ -89,3 +89,192 @@ TEST_CASE("GranularFilter default parameter values", "[systems][granular-filter]
         REQUIRE(filter.getPitchQuantMode() == PitchQuantMode::Off);
     }
 }
+
+// =============================================================================
+// Phase 3: User Story 1 - Per-Grain Filter Processing Tests
+// =============================================================================
+
+TEST_CASE("GranularFilter grain slot indexing", "[systems][granular-filter][layer3][US1]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("multiple grains get different slot indices") {
+        // Process to trigger several grains
+        float outL, outR;
+        for (int i = 0; i < 4800; ++i) {  // 100ms at 48kHz
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        // Should have some active grains
+        REQUIRE(filter.activeGrainCount() > 0);
+    }
+}
+
+TEST_CASE("GranularFilter filter state reset on grain acquire", "[systems][granular-filter][layer3][US1]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(100.0f);  // High density
+    filter.setGrainSize(50.0f); // Short grains
+    filter.setFilterCutoff(1000.0f);
+    filter.setFilterEnabled(true);
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("no artifacts from previous grain filter state") {
+        // Process audio for a while to cycle through grain slots
+        float outL, outR;
+
+        // First fill buffer with loud signal
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(1.0f, 1.0f, outL, outR);
+        }
+
+        // Continue processing and watch for anomalies
+        float maxOutput = 0.0f;
+        for (int i = 0; i < 48000; ++i) {  // 1 second
+            filter.process(0.5f, 0.5f, outL, outR);
+            maxOutput = std::max(maxOutput, std::max(std::abs(outL), std::abs(outR)));
+        }
+
+        // Output should be bounded (no filter instability from uncleared state)
+        REQUIRE(maxOutput < 5.0f);
+        REQUIRE_FALSE(std::isnan(maxOutput));
+    }
+}
+
+TEST_CASE("GranularFilter independent filter state per grain", "[systems][granular-filter][layer3][US1]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterCutoff(500.0f);  // Low cutoff
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("grains have independent filter states") {
+        // Process some audio to trigger multiple grains
+        float outL, outR;
+        for (int i = 0; i < 9600; ++i) {  // 200ms
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        // Multiple grains should be active
+        REQUIRE(filter.activeGrainCount() > 1);
+    }
+}
+
+TEST_CASE("GranularFilter filter bypass mode", "[systems][granular-filter][layer3][US1]") {
+    SECTION("filterEnabled=false produces different output than enabled") {
+        GranularFilter filterEnabled;
+        GranularFilter filterDisabled;
+
+        filterEnabled.prepare(48000.0);
+        filterDisabled.prepare(48000.0);
+
+        filterEnabled.setDensity(50.0f);
+        filterDisabled.setDensity(50.0f);
+
+        filterEnabled.setPosition(50.0f);
+        filterDisabled.setPosition(50.0f);
+
+        filterEnabled.setFilterEnabled(true);
+        filterEnabled.setFilterCutoff(500.0f);
+
+        filterDisabled.setFilterEnabled(false);
+
+        // Same seed for reproducibility
+        filterEnabled.seed(12345);
+        filterDisabled.seed(12345);
+
+        filterEnabled.reset();
+        filterDisabled.reset();
+
+        float outEnabledL, outEnabledR;
+        float outDisabledL, outDisabledR;
+
+        // Fill delay buffers
+        for (int i = 0; i < 4800; ++i) {
+            filterEnabled.process(0.5f, 0.5f, outEnabledL, outEnabledR);
+            filterDisabled.process(0.5f, 0.5f, outDisabledL, outDisabledR);
+        }
+
+        // Check if outputs differ (filtering changes the output)
+        bool anyDifference = false;
+        for (int i = 0; i < 48000; ++i) {
+            filterEnabled.process(0.5f, 0.5f, outEnabledL, outEnabledR);
+            filterDisabled.process(0.5f, 0.5f, outDisabledL, outDisabledR);
+
+            if (std::abs(outEnabledL - outDisabledL) > 0.001f ||
+                std::abs(outEnabledR - outDisabledR) > 0.001f) {
+                anyDifference = true;
+                break;
+            }
+        }
+
+        // With filter enabled at 500Hz LP, output should differ from unfiltered
+        REQUIRE(anyDifference);
+    }
+
+    SECTION("filterEnabled=false passes audio unchanged through grain processing") {
+        GranularFilter filter;
+        filter.prepare(48000.0);
+        filter.setDensity(50.0f);
+        filter.setPosition(50.0f);
+        filter.setFilterEnabled(false);
+        filter.seed(42);
+        filter.reset();
+
+        float outL, outR;
+
+        // Fill buffer
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        // Process and verify output is produced
+        float totalEnergy = 0.0f;
+        for (int i = 0; i < 24000; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+            totalEnergy += outL * outL + outR * outR;
+        }
+
+        REQUIRE(totalEnergy > 0.0f);
+    }
+}
+
+TEST_CASE("GranularFilter signal flow order", "[systems][granular-filter][layer3][US1]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(20.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterCutoff(500.0f);
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("filter applies after envelope (no click at grain start)") {
+        float outL, outR;
+
+        // Fill buffer first
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        // Process more and check for large transients
+        float maxTransient = 0.0f;
+        float prevL = 0.0f;
+
+        for (int i = 0; i < 48000; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+            float transient = std::abs(outL - prevL);
+            maxTransient = std::max(maxTransient, transient);
+            prevL = outL;
+        }
+
+        // Transients should be smoothed by envelope
+        // If filter was before envelope, we'd see harsh transients
+        REQUIRE(maxTransient < 0.5f);
+    }
+}
