@@ -488,6 +488,7 @@ Input -> [SVF Filter with per-step cutoff/Q/type] -> [Per-step gain] -> [Gate cr
 ```
 
 **Key Features:**
+- Uses Direction enum from SequencerCore (L1)
 - Composes SVF (L1), LinearRamp x4 (L1) for smooth parameter transitions
 - 16 programmable steps with cutoff, Q, filter type, and gain per step
 - Tempo sync via NoteValue enum (1/1 to 1/32, triplet/dotted variants)
@@ -522,6 +523,113 @@ seq.setStepCutoff(3, 5000.0f);  // Bright
 seq.setTempo(120.0f);
 seq.setNoteValue(NoteValue::Quarter);
 seq.setGlideTime(50.0f);  // Smooth 50ms transitions
+
+// Process audio
+for (size_t i = 0; i < numSamples; ++i) {
+    buffer[i] = seq.process(buffer[i]);
+}
+```
+
+---
+
+## VowelSequencer
+**Path:** [vowel_sequencer.h](../../dsp/include/krate/dsp/systems/vowel_sequencer.h) | **Since:** 0.14.0
+
+16-step vowel formant sequencer synchronized to tempo for rhythmic "talking" effects.
+
+```cpp
+struct VowelStep {
+    Vowel vowel = Vowel::A;     // Discrete vowel (A, E, I, O, U)
+    float morph = 0.0f;         // Continuous morph position [0, 4]
+};
+
+class VowelSequencer {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Step configuration (16 steps max)
+    void setNumSteps(size_t numSteps) noexcept;          // [1, 16]
+    [[nodiscard]] size_t getNumSteps() const noexcept;
+    void setStep(size_t stepIndex, const VowelStep& step) noexcept;
+    [[nodiscard]] const VowelStep& getStep(size_t stepIndex) const noexcept;
+    void setStepVowel(size_t stepIndex, Vowel vowel) noexcept;
+    void setStepMorph(size_t stepIndex, float morph) noexcept;
+
+    // Mode
+    void setMorphMode(bool enabled) noexcept;            // Discrete vs continuous
+    [[nodiscard]] bool isMorphMode() const noexcept;
+
+    // Global formant modification
+    void setFormantShift(float semitones) noexcept;      // [-24, +24]
+    void setGender(float amount) noexcept;               // [-1, +1]
+
+    // Timing (delegated to SequencerCore)
+    void setTempo(float bpm) noexcept;                   // [20, 300]
+    void setNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept;
+    void setSwing(float swing) noexcept;                 // [0, 1]
+    void setGlideTime(float ms) noexcept;                // [0, 500]
+    void setGateLength(float gateLength) noexcept;       // [0, 1]
+
+    // Playback (delegated to SequencerCore)
+    void setDirection(Direction direction) noexcept;
+    [[nodiscard]] Direction getDirection() const noexcept;
+
+    // Transport (delegated to SequencerCore)
+    void sync(double ppqPosition) noexcept;
+    void trigger() noexcept;
+    [[nodiscard]] int getCurrentStep() const noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples, const BlockContext* ctx = nullptr) noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Input -> [FormantFilter with per-step vowel/morph] -> [Gate crossfade to dry] -> Output
+                ^
+                |
+          [SequencerCore: tempo/swing/gate/direction]
+```
+
+**Key Features:**
+- Composes SequencerCore (L1) for timing, FormantFilter (L2) for sound
+- 16 programmable steps with discrete vowel or continuous morph per step
+- Discrete mode: snap to exact A/E/I/O/U formants
+- Morph mode: interpolate between vowels (0.0=A, 1.0=E, 2.0=I, 3.0=O, 4.0=U)
+- Global formant shift (+/- 24 semitones) and gender (-1=male, +1=female)
+- Gate behavior: output = wet * gateRamp + input * (1 - gateRamp)
+- When gate is off, returns to dry input (not silence)
+- Direction modes: Forward, Backward, PingPong, Random (via SequencerCore)
+- PPQ sync for DAW transport lock (via SequencerCore)
+- Zero allocations in process() for real-time safety
+
+**When to Use:**
+- Creating "talking" or "vowel" filter effects
+- Rhythmic vocal-like sweeps on synth pads or bass
+- Electronic music production with tempo-synced formant modulation
+- Sound design requiring vowel sequences
+
+**Example:**
+```cpp
+VowelSequencer seq;
+seq.prepare(44100.0);
+
+// Set up 5 vowels A-E-I-O-U
+seq.setNumSteps(5);
+seq.setStepVowel(0, Vowel::A);
+seq.setStepVowel(1, Vowel::E);
+seq.setStepVowel(2, Vowel::I);
+seq.setStepVowel(3, Vowel::O);
+seq.setStepVowel(4, Vowel::U);
+
+// Configure timing
+seq.setTempo(120.0f);
+seq.setNoteValue(NoteValue::Eighth);
+seq.setGateLength(0.75f);  // 75% gate for rhythmic effect
 
 // Process audio
 for (size_t i = 0; i < numSamples; ++i) {

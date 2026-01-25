@@ -957,3 +957,92 @@ for (auto& sample : buffer) {
 - Denormal flushing on all filter states and outputs
 
 **Dependencies:** `core/db_utils.h` (isNaN, isInf)
+
+---
+
+## SequencerCore (Step Sequencer Timing Engine)
+**Path:** [sequencer_core.h](../../dsp/include/krate/dsp/primitives/sequencer_core.h) | **Since:** 0.14.0
+
+Reusable timing engine for tempo-synchronized step sequencers. Provides step timing, direction control, swing, gate length, and transport sync. Used by FilterStepSequencer and VowelSequencer.
+
+**Use when:**
+- Building any tempo-synced step sequencer effect
+- Need timing with swing/groove control
+- Require transport sync (PPQ position)
+- Want gate-length control with crossfade
+
+**Note:** This is a Layer 1 primitive that provides timing logic only. Parameter interpolation and actual audio processing must be handled by the composing system (Layer 3).
+
+```cpp
+enum class Direction : uint8_t { Forward, Backward, PingPong, Random };
+
+class SequencerCore {
+    static constexpr size_t kMaxSteps = 16;
+    static constexpr float kMinTempoBPM = 20.0f;
+    static constexpr float kMaxTempoBPM = 300.0f;
+    static constexpr float kGateCrossfadeMs = 5.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Step configuration
+    void setNumSteps(size_t numSteps) noexcept;
+    [[nodiscard]] size_t getNumSteps() const noexcept;
+
+    // Timing configuration
+    void setTempo(float bpm) noexcept;
+    void setNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept;
+    void setSwing(float swing) noexcept;          // [0, 1] - 0.5 = 3:1 ratio
+    void setGateLength(float gateLength) noexcept; // [0, 1] - fraction of step
+
+    // Direction
+    void setDirection(Direction direction) noexcept;
+    [[nodiscard]] Direction getDirection() const noexcept;
+
+    // Transport
+    void sync(double ppqPosition) noexcept;       // Sync to DAW transport
+    void trigger() noexcept;                       // Manual step advance
+    [[nodiscard]] int getCurrentStep() const noexcept;
+
+    // Processing (call once per sample)
+    [[nodiscard]] bool tick() noexcept;           // Returns true on step change
+    [[nodiscard]] bool isGateActive() const noexcept;
+    [[nodiscard]] float getGateRampValue() noexcept;  // 5ms crossfade
+};
+```
+
+| Direction | Pattern (4 steps) |
+|-----------|-------------------|
+| Forward | 0, 1, 2, 3, 0, 1, ... |
+| Backward | 3, 2, 1, 0, 3, 2, ... |
+| PingPong | 0, 1, 2, 3, 2, 1, 0, 1, ... (endpoints once per cycle) |
+| Random | Random, no immediate repeat |
+
+| Swing | Even:Odd Duration Ratio |
+|-------|------------------------|
+| 0.0 | 1:1 (no swing) |
+| 0.5 | 3:1 (heavy swing) |
+| 1.0 | Maximum |
+
+**Example Usage:**
+```cpp
+SequencerCore core;
+core.prepare(44100.0);
+core.setNumSteps(4);
+core.setTempo(120.0f);
+core.setNoteValue(NoteValue::Eighth);
+core.setDirection(Direction::Forward);
+core.setSwing(0.3f);
+core.setGateLength(0.75f);
+
+// In process loop:
+if (core.tick()) {
+    int step = core.getCurrentStep();
+    applyStepParameters(step);  // Your parameter logic
+}
+bool gateOn = core.isGateActive();
+float gateValue = core.getGateRampValue();
+```
+
+**Dependencies:** `core/note_value.h`, `primitives/smoother.h` (LinearRamp)
