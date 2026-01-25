@@ -35,6 +35,7 @@
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/pitch_detector.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/primitives/spectral_utils.h>
 #include <krate/dsp/primitives/stft.h>
 #include <krate/dsp/primitives/spectral_buffer.h>
 #include <krate/dsp/core/window_functions.h>
@@ -1382,13 +1383,6 @@ private:
                 synthesisSpectrum_.setCartesian(k, real, imag);
             }
         }
-    }
-
-    /// @brief Wrap phase to [-π, π]
-    [[nodiscard]] static float wrapPhase(float phase) noexcept {
-        while (phase > kPi) phase -= kTwoPi;
-        while (phase < -kPi) phase += kTwoPi;
-        return phase;
     }
 
     // STFT analysis and synthesis

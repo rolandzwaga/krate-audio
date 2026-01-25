@@ -4,6 +4,10 @@
 // Upsampling/downsampling primitive for anti-aliased nonlinear processing.
 // Supports 2x and 4x oversampling with configurable filter quality and latency modes.
 //
+// NOTE: This is a "meta-primitive" / processor wrapper. Unlike other primitives that
+// process samples directly, Oversampler wraps other processors to run them at higher
+// sample rates. It upsamples input, invokes a callback, then downsamples the result.
+//
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations in process)
 // - Principle III: Modern C++ (RAII, constexpr, value semantics, C++20)
@@ -208,6 +212,13 @@ using HalfbandFilterHigh = HalfbandFilter<detail::kHighFirLength>;
 // =============================================================================
 
 /// @brief Upsampling/downsampling primitive for anti-aliased nonlinear processing.
+///
+/// @note **This is a processor wrapper, not a signal processor itself.**
+/// Unlike other Layer 1 primitives that process samples directly, Oversampler wraps
+/// other processors to run them at higher sample rates. It upsamples the input,
+/// invokes a user-provided callback to process at the oversampled rate, then
+/// downsamples the result. Use it to wrap nonlinear processors (saturation, waveshaping)
+/// that would otherwise alias.
 ///
 /// @tparam Factor Oversampling factor (2 or 4)
 /// @tparam NumChannels Number of audio channels (1 = mono, 2 = stereo)
