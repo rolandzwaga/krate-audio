@@ -131,6 +131,7 @@ add_executable(dsp_tests
     unit/systems/fuzz_pedal_test.cpp
     unit/systems/distortion_rack_tests.cpp
     unit/systems/filter_feedback_matrix_tests.cpp
+    unit/systems/filter_step_sequencer_tests.cpp
 
     # Layer 4: Effects
     unit/effects/tape_delay_test.cpp
@@ -272,6 +273,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/fuzz_pedal_test.cpp
         unit/systems/distortion_rack_tests.cpp
         unit/systems/filter_feedback_matrix_tests.cpp
+        unit/systems/filter_step_sequencer_tests.cpp
         unit/effects/tape_delay_test.cpp
         unit/effects/tape_delay_params_diagnostic_test.cpp
         unit/effects/bbd_delay_test.cpp
