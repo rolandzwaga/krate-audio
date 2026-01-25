@@ -423,3 +423,108 @@ Input -> [inputGains] -> Filters -> [tanh] -> [feedback matrix with delays]
 - Creating complex resonant textures and filter networks
 - Building FDN-style (Feedback Delay Network) effects with filters instead of pure delays
 - Designing custom cross-modulating filter topologies (serial, parallel, hybrid)
+
+---
+
+## FilterStepSequencer
+**Path:** [filter_step_sequencer.h](../../dsp/include/krate/dsp/systems/filter_step_sequencer.h) | **Since:** 0.0.98
+
+16-step filter parameter sequencer synchronized to tempo for rhythmic filter effects.
+
+```cpp
+enum class Direction : uint8_t { Forward, Backward, PingPong, Random };
+
+struct SequencerStep {
+    float cutoffHz = 1000.0f;          // [20, 20000] Hz
+    float q = 0.707f;                  // [0.5, 20.0]
+    SVFMode type = SVFMode::Lowpass;
+    float gainDb = 0.0f;               // [-24, +12] dB
+};
+
+class FilterStepSequencer {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Step configuration (16 steps max)
+    void setNumSteps(size_t numSteps) noexcept;          // [1, 16]
+    [[nodiscard]] size_t getNumSteps() const noexcept;
+    void setStep(size_t stepIndex, const SequencerStep& step) noexcept;
+    [[nodiscard]] const SequencerStep& getStep(size_t stepIndex) const noexcept;
+    void setStepCutoff(size_t stepIndex, float hz) noexcept;
+    void setStepQ(size_t stepIndex, float q) noexcept;
+    void setStepType(size_t stepIndex, SVFMode type) noexcept;
+    void setStepGain(size_t stepIndex, float dB) noexcept;
+
+    // Timing
+    void setTempo(float bpm) noexcept;                   // [20, 300]
+    void setNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept;
+    void setSwing(float swing) noexcept;                 // [0, 1] (0.5 = 3:1 ratio)
+    void setGlideTime(float ms) noexcept;                // [0, 500]
+    void setGateLength(float gateLength) noexcept;       // [0, 1]
+
+    // Playback
+    void setDirection(Direction direction) noexcept;
+    [[nodiscard]] Direction getDirection() const noexcept;
+
+    // Transport
+    void sync(double ppqPosition) noexcept;
+    void trigger() noexcept;
+    [[nodiscard]] int getCurrentStep() const noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples, const BlockContext* ctx = nullptr) noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Input -> [SVF Filter with per-step cutoff/Q/type] -> [Per-step gain] -> [Gate crossfade] -> Output
+                ^
+                |
+          [Timing engine: tempo/swing/glide]
+```
+
+**Key Features:**
+- Composes SVF (L1), LinearRamp x4 (L1) for smooth parameter transitions
+- 16 programmable steps with cutoff, Q, filter type, and gain per step
+- Tempo sync via NoteValue enum (1/1 to 1/32, triplet/dotted variants)
+- Swing timing: 0-100%, 50% produces 3:1 ratio
+- Glide/portamento: 0-500ms, auto-truncates when step duration < glide time
+- Gate length: rhythmic pumping with 5ms crossfade for click-free transitions
+- Four direction modes: Forward, Backward, PingPong (endpoints once), Random (no repeats)
+- PPQ sync for DAW transport lock
+- Filter type changes instantly at step boundaries, cutoff/Q/gain glide
+- Zero allocations in process() for real-time safety
+
+**When to Use:**
+- Classic trance-gate filter effects
+- Dubstep wobble bass
+- Rhythmic filter modulation synchronized to tempo
+- Evolving textures with per-step filter type changes
+- Groovy filter movement with swing timing
+
+**Example:**
+```cpp
+FilterStepSequencer seq;
+seq.prepare(44100.0);
+
+// Set up 4 steps with ascending cutoff
+seq.setNumSteps(4);
+seq.setStepCutoff(0, 200.0f);   // Dark
+seq.setStepCutoff(1, 800.0f);   // Warm
+seq.setStepCutoff(2, 2000.0f);  // Present
+seq.setStepCutoff(3, 5000.0f);  // Bright
+
+// Configure timing
+seq.setTempo(120.0f);
+seq.setNoteValue(NoteValue::Quarter);
+seq.setGlideTime(50.0f);  // Smooth 50ms transitions
+
+// Process audio
+for (size_t i = 0; i < numSamples; ++i) {
+    buffer[i] = seq.process(buffer[i]);
+}
+```
