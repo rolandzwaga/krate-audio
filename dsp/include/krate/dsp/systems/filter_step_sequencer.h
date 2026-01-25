@@ -23,6 +23,7 @@
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/primitives/sequencer_core.h>  // Direction enum
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/svf.h>
 
@@ -60,14 +61,8 @@ struct SequencerStep {
 // =============================================================================
 // Direction Enumeration (FR-012)
 // =============================================================================
-
-/// @brief Playback direction for step sequencer
-enum class Direction : uint8_t {
-    Forward = 0,    ///< Sequential forward: 0, 1, 2, ..., N-1, 0, 1, ...
-    Backward,       ///< Sequential backward: N-1, N-2, ..., 0, N-1, ...
-    PingPong,       ///< Bounce at endpoints (endpoints visited once per cycle)
-    Random          ///< Random selection (no immediate repeat)
-};
+// Direction enum is defined in <krate/dsp/primitives/sequencer_core.h>
+// Available values: Direction::Forward, Direction::Backward, Direction::PingPong, Direction::Random
 
 // =============================================================================
 // FilterStepSequencer Class (FR-001 through FR-022)
