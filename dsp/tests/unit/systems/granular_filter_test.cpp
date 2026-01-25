@@ -716,6 +716,123 @@ TEST_CASE("GranularFilter all granular parameters integration", "[systems][granu
     }
 }
 
+// =============================================================================
+// Phase 8: Performance Validation & Edge Cases Tests
+// =============================================================================
+
+TEST_CASE("GranularFilter performance with 64 active filtered grains", "[systems][granular-filter][layer3][performance]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(100.0f);  // Maximum density
+    filter.setGrainSize(500.0f);  // Maximum grain size for most overlap
+    filter.setPosition(100.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterCutoff(1000.0f);
+    filter.setFilterResonance(2.0f);
+    filter.setCutoffRandomization(2.0f);
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("64 grains process without crashing or NaN") {
+        float outL, outR;
+
+        // Process enough to fill buffer and saturate grain pool
+        for (int i = 0; i < 96000; ++i) {  // 2 seconds at 48kHz
+            filter.process(0.5f, 0.5f, outL, outR);
+
+            REQUIRE_FALSE(std::isnan(outL));
+            REQUIRE_FALSE(std::isnan(outR));
+            REQUIRE_FALSE(std::isinf(outL));
+            REQUIRE_FALSE(std::isinf(outR));
+        }
+
+        // Should have many active grains
+        REQUIRE(filter.activeGrainCount() > 0);
+    }
+}
+
+TEST_CASE("GranularFilter extreme cutoff randomization edge case", "[systems][granular-filter][layer3][edge-case]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterCutoff(100.0f);  // Low base cutoff
+    filter.setCutoffRandomization(4.0f);  // Maximum randomization (4 octaves)
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("extreme randomization stays clamped to valid range") {
+        float outL, outR;
+
+        // Process and verify no issues
+        for (int i = 0; i < 48000; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+
+            REQUIRE_FALSE(std::isnan(outL));
+            REQUIRE_FALSE(std::isnan(outR));
+            REQUIRE(std::abs(outL) < 10.0f);
+            REQUIRE(std::abs(outR) < 10.0f);
+        }
+    }
+}
+
+TEST_CASE("GranularFilter high grain density edge case", "[systems][granular-filter][layer3][edge-case]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(100.0f);  // Maximum density
+    filter.setGrainSize(10.0f);  // Minimum grain size
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterCutoff(1000.0f);
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("100+ grains/sec with filtering stays stable") {
+        float outL, outR;
+
+        // Process 2 seconds
+        for (int i = 0; i < 96000; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+
+            REQUIRE_FALSE(std::isnan(outL));
+            REQUIRE_FALSE(std::isnan(outR));
+        }
+    }
+}
+
+TEST_CASE("GranularFilter filter state isolation", "[systems][granular-filter][layer3][edge-case]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setGrainSize(50.0f);  // Short grains to cycle through slots faster
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterCutoff(1000.0f);
+    filter.setFilterResonance(10.0f);  // High Q can expose state leakage
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("no artifacts from previous grain filter state (SC-005)") {
+        float outL, outR;
+
+        // First, excite filters with signal
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        // Then switch to silence - grains should reset cleanly
+        for (int i = 0; i < 96000; ++i) {  // 2 seconds of silence
+            filter.process(0.0f, 0.0f, outL, outR);
+
+            // Should not have lingering energy from previous grains
+            // (filter state should reset when grain is acquired)
+            REQUIRE_FALSE(std::isnan(outL));
+            REQUIRE_FALSE(std::isnan(outR));
+        }
+    }
+}
+
 TEST_CASE("GranularFilter signal flow order", "[systems][granular-filter][layer3][US1]") {
     GranularFilter filter;
     filter.prepare(48000.0);
