@@ -570,6 +570,152 @@ TEST_CASE("GranularFilter Q propagation", "[systems][granular-filter][layer3][US
     }
 }
 
+// =============================================================================
+// Phase 7: User Story 5 - Integration with Existing Granular Parameters Tests
+// =============================================================================
+
+TEST_CASE("GranularFilter pitch + filter integration", "[systems][granular-filter][layer3][US5]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setPosition(50.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterCutoff(1000.0f);
+    filter.setPitch(12.0f);  // +12 semitones (octave up)
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("pitch shift works with filtering") {
+        float outL, outR;
+
+        // Fill buffer
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        // Process and verify output
+        float totalEnergy = 0.0f;
+        for (int i = 0; i < 24000; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+            totalEnergy += outL * outL + outR * outR;
+            REQUIRE_FALSE(std::isnan(outL));
+            REQUIRE_FALSE(std::isnan(outR));
+        }
+
+        REQUIRE(totalEnergy > 0.0f);
+    }
+}
+
+TEST_CASE("GranularFilter reverse probability + filter integration", "[systems][granular-filter][layer3][US5]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+    filter.setDensity(50.0f);
+    filter.setPosition(100.0f);
+    filter.setFilterEnabled(true);
+    filter.setFilterCutoff(1000.0f);
+    filter.setReverseProbability(0.5f);  // 50% reversed
+    filter.seed(42);
+    filter.reset();
+
+    SECTION("reverse probability works with filtering") {
+        float outL, outR;
+
+        // Fill buffer
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        // Process and verify no crashes
+        for (int i = 0; i < 48000; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+            REQUIRE_FALSE(std::isnan(outL));
+            REQUIRE_FALSE(std::isnan(outR));
+        }
+    }
+}
+
+TEST_CASE("GranularFilter bypass equivalence", "[systems][granular-filter][layer3][US5]") {
+    SECTION("filterEnabled=false allows grain processing") {
+        GranularFilter filter;
+        filter.prepare(48000.0);
+        filter.setDensity(50.0f);
+        filter.setPosition(50.0f);
+        filter.setFilterEnabled(false);  // Bypass filtering
+        filter.seed(42);
+        filter.reset();
+
+        float outL, outR;
+
+        // Fill buffer
+        for (int i = 0; i < 4800; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+        }
+
+        // Verify output is produced
+        float totalEnergy = 0.0f;
+        for (int i = 0; i < 24000; ++i) {
+            filter.process(0.5f, 0.5f, outL, outR);
+            totalEnergy += outL * outL + outR * outR;
+        }
+
+        REQUIRE(totalEnergy > 0.0f);
+    }
+}
+
+TEST_CASE("GranularFilter all granular parameters integration", "[systems][granular-filter][layer3][US5]") {
+    GranularFilter filter;
+    filter.prepare(48000.0);
+
+    SECTION("all parameters can be set without crash") {
+        // Granular parameters
+        filter.setGrainSize(50.0f);
+        filter.setDensity(30.0f);
+        filter.setPitch(-7.0f);
+        filter.setPitchSpray(0.3f);
+        filter.setPosition(200.0f);
+        filter.setPositionSpray(0.5f);
+        filter.setReverseProbability(0.2f);
+        filter.setPanSpray(0.4f);
+        filter.setJitter(0.6f);
+        filter.setEnvelopeType(GrainEnvelopeType::Blackman);
+        filter.setTexture(0.5f);
+        filter.setFreeze(false);
+        filter.setPitchQuantMode(PitchQuantMode::Semitones);
+
+        // Filter parameters
+        filter.setFilterEnabled(true);
+        filter.setFilterCutoff(2000.0f);
+        filter.setFilterResonance(2.0f);
+        filter.setFilterType(SVFMode::Bandpass);
+        filter.setCutoffRandomization(1.5f);
+
+        filter.seed(12345);
+        filter.reset();
+
+        float outL, outR;
+
+        // Process and verify stability
+        for (int i = 0; i < 48000; ++i) {  // 1 second
+            filter.process(0.5f, 0.5f, outL, outR);
+            REQUIRE_FALSE(std::isnan(outL));
+            REQUIRE_FALSE(std::isnan(outR));
+            REQUIRE(std::abs(outL) < 10.0f);
+            REQUIRE(std::abs(outR) < 10.0f);
+        }
+    }
+
+    SECTION("getters return expected values") {
+        filter.setTexture(0.75f);
+        REQUIRE(filter.getTexture() == Approx(0.75f));
+
+        filter.setPitchQuantMode(PitchQuantMode::Fifths);
+        REQUIRE(filter.getPitchQuantMode() == PitchQuantMode::Fifths);
+
+        filter.setFreeze(true);
+        REQUIRE(filter.isFrozen() == true);
+    }
+}
+
 TEST_CASE("GranularFilter signal flow order", "[systems][granular-filter][layer3][US1]") {
     GranularFilter filter;
     filter.prepare(48000.0);
