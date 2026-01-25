@@ -2294,6 +2294,125 @@ Input --> [OnePoleSmoother (tilt)] --+
 
 ---
 
+## SpectralDistortion
+**Path:** [spectral_distortion.h](../../dsp/include/krate/dsp/processors/spectral_distortion.h) | **Since:** 0.14.0
+
+Per-frequency-bin distortion in the spectral domain for "impossible" distortion effects.
+
+**Use when:**
+- Creating harmonic distortion on individual frequency bins
+- Need frequency-selective saturation with independent band control
+- Want lo-fi spectral magnitude quantization (spectral bitcrushing)
+- Building effects that cannot exist in time-domain processing
+- Need surgical phase-preserving distortion
+
+**Features:**
+- Four distortion modes: PerBinSaturate, MagnitudeOnly, BinSelective, SpectralBitcrush
+- 9 waveshaping curves via Waveshaper primitive (Tanh, Atan, Cubic, etc.)
+- Frequency-selective distortion with configurable low/mid/high bands
+- DC/Nyquist bin exclusion by default (opt-in processing)
+- Phase preservation mode for surgical processing
+- Gap handling: Passthrough or UseGlobalDrive for unassigned bins
+- Real-time safe (noexcept, allocation in prepare() only)
+
+```cpp
+enum class SpectralDistortionMode : uint8_t {
+    PerBinSaturate,   // Per-bin waveshaping, natural phase evolution
+    MagnitudeOnly,    // Per-bin waveshaping, exact phase preservation
+    BinSelective,     // Per-band drive control with crossovers
+    SpectralBitcrush  // Magnitude quantization, exact phase preservation
+};
+
+enum class GapBehavior : uint8_t {
+    Passthrough,      // Unassigned bins pass through unmodified
+    UseGlobalDrive    // Unassigned bins use global drive parameter
+};
+
+class SpectralDistortion {
+    static constexpr size_t kMinFFTSize = 256;
+    static constexpr size_t kMaxFFTSize = 8192;
+    static constexpr size_t kDefaultFFTSize = 2048;
+    static constexpr float kMinDrive = 0.0f;
+    static constexpr float kMaxDrive = 10.0f;
+    static constexpr float kMinBits = 1.0f;
+    static constexpr float kMaxBits = 16.0f;
+
+    void prepare(double sampleRate, size_t fftSize = kDefaultFFTSize) noexcept;
+    void reset() noexcept;
+    void processBlock(const float* input, float* output, size_t numSamples) noexcept;
+
+    // Mode selection
+    void setMode(SpectralDistortionMode mode) noexcept;
+    [[nodiscard]] SpectralDistortionMode getMode() const noexcept;
+
+    // Global parameters
+    void setDrive(float drive) noexcept;           // [0, 10], 0 = bypass
+    void setSaturationCurve(WaveshapeType curve) noexcept;
+    void setProcessDCNyquist(bool enabled) noexcept;
+
+    // Bin-selective parameters
+    void setLowBand(float freqHz, float drive) noexcept;
+    void setMidBand(float lowHz, float highHz, float drive) noexcept;
+    void setHighBand(float freqHz, float drive) noexcept;
+    void setGapBehavior(GapBehavior mode) noexcept;
+
+    // SpectralBitcrush parameters
+    void setMagnitudeBits(float bits) noexcept;    // [1, 16]
+
+    // Query
+    [[nodiscard]] size_t latency() const noexcept;  // Returns fftSize
+    [[nodiscard]] size_t getFftSize() const noexcept;
+    [[nodiscard]] size_t getNumBins() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+**Parameters:**
+
+| Parameter | Default | Range | Description |
+|-----------|---------|-------|-------------|
+| mode | PerBinSaturate | enum | Processing mode |
+| drive | 1.0 | [0, 10] | Global drive amount (0 = bypass) |
+| saturationCurve | Tanh | WaveshapeType | Waveshaping algorithm |
+| processDCNyquist | false | bool | Include DC/Nyquist bins |
+| magnitudeBits | 16.0 | [1, 16] | Quantization depth for bitcrush |
+
+**Usage Examples:**
+
+```cpp
+// Basic per-bin saturation
+SpectralDistortion dist;
+dist.prepare(44100.0, 2048);
+dist.setMode(SpectralDistortionMode::PerBinSaturate);
+dist.setDrive(3.0f);
+dist.setSaturationCurve(WaveshapeType::Tanh);
+dist.processBlock(input, output, numSamples);
+
+// Frequency-selective distortion (bass crushing)
+dist.setMode(SpectralDistortionMode::BinSelective);
+dist.setLowBand(300.0f, 4.0f);        // Heavy saturation below 300Hz
+dist.setMidBand(300.0f, 3000.0f, 2.0f); // Medium 300-3000Hz
+dist.setHighBand(3000.0f, 1.0f);      // Clean above 3000Hz
+dist.setGapBehavior(GapBehavior::Passthrough);
+
+// Spectral bitcrushing (lo-fi effect)
+dist.setMode(SpectralDistortionMode::SpectralBitcrush);
+dist.setMagnitudeBits(4.0f);  // 16 quantization levels
+```
+
+**Signal Flow:**
+```
+Input -> [STFT Analysis] -> [Per-Bin Processing] -> [IFFT Synthesis] -> Output
+                                   |
+         +--------------+----------+-----------+--------------+
+         |              |          |           |              |
+    PerBinSaturate  MagnitudeOnly  BinSelective  SpectralBitcrush
+```
+
+**Dependencies:** Layer 0 (math_constants.h), Layer 1 (stft.h, spectral_buffer.h, spectral_utils.h, waveshaper.h)
+
+---
+
 ## ResonatorBank
 **Path:** [resonator_bank.h](../../dsp/include/krate/dsp/processors/resonator_bank.h) | **Since:** 0.14.0
 
