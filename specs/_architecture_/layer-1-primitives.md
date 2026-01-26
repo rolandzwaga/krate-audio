@@ -1051,3 +1051,83 @@ float gateValue = core.getGateRampValue();
 ```
 
 **Dependencies:** `core/note_value.h`, `primitives/smoother.h` (LinearRamp)
+
+---
+
+## ChaosWaveshaper (Chaos Attractor Waveshaper)
+**Path:** [chaos_waveshaper.h](../../dsp/include/krate/dsp/primitives/chaos_waveshaper.h) | **Since:** 0.14.0
+
+Time-varying waveshaping using chaos attractor dynamics. The attractor's normalized X component modulates the drive of a tanh-based soft-clipper, producing distortion that evolves over time without external modulation.
+
+**Use when:**
+- Creating evolving distortion effects that change character over time
+- Building unique delay feedback processing that mutates autonomously
+- Need distortion that responds to input dynamics (input coupling)
+- Want analog-style unpredictability in digital processing
+
+**Note:** Uses internal 2x oversampling for anti-aliased waveshaping. Compose with DCBlocker when using in feedback loops.
+
+```cpp
+enum class ChaosModel : uint8_t {
+    Lorenz,   // Swirling, unpredictable (sigma=10, rho=28, beta=8/3)
+    Rossler,  // Smoother spiraling patterns (a=0.2, b=0.2, c=5.7)
+    Chua,     // Double-scroll bi-modal jumps (alpha=15.6, beta=28)
+    Henon     // Sharp rhythmic transitions (a=1.4, b=0.3)
+};
+
+class ChaosWaveshaper {
+    static constexpr size_t kControlRateInterval = 32;  // Control-rate updates
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    void setModel(ChaosModel model) noexcept;           // Select chaos algorithm
+    void setChaosAmount(float amount) noexcept;         // [0, 1] dry/wet mix
+    void setAttractorSpeed(float speed) noexcept;       // [0.01, 100] evolution rate
+    void setInputCoupling(float coupling) noexcept;     // [0, 1] input reactivity
+
+    [[nodiscard]] ChaosModel getModel() const noexcept;
+    [[nodiscard]] float getChaosAmount() const noexcept;
+    [[nodiscard]] float getAttractorSpeed() const noexcept;
+    [[nodiscard]] float getInputCoupling() const noexcept;
+    [[nodiscard]] size_t latency() const noexcept;      // 0 for default mode
+
+    [[nodiscard]] float process(float input) noexcept;  // Single sample (no oversampling)
+    void processBlock(float* buffer, size_t numSamples) noexcept;  // Block with oversampling
+};
+```
+
+| Model | Character | Use Case |
+|-------|-----------|----------|
+| Lorenz | Swirling, unpredictable | Classic chaos, ambient textures |
+| Rossler | Smooth spiraling | Gentler modulation, synth pads |
+| Chua | Bi-modal jumps | Circuit-derived, edgy transitions |
+| Henon | Sharp rhythmic | Discrete map, rhythmic artifacts |
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| ChaosAmount | [0, 1] | 0 = bypass, 1 = full chaos processing |
+| AttractorSpeed | [0.01, 100] | Evolution rate multiplier |
+| InputCoupling | [0, 1] | How much input amplitude perturbs attractor |
+
+**Example Usage:**
+```cpp
+ChaosWaveshaper shaper;
+shaper.prepare(44100.0, 512);
+shaper.setModel(ChaosModel::Lorenz);
+shaper.setChaosAmount(0.5f);       // 50% wet
+shaper.setAttractorSpeed(1.0f);   // Nominal rate
+shaper.setInputCoupling(0.3f);    // Moderate input reactivity
+
+// Block processing (preferred - uses oversampling)
+shaper.processBlock(buffer, numSamples);
+```
+
+**Implementation Notes:**
+- Control-rate attractor updates every 32 samples for efficiency
+- Internal 2x oversampling via `Oversampler<2, 1>` for anti-aliasing
+- Automatic state reset on divergence (NaN/Inf/bounds exceeded)
+- Sample-rate compensated integration for consistent behavior across rates
+- Input coupling accumulates envelope over control interval before perturbation
+
+**Dependencies:** `primitives/oversampler.h`, `core/sigmoid.h` (tanhVariable), `core/db_utils.h` (flushDenormal, isNaN, isInf)
