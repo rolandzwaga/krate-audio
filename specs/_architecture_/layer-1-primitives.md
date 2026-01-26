@@ -1220,3 +1220,101 @@ float output = shaper.process(input);
 - NaN input treated as 0.0, Infinity clamped to [-1, 1]
 
 **Dependencies:** `primitives/waveshaper.h`, `primitives/smoother.h`, `core/random.h`, `core/db_utils.h`
+
+---
+
+## RingSaturation (Self-Modulation Distortion)
+**Path:** [ring_saturation.h](../../dsp/include/krate/dsp/primitives/ring_saturation.h) | **Since:** 0.14.0
+
+Self-modulation distortion primitive that creates metallic, bell-like character through signal-coherent inharmonic sidebands. Unlike traditional ring modulation with external carriers, RingSaturation uses the signal's own saturated version to modulate itself.
+
+**Use when:**
+- Creating metallic, bell-like distortion tones
+- Need inharmonic sidebands that track the input frequency
+- Building complex, evolving distortion character
+- Want distortion with spectral content beyond simple harmonics
+
+**Note:** Multi-stage processing (1-4 stages) progressively increases spectral complexity. Compose with Oversampler for extreme drive settings at high frequencies. Built-in 10Hz DC blocker handles asymmetric saturation.
+
+```cpp
+class RingSaturation {
+    static constexpr int kMinStages = 1;
+    static constexpr int kMaxStages = 4;
+    static constexpr float kDCBlockerCutoffHz = 10.0f;
+    static constexpr float kCrossfadeTimeMs = 10.0f;
+    static constexpr float kSoftLimitScale = 2.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Saturation curve selection (click-free 10ms crossfade)
+    void setSaturationCurve(WaveshapeType type) noexcept;
+    [[nodiscard]] WaveshapeType getSaturationCurve() const noexcept;
+
+    // Drive control (pre-gain into saturation)
+    void setDrive(float drive) noexcept;            // [0, unbounded), negative clamped to 0
+    [[nodiscard]] float getDrive() const noexcept;
+
+    // Modulation depth (ring modulation mix)
+    void setModulationDepth(float depth) noexcept;  // [0, 1] clamped
+    [[nodiscard]] float getModulationDepth() const noexcept;
+
+    // Multi-stage processing
+    void setStages(int stages) noexcept;            // [1, 4] clamped
+    [[nodiscard]] int getStages() const noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+};
+```
+
+**Core Formula:**
+```
+output = input + (input * saturate(input * drive) - input) * depth
+```
+
+This formula produces inharmonic sidebands because the saturated signal contains harmonics that, when multiplied with the input, create sum and difference frequencies.
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| Drive | [0, unbounded) | Saturation intensity (typical: 0.5-10) |
+| ModulationDepth | [0, 1] | 0 = dry signal, 1 = full ring modulation |
+| Stages | [1, 4] | Each stage feeds output to next |
+| SaturationCurve | WaveshapeType | Tanh, Tube, HardClip, etc. |
+
+| Stages | Spectral Complexity | Use Case |
+|--------|---------------------|----------|
+| 1 | Moderate sidebands | Subtle metallic coloring |
+| 2 | More complex spectrum | Medium distortion |
+| 3 | High complexity | Heavy processing |
+| 4 | Maximum entropy | Extreme textures |
+
+**Example Usage:**
+```cpp
+RingSaturation ringSat;
+ringSat.prepare(44100.0);
+ringSat.setDrive(2.5f);              // Moderate saturation
+ringSat.setModulationDepth(0.8f);    // Strong ring effect
+ringSat.setStages(2);                // Medium complexity
+ringSat.setSaturationCurve(WaveshapeType::Tube);  // Warm character
+
+// Process block
+ringSat.processBlock(buffer, numSamples);
+
+// Single sample
+float output = ringSat.process(input);
+```
+
+**Key Behaviors:**
+- `depth=0` returns input unchanged (true bypass)
+- `drive=0` with `depth=0.5` returns `input * 0.5` (attenuation only)
+- Output soft-limited to approach +/-2.0 asymptotically (SC-005)
+- DC blocker removes offset from asymmetric saturation (10Hz cutoff)
+- Curve switching crossfades over 10ms (click-free)
+- NaN input returns NaN without corrupting state
+
+**Related Primitives:** Waveshaper (underlying saturation), DCBlocker (DC removal), ChaosWaveshaper (time-varying), StochasticShaper (random variation)
+
+**Dependencies:** `primitives/waveshaper.h`, `primitives/dc_blocker.h`, `primitives/smoother.h`, `core/sigmoid.h`, `core/db_utils.h`
