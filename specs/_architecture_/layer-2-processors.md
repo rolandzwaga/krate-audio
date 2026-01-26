@@ -3783,3 +3783,102 @@ fm.processBlock(buffer, numSamples);
 **Performance:** < 2ms per 512-sample block at 4x oversampling (SC-010)
 
 **Dependencies:** Layer 0 (math_constants.h, db_utils.h), Layer 1 (svf.h, oversampler.h)
+
+---
+
+## TemporalDistortion
+**Path:** [temporal_distortion.h](../../dsp/include/krate/dsp/processors/temporal_distortion.h) | **Since:** 0.14.0
+
+Memory-based distortion processor where waveshaper drive changes based on signal history, creating dynamics-aware saturation that "feels alive" compared to static waveshaping.
+
+**Use when:**
+- Need dynamics-responsive saturation (guitar amp behavior where louder signals distort more)
+- Want transient-reactive distortion (drums where attacks get sharper saturation)
+- Creating expansion-style effects (quiet passages get more distortion)
+- Adding analog-style hysteresis character (path-dependent processing)
+
+```cpp
+enum class TemporalMode : uint8_t {
+    EnvelopeFollow,   // Drive increases with amplitude (tube amp behavior)
+    InverseEnvelope,  // Drive increases as amplitude decreases (expansion)
+    Derivative,       // Drive proportional to rate of change (transient emphasis)
+    Hysteresis        // Drive depends on signal history (path-dependent)
+};
+
+class TemporalDistortion {
+    static constexpr float kMinBaseDrive = 0.0f;
+    static constexpr float kMaxBaseDrive = 10.0f;
+    static constexpr float kReferenceLevel = 0.251189f;  // -12 dBFS RMS
+    static constexpr float kMaxSafeDrive = 20.0f;        // InverseEnvelope cap
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float processSample(float x) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    // Mode selection
+    void setMode(TemporalMode mode) noexcept;
+    [[nodiscard]] TemporalMode getMode() const noexcept;
+
+    // Core parameters
+    void setBaseDrive(float drive) noexcept;         // [0, 10]
+    void setDriveModulation(float amount) noexcept;  // [0, 1] - 0 = static waveshaping
+    void setAttackTime(float ms) noexcept;           // [0.1, 500]
+    void setReleaseTime(float ms) noexcept;          // [1, 5000]
+    void setWaveshapeType(WaveshapeType type) noexcept;  // All 9 waveshape types
+
+    // Hysteresis-specific
+    void setHysteresisDepth(float depth) noexcept;   // [0, 1]
+    void setHysteresisDecay(float ms) noexcept;      // [1, 500]
+
+    [[nodiscard]] constexpr size_t getLatency() const noexcept;  // Always 0
+};
+```
+
+**Temporal Modes:**
+- **EnvelopeFollow:** Louder = more drive. At reference level (-12 dBFS), drive equals base drive. Classic dynamics-responsive behavior.
+- **InverseEnvelope:** Quieter = more drive. Capped at 20.0 to prevent instability on silence. Useful for expansion-style effects.
+- **Derivative:** Drive proportional to amplitude rate of change. Uses 10Hz highpass on envelope. Transients get more distortion.
+- **Hysteresis:** Drive depends on recent signal trajectory. Memory state decays exponentially. Creates path-dependent analog character.
+
+**Usage Example (Guitar Amp Behavior):**
+```cpp
+TemporalDistortion distortion;
+distortion.prepare(44100.0, 512);
+distortion.setMode(TemporalMode::EnvelopeFollow);
+distortion.setBaseDrive(2.0f);
+distortion.setDriveModulation(0.7f);
+distortion.setAttackTime(10.0f);
+distortion.setReleaseTime(100.0f);
+distortion.setWaveshapeType(WaveshapeType::Tanh);
+
+distortion.processBlock(buffer, numSamples);
+// Loud passages saturate more, quiet passages stay cleaner
+```
+
+**Usage Example (Transient Enhancement):**
+```cpp
+TemporalDistortion distortion;
+distortion.prepare(44100.0, 512);
+distortion.setMode(TemporalMode::Derivative);
+distortion.setBaseDrive(3.0f);
+distortion.setDriveModulation(1.0f);
+distortion.setAttackTime(1.0f);
+distortion.setReleaseTime(50.0f);
+
+distortion.processBlock(drumBuffer, numSamples);
+// Transients get sharper, sustained portions stay smoother
+```
+
+**Gotchas:**
+- Zero drive modulation produces static waveshaping (equivalent to direct Waveshaper use)
+- Zero base drive outputs silence
+- InverseEnvelope mode caps drive at 20.0 to prevent instability on near-silence
+- Envelope floor (0.001) prevents divide-by-zero in InverseEnvelope mode
+- Mode switching is artifact-free due to 5ms drive smoothing
+- NaN/Inf input resets state and returns 0.0f
+- Processing before prepare() returns input unchanged (safe bypass)
+
+**Performance:** < 0.5% CPU at 44.1kHz stereo (SC-010)
+
+**Dependencies:** Layer 1 (waveshaper.h, one_pole.h, smoother.h), Layer 2 (envelope_follower.h)
