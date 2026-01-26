@@ -572,3 +572,220 @@ TEST_CASE("RingSaturation constants are correct", "[ring_saturation][US1][consta
     REQUIRE(RingSaturation::kCrossfadeTimeMs == Approx(10.0f));
     REQUIRE(RingSaturation::kSoftLimitScale == Approx(2.0f));
 }
+
+// =============================================================================
+// Phase 4: User Story 2 - Saturation Curve Selection Tests
+// =============================================================================
+
+// T031: setSaturationCurve() changes curve type and can be queried
+TEST_CASE("RingSaturation setSaturationCurve() changes curve and is queryable",
+          "[ring_saturation][US2][curve]") {
+    RingSaturation ringSat;
+    ringSat.prepare(44100.0);
+
+    SECTION("default curve is Tanh") {
+        REQUIRE(ringSat.getSaturationCurve() == WaveshapeType::Tanh);
+    }
+
+    SECTION("setSaturationCurve changes the curve type") {
+        ringSat.setSaturationCurve(WaveshapeType::HardClip);
+        REQUIRE(ringSat.getSaturationCurve() == WaveshapeType::HardClip);
+
+        ringSat.setSaturationCurve(WaveshapeType::Tube);
+        REQUIRE(ringSat.getSaturationCurve() == WaveshapeType::Tube);
+
+        ringSat.setSaturationCurve(WaveshapeType::Atan);
+        REQUIRE(ringSat.getSaturationCurve() == WaveshapeType::Atan);
+    }
+
+    SECTION("all WaveshapeType values are supported") {
+        for (auto type : {WaveshapeType::Tanh, WaveshapeType::Atan, WaveshapeType::Cubic,
+                         WaveshapeType::Quintic, WaveshapeType::ReciprocalSqrt,
+                         WaveshapeType::Erf, WaveshapeType::HardClip,
+                         WaveshapeType::Diode, WaveshapeType::Tube}) {
+            ringSat.setSaturationCurve(type);
+            REQUIRE(ringSat.getSaturationCurve() == type);
+        }
+    }
+}
+
+// T032: Different WaveshapeType values produce distinct spectral content
+TEST_CASE("RingSaturation different curves produce distinct spectral content",
+          "[ring_saturation][US2][spectral]") {
+    constexpr size_t kNumSamples = 2048;
+    constexpr float kSampleRate = 44100.0f;
+
+    // Compare spectral entropy between different curves
+    auto processWithCurve = [&](WaveshapeType type) -> float {
+        RingSaturation ringSat;
+        ringSat.prepare(kSampleRate);
+        ringSat.setDrive(3.0f);
+        ringSat.setModulationDepth(1.0f);
+        ringSat.setSaturationCurve(type);
+
+        std::vector<float> buffer(kNumSamples);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+        ringSat.processBlock(buffer.data(), kNumSamples);
+
+        return calculateSpectralEntropy(buffer.data(), kNumSamples, kSampleRate);
+    };
+
+    float entropyTanh = processWithCurve(WaveshapeType::Tanh);
+    float entropyHardClip = processWithCurve(WaveshapeType::HardClip);
+    float entropyTube = processWithCurve(WaveshapeType::Tube);
+
+    // Different curves should produce different spectral characteristics
+    // HardClip typically produces more harmonics than smooth curves
+    REQUIRE(entropyTanh > 0.0f);
+    REQUIRE(entropyHardClip > 0.0f);
+    REQUIRE(entropyTube > 0.0f);
+
+    // Check that at least one pair differs significantly (different curves = different sound)
+    bool distinctSpectrum = (std::abs(entropyTanh - entropyHardClip) > 0.1f) ||
+                            (std::abs(entropyTanh - entropyTube) > 0.1f) ||
+                            (std::abs(entropyHardClip - entropyTube) > 0.1f);
+    REQUIRE(distinctSpectrum);
+}
+
+// T033: Curve switching crossfades over 10ms window (no discontinuities)
+TEST_CASE("RingSaturation curve switching crossfades over 10ms window",
+          "[ring_saturation][US2][crossfade]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kCrossfadeSamples = static_cast<size_t>(0.010f * kSampleRate); // 10ms
+
+    RingSaturation ringSat;
+    ringSat.prepare(kSampleRate);
+    ringSat.setDrive(3.0f);
+    ringSat.setModulationDepth(1.0f);
+    ringSat.setSaturationCurve(WaveshapeType::Tanh);
+
+    // Process some samples with Tanh
+    constexpr float testInput = 0.7f;
+    for (int i = 0; i < 100; ++i) {
+        [[maybe_unused]] float out = ringSat.process(testInput);
+    }
+    float outputBeforeSwitch = ringSat.process(testInput);
+
+    // Switch to HardClip - crossfade should begin
+    ringSat.setSaturationCurve(WaveshapeType::HardClip);
+
+    // First sample after switch should be close to previous (no click)
+    float outputAfterSwitch = ringSat.process(testInput);
+    float diff = std::abs(outputAfterSwitch - outputBeforeSwitch);
+
+    // The immediate difference should be small (not a sudden jump)
+    // With crossfade starting at 0.0, first sample blends ~0% new, so output nearly identical
+    REQUIRE(diff < 0.1f); // Allow some difference due to one sample advancement
+
+    // Process through the crossfade period
+    std::vector<float> crossfadeOutput(kCrossfadeSamples);
+    for (size_t i = 0; i < kCrossfadeSamples; ++i) {
+        crossfadeOutput[i] = ringSat.process(testInput);
+    }
+
+    // Check for smooth transition (no sudden jumps > threshold)
+    constexpr float kMaxJump = 0.05f; // Max allowed sample-to-sample jump
+    bool smoothTransition = true;
+    for (size_t i = 1; i < kCrossfadeSamples; ++i) {
+        float jump = std::abs(crossfadeOutput[i] - crossfadeOutput[i-1]);
+        if (jump > kMaxJump) {
+            smoothTransition = false;
+            break;
+        }
+    }
+    REQUIRE(smoothTransition);
+
+    // After crossfade, we should be fully on the new curve
+    // Process a bit more to ensure crossfade is complete
+    for (int i = 0; i < 100; ++i) {
+        [[maybe_unused]] float out = ringSat.process(testInput);
+    }
+
+    // The output should now match what we'd get from a fresh instance with HardClip
+    RingSaturation ringSatReference;
+    ringSatReference.prepare(kSampleRate);
+    ringSatReference.setDrive(3.0f);
+    ringSatReference.setModulationDepth(1.0f);
+    ringSatReference.setSaturationCurve(WaveshapeType::HardClip);
+
+    // Process same amount to reach similar DC blocker state
+    for (int i = 0; i < 200 + static_cast<int>(kCrossfadeSamples); ++i) {
+        [[maybe_unused]] float out = ringSatReference.process(testInput);
+    }
+
+    float outputAfterCrossfade = ringSat.process(testInput);
+    float outputReference = ringSatReference.process(testInput);
+
+    // After crossfade complete, outputs should be nearly identical
+    REQUIRE(outputAfterCrossfade == Approx(outputReference).margin(0.01f));
+}
+
+// T034: Multiple rapid curve changes complete correctly
+TEST_CASE("RingSaturation multiple rapid curve changes complete correctly",
+          "[ring_saturation][US2][crossfade]") {
+    constexpr float kSampleRate = 44100.0f;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kSampleRate);
+    ringSat.setDrive(2.0f);
+    ringSat.setModulationDepth(1.0f);
+
+    constexpr float testInput = 0.5f;
+
+    // Rapid curve changes
+    ringSat.setSaturationCurve(WaveshapeType::Tanh);
+    for (int i = 0; i < 50; ++i) {
+        [[maybe_unused]] float out = ringSat.process(testInput); // Not enough for full crossfade
+    }
+
+    ringSat.setSaturationCurve(WaveshapeType::HardClip);
+    for (int i = 0; i < 50; ++i) {
+        [[maybe_unused]] float out = ringSat.process(testInput); // Another change mid-crossfade
+    }
+
+    ringSat.setSaturationCurve(WaveshapeType::Tube);
+    for (int i = 0; i < 50; ++i) {
+        [[maybe_unused]] float out = ringSat.process(testInput); // Yet another
+    }
+
+    // Final curve should be Tube
+    REQUIRE(ringSat.getSaturationCurve() == WaveshapeType::Tube);
+
+    // Process long enough for all crossfades to complete
+    for (int i = 0; i < 1000; ++i) {
+        float output = ringSat.process(testInput);
+        // Ensure output is valid (no NaN/Inf from crossfade state issues)
+        REQUIRE_FALSE(std::isnan(output));
+        REQUIRE_FALSE(std::isinf(output));
+    }
+}
+
+// T035: Setting same curve does not trigger crossfade
+TEST_CASE("RingSaturation setting same curve does not trigger crossfade",
+          "[ring_saturation][US2][crossfade]") {
+    constexpr float kSampleRate = 44100.0f;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kSampleRate);
+    ringSat.setDrive(2.0f);
+    ringSat.setModulationDepth(1.0f);
+    ringSat.setSaturationCurve(WaveshapeType::Tanh);
+
+    constexpr float testInput = 0.6f;
+
+    // Process to reach steady state
+    for (int i = 0; i < 1000; ++i) {
+        [[maybe_unused]] float out = ringSat.process(testInput);
+    }
+
+    float outputBefore = ringSat.process(testInput);
+
+    // Set same curve
+    ringSat.setSaturationCurve(WaveshapeType::Tanh);
+
+    // Output should be identical (no crossfade started)
+    float outputAfter = ringSat.process(testInput);
+
+    // Should be essentially identical (only DC blocker state change)
+    REQUIRE(outputAfter == Approx(outputBefore).margin(0.001f));
+}
