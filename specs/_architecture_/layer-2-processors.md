@@ -3882,3 +3882,177 @@ distortion.processBlock(drumBuffer, numSamples);
 **Performance:** < 0.5% CPU at 44.1kHz stereo (SC-010)
 
 **Dependencies:** Layer 1 (waveshaper.h, one_pole.h, smoother.h), Layer 2 (envelope_follower.h)
+
+---
+
+## AllpassSaturator
+**Path:** [allpass_saturator.h](../../dsp/include/krate/dsp/processors/allpass_saturator.h) | **Since:** 0.14.0
+
+Resonant distortion processor using allpass filters with saturation in feedback loops. Creates pitched, self-oscillating resonances that can be excited by input audio. Supports four topologies for different timbral characteristics.
+
+**Use when:**
+- Creating pitched, resonant distortion effects (singing drums, resonant overtones)
+- Building Karplus-Strong string synthesis with harmonic richness
+- Generating metallic, bell-like inharmonic tones
+- Creating self-sustaining drones and evolving textures
+- Need resonant feedback that can self-oscillate with saturation
+
+**Features:**
+- Four topologies: SingleAllpass (pitched), AllpassChain (metallic), KarplusStrong (strings), FeedbackMatrix (drones)
+- 9 saturation curves via Waveshaper (Tanh, TanhFast, Atan, Cubic, Quintic, ReciprocalSqrt, Erf, HardClip, SoftClip)
+- Soft clipping at +/-2.0 in feedback path for bounded self-oscillation
+- 10ms parameter smoothing for click-free automation
+- DC blocking after saturation
+- Zero latency processing
+
+```cpp
+enum class NetworkTopology : uint8_t {
+    SingleAllpass,   // Single allpass + saturator feedback loop
+    AllpassChain,    // 4 cascaded allpasses at prime frequency ratios
+    KarplusStrong,   // Delay + lowpass + saturator (string synthesis)
+    FeedbackMatrix   // 4x4 Householder matrix of cross-fed saturators
+};
+
+class AllpassSaturator {
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] double getSampleRate() const noexcept;
+
+    // Topology selection
+    void setTopology(NetworkTopology topology) noexcept;
+    [[nodiscard]] NetworkTopology getTopology() const noexcept;
+
+    // Frequency control (resonant pitch)
+    void setFrequency(float hz) noexcept;              // [20, sampleRate * 0.45]
+    [[nodiscard]] float getFrequency() const noexcept;
+
+    // Feedback control (resonance intensity)
+    void setFeedback(float feedback) noexcept;         // [0.0, 0.999]
+    [[nodiscard]] float getFeedback() const noexcept;
+
+    // Saturation control
+    void setSaturationCurve(WaveshapeType type) noexcept;
+    [[nodiscard]] WaveshapeType getSaturationCurve() const noexcept;
+    void setDrive(float drive) noexcept;               // [0.1, 10.0]
+    [[nodiscard]] float getDrive() const noexcept;
+
+    // KarplusStrong decay (string sustain)
+    void setDecay(float seconds) noexcept;             // [0.001, 60.0]
+    [[nodiscard]] float getDecay() const noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+};
+```
+
+| Topology | Resonance Type | Use Case |
+|----------|----------------|----------|
+| SingleAllpass | Pitched at frequency | Adding singing quality to drums, pitched distortion |
+| AllpassChain | Inharmonic (f, 1.5f, 2.33f, 3.67f) | Metallic, bell-like, gamelan tones |
+| KarplusStrong | Plucked string decay | Guitar plucks, harpsichord, physical modeling |
+| FeedbackMatrix | Dense, evolving | Ambient drones, self-sustaining textures |
+
+| Parameter | Default | Range | Smoothed | Effect |
+|-----------|---------|-------|----------|--------|
+| topology | SingleAllpass | enum | No (resets state) | Network configuration |
+| frequency | 440 Hz | [20, Nyquist*0.45] | Yes (10ms) | Resonant pitch |
+| feedback | 0.5 | [0, 0.999] | Yes (10ms) | Resonance intensity (>0.9 = self-oscillation) |
+| drive | 1.0 | [0.1, 10.0] | Yes (10ms) | Saturation intensity |
+| saturationCurve | Tanh | WaveshapeType | No | Saturation algorithm |
+| decay | 1.0 s | [0.001, 60.0] | No | KarplusStrong only - RT60 decay time |
+
+**Usage Example (Pitched Resonant Distortion):**
+```cpp
+AllpassSaturator processor;
+processor.prepare(44100.0, 512);
+processor.setTopology(NetworkTopology::SingleAllpass);
+processor.setFrequency(440.0f);   // A4
+processor.setFeedback(0.85f);     // Strong resonance
+processor.setDrive(2.0f);         // Moderate saturation
+
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = processor.process(input[i]);
+}
+```
+
+**Usage Example (Karplus-Strong String):**
+```cpp
+AllpassSaturator processor;
+processor.prepare(44100.0, 512);
+processor.setTopology(NetworkTopology::KarplusStrong);
+processor.setFrequency(220.0f);   // A3 pitch
+processor.setDecay(1.5f);         // 1.5 second decay
+processor.setDrive(2.5f);         // Added harmonics
+
+// Trigger with impulse/noise burst
+output[0] = processor.process(1.0f);
+for (size_t i = 1; i < 44100 * 2; ++i) {
+    output[i] = processor.process(0.0f);  // Resonance sustains
+}
+```
+
+**Usage Example (FeedbackMatrix Drone):**
+```cpp
+AllpassSaturator processor;
+processor.prepare(44100.0, 512);
+processor.setTopology(NetworkTopology::FeedbackMatrix);
+processor.setFrequency(100.0f);   // Low base frequency
+processor.setFeedback(0.95f);     // Near self-oscillation
+processor.setDrive(3.0f);         // Rich saturation
+
+// Brief input excites sustained drone
+for (int i = 0; i < 100; ++i) {
+    output[i] = processor.process(0.5f);  // Brief excitation
+}
+for (size_t i = 100; i < numSamples; ++i) {
+    output[i] = processor.process(0.0f);  // Self-sustains
+}
+```
+
+**Topology Signal Flows:**
+
+SingleAllpass:
+```
+input -> [+] -> [allpass] -> [saturator] -> [soft clip] -> output
+          ^                                      |
+          |_______ feedback * gain _____________|
+```
+
+KarplusStrong:
+```
+input -> [delay] -> [saturator] -> [1-pole LP] -> [soft clip] -> output
+           ^                                           |
+           |__________ feedback ______________________|
+```
+
+AllpassChain:
+```
+input -> [+] -> [AP1] -> [AP2] -> [AP3] -> [AP4] -> [saturator] -> [soft clip] -> output
+          ^      f      1.5f     2.33f    3.67f                          |
+          |_________________________ feedback ___________________________|
+```
+
+FeedbackMatrix:
+```
+input -> [Stage 1] -+                +-> sum -> output
+         [Stage 2] -+-> Householder -+
+         [Stage 3] -+    Matrix      +-> feedback to stages
+         [Stage 4] -+                |
+              ^                      |
+              |_________feedback_____|
+```
+
+**Gotchas:**
+- Topology changes reset all internal state (may cause brief silence)
+- Frequency is clamped to [20Hz, sampleRate * 0.45] to prevent aliasing
+- Feedback > 0.9 enables self-oscillation (input excites, resonance sustains indefinitely)
+- Decay parameter only affects KarplusStrong topology
+- NaN/Inf input resets state and returns 0.0f
+- Processing before prepare() returns input unchanged (safe bypass)
+
+**Performance:** < 0.5% CPU at 44.1kHz mono (SC-005)
+
+**Dependencies:** Layer 0 (math_constants.h, db_utils.h, sigmoid.h), Layer 1 (biquad.h, delay_line.h, waveshaper.h, dc_blocker.h, smoother.h, one_pole.h)
