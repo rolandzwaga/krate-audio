@@ -929,6 +929,165 @@ Input -------+-->| (600Hz, Q=10)   |---+
 
 ---
 
+## FormantDistortion
+**Path:** [formant_distortion.h](../../dsp/include/krate/dsp/processors/formant_distortion.h) | **Since:** 0.14.0
+
+Composite processor combining vocal-tract resonances with waveshaping saturation for "talking distortion" effects.
+
+**Use when:**
+- Creating vocal-style distortion with distinct vowel character
+- Need dynamic formant effects that respond to playing dynamics
+- Building expressive saturation with "talking" quality
+- Want to combine formant filtering with selectable distortion types
+- Creating alien or robot-voice textures with formant shifting
+
+**Features:**
+- Vowel selection (A, E, I, O, U) with discrete and blend modes
+- Continuous vowel morphing (0-4 position) for animated "talking" effects
+- Formant shifting (+/-24 semitones) for character adjustment
+- 9 distortion types: Tanh, Atan, Cubic, Quintic, ReciprocalSqrt, Erf, HardClip, Diode, Tube
+- Envelope-controlled formant modulation for dynamic response
+- DC blocking after asymmetric distortion
+- Dry/wet mix control
+
+```cpp
+class FormantDistortion {
+    static constexpr float kMinDrive = 0.5f;
+    static constexpr float kMaxDrive = 20.0f;
+    static constexpr float kMinShift = -24.0f;
+    static constexpr float kMaxShift = 24.0f;
+    static constexpr float kMinEnvModRange = 0.0f;
+    static constexpr float kMaxEnvModRange = 24.0f;
+    static constexpr float kDefaultEnvModRange = 12.0f;
+    static constexpr float kDefaultSmoothingMs = 5.0f;
+
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float process(float sample) noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    // Vowel selection
+    void setVowel(Vowel vowel) noexcept;           // Discrete: A, E, I, O, U
+    void setVowelBlend(float blend) noexcept;      // Continuous: [0, 4]
+
+    // Formant modification
+    void setFormantShift(float semitones) noexcept; // [-24, +24] semitones
+
+    // Distortion
+    void setDistortionType(WaveshapeType type) noexcept;
+    void setDrive(float drive) noexcept;           // [0.5, 20.0]
+
+    // Envelope following
+    void setEnvelopeFollowAmount(float amount) noexcept;  // [0, 1]
+    void setEnvelopeModRange(float semitones) noexcept;   // [0, 24]
+    void setEnvelopeAttack(float ms) noexcept;
+    void setEnvelopeRelease(float ms) noexcept;
+
+    // Smoothing and mix
+    void setSmoothingTime(float ms) noexcept;
+    void setMix(float mix) noexcept;               // [0, 1]
+
+    // Getters
+    [[nodiscard]] Vowel getVowel() const noexcept;
+    [[nodiscard]] float getVowelBlend() const noexcept;
+    [[nodiscard]] float getFormantShift() const noexcept;
+    [[nodiscard]] WaveshapeType getDistortionType() const noexcept;
+    [[nodiscard]] float getDrive() const noexcept;
+    [[nodiscard]] float getEnvelopeFollowAmount() const noexcept;
+    [[nodiscard]] float getEnvelopeModRange() const noexcept;
+    [[nodiscard]] float getSmoothingTime() const noexcept;
+    [[nodiscard]] float getMix() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+                     +----------------+
+                     | EnvelopeFollow |<--- Raw Input (tracking)
+                     +--------+-------+
+                              |
+                              v
+Input ---> FormantFilter <----+-----> Waveshaper ---> DCBlocker --+---> Output
+           (vowel shape)     (shift)  (saturation)    (cleanup)   |
+                                                                  v
+                                                              Mix Stage
+                                                                  ^
+                                                                  |
+Input ------------------------------------------------------> Dry Signal
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| vowel | A | enum | Discrete vowel selection |
+| vowelBlend | 0.0 | [0, 4] | Continuous position (0=A, 1=E, 2=I, 3=O, 4=U) |
+| formantShift | 0 | [-24, +24] | Semitone shift applied to formants |
+| drive | 1.0 | [0.5, 20] | Waveshaper drive multiplier |
+| distortionType | Tanh | enum | Waveshaping algorithm |
+| envelopeFollowAmount | 0.0 | [0, 1] | Envelope modulation depth |
+| envelopeModRange | 12.0 | [0, 24] | Max envelope-driven shift (semitones) |
+| mix | 1.0 | [0, 1] | Dry/wet blend |
+
+**Envelope Modulation Formula:**
+```
+finalShift = staticShift + (envelope * modRange * amount)
+```
+Where envelope is [0, 1], modRange is semitones, and amount is [0, 1].
+
+**Usage Example (Basic vowel distortion):**
+```cpp
+FormantDistortion fx;
+fx.prepare(44100.0, 512);
+fx.setVowel(Vowel::A);
+fx.setDrive(3.0f);
+fx.setDistortionType(WaveshapeType::Tanh);
+
+// In audio callback
+fx.process(buffer, numSamples);
+```
+
+**Usage Example (Dynamic wah-like effect):**
+```cpp
+FormantDistortion fx;
+fx.prepare(44100.0, 512);
+fx.setVowel(Vowel::A);
+fx.setFormantShift(-6.0f);
+fx.setEnvelopeFollowAmount(1.0f);
+fx.setEnvelopeModRange(18.0f);
+fx.setEnvelopeAttack(5.0f);
+fx.setEnvelopeRelease(50.0f);
+
+// Playing dynamics control formant sweep
+fx.process(buffer, numSamples);
+```
+
+**Usage Example (Talking lead synth):**
+```cpp
+FormantDistortion fx;
+fx.prepare(44100.0, 512);
+fx.setDistortionType(WaveshapeType::Tube);
+fx.setDrive(3.0f);
+fx.setEnvelopeFollowAmount(0.5f);
+
+// Automate vowelBlend from 0 to 4 for "aeiou" effect
+for (size_t i = 0; i < numSamples; ++i) {
+    fx.setVowelBlend(lfoValue);  // LFO sweeps 0-4
+    output[i] = fx.process(input[i]);
+}
+```
+
+**Gotchas:**
+- setVowel() activates discrete mode, setVowelBlend() activates blend mode
+- Both vowel values are stored independently; mode determines which is used
+- Envelope tracks raw input (before any processing) for consistent response
+- DC blocker removes offset from asymmetric distortion (Tube, Diode)
+- reset() snaps mix smoother to target for immediate parameter response
+
+**Performance:** < 0.5% CPU at 44.1kHz (Layer 2 processor budget)
+
+**Dependencies:** Layer 0 (filter_tables.h), Layer 1 (waveshaper.h, dc_blocker.h, smoother.h), Layer 2 (formant_filter.h, envelope_follower.h)
+
+---
+
 ## EnvelopeFilter
 **Path:** [envelope_filter.h](../../dsp/include/krate/dsp/processors/envelope_filter.h) | **Since:** 0.13.0
 
