@@ -1131,3 +1131,92 @@ shaper.processBlock(buffer, numSamples);
 - Input coupling accumulates envelope over control interval before perturbation
 
 **Dependencies:** `primitives/oversampler.h`, `core/sigmoid.h` (tanhVariable), `core/db_utils.h` (flushDenormal, isNaN, isInf)
+
+---
+
+## StochasticShaper (Analog-Style Random Waveshaper)
+**Path:** [stochastic_shaper.h](../../dsp/include/krate/dsp/primitives/stochastic_shaper.h) | **Since:** 0.14.0
+
+Waveshaper with stochastic modulation for analog-style variation. Adds controlled randomness to waveshaping transfer functions, simulating analog component tolerance variation where each sample passes through a slightly different curve.
+
+**Use when:**
+- Adding subtle analog imperfection to digital distortion
+- Creating warmth and "life" that distinguishes from clinical digital saturation
+- Building evolving distortion effects without external modulation
+- Simulating component drift and tolerance variations
+
+**Note:** This is a composition of Waveshaper, Xorshift32 RNG, and OnePoleSmoother. No internal oversampling - compose with Oversampler if needed. Compose with DCBlocker for asymmetric waveshape types.
+
+```cpp
+class StochasticShaper {
+    static constexpr float kDefaultJitterRate = 10.0f;   // Hz
+    static constexpr float kMinJitterRate = 0.01f;       // Hz
+    static constexpr float kMaxJitterOffset = 0.5f;      // At amount=1.0
+    static constexpr float kDriveModulationRange = 0.5f; // +/- 50% at coeffNoise=1.0
+    static constexpr float kDefaultDrive = 1.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Base waveshaper configuration
+    void setBaseType(WaveshapeType type) noexcept;       // Tanh, Atan, Tube, etc.
+    void setDrive(float drive) noexcept;                 // Saturation intensity
+
+    // Jitter parameters (random signal offset)
+    void setJitterAmount(float amount) noexcept;         // [0, 1] intensity
+    void setJitterRate(float hz) noexcept;               // [0.01, Nyquist/2] Hz
+
+    // Coefficient noise (random drive modulation)
+    void setCoefficientNoise(float amount) noexcept;     // [0, 1] drive variation
+
+    // Reproducibility
+    void setSeed(uint32_t seed) noexcept;                // Deterministic output
+
+    // Processing
+    [[nodiscard]] float process(float x) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    // Diagnostics (for testing/validation)
+    [[nodiscard]] float getCurrentJitter() const noexcept;
+    [[nodiscard]] float getCurrentDriveModulation() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| JitterAmount | [0, 1] | 0 = no offset, 1 = +/-0.5 offset range |
+| JitterRate | [0.01, Nyquist/2] Hz | Low = slow drift, high = rapid texture |
+| CoefficientNoise | [0, 1] | 0 = constant drive, 1 = +/-50% drive modulation |
+| Seed | uint32_t | Same seed = identical output |
+
+**Jitter Rate Character:**
+
+| Rate | Character | Use Case |
+|------|-----------|----------|
+| 0.1 Hz | Slow component drift | Subtle analog warmth |
+| 10 Hz | Moderate variation | General use (default) |
+| 100+ Hz | Rapid texture | Gritty, noisy character |
+
+**Example Usage:**
+```cpp
+StochasticShaper shaper;
+shaper.prepare(44100.0);
+shaper.setBaseType(WaveshapeType::Tanh);
+shaper.setDrive(2.0f);
+shaper.setJitterAmount(0.3f);     // Subtle random offset
+shaper.setJitterRate(10.0f);      // Moderate variation rate
+shaper.setCoefficientNoise(0.2f); // Subtle drive variation
+shaper.setSeed(42);               // Reproducible output
+
+// Process
+float output = shaper.process(input);
+```
+
+**Key Behaviors:**
+- `jitterAmount=0 AND coefficientNoise=0` equals standard Waveshaper (bypass mode)
+- Same seed with same parameters produces identical output (deterministic)
+- Uses two independent OnePoleSmoother instances for uncorrelated jitter and drive variation
+- NaN input treated as 0.0, Infinity clamped to [-1, 1]
+
+**Dependencies:** `primitives/waveshaper.h`, `primitives/smoother.h`, `core/random.h`, `core/db_utils.h`
