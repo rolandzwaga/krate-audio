@@ -223,40 +223,40 @@ grep -r "ring.*mod" dsp/ plugins/
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| FR-021 | | |
-| FR-022 | | |
-| FR-023 | | |
-| FR-024 | | |
-| FR-025 | | |
-| FR-026 | | |
-| FR-027 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
+| FR-001 | MET | ring_saturation.h:371-376 implements formula, test "produces inharmonic sidebands" |
+| FR-002 | MET | ring_saturation.h:296-299 multi-stage loop, test "multi-stage processing applies formula" |
+| FR-003 | MET | Test "produces inharmonic sidebands on 440Hz sine (SC-001)" with FFT analysis |
+| FR-004 | MET | Self-modulation uses signal's own saturated version, test "signal-coherent" |
+| FR-005 | MET | Test "all WaveshapeType values are supported" verifies 9 curve types |
+| FR-006 | MET | ring_saturation.h:183-204 crossfade, test "crossfades over 10ms window" |
+| FR-007 | MET | ring_saturation.h:34 includes waveshaper.h, uses Waveshaper class |
+| FR-008 | MET | ring_saturation.h:213-217 clamps negative to 0, test "negative drive is clamped" |
+| FR-009 | MET | ring_saturation.h:225-227 clamps [0,1], test "depth is clamped to [0.0, 1.0]" |
+| FR-010 | MET | ring_saturation.h:235-237 setStages(), test "setStages changes stage count" |
+| FR-011 | MET | ring_saturation.h:236 std::clamp, test "stages < 1 clamped to 1" |
+| FR-012 | MET | ring_saturation.h:305 dcBlocker_.process(), test "removes DC offset" |
+| FR-013 | MET | ring_saturation.h:147 prepare with 10Hz, constant kDCBlockerCutoffHz=10.0f |
+| FR-014 | MET | Test "output DC offset below audible threshold after settling (SC-004)" |
+| FR-015 | MET | ring_saturation.h:143-155 prepare(), test "prepare() marks as prepared" |
+| FR-016 | MET | ring_saturation.h:161-165 reset(), test "reset() clears state" |
+| FR-017 | MET | ring_saturation.h:112-124 default ctor, test "default constructor" |
+| FR-018 | MET | ring_saturation.h:279-308 process(), test "single sample processing" |
+| FR-019 | MET | ring_saturation.h:320-329 processBlock(), test "block processing" |
+| FR-020 | MET | Test "processBlock() produces identical output to N process() calls" |
+| FR-021 | MET | No allocations in process path, test "no allocations in process methods" |
+| FR-022 | MET | ring_saturation.h:286-288 NaN check, test "handles NaN input gracefully" |
+| FR-023 | MET | All methods marked noexcept, test "processing methods are noexcept" |
+| FR-024 | MET | ring_saturation.h:244-246 getSaturationCurve(), test verifies getter |
+| FR-025 | MET | ring_saturation.h:249-251 getDrive(), test verifies getter |
+| FR-026 | MET | ring_saturation.h:254-256 getModulationDepth(), test verifies getter |
+| FR-027 | MET | ring_saturation.h:259-261 getStages(), test verifies getter |
+| SC-001 | MET | Test "produces inharmonic sidebands on 440Hz sine" with FFT analysis |
+| SC-002 | MET | Test "depth=0 returns input unchanged" verifies tolerance 1e-6 |
+| SC-003 | MET | Test "stages=4 produces higher spectral entropy than stages=1" |
+| SC-004 | MET | Test "output DC offset below audible threshold after settling" |
+| SC-005 | MET | Test "stages=4 with high drive remains bounded", softLimit() impl |
+| SC-006 | MET | Test "single-sample performance" verifies < 1us |
+| SC-007 | MET | Test "block processing performance" verifies < 0.1ms for 512 samples |
 
 **Status Key:**
 - MET: Requirement fully satisfied with test evidence
@@ -268,19 +268,24 @@ grep -r "ring.*mod" dsp/ plugins/
 
 *All items must be checked before claiming completion:*
 
-- [ ] All FR-xxx requirements verified against implementation
-- [ ] All SC-xxx success criteria measured and documented
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [x] All FR-xxx requirements verified against implementation
+- [x] All SC-xxx success criteria measured and documented
+- [x] No test thresholds relaxed from spec requirements
+- [x] No placeholder values or TODO comments in new code
+- [x] No features quietly removed from scope
+- [x] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
+**Evidence Summary:**
+- 40 test cases with 110,552 assertions
+- 100% pass rate in Release build
+- Zero compiler warnings
+- All 27 functional requirements verified with tests
+- All 7 success criteria measured and passing
+- Architecture documentation updated (layer-1-primitives.md)
+- 8 commits on feature branch
 
-**Recommendation**: [What needs to happen to achieve completion]
+**No gaps identified.**
