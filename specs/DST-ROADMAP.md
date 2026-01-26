@@ -217,10 +217,36 @@ private:
 };
 ```
 
-**Status:** Does not exist
-**Work:** New file - implement 1st and 2nd order ADAA
+**Status:** ✅ IMPLEMENTED - `hard_clip_adaa.h`
+**Work:** Complete - supports First and Second order ADAA
 
-### 2.4 Tanh with ADAA (`primitives/tanh_adaa.h`)
+### 2.4 Hard Clip with polyBLAMP (`primitives/hard_clip_polyblamp.h`)
+
+Anti-aliased hard clipping using polyBLAMP (Polynomial Bandlimited Ramp) correction.
+
+```cpp
+class HardClipPolyBLAMP {
+public:
+    void setThreshold(float threshold);
+    void reset();
+
+    float process(float x) noexcept;
+    void processBlock(float* buffer, size_t n) noexcept;
+
+private:
+    float x1_;        // Previous input
+    float y1_;        // Previous output
+    float threshold_;
+};
+```
+
+**Status:** ⚠️ PARTIAL - `hard_clip_polyblamp.h` exists but provides limited aliasing reduction
+**Work:** Current basic 2-point implementation provides minimal aliasing benefit for arbitrary input signals. Full implementation would require:
+- 4-point polyBLAMP kernel with Newton-Raphson iteration
+- Polynomial fitting to corner boundaries per DAFx-16 paper
+- For production use, **HardClipADAA is recommended** as it provides proven aliasing reduction.
+
+### 2.5 Tanh with ADAA (`primitives/tanh_adaa.h`)
 
 Anti-aliased tanh saturation.
 
@@ -829,6 +855,17 @@ private:
 
 Distortion techniques that add analog-like variation and input-reactive behavior.
 
+> **Codebase Update (Jan 2026):** Since this roadmap was written, several components have been added that are relevant to Phases 6-8:
+> - `EnvelopeFollower` (processors/) - Full envelope detection with Amplitude/RMS/Peak modes
+> - `GrainPool`, `GrainProcessor`, `GrainScheduler` - Complete granular infrastructure
+> - `KarplusStrong` - Delay+filter+feedback network architecture
+> - `FrequencyShifter` - Hilbert transform-based SSB modulation
+> - `OnePoleAllpass` - First-order allpass for dispersion
+> - `DiffusionNetwork` - Allpass chain patterns
+> - `Oversampler<N, M>` - Anti-aliased processing for waveshaping
+>
+> See individual sections below for specific reuse recommendations.
+
 ### 6.1 Stochastic Waveshaper (`primitives/stochastic_shaper.h`)
 
 Add controlled randomness to the transfer function itself.
@@ -858,7 +895,7 @@ private:
 };
 ```
 
-**Reuses:** Waveshaper, Xorshift32, OnePoleSmoother
+**Reuses:** Waveshaper, Xorshift32, OnePoleSmoother, **Oversampler<2, 1>** (optional, for anti-aliased waveshaping - see ChaosWaveshaper pattern)
 **Novel:** Simulates analog component tolerance variation - each sample gets slightly different curve
 
 ### 6.2 Temporal Distortion Processor (`processors/temporal_distortion.h`)
@@ -904,8 +941,10 @@ private:
 };
 ```
 
-**Reuses:** Waveshaper, OnePoleSmoother, DCBlocker
+**Reuses:** Waveshaper, **EnvelopeFollower** (for EnvelopeFollow/InverseEnvelope/Peak modes), OnePoleSmoother, OnePoleLP/OnePoleHP (for derivative filter), DCBlocker
 **Novel:** Compressive distortion (loud=more), expansion distortion (quiet=more), transient-reactive curves
+
+> **Note (Jan 2026):** `EnvelopeFollower` in `processors/envelope_follower.h` provides ready-to-use `DetectionMode::Amplitude`, `RMS`, and `Peak` modes with configurable attack/release times. Consider composing with this rather than implementing envelope following from scratch.
 
 ---
 
@@ -978,8 +1017,10 @@ private:
 };
 ```
 
-**Reuses:** Biquad (allpass mode), DelayLine, Waveshaper, DCBlocker
+**Reuses:** Biquad (allpass mode), DelayLine, Waveshaper, DCBlocker, **OnePoleAllpass** (for dispersion), **KarplusStrong** (architectural reference for NetworkTopology::KarplusStrong), **DiffusionNetwork** (architectural reference for allpass chains)
 **Novel:** Pitched/resonant distortion that can self-oscillate. Input "excites" resonance.
+
+> **Note (Jan 2026):** `KarplusStrong` in `processors/karplus_strong.h` already implements the delay+filter+feedback topology with allpass interpolation, damping, and DC blocking. Consider extending or composing with this for the KarplusStrong topology rather than building from scratch.
 
 ### 7.3 Feedback Distortion Processor (`processors/feedback_distortion.h`)
 
@@ -1087,8 +1128,10 @@ private:
 };
 ```
 
-**Reuses:** SampleRateReducer (with AA disabled), Biquad
+**Reuses:** SampleRateReducer (with AA disabled), Biquad, **FrequencyShifter** (for setFrequencyShift feature - SSB modulation via Hilbert transform)
 **Novel:** Digital grunge aesthetic - fold high frequencies back intentionally
+
+> **Note (Jan 2026):** `FrequencyShifter` in `processors/frequency_shifter.h` provides full frequency shifting via Hilbert transform with LFO modulation and feedback. Consider composing with this for the frequency shift before downsample feature.
 
 ### 8.3 Granular Distortion Processor (`processors/granular_distortion.h`)
 
@@ -1132,8 +1175,10 @@ private:
 };
 ```
 
-**Reuses:** Waveshaper, Xorshift32
+**Reuses:** **GrainPool** (64-grain management with voice stealing), **GrainProcessor** (grain reading/envelope), **GrainScheduler** (trigger scheduling with density/jitter), **GrainEnvelope** (window functions), Waveshaper, Xorshift32
 **Novel:** Each micro-grain gets different distortion. Creates evolving, textured destruction.
+
+> **Note (Jan 2026):** Complete granular infrastructure exists in `primitives/grain_pool.h`, `processors/grain_processor.h`, `processors/grain_scheduler.h`, and `core/grain_envelope.h`. The manual grain management shown above can be replaced with these components, which provide up to 64 simultaneous grains with voice stealing.
 
 ### 8.4 Fractal/Recursive Distortion (`processors/fractal_distortion.h`)
 

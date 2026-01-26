@@ -11,6 +11,8 @@
 
 This monorepo contains the **KrateDSP** shared DSP library and audio plugins built on top of it. The architecture enables code reuse across plugins while maintaining a clean separation between DSP algorithms and plugin-specific implementations.
 
+This project is a personal endeavour to investigate how viable it is to develop a DSP library, and VST3 plugins built on top of this library, using AI assisted development.
+
 ## Repository Structure
 
 ```

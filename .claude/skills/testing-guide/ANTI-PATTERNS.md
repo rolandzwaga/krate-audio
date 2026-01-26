@@ -347,7 +347,7 @@ Before committing, check for these smells:
 | Accumulator | Loops with tight tolerance | Test single operations |
 | Excuses | "Too complex to test" | Extract pure logic |
 | Manual State | `setXForTesting()` before call | Simulate real call order |
-| CLI-Hostile Names | Test names starting with `-`, `+`, `--` | Use descriptive words |
+| CLI-Hostile Names | Test names with `()`, `[]`, `/`, `-`, `+` | Avoid all special chars; use words |
 | Relaxing on Crash | Loosening thresholds when tests crash | Use `detail::isNaN()`/`detail::isInf()` |
 | Using std::isfinite | `std::isnan()`, `std::isfinite()`, `std::isinf()` | Use bit-level checks from `db_utils.h` |
 | Build Paranoia | Rebuilding when tests ran successfully | Trust the output; only `--clean-first` if tests don't appear |
@@ -356,49 +356,78 @@ Before committing, check for these smells:
 
 ## 10. The CLI-Hostile Test Name
 
-**Problem:** Test names starting with special characters (`-`, `+`, `--`, `/`) are interpreted as command-line flags by the test runner on some platforms (especially Linux).
+**Problem:** Test names with special characters break `catch_discover_tests()` on Linux. CTest concatenates test names incorrectly, producing failures like:
 
-```cpp
-// BAD: Test names that look like CLI flags
-TEST_CASE("-Infinity input handled gracefully", "[edge]") { ... }
-TEST_CASE("+Infinity input clamps to threshold", "[edge]") { ... }
-TEST_CASE("--verbose mode enables logging", "[config]") { ... }
-
-// On Linux, running these produces:
-// Error(s) in input:
-//   Unrecognised token: -Infinity
-// Run with -? for usage
-
-// GOOD: Use descriptive words instead of symbols
-TEST_CASE("Negative infinity input handled gracefully", "[edge]") { ... }
-TEST_CASE("Positive infinity input clamps to threshold", "[edge]") { ... }
-TEST_CASE("Verbose flag enables logging", "[config]") { ... }
+```
+The following tests FAILED:
+    1254 - blamp4() residual for t in [0, 1) returns t^3/6;blamp4() residual for t in [1, 2)...
 ```
 
-### Why This Happens
+This happens because:
+1. **Leading special characters** (`-`, `+`, `--`, `/`) are interpreted as CLI flags
+2. **Internal special characters** (`()`, `[]`, `/`, `;`) break shell escaping and CTest parsing
 
-Catch2 test discovery uses `--list-tests` and test selection uses regex matching. When CTest or the test runner parses test names, leading `-` or `+` characters can be misinterpreted as:
-- Command-line options (`-v`, `--help`)
-- Numeric arguments (`+5`, `-10`)
+### Characters That Break on Linux
 
-This often passes on Windows but fails on Linux/macOS where the shell handles arguments differently.
+| Character | Problem | Example |
+|-----------|---------|---------|
+| `(` `)` | Shell interprets as subshell | `"blamp4() returns..."` |
+| `[` `]` | Shell interprets as glob pattern | `"t in [0, 1)"` |
+| `/` | Shell interprets as path separator | `"t^3/6"` |
+| `-` (leading) | Interpreted as CLI flag | `"-Infinity input..."` |
+| `+` (leading) | Interpreted as CLI flag | `"+Infinity input..."` |
+| `;` | Shell command separator | `"value=0; check result"` |
+| `*` | Catch2 wildcard | `"process * samples"` |
+| `~` | Catch2 negation | `"~0 values"` |
+
+### BAD Examples
+
+```cpp
+// BAD: These all break on Linux CI
+TEST_CASE("blamp4() residual for t in [0, 1) returns t^3/6", "[blamp]") { ... }
+TEST_CASE("-Infinity input handled gracefully", "[edge]") { ... }
+TEST_CASE("process() returns x - x[n-1]", "[filter]") { ... }
+TEST_CASE("setThreshold(0.5) changes threshold", "[api]") { ... }
+```
+
+### GOOD Examples
+
+```cpp
+// GOOD: Use words instead of symbols
+TEST_CASE("blamp4 residual for t in segment 0-1 returns t cubed over 6", "[blamp]") { ... }
+TEST_CASE("Negative infinity input handled gracefully", "[edge]") { ... }
+TEST_CASE("process returns x minus previous x", "[filter]") { ... }
+TEST_CASE("setThreshold changes threshold and getThreshold returns new value", "[api]") { ... }
+```
+
+### Why This Passes on Windows But Fails on Linux
+
+Windows Command Prompt and PowerShell handle argument escaping differently than Unix shells. `catch_discover_tests()` generates CTest commands that work on Windows but break on Linux because:
+
+1. Linux shell performs glob expansion on `[` `]`
+2. Linux shell interprets `()` as subshell syntax
+3. Semicolons in arguments can be interpreted as command separators
 
 ### Rules for Test Names
 
-1. **Never start with `-`, `+`, `--`, or `/`**
-2. **Use words:** "Negative" not "-", "Positive" not "+"
-3. **Describe the scenario:** What is being tested, not the literal value
-4. **If testing special values, name them:** "NaN", "Infinity", "MinFloat"
+1. **Never start with** `-`, `+`, `--`, or `/`
+2. **Avoid** `()`, `[]`, `/`, `;`, `*`, `~` **anywhere in test names**
+3. **Use words:** "Negative" not "-", "Positive" not "+"
+4. **Use ranges with hyphens:** "segment 0-1" not "[0, 1)"
+5. **Describe operations in words:** "x cubed over 6" not "t^3/6"
+6. **Omit parentheses from method names:** "process returns" not "process() returns"
 
 ### Quick Fix Pattern
 
 | Instead of... | Use... |
 |---------------|--------|
+| `blamp4()` | `blamp4` |
+| `[0, 1)` | `segment 0-1` or `range 0 to 1` |
+| `t^3/6` | `t cubed over 6` |
 | `-Infinity` | `Negative infinity` |
 | `+Infinity` | `Positive infinity` |
-| `-1.0 input` | `Negative one input` |
-| `+0.0 vs -0.0` | `Positive zero vs negative zero` |
-| `--flag` | `Double-dash flag` or `Verbose flag`|
+| `x[n-1]` | `previous x` or `x at n minus 1` |
+| `setFoo(0.5)` | `setFoo with value 0.5` or just `setFoo` |
 
 ---
 

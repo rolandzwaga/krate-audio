@@ -94,6 +94,7 @@ Given the feature description, do this:
        that can be re-used for this spec and, only in the case
        where re-usable functionality has been found, specify
        HOW it may be re-used. Avoid duplication LIKE THE PLAGUE.
+       Also consider how to REFACTOR existing functionality in order to MAKE it better re-usable.
     6. Generate Functional Requirements
        Each requirement must be testable
        Use reasonable defaults for unspecified details (document assumptions in Assumptions section)

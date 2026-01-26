@@ -74,6 +74,7 @@ add_executable(dsp_tests
     unit/primitives/hilbert_transform_test.cpp
     unit/primitives/sequencer_core_tests.cpp
     unit/primitives/chaos_waveshaper_test.cpp
+    unit/primitives/hard_clip_polyblamp_test.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
@@ -117,6 +118,7 @@ add_executable(dsp_tests
     unit/processors/frequency_shifter_test.cpp
     unit/processors/multistage_env_filter_tests.cpp
     unit/processors/spectral_distortion_test.cpp
+    unit/processors/formant_distortion_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -241,6 +243,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/hilbert_transform_test.cpp
         unit/primitives/sequencer_core_tests.cpp
         unit/primitives/chaos_waveshaper_test.cpp
+        unit/primitives/hard_clip_polyblamp_test.cpp
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
         unit/processors/envelope_follower_test.cpp
@@ -330,6 +333,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/frequency_shifter_test.cpp
         unit/processors/multistage_env_filter_tests.cpp
         unit/processors/spectral_distortion_test.cpp
+        unit/processors/formant_distortion_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
@@ -337,4 +341,4 @@ endif()
 # ==============================================================================
 # CTest Integration
 # ==============================================================================
-catch_discover_tests(dsp_tests REPORTER compact)
+catch_discover_tests(dsp_tests REPORTER console)
