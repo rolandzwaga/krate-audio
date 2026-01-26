@@ -1267,3 +1267,177 @@ TEST_CASE("RingSaturation processing methods are noexcept (FR-023)",
     // If we get here, all static_asserts passed
     REQUIRE(true);
 }
+
+// =============================================================================
+// Phase 8: Edge Cases Tests
+// =============================================================================
+
+// T076: NaN input produces NaN output (or soft-limited, depends on implementation)
+TEST_CASE("RingSaturation handles NaN input gracefully (FR-022)",
+          "[ring_saturation][edge_cases]") {
+    RingSaturation ringSat;
+    ringSat.prepare(44100.0);
+    ringSat.setDrive(2.0f);
+    ringSat.setModulationDepth(1.0f);
+
+    float nanValue = std::numeric_limits<float>::quiet_NaN();
+    float output = ringSat.process(nanValue);
+
+    // NaN may propagate or be converted to 0 - either is acceptable
+    // The key is no crash
+    REQUIRE((std::isnan(output) || std::abs(output) <= 2.0f));
+
+    // Subsequent processing should work correctly
+    float normalOutput = ringSat.process(0.5f);
+    REQUIRE_FALSE(std::isnan(normalOutput));
+    REQUIRE(std::abs(normalOutput) <= 2.0f);
+}
+
+// T077: Infinity input produces bounded output (FR-022)
+TEST_CASE("RingSaturation handles infinity input gracefully (FR-022)",
+          "[ring_saturation][edge_cases]") {
+    RingSaturation ringSat;
+    ringSat.prepare(44100.0);
+    ringSat.setDrive(2.0f);
+    ringSat.setModulationDepth(1.0f);
+
+    SECTION("positive infinity") {
+        float posInf = std::numeric_limits<float>::infinity();
+        float output = ringSat.process(posInf);
+
+        // Soft limiter should bound this
+        REQUIRE_FALSE(std::isinf(output));
+        REQUIRE(output <= 2.0f);
+    }
+
+    SECTION("negative infinity") {
+        float negInf = -std::numeric_limits<float>::infinity();
+        float output = ringSat.process(negInf);
+
+        // Soft limiter should bound this
+        REQUIRE_FALSE(std::isinf(output));
+        REQUIRE(output >= -2.0f);
+    }
+}
+
+// T078: Zero-length block processing is no-op
+TEST_CASE("RingSaturation zero-length processBlock is no-op",
+          "[ring_saturation][edge_cases]") {
+    RingSaturation ringSat;
+    ringSat.prepare(44100.0);
+    ringSat.setDrive(2.0f);
+    ringSat.setModulationDepth(1.0f);
+
+    // Null buffer with zero size should not crash
+    ringSat.processBlock(nullptr, 0);
+
+    // Non-null buffer with zero size should also not crash
+    std::array<float, 10> buffer = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f};
+    auto original = buffer;
+    ringSat.processBlock(buffer.data(), 0);
+
+    // Buffer should be unchanged
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        REQUIRE(buffer[i] == original[i]);
+    }
+}
+
+// T079: Extreme drive values (0, 100) produce valid output
+TEST_CASE("RingSaturation extreme drive values produce valid output",
+          "[ring_saturation][edge_cases]") {
+    constexpr size_t kNumSamples = 512;
+    constexpr float kSampleRate = 44100.0f;
+
+    SECTION("drive = 0") {
+        RingSaturation ringSat;
+        ringSat.prepare(kSampleRate);
+        ringSat.setDrive(0.0f);
+        ringSat.setModulationDepth(0.5f);
+
+        std::vector<float> buffer(kNumSamples);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+
+        ringSat.processBlock(buffer.data(), kNumSamples);
+
+        for (size_t i = 0; i < kNumSamples; ++i) {
+            REQUIRE_FALSE(std::isnan(buffer[i]));
+            REQUIRE_FALSE(std::isinf(buffer[i]));
+            REQUIRE(std::abs(buffer[i]) <= 2.0f);
+        }
+    }
+
+    SECTION("drive = 100 (extreme)") {
+        RingSaturation ringSat;
+        ringSat.prepare(kSampleRate);
+        ringSat.setDrive(100.0f);
+        ringSat.setModulationDepth(1.0f);
+        ringSat.setStages(4);
+
+        std::vector<float> buffer(kNumSamples);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+
+        ringSat.processBlock(buffer.data(), kNumSamples);
+
+        for (size_t i = 0; i < kNumSamples; ++i) {
+            REQUIRE_FALSE(std::isnan(buffer[i]));
+            REQUIRE_FALSE(std::isinf(buffer[i]));
+            // Soft limiter bounds output to +/-2
+            REQUIRE(std::abs(buffer[i]) < 2.1f);
+        }
+    }
+}
+
+// T080: Very low sample rate (1000Hz) works correctly
+TEST_CASE("RingSaturation works at minimum sample rate (1000Hz)",
+          "[ring_saturation][edge_cases]") {
+    constexpr float kMinSampleRate = 1000.0f;
+    constexpr size_t kNumSamples = 100;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kMinSampleRate);
+    ringSat.setDrive(2.0f);
+    ringSat.setModulationDepth(1.0f);
+
+    REQUIRE(ringSat.isPrepared());
+
+    // Process at very low sample rate
+    std::vector<float> buffer(kNumSamples);
+    generateSineWave(buffer.data(), kNumSamples, 100.0f, kMinSampleRate); // 100Hz at 1kHz SR
+
+    ringSat.processBlock(buffer.data(), kNumSamples);
+
+    // All samples should be valid
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        REQUIRE_FALSE(std::isnan(buffer[i]));
+        REQUIRE_FALSE(std::isinf(buffer[i]));
+        REQUIRE(std::abs(buffer[i]) <= 2.0f);
+    }
+}
+
+// T080b: Very high sample rate (192kHz) works correctly
+TEST_CASE("RingSaturation works at high sample rate (192kHz)",
+          "[ring_saturation][edge_cases]") {
+    constexpr double kHighSampleRate = 192000.0;
+    constexpr size_t kNumSamples = 1024;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kHighSampleRate);
+    ringSat.setDrive(2.0f);
+    ringSat.setModulationDepth(1.0f);
+    ringSat.setStages(4);
+
+    REQUIRE(ringSat.isPrepared());
+
+    // Process at high sample rate
+    std::vector<float> buffer(kNumSamples);
+    generateSineWave(buffer.data(), kNumSamples, 440.0f, static_cast<float>(kHighSampleRate));
+
+    ringSat.processBlock(buffer.data(), kNumSamples);
+
+    // All samples should be valid
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        REQUIRE_FALSE(std::isnan(buffer[i]));
+        REQUIRE_FALSE(std::isinf(buffer[i]));
+        REQUIRE(std::abs(buffer[i]) <= 2.0f);
+    }
+}

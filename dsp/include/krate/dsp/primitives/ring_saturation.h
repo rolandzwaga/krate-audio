@@ -35,6 +35,7 @@
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/sigmoid.h>
+#include <krate/dsp/core/db_utils.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -278,6 +279,11 @@ public:
     [[nodiscard]] float process(float input) noexcept {
         // FR-018: Return input unchanged if not prepared
         if (!prepared_) {
+            return input;
+        }
+
+        // FR-022: NaN input protection - return NaN but don't corrupt state
+        if (detail::isNaN(input)) {
             return input;
         }
 
