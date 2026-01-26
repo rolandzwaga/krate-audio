@@ -287,6 +287,12 @@ public:
             return input;
         }
 
+        // FR-022: Infinity input protection - return soft limit bound
+        // Without this, infinity - infinity = NaN in the ring modulation formula
+        if (detail::isInf(input)) {
+            return input > 0.0f ? kSoftLimitScale : -kSoftLimitScale;
+        }
+
         // SC-002: depth=0 means no effect, return input unchanged
         if (depth_ == 0.0f) {
             return input;
