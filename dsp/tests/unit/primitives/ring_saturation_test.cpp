@@ -789,3 +789,185 @@ TEST_CASE("RingSaturation setting same curve does not trigger crossfade",
     // Should be essentially identical (only DC blocker state change)
     REQUIRE(outputAfter == Approx(outputBefore).margin(0.001f));
 }
+
+// =============================================================================
+// Phase 5: User Story 3 - Multi-Stage Self-Modulation Tests
+// =============================================================================
+
+// T045: setStages() and getStages() work correctly
+TEST_CASE("RingSaturation setStages() and getStages() work correctly",
+          "[ring_saturation][US3][stages]") {
+    RingSaturation ringSat;
+    ringSat.prepare(44100.0);
+
+    SECTION("default stages is 1") {
+        REQUIRE(ringSat.getStages() == 1);
+    }
+
+    SECTION("setStages changes the stage count") {
+        ringSat.setStages(2);
+        REQUIRE(ringSat.getStages() == 2);
+
+        ringSat.setStages(4);
+        REQUIRE(ringSat.getStages() == 4);
+
+        ringSat.setStages(1);
+        REQUIRE(ringSat.getStages() == 1);
+    }
+}
+
+// T046: stages parameter clamped to [1, 4] range (FR-011)
+TEST_CASE("RingSaturation stages parameter clamped to [1, 4] (FR-011)",
+          "[ring_saturation][US3][stages]") {
+    RingSaturation ringSat;
+    ringSat.prepare(44100.0);
+
+    SECTION("stages < 1 clamped to 1") {
+        ringSat.setStages(0);
+        REQUIRE(ringSat.getStages() == 1);
+
+        ringSat.setStages(-5);
+        REQUIRE(ringSat.getStages() == 1);
+    }
+
+    SECTION("stages > 4 clamped to 4") {
+        ringSat.setStages(5);
+        REQUIRE(ringSat.getStages() == 4);
+
+        ringSat.setStages(100);
+        REQUIRE(ringSat.getStages() == 4);
+    }
+
+    SECTION("valid stages values preserved") {
+        for (int s = 1; s <= 4; ++s) {
+            ringSat.setStages(s);
+            REQUIRE(ringSat.getStages() == s);
+        }
+    }
+}
+
+// T047: stages=1 produces single pass, stages=4 produces 4 passes
+TEST_CASE("RingSaturation multi-stage processing applies formula multiple times",
+          "[ring_saturation][US3][stages]") {
+    constexpr float kSampleRate = 44100.0f;
+
+    // With higher stages, the signal should be more heavily processed
+    // leading to different output for same input
+    auto processWithStages = [&](int stages, float input) -> float {
+        RingSaturation ringSat;
+        ringSat.prepare(kSampleRate);
+        ringSat.setDrive(2.0f);
+        ringSat.setModulationDepth(1.0f);
+        ringSat.setStages(stages);
+        return ringSat.process(input);
+    };
+
+    constexpr float testInput = 0.7f;
+
+    float output1Stage = processWithStages(1, testInput);
+    float output2Stage = processWithStages(2, testInput);
+    float output3Stage = processWithStages(3, testInput);
+    float output4Stage = processWithStages(4, testInput);
+
+    // Different stage counts should produce different outputs
+    // (each additional stage further transforms the signal)
+    REQUIRE(output1Stage != Approx(output2Stage).margin(0.01f));
+    REQUIRE(output2Stage != Approx(output3Stage).margin(0.01f));
+    REQUIRE(output3Stage != Approx(output4Stage).margin(0.01f));
+}
+
+// T048: stages=4 produces higher Shannon spectral entropy than stages=1 (SC-003)
+TEST_CASE("RingSaturation stages=4 produces higher spectral entropy than stages=1 (SC-003)",
+          "[ring_saturation][US3][spectral]") {
+    constexpr size_t kNumSamples = 4096;
+    constexpr float kSampleRate = 44100.0f;
+
+    auto processBufferWithStages = [&](int stages) -> float {
+        RingSaturation ringSat;
+        ringSat.prepare(kSampleRate);
+        ringSat.setDrive(2.0f);
+        ringSat.setModulationDepth(1.0f);
+        ringSat.setStages(stages);
+
+        std::vector<float> buffer(kNumSamples);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+        ringSat.processBlock(buffer.data(), kNumSamples);
+
+        return calculateSpectralEntropy(buffer.data(), kNumSamples, kSampleRate);
+    };
+
+    float entropy1Stage = processBufferWithStages(1);
+    float entropy4Stage = processBufferWithStages(4);
+
+    // SC-003: Multi-stage produces more complex harmonic content
+    // Measured by increased Shannon spectral entropy
+    REQUIRE(entropy4Stage > entropy1Stage);
+}
+
+// T049: stages=4 with high drive remains bounded via soft limiting (SC-005)
+TEST_CASE("RingSaturation stages=4 with high drive remains bounded (SC-005)",
+          "[ring_saturation][US3][limiting]") {
+    constexpr size_t kNumSamples = 2048;
+    constexpr float kSampleRate = 44100.0f;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kSampleRate);
+    ringSat.setDrive(10.0f);  // Very high drive
+    ringSat.setModulationDepth(1.0f);
+    ringSat.setStages(4);     // Maximum stages
+
+    std::vector<float> buffer(kNumSamples);
+    generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+
+    ringSat.processBlock(buffer.data(), kNumSamples);
+
+    // Check all samples are bounded
+    float peak = findPeakAbsolute(buffer.data(), kNumSamples);
+
+    // SC-005: Output approaches +/-2.0 asymptotically
+    // Should never exceed 2.0
+    REQUIRE(peak < 2.0f);
+    // With high drive and 4 stages, output should have some significant level
+    REQUIRE(peak > 0.5f);
+}
+
+// T050: multi-stage does not produce runaway gain or instability
+TEST_CASE("RingSaturation multi-stage does not produce runaway gain or instability",
+          "[ring_saturation][US3][stability]") {
+    constexpr size_t kNumSamples = 10000;
+    constexpr float kSampleRate = 44100.0f;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kSampleRate);
+    ringSat.setDrive(5.0f);
+    ringSat.setModulationDepth(1.0f);
+    ringSat.setStages(4);
+
+    // Process a long signal
+    std::vector<float> buffer(kNumSamples);
+    generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+
+    ringSat.processBlock(buffer.data(), kNumSamples);
+
+    // Check for stability: no NaN, no Inf, bounded output
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        REQUIRE_FALSE(std::isnan(buffer[i]));
+        REQUIRE_FALSE(std::isinf(buffer[i]));
+        REQUIRE(std::abs(buffer[i]) < 2.1f); // Slightly above 2.0 to allow for DC blocker transients
+    }
+
+    // Also test with constant input (edge case for feedback)
+    RingSaturation ringSat2;
+    ringSat2.prepare(kSampleRate);
+    ringSat2.setDrive(5.0f);
+    ringSat2.setModulationDepth(1.0f);
+    ringSat2.setStages(4);
+
+    constexpr float constantInput = 0.9f;
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        float output = ringSat2.process(constantInput);
+        REQUIRE_FALSE(std::isnan(output));
+        REQUIRE_FALSE(std::isinf(output));
+        REQUIRE(std::abs(output) < 2.1f);
+    }
+}
