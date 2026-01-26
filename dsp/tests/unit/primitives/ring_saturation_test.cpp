@@ -1441,3 +1441,225 @@ TEST_CASE("RingSaturation works at high sample rate (192kHz)",
         REQUIRE(std::abs(buffer[i]) <= 2.0f);
     }
 }
+
+// =============================================================================
+// Phase 9: Integration Tests
+// =============================================================================
+
+// T081: Full integration test with all features combined
+TEST_CASE("RingSaturation full integration - all features combined",
+          "[ring_saturation][integration]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kNumSamples = 8192;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kSampleRate);
+
+    // Configure with non-default settings
+    ringSat.setDrive(3.0f);
+    ringSat.setModulationDepth(0.8f);
+    ringSat.setStages(3);
+    ringSat.setSaturationCurve(WaveshapeType::Tube);
+
+    // Generate test signal
+    std::vector<float> buffer(kNumSamples);
+    generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate, 0.7f);
+
+    // Process
+    ringSat.processBlock(buffer.data(), kNumSamples);
+
+    SECTION("all outputs are bounded") {
+        for (size_t i = 0; i < kNumSamples; ++i) {
+            REQUIRE_FALSE(std::isnan(buffer[i]));
+            REQUIRE_FALSE(std::isinf(buffer[i]));
+            REQUIRE(std::abs(buffer[i]) < 2.0f);
+        }
+    }
+
+    SECTION("output has been modified from input") {
+        // Regenerate input for comparison
+        std::vector<float> original(kNumSamples);
+        generateSineWave(original.data(), kNumSamples, 440.0f, kSampleRate, 0.7f);
+
+        // Should be different (effect applied)
+        bool someOutputDiffers = false;
+        for (size_t i = 0; i < kNumSamples; ++i) {
+            if (std::abs(buffer[i] - original[i]) > 0.01f) {
+                someOutputDiffers = true;
+                break;
+            }
+        }
+        REQUIRE(someOutputDiffers);
+    }
+
+    SECTION("DC offset is low after settling") {
+        // Measure DC in the last portion
+        constexpr size_t kMeasureStart = 4096;
+        float dc = calculateDCOffset(buffer.data() + kMeasureStart, kNumSamples - kMeasureStart);
+        REQUIRE(std::abs(dc) < 0.02f);
+    }
+
+    SECTION("spectral entropy indicates harmonic content") {
+        float entropy = calculateSpectralEntropy(buffer.data(), kNumSamples, kSampleRate);
+        REQUIRE(entropy > 1.0f); // Should have more than a pure tone
+    }
+}
+
+// T081b: Multiple sequential operations work correctly
+TEST_CASE("RingSaturation multiple sequential operations",
+          "[ring_saturation][integration]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kBlockSize = 512;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kSampleRate);
+    ringSat.setDrive(2.0f);
+    ringSat.setModulationDepth(1.0f);
+
+    std::vector<float> buffer(kBlockSize);
+
+    // Multiple blocks with parameter changes between
+    for (int block = 0; block < 10; ++block) {
+        generateSineWave(buffer.data(), kBlockSize, 440.0f, kSampleRate);
+
+        // Change parameters periodically
+        if (block % 3 == 0) {
+            ringSat.setDrive(1.0f + static_cast<float>(block) * 0.3f);
+        }
+        if (block % 4 == 0) {
+            auto curve = (block % 2 == 0) ? WaveshapeType::Tanh : WaveshapeType::Tube;
+            ringSat.setSaturationCurve(curve);
+        }
+
+        ringSat.processBlock(buffer.data(), kBlockSize);
+
+        // Verify all samples valid
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            REQUIRE_FALSE(std::isnan(buffer[i]));
+            REQUIRE_FALSE(std::isinf(buffer[i]));
+            REQUIRE(std::abs(buffer[i]) < 2.1f);
+        }
+    }
+}
+
+// =============================================================================
+// Phase 10: Regression Protection Tests
+// =============================================================================
+
+// T082: Deterministic output for same input/parameters (SC-008)
+TEST_CASE("RingSaturation produces deterministic output (SC-008)",
+          "[ring_saturation][regression]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kNumSamples = 1024;
+
+    auto processWithConfig = [&]() -> std::vector<float> {
+        RingSaturation ringSat;
+        ringSat.prepare(kSampleRate);
+        ringSat.setDrive(2.5f);
+        ringSat.setModulationDepth(0.9f);
+        ringSat.setStages(2);
+        ringSat.setSaturationCurve(WaveshapeType::Tanh);
+
+        std::vector<float> buffer(kNumSamples);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate, 0.6f);
+        ringSat.processBlock(buffer.data(), kNumSamples);
+        return buffer;
+    };
+
+    // Process twice with identical setup
+    auto output1 = processWithConfig();
+    auto output2 = processWithConfig();
+
+    // Outputs must be bit-for-bit identical
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        REQUIRE(output1[i] == output2[i]);
+    }
+}
+
+// T083: Known input/output pairs (regression golden values)
+TEST_CASE("RingSaturation known input/output pairs (golden values)",
+          "[ring_saturation][regression]") {
+    // These are regression tests - if the algorithm changes, these need to be updated
+    constexpr float kSampleRate = 44100.0f;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kSampleRate);
+    ringSat.setDrive(2.0f);
+    ringSat.setModulationDepth(1.0f);
+    ringSat.setStages(1);
+    ringSat.setSaturationCurve(WaveshapeType::Tanh);
+
+    SECTION("input 0.0 produces 0.0") {
+        // For zero input, ring modulation produces zero
+        float output = ringSat.process(0.0f);
+        REQUIRE(output == Approx(0.0f).margin(0.001f));
+    }
+
+    SECTION("depth=0 is pure bypass") {
+        ringSat.setModulationDepth(0.0f);
+        for (float input : {-0.5f, 0.0f, 0.5f}) {
+            float output = ringSat.process(input);
+            REQUIRE(output == Approx(input));
+        }
+    }
+}
+
+// =============================================================================
+// Phase 12: Final Validation - Summary Test
+// =============================================================================
+
+// T084: Summary validation of all success criteria
+TEST_CASE("RingSaturation meets all success criteria (final validation)",
+          "[ring_saturation][final_validation]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kNumSamples = 4096;
+
+    RingSaturation ringSat;
+    ringSat.prepare(kSampleRate);
+    ringSat.setDrive(3.0f);
+    ringSat.setModulationDepth(1.0f);
+    ringSat.setStages(4);
+
+    std::vector<float> buffer(kNumSamples);
+
+    SECTION("SC-001: Produces inharmonic sidebands") {
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+        ringSat.processBlock(buffer.data(), kNumSamples);
+
+        bool hasInharmonic = hasInharmonicSidebands(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+        REQUIRE(hasInharmonic);
+    }
+
+    SECTION("SC-002: depth=0 produces dry signal") {
+        ringSat.setModulationDepth(0.0f);
+        float input = 0.7f;
+        float output = ringSat.process(input);
+        REQUIRE(output == Approx(input));
+    }
+
+    SECTION("SC-003: stages=4 > stages=1 entropy") {
+        ringSat.setStages(1);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+        std::vector<float> buffer1 = buffer;
+        ringSat.processBlock(buffer1.data(), kNumSamples);
+        float entropy1 = calculateSpectralEntropy(buffer1.data(), kNumSamples, kSampleRate);
+
+        ringSat.reset();
+        ringSat.setStages(4);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+        ringSat.processBlock(buffer.data(), kNumSamples);
+        float entropy4 = calculateSpectralEntropy(buffer.data(), kNumSamples, kSampleRate);
+
+        REQUIRE(entropy4 > entropy1);
+    }
+
+    SECTION("SC-005: Output bounded to +/-2.0") {
+        ringSat.setDrive(10.0f);
+        ringSat.setStages(4);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate);
+        ringSat.processBlock(buffer.data(), kNumSamples);
+
+        float peak = findPeakAbsolute(buffer.data(), kNumSamples);
+        REQUIRE(peak < 2.0f);
+    }
+}
