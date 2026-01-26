@@ -50,7 +50,7 @@ using Krate::DSP::Sigmoid::hardClip;
 // ==============================================================================
 
 // T001: BLAMP4 residual for t in [0, 1) segment (cubic B-spline)
-TEST_CASE("blamp4() residual for t in [0, 1) returns t^3/6", "[hard_clip_polyblamp][primitives][blamp]") {
+TEST_CASE("blamp4 residual for t in segment 0-1 returns t cubed over 6", "[hard_clip_polyblamp][primitives][blamp]") {
     // For t in [0, 1): blamp4(t) = t³ / 6
     const float t = 0.5f;
     const float expected = (t * t * t) / 6.0f;
@@ -59,7 +59,7 @@ TEST_CASE("blamp4() residual for t in [0, 1) returns t^3/6", "[hard_clip_polybla
 }
 
 // T002: BLAMP4 residual for t in [1, 2) segment (cubic B-spline)
-TEST_CASE("blamp4() residual for t in [1, 2) returns correct polynomial", "[hard_clip_polyblamp][primitives][blamp]") {
+TEST_CASE("blamp4 residual for t in segment 1-2 returns correct polynomial", "[hard_clip_polyblamp][primitives][blamp]") {
     // For t in [1, 2): blamp4(t) = (-3u³ + 3u² + 3u + 1) / 6, where u = t - 1
     const float t = 1.5f;
     const float u = t - 1.0f;
@@ -71,7 +71,7 @@ TEST_CASE("blamp4() residual for t in [1, 2) returns correct polynomial", "[hard
 }
 
 // T003: BLAMP4 residual for t in [2, 3) segment (cubic B-spline)
-TEST_CASE("blamp4() residual for t in [2, 3) returns correct polynomial", "[hard_clip_polyblamp][primitives][blamp]") {
+TEST_CASE("blamp4 residual for t in segment 2-3 returns correct polynomial", "[hard_clip_polyblamp][primitives][blamp]") {
     // For t in [2, 3): blamp4(t) = (3u³ - 6u² + 4) / 6, where u = t - 2
     const float t = 2.5f;
     const float u = t - 2.0f;
@@ -83,7 +83,7 @@ TEST_CASE("blamp4() residual for t in [2, 3) returns correct polynomial", "[hard
 }
 
 // T004: BLAMP4 residual for t in [3, 4) segment (cubic B-spline)
-TEST_CASE("blamp4() residual for t in [3, 4) returns correct polynomial", "[hard_clip_polyblamp][primitives][blamp]") {
+TEST_CASE("blamp4 residual for t in segment 3-4 returns correct polynomial", "[hard_clip_polyblamp][primitives][blamp]") {
     // For t in [3, 4): blamp4(t) = (4-t)³ / 6
     const float t = 3.5f;
     const float diff = 4.0f - t;
@@ -93,14 +93,14 @@ TEST_CASE("blamp4() residual for t in [3, 4) returns correct polynomial", "[hard
 }
 
 // T005: BLAMP4 residual returns 0 for t >= 4 or t < 0
-TEST_CASE("blamp4() returns 0 for t outside [0, 4)", "[hard_clip_polyblamp][primitives][blamp]") {
+TEST_CASE("blamp4 returns 0 for t outside valid range", "[hard_clip_polyblamp][primitives][blamp]") {
     REQUIRE(HardClipPolyBLAMP::blamp4(-0.1f) == Approx(0.0f).margin(1e-9f));
     REQUIRE(HardClipPolyBLAMP::blamp4(4.0f) == Approx(0.0f).margin(1e-9f));
     REQUIRE(HardClipPolyBLAMP::blamp4(5.0f) == Approx(0.0f).margin(1e-9f));
 }
 
 // T006: BLAMP4 continuity at segment boundaries
-TEST_CASE("blamp4() is continuous at segment boundaries", "[hard_clip_polyblamp][primitives][blamp]") {
+TEST_CASE("blamp4 is continuous at segment boundaries", "[hard_clip_polyblamp][primitives][blamp]") {
     // Check continuity at t = 1, 2, 3
     const float eps = 1e-4f;
 
@@ -131,7 +131,7 @@ TEST_CASE("Default constructor initializes threshold to 1.0", "[hard_clip_polybl
 }
 
 // T008: setThreshold changes threshold
-TEST_CASE("setThreshold(0.5) changes threshold, getThreshold() returns 0.5", "[hard_clip_polyblamp][primitives][US2]") {
+TEST_CASE("setThreshold changes threshold and getThreshold returns new value", "[hard_clip_polyblamp][primitives][US2]") {
     HardClipPolyBLAMP clipper;
 
     REQUIRE(clipper.getThreshold() == Approx(1.0f).margin(1e-5f));
@@ -149,7 +149,7 @@ TEST_CASE("Negative threshold treated as absolute value", "[hard_clip_polyblamp]
 }
 
 // T010: Threshold of 0 always returns 0
-TEST_CASE("threshold=0 always returns 0.0 regardless of input", "[hard_clip_polyblamp][primitives][US2]") {
+TEST_CASE("threshold zero always returns zero regardless of input", "[hard_clip_polyblamp][primitives][US2]") {
     HardClipPolyBLAMP clipper;
     clipper.setThreshold(0.0f);
 
@@ -163,7 +163,7 @@ TEST_CASE("threshold=0 always returns 0.0 regardless of input", "[hard_clip_poly
 }
 
 // T011: reset() clears state but preserves threshold
-TEST_CASE("reset() clears internal state but preserves threshold", "[hard_clip_polyblamp][primitives][US4]") {
+TEST_CASE("reset clears internal state but preserves threshold", "[hard_clip_polyblamp][primitives][US4]") {
     HardClipPolyBLAMP clipper;
     clipper.setThreshold(0.5f);
 
@@ -199,7 +199,7 @@ TEST_CASE("First samples after construction", "[hard_clip_polyblamp][primitives]
 // ==============================================================================
 
 // T013: Signal in linear region passes through unchanged
-TEST_CASE("process() for signal in linear region outputs approximately same as input", "[hard_clip_polyblamp][primitives][US1]") {
+TEST_CASE("process for signal in linear region outputs approximately same as input", "[hard_clip_polyblamp][primitives][US1]") {
     HardClipPolyBLAMP clipper;
 
     // Build up history with linear signals
@@ -213,7 +213,7 @@ TEST_CASE("process() for signal in linear region outputs approximately same as i
 }
 
 // T014: Constant input exceeding threshold converges to threshold
-TEST_CASE("process() for constant input exceeding threshold converges to threshold", "[hard_clip_polyblamp][primitives][US1]") {
+TEST_CASE("process for constant input exceeding threshold converges to threshold", "[hard_clip_polyblamp][primitives][US1]") {
     HardClipPolyBLAMP clipper;
 
     // Process constant input of 2.0 (exceeds threshold of 1.0)
@@ -227,7 +227,7 @@ TEST_CASE("process() for constant input exceeding threshold converges to thresho
 }
 
 // T015: Constant negative input exceeding threshold converges to -threshold
-TEST_CASE("process() for constant negative input exceeding threshold converges to -threshold", "[hard_clip_polyblamp][primitives][US1]") {
+TEST_CASE("process for constant negative input exceeding threshold converges to negative threshold", "[hard_clip_polyblamp][primitives][US1]") {
     HardClipPolyBLAMP clipper;
 
     float output = 0.0f;
@@ -281,7 +281,7 @@ TEST_CASE("High amplitude sine wave is clipped with bounded output", "[hard_clip
 }
 
 // T018: Custom threshold clips at correct level
-TEST_CASE("Custom threshold=0.8 clips at 0.8", "[hard_clip_polyblamp][primitives][US2]") {
+TEST_CASE("Custom threshold 0.8 clips at 0.8", "[hard_clip_polyblamp][primitives][US2]") {
     HardClipPolyBLAMP clipper;
     clipper.setThreshold(0.8f);
 
@@ -299,7 +299,7 @@ TEST_CASE("Custom threshold=0.8 clips at 0.8", "[hard_clip_polyblamp][primitives
 // ==============================================================================
 
 // T021: processBlock produces same output as sequential process calls
-TEST_CASE("processBlock() produces bit-identical output to N sequential process() calls", "[hard_clip_polyblamp][primitives][US3]") {
+TEST_CASE("processBlock produces bit-identical output to N sequential process calls", "[hard_clip_polyblamp][primitives][US3]") {
     constexpr size_t N = 128;
     std::array<float, N> signal;
     for (size_t i = 0; i < N; ++i) {
@@ -325,7 +325,7 @@ TEST_CASE("processBlock() produces bit-identical output to N sequential process(
 }
 
 // T022: processBlock with 512 samples produces correct output
-TEST_CASE("processBlock() with 512 samples produces correct output", "[hard_clip_polyblamp][primitives][US3]") {
+TEST_CASE("processBlock with 512 samples produces correct output", "[hard_clip_polyblamp][primitives][US3]") {
     constexpr size_t N = 512;
     std::array<float, N> buffer;
     for (size_t i = 0; i < N; ++i) {
@@ -343,7 +343,7 @@ TEST_CASE("processBlock() with 512 samples produces correct output", "[hard_clip
 }
 
 // T023: processBlock is in-place
-TEST_CASE("processBlock() is in-place (modifies input buffer)", "[hard_clip_polyblamp][primitives][US3]") {
+TEST_CASE("processBlock is in-place and modifies input buffer", "[hard_clip_polyblamp][primitives][US3]") {
     constexpr size_t N = 16;
     std::array<float, N> buffer;
     for (size_t i = 0; i < N; ++i) {
@@ -363,7 +363,7 @@ TEST_CASE("processBlock() is in-place (modifies input buffer)", "[hard_clip_poly
 // ==============================================================================
 
 // T026: reset clears history buffer
-TEST_CASE("reset() clears history, first samples after reset build history", "[hard_clip_polyblamp][primitives][US4]") {
+TEST_CASE("reset clears history and first samples after reset build history", "[hard_clip_polyblamp][primitives][US4]") {
     HardClipPolyBLAMP clipper;
 
     // Process some samples
@@ -381,7 +381,7 @@ TEST_CASE("reset() clears history, first samples after reset build history", "[h
 }
 
 // T027: Output after reset is independent of previous history
-TEST_CASE("output after reset() is independent of previous processing history", "[hard_clip_polyblamp][primitives][US4]") {
+TEST_CASE("output after reset is independent of previous processing history", "[hard_clip_polyblamp][primitives][US4]") {
     // Clipper 1: process different samples, then reset and process test sequence
     HardClipPolyBLAMP clipper1;
     (void)clipper1.process(0.9f);
@@ -422,7 +422,7 @@ TEST_CASE("NaN input propagates NaN output", "[hard_clip_polyblamp][primitives][
 }
 
 // T031: Positive infinity clamps to threshold
-TEST_CASE("Positive infinity input clamps to +threshold", "[hard_clip_polyblamp][primitives][edge]") {
+TEST_CASE("Positive infinity input clamps to positive threshold", "[hard_clip_polyblamp][primitives][edge]") {
     HardClipPolyBLAMP clipper;
     clipper.setThreshold(0.8f);
 
@@ -461,7 +461,7 @@ TEST_CASE("Negative infinity input produces bounded output", "[hard_clip_polybla
 }
 
 // T033: 1M samples produces no unexpected NaN/Inf
-TEST_CASE("1M samples produces no unexpected NaN/Inf for valid inputs", "[hard_clip_polyblamp][primitives][edge]") {
+TEST_CASE("1M samples produces no unexpected NaN or Inf for valid inputs", "[hard_clip_polyblamp][primitives][edge]") {
     HardClipPolyBLAMP clipper;
 
     constexpr int N = 1'000'000;
@@ -684,7 +684,7 @@ TEST_CASE("polyBLAMP aliasing reduction with 4096-point FFT", "[hard_clip_polybl
 // Note: Performance is acceptable but the aliasing benefit is limited with
 // the basic 2-point implementation. HardClipADAA provides better aliasing
 // reduction with similar performance characteristics.
-TEST_CASE("polyBLAMP <= 5x naive hard clip cost", "[hard_clip_polyblamp][primitives][.benchmark]") {
+TEST_CASE("polyBLAMP has acceptable overhead vs naive hard clip", "[hard_clip_polyblamp][primitives][.benchmark]") {
     constexpr size_t N = 1'000'000;
     std::vector<float> buffer(N);
     for (size_t i = 0; i < N; ++i) {
