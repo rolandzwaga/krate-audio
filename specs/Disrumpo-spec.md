@@ -9,7 +9,7 @@
 | Platforms | Windows, macOS, Linux |
 | Format | VST3 |
 | Framework | VST3 SDK, VSTGUI |
-| Updated | Expanded from 14 to 22 distortion types using DST-ROADMAP and FLT-ROADMAP |
+| Updated | Expanded from 14 to 26 distortion types using DST-ROADMAP and FLT-ROADMAP |
 
 ---
 
@@ -18,7 +18,7 @@
 Disrumpo is a multiband morphing distortion plugin for synthesizer processing and sound design.
 
 ### Key Differentiators
-- **22 distortion types** spanning saturation, wavefold, digital, dynamic, hybrid, and experimental categories
+- **26 distortion types** spanning saturation, wavefold, digital, dynamic, hybrid, and experimental categories
 - Per-band morphable distortion with multi-point morph spaces (A↔B↔C↔D)
 - Sweeping distortion traversing the frequency spectrum
 - Morph-frequency linking - distortion character changes with sweep position
@@ -71,9 +71,13 @@ Disrumpo is a multiband morphing distortion plugin for synthesizer processing an
 | D17 | Feedback | `FeedbackDistortion` | **EXISTS** |
 | D18 | Aliasing | `AliasingEffect` | **EXISTS** |
 | D19 | Bitwise Mangler | `BitwiseMangler` | **EXISTS** |
-| D20 | Chaos | `ChaosWaveshaper` | **PLANNED** |
-| D21 | Formant | `FormantDistortion` | **PLANNED** |
-| D22 | Granular | `GranularDistortion` | **PLANNED** |
+| D20 | Chaos | `ChaosWaveshaper` | **EXISTS** |
+| D21 | Formant | `FormantDistortion` | **EXISTS** |
+| D22 | Granular | `GranularDistortion` | **EXISTS** |
+| D23 | Spectral | `SpectralDistortion` | **EXISTS** |
+| D24 | Fractal | `FractalDistortion` | **EXISTS** |
+| D25 | Stochastic | `StochasticShaper` | **EXISTS** |
+| D26 | Allpass Resonant | `AllpassSaturator` | **EXISTS** |
 
 ### Supporting Components
 
@@ -87,15 +91,14 @@ Disrumpo is a multiband morphing distortion plugin for synthesizer processing an
 | DC Blocker | `DCBlocker` | **EXISTS** |
 | Pitch Detector | `PitchDetector` (autocorrelation) | **EXISTS** |
 | Frequency Shifter | `FrequencyShifter` (Hilbert transform) | **EXISTS** |
-| Chaos Attractor | `ChaosWaveshaper` | **PLANNED** |
+| Chaos Attractor | `ChaosWaveshaper` | **EXISTS** |
 | Formant Filter | `FormantFilter` | **EXISTS** (spec 078) |
 | Granular Engine | `GranularEngine` | **EXISTS** |
 
 ### Implementation Summary
 
-- **17 of 22 distortion types** have dedicated implementations
+- **24 of 26 distortion types** have dedicated implementations
 - **2 distortion types** (rectification) are trivially composable
-- **3 distortion types** (Chaos, Formant, Granular) are planned in DST-ROADMAP
 - **All modulation sources** have existing implementations
 - **Crossover network** uses existing `CrossoverLR4` from FLT-ROADMAP (spec 079)
 
@@ -172,6 +175,10 @@ Disrumpo provides a unified environment where:
 | D20 | Chaos | Experimental |
 | D21 | Formant | Experimental |
 | D22 | Granular | Experimental |
+| D23 | Spectral | Experimental |
+| D24 | Fractal | Experimental |
+| D25 | Stochastic | Experimental |
+| D26 | Allpass Resonant | Hybrid |
 
 **FR-DIST-002: Common Parameters**
 - Drive: 0.0 to 10.0
@@ -234,8 +241,8 @@ Cross-family morphs use parallel processing with output crossfade.
 | Digital | D12-D14, D18-D19 | Parameter interpolation |
 | Rectify | D10-D11 | Parameter interpolation |
 | Dynamic | D15, D17 | Parameter interpolation with envelope coupling |
-| Hybrid | D16 | Parallel blend with output crossfade |
-| Experimental | D20-D22 | Parallel blend with output crossfade |
+| Hybrid | D16, D26 | Parallel blend with output crossfade |
+| Experimental | D20-D25 | Parallel blend with output crossfade |
 
 ### 3.4 Sweep System
 
@@ -317,7 +324,13 @@ Per-Band: Morph X/Y, Drive, Mix, Band Gain, Band Pan
 | Feedback | 2x | Controlled by limiter |
 | Aliasing (D18) | 1x | Aliasing is the effect |
 | Bitwise | 1x | Artifacts are the effect |
-| Experimental | 2x | Varies by algorithm |
+| Chaos | 2x | Moderate, unpredictable |
+| Formant | 2x | Resonances focus energy |
+| Granular | 2x | Per-grain varies |
+| Spectral | 1x | FFT domain processing |
+| Fractal | 2x | Varies by iteration depth |
+| Stochastic | 2x | Randomized curves |
+| Allpass Resonant | 4x | Self-oscillation potential |
 
 ### 3.7 Global Controls
 
@@ -684,6 +697,12 @@ enum class DistortionType : uint8_t {
     Chaos,              ///< ChaosWaveshaper (Lorenz/Rossler/Chua attractors)
     Formant,            ///< FormantDistortion (vowel shaping + saturation)
     Granular,           ///< GranularDistortion (per-grain variable distortion)
+    Spectral,           ///< SpectralDistortion (per-bin FFT domain saturation)
+    Fractal,            ///< FractalDistortion (recursive multi-scale distortion)
+    Stochastic,         ///< StochasticShaper (randomized transfer function)
+
+    // Hybrid (complex routing) - additional
+    AllpassResonant,    ///< AllpassSaturator (resonant distortion networks)
 };
 
 /// @brief Morph interpolation mode.
@@ -1196,25 +1215,75 @@ Operations on the bit representation of samples: XOR, bit rotation, bit shuffle,
 | OverflowWrap | Hard digital clipping with wraparound |
 
 ### D20: Chaos Distortion
-**Category:** Experimental | **Status:** Planned (DST-ROADMAP 5.2)
+**Category:** Experimental | **Status:** Implemented
 
 Chaotic attractor waveshaping using Lorenz, Rossler, Chua, or Henon systems. The transfer function evolves over time, creating living, breathing distortion.
 
 **Character:** Organic, unpredictable, evolving textures
 
 ### D21: Formant Distortion
-**Category:** Experimental | **Status:** Planned (DST-ROADMAP 5.3)
+**Category:** Experimental | **Status:** Implemented
 
 Distortion through vocal-tract-like resonances. Combines FormantFilter with waveshaping for "talking distortion" effects.
 
 **Character:** Vowel-shaped, vocal, alien textures
 
 ### D22: Granular Distortion
-**Category:** Experimental | **Status:** Planned (DST-ROADMAP 8.3)
+**Category:** Experimental | **Status:** Implemented
 
 Per-grain variable distortion. Each micro-grain (5-100ms) gets different drive, algorithm, or parameters, creating evolving textured destruction.
 
 **Character:** Glitchy, textured, pointillist
+
+### D23: Spectral Distortion
+**Category:** Experimental | **Status:** Implemented
+
+Apply distortion algorithms per-frequency-bin in the spectral domain via FFT. Can saturate magnitudes while preserving phase perfectly—impossible in time domain.
+
+| Mode | Behavior |
+|------|----------|
+| PerBinSaturate | Apply saturation to each bin's magnitude |
+| MagnitudeOnly | Saturate magnitudes, preserve phase exactly |
+| BinSelective | Different distortion per frequency range |
+| SpectralBitcrush | Quantize magnitudes per bin |
+
+**Character:** Impossible frequency-selective distortion, phase-coherent saturation
+
+### D24: Fractal Distortion
+**Category:** Experimental | **Status:** Implemented
+
+Recursive multi-scale distortion creating harmonic structure that reveals new detail at every "zoom level."
+
+| Mode | Behavior |
+|------|----------|
+| Residual | Distort progressively smaller residuals |
+| Multiband | Split into octave bands, recurse each with depth scaling |
+| Harmonic | Separate odd/even harmonics, different curves per level |
+| Cascade | Different waveshaper at each iteration level |
+| Feedback | Cross-feed between iteration levels (chaotic) |
+
+**Character:** Self-similar harmonic stacking, "zoom into detail" effect
+
+### D25: Stochastic Distortion
+**Category:** Experimental | **Status:** Implemented
+
+Randomized transfer function simulating analog component tolerance variation. Each sample gets slightly different curve.
+
+**Use Cases:** Analog warmth, component drift simulation, organic variation
+
+### D26: Allpass Resonant Distortion
+**Category:** Hybrid | **Status:** Implemented
+
+Place saturation inside allpass filter feedback loops for resonant, pitched distortion.
+
+| Topology | Behavior |
+|----------|----------|
+| SingleAllpass | One allpass with saturation in feedback |
+| AllpassChain | Series of allpass filters with saturation |
+| KarplusStrong | Delay + saturator + feedback (plucked string) |
+| FeedbackMatrix | 4x4 matrix of cross-fed saturators |
+
+**Character:** Pitched/resonant distortion that can self-oscillate
 
 ### Oversampling Recommendations (Extended)
 
@@ -1233,6 +1302,10 @@ Per-grain variable distortion. Each micro-grain (5-100ms) gets different drive, 
 | Chaos | 2x | Moderate, unpredictable |
 | Formant | 2x | Resonances focus energy |
 | Granular | 2x | Per-grain varies |
+| Spectral | 1x | FFT domain, no aliasing |
+| Fractal | 2x | Varies by iteration depth |
+| Stochastic | 2x | Randomized curves |
+| Allpass Resonant | 4x | Self-oscillation potential |
 
 ---
 
@@ -1274,6 +1347,21 @@ Per-grain variable distortion. Each micro-grain (5-100ms) gets different drive, 
 | Attractor Speed | 0.1 | 10 | 1 |
 | Grain Size | 5 ms | 100 ms | 50 ms |
 | Formant Shift | -12 st | +12 st | 0 st |
+| **Spectral Parameters** | | | |
+| FFT Size | 512 | 4096 | 2048 |
+| Magnitude Bits | 1 | 16 | 16 |
+| **Fractal Parameters** | | | |
+| Iterations | 1 | 8 | 4 |
+| Scale Factor | 0.3 | 0.9 | 0.5 |
+| Frequency Decay | 0 | 1 | 0.5 |
+| **Stochastic Parameters** | | | |
+| Jitter Amount | 0 | 1 | 0.2 |
+| Jitter Rate | 0.1 Hz | 100 Hz | 10 Hz |
+| Coefficient Noise | 0 | 1 | 0.1 |
+| **Allpass Resonant Parameters** | | | |
+| Resonant Frequency | 20 Hz | 2000 Hz | 440 Hz |
+| Allpass Feedback | 0 | 0.99 | 0.7 |
+| Decay Time | 0.01 s | 10 s | 1 s |
 
 ---
 
@@ -1380,9 +1468,16 @@ Example code showing how to use existing KrateDSP components for Disrumpo:
 #include <krate/dsp/processors/temporal_distortion.h>
 #include <krate/dsp/processors/feedback_distortion.h>
 #include <krate/dsp/processors/aliasing_effect.h>
+#include <krate/dsp/processors/spectral_distortion.h>
+#include <krate/dsp/processors/fractal_distortion.h>
+#include <krate/dsp/processors/formant_distortion.h>
+#include <krate/dsp/processors/granular_distortion.h>
+#include <krate/dsp/processors/allpass_saturator.h>
 #include <krate/dsp/primitives/sample_rate_reducer.h>
 #include <krate/dsp/primitives/ring_saturation.h>
 #include <krate/dsp/primitives/bitwise_mangler.h>
+#include <krate/dsp/primitives/chaos_waveshaper.h>
+#include <krate/dsp/primitives/stochastic_shaper.h>
 #include "distortion_types.h"
 #include "morph_node.h"
 
@@ -1412,6 +1507,14 @@ public:
         feedbackDist_.prepare(sampleRate, 512);
         aliasing_.prepare(sampleRate, 512);
         bitwiseMangler_.prepare(sampleRate);
+        // All experimental types now implemented
+        chaos_.prepare(sampleRate);
+        formant_.prepare(sampleRate, 512);
+        granular_.prepare(sampleRate, 512);
+        spectral_.prepare(sampleRate, 2048);
+        fractal_.prepare(sampleRate, 512);
+        stochastic_.prepare(sampleRate);
+        allpassSaturator_.prepare(sampleRate, 512);
     }
 
     void reset() noexcept {
@@ -1427,6 +1530,13 @@ public:
         feedbackDist_.reset();
         aliasing_.reset();
         bitwiseMangler_.reset();
+        chaos_.reset();
+        formant_.reset();
+        granular_.reset();
+        spectral_.reset();
+        fractal_.reset();
+        stochastic_.reset();
+        allpassSaturator_.reset();
     }
 
     void setType(DistortionType type) noexcept {
@@ -1591,6 +1701,20 @@ public:
                 return aliasing_.process(input);
             case DistortionType::BitwiseMangler:
                 return bitwiseMangler_.process(input);
+            case DistortionType::Chaos:
+                return chaos_.process(input);
+            case DistortionType::Formant:
+                return formant_.process(input);
+            case DistortionType::Granular:
+                return granular_.process(input);
+            case DistortionType::Spectral:
+                return spectral_.process(input);
+            case DistortionType::Fractal:
+                return fractal_.process(input);
+            case DistortionType::Stochastic:
+                return stochastic_.process(input);
+            case DistortionType::AllpassResonant:
+                return allpassSaturator_.process(input);
             default:
                 return input;
         }
@@ -1609,17 +1733,21 @@ private:
     BitcrusherProcessor bitcrusher_;
     SampleRateReducer srReducer_;
 
-    // New processors from DST-ROADMAP (already implemented)
+    // New processors from DST-ROADMAP
     TemporalDistortion temporal_;
     RingSaturation ringSaturation_;
     FeedbackDistortion feedbackDist_;
     AliasingEffect aliasing_;
     BitwiseMangler bitwiseMangler_;
 
-    // Planned processors (D20-D22 - not yet implemented)
-    // ChaosWaveshaper chaos_;
-    // FormantDistortion formant_;
-    // GranularDistortion granular_;
+    // Experimental processors (all implemented)
+    ChaosWaveshaper chaos_;
+    FormantDistortion formant_;
+    GranularDistortion granular_;
+    SpectralDistortion spectral_;
+    FractalDistortion fractal_;
+    StochasticShaper stochastic_;
+    AllpassSaturator allpassSaturator_;
 };
 
 } // namespace Krate::DSP
@@ -1777,7 +1905,13 @@ constexpr int getRecommendedOversample(DistortionType type) noexcept {
         case DistortionType::Chaos:
         case DistortionType::Formant:
         case DistortionType::Granular:
+        case DistortionType::Fractal:
+        case DistortionType::Stochastic:
             return 2;  // Moderate, varies by settings
+        case DistortionType::Spectral:
+            return 1;  // FFT domain, no aliasing
+        case DistortionType::AllpassResonant:
+            return 4;  // Self-oscillation potential
         default:
             return 2;
     }

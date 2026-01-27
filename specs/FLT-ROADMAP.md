@@ -8,13 +8,13 @@ This roadmap covers implementing all filter types from `DSP-FILTER-TECHNIQUES.md
 
 **Estimated Components:**
 - Layer 0 (Core): 0 new files (all exist)
-- Layer 1 (Primitives): 2 new files (`hilbert_transform.h`, `spectral_utils.h`)
-- Layer 2 (Processors): 14 new files
-- Layer 3 (Systems): 4 new files (spectral_delay, granular, feedback_network exist)
+- Layer 1 (Primitives): 0 new files (all exist, including `hilbert_transform.h`, `spectral_utils.h`)
+- Layer 2 (Processors): 0 new files (all exist)
+- Layer 3 (Systems): 0 new files (all exist)
 
 **Roadmap Sections:**
-- **Phases 1-11**: Foundation filters (COMPLETE - specs 070-078, 079)
-- **Phases 12-18**: Advanced sound design & special FX filters
+- **Phases 1-11**: Foundation filters (✅ COMPLETE - specs 070-078, 079)
+- **Phases 12-18**: Advanced sound design & special FX filters (✅ COMPLETE - specs 080-092+)
 
 **Existing Infrastructure (reusable for Phases 12-18):**
 | Component | Location | Reuse For |
@@ -727,8 +727,8 @@ constexpr float prewarpFrequency(float freq, double sampleRate) {
 ```
 Location: dsp/include/krate/dsp/processors/spectral_morph_filter.h
 Layer: 2
-Dependencies: stft.h (EXISTING), spectral_buffer.h (EXISTING)
-Status: NEW (uses existing FFT infrastructure)
+Dependencies: stft.h, spectral_buffer.h
+Status: ✅ IMPLEMENTED (spec-080)
 ```
 
 **Description:** Morph between two audio signals by interpolating their magnitude spectra while preserving phase from one source.
@@ -1292,6 +1292,7 @@ private:
 Location: dsp/include/krate/dsp/processors/note_selective_filter.h
 Layer: 2
 Dependencies: pitch_detector.h, pitch_utils.h, svf.h, smoother.h
+Status: ✅ IMPLEMENTED
 ```
 
 **Description:** Filter that processes only notes matching a configurable note class (C, C#, D, etc.), passing non-matching notes through dry. Useful for creative effects like filtering only root notes in a melody, or applying resonance only to specific scale degrees.
@@ -1640,8 +1641,8 @@ private:
 ```
 Location: dsp/include/krate/dsp/systems/granular_filter.h
 Layer: 3
-Dependencies: granular_engine.h (EXISTING), svf.h
-Status: NEW (extends existing granular infrastructure)
+Dependencies: granular_engine.h, svf.h
+Status: ✅ IMPLEMENTED (extends existing granular infrastructure)
 ```
 
 **Description:** Extends existing `GranularEngine` with per-grain filtering. The base granular synthesis (grain pool, scheduler, processor) already exists.
@@ -1790,71 +1791,60 @@ private:
 
 ## Implementation Order
 
-### Sprint 1: Foundation (Estimated: 2-3 days)
-1. **`filter_tables.h`** (Layer 0) - Formant data, design tables
-2. **`filter_design.h`** (Layer 0) - Design utilities
-3. **`one_pole.h`** (Layer 1) - Simple LP/HP/Leaky
+### Sprint 1: Foundation ✅ COMPLETE
+1. **`filter_tables.h`** (Layer 0) - ✅ Formant data, design tables
+2. **`filter_design.h`** (Layer 0) - ✅ Design utilities
+3. **`one_pole.h`** (Layer 1) - ✅ Simple LP/HP/Leaky
 
-### Sprint 2: Core Filters (Estimated: 3-4 days)
-4. **`svf.h`** (Layer 1) - TPT State Variable Filter
-5. **`one_pole_allpass.h`** (Layer 1) - First-order allpass
-6. **`comb_filter.h`** (Layer 1) - FF/FB/Schroeder combs
+### Sprint 2: Core Filters ✅ COMPLETE
+4. **`svf.h`** (Layer 1) - ✅ TPT State Variable Filter
+5. **`one_pole_allpass.h`** (Layer 1) - ✅ First-order allpass
+6. **`comb_filter.h`** (Layer 1) - ✅ FF/FB/Schroeder combs
 
-### Sprint 3: Advanced Filters (Estimated: 3-4 days)
-7. **`ladder_filter.h`** (Layer 1) - Moog ladder
-8. **`crossover_filter.h`** (Layer 2) - LR crossovers
+### Sprint 3: Advanced Filters ✅ COMPLETE
+7. **`ladder_filter.h`** (Layer 1) - ✅ Moog ladder
+8. **`crossover_filter.h`** (Layer 2) - ✅ LR crossovers
 
-### Sprint 4: Effect Filters (Estimated: 3-4 days)
-9. **`formant_filter.h`** (Layer 2) - Vowel filtering
-10. **`envelope_filter.h`** (Layer 2) - Auto-wah
-11. **`phaser.h`** (Layer 2) - Phaser effect
+### Sprint 4: Effect Filters ✅ COMPLETE
+9. **`formant_filter.h`** (Layer 2) - ✅ Vowel filtering
+10. **`envelope_filter.h`** (Layer 2) - ✅ Auto-wah
+11. **`phaser.h`** (Layer 2) - ✅ Phaser effect
 
-### Sprint 5: Spectral Processing (Estimated: 2-3 days)
-*Note: `fft.h`, `stft.h`, `window_functions.h`, `spectral_buffer.h` already exist*
+### Sprint 5: Spectral Processing ✅ COMPLETE
+12. **`spectral_morph_filter.h`** (Layer 2) - ✅ Spectral morphing
+13. **`spectral_gate.h`** (Layer 2) - ✅ Per-bin gating
+14. **`spectral_tilt.h`** (Layer 2) - ✅ Tilt filter
 
-12. **`spectral_morph_filter.h`** (Layer 2) - Spectral morphing ← uses existing STFT
-13. **`spectral_gate.h`** (Layer 2) - Per-bin gating ← uses existing FFT + envelope_follower
-14. **`spectral_tilt.h`** (Layer 2) - Tilt filter (IIR approximation or FFT)
+### Sprint 6: Physical Modeling ✅ COMPLETE
+15. **`resonator_bank.h`** (Layer 2) - ✅ Modal resonator bank
+16. **`karplus_strong.h`** (Layer 2) - ✅ Plucked string
+17. **`waveguide_resonator.h`** (Layer 2) - ✅ Waveguide pipe
+18. **`modal_resonator.h`** (Layer 2) - ✅ Modal synthesis
 
-### Sprint 6: Physical Modeling (Estimated: 3-4 days)
-*Note: `noise_generator.h` already exists with 13 noise types*
+### Sprint 7: Chaos & Randomization ✅ COMPLETE
+19. **`stochastic_filter.h`** (Layer 2) - ✅ Random parameter drift
+20. **`self_oscillating_filter.h`** (Layer 2) - ✅ Self-oscillating filter
+21. **`sample_hold_filter.h`** (Layer 2) - ✅ S&H modulation
 
-15. **`resonator_bank.h`** (Layer 2) - Modal resonator bank ← uses existing biquad
-16. **`karplus_strong.h`** (Layer 2) - Plucked string ← uses existing delay_line, one_pole
-17. **`waveguide_resonator.h`** (Layer 2) - Waveguide pipe ← uses existing delay_line, allpass_1pole
-18. **`modal_resonator.h`** (Layer 2) - Modal synthesis ← uses existing biquad
+### Sprint 8: Reactive Filters ✅ COMPLETE
+22. **`sidechain_filter.h`** (Layer 2) - ✅ Envelope-controlled filter
+23. **`transient_filter.h`** (Layer 2) - ✅ Transient-aware filter
+24. **`pitch_tracking_filter.h`** (Layer 2) - ✅ Pitch-following filter
 
-### Sprint 7: Chaos & Randomization (Estimated: 2-3 days)
-*Note: `random.h` (Xorshift32) already exists*
+### Sprint 9: Exotic Modulation ✅ COMPLETE
+25. **`hilbert_transform.h`** (Layer 1) - ✅ Analytic signal via allpass cascade
+26. **`audio_rate_filter_fm.h`** (Layer 2) - ✅ Audio-rate modulation
+27. **`frequency_shifter.h`** (Layer 2) - ✅ Single-sideband shifting
+28. **`filter_feedback_matrix.h`** (Layer 3) - ✅ Feedback matrix
 
-19. **`stochastic_filter.h`** (Layer 2) - Random parameter drift ← uses existing svf, random
-20. **`self_osc_filter.h`** (Layer 2) - Self-oscillating filter ← uses existing ladder_filter
-21. **`sample_hold_filter.h`** (Layer 2) - S&H modulation ← uses existing svf, random, lfo
+### Sprint 10: Sequenced Filters ✅ COMPLETE
+29. **`filter_step_sequencer.h`** (Layer 3) - ✅ Step sequencer
+30. **`vowel_sequencer.h`** (Layer 3) - ✅ Vowel pattern sequencer
+31. **`multistage_env_filter.h`** (Layer 2) - ✅ Complex envelopes
 
-### Sprint 8: Reactive Filters (Estimated: 2-3 days)
-*Note: `pitch_detector.h`, `envelope_follower.h` already exist*
-
-22. **`sidechain_filter.h`** (Layer 2) - Envelope-controlled filter ← uses existing components
-23. **`transient_filter.h`** (Layer 2) - Transient-aware filter ← uses existing envelope_follower
-24. **`pitch_tracking_filter.h`** (Layer 2) - Pitch-following filter ← uses existing pitch_detector
-
-### Sprint 9: Exotic Modulation (Estimated: 3-4 days)
-25. **`hilbert_transform.h`** (Layer 1) - Analytic signal via allpass cascade (NEW primitive)
-26. **`filter_fm.h`** (Layer 2) - Audio-rate modulation ← uses existing svf, oversampler
-27. **`frequency_shifter.h`** (Layer 2) - Single-sideband shifting ← uses NEW hilbert_transform
-28. **`filter_matrix.h`** (Layer 3) - Feedback matrix ← extends existing feedback_network concepts
-
-### Sprint 10: Sequenced Filters (Estimated: 2-3 days)
-29. **`filter_sequencer.h`** (Layer 3) - Step sequencer ← uses existing svf, smoother
-30. **`vowel_sequencer.h`** (Layer 3) - Vowel pattern sequencer ← uses existing formant_filter
-31. **`multistage_env_filter.h`** (Layer 2) - Complex envelopes ← uses existing svf, smoother
-
-### Sprint 11: Granular & Time-Domain (Estimated: 2-3 days)
-*Note: `spectral_delay.h` (Layer 4) and `granular_engine.h` already exist*
-
-32. **`granular_filter.h`** (Layer 3) - Per-grain filtering ← extends existing granular_engine
-33. **`timevar_comb_bank.h`** (Layer 3) - Modulated comb bank ← uses existing comb_filter, lfo
-    *(spectral_delay_filter.h removed - already implemented as `effects/spectral_delay.h`)*
+### Sprint 11: Granular & Time-Domain ✅ COMPLETE
+32. **`granular_filter.h`** (Layer 3) - ✅ Per-grain filtering
+33. **`timevar_comb_bank.h`** (Layer 3) - ✅ Modulated comb bank
 
 ---
 
@@ -1885,8 +1875,8 @@ Layer 1 (Primitives) - MOSTLY EXISTING
 ├── comb_filter.h (Phase 3)
 ├── ladder_filter.h (Phase 5)
 ├── pitch_detector.h ← autocorrelation-based
-├── hilbert_transform.h (NEW) ← allpass approximation for freq shifter
-└── spectral_utils.h (NEW) ← bin mapping, magnitude interpolation, phase helpers
+├── hilbert_transform.h ← allpass approximation for freq shifter
+└── spectral_utils.h ← bin mapping, magnitude interpolation, phase helpers
 
 Layer 2 (Processors) - Signal Processors
 > *Note: "Processors" not "Filters" - many components are control systems or envelope-controlled effects*
@@ -1897,39 +1887,38 @@ Layer 2 (Processors) - Signal Processors
 ├── formant_filter.h (Phase 8)
 ├── envelope_filter.h (Phase 9)
 ├── phaser.h (Phase 10)
-├── spectral_morph_filter.h (NEW) ← stft, spectral_buffer
-├── spectral_gate.h (NEW) ← fft, envelope_follower
-├── spectral_tilt.h (NEW) ← biquad cascade or fft
-├── resonator_bank.h (NEW) ← biquad, smoother
-├── karplus_strong.h (NEW) ← delay_line, one_pole, noise_generator
-├── waveguide_resonator.h (NEW) ← delay_line, allpass_1pole, dc_blocker
-├── modal_resonator.h (NEW) ← biquad, smoother
-├── stochastic_filter.h (NEW) ← svf, random
-├── self_osc_filter.h (NEW) ← ladder_filter, dc_blocker
-├── sample_hold_filter.h (NEW) ← svf, random, lfo
-├── sidechain_filter.h (NEW) ← envelope_follower, svf, delay_line
-├── transient_filter.h (NEW) ← envelope_follower, svf
-├── pitch_tracking_filter.h (NEW) ← pitch_detector, svf, smoother
-├── filter_fm.h (NEW) ← svf, oversampler, lfo
-├── frequency_shifter.h (NEW) ← hilbert_transform, lfo
-└── multistage_env_filter.h (NEW) ← svf, smoother
+├── spectral_morph_filter.h ← stft, spectral_buffer
+├── spectral_gate.h ← fft, envelope_follower
+├── spectral_tilt.h ← biquad cascade or fft
+├── resonator_bank.h ← biquad, smoother
+├── karplus_strong.h ← delay_line, one_pole, noise_generator
+├── waveguide_resonator.h ← delay_line, allpass_1pole, dc_blocker
+├── modal_resonator.h ← biquad, smoother
+├── stochastic_filter.h ← svf, random
+├── self_oscillating_filter.h ← ladder_filter, dc_blocker
+├── sample_hold_filter.h ← svf, random, lfo
+├── sidechain_filter.h ← envelope_follower, svf, delay_line
+├── transient_filter.h ← envelope_follower, svf
+├── pitch_tracking_filter.h ← pitch_detector, svf, smoother
+├── audio_rate_filter_fm.h ← svf, oversampler, lfo
+├── frequency_shifter.h ← hilbert_transform, lfo
+└── multistage_env_filter.h ← svf, smoother
 
 Layer 3 (Systems) - MOSTLY EXISTING
 ├── granular_engine.h ← complete granular synthesis
 ├── feedback_network.h ← feedback routing with filters/saturation
 ├── modulation_matrix.h ← source→dest routing
-├── filter_matrix.h (NEW) ← extends feedback_network for multi-filter routing
-├── filter_sequencer.h (NEW) ← svf, smoother
-├── vowel_sequencer.h (NEW) ← formant_filter, smoother
-├── granular_filter.h (NEW) ← extends granular_engine with per-grain filtering
-└── timevar_comb_bank.h (NEW) ← comb_filter, lfo, smoother
+├── filter_feedback_matrix.h ← extends feedback_network for multi-filter routing
+├── filter_step_sequencer.h ← svf, smoother
+├── vowel_sequencer.h ← formant_filter, smoother
+├── granular_filter.h ← extends granular_engine with per-grain filtering
+└── timevar_comb_bank.h ← comb_filter, lfo, smoother
 
 Layer 4 (Effects) - MOSTLY EXISTING
 └── spectral_delay.h ← ALREADY IMPLEMENTS per-bin delays, freeze, tilt, diffusion
 ```
 
-**Summary:** Of 39 components in the original roadmap, approximately 22 already exist.
-The remaining 17 NEW components can all leverage existing primitives.
+**Summary:** All 39 components in the roadmap are now implemented. The filter architecture is complete.
 
 ---
 
@@ -2046,15 +2035,15 @@ Each new component needs:
 | Ducking/pumping filter | `SidechainFilter` | 2 | COMPLETE (spec-090) |
 | Transient shaping | `TransientAwareFilter` | 2 | COMPLETE (spec-091) |
 | Harmonic tracking | `PitchTrackingFilter` | 2 | COMPLETE (spec-092) |
-| Note-selective filtering | `NoteSelectiveFilter` | 2 | NEW |
-| Metallic FM tones | `AudioRateFilterFM` | 2 | NEW |
-| Complex resonant networks | `FilterFeedbackMatrix` | 3 | NEW |
-| Inharmonic shifting | `FrequencyShifter` | 2 | NEW |
-| Rhythmic filter patterns | `FilterStepSequencer` | 3 | NEW |
-| Talking filter | `VowelSequencer` | 3 | NEW |
-| Complex envelope shapes | `MultiStageEnvelopeFilter` | 2 | NEW |
-| Per-grain processing | `GranularFilter` | 3 | NEW (extends existing) |
-| Spectral smearing/freeze | `SpectralDelay` | 4 | **EXISTS** |
-| Evolving metallic textures | `TimeVaryingCombBank` | 3 | NEW |
+| Note-selective filtering | `NoteSelectiveFilter` | 2 | ✅ IMPLEMENTED |
+| Metallic FM tones | `AudioRateFilterFM` | 2 | ✅ IMPLEMENTED |
+| Complex resonant networks | `FilterFeedbackMatrix` | 3 | ✅ IMPLEMENTED |
+| Inharmonic shifting | `FrequencyShifter` | 2 | ✅ IMPLEMENTED |
+| Rhythmic filter patterns | `FilterStepSequencer` | 3 | ✅ IMPLEMENTED |
+| Talking filter | `VowelSequencer` | 3 | ✅ IMPLEMENTED |
+| Complex envelope shapes | `MultiStageEnvelopeFilter` | 2 | ✅ IMPLEMENTED |
+| Per-grain processing | `GranularFilter` | 3 | ✅ IMPLEMENTED |
+| Spectral smearing/freeze | `SpectralDelay` | 4 | ✅ IMPLEMENTED |
+| Evolving metallic textures | `TimeVaryingCombBank` | 3 | ✅ IMPLEMENTED |
 
-**Note:** `SpectralDelay` (effects/spectral_delay.h) already provides per-bin delays with freeze, tilt, and diffusion. 13 of 23 advanced filter components are now complete (specs 080-092). The remaining 10 components are planned for future sprints.
+**Note:** `SpectralDelay` (effects/spectral_delay.h) already provides per-bin delays with freeze, tilt, and diffusion. All 23 advanced filter components are now implemented. Roadmap complete.

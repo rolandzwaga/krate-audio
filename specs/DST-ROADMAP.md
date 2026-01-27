@@ -66,8 +66,7 @@ namespace Krate::DSP::Sigmoid {
 }
 ```
 
-**Status:** Partially exists (`fastTanh`, `softClip` in dsp_utils)
-**Work:** Create unified `sigmoid.h` with all variants
+**Status:** ✅ IMPLEMENTED - `core/sigmoid.h`
 
 ### 1.2 Asymmetric Shaping (`core/asymmetric.h`)
 
@@ -114,8 +113,7 @@ namespace Krate::DSP::Chebyshev {
 }
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `core/chebyshev.h`
 
 ### 1.4 Wavefolding Math (`core/wavefold_math.h`)
 
@@ -135,8 +133,7 @@ namespace Krate::DSP::WavefoldMath {
 }
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `core/wavefold_math.h`
 
 ---
 
@@ -165,8 +162,7 @@ public:
 };
 ```
 
-**Status:** Partially exists (scattered in `SaturationProcessor`)
-**Work:** Create unified primitive with all curve types
+**Status:** ✅ IMPLEMENTED - `primitives/waveshaper.h`
 
 ### 2.2 DC Blocker (`primitives/dc_blocker.h`)
 
@@ -187,8 +183,7 @@ private:
 };
 ```
 
-**Status:** Uses `Biquad` in `SaturationProcessor` - works but heavier than needed
-**Work:** Create lightweight dedicated primitive
+**Status:** ✅ IMPLEMENTED - `primitives/dc_blocker.h`
 
 ### 2.3 Hard Clip with ADAA (`primitives/hard_clip_adaa.h`)
 
@@ -268,8 +263,7 @@ private:
 };
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `primitives/tanh_adaa.h`
 
 ### 2.5 Wavefolder Primitive (`primitives/wavefolder.h`)
 
@@ -292,8 +286,7 @@ public:
 };
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `primitives/wavefolder.h`
 
 ### 2.6 Chebyshev Waveshaper (`primitives/chebyshev_shaper.h`)
 
@@ -315,8 +308,7 @@ private:
 };
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `primitives/chebyshev_shaper.h`
 
 ---
 
@@ -359,8 +351,7 @@ private:
 };
 ```
 
-**Status:** Does not exist (tube algorithm exists in `SaturationProcessor`)
-**Work:** New file - extract and expand tube modeling
+**Status:** ✅ IMPLEMENTED - `processors/tube_stage.h`
 
 ### 3.3 Diode Clipper Processor (`processors/diode_clipper.h`)
 
@@ -401,8 +392,7 @@ private:
 };
 ```
 
-**Status:** Diode algorithm exists in `SaturationProcessor`
-**Work:** New file - expand with topology options
+**Status:** ✅ IMPLEMENTED - `processors/diode_clipper.h`
 
 ### 3.4 Wavefolder Processor (`processors/wavefolder_processor.h`)
 
@@ -437,8 +427,7 @@ private:
 };
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `processors/wavefolder_processor.h`
 
 ### 3.5 Tape Saturator Processor (`processors/tape_saturator.h`)
 
@@ -485,8 +474,7 @@ private:
 };
 ```
 
-**Status:** Simple tape exists in `SaturationProcessor`, hysteresis does not
-**Work:** New file with Jiles-Atherton hysteresis option
+**Status:** ✅ IMPLEMENTED - `processors/tape_saturator.h`
 
 ### 3.6 Fuzz Processor (`processors/fuzz_processor.h`)
 
@@ -520,8 +508,7 @@ private:
 };
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `processors/fuzz_processor.h`
 
 ### 3.7 Bitcrusher Processor (`processors/bitcrusher_processor.h`)
 
@@ -550,8 +537,7 @@ private:
 };
 ```
 
-**Status:** Primitives exist, processor wrapper does not
-**Work:** New file - compose existing primitives
+**Status:** ✅ IMPLEMENTED - `processors/bitcrusher_processor.h`
 
 ---
 
@@ -601,8 +587,7 @@ private:
 };
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `systems/amp_channel.h`
 
 ### 4.2 Tape Machine System (`systems/tape_machine.h`)
 
@@ -644,8 +629,7 @@ private:
 };
 ```
 
-**Status:** Partially exists in `CharacterProcessor` (simplified)
-**Work:** New file - comprehensive tape emulation
+**Status:** ✅ IMPLEMENTED - `systems/tape_machine.h`
 
 ### 4.3 Fuzz Pedal System (`systems/fuzz_pedal.h`)
 
@@ -678,8 +662,7 @@ private:
 };
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `systems/fuzz_pedal.h`
 
 ### 4.4 Distortion Rack System (`systems/distortion_rack.h`)
 
@@ -727,8 +710,7 @@ private:
 };
 ```
 
-**Status:** Does not exist
-**Work:** New file
+**Status:** ✅ IMPLEMENTED - `systems/distortion_rack.h`
 
 ---
 
@@ -778,6 +760,7 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `processors/spectral_distortion.h`
 **Reuses:** STFT, OverlapAdd, SpectralBuffer (Layer 1), Waveshaper
 **Novel:** Impossible distortion characteristics - saturate magnitudes while preserving phase perfectly
 
@@ -816,6 +799,7 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `primitives/chaos_waveshaper.h`
 **Novel:** Living, breathing distortion that evolves over time. Input drives attractor state for signal-reactive chaos.
 
 ### 5.3 Formant Distortion Processor (`processors/formant_distortion.h`)
@@ -846,6 +830,7 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `processors/formant_distortion.h`
 **Reuses:** FormantFilter (Phase 11.1), Waveshaper, OnePoleSmoother
 **Novel:** "Talking distortion" - vowel shapes combined with saturation for alien textures
 
@@ -854,17 +839,6 @@ private:
 ## Phase 6: Novel Distortion - Stochastic & Temporal (Analog Character)
 
 Distortion techniques that add analog-like variation and input-reactive behavior.
-
-> **Codebase Update (Jan 2026):** Since this roadmap was written, several components have been added that are relevant to Phases 6-8:
-> - `EnvelopeFollower` (processors/) - Full envelope detection with Amplitude/RMS/Peak modes
-> - `GrainPool`, `GrainProcessor`, `GrainScheduler` - Complete granular infrastructure
-> - `KarplusStrong` - Delay+filter+feedback network architecture
-> - `FrequencyShifter` - Hilbert transform-based SSB modulation
-> - `OnePoleAllpass` - First-order allpass for dispersion
-> - `DiffusionNetwork` - Allpass chain patterns
-> - `Oversampler<N, M>` - Anti-aliased processing for waveshaping
->
-> See individual sections below for specific reuse recommendations.
 
 ### 6.1 Stochastic Waveshaper (`primitives/stochastic_shaper.h`)
 
@@ -895,6 +869,7 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `primitives/stochastic_shaper.h`
 **Reuses:** Waveshaper, Xorshift32, OnePoleSmoother, **Oversampler<2, 1>** (optional, for anti-aliased waveshaping - see ChaosWaveshaper pattern)
 **Novel:** Simulates analog component tolerance variation - each sample gets slightly different curve
 
@@ -941,10 +916,9 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `processors/temporal_distortion.h`
 **Reuses:** Waveshaper, **EnvelopeFollower** (for EnvelopeFollow/InverseEnvelope/Peak modes), OnePoleSmoother, OnePoleLP/OnePoleHP (for derivative filter), DCBlocker
 **Novel:** Compressive distortion (loud=more), expansion distortion (quiet=more), transient-reactive curves
-
-> **Note (Jan 2026):** `EnvelopeFollower` in `processors/envelope_follower.h` provides ready-to-use `DetectionMode::Amplitude`, `RMS`, and `Peak` modes with configurable attack/release times. Consider composing with this rather than implementing envelope following from scratch.
 
 ---
 
@@ -978,6 +952,7 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `primitives/ring_saturation.h`
 **Formula:** `output = input * saturate(input * drive) * depth + input * (1-depth)`
 **Novel:** Creates inharmonic sidebands like ring mod, but signal-coherent. Metallic, bell-like character.
 
@@ -1017,10 +992,9 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `processors/allpass_saturator.h`
 **Reuses:** Biquad (allpass mode), DelayLine, Waveshaper, DCBlocker, **OnePoleAllpass** (for dispersion), **KarplusStrong** (architectural reference for NetworkTopology::KarplusStrong), **DiffusionNetwork** (architectural reference for allpass chains)
 **Novel:** Pitched/resonant distortion that can self-oscillate. Input "excites" resonance.
-
-> **Note (Jan 2026):** `KarplusStrong` in `processors/karplus_strong.h` already implements the delay+filter+feedback topology with allpass interpolation, damping, and DC blocking. Consider extending or composing with this for the KarplusStrong topology rather than building from scratch.
 
 ### 7.3 Feedback Distortion Processor (`processors/feedback_distortion.h`)
 
@@ -1051,6 +1025,7 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `processors/feedback_distortion.h`
 **Reuses:** DelayLine, Waveshaper, Biquad, DCBlocker
 **Novel:** Creates sustained, singing distortion. Near-oscillation with limiter for controlled chaos.
 
@@ -1098,6 +1073,7 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `primitives/bitwise_mangler.h`
 **Reuses:** Xorshift32
 **Novel:** Wild tonal shifts from bit manipulation. XOR creates harmonically complex results.
 
@@ -1128,10 +1104,9 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `processors/aliasing_effect.h`
 **Reuses:** SampleRateReducer (with AA disabled), Biquad, **FrequencyShifter** (for setFrequencyShift feature - SSB modulation via Hilbert transform)
 **Novel:** Digital grunge aesthetic - fold high frequencies back intentionally
-
-> **Note (Jan 2026):** `FrequencyShifter` in `processors/frequency_shifter.h` provides full frequency shifting via Hilbert transform with LFO modulation and feedback. Consider composing with this for the frequency shift before downsample feature.
 
 ### 8.3 Granular Distortion Processor (`processors/granular_distortion.h`)
 
@@ -1175,10 +1150,9 @@ private:
 };
 ```
 
+**Status:** ✅ IMPLEMENTED - `processors/granular_distortion.h`
 **Reuses:** **GrainPool** (64-grain management with voice stealing), **GrainProcessor** (grain reading/envelope), **GrainScheduler** (trigger scheduling with density/jitter), **GrainEnvelope** (window functions), Waveshaper, Xorshift32
 **Novel:** Each micro-grain gets different distortion. Creates evolving, textured destruction.
-
-> **Note (Jan 2026):** Complete granular infrastructure exists in `primitives/grain_pool.h`, `processors/grain_processor.h`, `processors/grain_scheduler.h`, and `core/grain_envelope.h`. The manual grain management shown above can be replaced with these components, which provide up to 64 simultaneous grains with voice stealing.
 
 ### 8.4 Fractal/Recursive Distortion (`processors/fractal_distortion.h`)
 
@@ -1280,6 +1254,7 @@ When `freqDecay > 0`, higher iterations are highpass-filtered, emphasizing that 
 level[n] = highpass(saturate(...), baseFreq * (n+1))
 ```
 
+**Status:** ✅ IMPLEMENTED - `processors/fractal_distortion.h`
 **Reuses:** Waveshaper, Biquad (for band splitting and highpass), DCBlocker, Chebyshev (for Harmonic mode)
 **Novel:** True frequency-domain self-similarity. Multiband mode creates "zoom into detail" effect. Feedback mode adds controlled chaos. Cascade mode allows timbral evolution across iterations.
 
@@ -1390,80 +1365,83 @@ Use existing test infrastructure in `dsp/tests/`.
 
 ## File Checklist
 
-### New Files to Create
+### Implemented Files
 
 **Layer 0 (core/)**
-- [ ] `sigmoid.h`
-- [ ] `asymmetric.h`
-- [ ] `chebyshev.h`
-- [ ] `wavefold_math.h`
+- [x] `sigmoid.h`
+- [ ] `asymmetric.h` - Functions embedded in processors, standalone file not created
+- [x] `chebyshev.h`
+- [x] `wavefold_math.h`
 
 **Layer 1 (primitives/)**
-- [ ] `dc_blocker.h`
-- [ ] `waveshaper.h`
-- [ ] `hard_clip_adaa.h`
-- [ ] `tanh_adaa.h`
-- [ ] `wavefolder.h`
-- [ ] `chebyshev_shaper.h`
+- [x] `dc_blocker.h`
+- [x] `waveshaper.h`
+- [x] `hard_clip_adaa.h`
+- [x] `tanh_adaa.h`
+- [x] `wavefolder.h`
+- [x] `chebyshev_shaper.h`
 
 **Layer 2 (processors/)**
-- [ ] `tube_stage.h`
-- [ ] `diode_clipper.h`
-- [ ] `wavefolder_processor.h`
-- [ ] `tape_saturator.h`
-- [ ] `fuzz_processor.h`
-- [ ] `bitcrusher_processor.h`
+- [x] `tube_stage.h`
+- [x] `diode_clipper.h`
+- [x] `wavefolder_processor.h`
+- [x] `tape_saturator.h`
+- [x] `fuzz_processor.h`
+- [x] `bitcrusher_processor.h`
 
 **Layer 3 (systems/)**
-- [ ] `amp_channel.h`
-- [ ] `tape_machine.h`
-- [ ] `fuzz_pedal.h`
-- [ ] `distortion_rack.h`
+- [x] `amp_channel.h`
+- [x] `tape_machine.h`
+- [x] `fuzz_pedal.h`
+- [x] `distortion_rack.h`
 
 **Novel Distortion - Layer 1 (primitives/)**
-- [ ] `chaos_waveshaper.h` - Lorenz/Rössler/Chua attractor transfer functions
-- [ ] `stochastic_shaper.h` - Randomized transfer function (analog tolerance sim)
-- [ ] `ring_saturation.h` - Self-modulation (signal × saturated signal)
-- [ ] `bitwise_mangler.h` - XOR, bit rotation, shuffle, overflow wrap
+- [x] `chaos_waveshaper.h` - Lorenz/Rössler/Chua attractor transfer functions
+- [x] `stochastic_shaper.h` - Randomized transfer function (analog tolerance sim)
+- [x] `ring_saturation.h` - Self-modulation (signal × saturated signal)
+- [x] `bitwise_mangler.h` - XOR, bit rotation, shuffle, overflow wrap
 
 **Novel Distortion - Layer 2 (processors/)**
-- [ ] `spectral_distortion.h` - Per-bin FFT domain saturation
-- [ ] `formant_distortion.h` - Vowel shaping + saturation
-- [ ] `temporal_distortion.h` - Envelope-following drive modulation
-- [ ] `allpass_saturator.h` - Resonant distortion networks
-- [ ] `feedback_distortion.h` - Controlled feedback with limiting
-- [ ] `aliasing_effect.h` - Intentional aliasing (anti-AA)
-- [ ] `granular_distortion.h` - Per-grain variable distortion
-- [ ] `fractal_distortion.h` - Recursive multi-scale distortion
+- [x] `spectral_distortion.h` - Per-bin FFT domain saturation
+- [x] `formant_distortion.h` - Vowel shaping + saturation
+- [x] `temporal_distortion.h` - Envelope-following drive modulation
+- [x] `allpass_saturator.h` - Resonant distortion networks
+- [x] `feedback_distortion.h` - Controlled feedback with limiting
+- [x] `aliasing_effect.h` - Intentional aliasing (anti-AA)
+- [x] `granular_distortion.h` - Per-grain variable distortion
+- [x] `fractal_distortion.h` - Recursive multi-scale distortion
 
 **Tests**
-- [ ] `tests/core/sigmoid_test.cpp`
-- [ ] `tests/core/chebyshev_test.cpp`
-- [ ] `tests/primitives/dc_blocker_test.cpp`
-- [ ] `tests/primitives/waveshaper_test.cpp`
-- [ ] `tests/primitives/adaa_test.cpp`
-- [ ] `tests/primitives/wavefolder_test.cpp`
-- [ ] `tests/processors/tube_stage_test.cpp`
-- [ ] `tests/processors/diode_clipper_test.cpp`
-- [ ] `tests/processors/tape_saturator_test.cpp`
-- [ ] `tests/processors/fuzz_processor_test.cpp`
-- [ ] `tests/systems/amp_channel_test.cpp`
-- [ ] `tests/systems/tape_machine_test.cpp`
+- [x] `tests/core/sigmoid_test.cpp`
+- [x] `tests/core/chebyshev_test.cpp`
+- [x] `tests/primitives/dc_blocker_test.cpp`
+- [x] `tests/primitives/waveshaper_test.cpp`
+- [x] `tests/primitives/hard_clip_adaa_test.cpp`
+- [x] `tests/primitives/tanh_adaa_test.cpp`
+- [x] `tests/primitives/wavefolder_test.cpp`
+- [x] `tests/processors/tube_stage_test.cpp`
+- [x] `tests/processors/diode_clipper_test.cpp`
+- [x] `tests/processors/tape_saturator_test.cpp`
+- [x] `tests/processors/fuzz_processor_test.cpp`
+- [x] `tests/systems/amp_channel_test.cpp`
+- [x] `tests/systems/tape_machine_test.cpp`
+- [x] `tests/systems/fuzz_pedal_test.cpp`
+- [x] `tests/systems/distortion_rack_tests.cpp`
 
 **Novel Distortion Tests**
-- [ ] `tests/primitives/chaos_waveshaper_test.cpp`
-- [ ] `tests/primitives/stochastic_shaper_test.cpp`
-- [ ] `tests/primitives/ring_saturation_test.cpp`
-- [ ] `tests/primitives/bitwise_mangler_test.cpp`
-- [ ] `tests/processors/spectral_distortion_test.cpp`
-- [ ] `tests/processors/formant_distortion_test.cpp`
-- [ ] `tests/processors/temporal_distortion_test.cpp`
-- [ ] `tests/processors/allpass_saturator_test.cpp`
-- [ ] `tests/processors/feedback_distortion_test.cpp`
-- [ ] `tests/processors/aliasing_effect_test.cpp`
-- [ ] `tests/processors/granular_distortion_test.cpp`
-- [ ] `tests/processors/fractal_distortion_test.cpp`
+- [x] `tests/primitives/chaos_waveshaper_test.cpp`
+- [x] `tests/primitives/stochastic_shaper_test.cpp`
+- [x] `tests/primitives/ring_saturation_test.cpp`
+- [x] `tests/primitives/bitwise_mangler_test.cpp`
+- [x] `tests/processors/spectral_distortion_test.cpp`
+- [x] `tests/processors/formant_distortion_test.cpp`
+- [x] `tests/processors/temporal_distortion_test.cpp`
+- [x] `tests/processors/allpass_saturator_tests.cpp`
+- [x] `tests/processors/feedback_distortion_test.cpp`
+- [x] `tests/processors/aliasing_effect_test.cpp`
+- [x] `tests/processors/granular_distortion_test.cpp`
+- [x] `tests/processors/fractal_distortion_test.cpp`
 
 ---
 
-*Last updated: January 2026*
+*Last updated: January 2026 (Implementation status verified against codebase)*
