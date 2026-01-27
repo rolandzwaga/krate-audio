@@ -125,6 +125,7 @@ add_executable(dsp_tests
     unit/processors/temporal_distortion_test.cpp
     unit/processors/allpass_saturator_tests.cpp
     unit/processors/feedback_distortion_test.cpp
+    unit/processors/aliasing_effect_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -346,6 +347,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/temporal_distortion_test.cpp
         unit/processors/allpass_saturator_tests.cpp
         unit/processors/feedback_distortion_test.cpp
+        unit/processors/aliasing_effect_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
