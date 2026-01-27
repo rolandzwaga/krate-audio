@@ -11,6 +11,7 @@
 - [ui-mockups.md](ui-mockups.md) - UI specifications
 - [dsp-details.md](dsp-details.md) - DSP implementation details
 - [custom-controls.md](custom-controls.md) - Custom VSTGUI control specifications
+- [vstgui-implementation.md](vstgui-implementation.md) - Complete VSTGUI implementation (plugin_ids.h, editor.uidesc, Controller, visibility)
 
 ---
 
@@ -46,11 +47,13 @@ Disrumpo is a multiband morphing distortion VST3 plugin featuring:
 
 | Phase | Duration | Weeks | Deliverable |
 |-------|----------|-------|-------------|
-| Phase 1: Foundation | 4 weeks | 1-4 | Basic multiband distortion, Level 1 UI |
-| Phase 2: Core Features | 6 weeks | 5-10 | Morph system, sweep, modulation |
-| Phase 3: Advanced | 4 weeks | 11-14 | Intelligent OS, presets, polish |
-| Phase 4: Release | 2 weeks | 15-16 | Testing, docs, installers |
-| **Total** | **16 weeks** | | |
+| Phase 1: Foundation | 5 weeks | 1-5 | Plugin skeleton, bands, distortion, VSTGUI infrastructure, Level 1 UI |
+| Phase 2: Core Features | 6 weeks | 6-11 | Morph system, 26 type panels, sweep, modulation |
+| Phase 3: Advanced | 4 weeks | 12-15 | Intelligent OS, presets, spectrum, polish |
+| Phase 4: Release | 2 weeks | 16-17 | Testing, docs, installers |
+| **Total** | **17 weeks** | | |
+
+> **Note:** VSTGUI infrastructure (parameter IDs, control-tags, visibility controllers, 26 type-specific templates) requires substantial foundational work. See [vstgui-implementation.md](vstgui-implementation.md) for complete specification.
 
 ### Key Assumptions
 
@@ -258,24 +261,84 @@ krate-audio/
 
 **Milestone M2:** Working multiband distortion with all 26 types
 
-#### Week 4: Basic UI (Level 1)
+#### Week 4-5: VSTGUI Infrastructure & Basic UI
+
+> **Reference:** [vstgui-implementation.md](vstgui-implementation.md) - Complete VSTGUI implementation specification
+
+##### Week 4a: Plugin IDs & Controller Foundation
 
 | Task ID | Task | Priority | Effort | Dependencies |
 |---------|------|----------|--------|--------------|
-| T4.1 | Setup VSTGUI framework and editor.uidesc | P0 | 6h | M2 |
-| T4.2 | Define color scheme per spec | P0 | 2h | T4.1 |
-| T4.3 | Create SpectrumDisplay placeholder (band regions only) | P0 | 8h | T4.1 |
-| T4.4 | Implement crossover divider interaction | P1 | 8h | T4.3 |
-| T4.5 | Create BandStrip collapsed view | P0 | 8h | T4.1 |
-| T4.6 | Implement distortion type dropdown | P0 | 4h | T4.5 |
-| T4.7 | Implement Drive/Mix knobs per band | P0 | 4h | T4.5 |
-| T4.8 | Implement Solo/Bypass/Mute toggles | P0 | 4h | T4.5 |
-| T4.9 | Create global controls section | P0 | 6h | T4.1 |
-| T4.10 | Implement Input/Output/Mix knobs | P0 | 4h | T4.9 |
-| T4.11 | Implement band count selector | P0 | 4h | T4.9 |
-| T4.12 | Create basic preset dropdown | P1 | 4h | T4.1 |
+| T4.1 | Create plugin_ids.h with FUIDs | P0 | 2h | M2 |
+| T4.2 | Define parameter ID range allocation scheme | P0 | 4h | T4.1 |
+| T4.3 | Implement global parameter IDs (0-99) | P0 | 2h | T4.2 |
+| T4.4 | Implement sweep parameter IDs (100-199) | P0 | 2h | T4.2 |
+| T4.5 | Implement modulation parameter IDs (200-499) | P0 | 4h | T4.2 |
+| T4.6 | Implement per-band parameter ID helpers | P0 | 4h | T4.2 |
+| T4.7 | Implement per-node parameter ID helpers | P0 | 4h | T4.6 |
+| T4.8 | Create Controller class with VST3EditorDelegate | P0 | 6h | T4.1 |
+| T4.9 | Implement registerGlobalParams() | P0 | 4h | T4.3, T4.8 |
+| T4.10 | Implement registerSweepParams() | P0 | 2h | T4.4, T4.8 |
+| T4.11 | Implement registerModulationParams() | P0 | 6h | T4.5, T4.8 |
+| T4.12 | Implement registerBandParams() for 8 bands | P0 | 8h | T4.6, T4.8 |
+| T4.13 | Implement registerNodeParams() for 4 nodes × 8 bands | P0 | 8h | T4.7, T4.12 |
 
-**Milestone M3:** Level 1 UI functional - basic multiband distortion usable
+**Subtotal Week 4a:** ~56 hours
+
+##### Week 4b: editor.uidesc Foundation
+
+| Task ID | Task | Priority | Effort | Dependencies |
+|---------|------|----------|--------|--------------|
+| T4.14 | Create editor.uidesc XML skeleton | P0 | 2h | T4.8 |
+| T4.15 | Define `<colors>` section (24 named colors) | P0 | 2h | T4.14 |
+| T4.16 | Define `<fonts>` section (6 fonts) | P0 | 1h | T4.14 |
+| T4.17 | Define `<gradients>` section | P0 | 1h | T4.14 |
+| T4.18 | Create `<control-tags>` for global params | P0 | 2h | T4.3, T4.14 |
+| T4.19 | Create `<control-tags>` for sweep params | P0 | 1h | T4.4, T4.14 |
+| T4.20 | Create `<control-tags>` for modulation params | P0 | 3h | T4.5, T4.14 |
+| T4.21 | Create `<control-tags>` for band 0 params | P0 | 2h | T4.6, T4.14 |
+| T4.22 | Create `<control-tags>` for bands 1-7 (templated) | P0 | 4h | T4.21 |
+| T4.23 | Create `<control-tags>` for UI-only visibility tags | P0 | 2h | T4.14 |
+| T4.24 | Create main `<template name="editor">` layout | P0 | 6h | T4.15-T4.17 |
+
+**Subtotal Week 4b:** ~26 hours
+
+##### Week 5a: Custom Controls & Basic UI
+
+| Task ID | Task | Priority | Effort | Dependencies |
+|---------|------|----------|--------|--------------|
+| T5a.1 | Implement createCustomView() in Controller | P0 | 4h | T4.8 |
+| T5a.2 | Create SpectrumDisplay class shell | P0 | 6h | T5a.1 |
+| T5a.3 | Implement SpectrumDisplay band regions | P0 | 6h | T5a.2 |
+| T5a.4 | Implement crossover divider rendering | P0 | 4h | T5a.3 |
+| T5a.5 | Implement crossover divider interaction | P1 | 8h | T5a.4 |
+| T5a.6 | Create BandStripCollapsed template | P0 | 6h | T4.24 |
+| T5a.7 | Wire type dropdown to Band0Node0Type tag | P0 | 2h | T5a.6, T4.21 |
+| T5a.8 | Wire Drive/Mix knobs to control-tags | P0 | 2h | T5a.6 |
+| T5a.9 | Wire Solo/Bypass/Mute toggles | P0 | 2h | T5a.6 |
+| T5a.10 | Create global controls header section | P0 | 4h | T4.24 |
+| T5a.11 | Wire Input/Output/Mix global knobs | P0 | 2h | T5a.10, T4.18 |
+| T5a.12 | Implement band count CSegmentButton | P0 | 4h | T5a.10 |
+
+**Subtotal Week 5a:** ~50 hours
+
+##### Week 5b: Visibility Controllers & Progressive Disclosure
+
+| Task ID | Task | Priority | Effort | Dependencies |
+|---------|------|----------|--------|--------------|
+| T5b.1 | Implement VisibilityController class (IDependent) | P0 | 8h | T4.8 |
+| T5b.2 | Implement ContainerVisibilityController class | P0 | 6h | T5b.1 |
+| T5b.3 | Implement didOpen() lifecycle method | P0 | 4h | T5b.1 |
+| T5b.4 | Implement willClose() with proper cleanup | P0 | 4h | T5b.3 |
+| T5b.5 | Create band visibility controllers (show/hide bands 1-8) | P0 | 4h | T5b.2, T5a.12 |
+| T5b.6 | Test band count changes update visibility | P0 | 2h | T5b.5 |
+| T5b.7 | Implement setComponentState() for preset sync | P0 | 8h | T4.8 |
+| T5b.8 | Implement getParamStringByValue() for display | P0 | 6h | T4.8 |
+| T5b.9 | Create basic preset dropdown (placeholder) | P1 | 4h | T4.24 |
+
+**Subtotal Week 5b:** ~46 hours
+
+**Milestone M3:** Level 1 UI functional - basic multiband distortion usable with band visibility
 
 ---
 
@@ -307,24 +370,64 @@ krate-audio/
 
 **Milestone M4:** 2D morph system working with artifact-free transitions
 
-#### Week 7: Morph UI
+#### Week 7: Morph UI & Type-Specific Parameters
+
+> **Reference:** [vstgui-implementation.md](vstgui-implementation.md) Section 5 (UIViewSwitchContainer)
+
+##### Week 7a: MorphPad Custom Control
 
 | Task ID | Task | Priority | Effort | Dependencies |
 |---------|------|----------|--------|--------------|
 | T7.1 | Create MorphPad custom control class | P0 | 8h | M4 |
-| T7.2 | Implement node rendering (circles, colors) | P0 | 4h | T7.1 |
-| T7.3 | Implement cursor rendering and drag interaction | P0 | 8h | T7.1 |
-| T7.4 | Implement connection line rendering | P1 | 4h | T7.2, T7.3 |
-| T7.5 | Implement Shift+drag fine adjustment | P1 | 2h | T7.3 |
-| T7.6 | Implement Alt+drag node repositioning | P1 | 4h | T7.2 |
-| T7.7 | Implement morph mode visual switching | P0 | 4h | T7.1 |
-| T7.8 | Create BandStrip expanded view | P0 | 8h | T7.1 |
-| T7.9 | Implement type-specific parameter zones | P0 | 12h | T7.8 |
-| T7.10 | Implement view switcher for 26 type UIs | P0 | 16h | T7.9 |
-| T7.11 | Create node editor panel | P1 | 8h | T7.8 |
-| T7.12 | Add morph mode selector UI | P0 | 4h | T7.7 |
+| T7.2 | Register MorphPad in createCustomView() | P0 | 2h | T7.1 |
+| T7.3 | Implement node rendering (circles, category colors) | P0 | 4h | T7.1 |
+| T7.4 | Implement cursor rendering and drag interaction | P0 | 8h | T7.1 |
+| T7.5 | Implement connection line rendering | P1 | 4h | T7.3, T7.4 |
+| T7.6 | Implement Shift+drag fine adjustment | P1 | 2h | T7.4 |
+| T7.7 | Implement Alt+drag node repositioning | P1 | 4h | T7.3 |
+| T7.8 | Implement morph mode visual switching (1D/2D/Radial) | P0 | 4h | T7.1 |
+| T7.9 | Wire MorphPad to Band*MorphX/Y parameters | P0 | 4h | T7.4 |
+| T7.10 | Add morph mode CSegmentButton selector | P0 | 2h | T7.8 |
 
-**Deliverable:** Full morph UI with XY pad and type-specific controls
+##### Week 7b: Expanded Band View & UIViewSwitchContainer
+
+| Task ID | Task | Priority | Effort | Dependencies |
+|---------|------|----------|--------|--------------|
+| T7.11 | Create BandStripExpanded template | P0 | 8h | M3 |
+| T7.12 | Implement expand/collapse toggle button | P0 | 4h | T7.11 |
+| T7.13 | Create band expanded visibility controllers | P0 | 4h | T7.12, T5b.2 |
+| T7.14 | Add mini MorphPad to expanded view | P0 | 4h | T7.9, T7.11 |
+| T7.15 | Setup UIViewSwitchContainer for type params | P0 | 4h | T7.11 |
+| T7.16 | Create TypeParams_SoftClip template | P0 | 2h | T7.15 |
+| T7.17 | Create TypeParams_HardClip template | P0 | 1h | T7.15 |
+| T7.18 | Create TypeParams_Tube template | P0 | 2h | T7.15 |
+| T7.19 | Create TypeParams_Tape template | P0 | 2h | T7.15 |
+| T7.20 | Create TypeParams_Fuzz template | P0 | 2h | T7.15 |
+| T7.21 | Create TypeParams_AsymFuzz template | P0 | 1h | T7.15 |
+| T7.22 | Create TypeParams_SineFold template | P0 | 2h | T7.15 |
+| T7.23 | Create TypeParams_TriFold template | P0 | 1h | T7.15 |
+| T7.24 | Create TypeParams_SergeFold template | P0 | 1h | T7.15 |
+| T7.25 | Create TypeParams_FullRectify template | P0 | 1h | T7.15 |
+| T7.26 | Create TypeParams_HalfRectify template | P0 | 1h | T7.15 |
+| T7.27 | Create TypeParams_Bitcrush template | P0 | 2h | T7.15 |
+| T7.28 | Create TypeParams_SampleReduce template | P0 | 2h | T7.15 |
+| T7.29 | Create TypeParams_Quantize template | P0 | 1h | T7.15 |
+| T7.30 | Create TypeParams_Temporal template | P0 | 2h | T7.15 |
+| T7.31 | Create TypeParams_RingSat template | P0 | 2h | T7.15 |
+| T7.32 | Create TypeParams_Feedback template | P0 | 2h | T7.15 |
+| T7.33 | Create TypeParams_Aliasing template | P0 | 2h | T7.15 |
+| T7.34 | Create TypeParams_Bitwise template | P0 | 2h | T7.15 |
+| T7.35 | Create TypeParams_Chaos template | P0 | 3h | T7.15 |
+| T7.36 | Create TypeParams_Formant template | P0 | 2h | T7.15 |
+| T7.37 | Create TypeParams_Granular template | P0 | 3h | T7.15 |
+| T7.38 | Create TypeParams_Spectral template | P0 | 3h | T7.15 |
+| T7.39 | Create TypeParams_Fractal template | P0 | 2h | T7.15 |
+| T7.40 | Create TypeParams_Stochastic template | P0 | 2h | T7.15 |
+| T7.41 | Create TypeParams_AllpassRes template | P0 | 2h | T7.15 |
+| T7.42 | Wire UIViewSwitchContainer to Band*Node*Type | P0 | 4h | T7.16-T7.41 |
+| T7.43 | Create node editor panel (active nodes selector) | P1 | 8h | T7.11 |
+
+**Deliverable:** Full morph UI with XY pad, expand/collapse bands, and 26 type-specific parameter panels
 
 #### Week 8: Sweep System
 
@@ -539,24 +642,25 @@ krate-audio/
 ### Gantt Chart (Simplified)
 
 ```
-Week:  1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16
-       ├────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┤
-Phase 1 ████████████████
-Phase 2                  ████████████████████████████████
-Phase 3                                                  ████████████████████
-Phase 4                                                                      ████████
+Week:  1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16   17
+       ├────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┤
+Phase 1 ████████████████████
+Phase 2                       ████████████████████████████████
+Phase 3                                                        ████████████████████
+Phase 4                                                                            ████████
 
 Milestones:
-M1 (Plugin loads)      ●
-M2 (Multiband dist)         ●
-M3 (Level 1 UI)                  ●
-M4 (Morph system)                          ●
-M5 (Sweep)                                      ●
-M6 (Modulation)                                           ●
-M7 (Presets)                                                        ●
-M8 (Complete UI)                                                              ●
-M9 (Beta)                                                                          ●
-M10 (Release)                                                                           ●
+M1 (Plugin loads)        ●
+M2 (Multiband dist)           ●
+M3 (VSTGUI + Level 1 UI)           ●
+M4 (Morph system)                       ●
+M5 (26 Type Panels)                          ●
+M6 (Sweep)                                        ●
+M7 (Modulation)                                        ●
+M8 (Presets)                                                 ●
+M9 (Complete UI)                                                        ●
+M10 (Beta)                                                                   ●
+M11 (Release)                                                                     ●
 ```
 
 ### Critical Path
@@ -566,17 +670,21 @@ The following tasks are on the critical path (delays here delay the entire proje
 1. **T1.1-T1.6** → Project setup and plugin skeleton
 2. **T2.1-T2.9** → Crossover network
 3. **T3.1-T3.13** → Distortion integration
-4. **T5.1-T5.14** → Morph engine
-5. **T9.1-T9.21** → Modulation routing
-6. **T12.1-T12.7** → Preset serialization
-7. **T15.1-T15.17** → Platform testing
+4. **T4.1-T4.24** → Plugin IDs, parameter registration, editor.uidesc foundation
+5. **T5a.1-T5b.9** → Custom controls, visibility controllers, setComponentState
+6. **T5.1-T5.17** → Morph DSP engine
+7. **T7.1-T7.43** → MorphPad, expanded band view, 26 type-specific templates
+8. **T9.1-T9.27** → Modulation routing
+9. **T12.1-T12.7** → Preset serialization
+10. **T15.1-T15.18** → Platform testing
 
 ### Parallel Work Streams
 
 | Stream | Tasks | Resources |
 |--------|-------|-----------|
-| **DSP Development** | T3.*, T5.*, T8.*, T9.*, T11.* | DSP engineer |
-| **UI Development** | T4.*, T7.*, T13.*, T14.* | UI developer |
+| **DSP Development** | T2.*, T3.*, T5.1-T5.17, T8.*, T9.DSP, T11.* | DSP engineer |
+| **VSTGUI Infrastructure** | T4.1-T4.24, T5a.*, T5b.*, T7.11-T7.43 | UI developer |
+| **Custom Controls** | T5a.2-T5a.5, T7.1-T7.10, T13.1-T13.10 | UI developer |
 | **Preset Creation** | T12.11-T12.21 | Sound designer |
 | **Documentation** | T16.1-T16.3 | Technical writer |
 
@@ -1049,8 +1157,56 @@ A task is **Done** when:
 
 ---
 
+## Appendix E: VSTGUI Implementation Checklist
+
+> **Full Specification:** [vstgui-implementation.md](vstgui-implementation.md)
+
+### Files to Create
+
+| File | Purpose | Task IDs |
+|------|---------|----------|
+| `src/plugin_ids.h` | FUIDs, parameter ID enums, helper functions | T4.1-T4.7 |
+| `src/controller/controller.h` | Controller declaration with VST3EditorDelegate | T4.8 |
+| `src/controller/controller.cpp` | Parameter registration, createCustomView, visibility | T4.9-T5b.8 |
+| `src/controller/views/spectrum_display.h/.cpp` | Custom SpectrumDisplay control | T5a.2-T5a.5 |
+| `src/controller/views/morph_pad.h/.cpp` | Custom MorphPad control | T7.1-T7.10 |
+| `resources/editor.uidesc` | Complete UI definition | T4.14-T4.24, T5a.6-T7.43 |
+
+### editor.uidesc Sections
+
+| Section | Content | Task IDs |
+|---------|---------|----------|
+| `<colors>` | 24 named colors (bands, categories, states) | T4.15 |
+| `<fonts>` | 6 font definitions | T4.16 |
+| `<gradients>` | Panel and button gradients | T4.17 |
+| `<control-tags>` | 450+ parameter ID to name mappings | T4.18-T4.23 |
+| `<template name="editor">` | Main 1000×600 layout | T4.24 |
+| `<template name="BandStripCollapsed">` | Collapsed band view | T5a.6 |
+| `<template name="BandStripExpanded">` | Expanded band view with morph | T7.11 |
+| `<template name="TypeParams_*">` | 26 type-specific parameter panels | T7.16-T7.41 |
+
+### Controller Implementation
+
+| Feature | Purpose | Task IDs |
+|---------|---------|----------|
+| Parameter Registration | Register all ~450 parameters | T4.9-T4.13 |
+| `createCustomView()` | SpectrumDisplay, MorphPad creation | T5a.1 |
+| `VisibilityController` | IDependent pattern for progressive disclosure | T5b.1-T5b.2 |
+| `didOpen()` / `willClose()` | Editor lifecycle with proper cleanup | T5b.3-T5b.4 |
+| `setComponentState()` | Preset loading syncs UI | T5b.7 |
+| `getParamStringByValue()` | Parameter value display formatting | T5b.8 |
+
+### UIViewSwitchContainer
+
+| Container | Switch Control | Templates | Task IDs |
+|-----------|----------------|-----------|----------|
+| Type-specific params | `Band*Node*Type` | 26 templates (TypeParams_*) | T7.15-T7.42 |
+
+---
+
 ## Revision History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-01-27 | Claude | Initial roadmap creation |
+| 1.1 | 2026-01-27 | Claude | Added comprehensive VSTGUI implementation tasks (T4.1-T5b.9, T7.11-T7.43), updated timeline to 17 weeks, added Appendix E |

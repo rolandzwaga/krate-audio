@@ -17,6 +17,8 @@
 - [ui-mockups.md](ui-mockups.md) - Detailed UI specifications
 - [dsp-details.md](dsp-details.md) - DSP implementation details and code examples
 - [custom-controls.md](custom-controls.md) - Custom VSTGUI control specifications
+- [vstgui-implementation.md](vstgui-implementation.md) - Complete VSTGUI implementation specification
+- [roadmap.md](roadmap.md) - 16-week development roadmap
 
 ---
 
