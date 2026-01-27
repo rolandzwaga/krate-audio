@@ -1182,40 +1182,112 @@ private:
 
 ### 8.4 Fractal/Recursive Distortion (`processors/fractal_distortion.h`)
 
-Apply distortion at multiple scales recursively.
+Apply distortion at multiple frequency scales with self-similar processing, creating harmonic structure that reveals new detail at every "zoom level."
 
 ```cpp
+enum class FractalMode : uint8_t {
+    Residual,       // Classic: distort progressively smaller residuals
+    Multiband,      // Split into octave bands, recurse each with depth scaling
+    Harmonic,       // Separate odd/even harmonics, different curves per level
+    Cascade,        // Different waveshaper at each iteration level
+    Feedback        // Cross-feed between iteration levels (chaotic)
+};
+
 class FractalDistortion {
 public:
     void prepare(double sampleRate, size_t maxBlockSize);
     void reset();
 
-    void setIterations(int iterations);      // 1-8 recursive levels
-    void setScaleFactor(float scale);        // Amplitude reduction per level
-    void setDistortionType(WaveshapeType type);
-    void setDrive(float drive);
-    void setMix(float mix);
+    void setMode(FractalMode mode);
+    void setIterations(int iterations);           // 1-8 recursive levels
+    void setScaleFactor(float scale);             // Amplitude reduction per level (0.3-0.9)
+    void setFrequencyDecay(float decay);          // High-freq emphasis at deeper levels (0-1)
+    void setDrive(float drive);                   // Base drive level
+    void setMix(float mix);                       // Dry/wet
+
+    // Per-level waveshaper (Cascade mode)
+    void setLevelWaveshaper(int level, WaveshapeType type);
+
+    // Multiband mode
+    void setCrossoverFrequency(float hz);         // Base octave split frequency
+    void setBandIterationScale(float scale);      // Fewer iterations at lower bands
+
+    // Feedback mode
+    void setFeedbackAmount(float amount);         // Cross-level feedback (0-0.5)
+    void setFeedbackDelay(int samples);           // Delay between feedback taps
 
     void process(float* buffer, size_t n) noexcept;
 
 private:
+    FractalMode mode_;
     int iterations_;
     float scaleFactor_;
-    Waveshaper waveshaper_;
+    float freqDecay_;
+    std::array<Waveshaper, 8> levelWaveshapers_;
+    std::array<Biquad, 4> bandSplitters_;         // For multiband
     DCBlocker dcBlocker_;
     // ...
 };
 ```
 
-**Algorithm:**
+**Algorithms by Mode:**
+
+**Residual (original):**
 ```
-level0 = saturate(input)
-level1 = saturate((input - level0) * scale)
-level2 = saturate((input - level0 - level1) * scale^2)
-output = level0 + level1 + level2 + ...
+level[0] = saturate(input * drive)
+level[n] = saturate((input - sum(level[0..n-1])) * scale^n)
+output = sum(level[0..N])
 ```
 
-**Novel:** Self-similar harmonic structure. Residual distortion creates unusual detail.
+**Multiband (true frequency-domain fractal):**
+```
+Split input into octave bands (e.g., 4 bands: <250Hz, 250-1k, 1k-4k, >4k)
+For each band:
+  iterations = baseIterations * (bandIndex / numBands)  // More iterations for higher bands
+  Apply Residual algorithm with scaled iterations
+Recombine bands
+```
+*Sonic result:* High frequencies get progressively more "detailed" distortion, like zooming into a fractal reveals more structure.
+
+**Harmonic (odd/even separation):**
+```
+For each iteration:
+  oddHarmonics = chebyshevOddExtract(input)
+  evenHarmonics = chebyshevEvenExtract(input)
+  level[n] = saturate(oddHarmonics, curveA) + saturate(evenHarmonics, curveB)
+  input = input - level[n] * scale
+```
+*Sonic result:* Creates complex intermodulation between harmonic series.
+
+**Cascade (different waveshaper per level):**
+```
+level[0] = waveshaper[0].process(input * drive)
+level[n] = waveshaper[n].process((input - sum(level[0..n-1])) * scale^n)
+```
+*Sonic result:* Each iteration has unique tonal character (e.g., soft->hard->fold->clip).
+
+**Feedback (chaotic):**
+```
+level[0] = saturate(input + feedbackBuffer * feedbackAmount)
+level[n] = saturate((input - sum(level[0..n-1]) + level[n-1] * feedback) * scale^n)
+feedbackBuffer = delay(level[N], feedbackDelay)
+```
+*Sonic result:* Self-modulating chaos with controllable instability.
+
+**Frequency Decay Parameter:**
+When `freqDecay > 0`, higher iterations are highpass-filtered, emphasizing that "detail emerges at smaller scales":
+```
+level[n] = highpass(saturate(...), baseFreq * (n+1))
+```
+
+**Reuses:** Waveshaper, Biquad (for band splitting and highpass), DCBlocker, Chebyshev (for Harmonic mode)
+**Novel:** True frequency-domain self-similarity. Multiband mode creates "zoom into detail" effect. Feedback mode adds controlled chaos. Cascade mode allows timbral evolution across iterations.
+
+**Sonic Applications:**
+- **Multiband:** Add "grit" to high frequencies while keeping lows clean, with natural-sounding harmonic stacking
+- **Cascade:** Design specific harmonic evolution (warm->bright->harsh)
+- **Feedback:** Self-oscillating textures, drones, glitch effects
+- **Harmonic:** Complex intermodulation for bell-like or metallic tones
 
 ---
 
