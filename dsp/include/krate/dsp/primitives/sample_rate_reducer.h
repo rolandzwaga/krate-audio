@@ -50,7 +50,7 @@ public:
     // =========================================================================
 
     static constexpr float kMinReductionFactor = 1.0f;
-    static constexpr float kMaxReductionFactor = 8.0f;
+    static constexpr float kMaxReductionFactor = 32.0f;
     static constexpr float kDefaultReductionFactor = 1.0f;
 
     // =========================================================================

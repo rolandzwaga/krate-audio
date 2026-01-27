@@ -91,12 +91,12 @@ TEST_CASE("SampleRateReducer setReductionFactor clamps to valid range", "[sample
         REQUIRE(reducer.getReductionFactor() == Approx(1.0f));
     }
 
-    SECTION("reduction factor clamps to maximum 8") {
-        reducer.setReductionFactor(10.0f);
-        REQUIRE(reducer.getReductionFactor() == Approx(8.0f));
+    SECTION("reduction factor clamps to maximum 32") {
+        reducer.setReductionFactor(40.0f);
+        REQUIRE(reducer.getReductionFactor() == Approx(32.0f));
 
-        reducer.setReductionFactor(16.0f);
-        REQUIRE(reducer.getReductionFactor() == Approx(8.0f));
+        reducer.setReductionFactor(64.0f);
+        REQUIRE(reducer.getReductionFactor() == Approx(32.0f));
     }
 
     SECTION("valid reduction factors are accepted") {
@@ -111,6 +111,12 @@ TEST_CASE("SampleRateReducer setReductionFactor clamps to valid range", "[sample
 
         reducer.setReductionFactor(8.0f);
         REQUIRE(reducer.getReductionFactor() == Approx(8.0f));
+
+        reducer.setReductionFactor(16.0f);
+        REQUIRE(reducer.getReductionFactor() == Approx(16.0f));
+
+        reducer.setReductionFactor(32.0f);
+        REQUIRE(reducer.getReductionFactor() == Approx(32.0f));
     }
 }
 
@@ -435,4 +441,94 @@ TEST_CASE("SampleRateReducer spectral analysis: factor 1 produces minimal aliasi
         // Factor 1 should produce minimal aliasing (near FFT noise floor)
         REQUIRE(result.aliasingPowerDb < -30.0f);
     }
+}
+
+// =============================================================================
+// Extended Factor Range Tests (112-aliasing-effect requirement)
+// =============================================================================
+
+TEST_CASE("SampleRateReducer factor=32 produces extreme aliasing", "[samplerate][layer1][aliasing][extended]") {
+    SampleRateReducer reducer;
+    reducer.prepare(44100.0);
+    reducer.setReductionFactor(32.0f);
+
+    // Generate a sine wave above the effective Nyquist (44100/32/2 = 689Hz)
+    std::array<float, 1024> original, processed;
+    constexpr float kTwoPi = 6.28318530718f;
+    for (size_t i = 0; i < original.size(); ++i) {
+        // 2000Hz is well above 689Hz effective Nyquist
+        original[i] = std::sin(kTwoPi * 2000.0f * static_cast<float>(i) / 44100.0f);
+    }
+    std::copy(original.begin(), original.end(), processed.begin());
+
+    reducer.process(processed.data(), processed.size());
+
+    // With factor 32, effective sample rate is ~1378Hz (Nyquist 689Hz)
+    // A 2000Hz sine will alias severely
+    float totalDiff = 0.0f;
+    for (size_t i = 0; i < original.size(); ++i) {
+        totalDiff += std::abs(processed[i] - original[i]);
+    }
+    float avgDiff = totalDiff / static_cast<float>(original.size());
+
+    // Expect significant aliasing distortion
+    REQUIRE(avgDiff > 0.2f);
+}
+
+TEST_CASE("SampleRateReducer factor=32 produces extremely staircased output", "[samplerate][layer1][extended]") {
+    SampleRateReducer reducer;
+    reducer.prepare(44100.0);
+    reducer.setReductionFactor(32.0f);
+
+    // Generate a smooth ramp
+    std::array<float, 256> buffer;
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        buffer[i] = static_cast<float>(i) / static_cast<float>(buffer.size());
+    }
+
+    reducer.process(buffer.data(), buffer.size());
+
+    // Count holds (consecutive identical values)
+    size_t holds = 0;
+    for (size_t i = 1; i < buffer.size(); ++i) {
+        if (buffer[i] == buffer[i - 1]) {
+            holds++;
+        }
+    }
+
+    // With factor 32, almost all consecutive samples should be equal
+    // 256 samples -> 255 transitions, expect ~248+ holds (256 - 256/32)
+    REQUIRE(holds >= 240);
+}
+
+TEST_CASE("SampleRateReducer factor=16 intermediate case", "[samplerate][layer1][extended]") {
+    SampleRateReducer reducer;
+    reducer.prepare(44100.0);
+    reducer.setReductionFactor(16.0f);
+
+    // Create a ramp input
+    std::array<float, 128> buffer;
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        buffer[i] = static_cast<float>(i) * 0.01f;
+    }
+
+    reducer.process(buffer.data(), buffer.size());
+
+    // With factor 16, we should see roughly 128/16 = 8 unique values
+    std::vector<float> uniqueValues;
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        bool found = false;
+        for (float v : uniqueValues) {
+            if (std::abs(buffer[i] - v) < 0.0001f) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            uniqueValues.push_back(buffer[i]);
+        }
+    }
+
+    REQUIRE(uniqueValues.size() >= 6);
+    REQUIRE(uniqueValues.size() <= 12);
 }
