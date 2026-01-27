@@ -4,11 +4,12 @@
 | Field | Value |
 |-------|-------|
 | Project | Disrumpo |
-| Version | 1.0 |
+| Version | 1.1 |
 | Date | January 2026 |
 | Platforms | Windows, macOS, Linux |
 | Format | VST3 |
 | Framework | VST3 SDK, VSTGUI |
+| Updated | Expanded from 14 to 22 distortion types using DST-ROADMAP and FLT-ROADMAP |
 
 ---
 
@@ -17,12 +18,14 @@
 Disrumpo is a multiband morphing distortion plugin for synthesizer processing and sound design.
 
 ### Key Differentiators
+- **22 distortion types** spanning saturation, wavefold, digital, dynamic, hybrid, and experimental categories
 - Per-band morphable distortion with multi-point morph spaces (A↔B↔C↔D)
 - Sweeping distortion traversing the frequency spectrum
 - Morph-frequency linking - distortion character changes with sweep position
+- **Advanced morph drivers**: Chaos attractors, envelope following, pitch tracking
 - Intelligent per-band oversampling based on active distortion types
 - Progressive disclosure UI scaling from simple to expert
-- Deep modulation architecture with LFOs, envelope followers, and flexible routing
+- **12 modulation sources** including chaos, sample & hold, pitch follower, and transient detector
 
 ### Target Users
 - Sound designers
@@ -63,24 +66,38 @@ Disrumpo is a multiband morphing distortion plugin for synthesizer processing an
 | D12 | Bitcrush | `BitCrusher`, `BitcrusherProcessor` | **EXISTS** |
 | D13 | Sample Reduce | `SampleRateReducer` | **EXISTS** |
 | D14 | Quantize | `BitCrusher` (built-in quantization) | **EXISTS** |
+| D15 | Temporal | `TemporalDistortion` | **EXISTS** |
+| D16 | Ring Saturation | `RingSaturation` | **EXISTS** |
+| D17 | Feedback | `FeedbackDistortion` | **EXISTS** |
+| D18 | Aliasing | `AliasingEffect` | **EXISTS** |
+| D19 | Bitwise Mangler | `BitwiseMangler` | **EXISTS** |
+| D20 | Chaos | `ChaosWaveshaper` | **PLANNED** |
+| D21 | Formant | `FormantDistortion` | **PLANNED** |
+| D22 | Granular | `GranularDistortion` | **PLANNED** |
 
 ### Supporting Components
 
 | Component | KrateDSP Location | Status |
 |-----------|------------------|--------|
-| Crossover Filters | `Biquad`, `BiquadCascade` | **EXISTS** (LR4 composable) |
+| Crossover Filters | `CrossoverLR4` (spec 079) | **EXISTS** |
 | Oversampler | `Oversampler` (2x/4x, IIR/FIR) | **EXISTS** |
 | LFO | `LFO` (6 waveforms, tempo sync) | **EXISTS** |
 | Envelope Follower | `EnvelopeFollower` (3 modes) | **EXISTS** |
 | Parameter Smoother | `OnePoleSmoother`, `LinearRamp`, `SlewLimiter` | **EXISTS** |
 | DC Blocker | `DCBlocker` | **EXISTS** |
+| Pitch Detector | `PitchDetector` (autocorrelation) | **EXISTS** |
+| Frequency Shifter | `FrequencyShifter` (Hilbert transform) | **EXISTS** |
+| Chaos Attractor | `ChaosWaveshaper` | **PLANNED** |
+| Formant Filter | `FormantFilter` | **EXISTS** (spec 078) |
+| Granular Engine | `GranularEngine` | **EXISTS** |
 
 ### Implementation Summary
 
-- **12 of 14 distortion types** have dedicated implementations
+- **17 of 22 distortion types** have dedicated implementations
 - **2 distortion types** (rectification) are trivially composable
+- **3 distortion types** (Chaos, Formant, Granular) are planned in DST-ROADMAP
 - **All modulation sources** have existing implementations
-- **Crossover network** requires composition from existing Biquad primitives
+- **Crossover network** uses existing `CrossoverLR4` from FLT-ROADMAP (spec 079)
 
 ---
 
@@ -147,6 +164,14 @@ Disrumpo provides a unified environment where:
 | D12 | Bitcrush | Digital |
 | D13 | Sample Reduce | Digital |
 | D14 | Quantize | Digital |
+| D15 | Temporal | Dynamic |
+| D16 | Ring Saturation | Hybrid |
+| D17 | Feedback | Hybrid |
+| D18 | Aliasing | Digital |
+| D19 | Bitwise Mangler | Digital |
+| D20 | Chaos | Experimental |
+| D21 | Formant | Experimental |
+| D22 | Granular | Experimental |
 
 **FR-DIST-002: Common Parameters**
 - Drive: 0.0 to 10.0
@@ -157,7 +182,10 @@ Disrumpo provides a unified environment where:
 
 Saturation: Bias (-1.0 to +1.0), Sag (0.0 to 1.0)
 Wavefold: Folds (1-8), Shape (0.0-1.0), Symmetry (0.0-1.0)
-Digital: Bit Depth (1.0-16.0), Sample Rate Ratio (1.0-64.0), Smoothness (0.0-1.0)
+Digital: Bit Depth (1.0-16.0), Sample Rate Ratio (1.0-32.0), Smoothness (0.0-1.0)
+Dynamic: Sensitivity (0.0-1.0), Attack (1-100ms), Release (10-500ms), Mode (Envelope/Inverse/Derivative)
+Hybrid: Feedback (0.0-1.5), Delay (1-100ms), Stages (1-4), Modulation Depth (0.0-1.0)
+Experimental: Chaos Amount (0.0-1.0), Attractor Speed (0.1-10.0), Grain Size (5-100ms), Formant Shift (-12 to +12 semitones)
 
 ### 3.3 Morph System
 
@@ -187,6 +215,27 @@ Digital: Bit Depth (1.0-16.0), Sample Rate Ratio (1.0-64.0), Smoothness (0.0-1.0
 | Rectify | D10-D11 | Parameter interpolation |
 
 Cross-family morphs use parallel processing with output crossfade.
+
+**FR-MORPH-005: Advanced Morph Drivers**
+| Driver | Description |
+|--------|-------------|
+| Manual | Direct user control via XY pad or sliders |
+| LFO | Standard oscillator-driven movement |
+| Chaos | Lorenz/Rossler attractor creates swirling, organic paths |
+| Envelope | Input loudness drives morph position (louder = higher morph) |
+| Pitch | Detected pitch maps to morph position (low notes = A, high = D) |
+| Transient | Attack detection triggers morph position jumps |
+
+**FR-MORPH-006: Morph Categories**
+| Category | Types | Behavior |
+|----------|-------|----------|
+| Saturation | D01-D06 | Transfer function interpolation |
+| Wavefold | D07-D09 | Parameter interpolation |
+| Digital | D12-D14, D18-D19 | Parameter interpolation |
+| Rectify | D10-D11 | Parameter interpolation |
+| Dynamic | D15, D17 | Parameter interpolation with envelope coupling |
+| Hybrid | D16 | Parallel blend with output crossfade |
+| Experimental | D20-D22 | Parallel blend with output crossfade |
 
 ### 3.4 Sweep System
 
@@ -223,6 +272,10 @@ Cross-family morphs use parallel processing with output crossfade.
 | Envelope Follower | 1 | Attack, Release, Sensitivity, Source |
 | Random | 1 | Rate, Smoothness, Sync |
 | Macro | 4 | Min, Max, Curve |
+| Chaos | 1 | Model (Lorenz/Rossler/Chua), Speed, Coupling |
+| Sample & Hold | 1 | Rate, Source (LFO/Random/External), Slew |
+| Pitch Follower | 1 | Min Hz, Max Hz, Confidence Threshold, Tracking Speed |
+| Transient Detector | 1 | Sensitivity, Attack, Decay |
 
 **FR-MOD-002: LFO Specifications**
 - Rate (Free): 0.01 Hz - 20 Hz
@@ -258,7 +311,13 @@ Per-Band: Morph X/Y, Drive, Mix, Band Gain, Band Pan
 | Hard Clip, Fuzz | 4x | Strong harmonics |
 | Wavefolders | 4x | Many harmonics |
 | Rectifiers | 4x | Frequency doubling |
-| Digital | 1x | Aliasing intentional |
+| Digital (D12-D14) | 1x | Aliasing intentional |
+| Temporal | 2x | Moderate harmonics |
+| Ring Saturation | 4x | Inharmonic sidebands |
+| Feedback | 2x | Controlled by limiter |
+| Aliasing (D18) | 1x | Aliasing is the effect |
+| Bitwise | 1x | Artifacts are the effect |
+| Experimental | 2x | Varies by algorithm |
 
 ### 3.7 Global Controls
 
@@ -607,10 +666,24 @@ enum class DistortionType : uint8_t {
     FullRectify,        ///< std::abs(x)
     HalfRectify,        ///< std::max(0.0f, x)
 
-    // Digital (use BitcrusherProcessor, SampleRateReducer)
+    // Digital (use BitcrusherProcessor, SampleRateReducer, AliasingEffect, BitwiseMangler)
     Bitcrush,           ///< BitcrusherProcessor
     SampleReduce,       ///< SampleRateReducer
     Quantize,           ///< BitCrusher quantization
+    Aliasing,           ///< AliasingEffect (intentional aliasing without AA)
+    BitwiseMangler,     ///< BitwiseMangler (XOR, bit rotation, overflow wrap)
+
+    // Dynamic (envelope-reactive distortion)
+    Temporal,           ///< TemporalDistortion (envelope-following drive)
+
+    // Hybrid (complex routing)
+    RingSaturation,     ///< RingSaturation (signal × saturate(signal))
+    FeedbackDist,       ///< FeedbackDistortion (delay + saturation + feedback)
+
+    // Experimental (sound design)
+    Chaos,              ///< ChaosWaveshaper (Lorenz/Rossler/Chua attractors)
+    Formant,            ///< FormantDistortion (vowel shaping + saturation)
+    Granular,           ///< GranularDistortion (per-grain variable distortion)
 };
 
 /// @brief Morph interpolation mode.
@@ -678,8 +751,31 @@ struct DistortionParams {
 
     // Digital-specific
     float bitDepth = 16.0f;         ///< Bit depth [1, 16]
-    float srRatio = 1.0f;           ///< Sample rate reduction [1, 64]
+    float srRatio = 1.0f;           ///< Sample rate reduction [1, 32]
     float smoothness = 0.0f;        ///< Anti-aliasing smoothness [0, 1]
+
+    // Dynamic-specific (Temporal)
+    float sensitivity = 0.5f;       ///< Envelope sensitivity [0, 1]
+    float attackMs = 10.0f;         ///< Envelope attack [1, 100] ms
+    float releaseMs = 100.0f;       ///< Envelope release [10, 500] ms
+
+    // Hybrid-specific (RingSaturation, FeedbackDist)
+    float modDepth = 0.5f;          ///< Modulation depth [0, 1]
+    float stages = 1.0f;            ///< Processing stages [1, 4]
+    float feedback = 0.5f;          ///< Feedback amount [0, 1.5]
+    float delayMs = 10.0f;          ///< Delay time [1, 100] ms
+
+    // Aliasing-specific
+    float freqShift = 0.0f;         ///< Frequency shift before downsample [-1000, 1000] Hz
+
+    // Bitwise-specific
+    float rotateAmount = 0.0f;      ///< Bit rotation amount [-16, 16]
+
+    // Experimental-specific (Chaos, Formant, Granular)
+    float chaosAmount = 0.5f;       ///< Chaos blend [0, 1]
+    float attractorSpeed = 1.0f;    ///< Attractor evolution speed [0.1, 10]
+    float grainSizeMs = 50.0f;      ///< Grain size [5, 100] ms
+    float formantShift = 0.0f;      ///< Formant shift [-12, +12] semitones
 };
 
 /// @brief A morph node containing distortion type and position.
@@ -733,6 +829,10 @@ enum class ModSource : uint8_t {
     Macro2,
     Macro3,
     Macro4,
+    Chaos,          ///< Lorenz/Rossler/Chua attractor output
+    SampleHold,     ///< Sample & hold (stepped modulation)
+    PitchFollower,  ///< Detected input pitch
+    Transient,      ///< Transient detector output
 };
 
 /// @brief Modulation curve shape.
@@ -865,7 +965,10 @@ Factory presets are `.vstpreset` files installed to the standard location:
 | Pads | 10 |
 | Drums | 10 |
 | Experimental | 15 |
-| **Total** | **90** |
+| Chaos | 10 |
+| Dynamic | 10 |
+| Lo-Fi | 10 |
+| **Total** | **120** |
 
 ### Preset Versioning
 
@@ -1041,6 +1144,98 @@ Ableton Live, Bitwig, Cubase, FL Studio, Reaper, Studio One, Logic Pro
 
 ---
 
+## Appendix: New Distortion Types (from DST-ROADMAP)
+
+This section documents the additional distortion types added from the DST-ROADMAP, extending the original 14 types to 22.
+
+### D15: Temporal Distortion
+**Category:** Dynamic | **Status:** Implemented (spec 108)
+
+Envelope-following drive modulation. The distortion intensity varies based on the input signal's amplitude.
+
+| Mode | Behavior |
+|------|----------|
+| EnvelopeFollow | Louder = more distortion |
+| InverseEnvelope | Quiet = more distortion (expansion) |
+| Derivative | Transients get different curve |
+| Hysteresis | Deep memory of recent samples |
+
+**Use Cases:** Expressive dynamics, breathing textures, transient shaping
+
+### D16: Ring Saturation
+**Category:** Hybrid | **Status:** Implemented (spec 109)
+
+Self-modulation: `output = input * saturate(input * drive)`. Creates inharmonic sidebands like ring mod, but signal-coherent.
+
+**Character:** Metallic, bell-like, aggressive at high settings
+
+### D17: Feedback Distortion
+**Category:** Hybrid | **Status:** Implemented (spec 110)
+
+Delay + saturator + feedback loop with limiting. Creates sustained, singing distortion that can approach self-oscillation.
+
+**Use Cases:** Screaming leads, feedback effects, infinite sustain
+
+### D18: Aliasing Effect
+**Category:** Digital | **Status:** Implemented (spec 112)
+
+Intentional aliasing via downsampling without anti-aliasing filter. Optional frequency shifting before downsample creates unique spectral folding patterns.
+
+**Character:** Digital grunge, lo-fi, metallic artifacts
+
+### D19: Bitwise Mangler
+**Category:** Digital | **Status:** Implemented (spec 111)
+
+Operations on the bit representation of samples: XOR, bit rotation, bit shuffle, overflow wrap.
+
+| Operation | Character |
+|-----------|-----------|
+| XorPattern | Harmonically complex noise |
+| XorPrevious | Sample-correlated artifacts |
+| BitRotate | Extreme tonal shifts |
+| OverflowWrap | Hard digital clipping with wraparound |
+
+### D20: Chaos Distortion
+**Category:** Experimental | **Status:** Planned (DST-ROADMAP 5.2)
+
+Chaotic attractor waveshaping using Lorenz, Rossler, Chua, or Henon systems. The transfer function evolves over time, creating living, breathing distortion.
+
+**Character:** Organic, unpredictable, evolving textures
+
+### D21: Formant Distortion
+**Category:** Experimental | **Status:** Planned (DST-ROADMAP 5.3)
+
+Distortion through vocal-tract-like resonances. Combines FormantFilter with waveshaping for "talking distortion" effects.
+
+**Character:** Vowel-shaped, vocal, alien textures
+
+### D22: Granular Distortion
+**Category:** Experimental | **Status:** Planned (DST-ROADMAP 8.3)
+
+Per-grain variable distortion. Each micro-grain (5-100ms) gets different drive, algorithm, or parameters, creating evolving textured destruction.
+
+**Character:** Glitchy, textured, pointillist
+
+### Oversampling Recommendations (Extended)
+
+| Type | Factor | Rationale |
+|------|--------|-----------|
+| Soft Clip | 2x | Mild harmonics |
+| Hard Clip, Fuzz | 4x | Strong harmonics |
+| Wavefolders | 4x | Many harmonics from folding |
+| Rectifiers | 4x | Frequency doubling |
+| Digital (D12-D14) | 1x | Aliasing intentional |
+| Temporal | 2x | Moderate harmonics |
+| Ring Saturation | 4x | Inharmonic sidebands |
+| Feedback | 2x | Controlled by limiter |
+| Aliasing (D18) | 1x | Aliasing is the effect |
+| Bitwise | 1x | Artifacts are the effect |
+| Chaos | 2x | Moderate, unpredictable |
+| Formant | 2x | Resonances focus energy |
+| Granular | 2x | Per-grain varies |
+
+---
+
 ## Appendix A: Parameter Ranges
 
 | Parameter | Min | Max | Default |
@@ -1059,6 +1254,26 @@ Ableton Live, Bitwig, Cubase, FL Studio, Reaper, Studio One, Logic Pro
 | Sweep Width | 0.5 oct | 4 oct | 1.5 oct |
 | Sweep Intensity | 0% | 200% | 50% |
 | LFO Rate (Free) | 0.01 Hz | 20 Hz | 1 Hz |
+| **Dynamic Parameters** | | | |
+| Sensitivity | 0 | 1 | 0.5 |
+| Attack Time | 1 ms | 100 ms | 10 ms |
+| Release Time | 10 ms | 500 ms | 100 ms |
+| **Hybrid Parameters** | | | |
+| Modulation Depth | 0 | 1 | 0.5 |
+| Stages | 1 | 4 | 1 |
+| Feedback | 0 | 1.5 | 0.5 |
+| Delay Time | 1 ms | 100 ms | 10 ms |
+| **Aliasing Parameters** | | | |
+| Downsample Factor | 2 | 32 | 4 |
+| Frequency Shift | -1000 Hz | 1000 Hz | 0 Hz |
+| **Bitwise Parameters** | | | |
+| Rotate Amount | -16 | 16 | 0 |
+| XOR Pattern | 0x0000 | 0xFFFF | 0xAAAA |
+| **Experimental Parameters** | | | |
+| Chaos Amount | 0 | 1 | 0.5 |
+| Attractor Speed | 0.1 | 10 | 1 |
+| Grain Size | 5 ms | 100 ms | 50 ms |
+| Formant Shift | -12 st | +12 st | 0 st |
 
 ---
 
@@ -1153,7 +1368,7 @@ Example code showing how to use existing KrateDSP components for Disrumpo:
 ### Distortion Adapter Pattern
 
 ```cpp
-// dsp/include/krate/dsp/systems/Disrumpo/distortion_adapter.h
+// plugins/Disrumpo/src/dsp/distortion_adapter.h
 #pragma once
 
 #include <krate/dsp/processors/saturation_processor.h>
@@ -1162,7 +1377,12 @@ Example code showing how to use existing KrateDSP components for Disrumpo:
 #include <krate/dsp/processors/fuzz_processor.h>
 #include <krate/dsp/processors/wavefolder_processor.h>
 #include <krate/dsp/processors/bitcrusher_processor.h>
+#include <krate/dsp/processors/temporal_distortion.h>
+#include <krate/dsp/processors/feedback_distortion.h>
+#include <krate/dsp/processors/aliasing_effect.h>
 #include <krate/dsp/primitives/sample_rate_reducer.h>
+#include <krate/dsp/primitives/ring_saturation.h>
+#include <krate/dsp/primitives/bitwise_mangler.h>
 #include "distortion_types.h"
 #include "morph_node.h"
 
@@ -1171,7 +1391,7 @@ Example code showing how to use existing KrateDSP components for Disrumpo:
 
 namespace Krate::DSP {
 
-/// @brief Unified interface for all distortion types using std::variant.
+/// @brief Unified interface for all distortion types.
 /// Real-time safe: no allocations after prepare().
 class DistortionAdapter {
 public:
@@ -1186,6 +1406,12 @@ public:
         wavefolder_.prepare(sampleRate);
         bitcrusher_.prepare(sampleRate);
         srReducer_.prepare(sampleRate);
+        // New processors from DST-ROADMAP
+        temporal_.prepare(sampleRate, 512);
+        ringSaturation_.prepare(sampleRate);
+        feedbackDist_.prepare(sampleRate, 512);
+        aliasing_.prepare(sampleRate, 512);
+        bitwiseMangler_.prepare(sampleRate);
     }
 
     void reset() noexcept {
@@ -1196,6 +1422,11 @@ public:
         wavefolder_.reset();
         bitcrusher_.reset();
         srReducer_.reset();
+        temporal_.reset();
+        ringSaturation_.reset();
+        feedbackDist_.reset();
+        aliasing_.reset();
+        bitwiseMangler_.reset();
     }
 
     void setType(DistortionType type) noexcept {
@@ -1237,6 +1468,21 @@ public:
             case DistortionType::SampleReduce:
                 // SampleRateReducer is ready
                 break;
+            case DistortionType::Temporal:
+                temporal_.setMode(TemporalDistortion::Mode::EnvelopeFollow);
+                break;
+            case DistortionType::RingSaturation:
+                // RingSaturation is ready
+                break;
+            case DistortionType::FeedbackDist:
+                // FeedbackDistortion is ready
+                break;
+            case DistortionType::Aliasing:
+                // AliasingEffect is ready
+                break;
+            case DistortionType::BitwiseMangler:
+                bitwiseMangler_.setOperation(BitwiseMangler::Operation::XorPattern);
+                break;
             default:
                 break;
         }
@@ -1260,9 +1506,9 @@ public:
                 break;
             case DistortionType::Fuzz:
             case DistortionType::AsymmetricFuzz:
-                fuzz_.setFuzz(params.drive / kMaxDrive);  // Normalize to [0,1]
+                fuzz_.setFuzz(params.drive / kMaxDrive);
                 fuzz_.setBias(params.bias);
-                fuzz_.setTone(params.tone / kMaxToneHz);  // Normalize
+                fuzz_.setTone(params.tone / kMaxToneHz);
                 break;
             case DistortionType::SineFold:
             case DistortionType::TriangleFold:
@@ -1278,6 +1524,31 @@ public:
                 break;
             case DistortionType::SampleReduce:
                 srReducer_.setFactor(static_cast<int>(params.srRatio));
+                break;
+            case DistortionType::Temporal:
+                temporal_.setBaseDrive(params.drive);
+                temporal_.setDriveModulation(params.sensitivity);
+                temporal_.setAttackTime(params.attackMs);
+                temporal_.setReleaseTime(params.releaseMs);
+                break;
+            case DistortionType::RingSaturation:
+                ringSaturation_.setDrive(params.drive);
+                ringSaturation_.setModulationDepth(params.modDepth);
+                ringSaturation_.setStages(static_cast<int>(params.stages));
+                break;
+            case DistortionType::FeedbackDist:
+                feedbackDist_.setDrive(params.drive);
+                feedbackDist_.setDelayTime(params.delayMs);
+                feedbackDist_.setFeedback(params.feedback);
+                break;
+            case DistortionType::Aliasing:
+                aliasing_.setDownsampleFactor(params.srRatio);
+                aliasing_.setFrequencyShift(params.freqShift);
+                aliasing_.setMix(params.mix);
+                break;
+            case DistortionType::BitwiseMangler:
+                bitwiseMangler_.setIntensity(params.drive / kMaxDrive);
+                bitwiseMangler_.setRotateAmount(static_cast<int>(params.rotateAmount));
                 break;
             default:
                 break;
@@ -1309,6 +1580,17 @@ public:
                 return std::abs(input);
             case DistortionType::HalfRectify:
                 return std::max(0.0f, input);
+            // New types from DST-ROADMAP
+            case DistortionType::Temporal:
+                return temporal_.process(input);
+            case DistortionType::RingSaturation:
+                return ringSaturation_.process(input);
+            case DistortionType::FeedbackDist:
+                return feedbackDist_.process(input);
+            case DistortionType::Aliasing:
+                return aliasing_.process(input);
+            case DistortionType::BitwiseMangler:
+                return bitwiseMangler_.process(input);
             default:
                 return input;
         }
@@ -1318,7 +1600,7 @@ private:
     double sampleRate_ = 44100.0;
     DistortionType currentType_ = DistortionType::SoftClip;
 
-    // All processor instances (only one active at a time)
+    // Original processor instances
     SaturationProcessor saturation_;
     TubeStage tube_;
     TapeSaturator tape_;
@@ -1326,6 +1608,18 @@ private:
     WavefolderProcessor wavefolder_;
     BitcrusherProcessor bitcrusher_;
     SampleRateReducer srReducer_;
+
+    // New processors from DST-ROADMAP (already implemented)
+    TemporalDistortion temporal_;
+    RingSaturation ringSaturation_;
+    FeedbackDistortion feedbackDist_;
+    AliasingEffect aliasing_;
+    BitwiseMangler bitwiseMangler_;
+
+    // Planned processors (D20-D22 - not yet implemented)
+    // ChaosWaveshaper chaos_;
+    // FormantDistortion formant_;
+    // GranularDistortion granular_;
 };
 
 } // namespace Krate::DSP
@@ -1333,63 +1627,22 @@ private:
 
 ### Crossover Network (Linkwitz-Riley 4th Order)
 
+> **Note:** The crossover network uses the existing `CrossoverLR4` from FLT-ROADMAP (spec 079).
+> Location: `dsp/include/krate/dsp/processors/crossover_filter.h`
+
 ```cpp
-// dsp/include/krate/dsp/systems/Disrumpo/crossover_network.h
+// plugins/Disrumpo/src/dsp/crossover_network.h
+// Wraps existing CrossoverLR4 for multi-band use
 #pragma once
 
-#include <krate/dsp/primitives/biquad.h>
+#include <krate/dsp/processors/crossover_filter.h>
 #include <array>
 #include <vector>
 
 namespace Krate::DSP {
 
-/// @brief Linkwitz-Riley 4th order crossover using cascaded Biquads.
-/// LR4 = two cascaded Butterworth 2nd-order filters.
-class LinkwitzRileyCrossover {
-public:
-    void prepare(double sampleRate) noexcept {
-        sampleRate_ = sampleRate;
-        for (auto& lpf : lowpass_) lpf.prepare(sampleRate);
-        for (auto& hpf : highpass_) hpf.prepare(sampleRate);
-    }
-
-    void reset() noexcept {
-        for (auto& lpf : lowpass_) lpf.reset();
-        for (auto& hpf : highpass_) hpf.reset();
-    }
-
-    void setCrossoverFrequency(float freqHz) noexcept {
-        crossoverFreq_ = freqHz;
-        const float q = 0.7071f;  // Butterworth Q
-
-        // Two cascaded 2nd-order Butterworth = 4th-order LR
-        lowpass_[0].setLowpass(freqHz, q);
-        lowpass_[1].setLowpass(freqHz, q);
-        highpass_[0].setHighpass(freqHz, q);
-        highpass_[1].setHighpass(freqHz, q);
-    }
-
-    /// @brief Split input into low and high bands.
-    /// @param input Input sample
-    /// @param lowOut Output for low band (below crossover)
-    /// @param highOut Output for high band (above crossover)
-    void process(float input, float& lowOut, float& highOut) noexcept {
-        // Cascade two filters for LR4 response
-        float low = lowpass_[0].process(input);
-        lowOut = lowpass_[1].process(low);
-
-        float high = highpass_[0].process(input);
-        highOut = highpass_[1].process(high);
-    }
-
-private:
-    double sampleRate_ = 44100.0;
-    float crossoverFreq_ = 1000.0f;
-    std::array<Biquad, 2> lowpass_;   // Cascaded for LR4
-    std::array<Biquad, 2> highpass_;
-};
-
 /// @brief Multi-band crossover network for 1-8 bands.
+/// Uses existing CrossoverLR4 from KrateDSP (FLT-ROADMAP spec 079).
 class CrossoverNetwork {
 public:
     void prepare(double sampleRate, int numBands) noexcept {
@@ -1419,10 +1672,9 @@ public:
         // Cascaded splitting: split input, then split each output
         float remaining = input;
         for (int i = 0; i < numBands_ - 1; ++i) {
-            float low, high;
-            crossovers_[i].process(remaining, low, high);
-            bands[i] = low;
-            remaining = high;
+            auto outputs = crossovers_[i].process(remaining);
+            bands[i] = outputs.low;
+            remaining = outputs.high;
         }
         bands[numBands_ - 1] = remaining;
     }
@@ -1430,7 +1682,7 @@ public:
 private:
     double sampleRate_ = 44100.0;
     int numBands_ = kDefaultBands;
-    std::vector<LinkwitzRileyCrossover> crossovers_;
+    std::vector<CrossoverLR4> crossovers_;  // Uses existing KrateDSP component
 };
 
 } // namespace Krate::DSP
@@ -1512,6 +1764,20 @@ constexpr int getRecommendedOversample(DistortionType type) noexcept {
         case DistortionType::SampleReduce:
         case DistortionType::Quantize:
             return 1;  // Aliasing is intentional
+        // New types from DST-ROADMAP
+        case DistortionType::Temporal:
+            return 2;  // Moderate harmonics
+        case DistortionType::RingSaturation:
+            return 4;  // Inharmonic sidebands
+        case DistortionType::FeedbackDist:
+            return 2;  // Controlled by limiter
+        case DistortionType::Aliasing:
+        case DistortionType::BitwiseMangler:
+            return 1;  // Artifacts ARE the effect
+        case DistortionType::Chaos:
+        case DistortionType::Formant:
+        case DistortionType::Granular:
+            return 2;  // Moderate, varies by settings
         default:
             return 2;
     }
