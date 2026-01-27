@@ -1318,3 +1318,118 @@ float output = ringSat.process(input);
 **Related Primitives:** Waveshaper (underlying saturation), DCBlocker (DC removal), ChaosWaveshaper (time-varying), StochasticShaper (random variation)
 
 **Dependencies:** `primitives/waveshaper.h`, `primitives/dc_blocker.h`, `primitives/smoother.h`, `core/sigmoid.h`, `core/db_utils.h`
+
+---
+
+## BitwiseMangler (Bit Manipulation Distortion)
+**Path:** [bitwise_mangler.h](../../dsp/include/krate/dsp/primitives/bitwise_mangler.h) | **Since:** 0.15.0
+
+Bit manipulation distortion with six operation modes for wild tonal shifts. Converts audio samples to 24-bit integer representation, applies bitwise operations, and converts back to float.
+
+**Use when:**
+- Creating unconventional digital distortion effects
+- Need signal-dependent distortion (XorPrevious) that responds to transients
+- Want deterministic chaos (BitShuffle) with reproducible output
+- Simulating integer overflow artifacts (OverflowWrap)
+- Building glitch/destruction effects with precise control
+
+**Note:** XorPrevious and BitAverage maintain previous sample state. DC blocking is enabled by default to remove DC offset introduced by these stateful operations. Disable DC blocking with `setDCBlockEnabled(false)` for "utter destruction" mode. Compose with Oversampler if aliasing artifacts are undesired. Output may exceed [-1, 1] in OverflowWrap mode.
+
+```cpp
+enum class BitwiseOperation : uint8_t {
+    XorPattern,   // XOR with configurable 32-bit pattern
+    XorPrevious,  // XOR current sample with previous sample
+    BitRotate,    // Circular bit rotation left/right
+    BitShuffle,   // Deterministic bit permutation from seed
+    BitAverage,   // Bitwise AND with previous sample
+    OverflowWrap  // Integer overflow wrap behavior
+};
+
+class BitwiseMangler {
+    static constexpr float kDefaultIntensity = 1.0f;
+    static constexpr uint32_t kDefaultPattern = 0xAAAAAAAAu;
+    static constexpr int kMinRotateAmount = -16;
+    static constexpr int kMaxRotateAmount = 16;
+    static constexpr uint32_t kDefaultSeed = 12345u;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    void setOperation(BitwiseOperation op) noexcept;
+    [[nodiscard]] BitwiseOperation getOperation() const noexcept;
+
+    void setIntensity(float intensity) noexcept;      // [0, 1] wet/dry mix
+    [[nodiscard]] float getIntensity() const noexcept;
+
+    void setPattern(uint32_t pattern) noexcept;       // XorPattern mode
+    [[nodiscard]] uint32_t getPattern() const noexcept;
+
+    void setRotateAmount(int bits) noexcept;          // [-16, +16], BitRotate mode
+    [[nodiscard]] int getRotateAmount() const noexcept;
+
+    void setSeed(uint32_t seed) noexcept;             // BitShuffle mode
+    [[nodiscard]] uint32_t getSeed() const noexcept;
+
+    void setDCBlockEnabled(bool enabled) noexcept;   // Default: true
+    [[nodiscard]] bool isDCBlockEnabled() const noexcept;
+
+    [[nodiscard]] float process(float x) noexcept;
+    void processBlock(float* buffer, size_t n) noexcept;
+    [[nodiscard]] static constexpr size_t getLatency() noexcept;  // Always 0
+};
+```
+
+| Mode | Character | Use Case |
+|------|-----------|----------|
+| XorPattern | Metallic harmonics | Aggressive digital distortion |
+| XorPrevious | Transient-responsive | Dynamic distortion |
+| BitRotate | Pseudo-pitch shift | Unusual frequency effects |
+| BitShuffle | Chaotic destruction | Extreme sound design |
+| BitAverage | Smoothing/thinning | Subtle bit-level processing |
+| OverflowWrap | Hard digital artifacts | Integer overflow simulation |
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| Intensity | [0, 1] | 1.0 | 0 = bypass, 1 = full effect |
+| Pattern | 32-bit | 0xAAAAAAAA | XOR mask (alternating bits) |
+| RotateAmount | [-16, +16] | 0 | Positive = left, negative = right |
+| Seed | Non-zero | 12345 | Permutation seed for BitShuffle |
+| DCBlockEnabled | bool | true | Remove DC offset from output |
+
+**Example Usage:**
+```cpp
+BitwiseMangler mangler;
+mangler.prepare(44100.0);
+mangler.setOperation(BitwiseOperation::XorPattern);
+mangler.setPattern(0xAAAAAAAAu);  // Alternating bits
+mangler.setIntensity(0.5f);       // 50% wet
+
+// Process
+float output = mangler.process(input);
+
+// Signal-dependent distortion
+mangler.setOperation(BitwiseOperation::XorPrevious);
+// High frequencies produce more dramatic changes than low frequencies
+
+// Deterministic chaos
+mangler.setOperation(BitwiseOperation::BitShuffle);
+mangler.setSeed(42);              // Same seed = same output
+
+// "Utter destruction" mode - disable DC blocking
+mangler.setDCBlockEnabled(false);
+```
+
+**Key Behaviors:**
+- `intensity=0` produces bit-exact passthrough (SC-009)
+- DC blocking enabled by default removes offset from XorPrevious/BitAverage (SC-010)
+- XorPattern with pattern `0x00000000` = bypass
+- XorPattern with pattern `0xFFFFFFFF` = invert all bits
+- BitRotate with amount `0` = passthrough
+- BitShuffle same seed after reset = identical output (SC-004)
+- OverflowWrap wraps values exceeding 24-bit integer range
+- Zero latency (SC-007)
+- NaN/Inf input returns 0.0 (FR-022)
+
+**Related Primitives:** BitCrusher (quantization), Waveshaper (smooth saturation)
+
+**Dependencies:** `core/random.h` (Xorshift32), `core/db_utils.h` (isNaN, isInf, flushDenormal)
