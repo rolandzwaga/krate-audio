@@ -175,6 +175,11 @@ public:
         for (auto& state : grainStates_) {
             state = GrainState{};
         }
+
+        // Reset instrumentation
+        lastTriggeredGrainDrive_ = 0.0f;
+        lastTriggeredGrainAlgorithm_ = WaveshapeType::Tanh;
+        grainsTriggeredCount_ = 0;
     }
 
     // =========================================================================
@@ -308,6 +313,27 @@ public:
             return 0.0f;
         }
 
+        // SC-008: Bypass optimization for mix=0 (bit-exact dry signal)
+        // When mix target is exactly 0.0, skip all processing and return dry directly.
+        // This ensures bit-exact output without waiting for smoother convergence.
+        if (mix_ == 0.0f) {
+            // Still need to maintain internal state for when mix changes
+            buffer_[writePos_] = input;
+            writePos_ = (writePos_ + 1) & kBufferMask;
+            samplesWritten_ = std::min(samplesWritten_ + 1, kBufferSize);
+            if (scheduler_.process()) {
+                triggerGrain();
+            }
+            // Process grains to keep state consistent (but discard output)
+            for (Grain* grain : grainPool_.activeGrains()) {
+                (void)processGrain(grain);  // Intentionally discard [[nodiscard]] result
+            }
+            ++currentSample_;
+            // Snap smoother to 0 so it's ready when mix changes
+            mixSmoother_.snapTo(0.0f);
+            return input;  // Bit-exact dry signal
+        }
+
         // Store dry signal
         const float dry = input;
 
@@ -372,6 +398,27 @@ public:
     void seed(uint32_t seedValue) noexcept {
         rng_.seed(seedValue);
         scheduler_.seed(seedValue);
+    }
+
+    /// @brief Get the drive value of the most recently triggered grain.
+    /// @return Drive value in range [1.0, 20.0], or 0.0 if no grain triggered yet
+    /// @note For testing SC-002: allows verification of per-grain drive variation
+    [[nodiscard]] float getLastTriggeredGrainDrive() const noexcept {
+        return lastTriggeredGrainDrive_;
+    }
+
+    /// @brief Get the algorithm type of the most recently triggered grain.
+    /// @return WaveshapeType used by the last triggered grain
+    /// @note For testing SC-003: allows verification of per-grain algorithm variation
+    [[nodiscard]] WaveshapeType getLastTriggeredGrainAlgorithm() const noexcept {
+        return lastTriggeredGrainAlgorithm_;
+    }
+
+    /// @brief Get count of grains triggered since last reset.
+    /// @return Number of grains triggered
+    /// @note For testing SC-002/SC-003: allows collecting enough samples
+    [[nodiscard]] size_t getGrainsTriggeredCount() const noexcept {
+        return grainsTriggeredCount_;
     }
 
 private:
@@ -477,11 +524,19 @@ private:
         const float smoothedDrive = driveSmoother_.process();
         const float grainDrive = calculateGrainDrive(smoothedDrive);
 
+        // Record instrumentation for SC-002 testing
+        lastTriggeredGrainDrive_ = grainDrive;
+        ++grainsTriggeredCount_;
+
         // Configure waveshaper for this grain
         Waveshaper& ws = waveshapers_[grainIndex];
         ws.setDrive(grainDrive);
         ws.setAsymmetry(0.0f);  // Always symmetric
-        ws.setType(selectGrainAlgorithm());
+        const WaveshapeType grainAlgorithm = selectGrainAlgorithm();
+        ws.setType(grainAlgorithm);
+
+        // Record instrumentation for SC-003 testing
+        lastTriggeredGrainAlgorithm_ = grainAlgorithm;
 
         // Calculate position jitter
         size_t jitterOffset = 0;
@@ -592,6 +647,11 @@ private:
     size_t currentSample_ = 0;
     double sampleRate_ = 44100.0;
     bool prepared_ = false;
+
+    // Instrumentation (for testing SC-002, SC-003)
+    float lastTriggeredGrainDrive_ = 0.0f;
+    WaveshapeType lastTriggeredGrainAlgorithm_ = WaveshapeType::Tanh;
+    size_t grainsTriggeredCount_ = 0;
 
     // Parameters
     float grainSizeMs_ = 50.0f;

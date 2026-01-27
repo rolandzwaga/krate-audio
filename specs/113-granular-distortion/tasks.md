@@ -91,7 +91,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 - [X] T011 [P] [US1] Write test: Lifecycle - reset() clears state without changing parameters in dsp/tests/processors/granular_distortion_test.cpp
 - [X] T012 [P] [US1] Write test: Processing - process() with silence input produces silence in dsp/tests/processors/granular_distortion_test.cpp
 - [X] T013 [P] [US1] Write test: Processing - process() with constant input produces non-zero output (grains trigger) in dsp/tests/processors/granular_distortion_test.cpp
-- [X] T014 [P] [US1] Write test: Mix control - mix=0.0 produces bit-exact dry signal (FR-032, SC-008) in dsp/tests/processors/granular_distortion_test.cpp
+- [X] T014 [P] [US1] Write test: Mix control - mix=0.0 produces bit-exact dry signal (FR-032, SC-008) in dsp/tests/processors/granular_distortion_test.cpp - FIXED: Bypass optimization + buffersEqual test
 - [X] T015 [P] [US1] Write test: Mix control - mix=1.0 produces full wet signal in dsp/tests/processors/granular_distortion_test.cpp
 - [X] T016 [P] [US1] Write test: Grain triggering - grains have envelope windowing (individual bursts audible) (SC-001) in dsp/tests/processors/granular_distortion_test.cpp
 - [X] T017 [P] [US1] Write test: Verify all tests FAIL (no implementation exists yet)
@@ -142,7 +142,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 - [X] T038 [P] [US2] Write test: Drive variation - driveVariation=0.0 produces identical drive for all grains (FR-016) in dsp/tests/processors/granular_distortion_test.cpp
 - [X] T039 [P] [US2] Write test: Drive variation - driveVariation=1.0 produces different drive amounts within range [drive * (1-var), drive * (1+var)] (FR-015) in dsp/tests/processors/granular_distortion_test.cpp
 - [X] T040 [P] [US2] Write test: Drive variation - per-grain drive is clamped to [1.0, 20.0] even with extreme variation (FR-015) in dsp/tests/processors/granular_distortion_test.cpp
-- [X] T041 [P] [US2] Write test: Drive variation - driveVariation=1.0 produces measurably different distortion intensities (SC-002: std dev > 0.3 * baseDrive) in dsp/tests/processors/granular_distortion_test.cpp
+- [X] T041 [P] [US2] Write test: Drive variation - driveVariation=1.0 produces measurably different distortion intensities (SC-002: std dev > 0.3 * baseDrive) in dsp/tests/processors/granular_distortion_test.cpp - FIXED: Now measures actual per-grain drive values via instrumentation
 - [X] T042 [P] [US2] Write test: Verify all new tests FAIL (drive variation not implemented)
 
 ### 4.2 Implementation for User Story 2
@@ -178,7 +178,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 - [X] T051 [P] [US3] Write test: Algorithm variation - algorithmVariation=false means all grains use base distortion type (FR-019) in dsp/tests/processors/granular_distortion_test.cpp
 - [X] T052 [P] [US3] Write test: Algorithm variation - algorithmVariation=true means different grains randomly use different types (FR-018) in dsp/tests/processors/granular_distortion_test.cpp
-- [X] T053 [P] [US3] Write test: Algorithm variation - over 100 grains, at least 3 different algorithms appear (SC-003) in dsp/tests/processors/granular_distortion_test.cpp
+- [X] T053 [P] [US3] Write test: Algorithm variation - over 100 grains, at least 3 different algorithms appear (SC-003) in dsp/tests/processors/granular_distortion_test.cpp - FIXED: Now explicitly counts algorithms via instrumentation
 - [X] T054 [P] [US3] Write test: Verify all new tests FAIL (algorithm variation not implemented)
 
 ### 5.2 Implementation for User Story 3

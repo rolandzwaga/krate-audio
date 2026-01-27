@@ -14,8 +14,9 @@
 
 #include <array>
 #include <cmath>
-#include <vector>
 #include <numeric>
+#include <set>
+#include <vector>
 
 using Catch::Approx;
 using namespace Krate::DSP;
@@ -211,16 +212,12 @@ TEST_CASE("GranularDistortion mix=0.0 produces dry signal (FR-032, SC-008)",
           "[granular_distortion][layer2][US1][mix]") {
     GranularDistortion gd;
     gd.prepare(44100.0, 512);
-    gd.setMix(0.0f);  // Full dry
+    gd.setMix(0.0f);  // Full dry - bypass optimization kicks in
     gd.setDrive(10.0f);
     gd.setGrainDensity(8.0f);
 
-    // Process a warmup block to let smoother settle
-    constexpr size_t warmupSize = 512;
-    std::array<float, warmupSize> warmup;
-    generateSine(warmup.data(), warmup.size(), 440.0f, 44100.0f);
-    gd.process(warmup.data(), warmup.size());
-
+    // SC-008: With mix=0.0, output should be BIT-EXACT dry signal
+    // No warmup needed - bypass optimization returns input directly
     constexpr size_t blockSize = 1024;
     std::array<float, blockSize> original, processed;
     generateSine(original.data(), original.size(), 440.0f, 44100.0f);
@@ -228,11 +225,8 @@ TEST_CASE("GranularDistortion mix=0.0 produces dry signal (FR-032, SC-008)",
 
     gd.process(processed.data(), processed.size());
 
-    // After warmup, should be nearly identical to dry signal
-    // Use larger margin to account for any residual smoothing
-    for (size_t i = 0; i < blockSize; ++i) {
-        REQUIRE(processed[i] == Approx(original[i]).margin(1e-3f));
-    }
+    // Bit-exact comparison - no margin allowed (SC-008 requirement)
+    REQUIRE(buffersEqual(original.data(), processed.data(), blockSize));
 }
 
 TEST_CASE("GranularDistortion mix=1.0 produces full wet signal",
@@ -370,41 +364,57 @@ TEST_CASE("GranularDistortion per-grain drive is clamped to [1.0, 20.0] (FR-015)
 
 TEST_CASE("GranularDistortion driveVariation=1.0 produces measurable std dev (SC-002)",
           "[granular_distortion][layer2][US2][drive_variation]") {
-    // This test verifies that drive variation actually produces audible differences
-    // by measuring the standard deviation of output levels across grain bursts
+    // SC-002: "standard deviation of per-grain drive > 0.3 * baseDrive"
+    // This test measures ACTUAL per-grain drive values, not output RMS levels
     GranularDistortion gd;
     gd.prepare(44100.0, 512);
     gd.setMix(1.0f);
-    gd.setDrive(10.0f);
-    gd.setDriveVariation(1.0f);
-    gd.setGrainSize(20.0f);  // Short grains
-    gd.setGrainDensity(4.0f);
+
+    const float baseDrive = 10.0f;
+    gd.setDrive(baseDrive);
+    gd.setDriveVariation(1.0f);  // Maximum variation
+    gd.setGrainSize(10.0f);      // Short grains for more triggers
+    gd.setGrainDensity(8.0f);    // High density for more triggers
     gd.seed(12345);
 
-    // Process longer duration to get multiple grains
-    constexpr size_t totalSamples = 44100 * 2;  // 2 seconds
-    std::vector<float> buffer(totalSamples);
-    generateSine(buffer.data(), buffer.size(), 440.0f, 44100.0f, 0.5f);
+    // Collect actual per-grain drive values using instrumentation
+    std::vector<float> grainDrives;
+    grainDrives.reserve(150);
 
-    gd.process(buffer.data(), buffer.size());
+    // Process audio and collect grain drive values as they trigger
+    constexpr size_t blockSize = 512;
+    std::array<float, blockSize> buffer;
+    size_t lastGrainCount = 0;
 
-    // Calculate RMS in overlapping windows to detect level variation
-    constexpr size_t windowSize = 882;  // ~20ms windows
-    constexpr size_t hopSize = 441;     // 50% overlap
-    std::vector<float> windowRMS;
+    // Process until we have 100+ grain drive samples
+    while (grainDrives.size() < 100) {
+        generateSine(buffer.data(), buffer.size(), 440.0f, 44100.0f, 0.5f);
+        gd.process(buffer.data(), buffer.size());
 
-    for (size_t i = 0; i + windowSize < totalSamples; i += hopSize) {
-        float rms = calculateRMS(&buffer[i], windowSize);
-        if (rms > 0.01f) {  // Only count active windows
-            windowRMS.push_back(rms);
+        // Check if new grain was triggered
+        const size_t currentGrainCount = gd.getGrainsTriggeredCount();
+        if (currentGrainCount > lastGrainCount) {
+            grainDrives.push_back(gd.getLastTriggeredGrainDrive());
+            lastGrainCount = currentGrainCount;
         }
     }
 
-    // With variation, we expect significant std dev in RMS values
-    if (windowRMS.size() > 10) {
-        float stdDev = calculateStdDev(windowRMS);
-        // Should have meaningful variation
-        REQUIRE(stdDev > 0.01f);
+    // Verify we collected enough samples
+    REQUIRE(grainDrives.size() >= 100);
+
+    // Calculate standard deviation of actual per-grain drive values
+    float stdDev = calculateStdDev(grainDrives);
+
+    // SC-002 requirement: std dev > 0.3 * baseDrive = 3.0
+    const float requiredStdDev = 0.3f * baseDrive;
+    INFO("Collected " << grainDrives.size() << " grain drive values");
+    INFO("Standard deviation: " << stdDev << " (required > " << requiredStdDev << ")");
+    REQUIRE(stdDev > requiredStdDev);
+
+    // Also verify drives are within valid range [1.0, 20.0]
+    for (float drive : grainDrives) {
+        REQUIRE(drive >= 1.0f);
+        REQUIRE(drive <= 20.0f);
     }
 }
 
@@ -476,31 +486,44 @@ TEST_CASE("GranularDistortion algorithmVariation=true uses different algorithms 
 
 TEST_CASE("GranularDistortion algorithmVariation uses at least 3 different algorithms (SC-003)",
           "[granular_distortion][layer2][US3][algorithm_variation]") {
-    // This is verified indirectly - if algorithm variation works, it should
-    // use multiple algorithms over many grains. We test by checking that
-    // the output character changes over time.
+    // SC-003: "at least 3 different algorithms used in 100-grain sample"
+    // This test directly counts algorithm usage via instrumentation
     GranularDistortion gd;
     gd.prepare(44100.0, 512);
     gd.setMix(1.0f);
     gd.setDrive(5.0f);
     gd.setAlgorithmVariation(true);
-    gd.setGrainSize(20.0f);  // Short grains
+    gd.setGrainSize(10.0f);   // Short grains for more triggers
     gd.setGrainDensity(8.0f);  // High density for many grains
     gd.seed(12345);
 
-    // Process 2 seconds for many grains
-    constexpr size_t totalSamples = 44100 * 2;
-    std::vector<float> buffer(totalSamples);
-    generateSine(buffer.data(), buffer.size(), 440.0f, 44100.0f, 0.5f);
+    // Collect algorithm types used by each grain
+    std::set<int> algorithmsUsed;
+    constexpr size_t blockSize = 512;
+    std::array<float, blockSize> buffer;
+    size_t lastGrainCount = 0;
+    size_t grainsCollected = 0;
 
-    gd.process(buffer.data(), buffer.size());
+    // Process until we have 100+ grain samples
+    while (grainsCollected < 100) {
+        generateSine(buffer.data(), buffer.size(), 440.0f, 44100.0f, 0.5f);
+        gd.process(buffer.data(), buffer.size());
 
-    // With ~100+ grains triggered, algorithm variation should be evident
-    // We can't directly observe which algorithm was used, but the output
-    // should have variety. Check that it's not all zeros or constant.
-    float rms = calculateRMS(buffer.data(), buffer.size());
-    REQUIRE(rms > 0.01f);
-    REQUIRE_FALSE(hasInvalidSamples(buffer.data(), buffer.size()));
+        // Check if new grain was triggered
+        const size_t currentGrainCount = gd.getGrainsTriggeredCount();
+        if (currentGrainCount > lastGrainCount) {
+            algorithmsUsed.insert(static_cast<int>(gd.getLastTriggeredGrainAlgorithm()));
+            ++grainsCollected;
+            lastGrainCount = currentGrainCount;
+        }
+    }
+
+    // Verify we collected enough samples
+    REQUIRE(grainsCollected >= 100);
+
+    // SC-003 requirement: at least 3 different algorithms
+    INFO("Collected " << grainsCollected << " grains, using " << algorithmsUsed.size() << " different algorithms");
+    REQUIRE(algorithmsUsed.size() >= 3);
 }
 
 // =============================================================================
