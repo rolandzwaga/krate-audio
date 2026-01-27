@@ -4056,3 +4056,115 @@ input -> [Stage 1] -+                +-> sum -> output
 **Performance:** < 0.5% CPU at 44.1kHz mono (SC-005)
 
 **Dependencies:** Layer 0 (math_constants.h, db_utils.h, sigmoid.h), Layer 1 (biquad.h, delay_line.h, waveshaper.h, dc_blocker.h, smoother.h, one_pole.h)
+
+---
+
+## GranularDistortion
+**Path:** [granular_distortion.h](../../dsp/include/krate/dsp/processors/granular_distortion.h) | **Since:** 0.14.0
+
+Time-windowed granular distortion processor with per-grain variation. Applies distortion in overlapping micro-grains (5-100ms) for evolving, textured destruction effects impossible with static waveshaping.
+
+**Use when:**
+- Creating evolving, organic distortion textures that change over time
+- Building "crushed" sounds with rhythmic, grain-based movement
+- Designing experimental sound design with per-grain algorithm variation
+- Need different distortion intensities on successive grains (drive variation)
+- Want temporal smearing via position jitter for diffused transients
+
+**Features:**
+- 64 simultaneous grains with voice stealing
+- 9 distortion algorithms (Tanh, Atan, Cubic, Quintic, ReciprocalSqrt, Erf, HardClip, Diode, Tube)
+- Per-grain drive randomization (0-100% variation)
+- Per-grain algorithm randomization (optional)
+- Position jitter for temporal smearing (0-50ms)
+- Density control (1-8 overlapping grains)
+- Click-free parameter automation via 10ms smoothing
+- Hann window envelope for smooth grain onsets/offsets
+
+```cpp
+class GranularDistortion {
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Grain parameters
+    void setGrainSize(float ms) noexcept;            // [5, 100] ms
+    void setGrainDensity(float density) noexcept;    // [1, 8] overlapping grains
+
+    // Distortion parameters
+    void setDistortionType(WaveshapeType type) noexcept;
+    void setDrive(float drive) noexcept;             // [1, 20]
+    void setDriveVariation(float amount) noexcept;   // [0, 1]
+    void setAlgorithmVariation(bool enabled) noexcept;
+
+    // Position control
+    void setPositionJitter(float ms) noexcept;       // [0, 50] ms
+
+    // Mix control
+    void setMix(float mix) noexcept;                 // [0, 1]
+
+    // Query
+    [[nodiscard]] size_t getActiveGrainCount() const noexcept;
+    [[nodiscard]] static constexpr size_t getMaxGrains() noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+
+    // Testing
+    void seed(uint32_t seedValue) noexcept;
+};
+```
+
+**Example Usage:**
+```cpp
+#include <krate/dsp/processors/granular_distortion.h>
+
+GranularDistortion gd;
+gd.prepare(44100.0, 512);
+
+// Configure for evolving texture
+gd.setGrainSize(50.0f);           // 50ms grains
+gd.setGrainDensity(4.0f);         // ~4 overlapping grains
+gd.setDrive(5.0f);                // Moderate drive
+gd.setDriveVariation(0.5f);       // 50% drive variation
+gd.setAlgorithmVariation(true);   // Random algorithms per grain
+gd.setPositionJitter(10.0f);      // 10ms temporal smearing
+gd.setMix(0.75f);                 // 75% wet
+
+// Process audio
+gd.process(buffer, numSamples);
+```
+
+**Signal Flow:**
+```
+input -> circular buffer -> grain trigger (scheduler)
+                               |
+                               v
+              +---> grain N: read + envelope + waveshaper ---+
+              |                                              |
+              +---> grain N-1: read + envelope + waveshaper -+-> sum -> mix -> output
+              |                                              |       (dry)
+              +---> ...                                    --+
+```
+
+**Density Formula:**
+```
+grainsPerSecond = density * 1000 / grainSizeMs
+```
+With density=4 and grainSize=50ms: 80 grains/second
+
+**Gotchas:**
+- Mono-only design (FR-047). For stereo, use two instances with different seeds
+- Position jitter is clamped to available buffer history at startup
+- Algorithm variation cycles through all 9 waveshaper types randomly
+- Diode algorithm is unbounded (can exceed [-1, 1]), others are bounded
+- NaN/Inf input resets state and returns 0.0f
+- Processing before prepare() may produce undefined output
+
+**Performance:** < 0.5% CPU at 44.1kHz mono
+
+**Memory:** ~143KB (32KB buffer + 64 waveshapers + 64 grain states + 8KB envelope table)
+
+**Dependencies:** Layer 0 (grain_envelope.h, random.h, db_utils.h), Layer 1 (grain_pool.h, waveshaper.h, smoother.h), Layer 2 (grain_scheduler.h)
