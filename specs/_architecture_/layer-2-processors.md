@@ -4168,3 +4168,125 @@ With density=4 and grainSize=50ms: 80 grains/second
 **Memory:** ~143KB (32KB buffer + 64 waveshapers + 64 grain states + 8KB envelope table)
 
 **Dependencies:** Layer 0 (grain_envelope.h, random.h, db_utils.h), Layer 1 (grain_pool.h, waveshaper.h, smoother.h), Layer 2 (grain_scheduler.h)
+
+---
+
+## FractalDistortion
+**Path:** [fractal_distortion.h](../../dsp/include/krate/dsp/processors/fractal_distortion.h) | **Since:** 0.15.0
+
+Recursive multi-scale distortion processor with self-similar harmonic structure. Applies fractal-inspired distortion where each iteration level contributes progressively smaller amplitude content, creating complex evolving harmonic structures impossible with single-stage saturation.
+
+**Use when:**
+- Creating evolving, layered distortion with self-similar harmonic structure
+- Need frequency-aware distortion (Multiband mode: more harmonics on high frequencies)
+- Want separate control over odd vs even harmonics (Harmonic mode)
+- Building distortion that progressively changes character (Cascade mode)
+- Creating chaotic, self-oscillating textures (Feedback mode)
+- Need "Digital Destruction" aesthetic with intentional aliasing
+
+**Features:**
+- 5 processing modes (Residual, Multiband, Harmonic, Cascade, Feedback)
+- 1-8 iteration levels with exponential amplitude scaling (scaleFactor^N)
+- Per-level waveshaper selection (Cascade mode)
+- Per-level highpass filtering (Frequency Decay)
+- Cross-level feedback for chaotic textures (Feedback mode)
+- Click-free parameter automation via 10ms smoothing
+- DC blocking after asymmetric saturation
+- NaN/Inf input handling (returns 0.0f and resets state)
+
+```cpp
+enum class FractalMode : uint8_t {
+    Residual = 0,   // Classic residual-based recursion (default)
+    Multiband = 1,  // Octave-band splitting with scaled iterations
+    Harmonic = 2,   // Odd/even harmonic separation via Chebyshev
+    Cascade = 3,    // Different waveshaper per level
+    Feedback = 4    // Cross-level feedback for chaotic textures
+};
+
+class FractalDistortion {
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Mode selection
+    void setMode(FractalMode mode) noexcept;
+    [[nodiscard]] FractalMode getMode() const noexcept;
+
+    // Core parameters
+    void setIterations(int iterations) noexcept;     // [1, 8]
+    void setScaleFactor(float scale) noexcept;       // [0.3, 0.9]
+    void setDrive(float drive) noexcept;             // [1.0, 20.0]
+    void setMix(float mix) noexcept;                 // [0.0, 1.0]
+    void setFrequencyDecay(float decay) noexcept;    // [0.0, 1.0]
+
+    // Multiband mode (FR-030 to FR-033)
+    void setCrossoverFrequency(float hz) noexcept;
+    void setBandIterationScale(float scale) noexcept;
+
+    // Harmonic mode (FR-034 to FR-038)
+    void setOddHarmonicCurve(WaveshapeType type) noexcept;
+    void setEvenHarmonicCurve(WaveshapeType type) noexcept;
+
+    // Cascade mode (FR-039 to FR-041)
+    void setLevelWaveshaper(int level, WaveshapeType type) noexcept;
+    [[nodiscard]] WaveshapeType getLevelWaveshaper(int level) const noexcept;
+
+    // Feedback mode (FR-042 to FR-045)
+    void setFeedbackAmount(float amount) noexcept;   // [0.0, 0.5]
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void process(float* buffer, size_t numSamples) noexcept;
+};
+```
+
+**Example Usage:**
+```cpp
+#include <krate/dsp/processors/fractal_distortion.h>
+
+FractalDistortion fractal;
+fractal.prepare(44100.0, 512);
+
+// Configure Residual mode (default)
+fractal.setMode(FractalMode::Residual);
+fractal.setIterations(4);      // 4 recursive levels
+fractal.setScaleFactor(0.5f);  // Each level 50% of previous
+fractal.setDrive(3.0f);        // Moderate drive
+fractal.setMix(0.8f);          // 80% wet
+
+// Optional: add brightness to deeper levels
+fractal.setFrequencyDecay(0.5f);
+
+// Process audio
+fractal.process(buffer, numSamples);
+```
+
+**Residual Algorithm (default):**
+```
+level[N] = saturate((input - sum(level[0..N-1])) * scaleFactor^N * drive)
+output = DC_block(sum(all_levels)) * mix + dry * (1-mix)
+```
+
+**Mode Characteristics:**
+| Mode | Algorithm | Character |
+|------|-----------|-----------|
+| Residual | Iterative residual extraction | Complex, evolving harmonics |
+| Multiband | 4-way crossover + per-band iterations | Frequency-aware distortion |
+| Harmonic | Chebyshev odd/even separation | Independent odd/even control |
+| Cascade | Per-level waveshaper selection | Progressive character change |
+| Feedback | Previous output → current input | Chaotic, self-oscillating |
+
+**Gotchas:**
+- Mono-only design. For stereo, use two instances
+- Aliasing is intentional ("Digital Destruction" aesthetic) - no internal oversampling
+- Feedback mode capped at 0.5 to prevent runaway oscillation
+- Multiband uses pseudo-octave spacing (1:4:16 ratios), not true octaves
+- Frequency decay at level 8 with decay=1.0 creates highpass at 1600Hz (200Hz × 8)
+- Processing before prepare() returns unchanged input
+
+**Performance:** < 0.5% CPU at 44.1kHz mono (8 iterations)
+
+**Memory:** ~4KB (8 waveshapers + 8 Biquads + DC blocker + Crossover4Way + smoothers)
+
+**Dependencies:** Layer 0 (sigmoid.h, db_utils.h), Layer 1 (waveshaper.h, biquad.h, dc_blocker.h, smoother.h, chebyshev_shaper.h), Layer 2 (crossover_filter.h)
