@@ -43,7 +43,12 @@ enum ParameterID : Steinberg::Vst::ParamID {
 
     // Per-band parameters use helper: makeBandParamId(bandIndex, paramType)
     // Per-node parameters use helper: makeNodeParamId(bandIndex, nodeIndex, paramType)
+    // NOTE: Band/node helpers are FUTURE IMPLEMENTATION (Week 4 per roadmap)
 };
+
+// FUTURE IMPLEMENTATION (Week 4 - 004-vstgui-infrastructure)
+// The helper functions below are documented here for reference but will be
+// implemented when per-band and per-node parameters are added.
 
 // Band-level parameter types (node = 0xF)
 enum BandParamType : uint8_t {
@@ -58,6 +63,7 @@ enum BandParamType : uint8_t {
 };
 
 // Node-level parameter types
+// NOTE: Used by makeNodeParamId() - FUTURE IMPLEMENTATION (Week 4)
 enum NodeParamType : uint8_t {
     kNodeType       = 0x00,
     kNodeDrive      = 0x01,
@@ -68,6 +74,9 @@ enum NodeParamType : uint8_t {
     kNodeBitDepth   = 0x06,
 };
 
+// FUTURE IMPLEMENTATION (Week 4 per roadmap - T4.6-T4.7)
+// These helper functions will be added when per-band and per-node parameters
+// are implemented. The skeleton (001-plugin-skeleton) only uses global parameters.
 constexpr Steinberg::Vst::ParamID makeBandParamId(uint8_t band, BandParamType param) {
     return static_cast<Steinberg::Vst::ParamID>((0xF << 12) | (band << 8) | param);
 }

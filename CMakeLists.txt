@@ -180,6 +180,7 @@ add_subdirectory(dsp)
 # Plugins
 # ==============================================================================
 add_subdirectory(plugins/iterum)
+add_subdirectory(plugins/disrumpo)
 
 # ==============================================================================
 # Tools (Shared development tools)

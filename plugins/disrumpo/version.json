@@ -1,0 +1,8 @@
+{
+  "version": "0.1.0",
+  "name": "Disrumpo",
+  "description": "VST3 Multiband Morphing Distortion Plugin",
+  "publisher": "Krate Audio",
+  "url": "https://github.com/rolandzwaga/krate-audio",
+  "copyright": "Copyright (c) 2026 Krate Audio"
+}
