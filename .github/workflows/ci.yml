@@ -37,9 +37,59 @@ env:
   CCACHE_COMPRESSLEVEL: 6
 
 jobs:
+  # Detect which parts of the codebase changed to run targeted tests
+  # When called via workflow_call (e.g., from release.yml), run all tests
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      dsp: ${{ steps.set-outputs.outputs.dsp }}
+      iterum: ${{ steps.set-outputs.outputs.iterum }}
+      disrumpo: ${{ steps.set-outputs.outputs.disrumpo }}
+      infra: ${{ steps.set-outputs.outputs.infra }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect file changes
+        if: github.event_name != 'workflow_call'
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            dsp:
+              - 'dsp/**'
+            iterum:
+              - 'plugins/iterum/**'
+            disrumpo:
+              - 'plugins/disrumpo/**'
+            infra:
+              - 'tests/**'
+              - 'extern/**'
+              - 'CMakeLists.txt'
+              - 'CMakePresets.json'
+              - '.github/workflows/ci.yml'
+
+      # Set outputs: use filter results for push/PR, run all for workflow_call
+      - name: Set outputs
+        id: set-outputs
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_call" ]; then
+            echo "dsp=true" >> $GITHUB_OUTPUT
+            echo "iterum=true" >> $GITHUB_OUTPUT
+            echo "disrumpo=true" >> $GITHUB_OUTPUT
+            echo "infra=true" >> $GITHUB_OUTPUT
+          else
+            echo "dsp=${{ steps.filter.outputs.dsp }}" >> $GITHUB_OUTPUT
+            echo "iterum=${{ steps.filter.outputs.iterum }}" >> $GITHUB_OUTPUT
+            echo "disrumpo=${{ steps.filter.outputs.disrumpo }}" >> $GITHUB_OUTPUT
+            echo "infra=${{ steps.filter.outputs.infra }}" >> $GITHUB_OUTPUT
+          fi
+
   build-windows:
     name: Windows (MSVC)
     runs-on: windows-latest
+    needs: detect-changes
 
     steps:
       - name: Checkout
@@ -62,28 +112,54 @@ jobs:
       - name: Configure CMake
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 
-      - name: Build Tests
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests plugin_tests approval_tests --parallel
+      - name: Build DSP Tests
+        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests --parallel
 
-      - name: Build Plugin and Validator
+      - name: Build Iterum Tests
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
+
+      - name: Build Iterum and Validator
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum validator --parallel
 
-      - name: Run Tests
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure --exclude-regex "vst3_validator_extensive"
+      - name: Build Disrumpo
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo --parallel
 
-      - name: Run VST3 Validator (Extensive)
+      - name: Run DSP Tests
+        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
+
+      - name: Run Iterum Tests
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
+
+      - name: Run VST3 Validator (Iterum)
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
 
-      - name: Upload Plugin Artifact
+      - name: Upload Iterum Artifact
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Iterum-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
           if-no-files-found: warn
 
+      - name: Upload Disrumpo Artifact
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Disrumpo-Windows-x64
+          path: build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
+          if-no-files-found: warn
+
   build-macos:
     name: macOS (Clang)
     runs-on: macos-latest
+    needs: detect-changes
 
     steps:
       - name: Checkout
@@ -120,20 +196,37 @@ jobs:
       - name: Configure CMake
         run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-"
 
-      - name: Build Tests
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests plugin_tests approval_tests --parallel
+      - name: Build DSP Tests
+        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests --parallel
 
-      - name: Build Plugin, AU, and Validator
+      - name: Build Iterum Tests
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
+
+      - name: Build Iterum, AU, and Validator
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum Iterum_AU validator --parallel
 
-      - name: Run Tests
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure --exclude-regex "vst3_validator_extensive"
+      - name: Build Disrumpo and AU
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo Disrumpo_AU --parallel
 
-      - name: Run VST3 Validator (Extensive)
+      - name: Run DSP Tests
+        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
+
+      - name: Run Iterum Tests
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
+
+      - name: Run VST3 Validator (Iterum)
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
 
-      # Install AU and run auval validation
-      - name: Run AU Validation
+      # Install AU and run auval validation for Iterum
+      - name: Run Iterum AU Validation
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
           rm -rf ~/Library/Audio/Plug-Ins/Components/Iterum.component
@@ -142,12 +235,24 @@ jobs:
           sleep 2
           auval -v aufx Itrm KrAt
 
+      # Install AU and run auval validation for Disrumpo
+      - name: Run Disrumpo AU Validation
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          rm -rf ~/Library/Audio/Plug-Ins/Components/Disrumpo.component
+          cp -R build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          sleep 2
+          auval -v aufx Dsrm KrAt
+
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
         if: always()
         run: ccache --show-stats
 
-      - name: Upload Plugin Artifacts
+      - name: Upload Iterum Artifacts
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Iterum-macOS
@@ -156,10 +261,21 @@ jobs:
             build/VST3/${{ env.BUILD_TYPE }}/Iterum.component
           if-no-files-found: warn
 
+      - name: Upload Disrumpo Artifacts
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Disrumpo-macOS
+          path: |
+            build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
+            build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.component
+          if-no-files-found: warn
+
   # Linux build (optional per constitution - Platform Support Matrix)
   build-linux:
     name: Linux (GCC)
     runs-on: ubuntu-latest
+    needs: detect-changes
 
     steps:
       - name: Checkout
@@ -204,16 +320,32 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
-      - name: Build Tests
-        run: cmake --build build --target dsp_tests plugin_tests approval_tests --parallel
+      - name: Build DSP Tests
+        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --target dsp_tests --parallel
 
-      - name: Build Plugin and Validator
+      - name: Build Iterum Tests
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --target plugin_tests approval_tests --parallel
+
+      - name: Build Iterum and Validator
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target Iterum validator --parallel
 
-      - name: Run Tests
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure --exclude-regex "vst3_validator_extensive"
+      - name: Build Disrumpo
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --target Disrumpo --parallel
 
-      - name: Run VST3 Validator (Extensive)
+      - name: Run DSP Tests
+        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
+
+      - name: Run Iterum Tests
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
+
+      - name: Run VST3 Validator (Iterum)
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
 
       # Show ccache statistics for debugging cache effectiveness
@@ -221,9 +353,18 @@ jobs:
         if: always()
         run: ccache --show-stats
 
-      - name: Upload Plugin Artifact
+      - name: Upload Iterum Artifact
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Iterum-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
+          if-no-files-found: warn
+
+      - name: Upload Disrumpo Artifact
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Disrumpo-Linux-x64
+          path: build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
           if-no-files-found: warn

@@ -92,6 +92,41 @@ if(SMTG_MAC)
         COMPANY_NAME "Krate Audio"
     )
 
+    # ==========================================================================
+    # Audio Unit v2 Support (macOS only)
+    # ==========================================================================
+    option(SMTG_ENABLE_AUV2_BUILDS "Enable AudioUnit v2 builds" OFF)
+
+    if(XCODE AND SMTG_ENABLE_AUV2_BUILDS)
+        message(STATUS "[DISRUMPO] AudioUnit v2 build enabled")
+
+        include(FetchContent)
+        FetchContent_Declare(
+            AudioUnitSDK
+            GIT_REPOSITORY https://github.com/apple/AudioUnitSDK.git
+            GIT_TAG AudioUnitSDK-1.1.0
+        )
+        FetchContent_MakeAvailable(AudioUnitSDK)
+        FetchContent_GetProperties(
+            AudioUnitSDK
+            SOURCE_DIR SMTG_AUDIOUNIT_SDK_PATH
+        )
+
+        list(APPEND CMAKE_MODULE_PATH "${vst3sdk_SOURCE_DIR}/cmake/modules")
+        include(SMTG_AddVST3AuV2)
+
+        smtg_target_add_auv2(${PLUGIN_NAME}_AU
+            BUNDLE_NAME ${PLUGIN_NAME}
+            BUNDLE_IDENTIFIER com.krateaudio.disrumpo.audiounit
+            INFO_PLIST_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/resources/au-info.plist
+            VST3_PLUGIN_TARGET ${PLUGIN_NAME}
+        )
+
+        message(STATUS "[DISRUMPO] AudioUnit target: ${PLUGIN_NAME}_AU")
+    elseif(SMTG_ENABLE_AUV2_BUILDS AND NOT XCODE)
+        message(WARNING "[DISRUMPO] AUv2 builds require Xcode generator (-G Xcode)")
+    endif()
+
 elseif(SMTG_WIN)
     target_sources(${PLUGIN_NAME}
         PRIVATE
