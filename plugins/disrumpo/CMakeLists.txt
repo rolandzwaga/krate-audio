@@ -58,6 +58,10 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/controller.h
     src/controller/controller.cpp
 
+    # Custom Views (UI Components)
+    src/controller/views/spectrum_display.h
+    src/controller/views/spectrum_display.cpp
+
     # DSP Components
     src/dsp/distortion_types.h
     src/dsp/distortion_adapter.h
@@ -80,6 +84,14 @@ target_link_libraries(${PLUGIN_NAME}
         sdk
         vstgui_support
         KrateDSP
+)
+
+# ==============================================================================
+# VSTGUI Resources
+# ==============================================================================
+smtg_target_add_plugin_resources(${PLUGIN_NAME}
+    RESOURCES
+        resources/editor.uidesc
 )
 
 # Include directories

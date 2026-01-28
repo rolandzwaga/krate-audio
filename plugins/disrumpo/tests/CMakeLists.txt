@@ -13,7 +13,20 @@ add_executable(disrumpo_tests
     # Test main
     unit/test_main.cpp
 
-    # Unit tests
+    # Unit tests - Parameter encoding (spec 004)
+    unit/parameter_encoding_test.cpp
+
+    # Unit tests - UI/Display (spec 004)
+    unit/spectrum_display_test.cpp
+    unit/display_format_test.cpp
+    unit/global_controls_test.cpp
+    unit/band_strip_test.cpp
+    unit/param_display_test.cpp
+    unit/band_state_test.cpp
+    unit/visibility_test.cpp
+    unit/crossover_interaction_test.cpp
+
+    # Unit tests - DSP
     unit/crossover_network_test.cpp
     unit/band_processing_test.cpp
     unit/distortion_adapter_test.cpp
