@@ -301,6 +301,43 @@ constexpr bool isModulationParamId(Steinberg::Vst::ParamID paramId) {
 }
 
 // ==============================================================================
+// Morph Link Mode Enum (FR-032, FR-033)
+// ==============================================================================
+// Defines how morph X/Y axes link to sweep frequency.
+// Used by Band*MorphXLink and Band*MorphYLink parameters.
+// ==============================================================================
+
+enum class MorphLinkMode : uint8_t {
+    None = 0,       ///< Manual control only, no link to sweep
+    SweepFreq,      ///< Linear mapping: low freq = 0, high freq = 1
+    InverseSweep,   ///< Inverted: high freq = 0, low freq = 1
+    EaseIn,         ///< Exponential curve emphasizing low frequencies
+    EaseOut,        ///< Exponential curve emphasizing high frequencies
+    HoldRise,       ///< Hold at 0 until mid-point, then rise to 1
+    Stepped,        ///< Quantize to discrete steps (0, 0.25, 0.5, 0.75, 1.0)
+    COUNT           ///< Sentinel for iteration (7 modes)
+};
+
+/// @brief Total number of morph link modes.
+constexpr int kMorphLinkModeCount = static_cast<int>(MorphLinkMode::COUNT);
+
+/// @brief Get display name for a morph link mode.
+/// @param mode The morph link mode
+/// @return C-string display name
+constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
+    switch (mode) {
+        case MorphLinkMode::None:         return "None";
+        case MorphLinkMode::SweepFreq:    return "Sweep Freq";
+        case MorphLinkMode::InverseSweep: return "Inverse Sweep";
+        case MorphLinkMode::EaseIn:       return "Ease In";
+        case MorphLinkMode::EaseOut:      return "Ease Out";
+        case MorphLinkMode::HoldRise:     return "Hold-Rise";
+        case MorphLinkMode::Stepped:      return "Stepped";
+        default:                          return "Unknown";
+    }
+}
+
+// ==============================================================================
 // State Versioning
 // ==============================================================================
 // Version field for preset migration. Always serialize this as first int32.

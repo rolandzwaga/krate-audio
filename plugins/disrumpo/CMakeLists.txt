@@ -61,6 +61,8 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Custom Views (UI Components)
     src/controller/views/spectrum_display.h
     src/controller/views/spectrum_display.cpp
+    src/controller/views/morph_pad.h
+    src/controller/views/morph_pad.cpp
 
     # DSP Components
     src/dsp/distortion_types.h

@@ -10,6 +10,7 @@
 #include "version.h"
 #include "dsp/band_state.h"
 #include "controller/views/spectrum_display.h"
+#include "controller/views/morph_pad.h"
 
 #include "base/source/fstreamer.h"
 #include "base/source/fobject.h"
@@ -1112,9 +1113,72 @@ VSTGUI::CView* Controller::createCustomView(
     }
 
     if (std::strcmp(name, "MorphPad") == 0) {
-        // FR-013 PARTIAL: Return placeholder for MorphPad
-        // Full implementation deferred to spec 005
-        return nullptr;
+        // FR-010: Create MorphPad custom control
+        VSTGUI::CPoint origin;
+        VSTGUI::CPoint size;
+
+        const std::string* originStr = attributes.getAttributeValue("origin");
+        const std::string* sizeStr = attributes.getAttributeValue("size");
+
+        if (originStr) {
+            double x = 0.0;
+            double y = 0.0;
+            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
+                origin = VSTGUI::CPoint(x, y);
+            }
+        }
+
+        if (sizeStr) {
+            double w = 250.0;  // Default full size
+            double h = 200.0;
+            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
+                size = VSTGUI::CPoint(w, h);
+            }
+        } else {
+            size = VSTGUI::CPoint(250.0, 200.0);  // Default size
+        }
+
+        VSTGUI::CRect rect(origin, size);
+        auto* morphPad = new MorphPad(rect);
+
+        // FR-011: Wire to band-specific morph parameters
+        // Read band index from "band" attribute (0-7, default 0)
+        int bandIndex = 0;
+        const std::string* bandStr = attributes.getAttributeValue("band");
+        if (bandStr) {
+            bandIndex = std::stoi(*bandStr);
+            bandIndex = std::clamp(bandIndex, 0, kMaxBands - 1);
+        }
+
+        // Set the control tag to the MorphX parameter ID for this band
+        // MorphPad uses CControl::getValue()/setValue() for X position
+        Steinberg::Vst::ParamID morphXParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphX);
+        morphPad->setTag(static_cast<int32_t>(morphXParamId));
+
+        // Initialize morph position from current parameter values
+        auto* morphXParam = getParameterObject(morphXParamId);
+        auto* morphYParam = getParameterObject(makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphY));
+
+        if (morphXParam && morphYParam) {
+            float morphX = static_cast<float>(morphXParam->getNormalized());
+            float morphY = static_cast<float>(morphYParam->getNormalized());
+            morphPad->setMorphPosition(morphX, morphY);
+            morphPad->setValue(morphX);
+        }
+
+        // Initialize node types from the band's node type parameters
+        for (int n = 0; n < 4; ++n) {
+            auto* nodeTypeParam = getParameterObject(makeNodeParamId(
+                static_cast<uint8_t>(bandIndex), static_cast<uint8_t>(n), NodeParamType::kNodeType));
+            if (nodeTypeParam) {
+                int typeIndex = static_cast<int>(std::round(nodeTypeParam->getNormalized() * 25.0));
+                morphPad->setNodeType(n, static_cast<DistortionType>(typeIndex));
+            }
+        }
+
+        return morphPad;
     }
 
     return nullptr;
