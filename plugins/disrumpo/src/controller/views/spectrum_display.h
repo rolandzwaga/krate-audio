@@ -134,7 +134,7 @@ private:
     // ==========================================================================
 
     int numBands_ = 4;  // Default to 4 bands
-    std::array<float, kMaxBands - 1> crossoverFreqs_;  // Up to 7 crossover frequencies
+    std::array<float, kMaxBands - 1> crossoverFreqs_{};  // Up to 7 crossover frequencies
     SpectrumDisplayListener* listener_ = nullptr;
 
     // Drag state (for Phase 8)

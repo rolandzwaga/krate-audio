@@ -42,12 +42,12 @@ VSTGUI::CRect ModeTabBar::getTabRect(int index) const {
     auto viewSize = getViewSize();
     auto tabHeight = viewSize.getHeight() / kNumTabs;
 
-    return VSTGUI::CRect(
+    return {
         viewSize.left,
         viewSize.top + tabHeight * index,
         viewSize.right,
         viewSize.top + tabHeight * (index + 1)
-    );
+    };
 }
 
 void ModeTabBar::draw(VSTGUI::CDrawContext* context) {

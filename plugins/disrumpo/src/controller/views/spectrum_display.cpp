@@ -141,7 +141,7 @@ VSTGUI::CMouseEventResult SpectrumDisplay::onMouseDown(
     VSTGUI::CPoint& where,
     const VSTGUI::CButtonState& buttons) {
 
-    if (!(buttons & VSTGUI::kLButton)) {
+    if ((buttons & VSTGUI::kLButton) == 0) {
         return VSTGUI::kMouseEventNotHandled;
     }
 
@@ -190,7 +190,7 @@ VSTGUI::CMouseEventResult SpectrumDisplay::onMouseMoved(
     VSTGUI::CPoint& where,
     const VSTGUI::CButtonState& buttons) {
 
-    if (draggingDivider_ < 0 || !(buttons & VSTGUI::kLButton)) {
+    if (draggingDivider_ < 0 || ((buttons & VSTGUI::kLButton) == 0)) {
         return VSTGUI::kMouseEventNotHandled;
     }
 
@@ -213,7 +213,7 @@ VSTGUI::CMouseEventResult SpectrumDisplay::onMouseMoved(
 
     if (draggingDivider_ < numBands_ - 2) {
         // Right neighbor: must be at least kMinOctaveSpacing octaves lower
-        rightBound = crossoverFreqs_[static_cast<size_t>(draggingDivider_ + 1)]
+        rightBound = crossoverFreqs_[static_cast<size_t>(draggingDivider_) + 1]
                      * std::pow(2.0f, -kMinOctaveSpacing);
     }
 

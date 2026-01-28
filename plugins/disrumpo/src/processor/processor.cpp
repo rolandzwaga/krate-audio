@@ -297,7 +297,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         // Read per-band state for all 8 bands
         for (int b = 0; b < kMaxBands; ++b) {
             auto& bs = bandStates_[b];
-            Steinberg::int8 soloVal = 0, bypassVal = 0, muteVal = 0;
+            Steinberg::int8 soloVal = 0;
+            Steinberg::int8 bypassVal = 0;
+            Steinberg::int8 muteVal = 0;
 
             if (!streamer.readFloat(bs.gainDb)) bs.gainDb = 0.0f;
             if (!streamer.readFloat(bs.pan)) bs.pan = 0.0f;

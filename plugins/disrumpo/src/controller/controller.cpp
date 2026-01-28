@@ -733,8 +733,8 @@ void Controller::registerNodeParams() {
                 nullptr,
                 Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
             );
-            for (int t = 0; t < kNumDistortionTypes; ++t) {
-                typeParam->appendString(kDistortionTypeNames[t]);
+            for (auto & kDistortionTypeName : kDistortionTypeNames) {
+                typeParam->appendString(kDistortionTypeName);
             }
             parameters.addParameter(typeParam);
 
@@ -856,8 +856,11 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
 
         // Read band states
         for (int b = 0; b < kMaxBands; ++b) {
-            float gain = 0.0f, pan = 0.0f;
-            Steinberg::int8 soloInt = 0, bypassInt = 0, muteInt = 0;
+            float gain = 0.0f;
+            float pan = 0.0f;
+            Steinberg::int8 soloInt = 0;
+            Steinberg::int8 bypassInt = 0;
+            Steinberg::int8 muteInt = 0;
 
             streamer.readFloat(gain);
             streamer.readFloat(pan);
@@ -1065,14 +1068,16 @@ VSTGUI::CView* Controller::createCustomView(
         const std::string* sizeStr = attributes.getAttributeValue("size");
 
         if (originStr) {
-            double x = 0.0, y = 0.0;
+            double x = 0.0;
+            double y = 0.0;
             if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
                 origin = VSTGUI::CPoint(x, y);
             }
         }
 
         if (sizeStr) {
-            double w = 980.0, h = 200.0;  // Default size
+            double w = 980.0;
+            double h = 200.0;  // Default size
             if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
                 size = VSTGUI::CPoint(w, h);
             }

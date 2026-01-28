@@ -5,6 +5,8 @@
 // =============================================================================
 
 #include "tap_pattern_editor.h"
+
+#include <utility>
 #include "vstgui/lib/cframe.h"
 
 namespace Iterum {
@@ -100,7 +102,7 @@ void TapPatternEditor::drawTaps(VSTGUI::CDrawContext* context) {
         );
 
         // Choose color based on selection
-        bool isSelected = (static_cast<int>(i) == selectedTap_);
+        bool isSelected = (std::cmp_equal(i, selectedTap_));
         context->setFillColor(isSelected ? kTapSelectedColor : kTapColor);
         context->drawRect(tapRect, VSTGUI::kDrawFilled);
 
@@ -112,7 +114,7 @@ void TapPatternEditor::drawTaps(VSTGUI::CDrawContext* context) {
             barTop + 8.0f
         );
         // Handle color: white when hovered, lighter blue when selected, normal blue otherwise
-        bool isHandleHovered = (static_cast<int>(i) == hoveredHandleTap_);
+        bool isHandleHovered = (std::cmp_equal(i, hoveredHandleTap_));
         VSTGUI::CColor handleColor;
         if (isHandleHovered) {
             handleColor = VSTGUI::CColor(255, 255, 255, 255);  // White when hovered
@@ -435,7 +437,7 @@ VSTGUI::CMouseEventResult TapPatternEditor::onMouseExited(
     const VSTGUI::CButtonState& /*buttons*/)
 {
     // Reset cursor to default when leaving the control
-    if (auto frame = getFrame()) {
+    if (auto *frame = getFrame()) {
         frame->setCursor(VSTGUI::kCursorDefault);
     }
     // Clear hover state
@@ -477,7 +479,7 @@ int TapPatternEditor::hitTestTapHandleAtPoint(float x, float y) const {
 }
 
 void TapPatternEditor::updateCursorForPosition(float x, float y) {
-    auto frame = getFrame();
+    auto *frame = getFrame();
     if (!frame) return;
 
     int handleTap = hitTestTapHandleAtPoint(x, y);
@@ -538,7 +540,7 @@ void TapPatternEditor::setActiveTapCount(size_t count) {
     activeTapCount_ = newCount;
 
     // Cancel drag if selected tap is now out of range (T018.6)
-    if (isDragging_ && selectedTap_ >= static_cast<int>(activeTapCount_)) {
+    if (isDragging_ && std::cmp_greater_equal(selectedTap_, activeTapCount_)) {
         cancelDrag();
     }
 

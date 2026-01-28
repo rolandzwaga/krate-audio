@@ -191,9 +191,9 @@ VSTGUI::CMouseEventResult PresetBrowserView::onMouseDown(
 
     // Click outside content area closes the browser (FR-018)
     // But only if no dialog is open (dialogs should handle their own dismissal)
-    bool anyDialogVisible = (saveDialogOverlay_ && saveDialogOverlay_->isVisible()) ||
-                            (deleteDialogOverlay_ && deleteDialogOverlay_->isVisible()) ||
-                            (overwriteDialogOverlay_ && overwriteDialogOverlay_->isVisible());
+    bool anyDialogVisible = ((saveDialogOverlay_ != nullptr) && saveDialogOverlay_->isVisible()) ||
+                            ((deleteDialogOverlay_ != nullptr) && deleteDialogOverlay_->isVisible()) ||
+                            ((overwriteDialogOverlay_ != nullptr) && overwriteDialogOverlay_->isVisible());
 
     if (!anyDialogVisible && !contentRect.pointInside(where)) {
         close();
@@ -259,9 +259,9 @@ void PresetBrowserView::onKeyboardEvent(VSTGUI::KeyboardEvent& event, VSTGUI::CF
     }
 
     // Determine dialog visibility state
-    bool saveVisible = (saveDialogOverlay_ && saveDialogOverlay_->isVisible());
-    bool deleteVisible = (deleteDialogOverlay_ && deleteDialogOverlay_->isVisible());
-    bool overwriteVisible = (overwriteDialogOverlay_ && overwriteDialogOverlay_->isVisible());
+    bool saveVisible = ((saveDialogOverlay_ != nullptr) && saveDialogOverlay_->isVisible());
+    bool deleteVisible = ((deleteDialogOverlay_ != nullptr) && deleteDialogOverlay_->isVisible());
+    bool overwriteVisible = ((overwriteDialogOverlay_ != nullptr) && overwriteDialogOverlay_->isVisible());
 
     // Use pure function to determine action
     KeyAction action = determineKeyAction(keyCode, saveVisible, deleteVisible, overwriteVisible);
@@ -443,7 +443,7 @@ void PresetBrowserView::onSaveClicked() {
 
 void PresetBrowserView::onImportClicked() {
     // Use VSTGUI file selector for cross-platform compatibility
-    auto frame = getFrame();
+    auto *frame = getFrame();
     if (!frame) return;
 
     auto selector = VSTGUI::owned(VSTGUI::CNewFileSelector::create(
@@ -884,7 +884,7 @@ void PresetBrowserView::showSaveDialog() {
         // Auto-focus the text field so user can start typing immediately.
         // IKeyboardHook intercepts Enter/Escape at frame level, so focus
         // on the text field won't prevent dialog keyboard shortcuts.
-        if (auto frame = getFrame()) {
+        if (auto *frame = getFrame()) {
             frame->setFocusView(saveDialogNameField_);
         }
 
@@ -909,7 +909,7 @@ void PresetBrowserView::onSaveDialogConfirm() {
     // IMPORTANT: Clear focus to commit text from platform control to model.
     // CTextEdit's getText() returns the committed value, not live editing text.
     // looseFocus() commits the text, so we trigger it by clearing focus first.
-    if (auto frame = getFrame()) {
+    if (auto *frame = getFrame()) {
         frame->setFocusView(nullptr);
     }
 
@@ -1038,7 +1038,7 @@ void PresetBrowserView::registerKeyboardHook() {
         return;
     }
 
-    auto frame = getFrame();
+    auto *frame = getFrame();
     if (frame) {
         frame->registerKeyboardHook(this);
         keyboardHookRegistered_ = true;
@@ -1050,7 +1050,7 @@ void PresetBrowserView::unregisterKeyboardHook() {
         return;
     }
 
-    auto frame = getFrame();
+    auto *frame = getFrame();
     if (frame) {
         frame->unregisterKeyboardHook(this);
     }
@@ -1132,7 +1132,7 @@ void PresetBrowserView::onSearchPollTimer() {
     }
 }
 
-uint64_t PresetBrowserView::getSystemTimeMs() const {
+uint64_t PresetBrowserView::getSystemTimeMs() {
 #ifdef _WIN32
     return static_cast<uint64_t>(GetTickCount64());
 #else

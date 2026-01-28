@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <ranges>
 #include <sstream>
 #include <utility>
 
@@ -67,6 +68,7 @@ void PresetManager::scanDirectory(const std::filesystem::path& dir, bool isFacto
     }
 }
 
+// static
 PresetInfo PresetManager::parsePresetFile(const std::filesystem::path& path, bool isFactory) {
     PresetInfo info;
     info.path = path;
@@ -164,7 +166,7 @@ bool PresetManager::loadPreset(const PresetInfo& preset) {
     }
 
     // Check if we can load via load provider (controller-only path)
-    bool useLoadProvider = (!processor_ && loadProvider_);
+    bool useLoadProvider = ((processor_ == nullptr) && loadProvider_);
     if (!processor_ && !loadProvider_) {
         lastError_ = "No component or load provider available";
         return false;
@@ -176,7 +178,7 @@ bool PresetManager::loadPreset(const PresetInfo& preset) {
     }
 
     // Open file stream for reading
-    auto stream = Steinberg::Vst::FileStream::open(preset.path.string().c_str(), "rb");
+    auto *stream = Steinberg::Vst::FileStream::open(preset.path.string().c_str(), "rb");
     if (!stream) {
         lastError_ = "Failed to open preset file: " + preset.path.string();
         return false;
@@ -243,7 +245,7 @@ bool PresetManager::savePreset(
     }
 
     // Check if we have a way to get the component state
-    bool useStateProvider = (!processor_ && stateProvider_);
+    bool useStateProvider = ((processor_ == nullptr) && stateProvider_);
     if (!processor_ && !stateProvider_) {
         lastError_ = "No component or state provider available";
         return false;
@@ -279,17 +281,17 @@ bool PresetManager::savePreset(
     xml << "  <Attr id=\"MediaType\" value=\"VstPreset\" type=\"string\"/>\n";
     xml << "  <Attr id=\"PlugInName\" value=\"Iterum\" type=\"string\"/>\n";
     xml << "  <Attr id=\"PlugInCategory\" value=\"Delay\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"Name\" value=\"" << name << "\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"MusicalCategory\" value=\"" << category << "\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"MusicalInstrument\" value=\"" << modeNames[modeIndex] << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="Name" value=")" << name << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="MusicalCategory" value=")" << category << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="MusicalInstrument" value=")" << modeNames[modeIndex] << "\" type=\"string\"/>\n";
     if (!description.empty()) {
-        xml << "  <Attr id=\"Comment\" value=\"" << description << "\" type=\"string\"/>\n";
+        xml << R"(  <Attr id="Comment" value=")" << description << "\" type=\"string\"/>\n";
     }
     xml << "</MetaInfo>\n";
     std::string xmlStr = xml.str();
 
     // Open file stream for writing
-    auto stream = Steinberg::Vst::FileStream::open(presetPath.string().c_str(), "wb");
+    auto *stream = Steinberg::Vst::FileStream::open(presetPath.string().c_str(), "wb");
     if (!stream) {
         lastError_ = "Failed to create preset file: " + presetPath.string();
         return false;
@@ -355,7 +357,7 @@ bool PresetManager::overwritePreset(const PresetInfo& preset) {
     }
 
     // Check if we have a way to get the component state
-    bool useStateProvider = (!processor_ && stateProvider_);
+    bool useStateProvider = ((processor_ == nullptr) && stateProvider_);
     if (!processor_ && !stateProvider_) {
         lastError_ = "No component or state provider available";
         return false;
@@ -378,17 +380,17 @@ bool PresetManager::overwritePreset(const PresetInfo& preset) {
     xml << "  <Attr id=\"MediaType\" value=\"VstPreset\" type=\"string\"/>\n";
     xml << "  <Attr id=\"PlugInName\" value=\"Iterum\" type=\"string\"/>\n";
     xml << "  <Attr id=\"PlugInCategory\" value=\"Delay\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"Name\" value=\"" << preset.name << "\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"MusicalCategory\" value=\"" << preset.category << "\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"MusicalInstrument\" value=\"" << modeNames[modeIndex] << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="Name" value=")" << preset.name << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="MusicalCategory" value=")" << preset.category << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="MusicalInstrument" value=")" << modeNames[modeIndex] << "\" type=\"string\"/>\n";
     if (!preset.description.empty()) {
-        xml << "  <Attr id=\"Comment\" value=\"" << preset.description << "\" type=\"string\"/>\n";
+        xml << R"(  <Attr id="Comment" value=")" << preset.description << "\" type=\"string\"/>\n";
     }
     xml << "</MetaInfo>\n";
     std::string xmlStr = xml.str();
 
     // Open file stream for writing (overwrites existing)
-    auto stream = Steinberg::Vst::FileStream::open(preset.path.string().c_str(), "wb");
+    auto *stream = Steinberg::Vst::FileStream::open(preset.path.string().c_str(), "wb");
     if (!stream) {
         lastError_ = "Failed to open preset file for writing: " + preset.path.string();
         return false;
@@ -522,14 +524,10 @@ bool PresetManager::isValidPresetName(const std::string& name) {
     }
 
     // Check for invalid filesystem characters
-    const std::string invalidChars = "/\\:*?\"<>|";
-    for (char c : name) {
-        if (invalidChars.find(c) != std::string::npos) {
-            return false;
-        }
-    }
-
-    return true;
+    const std::string kInvalidChars = "/\\:*?\"<>|";
+    return std::ranges::none_of(name, [&kInvalidChars](char c) {
+        return kInvalidChars.find(c) != std::string::npos;
+    });
 }
 
 // =============================================================================

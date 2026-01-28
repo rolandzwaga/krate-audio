@@ -160,7 +160,7 @@ private:
     void startSearchPolling();
     void stopSearchPolling();
     void onSearchPollTimer();
-    uint64_t getSystemTimeMs() const;
+    static uint64_t getSystemTimeMs() ;
 };
 
 } // namespace Iterum
