@@ -23,7 +23,8 @@ constexpr float kDistanceEpsilon = 1e-6f;
 constexpr float kOnNodeThreshold = 0.001f;
 
 /// @brief Inverse distance weighting exponent (p=2 per spec).
-constexpr float kIDWExponent = 2.0f;
+// Note: Not currently used directly but documents the algorithm
+// constexpr float kIDWExponent = 2.0f;
 
 /// @brief Transition zone lower bound (40% weight).
 constexpr float kTransitionZoneLow = 0.4f;
@@ -253,10 +254,12 @@ void MorphEngine::calculateMorphWeights(float posX, float posY) noexcept {
     }
 }
 
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 float MorphEngine::calculate1DDistance(float cursorX, float nodeX) const noexcept {
     return std::abs(cursorX - nodeX);
 }
 
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 float MorphEngine::calculate2DDistance(float cursorX, float cursorY,
                                         float nodeX, float nodeY) const noexcept {
     const float dx = cursorX - nodeX;
@@ -290,8 +293,8 @@ void MorphEngine::calculateRadialWeights(float cursorX, float cursorY) noexcept 
     // Map nodes to angles based on their positions around the center
     // For 4 nodes at corners: A=0deg(east), B=90deg(north), C=180deg(west), D=270deg(south)
     // We use inverse angular distance weighting
-    constexpr float kTwoPi = 6.283185307f;
-    constexpr float kPi = 3.141592654f;
+    constexpr float kTwoPi = 6.283185307f;  // NOLINT(modernize-use-std-numbers)
+    constexpr float kPi = 3.141592654f;     // NOLINT(modernize-use-std-numbers)
 
     std::array<float, kMaxMorphNodes> nodeAngles{};
     for (int i = 0; i < activeNodeCount_; ++i) {
@@ -329,6 +332,7 @@ void MorphEngine::calculateRadialWeights(float cursorX, float cursorY) noexcept 
     }
 }
 
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 float MorphEngine::calculateTransitionGain(float weight) const noexcept {
     // FR-008: Transition zone 40-60%
     // Below 40%: May deactivate (gain ramps down)
@@ -344,14 +348,16 @@ float MorphEngine::calculateTransitionGain(float weight) const noexcept {
     if (weight < kTransitionZoneLow) {
         // Below transition zone: linear ramp from 0 to entry level
         const float normalizedPos = weight / kTransitionZoneLow;
-        float fadeOut, fadeIn;
+        float fadeOut = 0.0f;
+        float fadeIn = 0.0f;
         Krate::DSP::equalPowerGains(normalizedPos, fadeOut, fadeIn);
         return fadeIn;  // Use equal-power fade-in
     }
 
     // In transition zone (40-60%): equal-power ramp
     const float zonePos = (weight - kTransitionZoneLow) / (kTransitionZoneHigh - kTransitionZoneLow);
-    float fadeOut, fadeIn;
+    float fadeOut = 0.0f;
+    float fadeIn = 0.0f;
     Krate::DSP::equalPowerGains(zonePos, fadeOut, fadeIn);
     return fadeIn;
 }
