@@ -6,12 +6,12 @@ namespace Iterum::Platform {
 std::filesystem::path getUserPresetDirectory() {
     namespace fs = std::filesystem;
 
-#if defined(_WIN32)
+#ifdef _WIN32
     const char* userProfile = std::getenv("USERPROFILE");
     if (userProfile) {
         return fs::path(userProfile) / "Documents" / "Krate Audio" / "Iterum";
     }
-    return fs::path();
+    return {};
 #elif defined(__APPLE__)
     const char* home = std::getenv("HOME");
     if (home) {
@@ -31,12 +31,12 @@ std::filesystem::path getUserPresetDirectory() {
 std::filesystem::path getFactoryPresetDirectory() {
     namespace fs = std::filesystem;
 
-#if defined(_WIN32)
+#ifdef _WIN32
     const char* programData = std::getenv("PROGRAMDATA");
     if (programData) {
         return fs::path(programData) / "Krate Audio" / "Iterum";
     }
-    return fs::path();
+    return {};
 #elif defined(__APPLE__)
     return fs::path("/Library/Application Support/Krate Audio/Iterum");
 #else

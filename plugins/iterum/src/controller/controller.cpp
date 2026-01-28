@@ -194,7 +194,7 @@ public:
     }
 
     // IDependent::update - called on UI thread via deferred update mechanism
-    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+    void PLUGIN_API update(Steinberg::FUnknown*  /*changedUnknown*/, Steinberg::int32 message) override {
         // CRITICAL: Check isActive FIRST before accessing ANY member.
         // This prevents use-after-free when deferred updates fire during/after destruction.
         if (!isActive_.load(std::memory_order_acquire)) {
@@ -352,7 +352,7 @@ public:
         }
     }
 
-    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+    void PLUGIN_API update(Steinberg::FUnknown*  /*changedUnknown*/, Steinberg::int32 message) override {
         if (!isActive_.load(std::memory_order_acquire)) {
             return;
         }
@@ -360,7 +360,7 @@ public:
         VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
         if (message == IDependent::kChanged && watchedParam_ && editor) {
             float normalizedValue = watchedParam_->getNormalized();
-            bool shouldBeVisible;
+            bool shouldBeVisible = false;
 
             if (upperThreshold_ >= 0.0f) {
                 // Range mode: show when lowerThreshold <= value < upperThreshold
@@ -489,7 +489,7 @@ public:
         }
     }
 
-    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+    void PLUGIN_API update(Steinberg::FUnknown*  /*changedUnknown*/, Steinberg::int32 message) override {
         if (!isActive_.load(std::memory_order_acquire)) {
             return;
         }
@@ -1481,7 +1481,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 multitapNoteValueVisibilityController_ = new ContainerVisibilityController(
                     &activeEditor_, multitapPattern,
                     kMultiTapNoteValueId,  // Find container by child control's tag (Note Value dropdown)
-                    14.0f / 19.0f, 19.0f / 19.0f);  // Range mode: patterns 14-18 only (excludes Custom at 19)
+                    14.0f / 19.0f, 19.0f / 19.0f);  // NOLINT(misc-redundant-expression) Range mode: patterns 14-18 only
 
                 // Custom Pattern Editor (Spec 046 FR-008): Show only when pattern == Custom (index 19)
                 // Pattern 19 is at normalized 1.0, pattern 18 is at 18/19 ≈ 0.947
@@ -1832,7 +1832,7 @@ void Controller::copyCurrentPatternToCustom() {
 
     // Switch to Custom pattern (index 19)
     // Pattern has 20 options (0-19), so normalized = 19/19 = 1.0
-    double customPatternNormalized = 19.0 / 19.0;
+    const double customPatternNormalized = 1.0;
     setParamNormalized(kMultiTapTimingPatternId, customPatternNormalized);
 
     if (componentHandler) {

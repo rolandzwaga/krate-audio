@@ -240,7 +240,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         // Apply equal-power crossfade sample-by-sample
         for (size_t i = 0; i < numSamples; ++i) {
-            float fadeOut, fadeIn;
+            float fadeOut;
+            float fadeIn;
             Krate::DSP::equalPowerGains(crossfadePosition_, fadeOut, fadeIn);
 
             // Blend: old mode (fading out) + new mode (fading in)

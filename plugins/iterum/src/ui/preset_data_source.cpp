@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <utility>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -28,7 +29,7 @@ void PresetDataSource::setSearchFilter(const std::string& query) {
 }
 
 const PresetInfo* PresetDataSource::getPresetAtRow(int row) const {
-    if (row >= 0 && row < static_cast<int>(filteredPresets_.size())) {
+    if (row >= 0 && std::cmp_less(row, filteredPresets_.size())) {
         return &filteredPresets_[static_cast<size_t>(row)];
     }
     return nullptr;
@@ -109,7 +110,7 @@ void PresetDataSource::dbDrawCell(
     int32_t flags,
     VSTGUI::CDataBrowser* /*browser*/
 ) {
-    if (row < 0 || row >= static_cast<int32_t>(filteredPresets_.size())) {
+    if (row < 0 || std::cmp_greater_equal(row, filteredPresets_.size())) {
         return;
     }
 
@@ -154,6 +155,8 @@ void PresetDataSource::dbDrawCell(
                     text = modeNames[modeIndex];
                 }
             }
+            break;
+        default:
             break;
     }
 

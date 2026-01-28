@@ -69,7 +69,7 @@ void SavePresetDialogView::open(int currentMode) {
         nameField_->setText("New Preset");
     }
 
-    if (auto frame = getFrame()) {
+    if (auto *frame = getFrame()) {
         frame->setFocusView(nameField_);
     }
 
@@ -223,7 +223,7 @@ void SavePresetDialogView::onSaveConfirm() {
     }
 
     // Commit text from platform control
-    if (auto frame = getFrame()) {
+    if (auto *frame = getFrame()) {
         frame->setFocusView(nullptr);
     }
 
@@ -260,7 +260,7 @@ void SavePresetDialogView::onSaveConfirm() {
 void SavePresetDialogView::registerKeyboardHook() {
     if (keyboardHookRegistered_) return;
 
-    if (auto frame = getFrame()) {
+    if (auto *frame = getFrame()) {
         frame->registerKeyboardHook(this);
         keyboardHookRegistered_ = true;
     }
@@ -269,7 +269,7 @@ void SavePresetDialogView::registerKeyboardHook() {
 void SavePresetDialogView::unregisterKeyboardHook() {
     if (!keyboardHookRegistered_) return;
 
-    if (auto frame = getFrame()) {
+    if (auto *frame = getFrame()) {
         frame->unregisterKeyboardHook(this);
     }
     keyboardHookRegistered_ = false;

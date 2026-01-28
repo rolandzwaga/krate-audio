@@ -146,11 +146,11 @@ private:
 
     // Scanning helpers
     void scanDirectory(const std::filesystem::path& dir, bool isFactory);
-    PresetInfo parsePresetFile(const std::filesystem::path& path, bool isFactory);
+    static PresetInfo parsePresetFile(const std::filesystem::path& path, bool isFactory);
 
     // Metadata helpers
-    bool writeMetadata(const std::filesystem::path& path, const PresetInfo& info);
-    bool readMetadata(const std::filesystem::path& path, PresetInfo& info);
+    static bool writeMetadata(const std::filesystem::path& path, const PresetInfo& info);
+    static bool readMetadata(const std::filesystem::path& path, PresetInfo& info);
 };
 
 } // namespace Iterum
