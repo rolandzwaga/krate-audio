@@ -1,0 +1,640 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Disrumpo Editor UI Description
+  ==============================
+  Constitution Principle V: VSTGUI Development
+
+  Color scheme from specs/Disrumpo/ui-mockups.md:
+  - Background Primary: #1A1A1E
+  - Background Secondary: #252529
+  - Accent Primary: #FF6B35
+  - Accent Secondary: #4ECDC4
+  - Text Primary: #FFFFFF
+  - Text Secondary: #8888AA
+  - Band 1-4: #FF6B35, #4ECDC4, #95E86B, #C792EA
+  - Band 5-8: #FFCB6B, #FF5370, #89DDFF, #F78C6C
+
+  Window dimensions:
+  - Minimum: 800x500
+  - Default: 1000x600
+  - Maximum: 1400x900
+-->
+<vstgui-ui-description version="1">
+  <!-- Color Definitions (FR-012) -->
+  <colors>
+    <!-- Base colors from ui-mockups.md -->
+    <color name="background-primary" rgba="#1A1A1Eff"/>
+    <color name="background-secondary" rgba="#252529ff"/>
+    <color name="accent-primary" rgba="#FF6B35ff"/>
+    <color name="accent-secondary" rgba="#4ECDC4ff"/>
+    <color name="text-primary" rgba="#ffffffff"/>
+    <color name="text-secondary" rgba="#8888AAff"/>
+
+    <!-- Band colors from ui-mockups.md -->
+    <color name="band-1" rgba="#FF6B35ff"/>
+    <color name="band-2" rgba="#4ECDC4ff"/>
+    <color name="band-3" rgba="#95E86Bff"/>
+    <color name="band-4" rgba="#C792EAff"/>
+    <color name="band-5" rgba="#FFCB6Bff"/>
+    <color name="band-6" rgba="#FF5370ff"/>
+    <color name="band-7" rgba="#89DDFFff"/>
+    <color name="band-8" rgba="#F78C6Cff"/>
+
+    <!-- Spectrum regions -->
+    <color name="spectrum-sub" rgba="#FF6B3540"/>
+    <color name="spectrum-low" rgba="#4ECDC440"/>
+    <color name="spectrum-mid" rgba="#95E86B40"/>
+    <color name="spectrum-high" rgba="#C792EA40"/>
+
+    <!-- UI element colors -->
+    <color name="slider-track" rgba="#404045ff"/>
+    <color name="slider-handle" rgba="#FF6B35ff"/>
+    <color name="border" rgba="#3A3A40ff"/>
+    <color name="panel" rgba="#202024ff"/>
+  </colors>
+
+  <!-- Font Definitions -->
+  <fonts>
+    <font name="title-font" font-name="Arial" size="18" bold="true"/>
+    <font name="section-font" font-name="Arial" size="14" bold="true"/>
+    <font name="label-font" font-name="Arial" size="11"/>
+    <font name="value-font" font-name="Arial" size="10"/>
+    <font name="small-font" font-name="Arial" size="9"/>
+  </fonts>
+
+  <!-- Control Tags (Parameter ID Mappings) -->
+  <control-tags>
+    <!-- Global Parameters (0x0F00 range) -->
+    <control-tag name="InputGain" tag="3840"/>
+    <control-tag name="OutputGain" tag="3841"/>
+    <control-tag name="GlobalMix" tag="3842"/>
+    <control-tag name="BandCount" tag="3843"/>
+    <control-tag name="OversampleMax" tag="3844"/>
+
+    <!-- Sweep Parameters (0x0E00 range) -->
+    <control-tag name="SweepEnable" tag="3584"/>
+    <control-tag name="SweepFrequency" tag="3585"/>
+    <control-tag name="SweepWidth" tag="3586"/>
+    <control-tag name="SweepIntensity" tag="3587"/>
+    <control-tag name="SweepMorphLink" tag="3588"/>
+    <control-tag name="SweepFalloff" tag="3589"/>
+
+    <!-- Crossover Parameters (0x0F10 range) -->
+    <control-tag name="Crossover1" tag="3856"/>
+    <control-tag name="Crossover2" tag="3857"/>
+    <control-tag name="Crossover3" tag="3858"/>
+    <control-tag name="Crossover4" tag="3859"/>
+    <control-tag name="Crossover5" tag="3860"/>
+    <control-tag name="Crossover6" tag="3861"/>
+    <control-tag name="Crossover7" tag="3862"/>
+
+    <!-- Band 1 Parameters (0xF000-0xF00A) -->
+    <control-tag name="Band1Gain" tag="61440"/>
+    <control-tag name="Band1Pan" tag="61441"/>
+    <control-tag name="Band1Solo" tag="61442"/>
+    <control-tag name="Band1Bypass" tag="61443"/>
+    <control-tag name="Band1Mute" tag="61444"/>
+    <control-tag name="Band1MorphX" tag="61448"/>
+    <control-tag name="Band1MorphY" tag="61449"/>
+    <control-tag name="Band1MorphMode" tag="61450"/>
+
+    <!-- Band 2 Parameters (0xF100-0xF10A) -->
+    <control-tag name="Band2Gain" tag="61696"/>
+    <control-tag name="Band2Pan" tag="61697"/>
+    <control-tag name="Band2Solo" tag="61698"/>
+    <control-tag name="Band2Bypass" tag="61699"/>
+    <control-tag name="Band2Mute" tag="61700"/>
+    <control-tag name="Band2MorphX" tag="61704"/>
+    <control-tag name="Band2MorphY" tag="61705"/>
+    <control-tag name="Band2MorphMode" tag="61706"/>
+
+    <!-- Band 3 Parameters (0xF200-0xF20A) -->
+    <control-tag name="Band3Gain" tag="61952"/>
+    <control-tag name="Band3Pan" tag="61953"/>
+    <control-tag name="Band3Solo" tag="61954"/>
+    <control-tag name="Band3Bypass" tag="61955"/>
+    <control-tag name="Band3Mute" tag="61956"/>
+    <control-tag name="Band3MorphX" tag="61960"/>
+    <control-tag name="Band3MorphY" tag="61961"/>
+    <control-tag name="Band3MorphMode" tag="61962"/>
+
+    <!-- Band 4 Parameters (0xF300-0xF30A) -->
+    <control-tag name="Band4Gain" tag="62208"/>
+    <control-tag name="Band4Pan" tag="62209"/>
+    <control-tag name="Band4Solo" tag="62210"/>
+    <control-tag name="Band4Bypass" tag="62211"/>
+    <control-tag name="Band4Mute" tag="62212"/>
+    <control-tag name="Band4MorphX" tag="62216"/>
+    <control-tag name="Band4MorphY" tag="62217"/>
+    <control-tag name="Band4MorphMode" tag="62218"/>
+
+    <!-- Band 5 Parameters (0xF400-0xF40A) -->
+    <control-tag name="Band5Gain" tag="62464"/>
+    <control-tag name="Band5Pan" tag="62465"/>
+    <control-tag name="Band5Solo" tag="62466"/>
+    <control-tag name="Band5Bypass" tag="62467"/>
+    <control-tag name="Band5Mute" tag="62468"/>
+    <control-tag name="Band5MorphX" tag="62472"/>
+    <control-tag name="Band5MorphY" tag="62473"/>
+    <control-tag name="Band5MorphMode" tag="62474"/>
+
+    <!-- Band 6 Parameters (0xF500-0xF50A) -->
+    <control-tag name="Band6Gain" tag="62720"/>
+    <control-tag name="Band6Pan" tag="62721"/>
+    <control-tag name="Band6Solo" tag="62722"/>
+    <control-tag name="Band6Bypass" tag="62723"/>
+    <control-tag name="Band6Mute" tag="62724"/>
+    <control-tag name="Band6MorphX" tag="62728"/>
+    <control-tag name="Band6MorphY" tag="62729"/>
+    <control-tag name="Band6MorphMode" tag="62730"/>
+
+    <!-- Band 7 Parameters (0xF600-0xF60A) -->
+    <control-tag name="Band7Gain" tag="62976"/>
+    <control-tag name="Band7Pan" tag="62977"/>
+    <control-tag name="Band7Solo" tag="62978"/>
+    <control-tag name="Band7Bypass" tag="62979"/>
+    <control-tag name="Band7Mute" tag="62980"/>
+    <control-tag name="Band7MorphX" tag="62984"/>
+    <control-tag name="Band7MorphY" tag="62985"/>
+    <control-tag name="Band7MorphMode" tag="62986"/>
+
+    <!-- Band 8 Parameters (0xF700-0xF70A) -->
+    <control-tag name="Band8Gain" tag="63232"/>
+    <control-tag name="Band8Pan" tag="63233"/>
+    <control-tag name="Band8Solo" tag="63234"/>
+    <control-tag name="Band8Bypass" tag="63235"/>
+    <control-tag name="Band8Mute" tag="63236"/>
+    <control-tag name="Band8MorphX" tag="63240"/>
+    <control-tag name="Band8MorphY" tag="63241"/>
+    <control-tag name="Band8MorphMode" tag="63242"/>
+
+    <!-- Band 1 Node 1 Parameters (0x0000-0x0006) -->
+    <control-tag name="B1N1Type" tag="0"/>
+    <control-tag name="B1N1Drive" tag="1"/>
+    <control-tag name="B1N1Mix" tag="2"/>
+    <control-tag name="B1N1Tone" tag="3"/>
+    <control-tag name="B1N1Bias" tag="4"/>
+    <control-tag name="B1N1Folds" tag="5"/>
+    <control-tag name="B1N1BitDepth" tag="6"/>
+
+    <!-- Band 2 Node 1 Parameters (0x0100-0x0106) -->
+    <control-tag name="B2N1Type" tag="256"/>
+    <control-tag name="B2N1Drive" tag="257"/>
+    <control-tag name="B2N1Mix" tag="258"/>
+    <control-tag name="B2N1Tone" tag="259"/>
+    <control-tag name="B2N1Bias" tag="260"/>
+    <control-tag name="B2N1Folds" tag="261"/>
+    <control-tag name="B2N1BitDepth" tag="262"/>
+
+    <!-- Band 3 Node 1 Parameters (0x0200-0x0206) -->
+    <control-tag name="B3N1Type" tag="512"/>
+    <control-tag name="B3N1Drive" tag="513"/>
+    <control-tag name="B3N1Mix" tag="514"/>
+    <control-tag name="B3N1Tone" tag="515"/>
+    <control-tag name="B3N1Bias" tag="516"/>
+    <control-tag name="B3N1Folds" tag="517"/>
+    <control-tag name="B3N1BitDepth" tag="518"/>
+
+    <!-- Band 4 Node 1 Parameters (0x0300-0x0306) -->
+    <control-tag name="B4N1Type" tag="768"/>
+    <control-tag name="B4N1Drive" tag="769"/>
+    <control-tag name="B4N1Mix" tag="770"/>
+    <control-tag name="B4N1Tone" tag="771"/>
+    <control-tag name="B4N1Bias" tag="772"/>
+    <control-tag name="B4N1Folds" tag="773"/>
+    <control-tag name="B4N1BitDepth" tag="774"/>
+
+    <!-- Band 5 Node 1 Parameters (0x0400-0x0406) -->
+    <control-tag name="B5N1Type" tag="1024"/>
+    <control-tag name="B5N1Drive" tag="1025"/>
+    <control-tag name="B5N1Mix" tag="1026"/>
+    <control-tag name="B5N1Tone" tag="1027"/>
+    <control-tag name="B5N1Bias" tag="1028"/>
+    <control-tag name="B5N1Folds" tag="1029"/>
+    <control-tag name="B5N1BitDepth" tag="1030"/>
+
+    <!-- Band 6 Node 1 Parameters (0x0500-0x0506) -->
+    <control-tag name="B6N1Type" tag="1280"/>
+    <control-tag name="B6N1Drive" tag="1281"/>
+    <control-tag name="B6N1Mix" tag="1282"/>
+    <control-tag name="B6N1Tone" tag="1283"/>
+    <control-tag name="B6N1Bias" tag="1284"/>
+    <control-tag name="B6N1Folds" tag="1285"/>
+    <control-tag name="B6N1BitDepth" tag="1286"/>
+
+    <!-- Band 7 Node 1 Parameters (0x0600-0x0606) -->
+    <control-tag name="B7N1Type" tag="1536"/>
+    <control-tag name="B7N1Drive" tag="1537"/>
+    <control-tag name="B7N1Mix" tag="1538"/>
+    <control-tag name="B7N1Tone" tag="1539"/>
+    <control-tag name="B7N1Bias" tag="1540"/>
+    <control-tag name="B7N1Folds" tag="1541"/>
+    <control-tag name="B7N1BitDepth" tag="1542"/>
+
+    <!-- Band 8 Node 1 Parameters (0x0700-0x0706) -->
+    <control-tag name="B8N1Type" tag="1792"/>
+    <control-tag name="B8N1Drive" tag="1793"/>
+    <control-tag name="B8N1Mix" tag="1794"/>
+    <control-tag name="B8N1Tone" tag="1795"/>
+    <control-tag name="B8N1Bias" tag="1796"/>
+    <control-tag name="B8N1Folds" tag="1797"/>
+    <control-tag name="B8N1BitDepth" tag="1798"/>
+
+    <!-- UI-only visibility tags (9000+) -->
+    <control-tag name="Band1Container" tag="9000"/>
+    <control-tag name="Band2Container" tag="9001"/>
+    <control-tag name="Band3Container" tag="9002"/>
+    <control-tag name="Band4Container" tag="9003"/>
+    <control-tag name="Band5Container" tag="9004"/>
+    <control-tag name="Band6Container" tag="9005"/>
+    <control-tag name="Band7Container" tag="9006"/>
+    <control-tag name="Band8Container" tag="9007"/>
+  </control-tags>
+
+  <!-- Gradients -->
+  <gradients>
+    <gradient name="spectrum-gradient">
+      <color-stop rgba="#FF6B3540" start="0"/>
+      <color-stop rgba="#4ECDC440" start="0.25"/>
+      <color-stop rgba="#95E86B40" start="0.5"/>
+      <color-stop rgba="#C792EA40" start="0.75"/>
+      <color-stop rgba="#F78C6C40" start="1"/>
+    </gradient>
+    <gradient name="button-default">
+      <color-stop rgba="#303035ff" start="0"/>
+      <color-stop rgba="#252529ff" start="1"/>
+    </gradient>
+    <gradient name="button-active">
+      <color-stop rgba="#404048ff" start="0"/>
+      <color-stop rgba="#303035ff" start="1"/>
+    </gradient>
+  </gradients>
+
+  <!-- Main Editor Template (FR-011) -->
+  <template name="editor" class="CViewContainer" size="1000, 600"
+            background-color="background-primary" minSize="800, 500" maxSize="1400, 900">
+
+    <!-- Header Panel -->
+    <view class="CViewContainer" origin="0, 0" size="1000, 50" background-color="background-secondary">
+      <view class="CTextLabel" origin="20, 10" size="200, 30" title="Disrumpo"
+            font="title-font" font-color="text-primary" text-alignment="left"/>
+
+      <!-- Preset Button (T5b.9 placeholder - no functionality until Week 12) -->
+      <view class="CTextButton" origin="250, 12" size="80, 25" title="Preset"
+            font="label-font" font-color="text-primary" frame-color="border"
+            gradient="button-default" gradient-highlighted="button-active"/>
+
+      <!-- Global Controls in Header -->
+      <view class="CViewContainer" origin="700, 5" size="290, 40" transparent="true">
+        <view class="CTextLabel" origin="0, 0" size="50, 15" title="Input"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CKnob" origin="5, 15" size="40, 25"
+              control-tag="InputGain" default-value="0.5" min-value="0" max-value="1"
+              background-color="panel" handle-color="accent-primary"/>
+
+        <view class="CTextLabel" origin="50, 0" size="50, 15" title="Output"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CKnob" origin="55, 15" size="40, 25"
+              control-tag="OutputGain" default-value="0.5" min-value="0" max-value="1"
+              background-color="panel" handle-color="accent-primary"/>
+
+        <view class="CTextLabel" origin="100, 0" size="50, 15" title="Mix"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CKnob" origin="105, 15" size="40, 25"
+              control-tag="GlobalMix" default-value="1.0" min-value="0" max-value="1"
+              background-color="panel" handle-color="accent-primary"/>
+
+        <view class="CTextLabel" origin="155, 0" size="60, 15" title="Bands"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="COptionMenu" origin="155, 18" size="60, 20"
+              control-tag="BandCount" default-value="0.428" font="value-font"
+              font-color="text-primary" back-color="panel" frame-color="border"/>
+
+        <view class="CTextLabel" origin="220, 0" size="60, 15" title="OS Max"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="COptionMenu" origin="220, 18" size="60, 20"
+              control-tag="OversampleMax" default-value="0.66" font="value-font"
+              font-color="text-primary" back-color="panel" frame-color="border"/>
+      </view>
+    </view>
+
+    <!-- Spectrum Display (FR-013) - Custom VSTGUI view for frequency band regions -->
+    <view class="CView" custom-view-name="SpectrumDisplay" origin="20, 60" size="960, 120"/>
+
+    <!-- Band Strips Container -->
+    <view class="CViewContainer" origin="20, 190" size="960, 350" background-color="background-primary">
+
+      <!-- Band 1 Strip (FR-014) -->
+      <view class="CViewContainer" origin="0, 0" size="235, 340" background-color="panel"
+            control-tag="Band1Container">
+        <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 1"
+              font="section-font" font-color="band-1" text-alignment="center"/>
+
+        <!-- Type Selector -->
+        <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type"
+              font="small-font" font-color="text-secondary"/>
+        <view class="COptionMenu" origin="10, 45" size="215, 22"
+              control-tag="B1N1Type" font="value-font"
+              font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+
+        <!-- Drive & Mix Row -->
+        <view class="CTextLabel" origin="10, 75" size="60, 15" title="Drive"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="10, 90" size="100, 20" orientation="horizontal"
+              control-tag="B1N1Drive" default-value="0.1" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="10, 112" size="100, 15"
+              control-tag="B1N1Drive" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <view class="CTextLabel" origin="120, 75" size="60, 15" title="Mix"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="120, 90" size="100, 20" orientation="horizontal"
+              control-tag="B1N1Mix" default-value="1.0" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="120, 112" size="100, 15"
+              control-tag="B1N1Mix" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <!-- Tone & Bias Row -->
+        <view class="CTextLabel" origin="10, 135" size="60, 15" title="Tone"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="10, 150" size="100, 20" orientation="horizontal"
+              control-tag="B1N1Tone" default-value="0.487" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+
+        <view class="CTextLabel" origin="120, 135" size="60, 15" title="Bias"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="120, 150" size="100, 20" orientation="horizontal"
+              control-tag="B1N1Bias" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+
+        <!-- Gain & Pan Row -->
+        <view class="CTextLabel" origin="10, 200" size="60, 15" title="Gain"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="10, 215" size="100, 20" orientation="horizontal"
+              control-tag="Band1Gain" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="10, 237" size="100, 15"
+              control-tag="Band1Gain" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <view class="CTextLabel" origin="120, 200" size="60, 15" title="Pan"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="120, 215" size="100, 20" orientation="horizontal"
+              control-tag="Band1Pan" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="120, 237" size="100, 15"
+              control-tag="Band1Pan" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <!-- Solo/Bypass/Mute Buttons (FR-030) -->
+        <view class="CViewContainer" origin="10, 270" size="215, 30" transparent="true">
+          <view class="COnOffButton" origin="30, 0" size="40, 25"
+                control-tag="Band1Solo" default-value="0"/>
+          <view class="CTextLabel" origin="30, 25" size="40, 15" title="Solo"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+          <view class="COnOffButton" origin="90, 0" size="40, 25"
+                control-tag="Band1Bypass" default-value="0"/>
+          <view class="CTextLabel" origin="90, 25" size="40, 15" title="Bypass"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+          <view class="COnOffButton" origin="150, 0" size="40, 25"
+                control-tag="Band1Mute" default-value="0"/>
+          <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+        </view>
+
+        <!-- Morph Controls (FR-028) -->
+        <view class="CTextLabel" origin="10, 305" size="60, 15" title="Morph X"
+              font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="70, 305" size="60, 15" orientation="horizontal"
+              control-tag="Band1MorphX" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="accent-secondary"/>
+
+        <view class="CTextLabel" origin="135, 305" size="60, 15" title="Morph Y"
+              font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="195, 305" size="60, 15" orientation="horizontal"
+              control-tag="Band1MorphY" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="accent-secondary"/>
+      </view>
+
+      <!-- Band 2 Strip -->
+      <view class="CViewContainer" origin="240, 0" size="235, 340" background-color="panel"
+            control-tag="Band2Container">
+        <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 2"
+              font="section-font" font-color="band-2" text-alignment="center"/>
+
+        <!-- Type Selector -->
+        <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type"
+              font="small-font" font-color="text-secondary"/>
+        <view class="COptionMenu" origin="10, 45" size="215, 22"
+              control-tag="B2N1Type" font="value-font"
+              font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+
+        <!-- Drive & Mix Row -->
+        <view class="CTextLabel" origin="10, 75" size="60, 15" title="Drive"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="10, 90" size="100, 20" orientation="horizontal"
+              control-tag="B2N1Drive" default-value="0.1" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="10, 112" size="100, 15"
+              control-tag="B2N1Drive" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <view class="CTextLabel" origin="120, 75" size="60, 15" title="Mix"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="120, 90" size="100, 20" orientation="horizontal"
+              control-tag="B2N1Mix" default-value="1.0" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="120, 112" size="100, 15"
+              control-tag="B2N1Mix" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <!-- Gain & Pan Row -->
+        <view class="CTextLabel" origin="10, 140" size="60, 15" title="Gain"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="10, 155" size="100, 20" orientation="horizontal"
+              control-tag="Band2Gain" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+
+        <view class="CTextLabel" origin="120, 140" size="60, 15" title="Pan"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="120, 155" size="100, 20" orientation="horizontal"
+              control-tag="Band2Pan" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+
+        <!-- Solo/Bypass/Mute Buttons -->
+        <view class="CViewContainer" origin="10, 200" size="215, 50" transparent="true">
+          <view class="COnOffButton" origin="30, 0" size="40, 25"
+                control-tag="Band2Solo" default-value="0"/>
+          <view class="CTextLabel" origin="30, 25" size="40, 15" title="Solo"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+          <view class="COnOffButton" origin="90, 0" size="40, 25"
+                control-tag="Band2Bypass" default-value="0"/>
+          <view class="CTextLabel" origin="90, 25" size="40, 15" title="Bypass"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+          <view class="COnOffButton" origin="150, 0" size="40, 25"
+                control-tag="Band2Mute" default-value="0"/>
+          <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+        </view>
+      </view>
+
+      <!-- Band 3 Strip -->
+      <view class="CViewContainer" origin="480, 0" size="235, 340" background-color="panel"
+            control-tag="Band3Container">
+        <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 3"
+              font="section-font" font-color="band-3" text-alignment="center"/>
+
+        <!-- Type Selector -->
+        <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type"
+              font="small-font" font-color="text-secondary"/>
+        <view class="COptionMenu" origin="10, 45" size="215, 22"
+              control-tag="B3N1Type" font="value-font"
+              font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+
+        <!-- Drive & Mix Row -->
+        <view class="CTextLabel" origin="10, 75" size="60, 15" title="Drive"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="10, 90" size="100, 20" orientation="horizontal"
+              control-tag="B3N1Drive" default-value="0.1" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="10, 112" size="100, 15"
+              control-tag="B3N1Drive" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <view class="CTextLabel" origin="120, 75" size="60, 15" title="Mix"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="120, 90" size="100, 20" orientation="horizontal"
+              control-tag="B3N1Mix" default-value="1.0" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="120, 112" size="100, 15"
+              control-tag="B3N1Mix" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <!-- Gain & Pan Row -->
+        <view class="CTextLabel" origin="10, 140" size="60, 15" title="Gain"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="10, 155" size="100, 20" orientation="horizontal"
+              control-tag="Band3Gain" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+
+        <view class="CTextLabel" origin="120, 140" size="60, 15" title="Pan"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="120, 155" size="100, 20" orientation="horizontal"
+              control-tag="Band3Pan" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+
+        <!-- Solo/Bypass/Mute Buttons -->
+        <view class="CViewContainer" origin="10, 200" size="215, 50" transparent="true">
+          <view class="COnOffButton" origin="30, 0" size="40, 25"
+                control-tag="Band3Solo" default-value="0"/>
+          <view class="CTextLabel" origin="30, 25" size="40, 15" title="Solo"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+          <view class="COnOffButton" origin="90, 0" size="40, 25"
+                control-tag="Band3Bypass" default-value="0"/>
+          <view class="CTextLabel" origin="90, 25" size="40, 15" title="Bypass"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+          <view class="COnOffButton" origin="150, 0" size="40, 25"
+                control-tag="Band3Mute" default-value="0"/>
+          <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+        </view>
+      </view>
+
+      <!-- Band 4 Strip -->
+      <view class="CViewContainer" origin="720, 0" size="235, 340" background-color="panel"
+            control-tag="Band4Container">
+        <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 4"
+              font="section-font" font-color="band-4" text-alignment="center"/>
+
+        <!-- Type Selector -->
+        <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type"
+              font="small-font" font-color="text-secondary"/>
+        <view class="COptionMenu" origin="10, 45" size="215, 22"
+              control-tag="B4N1Type" font="value-font"
+              font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+
+        <!-- Drive & Mix Row -->
+        <view class="CTextLabel" origin="10, 75" size="60, 15" title="Drive"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="10, 90" size="100, 20" orientation="horizontal"
+              control-tag="B4N1Drive" default-value="0.1" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="10, 112" size="100, 15"
+              control-tag="B4N1Drive" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <view class="CTextLabel" origin="120, 75" size="60, 15" title="Mix"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="120, 90" size="100, 20" orientation="horizontal"
+              control-tag="B4N1Mix" default-value="1.0" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+        <view class="CParamDisplay" origin="120, 112" size="100, 15"
+              control-tag="B4N1Mix" font="value-font" font-color="text-primary"
+              back-color="transparent" text-alignment="center"/>
+
+        <!-- Gain & Pan Row -->
+        <view class="CTextLabel" origin="10, 140" size="60, 15" title="Gain"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="10, 155" size="100, 20" orientation="horizontal"
+              control-tag="Band4Gain" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+
+        <view class="CTextLabel" origin="120, 140" size="60, 15" title="Pan"
+              font="small-font" font-color="text-secondary" text-alignment="center"/>
+        <view class="CSlider" origin="120, 155" size="100, 20" orientation="horizontal"
+              control-tag="Band4Pan" default-value="0.5" min-value="0" max-value="1"
+              background-color="slider-track" handle-color="slider-handle"/>
+
+        <!-- Solo/Bypass/Mute Buttons -->
+        <view class="CViewContainer" origin="10, 200" size="215, 50" transparent="true">
+          <view class="COnOffButton" origin="30, 0" size="40, 25"
+                control-tag="Band4Solo" default-value="0"/>
+          <view class="CTextLabel" origin="30, 25" size="40, 15" title="Solo"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+          <view class="COnOffButton" origin="90, 0" size="40, 25"
+                control-tag="Band4Bypass" default-value="0"/>
+          <view class="CTextLabel" origin="90, 25" size="40, 15" title="Bypass"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+          <view class="COnOffButton" origin="150, 0" size="40, 25"
+                control-tag="Band4Mute" default-value="0"/>
+          <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+        </view>
+      </view>
+    </view>
+
+    <!-- Footer/Status Bar -->
+    <view class="CViewContainer" origin="0, 550" size="1000, 50" background-color="background-secondary">
+      <view class="CTextLabel" origin="20, 15" size="200, 20" title="Sweep"
+            font="label-font" font-color="text-primary"/>
+      <view class="COnOffButton" origin="70, 12" size="25, 25"
+            control-tag="SweepEnable" default-value="0"/>
+
+      <view class="CTextLabel" origin="110, 15" size="40, 20" title="Freq"
+            font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="150, 15" size="100, 20" orientation="horizontal"
+            control-tag="SweepFrequency" default-value="0.049" min-value="0" max-value="1"
+            background-color="slider-track" handle-color="accent-secondary"/>
+
+      <view class="CTextLabel" origin="260, 15" size="40, 20" title="Width"
+            font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="300, 15" size="80, 20" orientation="horizontal"
+            control-tag="SweepWidth" default-value="0.143" min-value="0" max-value="1"
+            background-color="slider-track" handle-color="accent-secondary"/>
+
+      <view class="CTextLabel" origin="820, 15" size="160, 20" title="Disrumpo v0.1.0"
+            font="small-font" font-color="text-secondary" text-alignment="right"/>
+    </view>
+
+  </template>
+</vstgui-ui-description>
