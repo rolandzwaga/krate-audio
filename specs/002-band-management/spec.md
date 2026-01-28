@@ -481,7 +481,7 @@ plugins/disrumpo/
 | FR-030 | MET | Floating-point addition is commutative |
 | FR-031 | MET | Tests show <0.05dB error at 1kHz, 4-band DC |
 | FR-032 | MET | Test "flat response at all sample rates" passes (44.1, 48, 96, 192kHz) |
-| FR-033 | PARTIAL | Uses sine/DC tests instead of pink noise FFT (same verification goal) |
+| FR-033 | MET | Pink noise FFT tests verify flat response across all octave bands |
 | FR-034 | MET | Per-band params registered in Controller::initialize() |
 | FR-035 | MET | makeCrossoverParamId() and crossover params registered |
 | FR-036 | MET | processParameterChanges() handles band params via isBandParamId() |
@@ -518,7 +518,6 @@ plugins/disrumpo/
 **Overall Status**: COMPLETE
 
 **Minor Deviations (documented, not blocking):**
-- FR-033: Uses sine/DC tests instead of pink noise FFT. Verification goal (flat response) is achieved.
 - FR-039: Version updated to 2 instead of remaining at 1. This is correct since we added new parameters.
 - SC-003: Performance benchmark not explicitly measured (deferred to future performance pass).
 

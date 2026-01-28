@@ -49,8 +49,10 @@ public:
     static constexpr float kDefaultSmoothingMs = 10.0f;
 
     /// Q for 2nd-order allpass to match LR4 phase response
-    /// Per D'Appolito method, using 0.5 for optimal phase matching
-    static constexpr float kAllpassQ = 0.5f;
+    /// LR4 = two cascaded Butterworth (Q=0.7071) filters
+    /// The allpass must have the same Q to match the phase curve
+    /// Reference: KVR "N-band Linkwitz-Riley crossovers" discussion
+    static constexpr float kAllpassQ = 0.7071f;
 
     // =========================================================================
     // Lifecycle

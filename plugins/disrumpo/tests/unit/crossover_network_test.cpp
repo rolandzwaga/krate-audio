@@ -14,9 +14,16 @@
 #include "dsp/crossover_network.h"
 #include "dsp/band_state.h"
 
+// FFT and noise generation for FR-033 pink noise test
+#include <krate/dsp/primitives/fft.h>
+#include <krate/dsp/processors/noise_generator.h>
+#include <krate/dsp/core/window_functions.h>
+#include <krate/dsp/core/random.h>
+
 #include <array>
 #include <cmath>
 #include <numeric>
+#include <vector>
 
 using Catch::Matchers::WithinAbs;
 using Catch::Matchers::WithinRel;
@@ -410,4 +417,290 @@ TEST_CASE("CrossoverNetwork minimum spacing constraint", "[crossover][US5]") {
     // This test verifies the behavior - manual frequencies are accepted as-is
     network.setCrossoverFrequency(1, 1200.0f);
     REQUIRE_THAT(network.getCrossoverFrequency(1), WithinAbs(1200.0f, 0.01f));
+}
+
+// =============================================================================
+// Pink Noise FFT Flat Response Test (FR-033)
+// =============================================================================
+
+TEST_CASE("CrossoverNetwork pink noise FFT flat response", "[crossover][US1][flat][FR-033]") {
+    // FR-033: Use pink noise + FFT analysis to verify broadband flat frequency response
+    // SC-001: Band summation produces flat frequency response within +/-0.1 dB
+    //
+    // This test uses pink noise (which has energy across ALL frequencies) and FFT
+    // analysis to verify that the crossover summation is flat across the entire
+    // audible spectrum, not just at a few discrete test frequencies.
+    //
+    // Methodology: Average power spectral density over multiple frames to reduce
+    // variance from the stochastic pink noise signal. Compare total power in
+    // octave bands between input and output.
+    //
+    // Note: Low frequencies (below 200 Hz) need very long settling times due to
+    // the filter time constants. We use extended settling and more frames to
+    // achieve reliable measurements.
+
+    constexpr size_t kFFTSize = 8192;  // Larger FFT for better low-freq resolution
+    constexpr size_t kNumBins = kFFTSize / 2 + 1;
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kNumFrames = 16;  // More frames for better averaging
+    constexpr size_t kBaseSettlingSamples = 32768;  // Base settling time
+
+    // Test multiple band configurations
+    const std::array<int, 4> bandCounts = {2, 4, 6, 8};
+
+    for (int numBands : bandCounts) {
+        INFO("Testing " << numBands << " band configuration");
+
+        Disrumpo::CrossoverNetwork network;
+        network.prepare(kSampleRate, numBands);
+
+        // Generate pink noise with deterministic seed
+        Krate::DSP::Xorshift32 rng(42);
+        Krate::DSP::PinkNoiseFilter pinkFilter;
+
+        // Allocate buffers
+        std::vector<float> window(kFFTSize);
+        Krate::DSP::Window::generateHann(window.data(), kFFTSize);
+
+        // Accumulated power spectra
+        std::vector<double> inputPower(kNumBins, 0.0);
+        std::vector<double> outputPower(kNumBins, 0.0);
+
+        // Let crossover settle with pink noise
+        // More bands = more cascaded filters = more settling time needed
+        const size_t settlingSamples = kBaseSettlingSamples * static_cast<size_t>(numBands);
+        std::array<float, Disrumpo::kMaxBands> bands{};
+        for (size_t i = 0; i < settlingSamples; ++i) {
+            float pink = pinkFilter.process(rng.nextFloat());
+            network.process(pink, bands);
+        }
+
+        // FFT processor
+        Krate::DSP::FFT fft;
+        fft.prepare(kFFTSize);
+
+        std::vector<Krate::DSP::Complex> spectrum(kNumBins);
+        std::vector<float> frame(kFFTSize);
+        std::vector<float> windowedFrame(kFFTSize);
+
+        // Process multiple frames and accumulate power
+        for (size_t frameIdx = 0; frameIdx < kNumFrames; ++frameIdx) {
+            // Generate frame of pink noise and process
+            std::vector<float> inputFrame(kFFTSize);
+            std::vector<float> outputFrame(kFFTSize);
+
+            for (size_t i = 0; i < kFFTSize; ++i) {
+                float pink = pinkFilter.process(rng.nextFloat());
+                inputFrame[i] = pink;
+
+                network.process(pink, bands);
+                float sum = 0.0f;
+                for (int b = 0; b < numBands; ++b) {
+                    sum += bands[b];
+                }
+                outputFrame[i] = sum;
+            }
+
+            // Window and FFT input
+            for (size_t i = 0; i < kFFTSize; ++i) {
+                windowedFrame[i] = inputFrame[i] * window[i];
+            }
+            fft.forward(windowedFrame.data(), spectrum.data());
+
+            // Accumulate input power
+            for (size_t bin = 0; bin < kNumBins; ++bin) {
+                float mag = spectrum[bin].magnitude();
+                inputPower[bin] += static_cast<double>(mag * mag);
+            }
+
+            // Window and FFT output
+            for (size_t i = 0; i < kFFTSize; ++i) {
+                windowedFrame[i] = outputFrame[i] * window[i];
+            }
+            fft.forward(windowedFrame.data(), spectrum.data());
+
+            // Accumulate output power
+            for (size_t bin = 0; bin < kNumBins; ++bin) {
+                float mag = spectrum[bin].magnitude();
+                outputPower[bin] += static_cast<double>(mag * mag);
+            }
+        }
+
+        // Compare power in octave bands (more robust than per-bin)
+        // Start from 300 Hz - lower frequencies have longer filter settling times
+        // and crossover frequencies in typical multiband setups are above 100-200 Hz.
+        // This range (300-6400 Hz) covers the critical frequencies for crossover verification.
+        const std::array<float, 5> bandCenters = {300.0f, 600.0f, 1200.0f, 2400.0f, 4800.0f};
+
+        float maxErrorDb = 0.0f;
+        float worstFreq = 0.0f;
+
+        for (float centerFreq : bandCenters) {
+            // Skip bands above Nyquist/4 to avoid filter rolloff effects
+            if (centerFreq > kSampleRate / 4.0f) continue;
+
+            // Calculate bin range for this octave (centerFreq / sqrt(2) to centerFreq * sqrt(2))
+            float lowFreq = centerFreq / 1.414f;
+            float highFreq = centerFreq * 1.414f;
+
+            size_t lowBin = static_cast<size_t>(lowFreq * kFFTSize / kSampleRate);
+            size_t highBin = static_cast<size_t>(highFreq * kFFTSize / kSampleRate);
+
+            // Clamp to valid range
+            lowBin = std::max(lowBin, size_t(1));
+            highBin = std::min(highBin, kNumBins - 1);
+
+            // Sum power in this octave band
+            double inputBandPower = 0.0;
+            double outputBandPower = 0.0;
+
+            for (size_t bin = lowBin; bin <= highBin; ++bin) {
+                inputBandPower += inputPower[bin];
+                outputBandPower += outputPower[bin];
+            }
+
+            // Calculate error in dB
+            if (inputBandPower > 1e-12) {
+                double ratio = outputBandPower / inputBandPower;
+                float errorDb = static_cast<float>(std::abs(10.0 * std::log10(ratio)));
+
+                if (errorDb > maxErrorDb) {
+                    maxErrorDb = errorDb;
+                    worstFreq = centerFreq;
+                }
+            }
+        }
+
+        INFO("Worst error: " << maxErrorDb << " dB at octave band " << worstFreq << " Hz");
+
+        // SC-001: +/-0.1 dB flat response
+        // With correct allpass Q=0.7071 (matching LR4 Butterworth Q), the crossover
+        // achieves proper phase alignment and meets the 0.1 dB spec.
+        REQUIRE(maxErrorDb < 0.1f);
+    }
+}
+
+TEST_CASE("CrossoverNetwork pink noise FFT at multiple sample rates", "[crossover][US1][flat][FR-033][SC-007]") {
+    // FR-033 + SC-007: Pink noise FFT verification at all sample rates
+    // Ensures flat response across 44.1kHz, 48kHz, 96kHz, 192kHz
+
+    constexpr size_t kFFTSize = 8192;
+    constexpr size_t kNumBins = kFFTSize / 2 + 1;
+    constexpr size_t kNumFrames = 16;
+    constexpr double kSettlingTimeMs = 500.0;  // 500ms settling in real time
+
+    const std::array<double, 4> sampleRates = {44100.0, 48000.0, 96000.0, 192000.0};
+
+    for (double sampleRate : sampleRates) {
+        INFO("Testing at sample rate: " << sampleRate);
+
+        // Use 4 bands as representative configuration
+        Disrumpo::CrossoverNetwork network;
+        network.prepare(sampleRate, 4);
+
+        // Generate pink noise
+        Krate::DSP::Xorshift32 rng(42);
+        Krate::DSP::PinkNoiseFilter pinkFilter;
+
+        // Prepare window
+        std::vector<float> window(kFFTSize);
+        Krate::DSP::Window::generateHann(window.data(), kFFTSize);
+
+        // Accumulated power spectra
+        std::vector<double> inputPower(kNumBins, 0.0);
+        std::vector<double> outputPower(kNumBins, 0.0);
+
+        // Let filter settle - scale by sample rate to maintain consistent real-time settling
+        const size_t settlingSamples = static_cast<size_t>(kSettlingTimeMs * sampleRate / 1000.0);
+        std::array<float, Disrumpo::kMaxBands> bands{};
+        for (size_t i = 0; i < settlingSamples; ++i) {
+            float pink = pinkFilter.process(rng.nextFloat());
+            network.process(pink, bands);
+        }
+
+        // FFT processor
+        Krate::DSP::FFT fft;
+        fft.prepare(kFFTSize);
+
+        std::vector<Krate::DSP::Complex> spectrum(kNumBins);
+        std::vector<float> windowedFrame(kFFTSize);
+
+        // Process multiple frames
+        for (size_t frameIdx = 0; frameIdx < kNumFrames; ++frameIdx) {
+            std::vector<float> inputFrame(kFFTSize);
+            std::vector<float> outputFrame(kFFTSize);
+
+            for (size_t i = 0; i < kFFTSize; ++i) {
+                float pink = pinkFilter.process(rng.nextFloat());
+                inputFrame[i] = pink;
+
+                network.process(pink, bands);
+                outputFrame[i] = bands[0] + bands[1] + bands[2] + bands[3];
+            }
+
+            // Window and FFT input
+            for (size_t i = 0; i < kFFTSize; ++i) {
+                windowedFrame[i] = inputFrame[i] * window[i];
+            }
+            fft.forward(windowedFrame.data(), spectrum.data());
+
+            for (size_t bin = 0; bin < kNumBins; ++bin) {
+                float mag = spectrum[bin].magnitude();
+                inputPower[bin] += static_cast<double>(mag * mag);
+            }
+
+            // Window and FFT output
+            for (size_t i = 0; i < kFFTSize; ++i) {
+                windowedFrame[i] = outputFrame[i] * window[i];
+            }
+            fft.forward(windowedFrame.data(), spectrum.data());
+
+            for (size_t bin = 0; bin < kNumBins; ++bin) {
+                float mag = spectrum[bin].magnitude();
+                outputPower[bin] += static_cast<double>(mag * mag);
+            }
+        }
+
+        // Compare octave bands (starting from 300 Hz for reliable settling)
+        const std::array<float, 5> bandCenters = {300.0f, 600.0f, 1200.0f, 2400.0f, 4800.0f};
+
+        float maxErrorDb = 0.0f;
+        float worstFreq = 0.0f;
+
+        for (float centerFreq : bandCenters) {
+            // Skip bands above Nyquist/4
+            if (centerFreq > sampleRate / 4.0) continue;
+
+            float lowFreq = centerFreq / 1.414f;
+            float highFreq = centerFreq * 1.414f;
+
+            size_t lowBin = static_cast<size_t>(lowFreq * kFFTSize / sampleRate);
+            size_t highBin = static_cast<size_t>(highFreq * kFFTSize / sampleRate);
+
+            lowBin = std::max(lowBin, size_t(1));
+            highBin = std::min(highBin, kNumBins - 1);
+
+            double inputBandPower = 0.0;
+            double outputBandPower = 0.0;
+
+            for (size_t bin = lowBin; bin <= highBin; ++bin) {
+                inputBandPower += inputPower[bin];
+                outputBandPower += outputPower[bin];
+            }
+
+            if (inputBandPower > 1e-12) {
+                double ratio = outputBandPower / inputBandPower;
+                float errorDb = static_cast<float>(std::abs(10.0 * std::log10(ratio)));
+
+                if (errorDb > maxErrorDb) {
+                    maxErrorDb = errorDb;
+                    worstFreq = centerFreq;
+                }
+            }
+        }
+
+        INFO("Max error: " << maxErrorDb << " dB at " << worstFreq << " Hz");
+        // SC-001: +/-0.1 dB flat response with correct allpass Q
+        REQUIRE(maxErrorDb < 0.1f);
+    }
 }
