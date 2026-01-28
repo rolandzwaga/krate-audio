@@ -16,6 +16,8 @@
 
 #include <array>
 #include <cmath>
+#include <memory>
+#include <vector>
 
 using Catch::Matchers::WithinAbs;
 
@@ -247,10 +249,12 @@ TEST_CASE("IT-006: Full stereo signal path", "[integration][band-management]") {
     crossoverL.prepare(kSampleRate, kNumBands);
     crossoverR.prepare(kSampleRate, kNumBands);
 
-    // Setup per-band processors (one per band, not shared between L/R)
-    std::array<Disrumpo::BandProcessor, Disrumpo::kMaxBands> bandProcessors;
-    for (auto& bp : bandProcessors) {
-        bp.prepare(kSampleRate);
+    // Setup per-band processors on the heap (BandProcessor is large due to oversamplers/distortion)
+    std::vector<std::unique_ptr<Disrumpo::BandProcessor>> bandProcessors;
+    bandProcessors.reserve(kNumBands);
+    for (int i = 0; i < kNumBands; ++i) {
+        bandProcessors.push_back(std::make_unique<Disrumpo::BandProcessor>());
+        bandProcessors.back()->prepare(kSampleRate);
     }
 
     // Generate stereo test signals
@@ -276,7 +280,7 @@ TEST_CASE("IT-006: Full stereo signal path", "[integration][band-management]") {
             // BandProcessor processes L/R together (applies pan)
             float left = bandsL[b];
             float right = bandsR[b];
-            bandProcessors[b].process(left, right);
+            bandProcessors[b]->process(left, right);
             frameL += left;
             frameR += right;
         }

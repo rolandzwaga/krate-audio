@@ -1,8 +1,8 @@
 # Disrumpo - Task Breakdown
 
 **Related Documents:**
-- [spec.md](spec.md) - Core requirements specification
-- [plan.md](plan.md) - System architecture and development roadmap
+- [specs-overview.md](specs-overview.md) - Core requirements specification
+- [plans-overview.md](plans-overview.md) - System architecture and development roadmap
 - [ui-mockups.md](ui-mockups.md) - Detailed UI specifications
 - [dsp-details.md](dsp-details.md) - DSP implementation details
 - [custom-controls.md](custom-controls.md) - Custom VSTGUI control specifications

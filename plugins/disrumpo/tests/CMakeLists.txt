@@ -16,6 +16,10 @@ add_executable(disrumpo_tests
     # Unit tests
     unit/crossover_network_test.cpp
     unit/band_processing_test.cpp
+    unit/distortion_adapter_test.cpp
+
+    # DSP sources (needed for tests)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
 
     # Integration tests
     integration/band_management_integration_test.cpp
@@ -45,6 +49,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     set_source_files_properties(
         unit/crossover_network_test.cpp
         unit/band_processing_test.cpp
+        unit/distortion_adapter_test.cpp
         integration/band_management_integration_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )

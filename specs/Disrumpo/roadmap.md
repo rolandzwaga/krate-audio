@@ -5,13 +5,30 @@
 **Status:** Planning
 
 **Related Documents:**
-- [spec.md](spec.md) - Core requirements specification
-- [plan.md](plan.md) - System architecture overview
-- [tasks.md](tasks.md) - Task breakdown summary
+- [specs-overview.md](specs-overview.md) - Core requirements specification
+- [plans-overview.md](plans-overview.md) - System architecture overview
+- [tasks-overview.md](tasks-overview.md) - Task breakdown summary
 - [ui-mockups.md](ui-mockups.md) - UI specifications
 - [dsp-details.md](dsp-details.md) - DSP implementation details
 - [custom-controls.md](custom-controls.md) - Custom VSTGUI control specifications
 - [vstgui-implementation.md](vstgui-implementation.md) - Complete VSTGUI implementation (plugin_ids.h, editor.uidesc, Controller, visibility)
+
+> **⚠️ IMPLEMENTATION SPEC AND PLAN DERIVATION RULE**
+>
+> When creating implementation specs (e.g., `001-plugin-skeleton`, `002-band-management`) from this specification, you **MUST** consult ALL of the following documents:
+>
+> | Document | Required Content |
+> |----------|------------------|
+> | **specs-overview.md** (this file) | Functional requirements (FR-xxx), success criteria, distortion types |
+> | **plans-overview.md** | System architecture diagrams, signal flow, layer structure |
+> | **tasks-overview.md** | Task breakdown, condensed task IDs (T2.1-T2.4 style) |
+> | **roadmap.md** | Detailed task IDs (T2.1-T2.9 style), milestone criteria, dependencies |
+> | **dsp-details.md** | Parameter ID encoding, data structures, DSP algorithms, BandState |
+> | **ui-mockups.md** | UI layout, panel organization, control placement, visual hierarchy |
+> | **custom-controls.md** | Custom VSTGUI control specs, MorphPad, FrequencyBandDisplay, etc. |
+> | **vstgui-implementation.md** | VSTGUI patterns, IDependent, visibility controllers, thread safety |
+>
+> **ALL documents contain VITAL information.** Failure to consult all documents results in incomplete specs missing architectural context, UI requirements, task mappings, or implementation details.
 
 ---
 
@@ -87,7 +104,7 @@ Disrumpo is a multiband morphing distortion VST3 plugin featuring:
 | Preset preview/audition | Basic browser only |
 | Undo/redo (50+ levels) | Deferred to v1.1 |
 
-### Success Criteria (from spec.md)
+### Success Criteria (from specs-overview.md)
 
 | Metric | Target |
 |--------|--------|

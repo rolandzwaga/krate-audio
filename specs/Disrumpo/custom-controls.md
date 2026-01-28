@@ -1,9 +1,9 @@
 # Disrumpo - Custom VSTGUI Controls
 
 **Related Documents:**
-- [spec.md](spec.md) - Core requirements specification
-- [plan.md](plan.md) - System architecture and development roadmap
-- [tasks.md](tasks.md) - Task breakdown and milestones
+- [specs-overview.md](specs-overview.md) - Core requirements specification
+- [plans-overview.md](plans-overview.md) - System architecture and development roadmap
+- [tasks-overview.md](tasks-overview.md) - Task breakdown and milestones
 - [ui-mockups.md](ui-mockups.md) - UI layout specifications
 - [dsp-details.md](dsp-details.md) - DSP implementation details
 
