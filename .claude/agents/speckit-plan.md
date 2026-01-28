@@ -114,6 +114,10 @@ This is your PRIMARY function. Use context7 MCP extensively here.
 
 ## Constitution Checks
 
+## Code reusage research
+- ALWAYS investigate the existing code base to see whether parts of the plan have already been implemented and can be re-used. The code base is very well organized and is aimed to be as modular and reusable as possible.
+- CONSIDER refactoring existing code to become better or more reusable for the tasks involving the current plan, just make sure this doesn't break existing functionality, all EXISTING tests must pass without changing the expactations after the refactor!
+
 Validate all design decisions against project constitution:
 - Check before design starts
 - Re-check after design completes

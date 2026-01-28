@@ -15,7 +15,11 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
+#include "dsp/crossover_network.h"
+#include "dsp/band_processor.h"
+#include "dsp/band_state.h"
 
+#include <array>
 #include <atomic>
 
 namespace Disrumpo {
@@ -107,6 +111,42 @@ private:
     std::atomic<float> inputGain_{0.5f};   // Default: 0 dB (normalized 0.5)
     std::atomic<float> outputGain_{0.5f};  // Default: 0 dB (normalized 0.5)
     std::atomic<float> globalMix_{1.0f};   // Default: 100% wet
+
+    // ==========================================================================
+    // Band Management (spec 002-band-management)
+    // FR-001b: Independent L/R channel processing
+    // ==========================================================================
+
+    /// @brief Current band count (1-8)
+    std::atomic<int> bandCount_{kDefaultBands};
+
+    /// @brief Crossover networks for L/R channels (FR-001b)
+    CrossoverNetwork crossoverL_;
+    CrossoverNetwork crossoverR_;
+
+    /// @brief Per-band state (gain, pan, solo, bypass, mute)
+    std::array<BandState, kMaxBands> bandStates_{};
+
+    /// @brief Per-band processors for gain/pan/mute
+    std::array<BandProcessor, kMaxBands> bandProcessors_{};
+
+    /// @brief Crossover frequency targets (normalized, for smoothing)
+    std::array<std::atomic<float>, kMaxBands - 1> crossoverFrequencies_{};
+
+    // ==========================================================================
+    // Solo State Tracking
+    // ==========================================================================
+
+    /// @brief Track if any band has solo enabled
+    /// @return true if any band's solo flag is set
+    [[nodiscard]] bool isAnySoloed() const noexcept;
+
+    /// @brief Check if a band should contribute to output
+    /// FR-025: Solo silences non-soloed bands
+    /// FR-025a: Mute overrides solo
+    /// @param bandIndex Band to check (0-7)
+    /// @return true if band should contribute to output
+    [[nodiscard]] bool shouldBandContribute(int bandIndex) const noexcept;
 };
 
 } // namespace Disrumpo
