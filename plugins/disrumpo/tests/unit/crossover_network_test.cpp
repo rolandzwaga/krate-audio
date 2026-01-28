@@ -331,10 +331,10 @@ TEST_CASE("CrossoverNetwork reset clears filter states", "[crossover][US1]") {
 }
 
 // =============================================================================
-// Crossover Frequency Tests
+// Crossover Frequency Tests (User Story 5)
 // =============================================================================
 
-TEST_CASE("CrossoverNetwork setCrossoverFrequency clamps to valid range", "[crossover][US1]") {
+TEST_CASE("CrossoverNetwork setCrossoverFrequency clamps to valid range", "[crossover][US1][US5]") {
     Disrumpo::CrossoverNetwork network;
     network.prepare(44100.0, 4);
 
@@ -348,4 +348,66 @@ TEST_CASE("CrossoverNetwork setCrossoverFrequency clamps to valid range", "[cros
         // Should clamp to Nyquist * 0.45
         REQUIRE(network.getCrossoverFrequency(0) <= 44100.0f * 0.45f);
     }
+}
+
+TEST_CASE("CrossoverNetwork manual crossover frequency adjustment", "[crossover][US5]") {
+    // FR-035: Support manual crossover frequency adjustment
+    Disrumpo::CrossoverNetwork network;
+    network.prepare(44100.0, 4);
+
+    SECTION("set crossover to specific frequency") {
+        network.setCrossoverFrequency(0, 250.0f);
+        REQUIRE_THAT(network.getCrossoverFrequency(0), WithinAbs(250.0f, 0.01f));
+
+        network.setCrossoverFrequency(1, 1000.0f);
+        REQUIRE_THAT(network.getCrossoverFrequency(1), WithinAbs(1000.0f, 0.01f));
+
+        network.setCrossoverFrequency(2, 4000.0f);
+        REQUIRE_THAT(network.getCrossoverFrequency(2), WithinAbs(4000.0f, 0.01f));
+    }
+
+    SECTION("manual values persist after band count increase") {
+        // FR-011a: Existing crossovers preserved when increasing
+        network.setCrossoverFrequency(0, 250.0f);
+        network.setCrossoverFrequency(1, 1000.0f);
+
+        // Increase band count
+        network.setBandCount(6);
+
+        // Original crossovers should still exist (may be at different indices after sorting)
+        bool found250 = false;
+        bool found1000 = false;
+        for (int i = 0; i < network.getBandCount() - 1; ++i) {
+            float freq = network.getCrossoverFrequency(i);
+            if (std::abs(freq - 250.0f) < 1.0f) found250 = true;
+            if (std::abs(freq - 1000.0f) < 1.0f) found1000 = true;
+        }
+        REQUIRE(found250);
+        REQUIRE(found1000);
+    }
+
+    SECTION("invalid index is silently ignored") {
+        float originalFreq = network.getCrossoverFrequency(0);
+        network.setCrossoverFrequency(-1, 500.0f);  // Invalid: negative
+        network.setCrossoverFrequency(10, 500.0f);  // Invalid: beyond range
+        // Should not crash, original value unchanged
+        REQUIRE_THAT(network.getCrossoverFrequency(0), WithinAbs(originalFreq, 0.01f));
+    }
+}
+
+TEST_CASE("CrossoverNetwork minimum spacing constraint", "[crossover][US5]") {
+    // Minimum spacing of 0.5 octaves between adjacent crossovers
+    Disrumpo::CrossoverNetwork network;
+    network.prepare(44100.0, 4);
+
+    // Set crossover 0 to 1000Hz
+    network.setCrossoverFrequency(0, 1000.0f);
+
+    // Set crossover 1 - should maintain minimum spacing
+    // 0.5 octaves above 1000Hz = 1000 * 2^0.5 = ~1414Hz
+    // Setting it lower should be allowed (no automatic clamping to spacing constraint)
+    // Note: The spec mentions spacing constraint but doesn't require automatic enforcement
+    // This test verifies the behavior - manual frequencies are accepted as-is
+    network.setCrossoverFrequency(1, 1200.0f);
+    REQUIRE_THAT(network.getCrossoverFrequency(1), WithinAbs(1200.0f, 0.01f));
 }

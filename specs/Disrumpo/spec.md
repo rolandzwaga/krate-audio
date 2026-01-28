@@ -20,6 +20,20 @@
 - [vstgui-implementation.md](vstgui-implementation.md) - Complete VSTGUI implementation specification
 - [roadmap.md](roadmap.md) - 16-week development roadmap
 
+> **⚠️ IMPLEMENTATION SPEC DERIVATION RULE**
+>
+> When creating implementation specs (e.g., `001-plugin-skeleton`, `002-band-management`) from this specification, you **MUST** consult ALL of the following documents:
+>
+> | Document | Required Content |
+> |----------|------------------|
+> | **spec.md** (this file) | Functional requirements (FR-xxx), success criteria |
+> | **plan.md** | System architecture diagrams, signal flow, layer structure |
+> | **tasks.md** | Task breakdown, condensed task IDs (T2.1-T2.4 style) |
+> | **roadmap.md** | Detailed task IDs (T2.1-T2.9 style), milestone criteria, dependencies |
+> | **dsp-details.md** | Parameter ID encoding, data structures, DSP algorithms |
+>
+> Failure to consult all documents results in incomplete specs missing architectural context, task mappings, or implementation details.
+
 ---
 
 ## 1. Executive Summary

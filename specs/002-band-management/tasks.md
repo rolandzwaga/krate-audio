@@ -221,8 +221,8 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 ### 6.2 Implementation for User Story 4
 
 - [X] T037 [US4] Implement BandProcessor::setMute() with smooth fade (FR-027)
-- [ ] T038 [US4] Add solo/mute interaction logic to processor summation (FR-025, FR-025a)
-- [ ] T039 [US4] Implement shouldBandContribute() helper for solo/mute logic
+- [X] T038 [US4] Add solo/mute interaction logic to processor summation (FR-025, FR-025a)
+- [X] T039 [US4] Implement shouldBandContribute() helper for solo/mute logic
 - [X] T040 [US4] Verify all tests pass (SC-005: click-free transitions)
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
@@ -360,7 +360,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 9.2 Commit (MANDATORY)
 
-- [ ] T067 **Commit completed controller integration work**
+- [X] T067 **Commit completed controller integration work**
 
 **Checkpoint**: All band parameters registered and accessible from host
 

@@ -194,7 +194,7 @@ Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
 // ==============================================================================
 
 Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
-    // FR-018: Serialize all parameters to IBStream
+    // FR-018, FR-037: Serialize all parameters to IBStream
     // FR-020: Version field MUST be first for future migration
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
@@ -204,7 +204,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         return Steinberg::kResultFalse;
     }
 
-    // Write parameters in order (per data-model.md Section 3)
+    // Write global parameters in order (per data-model.md Section 3)
     if (!streamer.writeFloat(inputGain_.load(std::memory_order_relaxed))) {
         return Steinberg::kResultFalse;
     }
@@ -215,11 +215,33 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         return Steinberg::kResultFalse;
     }
 
+    // FR-037: Band management state (v2+)
+    // Band count
+    if (!streamer.writeInt32(bandCount_.load(std::memory_order_relaxed))) {
+        return Steinberg::kResultFalse;
+    }
+
+    // Per-band state for all 8 bands (fixed for format stability)
+    for (int b = 0; b < kMaxBands; ++b) {
+        const auto& bs = bandStates_[b];
+        if (!streamer.writeFloat(bs.gainDb)) return Steinberg::kResultFalse;
+        if (!streamer.writeFloat(bs.pan)) return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(bs.solo ? 1 : 0))) return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(bs.bypass ? 1 : 0))) return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(bs.mute ? 1 : 0))) return Steinberg::kResultFalse;
+    }
+
+    // Crossover frequencies (7 floats)
+    for (int c = 0; c < kMaxBands - 1; ++c) {
+        float freq = crossoverL_.getCrossoverFrequency(c);
+        if (!streamer.writeFloat(freq)) return Steinberg::kResultFalse;
+    }
+
     return Steinberg::kResultOk;
 }
 
 Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
-    // FR-019: Deserialize parameters from IBStream
+    // FR-019, FR-038: Deserialize parameters from IBStream
     // FR-021: Handle corrupted/invalid data gracefully
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
@@ -239,10 +261,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 
     if (version > kPresetVersion) {
         // Future version: read what we understand, skip unknown
-        // (For v1, we just read all known fields)
     }
 
-    // Read parameters
+    // Read global parameters (v1+)
     float inputGain = 0.5f;
     float outputGain = 0.5f;
     float globalMix = 1.0f;
@@ -257,10 +278,61 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         return Steinberg::kResultFalse;
     }
 
-    // Apply to atomics (thread-safe)
+    // Apply global parameters
     inputGain_.store(inputGain, std::memory_order_relaxed);
     outputGain_.store(outputGain, std::memory_order_relaxed);
     globalMix_.store(globalMix, std::memory_order_relaxed);
+
+    // FR-038: Band management state (v2+)
+    if (version >= 2) {
+        // Read band count
+        int32_t bandCount = kDefaultBands;
+        if (!streamer.readInt32(bandCount)) {
+            // Use defaults if read fails
+            return Steinberg::kResultOk;
+        }
+        bandCount = std::clamp(bandCount, kMinBands, kMaxBands);
+        bandCount_.store(bandCount, std::memory_order_relaxed);
+
+        // Read per-band state for all 8 bands
+        for (int b = 0; b < kMaxBands; ++b) {
+            auto& bs = bandStates_[b];
+            Steinberg::int8 soloVal = 0, bypassVal = 0, muteVal = 0;
+
+            if (!streamer.readFloat(bs.gainDb)) bs.gainDb = 0.0f;
+            if (!streamer.readFloat(bs.pan)) bs.pan = 0.0f;
+            if (!streamer.readInt8(soloVal)) soloVal = 0;
+            if (!streamer.readInt8(bypassVal)) bypassVal = 0;
+            if (!streamer.readInt8(muteVal)) muteVal = 0;
+
+            bs.solo = (soloVal != 0);
+            bs.bypass = (bypassVal != 0);
+            bs.mute = (muteVal != 0);
+
+            // Clamp values to valid ranges
+            bs.gainDb = std::clamp(bs.gainDb, kMinBandGainDb, kMaxBandGainDb);
+            bs.pan = std::clamp(bs.pan, -1.0f, 1.0f);
+
+            // Apply to band processors
+            bandProcessors_[b].setGainDb(bs.gainDb);
+            bandProcessors_[b].setPan(bs.pan);
+            bandProcessors_[b].setMute(bs.mute);
+        }
+
+        // Read crossover frequencies (7 floats)
+        for (int c = 0; c < kMaxBands - 1; ++c) {
+            float freq = 1000.0f;  // Default
+            if (!streamer.readFloat(freq)) break;
+
+            // Apply to both L and R crossover networks
+            crossoverL_.setCrossoverFrequency(c, freq);
+            crossoverR_.setCrossoverFrequency(c, freq);
+        }
+
+        // Update band counts in crossover networks
+        crossoverL_.setBandCount(bandCount);
+        crossoverR_.setBandCount(bandCount);
+    }
 
     return Steinberg::kResultOk;
 }

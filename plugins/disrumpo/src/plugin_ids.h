@@ -152,8 +152,12 @@ constexpr uint8_t extractCrossoverIndex(Steinberg::Vst::ParamID paramId) {
 // ==============================================================================
 // Version field for preset migration. Always serialize this as first int32.
 // Increment when adding parameters to ensure backward compatibility.
+//
+// Version History:
+// - v1: Initial skeleton (inputGain, outputGain, globalMix)
+// - v2: Band management (bandCount, 8x bandState, 7x crossoverFreq) per FR-037
 // ==============================================================================
-constexpr int32_t kPresetVersion = 1;
+constexpr int32_t kPresetVersion = 2;
 
 // ==============================================================================
 // Plugin Metadata
