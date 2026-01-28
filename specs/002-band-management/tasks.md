@@ -231,7 +231,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T042 [US4] **Commit completed User Story 4 work** (Solo/bypass/mute implementation)
+- [X] T042 [US4] **Commit completed User Story 4 work** (Solo/bypass/mute implementation)
 
 **Checkpoint**: Solo/mute controls should work correctly with smooth transitions
 
@@ -247,7 +247,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T043 [P] [US5] Write failing unit tests for manual crossover adjustment in plugins/disrumpo/tests/unit/crossover_network_test.cpp
+- [X] T043 [P] [US5] Write failing unit tests for manual crossover adjustment in plugins/disrumpo/tests/unit/crossover_network_test.cpp
   - Test: Set crossover 1 to 250Hz (FR-035)
   - Test: Minimum spacing constraint enforced (0.5 octaves)
   - Test: Manual values persist after setBandCount()
@@ -255,17 +255,17 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T044 [US5] Verify crossover frequency parameters are registered in Phase 9 (T066) - UI control is deferred to spec 004-vstgui-infrastructure but parameters are registered in this spec per FR-035
-- [ ] T045 [US5] Verify setCrossoverFrequency() enforces minimum spacing
-- [ ] T046 [US5] Verify all tests pass
+- [X] T044 [US5] Verify crossover frequency parameters are registered in Phase 9 (T066) - UI control is deferred to spec 004-vstgui-infrastructure but parameters are registered in this spec per FR-035
+- [X] T045 [US5] Verify setCrossoverFrequency() enforces minimum spacing
+- [X] T046 [US5] Verify all tests pass
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T047 [US5] **Verify IEEE 754 compliance**: Check if manual crossover tests use std::isnan/std::isfinite/std::isinf → add to -fno-fast-math list in plugins/disrumpo/tests/CMakeLists.txt
+- [X] T047 [US5] **Verify IEEE 754 compliance**: Check if manual crossover tests use std::isnan/std::isfinite/std::isinf → add to -fno-fast-math list in plugins/disrumpo/tests/CMakeLists.txt
 
 ### 7.4 Commit (MANDATORY)
 
-- [ ] T048 [US5] **Commit completed User Story 5 work** (Manual crossover frequency adjustment)
+- [X] T048 [US5] **Commit completed User Story 5 work** (Manual crossover frequency adjustment)
 
 **Checkpoint**: Manual crossover adjustment should work with proper spacing constraints
 
@@ -299,35 +299,35 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 8.2 State Serialization Updates
 
-- [ ] T055 Update Processor::getState() to serialize band states (FR-037) [Depends on: T004 BandState structure]
+- [X] T055 Update Processor::getState() to serialize band states (FR-037) [Depends on: T004 BandState structure]
   - Version (int32) - increment to 2
   - Global parameters (existing)
   - Band count (int32)
   - For each of 8 bands: gainDb, pan, solo, bypass, mute
   - Crossover frequencies (7 floats)
 
-- [ ] T056 Update Processor::setState() to deserialize band states (FR-038) [Depends on: T004 BandState structure]
+- [X] T056 Update Processor::setState() to deserialize band states (FR-038) [Depends on: T004 BandState structure]
 
 ### 8.3 Integration Tests
 
-- [ ] T057 [P] Write integration test IT-001 in plugins/disrumpo/tests/integration/
+- [X] T057 [P] Write integration test IT-001 in plugins/disrumpo/tests/integration/
   - Test: Full signal path through crossover → bands → summation
   - Test: Audio passes without corruption
   - Test: Flat response verification end-to-end
 
-- [ ] T058 [P] Write integration test IT-004 in plugins/disrumpo/tests/integration/
+- [X] T058 [P] Write integration test IT-004 in plugins/disrumpo/tests/integration/
   - Test: Dynamic band count changes during playback
   - Test: No clicks or artifacts during transition (SC-002)
 
-- [ ] T059 Run all integration tests and verify they pass
+- [X] T059 Run all integration tests and verify they pass
 
 ### 8.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T060 **Verify IEEE 754 compliance**: Check if integration tests use std::isnan/std::isfinite/std::isinf → add to -fno-fast-math list in plugins/disrumpo/tests/CMakeLists.txt
+- [X] T060 **Verify IEEE 754 compliance**: Check if integration tests use std::isnan/std::isfinite/std::isinf → add to -fno-fast-math list in plugins/disrumpo/tests/CMakeLists.txt
 
 ### 8.5 Commit (MANDATORY)
 
-- [ ] T061 **Commit completed processor integration work**
+- [X] T061 **Commit completed processor integration work**
 
 **Checkpoint**: Band management fully integrated into processor with working signal path
 
@@ -380,10 +380,10 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 10.2 Pluginval Validation
 
-- [ ] T070 Run pluginval strictness level 1 on Disrumpo plugin (SC-006)
+- [X] T070 Run pluginval strictness level 1 on Disrumpo plugin (SC-006)
   - Command: `tools/pluginval.exe --strictness-level 1 --validate "build/windows-x64-release/VST3/Release/Disrumpo.vst3"`
 
-- [ ] T071 Fix any pluginval issues that arise
+- [X] T071 Fix any pluginval issues that arise
 
 ### 10.3 State Persistence Tests
 
@@ -404,10 +404,10 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 **Purpose**: Final improvements and cleanup
 
-- [ ] T074 [P] Review all new code for compiler warnings (MSVC, Clang)
-- [ ] T075 [P] Verify all constants match data-model.md definitions
-- [ ] T076 [P] Add assertions for debug builds (isPrepared() checks, band index bounds)
-- [ ] T077 Run quickstart.md validation checklist
+- [X] T074 [P] Review all new code for compiler warnings (MSVC, Clang)
+- [X] T075 [P] Verify all constants match data-model.md definitions
+- [X] T076 [P] Add assertions for debug builds (isPrepared() checks, band index bounds)
+- [X] T077 Run quickstart.md validation checklist
 - [ ] T078 **Commit polish work**
 
 **Checkpoint**: Code is clean, documented, and production-ready
@@ -422,7 +422,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 12.1 Architecture Documentation Update
 
-- [ ] T079 **Update specs/_architecture_/** with new components added by this spec:
+- [X] T079 **Update specs/_architecture_/** with new components added by this spec:
   - Add CrossoverNetwork to plugin-specific components section
   - Add BandState structure documentation
   - Add BandProcessor to plugin-specific components section
