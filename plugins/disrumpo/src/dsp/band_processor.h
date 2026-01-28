@@ -8,6 +8,7 @@
 // - specs/002-band-management/contracts/band_processor_api.md
 // - specs/002-band-management/spec.md FR-019 to FR-027
 // - specs/003-distortion-integration/spec.md
+// - specs/005-morph-system/spec.md FR-010
 // - Constitution Principle XIV: Reuse Krate::DSP components
 // ==============================================================================
 
@@ -18,11 +19,14 @@
 #include "band_state.h"
 #include "distortion_adapter.h"
 #include "distortion_types.h"
+#include "morph_engine.h"
+#include "morph_node.h"
 
 #include <cmath>
 #include <algorithm>
 #include <array>
 #include <functional>
+#include <memory>
 
 namespace Disrumpo {
 
@@ -105,6 +109,12 @@ public:
         defaultParams.mix = 1.0f;
         defaultParams.toneHz = 4000.0f;
         distortion_.setCommonParams(defaultParams);
+
+        // Allocate and prepare morph engine at oversampled rate
+        // Allocated on heap to avoid stack overflow
+        morphEngine_ = std::make_unique<MorphEngine>();
+        morphEngine_->prepare(sampleRate * kMaxOversampleFactor,
+                             static_cast<int>(maxBlockSize_ * kMaxOversampleFactor));
     }
 
     /// @brief Reset all processor states.
@@ -124,6 +134,9 @@ public:
         oversampler4x_.reset();
         oversampler8xInner_.reset();
         distortion_.reset();
+        if (morphEngine_) {
+            morphEngine_->reset();
+        }
     }
 
     // =========================================================================
@@ -205,6 +218,66 @@ public:
     }
 
     // =========================================================================
+    // MorphEngine Configuration (FR-010)
+    // =========================================================================
+
+    /// @brief Set morph nodes for this band.
+    /// @param nodes Array of morph nodes (fixed size kMaxMorphNodes)
+    /// @param activeCount Number of active nodes (2-4)
+    void setMorphNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, int activeCount) noexcept {
+        if (morphEngine_) {
+            morphEngine_->setNodes(nodes, activeCount);
+            morphEnabled_ = true;
+        }
+    }
+
+    /// @brief Set morph mode (Linear1D, Planar2D, Radial2D).
+    /// @param mode The morph mode
+    void setMorphMode(MorphMode mode) noexcept {
+        if (morphEngine_) {
+            morphEngine_->setMode(mode);
+        }
+    }
+
+    /// @brief Set morph cursor position.
+    /// @param x X position [0, 1]
+    /// @param y Y position [0, 1]
+    void setMorphPosition(float x, float y) noexcept {
+        if (morphEngine_) {
+            morphEngine_->setMorphPosition(x, y);
+        }
+    }
+
+    /// @brief Set morph smoothing time.
+    /// @param timeMs Smoothing time in milliseconds (0-500)
+    void setMorphSmoothingTime(float timeMs) noexcept {
+        if (morphEngine_) {
+            morphEngine_->setSmoothingTime(timeMs);
+        }
+    }
+
+    /// @brief Enable or disable morph engine.
+    /// When disabled, uses single distortion adapter instead.
+    /// @param enabled true to enable morphing, false for single distortion
+    void setMorphEnabled(bool enabled) noexcept {
+        morphEnabled_ = enabled;
+    }
+
+    /// @brief Check if morph engine is enabled.
+    [[nodiscard]] bool isMorphEnabled() const noexcept {
+        return morphEnabled_;
+    }
+
+    /// @brief Get current morph weights (for UI/visualization).
+    [[nodiscard]] const std::array<float, kMaxMorphNodes>& getMorphWeights() const noexcept {
+        static const std::array<float, kMaxMorphNodes> kDefaultWeights = {0.5f, 0.5f, 0.0f, 0.0f};
+        if (morphEngine_) {
+            return morphEngine_->getWeights();
+        }
+        return kDefaultWeights;
+    }
+
+    // =========================================================================
     // Oversampling Configuration
     // =========================================================================
 
@@ -232,7 +305,11 @@ public:
     // =========================================================================
 
     /// @brief Process stereo sample pair in-place.
-    /// Applies sweep, distortion with oversampling, gain, pan, and mute.
+    /// Applies sweep, distortion/morph with oversampling, gain, pan, and mute.
+    /// Per plan.md signal flow:
+    /// 1. Sweep intensity multiply BEFORE distortion/morph
+    /// 2. MorphEngine (or single distortion) processing
+    /// 3. Gain/Pan/Mute stage AFTER
     /// @param left Left channel sample (modified in-place)
     /// @param right Right channel sample (modified in-place)
     void process(float& left, float& right) noexcept {
@@ -242,17 +319,25 @@ public:
         const float mute = muteSmoother_.process();
         const float sweep = sweepSmoother_.process();
 
-        // Apply sweep intensity
+        // Step 1: Apply sweep intensity BEFORE distortion/morph (per plan.md)
         left *= sweep;
         right *= sweep;
 
-        // Drive gate: if drive is essentially 0, skip distortion
-        if (distortion_.getCommonParams().drive >= 0.0001f) {
-            // Process distortion (mono for now - process each channel)
-            left = distortion_.process(left);
-            right = distortion_.process(right);
+        // Step 2: Distortion/Morph processing
+        if (morphEnabled_ && morphEngine_) {
+            // FR-010: Use MorphEngine for morphed distortion
+            left = morphEngine_->process(left);
+            right = morphEngine_->process(right);
+        } else {
+            // Legacy single distortion path
+            // Drive gate: if drive is essentially 0, skip distortion
+            if (distortion_.getCommonParams().drive >= 0.0001f) {
+                left = distortion_.process(left);
+                right = distortion_.process(right);
+            }
         }
 
+        // Step 3: Output stage (gain/pan/mute) AFTER distortion
         // FR-022: Equal-power pan law
         // leftGain = cos(pan * PI/4 + PI/4)
         // rightGain = sin(pan * PI/4 + PI/4)
@@ -364,15 +449,20 @@ private:
     }
 
     void processOversampledBlock(float* left, float* right, size_t numSamples) noexcept {
-        // Apply sweep and distortion at oversampled rate
+        // Apply sweep and distortion/morph at oversampled rate
         for (size_t i = 0; i < numSamples; ++i) {
             // Sweep (smoothed at base rate, so just use current value)
             left[i] *= targetSweep_;
             right[i] *= targetSweep_;
 
-            // Distortion
-            left[i] = distortion_.process(left[i]);
-            right[i] = distortion_.process(right[i]);
+            // Distortion/Morph processing (FR-010)
+            if (morphEnabled_ && morphEngine_) {
+                left[i] = morphEngine_->process(left[i]);
+                right[i] = morphEngine_->process(right[i]);
+            } else {
+                left[i] = distortion_.process(left[i]);
+                right[i] = distortion_.process(right[i]);
+            }
         }
     }
 
@@ -416,8 +506,14 @@ private:
     float targetMute_ = 0.0f;
     float targetSweep_ = 1.0f;
 
-    // Distortion
+    // Distortion (legacy single adapter, used when morphEnabled_ = false)
     DistortionAdapter distortion_;
+
+    // MorphEngine for morphed distortion (FR-010)
+    // Using unique_ptr to avoid stack overflow - MorphEngine contains 5 DistortionAdapters
+    // which would make BandProcessor too large for stack allocation.
+    std::unique_ptr<MorphEngine> morphEngine_;
+    bool morphEnabled_ = false;  // Default to legacy mode for backward compatibility
 
     // Oversamplers
     Krate::DSP::Oversampler<2, 2> oversampler2x_;
