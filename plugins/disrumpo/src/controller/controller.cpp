@@ -5,9 +5,13 @@
 #include "controller.h"
 #include "plugin_ids.h"
 #include "version.h"
+#include "dsp/band_state.h"
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
+#include "public.sdk/source/vst/vstparameters.h"
+
+#include <cmath>
 
 namespace Disrumpo {
 
@@ -56,6 +60,131 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         Steinberg::Vst::ParameterInfo::kCanAutomate,  // flags
         kGlobalMixId                   // tag (parameter ID)
     );
+
+    // ==========================================================================
+    // Band Management Parameters (spec 002-band-management)
+    // ==========================================================================
+
+    // Band Count: discrete parameter [1, 8], default 4
+    auto* bandCountParam = new Steinberg::Vst::RangeParameter(
+        STR16("Band Count"),           // title
+        kBandCountId,                  // tag
+        STR16(""),                     // units
+        1.0,                           // minPlain
+        8.0,                           // maxPlain
+        4.0,                           // defaultValuePlain
+        7,                             // stepCount (8 values: 1-8)
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(bandCountParam);
+
+    // Per-band parameters (8 bands)
+    // Use char16_t literals for VST3 TChar compatibility
+    const Steinberg::Vst::TChar* bandGainNames[] = {
+        STR16("Band 1 Gain"), STR16("Band 2 Gain"), STR16("Band 3 Gain"), STR16("Band 4 Gain"),
+        STR16("Band 5 Gain"), STR16("Band 6 Gain"), STR16("Band 7 Gain"), STR16("Band 8 Gain")
+    };
+    const Steinberg::Vst::TChar* bandPanNames[] = {
+        STR16("Band 1 Pan"), STR16("Band 2 Pan"), STR16("Band 3 Pan"), STR16("Band 4 Pan"),
+        STR16("Band 5 Pan"), STR16("Band 6 Pan"), STR16("Band 7 Pan"), STR16("Band 8 Pan")
+    };
+    const Steinberg::Vst::TChar* bandSoloNames[] = {
+        STR16("Band 1 Solo"), STR16("Band 2 Solo"), STR16("Band 3 Solo"), STR16("Band 4 Solo"),
+        STR16("Band 5 Solo"), STR16("Band 6 Solo"), STR16("Band 7 Solo"), STR16("Band 8 Solo")
+    };
+    const Steinberg::Vst::TChar* bandBypassNames[] = {
+        STR16("Band 1 Bypass"), STR16("Band 2 Bypass"), STR16("Band 3 Bypass"), STR16("Band 4 Bypass"),
+        STR16("Band 5 Bypass"), STR16("Band 6 Bypass"), STR16("Band 7 Bypass"), STR16("Band 8 Bypass")
+    };
+    const Steinberg::Vst::TChar* bandMuteNames[] = {
+        STR16("Band 1 Mute"), STR16("Band 2 Mute"), STR16("Band 3 Mute"), STR16("Band 4 Mute"),
+        STR16("Band 5 Mute"), STR16("Band 6 Mute"), STR16("Band 7 Mute"), STR16("Band 8 Mute")
+    };
+
+    for (int b = 0; b < kMaxBands; ++b) {
+        // Band Gain: [-24, +24] dB, default 0 dB
+        auto* gainParam = new Steinberg::Vst::RangeParameter(
+            bandGainNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandGain),
+            STR16("dB"),
+            static_cast<double>(kMinBandGainDb),  // -24
+            static_cast<double>(kMaxBandGainDb),  // +24
+            0.0,                                   // default 0 dB
+            0,                                     // stepCount (continuous)
+            Steinberg::Vst::ParameterInfo::kCanAutomate
+        );
+        parameters.addParameter(gainParam);
+
+        // Band Pan: [-1, +1], default 0 (center)
+        auto* panParam = new Steinberg::Vst::RangeParameter(
+            bandPanNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandPan),
+            STR16(""),
+            -1.0,   // minPlain
+            1.0,    // maxPlain
+            0.0,    // defaultValuePlain (center)
+            0,      // stepCount (continuous)
+            Steinberg::Vst::ParameterInfo::kCanAutomate
+        );
+        parameters.addParameter(panParam);
+
+        // Band Solo: boolean, default off
+        parameters.addParameter(
+            bandSoloNames[b],
+            nullptr,    // units
+            1,          // stepCount (boolean: 0 or 1)
+            0.0,        // default off
+            Steinberg::Vst::ParameterInfo::kCanAutomate,
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandSolo)
+        );
+
+        // Band Bypass: boolean, default off
+        parameters.addParameter(
+            bandBypassNames[b],
+            nullptr,
+            1,
+            0.0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate,
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandBypass)
+        );
+
+        // Band Mute: boolean, default off
+        parameters.addParameter(
+            bandMuteNames[b],
+            nullptr,
+            1,
+            0.0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate,
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMute)
+        );
+    }
+
+    // Crossover frequency parameters (7 crossovers for 8 bands)
+    const Steinberg::Vst::TChar* crossoverNames[] = {
+        STR16("Crossover 1"), STR16("Crossover 2"), STR16("Crossover 3"), STR16("Crossover 4"),
+        STR16("Crossover 5"), STR16("Crossover 6"), STR16("Crossover 7")
+    };
+
+    for (int i = 0; i < kMaxBands - 1; ++i) {
+        // Calculate default frequency using logarithmic distribution
+        const float logMin = std::log10(kMinCrossoverHz);
+        const float logMax = std::log10(kMaxCrossoverHz);
+        const float step = (logMax - logMin) / static_cast<float>(kMaxBands);
+        const float logDefault = logMin + step * static_cast<float>(i + 1);
+        const float defaultFreq = std::pow(10.0f, logDefault);
+
+        auto* crossoverParam = new Steinberg::Vst::RangeParameter(
+            crossoverNames[i],
+            makeCrossoverParamId(static_cast<uint8_t>(i)),
+            STR16("Hz"),
+            static_cast<double>(kMinCrossoverHz),   // 20 Hz
+            static_cast<double>(kMaxCrossoverHz),   // 20000 Hz
+            static_cast<double>(defaultFreq),
+            0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate
+        );
+        parameters.addParameter(crossoverParam);
+    }
 
     return Steinberg::kResultTrue;
 }

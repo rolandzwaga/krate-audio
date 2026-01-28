@@ -117,7 +117,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 3.4 Commit (MANDATORY)
 
-- [ ] T018 [US1] **Commit completed User Story 1 work** (CrossoverNetwork implementation)
+- [X] T018 [US1] **Commit completed User Story 1 work** (CrossoverNetwork implementation)
 
 **Checkpoint**: CrossoverNetwork should be fully functional, phase-coherent, and tested at all sample rates
 
@@ -194,7 +194,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T035 [US3] **Commit completed User Story 3 work** (BandProcessor gain/pan implementation)
+- [X] T035 [US3] **Commit completed User Story 3 work** (BandProcessor gain/pan implementation)
 
 **Checkpoint**: Per-band gain and pan should work with smooth, click-free transitions
 
@@ -227,7 +227,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T041 [US4] **Verify IEEE 754 compliance**: Check if solo/mute test code uses std::isnan/std::isfinite/std::isinf → add to -fno-fast-math list in plugins/disrumpo/tests/CMakeLists.txt
+- [X] T041 [US4] **Verify IEEE 754 compliance**: Check if solo/mute test code uses std::isnan/std::isfinite/std::isinf → add to -fno-fast-math list in plugins/disrumpo/tests/CMakeLists.txt
 
 ### 6.4 Commit (MANDATORY)
 
@@ -277,21 +277,21 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 8.1 Processor Class Updates
 
-- [ ] T049 Add band management members to plugins/disrumpo/src/processor/processor.h
+- [X] T049 Add band management members to plugins/disrumpo/src/processor/processor.h
   - Two CrossoverNetwork instances (L, R channels)
   - Array of 8 BandState instances
   - Array of 8 BandProcessor instances
   - std::atomic<int> bandCount_{4}
 
-- [ ] T050 Update Processor::setupProcessing() to prepare crossover networks and band processors
+- [X] T050 Update Processor::setupProcessing() to prepare crossover networks and band processors
 
-- [ ] T051 Implement band splitting in Processor::process() (L and R channels independently per FR-001b)
+- [X] T051 Implement band splitting in Processor::process() (L and R channels independently per FR-001b)
 
-- [ ] T052 Implement per-band processing loop in Processor::process()
+- [X] T052 Implement per-band processing loop in Processor::process()
 
-- [ ] T053 Implement band summation with solo/mute logic in Processor::process()
+- [X] T053 Implement band summation with solo/mute logic in Processor::process()
 
-- [ ] T054 Update Processor::processParameterChanges() to handle band parameters
+- [X] T054 Update Processor::processParameterChanges() to handle band parameters
   - Band count changes (kBandCountId)
   - Per-band gain (makeBandParamId(band, kBandGain))
   - Per-band pan (makeBandParamId(band, kBandPan))
@@ -300,7 +300,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 ### 8.2 State Serialization Updates
 
 - [ ] T055 Update Processor::getState() to serialize band states (FR-037) [Depends on: T004 BandState structure]
-  - Version (int32) - remains 1
+  - Version (int32) - increment to 2
   - Global parameters (existing)
   - Band count (int32)
   - For each of 8 bands: gainDb, pan, solo, bypass, mute
@@ -339,21 +339,21 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 9.1 Parameter Registration
 
-- [ ] T062 Register band count parameter in plugins/disrumpo/src/controller/controller.cpp (FR-034)
+- [X] T062 Register band count parameter in plugins/disrumpo/src/controller/controller.cpp (FR-034)
   - RangeParameter: "Band Count", kBandCountId, range [1, 8], default 4
 
-- [ ] T063 Register per-band gain parameters in plugins/disrumpo/src/controller/controller.cpp
+- [X] T063 Register per-band gain parameters in plugins/disrumpo/src/controller/controller.cpp
   - For bands 0-7: RangeParameter with makeBandParamId(band, kBandGain)
   - Range: [-24, +24] dB, default 0
 
-- [ ] T064 Register per-band pan parameters in plugins/disrumpo/src/controller/controller.cpp
+- [X] T064 Register per-band pan parameters in plugins/disrumpo/src/controller/controller.cpp
   - For bands 0-7: RangeParameter with makeBandParamId(band, kBandPan)
   - Range: [-1, +1], default 0
 
-- [ ] T065 Register per-band solo/bypass/mute parameters in plugins/disrumpo/src/controller/controller.cpp
+- [X] T065 Register per-band solo/bypass/mute parameters in plugins/disrumpo/src/controller/controller.cpp
   - For bands 0-7: Parameter (boolean) for solo, bypass, mute
 
-- [ ] T066 Register crossover frequency parameters in plugins/disrumpo/src/controller/controller.cpp (FR-035)
+- [X] T066 Register crossover frequency parameters in plugins/disrumpo/src/controller/controller.cpp (FR-035)
   - For crossovers 0-6: RangeParameter with makeCrossoverParamId(index)
   - Range: [20, 20000] Hz with logarithmic normalization
   - Note: UI control deferred to spec 004-vstgui-infrastructure

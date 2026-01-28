@@ -8,7 +8,9 @@
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
-#include <cstring>  // for memcpy
+#include <algorithm>  // for std::max, std::min
+#include <cmath>      // for std::log10, std::pow
+#include <cstring>    // for memcpy
 
 namespace Disrumpo {
 
@@ -58,15 +60,31 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     sampleRate_ = setup.sampleRate;
 
     // Constitution Principle II: Pre-allocate ALL buffers HERE
-    // (No additional buffers needed for passthrough skeleton)
+
+    // Initialize crossover networks for both channels (FR-001b)
+    const int numBands = bandCount_.load(std::memory_order_relaxed);
+    crossoverL_.prepare(sampleRate_, numBands);
+    crossoverR_.prepare(sampleRate_, numBands);
+
+    // Initialize band processors
+    for (int i = 0; i < kMaxBands; ++i) {
+        bandProcessors_[i].prepare(sampleRate_);
+        bandProcessors_[i].setGainDb(bandStates_[i].gainDb);
+        bandProcessors_[i].setPan(bandStates_[i].pan);
+        bandProcessors_[i].setMute(bandStates_[i].mute);
+    }
 
     return AudioEffect::setupProcessing(setup);
 }
 
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     if (state) {
-        // Activating: reset any processing state
-        // (No state to reset in passthrough skeleton)
+        // Activating: reset processing state
+        crossoverL_.reset();
+        crossoverR_.reset();
+        for (auto& proc : bandProcessors_) {
+            proc.reset();
+        }
     }
 
     return AudioEffect::setActive(state);
@@ -92,11 +110,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         return Steinberg::kResultTrue;
     }
 
-    // ==========================================================================
-    // FR-012: Bit-transparent audio passthrough
-    // Parameters are registered but have no effect in skeleton
-    // ==========================================================================
-
     // Verify we have valid stereo I/O
     if (data.numInputs == 0 || data.numOutputs == 0) {
         return Steinberg::kResultTrue;
@@ -116,13 +129,46 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
-    // FR-012, SC-003: Bit-transparent passthrough (output = input)
-    // Use memcpy for guaranteed bit-identical copy
+    // Band Processing (FR-001a: sample-by-sample processing)
     // ==========================================================================
 
-    const size_t bytesToCopy = static_cast<size_t>(data.numSamples) * sizeof(float);
-    std::memcpy(outputL, inputL, bytesToCopy);
-    std::memcpy(outputR, inputR, bytesToCopy);
+    const int numBands = bandCount_.load(std::memory_order_relaxed);
+    std::array<float, kMaxBands> bandsL{};
+    std::array<float, kMaxBands> bandsR{};
+
+    for (Steinberg::int32 n = 0; n < data.numSamples; ++n) {
+        // Split input through crossover networks (FR-001b: independent L/R)
+        crossoverL_.process(inputL[n], bandsL);
+        crossoverR_.process(inputR[n], bandsR);
+
+        // Initialize output accumulators
+        float sumL = 0.0f;
+        float sumR = 0.0f;
+
+        // Process each band and sum (FR-013: sample-by-sample summation)
+        for (int b = 0; b < numBands; ++b) {
+            // Check solo/mute logic (FR-025, FR-025a)
+            if (!shouldBandContribute(b)) {
+                // Process to keep smoothers running, but don't add to output
+                float discardL = bandsL[b];
+                float discardR = bandsR[b];
+                bandProcessors_[b].process(discardL, discardR);
+                continue;
+            }
+
+            // Apply per-band processing (gain, pan, mute with smoothing)
+            float bandL = bandsL[b];
+            float bandR = bandsR[b];
+            bandProcessors_[b].process(bandL, bandR);
+
+            // Sum to output
+            sumL += bandL;
+            sumR += bandR;
+        }
+
+        outputL[n] = sumL;
+        outputR[n] = sumR;
+    }
 
     return Steinberg::kResultTrue;
 }
@@ -266,11 +312,96 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                 globalMix_.store(static_cast<float>(value), std::memory_order_relaxed);
                 break;
 
+            case kBandCountId: {
+                // Convert normalized [0,1] to band count [1,8]
+                const int newBandCount = 1 + static_cast<int>(value * 7.0 + 0.5);
+                const int clamped = std::max(kMinBands, std::min(kMaxBands, newBandCount));
+                bandCount_.store(clamped, std::memory_order_relaxed);
+                crossoverL_.setBandCount(clamped);
+                crossoverR_.setBandCount(clamped);
+                break;
+            }
+
             default:
-                // Unknown parameter ID - ignore
+                // Check for band parameters
+                if (isBandParamId(paramId)) {
+                    const uint8_t band = extractBandIndex(paramId);
+                    const BandParamType paramType = extractBandParamType(paramId);
+
+                    if (band < kMaxBands) {
+                        switch (paramType) {
+                            case BandParamType::kBandGain: {
+                                // Convert normalized [0,1] to dB [-24, +24]
+                                const float gainDb = kMinBandGainDb + static_cast<float>(value) * (kMaxBandGainDb - kMinBandGainDb);
+                                bandStates_[band].gainDb = gainDb;
+                                bandProcessors_[band].setGainDb(gainDb);
+                                break;
+                            }
+                            case BandParamType::kBandPan: {
+                                // Convert normalized [0,1] to pan [-1, +1]
+                                const float pan = static_cast<float>(value) * 2.0f - 1.0f;
+                                bandStates_[band].pan = pan;
+                                bandProcessors_[band].setPan(pan);
+                                break;
+                            }
+                            case BandParamType::kBandSolo:
+                                bandStates_[band].solo = value >= 0.5;
+                                break;
+                            case BandParamType::kBandBypass:
+                                bandStates_[band].bypass = value >= 0.5;
+                                break;
+                            case BandParamType::kBandMute:
+                                bandStates_[band].mute = value >= 0.5;
+                                bandProcessors_[band].setMute(bandStates_[band].mute);
+                                break;
+                        }
+                    }
+                }
+                // Check for crossover frequency parameters
+                else if (isCrossoverParamId(paramId)) {
+                    const uint8_t index = extractCrossoverIndex(paramId);
+                    if (index < kMaxBands - 1) {
+                        // Convert normalized [0,1] to Hz [20, 20000] logarithmically
+                        const float logMin = std::log10(kMinCrossoverHz);
+                        const float logMax = std::log10(kMaxCrossoverHz);
+                        const float logFreq = logMin + static_cast<float>(value) * (logMax - logMin);
+                        const float freqHz = std::pow(10.0f, logFreq);
+                        crossoverL_.setCrossoverFrequency(static_cast<int>(index), freqHz);
+                        crossoverR_.setCrossoverFrequency(static_cast<int>(index), freqHz);
+                    }
+                }
                 break;
         }
     }
+}
+
+// ==============================================================================
+// Solo/Mute Logic (FR-025, FR-025a)
+// ==============================================================================
+
+bool Processor::isAnySoloed() const noexcept {
+    const int numBands = bandCount_.load(std::memory_order_relaxed);
+    for (int b = 0; b < numBands; ++b) {
+        if (bandStates_[b].solo) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Processor::shouldBandContribute(int bandIndex) const noexcept {
+    // FR-025a: Mute always takes priority
+    if (bandStates_[bandIndex].mute) {
+        return false;
+    }
+
+    // FR-025: If any band is soloed, only soloed bands contribute
+    if (isAnySoloed()) {
+        return bandStates_[bandIndex].solo;
+    }
+
+    // No solo active - all non-muted bands contribute
+    return true;
 }
 
 } // namespace Disrumpo

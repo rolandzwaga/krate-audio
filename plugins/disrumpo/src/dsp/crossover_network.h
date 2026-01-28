@@ -247,7 +247,7 @@ private:
             edges[i + 1] = crossoverFrequencies_[i];
         }
         edges[oldBandCount] = kMaxCrossoverHz;
-        const int numOldEdges = oldBandCount + 1;
+        // const int numOldEdges = oldBandCount + 1; // Unused after refactoring
 
         // Number of new crossovers to add
         const int toAdd = (newBandCount - 1) - (oldBandCount - 1);
