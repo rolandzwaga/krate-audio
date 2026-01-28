@@ -1,9 +1,9 @@
 # Disrumpo - DSP Implementation Details
 
 **Related Documents:**
-- [spec.md](spec.md) - Core requirements specification
-- [plan.md](plan.md) - System architecture and development roadmap
-- [tasks.md](tasks.md) - Task breakdown and milestones
+- [specs-overview.md](specs-overview.md) - Core requirements specification
+- [plans-overview.md](plans-overview.md) - System architecture and development roadmap
+- [tasks-overview.md](tasks-overview.md) - Task breakdown and milestones
 - [ui-mockups.md](ui-mockups.md) - Detailed UI specifications
 - [custom-controls.md](custom-controls.md) - Custom VSTGUI control specifications
 
@@ -90,15 +90,15 @@ constexpr Steinberg::Vst::ParamID makeNodeParamId(uint8_t band, uint8_t node, No
 
 ### Core Structures
 
-Following KrateDSP conventions (`Krate::DSP` namespace, `kConstantName` constants):
+Following Krate Audio conventions (`kConstantName` constants). Plugin-specific types use `namespace Disrumpo`:
 
 ```cpp
-// dsp/include/krate/dsp/systems/Disrumpo/distortion_types.h
+// plugins/Disrumpo/src/dsp/distortion_types.h
 #pragma once
 
 #include <cstdint>
 
-namespace Krate::DSP {
+namespace Disrumpo {
 
 /// @brief Distortion algorithm types for Disrumpo morph engine.
 /// Maps to existing KrateDSP processors where available.
@@ -181,16 +181,16 @@ inline constexpr float kMinCrossoverHz = 20.0f;
 inline constexpr float kMaxCrossoverHz = 20000.0f;
 inline constexpr float kMinCrossoverSpacingOctaves = 0.5f;
 
-} // namespace Krate::DSP
+} // namespace Disrumpo
 ```
 
 ```cpp
-// dsp/include/krate/dsp/systems/Disrumpo/morph_node.h
+// plugins/Disrumpo/src/dsp/morph_node.h
 #pragma once
 
 #include "distortion_types.h"
 
-namespace Krate::DSP {
+namespace Disrumpo {
 
 /// @brief Parameters for a single distortion algorithm.
 /// Not all fields apply to all types - use the appropriate subset.
@@ -267,16 +267,16 @@ struct BandState {
     bool mute = false;
 };
 
-} // namespace Krate::DSP
+} // namespace Disrumpo
 ```
 
 ```cpp
-// dsp/include/krate/dsp/systems/Disrumpo/modulation_types.h
+// plugins/Disrumpo/src/dsp/modulation_types.h
 #pragma once
 
 #include <cstdint>
 
-namespace Krate::DSP {
+namespace Disrumpo {
 
 /// @brief Modulation source type.
 enum class ModSource : uint8_t {
@@ -313,7 +313,7 @@ struct ModRouting {
 
 inline constexpr int kMaxModRoutings = 32;
 
-} // namespace Krate::DSP
+} // namespace Disrumpo
 ```
 
 ---
@@ -706,7 +706,7 @@ krate-audio/
 #include <variant>
 #include <cmath>
 
-namespace Krate::DSP {
+namespace Disrumpo {
 
 /// @brief Unified interface for all distortion types.
 /// Real-time safe: no allocations after prepare().
@@ -904,7 +904,7 @@ private:
     AllpassSaturator allpassSaturator_;
 };
 
-} // namespace Krate::DSP
+} // namespace Disrumpo
 ```
 
 ### Crossover Network (Linkwitz-Riley 4th Order)
@@ -921,7 +921,7 @@ private:
 #include <array>
 #include <vector>
 
-namespace Krate::DSP {
+namespace Disrumpo {
 
 /// @brief Multi-band crossover network for 1-8 bands.
 /// Uses existing CrossoverLR4 from KrateDSP (FLT-ROADMAP spec 079).
@@ -964,10 +964,10 @@ public:
 private:
     double sampleRate_ = 44100.0;
     int numBands_ = kDefaultBands;
-    std::vector<CrossoverLR4> crossovers_;  // Uses existing KrateDSP component
+    std::vector<Krate::DSP::CrossoverLR4> crossovers_;  // Uses existing KrateDSP component
 };
 
-} // namespace Krate::DSP
+} // namespace Disrumpo
 ```
 
 ### Using Existing LFO for Modulation
@@ -977,7 +977,7 @@ private:
 #include <krate/dsp/primitives/lfo.h>
 #include <krate/dsp/processors/envelope_follower.h>
 
-namespace Krate::DSP {
+namespace Disrumpo {
 
 class DisrumpoModulationEngine {
 public:
@@ -1010,12 +1010,12 @@ public:
     }
 
 private:
-    LFO lfo1_;
-    LFO lfo2_;
-    EnvelopeFollower envFollower_;
+    Krate::DSP::LFO lfo1_;
+    Krate::DSP::LFO lfo2_;
+    Krate::DSP::EnvelopeFollower envFollower_;
 };
 
-} // namespace Krate::DSP
+} // namespace Disrumpo
 ```
 
 ### Intelligent Oversampling Selection
@@ -1024,7 +1024,7 @@ private:
 // Example: Per-band oversampling based on distortion type
 #include <krate/dsp/primitives/oversampler.h>
 
-namespace Krate::DSP {
+namespace Disrumpo {
 
 /// @brief Get recommended oversampling factor for a distortion type.
 constexpr int getRecommendedOversample(DistortionType type) noexcept {
@@ -1090,7 +1090,7 @@ int calculateMorphOversample(const std::array<MorphNode, 4>& nodes,
     return maxOversample;
 }
 
-} // namespace Krate::DSP
+} // namespace Disrumpo
 ```
 
 ---

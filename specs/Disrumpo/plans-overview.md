@@ -1,8 +1,8 @@
 # Disrumpo - Implementation Plan
 
 **Related Documents:**
-- [spec.md](spec.md) - Core requirements specification
-- [tasks.md](tasks.md) - Task breakdown and milestones
+- [specs-overview.md](specs-overview.md) - Core requirements specification
+- [tasks-overview.md](tasks-overview.md) - Task breakdown and milestones
 - [ui-mockups.md](ui-mockups.md) - Detailed UI specifications
 - [dsp-details.md](dsp-details.md) - DSP implementation details
 - [custom-controls.md](custom-controls.md) - Custom VSTGUI control specifications

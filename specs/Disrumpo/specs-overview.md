@@ -12,23 +12,23 @@
 | Updated | Expanded from 14 to 26 distortion types using DST-ROADMAP and FLT-ROADMAP |
 
 **Related Documents:**
-- [plan.md](plan.md) - System architecture and development roadmap
-- [tasks.md](tasks.md) - Task breakdown and milestones
+- [plans-overview.md](plans-overview.md) - System architecture and development roadmap
+- [tasks-overview.md](tasks-overview.md) - Task breakdown and milestones
 - [ui-mockups.md](ui-mockups.md) - Detailed UI specifications
 - [dsp-details.md](dsp-details.md) - DSP implementation details and code examples
 - [custom-controls.md](custom-controls.md) - Custom VSTGUI control specifications
 - [vstgui-implementation.md](vstgui-implementation.md) - Complete VSTGUI implementation specification
 - [roadmap.md](roadmap.md) - 16-week development roadmap
 
-> **⚠️ IMPLEMENTATION SPEC DERIVATION RULE**
+> **⚠️ IMPLEMENTATION SPEC AND PLAN DERIVATION RULE**
 >
 > When creating implementation specs (e.g., `001-plugin-skeleton`, `002-band-management`) from this specification, you **MUST** consult ALL of the following documents:
 >
 > | Document | Required Content |
 > |----------|------------------|
-> | **spec.md** (this file) | Functional requirements (FR-xxx), success criteria, distortion types |
-> | **plan.md** | System architecture diagrams, signal flow, layer structure |
-> | **tasks.md** | Task breakdown, condensed task IDs (T2.1-T2.4 style) |
+> | **specs-overview.md** (this file) | Functional requirements (FR-xxx), success criteria, distortion types |
+> | **plans-overview.md** | System architecture diagrams, signal flow, layer structure |
+> | **tasks-overview.md** | Task breakdown, condensed task IDs (T2.1-T2.4 style) |
 > | **roadmap.md** | Detailed task IDs (T2.1-T2.9 style), milestone criteria, dependencies |
 > | **dsp-details.md** | Parameter ID encoding, data structures, DSP algorithms, BandState |
 > | **ui-mockups.md** | UI layout, panel organization, control placement, visual hierarchy |

@@ -58,6 +58,14 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/controller.h
     src/controller/controller.cpp
 
+    # DSP Components
+    src/dsp/distortion_types.h
+    src/dsp/distortion_adapter.h
+    src/dsp/distortion_adapter.cpp
+    src/dsp/band_processor.h
+    src/dsp/band_state.h
+    src/dsp/crossover_network.h
+
     # VST3 SDK Common Sources (for MemoryStream used by preset saving)
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 

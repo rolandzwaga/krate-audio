@@ -1,8 +1,8 @@
 # Disrumpo - VSTGUI Implementation Specification
 
 **Related Documents:**
-- [spec.md](spec.md) - Core requirements specification
-- [plan.md](plan.md) - System architecture overview
+- [specs-overview.md](specs-overview.md) - Core requirements specification
+- [plans-overview.md](plans-overview.md) - System architecture overview
 - [ui-mockups.md](ui-mockups.md) - UI layout specifications
 - [dsp-details.md](dsp-details.md) - DSP and parameter ID details
 - [custom-controls.md](custom-controls.md) - Custom VSTGUI control specifications
