@@ -36,6 +36,7 @@ add_executable(disrumpo_tests
     unit/morph_mode_test.cpp
     unit/morph_transition_test.cpp
     unit/morph_interpolation_test.cpp
+    unit/morph_processor_cap_test.cpp
 
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
@@ -74,6 +75,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/morph_mode_test.cpp
         unit/morph_transition_test.cpp
         unit/morph_interpolation_test.cpp
+        unit/morph_processor_cap_test.cpp
         integration/band_management_integration_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
