@@ -4,15 +4,27 @@
 // Multi-band crossover network for 1-8 bands using cascaded CrossoverLR4.
 // Real-time safe: fixed-size arrays, no allocations in process().
 //
+// Phase Compensation:
+// Uses D'Appolito allpass compensation method for flat frequency response.
+// Each band is phase-aligned by adding allpass filters at all crossover
+// frequencies HIGHER than its own split point:
+// - Band 0: LP(f0) * AP(f1) * AP(f2) * ... * AP(fN-2)
+// - Band k: HP(f0..fk-1) * LP(fk) * AP(fk+1) * ... * AP(fN-2)
+// - Band N-1: HP(f0) * HP(f1) * ... * HP(fN-2)
+//
+// Reference: D'Appolito, "Active Realization of Multiway All-Pass Crossover
+// Systems", Journal of the Audio Engineering Society, Vol. 35, No. 4, 1987.
+//
 // References:
 // - specs/002-band-management/contracts/crossover_network_api.md
-// - specs/002-band-management/spec.md FR-001 to FR-014
+// - specs/002-band-management/spec.md FR-001 to FR-014, SC-001
 // - Constitution Principle XIV: Reuse Krate::DSP::CrossoverLR4
 // ==============================================================================
 
 #pragma once
 
 #include <krate/dsp/processors/crossover_filter.h>
+#include <krate/dsp/primitives/biquad.h>
 #include "band_state.h"
 
 #include <algorithm>
@@ -22,7 +34,8 @@
 namespace Disrumpo {
 
 /// @brief Multi-band crossover network for 1-8 bands.
-/// Uses cascaded CrossoverLR4 instances per Constitution Principle XIV.
+/// Uses cascaded CrossoverLR4 instances with D'Appolito allpass compensation
+/// per Constitution Principle XIV. Achieves SC-001 (+/-0.1dB flat response).
 /// Real-time safe: fixed-size arrays, no allocations in process().
 class CrossoverNetwork {
 public:
@@ -34,6 +47,10 @@ public:
     static constexpr int kMinBands = 1;
     static constexpr int kDefaultBands = 4;
     static constexpr float kDefaultSmoothingMs = 10.0f;
+
+    /// Q for 2nd-order allpass to match LR4 phase response
+    /// Per D'Appolito method, using 0.5 for optimal phase matching
+    static constexpr float kAllpassQ = 0.5f;
 
     // =========================================================================
     // Lifecycle
@@ -69,6 +86,9 @@ public:
 
         // Initialize with logarithmic distribution
         initializeLogarithmicDistribution();
+
+        // Initialize D'Appolito allpass compensation
+        updateAllpassCoefficients();
     }
 
     /// @brief Reset all filter states without reinitialization.
@@ -76,6 +96,7 @@ public:
         for (auto& crossover : crossovers_) {
             crossover.reset();
         }
+        resetAllpasses();
     }
 
     // =========================================================================
@@ -109,6 +130,22 @@ public:
         const float clamped = clampFrequency(hz);
         crossoverFrequencies_[index] = clamped;
         crossovers_[index].setCrossoverFrequency(clamped);
+
+        // Update allpass filters that use this crossover frequency
+        // Crossover index i is used as allpass for bands 0..(i-1)
+        if (prepared_ && index > 0) {
+            const float srFloat = static_cast<float>(sampleRate_);
+            for (int band = 0; band < index; ++band) {
+                const int apIdx = index - band - 1;
+                allpasses_[band][apIdx].configure(
+                    Krate::DSP::FilterType::Allpass,
+                    clamped,
+                    kAllpassQ,
+                    0.0f,
+                    srFloat
+                );
+            }
+        }
     }
 
     // =========================================================================
@@ -134,12 +171,13 @@ public:
     }
 
     // =========================================================================
-    // Processing (FR-001a, FR-012, FR-013, FR-014)
+    // Processing (FR-001a, FR-012, FR-013, FR-014, SC-001)
     // =========================================================================
 
     /// @brief Process single sample, output to band array.
     /// For 1 band: passes input directly to bands[0].
-    /// For N bands: cascaded split to bands[0..N-1].
+    /// For N bands: cascaded split with D'Appolito allpass compensation.
+    /// SC-001: Achieves +/-0.1dB flat frequency response when bands summed.
     /// @param input Input sample
     /// @param bands Output array (uses first numBands_ elements)
     void process(float input, std::array<float, kMaxBands>& bands) noexcept {
@@ -157,18 +195,34 @@ public:
             return;
         }
 
-        // FR-012: Cascaded band splitting
+        // FR-012: Cascaded band splitting with D'Appolito allpass compensation
         // Input -> Split1 -> (Band0, Remainder) -> Split2 -> (Band1, Remainder) -> ...
+        //
+        // Phase compensation pattern:
+        // Band 0: LP(f0) * AP(f1) * AP(f2) * ... * AP(fN-2)
+        // Band 1: HP(f0) * LP(f1) * AP(f2) * ... * AP(fN-2)
+        // Band k: HP(f0..fk-1) * LP(fk) * AP(fk+1) * ... * AP(fN-2)
+        // Band N-1: HP(f0) * HP(f1) * ... * HP(fN-2)
+
         float remainder = input;
 
         for (int i = 0; i < numBands_ - 1; ++i) {
             auto outputs = crossovers_[i].process(remainder);
-            bands[i] = outputs.low;      // Low band goes to output
+            bands[i] = outputs.low;       // Low band goes to output
             remainder = outputs.high;     // High band continues down the chain
         }
 
-        // Last band gets the final remainder
+        // Last band gets the final remainder (no allpass needed)
         bands[numBands_ - 1] = remainder;
+
+        // Apply D'Appolito allpass compensation to each band
+        // Band k needs allpasses at frequencies f[k+1], f[k+2], ..., f[N-2]
+        for (int band = 0; band < numBands_ - 1; ++band) {
+            // Apply allpasses for crossovers higher than this band's split
+            for (int apIdx = band + 1; apIdx < numBands_ - 1; ++apIdx) {
+                bands[band] = allpasses_[band][apIdx - band - 1].process(bands[band]);
+            }
+        }
     }
 
 private:
@@ -224,16 +278,19 @@ private:
         if (oldBandCount <= 1) {
             // Was 1 band, now more - initialize fresh
             initializeLogarithmicDistribution();
+            updateAllpassCoefficients();
             return;
         }
 
         if (newBandCount > oldBandCount) {
             // FR-011a: Increasing - preserve existing, insert new at logarithmic midpoints
             redistributeIncreasing(oldBandCount, newBandCount);
+            updateAllpassCoefficients();
         } else {
             // FR-011b: Decreasing - keep lowest N-1 crossovers
             // The existing frequencies stay in place, we just use fewer
-            // Nothing to do - crossoverFrequencies_ already has the values
+            // Update allpasses for new band configuration
+            updateAllpassCoefficients();
         }
     }
 
@@ -313,6 +370,40 @@ private:
     }
 
     // =========================================================================
+    // Allpass Helpers
+    // =========================================================================
+
+    /// @brief Update all allpass filter coefficients.
+    /// Called after crossover frequencies change.
+    void updateAllpassCoefficients() noexcept {
+        const float srFloat = static_cast<float>(sampleRate_);
+
+        // For each band, configure allpasses at higher crossover frequencies
+        // Band k needs allpasses at f[k+1], f[k+2], ..., f[N-2]
+        for (int band = 0; band < kMaxBands - 2; ++band) {
+            for (int apIdx = band + 1; apIdx < kMaxBands - 1; ++apIdx) {
+                const float freq = crossoverFrequencies_[apIdx];
+                allpasses_[band][apIdx - band - 1].configure(
+                    Krate::DSP::FilterType::Allpass,
+                    clampFrequency(freq),
+                    kAllpassQ,
+                    0.0f,
+                    srFloat
+                );
+            }
+        }
+    }
+
+    /// @brief Reset all allpass filter states.
+    void resetAllpasses() noexcept {
+        for (auto& bandAllpasses : allpasses_) {
+            for (auto& ap : bandAllpasses) {
+                ap.reset();
+            }
+        }
+    }
+
+    // =========================================================================
     // Members
     // =========================================================================
 
@@ -322,6 +413,16 @@ private:
 
     // N-1 crossovers for N bands
     std::array<Krate::DSP::CrossoverLR4, kMaxBands - 1> crossovers_;
+
+    // D'Appolito allpass compensation filters
+    // allpasses_[band][apIdx] is the allpass for band 'band' at crossover 'band + apIdx + 1'
+    // Band 0 needs up to 6 allpasses (at f1..f6 for 8 bands)
+    // Band 1 needs up to 5 allpasses (at f2..f6)
+    // ...
+    // Band 5 needs up to 1 allpass (at f6)
+    // Band 6 and 7 need no allpasses
+    // Maximum allpasses per band = kMaxBands - 2 = 6
+    std::array<std::array<Krate::DSP::Biquad, kMaxBands - 2>, kMaxBands - 2> allpasses_;
 
     // Target frequencies (for redistribution logic)
     std::array<float, kMaxBands - 1> crossoverFrequencies_ = {

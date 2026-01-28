@@ -114,9 +114,8 @@ TEST_CASE("CrossoverNetwork 4 bands sum to flat response", "[crossover][US1][fla
     }
 
     // Test at various frequencies
-    // Note: Without allpass compensation, cascaded crossovers have phase errors
-    // that prevent achieving strict 0.1dB flatness. Using 0.5dB tolerance for now.
-    // TODO: Add allpass compensation for strict SC-001 compliance
+    // SC-001: Band summation produces flat frequency response within +/-0.1 dB
+    // D'Appolito allpass compensation ensures phase coherence across all bands.
     SECTION("1kHz sine sums to flat") {
         constexpr size_t kNumSamples = 8192;  // More samples for better settling
         std::array<float, kNumSamples> input{};
@@ -136,12 +135,13 @@ TEST_CASE("CrossoverNetwork 4 bands sum to flat response", "[crossover][US1][fla
         float outputRMS = calculateRMS(summed.data() + kNumSamples / 2, kNumSamples / 2);
 
         float errorDb = std::abs(linearToDb(outputRMS / inputRMS));
-        REQUIRE(errorDb < 0.5f);  // Relaxed tolerance for non-allpass design
+        REQUIRE(errorDb < 0.1f);  // SC-001: +/-0.1dB flatness with allpass compensation
     }
 }
 
 TEST_CASE("CrossoverNetwork 8 bands configuration works", "[crossover][US1]") {
     // FR-002: Support configurable band count from 1 to 8 bands
+    // SC-001: Band summation produces flat frequency response within +/-0.1 dB
     Disrumpo::CrossoverNetwork network;
     network.prepare(44100.0, 8);
 
@@ -150,7 +150,7 @@ TEST_CASE("CrossoverNetwork 8 bands configuration works", "[crossover][US1]") {
     std::array<float, Disrumpo::kMaxBands> bands{};
 
     // Process DC and verify sum is flat
-    // Use more settling time for 8 bands (7 cascaded filters)
+    // Use more settling time for 8 bands (7 cascaded filters + allpasses)
     for (int i = 0; i < 4000; ++i) {
         network.process(1.0f, bands);
     }
@@ -161,8 +161,8 @@ TEST_CASE("CrossoverNetwork 8 bands configuration works", "[crossover][US1]") {
     }
 
     float errorDb = std::abs(linearToDb(sum / 1.0f));
-    // Relaxed tolerance for non-allpass design with many bands
-    REQUIRE(errorDb < 0.15f);
+    // SC-001: +/-0.1dB flatness with D'Appolito allpass compensation
+    REQUIRE(errorDb < 0.1f);
 }
 
 // =============================================================================
