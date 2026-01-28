@@ -259,4 +259,140 @@ constexpr const char* getCategoryName(DistortionCategory category) noexcept {
     }
 }
 
+// =============================================================================
+// DistortionFamily Enumeration (FR-016)
+// =============================================================================
+
+/// @brief Family groupings for morph interpolation strategy.
+///
+/// Different families use different interpolation methods during morphing:
+/// - Same-family morphs: Use family-specific interpolation (single processor)
+/// - Cross-family morphs: Use parallel processing with equal-power crossfade
+///
+/// Per spec FR-016: Seven families with specific interpolation methods.
+enum class DistortionFamily : uint8_t {
+    Saturation = 0,     ///< D01-D06: Transfer function interpolation
+    Wavefold,           ///< D07-D09: Parameter interpolation
+    Digital,            ///< D12-D14, D18-D19: Parameter interpolation
+    Rectify,            ///< D10-D11: Parameter interpolation
+    Dynamic,            ///< D15, D17: Parameter interpolation + envelope coupling
+    Hybrid,             ///< D16, D26: Parallel blend with output crossfade
+    Experimental        ///< D20-D25: Parallel blend with output crossfade
+};
+
+/// @brief Total number of distortion families.
+constexpr int kDistortionFamilyCount = 7;
+
+// =============================================================================
+// Family Mapping (FR-016)
+// =============================================================================
+
+/// @brief Get the family for a distortion type.
+///
+/// Maps DistortionType to DistortionFamily for morph interpolation strategy.
+/// Per spec FR-016 family-type mapping table.
+///
+/// @param type The distortion type
+/// @return Family enum value
+constexpr DistortionFamily getFamily(DistortionType type) noexcept {
+    switch (type) {
+        // Saturation (D01-D06) - Transfer function interpolation
+        case DistortionType::SoftClip:
+        case DistortionType::HardClip:
+        case DistortionType::Tube:
+        case DistortionType::Tape:
+        case DistortionType::Fuzz:
+        case DistortionType::AsymmetricFuzz:
+            return DistortionFamily::Saturation;
+
+        // Wavefold (D07-D09) - Parameter interpolation
+        case DistortionType::SineFold:
+        case DistortionType::TriangleFold:
+        case DistortionType::SergeFold:
+            return DistortionFamily::Wavefold;
+
+        // Rectify (D10-D11) - Parameter interpolation
+        case DistortionType::FullRectify:
+        case DistortionType::HalfRectify:
+            return DistortionFamily::Rectify;
+
+        // Digital (D12-D14, D18-D19) - Parameter interpolation
+        case DistortionType::Bitcrush:
+        case DistortionType::SampleReduce:
+        case DistortionType::Quantize:
+        case DistortionType::Aliasing:
+        case DistortionType::BitwiseMangler:
+            return DistortionFamily::Digital;
+
+        // Dynamic (D15, D17) - Parameter interpolation + envelope coupling
+        case DistortionType::Temporal:
+        case DistortionType::FeedbackDist:
+            return DistortionFamily::Dynamic;
+
+        // Hybrid (D16, D26) - Parallel blend with output crossfade
+        case DistortionType::RingSaturation:
+        case DistortionType::AllpassResonant:
+            return DistortionFamily::Hybrid;
+
+        // Experimental (D20-D25) - Parallel blend with output crossfade
+        case DistortionType::Chaos:
+        case DistortionType::Formant:
+        case DistortionType::Granular:
+        case DistortionType::Spectral:
+        case DistortionType::Fractal:
+        case DistortionType::Stochastic:
+            return DistortionFamily::Experimental;
+
+        default:
+            return DistortionFamily::Saturation;
+    }
+}
+
+/// @brief Get display name for a family.
+/// @param family The distortion family
+/// @return C-string display name
+constexpr const char* getFamilyName(DistortionFamily family) noexcept {
+    switch (family) {
+        case DistortionFamily::Saturation:   return "Saturation";
+        case DistortionFamily::Wavefold:     return "Wavefold";
+        case DistortionFamily::Rectify:      return "Rectify";
+        case DistortionFamily::Digital:      return "Digital";
+        case DistortionFamily::Dynamic:      return "Dynamic";
+        case DistortionFamily::Hybrid:       return "Hybrid";
+        case DistortionFamily::Experimental: return "Experimental";
+        default:                             return "Unknown";
+    }
+}
+
+// =============================================================================
+// MorphMode Enumeration (FR-003, FR-004, FR-005)
+// =============================================================================
+
+/// @brief Morph mode defines how cursor position maps to node weights.
+///
+/// Per spec:
+/// - FR-003: 1D Linear mode - nodes arranged on single axis
+/// - FR-004: 2D Planar mode - nodes occupy XY positions
+/// - FR-005: 2D Radial mode - position defined by angle and distance
+enum class MorphMode : uint8_t {
+    Linear1D = 0,   ///< Single axis A-B-C-D interpolation using morphX only
+    Planar2D,       ///< XY position in node space (2D inverse distance)
+    Radial2D        ///< Angle + distance from center (polar coordinates)
+};
+
+/// @brief Total number of morph modes.
+constexpr int kMorphModeCount = 3;
+
+/// @brief Get display name for a morph mode.
+/// @param mode The morph mode
+/// @return C-string display name
+constexpr const char* getMorphModeName(MorphMode mode) noexcept {
+    switch (mode) {
+        case MorphMode::Linear1D: return "Linear";
+        case MorphMode::Planar2D: return "Planar";
+        case MorphMode::Radial2D: return "Radial";
+        default:                  return "Unknown";
+    }
+}
+
 } // namespace Disrumpo
