@@ -26,13 +26,16 @@
 >
 > | Document | Required Content |
 > |----------|------------------|
-> | **spec.md** (this file) | Functional requirements (FR-xxx), success criteria |
+> | **spec.md** (this file) | Functional requirements (FR-xxx), success criteria, distortion types |
 > | **plan.md** | System architecture diagrams, signal flow, layer structure |
 > | **tasks.md** | Task breakdown, condensed task IDs (T2.1-T2.4 style) |
 > | **roadmap.md** | Detailed task IDs (T2.1-T2.9 style), milestone criteria, dependencies |
-> | **dsp-details.md** | Parameter ID encoding, data structures, DSP algorithms |
+> | **dsp-details.md** | Parameter ID encoding, data structures, DSP algorithms, BandState |
+> | **ui-mockups.md** | UI layout, panel organization, control placement, visual hierarchy |
+> | **custom-controls.md** | Custom VSTGUI control specs, MorphPad, FrequencyBandDisplay, etc. |
+> | **vstgui-implementation.md** | VSTGUI patterns, IDependent, visibility controllers, thread safety |
 >
-> Failure to consult all documents results in incomplete specs missing architectural context, task mappings, or implementation details.
+> **ALL documents contain VITAL information.** Failure to consult all documents results in incomplete specs missing architectural context, UI requirements, task mappings, or implementation details.
 
 ---
 
