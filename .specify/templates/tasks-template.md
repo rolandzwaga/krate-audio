@@ -25,7 +25,8 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 1. **Write Failing Tests**: Create test file and write tests that FAIL (no implementation yet)
 2. **Implement**: Write code to make tests pass
 3. **Verify**: Run tests and confirm they pass
-4. **Commit**: Commit the completed work
+4. **Run Clang-Tidy**: Static analysis check (see Phase N-1.0)
+5. **Commit**: Commit the completed work
 
 Skills auto-load when needed (testing-guide, vst-guide) - no manual context verification required.
 
@@ -258,6 +259,33 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Verify all spec work is committed to feature branch
 
 **Checkpoint**: Architecture documentation reflects all new functionality
+
+---
+
+## Phase N-1.0: Static Analysis (MANDATORY)
+
+**Purpose**: Verify code quality with clang-tidy before final verification
+
+> **Pre-commit Quality Gate**: Run clang-tidy to catch potential bugs, performance issues, and style violations.
+
+### N-1.0.1 Run Clang-Tidy Analysis
+
+- [ ] TXXX **Run clang-tidy** on all modified/new source files:
+  ```bash
+  # Windows (PowerShell)
+  ./tools/run-clang-tidy.ps1 -Target all
+
+  # Linux/macOS
+  ./tools/run-clang-tidy.sh --target all
+  ```
+
+### N-1.0.2 Address Findings
+
+- [ ] TXXX **Fix all errors** reported by clang-tidy (blocking issues)
+- [ ] TXXX **Review warnings** and fix where appropriate (use judgment for DSP code)
+- [ ] TXXX **Document suppressions** if any warnings are intentionally ignored (add NOLINT comment with reason)
+
+**Checkpoint**: Static analysis clean - ready for completion verification
 
 ---
 

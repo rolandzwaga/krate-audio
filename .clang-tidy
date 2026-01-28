@@ -1,0 +1,216 @@
+# ==============================================================================
+# Clang-Tidy Configuration for Krate Audio Plugins
+# ==============================================================================
+# Constitution Principle VII: Code quality tooling
+#
+# Usage:
+#   - Standalone: ./tools/run-clang-tidy.ps1 (Windows) or ./tools/run-clang-tidy.sh (Unix)
+#   - CMake integration: cmake -DENABLE_CLANG_TIDY=ON ...
+#   - IDE: Most IDEs auto-detect this file
+#
+# Note: Run after generating compile_commands.json (cmake --preset <preset>)
+# ==============================================================================
+
+# Header filter: Only check our own headers, not external dependencies
+HeaderFilterRegex: '(dsp/include/krate|plugins/(iterum|disrumpo)/src)/.*'
+
+# Treat these as errors (blocking in CI)
+WarningsAsErrors: ''
+
+# Format of diagnostics
+FormatStyle: file
+
+# ==============================================================================
+# Check Configuration
+# ==============================================================================
+# Philosophy:
+#   - Enable checks that catch real bugs and performance issues
+#   - Disable noisy checks that conflict with DSP/audio coding patterns
+#   - Prioritize checks that improve real-time safety
+# ==============================================================================
+
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  concurrency-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-special-member-functions,
+  misc-*,
+  -misc-include-cleaner,
+  -misc-no-recursion,
+  -misc-non-private-member-variables-in-classes,
+  -misc-use-anonymous-namespace,
+  modernize-*,
+  -modernize-avoid-c-arrays,
+  -modernize-use-nodiscard,
+  -modernize-use-trailing-return-type,
+  performance-*,
+  readability-*,
+  -readability-braces-around-statements,
+  -readability-else-after-return,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-redundant-access-specifiers,
+  -readability-uppercase-literal-suffix,
+
+# ==============================================================================
+# Check-Specific Options
+# ==============================================================================
+
+CheckOptions:
+  # --------------------------------------------------------------------------
+  # Naming Conventions (align with CLAUDE.md style guide)
+  # --------------------------------------------------------------------------
+  # Classes: PascalCase
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  # Structs: PascalCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  # Enums: PascalCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  # Enum constants: kPascalCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantPrefix
+    value: 'k'
+  # Functions: camelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: camelBack
+  # Methods: camelCase
+  - key: readability-identifier-naming.MethodCase
+    value: camelBack
+  # Variables: camelCase
+  - key: readability-identifier-naming.VariableCase
+    value: camelBack
+  # Member variables: camelCase with trailing underscore
+  - key: readability-identifier-naming.MemberCase
+    value: camelBack
+  - key: readability-identifier-naming.MemberSuffix
+    value: '_'
+  # Private member variables: camelCase with trailing underscore
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
+  # Constants: kPascalCase
+  - key: readability-identifier-naming.ConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConstantPrefix
+    value: 'k'
+  # Global constants: kPascalCase
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.GlobalConstantPrefix
+    value: 'k'
+  # Static constants: kPascalCase
+  - key: readability-identifier-naming.StaticConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.StaticConstantPrefix
+    value: 'k'
+  # Constexpr variables: kPascalCase
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConstexprVariablePrefix
+    value: 'k'
+  # Namespaces: PascalCase
+  - key: readability-identifier-naming.NamespaceCase
+    value: CamelCase
+  # Template parameters: PascalCase
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+  # Type aliases: PascalCase
+  - key: readability-identifier-naming.TypeAliasCase
+    value: CamelCase
+  # Typedef: PascalCase
+  - key: readability-identifier-naming.TypedefCase
+    value: CamelCase
+  # Parameters: camelCase
+  - key: readability-identifier-naming.ParameterCase
+    value: camelBack
+  # Local variables: camelCase
+  - key: readability-identifier-naming.LocalVariableCase
+    value: camelBack
+  # Local constants: kPascalCase (consistent with all other constants)
+  - key: readability-identifier-naming.LocalConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.LocalConstantPrefix
+    value: 'k'
+
+  # --------------------------------------------------------------------------
+  # Performance Settings
+  # --------------------------------------------------------------------------
+  # Recommend move for types larger than 2 pointers
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: ''
+  # Recommend pass-by-value for move-only types
+  - key: performance-for-range-copy.WarnOnAllAutoCopies
+    value: true
+  # Flag inefficient string operations
+  - key: performance-inefficient-string-concatenation.StrictMode
+    value: true
+
+  # --------------------------------------------------------------------------
+  # Modernize Settings
+  # --------------------------------------------------------------------------
+  # Use nullptr instead of NULL or 0
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+  # Prefer override keyword
+  - key: modernize-use-override.AllowOverrideAndFinal
+    value: false
+  # auto for complex types only
+  - key: modernize-use-auto.MinTypeNameLength
+    value: 10
+
+  # --------------------------------------------------------------------------
+  # Bugprone Settings
+  # --------------------------------------------------------------------------
+  # Flag suspicious string comparisons
+  - key: bugprone-string-constructor.WarnOnLargeLength
+    value: true
+  # Flag suspicious sizeof usage
+  - key: bugprone-sizeof-expression.WarnOnSizeOfIntegerExpression
+    value: true
+
+  # --------------------------------------------------------------------------
+  # Misc Settings
+  # --------------------------------------------------------------------------
+  # Flag const-correctness issues
+  - key: misc-const-correctness.AnalyzeValues
+    value: true
+  - key: misc-const-correctness.AnalyzeReferences
+    value: true
+  - key: misc-const-correctness.WarnPointersAsValues
+    value: false
+
+  # --------------------------------------------------------------------------
+  # Readability Settings
+  # --------------------------------------------------------------------------
+  # Allow reasonable function size for DSP algorithms
+  - key: readability-function-size.LineThreshold
+    value: 200
+  - key: readability-function-size.StatementThreshold
+    value: 100
+  - key: readability-function-size.ParameterThreshold
+    value: 8
+  # Implicit bool conversions are OK
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: true
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
+    value: true

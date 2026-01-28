@@ -214,7 +214,8 @@ See `dsp-architecture` skill for interpolation selection, oversampling, DC block
 3. [ ] Fix all compiler warnings
 4. [ ] Verify all tests pass
 5. [ ] Run pluginval (if plugin code changed)
-6. [ ] Commit
+6. [ ] Run clang-tidy (./tools/run-clang-tidy.ps1 or .sh)
+7. [ ] Commit
 ```
 
 For **bug fixes**, step 1 is "Write test reproducing the bug" and verify it fails before fixing.
@@ -307,6 +308,63 @@ ctest --test-dir build-asan -C Debug --output-on-failure
 - Before releases to catch latent memory issues
 
 **Note:** ASan increases memory usage and slows execution. Use a separate build directory.
+
+### Clang-Tidy (Static Analysis)
+
+Use clang-tidy for static analysis to catch bugs, performance issues, and style violations before commit.
+
+**One-Time Setup (Windows):**
+
+1. Install LLVM (includes clang-tidy):
+   ```powershell
+   winget install LLVM.LLVM
+   ```
+
+2. Install Ninja (required for compile_commands.json):
+   ```powershell
+   winget install Ninja-build.Ninja
+   ```
+
+3. Generate compile_commands.json (run from VS Developer PowerShell):
+   ```powershell
+   # Open "Developer PowerShell for VS 2022" from Start Menu, then:
+   cd F:\projects\iterum
+   cmake --preset windows-ninja
+   ```
+
+**Running Analysis:**
+
+```powershell
+# Analyze all plugin source files
+./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja
+
+# Analyze specific targets
+./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target iterum -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target disrumpo -BuildDir build/windows-ninja
+
+# Apply automatic fixes (use with caution, review changes)
+./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja -Fix
+```
+
+**Linux/macOS:**
+```bash
+cmake --preset linux-release   # or macos-release (generates compile_commands.json)
+./tools/run-clang-tidy.sh --target all
+./tools/run-clang-tidy.sh --target dsp --fix
+```
+
+**Configuration:** The `.clang-tidy` file configures:
+- Enabled: bugprone, performance, modernize, readability, concurrency, cppcoreguidelines
+- Disabled: magic-numbers, short identifiers (DSP-friendly)
+- Naming conventions matching this style guide
+
+**When to run:**
+- Before every commit (part of canonical todo list step 6)
+- After significant refactoring
+- As pre-commit quality gate in specs (Phase N-1.0)
+
+**Re-run setup when:** CMakeLists.txt changes, new source files added, or compile flags change.
 
 ## Quick Reference
 

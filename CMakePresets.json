@@ -47,6 +47,21 @@
             }
         },
         {
+            "name": "windows-ninja",
+            "displayName": "Windows Ninja (for clang-tidy)",
+            "description": "Ninja build for generating compile_commands.json. Run from VS Developer Command Prompt.",
+            "inherits": "base",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
             "name": "macos-debug",
             "displayName": "macOS Debug",
             "inherits": "base",

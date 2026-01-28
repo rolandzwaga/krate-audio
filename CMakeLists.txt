@@ -23,8 +23,49 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Export compile_commands.json for VS Code IntelliSense
+# Export compile_commands.json for VS Code IntelliSense and clang-tidy
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# ==============================================================================
+# Clang-Tidy Integration (Optional)
+# ==============================================================================
+# Static analysis for code quality. Not enabled by default to avoid slowing builds.
+#
+# Usage:
+#   - Standalone (recommended): ./tools/run-clang-tidy.ps1 or ./tools/run-clang-tidy.sh
+#   - CMake integration: cmake -DENABLE_CLANG_TIDY=ON ... (runs on every compile)
+#
+# NOTE: CMake integration works best with Ninja generator, not Visual Studio.
+# For MSVC/Visual Studio generator, use the standalone scripts instead.
+# ==============================================================================
+option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis during build" OFF)
+
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy" DOC "Path to clang-tidy executable")
+    if(CLANG_TIDY_EXE)
+        message(STATUS "[KRATE] Clang-Tidy ENABLED: ${CLANG_TIDY_EXE}")
+
+        # Configure clang-tidy command
+        # --config-file: Use project .clang-tidy file
+        # --header-filter: Only check our headers, not external deps
+        set(CLANG_TIDY_COMMAND
+            "${CLANG_TIDY_EXE}"
+            "--config-file=${CMAKE_SOURCE_DIR}/.clang-tidy"
+        )
+
+        # MSVC-specific workarounds
+        if(MSVC)
+            list(APPEND CLANG_TIDY_COMMAND
+                "--extra-arg=/EHsc"
+                "--extra-arg=/std:c++20"
+            )
+        endif()
+
+        set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
+    else()
+        message(WARNING "[KRATE] ENABLE_CLANG_TIDY is ON but clang-tidy not found in PATH")
+    endif()
+endif()
 
 # ==============================================================================
 # Compiler Cache (ccache) Support
@@ -137,7 +178,14 @@ set(SMTG_CXX_STANDARD "20" CACHE STRING "" FORCE)
 set(SMTG_CREATE_PLUGIN_LINK OFF CACHE BOOL "" FORCE)
 set(SMTG_RUN_VST_VALIDATOR OFF CACHE BOOL "" FORCE)
 
+# Disable clang-tidy for external SDK (restore after add_subdirectory)
+set(_SAVED_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
+set(CMAKE_CXX_CLANG_TIDY "")
+
 add_subdirectory(${vst3sdk_SOURCE_DIR} ${PROJECT_BINARY_DIR}/vst3sdk)
+
+# Restore clang-tidy for our code
+set(CMAKE_CXX_CLANG_TIDY "${_SAVED_CLANG_TIDY}")
 smtg_enable_vst3_sdk()
 
 # ==============================================================================
