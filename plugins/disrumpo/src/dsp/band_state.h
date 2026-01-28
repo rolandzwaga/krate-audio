@@ -9,10 +9,13 @@
 // References:
 // - specs/002-band-management/data-model.md
 // - specs/002-band-management/spec.md FR-015 to FR-018
+// - specs/005-morph-system/spec.md FR-002 (MorphNode array)
 // ==============================================================================
 
 #include <array>
 #include <cstdint>
+#include "distortion_types.h"
+#include "morph_node.h"
 
 namespace Disrumpo {
 
@@ -33,12 +36,21 @@ struct BandState {
     bool bypass = false;         ///< Bypass flag (FR-024, for future distortion)
     bool mute = false;           ///< Mute flag (FR-023)
 
-    // Morph fields (FR-018: included for future integration, not processed in this spec)
+    // Morph fields (FR-018, 005-morph-system spec)
     float morphX = 0.5f;         ///< Morph X position [0, 1]
     float morphY = 0.5f;         ///< Morph Y position [0, 1]
-    int morphMode = 0;           ///< MorphMode enum value
-    int activeNodeCount = 2;     ///< Number of active nodes (2-4)
-    // MorphNode array will be added in morph spec (005-morph-engine)
+    MorphMode morphMode = MorphMode::Linear1D;  ///< Current morph mode (FR-003, FR-004, FR-005)
+    int activeNodeCount = 2;     ///< Number of active nodes (2-4) (FR-002)
+
+    /// @brief Array of morph nodes for this band.
+    /// Per spec FR-002: Support 2 to 4 active morph nodes per band.
+    /// Fixed-size array for real-time safety (no allocations).
+    std::array<MorphNode, kMaxMorphNodes> nodes = {{
+        MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip),   // Node A at top-left
+        MorphNode(1, 1.0f, 0.0f, DistortionType::Tube),       // Node B at top-right
+        MorphNode(2, 0.0f, 1.0f, DistortionType::Fuzz),       // Node C at bottom-left
+        MorphNode(3, 1.0f, 1.0f, DistortionType::SineFold)    // Node D at bottom-right
+    }};
 };
 
 // =============================================================================

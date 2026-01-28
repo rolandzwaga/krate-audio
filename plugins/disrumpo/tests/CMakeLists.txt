@@ -31,8 +31,20 @@ add_executable(disrumpo_tests
     unit/band_processing_test.cpp
     unit/distortion_adapter_test.cpp
 
+    # Unit tests - Morph System (005-morph-system)
+    unit/morph_weight_computation_test.cpp
+    unit/morph_mode_test.cpp
+    unit/morph_transition_test.cpp
+    unit/morph_interpolation_test.cpp
+    unit/morph_processor_cap_test.cpp
+    unit/morph_band_integration_test.cpp
+
+    # Approval tests - Morph artifact detection (005-morph-system SC-003)
+    approval/morph_artifact_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp
 
     # Integration tests
     integration/band_management_integration_test.cpp
@@ -63,6 +75,13 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/crossover_network_test.cpp
         unit/band_processing_test.cpp
         unit/distortion_adapter_test.cpp
+        unit/morph_weight_computation_test.cpp
+        unit/morph_mode_test.cpp
+        unit/morph_transition_test.cpp
+        unit/morph_interpolation_test.cpp
+        unit/morph_processor_cap_test.cpp
+        unit/morph_band_integration_test.cpp
+        approval/morph_artifact_test.cpp
         integration/band_management_integration_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
