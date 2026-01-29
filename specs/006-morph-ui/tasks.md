@@ -391,7 +391,7 @@ Implement the complete Morph UI system for Disrumpo including:
 
 ### 8.5 Commit (MANDATORY)
 
-- [ ] T136 [US6] Commit completed User Story 6 work: "feat(morph-ui): implement active nodes configuration (US6)"
+- [X] T136 [US6] Commit completed User Story 6 work: "feat(morph-ui): implement active nodes configuration (US6)"
 
 **Checkpoint**: User Story 6 (active nodes) fully functional and committed
 
