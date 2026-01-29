@@ -547,3 +547,151 @@ TEST_CASE("MorphPad node selection", "[morph_pad][selection]") {
         REQUIRE(pad.getSelectedNode() == 2);  // Still 2
     }
 }
+
+// =============================================================================
+// T110: Node Repositioning Tests (US5)
+// =============================================================================
+
+TEST_CASE("MorphPad node repositioning via setNodePosition", "[morph_pad][nodes][US5]") {
+    VSTGUI::CRect rect(0, 0, 250, 200);
+    MorphPad pad(rect);
+
+    SECTION("moving node updates its position") {
+        // Default position of node B (index 1) is (1, 0)
+        float initX = 0.0f, initY = 0.0f;
+        pad.getNodePosition(1, initX, initY);
+        REQUIRE(initX == Approx(1.0f));
+        REQUIRE(initY == Approx(0.0f));
+
+        // Simulate Alt+drag by calling setNodePosition directly
+        pad.setNodePosition(1, 0.3f, 0.6f);
+
+        float newX = 0.0f, newY = 0.0f;
+        pad.getNodePosition(1, newX, newY);
+        REQUIRE(newX == Approx(0.3f));
+        REQUIRE(newY == Approx(0.6f));
+    }
+
+    SECTION("node position is clamped to valid range") {
+        pad.setNodePosition(0, -0.5f, 1.5f);
+
+        float x = 0.0f, y = 0.0f;
+        pad.getNodePosition(0, x, y);
+        REQUIRE(x == Approx(0.0f));
+        REQUIRE(y == Approx(1.0f));
+    }
+
+    SECTION("all four nodes can be repositioned independently") {
+        pad.setNodePosition(0, 0.1f, 0.1f);
+        pad.setNodePosition(1, 0.9f, 0.1f);
+        pad.setNodePosition(2, 0.1f, 0.9f);
+        pad.setNodePosition(3, 0.9f, 0.9f);
+
+        float x0 = 0.0f, y0 = 0.0f;
+        float x1 = 0.0f, y1 = 0.0f;
+        float x2 = 0.0f, y2 = 0.0f;
+        float x3 = 0.0f, y3 = 0.0f;
+
+        pad.getNodePosition(0, x0, y0);
+        pad.getNodePosition(1, x1, y1);
+        pad.getNodePosition(2, x2, y2);
+        pad.getNodePosition(3, x3, y3);
+
+        REQUIRE(x0 == Approx(0.1f));
+        REQUIRE(y0 == Approx(0.1f));
+        REQUIRE(x1 == Approx(0.9f));
+        REQUIRE(y1 == Approx(0.1f));
+        REQUIRE(x2 == Approx(0.1f));
+        REQUIRE(y2 == Approx(0.9f));
+        REQUIRE(x3 == Approx(0.9f));
+        REQUIRE(y3 == Approx(0.9f));
+    }
+
+    SECTION("hit test works at new node position") {
+        // Move node A from (0,0) to (0.5, 0.5) which is center
+        pad.setNodePosition(0, 0.5f, 0.5f);
+
+        // Convert center to pixels
+        float pixelX = 0.0f, pixelY = 0.0f;
+        pad.positionToPixel(0.5f, 0.5f, pixelX, pixelY);
+
+        // Hit test should find node 0 at center now
+        int hitNode = pad.hitTestNode(pixelX, pixelY);
+        REQUIRE(hitNode == 0);
+    }
+}
+
+// =============================================================================
+// T111: Node Position Persistence Tests (US5)
+// =============================================================================
+
+TEST_CASE("MorphPad node positions persist across state changes", "[morph_pad][nodes][US5]") {
+    VSTGUI::CRect rect(0, 0, 250, 200);
+    MorphPad pad(rect);
+
+    SECTION("node positions are independent of morph cursor position") {
+        // Set custom node positions
+        pad.setNodePosition(0, 0.2f, 0.2f);
+        pad.setNodePosition(1, 0.8f, 0.2f);
+
+        // Move cursor around
+        pad.setMorphPosition(0.0f, 0.0f);
+        pad.setMorphPosition(1.0f, 1.0f);
+        pad.setMorphPosition(0.5f, 0.5f);
+
+        // Verify node positions are unchanged
+        float x0 = 0.0f, y0 = 0.0f;
+        float x1 = 0.0f, y1 = 0.0f;
+        pad.getNodePosition(0, x0, y0);
+        pad.getNodePosition(1, x1, y1);
+
+        REQUIRE(x0 == Approx(0.2f));
+        REQUIRE(y0 == Approx(0.2f));
+        REQUIRE(x1 == Approx(0.8f));
+        REQUIRE(y1 == Approx(0.2f));
+    }
+
+    SECTION("node positions persist across mode changes") {
+        // Set custom positions
+        pad.setNodePosition(2, 0.3f, 0.7f);
+
+        // Change modes
+        pad.setMorphMode(MorphMode::Linear1D);
+        pad.setMorphMode(MorphMode::Radial2D);
+        pad.setMorphMode(MorphMode::Planar2D);
+
+        // Verify position persists
+        float x = 0.0f, y = 0.0f;
+        pad.getNodePosition(2, x, y);
+        REQUIRE(x == Approx(0.3f));
+        REQUIRE(y == Approx(0.7f));
+    }
+
+    SECTION("node positions persist across active node count changes") {
+        // Set custom positions for all nodes
+        pad.setNodePosition(0, 0.1f, 0.1f);
+        pad.setNodePosition(1, 0.2f, 0.2f);
+        pad.setNodePosition(2, 0.3f, 0.3f);
+        pad.setNodePosition(3, 0.4f, 0.4f);
+
+        // Change active count to 2 (only nodes 0 and 1 visible)
+        pad.setActiveNodeCount(2);
+
+        // Verify all positions still stored (even for inactive nodes)
+        float x2 = 0.0f, y2 = 0.0f;
+        float x3 = 0.0f, y3 = 0.0f;
+        pad.getNodePosition(2, x2, y2);
+        pad.getNodePosition(3, x3, y3);
+
+        REQUIRE(x2 == Approx(0.3f));
+        REQUIRE(y2 == Approx(0.3f));
+        REQUIRE(x3 == Approx(0.4f));
+        REQUIRE(y3 == Approx(0.4f));
+
+        // Change back to 4 - positions should still be there
+        pad.setActiveNodeCount(4);
+        pad.getNodePosition(2, x2, y2);
+        REQUIRE(x2 == Approx(0.3f));
+        REQUIRE(y2 == Approx(0.3f));
+    }
+}

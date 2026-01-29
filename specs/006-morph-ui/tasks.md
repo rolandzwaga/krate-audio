@@ -306,7 +306,7 @@ Implement the complete Morph UI system for Disrumpo including:
 
 ### 6.5 Commit (MANDATORY)
 
-- [ ] T109 [US4] Commit completed User Story 4 work: "feat(morph-ui): implement morph mode selection (US4)"
+- [X] T109 [US4] Commit completed User Story 4 work: "feat(morph-ui): implement morph mode selection (US4)"
 
 **Checkpoint**: User Story 4 (morph modes) fully functional and committed
 
@@ -324,28 +324,28 @@ Implement the complete Morph UI system for Disrumpo including:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T110 [P] [US5] Add node repositioning tests to `F:\projects\iterum\plugins\disrumpo\tests\unit\morph_pad_test.cpp`: verify Alt+drag moves node to new position
-- [ ] T111 [P] [US5] Add node position persistence test to `morph_pad_test.cpp`: verify node positions persist across parameter updates
+- [X] T110 [P] [US5] Add node repositioning tests to `F:\projects\iterum\plugins\disrumpo\tests\unit\morph_pad_test.cpp`: verify Alt+drag moves node to new position
+- [X] T111 [P] [US5] Add node position persistence test to `morph_pad_test.cpp`: verify node positions persist across parameter updates
 
 ### 7.2 Implementation
 
-- [ ] T112 [US5] Implement Alt+drag node repositioning in MorphPad::onMouseDownEvent(): detect ModifierKey::Alt and hitTestNode() to identify dragged node (per FR-007)
-- [ ] T113 [US5] Implement node drag handling in MorphPad::onMouseMoveEvent(): update node position when draggingNode_ >= 0
-- [ ] T114 [US5] Add Band*Node{n}PositionX and Band*Node{n}PositionY parameters to `plugin_ids.h` for all bands and nodes
-- [ ] T115 [US5] Wire node position parameters to MorphPad in Controller::createCustomView()
-- [ ] T116 [US5] Update weight calculation in MorphPad to use updated node positions (per acceptance scenario 2)
+- [X] T112 [US5] Implement Alt+drag node repositioning in MorphPad::onMouseDownEvent(): detect ModifierKey::Alt and hitTestNode() to identify dragged node (per FR-007) (Already implemented)
+- [X] T113 [US5] Implement node drag handling in MorphPad::onMouseMoveEvent(): update node position when draggingNode_ >= 0 (Already implemented)
+- [ ] T114 [US5] Add Band*Node{n}PositionX and Band*Node{n}PositionY parameters to `plugin_ids.h` for all bands and nodes (DEFERRED - 64 additional parameters, can be added for preset persistence in future)
+- [ ] T115 [US5] Wire node position parameters to MorphPad in Controller::createCustomView() (DEFERRED - depends on T114)
+- [X] T116 [US5] Update weight calculation in MorphPad to use updated node positions (per acceptance scenario 2) (Weight calc uses current node positions via hitTestNode)
 
 ### 7.3 Verification
 
-- [ ] T117 [US5] Build implementation: `cmake --build build/windows-x64-release --config Release --target disrumpo`
-- [ ] T118 [US5] Run unit tests: `build/windows-x64-release/plugins/disrumpo/tests/Release/disrumpo_tests.exe`
+- [X] T117 [US5] Build implementation: `cmake --build build/windows-x64-release --config Release --target disrumpo`
+- [X] T118 [US5] Run unit tests: `build/windows-x64-release/plugins/disrumpo/tests/Release/disrumpo_tests.exe`
 - [ ] T119 [US5] Manual test: Alt+drag Node B to new position, verify Node B moves to the new position
 - [ ] T120 [US5] Manual test: After repositioning node, move morph cursor, verify weight calculation uses updated node positions
-- [ ] T121 [US5] Manual test: Save preset with nodes in non-default positions, reload preset, verify node positions are preserved (SC-010)
+- [ ] T121 [US5] Manual test: Save preset with nodes in non-default positions, reload preset, verify node positions are preserved (SC-010) (REQUIRES T114-T115)
 
 ### 7.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T122 [US5] Verify IEEE 754 compliance: Check if node repositioning tests use `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list if needed
+- [X] T122 [US5] Verify IEEE 754 compliance: Check if node repositioning tests use `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list if needed (Not needed - no IEEE 754-sensitive functions used)
 
 ### 7.5 Commit (MANDATORY)
 
