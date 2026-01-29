@@ -124,10 +124,10 @@ TEST_CASE("Bipolar modulation with different curves", "[core][modulation_curves]
         REQUIRE(result == Approx(0.324f).margin(0.001f));
     }
 
-    SECTION("Negative source value") {
+    SECTION("Negative source value preserves sign") {
         float result = applyBipolarModulation(ModCurve::Linear, -0.6f, 0.5f);
-        // abs(-0.6) = 0.6, linear(0.6) = 0.6, * 0.5 = 0.3
-        REQUIRE(result == Approx(0.3f).margin(0.001f));
+        // abs(-0.6) = 0.6, linear(0.6) = 0.6, sign=-1, * 0.5 = -0.3
+        REQUIRE(result == Approx(-0.3f).margin(0.001f));
     }
 }
 

@@ -57,12 +57,16 @@ namespace DSP {
 
 /// @brief Apply modulation curve with bipolar source handling.
 ///
-/// Per spec FR-059: curve applied to abs(source), then sign from amount applied.
-/// Formula: output = applyModCurve(curve, abs(sourceValue)) * amount
+/// Per spec FR-059: curve applied to abs(source) to shape the magnitude,
+/// then source sign is preserved and amount is applied.
+/// Formula: output = sign(source) * applyModCurve(curve, abs(source)) * amount
+///
+/// This preserves the bipolar nature of the source (e.g., LFO oscillation)
+/// while allowing the curve to shape the response and amount to scale/invert.
 ///
 /// @param curve Curve shape
 /// @param sourceValue Raw source output (can be negative)
-/// @param amount Routing amount [-1, +1] (carries sign)
+/// @param amount Routing amount [-1, +1] (carries sign/scale)
 /// @return Modulation contribution for this routing
 [[nodiscard]] inline float applyBipolarModulation(
     ModCurve curve,
@@ -71,7 +75,9 @@ namespace DSP {
 ) noexcept {
     const float absSource = std::abs(sourceValue);
     const float curved = applyModCurve(curve, absSource);
-    return curved * amount;
+    // Preserve source sign: negative source produces negative output
+    const float sign = (sourceValue >= 0.0f) ? 1.0f : -1.0f;
+    return sign * curved * amount;
 }
 
 }  // namespace DSP
