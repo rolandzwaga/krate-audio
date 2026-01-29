@@ -321,7 +321,8 @@ enum class MorphLinkMode : uint8_t {
     EaseOut,        ///< Exponential curve emphasizing high frequencies
     HoldRise,       ///< Hold at 0 until mid-point, then rise to 1
     Stepped,        ///< Quantize to discrete steps (0, 0.25, 0.5, 0.75, 1.0)
-    COUNT           ///< Sentinel for iteration (7 modes)
+    Custom,         ///< User-defined breakpoint curve (007-sweep-system)
+    COUNT           ///< Sentinel for iteration (8 modes)
 };
 
 /// @brief Total number of morph link modes.
@@ -339,6 +340,7 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
         case MorphLinkMode::EaseOut:      return "Ease Out";
         case MorphLinkMode::HoldRise:     return "Hold-Rise";
         case MorphLinkMode::Stepped:      return "Stepped";
+        case MorphLinkMode::Custom:       return "Custom";
         default:                          return "Unknown";
     }
 }

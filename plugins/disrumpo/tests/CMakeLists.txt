@@ -46,6 +46,10 @@ add_executable(disrumpo_tests
     unit/morph_pad_test.cpp
     unit/morph_link_test.cpp
 
+    # Unit tests - Sweep System (007-sweep-system)
+    dsp/sweep_morph_link_tests.cpp
+    dsp/custom_curve_tests.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp
@@ -97,6 +101,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/morph_pad_test.cpp
         approval/morph_artifact_test.cpp
         integration/band_management_integration_test.cpp
+        dsp/sweep_morph_link_tests.cpp
+        dsp/custom_curve_tests.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
