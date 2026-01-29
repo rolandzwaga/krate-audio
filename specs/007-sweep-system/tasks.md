@@ -155,7 +155,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T032 [US2] **Commit completed User Story 2 work** (Sweep parameter control)
+- [X] T032 [US2] **Commit completed User Story 2 work** (Sweep parameter control)
 
 **Checkpoint**: User Story 2 should work - all sweep parameters adjustable and affect processing
 
@@ -171,17 +171,17 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T033 [US3] Write failing tests for audio-UI sync in dsp/tests/primitives/sweep_position_buffer_tests.cpp if not already covered (verify push from audio thread, pop from UI thread)
-- [ ] T034 [US3] Write UI rendering tests if applicable (manual visual verification will be primary test)
+- [X] T033 [US3] Write failing tests for audio-UI sync in dsp/tests/primitives/sweep_position_buffer_tests.cpp if not already covered (verify push from audio thread, pop from UI thread)
+- [ ] T034 [US3] Write UI rendering tests if applicable (manual visual verification will be primary test) [DEFERRED: UI tests require manual verification]
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T035 [US3] Implement SweepIndicator class in plugins/Disrumpo/src/controller/sweep_indicator.h and sweep_indicator.cpp (draw Gaussian/triangular curve, center line per FR-040 through FR-045)
-- [ ] T036 [US3] Integrate SweepIndicator into SpectrumDisplay in plugins/Disrumpo/src/controller/ (add as overlay layer)
-- [ ] T037 [US3] Implement audio-to-UI position data push in plugins/Disrumpo/src/processor/processor.cpp (push SweepPositionData to buffer each block per FR-046)
-- [ ] T038 [US3] Implement UI position data read in plugins/Disrumpo/src/controller/controller.cpp (read from buffer, interpolate for 60fps per FR-047, FR-049)
-- [ ] T039 [US3] Add SweepIndicator update callback in controller idle() or timer
-- [ ] T040 [US3] Verify sweep indicator renders at correct position (manual test: SC-008, SC-009)
+- [ ] T035 [US3] Implement SweepIndicator class in plugins/Disrumpo/src/controller/sweep_indicator.h and sweep_indicator.cpp (draw Gaussian/triangular curve, center line per FR-040 through FR-045) [DEFERRED: P2 UI feature]
+- [ ] T036 [US3] Integrate SweepIndicator into SpectrumDisplay in plugins/Disrumpo/src/controller/ (add as overlay layer) [DEFERRED: P2 UI feature]
+- [X] T037 [US3] Implement audio-to-UI position data push in plugins/Disrumpo/src/processor/processor.cpp (push SweepPositionData to buffer each block per FR-046)
+- [ ] T038 [US3] Implement UI position data read in plugins/Disrumpo/src/controller/controller.cpp (read from buffer, interpolate for 60fps per FR-047, FR-049) [DEFERRED: P2 UI feature]
+- [ ] T039 [US3] Add SweepIndicator update callback in controller idle() or timer [DEFERRED: P2 UI feature]
+- [ ] T040 [US3] Verify sweep indicator renders at correct position (manual test: SC-008, SC-009) [DEFERRED: P2 UI feature]
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
@@ -205,15 +205,15 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T043 [P] [US4] Write failing tests for sweep-to-morph position mapping in plugins/Disrumpo/tests/dsp/sweep_morph_link_tests.cpp (test getMorphPosition() with each link mode, verify Linear/Inverse/EaseIn/EaseOut per FR-014 through FR-019)
-- [ ] T044 [P] [US4] Write integration tests for MorphEngine position updates in plugins/Disrumpo/tests/integration/sweep_morph_integration_tests.cpp
+- [X] T043 [P] [US4] Write failing tests for sweep-to-morph position mapping in plugins/Disrumpo/tests/dsp/sweep_morph_link_tests.cpp (test getMorphPosition() with each link mode, verify Linear/Inverse/EaseIn/EaseOut per FR-014 through FR-019)
+- [ ] T044 [P] [US4] Write integration tests for MorphEngine position updates in plugins/Disrumpo/tests/integration/sweep_morph_integration_tests.cpp [DEFERRED: Requires per-band morph link integration]
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T045 [US4] Implement getMorphPosition() in SweepProcessor using applyMorphLinkCurve() (normalize frequency to [0,1], apply curve per data-model.md)
-- [ ] T046 [US4] Add sweep-morph link parameter handling in plugins/Disrumpo/src/processor/processor.cpp (processParameterChanges: SweepMorphLink parameter)
-- [ ] T047 [US4] Integrate sweep-morph linking into audio processing loop (if link mode != None, call morphEngine_.setMorphPosition() with sweep's getMorphPosition())
-- [ ] T048 [US4] Verify all User Story 4 tests pass (FR-014 through FR-021, SC-007)
+- [X] T045 [US4] Implement getMorphPosition() in SweepProcessor using applyMorphLinkCurve() (normalize frequency to [0,1], apply curve per data-model.md)
+- [X] T046 [US4] Add sweep-morph link parameter handling in plugins/Disrumpo/src/processor/processor.cpp (processParameterChanges: SweepMorphLink parameter)
+- [ ] T047 [US4] Integrate sweep-morph linking into audio processing loop (if link mode != None, call morphEngine_.setMorphPosition() with sweep's getMorphPosition()) [DEFERRED: Per-band integration complex]
+- [X] T048 [US4] Verify all User Story 4 tests pass (FR-014 through FR-021, SC-007)
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
@@ -237,17 +237,17 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T051 [P] [US5] Write failing tests for HoldRise curve in plugins/Disrumpo/tests/dsp/sweep_morph_link_tests.cpp (stays 0 until 60%, then rises per FR-020)
-- [ ] T052 [P] [US5] Write failing tests for Stepped curve in plugins/Disrumpo/tests/dsp/sweep_morph_link_tests.cpp (quantizes to 0, 0.33, 0.67, 1.0 per FR-021)
+- [X] T051 [P] [US5] Write failing tests for HoldRise curve in plugins/Disrumpo/tests/dsp/sweep_morph_link_tests.cpp (stays 0 until 60%, then rises per FR-020)
+- [X] T052 [P] [US5] Write failing tests for Stepped curve in plugins/Disrumpo/tests/dsp/sweep_morph_link_tests.cpp (quantizes to 0, 0.33, 0.67, 1.0 per FR-021)
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T053 [US5] Verify HoldRise and Stepped curves in applyMorphLinkCurve() match formulas (already implemented in Phase 2.2, just verify)
-- [ ] T054 [US5] Verify all User Story 5 tests pass (FR-020, FR-021)
+- [X] T053 [US5] Verify HoldRise and Stepped curves in applyMorphLinkCurve() match formulas (already implemented in Phase 2.2, just verify)
+- [X] T054 [US5] Verify all User Story 5 tests pass (FR-020, FR-021)
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T055 [US5] **Verify IEEE 754 compliance**: Check if new test files use `std::isnan`/`std::isfinite` → add to `-fno-fast-math` list if needed
+- [X] T055 [US5] **Verify IEEE 754 compliance**: Check if new test files use `std::isnan`/`std::isfinite` → add to `-fno-fast-math` list if needed
 
 ### 7.4 Commit (MANDATORY)
 
@@ -329,14 +329,14 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T071 [US8] Write UI parameter binding tests if applicable (manual verification will be primary test)
+- [X] T071 [US8] Write UI parameter binding tests if applicable (manual verification will be primary test)
 
 ### 10.2 Implementation for User Story 8
 
-- [ ] T072 [US8] Register sweep parameters in Controller::initialize() in plugins/Disrumpo/src/controller/controller.cpp (SweepEnable, SweepFrequency, SweepWidth, SweepIntensity, SweepFalloff, SweepMorphLink per FR-030 through FR-036)
-- [ ] T073 [US8] Create sweep panel section in plugins/Disrumpo/resources/editor.uidesc (COnOffButton for Enable, CKnob for Frequency/Width/Intensity, CSegmentButton for Falloff, COptionMenu for MorphLink)
-- [ ] T074 [US8] Bind sweep UI controls to parameters in editor.uidesc
-- [ ] T075 [US8] Verify all sweep controls respond within 16ms (manual test: SC-010)
+- [X] T072 [US8] Register sweep parameters in Controller::initialize() in plugins/Disrumpo/src/controller/controller.cpp (SweepEnable, SweepFrequency, SweepWidth, SweepIntensity, SweepFalloff, SweepMorphLink per FR-030 through FR-036)
+- [X] T073 [US8] Create sweep panel section in plugins/Disrumpo/resources/editor.uidesc (COnOffButton for Enable, CKnob for Frequency/Width/Intensity, CSegmentButton for Falloff, COptionMenu for MorphLink)
+- [X] T074 [US8] Bind sweep UI controls to parameters in editor.uidesc
+- [ ] T075 [US8] Verify all sweep controls respond within 16ms (manual test: SC-010) [MANUAL TEST]
 
 ### 10.3 Cross-Platform Verification (MANDATORY)
 
