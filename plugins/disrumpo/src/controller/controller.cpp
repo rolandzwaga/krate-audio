@@ -362,6 +362,109 @@ private:
 };
 
 // ==============================================================================
+// NodeSelectionController: Update DisplayedType when SelectedNode changes
+// ==============================================================================
+// US7 FR-024/FR-025: When the user selects a different node (A/B/C/D), this
+// controller copies that node's type to the Band*DisplayedType proxy parameter,
+// which drives the UIViewSwitchContainer to show the correct type panel.
+// ==============================================================================
+class NodeSelectionController : public Steinberg::FObject {
+public:
+    NodeSelectionController(
+        Steinberg::Vst::EditControllerEx1* controller,
+        uint8_t band)
+    : controller_(controller)
+    , band_(band)
+    {
+        // Watch the SelectedNode parameter
+        selectedNodeParam_ = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandSelectedNode));
+        if (selectedNodeParam_) {
+            selectedNodeParam_->addRef();
+            selectedNodeParam_->addDependent(this);
+            // Trigger initial update
+            selectedNodeParam_->deferUpdate();
+        }
+
+        // Also watch all 4 node type parameters so we update when types change
+        for (int n = 0; n < 4; ++n) {
+            nodeTypeParams_[n] = controller_->getParameterObject(
+                makeNodeParamId(band, static_cast<uint8_t>(n), NodeParamType::kNodeType));
+            if (nodeTypeParams_[n]) {
+                nodeTypeParams_[n]->addRef();
+                nodeTypeParams_[n]->addDependent(this);
+            }
+        }
+    }
+
+    ~NodeSelectionController() override {
+        deactivate();
+        if (selectedNodeParam_) {
+            selectedNodeParam_->release();
+            selectedNodeParam_ = nullptr;
+        }
+        for (int n = 0; n < 4; ++n) {
+            if (nodeTypeParams_[n]) {
+                nodeTypeParams_[n]->release();
+                nodeTypeParams_[n] = nullptr;
+            }
+        }
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            if (selectedNodeParam_) {
+                selectedNodeParam_->removeDependent(this);
+            }
+            for (int n = 0; n < 4; ++n) {
+                if (nodeTypeParams_[n]) {
+                    nodeTypeParams_[n]->removeDependent(this);
+                }
+            }
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) {
+            return;
+        }
+
+        if (message == IDependent::kChanged && controller_) {
+            updateDisplayedType();
+        }
+    }
+
+    OBJ_METHODS(NodeSelectionController, FObject)
+
+private:
+    void updateDisplayedType() {
+        if (!selectedNodeParam_) return;
+
+        // Get selected node index (0-3)
+        int selectedNode = static_cast<int>(
+            selectedNodeParam_->getNormalized() * 3.0 + 0.5);
+        selectedNode = std::clamp(selectedNode, 0, 3);
+
+        // Get that node's type
+        auto* nodeTypeParam = nodeTypeParams_[selectedNode];
+        if (!nodeTypeParam) return;
+
+        float nodeTypeNorm = static_cast<float>(nodeTypeParam->getNormalized());
+
+        // Copy to DisplayedType parameter
+        auto displayedTypeId = makeBandParamId(band_, BandParamType::kBandDisplayedType);
+        controller_->setParamNormalized(displayedTypeId, nodeTypeNorm);
+        // Note: performEdit not needed for internal proxy update
+    }
+
+    Steinberg::Vst::EditControllerEx1* controller_;
+    uint8_t band_;
+    Steinberg::Vst::Parameter* selectedNodeParam_ = nullptr;
+    Steinberg::Vst::Parameter* nodeTypeParams_[4] = {nullptr, nullptr, nullptr, nullptr};
+    std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
 // Helper: Convert int to TChar string
 // ==============================================================================
 static void intToString128(int value, Steinberg::Vst::String128 dest) {
@@ -828,6 +931,68 @@ void Controller::registerBandParams() {
         morphYLinkParam->appendString(STR16("Hold-Rise"));
         morphYLinkParam->appendString(STR16("Stepped"));
         parameters.addParameter(morphYLinkParam);
+
+        // US7 FR-025: Selected Node parameter (which node's parameters to display)
+        static const Steinberg::Vst::TChar* selectedNodeNames[] = {
+            STR16("Band 1 Selected Node"), STR16("Band 2 Selected Node"),
+            STR16("Band 3 Selected Node"), STR16("Band 4 Selected Node"),
+            STR16("Band 5 Selected Node"), STR16("Band 6 Selected Node"),
+            STR16("Band 7 Selected Node"), STR16("Band 8 Selected Node")
+        };
+        auto* selectedNodeParam = new Steinberg::Vst::StringListParameter(
+            selectedNodeNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandSelectedNode),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+        );
+        selectedNodeParam->appendString(STR16("Node A"));
+        selectedNodeParam->appendString(STR16("Node B"));
+        selectedNodeParam->appendString(STR16("Node C"));
+        selectedNodeParam->appendString(STR16("Node D"));
+        parameters.addParameter(selectedNodeParam);
+
+        // US7 FR-024: Displayed Type (proxy for UIViewSwitchContainer, mirrors selected node's type)
+        // This parameter is updated by NodeSelectionController when selected node changes
+        static const Steinberg::Vst::TChar* displayedTypeNames[] = {
+            STR16("Band 1 Displayed Type"), STR16("Band 2 Displayed Type"),
+            STR16("Band 3 Displayed Type"), STR16("Band 4 Displayed Type"),
+            STR16("Band 5 Displayed Type"), STR16("Band 6 Displayed Type"),
+            STR16("Band 7 Displayed Type"), STR16("Band 8 Displayed Type")
+        };
+        auto* displayedTypeParam = new Steinberg::Vst::StringListParameter(
+            displayedTypeNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandDisplayedType),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kIsList  // Not automatable - internal use only
+        );
+        // Same 26 distortion types as node type parameters
+        displayedTypeParam->appendString(STR16("Soft Clip"));
+        displayedTypeParam->appendString(STR16("Hard Clip"));
+        displayedTypeParam->appendString(STR16("Tube"));
+        displayedTypeParam->appendString(STR16("Tape"));
+        displayedTypeParam->appendString(STR16("Fuzz"));
+        displayedTypeParam->appendString(STR16("Asymmetric Fuzz"));
+        displayedTypeParam->appendString(STR16("Sine Fold"));
+        displayedTypeParam->appendString(STR16("Triangle Fold"));
+        displayedTypeParam->appendString(STR16("Serge Fold"));
+        displayedTypeParam->appendString(STR16("Full Rectify"));
+        displayedTypeParam->appendString(STR16("Half Rectify"));
+        displayedTypeParam->appendString(STR16("Bitcrush"));
+        displayedTypeParam->appendString(STR16("Sample Reduce"));
+        displayedTypeParam->appendString(STR16("Quantize"));
+        displayedTypeParam->appendString(STR16("Temporal"));
+        displayedTypeParam->appendString(STR16("Ring Saturation"));
+        displayedTypeParam->appendString(STR16("Feedback"));
+        displayedTypeParam->appendString(STR16("Aliasing"));
+        displayedTypeParam->appendString(STR16("Bitwise Mangler"));
+        displayedTypeParam->appendString(STR16("Chaos"));
+        displayedTypeParam->appendString(STR16("Formant"));
+        displayedTypeParam->appendString(STR16("Granular"));
+        displayedTypeParam->appendString(STR16("Spectral"));
+        displayedTypeParam->appendString(STR16("Fractal"));
+        displayedTypeParam->appendString(STR16("Stochastic"));
+        displayedTypeParam->appendString(STR16("Allpass Resonant"));
+        parameters.addParameter(displayedTypeParam);
     }
 }
 
@@ -1450,6 +1615,13 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     if (sweepFreqParam) {
         morphSweepLinkController_ = new MorphSweepLinkController(this, sweepFreqParam);
     }
+
+    // US7 FR-024/FR-025: Create node selection controllers
+    // Updates DisplayedType proxy when SelectedNode changes
+    for (int b = 0; b < kMaxBands; ++b) {
+        nodeSelectionControllers_[b] = new NodeSelectionController(
+            this, static_cast<uint8_t>(b));
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -1481,6 +1653,16 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
             mslc->deactivate();
         }
         morphSweepLinkController_ = nullptr;
+    }
+
+    // US7: Deactivate node selection controllers
+    for (auto& nsc : nodeSelectionControllers_) {
+        if (nsc) {
+            if (auto* controller = dynamic_cast<NodeSelectionController*>(nsc.get())) {
+                controller->deactivate();
+            }
+            nsc = nullptr;
+        }
     }
 
     spectrumDisplay_ = nullptr;

@@ -131,6 +131,8 @@ enum class BandParamType : uint8_t {
     kBandMorphMode   = 0x0A,  ///< Morph mode [1D Linear, 2D Planar, 2D Radial]
     kBandMorphXLink  = 0x0B,  ///< Morph X Link mode (US8 FR-032)
     kBandMorphYLink  = 0x0C,  ///< Morph Y Link mode (US8 FR-033)
+    kBandSelectedNode = 0x0D, ///< Selected node for editing (0-3) (US7 FR-025)
+    kBandDisplayedType = 0x0E, ///< Proxy type for UIViewSwitchContainer (mirrors selected node's type)
 };
 
 /// @brief Create parameter ID for per-band parameters.

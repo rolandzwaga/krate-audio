@@ -314,6 +314,10 @@
     <control-tag name="B1N4Folds" tag="12293"/>
     <control-tag name="B1N4BitDepth" tag="12294"/>
 
+    <!-- Band 1 Node Selection (US7 FR-025) -->
+    <control-tag name="Band1SelectedNode" tag="61453"/>
+    <control-tag name="Band1DisplayedType" tag="61454"/>
+
     <!-- UI-only visibility tags (9000+) -->
     <control-tag name="Band1Container" tag="9000"/>
     <control-tag name="Band2Container" tag="9001"/>
@@ -1882,21 +1886,13 @@
         <view class="CTextLabel" origin="5, 2" size="50, 12" title="Node:"
               font="small-font" font-color="text-secondary"/>
 
-        <!-- Node Selector Buttons (A/B/C/D) - FR-025, T140 -->
-        <!-- These indicate which node's parameters are shown -->
-        <!-- Clicking selects that node for editing (wired to MorphPad selectedNode) -->
-        <view class="CTextButton" origin="55, 2" size="30, 16" title="A"
-              font="small-font" font-color="band-1" frame-color="border"
-              gradient="button-active" gradient-highlighted="button-active"/>
-        <view class="CTextButton" origin="90, 2" size="30, 16" title="B"
-              font="small-font" font-color="text-primary" frame-color="border"
-              gradient="button-default" gradient-highlighted="button-active"/>
-        <view class="CTextButton" origin="125, 2" size="30, 16" title="C"
-              font="small-font" font-color="text-primary" frame-color="border"
-              gradient="button-default" gradient-highlighted="button-active"/>
-        <view class="CTextButton" origin="160, 2" size="30, 16" title="D"
-              font="small-font" font-color="text-primary" frame-color="border"
-              gradient="button-default" gradient-highlighted="button-active"/>
+        <!-- Node Selector (A/B/C/D) - FR-025, T140 -->
+        <!-- CSegmentButton for selecting which node's parameters to display -->
+        <!-- Wired to Band1SelectedNode - NodeSelectionController updates DisplayedType -->
+        <view class="CSegmentButton" origin="55, 2" size="135, 16"
+              control-tag="Band1SelectedNode" segment-names="A,B,C,D"
+              font="small-font" font-color="text-primary" text-color-highlighted="band-1"
+              frame-color="border" gradient="button-default" selected-gradient="button-active"/>
 
         <!-- Current Type Display (FR-024, FR-026) -->
         <view class="CTextLabel" origin="5, 18" size="270, 14" title="Type: Soft Clip"
@@ -1904,10 +1900,10 @@
       </view>
 
       <!-- UIViewSwitchContainer for type-specific parameters -->
-      <!-- template-switch-control binds to Band*Node*Type -->
-      <!-- Note: To switch based on selected node, controller code updates this dynamically -->
+      <!-- template-switch-control binds to Band1DisplayedType (proxy parameter) -->
+      <!-- NodeSelectionController copies selected node's type to this proxy -->
       <view class="UIViewSwitchContainer" origin="0, 38" size="280, 185"
-            animation-time="0" template-switch-control="B1N1Type">
+            animation-time="0" template-switch-control="Band1DisplayedType">
         <!-- Sub-views reference TypeParams_* templates by value (0-25) -->
         <view template="TypeParams_SoftClip" value="0"/>
         <view template="TypeParams_HardClip" value="1"/>

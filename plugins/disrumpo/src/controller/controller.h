@@ -168,6 +168,12 @@ private:
     // ==========================================================================
     // Updates morph position based on sweep frequency and link mode settings
     Steinberg::IPtr<Steinberg::FObject> morphSweepLinkController_;
+
+    // ==========================================================================
+    // Node Selection Controllers (US7 FR-024/FR-025)
+    // ==========================================================================
+    // Updates DisplayedType proxy when SelectedNode changes
+    std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> nodeSelectionControllers_;
 };
 
 } // namespace Disrumpo
