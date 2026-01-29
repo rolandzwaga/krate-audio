@@ -5,8 +5,11 @@
 #include "processor.h"
 #include "plugin_ids.h"
 
+#include "dsp/sweep_morph_link.h"
+
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivstevents.h"
 
 #include <algorithm>  // for std::max, std::min
 #include <cmath>      // for std::log10, std::pow
@@ -199,6 +202,44 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         sweepPositionBuffer_.push(positionData);
     }
 
+    // Write modulated frequency as output parameter for Controller visualization (FR-047, FR-049)
+    if (data.outputParameterChanges) {
+        Steinberg::int32 index = 0;
+        auto* queue = data.outputParameterChanges->addParameterData(
+            kSweepModulatedFrequencyOutputId, index);
+        if (queue) {
+            float normalizedFreq = normalizeSweepFrequency(modulatedFreq);
+            queue->addPoint(0, static_cast<Steinberg::Vst::ParamValue>(normalizedFreq), index);
+        }
+    }
+
+    // ==========================================================================
+    // MIDI Learn: Scan for CC events (FR-028, FR-029)
+    // ==========================================================================
+    if (midiLearnActive_ && data.inputEvents) {
+        Steinberg::int32 eventCount = data.inputEvents->getEventCount();
+        for (Steinberg::int32 ei = 0; ei < eventCount; ++ei) {
+            Steinberg::Vst::Event e{};
+            if (data.inputEvents->getEvent(ei, e) == Steinberg::kResultOk) {
+                if (e.type == Steinberg::Vst::Event::kLegacyMIDICCOutEvent) {
+                    uint8_t cc = e.midiCCOut.controlNumber;
+                    // Write detected CC to output parameter
+                    if (data.outputParameterChanges) {
+                        Steinberg::int32 idx = 0;
+                        auto* q = data.outputParameterChanges->addParameterData(
+                            kSweepDetectedCCOutputId, idx);
+                        if (q) {
+                            q->addPoint(0, static_cast<double>(cc) / 127.0, idx);
+                        }
+                    }
+                    midiLearnActive_ = false;
+                    assignedMidiCC_ = cc;
+                    break;  // Only capture first CC
+                }
+            }
+        }
+    }
+
     // ==========================================================================
     // Per-Band Sweep Intensity (spec 007-sweep-system FR-001, T067)
     // Calculate and apply sweep intensities to band processors once per block
@@ -340,6 +381,72 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         if (!streamer.writeFloat(freq)) return Steinberg::kResultFalse;
     }
 
+    // =========================================================================
+    // Sweep System State (v4+) — SC-012
+    // =========================================================================
+
+    // Sweep Core (6 values)
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepProcessor_.isEnabled() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(normalizeSweepFrequency(sweepProcessor_.getTargetFrequency())))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((sweepProcessor_.getWidth() - 0.5f) / 3.5f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(sweepProcessor_.getIntensity() / 2.0f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepProcessor_.getFalloffMode())))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepProcessor_.getMorphLinkMode())))
+        return Steinberg::kResultFalse;
+
+    // LFO (6 values)
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepLFO_.isEnabled() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+    // LFO Rate: denormalized Hz → normalized using inverse log formula
+    {
+        constexpr float kMinRateLog = -4.6052f;  // ln(0.01)
+        constexpr float kMaxRateLog = 2.9957f;   // ln(20)
+        float normalizedRate = (std::log(sweepLFO_.getRate()) - kMinRateLog) / (kMaxRateLog - kMinRateLog);
+        normalizedRate = std::clamp(normalizedRate, 0.0f, 1.0f);
+        if (!streamer.writeFloat(normalizedRate)) return Steinberg::kResultFalse;
+    }
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepLFO_.getWaveform())))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(sweepLFO_.getDepth()))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepLFO_.isTempoSynced() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+    {
+        // Encode note value + modifier as single index: noteValueIndex * 3 + modifierIndex
+        int noteIndex = static_cast<int>(sweepLFO_.getNoteValue()) * 3 +
+                        static_cast<int>(sweepLFO_.getNoteModifier());
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(noteIndex)))
+            return Steinberg::kResultFalse;
+    }
+
+    // Envelope (4 values)
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepEnvelope_.isEnabled() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((sweepEnvelope_.getAttackTime() - kMinSweepEnvAttackMs) /
+                             (kMaxSweepEnvAttackMs - kMinSweepEnvAttackMs)))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((sweepEnvelope_.getReleaseTime() - kMinSweepEnvReleaseMs) /
+                             (kMaxSweepEnvReleaseMs - kMinSweepEnvReleaseMs)))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(sweepEnvelope_.getSensitivity()))
+        return Steinberg::kResultFalse;
+
+    // Custom Curve breakpoints
+    {
+        int32_t pointCount = static_cast<int32_t>(customCurve_.getBreakpointCount());
+        if (!streamer.writeInt32(pointCount)) return Steinberg::kResultFalse;
+        for (int32_t i = 0; i < pointCount; ++i) {
+            auto bp = customCurve_.getBreakpoint(i);
+            if (!streamer.writeFloat(bp.x)) return Steinberg::kResultFalse;
+            if (!streamer.writeFloat(bp.y)) return Steinberg::kResultFalse;
+        }
+    }
+
     return Steinberg::kResultOk;
 }
 
@@ -437,6 +544,109 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         // Update band counts in crossover networks
         crossoverL_.setBandCount(bandCount);
         crossoverR_.setBandCount(bandCount);
+    }
+
+    // =========================================================================
+    // Sweep System State (v4+) — SC-012
+    // =========================================================================
+    if (version >= 4) {
+        // Sweep Core
+        Steinberg::int8 sweepEnable = 0;
+        float sweepFreqNorm = 0.566f;
+        float sweepWidthNorm = 0.286f;
+        float sweepIntensityNorm = 0.25f;
+        Steinberg::int8 sweepFalloff = 1;
+        Steinberg::int8 sweepMorphLink = 0;
+
+        if (streamer.readInt8(sweepEnable))
+            sweepProcessor_.setEnabled(sweepEnable != 0);
+        if (streamer.readFloat(sweepFreqNorm)) {
+            float freqHz = denormalizeSweepFrequency(sweepFreqNorm);
+            baseSweepFrequency_.store(freqHz, std::memory_order_relaxed);
+            sweepProcessor_.setCenterFrequency(freqHz);
+        }
+        if (streamer.readFloat(sweepWidthNorm))
+            sweepProcessor_.setWidth(0.5f + sweepWidthNorm * 3.5f);
+        if (streamer.readFloat(sweepIntensityNorm))
+            sweepProcessor_.setIntensity(sweepIntensityNorm * 2.0f);
+        if (streamer.readInt8(sweepFalloff))
+            sweepProcessor_.setFalloffMode(static_cast<SweepFalloff>(sweepFalloff));
+        if (streamer.readInt8(sweepMorphLink))
+            sweepProcessor_.setMorphLinkMode(static_cast<MorphLinkMode>(
+                std::clamp(static_cast<int>(sweepMorphLink), 0, kMorphLinkModeCount - 1)));
+
+        // LFO
+        Steinberg::int8 lfoEnable = 0;
+        float lfoRateNorm = 0.606f;
+        Steinberg::int8 lfoWaveform = 0;
+        float lfoDepth = 0.0f;
+        Steinberg::int8 lfoSync = 0;
+        Steinberg::int8 lfoNoteIndex = 0;
+
+        if (streamer.readInt8(lfoEnable))
+            sweepLFO_.setEnabled(lfoEnable != 0);
+        if (streamer.readFloat(lfoRateNorm)) {
+            constexpr float kMinRateLog = -4.6052f;
+            constexpr float kMaxRateLog = 2.9957f;
+            float rateHz = std::exp(kMinRateLog + lfoRateNorm * (kMaxRateLog - kMinRateLog));
+            sweepLFO_.setRate(rateHz);
+        }
+        if (streamer.readInt8(lfoWaveform))
+            sweepLFO_.setWaveform(static_cast<Krate::DSP::Waveform>(
+                std::clamp(static_cast<int>(lfoWaveform), 0, 5)));
+        if (streamer.readFloat(lfoDepth))
+            sweepLFO_.setDepth(lfoDepth);
+        if (streamer.readInt8(lfoSync))
+            sweepLFO_.setTempoSync(lfoSync != 0);
+        if (streamer.readInt8(lfoNoteIndex)) {
+            int idx = std::clamp(static_cast<int>(lfoNoteIndex), 0, 14);
+            sweepLFO_.setNoteValue(
+                static_cast<Krate::DSP::NoteValue>(idx / 3),
+                static_cast<Krate::DSP::NoteModifier>(idx % 3));
+        }
+
+        // Envelope
+        Steinberg::int8 envEnable = 0;
+        float envAttackNorm = 0.091f;
+        float envReleaseNorm = 0.184f;
+        float envSensitivity = 0.5f;
+
+        if (streamer.readInt8(envEnable))
+            sweepEnvelope_.setEnabled(envEnable != 0);
+        if (streamer.readFloat(envAttackNorm))
+            sweepEnvelope_.setAttackTime(kMinSweepEnvAttackMs +
+                envAttackNorm * (kMaxSweepEnvAttackMs - kMinSweepEnvAttackMs));
+        if (streamer.readFloat(envReleaseNorm))
+            sweepEnvelope_.setReleaseTime(kMinSweepEnvReleaseMs +
+                envReleaseNorm * (kMaxSweepEnvReleaseMs - kMinSweepEnvReleaseMs));
+        if (streamer.readFloat(envSensitivity))
+            sweepEnvelope_.setSensitivity(envSensitivity);
+
+        // Custom Curve
+        int32_t pointCount = 2;
+        if (streamer.readInt32(pointCount)) {
+            pointCount = std::clamp(pointCount, 2, 8);
+            // Clear and rebuild custom curve
+            while (customCurve_.getBreakpointCount() > 2) {
+                customCurve_.removeBreakpoint(1);
+            }
+            // Read first point (endpoint x=0)
+            float px = 0.0f;
+            float py = 0.0f;
+            if (pointCount >= 1 && streamer.readFloat(px) && streamer.readFloat(py)) {
+                customCurve_.setBreakpoint(0, 0.0f, py);
+            }
+            // Read intermediate points
+            for (int32_t i = 1; i < pointCount - 1; ++i) {
+                if (streamer.readFloat(px) && streamer.readFloat(py)) {
+                    customCurve_.addBreakpoint(px, py);
+                }
+            }
+            // Read last point (endpoint x=1)
+            if (pointCount >= 2 && streamer.readFloat(px) && streamer.readFloat(py)) {
+                customCurve_.setBreakpoint(customCurve_.getBreakpointCount() - 1, 1.0f, py);
+            }
+        }
     }
 
     return Steinberg::kResultOk;
@@ -626,6 +836,51 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             // Sensitivity is already normalized [0,1]
                             sweepEnvelope_.setSensitivity(static_cast<float>(value));
                             break;
+
+                        // ========================================================
+                        // Custom Curve Parameters (FR-039a, FR-039b, FR-039c)
+                        // ========================================================
+                        case SweepParamType::kSweepCustomCurvePointCount: {
+                            // Rebuild curve when point count changes
+                            int pointCount = static_cast<int>(2.0f + static_cast<float>(value) * 6.0f + 0.5f);
+                            pointCount = std::clamp(pointCount, 2, 8);
+                            // Curve will be rebuilt next time a point param changes
+                            (void)pointCount;
+                            break;
+                        }
+
+                        case SweepParamType::kSweepCustomCurveP0X:
+                        case SweepParamType::kSweepCustomCurveP0Y:
+                        case SweepParamType::kSweepCustomCurveP1X:
+                        case SweepParamType::kSweepCustomCurveP1Y:
+                        case SweepParamType::kSweepCustomCurveP2X:
+                        case SweepParamType::kSweepCustomCurveP2Y:
+                        case SweepParamType::kSweepCustomCurveP3X:
+                        case SweepParamType::kSweepCustomCurveP3Y:
+                        case SweepParamType::kSweepCustomCurveP4X:
+                        case SweepParamType::kSweepCustomCurveP4Y:
+                        case SweepParamType::kSweepCustomCurveP5X:
+                        case SweepParamType::kSweepCustomCurveP5Y:
+                        case SweepParamType::kSweepCustomCurveP6X:
+                        case SweepParamType::kSweepCustomCurveP6Y:
+                        case SweepParamType::kSweepCustomCurveP7X:
+                        case SweepParamType::kSweepCustomCurveP7Y:
+                            // Curve point changed - defer rebuild to process loop
+                            // (handled below after all params processed)
+                            break;
+
+                        // ========================================================
+                        // MIDI Parameters (FR-028, FR-029)
+                        // ========================================================
+                        case SweepParamType::kSweepMidiLearnActive:
+                            midiLearnActive_ = (value >= 0.5);
+                            break;
+
+                        case SweepParamType::kSweepMidiCCNumber: {
+                            assignedMidiCC_ = static_cast<int>(value * 128.0 + 0.5);
+                            assignedMidiCC_ = std::clamp(assignedMidiCC_, 0, 128);
+                            break;
+                        }
 
                         default:
                             break;

@@ -17,7 +17,6 @@
 #include "vstgui/lib/ccolor.h"
 #include "vstgui/lib/cdrawcontext.h"
 
-#include <krate/dsp/primitives/sweep_position_buffer.h>
 #include "dsp/sweep_types.h"
 
 #include <cmath>
@@ -37,12 +36,6 @@ public:
     // Configuration API
     // ==========================================================================
 
-    /// @brief Set the sweep position buffer for audio-visual sync (FR-046)
-    /// @param buffer Pointer to the lock-free position buffer
-    void setPositionBuffer(Krate::DSP::SweepPositionBuffer* buffer) noexcept {
-        positionBuffer_ = buffer;
-    }
-
     /// @brief Enable or disable the sweep indicator (FR-011, FR-012)
     /// @param enabled true to show indicator, false to hide
     void setEnabled(bool enabled) noexcept {
@@ -52,6 +45,24 @@ public:
 
     /// @brief Check if sweep indicator is enabled
     [[nodiscard]] bool isEnabled() const noexcept { return enabled_; }
+
+    /// @brief Set the center frequency in Hz (FR-047)
+    /// @param freqHz Center frequency [20, 20000]
+    void setCenterFrequency(float freqHz) noexcept {
+        centerFreq_ = freqHz;
+    }
+
+    /// @brief Set the sweep width in octaves
+    /// @param octaves Width [0.5, 4.0]
+    void setWidth(float octaves) noexcept {
+        widthOctaves_ = octaves;
+    }
+
+    /// @brief Set the sweep intensity
+    /// @param value Intensity [0, 2] where 1.0 = 100%
+    void setIntensity(float value) noexcept {
+        intensity_ = value;
+    }
 
     /// @brief Set the falloff mode (affects curve shape)
     /// @param mode Sharp (triangular) or Smooth (Gaussian)
@@ -67,7 +78,7 @@ public:
         setDirty();
     }
 
-    /// @brief Manually set position (for testing or when buffer not available)
+    /// @brief Set position (for testing or initial configuration)
     /// @param centerFreqHz Sweep center frequency in Hz
     /// @param widthOctaves Sweep width in octaves
     /// @param intensity Sweep intensity (0-2, where 1 = 100%)
@@ -77,10 +88,6 @@ public:
         intensity_ = intensity;
         setDirty();
     }
-
-    /// @brief Update position from buffer (call from UI timer/idle)
-    /// @return true if position was updated
-    bool updateFromBuffer() noexcept;
 
     // ==========================================================================
     // Coordinate Conversion
@@ -142,7 +149,6 @@ private:
     // State
     // ==========================================================================
 
-    Krate::DSP::SweepPositionBuffer* positionBuffer_ = nullptr;
     bool enabled_ = false;
     SweepFalloff falloffMode_ = SweepFalloff::Smooth;
     VSTGUI::CColor indicatorColor_{0x4E, 0xCD, 0xC4, 0xFF};  // accent-secondary

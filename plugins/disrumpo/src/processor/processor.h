@@ -183,6 +183,16 @@ private:
 
     /// @brief Base sweep frequency before modulation (Hz)
     std::atomic<float> baseSweepFrequency_{1000.0f};
+
+    // ==========================================================================
+    // MIDI Learn (FR-028, FR-029)
+    // ==========================================================================
+
+    /// @brief Flag: processor is listening for MIDI CC events
+    bool midiLearnActive_ = false;
+
+    /// @brief Assigned MIDI CC number (0-127), or 128 for none
+    int assignedMidiCC_ = 128;
 };
 
 } // namespace Disrumpo

@@ -662,7 +662,7 @@ inline float AllpassSaturator::process(float input) noexcept {
 
     // Smooth parameters
     const float smoothedFreq = frequencySmoother_.process();
-    const float smoothedFeedback = feedbackSmoother_.process();
+    (void)feedbackSmoother_.process();  // Advance smoother (read via getCurrentValue() in topology processing)
     const float smoothedDrive = driveSmoother_.process();
 
     // Update components with smoothed parameters

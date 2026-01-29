@@ -69,6 +69,8 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/views/node_editor_border.cpp
     src/controller/views/sweep_indicator.h
     src/controller/views/sweep_indicator.cpp
+    src/controller/views/custom_curve_editor.h
+    src/controller/views/custom_curve_editor.cpp
 
     # Morph Link Functions (US8)
     src/controller/morph_link.h

@@ -15,7 +15,9 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
+#include "vstgui/lib/cvstguitimer.h"
 
 #include <array>
 #include <memory>
@@ -33,7 +35,8 @@ class SweepIndicator;
 // ==============================================================================
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
-                   public VSTGUI::VST3EditorDelegate {
+                   public VSTGUI::VST3EditorDelegate,
+                   public Steinberg::Vst::IMidiMapping {
 public:
     Controller() = default;
     ~Controller() override;
@@ -103,6 +106,16 @@ public:
     void willClose(VSTGUI::VST3Editor* editor) override;
 
     // ===========================================================================
+    // IMidiMapping (FR-028, FR-029)
+    // ===========================================================================
+
+    /// Map MIDI CC to parameter ID for MIDI CC control of sweep frequency
+    Steinberg::tresult PLUGIN_API getMidiControllerAssignment(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::Vst::CtrlNumber midiControllerNumber,
+        Steinberg::Vst::ParamID& id) override;
+
+    // ===========================================================================
     // Factory
     // ===========================================================================
 
@@ -117,6 +130,7 @@ public:
     DEFINE_INTERFACES
         DEF_INTERFACE(Steinberg::Vst::IEditController)
         DEF_INTERFACE(Steinberg::Vst::IEditController2)
+        DEF_INTERFACE(Steinberg::Vst::IMidiMapping)
     END_DEFINE_INTERFACES(EditController)
 
     DELEGATE_REFCOUNT(EditController)
@@ -192,6 +206,26 @@ private:
     // ==========================================================================
     // MorphPad controls that show/hide nodes based on ActiveNodes
     std::array<MorphPad*, kMaxBands> morphPads_{};
+
+    // ==========================================================================
+    // Sweep Visualization (FR-047, FR-049)
+    // ==========================================================================
+    // Timer for consistent sweep indicator redraws (~30fps)
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> sweepVisualizationTimer_;
+
+    // IDependent controller for sweep output parameter -> UI updates
+    Steinberg::IPtr<Steinberg::FObject> sweepVisualizationController_;
+
+    // ==========================================================================
+    // Custom Curve Visibility (FR-039a)
+    // ==========================================================================
+    Steinberg::IPtr<Steinberg::FObject> customCurveVisController_;
+
+    // ==========================================================================
+    // MIDI CC Mapping (FR-028, FR-029)
+    // ==========================================================================
+    // Stored MIDI CC number (0-127, or 128 for none)
+    int assignedMidiCC_ = 128;
 };
 
 } // namespace Disrumpo

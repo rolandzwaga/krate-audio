@@ -107,6 +107,29 @@ enum class SweepParamType : uint8_t {
     kSweepEnvAttack    = 0x21,  ///< Envelope attack [1, 100] ms
     kSweepEnvRelease   = 0x22,  ///< Envelope release [10, 500] ms
     kSweepEnvSensitivity = 0x23, ///< Envelope sensitivity [0, 100] %
+
+    // Custom Curve parameters (FR-039a, FR-039b, FR-039c)
+    kSweepCustomCurvePointCount = 0x30,  ///< Number of breakpoints [2-8]
+    kSweepCustomCurveP0X = 0x31,  ///< Point 0 X (always 0.0)
+    kSweepCustomCurveP0Y = 0x32,  ///< Point 0 Y [0, 1]
+    kSweepCustomCurveP1X = 0x33,  ///< Point 1 X [0, 1]
+    kSweepCustomCurveP1Y = 0x34,  ///< Point 1 Y [0, 1]
+    kSweepCustomCurveP2X = 0x35,  ///< Point 2 X [0, 1]
+    kSweepCustomCurveP2Y = 0x36,  ///< Point 2 Y [0, 1]
+    kSweepCustomCurveP3X = 0x37,  ///< Point 3 X [0, 1]
+    kSweepCustomCurveP3Y = 0x38,  ///< Point 3 Y [0, 1]
+    kSweepCustomCurveP4X = 0x39,  ///< Point 4 X [0, 1]
+    kSweepCustomCurveP4Y = 0x3A,  ///< Point 4 Y [0, 1]
+    kSweepCustomCurveP5X = 0x3B,  ///< Point 5 X [0, 1]
+    kSweepCustomCurveP5Y = 0x3C,  ///< Point 5 Y [0, 1]
+    kSweepCustomCurveP6X = 0x3D,  ///< Point 6 X [0, 1]
+    kSweepCustomCurveP6Y = 0x3E,  ///< Point 6 Y [0, 1]
+    kSweepCustomCurveP7X = 0x3F,  ///< Point 7 X (always 1.0)
+    kSweepCustomCurveP7Y = 0x40,  ///< Point 7 Y [0, 1]
+
+    // MIDI parameters (FR-028, FR-029)
+    kSweepMidiLearnActive = 0x50,  ///< MIDI Learn toggle [on/off]
+    kSweepMidiCCNumber    = 0x51,  ///< Assigned MIDI CC number [0-128], 128 = none
 };
 
 /// @brief Create parameter ID for sweep parameters.
@@ -122,6 +145,23 @@ constexpr Steinberg::Vst::ParamID makeSweepParamId(SweepParamType param) {
 constexpr bool isSweepParamId(Steinberg::Vst::ParamID paramId) {
     return (paramId & 0xFF00) == 0x0E00;
 }
+
+// =============================================================================
+// Output Parameter IDs (Processor -> Controller)
+// =============================================================================
+// Output parameters use standalone IDs outside the encoding scheme.
+// These are read-only parameters written by the Processor and observed
+// by the Controller for real-time UI updates.
+// =============================================================================
+
+/// @brief Output parameter: modulated sweep frequency (normalized [0,1])
+/// Written by Processor in process() after computing modulated frequency.
+/// Observed by Controller to update SweepIndicator and SpectrumDisplay.
+constexpr Steinberg::Vst::ParamID kSweepModulatedFrequencyOutputId = 0x0F80;
+
+/// @brief Output parameter: detected MIDI CC number during MIDI Learn (normalized)
+/// Written by Processor when a CC event is detected while MIDI Learn is active.
+constexpr Steinberg::Vst::ParamID kSweepDetectedCCOutputId = 0x0F81;
 
 // =============================================================================
 // Band Parameter Type Enum (FR-002)
@@ -369,8 +409,9 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v1: Initial skeleton (inputGain, outputGain, globalMix)
 // - v2: Band management (bandCount, 8x bandState, 7x crossoverFreq)
 // - v3: VSTGUI infrastructure (all ~450 parameters)
+// - v4: Sweep system state (sweep params, LFO, envelope, custom curve)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 3;
+constexpr int32_t kPresetVersion = 4;
 
 // ==============================================================================
 // Plugin Metadata

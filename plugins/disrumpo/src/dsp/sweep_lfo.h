@@ -117,6 +117,7 @@ public:
     ///
     /// @param waveform Waveform type
     void setWaveform(Krate::DSP::Waveform waveform) noexcept {
+        waveform_ = waveform;
         lfo_.setWaveform(waveform);
     }
 
@@ -147,6 +148,8 @@ public:
     /// @param modifier Note modifier (none, dotted, triplet)
     void setNoteValue(Krate::DSP::NoteValue value,
                       Krate::DSP::NoteModifier modifier = Krate::DSP::NoteModifier::None) noexcept {
+        noteValue_ = value;
+        noteModifier_ = modifier;
         lfo_.setNoteValue(value, modifier);
     }
 
@@ -172,6 +175,21 @@ public:
     /// @brief Check if tempo sync is enabled.
     [[nodiscard]] bool isTempoSynced() const noexcept {
         return tempoSync_;
+    }
+
+    /// @brief Get current waveform.
+    [[nodiscard]] Krate::DSP::Waveform getWaveform() const noexcept {
+        return waveform_;
+    }
+
+    /// @brief Get current note value (for tempo sync).
+    [[nodiscard]] Krate::DSP::NoteValue getNoteValue() const noexcept {
+        return noteValue_;
+    }
+
+    /// @brief Get current note modifier (for tempo sync).
+    [[nodiscard]] Krate::DSP::NoteModifier getNoteModifier() const noexcept {
+        return noteModifier_;
     }
 
     // =========================================================================
@@ -230,6 +248,9 @@ private:
     bool tempoSync_ = false;
     float rate_ = kDefaultSweepLFORate;
     float depth_ = 0.5f;
+    Krate::DSP::Waveform waveform_ = Krate::DSP::Waveform::Sine;
+    Krate::DSP::NoteValue noteValue_ = Krate::DSP::NoteValue::Quarter;
+    Krate::DSP::NoteModifier noteModifier_ = Krate::DSP::NoteModifier::None;
 };
 
 } // namespace Disrumpo

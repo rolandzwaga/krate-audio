@@ -23,29 +23,6 @@ SweepIndicator::SweepIndicator(const VSTGUI::CRect& size)
 // Public API
 // ==============================================================================
 
-bool SweepIndicator::updateFromBuffer() noexcept {
-    if (!positionBuffer_) {
-        return false;
-    }
-
-    Krate::DSP::SweepPositionData positionData;
-    if (!positionBuffer_->getLatest(positionData)) {
-        return false;
-    }
-
-    // Update position with interpolation for smooth display (FR-047)
-    centerFreq_ = lastCenterFreq_ + kInterpolationFactor * (positionData.centerFreqHz - lastCenterFreq_);
-    widthOctaves_ = lastWidthOctaves_ + kInterpolationFactor * (positionData.widthOctaves - lastWidthOctaves_);
-    intensity_ = positionData.intensity;
-
-    // Store for next interpolation
-    lastCenterFreq_ = centerFreq_;
-    lastWidthOctaves_ = widthOctaves_;
-
-    setDirty();
-    return true;
-}
-
 float SweepIndicator::freqToX(float freq) const noexcept {
     freq = std::clamp(freq, kMinFreqHz, kMaxFreqHz);
     const auto width = static_cast<float>(getViewSize().getWidth());

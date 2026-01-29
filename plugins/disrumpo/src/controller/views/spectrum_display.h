@@ -66,6 +66,15 @@ public:
     /// @brief Set the listener for events
     void setListener(SpectrumDisplayListener* listener) { listener_ = listener; }
 
+    /// @brief Set per-band sweep intensity values for overlay rendering (FR-050)
+    /// @param intensities Array of intensity values [0, 2] per band (up to 8)
+    /// @param numBands Number of bands with valid intensity data
+    void setSweepBandIntensities(const std::array<float, 8>& intensities, int numBands);
+
+    /// @brief Enable or disable sweep intensity overlay (FR-050)
+    /// @param enabled true to show overlay
+    void setSweepEnabled(bool enabled);
+
     // ==========================================================================
     // Coordinate Conversion
     // ==========================================================================
@@ -142,6 +151,13 @@ private:
 
     // Band colors (from ui-mockups.md)
     static const std::array<VSTGUI::CColor, kMaxBands> kBandColors;
+
+    // Sweep intensity overlay (FR-050)
+    bool sweepEnabled_ = false;
+    std::array<float, kMaxBands> sweepIntensities_{};
+
+    /// @brief Draw sweep intensity overlay on band regions
+    void drawSweepIntensityOverlay(VSTGUI::CDrawContext* context);
 };
 
 } // namespace Disrumpo
