@@ -162,6 +162,12 @@ private:
     // ==========================================================================
     // Expand/collapse visibility controllers - show/hide BandStripExpanded based on Band*Expanded
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> expandedVisibilityControllers_;
+
+    // ==========================================================================
+    // Morph-Sweep Link Controller (T159-T161, US8)
+    // ==========================================================================
+    // Updates morph position based on sweep frequency and link mode settings
+    Steinberg::IPtr<Steinberg::FObject> morphSweepLinkController_;
 };
 
 } // namespace Disrumpo

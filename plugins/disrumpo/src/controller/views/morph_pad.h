@@ -175,6 +175,7 @@ public:
     void onMouseDownEvent(VSTGUI::MouseDownEvent& event) override;
     void onMouseMoveEvent(VSTGUI::MouseMoveEvent& event) override;
     void onMouseUpEvent(VSTGUI::MouseUpEvent& event) override;
+    void onMouseWheelEvent(VSTGUI::MouseWheelEvent& event) override;
 
     CLASS_METHODS(MorphPad, CControl)
 
@@ -202,7 +203,7 @@ private:
     void drawNodes(VSTGUI::CDrawContext* context);
 
     /// @brief Draw the morph cursor.
-    void drawCursor(VSTGUI::CDrawContext* context);
+    void drawCursor(VSTGUI::CDrawContext* context) const;
 
     /// @brief Draw the position label.
     void drawPositionLabel(VSTGUI::CDrawContext* context);

@@ -11,6 +11,7 @@
 #include "dsp/band_state.h"
 #include "controller/views/spectrum_display.h"
 #include "controller/views/morph_pad.h"
+#include "controller/morph_link.h"
 
 #include "base/source/fstreamer.h"
 #include "base/source/fobject.h"
@@ -241,6 +242,122 @@ private:
     Steinberg::int32 containerTag_;
     float threshold_;
     bool showWhenBelow_;
+    std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
+// MorphSweepLinkController: Update morph position based on sweep frequency
+// ==============================================================================
+// T159-T161: Listens to sweep frequency changes and updates morph X/Y positions
+// based on the Band*MorphXLink and Band*MorphYLink parameter values.
+// ==============================================================================
+class MorphSweepLinkController : public Steinberg::FObject {
+public:
+    MorphSweepLinkController(
+        Steinberg::Vst::EditControllerEx1* controller,
+        Steinberg::Vst::Parameter* sweepFreqParam)
+    : controller_(controller)
+    , sweepFreqParam_(sweepFreqParam)
+    {
+        if (sweepFreqParam_) {
+            sweepFreqParam_->addRef();
+            sweepFreqParam_->addDependent(this);
+        }
+    }
+
+    ~MorphSweepLinkController() override {
+        deactivate();
+        if (sweepFreqParam_) {
+            sweepFreqParam_->release();
+            sweepFreqParam_ = nullptr;
+        }
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            if (sweepFreqParam_) {
+                sweepFreqParam_->removeDependent(this);
+            }
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) {
+            return;
+        }
+
+        if (message == IDependent::kChanged && sweepFreqParam_ && controller_) {
+            // Get sweep frequency as normalized position (log scale already handled by RangeParameter)
+            float sweepNorm = static_cast<float>(sweepFreqParam_->getNormalized());
+
+            // Update morph position for each band based on its link mode settings
+            for (int band = 0; band < 8; ++band) {
+                updateBandMorphFromSweep(static_cast<uint8_t>(band), sweepNorm);
+            }
+        }
+    }
+
+    OBJ_METHODS(MorphSweepLinkController, FObject)
+
+private:
+    void updateBandMorphFromSweep(uint8_t band, float sweepNorm) {
+        // Get the link mode parameters for this band
+        auto* morphXLinkParam = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandMorphXLink));
+        auto* morphYLinkParam = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandMorphYLink));
+
+        if (!morphXLinkParam || !morphYLinkParam) {
+            return;
+        }
+
+        // Get current link modes (discrete values 0-6 for 7 modes)
+        int xLinkIndex = static_cast<int>(std::round(morphXLinkParam->getNormalized() * 6.0));
+        int yLinkIndex = static_cast<int>(std::round(morphYLinkParam->getNormalized() * 6.0));
+
+        MorphLinkMode xLinkMode = static_cast<MorphLinkMode>(std::clamp(xLinkIndex, 0, 6));
+        MorphLinkMode yLinkMode = static_cast<MorphLinkMode>(std::clamp(yLinkIndex, 0, 6));
+
+        // Skip if both are None (no link)
+        if (xLinkMode == MorphLinkMode::None && yLinkMode == MorphLinkMode::None) {
+            return;
+        }
+
+        // Get current manual morph positions
+        auto* morphXParam = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandMorphX));
+        auto* morphYParam = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandMorphY));
+
+        if (!morphXParam || !morphYParam) {
+            return;
+        }
+
+        float currentX = static_cast<float>(morphXParam->getNormalized());
+        float currentY = static_cast<float>(morphYParam->getNormalized());
+
+        // Apply link modes to compute new positions
+        float newX = applyMorphLinkMode(xLinkMode, sweepNorm, currentX);
+        float newY = applyMorphLinkMode(yLinkMode, sweepNorm, currentY);
+
+        // Update parameters if they changed (only for linked modes)
+        if (xLinkMode != MorphLinkMode::None && std::abs(newX - currentX) > 0.001f) {
+            controller_->setParamNormalized(
+                makeBandParamId(band, BandParamType::kBandMorphX), newX);
+            controller_->performEdit(
+                makeBandParamId(band, BandParamType::kBandMorphX), newX);
+        }
+
+        if (yLinkMode != MorphLinkMode::None && std::abs(newY - currentY) > 0.001f) {
+            controller_->setParamNormalized(
+                makeBandParamId(band, BandParamType::kBandMorphY), newY);
+            controller_->performEdit(
+                makeBandParamId(band, BandParamType::kBandMorphY), newY);
+        }
+    }
+
+    Steinberg::Vst::EditControllerEx1* controller_;
+    Steinberg::Vst::Parameter* sweepFreqParam_;
     std::atomic<bool> isActive_{true};
 };
 
@@ -650,6 +767,67 @@ void Controller::registerBandParams() {
             Steinberg::Vst::ParameterInfo::kNoFlags,  // UI-only, not automatable
             makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandExpanded)
         );
+
+        // Band MorphSmoothing: RangeParameter [0, 500] ms, default 0 (FR-031)
+        static const Steinberg::Vst::TChar* morphSmoothingNames[] = {
+            STR16("Band 1 Morph Smoothing"), STR16("Band 2 Morph Smoothing"),
+            STR16("Band 3 Morph Smoothing"), STR16("Band 4 Morph Smoothing"),
+            STR16("Band 5 Morph Smoothing"), STR16("Band 6 Morph Smoothing"),
+            STR16("Band 7 Morph Smoothing"), STR16("Band 8 Morph Smoothing")
+        };
+        auto* morphSmoothingParam = new Steinberg::Vst::RangeParameter(
+            morphSmoothingNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMorphSmoothing),
+            STR16("ms"),
+            0.0, 500.0, 0.0,
+            0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate
+        );
+        parameters.addParameter(morphSmoothingParam);
+
+        // Band MorphXLink: StringListParameter for morph X link mode (US8 FR-032)
+        static const Steinberg::Vst::TChar* morphXLinkNames[] = {
+            STR16("Band 1 Morph X Link"), STR16("Band 2 Morph X Link"),
+            STR16("Band 3 Morph X Link"), STR16("Band 4 Morph X Link"),
+            STR16("Band 5 Morph X Link"), STR16("Band 6 Morph X Link"),
+            STR16("Band 7 Morph X Link"), STR16("Band 8 Morph X Link")
+        };
+        auto* morphXLinkParam = new Steinberg::Vst::StringListParameter(
+            morphXLinkNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMorphXLink),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+        );
+        morphXLinkParam->appendString(STR16("None"));
+        morphXLinkParam->appendString(STR16("Sweep Freq"));
+        morphXLinkParam->appendString(STR16("Inverse Sweep"));
+        morphXLinkParam->appendString(STR16("Ease In"));
+        morphXLinkParam->appendString(STR16("Ease Out"));
+        morphXLinkParam->appendString(STR16("Hold-Rise"));
+        morphXLinkParam->appendString(STR16("Stepped"));
+        parameters.addParameter(morphXLinkParam);
+
+        // Band MorphYLink: StringListParameter for morph Y link mode (US8 FR-033)
+        static const Steinberg::Vst::TChar* morphYLinkNames[] = {
+            STR16("Band 1 Morph Y Link"), STR16("Band 2 Morph Y Link"),
+            STR16("Band 3 Morph Y Link"), STR16("Band 4 Morph Y Link"),
+            STR16("Band 5 Morph Y Link"), STR16("Band 6 Morph Y Link"),
+            STR16("Band 7 Morph Y Link"), STR16("Band 8 Morph Y Link")
+        };
+        auto* morphYLinkParam = new Steinberg::Vst::StringListParameter(
+            morphYLinkNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMorphYLink),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+        );
+        morphYLinkParam->appendString(STR16("None"));
+        morphYLinkParam->appendString(STR16("Sweep Freq"));
+        morphYLinkParam->appendString(STR16("Inverse Sweep"));
+        morphYLinkParam->appendString(STR16("Ease In"));
+        morphYLinkParam->appendString(STR16("Ease Out"));
+        morphYLinkParam->appendString(STR16("Hold-Rise"));
+        morphYLinkParam->appendString(STR16("Stepped"));
+        parameters.addParameter(morphYLinkParam);
     }
 }
 
@@ -1265,6 +1443,13 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             );
         }
     }
+
+    // T159-T161: Create morph-sweep link controller (US8)
+    // Updates morph X/Y positions when sweep frequency changes (based on link mode)
+    auto* sweepFreqParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepFrequency));
+    if (sweepFreqParam) {
+        morphSweepLinkController_ = new MorphSweepLinkController(this, sweepFreqParam);
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -1288,6 +1473,14 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
             }
             vc = nullptr;
         }
+    }
+
+    // T161: Deactivate morph-sweep link controller
+    if (morphSweepLinkController_) {
+        if (auto* mslc = dynamic_cast<MorphSweepLinkController*>(morphSweepLinkController_.get())) {
+            mslc->deactivate();
+        }
+        morphSweepLinkController_ = nullptr;
     }
 
     spectrumDisplay_ = nullptr;

@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <sstream>
 #include <iomanip>
 
@@ -248,7 +249,7 @@ void MorphPad::drawModeOverlay(VSTGUI::CDrawContext* context) {
 
         // Draw 8 radial lines at 45 degree intervals
         for (int i = 0; i < 8; ++i) {
-            float angle = static_cast<float>(i) * 3.14159265f / 4.0f;
+            float angle = static_cast<float>(i) * std::numbers::pi_v<float> / 4.0f;
             float endX = centerX + maxRadius * std::cos(angle);
             float endY = centerY - maxRadius * std::sin(angle);  // Y inverted
             context->drawLine(VSTGUI::CPoint(centerX, centerY), VSTGUI::CPoint(endX, endY));
@@ -346,7 +347,7 @@ void MorphPad::drawNodes(VSTGUI::CDrawContext* context) {
     }
 }
 
-void MorphPad::drawCursor(VSTGUI::CDrawContext* context) {
+void MorphPad::drawCursor(VSTGUI::CDrawContext* context) const {
     // FR-003: 16px diameter open circle with 2px white stroke
 
     float pixelX = 0.0f;
@@ -544,6 +545,38 @@ void MorphPad::onMouseUpEvent(VSTGUI::MouseUpEvent& event) {
         isFineAdjustment_ = false;
         event.consumed = true;
     }
+}
+
+void MorphPad::onMouseWheelEvent(VSTGUI::MouseWheelEvent& event) {
+    // FR-040: Scroll wheel interaction
+    // Vertical scroll adjusts X, horizontal scroll adjusts Y
+
+    constexpr float kScrollSensitivity = 0.05f;  // 5% per scroll unit
+    float fineScale = event.modifiers.has(VSTGUI::ModifierKey::Shift) ? kFineAdjustmentScale : 1.0f;
+
+    float deltaX = static_cast<float>(event.deltaY) * kScrollSensitivity * fineScale;  // Vertical wheel -> X
+    float deltaY = static_cast<float>(event.deltaX) * kScrollSensitivity * fineScale;  // Horizontal wheel -> Y
+
+    float newX = morphX_ + deltaX;
+    float newY = morphY_ + deltaY;
+
+    // Apply 1D mode constraint
+    if (morphMode_ == MorphMode::Linear1D) {
+        newY = 0.5f;
+    }
+
+    setMorphPosition(newX, newY);
+    setValue(morphX_);
+
+    if (listener_) {
+        listener_->onMorphPositionChanged(morphX_, morphY_);
+    }
+
+    beginEdit();
+    valueChanged();
+    endEdit();
+
+    event.consumed = true;
 }
 
 // =============================================================================

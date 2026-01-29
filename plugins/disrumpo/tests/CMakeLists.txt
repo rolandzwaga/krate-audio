@@ -44,6 +44,7 @@ add_executable(disrumpo_tests
 
     # Unit tests - MorphPad UI (006-morph-ui)
     unit/morph_pad_test.cpp
+    unit/morph_link_test.cpp
 
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
@@ -51,6 +52,9 @@ add_executable(disrumpo_tests
 
     # UI sources (needed for MorphPad tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/morph_pad.cpp
+
+    # Morph link sources (needed for morph link tests)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/morph_link.cpp
 
     # Integration tests
     integration/band_management_integration_test.cpp

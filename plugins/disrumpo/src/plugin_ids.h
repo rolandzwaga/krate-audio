@@ -125,10 +125,12 @@ enum class BandParamType : uint8_t {
     kBandMute        = 0x04,  ///< Band mute flag
     kBandExpanded    = 0x05,  ///< Band expanded state (UI only) [0=collapsed, 1=expanded]
     kBandActiveNodes = 0x06,  ///< Active nodes count [2, 3, 4] (US6)
-    // 0x07 reserved
+    kBandMorphSmoothing = 0x07,  ///< Morph smoothing time [0, 500] ms (FR-031)
     kBandMorphX      = 0x08,  ///< Morph X position [0, 1]
     kBandMorphY      = 0x09,  ///< Morph Y position [0, 1]
     kBandMorphMode   = 0x0A,  ///< Morph mode [1D Linear, 2D Planar, 2D Radial]
+    kBandMorphXLink  = 0x0B,  ///< Morph X Link mode (US8 FR-032)
+    kBandMorphYLink  = 0x0C,  ///< Morph Y Link mode (US8 FR-033)
 };
 
 /// @brief Create parameter ID for per-band parameters.

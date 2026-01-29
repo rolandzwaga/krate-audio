@@ -88,101 +88,125 @@
     <control-tag name="Crossover6" tag="3861"/>
     <control-tag name="Crossover7" tag="3862"/>
 
-    <!-- Band 1 Parameters (0xF000-0xF00A) -->
+    <!-- Band 1 Parameters (0xF000-0xF00C) -->
     <control-tag name="Band1Gain" tag="61440"/>
     <control-tag name="Band1Pan" tag="61441"/>
     <control-tag name="Band1Solo" tag="61442"/>
     <control-tag name="Band1Bypass" tag="61443"/>
     <control-tag name="Band1Mute" tag="61444"/>
     <control-tag name="Band1Expanded" tag="61445"/>
+    <control-tag name="Band1ActiveNodes" tag="61446"/>
+    <control-tag name="Band1MorphSmoothing" tag="61447"/>
     <control-tag name="Band1MorphX" tag="61448"/>
     <control-tag name="Band1MorphY" tag="61449"/>
     <control-tag name="Band1MorphMode" tag="61450"/>
-    <control-tag name="Band1ActiveNodes" tag="61446"/>
+    <control-tag name="Band1MorphXLink" tag="61451"/>
+    <control-tag name="Band1MorphYLink" tag="61452"/>
 
-    <!-- Band 2 Parameters (0xF100-0xF10A) -->
+    <!-- Band 2 Parameters (0xF100-0xF10C) -->
     <control-tag name="Band2Gain" tag="61696"/>
     <control-tag name="Band2Pan" tag="61697"/>
     <control-tag name="Band2Solo" tag="61698"/>
     <control-tag name="Band2Bypass" tag="61699"/>
     <control-tag name="Band2Mute" tag="61700"/>
     <control-tag name="Band2Expanded" tag="61701"/>
+    <control-tag name="Band2ActiveNodes" tag="61702"/>
+    <control-tag name="Band2MorphSmoothing" tag="61703"/>
     <control-tag name="Band2MorphX" tag="61704"/>
     <control-tag name="Band2MorphY" tag="61705"/>
     <control-tag name="Band2MorphMode" tag="61706"/>
-    <control-tag name="Band2ActiveNodes" tag="61702"/>
+    <control-tag name="Band2MorphXLink" tag="61707"/>
+    <control-tag name="Band2MorphYLink" tag="61708"/>
 
-    <!-- Band 3 Parameters (0xF200-0xF20A) -->
+    <!-- Band 3 Parameters (0xF200-0xF20C) -->
     <control-tag name="Band3Gain" tag="61952"/>
     <control-tag name="Band3Pan" tag="61953"/>
     <control-tag name="Band3Solo" tag="61954"/>
     <control-tag name="Band3Bypass" tag="61955"/>
     <control-tag name="Band3Mute" tag="61956"/>
     <control-tag name="Band3Expanded" tag="61957"/>
+    <control-tag name="Band3ActiveNodes" tag="61958"/>
+    <control-tag name="Band3MorphSmoothing" tag="61959"/>
     <control-tag name="Band3MorphX" tag="61960"/>
     <control-tag name="Band3MorphY" tag="61961"/>
     <control-tag name="Band3MorphMode" tag="61962"/>
-    <control-tag name="Band3ActiveNodes" tag="61958"/>
+    <control-tag name="Band3MorphXLink" tag="61963"/>
+    <control-tag name="Band3MorphYLink" tag="61964"/>
 
-    <!-- Band 4 Parameters (0xF300-0xF30A) -->
+    <!-- Band 4 Parameters (0xF300-0xF30C) -->
     <control-tag name="Band4Gain" tag="62208"/>
     <control-tag name="Band4Pan" tag="62209"/>
     <control-tag name="Band4Solo" tag="62210"/>
     <control-tag name="Band4Bypass" tag="62211"/>
     <control-tag name="Band4Mute" tag="62212"/>
     <control-tag name="Band4Expanded" tag="62213"/>
+    <control-tag name="Band4ActiveNodes" tag="62214"/>
+    <control-tag name="Band4MorphSmoothing" tag="62215"/>
     <control-tag name="Band4MorphX" tag="62216"/>
     <control-tag name="Band4MorphY" tag="62217"/>
     <control-tag name="Band4MorphMode" tag="62218"/>
-    <control-tag name="Band4ActiveNodes" tag="62214"/>
+    <control-tag name="Band4MorphXLink" tag="62219"/>
+    <control-tag name="Band4MorphYLink" tag="62220"/>
 
-    <!-- Band 5 Parameters (0xF400-0xF40A) -->
+    <!-- Band 5 Parameters (0xF400-0xF40C) -->
     <control-tag name="Band5Gain" tag="62464"/>
     <control-tag name="Band5Pan" tag="62465"/>
     <control-tag name="Band5Solo" tag="62466"/>
     <control-tag name="Band5Bypass" tag="62467"/>
     <control-tag name="Band5Mute" tag="62468"/>
     <control-tag name="Band5Expanded" tag="62469"/>
+    <control-tag name="Band5ActiveNodes" tag="62470"/>
+    <control-tag name="Band5MorphSmoothing" tag="62471"/>
     <control-tag name="Band5MorphX" tag="62472"/>
     <control-tag name="Band5MorphY" tag="62473"/>
     <control-tag name="Band5MorphMode" tag="62474"/>
-    <control-tag name="Band5ActiveNodes" tag="62470"/>
+    <control-tag name="Band5MorphXLink" tag="62475"/>
+    <control-tag name="Band5MorphYLink" tag="62476"/>
 
-    <!-- Band 6 Parameters (0xF500-0xF50A) -->
+    <!-- Band 6 Parameters (0xF500-0xF50C) -->
     <control-tag name="Band6Gain" tag="62720"/>
     <control-tag name="Band6Pan" tag="62721"/>
     <control-tag name="Band6Solo" tag="62722"/>
     <control-tag name="Band6Bypass" tag="62723"/>
     <control-tag name="Band6Mute" tag="62724"/>
     <control-tag name="Band6Expanded" tag="62725"/>
+    <control-tag name="Band6ActiveNodes" tag="62726"/>
+    <control-tag name="Band6MorphSmoothing" tag="62727"/>
     <control-tag name="Band6MorphX" tag="62728"/>
     <control-tag name="Band6MorphY" tag="62729"/>
     <control-tag name="Band6MorphMode" tag="62730"/>
-    <control-tag name="Band6ActiveNodes" tag="62726"/>
+    <control-tag name="Band6MorphXLink" tag="62731"/>
+    <control-tag name="Band6MorphYLink" tag="62732"/>
 
-    <!-- Band 7 Parameters (0xF600-0xF60A) -->
+    <!-- Band 7 Parameters (0xF600-0xF60C) -->
     <control-tag name="Band7Gain" tag="62976"/>
     <control-tag name="Band7Pan" tag="62977"/>
     <control-tag name="Band7Solo" tag="62978"/>
     <control-tag name="Band7Bypass" tag="62979"/>
     <control-tag name="Band7Mute" tag="62980"/>
     <control-tag name="Band7Expanded" tag="62981"/>
+    <control-tag name="Band7ActiveNodes" tag="62982"/>
+    <control-tag name="Band7MorphSmoothing" tag="62983"/>
     <control-tag name="Band7MorphX" tag="62984"/>
     <control-tag name="Band7MorphY" tag="62985"/>
     <control-tag name="Band7MorphMode" tag="62986"/>
-    <control-tag name="Band7ActiveNodes" tag="62982"/>
+    <control-tag name="Band7MorphXLink" tag="62987"/>
+    <control-tag name="Band7MorphYLink" tag="62988"/>
 
-    <!-- Band 8 Parameters (0xF700-0xF70A) -->
+    <!-- Band 8 Parameters (0xF700-0xF70C) -->
     <control-tag name="Band8Gain" tag="63232"/>
     <control-tag name="Band8Pan" tag="63233"/>
     <control-tag name="Band8Solo" tag="63234"/>
     <control-tag name="Band8Bypass" tag="63235"/>
     <control-tag name="Band8Mute" tag="63236"/>
     <control-tag name="Band8Expanded" tag="63237"/>
+    <control-tag name="Band8ActiveNodes" tag="63238"/>
+    <control-tag name="Band8MorphSmoothing" tag="63239"/>
     <control-tag name="Band8MorphX" tag="63240"/>
     <control-tag name="Band8MorphY" tag="63241"/>
     <control-tag name="Band8MorphMode" tag="63242"/>
-    <control-tag name="Band8ActiveNodes" tag="63238"/>
+    <control-tag name="Band8MorphXLink" tag="63243"/>
+    <control-tag name="Band8MorphYLink" tag="63244"/>
 
     <!-- Band 1 Node 1 Parameters (0x0000-0x0006) -->
     <control-tag name="B1N1Type" tag="0"/>
@@ -1806,10 +1830,11 @@
             font="small-font" font-color="text-primary"
             frame-color="border" gradient="button-default" selected-gradient="button-active"/>
 
-      <!-- Morph Smoothing Knob - FR-031 -->
+      <!-- Morph Smoothing Knob - FR-031, T172, T173 -->
       <view class="CTextLabel" origin="10, 205" size="60, 12" title="Smooth"
             font="small-font" font-color="text-secondary"/>
       <view class="CKnob" origin="75, 200" size="30, 25"
+            control-tag="Band1MorphSmoothing"
             default-value="0" min-value="0" max-value="1"
             background-color="background-secondary" handle-color="accent-secondary"/>
       <view class="CTextLabel" origin="108, 210" size="30, 12" title="ms"
@@ -1860,48 +1885,55 @@
       <view class="CTextLabel" origin="0, 0" size="185, 16" title="Output"
             font="section-font" font-color="text-primary" text-alignment="center"/>
 
-      <!-- Gain Knob (-24dB to +24dB) -->
+      <!-- Gain Knob (-24dB to +24dB) - T181, T182 -->
       <view class="CTextLabel" origin="20, 25" size="60, 12" title="Gain"
             font="small-font" font-color="text-secondary" text-alignment="center"/>
       <view class="CKnob" origin="30, 40" size="40, 40"
+            control-tag="Band1Gain"
             default-value="0.5" min-value="0" max-value="1"
             background-color="background-secondary" handle-color="accent-primary"/>
       <view class="CTextLabel" origin="20, 82" size="60, 12" title="0.0 dB"
             font="small-font" font-color="text-secondary" text-alignment="center"/>
 
-      <!-- Pan Knob (-100% to +100%) -->
+      <!-- Pan Knob (-100% to +100%) - T181, T182 -->
       <view class="CTextLabel" origin="100, 25" size="60, 12" title="Pan"
             font="small-font" font-color="text-secondary" text-alignment="center"/>
       <view class="CKnob" origin="110, 40" size="40, 40"
+            control-tag="Band1Pan"
             default-value="0.5" min-value="0" max-value="1"
             background-color="background-secondary" handle-color="accent-primary"/>
       <view class="CTextLabel" origin="100, 82" size="60, 12" title="C"
             font="small-font" font-color="text-secondary" text-alignment="center"/>
 
-      <!-- Solo/Bypass/Mute Toggles (duplicated for convenience) -->
+      <!-- Solo/Bypass/Mute Toggles - T181, T182 -->
       <view class="CTextLabel" origin="10, 105" size="165, 16" title="Controls"
             font="label-font" font-color="text-secondary" text-alignment="center"/>
 
       <view class="CTextButton" origin="25, 125" size="40, 30" title="Solo"
+            control-tag="Band1Solo"
             font="small-font" font-color="text-primary" frame-color="border"
             gradient="button-default" gradient-highlighted="button-active"/>
       <view class="CTextButton" origin="75, 125" size="40, 30" title="Bypass"
+            control-tag="Band1Bypass"
             font="small-font" font-color="text-primary" frame-color="border"
             gradient="button-default" gradient-highlighted="button-active"/>
       <view class="CTextButton" origin="125, 125" size="40, 30" title="Mute"
+            control-tag="Band1Mute"
             font="small-font" font-color="text-primary" frame-color="border"
             gradient="button-default" gradient-highlighted="button-active"/>
 
-      <!-- Morph X/Y Link Dropdowns (FR-032, FR-033) -->
+      <!-- Morph X/Y Link Dropdowns (FR-032, FR-033, T155, T156, T157) -->
       <view class="CTextLabel" origin="10, 170" size="80, 12" title="Morph X Link"
             font="small-font" font-color="text-secondary"/>
       <view class="COptionMenu" origin="90, 168" size="85, 18"
+            control-tag="Band1MorphXLink"
             font="small-font" font-color="text-primary"
             back-color="background-secondary" frame-color="border"/>
 
       <view class="CTextLabel" origin="10, 195" size="80, 12" title="Morph Y Link"
             font="small-font" font-color="text-secondary"/>
       <view class="COptionMenu" origin="90, 193" size="85, 18"
+            control-tag="Band1MorphYLink"
             font="small-font" font-color="text-primary"
             back-color="background-secondary" frame-color="border"/>
     </view>
