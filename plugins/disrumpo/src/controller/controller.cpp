@@ -527,6 +527,10 @@ void Controller::registerBandParams() {
         STR16("Band 1 Morph Mode"), STR16("Band 2 Morph Mode"), STR16("Band 3 Morph Mode"), STR16("Band 4 Morph Mode"),
         STR16("Band 5 Morph Mode"), STR16("Band 6 Morph Mode"), STR16("Band 7 Morph Mode"), STR16("Band 8 Morph Mode")
     };
+    const Steinberg::Vst::TChar* bandExpandedNames[] = {
+        STR16("Band 1 Expanded"), STR16("Band 2 Expanded"), STR16("Band 3 Expanded"), STR16("Band 4 Expanded"),
+        STR16("Band 5 Expanded"), STR16("Band 6 Expanded"), STR16("Band 7 Expanded"), STR16("Band 8 Expanded")
+    };
 
     for (int b = 0; b < kMaxBands; ++b) {
         // Band Gain: RangeParameter [-24, +24] dB, default 0
@@ -616,6 +620,17 @@ void Controller::registerBandParams() {
         morphModeParam->appendString(STR16("2D Planar"));
         morphModeParam->appendString(STR16("2D Radial"));
         parameters.addParameter(morphModeParam);
+
+        // Band Expanded: boolean toggle for expand/collapse state (UI only)
+        // stepCount=1 for boolean, default 0 (collapsed)
+        parameters.addParameter(
+            bandExpandedNames[b],
+            nullptr,
+            1,
+            0.0,
+            Steinberg::Vst::ParameterInfo::kNoFlags,  // UI-only, not automatable
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandExpanded)
+        );
     }
 }
 
@@ -1212,6 +1227,25 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             );
         }
     }
+
+    // Create expanded visibility controllers (T079, FR-015)
+    // Show/hide BandStripExpanded based on Band*Expanded parameter
+    for (int b = 0; b < kMaxBands; ++b) {
+        auto* expandedParam = getParameterObject(
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandExpanded));
+        if (expandedParam) {
+            // UI tag for expanded container: 9100 + band index
+            Steinberg::int32 expandedContainerTag = 9100 + b;
+
+            expandedVisibilityControllers_[b] = new ContainerVisibilityController(
+                &activeEditor_,
+                expandedParam,
+                expandedContainerTag,
+                0.5f,   // Threshold at 0.5 (0 = collapsed, 1 = expanded)
+                false   // Show when value >= threshold (i.e., when expanded)
+            );
+        }
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -1219,6 +1253,16 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // CRITICAL: Deactivate all visibility controllers BEFORE clearing them
 
     for (auto& vc : bandVisibilityControllers_) {
+        if (vc) {
+            if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) {
+                cvc->deactivate();
+            }
+            vc = nullptr;
+        }
+    }
+
+    // T081: Deactivate expanded visibility controllers
+    for (auto& vc : expandedVisibilityControllers_) {
         if (vc) {
             if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) {
                 cvc->deactivate();

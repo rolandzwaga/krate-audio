@@ -123,7 +123,8 @@ enum class BandParamType : uint8_t {
     kBandSolo      = 0x02,  ///< Band solo flag
     kBandBypass    = 0x03,  ///< Band bypass flag
     kBandMute      = 0x04,  ///< Band mute flag
-    // 0x05-0x07 reserved
+    kBandExpanded  = 0x05,  ///< Band expanded state (UI only) [0=collapsed, 1=expanded]
+    // 0x06-0x07 reserved
     kBandMorphX    = 0x08,  ///< Morph X position [0, 1]
     kBandMorphY    = 0x09,  ///< Morph Y position [0, 1]
     kBandMorphMode = 0x0A,  ///< Morph mode [1D Linear, 2D Planar, 2D Radial]

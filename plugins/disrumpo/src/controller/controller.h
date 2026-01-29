@@ -156,6 +156,12 @@ private:
 
     static constexpr int kMaxBands = 8;
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> bandVisibilityControllers_;
+
+    // ==========================================================================
+    // Expanded State Visibility Controllers (T079, FR-015)
+    // ==========================================================================
+    // Expand/collapse visibility controllers - show/hide BandStripExpanded based on Band*Expanded
+    std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> expandedVisibilityControllers_;
 };
 
 } // namespace Disrumpo

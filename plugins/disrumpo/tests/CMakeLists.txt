@@ -54,6 +54,7 @@ add_executable(disrumpo_tests
 
     # Integration tests
     integration/band_management_integration_test.cpp
+    integration/expand_collapse_test.cpp
 )
 
 target_link_libraries(disrumpo_tests
