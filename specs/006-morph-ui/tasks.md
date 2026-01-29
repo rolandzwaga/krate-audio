@@ -279,22 +279,22 @@ Implement the complete Morph UI system for Disrumpo including:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T094 [P] [US4] Add morph mode visualization tests to `F:\projects\iterum\plugins\disrumpo\tests\unit\morph_pad_test.cpp`: verify 1D Linear constrains cursor to horizontal center line
-- [ ] T095 [P] [US4] Add radial grid tests to `morph_pad_test.cpp`: verify 2D Radial mode displays radial grid overlay
+- [X] T094 [P] [US4] Add morph mode visualization tests to `F:\projects\iterum\plugins\disrumpo\tests\unit\morph_pad_test.cpp`: verify 1D Linear constrains cursor to horizontal center line
+- [X] T095 [P] [US4] Add radial grid tests to `morph_pad_test.cpp`: verify 2D Radial mode displays radial grid overlay
 
 ### 6.2 Implementation
 
-- [ ] T096 [US4] Add CSegmentButton for morph mode selection in BandStripExpanded Morph Section: "1D", "2D", "Radial" options (per FR-012)
-- [ ] T097 [US4] Wire CSegmentButton to Band*MorphMode parameter in `editor.uidesc`
-- [ ] T098 [US4] Implement 1D Linear mode visualization in MorphPad::draw(): nodes arranged on X axis, cursor constrained to horizontal center (per FR-009)
-- [ ] T099 [US4] Implement 2D Planar mode visualization in MorphPad::draw(): nodes at corners (default mode)
-- [ ] T100 [US4] Implement 2D Radial mode visualization in MorphPad::draw(): radial grid overlay, cursor position maps to angle + distance from center
-- [ ] T101 [US4] Update MorphPad::onMouseMoveEvent() to constrain cursor movement based on active morph mode (1D = horizontal only, 2D/Radial = both axes)
+- [X] T096 [US4] Add CSegmentButton for morph mode selection in BandStripExpanded Morph Section: "1D", "2D", "Radial" options (per FR-012) (Already exists in template)
+- [X] T097 [US4] Wire CSegmentButton to Band*MorphMode parameter in `editor.uidesc`
+- [X] T098 [US4] Implement 1D Linear mode visualization in MorphPad::draw(): nodes arranged on X axis, cursor constrained to horizontal center (per FR-009) (Already implemented)
+- [X] T099 [US4] Implement 2D Planar mode visualization in MorphPad::draw(): nodes at corners (default mode) (Already implemented)
+- [X] T100 [US4] Implement 2D Radial mode visualization in MorphPad::draw(): radial grid overlay, cursor position maps to angle + distance from center (Already implemented)
+- [X] T101 [US4] Update MorphPad::onMouseMoveEvent() to constrain cursor movement based on active morph mode (1D = horizontal only, 2D/Radial = both axes) (Already implemented)
 
 ### 6.3 Verification
 
-- [ ] T102 [US4] Build implementation: `cmake --build build/windows-x64-release --config Release --target disrumpo`
-- [ ] T103 [US4] Run unit tests: `build/windows-x64-release/plugins/disrumpo/tests/Release/disrumpo_tests.exe`
+- [X] T102 [US4] Build implementation: `cmake --build build/windows-x64-release --config Release --target disrumpo`
+- [X] T103 [US4] Run unit tests: `build/windows-x64-release/plugins/disrumpo/tests/Release/disrumpo_tests.exe`
 - [ ] T104 [US4] Manual test: Select "1D Linear" mode, verify MorphPad constrains cursor to horizontal center line and nodes arrange along X axis
 - [ ] T105 [US4] Manual test: Select "2D Radial" mode, verify MorphPad shows radial grid overlay
 - [ ] T106 [US4] Manual test: Adjust morph position in each mode, verify weights calculated according to selected mode's algorithm
@@ -302,7 +302,7 @@ Implement the complete Morph UI system for Disrumpo including:
 
 ### 6.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T108 [US4] Verify IEEE 754 compliance: Check if morph mode tests use `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list if needed
+- [X] T108 [US4] Verify IEEE 754 compliance: Check if morph mode tests use `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list if needed (Not needed - no IEEE 754-sensitive functions used)
 
 ### 6.5 Commit (MANDATORY)
 

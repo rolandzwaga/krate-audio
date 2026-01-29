@@ -1780,10 +1780,11 @@
       <view class="CView" custom-view-name="MorphPad" origin="10, 20" size="180, 120"
             band="0"/>
 
-      <!-- Morph Mode Selector - FR-017 -->
+      <!-- Morph Mode Selector - FR-017, T097 -->
       <view class="CTextLabel" origin="10, 145" size="60, 12" title="Mode"
             font="small-font" font-color="text-secondary"/>
       <view class="CSegmentButton" origin="10, 158" size="180, 22"
+            control-tag="Band1MorphMode" default-value="0.33"
             style="horizontal" segment-names="1D, 2D, Radial"
             font="small-font" font-color="text-primary"
             frame-color="border" gradient="button-default" selected-gradient="button-active"/>
