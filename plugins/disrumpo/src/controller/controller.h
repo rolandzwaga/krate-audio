@@ -24,6 +24,8 @@ namespace Disrumpo {
 
 // Forward declarations
 class SpectrumDisplay;
+class DynamicNodeSelector;
+class MorphPad;
 
 // ==============================================================================
 // Controller Class
@@ -174,6 +176,18 @@ private:
     // ==========================================================================
     // Updates DisplayedType proxy when SelectedNode changes
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> nodeSelectionControllers_;
+
+    // ==========================================================================
+    // Dynamic Node Selectors (US6)
+    // ==========================================================================
+    // Custom CSegmentButton controls that show/hide A/B/C/D based on ActiveNodes
+    std::array<DynamicNodeSelector*, kMaxBands> dynamicNodeSelectors_{};
+
+    // ==========================================================================
+    // MorphPads (US6)
+    // ==========================================================================
+    // MorphPad controls that show/hide nodes based on ActiveNodes
+    std::array<MorphPad*, kMaxBands> morphPads_{};
 };
 
 } // namespace Disrumpo

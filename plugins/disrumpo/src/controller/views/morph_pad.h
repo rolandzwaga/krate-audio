@@ -18,10 +18,14 @@
 
 #include "dsp/distortion_types.h"
 
+#include "base/source/fobject.h"
+#include "pluginterfaces/base/ftypes.h"
+#include "public.sdk/source/vst/vsteditcontroller.h"
 #include "vstgui/lib/ccolor.h"
 #include "vstgui/lib/controls/ccontrol.h"
 
 #include <array>
+#include <atomic>
 #include <map>
 
 namespace Disrumpo {
@@ -63,12 +67,23 @@ public:
 ///
 /// This control inherits from CControl for parameter binding via control-tags.
 /// The primary value tracks morph X position; morph Y is tracked separately.
-class MorphPad : public VSTGUI::CControl {
+///
+/// Also inherits from FObject to use IDependent for watching the ActiveNodes parameter
+/// and automatically updating the displayed node count.
+class MorphPad : public VSTGUI::CControl, public Steinberg::FObject {
 public:
     /// @brief Construct a MorphPad control.
     /// @param size The size and position rectangle.
-    explicit MorphPad(const VSTGUI::CRect& size);
-    ~MorphPad() override = default;
+    /// @param controller The edit controller for parameter access (optional, for ActiveNodes watching)
+    /// @param activeNodesParamId Parameter ID for ActiveNodes (controls visible node count)
+    MorphPad(const VSTGUI::CRect& size,
+             Steinberg::Vst::EditControllerEx1* controller = nullptr,
+             Steinberg::Vst::ParamID activeNodesParamId = 0);
+    ~MorphPad() override;
+
+    // Non-copyable due to std::atomic member
+    MorphPad(const MorphPad&) = delete;
+    MorphPad& operator=(const MorphPad&) = delete;
 
     // =========================================================================
     // Configuration API
@@ -177,7 +192,39 @@ public:
     void onMouseUpEvent(VSTGUI::MouseUpEvent& event) override;
     void onMouseWheelEvent(VSTGUI::MouseWheelEvent& event) override;
 
-    CLASS_METHODS(MorphPad, CControl)
+    // =========================================================================
+    // Lifecycle Management (IDependent)
+    // =========================================================================
+
+    /// @brief Deactivate the controller before destruction.
+    /// Must be called in willClose() before destroying the control.
+    void deactivate();
+
+    // =========================================================================
+    // IDependent Implementation (from FObject)
+    // =========================================================================
+
+    /// @brief Called when a watched parameter changes.
+    /// Automatically invoked on UI thread via deferred updates.
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown,
+                           Steinberg::int32 message) override;
+
+    // Required for FObject
+    OBJ_METHODS(MorphPad, FObject)
+
+    // Override newCopy to prevent copying (due to std::atomic member)
+    // Custom views created via createCustomView() don't need copying support
+    VSTGUI::CBaseObject* newCopy() const override { return nullptr; }
+
+    // =========================================================================
+    // Node Colors (US6)
+    // =========================================================================
+
+    /// @brief Get the fixed color for a node position (A, B, C, D).
+    /// Used by both MorphPad and DynamicNodeSelector for visual consistency.
+    /// @param nodeIndex Node index (0=A, 1=B, 2=C, 3=D)
+    /// @return VSTGUI color
+    static VSTGUI::CColor getNodeColor(int nodeIndex);
 
     // =========================================================================
     // Category Colors (FR-002)
@@ -210,6 +257,10 @@ private:
 
     /// @brief Draw mode-specific overlays (e.g., radial grid).
     void drawModeOverlay(VSTGUI::CDrawContext* context);
+
+    /// @brief Recalculate node weights based on inverse distance from cursor.
+    /// Weights are normalized to sum to 1.0 for active nodes.
+    void recalculateWeights();
 
     /// @brief Clamp position to valid [0,1] range.
     static float clampPosition(float value);
@@ -262,6 +313,14 @@ private:
 
     // Listener
     MorphPadListener* listener_ = nullptr;
+
+    // IDependent support for ActiveNodes parameter watching
+    Steinberg::Vst::EditControllerEx1* controller_ = nullptr;
+    Steinberg::Vst::Parameter* activeNodesParam_ = nullptr;
+    std::atomic<bool> isActive_{true};
+
+    /// @brief Get the current active node count from the parameter.
+    int getActiveNodeCountFromParam() const;
 
     // Default node positions (corners for 4-node mode)
     void resetNodePositionsToDefault();

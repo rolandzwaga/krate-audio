@@ -318,7 +318,7 @@
     <control-tag name="Band1SelectedNode" tag="61453"/>
     <control-tag name="Band1DisplayedType" tag="61454"/>
 
-    <!-- UI-only visibility tags (9000+) -->
+    <!-- UI-only visibility tags (9000+) - Band containers for band count visibility -->
     <control-tag name="Band1Container" tag="9000"/>
     <control-tag name="Band2Container" tag="9001"/>
     <control-tag name="Band3Container" tag="9002"/>
@@ -327,6 +327,16 @@
     <control-tag name="Band6Container" tag="9005"/>
     <control-tag name="Band7Container" tag="9006"/>
     <control-tag name="Band8Container" tag="9007"/>
+
+    <!-- UI-only visibility tags (9100+) - Expanded containers for expand/collapse (T079) -->
+    <control-tag name="Band1ExpandedContainer" tag="9100"/>
+    <control-tag name="Band2ExpandedContainer" tag="9101"/>
+    <control-tag name="Band3ExpandedContainer" tag="9102"/>
+    <control-tag name="Band4ExpandedContainer" tag="9103"/>
+    <control-tag name="Band5ExpandedContainer" tag="9104"/>
+    <control-tag name="Band6ExpandedContainer" tag="9105"/>
+    <control-tag name="Band7ExpandedContainer" tag="9106"/>
+    <control-tag name="Band8ExpandedContainer" tag="9107"/>
   </control-tags>
 
   <!-- Gradients -->
@@ -405,14 +415,18 @@
       <!-- Band 1 Strip (FR-014) -->
       <view class="CViewContainer" origin="0, 0" size="235, 340" background-color="panel"
             control-tag="Band1Container">
-        <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 1"
+        <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 1"
               font="section-font" font-color="band-1" text-alignment="center"/>
+        <!-- Expand Button (+) - T074, wired to Band1Expanded (T082) -->
+        <view class="COnOffButton" origin="200, 5" size="25, 20"
+              control-tag="Band1Expanded" default-value="0"/>
 
         <!-- Type Selector -->
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type"
               font="small-font" font-color="text-secondary"/>
+        <!-- Bound to Band1DisplayedType for bidirectional node type editing -->
         <view class="COptionMenu" origin="10, 45" size="215, 22"
-              control-tag="B1N1Type" font="value-font"
+              control-tag="Band1DisplayedType" font="value-font"
               font-color="text-primary" back-color="background-secondary" frame-color="border"/>
 
         <!-- Drive & Mix Row -->
@@ -687,6 +701,145 @@
                 control-tag="Band4Mute" default-value="0"/>
           <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute"
                 font="small-font" font-color="text-secondary" text-alignment="center"/>
+        </view>
+      </view>
+
+      <!-- Band 1 Expanded View (FR-015, T079) -->
+      <!-- Controlled by ExpandedVisibilityController via tag 9100 -->
+      <!-- Initially hidden, shown when Band1Expanded >= 0.5 -->
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel">
+        <!-- Hidden control for visibility controller to find this container by tag -->
+        <view class="CParamDisplay" origin="0, 0" size="0, 0"
+              control-tag="Band1ExpandedContainer" back-color="transparent"/>
+        <!-- Inline BandStripExpanded content for Band 1 -->
+
+        <!-- Header Section -->
+        <view class="CViewContainer" origin="0, 0" size="680, 40" background-color="background-secondary">
+          <view class="CTextLabel" origin="10, 10" size="60, 20" title="Band 1"
+                font="section-font" font-color="band-1" text-alignment="left"/>
+          <!-- Collapse Button (-) wired to Band1Expanded -->
+          <view class="COnOffButton" origin="640, 8" size="30, 24"
+                control-tag="Band1Expanded" default-value="1"/>
+          <!-- Type Dropdown in header -->
+          <view class="CTextLabel" origin="80, 12" size="35, 16" title="Type"
+                font="small-font" font-color="text-secondary"/>
+          <!-- Bound to Band1DisplayedType for bidirectional node type editing -->
+          <view class="COptionMenu" origin="115, 10" size="100, 20"
+                control-tag="Band1DisplayedType" font="value-font"
+                font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+          <!-- Basic Drive/Mix Knobs -->
+          <view class="CTextLabel" origin="230, 2" size="40, 12" title="Drive"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CKnob" origin="235, 14" size="30, 24"
+                control-tag="B1N1Drive" default-value="0.1" min-value="0" max-value="1"
+                background-color="panel" handle-color="accent-primary"/>
+          <view class="CTextLabel" origin="280, 2" size="40, 12" title="Mix"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CKnob" origin="285, 14" size="30, 24"
+                control-tag="B1N1Mix" default-value="1.0" min-value="0" max-value="1"
+                background-color="panel" handle-color="accent-primary"/>
+        </view>
+
+        <!-- Morph Section (left, 200px) - FR-016, FR-017, FR-018 -->
+        <view class="CViewContainer" origin="0, 45" size="200, 230" background-color="panel">
+          <view class="CTextLabel" origin="0, 0" size="200, 16" title="Morph"
+                font="section-font" font-color="text-primary" text-alignment="center"/>
+          <!-- Mini MorphPad (180x120) -->
+          <view class="CView" custom-view-name="MorphPad" origin="10, 20" size="180, 120"
+                band="0"/>
+          <!-- Morph Mode Selector -->
+          <view class="CTextLabel" origin="10, 145" size="60, 12" title="Mode"
+                font="small-font" font-color="text-secondary"/>
+          <view class="CSegmentButton" origin="10, 158" size="180, 22"
+                control-tag="Band1MorphMode" default-value="0.33"
+                style="horizontal" segment-names="1D, 2D, Radial"
+                font="small-font" font-color="text-primary"
+                frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+          <!-- Active Nodes Selector -->
+          <view class="CTextLabel" origin="10, 183" size="60, 12" title="Nodes"
+                font="small-font" font-color="text-secondary"/>
+          <view class="CSegmentButton" origin="70, 182" size="90, 20"
+                control-tag="Band1ActiveNodes" default-value="1.0"
+                style="horizontal" segment-names="2, 3, 4"
+                font="small-font" font-color="text-primary"
+                frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+          <!-- Morph Smoothing Knob - FR-031 -->
+          <view class="CTextLabel" origin="10, 205" size="60, 12" title="Smooth"
+                font="small-font" font-color="text-secondary"/>
+          <view class="CKnob" origin="75, 200" size="30, 25"
+                control-tag="Band1MorphSmoothing"
+                default-value="0" min-value="0" max-value="1"
+                background-color="background-secondary" handle-color="accent-secondary"/>
+          <view class="CTextLabel" origin="108, 210" size="30, 12" title="ms"
+                font="small-font" font-color="text-secondary"/>
+        </view>
+
+        <!-- Type-Specific Section (center, 280px) - FR-019, US7 -->
+        <view class="CViewContainer" origin="205, 45" size="280, 230" background-color="panel">
+          <!-- NodeEditorBorder: Debug overlay showing selected node color -->
+          <view class="CView" custom-view-name="NodeEditorBorder" origin="0, 0" size="280, 230" band="0"/>
+          <!-- Node Editor Header -->
+          <view class="CViewContainer" origin="0, 0" size="280, 20" background-color="background-secondary">
+            <view class="CTextLabel" origin="5, 2" size="50, 12" title="Node:"
+                  font="small-font" font-color="text-secondary"/>
+            <!-- Node Selector (A/B/C/D) - FR-025, US6 -->
+            <!-- DynamicNodeSelector: Custom CSegmentButton that shows/hides segments based on ActiveNodes -->
+            <view class="CView" custom-view-name="DynamicNodeSelector" origin="55, 2" size="135, 16" band="0"
+                  control-tag="Band1SelectedNode"/>
+          </view>
+          <!-- Hidden proxy control for Band1DisplayedType - required for UIViewSwitchContainer -->
+          <!-- UIViewSwitchContainer listens via IControlListener, not IDependent, so needs a real control -->
+          <view class="CSlider" origin="0, 22" size="1, 1" transparent="true"
+                control-tag="Band1DisplayedType" min-value="0" max-value="1"/>
+          <!-- UIViewSwitchContainer for type-specific parameters -->
+          <!-- Bound to Band1DisplayedType proxy (updated by NodeSelectionController) -->
+          <view class="UIViewSwitchContainer" origin="0, 22" size="280, 201"
+                animation-time="0" template-switch-control="Band1DisplayedType"
+                template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
+        </view>
+
+        <!-- Output Section (right, 195px) - FR-035, FR-036 -->
+        <view class="CViewContainer" origin="490, 45" size="185, 230" background-color="panel">
+          <view class="CTextLabel" origin="0, 0" size="185, 16" title="Output"
+                font="section-font" font-color="text-primary" text-alignment="center"/>
+          <!-- Gain Knob -->
+          <view class="CTextLabel" origin="20, 25" size="60, 12" title="Gain"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CKnob" origin="30, 40" size="40, 40"
+                control-tag="Band1Gain" default-value="0.5" min-value="0" max-value="1"
+                background-color="background-secondary" handle-color="accent-primary"/>
+          <!-- Pan Knob -->
+          <view class="CTextLabel" origin="100, 25" size="60, 12" title="Pan"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CKnob" origin="110, 40" size="40, 40"
+                control-tag="Band1Pan" default-value="0.5" min-value="0" max-value="1"
+                background-color="background-secondary" handle-color="accent-primary"/>
+          <!-- Solo/Bypass/Mute Toggles -->
+          <view class="CTextLabel" origin="10, 105" size="165, 16" title="Controls"
+                font="label-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CTextButton" origin="25, 125" size="40, 30" title="Solo"
+                control-tag="Band1Solo"
+                font="small-font" font-color="text-primary" frame-color="border"
+                gradient="button-default" gradient-highlighted="button-active"/>
+          <view class="CTextButton" origin="75, 125" size="40, 30" title="Bypass"
+                control-tag="Band1Bypass"
+                font="small-font" font-color="text-primary" frame-color="border"
+                gradient="button-default" gradient-highlighted="button-active"/>
+          <view class="CTextButton" origin="125, 125" size="40, 30" title="Mute"
+                control-tag="Band1Mute"
+                font="small-font" font-color="text-primary" frame-color="border"
+                gradient="button-default" gradient-highlighted="button-active"/>
+          <!-- Morph X/Y Link Dropdowns (FR-032, FR-033) -->
+          <view class="CTextLabel" origin="10, 165" size="80, 12" title="Morph X Link"
+                font="small-font" font-color="text-secondary"/>
+          <view class="COptionMenu" origin="90, 163" size="90, 18"
+                control-tag="Band1MorphXLink" font="small-font"
+                font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+          <view class="CTextLabel" origin="10, 188" size="80, 12" title="Morph Y Link"
+                font="small-font" font-color="text-secondary"/>
+          <view class="COptionMenu" origin="90, 186" size="90, 18"
+                control-tag="Band1MorphYLink" font="small-font"
+                font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         </view>
       </view>
     </view>
@@ -1881,57 +2034,29 @@
 
     <!-- Type-Specific Section (center, 280px wide) - FR-019, US7 -->
     <view class="CViewContainer" origin="205, 45" size="280, 230" background-color="panel">
+      <!-- NodeEditorBorder: Debug overlay showing selected node color -->
+      <view class="CView" custom-view-name="NodeEditorBorder" origin="0, 0" size="280, 230" band="0"/>
       <!-- Node Editor Header (T139) - Shows node letters with selection -->
-      <view class="CViewContainer" origin="0, 0" size="280, 35" background-color="background-secondary">
+      <view class="CViewContainer" origin="0, 0" size="280, 20" background-color="background-secondary">
         <view class="CTextLabel" origin="5, 2" size="50, 12" title="Node:"
               font="small-font" font-color="text-secondary"/>
 
-        <!-- Node Selector (A/B/C/D) - FR-025, T140 -->
-        <!-- CSegmentButton for selecting which node's parameters to display -->
+        <!-- Node Selector (A/B/C/D) - FR-025, T140, US6 -->
+        <!-- DynamicNodeSelector: Custom CSegmentButton that shows/hides segments based on ActiveNodes -->
         <!-- Wired to Band1SelectedNode - NodeSelectionController updates DisplayedType -->
-        <view class="CSegmentButton" origin="55, 2" size="135, 16"
-              control-tag="Band1SelectedNode" segment-names="A,B,C,D"
-              font="small-font" font-color="text-primary" text-color-highlighted="band-1"
-              frame-color="border" gradient="button-default" selected-gradient="button-active"/>
-
-        <!-- Current Type Display (FR-024, FR-026) -->
-        <view class="CTextLabel" origin="5, 18" size="270, 14" title="Type: Soft Clip"
-              font="label-font" font-color="accent-primary" text-alignment="left"/>
+        <view class="CView" custom-view-name="DynamicNodeSelector" origin="55, 2" size="135, 16" band="0"
+              control-tag="Band1SelectedNode"/>
       </view>
 
+      <!-- Hidden proxy control for Band1DisplayedType - required for UIViewSwitchContainer -->
+      <!-- UIViewSwitchContainer listens via IControlListener, not IDependent, so needs a real control -->
+      <view class="CSlider" origin="0, 22" size="1, 1" transparent="true"
+            control-tag="Band1DisplayedType" min-value="0" max-value="1"/>
       <!-- UIViewSwitchContainer for type-specific parameters -->
-      <!-- template-switch-control binds to Band1DisplayedType (proxy parameter) -->
-      <!-- NodeSelectionController copies selected node's type to this proxy -->
-      <view class="UIViewSwitchContainer" origin="0, 38" size="280, 185"
-            animation-time="0" template-switch-control="Band1DisplayedType">
-        <!-- Sub-views reference TypeParams_* templates by value (0-25) -->
-        <view template="TypeParams_SoftClip" value="0"/>
-        <view template="TypeParams_HardClip" value="1"/>
-        <view template="TypeParams_Tube" value="2"/>
-        <view template="TypeParams_Tape" value="3"/>
-        <view template="TypeParams_Fuzz" value="4"/>
-        <view template="TypeParams_AsymFuzz" value="5"/>
-        <view template="TypeParams_SineFold" value="6"/>
-        <view template="TypeParams_TriFold" value="7"/>
-        <view template="TypeParams_SergeFold" value="8"/>
-        <view template="TypeParams_FullRectify" value="9"/>
-        <view template="TypeParams_HalfRectify" value="10"/>
-        <view template="TypeParams_Bitcrush" value="11"/>
-        <view template="TypeParams_SampleReduce" value="12"/>
-        <view template="TypeParams_Quantize" value="13"/>
-        <view template="TypeParams_Temporal" value="14"/>
-        <view template="TypeParams_RingSat" value="15"/>
-        <view template="TypeParams_Feedback" value="16"/>
-        <view template="TypeParams_Aliasing" value="17"/>
-        <view template="TypeParams_Bitwise" value="18"/>
-        <view template="TypeParams_Chaos" value="19"/>
-        <view template="TypeParams_Formant" value="20"/>
-        <view template="TypeParams_Granular" value="21"/>
-        <view template="TypeParams_Spectral" value="22"/>
-        <view template="TypeParams_Fractal" value="23"/>
-        <view template="TypeParams_Stochastic" value="24"/>
-        <view template="TypeParams_AllpassRes" value="25"/>
-      </view>
+      <!-- Bound to Band1DisplayedType proxy (updated by NodeSelectionController) -->
+      <view class="UIViewSwitchContainer" origin="0, 22" size="280, 201"
+            animation-time="0" template-switch-control="Band1DisplayedType"
+            template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
     </view>
 
     <!-- Output Section (right, 195px wide) - FR-035, FR-036 -->

@@ -6,6 +6,7 @@
 
 #include "morph_pad.h"
 
+#include "public.sdk/source/vst/vstparameters.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/cfont.h"
@@ -18,6 +19,26 @@
 #include <iomanip>
 
 namespace Disrumpo {
+
+// =============================================================================
+// Node Colors (US6)
+// =============================================================================
+// Fixed colors for nodes A, B, C, D - used by both MorphPad and DynamicNodeSelector
+// for visual consistency. Colors are chosen to be distinct and vibrant on dark backgrounds.
+
+static const std::array<VSTGUI::CColor, 4> kNodeColors = {{
+    VSTGUI::CColor{0xFF, 0x6B, 0x6B, 0xFF},  // Node A - Coral/Salmon
+    VSTGUI::CColor{0x4E, 0xCD, 0xC4, 0xFF},  // Node B - Teal
+    VSTGUI::CColor{0x9B, 0x59, 0xB6, 0xFF},  // Node C - Purple/Violet
+    VSTGUI::CColor{0xF1, 0xC4, 0x0F, 0xFF},  // Node D - Golden Yellow
+}};
+
+VSTGUI::CColor MorphPad::getNodeColor(int nodeIndex) {
+    if (nodeIndex >= 0 && nodeIndex < 4) {
+        return kNodeColors[nodeIndex];
+    }
+    return VSTGUI::CColor{0x80, 0x80, 0x80, 0xFF};  // Gray fallback
+}
 
 // =============================================================================
 // Category Colors (FR-002)
@@ -43,14 +64,93 @@ VSTGUI::CColor MorphPad::getCategoryColor(DistortionFamily family) {
 }
 
 // =============================================================================
-// Constructor
+// Constructor / Destructor
 // =============================================================================
 
-MorphPad::MorphPad(const VSTGUI::CRect& size)
+MorphPad::MorphPad(const VSTGUI::CRect& size,
+                   Steinberg::Vst::EditControllerEx1* controller,
+                   Steinberg::Vst::ParamID activeNodesParamId)
     : CControl(size)
+    , controller_(controller)
 {
     // Initialize default node positions (corners for 4-node mode)
     resetNodePositionsToDefault();
+
+    // Set up IDependent watching for ActiveNodes parameter
+    if (controller_ && activeNodesParamId != 0) {
+        activeNodesParam_ = controller_->getParameterObject(activeNodesParamId);
+        if (activeNodesParam_) {
+            activeNodesParam_->addRef();
+            activeNodesParam_->addDependent(this);
+
+            // Initialize active node count from current parameter value
+            activeNodeCount_ = getActiveNodeCountFromParam();
+        }
+    }
+
+    // Calculate initial weights based on default cursor position (0.5, 0.5)
+    recalculateWeights();
+}
+
+MorphPad::~MorphPad() {
+    deactivate();
+
+    if (activeNodesParam_) {
+        activeNodesParam_->release();
+        activeNodesParam_ = nullptr;
+    }
+}
+
+// =============================================================================
+// Lifecycle Management
+// =============================================================================
+
+void MorphPad::deactivate() {
+    // Use exchange to ensure we only do this once (idempotent)
+    if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+        if (activeNodesParam_) {
+            activeNodesParam_->removeDependent(this);
+        }
+    }
+}
+
+// =============================================================================
+// IDependent Implementation
+// =============================================================================
+
+void PLUGIN_API MorphPad::update(Steinberg::FUnknown* changedUnknown,
+                                  Steinberg::int32 message) {
+    if (!isActive_.load(std::memory_order_acquire)) {
+        return;
+    }
+
+    if (message != Steinberg::IDependent::kChanged) {
+        return;
+    }
+
+    // Verify it's the ActiveNodes parameter that changed
+    auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
+    if (changedParam != activeNodesParam_) {
+        return;
+    }
+
+    // Update active node count from parameter
+    int newCount = getActiveNodeCountFromParam();
+    if (newCount != activeNodeCount_) {
+        setActiveNodeCount(newCount);
+    }
+}
+
+int MorphPad::getActiveNodeCountFromParam() const {
+    if (!activeNodesParam_) {
+        return 4;  // Default to 4 nodes
+    }
+
+    // ActiveNodes parameter: StringListParameter with 3 options
+    // toPlain gives 0, 1, 2 -> map to 2, 3, 4 nodes
+    double normalized = activeNodesParam_->getNormalized();
+    int index = static_cast<int>(activeNodesParam_->toPlain(normalized));
+    return index + 2;  // 0->2, 1->3, 2->4
 }
 
 void MorphPad::resetNodePositionsToDefault() {
@@ -73,6 +173,7 @@ void MorphPad::resetNodePositionsToDefault() {
 
 void MorphPad::setActiveNodeCount(int count) {
     activeNodeCount_ = std::clamp(count, 2, kMaxNodes);
+    recalculateWeights();
     invalid();
 }
 
@@ -84,6 +185,7 @@ void MorphPad::setMorphMode(MorphMode mode) {
 void MorphPad::setMorphPosition(float x, float y) {
     morphX_ = clampPosition(x);
     morphY_ = clampPosition(y);
+    recalculateWeights();
     invalid();
 }
 
@@ -91,6 +193,7 @@ void MorphPad::setNodePosition(int nodeIndex, float x, float y) {
     if (nodeIndex >= 0 && nodeIndex < kMaxNodes) {
         nodes_[nodeIndex].posX = clampPosition(x);
         nodes_[nodeIndex].posY = clampPosition(y);
+        recalculateWeights();
         invalid();
     }
 }
@@ -212,9 +315,70 @@ void MorphPad::draw(VSTGUI::CDrawContext* context) {
 void MorphPad::drawBackground(VSTGUI::CDrawContext* context) {
     const auto& rect = getViewSize();
 
-    // Background fill
-    context->setFillColor(VSTGUI::CColor{0x1E, 0x1E, 0x1E, 0xFF});  // Dark gray
-    context->drawRect(rect, VSTGUI::kDrawFilled);
+    // Draw multi-point gradient background using inverse distance weighted colors
+    // Grid resolution - higher = smoother but slower
+    constexpr int kGridResolution = 24;
+    constexpr float kMinDistance = 0.01f;
+    constexpr float kDistanceExponent = 2.0f;
+    constexpr float kDarkenFactor = 0.35f;  // Darken colors to keep UI readable
+
+    float cellWidth = static_cast<float>(rect.getWidth()) / kGridResolution;
+    float cellHeight = static_cast<float>(rect.getHeight()) / kGridResolution;
+
+    for (int gy = 0; gy < kGridResolution; ++gy) {
+        for (int gx = 0; gx < kGridResolution; ++gx) {
+            // Calculate center of this cell in normalized coordinates
+            float cellCenterX = (static_cast<float>(gx) + 0.5f) / kGridResolution;
+            float cellCenterY = 1.0f - (static_cast<float>(gy) + 0.5f) / kGridResolution;  // Y inverted
+
+            // Calculate inverse distance weights to each active node
+            float totalWeight = 0.0f;
+            std::array<float, kMaxNodes> weights{};
+
+            for (int i = 0; i < activeNodeCount_; ++i) {
+                float dx = cellCenterX - nodes_[i].posX;
+                float dy = cellCenterY - nodes_[i].posY;
+                float distance = std::sqrt(dx * dx + dy * dy);
+
+                if (distance < kMinDistance) {
+                    weights[i] = 1000.0f;
+                } else {
+                    weights[i] = 1.0f / std::pow(distance, kDistanceExponent);
+                }
+                totalWeight += weights[i];
+            }
+
+            // Normalize weights and blend colors
+            float r = 0.0f, g = 0.0f, b = 0.0f;
+            if (totalWeight > 0.0f) {
+                for (int i = 0; i < activeNodeCount_; ++i) {
+                    float w = weights[i] / totalWeight;
+                    VSTGUI::CColor nodeColor = getNodeColor(i);
+                    r += w * static_cast<float>(nodeColor.red);
+                    g += w * static_cast<float>(nodeColor.green);
+                    b += w * static_cast<float>(nodeColor.blue);
+                }
+            }
+
+            // Darken the color so UI elements remain visible
+            VSTGUI::CColor cellColor{
+                static_cast<uint8_t>(r * kDarkenFactor),
+                static_cast<uint8_t>(g * kDarkenFactor),
+                static_cast<uint8_t>(b * kDarkenFactor),
+                0xFF
+            };
+
+            // Draw the cell
+            VSTGUI::CRect cellRect(
+                rect.left + gx * cellWidth,
+                rect.top + gy * cellHeight,
+                rect.left + (gx + 1) * cellWidth,
+                rect.top + (gy + 1) * cellHeight
+            );
+            context->setFillColor(cellColor);
+            context->drawRect(cellRect, VSTGUI::kDrawFilled);
+        }
+    }
 
     // Border
     context->setFrameColor(VSTGUI::CColor{0x40, 0x40, 0x40, 0xFF});  // Lighter gray
@@ -288,9 +452,8 @@ void MorphPad::drawConnectionLines(VSTGUI::CDrawContext* context) {
         float nodePixelY = 0.0f;
         positionToPixel(nodes_[i].posX, nodes_[i].posY, nodePixelX, nodePixelY);
 
-        // Get node color based on its distortion family
-        DistortionFamily family = getFamily(nodes_[i].type);
-        VSTGUI::CColor nodeColor = getCategoryColor(family);
+        // Get fixed node color (A=coral, B=teal, C=purple, D=yellow)
+        VSTGUI::CColor nodeColor = getNodeColor(i);
 
         // Set opacity based on weight
         uint8_t alpha = static_cast<uint8_t>(nodes_[i].weight * 255.0f);
@@ -307,16 +470,25 @@ void MorphPad::drawConnectionLines(VSTGUI::CDrawContext* context) {
 }
 
 void MorphPad::drawNodes(VSTGUI::CDrawContext* context) {
-    // FR-002: 12px diameter filled circles with category-specific colors
+    // US6: 12px diameter filled circles with fixed node colors (A/B/C/D)
+    // Brightness scaled by weight (min 0.3 to max 1.0)
+
+    constexpr float kMinBrightness = 0.3f;
+    constexpr float kMaxBrightness = 1.0f;
 
     for (int i = 0; i < activeNodeCount_; ++i) {
         float pixelX = 0.0f;
         float pixelY = 0.0f;
         positionToPixel(nodes_[i].posX, nodes_[i].posY, pixelX, pixelY);
 
-        // Get color based on distortion family
-        DistortionFamily family = getFamily(nodes_[i].type);
-        VSTGUI::CColor fillColor = getCategoryColor(family);
+        // Get fixed node color (A=coral, B=teal, C=purple, D=yellow)
+        VSTGUI::CColor fillColor = getNodeColor(i);
+
+        // Scale brightness based on weight
+        float brightness = kMinBrightness + nodes_[i].weight * (kMaxBrightness - kMinBrightness);
+        fillColor.red = static_cast<uint8_t>(fillColor.red * brightness);
+        fillColor.green = static_cast<uint8_t>(fillColor.green * brightness);
+        fillColor.blue = static_cast<uint8_t>(fillColor.blue * brightness);
 
         // Node circle
         float radius = kNodeDiameter * 0.5f;
@@ -398,25 +570,18 @@ void MorphPad::onMouseDownEvent(VSTGUI::MouseDownEvent& event) {
         float pixelX = static_cast<float>(event.mousePosition.x);
         float pixelY = static_cast<float>(event.mousePosition.y);
 
-        // Check for Alt+drag node repositioning (FR-007)
-        if (event.modifiers.has(VSTGUI::ModifierKey::Alt)) {
-            int hitNode = hitTestNode(pixelX, pixelY);
-            if (hitNode >= 0) {
-                isDraggingNode_ = true;
-                draggingNodeIndex_ = hitNode;
-                isDragging_ = false;
-                event.consumed = true;
-                return;
-            }
-        }
-
-        // Check for node selection (FR-025, FR-027)
+        // Check for node click - selects and starts dragging (FR-007, FR-025, FR-027)
         int hitNode = hitTestNode(pixelX, pixelY);
         if (hitNode >= 0) {
+            // Select the node
             setSelectedNode(hitNode);
             if (listener_) {
                 listener_->onNodeSelected(hitNode);
             }
+            // Start dragging it
+            isDraggingNode_ = true;
+            draggingNodeIndex_ = hitNode;
+            isDragging_ = false;
             event.consumed = true;
             return;
         }
@@ -582,6 +747,44 @@ void MorphPad::onMouseWheelEvent(VSTGUI::MouseWheelEvent& event) {
 // =============================================================================
 // Utility Functions
 // =============================================================================
+
+void MorphPad::recalculateWeights() {
+    // Calculate inverse distance weights from cursor to each active node
+    // Uses inverse square distance for sharper falloff near nodes
+
+    constexpr float kMinDistance = 0.001f;  // Avoid division by zero
+    constexpr float kDistanceExponent = 2.0f;  // Squared distance for sharper falloff
+
+    float totalWeight = 0.0f;
+    std::array<float, kMaxNodes> rawWeights{};
+
+    for (int i = 0; i < activeNodeCount_; ++i) {
+        float dx = morphX_ - nodes_[i].posX;
+        float dy = morphY_ - nodes_[i].posY;
+        float distance = std::sqrt(dx * dx + dy * dy);
+
+        // Inverse distance weighting (with minimum to avoid infinity)
+        if (distance < kMinDistance) {
+            // Cursor is essentially on this node - give it maximum weight
+            rawWeights[i] = 1000.0f;  // Very high weight
+        } else {
+            rawWeights[i] = 1.0f / std::pow(distance, kDistanceExponent);
+        }
+        totalWeight += rawWeights[i];
+    }
+
+    // Normalize weights to sum to 1.0
+    if (totalWeight > 0.0f) {
+        for (int i = 0; i < activeNodeCount_; ++i) {
+            nodes_[i].weight = rawWeights[i] / totalWeight;
+        }
+    }
+
+    // Set weights for inactive nodes to 0
+    for (int i = activeNodeCount_; i < kMaxNodes; ++i) {
+        nodes_[i].weight = 0.0f;
+    }
+}
 
 float MorphPad::clampPosition(float value) {
     return std::clamp(value, 0.0f, 1.0f);

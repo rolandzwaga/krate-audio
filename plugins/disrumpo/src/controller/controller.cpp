@@ -11,6 +11,8 @@
 #include "dsp/band_state.h"
 #include "controller/views/spectrum_display.h"
 #include "controller/views/morph_pad.h"
+#include "controller/views/dynamic_node_selector.h"
+#include "controller/views/node_editor_border.h"
 #include "controller/morph_link.h"
 
 #include "base/source/fstreamer.h"
@@ -31,6 +33,10 @@
 #include <functional>
 #include <vector>
 #include <sstream>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace Disrumpo {
 
@@ -362,11 +368,15 @@ private:
 };
 
 // ==============================================================================
-// NodeSelectionController: Update DisplayedType when SelectedNode changes
+// NodeSelectionController: Bidirectional sync between DisplayedType and node types
 // ==============================================================================
-// US7 FR-024/FR-025: When the user selects a different node (A/B/C/D), this
-// controller copies that node's type to the Band*DisplayedType proxy parameter,
-// which drives the UIViewSwitchContainer to show the correct type panel.
+// US7 FR-024/FR-025: Maintains bidirectional sync between the DisplayedType proxy
+// parameter (bound to the type dropdown) and the selected node's actual type.
+//
+// When user selects a different node (A/B/C/D):
+//   → Copy that node's type to DisplayedType (for UIViewSwitchContainer)
+// When user changes the type dropdown (DisplayedType):
+//   → Copy DisplayedType to the selected node's actual type parameter
 // ==============================================================================
 class NodeSelectionController : public Steinberg::FObject {
 public:
@@ -382,18 +392,30 @@ public:
         if (selectedNodeParam_) {
             selectedNodeParam_->addRef();
             selectedNodeParam_->addDependent(this);
-            // Trigger initial update
-            selectedNodeParam_->deferUpdate();
         }
 
-        // Also watch all 4 node type parameters so we update when types change
+        // Watch all 4 node type parameters so we update when types change
         for (int n = 0; n < 4; ++n) {
-            nodeTypeParams_[n] = controller_->getParameterObject(
-                makeNodeParamId(band, static_cast<uint8_t>(n), NodeParamType::kNodeType));
+            auto paramId = makeNodeParamId(band, static_cast<uint8_t>(n), NodeParamType::kNodeType);
+            nodeTypeParams_[n] = controller_->getParameterObject(paramId);
+
             if (nodeTypeParams_[n]) {
                 nodeTypeParams_[n]->addRef();
                 nodeTypeParams_[n]->addDependent(this);
             }
+        }
+
+        // Watch DisplayedType for bidirectional sync (when user changes dropdown)
+        displayedTypeParam_ = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandDisplayedType));
+        if (displayedTypeParam_) {
+            displayedTypeParam_->addRef();
+            displayedTypeParam_->addDependent(this);
+        }
+
+        // Trigger initial sync
+        if (selectedNodeParam_) {
+            selectedNodeParam_->deferUpdate();
         }
     }
 
@@ -409,6 +431,10 @@ public:
                 nodeTypeParams_[n] = nullptr;
             }
         }
+        if (displayedTypeParam_) {
+            displayedTypeParam_->release();
+            displayedTypeParam_ = nullptr;
+        }
     }
 
     void deactivate() {
@@ -421,24 +447,44 @@ public:
                     nodeTypeParams_[n]->removeDependent(this);
                 }
             }
+            if (displayedTypeParam_) {
+                displayedTypeParam_->removeDependent(this);
+            }
         }
     }
 
-    void PLUGIN_API update(Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) override {
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
         if (!isActive_.load(std::memory_order_acquire)) {
             return;
         }
-
-        if (message == IDependent::kChanged && controller_) {
-            updateDisplayedType();
+        if (message != IDependent::kChanged || !controller_) {
+            return;
         }
+        if (isUpdating_) {
+            return;  // Prevent re-entrancy during bidirectional sync
+        }
+
+        isUpdating_ = true;
+
+        // Determine which parameter changed
+        auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
+
+        if (changedParam == displayedTypeParam_) {
+            // User changed the type dropdown → copy to selected node's type
+            copyDisplayedTypeToSelectedNode();
+        } else {
+            // Selected node or node type changed → copy to DisplayedType
+            copySelectedNodeToDisplayedType();
+        }
+
+        isUpdating_ = false;
     }
 
     OBJ_METHODS(NodeSelectionController, FObject)
 
 private:
-    void updateDisplayedType() {
-        if (!selectedNodeParam_) return;
+    void copySelectedNodeToDisplayedType() {
+        if (!selectedNodeParam_ || !displayedTypeParam_) return;
 
         // Get selected node index (0-3)
         int selectedNode = static_cast<int>(
@@ -451,17 +497,60 @@ private:
 
         float nodeTypeNorm = static_cast<float>(nodeTypeParam->getNormalized());
 
+        // Get current displayed type value
+        float currentDisplayedType = static_cast<float>(displayedTypeParam_->getNormalized());
+
+        // Only update if different to avoid unnecessary notifications
+        if (std::abs(currentDisplayedType - nodeTypeNorm) < 0.001f) {
+            return;  // Values are the same, no update needed
+        }
+
         // Copy to DisplayedType parameter
+        // Must use performEdit() to trigger VSTGUI's ParameterChangeListener
         auto displayedTypeId = makeBandParamId(band_, BandParamType::kBandDisplayedType);
+        controller_->beginEdit(displayedTypeId);
         controller_->setParamNormalized(displayedTypeId, nodeTypeNorm);
-        // Note: performEdit not needed for internal proxy update
+        controller_->performEdit(displayedTypeId, nodeTypeNorm);
+        controller_->endEdit(displayedTypeId);
+    }
+
+    void copyDisplayedTypeToSelectedNode() {
+        if (!selectedNodeParam_ || !displayedTypeParam_) return;
+
+        // Get selected node index (0-3)
+        int selectedNode = static_cast<int>(
+            selectedNodeParam_->getNormalized() * 3.0 + 0.5);
+        selectedNode = std::clamp(selectedNode, 0, 3);
+
+        // Get displayed type value
+        float displayedTypeNorm = static_cast<float>(displayedTypeParam_->getNormalized());
+
+        // Get selected node's type parameter
+        auto* nodeTypeParam = nodeTypeParams_[selectedNode];
+        if (!nodeTypeParam) return;
+
+        // Only update if different to avoid unnecessary notifications
+        float currentNodeType = static_cast<float>(nodeTypeParam->getNormalized());
+        if (std::abs(currentNodeType - displayedTypeNorm) < 0.001f) {
+            return;  // Values are the same, no update needed
+        }
+
+        // Copy DisplayedType to selected node's type
+        auto nodeTypeId = makeNodeParamId(band_, static_cast<uint8_t>(selectedNode),
+                                           NodeParamType::kNodeType);
+        controller_->beginEdit(nodeTypeId);
+        controller_->setParamNormalized(nodeTypeId, displayedTypeNorm);
+        controller_->performEdit(nodeTypeId, displayedTypeNorm);
+        controller_->endEdit(nodeTypeId);
     }
 
     Steinberg::Vst::EditControllerEx1* controller_;
     uint8_t band_;
     Steinberg::Vst::Parameter* selectedNodeParam_ = nullptr;
     Steinberg::Vst::Parameter* nodeTypeParams_[4] = {nullptr, nullptr, nullptr, nullptr};
+    Steinberg::Vst::Parameter* displayedTypeParam_ = nullptr;
     std::atomic<bool> isActive_{true};
+    bool isUpdating_ = false;  // Re-entrancy guard for bidirectional sync
 };
 
 // ==============================================================================
@@ -1515,9 +1604,6 @@ VSTGUI::CView* Controller::createCustomView(
             size = VSTGUI::CPoint(250.0, 200.0);  // Default size
         }
 
-        VSTGUI::CRect rect(origin, size);
-        auto* morphPad = new MorphPad(rect);
-
         // FR-011: Wire to band-specific morph parameters
         // Read band index from "band" attribute (0-7, default 0)
         int bandIndex = 0;
@@ -1526,6 +1612,13 @@ VSTGUI::CView* Controller::createCustomView(
             bandIndex = std::stoi(*bandStr);
             bandIndex = std::clamp(bandIndex, 0, kMaxBands - 1);
         }
+
+        // Get ActiveNodes parameter ID for this band (US6: dynamic node count)
+        Steinberg::Vst::ParamID activeNodesParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandActiveNodes);
+
+        VSTGUI::CRect rect(origin, size);
+        auto* morphPad = new MorphPad(rect, this, activeNodesParamId);
 
         // Set the control tag to the MorphX parameter ID for this band
         // MorphPad uses CControl::getValue()/setValue() for X position
@@ -1555,7 +1648,119 @@ VSTGUI::CView* Controller::createCustomView(
             }
         }
 
+        // Store reference for cleanup in willClose()
+        morphPads_[bandIndex] = morphPad;
+
         return morphPad;
+    }
+
+    if (std::strcmp(name, "DynamicNodeSelector") == 0) {
+        // FR-XXX: Create DynamicNodeSelector custom control
+        // A CSegmentButton that dynamically shows/hides segments based on ActiveNodes
+        VSTGUI::CPoint origin;
+        VSTGUI::CPoint size;
+
+        const std::string* originStr = attributes.getAttributeValue("origin");
+        const std::string* sizeStr = attributes.getAttributeValue("size");
+
+        if (originStr) {
+            double x = 0.0;
+            double y = 0.0;
+            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
+                origin = VSTGUI::CPoint(x, y);
+            }
+        }
+
+        if (sizeStr) {
+            double w = 140.0;  // Default width for A/B/C/D buttons
+            double h = 22.0;
+            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
+                size = VSTGUI::CPoint(w, h);
+            }
+        } else {
+            size = VSTGUI::CPoint(140.0, 22.0);  // Default size
+        }
+
+        // Read band index from "band" attribute (0-7, default 0)
+        int bandIndex = 0;
+        const std::string* bandStr = attributes.getAttributeValue("band");
+        if (bandStr) {
+            bandIndex = std::stoi(*bandStr);
+            bandIndex = std::clamp(bandIndex, 0, kMaxBands - 1);
+        }
+
+        // Get parameter IDs for this band
+        Steinberg::Vst::ParamID activeNodesParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandActiveNodes);
+        Steinberg::Vst::ParamID selectedNodeParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandSelectedNode);
+
+        VSTGUI::CRect rect(origin, size);
+        auto* nodeSelector = new DynamicNodeSelector(
+            rect, this, activeNodesParamId, selectedNodeParamId);
+
+        // Set the control tag to the SelectedNode parameter ID for this band
+        // This enables VSTGUI's automatic parameter binding
+        nodeSelector->setTag(static_cast<int32_t>(selectedNodeParamId));
+
+        // Initialize selection from current parameter value
+        auto* selectedNodeParam = getParameterObject(selectedNodeParamId);
+        if (selectedNodeParam) {
+            float normalized = static_cast<float>(selectedNodeParam->getNormalized());
+            nodeSelector->setValueNormalized(normalized);
+        }
+
+        // Store reference for cleanup in willClose()
+        dynamicNodeSelectors_[bandIndex] = nodeSelector;
+
+        return nodeSelector;
+    }
+
+    if (std::strcmp(name, "NodeEditorBorder") == 0) {
+        // Debug helper: Colored border showing which node (A/B/C/D) is selected
+        VSTGUI::CPoint origin;
+        VSTGUI::CPoint size;
+
+        const std::string* originStr = attributes.getAttributeValue("origin");
+        const std::string* sizeStr = attributes.getAttributeValue("size");
+
+        if (originStr) {
+            double x = 0.0;
+            double y = 0.0;
+            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
+                origin = VSTGUI::CPoint(x, y);
+            }
+        }
+
+        if (sizeStr) {
+            double w = 280.0;  // Default width
+            double h = 230.0;
+            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
+                size = VSTGUI::CPoint(w, h);
+            }
+        } else {
+            size = VSTGUI::CPoint(280.0, 230.0);  // Default size
+        }
+
+        // Read band index from "band" attribute (0-7, default 0)
+        int bandIndex = 0;
+        const std::string* bandStr = attributes.getAttributeValue("band");
+        if (bandStr) {
+            bandIndex = std::stoi(*bandStr);
+            bandIndex = std::clamp(bandIndex, 0, kMaxBands - 1);
+        }
+
+        // Get SelectedNode parameter ID for this band
+        Steinberg::Vst::ParamID selectedNodeParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandSelectedNode);
+
+        VSTGUI::CRect rect(origin, size);
+        auto* border = new NodeEditorBorder(rect, this, selectedNodeParamId);
+
+        // Store reference for cleanup (reuse morphPads array slot or add new array)
+        // For now, the border will clean itself up via deactivate() in destructor
+
+        return border;
     }
 
     return nullptr;
@@ -1662,6 +1867,24 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
                 controller->deactivate();
             }
             nsc = nullptr;
+        }
+    }
+
+    // US6: Deactivate dynamic node selectors
+    // Note: The views themselves are managed by VSTGUI, we just deactivate and clear refs
+    for (auto& dns : dynamicNodeSelectors_) {
+        if (dns) {
+            dns->deactivate();
+            dns = nullptr;  // Don't delete - VSTGUI owns the view
+        }
+    }
+
+    // US6: Deactivate MorphPads
+    // Note: The views themselves are managed by VSTGUI, we just deactivate and clear refs
+    for (auto& mp : morphPads_) {
+        if (mp) {
+            mp->deactivate();
+            mp = nullptr;  // Don't delete - VSTGUI owns the view
         }
     }
 

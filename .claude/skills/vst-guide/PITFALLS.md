@@ -212,6 +212,46 @@ shimmerDelay_.setDryWetMix(shimmerParams_.dryWet.load(std::memory_order_relaxed)
 
 ---
 
+### 2026-01-29: UIViewSwitchContainer Not Responding to Proxy Parameter
+
+**Symptom:** UIViewSwitchContainer with `template-switch-control="Band1DisplayedType"` would not switch templates when the proxy parameter was updated via `performEdit()`. Direct binding to the actual parameter (e.g., `B1N1Type`) worked fine.
+
+**Investigation:**
+1. First attempt: Changed from sub-view syntax to `template-names` attribute - didn't fix it
+2. Diagnostic test: Changed `template-switch-control` to bind directly to `B1N1Type` - THIS WORKED
+3. Research: Read UIViewSwitchContainer source code in `extern/vst3sdk/vstgui4/vstgui/uidescription/uiviewswitchcontainer.cpp`
+
+**Root Cause:** UIViewSwitchContainer uses **`IControlListener`** to monitor parameter changes, NOT **`IDependent`**.
+
+The flow for direct binding:
+- Host updates parameter → `ParameterChangeListener.update()` → `CControl.setValueNormalized()` → `IControlListener.valueChanged()` → template switches
+
+The flow for proxy parameter (BROKEN):
+- Controller calls `performEdit(proxyParamId)` → Parameter updates → BUT there's no CControl bound to this parameter → no `valueChanged()` → no switch
+
+**Solution:** Add a hidden 1x1 pixel CControl bound to the proxy parameter:
+
+```xml
+<!-- Hidden proxy control creates the ParameterChangeListener bridge -->
+<view class="CSlider" origin="0, 0" size="1, 1" transparent="true"
+      control-tag="Band1DisplayedType" min-value="0" max-value="1"/>
+```
+
+**Additional Fix:** For bidirectional sync (dropdown changes selected node's type), modified `NodeSelectionController` to:
+1. Listen to `DisplayedType` parameter as well as node type parameters
+2. When `DisplayedType` changes → copy to selected node's type
+3. Added re-entrancy guard (`isUpdating_` flag) to prevent feedback loops
+
+**Time Wasted:** Multiple hours of trial-and-error before researching the actual VSTGUI source code.
+
+**Key Files:**
+- `extern/vst3sdk/vstgui4/vstgui/uidescription/uiviewswitchcontainer.cpp` (line 255: `registerControlListener`)
+- `extern/vst3sdk/vstgui4/vstgui/plugin-bindings/vst3editor.cpp` (line 100: `ParameterChangeListener`)
+
+**Lesson:** UIViewSwitchContainer and similar VSTGUI components that respond to parameter changes do so via `IControlListener` on CControls, NOT via `IDependent` on Parameters. If there's no CControl bound to a parameter, VSTGUI won't see changes to it. Always read the source when automatic features don't work as expected.
+
+---
+
 ## Key Takeaways
 
 1. **Use the right parameter type** - `StringListParameter` for dropdowns, `RangeParameter` for ranges
@@ -221,3 +261,4 @@ shimmerDelay_.setDryWetMix(shimmerParams_.dryWet.load(std::memory_order_relaxed)
 5. **Read the source** - When stuck, read VSTGUI/VST3 SDK source code
 6. **Create helpers** - Prevent future mistakes with helper functions that enforce correct usage
 7. **Check parameter units** - Verify normalized values are converted to the units DSP APIs expect
+8. **Proxy parameters need hidden controls** - UIViewSwitchContainer uses IControlListener on CControls, not IDependent on Parameters
