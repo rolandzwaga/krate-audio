@@ -297,19 +297,19 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T063 [US7] Write integration tests for band intensity application in plugins/Disrumpo/tests/integration/sweep_band_intensity_tests.cpp (verify SweepProcessor intensities applied to BandProcessor distortion)
+- [X] T063 [US7] Write integration tests for band intensity application in plugins/Disrumpo/tests/integration/sweep_band_intensity_test.cpp (verify SweepProcessor intensities applied to BandProcessor distortion)
 
 ### 9.2 Implementation for User Story 7
 
-- [ ] T064 [US7] Integrate SweepProcessor into Disrumpo Processor in plugins/Disrumpo/src/processor/processor.h (add sweepProcessor_ member)
-- [ ] T065 [US7] Call sweepProcessor_.prepare() in Processor::setupProcessing()
-- [ ] T066 [US7] Call sweepProcessor_.process() each audio block in Processor::process()
-- [ ] T067 [US7] Apply per-band intensities from sweepProcessor_.calculateBandIntensity() to band distortion processing (multiply distortion gain or intensity per band)
-- [ ] T068 [US7] Verify all User Story 7 tests pass (FR-001, FR-007, SC-001 through SC-005 at integration level)
+- [X] T064 [US7] Integrate SweepProcessor into Disrumpo Processor in plugins/Disrumpo/src/processor/processor.h (add sweepProcessor_ member)
+- [X] T065 [US7] Call sweepProcessor_.prepare() in Processor::setupProcessing()
+- [X] T066 [US7] Call sweepProcessor_.process() each audio block in Processor::process()
+- [X] T067 [US7] Apply per-band intensities from sweepProcessor_.calculateBandIntensity() to band distortion processing (multiply distortion gain or intensity per band)
+- [X] T068 [US7] Verify all User Story 7 tests pass (FR-001, FR-007, SC-001 through SC-005 at integration level)
 
 ### 9.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T069 [US7] **Verify IEEE 754 compliance**: Check if new test files use `std::isnan`/`std::isfinite` → add to `-fno-fast-math` list if needed
+- [X] T069 [US7] **Verify IEEE 754 compliance**: Check if new test files use `std::isnan`/`std::isfinite` → add to `-fno-fast-math` list if needed
 
 ### 9.4 Commit (MANDATORY)
 

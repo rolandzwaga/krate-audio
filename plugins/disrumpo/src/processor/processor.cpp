@@ -150,10 +150,39 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
-    // Band Processing (FR-001a: sample-by-sample processing)
+    // Per-Band Sweep Intensity (spec 007-sweep-system FR-001, T067)
+    // Calculate and apply sweep intensities to band processors once per block
     // ==========================================================================
 
     const int numBands = bandCount_.load(std::memory_order_relaxed);
+
+    // Calculate per-band sweep intensities
+    // Band center frequencies (approximate Bark scale for 8 bands)
+    static constexpr std::array<float, kMaxBands> kBandCenterFreqs = {
+        50.0f, 150.0f, 350.0f, 750.0f, 1500.0f, 3000.0f, 6000.0f, 12000.0f
+    };
+
+    if (sweepProcessor_.isEnabled()) {
+        // Calculate intensities for all active bands
+        std::array<float, kMaxBands> sweepIntensities{};
+        sweepProcessor_.calculateAllBandIntensities(
+            kBandCenterFreqs.data(), numBands, sweepIntensities.data());
+
+        // Apply sweep intensities to band processors
+        for (int b = 0; b < numBands; ++b) {
+            bandProcessors_[b].setSweepIntensity(sweepIntensities[b]);
+        }
+    } else {
+        // Sweep disabled: set all bands to full intensity (1.0)
+        for (int b = 0; b < numBands; ++b) {
+            bandProcessors_[b].setSweepIntensity(1.0f);
+        }
+    }
+
+    // ==========================================================================
+    // Band Processing (FR-001a: sample-by-sample processing)
+    // ==========================================================================
+
     std::array<float, kMaxBands> bandsL{};
     std::array<float, kMaxBands> bandsR{};
 

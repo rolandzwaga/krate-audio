@@ -66,6 +66,7 @@ add_executable(disrumpo_tests
     integration/band_management_integration_test.cpp
     integration/expand_collapse_test.cpp
     integration/node_editor_test.cpp
+    integration/sweep_band_intensity_test.cpp
 )
 
 target_link_libraries(disrumpo_tests
@@ -107,6 +108,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         dsp/custom_curve_tests.cpp
         dsp/sweep_intensity_tests.cpp
         dsp/sweep_processor_tests.cpp
+        integration/sweep_band_intensity_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
