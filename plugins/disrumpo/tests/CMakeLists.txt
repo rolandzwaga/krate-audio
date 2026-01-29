@@ -42,12 +42,24 @@ add_executable(disrumpo_tests
     # Approval tests - Morph artifact detection (005-morph-system SC-003)
     approval/morph_artifact_test.cpp
 
+    # Unit tests - MorphPad UI (006-morph-ui)
+    unit/morph_pad_test.cpp
+    unit/morph_link_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp
 
+    # UI sources (needed for MorphPad tests)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/morph_pad.cpp
+
+    # Morph link sources (needed for morph link tests)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/morph_link.cpp
+
     # Integration tests
     integration/band_management_integration_test.cpp
+    integration/expand_collapse_test.cpp
+    integration/node_editor_test.cpp
 )
 
 target_link_libraries(disrumpo_tests
@@ -56,6 +68,7 @@ target_link_libraries(disrumpo_tests
         Catch2::Catch2
         test_helpers
         sdk
+        vstgui_support
 )
 
 target_include_directories(disrumpo_tests
@@ -81,6 +94,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/morph_interpolation_test.cpp
         unit/morph_processor_cap_test.cpp
         unit/morph_band_integration_test.cpp
+        unit/morph_pad_test.cpp
         approval/morph_artifact_test.cpp
         integration/band_management_integration_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"

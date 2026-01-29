@@ -24,6 +24,8 @@ namespace Disrumpo {
 
 // Forward declarations
 class SpectrumDisplay;
+class DynamicNodeSelector;
+class MorphPad;
 
 // ==============================================================================
 // Controller Class
@@ -156,6 +158,36 @@ private:
 
     static constexpr int kMaxBands = 8;
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> bandVisibilityControllers_;
+
+    // ==========================================================================
+    // Expanded State Visibility Controllers (T079, FR-015)
+    // ==========================================================================
+    // Expand/collapse visibility controllers - show/hide BandStripExpanded based on Band*Expanded
+    std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> expandedVisibilityControllers_;
+
+    // ==========================================================================
+    // Morph-Sweep Link Controller (T159-T161, US8)
+    // ==========================================================================
+    // Updates morph position based on sweep frequency and link mode settings
+    Steinberg::IPtr<Steinberg::FObject> morphSweepLinkController_;
+
+    // ==========================================================================
+    // Node Selection Controllers (US7 FR-024/FR-025)
+    // ==========================================================================
+    // Updates DisplayedType proxy when SelectedNode changes
+    std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> nodeSelectionControllers_;
+
+    // ==========================================================================
+    // Dynamic Node Selectors (US6)
+    // ==========================================================================
+    // Custom CSegmentButton controls that show/hide A/B/C/D based on ActiveNodes
+    std::array<DynamicNodeSelector*, kMaxBands> dynamicNodeSelectors_{};
+
+    // ==========================================================================
+    // MorphPads (US6)
+    // ==========================================================================
+    // MorphPad controls that show/hide nodes based on ActiveNodes
+    std::array<MorphPad*, kMaxBands> morphPads_{};
 };
 
 } // namespace Disrumpo

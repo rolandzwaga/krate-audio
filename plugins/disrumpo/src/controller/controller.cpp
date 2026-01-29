@@ -10,6 +10,10 @@
 #include "version.h"
 #include "dsp/band_state.h"
 #include "controller/views/spectrum_display.h"
+#include "controller/views/morph_pad.h"
+#include "controller/views/dynamic_node_selector.h"
+#include "controller/views/node_editor_border.h"
+#include "controller/morph_link.h"
 
 #include "base/source/fstreamer.h"
 #include "base/source/fobject.h"
@@ -29,6 +33,10 @@
 #include <functional>
 #include <vector>
 #include <sstream>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace Disrumpo {
 
@@ -241,6 +249,308 @@ private:
     float threshold_;
     bool showWhenBelow_;
     std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
+// MorphSweepLinkController: Update morph position based on sweep frequency
+// ==============================================================================
+// T159-T161: Listens to sweep frequency changes and updates morph X/Y positions
+// based on the Band*MorphXLink and Band*MorphYLink parameter values.
+// ==============================================================================
+class MorphSweepLinkController : public Steinberg::FObject {
+public:
+    MorphSweepLinkController(
+        Steinberg::Vst::EditControllerEx1* controller,
+        Steinberg::Vst::Parameter* sweepFreqParam)
+    : controller_(controller)
+    , sweepFreqParam_(sweepFreqParam)
+    {
+        if (sweepFreqParam_) {
+            sweepFreqParam_->addRef();
+            sweepFreqParam_->addDependent(this);
+        }
+    }
+
+    ~MorphSweepLinkController() override {
+        deactivate();
+        if (sweepFreqParam_) {
+            sweepFreqParam_->release();
+            sweepFreqParam_ = nullptr;
+        }
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            if (sweepFreqParam_) {
+                sweepFreqParam_->removeDependent(this);
+            }
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) {
+            return;
+        }
+
+        if (message == IDependent::kChanged && sweepFreqParam_ && controller_) {
+            // Get sweep frequency as normalized position (log scale already handled by RangeParameter)
+            float sweepNorm = static_cast<float>(sweepFreqParam_->getNormalized());
+
+            // Update morph position for each band based on its link mode settings
+            for (int band = 0; band < 8; ++band) {
+                updateBandMorphFromSweep(static_cast<uint8_t>(band), sweepNorm);
+            }
+        }
+    }
+
+    OBJ_METHODS(MorphSweepLinkController, FObject)
+
+private:
+    void updateBandMorphFromSweep(uint8_t band, float sweepNorm) {
+        // Get the link mode parameters for this band
+        auto* morphXLinkParam = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandMorphXLink));
+        auto* morphYLinkParam = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandMorphYLink));
+
+        if (!morphXLinkParam || !morphYLinkParam) {
+            return;
+        }
+
+        // Get current link modes (discrete values 0-6 for 7 modes)
+        int xLinkIndex = static_cast<int>(std::round(morphXLinkParam->getNormalized() * 6.0));
+        int yLinkIndex = static_cast<int>(std::round(morphYLinkParam->getNormalized() * 6.0));
+
+        MorphLinkMode xLinkMode = static_cast<MorphLinkMode>(std::clamp(xLinkIndex, 0, 6));
+        MorphLinkMode yLinkMode = static_cast<MorphLinkMode>(std::clamp(yLinkIndex, 0, 6));
+
+        // Skip if both are None (no link)
+        if (xLinkMode == MorphLinkMode::None && yLinkMode == MorphLinkMode::None) {
+            return;
+        }
+
+        // Get current manual morph positions
+        auto* morphXParam = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandMorphX));
+        auto* morphYParam = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandMorphY));
+
+        if (!morphXParam || !morphYParam) {
+            return;
+        }
+
+        float currentX = static_cast<float>(morphXParam->getNormalized());
+        float currentY = static_cast<float>(morphYParam->getNormalized());
+
+        // Apply link modes to compute new positions
+        float newX = applyMorphLinkMode(xLinkMode, sweepNorm, currentX);
+        float newY = applyMorphLinkMode(yLinkMode, sweepNorm, currentY);
+
+        // Update parameters if they changed (only for linked modes)
+        if (xLinkMode != MorphLinkMode::None && std::abs(newX - currentX) > 0.001f) {
+            controller_->setParamNormalized(
+                makeBandParamId(band, BandParamType::kBandMorphX), newX);
+            controller_->performEdit(
+                makeBandParamId(band, BandParamType::kBandMorphX), newX);
+        }
+
+        if (yLinkMode != MorphLinkMode::None && std::abs(newY - currentY) > 0.001f) {
+            controller_->setParamNormalized(
+                makeBandParamId(band, BandParamType::kBandMorphY), newY);
+            controller_->performEdit(
+                makeBandParamId(band, BandParamType::kBandMorphY), newY);
+        }
+    }
+
+    Steinberg::Vst::EditControllerEx1* controller_;
+    Steinberg::Vst::Parameter* sweepFreqParam_;
+    std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
+// NodeSelectionController: Bidirectional sync between DisplayedType and node types
+// ==============================================================================
+// US7 FR-024/FR-025: Maintains bidirectional sync between the DisplayedType proxy
+// parameter (bound to the type dropdown) and the selected node's actual type.
+//
+// When user selects a different node (A/B/C/D):
+//   → Copy that node's type to DisplayedType (for UIViewSwitchContainer)
+// When user changes the type dropdown (DisplayedType):
+//   → Copy DisplayedType to the selected node's actual type parameter
+// ==============================================================================
+class NodeSelectionController : public Steinberg::FObject {
+public:
+    NodeSelectionController(
+        Steinberg::Vst::EditControllerEx1* controller,
+        uint8_t band)
+    : controller_(controller)
+    , band_(band)
+    {
+        // Watch the SelectedNode parameter
+        selectedNodeParam_ = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandSelectedNode));
+        if (selectedNodeParam_) {
+            selectedNodeParam_->addRef();
+            selectedNodeParam_->addDependent(this);
+        }
+
+        // Watch all 4 node type parameters so we update when types change
+        for (int n = 0; n < 4; ++n) {
+            auto paramId = makeNodeParamId(band, static_cast<uint8_t>(n), NodeParamType::kNodeType);
+            nodeTypeParams_[n] = controller_->getParameterObject(paramId);
+
+            if (nodeTypeParams_[n]) {
+                nodeTypeParams_[n]->addRef();
+                nodeTypeParams_[n]->addDependent(this);
+            }
+        }
+
+        // Watch DisplayedType for bidirectional sync (when user changes dropdown)
+        displayedTypeParam_ = controller_->getParameterObject(
+            makeBandParamId(band, BandParamType::kBandDisplayedType));
+        if (displayedTypeParam_) {
+            displayedTypeParam_->addRef();
+            displayedTypeParam_->addDependent(this);
+        }
+
+        // Trigger initial sync
+        if (selectedNodeParam_) {
+            selectedNodeParam_->deferUpdate();
+        }
+    }
+
+    ~NodeSelectionController() override {
+        deactivate();
+        if (selectedNodeParam_) {
+            selectedNodeParam_->release();
+            selectedNodeParam_ = nullptr;
+        }
+        for (int n = 0; n < 4; ++n) {
+            if (nodeTypeParams_[n]) {
+                nodeTypeParams_[n]->release();
+                nodeTypeParams_[n] = nullptr;
+            }
+        }
+        if (displayedTypeParam_) {
+            displayedTypeParam_->release();
+            displayedTypeParam_ = nullptr;
+        }
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            if (selectedNodeParam_) {
+                selectedNodeParam_->removeDependent(this);
+            }
+            for (int n = 0; n < 4; ++n) {
+                if (nodeTypeParams_[n]) {
+                    nodeTypeParams_[n]->removeDependent(this);
+                }
+            }
+            if (displayedTypeParam_) {
+                displayedTypeParam_->removeDependent(this);
+            }
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) {
+            return;
+        }
+        if (message != IDependent::kChanged || !controller_) {
+            return;
+        }
+        if (isUpdating_) {
+            return;  // Prevent re-entrancy during bidirectional sync
+        }
+
+        isUpdating_ = true;
+
+        // Determine which parameter changed
+        auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
+
+        if (changedParam == displayedTypeParam_) {
+            // User changed the type dropdown → copy to selected node's type
+            copyDisplayedTypeToSelectedNode();
+        } else {
+            // Selected node or node type changed → copy to DisplayedType
+            copySelectedNodeToDisplayedType();
+        }
+
+        isUpdating_ = false;
+    }
+
+    OBJ_METHODS(NodeSelectionController, FObject)
+
+private:
+    void copySelectedNodeToDisplayedType() {
+        if (!selectedNodeParam_ || !displayedTypeParam_) return;
+
+        // Get selected node index (0-3)
+        int selectedNode = static_cast<int>(
+            selectedNodeParam_->getNormalized() * 3.0 + 0.5);
+        selectedNode = std::clamp(selectedNode, 0, 3);
+
+        // Get that node's type
+        auto* nodeTypeParam = nodeTypeParams_[selectedNode];
+        if (!nodeTypeParam) return;
+
+        float nodeTypeNorm = static_cast<float>(nodeTypeParam->getNormalized());
+
+        // Get current displayed type value
+        float currentDisplayedType = static_cast<float>(displayedTypeParam_->getNormalized());
+
+        // Only update if different to avoid unnecessary notifications
+        if (std::abs(currentDisplayedType - nodeTypeNorm) < 0.001f) {
+            return;  // Values are the same, no update needed
+        }
+
+        // Copy to DisplayedType parameter
+        // Must use performEdit() to trigger VSTGUI's ParameterChangeListener
+        auto displayedTypeId = makeBandParamId(band_, BandParamType::kBandDisplayedType);
+        controller_->beginEdit(displayedTypeId);
+        controller_->setParamNormalized(displayedTypeId, nodeTypeNorm);
+        controller_->performEdit(displayedTypeId, nodeTypeNorm);
+        controller_->endEdit(displayedTypeId);
+    }
+
+    void copyDisplayedTypeToSelectedNode() {
+        if (!selectedNodeParam_ || !displayedTypeParam_) return;
+
+        // Get selected node index (0-3)
+        int selectedNode = static_cast<int>(
+            selectedNodeParam_->getNormalized() * 3.0 + 0.5);
+        selectedNode = std::clamp(selectedNode, 0, 3);
+
+        // Get displayed type value
+        float displayedTypeNorm = static_cast<float>(displayedTypeParam_->getNormalized());
+
+        // Get selected node's type parameter
+        auto* nodeTypeParam = nodeTypeParams_[selectedNode];
+        if (!nodeTypeParam) return;
+
+        // Only update if different to avoid unnecessary notifications
+        float currentNodeType = static_cast<float>(nodeTypeParam->getNormalized());
+        if (std::abs(currentNodeType - displayedTypeNorm) < 0.001f) {
+            return;  // Values are the same, no update needed
+        }
+
+        // Copy DisplayedType to selected node's type
+        auto nodeTypeId = makeNodeParamId(band_, static_cast<uint8_t>(selectedNode),
+                                           NodeParamType::kNodeType);
+        controller_->beginEdit(nodeTypeId);
+        controller_->setParamNormalized(nodeTypeId, displayedTypeNorm);
+        controller_->performEdit(nodeTypeId, displayedTypeNorm);
+        controller_->endEdit(nodeTypeId);
+    }
+
+    Steinberg::Vst::EditControllerEx1* controller_;
+    uint8_t band_;
+    Steinberg::Vst::Parameter* selectedNodeParam_ = nullptr;
+    Steinberg::Vst::Parameter* nodeTypeParams_[4] = {nullptr, nullptr, nullptr, nullptr};
+    Steinberg::Vst::Parameter* displayedTypeParam_ = nullptr;
+    std::atomic<bool> isActive_{true};
+    bool isUpdating_ = false;  // Re-entrancy guard for bidirectional sync
 };
 
 // ==============================================================================
@@ -526,6 +836,10 @@ void Controller::registerBandParams() {
         STR16("Band 1 Morph Mode"), STR16("Band 2 Morph Mode"), STR16("Band 3 Morph Mode"), STR16("Band 4 Morph Mode"),
         STR16("Band 5 Morph Mode"), STR16("Band 6 Morph Mode"), STR16("Band 7 Morph Mode"), STR16("Band 8 Morph Mode")
     };
+    const Steinberg::Vst::TChar* bandExpandedNames[] = {
+        STR16("Band 1 Expanded"), STR16("Band 2 Expanded"), STR16("Band 3 Expanded"), STR16("Band 4 Expanded"),
+        STR16("Band 5 Expanded"), STR16("Band 6 Expanded"), STR16("Band 7 Expanded"), STR16("Band 8 Expanded")
+    };
 
     for (int b = 0; b < kMaxBands; ++b) {
         // Band Gain: RangeParameter [-24, +24] dB, default 0
@@ -615,6 +929,159 @@ void Controller::registerBandParams() {
         morphModeParam->appendString(STR16("2D Planar"));
         morphModeParam->appendString(STR16("2D Radial"));
         parameters.addParameter(morphModeParam);
+
+        // Band ActiveNodes: StringListParameter ["2","3","4"], default "4" (US6)
+        static const Steinberg::Vst::TChar* activeNodesParamNames[] = {
+            STR16("Band 1 Active Nodes"), STR16("Band 2 Active Nodes"),
+            STR16("Band 3 Active Nodes"), STR16("Band 4 Active Nodes"),
+            STR16("Band 5 Active Nodes"), STR16("Band 6 Active Nodes"),
+            STR16("Band 7 Active Nodes"), STR16("Band 8 Active Nodes")
+        };
+        auto* activeNodesParam = new Steinberg::Vst::StringListParameter(
+            activeNodesParamNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandActiveNodes),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+        );
+        activeNodesParam->appendString(STR16("2"));
+        activeNodesParam->appendString(STR16("3"));
+        activeNodesParam->appendString(STR16("4"));
+        activeNodesParam->setNormalized(1.0);  // Default to "4" (index 2 = 1.0)
+        parameters.addParameter(activeNodesParam);
+
+        // Band Expanded: boolean toggle for expand/collapse state (UI only)
+        // stepCount=1 for boolean, default 0 (collapsed)
+        parameters.addParameter(
+            bandExpandedNames[b],
+            nullptr,
+            1,
+            0.0,
+            Steinberg::Vst::ParameterInfo::kNoFlags,  // UI-only, not automatable
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandExpanded)
+        );
+
+        // Band MorphSmoothing: RangeParameter [0, 500] ms, default 0 (FR-031)
+        static const Steinberg::Vst::TChar* morphSmoothingNames[] = {
+            STR16("Band 1 Morph Smoothing"), STR16("Band 2 Morph Smoothing"),
+            STR16("Band 3 Morph Smoothing"), STR16("Band 4 Morph Smoothing"),
+            STR16("Band 5 Morph Smoothing"), STR16("Band 6 Morph Smoothing"),
+            STR16("Band 7 Morph Smoothing"), STR16("Band 8 Morph Smoothing")
+        };
+        auto* morphSmoothingParam = new Steinberg::Vst::RangeParameter(
+            morphSmoothingNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMorphSmoothing),
+            STR16("ms"),
+            0.0, 500.0, 0.0,
+            0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate
+        );
+        parameters.addParameter(morphSmoothingParam);
+
+        // Band MorphXLink: StringListParameter for morph X link mode (US8 FR-032)
+        static const Steinberg::Vst::TChar* morphXLinkNames[] = {
+            STR16("Band 1 Morph X Link"), STR16("Band 2 Morph X Link"),
+            STR16("Band 3 Morph X Link"), STR16("Band 4 Morph X Link"),
+            STR16("Band 5 Morph X Link"), STR16("Band 6 Morph X Link"),
+            STR16("Band 7 Morph X Link"), STR16("Band 8 Morph X Link")
+        };
+        auto* morphXLinkParam = new Steinberg::Vst::StringListParameter(
+            morphXLinkNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMorphXLink),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+        );
+        morphXLinkParam->appendString(STR16("None"));
+        morphXLinkParam->appendString(STR16("Sweep Freq"));
+        morphXLinkParam->appendString(STR16("Inverse Sweep"));
+        morphXLinkParam->appendString(STR16("Ease In"));
+        morphXLinkParam->appendString(STR16("Ease Out"));
+        morphXLinkParam->appendString(STR16("Hold-Rise"));
+        morphXLinkParam->appendString(STR16("Stepped"));
+        parameters.addParameter(morphXLinkParam);
+
+        // Band MorphYLink: StringListParameter for morph Y link mode (US8 FR-033)
+        static const Steinberg::Vst::TChar* morphYLinkNames[] = {
+            STR16("Band 1 Morph Y Link"), STR16("Band 2 Morph Y Link"),
+            STR16("Band 3 Morph Y Link"), STR16("Band 4 Morph Y Link"),
+            STR16("Band 5 Morph Y Link"), STR16("Band 6 Morph Y Link"),
+            STR16("Band 7 Morph Y Link"), STR16("Band 8 Morph Y Link")
+        };
+        auto* morphYLinkParam = new Steinberg::Vst::StringListParameter(
+            morphYLinkNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMorphYLink),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+        );
+        morphYLinkParam->appendString(STR16("None"));
+        morphYLinkParam->appendString(STR16("Sweep Freq"));
+        morphYLinkParam->appendString(STR16("Inverse Sweep"));
+        morphYLinkParam->appendString(STR16("Ease In"));
+        morphYLinkParam->appendString(STR16("Ease Out"));
+        morphYLinkParam->appendString(STR16("Hold-Rise"));
+        morphYLinkParam->appendString(STR16("Stepped"));
+        parameters.addParameter(morphYLinkParam);
+
+        // US7 FR-025: Selected Node parameter (which node's parameters to display)
+        static const Steinberg::Vst::TChar* selectedNodeNames[] = {
+            STR16("Band 1 Selected Node"), STR16("Band 2 Selected Node"),
+            STR16("Band 3 Selected Node"), STR16("Band 4 Selected Node"),
+            STR16("Band 5 Selected Node"), STR16("Band 6 Selected Node"),
+            STR16("Band 7 Selected Node"), STR16("Band 8 Selected Node")
+        };
+        auto* selectedNodeParam = new Steinberg::Vst::StringListParameter(
+            selectedNodeNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandSelectedNode),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+        );
+        selectedNodeParam->appendString(STR16("Node A"));
+        selectedNodeParam->appendString(STR16("Node B"));
+        selectedNodeParam->appendString(STR16("Node C"));
+        selectedNodeParam->appendString(STR16("Node D"));
+        parameters.addParameter(selectedNodeParam);
+
+        // US7 FR-024: Displayed Type (proxy for UIViewSwitchContainer, mirrors selected node's type)
+        // This parameter is updated by NodeSelectionController when selected node changes
+        static const Steinberg::Vst::TChar* displayedTypeNames[] = {
+            STR16("Band 1 Displayed Type"), STR16("Band 2 Displayed Type"),
+            STR16("Band 3 Displayed Type"), STR16("Band 4 Displayed Type"),
+            STR16("Band 5 Displayed Type"), STR16("Band 6 Displayed Type"),
+            STR16("Band 7 Displayed Type"), STR16("Band 8 Displayed Type")
+        };
+        auto* displayedTypeParam = new Steinberg::Vst::StringListParameter(
+            displayedTypeNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandDisplayedType),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kIsList  // Not automatable - internal use only
+        );
+        // Same 26 distortion types as node type parameters
+        displayedTypeParam->appendString(STR16("Soft Clip"));
+        displayedTypeParam->appendString(STR16("Hard Clip"));
+        displayedTypeParam->appendString(STR16("Tube"));
+        displayedTypeParam->appendString(STR16("Tape"));
+        displayedTypeParam->appendString(STR16("Fuzz"));
+        displayedTypeParam->appendString(STR16("Asymmetric Fuzz"));
+        displayedTypeParam->appendString(STR16("Sine Fold"));
+        displayedTypeParam->appendString(STR16("Triangle Fold"));
+        displayedTypeParam->appendString(STR16("Serge Fold"));
+        displayedTypeParam->appendString(STR16("Full Rectify"));
+        displayedTypeParam->appendString(STR16("Half Rectify"));
+        displayedTypeParam->appendString(STR16("Bitcrush"));
+        displayedTypeParam->appendString(STR16("Sample Reduce"));
+        displayedTypeParam->appendString(STR16("Quantize"));
+        displayedTypeParam->appendString(STR16("Temporal"));
+        displayedTypeParam->appendString(STR16("Ring Saturation"));
+        displayedTypeParam->appendString(STR16("Feedback"));
+        displayedTypeParam->appendString(STR16("Aliasing"));
+        displayedTypeParam->appendString(STR16("Bitwise Mangler"));
+        displayedTypeParam->appendString(STR16("Chaos"));
+        displayedTypeParam->appendString(STR16("Formant"));
+        displayedTypeParam->appendString(STR16("Granular"));
+        displayedTypeParam->appendString(STR16("Spectral"));
+        displayedTypeParam->appendString(STR16("Fractal"));
+        displayedTypeParam->appendString(STR16("Stochastic"));
+        displayedTypeParam->appendString(STR16("Allpass Resonant"));
+        parameters.addParameter(displayedTypeParam);
     }
 }
 
@@ -1112,9 +1579,188 @@ VSTGUI::CView* Controller::createCustomView(
     }
 
     if (std::strcmp(name, "MorphPad") == 0) {
-        // FR-013 PARTIAL: Return placeholder for MorphPad
-        // Full implementation deferred to spec 005
-        return nullptr;
+        // FR-010: Create MorphPad custom control
+        VSTGUI::CPoint origin;
+        VSTGUI::CPoint size;
+
+        const std::string* originStr = attributes.getAttributeValue("origin");
+        const std::string* sizeStr = attributes.getAttributeValue("size");
+
+        if (originStr) {
+            double x = 0.0;
+            double y = 0.0;
+            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
+                origin = VSTGUI::CPoint(x, y);
+            }
+        }
+
+        if (sizeStr) {
+            double w = 250.0;  // Default full size
+            double h = 200.0;
+            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
+                size = VSTGUI::CPoint(w, h);
+            }
+        } else {
+            size = VSTGUI::CPoint(250.0, 200.0);  // Default size
+        }
+
+        // FR-011: Wire to band-specific morph parameters
+        // Read band index from "band" attribute (0-7, default 0)
+        int bandIndex = 0;
+        const std::string* bandStr = attributes.getAttributeValue("band");
+        if (bandStr) {
+            bandIndex = std::stoi(*bandStr);
+            bandIndex = std::clamp(bandIndex, 0, kMaxBands - 1);
+        }
+
+        // Get ActiveNodes parameter ID for this band (US6: dynamic node count)
+        Steinberg::Vst::ParamID activeNodesParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandActiveNodes);
+
+        VSTGUI::CRect rect(origin, size);
+        auto* morphPad = new MorphPad(rect, this, activeNodesParamId);
+
+        // Set the control tag to the MorphX parameter ID for this band
+        // MorphPad uses CControl::getValue()/setValue() for X position
+        Steinberg::Vst::ParamID morphXParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphX);
+        morphPad->setTag(static_cast<int32_t>(morphXParamId));
+
+        // Initialize morph position from current parameter values
+        auto* morphXParam = getParameterObject(morphXParamId);
+        auto* morphYParam = getParameterObject(makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphY));
+
+        if (morphXParam && morphYParam) {
+            float morphX = static_cast<float>(morphXParam->getNormalized());
+            float morphY = static_cast<float>(morphYParam->getNormalized());
+            morphPad->setMorphPosition(morphX, morphY);
+            morphPad->setValue(morphX);
+        }
+
+        // Initialize node types from the band's node type parameters
+        for (int n = 0; n < 4; ++n) {
+            auto* nodeTypeParam = getParameterObject(makeNodeParamId(
+                static_cast<uint8_t>(bandIndex), static_cast<uint8_t>(n), NodeParamType::kNodeType));
+            if (nodeTypeParam) {
+                int typeIndex = static_cast<int>(std::round(nodeTypeParam->getNormalized() * 25.0));
+                morphPad->setNodeType(n, static_cast<DistortionType>(typeIndex));
+            }
+        }
+
+        // Store reference for cleanup in willClose()
+        morphPads_[bandIndex] = morphPad;
+
+        return morphPad;
+    }
+
+    if (std::strcmp(name, "DynamicNodeSelector") == 0) {
+        // FR-XXX: Create DynamicNodeSelector custom control
+        // A CSegmentButton that dynamically shows/hides segments based on ActiveNodes
+        VSTGUI::CPoint origin;
+        VSTGUI::CPoint size;
+
+        const std::string* originStr = attributes.getAttributeValue("origin");
+        const std::string* sizeStr = attributes.getAttributeValue("size");
+
+        if (originStr) {
+            double x = 0.0;
+            double y = 0.0;
+            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
+                origin = VSTGUI::CPoint(x, y);
+            }
+        }
+
+        if (sizeStr) {
+            double w = 140.0;  // Default width for A/B/C/D buttons
+            double h = 22.0;
+            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
+                size = VSTGUI::CPoint(w, h);
+            }
+        } else {
+            size = VSTGUI::CPoint(140.0, 22.0);  // Default size
+        }
+
+        // Read band index from "band" attribute (0-7, default 0)
+        int bandIndex = 0;
+        const std::string* bandStr = attributes.getAttributeValue("band");
+        if (bandStr) {
+            bandIndex = std::stoi(*bandStr);
+            bandIndex = std::clamp(bandIndex, 0, kMaxBands - 1);
+        }
+
+        // Get parameter IDs for this band
+        Steinberg::Vst::ParamID activeNodesParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandActiveNodes);
+        Steinberg::Vst::ParamID selectedNodeParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandSelectedNode);
+
+        VSTGUI::CRect rect(origin, size);
+        auto* nodeSelector = new DynamicNodeSelector(
+            rect, this, activeNodesParamId, selectedNodeParamId);
+
+        // Set the control tag to the SelectedNode parameter ID for this band
+        // This enables VSTGUI's automatic parameter binding
+        nodeSelector->setTag(static_cast<int32_t>(selectedNodeParamId));
+
+        // Initialize selection from current parameter value
+        auto* selectedNodeParam = getParameterObject(selectedNodeParamId);
+        if (selectedNodeParam) {
+            float normalized = static_cast<float>(selectedNodeParam->getNormalized());
+            nodeSelector->setValueNormalized(normalized);
+        }
+
+        // Store reference for cleanup in willClose()
+        dynamicNodeSelectors_[bandIndex] = nodeSelector;
+
+        return nodeSelector;
+    }
+
+    if (std::strcmp(name, "NodeEditorBorder") == 0) {
+        // Debug helper: Colored border showing which node (A/B/C/D) is selected
+        VSTGUI::CPoint origin;
+        VSTGUI::CPoint size;
+
+        const std::string* originStr = attributes.getAttributeValue("origin");
+        const std::string* sizeStr = attributes.getAttributeValue("size");
+
+        if (originStr) {
+            double x = 0.0;
+            double y = 0.0;
+            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
+                origin = VSTGUI::CPoint(x, y);
+            }
+        }
+
+        if (sizeStr) {
+            double w = 280.0;  // Default width
+            double h = 230.0;
+            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
+                size = VSTGUI::CPoint(w, h);
+            }
+        } else {
+            size = VSTGUI::CPoint(280.0, 230.0);  // Default size
+        }
+
+        // Read band index from "band" attribute (0-7, default 0)
+        int bandIndex = 0;
+        const std::string* bandStr = attributes.getAttributeValue("band");
+        if (bandStr) {
+            bandIndex = std::stoi(*bandStr);
+            bandIndex = std::clamp(bandIndex, 0, kMaxBands - 1);
+        }
+
+        // Get SelectedNode parameter ID for this band
+        Steinberg::Vst::ParamID selectedNodeParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandSelectedNode);
+
+        VSTGUI::CRect rect(origin, size);
+        auto* border = new NodeEditorBorder(rect, this, selectedNodeParamId);
+
+        // Store reference for cleanup (reuse morphPads array slot or add new array)
+        // For now, the border will clean itself up via deactivate() in destructor
+
+        return border;
     }
 
     return nullptr;
@@ -1148,6 +1794,39 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             );
         }
     }
+
+    // Create expanded visibility controllers (T079, FR-015)
+    // Show/hide BandStripExpanded based on Band*Expanded parameter
+    for (int b = 0; b < kMaxBands; ++b) {
+        auto* expandedParam = getParameterObject(
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandExpanded));
+        if (expandedParam) {
+            // UI tag for expanded container: 9100 + band index
+            Steinberg::int32 expandedContainerTag = 9100 + b;
+
+            expandedVisibilityControllers_[b] = new ContainerVisibilityController(
+                &activeEditor_,
+                expandedParam,
+                expandedContainerTag,
+                0.5f,   // Threshold at 0.5 (0 = collapsed, 1 = expanded)
+                false   // Show when value >= threshold (i.e., when expanded)
+            );
+        }
+    }
+
+    // T159-T161: Create morph-sweep link controller (US8)
+    // Updates morph X/Y positions when sweep frequency changes (based on link mode)
+    auto* sweepFreqParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepFrequency));
+    if (sweepFreqParam) {
+        morphSweepLinkController_ = new MorphSweepLinkController(this, sweepFreqParam);
+    }
+
+    // US7 FR-024/FR-025: Create node selection controllers
+    // Updates DisplayedType proxy when SelectedNode changes
+    for (int b = 0; b < kMaxBands; ++b) {
+        nodeSelectionControllers_[b] = new NodeSelectionController(
+            this, static_cast<uint8_t>(b));
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -1160,6 +1839,52 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
                 cvc->deactivate();
             }
             vc = nullptr;
+        }
+    }
+
+    // T081: Deactivate expanded visibility controllers
+    for (auto& vc : expandedVisibilityControllers_) {
+        if (vc) {
+            if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) {
+                cvc->deactivate();
+            }
+            vc = nullptr;
+        }
+    }
+
+    // T161: Deactivate morph-sweep link controller
+    if (morphSweepLinkController_) {
+        if (auto* mslc = dynamic_cast<MorphSweepLinkController*>(morphSweepLinkController_.get())) {
+            mslc->deactivate();
+        }
+        morphSweepLinkController_ = nullptr;
+    }
+
+    // US7: Deactivate node selection controllers
+    for (auto& nsc : nodeSelectionControllers_) {
+        if (nsc) {
+            if (auto* controller = dynamic_cast<NodeSelectionController*>(nsc.get())) {
+                controller->deactivate();
+            }
+            nsc = nullptr;
+        }
+    }
+
+    // US6: Deactivate dynamic node selectors
+    // Note: The views themselves are managed by VSTGUI, we just deactivate and clear refs
+    for (auto& dns : dynamicNodeSelectors_) {
+        if (dns) {
+            dns->deactivate();
+            dns = nullptr;  // Don't delete - VSTGUI owns the view
+        }
+    }
+
+    // US6: Deactivate MorphPads
+    // Note: The views themselves are managed by VSTGUI, we just deactivate and clear refs
+    for (auto& mp : morphPads_) {
+        if (mp) {
+            mp->deactivate();
+            mp = nullptr;  // Don't delete - VSTGUI owns the view
         }
     }
 

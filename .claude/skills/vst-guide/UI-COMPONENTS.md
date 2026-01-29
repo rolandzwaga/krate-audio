@@ -33,6 +33,81 @@ index = std::min(index, templateCount - 1);
 2. The parameter must be properly registered in the controller
 3. For discrete parameters, use `StringListParameter` for correct value scaling
 
+### CRITICAL: IControlListener vs IDependent
+
+**UIViewSwitchContainer uses `IControlListener`, NOT `IDependent`.**
+
+This is a crucial distinction:
+- **IDependent** (VST3 parameter system): Notified when `Parameter.changed()` is called
+- **IControlListener** (VSTGUI): Notified when a `CControl.setValue()` is called
+
+UIViewSwitchContainer's `UIDescriptionViewSwitchController` registers as an `IControlListener` on the CControl specified by `template-switch-control`:
+
+```cpp
+// From uiviewswitchcontainer.cpp line 255
+switchControl->registerControlListener(this);
+```
+
+When the control's value changes (via UI interaction OR via `ParameterChangeListener`), `valueChanged()` is called, which triggers the template switch.
+
+### Proxy Parameters Require Hidden Controls
+
+**Problem:** If you use a "proxy" parameter (like `Band1DisplayedType`) that has no visible UI control, UIViewSwitchContainer cannot listen to it because there's no CControl to register on.
+
+**Solution:** Add a hidden 1x1 pixel CControl bound to the proxy parameter:
+
+```xml
+<!-- Hidden proxy control - required for UIViewSwitchContainer to detect changes -->
+<view class="CSlider" origin="0, 0" size="1, 1" transparent="true"
+      control-tag="Band1DisplayedType" min-value="0" max-value="1"/>
+
+<!-- Now UIViewSwitchContainer can find and listen to this control -->
+<view class="UIViewSwitchContainer" origin="0, 38" size="280, 185"
+      animation-time="0" template-switch-control="Band1DisplayedType"
+      template-names="Template1,Template2,Template3"/>
+```
+
+### Why This Works
+
+The notification chain with a hidden control:
+1. Controller calls `performEdit(proxyParamId, value)`
+2. `ParameterChangeListener` receives update via `IDependent`
+3. `ParameterChangeListener` updates the hidden `CSlider` via `setValueNormalized()`
+4. `CSlider` notifies its `IControlListeners` via `valueChanged()`
+5. `UIDescriptionViewSwitchController` receives `valueChanged()` and switches templates
+
+Without the hidden control, step 3 has nothing to update, breaking the chain.
+
+### Bidirectional Proxy Sync
+
+When using a proxy parameter for both reading AND writing (e.g., a type dropdown that should edit the currently selected node), implement bidirectional sync in your controller:
+
+```cpp
+class NodeSelectionController : public Steinberg::FObject {
+    // Watch both the proxy and the actual parameters
+    displayedTypeParam_->addDependent(this);
+    for (int n = 0; n < 4; ++n) {
+        nodeTypeParams_[n]->addDependent(this);
+    }
+
+    void update(FUnknown* changedUnknown, int32 message) override {
+        if (isUpdating_) return;  // Prevent feedback loop
+        isUpdating_ = true;
+
+        auto* changedParam = FCast<Parameter>(changedUnknown);
+        if (changedParam == displayedTypeParam_) {
+            // User changed dropdown → copy to selected node
+            copyDisplayedTypeToSelectedNode();
+        } else {
+            // Node changed → copy to DisplayedType
+            copySelectedNodeToDisplayedType();
+        }
+
+        isUpdating_ = false;
+    }
+};
+```
+
 ---
 
 ## COptionMenu

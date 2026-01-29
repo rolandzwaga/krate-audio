@@ -88,85 +88,125 @@
     <control-tag name="Crossover6" tag="3861"/>
     <control-tag name="Crossover7" tag="3862"/>
 
-    <!-- Band 1 Parameters (0xF000-0xF00A) -->
+    <!-- Band 1 Parameters (0xF000-0xF00C) -->
     <control-tag name="Band1Gain" tag="61440"/>
     <control-tag name="Band1Pan" tag="61441"/>
     <control-tag name="Band1Solo" tag="61442"/>
     <control-tag name="Band1Bypass" tag="61443"/>
     <control-tag name="Band1Mute" tag="61444"/>
+    <control-tag name="Band1Expanded" tag="61445"/>
+    <control-tag name="Band1ActiveNodes" tag="61446"/>
+    <control-tag name="Band1MorphSmoothing" tag="61447"/>
     <control-tag name="Band1MorphX" tag="61448"/>
     <control-tag name="Band1MorphY" tag="61449"/>
     <control-tag name="Band1MorphMode" tag="61450"/>
+    <control-tag name="Band1MorphXLink" tag="61451"/>
+    <control-tag name="Band1MorphYLink" tag="61452"/>
 
-    <!-- Band 2 Parameters (0xF100-0xF10A) -->
+    <!-- Band 2 Parameters (0xF100-0xF10C) -->
     <control-tag name="Band2Gain" tag="61696"/>
     <control-tag name="Band2Pan" tag="61697"/>
     <control-tag name="Band2Solo" tag="61698"/>
     <control-tag name="Band2Bypass" tag="61699"/>
     <control-tag name="Band2Mute" tag="61700"/>
+    <control-tag name="Band2Expanded" tag="61701"/>
+    <control-tag name="Band2ActiveNodes" tag="61702"/>
+    <control-tag name="Band2MorphSmoothing" tag="61703"/>
     <control-tag name="Band2MorphX" tag="61704"/>
     <control-tag name="Band2MorphY" tag="61705"/>
     <control-tag name="Band2MorphMode" tag="61706"/>
+    <control-tag name="Band2MorphXLink" tag="61707"/>
+    <control-tag name="Band2MorphYLink" tag="61708"/>
 
-    <!-- Band 3 Parameters (0xF200-0xF20A) -->
+    <!-- Band 3 Parameters (0xF200-0xF20C) -->
     <control-tag name="Band3Gain" tag="61952"/>
     <control-tag name="Band3Pan" tag="61953"/>
     <control-tag name="Band3Solo" tag="61954"/>
     <control-tag name="Band3Bypass" tag="61955"/>
     <control-tag name="Band3Mute" tag="61956"/>
+    <control-tag name="Band3Expanded" tag="61957"/>
+    <control-tag name="Band3ActiveNodes" tag="61958"/>
+    <control-tag name="Band3MorphSmoothing" tag="61959"/>
     <control-tag name="Band3MorphX" tag="61960"/>
     <control-tag name="Band3MorphY" tag="61961"/>
     <control-tag name="Band3MorphMode" tag="61962"/>
+    <control-tag name="Band3MorphXLink" tag="61963"/>
+    <control-tag name="Band3MorphYLink" tag="61964"/>
 
-    <!-- Band 4 Parameters (0xF300-0xF30A) -->
+    <!-- Band 4 Parameters (0xF300-0xF30C) -->
     <control-tag name="Band4Gain" tag="62208"/>
     <control-tag name="Band4Pan" tag="62209"/>
     <control-tag name="Band4Solo" tag="62210"/>
     <control-tag name="Band4Bypass" tag="62211"/>
     <control-tag name="Band4Mute" tag="62212"/>
+    <control-tag name="Band4Expanded" tag="62213"/>
+    <control-tag name="Band4ActiveNodes" tag="62214"/>
+    <control-tag name="Band4MorphSmoothing" tag="62215"/>
     <control-tag name="Band4MorphX" tag="62216"/>
     <control-tag name="Band4MorphY" tag="62217"/>
     <control-tag name="Band4MorphMode" tag="62218"/>
+    <control-tag name="Band4MorphXLink" tag="62219"/>
+    <control-tag name="Band4MorphYLink" tag="62220"/>
 
-    <!-- Band 5 Parameters (0xF400-0xF40A) -->
+    <!-- Band 5 Parameters (0xF400-0xF40C) -->
     <control-tag name="Band5Gain" tag="62464"/>
     <control-tag name="Band5Pan" tag="62465"/>
     <control-tag name="Band5Solo" tag="62466"/>
     <control-tag name="Band5Bypass" tag="62467"/>
     <control-tag name="Band5Mute" tag="62468"/>
+    <control-tag name="Band5Expanded" tag="62469"/>
+    <control-tag name="Band5ActiveNodes" tag="62470"/>
+    <control-tag name="Band5MorphSmoothing" tag="62471"/>
     <control-tag name="Band5MorphX" tag="62472"/>
     <control-tag name="Band5MorphY" tag="62473"/>
     <control-tag name="Band5MorphMode" tag="62474"/>
+    <control-tag name="Band5MorphXLink" tag="62475"/>
+    <control-tag name="Band5MorphYLink" tag="62476"/>
 
-    <!-- Band 6 Parameters (0xF500-0xF50A) -->
+    <!-- Band 6 Parameters (0xF500-0xF50C) -->
     <control-tag name="Band6Gain" tag="62720"/>
     <control-tag name="Band6Pan" tag="62721"/>
     <control-tag name="Band6Solo" tag="62722"/>
     <control-tag name="Band6Bypass" tag="62723"/>
     <control-tag name="Band6Mute" tag="62724"/>
+    <control-tag name="Band6Expanded" tag="62725"/>
+    <control-tag name="Band6ActiveNodes" tag="62726"/>
+    <control-tag name="Band6MorphSmoothing" tag="62727"/>
     <control-tag name="Band6MorphX" tag="62728"/>
     <control-tag name="Band6MorphY" tag="62729"/>
     <control-tag name="Band6MorphMode" tag="62730"/>
+    <control-tag name="Band6MorphXLink" tag="62731"/>
+    <control-tag name="Band6MorphYLink" tag="62732"/>
 
-    <!-- Band 7 Parameters (0xF600-0xF60A) -->
+    <!-- Band 7 Parameters (0xF600-0xF60C) -->
     <control-tag name="Band7Gain" tag="62976"/>
     <control-tag name="Band7Pan" tag="62977"/>
     <control-tag name="Band7Solo" tag="62978"/>
     <control-tag name="Band7Bypass" tag="62979"/>
     <control-tag name="Band7Mute" tag="62980"/>
+    <control-tag name="Band7Expanded" tag="62981"/>
+    <control-tag name="Band7ActiveNodes" tag="62982"/>
+    <control-tag name="Band7MorphSmoothing" tag="62983"/>
     <control-tag name="Band7MorphX" tag="62984"/>
     <control-tag name="Band7MorphY" tag="62985"/>
     <control-tag name="Band7MorphMode" tag="62986"/>
+    <control-tag name="Band7MorphXLink" tag="62987"/>
+    <control-tag name="Band7MorphYLink" tag="62988"/>
 
-    <!-- Band 8 Parameters (0xF700-0xF70A) -->
+    <!-- Band 8 Parameters (0xF700-0xF70C) -->
     <control-tag name="Band8Gain" tag="63232"/>
     <control-tag name="Band8Pan" tag="63233"/>
     <control-tag name="Band8Solo" tag="63234"/>
     <control-tag name="Band8Bypass" tag="63235"/>
     <control-tag name="Band8Mute" tag="63236"/>
+    <control-tag name="Band8Expanded" tag="63237"/>
+    <control-tag name="Band8ActiveNodes" tag="63238"/>
+    <control-tag name="Band8MorphSmoothing" tag="63239"/>
     <control-tag name="Band8MorphX" tag="63240"/>
     <control-tag name="Band8MorphY" tag="63241"/>
     <control-tag name="Band8MorphMode" tag="63242"/>
+    <control-tag name="Band8MorphXLink" tag="63243"/>
+    <control-tag name="Band8MorphYLink" tag="63244"/>
 
     <!-- Band 1 Node 1 Parameters (0x0000-0x0006) -->
     <control-tag name="B1N1Type" tag="0"/>
@@ -240,7 +280,45 @@
     <control-tag name="B8N1Folds" tag="1797"/>
     <control-tag name="B8N1BitDepth" tag="1798"/>
 
-    <!-- UI-only visibility tags (9000+) -->
+    <!-- =======================================================================
+         Node 2/3/4 Parameters for Band 1 (US7 Node Editor Support)
+         Node 2: 0x1000-0x1006 (4096-4102)
+         Node 3: 0x2000-0x2006 (8192-8198)
+         Node 4: 0x3000-0x3006 (12288-12294)
+         ======================================================================= -->
+
+    <!-- Band 1 Node 2 Parameters (0x1000-0x1006) -->
+    <control-tag name="B1N2Type" tag="4096"/>
+    <control-tag name="B1N2Drive" tag="4097"/>
+    <control-tag name="B1N2Mix" tag="4098"/>
+    <control-tag name="B1N2Tone" tag="4099"/>
+    <control-tag name="B1N2Bias" tag="4100"/>
+    <control-tag name="B1N2Folds" tag="4101"/>
+    <control-tag name="B1N2BitDepth" tag="4102"/>
+
+    <!-- Band 1 Node 3 Parameters (0x2000-0x2006) -->
+    <control-tag name="B1N3Type" tag="8192"/>
+    <control-tag name="B1N3Drive" tag="8193"/>
+    <control-tag name="B1N3Mix" tag="8194"/>
+    <control-tag name="B1N3Tone" tag="8195"/>
+    <control-tag name="B1N3Bias" tag="8196"/>
+    <control-tag name="B1N3Folds" tag="8197"/>
+    <control-tag name="B1N3BitDepth" tag="8198"/>
+
+    <!-- Band 1 Node 4 Parameters (0x3000-0x3006) -->
+    <control-tag name="B1N4Type" tag="12288"/>
+    <control-tag name="B1N4Drive" tag="12289"/>
+    <control-tag name="B1N4Mix" tag="12290"/>
+    <control-tag name="B1N4Tone" tag="12291"/>
+    <control-tag name="B1N4Bias" tag="12292"/>
+    <control-tag name="B1N4Folds" tag="12293"/>
+    <control-tag name="B1N4BitDepth" tag="12294"/>
+
+    <!-- Band 1 Node Selection (US7 FR-025) -->
+    <control-tag name="Band1SelectedNode" tag="61453"/>
+    <control-tag name="Band1DisplayedType" tag="61454"/>
+
+    <!-- UI-only visibility tags (9000+) - Band containers for band count visibility -->
     <control-tag name="Band1Container" tag="9000"/>
     <control-tag name="Band2Container" tag="9001"/>
     <control-tag name="Band3Container" tag="9002"/>
@@ -249,6 +327,16 @@
     <control-tag name="Band6Container" tag="9005"/>
     <control-tag name="Band7Container" tag="9006"/>
     <control-tag name="Band8Container" tag="9007"/>
+
+    <!-- UI-only visibility tags (9100+) - Expanded containers for expand/collapse (T079) -->
+    <control-tag name="Band1ExpandedContainer" tag="9100"/>
+    <control-tag name="Band2ExpandedContainer" tag="9101"/>
+    <control-tag name="Band3ExpandedContainer" tag="9102"/>
+    <control-tag name="Band4ExpandedContainer" tag="9103"/>
+    <control-tag name="Band5ExpandedContainer" tag="9104"/>
+    <control-tag name="Band6ExpandedContainer" tag="9105"/>
+    <control-tag name="Band7ExpandedContainer" tag="9106"/>
+    <control-tag name="Band8ExpandedContainer" tag="9107"/>
   </control-tags>
 
   <!-- Gradients -->
@@ -327,14 +415,18 @@
       <!-- Band 1 Strip (FR-014) -->
       <view class="CViewContainer" origin="0, 0" size="235, 340" background-color="panel"
             control-tag="Band1Container">
-        <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 1"
+        <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 1"
               font="section-font" font-color="band-1" text-alignment="center"/>
+        <!-- Expand Button (+) - T074, wired to Band1Expanded (T082) -->
+        <view class="COnOffButton" origin="200, 5" size="25, 20"
+              control-tag="Band1Expanded" default-value="0"/>
 
         <!-- Type Selector -->
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type"
               font="small-font" font-color="text-secondary"/>
+        <!-- Bound to Band1DisplayedType for bidirectional node type editing -->
         <view class="COptionMenu" origin="10, 45" size="215, 22"
-              control-tag="B1N1Type" font="value-font"
+              control-tag="Band1DisplayedType" font="value-font"
               font-color="text-primary" back-color="background-secondary" frame-color="border"/>
 
         <!-- Drive & Mix Row -->
@@ -611,6 +703,145 @@
                 font="small-font" font-color="text-secondary" text-alignment="center"/>
         </view>
       </view>
+
+      <!-- Band 1 Expanded View (FR-015, T079) -->
+      <!-- Controlled by ExpandedVisibilityController via tag 9100 -->
+      <!-- Initially hidden, shown when Band1Expanded >= 0.5 -->
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel">
+        <!-- Hidden control for visibility controller to find this container by tag -->
+        <view class="CParamDisplay" origin="0, 0" size="0, 0"
+              control-tag="Band1ExpandedContainer" back-color="transparent"/>
+        <!-- Inline BandStripExpanded content for Band 1 -->
+
+        <!-- Header Section -->
+        <view class="CViewContainer" origin="0, 0" size="680, 40" background-color="background-secondary">
+          <view class="CTextLabel" origin="10, 10" size="60, 20" title="Band 1"
+                font="section-font" font-color="band-1" text-alignment="left"/>
+          <!-- Collapse Button (-) wired to Band1Expanded -->
+          <view class="COnOffButton" origin="640, 8" size="30, 24"
+                control-tag="Band1Expanded" default-value="1"/>
+          <!-- Type Dropdown in header -->
+          <view class="CTextLabel" origin="80, 12" size="35, 16" title="Type"
+                font="small-font" font-color="text-secondary"/>
+          <!-- Bound to Band1DisplayedType for bidirectional node type editing -->
+          <view class="COptionMenu" origin="115, 10" size="100, 20"
+                control-tag="Band1DisplayedType" font="value-font"
+                font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+          <!-- Basic Drive/Mix Knobs -->
+          <view class="CTextLabel" origin="230, 2" size="40, 12" title="Drive"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CKnob" origin="235, 14" size="30, 24"
+                control-tag="B1N1Drive" default-value="0.1" min-value="0" max-value="1"
+                background-color="panel" handle-color="accent-primary"/>
+          <view class="CTextLabel" origin="280, 2" size="40, 12" title="Mix"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CKnob" origin="285, 14" size="30, 24"
+                control-tag="B1N1Mix" default-value="1.0" min-value="0" max-value="1"
+                background-color="panel" handle-color="accent-primary"/>
+        </view>
+
+        <!-- Morph Section (left, 200px) - FR-016, FR-017, FR-018 -->
+        <view class="CViewContainer" origin="0, 45" size="200, 230" background-color="panel">
+          <view class="CTextLabel" origin="0, 0" size="200, 16" title="Morph"
+                font="section-font" font-color="text-primary" text-alignment="center"/>
+          <!-- Mini MorphPad (180x120) -->
+          <view class="CView" custom-view-name="MorphPad" origin="10, 20" size="180, 120"
+                band="0"/>
+          <!-- Morph Mode Selector -->
+          <view class="CTextLabel" origin="10, 145" size="60, 12" title="Mode"
+                font="small-font" font-color="text-secondary"/>
+          <view class="CSegmentButton" origin="10, 158" size="180, 22"
+                control-tag="Band1MorphMode" default-value="0.33"
+                style="horizontal" segment-names="1D, 2D, Radial"
+                font="small-font" font-color="text-primary"
+                frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+          <!-- Active Nodes Selector -->
+          <view class="CTextLabel" origin="10, 183" size="60, 12" title="Nodes"
+                font="small-font" font-color="text-secondary"/>
+          <view class="CSegmentButton" origin="70, 182" size="90, 20"
+                control-tag="Band1ActiveNodes" default-value="1.0"
+                style="horizontal" segment-names="2, 3, 4"
+                font="small-font" font-color="text-primary"
+                frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+          <!-- Morph Smoothing Knob - FR-031 -->
+          <view class="CTextLabel" origin="10, 205" size="60, 12" title="Smooth"
+                font="small-font" font-color="text-secondary"/>
+          <view class="CKnob" origin="75, 200" size="30, 25"
+                control-tag="Band1MorphSmoothing"
+                default-value="0" min-value="0" max-value="1"
+                background-color="background-secondary" handle-color="accent-secondary"/>
+          <view class="CTextLabel" origin="108, 210" size="30, 12" title="ms"
+                font="small-font" font-color="text-secondary"/>
+        </view>
+
+        <!-- Type-Specific Section (center, 280px) - FR-019, US7 -->
+        <view class="CViewContainer" origin="205, 45" size="280, 230" background-color="panel">
+          <!-- NodeEditorBorder: Debug overlay showing selected node color -->
+          <view class="CView" custom-view-name="NodeEditorBorder" origin="0, 0" size="280, 230" band="0"/>
+          <!-- Node Editor Header -->
+          <view class="CViewContainer" origin="0, 0" size="280, 20" background-color="background-secondary">
+            <view class="CTextLabel" origin="5, 2" size="50, 12" title="Node:"
+                  font="small-font" font-color="text-secondary"/>
+            <!-- Node Selector (A/B/C/D) - FR-025, US6 -->
+            <!-- DynamicNodeSelector: Custom CSegmentButton that shows/hides segments based on ActiveNodes -->
+            <view class="CView" custom-view-name="DynamicNodeSelector" origin="55, 2" size="135, 16" band="0"
+                  control-tag="Band1SelectedNode"/>
+          </view>
+          <!-- Hidden proxy control for Band1DisplayedType - required for UIViewSwitchContainer -->
+          <!-- UIViewSwitchContainer listens via IControlListener, not IDependent, so needs a real control -->
+          <view class="CSlider" origin="0, 22" size="1, 1" transparent="true"
+                control-tag="Band1DisplayedType" min-value="0" max-value="1"/>
+          <!-- UIViewSwitchContainer for type-specific parameters -->
+          <!-- Bound to Band1DisplayedType proxy (updated by NodeSelectionController) -->
+          <view class="UIViewSwitchContainer" origin="0, 22" size="280, 201"
+                animation-time="0" template-switch-control="Band1DisplayedType"
+                template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
+        </view>
+
+        <!-- Output Section (right, 195px) - FR-035, FR-036 -->
+        <view class="CViewContainer" origin="490, 45" size="185, 230" background-color="panel">
+          <view class="CTextLabel" origin="0, 0" size="185, 16" title="Output"
+                font="section-font" font-color="text-primary" text-alignment="center"/>
+          <!-- Gain Knob -->
+          <view class="CTextLabel" origin="20, 25" size="60, 12" title="Gain"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CKnob" origin="30, 40" size="40, 40"
+                control-tag="Band1Gain" default-value="0.5" min-value="0" max-value="1"
+                background-color="background-secondary" handle-color="accent-primary"/>
+          <!-- Pan Knob -->
+          <view class="CTextLabel" origin="100, 25" size="60, 12" title="Pan"
+                font="small-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CKnob" origin="110, 40" size="40, 40"
+                control-tag="Band1Pan" default-value="0.5" min-value="0" max-value="1"
+                background-color="background-secondary" handle-color="accent-primary"/>
+          <!-- Solo/Bypass/Mute Toggles -->
+          <view class="CTextLabel" origin="10, 105" size="165, 16" title="Controls"
+                font="label-font" font-color="text-secondary" text-alignment="center"/>
+          <view class="CTextButton" origin="25, 125" size="40, 30" title="Solo"
+                control-tag="Band1Solo"
+                font="small-font" font-color="text-primary" frame-color="border"
+                gradient="button-default" gradient-highlighted="button-active"/>
+          <view class="CTextButton" origin="75, 125" size="40, 30" title="Bypass"
+                control-tag="Band1Bypass"
+                font="small-font" font-color="text-primary" frame-color="border"
+                gradient="button-default" gradient-highlighted="button-active"/>
+          <view class="CTextButton" origin="125, 125" size="40, 30" title="Mute"
+                control-tag="Band1Mute"
+                font="small-font" font-color="text-primary" frame-color="border"
+                gradient="button-default" gradient-highlighted="button-active"/>
+          <!-- Morph X/Y Link Dropdowns (FR-032, FR-033) -->
+          <view class="CTextLabel" origin="10, 165" size="80, 12" title="Morph X Link"
+                font="small-font" font-color="text-secondary"/>
+          <view class="COptionMenu" origin="90, 163" size="90, 18"
+                control-tag="Band1MorphXLink" font="small-font"
+                font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+          <view class="CTextLabel" origin="10, 188" size="80, 12" title="Morph Y Link"
+                font="small-font" font-color="text-secondary"/>
+          <view class="COptionMenu" origin="90, 186" size="90, 18"
+                control-tag="Band1MorphYLink" font="small-font"
+                font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+        </view>
+      </view>
     </view>
 
     <!-- Footer/Status Bar -->
@@ -637,4 +868,1291 @@
     </view>
 
   </template>
+
+  <!-- =======================================================================
+       Type-Specific Parameter Templates (FR-021)
+       =======================================================================
+       These templates are used with UIViewSwitchContainer to show type-specific
+       controls based on the selected distortion type.
+
+       Template indices map to DistortionType enum values (0-25).
+  -->
+
+  <!-- D01: Soft Clip - Curve, Knee (2 knobs) -->
+  <template name="TypeParams_SoftClip" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Soft Clip"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="30, 35" size="60, 15" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="35, 50" size="50, 50"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="130, 35" size="60, 15" title="Knee"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="135, 50" size="50, 50"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+  </template>
+
+  <!-- D02: Hard Clip - Threshold, Ceiling (2 knobs) -->
+  <template name="TypeParams_HardClip" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Hard Clip"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="30, 35" size="60, 15" title="Threshold"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="35, 50" size="50, 50"
+          default-value="0.7" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="130, 35" size="60, 15" title="Ceiling"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="135, 50" size="50, 50"
+          default-value="1.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+  </template>
+
+  <!-- D03: Tube - Bias, Sag, Stage (2 knobs, 1 dropdown) -->
+  <template name="TypeParams_Tube" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Tube"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="20, 35" size="50, 15" title="Bias"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="22, 50" size="45, 45"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="85, 35" size="50, 15" title="Sag"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="87, 50" size="45, 45"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="160, 35" size="60, 15" title="Stage"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="150, 55" size="80, 22"
+          font="value-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+  </template>
+
+  <!-- D04: Tape - Bias, Sag, Speed, Model, HF Roll, Flutter (6 controls) -->
+  <template name="TypeParams_Tape" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Tape"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="10, 30" size="45, 12" title="Bias"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="10, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="55, 30" size="45, 12" title="Sag"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="55, 42" size="40, 40"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="100, 30" size="45, 12" title="Speed"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="100, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="150, 30" size="60, 12" title="Model"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="150, 44" size="60, 18"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="215, 30" size="40, 12" title="HF Roll"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="215, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="255, 30" size="40, 12" title="Flutter"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="255, 42" size="40, 40"
+          default-value="0.2" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+  </template>
+
+  <!-- D05: Fuzz - Bias, Gate, Transistor, Octave, Sustain (5 controls) -->
+  <template name="TypeParams_Fuzz" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Fuzz"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="10, 30" size="45, 12" title="Bias"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="12, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="55, 30" size="45, 12" title="Gate"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="57, 42" size="40, 40"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="105, 30" size="55, 12" title="Transistor"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="105, 45" size="55, 18"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="165, 30" size="45, 12" title="Octave"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="167, 42" size="40, 40"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="215, 30" size="50, 12" title="Sustain"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="217, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+  </template>
+
+  <!-- D06: Asym Fuzz - Bias, Asymmetry, Transistor, Gate, Sustain, Body (6 controls) -->
+  <template name="TypeParams_AsymFuzz" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Asymmetric Fuzz"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="5, 30" size="40, 12" title="Bias"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="5, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="48, 30" size="45, 12" title="Asym"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="50, 42" size="38, 38"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="93, 30" size="50, 12" title="Trans"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="93, 45" size="50, 18"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="148, 30" size="38, 12" title="Gate"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="150, 42" size="38, 38"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="193, 30" size="45, 12" title="Sustain"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="195, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+
+    <view class="CTextLabel" origin="243, 30" size="45, 12" title="Body"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="245, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-primary"/>
+  </template>
+
+  <!-- D07: Sine Fold - Folds, Symmetry, Shape, Bias, Smooth (5 knobs) -->
+  <template name="TypeParams_SineFold" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Sine Fold"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="15, 30" size="45, 12" title="Folds"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="17, 42" size="40, 40"
+          default-value="0.2" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="65, 30" size="50, 12" title="Symmetry"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="67, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="115, 30" size="45, 12" title="Shape"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="117, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="165, 30" size="45, 12" title="Bias"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="167, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="215, 30" size="45, 12" title="Smooth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="217, 42" size="40, 40"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+  </template>
+
+  <!-- D08: Triangle Fold - Folds, Symmetry, Angle, Bias, Smooth (5 knobs) -->
+  <template name="TypeParams_TriFold" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Triangle Fold"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="15, 30" size="45, 12" title="Folds"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="17, 42" size="40, 40"
+          default-value="0.2" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="65, 30" size="50, 12" title="Symmetry"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="67, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="115, 30" size="45, 12" title="Angle"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="117, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="165, 30" size="45, 12" title="Bias"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="167, 42" size="40, 40"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="215, 30" size="45, 12" title="Smooth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="217, 42" size="40, 40"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+  </template>
+
+  <!-- D09: Serge Fold - Folds, Symmetry, Model, Bias, Shape, Smooth (6 controls) -->
+  <template name="TypeParams_SergeFold" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Serge Fold"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="5, 30" size="40, 12" title="Folds"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="5, 42" size="38, 38"
+          default-value="0.2" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="48, 30" size="45, 12" title="Symm"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="50, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="93, 30" size="50, 12" title="Model"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="93, 45" size="50, 18"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="148, 30" size="38, 12" title="Bias"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="150, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="193, 30" size="40, 12" title="Shape"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="195, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+
+    <view class="CTextLabel" origin="238, 30" size="45, 12" title="Smooth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="240, 42" size="38, 38"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="accent-secondary"/>
+  </template>
+
+  <!-- D10: Full Rectify - Smooth, DC Block (1 knob, 1 toggle) -->
+  <template name="TypeParams_FullRectify" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Full Rectify"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="60, 35" size="60, 15" title="Smooth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="65, 50" size="50, 50"
+          default-value="0.2" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-4"/>
+
+    <view class="CTextLabel" origin="150, 35" size="80, 15" title="DC Block"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COnOffButton" origin="170, 55" size="40, 25" default-value="1"/>
+  </template>
+
+  <!-- D11: Half Rectify - Threshold, Smooth, DC Block (2 knobs, 1 toggle) -->
+  <template name="TypeParams_HalfRectify" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Half Rectify"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="30, 35" size="60, 15" title="Threshold"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="35, 50" size="50, 50"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-4"/>
+
+    <view class="CTextLabel" origin="110, 35" size="60, 15" title="Smooth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="115, 50" size="50, 50"
+          default-value="0.2" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-4"/>
+
+    <view class="CTextLabel" origin="190, 35" size="70, 15" title="DC Block"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COnOffButton" origin="205, 55" size="40, 25" default-value="1"/>
+  </template>
+
+  <!-- D12: Bitcrush - Bit Depth, Dither, Mode, Jitter (4 controls) -->
+  <template name="TypeParams_Bitcrush" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Bitcrush"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="15, 30" size="50, 12" title="Bits"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="17, 42" size="45, 45"
+          default-value="0.6" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="75, 30" size="50, 12" title="Dither"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="77, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="135, 30" size="50, 12" title="Mode"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="135, 45" size="55, 18"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="205, 30" size="50, 12" title="Jitter"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="207, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+  </template>
+
+  <!-- D13: Sample Reduce - Rate Ratio, Jitter, Mode, Smooth (4 controls) -->
+  <template name="TypeParams_SampleReduce" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Sample Reduce"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="15, 30" size="50, 12" title="Rate"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="17, 42" size="45, 45"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="75, 30" size="50, 12" title="Jitter"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="77, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="135, 30" size="50, 12" title="Mode"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="135, 45" size="55, 18"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="205, 30" size="50, 12" title="Smooth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="207, 42" size="45, 45"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+  </template>
+
+  <!-- D14: Quantize - Levels, Dither, Smooth, Offset (4 knobs) -->
+  <template name="TypeParams_Quantize" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Quantize"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="20, 30" size="50, 12" title="Levels"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="22, 42" size="45, 45"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="80, 30" size="50, 12" title="Dither"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="82, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="140, 30" size="50, 12" title="Smooth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="142, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="200, 30" size="50, 12" title="Offset"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="202, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+  </template>
+
+  <!-- D15: Temporal - Mode, Sensitivity, Curve, Attack, Release, Depth, Lookahead, Hold (8 controls) -->
+  <template name="TypeParams_Temporal" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Temporal"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <!-- Row 1: Mode, Sensitivity, Curve, Attack -->
+    <view class="CTextLabel" origin="5, 28" size="35, 10" title="Mode"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="5, 38" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="45, 28" size="35, 10" title="Sens"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="45, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-5"/>
+
+    <view class="CTextLabel" origin="82, 28" size="35, 10" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="82, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-5"/>
+
+    <view class="CTextLabel" origin="119, 28" size="35, 10" title="Atk"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="119, 38" size="32, 32"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-5"/>
+
+    <!-- Row 2: Release, Depth, Lookahead, Hold -->
+    <view class="CTextLabel" origin="156, 28" size="35, 10" title="Rel"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="156, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-5"/>
+
+    <view class="CTextLabel" origin="193, 28" size="35, 10" title="Depth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="193, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-5"/>
+
+    <view class="CTextLabel" origin="230, 28" size="35, 10" title="Look"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="230, 38" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="265, 28" size="30, 10" title="Hold"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="263, 38" size="32, 32"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-5"/>
+  </template>
+
+  <!-- D16: Ring Sat - Mod Depth, Stages, Curve, Carrier, Bias, Carrier Freq (6 controls) -->
+  <template name="TypeParams_RingSat" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Ring Saturation"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="5, 30" size="40, 12" title="Mod"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="5, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="48, 30" size="40, 12" title="Stages"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="50, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="93, 30" size="40, 12" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="95, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="138, 30" size="50, 12" title="Carrier"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="138, 45" size="50, 18"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="193, 30" size="38, 12" title="Bias"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="195, 42" size="38, 38"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="238, 30" size="50, 12" title="Freq"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="238, 45" size="55, 18"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+  </template>
+
+  <!-- D17: Feedback - Feedback, Delay, Curve, Filter, Filter Freq, Stages, Limiter, Limit Thresh (8 controls) -->
+  <template name="TypeParams_Feedback" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Feedback"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <!-- Row 1 -->
+    <view class="CTextLabel" origin="5, 28" size="35, 10" title="FB"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="5, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="42, 28" size="35, 10" title="Delay"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="42, 38" size="32, 32"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="79, 28" size="35, 10" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="79, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="116, 28" size="35, 10" title="Filter"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="116, 40" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <!-- Row 2 -->
+    <view class="CTextLabel" origin="156, 28" size="35, 10" title="Freq"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="156, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="193, 28" size="35, 10" title="Stage"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="193, 40" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="233, 28" size="30, 10" title="Lim"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COnOffButton" origin="233, 40" size="25, 20" default-value="1"/>
+
+    <view class="CTextLabel" origin="263, 28" size="32, 10" title="Thr"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="263, 38" size="32, 32"
+          default-value="0.8" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+  </template>
+
+  <!-- D18: Aliasing - Downsample, Freq Shift, Pre-Filter, Feedback, Resonance (5 controls) -->
+  <template name="TypeParams_Aliasing" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Aliasing"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="10, 30" size="50, 12" title="Down"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="12, 42" size="45, 45"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="65, 30" size="50, 12" title="Shift"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="67, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="120, 30" size="50, 12" title="PreFlt"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COnOffButton" origin="130, 48" size="30, 25" default-value="0"/>
+
+    <view class="CTextLabel" origin="175, 30" size="50, 12" title="FB"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="177, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="230, 30" size="50, 12" title="Reso"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="232, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+  </template>
+
+  <!-- D19: Bitwise - Operation, Intensity, Pattern, Bit Range, Smooth (5 controls) -->
+  <template name="TypeParams_Bitwise" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Bitwise Mangler"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="10, 30" size="50, 12" title="Op"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="10, 45" size="50, 18"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="68, 30" size="50, 12" title="Intensity"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="70, 42" size="45, 45"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="125, 30" size="50, 12" title="Pattern"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="127, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="180, 30" size="50, 12" title="Bits"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CSlider" origin="182, 48" size="50, 20" orientation="horizontal"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="slider-track" handle-color="band-3"/>
+
+    <view class="CTextLabel" origin="240, 30" size="50, 12" title="Smooth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="242, 42" size="45, 45"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-3"/>
+  </template>
+
+  <!-- D20: Chaos - Attractor, Speed, Amount, Coupling, X-Drive, Y-Drive, Smooth, Seed (8 controls) -->
+  <template name="TypeParams_Chaos" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Chaos"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="5, 28" size="35, 10" title="Attr"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="5, 38" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="45, 28" size="30, 10" title="Spd"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="42, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="79, 28" size="30, 10" title="Amt"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="76, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="113, 28" size="35, 10" title="Coup"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="113, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="150, 28" size="30, 10" title="X-Dr"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="147, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="184, 28" size="30, 10" title="Y-Dr"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="181, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="218, 28" size="35, 10" title="Smth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="218, 38" size="32, 32"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="255, 28" size="35, 10" title="Seed"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CTextButton" origin="255, 40" size="38, 22" title="New"
+          font="small-font" font-color="text-primary" frame-color="border"
+          gradient="button-default" gradient-highlighted="button-active"/>
+  </template>
+
+  <!-- D21: Formant - Vowel, Shift, Curve, Resonance, Bandwidth, Formants, Gender, Blend (8 controls) -->
+  <template name="TypeParams_Formant" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Formant"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="5, 28" size="35, 10" title="Vowel"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="5, 38" size="38, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="48, 28" size="30, 10" title="Shift"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="45, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="82, 28" size="32, 10" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="79, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="116, 28" size="30, 10" title="Reso"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="113, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="150, 28" size="30, 10" title="BW"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="147, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="184, 28" size="35, 10" title="Fmts"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="181, 40" size="38, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="224, 28" size="35, 10" title="Gendr"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="221, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="258, 28" size="35, 10" title="Blend"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="255, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+  </template>
+
+  <!-- D22: Granular - Grain Size, Density, Pitch Var, Drive Var, Position, Curve, Envelope, Spread, Freeze (9 controls) -->
+  <template name="TypeParams_Granular" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Granular"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <!-- Row 1: Size, Density, PVar, DVar, Pos -->
+    <view class="CTextLabel" origin="5, 28" size="28, 10" title="Size"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="3, 38" size="30, 30"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="38, 28" size="28, 10" title="Dens"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="36, 38" size="30, 30"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="71, 28" size="28, 10" title="PVar"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="69, 38" size="30, 30"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="104, 28" size="28, 10" title="DVar"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="102, 38" size="30, 30"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="137, 28" size="28, 10" title="Pos"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="135, 38" size="30, 30"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <!-- Row 2: Curve, Env, Spread, Freeze -->
+    <view class="CTextLabel" origin="170, 28" size="28, 10" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="168, 38" size="30, 30"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="203, 28" size="28, 10" title="Env"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="201, 40" size="32, 14"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="238, 28" size="28, 10" title="Sprd"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="236, 40" size="32, 14"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="273, 28" size="25, 10" title="Frz"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COnOffButton" origin="273, 40" size="22, 20" default-value="0"/>
+  </template>
+
+  <!-- D23: Spectral - Mode, FFT Size, Curve, Tilt, Thresh, Mag Bits, Freq Range, Phase Mode (8 controls) -->
+  <template name="TypeParams_Spectral" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Spectral"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="5, 28" size="35, 10" title="Mode"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="5, 38" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="45, 28" size="30, 10" title="FFT"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="42, 38" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="82, 28" size="30, 10" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="79, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="116, 28" size="30, 10" title="Tilt"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="113, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="150, 28" size="30, 10" title="Thr"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="147, 38" size="32, 32"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="184, 28" size="30, 10" title="Mag"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="181, 40" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="221, 28" size="30, 10" title="Freq"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CSlider" origin="218, 42" size="40, 18" orientation="horizontal"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="slider-track" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="263, 28" size="32, 10" title="Phase"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="260, 40" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+  </template>
+
+  <!-- D24: Fractal - Mode, Iterations, Scale, Curve, Freq Decay, Feedback, Blend, Depth (8 controls) -->
+  <template name="TypeParams_Fractal" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Fractal"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="5, 28" size="35, 10" title="Mode"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="5, 38" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="45, 28" size="30, 10" title="Iter"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="42, 38" size="32, 32"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="79, 28" size="30, 10" title="Scale"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="76, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="113, 28" size="30, 10" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="110, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="147, 28" size="32, 10" title="FDecay"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="147, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="184, 28" size="28, 10" title="FB"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="181, 38" size="32, 32"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="218, 28" size="35, 10" title="Blend"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="218, 40" size="38, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="261, 28" size="30, 10" title="Depth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="258, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+  </template>
+
+  <!-- D25: Stochastic - Base Curve, Jitter, Jitter Rate, Coeff Noise, Drift, Seed, Correlation, Smooth (8 controls) -->
+  <template name="TypeParams_Stochastic" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Stochastic"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="5, 28" size="35, 10" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="5, 38" size="38, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="48, 28" size="30, 10" title="Jit"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="45, 38" size="32, 32"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="82, 28" size="30, 10" title="Rate"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="79, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="116, 28" size="30, 10" title="Coef"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="113, 38" size="32, 32"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="150, 28" size="30, 10" title="Drift"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="147, 38" size="32, 32"
+          default-value="0.0" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+
+    <view class="CTextLabel" origin="184, 28" size="30, 10" title="Seed"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CTextButton" origin="181, 40" size="35, 18" title="New"
+          font="small-font" font-color="text-primary" frame-color="border"
+          gradient="button-default" gradient-highlighted="button-active"/>
+
+    <view class="CTextLabel" origin="221, 28" size="35, 10" title="Corr"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="218, 40" size="38, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="261, 28" size="30, 10" title="Smth"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="258, 38" size="32, 32"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-7"/>
+  </template>
+
+  <!-- D26: Allpass Resonant - Topology, Frequency, Feedback, Decay, Curve, Stages, Pitch Track, Damping (8 controls) -->
+  <template name="TypeParams_AllpassRes" class="CViewContainer" size="300, 120"
+            background-color="panel">
+    <view class="CTextLabel" origin="10, 5" size="280, 18" title="Allpass Resonant"
+          font="section-font" font-color="text-primary" text-alignment="center"/>
+
+    <view class="CTextLabel" origin="5, 28" size="35, 10" title="Topo"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="5, 38" size="38, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="48, 28" size="30, 10" title="Freq"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="45, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="82, 28" size="28, 10" title="FB"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="79, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="116, 28" size="30, 10" title="Decay"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="113, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="150, 28" size="30, 10" title="Curve"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="147, 38" size="32, 32"
+          default-value="0.5" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+
+    <view class="CTextLabel" origin="184, 28" size="35, 10" title="Stage"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" origin="184, 40" size="35, 16"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <view class="CTextLabel" origin="224, 28" size="30, 10" title="Pitch"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COnOffButton" origin="226, 40" size="25, 20" default-value="0"/>
+
+    <view class="CTextLabel" origin="256, 28" size="35, 10" title="Damp"
+          font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CKnob" origin="255, 38" size="32, 32"
+          default-value="0.3" min-value="0" max-value="1"
+          background-color="background-secondary" handle-color="band-6"/>
+  </template>
+
+  <!-- =======================================================================
+       BandStripExpanded Template (T073, FR-013)
+       =======================================================================
+       Expanded band view with full morph controls and type-specific parameters.
+       Size: 680x280 per ui-mockups.md
+
+       Layout:
+       - Header (0-40): Band name, collapse button, basic controls
+       - Morph Section (0-200, 40-280): Mini MorphPad, mode selectors
+       - Type-Specific Section (200-480, 40-280): UIViewSwitchContainer
+       - Output Section (480-680, 40-280): Gain, Pan, Solo/Bypass/Mute
+  -->
+  <template name="BandStripExpanded" class="CViewContainer" size="680, 280"
+            background-color="panel">
+
+    <!-- Header Section (reuse collapsed header elements) -->
+    <view class="CViewContainer" origin="0, 0" size="680, 40" background-color="background-secondary">
+      <!-- Band Label -->
+      <view class="CTextLabel" origin="10, 10" size="60, 20" title="Band 1"
+            font="section-font" font-color="band-1" text-alignment="left"/>
+
+      <!-- Collapse Button (-) - Wired to Band1Expanded parameter (T082) -->
+      <!-- Note: For actual band instantiation, control-tag should be set dynamically -->
+      <view class="COnOffButton" origin="640, 8" size="30, 24"
+            control-tag="Band1Expanded" default-value="1"/>
+
+      <!-- Type Dropdown (shows Node 0 type) -->
+      <view class="CTextLabel" origin="80, 12" size="35, 16" title="Type"
+            font="small-font" font-color="text-secondary"/>
+      <view class="COptionMenu" origin="115, 10" size="100, 20"
+            font="value-font" font-color="text-primary"
+            back-color="background-secondary" frame-color="border"/>
+
+      <!-- Basic Drive/Mix/Tone Knobs in Header -->
+      <view class="CTextLabel" origin="230, 2" size="40, 12" title="Drive"
+            font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="CKnob" origin="235, 14" size="30, 24"
+            default-value="0.1" min-value="0" max-value="1"
+            background-color="panel" handle-color="accent-primary"/>
+
+      <view class="CTextLabel" origin="280, 2" size="40, 12" title="Mix"
+            font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="CKnob" origin="285, 14" size="30, 24"
+            default-value="1.0" min-value="0" max-value="1"
+            background-color="panel" handle-color="accent-primary"/>
+
+      <view class="CTextLabel" origin="330, 2" size="40, 12" title="Tone"
+            font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="CKnob" origin="335, 14" size="30, 24"
+            default-value="0.5" min-value="0" max-value="1"
+            background-color="panel" handle-color="accent-primary"/>
+
+      <!-- Solo/Bypass/Mute in Header -->
+      <view class="CTextButton" origin="400, 10" size="25, 20" title="S"
+            font="small-font" font-color="text-primary" frame-color="border"
+            gradient="button-default" gradient-highlighted="button-active"/>
+      <view class="CTextButton" origin="430, 10" size="25, 20" title="B"
+            font="small-font" font-color="text-primary" frame-color="border"
+            gradient="button-default" gradient-highlighted="button-active"/>
+      <view class="CTextButton" origin="460, 10" size="25, 20" title="M"
+            font="small-font" font-color="text-primary" frame-color="border"
+            gradient="button-default" gradient-highlighted="button-active"/>
+    </view>
+
+    <!-- Morph Section (left, 200px wide) -->
+    <view class="CViewContainer" origin="0, 45" size="200, 230" background-color="panel">
+      <view class="CTextLabel" origin="0, 0" size="200, 16" title="Morph"
+            font="section-font" font-color="text-primary" text-alignment="center"/>
+
+      <!-- Mini MorphPad (180x120) - FR-016 -->
+      <view class="CView" custom-view-name="MorphPad" origin="10, 20" size="180, 120"
+            band="0"/>
+
+      <!-- Morph Mode Selector - FR-017, T097 -->
+      <view class="CTextLabel" origin="10, 145" size="60, 12" title="Mode"
+            font="small-font" font-color="text-secondary"/>
+      <view class="CSegmentButton" origin="10, 158" size="180, 22"
+            control-tag="Band1MorphMode" default-value="0.33"
+            style="horizontal" segment-names="1D, 2D, Radial"
+            font="small-font" font-color="text-primary"
+            frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+
+      <!-- Active Nodes Selector - FR-018, T127 -->
+      <view class="CTextLabel" origin="10, 183" size="60, 12" title="Nodes"
+            font="small-font" font-color="text-secondary"/>
+      <view class="CSegmentButton" origin="70, 182" size="90, 20"
+            control-tag="Band1ActiveNodes" default-value="1.0"
+            style="horizontal" segment-names="2, 3, 4"
+            font="small-font" font-color="text-primary"
+            frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+
+      <!-- Morph Smoothing Knob - FR-031, T172, T173 -->
+      <view class="CTextLabel" origin="10, 205" size="60, 12" title="Smooth"
+            font="small-font" font-color="text-secondary"/>
+      <view class="CKnob" origin="75, 200" size="30, 25"
+            control-tag="Band1MorphSmoothing"
+            default-value="0" min-value="0" max-value="1"
+            background-color="background-secondary" handle-color="accent-secondary"/>
+      <view class="CTextLabel" origin="108, 210" size="30, 12" title="ms"
+            font="small-font" font-color="text-secondary"/>
+    </view>
+
+    <!-- Type-Specific Section (center, 280px wide) - FR-019, US7 -->
+    <view class="CViewContainer" origin="205, 45" size="280, 230" background-color="panel">
+      <!-- NodeEditorBorder: Debug overlay showing selected node color -->
+      <view class="CView" custom-view-name="NodeEditorBorder" origin="0, 0" size="280, 230" band="0"/>
+      <!-- Node Editor Header (T139) - Shows node letters with selection -->
+      <view class="CViewContainer" origin="0, 0" size="280, 20" background-color="background-secondary">
+        <view class="CTextLabel" origin="5, 2" size="50, 12" title="Node:"
+              font="small-font" font-color="text-secondary"/>
+
+        <!-- Node Selector (A/B/C/D) - FR-025, T140, US6 -->
+        <!-- DynamicNodeSelector: Custom CSegmentButton that shows/hides segments based on ActiveNodes -->
+        <!-- Wired to Band1SelectedNode - NodeSelectionController updates DisplayedType -->
+        <view class="CView" custom-view-name="DynamicNodeSelector" origin="55, 2" size="135, 16" band="0"
+              control-tag="Band1SelectedNode"/>
+      </view>
+
+      <!-- Hidden proxy control for Band1DisplayedType - required for UIViewSwitchContainer -->
+      <!-- UIViewSwitchContainer listens via IControlListener, not IDependent, so needs a real control -->
+      <view class="CSlider" origin="0, 22" size="1, 1" transparent="true"
+            control-tag="Band1DisplayedType" min-value="0" max-value="1"/>
+      <!-- UIViewSwitchContainer for type-specific parameters -->
+      <!-- Bound to Band1DisplayedType proxy (updated by NodeSelectionController) -->
+      <view class="UIViewSwitchContainer" origin="0, 22" size="280, 201"
+            animation-time="0" template-switch-control="Band1DisplayedType"
+            template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
+    </view>
+
+    <!-- Output Section (right, 195px wide) - FR-035, FR-036 -->
+    <view class="CViewContainer" origin="490, 45" size="185, 230" background-color="panel">
+      <view class="CTextLabel" origin="0, 0" size="185, 16" title="Output"
+            font="section-font" font-color="text-primary" text-alignment="center"/>
+
+      <!-- Gain Knob (-24dB to +24dB) - T181, T182 -->
+      <view class="CTextLabel" origin="20, 25" size="60, 12" title="Gain"
+            font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="CKnob" origin="30, 40" size="40, 40"
+            control-tag="Band1Gain"
+            default-value="0.5" min-value="0" max-value="1"
+            background-color="background-secondary" handle-color="accent-primary"/>
+      <view class="CTextLabel" origin="20, 82" size="60, 12" title="0.0 dB"
+            font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+      <!-- Pan Knob (-100% to +100%) - T181, T182 -->
+      <view class="CTextLabel" origin="100, 25" size="60, 12" title="Pan"
+            font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="CKnob" origin="110, 40" size="40, 40"
+            control-tag="Band1Pan"
+            default-value="0.5" min-value="0" max-value="1"
+            background-color="background-secondary" handle-color="accent-primary"/>
+      <view class="CTextLabel" origin="100, 82" size="60, 12" title="C"
+            font="small-font" font-color="text-secondary" text-alignment="center"/>
+
+      <!-- Solo/Bypass/Mute Toggles - T181, T182 -->
+      <view class="CTextLabel" origin="10, 105" size="165, 16" title="Controls"
+            font="label-font" font-color="text-secondary" text-alignment="center"/>
+
+      <view class="CTextButton" origin="25, 125" size="40, 30" title="Solo"
+            control-tag="Band1Solo"
+            font="small-font" font-color="text-primary" frame-color="border"
+            gradient="button-default" gradient-highlighted="button-active"/>
+      <view class="CTextButton" origin="75, 125" size="40, 30" title="Bypass"
+            control-tag="Band1Bypass"
+            font="small-font" font-color="text-primary" frame-color="border"
+            gradient="button-default" gradient-highlighted="button-active"/>
+      <view class="CTextButton" origin="125, 125" size="40, 30" title="Mute"
+            control-tag="Band1Mute"
+            font="small-font" font-color="text-primary" frame-color="border"
+            gradient="button-default" gradient-highlighted="button-active"/>
+
+      <!-- Morph X/Y Link Dropdowns (FR-032, FR-033, T155, T156, T157) -->
+      <view class="CTextLabel" origin="10, 170" size="80, 12" title="Morph X Link"
+            font="small-font" font-color="text-secondary"/>
+      <view class="COptionMenu" origin="90, 168" size="85, 18"
+            control-tag="Band1MorphXLink"
+            font="small-font" font-color="text-primary"
+            back-color="background-secondary" frame-color="border"/>
+
+      <view class="CTextLabel" origin="10, 195" size="80, 12" title="Morph Y Link"
+            font="small-font" font-color="text-secondary"/>
+      <view class="COptionMenu" origin="90, 193" size="85, 18"
+            control-tag="Band1MorphYLink"
+            font="small-font" font-color="text-primary"
+            back-color="background-secondary" frame-color="border"/>
+    </view>
+
+  </template>
+
+  <!-- =======================================================================
+       BandStripCollapsed Template (T074)
+       =======================================================================
+       Collapsed band view with minimal controls.
+       Size: 235x40 (fits in band strips container)
+  -->
+  <template name="BandStripCollapsed" class="CViewContainer" size="235, 40"
+            background-color="panel">
+
+    <!-- Band Label with color indicator -->
+    <view class="CTextLabel" origin="5, 10" size="50, 20" title="Band 1"
+          font="label-font" font-color="band-1" text-alignment="left"/>
+
+    <!-- Expand Button (+) - Wired to Band1Expanded parameter (T082) -->
+    <!-- Note: For actual band instantiation, control-tag should be set dynamically -->
+    <view class="COnOffButton" origin="200, 8" size="25, 24"
+          control-tag="Band1Expanded" default-value="0"/>
+
+    <!-- Type Dropdown (Node 0 type) - FR-029 -->
+    <view class="COptionMenu" origin="55, 10" size="70, 20"
+          font="small-font" font-color="text-primary"
+          back-color="background-secondary" frame-color="border"/>
+
+    <!-- Solo/Bypass/Mute mini buttons -->
+    <view class="CTextButton" origin="130, 12" size="20, 16" title="S"
+          font="small-font" font-color="text-primary" frame-color="border"
+          gradient="button-default" gradient-highlighted="button-active"/>
+    <view class="CTextButton" origin="152, 12" size="20, 16" title="B"
+          font="small-font" font-color="text-primary" frame-color="border"
+          gradient="button-default" gradient-highlighted="button-active"/>
+    <view class="CTextButton" origin="174, 12" size="20, 16" title="M"
+          font="small-font" font-color="text-primary" frame-color="border"
+          gradient="button-default" gradient-highlighted="button-active"/>
+
+  </template>
+
 </vstgui-ui-description>

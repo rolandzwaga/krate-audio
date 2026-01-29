@@ -118,15 +118,21 @@ constexpr bool isSweepParamId(Steinberg::Vst::ParamID paramId) {
 // =============================================================================
 
 enum class BandParamType : uint8_t {
-    kBandGain      = 0x00,  ///< Band gain in dB [-24, +24]
-    kBandPan       = 0x01,  ///< Band pan [-1, +1]
-    kBandSolo      = 0x02,  ///< Band solo flag
-    kBandBypass    = 0x03,  ///< Band bypass flag
-    kBandMute      = 0x04,  ///< Band mute flag
-    // 0x05-0x07 reserved
-    kBandMorphX    = 0x08,  ///< Morph X position [0, 1]
-    kBandMorphY    = 0x09,  ///< Morph Y position [0, 1]
-    kBandMorphMode = 0x0A,  ///< Morph mode [1D Linear, 2D Planar, 2D Radial]
+    kBandGain        = 0x00,  ///< Band gain in dB [-24, +24]
+    kBandPan         = 0x01,  ///< Band pan [-1, +1]
+    kBandSolo        = 0x02,  ///< Band solo flag
+    kBandBypass      = 0x03,  ///< Band bypass flag
+    kBandMute        = 0x04,  ///< Band mute flag
+    kBandExpanded    = 0x05,  ///< Band expanded state (UI only) [0=collapsed, 1=expanded]
+    kBandActiveNodes = 0x06,  ///< Active nodes count [2, 3, 4] (US6)
+    kBandMorphSmoothing = 0x07,  ///< Morph smoothing time [0, 500] ms (FR-031)
+    kBandMorphX      = 0x08,  ///< Morph X position [0, 1]
+    kBandMorphY      = 0x09,  ///< Morph Y position [0, 1]
+    kBandMorphMode   = 0x0A,  ///< Morph mode [1D Linear, 2D Planar, 2D Radial]
+    kBandMorphXLink  = 0x0B,  ///< Morph X Link mode (US8 FR-032)
+    kBandMorphYLink  = 0x0C,  ///< Morph Y Link mode (US8 FR-033)
+    kBandSelectedNode = 0x0D, ///< Selected node for editing (0-3) (US7 FR-025)
+    kBandDisplayedType = 0x0E, ///< Proxy type for UIViewSwitchContainer (mirrors selected node's type)
 };
 
 /// @brief Create parameter ID for per-band parameters.
@@ -298,6 +304,43 @@ constexpr Steinberg::Vst::ParamID kModulationParamEnd  = 0x0DFF;
 /// @return true if this is a modulation parameter
 constexpr bool isModulationParamId(Steinberg::Vst::ParamID paramId) {
     return paramId >= kModulationParamBase && paramId <= kModulationParamEnd;
+}
+
+// ==============================================================================
+// Morph Link Mode Enum (FR-032, FR-033)
+// ==============================================================================
+// Defines how morph X/Y axes link to sweep frequency.
+// Used by Band*MorphXLink and Band*MorphYLink parameters.
+// ==============================================================================
+
+enum class MorphLinkMode : uint8_t {
+    None = 0,       ///< Manual control only, no link to sweep
+    SweepFreq,      ///< Linear mapping: low freq = 0, high freq = 1
+    InverseSweep,   ///< Inverted: high freq = 0, low freq = 1
+    EaseIn,         ///< Exponential curve emphasizing low frequencies
+    EaseOut,        ///< Exponential curve emphasizing high frequencies
+    HoldRise,       ///< Hold at 0 until mid-point, then rise to 1
+    Stepped,        ///< Quantize to discrete steps (0, 0.25, 0.5, 0.75, 1.0)
+    COUNT           ///< Sentinel for iteration (7 modes)
+};
+
+/// @brief Total number of morph link modes.
+constexpr int kMorphLinkModeCount = static_cast<int>(MorphLinkMode::COUNT);
+
+/// @brief Get display name for a morph link mode.
+/// @param mode The morph link mode
+/// @return C-string display name
+constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
+    switch (mode) {
+        case MorphLinkMode::None:         return "None";
+        case MorphLinkMode::SweepFreq:    return "Sweep Freq";
+        case MorphLinkMode::InverseSweep: return "Inverse Sweep";
+        case MorphLinkMode::EaseIn:       return "Ease In";
+        case MorphLinkMode::EaseOut:      return "Ease Out";
+        case MorphLinkMode::HoldRise:     return "Hold-Rise";
+        case MorphLinkMode::Stepped:      return "Stepped";
+        default:                          return "Unknown";
+    }
 }
 
 // ==============================================================================
