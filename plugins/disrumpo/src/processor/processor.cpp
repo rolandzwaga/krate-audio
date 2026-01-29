@@ -505,7 +505,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                 // FR-002 to FR-005: Sweep frequency, width, intensity, falloff
                 // =================================================================
                 if (isSweepParamId(paramId)) {
-                    const SweepParamType sweepType = static_cast<SweepParamType>(paramId & 0xFF);
+                    const SweepParamType sweepType = static_cast<SweepParamType>(paramId & 0xFF); // NOLINT(modernize-use-auto) explicit type for readability
                     switch (sweepType) {
                         case SweepParamType::kSweepEnable:
                             // FR-011: Enable/disable sweep

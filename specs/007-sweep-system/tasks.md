@@ -452,8 +452,8 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 14.2 Final Commit
 
-- [ ] T114 **Commit architecture documentation updates**
-- [ ] T115 Verify all spec work is committed to 007-sweep-system feature branch
+- [X] T114 **Commit architecture documentation updates** - Included in commit ec53382
+- [X] T115 Verify all spec work is committed to 007-sweep-system feature branch - Working tree clean
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
@@ -467,20 +467,13 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 15.1 Run Clang-Tidy Analysis
 
-- [ ] T116 **Run clang-tidy** on all modified/new source files:
-  ```bash
-  # Windows (PowerShell)
-  ./tools/run-clang-tidy.ps1 -Target disrumpo
-
-  # Linux/macOS
-  ./tools/run-clang-tidy.sh --target disrumpo
-  ```
+- [X] T116 **Run clang-tidy** on all modified/new source files - Zero warnings in new sweep files
 
 ### 15.2 Address Findings
 
-- [ ] T117 **Fix all errors** reported by clang-tidy (blocking issues)
-- [ ] T118 **Review warnings** and fix where appropriate (use judgment for DSP code - Gaussian exp() may trigger performance warnings, suppress with NOLINT if needed)
-- [ ] T119 **Document suppressions** if any warnings are intentionally ignored (add NOLINT comment with reason)
+- [X] T117 **Fix all errors** reported by clang-tidy (blocking issues) - No errors found
+- [X] T118 **Review warnings** and fix where appropriate - One modernize-use-auto in processor.cpp suppressed with NOLINT (explicit type more readable)
+- [X] T119 **Document suppressions** - NOLINT comment added at processor.cpp:508 with reason
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 
