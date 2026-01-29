@@ -631,3 +631,213 @@ TEST_CASE("Macro output range is [0, +1]", "[systems][modulation_engine][us4]") 
     REQUIRE(maxOutput >= 0.0f);
     REQUIRE(maxOutput <= 1.01f);
 }
+
+// =============================================================================
+// Integration Tests - New Sources via Engine (US5-US9)
+// =============================================================================
+
+TEST_CASE("Engine random source integrates with routing", "[systems][modulation_engine][us5]") {
+    auto engine = createEngine(44100.0);
+
+    // Route Random to dest 10 with amount 0.5
+    ModRouting routing;
+    routing.source = ModSource::Random;
+    routing.destParamId = 10;
+    routing.amount = 0.5f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    engine.setRandomRate(20.0f);  // Fast rate
+
+    // Process 2 seconds
+    std::array<float, 512> silence{};
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    ctx.blockSize = 512;
+
+    bool hasModulation = false;
+    for (int block = 0; block < 172; ++block) {
+        engine.process(ctx, silence.data(), silence.data(), 512);
+        float offset = engine.getModulationOffset(10);
+        if (std::abs(offset) > 0.01f) {
+            hasModulation = true;
+        }
+    }
+
+    REQUIRE(hasModulation);
+}
+
+TEST_CASE("Engine chaos source integrates with routing", "[systems][modulation_engine][us6]") {
+    auto engine = createEngine(44100.0);
+
+    ModRouting routing;
+    routing.source = ModSource::Chaos;
+    routing.destParamId = 20;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    engine.setChaosSpeed(5.0f);
+
+    std::array<float, 512> silence{};
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    ctx.blockSize = 512;
+
+    bool hasModulation = false;
+    for (int block = 0; block < 100; ++block) {
+        engine.process(ctx, silence.data(), silence.data(), 512);
+        float offset = engine.getModulationOffset(20);
+        if (std::abs(offset) > 0.01f) {
+            hasModulation = true;
+        }
+    }
+
+    REQUIRE(hasModulation);
+}
+
+TEST_CASE("Engine transient source integrates with routing", "[systems][modulation_engine][us9]") {
+    auto engine = createEngine(44100.0);
+
+    ModRouting routing;
+    routing.source = ModSource::Transient;
+    routing.destParamId = 30;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    engine.setTransientSensitivity(0.9f);
+
+    // First, silence
+    std::array<float, 512> silence{};
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    ctx.blockSize = 512;
+
+    for (int block = 0; block < 10; ++block) {
+        engine.process(ctx, silence.data(), silence.data(), 512);
+    }
+
+    // Then loud signal (transient)
+    std::array<float, 512> loud{};
+    loud.fill(0.9f);
+
+    engine.process(ctx, loud.data(), loud.data(), 512);
+    float offset = engine.getModulationOffset(30);
+
+    // Transient detector should fire
+    REQUIRE(offset > 0.0f);
+}
+
+// =============================================================================
+// Edge Case Tests (Phase 17)
+// =============================================================================
+
+TEST_CASE("Engine routing with amount=0 has no effect", "[systems][modulation_engine][edge]") {
+    auto engine = createEngine(44100.0);
+
+    // Set up LFO with strong output
+    engine.setLFO1Rate(5.0f);
+    engine.setLFO1Waveform(Waveform::Sine);
+
+    // Route with zero amount
+    ModRouting routing;
+    routing.source = ModSource::LFO1;
+    routing.destParamId = 5;
+    routing.amount = 0.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    std::array<float, 512> silence{};
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    ctx.blockSize = 512;
+
+    engine.process(ctx, silence.data(), silence.data(), 512);
+
+    float offset = engine.getModulationOffset(5);
+    REQUIRE(std::abs(offset) < 0.001f);
+}
+
+TEST_CASE("Engine getModulatedValue clamps to [0, 1]", "[systems][modulation_engine][edge]") {
+    auto engine = createEngine(44100.0);
+
+    // Set macro to max value
+    engine.setMacroValue(0, 1.0f);
+
+    // Route Macro1 to dest with +100% amount
+    ModRouting routing;
+    routing.source = ModSource::Macro1;
+    routing.destParamId = 7;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    std::array<float, 512> silence{};
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    ctx.blockSize = 512;
+
+    engine.process(ctx, silence.data(), silence.data(), 512);
+
+    // Base 0.8 + large positive offset should clamp to 1.0
+    float val = engine.getModulatedValue(7, 0.8f);
+    REQUIRE(val >= 0.0f);
+    REQUIRE(val <= 1.0f);
+}
+
+TEST_CASE("Engine out-of-range destParamId returns 0 offset", "[systems][modulation_engine][edge]") {
+    auto engine = createEngine(44100.0);
+
+    // Requesting offset for ID beyond max destinations
+    float offset = engine.getModulationOffset(999);
+    REQUIRE(offset == Approx(0.0f));
+}
+
+TEST_CASE("Engine all 32 routing slots can be active", "[systems][modulation_engine][edge]") {
+    auto engine = createEngine(44100.0);
+
+    // Fill all 32 slots
+    for (size_t i = 0; i < kMaxModRoutings; ++i) {
+        ModRouting routing;
+        routing.source = ModSource::Macro1;
+        routing.destParamId = static_cast<uint32_t>(i % kMaxModDestinations);
+        routing.amount = 0.1f;
+        routing.curve = ModCurve::Linear;
+        routing.active = true;
+        engine.setRouting(i, routing);
+    }
+
+    REQUIRE(engine.getActiveRoutingCount() == kMaxModRoutings);
+
+    engine.setMacroValue(0, 0.5f);
+
+    // Process should not crash with 32 active routings
+    std::array<float, 512> silence{};
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    ctx.blockSize = 512;
+
+    engine.process(ctx, silence.data(), silence.data(), 512);
+
+    // Verify some offsets are non-zero
+    bool hasNonZero = false;
+    for (uint32_t i = 0; i < 32; ++i) {
+        if (std::abs(engine.getModulationOffset(i)) > 0.001f) {
+            hasNonZero = true;
+            break;
+        }
+    }
+    REQUIRE(hasNonZero);
+}
