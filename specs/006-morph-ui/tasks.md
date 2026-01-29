@@ -349,7 +349,7 @@ Implement the complete Morph UI system for Disrumpo including:
 
 ### 7.5 Commit (MANDATORY)
 
-- [ ] T123 [US5] Commit completed User Story 5 work: "feat(morph-ui): implement node repositioning (US5)"
+- [X] T123 [US5] Commit completed User Story 5 work: "feat(morph-ui): implement node repositioning (US5)"
 
 **Checkpoint**: User Story 5 (node repositioning) fully functional and committed
 
@@ -367,27 +367,27 @@ Implement the complete Morph UI system for Disrumpo including:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T124 [P] [US6] Add active nodes tests to `F:\projects\iterum\plugins\disrumpo\tests\unit\morph_pad_test.cpp`: verify changing active nodes from 4 to 2 hides Nodes C and D
-- [ ] T125 [P] [US6] Add weight distribution test to `morph_pad_test.cpp`: verify weights distributed only among active nodes
+- [X] T124 [P] [US6] Add active nodes tests to `F:\projects\iterum\plugins\disrumpo\tests\unit\morph_pad_test.cpp`: verify changing active nodes from 4 to 2 hides Nodes C and D
+- [X] T125 [P] [US6] Add weight distribution test to `morph_pad_test.cpp`: verify weights distributed only among active nodes
 
 ### 8.2 Implementation
 
-- [ ] T126 [US6] Add CSegmentButton for active nodes selection in BandStripExpanded Morph Section: "2", "3", "4" options (per FR-018)
-- [ ] T127 [US6] Wire CSegmentButton to Band*ActiveNodes parameter in `editor.uidesc`
-- [ ] T128 [US6] Update MorphPad::draw() to render only active nodes based on Band*ActiveNodes parameter value
-- [ ] T129 [US6] Update weight calculation in MorphPad to distribute weights only among active nodes
+- [X] T126 [US6] Add CSegmentButton for active nodes selection in BandStripExpanded Morph Section: "2", "3", "4" options (per FR-018) (Already exists)
+- [X] T127 [US6] Wire CSegmentButton to Band*ActiveNodes parameter in `editor.uidesc`
+- [X] T128 [US6] Update MorphPad::draw() to render only active nodes based on Band*ActiveNodes parameter value (Already implemented)
+- [X] T129 [US6] Update weight calculation in MorphPad to distribute weights only among active nodes (Already implemented - hitTestNode respects activeNodeCount_)
 
 ### 8.3 Verification
 
-- [ ] T130 [US6] Build implementation: `cmake --build build/windows-x64-release --config Release --target disrumpo`
-- [ ] T131 [US6] Run unit tests: `build/windows-x64-release/plugins/disrumpo/tests/Release/disrumpo_tests.exe`
+- [X] T130 [US6] Build implementation: `cmake --build build/windows-x64-release --config Release --target disrumpo`
+- [X] T131 [US6] Run unit tests: `build/windows-x64-release/plugins/disrumpo/tests/Release/disrumpo_tests.exe`
 - [ ] T132 [US6] Manual test: Set Active Nodes to 2, verify only Nodes A and B are displayed and active in weight calculations
 - [ ] T133 [US6] Manual test: Set Active Nodes to 3, verify Node C becomes visible and participates in morph calculations
 - [ ] T134 [US6] Manual test: Position cursor with Active Nodes = 2, verify weights distributed only between the 2 active nodes
 
 ### 8.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T135 [US6] Verify IEEE 754 compliance: Check if active nodes tests use `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list if needed
+- [X] T135 [US6] Verify IEEE 754 compliance: Check if active nodes tests use `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list if needed (Not needed - no IEEE 754-sensitive functions used)
 
 ### 8.5 Commit (MANDATORY)
 

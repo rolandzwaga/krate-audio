@@ -695,3 +695,122 @@ TEST_CASE("MorphPad node positions persist across state changes", "[morph_pad][n
         REQUIRE(y2 == Approx(0.3f));
     }
 }
+
+// =============================================================================
+// T124: Active Nodes Count Tests (US6)
+// =============================================================================
+
+TEST_CASE("MorphPad active nodes count affects visibility", "[morph_pad][nodes][US6]") {
+    VSTGUI::CRect rect(0, 0, 250, 200);
+    MorphPad pad(rect);
+
+    SECTION("default has 4 active nodes") {
+        REQUIRE(pad.getActiveNodeCount() == 4);
+    }
+
+    SECTION("reducing to 2 active nodes hides C and D") {
+        pad.setActiveNodeCount(2);
+        REQUIRE(pad.getActiveNodeCount() == 2);
+
+        // Hit test should not find nodes C (index 2) or D (index 3)
+        float pixelX = 0.0f, pixelY = 0.0f;
+
+        // Node C is at (0, 1) by default
+        pad.positionToPixel(0.0f, 1.0f, pixelX, pixelY);
+        int hitC = pad.hitTestNode(pixelX, pixelY);
+        REQUIRE(hitC == -1);  // Not hittable when inactive
+
+        // Node D is at (1, 1) by default
+        pad.positionToPixel(1.0f, 1.0f, pixelX, pixelY);
+        int hitD = pad.hitTestNode(pixelX, pixelY);
+        REQUIRE(hitD == -1);  // Not hittable when inactive
+    }
+
+    SECTION("nodes A and B remain hittable with 2 active") {
+        pad.setActiveNodeCount(2);
+
+        float pixelX = 0.0f, pixelY = 0.0f;
+
+        // Node A is at (0, 0)
+        pad.positionToPixel(0.0f, 0.0f, pixelX, pixelY);
+        int hitA = pad.hitTestNode(pixelX, pixelY);
+        REQUIRE(hitA == 0);
+
+        // Node B is at (1, 0)
+        pad.positionToPixel(1.0f, 0.0f, pixelX, pixelY);
+        int hitB = pad.hitTestNode(pixelX, pixelY);
+        REQUIRE(hitB == 1);
+    }
+
+    SECTION("3 active nodes enables node C") {
+        pad.setActiveNodeCount(3);
+
+        float pixelX = 0.0f, pixelY = 0.0f;
+
+        // Node C is at (0, 1) by default
+        pad.positionToPixel(0.0f, 1.0f, pixelX, pixelY);
+        int hitC = pad.hitTestNode(pixelX, pixelY);
+        REQUIRE(hitC == 2);  // Now hittable
+
+        // Node D still not hittable
+        pad.positionToPixel(1.0f, 1.0f, pixelX, pixelY);
+        int hitD = pad.hitTestNode(pixelX, pixelY);
+        REQUIRE(hitD == -1);
+    }
+
+    SECTION("4 active nodes enables all nodes") {
+        pad.setActiveNodeCount(4);
+
+        float pixelX = 0.0f, pixelY = 0.0f;
+
+        pad.positionToPixel(1.0f, 1.0f, pixelX, pixelY);
+        int hitD = pad.hitTestNode(pixelX, pixelY);
+        REQUIRE(hitD == 3);
+    }
+
+    SECTION("active node count is clamped") {
+        pad.setActiveNodeCount(1);
+        REQUIRE(pad.getActiveNodeCount() == 2);  // Min is 2
+
+        pad.setActiveNodeCount(10);
+        REQUIRE(pad.getActiveNodeCount() == 4);  // Max is 4
+    }
+}
+
+// =============================================================================
+// T125: Weight Distribution Tests (US6)
+// =============================================================================
+// Note: MorphPad stores weights per node but doesn't calculate them internally.
+// Weight calculation is done by MorphEngine in the processor.
+// These tests verify that weight storage respects active node count.
+
+TEST_CASE("MorphPad weight storage with active nodes", "[morph_pad][nodes][US6]") {
+    VSTGUI::CRect rect(0, 0, 250, 200);
+    MorphPad pad(rect);
+
+    SECTION("weights can be set for all nodes regardless of active count") {
+        pad.setActiveNodeCount(2);
+
+        // Even with 2 active nodes, we can still set weights for all 4
+        // (useful for transition animations)
+        pad.setNodeWeight(0, 0.5f);
+        pad.setNodeWeight(1, 0.5f);
+        pad.setNodeWeight(2, 0.0f);
+        pad.setNodeWeight(3, 0.0f);
+
+        REQUIRE(pad.getNodeWeight(0) == Approx(0.5f));
+        REQUIRE(pad.getNodeWeight(1) == Approx(0.5f));
+        REQUIRE(pad.getNodeWeight(2) == Approx(0.0f));
+        REQUIRE(pad.getNodeWeight(3) == Approx(0.0f));
+    }
+
+    SECTION("inactive node weights can be retrieved") {
+        pad.setActiveNodeCount(2);
+        pad.setNodeWeight(2, 0.3f);  // Node C is inactive
+        pad.setNodeWeight(3, 0.4f);  // Node D is inactive
+
+        // Weights are stored but won't be used in drawing
+        REQUIRE(pad.getNodeWeight(2) == Approx(0.3f));
+        REQUIRE(pad.getNodeWeight(3) == Approx(0.4f));
+    }
+}

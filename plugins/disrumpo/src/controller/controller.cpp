@@ -621,6 +621,25 @@ void Controller::registerBandParams() {
         morphModeParam->appendString(STR16("2D Radial"));
         parameters.addParameter(morphModeParam);
 
+        // Band ActiveNodes: StringListParameter ["2","3","4"], default "4" (US6)
+        static const Steinberg::Vst::TChar* activeNodesParamNames[] = {
+            STR16("Band 1 Active Nodes"), STR16("Band 2 Active Nodes"),
+            STR16("Band 3 Active Nodes"), STR16("Band 4 Active Nodes"),
+            STR16("Band 5 Active Nodes"), STR16("Band 6 Active Nodes"),
+            STR16("Band 7 Active Nodes"), STR16("Band 8 Active Nodes")
+        };
+        auto* activeNodesParam = new Steinberg::Vst::StringListParameter(
+            activeNodesParamNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandActiveNodes),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+        );
+        activeNodesParam->appendString(STR16("2"));
+        activeNodesParam->appendString(STR16("3"));
+        activeNodesParam->appendString(STR16("4"));
+        activeNodesParam->setNormalized(1.0);  // Default to "4" (index 2 = 1.0)
+        parameters.addParameter(activeNodesParam);
+
         // Band Expanded: boolean toggle for expand/collapse state (UI only)
         // stepCount=1 for boolean, default 0 (collapsed)
         parameters.addParameter(

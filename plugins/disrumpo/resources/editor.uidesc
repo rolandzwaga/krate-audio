@@ -98,6 +98,7 @@
     <control-tag name="Band1MorphX" tag="61448"/>
     <control-tag name="Band1MorphY" tag="61449"/>
     <control-tag name="Band1MorphMode" tag="61450"/>
+    <control-tag name="Band1ActiveNodes" tag="61446"/>
 
     <!-- Band 2 Parameters (0xF100-0xF10A) -->
     <control-tag name="Band2Gain" tag="61696"/>
@@ -109,6 +110,7 @@
     <control-tag name="Band2MorphX" tag="61704"/>
     <control-tag name="Band2MorphY" tag="61705"/>
     <control-tag name="Band2MorphMode" tag="61706"/>
+    <control-tag name="Band2ActiveNodes" tag="61702"/>
 
     <!-- Band 3 Parameters (0xF200-0xF20A) -->
     <control-tag name="Band3Gain" tag="61952"/>
@@ -120,6 +122,7 @@
     <control-tag name="Band3MorphX" tag="61960"/>
     <control-tag name="Band3MorphY" tag="61961"/>
     <control-tag name="Band3MorphMode" tag="61962"/>
+    <control-tag name="Band3ActiveNodes" tag="61958"/>
 
     <!-- Band 4 Parameters (0xF300-0xF30A) -->
     <control-tag name="Band4Gain" tag="62208"/>
@@ -131,6 +134,7 @@
     <control-tag name="Band4MorphX" tag="62216"/>
     <control-tag name="Band4MorphY" tag="62217"/>
     <control-tag name="Band4MorphMode" tag="62218"/>
+    <control-tag name="Band4ActiveNodes" tag="62214"/>
 
     <!-- Band 5 Parameters (0xF400-0xF40A) -->
     <control-tag name="Band5Gain" tag="62464"/>
@@ -142,6 +146,7 @@
     <control-tag name="Band5MorphX" tag="62472"/>
     <control-tag name="Band5MorphY" tag="62473"/>
     <control-tag name="Band5MorphMode" tag="62474"/>
+    <control-tag name="Band5ActiveNodes" tag="62470"/>
 
     <!-- Band 6 Parameters (0xF500-0xF50A) -->
     <control-tag name="Band6Gain" tag="62720"/>
@@ -153,6 +158,7 @@
     <control-tag name="Band6MorphX" tag="62728"/>
     <control-tag name="Band6MorphY" tag="62729"/>
     <control-tag name="Band6MorphMode" tag="62730"/>
+    <control-tag name="Band6ActiveNodes" tag="62726"/>
 
     <!-- Band 7 Parameters (0xF600-0xF60A) -->
     <control-tag name="Band7Gain" tag="62976"/>
@@ -164,6 +170,7 @@
     <control-tag name="Band7MorphX" tag="62984"/>
     <control-tag name="Band7MorphY" tag="62985"/>
     <control-tag name="Band7MorphMode" tag="62986"/>
+    <control-tag name="Band7ActiveNodes" tag="62982"/>
 
     <!-- Band 8 Parameters (0xF700-0xF70A) -->
     <control-tag name="Band8Gain" tag="63232"/>
@@ -175,6 +182,7 @@
     <control-tag name="Band8MorphX" tag="63240"/>
     <control-tag name="Band8MorphY" tag="63241"/>
     <control-tag name="Band8MorphMode" tag="63242"/>
+    <control-tag name="Band8ActiveNodes" tag="63238"/>
 
     <!-- Band 1 Node 1 Parameters (0x0000-0x0006) -->
     <control-tag name="B1N1Type" tag="0"/>
@@ -1789,10 +1797,11 @@
             font="small-font" font-color="text-primary"
             frame-color="border" gradient="button-default" selected-gradient="button-active"/>
 
-      <!-- Active Nodes Selector - FR-018 -->
+      <!-- Active Nodes Selector - FR-018, T127 -->
       <view class="CTextLabel" origin="10, 183" size="60, 12" title="Nodes"
             font="small-font" font-color="text-secondary"/>
       <view class="CSegmentButton" origin="70, 182" size="90, 20"
+            control-tag="Band1ActiveNodes" default-value="1.0"
             style="horizontal" segment-names="2, 3, 4"
             font="small-font" font-color="text-primary"
             frame-color="border" gradient="button-default" selected-gradient="button-active"/>
