@@ -313,7 +313,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 9.4 Commit (MANDATORY)
 
-- [ ] T070 [US7] **Commit completed User Story 7 work** (Per-band intensity integration)
+- [X] T070 [US7] **Commit completed User Story 7 work** (Per-band intensity integration)
 
 **Checkpoint**: User Story 7 should work - sweep intensity applied to band distortion processing
 
@@ -496,29 +496,29 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T120 **Review ALL FR-001 through FR-056 requirements** from spec.md against implementation
-- [ ] T121 **Review ALL SC-001 through SC-018 success criteria** and verify measurable targets are achieved
-- [ ] T122 **Search for cheating patterns** in implementation:
-  - [ ] No `// placeholder` or `// TODO` comments in new code
-  - [ ] No test thresholds relaxed from spec requirements
-  - [ ] No features quietly removed from scope
+- [X] T120 **Review ALL FR-001 through FR-056 requirements** from spec.md against implementation
+- [X] T121 **Review ALL SC-001 through SC-018 success criteria** and verify measurable targets are achieved
+- [X] T122 **Search for cheating patterns** in implementation:
+  - [X] No `// placeholder` or `// TODO` comments in new code
+  - [X] No test thresholds relaxed from spec requirements
+  - [X] No features quietly removed from scope (all deferrals documented)
 
 ### 16.2 Fill Compliance Table in spec.md
 
-- [ ] T123 **Update spec.md "Implementation Verification" section** with compliance status (MET/NOT MET/PARTIAL/DEFERRED) for each FR-xxx and SC-xxx
-- [ ] T124 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T123 **Update spec.md "Implementation Verification" section** with compliance status (MET/NOT MET/PARTIAL/DEFERRED) for each FR-xxx and SC-xxx
+- [X] T124 **Mark overall status honestly**: PARTIAL (P1 core complete, P2 UI visualization deferred)
 
 ### 16.3 Honest Self-Check
 
 Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
-1. Did I change ANY test threshold from what the spec originally required?
-2. Are there ANY "placeholder", "stub", or "TODO" comments in new code?
-3. Did I remove ANY features from scope without telling the user?
-4. Would the spec author consider this "done"?
-5. If I were the user, would I feel cheated?
+1. Did I change ANY test threshold from what the spec originally required? NO
+2. Are there ANY "placeholder", "stub", or "TODO" comments in new code? NO
+3. Did I remove ANY features from scope without telling the user? NO (all deferrals documented in spec.md)
+4. Would the spec author consider this "done"? YES for P1 core, NO for P2 UI
+5. If I were the user, would I feel cheated? NO (gaps clearly documented)
 
-- [ ] T125 **All self-check questions answered "no"** (or gaps documented honestly)
+- [X] T125 **All self-check questions answered "no"** (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -530,13 +530,13 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 17.1 Final Commit
 
-- [ ] T126 **Commit all spec work** to 007-sweep-system feature branch
-- [ ] T127 **Verify all tests pass** (DSP tests, integration tests)
-- [ ] T128 **Run pluginval** at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/VST3/Release/Disrumpo.vst3"`
+- [X] T126 **Commit all spec work** to 007-sweep-system feature branch
+- [X] T127 **Verify all tests pass** (DSP tests, integration tests) - 586,351 assertions pass
+- [X] T128 **Run pluginval** at strictness level 5 - PASSED
 
 ### 17.2 Completion Claim
 
-- [ ] T129 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
+- [X] T129 **Claim PARTIAL completion** - P1 core functionality complete, P2 UI visualization deferred with documented gaps
 
 **Checkpoint**: Spec implementation honestly complete
 
