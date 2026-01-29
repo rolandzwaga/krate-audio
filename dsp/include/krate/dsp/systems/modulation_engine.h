@@ -20,7 +20,12 @@
 #include <krate/dsp/core/modulation_types.h>
 #include <krate/dsp/primitives/lfo.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/processors/chaos_mod_source.h>
 #include <krate/dsp/processors/envelope_follower.h>
+#include <krate/dsp/processors/pitch_follower_source.h>
+#include <krate/dsp/processors/random_source.h>
+#include <krate/dsp/processors/sample_hold_source.h>
+#include <krate/dsp/processors/transient_detector.h>
 
 #include <algorithm>
 #include <array>
@@ -94,6 +99,12 @@ public:
         lfo1_.prepare(sampleRate);
         lfo2_.prepare(sampleRate);
         envFollower_.prepare(sampleRate, maxBlockSize);
+        random_.prepare(sampleRate);
+        chaos_.prepare(sampleRate);
+        sampleHold_.prepare(sampleRate);
+        sampleHold_.setLFOPointers(&lfo1_, &lfo2_);
+        pitchFollower_.prepare(sampleRate);
+        transient_.prepare(sampleRate);
 
         // Configure amount smoothers
         for (auto& smoother : amountSmoothers_) {
@@ -108,6 +119,11 @@ public:
         lfo1_.reset();
         lfo2_.reset();
         envFollower_.reset();
+        random_.reset();
+        chaos_.reset();
+        sampleHold_.reset();
+        pitchFollower_.reset();
+        transient_.reset();
         wasPlaying_ = false;
 
         modOffsets_.fill(0.0f);
@@ -165,7 +181,27 @@ public:
 
             // Process envelope follower
             processEnvFollowerSample(sampleL, sampleR);
+
+            // Process random source
+            random_.process();
+
+            // Process chaos source (control-rate internally)
+            chaos_.process();
+
+            // Process sample & hold
+            sampleHold_.process();
+
+            // Process pitch follower (feed mono input)
+            float monoInput = (sampleL + sampleR) * 0.5f;
+            pitchFollower_.pushSample(monoInput);
+            pitchFollower_.process();
+
+            // Process transient detector (feed mono input)
+            transient_.process(monoInput);
         }
+
+        // Update chaos coupling from audio envelope
+        chaos_.setInputLevel(envFollower_.getCurrentValue());
 
         // Apply unipolar conversion for LFOs if enabled
         float lfo1Output = lfo1LastValue_;
@@ -326,6 +362,49 @@ public:
     }
 
     // =========================================================================
+    // Random Source Parameters (FR-021 to FR-025)
+    // =========================================================================
+
+    void setRandomRate(float hz) noexcept { random_.setRate(hz); }
+    void setRandomSmoothness(float normalized) noexcept { random_.setSmoothness(normalized); }
+    void setRandomTempoSync(bool enabled) noexcept { random_.setTempoSync(enabled); }
+    void setRandomTempo(float bpm) noexcept { random_.setTempo(bpm); }
+
+    // =========================================================================
+    // Chaos Source Parameters (FR-030 to FR-035)
+    // =========================================================================
+
+    void setChaosModel(ChaosModel model) noexcept { chaos_.setModel(model); }
+    void setChaosSpeed(float speed) noexcept { chaos_.setSpeed(speed); }
+    void setChaosCoupling(float coupling) noexcept { chaos_.setCoupling(coupling); }
+
+    // =========================================================================
+    // Sample & Hold Parameters (FR-036 to FR-040)
+    // =========================================================================
+
+    void setSampleHoldSource(SampleHoldInputType type) noexcept { sampleHold_.setInputType(type); }
+    void setSampleHoldRate(float hz) noexcept { sampleHold_.setRate(hz); }
+    void setSampleHoldSlew(float ms) noexcept { sampleHold_.setSlewTime(ms); }
+    void setSampleHoldExternalLevel(float level) noexcept { sampleHold_.setExternalLevel(level); }
+
+    // =========================================================================
+    // Pitch Follower Parameters (FR-041 to FR-047)
+    // =========================================================================
+
+    void setPitchFollowerMinHz(float hz) noexcept { pitchFollower_.setMinHz(hz); }
+    void setPitchFollowerMaxHz(float hz) noexcept { pitchFollower_.setMaxHz(hz); }
+    void setPitchFollowerConfidence(float threshold) noexcept { pitchFollower_.setConfidenceThreshold(threshold); }
+    void setPitchFollowerTrackingSpeed(float ms) noexcept { pitchFollower_.setTrackingSpeed(ms); }
+
+    // =========================================================================
+    // Transient Detector Parameters (FR-048 to FR-054)
+    // =========================================================================
+
+    void setTransientSensitivity(float sensitivity) noexcept { transient_.setSensitivity(sensitivity); }
+    void setTransientAttack(float ms) noexcept { transient_.setAttackTime(ms); }
+    void setTransientDecay(float ms) noexcept { transient_.setDecayTime(ms); }
+
+    // =========================================================================
     // Query
     // =========================================================================
 
@@ -354,7 +433,7 @@ private:
                 return std::clamp(envFollower_.getCurrentValue() * envFollowerSensitivity_,
                                   0.0f, 1.0f);
             case ModSource::Random:
-                return 0.0f;  // Placeholder - will be implemented in Phase 7
+                return random_.getCurrentValue();
             case ModSource::Macro1:
                 return getMacroOutput(0);
             case ModSource::Macro2:
@@ -364,13 +443,13 @@ private:
             case ModSource::Macro4:
                 return getMacroOutput(3);
             case ModSource::Chaos:
-                return 0.0f;  // Placeholder - will be implemented in Phase 8
+                return chaos_.getCurrentValue();
             case ModSource::SampleHold:
-                return 0.0f;  // Placeholder - will be implemented in Phase 9
+                return sampleHold_.getCurrentValue();
             case ModSource::PitchFollower:
-                return 0.0f;  // Placeholder - will be implemented in Phase 10
+                return pitchFollower_.getCurrentValue();
             case ModSource::Transient:
-                return 0.0f;  // Placeholder - will be implemented in Phase 11
+                return transient_.getCurrentValue();
         }
         return 0.0f;
     }
@@ -465,6 +544,11 @@ private:
     LFO lfo1_;
     LFO lfo2_;
     EnvelopeFollower envFollower_;
+    RandomSource random_;
+    ChaosModSource chaos_;
+    SampleHoldSource sampleHold_;
+    PitchFollowerSource pitchFollower_;
+    TransientDetector transient_;
 
     // Cached LFO output values (last sample in block)
     float lfo1LastValue_ = 0.0f;

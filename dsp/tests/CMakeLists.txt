@@ -131,6 +131,11 @@ add_executable(dsp_tests
     unit/processors/aliasing_effect_test.cpp
     unit/processors/granular_distortion_test.cpp
     unit/processors/fractal_distortion_test.cpp
+    unit/processors/random_source_test.cpp
+    unit/processors/chaos_mod_source_test.cpp
+    unit/processors/transient_detector_test.cpp
+    unit/processors/sample_hold_source_test.cpp
+    unit/processors/pitch_follower_source_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -360,6 +365,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/aliasing_effect_test.cpp
         unit/processors/granular_distortion_test.cpp
         unit/processors/fractal_distortion_test.cpp
+        unit/processors/random_source_test.cpp
+        unit/processors/chaos_mod_source_test.cpp
+        unit/processors/transient_detector_test.cpp
+        unit/processors/sample_hold_source_test.cpp
+        unit/processors/pitch_follower_source_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
