@@ -51,6 +51,8 @@ add_executable(disrumpo_tests
     dsp/custom_curve_tests.cpp
     dsp/sweep_intensity_tests.cpp
     dsp/sweep_processor_tests.cpp
+    dsp/sweep_lfo_tests.cpp
+    dsp/sweep_envelope_tests.cpp
 
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
@@ -108,6 +110,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         dsp/custom_curve_tests.cpp
         dsp/sweep_intensity_tests.cpp
         dsp/sweep_processor_tests.cpp
+        dsp/sweep_lfo_tests.cpp
+        dsp/sweep_envelope_tests.cpp
         integration/sweep_band_intensity_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )

@@ -360,14 +360,14 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T078 [P] [US9] Write failing tests for SweepLFO in plugins/Disrumpo/tests/dsp/sweep_lfo_tests.cpp (waveforms, rate accuracy, tempo sync, depth scaling per FR-024, FR-025, SC-015)
-- [ ] T079 [P] [US9] Write failing tests for SweepEnvelopeFollower in plugins/Disrumpo/tests/dsp/sweep_envelope_tests.cpp (input level response, attack/release times, sensitivity per FR-026, FR-027, SC-016)
+- [X] T078 [P] [US9] Write failing tests for SweepLFO in plugins/Disrumpo/tests/dsp/sweep_lfo_tests.cpp (waveforms, rate accuracy, tempo sync, depth scaling per FR-024, FR-025, SC-015)
+- [X] T079 [P] [US9] Write failing tests for SweepEnvelopeFollower in plugins/Disrumpo/tests/dsp/sweep_envelope_tests.cpp (input level response, attack/release times, sensitivity per FR-026, FR-027, SC-016)
 - [ ] T080 [P] [US9] Write tests for modulation combination in plugins/Disrumpo/tests/dsp/sweep_modulation_tests.cpp (verify LFO + envelope follower modulation amounts are summed additively per FR-029a, result clamped to sweep frequency parameter range 20Hz-20kHz, test both sources enabled simultaneously)
 
 ### 11.2 Implementation for User Story 9
 
-- [ ] T081 [P] [US9] Implement SweepLFO class in plugins/Disrumpo/src/dsp/sweep_lfo.h (wrap Krate::DSP::LFO with sweep-specific range mapping per data-model.md)
-- [ ] T082 [P] [US9] Implement SweepEnvelopeFollower class in plugins/Disrumpo/src/dsp/sweep_envelope.h (wrap Krate::DSP::EnvelopeFollower per data-model.md)
+- [X] T081 [P] [US9] Implement SweepLFO class in plugins/Disrumpo/src/dsp/sweep_lfo.h (wrap Krate::DSP::LFO with sweep-specific range mapping per data-model.md)
+- [X] T082 [P] [US9] Implement SweepEnvelopeFollower class in plugins/Disrumpo/src/dsp/sweep_envelope.h (wrap Krate::DSP::EnvelopeFollower per data-model.md)
 - [ ] T083 [US9] Add SweepLFO and SweepEnvelopeFollower to Processor in plugins/Disrumpo/src/processor/processor.h
 - [ ] T084 [US9] Handle sweep LFO parameters in processParameterChanges() (enable, rate, waveform, depth, tempo sync)
 - [ ] T085 [US9] Handle sweep envelope parameters in processParameterChanges() (enable, attack, release, sensitivity)
