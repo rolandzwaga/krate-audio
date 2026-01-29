@@ -74,6 +74,10 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         bandProcessors_[i].setMute(bandStates_[i].mute);
     }
 
+    // Initialize sweep processor (spec 007-sweep-system)
+    sweepProcessor_.prepare(sampleRate_, setup.maxSamplesPerBlock);
+    sweepProcessor_.setCustomCurve(&customCurve_);
+
     return AudioEffect::setupProcessing(setup);
 }
 
@@ -85,6 +89,10 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         for (auto& proc : bandProcessors_) {
             proc.reset();
         }
+        // Reset sweep processor
+        sweepProcessor_.reset();
+        sweepPositionBuffer_.clear();
+        samplePosition_ = 0;
     }
 
     return AudioEffect::setActive(state);
@@ -129,6 +137,19 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
+    // Sweep Processing (spec 007-sweep-system)
+    // FR-007: Process sweep smoother for the entire block
+    // ==========================================================================
+
+    sweepProcessor_.processBlock(data.numSamples);
+
+    // Push sweep position data for UI synchronization (FR-046)
+    if (sweepProcessor_.isEnabled()) {
+        auto positionData = sweepProcessor_.getPositionData(samplePosition_);
+        sweepPositionBuffer_.push(positionData);
+    }
+
+    // ==========================================================================
     // Band Processing (FR-001a: sample-by-sample processing)
     // ==========================================================================
 
@@ -169,6 +190,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         outputL[n] = sumL;
         outputR[n] = sumR;
     }
+
+    // Update sample position for timing synchronization
+    samplePosition_ += static_cast<uint64_t>(data.numSamples);
 
     return Steinberg::kResultTrue;
 }
@@ -389,7 +413,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             case kBandCountId: {
                 // Convert normalized [0,1] to band count [1,8]
                 const int newBandCount = 1 + static_cast<int>(value * 7.0 + 0.5);
-                const int clamped = std::max(kMinBands, std::min(kMaxBands, newBandCount));
+                const int clamped = std::clamp(newBandCount, kMinBands, kMaxBands);
                 bandCount_.store(clamped, std::memory_order_relaxed);
                 crossoverL_.setBandCount(clamped);
                 crossoverR_.setBandCount(clamped);
@@ -397,6 +421,60 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             }
 
             default:
+                // =================================================================
+                // Sweep Parameters (spec 007-sweep-system)
+                // FR-002 to FR-005: Sweep frequency, width, intensity, falloff
+                // =================================================================
+                if (isSweepParamId(paramId)) {
+                    const SweepParamType sweepType = static_cast<SweepParamType>(paramId & 0xFF);
+                    switch (sweepType) {
+                        case SweepParamType::kSweepEnable:
+                            // FR-011: Enable/disable sweep
+                            sweepProcessor_.setEnabled(value >= 0.5);
+                            break;
+
+                        case SweepParamType::kSweepFrequency: {
+                            // FR-002: Convert normalized [0,1] to Hz [20, 20000] logarithmically
+                            // Using log2 scale as per data-model.md
+                            constexpr float kSweepLog2Min = 4.321928f;   // log2(20)
+                            constexpr float kSweepLog2Max = 14.287712f;  // log2(20000)
+                            constexpr float kSweepLog2Range = kSweepLog2Max - kSweepLog2Min;
+                            const float log2Freq = kSweepLog2Min + static_cast<float>(value) * kSweepLog2Range;
+                            const float freqHz = std::pow(2.0f, log2Freq);
+                            sweepProcessor_.setCenterFrequency(freqHz);
+                            break;
+                        }
+
+                        case SweepParamType::kSweepWidth: {
+                            // FR-003: Convert normalized [0,1] to octaves [0.5, 4.0]
+                            constexpr float kMinWidth = 0.5f;
+                            constexpr float kMaxWidth = 4.0f;
+                            const float widthOctaves = kMinWidth + static_cast<float>(value) * (kMaxWidth - kMinWidth);
+                            sweepProcessor_.setWidth(widthOctaves);
+                            break;
+                        }
+
+                        case SweepParamType::kSweepIntensity: {
+                            // FR-004: Convert normalized [0,1] to intensity [0, 2] (0-200%)
+                            const float intensity = static_cast<float>(value) * 2.0f;
+                            sweepProcessor_.setIntensity(intensity);
+                            break;
+                        }
+
+                        case SweepParamType::kSweepMorphLink: {
+                            // FR-014: Sweep-morph link mode
+                            const int modeIndex = static_cast<int>(value * static_cast<float>(kMorphLinkModeCount - 1) + 0.5f);
+                            sweepProcessor_.setMorphLinkMode(static_cast<MorphLinkMode>(modeIndex));
+                            break;
+                        }
+
+                        case SweepParamType::kSweepFalloff:
+                            // FR-005: Falloff mode (0 = Sharp, 1 = Smooth)
+                            sweepProcessor_.setFalloffMode(value >= 0.5f ? SweepFalloff::Smooth : SweepFalloff::Sharp);
+                            break;
+                    }
+                    break;  // Exit the default case after handling sweep params
+                }
                 // Check for band parameters
                 if (isBandParamId(paramId)) {
                     const uint8_t band = extractBandIndex(paramId);

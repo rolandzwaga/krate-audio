@@ -1,37 +1,32 @@
 // ==============================================================================
-// SweepProcessor - Core Sweep DSP
+// API Contract: SweepProcessor
 // ==============================================================================
-// Calculates per-band intensity multipliers based on sweep parameters.
-// Supports Gaussian (Smooth) and linear (Sharp) falloff modes.
+// Core DSP class for calculating per-band intensity multipliers based on
+// sweep parameters. Supports Gaussian (Smooth) and linear (Sharp) falloff modes.
 //
-// Constitution Compliance:
-// - Principle II: Real-Time Safety (noexcept, no allocations in process)
-// - Principle III: Modern C++ (C++20, RAII, value semantics)
-// - Principle IX: Layer 3 (composes Layer 1/2 primitives)
-// - Principle XII: Test-First Development
+// Layer: Plugin DSP (composes Layer 1 primitives)
 //
-// Reference: specs/007-sweep-system/spec.md (FR-001 to FR-022)
-// Reference: specs/007-sweep-system/data-model.md (SweepProcessor entity)
+// Reference: specs/007-sweep-system/spec.md
 // ==============================================================================
 
 #pragma once
 
 #include "sweep_types.h"
-#include "sweep_morph_link.h"
 #include "custom_curve.h"
-#include "band_state.h"  // For kMaxBands
 
 #include <krate/dsp/primitives/smoother.h>
-#include <krate/dsp/primitives/sweep_position_buffer.h>
 
-#include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstdint>
 
 namespace Disrumpo {
 
-// kMaxBands is defined in band_state.h
+// Forward declarations
+struct SweepPositionData;
+enum class MorphLinkMode : uint8_t;
+
+/// @brief Maximum number of frequency bands supported.
+constexpr int kMaxBands = 8;
 
 /// @brief Minimum sweep frequency in Hz.
 constexpr float kMinSweepFreqHz = 20.0f;
@@ -80,7 +75,7 @@ public:
     // =========================================================================
 
     /// @brief Default constructor.
-    SweepProcessor() noexcept = default;
+    SweepProcessor() noexcept;
 
     /// @brief Prepare processor for given sample rate.
     ///
@@ -89,21 +84,13 @@ public:
     ///
     /// @param sampleRate Sample rate in Hz
     /// @param maxBlockSize Maximum block size (for future block processing)
-    void prepare(double sampleRate, int maxBlockSize = 512) noexcept {
-        (void)maxBlockSize;  // Reserved for future use
-        sampleRate_ = sampleRate;
-        frequencySmoother_.configure(smoothingTimeMs_, static_cast<float>(sampleRate_));
-        frequencySmoother_.snapTo(targetFreqHz_);
-        prepared_ = true;
-    }
+    void prepare(double sampleRate, int maxBlockSize = 512) noexcept;
 
     /// @brief Reset all internal state.
     ///
     /// Clears smoothers and resets to initial values.
     /// Call when starting new playback or after discontinuity.
-    void reset() noexcept {
-        frequencySmoother_.snapTo(targetFreqHz_);
-    }
+    void reset() noexcept;
 
     // =========================================================================
     // Parameter Setters (FR-002 to FR-007)
@@ -111,103 +98,69 @@ public:
 
     /// @brief Enable or disable sweep processing.
     /// @param enabled true to enable sweep, false to bypass
-    void setEnabled(bool enabled) noexcept {
-        enabled_ = enabled;
-    }
+    void setEnabled(bool enabled) noexcept;
 
     /// @brief Set sweep center frequency.
     ///
     /// Changes are smoothed per FR-007a to prevent zipper noise.
     ///
     /// @param hz Center frequency in Hz [20, 20000]
-    void setCenterFrequency(float hz) noexcept {
-        targetFreqHz_ = std::clamp(hz, kMinSweepFreqHz, kMaxSweepFreqHz);
-        frequencySmoother_.setTarget(targetFreqHz_);
-    }
+    void setCenterFrequency(float hz) noexcept;
 
     /// @brief Set sweep width.
     /// @param octaves Width in octaves [0.5, 4.0]
-    void setWidth(float octaves) noexcept {
-        widthOctaves_ = std::clamp(octaves, kMinSweepWidth, kMaxSweepWidth);
-    }
+    void setWidth(float octaves) noexcept;
 
     /// @brief Set sweep intensity.
     ///
     /// Per FR-010: Uses multiplicative scaling (50% = half peak, 200% = double).
     ///
     /// @param value Intensity [0.0, 2.0] where 1.0 = 100%
-    void setIntensity(float value) noexcept {
-        intensity_ = std::clamp(value, 0.0f, kMaxIntensity);
-    }
+    void setIntensity(float value) noexcept;
 
     /// @brief Set falloff mode.
     /// @param mode Sharp (linear) or Smooth (Gaussian)
-    void setFalloffMode(SweepFalloff mode) noexcept {
-        falloffMode_ = mode;
-    }
+    void setFalloffMode(SweepFalloff mode) noexcept;
 
     /// @brief Set sweep-morph linking mode.
     /// @param mode Morph link curve type
-    void setMorphLinkMode(MorphLinkMode mode) noexcept {
-        morphLinkMode_ = mode;
-    }
+    void setMorphLinkMode(MorphLinkMode mode) noexcept;
 
     /// @brief Set custom curve for Custom morph link mode.
     /// @param curve Pointer to custom curve (ownership not transferred)
-    void setCustomCurve(const CustomCurve* curve) noexcept {
-        customCurve_ = curve;
-    }
+    void setCustomCurve(const CustomCurve* curve) noexcept;
 
     /// @brief Set frequency smoothing time.
     ///
     /// Per FR-007a: Range 10-50ms recommended.
     ///
     /// @param ms Smoothing time in milliseconds
-    void setSmoothingTime(float ms) noexcept {
-        smoothingTimeMs_ = std::clamp(ms, 1.0f, 100.0f);
-        if (prepared_) {
-            frequencySmoother_.configure(smoothingTimeMs_, static_cast<float>(sampleRate_));
-        }
-    }
+    void setSmoothingTime(float ms) noexcept;
 
     // =========================================================================
     // Parameter Getters
     // =========================================================================
 
     /// @brief Check if sweep is enabled.
-    [[nodiscard]] bool isEnabled() const noexcept {
-        return enabled_;
-    }
+    [[nodiscard]] bool isEnabled() const noexcept;
 
     /// @brief Get target center frequency (before smoothing).
-    [[nodiscard]] float getTargetFrequency() const noexcept {
-        return targetFreqHz_;
-    }
+    [[nodiscard]] float getTargetFrequency() const noexcept;
 
     /// @brief Get current smoothed center frequency.
-    [[nodiscard]] float getSmoothedFrequency() const noexcept {
-        return frequencySmoother_.getCurrentValue();
-    }
+    [[nodiscard]] float getSmoothedFrequency() const noexcept;
 
     /// @brief Get sweep width in octaves.
-    [[nodiscard]] float getWidth() const noexcept {
-        return widthOctaves_;
-    }
+    [[nodiscard]] float getWidth() const noexcept;
 
     /// @brief Get intensity value.
-    [[nodiscard]] float getIntensity() const noexcept {
-        return intensity_;
-    }
+    [[nodiscard]] float getIntensity() const noexcept;
 
     /// @brief Get falloff mode.
-    [[nodiscard]] SweepFalloff getFalloffMode() const noexcept {
-        return falloffMode_;
-    }
+    [[nodiscard]] SweepFalloff getFalloffMode() const noexcept;
 
     /// @brief Get morph link mode.
-    [[nodiscard]] MorphLinkMode getMorphLinkMode() const noexcept {
-        return morphLinkMode_;
-    }
+    [[nodiscard]] MorphLinkMode getMorphLinkMode() const noexcept;
 
     // =========================================================================
     // Processing (FR-007, FR-008, FR-009)
@@ -217,17 +170,11 @@ public:
     ///
     /// Advances the frequency smoother. Call once per sample or once per
     /// block with the number of samples.
-    void process() noexcept {
-        (void)frequencySmoother_.process();
-    }
+    void process() noexcept;
 
     /// @brief Process a block of samples.
     /// @param numSamples Number of samples in the block
-    void processBlock(int numSamples) noexcept {
-        for (int i = 0; i < numSamples; ++i) {
-            (void)frequencySmoother_.process();
-        }
-    }
+    void processBlock(int numSamples) noexcept;
 
     /// @brief Calculate intensity multiplier for a given band center frequency.
     ///
@@ -238,20 +185,8 @@ public:
     ///   intensity = intensityParam * max(0, 1 - abs(distanceOctaves) / (width/2))
     ///
     /// @param bandCenterHz Band center frequency in Hz
-    /// @return Intensity multiplier [0.0, 2.0] (0.0 if disabled)
-    [[nodiscard]] float calculateBandIntensity(float bandCenterHz) const noexcept {
-        if (!enabled_) {
-            return 0.0f;
-        }
-
-        float sweepCenterHz = frequencySmoother_.getCurrentValue();
-
-        if (falloffMode_ == SweepFalloff::Smooth) {
-            return calculateGaussianIntensity(bandCenterHz, sweepCenterHz, widthOctaves_, intensity_);
-        } else {
-            return calculateLinearFalloff(bandCenterHz, sweepCenterHz, widthOctaves_, intensity_);
-        }
-    }
+    /// @return Intensity multiplier [0.0, 2.0]
+    [[nodiscard]] float calculateBandIntensity(float bandCenterHz) const noexcept;
 
     /// @brief Calculate intensities for all bands at once.
     ///
@@ -261,28 +196,7 @@ public:
     /// @param numBands Number of bands to process
     /// @param outIntensities Output array for intensity values
     void calculateAllBandIntensities(const float* bandCenters, int numBands,
-                                      float* outIntensities) const noexcept {
-        if (!enabled_) {
-            for (int i = 0; i < numBands; ++i) {
-                outIntensities[i] = 0.0f;
-            }
-            return;
-        }
-
-        float sweepCenterHz = frequencySmoother_.getCurrentValue();
-
-        if (falloffMode_ == SweepFalloff::Smooth) {
-            for (int i = 0; i < numBands; ++i) {
-                outIntensities[i] = calculateGaussianIntensity(
-                    bandCenters[i], sweepCenterHz, widthOctaves_, intensity_);
-            }
-        } else {
-            for (int i = 0; i < numBands; ++i) {
-                outIntensities[i] = calculateLinearFalloff(
-                    bandCenters[i], sweepCenterHz, widthOctaves_, intensity_);
-            }
-        }
-    }
+                                      float* outIntensities) const noexcept;
 
     // =========================================================================
     // Morph Linking (FR-014 to FR-022)
@@ -294,19 +208,7 @@ public:
     /// curve to produce a morph position.
     ///
     /// @return Morph position [0.0, 1.0]
-    [[nodiscard]] float getMorphPosition() const noexcept {
-        if (!enabled_) {
-            return 0.5f;  // Return center when disabled
-        }
-
-        float normalizedFreq = normalizedSweepPosition();
-
-        if (morphLinkMode_ == MorphLinkMode::Custom && customCurve_ != nullptr) {
-            return customCurve_->evaluate(normalizedFreq);
-        }
-
-        return applyMorphLinkCurve(morphLinkMode_, normalizedFreq);
-    }
+    [[nodiscard]] float getMorphPosition() const noexcept;
 
     // =========================================================================
     // Audio-UI Synchronization (FR-046)
@@ -318,16 +220,7 @@ public:
     ///
     /// @param samplePosition Current sample position for timing sync
     /// @return Sweep position data structure
-    [[nodiscard]] Krate::DSP::SweepPositionData getPositionData(uint64_t samplePosition) const noexcept {
-        Krate::DSP::SweepPositionData data;
-        data.centerFreqHz = frequencySmoother_.getCurrentValue();
-        data.widthOctaves = widthOctaves_;
-        data.intensity = intensity_;
-        data.samplePosition = samplePosition;
-        data.enabled = enabled_;
-        data.falloff = static_cast<Krate::DSP::SweepFalloffType>(falloffMode_);
-        return data;
-    }
+    [[nodiscard]] SweepPositionData getPositionData(uint64_t samplePosition) const noexcept;
 
 private:
     // =========================================================================
@@ -336,9 +229,12 @@ private:
 
     /// @brief Calculate normalized sweep frequency position.
     /// @return Normalized position [0, 1] where 0 = 20Hz, 1 = 20kHz
-    [[nodiscard]] float normalizedSweepPosition() const noexcept {
-        return normalizeSweepFrequency(frequencySmoother_.getCurrentValue());
-    }
+    [[nodiscard]] float normalizedSweepPosition() const noexcept;
+
+    /// @brief Apply morph link curve to normalized frequency.
+    /// @param normalizedFreq Normalized frequency [0, 1]
+    /// @return Morph position [0, 1]
+    [[nodiscard]] float applyMorphLinkCurve(float normalizedFreq) const noexcept;
 
     // =========================================================================
     // State
