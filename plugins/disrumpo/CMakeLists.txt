@@ -106,9 +106,11 @@ target_link_libraries(${PLUGIN_NAME}
 # ==============================================================================
 # VSTGUI Resources
 # ==============================================================================
+file(GLOB BITMAP_RESOURCES CONFIGURE_DEPENDS resources/bitmaps/*.png)
 smtg_target_add_plugin_resources(${PLUGIN_NAME}
     RESOURCES
         resources/editor.uidesc
+        ${BITMAP_RESOURCES}
 )
 
 # Include directories
