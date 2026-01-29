@@ -460,13 +460,13 @@ The following documents the parameter controls for each of the 26 distortion typ
 | FR-021 | MET | All 26 TypeParams_* templates created in editor.uidesc |
 | FR-022 | MET | Templates contain only type-specific controls, common params outside |
 | FR-023 | MET | Templates follow ui-mockups.md layout with proper sizing |
-| FR-024 | DEFERRED | Node editor panel (US7, P3 priority) deferred per user request |
-| FR-025 | PARTIAL | Node selection via MorphPad click implemented; editor list deferred |
-| FR-026 | PARTIAL | Node letters rendered in MorphPad; full editor deferred |
+| FR-024 | PARTIAL | NodeEditor header with A/B/C/D selector buttons added; dynamic type display needs controller work |
+| FR-025 | PARTIAL | Node selection via MorphPad click and editor buttons implemented; dynamic parameter switching needs controller |
+| FR-026 | PARTIAL | Node letters (A/B/C/D) shown as buttons; type name and color indicator need controller binding |
 | FR-027 | MET | selectedNode_ highlight ring rendered in drawNodes() |
 | FR-028 | PARTIAL | Main controls wired; some type-specific controls need verification |
 | FR-029 | PARTIAL | Type dropdown exists in collapsed view; control-tag wiring needs verification |
-| FR-030 | DEFERRED | Multi-node selection tracking deferred with node editor (US7) |
+| FR-030 | PARTIAL | Node selection UI exists; dynamic parameter switching to selected node needs controller implementation |
 | FR-031 | MET | Morph Smoothing knob wired to Band*MorphSmoothing parameter |
 | FR-032 | MET | COptionMenu for Morph X Link with 7 modes in expanded view |
 | FR-033 | MET | COptionMenu for Morph Y Link with 7 modes in expanded view |
@@ -515,7 +515,7 @@ The following documents the parameter controls for each of the 26 distortion typ
 **Overall Status**: PARTIAL (Core P1 features complete, P3 features deferred)
 
 **Documented Gaps:**
-- FR-024/FR-025/FR-026/FR-030: Node editor panel (US7, P3) deferred - user explicitly requested skip Phase 9
+- FR-024/FR-025/FR-026/FR-030: Node editor UI elements added; dynamic controller binding for node switching needs implementation
 - FR-037/FR-038/FR-039: Cross-family blend visualization deferred - optional per tasks.md notes
 - FR-020/FR-028/FR-029: Some control-tag wiring may need manual verification
 - SC-002/SC-006/SC-010/SC-011: Require manual DAW testing for full verification
@@ -527,7 +527,7 @@ The following documents the parameter controls for each of the 26 distortion typ
 - US4: Morph mode selection (P2) - COMPLETE
 - US5: Node repositioning (P2) - COMPLETE (persistence deferred)
 - US6: Active nodes configuration (P2) - COMPLETE
-- US7: Node editor panel (P3) - DEFERRED (per user request)
+- US7: Node editor panel (P3) - PARTIAL (UI elements added, controller binding incomplete)
 - US8: Morph-sweep linking (P1) - COMPLETE with all 7 link modes
 
 **Recommendation**:
