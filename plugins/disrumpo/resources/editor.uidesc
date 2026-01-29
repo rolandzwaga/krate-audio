@@ -79,6 +79,20 @@
     <control-tag name="SweepMorphLink" tag="3588"/>
     <control-tag name="SweepFalloff" tag="3589"/>
 
+    <!-- Sweep LFO Parameters (0x0E10 range) -->
+    <control-tag name="SweepLFOEnable" tag="3600"/>
+    <control-tag name="SweepLFORate" tag="3601"/>
+    <control-tag name="SweepLFOWaveform" tag="3602"/>
+    <control-tag name="SweepLFODepth" tag="3603"/>
+    <control-tag name="SweepLFOSync" tag="3604"/>
+    <control-tag name="SweepLFONoteValue" tag="3605"/>
+
+    <!-- Sweep Envelope Parameters (0x0E20 range) -->
+    <control-tag name="SweepEnvEnable" tag="3616"/>
+    <control-tag name="SweepEnvAttack" tag="3617"/>
+    <control-tag name="SweepEnvRelease" tag="3618"/>
+    <control-tag name="SweepEnvSensitivity" tag="3619"/>
+
     <!-- Crossover Parameters (0x0F10 range) -->
     <control-tag name="Crossover1" tag="3856"/>
     <control-tag name="Crossover2" tag="3857"/>
@@ -408,6 +422,9 @@
 
     <!-- Spectrum Display (FR-013) - Custom VSTGUI view for frequency band regions -->
     <view class="CView" custom-view-name="SpectrumDisplay" origin="20, 60" size="960, 120"/>
+
+    <!-- Sweep Indicator Overlay (FR-040 to FR-045) -->
+    <view class="CView" custom-view-name="SweepIndicator" origin="20, 60" size="960, 120"/>
 
     <!-- Band Strips Container -->
     <view class="CViewContainer" origin="20, 190" size="960, 350" background-color="background-primary">
@@ -863,7 +880,43 @@
             control-tag="SweepWidth" default-value="0.143" min-value="0" max-value="1"
             background-color="slider-track" handle-color="accent-secondary"/>
 
-      <view class="CTextLabel" origin="820, 15" size="160, 20" title="Disrumpo v0.1.0"
+      <!-- Sweep LFO Controls (FR-024, FR-025) -->
+      <view class="CTextLabel" origin="400, 15" size="30, 20" title="LFO"
+            font="small-font" font-color="text-secondary"/>
+      <view class="COnOffButton" origin="430, 12" size="25, 25"
+            control-tag="SweepLFOEnable" default-value="0"/>
+
+      <view class="CTextLabel" origin="460, 15" size="30, 20" title="Rate"
+            font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="490, 15" size="60, 20" orientation="horizontal"
+            control-tag="SweepLFORate" default-value="0.5" min-value="0" max-value="1"
+            background-color="slider-track" handle-color="accent-secondary"/>
+
+      <view class="CTextLabel" origin="555, 15" size="35, 20" title="Depth"
+            font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="590, 15" size="50, 20" orientation="horizontal"
+            control-tag="SweepLFODepth" default-value="0.5" min-value="0" max-value="1"
+            background-color="slider-track" handle-color="accent-secondary"/>
+
+      <!-- Sweep Envelope Controls (FR-026, FR-027) -->
+      <view class="CTextLabel" origin="650, 15" size="30, 20" title="Env"
+            font="small-font" font-color="text-secondary"/>
+      <view class="COnOffButton" origin="680, 12" size="25, 25"
+            control-tag="SweepEnvEnable" default-value="0"/>
+
+      <view class="CTextLabel" origin="710, 15" size="25, 20" title="Atk"
+            font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="735, 15" size="40, 20" orientation="horizontal"
+            control-tag="SweepEnvAttack" default-value="0.1" min-value="0" max-value="1"
+            background-color="slider-track" handle-color="accent-secondary"/>
+
+      <view class="CTextLabel" origin="780, 15" size="25, 20" title="Rel"
+            font="small-font" font-color="text-secondary"/>
+      <view class="CSlider" origin="805, 15" size="40, 20" orientation="horizontal"
+            control-tag="SweepEnvRelease" default-value="0.2" min-value="0" max-value="1"
+            background-color="slider-track" handle-color="accent-secondary"/>
+
+      <view class="CTextLabel" origin="900, 15" size="80, 20" title="Disrumpo v0.1.0"
             font="small-font" font-color="text-secondary" text-alignment="right"/>
     </view>
 

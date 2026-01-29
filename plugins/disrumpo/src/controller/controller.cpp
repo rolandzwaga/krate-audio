@@ -13,6 +13,7 @@
 #include "controller/views/morph_pad.h"
 #include "controller/views/dynamic_node_selector.h"
 #include "controller/views/node_editor_border.h"
+#include "controller/views/sweep_indicator.h"
 #include "controller/morph_link.h"
 
 #include "base/source/fstreamer.h"
@@ -793,6 +794,114 @@ void Controller::registerSweepParams() {
     falloffParam->appendString(STR16("Hard"));
     falloffParam->appendString(STR16("Soft"));
     parameters.addParameter(falloffParam);
+
+    // =========================================================================
+    // Sweep LFO Parameters (FR-024, FR-025)
+    // =========================================================================
+
+    // LFO Enable: boolean toggle
+    parameters.addParameter(
+        STR16("Sweep LFO Enable"),
+        nullptr,
+        1,  // stepCount = 1 for boolean
+        0.0,  // default off
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeSweepParamId(SweepParamType::kSweepLFOEnable)
+    );
+
+    // LFO Rate: RangeParameter [0.01, 20] Hz
+    auto* lfoRateParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep LFO Rate"),
+        makeSweepParamId(SweepParamType::kSweepLFORate),
+        STR16("Hz"),
+        0.01, 20.0, 1.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(lfoRateParam);
+
+    // LFO Waveform: StringListParameter
+    auto* lfoWaveformParam = new Steinberg::Vst::StringListParameter(
+        STR16("Sweep LFO Waveform"),
+        makeSweepParamId(SweepParamType::kSweepLFOWaveform),
+        nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+    );
+    lfoWaveformParam->appendString(STR16("Sine"));
+    lfoWaveformParam->appendString(STR16("Triangle"));
+    lfoWaveformParam->appendString(STR16("Sawtooth"));
+    lfoWaveformParam->appendString(STR16("Square"));
+    lfoWaveformParam->appendString(STR16("S&H"));
+    lfoWaveformParam->appendString(STR16("Random"));
+    parameters.addParameter(lfoWaveformParam);
+
+    // LFO Depth: RangeParameter [0, 100] %
+    auto* lfoDepthParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep LFO Depth"),
+        makeSweepParamId(SweepParamType::kSweepLFODepth),
+        STR16("%"),
+        0.0, 100.0, 50.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(lfoDepthParam);
+
+    // LFO Tempo Sync: boolean toggle
+    parameters.addParameter(
+        STR16("Sweep LFO Sync"),
+        nullptr,
+        1,  // stepCount = 1 for boolean
+        0.0,  // default off (free mode)
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeSweepParamId(SweepParamType::kSweepLFOSync)
+    );
+
+    // =========================================================================
+    // Sweep Envelope Follower Parameters (FR-026, FR-027)
+    // =========================================================================
+
+    // Envelope Enable: boolean toggle
+    parameters.addParameter(
+        STR16("Sweep Env Enable"),
+        nullptr,
+        1,  // stepCount = 1 for boolean
+        0.0,  // default off
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeSweepParamId(SweepParamType::kSweepEnvEnable)
+    );
+
+    // Envelope Attack: RangeParameter [1, 100] ms
+    auto* envAttackParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep Env Attack"),
+        makeSweepParamId(SweepParamType::kSweepEnvAttack),
+        STR16("ms"),
+        1.0, 100.0, 10.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(envAttackParam);
+
+    // Envelope Release: RangeParameter [10, 500] ms
+    auto* envReleaseParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep Env Release"),
+        makeSweepParamId(SweepParamType::kSweepEnvRelease),
+        STR16("ms"),
+        10.0, 500.0, 100.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(envReleaseParam);
+
+    // Envelope Sensitivity: RangeParameter [0, 100] %
+    auto* envSensParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep Env Sensitivity"),
+        makeSweepParamId(SweepParamType::kSweepEnvSensitivity),
+        STR16("%"),
+        0.0, 100.0, 50.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(envSensParam);
 }
 
 void Controller::registerModulationParams() {
@@ -1761,6 +1870,81 @@ VSTGUI::CView* Controller::createCustomView(
         // For now, the border will clean itself up via deactivate() in destructor
 
         return border;
+    }
+
+    // FR-040 to FR-045: SweepIndicator for sweep visualization
+    if (std::strcmp(name, "SweepIndicator") == 0) {
+        VSTGUI::CPoint origin;
+        VSTGUI::CPoint size;
+
+        const std::string* originStr = attributes.getAttributeValue("origin");
+        const std::string* sizeStr = attributes.getAttributeValue("size");
+
+        if (originStr) {
+            double x = 0.0;
+            double y = 0.0;
+            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
+                origin = VSTGUI::CPoint(x, y);
+            }
+        }
+
+        if (sizeStr) {
+            double w = 980.0;  // Default width (same as spectrum)
+            double h = 200.0;
+            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
+                size = VSTGUI::CPoint(w, h);
+            }
+        } else {
+            size = VSTGUI::CPoint(980.0, 200.0);  // Default size
+        }
+
+        VSTGUI::CRect rect(origin, size);
+        auto* sweepIndicator = new SweepIndicator(rect);
+
+        // Initialize from current sweep parameter values
+        auto* sweepEnableParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepEnable));
+        if (sweepEnableParam) {
+            sweepIndicator->setEnabled(sweepEnableParam->getNormalized() >= 0.5);
+        }
+
+        auto* sweepFreqParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepFrequency));
+        auto* sweepWidthParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepWidth));
+        auto* sweepIntensityParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepIntensity));
+        auto* sweepFalloffParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepFalloff));
+
+        if (sweepFreqParam && sweepWidthParam && sweepIntensityParam) {
+            // Convert normalized to Hz (log scale)
+            constexpr float kSweepLog2Min = 4.321928f;   // log2(20)
+            constexpr float kSweepLog2Max = 14.287712f;  // log2(20000)
+            constexpr float kSweepLog2Range = kSweepLog2Max - kSweepLog2Min;
+            float freqNorm = static_cast<float>(sweepFreqParam->getNormalized());
+            float log2Freq = kSweepLog2Min + freqNorm * kSweepLog2Range;
+            float freqHz = std::pow(2.0f, log2Freq);
+
+            // Convert normalized to octaves (linear 0.5 - 4.0)
+            constexpr float kMinWidth = 0.5f;
+            constexpr float kMaxWidth = 4.0f;
+            float widthNorm = static_cast<float>(sweepWidthParam->getNormalized());
+            float widthOct = kMinWidth + widthNorm * (kMaxWidth - kMinWidth);
+
+            // Convert normalized to intensity (0 - 2)
+            float intensityNorm = static_cast<float>(sweepIntensityParam->getNormalized());
+            float intensity = intensityNorm * 2.0f;
+
+            sweepIndicator->setPosition(freqHz, widthOct, intensity);
+        }
+
+        if (sweepFalloffParam) {
+            sweepIndicator->setFalloffMode(
+                sweepFalloffParam->getNormalized() >= 0.5
+                    ? SweepFalloff::Smooth
+                    : SweepFalloff::Sharp);
+        }
+
+        // Store reference for later access
+        sweepIndicator_ = sweepIndicator;
+
+        return sweepIndicator;
     }
 
     return nullptr;

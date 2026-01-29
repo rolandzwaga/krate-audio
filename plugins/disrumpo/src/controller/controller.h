@@ -26,6 +26,7 @@ namespace Disrumpo {
 class SpectrumDisplay;
 class DynamicNodeSelector;
 class MorphPad;
+class SweepIndicator;
 
 // ==============================================================================
 // Controller Class
@@ -149,6 +150,9 @@ private:
 
     /// Pointer to the SpectrumDisplay instance (for listener registration)
     SpectrumDisplay* spectrumDisplay_ = nullptr;
+
+    /// Pointer to the SweepIndicator instance (for sweep visualization)
+    SweepIndicator* sweepIndicator_ = nullptr;
 
     // ==========================================================================
     // Visibility Controllers (FR-021, FR-022, FR-025)

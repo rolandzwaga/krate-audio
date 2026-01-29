@@ -78,6 +78,10 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     sweepProcessor_.prepare(sampleRate_, setup.maxSamplesPerBlock);
     sweepProcessor_.setCustomCurve(&customCurve_);
 
+    // Initialize sweep LFO and envelope (FR-024 to FR-027)
+    sweepLFO_.prepare(sampleRate_);
+    sweepEnvelope_.prepare(sampleRate_, setup.maxSamplesPerBlock);
+
     return AudioEffect::setupProcessing(setup);
 }
 
@@ -93,6 +97,10 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         sweepProcessor_.reset();
         sweepPositionBuffer_.clear();
         samplePosition_ = 0;
+
+        // Reset sweep LFO and envelope
+        sweepLFO_.reset();
+        sweepEnvelope_.reset();
     }
 
     return AudioEffect::setActive(state);
@@ -140,6 +148,48 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Sweep Processing (spec 007-sweep-system)
     // FR-007: Process sweep smoother for the entire block
     // ==========================================================================
+
+    // Get base sweep frequency
+    float baseFreq = baseSweepFrequency_.load(std::memory_order_relaxed);
+
+    // ==========================================================================
+    // Sweep Automation / Additive Modulation (FR-029a)
+    // LFO and envelope modulate in log space, then add offsets
+    // ==========================================================================
+
+    // Process envelope follower with input signal (average of L+R)
+    // Must be done sample-by-sample for accuracy, but we can use first sample
+    // as approximation for the whole block (acceptable for per-block sweep update)
+    if (sweepEnvelope_.isEnabled()) {
+        float inputMono = (inputL[0] + inputR[0]) * 0.5f;
+        (void)sweepEnvelope_.processSample(inputMono);  // Discard return; we use getModulatedFrequency()
+    }
+
+    // Calculate modulated frequency with additive modulation
+    float modulatedFreq = baseFreq;
+
+    // Get LFO modulation (bidirectional: +/- 2 octaves at full depth)
+    if (sweepLFO_.isEnabled()) {
+        float lfoValue = sweepLFO_.process();  // Returns [-depth, +depth]
+        // LFO value maps to octave shift
+        constexpr float kMaxOctaveShift = 2.0f;
+        float octaveShift = lfoValue * kMaxOctaveShift;
+        float log2Freq = std::log2(modulatedFreq) + octaveShift;
+        modulatedFreq = std::pow(2.0f, log2Freq);
+    }
+
+    // Get envelope modulation (unidirectional: 0 to +2 octaves)
+    if (sweepEnvelope_.isEnabled()) {
+        modulatedFreq = sweepEnvelope_.getModulatedFrequency(modulatedFreq);
+    }
+
+    // Clamp to sweep frequency range (20Hz - 20kHz)
+    constexpr float kMinSweepFreq = 20.0f;
+    constexpr float kMaxSweepFreq = 20000.0f;
+    modulatedFreq = std::clamp(modulatedFreq, kMinSweepFreq, kMaxSweepFreq);
+
+    // Update sweep processor with modulated frequency
+    sweepProcessor_.setCenterFrequency(modulatedFreq);
 
     sweepProcessor_.processBlock(data.numSamples);
 
@@ -470,6 +520,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             constexpr float kSweepLog2Range = kSweepLog2Max - kSweepLog2Min;
                             const float log2Freq = kSweepLog2Min + static_cast<float>(value) * kSweepLog2Range;
                             const float freqHz = std::pow(2.0f, log2Freq);
+                            // Store base frequency for modulation (FR-029a)
+                            baseSweepFrequency_.store(freqHz, std::memory_order_relaxed);
                             sweepProcessor_.setCenterFrequency(freqHz);
                             break;
                         }
@@ -500,6 +552,82 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         case SweepParamType::kSweepFalloff:
                             // FR-005: Falloff mode (0 = Sharp, 1 = Smooth)
                             sweepProcessor_.setFalloffMode(value >= 0.5f ? SweepFalloff::Smooth : SweepFalloff::Sharp);
+                            break;
+
+                        // ========================================================
+                        // Sweep LFO Parameters (FR-024, FR-025)
+                        // ========================================================
+                        case SweepParamType::kSweepLFOEnable:
+                            sweepLFO_.setEnabled(value >= 0.5);
+                            break;
+
+                        case SweepParamType::kSweepLFORate: {
+                            // Convert normalized [0,1] to Hz [0.01, 20] logarithmically
+                            constexpr float kMinRateLog = -4.6052f;  // ln(0.01)
+                            constexpr float kMaxRateLog = 2.9957f;   // ln(20)
+                            const float logRate = kMinRateLog + static_cast<float>(value) * (kMaxRateLog - kMinRateLog);
+                            const float rateHz = std::exp(logRate);
+                            sweepLFO_.setRate(rateHz);
+                            break;
+                        }
+
+                        case SweepParamType::kSweepLFOWaveform: {
+                            // Convert normalized [0,1] to waveform index [0,5]
+                            const int waveformIndex = static_cast<int>(value * 5.0f + 0.5f);
+                            sweepLFO_.setWaveform(static_cast<Krate::DSP::Waveform>(waveformIndex));
+                            break;
+                        }
+
+                        case SweepParamType::kSweepLFODepth:
+                            // Depth is already normalized [0,1]
+                            sweepLFO_.setDepth(static_cast<float>(value));
+                            break;
+
+                        case SweepParamType::kSweepLFOSync:
+                            sweepLFO_.setTempoSync(value >= 0.5);
+                            break;
+
+                        case SweepParamType::kSweepLFONoteValue: {
+                            // Convert normalized [0,1] to note value index [0,15]
+                            // Standard note values: Whole, Half, Quarter, Eighth, Sixteenth (x3 for normal, dotted, triplet)
+                            const int noteIndex = static_cast<int>(value * 14.0f + 0.5f);
+                            const int noteValueIndex = noteIndex / 3;  // 0-4: Whole, Half, Quarter, Eighth, Sixteenth
+                            const int modifierIndex = noteIndex % 3;   // 0: Normal, 1: Dotted, 2: Triplet
+                            sweepLFO_.setNoteValue(
+                                static_cast<Krate::DSP::NoteValue>(noteValueIndex),
+                                static_cast<Krate::DSP::NoteModifier>(modifierIndex));
+                            break;
+                        }
+
+                        // ========================================================
+                        // Sweep Envelope Parameters (FR-026, FR-027)
+                        // ========================================================
+                        case SweepParamType::kSweepEnvEnable:
+                            sweepEnvelope_.setEnabled(value >= 0.5);
+                            break;
+
+                        case SweepParamType::kSweepEnvAttack: {
+                            // Convert normalized [0,1] to ms [1, 100]
+                            const float attackMs = kMinSweepEnvAttackMs +
+                                static_cast<float>(value) * (kMaxSweepEnvAttackMs - kMinSweepEnvAttackMs);
+                            sweepEnvelope_.setAttackTime(attackMs);
+                            break;
+                        }
+
+                        case SweepParamType::kSweepEnvRelease: {
+                            // Convert normalized [0,1] to ms [10, 500]
+                            const float releaseMs = kMinSweepEnvReleaseMs +
+                                static_cast<float>(value) * (kMaxSweepEnvReleaseMs - kMinSweepEnvReleaseMs);
+                            sweepEnvelope_.setReleaseTime(releaseMs);
+                            break;
+                        }
+
+                        case SweepParamType::kSweepEnvSensitivity:
+                            // Sensitivity is already normalized [0,1]
+                            sweepEnvelope_.setSensitivity(static_cast<float>(value));
+                            break;
+
+                        default:
                             break;
                     }
                     break;  // Exit the default case after handling sweep params

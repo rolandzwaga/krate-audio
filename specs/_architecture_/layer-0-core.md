@@ -428,3 +428,38 @@ constexpr int kMaxMidiVelocity = 127;     // Maximum MIDI velocity
 **Do NOT use when:**
 - You need a non-linear velocity curve (implement your own with `dbToGain()`)
 - You need microtonal tuning (this is strictly 12-TET)
+
+---
+
+## Sweep-Morph Link Curves
+**Path:** [sweep_morph_link.h](../../specs/007-sweep-system/contracts/sweep_morph_link.h) | **Since:** 0.15.0 (Disrumpo plugin)
+
+Pure mathematical curve functions for mapping sweep frequency position (0-1) to morph position (0-1). Part of the Disrumpo sweep system.
+
+**Note:** These functions are defined in the Disrumpo plugin contracts directory, not the shared DSP library, as they are specific to Disrumpo's sweep-morph linking feature.
+
+```cpp
+namespace Disrumpo::SweepMorphLink {
+    [[nodiscard]] inline float linear(float x) noexcept;         // y = x
+    [[nodiscard]] inline float inverse(float x) noexcept;        // y = 1 - x
+    [[nodiscard]] inline float easeIn(float x) noexcept;         // y = x^3 (slow start)
+    [[nodiscard]] inline float easeOut(float x) noexcept;        // y = 1 - (1-x)^3 (slow end)
+    [[nodiscard]] inline float holdRise(float x) noexcept;       // 0 until 0.6, then rises
+    [[nodiscard]] inline float stepped(float x) noexcept;        // Quantized to 0, 0.33, 0.67, 1.0
+    [[nodiscard]] float applyMorphLinkCurve(MorphLinkMode mode, float normalizedSweepFreq) noexcept;
+}
+```
+
+| Curve | Formula | Character |
+|-------|---------|-----------|
+| Linear | `y = x` | Direct 1:1 mapping |
+| Inverse | `y = 1 - x` | Reversed mapping |
+| EaseIn | `y = x^3` | Slow start, fast end |
+| EaseOut | `y = 1 - (1-x)^3` | Fast start, slow end |
+| HoldRise | `x < 0.6 ? 0 : (x-0.6)/0.4` | Hold then rise |
+| Stepped | Quantize to 4 levels | Discrete jumps |
+
+**When to use:**
+- Mapping sweep frequency position to morph position in Disrumpo
+- Any feature needing normalized [0,1] position curve transformations
+- Building custom automation curves with predictable mathematical properties

@@ -20,6 +20,8 @@
 #include "dsp/band_state.h"
 #include "dsp/sweep_processor.h"
 #include "dsp/custom_curve.h"
+#include "dsp/sweep_lfo.h"
+#include "dsp/sweep_envelope.h"
 
 #include <krate/dsp/primitives/sweep_position_buffer.h>
 
@@ -168,6 +170,19 @@ private:
 
     /// @brief Current sample position for timing synchronization
     uint64_t samplePosition_ = 0;
+
+    // ==========================================================================
+    // Sweep Automation (spec 007-sweep-system, FR-024 to FR-029)
+    // ==========================================================================
+
+    /// @brief LFO for sweep frequency modulation (FR-024, FR-025)
+    SweepLFO sweepLFO_;
+
+    /// @brief Envelope follower for sweep frequency modulation (FR-026, FR-027)
+    SweepEnvelope sweepEnvelope_;
+
+    /// @brief Base sweep frequency before modulation (Hz)
+    std::atomic<float> baseSweepFrequency_{1000.0f};
 };
 
 } // namespace Disrumpo

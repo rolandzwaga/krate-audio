@@ -93,6 +93,20 @@ enum class SweepParamType : uint8_t {
     kSweepIntensity    = 0x03,  ///< Sweep intensity [0, 100] %
     kSweepMorphLink    = 0x04,  ///< Sweep-to-morph link mode
     kSweepFalloff      = 0x05,  ///< Sweep falloff [Hard, Soft]
+
+    // Sweep LFO parameters (FR-024, FR-025)
+    kSweepLFOEnable    = 0x10,  ///< Enable internal LFO [on/off]
+    kSweepLFORate      = 0x11,  ///< LFO rate [0.01, 20] Hz
+    kSweepLFOWaveform  = 0x12,  ///< LFO waveform [Sine, Triangle, Saw, Square, S&H, Random]
+    kSweepLFODepth     = 0x13,  ///< LFO depth [0, 100] %
+    kSweepLFOSync      = 0x14,  ///< LFO tempo sync [on/off]
+    kSweepLFONoteValue = 0x15,  ///< LFO note value (when tempo sync enabled)
+
+    // Sweep Envelope Follower parameters (FR-026, FR-027)
+    kSweepEnvEnable    = 0x20,  ///< Enable envelope follower [on/off]
+    kSweepEnvAttack    = 0x21,  ///< Envelope attack [1, 100] ms
+    kSweepEnvRelease   = 0x22,  ///< Envelope release [10, 500] ms
+    kSweepEnvSensitivity = 0x23, ///< Envelope sensitivity [0, 100] %
 };
 
 /// @brief Create parameter ID for sweep parameters.
