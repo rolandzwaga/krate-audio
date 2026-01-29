@@ -1433,3 +1433,80 @@ mangler.setDCBlockEnabled(false);
 **Related Primitives:** BitCrusher (quantization), Waveshaper (smooth saturation)
 
 **Dependencies:** `core/random.h` (Xorshift32), `core/db_utils.h` (isNaN, isInf, flushDenormal)
+
+---
+
+## SweepPositionBuffer (Lock-Free Audio-UI Sync)
+**Path:** [sweep_position_buffer.h](../../dsp/include/krate/dsp/primitives/sweep_position_buffer.h) | **Since:** 0.15.0
+
+Lock-free Single-Producer Single-Consumer (SPSC) ring buffer for communicating sweep position data from audio thread to UI thread.
+
+**Use when:**
+- Audio thread needs to send visualization data to UI (sweep position, waveform data)
+- Real-time audio data needs UI display without blocking
+- Building audio-visual synchronized effects (spectrum analyzers, sweep indicators)
+
+**Note:** This is a thread-safe communication primitive. Producer (audio thread) calls `push()`, consumer (UI thread) calls `pop()`/`getLatest()`. No locks or allocations after construction.
+
+```cpp
+struct SweepPositionData {
+    float centerFreqHz = 1000.0f;   // Current sweep center frequency in Hz
+    float widthOctaves = 1.5f;      // Sweep width in octaves
+    float intensity = 0.5f;         // Intensity multiplier [0.0, 2.0]
+    uint64_t samplePosition = 0;    // Sample count for timing sync
+    bool enabled = false;           // Sweep on/off state
+    uint8_t falloff = 1;            // Falloff mode (0=Sharp, 1=Smooth)
+};
+
+class SweepPositionBuffer {
+    static constexpr int kSweepBufferSize = 8;  // ~100ms at typical block sizes
+
+    // Producer (audio thread)
+    bool push(const SweepPositionData& data) noexcept;
+
+    // Consumer (UI thread)
+    bool pop(SweepPositionData& data) noexcept;
+    [[nodiscard]] bool getLatest(SweepPositionData& data) const noexcept;
+    bool drainToLatest(SweepPositionData& data) noexcept;
+    [[nodiscard]] SweepPositionData getInterpolatedPosition(uint64_t targetSample) const noexcept;
+
+    // Utility
+    void clear() noexcept;
+    [[nodiscard]] bool isEmpty() const noexcept;
+    [[nodiscard]] int count() const noexcept;
+};
+```
+
+| Method | Thread | Description |
+|--------|--------|-------------|
+| `push()` | Audio only | Add new position data (returns false if full) |
+| `pop()` | UI only | Remove oldest entry (FIFO order) |
+| `getLatest()` | UI only | Peek newest entry without removing |
+| `drainToLatest()` | UI only | Clear buffer, return newest |
+| `getInterpolatedPosition()` | UI only | Interpolate for smooth 60fps display |
+
+**Example Usage (Processor side):**
+```cpp
+// In Processor::process()
+if (sweepProcessor_.isEnabled()) {
+    SweepPositionData data;
+    data.centerFreqHz = sweepProcessor_.getCenterFrequency();
+    data.widthOctaves = sweepProcessor_.getWidth();
+    data.intensity = sweepProcessor_.getIntensity();
+    data.samplePosition = currentSamplePosition;
+    data.enabled = true;
+    sweepPositionBuffer_.push(data);
+}
+```
+
+**Example Usage (UI side):**
+```cpp
+// In Controller::idle() or timer callback
+SweepPositionData data;
+if (sweepPositionBuffer_->getLatest(data)) {
+    sweepIndicator_->setPosition(data.centerFreqHz, data.widthOctaves, data.intensity);
+    sweepIndicator_->setEnabled(data.enabled);
+}
+```
+
+**Dependencies:** Standard library only (std::atomic, std::array)

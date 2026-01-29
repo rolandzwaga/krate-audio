@@ -9,6 +9,8 @@
 #include "vstgui/lib/cgradient.h"
 #include "vstgui/lib/events.h"
 
+#include <utility>
+
 namespace Disrumpo {
 
 // ==============================================================================
@@ -240,7 +242,7 @@ void DynamicNodeSelector::rebuildSegments(int activeCount)
     currentSegmentCount_ = activeCount;
 
     // Restore selection (clamped to valid range)
-    if (currentSelection >= static_cast<uint32_t>(activeCount)) {
+    if (std::cmp_greater_equal(currentSelection, activeCount)) {
         currentSelection = static_cast<uint32_t>(activeCount - 1);
     }
     setSelectedSegment(currentSelection);

@@ -117,6 +117,24 @@ float SpectrumDisplay::xToFreq(float x) const {
 // CView Overrides
 // ==============================================================================
 
+void SpectrumDisplay::setSweepBandIntensities(
+    const std::array<float, 8>& intensities, int numBands) {
+    for (int i = 0; i < numBands && i < kMaxBands; ++i) {
+        sweepIntensities_[static_cast<size_t>(i)] = intensities[static_cast<size_t>(i)];
+    }
+    invalid();
+}
+
+void SpectrumDisplay::setSweepEnabled(bool enabled) {
+    if (sweepEnabled_ != enabled) {
+        sweepEnabled_ = enabled;
+        if (!enabled) {
+            sweepIntensities_.fill(0.0f);
+        }
+        invalid();
+    }
+}
+
 void SpectrumDisplay::draw(VSTGUI::CDrawContext* context) {
     // Get view bounds
     auto viewSize = getViewSize();
@@ -127,6 +145,11 @@ void SpectrumDisplay::draw(VSTGUI::CDrawContext* context) {
 
     // Draw band regions (semi-transparent)
     drawBandRegions(context);
+
+    // Draw sweep intensity overlay (FR-050)
+    if (sweepEnabled_) {
+        drawSweepIntensityOverlay(context);
+    }
 
     // Draw crossover dividers
     drawCrossoverDividers(context);
@@ -343,6 +366,40 @@ int SpectrumDisplay::getBandAtFrequency(float freq) const {
         }
     }
     return numBands_ - 1;
+}
+
+void SpectrumDisplay::drawSweepIntensityOverlay(VSTGUI::CDrawContext* context) {
+    auto viewSize = getViewSize();
+    float height = static_cast<float>(viewSize.getHeight());
+    float viewLeft = static_cast<float>(viewSize.left);
+
+    // Sweep highlight color (accent-secondary with variable alpha)
+    constexpr uint8_t kMaxAlpha = 60;  // Max alpha for sweep overlay
+
+    for (int band = 0; band < numBands_; ++band) {
+        float intensity = sweepIntensities_[static_cast<size_t>(band)];
+        if (intensity <= 0.001f) {
+            continue;  // Skip bands with negligible intensity
+        }
+
+        // Calculate band X boundaries
+        float leftFreq = (band == 0) ? kMinFreqHz : crossoverFreqs_[static_cast<size_t>(band - 1)];
+        float rightFreq = (band == numBands_ - 1) ? kMaxFreqHz : crossoverFreqs_[static_cast<size_t>(band)];
+
+        float leftX = freqToX(leftFreq) + viewLeft;
+        float rightX = freqToX(rightFreq) + viewLeft;
+
+        // Clamp intensity to reasonable display range
+        float clampedIntensity = std::min(intensity, 2.0f);
+
+        // Semi-transparent highlight overlay
+        VSTGUI::CColor highlightColor(0x4E, 0xCD, 0xC4, 0xFF);  // accent-secondary
+        highlightColor.alpha = static_cast<uint8_t>(clampedIntensity * kMaxAlpha);
+
+        VSTGUI::CRect bandRect(leftX, viewSize.top, rightX, viewSize.top + height);
+        context->setFillColor(highlightColor);
+        context->drawRect(bandRect, VSTGUI::kDrawFilled);
+    }
 }
 
 } // namespace Disrumpo

@@ -13,7 +13,10 @@
 #include "controller/views/morph_pad.h"
 #include "controller/views/dynamic_node_selector.h"
 #include "controller/views/node_editor_border.h"
+#include "controller/views/sweep_indicator.h"
+#include "controller/views/custom_curve_editor.h"
 #include "controller/morph_link.h"
+#include "dsp/sweep_morph_link.h"
 
 #include "base/source/fstreamer.h"
 #include "base/source/fobject.h"
@@ -385,10 +388,10 @@ public:
         uint8_t band)
     : controller_(controller)
     , band_(band)
+    , selectedNodeParam_(controller->getParameterObject(
+          makeBandParamId(band, BandParamType::kBandSelectedNode)))
     {
         // Watch the SelectedNode parameter
-        selectedNodeParam_ = controller_->getParameterObject(
-            makeBandParamId(band, BandParamType::kBandSelectedNode));
         if (selectedNodeParam_) {
             selectedNodeParam_->addRef();
             selectedNodeParam_->addDependent(this);
@@ -425,10 +428,10 @@ public:
             selectedNodeParam_->release();
             selectedNodeParam_ = nullptr;
         }
-        for (int n = 0; n < 4; ++n) {
-            if (nodeTypeParams_[n]) {
-                nodeTypeParams_[n]->release();
-                nodeTypeParams_[n] = nullptr;
+        for (auto*& param : nodeTypeParams_) {
+            if (param) {
+                param->release();
+                param = nullptr;
             }
         }
         if (displayedTypeParam_) {
@@ -442,9 +445,9 @@ public:
             if (selectedNodeParam_) {
                 selectedNodeParam_->removeDependent(this);
             }
-            for (int n = 0; n < 4; ++n) {
-                if (nodeTypeParams_[n]) {
-                    nodeTypeParams_[n]->removeDependent(this);
+            for (auto* param : nodeTypeParams_) {
+                if (param) {
+                    param->removeDependent(this);
                 }
             }
             if (displayedTypeParam_) {
@@ -551,6 +554,211 @@ private:
     Steinberg::Vst::Parameter* displayedTypeParam_ = nullptr;
     std::atomic<bool> isActive_{true};
     bool isUpdating_ = false;  // Re-entrancy guard for bidirectional sync
+};
+
+// ==============================================================================
+// SweepVisualizationController: Update sweep indicator from output parameter
+// ==============================================================================
+// FR-047, FR-049: Watches the modulated frequency output parameter and updates
+// the SweepIndicator and SpectrumDisplay with current sweep state.
+// ==============================================================================
+class SweepVisualizationController : public Steinberg::FObject {
+public:
+    SweepVisualizationController(
+        Steinberg::Vst::EditControllerEx1* controller,
+        SweepIndicator** sweepIndicator,
+        SpectrumDisplay** spectrumDisplay)
+    : controller_(controller)
+    , sweepIndicatorPtr_(sweepIndicator)
+    , spectrumDisplayPtr_(spectrumDisplay)
+    , modFreqParam_(controller->getParameterObject(kSweepModulatedFrequencyOutputId))
+    {
+        // Watch the modulated frequency output parameter
+        if (modFreqParam_) {
+            modFreqParam_->addRef();
+            modFreqParam_->addDependent(this);
+        }
+
+        // Watch sweep enable parameter
+        sweepEnableParam_ = controller_->getParameterObject(
+            makeSweepParamId(SweepParamType::kSweepEnable));
+        if (sweepEnableParam_) {
+            sweepEnableParam_->addRef();
+            sweepEnableParam_->addDependent(this);
+        }
+
+        // Watch width parameter
+        sweepWidthParam_ = controller_->getParameterObject(
+            makeSweepParamId(SweepParamType::kSweepWidth));
+        if (sweepWidthParam_) {
+            sweepWidthParam_->addRef();
+            sweepWidthParam_->addDependent(this);
+        }
+
+        // Watch intensity parameter
+        sweepIntensityParam_ = controller_->getParameterObject(
+            makeSweepParamId(SweepParamType::kSweepIntensity));
+        if (sweepIntensityParam_) {
+            sweepIntensityParam_->addRef();
+            sweepIntensityParam_->addDependent(this);
+        }
+
+        // Watch falloff parameter
+        sweepFalloffParam_ = controller_->getParameterObject(
+            makeSweepParamId(SweepParamType::kSweepFalloff));
+        if (sweepFalloffParam_) {
+            sweepFalloffParam_->addRef();
+            sweepFalloffParam_->addDependent(this);
+        }
+    }
+
+    ~SweepVisualizationController() override {
+        deactivate();
+        releaseParam(modFreqParam_);
+        releaseParam(sweepEnableParam_);
+        releaseParam(sweepWidthParam_);
+        releaseParam(sweepIntensityParam_);
+        releaseParam(sweepFalloffParam_);
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            removeDependent(modFreqParam_);
+            removeDependent(sweepEnableParam_);
+            removeDependent(sweepWidthParam_);
+            removeDependent(sweepIntensityParam_);
+            removeDependent(sweepFalloffParam_);
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) {
+            return;
+        }
+        if (message != IDependent::kChanged || !controller_) {
+            return;
+        }
+
+        SweepIndicator* indicator = sweepIndicatorPtr_ ? *sweepIndicatorPtr_ : nullptr;
+        if (!indicator) {
+            return;
+        }
+
+        // Update enable state
+        if (sweepEnableParam_) {
+            indicator->setEnabled(sweepEnableParam_->getNormalized() >= 0.5);
+        }
+
+        // Update center frequency from modulated output parameter
+        if (modFreqParam_) {
+            float normFreq = static_cast<float>(modFreqParam_->getNormalized());
+            float freqHz = denormalizeSweepFrequency(normFreq);
+            indicator->setCenterFrequency(freqHz);
+        }
+
+        // Update width
+        if (sweepWidthParam_) {
+            constexpr float kMinWidth = 0.5f;
+            constexpr float kMaxWidth = 4.0f;
+            float widthNorm = static_cast<float>(sweepWidthParam_->getNormalized());
+            float widthOct = kMinWidth + widthNorm * (kMaxWidth - kMinWidth);
+            indicator->setWidth(widthOct);
+        }
+
+        // Update intensity
+        if (sweepIntensityParam_) {
+            float intensityNorm = static_cast<float>(sweepIntensityParam_->getNormalized());
+            indicator->setIntensity(intensityNorm * 2.0f);
+        }
+
+        // Update falloff mode
+        if (sweepFalloffParam_) {
+            indicator->setFalloffMode(
+                sweepFalloffParam_->getNormalized() >= 0.5
+                    ? SweepFalloff::Smooth
+                    : SweepFalloff::Sharp);
+        }
+
+        // Update spectrum display band intensities (FR-050)
+        updateSpectrumBandIntensities();
+    }
+
+    OBJ_METHODS(SweepVisualizationController, FObject)
+
+private:
+    void updateSpectrumBandIntensities() {
+        SpectrumDisplay* display = spectrumDisplayPtr_ ? *spectrumDisplayPtr_ : nullptr;
+        if (!display || !modFreqParam_ || !sweepWidthParam_ || !sweepIntensityParam_ || !sweepEnableParam_) {
+            return;
+        }
+
+        bool enabled = sweepEnableParam_->getNormalized() >= 0.5;
+        if (!enabled) {
+            display->setSweepEnabled(false);
+            return;
+        }
+
+        display->setSweepEnabled(true);
+
+        // Get current sweep parameters
+        float normFreq = static_cast<float>(modFreqParam_->getNormalized());
+        float sweepCenterHz = denormalizeSweepFrequency(normFreq);
+
+        constexpr float kMinWidth = 0.5f;
+        constexpr float kMaxWidth = 4.0f;
+        float widthNorm = static_cast<float>(sweepWidthParam_->getNormalized());
+        float widthOctaves = kMinWidth + widthNorm * (kMaxWidth - kMinWidth);
+
+        float intensityNorm = static_cast<float>(sweepIntensityParam_->getNormalized());
+        float intensity = intensityNorm * 2.0f;
+
+        bool smoothFalloff = (sweepFalloffParam_ != nullptr) && sweepFalloffParam_->getNormalized() >= 0.5;
+
+        // Compute per-band intensities
+        int numBands = display->getNumBands();
+        std::array<float, 8> intensities{};
+
+        for (int i = 0; i < numBands && i < 8; ++i) {
+            // Get band center frequency from crossover positions
+            float lowFreq = (i == 0) ? 20.0f : display->getCrossoverFrequency(i - 1);
+            float highFreq = (i == numBands - 1) ? 20000.0f : display->getCrossoverFrequency(i);
+            // Geometric mean for band center
+            float bandCenterHz = std::sqrt(lowFreq * highFreq);
+
+            if (smoothFalloff) {
+                intensities[static_cast<size_t>(i)] = calculateGaussianIntensity(
+                    bandCenterHz, sweepCenterHz, widthOctaves, intensity);
+            } else {
+                intensities[static_cast<size_t>(i)] = calculateLinearFalloff(
+                    bandCenterHz, sweepCenterHz, widthOctaves, intensity);
+            }
+        }
+
+        display->setSweepBandIntensities(intensities, numBands);
+    }
+
+    void removeDependent(Steinberg::Vst::Parameter* param) {
+        if (param) {
+            param->removeDependent(this);
+        }
+    }
+
+    static void releaseParam(Steinberg::Vst::Parameter*& param) {
+        if (param) {
+            param->release();
+            param = nullptr;
+        }
+    }
+
+    Steinberg::Vst::EditControllerEx1* controller_;
+    SweepIndicator** sweepIndicatorPtr_;
+    SpectrumDisplay** spectrumDisplayPtr_;
+    Steinberg::Vst::Parameter* modFreqParam_ = nullptr;
+    Steinberg::Vst::Parameter* sweepEnableParam_ = nullptr;
+    Steinberg::Vst::Parameter* sweepWidthParam_ = nullptr;
+    Steinberg::Vst::Parameter* sweepIntensityParam_ = nullptr;
+    Steinberg::Vst::Parameter* sweepFalloffParam_ = nullptr;
+    std::atomic<bool> isActive_{true};
 };
 
 // ==============================================================================
@@ -793,6 +1001,248 @@ void Controller::registerSweepParams() {
     falloffParam->appendString(STR16("Hard"));
     falloffParam->appendString(STR16("Soft"));
     parameters.addParameter(falloffParam);
+
+    // =========================================================================
+    // Sweep LFO Parameters (FR-024, FR-025)
+    // =========================================================================
+
+    // LFO Enable: boolean toggle
+    parameters.addParameter(
+        STR16("Sweep LFO Enable"),
+        nullptr,
+        1,  // stepCount = 1 for boolean
+        0.0,  // default off
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeSweepParamId(SweepParamType::kSweepLFOEnable)
+    );
+
+    // LFO Rate: RangeParameter [0.01, 20] Hz
+    auto* lfoRateParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep LFO Rate"),
+        makeSweepParamId(SweepParamType::kSweepLFORate),
+        STR16("Hz"),
+        0.01, 20.0, 1.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(lfoRateParam);
+
+    // LFO Waveform: StringListParameter
+    auto* lfoWaveformParam = new Steinberg::Vst::StringListParameter(
+        STR16("Sweep LFO Waveform"),
+        makeSweepParamId(SweepParamType::kSweepLFOWaveform),
+        nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+    );
+    lfoWaveformParam->appendString(STR16("Sine"));
+    lfoWaveformParam->appendString(STR16("Triangle"));
+    lfoWaveformParam->appendString(STR16("Sawtooth"));
+    lfoWaveformParam->appendString(STR16("Square"));
+    lfoWaveformParam->appendString(STR16("S&H"));
+    lfoWaveformParam->appendString(STR16("Random"));
+    parameters.addParameter(lfoWaveformParam);
+
+    // LFO Depth: RangeParameter [0, 100] %
+    auto* lfoDepthParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep LFO Depth"),
+        makeSweepParamId(SweepParamType::kSweepLFODepth),
+        STR16("%"),
+        0.0, 100.0, 50.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(lfoDepthParam);
+
+    // LFO Tempo Sync: boolean toggle
+    parameters.addParameter(
+        STR16("Sweep LFO Sync"),
+        nullptr,
+        1,  // stepCount = 1 for boolean
+        0.0,  // default off (free mode)
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeSweepParamId(SweepParamType::kSweepLFOSync)
+    );
+
+    // LFO Note Value: StringListParameter for tempo-synced note values
+    // Encoding: 5 base notes x 3 modifiers = 15 values
+    auto* lfoNoteParam = new Steinberg::Vst::StringListParameter(
+        STR16("Sweep LFO Note"),
+        makeSweepParamId(SweepParamType::kSweepLFONoteValue),
+        nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
+    );
+    lfoNoteParam->appendString(STR16("1/1"));
+    lfoNoteParam->appendString(STR16("1/1d"));
+    lfoNoteParam->appendString(STR16("1/1t"));
+    lfoNoteParam->appendString(STR16("1/2"));
+    lfoNoteParam->appendString(STR16("1/2d"));
+    lfoNoteParam->appendString(STR16("1/2t"));
+    lfoNoteParam->appendString(STR16("1/4"));
+    lfoNoteParam->appendString(STR16("1/4d"));
+    lfoNoteParam->appendString(STR16("1/4t"));
+    lfoNoteParam->appendString(STR16("1/8"));
+    lfoNoteParam->appendString(STR16("1/8d"));
+    lfoNoteParam->appendString(STR16("1/8t"));
+    lfoNoteParam->appendString(STR16("1/16"));
+    lfoNoteParam->appendString(STR16("1/16d"));
+    lfoNoteParam->appendString(STR16("1/16t"));
+    parameters.addParameter(lfoNoteParam);
+
+    // =========================================================================
+    // Sweep Envelope Follower Parameters (FR-026, FR-027)
+    // =========================================================================
+
+    // Envelope Enable: boolean toggle
+    parameters.addParameter(
+        STR16("Sweep Env Enable"),
+        nullptr,
+        1,  // stepCount = 1 for boolean
+        0.0,  // default off
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeSweepParamId(SweepParamType::kSweepEnvEnable)
+    );
+
+    // Envelope Attack: RangeParameter [1, 100] ms
+    auto* envAttackParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep Env Attack"),
+        makeSweepParamId(SweepParamType::kSweepEnvAttack),
+        STR16("ms"),
+        1.0, 100.0, 10.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(envAttackParam);
+
+    // Envelope Release: RangeParameter [10, 500] ms
+    auto* envReleaseParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep Env Release"),
+        makeSweepParamId(SweepParamType::kSweepEnvRelease),
+        STR16("ms"),
+        10.0, 500.0, 100.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(envReleaseParam);
+
+    // Envelope Sensitivity: RangeParameter [0, 100] %
+    auto* envSensParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep Env Sensitivity"),
+        makeSweepParamId(SweepParamType::kSweepEnvSensitivity),
+        STR16("%"),
+        0.0, 100.0, 50.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(envSensParam);
+
+    // =========================================================================
+    // Output Parameters (Processor -> Controller) — FR-047, FR-049
+    // =========================================================================
+
+    // Modulated Sweep Frequency: read-only output parameter
+    parameters.addParameter(
+        STR16("Sweep Mod Freq"),
+        nullptr,
+        0,  // continuous
+        0.5,  // default: mid-range
+        Steinberg::Vst::ParameterInfo::kIsReadOnly,
+        kSweepModulatedFrequencyOutputId
+    );
+
+    // Detected MIDI CC: read-only output parameter for MIDI Learn (FR-029)
+    parameters.addParameter(
+        STR16("Sweep Detected CC"),
+        nullptr,
+        0,
+        0.0,
+        Steinberg::Vst::ParameterInfo::kIsReadOnly,
+        kSweepDetectedCCOutputId
+    );
+
+    // =========================================================================
+    // Custom Curve Parameters (FR-039a, FR-039b, FR-039c)
+    // =========================================================================
+
+    // Point Count: [2-8]
+    auto* curvePointCountParam = new Steinberg::Vst::RangeParameter(
+        STR16("Curve Point Count"),
+        makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount),
+        nullptr,
+        2.0, 8.0, 2.0,
+        6,  // 7 steps (2-8)
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(curvePointCountParam);
+
+    // Register 8 pairs of X/Y point parameters
+    static const Steinberg::Vst::TChar* pointNames[] = {
+        STR16("Curve P0 X"), STR16("Curve P0 Y"),
+        STR16("Curve P1 X"), STR16("Curve P1 Y"),
+        STR16("Curve P2 X"), STR16("Curve P2 Y"),
+        STR16("Curve P3 X"), STR16("Curve P3 Y"),
+        STR16("Curve P4 X"), STR16("Curve P4 Y"),
+        STR16("Curve P5 X"), STR16("Curve P5 Y"),
+        STR16("Curve P6 X"), STR16("Curve P6 Y"),
+        STR16("Curve P7 X"), STR16("Curve P7 Y")
+    };
+
+    for (int p = 0; p < 8; ++p) {
+        auto idx = static_cast<size_t>(p);
+
+        // Compute default X position
+        float defaultX = 0.0f;
+        if (p == 7) {
+            defaultX = 1.0f;
+        } else if (p > 0) {
+            defaultX = static_cast<float>(p) / 7.0f;
+        }
+
+        // X coordinate
+        auto xType = static_cast<SweepParamType>(
+            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + p * 2);
+        parameters.addParameter(
+            pointNames[idx * 2],
+            nullptr, 0, defaultX,
+            Steinberg::Vst::ParameterInfo::kCanAutomate,
+            makeSweepParamId(xType)
+        );
+
+        // Y coordinate
+        auto yType = static_cast<SweepParamType>(
+            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + p * 2);
+        float defaultY = defaultX;  // Default to linear (y = x)
+        parameters.addParameter(
+            pointNames[idx * 2 + 1],
+            nullptr, 0, defaultY,
+            Steinberg::Vst::ParameterInfo::kCanAutomate,
+            makeSweepParamId(yType)
+        );
+    }
+
+    // =========================================================================
+    // MIDI Parameters (FR-028, FR-029)
+    // =========================================================================
+
+    // MIDI Learn Active: boolean toggle
+    parameters.addParameter(
+        STR16("Sweep MIDI Learn"),
+        nullptr,
+        1,  // stepCount = 1 for boolean
+        0.0,  // default off
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeSweepParamId(SweepParamType::kSweepMidiLearnActive)
+    );
+
+    // MIDI CC Number: [0-128], 128 = none
+    auto* midiCCParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sweep MIDI CC"),
+        makeSweepParamId(SweepParamType::kSweepMidiCCNumber),
+        nullptr,
+        0.0, 128.0, 128.0,
+        128,  // 129 integer steps
+        Steinberg::Vst::ParameterInfo::kCanAutomate
+    );
+    parameters.addParameter(midiCCParam);
 }
 
 void Controller::registerModulationParams() {
@@ -1364,6 +1814,97 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
         }
     }
 
+    // =========================================================================
+    // Sweep System State (v4+) — SC-012
+    // =========================================================================
+    if (version >= 4) {
+        // Sweep Core
+        Steinberg::int8 sweepEnable = 0;
+        float sweepFreqNorm = 0.566f;
+        float sweepWidthNorm = 0.286f;
+        float sweepIntensityNorm = 0.25f;
+        Steinberg::int8 sweepFalloff = 1;
+        Steinberg::int8 sweepMorphLink = 0;
+
+        if (streamer.readInt8(sweepEnable))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepEnable),
+                               sweepEnable != 0 ? 1.0 : 0.0);
+        if (streamer.readFloat(sweepFreqNorm))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepFrequency),
+                               sweepFreqNorm);
+        if (streamer.readFloat(sweepWidthNorm))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepWidth),
+                               sweepWidthNorm);
+        if (streamer.readFloat(sweepIntensityNorm))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepIntensity),
+                               sweepIntensityNorm);
+        if (streamer.readInt8(sweepFalloff))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepFalloff),
+                               sweepFalloff != 0 ? 1.0 : 0.0);
+        if (streamer.readInt8(sweepMorphLink))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepMorphLink),
+                               static_cast<double>(sweepMorphLink) / (kMorphLinkModeCount - 1));
+
+        // LFO
+        Steinberg::int8 lfoEnable = 0;
+        float lfoRateNorm = 0.606f;
+        Steinberg::int8 lfoWaveform = 0;
+        float lfoDepth = 0.0f;
+        Steinberg::int8 lfoSync = 0;
+        Steinberg::int8 lfoNoteIndex = 0;
+
+        if (streamer.readInt8(lfoEnable))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepLFOEnable),
+                               lfoEnable != 0 ? 1.0 : 0.0);
+        if (streamer.readFloat(lfoRateNorm))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepLFORate),
+                               lfoRateNorm);
+        if (streamer.readInt8(lfoWaveform))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepLFOWaveform),
+                               static_cast<double>(lfoWaveform) / 5.0);
+        if (streamer.readFloat(lfoDepth))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepLFODepth),
+                               lfoDepth);
+        if (streamer.readInt8(lfoSync))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepLFOSync),
+                               lfoSync != 0 ? 1.0 : 0.0);
+        if (streamer.readInt8(lfoNoteIndex))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepLFONoteValue),
+                               static_cast<double>(lfoNoteIndex) / 14.0);
+
+        // Envelope
+        Steinberg::int8 envEnable = 0;
+        float envAttackNorm = 0.091f;
+        float envReleaseNorm = 0.184f;
+        float envSensitivity = 0.5f;
+
+        if (streamer.readInt8(envEnable))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepEnvEnable),
+                               envEnable != 0 ? 1.0 : 0.0);
+        if (streamer.readFloat(envAttackNorm))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepEnvAttack),
+                               envAttackNorm);
+        if (streamer.readFloat(envReleaseNorm))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepEnvRelease),
+                               envReleaseNorm);
+        if (streamer.readFloat(envSensitivity))
+            setParamNormalized(makeSweepParamId(SweepParamType::kSweepEnvSensitivity),
+                               envSensitivity);
+
+        // Custom Curve - skip breakpoint data (controller doesn't need curve details,
+        // processor handles it in setState)
+        int32_t pointCount = 2;
+        if (streamer.readInt32(pointCount)) {
+            pointCount = std::clamp(pointCount, 2, 8);
+            for (int32_t i = 0; i < pointCount; ++i) {
+                float px = 0.0f;
+                float py = 0.0f;
+                streamer.readFloat(px);
+                streamer.readFloat(py);
+            }
+        }
+    }
+
     return Steinberg::kResultOk;
 }
 
@@ -1389,6 +1930,28 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
     }
 
     return Steinberg::kResultOk;
+}
+
+// ==============================================================================
+// IMidiMapping (FR-028, FR-029)
+// ==============================================================================
+
+Steinberg::tresult PLUGIN_API Controller::getMidiControllerAssignment(
+    Steinberg::int32 busIndex, Steinberg::int16 /*channel*/,
+    Steinberg::Vst::CtrlNumber midiControllerNumber,
+    Steinberg::Vst::ParamID& id) {
+
+    if (busIndex != 0) {
+        return Steinberg::kResultFalse;
+    }
+
+    // Check if we have an assigned CC that matches
+    if (assignedMidiCC_ < 128 && midiControllerNumber == assignedMidiCC_) {
+        id = makeSweepParamId(SweepParamType::kSweepFrequency);
+        return Steinberg::kResultTrue;
+    }
+
+    return Steinberg::kResultFalse;
 }
 
 Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString name) {
@@ -1763,6 +2326,253 @@ VSTGUI::CView* Controller::createCustomView(
         return border;
     }
 
+    // FR-039a: CustomCurveEditor for custom morph link mode
+    if (std::strcmp(name, "CustomCurveEditor") == 0) {
+        VSTGUI::CPoint origin;
+        VSTGUI::CPoint size;
+
+        const std::string* originStr = attributes.getAttributeValue("origin");
+        const std::string* sizeStr = attributes.getAttributeValue("size");
+
+        if (originStr) {
+            double x = 0.0;
+            double y = 0.0;
+            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
+                origin = VSTGUI::CPoint(x, y);
+            }
+        }
+
+        if (sizeStr) {
+            double w = 200.0;
+            double h = 150.0;
+            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
+                size = VSTGUI::CPoint(w, h);
+            }
+        } else {
+            size = VSTGUI::CPoint(200.0, 150.0);
+        }
+
+        VSTGUI::CRect rect(origin, size);
+        auto* curveEditor = new CustomCurveEditor(rect, nullptr, 9200);
+
+        // Initialize from current curve parameters
+        std::array<std::pair<float, float>, 8> points{};
+        auto* pointCountParam = getParameterObject(
+            makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount));
+        int pointCount = 2;
+        if (pointCountParam) {
+            pointCount = static_cast<int>(std::round(pointCountParam->toPlain(
+                pointCountParam->getNormalized())));
+            pointCount = std::clamp(pointCount, 2, 8);
+        }
+
+        for (int p = 0; p < pointCount; ++p) {
+            auto xType = static_cast<SweepParamType>(
+                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + p * 2);
+            auto yType = static_cast<SweepParamType>(
+                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + p * 2);
+
+            auto* xParam = getParameterObject(makeSweepParamId(xType));
+            auto* yParam = getParameterObject(makeSweepParamId(yType));
+
+            float px = 0.0f;
+            if (p == 0) {
+                px = 0.0f;
+            } else if (p == 7) {
+                px = 1.0f;
+            }
+            float py = 0.0f;
+            if (xParam) px = static_cast<float>(xParam->getNormalized());
+            if (yParam) py = static_cast<float>(yParam->getNormalized());
+            points[static_cast<size_t>(p)] = {px, py};
+        }
+        curveEditor->setBreakpoints(points, pointCount);
+
+        // Wire up callbacks to update parameters
+        curveEditor->setOnChange([this](int pointIndex, float x, float y) {
+            auto xType = static_cast<SweepParamType>(
+                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + pointIndex * 2);
+            auto yType = static_cast<SweepParamType>(
+                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + pointIndex * 2);
+
+            auto xId = makeSweepParamId(xType);
+            auto yId = makeSweepParamId(yType);
+
+            beginEdit(xId);
+            setParamNormalized(xId, x);
+            performEdit(xId, x);
+            endEdit(xId);
+
+            beginEdit(yId);
+            setParamNormalized(yId, y);
+            performEdit(yId, y);
+            endEdit(yId);
+        });
+
+        curveEditor->setOnAdd([this](float x, float y) {
+            // Increment point count parameter
+            auto pointCountId = makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount);
+            auto* pcParam = getParameterObject(pointCountId);
+            if (pcParam) {
+                int count = static_cast<int>(std::round(pcParam->toPlain(pcParam->getNormalized())));
+                if (count < 8) {
+                    count++;
+                    double norm = pcParam->toNormalized(static_cast<double>(count));
+                    beginEdit(pointCountId);
+                    setParamNormalized(pointCountId, norm);
+                    performEdit(pointCountId, norm);
+                    endEdit(pointCountId);
+
+                    // Set the new point's X/Y
+                    int newIdx = count - 1;  // Will need to be sorted
+                    auto xType = static_cast<SweepParamType>(
+                        static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + newIdx * 2);
+                    auto yType = static_cast<SweepParamType>(
+                        static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + newIdx * 2);
+
+                    auto xId = makeSweepParamId(xType);
+                    auto yId = makeSweepParamId(yType);
+
+                    beginEdit(xId);
+                    setParamNormalized(xId, x);
+                    performEdit(xId, x);
+                    endEdit(xId);
+
+                    beginEdit(yId);
+                    setParamNormalized(yId, y);
+                    performEdit(yId, y);
+                    endEdit(yId);
+                }
+            }
+        });
+
+        curveEditor->setOnRemove([this](int pointIndex) {
+            auto pointCountId = makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount);
+            auto* pcParam = getParameterObject(pointCountId);
+            if (pcParam) {
+                int count = static_cast<int>(std::round(pcParam->toPlain(pcParam->getNormalized())));
+                if (count > 2 && pointIndex > 0 && pointIndex < count - 1) {
+                    // Shift points down
+                    for (int i = pointIndex; i < count - 1; ++i) {
+                        auto srcXType = static_cast<SweepParamType>(
+                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + (i + 1) * 2);
+                        auto srcYType = static_cast<SweepParamType>(
+                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + (i + 1) * 2);
+                        auto dstXType = static_cast<SweepParamType>(
+                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + i * 2);
+                        auto dstYType = static_cast<SweepParamType>(
+                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + i * 2);
+
+                        auto* srcXParam = getParameterObject(makeSweepParamId(srcXType));
+                        auto* srcYParam = getParameterObject(makeSweepParamId(srcYType));
+                        auto dstXId = makeSweepParamId(dstXType);
+                        auto dstYId = makeSweepParamId(dstYType);
+
+                        if (srcXParam) {
+                            double val = srcXParam->getNormalized();
+                            beginEdit(dstXId);
+                            setParamNormalized(dstXId, val);
+                            performEdit(dstXId, val);
+                            endEdit(dstXId);
+                        }
+                        if (srcYParam) {
+                            double val = srcYParam->getNormalized();
+                            beginEdit(dstYId);
+                            setParamNormalized(dstYId, val);
+                            performEdit(dstYId, val);
+                            endEdit(dstYId);
+                        }
+                    }
+
+                    // Decrement count
+                    count--;
+                    double norm = pcParam->toNormalized(static_cast<double>(count));
+                    beginEdit(pointCountId);
+                    setParamNormalized(pointCountId, norm);
+                    performEdit(pointCountId, norm);
+                    endEdit(pointCountId);
+                }
+            }
+        });
+
+        return curveEditor;
+    }
+
+    // FR-040 to FR-045: SweepIndicator for sweep visualization
+    if (std::strcmp(name, "SweepIndicator") == 0) {
+        VSTGUI::CPoint origin;
+        VSTGUI::CPoint size;
+
+        const std::string* originStr = attributes.getAttributeValue("origin");
+        const std::string* sizeStr = attributes.getAttributeValue("size");
+
+        if (originStr) {
+            double x = 0.0;
+            double y = 0.0;
+            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2) {
+                origin = VSTGUI::CPoint(x, y);
+            }
+        }
+
+        if (sizeStr) {
+            double w = 980.0;  // Default width (same as spectrum)
+            double h = 200.0;
+            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2) {
+                size = VSTGUI::CPoint(w, h);
+            }
+        } else {
+            size = VSTGUI::CPoint(980.0, 200.0);  // Default size
+        }
+
+        VSTGUI::CRect rect(origin, size);
+        auto* sweepIndicator = new SweepIndicator(rect);
+
+        // Initialize from current sweep parameter values
+        auto* sweepEnableParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepEnable));
+        if (sweepEnableParam) {
+            sweepIndicator->setEnabled(sweepEnableParam->getNormalized() >= 0.5);
+        }
+
+        auto* sweepFreqParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepFrequency));
+        auto* sweepWidthParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepWidth));
+        auto* sweepIntensityParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepIntensity));
+        auto* sweepFalloffParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepFalloff));
+
+        if (sweepFreqParam && sweepWidthParam && sweepIntensityParam) {
+            // Convert normalized to Hz (log scale)
+            constexpr float kSweepLog2Min = 4.321928f;   // log2(20)
+            constexpr float kSweepLog2Max = 14.287712f;  // log2(20000)
+            constexpr float kSweepLog2Range = kSweepLog2Max - kSweepLog2Min;
+            float freqNorm = static_cast<float>(sweepFreqParam->getNormalized());
+            float log2Freq = kSweepLog2Min + freqNorm * kSweepLog2Range;
+            float freqHz = std::pow(2.0f, log2Freq);
+
+            // Convert normalized to octaves (linear 0.5 - 4.0)
+            constexpr float kMinWidth = 0.5f;
+            constexpr float kMaxWidth = 4.0f;
+            float widthNorm = static_cast<float>(sweepWidthParam->getNormalized());
+            float widthOct = kMinWidth + widthNorm * (kMaxWidth - kMinWidth);
+
+            // Convert normalized to intensity (0 - 2)
+            float intensityNorm = static_cast<float>(sweepIntensityParam->getNormalized());
+            float intensity = intensityNorm * 2.0f;
+
+            sweepIndicator->setPosition(freqHz, widthOct, intensity);
+        }
+
+        if (sweepFalloffParam) {
+            sweepIndicator->setFalloffMode(
+                sweepFalloffParam->getNormalized() >= 0.5
+                    ? SweepFalloff::Smooth
+                    : SweepFalloff::Sharp);
+        }
+
+        // Store reference for later access
+        sweepIndicator_ = sweepIndicator;
+
+        return sweepIndicator;
+    }
+
     return nullptr;
 }
 
@@ -1827,6 +2637,37 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
         nodeSelectionControllers_[b] = new NodeSelectionController(
             this, static_cast<uint8_t>(b));
     }
+
+    // FR-047, FR-049: Create sweep visualization controller
+    sweepVisualizationController_ = new SweepVisualizationController(
+        this, &sweepIndicator_, &spectrumDisplay_);
+
+    // FR-047: Create 30fps timer for smooth sweep indicator redraws
+    sweepVisualizationTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+        [this](VSTGUI::CVSTGUITimer* /*timer*/) {
+            if (sweepIndicator_ && sweepIndicator_->isEnabled()) {
+                sweepIndicator_->setDirty();
+            }
+        },
+        33  // ~30fps (33ms interval)
+    );
+
+    // FR-039a: Custom curve visibility controller
+    // Show curve editor container when Morph Link mode is "Custom" (index 7)
+    auto* morphLinkParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepMorphLink));
+    if (morphLinkParam) {
+        // Custom mode is the last value (index 7 of 8 modes, normalized ~= 1.0)
+        // But currently MorphLink dropdown only has 6 modes (None to Ease In-Out)
+        // so Custom = index 5 (highest registered). Threshold at ~0.93 to show only
+        // when the last mode is selected.
+        customCurveVisController_ = new ContainerVisibilityController(
+            &activeEditor_,
+            morphLinkParam,
+            9200,  // UI tag for custom curve container
+            0.93f,
+            false  // Show when value >= threshold
+        );
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -1888,6 +2729,29 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         }
     }
 
+    // FR-047: Deactivate sweep visualization controller
+    if (sweepVisualizationController_) {
+        if (auto* svc = dynamic_cast<SweepVisualizationController*>(sweepVisualizationController_.get())) {
+            svc->deactivate();
+        }
+        sweepVisualizationController_ = nullptr;
+    }
+
+    // FR-047: Stop visualization timer
+    if (sweepVisualizationTimer_) {
+        sweepVisualizationTimer_->stop();
+        sweepVisualizationTimer_ = nullptr;
+    }
+
+    // FR-039a: Deactivate custom curve visibility controller
+    if (customCurveVisController_) {
+        if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(customCurveVisController_.get())) {
+            cvc->deactivate();
+        }
+        customCurveVisController_ = nullptr;
+    }
+
+    sweepIndicator_ = nullptr;
     spectrumDisplay_ = nullptr;
     activeEditor_ = nullptr;
 

@@ -349,7 +349,9 @@ void MorphPad::drawBackground(VSTGUI::CDrawContext* context) {
             }
 
             // Normalize weights and blend colors
-            float r = 0.0f, g = 0.0f, b = 0.0f;
+            float r = 0.0f;
+            float g = 0.0f;
+            float b = 0.0f;
             if (totalWeight > 0.0f) {
                 for (int i = 0; i < activeNodeCount_; ++i) {
                     float w = weights[i] / totalWeight;

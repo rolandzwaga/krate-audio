@@ -18,6 +18,12 @@
 #include "dsp/crossover_network.h"
 #include "dsp/band_processor.h"
 #include "dsp/band_state.h"
+#include "dsp/sweep_processor.h"
+#include "dsp/custom_curve.h"
+#include "dsp/sweep_lfo.h"
+#include "dsp/sweep_envelope.h"
+
+#include <krate/dsp/primitives/sweep_position_buffer.h>
 
 #include <array>
 #include <atomic>
@@ -147,6 +153,46 @@ private:
     /// @param bandIndex Band to check (0-7)
     /// @return true if band should contribute to output
     [[nodiscard]] bool shouldBandContribute(int bandIndex) const noexcept;
+
+    // ==========================================================================
+    // Sweep System (spec 007-sweep-system)
+    // FR-001 to FR-022: Frequency-focused distortion intensity
+    // ==========================================================================
+
+    /// @brief Sweep processor for per-band intensity calculation
+    SweepProcessor sweepProcessor_;
+
+    /// @brief Custom curve for Custom morph link mode
+    CustomCurve customCurve_;
+
+    /// @brief Lock-free buffer for audio-UI sweep position synchronization (FR-046)
+    Krate::DSP::SweepPositionBuffer sweepPositionBuffer_;
+
+    /// @brief Current sample position for timing synchronization
+    uint64_t samplePosition_ = 0;
+
+    // ==========================================================================
+    // Sweep Automation (spec 007-sweep-system, FR-024 to FR-029)
+    // ==========================================================================
+
+    /// @brief LFO for sweep frequency modulation (FR-024, FR-025)
+    SweepLFO sweepLFO_;
+
+    /// @brief Envelope follower for sweep frequency modulation (FR-026, FR-027)
+    SweepEnvelope sweepEnvelope_;
+
+    /// @brief Base sweep frequency before modulation (Hz)
+    std::atomic<float> baseSweepFrequency_{1000.0f};
+
+    // ==========================================================================
+    // MIDI Learn (FR-028, FR-029)
+    // ==========================================================================
+
+    /// @brief Flag: processor is listening for MIDI CC events
+    bool midiLearnActive_ = false;
+
+    /// @brief Assigned MIDI CC number (0-127), or 128 for none
+    int assignedMidiCC_ = 128;
 };
 
 } // namespace Disrumpo
