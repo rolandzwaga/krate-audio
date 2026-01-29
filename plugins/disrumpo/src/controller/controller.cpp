@@ -1246,9 +1246,334 @@ void Controller::registerSweepParams() {
 }
 
 void Controller::registerModulationParams() {
-    // FR-004: Register modulation parameters (T4.11)
-    // Placeholder for Week 9 modulation spec
-    // These are stub registrations with correct ID range
+    // spec 008-modulation-system: Register all modulation parameters
+
+    // =========================================================================
+    // LFO 1 Parameters
+    // =========================================================================
+
+    auto* lfo1Rate = new Steinberg::Vst::RangeParameter(
+        STR16("LFO 1 Rate"), makeModParamId(ModParamType::kLFO1Rate),
+        STR16("Hz"), 0.01, 20.0, 1.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(lfo1Rate);
+
+    auto* lfo1Shape = new Steinberg::Vst::StringListParameter(
+        STR16("LFO 1 Shape"), makeModParamId(ModParamType::kLFO1Shape));
+    lfo1Shape->appendString(STR16("Sine"));
+    lfo1Shape->appendString(STR16("Triangle"));
+    lfo1Shape->appendString(STR16("Saw"));
+    lfo1Shape->appendString(STR16("Square"));
+    lfo1Shape->appendString(STR16("S&H"));
+    lfo1Shape->appendString(STR16("Smooth Random"));
+    parameters.addParameter(lfo1Shape);
+
+    parameters.addParameter(STR16("LFO 1 Phase"), STR16("deg"), 0, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kLFO1Phase));
+
+    parameters.addParameter(STR16("LFO 1 Sync"), nullptr, 1, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kLFO1Sync));
+
+    auto* lfo1Note = new Steinberg::Vst::StringListParameter(
+        STR16("LFO 1 Note Value"), makeModParamId(ModParamType::kLFO1NoteValue));
+    lfo1Note->appendString(STR16("1/1"));
+    lfo1Note->appendString(STR16("1/1 D"));
+    lfo1Note->appendString(STR16("1/1 T"));
+    lfo1Note->appendString(STR16("1/2"));
+    lfo1Note->appendString(STR16("1/2 D"));
+    lfo1Note->appendString(STR16("1/2 T"));
+    lfo1Note->appendString(STR16("1/4"));
+    lfo1Note->appendString(STR16("1/4 D"));
+    lfo1Note->appendString(STR16("1/4 T"));
+    lfo1Note->appendString(STR16("1/8"));
+    lfo1Note->appendString(STR16("1/8 D"));
+    lfo1Note->appendString(STR16("1/8 T"));
+    lfo1Note->appendString(STR16("1/16"));
+    lfo1Note->appendString(STR16("1/16 D"));
+    lfo1Note->appendString(STR16("1/16 T"));
+    parameters.addParameter(lfo1Note);
+
+    parameters.addParameter(STR16("LFO 1 Unipolar"), nullptr, 1, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kLFO1Unipolar));
+
+    parameters.addParameter(STR16("LFO 1 Retrigger"), nullptr, 1, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kLFO1Retrigger));
+
+    // =========================================================================
+    // LFO 2 Parameters
+    // =========================================================================
+
+    auto* lfo2Rate = new Steinberg::Vst::RangeParameter(
+        STR16("LFO 2 Rate"), makeModParamId(ModParamType::kLFO2Rate),
+        STR16("Hz"), 0.01, 20.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(lfo2Rate);
+
+    auto* lfo2Shape = new Steinberg::Vst::StringListParameter(
+        STR16("LFO 2 Shape"), makeModParamId(ModParamType::kLFO2Shape));
+    lfo2Shape->appendString(STR16("Sine"));
+    lfo2Shape->appendString(STR16("Triangle"));
+    lfo2Shape->appendString(STR16("Saw"));
+    lfo2Shape->appendString(STR16("Square"));
+    lfo2Shape->appendString(STR16("S&H"));
+    lfo2Shape->appendString(STR16("Smooth Random"));
+    parameters.addParameter(lfo2Shape);
+
+    parameters.addParameter(STR16("LFO 2 Phase"), STR16("deg"), 0, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kLFO2Phase));
+
+    parameters.addParameter(STR16("LFO 2 Sync"), nullptr, 1, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kLFO2Sync));
+
+    auto* lfo2Note = new Steinberg::Vst::StringListParameter(
+        STR16("LFO 2 Note Value"), makeModParamId(ModParamType::kLFO2NoteValue));
+    lfo2Note->appendString(STR16("1/1"));
+    lfo2Note->appendString(STR16("1/1 D"));
+    lfo2Note->appendString(STR16("1/1 T"));
+    lfo2Note->appendString(STR16("1/2"));
+    lfo2Note->appendString(STR16("1/2 D"));
+    lfo2Note->appendString(STR16("1/2 T"));
+    lfo2Note->appendString(STR16("1/4"));
+    lfo2Note->appendString(STR16("1/4 D"));
+    lfo2Note->appendString(STR16("1/4 T"));
+    lfo2Note->appendString(STR16("1/8"));
+    lfo2Note->appendString(STR16("1/8 D"));
+    lfo2Note->appendString(STR16("1/8 T"));
+    lfo2Note->appendString(STR16("1/16"));
+    lfo2Note->appendString(STR16("1/16 D"));
+    lfo2Note->appendString(STR16("1/16 T"));
+    parameters.addParameter(lfo2Note);
+
+    parameters.addParameter(STR16("LFO 2 Unipolar"), nullptr, 1, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kLFO2Unipolar));
+
+    parameters.addParameter(STR16("LFO 2 Retrigger"), nullptr, 1, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kLFO2Retrigger));
+
+    // =========================================================================
+    // Envelope Follower Parameters
+    // =========================================================================
+
+    parameters.addParameter(STR16("Env Attack"), STR16("ms"), 0, 0.091,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kEnvFollowerAttack));
+
+    parameters.addParameter(STR16("Env Release"), STR16("ms"), 0, 0.184,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kEnvFollowerRelease));
+
+    parameters.addParameter(STR16("Env Sensitivity"), STR16("%"), 0, 0.5,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kEnvFollowerSensitivity));
+
+    auto* envSource = new Steinberg::Vst::StringListParameter(
+        STR16("Env Source"), makeModParamId(ModParamType::kEnvFollowerSource));
+    envSource->appendString(STR16("Input L"));
+    envSource->appendString(STR16("Input R"));
+    envSource->appendString(STR16("Input Sum"));
+    envSource->appendString(STR16("Mid"));
+    envSource->appendString(STR16("Side"));
+    parameters.addParameter(envSource);
+
+    // =========================================================================
+    // Random Source Parameters
+    // =========================================================================
+
+    parameters.addParameter(STR16("Random Rate"), STR16("Hz"), 0, 0.078,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kRandomRate));
+
+    parameters.addParameter(STR16("Random Smoothness"), STR16("%"), 0, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kRandomSmoothness));
+
+    parameters.addParameter(STR16("Random Sync"), nullptr, 1, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kRandomSync));
+
+    // =========================================================================
+    // Chaos Source Parameters
+    // =========================================================================
+
+    auto* chaosModel = new Steinberg::Vst::StringListParameter(
+        STR16("Chaos Model"), makeModParamId(ModParamType::kChaosModel));
+    chaosModel->appendString(STR16("Lorenz"));
+    chaosModel->appendString(STR16("Rossler"));
+    chaosModel->appendString(STR16("Chua"));
+    chaosModel->appendString(STR16("Henon"));
+    parameters.addParameter(chaosModel);
+
+    parameters.addParameter(STR16("Chaos Speed"), nullptr, 0, 0.048,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kChaosSpeed));
+
+    parameters.addParameter(STR16("Chaos Coupling"), nullptr, 0, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kChaosCoupling));
+
+    // =========================================================================
+    // Sample & Hold Parameters
+    // =========================================================================
+
+    auto* shSource = new Steinberg::Vst::StringListParameter(
+        STR16("S&H Source"), makeModParamId(ModParamType::kSampleHoldSource));
+    shSource->appendString(STR16("Random"));
+    shSource->appendString(STR16("LFO 1"));
+    shSource->appendString(STR16("LFO 2"));
+    shSource->appendString(STR16("External"));
+    parameters.addParameter(shSource);
+
+    parameters.addParameter(STR16("S&H Rate"), STR16("Hz"), 0, 0.078,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kSampleHoldRate));
+
+    parameters.addParameter(STR16("S&H Slew"), STR16("ms"), 0, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kSampleHoldSlew));
+
+    // =========================================================================
+    // Pitch Follower Parameters
+    // =========================================================================
+
+    parameters.addParameter(STR16("Pitch Min Hz"), STR16("Hz"), 0, 0.125,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kPitchFollowerMinHz));
+
+    parameters.addParameter(STR16("Pitch Max Hz"), STR16("Hz"), 0, 0.375,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kPitchFollowerMaxHz));
+
+    parameters.addParameter(STR16("Pitch Confidence"), nullptr, 0, 0.5,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kPitchFollowerConfidence));
+
+    parameters.addParameter(STR16("Pitch Tracking"), STR16("ms"), 0, 0.138,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kPitchFollowerTrackingSpeed));
+
+    // =========================================================================
+    // Transient Detector Parameters
+    // =========================================================================
+
+    parameters.addParameter(STR16("Transient Sensitivity"), nullptr, 0, 0.5,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kTransientSensitivity));
+
+    parameters.addParameter(STR16("Transient Attack"), STR16("ms"), 0, 0.158,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kTransientAttack));
+
+    parameters.addParameter(STR16("Transient Decay"), STR16("ms"), 0, 0.167,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        makeModParamId(ModParamType::kTransientDecay));
+
+    // =========================================================================
+    // Macro Parameters (4 macros x 4 params)
+    // =========================================================================
+
+    const Steinberg::Vst::TChar* macroNames[] = {
+        STR16("Macro 1"), STR16("Macro 2"), STR16("Macro 3"), STR16("Macro 4")
+    };
+    const ModParamType macroValueTypes[] = {
+        ModParamType::kMacro1Value, ModParamType::kMacro2Value,
+        ModParamType::kMacro3Value, ModParamType::kMacro4Value
+    };
+    const ModParamType macroMinTypes[] = {
+        ModParamType::kMacro1Min, ModParamType::kMacro2Min,
+        ModParamType::kMacro3Min, ModParamType::kMacro4Min
+    };
+    const ModParamType macroMaxTypes[] = {
+        ModParamType::kMacro1Max, ModParamType::kMacro2Max,
+        ModParamType::kMacro3Max, ModParamType::kMacro4Max
+    };
+    const ModParamType macroCurveTypes[] = {
+        ModParamType::kMacro1Curve, ModParamType::kMacro2Curve,
+        ModParamType::kMacro3Curve, ModParamType::kMacro4Curve
+    };
+
+    for (int m = 0; m < 4; ++m) {
+        parameters.addParameter(macroNames[m], nullptr, 0, 0.0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate,
+            makeModParamId(macroValueTypes[m]));
+
+        // Build names dynamically is complex with STR16; use fixed format
+        Steinberg::UString128 minStr("Macro ");
+        minStr.append(Steinberg::UString128(std::to_string(m + 1).c_str()));
+        minStr.append(Steinberg::UString128(" Min"));
+
+        parameters.addParameter(minStr, nullptr, 0, 0.0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate,
+            makeModParamId(macroMinTypes[m]));
+
+        Steinberg::UString128 maxStr("Macro ");
+        maxStr.append(Steinberg::UString128(std::to_string(m + 1).c_str()));
+        maxStr.append(Steinberg::UString128(" Max"));
+
+        parameters.addParameter(maxStr, nullptr, 0, 1.0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate,
+            makeModParamId(macroMaxTypes[m]));
+
+        auto* macroCurve = new Steinberg::Vst::StringListParameter(
+            STR16("Macro Curve"), makeModParamId(macroCurveTypes[m]));
+        macroCurve->appendString(STR16("Linear"));
+        macroCurve->appendString(STR16("Exponential"));
+        macroCurve->appendString(STR16("S-Curve"));
+        macroCurve->appendString(STR16("Stepped"));
+        parameters.addParameter(macroCurve);
+    }
+
+    // =========================================================================
+    // Routing Parameters (32 routings x 4 params)
+    // =========================================================================
+
+    for (uint8_t r = 0; r < 32; ++r) {
+        // Source
+        auto* routeSource = new Steinberg::Vst::StringListParameter(
+            STR16("Route Source"), makeRoutingParamId(r, 0));
+        routeSource->appendString(STR16("None"));
+        routeSource->appendString(STR16("LFO 1"));
+        routeSource->appendString(STR16("LFO 2"));
+        routeSource->appendString(STR16("Env Follower"));
+        routeSource->appendString(STR16("Random"));
+        routeSource->appendString(STR16("Macro 1"));
+        routeSource->appendString(STR16("Macro 2"));
+        routeSource->appendString(STR16("Macro 3"));
+        routeSource->appendString(STR16("Macro 4"));
+        routeSource->appendString(STR16("Chaos"));
+        routeSource->appendString(STR16("S&H"));
+        routeSource->appendString(STR16("Pitch"));
+        routeSource->appendString(STR16("Transient"));
+        parameters.addParameter(routeSource);
+
+        // Destination (parameter index, 0-127)
+        parameters.addParameter(STR16("Route Dest"), nullptr, 127, 0.0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate,
+            makeRoutingParamId(r, 1));
+
+        // Amount [-1, +1] -> normalized [0, 1]
+        auto* routeAmount = new Steinberg::Vst::RangeParameter(
+            STR16("Route Amount"), makeRoutingParamId(r, 2),
+            STR16("%"), -1.0, 1.0, 0.0, 0,
+            Steinberg::Vst::ParameterInfo::kCanAutomate);
+        parameters.addParameter(routeAmount);
+
+        // Curve
+        auto* routeCurve = new Steinberg::Vst::StringListParameter(
+            STR16("Route Curve"), makeRoutingParamId(r, 3));
+        routeCurve->appendString(STR16("Linear"));
+        routeCurve->appendString(STR16("Exponential"));
+        routeCurve->appendString(STR16("S-Curve"));
+        routeCurve->appendString(STR16("Stepped"));
+        parameters.addParameter(routeCurve);
+    }
 }
 
 void Controller::registerBandParams() {
