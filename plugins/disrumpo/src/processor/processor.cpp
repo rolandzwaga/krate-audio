@@ -85,6 +85,9 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     sweepLFO_.prepare(sampleRate_);
     sweepEnvelope_.prepare(sampleRate_, setup.maxSamplesPerBlock);
 
+    // Initialize modulation engine (spec 008-modulation-system)
+    modulationEngine_.prepare(sampleRate_, setup.maxSamplesPerBlock);
+
     return AudioEffect::setupProcessing(setup);
 }
 
@@ -104,6 +107,9 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         // Reset sweep LFO and envelope
         sweepLFO_.reset();
         sweepEnvelope_.reset();
+
+        // Reset modulation engine
+        modulationEngine_.reset();
     }
 
     return AudioEffect::setActive(state);
@@ -238,6 +244,25 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 }
             }
         }
+    }
+
+    // ==========================================================================
+    // Modulation Engine Processing (spec 008-modulation-system)
+    // ==========================================================================
+
+    {
+        Krate::DSP::BlockContext modCtx{};
+        modCtx.sampleRate = sampleRate_;
+        modCtx.blockSize = static_cast<size_t>(data.numSamples);
+
+        // Extract tempo from process context if available
+        if (data.processContext) {
+            modCtx.tempoBPM = data.processContext->tempo;
+            modCtx.isPlaying = (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
+        }
+
+        modulationEngine_.process(modCtx, inputL, inputR,
+                                  static_cast<size_t>(data.numSamples));
     }
 
     // ==========================================================================
@@ -886,6 +911,271 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             break;
                     }
                     break;  // Exit the default case after handling sweep params
+                }
+                // =================================================================
+                // Modulation Parameters (spec 008-modulation-system)
+                // =================================================================
+                if (isModulationParamId(paramId)) {
+                    if (isRoutingParamId(paramId)) {
+                        // Routing parameters handled separately
+                        const uint8_t routIdx = extractRoutingIndex(paramId);
+                        const uint8_t routOff = extractRoutingOffset(paramId);
+                        if (routIdx < Krate::DSP::kMaxModRoutings) {
+                            auto routing = modulationEngine_.getRouting(routIdx);
+                            switch (routOff) {
+                                case 0:  // Source
+                                    routing.source = static_cast<Krate::DSP::ModSource>(
+                                        static_cast<int>(value * 12.0 + 0.5));
+                                    routing.active = (routing.source != Krate::DSP::ModSource::None);
+                                    break;
+                                case 1:  // Destination
+                                    routing.destParamId = static_cast<uint32_t>(value * 127.0 + 0.5);
+                                    break;
+                                case 2:  // Amount [-1, +1]
+                                    routing.amount = static_cast<float>(value * 2.0 - 1.0);
+                                    break;
+                                case 3:  // Curve
+                                    routing.curve = static_cast<Krate::DSP::ModCurve>(
+                                        static_cast<int>(value * 3.0 + 0.5));
+                                    break;
+                            }
+                            modulationEngine_.setRouting(routIdx, routing);
+                        }
+                    } else {
+                        const auto modType = static_cast<ModParamType>(paramId & 0xFF);
+                        switch (modType) {
+                            // LFO 1
+                            case ModParamType::kLFO1Rate: {
+                                constexpr float kMinLog = -4.6052f;
+                                constexpr float kMaxLog = 2.9957f;
+                                float rateHz = std::exp(kMinLog + static_cast<float>(value) * (kMaxLog - kMinLog));
+                                modulationEngine_.setLFO1Rate(rateHz);
+                                break;
+                            }
+                            case ModParamType::kLFO1Shape: {
+                                int idx = static_cast<int>(value * 5.0f + 0.5f);
+                                modulationEngine_.setLFO1Waveform(static_cast<Krate::DSP::Waveform>(idx));
+                                break;
+                            }
+                            case ModParamType::kLFO1Phase:
+                                modulationEngine_.setLFO1PhaseOffset(static_cast<float>(value) * 360.0f);
+                                break;
+                            case ModParamType::kLFO1Sync:
+                                modulationEngine_.setLFO1TempoSync(value >= 0.5);
+                                break;
+                            case ModParamType::kLFO1NoteValue: {
+                                int idx = static_cast<int>(value * 14.0f + 0.5f);
+                                modulationEngine_.setLFO1NoteValue(
+                                    static_cast<Krate::DSP::NoteValue>(idx / 3),
+                                    static_cast<Krate::DSP::NoteModifier>(idx % 3));
+                                break;
+                            }
+                            case ModParamType::kLFO1Unipolar:
+                                modulationEngine_.setLFO1Unipolar(value >= 0.5);
+                                break;
+                            case ModParamType::kLFO1Retrigger:
+                                modulationEngine_.setLFO1Retrigger(value >= 0.5);
+                                break;
+
+                            // LFO 2
+                            case ModParamType::kLFO2Rate: {
+                                constexpr float kMinLog = -4.6052f;
+                                constexpr float kMaxLog = 2.9957f;
+                                float rateHz = std::exp(kMinLog + static_cast<float>(value) * (kMaxLog - kMinLog));
+                                modulationEngine_.setLFO2Rate(rateHz);
+                                break;
+                            }
+                            case ModParamType::kLFO2Shape: {
+                                int idx = static_cast<int>(value * 5.0f + 0.5f);
+                                modulationEngine_.setLFO2Waveform(static_cast<Krate::DSP::Waveform>(idx));
+                                break;
+                            }
+                            case ModParamType::kLFO2Phase:
+                                modulationEngine_.setLFO2PhaseOffset(static_cast<float>(value) * 360.0f);
+                                break;
+                            case ModParamType::kLFO2Sync:
+                                modulationEngine_.setLFO2TempoSync(value >= 0.5);
+                                break;
+                            case ModParamType::kLFO2NoteValue: {
+                                int idx = static_cast<int>(value * 14.0f + 0.5f);
+                                modulationEngine_.setLFO2NoteValue(
+                                    static_cast<Krate::DSP::NoteValue>(idx / 3),
+                                    static_cast<Krate::DSP::NoteModifier>(idx % 3));
+                                break;
+                            }
+                            case ModParamType::kLFO2Unipolar:
+                                modulationEngine_.setLFO2Unipolar(value >= 0.5);
+                                break;
+                            case ModParamType::kLFO2Retrigger:
+                                modulationEngine_.setLFO2Retrigger(value >= 0.5);
+                                break;
+
+                            // Envelope Follower
+                            case ModParamType::kEnvFollowerAttack: {
+                                float ms = 1.0f + static_cast<float>(value) * 99.0f;
+                                modulationEngine_.setEnvFollowerAttack(ms);
+                                break;
+                            }
+                            case ModParamType::kEnvFollowerRelease: {
+                                float ms = 10.0f + static_cast<float>(value) * 490.0f;
+                                modulationEngine_.setEnvFollowerRelease(ms);
+                                break;
+                            }
+                            case ModParamType::kEnvFollowerSensitivity:
+                                modulationEngine_.setEnvFollowerSensitivity(static_cast<float>(value));
+                                break;
+                            case ModParamType::kEnvFollowerSource: {
+                                int idx = static_cast<int>(value * 4.0f + 0.5f);
+                                modulationEngine_.setEnvFollowerSource(
+                                    static_cast<Krate::DSP::EnvFollowerSourceType>(idx));
+                                break;
+                            }
+
+                            // Random
+                            case ModParamType::kRandomRate: {
+                                float hz = 0.1f + static_cast<float>(value) * 49.9f;
+                                modulationEngine_.setRandomRate(hz);
+                                break;
+                            }
+                            case ModParamType::kRandomSmoothness:
+                                modulationEngine_.setRandomSmoothness(static_cast<float>(value));
+                                break;
+                            case ModParamType::kRandomSync:
+                                modulationEngine_.setRandomTempoSync(value >= 0.5);
+                                break;
+
+                            // Chaos
+                            case ModParamType::kChaosModel: {
+                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                modulationEngine_.setChaosModel(
+                                    static_cast<Krate::DSP::ChaosModel>(idx));
+                                break;
+                            }
+                            case ModParamType::kChaosSpeed: {
+                                float speed = 0.05f + static_cast<float>(value) * 19.95f;
+                                modulationEngine_.setChaosSpeed(speed);
+                                break;
+                            }
+                            case ModParamType::kChaosCoupling:
+                                modulationEngine_.setChaosCoupling(static_cast<float>(value));
+                                break;
+
+                            // Sample & Hold
+                            case ModParamType::kSampleHoldSource: {
+                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                modulationEngine_.setSampleHoldSource(
+                                    static_cast<Krate::DSP::SampleHoldInputType>(idx));
+                                break;
+                            }
+                            case ModParamType::kSampleHoldRate: {
+                                float hz = 0.1f + static_cast<float>(value) * 49.9f;
+                                modulationEngine_.setSampleHoldRate(hz);
+                                break;
+                            }
+                            case ModParamType::kSampleHoldSlew: {
+                                float ms = static_cast<float>(value) * 500.0f;
+                                modulationEngine_.setSampleHoldSlew(ms);
+                                break;
+                            }
+
+                            // Pitch Follower
+                            case ModParamType::kPitchFollowerMinHz: {
+                                float hz = 20.0f + static_cast<float>(value) * 480.0f;
+                                modulationEngine_.setPitchFollowerMinHz(hz);
+                                break;
+                            }
+                            case ModParamType::kPitchFollowerMaxHz: {
+                                float hz = 200.0f + static_cast<float>(value) * 4800.0f;
+                                modulationEngine_.setPitchFollowerMaxHz(hz);
+                                break;
+                            }
+                            case ModParamType::kPitchFollowerConfidence:
+                                modulationEngine_.setPitchFollowerConfidence(static_cast<float>(value));
+                                break;
+                            case ModParamType::kPitchFollowerTrackingSpeed: {
+                                float ms = 10.0f + static_cast<float>(value) * 290.0f;
+                                modulationEngine_.setPitchFollowerTrackingSpeed(ms);
+                                break;
+                            }
+
+                            // Transient Detector
+                            case ModParamType::kTransientSensitivity:
+                                modulationEngine_.setTransientSensitivity(static_cast<float>(value));
+                                break;
+                            case ModParamType::kTransientAttack: {
+                                float ms = 0.5f + static_cast<float>(value) * 9.5f;
+                                modulationEngine_.setTransientAttack(ms);
+                                break;
+                            }
+                            case ModParamType::kTransientDecay: {
+                                float ms = 20.0f + static_cast<float>(value) * 180.0f;
+                                modulationEngine_.setTransientDecay(ms);
+                                break;
+                            }
+
+                            // Macros
+                            case ModParamType::kMacro1Value:
+                                modulationEngine_.setMacroValue(0, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro1Min:
+                                modulationEngine_.setMacroMin(0, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro1Max:
+                                modulationEngine_.setMacroMax(0, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro1Curve: {
+                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                modulationEngine_.setMacroCurve(0, static_cast<Krate::DSP::ModCurve>(idx));
+                                break;
+                            }
+                            case ModParamType::kMacro2Value:
+                                modulationEngine_.setMacroValue(1, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro2Min:
+                                modulationEngine_.setMacroMin(1, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro2Max:
+                                modulationEngine_.setMacroMax(1, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro2Curve: {
+                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                modulationEngine_.setMacroCurve(1, static_cast<Krate::DSP::ModCurve>(idx));
+                                break;
+                            }
+                            case ModParamType::kMacro3Value:
+                                modulationEngine_.setMacroValue(2, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro3Min:
+                                modulationEngine_.setMacroMin(2, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro3Max:
+                                modulationEngine_.setMacroMax(2, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro3Curve: {
+                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                modulationEngine_.setMacroCurve(2, static_cast<Krate::DSP::ModCurve>(idx));
+                                break;
+                            }
+                            case ModParamType::kMacro4Value:
+                                modulationEngine_.setMacroValue(3, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro4Min:
+                                modulationEngine_.setMacroMin(3, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro4Max:
+                                modulationEngine_.setMacroMax(3, static_cast<float>(value));
+                                break;
+                            case ModParamType::kMacro4Curve: {
+                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                modulationEngine_.setMacroCurve(3, static_cast<Krate::DSP::ModCurve>(idx));
+                                break;
+                            }
+
+                            default:
+                                break;
+                        }
+                    }
+                    break;  // Exit the default case after handling modulation params
                 }
                 // Check for band parameters
                 if (isBandParamId(paramId)) {
