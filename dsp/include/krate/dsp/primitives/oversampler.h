@@ -50,7 +50,7 @@ enum class OversamplingFactor : uint8_t {
 
 /// Filter quality preset affecting stopband rejection and latency
 enum class OversamplingQuality : uint8_t {
-    Economy,   ///< IIR 8-pole, ~48dB stopband, 0 latency
+    Economy,   ///< IIR 8-pole, 48dB/oct slope, 0 latency
     Standard,  ///< FIR 31-tap, ~80dB stopband, 15 samples latency (2x)
     High       ///< FIR 63-tap, ~100dB stopband, 31 samples latency (2x)
 };
