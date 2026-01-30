@@ -595,7 +595,16 @@ void MorphPad::onMouseDownEvent(VSTGUI::MouseDownEvent& event) {
             if (listener_) {
                 listener_->onMorphPositionChanged(0.5f, 0.5f);
             }
+            beginEdit();
             valueChanged();
+            endEdit();
+
+            // Send Y parameter reset to host
+            if (controller_ && morphYParamId_ != 0) {
+                controller_->beginEdit(morphYParamId_);
+                controller_->performEdit(morphYParamId_, 0.5);
+                controller_->endEdit(morphYParamId_);
+            }
             event.consumed = true;
             return;
         }
@@ -630,6 +639,12 @@ void MorphPad::onMouseDownEvent(VSTGUI::MouseDownEvent& event) {
 
         beginEdit();
         valueChanged();
+
+        // Send Y parameter change to host
+        if (controller_ && morphYParamId_ != 0) {
+            controller_->beginEdit(morphYParamId_);
+            controller_->performEdit(morphYParamId_, static_cast<double>(morphY_));
+        }
 
         event.consumed = true;
     }
@@ -682,6 +697,12 @@ void MorphPad::onMouseMoveEvent(VSTGUI::MouseMoveEvent& event) {
         }
 
         valueChanged();
+
+        // Send Y parameter change to host
+        if (controller_ && morphYParamId_ != 0) {
+            controller_->performEdit(morphYParamId_, static_cast<double>(morphY_));
+        }
+
         event.consumed = true;
     }
     else if (isDraggingNode_) {
@@ -706,6 +727,12 @@ void MorphPad::onMouseMoveEvent(VSTGUI::MouseMoveEvent& event) {
 void MorphPad::onMouseUpEvent(VSTGUI::MouseUpEvent& event) {
     if (isDragging_ || isDraggingNode_) {
         endEdit();
+
+        // End Y parameter editing (paired with beginEdit in onMouseDownEvent)
+        if (isDragging_ && controller_ && morphYParamId_ != 0) {
+            controller_->endEdit(morphYParamId_);
+        }
+
         isDragging_ = false;
         isDraggingNode_ = false;
         draggingNodeIndex_ = -1;
@@ -742,6 +769,13 @@ void MorphPad::onMouseWheelEvent(VSTGUI::MouseWheelEvent& event) {
     beginEdit();
     valueChanged();
     endEdit();
+
+    // Send Y parameter change to host
+    if (controller_ && morphYParamId_ != 0) {
+        controller_->beginEdit(morphYParamId_);
+        controller_->performEdit(morphYParamId_, static_cast<double>(morphY_));
+        controller_->endEdit(morphYParamId_);
+    }
 
     event.consumed = true;
 }

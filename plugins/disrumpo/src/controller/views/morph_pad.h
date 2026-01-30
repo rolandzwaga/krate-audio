@@ -152,6 +152,10 @@ public:
     /// @brief Set the listener for events.
     void setMorphPadListener(MorphPadListener* listener) { listener_ = listener; }
 
+    /// @brief Set the parameter ID for MorphY (secondary parameter).
+    /// MorphX is transmitted via CControl tag; MorphY needs explicit edit calls.
+    void setMorphYParamId(Steinberg::Vst::ParamID id) { morphYParamId_ = id; }
+
     // =========================================================================
     // Coordinate Conversion
     // =========================================================================
@@ -318,6 +322,9 @@ private:
     Steinberg::Vst::EditControllerEx1* controller_ = nullptr;
     Steinberg::Vst::Parameter* activeNodesParam_ = nullptr;
     std::atomic<bool> isActive_{true};
+
+    // Secondary parameter ID for MorphY (MorphX uses CControl tag)
+    Steinberg::Vst::ParamID morphYParamId_ = 0;
 
     /// @brief Get the current active node count from the parameter.
     int getActiveNodeCountFromParam() const;

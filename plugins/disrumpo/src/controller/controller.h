@@ -222,6 +222,12 @@ private:
     Steinberg::IPtr<Steinberg::FObject> customCurveVisController_;
 
     // ==========================================================================
+    // Band Count Display Controller
+    // ==========================================================================
+    // Updates SpectrumDisplay band count when Bands dropdown changes
+    Steinberg::IPtr<Steinberg::FObject> bandCountDisplayController_;
+
+    // ==========================================================================
     // MIDI CC Mapping (FR-028, FR-029)
     // ==========================================================================
     // Stored MIDI CC number (0-127, or 128 for none)

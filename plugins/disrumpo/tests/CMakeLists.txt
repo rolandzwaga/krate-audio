@@ -54,6 +54,15 @@ add_executable(disrumpo_tests
     dsp/sweep_lfo_tests.cpp
     dsp/sweep_envelope_tests.cpp
 
+    # Unit tests - Oversampling System (009-intelligent-oversampling)
+    dsp/oversampling_utils_tests.cpp
+    dsp/oversampling_single_type_tests.cpp
+    dsp/oversampling_morph_tests.cpp
+    dsp/oversampling_limit_tests.cpp
+    dsp/oversampling_crossfade_tests.cpp
+    dsp/oversampling_integration_tests.cpp
+    dsp/oversampling_performance_tests.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp

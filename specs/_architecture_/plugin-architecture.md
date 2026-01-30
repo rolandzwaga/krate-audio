@@ -88,13 +88,14 @@ class TapPatternEditor : public VSTGUI::CControl {
 | Entry | `plugins/disrumpo/src/entry.cpp` | Factory registration |
 | IDs | `plugins/disrumpo/src/plugin_ids.h` | Parameter and component IDs |
 
-### DSP Components (Spec 002-band-management)
+### DSP Components (Spec 002-band-management, 009-intelligent-oversampling)
 
 | Component | Path | Purpose |
 |-----------|------|---------|
 | CrossoverNetwork | `plugins/disrumpo/src/dsp/crossover_network.h` | N-band phase-coherent crossover (1-8 bands) |
-| BandProcessor | `plugins/disrumpo/src/dsp/band_processor.h` | Per-band gain/pan/mute with smoothing |
+| BandProcessor | `plugins/disrumpo/src/dsp/band_processor.h` | Per-band distortion, oversampling, gain/pan/mute |
 | BandState | `plugins/disrumpo/src/dsp/band_state.h` | Per-band configuration structure |
+| OversamplingUtils | `plugins/disrumpo/src/dsp/oversampling_utils.h` | Morph-weighted oversampling factor computation |
 
 ### CrossoverNetwork
 **Path:** [crossover_network.h](../../plugins/disrumpo/src/dsp/crossover_network.h) | **Since:** 0.1.0
@@ -122,26 +123,90 @@ class CrossoverNetwork {
 - Real-time safe: fixed-size arrays, no allocations
 
 ### BandProcessor
-**Path:** [band_processor.h](../../plugins/disrumpo/src/dsp/band_processor.h) | **Since:** 0.1.0
+**Path:** [band_processor.h](../../plugins/disrumpo/src/dsp/band_processor.h) | **Since:** 0.1.0 | **Updated:** 0.3.0 (Spec 009)
 
-Per-band gain, pan, and mute processing with click-free smoothing.
+Per-band distortion processing with intelligent oversampling, morph engine, gain/pan/mute, and click-free transitions.
 
 ```cpp
 class BandProcessor {
-    void prepare(double sampleRate);           // Initialize smoothers
-    void reset();                               // Clear smoother states
-    void setGainDb(float db);                  // Set gain [-24, +24] dB
-    void setPan(float pan);                    // Set pan [-1, +1]
-    void setMute(bool muted);                  // Set mute state
-    void process(float& left, float& right);  // Apply processing in-place
-    bool isSmoothing() const;
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize);  // Initialize all state
+    void reset();                                           // Clear filter/smoother states
+
+    // Distortion type (triggers oversampling recalculation)
+    void setDistortionType(DistortionType type);
+    void setDistortionCommonParams(const DistortionCommonParams& params);
+
+    // Morph (triggers oversampling recalculation on position/node changes)
+    void setMorphMode(MorphMode mode);
+    void setMorphPosition(float x, float y);
+    void setMorphNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, int count);
+    void setMorphEnabled(bool enabled);
+
+    // Oversampling control (Spec 009)
+    void setMaxOversampleFactor(int maxFactor);    // Global limit: 1, 2, 4, or 8
+    int getOversampleFactor() const;               // Current active factor
+    int getLatency() const;                        // Always 0 (IIR zero-latency mode)
+    bool isOversampleTransitioning() const;        // True during 8ms crossfade
+
+    // Bypass (bit-transparent pass-through when true)
+    void setBypassed(bool bypassed);
+    bool isBypassed() const;
+
+    // Processing
+    void processBlock(float* left, float* right, size_t numSamples);
+
+    // Gain/Pan/Mute
+    void setGainDb(float db);
+    void setPan(float pan);
+    void setMute(bool muted);
 };
 ```
 
-**Features:**
-- Equal-power pan law: `left = cos(pan * PI/4 + PI/4) * gain`
-- 10ms default smoothing for click-free transitions (FR-027a)
-- Mute uses smooth fade to prevent clicks (SC-005)
+**Oversampling Features (Spec 009):**
+- Automatic factor selection based on distortion type profile (26 types: 1x/2x/4x)
+- Morph-aware factor selection using inverse-distance-weighted average of node factors
+- Global limit parameter clamps all bands to user-specified maximum (1x, 2x, 4x, or 8x)
+- 8ms equal-power crossfade between old and new oversampling paths on factor change
+- Hysteresis: crossfade only triggers when computed factor actually differs from current
+- Abort-and-restart: mid-transition factor changes restart crossfade from current blend state
+- IIR zero-latency mode: `getLatency()` always returns 0
+- Bypass optimization: bypassed bands skip all processing (bit-transparent pass-through)
+
+**When to use:**
+- Processing audio for a single frequency band in the Disrumpo multiband distortion plugin
+- Factor selection is automatic -- just set distortion type, morph state, and global limit
+
+### OversamplingUtils (Spec 009)
+**Path:** [oversampling_utils.h](../../plugins/disrumpo/src/dsp/oversampling_utils.h) | **Since:** 0.3.0
+
+Pure utility functions for oversampling factor computation. Header-only, no state. Disrumpo-specific (not shared DSP).
+
+```cpp
+namespace Disrumpo {
+    // Round up to nearest power-of-2 factor (1, 2, 4, or 8), clamped to maxFactor
+    constexpr int roundUpToPowerOf2Factor(float value, int maxFactor = 8) noexcept;
+
+    // Get oversampling factor for a single distortion type, clamped to limit
+    constexpr int getSingleTypeOversampleFactor(DistortionType type, int maxFactor = 8) noexcept;
+
+    // Compute morph-weighted oversampling factor from node types and blend weights
+    constexpr int calculateMorphOversampleFactor(
+        const std::array<MorphNode, kMaxMorphNodes>& nodes,
+        const std::array<float, kMaxMorphNodes>& weights,
+        int activeNodeCount,
+        int maxFactor = 8) noexcept;
+}
+```
+
+**Algorithm:**
+1. `calculateMorphOversampleFactor()` computes weighted average of per-node recommended factors
+2. Result is rounded up to nearest power-of-2 via `roundUpToPowerOf2Factor()`
+3. Final factor is clamped to `maxFactor` (global limit)
+
+**When to use:**
+- Called internally by `BandProcessor::recalculateOversampleFactor()` -- not typically called directly
+- Useful in tests to verify factor computation independently of BandProcessor
 
 ### UI Components (Spec 006-morph-ui)
 
