@@ -853,6 +853,62 @@ static void appendToString128(Steinberg::Vst::String128 dest, const Steinberg::V
 }
 
 // ==============================================================================
+// PresetBrowserButton: Opens the preset browser modal (Spec 010)
+// ==============================================================================
+class PresetBrowserButton : public VSTGUI::CTextButton {
+public:
+    PresetBrowserButton(const VSTGUI::CRect& size, Controller* controller)
+        : CTextButton(size, nullptr, -1, "Presets")
+        , controller_(controller)
+    {
+        setFrameColor(VSTGUI::CColor(80, 80, 85));
+        setTextColor(VSTGUI::CColor(255, 255, 255));
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton() && controller_) {
+            controller_->openPresetBrowser();
+            return VSTGUI::kMouseEventHandled;
+        }
+        return CTextButton::onMouseDown(where, buttons);
+    }
+
+private:
+    Controller* controller_ = nullptr;
+};
+
+// ==============================================================================
+// SavePresetButton: Opens the save preset dialog (Spec 010)
+// ==============================================================================
+class SavePresetButton : public VSTGUI::CTextButton {
+public:
+    SavePresetButton(const VSTGUI::CRect& size, Controller* controller)
+        : CTextButton(size, nullptr, -1, "Save")
+        , controller_(controller)
+    {
+        setFrameColor(VSTGUI::CColor(80, 80, 85));
+        setTextColor(VSTGUI::CColor(255, 255, 255));
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton() && controller_) {
+            controller_->openSavePresetDialog();
+            return VSTGUI::kMouseEventHandled;
+        }
+        return CTextButton::onMouseDown(where, buttons);
+    }
+
+private:
+    Controller* controller_ = nullptr;
+};
+
+// ==============================================================================
 // Controller Implementation
 // ==============================================================================
 
@@ -3269,6 +3325,26 @@ VSTGUI::CView* Controller::createCustomView(
         sweepIndicator_ = sweepIndicator;
 
         return sweepIndicator;
+    }
+
+    // Preset Browser Button (Spec 010)
+    if (std::strcmp(name, "PresetBrowserButton") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(80, 25);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new PresetBrowserButton(rect, this);
+    }
+
+    // Save Preset Button (Spec 010)
+    if (std::strcmp(name, "SavePresetButton") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(60, 25);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new SavePresetButton(rect, this);
     }
 
     return nullptr;
