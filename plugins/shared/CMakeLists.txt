@@ -49,6 +49,10 @@ target_link_libraries(KratePluginsShared
 
 target_compile_features(KratePluginsShared PUBLIC cxx_std_20)
 
+# macOS universal binary support (x86_64 + arm64)
+# Uses VST3 SDK function - no-op on non-macOS platforms
+smtg_target_setup_universal_binary(KratePluginsShared)
+
 # ==============================================================================
 # Compiler Warnings
 # ==============================================================================
