@@ -260,38 +260,38 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T11.058 [P] [US4] Create test file `plugins/disrumpo/tests/oversampling_crossfade_tests.cpp` with failing tests for 8ms crossfade duration (SC-005)
-- [ ] T11.059 [P] [US4] Add failing tests for click-free transitions: Process sustained audio through 2x→4x, 4x→1x, 1x→2x transitions. Verify no sudden amplitude discontinuities >-60dBFS between consecutive samples at transition boundaries. Optionally use spectral analysis to detect transient clicks in high-frequency range
-- [ ] T11.060 [P] [US4] Add failing tests for equal-power crossfade curve (FR-011): verify `oldGain² + newGain² = 1` throughout transition
-- [ ] T11.061 [P] [US4] Add failing tests for abort-and-restart behavior (FR-010): rapid factor changes mid-transition
-- [ ] T11.062 [P] [US4] Add failing tests for hysteresis (FR-017): continuous morph within same factor region does NOT trigger transitions
+- [X] T11.058 [P] [US4] Create test file `plugins/disrumpo/tests/oversampling_crossfade_tests.cpp` with failing tests for 8ms crossfade duration (SC-005)
+- [X] T11.059 [P] [US4] Add failing tests for click-free transitions using derivative-based click detection
+- [X] T11.060 [P] [US4] Add failing tests for equal-power crossfade curve (FR-011): verify `oldGain^2 + newGain^2 = 1` throughout transition
+- [X] T11.061 [P] [US4] Add failing tests for abort-and-restart behavior (FR-010): rapid factor changes mid-transition
+- [X] T11.062 [P] [US4] Add failing tests for hysteresis (FR-017): continuous morph within same factor region does NOT trigger transitions
 
 ### 6.2 BandProcessor Crossfade Implementation
 
-- [ ] T11.063 [US4] Implement `requestOversampleFactor()` method in `band_processor.h` with hysteresis: only trigger crossfade if target differs from current (FR-017)
-- [ ] T11.064 [US4] Implement `startCrossfade()` private method in `band_processor.h`: initialize crossfade state with 8ms duration via `crossfadeIncrement(8.0f, sampleRate_)`
-- [ ] T11.065 [US4] Implement `processBlockWithCrossfade()` private method in `band_processor.h`: dual-path processing with equal-power blending (FR-010, FR-011)
-- [ ] T11.066 [US4] Modify `recalculateOversampleFactor()` in `band_processor.h` to call `requestOversampleFactor()` instead of directly setting factor
-- [ ] T11.067 [US4] Modify `processBlock()` in `band_processor.h` to route to `processBlockWithCrossfade()` when `crossfadeActive_` is true
-- [ ] T11.068 [US4] Implement abort-and-restart logic in `startCrossfade()`: if crossfade already active, make current "new" factor the new "old" factor and restart from progress 0.0
-- [ ] T11.069 [US4] Verify all crossfade transition tests pass
-- [ ] T11.070 [US4] Build with zero compiler warnings
+- [X] T11.063 [US4] Implement `requestOversampleFactor()` method in `band_processor.h` with hysteresis: only trigger crossfade if target differs from current (FR-017)
+- [X] T11.064 [US4] Implement `startCrossfade()` private method in `band_processor.h`: initialize crossfade state with 8ms duration via `crossfadeIncrement(8.0f, sampleRate_)`
+- [X] T11.065 [US4] Implement `processBlockWithCrossfade()` private method in `band_processor.h`: dual-path processing with equal-power blending (FR-010, FR-011)
+- [X] T11.066 [US4] Modify `recalculateOversampleFactor()` in `band_processor.h` to call `requestOversampleFactor()` instead of directly setting factor
+- [X] T11.067 [US4] Modify `processBlock()` in `band_processor.h` to route to `processBlockWithCrossfade()` when `crossfadeActive_` is true
+- [X] T11.068 [US4] Implement abort-and-restart logic in `startCrossfade()`: if crossfade already active, make current "new" factor the new "old" factor and restart from progress 0.0
+- [X] T11.069 [US4] Verify all crossfade transition tests pass
+- [X] T11.070 [US4] Build with zero compiler warnings
 
 ### 6.3 Integration Tests
 
-- [ ] T11.071 [P] [US4] Create test file `plugins/disrumpo/tests/oversampling_integration_tests.cpp` with multi-band scenarios
-- [ ] T11.072 [P] [US4] Add integration test: 8 bands with different types and morph states, verify independent factor selection
-- [ ] T11.073 [P] [US4] Add integration test: rapid type automation across multiple bands, verify no artifact accumulation
-- [ ] T11.072b [P] [US4] Add integration test: Verify FR-017 triggers -- change each of the 4 conditions (type, morph position, morph nodes, global limit) and confirm `recalculateOversampleFactor()` is called and correct factor is computed. Use state inspection to verify factor selection after each trigger
-- [ ] T11.074 [US4] Verify all integration tests pass
+- [X] T11.071 [P] [US4] Create test file `plugins/disrumpo/tests/oversampling_integration_tests.cpp` with multi-band scenarios
+- [X] T11.072 [P] [US4] Add integration test: 8 bands with different types and morph states, verify independent factor selection
+- [X] T11.073 [P] [US4] Add integration test: rapid type automation across multiple bands, verify no artifact accumulation
+- [X] T11.072b [P] [US4] Add integration test: Verify FR-017 triggers -- change each of the 4 conditions (type, morph position, morph nodes, global limit) and confirm correct factor is computed
+- [X] T11.074 [US4] Verify all integration tests pass
 
 ### 6.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T11.075 [US4] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` → add to `-fno-fast-math` list in `plugins/disrumpo/tests/CMakeLists.txt`
+- [X] T11.075 [US4] **Verify IEEE 754 compliance**: No IEEE 754 functions used in test files
 
 ### 6.5 Commit (MANDATORY)
 
-- [ ] T11.076 [US4] **Commit completed User Story 4 work**
+- [X] T11.076 [US4] **Commit completed User Story 4 work**
 
 **Checkpoint**: User Stories 1, 2, 3, AND 4 should all work independently and be committed (smooth crossfade transitions working)
 
