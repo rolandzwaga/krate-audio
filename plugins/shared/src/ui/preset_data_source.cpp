@@ -11,15 +11,15 @@
 #include <windows.h>
 #endif
 
-namespace Iterum {
+namespace Krate::Plugins {
 
 void PresetDataSource::setPresets(const std::vector<PresetInfo>& presets) {
     allPresets_ = presets;
     applyFilters();
 }
 
-void PresetDataSource::setModeFilter(int mode) {
-    modeFilter_ = mode;
+void PresetDataSource::setSubcategoryFilter(const std::string& subcategory) {
+    subcategoryFilter_ = subcategory;
     applyFilters();
 }
 
@@ -44,8 +44,8 @@ void PresetDataSource::applyFilters() {
         [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     for (const auto& preset : allPresets_) {
-        // Apply mode filter
-        if (modeFilter_ >= 0 && static_cast<int>(preset.mode) != modeFilter_) {
+        // Apply subcategory filter
+        if (!subcategoryFilter_.empty() && preset.subcategory != subcategoryFilter_) {
             continue;
         }
 
@@ -73,8 +73,8 @@ int32_t PresetDataSource::dbGetNumRows(VSTGUI::CDataBrowser* /*browser*/) {
 }
 
 int32_t PresetDataSource::dbGetNumColumns(VSTGUI::CDataBrowser* /*browser*/) {
-    // Name, Category (optionally Mode when "All" filter)
-    return modeFilter_ < 0 ? 3 : 2;
+    // Name, Category (optionally Subcategory when "All" filter)
+    return subcategoryFilter_.empty() ? 3 : 2;
 }
 
 VSTGUI::CCoord PresetDataSource::dbGetRowHeight(VSTGUI::CDataBrowser* /*browser*/) {
@@ -84,12 +84,12 @@ VSTGUI::CCoord PresetDataSource::dbGetRowHeight(VSTGUI::CDataBrowser* /*browser*
 VSTGUI::CCoord PresetDataSource::dbGetCurrentColumnWidth(int32_t index, VSTGUI::CDataBrowser* browser) {
     auto totalWidth = browser->getWidth();
 
-    if (modeFilter_ < 0) {
-        // Three columns: Name, Category, Mode
+    if (subcategoryFilter_.empty()) {
+        // Three columns: Name, Category, Subcategory
         switch (index) {
             case 0: return totalWidth * 0.45; // Name
             case 1: return totalWidth * 0.30; // Category
-            case 2: return totalWidth * 0.25; // Mode
+            case 2: return totalWidth * 0.25; // Subcategory
             default: return 100.0;
         }
     } else {
@@ -126,7 +126,7 @@ void PresetDataSource::dbDrawCell(
         context->drawRect(size, VSTGUI::kDrawFilled);
     }
 
-    // Set font before drawing text (required for VSTGUI)
+    // Set font before drawing text
     auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 11);
     context->setFont(font);
     context->setFontColor(textColor);
@@ -144,16 +144,9 @@ void PresetDataSource::dbDrawCell(
             text = preset.category;
             break;
         case 2:
-            if (modeFilter_ < 0) {
-                // Show mode name
-                static const char* modeNames[] = {
-                    "Granular", "Spectral", "Shimmer", "Tape", "BBD",
-                    "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
-                };
-                int modeIndex = static_cast<int>(preset.mode);
-                if (modeIndex >= 0 && modeIndex < 11) {
-                    text = modeNames[modeIndex];
-                }
+            if (subcategoryFilter_.empty()) {
+                // Show subcategory name
+                text = preset.subcategory;
             }
             break;
         default:
@@ -170,11 +163,10 @@ void PresetDataSource::dbSelectionChanged(VSTGUI::CDataBrowser* browser) {
     auto newSelection = browser->getSelectedRow();
 #ifdef _WIN32
     char buf[256];
-    snprintf(buf, sizeof(buf), "[ITERUM] dbSelectionChanged: prev=%d, new=%d\n",
+    snprintf(buf, sizeof(buf), "[PRESET] dbSelectionChanged: prev=%d, new=%d\n",
              previousSelectedRow_, newSelection);
     OutputDebugStringA(buf);
 #endif
-    // Update our tracking of what's selected AFTER the change completes
     previousSelectedRow_ = newSelection;
 
     if (selectionCallback_) {
@@ -189,13 +181,9 @@ VSTGUI::CMouseEventResult PresetDataSource::dbOnMouseDown(
     int32_t /*column*/,
     VSTGUI::CDataBrowser* browser
 ) {
-    // Note: CDataBrowser only calls this delegate for valid row clicks.
-    // Empty space clicks are consumed by CDataBrowser without calling delegate.
-    // Empty space deselection is handled in PresetBrowserView::onMouseDown instead.
-
 #ifdef _WIN32
     char buf[256];
-    snprintf(buf, sizeof(buf), "[ITERUM] dbOnMouseDown: row=%d, preClick=%d, browserSelected=%d\n",
+    snprintf(buf, sizeof(buf), "[PRESET] dbOnMouseDown: row=%d, preClick=%d, browserSelected=%d\n",
              row, preClickSelectedRow_, browser->getSelectedRow());
     OutputDebugStringA(buf);
 #endif
@@ -206,12 +194,10 @@ VSTGUI::CMouseEventResult PresetDataSource::dbOnMouseDown(
         return VSTGUI::kMouseEventHandled;
     }
 
-    // Toggle selection: use preClickSelectedRow_ which was captured BEFORE
-    // CDataBrowser updated selection. DO NOT use browser->getSelectedRow()
-    // or previousSelectedRow_ - both are already updated by now!
+    // Toggle selection
     auto action = determineSelectionAction(row, preClickSelectedRow_);
 #ifdef _WIN32
-    snprintf(buf, sizeof(buf), "[ITERUM] dbOnMouseDown: action=%s\n",
+    snprintf(buf, sizeof(buf), "[PRESET] dbOnMouseDown: action=%s\n",
              action == SelectionAction::Deselect ? "Deselect" : "AllowDefault");
     OutputDebugStringA(buf);
 #endif
@@ -223,4 +209,4 @@ VSTGUI::CMouseEventResult PresetDataSource::dbOnMouseDown(
     return VSTGUI::kMouseEventNotHandled;
 }
 
-} // namespace Iterum
+} // namespace Krate::Plugins

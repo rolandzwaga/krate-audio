@@ -9,7 +9,7 @@
 
 #include <cstdint>
 
-namespace Iterum {
+namespace Krate::Plugins {
 
 /// Simplified key codes for testable logic (maps from VSTGUI::VirtualKey)
 enum class KeyCode {
@@ -152,4 +152,4 @@ private:
     int32_t previousSelectedRow_ = -1;
 };
 
-} // namespace Iterum
+} // namespace Krate::Plugins

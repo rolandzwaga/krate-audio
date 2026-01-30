@@ -21,11 +21,14 @@
 
 #include <memory>
 
+namespace Krate::Plugins {
+class PresetBrowserView;
+class SavePresetDialogView;
+}
+
 namespace Iterum {
 
 // Forward declarations
-class PresetBrowserView;
-class SavePresetDialogView;
 class TapPatternEditor;
 
 // ==============================================================================
@@ -117,7 +120,7 @@ public:
     void openSavePresetDialog();
 
     /// Get the preset manager instance
-    PresetManager* getPresetManager() const { return presetManager_.get(); }
+    Krate::Plugins::PresetManager* getPresetManager() const { return presetManager_.get(); }
 
     // ===========================================================================
     // Custom Pattern Editor (Spec 046)
@@ -217,9 +220,9 @@ private:
     // Preset Browser (Spec 042)
     // ==========================================================================
 
-    std::unique_ptr<PresetManager> presetManager_;
-    PresetBrowserView* presetBrowserView_ = nullptr;  // Owned by frame
-    SavePresetDialogView* savePresetDialogView_ = nullptr;  // Owned by frame
+    std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
+    Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;  // Owned by frame
+    Krate::Plugins::SavePresetDialogView* savePresetDialogView_ = nullptr;  // Owned by frame
 
     // ==========================================================================
     // Preset Loading Helpers

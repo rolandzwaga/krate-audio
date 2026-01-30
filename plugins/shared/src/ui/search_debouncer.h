@@ -16,7 +16,7 @@
 #include <cstdint>
 #include <algorithm>
 
-namespace Iterum {
+namespace Krate::Plugins {
 
 class SearchDebouncer {
 public:
@@ -111,4 +111,4 @@ private:
     }
 };
 
-} // namespace Iterum
+} // namespace Krate::Plugins

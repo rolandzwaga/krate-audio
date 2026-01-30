@@ -13,7 +13,7 @@
 #include "ui/preset_data_source.h"
 #include "vstgui/lib/cdatabrowser.h"
 
-using namespace Iterum;
+using namespace Krate::Plugins;
 
 // =============================================================================
 // Mock CDataBrowser that simulates REAL behavior

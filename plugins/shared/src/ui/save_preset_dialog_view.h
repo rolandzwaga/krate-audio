@@ -1,9 +1,8 @@
 #pragma once
 
 // ==============================================================================
-// SavePresetDialogView - Standalone Save Preset Dialog
+// SavePresetDialogView - Standalone Save Preset Dialog (Shared)
 // ==============================================================================
-// Spec 042: Preset Browser
 // Standalone modal overlay for quick preset saving from the main UI.
 // This is a simplified version of the save dialog in PresetBrowserView.
 //
@@ -22,7 +21,7 @@
 #include "vstgui/lib/controls/cbuttons.h"
 #include "vstgui/lib/controls/icontrollistener.h"
 
-namespace Iterum {
+namespace Krate::Plugins {
 
 class PresetManager;
 
@@ -41,7 +40,7 @@ public:
     ~SavePresetDialogView() override;
 
     // Lifecycle
-    void open(int currentMode);
+    void open(const std::string& currentSubcategory);
     void close();
     bool isOpen() const { return isOpen_; }
 
@@ -69,7 +68,7 @@ private:
     VSTGUI::CTextButton* cancelButton_ = nullptr;
 
     // State
-    int currentMode_ = 0;
+    std::string currentSubcategory_;
     bool isOpen_ = false;
 
     void createDialogViews();
@@ -81,4 +80,4 @@ private:
     bool keyboardHookRegistered_ = false;
 };
 
-} // namespace Iterum
+} // namespace Krate::Plugins

@@ -7,6 +7,7 @@
 #include "version.h"
 
 #include "preset/preset_manager.h"
+#include "preset/iterum_preset_config.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/tap_pattern_editor.h"
@@ -674,7 +675,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     // Create PresetManager for preset browsing/scanning.
     // Note: We pass nullptr for processor since the controller doesn't have
     // direct access to it. We provide a state provider callback for saving.
-    presetManager_ = std::make_unique<PresetManager>(nullptr, this);
+    presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(makeIterumPresetConfig(), nullptr, this);
 
     // Set state provider callback for preset saving
     presetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
@@ -1580,11 +1581,11 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             // =====================================================================
             if (presetManager_) {
                 auto frameSize = frame->getViewSize();
-                presetBrowserView_ = new PresetBrowserView(frameSize, presetManager_.get());
+                presetBrowserView_ = new Krate::Plugins::PresetBrowserView(frameSize, presetManager_.get(), getIterumTabLabels());
                 frame->addView(presetBrowserView_);
 
                 // Save Preset Dialog - standalone dialog for quick save from main UI
-                savePresetDialogView_ = new SavePresetDialogView(frameSize, presetManager_.get());
+                savePresetDialogView_ = new Krate::Plugins::SavePresetDialogView(frameSize, presetManager_.get());
                 frame->addView(savePresetDialogView_);
             }
         }
@@ -1745,25 +1746,27 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
 
 void Controller::openPresetBrowser() {
     if (presetBrowserView_ && !presetBrowserView_->isOpen()) {
-        // Get current mode from parameter
-        int currentMode = -1;  // Default to "All"
+        // Get current mode as subcategory string
+        std::string subcategory;
         if (auto* modeParam = getParameterObject(kModeId)) {
-            currentMode = static_cast<int>(modeParam->toPlain(modeParam->getNormalized()));
+            int modeIndex = static_cast<int>(modeParam->toPlain(modeParam->getNormalized()));
+            subcategory = delayModeToSubcategory(static_cast<DelayMode>(modeIndex));
         }
 
-        presetBrowserView_->open(currentMode);
+        presetBrowserView_->open(subcategory);
     }
 }
 
 void Controller::openSavePresetDialog() {
     if (savePresetDialogView_ && !savePresetDialogView_->isOpen()) {
-        // Get current mode from parameter
-        int currentMode = -1;  // Default to "All"
+        // Get current mode as subcategory string
+        std::string subcategory;
         if (auto* modeParam = getParameterObject(kModeId)) {
-            currentMode = static_cast<int>(modeParam->toPlain(modeParam->getNormalized()));
+            int modeIndex = static_cast<int>(modeParam->toPlain(modeParam->getNormalized()));
+            subcategory = delayModeToSubcategory(static_cast<DelayMode>(modeIndex));
         }
 
-        savePresetDialogView_->open(currentMode);
+        savePresetDialogView_->open(subcategory);
     }
 }
 

@@ -1,46 +1,31 @@
-#include "mode_tab_bar.h"
+#include "category_tab_bar.h"
 
-namespace Iterum {
+namespace Krate::Plugins {
 
-ModeTabBar::ModeTabBar(const VSTGUI::CRect& size)
+CategoryTabBar::CategoryTabBar(const VSTGUI::CRect& size, std::vector<std::string> labels)
     : CView(size)
+    , labels_(std::move(labels))
 {
 }
 
-const std::vector<std::string>& ModeTabBar::getTabLabels() {
-    static const std::vector<std::string> labels = {
-        "All",
-        "Granular",
-        "Spectral",
-        "Shimmer",
-        "Tape",
-        "BBD",
-        "Digital",
-        "PingPong",
-        "Reverse",
-        "MultiTap",
-        "Freeze",
-        "Ducking"
-    };
-    return labels;
-}
-
-void ModeTabBar::setSelectedTab(int tab) {
-    if (tab >= 0 && tab < kNumTabs && tab != selectedTab_) {
+void CategoryTabBar::setSelectedTab(int tab) {
+    int numTabs = static_cast<int>(labels_.size());
+    if (tab >= 0 && tab < numTabs && tab != selectedTab_) {
         selectedTab_ = tab;
         invalid(); // Request redraw
 
         if (selectionCallback_) {
-            // Convert to mode filter: 0 = All (-1), 1-11 = modes (0-10)
-            int modeFilter = (tab == 0) ? -1 : (tab - 1);
-            selectionCallback_(modeFilter);
+            // Convert to subcategory filter: 0 = All (-1), 1+ = subcategory (0-based)
+            int filterIndex = (tab == 0) ? -1 : (tab - 1);
+            selectionCallback_(filterIndex);
         }
     }
 }
 
-VSTGUI::CRect ModeTabBar::getTabRect(int index) const {
+VSTGUI::CRect CategoryTabBar::getTabRect(int index) const {
     auto viewSize = getViewSize();
-    auto tabHeight = viewSize.getHeight() / kNumTabs;
+    int numTabs = static_cast<int>(labels_.size());
+    auto tabHeight = viewSize.getHeight() / numTabs;
 
     return {
         viewSize.left,
@@ -50,14 +35,14 @@ VSTGUI::CRect ModeTabBar::getTabRect(int index) const {
     };
 }
 
-void ModeTabBar::draw(VSTGUI::CDrawContext* context) {
-    const auto& labels = getTabLabels();
+void CategoryTabBar::draw(VSTGUI::CDrawContext* context) {
+    int numTabs = static_cast<int>(labels_.size());
 
-    // Set font for text rendering - CRITICAL: must set font before drawString
+    // Set font for text rendering
     auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 11);
     context->setFont(font);
 
-    for (int i = 0; i < kNumTabs; ++i) {
+    for (int i = 0; i < numTabs; ++i) {
         auto tabRect = getTabRect(i);
 
         // Background
@@ -76,16 +61,17 @@ void ModeTabBar::draw(VSTGUI::CDrawContext* context) {
         context->setFontColor(VSTGUI::CColor(255, 255, 255));
         auto textRect = tabRect;
         textRect.inset(8, 0);
-        context->drawString(labels[static_cast<size_t>(i)].c_str(), textRect, VSTGUI::kLeftText);
+        context->drawString(labels_[static_cast<size_t>(i)].c_str(), textRect, VSTGUI::kLeftText);
     }
 }
 
-VSTGUI::CMouseEventResult ModeTabBar::onMouseDown(
+VSTGUI::CMouseEventResult CategoryTabBar::onMouseDown(
     VSTGUI::CPoint& where,
     const VSTGUI::CButtonState& /*buttons*/
 ) {
+    int numTabs = static_cast<int>(labels_.size());
     // Find which tab was clicked
-    for (int i = 0; i < kNumTabs; ++i) {
+    for (int i = 0; i < numTabs; ++i) {
         auto tabRect = getTabRect(i);
         if (tabRect.pointInside(where)) {
             setSelectedTab(i);
@@ -96,4 +82,4 @@ VSTGUI::CMouseEventResult ModeTabBar::onMouseDown(
     return VSTGUI::kMouseEventNotHandled;
 }
 
-} // namespace Iterum
+} // namespace Krate::Plugins

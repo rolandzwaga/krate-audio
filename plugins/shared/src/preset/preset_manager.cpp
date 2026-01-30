@@ -1,6 +1,5 @@
 #include "preset_manager.h"
 #include "../platform/preset_paths.h"
-#include "../plugin_ids.h"
 
 #include "pluginterfaces/vst/ivstcomponent.h"
 #include "pluginterfaces/vst/ivsteditcontroller.h"
@@ -12,15 +11,17 @@
 #include <sstream>
 #include <utility>
 
-namespace Iterum {
+namespace Krate::Plugins {
 
 PresetManager::PresetManager(
+    PresetManagerConfig config,
     Steinberg::Vst::IComponent* processor,
     Steinberg::Vst::IEditController* controller,
     std::filesystem::path userDirOverride,
     std::filesystem::path factoryDirOverride
 )
-    : processor_(processor)
+    : config_(std::move(config))
+    , processor_(processor)
     , controller_(controller)
     , userDirOverride_(std::move(userDirOverride))
     , factoryDirOverride_(std::move(factoryDirOverride))
@@ -68,8 +69,7 @@ void PresetManager::scanDirectory(const std::filesystem::path& dir, bool isFacto
     }
 }
 
-// static
-PresetInfo PresetManager::parsePresetFile(const std::filesystem::path& path, bool isFactory) {
+PresetInfo PresetManager::parsePresetFile(const std::filesystem::path& path, bool isFactory) const {
     PresetInfo info;
     info.path = path;
     info.isFactory = isFactory;
@@ -80,7 +80,7 @@ PresetInfo PresetManager::parsePresetFile(const std::filesystem::path& path, boo
     // Try to read metadata from preset file
     readMetadata(path, info);
 
-    // Get parent directory for category and mode
+    // Get parent directory for category and subcategory
     auto parent = path.parent_path();
     std::string parentName;
     if (parent.has_filename()) {
@@ -92,37 +92,28 @@ PresetInfo PresetManager::parsePresetFile(const std::filesystem::path& path, boo
         info.category = parentName;
     }
 
-    // Derive mode from parent directory name
-    // Directory names match mode names used in savePreset()
-    static const std::pair<std::string, DelayMode> modeMapping[] = {
-        {"Granular", DelayMode::Granular},
-        {"Spectral", DelayMode::Spectral},
-        {"Shimmer", DelayMode::Shimmer},
-        {"Tape", DelayMode::Tape},
-        {"BBD", DelayMode::BBD},
-        {"Digital", DelayMode::Digital},
-        {"PingPong", DelayMode::PingPong},
-        {"Reverse", DelayMode::Reverse},
-        {"MultiTap", DelayMode::MultiTap},
-        {"Freeze", DelayMode::Freeze},
-        {"Ducking", DelayMode::Ducking}
-    };
-
-    for (const auto& [name, mode] : modeMapping) {
-        if (parentName == name) {
-            info.mode = mode;
+    // Derive subcategory from parent directory name
+    // Check if parent directory matches any configured subcategory name
+    for (const auto& subcatName : config_.subcategoryNames) {
+        if (parentName == subcatName) {
+            info.subcategory = subcatName;
             break;
         }
     }
-    // If no match found, info.mode remains at default (Digital)
+    // If no match found, subcategory remains empty
 
     return info;
 }
 
-PresetManager::PresetList PresetManager::getPresetsForMode(DelayMode mode) const {
+PresetManager::PresetList PresetManager::getPresetsForSubcategory(const std::string& subcategory) const {
+    if (subcategory.empty()) {
+        // Empty = "All" filter - return all presets
+        return cachedPresets_;
+    }
+
     PresetList filtered;
     for (const auto& preset : cachedPresets_) {
-        if (preset.mode == mode) {
+        if (preset.subcategory == subcategory) {
             filtered.push_back(preset);
         }
     }
@@ -215,7 +206,7 @@ bool PresetManager::loadPreset(const PresetInfo& preset) {
         // Standard VST3 loading with processor access
         success = Steinberg::Vst::PresetFile::loadPreset(
             stream,
-            Iterum::kProcessorUID,
+            config_.processorUID,
             processor_,
             controller_
         );
@@ -235,8 +226,7 @@ bool PresetManager::loadPreset(const PresetInfo& preset) {
 
 bool PresetManager::savePreset(
     const std::string& name,
-    const std::string& category,
-    DelayMode mode,
+    const std::string& subcategory,
     const std::string& description
 ) {
     if (!isValidPresetName(name)) {
@@ -258,32 +248,28 @@ bool PresetManager::savePreset(
         return false;
     }
 
-    // Create mode-specific subdirectory
-    static const char* modeNames[] = {
-        "Granular", "Spectral", "Shimmer", "Tape", "BBD",
-        "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
-    };
-    int modeIndex = static_cast<int>(mode);
-    if (modeIndex < 0 || modeIndex >= static_cast<int>(DelayMode::NumModes)) {
-        modeIndex = static_cast<int>(DelayMode::Digital);
+    // Determine subdirectory from subcategory
+    std::string subDir = subcategory;
+    if (subDir.empty() && !config_.subcategoryNames.empty()) {
+        subDir = config_.subcategoryNames[0];
     }
 
-    auto modeDir = userDir / modeNames[modeIndex];
-    Platform::ensureDirectoryExists(modeDir);
+    auto targetDir = userDir / subDir;
+    Platform::ensureDirectoryExists(targetDir);
 
     // Create full path
-    auto presetPath = modeDir / (name + ".vstpreset");
+    auto presetPath = targetDir / (name + ".vstpreset");
 
-    // Build metadata XML
+    // Build metadata XML using config
     std::ostringstream xml;
     xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     xml << "<MetaInfo>\n";
     xml << "  <Attr id=\"MediaType\" value=\"VstPreset\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInName\" value=\"Iterum\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInCategory\" value=\"Delay\" type=\"string\"/>\n";
+    xml << "  <Attr id=\"PlugInName\" value=\"" << config_.pluginName << "\" type=\"string\"/>\n";
+    xml << "  <Attr id=\"PlugInCategory\" value=\"" << config_.pluginCategoryDesc << "\" type=\"string\"/>\n";
     xml << R"(  <Attr id="Name" value=")" << name << "\" type=\"string\"/>\n";
-    xml << R"(  <Attr id="MusicalCategory" value=")" << category << "\" type=\"string\"/>\n";
-    xml << R"(  <Attr id="MusicalInstrument" value=")" << modeNames[modeIndex] << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="MusicalCategory" value=")" << subcategory << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="MusicalInstrument" value=")" << subDir << "\" type=\"string\"/>\n";
     if (!description.empty()) {
         xml << R"(  <Attr id="Comment" value=")" << description << "\" type=\"string\"/>\n";
     }
@@ -311,7 +297,7 @@ bool PresetManager::savePreset(
         // Use stream-based savePreset overload
         success = Steinberg::Vst::PresetFile::savePreset(
             stream,
-            kProcessorUID,
+            config_.processorUID,
             componentStream,
             nullptr,  // No controller stream needed
             xmlStr.c_str(),
@@ -323,7 +309,7 @@ bool PresetManager::savePreset(
         // Use IComponent-based savePreset (original approach)
         success = Steinberg::Vst::PresetFile::savePreset(
             stream,
-            kProcessorUID,
+            config_.processorUID,
             processor_,
             controller_,
             xmlStr.c_str(),
@@ -363,26 +349,16 @@ bool PresetManager::overwritePreset(const PresetInfo& preset) {
         return false;
     }
 
-    // Get mode name for metadata
-    static const char* modeNames[] = {
-        "Granular", "Spectral", "Shimmer", "Tape", "BBD",
-        "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
-    };
-    int modeIndex = static_cast<int>(preset.mode);
-    if (modeIndex < 0 || modeIndex >= static_cast<int>(DelayMode::NumModes)) {
-        modeIndex = static_cast<int>(DelayMode::Digital);
-    }
-
     // Build metadata XML (preserve existing metadata)
     std::ostringstream xml;
     xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
     xml << "<MetaInfo>\n";
     xml << "  <Attr id=\"MediaType\" value=\"VstPreset\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInName\" value=\"Iterum\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInCategory\" value=\"Delay\" type=\"string\"/>\n";
+    xml << "  <Attr id=\"PlugInName\" value=\"" << config_.pluginName << "\" type=\"string\"/>\n";
+    xml << "  <Attr id=\"PlugInCategory\" value=\"" << config_.pluginCategoryDesc << "\" type=\"string\"/>\n";
     xml << R"(  <Attr id="Name" value=")" << preset.name << "\" type=\"string\"/>\n";
     xml << R"(  <Attr id="MusicalCategory" value=")" << preset.category << "\" type=\"string\"/>\n";
-    xml << R"(  <Attr id="MusicalInstrument" value=")" << modeNames[modeIndex] << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="MusicalInstrument" value=")" << preset.subcategory << "\" type=\"string\"/>\n";
     if (!preset.description.empty()) {
         xml << R"(  <Attr id="Comment" value=")" << preset.description << "\" type=\"string\"/>\n";
     }
@@ -399,7 +375,6 @@ bool PresetManager::overwritePreset(const PresetInfo& preset) {
     bool success = false;
 
     if (useStateProvider) {
-        // Use state provider callback to get component state stream
         Steinberg::IBStream* componentStream = stateProvider_();
         if (!componentStream) {
             stream->release();
@@ -407,22 +382,20 @@ bool PresetManager::overwritePreset(const PresetInfo& preset) {
             return false;
         }
 
-        // Use stream-based savePreset overload
         success = Steinberg::Vst::PresetFile::savePreset(
             stream,
-            kProcessorUID,
+            config_.processorUID,
             componentStream,
-            nullptr,  // No controller stream needed
+            nullptr,
             xmlStr.c_str(),
             static_cast<Steinberg::int32>(xmlStr.size())
         );
 
         componentStream->release();
     } else {
-        // Use IComponent-based savePreset (original approach)
         success = Steinberg::Vst::PresetFile::savePreset(
             stream,
-            kProcessorUID,
+            config_.processorUID,
             processor_,
             controller_,
             xmlStr.c_str(),
@@ -473,9 +446,6 @@ bool PresetManager::importPreset(const std::filesystem::path& sourcePath) {
         return false;
     }
 
-    // Parse to get mode for destination folder
-    PresetInfo info = parsePresetFile(sourcePath, false);
-
     // Create destination path
     auto userDir = getUserPresetDirectory();
     Platform::ensureDirectoryExists(userDir);
@@ -502,7 +472,7 @@ std::filesystem::path PresetManager::getUserPresetDirectory() const {
         Platform::ensureDirectoryExists(userDirOverride_);
         return userDirOverride_;
     }
-    auto path = Platform::getUserPresetDirectory();
+    auto path = Platform::getUserPresetDirectory(config_.pluginName);
     Platform::ensureDirectoryExists(path);
     return path;
 }
@@ -511,7 +481,7 @@ std::filesystem::path PresetManager::getFactoryPresetDirectory() const {
     if (!factoryDirOverride_.empty()) {
         return factoryDirOverride_;
     }
-    return Platform::getFactoryPresetDirectory();
+    return Platform::getFactoryPresetDirectory(config_.pluginName);
 }
 
 // =============================================================================
@@ -536,14 +506,12 @@ bool PresetManager::isValidPresetName(const std::string& name) {
 
 bool PresetManager::writeMetadata(const std::filesystem::path& /*path*/, const PresetInfo& /*info*/) {
     // TODO: Implement XML metadata writing
-    // This will be completed in Phase 3 (US1+2)
     return true;
 }
 
 bool PresetManager::readMetadata(const std::filesystem::path& /*path*/, PresetInfo& /*info*/) {
     // TODO: Implement XML metadata reading
-    // This will be completed in Phase 3 (US1+2)
     return true;
 }
 
-} // namespace Iterum
+} // namespace Krate::Plugins

@@ -1,10 +1,10 @@
 #pragma once
 
 // ==============================================================================
-// ModeTabBar - Vertical Tab Bar for Mode Filtering
+// CategoryTabBar - Vertical Tab Bar for Category Filtering (Shared)
 // ==============================================================================
-// Spec 042: Preset Browser
-// Displays 12 tabs (All + 11 modes) for filtering presets by delay mode.
+// Generalized from Iterum's ModeTabBar. Accepts dynamic labels instead of
+// hardcoded mode names.
 // ==============================================================================
 
 #include "vstgui/lib/cview.h"
@@ -15,12 +15,12 @@
 #include <string>
 #include <vector>
 
-namespace Iterum {
+namespace Krate::Plugins {
 
-class ModeTabBar : public VSTGUI::CView {
+class CategoryTabBar : public VSTGUI::CView {
 public:
-    explicit ModeTabBar(const VSTGUI::CRect& size);
-    ~ModeTabBar() override = default;
+    CategoryTabBar(const VSTGUI::CRect& size, std::vector<std::string> labels);
+    ~CategoryTabBar() override = default;
 
     // Tab selection
     int getSelectedTab() const { return selectedTab_; }
@@ -38,16 +38,12 @@ public:
     ) override;
 
 private:
-    static constexpr int kNumTabs = 12; // All + 11 modes
-
-    int selectedTab_ = 0; // 0 = All, 1-11 = modes
+    std::vector<std::string> labels_;
+    int selectedTab_ = 0;
     SelectionCallback selectionCallback_;
-
-    // Tab labels (All + 11 mode names)
-    static const std::vector<std::string>& getTabLabels();
 
     // Get tab bounds for a given index
     VSTGUI::CRect getTabRect(int index) const;
 };
 
-} // namespace Iterum
+} // namespace Krate::Plugins

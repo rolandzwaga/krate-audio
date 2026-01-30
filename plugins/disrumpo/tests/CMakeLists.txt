@@ -63,15 +63,32 @@ add_executable(disrumpo_tests
     dsp/oversampling_integration_tests.cpp
     dsp/oversampling_performance_tests.cpp
 
+    # Unit tests - Preset Serialization (010-preset-system)
+    unit/preset/serialization_round_trip_test.cpp
+
+    # Unit tests - Preset Integration (010-preset-system)
+    unit/controller/preset_integration_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp
+
+    # Processor source (needed for serialization tests)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
+
+    # VST3 SDK sources (needed for serialization round-trip tests)
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
     # UI sources (needed for MorphPad tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/morph_pad.cpp
 
     # Morph link sources (needed for morph link tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/morph_link.cpp
+
+    # Integration tests - Preset Browser (010-preset-system)
+    integration/preset/preset_browser_e2e_test.cpp
+    integration/preset/preset_save_test.cpp
+    integration/preset/preset_search_test.cpp
 
     # Integration tests
     integration/band_management_integration_test.cpp
@@ -84,6 +101,7 @@ add_executable(disrumpo_tests
 target_link_libraries(disrumpo_tests
     PRIVATE
         KrateDSP
+        KratePluginsShared
         Catch2::Catch2
         test_helpers
         sdk

@@ -1,10 +1,10 @@
 #pragma once
 
 // ==============================================================================
-// PresetDataSource - CDataBrowser Delegate for Preset List
+// PresetDataSource - CDataBrowser Delegate for Preset List (Shared)
 // ==============================================================================
-// Spec 042: Preset Browser
 // Implements IDataBrowserDelegate to provide data for the preset list.
+// Generalized to use string subcategory filter instead of int mode.
 // ==============================================================================
 
 #include "vstgui/lib/idatabrowserdelegate.h"
@@ -12,11 +12,11 @@
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/ccolor.h"
 #include "../preset/preset_info.h"
-#include "preset_browser_logic.h"  // SelectionAction, determineSelectionAction
+#include "preset_browser_logic.h"
 #include <vector>
 #include <string>
 
-namespace Iterum {
+namespace Krate::Plugins {
 
 class PresetDataSource : public VSTGUI::DataBrowserDelegateAdapter {
 public:
@@ -25,7 +25,7 @@ public:
 
     // Data management
     void setPresets(const std::vector<PresetInfo>& presets);
-    void setModeFilter(int mode);  // -1 = All
+    void setSubcategoryFilter(const std::string& subcategory);  // empty = All
     void setSearchFilter(const std::string& query);
     const PresetInfo* getPresetAtRow(int row) const;
 
@@ -62,14 +62,11 @@ public:
     void setDoubleClickCallback(DoubleClickCallback cb) { doubleClickCallback_ = std::move(cb); }
 
     // Capture selection state BEFORE a click event starts
-    // Must be called from PresetBrowserView::onMouseDown BEFORE forwarding to children
-    // This is necessary because CDataBrowser updates selection BEFORE calling delegate
     void capturePreClickSelection(VSTGUI::CDataBrowser* browser) {
         preClickSelectedRow_ = browser->getSelectedRow();
     }
 
     // Clear ALL selection tracking state
-    // Must be called when mode changes to prevent stale selection state
     void clearSelectionState() {
         preClickSelectedRow_ = -1;
         previousSelectedRow_ = -1;
@@ -83,41 +80,34 @@ public:
     void capturePreClickSelection(int32_t row) { preClickSelectedRow_ = row; }
 
     // Test method - handles mouse down logic without CDataBrowser dependency
-    // Returns: {shouldDeselect, mouseEventResult}
     struct MouseDownResult {
         bool shouldDeselect;
         bool handled;
     };
     MouseDownResult handleMouseDownForTesting(int32_t row, bool isDoubleClick) {
         if (isDoubleClick && doubleClickCallback_) {
-            return {false, true};  // Handled, but not deselect
+            return {false, true};
         }
-        // Use preClickSelectedRow_ which was captured BEFORE CDataBrowser updated selection
         auto action = determineSelectionAction(row, preClickSelectedRow_);
         if (action == SelectionAction::Deselect) {
-            return {true, true};  // Should deselect, handled
+            return {true, true};
         }
-        return {false, false};  // Not handled, let browser do default
+        return {false, false};
     }
 
 private:
     std::vector<PresetInfo> allPresets_;
     std::vector<PresetInfo> filteredPresets_;
-    int modeFilter_ = -1;
+    std::string subcategoryFilter_;  // empty = All
     std::string searchFilter_;
 
     SelectionCallback selectionCallback_;
     DoubleClickCallback doubleClickCallback_;
 
-    // Selection state captured BEFORE the current click event
-    // This must be set by PresetBrowserView::onMouseDown BEFORE forwarding to children
-    // because CDataBrowser calls setSelectedRow() BEFORE dbOnMouseDown()
     int32_t preClickSelectedRow_ = -1;
-
-    // Track selection state after changes complete (for dbSelectionChanged callback)
     int32_t previousSelectedRow_ = -1;
 
     void applyFilters();
 };
 
-} // namespace Iterum
+} // namespace Krate::Plugins

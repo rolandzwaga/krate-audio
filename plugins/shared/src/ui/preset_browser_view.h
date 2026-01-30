@@ -1,10 +1,10 @@
 #pragma once
 
 // ==============================================================================
-// PresetBrowserView - Modal Popup for Preset Management
+// PresetBrowserView - Modal Popup for Preset Management (Shared)
 // ==============================================================================
-// Spec 042: Preset Browser
-// Modal overlay containing mode tabs, preset list, search, and action buttons.
+// Modal overlay containing category tabs, preset list, search, and action buttons.
+// Generalized from Iterum: accepts tab labels and string subcategory.
 //
 // Constitution Compliance:
 // - Principle V: Uses VSTGUI components only
@@ -12,7 +12,7 @@
 // ==============================================================================
 
 #include "vstgui/lib/cviewcontainer.h"
-#include "vstgui/lib/cframe.h"  // For IKeyboardHook
+#include "vstgui/lib/cframe.h"
 #include "vstgui/lib/cdatabrowser.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/ccolor.h"
@@ -25,23 +25,22 @@
 #include "vstgui/lib/cvstguitimer.h"
 #include "search_debouncer.h"
 
-namespace Iterum {
+namespace Krate::Plugins {
 
 class PresetManager;
 class PresetDataSource;
-class ModeTabBar;
+class CategoryTabBar;
 
 // Button tag constants for IControlListener
 enum PresetBrowserButtonTags {
     kSaveButtonTag = 1,
-    kSearchFieldTag = 2,  // Search field (immediate text change)
+    kSearchFieldTag = 2,
     kImportButtonTag = 3,
     kDeleteButtonTag = 4,
     kCloseButtonTag = 5,
     // Save dialog buttons
     kSaveDialogSaveTag = 10,
     kSaveDialogCancelTag = 11,
-    // Save dialog name field (for Enter key detection)
     kSaveDialogNameFieldTag = 12,
     // Delete confirmation dialog buttons
     kDeleteDialogConfirmTag = 20,
@@ -56,12 +55,14 @@ class PresetBrowserView : public VSTGUI::CViewContainer,
                           public VSTGUI::IKeyboardHook,
                           public VSTGUI::ITextEditListener {
 public:
-    PresetBrowserView(const VSTGUI::CRect& size, PresetManager* presetManager);
+    PresetBrowserView(const VSTGUI::CRect& size,
+                      PresetManager* presetManager,
+                      std::vector<std::string> tabLabels);
     ~PresetBrowserView() override;
 
     // Lifecycle
-    void open(int currentMode);
-    void openWithSaveDialog(int currentMode);  // Opens browser with save dialog immediately visible
+    void open(const std::string& currentSubcategory);
+    void openWithSaveDialog(const std::string& currentSubcategory);
     void close();
     bool isOpen() const { return isOpen_; }
 
@@ -76,15 +77,15 @@ public:
     // IControlListener
     void valueChanged(VSTGUI::CControl* control) override;
 
-    // IKeyboardHook - intercepts keyboard events at frame level BEFORE focus view
+    // IKeyboardHook
     void onKeyboardEvent(VSTGUI::KeyboardEvent& event, VSTGUI::CFrame* frame) override;
 
-    // ITextEditListener - for search field focus events
+    // ITextEditListener
     void onTextEditPlatformControlTookFocus(VSTGUI::CTextEdit* textEdit) override;
     void onTextEditPlatformControlLostFocus(VSTGUI::CTextEdit* textEdit) override;
 
     // Callbacks
-    void onModeTabChanged(int newMode);
+    void onCategoryTabChanged(int newFilterIndex);
     void onSearchTextChanged(const std::string& text);
     void onPresetSelected(int rowIndex);
     void onPresetDoubleClicked(int rowIndex);
@@ -95,9 +96,10 @@ public:
 
 private:
     PresetManager* presetManager_ = nullptr;
+    std::vector<std::string> tabLabels_;
 
     // Child views (owned by CViewContainer)
-    ModeTabBar* modeTabBar_ = nullptr;
+    CategoryTabBar* categoryTabBar_ = nullptr;
     VSTGUI::CDataBrowser* presetList_ = nullptr;
     VSTGUI::CTextEdit* searchField_ = nullptr;
     VSTGUI::CTextButton* saveButton_ = nullptr;
@@ -109,7 +111,7 @@ private:
     PresetDataSource* dataSource_ = nullptr;
 
     // State
-    int currentModeFilter_ = -1;  // -1 = All
+    std::string currentSubcategoryFilter_;  // empty = "All"
     int selectedPresetIndex_ = -1;
     bool isOpen_ = false;
 
@@ -120,18 +122,18 @@ private:
     VSTGUI::CTextButton* saveDialogCancelButton_ = nullptr;
     bool saveDialogVisible_ = false;
 
-    // Delete confirmation dialog components (inline overlay)
+    // Delete confirmation dialog components
     VSTGUI::CViewContainer* deleteDialogOverlay_ = nullptr;
     VSTGUI::CTextLabel* deleteDialogLabel_ = nullptr;
     VSTGUI::CTextButton* deleteDialogConfirmButton_ = nullptr;
     VSTGUI::CTextButton* deleteDialogCancelButton_ = nullptr;
 
-    // Overwrite confirmation dialog components (inline overlay)
+    // Overwrite confirmation dialog components
     VSTGUI::CViewContainer* overwriteDialogOverlay_ = nullptr;
     VSTGUI::CTextLabel* overwriteDialogLabel_ = nullptr;
     VSTGUI::CTextButton* overwriteDialogConfirmButton_ = nullptr;
     VSTGUI::CTextButton* overwriteDialogCancelButton_ = nullptr;
-    int overwriteTargetIndex_ = -1;  // Index of preset to overwrite
+    int overwriteTargetIndex_ = -1;
 
     void createChildViews();
     void createDialogViews();
@@ -160,7 +162,10 @@ private:
     void startSearchPolling();
     void stopSearchPolling();
     void onSearchPollTimer();
-    static uint64_t getSystemTimeMs() ;
+    static uint64_t getSystemTimeMs();
+
+    // Convert tab index to subcategory string
+    std::string tabIndexToSubcategory(int tabIndex) const;
 };
 
-} // namespace Iterum
+} // namespace Krate::Plugins

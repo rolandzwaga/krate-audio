@@ -4,7 +4,7 @@
 
 #include "vstgui/lib/cfont.h"
 
-namespace Iterum {
+namespace Krate::Plugins {
 
 // =============================================================================
 // DialogButton - Custom button that doesn't consume Enter/Escape events
@@ -57,8 +57,8 @@ SavePresetDialogView::~SavePresetDialogView() {
 // Lifecycle
 // =============================================================================
 
-void SavePresetDialogView::open(int currentMode) {
-    currentMode_ = currentMode;
+void SavePresetDialogView::open(const std::string& currentSubcategory) {
+    currentSubcategory_ = currentSubcategory;
     isOpen_ = true;
     setVisible(true);
 
@@ -242,13 +242,8 @@ void SavePresetDialogView::onSaveConfirm() {
         name = "New Preset";
     }
 
-    // Get mode
-    DelayMode mode = (currentMode_ >= 0)
-        ? static_cast<DelayMode>(currentMode_)
-        : DelayMode::Digital;
-
-    // Save
-    presetManager_->savePreset(name, "", mode, "");
+    // Save via preset manager using string subcategory
+    presetManager_->savePreset(name, currentSubcategory_, "");
 
     close();
 }
@@ -275,4 +270,4 @@ void SavePresetDialogView::unregisterKeyboardHook() {
     keyboardHookRegistered_ = false;
 }
 
-} // namespace Iterum
+} // namespace Krate::Plugins

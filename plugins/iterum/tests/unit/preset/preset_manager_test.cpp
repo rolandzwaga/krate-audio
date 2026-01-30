@@ -10,6 +10,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch_all.hpp>
 #include "preset/preset_manager.h"
+#include "preset/preset_manager_config.h"
 #include "platform/preset_paths.h"
 #include <filesystem>
 #include <fstream>
@@ -17,6 +18,19 @@
 #include <sstream>
 
 namespace fs = std::filesystem;
+
+// Helper: create a test config for Iterum
+static Krate::Plugins::PresetManagerConfig makeTestConfig() {
+    return Krate::Plugins::PresetManagerConfig{
+        /*.processorUID =*/ Steinberg::FUID(0x12345678, 0x12345678, 0x12345678, 0x12345678),
+        /*.pluginName =*/ "Iterum",
+        /*.pluginCategoryDesc =*/ "Delay",
+        /*.subcategoryNames =*/ {
+            "Granular", "Spectral", "Shimmer", "Tape", "BBD",
+            "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
+        }
+    };
+}
 
 // Test fixture for preset manager tests
 // Uses unique directory per fixture instance for parallel test isolation
@@ -62,8 +76,8 @@ public:
     }
 
     // Create an isolated PresetManager for testing
-    Iterum::PresetManager createManager() {
-        return Iterum::PresetManager(nullptr, nullptr, userDir_, factoryDir_);
+    Krate::Plugins::PresetManager createManager() {
+        return Krate::Plugins::PresetManager(makeTestConfig(), nullptr, nullptr, userDir_, factoryDir_);
     }
 
 private:
@@ -78,36 +92,36 @@ private:
 
 TEST_CASE("isValidPresetName validates preset names", "[preset][manager]") {
     SECTION("accepts valid names") {
-        REQUIRE(Iterum::PresetManager::isValidPresetName("My Preset"));
-        REQUIRE(Iterum::PresetManager::isValidPresetName("Ambient Pad 1"));
-        REQUIRE(Iterum::PresetManager::isValidPresetName("Test_Preset-123"));
-        REQUIRE(Iterum::PresetManager::isValidPresetName("A"));
+        REQUIRE(Krate::Plugins::PresetManager::isValidPresetName("My Preset"));
+        REQUIRE(Krate::Plugins::PresetManager::isValidPresetName("Ambient Pad 1"));
+        REQUIRE(Krate::Plugins::PresetManager::isValidPresetName("Test_Preset-123"));
+        REQUIRE(Krate::Plugins::PresetManager::isValidPresetName("A"));
     }
 
     SECTION("rejects empty names") {
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName(""));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName(""));
     }
 
     SECTION("rejects names with invalid filesystem characters") {
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName("Test/Preset"));
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName("Test\\Preset"));
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName("Test:Preset"));
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName("Test*Preset"));
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName("Test?Preset"));
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName("Test\"Preset"));
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName("Test<Preset"));
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName("Test>Preset"));
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName("Test|Preset"));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName("Test/Preset"));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName("Test\\Preset"));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName("Test:Preset"));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName("Test*Preset"));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName("Test?Preset"));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName("Test\"Preset"));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName("Test<Preset"));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName("Test>Preset"));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName("Test|Preset"));
     }
 
     SECTION("rejects names exceeding 255 characters") {
         std::string longName(256, 'a');
-        REQUIRE_FALSE(Iterum::PresetManager::isValidPresetName(longName));
+        REQUIRE_FALSE(Krate::Plugins::PresetManager::isValidPresetName(longName));
     }
 
     SECTION("accepts names at 255 character limit") {
         std::string maxName(255, 'a');
-        REQUIRE(Iterum::PresetManager::isValidPresetName(maxName));
+        REQUIRE(Krate::Plugins::PresetManager::isValidPresetName(maxName));
     }
 }
 
@@ -144,8 +158,8 @@ TEST_CASE("PresetManager scanning functionality", "[preset][manager][scan]") {
         REQUIRE(presets[0].isFactory == true);
     }
 
-    SECTION("getPresetsForMode filters by mode") {
-        auto digitalPresets = manager.getPresetsForMode(Iterum::DelayMode::Digital);
+    SECTION("getPresetsForSubcategory filters by subcategory") {
+        auto digitalPresets = manager.getPresetsForSubcategory("Digital");
         REQUIRE(digitalPresets.size() == 0);
     }
 
@@ -177,7 +191,7 @@ TEST_CASE("PresetManager delete functionality", "[preset][manager][delete]") {
     auto manager = fixture.createManager();
 
     SECTION("deletePreset returns false for factory presets") {
-        Iterum::PresetInfo factoryPreset;
+        Krate::Plugins::PresetInfo factoryPreset;
         factoryPreset.name = "Factory Preset";
         factoryPreset.path = fixture.factoryDir() / "factory.vstpreset";
         factoryPreset.isFactory = true;
@@ -187,7 +201,7 @@ TEST_CASE("PresetManager delete functionality", "[preset][manager][delete]") {
     }
 
     SECTION("deletePreset returns false for non-existent files") {
-        Iterum::PresetInfo nonExistent;
+        Krate::Plugins::PresetInfo nonExistent;
         nonExistent.name = "Non Existent";
         nonExistent.path = fixture.userDir() / "nonexistent.vstpreset";
         nonExistent.isFactory = false;
@@ -201,7 +215,7 @@ TEST_CASE("PresetManager delete functionality", "[preset][manager][delete]") {
         fixture.createDummyPreset(presetPath);
         REQUIRE(fs::exists(presetPath));
 
-        Iterum::PresetInfo userPreset;
+        Krate::Plugins::PresetInfo userPreset;
         userPreset.name = "User Preset";
         userPreset.path = presetPath;
         userPreset.isFactory = false;
@@ -284,7 +298,7 @@ TEST_CASE("PresetManager directory access", "[preset][manager][directory]") {
 
 TEST_CASE("PresetManager uses platform directories when no override", "[preset][manager][directory]") {
     // Create manager without overrides - should use platform defaults
-    Iterum::PresetManager manager(nullptr, nullptr);
+    Krate::Plugins::PresetManager manager(makeTestConfig(), nullptr, nullptr);
 
     SECTION("getUserPresetDirectory returns valid platform path") {
         auto path = manager.getUserPresetDirectory();
@@ -309,12 +323,12 @@ TEST_CASE("PresetManager error handling", "[preset][manager][error]") {
 
     SECTION("getLastError returns empty after successful operation") {
         // Perform a successful validation
-        REQUIRE(Iterum::PresetManager::isValidPresetName("Valid Name"));
+        REQUIRE(Krate::Plugins::PresetManager::isValidPresetName("Valid Name"));
         // Can't easily test getLastError without causing an error first
     }
 
     SECTION("loadPreset with null components returns false") {
-        Iterum::PresetInfo preset;
+        Krate::Plugins::PresetInfo preset;
         preset.name = "Test";
         preset.path = fixture.userDir() / "test.vstpreset";
 
@@ -322,10 +336,10 @@ TEST_CASE("PresetManager error handling", "[preset][manager][error]") {
     }
 
     SECTION("savePreset with null components returns false") {
-        REQUIRE_FALSE(manager.savePreset("Test", "Category", Iterum::DelayMode::Digital));
+        REQUIRE_FALSE(manager.savePreset("Test", "Digital"));
     }
 
     SECTION("savePreset with invalid name returns false") {
-        REQUIRE_FALSE(manager.savePreset("Invalid/Name", "Category", Iterum::DelayMode::Digital));
+        REQUIRE_FALSE(manager.savePreset("Invalid/Name", "Digital"));
     }
 }

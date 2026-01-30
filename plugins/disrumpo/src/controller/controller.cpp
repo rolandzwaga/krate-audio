@@ -9,6 +9,7 @@
 #include "plugin_ids.h"
 #include "version.h"
 #include "dsp/band_state.h"
+#include "preset/disrumpo_preset_config.h"
 #include "controller/views/spectrum_display.h"
 #include "controller/views/morph_pad.h"
 #include "controller/views/dynamic_node_selector.h"
@@ -17,6 +18,8 @@
 #include "controller/views/custom_curve_editor.h"
 #include "controller/morph_link.h"
 #include "dsp/sweep_morph_link.h"
+#include "ui/preset_browser_view.h"
+#include "ui/save_preset_dialog_view.h"
 
 #include "base/source/fstreamer.h"
 #include "base/source/fobject.h"
@@ -881,6 +884,25 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerModulationParams();
     registerBandParams();
     registerNodeParams();
+
+    // ==========================================================================
+    // Preset Manager (Spec 010)
+    // ==========================================================================
+    // Create PresetManager for preset browsing/scanning.
+    // Note: We pass nullptr for processor since the controller doesn't have
+    // direct access to it. We provide a state provider callback for saving.
+    presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
+        makeDisrumpoPresetConfig(), nullptr, this);
+
+    // Set state provider callback for preset saving
+    presetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
+        return this->createComponentStateStream();
+    });
+
+    // Set load provider callback for preset loading
+    presetManager_->setLoadProvider([this](Steinberg::IBStream* state) -> bool {
+        return this->loadComponentStateWithNotify(state);
+    });
 
     return Steinberg::kResultTrue;
 }
@@ -3343,6 +3365,25 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             false  // Show when value >= threshold
         );
     }
+
+    // =========================================================================
+    // Preset Browser (Spec 010)
+    // =========================================================================
+    // Create preset browser and save dialog views as frame overlays.
+    // Views are initially hidden and shown via openPresetBrowser()/openSavePresetDialog().
+    if (presetManager_) {
+        auto* frame = editor->getFrame();
+        if (frame) {
+            auto frameSize = frame->getViewSize();
+            presetBrowserView_ = new Krate::Plugins::PresetBrowserView(
+                frameSize, presetManager_.get(), getDisrumpoTabLabels());
+            frame->addView(presetBrowserView_);
+
+            savePresetDialogView_ = new Krate::Plugins::SavePresetDialogView(
+                frameSize, presetManager_.get());
+            frame->addView(savePresetDialogView_);
+        }
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -3434,11 +3475,650 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         bandCountDisplayController_ = nullptr;
     }
 
+    // Spec 010: Clear preset browser view pointers (views are owned by frame)
+    presetBrowserView_ = nullptr;
+    savePresetDialogView_ = nullptr;
+
     sweepIndicator_ = nullptr;
     spectrumDisplay_ = nullptr;
     activeEditor_ = nullptr;
 
     (void)editor;  // Suppress unused parameter warning
+}
+
+// ==============================================================================
+// Preset Browser (Spec 010)
+// ==============================================================================
+
+void Controller::openPresetBrowser() {
+    if (presetBrowserView_ && !presetBrowserView_->isOpen()) {
+        // Disrumpo doesn't have a single "mode" like Iterum's delay modes.
+        // Open with empty subcategory to show "All" tab.
+        presetBrowserView_->open("");
+    }
+}
+
+void Controller::openSavePresetDialog() {
+    if (savePresetDialogView_ && !savePresetDialogView_->isOpen()) {
+        savePresetDialogView_->open("");
+    }
+}
+
+void Controller::closePresetBrowser() {
+    if (presetBrowserView_ && presetBrowserView_->isOpen()) {
+        presetBrowserView_->close();
+    }
+}
+
+// ==============================================================================
+// State Serialization for Preset Saving
+// ==============================================================================
+
+Steinberg::MemoryStream* Controller::createComponentStateStream() {
+    // Create a memory stream and serialize current parameter values
+    // in the same format as Processor::getState()
+    auto* stream = new Steinberg::MemoryStream();
+    Steinberg::IBStreamer streamer(stream, kLittleEndian);
+
+    // Helper to get normalized float from controller parameter
+    auto getParamNorm = [this](Steinberg::Vst::ParamID id) -> float {
+        if (auto* param = getParameterObject(id)) {
+            return static_cast<float>(param->getNormalized());
+        }
+        return 0.0f;
+    };
+
+    // Helper to get denormalized float from controller parameter
+    auto getFloat = [this](Steinberg::Vst::ParamID id, float defaultVal) -> float {
+        if (auto* param = getParameterObject(id)) {
+            return static_cast<float>(param->toPlain(param->getNormalized()));
+        }
+        return defaultVal;
+    };
+
+    // Helper to get int32 from controller parameter
+    auto getInt32 = [this](Steinberg::Vst::ParamID id, Steinberg::int32 defaultVal) -> Steinberg::int32 {
+        if (auto* param = getParameterObject(id)) {
+            return static_cast<Steinberg::int32>(param->toPlain(param->getNormalized()));
+        }
+        return defaultVal;
+    };
+
+    // Helper to get int8 from list parameter (multiplied by step count)
+    auto getInt8FromList = [this](Steinberg::Vst::ParamID id, int maxVal) -> Steinberg::int8 {
+        if (auto* param = getParameterObject(id)) {
+            return static_cast<Steinberg::int8>(
+                std::round(param->getNormalized() * maxVal));
+        }
+        return 0;
+    };
+
+    // Helper to get bool parameter as int8
+    auto getBoolInt8 = [this](Steinberg::Vst::ParamID id) -> Steinberg::int8 {
+        if (auto* param = getParameterObject(id)) {
+            return static_cast<Steinberg::int8>(param->getNormalized() >= 0.5 ? 1 : 0);
+        }
+        return 0;
+    };
+
+    // =========================================================================
+    // Write version (v6)
+    // =========================================================================
+    streamer.writeInt32(kPresetVersion);
+
+    // =========================================================================
+    // Global parameters (v1)
+    // =========================================================================
+    streamer.writeFloat(getParamNorm(makeGlobalParamId(GlobalParamType::kGlobalInputGain)));
+    streamer.writeFloat(getParamNorm(makeGlobalParamId(GlobalParamType::kGlobalOutputGain)));
+    streamer.writeFloat(getParamNorm(makeGlobalParamId(GlobalParamType::kGlobalMix)));
+
+    // =========================================================================
+    // Band management (v2)
+    // =========================================================================
+    // Band count: normalized value (0-1) maps to (1-8)
+    int32_t bandCount = static_cast<int32_t>(std::round(
+        getParamNorm(makeGlobalParamId(GlobalParamType::kGlobalBandCount)) * 7.0f)) + 1;
+    streamer.writeInt32(bandCount);
+
+    // Per-band state (8 bands)
+    for (int b = 0; b < kMaxBands; ++b) {
+        auto band = static_cast<uint8_t>(b);
+        streamer.writeFloat(getFloat(makeBandParamId(band, BandParamType::kBandGain), 0.0f));
+        streamer.writeFloat(getFloat(makeBandParamId(band, BandParamType::kBandPan), 0.0f));
+        streamer.writeInt8(getBoolInt8(makeBandParamId(band, BandParamType::kBandSolo)));
+        streamer.writeInt8(getBoolInt8(makeBandParamId(band, BandParamType::kBandBypass)));
+        streamer.writeInt8(getBoolInt8(makeBandParamId(band, BandParamType::kBandMute)));
+    }
+
+    // Crossover frequencies (7)
+    for (int c = 0; c < kMaxBands - 1; ++c) {
+        streamer.writeFloat(getFloat(makeCrossoverParamId(static_cast<uint8_t>(c)), 1000.0f));
+    }
+
+    // =========================================================================
+    // Sweep system (v4)
+    // =========================================================================
+    // Sweep Core (6 values)
+    streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepEnable)));
+    streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepFrequency)));
+    streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepWidth)));
+    streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepIntensity)));
+    streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepFalloff)));
+    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepMorphLink),
+                                       kMorphLinkModeCount - 1));
+
+    // LFO (6 values)
+    streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepLFOEnable)));
+    streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepLFORate)));
+    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepLFOWaveform), 5));
+    streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepLFODepth)));
+    streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepLFOSync)));
+    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepLFONoteValue), 14));
+
+    // Envelope (4 values)
+    streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepEnvEnable)));
+    streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepEnvAttack)));
+    streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepEnvRelease)));
+    streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepEnvSensitivity)));
+
+    // Custom Curve breakpoints (default 2 points: (0,0) and (1,1))
+    streamer.writeInt32(2);
+    streamer.writeFloat(0.0f);
+    streamer.writeFloat(0.0f);
+    streamer.writeFloat(1.0f);
+    streamer.writeFloat(1.0f);
+
+    // =========================================================================
+    // Modulation system (v5)
+    // =========================================================================
+
+    // LFO 1 (7 values)
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO1Rate)));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO1Shape), 5));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO1Phase)));
+    streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO1Sync)));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO1NoteValue), 14));
+    streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO1Unipolar)));
+    streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO1Retrigger)));
+
+    // LFO 2 (7 values)
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO2Rate)));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO2Shape), 5));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO2Phase)));
+    streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO2Sync)));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO2NoteValue), 14));
+    streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO2Unipolar)));
+    streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO2Retrigger)));
+
+    // Envelope Follower (4 values)
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kEnvFollowerAttack)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kEnvFollowerRelease)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kEnvFollowerSensitivity)));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kEnvFollowerSource), 4));
+
+    // Random (3 values)
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kRandomRate)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kRandomSmoothness)));
+    streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kRandomSync)));
+
+    // Chaos (3 values)
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kChaosModel), 3));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kChaosSpeed)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kChaosCoupling)));
+
+    // Sample & Hold (3 values)
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kSampleHoldSource), 3));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kSampleHoldRate)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kSampleHoldSlew)));
+
+    // Pitch Follower (4 values)
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kPitchFollowerMinHz)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kPitchFollowerMaxHz)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kPitchFollowerConfidence)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kPitchFollowerTrackingSpeed)));
+
+    // Transient (3 values)
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kTransientSensitivity)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kTransientAttack)));
+    streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kTransientDecay)));
+
+    // Macros (4 x 4 = 16 values)
+    constexpr ModParamType macroParams[4][4] = {
+        {ModParamType::kMacro1Value, ModParamType::kMacro1Min, ModParamType::kMacro1Max, ModParamType::kMacro1Curve},
+        {ModParamType::kMacro2Value, ModParamType::kMacro2Min, ModParamType::kMacro2Max, ModParamType::kMacro2Curve},
+        {ModParamType::kMacro3Value, ModParamType::kMacro3Min, ModParamType::kMacro3Max, ModParamType::kMacro3Curve},
+        {ModParamType::kMacro4Value, ModParamType::kMacro4Min, ModParamType::kMacro4Max, ModParamType::kMacro4Curve},
+    };
+    for (int m = 0; m < 4; ++m) {
+        streamer.writeFloat(getParamNorm(makeModParamId(macroParams[m][0])));
+        streamer.writeFloat(getParamNorm(makeModParamId(macroParams[m][1])));
+        streamer.writeFloat(getParamNorm(makeModParamId(macroParams[m][2])));
+        streamer.writeInt8(getInt8FromList(makeModParamId(macroParams[m][3]), 3));
+    }
+
+    // Routing (32 x 4 values)
+    for (uint8_t r = 0; r < 32; ++r) {
+        streamer.writeInt8(getInt8FromList(makeRoutingParamId(r, 0), 12));
+        // Destination: int32 (0-53)
+        auto destNorm = getParamNorm(makeRoutingParamId(r, 1));
+        streamer.writeInt32(static_cast<int32_t>(std::round(destNorm * 53.0f)));
+        // Amount: float stored as [-1, 1], normalized as (amount + 1) / 2
+        float amountNorm = getParamNorm(makeRoutingParamId(r, 2));
+        streamer.writeFloat(amountNorm * 2.0f - 1.0f);
+        streamer.writeInt8(getInt8FromList(makeRoutingParamId(r, 3), 3));
+    }
+
+    // =========================================================================
+    // Morph node state (v6)
+    // =========================================================================
+    for (int b = 0; b < kMaxBands; ++b) {
+        auto band = static_cast<uint8_t>(b);
+
+        // Band morph position & config (2 floats + 1 int8 + 1 int8 + 1 float)
+        streamer.writeFloat(getParamNorm(makeBandParamId(band, BandParamType::kBandMorphX)));
+        streamer.writeFloat(getParamNorm(makeBandParamId(band, BandParamType::kBandMorphY)));
+        streamer.writeInt8(getInt8FromList(makeBandParamId(band, BandParamType::kBandMorphMode), 2));
+
+        // ActiveNodes: normalized (0-1) maps to (2-4)
+        float activeNodesNorm = getParamNorm(makeBandParamId(band, BandParamType::kBandActiveNodes));
+        int activeNodes = static_cast<int>(std::round(activeNodesNorm * 2.0f)) + 2;
+        streamer.writeInt8(static_cast<Steinberg::int8>(activeNodes));
+
+        // Morph smoothing: normalized (0-1) maps to (0-500ms)
+        float smoothingNorm = getParamNorm(makeBandParamId(band, BandParamType::kBandMorphSmoothing));
+        streamer.writeFloat(smoothingNorm * 500.0f);
+
+        // Per-node state (4 nodes x 7 values)
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            auto node = static_cast<uint8_t>(n);
+
+            // Type: int8 (0-25)
+            streamer.writeInt8(getInt8FromList(
+                makeNodeParamId(band, node, NodeParamType::kNodeType), 25));
+
+            // Drive: float (0-10), normalized = drive / 10
+            float driveNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeDrive));
+            streamer.writeFloat(driveNorm * 10.0f);
+
+            // Mix: float (0-1)
+            streamer.writeFloat(getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeMix)));
+
+            // Tone: float (200-8000 Hz), normalized = (tone - 200) / 7800
+            float toneNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeTone));
+            streamer.writeFloat(toneNorm * 7800.0f + 200.0f);
+
+            // Bias: float (-1 to 1), normalized = (bias + 1) / 2
+            float biasNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeBias));
+            streamer.writeFloat(biasNorm * 2.0f - 1.0f);
+
+            // Folds: float (1-12), normalized = (folds - 1) / 11
+            float foldsNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeFolds));
+            streamer.writeFloat(foldsNorm * 11.0f + 1.0f);
+
+            // BitDepth: float (4-24), normalized = (bitDepth - 4) / 20
+            float bitDepthNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth));
+            streamer.writeFloat(bitDepthNorm * 20.0f + 4.0f);
+        }
+    }
+
+    return stream;
+}
+
+// ==============================================================================
+// Preset Loading Helpers
+// ==============================================================================
+
+void Controller::editParamWithNotify(Steinberg::Vst::ParamID id, Steinberg::Vst::ParamValue value) {
+    // Clamp value to valid range
+    value = std::max(0.0, std::min(1.0, value));
+
+    // Full edit cycle to notify host of parameter change
+    beginEdit(id);
+    setParamNormalized(id, value);
+    performEdit(id, value);
+    endEdit(id);
+}
+
+bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
+    // ==========================================================================
+    // Load component state with host notification
+    // Parses the same binary format as setComponentState(), but calls
+    // editParamWithNotify (performEdit) instead of just setParamNormalized,
+    // so the host propagates changes to the processor.
+    // ==========================================================================
+
+    if (!state) {
+        return false;
+    }
+
+    Steinberg::IBStreamer streamer(state, kLittleEndian);
+
+    // Read version
+    int32_t version = 0;
+    if (!streamer.readInt32(version)) return false;
+    if (version < 1) return false;
+
+    // Global parameters
+    float inputGain = 0.5f, outputGain = 0.5f, globalMix = 1.0f;
+    if (streamer.readFloat(inputGain))
+        editParamWithNotify(makeGlobalParamId(GlobalParamType::kGlobalInputGain), inputGain);
+    if (streamer.readFloat(outputGain))
+        editParamWithNotify(makeGlobalParamId(GlobalParamType::kGlobalOutputGain), outputGain);
+    if (streamer.readFloat(globalMix))
+        editParamWithNotify(makeGlobalParamId(GlobalParamType::kGlobalMix), globalMix);
+
+    // Band management (v2+)
+    if (version >= 2) {
+        int32_t bandCount = 4;
+        if (streamer.readInt32(bandCount)) {
+            float normalizedBandCount = static_cast<float>(bandCount - 1) / 7.0f;
+            editParamWithNotify(makeGlobalParamId(GlobalParamType::kGlobalBandCount), normalizedBandCount);
+        }
+
+        for (int b = 0; b < kMaxBands; ++b) {
+            float gain = 0.0f, pan = 0.0f;
+            Steinberg::int8 soloInt = 0, bypassInt = 0, muteInt = 0;
+
+            streamer.readFloat(gain);
+            streamer.readFloat(pan);
+            streamer.readInt8(soloInt);
+            streamer.readInt8(bypassInt);
+            streamer.readInt8(muteInt);
+
+            auto* gainParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandGain));
+            if (gainParam)
+                editParamWithNotify(gainParam->getInfo().id, gainParam->toNormalized(gain));
+
+            auto* panParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandPan));
+            if (panParam)
+                editParamWithNotify(panParam->getInfo().id, panParam->toNormalized(pan));
+
+            editParamWithNotify(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandSolo), soloInt != 0 ? 1.0 : 0.0);
+            editParamWithNotify(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandBypass), bypassInt != 0 ? 1.0 : 0.0);
+            editParamWithNotify(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMute), muteInt != 0 ? 1.0 : 0.0);
+        }
+
+        for (int i = 0; i < kMaxBands - 1; ++i) {
+            float freq = 1000.0f;
+            if (streamer.readFloat(freq)) {
+                auto* param = getParameterObject(makeCrossoverParamId(static_cast<uint8_t>(i)));
+                if (param)
+                    editParamWithNotify(param->getInfo().id, param->toNormalized(freq));
+            }
+        }
+    }
+
+    // Sweep system (v4+)
+    if (version >= 4) {
+        Steinberg::int8 sweepEnable = 0;
+        float sweepFreqNorm = 0.566f, sweepWidthNorm = 0.286f, sweepIntensityNorm = 0.25f;
+        Steinberg::int8 sweepFalloff = 1, sweepMorphLink = 0;
+
+        if (streamer.readInt8(sweepEnable))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepEnable), sweepEnable != 0 ? 1.0 : 0.0);
+        if (streamer.readFloat(sweepFreqNorm))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepFrequency), sweepFreqNorm);
+        if (streamer.readFloat(sweepWidthNorm))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepWidth), sweepWidthNorm);
+        if (streamer.readFloat(sweepIntensityNorm))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepIntensity), sweepIntensityNorm);
+        if (streamer.readInt8(sweepFalloff))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepFalloff), sweepFalloff != 0 ? 1.0 : 0.0);
+        if (streamer.readInt8(sweepMorphLink))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepMorphLink),
+                                static_cast<double>(sweepMorphLink) / (kMorphLinkModeCount - 1));
+
+        // LFO
+        Steinberg::int8 lfoEnable = 0, lfoWaveform = 0, lfoSync = 0, lfoNoteIndex = 0;
+        float lfoRateNorm = 0.606f, lfoDepth = 0.0f;
+
+        if (streamer.readInt8(lfoEnable))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepLFOEnable), lfoEnable != 0 ? 1.0 : 0.0);
+        if (streamer.readFloat(lfoRateNorm))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepLFORate), lfoRateNorm);
+        if (streamer.readInt8(lfoWaveform))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepLFOWaveform), static_cast<double>(lfoWaveform) / 5.0);
+        if (streamer.readFloat(lfoDepth))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepLFODepth), lfoDepth);
+        if (streamer.readInt8(lfoSync))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepLFOSync), lfoSync != 0 ? 1.0 : 0.0);
+        if (streamer.readInt8(lfoNoteIndex))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepLFONoteValue), static_cast<double>(lfoNoteIndex) / 14.0);
+
+        // Envelope
+        Steinberg::int8 envEnable = 0;
+        float envAttackNorm = 0.091f, envReleaseNorm = 0.184f, envSensitivity = 0.5f;
+
+        if (streamer.readInt8(envEnable))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepEnvEnable), envEnable != 0 ? 1.0 : 0.0);
+        if (streamer.readFloat(envAttackNorm))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepEnvAttack), envAttackNorm);
+        if (streamer.readFloat(envReleaseNorm))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepEnvRelease), envReleaseNorm);
+        if (streamer.readFloat(envSensitivity))
+            editParamWithNotify(makeSweepParamId(SweepParamType::kSweepEnvSensitivity), envSensitivity);
+
+        // Custom curve - skip
+        int32_t pointCount = 2;
+        if (streamer.readInt32(pointCount)) {
+            pointCount = std::clamp(pointCount, 2, 8);
+            for (int32_t i = 0; i < pointCount; ++i) {
+                float px = 0.0f, py = 0.0f;
+                streamer.readFloat(px);
+                streamer.readFloat(py);
+            }
+        }
+    }
+
+    // Modulation system (v5+)
+    if (version >= 5) {
+        // LFO 1
+        float lfo1RateNorm = 0.5f;
+        if (streamer.readFloat(lfo1RateNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO1Rate), lfo1RateNorm);
+        Steinberg::int8 lfo1Shape = 0;
+        if (streamer.readInt8(lfo1Shape))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO1Shape), static_cast<double>(lfo1Shape) / 5.0);
+        float lfo1Phase = 0.0f;
+        if (streamer.readFloat(lfo1Phase))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO1Phase), lfo1Phase);
+        Steinberg::int8 lfo1Sync = 0;
+        if (streamer.readInt8(lfo1Sync))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO1Sync), lfo1Sync != 0 ? 1.0 : 0.0);
+        Steinberg::int8 lfo1NoteIdx = 0;
+        if (streamer.readInt8(lfo1NoteIdx))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO1NoteValue), static_cast<double>(lfo1NoteIdx) / 14.0);
+        Steinberg::int8 lfo1Unipolar = 0;
+        if (streamer.readInt8(lfo1Unipolar))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO1Unipolar), lfo1Unipolar != 0 ? 1.0 : 0.0);
+        Steinberg::int8 lfo1Retrigger = 1;
+        if (streamer.readInt8(lfo1Retrigger))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO1Retrigger), lfo1Retrigger != 0 ? 1.0 : 0.0);
+
+        // LFO 2
+        float lfo2RateNorm = 0.5f;
+        if (streamer.readFloat(lfo2RateNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO2Rate), lfo2RateNorm);
+        Steinberg::int8 lfo2Shape = 0;
+        if (streamer.readInt8(lfo2Shape))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO2Shape), static_cast<double>(lfo2Shape) / 5.0);
+        float lfo2Phase = 0.0f;
+        if (streamer.readFloat(lfo2Phase))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO2Phase), lfo2Phase);
+        Steinberg::int8 lfo2Sync = 0;
+        if (streamer.readInt8(lfo2Sync))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO2Sync), lfo2Sync != 0 ? 1.0 : 0.0);
+        Steinberg::int8 lfo2NoteIdx = 0;
+        if (streamer.readInt8(lfo2NoteIdx))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO2NoteValue), static_cast<double>(lfo2NoteIdx) / 14.0);
+        Steinberg::int8 lfo2Unipolar = 0;
+        if (streamer.readInt8(lfo2Unipolar))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO2Unipolar), lfo2Unipolar != 0 ? 1.0 : 0.0);
+        Steinberg::int8 lfo2Retrigger = 1;
+        if (streamer.readInt8(lfo2Retrigger))
+            editParamWithNotify(makeModParamId(ModParamType::kLFO2Retrigger), lfo2Retrigger != 0 ? 1.0 : 0.0);
+
+        // Envelope Follower
+        float envAttackNorm = 0.0f;
+        if (streamer.readFloat(envAttackNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kEnvFollowerAttack), envAttackNorm);
+        float envReleaseNorm = 0.0f;
+        if (streamer.readFloat(envReleaseNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kEnvFollowerRelease), envReleaseNorm);
+        float envSensitivity = 0.5f;
+        if (streamer.readFloat(envSensitivity))
+            editParamWithNotify(makeModParamId(ModParamType::kEnvFollowerSensitivity), envSensitivity);
+        Steinberg::int8 envSource = 0;
+        if (streamer.readInt8(envSource))
+            editParamWithNotify(makeModParamId(ModParamType::kEnvFollowerSource), static_cast<double>(envSource) / 4.0);
+
+        // Random
+        float randomRateNorm = 0.0f;
+        if (streamer.readFloat(randomRateNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kRandomRate), randomRateNorm);
+        float randomSmoothness = 0.0f;
+        if (streamer.readFloat(randomSmoothness))
+            editParamWithNotify(makeModParamId(ModParamType::kRandomSmoothness), randomSmoothness);
+        Steinberg::int8 randomSync = 0;
+        if (streamer.readInt8(randomSync))
+            editParamWithNotify(makeModParamId(ModParamType::kRandomSync), randomSync != 0 ? 1.0 : 0.0);
+
+        // Chaos
+        Steinberg::int8 chaosModel = 0;
+        if (streamer.readInt8(chaosModel))
+            editParamWithNotify(makeModParamId(ModParamType::kChaosModel), static_cast<double>(chaosModel) / 3.0);
+        float chaosSpeedNorm = 0.0f;
+        if (streamer.readFloat(chaosSpeedNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kChaosSpeed), chaosSpeedNorm);
+        float chaosCoupling = 0.0f;
+        if (streamer.readFloat(chaosCoupling))
+            editParamWithNotify(makeModParamId(ModParamType::kChaosCoupling), chaosCoupling);
+
+        // Sample & Hold
+        Steinberg::int8 shSource = 0;
+        if (streamer.readInt8(shSource))
+            editParamWithNotify(makeModParamId(ModParamType::kSampleHoldSource), static_cast<double>(shSource) / 3.0);
+        float shRateNorm = 0.0f;
+        if (streamer.readFloat(shRateNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kSampleHoldRate), shRateNorm);
+        float shSlewNorm = 0.0f;
+        if (streamer.readFloat(shSlewNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kSampleHoldSlew), shSlewNorm);
+
+        // Pitch Follower
+        float pitchMinNorm = 0.0f;
+        if (streamer.readFloat(pitchMinNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kPitchFollowerMinHz), pitchMinNorm);
+        float pitchMaxNorm = 0.0f;
+        if (streamer.readFloat(pitchMaxNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kPitchFollowerMaxHz), pitchMaxNorm);
+        float pitchConfidence = 0.5f;
+        if (streamer.readFloat(pitchConfidence))
+            editParamWithNotify(makeModParamId(ModParamType::kPitchFollowerConfidence), pitchConfidence);
+        float pitchTrackNorm = 0.0f;
+        if (streamer.readFloat(pitchTrackNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kPitchFollowerTrackingSpeed), pitchTrackNorm);
+
+        // Transient
+        float transSensitivity = 0.5f;
+        if (streamer.readFloat(transSensitivity))
+            editParamWithNotify(makeModParamId(ModParamType::kTransientSensitivity), transSensitivity);
+        float transAttackNorm = 0.0f;
+        if (streamer.readFloat(transAttackNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kTransientAttack), transAttackNorm);
+        float transDecayNorm = 0.0f;
+        if (streamer.readFloat(transDecayNorm))
+            editParamWithNotify(makeModParamId(ModParamType::kTransientDecay), transDecayNorm);
+
+        // Macros
+        constexpr ModParamType macroParams[4][4] = {
+            {ModParamType::kMacro1Value, ModParamType::kMacro1Min, ModParamType::kMacro1Max, ModParamType::kMacro1Curve},
+            {ModParamType::kMacro2Value, ModParamType::kMacro2Min, ModParamType::kMacro2Max, ModParamType::kMacro2Curve},
+            {ModParamType::kMacro3Value, ModParamType::kMacro3Min, ModParamType::kMacro3Max, ModParamType::kMacro3Curve},
+            {ModParamType::kMacro4Value, ModParamType::kMacro4Min, ModParamType::kMacro4Max, ModParamType::kMacro4Curve},
+        };
+        for (int m = 0; m < 4; ++m) {
+            float macroValue = 0.0f;
+            if (streamer.readFloat(macroValue))
+                editParamWithNotify(makeModParamId(macroParams[m][0]), macroValue);
+            float macroMin = 0.0f;
+            if (streamer.readFloat(macroMin))
+                editParamWithNotify(makeModParamId(macroParams[m][1]), macroMin);
+            float macroMax = 1.0f;
+            if (streamer.readFloat(macroMax))
+                editParamWithNotify(makeModParamId(macroParams[m][2]), macroMax);
+            Steinberg::int8 macroCurve = 0;
+            if (streamer.readInt8(macroCurve))
+                editParamWithNotify(makeModParamId(macroParams[m][3]), static_cast<double>(macroCurve) / 3.0);
+        }
+
+        // Routing (32 x 4 values)
+        for (uint8_t r = 0; r < 32; ++r) {
+            Steinberg::int8 source = 0;
+            if (streamer.readInt8(source))
+                editParamWithNotify(makeRoutingParamId(r, 0), static_cast<double>(source) / 12.0);
+            int32_t dest = 0;
+            if (streamer.readInt32(dest))
+                editParamWithNotify(makeRoutingParamId(r, 1), static_cast<double>(std::clamp(dest, 0, 53)) / 53.0);
+            float amount = 0.0f;
+            if (streamer.readFloat(amount))
+                editParamWithNotify(makeRoutingParamId(r, 2), static_cast<double>(amount + 1.0f) / 2.0);
+            Steinberg::int8 curve = 0;
+            if (streamer.readInt8(curve))
+                editParamWithNotify(makeRoutingParamId(r, 3), static_cast<double>(curve) / 3.0);
+        }
+    }
+
+    // Morph node state (v6+)
+    if (version >= 6) {
+        for (int b = 0; b < kMaxBands; ++b) {
+            const auto band = static_cast<uint8_t>(b);
+
+            float morphX = 0.5f, morphY = 0.5f;
+            Steinberg::int8 morphMode = 0;
+            Steinberg::int8 activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
+            float morphSmoothing = 0.0f;
+
+            if (streamer.readFloat(morphX))
+                editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphX), static_cast<double>(morphX));
+            if (streamer.readFloat(morphY))
+                editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphY), static_cast<double>(morphY));
+            if (streamer.readInt8(morphMode))
+                editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphMode), static_cast<double>(morphMode) / 2.0);
+            if (streamer.readInt8(activeNodes)) {
+                int count = std::clamp(static_cast<int>(activeNodes), kMinActiveNodes, kMaxMorphNodes);
+                editParamWithNotify(makeBandParamId(band, BandParamType::kBandActiveNodes), static_cast<double>(count - 2) / 2.0);
+            }
+            if (streamer.readFloat(morphSmoothing))
+                editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphSmoothing), static_cast<double>(morphSmoothing) / 500.0);
+
+            for (int n = 0; n < kMaxMorphNodes; ++n) {
+                const auto node = static_cast<uint8_t>(n);
+
+                Steinberg::int8 nodeType = 0;
+                float drive = 1.0f, mix = 1.0f, tone = 4000.0f;
+                float bias = 0.0f, folds = 1.0f, bitDepth = 16.0f;
+
+                if (streamer.readInt8(nodeType))
+                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeType), static_cast<double>(nodeType) / 25.0);
+                if (streamer.readFloat(drive))
+                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeDrive), static_cast<double>(drive) / 10.0);
+                if (streamer.readFloat(mix))
+                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeMix), static_cast<double>(mix));
+                if (streamer.readFloat(tone))
+                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeTone), static_cast<double>(tone - 200.0f) / 7800.0);
+                if (streamer.readFloat(bias))
+                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeBias), static_cast<double>(bias + 1.0f) / 2.0);
+                if (streamer.readFloat(folds))
+                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeFolds), static_cast<double>(folds - 1.0f) / 11.0);
+                if (streamer.readFloat(bitDepth))
+                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth), static_cast<double>(bitDepth - 4.0f) / 20.0);
+            }
+        }
+    }
+
+    return true;
 }
 
 } // namespace Disrumpo

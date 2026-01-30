@@ -1,22 +1,21 @@
 #pragma once
 
 // ==============================================================================
-// PresetInfo - Preset Metadata Structure
+// PresetInfo - Preset Metadata Structure (Shared)
 // ==============================================================================
-// Spec 042: Preset Browser
 // Contains metadata for a single preset file.
+// Generalized from Iterum's version: DelayMode replaced with string subcategory.
 // ==============================================================================
 
 #include <string>
 #include <filesystem>
-#include "../delay_mode.h"  // DelayMode enum (SDK-independent)
 
-namespace Iterum {
+namespace Krate::Plugins {
 
 struct PresetInfo {
     std::string name;                    // Display name (from filename or metadata)
     std::string category;                // Category label (e.g., "Ambient", "Rhythmic")
-    DelayMode mode = DelayMode::Digital; // Target delay mode
+    std::string subcategory;             // Directory-derived subcategory (e.g., "Granular", "Bass")
     std::filesystem::path path;          // Full path to .vstpreset file
     bool isFactory = false;              // True if factory preset (read-only)
     std::string description;             // Optional description text
@@ -27,10 +26,10 @@ struct PresetInfo {
         return !name.empty() && !path.empty();
     }
 
-    /// Compare presets by name (case-insensitive)
+    /// Compare presets by name
     bool operator<(const PresetInfo& other) const {
         return name < other.name;
     }
 };
 
-} // namespace Iterum
+} // namespace Krate::Plugins

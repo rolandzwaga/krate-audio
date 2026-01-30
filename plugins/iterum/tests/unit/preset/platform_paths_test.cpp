@@ -14,7 +14,7 @@
 namespace fs = std::filesystem;
 
 TEST_CASE("getUserPresetDirectory returns valid path", "[preset][platform]") {
-    auto path = Iterum::Platform::getUserPresetDirectory();
+    auto path = Krate::Plugins::Platform::getUserPresetDirectory("Iterum");
 
     SECTION("returns non-empty path") {
         REQUIRE_FALSE(path.empty());
@@ -53,7 +53,7 @@ TEST_CASE("getUserPresetDirectory returns valid path", "[preset][platform]") {
 }
 
 TEST_CASE("getFactoryPresetDirectory returns valid path", "[preset][platform]") {
-    auto path = Iterum::Platform::getFactoryPresetDirectory();
+    auto path = Krate::Plugins::Platform::getFactoryPresetDirectory("Iterum");
 
     SECTION("returns non-empty path") {
         REQUIRE_FALSE(path.empty());
@@ -106,7 +106,7 @@ TEST_CASE("ensureDirectoryExists creates directories", "[preset][platform]") {
 
     SECTION("creates non-existent directory") {
         REQUIRE_FALSE(fs::exists(testDir));
-        REQUIRE(Iterum::Platform::ensureDirectoryExists(testDir));
+        REQUIRE(Krate::Plugins::Platform::ensureDirectoryExists(testDir));
         REQUIRE(fs::exists(testDir));
         REQUIRE(fs::is_directory(testDir));
     }
@@ -114,11 +114,11 @@ TEST_CASE("ensureDirectoryExists creates directories", "[preset][platform]") {
     SECTION("returns true for existing directory") {
         fs::create_directories(testDir);
         REQUIRE(fs::exists(testDir));
-        REQUIRE(Iterum::Platform::ensureDirectoryExists(testDir));
+        REQUIRE(Krate::Plugins::Platform::ensureDirectoryExists(testDir));
     }
 
     SECTION("returns false for empty path") {
-        REQUIRE_FALSE(Iterum::Platform::ensureDirectoryExists(fs::path()));
+        REQUIRE_FALSE(Krate::Plugins::Platform::ensureDirectoryExists(fs::path()));
     }
 
     // Clean up
@@ -126,8 +126,8 @@ TEST_CASE("ensureDirectoryExists creates directories", "[preset][platform]") {
 }
 
 TEST_CASE("User and factory directories are different", "[preset][platform]") {
-    auto userPath = Iterum::Platform::getUserPresetDirectory();
-    auto factoryPath = Iterum::Platform::getFactoryPresetDirectory();
+    auto userPath = Krate::Plugins::Platform::getUserPresetDirectory("Iterum");
+    auto factoryPath = Krate::Plugins::Platform::getFactoryPresetDirectory("Iterum");
 
     REQUIRE(userPath != factoryPath);
 }
