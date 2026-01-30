@@ -347,20 +347,20 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 ### 8.1 Pluginval Validation
 
-- [ ] T11.092 Run pluginval on Disrumpo.vst3 and verify all tests pass at strictness level 5
-- [ ] T11.093 Fix any pluginval failures related to oversampling changes
+- [X] T11.092 Run pluginval on Disrumpo.vst3 and verify all tests pass at strictness level 5
+- [X] T11.093 Fix any pluginval failures related to oversampling changes
 
 ### 8.2 Comprehensive Testing
 
-- [ ] T11.094 [P] Run all DSP tests and verify 100% pass rate
-- [ ] T11.095 [P] Run all Disrumpo plugin tests and verify 100% pass rate
-- [ ] T11.096 [P] Run CTest across all test suites and verify no failures
-- [ ] T11.097 Manual smoke test: Load Disrumpo in DAW, test type switching, morph automation, limit parameter automation
+- [X] T11.094 [P] Run all DSP tests and verify 100% pass rate
+- [X] T11.095 [P] Run all Disrumpo plugin tests and verify 100% pass rate
+- [X] T11.096 [P] Run CTest across all test suites and verify no failures
+- [X] T11.097 Manual smoke test: Load Disrumpo in DAW, test type switching, morph automation, limit parameter automation
 
 ### 8.3 Documentation
 
-- [ ] T11.098 Update `quickstart.md` with any implementation discoveries or gotchas
-- [ ] T11.099 Update `plan.md` with actual implementation details vs. initial plan (note any deviations)
+- [X] T11.098 Update `quickstart.md` with any implementation discoveries or gotchas
+- [X] T11.099 Update `plan.md` with actual implementation details vs. initial plan (note any deviations)
 
 ---
 
@@ -372,7 +372,7 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 ### N-1.0.1 Run Clang-Tidy Analysis
 
-- [ ] T11.100 **Run clang-tidy** on all modified/new source files:
+- [X] T11.100 **Run clang-tidy** on all modified/new source files:
   ```bash
   # Windows (PowerShell from VS Developer PowerShell)
   cmake --preset windows-ninja  # One-time: generate compile_commands.json
@@ -385,9 +385,9 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 ### N-1.0.2 Address Findings
 
-- [ ] T11.101 **Fix all errors** reported by clang-tidy (blocking issues)
-- [ ] T11.102 **Review warnings** and fix where appropriate (use judgment for DSP code)
-- [ ] T11.103 **Document suppressions** if any warnings are intentionally ignored (add NOLINT comment with reason)
+- [X] T11.101 **Fix all errors** reported by clang-tidy (blocking issues)
+- [X] T11.102 **Review warnings** and fix where appropriate (use judgment for DSP code)
+- [X] T11.103 **Document suppressions** if any warnings are intentionally ignored (add NOLINT comment with reason)
 
 **Checkpoint**: Static analysis clean - ready for architecture documentation
 
@@ -401,7 +401,7 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 ### N-2.1 Architecture Documentation Update
 
-- [ ] T11.104 **Update `specs/_architecture_/`** with new components added by this spec:
+- [X] T11.104 **Update `specs/_architecture_/`** with new components added by this spec:
   - Add `oversampling_utils.h` entry to plugin-level components (NOT shared DSP)
   - Document `calculateMorphOversampleFactor()`, `roundUpToPowerOf2Factor()`, `getSingleTypeOversampleFactor()` API
   - Document BandProcessor extensions: `requestOversampleFactor()`, `recalculateOversampleFactor()`, crossfade state
@@ -411,8 +411,8 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 ### N-2.2 Final Commit
 
-- [ ] T11.105 **Commit architecture documentation updates**
-- [ ] T11.106 **Verify all spec work is committed to feature branch**
+- [X] T11.105 **Commit architecture documentation updates**
+- [X] T11.106 **Verify all spec work is committed to feature branch**
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
