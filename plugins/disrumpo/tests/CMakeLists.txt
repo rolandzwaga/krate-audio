@@ -61,6 +61,7 @@ add_executable(disrumpo_tests
     dsp/oversampling_limit_tests.cpp
     dsp/oversampling_crossfade_tests.cpp
     dsp/oversampling_integration_tests.cpp
+    dsp/oversampling_performance_tests.cpp
 
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp

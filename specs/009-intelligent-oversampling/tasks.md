@@ -307,35 +307,35 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 ### 7.1 Performance Benchmark Tests
 
-- [ ] T11.077 [P] [US5] Create test file `plugins/disrumpo/tests/oversampling_performance_tests.cpp` with CPU usage benchmarks
-- [ ] T11.078 [P] [US5] Add benchmark for 4 bands @ 4x: target <15% CPU (SC-001)
-- [ ] T11.079 [P] [US5] Add benchmark for 1 band @ 1x: target <2% CPU (SC-002)
-- [ ] T11.080 [P] [US5] Add benchmark for 8 bands mixed: target <40% CPU (SC-003)
-- [ ] T11.081 [P] [US5] Add benchmark for factor selection overhead: target <1% additional CPU (SC-007)
-- [ ] T11.081b [P] [US5] Verify constant-time factor selection (FR-013): Profile `calculateMorphOversampleFactor()` with varying `activeNodeCount` (2, 3, 4 nodes) and confirm execution time is constant (max 4 nodes means O(4) = O(1))
-- [ ] T11.082 [P] [US5] Add benchmark for bypassed band CPU: target near-zero (SC-010)
+- [X] T11.077 [P] [US5] Create test file `plugins/disrumpo/tests/oversampling_performance_tests.cpp` with CPU usage benchmarks
+- [X] T11.078 [P] [US5] Add benchmark for 4 bands @ 4x: target <15% CPU (SC-001)
+- [X] T11.079 [P] [US5] Add benchmark for 1 band @ 1x: target <2% CPU (SC-002)
+- [X] T11.080 [P] [US5] Add benchmark for 8 bands mixed: target <40% CPU (SC-003)
+- [X] T11.081 [P] [US5] Add benchmark for factor selection overhead: target <1% additional CPU (SC-007)
+- [X] T11.081b [P] [US5] Verify constant-time factor selection (FR-013): Profile `calculateMorphOversampleFactor()` with varying `activeNodeCount` (2, 3, 4 nodes) and confirm execution time is constant (max 4 nodes means O(4) = O(1))
+- [X] T11.082 [P] [US5] Add benchmark for bypassed band CPU: target near-zero (SC-010)
 
 ### 7.2 Latency Verification
 
-- [ ] T11.083 [US5] Add test for latency reporting (SC-012): verify `BandProcessor::getLatency()` returns 0 samples (IIR mode, FR-018, FR-019)
-- [ ] T11.083b [US5] Verify `BandProcessor::prepare()` calls `oversampler.prepare()` with `OversamplingMode::ZeroLatency` (FR-018, verify only)
-- [ ] T11.084 [US5] Add test for latency stability: verify latency does not change when factors change dynamically
+- [X] T11.083 [US5] Add test for latency reporting (SC-012): verify `BandProcessor::getLatency()` returns 0 samples (IIR mode, FR-018, FR-019)
+- [X] T11.083b [US5] Verify `BandProcessor::prepare()` calls `oversampler.prepare()` with `OversamplingMode::ZeroLatency` (FR-018, verify only)
+- [X] T11.084 [US5] Add test for latency stability: verify latency does not change when factors change dynamically
 
 ### 7.3 Performance Analysis & Optimization
 
-- [ ] T11.085 [US5] Run all performance benchmarks and record baseline results
-- [ ] T11.086 [US5] Profile hot paths if any targets are not met: identify bottlenecks
-- [ ] T11.087 [US5] Optimize if needed: consider SIMD for crossfade blending, cache locality for factor selection
-- [ ] T11.088 [US5] Re-run benchmarks and verify all SC-001 through SC-003, SC-007, SC-010 targets are met. If ANY target is not met, optimization is MANDATORY before claiming User Story 5 complete -- return to T11.087 to implement optimizations until all targets pass
-- [ ] T11.089 [US5] Verify end-to-end latency does not exceed 10ms at highest quality (SC-004)
+- [X] T11.085 [US5] Run all performance benchmarks and record baseline results
+- [X] T11.086 [US5] Profile hot paths if any targets are not met: identify bottlenecks
+- [X] T11.087 [US5] Optimize if needed: consider SIMD for crossfade blending, cache locality for factor selection
+- [X] T11.088 [US5] Re-run benchmarks and verify all SC-001 through SC-003, SC-007, SC-010 targets are met. If ANY target is not met, optimization is MANDATORY before claiming User Story 5 complete -- return to T11.087 to implement optimizations until all targets pass
+- [X] T11.089 [US5] Verify end-to-end latency does not exceed 10ms at highest quality (SC-004)
 
 ### 7.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T11.090 [US5] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` → add to `-fno-fast-math` list in `plugins/disrumpo/tests/CMakeLists.txt`
+- [X] T11.090 [US5] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` → add to `-fno-fast-math` list in `plugins/disrumpo/tests/CMakeLists.txt`
 
 ### 7.5 Commit (MANDATORY)
 
-- [ ] T11.091 [US5] **Commit completed User Story 5 work**
+- [X] T11.091 [US5] **Commit completed User Story 5 work**
 
 **Checkpoint**: All user stories should now be independently functional, tested, committed, and meeting performance targets
 
