@@ -77,6 +77,105 @@ class TapPatternEditor : public VSTGUI::CControl {
 
 ---
 
+## Shared Plugin Infrastructure (KratePluginsShared)
+
+**Path:** `plugins/shared/` | **Namespace:** `Krate::Plugins` | **Since:** Spec 010
+
+Shared static library providing cross-plugin preset management, UI components, and platform abstraction.
+
+### Architecture
+
+```
+plugins/shared/
+├── src/
+│   ├── preset/                    # Core preset management
+│   │   ├── preset_manager_config.h  # Plugin-specific configuration struct
+│   │   ├── preset_manager.h/.cpp    # File scanning, load/save, search
+│   │   └── preset_info.h            # Preset metadata (name, path, subcategory)
+│   ├── platform/
+│   │   └── preset_paths.h/.cpp      # Cross-platform preset directory resolution
+│   └── ui/                         # VSTGUI preset browser components
+│       ├── preset_browser_view.h/.cpp  # Modal preset browser overlay
+│       ├── category_tab_bar.h/.cpp     # Subcategory filter tabs
+│       ├── preset_data_source.h/.cpp   # CDataBrowser data source
+│       ├── save_preset_dialog_view.h/.cpp  # Save dialog overlay
+│       └── search_debouncer.h          # Search input debounce
+└── tests/                         # Shared library tests
+```
+
+### PresetManagerConfig Pattern
+
+Each plugin provides its own configuration to the shared library:
+
+```cpp
+// In plugin's preset config header (e.g., disrumpo_preset_config.h)
+Krate::Plugins::PresetManagerConfig makeDisrumpoPresetConfig() {
+    return {
+        .processorUID = kProcessorUID,
+        .pluginName = "Disrumpo",
+        .pluginCategoryDesc = "Distortion",
+        .subcategoryNames = {"Init", "Sweep", "Morph", "Bass", ...}
+    };
+}
+
+// Tab labels for the browser (includes "All" as first entry)
+std::vector<std::string> getDisrumpoTabLabels() {
+    return {"All", "Init", "Sweep", "Morph", "Bass", ...};
+}
+```
+
+### Integration Quickstart
+
+To add preset support to a new plugin:
+
+1. **Create config**: `plugins/myplugin/src/preset/myplugin_preset_config.h`
+2. **Link library**: Add `KratePluginsShared` to CMakeLists.txt `target_link_libraries`
+3. **Controller setup**: Initialize PresetManager in `Controller::initialize()`
+4. **Set callbacks**: Wire `setStateProvider()` and `setLoadProvider()` for state persistence
+5. **Create UI**: Instantiate `PresetBrowserView` with tab labels in editor creation
+
+### Key Classes
+
+| Class | Purpose |
+|-------|---------|
+| `PresetManager` | Scan, load, save, search, delete, import presets |
+| `PresetManagerConfig` | Plugin-specific FUID, name, category, subcategories |
+| `PresetInfo` | Single preset metadata: name, path, subcategory, isFactory |
+| `PresetBrowserView` | Full modal preset browser with tabs, list, search |
+| `CategoryTabBar` | Horizontal tab bar for subcategory filtering |
+| `PresetDataSource` | CDataBrowser adapter for preset list display |
+| `SavePresetDialogView` | Inline save dialog with name field and category selector |
+| `SearchDebouncer` | Debounced text input for search field |
+
+### Factory Preset Generator
+
+Tools for generating factory presets at build time:
+
+| Tool | Path | Purpose |
+|------|------|---------|
+| `preset_generator` | `tools/preset_generator.cpp` | Iterum factory presets |
+| `disrumpo_preset_generator` | `tools/disrumpo_preset_generator.cpp` | Disrumpo factory presets (120 across 11 categories) |
+
+Generate presets: `cmake --build build --target generate_disrumpo_presets`
+
+### Disrumpo Preset Categories (11 + All)
+
+| Category | Count | Focus |
+|----------|-------|-------|
+| Init | 5 | Clean starting points (1-5 bands) |
+| Sweep | 15 | Sweep system features (LFO, envelope, link modes) |
+| Morph | 15 | Morph engine (1D, 2D, node transitions) |
+| Bass | 10 | Low-end processing (tube, tape, fuzz) |
+| Leads | 10 | Aggressive distortion (hard clip, feedback) |
+| Pads | 10 | Subtle processing (soft clip, allpass) |
+| Drums | 10 | Transient-friendly (bitcrush, rectify) |
+| Experimental | 15 | Exotic types (spectral, granular, fractal) |
+| Chaos | 10 | Chaos models (Lorenz, Rossler, Henon, Chua) |
+| Dynamic | 10 | Modulation-driven (envelope follower, transient) |
+| Lo-Fi | 10 | Degradation (bitcrush, sample reduce, aliasing) |
+
+---
+
 ## Disrumpo Plugin Components
 
 ### VST3 Components

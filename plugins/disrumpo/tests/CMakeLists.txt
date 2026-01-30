@@ -89,6 +89,7 @@ add_executable(disrumpo_tests
     integration/preset/preset_browser_e2e_test.cpp
     integration/preset/preset_save_test.cpp
     integration/preset/preset_search_test.cpp
+    integration/preset/factory_preset_validation_test.cpp
 
     # Integration tests
     integration/band_management_integration_test.cpp

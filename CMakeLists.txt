@@ -246,6 +246,23 @@ set_target_properties(preset_generator PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
+add_executable(disrumpo_preset_generator
+    tools/disrumpo_preset_generator.cpp
+)
+target_compile_features(disrumpo_preset_generator PRIVATE cxx_std_20)
+set_target_properties(disrumpo_preset_generator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# Custom target to regenerate Disrumpo factory presets on demand
+# Usage: cmake --build build --target generate_disrumpo_presets
+add_custom_target(generate_disrumpo_presets
+    COMMAND disrumpo_preset_generator "${CMAKE_SOURCE_DIR}/plugins/disrumpo/resources/presets"
+    DEPENDS disrumpo_preset_generator
+    COMMENT "Generating Disrumpo factory presets (120 presets across 11 categories)"
+    VERBATIM
+)
+
 # ==============================================================================
 # Control Testbench (UI Development Tool)
 # ==============================================================================

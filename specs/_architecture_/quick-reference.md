@@ -38,3 +38,30 @@ grep -r "struct YourStructName" dsp/ plugins/
 ```
 
 Two classes with the same name in the same namespace = undefined behavior (garbage values, mysterious test failures).
+
+---
+
+## Shared Plugin Libraries
+
+| Library | Namespace | Purpose |
+|---------|-----------|---------|
+| `KrateDSP` | `Krate::DSP` | Shared DSP primitives and processors |
+| `KratePluginsShared` | `Krate::Plugins` | Shared preset management and UI components |
+
+### Adding Preset Support to a New Plugin
+
+```cpp
+// 1. Create config: plugins/myplugin/src/preset/myplugin_preset_config.h
+auto config = Krate::Plugins::PresetManagerConfig{
+    .processorUID = kProcessorUID,
+    .pluginName = "MyPlugin",
+    .pluginCategoryDesc = "Effect",
+    .subcategoryNames = {"Category1", "Category2", ...}
+};
+
+// 2. Link in CMakeLists.txt
+target_link_libraries(MyPlugin PRIVATE KratePluginsShared)
+
+// 3. Initialize in Controller::initialize()
+presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(config, ...);
+```

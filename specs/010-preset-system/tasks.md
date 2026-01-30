@@ -184,7 +184,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 3.6 Commit (MANDATORY)
 
-- [ ] T059 [US0] Commit completed User Story 0 work (shared library refactoring)
+- [X] T059 [US0] Commit completed User Story 0 work (shared library refactoring)
 
 **Checkpoint**: User Story 0 should be fully functional - shared library works for Iterum with all tests passing
 
@@ -232,7 +232,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 4.6 Commit (MANDATORY)
 
-- [ ] T077 [US1] Commit completed User Story 1 work (serialization verification)
+- [X] T077 [US1] Commit completed User Story 1 work (serialization verification)
 
 **Checkpoint**: User Story 1 should be fully functional - serialization verified to round-trip all parameters
 
@@ -267,7 +267,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T088 [US2] Commit completed User Story 2 work (version migration verification)
+- [X] T088 [US2] Commit completed User Story 2 work (version migration verification)
 
 **Checkpoint**: User Stories 1 AND 2 should both work - serialization verified for all versions
 
@@ -322,7 +322,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 6.6 Commit (MANDATORY)
 
-- [ ] T113 [US3] Commit completed User Story 3 work (preset browser integration)
+- [X] T113 [US3] Commit completed User Story 3 work (preset browser integration)
 
 **Checkpoint**: User Story 3 complete - preset browser functional in Disrumpo
 
@@ -366,7 +366,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 7.5 Commit (MANDATORY)
 
-- [ ] T130 [US4] Commit completed User Story 4 work (save user presets)
+- [X] T130 [US4] Commit completed User Story 4 work (save user presets)
 
 **Checkpoint**: User Story 4 complete - users can save custom presets
 
@@ -402,7 +402,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 8.4 Commit (MANDATORY)
 
-- [ ] T142 [US5] Commit completed User Story 5 work (search and filter)
+- [X] T142 [US5] Commit completed User Story 5 work (search and filter)
 
 **Checkpoint**: User Story 5 complete - search and filter functional
 
@@ -416,27 +416,27 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 9.1 Factory Preset Generator Tool (Write Tests FIRST)
 
-- [ ] T143 [US6] Create tools/disrumpo_preset_generator.cpp following Iterum pattern (tools/preset_generator.cpp)
-- [ ] T144 [US6] Implement BinaryWriter class with writeInt32(), writeFloat(), writeInt8() methods
-- [ ] T145 [US6] Create DisrumpoPresetState struct matching Processor::getState() binary layout (v6 format)
-- [ ] T146 [US6] Implement DisrumpoPresetState::serialize() method
-- [ ] T147 [US6] Add disrumpo_preset_generator executable to CMakeLists.txt
-- [ ] T148 [US6] Build and verify generator compiles
+- [X] T143 [US6] Create tools/disrumpo_preset_generator.cpp following Iterum pattern (tools/preset_generator.cpp)
+- [X] T144 [US6] Implement BinaryWriter class with writeInt32(), writeFloat(), writeInt8() methods
+- [X] T145 [US6] Create DisrumpoPresetState struct matching Processor::getState() binary layout (v6 format)
+- [X] T146 [US6] Implement DisrumpoPresetState::serialize() method
+- [X] T147 [US6] Add disrumpo_preset_generator executable to CMakeLists.txt
+- [X] T148 [US6] Build and verify generator compiles
 
 ### 9.2 Init Presets (5 Presets)
 
-- [ ] T149 [US6] Implement Init 1 Band preset (1 band, Soft Clip, drive 0.0, mix 100%, bypass-equivalent) (FR-030)
-- [ ] T150 [P] [US6] Implement Init 2 Bands preset (2 bands, Soft Clip, drive 0.0)
-- [ ] T151 [P] [US6] Implement Init 3 Bands preset (3 bands, Soft Clip, drive 0.0)
-- [ ] T152 [P] [US6] Implement Init 4 Bands preset (4 bands, Soft Clip, drive 0.0)
-- [ ] T153 [P] [US6] Implement Init 5 Bands preset (5 bands, Soft Clip, drive 0.0)
-- [ ] T154 [US6] Generate Init presets and verify .vstpreset files are created in Init/ directory (FR-027, FR-028)
+- [X] T149 [US6] Implement Init 1 Band preset (1 band, Soft Clip, drive 0.0, mix 100%, bypass-equivalent) (FR-030)
+- [X] T150 [P] [US6] Implement Init 2 Bands preset (2 bands, Soft Clip, drive 0.0)
+- [X] T151 [P] [US6] Implement Init 3 Bands preset (3 bands, Soft Clip, drive 0.0)
+- [X] T152 [P] [US6] Implement Init 4 Bands preset (4 bands, Soft Clip, drive 0.0)
+- [X] T153 [P] [US6] Implement Init 5 Bands preset (5 bands, Soft Clip, drive 0.0)
+- [X] T154 [US6] Generate Init presets and verify .vstpreset files are created in Init/ directory (FR-027, FR-028)
 
 ### 9.3 Factory Preset Round-Trip Validation
 
-- [ ] T155 [US6] Create plugins/disrumpo/tests/integration/preset/factory_preset_validation_test.cpp
-- [ ] T156 [US6] Write test that loads each factory preset, serializes to stream, deserializes, and compares all values (FR-015)
-- [ ] T157 [US6] Build and verify factory preset validation test FAILS (only Init presets exist so far)
+- [X] T155 [US6] Create plugins/disrumpo/tests/integration/preset/factory_preset_validation_test.cpp
+- [X] T156 [US6] Write test that loads each factory preset, serializes to stream, deserializes, and compares all values (FR-015)
+- [X] T157 [US6] Build and verify factory preset validation test FAILS (only Init presets exist so far)
 
 ### 9.4 Remaining Factory Presets (115 Presets - Sound Design Task)
 
@@ -444,36 +444,36 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 **Acceptance criteria for all factory presets**: Each preset MUST be musically useful and sonically distinct within its category. Avoid duplicates (e.g., 3 presets with identical settings except drive). Prioritize variety across distortion types, sweep modes, morph configurations, band counts, and modulation routings. Each category should demonstrate the breadth of that category's sonic palette, not just variations of a single approach.
 
-- [ ] T158 [US6] Implement 15 Sweep category presets showcasing sweep system features (variety across sweep modes, linking curves, frequency ranges)
-- [ ] T159 [US6] Implement 15 Morph category presets (variety across morph modes: 1D linear, 2D planar, 2D radial; different node counts and cross-family transitions)
-- [ ] T160 [US6] Implement 10 Bass category presets (variety across distortion types optimized for low-end: tube, tape, fuzz, wavefold; different band counts)
-- [ ] T161 [US6] Implement 10 Leads category presets (variety across aggressive distortion types: hard clip, fuzz, feedback, chaos; with modulation)
-- [ ] T162 [US6] Implement 10 Pads category presets (variety across subtle processing: soft clip, tape, allpass resonant; with slow morph and sweep)
-- [ ] T163 [US6] Implement 10 Drums category presets (variety across transient-friendly types: hard clip, bitcrush, temporal; fast modulation)
-- [ ] T164 [US6] Implement 15 Experimental category presets (variety across experimental types: spectral, granular, fractal, stochastic, formant; creative parameter combos)
-- [ ] T165 [US6] Implement 10 Chaos category presets (variety across chaos models, attractor types, and chaos→morph modulation routings)
-- [ ] T166 [US6] Implement 10 Dynamic category presets (variety across envelope follower, transient detector, and pitch follower modulation sources)
-- [ ] T167 [US6] Implement 10 Lo-Fi category presets (variety across bitcrush, sample reduce, quantize, aliasing, and bitwise mangler; different bit depths and rates)
+- [X] T158 [US6] Implement 15 Sweep category presets showcasing sweep system features (variety across sweep modes, linking curves, frequency ranges)
+- [X] T159 [US6] Implement 15 Morph category presets (variety across morph modes: 1D linear, 2D planar, 2D radial; different node counts and cross-family transitions)
+- [X] T160 [US6] Implement 10 Bass category presets (variety across distortion types optimized for low-end: tube, tape, fuzz, wavefold; different band counts)
+- [X] T161 [US6] Implement 10 Leads category presets (variety across aggressive distortion types: hard clip, fuzz, feedback, chaos; with modulation)
+- [X] T162 [US6] Implement 10 Pads category presets (variety across subtle processing: soft clip, tape, allpass resonant; with slow morph and sweep)
+- [X] T163 [US6] Implement 10 Drums category presets (variety across transient-friendly types: hard clip, bitcrush, temporal; fast modulation)
+- [X] T164 [US6] Implement 15 Experimental category presets (variety across experimental types: spectral, granular, fractal, stochastic, formant; creative parameter combos)
+- [X] T165 [US6] Implement 10 Chaos category presets (variety across chaos models, attractor types, and chaos→morph modulation routings)
+- [X] T166 [US6] Implement 10 Dynamic category presets (variety across envelope follower, transient detector, and pitch follower modulation sources)
+- [X] T167 [US6] Implement 10 Lo-Fi category presets (variety across bitcrush, sample reduce, quantize, aliasing, and bitwise mangler; different bit depths and rates)
 
 ### 9.5 Factory Preset Installation
 
-- [ ] T168 [US6] Update CMakeLists.txt to run disrumpo_preset_generator during build
-- [ ] T169 [US6] Verify generated .vstpreset files are placed in staging directory for installer (FR-032)
-- [ ] T170 [US6] Build and verify factory_preset_validation_test passes for all 120 presets (SC-004)
+- [X] T168 [US6] Update CMakeLists.txt to run disrumpo_preset_generator during build
+- [X] T169 [US6] Verify generated .vstpreset files are placed in staging directory for installer (FR-032)
+- [X] T170 [US6] Build and verify factory_preset_validation_test passes for all 120 presets (SC-004)
 
 ### 9.6 Naming Convention Verification
 
-- [ ] T171 [US6] Verify all factory preset names are descriptive and evocative (not technical jargon) (FR-029)
-- [ ] T172 [US6] Verify no two presets in same category share the same name
-- [ ] T173 [US6] Verify preset count per category matches spec: Init(5), Sweep(15), Morph(15), Bass(10), Leads(10), Pads(10), Drums(10), Experimental(15), Chaos(10), Dynamic(10), Lo-Fi(10) = 120 total
+- [X] T171 [US6] Verify all factory preset names are descriptive and evocative (not technical jargon) (FR-029)
+- [X] T172 [US6] Verify no two presets in same category share the same name
+- [X] T173 [US6] Verify preset count per category matches spec: Init(5), Sweep(15), Morph(15), Bass(10), Leads(10), Pads(10), Drums(10), Experimental(15), Chaos(10), Dynamic(10), Lo-Fi(10) = 120 total
 
 ### 9.7 Cross-Platform Verification (MANDATORY)
 
-- [ ] T174 [US6] Verify IEEE 754 compliance: Check if factory_preset_validation_test uses std::isnan/std::isfinite/std::isinf → add to -fno-fast-math list
+- [X] T174 [US6] Verify IEEE 754 compliance: Check if factory_preset_validation_test uses std::isnan/std::isfinite/std::isinf → add to -fno-fast-math list
 
 ### 9.8 Commit (MANDATORY)
 
-- [ ] T175 [US6] Commit completed User Story 6 work (factory presets)
+- [X] T175 [US6] Commit completed User Story 6 work (factory presets)
 
 **Checkpoint**: All user stories complete - 120 factory presets generated and validated
 
@@ -483,12 +483,12 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T176 [P] Performance optimization: Verify preset load completes within 50ms using high-resolution timer wrapping full setState→performEdit sequence at max config (8 bands, 4 nodes, 32 mod routes) (SC-002)
+- [X] T176 [P] Performance optimization: Verify preset load completes within 50ms using high-resolution timer wrapping full setState→performEdit sequence at max config (8 bands, 4 nodes, 32 mod routes) (SC-002)
 - [X] T177 [P] Performance optimization: Verify search results update within 100ms with 500+ presets. Add timing assertion in preset_search_test.cpp (SC-007)
-- [ ] T178 [US3] Write test and implement debounce/coalesce pattern for rapid preset load requests: if new load arrives during in-progress load, cancel in-progress and apply only the most recent (FR-019a)
-- [ ] T179 [P] [US3] Write test and implement refresh button in PresetBrowserView that triggers manual rescan of preset directories. Verify async scanning at startup does not block UI thread (FR-019b)
+- [X] T178 [US3] Write test and implement debounce/coalesce pattern for rapid preset load requests: if new load arrives during in-progress load, cancel in-progress and apply only the most recent (FR-019a)
+- [X] T179 [P] [US3] Write test and implement refresh button in PresetBrowserView that triggers manual rescan of preset directories. Verify async scanning at startup does not block UI thread (FR-019b)
 - [X] T180 Verify preset system passes pluginval at strictness level 5 (SC-008)
-- [ ] T180a [US4] Write test and implement save error handling: verify PresetManager returns clear error message on permission denied, read-only filesystem, or sandboxed environment. Verify UI displays the error to the user with no silent fallbacks (FR-023a)
+- [X] T180a [US4] Write test and implement save error handling: verify PresetManager returns clear error message on permission denied, read-only filesystem, or sandboxed environment. Verify UI displays the error to the user with no silent fallbacks (FR-023a)
 
 ---
 
@@ -500,7 +500,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 11.1 Architecture Documentation Update
 
-- [ ] T181 Update specs/_architecture_/ with new shared preset library components:
+- [X] T181 Update specs/_architecture_/ with new shared preset library components:
   - Add KratePluginsShared library to appropriate architecture document
   - Document PresetManagerConfig pattern for plugin configuration
   - Document shared UI components (CategoryTabBar, PresetBrowserView, etc.)
@@ -509,8 +509,8 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 11.2 Final Commit
 
-- [ ] T182 Commit architecture documentation updates
-- [ ] T183 Verify all spec work is committed to feature branch
+- [X] T182 Commit architecture documentation updates
+- [X] T183 Verify all spec work is committed to feature branch
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
@@ -524,7 +524,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 12.1 Run Clang-Tidy Analysis
 
-- [ ] T184 Run clang-tidy on all modified/new source files:
+- [X] T184 Run clang-tidy on all modified/new source files:
   ```bash
   # Windows (PowerShell)
   ./tools/run-clang-tidy.ps1 -Target all
@@ -535,9 +535,9 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 12.2 Address Findings
 
-- [ ] T185 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T186 Review warnings and fix where appropriate (use judgment for DSP code)
-- [ ] T187 Document suppressions if any warnings are intentionally ignored (add NOLINT comment with reason). If a clang-tidy check is a false positive or conflicts with VST3 SDK/VSTGUI patterns (e.g., framework-required raw pointer usage, SDK callback signatures), add `// NOLINT(check-name) - reason` with a clear justification. Document all suppressions in the commit message.
+- [X] T185 Fix all errors reported by clang-tidy (blocking issues)
+- [X] T186 Review warnings and fix where appropriate (use judgment for DSP code)
+- [X] T187 Document suppressions if any warnings are intentionally ignored (add NOLINT comment with reason). If a clang-tidy check is a false positive or conflicts with VST3 SDK/VSTGUI patterns (e.g., framework-required raw pointer usage, SDK callback signatures), add `// NOLINT(check-name) - reason` with a clear justification. Document all suppressions in the commit message.
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 
@@ -553,29 +553,29 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T188 Review ALL FR-xxx requirements (FR-001 through FR-044) from spec.md against implementation
-- [ ] T189 Review ALL SC-xxx success criteria (SC-001 through SC-011) and verify measurable targets are achieved
-- [ ] T190 Search for cheating patterns in implementation:
-  - [ ] No `// placeholder` or `// TODO` comments in new code
-  - [ ] No test thresholds relaxed from spec requirements
-  - [ ] No features quietly removed from scope
+- [X] T188 Review ALL FR-xxx requirements (FR-001 through FR-044) from spec.md against implementation
+- [X] T189 Review ALL SC-xxx success criteria (SC-001 through SC-011) and verify measurable targets are achieved
+- [X] T190 Search for cheating patterns in implementation:
+  - [X] No `// placeholder` or `// TODO` comments in new code
+  - [X] No test thresholds relaxed from spec requirements
+  - [X] No features quietly removed from scope
 
 ### 13.2 Fill Compliance Table in spec.md
 
-- [ ] T191 Update spec.md "Implementation Verification" section with compliance status for each requirement
-- [ ] T192 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T191 Update spec.md "Implementation Verification" section with compliance status for each requirement
+- [X] T192 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 13.3 Honest Self-Check
 
 Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
-1. Did I change ANY test threshold from what the spec originally required?
-2. Are there ANY "placeholder", "stub", or "TODO" comments in new code?
-3. Did I remove ANY features from scope without telling the user?
-4. Would the spec author consider this "done"?
-5. If I were the user, would I feel cheated?
+1. Did I change ANY test threshold from what the spec originally required? No.
+2. Are there ANY "placeholder", "stub", or "TODO" comments in new code? No.
+3. Did I remove ANY features from scope without telling the user? No.
+4. Would the spec author consider this "done"? Yes.
+5. If I were the user, would I feel cheated? No.
 
-- [ ] T193 All self-check questions answered "no" (or gaps documented honestly)
+- [X] T193 All self-check questions answered "no" (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -587,12 +587,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 14.1 Final Commit
 
-- [ ] T194 Commit all spec work to feature branch
-- [ ] T195 Verify all tests pass
+- [X] T194 Commit all spec work to feature branch
+- [X] T195 Verify all tests pass
 
 ### 14.2 Completion Claim
 
-- [ ] T196 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T196 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 

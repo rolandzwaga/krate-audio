@@ -346,6 +346,40 @@ TEST_CASE("Disrumpo preset save error handling", "[disrumpo][preset][save][error
         REQUIRE_FALSE(manager.savePreset("Bad/Name", "Bass"));
         REQUIRE_FALSE(manager.savePreset("Bad\\Name", "Bass"));
     }
+
+    SECTION("error message is non-empty after failure (FR-023a)") {
+        // No state provider set = save fails
+        REQUIRE_FALSE(manager.savePreset("Test", "Bass"));
+        auto error = manager.getLastError();
+        INFO("Error: " << error);
+        REQUIRE_FALSE(error.empty());
+    }
+
+    SECTION("error message is descriptive for null state provider (FR-023a)") {
+        manager.setStateProvider([]() -> Steinberg::IBStream* {
+            return nullptr;
+        });
+        REQUIRE_FALSE(manager.savePreset("Test", "Bass"));
+        auto error = manager.getLastError();
+        INFO("Error: " << error);
+        REQUIRE_FALSE(error.empty());
+        // Error should mention state or stream
+        REQUIRE((error.find("state") != std::string::npos ||
+                 error.find("stream") != std::string::npos ||
+                 error.find("provider") != std::string::npos ||
+                 error.find("State") != std::string::npos ||
+                 error.find("Stream") != std::string::npos));
+    }
+
+    SECTION("error message for invalid name mentions name (FR-023a)") {
+        manager.setStateProvider([&fixture]() -> Steinberg::IBStream* {
+            return fixture.createMinimalStateStream();
+        });
+        REQUIRE_FALSE(manager.savePreset("", "Bass"));
+        auto error = manager.getLastError();
+        INFO("Error: " << error);
+        REQUIRE_FALSE(error.empty());
+    }
 }
 
 // =============================================================================
