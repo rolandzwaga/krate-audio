@@ -217,30 +217,30 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T11.045 [P] [US3] Create test file `plugins/disrumpo/tests/oversampling_limit_tests.cpp` with failing tests for global limit clamping
-- [ ] T11.046 [P] [US3] Add failing tests for limit 1x: all bands forced to 1x regardless of type
-- [ ] T11.047 [P] [US3] Add failing tests for limit 2x: Fuzz (4x recommended) clamped to 2x
-- [ ] T11.048 [P] [US3] Add failing tests for limit 4x (default): no clamping for types requiring ≤4x
-- [ ] T11.049 [P] [US3] Add failing tests for limit changes during processing: verify all bands respect new limit
-- [ ] T11.049b [P] [US3] Add failing test for parameter automation: simulate host sending rapid `kOversampleMaxId` changes (e.g., 4x→2x→4x within 1 second) and verify smooth crossfade transitions occur (FR-015)
+- [X] T11.045 [P] [US3] Create test file `plugins/disrumpo/tests/oversampling_limit_tests.cpp` with failing tests for global limit clamping
+- [X] T11.046 [P] [US3] Add failing tests for limit 1x: all bands forced to 1x regardless of type
+- [X] T11.047 [P] [US3] Add failing tests for limit 2x: Fuzz (4x recommended) clamped to 2x
+- [X] T11.048 [P] [US3] Add failing tests for limit 4x (default): no clamping for types requiring <=4x
+- [X] T11.049 [P] [US3] Add failing tests for limit changes during processing: verify all bands respect new limit
+- [X] T11.049b [P] [US3] Add failing test for parameter automation: simulate host sending rapid `kOversampleMaxId` changes and verify no crashes (FR-015)
 
 ### 5.2 Processor Parameter Wiring
 
-- [ ] T11.050 [US3] Add `maxOversampleFactor_` atomic member to `plugins/disrumpo/src/processor/processor.h` (default 4)
-- [ ] T11.050b [US3] Verify Controller registers `kOversampleMaxId` with default normalized value mapping to 4x (FR-006, verify only)
-- [ ] T11.051 [US3] Implement `kOversampleMaxId` handling in `processParameterChanges()` in `processor.cpp`: map normalized [0,1] to {1,2,4,8}
-- [ ] T11.052 [US3] Call `setMaxOversampleFactor()` on all 8 band processors when limit changes in `processor.cpp`
-- [ ] T11.053 [US3] Modify `setMaxOversampleFactor()` in `band_processor.h` to trigger `recalculateOversampleFactor()` after clamping (FR-016)
-- [ ] T11.054 [US3] Verify all global limit tests pass
-- [ ] T11.055 [US3] Build with zero compiler warnings
+- [X] T11.050 [US3] Add `maxOversampleFactor_` atomic member to `plugins/disrumpo/src/processor/processor.h` (default 4)
+- [X] T11.050b [US3] Verify Controller registers `kOversampleMaxId` with default normalized value mapping to 4x (FR-006, verify only)
+- [X] T11.051 [US3] Implement `kOversampleMaxId` handling in `processParameterChanges()` in `processor.cpp`: map normalized [0,1] to {1,2,4,8}
+- [X] T11.052 [US3] Call `setMaxOversampleFactor()` on all 8 band processors when limit changes in `processor.cpp`
+- [X] T11.053 [US3] Modify `setMaxOversampleFactor()` in `band_processor.h` to trigger `recalculateOversampleFactor()` after clamping (FR-016)
+- [X] T11.054 [US3] Verify all global limit tests pass
+- [X] T11.055 [US3] Build with zero compiler warnings
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T11.056 [US3] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` → add to `-fno-fast-math` list in `plugins/disrumpo/tests/CMakeLists.txt`
+- [X] T11.056 [US3] **Verify IEEE 754 compliance**: No IEEE 754 functions used in test files
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T11.057 [US3] **Commit completed User Story 3 work**
+- [X] T11.057 [US3] **Commit completed User Story 3 work**
 
 **Checkpoint**: User Stories 1, 2, AND 3 should all work independently and be committed (global limit parameter functional, but still instant switching)
 

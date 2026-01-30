@@ -1106,6 +1106,22 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                 break;
             }
 
+            case kOversampleMaxId: {
+                // FR-005, FR-006: Map normalized [0,1] to {1, 2, 4, 8}
+                // StringListParameter with 4 items: index = round(value * 3)
+                // Index 0 = 1x, Index 1 = 2x, Index 2 = 4x, Index 3 = 8x
+                static constexpr int kOversampleFactors[] = {1, 2, 4, 8};
+                const int index = std::clamp(
+                    static_cast<int>(value * 3.0 + 0.5), 0, 3);
+                const int factor = kOversampleFactors[index];
+                maxOversampleFactor_.store(factor, std::memory_order_relaxed);
+                // FR-016: Apply to all band processors
+                for (auto& bp : bandProcessors_) {
+                    bp.setMaxOversampleFactor(factor);
+                }
+                break;
+            }
+
             default:
                 // =================================================================
                 // Sweep Parameters (spec 007-sweep-system)
@@ -1579,6 +1595,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
                             case BandParamType::kBandBypass:
                                 bandStates_[band].bypass = value >= 0.5;
+                                bandProcessors_[band].setBypassed(bandStates_[band].bypass);
                                 break;
                             case BandParamType::kBandMute:
                                 bandStates_[band].mute = value >= 0.5;

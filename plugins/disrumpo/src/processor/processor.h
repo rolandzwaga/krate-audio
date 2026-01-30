@@ -119,6 +119,10 @@ private:
     std::atomic<float> outputGain_{0.5f};  // Default: 0 dB (normalized 0.5)
     std::atomic<float> globalMix_{1.0f};   // Default: 100% wet
 
+    // Oversampling limit (spec 009-intelligent-oversampling)
+    // FR-005, FR-006: Global oversampling limit parameter (default 4x)
+    std::atomic<int> maxOversampleFactor_{4};
+
     // ==========================================================================
     // Band Management (spec 002-band-management)
     // FR-001b: Independent L/R channel processing
