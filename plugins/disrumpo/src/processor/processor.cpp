@@ -78,7 +78,7 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 
         // Initialize morph cache with defaults matching Controller defaults
         auto& cache = bandMorphCache_[i];
-        constexpr DistortionCommonParams kDefaultCommon{1.0f, 1.0f, 4000.0f};
+        constexpr DistortionCommonParams kDefaultCommon{.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
         cache.nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
         cache.nodes[0].commonParams = kDefaultCommon;
         cache.nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
@@ -1104,7 +1104,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             float morphX = 0.5f;
             float morphY = 0.5f;
             Steinberg::int8 morphMode = 0;
-            Steinberg::int8 activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
+            auto activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
             float morphSmoothing = 0.0f;
 
             if (streamer.readFloat(morphX)) cache.morphX = morphX;
@@ -1783,14 +1783,12 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             }
                             case BandParamType::kBandMorphXLink:
                             case BandParamType::kBandMorphYLink:
-                                // Sweep-morph link handled by Controller (UI-side)
-                                break;
                             case BandParamType::kBandExpanded:
                             case BandParamType::kBandSelectedNode:
                             case BandParamType::kBandDisplayedType:
-                                // UI-only parameters, no processor action needed
-                                break;
                             default:
+                                // UI-only params (sweep-morph link, expanded,
+                                // selectedNode, displayedType): no processor action
                                 break;
                         }
                     }

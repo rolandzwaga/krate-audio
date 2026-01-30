@@ -9,7 +9,7 @@
 #include "ui/preset_data_source.h"
 #include "preset/preset_info.h"
 
-using namespace Iterum;
+using namespace Krate::Plugins;
 
 // =============================================================================
 // Test Helpers
@@ -21,35 +21,35 @@ static std::vector<PresetInfo> createTestPresets() {
     // Create presets with various names for testing
     PresetInfo p1;
     p1.name = "Warm Tape Echo";
-    p1.mode = DelayMode::Tape;
+    p1.subcategory = "Tape";
     p1.category = "Vintage";
     p1.isFactory = true;
     presets.push_back(p1);
 
     PresetInfo p2;
     p2.name = "Digital Clean";
-    p2.mode = DelayMode::Digital;
+    p2.subcategory = "Digital";
     p2.category = "Clean";
     p2.isFactory = true;
     presets.push_back(p2);
 
     PresetInfo p3;
     p3.name = "Granular Shimmer";
-    p3.mode = DelayMode::Granular;
+    p3.subcategory = "Granular";
     p3.category = "Ambient";
     p3.isFactory = false;
     presets.push_back(p3);
 
     PresetInfo p4;
     p4.name = "Tape Warmth";
-    p4.mode = DelayMode::Tape;
+    p4.subcategory = "Tape";
     p4.category = "Vintage";
     p4.isFactory = true;
     presets.push_back(p4);
 
     PresetInfo p5;
     p5.name = "ECHO CHAMBER";
-    p5.mode = DelayMode::Digital;
+    p5.subcategory = "Digital";
     p5.category = "Effects";
     p5.isFactory = false;
     presets.push_back(p5);
@@ -104,16 +104,16 @@ TEST_CASE("PresetDataSource search filter basics", "[ui][preset-browser][search]
 }
 
 // =============================================================================
-// Search + Mode Filter Interaction
+// Search + Subcategory Filter Interaction
 // =============================================================================
 
-TEST_CASE("PresetDataSource search with mode filter", "[ui][preset-browser][search]") {
+TEST_CASE("PresetDataSource search with subcategory filter", "[ui][preset-browser][search]") {
     PresetDataSource dataSource;
     dataSource.setPresets(createTestPresets());
 
-    SECTION("search combined with mode filter") {
-        // Set mode filter to Tape (mode index 3)
-        dataSource.setModeFilter(static_cast<int>(DelayMode::Tape));
+    SECTION("search combined with subcategory filter") {
+        // Set subcategory filter to Tape
+        dataSource.setSubcategoryFilter("Tape");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // 2 Tape presets
 
         // Now add search filter
@@ -121,16 +121,16 @@ TEST_CASE("PresetDataSource search with mode filter", "[ui][preset-browser][sear
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // Both Tape presets have "warm"
     }
 
-    SECTION("mode filter then search that excludes all") {
-        dataSource.setModeFilter(static_cast<int>(DelayMode::Granular));
+    SECTION("subcategory filter then search that excludes all") {
+        dataSource.setSubcategoryFilter("Granular");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 1);  // 1 Granular preset
 
         dataSource.setSearchFilter("tape");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 0);  // No Granular preset has "tape"
     }
 
-    SECTION("clear search restores mode-filtered results") {
-        dataSource.setModeFilter(static_cast<int>(DelayMode::Digital));
+    SECTION("clear search restores subcategory-filtered results") {
+        dataSource.setSubcategoryFilter("Digital");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // 2 Digital presets
 
         dataSource.setSearchFilter("xyz");
@@ -140,8 +140,8 @@ TEST_CASE("PresetDataSource search with mode filter", "[ui][preset-browser][sear
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // Back to 2 Digital presets
     }
 
-    SECTION("mode filter All (-1) with search") {
-        dataSource.setModeFilter(-1);  // All modes
+    SECTION("subcategory filter All (empty) with search") {
+        dataSource.setSubcategoryFilter("");  // All subcategories
         dataSource.setSearchFilter("echo");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // "Warm Tape Echo" and "ECHO CHAMBER"
     }
@@ -180,7 +180,7 @@ TEST_CASE("PresetDataSource getPresetAtRow after search", "[ui][preset-browser][
         const PresetInfo* preset = dataSource.getPresetAtRow(0);
         REQUIRE(preset != nullptr);
         REQUIRE(preset->name == "Granular Shimmer");
-        REQUIRE(preset->mode == DelayMode::Granular);
+        REQUIRE(preset->subcategory == "Granular");
         REQUIRE(preset->category == "Ambient");
         REQUIRE_FALSE(preset->isFactory);
     }

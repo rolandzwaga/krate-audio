@@ -15,12 +15,19 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
+#include "preset/preset_manager.h"
 
 #include <array>
 #include <memory>
+
+namespace Krate::Plugins {
+class PresetBrowserView;
+class SavePresetDialogView;
+}
 
 namespace Disrumpo {
 
@@ -39,7 +46,7 @@ class Controller : public Steinberg::Vst::EditControllerEx1,
                    public Steinberg::Vst::IMidiMapping {
 public:
     Controller() = default;
-    ~Controller() override;
+    ~Controller() override;  // Defined in cpp to allow unique_ptr with forward declaration
 
     // ===========================================================================
     // IPluginBase
@@ -104,6 +111,28 @@ public:
     /// Called when the editor is about to close
     /// FR-024: Properly deactivates and cleans up visibility controllers
     void willClose(VSTGUI::VST3Editor* editor) override;
+
+    // ===========================================================================
+    // Preset Browser (Spec 010)
+    // ===========================================================================
+
+    /// Open the preset browser modal
+    void openPresetBrowser();
+
+    /// Close the preset browser modal
+    void closePresetBrowser();
+
+    /// Open standalone save preset dialog (quick save from main UI)
+    void openSavePresetDialog();
+
+    /// Get the preset manager instance
+    Krate::Plugins::PresetManager* getPresetManager() const { return presetManager_.get(); }
+
+    /// Create a memory stream containing the current component state
+    /// Used for preset saving - serializes controller's parameter values
+    /// in the same format as Processor::getState()
+    /// @return New MemoryStream (caller must release), or nullptr on failure
+    Steinberg::MemoryStream* createComponentStateStream();
 
     // ===========================================================================
     // IMidiMapping (FR-028, FR-029)
@@ -232,6 +261,28 @@ private:
     // ==========================================================================
     // Stored MIDI CC number (0-127, or 128 for none)
     int assignedMidiCC_ = 128;
+
+    // ==========================================================================
+    // Preset Browser (Spec 010)
+    // ==========================================================================
+
+    std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
+    Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;  // Owned by frame
+    Krate::Plugins::SavePresetDialogView* savePresetDialogView_ = nullptr;  // Owned by frame
+
+    // ==========================================================================
+    // Preset Loading Helpers
+    // ==========================================================================
+
+    /// Edit a parameter with full notification (beginEdit + setParamNormalized + performEdit + endEdit)
+    /// Used when loading presets to notify the host of parameter changes
+    void editParamWithNotify(Steinberg::Vst::ParamID id, Steinberg::Vst::ParamValue value);
+
+    /// Load component state from stream with host notification
+    /// Same parsing as setComponentState(), but calls performEdit to propagate changes to processor
+    /// @param state Stream containing component state in Processor::getState() format
+    /// @return true on success
+    bool loadComponentStateWithNotify(Steinberg::IBStream* state);
 };
 
 } // namespace Disrumpo

@@ -10,7 +10,7 @@
 #include "ui/preset_data_source.h"
 #include "preset/preset_info.h"
 
-using namespace Iterum;
+using namespace Krate::Plugins;
 
 // =============================================================================
 // Test Helpers
@@ -21,22 +21,22 @@ static std::vector<PresetInfo> createTestPresets() {
 
     PresetInfo p1;
     p1.name = "Warm Tape Echo";
-    p1.mode = DelayMode::Tape;
+    p1.subcategory = "Tape";
     presets.push_back(p1);
 
     PresetInfo p2;
     p2.name = "Digital Clean";
-    p2.mode = DelayMode::Digital;
+    p2.subcategory = "Digital";
     presets.push_back(p2);
 
     PresetInfo p3;
     p3.name = "Granular Shimmer";
-    p3.mode = DelayMode::Granular;
+    p3.subcategory = "Granular";
     presets.push_back(p3);
 
     PresetInfo p4;
     p4.name = "Tape Warmth";
-    p4.mode = DelayMode::Tape;
+    p4.subcategory = "Tape";
     presets.push_back(p4);
 
     return presets;

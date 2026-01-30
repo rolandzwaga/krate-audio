@@ -12,8 +12,10 @@
 
 namespace fs = std::filesystem;
 
+using Krate::Plugins::PresetInfo;
+
 TEST_CASE("PresetInfo default construction", "[preset][info]") {
-    Iterum::PresetInfo info;
+    PresetInfo info;
 
     SECTION("has empty name by default") {
         REQUIRE(info.name.empty());
@@ -23,8 +25,8 @@ TEST_CASE("PresetInfo default construction", "[preset][info]") {
         REQUIRE(info.category.empty());
     }
 
-    SECTION("defaults to Digital mode") {
-        REQUIRE(info.mode == Iterum::DelayMode::Digital);
+    SECTION("has empty subcategory by default") {
+        REQUIRE(info.subcategory.empty());
     }
 
     SECTION("has empty path by default") {
@@ -45,7 +47,7 @@ TEST_CASE("PresetInfo default construction", "[preset][info]") {
 }
 
 TEST_CASE("PresetInfo::isValid() checks name and path", "[preset][info]") {
-    Iterum::PresetInfo info;
+    PresetInfo info;
 
     SECTION("empty info is not valid") {
         REQUIRE_FALSE(info.isValid());
@@ -69,7 +71,7 @@ TEST_CASE("PresetInfo::isValid() checks name and path", "[preset][info]") {
 }
 
 TEST_CASE("PresetInfo comparison operator", "[preset][info]") {
-    Iterum::PresetInfo a, b;
+    PresetInfo a, b;
 
     SECTION("compares by name alphabetically") {
         a.name = "Alpha";
@@ -94,10 +96,10 @@ TEST_CASE("PresetInfo comparison operator", "[preset][info]") {
 }
 
 TEST_CASE("PresetInfo can store all metadata fields", "[preset][info]") {
-    Iterum::PresetInfo info;
+    PresetInfo info;
     info.name = "Ambient Pad";
     info.category = "Ambient";
-    info.mode = Iterum::DelayMode::Shimmer;
+    info.subcategory = "Shimmer";
     info.path = fs::path("/presets/Shimmer/Ambient Pad.vstpreset");
     info.isFactory = true;
     info.description = "A lush ambient shimmer pad";
@@ -105,7 +107,7 @@ TEST_CASE("PresetInfo can store all metadata fields", "[preset][info]") {
 
     REQUIRE(info.name == "Ambient Pad");
     REQUIRE(info.category == "Ambient");
-    REQUIRE(info.mode == Iterum::DelayMode::Shimmer);
+    REQUIRE(info.subcategory == "Shimmer");
     REQUIRE(info.path.string().find("Ambient Pad.vstpreset") != std::string::npos);
     REQUIRE(info.isFactory == true);
     REQUIRE(info.description == "A lush ambient shimmer pad");
@@ -113,30 +115,19 @@ TEST_CASE("PresetInfo can store all metadata fields", "[preset][info]") {
     REQUIRE(info.isValid());
 }
 
-TEST_CASE("PresetInfo supports all delay modes", "[preset][info]") {
-    using Iterum::DelayMode;
-
-    std::vector<DelayMode> allModes = {
-        DelayMode::Granular,
-        DelayMode::Spectral,
-        DelayMode::Shimmer,
-        DelayMode::Tape,
-        DelayMode::BBD,
-        DelayMode::Digital,
-        DelayMode::PingPong,
-        DelayMode::Reverse,
-        DelayMode::MultiTap,
-        DelayMode::Freeze,
-        DelayMode::Ducking
+TEST_CASE("PresetInfo supports all subcategories", "[preset][info]") {
+    std::vector<std::string> allSubcategories = {
+        "Granular", "Spectral", "Shimmer", "Tape", "BBD",
+        "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
     };
 
-    for (auto mode : allModes) {
-        Iterum::PresetInfo info;
+    for (const auto& subcategory : allSubcategories) {
+        PresetInfo info;
         info.name = "Test";
         info.path = "/test.vstpreset";
-        info.mode = mode;
+        info.subcategory = subcategory;
 
-        REQUIRE(info.mode == mode);
+        REQUIRE(info.subcategory == subcategory);
         REQUIRE(info.isValid());
     }
 }

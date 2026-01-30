@@ -60,15 +60,13 @@ add_executable(plugin_tests
     unit/vst/version_display_test.cpp
 
     # Source files needed for linking
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/platform/preset_paths.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/preset/preset_manager.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/preset_data_source.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 )
 
 target_link_libraries(plugin_tests
     PRIVATE
         KrateDSP
+        KratePluginsShared
         Catch2::Catch2
         test_helpers
         sdk

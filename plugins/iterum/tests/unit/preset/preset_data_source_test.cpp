@@ -11,16 +11,16 @@
 #include "preset/preset_info.h"
 
 // Test helper to create preset info
-Iterum::PresetInfo makePreset(
+Krate::Plugins::PresetInfo makePreset(
     const std::string& name,
     const std::string& category,
-    Iterum::DelayMode mode,
+    const std::string& subcategory,
     bool isFactory = false
 ) {
-    Iterum::PresetInfo info;
+    Krate::Plugins::PresetInfo info;
     info.name = name;
     info.category = category;
-    info.mode = mode;
+    info.subcategory = subcategory;
     info.path = "/presets/" + name + ".vstpreset";
     info.isFactory = isFactory;
     return info;
@@ -31,16 +31,16 @@ Iterum::PresetInfo makePreset(
 // =============================================================================
 
 TEST_CASE("PresetDataSource basic data management", "[preset][datasource]") {
-    Iterum::PresetDataSource dataSource;
+    Krate::Plugins::PresetDataSource dataSource;
 
     SECTION("initially has no presets") {
         REQUIRE(dataSource.getPresetAtRow(0) == nullptr);
     }
 
     SECTION("setPresets stores presets") {
-        std::vector<Iterum::PresetInfo> presets = {
-            makePreset("Preset A", "Ambient", Iterum::DelayMode::Shimmer),
-            makePreset("Preset B", "Rhythmic", Iterum::DelayMode::Digital)
+        std::vector<Krate::Plugins::PresetInfo> presets = {
+            makePreset("Preset A", "Ambient", "Shimmer"),
+            makePreset("Preset B", "Rhythmic", "Digital")
         };
 
         dataSource.setPresets(presets);
@@ -52,8 +52,8 @@ TEST_CASE("PresetDataSource basic data management", "[preset][datasource]") {
     }
 
     SECTION("getPresetAtRow returns nullptr for invalid indices") {
-        std::vector<Iterum::PresetInfo> presets = {
-            makePreset("Only One", "Category", Iterum::DelayMode::Digital)
+        std::vector<Krate::Plugins::PresetInfo> presets = {
+            makePreset("Only One", "Category", "Digital")
         };
         dataSource.setPresets(presets);
 
@@ -64,30 +64,30 @@ TEST_CASE("PresetDataSource basic data management", "[preset][datasource]") {
 }
 
 // =============================================================================
-// Mode Filter Tests
+// Subcategory Filter Tests
 // =============================================================================
 
-TEST_CASE("PresetDataSource mode filtering", "[preset][datasource][filter]") {
-    Iterum::PresetDataSource dataSource;
+TEST_CASE("PresetDataSource subcategory filtering", "[preset][datasource][filter]") {
+    Krate::Plugins::PresetDataSource dataSource;
 
-    std::vector<Iterum::PresetInfo> presets = {
-        makePreset("Digital 1", "Clean", Iterum::DelayMode::Digital),
-        makePreset("Digital 2", "Rhythmic", Iterum::DelayMode::Digital),
-        makePreset("Tape 1", "Vintage", Iterum::DelayMode::Tape),
-        makePreset("Shimmer 1", "Ambient", Iterum::DelayMode::Shimmer),
-        makePreset("Granular 1", "Experimental", Iterum::DelayMode::Granular)
+    std::vector<Krate::Plugins::PresetInfo> presets = {
+        makePreset("Digital 1", "Clean", "Digital"),
+        makePreset("Digital 2", "Rhythmic", "Digital"),
+        makePreset("Tape 1", "Vintage", "Tape"),
+        makePreset("Shimmer 1", "Ambient", "Shimmer"),
+        makePreset("Granular 1", "Experimental", "Granular")
     };
     dataSource.setPresets(presets);
 
-    SECTION("mode filter -1 shows all presets") {
-        dataSource.setModeFilter(-1);
+    SECTION("empty subcategory filter shows all presets") {
+        dataSource.setSubcategoryFilter("");
         REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
         REQUIRE(dataSource.getPresetAtRow(4) != nullptr);
         REQUIRE(dataSource.getPresetAtRow(5) == nullptr);
     }
 
-    SECTION("mode filter shows only matching presets") {
-        dataSource.setModeFilter(static_cast<int>(Iterum::DelayMode::Digital));
+    SECTION("subcategory filter shows only matching presets") {
+        dataSource.setSubcategoryFilter("Digital");
 
         REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
         REQUIRE(dataSource.getPresetAtRow(0)->name == "Digital 1");
@@ -96,16 +96,16 @@ TEST_CASE("PresetDataSource mode filtering", "[preset][datasource][filter]") {
         REQUIRE(dataSource.getPresetAtRow(2) == nullptr);
     }
 
-    SECTION("mode filter for Tape shows only Tape presets") {
-        dataSource.setModeFilter(static_cast<int>(Iterum::DelayMode::Tape));
+    SECTION("subcategory filter for Tape shows only Tape presets") {
+        dataSource.setSubcategoryFilter("Tape");
 
         REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
         REQUIRE(dataSource.getPresetAtRow(0)->name == "Tape 1");
         REQUIRE(dataSource.getPresetAtRow(1) == nullptr);
     }
 
-    SECTION("mode filter for non-existent mode shows empty list") {
-        dataSource.setModeFilter(static_cast<int>(Iterum::DelayMode::Freeze));
+    SECTION("subcategory filter for non-existent subcategory shows empty list") {
+        dataSource.setSubcategoryFilter("Freeze");
 
         REQUIRE(dataSource.getPresetAtRow(0) == nullptr);
     }
@@ -116,13 +116,13 @@ TEST_CASE("PresetDataSource mode filtering", "[preset][datasource][filter]") {
 // =============================================================================
 
 TEST_CASE("PresetDataSource search filtering", "[preset][datasource][filter]") {
-    Iterum::PresetDataSource dataSource;
+    Krate::Plugins::PresetDataSource dataSource;
 
-    std::vector<Iterum::PresetInfo> presets = {
-        makePreset("Ambient Pad", "Ambient", Iterum::DelayMode::Shimmer),
-        makePreset("Clean Digital", "Clean", Iterum::DelayMode::Digital),
-        makePreset("Tape Echo", "Vintage", Iterum::DelayMode::Tape),
-        makePreset("AMBIENT WASH", "Ambient", Iterum::DelayMode::Shimmer)
+    std::vector<Krate::Plugins::PresetInfo> presets = {
+        makePreset("Ambient Pad", "Ambient", "Shimmer"),
+        makePreset("Clean Digital", "Clean", "Digital"),
+        makePreset("Tape Echo", "Vintage", "Tape"),
+        makePreset("AMBIENT WASH", "Ambient", "Shimmer")
     };
     dataSource.setPresets(presets);
 
@@ -162,18 +162,18 @@ TEST_CASE("PresetDataSource search filtering", "[preset][datasource][filter]") {
 // =============================================================================
 
 TEST_CASE("PresetDataSource combined filtering", "[preset][datasource][filter]") {
-    Iterum::PresetDataSource dataSource;
+    Krate::Plugins::PresetDataSource dataSource;
 
-    std::vector<Iterum::PresetInfo> presets = {
-        makePreset("Ambient Shimmer", "Ambient", Iterum::DelayMode::Shimmer),
-        makePreset("Ambient Digital", "Ambient", Iterum::DelayMode::Digital),
-        makePreset("Clean Shimmer", "Clean", Iterum::DelayMode::Shimmer),
-        makePreset("Clean Digital", "Clean", Iterum::DelayMode::Digital)
+    std::vector<Krate::Plugins::PresetInfo> presets = {
+        makePreset("Ambient Shimmer", "Ambient", "Shimmer"),
+        makePreset("Ambient Digital", "Ambient", "Digital"),
+        makePreset("Clean Shimmer", "Clean", "Shimmer"),
+        makePreset("Clean Digital", "Clean", "Digital")
     };
     dataSource.setPresets(presets);
 
-    SECTION("mode and search filters combine") {
-        dataSource.setModeFilter(static_cast<int>(Iterum::DelayMode::Shimmer));
+    SECTION("subcategory and search filters combine") {
+        dataSource.setSubcategoryFilter("Shimmer");
         dataSource.setSearchFilter("ambient");
 
         REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
@@ -181,8 +181,8 @@ TEST_CASE("PresetDataSource combined filtering", "[preset][datasource][filter]")
         REQUIRE(dataSource.getPresetAtRow(1) == nullptr);
     }
 
-    SECTION("clearing search restores mode-filtered results") {
-        dataSource.setModeFilter(static_cast<int>(Iterum::DelayMode::Digital));
+    SECTION("clearing search restores subcategory-filtered results") {
+        dataSource.setSubcategoryFilter("Digital");
         dataSource.setSearchFilter("ambient");
 
         REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
@@ -196,16 +196,16 @@ TEST_CASE("PresetDataSource combined filtering", "[preset][datasource][filter]")
         REQUIRE(dataSource.getPresetAtRow(1) != nullptr);
     }
 
-    SECTION("clearing mode filter restores search-filtered results") {
-        dataSource.setModeFilter(static_cast<int>(Iterum::DelayMode::Shimmer));
+    SECTION("clearing subcategory filter restores search-filtered results") {
+        dataSource.setSubcategoryFilter("Shimmer");
         dataSource.setSearchFilter("clean");
 
         REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
         REQUIRE(dataSource.getPresetAtRow(0)->name == "Clean Shimmer");
         REQUIRE(dataSource.getPresetAtRow(1) == nullptr);
 
-        // Clear mode filter
-        dataSource.setModeFilter(-1);
+        // Clear subcategory filter
+        dataSource.setSubcategoryFilter("");
 
         REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
         REQUIRE(dataSource.getPresetAtRow(1) != nullptr);
@@ -217,7 +217,7 @@ TEST_CASE("PresetDataSource combined filtering", "[preset][datasource][filter]")
 // =============================================================================
 
 TEST_CASE("PresetDataSource callbacks", "[preset][datasource][callback]") {
-    Iterum::PresetDataSource dataSource;
+    Krate::Plugins::PresetDataSource dataSource;
 
     SECTION("selection callback can be set") {
         int lastSelected = -1;
@@ -247,11 +247,11 @@ TEST_CASE("PresetDataSource callbacks", "[preset][datasource][callback]") {
 // =============================================================================
 
 TEST_CASE("PresetDataSource factory preset handling", "[preset][datasource]") {
-    Iterum::PresetDataSource dataSource;
+    Krate::Plugins::PresetDataSource dataSource;
 
-    std::vector<Iterum::PresetInfo> presets = {
-        makePreset("User Preset", "User", Iterum::DelayMode::Digital, false),
-        makePreset("Factory Preset", "Factory", Iterum::DelayMode::Digital, true)
+    std::vector<Krate::Plugins::PresetInfo> presets = {
+        makePreset("User Preset", "User", "Digital", false),
+        makePreset("Factory Preset", "Factory", "Digital", true)
     };
     dataSource.setPresets(presets);
 

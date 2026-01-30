@@ -10,7 +10,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "ui/search_debouncer.h"
 
-using namespace Iterum;
+using namespace Krate::Plugins;
 
 // =============================================================================
 // Core Debounce Logic Tests

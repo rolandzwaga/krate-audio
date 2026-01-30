@@ -81,26 +81,10 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/parameters/spectral_params.h
     src/parameters/tape_params.h
 
-    # Platform Abstraction
-    src/platform/preset_paths.h
-    src/platform/preset_paths.cpp
-
-    # Preset Management
-    src/preset/preset_info.h
-    src/preset/preset_manager.h
-    src/preset/preset_manager.cpp
+    # Preset Configuration (adapter to shared library)
+    src/preset/iterum_preset_config.h
 
     # Custom VSTGUI Views
-    src/ui/preset_browser_view.h
-    src/ui/preset_browser_view.cpp
-    src/ui/preset_data_source.h
-    src/ui/preset_data_source.cpp
-    src/ui/save_preset_dialog_view.h
-    src/ui/save_preset_dialog_view.cpp
-    src/ui/mode_tab_bar.h
-    src/ui/mode_tab_bar.cpp
-    src/ui/preset_browser_logic.h
-    src/ui/search_debouncer.h
     src/ui/tap_pattern_editor.h
     src/ui/tap_pattern_editor.cpp
     src/ui/tap_pattern_editor_logic.h
@@ -112,6 +96,7 @@ target_link_libraries(${PLUGIN_NAME}
         sdk
         vstgui_support
         KrateDSP
+        KratePluginsShared
 )
 
 # Include directories

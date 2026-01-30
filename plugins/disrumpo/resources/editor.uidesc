@@ -478,7 +478,8 @@
   <template name="editor" class="CViewContainer" size="1000, 800" background-color="background-primary" minSize="800, 700" maxSize="1400, 1100">
     <view class="CViewContainer" origin="0, 0" size="1000, 50" background-color="background-secondary">
       <view class="CTextLabel" origin="20, 10" size="200, 30" title="Disrumpo" font="title-font" font-color="text-primary" text-alignment="left"/>
-      <view class="CTextButton" origin="250, 12" size="80, 25" title="Preset" font="label-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
+      <view custom-view-name="PresetBrowserButton" origin="250, 12" size="80, 25"/>
+      <view custom-view-name="SavePresetButton" origin="340, 12" size="60, 25"/>
       <view class="CViewContainer" origin="700, 5" size="290, 40" transparent="true">
         <view class="CTextLabel" origin="0, 0" size="50, 15" title="Input" font="small-font" font-color="text-secondary" text-alignment="center"/>
         <view class="CKnob" origin="5, 15" size="40, 25" control-tag="InputGain" default-value="0.5" min-value="0" max-value="1" background-color="panel" handle-color="accent-primary"/>

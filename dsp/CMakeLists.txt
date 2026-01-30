@@ -20,6 +20,10 @@ target_include_directories(KrateDSP
 # C++20 requirement
 target_compile_features(KrateDSP PUBLIC cxx_std_20)
 
+# macOS universal binary support (x86_64 + arm64)
+# Uses VST3 SDK function - no-op on non-macOS platforms
+smtg_target_setup_universal_binary(KrateDSP)
+
 # Compiler warnings
 if(MSVC)
     target_compile_options(KrateDSP PRIVATE

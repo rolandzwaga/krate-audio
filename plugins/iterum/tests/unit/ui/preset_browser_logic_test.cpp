@@ -8,7 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "ui/preset_browser_logic.h"
 
-using namespace Iterum;
+using namespace Krate::Plugins;
 
 TEST_CASE("PresetBrowserLogic: determineKeyAction", "[ui][preset-browser]") {
 

@@ -13,7 +13,7 @@
 #include "preset/preset_info.h"
 #include <functional>
 
-using namespace Iterum;
+using namespace Krate::Plugins;
 
 // =============================================================================
 // Test Helpers - Simulates PresetBrowserView behavior
@@ -139,17 +139,17 @@ private:
 
         PresetInfo p1;
         p1.name = "Warm Tape Echo";
-        p1.mode = DelayMode::Tape;
+        p1.subcategory = "Tape";
         presets.push_back(p1);
 
         PresetInfo p2;
         p2.name = "Digital Clean";
-        p2.mode = DelayMode::Digital;
+        p2.subcategory = "Digital";
         presets.push_back(p2);
 
         PresetInfo p3;
         p3.name = "Granular Shimmer";
-        p3.mode = DelayMode::Granular;
+        p3.subcategory = "Granular";
         presets.push_back(p3);
 
         dataSource_.setPresets(presets);
@@ -267,45 +267,45 @@ TEST_CASE("E2E: Focus events control polling", "[ui][preset-browser][search][e2e
     }
 }
 
-TEST_CASE("E2E: Search combined with mode filter", "[ui][preset-browser][search][e2e]") {
+TEST_CASE("E2E: Search combined with subcategory filter", "[ui][preset-browser][search][e2e]") {
     // This test uses the real PresetDataSource to verify combined filtering
     PresetDataSource dataSource;
 
     std::vector<PresetInfo> presets;
-    PresetInfo p1; p1.name = "Tape Echo"; p1.mode = DelayMode::Tape;
-    PresetInfo p2; p2.name = "Tape Delay"; p2.mode = DelayMode::Tape;
-    PresetInfo p3; p3.name = "Digital Tape"; p3.mode = DelayMode::Digital;
-    PresetInfo p4; p4.name = "Clean"; p4.mode = DelayMode::Digital;
+    PresetInfo p1; p1.name = "Tape Echo"; p1.subcategory = "Tape";
+    PresetInfo p2; p2.name = "Tape Delay"; p2.subcategory = "Tape";
+    PresetInfo p3; p3.name = "Digital Tape"; p3.subcategory = "Digital";
+    PresetInfo p4; p4.name = "Clean"; p4.subcategory = "Digital";
     presets.push_back(p1);
     presets.push_back(p2);
     presets.push_back(p3);
     presets.push_back(p4);
     dataSource.setPresets(presets);
 
-    SECTION("mode filter then search narrows results") {
-        dataSource.setModeFilter(static_cast<int>(DelayMode::Tape));
+    SECTION("subcategory filter then search narrows results") {
+        dataSource.setSubcategoryFilter("Tape");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // "Tape Echo", "Tape Delay"
 
         dataSource.setSearchFilter("echo");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 1);  // Only "Tape Echo"
     }
 
-    SECTION("search then mode filter narrows results") {
+    SECTION("search then subcategory filter narrows results") {
         dataSource.setSearchFilter("tape");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 3);  // "Tape Echo", "Tape Delay", "Digital Tape"
 
-        dataSource.setModeFilter(static_cast<int>(DelayMode::Tape));
+        dataSource.setSubcategoryFilter("Tape");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // "Tape Echo", "Tape Delay"
     }
 
-    SECTION("clear search restores mode-filtered results") {
-        dataSource.setModeFilter(static_cast<int>(DelayMode::Digital));
+    SECTION("clear search restores subcategory-filtered results") {
+        dataSource.setSubcategoryFilter("Digital");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // "Digital Tape", "Clean"
 
         dataSource.setSearchFilter("xyz");
         REQUIRE(dataSource.dbGetNumRows(nullptr) == 0);
 
         dataSource.setSearchFilter("");
-        REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // Back to Digital mode results
+        REQUIRE(dataSource.dbGetNumRows(nullptr) == 2);  // Back to Digital subcategory results
     }
 }

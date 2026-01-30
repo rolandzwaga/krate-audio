@@ -101,6 +101,7 @@ target_link_libraries(${PLUGIN_NAME}
         sdk
         vstgui_support
         KrateDSP
+        KratePluginsShared
 )
 
 # ==============================================================================
