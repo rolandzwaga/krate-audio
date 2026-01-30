@@ -1553,10 +1553,33 @@ void Controller::registerModulationParams() {
         routeSource->appendString(STR16("Transient"));
         parameters.addParameter(routeSource);
 
-        // Destination (parameter index, 0-127)
-        parameters.addParameter(STR16("Route Dest"), nullptr, 127, 0.0,
-            Steinberg::Vst::ParameterInfo::kCanAutomate,
-            makeRoutingParamId(r, 1));
+        // Destination (named list of 54 modulatable parameters)
+        auto* routeDest = new Steinberg::Vst::StringListParameter(
+            STR16("Route Dest"), makeRoutingParamId(r, 1));
+        // Global destinations (0-2)
+        routeDest->appendString(STR16("Input Gain"));
+        routeDest->appendString(STR16("Output Gain"));
+        routeDest->appendString(STR16("Global Mix"));
+        // Sweep destinations (3-5)
+        routeDest->appendString(STR16("Sweep Freq"));
+        routeDest->appendString(STR16("Sweep Width"));
+        routeDest->appendString(STR16("Sweep Intensity"));
+        // Per-band destinations (6-53): 8 bands x 6 params
+        for (int b = 1; b <= 8; ++b) {
+            routeDest->appendString(
+                Steinberg::String().printf("Band %d Morph X", b));
+            routeDest->appendString(
+                Steinberg::String().printf("Band %d Morph Y", b));
+            routeDest->appendString(
+                Steinberg::String().printf("Band %d Drive", b));
+            routeDest->appendString(
+                Steinberg::String().printf("Band %d Mix", b));
+            routeDest->appendString(
+                Steinberg::String().printf("Band %d Gain", b));
+            routeDest->appendString(
+                Steinberg::String().printf("Band %d Pan", b));
+        }
+        parameters.addParameter(routeDest);
 
         // Amount [-1, +1] -> normalized [0, 1]
         auto* routeAmount = new Steinberg::Vst::RangeParameter(
@@ -2227,6 +2250,188 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
                 streamer.readFloat(px);
                 streamer.readFloat(py);
             }
+        }
+    }
+
+    // =========================================================================
+    // Modulation System State (v5+) — SC-010
+    // =========================================================================
+    if (version >= 5) {
+        // --- Source Parameters ---
+
+        // LFO 1 (7 values)
+        float lfo1RateNorm = 0.5f;
+        if (streamer.readFloat(lfo1RateNorm))
+            setParamNormalized(makeModParamId(ModParamType::kLFO1Rate), lfo1RateNorm);
+        Steinberg::int8 lfo1Shape = 0;
+        if (streamer.readInt8(lfo1Shape))
+            setParamNormalized(makeModParamId(ModParamType::kLFO1Shape),
+                               static_cast<double>(lfo1Shape) / 5.0);
+        float lfo1Phase = 0.0f;
+        if (streamer.readFloat(lfo1Phase))
+            setParamNormalized(makeModParamId(ModParamType::kLFO1Phase), lfo1Phase);
+        Steinberg::int8 lfo1Sync = 0;
+        if (streamer.readInt8(lfo1Sync))
+            setParamNormalized(makeModParamId(ModParamType::kLFO1Sync),
+                               lfo1Sync != 0 ? 1.0 : 0.0);
+        Steinberg::int8 lfo1NoteIdx = 0;
+        if (streamer.readInt8(lfo1NoteIdx))
+            setParamNormalized(makeModParamId(ModParamType::kLFO1NoteValue),
+                               static_cast<double>(lfo1NoteIdx) / 14.0);
+        Steinberg::int8 lfo1Unipolar = 0;
+        if (streamer.readInt8(lfo1Unipolar))
+            setParamNormalized(makeModParamId(ModParamType::kLFO1Unipolar),
+                               lfo1Unipolar != 0 ? 1.0 : 0.0);
+        Steinberg::int8 lfo1Retrigger = 1;
+        if (streamer.readInt8(lfo1Retrigger))
+            setParamNormalized(makeModParamId(ModParamType::kLFO1Retrigger),
+                               lfo1Retrigger != 0 ? 1.0 : 0.0);
+
+        // LFO 2 (7 values)
+        float lfo2RateNorm = 0.5f;
+        if (streamer.readFloat(lfo2RateNorm))
+            setParamNormalized(makeModParamId(ModParamType::kLFO2Rate), lfo2RateNorm);
+        Steinberg::int8 lfo2Shape = 0;
+        if (streamer.readInt8(lfo2Shape))
+            setParamNormalized(makeModParamId(ModParamType::kLFO2Shape),
+                               static_cast<double>(lfo2Shape) / 5.0);
+        float lfo2Phase = 0.0f;
+        if (streamer.readFloat(lfo2Phase))
+            setParamNormalized(makeModParamId(ModParamType::kLFO2Phase), lfo2Phase);
+        Steinberg::int8 lfo2Sync = 0;
+        if (streamer.readInt8(lfo2Sync))
+            setParamNormalized(makeModParamId(ModParamType::kLFO2Sync),
+                               lfo2Sync != 0 ? 1.0 : 0.0);
+        Steinberg::int8 lfo2NoteIdx = 0;
+        if (streamer.readInt8(lfo2NoteIdx))
+            setParamNormalized(makeModParamId(ModParamType::kLFO2NoteValue),
+                               static_cast<double>(lfo2NoteIdx) / 14.0);
+        Steinberg::int8 lfo2Unipolar = 0;
+        if (streamer.readInt8(lfo2Unipolar))
+            setParamNormalized(makeModParamId(ModParamType::kLFO2Unipolar),
+                               lfo2Unipolar != 0 ? 1.0 : 0.0);
+        Steinberg::int8 lfo2Retrigger = 1;
+        if (streamer.readInt8(lfo2Retrigger))
+            setParamNormalized(makeModParamId(ModParamType::kLFO2Retrigger),
+                               lfo2Retrigger != 0 ? 1.0 : 0.0);
+
+        // Envelope Follower (4 values)
+        float envAttackNorm = 0.0f;
+        if (streamer.readFloat(envAttackNorm))
+            setParamNormalized(makeModParamId(ModParamType::kEnvFollowerAttack), envAttackNorm);
+        float envReleaseNorm = 0.0f;
+        if (streamer.readFloat(envReleaseNorm))
+            setParamNormalized(makeModParamId(ModParamType::kEnvFollowerRelease), envReleaseNorm);
+        float envSensitivity = 0.5f;
+        if (streamer.readFloat(envSensitivity))
+            setParamNormalized(makeModParamId(ModParamType::kEnvFollowerSensitivity), envSensitivity);
+        Steinberg::int8 envSource = 0;
+        if (streamer.readInt8(envSource))
+            setParamNormalized(makeModParamId(ModParamType::kEnvFollowerSource),
+                               static_cast<double>(envSource) / 4.0);
+
+        // Random (3 values)
+        float randomRateNorm = 0.0f;
+        if (streamer.readFloat(randomRateNorm))
+            setParamNormalized(makeModParamId(ModParamType::kRandomRate), randomRateNorm);
+        float randomSmoothness = 0.0f;
+        if (streamer.readFloat(randomSmoothness))
+            setParamNormalized(makeModParamId(ModParamType::kRandomSmoothness), randomSmoothness);
+        Steinberg::int8 randomSync = 0;
+        if (streamer.readInt8(randomSync))
+            setParamNormalized(makeModParamId(ModParamType::kRandomSync),
+                               randomSync != 0 ? 1.0 : 0.0);
+
+        // Chaos (3 values)
+        Steinberg::int8 chaosModel = 0;
+        if (streamer.readInt8(chaosModel))
+            setParamNormalized(makeModParamId(ModParamType::kChaosModel),
+                               static_cast<double>(chaosModel) / 3.0);
+        float chaosSpeedNorm = 0.0f;
+        if (streamer.readFloat(chaosSpeedNorm))
+            setParamNormalized(makeModParamId(ModParamType::kChaosSpeed), chaosSpeedNorm);
+        float chaosCoupling = 0.0f;
+        if (streamer.readFloat(chaosCoupling))
+            setParamNormalized(makeModParamId(ModParamType::kChaosCoupling), chaosCoupling);
+
+        // Sample & Hold (3 values)
+        Steinberg::int8 shSource = 0;
+        if (streamer.readInt8(shSource))
+            setParamNormalized(makeModParamId(ModParamType::kSampleHoldSource),
+                               static_cast<double>(shSource) / 3.0);
+        float shRateNorm = 0.0f;
+        if (streamer.readFloat(shRateNorm))
+            setParamNormalized(makeModParamId(ModParamType::kSampleHoldRate), shRateNorm);
+        float shSlewNorm = 0.0f;
+        if (streamer.readFloat(shSlewNorm))
+            setParamNormalized(makeModParamId(ModParamType::kSampleHoldSlew), shSlewNorm);
+
+        // Pitch Follower (4 values)
+        float pitchMinNorm = 0.0f;
+        if (streamer.readFloat(pitchMinNorm))
+            setParamNormalized(makeModParamId(ModParamType::kPitchFollowerMinHz), pitchMinNorm);
+        float pitchMaxNorm = 0.0f;
+        if (streamer.readFloat(pitchMaxNorm))
+            setParamNormalized(makeModParamId(ModParamType::kPitchFollowerMaxHz), pitchMaxNorm);
+        float pitchConfidence = 0.5f;
+        if (streamer.readFloat(pitchConfidence))
+            setParamNormalized(makeModParamId(ModParamType::kPitchFollowerConfidence), pitchConfidence);
+        float pitchTrackNorm = 0.0f;
+        if (streamer.readFloat(pitchTrackNorm))
+            setParamNormalized(makeModParamId(ModParamType::kPitchFollowerTrackingSpeed), pitchTrackNorm);
+
+        // Transient (3 values)
+        float transSensitivity = 0.5f;
+        if (streamer.readFloat(transSensitivity))
+            setParamNormalized(makeModParamId(ModParamType::kTransientSensitivity), transSensitivity);
+        float transAttackNorm = 0.0f;
+        if (streamer.readFloat(transAttackNorm))
+            setParamNormalized(makeModParamId(ModParamType::kTransientAttack), transAttackNorm);
+        float transDecayNorm = 0.0f;
+        if (streamer.readFloat(transDecayNorm))
+            setParamNormalized(makeModParamId(ModParamType::kTransientDecay), transDecayNorm);
+
+        // Macros (4 x 4 = 16 values)
+        constexpr ModParamType macroParams[4][4] = {
+            {ModParamType::kMacro1Value, ModParamType::kMacro1Min, ModParamType::kMacro1Max, ModParamType::kMacro1Curve},
+            {ModParamType::kMacro2Value, ModParamType::kMacro2Min, ModParamType::kMacro2Max, ModParamType::kMacro2Curve},
+            {ModParamType::kMacro3Value, ModParamType::kMacro3Min, ModParamType::kMacro3Max, ModParamType::kMacro3Curve},
+            {ModParamType::kMacro4Value, ModParamType::kMacro4Min, ModParamType::kMacro4Max, ModParamType::kMacro4Curve},
+        };
+        for (int m = 0; m < 4; ++m) {
+            float macroValue = 0.0f;
+            if (streamer.readFloat(macroValue))
+                setParamNormalized(makeModParamId(macroParams[m][0]), macroValue);
+            float macroMin = 0.0f;
+            if (streamer.readFloat(macroMin))
+                setParamNormalized(makeModParamId(macroParams[m][1]), macroMin);
+            float macroMax = 1.0f;
+            if (streamer.readFloat(macroMax))
+                setParamNormalized(makeModParamId(macroParams[m][2]), macroMax);
+            Steinberg::int8 macroCurve = 0;
+            if (streamer.readInt8(macroCurve))
+                setParamNormalized(makeModParamId(macroParams[m][3]),
+                                   static_cast<double>(macroCurve) / 3.0);
+        }
+
+        // --- Routing Parameters (32 x 4 values) ---
+        for (uint8_t r = 0; r < 32; ++r) {
+            Steinberg::int8 source = 0;
+            if (streamer.readInt8(source))
+                setParamNormalized(makeRoutingParamId(r, 0),
+                                   static_cast<double>(source) / 12.0);
+            int32_t dest = 0;
+            if (streamer.readInt32(dest))
+                setParamNormalized(makeRoutingParamId(r, 1),
+                                   static_cast<double>(std::clamp(dest, 0, 53)) / 53.0);
+            float amount = 0.0f;
+            if (streamer.readFloat(amount))
+                setParamNormalized(makeRoutingParamId(r, 2),
+                                   static_cast<double>(amount + 1.0f) / 2.0);
+            Steinberg::int8 curve = 0;
+            if (streamer.readInt8(curve))
+                setParamNormalized(makeRoutingParamId(r, 3),
+                                   static_cast<double>(curve) / 3.0);
         }
     }
 

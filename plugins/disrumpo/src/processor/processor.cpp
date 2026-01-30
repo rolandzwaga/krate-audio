@@ -1034,7 +1034,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                     std::clamp(static_cast<int>(source), 0, 12));
             int32_t dest = 0;
             if (streamer.readInt32(dest))
-                routing.destParamId = static_cast<uint32_t>(std::clamp(dest, 0, 127));
+                routing.destParamId = static_cast<uint32_t>(std::clamp(dest, 0, 53));
             if (!streamer.readFloat(routing.amount))
                 routing.amount = 0.0f;
             Steinberg::int8 curve = 0;
@@ -1303,7 +1303,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                     routing.active = (routing.source != Krate::DSP::ModSource::None);
                                     break;
                                 case 1:  // Destination
-                                    routing.destParamId = static_cast<uint32_t>(value * 127.0 + 0.5);
+                                    routing.destParamId = static_cast<uint32_t>(value * 53.0 + 0.5);
                                     break;
                                 case 2:  // Amount [-1, +1]
                                     routing.amount = static_cast<float>(value * 2.0 - 1.0);
