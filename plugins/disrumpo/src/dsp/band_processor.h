@@ -9,6 +9,7 @@
 // - specs/002-band-management/spec.md FR-019 to FR-027
 // - specs/003-distortion-integration/spec.md
 // - specs/005-morph-system/spec.md FR-010
+// - specs/009-intelligent-oversampling/spec.md FR-001 to FR-020
 // - Constitution Principle XIV: Reuse Krate::DSP components
 // ==============================================================================
 
@@ -16,15 +17,18 @@
 
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/oversampler.h>
+#include <krate/dsp/core/crossfade_utils.h>
 #include "band_state.h"
 #include "distortion_adapter.h"
 #include "distortion_types.h"
 #include "morph_engine.h"
 #include "morph_node.h"
+#include "oversampling_utils.h"
 
 #include <cmath>
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <functional>
 #include <memory>
 
@@ -42,6 +46,9 @@ public:
     static constexpr int kMaxOversampleFactor = 8;
     static constexpr int kDefaultOversampleFactor = 2;
     static constexpr size_t kMaxBlockSize = 2048;
+
+    /// @brief Fixed crossfade duration in milliseconds (FR-010).
+    static constexpr float kCrossfadeDurationMs = 8.0f;
 
     // =========================================================================
     // Lifecycle
@@ -87,7 +94,7 @@ public:
         muteSmoother_.snapTo(targetMute_);
         sweepSmoother_.snapTo(targetSweep_);
 
-        // Prepare oversamplers
+        // Prepare oversamplers (FR-009: pre-allocate all regardless of current factor)
         oversampler2x_.prepare(sampleRate, maxBlockSize_,
                                Krate::DSP::OversamplingQuality::Economy,
                                Krate::DSP::OversamplingMode::ZeroLatency);
@@ -115,6 +122,13 @@ public:
         morphEngine_ = std::make_unique<MorphEngine>();
         morphEngine_->prepare(sampleRate * kMaxOversampleFactor,
                              static_cast<int>(maxBlockSize_ * kMaxOversampleFactor));
+
+        // Initialize crossfade state
+        crossfadeActive_ = false;
+        crossfadeProgress_ = 0.0f;
+        crossfadeIncrement_ = 0.0f;
+        crossfadeOldFactor_ = currentOversampleFactor_;
+        targetOversampleFactor_ = currentOversampleFactor_;
     }
 
     /// @brief Reset all processor states.
@@ -137,6 +151,10 @@ public:
         if (morphEngine_) {
             morphEngine_->reset();
         }
+
+        // Reset crossfade state
+        crossfadeActive_ = false;
+        crossfadeProgress_ = 0.0f;
     }
 
     // =========================================================================
@@ -184,12 +202,12 @@ public:
     // =========================================================================
 
     /// @brief Set the distortion type for this band.
+    /// Modified for spec 009: triggers recalculateOversampleFactor()
     /// @param type The distortion type from DistortionType enum
     void setDistortionType(DistortionType type) noexcept {
         distortion_.setType(type);
-        // Update oversampling factor based on type recommendation
-        int recommended = getRecommendedOversample(type);
-        currentOversampleFactor_ = std::min(recommended, maxOversampleFactor_);
+        // FR-017: Recalculate oversampling factor when type changes
+        recalculateOversampleFactor();
     }
 
     /// @brief Get the current distortion type.
@@ -222,12 +240,17 @@ public:
     // =========================================================================
 
     /// @brief Set morph nodes for this band.
+    /// Modified for spec 009: triggers recalculateOversampleFactor() (FR-017)
     /// @param nodes Array of morph nodes (fixed size kMaxMorphNodes)
     /// @param activeCount Number of active nodes (2-4)
     void setMorphNodes(const std::array<MorphNode, kMaxMorphNodes>& nodes, int activeCount) noexcept {
         if (morphEngine_) {
             morphEngine_->setNodes(nodes, activeCount);
             morphEnabled_ = true;
+            morphActiveNodeCount_ = activeCount;
+            morphNodes_ = nodes;
+            // FR-017: Recalculate oversampling factor when morph nodes change
+            recalculateOversampleFactor();
         }
     }
 
@@ -240,11 +263,14 @@ public:
     }
 
     /// @brief Set morph cursor position.
+    /// Modified for spec 009: triggers recalculateOversampleFactor() (FR-017)
     /// @param x X position [0, 1]
     /// @param y Y position [0, 1]
     void setMorphPosition(float x, float y) noexcept {
         if (morphEngine_) {
             morphEngine_->setMorphPosition(x, y);
+            // FR-017: Recalculate oversampling factor when morph position changes
+            recalculateOversampleFactor();
         }
     }
 
@@ -261,11 +287,25 @@ public:
     /// @param enabled true to enable morphing, false for single distortion
     void setMorphEnabled(bool enabled) noexcept {
         morphEnabled_ = enabled;
+        // Recalculate factor when switching between single/morph mode
+        recalculateOversampleFactor();
     }
 
     /// @brief Check if morph engine is enabled.
     [[nodiscard]] bool isMorphEnabled() const noexcept {
         return morphEnabled_;
+    }
+
+    /// @brief Set band bypass state.
+    /// FR-012: When bypassed, band output is bit-identical to input (no processing).
+    /// @param bypassed true to bypass all processing, false for normal operation
+    void setBypassed(bool bypassed) noexcept {
+        bypassed_ = bypassed;
+    }
+
+    /// @brief Check if band is bypassed.
+    [[nodiscard]] bool isBypassed() const noexcept {
+        return bypassed_;
     }
 
     /// @brief Get current morph weights (for UI/visualization).
@@ -278,15 +318,16 @@ public:
     }
 
     // =========================================================================
-    // Oversampling Configuration
+    // Oversampling Configuration (spec 009-intelligent-oversampling)
     // =========================================================================
 
-    /// @brief Set the maximum oversampling factor.
+    /// @brief Set the maximum oversampling factor (global limit).
+    /// Modified for spec 009: triggers recalculation and potential crossfade (FR-016)
     /// @param factor Maximum factor (1, 2, 4, or 8)
     void setMaxOversampleFactor(int factor) noexcept {
         maxOversampleFactor_ = std::clamp(factor, 1, kMaxOversampleFactor);
-        // Re-clamp current factor
-        currentOversampleFactor_ = std::min(currentOversampleFactor_, maxOversampleFactor_);
+        // FR-016, FR-017: Recalculate and potentially crossfade
+        recalculateOversampleFactor();
     }
 
     /// @brief Get current effective oversampling factor.
@@ -295,9 +336,57 @@ public:
     }
 
     /// @brief Get latency introduced by oversampling.
+    /// FR-018, FR-019: IIR mode = 0 latency always
     [[nodiscard]] int getLatency() const noexcept {
         // Economy/ZeroLatency mode = 0 latency
         return 0;
+    }
+
+    /// @brief Check if an oversampling crossfade transition is in progress.
+    [[nodiscard]] bool isOversampleTransitioning() const noexcept {
+        return crossfadeActive_;
+    }
+
+    // =========================================================================
+    // Oversampling Factor Computation (spec 009)
+    // =========================================================================
+
+    /// @brief Recalculate oversampling factor from current state.
+    /// Called after type, morph position, morph nodes, or global limit changes.
+    /// Per spec FR-003, FR-004, FR-017.
+    void recalculateOversampleFactor() noexcept {
+        int newFactor = 0;
+
+        if (morphEnabled_ && morphEngine_) {
+            // FR-003: Morph-weighted factor computation
+            const auto& weights = morphEngine_->getWeights();
+            newFactor = calculateMorphOversampleFactor(
+                morphNodes_, weights, morphActiveNodeCount_, maxOversampleFactor_);
+        } else {
+            // FR-002: Single-type factor selection
+            newFactor = getSingleTypeOversampleFactor(
+                distortion_.getType(), maxOversampleFactor_);
+        }
+
+        // FR-017: Only trigger crossfade if factor actually changed (hysteresis)
+        requestOversampleFactor(newFactor);
+    }
+
+    /// @brief Request a new oversampling factor with smooth transition.
+    /// Per spec FR-010, FR-017: Only triggers crossfade if factor differs.
+    /// @param factor Target oversampling factor (1, 2, 4, or 8)
+    void requestOversampleFactor(int factor) noexcept {
+        if (factor == currentOversampleFactor_ && !crossfadeActive_) {
+            // FR-017: Hysteresis - no transition if factor hasn't changed
+            return;
+        }
+        if (factor == currentOversampleFactor_) {
+            // Same factor but crossfade is active - let it finish
+            return;
+        }
+
+        // Start crossfade transition (or abort-and-restart if already active)
+        startCrossfade(factor);
     }
 
     // =========================================================================
@@ -354,10 +443,16 @@ public:
     }
 
     /// @brief Process stereo buffer in-place with oversampling.
+    /// Modified for spec 009: crossfade support, bypass optimization.
     /// @param left Left channel buffer
     /// @param right Right channel buffer
     /// @param numSamples Number of samples per channel
     void processBlock(float* left, float* right, size_t numSamples) noexcept {
+        // FR-012: Bypass optimization - bit-transparent pass-through
+        if (bypassed_) {
+            return; // Leave input buffers unchanged
+        }
+
         if (numSamples > maxBlockSize_) {
             // Process in chunks
             size_t offset = 0;
@@ -369,30 +464,14 @@ public:
             return;
         }
 
-        // Drive gate check
-        const float drive = distortion_.getCommonParams().drive;
-        const bool bypassDistortion = (drive < 0.0001f);
-
-        if (bypassDistortion || currentOversampleFactor_ == 1) {
-            // Direct processing without oversampling
-            for (size_t i = 0; i < numSamples; ++i) {
-                process(left[i], right[i]);
-            }
-        } else if (currentOversampleFactor_ == 2) {
-            // 2x oversampling
-            processWithOversampling2x(left, right, numSamples);
-        } else if (currentOversampleFactor_ == 4) {
-            // 4x oversampling
-            processWithOversampling4x(left, right, numSamples);
-        } else if (currentOversampleFactor_ == 8) {
-            // 8x oversampling (cascade 4x + 2x)
-            processWithOversampling8x(left, right, numSamples);
-        } else {
-            // Fallback to sample-by-sample
-            for (size_t i = 0; i < numSamples; ++i) {
-                process(left[i], right[i]);
-            }
+        // FR-010: Route to crossfade path when transition is active
+        if (crossfadeActive_) {
+            processBlockWithCrossfade(left, right, numSamples);
+            return;
         }
+
+        // Normal processing with current factor
+        processWithFactor(left, right, numSamples, currentOversampleFactor_);
     }
 
     // =========================================================================
@@ -412,6 +491,100 @@ private:
     // =========================================================================
     // Oversampling Processing Helpers
     // =========================================================================
+
+    /// @brief Process a block through a specific oversampling factor path.
+    /// Routes to the correct oversampler or direct path (FR-020 for 1x).
+    /// @param left Left channel input/output buffer
+    /// @param right Right channel input/output buffer
+    /// @param numSamples Number of samples
+    /// @param factor Oversampling factor to use (1, 2, 4, or 8)
+    void processWithFactor(float* left, float* right, size_t numSamples, int factor) noexcept {
+        // Drive gate check
+        const float drive = distortion_.getCommonParams().drive;
+        const bool bypassDistortion = (drive < 0.0001f);
+
+        if (bypassDistortion || factor == 1) {
+            // FR-020: Direct processing without oversampling
+            for (size_t i = 0; i < numSamples; ++i) {
+                process(left[i], right[i]);
+            }
+        } else if (factor == 2) {
+            processWithOversampling2x(left, right, numSamples);
+        } else if (factor == 4) {
+            processWithOversampling4x(left, right, numSamples);
+        } else if (factor == 8) {
+            processWithOversampling8x(left, right, numSamples);
+        } else {
+            // Fallback to sample-by-sample
+            for (size_t i = 0; i < numSamples; ++i) {
+                process(left[i], right[i]);
+            }
+        }
+    }
+
+    /// @brief Process block during active oversampling crossfade (FR-010, FR-011).
+    /// Runs both old and new factor paths in parallel, blends with equal-power curve.
+    void processBlockWithCrossfade(float* left, float* right, size_t numSamples) noexcept {
+        // 1. Copy input to old-path buffers
+        std::memcpy(crossfadeOldLeft_.data(), left, numSamples * sizeof(float));
+        std::memcpy(crossfadeOldRight_.data(), right, numSamples * sizeof(float));
+
+        // 2. Process old path (writes to crossfadeOldLeft_/Right_)
+        processWithFactor(crossfadeOldLeft_.data(), crossfadeOldRight_.data(),
+                         numSamples, crossfadeOldFactor_);
+
+        // 3. Process new path (writes to left/right in-place)
+        processWithFactor(left, right, numSamples, currentOversampleFactor_);
+
+        // 4. Blend per-sample with equal-power crossfade (FR-011)
+        size_t completedAt = numSamples; // Track where crossfade finishes
+        for (size_t i = 0; i < numSamples; ++i) {
+            crossfadeProgress_ += crossfadeIncrement_;
+            if (crossfadeProgress_ >= 1.0f) {
+                crossfadeProgress_ = 1.0f;
+            }
+
+            float fadeOut = 0.0f;
+            float fadeIn = 0.0f;
+            Krate::DSP::equalPowerGains(crossfadeProgress_, fadeOut, fadeIn);
+
+            left[i] = crossfadeOldLeft_[i] * fadeOut + left[i] * fadeIn;
+            right[i] = crossfadeOldRight_[i] * fadeOut + right[i] * fadeIn;
+
+            if (crossfadeProgress_ >= 1.0f) {
+                crossfadeActive_ = false;
+                completedAt = i + 1;
+                break;
+            }
+        }
+
+        // 5. Process remaining samples after crossfade completes mid-block
+        if (!crossfadeActive_ && completedAt < numSamples) {
+            processWithFactor(left + completedAt, right + completedAt,
+                             numSamples - completedAt, currentOversampleFactor_);
+        }
+    }
+
+    /// @brief Initiate or restart an oversampling crossfade transition (FR-010).
+    /// @param newFactor Target oversampling factor
+    void startCrossfade(int newFactor) noexcept {
+        if (crossfadeActive_) {
+            // Abort-and-restart: current "new" factor becomes the "old" factor
+            crossfadeOldFactor_ = currentOversampleFactor_;
+        } else {
+            // Normal start: current factor becomes old
+            crossfadeOldFactor_ = currentOversampleFactor_;
+        }
+
+        // Set new target as current
+        currentOversampleFactor_ = newFactor;
+        targetOversampleFactor_ = newFactor;
+
+        // Calculate crossfade increment for 8ms duration
+        crossfadeProgress_ = 0.0f;
+        crossfadeIncrement_ = Krate::DSP::crossfadeIncrement(kCrossfadeDurationMs, sampleRate_);
+        crossfadeActive_ = true;
+    }
 
     void processWithOversampling2x(float* left, float* right, size_t numSamples) noexcept {
         oversampler2x_.process(left, right, numSamples,
@@ -514,15 +687,31 @@ private:
     // which would make BandProcessor too large for stack allocation.
     std::unique_ptr<MorphEngine> morphEngine_;
     bool morphEnabled_ = false;  // Default to legacy mode for backward compatibility
+    bool bypassed_ = false;       // FR-012: Band bypass flag
+
+    // Cached morph state for oversampling factor computation (spec 009)
+    std::array<MorphNode, kMaxMorphNodes> morphNodes_{};
+    int morphActiveNodeCount_ = kDefaultActiveNodes;
 
     // Oversamplers
     Krate::DSP::Oversampler<2, 2> oversampler2x_;
     Krate::DSP::Oversampler<4, 2> oversampler4x_;
     Krate::DSP::Oversampler<2, 2> oversampler8xInner_;  // Inner 2x for 8x cascade
 
-    // Oversampling factor
+    // Oversampling factor (spec 009)
     int currentOversampleFactor_ = kDefaultOversampleFactor;
     int maxOversampleFactor_ = kMaxOversampleFactor;
+    int targetOversampleFactor_ = kDefaultOversampleFactor;
+
+    // Crossfade state (spec 009 FR-010, FR-011)
+    int crossfadeOldFactor_ = kDefaultOversampleFactor;
+    float crossfadeProgress_ = 0.0f;
+    float crossfadeIncrement_ = 0.0f;
+    bool crossfadeActive_ = false;
+
+    // Pre-allocated crossfade buffers (spec 009 FR-009)
+    std::array<float, kMaxBlockSize> crossfadeOldLeft_{};
+    std::array<float, kMaxBlockSize> crossfadeOldRight_{};
 };
 
 } // namespace Disrumpo
