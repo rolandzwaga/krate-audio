@@ -113,7 +113,7 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 ### 2.4 Commit (MANDATORY)
 
-- [ ] T11.016 **Commit oversampling utilities and unit tests**
+- [X] T11.016 **Commit oversampling utilities and unit tests**
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -161,7 +161,7 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 ### 3.5 Commit (MANDATORY)
 
-- [ ] T11.033 [US1] **Commit completed User Story 1 work**
+- [X] T11.033 [US1] **Commit completed User Story 1 work**
 
 **Checkpoint**: User Story 1 should be fully functional, tested, and committed (single-type oversampling working, no morph yet)
 
@@ -179,27 +179,27 @@ No new project setup needed - all infrastructure exists. This phase verifies dep
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T11.034 [P] [US2] Create test file `plugins/disrumpo/tests/oversampling_morph_tests.cpp` with failing tests for 2-node morphs (SoftClip 2x + HardClip 4x)
-- [ ] T11.035 [P] [US2] Add failing tests for weighted average rounding (FR-004): verify 1.5→2, 2.5→4, 3.0→4
-- [ ] T11.036 [P] [US2] Add failing tests for 4-node morph with various weight combinations (SC-009)
-- [ ] T11.037 [P] [US2] Add failing tests for edge cases: all nodes same type, all nodes 1x, equidistant weights
-- [ ] T11.037b [P] [US2] Add failing test for morph transition threshold: Verify that morphing between SoftClip (2x) and HardClip (4x) transitions from factor 2 to factor 4 at the correct weight threshold (weighted average > 2.0, i.e., >50% weight toward HardClip gives 3.0 avg which rounds to 4)
+- [X] T11.034 [P] [US2] Create test file `plugins/disrumpo/tests/oversampling_morph_tests.cpp` with failing tests for 2-node morphs (SoftClip 2x + HardClip 4x)
+- [X] T11.035 [P] [US2] Add failing tests for weighted average rounding (FR-004): verify 1.5->2, 2.5->4, 3.0->4
+- [X] T11.036 [P] [US2] Add failing tests for 4-node morph with various weight combinations (SC-009)
+- [X] T11.037 [P] [US2] Add failing tests for edge cases: all nodes same type, all nodes 1x, equidistant weights
+- [X] T11.037b [P] [US2] Add failing test for morph transition threshold: Verify that morphing between SoftClip (2x) and HardClip (4x) transitions from factor 2 to factor 4 at the correct weight threshold
 
 ### 4.2 BandProcessor Morph Integration
 
-- [ ] T11.038 [US2] Modify `recalculateOversampleFactor()` in `band_processor.h` to detect morph mode and call `calculateMorphOversampleFactor()` (FR-003)
-- [ ] T11.039 [US2] Modify `setMorphPosition()` in `band_processor.h` to trigger `recalculateOversampleFactor()` after position change (FR-017)
-- [ ] T11.040 [US2] Modify `setMorphNodes()` in `band_processor.h` to trigger `recalculateOversampleFactor()` after node type changes (FR-017)
-- [ ] T11.041 [US2] Verify all morph-weighted oversampling tests pass
-- [ ] T11.042 [US2] Build with zero compiler warnings
+- [X] T11.038 [US2] Modify `recalculateOversampleFactor()` in `band_processor.h` to detect morph mode and call `calculateMorphOversampleFactor()` (FR-003)
+- [X] T11.039 [US2] Modify `setMorphPosition()` in `band_processor.h` to trigger `recalculateOversampleFactor()` after position change (FR-017)
+- [X] T11.040 [US2] Modify `setMorphNodes()` in `band_processor.h` to trigger `recalculateOversampleFactor()` after node type changes (FR-017)
+- [X] T11.041 [US2] Verify all morph-weighted oversampling tests pass
+- [X] T11.042 [US2] Build with zero compiler warnings
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T11.043 [US2] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` → add to `-fno-fast-math` list in `plugins/disrumpo/tests/CMakeLists.txt`
+- [X] T11.043 [US2] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` → add to `-fno-fast-math` list in `plugins/disrumpo/tests/CMakeLists.txt`
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T11.044 [US2] **Commit completed User Story 2 work**
+- [X] T11.044 [US2] **Commit completed User Story 2 work**
 
 **Checkpoint**: User Stories 1 AND 2 should both work independently and be committed (morph-weighted factor selection working, but still instant switching)
 
