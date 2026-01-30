@@ -2476,19 +2476,19 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
             {ModParamType::kMacro3Value, ModParamType::kMacro3Min, ModParamType::kMacro3Max, ModParamType::kMacro3Curve},
             {ModParamType::kMacro4Value, ModParamType::kMacro4Min, ModParamType::kMacro4Max, ModParamType::kMacro4Curve},
         };
-        for (int m = 0; m < 4; ++m) {
+        for (const auto& macro : macroParams) {
             float macroValue = 0.0f;
             if (streamer.readFloat(macroValue))
-                setParamNormalized(makeModParamId(macroParams[m][0]), macroValue);
+                setParamNormalized(makeModParamId(macro[0]), macroValue);
             float macroMin = 0.0f;
             if (streamer.readFloat(macroMin))
-                setParamNormalized(makeModParamId(macroParams[m][1]), macroMin);
+                setParamNormalized(makeModParamId(macro[1]), macroMin);
             float macroMax = 1.0f;
             if (streamer.readFloat(macroMax))
-                setParamNormalized(makeModParamId(macroParams[m][2]), macroMax);
+                setParamNormalized(makeModParamId(macro[2]), macroMax);
             Steinberg::int8 macroCurve = 0;
             if (streamer.readInt8(macroCurve))
-                setParamNormalized(makeModParamId(macroParams[m][3]),
+                setParamNormalized(makeModParamId(macro[3]),
                                    static_cast<double>(macroCurve) / 3.0);
         }
 
@@ -2521,9 +2521,10 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
             const auto band = static_cast<uint8_t>(b);
 
             // Band morph position & config
-            float morphX = 0.5f, morphY = 0.5f;
+            float morphX = 0.5f;
+            float morphY = 0.5f;
             Steinberg::int8 morphMode = 0;
-            Steinberg::int8 activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
+            auto activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
             float morphSmoothing = 0.0f;
 
             if (streamer.readFloat(morphX))
@@ -2555,8 +2556,12 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
                 const auto node = static_cast<uint8_t>(n);
 
                 Steinberg::int8 nodeType = 0;
-                float drive = 1.0f, mix = 1.0f, tone = 4000.0f;
-                float bias = 0.0f, folds = 1.0f, bitDepth = 16.0f;
+                float drive = 1.0f;
+                float mix = 1.0f;
+                float tone = 4000.0f;
+                float bias = 0.0f;
+                float folds = 1.0f;
+                float bitDepth = 16.0f;
 
                 if (streamer.readInt8(nodeType))
                     setParamNormalized(
@@ -3690,11 +3695,11 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
         {ModParamType::kMacro3Value, ModParamType::kMacro3Min, ModParamType::kMacro3Max, ModParamType::kMacro3Curve},
         {ModParamType::kMacro4Value, ModParamType::kMacro4Min, ModParamType::kMacro4Max, ModParamType::kMacro4Curve},
     };
-    for (int m = 0; m < 4; ++m) {
-        streamer.writeFloat(getParamNorm(makeModParamId(macroParams[m][0])));
-        streamer.writeFloat(getParamNorm(makeModParamId(macroParams[m][1])));
-        streamer.writeFloat(getParamNorm(makeModParamId(macroParams[m][2])));
-        streamer.writeInt8(getInt8FromList(makeModParamId(macroParams[m][3]), 3));
+    for (const auto& macro : macroParams) {
+        streamer.writeFloat(getParamNorm(makeModParamId(macro[0])));
+        streamer.writeFloat(getParamNorm(makeModParamId(macro[1])));
+        streamer.writeFloat(getParamNorm(makeModParamId(macro[2])));
+        streamer.writeInt8(getInt8FromList(makeModParamId(macro[3]), 3));
     }
 
     // Routing (32 x 4 values)
@@ -3800,7 +3805,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     if (version < 1) return false;
 
     // Global parameters
-    float inputGain = 0.5f, outputGain = 0.5f, globalMix = 1.0f;
+    float inputGain = 0.5f;
+    float outputGain = 0.5f;
+    float globalMix = 1.0f;
     if (streamer.readFloat(inputGain))
         editParamWithNotify(makeGlobalParamId(GlobalParamType::kGlobalInputGain), inputGain);
     if (streamer.readFloat(outputGain))
@@ -3817,8 +3824,11 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         }
 
         for (int b = 0; b < kMaxBands; ++b) {
-            float gain = 0.0f, pan = 0.0f;
-            Steinberg::int8 soloInt = 0, bypassInt = 0, muteInt = 0;
+            float gain = 0.0f;
+            float pan = 0.0f;
+            Steinberg::int8 soloInt = 0;
+            Steinberg::int8 bypassInt = 0;
+            Steinberg::int8 muteInt = 0;
 
             streamer.readFloat(gain);
             streamer.readFloat(pan);
@@ -3852,8 +3862,11 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     // Sweep system (v4+)
     if (version >= 4) {
         Steinberg::int8 sweepEnable = 0;
-        float sweepFreqNorm = 0.566f, sweepWidthNorm = 0.286f, sweepIntensityNorm = 0.25f;
-        Steinberg::int8 sweepFalloff = 1, sweepMorphLink = 0;
+        float sweepFreqNorm = 0.566f;
+        float sweepWidthNorm = 0.286f;
+        float sweepIntensityNorm = 0.25f;
+        Steinberg::int8 sweepFalloff = 1;
+        Steinberg::int8 sweepMorphLink = 0;
 
         if (streamer.readInt8(sweepEnable))
             editParamWithNotify(makeSweepParamId(SweepParamType::kSweepEnable), sweepEnable != 0 ? 1.0 : 0.0);
@@ -3870,8 +3883,12 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
                                 static_cast<double>(sweepMorphLink) / (kMorphLinkModeCount - 1));
 
         // LFO
-        Steinberg::int8 lfoEnable = 0, lfoWaveform = 0, lfoSync = 0, lfoNoteIndex = 0;
-        float lfoRateNorm = 0.606f, lfoDepth = 0.0f;
+        Steinberg::int8 lfoEnable = 0;
+        Steinberg::int8 lfoWaveform = 0;
+        Steinberg::int8 lfoSync = 0;
+        Steinberg::int8 lfoNoteIndex = 0;
+        float lfoRateNorm = 0.606f;
+        float lfoDepth = 0.0f;
 
         if (streamer.readInt8(lfoEnable))
             editParamWithNotify(makeSweepParamId(SweepParamType::kSweepLFOEnable), lfoEnable != 0 ? 1.0 : 0.0);
@@ -3888,7 +3905,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
 
         // Envelope
         Steinberg::int8 envEnable = 0;
-        float envAttackNorm = 0.091f, envReleaseNorm = 0.184f, envSensitivity = 0.5f;
+        float envAttackNorm = 0.091f;
+        float envReleaseNorm = 0.184f;
+        float envSensitivity = 0.5f;
 
         if (streamer.readInt8(envEnable))
             editParamWithNotify(makeSweepParamId(SweepParamType::kSweepEnvEnable), envEnable != 0 ? 1.0 : 0.0);
@@ -3904,7 +3923,8 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         if (streamer.readInt32(pointCount)) {
             pointCount = std::clamp(pointCount, 2, 8);
             for (int32_t i = 0; i < pointCount; ++i) {
-                float px = 0.0f, py = 0.0f;
+                float px = 0.0f;
+                float py = 0.0f;
                 streamer.readFloat(px);
                 streamer.readFloat(py);
             }
@@ -4038,19 +4058,19 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
             {ModParamType::kMacro3Value, ModParamType::kMacro3Min, ModParamType::kMacro3Max, ModParamType::kMacro3Curve},
             {ModParamType::kMacro4Value, ModParamType::kMacro4Min, ModParamType::kMacro4Max, ModParamType::kMacro4Curve},
         };
-        for (int m = 0; m < 4; ++m) {
+        for (const auto& macro : macroParams) {
             float macroValue = 0.0f;
             if (streamer.readFloat(macroValue))
-                editParamWithNotify(makeModParamId(macroParams[m][0]), macroValue);
+                editParamWithNotify(makeModParamId(macro[0]), macroValue);
             float macroMin = 0.0f;
             if (streamer.readFloat(macroMin))
-                editParamWithNotify(makeModParamId(macroParams[m][1]), macroMin);
+                editParamWithNotify(makeModParamId(macro[1]), macroMin);
             float macroMax = 1.0f;
             if (streamer.readFloat(macroMax))
-                editParamWithNotify(makeModParamId(macroParams[m][2]), macroMax);
+                editParamWithNotify(makeModParamId(macro[2]), macroMax);
             Steinberg::int8 macroCurve = 0;
             if (streamer.readInt8(macroCurve))
-                editParamWithNotify(makeModParamId(macroParams[m][3]), static_cast<double>(macroCurve) / 3.0);
+                editParamWithNotify(makeModParamId(macro[3]), static_cast<double>(macroCurve) / 3.0);
         }
 
         // Routing (32 x 4 values)
@@ -4075,9 +4095,10 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         for (int b = 0; b < kMaxBands; ++b) {
             const auto band = static_cast<uint8_t>(b);
 
-            float morphX = 0.5f, morphY = 0.5f;
+            float morphX = 0.5f;
+            float morphY = 0.5f;
             Steinberg::int8 morphMode = 0;
-            Steinberg::int8 activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
+            auto activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
             float morphSmoothing = 0.0f;
 
             if (streamer.readFloat(morphX))
@@ -4097,8 +4118,12 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
                 const auto node = static_cast<uint8_t>(n);
 
                 Steinberg::int8 nodeType = 0;
-                float drive = 1.0f, mix = 1.0f, tone = 4000.0f;
-                float bias = 0.0f, folds = 1.0f, bitDepth = 16.0f;
+                float drive = 1.0f;
+                float mix = 1.0f;
+                float tone = 4000.0f;
+                float bias = 0.0f;
+                float folds = 1.0f;
+                float bitDepth = 16.0f;
 
                 if (streamer.readInt8(nodeType))
                     editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeType), static_cast<double>(nodeType) / 25.0);
