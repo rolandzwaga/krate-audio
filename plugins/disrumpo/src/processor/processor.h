@@ -138,6 +138,17 @@ private:
     /// @brief Per-band state (gain, pan, solo, bypass, mute)
     std::array<BandState, kMaxBands> bandStates_{};
 
+    /// @brief Per-band morph node cache for incremental parameter updates.
+    /// When a single node parameter changes, the Processor updates the
+    /// cached node and pushes the entire array to BandProcessor.
+    struct BandMorphCache {
+        std::array<MorphNode, kMaxMorphNodes> nodes;
+        int activeNodeCount = kDefaultActiveNodes;
+        float morphX = 0.5f;
+        float morphY = 0.5f;
+    };
+    std::array<BandMorphCache, kMaxBands> bandMorphCache_{};
+
     /// @brief Per-band processors for gain/pan/mute
     std::array<BandProcessor, kMaxBands> bandProcessors_{};
 

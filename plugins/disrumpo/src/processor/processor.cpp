@@ -75,6 +75,24 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         bandProcessors_[i].setGainDb(bandStates_[i].gainDb);
         bandProcessors_[i].setPan(bandStates_[i].pan);
         bandProcessors_[i].setMute(bandStates_[i].mute);
+
+        // Initialize morph cache with defaults matching Controller defaults
+        auto& cache = bandMorphCache_[i];
+        constexpr DistortionCommonParams kDefaultCommon{1.0f, 1.0f, 4000.0f};
+        cache.nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
+        cache.nodes[0].commonParams = kDefaultCommon;
+        cache.nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
+        cache.nodes[1].commonParams = kDefaultCommon;
+        cache.nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
+        cache.nodes[2].commonParams = kDefaultCommon;
+        cache.nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
+        cache.nodes[3].commonParams = kDefaultCommon;
+        cache.activeNodeCount = kDefaultActiveNodes;
+
+        // Enable morph mode and push initial nodes
+        bandProcessors_[i].setMorphEnabled(true);
+        bandProcessors_[i].setMorphNodes(cache.nodes, cache.activeNodeCount);
+        bandProcessors_[i].setMorphPosition(cache.morphX, cache.morphY);
     }
 
     // Initialize sweep processor (spec 007-sweep-system)
@@ -230,9 +248,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             ModDest::bandParam(static_cast<uint8_t>(b), ModDest::kBandPan), basePanNorm);
         bandProcessors_[b].setPan(modPanNorm * 2.0f - 1.0f);
 
-        // NOTE: MorphX/Y and Drive/Mix modulation destination indices are defined
-        // (ModDest::kBandMorphX, etc.) and will take effect once those parameters
-        // are wired from processParameterChanges() to BandProcessor in the audio path.
+        // MorphX/Y and Drive/Mix modulation destinations are wired via
+        // processParameterChanges() -> BandProcessor setters.
     }
 
     // ==========================================================================
@@ -661,6 +678,36 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
             return Steinberg::kResultFalse;
     }
 
+    // =========================================================================
+    // Morph Node State (v6+)
+    // =========================================================================
+    for (int b = 0; b < kMaxBands; ++b) {
+        const auto& cache = bandMorphCache_[b];
+
+        // Band morph position & config (3 floats + 2 int8)
+        if (!streamer.writeFloat(cache.morphX)) return Steinberg::kResultFalse;
+        if (!streamer.writeFloat(cache.morphY)) return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(0)))  // morphMode
+            return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(cache.activeNodeCount)))
+            return Steinberg::kResultFalse;
+        if (!streamer.writeFloat(0.0f))  // morphSmoothing (ms)
+            return Steinberg::kResultFalse;
+
+        // Per-node state (4 nodes × 7 values each)
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            const auto& mn = cache.nodes[static_cast<size_t>(n)];
+            if (!streamer.writeInt8(static_cast<Steinberg::int8>(mn.type)))
+                return Steinberg::kResultFalse;
+            if (!streamer.writeFloat(mn.commonParams.drive)) return Steinberg::kResultFalse;
+            if (!streamer.writeFloat(mn.commonParams.mix)) return Steinberg::kResultFalse;
+            if (!streamer.writeFloat(mn.commonParams.toneHz)) return Steinberg::kResultFalse;
+            if (!streamer.writeFloat(mn.params.bias)) return Steinberg::kResultFalse;
+            if (!streamer.writeFloat(mn.params.folds)) return Steinberg::kResultFalse;
+            if (!streamer.writeFloat(mn.params.bitDepth)) return Steinberg::kResultFalse;
+        }
+    }
+
     return Steinberg::kResultOk;
 }
 
@@ -1043,6 +1090,53 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                     std::clamp(static_cast<int>(curve), 0, 3));
             routing.active = (routing.source != Krate::DSP::ModSource::None);
             modulationEngine_.setRouting(r, routing);
+        }
+    }
+
+    // =========================================================================
+    // Morph Node State (v6+)
+    // =========================================================================
+    if (version >= 6) {
+        for (int b = 0; b < kMaxBands; ++b) {
+            auto& cache = bandMorphCache_[b];
+
+            // Band morph position & config
+            float morphX = 0.5f;
+            float morphY = 0.5f;
+            Steinberg::int8 morphMode = 0;
+            Steinberg::int8 activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
+            float morphSmoothing = 0.0f;
+
+            if (streamer.readFloat(morphX)) cache.morphX = morphX;
+            if (streamer.readFloat(morphY)) cache.morphY = morphY;
+            if (streamer.readInt8(morphMode))
+                bandProcessors_[b].setMorphMode(
+                    static_cast<MorphMode>(std::clamp(static_cast<int>(morphMode), 0, 2)));
+            if (streamer.readInt8(activeNodes))
+                cache.activeNodeCount = std::clamp(
+                    static_cast<int>(activeNodes), kMinActiveNodes, kMaxMorphNodes);
+            if (streamer.readFloat(morphSmoothing))
+                bandProcessors_[b].setMorphSmoothingTime(morphSmoothing);
+
+            // Per-node state
+            for (int n = 0; n < kMaxMorphNodes; ++n) {
+                auto& mn = cache.nodes[static_cast<size_t>(n)];
+                Steinberg::int8 nodeType = 0;
+                if (streamer.readInt8(nodeType))
+                    mn.type = static_cast<DistortionType>(
+                        std::clamp(static_cast<int>(nodeType), 0, 25));
+                if (!streamer.readFloat(mn.commonParams.drive)) mn.commonParams.drive = 1.0f;
+                if (!streamer.readFloat(mn.commonParams.mix)) mn.commonParams.mix = 1.0f;
+                if (!streamer.readFloat(mn.commonParams.toneHz)) mn.commonParams.toneHz = 4000.0f;
+                if (!streamer.readFloat(mn.params.bias)) mn.params.bias = 0.0f;
+                if (!streamer.readFloat(mn.params.folds)) mn.params.folds = 1.0f;
+                if (!streamer.readFloat(mn.params.bitDepth)) mn.params.bitDepth = 16.0f;
+            }
+
+            // Apply to BandProcessor
+            bandProcessors_[b].setMorphEnabled(true);
+            bandProcessors_[b].setMorphNodes(cache.nodes, cache.activeNodeCount);
+            bandProcessors_[b].setMorphPosition(cache.morphX, cache.morphY);
         }
     }
 
@@ -1569,6 +1663,56 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                     }
                     break;  // Exit the default case after handling modulation params
                 }
+                // =============================================================
+                // Node Parameters (per-band, per-node distortion params)
+                // =============================================================
+                if (isNodeParamId(paramId)) {
+                    const uint8_t band = extractBandFromNodeParam(paramId);
+                    const uint8_t node = extractNode(paramId);
+                    const NodeParamType nodeType = extractNodeParamType(paramId);
+
+                    if (band < kMaxBands && node < kMaxMorphNodes) {
+                        auto& cache = bandMorphCache_[band];
+                        auto& mn = cache.nodes[static_cast<size_t>(node)];
+
+                        switch (nodeType) {
+                            case NodeParamType::kNodeType: {
+                                // StringListParameter: 26 types
+                                int idx = static_cast<int>(value * 25.0 + 0.5);
+                                mn.type = static_cast<DistortionType>(std::clamp(idx, 0, 25));
+                                break;
+                            }
+                            case NodeParamType::kNodeDrive:
+                                // RangeParameter [0, 10]
+                                mn.commonParams.drive = static_cast<float>(value) * 10.0f;
+                                break;
+                            case NodeParamType::kNodeMix:
+                                // RangeParameter [0, 100]% -> [0, 1]
+                                mn.commonParams.mix = static_cast<float>(value);
+                                break;
+                            case NodeParamType::kNodeTone:
+                                // RangeParameter [200, 8000] Hz
+                                mn.commonParams.toneHz = 200.0f + static_cast<float>(value) * 7800.0f;
+                                break;
+                            case NodeParamType::kNodeBias:
+                                // RangeParameter [-1, +1]
+                                mn.params.bias = static_cast<float>(value) * 2.0f - 1.0f;
+                                break;
+                            case NodeParamType::kNodeFolds:
+                                // RangeParameter [1, 12] (integer steps)
+                                mn.params.folds = 1.0f + std::round(static_cast<float>(value) * 11.0f);
+                                break;
+                            case NodeParamType::kNodeBitDepth:
+                                // RangeParameter [4, 24] (integer steps)
+                                mn.params.bitDepth = 4.0f + std::round(static_cast<float>(value) * 20.0f);
+                                break;
+                        }
+
+                        // Push updated nodes to BandProcessor
+                        bandProcessors_[band].setMorphNodes(cache.nodes, cache.activeNodeCount);
+                    }
+                    break;
+                }
                 // Check for band parameters
                 if (isBandParamId(paramId)) {
                     const uint8_t band = extractBandIndex(paramId);
@@ -1600,6 +1744,53 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             case BandParamType::kBandMute:
                                 bandStates_[band].mute = value >= 0.5;
                                 bandProcessors_[band].setMute(bandStates_[band].mute);
+                                break;
+                            case BandParamType::kBandMorphX: {
+                                bandMorphCache_[band].morphX = static_cast<float>(value);
+                                bandProcessors_[band].setMorphPosition(
+                                    bandMorphCache_[band].morphX,
+                                    bandMorphCache_[band].morphY);
+                                break;
+                            }
+                            case BandParamType::kBandMorphY: {
+                                bandMorphCache_[band].morphY = static_cast<float>(value);
+                                bandProcessors_[band].setMorphPosition(
+                                    bandMorphCache_[band].morphX,
+                                    bandMorphCache_[band].morphY);
+                                break;
+                            }
+                            case BandParamType::kBandActiveNodes: {
+                                // StringListParameter: 3 entries ["2","3","4"]
+                                int idx = static_cast<int>(value * 2.0 + 0.5);
+                                int count = std::clamp(idx + 2, kMinActiveNodes, kMaxMorphNodes);
+                                bandMorphCache_[band].activeNodeCount = count;
+                                bandProcessors_[band].setMorphNodes(
+                                    bandMorphCache_[band].nodes, count);
+                                break;
+                            }
+                            case BandParamType::kBandMorphSmoothing: {
+                                // RangeParameter [0, 500] ms
+                                float timeMs = static_cast<float>(value) * 500.0f;
+                                bandProcessors_[band].setMorphSmoothingTime(timeMs);
+                                break;
+                            }
+                            case BandParamType::kBandMorphMode: {
+                                // StringListParameter: 3 entries
+                                int idx = static_cast<int>(value * 2.0 + 0.5);
+                                bandProcessors_[band].setMorphMode(
+                                    static_cast<MorphMode>(std::clamp(idx, 0, 2)));
+                                break;
+                            }
+                            case BandParamType::kBandMorphXLink:
+                            case BandParamType::kBandMorphYLink:
+                                // Sweep-morph link handled by Controller (UI-side)
+                                break;
+                            case BandParamType::kBandExpanded:
+                            case BandParamType::kBandSelectedNode:
+                            case BandParamType::kBandDisplayedType:
+                                // UI-only parameters, no processor action needed
+                                break;
+                            default:
                                 break;
                         }
                     }

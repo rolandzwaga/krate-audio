@@ -255,6 +255,62 @@ private:
 };
 
 // ==============================================================================
+// BandCountDisplayController: Update SpectrumDisplay when band count changes
+// ==============================================================================
+// Watches the band count parameter and calls setNumBands() on the
+// SpectrumDisplay so crossover lines update in real-time.
+// ==============================================================================
+class BandCountDisplayController : public Steinberg::FObject {
+public:
+    BandCountDisplayController(
+        SpectrumDisplay** displayPtr,
+        Steinberg::Vst::Parameter* bandCountParam)
+    : displayPtr_(displayPtr)
+    , bandCountParam_(bandCountParam)
+    {
+        if (bandCountParam_) {
+            bandCountParam_->addRef();
+            bandCountParam_->addDependent(this);
+        }
+    }
+
+    ~BandCountDisplayController() override {
+        deactivate();
+        if (bandCountParam_) {
+            bandCountParam_->release();
+            bandCountParam_ = nullptr;
+        }
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            if (bandCountParam_) {
+                bandCountParam_->removeDependent(this);
+            }
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* /*changedUnknown*/,
+                           Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) return;
+
+        if (message == IDependent::kChanged && bandCountParam_
+            && displayPtr_ && *displayPtr_) {
+            float normalized = static_cast<float>(bandCountParam_->getNormalized());
+            int bandCount = static_cast<int>(std::round(normalized * 7.0f)) + 1;
+            (*displayPtr_)->setNumBands(bandCount);
+        }
+    }
+
+    OBJ_METHODS(BandCountDisplayController, FObject)
+
+private:
+    SpectrumDisplay** displayPtr_;
+    Steinberg::Vst::Parameter* bandCountParam_;
+    std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
 // MorphSweepLinkController: Update morph position based on sweep frequency
 // ==============================================================================
 // T159-T161: Listens to sweep frequency changes and updates morph X/Y positions
@@ -2435,6 +2491,83 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
         }
     }
 
+    // =========================================================================
+    // Morph Node State (v6+)
+    // =========================================================================
+    if (version >= 6) {
+        for (int b = 0; b < kMaxBands; ++b) {
+            const auto band = static_cast<uint8_t>(b);
+
+            // Band morph position & config
+            float morphX = 0.5f, morphY = 0.5f;
+            Steinberg::int8 morphMode = 0;
+            Steinberg::int8 activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
+            float morphSmoothing = 0.0f;
+
+            if (streamer.readFloat(morphX))
+                setParamNormalized(
+                    makeBandParamId(band, BandParamType::kBandMorphX),
+                    static_cast<double>(morphX));
+            if (streamer.readFloat(morphY))
+                setParamNormalized(
+                    makeBandParamId(band, BandParamType::kBandMorphY),
+                    static_cast<double>(morphY));
+            if (streamer.readInt8(morphMode))
+                setParamNormalized(
+                    makeBandParamId(band, BandParamType::kBandMorphMode),
+                    static_cast<double>(morphMode) / 2.0);
+            if (streamer.readInt8(activeNodes)) {
+                int count = std::clamp(static_cast<int>(activeNodes),
+                                       kMinActiveNodes, kMaxMorphNodes);
+                setParamNormalized(
+                    makeBandParamId(band, BandParamType::kBandActiveNodes),
+                    static_cast<double>(count - 2) / 2.0);
+            }
+            if (streamer.readFloat(morphSmoothing))
+                setParamNormalized(
+                    makeBandParamId(band, BandParamType::kBandMorphSmoothing),
+                    static_cast<double>(morphSmoothing) / 500.0);
+
+            // Per-node state (4 nodes x 7 values each)
+            for (int n = 0; n < kMaxMorphNodes; ++n) {
+                const auto node = static_cast<uint8_t>(n);
+
+                Steinberg::int8 nodeType = 0;
+                float drive = 1.0f, mix = 1.0f, tone = 4000.0f;
+                float bias = 0.0f, folds = 1.0f, bitDepth = 16.0f;
+
+                if (streamer.readInt8(nodeType))
+                    setParamNormalized(
+                        makeNodeParamId(band, node, NodeParamType::kNodeType),
+                        static_cast<double>(nodeType) / 25.0);
+                if (streamer.readFloat(drive))
+                    setParamNormalized(
+                        makeNodeParamId(band, node, NodeParamType::kNodeDrive),
+                        static_cast<double>(drive) / 10.0);
+                if (streamer.readFloat(mix))
+                    setParamNormalized(
+                        makeNodeParamId(band, node, NodeParamType::kNodeMix),
+                        static_cast<double>(mix));
+                if (streamer.readFloat(tone))
+                    setParamNormalized(
+                        makeNodeParamId(band, node, NodeParamType::kNodeTone),
+                        static_cast<double>(tone - 200.0f) / 7800.0);
+                if (streamer.readFloat(bias))
+                    setParamNormalized(
+                        makeNodeParamId(band, node, NodeParamType::kNodeBias),
+                        static_cast<double>(bias + 1.0f) / 2.0);
+                if (streamer.readFloat(folds))
+                    setParamNormalized(
+                        makeNodeParamId(band, node, NodeParamType::kNodeFolds),
+                        static_cast<double>(folds - 1.0f) / 11.0);
+                if (streamer.readFloat(bitDepth))
+                    setParamNormalized(
+                        makeNodeParamId(band, node, NodeParamType::kNodeBitDepth),
+                        static_cast<double>(bitDepth - 4.0f) / 20.0);
+            }
+        }
+    }
+
     return Steinberg::kResultOk;
 }
 
@@ -2616,7 +2749,7 @@ VSTGUI::CView* Controller::createCustomView(
     VSTGUI::UTF8StringPtr name,
     const VSTGUI::UIAttributes& attributes,
     const VSTGUI::IUIDescription* /*description*/,
-    VSTGUI::VST3Editor* /*editor*/) {
+    VSTGUI::VST3Editor* editor) {
 
     // FR-013: Create custom views
     if (std::strcmp(name, "SpectrumDisplay") == 0) {
@@ -2718,6 +2851,14 @@ VSTGUI::CView* Controller::createCustomView(
         Steinberg::Vst::ParamID morphXParamId = makeBandParamId(
             static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphX);
         morphPad->setTag(static_cast<int32_t>(morphXParamId));
+
+        // Wire CControl listener so X position changes reach the host
+        morphPad->setListener(editor);
+
+        // Wire Y position parameter for direct host communication
+        Steinberg::Vst::ParamID morphYParamId = makeBandParamId(
+            static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphY);
+        morphPad->setMorphYParamId(morphYParamId);
 
         // Initialize morph position from current parameter values
         auto* morphXParam = getParameterObject(morphXParamId);
@@ -3133,6 +3274,10 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 false  // Show when value >= threshold
             );
         }
+
+        // Update SpectrumDisplay when band count changes
+        bandCountDisplayController_ = new BandCountDisplayController(
+            &spectrumDisplay_, bandCountParam);
     }
 
     // Create expanded visibility controllers (T079, FR-015)
@@ -3279,6 +3424,14 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
             cvc->deactivate();
         }
         customCurveVisController_ = nullptr;
+    }
+
+    // Deactivate band count display controller
+    if (bandCountDisplayController_) {
+        if (auto* bcdc = dynamic_cast<BandCountDisplayController*>(bandCountDisplayController_.get())) {
+            bcdc->deactivate();
+        }
+        bandCountDisplayController_ = nullptr;
     }
 
     sweepIndicator_ = nullptr;

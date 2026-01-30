@@ -22,9 +22,11 @@
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 #include "dsp/distortion_types.h"
+#include "dsp/distortion_adapter.h"
 
 #include <cmath>
 #include <array>
+#include <memory>
 #include <vector>
 
 using Catch::Approx;
@@ -348,4 +350,126 @@ TEST_CASE("BandProcessor morph bypass when drive is zero", "[band][morph][FR-010
     // Should produce valid output (with pan coefficients applied)
     REQUIRE(std::isfinite(left));
     REQUIRE(std::isfinite(right));
+}
+
+TEST_CASE("DIAG: DistortionAdapters produce different output for different types",
+          "[diagnostic]") {
+    Disrumpo::DistortionAdapter adapterA;
+    Disrumpo::DistortionAdapter adapterB;
+    adapterA.prepare(kSampleRate, static_cast<int>(kBlockSize));
+    adapterB.prepare(kSampleRate, static_cast<int>(kBlockSize));
+
+    // Set up SoftClip
+    adapterA.setType(Disrumpo::DistortionType::SoftClip);
+    adapterA.setCommonParams({5.0f, 1.0f, 8000.0f});
+
+    // Set up Bitcrush
+    adapterB.setType(Disrumpo::DistortionType::Bitcrush);
+    adapterB.setCommonParams({5.0f, 1.0f, 8000.0f});
+    Disrumpo::DistortionParams bParams;
+    bParams.bitDepth = 4.0f;
+    adapterB.setParams(bParams);
+
+    float outA = adapterA.process(0.5f);
+    float outB = adapterB.process(0.5f);
+
+    INFO("Adapter SoftClip output: " << outA);
+    INFO("Adapter Bitcrush output: " << outB);
+    INFO("Adapter difference: " << std::abs(outA - outB));
+
+    // These MUST be different - completely different algorithms
+    REQUIRE(outA != Approx(outB).margin(0.001f));
+}
+
+TEST_CASE("DIAG: MorphEngine produces different output for cross-family types",
+          "[diagnostic]") {
+    Disrumpo::MorphEngine engine;
+    engine.prepare(kSampleRate, static_cast<int>(kBlockSize));
+    engine.setSmoothingTime(0.0f);  // No smoothing for instant response
+
+    // Set up cross-family nodes
+    std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+    nodes[0] = Disrumpo::MorphNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip);
+    nodes[0].commonParams.drive = 5.0f;
+    nodes[0].commonParams.mix = 1.0f;
+    nodes[0].commonParams.toneHz = 8000.0f;
+
+    nodes[1] = Disrumpo::MorphNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::Bitcrush);
+    nodes[1].commonParams.drive = 5.0f;
+    nodes[1].commonParams.mix = 1.0f;
+    nodes[1].commonParams.toneHz = 8000.0f;
+    nodes[1].params.bitDepth = 4.0f;
+
+    nodes[2] = Disrumpo::MorphNode(2, 0.0f, 1.0f, Disrumpo::DistortionType::SoftClip);
+    nodes[3] = Disrumpo::MorphNode(3, 1.0f, 1.0f, Disrumpo::DistortionType::SoftClip);
+
+    engine.setNodes(nodes, 2);
+    engine.setMode(Disrumpo::MorphMode::Linear1D);
+
+    // Process MANY non-zero samples at position 0 to settle filter states
+    engine.setMorphPosition(0.0f, 0.0f);
+    float softClipOut = 0.0f;
+    for (int i = 0; i < 500; ++i) {
+        softClipOut = engine.process(0.5f);
+    }
+
+    const auto& weightsA = engine.getWeights();
+    INFO("Weights at pos 0: [" << weightsA[0] << ", " << weightsA[1]
+         << ", " << weightsA[2] << ", " << weightsA[3] << "]");
+    INFO("Smoothed X at pos 0: " << engine.getSmoothedX());
+
+    // Process MANY non-zero samples at position 1 to settle filter states
+    engine.setMorphPosition(1.0f, 0.0f);
+    float bitcrushOut = 0.0f;
+    for (int i = 0; i < 500; ++i) {
+        bitcrushOut = engine.process(0.5f);
+    }
+
+    const auto& weightsB = engine.getWeights();
+    INFO("Weights at pos 1: [" << weightsB[0] << ", " << weightsB[1]
+         << ", " << weightsB[2] << ", " << weightsB[3] << "]");
+    INFO("Smoothed X at pos 1: " << engine.getSmoothedX());
+
+    INFO("SoftClip output (last sample): " << softClipOut);
+    INFO("Bitcrush output (last sample): " << bitcrushOut);
+    INFO("Difference: " << std::abs(softClipOut - bitcrushOut));
+
+    // The outputs from two completely different distortion types must differ
+    REQUIRE(softClipOut != Approx(bitcrushOut).margin(0.001f));
+}
+
+TEST_CASE("DIAG: Same-family types (SoftClip vs Tube) produce different output",
+          "[diagnostic]") {
+    Disrumpo::MorphEngine engine;
+    engine.prepare(kSampleRate, static_cast<int>(kBlockSize));
+    engine.setSmoothingTime(0.0f);
+
+    std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+    nodes[0] = Disrumpo::MorphNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip);
+    nodes[0].commonParams.drive = 5.0f;
+    nodes[0].commonParams.mix = 1.0f;
+
+    nodes[1] = Disrumpo::MorphNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::Tube);
+    nodes[1].commonParams.drive = 5.0f;
+    nodes[1].commonParams.mix = 1.0f;
+
+    nodes[2] = Disrumpo::MorphNode(2, 0.0f, 1.0f, Disrumpo::DistortionType::SoftClip);
+    nodes[3] = Disrumpo::MorphNode(3, 1.0f, 1.0f, Disrumpo::DistortionType::SoftClip);
+
+    engine.setNodes(nodes, 2);
+    engine.setMode(Disrumpo::MorphMode::Linear1D);
+
+    engine.setMorphPosition(0.0f, 0.0f);
+    for (int i = 0; i < 2000; ++i) { (void)engine.process(0.0f); }
+    float softClipOut = engine.process(0.5f);
+
+    engine.setMorphPosition(1.0f, 0.0f);
+    for (int i = 0; i < 2000; ++i) { (void)engine.process(0.0f); }
+    float tubeOut = engine.process(0.5f);
+
+    INFO("SoftClip output: " << softClipOut);
+    INFO("Tube output: " << tubeOut);
+    INFO("Difference: " << std::abs(softClipOut - tubeOut));
+
+    REQUIRE(softClipOut != Approx(tubeOut).margin(0.001f));
 }

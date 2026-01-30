@@ -595,8 +595,9 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v3: VSTGUI infrastructure (all ~450 parameters)
 // - v4: Sweep system state (sweep params, LFO, envelope, custom curve)
 // - v5: Modulation system (source params, routing params, macros)
+// - v6: Morph node state (per-band morph position, mode, node params)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 5;
+constexpr int32_t kPresetVersion = 6;
 
 // ==============================================================================
 // Plugin Metadata
