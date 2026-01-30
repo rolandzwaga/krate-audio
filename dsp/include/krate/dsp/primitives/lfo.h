@@ -294,6 +294,18 @@ public:
         return sampleRate_;
     }
 
+    [[nodiscard]] float freeRunningFrequency() const noexcept {
+        return frequency_;
+    }
+
+    [[nodiscard]] NoteValue noteValue() const noexcept {
+        return noteValue_;
+    }
+
+    [[nodiscard]] NoteModifier noteModifier() const noexcept {
+        return noteModifier_;
+    }
+
 private:
     // =========================================================================
     // Wavetable Generation

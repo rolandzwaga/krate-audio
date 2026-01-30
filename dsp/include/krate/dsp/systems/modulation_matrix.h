@@ -25,6 +25,7 @@
 
 // Layer 0 dependencies
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/modulation_source.h>
 
 // Layer 1 dependencies
 #include <krate/dsp/primitives/smoother.h>
@@ -61,23 +62,8 @@ enum class ModulationMode : uint8_t {
 // =============================================================================
 // ModulationSource Interface
 // =============================================================================
-
-/// @brief Abstract interface for modulation sources
-///
-/// Any class that can provide modulation values should implement this interface.
-/// Known implementations: LFO (Layer 1), EnvelopeFollower (Layer 2)
-class ModulationSource {
-public:
-    virtual ~ModulationSource() = default;
-
-    /// @brief Get the current modulation output value
-    /// @return Current value (typically [-1,+1] for LFO, [0,1+] for EnvFollower)
-    [[nodiscard]] virtual float getCurrentValue() const noexcept = 0;
-
-    /// @brief Get the output range of this source
-    /// @return Pair of (minValue, maxValue)
-    [[nodiscard]] virtual std::pair<float, float> getSourceRange() const noexcept = 0;
-};
+// NOTE: ModulationSource is now defined in Layer 0: <krate/dsp/core/modulation_source.h>
+// Included above to allow Layer 2 processors to implement the interface.
 
 // =============================================================================
 // ModulationDestination

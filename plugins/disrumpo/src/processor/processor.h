@@ -24,6 +24,7 @@
 #include "dsp/sweep_envelope.h"
 
 #include <krate/dsp/primitives/sweep_position_buffer.h>
+#include <krate/dsp/systems/modulation_engine.h>
 
 #include <array>
 #include <atomic>
@@ -184,6 +185,12 @@ private:
     /// @brief Base sweep frequency before modulation (Hz)
     std::atomic<float> baseSweepFrequency_{1000.0f};
 
+    /// @brief Base sweep width before modulation (normalized [0, 1])
+    std::atomic<float> baseSweepWidthNorm_{0.286f};
+
+    /// @brief Base sweep intensity before modulation (normalized [0, 1])
+    std::atomic<float> baseSweepIntensityNorm_{0.25f};
+
     // ==========================================================================
     // MIDI Learn (FR-028, FR-029)
     // ==========================================================================
@@ -193,6 +200,14 @@ private:
 
     /// @brief Assigned MIDI CC number (0-127), or 128 for none
     int assignedMidiCC_ = 128;
+
+    // ==========================================================================
+    // Modulation System (spec 008-modulation-system)
+    // ==========================================================================
+
+    /// @brief Modulation engine for all modulation sources and routing
+    Krate::DSP::ModulationEngine modulationEngine_;
+
 };
 
 } // namespace Disrumpo

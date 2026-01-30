@@ -38,6 +38,8 @@ add_executable(dsp_tests
     unit/core/filter_design_test.cpp
     unit/core/filter_tables_test.cpp
     unit/core/midi_utils_tests.cpp
+    unit/core/modulation_types_test.cpp
+    unit/core/modulation_curves_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/delay_line_test.cpp
@@ -129,6 +131,11 @@ add_executable(dsp_tests
     unit/processors/aliasing_effect_test.cpp
     unit/processors/granular_distortion_test.cpp
     unit/processors/fractal_distortion_test.cpp
+    unit/processors/random_source_test.cpp
+    unit/processors/chaos_mod_source_test.cpp
+    unit/processors/transient_detector_test.cpp
+    unit/processors/sample_hold_source_test.cpp
+    unit/processors/pitch_follower_source_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -151,6 +158,8 @@ add_executable(dsp_tests
     unit/systems/vowel_sequencer_tests.cpp
     unit/systems/granular_filter_test.cpp
     unit/systems/timevar_comb_bank_tests.cpp
+    unit/systems/modulation_engine_test.cpp
+    unit/systems/modulation_engine_perf_test.cpp
 
     # Layer 4: Effects
     unit/effects/tape_delay_test.cpp
@@ -220,6 +229,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/filter_design_test.cpp
         unit/core/filter_tables_test.cpp
         unit/core/midi_utils_tests.cpp
+        unit/core/modulation_types_test.cpp
+        unit/core/modulation_curves_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/dc_blocker_test.cpp
         unit/primitives/oversampler_test.cpp
@@ -303,6 +314,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/vowel_sequencer_tests.cpp
         unit/systems/granular_filter_test.cpp
         unit/systems/timevar_comb_bank_tests.cpp
+        unit/systems/modulation_engine_test.cpp
+        unit/systems/modulation_engine_perf_test.cpp
         unit/effects/tape_delay_test.cpp
         unit/effects/tape_delay_params_diagnostic_test.cpp
         unit/effects/bbd_delay_test.cpp
@@ -354,6 +367,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/aliasing_effect_test.cpp
         unit/processors/granular_distortion_test.cpp
         unit/processors/fractal_distortion_test.cpp
+        unit/processors/random_source_test.cpp
+        unit/processors/chaos_mod_source_test.cpp
+        unit/processors/transient_detector_test.cpp
+        unit/processors/sample_hold_source_test.cpp
+        unit/processors/pitch_follower_source_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

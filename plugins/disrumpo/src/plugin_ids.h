@@ -344,10 +344,21 @@ constexpr uint8_t extractCrossoverIndex(Steinberg::Vst::ParamID paramId) {
 }
 
 // ==============================================================================
-// Modulation Parameter ID Range (FR-002)
+// Modulation Parameter ID Range (spec 008-modulation-system)
 // ==============================================================================
-// Reserved range for modulation source and routing parameters
-// These will be populated in the modulation spec (Week 9)
+// Modulation source and routing parameters use 0x0D00-0x0DFF range.
+//
+// Layout:
+// - 0x0D00-0x0D06: LFO 1 parameters
+// - 0x0D10-0x0D16: LFO 2 parameters
+// - 0x0D20-0x0D23: Envelope Follower parameters
+// - 0x0D30-0x0D32: Random source parameters
+// - 0x0D38-0x0D3A: Chaos source parameters
+// - 0x0D40-0x0D42: Sample & Hold parameters
+// - 0x0D48-0x0D4B: Pitch Follower parameters
+// - 0x0D50-0x0D52: Transient Detector parameters
+// - 0x0D60-0x0D6F: Macro parameters (4 macros x 4 params)
+// - 0x0D80-0x0DFF: Routing parameters (32 routings x 4 params)
 // ==============================================================================
 
 constexpr Steinberg::Vst::ParamID kModulationParamBase = 0x0D00;
@@ -359,6 +370,179 @@ constexpr Steinberg::Vst::ParamID kModulationParamEnd  = 0x0DFF;
 constexpr bool isModulationParamId(Steinberg::Vst::ParamID paramId) {
     return paramId >= kModulationParamBase && paramId <= kModulationParamEnd;
 }
+
+// =============================================================================
+// Modulation Source Parameter Type Enum
+// =============================================================================
+
+enum class ModParamType : uint8_t {
+    // LFO 1 (0x00-0x06)
+    kLFO1Rate       = 0x00,  ///< LFO 1 rate [0.01, 20] Hz
+    kLFO1Shape      = 0x01,  ///< LFO 1 waveform [Sine, Triangle, Saw, Square, S&H, SmoothRandom]
+    kLFO1Phase      = 0x02,  ///< LFO 1 phase offset [0, 360] degrees
+    kLFO1Sync       = 0x03,  ///< LFO 1 tempo sync [on/off]
+    kLFO1NoteValue  = 0x04,  ///< LFO 1 note value (when synced)
+    kLFO1Unipolar   = 0x05,  ///< LFO 1 unipolar mode [on/off]
+    kLFO1Retrigger  = 0x06,  ///< LFO 1 retrigger on transport start [on/off]
+
+    // LFO 2 (0x10-0x16)
+    kLFO2Rate       = 0x10,  ///< LFO 2 rate [0.01, 20] Hz
+    kLFO2Shape      = 0x11,  ///< LFO 2 waveform
+    kLFO2Phase      = 0x12,  ///< LFO 2 phase offset [0, 360] degrees
+    kLFO2Sync       = 0x13,  ///< LFO 2 tempo sync [on/off]
+    kLFO2NoteValue  = 0x14,  ///< LFO 2 note value (when synced)
+    kLFO2Unipolar   = 0x15,  ///< LFO 2 unipolar mode [on/off]
+    kLFO2Retrigger  = 0x16,  ///< LFO 2 retrigger on transport start [on/off]
+
+    // Envelope Follower (0x20-0x23)
+    kEnvFollowerAttack      = 0x20,  ///< Attack time [1, 100] ms
+    kEnvFollowerRelease     = 0x21,  ///< Release time [10, 500] ms
+    kEnvFollowerSensitivity = 0x22,  ///< Sensitivity [0, 100] %
+    kEnvFollowerSource      = 0x23,  ///< Source type [InputL, InputR, Sum, Mid, Side]
+
+    // Random (0x30-0x32)
+    kRandomRate       = 0x30,  ///< Rate [0.1, 50] Hz
+    kRandomSmoothness = 0x31,  ///< Smoothness [0, 100] %
+    kRandomSync       = 0x32,  ///< Tempo sync [on/off]
+
+    // Chaos (0x38-0x3A)
+    kChaosModel    = 0x38,  ///< Model [Lorenz, Rossler, Chua, Henon]
+    kChaosSpeed    = 0x39,  ///< Speed [0.05, 20.0]
+    kChaosCoupling = 0x3A,  ///< Coupling [0, 1.0]
+
+    // Sample & Hold (0x40-0x42)
+    kSampleHoldSource = 0x40,  ///< Input source [Random, LFO1, LFO2, External]
+    kSampleHoldRate   = 0x41,  ///< Rate [0.1, 50] Hz
+    kSampleHoldSlew   = 0x42,  ///< Slew time [0, 500] ms
+
+    // Pitch Follower (0x48-0x4B)
+    kPitchFollowerMinHz         = 0x48,  ///< Min Hz [20, 500]
+    kPitchFollowerMaxHz         = 0x49,  ///< Max Hz [200, 5000]
+    kPitchFollowerConfidence    = 0x4A,  ///< Confidence threshold [0, 1.0]
+    kPitchFollowerTrackingSpeed = 0x4B,  ///< Tracking speed [10, 300] ms
+
+    // Transient Detector (0x50-0x52)
+    kTransientSensitivity = 0x50,  ///< Sensitivity [0, 1.0]
+    kTransientAttack      = 0x51,  ///< Attack time [0.5, 10] ms
+    kTransientDecay       = 0x52,  ///< Decay time [20, 200] ms
+
+    // Macros (0x60-0x6F: 4 macros x 4 params each)
+    kMacro1Value = 0x60,  ///< Macro 1 value [0, 1]
+    kMacro1Min   = 0x61,  ///< Macro 1 min output [0, 1]
+    kMacro1Max   = 0x62,  ///< Macro 1 max output [0, 1]
+    kMacro1Curve = 0x63,  ///< Macro 1 curve [Linear, Exp, S-Curve, Stepped]
+    kMacro2Value = 0x64,
+    kMacro2Min   = 0x65,
+    kMacro2Max   = 0x66,
+    kMacro2Curve = 0x67,
+    kMacro3Value = 0x68,
+    kMacro3Min   = 0x69,
+    kMacro3Max   = 0x6A,
+    kMacro3Curve = 0x6B,
+    kMacro4Value = 0x6C,
+    kMacro4Min   = 0x6D,
+    kMacro4Max   = 0x6E,
+    kMacro4Curve = 0x6F,
+};
+
+/// @brief Create parameter ID for modulation parameters.
+/// @param param ModParamType enum value
+/// @return Encoded parameter ID in 0x0D00 range
+constexpr Steinberg::Vst::ParamID makeModParamId(ModParamType param) {
+    return kModulationParamBase | static_cast<Steinberg::Vst::ParamID>(param);
+}
+
+// =============================================================================
+// Routing Parameter Encoding
+// =============================================================================
+// 32 routings x 4 params each = 128 IDs
+// Base: 0x0D80 + routingIndex * 4 + offset
+// Offset 0 = Source, 1 = Dest, 2 = Amount, 3 = Curve
+// =============================================================================
+
+constexpr Steinberg::Vst::ParamID kRoutingParamBase = 0x0D80;
+
+/// @brief Create parameter ID for routing parameters.
+/// @param routingIndex Routing slot index (0-31)
+/// @param offset Parameter offset: 0=Source, 1=Dest, 2=Amount, 3=Curve
+/// @return Encoded parameter ID
+constexpr Steinberg::Vst::ParamID makeRoutingParamId(uint8_t routingIndex, uint8_t offset) {
+    return kRoutingParamBase + static_cast<Steinberg::Vst::ParamID>(routingIndex) * 4 + offset;
+}
+
+/// @brief Check if a parameter ID is a routing parameter.
+/// @param paramId Parameter ID to check
+/// @return true if this is a routing parameter
+constexpr bool isRoutingParamId(Steinberg::Vst::ParamID paramId) {
+    return paramId >= kRoutingParamBase && paramId < (kRoutingParamBase + 128);
+}
+
+/// @brief Extract routing index from a routing parameter ID.
+/// @param paramId Parameter ID to decode
+/// @return Routing index (0-31)
+constexpr uint8_t extractRoutingIndex(Steinberg::Vst::ParamID paramId) {
+    return static_cast<uint8_t>((paramId - kRoutingParamBase) / 4);
+}
+
+/// @brief Extract routing parameter offset from a routing parameter ID.
+/// @param paramId Parameter ID to decode
+/// @return Parameter offset (0=Source, 1=Dest, 2=Amount, 3=Curve)
+constexpr uint8_t extractRoutingOffset(Steinberg::Vst::ParamID paramId) {
+    return static_cast<uint8_t>((paramId - kRoutingParamBase) % 4);
+}
+
+// ==============================================================================
+// Modulation Destination Index Mapping (FR-063, FR-064)
+// ==============================================================================
+// Maps modulation routing destination IDs (0-127) to actual Disrumpo parameters.
+// The ModulationEngine uses modOffsets_[kMaxModDestinations=128] internally.
+// These indices are what the routing destParamId field holds.
+//
+// Layout:
+// - 0-2: Global parameters (InputGain, OutputGain, GlobalMix)
+// - 3-5: Sweep parameters (Frequency, Width, Intensity)
+// - 6-53: Per-band parameters (8 bands × 6 params each)
+//
+// Per-band params at offset (6 + band*6 + param):
+//   +0=MorphX, +1=MorphY, +2=Drive, +3=Mix, +4=BandGain, +5=BandPan
+// ==============================================================================
+
+namespace ModDest {
+
+// Global destinations
+inline constexpr uint32_t kInputGain     = 0;
+inline constexpr uint32_t kOutputGain    = 1;
+inline constexpr uint32_t kGlobalMix     = 2;
+
+// Sweep destinations
+inline constexpr uint32_t kSweepFrequency = 3;
+inline constexpr uint32_t kSweepWidth     = 4;
+inline constexpr uint32_t kSweepIntensity = 5;
+
+// Per-band destination base
+inline constexpr uint32_t kBandBase       = 6;
+inline constexpr uint32_t kParamsPerBand  = 6;
+
+// Per-band parameter offsets within a band block
+inline constexpr uint32_t kBandMorphX  = 0;
+inline constexpr uint32_t kBandMorphY  = 1;
+inline constexpr uint32_t kBandDrive   = 2;
+inline constexpr uint32_t kBandMix     = 3;
+inline constexpr uint32_t kBandGain    = 4;
+inline constexpr uint32_t kBandPan     = 5;
+
+// Total modulation destinations: 6 global/sweep + 8 bands × 6 params = 54
+inline constexpr uint32_t kTotalDestinations = kBandBase + 8 * kParamsPerBand;
+
+/// @brief Get modulation destination index for a per-band parameter.
+/// @param band Band index (0-7)
+/// @param paramOffset One of kBandMorphX..kBandPan (0-5)
+/// @return Destination index for use with ModulationEngine
+constexpr uint32_t bandParam(uint8_t band, uint32_t paramOffset) {
+    return kBandBase + static_cast<uint32_t>(band) * kParamsPerBand + paramOffset;
+}
+
+}  // namespace ModDest
 
 // ==============================================================================
 // Morph Link Mode Enum (FR-032, FR-033)
@@ -410,8 +594,9 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v2: Band management (bandCount, 8x bandState, 7x crossoverFreq)
 // - v3: VSTGUI infrastructure (all ~450 parameters)
 // - v4: Sweep system state (sweep params, LFO, envelope, custom curve)
+// - v5: Modulation system (source params, routing params, macros)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 4;
+constexpr int32_t kPresetVersion = 5;
 
 // ==============================================================================
 // Plugin Metadata
