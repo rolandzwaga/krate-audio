@@ -58,6 +58,30 @@ public:
         outputSmoother_.reset();
     }
 
+    /// @brief Process a block at control rate (more efficient than per-sample).
+    ///
+    /// Advances phase by the full block duration and samples the input for
+    /// any triggers that occurred.
+    ///
+    /// @param numSamples Number of samples in the block
+    void processBlock(size_t numSamples) noexcept {
+        float phaseInc = rate_ / static_cast<float>(sampleRate_);
+        phase_ += phaseInc * static_cast<float>(numSamples);
+
+        while (phase_ >= 1.0f) {
+            phase_ -= 1.0f;
+            heldValue_ = sampleCurrentInput();
+        }
+
+        if (slewMs_ <= 0.01f) {
+            outputSmoother_.snapTo(heldValue_);
+        } else {
+            outputSmoother_.configure(slewMs_, static_cast<float>(sampleRate_));
+            outputSmoother_.setTarget(heldValue_);
+        }
+        static_cast<void>(outputSmoother_.process());
+    }
+
     /// @brief Process one sample.
     void process() noexcept {
         float phaseInc = rate_ / static_cast<float>(sampleRate_);
@@ -106,6 +130,11 @@ public:
     void setExternalLevel(float level) noexcept {
         externalLevel_ = std::clamp(level, 0.0f, 1.0f);
     }
+
+    // Parameter getters
+    [[nodiscard]] SampleHoldInputType getInputType() const noexcept { return inputType_; }
+    [[nodiscard]] float getRate() const noexcept { return rate_; }
+    [[nodiscard]] float getSlewTime() const noexcept { return slewMs_; }
 
 private:
     [[nodiscard]] float sampleCurrentInput() noexcept {

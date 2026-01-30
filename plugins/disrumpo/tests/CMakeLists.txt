@@ -69,6 +69,7 @@ add_executable(disrumpo_tests
     integration/expand_collapse_test.cpp
     integration/node_editor_test.cpp
     integration/sweep_band_intensity_test.cpp
+    integration/modulation_audio_path_test.cpp
 )
 
 target_link_libraries(disrumpo_tests

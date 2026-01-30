@@ -56,6 +56,33 @@ public:
         outputSmoother_.reset();
     }
 
+    /// @brief Process a block at control rate (more efficient than per-sample).
+    ///
+    /// Advances phase by the full block duration and generates new random
+    /// values for any triggers that occurred. Only the final trigger's value
+    /// is captured (intra-block triggers are inaudible for modulation).
+    ///
+    /// @param numSamples Number of samples in the block
+    void processBlock(size_t numSamples) noexcept {
+        float rate = tempoSync_ ? tempoSyncRate() : rate_;
+        float phaseInc = rate / static_cast<float>(sampleRate_);
+        phase_ += phaseInc * static_cast<float>(numSamples);
+
+        while (phase_ >= 1.0f) {
+            phase_ -= 1.0f;
+            currentTarget_ = rng_.nextFloat();
+        }
+
+        if (smoothness_ <= 0.001f) {
+            outputSmoother_.snapTo(currentTarget_);
+        } else {
+            float smoothMs = smoothness_ * 200.0f;
+            outputSmoother_.configure(smoothMs, static_cast<float>(sampleRate_));
+            outputSmoother_.setTarget(currentTarget_);
+        }
+        static_cast<void>(outputSmoother_.process());
+    }
+
     /// @brief Process one sample.
     void process() noexcept {
         // Advance phase
@@ -108,6 +135,11 @@ public:
     void setTempo(float bpm) noexcept {
         bpm_ = std::clamp(bpm, 1.0f, 999.0f);
     }
+
+    // Parameter getters
+    [[nodiscard]] float getRate() const noexcept { return rate_; }
+    [[nodiscard]] float getSmoothness() const noexcept { return smoothness_; }
+    [[nodiscard]] bool isTempoSynced() const noexcept { return tempoSync_; }
 
 private:
     [[nodiscard]] float tempoSyncRate() const noexcept {

@@ -185,6 +185,12 @@ private:
     /// @brief Base sweep frequency before modulation (Hz)
     std::atomic<float> baseSweepFrequency_{1000.0f};
 
+    /// @brief Base sweep width before modulation (normalized [0, 1])
+    std::atomic<float> baseSweepWidthNorm_{0.286f};
+
+    /// @brief Base sweep intensity before modulation (normalized [0, 1])
+    std::atomic<float> baseSweepIntensityNorm_{0.25f};
+
     // ==========================================================================
     // MIDI Learn (FR-028, FR-029)
     // ==========================================================================
@@ -201,6 +207,7 @@ private:
 
     /// @brief Modulation engine for all modulation sources and routing
     Krate::DSP::ModulationEngine modulationEngine_;
+
 };
 
 } // namespace Disrumpo

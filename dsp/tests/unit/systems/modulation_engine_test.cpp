@@ -841,3 +841,163 @@ TEST_CASE("Engine all 32 routing slots can be active", "[systems][modulation_eng
     }
     REQUIRE(hasNonZero);
 }
+
+// =============================================================================
+// State Getter Roundtrip Tests (SC-010)
+// =============================================================================
+
+TEST_CASE("LFO 1 getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    engine.setLFO1Rate(5.0f);
+    engine.setLFO1Waveform(Waveform::Triangle);
+    engine.setLFO1PhaseOffset(90.0f);
+    engine.setLFO1TempoSync(true);
+    engine.setLFO1NoteValue(NoteValue::Eighth, NoteModifier::Dotted);
+    engine.setLFO1Unipolar(true);
+    engine.setLFO1Retrigger(false);
+
+    REQUIRE(engine.getLFO1Rate() == Approx(5.0f).margin(0.01f));
+    REQUIRE(engine.getLFO1Waveform() == Waveform::Triangle);
+    REQUIRE(engine.getLFO1PhaseOffset() == Approx(90.0f).margin(0.1f));
+    REQUIRE(engine.getLFO1TempoSync() == true);
+    REQUIRE(engine.getLFO1NoteValue() == NoteValue::Eighth);
+    REQUIRE(engine.getLFO1NoteModifier() == NoteModifier::Dotted);
+    REQUIRE(engine.getLFO1Unipolar() == true);
+    REQUIRE(engine.getLFO1Retrigger() == false);
+}
+
+TEST_CASE("LFO 2 getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    engine.setLFO2Rate(0.5f);
+    engine.setLFO2Waveform(Waveform::Square);
+    engine.setLFO2PhaseOffset(180.0f);
+    engine.setLFO2TempoSync(false);
+    engine.setLFO2NoteValue(NoteValue::Half, NoteModifier::Triplet);
+    engine.setLFO2Unipolar(false);
+    engine.setLFO2Retrigger(true);
+
+    REQUIRE(engine.getLFO2Rate() == Approx(0.5f).margin(0.01f));
+    REQUIRE(engine.getLFO2Waveform() == Waveform::Square);
+    REQUIRE(engine.getLFO2PhaseOffset() == Approx(180.0f).margin(0.1f));
+    REQUIRE(engine.getLFO2TempoSync() == false);
+    REQUIRE(engine.getLFO2NoteValue() == NoteValue::Half);
+    REQUIRE(engine.getLFO2NoteModifier() == NoteModifier::Triplet);
+    REQUIRE(engine.getLFO2Unipolar() == false);
+    REQUIRE(engine.getLFO2Retrigger() == true);
+}
+
+TEST_CASE("Envelope follower getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    engine.setEnvFollowerAttack(25.0f);
+    engine.setEnvFollowerRelease(150.0f);
+    engine.setEnvFollowerSensitivity(0.75f);
+    engine.setEnvFollowerSource(EnvFollowerSourceType::Side);
+
+    REQUIRE(engine.getEnvFollowerAttack() == Approx(25.0f).margin(0.1f));
+    REQUIRE(engine.getEnvFollowerRelease() == Approx(150.0f).margin(0.1f));
+    REQUIRE(engine.getEnvFollowerSensitivity() == Approx(0.75f).margin(0.001f));
+    REQUIRE(engine.getEnvFollowerSource() == EnvFollowerSourceType::Side);
+}
+
+TEST_CASE("Random source getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    engine.setRandomRate(15.0f);
+    engine.setRandomSmoothness(0.6f);
+    engine.setRandomTempoSync(true);
+
+    REQUIRE(engine.getRandomRate() == Approx(15.0f).margin(0.01f));
+    REQUIRE(engine.getRandomSmoothness() == Approx(0.6f).margin(0.001f));
+    REQUIRE(engine.getRandomTempoSync() == true);
+}
+
+TEST_CASE("Chaos source getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    engine.setChaosModel(ChaosModel::Rossler);
+    engine.setChaosSpeed(8.0f);
+    engine.setChaosCoupling(0.4f);
+
+    REQUIRE(engine.getChaosModel() == ChaosModel::Rossler);
+    REQUIRE(engine.getChaosSpeed() == Approx(8.0f).margin(0.01f));
+    REQUIRE(engine.getChaosCoupling() == Approx(0.4f).margin(0.001f));
+}
+
+TEST_CASE("Sample & Hold getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    engine.setSampleHoldSource(SampleHoldInputType::LFO2);
+    engine.setSampleHoldRate(20.0f);
+    engine.setSampleHoldSlew(100.0f);
+
+    REQUIRE(engine.getSampleHoldSource() == SampleHoldInputType::LFO2);
+    REQUIRE(engine.getSampleHoldRate() == Approx(20.0f).margin(0.01f));
+    REQUIRE(engine.getSampleHoldSlew() == Approx(100.0f).margin(0.1f));
+}
+
+TEST_CASE("Pitch follower getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    engine.setPitchFollowerMinHz(100.0f);
+    engine.setPitchFollowerMaxHz(3000.0f);
+    engine.setPitchFollowerConfidence(0.8f);
+    engine.setPitchFollowerTrackingSpeed(80.0f);
+
+    REQUIRE(engine.getPitchFollowerMinHz() == Approx(100.0f).margin(0.1f));
+    REQUIRE(engine.getPitchFollowerMaxHz() == Approx(3000.0f).margin(0.1f));
+    REQUIRE(engine.getPitchFollowerConfidence() == Approx(0.8f).margin(0.001f));
+    REQUIRE(engine.getPitchFollowerTrackingSpeed() == Approx(80.0f).margin(0.1f));
+}
+
+TEST_CASE("Transient detector getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    engine.setTransientSensitivity(0.9f);
+    engine.setTransientAttack(5.0f);
+    engine.setTransientDecay(100.0f);
+
+    REQUIRE(engine.getTransientSensitivity() == Approx(0.9f).margin(0.001f));
+    REQUIRE(engine.getTransientAttack() == Approx(5.0f).margin(0.01f));
+    REQUIRE(engine.getTransientDecay() == Approx(100.0f).margin(0.1f));
+}
+
+TEST_CASE("Macro getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    engine.setMacroValue(0, 0.7f);
+    engine.setMacroMin(0, 0.2f);
+    engine.setMacroMax(0, 0.9f);
+    engine.setMacroCurve(0, ModCurve::SCurve);
+
+    const auto& macro = engine.getMacro(0);
+    REQUIRE(macro.value == Approx(0.7f).margin(0.001f));
+    REQUIRE(macro.minOutput == Approx(0.2f).margin(0.001f));
+    REQUIRE(macro.maxOutput == Approx(0.9f).margin(0.001f));
+    REQUIRE(macro.curve == ModCurve::SCurve);
+
+    // Out-of-range index returns default
+    const auto& outOfRange = engine.getMacro(99);
+    REQUIRE(outOfRange.value == Approx(0.0f));
+}
+
+TEST_CASE("Routing getters return set values", "[systems][modulation_engine][state]") {
+    auto engine = createEngine(44100.0);
+
+    ModRouting routing;
+    routing.source = ModSource::Chaos;
+    routing.destParamId = 42;
+    routing.amount = -0.75f;
+    routing.curve = ModCurve::Stepped;
+    routing.active = true;
+    engine.setRouting(5, routing);
+
+    const auto& got = engine.getRouting(5);
+    REQUIRE(got.source == ModSource::Chaos);
+    REQUIRE(got.destParamId == 42);
+    REQUIRE(got.amount == Approx(-0.75f).margin(0.001f));
+    REQUIRE(got.curve == ModCurve::Stepped);
+    REQUIRE(got.active == true);
+}

@@ -268,6 +268,195 @@
     <control-tag name="Band6ExpandedContainer" tag="9105"/>
     <control-tag name="Band7ExpandedContainer" tag="9106"/>
     <control-tag name="Band8ExpandedContainer" tag="9107"/>
+    <!-- Modulation Source Parameters (0x0D00 range) -->
+    <!-- LFO 1 (0x0D00-0x0D06 = 3328-3334) -->
+    <control-tag name="ModLFO1Rate" tag="3328"/>
+    <control-tag name="ModLFO1Shape" tag="3329"/>
+    <control-tag name="ModLFO1Phase" tag="3330"/>
+    <control-tag name="ModLFO1Sync" tag="3331"/>
+    <control-tag name="ModLFO1NoteValue" tag="3332"/>
+    <control-tag name="ModLFO1Unipolar" tag="3333"/>
+    <control-tag name="ModLFO1Retrigger" tag="3334"/>
+    <!-- LFO 2 (0x0D10-0x0D16 = 3344-3350) -->
+    <control-tag name="ModLFO2Rate" tag="3344"/>
+    <control-tag name="ModLFO2Shape" tag="3345"/>
+    <control-tag name="ModLFO2Phase" tag="3346"/>
+    <control-tag name="ModLFO2Sync" tag="3347"/>
+    <control-tag name="ModLFO2NoteValue" tag="3348"/>
+    <control-tag name="ModLFO2Unipolar" tag="3349"/>
+    <control-tag name="ModLFO2Retrigger" tag="3350"/>
+    <!-- Envelope Follower (0x0D20-0x0D23 = 3360-3363) -->
+    <control-tag name="ModEnvAttack" tag="3360"/>
+    <control-tag name="ModEnvRelease" tag="3361"/>
+    <control-tag name="ModEnvSensitivity" tag="3362"/>
+    <control-tag name="ModEnvSource" tag="3363"/>
+    <!-- Random (0x0D30-0x0D32 = 3376-3378) -->
+    <control-tag name="ModRandomRate" tag="3376"/>
+    <control-tag name="ModRandomSmoothness" tag="3377"/>
+    <control-tag name="ModRandomSync" tag="3378"/>
+    <!-- Chaos (0x0D38-0x0D3A = 3384-3386) -->
+    <control-tag name="ModChaosModel" tag="3384"/>
+    <control-tag name="ModChaosSpeed" tag="3385"/>
+    <control-tag name="ModChaosCoupling" tag="3386"/>
+    <!-- Sample & Hold (0x0D40-0x0D42 = 3392-3394) -->
+    <control-tag name="ModSHSource" tag="3392"/>
+    <control-tag name="ModSHRate" tag="3393"/>
+    <control-tag name="ModSHSlew" tag="3394"/>
+    <!-- Pitch Follower (0x0D48-0x0D4B = 3400-3403) -->
+    <control-tag name="ModPitchMinHz" tag="3400"/>
+    <control-tag name="ModPitchMaxHz" tag="3401"/>
+    <control-tag name="ModPitchConfidence" tag="3402"/>
+    <control-tag name="ModPitchTracking" tag="3403"/>
+    <!-- Transient Detector (0x0D50-0x0D52 = 3408-3410) -->
+    <control-tag name="ModTransSensitivity" tag="3408"/>
+    <control-tag name="ModTransAttack" tag="3409"/>
+    <control-tag name="ModTransDecay" tag="3410"/>
+    <!-- Macros (0x0D60-0x0D6F = 3424-3439) -->
+    <control-tag name="ModMacro1Value" tag="3424"/>
+    <control-tag name="ModMacro1Min" tag="3425"/>
+    <control-tag name="ModMacro1Max" tag="3426"/>
+    <control-tag name="ModMacro1Curve" tag="3427"/>
+    <control-tag name="ModMacro2Value" tag="3428"/>
+    <control-tag name="ModMacro2Min" tag="3429"/>
+    <control-tag name="ModMacro2Max" tag="3430"/>
+    <control-tag name="ModMacro2Curve" tag="3431"/>
+    <control-tag name="ModMacro3Value" tag="3432"/>
+    <control-tag name="ModMacro3Min" tag="3433"/>
+    <control-tag name="ModMacro3Max" tag="3434"/>
+    <control-tag name="ModMacro3Curve" tag="3435"/>
+    <control-tag name="ModMacro4Value" tag="3436"/>
+    <control-tag name="ModMacro4Min" tag="3437"/>
+    <control-tag name="ModMacro4Max" tag="3438"/>
+    <control-tag name="ModMacro4Curve" tag="3439"/>
+    <!-- Routing Parameters (0x0D80-0x0DFF = 3456-3583, 32 routings x 4 params) -->
+    <control-tag name="ModRoute1Source" tag="3456"/>
+    <control-tag name="ModRoute1Dest" tag="3457"/>
+    <control-tag name="ModRoute1Amount" tag="3458"/>
+    <control-tag name="ModRoute1Curve" tag="3459"/>
+    <control-tag name="ModRoute2Source" tag="3460"/>
+    <control-tag name="ModRoute2Dest" tag="3461"/>
+    <control-tag name="ModRoute2Amount" tag="3462"/>
+    <control-tag name="ModRoute2Curve" tag="3463"/>
+    <control-tag name="ModRoute3Source" tag="3464"/>
+    <control-tag name="ModRoute3Dest" tag="3465"/>
+    <control-tag name="ModRoute3Amount" tag="3466"/>
+    <control-tag name="ModRoute3Curve" tag="3467"/>
+    <control-tag name="ModRoute4Source" tag="3468"/>
+    <control-tag name="ModRoute4Dest" tag="3469"/>
+    <control-tag name="ModRoute4Amount" tag="3470"/>
+    <control-tag name="ModRoute4Curve" tag="3471"/>
+    <control-tag name="ModRoute5Source" tag="3472"/>
+    <control-tag name="ModRoute5Dest" tag="3473"/>
+    <control-tag name="ModRoute5Amount" tag="3474"/>
+    <control-tag name="ModRoute5Curve" tag="3475"/>
+    <control-tag name="ModRoute6Source" tag="3476"/>
+    <control-tag name="ModRoute6Dest" tag="3477"/>
+    <control-tag name="ModRoute6Amount" tag="3478"/>
+    <control-tag name="ModRoute6Curve" tag="3479"/>
+    <control-tag name="ModRoute7Source" tag="3480"/>
+    <control-tag name="ModRoute7Dest" tag="3481"/>
+    <control-tag name="ModRoute7Amount" tag="3482"/>
+    <control-tag name="ModRoute7Curve" tag="3483"/>
+    <control-tag name="ModRoute8Source" tag="3484"/>
+    <control-tag name="ModRoute8Dest" tag="3485"/>
+    <control-tag name="ModRoute8Amount" tag="3486"/>
+    <control-tag name="ModRoute8Curve" tag="3487"/>
+    <control-tag name="ModRoute9Source" tag="3488"/>
+    <control-tag name="ModRoute9Dest" tag="3489"/>
+    <control-tag name="ModRoute9Amount" tag="3490"/>
+    <control-tag name="ModRoute9Curve" tag="3491"/>
+    <control-tag name="ModRoute10Source" tag="3492"/>
+    <control-tag name="ModRoute10Dest" tag="3493"/>
+    <control-tag name="ModRoute10Amount" tag="3494"/>
+    <control-tag name="ModRoute10Curve" tag="3495"/>
+    <control-tag name="ModRoute11Source" tag="3496"/>
+    <control-tag name="ModRoute11Dest" tag="3497"/>
+    <control-tag name="ModRoute11Amount" tag="3498"/>
+    <control-tag name="ModRoute11Curve" tag="3499"/>
+    <control-tag name="ModRoute12Source" tag="3500"/>
+    <control-tag name="ModRoute12Dest" tag="3501"/>
+    <control-tag name="ModRoute12Amount" tag="3502"/>
+    <control-tag name="ModRoute12Curve" tag="3503"/>
+    <control-tag name="ModRoute13Source" tag="3504"/>
+    <control-tag name="ModRoute13Dest" tag="3505"/>
+    <control-tag name="ModRoute13Amount" tag="3506"/>
+    <control-tag name="ModRoute13Curve" tag="3507"/>
+    <control-tag name="ModRoute14Source" tag="3508"/>
+    <control-tag name="ModRoute14Dest" tag="3509"/>
+    <control-tag name="ModRoute14Amount" tag="3510"/>
+    <control-tag name="ModRoute14Curve" tag="3511"/>
+    <control-tag name="ModRoute15Source" tag="3512"/>
+    <control-tag name="ModRoute15Dest" tag="3513"/>
+    <control-tag name="ModRoute15Amount" tag="3514"/>
+    <control-tag name="ModRoute15Curve" tag="3515"/>
+    <control-tag name="ModRoute16Source" tag="3516"/>
+    <control-tag name="ModRoute16Dest" tag="3517"/>
+    <control-tag name="ModRoute16Amount" tag="3518"/>
+    <control-tag name="ModRoute16Curve" tag="3519"/>
+    <control-tag name="ModRoute17Source" tag="3520"/>
+    <control-tag name="ModRoute17Dest" tag="3521"/>
+    <control-tag name="ModRoute17Amount" tag="3522"/>
+    <control-tag name="ModRoute17Curve" tag="3523"/>
+    <control-tag name="ModRoute18Source" tag="3524"/>
+    <control-tag name="ModRoute18Dest" tag="3525"/>
+    <control-tag name="ModRoute18Amount" tag="3526"/>
+    <control-tag name="ModRoute18Curve" tag="3527"/>
+    <control-tag name="ModRoute19Source" tag="3528"/>
+    <control-tag name="ModRoute19Dest" tag="3529"/>
+    <control-tag name="ModRoute19Amount" tag="3530"/>
+    <control-tag name="ModRoute19Curve" tag="3531"/>
+    <control-tag name="ModRoute20Source" tag="3532"/>
+    <control-tag name="ModRoute20Dest" tag="3533"/>
+    <control-tag name="ModRoute20Amount" tag="3534"/>
+    <control-tag name="ModRoute20Curve" tag="3535"/>
+    <control-tag name="ModRoute21Source" tag="3536"/>
+    <control-tag name="ModRoute21Dest" tag="3537"/>
+    <control-tag name="ModRoute21Amount" tag="3538"/>
+    <control-tag name="ModRoute21Curve" tag="3539"/>
+    <control-tag name="ModRoute22Source" tag="3540"/>
+    <control-tag name="ModRoute22Dest" tag="3541"/>
+    <control-tag name="ModRoute22Amount" tag="3542"/>
+    <control-tag name="ModRoute22Curve" tag="3543"/>
+    <control-tag name="ModRoute23Source" tag="3544"/>
+    <control-tag name="ModRoute23Dest" tag="3545"/>
+    <control-tag name="ModRoute23Amount" tag="3546"/>
+    <control-tag name="ModRoute23Curve" tag="3547"/>
+    <control-tag name="ModRoute24Source" tag="3548"/>
+    <control-tag name="ModRoute24Dest" tag="3549"/>
+    <control-tag name="ModRoute24Amount" tag="3550"/>
+    <control-tag name="ModRoute24Curve" tag="3551"/>
+    <control-tag name="ModRoute25Source" tag="3552"/>
+    <control-tag name="ModRoute25Dest" tag="3553"/>
+    <control-tag name="ModRoute25Amount" tag="3554"/>
+    <control-tag name="ModRoute25Curve" tag="3555"/>
+    <control-tag name="ModRoute26Source" tag="3556"/>
+    <control-tag name="ModRoute26Dest" tag="3557"/>
+    <control-tag name="ModRoute26Amount" tag="3558"/>
+    <control-tag name="ModRoute26Curve" tag="3559"/>
+    <control-tag name="ModRoute27Source" tag="3560"/>
+    <control-tag name="ModRoute27Dest" tag="3561"/>
+    <control-tag name="ModRoute27Amount" tag="3562"/>
+    <control-tag name="ModRoute27Curve" tag="3563"/>
+    <control-tag name="ModRoute28Source" tag="3564"/>
+    <control-tag name="ModRoute28Dest" tag="3565"/>
+    <control-tag name="ModRoute28Amount" tag="3566"/>
+    <control-tag name="ModRoute28Curve" tag="3567"/>
+    <control-tag name="ModRoute29Source" tag="3568"/>
+    <control-tag name="ModRoute29Dest" tag="3569"/>
+    <control-tag name="ModRoute29Amount" tag="3570"/>
+    <control-tag name="ModRoute29Curve" tag="3571"/>
+    <control-tag name="ModRoute30Source" tag="3572"/>
+    <control-tag name="ModRoute30Dest" tag="3573"/>
+    <control-tag name="ModRoute30Amount" tag="3574"/>
+    <control-tag name="ModRoute30Curve" tag="3575"/>
+    <control-tag name="ModRoute31Source" tag="3576"/>
+    <control-tag name="ModRoute31Dest" tag="3577"/>
+    <control-tag name="ModRoute31Amount" tag="3578"/>
+    <control-tag name="ModRoute31Curve" tag="3579"/>
+    <control-tag name="ModRoute32Source" tag="3580"/>
+    <control-tag name="ModRoute32Dest" tag="3581"/>
+    <control-tag name="ModRoute32Amount" tag="3582"/>
+    <control-tag name="ModRoute32Curve" tag="3583"/>
   </control-tags>
   <gradients>
     <gradient name="spectrum-gradient">
@@ -286,7 +475,7 @@
       <color-stop rgba="#303035ff" start="1"/>
     </gradient>
   </gradients>
-  <template name="editor" class="CViewContainer" size="1000, 600" background-color="background-primary" minSize="800, 500" maxSize="1400, 900">
+  <template name="editor" class="CViewContainer" size="1000, 800" background-color="background-primary" minSize="800, 700" maxSize="1400, 1100">
     <view class="CViewContainer" origin="0, 0" size="1000, 50" background-color="background-secondary">
       <view class="CTextLabel" origin="20, 10" size="200, 30" title="Disrumpo" font="title-font" font-color="text-primary" text-alignment="left"/>
       <view class="CTextButton" origin="250, 12" size="80, 25" title="Preset" font="label-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
@@ -478,6 +667,289 @@
       <view class="CTextLabel" origin="780, 15" size="25, 20" title="Rel" font="small-font" font-color="text-secondary"/>
       <view class="CSlider" origin="805, 15" size="40, 20" orientation="horizontal" control-tag="SweepEnvRelease" default-value="0.2" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       <view class="CTextLabel" origin="900, 15" size="80, 20" title="Disrumpo v0.1.0" font="small-font" font-color="text-secondary" text-alignment="right"/>
+    </view>
+    <!-- ================================================================== -->
+    <!-- Modulation Panel (FR-065 to FR-081) -->
+    <!-- ================================================================== -->
+    <view class="CViewContainer" origin="0, 600" size="1000, 200" background-color="background-primary">
+      <!-- ============================================================== -->
+      <!-- Left Column: Modulation Sources (FR-065 to FR-073) -->
+      <!-- ============================================================== -->
+      <view class="CViewContainer" origin="0, 0" size="500, 200" background-color="background-primary">
+        <view class="CTextLabel" origin="10, 2" size="120, 16" title="MODULATION SOURCES" font="small-font" font-color="accent-primary"/>
+        <!-- LFO 1 (FR-065) -->
+        <view class="CTextLabel" origin="10, 20" size="30, 16" title="LFO1" font="small-font" font-color="text-primary"/>
+        <view class="CSlider" origin="42, 20" size="55, 16" orientation="horizontal" control-tag="ModLFO1Rate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="COptionMenu" origin="100, 20" size="55, 16" control-tag="ModLFO1Shape" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+        <view class="CSlider" origin="158, 20" size="40, 16" orientation="horizontal" control-tag="ModLFO1Phase" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="COnOffButton" origin="202, 20" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO1Sync" default-value="0"/>
+        <view class="COptionMenu" origin="222, 20" size="50, 16" control-tag="ModLFO1NoteValue" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+        <view class="CTextLabel" origin="276, 20" size="16, 16" title="U" font="small-font" font-color="text-secondary"/>
+        <view class="COnOffButton" origin="292, 20" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO1Unipolar" default-value="0"/>
+        <view class="CTextLabel" origin="312, 20" size="16, 16" title="R" font="small-font" font-color="text-secondary"/>
+        <view class="COnOffButton" origin="328, 20" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO1Retrigger" default-value="0"/>
+        <!-- LFO 2 (FR-066) -->
+        <view class="CTextLabel" origin="10, 40" size="30, 16" title="LFO2" font="small-font" font-color="text-primary"/>
+        <view class="CSlider" origin="42, 40" size="55, 16" orientation="horizontal" control-tag="ModLFO2Rate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="COptionMenu" origin="100, 40" size="55, 16" control-tag="ModLFO2Shape" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+        <view class="CSlider" origin="158, 40" size="40, 16" orientation="horizontal" control-tag="ModLFO2Phase" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="COnOffButton" origin="202, 40" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO2Sync" default-value="0"/>
+        <view class="COptionMenu" origin="222, 40" size="50, 16" control-tag="ModLFO2NoteValue" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+        <view class="CTextLabel" origin="276, 40" size="16, 16" title="U" font="small-font" font-color="text-secondary"/>
+        <view class="COnOffButton" origin="292, 40" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO2Unipolar" default-value="0"/>
+        <view class="CTextLabel" origin="312, 40" size="16, 16" title="R" font="small-font" font-color="text-secondary"/>
+        <view class="COnOffButton" origin="328, 40" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO2Retrigger" default-value="0"/>
+        <!-- Envelope Follower (FR-067) -->
+        <view class="CTextLabel" origin="10, 62" size="25, 16" title="Env" font="small-font" font-color="text-primary"/>
+        <view class="CTextLabel" origin="36, 62" size="18, 16" title="Atk" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="54, 62" size="50, 16" orientation="horizontal" control-tag="ModEnvAttack" default-value="0.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="108, 62" size="18, 16" title="Rel" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="126, 62" size="50, 16" orientation="horizontal" control-tag="ModEnvRelease" default-value="0.2" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="180, 62" size="25, 16" title="Sens" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="205, 62" size="50, 16" orientation="horizontal" control-tag="ModEnvSensitivity" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="COptionMenu" origin="260, 62" size="70, 16" control-tag="ModEnvSource" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+        <!-- Random (FR-068) -->
+        <view class="CTextLabel" origin="10, 82" size="25, 16" title="Rnd" font="small-font" font-color="text-primary"/>
+        <view class="CTextLabel" origin="36, 82" size="22, 16" title="Rate" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="58, 82" size="55, 16" orientation="horizontal" control-tag="ModRandomRate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="118, 82" size="35, 16" title="Smth" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="153, 82" size="55, 16" orientation="horizontal" control-tag="ModRandomSmoothness" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="214, 82" size="28, 16" title="Sync" font="small-font" font-color="text-secondary"/>
+        <view class="COnOffButton" origin="242, 82" size="16, 16" bitmap="onoff_25x25" control-tag="ModRandomSync" default-value="0"/>
+        <!-- Chaos (FR-069) -->
+        <view class="CTextLabel" origin="10, 102" size="35, 16" title="Chaos" font="small-font" font-color="text-primary"/>
+        <view class="COptionMenu" origin="46, 102" size="70, 16" control-tag="ModChaosModel" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+        <view class="CTextLabel" origin="120, 102" size="28, 16" title="Spd" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="148, 102" size="55, 16" orientation="horizontal" control-tag="ModChaosSpeed" default-value="0.25" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="208, 102" size="35, 16" title="Cpln" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="243, 102" size="55, 16" orientation="horizontal" control-tag="ModChaosCoupling" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <!-- Sample & Hold (FR-070) -->
+        <view class="CTextLabel" origin="10, 122" size="25, 16" title="S&amp;H" font="small-font" font-color="text-primary"/>
+        <view class="COptionMenu" origin="36, 122" size="70, 16" control-tag="ModSHSource" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+        <view class="CTextLabel" origin="110, 122" size="22, 16" title="Rate" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="132, 122" size="55, 16" orientation="horizontal" control-tag="ModSHRate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="192, 122" size="25, 16" title="Slew" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="217, 122" size="55, 16" orientation="horizontal" control-tag="ModSHSlew" default-value="0.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <!-- Pitch Follower (FR-071) -->
+        <view class="CTextLabel" origin="10, 142" size="30, 16" title="Pitch" font="small-font" font-color="text-primary"/>
+        <view class="CTextLabel" origin="40, 142" size="18, 16" title="Lo" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="58, 142" size="45, 16" orientation="horizontal" control-tag="ModPitchMinHz" default-value="0.125" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="107, 142" size="18, 16" title="Hi" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="125, 142" size="45, 16" orientation="horizontal" control-tag="ModPitchMaxHz" default-value="0.375" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="174, 142" size="28, 16" title="Conf" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="202, 142" size="45, 16" orientation="horizontal" control-tag="ModPitchConfidence" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="251, 142" size="25, 16" title="Trk" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="276, 142" size="45, 16" orientation="horizontal" control-tag="ModPitchTracking" default-value="0.138" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <!-- Transient Detector (FR-072) -->
+        <view class="CTextLabel" origin="10, 162" size="30, 16" title="Trans" font="small-font" font-color="text-primary"/>
+        <view class="CTextLabel" origin="42, 162" size="25, 16" title="Sens" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="67, 162" size="55, 16" orientation="horizontal" control-tag="ModTransSensitivity" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="126, 162" size="18, 16" title="Atk" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="144, 162" size="50, 16" orientation="horizontal" control-tag="ModTransAttack" default-value="0.158" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="198, 162" size="25, 16" title="Dcy" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="223, 162" size="50, 16" orientation="horizontal" control-tag="ModTransDecay" default-value="0.167" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <!-- Macros (FR-079 to FR-081) -->
+        <view class="CTextLabel" origin="350, 2" size="40, 16" title="MACROS" font="small-font" font-color="accent-primary"/>
+        <view class="CTextLabel" origin="417, 6" size="22, 12" title="Min" font="small-font" font-color="text-secondary"/>
+        <view class="CTextLabel" origin="445, 6" size="22, 12" title="Max" font="small-font" font-color="text-secondary"/>
+        <view class="CTextLabel" origin="472, 6" size="26, 12" title="Crv" font="small-font" font-color="text-secondary"/>
+        <!-- Macro 1 -->
+        <view class="CTextLabel" origin="350, 20" size="15, 16" title="M1" font="small-font" font-color="text-primary"/>
+        <view class="CSlider" origin="365, 20" size="48, 16" orientation="horizontal" control-tag="ModMacro1Value" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CSlider" origin="416, 20" size="25, 16" orientation="horizontal" control-tag="ModMacro1Min" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="text-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CSlider" origin="444, 20" size="25, 16" orientation="horizontal" control-tag="ModMacro1Max" default-value="1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="text-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="COptionMenu" origin="472, 20" size="26, 16" control-tag="ModMacro1Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+        <!-- Macro 2 -->
+        <view class="CTextLabel" origin="350, 40" size="15, 16" title="M2" font="small-font" font-color="text-primary"/>
+        <view class="CSlider" origin="365, 40" size="48, 16" orientation="horizontal" control-tag="ModMacro2Value" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CSlider" origin="416, 40" size="25, 16" orientation="horizontal" control-tag="ModMacro2Min" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="text-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CSlider" origin="444, 40" size="25, 16" orientation="horizontal" control-tag="ModMacro2Max" default-value="1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="text-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="COptionMenu" origin="472, 40" size="26, 16" control-tag="ModMacro2Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+        <!-- Macro 3 -->
+        <view class="CTextLabel" origin="350, 60" size="15, 16" title="M3" font="small-font" font-color="text-primary"/>
+        <view class="CSlider" origin="365, 60" size="48, 16" orientation="horizontal" control-tag="ModMacro3Value" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CSlider" origin="416, 60" size="25, 16" orientation="horizontal" control-tag="ModMacro3Min" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="text-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CSlider" origin="444, 60" size="25, 16" orientation="horizontal" control-tag="ModMacro3Max" default-value="1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="text-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="COptionMenu" origin="472, 60" size="26, 16" control-tag="ModMacro3Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+        <!-- Macro 4 -->
+        <view class="CTextLabel" origin="350, 80" size="15, 16" title="M4" font="small-font" font-color="text-primary"/>
+        <view class="CSlider" origin="365, 80" size="48, 16" orientation="horizontal" control-tag="ModMacro4Value" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CSlider" origin="416, 80" size="25, 16" orientation="horizontal" control-tag="ModMacro4Min" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="text-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CSlider" origin="444, 80" size="25, 16" orientation="horizontal" control-tag="ModMacro4Max" default-value="1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="text-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="COptionMenu" origin="472, 80" size="26, 16" control-tag="ModMacro4Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+      </view>
+      <!-- ============================================================== -->
+      <!-- Right Column: Routing Matrix (FR-074 to FR-078) -->
+      <!-- ============================================================== -->
+      <view class="CViewContainer" origin="500, 0" size="500, 200" background-color="background-secondary">
+        <view class="CTextLabel" origin="10, 2" size="120, 16" title="ROUTING MATRIX" font="small-font" font-color="accent-primary"/>
+        <view class="CTextLabel" origin="10, 18" size="40, 12" title="Src" font="small-font" font-color="text-secondary"/>
+        <view class="CTextLabel" origin="100, 18" size="40, 12" title="Dest" font="small-font" font-color="text-secondary"/>
+        <view class="CTextLabel" origin="200, 18" size="40, 12" title="Amount" font="small-font" font-color="text-secondary"/>
+        <view class="CTextLabel" origin="330, 18" size="40, 12" title="Curve" font="small-font" font-color="text-secondary"/>
+        <view class="CScrollView" origin="0, 32" size="500, 168" container-size="488, 576" horizontal-scrollbar="false" vertical-scrollbar="true" scrollbar-width="12" background-color="background-secondary">
+          <!-- Route 1 -->
+          <view class="COptionMenu" origin="10, 0" size="80, 16" control-tag="ModRoute1Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 0" size="95, 16" control-tag="ModRoute1Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 0" size="120, 16" orientation="horizontal" control-tag="ModRoute1Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 0" size="65, 16" control-tag="ModRoute1Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 2 -->
+          <view class="COptionMenu" origin="10, 18" size="80, 16" control-tag="ModRoute2Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 18" size="95, 16" control-tag="ModRoute2Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 18" size="120, 16" orientation="horizontal" control-tag="ModRoute2Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 18" size="65, 16" control-tag="ModRoute2Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 3 -->
+          <view class="COptionMenu" origin="10, 36" size="80, 16" control-tag="ModRoute3Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 36" size="95, 16" control-tag="ModRoute3Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 36" size="120, 16" orientation="horizontal" control-tag="ModRoute3Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 36" size="65, 16" control-tag="ModRoute3Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 4 -->
+          <view class="COptionMenu" origin="10, 54" size="80, 16" control-tag="ModRoute4Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 54" size="95, 16" control-tag="ModRoute4Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 54" size="120, 16" orientation="horizontal" control-tag="ModRoute4Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 54" size="65, 16" control-tag="ModRoute4Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 5 -->
+          <view class="COptionMenu" origin="10, 72" size="80, 16" control-tag="ModRoute5Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 72" size="95, 16" control-tag="ModRoute5Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 72" size="120, 16" orientation="horizontal" control-tag="ModRoute5Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 72" size="65, 16" control-tag="ModRoute5Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 6 -->
+          <view class="COptionMenu" origin="10, 90" size="80, 16" control-tag="ModRoute6Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 90" size="95, 16" control-tag="ModRoute6Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 90" size="120, 16" orientation="horizontal" control-tag="ModRoute6Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 90" size="65, 16" control-tag="ModRoute6Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 7 -->
+          <view class="COptionMenu" origin="10, 108" size="80, 16" control-tag="ModRoute7Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 108" size="95, 16" control-tag="ModRoute7Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 108" size="120, 16" orientation="horizontal" control-tag="ModRoute7Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 108" size="65, 16" control-tag="ModRoute7Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 8 -->
+          <view class="COptionMenu" origin="10, 126" size="80, 16" control-tag="ModRoute8Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 126" size="95, 16" control-tag="ModRoute8Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 126" size="120, 16" orientation="horizontal" control-tag="ModRoute8Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 126" size="65, 16" control-tag="ModRoute8Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 9 -->
+          <view class="COptionMenu" origin="10, 144" size="80, 16" control-tag="ModRoute9Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 144" size="95, 16" control-tag="ModRoute9Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 144" size="120, 16" orientation="horizontal" control-tag="ModRoute9Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 144" size="65, 16" control-tag="ModRoute9Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 10 -->
+          <view class="COptionMenu" origin="10, 162" size="80, 16" control-tag="ModRoute10Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 162" size="95, 16" control-tag="ModRoute10Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 162" size="120, 16" orientation="horizontal" control-tag="ModRoute10Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 162" size="65, 16" control-tag="ModRoute10Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 11 -->
+          <view class="COptionMenu" origin="10, 180" size="80, 16" control-tag="ModRoute11Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 180" size="95, 16" control-tag="ModRoute11Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 180" size="120, 16" orientation="horizontal" control-tag="ModRoute11Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 180" size="65, 16" control-tag="ModRoute11Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 12 -->
+          <view class="COptionMenu" origin="10, 198" size="80, 16" control-tag="ModRoute12Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 198" size="95, 16" control-tag="ModRoute12Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 198" size="120, 16" orientation="horizontal" control-tag="ModRoute12Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 198" size="65, 16" control-tag="ModRoute12Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 13 -->
+          <view class="COptionMenu" origin="10, 216" size="80, 16" control-tag="ModRoute13Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 216" size="95, 16" control-tag="ModRoute13Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 216" size="120, 16" orientation="horizontal" control-tag="ModRoute13Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 216" size="65, 16" control-tag="ModRoute13Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 14 -->
+          <view class="COptionMenu" origin="10, 234" size="80, 16" control-tag="ModRoute14Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 234" size="95, 16" control-tag="ModRoute14Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 234" size="120, 16" orientation="horizontal" control-tag="ModRoute14Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 234" size="65, 16" control-tag="ModRoute14Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 15 -->
+          <view class="COptionMenu" origin="10, 252" size="80, 16" control-tag="ModRoute15Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 252" size="95, 16" control-tag="ModRoute15Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 252" size="120, 16" orientation="horizontal" control-tag="ModRoute15Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 252" size="65, 16" control-tag="ModRoute15Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 16 -->
+          <view class="COptionMenu" origin="10, 270" size="80, 16" control-tag="ModRoute16Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 270" size="95, 16" control-tag="ModRoute16Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 270" size="120, 16" orientation="horizontal" control-tag="ModRoute16Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 270" size="65, 16" control-tag="ModRoute16Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 17 -->
+          <view class="COptionMenu" origin="10, 288" size="80, 16" control-tag="ModRoute17Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 288" size="95, 16" control-tag="ModRoute17Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 288" size="120, 16" orientation="horizontal" control-tag="ModRoute17Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 288" size="65, 16" control-tag="ModRoute17Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 18 -->
+          <view class="COptionMenu" origin="10, 306" size="80, 16" control-tag="ModRoute18Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 306" size="95, 16" control-tag="ModRoute18Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 306" size="120, 16" orientation="horizontal" control-tag="ModRoute18Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 306" size="65, 16" control-tag="ModRoute18Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 19 -->
+          <view class="COptionMenu" origin="10, 324" size="80, 16" control-tag="ModRoute19Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 324" size="95, 16" control-tag="ModRoute19Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 324" size="120, 16" orientation="horizontal" control-tag="ModRoute19Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 324" size="65, 16" control-tag="ModRoute19Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 20 -->
+          <view class="COptionMenu" origin="10, 342" size="80, 16" control-tag="ModRoute20Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 342" size="95, 16" control-tag="ModRoute20Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 342" size="120, 16" orientation="horizontal" control-tag="ModRoute20Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 342" size="65, 16" control-tag="ModRoute20Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 21 -->
+          <view class="COptionMenu" origin="10, 360" size="80, 16" control-tag="ModRoute21Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 360" size="95, 16" control-tag="ModRoute21Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 360" size="120, 16" orientation="horizontal" control-tag="ModRoute21Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 360" size="65, 16" control-tag="ModRoute21Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 22 -->
+          <view class="COptionMenu" origin="10, 378" size="80, 16" control-tag="ModRoute22Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 378" size="95, 16" control-tag="ModRoute22Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 378" size="120, 16" orientation="horizontal" control-tag="ModRoute22Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 378" size="65, 16" control-tag="ModRoute22Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 23 -->
+          <view class="COptionMenu" origin="10, 396" size="80, 16" control-tag="ModRoute23Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 396" size="95, 16" control-tag="ModRoute23Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 396" size="120, 16" orientation="horizontal" control-tag="ModRoute23Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 396" size="65, 16" control-tag="ModRoute23Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 24 -->
+          <view class="COptionMenu" origin="10, 414" size="80, 16" control-tag="ModRoute24Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 414" size="95, 16" control-tag="ModRoute24Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 414" size="120, 16" orientation="horizontal" control-tag="ModRoute24Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 414" size="65, 16" control-tag="ModRoute24Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 25 -->
+          <view class="COptionMenu" origin="10, 432" size="80, 16" control-tag="ModRoute25Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 432" size="95, 16" control-tag="ModRoute25Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 432" size="120, 16" orientation="horizontal" control-tag="ModRoute25Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 432" size="65, 16" control-tag="ModRoute25Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 26 -->
+          <view class="COptionMenu" origin="10, 450" size="80, 16" control-tag="ModRoute26Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 450" size="95, 16" control-tag="ModRoute26Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 450" size="120, 16" orientation="horizontal" control-tag="ModRoute26Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 450" size="65, 16" control-tag="ModRoute26Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 27 -->
+          <view class="COptionMenu" origin="10, 468" size="80, 16" control-tag="ModRoute27Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 468" size="95, 16" control-tag="ModRoute27Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 468" size="120, 16" orientation="horizontal" control-tag="ModRoute27Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 468" size="65, 16" control-tag="ModRoute27Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 28 -->
+          <view class="COptionMenu" origin="10, 486" size="80, 16" control-tag="ModRoute28Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 486" size="95, 16" control-tag="ModRoute28Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 486" size="120, 16" orientation="horizontal" control-tag="ModRoute28Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 486" size="65, 16" control-tag="ModRoute28Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 29 -->
+          <view class="COptionMenu" origin="10, 504" size="80, 16" control-tag="ModRoute29Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 504" size="95, 16" control-tag="ModRoute29Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 504" size="120, 16" orientation="horizontal" control-tag="ModRoute29Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 504" size="65, 16" control-tag="ModRoute29Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 30 -->
+          <view class="COptionMenu" origin="10, 522" size="80, 16" control-tag="ModRoute30Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 522" size="95, 16" control-tag="ModRoute30Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 522" size="120, 16" orientation="horizontal" control-tag="ModRoute30Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 522" size="65, 16" control-tag="ModRoute30Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 31 -->
+          <view class="COptionMenu" origin="10, 540" size="80, 16" control-tag="ModRoute31Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 540" size="95, 16" control-tag="ModRoute31Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 540" size="120, 16" orientation="horizontal" control-tag="ModRoute31Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 540" size="65, 16" control-tag="ModRoute31Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <!-- Route 32 -->
+          <view class="COptionMenu" origin="10, 558" size="80, 16" control-tag="ModRoute32Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="COptionMenu" origin="95, 558" size="95, 16" control-tag="ModRoute32Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+          <view class="CSlider" origin="195, 558" size="120, 16" orientation="horizontal" control-tag="ModRoute32Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>
+          <view class="COptionMenu" origin="320, 558" size="65, 16" control-tag="ModRoute32Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
+        </view>
+      </view>
     </view>
   </template>
   <template name="TypeParams_SoftClip" class="CViewContainer" size="300, 120" background-color="panel">

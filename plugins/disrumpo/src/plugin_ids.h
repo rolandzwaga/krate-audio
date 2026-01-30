@@ -492,6 +492,59 @@ constexpr uint8_t extractRoutingOffset(Steinberg::Vst::ParamID paramId) {
 }
 
 // ==============================================================================
+// Modulation Destination Index Mapping (FR-063, FR-064)
+// ==============================================================================
+// Maps modulation routing destination IDs (0-127) to actual Disrumpo parameters.
+// The ModulationEngine uses modOffsets_[kMaxModDestinations=128] internally.
+// These indices are what the routing destParamId field holds.
+//
+// Layout:
+// - 0-2: Global parameters (InputGain, OutputGain, GlobalMix)
+// - 3-5: Sweep parameters (Frequency, Width, Intensity)
+// - 6-53: Per-band parameters (8 bands × 6 params each)
+//
+// Per-band params at offset (6 + band*6 + param):
+//   +0=MorphX, +1=MorphY, +2=Drive, +3=Mix, +4=BandGain, +5=BandPan
+// ==============================================================================
+
+namespace ModDest {
+
+// Global destinations
+inline constexpr uint32_t kInputGain     = 0;
+inline constexpr uint32_t kOutputGain    = 1;
+inline constexpr uint32_t kGlobalMix     = 2;
+
+// Sweep destinations
+inline constexpr uint32_t kSweepFrequency = 3;
+inline constexpr uint32_t kSweepWidth     = 4;
+inline constexpr uint32_t kSweepIntensity = 5;
+
+// Per-band destination base
+inline constexpr uint32_t kBandBase       = 6;
+inline constexpr uint32_t kParamsPerBand  = 6;
+
+// Per-band parameter offsets within a band block
+inline constexpr uint32_t kBandMorphX  = 0;
+inline constexpr uint32_t kBandMorphY  = 1;
+inline constexpr uint32_t kBandDrive   = 2;
+inline constexpr uint32_t kBandMix     = 3;
+inline constexpr uint32_t kBandGain    = 4;
+inline constexpr uint32_t kBandPan     = 5;
+
+// Total modulation destinations: 6 global/sweep + 8 bands × 6 params = 54
+inline constexpr uint32_t kTotalDestinations = kBandBase + 8 * kParamsPerBand;
+
+/// @brief Get modulation destination index for a per-band parameter.
+/// @param band Band index (0-7)
+/// @param paramOffset One of kBandMorphX..kBandPan (0-5)
+/// @return Destination index for use with ModulationEngine
+constexpr uint32_t bandParam(uint8_t band, uint32_t paramOffset) {
+    return kBandBase + static_cast<uint32_t>(band) * kParamsPerBand + paramOffset;
+}
+
+}  // namespace ModDest
+
+// ==============================================================================
 // Morph Link Mode Enum (FR-032, FR-033)
 // ==============================================================================
 // Defines how morph X/Y axes link to sweep frequency.

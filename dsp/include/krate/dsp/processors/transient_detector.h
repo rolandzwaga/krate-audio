@@ -138,6 +138,11 @@ public:
         updateCoefficients();
     }
 
+    // Parameter getters
+    [[nodiscard]] float getSensitivity() const noexcept { return sensitivity_; }
+    [[nodiscard]] float getAttackTime() const noexcept { return attackMs_; }
+    [[nodiscard]] float getDecayTime() const noexcept { return decayMs_; }
+
 private:
     enum class State : uint8_t {
         Idle = 0,

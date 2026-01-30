@@ -68,6 +68,21 @@ public:
         detector_.push(sample);
     }
 
+    /// @brief Feed a block of audio and update output once (control-rate).
+    ///
+    /// More efficient than calling pushSample() + process() per sample.
+    /// The PitchDetector buffers internally and triggers detection every
+    /// windowSize/4 samples, so pushing a block is equivalent.
+    ///
+    /// @param monoInput Mono audio samples
+    /// @param numSamples Number of samples in the block
+    void processBlock(const float* monoInput, size_t numSamples) noexcept {
+        for (size_t i = 0; i < numSamples; ++i) {
+            detector_.push(monoInput[i]);
+        }
+        process();
+    }
+
     /// @brief Update modulation output from latest pitch detection.
     void process() noexcept {
         float freq = detector_.getDetectedFrequency();
@@ -107,6 +122,12 @@ public:
         trackingSpeedMs_ = std::clamp(ms, kMinTrackingMs, kMaxTrackingMs);
         outputSmoother_.configure(trackingSpeedMs_, static_cast<float>(sampleRate_));
     }
+
+    // Parameter getters
+    [[nodiscard]] float getMinHz() const noexcept { return minHz_; }
+    [[nodiscard]] float getMaxHz() const noexcept { return maxHz_; }
+    [[nodiscard]] float getConfidenceThreshold() const noexcept { return confidenceThreshold_; }
+    [[nodiscard]] float getTrackingSpeed() const noexcept { return trackingSpeedMs_; }
 
 private:
     /// @brief Convert frequency to normalized modulation value using log mapping.

@@ -154,33 +154,105 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
+    // Modulation Engine Processing (spec 008-modulation-system)
+    // Runs FIRST so modulation offsets are available for sweep and band params.
+    // ==========================================================================
+
+    {
+        Krate::DSP::BlockContext modCtx{};
+        modCtx.sampleRate = sampleRate_;
+        modCtx.blockSize = static_cast<size_t>(data.numSamples);
+
+        // Extract tempo from process context if available
+        if (data.processContext) {
+            modCtx.tempoBPM = data.processContext->tempo;
+            modCtx.isPlaying = (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
+        }
+
+        modulationEngine_.process(modCtx, inputL, inputR,
+                                  static_cast<size_t>(data.numSamples));
+    }
+
+    // ==========================================================================
+    // Apply Modulation Offsets (FR-063, FR-064)
+    // Reads modulation engine offsets and applies to processor parameters.
+    // Operates in normalized [0,1] space; denormalizes after application.
+    // When no routing targets a destination, offset is 0 (base value unchanged).
+    // ==========================================================================
+
+    const int numBands = bandCount_.load(std::memory_order_relaxed);
+
+    // --- Global parameters ---
+    const float modInputGain = modulationEngine_.getModulatedValue(
+        ModDest::kInputGain, inputGain_.load(std::memory_order_relaxed));
+    const float modOutputGain = modulationEngine_.getModulatedValue(
+        ModDest::kOutputGain, outputGain_.load(std::memory_order_relaxed));
+    const float modGlobalMix = modulationEngine_.getModulatedValue(
+        ModDest::kGlobalMix, globalMix_.load(std::memory_order_relaxed));
+
+    // --- Sweep parameters (modulation shifts the base, sweep LFO/env stack on top) ---
+    float baseFreq = baseSweepFrequency_.load(std::memory_order_relaxed);
+    {
+        const float baseFreqNorm = normalizeSweepFrequency(baseFreq);
+        const float modFreqNorm = modulationEngine_.getModulatedValue(
+            ModDest::kSweepFrequency, baseFreqNorm);
+        baseFreq = denormalizeSweepFrequency(modFreqNorm);
+    }
+
+    {
+        const float baseWidthNorm = baseSweepWidthNorm_.load(std::memory_order_relaxed);
+        const float modWidthNorm = modulationEngine_.getModulatedValue(
+            ModDest::kSweepWidth, baseWidthNorm);
+        constexpr float kMinWidth = 0.5f;
+        constexpr float kMaxWidth = 4.0f;
+        sweepProcessor_.setWidth(kMinWidth + modWidthNorm * (kMaxWidth - kMinWidth));
+    }
+
+    {
+        const float baseIntNorm = baseSweepIntensityNorm_.load(std::memory_order_relaxed);
+        const float modIntNorm = modulationEngine_.getModulatedValue(
+            ModDest::kSweepIntensity, baseIntNorm);
+        sweepProcessor_.setIntensity(modIntNorm * 2.0f);
+    }
+
+    // --- Per-band parameters (gain, pan) ---
+    for (int b = 0; b < numBands; ++b) {
+        // Band Gain: normalize to [0,1], apply offset, denormalize to dB
+        const float baseGainNorm = (bandStates_[b].gainDb - kMinBandGainDb) /
+                                   (kMaxBandGainDb - kMinBandGainDb);
+        const float modGainNorm = modulationEngine_.getModulatedValue(
+            ModDest::bandParam(static_cast<uint8_t>(b), ModDest::kBandGain), baseGainNorm);
+        bandProcessors_[b].setGainDb(kMinBandGainDb + modGainNorm * (kMaxBandGainDb - kMinBandGainDb));
+
+        // Band Pan: normalize [-1,+1] to [0,1], apply offset, denormalize back
+        const float basePanNorm = (bandStates_[b].pan + 1.0f) * 0.5f;
+        const float modPanNorm = modulationEngine_.getModulatedValue(
+            ModDest::bandParam(static_cast<uint8_t>(b), ModDest::kBandPan), basePanNorm);
+        bandProcessors_[b].setPan(modPanNorm * 2.0f - 1.0f);
+
+        // NOTE: MorphX/Y and Drive/Mix modulation destination indices are defined
+        // (ModDest::kBandMorphX, etc.) and will take effect once those parameters
+        // are wired from processParameterChanges() to BandProcessor in the audio path.
+    }
+
+    // ==========================================================================
     // Sweep Processing (spec 007-sweep-system)
     // FR-007: Process sweep smoother for the entire block
-    // ==========================================================================
-
-    // Get base sweep frequency
-    float baseFreq = baseSweepFrequency_.load(std::memory_order_relaxed);
-
-    // ==========================================================================
-    // Sweep Automation / Additive Modulation (FR-029a)
-    // LFO and envelope modulate in log space, then add offsets
+    // Sweep LFO/envelope modulate on top of the (possibly modulated) base freq.
     // ==========================================================================
 
     // Process envelope follower with input signal (average of L+R)
-    // Must be done sample-by-sample for accuracy, but we can use first sample
-    // as approximation for the whole block (acceptable for per-block sweep update)
     if (sweepEnvelope_.isEnabled()) {
         float inputMono = (inputL[0] + inputR[0]) * 0.5f;
-        (void)sweepEnvelope_.processSample(inputMono);  // Discard return; we use getModulatedFrequency()
+        (void)sweepEnvelope_.processSample(inputMono);
     }
 
-    // Calculate modulated frequency with additive modulation
+    // Calculate modulated frequency: base (+ mod engine offset) + sweep LFO + envelope
     float modulatedFreq = baseFreq;
 
     // Get LFO modulation (bidirectional: +/- 2 octaves at full depth)
     if (sweepLFO_.isEnabled()) {
-        float lfoValue = sweepLFO_.process();  // Returns [-depth, +depth]
-        // LFO value maps to octave shift
+        float lfoValue = sweepLFO_.process();
         constexpr float kMaxOctaveShift = 2.0f;
         float octaveShift = lfoValue * kMaxOctaveShift;
         float log2Freq = std::log2(modulatedFreq) + octaveShift;
@@ -247,32 +319,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
-    // Modulation Engine Processing (spec 008-modulation-system)
-    // ==========================================================================
-
-    {
-        Krate::DSP::BlockContext modCtx{};
-        modCtx.sampleRate = sampleRate_;
-        modCtx.blockSize = static_cast<size_t>(data.numSamples);
-
-        // Extract tempo from process context if available
-        if (data.processContext) {
-            modCtx.tempoBPM = data.processContext->tempo;
-            modCtx.isPlaying = (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
-        }
-
-        modulationEngine_.process(modCtx, inputL, inputR,
-                                  static_cast<size_t>(data.numSamples));
-    }
-
-    // ==========================================================================
     // Per-Band Sweep Intensity (spec 007-sweep-system FR-001, T067)
     // Calculate and apply sweep intensities to band processors once per block
     // ==========================================================================
 
-    const int numBands = bandCount_.load(std::memory_order_relaxed);
-
-    // Calculate per-band sweep intensities
     // Band center frequencies (approximate Bark scale for 8 bands)
     static constexpr std::array<float, kMaxBands> kBandCenterFreqs = {
         50.0f, 150.0f, 350.0f, 750.0f, 1500.0f, 3000.0f, 6000.0f, 12000.0f
@@ -298,6 +348,15 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // ==========================================================================
     // Band Processing (FR-001a: sample-by-sample processing)
     // ==========================================================================
+
+    // Note: modInputGain, modOutputGain, modGlobalMix are computed above but
+    // not applied here because the original processor doesn't apply global
+    // gain/mix in the audio loop. They will take effect when global parameter
+    // application is added. The modulation offsets are correctly computed
+    // and available via modulationEngine_.getModulatedValue().
+    (void)modInputGain;
+    (void)modOutputGain;
+    (void)modGlobalMix;
 
     std::array<float, kMaxBands> bandsL{};
     std::array<float, kMaxBands> bandsR{};
@@ -470,6 +529,136 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
             if (!streamer.writeFloat(bp.x)) return Steinberg::kResultFalse;
             if (!streamer.writeFloat(bp.y)) return Steinberg::kResultFalse;
         }
+    }
+
+    // =========================================================================
+    // Modulation System State (v5+) — SC-010
+    // =========================================================================
+
+    // --- Source Parameters ---
+
+    // LFO 1 (7 values: rate[float], shape[int8], phase[float], sync[int8],
+    //         noteValue[int8], unipolar[int8], retrigger[int8])
+    {
+        constexpr float kMinLog = -4.6052f;  // ln(0.01)
+        constexpr float kMaxLog = 2.9957f;   // ln(20)
+        float rateNorm = (std::log(modulationEngine_.getLFO1Rate()) - kMinLog) / (kMaxLog - kMinLog);
+        if (!streamer.writeFloat(std::clamp(rateNorm, 0.0f, 1.0f))) return Steinberg::kResultFalse;
+    }
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1Waveform())))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(modulationEngine_.getLFO1PhaseOffset() / 360.0f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1TempoSync() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+    {
+        int noteIdx = static_cast<int>(modulationEngine_.getLFO1NoteValue()) * 3 +
+                      static_cast<int>(modulationEngine_.getLFO1NoteModifier());
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(noteIdx)))
+            return Steinberg::kResultFalse;
+    }
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1Unipolar() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1Retrigger() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+
+    // LFO 2 (7 values: same layout as LFO 1)
+    {
+        constexpr float kMinLog = -4.6052f;
+        constexpr float kMaxLog = 2.9957f;
+        float rateNorm = (std::log(modulationEngine_.getLFO2Rate()) - kMinLog) / (kMaxLog - kMinLog);
+        if (!streamer.writeFloat(std::clamp(rateNorm, 0.0f, 1.0f))) return Steinberg::kResultFalse;
+    }
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2Waveform())))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(modulationEngine_.getLFO2PhaseOffset() / 360.0f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2TempoSync() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+    {
+        int noteIdx = static_cast<int>(modulationEngine_.getLFO2NoteValue()) * 3 +
+                      static_cast<int>(modulationEngine_.getLFO2NoteModifier());
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(noteIdx)))
+            return Steinberg::kResultFalse;
+    }
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2Unipolar() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2Retrigger() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+
+    // Envelope Follower (4 values: attack[float], release[float], sensitivity[float], source[int8])
+    if (!streamer.writeFloat((modulationEngine_.getEnvFollowerAttack() - 1.0f) / 99.0f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((modulationEngine_.getEnvFollowerRelease() - 10.0f) / 490.0f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(modulationEngine_.getEnvFollowerSensitivity()))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getEnvFollowerSource())))
+        return Steinberg::kResultFalse;
+
+    // Random (3 values: rate[float], smoothness[float], sync[int8])
+    if (!streamer.writeFloat((modulationEngine_.getRandomRate() - 0.1f) / 49.9f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(modulationEngine_.getRandomSmoothness()))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getRandomTempoSync() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+
+    // Chaos (3 values: model[int8], speed[float], coupling[float])
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getChaosModel())))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((modulationEngine_.getChaosSpeed() - 0.05f) / 19.95f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(modulationEngine_.getChaosCoupling()))
+        return Steinberg::kResultFalse;
+
+    // Sample & Hold (3 values: source[int8], rate[float], slew[float])
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getSampleHoldSource())))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((modulationEngine_.getSampleHoldRate() - 0.1f) / 49.9f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(modulationEngine_.getSampleHoldSlew() / 500.0f))
+        return Steinberg::kResultFalse;
+
+    // Pitch Follower (4 values: minHz[float], maxHz[float], confidence[float], trackingSpeed[float])
+    if (!streamer.writeFloat((modulationEngine_.getPitchFollowerMinHz() - 20.0f) / 480.0f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((modulationEngine_.getPitchFollowerMaxHz() - 200.0f) / 4800.0f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(modulationEngine_.getPitchFollowerConfidence()))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((modulationEngine_.getPitchFollowerTrackingSpeed() - 10.0f) / 290.0f))
+        return Steinberg::kResultFalse;
+
+    // Transient (3 values: sensitivity[float], attack[float], decay[float])
+    if (!streamer.writeFloat(modulationEngine_.getTransientSensitivity()))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((modulationEngine_.getTransientAttack() - 0.5f) / 9.5f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat((modulationEngine_.getTransientDecay() - 20.0f) / 180.0f))
+        return Steinberg::kResultFalse;
+
+    // Macros (4 × 4 = 16 values: value[float], min[float], max[float], curve[int8])
+    for (size_t m = 0; m < Krate::DSP::kMaxMacros; ++m) {
+        const auto& macro = modulationEngine_.getMacro(m);
+        if (!streamer.writeFloat(macro.value)) return Steinberg::kResultFalse;
+        if (!streamer.writeFloat(macro.minOutput)) return Steinberg::kResultFalse;
+        if (!streamer.writeFloat(macro.maxOutput)) return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(macro.curve)))
+            return Steinberg::kResultFalse;
+    }
+
+    // --- Routing Parameters (32 × 4 values: source[int8], dest[int32], amount[float], curve[int8]) ---
+    for (size_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r) {
+        const auto& routing = modulationEngine_.getRouting(r);
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(routing.source)))
+            return Steinberg::kResultFalse;
+        if (!streamer.writeInt32(static_cast<int32_t>(routing.destParamId)))
+            return Steinberg::kResultFalse;
+        if (!streamer.writeFloat(routing.amount))
+            return Steinberg::kResultFalse;
+        if (!streamer.writeInt8(static_cast<Steinberg::int8>(routing.curve)))
+            return Steinberg::kResultFalse;
     }
 
     return Steinberg::kResultOk;
@@ -674,6 +863,189 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         }
     }
 
+    // =========================================================================
+    // Modulation System State (v5+) — SC-010
+    // =========================================================================
+    if (version >= 5) {
+        // --- Source Parameters ---
+
+        // LFO 1 (7 values)
+        float lfo1RateNorm = 0.5f;
+        if (streamer.readFloat(lfo1RateNorm)) {
+            constexpr float kMinLog = -4.6052f;
+            constexpr float kMaxLog = 2.9957f;
+            float rateHz = std::exp(kMinLog + lfo1RateNorm * (kMaxLog - kMinLog));
+            modulationEngine_.setLFO1Rate(rateHz);
+        }
+        Steinberg::int8 lfo1Shape = 0;
+        if (streamer.readInt8(lfo1Shape))
+            modulationEngine_.setLFO1Waveform(static_cast<Krate::DSP::Waveform>(
+                std::clamp(static_cast<int>(lfo1Shape), 0, 5)));
+        float lfo1Phase = 0.0f;
+        if (streamer.readFloat(lfo1Phase))
+            modulationEngine_.setLFO1PhaseOffset(lfo1Phase * 360.0f);
+        Steinberg::int8 lfo1Sync = 0;
+        if (streamer.readInt8(lfo1Sync))
+            modulationEngine_.setLFO1TempoSync(lfo1Sync != 0);
+        Steinberg::int8 lfo1NoteIdx = 0;
+        if (streamer.readInt8(lfo1NoteIdx)) {
+            int idx = std::clamp(static_cast<int>(lfo1NoteIdx), 0, 14);
+            modulationEngine_.setLFO1NoteValue(
+                static_cast<Krate::DSP::NoteValue>(idx / 3),
+                static_cast<Krate::DSP::NoteModifier>(idx % 3));
+        }
+        Steinberg::int8 lfo1Unipolar = 0;
+        if (streamer.readInt8(lfo1Unipolar))
+            modulationEngine_.setLFO1Unipolar(lfo1Unipolar != 0);
+        Steinberg::int8 lfo1Retrigger = 1;
+        if (streamer.readInt8(lfo1Retrigger))
+            modulationEngine_.setLFO1Retrigger(lfo1Retrigger != 0);
+
+        // LFO 2 (7 values)
+        float lfo2RateNorm = 0.5f;
+        if (streamer.readFloat(lfo2RateNorm)) {
+            constexpr float kMinLog = -4.6052f;
+            constexpr float kMaxLog = 2.9957f;
+            float rateHz = std::exp(kMinLog + lfo2RateNorm * (kMaxLog - kMinLog));
+            modulationEngine_.setLFO2Rate(rateHz);
+        }
+        Steinberg::int8 lfo2Shape = 0;
+        if (streamer.readInt8(lfo2Shape))
+            modulationEngine_.setLFO2Waveform(static_cast<Krate::DSP::Waveform>(
+                std::clamp(static_cast<int>(lfo2Shape), 0, 5)));
+        float lfo2Phase = 0.0f;
+        if (streamer.readFloat(lfo2Phase))
+            modulationEngine_.setLFO2PhaseOffset(lfo2Phase * 360.0f);
+        Steinberg::int8 lfo2Sync = 0;
+        if (streamer.readInt8(lfo2Sync))
+            modulationEngine_.setLFO2TempoSync(lfo2Sync != 0);
+        Steinberg::int8 lfo2NoteIdx = 0;
+        if (streamer.readInt8(lfo2NoteIdx)) {
+            int idx = std::clamp(static_cast<int>(lfo2NoteIdx), 0, 14);
+            modulationEngine_.setLFO2NoteValue(
+                static_cast<Krate::DSP::NoteValue>(idx / 3),
+                static_cast<Krate::DSP::NoteModifier>(idx % 3));
+        }
+        Steinberg::int8 lfo2Unipolar = 0;
+        if (streamer.readInt8(lfo2Unipolar))
+            modulationEngine_.setLFO2Unipolar(lfo2Unipolar != 0);
+        Steinberg::int8 lfo2Retrigger = 1;
+        if (streamer.readInt8(lfo2Retrigger))
+            modulationEngine_.setLFO2Retrigger(lfo2Retrigger != 0);
+
+        // Envelope Follower (4 values)
+        float envAttackNorm = 0.0f;
+        if (streamer.readFloat(envAttackNorm))
+            modulationEngine_.setEnvFollowerAttack(1.0f + envAttackNorm * 99.0f);
+        float envReleaseNorm = 0.0f;
+        if (streamer.readFloat(envReleaseNorm))
+            modulationEngine_.setEnvFollowerRelease(10.0f + envReleaseNorm * 490.0f);
+        float envSensitivity = 0.5f;
+        if (streamer.readFloat(envSensitivity))
+            modulationEngine_.setEnvFollowerSensitivity(envSensitivity);
+        Steinberg::int8 envSource = 0;
+        if (streamer.readInt8(envSource))
+            modulationEngine_.setEnvFollowerSource(static_cast<Krate::DSP::EnvFollowerSourceType>(
+                std::clamp(static_cast<int>(envSource), 0, 4)));
+
+        // Random (3 values)
+        float randomRateNorm = 0.0f;
+        if (streamer.readFloat(randomRateNorm))
+            modulationEngine_.setRandomRate(0.1f + randomRateNorm * 49.9f);
+        float randomSmoothness = 0.0f;
+        if (streamer.readFloat(randomSmoothness))
+            modulationEngine_.setRandomSmoothness(randomSmoothness);
+        Steinberg::int8 randomSync = 0;
+        if (streamer.readInt8(randomSync))
+            modulationEngine_.setRandomTempoSync(randomSync != 0);
+
+        // Chaos (3 values)
+        Steinberg::int8 chaosModel = 0;
+        if (streamer.readInt8(chaosModel))
+            modulationEngine_.setChaosModel(static_cast<Krate::DSP::ChaosModel>(
+                std::clamp(static_cast<int>(chaosModel), 0, 3)));
+        float chaosSpeedNorm = 0.0f;
+        if (streamer.readFloat(chaosSpeedNorm))
+            modulationEngine_.setChaosSpeed(0.05f + chaosSpeedNorm * 19.95f);
+        float chaosCoupling = 0.0f;
+        if (streamer.readFloat(chaosCoupling))
+            modulationEngine_.setChaosCoupling(chaosCoupling);
+
+        // Sample & Hold (3 values)
+        Steinberg::int8 shSource = 0;
+        if (streamer.readInt8(shSource))
+            modulationEngine_.setSampleHoldSource(static_cast<Krate::DSP::SampleHoldInputType>(
+                std::clamp(static_cast<int>(shSource), 0, 3)));
+        float shRateNorm = 0.0f;
+        if (streamer.readFloat(shRateNorm))
+            modulationEngine_.setSampleHoldRate(0.1f + shRateNorm * 49.9f);
+        float shSlewNorm = 0.0f;
+        if (streamer.readFloat(shSlewNorm))
+            modulationEngine_.setSampleHoldSlew(shSlewNorm * 500.0f);
+
+        // Pitch Follower (4 values)
+        float pitchMinNorm = 0.0f;
+        if (streamer.readFloat(pitchMinNorm))
+            modulationEngine_.setPitchFollowerMinHz(20.0f + pitchMinNorm * 480.0f);
+        float pitchMaxNorm = 0.0f;
+        if (streamer.readFloat(pitchMaxNorm))
+            modulationEngine_.setPitchFollowerMaxHz(200.0f + pitchMaxNorm * 4800.0f);
+        float pitchConfidence = 0.5f;
+        if (streamer.readFloat(pitchConfidence))
+            modulationEngine_.setPitchFollowerConfidence(pitchConfidence);
+        float pitchTrackNorm = 0.0f;
+        if (streamer.readFloat(pitchTrackNorm))
+            modulationEngine_.setPitchFollowerTrackingSpeed(10.0f + pitchTrackNorm * 290.0f);
+
+        // Transient (3 values)
+        float transSensitivity = 0.5f;
+        if (streamer.readFloat(transSensitivity))
+            modulationEngine_.setTransientSensitivity(transSensitivity);
+        float transAttackNorm = 0.0f;
+        if (streamer.readFloat(transAttackNorm))
+            modulationEngine_.setTransientAttack(0.5f + transAttackNorm * 9.5f);
+        float transDecayNorm = 0.0f;
+        if (streamer.readFloat(transDecayNorm))
+            modulationEngine_.setTransientDecay(20.0f + transDecayNorm * 180.0f);
+
+        // Macros (4 × 4 = 16 values)
+        for (size_t m = 0; m < Krate::DSP::kMaxMacros; ++m) {
+            float macroValue = 0.0f;
+            if (streamer.readFloat(macroValue))
+                modulationEngine_.setMacroValue(m, macroValue);
+            float macroMin = 0.0f;
+            if (streamer.readFloat(macroMin))
+                modulationEngine_.setMacroMin(m, macroMin);
+            float macroMax = 1.0f;
+            if (streamer.readFloat(macroMax))
+                modulationEngine_.setMacroMax(m, macroMax);
+            Steinberg::int8 macroCurve = 0;
+            if (streamer.readInt8(macroCurve))
+                modulationEngine_.setMacroCurve(m, static_cast<Krate::DSP::ModCurve>(
+                    std::clamp(static_cast<int>(macroCurve), 0, 3)));
+        }
+
+        // --- Routing Parameters (32 × 4 values) ---
+        for (size_t r = 0; r < Krate::DSP::kMaxModRoutings; ++r) {
+            Krate::DSP::ModRouting routing{};
+            Steinberg::int8 source = 0;
+            if (streamer.readInt8(source))
+                routing.source = static_cast<Krate::DSP::ModSource>(
+                    std::clamp(static_cast<int>(source), 0, 12));
+            int32_t dest = 0;
+            if (streamer.readInt32(dest))
+                routing.destParamId = static_cast<uint32_t>(std::clamp(dest, 0, 127));
+            if (!streamer.readFloat(routing.amount))
+                routing.amount = 0.0f;
+            Steinberg::int8 curve = 0;
+            if (streamer.readInt8(curve))
+                routing.curve = static_cast<Krate::DSP::ModCurve>(
+                    std::clamp(static_cast<int>(curve), 0, 3));
+            routing.active = (routing.source != Krate::DSP::ModSource::None);
+            modulationEngine_.setRouting(r, routing);
+        }
+    }
+
     return Steinberg::kResultOk;
 }
 
@@ -765,6 +1137,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             // FR-003: Convert normalized [0,1] to octaves [0.5, 4.0]
                             constexpr float kMinWidth = 0.5f;
                             constexpr float kMaxWidth = 4.0f;
+                            baseSweepWidthNorm_.store(static_cast<float>(value), std::memory_order_relaxed);
                             const float widthOctaves = kMinWidth + static_cast<float>(value) * (kMaxWidth - kMinWidth);
                             sweepProcessor_.setWidth(widthOctaves);
                             break;
@@ -772,6 +1145,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                         case SweepParamType::kSweepIntensity: {
                             // FR-004: Convert normalized [0,1] to intensity [0, 2] (0-200%)
+                            baseSweepIntensityNorm_.store(static_cast<float>(value), std::memory_order_relaxed);
                             const float intensity = static_cast<float>(value) * 2.0f;
                             sweepProcessor_.setIntensity(intensity);
                             break;
@@ -937,6 +1311,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 case 3:  // Curve
                                     routing.curve = static_cast<Krate::DSP::ModCurve>(
                                         static_cast<int>(value * 3.0 + 0.5));
+                                    break;
+                                default:
                                     break;
                             }
                             modulationEngine_.setRouting(routIdx, routing);

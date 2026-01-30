@@ -170,34 +170,59 @@ public:
         }
         wasPlaying_ = ctx.isPlaying;
 
-        // Process per-sample sources
-        for (size_t i = 0; i < numSamples; ++i) {
+        // =====================================================================
+        // Determine which sources are active (skip expensive unused sources)
+        // =====================================================================
+        updateActiveSourceFlags();
+
+        // =====================================================================
+        // Per-sample sources: LFOs, EnvFollower, Transient
+        // These need sample-accurate processing for waveform/detection accuracy.
+        // LFOs and EnvFollower are always processed (cheap, commonly routed).
+        // Transient detector is only processed when routed.
+        // =====================================================================
+        const size_t safeSamples = (numSamples <= monoBuffer_.size())
+                                       ? numSamples : monoBuffer_.size();
+        const bool needsMono = sourceActive_[static_cast<size_t>(ModSource::PitchFollower)]
+                            || sourceActive_[static_cast<size_t>(ModSource::Transient)];
+
+        for (size_t i = 0; i < safeSamples; ++i) {
             float sampleL = (inputL != nullptr) ? inputL[i] : 0.0f;
             float sampleR = (inputR != nullptr) ? inputR[i] : 0.0f;
 
-            // Process LFOs
+            // Process LFOs (cheap wavetable lookup, always active)
             lfo1LastValue_ = lfo1_.process();
             lfo2LastValue_ = lfo2_.process();
 
-            // Process envelope follower
+            // Process envelope follower (cheap, always active for chaos coupling)
             processEnvFollowerSample(sampleL, sampleR);
 
-            // Process random source
-            random_.process();
+            if (needsMono) {
+                float monoInput = (sampleL + sampleR) * 0.5f;
+                monoBuffer_[i] = monoInput;
 
-            // Process chaos source (control-rate internally)
+                // Process transient detector only if routed
+                if (sourceActive_[static_cast<size_t>(ModSource::Transient)]) {
+                    transient_.process(monoInput);
+                }
+            }
+        }
+
+        // =====================================================================
+        // Per-block sources: Pitch, Random, Chaos, S&H
+        // Only process sources that have active routings.
+        // =====================================================================
+        if (sourceActive_[static_cast<size_t>(ModSource::PitchFollower)]) {
+            pitchFollower_.processBlock(monoBuffer_.data(), safeSamples);
+        }
+        if (sourceActive_[static_cast<size_t>(ModSource::Random)]) {
+            random_.processBlock(safeSamples);
+        }
+        if (sourceActive_[static_cast<size_t>(ModSource::Chaos)]) {
             chaos_.process();
-
-            // Process sample & hold
-            sampleHold_.process();
-
-            // Process pitch follower (feed mono input)
-            float monoInput = (sampleL + sampleR) * 0.5f;
-            pitchFollower_.pushSample(monoInput);
-            pitchFollower_.process();
-
-            // Process transient detector (feed mono input)
-            transient_.process(monoInput);
+        }
+        if (sourceActive_[static_cast<size_t>(ModSource::SampleHold)]) {
+            sampleHold_.processBlock(safeSamples);
         }
 
         // Update chaos coupling from audio envelope
@@ -415,10 +440,83 @@ public:
         return getRawSourceValue(source);
     }
 
+    // =========================================================================
+    // State Getters (for serialization)
+    // =========================================================================
+
+    // LFO 1
+    [[nodiscard]] float getLFO1Rate() const noexcept { return lfo1_.freeRunningFrequency(); }
+    [[nodiscard]] Waveform getLFO1Waveform() const noexcept { return lfo1_.waveform(); }
+    [[nodiscard]] float getLFO1PhaseOffset() const noexcept { return lfo1_.phaseOffset(); }
+    [[nodiscard]] bool getLFO1TempoSync() const noexcept { return lfo1_.tempoSyncEnabled(); }
+    [[nodiscard]] NoteValue getLFO1NoteValue() const noexcept { return lfo1_.noteValue(); }
+    [[nodiscard]] NoteModifier getLFO1NoteModifier() const noexcept { return lfo1_.noteModifier(); }
+    [[nodiscard]] bool getLFO1Unipolar() const noexcept { return lfo1Unipolar_; }
+    [[nodiscard]] bool getLFO1Retrigger() const noexcept { return lfo1_.retriggerEnabled(); }
+
+    // LFO 2
+    [[nodiscard]] float getLFO2Rate() const noexcept { return lfo2_.freeRunningFrequency(); }
+    [[nodiscard]] Waveform getLFO2Waveform() const noexcept { return lfo2_.waveform(); }
+    [[nodiscard]] float getLFO2PhaseOffset() const noexcept { return lfo2_.phaseOffset(); }
+    [[nodiscard]] bool getLFO2TempoSync() const noexcept { return lfo2_.tempoSyncEnabled(); }
+    [[nodiscard]] NoteValue getLFO2NoteValue() const noexcept { return lfo2_.noteValue(); }
+    [[nodiscard]] NoteModifier getLFO2NoteModifier() const noexcept { return lfo2_.noteModifier(); }
+    [[nodiscard]] bool getLFO2Unipolar() const noexcept { return lfo2Unipolar_; }
+    [[nodiscard]] bool getLFO2Retrigger() const noexcept { return lfo2_.retriggerEnabled(); }
+
+    // Envelope Follower
+    [[nodiscard]] float getEnvFollowerAttack() const noexcept { return envFollower_.getAttackTime(); }
+    [[nodiscard]] float getEnvFollowerRelease() const noexcept { return envFollower_.getReleaseTime(); }
+    [[nodiscard]] float getEnvFollowerSensitivity() const noexcept { return envFollowerSensitivity_; }
+    [[nodiscard]] EnvFollowerSourceType getEnvFollowerSource() const noexcept { return envFollowerSourceType_; }
+
+    // Random
+    [[nodiscard]] float getRandomRate() const noexcept { return random_.getRate(); }
+    [[nodiscard]] float getRandomSmoothness() const noexcept { return random_.getSmoothness(); }
+    [[nodiscard]] bool getRandomTempoSync() const noexcept { return random_.isTempoSynced(); }
+
+    // Chaos
+    [[nodiscard]] ChaosModel getChaosModel() const noexcept { return chaos_.getModel(); }
+    [[nodiscard]] float getChaosSpeed() const noexcept { return chaos_.getSpeed(); }
+    [[nodiscard]] float getChaosCoupling() const noexcept { return chaos_.getCoupling(); }
+
+    // Sample & Hold
+    [[nodiscard]] SampleHoldInputType getSampleHoldSource() const noexcept { return sampleHold_.getInputType(); }
+    [[nodiscard]] float getSampleHoldRate() const noexcept { return sampleHold_.getRate(); }
+    [[nodiscard]] float getSampleHoldSlew() const noexcept { return sampleHold_.getSlewTime(); }
+
+    // Pitch Follower
+    [[nodiscard]] float getPitchFollowerMinHz() const noexcept { return pitchFollower_.getMinHz(); }
+    [[nodiscard]] float getPitchFollowerMaxHz() const noexcept { return pitchFollower_.getMaxHz(); }
+    [[nodiscard]] float getPitchFollowerConfidence() const noexcept { return pitchFollower_.getConfidenceThreshold(); }
+    [[nodiscard]] float getPitchFollowerTrackingSpeed() const noexcept { return pitchFollower_.getTrackingSpeed(); }
+
+    // Transient
+    [[nodiscard]] float getTransientSensitivity() const noexcept { return transient_.getSensitivity(); }
+    [[nodiscard]] float getTransientAttack() const noexcept { return transient_.getAttackTime(); }
+    [[nodiscard]] float getTransientDecay() const noexcept { return transient_.getDecayTime(); }
+
+    // Macros
+    [[nodiscard]] const MacroConfig& getMacro(size_t index) const noexcept {
+        static const MacroConfig kEmpty{};
+        if (index >= kMaxMacros) return kEmpty;
+        return macros_[index];
+    }
+
 private:
     // =========================================================================
     // Internal Methods
     // =========================================================================
+
+    /// @brief Update flags indicating which sources have active routings.
+    void updateActiveSourceFlags() noexcept {
+        sourceActive_.fill(false);
+        for (const auto& r : routings_) {
+            if (r.active && r.source != ModSource::None) {
+                sourceActive_[static_cast<size_t>(r.source)] = true;
+            }
+        }
+    }
 
     /// @brief Get raw output from a modulation source.
     [[nodiscard]] float getRawSourceValue(ModSource source) const noexcept {
@@ -510,12 +608,9 @@ private:
             // Clamp source to valid range (edge case handling)
             sourceValue = std::clamp(sourceValue, -1.0f, 1.0f);
 
-            // Smooth the amount for zipper-free changes
+            // Smooth the amount for zipper-free changes (single step per block
+            // since amount changes arrive at block boundaries)
             amountSmoothers_[i].setTarget(routing.amount);
-            // Advance smoother by block size, use final value
-            for (size_t s = 0; s + 1 < numSamples; ++s) {
-                static_cast<void>(amountSmoothers_[i].process());
-            }
             float smoothedAmount = (numSamples > 0) ? amountSmoothers_[i].process()
                                                      : routing.amount;
 
@@ -583,6 +678,16 @@ private:
     // Per-destination modulation offset accumulation
     std::array<float, kMaxModDestinations> modOffsets_ = {};
     std::array<bool, kMaxModDestinations> destActive_ = {};
+
+    // =========================================================================
+    // Block Processing Buffer
+    // =========================================================================
+
+    /// @brief Mono mix buffer for block-rate pitch follower processing.
+    std::array<float, 4096> monoBuffer_ = {};
+
+    /// @brief Tracks which sources have at least one active routing.
+    std::array<bool, kModSourceCount> sourceActive_ = {};
 
     // =========================================================================
     // Configuration
