@@ -272,6 +272,12 @@ private:
     Steinberg::IPtr<Steinberg::FObject> bandCountDisplayController_;
 
     // ==========================================================================
+    // Crossover Drag Bridge
+    // ==========================================================================
+    // Bridges SpectrumDisplay crossover drag events to VST3 parameter changes
+    Steinberg::IPtr<Steinberg::FObject> crossoverDragBridge_;
+
+    // ==========================================================================
     // Window Size State (Spec 012 US2)
     // ==========================================================================
     // Persisted in controller state for session restore (FR-023)

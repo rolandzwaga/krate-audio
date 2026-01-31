@@ -953,6 +953,56 @@ private:
 };
 
 // ==============================================================================
+// CrossoverDragBridge: Propagates SpectrumDisplay crossover drags to parameters
+// ==============================================================================
+// Implements SpectrumDisplayListener to convert crossover frequency changes
+// from the SpectrumDisplay UI into VST3 parameter edits that reach the Processor.
+// Uses logarithmic normalization matching the Processor's interpretation:
+//   normalized = (log10(freq) - log10(20)) / (log10(20000) - log10(20))
+// ==============================================================================
+class CrossoverDragBridge : public Steinberg::FObject, public SpectrumDisplayListener {
+public:
+    CrossoverDragBridge(Steinberg::Vst::EditControllerEx1* controller)
+    : controller_(controller) {}
+
+    void onCrossoverChanged(int dividerIndex, float frequencyHz) override {
+        if (!controller_ || dividerIndex < 0 || dividerIndex >= kMaxBands - 1)
+            return;
+
+        auto paramId = makeCrossoverParamId(static_cast<uint8_t>(dividerIndex));
+
+        // Convert Hz to normalized [0,1] using logarithmic mapping
+        // Must match processor's interpretation:
+        //   logFreq = log10(20) + normalized * (log10(20000) - log10(20))
+        //   freqHz = 10^logFreq
+        const float logMin = std::log10(kMinCrossoverHz);
+        const float logMax = std::log10(kMaxCrossoverHz);
+        float clampedFreq = std::clamp(frequencyHz, kMinCrossoverHz, kMaxCrossoverHz);
+        float logFreq = std::log10(clampedFreq);
+        double normalized = static_cast<double>(logFreq - logMin) / static_cast<double>(logMax - logMin);
+        normalized = std::clamp(normalized, 0.0, 1.0);
+
+        controller_->beginEdit(paramId);
+        controller_->setParamNormalized(paramId, normalized);
+        controller_->performEdit(paramId, normalized);
+        controller_->endEdit(paramId);
+    }
+
+    void onBandSelected(int /*bandIndex*/) override {
+        // No-op: band selection is handled elsewhere
+    }
+
+    void deactivate() {
+        controller_ = nullptr;
+    }
+
+    OBJ_METHODS(CrossoverDragBridge, FObject)
+
+private:
+    Steinberg::Vst::EditControllerEx1* controller_ = nullptr;
+};
+
+// ==============================================================================
 // Helper: Convert int to TChar string
 // ==============================================================================
 static void intToString128(int value, Steinberg::Vst::String128 dest) {
@@ -2162,6 +2212,20 @@ void Controller::registerBandParams() {
         displayedTypeParam->appendString(STR16("Stochastic"));
         displayedTypeParam->appendString(STR16("Allpass Resonant"));
         parameters.addParameter(displayedTypeParam);
+
+        // Band TabView: Main/Shape tab switching (UI only, not persisted)
+        static const Steinberg::Vst::TChar* bandTabViewNames[] = {
+            STR16("Band 1 Tab View"), STR16("Band 2 Tab View"),
+            STR16("Band 3 Tab View"), STR16("Band 4 Tab View")
+        };
+        auto* tabViewParam = new Steinberg::Vst::StringListParameter(
+            bandTabViewNames[b],
+            makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandTabView),
+            nullptr,
+            Steinberg::Vst::ParameterInfo::kNoFlags);
+        tabViewParam->appendString(STR16("Main"));
+        tabViewParam->appendString(STR16("Shape"));
+        parameters.addParameter(tabViewParam);
     }
 }
 
@@ -3110,6 +3174,11 @@ VSTGUI::CView* Controller::createCustomView(
         // Store reference for later access (e.g., in willClose)
         spectrumDisplay_ = spectrumDisplay;
 
+        // Connect crossover drag bridge so UI drags propagate to processor
+        auto* bridge = new CrossoverDragBridge(this);
+        crossoverDragBridge_ = Steinberg::owned(bridge);
+        spectrumDisplay->setListener(bridge);
+
         return spectrumDisplay;
     }
 
@@ -3935,6 +4004,14 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // Spec 010: Clear preset browser view pointers (views are owned by frame)
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
+
+    // Deactivate crossover drag bridge before clearing SpectrumDisplay
+    if (crossoverDragBridge_) {
+        if (auto* bridge = dynamic_cast<CrossoverDragBridge*>(crossoverDragBridge_.get())) {
+            bridge->deactivate();
+        }
+        crossoverDragBridge_ = nullptr;
+    }
 
     sweepIndicator_ = nullptr;
     spectrumDisplay_ = nullptr;

@@ -1,6 +1,6 @@
 ---
 name: vst-guide
-description: VST3 SDK and VSTGUI implementation patterns. Use when working on plugin UI, parameter handling, VSTGUI components, editor lifecycle, thread safety, controller code, or cross-platform compatibility. Covers parameter types, IDependent pattern, visibility controllers, control selection, and common pitfalls.
+description: VST3 SDK and VSTGUI implementation patterns. Use when working on plugin UI, parameter handling, VSTGUI components, editor lifecycle, thread safety, controller code, reusable view templates, sub-controllers, or cross-platform compatibility. Covers parameter types, IDependent pattern, visibility controllers, control selection, template instantiation, tag remapping, and common pitfalls.
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
@@ -12,7 +12,7 @@ This skill captures hard-won insights about VST3 SDK and VSTGUI that are not obv
 
 - **Parameter types & helpers**: See [PARAMETERS.md](PARAMETERS.md)
 - **Thread safety & IDependent**: See [THREAD-SAFETY.md](THREAD-SAFETY.md)
-- **VSTGUI components**: See [UI-COMPONENTS.md](UI-COMPONENTS.md)
+- **VSTGUI components & reusable templates**: See [UI-COMPONENTS.md](UI-COMPONENTS.md)
 - **Control selection guide**: See [CONTROLS-REFERENCE.md](CONTROLS-REFERENCE.md)
 - **Cross-platform patterns**: See [CROSS-PLATFORM.md](CROSS-PLATFORM.md)
 - **Common pitfalls & incidents**: See [PITFALLS.md](PITFALLS.md)
@@ -87,6 +87,9 @@ void VST3Editor::valueChanged(CControl* pControl) {
 | Parameter classes | `extern/vst3sdk/public.sdk/source/vst/vstparameters.cpp` |
 | VST3Editor | `extern/vst3sdk/vstgui4/vstgui/plugin-bindings/vst3editor.cpp` |
 | UIViewSwitchContainer | `extern/vst3sdk/vstgui4/vstgui/uidescription/uiviewswitchcontainer.cpp` |
+| UIDescription (templates) | `extern/vst3sdk/vstgui4/vstgui/uidescription/uidescription.h` |
+| IController (sub-controllers) | `extern/vst3sdk/vstgui4/vstgui/uidescription/icontroller.h` |
+| DelegationController | `extern/vst3sdk/vstgui4/vstgui/uidescription/delegationcontroller.h` |
 | COptionMenu | `extern/vst3sdk/vstgui4/vstgui/lib/controls/coptionmenu.cpp` |
 | CViewContainer | `extern/vst3sdk/vstgui4/vstgui/lib/cviewcontainer.cpp` |
 | CView | `extern/vst3sdk/vstgui4/vstgui/lib/cview.cpp` |

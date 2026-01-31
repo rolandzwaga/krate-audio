@@ -110,6 +110,7 @@ add_executable(disrumpo_tests
     integration/node_editor_test.cpp
     integration/sweep_band_intensity_test.cpp
     integration/modulation_audio_path_test.cpp
+    integration/processor_audio_output_test.cpp
 )
 
 target_link_libraries(disrumpo_tests
@@ -155,6 +156,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         dsp/sweep_lfo_tests.cpp
         dsp/sweep_envelope_tests.cpp
         integration/sweep_band_intensity_test.cpp
+        integration/processor_audio_output_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
