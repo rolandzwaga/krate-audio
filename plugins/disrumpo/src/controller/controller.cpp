@@ -6,6 +6,7 @@
 // ==============================================================================
 
 #include "controller.h"
+#include "controller/sub_controllers.h"
 #include "plugin_ids.h"
 #include "version.h"
 #include "dsp/band_state.h"
@@ -3640,6 +3641,46 @@ VSTGUI::CView* Controller::createCustomView(
         attributes.getPointAttribute("size", size);
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
         return new SavePresetButton(rect, this);
+    }
+
+    return nullptr;
+}
+
+// ==============================================================================
+// Sub-Controller Factory
+// ==============================================================================
+// Dispatches sub-controller creation based on name.
+// Names encode the band index as a suffix digit: "BandShapeTab0" -> band 0
+// The returned controller is owned by the framework (it will be deleted).
+// ==============================================================================
+
+VSTGUI::IController* Controller::createSubController(
+    VSTGUI::UTF8StringPtr name,
+    const VSTGUI::IUIDescription* /*description*/,
+    VSTGUI::VST3Editor* editor) {
+
+    // Parse band-specific sub-controller names with band index as suffix digit:
+    // "BandShapeTab0" through "BandShapeTab3"
+    // "BandMainTab0" through "BandMainTab3"
+    // "BandExpandedStrip0" through "BandExpandedStrip3"
+    std::string_view sv(name);
+
+    if (sv.size() > 1) {
+        char lastChar = sv.back();
+        if (lastChar >= '0' && lastChar <= '3') {
+            int bandIndex = lastChar - '0';
+            auto prefix = sv.substr(0, sv.size() - 1);
+
+            if (prefix == "BandShapeTab" || prefix == "BandMainTab") {
+                // editor (VST3Editor*) is the IController parent for delegation
+                return new BandSubController(bandIndex, editor);
+            }
+
+            if (prefix == "BandExpandedStrip") {
+                // Expanded strip needs createView() override for custom view band injection
+                return new BandExpandedStripController(bandIndex, editor);
+            }
+        }
     }
 
     return nullptr;

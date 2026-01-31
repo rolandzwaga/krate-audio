@@ -262,6 +262,28 @@
     <control-tag name="Band4SelectedNode" tag="62221"/>
     <control-tag name="Band4DisplayedType" tag="62222"/>
     <control-tag name="Band4TabView" tag="62223"/>
+    <!-- Generic band tags for sub-controller remapping (placeholder IDs, always overridden) -->
+    <control-tag name="Band.DisplayedType" tag="50000"/>
+    <control-tag name="Band.Gain" tag="50001"/>
+    <control-tag name="Band.Pan" tag="50002"/>
+    <control-tag name="Band.Solo" tag="50003"/>
+    <control-tag name="Band.Bypass" tag="50004"/>
+    <control-tag name="Band.Mute" tag="50005"/>
+    <control-tag name="Band.Expanded" tag="50006"/>
+    <control-tag name="Band.ActiveNodes" tag="50007"/>
+    <control-tag name="Band.MorphSmoothing" tag="50008"/>
+    <control-tag name="Band.MorphX" tag="50009"/>
+    <control-tag name="Band.MorphY" tag="50010"/>
+    <control-tag name="Band.MorphMode" tag="50011"/>
+    <control-tag name="Band.MorphXLink" tag="50012"/>
+    <control-tag name="Band.MorphYLink" tag="50013"/>
+    <control-tag name="Band.SelectedNode" tag="50014"/>
+    <control-tag name="Band.TabView" tag="50015"/>
+    <control-tag name="Band.NodeDrive" tag="50016"/>
+    <control-tag name="Band.NodeMix" tag="50017"/>
+    <control-tag name="Band.NodeTone" tag="50018"/>
+    <control-tag name="Band.NodeBias" tag="50019"/>
+    <control-tag name="Band.ExpandedContainer" tag="50020"/>
     <control-tag name="Band1Container" tag="9000"/>
     <control-tag name="Band2Container" tag="9001"/>
     <control-tag name="Band3Container" tag="9002"/>
@@ -509,7 +531,8 @@
       </view>
       <view class="CViewContainer" origin="240, 0" size="235, 340" background-color="panel" control-tag="Band2Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band2Container" back-color="transparent"/>
-        <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 2" font="section-font" font-color="band-2" text-alignment="center"/>
+        <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 2" font="section-font" font-color="band-2" text-alignment="center"/>
+        <view class="COnOffButton" origin="200, 5" size="25, 20" bitmap="onoff_25x20" control-tag="Band2Expanded" default-value="0"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band2DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band2TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -518,7 +541,8 @@
       </view>
       <view class="CViewContainer" origin="480, 0" size="235, 340" background-color="panel" control-tag="Band3Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band3Container" back-color="transparent"/>
-        <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 3" font="section-font" font-color="band-3" text-alignment="center"/>
+        <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 3" font="section-font" font-color="band-3" text-alignment="center"/>
+        <view class="COnOffButton" origin="200, 5" size="25, 20" bitmap="onoff_25x20" control-tag="Band3Expanded" default-value="0"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band3DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band3TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -527,60 +551,30 @@
       </view>
       <view class="CViewContainer" origin="720, 0" size="235, 340" background-color="panel" control-tag="Band4Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band4Container" back-color="transparent"/>
-        <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 4" font="section-font" font-color="band-4" text-alignment="center"/>
+        <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 4" font="section-font" font-color="band-4" text-alignment="center"/>
+        <view class="COnOffButton" origin="200, 5" size="25, 20" bitmap="onoff_25x20" control-tag="Band4Expanded" default-value="0"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band4DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band4TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
         <view class="CSlider" origin="0, 94" size="1, 1" transparent="true" control-tag="Band4TabView" min-value="0" max-value="1"/>
         <view class="UIViewSwitchContainer" origin="10, 95" size="215, 243" animation-time="0" template-switch-control="Band4TabView" template-names="Band4MainTab,Band4ShapeTab"/>
       </view>
+      <!-- Expanded band strips: shown/hidden by AnimatedExpandController (tags 9100-9103) -->
       <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1ExpandedContainer" back-color="transparent"/>
-        <view class="CViewContainer" origin="0, 0" size="680, 40" background-color="background-secondary">
-          <view class="CTextLabel" origin="10, 10" size="60, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="left"/>
-          <view class="COnOffButton" origin="640, 8" size="30, 24" bitmap="onoff_30x24" control-tag="Band1Expanded" default-value="1"/>
-          <view class="CTextLabel" origin="80, 12" size="35, 16" title="Type" font="small-font" font-color="text-secondary"/>
-          <view class="COptionMenu" origin="115, 10" size="100, 20" control-tag="Band1DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
-          <view class="CTextLabel" origin="230, 2" size="40, 12" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>
-          <view class="CKnob" origin="235, 14" size="30, 24" control-tag="B1N1Drive" default-value="0.1" min-value="0" max-value="1" background-color="panel" handle-color="accent-primary"/>
-          <view class="CTextLabel" origin="280, 2" size="40, 12" title="Mix" font="small-font" font-color="text-secondary" text-alignment="center"/>
-          <view class="CKnob" origin="285, 14" size="30, 24" control-tag="B1N1Mix" default-value="1.0" min-value="0" max-value="1" background-color="panel" handle-color="accent-primary"/>
-        </view>
-        <view class="CViewContainer" origin="0, 45" size="200, 230" background-color="panel">
-          <view class="CTextLabel" origin="0, 0" size="200, 16" title="Morph" font="section-font" font-color="text-primary" text-alignment="center"/>
-          <view class="CView" custom-view-name="MorphPad" origin="10, 20" size="180, 120" band="0"/>
-          <view class="CTextLabel" origin="10, 145" size="60, 12" title="Mode" font="small-font" font-color="text-secondary"/>
-          <view class="CSegmentButton" origin="10, 158" size="180, 22" control-tag="Band1MorphMode" default-value="0.33" style="horizontal" segment-names="1D, 2D, Radial" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
-          <view class="CTextLabel" origin="10, 183" size="60, 12" title="Nodes" font="small-font" font-color="text-secondary"/>
-          <view class="CSegmentButton" origin="70, 182" size="90, 20" control-tag="Band1ActiveNodes" default-value="1.0" style="horizontal" segment-names="2, 3, 4" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
-          <view class="CTextLabel" origin="10, 205" size="60, 12" title="Smooth" font="small-font" font-color="text-secondary"/>
-          <view class="CKnob" origin="75, 200" size="30, 25" control-tag="Band1MorphSmoothing" default-value="0" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-secondary"/>
-          <view class="CTextLabel" origin="108, 210" size="30, 12" title="ms" font="small-font" font-color="text-secondary"/>
-        </view>
-        <view class="CViewContainer" origin="205, 45" size="280, 230" background-color="panel">
-          <view class="CView" custom-view-name="NodeEditorBorder" origin="0, 0" size="280, 230" band="0"/>
-          <view class="CViewContainer" origin="0, 0" size="280, 20" background-color="background-secondary">
-            <view class="CTextLabel" origin="5, 2" size="50, 12" title="Node:" font="small-font" font-color="text-secondary"/>
-            <view class="CView" custom-view-name="DynamicNodeSelector" origin="55, 2" size="135, 16" band="0" control-tag="Band1SelectedNode"/>
-          </view>
-          <view class="CSlider" origin="0, 22" size="1, 1" transparent="true" control-tag="Band1DisplayedType" min-value="0" max-value="1"/>
-          <view class="UIViewSwitchContainer" origin="32, 22" size="215, 200" animation-time="0" template-switch-control="Band1DisplayedType" template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
-        </view>
-        <view class="CViewContainer" origin="490, 45" size="185, 230" background-color="panel">
-          <view class="CTextLabel" origin="0, 0" size="185, 16" title="Output" font="section-font" font-color="text-primary" text-alignment="center"/>
-          <view class="CTextLabel" origin="20, 25" size="60, 12" title="Gain" font="small-font" font-color="text-secondary" text-alignment="center"/>
-          <view class="CKnob" origin="30, 40" size="40, 40" control-tag="Band1Gain" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
-          <view class="CTextLabel" origin="100, 25" size="60, 12" title="Pan" font="small-font" font-color="text-secondary" text-alignment="center"/>
-          <view class="CKnob" origin="110, 40" size="40, 40" control-tag="Band1Pan" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
-          <view class="CTextLabel" origin="10, 105" size="165, 16" title="Controls" font="label-font" font-color="text-secondary" text-alignment="center"/>
-          <view class="CTextButton" origin="25, 125" size="40, 30" title="Solo" control-tag="Band1Solo" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-          <view class="CTextButton" origin="75, 125" size="40, 30" title="Bypass" control-tag="Band1Bypass" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-          <view class="CTextButton" origin="125, 125" size="40, 30" title="Mute" control-tag="Band1Mute" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-          <view class="CTextLabel" origin="10, 165" size="80, 12" title="Morph X Link" font="small-font" font-color="text-secondary"/>
-          <view class="COptionMenu" origin="90, 163" size="90, 18" control-tag="Band1MorphXLink" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
-          <view class="CTextLabel" origin="10, 188" size="80, 12" title="Morph Y Link" font="small-font" font-color="text-secondary"/>
-          <view class="COptionMenu" origin="90, 186" size="90, 18" control-tag="Band1MorphYLink" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
-        </view>
+        <view template="Band1ExpandedStrip"/>
+      </view>
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel" visible="false">
+        <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band2ExpandedContainer" back-color="transparent"/>
+        <view template="Band2ExpandedStrip"/>
+      </view>
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel" visible="false">
+        <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band3ExpandedContainer" back-color="transparent"/>
+        <view template="Band3ExpandedStrip"/>
+      </view>
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel" visible="false">
+        <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band4ExpandedContainer" back-color="transparent"/>
+        <view template="Band4ExpandedStrip"/>
       </view>
     </view>
     <view class="CViewContainer" origin="0, 550" size="1000, 50" background-color="background-secondary">
@@ -1207,172 +1201,129 @@
     <view class="CTextLabel" origin="155, 78" size="40, 10" title="Damp" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" origin="155, 88" size="32, 32" default-value="0.3" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-6"/>
   </template>
-  <template name="Band1MainTab" class="CViewContainer" size="215, 243" background-color="panel">
+  <!-- BandMainTab: Shared template using generic Band.* tags (remapped by sub-controller) -->
+  <template name="BandMainTab" class="CViewContainer" size="215, 243" background-color="panel">
     <view class="CTextLabel" origin="0, 5" size="100, 15" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 20" size="100, 20" orientation="horizontal" control-tag="B1N1Drive" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="0, 42" size="100, 15" control-tag="B1N1Drive" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
+    <view class="CSlider" origin="0, 20" size="100, 20" orientation="horizontal" control-tag="Band.NodeDrive" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
+    <view class="CParamDisplay" origin="0, 42" size="100, 15" control-tag="Band.NodeDrive" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
     <view class="CTextLabel" origin="110, 5" size="100, 15" title="Mix" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 20" size="100, 20" orientation="horizontal" control-tag="B1N1Mix" default-value="1.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="110, 42" size="100, 15" control-tag="B1N1Mix" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
+    <view class="CSlider" origin="110, 20" size="100, 20" orientation="horizontal" control-tag="Band.NodeMix" default-value="1.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
+    <view class="CParamDisplay" origin="110, 42" size="100, 15" control-tag="Band.NodeMix" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
     <view class="CTextLabel" origin="0, 60" size="100, 15" title="Tone" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 75" size="100, 20" orientation="horizontal" control-tag="B1N1Tone" default-value="0.487" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
+    <view class="CSlider" origin="0, 75" size="100, 20" orientation="horizontal" control-tag="Band.NodeTone" default-value="0.487" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
     <view class="CTextLabel" origin="110, 60" size="100, 15" title="Bias" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 75" size="100, 20" orientation="horizontal" control-tag="B1N1Bias" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
+    <view class="CSlider" origin="110, 75" size="100, 20" orientation="horizontal" control-tag="Band.NodeBias" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
     <view class="CTextLabel" origin="0, 100" size="100, 15" title="Gain" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 115" size="100, 20" orientation="horizontal" control-tag="Band1Gain" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="0, 137" size="100, 15" control-tag="Band1Gain" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
+    <view class="CSlider" origin="0, 115" size="100, 20" orientation="horizontal" control-tag="Band.Gain" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
+    <view class="CParamDisplay" origin="0, 137" size="100, 15" control-tag="Band.Gain" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
     <view class="CTextLabel" origin="110, 100" size="100, 15" title="Pan" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 115" size="100, 20" orientation="horizontal" control-tag="Band1Pan" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="110, 137" size="100, 15" control-tag="Band1Pan" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
+    <view class="CSlider" origin="110, 115" size="100, 20" orientation="horizontal" control-tag="Band.Pan" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
+    <view class="CParamDisplay" origin="110, 137" size="100, 15" control-tag="Band.Pan" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
     <view class="CViewContainer" origin="0, 158" size="215, 50" transparent="true">
-      <view class="COnOffButton" origin="30, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band1Solo" default-value="0"/>
+      <view class="COnOffButton" origin="30, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band.Solo" default-value="0"/>
       <view class="CTextLabel" origin="30, 25" size="40, 15" title="Solo" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="90, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band1Bypass" default-value="0"/>
+      <view class="COnOffButton" origin="90, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band.Bypass" default-value="0"/>
       <view class="CTextLabel" origin="90, 25" size="40, 15" title="Bypass" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="150, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band1Mute" default-value="0"/>
+      <view class="COnOffButton" origin="150, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band.Mute" default-value="0"/>
       <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute" font="small-font" font-color="text-secondary" text-alignment="center"/>
     </view>
     <view class="CTextLabel" origin="0, 215" size="42, 20" title="Morph X" font="small-font" font-color="text-secondary"/>
-    <view class="CSlider" origin="42, 219" size="60, 15" orientation="horizontal" control-tag="Band1MorphX" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+    <view class="CSlider" origin="42, 219" size="60, 15" orientation="horizontal" control-tag="Band.MorphX" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
     <view class="CTextLabel" origin="109, 215" size="47, 20" title="Morph Y" font="small-font" font-color="text-secondary"/>
-    <view class="CSlider" origin="157, 219" size="55, 20" orientation="horizontal" control-tag="Band1MorphY" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+    <view class="CSlider" origin="157, 219" size="55, 20" orientation="horizontal" control-tag="Band.MorphY" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
   </template>
-  <template name="Band2MainTab" class="CViewContainer" size="215, 243" background-color="panel">
-    <view class="CTextLabel" origin="0, 5" size="100, 15" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 20" size="100, 20" orientation="horizontal" control-tag="B2N1Drive" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="0, 42" size="100, 15" control-tag="B2N1Drive" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
-    <view class="CTextLabel" origin="110, 5" size="100, 15" title="Mix" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 20" size="100, 20" orientation="horizontal" control-tag="B2N1Mix" default-value="1.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="110, 42" size="100, 15" control-tag="B2N1Mix" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
-    <view class="CTextLabel" origin="0, 65" size="100, 15" title="Gain" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 80" size="100, 20" orientation="horizontal" control-tag="Band2Gain" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CTextLabel" origin="110, 65" size="100, 15" title="Pan" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 80" size="100, 20" orientation="horizontal" control-tag="Band2Pan" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CViewContainer" origin="0, 110" size="215, 50" transparent="true">
-      <view class="COnOffButton" origin="30, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band2Solo" default-value="0"/>
-      <view class="CTextLabel" origin="30, 25" size="40, 15" title="Solo" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="90, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band2Bypass" default-value="0"/>
-      <view class="CTextLabel" origin="90, 25" size="40, 15" title="Bypass" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="150, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band2Mute" default-value="0"/>
-      <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    </view>
+  <!-- Per-band wrappers: set sub-controller name encoding band index -->
+  <template name="Band1MainTab" class="CViewContainer" sub-controller="BandMainTab0" size="215, 243" background-color="panel">
+    <view template="BandMainTab"/>
   </template>
-  <template name="Band3MainTab" class="CViewContainer" size="215, 243" background-color="panel">
-    <view class="CTextLabel" origin="0, 5" size="100, 15" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 20" size="100, 20" orientation="horizontal" control-tag="B3N1Drive" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="0, 42" size="100, 15" control-tag="B3N1Drive" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
-    <view class="CTextLabel" origin="110, 5" size="100, 15" title="Mix" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 20" size="100, 20" orientation="horizontal" control-tag="B3N1Mix" default-value="1.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="110, 42" size="100, 15" control-tag="B3N1Mix" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
-    <view class="CTextLabel" origin="0, 65" size="100, 15" title="Gain" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 80" size="100, 20" orientation="horizontal" control-tag="Band3Gain" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CTextLabel" origin="110, 65" size="100, 15" title="Pan" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 80" size="100, 20" orientation="horizontal" control-tag="Band3Pan" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CViewContainer" origin="0, 110" size="215, 50" transparent="true">
-      <view class="COnOffButton" origin="30, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band3Solo" default-value="0"/>
-      <view class="CTextLabel" origin="30, 25" size="40, 15" title="Solo" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="90, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band3Bypass" default-value="0"/>
-      <view class="CTextLabel" origin="90, 25" size="40, 15" title="Bypass" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="150, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band3Mute" default-value="0"/>
-      <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    </view>
+  <template name="Band2MainTab" class="CViewContainer" sub-controller="BandMainTab1" size="215, 243" background-color="panel">
+    <view template="BandMainTab"/>
   </template>
-  <template name="Band4MainTab" class="CViewContainer" size="215, 243" background-color="panel">
-    <view class="CTextLabel" origin="0, 5" size="100, 15" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 20" size="100, 20" orientation="horizontal" control-tag="B4N1Drive" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="0, 42" size="100, 15" control-tag="B4N1Drive" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
-    <view class="CTextLabel" origin="110, 5" size="100, 15" title="Mix" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 20" size="100, 20" orientation="horizontal" control-tag="B4N1Mix" default-value="1.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CParamDisplay" origin="110, 42" size="100, 15" control-tag="B4N1Mix" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
-    <view class="CTextLabel" origin="0, 65" size="100, 15" title="Gain" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 80" size="100, 20" orientation="horizontal" control-tag="Band4Gain" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CTextLabel" origin="110, 65" size="100, 15" title="Pan" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 80" size="100, 20" orientation="horizontal" control-tag="Band4Pan" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
-    <view class="CViewContainer" origin="0, 110" size="215, 50" transparent="true">
-      <view class="COnOffButton" origin="30, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band4Solo" default-value="0"/>
-      <view class="CTextLabel" origin="30, 25" size="40, 15" title="Solo" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="90, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band4Bypass" default-value="0"/>
-      <view class="CTextLabel" origin="90, 25" size="40, 15" title="Bypass" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="150, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band4Mute" default-value="0"/>
-      <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    </view>
+  <template name="Band3MainTab" class="CViewContainer" sub-controller="BandMainTab2" size="215, 243" background-color="panel">
+    <view template="BandMainTab"/>
   </template>
-  <template name="Band1ShapeTab" class="CViewContainer" size="215, 243" background-color="panel">
-    <view class="CSlider" origin="0, 0" size="1, 1" transparent="true" control-tag="Band1DisplayedType" min-value="0" max-value="1"/>
-    <view class="UIViewSwitchContainer" origin="0, 0" size="215, 200" animation-time="0" template-switch-control="Band1DisplayedType" template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
+  <template name="Band4MainTab" class="CViewContainer" sub-controller="BandMainTab3" size="215, 243" background-color="panel">
+    <view template="BandMainTab"/>
   </template>
-  <template name="Band2ShapeTab" class="CViewContainer" size="215, 243" background-color="panel">
-    <view class="CSlider" origin="0, 0" size="1, 1" transparent="true" control-tag="Band2DisplayedType" min-value="0" max-value="1"/>
-    <view class="UIViewSwitchContainer" origin="0, 0" size="215, 200" animation-time="0" template-switch-control="Band2DisplayedType" template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
+  <!-- BandShapeTab: Shared template using generic Band.DisplayedType tag (remapped by sub-controller) -->
+  <template name="BandShapeTab" class="CViewContainer" size="215, 243" background-color="panel">
+    <view class="CSlider" origin="0, 0" size="1, 1" transparent="true" control-tag="Band.DisplayedType" min-value="0" max-value="1"/>
+    <view class="UIViewSwitchContainer" origin="0, 0" size="215, 200" animation-time="0" template-switch-control="Band.DisplayedType" template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
   </template>
-  <template name="Band3ShapeTab" class="CViewContainer" size="215, 243" background-color="panel">
-    <view class="CSlider" origin="0, 0" size="1, 1" transparent="true" control-tag="Band3DisplayedType" min-value="0" max-value="1"/>
-    <view class="UIViewSwitchContainer" origin="0, 0" size="215, 200" animation-time="0" template-switch-control="Band3DisplayedType" template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
+  <!-- Per-band wrappers: set sub-controller name encoding band index -->
+  <template name="Band1ShapeTab" class="CViewContainer" sub-controller="BandShapeTab0" size="215, 243" background-color="panel">
+    <view template="BandShapeTab"/>
   </template>
-  <template name="Band4ShapeTab" class="CViewContainer" size="215, 243" background-color="panel">
-    <view class="CSlider" origin="0, 0" size="1, 1" transparent="true" control-tag="Band4DisplayedType" min-value="0" max-value="1"/>
-    <view class="UIViewSwitchContainer" origin="0, 0" size="215, 200" animation-time="0" template-switch-control="Band4DisplayedType" template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
+  <template name="Band2ShapeTab" class="CViewContainer" sub-controller="BandShapeTab1" size="215, 243" background-color="panel">
+    <view template="BandShapeTab"/>
   </template>
-  <template name="BandStripExpanded" class="CViewContainer" size="680, 280" background-color="panel">
+  <template name="Band3ShapeTab" class="CViewContainer" sub-controller="BandShapeTab2" size="215, 243" background-color="panel">
+    <view template="BandShapeTab"/>
+  </template>
+  <template name="Band4ShapeTab" class="CViewContainer" sub-controller="BandShapeTab3" size="215, 243" background-color="panel">
+    <view template="BandShapeTab"/>
+  </template>
+  <!-- BandExpandedStrip: Shared template for expanded band view (remapped by BandExpandedStripController) -->
+  <!-- "Band 1" title text and font-color="band-1" are overridden by verifyView() per band -->
+  <!-- band="0" on custom views is overridden by createView() per band -->
+  <template name="BandExpandedStrip" class="CViewContainer" size="680, 280" background-color="panel">
     <view class="CViewContainer" origin="0, 0" size="680, 40" background-color="background-secondary">
       <view class="CTextLabel" origin="10, 10" size="60, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="left"/>
-      <view class="COnOffButton" origin="640, 8" size="30, 24" bitmap="onoff_30x24" control-tag="Band1Expanded" default-value="1"/>
+      <view class="COnOffButton" origin="640, 8" size="30, 24" bitmap="onoff_30x24" control-tag="Band.Expanded" default-value="1"/>
       <view class="CTextLabel" origin="80, 12" size="35, 16" title="Type" font="small-font" font-color="text-secondary"/>
-      <view class="COptionMenu" origin="115, 10" size="100, 20" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+      <view class="COptionMenu" origin="115, 10" size="100, 20" control-tag="Band.DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
       <view class="CTextLabel" origin="230, 2" size="40, 12" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="CKnob" origin="235, 14" size="30, 24" default-value="0.1" min-value="0" max-value="1" background-color="panel" handle-color="accent-primary"/>
+      <view class="CKnob" origin="235, 14" size="30, 24" control-tag="Band.NodeDrive" default-value="0.1" min-value="0" max-value="1" background-color="panel" handle-color="accent-primary"/>
       <view class="CTextLabel" origin="280, 2" size="40, 12" title="Mix" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="CKnob" origin="285, 14" size="30, 24" default-value="1.0" min-value="0" max-value="1" background-color="panel" handle-color="accent-primary"/>
-      <view class="CTextLabel" origin="330, 2" size="40, 12" title="Tone" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="CKnob" origin="335, 14" size="30, 24" default-value="0.5" min-value="0" max-value="1" background-color="panel" handle-color="accent-primary"/>
-      <view class="CTextButton" origin="400, 10" size="25, 20" title="S" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-      <view class="CTextButton" origin="430, 10" size="25, 20" title="B" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-      <view class="CTextButton" origin="460, 10" size="25, 20" title="M" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
+      <view class="CKnob" origin="285, 14" size="30, 24" control-tag="Band.NodeMix" default-value="1.0" min-value="0" max-value="1" background-color="panel" handle-color="accent-primary"/>
     </view>
     <view class="CViewContainer" origin="0, 45" size="200, 230" background-color="panel">
       <view class="CTextLabel" origin="0, 0" size="200, 16" title="Morph" font="section-font" font-color="text-primary" text-alignment="center"/>
       <view class="CView" custom-view-name="MorphPad" origin="10, 20" size="180, 120" band="0"/>
       <view class="CTextLabel" origin="10, 145" size="60, 12" title="Mode" font="small-font" font-color="text-secondary"/>
-      <view class="CSegmentButton" origin="10, 158" size="180, 22" control-tag="Band1MorphMode" default-value="0.33" style="horizontal" segment-names="1D, 2D, Radial" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+      <view class="CSegmentButton" origin="10, 158" size="180, 22" control-tag="Band.MorphMode" default-value="0.33" style="horizontal" segment-names="1D, 2D, Radial" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
       <view class="CTextLabel" origin="10, 183" size="60, 12" title="Nodes" font="small-font" font-color="text-secondary"/>
-      <view class="CSegmentButton" origin="70, 182" size="90, 20" control-tag="Band1ActiveNodes" default-value="1.0" style="horizontal" segment-names="2, 3, 4" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+      <view class="CSegmentButton" origin="70, 182" size="90, 20" control-tag="Band.ActiveNodes" default-value="1.0" style="horizontal" segment-names="2, 3, 4" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
       <view class="CTextLabel" origin="10, 205" size="60, 12" title="Smooth" font="small-font" font-color="text-secondary"/>
-      <view class="CKnob" origin="75, 200" size="30, 25" control-tag="Band1MorphSmoothing" default-value="0" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-secondary"/>
+      <view class="CKnob" origin="75, 200" size="30, 25" control-tag="Band.MorphSmoothing" default-value="0" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-secondary"/>
       <view class="CTextLabel" origin="108, 210" size="30, 12" title="ms" font="small-font" font-color="text-secondary"/>
     </view>
     <view class="CViewContainer" origin="205, 45" size="280, 230" background-color="panel">
       <view class="CView" custom-view-name="NodeEditorBorder" origin="0, 0" size="280, 230" band="0"/>
       <view class="CViewContainer" origin="0, 0" size="280, 20" background-color="background-secondary">
         <view class="CTextLabel" origin="5, 2" size="50, 12" title="Node:" font="small-font" font-color="text-secondary"/>
-        <view class="CView" custom-view-name="DynamicNodeSelector" origin="55, 2" size="135, 16" band="0" control-tag="Band1SelectedNode"/>
+        <view class="CView" custom-view-name="DynamicNodeSelector" origin="55, 2" size="135, 16" band="0" control-tag="Band.SelectedNode"/>
       </view>
-      <view class="CSlider" origin="0, 22" size="1, 1" transparent="true" control-tag="Band1DisplayedType" min-value="0" max-value="1"/>
-      <view class="UIViewSwitchContainer" origin="32, 22" size="215, 200" animation-time="0" template-switch-control="Band1DisplayedType" template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
+      <view class="CSlider" origin="0, 22" size="1, 1" transparent="true" control-tag="Band.DisplayedType" min-value="0" max-value="1"/>
+      <view class="UIViewSwitchContainer" origin="32, 22" size="215, 200" animation-time="0" template-switch-control="Band.DisplayedType" template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic,TypeParams_AllpassRes"/>
     </view>
     <view class="CViewContainer" origin="490, 45" size="185, 230" background-color="panel">
       <view class="CTextLabel" origin="0, 0" size="185, 16" title="Output" font="section-font" font-color="text-primary" text-alignment="center"/>
       <view class="CTextLabel" origin="20, 25" size="60, 12" title="Gain" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="CKnob" origin="30, 40" size="40, 40" control-tag="Band1Gain" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
-      <view class="CTextLabel" origin="20, 82" size="60, 12" title="0.0 dB" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="CKnob" origin="30, 40" size="40, 40" control-tag="Band.Gain" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
       <view class="CTextLabel" origin="100, 25" size="60, 12" title="Pan" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="CKnob" origin="110, 40" size="40, 40" control-tag="Band1Pan" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
-      <view class="CTextLabel" origin="100, 82" size="60, 12" title="C" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="CKnob" origin="110, 40" size="40, 40" control-tag="Band.Pan" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
       <view class="CTextLabel" origin="10, 105" size="165, 16" title="Controls" font="label-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="CTextButton" origin="25, 125" size="40, 30" title="Solo" control-tag="Band1Solo" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-      <view class="CTextButton" origin="75, 125" size="40, 30" title="Bypass" control-tag="Band1Bypass" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-      <view class="CTextButton" origin="125, 125" size="40, 30" title="Mute" control-tag="Band1Mute" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-      <view class="CTextLabel" origin="10, 170" size="80, 12" title="Morph X Link" font="small-font" font-color="text-secondary"/>
-      <view class="COptionMenu" origin="90, 168" size="85, 18" control-tag="Band1MorphXLink" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
-      <view class="CTextLabel" origin="10, 195" size="80, 12" title="Morph Y Link" font="small-font" font-color="text-secondary"/>
-      <view class="COptionMenu" origin="90, 193" size="85, 18" control-tag="Band1MorphYLink" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+      <view class="CTextButton" origin="25, 125" size="40, 30" title="Solo" control-tag="Band.Solo" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
+      <view class="CTextButton" origin="75, 125" size="40, 30" title="Bypass" control-tag="Band.Bypass" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
+      <view class="CTextButton" origin="125, 125" size="40, 30" title="Mute" control-tag="Band.Mute" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
+      <view class="CTextLabel" origin="10, 165" size="80, 12" title="Morph X Link" font="small-font" font-color="text-secondary"/>
+      <view class="COptionMenu" origin="90, 163" size="90, 18" control-tag="Band.MorphXLink" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+      <view class="CTextLabel" origin="10, 188" size="80, 12" title="Morph Y Link" font="small-font" font-color="text-secondary"/>
+      <view class="COptionMenu" origin="90, 186" size="90, 18" control-tag="Band.MorphYLink" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
     </view>
   </template>
-  <template name="BandStripCollapsed" class="CViewContainer" size="235, 40" background-color="panel">
-    <view class="CTextLabel" origin="5, 10" size="50, 20" title="Band 1" font="label-font" font-color="band-1" text-alignment="left"/>
-    <view class="COnOffButton" origin="200, 8" size="25, 24" bitmap="onoff_25x24" control-tag="Band1Expanded" default-value="0"/>
-    <view class="COptionMenu" origin="55, 10" size="70, 20" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
-    <view class="CTextButton" origin="130, 12" size="20, 16" title="S" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-    <view class="CTextButton" origin="152, 12" size="20, 16" title="B" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-    <view class="CTextButton" origin="174, 12" size="20, 16" title="M" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
+  <!-- Per-band expanded strip wrappers: set sub-controller name encoding band index -->
+  <template name="Band1ExpandedStrip" class="CViewContainer" sub-controller="BandExpandedStrip0" size="680, 280" background-color="panel">
+    <view template="BandExpandedStrip"/>
+  </template>
+  <template name="Band2ExpandedStrip" class="CViewContainer" sub-controller="BandExpandedStrip1" size="680, 280" background-color="panel">
+    <view template="BandExpandedStrip"/>
+  </template>
+  <template name="Band3ExpandedStrip" class="CViewContainer" sub-controller="BandExpandedStrip2" size="680, 280" background-color="panel">
+    <view template="BandExpandedStrip"/>
+  </template>
+  <template name="Band4ExpandedStrip" class="CViewContainer" sub-controller="BandExpandedStrip3" size="680, 280" background-color="panel">
+    <view template="BandExpandedStrip"/>
   </template>
 </vstgui-ui-description>
