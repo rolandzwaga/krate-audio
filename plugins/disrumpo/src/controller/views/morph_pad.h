@@ -152,6 +152,12 @@ public:
     /// @brief Set the listener for events.
     void setMorphPadListener(MorphPadListener* listener) { listener_ = listener; }
 
+    /// @brief Enable high contrast mode (Spec 012 FR-025a)
+    /// Increases node border widths, uses high contrast accent for cursor.
+    void setHighContrastMode(bool enabled,
+                             const VSTGUI::CColor& borderColor = VSTGUI::CColor(255, 255, 255),
+                             const VSTGUI::CColor& accentColor = VSTGUI::CColor(0x3A, 0x96, 0xDD));
+
     /// @brief Set the parameter ID for MorphY (secondary parameter).
     /// MorphX is transmitted via CControl tag; MorphY needs explicit edit calls.
     void setMorphYParamId(Steinberg::Vst::ParamID id) { morphYParamId_ = id; }
@@ -331,6 +337,11 @@ private:
 
     // Default node positions (corners for 4-node mode)
     void resetNodePositionsToDefault();
+
+    // High contrast mode (Spec 012 FR-025a)
+    bool highContrastEnabled_ = false;
+    VSTGUI::CColor hcBorderColor_{255, 255, 255};
+    VSTGUI::CColor hcAccentColor_{0x3A, 0x96, 0xDD};
 };
 
 } // namespace Disrumpo

@@ -105,6 +105,15 @@ MorphPad::~MorphPad() {
 // Lifecycle Management
 // =============================================================================
 
+void MorphPad::setHighContrastMode(bool enabled,
+                                    const VSTGUI::CColor& borderColor,
+                                    const VSTGUI::CColor& accentColor) {
+    highContrastEnabled_ = enabled;
+    hcBorderColor_ = borderColor;
+    hcAccentColor_ = accentColor;
+    invalid();
+}
+
 void MorphPad::deactivate() {
     // Use exchange to ensure we only do this once (idempotent)
     if (isActive_.exchange(false, std::memory_order_acq_rel)) {
@@ -502,10 +511,17 @@ void MorphPad::drawNodes(VSTGUI::CDrawContext* context) {
         context->setFillColor(fillColor);
         context->drawEllipse(nodeRect, VSTGUI::kDrawFilled);
 
+        // Spec 012 FR-025a: Thicker node borders in high contrast mode
+        if (highContrastEnabled_) {
+            context->setFrameColor(hcBorderColor_);
+            context->setLineWidth(2.0);
+            context->drawEllipse(nodeRect, VSTGUI::kDrawStroked);
+        }
+
         // FR-027: Selected node has highlight ring
         if (i == selectedNode_) {
-            context->setFrameColor(VSTGUI::CColor{0xFF, 0xFF, 0xFF, 0xFF});  // White
-            context->setLineWidth(2.0);
+            context->setFrameColor(highContrastEnabled_ ? hcAccentColor_ : VSTGUI::CColor{0xFF, 0xFF, 0xFF, 0xFF});
+            context->setLineWidth(highContrastEnabled_ ? 3.0 : 2.0);
             VSTGUI::CRect highlightRect(
                 pixelX - radius - 3.0f, pixelY - radius - 3.0f,
                 pixelX + radius + 3.0f, pixelY + radius + 3.0f

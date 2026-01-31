@@ -44,7 +44,7 @@ static const Steinberg::FUID kControllerUID(0xF0E1D2C3, 0xB4A59687, 0x78563412, 
 // Special Bands:
 // - 0xF = Global parameters (node nibble = 0x0)
 // - 0xE = Sweep parameters (node nibble = 0x0)
-// - 0x0-0x7 = Per-band and per-node parameters
+// - 0x0-0x3 = Per-band and per-node parameters
 //
 // Band-level parameters have node nibble = 0xF (makeBandParamId)
 // Node-level parameters have node nibble = 0-3 (makeNodeParamId)
@@ -59,11 +59,14 @@ static const Steinberg::FUID kControllerUID(0xF0E1D2C3, 0xB4A59687, 0x78563412, 
 // =============================================================================
 
 enum class GlobalParamType : uint8_t {
-    kGlobalInputGain   = 0x00,  ///< Input gain [-24, +24] dB
-    kGlobalOutputGain  = 0x01,  ///< Output gain [-24, +24] dB
-    kGlobalMix         = 0x02,  ///< Global dry/wet mix [0, 100] %
-    kGlobalBandCount   = 0x03,  ///< Band count [1-8]
-    kGlobalOversample  = 0x04,  ///< Max oversample [1x, 2x, 4x, 8x]
+    kGlobalInputGain       = 0x00,  ///< Input gain [-24, +24] dB
+    kGlobalOutputGain      = 0x01,  ///< Output gain [-24, +24] dB
+    kGlobalMix             = 0x02,  ///< Global dry/wet mix [0, 100] %
+    kGlobalBandCount       = 0x03,  ///< Band count [1-4]
+    kGlobalOversample      = 0x04,  ///< Max oversample [1x, 2x, 4x, 8x]
+    kGlobalModPanelVisible = 0x06,  ///< Modulation panel visibility [on/off] (Spec 012)
+    kGlobalMidiLearnActive = 0x07,  ///< MIDI Learn mode active [on/off] (Spec 012)
+    kGlobalMidiLearnTarget = 0x08,  ///< MIDI Learn target parameter ID (Spec 012)
 };
 
 /// @brief Create parameter ID for global parameters.
@@ -190,7 +193,7 @@ enum class BandParamType : uint8_t {
 };
 
 /// @brief Create parameter ID for per-band parameters.
-/// @param band Band index (0-7)
+/// @param band Band index (0-3)
 /// @param param BandParamType enum value
 /// @return Encoded parameter ID
 /// @example makeBandParamId(0, BandParamType::kBandGain) = 0xF000 = 61440
@@ -204,7 +207,7 @@ constexpr Steinberg::Vst::ParamID makeBandParamId(uint8_t band, BandParamType pa
 
 /// @brief Extract band index from a band parameter ID.
 /// @param paramId Parameter ID to decode
-/// @return Band index (0-7)
+/// @return Band index (0-3)
 constexpr uint8_t extractBandIndex(Steinberg::Vst::ParamID paramId) {
     return static_cast<uint8_t>((paramId >> 8) & 0x0F);
 }
@@ -228,7 +231,7 @@ constexpr bool isBandParamId(Steinberg::Vst::ParamID paramId) {
 // =============================================================================
 // Per-node parameter encoding: makeNodeParamId(bandIndex, nodeIndex, paramType)
 // Encoding: (node << 12) | (band << 8) | param -> 0xNbpp
-// NOTE: Node nibble is 0-3, Band nibble is 0-7
+// NOTE: Node nibble is 0-3, Band nibble is 0-3
 // =============================================================================
 
 enum class NodeParamType : uint8_t {
@@ -243,13 +246,13 @@ enum class NodeParamType : uint8_t {
 };
 
 /// @brief Create parameter ID for per-node parameters.
-/// @param band Band index (0-7)
+/// @param band Band index (0-3)
 /// @param node Node index (0-3)
 /// @param param NodeParamType enum value
 /// @return Encoded parameter ID
 /// @example makeNodeParamId(0, 0, NodeParamType::kNodeType) = 0x0000 = 0
 /// @example makeNodeParamId(1, 2, NodeParamType::kNodeDrive) = 0x2101 = 8449
-/// @example makeNodeParamId(7, 3, NodeParamType::kNodeType) = 0x3700 = 14080
+/// @example makeNodeParamId(3, 3, NodeParamType::kNodeType) = 0x3300 = 13056
 constexpr Steinberg::Vst::ParamID makeNodeParamId(uint8_t band, uint8_t node, NodeParamType param) {
     return static_cast<Steinberg::Vst::ParamID>(
         (static_cast<uint32_t>(node) << 12) | (static_cast<uint32_t>(band) << 8) | static_cast<uint32_t>(param)
@@ -265,7 +268,7 @@ constexpr uint8_t extractNode(Steinberg::Vst::ParamID paramId) {
 
 /// @brief Extract band index from a node parameter ID.
 /// @param paramId Parameter ID to decode
-/// @return Band index (0-7)
+/// @return Band index (0-3)
 constexpr uint8_t extractBandFromNodeParam(Steinberg::Vst::ParamID paramId) {
     return static_cast<uint8_t>((paramId >> 8) & 0x0F);
 }
@@ -294,9 +297,9 @@ constexpr bool isNodeParamId(Steinberg::Vst::ParamID paramId) {
         return false;
     }
 
-    // Node parameters have node nibble 0-3 and band nibble 0-7
+    // Node parameters have node nibble 0-3 and band nibble 0-3
     uint8_t bandNibble = (paramId >> 8) & 0x0F;
-    return nodeNibble <= 3 && bandNibble <= 7;
+    return nodeNibble <= 3 && bandNibble <= 3;
 }
 
 // =============================================================================
@@ -319,11 +322,11 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 // Crossover frequency parameters use global space: 0x0F10 + index
 // =============================================================================
 
-/// @brief Crossover parameter base ID (0x0F10 - 0x0F16 for 7 crossovers)
+/// @brief Crossover parameter base ID (0x0F10 - 0x0F12 for 3 crossovers)
 constexpr Steinberg::Vst::ParamID kCrossoverParamBase = 0x0F10;
 
 /// @brief Create parameter ID for crossover frequency parameters.
-/// @param index Crossover index (0-6, for up to 7 crossovers in 8-band config)
+/// @param index Crossover index (0-2, for up to 3 crossovers in 4-band config)
 /// @return Encoded parameter ID
 constexpr Steinberg::Vst::ParamID makeCrossoverParamId(uint8_t index) {
     return kCrossoverParamBase + static_cast<Steinberg::Vst::ParamID>(index);
@@ -333,12 +336,12 @@ constexpr Steinberg::Vst::ParamID makeCrossoverParamId(uint8_t index) {
 /// @param paramId Parameter ID to check
 /// @return true if this is a crossover parameter
 constexpr bool isCrossoverParamId(Steinberg::Vst::ParamID paramId) {
-    return paramId >= kCrossoverParamBase && paramId < (kCrossoverParamBase + 7);
+    return paramId >= kCrossoverParamBase && paramId < (kCrossoverParamBase + 3);
 }
 
 /// @brief Extract crossover index from a crossover parameter ID.
 /// @param paramId Parameter ID to decode
-/// @return Crossover index (0-6)
+/// @return Crossover index (0-2)
 constexpr uint8_t extractCrossoverIndex(Steinberg::Vst::ParamID paramId) {
     return static_cast<uint8_t>(paramId - kCrossoverParamBase);
 }
@@ -501,7 +504,7 @@ constexpr uint8_t extractRoutingOffset(Steinberg::Vst::ParamID paramId) {
 // Layout:
 // - 0-2: Global parameters (InputGain, OutputGain, GlobalMix)
 // - 3-5: Sweep parameters (Frequency, Width, Intensity)
-// - 6-53: Per-band parameters (8 bands × 6 params each)
+// - 6-29: Per-band parameters (4 bands × 6 params each)
 //
 // Per-band params at offset (6 + band*6 + param):
 //   +0=MorphX, +1=MorphY, +2=Drive, +3=Mix, +4=BandGain, +5=BandPan
@@ -531,11 +534,11 @@ inline constexpr uint32_t kBandMix     = 3;
 inline constexpr uint32_t kBandGain    = 4;
 inline constexpr uint32_t kBandPan     = 5;
 
-// Total modulation destinations: 6 global/sweep + 8 bands × 6 params = 54
-inline constexpr uint32_t kTotalDestinations = kBandBase + 8 * kParamsPerBand;
+// Total modulation destinations: 6 global/sweep + 4 bands × 6 params = 30
+inline constexpr uint32_t kTotalDestinations = kBandBase + 4 * kParamsPerBand;
 
 /// @brief Get modulation destination index for a per-band parameter.
-/// @param band Band index (0-7)
+/// @param band Band index (0-3)
 /// @param paramOffset One of kBandMorphX..kBandPan (0-5)
 /// @return Destination index for use with ModulationEngine
 constexpr uint32_t bandParam(uint8_t band, uint32_t paramOffset) {
@@ -596,8 +599,10 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v4: Sweep system state (sweep params, LFO, envelope, custom curve)
 // - v5: Modulation system (source params, routing params, macros)
 // - v6: Morph node state (per-band morph position, mode, node params)
+// - v7: Progressive disclosure (window size, MIDI CC mappings, mod panel visibility)
+// - v8: Reduced max bands from 8 to 4 (stream format: 4 bands, 3 crossovers, 4 morph)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 6;
+constexpr int32_t kPresetVersion = 8;
 
 // ==============================================================================
 // Plugin Metadata

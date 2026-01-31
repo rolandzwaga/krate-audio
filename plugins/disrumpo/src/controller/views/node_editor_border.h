@@ -47,6 +47,9 @@ public:
     /// @brief Deactivate before destruction.
     void deactivate();
 
+    /// @brief Enable high contrast mode (Spec 012 FR-025a)
+    void setHighContrastMode(bool enabled) { highContrastEnabled_ = enabled; }
+
     // =========================================================================
     // IDependent Implementation
     // =========================================================================
@@ -70,6 +73,9 @@ private:
     int selectedNode_ = 0;
 
     static constexpr float kBorderWidth = 3.0f;
+
+    // High contrast mode (Spec 012 FR-025a)
+    bool highContrastEnabled_ = false;
 };
 
 } // namespace Disrumpo

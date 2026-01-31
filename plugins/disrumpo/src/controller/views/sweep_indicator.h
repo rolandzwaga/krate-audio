@@ -78,6 +78,17 @@ public:
         setDirty();
     }
 
+    /// @brief Enable high contrast mode (Spec 012 FR-025a)
+    /// Uses high contrast accent color for sweep line and curve.
+    void setHighContrastMode(bool enabled,
+                             VSTGUI::CColor accentColor = VSTGUI::CColor(0x3A, 0x96, 0xDD)) noexcept {
+        highContrastEnabled_ = enabled;
+        if (enabled) {
+            indicatorColor_ = accentColor;
+        }
+        setDirty();
+    }
+
     /// @brief Set position (for testing or initial configuration)
     /// @param centerFreqHz Sweep center frequency in Hz
     /// @param widthOctaves Sweep width in octaves
@@ -162,6 +173,9 @@ private:
     float lastCenterFreq_ = 1000.0f;
     float lastWidthOctaves_ = 2.0f;
     static constexpr float kInterpolationFactor = 0.3f;  // Smoothing factor
+
+    // High contrast mode (Spec 012 FR-025a)
+    bool highContrastEnabled_ = false;
 };
 
 } // namespace Disrumpo

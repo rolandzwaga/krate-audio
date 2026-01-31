@@ -176,11 +176,11 @@ TEST_CASE("Node Type parameter type can be extracted", "[bandstrip][type]") {
         REQUIRE(extractNode(paramId) == 0);
     }
 
-    SECTION("Extract type from Band 5 Node 2") {
-        auto paramId = makeNodeParamId(5, 2, NodeParamType::kNodeType);
+    SECTION("Extract type from Band 3 Node 2") {
+        auto paramId = makeNodeParamId(3, 2, NodeParamType::kNodeType);
         REQUIRE(isNodeParamId(paramId) == true);
         REQUIRE(extractNodeParamType(paramId) == NodeParamType::kNodeType);
-        REQUIRE(extractBandFromNodeParam(paramId) == 5);
+        REQUIRE(extractBandFromNodeParam(paramId) == 3);
         REQUIRE(extractNode(paramId) == 2);
     }
 }

@@ -68,6 +68,10 @@ public:
     /// @brief Override to add debug logging and ensure click handling works.
     void onMouseDownEvent(VSTGUI::MouseDownEvent& event) override;
 
+    /// @brief Enable high contrast mode (Spec 012 FR-025a)
+    /// Increases segment borders and uses solid fills.
+    void setHighContrastMode(bool enabled) { highContrastEnabled_ = enabled; }
+
     // =========================================================================
     // IDependent Implementation (from FObject)
     // =========================================================================
@@ -97,6 +101,9 @@ private:
 
     std::atomic<bool> isActive_{true};
     int currentSegmentCount_ = 0;  // Track to avoid unnecessary rebuilds
+
+    // High contrast mode (Spec 012 FR-025a)
+    bool highContrastEnabled_ = false;
 };
 
 } // namespace Disrumpo

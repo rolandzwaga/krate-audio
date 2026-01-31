@@ -108,7 +108,7 @@ TEST_CASE("IT-002: Audio processing with varying band counts", "[integration][ba
     Disrumpo::CrossoverNetwork crossover;
     std::array<float, Disrumpo::kMaxBands> bands{};
 
-    for (int numBands = 1; numBands <= 8; ++numBands) {
+    for (int numBands = 1; numBands <= Disrumpo::kMaxBands; ++numBands) {
         DYNAMIC_SECTION("band count = " << numBands) {
             crossover.prepare(kSampleRate, numBands);
 

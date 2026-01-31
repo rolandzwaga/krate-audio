@@ -340,9 +340,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Calculate and apply sweep intensities to band processors once per block
     // ==========================================================================
 
-    // Band center frequencies (approximate Bark scale for 8 bands)
+    // Band center frequencies (log-spaced for 4-band Bark scale)
     static constexpr std::array<float, kMaxBands> kBandCenterFreqs = {
-        50.0f, 150.0f, 350.0f, 750.0f, 1500.0f, 3000.0f, 6000.0f, 12000.0f
+        100.0f, 600.0f, 3000.0f, 12000.0f
     };
 
     if (sweepProcessor_.isEnabled()) {
@@ -762,44 +762,53 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             // Use defaults if read fails
             return Steinberg::kResultOk;
         }
-        bandCount = std::clamp(bandCount, kMinBands, kMaxBands);
+        bandCount = std::clamp(bandCount, kMinBands, 4);
         bandCount_.store(bandCount, std::memory_order_relaxed);
 
-        // Read per-band state for all 8 bands
-        for (int b = 0; b < kMaxBands; ++b) {
-            auto& bs = bandStates_[b];
+        // Read per-band state
+        // v7 and earlier wrote 8 bands; v8+ writes 4 bands
+        constexpr int kV7MaxBands = 8;
+        const int streamBands = (version <= 7) ? kV7MaxBands : kMaxBands;
+        for (int b = 0; b < streamBands; ++b) {
+            float gainDb = 0.0f;
+            float pan = 0.0f;
             Steinberg::int8 soloVal = 0;
             Steinberg::int8 bypassVal = 0;
             Steinberg::int8 muteVal = 0;
 
-            if (!streamer.readFloat(bs.gainDb)) bs.gainDb = 0.0f;
-            if (!streamer.readFloat(bs.pan)) bs.pan = 0.0f;
+            if (!streamer.readFloat(gainDb)) gainDb = 0.0f;
+            if (!streamer.readFloat(pan)) pan = 0.0f;
             if (!streamer.readInt8(soloVal)) soloVal = 0;
             if (!streamer.readInt8(bypassVal)) bypassVal = 0;
             if (!streamer.readInt8(muteVal)) muteVal = 0;
 
-            bs.solo = (soloVal != 0);
-            bs.bypass = (bypassVal != 0);
-            bs.mute = (muteVal != 0);
+            if (b < kMaxBands) {
+                auto& bs = bandStates_[b];
+                bs.gainDb = std::clamp(gainDb, kMinBandGainDb, kMaxBandGainDb);
+                bs.pan = std::clamp(pan, -1.0f, 1.0f);
+                bs.solo = (soloVal != 0);
+                bs.bypass = (bypassVal != 0);
+                bs.mute = (muteVal != 0);
 
-            // Clamp values to valid ranges
-            bs.gainDb = std::clamp(bs.gainDb, kMinBandGainDb, kMaxBandGainDb);
-            bs.pan = std::clamp(bs.pan, -1.0f, 1.0f);
-
-            // Apply to band processors
-            bandProcessors_[b].setGainDb(bs.gainDb);
-            bandProcessors_[b].setPan(bs.pan);
-            bandProcessors_[b].setMute(bs.mute);
+                bandProcessors_[b].setGainDb(bs.gainDb);
+                bandProcessors_[b].setPan(bs.pan);
+                bandProcessors_[b].setMute(bs.mute);
+            }
+            // else: discard data from bands 4-7 (v7 migration)
         }
 
-        // Read crossover frequencies (7 floats)
-        for (int c = 0; c < kMaxBands - 1; ++c) {
+        // Read crossover frequencies
+        // v7 and earlier wrote 7 crossovers; v8+ writes 3
+        const int streamCrossovers = (version <= 7) ? 7 : (kMaxBands - 1);
+        for (int c = 0; c < streamCrossovers; ++c) {
             float freq = 1000.0f;  // Default
             if (!streamer.readFloat(freq)) break;
 
-            // Apply to both L and R crossover networks
-            crossoverL_.setCrossoverFrequency(c, freq);
-            crossoverR_.setCrossoverFrequency(c, freq);
+            if (c < kMaxBands - 1) {
+                crossoverL_.setCrossoverFrequency(c, freq);
+                crossoverR_.setCrossoverFrequency(c, freq);
+            }
+            // else: discard crossovers 3-6 (v7 migration)
         }
 
         // Update band counts in crossover networks
@@ -1081,7 +1090,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                     std::clamp(static_cast<int>(source), 0, 12));
             int32_t dest = 0;
             if (streamer.readInt32(dest))
-                routing.destParamId = static_cast<uint32_t>(std::clamp(dest, 0, 53));
+                routing.destParamId = static_cast<uint32_t>(
+                    std::clamp(dest, 0, static_cast<int32_t>(ModDest::kTotalDestinations - 1)));
             if (!streamer.readFloat(routing.amount))
                 routing.amount = 0.0f;
             Steinberg::int8 curve = 0;
@@ -1097,46 +1107,69 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     // Morph Node State (v6+)
     // =========================================================================
     if (version >= 6) {
-        for (int b = 0; b < kMaxBands; ++b) {
-            auto& cache = bandMorphCache_[b];
-
-            // Band morph position & config
+        // v7 and earlier wrote 8 bands of morph state; v8+ writes 4
+        constexpr int kV7MorphBands = 8;
+        const int streamMorphBands = (version <= 7) ? kV7MorphBands : kMaxBands;
+        for (int b = 0; b < streamMorphBands; ++b) {
+            // Read band morph position & config (always read to advance stream)
             float morphX = 0.5f;
             float morphY = 0.5f;
             Steinberg::int8 morphMode = 0;
             auto activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
             float morphSmoothing = 0.0f;
 
-            if (streamer.readFloat(morphX)) cache.morphX = morphX;
-            if (streamer.readFloat(morphY)) cache.morphY = morphY;
-            if (streamer.readInt8(morphMode))
+            streamer.readFloat(morphX);
+            streamer.readFloat(morphY);
+            streamer.readInt8(morphMode);
+            streamer.readInt8(activeNodes);
+            streamer.readFloat(morphSmoothing);
+
+            if (b < kMaxBands) {
+                auto& cache = bandMorphCache_[b];
+                cache.morphX = morphX;
+                cache.morphY = morphY;
                 bandProcessors_[b].setMorphMode(
                     static_cast<MorphMode>(std::clamp(static_cast<int>(morphMode), 0, 2)));
-            if (streamer.readInt8(activeNodes))
                 cache.activeNodeCount = std::clamp(
                     static_cast<int>(activeNodes), kMinActiveNodes, kMaxMorphNodes);
-            if (streamer.readFloat(morphSmoothing))
                 bandProcessors_[b].setMorphSmoothingTime(morphSmoothing);
-
-            // Per-node state
-            for (int n = 0; n < kMaxMorphNodes; ++n) {
-                auto& mn = cache.nodes[static_cast<size_t>(n)];
-                Steinberg::int8 nodeType = 0;
-                if (streamer.readInt8(nodeType))
-                    mn.type = static_cast<DistortionType>(
-                        std::clamp(static_cast<int>(nodeType), 0, 25));
-                if (!streamer.readFloat(mn.commonParams.drive)) mn.commonParams.drive = 1.0f;
-                if (!streamer.readFloat(mn.commonParams.mix)) mn.commonParams.mix = 1.0f;
-                if (!streamer.readFloat(mn.commonParams.toneHz)) mn.commonParams.toneHz = 4000.0f;
-                if (!streamer.readFloat(mn.params.bias)) mn.params.bias = 0.0f;
-                if (!streamer.readFloat(mn.params.folds)) mn.params.folds = 1.0f;
-                if (!streamer.readFloat(mn.params.bitDepth)) mn.params.bitDepth = 16.0f;
             }
 
-            // Apply to BandProcessor
-            bandProcessors_[b].setMorphEnabled(true);
-            bandProcessors_[b].setMorphNodes(cache.nodes, cache.activeNodeCount);
-            bandProcessors_[b].setMorphPosition(cache.morphX, cache.morphY);
+            // Per-node state (always read to advance stream)
+            for (int n = 0; n < kMaxMorphNodes; ++n) {
+                Steinberg::int8 nodeType = 0;
+                float drive = 1.0f, mix = 1.0f, toneHz = 4000.0f;
+                float bias = 0.0f, folds = 1.0f, bitDepth = 16.0f;
+
+                streamer.readInt8(nodeType);
+                streamer.readFloat(drive);
+                streamer.readFloat(mix);
+                streamer.readFloat(toneHz);
+                streamer.readFloat(bias);
+                streamer.readFloat(folds);
+                streamer.readFloat(bitDepth);
+
+                if (b < kMaxBands) {
+                    auto& mn = bandMorphCache_[b].nodes[static_cast<size_t>(n)];
+                    mn.type = static_cast<DistortionType>(
+                        std::clamp(static_cast<int>(nodeType), 0, 25));
+                    mn.commonParams.drive = drive;
+                    mn.commonParams.mix = mix;
+                    mn.commonParams.toneHz = toneHz;
+                    mn.params.bias = bias;
+                    mn.params.folds = folds;
+                    mn.params.bitDepth = bitDepth;
+                }
+            }
+
+            if (b < kMaxBands) {
+                bandProcessors_[b].setMorphEnabled(true);
+                bandProcessors_[b].setMorphNodes(
+                    bandMorphCache_[b].nodes, bandMorphCache_[b].activeNodeCount);
+                bandProcessors_[b].setMorphPosition(
+                    bandMorphCache_[b].morphX, bandMorphCache_[b].morphY);
+            }
+            // else: discard morph data from bands 4-7 (v7 migration)
         }
     }
 
@@ -1191,9 +1224,9 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                 break;
 
             case kBandCountId: {
-                // Convert normalized [0,1] to band count [1,8]
-                const int newBandCount = 1 + static_cast<int>(value * 7.0 + 0.5);
-                const int clamped = std::clamp(newBandCount, kMinBands, kMaxBands);
+                // Convert normalized [0,1] to band count [1,4]
+                const int newBandCount = 1 + static_cast<int>(value * 3.0 + 0.5);
+                const int clamped = std::clamp(newBandCount, kMinBands, 4);
                 bandCount_.store(clamped, std::memory_order_relaxed);
                 crossoverL_.setBandCount(clamped);
                 crossoverR_.setBandCount(clamped);

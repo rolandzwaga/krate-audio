@@ -66,6 +66,10 @@ public:
     void setOnAdd(AddCallback cb) { onAdd_ = std::move(cb); }
     void setOnRemove(RemoveCallback cb) { onRemove_ = std::move(cb); }
 
+    /// @brief Enable high contrast mode (Spec 012 FR-025a)
+    /// Increases borders, uses solid fills.
+    void setHighContrastMode(bool enabled) { highContrastEnabled_ = enabled; }
+
     // =========================================================================
     // CControl Overrides
     // =========================================================================
@@ -118,6 +122,9 @@ private:
     ChangeCallback onChange_;
     AddCallback onAdd_;
     RemoveCallback onRemove_;
+
+    // High contrast mode (Spec 012 FR-025a)
+    bool highContrastEnabled_ = false;
 };
 
 } // namespace Disrumpo

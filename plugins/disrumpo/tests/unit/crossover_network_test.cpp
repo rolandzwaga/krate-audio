@@ -146,24 +146,23 @@ TEST_CASE("CrossoverNetwork 4 bands sum to flat response", "[crossover][US1][fla
     }
 }
 
-TEST_CASE("CrossoverNetwork 8 bands configuration works", "[crossover][US1]") {
-    // FR-002: Support configurable band count from 1 to 8 bands
+TEST_CASE("CrossoverNetwork 4 bands configuration works", "[crossover][US1]") {
+    // FR-002: Support configurable band count from 1 to 4 bands
     // SC-001: Band summation produces flat frequency response within +/-0.1 dB
     Disrumpo::CrossoverNetwork network;
-    network.prepare(44100.0, 8);
+    network.prepare(44100.0, 4);
 
-    REQUIRE(network.getBandCount() == 8);
+    REQUIRE(network.getBandCount() == 4);
 
     std::array<float, Disrumpo::kMaxBands> bands{};
 
     // Process DC and verify sum is flat
-    // Use more settling time for 8 bands (7 cascaded filters + allpasses)
     for (int i = 0; i < 4000; ++i) {
         network.process(1.0f, bands);
     }
 
     float sum = 0.0f;
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 4; ++i) {
         sum += bands[i];
     }
 

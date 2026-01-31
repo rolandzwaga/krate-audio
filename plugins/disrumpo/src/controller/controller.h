@@ -20,8 +20,12 @@
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include "preset/preset_manager.h"
+#include "platform/accessibility_helper.h"
+#include "midi/midi_cc_manager.h"
+#include "controller/keyboard_shortcut_handler.h"
 
 #include <array>
+#include <functional>
 #include <memory>
 
 namespace Krate::Plugins {
@@ -112,6 +116,17 @@ public:
     /// FR-024: Properly deactivates and cleans up visibility controllers
     void willClose(VSTGUI::VST3Editor* editor) override;
 
+    /// Create context menu for MIDI Learn (Spec 012 FR-031)
+    VSTGUI::COptionMenu* createContextMenu(
+        const VSTGUI::CPoint& pos,
+        VSTGUI::VST3Editor* editor) override;
+
+    /// Find parameter under mouse position (Spec 012 FR-031)
+    bool findParameter(
+        const VSTGUI::CPoint& pos,
+        Steinberg::Vst::ParamID& paramID,
+        VSTGUI::VST3Editor* editor) override;
+
     // ===========================================================================
     // Preset Browser (Spec 010)
     // ===========================================================================
@@ -178,10 +193,10 @@ private:
     /// Register modulation parameters (placeholder for Week 9)
     void registerModulationParams();
 
-    /// Register per-band parameters for all 8 bands
+    /// Register per-band parameters for all 4 bands
     void registerBandParams();
 
-    /// Register per-node parameters for all 8 bands x 4 nodes
+    /// Register per-node parameters for all 4 bands x 4 nodes
     void registerNodeParams();
 
     // ==========================================================================
@@ -203,7 +218,7 @@ private:
     // Band visibility controllers - show/hide band containers based on Band Count
     // Using IDependent mechanism for thread-safe parameter observation
 
-    static constexpr int kMaxBands = 8;
+    static constexpr int kMaxBands = 4;
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> bandVisibilityControllers_;
 
     // ==========================================================================
@@ -257,7 +272,34 @@ private:
     Steinberg::IPtr<Steinberg::FObject> bandCountDisplayController_;
 
     // ==========================================================================
-    // MIDI CC Mapping (FR-028, FR-029)
+    // Window Size State (Spec 012 US2)
+    // ==========================================================================
+    // Persisted in controller state for session restore (FR-023)
+    double lastWindowWidth_ = 1000.0;   // FR-020: Default 1000px
+    double lastWindowHeight_ = 600.0;   // FR-020: Default 600px (5:3 ratio)
+
+    // ==========================================================================
+    // Keyboard Shortcut Handler (Spec 012 US4)
+    // ==========================================================================
+    std::unique_ptr<KeyboardShortcutHandler> keyboardHandler_;
+
+    // ==========================================================================
+    // MIDI CC Manager (Spec 012 US5)
+    // ==========================================================================
+    std::unique_ptr<Krate::Plugins::MidiCCManager> midiCCManager_;
+
+    // ==========================================================================
+    // Modulation Panel Visibility Controller (Spec 012 US3)
+    // ==========================================================================
+    Steinberg::IPtr<Steinberg::FObject> modPanelVisController_;
+
+    // ==========================================================================
+    // Accessibility Preferences Cache (Spec 012 US7)
+    // ==========================================================================
+    Krate::Plugins::AccessibilityPreferences accessibilityPrefs_;
+
+    // ==========================================================================
+    // MIDI CC Mapping (FR-028, FR-029) - Legacy
     // ==========================================================================
     // Stored MIDI CC number (0-127, or 128 for none)
     int assignedMidiCC_ = 128;

@@ -2,7 +2,7 @@
 // Serialization Round-Trip Tests
 // =============================================================================
 // Spec 010: Preset System - User Story 1
-// Verifies that Disrumpo's versioned serialization (v1-v6) round-trips all
+// Verifies that Disrumpo's versioned serialization (v1-v8) round-trips all
 // ~450 parameters faithfully without data loss.
 //
 // Strategy: Build a binary stream with known non-default values, load via
@@ -62,12 +62,12 @@ static std::unique_ptr<Processor> createTestProcessor() {
 }
 
 // =============================================================================
-// Helper: Write a complete v6 preset with non-default values to a stream
+// Helper: Write a complete v8 preset with non-default values to a stream
 // =============================================================================
 
 static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
     // Version
-    s.writeInt32(kPresetVersion);  // v6
+    s.writeInt32(kPresetVersion);  // v8
 
     // Global parameters (non-default values)
     s.writeFloat(0.7f);   // inputGain (default 0.5)
@@ -75,28 +75,28 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
     s.writeFloat(0.8f);   // globalMix (default 1.0)
 
     // Band count
-    s.writeInt32(6);  // default is 4
+    s.writeInt32(3);  // default is 4, use 3 as non-default
 
-    // Per-band state: 8 bands x (gainDb, pan, solo, bypass, mute)
+    // Per-band state: 4 bands x (gainDb, pan, solo, bypass, mute)
     for (int b = 0; b < kMaxBands; ++b) {
-        float gain = static_cast<float>(b) * 2.0f - 8.0f;  // -8, -6, -4, -2, 0, 2, 4, 6
+        float gain = static_cast<float>(b) * 4.0f - 6.0f;  // -6, -2, 2, 6
         gain = std::clamp(gain, kMinBandGainDb, kMaxBandGainDb);
         s.writeFloat(gain);
 
-        float pan = static_cast<float>(b) / 7.0f * 2.0f - 1.0f;  // -1.0 to +1.0
+        float pan = static_cast<float>(b) / 3.0f * 2.0f - 1.0f;  // -1.0 to +1.0
         s.writeFloat(pan);
 
         // solo: bands 1,3 soloed
         s.writeInt8(static_cast<Steinberg::int8>((b == 1 || b == 3) ? 1 : 0));
         // bypass: band 2 bypassed
         s.writeInt8(static_cast<Steinberg::int8>(b == 2 ? 1 : 0));
-        // mute: band 7 muted
-        s.writeInt8(static_cast<Steinberg::int8>(b == 7 ? 1 : 0));
+        // mute: band 3 muted
+        s.writeInt8(static_cast<Steinberg::int8>(b == 3 ? 1 : 0));
     }
 
-    // Crossover frequencies: 7 floats
+    // Crossover frequencies: 3 floats
     // Use non-default frequencies spanning the spectrum
-    float crossovers[] = {100.0f, 250.0f, 500.0f, 1000.0f, 2500.0f, 5000.0f, 10000.0f};
+    float crossovers[] = {250.0f, 1000.0f, 5000.0f};
     for (int c = 0; c < kMaxBands - 1; ++c) {
         s.writeFloat(crossovers[c]);
     }
@@ -219,7 +219,7 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
     // =========================================================================
     for (int b = 0; b < kMaxBands; ++b) {
         // Band morph position & config (3 floats + 2 int8)
-        float morphX = static_cast<float>(b) / 7.0f;  // 0.0 to 1.0
+        float morphX = static_cast<float>(b) / 3.0f;  // 0.0 to 1.0
         float morphY = 1.0f - morphX;                    // 1.0 to 0.0
         s.writeFloat(morphX);     // morphX
         s.writeFloat(morphY);     // morphY
@@ -326,7 +326,7 @@ static bool compareV6PresetStreams(MemoryStream& a, MemoryStream& b) {
     // Band count
     if (!readAndCompareInt32(rA, rB)) return false;
 
-    // Per-band state: 8 bands x (float, float, int8, int8, int8)
+    // Per-band state: 4 bands x (float, float, int8, int8, int8)
     for (int b = 0; b < kMaxBands; ++b) {
         if (!readAndCompareFloat(rA, rB)) return false;  // gainDb
         if (!readAndCompareFloat(rA, rB)) return false;  // pan
@@ -335,7 +335,7 @@ static bool compareV6PresetStreams(MemoryStream& a, MemoryStream& b) {
         if (!readAndCompareInt8(rA, rB)) return false;    // mute
     }
 
-    // Crossovers: 7 floats
+    // Crossovers: 3 floats
     for (int c = 0; c < kMaxBands - 1; ++c)
         if (!readAndCompareFloat(rA, rB)) return false;
 
@@ -434,7 +434,7 @@ static bool compareV6PresetStreams(MemoryStream& a, MemoryStream& b) {
         if (!readAndCompareInt8(rA, rB)) return false;
     }
 
-    // Morph nodes: 8 bands x (float, float, int8, int8, float, 4 nodes x 7 values)
+    // Morph nodes: 4 bands x (float, float, int8, int8, float, 4 nodes x 7 values)
     for (int b = 0; b < kMaxBands; ++b) {
         if (!readAndCompareFloat(rA, rB)) return false;  // morphX
         if (!readAndCompareFloat(rA, rB)) return false;  // morphY
@@ -595,10 +595,10 @@ TEST_CASE("Serialization round-trip: band state preserved", "[preset][serializat
     reader.readFloat(dummy); // outputGain
     reader.readFloat(dummy); // globalMix
 
-    // Read band count
+    // Read band count (input was 3, valid range [1,4])
     int32_t bandCount = 0;
     REQUIRE(reader.readInt32(bandCount));
-    REQUIRE(bandCount == 6);
+    REQUIRE(bandCount == 3);
 
     // Read per-band state
     for (int b = 0; b < kMaxBands; ++b) {
@@ -614,14 +614,14 @@ TEST_CASE("Serialization round-trip: band state preserved", "[preset][serializat
         REQUIRE(reader.readInt8(bypass));
         REQUIRE(reader.readInt8(mute));
 
-        // Verify non-default values
+        // Verify non-default values (matching writeNonDefaultV6Preset)
         float expectedGain = std::clamp(
-            static_cast<float>(b) * 2.0f - 8.0f,
+            static_cast<float>(b) * 4.0f - 6.0f,
             kMinBandGainDb, kMaxBandGainDb);
         REQUIRE_THAT(gainDb, Catch::Matchers::WithinAbs(static_cast<double>(expectedGain), 1e-6));
 
         float expectedPan = std::clamp(
-            static_cast<float>(b) / 7.0f * 2.0f - 1.0f,
+            static_cast<float>(b) / 3.0f * 2.0f - 1.0f,
             -1.0f, 1.0f);
         REQUIRE_THAT(pan, Catch::Matchers::WithinAbs(static_cast<double>(expectedPan), 1e-6));
 
@@ -629,8 +629,8 @@ TEST_CASE("Serialization round-trip: band state preserved", "[preset][serializat
         REQUIRE(solo == ((b == 1 || b == 3) ? 1 : 0));
         // Bypass: band 2
         REQUIRE(bypass == (b == 2 ? 1 : 0));
-        // Mute: band 7
-        REQUIRE(mute == (b == 7 ? 1 : 0));
+        // Mute: band 3
+        REQUIRE(mute == (b == 3 ? 1 : 0));
     }
 }
 
@@ -1048,6 +1048,8 @@ TEST_CASE("Version migration: v2 preset loads bands with defaults for sweep/mod/
 }
 
 TEST_CASE("Version migration: v4 preset loads sweep with defaults for mod/morph", "[preset][serialization][migration]") {
+    // v4 presets were written with old 8-band format
+    constexpr int kV7MaxBands = 8;
     auto stream = Steinberg::owned(new MemoryStream());
     {
         Steinberg::IBStreamer writer(stream, kLittleEndian);
@@ -1058,13 +1060,13 @@ TEST_CASE("Version migration: v4 preset loads sweep with defaults for mod/morph"
         writer.writeFloat(1.0f);
         // Band count
         writer.writeInt32(kDefaultBands);
-        // Band state (defaults)
-        for (int b = 0; b < kMaxBands; ++b) {
+        // Band state (defaults) - old format: 8 bands
+        for (int b = 0; b < kV7MaxBands; ++b) {
             writer.writeFloat(0.0f); writer.writeFloat(0.0f);
             writer.writeInt8(0); writer.writeInt8(0); writer.writeInt8(0);
         }
-        // Crossovers
-        for (int c = 0; c < kMaxBands - 1; ++c) {
+        // Crossovers - old format: 7 floats
+        for (int c = 0; c < kV7MaxBands - 1; ++c) {
             writer.writeFloat(1000.0f);
         }
         // Sweep (v4)
@@ -1130,6 +1132,8 @@ TEST_CASE("Version migration: v4 preset loads sweep with defaults for mod/morph"
 }
 
 TEST_CASE("Version migration: v5 preset loads modulation with defaults for morph", "[preset][serialization][migration]") {
+    // v5 presets were written with old 8-band format
+    constexpr int kV7MaxBands = 8;
     auto stream = Steinberg::owned(new MemoryStream());
     {
         Steinberg::IBStreamer writer(stream, kLittleEndian);
@@ -1138,13 +1142,14 @@ TEST_CASE("Version migration: v5 preset loads modulation with defaults for morph
         writer.writeFloat(0.5f);
         writer.writeFloat(0.5f);
         writer.writeFloat(1.0f);
-        // Band management (v2)
+        // Band management (v2) - old format: 8 bands
         writer.writeInt32(kDefaultBands);
-        for (int b = 0; b < kMaxBands; ++b) {
+        for (int b = 0; b < kV7MaxBands; ++b) {
             writer.writeFloat(0.0f); writer.writeFloat(0.0f);
             writer.writeInt8(0); writer.writeInt8(0); writer.writeInt8(0);
         }
-        for (int c = 0; c < kMaxBands - 1; ++c) {
+        // Crossovers - old format: 7 floats
+        for (int c = 0; c < kV7MaxBands - 1; ++c) {
             writer.writeFloat(1000.0f);
         }
         // Sweep (v4) - defaults

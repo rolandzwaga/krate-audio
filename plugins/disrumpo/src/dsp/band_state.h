@@ -58,7 +58,7 @@ struct BandState {
 // =============================================================================
 
 inline constexpr int kMinBands = 1;
-inline constexpr int kMaxBands = 8;
+inline constexpr int kMaxBands = 4;
 inline constexpr int kDefaultBands = 4;
 
 inline constexpr float kMinBandGainDb = -24.0f;
