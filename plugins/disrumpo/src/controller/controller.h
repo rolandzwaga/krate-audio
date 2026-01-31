@@ -116,6 +116,13 @@ public:
     /// FR-024: Properly deactivates and cleans up visibility controllers
     void willClose(VSTGUI::VST3Editor* editor) override;
 
+    /// Create sub-controllers for band parameter remapping
+    /// Used by BandShapeTab, BandMainTab wrapper templates
+    VSTGUI::IController* createSubController(
+        VSTGUI::UTF8StringPtr name,
+        const VSTGUI::IUIDescription* description,
+        VSTGUI::VST3Editor* editor) override;
+
     /// Create context menu for MIDI Learn (Spec 012 FR-031)
     VSTGUI::COptionMenu* createContextMenu(
         const VSTGUI::CPoint& pos,

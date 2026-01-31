@@ -72,6 +72,9 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/views/custom_curve_editor.h
     src/controller/views/custom_curve_editor.cpp
 
+    # Sub-Controllers for Band Parameter Remapping
+    src/controller/sub_controllers.h
+
     # Animated Expand Controller (Spec 012)
     src/controller/animated_expand_controller.h
     src/controller/animated_expand_controller.cpp
