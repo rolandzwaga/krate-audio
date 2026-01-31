@@ -17,9 +17,13 @@
 #include "controller/views/sweep_indicator.h"
 #include "controller/views/custom_curve_editor.h"
 #include "controller/morph_link.h"
+#include "controller/animated_expand_controller.h"
+#include "controller/keyboard_shortcut_handler.h"
 #include "dsp/sweep_morph_link.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "platform/accessibility_helper.h"
+#include "midi/midi_cc_manager.h"
 
 #include "base/source/fstreamer.h"
 #include "base/source/fobject.h"
@@ -30,6 +34,7 @@
 
 #include "vstgui/lib/cframe.h"
 #include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/iuidescription.h"
 
@@ -258,6 +263,133 @@ private:
 };
 
 // ==============================================================================
+// ModPanelToggleController: Shows/hides mod panel with editor resize
+// ==============================================================================
+// When the mod panel visibility parameter changes, this controller:
+// 1. Shows or hides the mod panel container (same as ContainerVisibilityController)
+// 2. Resizes the editor window to accommodate or remove the mod panel height
+// 3. Updates the editor size constraints dynamically
+// ==============================================================================
+class ModPanelToggleController : public Steinberg::FObject {
+public:
+    static constexpr VSTGUI::CCoord kModPanelHeight = 200.0;
+
+    ModPanelToggleController(
+        VSTGUI::VST3Editor** editorPtr,
+        Steinberg::Vst::Parameter* watchedParam,
+        Steinberg::int32 containerTag)
+    : editorPtr_(editorPtr)
+    , watchedParam_(watchedParam)
+    , containerTag_(containerTag)
+    {
+        if (watchedParam_) {
+            watchedParam_->addRef();
+            watchedParam_->addDependent(this);
+            // Initialize lastState_ from current param value so the initial
+            // deferUpdate sets visibility but does NOT trigger a resize
+            // (the window is already the correct size from state restore)
+            lastState_ = (watchedParam_->getNormalized() >= 0.5);
+            watchedParam_->deferUpdate();
+        }
+    }
+
+    ~ModPanelToggleController() override {
+        deactivate();
+        if (watchedParam_) {
+            watchedParam_->release();
+            watchedParam_ = nullptr;
+        }
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            if (watchedParam_) {
+                watchedParam_->removeDependent(this);
+            }
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) return;
+
+        VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
+        if (message != IDependent::kChanged || !watchedParam_ || !editor) return;
+
+        bool shouldShow = (watchedParam_->getNormalized() >= 0.5f);
+
+        // Always set container visibility (handles initial setup via deferUpdate)
+        auto* container = findContainerByTag(containerTag_);
+        if (container) {
+            container->setVisible(shouldShow);
+            if (container->getFrame()) {
+                container->invalid();
+            }
+        }
+
+        // Only resize when state actually changes (not on initial deferUpdate)
+        if (shouldShow != lastState_) {
+            lastState_ = shouldShow;
+
+            auto* frame = editor->getFrame();
+            if (!frame) return;
+
+            auto currentRect = frame->getViewSize();
+            auto currentWidth = currentRect.getWidth();
+            auto currentHeight = currentRect.getHeight();
+            VSTGUI::CCoord newHeight = shouldShow
+                ? currentHeight + kModPanelHeight
+                : currentHeight - kModPanelHeight;
+
+            // Update size constraints to allow the new height range
+            VSTGUI::CCoord minH = shouldShow ? (500.0 + kModPanelHeight) : 500.0;
+            VSTGUI::CCoord maxH = shouldShow ? (840.0 + kModPanelHeight) : 840.0;
+            editor->setEditorSizeConstrains(
+                VSTGUI::CPoint(834, minH),
+                VSTGUI::CPoint(1400, maxH));
+
+            editor->requestResize(VSTGUI::CPoint(currentWidth, newHeight));
+        }
+    }
+
+    OBJ_METHODS(ModPanelToggleController, FObject)
+
+private:
+    VSTGUI::CViewContainer* findContainerByTag(Steinberg::int32 tag) {
+        VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
+        if (!editor) return nullptr;
+        auto* frame = editor->getFrame();
+        if (!frame) return nullptr;
+
+        std::function<VSTGUI::CViewContainer*(VSTGUI::CViewContainer*)> search;
+        search = [tag, &search](VSTGUI::CViewContainer* container) -> VSTGUI::CViewContainer* {
+            if (!container) return nullptr;
+            VSTGUI::ViewIterator it(container);
+            while (*it) {
+                if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                    if (ctrl->getTag() == tag) {
+                        return container;
+                    }
+                }
+                if (auto* childContainer = (*it)->asViewContainer()) {
+                    if (auto* found = search(childContainer)) {
+                        return found;
+                    }
+                }
+                ++it;
+            }
+            return nullptr;
+        };
+        return search(frame);
+    }
+
+    VSTGUI::VST3Editor** editorPtr_;
+    Steinberg::Vst::Parameter* watchedParam_;
+    Steinberg::int32 containerTag_;
+    bool lastState_ = false;
+    std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
 // BandCountDisplayController: Update SpectrumDisplay when band count changes
 // ==============================================================================
 // Watches the band count parameter and calls setNumBands() on the
@@ -300,7 +432,7 @@ public:
         if (message == IDependent::kChanged && bandCountParam_
             && displayPtr_ && *displayPtr_) {
             float normalized = static_cast<float>(bandCountParam_->getNormalized());
-            int bandCount = static_cast<int>(std::round(normalized * 7.0f)) + 1;
+            int bandCount = static_cast<int>(std::round(normalized * 3.0f)) + 1;
             (*displayPtr_)->setNumBands(bandCount);
         }
     }
@@ -775,9 +907,9 @@ private:
 
         // Compute per-band intensities
         int numBands = display->getNumBands();
-        std::array<float, 8> intensities{};
+        std::array<float, 4> intensities{};
 
-        for (int i = 0; i < numBands && i < 8; ++i) {
+        for (int i = 0; i < numBands && i < 4; ++i) {
             // Get band center frequency from crossover positions
             float lowFreq = (i == 0) ? 20.0f : display->getCrossoverFrequency(i - 1);
             float highFreq = (i == numBands - 1) ? 20000.0f : display->getCrossoverFrequency(i);
@@ -942,6 +1074,11 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerNodeParams();
 
     // ==========================================================================
+    // MIDI CC Manager (Spec 012)
+    // ==========================================================================
+    midiCCManager_ = std::make_unique<Krate::Plugins::MidiCCManager>();
+
+    // ==========================================================================
     // Preset Manager (Spec 010)
     // ==========================================================================
     // Create PresetManager for preset browsing/scanning.
@@ -1015,12 +1152,12 @@ void Controller::registerGlobalParams() {
         nullptr,
         Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
     );
-    for (int i = 1; i <= 8; ++i) {
+    for (int i = 1; i <= 4; ++i) {
         Steinberg::Vst::String128 str;
         intToString128(i, str);
         bandCountParam->appendString(str);
     }
-    bandCountParam->setNormalized(3.0 / 7.0);  // Default to index 3 = "4"
+    bandCountParam->setNormalized(3.0 / 3.0);  // Default to index 3 = "4"
     parameters.addParameter(bandCountParam);
 
     // Oversample Max: StringListParameter ["1x","2x","4x","8x"], default "4x"
@@ -1037,10 +1174,42 @@ void Controller::registerGlobalParams() {
     oversampleParam->setNormalized(2.0 / 3.0);  // Default to index 2 = "4x"
     parameters.addParameter(oversampleParam);
 
-    // Crossover frequency parameters (7 crossovers for 8 bands)
+    // T033: Modulation Panel Visible (Spec 012 FR-007, FR-009)
+    auto* modPanelParam = new Steinberg::Vst::Parameter(
+        STR16("Mod Panel Visible"),
+        makeGlobalParamId(GlobalParamType::kGlobalModPanelVisible),
+        nullptr,
+        0.0,   // Default: hidden
+        1,     // stepCount = 1 (boolean)
+        Steinberg::Vst::ParameterInfo::kNoFlags  // Not automatable (UI-only)
+    );
+    parameters.addParameter(modPanelParam);
+
+    // T055: MIDI Learn Active (Spec 012 FR-031)
+    auto* midiLearnActiveParam = new Steinberg::Vst::Parameter(
+        STR16("MIDI Learn Active"),
+        makeGlobalParamId(GlobalParamType::kGlobalMidiLearnActive),
+        nullptr,
+        0.0,
+        1,
+        Steinberg::Vst::ParameterInfo::kNoFlags
+    );
+    parameters.addParameter(midiLearnActiveParam);
+
+    // T055: MIDI Learn Target (Spec 012 FR-031)
+    auto* midiLearnTargetParam = new Steinberg::Vst::Parameter(
+        STR16("MIDI Learn Target"),
+        makeGlobalParamId(GlobalParamType::kGlobalMidiLearnTarget),
+        nullptr,
+        0.0,
+        0,
+        Steinberg::Vst::ParameterInfo::kNoFlags
+    );
+    parameters.addParameter(midiLearnTargetParam);
+
+    // Crossover frequency parameters (3 crossovers for 4 bands)
     const Steinberg::Vst::TChar* crossoverNames[] = {
-        STR16("Crossover 1"), STR16("Crossover 2"), STR16("Crossover 3"), STR16("Crossover 4"),
-        STR16("Crossover 5"), STR16("Crossover 6"), STR16("Crossover 7")
+        STR16("Crossover 1"), STR16("Crossover 2"), STR16("Crossover 3")
     };
 
     for (int i = 0; i < kMaxBands - 1; ++i) {
@@ -1734,43 +1903,34 @@ void Controller::registerModulationParams() {
 }
 
 void Controller::registerBandParams() {
-    // FR-005: Register per-band parameters for 8 bands (T4.12)
+    // FR-005: Register per-band parameters for 4 bands
 
     const Steinberg::Vst::TChar* bandGainNames[] = {
-        STR16("Band 1 Gain"), STR16("Band 2 Gain"), STR16("Band 3 Gain"), STR16("Band 4 Gain"),
-        STR16("Band 5 Gain"), STR16("Band 6 Gain"), STR16("Band 7 Gain"), STR16("Band 8 Gain")
+        STR16("Band 1 Gain"), STR16("Band 2 Gain"), STR16("Band 3 Gain"), STR16("Band 4 Gain")
     };
     const Steinberg::Vst::TChar* bandPanNames[] = {
-        STR16("Band 1 Pan"), STR16("Band 2 Pan"), STR16("Band 3 Pan"), STR16("Band 4 Pan"),
-        STR16("Band 5 Pan"), STR16("Band 6 Pan"), STR16("Band 7 Pan"), STR16("Band 8 Pan")
+        STR16("Band 1 Pan"), STR16("Band 2 Pan"), STR16("Band 3 Pan"), STR16("Band 4 Pan")
     };
     const Steinberg::Vst::TChar* bandSoloNames[] = {
-        STR16("Band 1 Solo"), STR16("Band 2 Solo"), STR16("Band 3 Solo"), STR16("Band 4 Solo"),
-        STR16("Band 5 Solo"), STR16("Band 6 Solo"), STR16("Band 7 Solo"), STR16("Band 8 Solo")
+        STR16("Band 1 Solo"), STR16("Band 2 Solo"), STR16("Band 3 Solo"), STR16("Band 4 Solo")
     };
     const Steinberg::Vst::TChar* bandBypassNames[] = {
-        STR16("Band 1 Bypass"), STR16("Band 2 Bypass"), STR16("Band 3 Bypass"), STR16("Band 4 Bypass"),
-        STR16("Band 5 Bypass"), STR16("Band 6 Bypass"), STR16("Band 7 Bypass"), STR16("Band 8 Bypass")
+        STR16("Band 1 Bypass"), STR16("Band 2 Bypass"), STR16("Band 3 Bypass"), STR16("Band 4 Bypass")
     };
     const Steinberg::Vst::TChar* bandMuteNames[] = {
-        STR16("Band 1 Mute"), STR16("Band 2 Mute"), STR16("Band 3 Mute"), STR16("Band 4 Mute"),
-        STR16("Band 5 Mute"), STR16("Band 6 Mute"), STR16("Band 7 Mute"), STR16("Band 8 Mute")
+        STR16("Band 1 Mute"), STR16("Band 2 Mute"), STR16("Band 3 Mute"), STR16("Band 4 Mute")
     };
     const Steinberg::Vst::TChar* bandMorphXNames[] = {
-        STR16("Band 1 Morph X"), STR16("Band 2 Morph X"), STR16("Band 3 Morph X"), STR16("Band 4 Morph X"),
-        STR16("Band 5 Morph X"), STR16("Band 6 Morph X"), STR16("Band 7 Morph X"), STR16("Band 8 Morph X")
+        STR16("Band 1 Morph X"), STR16("Band 2 Morph X"), STR16("Band 3 Morph X"), STR16("Band 4 Morph X")
     };
     const Steinberg::Vst::TChar* bandMorphYNames[] = {
-        STR16("Band 1 Morph Y"), STR16("Band 2 Morph Y"), STR16("Band 3 Morph Y"), STR16("Band 4 Morph Y"),
-        STR16("Band 5 Morph Y"), STR16("Band 6 Morph Y"), STR16("Band 7 Morph Y"), STR16("Band 8 Morph Y")
+        STR16("Band 1 Morph Y"), STR16("Band 2 Morph Y"), STR16("Band 3 Morph Y"), STR16("Band 4 Morph Y")
     };
     const Steinberg::Vst::TChar* bandMorphModeNames[] = {
-        STR16("Band 1 Morph Mode"), STR16("Band 2 Morph Mode"), STR16("Band 3 Morph Mode"), STR16("Band 4 Morph Mode"),
-        STR16("Band 5 Morph Mode"), STR16("Band 6 Morph Mode"), STR16("Band 7 Morph Mode"), STR16("Band 8 Morph Mode")
+        STR16("Band 1 Morph Mode"), STR16("Band 2 Morph Mode"), STR16("Band 3 Morph Mode"), STR16("Band 4 Morph Mode")
     };
     const Steinberg::Vst::TChar* bandExpandedNames[] = {
-        STR16("Band 1 Expanded"), STR16("Band 2 Expanded"), STR16("Band 3 Expanded"), STR16("Band 4 Expanded"),
-        STR16("Band 5 Expanded"), STR16("Band 6 Expanded"), STR16("Band 7 Expanded"), STR16("Band 8 Expanded")
+        STR16("Band 1 Expanded"), STR16("Band 2 Expanded"), STR16("Band 3 Expanded"), STR16("Band 4 Expanded")
     };
 
     for (int b = 0; b < kMaxBands; ++b) {
@@ -1865,9 +2025,7 @@ void Controller::registerBandParams() {
         // Band ActiveNodes: StringListParameter ["2","3","4"], default "4" (US6)
         static const Steinberg::Vst::TChar* activeNodesParamNames[] = {
             STR16("Band 1 Active Nodes"), STR16("Band 2 Active Nodes"),
-            STR16("Band 3 Active Nodes"), STR16("Band 4 Active Nodes"),
-            STR16("Band 5 Active Nodes"), STR16("Band 6 Active Nodes"),
-            STR16("Band 7 Active Nodes"), STR16("Band 8 Active Nodes")
+            STR16("Band 3 Active Nodes"), STR16("Band 4 Active Nodes")
         };
         auto* activeNodesParam = new Steinberg::Vst::StringListParameter(
             activeNodesParamNames[b],
@@ -1895,9 +2053,7 @@ void Controller::registerBandParams() {
         // Band MorphSmoothing: RangeParameter [0, 500] ms, default 0 (FR-031)
         static const Steinberg::Vst::TChar* morphSmoothingNames[] = {
             STR16("Band 1 Morph Smoothing"), STR16("Band 2 Morph Smoothing"),
-            STR16("Band 3 Morph Smoothing"), STR16("Band 4 Morph Smoothing"),
-            STR16("Band 5 Morph Smoothing"), STR16("Band 6 Morph Smoothing"),
-            STR16("Band 7 Morph Smoothing"), STR16("Band 8 Morph Smoothing")
+            STR16("Band 3 Morph Smoothing"), STR16("Band 4 Morph Smoothing")
         };
         auto* morphSmoothingParam = new Steinberg::Vst::RangeParameter(
             morphSmoothingNames[b],
@@ -1912,9 +2068,7 @@ void Controller::registerBandParams() {
         // Band MorphXLink: StringListParameter for morph X link mode (US8 FR-032)
         static const Steinberg::Vst::TChar* morphXLinkNames[] = {
             STR16("Band 1 Morph X Link"), STR16("Band 2 Morph X Link"),
-            STR16("Band 3 Morph X Link"), STR16("Band 4 Morph X Link"),
-            STR16("Band 5 Morph X Link"), STR16("Band 6 Morph X Link"),
-            STR16("Band 7 Morph X Link"), STR16("Band 8 Morph X Link")
+            STR16("Band 3 Morph X Link"), STR16("Band 4 Morph X Link")
         };
         auto* morphXLinkParam = new Steinberg::Vst::StringListParameter(
             morphXLinkNames[b],
@@ -1934,9 +2088,7 @@ void Controller::registerBandParams() {
         // Band MorphYLink: StringListParameter for morph Y link mode (US8 FR-033)
         static const Steinberg::Vst::TChar* morphYLinkNames[] = {
             STR16("Band 1 Morph Y Link"), STR16("Band 2 Morph Y Link"),
-            STR16("Band 3 Morph Y Link"), STR16("Band 4 Morph Y Link"),
-            STR16("Band 5 Morph Y Link"), STR16("Band 6 Morph Y Link"),
-            STR16("Band 7 Morph Y Link"), STR16("Band 8 Morph Y Link")
+            STR16("Band 3 Morph Y Link"), STR16("Band 4 Morph Y Link")
         };
         auto* morphYLinkParam = new Steinberg::Vst::StringListParameter(
             morphYLinkNames[b],
@@ -1956,9 +2108,7 @@ void Controller::registerBandParams() {
         // US7 FR-025: Selected Node parameter (which node's parameters to display)
         static const Steinberg::Vst::TChar* selectedNodeNames[] = {
             STR16("Band 1 Selected Node"), STR16("Band 2 Selected Node"),
-            STR16("Band 3 Selected Node"), STR16("Band 4 Selected Node"),
-            STR16("Band 5 Selected Node"), STR16("Band 6 Selected Node"),
-            STR16("Band 7 Selected Node"), STR16("Band 8 Selected Node")
+            STR16("Band 3 Selected Node"), STR16("Band 4 Selected Node")
         };
         auto* selectedNodeParam = new Steinberg::Vst::StringListParameter(
             selectedNodeNames[b],
@@ -1976,9 +2126,7 @@ void Controller::registerBandParams() {
         // This parameter is updated by NodeSelectionController when selected node changes
         static const Steinberg::Vst::TChar* displayedTypeNames[] = {
             STR16("Band 1 Displayed Type"), STR16("Band 2 Displayed Type"),
-            STR16("Band 3 Displayed Type"), STR16("Band 4 Displayed Type"),
-            STR16("Band 5 Displayed Type"), STR16("Band 6 Displayed Type"),
-            STR16("Band 7 Displayed Type"), STR16("Band 8 Displayed Type")
+            STR16("Band 3 Displayed Type"), STR16("Band 4 Displayed Type")
         };
         auto* displayedTypeParam = new Steinberg::Vst::StringListParameter(
             displayedTypeNames[b],
@@ -2052,75 +2200,47 @@ void Controller::registerNodeParams() {
     static constexpr int kNumDistortionTypes = 26;
 
     // Pre-defined parameter names for all band/node combinations
-    static const Steinberg::Vst::TChar* nodeTypeNames[8][4] = {
+    static const Steinberg::Vst::TChar* nodeTypeNames[4][4] = {
         { STR16("B1 N1 Type"), STR16("B1 N2 Type"), STR16("B1 N3 Type"), STR16("B1 N4 Type") },
         { STR16("B2 N1 Type"), STR16("B2 N2 Type"), STR16("B2 N3 Type"), STR16("B2 N4 Type") },
         { STR16("B3 N1 Type"), STR16("B3 N2 Type"), STR16("B3 N3 Type"), STR16("B3 N4 Type") },
-        { STR16("B4 N1 Type"), STR16("B4 N2 Type"), STR16("B4 N3 Type"), STR16("B4 N4 Type") },
-        { STR16("B5 N1 Type"), STR16("B5 N2 Type"), STR16("B5 N3 Type"), STR16("B5 N4 Type") },
-        { STR16("B6 N1 Type"), STR16("B6 N2 Type"), STR16("B6 N3 Type"), STR16("B6 N4 Type") },
-        { STR16("B7 N1 Type"), STR16("B7 N2 Type"), STR16("B7 N3 Type"), STR16("B7 N4 Type") },
-        { STR16("B8 N1 Type"), STR16("B8 N2 Type"), STR16("B8 N3 Type"), STR16("B8 N4 Type") }
+        { STR16("B4 N1 Type"), STR16("B4 N2 Type"), STR16("B4 N3 Type"), STR16("B4 N4 Type") }
     };
-    static const Steinberg::Vst::TChar* nodeDriveNames[8][4] = {
+    static const Steinberg::Vst::TChar* nodeDriveNames[4][4] = {
         { STR16("B1 N1 Drive"), STR16("B1 N2 Drive"), STR16("B1 N3 Drive"), STR16("B1 N4 Drive") },
         { STR16("B2 N1 Drive"), STR16("B2 N2 Drive"), STR16("B2 N3 Drive"), STR16("B2 N4 Drive") },
         { STR16("B3 N1 Drive"), STR16("B3 N2 Drive"), STR16("B3 N3 Drive"), STR16("B3 N4 Drive") },
-        { STR16("B4 N1 Drive"), STR16("B4 N2 Drive"), STR16("B4 N3 Drive"), STR16("B4 N4 Drive") },
-        { STR16("B5 N1 Drive"), STR16("B5 N2 Drive"), STR16("B5 N3 Drive"), STR16("B5 N4 Drive") },
-        { STR16("B6 N1 Drive"), STR16("B6 N2 Drive"), STR16("B6 N3 Drive"), STR16("B6 N4 Drive") },
-        { STR16("B7 N1 Drive"), STR16("B7 N2 Drive"), STR16("B7 N3 Drive"), STR16("B7 N4 Drive") },
-        { STR16("B8 N1 Drive"), STR16("B8 N2 Drive"), STR16("B8 N3 Drive"), STR16("B8 N4 Drive") }
+        { STR16("B4 N1 Drive"), STR16("B4 N2 Drive"), STR16("B4 N3 Drive"), STR16("B4 N4 Drive") }
     };
-    static const Steinberg::Vst::TChar* nodeMixNames[8][4] = {
+    static const Steinberg::Vst::TChar* nodeMixNames[4][4] = {
         { STR16("B1 N1 Mix"), STR16("B1 N2 Mix"), STR16("B1 N3 Mix"), STR16("B1 N4 Mix") },
         { STR16("B2 N1 Mix"), STR16("B2 N2 Mix"), STR16("B2 N3 Mix"), STR16("B2 N4 Mix") },
         { STR16("B3 N1 Mix"), STR16("B3 N2 Mix"), STR16("B3 N3 Mix"), STR16("B3 N4 Mix") },
-        { STR16("B4 N1 Mix"), STR16("B4 N2 Mix"), STR16("B4 N3 Mix"), STR16("B4 N4 Mix") },
-        { STR16("B5 N1 Mix"), STR16("B5 N2 Mix"), STR16("B5 N3 Mix"), STR16("B5 N4 Mix") },
-        { STR16("B6 N1 Mix"), STR16("B6 N2 Mix"), STR16("B6 N3 Mix"), STR16("B6 N4 Mix") },
-        { STR16("B7 N1 Mix"), STR16("B7 N2 Mix"), STR16("B7 N3 Mix"), STR16("B7 N4 Mix") },
-        { STR16("B8 N1 Mix"), STR16("B8 N2 Mix"), STR16("B8 N3 Mix"), STR16("B8 N4 Mix") }
+        { STR16("B4 N1 Mix"), STR16("B4 N2 Mix"), STR16("B4 N3 Mix"), STR16("B4 N4 Mix") }
     };
-    static const Steinberg::Vst::TChar* nodeToneNames[8][4] = {
+    static const Steinberg::Vst::TChar* nodeToneNames[4][4] = {
         { STR16("B1 N1 Tone"), STR16("B1 N2 Tone"), STR16("B1 N3 Tone"), STR16("B1 N4 Tone") },
         { STR16("B2 N1 Tone"), STR16("B2 N2 Tone"), STR16("B2 N3 Tone"), STR16("B2 N4 Tone") },
         { STR16("B3 N1 Tone"), STR16("B3 N2 Tone"), STR16("B3 N3 Tone"), STR16("B3 N4 Tone") },
-        { STR16("B4 N1 Tone"), STR16("B4 N2 Tone"), STR16("B4 N3 Tone"), STR16("B4 N4 Tone") },
-        { STR16("B5 N1 Tone"), STR16("B5 N2 Tone"), STR16("B5 N3 Tone"), STR16("B5 N4 Tone") },
-        { STR16("B6 N1 Tone"), STR16("B6 N2 Tone"), STR16("B6 N3 Tone"), STR16("B6 N4 Tone") },
-        { STR16("B7 N1 Tone"), STR16("B7 N2 Tone"), STR16("B7 N3 Tone"), STR16("B7 N4 Tone") },
-        { STR16("B8 N1 Tone"), STR16("B8 N2 Tone"), STR16("B8 N3 Tone"), STR16("B8 N4 Tone") }
+        { STR16("B4 N1 Tone"), STR16("B4 N2 Tone"), STR16("B4 N3 Tone"), STR16("B4 N4 Tone") }
     };
-    static const Steinberg::Vst::TChar* nodeBiasNames[8][4] = {
+    static const Steinberg::Vst::TChar* nodeBiasNames[4][4] = {
         { STR16("B1 N1 Bias"), STR16("B1 N2 Bias"), STR16("B1 N3 Bias"), STR16("B1 N4 Bias") },
         { STR16("B2 N1 Bias"), STR16("B2 N2 Bias"), STR16("B2 N3 Bias"), STR16("B2 N4 Bias") },
         { STR16("B3 N1 Bias"), STR16("B3 N2 Bias"), STR16("B3 N3 Bias"), STR16("B3 N4 Bias") },
-        { STR16("B4 N1 Bias"), STR16("B4 N2 Bias"), STR16("B4 N3 Bias"), STR16("B4 N4 Bias") },
-        { STR16("B5 N1 Bias"), STR16("B5 N2 Bias"), STR16("B5 N3 Bias"), STR16("B5 N4 Bias") },
-        { STR16("B6 N1 Bias"), STR16("B6 N2 Bias"), STR16("B6 N3 Bias"), STR16("B6 N4 Bias") },
-        { STR16("B7 N1 Bias"), STR16("B7 N2 Bias"), STR16("B7 N3 Bias"), STR16("B7 N4 Bias") },
-        { STR16("B8 N1 Bias"), STR16("B8 N2 Bias"), STR16("B8 N3 Bias"), STR16("B8 N4 Bias") }
+        { STR16("B4 N1 Bias"), STR16("B4 N2 Bias"), STR16("B4 N3 Bias"), STR16("B4 N4 Bias") }
     };
-    static const Steinberg::Vst::TChar* nodeFoldsNames[8][4] = {
+    static const Steinberg::Vst::TChar* nodeFoldsNames[4][4] = {
         { STR16("B1 N1 Folds"), STR16("B1 N2 Folds"), STR16("B1 N3 Folds"), STR16("B1 N4 Folds") },
         { STR16("B2 N1 Folds"), STR16("B2 N2 Folds"), STR16("B2 N3 Folds"), STR16("B2 N4 Folds") },
         { STR16("B3 N1 Folds"), STR16("B3 N2 Folds"), STR16("B3 N3 Folds"), STR16("B3 N4 Folds") },
-        { STR16("B4 N1 Folds"), STR16("B4 N2 Folds"), STR16("B4 N3 Folds"), STR16("B4 N4 Folds") },
-        { STR16("B5 N1 Folds"), STR16("B5 N2 Folds"), STR16("B5 N3 Folds"), STR16("B5 N4 Folds") },
-        { STR16("B6 N1 Folds"), STR16("B6 N2 Folds"), STR16("B6 N3 Folds"), STR16("B6 N4 Folds") },
-        { STR16("B7 N1 Folds"), STR16("B7 N2 Folds"), STR16("B7 N3 Folds"), STR16("B7 N4 Folds") },
-        { STR16("B8 N1 Folds"), STR16("B8 N2 Folds"), STR16("B8 N3 Folds"), STR16("B8 N4 Folds") }
+        { STR16("B4 N1 Folds"), STR16("B4 N2 Folds"), STR16("B4 N3 Folds"), STR16("B4 N4 Folds") }
     };
-    static const Steinberg::Vst::TChar* nodeBitDepthNames[8][4] = {
+    static const Steinberg::Vst::TChar* nodeBitDepthNames[4][4] = {
         { STR16("B1 N1 BitDepth"), STR16("B1 N2 BitDepth"), STR16("B1 N3 BitDepth"), STR16("B1 N4 BitDepth") },
         { STR16("B2 N1 BitDepth"), STR16("B2 N2 BitDepth"), STR16("B2 N3 BitDepth"), STR16("B2 N4 BitDepth") },
         { STR16("B3 N1 BitDepth"), STR16("B3 N2 BitDepth"), STR16("B3 N3 BitDepth"), STR16("B3 N4 BitDepth") },
-        { STR16("B4 N1 BitDepth"), STR16("B4 N2 BitDepth"), STR16("B4 N3 BitDepth"), STR16("B4 N4 BitDepth") },
-        { STR16("B5 N1 BitDepth"), STR16("B5 N2 BitDepth"), STR16("B5 N3 BitDepth"), STR16("B5 N4 BitDepth") },
-        { STR16("B6 N1 BitDepth"), STR16("B6 N2 BitDepth"), STR16("B6 N3 BitDepth"), STR16("B6 N4 BitDepth") },
-        { STR16("B7 N1 BitDepth"), STR16("B7 N2 BitDepth"), STR16("B7 N3 BitDepth"), STR16("B7 N4 BitDepth") },
-        { STR16("B8 N1 BitDepth"), STR16("B8 N2 BitDepth"), STR16("B8 N3 BitDepth"), STR16("B8 N4 BitDepth") }
+        { STR16("B4 N1 BitDepth"), STR16("B4 N2 BitDepth"), STR16("B4 N3 BitDepth"), STR16("B4 N4 BitDepth") }
     };
 
     for (int b = 0; b < kMaxBands; ++b) {
@@ -2248,13 +2368,17 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
     if (version >= 2) {
         int32_t bandCount = 4;
         if (streamer.readInt32(bandCount)) {
-            // Convert band count to normalized value (1-8 maps to 0.0-1.0)
-            float normalizedBandCount = static_cast<float>(bandCount - 1) / 7.0f;
+            // Convert band count to normalized value (1-4 maps to 0.0-1.0)
+            int clampedCount = std::clamp(bandCount, 1, 4);
+            float normalizedBandCount = static_cast<float>(clampedCount - 1) / 3.0f;
             setParamNormalized(makeGlobalParamId(GlobalParamType::kGlobalBandCount), normalizedBandCount);
         }
 
         // Read band states
-        for (int b = 0; b < kMaxBands; ++b) {
+        // v7 and earlier wrote 8 bands; v8+ writes 4
+        constexpr int kV7MaxBands = 8;
+        const int streamBands = (version <= 7) ? kV7MaxBands : kMaxBands;
+        for (int b = 0; b < streamBands; ++b) {
             float gain = 0.0f;
             float pan = 0.0f;
             Steinberg::int8 soloInt = 0;
@@ -2267,30 +2391,35 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
             streamer.readInt8(bypassInt);
             streamer.readInt8(muteInt);
 
-            // Convert gain from dB to normalized
-            auto* gainParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandGain));
-            if (gainParam) {
-                setParamNormalized(gainParam->getInfo().id, gainParam->toNormalized(gain));
-            }
+            if (b < kMaxBands) {
+                auto* gainParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandGain));
+                if (gainParam) {
+                    setParamNormalized(gainParam->getInfo().id, gainParam->toNormalized(gain));
+                }
 
-            // Convert pan from [-1,1] to normalized
-            auto* panParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandPan));
-            if (panParam) {
-                setParamNormalized(panParam->getInfo().id, panParam->toNormalized(pan));
-            }
+                auto* panParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandPan));
+                if (panParam) {
+                    setParamNormalized(panParam->getInfo().id, panParam->toNormalized(pan));
+                }
 
-            setParamNormalized(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandSolo), soloInt != 0 ? 1.0f : 0.0f);
-            setParamNormalized(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandBypass), bypassInt != 0 ? 1.0f : 0.0f);
-            setParamNormalized(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMute), muteInt != 0 ? 1.0f : 0.0f);
+                setParamNormalized(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandSolo), soloInt != 0 ? 1.0f : 0.0f);
+                setParamNormalized(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandBypass), bypassInt != 0 ? 1.0f : 0.0f);
+                setParamNormalized(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMute), muteInt != 0 ? 1.0f : 0.0f);
+            }
+            // else: discard data from bands 4-7 (v7 migration)
         }
 
         // Read crossover frequencies
-        for (int i = 0; i < kMaxBands - 1; ++i) {
+        // v7 and earlier wrote 7 crossovers; v8+ writes 3
+        const int streamCrossovers = (version <= 7) ? 7 : (kMaxBands - 1);
+        for (int i = 0; i < streamCrossovers; ++i) {
             float freq = 1000.0f;
             if (streamer.readFloat(freq)) {
-                auto* param = getParameterObject(makeCrossoverParamId(static_cast<uint8_t>(i)));
-                if (param) {
-                    setParamNormalized(param->getInfo().id, param->toNormalized(freq));
+                if (i < kMaxBands - 1) {
+                    auto* param = getParameterObject(makeCrossoverParamId(static_cast<uint8_t>(i)));
+                    if (param) {
+                        setParamNormalized(param->getInfo().id, param->toNormalized(freq));
+                    }
                 }
             }
         }
@@ -2557,7 +2686,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
             int32_t dest = 0;
             if (streamer.readInt32(dest))
                 setParamNormalized(makeRoutingParamId(r, 1),
-                                   static_cast<double>(std::clamp(dest, 0, 53)) / 53.0);
+                                   static_cast<double>(std::clamp(dest, 0, static_cast<int32_t>(ModDest::kTotalDestinations - 1)))
+                                   / static_cast<double>(ModDest::kTotalDestinations - 1));
             float amount = 0.0f;
             if (streamer.readFloat(amount))
                 setParamNormalized(makeRoutingParamId(r, 2),
@@ -2573,41 +2703,52 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
     // Morph Node State (v6+)
     // =========================================================================
     if (version >= 6) {
-        for (int b = 0; b < kMaxBands; ++b) {
+        // v7 and earlier wrote 8 bands of morph state; v8+ writes 4
+        constexpr int kV7MorphBands = 8;
+        const int streamMorphBands = (version <= 7) ? kV7MorphBands : kMaxBands;
+        for (int b = 0; b < streamMorphBands; ++b) {
             const auto band = static_cast<uint8_t>(b);
 
-            // Band morph position & config
+            // Always read to advance stream position
             float morphX = 0.5f;
             float morphY = 0.5f;
             Steinberg::int8 morphMode = 0;
             auto activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
             float morphSmoothing = 0.0f;
 
-            if (streamer.readFloat(morphX))
-                setParamNormalized(
-                    makeBandParamId(band, BandParamType::kBandMorphX),
-                    static_cast<double>(morphX));
-            if (streamer.readFloat(morphY))
-                setParamNormalized(
-                    makeBandParamId(band, BandParamType::kBandMorphY),
-                    static_cast<double>(morphY));
-            if (streamer.readInt8(morphMode))
-                setParamNormalized(
-                    makeBandParamId(band, BandParamType::kBandMorphMode),
-                    static_cast<double>(morphMode) / 2.0);
-            if (streamer.readInt8(activeNodes)) {
-                int count = std::clamp(static_cast<int>(activeNodes),
-                                       kMinActiveNodes, kMaxMorphNodes);
-                setParamNormalized(
-                    makeBandParamId(band, BandParamType::kBandActiveNodes),
-                    static_cast<double>(count - 2) / 2.0);
-            }
-            if (streamer.readFloat(morphSmoothing))
-                setParamNormalized(
-                    makeBandParamId(band, BandParamType::kBandMorphSmoothing),
-                    static_cast<double>(morphSmoothing) / 500.0);
+            bool readMorphX = streamer.readFloat(morphX);
+            bool readMorphY = streamer.readFloat(morphY);
+            bool readMorphMode = streamer.readInt8(morphMode);
+            bool readActiveNodes = streamer.readInt8(activeNodes);
+            bool readMorphSmoothing = streamer.readFloat(morphSmoothing);
 
-            // Per-node state (4 nodes x 7 values each)
+            if (b < kMaxBands) {
+                if (readMorphX)
+                    setParamNormalized(
+                        makeBandParamId(band, BandParamType::kBandMorphX),
+                        static_cast<double>(morphX));
+                if (readMorphY)
+                    setParamNormalized(
+                        makeBandParamId(band, BandParamType::kBandMorphY),
+                        static_cast<double>(morphY));
+                if (readMorphMode)
+                    setParamNormalized(
+                        makeBandParamId(band, BandParamType::kBandMorphMode),
+                        static_cast<double>(morphMode) / 2.0);
+                if (readActiveNodes) {
+                    int count = std::clamp(static_cast<int>(activeNodes),
+                                           kMinActiveNodes, kMaxMorphNodes);
+                    setParamNormalized(
+                        makeBandParamId(band, BandParamType::kBandActiveNodes),
+                        static_cast<double>(count - 2) / 2.0);
+                }
+                if (readMorphSmoothing)
+                    setParamNormalized(
+                        makeBandParamId(band, BandParamType::kBandMorphSmoothing),
+                        static_cast<double>(morphSmoothing) / 500.0);
+            }
+
+            // Per-node state (4 nodes x 7 values each) - always read to advance stream
             for (int n = 0; n < kMaxMorphNodes; ++n) {
                 const auto node = static_cast<uint8_t>(n);
 
@@ -2619,35 +2760,46 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
                 float folds = 1.0f;
                 float bitDepth = 16.0f;
 
-                if (streamer.readInt8(nodeType))
-                    setParamNormalized(
-                        makeNodeParamId(band, node, NodeParamType::kNodeType),
-                        static_cast<double>(nodeType) / 25.0);
-                if (streamer.readFloat(drive))
-                    setParamNormalized(
-                        makeNodeParamId(band, node, NodeParamType::kNodeDrive),
-                        static_cast<double>(drive) / 10.0);
-                if (streamer.readFloat(mix))
-                    setParamNormalized(
-                        makeNodeParamId(band, node, NodeParamType::kNodeMix),
-                        static_cast<double>(mix));
-                if (streamer.readFloat(tone))
-                    setParamNormalized(
-                        makeNodeParamId(band, node, NodeParamType::kNodeTone),
-                        static_cast<double>(tone - 200.0f) / 7800.0);
-                if (streamer.readFloat(bias))
-                    setParamNormalized(
-                        makeNodeParamId(band, node, NodeParamType::kNodeBias),
-                        static_cast<double>(bias + 1.0f) / 2.0);
-                if (streamer.readFloat(folds))
-                    setParamNormalized(
-                        makeNodeParamId(band, node, NodeParamType::kNodeFolds),
-                        static_cast<double>(folds - 1.0f) / 11.0);
-                if (streamer.readFloat(bitDepth))
-                    setParamNormalized(
-                        makeNodeParamId(band, node, NodeParamType::kNodeBitDepth),
-                        static_cast<double>(bitDepth - 4.0f) / 20.0);
+                bool rType = streamer.readInt8(nodeType);
+                bool rDrive = streamer.readFloat(drive);
+                bool rMix = streamer.readFloat(mix);
+                bool rTone = streamer.readFloat(tone);
+                bool rBias = streamer.readFloat(bias);
+                bool rFolds = streamer.readFloat(folds);
+                bool rBitDepth = streamer.readFloat(bitDepth);
+
+                if (b < kMaxBands) {
+                    if (rType)
+                        setParamNormalized(
+                            makeNodeParamId(band, node, NodeParamType::kNodeType),
+                            static_cast<double>(nodeType) / 25.0);
+                    if (rDrive)
+                        setParamNormalized(
+                            makeNodeParamId(band, node, NodeParamType::kNodeDrive),
+                            static_cast<double>(drive) / 10.0);
+                    if (rMix)
+                        setParamNormalized(
+                            makeNodeParamId(band, node, NodeParamType::kNodeMix),
+                            static_cast<double>(mix));
+                    if (rTone)
+                        setParamNormalized(
+                            makeNodeParamId(band, node, NodeParamType::kNodeTone),
+                            static_cast<double>(tone - 200.0f) / 7800.0);
+                    if (rBias)
+                        setParamNormalized(
+                            makeNodeParamId(band, node, NodeParamType::kNodeBias),
+                            static_cast<double>(bias + 1.0f) / 2.0);
+                    if (rFolds)
+                        setParamNormalized(
+                            makeNodeParamId(band, node, NodeParamType::kNodeFolds),
+                            static_cast<double>(folds - 1.0f) / 11.0);
+                    if (rBitDepth)
+                        setParamNormalized(
+                            makeNodeParamId(band, node, NodeParamType::kNodeBitDepth),
+                            static_cast<double>(bitDepth - 4.0f) / 20.0);
+                }
             }
+            // else for b >= kMaxBands: data read-and-discarded (v7 migration)
         }
     }
 
@@ -2658,9 +2810,35 @@ Steinberg::tresult PLUGIN_API Controller::getState(Steinberg::IBStream* state) {
     // Save controller-specific state (UI settings, etc.)
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write controller state version
-    if (!streamer.writeInt32(1)) {
+    // Write controller state version (bumped to 2 for Spec 012)
+    if (!streamer.writeInt32(2)) {
         return Steinberg::kResultFalse;
+    }
+
+    // Spec 012 T027: Serialize window size
+    if (!streamer.writeDouble(lastWindowWidth_)) {
+        return Steinberg::kResultFalse;
+    }
+    if (!streamer.writeDouble(lastWindowHeight_)) {
+        return Steinberg::kResultFalse;
+    }
+
+    // Spec 012 T058: Serialize global MIDI CC mappings
+    if (midiCCManager_) {
+        auto midiData = midiCCManager_->serializeGlobalMappings();
+        auto midiDataSize = static_cast<Steinberg::int32>(midiData.size());
+        if (!streamer.writeInt32(midiDataSize)) {
+            return Steinberg::kResultFalse;
+        }
+        if (midiDataSize > 0) {
+            if (state->write(midiData.data(), midiDataSize, nullptr) != Steinberg::kResultOk) {
+                return Steinberg::kResultFalse;
+            }
+        }
+    } else {
+        if (!streamer.writeInt32(0)) {
+            return Steinberg::kResultFalse;
+        }
     }
 
     return Steinberg::kResultOk;
@@ -2673,6 +2851,31 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
     int32_t version = 0;
     if (!streamer.readInt32(version)) {
         return Steinberg::kResultOk;
+    }
+
+    // Spec 012 T028: Deserialize window size (version >= 2)
+    // Note: height may include mod panel (200px extra) if it was visible.
+    // The 5:3 ratio is enforced on the base area in editorAttached().
+    if (version >= 2) {
+        double width = 1000.0;
+        double height = 600.0;
+        if (streamer.readDouble(width) && streamer.readDouble(height)) {
+            width = std::clamp(width, 834.0, 1400.0);
+            height = std::clamp(height, 500.0, 1040.0);
+            lastWindowWidth_ = width;
+            lastWindowHeight_ = height;
+        }
+
+        // Spec 012 T059: Deserialize global MIDI CC mappings
+        Steinberg::int32 midiDataSize = 0;
+        if (streamer.readInt32(midiDataSize) && midiDataSize > 0) {
+            std::vector<uint8_t> midiData(static_cast<size_t>(midiDataSize));
+            if (state->read(midiData.data(), midiDataSize, nullptr) == Steinberg::kResultOk) {
+                if (midiCCManager_) {
+                    midiCCManager_->deserializeGlobalMappings(midiData.data(), midiData.size());
+                }
+            }
+        }
     }
 
     return Steinberg::kResultOk;
@@ -2691,7 +2894,15 @@ Steinberg::tresult PLUGIN_API Controller::getMidiControllerAssignment(
         return Steinberg::kResultFalse;
     }
 
-    // Check if we have an assigned CC that matches
+    // T056: Query MidiCCManager for generalized CC mappings (Spec 012)
+    if (midiCCManager_) {
+        auto ccNum = static_cast<uint8_t>(midiControllerNumber);
+        if (midiCCManager_->getMidiControllerAssignment(ccNum, id)) {
+            return Steinberg::kResultTrue;
+        }
+    }
+
+    // Legacy: Check sweep-only assigned CC
     if (assignedMidiCC_ < 128 && midiControllerNumber == assignedMidiCC_) {
         id = makeSweepParamId(SweepParamType::kSweepFrequency);
         return Steinberg::kResultTrue;
@@ -2704,6 +2915,21 @@ Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString nam
     // FR-011: Create VST3Editor with editor.uidesc
     if (std::strcmp(name, Steinberg::Vst::ViewType::kEditor) == 0) {
         auto* editor = new VSTGUI::VST3Editor(this, "editor", "editor.uidesc");
+
+        // T025/FR-017: Window resize constraint with 5:3 aspect ratio
+        // Min: 834x500 (exact 5:3), Max: 1400x840 (exact 5:3)
+        // Constraints are updated dynamically by ModPanelToggleController when
+        // the mod panel is shown (+200px to height bounds)
+        {
+            auto* mpParam = getParameterObject(
+                makeGlobalParamId(GlobalParamType::kGlobalModPanelVisible));
+            bool modVis = mpParam && (mpParam->getNormalized() >= 0.5);
+            double extraH = modVis ? ModPanelToggleController::kModPanelHeight : 0.0;
+            editor->setEditorSizeConstrains(
+                VSTGUI::CPoint(834, 500 + extraH),
+                VSTGUI::CPoint(1400, 840 + extraH));
+        }
+
         return editor;
     }
     return nullptr;
@@ -2868,7 +3094,7 @@ VSTGUI::CView* Controller::createCustomView(
         auto* bandCountParam = getParameterObject(makeGlobalParamId(GlobalParamType::kGlobalBandCount));
         if (bandCountParam) {
             float normalized = static_cast<float>(bandCountParam->getNormalized());
-            int bandCount = static_cast<int>(std::round(normalized * 7.0f)) + 1;
+            int bandCount = static_cast<int>(std::round(normalized * 3.0f)) + 1;
             spectrumDisplay->setNumBands(bandCount);
         }
 
@@ -3360,11 +3586,10 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     if (bandCountParam) {
         for (int b = 0; b < kMaxBands; ++b) {
             // Threshold for band visibility: band b is shown when bandCount >= b+1
-            // Normalized value at index i = i / 7.0f (for 8 values 0-7)
-            // Band 0 (always visible): threshold 0/7 = 0.0
-            // Band 1: threshold 1/7 = 0.143
-            // etc.
-            float threshold = static_cast<float>(b) / 7.0f;
+            // Use midpoint thresholds to avoid float precision issues at exact boundaries
+            // With 4 items (norm = 0, 0.333, 0.667, 1.0):
+            // Band 0: -0.167 (always visible), Band 1: 0.167, Band 2: 0.5, Band 3: 0.833
+            float threshold = (static_cast<float>(b) - 0.5f) / 3.0f;
 
             // UI-only visibility tags are 9000 + band index
             Steinberg::int32 containerTag = 9000 + b;
@@ -3383,8 +3608,8 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             &spectrumDisplay_, bandCountParam);
     }
 
-    // Create expanded visibility controllers (T079, FR-015)
-    // Show/hide BandStripExpanded based on Band*Expanded parameter
+    // Create animated expand controllers (Spec 012 US1, replaces ContainerVisibilityController)
+    // Show/hide BandStripExpanded based on Band*Expanded parameter with animation
     for (int b = 0; b < kMaxBands; ++b) {
         auto* expandedParam = getParameterObject(
             makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandExpanded));
@@ -3392,13 +3617,137 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             // UI tag for expanded container: 9100 + band index
             Steinberg::int32 expandedContainerTag = 9100 + b;
 
-            expandedVisibilityControllers_[b] = new ContainerVisibilityController(
+            // FR-004: Pass parent band container tag (9000 + b) for visibility guard.
+            // When band is hidden (band count < band index), skip expand animation.
+            Steinberg::int32 parentBandTag = 9000 + b;
+
+            expandedVisibilityControllers_[b] = new AnimatedExpandController(
                 &activeEditor_,
                 expandedParam,
                 expandedContainerTag,
-                0.5f,   // Threshold at 0.5 (0 = collapsed, 1 = expanded)
-                false   // Show when value >= threshold (i.e., when expanded)
+                280.0f,  // Expanded height matching uidesc container size (680x280)
+                250,     // FR-005: 250ms animation (well within 300ms limit)
+                parentBandTag  // FR-004: Parent band container tag for visibility guard
             );
+        }
+    }
+
+    // T035: Create modulation panel visibility + resize controller (Spec 012 US3)
+    auto* modPanelParam = getParameterObject(
+        makeGlobalParamId(GlobalParamType::kGlobalModPanelVisible));
+    if (modPanelParam) {
+        modPanelVisController_ = new ModPanelToggleController(
+            &activeEditor_,
+            modPanelParam,
+            9300    // UI tag for modulation panel container
+        );
+    }
+
+    // T029/T030: Restore last window size (height may include mod panel)
+    {
+        bool modPanelOpen = modPanelParam && (modPanelParam->getNormalized() >= 0.5);
+        double extraH = modPanelOpen ? ModPanelToggleController::kModPanelHeight : 0.0;
+        double defaultH = 600.0 + extraH;
+
+        if (lastWindowWidth_ != 1000.0 || lastWindowHeight_ != defaultH) {
+            double constrainedWidth = std::clamp(lastWindowWidth_, 834.0, 1400.0);
+            // Base height from 5:3 ratio, then add mod panel if visible
+            double baseHeight = constrainedWidth * 3.0 / 5.0;
+            double constrainedHeight = baseHeight + extraH;
+            editor->requestResize(VSTGUI::CPoint(constrainedWidth, constrainedHeight));
+        }
+    }
+
+    // T045/T047: Register keyboard shortcut handler and enable focus drawing
+    {
+        auto* frame = editor->getFrame();
+        if (frame) {
+            // Get current band count for keyboard handler
+            int bandCount = 4;
+            auto* bcParam = getParameterObject(makeGlobalParamId(GlobalParamType::kGlobalBandCount));
+            if (bcParam) {
+                bandCount = static_cast<int>(std::round(bcParam->getNormalized() * 3.0)) + 1;
+            }
+
+            keyboardHandler_ = std::make_unique<KeyboardShortcutHandler>(this, frame, bandCount);
+
+            // T055a: Connect Escape key to MIDI Learn cancellation
+            if (midiCCManager_) {
+                keyboardHandler_->setEscapeCallback([this]() {
+                    if (midiCCManager_ && midiCCManager_->isLearning()) {
+                        midiCCManager_->cancelLearn();
+                        setParamNormalized(
+                            makeGlobalParamId(GlobalParamType::kGlobalMidiLearnActive), 0.0);
+                    }
+                });
+            }
+
+            frame->registerKeyboardHook(keyboardHandler_.get());
+
+            // FR-010a: Enable focus drawing with 2px colored outline
+            frame->setFocusDrawingEnabled(true);
+            frame->setFocusColor(VSTGUI::CColor(0x3A, 0x96, 0xDD));  // Accent blue
+            frame->setFocusWidth(2.0);
+        }
+    }
+
+    // Spec 012 US7: Check OS accessibility preferences
+    accessibilityPrefs_ = Krate::Plugins::queryAccessibilityPreferences();
+    if (accessibilityPrefs_.reducedMotionPreferred) {
+        // FR-028/FR-029: Disable animations when reduced motion is active
+        for (auto& vc : expandedVisibilityControllers_) {
+            if (auto* aec = dynamic_cast<AnimatedExpandController*>(vc.get())) {
+                aec->setAnimationsEnabled(false);
+            }
+        }
+    }
+
+    // T070-T074: Apply high contrast colors when OS high contrast mode is active
+    if (accessibilityPrefs_.highContrastEnabled) {
+        auto& colors = accessibilityPrefs_.colors;
+
+        // Convert uint32_t ARGB to CColor
+        auto toCColor = [](uint32_t argb) {
+            return VSTGUI::CColor(
+                static_cast<uint8_t>((argb >> 16) & 0xFF),
+                static_cast<uint8_t>((argb >> 8) & 0xFF),
+                static_cast<uint8_t>(argb & 0xFF),
+                static_cast<uint8_t>((argb >> 24) & 0xFF)
+            );
+        };
+
+        auto borderColor = toCColor(colors.border);
+        auto bgColor = toCColor(colors.background);
+        auto accentColor = toCColor(colors.accent);
+
+        // T070: Apply to CFrame background
+        auto* frame = editor->getFrame();
+        if (frame) {
+            frame->setBackgroundColor(bgColor);
+        }
+
+        // T071: Apply to SpectrumDisplay
+        if (spectrumDisplay_) {
+            spectrumDisplay_->setHighContrastMode(true, borderColor, bgColor, accentColor);
+        }
+
+        // T072: Apply to MorphPads
+        for (auto* mp : morphPads_) {
+            if (mp) {
+                mp->setHighContrastMode(true, borderColor, accentColor);
+            }
+        }
+
+        // T073: Apply to SweepIndicator
+        if (sweepIndicator_) {
+            sweepIndicator_->setHighContrastMode(true, accentColor);
+        }
+
+        // T074: Apply to DynamicNodeSelectors, CustomCurveEditor, NodeEditorBorder
+        for (auto* dns : dynamicNodeSelectors_) {
+            if (dns) {
+                dns->setHighContrastMode(true);
+            }
         }
     }
 
@@ -3468,6 +3817,16 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
+    // Save current window size before closing so getState() persists it
+    if (editor) {
+        auto* frame = editor->getFrame();
+        if (frame) {
+            auto rect = frame->getViewSize();
+            lastWindowWidth_ = rect.getWidth();
+            lastWindowHeight_ = rect.getHeight();
+        }
+    }
+
     // FR-024: Called when the editor is about to close
     // CRITICAL: Deactivate all visibility controllers BEFORE clearing them
 
@@ -3480,11 +3839,11 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         }
     }
 
-    // T081: Deactivate expanded visibility controllers
+    // Spec 012: Deactivate animated expand controllers
     for (auto& vc : expandedVisibilityControllers_) {
         if (vc) {
-            if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) {
-                cvc->deactivate();
+            if (auto* aec = dynamic_cast<AnimatedExpandController*>(vc.get())) {
+                aec->deactivate();
             }
             vc = nullptr;
         }
@@ -3556,6 +3915,23 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         bandCountDisplayController_ = nullptr;
     }
 
+    // T046: Unregister keyboard shortcut handler
+    if (keyboardHandler_) {
+        auto* frame = editor->getFrame();
+        if (frame) {
+            frame->unregisterKeyboardHook(keyboardHandler_.get());
+        }
+        keyboardHandler_.reset();
+    }
+
+    // Spec 012: Deactivate modulation panel toggle controller
+    if (modPanelVisController_) {
+        if (auto* mtc = dynamic_cast<ModPanelToggleController*>(modPanelVisController_.get())) {
+            mtc->deactivate();
+        }
+        modPanelVisController_ = nullptr;
+    }
+
     // Spec 010: Clear preset browser view pointers (views are owned by frame)
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
@@ -3565,6 +3941,98 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     activeEditor_ = nullptr;
 
     (void)editor;  // Suppress unused parameter warning
+}
+
+// ==============================================================================
+// MIDI Learn Context Menu (Spec 012 FR-031)
+// ==============================================================================
+
+bool Controller::findParameter(
+    const VSTGUI::CPoint& pos,
+    Steinberg::Vst::ParamID& paramID,
+    VSTGUI::VST3Editor* editor) {
+
+    if (!editor) return false;
+    auto* frame = editor->getFrame();
+    if (!frame) return false;
+
+    // Hit test the point against all controls
+    VSTGUI::CPoint localPos(pos);
+    auto* hitView = frame->getViewAt(localPos, VSTGUI::GetViewOptions().deep());
+    if (!hitView) return false;
+
+    auto* control = dynamic_cast<VSTGUI::CControl*>(hitView);
+    if (!control) return false;
+
+    auto tag = control->getTag();
+    if (tag < 0) return false;
+
+    paramID = static_cast<Steinberg::Vst::ParamID>(tag);
+    return true;
+}
+
+VSTGUI::COptionMenu* Controller::createContextMenu(
+    const VSTGUI::CPoint& pos,
+    VSTGUI::VST3Editor* editor) {
+
+    Steinberg::Vst::ParamID paramId = 0;
+    if (!findParameter(pos, paramId, editor)) {
+        return nullptr;
+    }
+
+    if (!midiCCManager_) return nullptr;
+
+    auto* menu = new VSTGUI::COptionMenu();
+
+    // T052: Add "MIDI Learn" menu item
+    {
+        VSTGUI::CCommandMenuItem::Desc desc("MIDI Learn");
+        auto* learnItem = new VSTGUI::CCommandMenuItem(std::move(desc));
+        learnItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) {
+            if (midiCCManager_) {
+                midiCCManager_->startLearn(paramId);
+                setParamNormalized(
+                    makeGlobalParamId(GlobalParamType::kGlobalMidiLearnActive), 1.0);
+            }
+        });
+        menu->addEntry(learnItem);
+    }
+
+    // T053: Add "Clear MIDI Learn" if parameter is already mapped
+    uint8_t existingCC = 0;
+    if (midiCCManager_->getCCForParam(paramId, existingCC)) {
+        {
+            VSTGUI::CCommandMenuItem::Desc clearDesc("Clear MIDI Learn");
+            auto* clearItem = new VSTGUI::CCommandMenuItem(std::move(clearDesc));
+            clearItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) {
+                if (midiCCManager_) {
+                    midiCCManager_->removeMappingsForParam(paramId);
+                }
+            });
+            menu->addEntry(clearItem);
+        }
+
+        // T054: Add "Save Mapping with Preset" checkbox
+        Krate::Plugins::MidiCCMapping mapping;
+        if (midiCCManager_->getMapping(existingCC, mapping)) {
+            VSTGUI::CCommandMenuItem::Desc presetDesc("Save Mapping with Preset");
+            auto* presetItem = new VSTGUI::CCommandMenuItem(std::move(presetDesc));
+            presetItem->setActions([this, existingCC, paramId, mapping](VSTGUI::CCommandMenuItem*) {
+                if (midiCCManager_) {
+                    if (!mapping.isPerPreset) {
+                        midiCCManager_->removeGlobalMapping(existingCC);
+                        midiCCManager_->addPresetMapping(existingCC, paramId, mapping.is14Bit);
+                    } else {
+                        midiCCManager_->removePresetMapping(existingCC);
+                        midiCCManager_->addGlobalMapping(existingCC, paramId, mapping.is14Bit);
+                    }
+                }
+            });
+            menu->addEntry(presetItem);
+        }
+    }
+
+    return menu;
 }
 
 // ==============================================================================
@@ -3657,9 +4125,9 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     // =========================================================================
     // Band management (v2)
     // =========================================================================
-    // Band count: normalized value (0-1) maps to (1-8)
+    // Band count: normalized value (0-1) maps to (1-4)
     int32_t bandCount = static_cast<int32_t>(std::round(
-        getParamNorm(makeGlobalParamId(GlobalParamType::kGlobalBandCount)) * 7.0f)) + 1;
+        getParamNorm(makeGlobalParamId(GlobalParamType::kGlobalBandCount)) * 3.0f)) + 1;
     streamer.writeInt32(bandCount);
 
     // Per-band state (8 bands)
@@ -3781,9 +4249,10 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     // Routing (32 x 4 values)
     for (uint8_t r = 0; r < 32; ++r) {
         streamer.writeInt8(getInt8FromList(makeRoutingParamId(r, 0), 12));
-        // Destination: int32 (0-53)
+        // Destination: int32 (0 to kTotalDestinations-1)
         auto destNorm = getParamNorm(makeRoutingParamId(r, 1));
-        streamer.writeInt32(static_cast<int32_t>(std::round(destNorm * 53.0f)));
+        streamer.writeInt32(static_cast<int32_t>(
+            std::round(destNorm * static_cast<float>(ModDest::kTotalDestinations - 1))));
         // Amount: float stored as [-1, 1], normalized as (amount + 1) / 2
         float amountNorm = getParamNorm(makeRoutingParamId(r, 2));
         streamer.writeFloat(amountNorm * 2.0f - 1.0f);
@@ -3895,11 +4364,15 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     if (version >= 2) {
         int32_t bandCount = 4;
         if (streamer.readInt32(bandCount)) {
-            float normalizedBandCount = static_cast<float>(bandCount - 1) / 7.0f;
+            int32_t clampedCount = std::clamp(bandCount, 1, 4);
+            float normalizedBandCount = static_cast<float>(clampedCount - 1) / 3.0f;
             editParamWithNotify(makeGlobalParamId(GlobalParamType::kGlobalBandCount), normalizedBandCount);
         }
 
-        for (int b = 0; b < kMaxBands; ++b) {
+        // v7 and earlier wrote 8 bands; v8+ writes 4
+        constexpr int kV7MaxBands = 8;
+        const int streamBands = (version <= 7) ? kV7MaxBands : kMaxBands;
+        for (int b = 0; b < streamBands; ++b) {
             float gain = 0.0f;
             float pan = 0.0f;
             Steinberg::int8 soloInt = 0;
@@ -3912,25 +4385,31 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
             streamer.readInt8(bypassInt);
             streamer.readInt8(muteInt);
 
-            auto* gainParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandGain));
-            if (gainParam)
-                editParamWithNotify(gainParam->getInfo().id, gainParam->toNormalized(gain));
+            if (b < kMaxBands) {
+                auto* gainParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandGain));
+                if (gainParam)
+                    editParamWithNotify(gainParam->getInfo().id, gainParam->toNormalized(gain));
 
-            auto* panParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandPan));
-            if (panParam)
-                editParamWithNotify(panParam->getInfo().id, panParam->toNormalized(pan));
+                auto* panParam = getParameterObject(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandPan));
+                if (panParam)
+                    editParamWithNotify(panParam->getInfo().id, panParam->toNormalized(pan));
 
-            editParamWithNotify(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandSolo), soloInt != 0 ? 1.0 : 0.0);
-            editParamWithNotify(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandBypass), bypassInt != 0 ? 1.0 : 0.0);
-            editParamWithNotify(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMute), muteInt != 0 ? 1.0 : 0.0);
+                editParamWithNotify(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandSolo), soloInt != 0 ? 1.0 : 0.0);
+                editParamWithNotify(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandBypass), bypassInt != 0 ? 1.0 : 0.0);
+                editParamWithNotify(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandMute), muteInt != 0 ? 1.0 : 0.0);
+            }
         }
 
-        for (int i = 0; i < kMaxBands - 1; ++i) {
+        // v7 and earlier wrote 7 crossovers; v8+ writes 3
+        const int streamCrossovers = (version <= 7) ? 7 : (kMaxBands - 1);
+        for (int i = 0; i < streamCrossovers; ++i) {
             float freq = 1000.0f;
             if (streamer.readFloat(freq)) {
-                auto* param = getParameterObject(makeCrossoverParamId(static_cast<uint8_t>(i)));
-                if (param)
-                    editParamWithNotify(param->getInfo().id, param->toNormalized(freq));
+                if (i < kMaxBands - 1) {
+                    auto* param = getParameterObject(makeCrossoverParamId(static_cast<uint8_t>(i)));
+                    if (param)
+                        editParamWithNotify(param->getInfo().id, param->toNormalized(freq));
+                }
             }
         }
     }
@@ -4156,7 +4635,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
                 editParamWithNotify(makeRoutingParamId(r, 0), static_cast<double>(source) / 12.0);
             int32_t dest = 0;
             if (streamer.readInt32(dest))
-                editParamWithNotify(makeRoutingParamId(r, 1), static_cast<double>(std::clamp(dest, 0, 53)) / 53.0);
+                editParamWithNotify(makeRoutingParamId(r, 1),
+                                   static_cast<double>(std::clamp(dest, 0, static_cast<int32_t>(ModDest::kTotalDestinations - 1)))
+                                   / static_cast<double>(ModDest::kTotalDestinations - 1));
             float amount = 0.0f;
             if (streamer.readFloat(amount))
                 editParamWithNotify(makeRoutingParamId(r, 2), static_cast<double>(amount + 1.0f) / 2.0);
@@ -4168,7 +4649,10 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
 
     // Morph node state (v6+)
     if (version >= 6) {
-        for (int b = 0; b < kMaxBands; ++b) {
+        // v7 and earlier wrote 8 bands of morph state; v8+ writes 4
+        constexpr int kV7MorphBands = 8;
+        const int streamMorphBands = (version <= 7) ? kV7MorphBands : kMaxBands;
+        for (int b = 0; b < streamMorphBands; ++b) {
             const auto band = static_cast<uint8_t>(b);
 
             float morphX = 0.5f;
@@ -4177,44 +4661,51 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
             auto activeNodes = static_cast<Steinberg::int8>(kDefaultActiveNodes);
             float morphSmoothing = 0.0f;
 
-            if (streamer.readFloat(morphX))
-                editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphX), static_cast<double>(morphX));
-            if (streamer.readFloat(morphY))
-                editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphY), static_cast<double>(morphY));
-            if (streamer.readInt8(morphMode))
-                editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphMode), static_cast<double>(morphMode) / 2.0);
-            if (streamer.readInt8(activeNodes)) {
-                int count = std::clamp(static_cast<int>(activeNodes), kMinActiveNodes, kMaxMorphNodes);
-                editParamWithNotify(makeBandParamId(band, BandParamType::kBandActiveNodes), static_cast<double>(count - 2) / 2.0);
+            bool readMorphX = streamer.readFloat(morphX);
+            bool readMorphY = streamer.readFloat(morphY);
+            bool readMorphMode = streamer.readInt8(morphMode);
+            bool readActiveNodes = streamer.readInt8(activeNodes);
+            bool readMorphSmoothing = streamer.readFloat(morphSmoothing);
+
+            if (b < kMaxBands) {
+                if (readMorphX)
+                    editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphX), static_cast<double>(morphX));
+                if (readMorphY)
+                    editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphY), static_cast<double>(morphY));
+                if (readMorphMode)
+                    editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphMode), static_cast<double>(morphMode) / 2.0);
+                if (readActiveNodes) {
+                    int count = std::clamp(static_cast<int>(activeNodes), kMinActiveNodes, kMaxMorphNodes);
+                    editParamWithNotify(makeBandParamId(band, BandParamType::kBandActiveNodes), static_cast<double>(count - 2) / 2.0);
+                }
+                if (readMorphSmoothing)
+                    editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphSmoothing), static_cast<double>(morphSmoothing) / 500.0);
             }
-            if (streamer.readFloat(morphSmoothing))
-                editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphSmoothing), static_cast<double>(morphSmoothing) / 500.0);
 
             for (int n = 0; n < kMaxMorphNodes; ++n) {
                 const auto node = static_cast<uint8_t>(n);
 
                 Steinberg::int8 nodeType = 0;
-                float drive = 1.0f;
-                float mix = 1.0f;
-                float tone = 4000.0f;
-                float bias = 0.0f;
-                float folds = 1.0f;
-                float bitDepth = 16.0f;
+                float drive = 1.0f, mix = 1.0f, tone = 4000.0f;
+                float bias = 0.0f, folds = 1.0f, bitDepth = 16.0f;
 
-                if (streamer.readInt8(nodeType))
-                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeType), static_cast<double>(nodeType) / 25.0);
-                if (streamer.readFloat(drive))
-                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeDrive), static_cast<double>(drive) / 10.0);
-                if (streamer.readFloat(mix))
-                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeMix), static_cast<double>(mix));
-                if (streamer.readFloat(tone))
-                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeTone), static_cast<double>(tone - 200.0f) / 7800.0);
-                if (streamer.readFloat(bias))
-                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeBias), static_cast<double>(bias + 1.0f) / 2.0);
-                if (streamer.readFloat(folds))
-                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeFolds), static_cast<double>(folds - 1.0f) / 11.0);
-                if (streamer.readFloat(bitDepth))
-                    editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth), static_cast<double>(bitDepth - 4.0f) / 20.0);
+                bool rType = streamer.readInt8(nodeType);
+                bool rDrive = streamer.readFloat(drive);
+                bool rMix = streamer.readFloat(mix);
+                bool rTone = streamer.readFloat(tone);
+                bool rBias = streamer.readFloat(bias);
+                bool rFolds = streamer.readFloat(folds);
+                bool rBitDepth = streamer.readFloat(bitDepth);
+
+                if (b < kMaxBands) {
+                    if (rType) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeType), static_cast<double>(nodeType) / 25.0);
+                    if (rDrive) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeDrive), static_cast<double>(drive) / 10.0);
+                    if (rMix) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeMix), static_cast<double>(mix));
+                    if (rTone) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeTone), static_cast<double>(tone - 200.0f) / 7800.0);
+                    if (rBias) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeBias), static_cast<double>(bias + 1.0f) / 2.0);
+                    if (rFolds) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeFolds), static_cast<double>(folds - 1.0f) / 11.0);
+                    if (rBitDepth) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth), static_cast<double>(bitDepth - 4.0f) / 20.0);
+                }
             }
         }
     }

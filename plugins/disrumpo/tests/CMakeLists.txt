@@ -91,9 +91,22 @@ add_executable(disrumpo_tests
     integration/preset/preset_search_test.cpp
     integration/preset/factory_preset_validation_test.cpp
 
+    # Unit tests - MIDI CC Manager (012-progressive-disclosure)
+    unit/midi_cc_manager_test.cpp
+
+    # Unit tests - Accessibility (012-progressive-disclosure)
+    unit/accessibility_test.cpp
+
+    # Unit tests - Keyboard Shortcuts (012-progressive-disclosure)
+    unit/keyboard_shortcut_test.cpp
+
     # Integration tests
     integration/band_management_integration_test.cpp
     integration/expand_collapse_test.cpp
+    integration/resize_test.cpp
+    integration/modulation_panel_test.cpp
+    integration/midi_learn_integration_test.cpp
+    integration/state_persistence_test.cpp
     integration/node_editor_test.cpp
     integration/sweep_band_intensity_test.cpp
     integration/modulation_audio_path_test.cpp

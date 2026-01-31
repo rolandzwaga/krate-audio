@@ -9,10 +9,27 @@
 # Namespace: Krate::Plugins
 # ==============================================================================
 
-add_library(KratePluginsShared STATIC
-    # Platform Abstraction
+set(SHARED_PLATFORM_SOURCES
     src/platform/preset_paths.h
     src/platform/preset_paths.cpp
+    src/platform/accessibility_helper.h
+    src/platform/accessibility_helper.cpp
+)
+
+# FR-025c/FR-027: macOS accessibility detection requires Objective-C++ (.mm)
+if(APPLE)
+    list(APPEND SHARED_PLATFORM_SOURCES
+        src/platform/accessibility_helper.mm
+    )
+endif()
+
+add_library(KratePluginsShared STATIC
+    # Platform Abstraction
+    ${SHARED_PLATFORM_SOURCES}
+
+    # MIDI CC Management (Spec 012)
+    src/midi/midi_cc_manager.h
+    src/midi/midi_cc_manager.cpp
 
     # Preset Management
     src/preset/preset_manager_config.h
@@ -46,6 +63,14 @@ target_link_libraries(KratePluginsShared
         sdk
         vstgui
 )
+
+# FR-025c: macOS AppKit framework for accessibility detection (NSWorkspace API)
+if(APPLE)
+    find_library(APPKIT_FRAMEWORK AppKit)
+    if(APPKIT_FRAMEWORK)
+        target_link_libraries(KratePluginsShared PRIVATE ${APPKIT_FRAMEWORK})
+    endif()
+endif()
 
 target_compile_features(KratePluginsShared PUBLIC cxx_std_20)
 

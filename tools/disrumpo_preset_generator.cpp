@@ -1,7 +1,7 @@
 // ==============================================================================
 // Factory Preset Generator for Disrumpo
 // ==============================================================================
-// Generates .vstpreset files matching the Processor::getState() v6 binary format.
+// Generates .vstpreset files matching the Processor::getState() v8 binary format.
 // Run this tool once during development to create factory presets.
 //
 // Reference: plugins/disrumpo/src/processor/processor.cpp getState() (lines 441-712)
@@ -46,8 +46,8 @@ public:
 // Constants (must match plugin_ids.h and DSP headers)
 // ==============================================================================
 
-static constexpr int32_t kPresetVersion = 6;
-static constexpr int kMaxBands = 8;
+static constexpr int32_t kPresetVersion = 8;
+static constexpr int kMaxBands = 4;
 static constexpr int kMaxMorphNodes = 4;
 static constexpr size_t kMaxMacros = 4;
 static constexpr size_t kMaxModRoutings = 32;
@@ -220,7 +220,7 @@ struct ModRouting {
 };
 
 // ==============================================================================
-// Complete Disrumpo Preset State (v6 format)
+// Complete Disrumpo Preset State (v8 format)
 // ==============================================================================
 
 struct DisrumpoPresetState {
@@ -233,7 +233,7 @@ struct DisrumpoPresetState {
     int32_t bandCount = 4;
     std::array<BandState, kMaxBands> bands{};
     std::array<float, kMaxBands - 1> crossoverFreqs = {
-        100.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f
+        200.0f, 1500.0f, 6000.0f
     };
 
     // Sweep (v4+)
@@ -262,7 +262,7 @@ struct DisrumpoPresetState {
         // Band count (v2+)
         w.writeInt32(bandCount);
 
-        // Per-band state (8 bands always)
+        // Per-band state (4 bands always)
         for (int b = 0; b < kMaxBands; ++b) {
             const auto& bs = bands[static_cast<size_t>(b)];
             w.writeFloat(bs.gainDb);
@@ -272,7 +272,7 @@ struct DisrumpoPresetState {
             w.writeInt8(static_cast<int8_t>(bs.mute ? 1 : 0));
         }
 
-        // Crossover frequencies (7 floats)
+        // Crossover frequencies (3 floats)
         for (int c = 0; c < kMaxBands - 1; ++c) {
             w.writeFloat(crossoverFreqs[static_cast<size_t>(c)]);
         }
@@ -567,14 +567,14 @@ namespace ModDest {
 }
 
 // ==============================================================================
-// Preset Definitions - 120 total across 11 categories
+// Preset Definitions - 119 total across 11 categories
 // ==============================================================================
 
 std::vector<PresetDef> createAllPresets() {
     std::vector<PresetDef> presets;
 
     // =========================================================================
-    // INIT (5 presets) - Clean starting points
+    // INIT (4 presets) - Clean starting points
     // =========================================================================
     {
         PresetDef p; p.name = "Init 1 Band"; p.category = "Init";
@@ -594,11 +594,6 @@ std::vector<PresetDef> createAllPresets() {
     {
         PresetDef p; p.name = "Init 4 Bands"; p.category = "Init";
         p.state = makeInitState(4);
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.name = "Init 5 Bands"; p.category = "Init";
-        p.state = makeInitState(5);
         presets.push_back(p);
     }
 
@@ -664,7 +659,7 @@ std::vector<PresetDef> createAllPresets() {
     }
     {
         PresetDef p; p.name = "Wide Sweep"; p.category = "Sweep";
-        p.state = makeInitState(5);
+        p.state = makeInitState(4);
         enableSweep(p.state, 0.5f, 0.8f, 0.3f);
         enableSweepLFO(p.state, 0.3f, 0.5f, Waveform::Saw);
         setAllBandsNodeType(p.state, DistortionType::Tape, 1.5f);
@@ -1256,7 +1251,7 @@ std::vector<PresetDef> createAllPresets() {
     }
     {
         PresetDef p; p.name = "All Types Morph"; p.category = "Experimental";
-        p.state = makeInitState(5);
+        p.state = makeInitState(4);
         setMorph4Node(p.state.bandMorph[0],
             DistortionType::SoftClip, DistortionType::Fuzz,
             DistortionType::SineFold, DistortionType::Bitcrush);
@@ -1623,8 +1618,8 @@ int main(int argc, char* argv[]) {
     std::cout << "Generating " << presets.size() << " Disrumpo factory presets..." << std::endl;
 
     // Verify expected count
-    if (presets.size() != 120) {
-        std::cerr << "WARNING: Expected 120 presets, got " << presets.size() << std::endl;
+    if (presets.size() != 119) {
+        std::cerr << "WARNING: Expected 119 presets, got " << presets.size() << std::endl;
     }
 
     for (const auto& preset : presets) {

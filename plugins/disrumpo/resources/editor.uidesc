@@ -268,6 +268,8 @@
     <control-tag name="Band6ExpandedContainer" tag="9105"/>
     <control-tag name="Band7ExpandedContainer" tag="9106"/>
     <control-tag name="Band8ExpandedContainer" tag="9107"/>
+    <control-tag name="ModPanelVisible" tag="3846"/>
+    <control-tag name="ModPanelContainer" tag="9300"/>
     <!-- Modulation Source Parameters (0x0D00 range) -->
     <!-- LFO 1 (0x0D00-0x0D06 = 3328-3334) -->
     <control-tag name="ModLFO1Rate" tag="3328"/>
@@ -475,7 +477,7 @@
       <color-stop rgba="#303035ff" start="1"/>
     </gradient>
   </gradients>
-  <template name="editor" class="CViewContainer" size="1000, 800" background-color="background-primary" minSize="800, 700" maxSize="1400, 1100">
+  <template name="editor" class="CViewContainer" size="1000, 800" background-color="background-primary" minSize="834, 500" maxSize="1400, 840">
     <view class="CViewContainer" origin="0, 0" size="1000, 50" background-color="background-secondary">
       <view class="CTextLabel" origin="20, 10" size="200, 30" title="Disrumpo" font="title-font" font-color="text-primary" text-alignment="left"/>
       <view custom-view-name="PresetBrowserButton" origin="250, 12" size="80, 25"/>
@@ -497,6 +499,7 @@
     <view class="CView" custom-view-name="SweepIndicator" origin="20, 60" size="960, 120"/>
     <view class="CViewContainer" origin="20, 190" size="960, 350" background-color="background-primary">
       <view class="CViewContainer" origin="0, 0" size="235, 340" background-color="panel" control-tag="Band1Container">
+        <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="center"/>
         <view class="COnOffButton" origin="200, 5" size="25, 20" bitmap="onoff_25x20" control-tag="Band1Expanded" default-value="0"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
@@ -531,6 +534,7 @@
         <view class="CSlider" origin="195, 305" size="60, 15" orientation="horizontal" control-tag="Band1MorphY" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       </view>
       <view class="CViewContainer" origin="240, 0" size="235, 340" background-color="panel" control-tag="Band2Container">
+        <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band2Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 2" font="section-font" font-color="band-2" text-alignment="center"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="B2N1Type" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
@@ -554,6 +558,7 @@
         </view>
       </view>
       <view class="CViewContainer" origin="480, 0" size="235, 340" background-color="panel" control-tag="Band3Container">
+        <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band3Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 3" font="section-font" font-color="band-3" text-alignment="center"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="B3N1Type" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
@@ -577,6 +582,7 @@
         </view>
       </view>
       <view class="CViewContainer" origin="720, 0" size="235, 340" background-color="panel" control-tag="Band4Container">
+        <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band4Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="235, 20" title="Band 4" font="section-font" font-color="band-4" text-alignment="center"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="B4N1Type" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
@@ -599,7 +605,7 @@
           <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute" font="small-font" font-color="text-secondary" text-alignment="center"/>
         </view>
       </view>
-      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel">
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1ExpandedContainer" back-color="transparent"/>
         <view class="CViewContainer" origin="0, 0" size="680, 40" background-color="background-secondary">
           <view class="CTextLabel" origin="10, 10" size="60, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="left"/>
@@ -667,12 +673,15 @@
       <view class="CSlider" origin="735, 15" size="40, 20" orientation="horizontal" control-tag="SweepEnvAttack" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       <view class="CTextLabel" origin="780, 15" size="25, 20" title="Rel" font="small-font" font-color="text-secondary"/>
       <view class="CSlider" origin="805, 15" size="40, 20" orientation="horizontal" control-tag="SweepEnvRelease" default-value="0.2" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
-      <view class="CTextLabel" origin="900, 15" size="80, 20" title="Disrumpo v0.1.0" font="small-font" font-color="text-secondary" text-alignment="right"/>
+      <view class="CTextLabel" origin="855, 15" size="30, 20" title="Mod" font="small-font" font-color="accent-secondary"/>
+      <view class="COnOffButton" origin="885, 12" size="25, 25" bitmap="onoff_25x25" control-tag="ModPanelVisible" default-value="0"/>
+      <view class="CTextLabel" origin="920, 15" size="60, 20" title="Disrumpo" font="small-font" font-color="text-secondary" text-alignment="right"/>
     </view>
     <!-- ================================================================== -->
     <!-- Modulation Panel (FR-065 to FR-081) -->
     <!-- ================================================================== -->
-    <view class="CViewContainer" origin="0, 600" size="1000, 200" background-color="background-primary">
+    <view class="CViewContainer" origin="0, 600" size="1000, 200" background-color="background-primary" visible="false">
+      <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="ModPanelContainer" back-color="transparent"/>
       <!-- ============================================================== -->
       <!-- Left Column: Modulation Sources (FR-065 to FR-073) -->
       <!-- ============================================================== -->

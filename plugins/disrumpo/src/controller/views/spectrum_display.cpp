@@ -23,10 +23,6 @@ const std::array<VSTGUI::CColor, SpectrumDisplay::kMaxBands> SpectrumDisplay::kB
     VSTGUI::CColor(0x4E, 0xCD, 0xC4, 0xFF),  // Band 2: #4ECDC4
     VSTGUI::CColor(0x95, 0xE8, 0x6B, 0xFF),  // Band 3: #95E86B
     VSTGUI::CColor(0xC7, 0x92, 0xEA, 0xFF),  // Band 4: #C792EA
-    VSTGUI::CColor(0xFF, 0xCB, 0x6B, 0xFF),  // Band 5: #FFCB6B
-    VSTGUI::CColor(0xFF, 0x53, 0x70, 0xFF),  // Band 6: #FF5370
-    VSTGUI::CColor(0x89, 0xDD, 0xFF, 0xFF),  // Band 7: #89DDFF
-    VSTGUI::CColor(0xF7, 0x8C, 0x6C, 0xFF),  // Band 8: #F78C6C
 }};
 
 // ==============================================================================
@@ -41,16 +37,6 @@ SpectrumDisplay::SpectrumDisplay(const VSTGUI::CRect& size)
     crossoverFreqs_[0] = 200.0f;
     crossoverFreqs_[1] = 2000.0f;
     crossoverFreqs_[2] = 8000.0f;
-
-    // Initialize remaining crossover frequencies for more bands
-    // These follow the same logarithmic pattern
-    crossoverFreqs_[3] = 100.0f;   // Between band 4 and 5
-    crossoverFreqs_[4] = 500.0f;   // Between band 5 and 6
-    crossoverFreqs_[5] = 4000.0f;  // Between band 6 and 7
-    crossoverFreqs_[6] = 12000.0f; // Between band 7 and 8
-
-    // Re-sort for proper order when more bands are used
-    // For now, we'll keep the simple defaults and let setNumBands handle proper spacing
 }
 
 // ==============================================================================
@@ -118,7 +104,7 @@ float SpectrumDisplay::xToFreq(float x) const {
 // ==============================================================================
 
 void SpectrumDisplay::setSweepBandIntensities(
-    const std::array<float, 8>& intensities, int numBands) {
+    const std::array<float, 4>& intensities, int numBands) {
     for (int i = 0; i < numBands && i < kMaxBands; ++i) {
         sweepIntensities_[static_cast<size_t>(i)] = intensities[static_cast<size_t>(i)];
     }
@@ -135,12 +121,27 @@ void SpectrumDisplay::setSweepEnabled(bool enabled) {
     }
 }
 
+void SpectrumDisplay::setHighContrastMode(bool enabled,
+                                           const VSTGUI::CColor& borderColor,
+                                           const VSTGUI::CColor& bgColor,
+                                           const VSTGUI::CColor& accentColor) {
+    highContrastEnabled_ = enabled;
+    hcBorderColor_ = borderColor;
+    hcBgColor_ = bgColor;
+    hcAccentColor_ = accentColor;
+    invalid();
+}
+
 void SpectrumDisplay::draw(VSTGUI::CDrawContext* context) {
     // Get view bounds
     auto viewSize = getViewSize();
 
-    // Draw background
-    context->setFillColor(VSTGUI::CColor(0x1A, 0x1A, 0x1E, 0xFF));  // Background Primary
+    // Draw background (Spec 012 FR-025a: use high contrast colors when enabled)
+    if (highContrastEnabled_) {
+        context->setFillColor(hcBgColor_);
+    } else {
+        context->setFillColor(VSTGUI::CColor(0x1A, 0x1A, 0x1E, 0xFF));  // Background Primary
+    }
     context->drawRect(viewSize, VSTGUI::kDrawFilled);
 
     // Draw band regions (semi-transparent)
@@ -287,14 +288,15 @@ void SpectrumDisplay::drawCrossoverDividers(VSTGUI::CDrawContext* context) {
     auto viewSize = getViewSize();
     float viewLeft = static_cast<float>(viewSize.left);
 
-    // Divider color
-    VSTGUI::CColor dividerColor(0x3A, 0x3A, 0x40, 0xFF);  // Border color
+    // Divider color (Spec 012 FR-025a: use high contrast border when enabled)
+    VSTGUI::CColor dividerColor = highContrastEnabled_ ?
+        hcBorderColor_ : VSTGUI::CColor(0x3A, 0x3A, 0x40, 0xFF);
 
     for (int i = 0; i < numBands_ - 1; ++i) {
         float x = freqToX(crossoverFreqs_[static_cast<size_t>(i)]) + viewLeft;
 
-        // Draw vertical divider line (2px wide)
-        context->setLineWidth(2.0);
+        // Draw vertical divider line (2px normal, 3px high contrast)
+        context->setLineWidth(highContrastEnabled_ ? 3.0 : 2.0);
         context->setFrameColor(dividerColor);
         context->drawLine(
             VSTGUI::CPoint(x, viewSize.top),

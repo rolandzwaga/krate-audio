@@ -198,7 +198,7 @@ TEST_CASE("Type detection functions work correctly", "[parameter][encoding]") {
     SECTION("isBandParamId identifies band-level parameters") {
         // Band parameters have node nibble = 0xF
         REQUIRE(isBandParamId(makeBandParamId(0, BandParamType::kBandGain)) == true);
-        REQUIRE(isBandParamId(makeBandParamId(7, BandParamType::kBandMute)) == true);
+        REQUIRE(isBandParamId(makeBandParamId(3, BandParamType::kBandMute)) == true);
         REQUIRE(isBandParamId(makeBandParamId(3, BandParamType::kBandMorphX)) == true);
     }
 
@@ -210,12 +210,12 @@ TEST_CASE("Type detection functions work correctly", "[parameter][encoding]") {
 
     SECTION("isNodeParamId identifies node-level parameters") {
         REQUIRE(isNodeParamId(makeNodeParamId(0, 0, NodeParamType::kNodeType)) == true);
-        REQUIRE(isNodeParamId(makeNodeParamId(7, 3, NodeParamType::kNodeBitDepth)) == true);
+        REQUIRE(isNodeParamId(makeNodeParamId(3, 3, NodeParamType::kNodeBitDepth)) == true);
     }
 
     SECTION("isNodeParamId returns false for band parameters") {
         REQUIRE(isNodeParamId(makeBandParamId(0, BandParamType::kBandGain)) == false);
-        REQUIRE(isNodeParamId(makeBandParamId(5, BandParamType::kBandSolo)) == false);
+        REQUIRE(isNodeParamId(makeBandParamId(3, BandParamType::kBandSolo)) == false);
     }
 
     SECTION("isGlobalParamId identifies global parameters") {

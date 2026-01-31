@@ -1,7 +1,7 @@
 // ==============================================================================
 // Crossover Network for Multi-Band Processing
 // ==============================================================================
-// Multi-band crossover network for 1-8 bands using cascaded CrossoverLR4.
+// Multi-band crossover network for 1-4 bands using cascaded CrossoverLR4.
 // Real-time safe: fixed-size arrays, no allocations in process().
 //
 // Phase Compensation:
@@ -33,7 +33,7 @@
 
 namespace Disrumpo {
 
-/// @brief Multi-band crossover network for 1-8 bands.
+/// @brief Multi-band crossover network for 1-4 bands.
 /// Uses cascaded CrossoverLR4 instances with D'Appolito allpass compensation
 /// per Constitution Principle XIV. Achieves SC-001 (+/-0.1dB flat response).
 /// Real-time safe: fixed-size arrays, no allocations in process().
@@ -43,7 +43,7 @@ public:
     // Constants
     // =========================================================================
 
-    static constexpr int kMaxBands = 8;
+    static constexpr int kMaxBands = 4;
     static constexpr int kMinBands = 1;
     static constexpr int kDefaultBands = 4;
     static constexpr float kDefaultSmoothingMs = 10.0f;
@@ -418,17 +418,15 @@ private:
 
     // D'Appolito allpass compensation filters
     // allpasses_[band][apIdx] is the allpass for band 'band' at crossover 'band + apIdx + 1'
-    // Band 0 needs up to 6 allpasses (at f1..f6 for 8 bands)
-    // Band 1 needs up to 5 allpasses (at f2..f6)
-    // ...
-    // Band 5 needs up to 1 allpass (at f6)
-    // Band 6 and 7 need no allpasses
-    // Maximum allpasses per band = kMaxBands - 2 = 6
+    // Band 0 needs up to 2 allpasses (at f1..f2 for 4 bands)
+    // Band 1 needs up to 1 allpass (at f2)
+    // Band 2 and 3 need no allpasses
+    // Maximum allpasses per band = kMaxBands - 2 = 2
     std::array<std::array<Krate::DSP::Biquad, kMaxBands - 2>, kMaxBands - 2> allpasses_;
 
     // Target frequencies (for redistribution logic)
     std::array<float, kMaxBands - 1> crossoverFrequencies_ = {
-        200.0f, 800.0f, 3200.0f, 8000.0f, 12000.0f, 16000.0f, 18000.0f
+        200.0f, 1500.0f, 6000.0f
     };
 };
 

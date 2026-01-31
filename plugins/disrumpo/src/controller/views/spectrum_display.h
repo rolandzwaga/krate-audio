@@ -69,7 +69,18 @@ public:
     /// @brief Set per-band sweep intensity values for overlay rendering (FR-050)
     /// @param intensities Array of intensity values [0, 2] per band (up to 8)
     /// @param numBands Number of bands with valid intensity data
-    void setSweepBandIntensities(const std::array<float, 8>& intensities, int numBands);
+    void setSweepBandIntensities(const std::array<float, 4>& intensities, int numBands);
+
+    /// @brief Enable high contrast mode with specified colors (Spec 012 FR-025a)
+    /// Increases border widths to 2px, uses solid fills instead of gradients,
+    /// ensures >= 4.5:1 contrast ratio.
+    /// @param borderColor Color for borders and dividers
+    /// @param bgColor Background color
+    /// @param accentColor Accent color for highlights
+    void setHighContrastMode(bool enabled,
+                             const VSTGUI::CColor& borderColor = VSTGUI::CColor(255, 255, 255),
+                             const VSTGUI::CColor& bgColor = VSTGUI::CColor(0, 0, 0),
+                             const VSTGUI::CColor& accentColor = VSTGUI::CColor(0x3A, 0x96, 0xDD));
 
     /// @brief Enable or disable sweep intensity overlay (FR-050)
     /// @param enabled true to show overlay
@@ -134,7 +145,7 @@ private:
     static constexpr float kMinFreqHz = 20.0f;
     static constexpr float kMaxFreqHz = 20000.0f;
     static constexpr float kLogRatio = 9.9657842846620869f;  // log2(20000/20) = log2(1000)
-    static constexpr int kMaxBands = 8;
+    static constexpr int kMaxBands = 4;
     static constexpr float kDividerHitTolerance = 10.0f;  // Pixels
     static constexpr float kMinOctaveSpacing = 0.5f;  // Minimum spacing between dividers
 
@@ -143,7 +154,7 @@ private:
     // ==========================================================================
 
     int numBands_ = 4;  // Default to 4 bands
-    std::array<float, kMaxBands - 1> crossoverFreqs_{};  // Up to 7 crossover frequencies
+    std::array<float, kMaxBands - 1> crossoverFreqs_{};  // Up to 3 crossover frequencies
     SpectrumDisplayListener* listener_ = nullptr;
 
     // Drag state (for Phase 8)
@@ -158,6 +169,12 @@ private:
 
     /// @brief Draw sweep intensity overlay on band regions
     void drawSweepIntensityOverlay(VSTGUI::CDrawContext* context);
+
+    // High contrast mode (Spec 012 FR-025a)
+    bool highContrastEnabled_ = false;
+    VSTGUI::CColor hcBorderColor_{255, 255, 255};
+    VSTGUI::CColor hcBgColor_{0, 0, 0};
+    VSTGUI::CColor hcAccentColor_{0x3A, 0x96, 0xDD};
 };
 
 } // namespace Disrumpo
