@@ -18,6 +18,7 @@ add_executable(disrumpo_tests
 
     # Unit tests - UI/Display (spec 004)
     unit/spectrum_display_test.cpp
+    unit/spectrum_analyzer_test.cpp
     unit/display_format_test.cpp
     unit/global_controls_test.cpp
     unit/band_strip_test.cpp
@@ -157,6 +158,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         dsp/sweep_envelope_tests.cpp
         integration/sweep_band_intensity_test.cpp
         integration/processor_audio_output_test.cpp
+        unit/spectrum_analyzer_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

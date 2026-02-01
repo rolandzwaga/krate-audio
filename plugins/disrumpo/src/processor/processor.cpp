@@ -128,6 +128,15 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
 
         // Reset modulation engine
         modulationEngine_.reset();
+
+        // Reset spectrum FIFOs and send pointers to controller
+        spectrumInputFIFO_.clear();
+        spectrumOutputFIFO_.clear();
+        sendSpectrumFIFOMessage();
+    } else {
+        // Deactivating: notify controller to disconnect FIFOs
+        spectrumInputFIFO_.clear();
+        spectrumOutputFIFO_.clear();
     }
 
     return AudioEffect::setActive(state);
@@ -169,6 +178,22 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     if (!inputL || !inputR || !outputL || !outputR) {
         return Steinberg::kResultTrue;
+    }
+
+    // ==========================================================================
+    // Spectrum Analyzer: Push pre-distortion input samples to FIFO
+    // Mono mixdown (L+R)*0.5 for UI-thread FFT analysis
+    // ==========================================================================
+    {
+        constexpr Steinberg::int32 kMonoChunkSize = 512;
+        float monoChunk[kMonoChunkSize];
+        for (Steinberg::int32 offset = 0; offset < data.numSamples; offset += kMonoChunkSize) {
+            auto chunkLen = std::min(kMonoChunkSize, data.numSamples - offset);
+            for (Steinberg::int32 i = 0; i < chunkLen; ++i) {
+                monoChunk[i] = (inputL[offset + i] + inputR[offset + i]) * 0.5f;
+            }
+            spectrumInputFIFO_.push(monoChunk, static_cast<size_t>(chunkLen));
+        }
     }
 
     // ==========================================================================
@@ -410,6 +435,21 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         outputL[n] = sumL;
         outputR[n] = sumR;
+    }
+
+    // ==========================================================================
+    // Spectrum Analyzer: Push post-distortion output samples to FIFO
+    // ==========================================================================
+    {
+        constexpr Steinberg::int32 kMonoChunkSize = 512;
+        float monoChunk[kMonoChunkSize];
+        for (Steinberg::int32 offset = 0; offset < data.numSamples; offset += kMonoChunkSize) {
+            auto chunkLen = std::min(kMonoChunkSize, data.numSamples - offset);
+            for (Steinberg::int32 i = 0; i < chunkLen; ++i) {
+                monoChunk[i] = (outputL[offset + i] + outputR[offset + i]) * 0.5f;
+            }
+            spectrumOutputFIFO_.push(monoChunk, static_cast<size_t>(chunkLen));
+        }
     }
 
     // Update sample position for timing synchronization
@@ -1871,6 +1911,32 @@ bool Processor::shouldBandContribute(int bandIndex) const noexcept {
 
     // No solo active - all non-muted bands contribute
     return true;
+}
+
+// ==============================================================================
+// Spectrum FIFO IMessage
+// ==============================================================================
+
+void Processor::sendSpectrumFIFOMessage() {
+    auto msg = Steinberg::owned(allocateMessage());
+    if (!msg)
+        return;
+
+    msg->setMessageID("SpectrumFIFO");
+    auto* attrs = msg->getAttributes();
+    if (!attrs)
+        return;
+
+    // Send FIFO pointers as int64 (safe: both components are in-process)
+    attrs->setInt("inputPtr",
+        static_cast<Steinberg::int64>(
+            reinterpret_cast<intptr_t>(&spectrumInputFIFO_)));
+    attrs->setInt("outputPtr",
+        static_cast<Steinberg::int64>(
+            reinterpret_cast<intptr_t>(&spectrumOutputFIFO_)));
+    attrs->setFloat("sampleRate", sampleRate_);
+
+    sendMessage(msg);
 }
 
 } // namespace Disrumpo

@@ -2,7 +2,7 @@
 // SpectrumDisplay Implementation
 // ==============================================================================
 // FR-013: Custom VSTGUI view for displaying frequency band regions
-// Phase 3: Static colored regions only (no FFT)
+// Real-time FFT spectrum curves with per-band coloring, peak hold, dB scale
 // ==============================================================================
 
 #include "spectrum_display.h"
@@ -37,6 +37,10 @@ SpectrumDisplay::SpectrumDisplay(const VSTGUI::CRect& size)
     crossoverFreqs_[0] = 200.0f;
     crossoverFreqs_[1] = 2000.0f;
     crossoverFreqs_[2] = 8000.0f;
+}
+
+SpectrumDisplay::~SpectrumDisplay() {
+    stopAnalysis();
 }
 
 // ==============================================================================
@@ -132,6 +136,63 @@ void SpectrumDisplay::setHighContrastMode(bool enabled,
     invalid();
 }
 
+// ==============================================================================
+// Spectrum Analyzer API
+// ==============================================================================
+
+void SpectrumDisplay::setSpectrumFIFOs(
+    Krate::DSP::SpectrumFIFO<8192>* inputFIFO,
+    Krate::DSP::SpectrumFIFO<8192>* outputFIFO) {
+    inputFIFO_ = inputFIFO;
+    outputFIFO_ = outputFIFO;
+}
+
+void SpectrumDisplay::startAnalysis(double sampleRate) {
+    if (analysisActive_)
+        return;
+
+    SpectrumConfig config;
+    config.sampleRate = static_cast<float>(sampleRate);
+    inputAnalyzer_.prepare(config);
+    outputAnalyzer_.prepare(config);
+
+    // ~30fps timer (33ms interval)
+    analysisTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+        [this](VSTGUI::CVSTGUITimer* /*timer*/) {
+            constexpr float kDeltaTime = 33.0f / 1000.0f;  // ~30fps
+            bool needsRedraw = false;
+
+            if (outputFIFO_) {
+                needsRedraw |= outputAnalyzer_.process(outputFIFO_, kDeltaTime);
+            }
+            if (inputFIFO_ && (showInput_ || overlaidMode_)) {
+                needsRedraw |= inputAnalyzer_.process(inputFIFO_, kDeltaTime);
+            }
+
+            if (needsRedraw) {
+                invalid();
+            }
+        },
+        33  // 33ms interval
+    );
+
+    analysisActive_ = true;
+}
+
+void SpectrumDisplay::stopAnalysis() {
+    analysisTimer_ = nullptr;  // SharedPointer releases the timer
+    analysisActive_ = false;
+    inputFIFO_ = nullptr;
+    outputFIFO_ = nullptr;
+    inputAnalyzer_.reset();
+    outputAnalyzer_.reset();
+    invalid();
+}
+
+// ==============================================================================
+// Drawing
+// ==============================================================================
+
 void SpectrumDisplay::draw(VSTGUI::CDrawContext* context) {
     // Get view bounds
     auto viewSize = getViewSize();
@@ -144,18 +205,49 @@ void SpectrumDisplay::draw(VSTGUI::CDrawContext* context) {
     }
     context->drawRect(viewSize, VSTGUI::kDrawFilled);
 
-    // Draw band regions (semi-transparent)
+    // Layer 1: Band regions (semi-transparent)
     drawBandRegions(context);
 
-    // Draw sweep intensity overlay (FR-050)
+    // Layer 2: Spectrum filled areas (per-band colored)
+    if (analysisActive_) {
+        if (overlaidMode_ && inputFIFO_) {
+            drawSpectrumCurve(context, inputAnalyzer_, 0.2f);
+        }
+        if (outputFIFO_) {
+            drawSpectrumCurve(context, outputAnalyzer_, 0.5f);
+        }
+        if (showInput_ && !overlaidMode_ && inputFIFO_) {
+            drawSpectrumCurve(context, inputAnalyzer_, 0.5f);
+        }
+    }
+
+    // Layer 3: Peak hold lines
+    if (analysisActive_) {
+        if (overlaidMode_ && inputFIFO_) {
+            drawPeakHoldLine(context, inputAnalyzer_, 80);
+        }
+        if (outputFIFO_) {
+            drawPeakHoldLine(context, outputAnalyzer_, 140);
+        }
+        if (showInput_ && !overlaidMode_ && inputFIFO_) {
+            drawPeakHoldLine(context, inputAnalyzer_, 140);
+        }
+    }
+
+    // Layer 4: Sweep intensity overlay (FR-050)
     if (sweepEnabled_) {
         drawSweepIntensityOverlay(context);
     }
 
-    // Draw crossover dividers
+    // Layer 5: dB scale gridlines
+    if (analysisActive_) {
+        drawDbScale(context);
+    }
+
+    // Layer 6: Crossover dividers
     drawCrossoverDividers(context);
 
-    // Draw frequency scale
+    // Layer 7: Frequency scale
     drawFrequencyScale(context);
 
     setDirty(false);
@@ -401,6 +493,187 @@ void SpectrumDisplay::drawSweepIntensityOverlay(VSTGUI::CDrawContext* context) {
         VSTGUI::CRect bandRect(leftX, viewSize.top, rightX, viewSize.top + height);
         context->setFillColor(highlightColor);
         context->drawRect(bandRect, VSTGUI::kDrawFilled);
+    }
+}
+
+// ==============================================================================
+// Spectrum Rendering
+// ==============================================================================
+
+float SpectrumDisplay::dbToY(float db) const {
+    auto viewSize = getViewSize();
+    float viewTop = static_cast<float>(viewSize.top);
+    // Reserve 20px at bottom for frequency labels
+    float usableHeight = static_cast<float>(viewSize.getHeight()) - 20.0f;
+
+    // Normalize dB to [0, 1] where 0dB = top, -96dB = bottom
+    float normalized = (db - kMinDb) / (kMaxDb - kMinDb);
+    normalized = std::clamp(normalized, 0.0f, 1.0f);
+
+    // Invert: 0dB at top, -96dB at bottom
+    return viewTop + usableHeight * (1.0f - normalized);
+}
+
+void SpectrumDisplay::drawSpectrumCurve(
+    VSTGUI::CDrawContext* context,
+    const SpectrumAnalyzer& analyzer,
+    float alphaScale) {
+
+    const auto& smoothedDb = analyzer.getSmoothedDb();
+    if (smoothedDb.empty())
+        return;
+
+    auto viewSize = getViewSize();
+    float viewLeft = static_cast<float>(viewSize.left);
+    float baseline = dbToY(kMinDb);  // Bottom of spectrum area
+
+    for (int band = 0; band < numBands_; ++band) {
+        // Get band frequency boundaries
+        float leftFreq = (band == 0) ? kMinFreqHz
+            : crossoverFreqs_[static_cast<size_t>(band - 1)];
+        float rightFreq = (band == numBands_ - 1) ? kMaxFreqHz
+            : crossoverFreqs_[static_cast<size_t>(band)];
+
+        // Convert to scope indices
+        auto leftIdx = static_cast<size_t>(analyzer.freqToScopeIndex(leftFreq));
+        auto rightIdx = static_cast<size_t>(std::ceil(analyzer.freqToScopeIndex(rightFreq)));
+        if (rightIdx <= leftIdx)
+            continue;
+
+        VSTGUI::CGraphicsPath* path = context->createGraphicsPath();
+        if (!path)
+            continue;
+
+        // Start at baseline, left edge
+        float startX = freqToX(leftFreq) + viewLeft;
+        path->beginSubpath(VSTGUI::CPoint(startX, baseline));
+
+        // Trace the spectrum curve from left to right
+        // Use ~2px step for smooth curves
+        float pixelStep = 2.0f;
+        float leftX = freqToX(leftFreq);
+        float rightX = freqToX(rightFreq);
+        float currentX = leftX;
+
+        while (currentX <= rightX) {
+            float freq = xToFreq(currentX);
+            auto idx = static_cast<size_t>(analyzer.freqToScopeIndex(freq));
+            idx = std::clamp(idx, leftIdx, rightIdx - 1);
+
+            float db = smoothedDb[idx];
+            float screenX = currentX + viewLeft;
+            float screenY = dbToY(db);
+
+            path->addLine(VSTGUI::CPoint(screenX, screenY));
+            currentX += pixelStep;
+        }
+
+        // Final point at right edge
+        {
+            size_t idx = std::min(rightIdx - 1, smoothedDb.size() - 1);
+            float db = smoothedDb[idx];
+            float screenX = freqToX(rightFreq) + viewLeft;
+            float screenY = dbToY(db);
+            path->addLine(VSTGUI::CPoint(screenX, screenY));
+        }
+
+        // Close back to baseline
+        float endX = freqToX(rightFreq) + viewLeft;
+        path->addLine(VSTGUI::CPoint(endX, baseline));
+        path->closeSubpath();
+
+        // Fill with band color at given alpha
+        VSTGUI::CColor fillColor = kBandColors[static_cast<size_t>(band)];
+        fillColor.alpha = static_cast<uint8_t>(255.0f * alphaScale);
+
+        context->setFillColor(fillColor);
+        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+        path->forget();
+    }
+}
+
+void SpectrumDisplay::drawPeakHoldLine(
+    VSTGUI::CDrawContext* context,
+    const SpectrumAnalyzer& analyzer,
+    uint8_t alpha) {
+
+    const auto& peakDb = analyzer.getPeakDb();
+    if (peakDb.empty())
+        return;
+
+    auto viewSize = getViewSize();
+    float viewLeft = static_cast<float>(viewSize.left);
+
+    context->setLineWidth(1.0);
+    context->setFrameColor(VSTGUI::CColor(255, 255, 255, alpha));
+
+    // Draw peak line as a connected path across the entire frequency range
+    VSTGUI::CGraphicsPath* path = context->createGraphicsPath();
+    if (!path)
+        return;
+
+    bool started = false;
+    float pixelStep = 2.0f;
+    float width = static_cast<float>(viewSize.getWidth());
+
+    for (float currentX = 0.0f; currentX <= width; currentX += pixelStep) {
+        float freq = xToFreq(currentX);
+        auto idx = static_cast<size_t>(analyzer.freqToScopeIndex(freq));
+        idx = std::min(idx, peakDb.size() - 1);
+
+        float db = peakDb[idx];
+        // Skip silent regions (below noise floor)
+        if (db <= kMinDb + 1.0f)
+            continue;
+
+        float screenX = currentX + viewLeft;
+        float screenY = dbToY(db);
+
+        if (!started) {
+            path->beginSubpath(VSTGUI::CPoint(screenX, screenY));
+            started = true;
+        } else {
+            path->addLine(VSTGUI::CPoint(screenX, screenY));
+        }
+    }
+
+    if (started) {
+        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
+    }
+    path->forget();
+}
+
+void SpectrumDisplay::drawDbScale(VSTGUI::CDrawContext* context) {
+    auto viewSize = getViewSize();
+    float viewLeft = static_cast<float>(viewSize.left);
+    float viewRight = static_cast<float>(viewSize.right);
+
+    // dB gridline levels
+    const float dbLevels[] = {0.0f, -12.0f, -24.0f, -48.0f, -96.0f};
+    const char* dbLabels[] = {"0", "-12", "-24", "-48", "-96"};
+
+    // Faint gridline color
+    VSTGUI::CColor gridColor(0x3A, 0x3A, 0x40, 0x60);
+    VSTGUI::CColor labelColor(0x88, 0x88, 0xAA, 0x80);
+
+    VSTGUI::CFontRef font = VSTGUI::kNormalFontSmaller;
+    context->setFont(font);
+
+    for (size_t i = 0; i < sizeof(dbLevels) / sizeof(dbLevels[0]); ++i) {
+        float y = dbToY(dbLevels[i]);
+
+        // Draw horizontal gridline
+        context->setLineWidth(1.0);
+        context->setFrameColor(gridColor);
+        context->drawLine(
+            VSTGUI::CPoint(viewLeft, y),
+            VSTGUI::CPoint(viewRight, y)
+        );
+
+        // Draw dB label on right edge
+        VSTGUI::CRect labelRect(viewRight - 30, y - 6, viewRight - 2, y + 6);
+        context->setFontColor(labelColor);
+        context->drawString(dbLabels[i], labelRect, VSTGUI::kRightText);
     }
 }
 

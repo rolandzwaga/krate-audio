@@ -4,15 +4,21 @@
 // SpectrumDisplay Custom View
 // ==============================================================================
 // FR-013: Custom VSTGUI view for displaying frequency band regions
-// Phase 3: Static colored regions only (no FFT until Week 13)
+// Renders colored frequency band regions with draggable crossover dividers,
+// real-time FFT spectrum curves, peak hold lines, and dB scale markers.
 //
 // Coordinate mapping uses logarithmic scale from 20Hz to 20kHz:
 // - x = width * log2(freq/20) / log2(1000)
 // - freq = 20 * 2^(x/width * log2(1000))
 // ==============================================================================
 
+#include "spectrum_analyzer.h"
+
 #include "vstgui/lib/cview.h"
 #include "vstgui/lib/ccolor.h"
+#include "vstgui/lib/cvstguitimer.h"
+
+#include <krate/dsp/primitives/spectrum_fifo.h>
 
 #include <array>
 #include <vector>
@@ -40,7 +46,7 @@ public:
 class SpectrumDisplay : public VSTGUI::CView {
 public:
     explicit SpectrumDisplay(const VSTGUI::CRect& size);
-    ~SpectrumDisplay() override = default;
+    ~SpectrumDisplay() override;
 
     // ==========================================================================
     // Configuration API
@@ -87,6 +93,34 @@ public:
     void setSweepEnabled(bool enabled);
 
     // ==========================================================================
+    // Spectrum Analyzer API
+    // ==========================================================================
+
+    /// @brief Set FIFO pointers for real-time spectrum analysis
+    /// @param inputFIFO Pointer to input (pre-distortion) FIFO, or nullptr
+    /// @param outputFIFO Pointer to output (post-distortion) FIFO, or nullptr
+    void setSpectrumFIFOs(Krate::DSP::SpectrumFIFO<8192>* inputFIFO,
+                          Krate::DSP::SpectrumFIFO<8192>* outputFIFO);
+
+    /// @brief Start spectrum analysis with the given sample rate
+    /// @param sampleRate Audio sample rate in Hz
+    void startAnalysis(double sampleRate);
+
+    /// @brief Stop spectrum analysis and release timer
+    void stopAnalysis();
+
+    /// @brief Toggle input spectrum visibility
+    /// @param show true to show input spectrum
+    void setShowInput(bool show) { showInput_ = show; invalid(); }
+
+    /// @brief Toggle overlaid mode (input + output simultaneously)
+    /// @param overlaid true for overlaid display
+    void setOverlaidMode(bool overlaid) { overlaidMode_ = overlaid; invalid(); }
+
+    /// @brief Check if spectrum analysis is active
+    [[nodiscard]] bool isAnalysisActive() const { return analysisActive_; }
+
+    // ==========================================================================
     // Coordinate Conversion
     // ==========================================================================
 
@@ -112,7 +146,7 @@ public:
     VSTGUI::CMouseEventResult onMouseUp(VSTGUI::CPoint& where, const VSTGUI::CButtonState& buttons) override;
     VSTGUI::CMouseEventResult onMouseMoved(VSTGUI::CPoint& where, const VSTGUI::CButtonState& buttons) override;
 
-    CLASS_METHODS(SpectrumDisplay, CView)
+    CLASS_METHODS_NOCOPY(SpectrumDisplay, CView)
 
 private:
     // ==========================================================================
@@ -175,6 +209,58 @@ private:
     VSTGUI::CColor hcBorderColor_{255, 255, 255};
     VSTGUI::CColor hcBgColor_{0, 0, 0};
     VSTGUI::CColor hcAccentColor_{0x3A, 0x96, 0xDD};
+
+    // ==========================================================================
+    // Spectrum Analyzer State
+    // ==========================================================================
+
+    /// @brief Analyzers for input (pre-distortion) and output (post-distortion)
+    SpectrumAnalyzer inputAnalyzer_;
+    SpectrumAnalyzer outputAnalyzer_;
+
+    /// @brief FIFO pointers (owned by Processor, nulled on disconnect)
+    Krate::DSP::SpectrumFIFO<8192>* inputFIFO_ = nullptr;
+    Krate::DSP::SpectrumFIFO<8192>* outputFIFO_ = nullptr;
+
+    /// @brief Timer for ~30fps spectrum updates
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> analysisTimer_;
+
+    /// @brief Display flags
+    bool showInput_ = false;
+    bool overlaidMode_ = false;
+    bool analysisActive_ = false;
+
+    // ==========================================================================
+    // Spectrum Drawing Helpers
+    // ==========================================================================
+
+    /// @brief Draw filled spectrum curve for one analyzer, clipped per-band
+    /// @param context Draw context
+    /// @param analyzer The analyzer to render
+    /// @param alphaScale Alpha multiplier (e.g., 0.2 for input, 0.5 for output)
+    void drawSpectrumCurve(VSTGUI::CDrawContext* context,
+                           const SpectrumAnalyzer& analyzer,
+                           float alphaScale);
+
+    /// @brief Draw peak hold line for one analyzer
+    /// @param context Draw context
+    /// @param analyzer The analyzer to render peaks from
+    /// @param alpha Line alpha (0-255)
+    void drawPeakHoldLine(VSTGUI::CDrawContext* context,
+                          const SpectrumAnalyzer& analyzer,
+                          uint8_t alpha);
+
+    /// @brief Draw dB scale gridlines and labels
+    void drawDbScale(VSTGUI::CDrawContext* context);
+
+    /// @brief Convert dB value to Y coordinate within the view
+    /// @param db dB value (minDb to maxDb)
+    /// @return Y coordinate from view top
+    float dbToY(float db) const;
+
+    /// @brief Spectrum display dB range
+    static constexpr float kMinDb = -96.0f;
+    static constexpr float kMaxDb = 0.0f;
 };
 
 } // namespace Disrumpo
