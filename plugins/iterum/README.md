@@ -1,6 +1,6 @@
 # Iterum
 
-**A feature-rich VST3/AU delay plugin with 11 distinct delay modes**
+**A feature-rich VST3/AU delay plugin with 10 distinct delay modes**
 
 [![Website](https://img.shields.io/badge/website-iterum-blue)](https://rolandzwaga.github.io/iterum/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -12,11 +12,11 @@
 
 ## Overview
 
-Iterum is a professional-grade delay plugin offering 11 unique delay algorithms, from classic tape and analog emulations to modern granular and spectral processing. Built with the Steinberg VST3 SDK and VSTGUI, it delivers high-quality audio processing with a focus on real-time performance and creative flexibility.
+Iterum is a professional-grade delay plugin offering 10 unique delay algorithms, from classic tape and analog emulations to modern granular and spectral processing. Built with the Steinberg VST3 SDK and VSTGUI, it delivers high-quality audio processing with a focus on real-time performance and creative flexibility.
 
 ## Features
 
-- **11 Delay Modes** - From vintage to experimental
+- **10 Delay Modes** - From vintage to experimental
 - **Click-Free Mode Switching** - 50ms equal-power crossfade between all modes
 - **Tempo Sync** - Lock delay times to host BPM with musical note values
 - **Cross-Platform** - Windows, macOS (Intel & Apple Silicon), Linux
