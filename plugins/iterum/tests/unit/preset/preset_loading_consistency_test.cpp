@@ -18,7 +18,6 @@
 
 #include "parameters/granular_params.h"
 #include "parameters/spectral_params.h"
-#include "parameters/ducking_params.h"
 #include "parameters/freeze_params.h"
 #include "parameters/reverse_params.h"
 #include "parameters/shimmer_params.h"
@@ -147,24 +146,6 @@ TEST_CASE("All modes consume exact bytes written", "[preset][consistency]") {
         IBStreamer reader(&stream, kLittleEndian);
         MockController controller;
         Iterum::syncFreezeParamsToController(reader, controller);
-        int64 read = 0;
-        stream.tell(&read);
-
-        REQUIRE(read == written);
-    }
-
-    SECTION("Ducking") {
-        Iterum::DuckingParams params;
-        MemoryStream stream;
-        IBStreamer writer(&stream, kLittleEndian);
-        Iterum::saveDuckingParams(params, writer);
-        int64 written = 0;
-        stream.tell(&written);
-
-        stream.seek(0, IBStream::kIBSeekSet, nullptr);
-        IBStreamer reader(&stream, kLittleEndian);
-        MockController controller;
-        Iterum::syncDuckingParamsToController(reader, controller);
         int64 read = 0;
         stream.tell(&read);
 
@@ -386,38 +367,6 @@ TEST_CASE("MultiTap params roundtrip preserves values", "[preset][multitap][roun
     // Note Modifier: 0-2 -> normalized = val/2
     REQUIRE(controller.paramValues[Iterum::kMultiTapNoteModifierId] == Approx(1.0 / 2.0).margin(0.001));
     REQUIRE(controller.paramValues[Iterum::kMultiTapMixId] == Approx(0.6).margin(0.001));
-}
-
-TEST_CASE("Ducking params roundtrip preserves values", "[preset][ducking][roundtrip]") {
-    Iterum::DuckingParams params;
-    params.duckingEnabled.store(true);
-    params.threshold.store(-20.0f);
-    params.duckAmount.store(0.7f);
-    params.attackTime.store(15.0f);
-    params.releaseTime.store(300.0f);
-    params.holdTime.store(100.0f);
-    params.duckTarget.store(1);
-    params.sidechainFilterEnabled.store(true);
-    params.sidechainFilterCutoff.store(150.0f);
-    params.delayTime.store(350.0f);
-    params.timeMode.store(1);
-    params.noteValue.store(4);
-    params.feedback.store(50.0f);
-    params.dryWet.store(0.75f);
-
-    MemoryStream stream;
-    IBStreamer writer(&stream, kLittleEndian);
-    Iterum::saveDuckingParams(params, writer);
-
-    stream.seek(0, IBStream::kIBSeekSet, nullptr);
-    IBStreamer reader(&stream, kLittleEndian);
-    MockController controller;
-    Iterum::syncDuckingParamsToController(reader, controller);
-
-    constexpr double noteValDivisor = Iterum::Parameters::kNoteValueDropdownCount - 1;
-    REQUIRE(controller.paramValues[Iterum::kDuckingTimeModeId] == Approx(1.0).margin(0.001));
-    REQUIRE(controller.paramValues[Iterum::kDuckingNoteValueId] == Approx(4.0 / noteValDivisor).margin(0.001));
-    REQUIRE(controller.paramValues[Iterum::kDuckingMixId] == Approx(0.75).margin(0.001));
 }
 
 TEST_CASE("Reverse params roundtrip preserves values", "[preset][reverse][roundtrip]") {

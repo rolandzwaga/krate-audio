@@ -5,6 +5,15 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-02-02
+
+### Removed
+
+- **Ducking Delay mode** removed entirely from the plugin
+  - All Ducking parameters (IDs 1100-1199), UI panel, presets, and preset generator entries removed
+  - DSP library code (`dsp/`) retained for potential use in other plugins
+  - **Breaking change**: Existing DAW sessions and .vstpreset files will not load correctly due to changed state serialization order and mode count (11 → 10)
+
 ## [0.13.0] - 2026-01-16
 
 ### Added

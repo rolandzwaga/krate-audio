@@ -19,7 +19,6 @@
 #include <krate/dsp/core/dsp_utils.h>
 #include <krate/dsp/effects/bbd_delay.h>
 #include <krate/dsp/effects/digital_delay.h>
-#include <krate/dsp/effects/ducking_delay.h>
 #include <krate/dsp/effects/pattern_freeze_mode.h>
 #include <krate/dsp/effects/granular_delay.h>
 #include <krate/dsp/effects/multi_tap_delay.h>
@@ -30,7 +29,6 @@
 #include <krate/dsp/effects/tape_delay.h>
 #include "parameters/bbd_params.h"
 #include "parameters/digital_params.h"
-#include "parameters/ducking_params.h"
 #include "parameters/freeze_params.h"
 #include "parameters/granular_params.h"
 #include "parameters/multitap_params.h"
@@ -182,7 +180,6 @@ private:
 
     GranularParams granularParams_;   // Granular Delay (spec 034)
     SpectralParams spectralParams_;   // Spectral Delay (spec 033)
-    DuckingParams duckingParams_;     // Ducking Delay (spec 032)
     FreezeParams freezeParams_;       // Freeze Mode (spec 031)
     ReverseParams reverseParams_;     // Reverse Delay (spec 030)
     ShimmerParams shimmerParams_;     // Shimmer Delay (spec 029)
@@ -198,7 +195,6 @@ private:
 
     Krate::DSP::GranularDelay granularDelay_;
     Krate::DSP::SpectralDelay spectralDelay_;
-    Krate::DSP::DuckingDelay duckingDelay_;
     Krate::DSP::PatternFreezeMode patternFreezeMode_;
     Krate::DSP::ReverseDelay reverseDelay_;
     Krate::DSP::ShimmerDelay shimmerDelay_;

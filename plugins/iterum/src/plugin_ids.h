@@ -42,7 +42,6 @@ static const Steinberg::FUID kControllerUID(0x87654321, 0x87654321, 0x87654321, 
 //   800-899:   Reverse Delay (spec 030)
 //   900-999:   MultiTap Delay (spec 028)
 //   1000-1099: Freeze Mode (spec 031)
-//   1100-1199: Ducking Delay (spec 032)
 // ==============================================================================
 
 // Note: DelayMode enum is defined in delay_mode.h to allow use without VST3 SDK
@@ -53,7 +52,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // ==========================================================================
     // Note: kBypassId removed - DAWs provide their own bypass functionality
     kGainId = 1,
-    kModeId = 2,    // 0-10 (DelayMode enum) - selects active delay mode
+    kModeId = 2,    // 0-9 (DelayMode enum) - selects active delay mode
 
     // ==========================================================================
     // Granular Delay Parameters (100-199) - spec 034
@@ -320,27 +319,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kFreezeEndId = 1099,
 
     // ==========================================================================
-    // Ducking Delay Parameters (1100-1199) - spec 032
-    // ==========================================================================
-    kDuckingBaseId = 1100,
-    kDuckingEnabledId = 1100,           // on/off
-    kDuckingThresholdId = 1101,         // -60 to 0 dB
-    kDuckingDuckAmountId = 1102,        // 0-100%
-    kDuckingAttackTimeId = 1103,        // 0.1-100ms
-    kDuckingReleaseTimeId = 1104,       // 10-2000ms
-    kDuckingHoldTimeId = 1105,          // 0-500ms
-    kDuckingDuckTargetId = 1106,        // 0-2 (Output, Feedback, Both)
-    kDuckingSidechainFilterEnabledId = 1107,  // on/off
-    kDuckingSidechainFilterCutoffId = 1108,   // 20-500Hz
-    kDuckingDelayTimeId = 1109,         // 10-5000ms
-    kDuckingFeedbackId = 1110,          // 0-120%
-    kDuckingMixId = 1111,               // 0-100% (renamed from kDuckingDryWetId)
-    kDuckingTimeModeId = 1112,          // 0=Free, 1=Synced (spec 043)
-    kDuckingNoteValueId = 1113,         // 0-9 (note value dropdown) (spec 043)
-    kDuckingEndId = 1199,
-
-    // ==========================================================================
-    kNumParameters = 1200
+    kNumParameters = 1100
 };
 
 // ==============================================================================

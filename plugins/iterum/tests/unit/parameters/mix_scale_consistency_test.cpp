@@ -16,7 +16,6 @@
 #include "parameters/spectral_params.h"
 #include "parameters/shimmer_params.h"
 #include "parameters/multitap_params.h"
-#include "parameters/ducking_params.h"
 #include "parameters/reverse_params.h"
 #include "parameters/freeze_params.h"
 #include "parameters/digital_params.h"
@@ -78,22 +77,6 @@ TEST_CASE("All modes store dryWet as 0-1 scale", "[params][consistency][mix]") {
         // CURRENT: stores 50.0 (0-100 scale) - THIS SHOULD FAIL
         // EXPECTED: 0.5 (0-1 scale)
         REQUIRE(params.dryWet.load() == Approx(0.5f).margin(0.01f));
-    }
-
-    SECTION("Ducking delay stores dryWet as 0-1") {
-        DuckingParams params;
-        handleDuckingParamChange(params, kDuckingMixId, 0.5);
-        // CURRENT: stores 50.0 (0-100 scale) - THIS SHOULD FAIL
-        // EXPECTED: 0.5 (0-1 scale)
-        REQUIRE(params.dryWet.load() == Approx(0.5f).margin(0.01f));
-    }
-
-    SECTION("Ducking delay stores duckAmount as 0-1") {
-        DuckingParams params;
-        handleDuckingParamChange(params, kDuckingDuckAmountId, 0.5);
-        // CURRENT: stores 50.0 (0-100 scale) - THIS SHOULD FAIL
-        // EXPECTED: 0.5 (0-1 scale)
-        REQUIRE(params.duckAmount.load() == Approx(0.5f).margin(0.01f));
     }
 
     SECTION("Reverse delay stores dryWet as 0-1") {
@@ -158,18 +141,6 @@ TEST_CASE("Mix parameters handle boundary values correctly", "[params][consisten
     SECTION("MultiTap: normalized 1.0 -> stored 1.0") {
         MultiTapParams params;
         handleMultiTapParamChange(params, kMultiTapMixId, 1.0);
-        REQUIRE(params.dryWet.load() == Approx(1.0f).margin(0.001f));
-    }
-
-    SECTION("Ducking dryWet: normalized 0.0 -> stored 0.0") {
-        DuckingParams params;
-        handleDuckingParamChange(params, kDuckingMixId, 0.0);
-        REQUIRE(params.dryWet.load() == Approx(0.0f).margin(0.001f));
-    }
-
-    SECTION("Ducking dryWet: normalized 1.0 -> stored 1.0") {
-        DuckingParams params;
-        handleDuckingParamChange(params, kDuckingMixId, 1.0);
         REQUIRE(params.dryWet.load() == Approx(1.0f).margin(0.001f));
     }
 

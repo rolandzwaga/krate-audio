@@ -45,8 +45,7 @@ enum class DelayMode : int {
     PingPong = 6,
     Reverse = 7,
     MultiTap = 8,
-    Freeze = 9,
-    Ducking = 10
+    Freeze = 9
 };
 
 // ==============================================================================
@@ -242,23 +241,6 @@ struct FreezePreset {
     int envelopeShape = 0;              // 0=Linear, 1=Exponential
 };
 
-struct DuckingPreset {
-    int duckingEnabled = 1;
-    float threshold = -30.0f;
-    float duckAmount = 0.5f;        // 0-1 (params file stores 0-1, not 0-100)
-    float attackTime = 10.0f;
-    float releaseTime = 200.0f;
-    float holdTime = 50.0f;
-    int duckTarget = 0;
-    int sidechainFilterEnabled = 0;
-    float sidechainFilterCutoff = 80.0f;
-    float delayTime = 500.0f;
-    float feedback = 0.0f;
-    float dryWet = 0.5f;            // 0-1 (params file stores 0-1, not 0-100)
-    int timeMode = 0;               // 0=Free, 1=Synced
-    int noteValue = 10;             // 0-20 (default: 1/8 = index 10)
-};
-
 // ==============================================================================
 // Preset Definition
 // ==============================================================================
@@ -279,7 +261,6 @@ struct PresetDef {
     ReversePreset reverse;
     MultiTapPreset multitap;
     FreezePreset freeze;
-    DuckingPreset ducking;
 };
 
 // ==============================================================================
@@ -484,24 +465,6 @@ void writeFreezeState(BinaryWriter& w, const FreezePreset& p) {
     w.writeInt32(p.envelopeShape);
 }
 
-void writeDuckingState(BinaryWriter& w, const DuckingPreset& p) {
-    // Order MUST match ducking_params.h saveDuckingParams()
-    w.writeInt32(p.duckingEnabled);
-    w.writeFloat(p.threshold);
-    w.writeFloat(p.duckAmount);
-    w.writeFloat(p.attackTime);
-    w.writeFloat(p.releaseTime);
-    w.writeFloat(p.holdTime);
-    w.writeInt32(p.duckTarget);
-    w.writeInt32(p.sidechainFilterEnabled);
-    w.writeFloat(p.sidechainFilterCutoff);
-    w.writeFloat(p.delayTime);
-    w.writeInt32(p.timeMode);
-    w.writeInt32(p.noteValue);
-    w.writeFloat(p.feedback);
-    w.writeFloat(p.dryWet);
-}
-
 // Write complete component state matching processor.cpp getState() format
 std::vector<uint8_t> buildComponentState(const PresetDef& preset) {
     BinaryWriter w;
@@ -512,13 +475,12 @@ std::vector<uint8_t> buildComponentState(const PresetDef& preset) {
     // 2. Current mode
     w.writeInt32(static_cast<int32_t>(preset.mode));
 
-    // 3. All 11 mode parameter packs in order
+    // 3. All 10 mode parameter packs in order
     // MUST match processor.cpp getState() order exactly!
-    // Order is by spec number: 034, 033, 032, 031, 030, 029, 024, 025, 026, 027, 028
+    // Order is by spec number: 034, 033, 031, 030, 029, 024, 025, 026, 027, 028
 
     writeGranularState(w, preset.granular);   // spec 034
     writeSpectralState(w, preset.spectral);   // spec 033
-    writeDuckingState(w, preset.ducking);     // spec 032
     writeFreezeState(w, preset.freeze);       // spec 031
     writeReverseState(w, preset.reverse);     // spec 030
     writeShimmerState(w, preset.shimmer);     // spec 029
@@ -1465,70 +1427,6 @@ std::vector<PresetDef> createAllPresets() {
         presets.push_back(p);
     }
 
-    // =========================================================================
-    // DUCKING MODE (10) - Mix Clarity, Vocals, Professional
-    // =========================================================================
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Vocals";
-        p.name = "Vocal Space";
-        p.ducking = {1, -24.0f, 0.7f, 5.0f, 150.0f, 30.0f, 0, 0, 80.0f, 400.0f, 0.35f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Drums";
-        p.name = "Drum Clarity";
-        p.ducking = {1, -18.0f, 0.8f, 2.0f, 100.0f, 20.0f, 0, 0, 80.0f, 250.0f, 0.25f, 0.5f, 1, 10};  // 1/8
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Creative";
-        p.name = "Sidechain Pump";
-        p.ducking = {1, -20.0f, 0.9f, 1.0f, 250.0f, 50.0f, 0, 0, 80.0f, 500.0f, 0.5f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Subtle";
-        p.name = "Subtle Duck";
-        p.ducking = {1, -30.0f, 0.4f, 10.0f, 200.0f, 40.0f, 0, 0, 80.0f, 350.0f, 0.3f, 0.5f, 1, 12};  // 1/4T
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Fast";
-        p.name = "Fast Response";
-        p.ducking = {1, -22.0f, 0.65f, 0.5f, 80.0f, 10.0f, 0, 0, 80.0f, 300.0f, 0.35f, 0.5f, 1, 12};  // 1/4T
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Slow";
-        p.name = "Slow Pump";
-        p.ducking = {1, -26.0f, 0.75f, 20.0f, 400.0f, 100.0f, 0, 0, 80.0f, 600.0f, 0.45f, 0.5f, 1, 15};  // 1/2T
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Bass";
-        p.name = "Bass Focus";
-        p.ducking = {1, -24.0f, 0.7f, 8.0f, 180.0f, 50.0f, 0, 1, 150.0f, 450.0f, 0.4f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Clean";
-        p.name = "Clean Pass";
-        p.ducking = {1, -20.0f, 0.85f, 3.0f, 120.0f, 25.0f, 0, 0, 80.0f, 375.0f, 0.3f, 0.5f, 1, 12};  // 1/4T
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Creative";
-        p.name = "Echo Breath";
-        p.ducking = {1, -28.0f, 0.6f, 15.0f, 300.0f, 80.0f, 2, 0, 80.0f, 500.0f, 0.5f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-    {
-        PresetDef p; p.mode = DelayMode::Ducking; p.category = "Mix";
-        p.name = "Mix Glue";
-        p.ducking = {1, -32.0f, 0.35f, 12.0f, 220.0f, 60.0f, 0, 0, 80.0f, 400.0f, 0.35f, 0.5f, 1, 13};  // 1/4
-        presets.push_back(p);
-    }
-
     return presets;
 }
 
@@ -1558,7 +1456,7 @@ int main(int argc, char* argv[]) {
         // Mode subdirectory names (must match resources/presets/ structure)
         const char* modeNames[] = {
             "Granular", "Spectral", "Shimmer", "Tape", "BBD",
-            "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
+            "Digital", "PingPong", "Reverse", "MultiTap", "Freeze"
         };
 
         // Create mode subdirectory path

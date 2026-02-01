@@ -282,7 +282,7 @@ TEST_CASE("CrossfadeState handles rapid mode switching", "[processor][crossfade]
         constexpr int numSwitches = 10;
 
         for (int switchNum = 0; switchNum < numSwitches; ++switchNum) {
-            int newMode = (switchNum % 11);  // Cycle through 11 modes
+            int newMode = (switchNum % 10);  // Cycle through 11 modes
             state.checkModeChange(newMode);
 
             // Process samples until next switch
@@ -326,7 +326,7 @@ TEST_CASE("CrossfadeState handles rapid mode switching", "[processor][crossfade]
     SECTION("rapid switching maintains valid gain values") {
         // Simulate rapid switching with gain checks
         for (int switchNum = 0; switchNum < 20; ++switchNum) {
-            state.checkModeChange(switchNum % 11);
+            state.checkModeChange(switchNum % 10);
 
             // Process a few samples and check gains
             for (int i = 0; i < 100; ++i) {
@@ -352,7 +352,7 @@ TEST_CASE("CrossfadeState handles rapid mode switching", "[processor][crossfade]
     SECTION("switching every sample is stable (stress test)") {
         // Extreme case: switch mode every sample
         for (int sample = 0; sample < 1000; ++sample) {
-            int newMode = (sample % 11);
+            int newMode = (sample % 10);
             state.checkModeChange(newMode);
             state.advanceSample();
 
@@ -473,10 +473,10 @@ TEST_CASE("CrossfadeState works with block-based processing", "[processor][cross
 }
 
 // =============================================================================
-// All 11 Modes Support Tests (FR-008)
+// All 10 Modes Support Tests (FR-008)
 // =============================================================================
 
-TEST_CASE("CrossfadeState supports all 11 delay modes", "[processor][crossfade]") {
+TEST_CASE("CrossfadeState supports all 10 delay modes", "[processor][crossfade]") {
     CrossfadeState state;
     state.prepare(44100.0);
 
@@ -491,18 +491,17 @@ TEST_CASE("CrossfadeState supports all 11 delay modes", "[processor][crossfade]"
         PingPong = 6,
         Reverse = 7,
         MultiTap = 8,
-        Freeze = 9,
-        Ducking = 10
+        Freeze = 9
     };
 
-    SECTION("all 11 modes can be crossfaded to/from") {
-        for (int fromMode = 0; fromMode < 11; ++fromMode) {
+    SECTION("all 10 modes can be crossfaded to/from") {
+        for (int fromMode = 0; fromMode < 10; ++fromMode) {
             state.currentMode = fromMode;
             state.previousMode = fromMode;
             state.position = 1.0f;
             state.active = false;
 
-            for (int toMode = 0; toMode < 11; ++toMode) {
+            for (int toMode = 0; toMode < 10; ++toMode) {
                 if (toMode == fromMode) continue;
 
                 // Start crossfade
@@ -776,7 +775,7 @@ TEST_CASE("Dry signal unaffected during crossfade (FR-005)", "[processor][crossf
         constexpr float inputSignal = 0.75f;
 
         for (int switchNum = 0; switchNum < 20; ++switchNum) {
-            state.checkModeChange(switchNum % 11);
+            state.checkModeChange(switchNum % 10);
 
             for (int sample = 0; sample < 100; ++sample) {
                 // Dry path is simply input (no processing)
@@ -964,7 +963,7 @@ TEST_CASE("ClickDetector regression: crossfade between sine waves is click-free"
         for (size_t i = 0; i < numSamples; ++i) {
             // Switch mode every 4410 samples (10/sec per SC-005)
             if (i % samplesPerSwitch == 0 && i > 0) {
-                currentMode = (currentMode + 1) % 11;
+                currentMode = (currentMode + 1) % 10;
                 state.checkModeChange(static_cast<int>(currentMode));
             }
 
@@ -1090,10 +1089,10 @@ TEST_CASE("ClickDetector regression: crossfade between uncorrelated signals is c
     REQUIRE(clicks.empty());
 }
 
-TEST_CASE("ClickDetector regression: all 11 mode-to-mode combinations click-free (SC-004)",
+TEST_CASE("ClickDetector regression: all 10 mode-to-mode combinations click-free (SC-004)",
           "[processor][crossfade][clickdetector][SC-004]") {
-    // Automated test for SC-004: All 110 mode-to-mode combinations pass click-free test
-    // We test a representative subset (all 11 modes transitioning to a different mode)
+    // Automated test for SC-004: All 90 mode-to-mode combinations pass click-free test
+    // We test a representative subset (all 10 modes transitioning to a different mode)
 
     constexpr float sampleRate = 44100.0f;
     constexpr size_t numSamples = 4096;
@@ -1111,7 +1110,7 @@ TEST_CASE("ClickDetector regression: all 11 mode-to-mode combinations click-free
     };
 
     // Simulate each mode with a unique sine frequency
-    std::array<float, 11> modeFrequencies = {
+    std::array<float, 10> modeFrequencies = {
         200.0f,  // Granular
         300.0f,  // Spectral
         400.0f,  // Shimmer
@@ -1121,12 +1120,11 @@ TEST_CASE("ClickDetector regression: all 11 mode-to-mode combinations click-free
         800.0f,  // PingPong
         900.0f,  // Reverse
         1000.0f, // MultiTap
-        1100.0f, // Freeze
-        1200.0f  // Ducking
+        1100.0f  // Freeze
     };
 
-    for (int fromMode = 0; fromMode < 11; ++fromMode) {
-        int toMode = (fromMode + 1) % 11;  // Switch to next mode
+    for (int fromMode = 0; fromMode < 10; ++fromMode) {
+        int toMode = (fromMode + 1) % 10;  // Switch to next mode
 
         DYNAMIC_SECTION("Mode " << fromMode << " to mode " << toMode) {
             // Generate outputs for both modes

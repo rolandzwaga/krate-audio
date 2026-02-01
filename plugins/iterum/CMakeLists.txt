@@ -70,7 +70,6 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/parameters/bbd_params.h
     src/parameters/digital_params.h
     src/parameters/dropdown_mappings.h
-    src/parameters/ducking_params.h
     src/parameters/freeze_params.h
     src/parameters/granular_params.h
     src/parameters/multitap_params.h

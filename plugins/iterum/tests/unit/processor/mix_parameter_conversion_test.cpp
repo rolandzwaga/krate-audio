@@ -5,7 +5,7 @@
 // to the 0-100 percentage values expected by DSP delay classes.
 //
 // BUG HISTORY:
-// - Spectral, Shimmer, MultiTap, and Ducking modes passed normalized 0-1 values
+// - Spectral, Shimmer, and MultiTap modes passed normalized 0-1 values
 //   directly to setDryWetMix() which expects 0-100 percentage.
 // - At 50% mix (0.5 normalized), only 0.5% wet signal was applied - inaudible!
 // - Fix: Multiply by 100.0f before calling setDryWetMix().
@@ -24,7 +24,6 @@
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/effects/shimmer_delay.h>
 #include <krate/dsp/effects/multi_tap_delay.h>
-#include <krate/dsp/effects/ducking_delay.h>
 
 using Catch::Approx;
 using namespace Krate::DSP;
@@ -83,23 +82,6 @@ TEST_CASE("ShimmerDelay mix parameter: correct conversion stores 50%",
 TEST_CASE("MultiTapDelay mix parameter: correct conversion stores 50%",
           "[regression][mix][multitap]") {
     MultiTapDelay delay;
-
-    SECTION("50% mix with correct conversion") {
-        const float normalizedMix = 0.5f;
-        delay.setDryWetMix(normalizedMix * 100.0f);  // Correct: 50.0f
-        REQUIRE(delay.getDryWetMix() == Approx(50.0f).margin(0.1f));
-    }
-
-    SECTION("BUG DETECTION: without *100, value would be 0.5 instead of 50") {
-        const float normalizedMix = 0.5f;
-        delay.setDryWetMix(normalizedMix);  // BUG: 0.5 instead of 50.0
-        REQUIRE(delay.getDryWetMix() == Approx(0.5f).margin(0.1f));
-    }
-}
-
-TEST_CASE("DuckingDelay mix parameter: correct conversion stores 50%",
-          "[regression][mix][ducking]") {
-    DuckingDelay delay;
 
     SECTION("50% mix with correct conversion") {
         const float normalizedMix = 0.5f;

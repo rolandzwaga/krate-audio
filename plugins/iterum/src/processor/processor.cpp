@@ -71,9 +71,6 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     // Prepare SpectralDelay (spec 033)
     spectralDelay_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
 
-    // Prepare DuckingDelay (spec 032)
-    duckingDelay_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
-
     // Prepare ShimmerDelay (spec 029)
     shimmerDelay_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_), 5000.0f);
 
@@ -126,7 +123,6 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         // Activating: reset any processing state
         granularDelay_.reset();
         spectralDelay_.reset();
-        duckingDelay_.reset();
         patternFreezeMode_.reset();
         reverseDelay_.reset();
         shimmerDelay_.reset();
@@ -309,7 +305,6 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // Save mode-specific parameter packs
     saveGranularParams(granularParams_, streamer);
     saveSpectralParams(spectralParams_, streamer);
-    saveDuckingParams(duckingParams_, streamer);
     saveFreezeParams(freezeParams_, streamer);
     saveReverseParams(reverseParams_, streamer);
     saveShimmerParams(shimmerParams_, streamer);
@@ -343,7 +338,6 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     // Restore mode-specific parameter packs
     loadGranularParams(granularParams_, streamer);
     loadSpectralParams(spectralParams_, streamer);
-    loadDuckingParams(duckingParams_, streamer);
     loadFreezeParams(freezeParams_, streamer);
     loadReverseParams(reverseParams_, streamer);
     loadShimmerParams(shimmerParams_, streamer);
@@ -402,8 +396,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                 // Note: kBypassId removed - DAWs provide their own bypass functionality
 
                 case kModeId:
-                    // Convert normalized (0-1) to mode index (0-10)
-                    mode_.store(static_cast<int>(value * 10.0 + 0.5),
+                    // Convert normalized (0-1) to mode index (0-9)
+                    mode_.store(static_cast<int>(value * 9.0 + 0.5),
                                std::memory_order_relaxed);
                     break;
 
@@ -450,10 +444,6 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
         else if (paramId >= kFreezeBaseId && paramId <= kFreezeEndId) {
             // Freeze Mode parameters (1000-1099) - spec 031
             handleFreezeParamChange(freezeParams_, paramId, value);
-        }
-        else if (paramId >= kDuckingBaseId && paramId <= kDuckingEndId) {
-            // Ducking Delay parameters (1100-1199) - spec 032
-            handleDuckingParamChange(duckingParams_, paramId, value);
         }
     }
 }
@@ -812,31 +802,6 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             patternFreezeMode_.setDryWetMix(freezeParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
 
             patternFreezeMode_.process(outputL, outputR, numSamples, ctx);
-            break;
-
-        case DelayMode::Ducking:
-            // Update Ducking parameters
-            duckingDelay_.setDuckingEnabled(duckingParams_.duckingEnabled.load(std::memory_order_relaxed));
-            duckingDelay_.setThreshold(duckingParams_.threshold.load(std::memory_order_relaxed));
-            duckingDelay_.setDuckAmount(duckingParams_.duckAmount.load(std::memory_order_relaxed));
-            duckingDelay_.setAttackTime(duckingParams_.attackTime.load(std::memory_order_relaxed));
-            duckingDelay_.setReleaseTime(duckingParams_.releaseTime.load(std::memory_order_relaxed));
-            duckingDelay_.setHoldTime(duckingParams_.holdTime.load(std::memory_order_relaxed));
-            duckingDelay_.setDuckTarget(static_cast<Krate::DSP::DuckTarget>(
-                duckingParams_.duckTarget.load(std::memory_order_relaxed)));
-            duckingDelay_.setSidechainFilterEnabled(duckingParams_.sidechainFilterEnabled.load(std::memory_order_relaxed));
-            duckingDelay_.setSidechainFilterCutoff(duckingParams_.sidechainFilterCutoff.load(std::memory_order_relaxed));
-            duckingDelay_.setDelayTimeMs(duckingParams_.delayTime.load(std::memory_order_relaxed));
-            duckingDelay_.setTimeMode(static_cast<Krate::DSP::TimeMode>(
-                duckingParams_.timeMode.load(std::memory_order_relaxed)));
-            {
-                const int noteIdx = duckingParams_.noteValue.load(std::memory_order_relaxed);
-                const auto noteMapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
-                duckingDelay_.setNoteValue(noteMapping.note, noteMapping.modifier);
-            }
-            duckingDelay_.setFeedbackAmount(duckingParams_.feedback.load(std::memory_order_relaxed));
-            duckingDelay_.setDryWetMix(duckingParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
-            duckingDelay_.process(outputL, outputR, numSamples, ctx);
             break;
 
         default:

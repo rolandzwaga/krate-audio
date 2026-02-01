@@ -180,8 +180,6 @@ private:
     Steinberg::IPtr<Steinberg::FObject> reverseChunkSizeVisibilityController_;
     // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
     // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-    Steinberg::IPtr<Steinberg::FObject> duckingDelayTimeVisibilityController_;
-
     // NoteValue visibility controllers (show note value when synced)
     Steinberg::IPtr<Steinberg::FObject> granularNoteValueVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> spectralNoteValueVisibilityController_;
@@ -193,9 +191,6 @@ private:
     // MultiTap Note Value: Show when Pattern is Mathematical (GoldenRatio+)
     // Simplified design - no TimeMode dependency, just pattern-based visibility
     Steinberg::IPtr<Steinberg::FObject> multitapNoteValueVisibilityController_;
-    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-    Steinberg::IPtr<Steinberg::FObject> duckingNoteValueVisibilityController_;
-
     // ==========================================================================
     // Custom Pattern Editor (Spec 046)
     // ==========================================================================

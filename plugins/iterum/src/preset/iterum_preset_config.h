@@ -22,7 +22,7 @@ inline Krate::Plugins::PresetManagerConfig makeIterumPresetConfig() {
         /*.pluginCategoryDesc =*/ "Delay",
         /*.subcategoryNames =*/ {
             "Granular", "Spectral", "Shimmer", "Tape", "BBD",
-            "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
+            "Digital", "PingPong", "Reverse", "MultiTap", "Freeze"
         }
     };
 }
@@ -31,7 +31,7 @@ inline Krate::Plugins::PresetManagerConfig makeIterumPresetConfig() {
 inline std::string delayModeToSubcategory(DelayMode mode) {
     static const char* names[] = {
         "Granular", "Spectral", "Shimmer", "Tape", "BBD",
-        "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
+        "Digital", "PingPong", "Reverse", "MultiTap", "Freeze"
     };
     int idx = static_cast<int>(mode);
     if (idx >= 0 && idx < static_cast<int>(DelayMode::NumModes))
@@ -46,8 +46,7 @@ inline DelayMode subcategoryToDelayMode(const std::string& subcategory) {
         {"Shimmer", DelayMode::Shimmer},   {"Tape", DelayMode::Tape},
         {"BBD", DelayMode::BBD},           {"Digital", DelayMode::Digital},
         {"PingPong", DelayMode::PingPong}, {"Reverse", DelayMode::Reverse},
-        {"MultiTap", DelayMode::MultiTap}, {"Freeze", DelayMode::Freeze},
-        {"Ducking", DelayMode::Ducking}
+        {"MultiTap", DelayMode::MultiTap}, {"Freeze", DelayMode::Freeze}
     };
     for (const auto& [name, mode] : mapping) {
         if (subcategory == name) return mode;
@@ -55,12 +54,12 @@ inline DelayMode subcategoryToDelayMode(const std::string& subcategory) {
     return DelayMode::Digital;
 }
 
-/// Get Iterum tab labels (All + 11 mode names)
+/// Get Iterum tab labels (All + 10 mode names)
 inline std::vector<std::string> getIterumTabLabels() {
     return {
         "All",
         "Granular", "Spectral", "Shimmer", "Tape", "BBD",
-        "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
+        "Digital", "PingPong", "Reverse", "MultiTap", "Freeze"
     };
 }
 

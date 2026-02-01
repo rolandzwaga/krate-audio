@@ -20,8 +20,7 @@ enum class DelayMode : int {
     Reverse = 7,    // spec 030 - Grain-based reverse processing
     MultiTap = 8,   // spec 028 - Up to 16 taps with patterns
     Freeze = 9,     // spec 031 - Infinite sustain
-    Ducking = 10,   // spec 032 - Envelope-based signal reduction
-    NumModes = 11
+    NumModes = 10
 };
 
 } // namespace Iterum

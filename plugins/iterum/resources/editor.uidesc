@@ -165,20 +165,6 @@
     <control-tag name="FreezeEnvelopeAttack" tag="1060"/>
     <control-tag name="FreezeEnvelopeRelease" tag="1061"/>
     <control-tag name="FreezeEnvelopeShape" tag="1062"/>
-    <control-tag name="DuckingEnabled" tag="1100"/>
-    <control-tag name="DuckingThreshold" tag="1101"/>
-    <control-tag name="DuckingDuckAmount" tag="1102"/>
-    <control-tag name="DuckingAttackTime" tag="1103"/>
-    <control-tag name="DuckingReleaseTime" tag="1104"/>
-    <control-tag name="DuckingHoldTime" tag="1105"/>
-    <control-tag name="DuckingDuckTarget" tag="1106"/>
-    <control-tag name="DuckingSidechainFilterEnabled" tag="1107"/>
-    <control-tag name="DuckingSidechainFilterCutoff" tag="1108"/>
-    <control-tag name="DuckingDelayTime" tag="1109"/>
-    <control-tag name="DuckingFeedback" tag="1110"/>
-    <control-tag name="DuckingDryWet" tag="1111"/>
-    <control-tag name="DuckingTimeMode" tag="1112"/>
-    <control-tag name="DuckingNoteValue" tag="1113"/>
     <control-tag name="DigitalDelayTimeLabel" tag="9901"/>
     <control-tag name="DigitalAgeLabel" tag="9902"/>
     <control-tag name="PingPongDelayTimeLabel" tag="9903"/>
@@ -186,7 +172,6 @@
     <control-tag name="ShimmerDelayTimeLabel" tag="9905"/>
     <control-tag name="BBDDelayTimeLabel" tag="9906"/>
     <control-tag name="ReverseChunkSizeLabel" tag="9907"/>
-    <control-tag name="DuckingDelayTimeLabel" tag="9910"/>
     <control-tag name="GranularNoteValueLabel" tag="9920"/>
     <control-tag name="SpectralNoteValueLabel" tag="9921"/>
     <control-tag name="ShimmerNoteValueLabel" tag="9922"/>
@@ -194,7 +179,6 @@
     <control-tag name="DigitalNoteValueLabel" tag="9924"/>
     <control-tag name="PingPongNoteValueLabel" tag="9925"/>
     <control-tag name="ReverseNoteValueLabel" tag="9926"/>
-    <control-tag name="DuckingNoteValueLabel" tag="9929"/>
   </control-tags>
   <gradients>
     <gradient name="segment-bg">
@@ -711,55 +695,6 @@
       <view class="CSegmentButton" origin="10, 92" size="250, 22" control-tag="FreezeEnvelopeShape" style="horizontal" segment-names="Lin,Exp" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
     </view>
   </template>
-  <template name="DuckingPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
-    <view class="CTextLabel" origin="10, 5" size="200, 22" title="DUCKING DELAY" font="section-font" font-color="accent" transparent="true"/>
-    <view class="CViewContainer" origin="10, 30" size="280, 180" background-color="section" transparent="false">
-      <view class="CTextLabel" origin="5, 5" size="270, 18" title="DUCKER DYNAMICS" font="section-font" font-color="accent" transparent="true"/>
-      <view class="CTextLabel" origin="10, 28" size="60, 16" title="Enable" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CCheckBox" origin="10, 46" size="50, 22" control-tag="DuckingEnabled" title="" font="value-font" font-color="text"/>
-      <view class="CTextLabel" origin="80, 28" size="45, 16" title="Thresh" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="DuckingThreshold" origin="125, 28" size="45, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="80, 46" size="90, 20" control-tag="DuckingThreshold" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="180, 28" size="45, 16" title="Amt" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="DuckingDuckAmount" origin="225, 28" size="45, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="180, 46" size="90, 20" control-tag="DuckingDuckAmount" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="10, 73" size="40, 16" title="Att" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="DuckingAttackTime" origin="50, 73" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 91" size="80, 20" control-tag="DuckingAttackTime" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="100, 73" size="40, 16" title="Rel" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="DuckingReleaseTime" origin="140, 73" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="100, 91" size="80, 20" control-tag="DuckingReleaseTime" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="190, 73" size="40, 16" title="Hold" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="DuckingHoldTime" origin="230, 73" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="190, 91" size="80, 20" control-tag="DuckingHoldTime" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="10, 118" size="180, 16" title="Target" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CSegmentButton" origin="10, 136" size="260, 22" control-tag="DuckingDuckTarget" style="horizontal" segment-names="Output,Feedback,Both" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
-    </view>
-    <view class="CViewContainer" origin="300, 30" size="270, 180" background-color="section" transparent="false">
-      <view class="CTextLabel" origin="5, 5" size="260, 18" title="DELAY" font="section-font" font-color="accent" transparent="true"/>
-      <view class="CTextLabel" control-tag="DuckingDelayTimeLabel" origin="96, 30" size="45, 16" title="Delay" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="DuckingDelayTime" origin="141, 30" size="50, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="96, 48" size="95, 20" control-tag="DuckingDelayTime" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="10, 30" size="80, 16" title="Mode" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CSegmentButton" origin="10, 48" size="80, 22" control-tag="DuckingTimeMode" style="horizontal" segment-names="Free,Synced" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
-      <view class="CTextLabel" control-tag="DuckingNoteValueLabel" origin="195, 28" size="65, 16" title="Note" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="COptionMenu" origin="195, 46" size="65, 22" control-tag="DuckingNoteValue" font="value-font" font-color="text" back-color="sidebar" frame-color="border" frame-width="1" style-round-rect="true" round-rect-radius="2" mouse-enabled="true" wants-focus="true" menu-popup-style="true"/>
-      <view class="CTextLabel" origin="10, 73" size="55, 16" title="Feedbk" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="DuckingFeedback" origin="65, 73" size="55, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 91" size="110, 20" control-tag="DuckingFeedback" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextLabel" origin="130, 73" size="65, 16" title="Dry/Wet" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="DuckingDryWet" origin="195, 73" size="65, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="130, 91" size="130, 20" control-tag="DuckingDryWet" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-    </view>
-    <view class="CViewContainer" origin="580, 30" size="270, 180" background-color="section" transparent="false">
-      <view class="CTextLabel" origin="5, 5" size="260, 18" title="SIDECHAIN" font="section-font" font-color="accent" transparent="true"/>
-      <view class="CTextLabel" origin="10, 28" size="60, 16" title="Filter" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CCheckBox" origin="70, 28" size="40, 20" control-tag="DuckingSidechainFilterEnabled" title="" font="value-font" font-color="text"/>
-      <view class="CTextLabel" origin="10, 70" size="30, 16" title="Cut" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CParamDisplay" control-tag="DuckingSidechainFilterCutoff" origin="230, 70" size="30, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
-      <view class="CSlider" origin="10, 90" size="250, 20" control-tag="DuckingSidechainFilterCutoff" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-    </view>
-  </template>
   <template name="Editor" class="CViewContainer" origin="0, 0" size="900, 600" background-color="background" minSize="900, 600" maxSize="1200, 900" autosize="left right top bottom">
     <view class="CViewContainer" origin="0, 0" size="900, 50" background-color="header" autosize="left right" mouse-enabled="true">
       <view class="CTextLabel" origin="15, 10" size="120, 30" title="ITERUM" font="title-font" font-color="accent" text-alignment="left" transparent="true"/>
@@ -768,7 +703,7 @@
       <view custom-view-name="SavePresetButton" origin="712, 12" size="85, 26"/>
       <view custom-view-name="PresetBrowserButton" origin="805, 12" size="80, 26"/>
     </view>
-    <view class="UIViewSwitchContainer" origin="20, 60" size="860, 400" background-color="panel" transparent="false" template-names="GranularPanel,SpectralPanel,ShimmerPanel,TapePanel,BBDPanel,DigitalPanel,PingPongPanel,ReversePanel,MultiTapPanel,FreezePanel,DuckingPanel" template-switch-control="Mode"/>
+    <view class="UIViewSwitchContainer" origin="20, 60" size="860, 400" background-color="panel" transparent="false" template-names="GranularPanel,SpectralPanel,ShimmerPanel,TapePanel,BBDPanel,DigitalPanel,PingPongPanel,ReversePanel,MultiTapPanel,FreezePanel" template-switch-control="Mode"/>
     <view class="CViewContainer" origin="20, 480" size="860, 70" background-color="section">
       <view class="CTextLabel" origin="10, 5" size="200, 22" title="GLOBAL OUTPUT" font="section-font" font-color="text" transparent="true"/>
       <view class="CTextLabel" origin="10, 32" size="90, 16" title="Output Gain" font="label-font" font-color="text-dim" transparent="true"/>

@@ -18,7 +18,6 @@ add_executable(plugin_tests
     unit/parameters/dropdown_mappings_test.cpp
     unit/parameters/bbd_params_test.cpp
     unit/parameters/digital_params_test.cpp
-    unit/parameters/ducking_params_test.cpp
     unit/parameters/freeze_params_test.cpp
     unit/parameters/granular_params_test.cpp
     unit/parameters/mix_scale_consistency_test.cpp
@@ -90,8 +89,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     set_source_files_properties(
         unit/parameters/bbd_params_test.cpp
         unit/parameters/digital_params_test.cpp
-        unit/parameters/ducking_params_test.cpp
-        unit/parameters/freeze_params_test.cpp
+            unit/parameters/freeze_params_test.cpp
         unit/parameters/granular_params_test.cpp
         unit/parameters/mix_scale_consistency_test.cpp
         unit/parameters/multitap_params_test.cpp

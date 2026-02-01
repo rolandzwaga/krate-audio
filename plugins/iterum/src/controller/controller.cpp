@@ -560,7 +560,6 @@ private:
 
 #include "parameters/bbd_params.h"
 #include "parameters/digital_params.h"
-#include "parameters/ducking_params.h"
 #include "parameters/freeze_params.h"
 #include "parameters/granular_params.h"
 #include "parameters/multitap_params.h"
@@ -648,9 +647,8 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     modeParam->appendString(STR16("Reverse"));
     modeParam->appendString(STR16("MultiTap"));
     modeParam->appendString(STR16("Freeze"));
-    modeParam->appendString(STR16("Ducking"));
-    // Set default to Digital (index 5) - normalized value = 5/10 = 0.5
-    modeParam->setNormalized(0.5);
+    // Set default to Digital (index 5) - normalized value = 5/9
+    modeParam->setNormalized(5.0 / 9.0);
     parameters.addParameter(modeParam);
 
     // ==========================================================================
@@ -659,7 +657,6 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
 
     registerGranularParams(parameters);  // Granular Delay (spec 034)
     registerSpectralParams(parameters);  // Spectral Delay (spec 033)
-    registerDuckingParams(parameters);   // Ducking Delay (spec 032)
     registerFreezeParams(parameters);    // Freeze Mode (spec 031)
     registerReverseParams(parameters);   // Reverse Delay (spec 030)
     registerShimmerParams(parameters);   // Shimmer Delay (spec 029)
@@ -724,8 +721,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
 
     Steinberg::int32 mode = 0;
     if (streamer.readInt32(mode)) {
-        // Convert mode index (0-10) to normalized (0.0-1.0)
-        setParamNormalized(kModeId, static_cast<double>(mode) / 10.0);
+        // Convert mode index (0-9) to normalized (0.0-1.0)
+        setParamNormalized(kModeId, static_cast<double>(mode) / 9.0);
     }
 
     // ==========================================================================
@@ -734,7 +731,6 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
 
     syncGranularParamsToController(streamer, *this);  // Granular Delay (spec 034)
     syncSpectralParamsToController(streamer, *this);  // Spectral Delay (spec 033)
-    syncDuckingParamsToController(streamer, *this);   // Ducking Delay (spec 032)
     syncFreezeParamsToController(streamer, *this);    // Freeze Mode (spec 031)
     syncReverseParamsToController(streamer, *this);   // Reverse Delay (spec 030)
     syncShimmerParamsToController(streamer, *this);   // Shimmer Delay (spec 029)
@@ -907,9 +903,6 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     }
     else if (id >= kFreezeBaseId && id <= kFreezeEndId) {
         result = formatFreezeParam(id, valueNormalized, string);
-    }
-    else if (id >= kDuckingBaseId && id <= kDuckingEndId) {
-        result = formatDuckingParam(id, valueNormalized, string);
     }
 
     // If the mode-specific formatter didn't handle it (returns kResultFalse),
@@ -1438,12 +1431,8 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             }
             // MultiTap has no TimeMode - BaseTime and Tempo controls removed (simplified design)
             // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-            if (auto* duckingTimeMode = getParameterObject(kDuckingTimeModeId)) {
-                duckingDelayTimeVisibilityController_ = new VisibilityController(
-                    &activeEditor_, duckingTimeMode, {9910, kDuckingDelayTimeId}, 0.5f, true);
-            }
 
-            // Create NoteValue visibility controllers for all 10 delay modes
+            // Create NoteValue visibility controllers for delay modes
             // Show note value label + control when time mode is "Synced" (>= 0.5)
             // NOTE: showWhenBelow = false means visible when value >= threshold
             if (auto* granularTimeMode = getParameterObject(kGranularTimeModeId)) {
@@ -1534,12 +1523,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, patternType,
                     kFreezeNoiseColorId,  // Child control tag
                     0.833f, 1.01f);  // Range: show when value >= 0.833
-            }
-
-            // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-            if (auto* duckingTimeMode2 = getParameterObject(kDuckingTimeModeId)) {
-                duckingNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, duckingTimeMode2, {9929, kDuckingNoteValueId}, 0.5f, false);
             }
 
             // =====================================================================
@@ -1674,7 +1657,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     deactivateController(reverseChunkSizeVisibilityController_);
     // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
     // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-    deactivateController(duckingDelayTimeVisibilityController_);
     deactivateController(granularNoteValueVisibilityController_);
     deactivateController(spectralNoteValueVisibilityController_);
     deactivateController(shimmerNoteValueVisibilityController_);
@@ -1690,9 +1672,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     deactivateController(freezeGranularContainerController_);
     deactivateController(freezeDronesContainerController_);
     deactivateController(freezeNoiseBurstsContainerController_);
-    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-    deactivateController(duckingNoteValueVisibilityController_);
-
     // PHASE 2: Clear activeEditor_ so any update() that passes the isActive check
     // will still return early when it checks for a valid editor.
     activeEditor_ = nullptr;
@@ -1711,7 +1690,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     reverseChunkSizeVisibilityController_ = nullptr;
     // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
     // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-    duckingDelayTimeVisibilityController_ = nullptr;
 
     // NoteValue visibility controllers
     granularNoteValueVisibilityController_ = nullptr;
@@ -1729,9 +1707,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     freezeGranularContainerController_ = nullptr;
     freezeDronesContainerController_ = nullptr;
     freezeNoiseBurstsContainerController_ = nullptr;
-    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-    duckingNoteValueVisibilityController_ = nullptr;
-
     // Preset browser view is owned by the frame and will be cleaned up automatically
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
@@ -1922,20 +1897,6 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeInt32(getInt32(kSpectralTimeModeId, 0));
     streamer.writeInt32(getInt32(kSpectralNoteValueId, 4));
 
-    // Ducking params - must match saveDuckingParams order exactly
-    streamer.writeInt32(getInt32(kDuckingEnabledId, 0));
-    streamer.writeFloat(getFloat(kDuckingThresholdId, -30.0f));
-    streamer.writeFloat(getFloat(kDuckingDuckAmountId, 50.0f));
-    streamer.writeFloat(getFloat(kDuckingAttackTimeId, 10.0f));
-    streamer.writeFloat(getFloat(kDuckingReleaseTimeId, 200.0f));
-    streamer.writeFloat(getFloat(kDuckingHoldTimeId, 50.0f));
-    streamer.writeInt32(getInt32(kDuckingDuckTargetId, 0));
-    streamer.writeInt32(getInt32(kDuckingSidechainFilterEnabledId, 0));
-    streamer.writeFloat(getFloat(kDuckingSidechainFilterCutoffId, 80.0f));
-    streamer.writeFloat(getFloat(kDuckingDelayTimeId, 500.0f));
-    streamer.writeFloat(getFloat(kDuckingFeedbackId, 0.0f));
-    streamer.writeFloat(getFloat(kDuckingMixId, 50.0f));
-
     // Freeze params - must match saveFreezeParams order exactly
     // Write placeholder values for backwards compatibility with older versions
     // Legacy shimmer/diffusion parameters removed in v0.12
@@ -2103,7 +2064,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         editParamWithNotify(kGainId, static_cast<double>(floatVal / 2.0f));
     }
     if (streamer.readInt32(intVal)) {
-        editParamWithNotify(kModeId, static_cast<double>(intVal) / 10.0);
+        editParamWithNotify(kModeId, static_cast<double>(intVal) / 9.0);
     }
 
     // All mode params use the shared template functions
@@ -2111,7 +2072,6 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     // use identical parsing logic - eliminating the bug class where they get out of sync
     loadGranularParamsToController(streamer, setParamWithNotify);
     loadSpectralParamsToController(streamer, setParamWithNotify);
-    loadDuckingParamsToController(streamer, setParamWithNotify);
     loadFreezeParamsToController(streamer, setParamWithNotify);
     loadReverseParamsToController(streamer, setParamWithNotify);
     loadShimmerParamsToController(streamer, setParamWithNotify);

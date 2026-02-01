@@ -16,8 +16,6 @@
 // - ReverseFilterEnabled
 // - FreezeEnabled
 // - FreezeFilterEnabled
-// - DuckingEnabled
-// - DuckingSidechainFilterEnabled
 //
 // FIX: Replace COnOffButton with CCheckBox which renders without bitmaps.
 //
@@ -91,10 +89,6 @@ TEST_CASE("Feature toggle parameter IDs are correctly defined", "[vst][toggle]")
     SECTION("Effect enable toggles") {
         // Tape splice
         REQUIRE(kTapeSpliceEnabledId == 405);
-
-        // Ducking
-        REQUIRE(kDuckingEnabledId == 1100);
-        REQUIRE(kDuckingSidechainFilterEnabledId == 1107);
     }
 }
 

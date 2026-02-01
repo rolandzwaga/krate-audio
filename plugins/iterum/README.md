@@ -36,7 +36,6 @@ Iterum is a professional-grade delay plugin offering 11 unique delay algorithms,
 | **Reverse** | Grain-based reverse processing with multiple playback modes |
 | **Multi-Tap** | Up to 16 taps with timing/spatial patterns and morphing |
 | **Freeze** | Infinite sustain with shimmer and decay control |
-| **Ducking** | Envelope-based delay reduction for clarity in the mix |
 
 ## Installation
 

@@ -118,7 +118,7 @@ TEST_CASE("PresetInfo can store all metadata fields", "[preset][info]") {
 TEST_CASE("PresetInfo supports all subcategories", "[preset][info]") {
     std::vector<std::string> allSubcategories = {
         "Granular", "Spectral", "Shimmer", "Tape", "BBD",
-        "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
+        "Digital", "PingPong", "Reverse", "MultiTap", "Freeze"
     };
 
     for (const auto& subcategory : allSubcategories) {

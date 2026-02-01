@@ -27,7 +27,7 @@ static Krate::Plugins::PresetManagerConfig makeTestConfig() {
         /*.pluginCategoryDesc =*/ "Delay",
         /*.subcategoryNames =*/ {
             "Granular", "Spectral", "Shimmer", "Tape", "BBD",
-            "Digital", "PingPong", "Reverse", "MultiTap", "Freeze", "Ducking"
+            "Digital", "PingPong", "Reverse", "MultiTap", "Freeze"
         }
     };
 }

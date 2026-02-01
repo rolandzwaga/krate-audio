@@ -113,7 +113,7 @@ All parameter IDs in `plugin_ids.h` MUST follow this pattern:
 
 **Pattern:** `k{Mode}{Parameter}Id`
 
-- `Mode`: The delay mode prefix (Granular, Spectral, Shimmer, Tape, BBD, Digital, PingPong, Reverse, MultiTap, Freeze, Ducking)
+- `Mode`: The delay mode prefix (Granular, Spectral, Shimmer, Tape, BBD, Digital, PingPong, Reverse, MultiTap, Freeze)
 - `Parameter`: The parameter name in PascalCase
 
 **Standard Parameter Names (use these exact names):**
