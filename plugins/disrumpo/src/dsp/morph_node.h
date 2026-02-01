@@ -36,6 +36,13 @@ struct MorphNode {
     /// @brief Common parameters (drive, mix, tone) for this node.
     DistortionCommonParams commonParams;
 
+    /// @brief Generic shape parameter slots [0,1] normalized.
+    /// Each distortion type maps its UI controls to these slots.
+    /// Semantics depend on active type (e.g., slot 0 = "Curve" for SoftClip, "Bias" for Tube).
+    static constexpr int kShapeSlotCount = 10;
+    float shapeSlots[kShapeSlotCount] = {0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+                                          0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
+
     /// @brief X position in morph space [0, 1].
     /// For 1D Linear mode: position along the single axis.
     /// For 2D modes: horizontal position.
@@ -78,6 +85,41 @@ struct MorphNode {
 /// @brief Maximum number of morph nodes per band.
 /// Per spec FR-002: Support 2 to 4 active morph nodes per band.
 inline constexpr int kMaxMorphNodes = 4;
+
+// ==============================================================================
+// ShapeShadowStorage: Per-type shape parameter storage for one node
+// ==============================================================================
+// When distortion type changes, current shape slot values are saved for the old
+// type and the new type's previously-saved values are restored. This prevents
+// slot value bleed across different distortion types sharing the same 10 slots.
+// ==============================================================================
+
+struct ShapeShadowStorage {
+    static constexpr int kSlotCount = MorphNode::kShapeSlotCount;
+
+    /// Storage: typeSlots[typeIndex][slotIndex] = normalized value [0,1]
+    float typeSlots[kDistortionTypeCount][kSlotCount];
+
+    ShapeShadowStorage() noexcept {
+        for (auto& type : typeSlots)
+            for (int s = 0; s < kSlotCount; ++s)
+                type[s] = 0.5f;
+    }
+
+    /// Save current slot values for the given type index.
+    void save(int typeIndex, const float* slots) noexcept {
+        if (typeIndex >= 0 && typeIndex < kDistortionTypeCount)
+            for (int s = 0; s < kSlotCount; ++s)
+                typeSlots[typeIndex][s] = slots[s];
+    }
+
+    /// Load previously-saved slot values for the given type index.
+    void load(int typeIndex, float* slots) const noexcept {
+        if (typeIndex >= 0 && typeIndex < kDistortionTypeCount)
+            for (int s = 0; s < kSlotCount; ++s)
+                slots[s] = typeSlots[typeIndex][s];
+    }
+};
 
 /// @brief Minimum number of active morph nodes per band.
 inline constexpr int kMinActiveNodes = 2;

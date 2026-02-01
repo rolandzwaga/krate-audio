@@ -1422,3 +1422,499 @@ TEST_CASE("FractalDistortion frequency decay works with all modes",
         }
     }
 }
+
+// =============================================================================
+// Sustained Artifact Detection Tests
+// =============================================================================
+// These tests run the processor for 3 seconds at high-stress parameter values
+// to detect crackles, pops, NaN/Inf, and output instability that only manifest
+// after extended processing.
+// =============================================================================
+
+namespace {
+
+/// Count the number of sample-to-sample discontinuities above a threshold.
+/// Returns the count and the index/magnitude of the worst discontinuity.
+struct DiscontinuityReport {
+    int count = 0;
+    size_t worstIndex = 0;
+    float worstDelta = 0.0f;
+};
+
+DiscontinuityReport detectDiscontinuities(const float* buffer, size_t size,
+                                           float threshold) {
+    DiscontinuityReport report;
+    for (size_t i = 1; i < size; ++i) {
+        float delta = std::abs(buffer[i] - buffer[i - 1]);
+        if (delta > threshold) {
+            ++report.count;
+            if (delta > report.worstDelta) {
+                report.worstDelta = delta;
+                report.worstIndex = i;
+            }
+        }
+    }
+    return report;
+}
+
+/// Process a fractal processor for the given number of seconds with a 440Hz sine,
+/// checking each block for NaN/Inf and counting discontinuities.
+/// Uses block-based processing to mirror real plugin usage.
+struct SustainedTestResult {
+    bool hasNaN = false;
+    size_t nanSampleIndex = 0;
+    DiscontinuityReport discontinuities;
+    float peakOutput = 0.0f;
+    float rmsFirstSecond = 0.0f;
+    float rmsLastSecond = 0.0f;
+};
+
+SustainedTestResult runSustainedTest(FractalDistortion& fractal,
+                                      float durationSeconds,
+                                      float clickThreshold,
+                                      float frequency = 440.0f,
+                                      float amplitude = 0.5f,
+                                      double sampleRate = 44100.0) {
+    SustainedTestResult result;
+    constexpr size_t kBlockSize = 512;
+    const size_t totalSamples = static_cast<size_t>(durationSeconds * sampleRate);
+    const size_t firstSecondSamples = static_cast<size_t>(sampleRate);
+    const size_t lastSecondStart = totalSamples - firstSecondSamples;
+
+    float prevSample = 0.0f;
+    double rmsAccFirst = 0.0;
+    size_t rmsCountFirst = 0;
+    double rmsAccLast = 0.0;
+    size_t rmsCountLast = 0;
+    size_t globalSampleIndex = 0;
+
+    std::array<float, kBlockSize> block{};
+
+    for (size_t pos = 0; pos < totalSamples; pos += kBlockSize) {
+        size_t thisBlock = std::min(kBlockSize, totalSamples - pos);
+
+        // Generate sine input for this block
+        for (size_t i = 0; i < thisBlock; ++i) {
+            block[i] = amplitude * std::sin(
+                kTestTwoPi * frequency * static_cast<float>(pos + i) /
+                static_cast<float>(sampleRate));
+        }
+
+        // Process
+        fractal.process(block.data(), thisBlock);
+
+        // Analyze output
+        for (size_t i = 0; i < thisBlock; ++i) {
+            float sample = block[i];
+
+            // NaN/Inf check
+            if (!result.hasNaN && (std::isnan(sample) || std::isinf(sample))) {
+                result.hasNaN = true;
+                result.nanSampleIndex = globalSampleIndex;
+            }
+
+            // Peak
+            float absSample = std::abs(sample);
+            if (absSample > result.peakOutput) {
+                result.peakOutput = absSample;
+            }
+
+            // Discontinuity check (use previous block's last sample for continuity)
+            float prev = (i == 0) ? prevSample : block[i - 1];
+            float delta = std::abs(sample - prev);
+            if (delta > clickThreshold) {
+                ++result.discontinuities.count;
+                if (delta > result.discontinuities.worstDelta) {
+                    result.discontinuities.worstDelta = delta;
+                    result.discontinuities.worstIndex = globalSampleIndex;
+                }
+            }
+
+            // RMS accumulation for first and last seconds
+            if (globalSampleIndex < firstSecondSamples) {
+                rmsAccFirst += static_cast<double>(sample) * sample;
+                ++rmsCountFirst;
+            }
+            if (globalSampleIndex >= lastSecondStart) {
+                rmsAccLast += static_cast<double>(sample) * sample;
+                ++rmsCountLast;
+            }
+
+            ++globalSampleIndex;
+        }
+        prevSample = block[thisBlock - 1];
+    }
+
+    if (rmsCountFirst > 0)
+        result.rmsFirstSecond = static_cast<float>(std::sqrt(rmsAccFirst / rmsCountFirst));
+    if (rmsCountLast > 0)
+        result.rmsLastSecond = static_cast<float>(std::sqrt(rmsAccLast / rmsCountLast));
+
+    return result;
+}
+
+/// Name helper for FractalMode
+const char* modeName(FractalMode mode) {
+    switch (mode) {
+        case FractalMode::Residual: return "Residual";
+        case FractalMode::Multiband: return "Multiband";
+        case FractalMode::Harmonic: return "Harmonic";
+        case FractalMode::Cascade: return "Cascade";
+        case FractalMode::Feedback: return "Feedback";
+        default: return "Unknown";
+    }
+}
+
+} // namespace
+
+TEST_CASE("FractalDistortion sustained 3s: no NaN/Inf in any mode",
+          "[FractalDistortion][layer2][artifact][sustained]") {
+    // 3 seconds at aggressive but typical settings:
+    // iterations=6, scale=0.7, drive=10, frequencyDecay=0.5, mix=1.0
+    const std::array<FractalMode, 5> modes = {
+        FractalMode::Residual,
+        FractalMode::Multiband,
+        FractalMode::Harmonic,
+        FractalMode::Cascade,
+        FractalMode::Feedback
+    };
+
+    for (auto mode : modes) {
+        DYNAMIC_SECTION(modeName(mode)) {
+            FractalDistortion fractal;
+            fractal.prepare(44100.0, 512);
+            fractal.setMode(mode);
+            fractal.setIterations(6);
+            fractal.setScaleFactor(0.7f);
+            fractal.setDrive(10.0f);
+            fractal.setMix(1.0f);
+            fractal.setFrequencyDecay(0.5f);
+            if (mode == FractalMode::Feedback)
+                fractal.setFeedbackAmount(0.4f);
+
+            auto result = runSustainedTest(fractal, 3.0f, 2.0f);
+
+            CAPTURE(modeName(mode));
+            CAPTURE(result.nanSampleIndex);
+            REQUIRE_FALSE(result.hasNaN);
+        }
+    }
+}
+
+TEST_CASE("FractalDistortion sustained 3s: no crackle artifacts in Residual mode",
+          "[FractalDistortion][layer2][artifact][sustained][residual]") {
+    FractalDistortion fractal;
+    fractal.prepare(44100.0, 512);
+    fractal.setMode(FractalMode::Residual);
+    fractal.setIterations(6);
+    fractal.setScaleFactor(0.7f);
+    fractal.setDrive(10.0f);
+    fractal.setMix(1.0f);
+    fractal.setFrequencyDecay(0.5f);
+
+    // Threshold: for a 440Hz sine at 44100Hz sample rate, the maximum expected
+    // sample-to-sample delta for a clean distorted sine is about 2*pi*440/44100 * peak.
+    // With heavy distortion peak can be ~6-8, so max clean delta ~ 0.63 * 8 = 5.
+    // Use 1.5 as threshold — any delta above this indicates a discontinuity/crackle.
+    auto result = runSustainedTest(fractal, 3.0f, 1.5f);
+
+    CAPTURE(result.discontinuities.count);
+    CAPTURE(result.discontinuities.worstIndex);
+    CAPTURE(result.discontinuities.worstDelta);
+    CAPTURE(result.peakOutput);
+    REQUIRE(result.discontinuities.count == 0);
+}
+
+TEST_CASE("FractalDistortion sustained 3s: no crackle artifacts in Multiband mode",
+          "[FractalDistortion][layer2][artifact][sustained][multiband]") {
+    FractalDistortion fractal;
+    fractal.prepare(44100.0, 512);
+    fractal.setMode(FractalMode::Multiband);
+    fractal.setIterations(6);
+    fractal.setScaleFactor(0.7f);
+    fractal.setDrive(10.0f);
+    fractal.setMix(1.0f);
+    fractal.setFrequencyDecay(0.5f);
+
+    auto result = runSustainedTest(fractal, 3.0f, 1.5f);
+
+    CAPTURE(result.discontinuities.count);
+    CAPTURE(result.discontinuities.worstIndex);
+    CAPTURE(result.discontinuities.worstDelta);
+    CAPTURE(result.peakOutput);
+    REQUIRE(result.discontinuities.count == 0);
+}
+
+TEST_CASE("FractalDistortion sustained 3s: no crackle artifacts in Harmonic mode",
+          "[FractalDistortion][layer2][artifact][sustained][harmonic]") {
+    FractalDistortion fractal;
+    fractal.prepare(44100.0, 512);
+    fractal.setMode(FractalMode::Harmonic);
+    fractal.setIterations(6);
+    fractal.setScaleFactor(0.7f);
+    fractal.setDrive(10.0f);
+    fractal.setMix(1.0f);
+    fractal.setFrequencyDecay(0.5f);
+
+    auto result = runSustainedTest(fractal, 3.0f, 1.5f);
+
+    CAPTURE(result.discontinuities.count);
+    CAPTURE(result.discontinuities.worstIndex);
+    CAPTURE(result.discontinuities.worstDelta);
+    CAPTURE(result.peakOutput);
+    REQUIRE(result.discontinuities.count == 0);
+}
+
+TEST_CASE("FractalDistortion sustained 3s: no crackle artifacts in Cascade mode",
+          "[FractalDistortion][layer2][artifact][sustained][cascade]") {
+    FractalDistortion fractal;
+    fractal.prepare(44100.0, 512);
+    fractal.setMode(FractalMode::Cascade);
+    fractal.setIterations(6);
+    fractal.setScaleFactor(0.7f);
+    fractal.setDrive(10.0f);
+    fractal.setMix(1.0f);
+    fractal.setFrequencyDecay(0.5f);
+
+    auto result = runSustainedTest(fractal, 3.0f, 1.5f);
+
+    CAPTURE(result.discontinuities.count);
+    CAPTURE(result.discontinuities.worstIndex);
+    CAPTURE(result.discontinuities.worstDelta);
+    CAPTURE(result.peakOutput);
+    REQUIRE(result.discontinuities.count == 0);
+}
+
+TEST_CASE("FractalDistortion sustained 3s: no crackle artifacts in Feedback mode",
+          "[FractalDistortion][layer2][artifact][sustained][feedback]") {
+    FractalDistortion fractal;
+    fractal.prepare(44100.0, 512);
+    fractal.setMode(FractalMode::Feedback);
+    fractal.setIterations(6);
+    fractal.setScaleFactor(0.7f);
+    fractal.setDrive(10.0f);
+    fractal.setMix(1.0f);
+    fractal.setFrequencyDecay(0.5f);
+    fractal.setFeedbackAmount(0.4f);
+
+    auto result = runSustainedTest(fractal, 3.0f, 1.5f);
+
+    CAPTURE(result.discontinuities.count);
+    CAPTURE(result.discontinuities.worstIndex);
+    CAPTURE(result.discontinuities.worstDelta);
+    CAPTURE(result.peakOutput);
+    REQUIRE(result.discontinuities.count == 0);
+}
+
+TEST_CASE("FractalDistortion sustained 3s: output remains stable (no runaway)",
+          "[FractalDistortion][layer2][artifact][sustained]") {
+    // Verify that RMS in the last second is within 3x of the first second.
+    // A runaway process would show exponentially growing RMS.
+    const std::array<FractalMode, 5> modes = {
+        FractalMode::Residual,
+        FractalMode::Multiband,
+        FractalMode::Harmonic,
+        FractalMode::Cascade,
+        FractalMode::Feedback
+    };
+
+    for (auto mode : modes) {
+        DYNAMIC_SECTION(modeName(mode)) {
+            FractalDistortion fractal;
+            fractal.prepare(44100.0, 512);
+            fractal.setMode(mode);
+            fractal.setIterations(8);
+            fractal.setScaleFactor(0.9f);
+            fractal.setDrive(20.0f);
+            fractal.setMix(1.0f);
+            fractal.setFrequencyDecay(0.5f);
+            if (mode == FractalMode::Feedback)
+                fractal.setFeedbackAmount(0.5f);
+
+            auto result = runSustainedTest(fractal, 3.0f, 2.0f);
+
+            CAPTURE(modeName(mode));
+            CAPTURE(result.rmsFirstSecond);
+            CAPTURE(result.rmsLastSecond);
+            CAPTURE(result.peakOutput);
+
+            REQUIRE_FALSE(result.hasNaN);
+            // Last second RMS should not exceed 3x the first second (stability)
+            if (result.rmsFirstSecond > 0.001f) {
+                REQUIRE(result.rmsLastSecond < result.rmsFirstSecond * 3.0f);
+            }
+            // Output must remain bounded (no overflow)
+            REQUIRE(result.peakOutput < 100.0f);
+        }
+    }
+}
+
+TEST_CASE("FractalDistortion sustained 3s: max stress parameters",
+          "[FractalDistortion][layer2][artifact][sustained][stress]") {
+    // Absolute worst-case: max iterations, max scale, max drive, max feedback,
+    // max frequency decay. This is the most likely to produce artifacts.
+    const std::array<FractalMode, 5> modes = {
+        FractalMode::Residual,
+        FractalMode::Multiband,
+        FractalMode::Harmonic,
+        FractalMode::Cascade,
+        FractalMode::Feedback
+    };
+
+    for (auto mode : modes) {
+        DYNAMIC_SECTION(modeName(mode)) {
+            FractalDistortion fractal;
+            fractal.prepare(44100.0, 512);
+            fractal.setMode(mode);
+            fractal.setIterations(8);
+            fractal.setScaleFactor(0.9f);
+            fractal.setDrive(20.0f);
+            fractal.setMix(1.0f);
+            fractal.setFrequencyDecay(1.0f);
+            if (mode == FractalMode::Feedback)
+                fractal.setFeedbackAmount(0.5f);
+
+            // Use peak-relative threshold: at max stress, output peaks can reach
+            // ~2.7 with harmonics up to 6kHz+. Expected max delta for a harmonic
+            // at frequency f with amplitude A is: 2*pi*f*A/sampleRate.
+            // With A=2.7 and f=6000Hz: delta ~ 2.3. Use peak*1.0 as threshold
+            // to only catch true discontinuities (clicks), not harmonic content.
+            auto result = runSustainedTest(fractal, 3.0f, 2.0f);
+
+            CAPTURE(modeName(mode));
+            CAPTURE(result.discontinuities.count);
+            CAPTURE(result.discontinuities.worstIndex);
+            CAPTURE(result.discontinuities.worstDelta);
+            CAPTURE(result.peakOutput);
+
+            REQUIRE_FALSE(result.hasNaN);
+            REQUIRE(result.peakOutput < 100.0f);
+            // At max stress, high-frequency harmonics produce legitimate
+            // large deltas proportional to peak output. Only flag if worst
+            // delta exceeds peak (indicating a true discontinuity vs. harmonics).
+            REQUIRE(result.discontinuities.worstDelta < result.peakOutput * 1.2f);
+        }
+    }
+}
+
+TEST_CASE("FractalDistortion: frequency decay filter reset causes no click",
+          "[FractalDistortion][layer2][artifact][decay_reset]") {
+    // Regression test: calling setFrequencyDecay() mid-stream resets biquad
+    // filter state, potentially causing a click.
+    FractalDistortion fractal;
+    fractal.prepare(44100.0, 512);
+    fractal.setMode(FractalMode::Residual);
+    fractal.setIterations(6);
+    fractal.setScaleFactor(0.7f);
+    fractal.setDrive(5.0f);
+    fractal.setMix(1.0f);
+    fractal.setFrequencyDecay(0.5f);
+
+    // Process 1 second to establish steady state
+    constexpr size_t kBlockSize = 512;
+    constexpr size_t kSteadySamples = 44100;
+    std::array<float, kBlockSize> block{};
+    float phase = 0.0f;
+    const float phaseInc = kTestTwoPi * 440.0f / 44100.0f;
+
+    for (size_t pos = 0; pos < kSteadySamples; pos += kBlockSize) {
+        size_t thisBlock = std::min(kBlockSize, kSteadySamples - pos);
+        for (size_t i = 0; i < thisBlock; ++i) {
+            block[i] = 0.5f * std::sin(phase);
+            phase += phaseInc;
+        }
+        fractal.process(block.data(), thisBlock);
+    }
+
+    // Record the last sample before the frequency decay change
+    float lastSampleBefore = block[std::min(kBlockSize, kSteadySamples % kBlockSize) - 1];
+
+    // Change frequency decay mid-stream (triggers updateDecayFilters + reset)
+    fractal.setFrequencyDecay(0.7f);
+
+    // Process the next block and check for click at the transition
+    for (size_t i = 0; i < kBlockSize; ++i) {
+        block[i] = 0.5f * std::sin(phase);
+        phase += phaseInc;
+    }
+    fractal.process(block.data(), kBlockSize);
+
+    // The first sample after the decay change should not have a huge jump
+    float delta = std::abs(block[0] - lastSampleBefore);
+    CAPTURE(lastSampleBefore);
+    CAPTURE(block[0]);
+    CAPTURE(delta);
+    // A click would show as delta > 1.0 on a signal with peak ~3-4
+    REQUIRE(delta < 1.5f);
+
+    // No NaN/Inf in the post-change block
+    REQUIRE_FALSE(hasInvalidSamples(block.data(), kBlockSize));
+}
+
+TEST_CASE("FractalDistortion Feedback mode: 3s with periodic parameter changes",
+          "[FractalDistortion][layer2][artifact][sustained][feedback][automation]") {
+    // Simulates parameter automation: changing feedback and drive every 100ms.
+    // This is a realistic scenario in a DAW with automation lanes.
+    FractalDistortion fractal;
+    fractal.prepare(44100.0, 512);
+    fractal.setMode(FractalMode::Feedback);
+    fractal.setIterations(6);
+    fractal.setScaleFactor(0.7f);
+    fractal.setDrive(5.0f);
+    fractal.setMix(1.0f);
+    fractal.setFrequencyDecay(0.5f);
+    fractal.setFeedbackAmount(0.3f);
+
+    constexpr size_t kBlockSize = 512;
+    constexpr double kSampleRate = 44100.0;
+    constexpr float kDuration = 3.0f;
+    const size_t totalSamples = static_cast<size_t>(kDuration * kSampleRate);
+    const size_t automationInterval = static_cast<size_t>(0.1 * kSampleRate); // 100ms
+
+    std::array<float, kBlockSize> block{};
+    float phase = 0.0f;
+    const float phaseInc = kTestTwoPi * 440.0f / static_cast<float>(kSampleRate);
+    float prevSample = 0.0f;
+    int clickCount = 0;
+    bool foundNaN = false;
+    size_t nanIndex = 0;
+    int automationStep = 0;
+
+    for (size_t pos = 0; pos < totalSamples; pos += kBlockSize) {
+        size_t thisBlock = std::min(kBlockSize, totalSamples - pos);
+
+        // Periodic parameter changes
+        if (pos > 0 && pos % automationInterval < kBlockSize) {
+            ++automationStep;
+            // Alternate between two drive settings and two feedback settings
+            float drive = (automationStep % 2 == 0) ? 5.0f : 12.0f;
+            float fb = (automationStep % 3 == 0) ? 0.1f : 0.4f;
+            fractal.setDrive(drive);
+            fractal.setFeedbackAmount(fb);
+        }
+
+        for (size_t i = 0; i < thisBlock; ++i) {
+            block[i] = 0.5f * std::sin(phase);
+            phase += phaseInc;
+        }
+        fractal.process(block.data(), thisBlock);
+
+        for (size_t i = 0; i < thisBlock; ++i) {
+            if (!foundNaN && (std::isnan(block[i]) || std::isinf(block[i]))) {
+                foundNaN = true;
+                nanIndex = pos + i;
+            }
+            float prev = (i == 0) ? prevSample : block[i - 1];
+            if (std::abs(block[i] - prev) > 2.0f) {
+                ++clickCount;
+            }
+        }
+        prevSample = block[thisBlock - 1];
+    }
+
+    CAPTURE(clickCount);
+    CAPTURE(nanIndex);
+    REQUIRE_FALSE(foundNaN);
+    // With smoothed parameter changes, should have very few discontinuities
+    REQUIRE(clickCount < 30); // < 10/sec
+}

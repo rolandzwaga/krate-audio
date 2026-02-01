@@ -374,22 +374,20 @@ TEST_CASE("CrossoverNetwork manual crossover frequency adjustment", "[crossover]
 
     SECTION("manual values persist after band count increase") {
         // FR-011a: Existing crossovers preserved when increasing
+        // Start with 2 bands, set crossover, then increase to 4 (max)
+        network.setBandCount(2);
         network.setCrossoverFrequency(0, 250.0f);
-        network.setCrossoverFrequency(1, 1000.0f);
 
-        // Increase band count
-        network.setBandCount(6);
+        // Increase band count to max
+        network.setBandCount(4);
 
-        // Original crossovers should still exist (may be at different indices after sorting)
+        // Original crossover should still exist (may be at different indices after sorting)
         bool found250 = false;
-        bool found1000 = false;
         for (int i = 0; i < network.getBandCount() - 1; ++i) {
             float freq = network.getCrossoverFrequency(i);
             if (std::abs(freq - 250.0f) < 1.0f) found250 = true;
-            if (std::abs(freq - 1000.0f) < 1.0f) found1000 = true;
         }
         REQUIRE(found250);
-        REQUIRE(found1000);
     }
 
     SECTION("invalid index is silently ignored") {
@@ -445,7 +443,7 @@ TEST_CASE("CrossoverNetwork pink noise FFT flat response", "[crossover][US1][fla
     constexpr size_t kBaseSettlingSamples = 32768;  // Base settling time
 
     // Test multiple band configurations
-    const std::array<int, 4> bandCounts = {2, 4, 6, 8};
+    const std::array<int, 3> bandCounts = {2, 3, 4};
 
     for (int numBands : bandCounts) {
         INFO("Testing " << numBands << " band configuration");

@@ -244,6 +244,20 @@ enum class NodeParamType : uint8_t {
     kNodeFolds    = 0x05,  ///< Fold count [1, 12] (for wavefolders)
     kNodeBitDepth = 0x06,  ///< Bit depth [4, 24] (for bitcrushers)
     // 0x07-0x08 reserved for future MorphPad node positioning (deferred to spec 005)
+
+    // Generic shape parameter slots (0x10-0x19)
+    // Each distortion type maps its type-specific UI controls to these 10 slots.
+    // Slot semantics depend on the active distortion type.
+    kNodeShape0 = 0x10,
+    kNodeShape1 = 0x11,
+    kNodeShape2 = 0x12,
+    kNodeShape3 = 0x13,
+    kNodeShape4 = 0x14,
+    kNodeShape5 = 0x15,
+    kNodeShape6 = 0x16,
+    kNodeShape7 = 0x17,
+    kNodeShape8 = 0x18,
+    kNodeShape9 = 0x19,
 };
 
 /// @brief Create parameter ID for per-node parameters.
@@ -602,8 +616,9 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v6: Morph node state (per-band morph position, mode, node params)
 // - v7: Progressive disclosure (window size, MIDI CC mappings, mod panel visibility)
 // - v8: Reduced max bands from 8 to 4 (stream format: 4 bands, 3 crossovers, 4 morph)
+// - v9: Shape parameter slots (10 generic slots per node for type-specific UI controls)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 8;
+constexpr int32_t kPresetVersion = 9;
 
 // ==============================================================================
 // Plugin Metadata

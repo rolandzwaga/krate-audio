@@ -385,74 +385,234 @@ void DistortionAdapter::updateDCBlockerState() noexcept {
 }
 
 void DistortionAdapter::routeParamsToProcessor() noexcept {
-    // Route type-specific parameters to the appropriate KrateDSP processor
-    // Will be fully implemented as each type category is integrated
+    // Route type-specific parameters to the appropriate KrateDSP processor.
+    // Per-type routing ensures each type's shape controls map to the correct
+    // DSP setters without cross-type interference.
 
-    const auto category = getCategory(currentType_);
+    const auto& p = typeParams_;
 
-    switch (category) {
-        case DistortionCategory::Saturation:
-            // Route saturation params
-            saturation_.setInputGain(commonParams_.drive * 6.0f); // Convert drive to dB-ish
-            saturation_.setMix(1.0f); // We handle mix externally
-            tube_.setBias(typeParams_.bias);
-            tube_.setSaturationAmount(typeParams_.sag);
-            fuzz_.setBias(typeParams_.bias);
+    switch (currentType_) {
+        // =================================================================
+        // Saturation (D01-D06)
+        // =================================================================
+        case DistortionType::SoftClip:
+            saturation_.setInputGain(commonParams_.drive * 6.0f);
+            saturation_.setMix(1.0f);
+            saturation_.setType(Krate::DSP::SaturationType::Tape);
             break;
 
-        case DistortionCategory::Wavefold:
-            // Route wavefold params
-            wavefolder_.setFoldAmount(typeParams_.folds);
-            wavefolder_.setSymmetry(typeParams_.symmetry);
+        case DistortionType::HardClip:
+            saturation_.setInputGain(commonParams_.drive * 6.0f);
+            saturation_.setMix(1.0f);
+            saturation_.setType(Krate::DSP::SaturationType::Digital);
             break;
 
-        case DistortionCategory::Digital:
-            // Route digital params
-            bitcrusher_.setBitDepth(typeParams_.bitDepth);
-            srReducer_.setReductionFactor(typeParams_.sampleRateRatio);
-            // BitwiseMangler uses BitRotate mode with rotateAmount, or XorPattern mode
-            if (typeParams_.rotateAmount != 0) {
+        case DistortionType::Tube:
+            tubeShaper_.setAsymmetry(p.bias);
+            tube_.setBias(p.bias);
+            tube_.setSaturationAmount(p.sag);
+            break;
+
+        case DistortionType::Tape:
+            tapeShaper_.setDrive(1.0f + p.sag * 2.0f);
+            tape_.setBias(p.bias);
+            tape_.setSaturation(p.sag);
+            tape_.setModel(p.tapeModel == 0
+                ? Krate::DSP::TapeModel::Simple
+                : Krate::DSP::TapeModel::Hysteresis);
+            break;
+
+        case DistortionType::Fuzz:
+            // Note: FuzzType is set per-sample in processRaw() (hardcoded Germanium).
+            // Setting it here would pre-empt the crossfade that processRaw() triggers
+            // on first use, changing audio behavior. Leave type to processRaw().
+            fuzz_.setBias(p.bias);
+            fuzz_.setFuzz(p.sustain);
+            fuzz_.setOctaveUp(p.octave >= 0.5f);
+            break;
+
+        case DistortionType::AsymmetricFuzz:
+            // Note: FuzzType is set per-sample in processRaw() (hardcoded Silicon).
+            // Setting it here would pre-empt the crossfade that processRaw() triggers
+            // on first use, changing audio behavior. Leave type to processRaw().
+            fuzz_.setBias(p.bias);
+            fuzz_.setFuzz(p.sustain);
+            break;
+
+        // =================================================================
+        // Wavefold (D07-D09)
+        // =================================================================
+        case DistortionType::SineFold:
+            wavefolder_.setModel(Krate::DSP::WavefolderModel::Serge);
+            wavefolder_.setFoldAmount(p.folds);
+            wavefolder_.setSymmetry(p.symmetry);
+            break;
+
+        case DistortionType::TriangleFold:
+            wavefolder_.setModel(Krate::DSP::WavefolderModel::Simple);
+            wavefolder_.setFoldAmount(p.folds);
+            wavefolder_.setSymmetry(p.symmetry);
+            break;
+
+        case DistortionType::SergeFold: {
+            // Map foldModel to WavefolderModel (0=Serge, 1=Simple, 2=Buchla259, 3=Lockhart)
+            static constexpr Krate::DSP::WavefolderModel models[] = {
+                Krate::DSP::WavefolderModel::Serge,
+                Krate::DSP::WavefolderModel::Simple,
+                Krate::DSP::WavefolderModel::Buchla259,
+                Krate::DSP::WavefolderModel::Lockhart
+            };
+            int mi = std::clamp(p.foldModel, 0, 3);
+            wavefolder_.setModel(models[mi]);
+            wavefolder_.setFoldAmount(p.folds);
+            wavefolder_.setSymmetry(p.symmetry);
+            break;
+        }
+
+        // =================================================================
+        // Rectify (D10-D11) — minimal DSP routing
+        // =================================================================
+        case DistortionType::FullRectify:
+        case DistortionType::HalfRectify:
+            break;
+
+        // =================================================================
+        // Digital (D12-D14, D18-D19)
+        // =================================================================
+        case DistortionType::Bitcrush:
+            bitcrusher_.setBitDepth(p.bitDepth);
+            bitcrusher_.setDitherAmount(p.dither);
+            bitcrusher_.setProcessingOrder(p.bitcrushMode == 0
+                ? Krate::DSP::ProcessingOrder::BitCrushFirst
+                : Krate::DSP::ProcessingOrder::SampleReduceFirst);
+            break;
+
+        case DistortionType::SampleReduce:
+            srReducer_.setReductionFactor(p.sampleRateRatio);
+            break;
+
+        case DistortionType::Quantize:
+            bitcrusher_.setBitDepth(p.quantLevels * 12.0f + 4.0f);
+            bitcrusher_.setDitherAmount(p.dither);
+            break;
+
+        case DistortionType::Aliasing:
+            aliasing_.setDownsampleFactor(p.sampleRateRatio);
+            aliasing_.setFrequencyShift(p.freqShift);
+            break;
+
+        case DistortionType::BitwiseMangler: {
+            int op = std::clamp(p.bitwiseOp, 0, 5);
+            bitwiseMangler_.setOperation(static_cast<Krate::DSP::BitwiseOperation>(op));
+            bitwiseMangler_.setIntensity(p.bitwiseIntensity);
+            // Support both legacy fields (rotateAmount/xorPattern) and shape slot fields
+            if (p.rotateAmount != 0) {
                 bitwiseMangler_.setOperation(Krate::DSP::BitwiseOperation::BitRotate);
-                bitwiseMangler_.setRotateAmount(typeParams_.rotateAmount);
-            } else {
+                bitwiseMangler_.setRotateAmount(p.rotateAmount);
+            } else if (p.xorPattern != 0xAAAA) {
                 bitwiseMangler_.setOperation(Krate::DSP::BitwiseOperation::XorPattern);
-                bitwiseMangler_.setPattern(typeParams_.xorPattern);
+                bitwiseMangler_.setPattern(p.xorPattern);
+            } else {
+                bitwiseMangler_.setPattern(static_cast<uint32_t>(p.bitwisePattern * 65535.0f));
+                bitwiseMangler_.setRotateAmount(static_cast<int>(p.bitwiseBits * 32.0f - 16.0f));
             }
             break;
+        }
 
-        case DistortionCategory::Dynamic:
-            // Route dynamic params
-            temporal_.setDriveModulation(typeParams_.sensitivity);
-            temporal_.setAttackTime(typeParams_.attackMs);
-            temporal_.setReleaseTime(typeParams_.releaseMs);
+        // =================================================================
+        // Dynamic (D15)
+        // =================================================================
+        case DistortionType::Temporal: {
+            int mode = std::clamp(p.dynamicMode, 0, 3);
+            temporal_.setMode(static_cast<Krate::DSP::TemporalMode>(mode));
+            temporal_.setDriveModulation(p.sensitivity);
+            temporal_.setAttackTime(p.attackMs);
+            temporal_.setReleaseTime(p.releaseMs);
+            temporal_.setHysteresisDepth(p.dynamicDepth);
+            break;
+        }
+
+        // =================================================================
+        // Hybrid (D16-D17, D26)
+        // =================================================================
+        case DistortionType::RingSaturation:
+            ringSaturation_.setModulationDepth(p.modDepth);
+            ringSaturation_.setStages(std::clamp(p.stages, 1, 4));
             break;
 
-        case DistortionCategory::Hybrid:
-            // Route hybrid params
-            // RingSaturation uses setDrive and setModulationDepth
-            ringSaturation_.setModulationDepth(typeParams_.modDepth);
-            feedbackDist_.setFeedback(typeParams_.feedback);
-            feedbackDist_.setDelayTime(typeParams_.delayMs);
-            // AllpassSaturator uses setFrequency, setFeedback, setDecay
-            allpassSaturator_.setFrequency(typeParams_.resonantFreq);
-            allpassSaturator_.setFeedback(typeParams_.allpassFeedback);
-            allpassSaturator_.setDecay(typeParams_.decayTimeS);
+        case DistortionType::FeedbackDist:
+            feedbackDist_.setFeedback(p.feedback);
+            feedbackDist_.setDelayTime(p.delayMs);
+            feedbackDist_.setLimiterThreshold(p.limiter ? (p.limThreshold * -24.0f) : 0.0f);
+            feedbackDist_.setToneFrequency(20.0f + p.filterFreq * 19980.0f);
             break;
 
-        case DistortionCategory::Experimental:
-            // Route experimental params
-            chaos_.setChaosAmount(typeParams_.chaosAmount);
-            chaos_.setAttractorSpeed(typeParams_.attractorSpeed);
-            formant_.setFormantShift(typeParams_.formantShift);
-            granular_.setGrainSize(typeParams_.grainSizeMs);
-            spectral_.setMagnitudeBits(static_cast<float>(typeParams_.magnitudeBits));
-            fractal_.setIterations(typeParams_.iterations);
-            fractal_.setScaleFactor(typeParams_.scaleFactor);
-            fractal_.setFrequencyDecay(typeParams_.frequencyDecay);
-            stochastic_.setJitterAmount(typeParams_.jitterAmount);
-            stochastic_.setJitterRate(typeParams_.jitterRate);
-            stochastic_.setCoefficientNoise(typeParams_.coefficientNoise);
+        case DistortionType::AllpassResonant: {
+            int topo = std::clamp(p.allpassTopo, 0, 3);
+            allpassSaturator_.setTopology(static_cast<Krate::DSP::NetworkTopology>(topo));
+            allpassSaturator_.setFrequency(p.resonantFreq);
+            allpassSaturator_.setFeedback(p.allpassFeedback);
+            allpassSaturator_.setDecay(p.decayTimeS);
             break;
+        }
+
+        // =================================================================
+        // Experimental (D20-D25)
+        // =================================================================
+        case DistortionType::Chaos: {
+            int model = std::clamp(p.chaosAttractor, 0, 3);
+            chaos_.setModel(static_cast<Krate::DSP::ChaosModel>(model));
+            chaos_.setChaosAmount(p.chaosAmount);
+            chaos_.setAttractorSpeed(p.attractorSpeed);
+            chaos_.setInputCoupling(p.chaosCoupling);
+            break;
+        }
+
+        case DistortionType::Formant: {
+            int vowel = std::clamp(p.vowelSelect, 0, 4);
+            formant_.setVowel(static_cast<Krate::DSP::Vowel>(vowel));
+            formant_.setFormantShift(p.formantShift);
+            formant_.setVowelBlend(p.formantBlend * 4.0f); // [0,1] → [0,4]
+            break;
+        }
+
+        case DistortionType::Granular:
+            granular_.setGrainSize(p.grainSizeMs);
+            granular_.setGrainDensity(1.0f + p.grainDensity * 7.0f); // [0,1] → [1,8]
+            granular_.setPositionJitter(p.grainPVar * 50.0f);        // [0,1] → [0,50]
+            granular_.setDriveVariation(p.grainDVar);
+            break;
+
+        case DistortionType::Spectral: {
+            int mode = std::clamp(p.spectralMode, 0, 3);
+            spectral_.setMode(static_cast<Krate::DSP::SpectralDistortionMode>(mode));
+            spectral_.setMagnitudeBits(static_cast<float>(p.magnitudeBits));
+            break;
+        }
+
+        case DistortionType::Fractal: {
+            int mode = std::clamp(p.fractalMode, 0, 4);
+            fractal_.setMode(static_cast<Krate::DSP::FractalMode>(mode));
+            fractal_.setIterations(p.iterations);
+            fractal_.setScaleFactor(p.scaleFactor);
+            fractal_.setFrequencyDecay(p.frequencyDecay);
+            fractal_.setFeedbackAmount(p.fractalFB);
+            // Set internal drive to 1.0 since the adapter already applies
+            // commonParams_.drive to the input before processRaw().
+            // Without this, the default internal drive of 2.0 doubles
+            // the effective drive (e.g., user sets 3.0 but gets 6.0x).
+            fractal_.setDrive(1.0f);
+            break;
+        }
+
+        case DistortionType::Stochastic: {
+            int curve = std::clamp(p.stochasticCurve, 0, 5);
+            stochastic_.setBaseType(static_cast<Krate::DSP::WaveshapeType>(curve));
+            stochastic_.setJitterAmount(p.jitterAmount);
+            stochastic_.setJitterRate(p.jitterRate);
+            stochastic_.setCoefficientNoise(p.coefficientNoise);
+            break;
+        }
 
         default:
             break;

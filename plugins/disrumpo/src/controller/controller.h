@@ -24,6 +24,8 @@
 #include "midi/midi_cc_manager.h"
 #include "controller/keyboard_shortcut_handler.h"
 
+#include "dsp/morph_node.h"
+
 #include <array>
 #include <functional>
 #include <memory>
@@ -268,6 +270,14 @@ private:
     // ==========================================================================
     // Updates DisplayedType proxy when SelectedNode changes
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> nodeSelectionControllers_;
+
+    // ==========================================================================
+    // Shape Shadow Storage (Phase 2: per-type slot isolation)
+    // ==========================================================================
+    // Stores per-type shape parameter values for each band/node.
+    // Shared between Controller (state save/load) and NodeSelectionController (runtime).
+    static constexpr int kMaxMorphNodesCtrl = 4;
+    std::array<std::array<ShapeShadowStorage, kMaxMorphNodesCtrl>, kMaxBands> shapeShadowStorage_;
 
     // ==========================================================================
     // Dynamic Node Selectors (US6)

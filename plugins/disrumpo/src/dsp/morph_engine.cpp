@@ -394,69 +394,248 @@ bool MorphEngine::isSameFamily() const noexcept {
 // =============================================================================
 
 DistortionParams MorphEngine::interpolateParams() const noexcept {
-    DistortionParams result;
+    // Find dominant node (highest weight) for discrete parameters
+    // (mode selects, toggles, bit patterns — can't be interpolated)
+    int dominantNode = 0;
+    float maxWeight = 0.0f;
+    for (int i = 0; i < activeNodeCount_; ++i) {
+        if (weights_[i] > maxWeight) {
+            maxWeight = weights_[i];
+            dominantNode = i;
+        }
+    }
 
-    // Weighted sum of all parameters
+    // Start with dominant node's params for discrete values,
+    // then zero all continuous fields before weighted accumulation.
+    // BUG FIX: Previously used default-constructed DistortionParams (non-zero defaults)
+    // with += accumulation, which doubled/corrupted parameter values.
+    DistortionParams result = nodes_[dominantNode].params;
+
+    // --- Zero all continuous fields that will be accumulated via += ---
+    // Discrete fields (mode selects, toggles, bit patterns) are kept from dominant node.
+
+    // Saturation continuous
+    result.bias = 0.0f;
+    result.sag = 0.0f;
+    result.curve = 0.0f;
+    result.knee = 0.0f;
+    result.threshold = 0.0f;
+    result.ceiling = 0.0f;
+    result.speed = 0.0f;
+    result.hfRoll = 0.0f;
+    result.flutter = 0.0f;
+    result.gate = 0.0f;
+    result.octave = 0.0f;
+    result.sustain = 0.0f;
+    result.asymmetry = 0.0f;
+    result.body = 0.0f;
+
+    // Wavefold continuous
+    result.folds = 0.0f;
+    result.shape = 0.0f;
+    result.symmetry = 0.0f;
+    result.angle = 0.0f;
+
+    // Digital continuous
+    result.bitDepth = 0.0f;
+    result.sampleRateRatio = 0.0f;
+    result.smoothness = 0.0f;
+    result.dither = 0.0f;
+    result.jitter = 0.0f;
+    result.quantLevels = 0.0f;
+    result.quantOffset = 0.0f;
+    result.resonance = 0.0f;
+    result.bitwiseIntensity = 0.0f;
+    result.bitwisePattern = 0.0f;
+    result.bitwiseBits = 0.0f;
+
+    // Dynamic continuous
+    result.sensitivity = 0.0f;
+    result.attackMs = 0.0f;
+    result.releaseMs = 0.0f;
+    result.dynamicCurve = 0.0f;
+    result.dynamicDepth = 0.0f;
+    result.hold = 0.0f;
+
+    // Hybrid continuous
+    result.feedback = 0.0f;
+    result.delayMs = 0.0f;
+    result.stages = 0;
+    result.modDepth = 0.0f;
+    result.rsCurve = 0.0f;
+    result.fbCurve = 0.0f;
+    result.filterFreq = 0.0f;
+    result.limThreshold = 0.0f;
+
+    // Aliasing continuous
+    result.freqShift = 0.0f;
+
+    // Bitwise continuous
+    result.rotateAmount = 0;
+
+    // Experimental continuous
+    result.chaosAmount = 0.0f;
+    result.attractorSpeed = 0.0f;
+    result.chaosCoupling = 0.0f;
+    result.chaosXDrive = 0.0f;
+    result.chaosYDrive = 0.0f;
+    result.formantShift = 0.0f;
+    result.formantCurve = 0.0f;
+    result.formantReso = 0.0f;
+    result.formantBW = 0.0f;
+    result.formantGender = 0.0f;
+    result.formantBlend = 0.0f;
+    result.grainSizeMs = 0.0f;
+    result.grainDensity = 0.0f;
+    result.grainPVar = 0.0f;
+    result.grainDVar = 0.0f;
+    result.grainPos = 0.0f;
+    result.grainCurve = 0.0f;
+
+    // Spectral continuous
+    result.fftSize = 0;
+    result.magnitudeBits = 0;
+    result.spectralCurve = 0.0f;
+    result.spectralTilt = 0.0f;
+    result.spectralThreshold = 0.0f;
+    result.spectralFreq = 0.0f;
+
+    // Fractal continuous
+    result.iterations = 0;
+    result.scaleFactor = 0.0f;
+    result.frequencyDecay = 0.0f;
+    result.fractalCurve = 0.0f;
+    result.fractalFB = 0.0f;
+    result.fractalDepth = 0.0f;
+
+    // Stochastic continuous
+    result.jitterAmount = 0.0f;
+    result.jitterRate = 0.0f;
+    result.coefficientNoise = 0.0f;
+    result.stochasticDrift = 0.0f;
+    result.stochasticSmooth = 0.0f;
+
+    // Allpass continuous
+    result.resonantFreq = 0.0f;
+    result.allpassFeedback = 0.0f;
+    result.decayTimeS = 0.0f;
+    result.allpassCurve = 0.0f;
+    result.allpassDamp = 0.0f;
+
+    // --- Weighted accumulation of all continuous parameters ---
     for (int i = 0; i < activeNodeCount_; ++i) {
         const float w = weights_[i];
         if (w < kWeightThreshold) continue;
 
         const auto& p = nodes_[i].params;
 
-        // Saturation params
+        // Saturation
         result.bias += w * p.bias;
         result.sag += w * p.sag;
+        result.curve += w * p.curve;
+        result.knee += w * p.knee;
+        result.threshold += w * p.threshold;
+        result.ceiling += w * p.ceiling;
+        result.speed += w * p.speed;
+        result.hfRoll += w * p.hfRoll;
+        result.flutter += w * p.flutter;
+        result.gate += w * p.gate;
+        result.octave += w * p.octave;
+        result.sustain += w * p.sustain;
+        result.asymmetry += w * p.asymmetry;
+        result.body += w * p.body;
 
-        // Wavefold params
+        // Wavefold
         result.folds += w * p.folds;
         result.shape += w * p.shape;
         result.symmetry += w * p.symmetry;
+        result.angle += w * p.angle;
 
-        // Digital params
+        // Digital
         result.bitDepth += w * p.bitDepth;
         result.sampleRateRatio += w * p.sampleRateRatio;
         result.smoothness += w * p.smoothness;
+        result.dither += w * p.dither;
+        result.jitter += w * p.jitter;
+        result.quantLevels += w * p.quantLevels;
+        result.quantOffset += w * p.quantOffset;
+        result.resonance += w * p.resonance;
+        result.bitwiseIntensity += w * p.bitwiseIntensity;
+        result.bitwisePattern += w * p.bitwisePattern;
+        result.bitwiseBits += w * p.bitwiseBits;
 
-        // Dynamic params
+        // Dynamic
         result.sensitivity += w * p.sensitivity;
         result.attackMs += w * p.attackMs;
         result.releaseMs += w * p.releaseMs;
+        result.dynamicCurve += w * p.dynamicCurve;
+        result.dynamicDepth += w * p.dynamicDepth;
+        result.hold += w * p.hold;
 
-        // Hybrid params
+        // Hybrid
         result.feedback += w * p.feedback;
         result.delayMs += w * p.delayMs;
+        result.stages += static_cast<int>(w * static_cast<float>(p.stages));
         result.modDepth += w * p.modDepth;
+        result.rsCurve += w * p.rsCurve;
+        result.fbCurve += w * p.fbCurve;
+        result.filterFreq += w * p.filterFreq;
+        result.limThreshold += w * p.limThreshold;
 
-        // Aliasing params
+        // Aliasing
         result.freqShift += w * p.freqShift;
 
-        // Bitwise params (integer, use weighted rounding)
+        // Bitwise
         result.rotateAmount += static_cast<int>(w * static_cast<float>(p.rotateAmount));
 
-        // Experimental params
+        // Experimental
         result.chaosAmount += w * p.chaosAmount;
         result.attractorSpeed += w * p.attractorSpeed;
-        result.grainSizeMs += w * p.grainSizeMs;
+        result.chaosCoupling += w * p.chaosCoupling;
+        result.chaosXDrive += w * p.chaosXDrive;
+        result.chaosYDrive += w * p.chaosYDrive;
         result.formantShift += w * p.formantShift;
+        result.formantCurve += w * p.formantCurve;
+        result.formantReso += w * p.formantReso;
+        result.formantBW += w * p.formantBW;
+        result.formantGender += w * p.formantGender;
+        result.formantBlend += w * p.formantBlend;
+        result.grainSizeMs += w * p.grainSizeMs;
+        result.grainDensity += w * p.grainDensity;
+        result.grainPVar += w * p.grainPVar;
+        result.grainDVar += w * p.grainDVar;
+        result.grainPos += w * p.grainPos;
+        result.grainCurve += w * p.grainCurve;
 
-        // Spectral params
+        // Spectral
         result.fftSize += static_cast<int>(w * static_cast<float>(p.fftSize));
         result.magnitudeBits += static_cast<int>(w * static_cast<float>(p.magnitudeBits));
+        result.spectralCurve += w * p.spectralCurve;
+        result.spectralTilt += w * p.spectralTilt;
+        result.spectralThreshold += w * p.spectralThreshold;
+        result.spectralFreq += w * p.spectralFreq;
 
-        // Fractal params
+        // Fractal
         result.iterations += static_cast<int>(w * static_cast<float>(p.iterations));
         result.scaleFactor += w * p.scaleFactor;
         result.frequencyDecay += w * p.frequencyDecay;
+        result.fractalCurve += w * p.fractalCurve;
+        result.fractalFB += w * p.fractalFB;
+        result.fractalDepth += w * p.fractalDepth;
 
-        // Stochastic params
+        // Stochastic
         result.jitterAmount += w * p.jitterAmount;
         result.jitterRate += w * p.jitterRate;
         result.coefficientNoise += w * p.coefficientNoise;
+        result.stochasticDrift += w * p.stochasticDrift;
+        result.stochasticSmooth += w * p.stochasticSmooth;
 
-        // Allpass Resonant params
+        // Allpass
         result.resonantFreq += w * p.resonantFreq;
         result.allpassFeedback += w * p.allpassFeedback;
         result.decayTimeS += w * p.decayTimeS;
+        result.allpassCurve += w * p.allpassCurve;
+        result.allpassDamp += w * p.allpassDamp;
     }
 
     return result;

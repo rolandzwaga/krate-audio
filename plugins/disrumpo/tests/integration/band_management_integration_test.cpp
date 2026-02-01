@@ -153,8 +153,8 @@ TEST_CASE("IT-003: Band count change maintains output stability", "[integration]
         sumBefore += bands[b];
     }
 
-    // Change to 6 bands
-    crossover.setBandCount(6);
+    // Change to 3 bands (test band count decrease)
+    crossover.setBandCount(3);
 
     // Let new configuration settle
     for (size_t i = 0; i < kSettleTime; ++i) {
@@ -162,7 +162,7 @@ TEST_CASE("IT-003: Band count change maintains output stability", "[integration]
     }
 
     float sumAfter = 0.0f;
-    for (int b = 0; b < 6; ++b) {
+    for (int b = 0; b < 3; ++b) {
         sumAfter += bands[b];
     }
 

@@ -1506,22 +1506,22 @@ TEST_CASE("PT-DI-001: 1 band 1x OS single type under 2% CPU", "[distortion][perf
 }
 
 // =============================================================================
-// PT-DI-003: CPU 8 bands, 4x OS, single type < 10%
+// PT-DI-003: CPU 4 bands, 4x OS, single type < 10%
 // =============================================================================
 
-TEST_CASE("PT-DI-003: 8 bands 4x OS single type under 10% CPU", "[distortion][performance]") {
+TEST_CASE("PT-DI-003: 4 bands 4x OS single type under 10% CPU", "[distortion][performance]") {
     constexpr double sampleRate = 44100.0;
     constexpr size_t blockSize = 512;
     constexpr double testDurationSeconds = 2.0;
     constexpr size_t totalSamples = static_cast<size_t>(sampleRate * testDurationSeconds);
     constexpr size_t numBlocks = totalSamples / blockSize;
-    constexpr int numBands = 8;
+    constexpr int numBands = 4;
 
-    // Setup crossover for 8 bands
+    // Setup crossover for 4 bands
     Disrumpo::CrossoverNetwork crossover;
     crossover.prepare(sampleRate, numBands);
 
-    // Setup 8 band processors with 4x oversampling
+    // Setup 4 band processors with 4x oversampling
     std::vector<std::unique_ptr<Disrumpo::BandProcessor>> bandProcessors;
     bandProcessors.reserve(numBands);
     for (int i = 0; i < numBands; ++i) {
@@ -1575,5 +1575,291 @@ TEST_CASE("PT-DI-003: 8 bands 4x OS single type under 10% CPU", "[distortion][pe
 
     if (cpuPercent > 10.0) {
         WARN("CPU usage (" << cpuPercent << "%) exceeds 10% target but within acceptable range");
+    }
+}
+
+// =============================================================================
+// Fractal Distortion Adapter-Level Artifact Tests
+// =============================================================================
+// Tests for crackle/artifact issues that only manifest through the full adapter
+// signal chain: external drive * internal drive, tone filter, DC blocker, and
+// parameter automation via repeated setParams() calls.
+// =============================================================================
+
+namespace {
+
+constexpr float kTwoPi = 6.28318530718f;
+
+struct AdapterDiscontinuityReport {
+    int count = 0;
+    size_t worstIndex = 0;
+    float worstDelta = 0.0f;
+};
+
+struct AdapterSustainedResult {
+    bool hasNaN = false;
+    size_t nanSampleIndex = 0;
+    AdapterDiscontinuityReport discontinuities;
+    float peakOutput = 0.0f;
+};
+
+/// Run a sustained test through the DistortionAdapter, checking for NaN/Inf
+/// and sample-to-sample discontinuities (crackle detection).
+AdapterSustainedResult runAdapterSustainedTest(
+    DistortionAdapter& adapter,
+    float durationSeconds,
+    float clickThreshold,
+    float frequency = 440.0f,
+    float amplitude = 0.5f,
+    double sampleRate = 44100.0) {
+
+    AdapterSustainedResult result;
+    const size_t totalSamples = static_cast<size_t>(durationSeconds * sampleRate);
+    float prevSample = 0.0f;
+
+    for (size_t i = 0; i < totalSamples; ++i) {
+        float input = amplitude * std::sin(
+            kTwoPi * frequency * static_cast<float>(i) /
+            static_cast<float>(sampleRate));
+
+        float sample = adapter.process(input);
+
+        // NaN/Inf check
+        if (!result.hasNaN && (std::isnan(sample) || std::isinf(sample))) {
+            result.hasNaN = true;
+            result.nanSampleIndex = i;
+        }
+
+        // Peak tracking
+        float absSample = std::abs(sample);
+        if (absSample > result.peakOutput) {
+            result.peakOutput = absSample;
+        }
+
+        // Discontinuity check
+        if (i > 0) {
+            float delta = std::abs(sample - prevSample);
+            if (delta > clickThreshold) {
+                ++result.discontinuities.count;
+                if (delta > result.discontinuities.worstDelta) {
+                    result.discontinuities.worstDelta = delta;
+                    result.discontinuities.worstIndex = i;
+                }
+            }
+        }
+        prevSample = sample;
+    }
+
+    return result;
+}
+
+} // anonymous namespace
+
+TEST_CASE("Fractal through adapter: double-drive crackle detection", "[distortion][fractal][adapter]") {
+    // Tests the full adapter signal path where external drive (commonParams_.drive)
+    // compounds with fractal's internal drive_ (default 2.0).
+    // This is the actual path in the plugin.
+
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 3.0f;   // Typical user drive setting
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::Fractal);
+
+    DistortionParams params;
+    params.fractalMode = 0;       // Residual
+    params.iterations = 4;
+    params.scaleFactor = 0.5f;
+    params.frequencyDecay = 0.3f;
+    params.fractalFB = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    SECTION("Residual mode - 3 seconds sustained") {
+        auto result = runAdapterSustainedTest(adapter, 3.0f, 0.5f);
+
+        CAPTURE(result.peakOutput);
+        CAPTURE(result.discontinuities.count);
+        CAPTURE(result.discontinuities.worstDelta);
+        CAPTURE(result.discontinuities.worstIndex);
+        CHECK_FALSE(result.hasNaN);
+        CHECK(result.discontinuities.count == 0);
+    }
+
+    SECTION("Multiband mode - 3 seconds sustained") {
+        params.fractalMode = 1;
+        adapter.setParams(params);
+        adapter.reset();
+
+        auto result = runAdapterSustainedTest(adapter, 3.0f, 0.5f);
+
+        CAPTURE(result.peakOutput);
+        CAPTURE(result.discontinuities.count);
+        CAPTURE(result.discontinuities.worstDelta);
+        CHECK_FALSE(result.hasNaN);
+        CHECK(result.discontinuities.count == 0);
+    }
+
+    SECTION("Harmonic mode - 3 seconds sustained") {
+        params.fractalMode = 2;
+        adapter.setParams(params);
+        adapter.reset();
+
+        auto result = runAdapterSustainedTest(adapter, 3.0f, 0.5f);
+
+        CAPTURE(result.peakOutput);
+        CAPTURE(result.discontinuities.count);
+        CAPTURE(result.discontinuities.worstDelta);
+        CHECK_FALSE(result.hasNaN);
+        CHECK(result.discontinuities.count == 0);
+    }
+
+    SECTION("Cascade mode - 3 seconds sustained") {
+        params.fractalMode = 3;
+        adapter.setParams(params);
+        adapter.reset();
+
+        auto result = runAdapterSustainedTest(adapter, 3.0f, 0.5f);
+
+        CAPTURE(result.peakOutput);
+        CAPTURE(result.discontinuities.count);
+        CAPTURE(result.discontinuities.worstDelta);
+        CHECK_FALSE(result.hasNaN);
+        CHECK(result.discontinuities.count == 0);
+    }
+
+    SECTION("Feedback mode - 3 seconds sustained") {
+        params.fractalMode = 4;
+        params.fractalFB = 0.3f;
+        adapter.setParams(params);
+        adapter.reset();
+
+        auto result = runAdapterSustainedTest(adapter, 3.0f, 0.5f);
+
+        CAPTURE(result.peakOutput);
+        CAPTURE(result.discontinuities.count);
+        CAPTURE(result.discontinuities.worstDelta);
+        CHECK_FALSE(result.hasNaN);
+        CHECK(result.discontinuities.count == 0);
+    }
+}
+
+TEST_CASE("Fractal through adapter: repeated setParams causes filter reset clicks",
+          "[distortion][fractal][adapter]") {
+    // Simulates the real plugin scenario where the morph system or parameter
+    // automation repeatedly calls setParams() every audio block, which triggers
+    // fractal_.setFrequencyDecay() -> updateDecayFilters() -> reset() on all
+    // biquad filters, causing discontinuities in the output.
+
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 3.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::Fractal);
+
+    DistortionParams params;
+    params.fractalMode = 0;       // Residual
+    params.iterations = 4;
+    params.scaleFactor = 0.5f;
+    params.frequencyDecay = 0.5f; // Non-zero to activate decay filters
+    params.fractalFB = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    // Process for 3 seconds, calling setParams every 512 samples (every audio block)
+    // with the SAME parameter values. This simulates the morph system re-applying
+    // parameters every block.
+    const size_t totalSamples = static_cast<size_t>(3.0 * kTestSampleRate);
+    const size_t blockSize = 512;
+    float prevSample = 0.0f;
+    int discontinuityCount = 0;
+    float worstDelta = 0.0f;
+    size_t worstIndex = 0;
+    bool hasNaN = false;
+
+    for (size_t pos = 0; pos < totalSamples; pos += blockSize) {
+        // Re-apply params every block (simulates morph system / automation)
+        adapter.setParams(params);
+
+        size_t thisBlock = std::min(blockSize, totalSamples - pos);
+        for (size_t i = 0; i < thisBlock; ++i) {
+            float input = 0.5f * std::sin(
+                kTwoPi * 440.0f * static_cast<float>(pos + i) /
+                static_cast<float>(kTestSampleRate));
+
+            float sample = adapter.process(input);
+
+            if (std::isnan(sample) || std::isinf(sample)) {
+                hasNaN = true;
+            }
+
+            size_t globalIdx = pos + i;
+            if (globalIdx > 0) {
+                float delta = std::abs(sample - prevSample);
+                if (delta > 0.5f) {
+                    ++discontinuityCount;
+                    if (delta > worstDelta) {
+                        worstDelta = delta;
+                        worstIndex = globalIdx;
+                    }
+                }
+            }
+            prevSample = sample;
+        }
+    }
+
+    CAPTURE(discontinuityCount);
+    CAPTURE(worstDelta);
+    CAPTURE(worstIndex);
+    CHECK_FALSE(hasNaN);
+    // This test will FAIL before the fix: repeated setParams resets decay filters
+    CHECK(discontinuityCount == 0);
+}
+
+TEST_CASE("Fractal through adapter: high drive does not produce NaN",
+          "[distortion][fractal][adapter]") {
+    // Tests that even with high external drive, the fractal adapter chain
+    // doesn't produce NaN/Inf. The double-drive issue makes this critical.
+
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 8.0f;   // Very high external drive
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 4000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::Fractal);
+
+    DistortionParams params;
+    params.iterations = 8;         // Max iterations
+    params.scaleFactor = 0.8f;     // High scale (less decay per level)
+    params.frequencyDecay = 0.8f;
+    params.fractalFB = 0.4f;
+
+    for (int mode = 0; mode <= 4; ++mode) {
+        params.fractalMode = mode;
+        adapter.setParams(params);
+        adapter.reset();
+
+        auto result = runAdapterSustainedTest(adapter, 2.0f, 1.0f, 440.0f, 0.8f);
+
+        CAPTURE(mode);
+        CAPTURE(result.peakOutput);
+        CAPTURE(result.discontinuities.count);
+        CHECK_FALSE(result.hasNaN);
+        // We don't check discontinuity count here since high drive produces
+        // extreme distortion, but NaN/Inf must never happen
     }
 }

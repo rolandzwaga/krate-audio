@@ -80,28 +80,72 @@ struct DistortionParams {
     // Saturation (D01-D06)
     float bias = 0.0f;              ///< Asymmetry [-1, 1]
     float sag = 0.0f;               ///< Tube sag [0, 1]
+    float curve = 0.5f;             ///< SoftClip curve shape [0, 1]
+    float knee = 0.5f;              ///< SoftClip knee [0, 1]
+    float threshold = 0.7f;         ///< Hard clip threshold [0, 1]
+    float ceiling = 1.0f;           ///< Hard clip ceiling [0, 1]
+    int satStage = 0;               ///< Tube/tape stage select [0-3]
+    float speed = 0.5f;             ///< Tape speed [0, 1]
+    int tapeModel = 0;              ///< Tape model select
+    float hfRoll = 0.5f;            ///< Tape HF rolloff [0, 1]
+    float flutter = 0.2f;           ///< Tape flutter [0, 1]
+    float gate = 0.0f;              ///< Fuzz gate [0, 1]
+    int transistor = 0;             ///< Fuzz transistor type [0-1]
+    float octave = 0.0f;            ///< Fuzz octave [0, 1]
+    float sustain = 0.5f;           ///< Fuzz sustain [0, 1]
+    float asymmetry = 0.3f;         ///< Asym fuzz asymmetry [0, 1]
+    float body = 0.5f;              ///< Asym fuzz body [0, 1]
 
     // Wavefold (D07-D09)
     float folds = 1.0f;             ///< Fold count [1, 8]
     float shape = 0.0f;             ///< Fold curve shape [0, 1]
     float symmetry = 0.5f;          ///< Fold symmetry [0, 1]
+    float angle = 0.5f;             ///< TriFold angle [0, 1]
+    int foldModel = 0;              ///< SergeFold model select
+
+    // Rectify (D10-D11)
+    bool dcBlock = true;            ///< DC blocking toggle
 
     // Digital (D12-D14)
     float bitDepth = 16.0f;         ///< Bit depth [1, 16]
     float sampleRateRatio = 1.0f;   ///< Downsample ratio [1, 32]
     float smoothness = 0.0f;        ///< Anti-alias smoothing [0, 1]
+    float dither = 0.0f;            ///< Bitcrush/quantize dither [0, 1]
+    int bitcrushMode = 0;           ///< Bitcrush processing order
+    float jitter = 0.0f;            ///< Digital jitter [0, 1]
+    int sampleMode = 0;             ///< Sample reduce mode
+    float quantLevels = 0.5f;       ///< Quantize levels [0, 1]
+    float quantOffset = 0.0f;       ///< Quantize offset [0, 1]
+    bool preFilter = false;         ///< Aliasing pre-filter toggle
+    float resonance = 0.0f;         ///< Aliasing resonance [0, 1]
+    int bitwiseOp = 0;              ///< Bitwise operation select
+    float bitwiseIntensity = 0.5f;  ///< Bitwise intensity [0, 1]
+    float bitwisePattern = 0.0f;    ///< Bitwise pattern [0, 1]
+    float bitwiseBits = 0.5f;       ///< Bitwise bits slider [0, 1]
 
     // Dynamic (D15)
     float sensitivity = 0.5f;       ///< Envelope sensitivity [0, 1]
     float attackMs = 10.0f;         ///< Attack time [1, 100] ms
     float releaseMs = 100.0f;       ///< Release time [10, 500] ms
     int dynamicMode = 0;            ///< Mode: 0=Envelope, 1=Inverse, 2=Derivative
+    float dynamicCurve = 0.5f;      ///< Temporal waveshape curve [0, 1]
+    float dynamicDepth = 0.5f;      ///< Temporal depth [0, 1]
+    int lookAhead = 0;              ///< Temporal look-ahead mode
+    float hold = 0.0f;              ///< Temporal hold [0, 1]
 
     // Hybrid (D16-D17, D26)
     float feedback = 0.5f;          ///< Feedback amount [0, 1.5]
     float delayMs = 10.0f;          ///< Delay time [1, 100] ms
     int stages = 1;                 ///< Allpass/filter stages [1, 4]
     float modDepth = 0.5f;          ///< Modulation depth [0, 1]
+    float rsCurve = 0.5f;           ///< Ring sat curve [0, 1]
+    int carrierType = 0;            ///< Ring sat carrier select
+    int rsFreqSelect = 0;           ///< Ring sat frequency select
+    float fbCurve = 0.5f;           ///< Feedback curve [0, 1]
+    int filterType = 0;             ///< Feedback filter select
+    float filterFreq = 0.5f;        ///< Feedback filter freq [0, 1]
+    bool limiter = true;            ///< Feedback limiter toggle
+    float limThreshold = 0.8f;      ///< Feedback limiter threshold [0, 1]
 
     // Aliasing (D18)
     float freqShift = 0.0f;         ///< Frequency shift [-1000, 1000] Hz
@@ -113,27 +157,66 @@ struct DistortionParams {
     // Experimental (D20-D25)
     float chaosAmount = 0.5f;       ///< Attractor influence [0, 1]
     float attractorSpeed = 1.0f;    ///< Attractor evolution rate [0.1, 10]
-    float grainSizeMs = 50.0f;      ///< Granular grain size [5, 100] ms
+    int chaosAttractor = 0;         ///< Chaos attractor model [0-3]
+    float chaosCoupling = 0.5f;     ///< Chaos input coupling [0, 1]
+    float chaosXDrive = 0.5f;       ///< Chaos X drive [0, 1]
+    float chaosYDrive = 0.5f;       ///< Chaos Y drive [0, 1]
+    int vowelSelect = 0;            ///< Formant vowel select [0-4]
     float formantShift = 0.0f;      ///< Formant shift [-12, 12] semitones
+    float formantCurve = 0.5f;      ///< Formant curve [0, 1]
+    float formantReso = 0.5f;       ///< Formant resonance [0, 1]
+    float formantBW = 0.5f;         ///< Formant bandwidth [0, 1]
+    int formantCount = 0;           ///< Formant count select
+    float formantGender = 0.5f;     ///< Formant gender [0, 1]
+    float formantBlend = 0.5f;      ///< Formant blend [0, 1]
+    float grainSizeMs = 50.0f;      ///< Granular grain size [5, 100] ms
+    float grainDensity = 0.5f;      ///< Granular density [0, 1]
+    float grainPVar = 0.0f;         ///< Granular pitch variance [0, 1]
+    float grainDVar = 0.0f;         ///< Granular density variance [0, 1]
+    float grainPos = 0.0f;          ///< Granular position [0, 1]
+    float grainCurve = 0.5f;        ///< Granular curve [0, 1]
+    int grainEnvType = 0;           ///< Granular envelope select
+    int grainSpread = 0;            ///< Granular spread select
+    bool grainFreeze = false;       ///< Granular freeze toggle
 
     // Spectral (D23)
+    int spectralMode = 0;           ///< Spectral processing mode
     int fftSize = 2048;             ///< FFT window size [512, 4096]
+    float spectralCurve = 0.5f;     ///< Spectral curve [0, 1]
+    float spectralTilt = 0.5f;      ///< Spectral tilt [0, 1]
+    float spectralThreshold = 0.0f; ///< Spectral threshold [0, 1]
     int magnitudeBits = 16;         ///< Spectral quantization [1, 16]
+    int spectralMagMode = 0;        ///< Spectral magnitude mode
+    float spectralFreq = 0.5f;      ///< Spectral frequency [0, 1]
+    int spectralPhase = 0;          ///< Spectral phase mode
 
     // Fractal (D24)
+    int fractalMode = 0;            ///< Fractal mode select
     int iterations = 4;             ///< Fractal recursion depth [1, 8]
     float scaleFactor = 0.5f;       ///< Fractal scale [0.3, 0.9]
     float frequencyDecay = 0.5f;    ///< Harmonic decay [0, 1]
+    float fractalCurve = 0.5f;      ///< Fractal curve [0, 1]
+    float fractalFB = 0.0f;         ///< Fractal feedback [0, 1]
+    int fractalBlend = 0;           ///< Fractal blend select
+    float fractalDepth = 0.5f;      ///< Fractal depth [0, 1]
 
     // Stochastic (D25)
+    int stochasticCurve = 0;        ///< Stochastic curve select
     float jitterAmount = 0.2f;      ///< Sample jitter depth [0, 1]
     float jitterRate = 10.0f;       ///< Jitter frequency [0.1, 100] Hz
     float coefficientNoise = 0.1f;  ///< Filter coefficient noise [0, 1]
+    float stochasticDrift = 0.0f;   ///< Stochastic drift [0, 1]
+    int stochasticCorr = 0;         ///< Stochastic correlation select
+    float stochasticSmooth = 0.5f;  ///< Stochastic smoothing [0, 1]
 
     // Allpass Resonant (D26)
+    int allpassTopo = 0;            ///< Allpass topology select
     float resonantFreq = 440.0f;    ///< Resonant frequency [20, 2000] Hz
     float allpassFeedback = 0.7f;   ///< Allpass feedback [0, 0.99]
     float decayTimeS = 1.0f;        ///< Decay time [0.01, 10] s
+    float allpassCurve = 0.5f;      ///< Allpass curve [0, 1]
+    bool allpassPitch = false;      ///< Allpass pitch tracking
+    float allpassDamp = 0.3f;       ///< Allpass damping [0, 1]
 };
 
 // =============================================================================

@@ -578,12 +578,22 @@ class NodeSelectionController : public Steinberg::FObject {
 public:
     NodeSelectionController(
         Steinberg::Vst::EditControllerEx1* controller,
-        uint8_t band)
+        uint8_t band,
+        ShapeShadowStorage* shadowStorage = nullptr)
     : controller_(controller)
     , band_(band)
+    , shapeShadowPtr_(shadowStorage)
     , selectedNodeParam_(controller->getParameterObject(
           makeBandParamId(band, BandParamType::kBandSelectedNode)))
     {
+        // Cache shape slot parameter objects for fast access during shadow save/restore
+        for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
+            auto shapeType = static_cast<NodeParamType>(
+                static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
+            // Sub-controller maps to node 0, so shadow save/restore targets node 0
+            shapeSlotParams_[s] = controller_->getParameterObject(
+                makeNodeParamId(band, 0, shapeType));
+        }
         // Watch the SelectedNode parameter
         if (selectedNodeParam_) {
             selectedNodeParam_->addRef();
@@ -731,6 +741,25 @@ private:
             return;  // Values are the same, no update needed
         }
 
+        // Determine old and new type indices for shadow save/restore
+        int oldTypeIdx = static_cast<int>(currentNodeType * 25.0 + 0.5);
+        int newTypeIdx = static_cast<int>(displayedTypeNorm * 25.0 + 0.5);
+        oldTypeIdx = std::clamp(oldTypeIdx, 0, 25);
+        newTypeIdx = std::clamp(newTypeIdx, 0, 25);
+
+        // Save/restore shape slots via shadow storage if available
+        if (shapeShadowPtr_) {
+            // Save current shape slot values for the old type
+            float currentSlots[MorphNode::kShapeSlotCount];
+            for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
+                if (shapeSlotParams_[s])
+                    currentSlots[s] = static_cast<float>(shapeSlotParams_[s]->getNormalized());
+                else
+                    currentSlots[s] = 0.5f;
+            }
+            shapeShadowPtr_->save(oldTypeIdx, currentSlots);
+        }
+
         // Copy DisplayedType to selected node's type
         auto nodeTypeId = makeNodeParamId(band_, static_cast<uint8_t>(selectedNode),
                                            NodeParamType::kNodeType);
@@ -738,6 +767,23 @@ private:
         controller_->setParamNormalized(nodeTypeId, displayedTypeNorm);
         controller_->performEdit(nodeTypeId, displayedTypeNorm);
         controller_->endEdit(nodeTypeId);
+
+        // Restore shape slot values for the new type
+        if (shapeShadowPtr_) {
+            float newSlots[MorphNode::kShapeSlotCount];
+            shapeShadowPtr_->load(newTypeIdx, newSlots);
+            for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
+                if (shapeSlotParams_[s]) {
+                    auto shapeType = static_cast<NodeParamType>(
+                        static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
+                    auto shapeParamId = makeNodeParamId(band_, 0, shapeType);
+                    controller_->beginEdit(shapeParamId);
+                    controller_->setParamNormalized(shapeParamId, newSlots[s]);
+                    controller_->performEdit(shapeParamId, newSlots[s]);
+                    controller_->endEdit(shapeParamId);
+                }
+            }
+        }
     }
 
     Steinberg::Vst::EditControllerEx1* controller_;
@@ -747,6 +793,11 @@ private:
     Steinberg::Vst::Parameter* displayedTypeParam_ = nullptr;
     std::atomic<bool> isActive_{true};
     bool isUpdating_ = false;  // Re-entrancy guard for bidirectional sync
+
+    /// Shape slot parameter objects for node 0 (UI always maps to node 0)
+    Steinberg::Vst::Parameter* shapeSlotParams_[MorphNode::kShapeSlotCount] = {};
+    /// Pointer to Controller-owned shadow storage (survives editor close/reopen)
+    ShapeShadowStorage* shapeShadowPtr_ = nullptr;
 };
 
 // ==============================================================================
@@ -2388,6 +2439,28 @@ void Controller::registerNodeParams() {
                 Steinberg::Vst::ParameterInfo::kCanAutomate
             );
             parameters.addParameter(bitDepthParam);
+
+            // Shape slots: 10 generic [0, 1] normalized params per node
+            // Each distortion type maps its UI controls to these slots.
+            for (int s = 0; s < 10; ++s) {
+                auto shapeType = static_cast<NodeParamType>(
+                    static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
+                Steinberg::UString128 shapeName("B");
+                shapeName.append(Steinberg::UString128(std::to_string(b + 1).c_str()));
+                shapeName.append(Steinberg::UString128(" N"));
+                shapeName.append(Steinberg::UString128(std::to_string(n + 1).c_str()));
+                shapeName.append(Steinberg::UString128(" Shape "));
+                shapeName.append(Steinberg::UString128(std::to_string(s).c_str()));
+                auto* shapeParam = new Steinberg::Vst::RangeParameter(
+                    shapeName,
+                    makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n), shapeType),
+                    STR16(""),
+                    0.0, 1.0, 0.5,
+                    0,
+                    Steinberg::Vst::ParameterInfo::kCanAutomate
+                );
+                parameters.addParameter(shapeParam);
+            }
         }
     }
 }
@@ -2863,6 +2936,32 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
                         setParamNormalized(
                             makeNodeParamId(band, node, NodeParamType::kNodeBitDepth),
                             static_cast<double>(bitDepth - 4.0f) / 20.0);
+                }
+
+                // v9: Shape parameter slots
+                if (version >= 9) {
+                    for (int s = 0; s < 10; ++s) {
+                        float slotValue;
+                        if (streamer.readFloat(slotValue)) {
+                            if (b < kMaxBands) {
+                                auto shapeType = static_cast<NodeParamType>(
+                                    static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
+                                setParamNormalized(makeNodeParamId(band, node, shapeType), static_cast<double>(slotValue));
+                            }
+                        }
+                    }
+
+                    // v9: Per-type shadow storage (26 types × 10 slots)
+                    for (int t = 0; t < kDistortionTypeCount; ++t) {
+                        for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
+                            float shadowValue;
+                            if (streamer.readFloat(shadowValue)) {
+                                if (b < kMaxBands) {
+                                    shapeShadowStorage_[b][n].typeSlots[t][s] = shadowValue;
+                                }
+                            }
+                        }
+                    }
                 }
             }
             // else for b >= kMaxBands: data read-and-discarded (v7 migration)
@@ -3883,7 +3982,8 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     // Updates DisplayedType proxy when SelectedNode changes
     for (int b = 0; b < kMaxBands; ++b) {
         nodeSelectionControllers_[b] = new NodeSelectionController(
-            this, static_cast<uint8_t>(b));
+            this, static_cast<uint8_t>(b),
+            &shapeShadowStorage_[b][0]);
     }
 
     // FR-047, FR-049: Create sweep visualization controller
@@ -4449,6 +4549,21 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
             // BitDepth: float (4-24), normalized = (bitDepth - 4) / 20
             float bitDepthNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth));
             streamer.writeFloat(bitDepthNorm * 20.0f + 4.0f);
+
+            // v9: Shape parameter slots (save normalized values directly)
+            for (int s = 0; s < 10; ++s) {
+                auto shapeType = static_cast<NodeParamType>(
+                    static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
+                streamer.writeFloat(getParamNorm(makeNodeParamId(band, node, shapeType)));
+            }
+
+            // v9: Per-type shadow storage (26 types × 10 slots)
+            const auto& shadow = shapeShadowStorage_[b][n];
+            for (int t = 0; t < kDistortionTypeCount; ++t) {
+                for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
+                    streamer.writeFloat(shadow.typeSlots[t][s]);
+                }
+            }
         }
     }
 
@@ -4845,6 +4960,32 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
                     if (rBias) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeBias), static_cast<double>(bias + 1.0f) / 2.0);
                     if (rFolds) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeFolds), static_cast<double>(folds - 1.0f) / 11.0);
                     if (rBitDepth) editParamWithNotify(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth), static_cast<double>(bitDepth - 4.0f) / 20.0);
+                }
+
+                // v9: Shape parameter slots
+                if (version >= 9) {
+                    for (int s = 0; s < 10; ++s) {
+                        float slotValue;
+                        if (streamer.readFloat(slotValue)) {
+                            if (b < kMaxBands) {
+                                auto shapeType = static_cast<NodeParamType>(
+                                    static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
+                                editParamWithNotify(makeNodeParamId(band, node, shapeType), static_cast<double>(slotValue));
+                            }
+                        }
+                    }
+
+                    // v9: Per-type shadow storage (26 types × 10 slots)
+                    for (int t = 0; t < kDistortionTypeCount; ++t) {
+                        for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
+                            float shadowValue;
+                            if (streamer.readFloat(shadowValue)) {
+                                if (b < kMaxBands) {
+                                    shapeShadowStorage_[b][n].typeSlots[t][s] = shadowValue;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

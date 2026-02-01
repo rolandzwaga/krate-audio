@@ -311,7 +311,9 @@ public:
     /// @brief Set high-frequency emphasis at deeper levels (FR-023).
     /// @param decay Frequency decay amount, clamped to [0.0, 1.0] (FR-024)
     void setFrequencyDecay(float decay) noexcept {
-        frequencyDecay_ = std::clamp(decay, kMinFrequencyDecay, kMaxFrequencyDecay);
+        const float newDecay = std::clamp(decay, kMinFrequencyDecay, kMaxFrequencyDecay);
+        if (newDecay == frequencyDecay_) return;  // Skip if unchanged
+        frequencyDecay_ = newDecay;
         if (prepared_) {
             updateDecayFilters();
         }
@@ -794,6 +796,11 @@ private:
     ///
     /// Configures highpass filters for each level based on frequencyDecay parameter.
     /// Level N is highpass-filtered at baseFrequency * (N+1) (FR-025).
+    ///
+    /// @note Does NOT reset filter state — only updates coefficients.
+    /// Resetting state on every parameter change causes audible clicks when
+    /// parameters are automated (e.g., morph system, host automation).
+    /// Filter state is reset separately via reset() during initialization.
     void updateDecayFilters() noexcept {
         for (int i = 0; i < kMaxIterations; ++i) {
             // Calculate cutoff frequency: baseFrequency * (level + 1) * frequencyDecay
@@ -809,7 +816,9 @@ private:
                     static_cast<float>(sampleRate_)
                 );
             }
-            decayFilters_[static_cast<size_t>(i)].reset();
+            // Note: filter state is NOT reset here. Resetting on every
+            // setFrequencyDecay() call causes discontinuities when parameters
+            // are automated. State is only reset via reset() or prepare().
         }
     }
 

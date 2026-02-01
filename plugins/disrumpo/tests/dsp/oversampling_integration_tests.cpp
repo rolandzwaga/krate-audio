@@ -23,13 +23,13 @@
 using namespace Disrumpo;
 
 // =============================================================================
-// T11.072: 8 bands with different types and morph states
+// T11.072: 4 bands with different types and morph states
 // =============================================================================
 
-TEST_CASE("Integration: 8 bands with independent oversampling factors",
+TEST_CASE("Integration: 4 bands with independent oversampling factors",
           "[oversampling][integration]") {
 
-    constexpr int kNumBands = 8;
+    constexpr int kNumBands = 4;
 
     // Use heap allocation to avoid stack overflow (each BandProcessor is large)
     std::vector<std::unique_ptr<BandProcessor>> bands;
@@ -39,25 +39,17 @@ TEST_CASE("Integration: 8 bands with independent oversampling factors",
         bands.back()->prepare(44100.0, 512);
     }
 
-    // Assign different types to each band
+    // Assign different types to each band (covering all 3 oversample factors)
     bands[0]->setDistortionType(DistortionType::HardClip);     // 4x
     bands[1]->setDistortionType(DistortionType::SoftClip);     // 2x
     bands[2]->setDistortionType(DistortionType::Bitcrush);     // 1x
     bands[3]->setDistortionType(DistortionType::Fuzz);         // 4x
-    bands[4]->setDistortionType(DistortionType::Tube);         // 2x
-    bands[5]->setDistortionType(DistortionType::Aliasing);     // 1x
-    bands[6]->setDistortionType(DistortionType::SineFold);     // 4x
-    bands[7]->setDistortionType(DistortionType::Tape);         // 2x
 
     // Verify each band has independent factor
     CHECK(bands[0]->getOversampleFactor() == 4);
     CHECK(bands[1]->getOversampleFactor() == 2);
     CHECK(bands[2]->getOversampleFactor() == 1);
     CHECK(bands[3]->getOversampleFactor() == 4);
-    CHECK(bands[4]->getOversampleFactor() == 2);
-    CHECK(bands[5]->getOversampleFactor() == 1);
-    CHECK(bands[6]->getOversampleFactor() == 4);
-    CHECK(bands[7]->getOversampleFactor() == 2);
 
     // Process all bands simultaneously - should not interfere
     constexpr size_t kBlockSize = 256;

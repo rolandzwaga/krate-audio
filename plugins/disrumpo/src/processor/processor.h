@@ -147,6 +147,8 @@ private:
         int activeNodeCount = kDefaultActiveNodes;
         float morphX = 0.5f;
         float morphY = 0.5f;
+        /// Per-node per-type shadow storage for shape slot isolation
+        std::array<ShapeShadowStorage, kMaxMorphNodes> shapeShadow;
     };
     std::array<BandMorphCache, kMaxBands> bandMorphCache_{};
 

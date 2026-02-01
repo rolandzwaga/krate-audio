@@ -22,6 +22,7 @@
 #include "vstgui/lib/controls/ctextlabel.h"
 
 #include <cassert>
+#include <cstdio>
 #include <cstring>
 #include <string>
 
@@ -116,6 +117,21 @@ public:
 
         if (std::strcmp(name, "Band.NodeBias") == 0)
             return static_cast<int32_t>(makeNodeParamId(band, 0, NodeParamType::kNodeBias));
+
+        // ====================================================================
+        // Shape slot parameter remapping (generic per-type controls)
+        // ====================================================================
+        {
+            char tagName[32];
+            for (int s = 0; s < 10; ++s) {
+                std::snprintf(tagName, sizeof(tagName), "Band.NodeShape%d", s);
+                if (std::strcmp(name, tagName) == 0) {
+                    auto shapeType = static_cast<NodeParamType>(
+                        static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
+                    return static_cast<int32_t>(makeNodeParamId(band, 0, shapeType));
+                }
+            }
+        }
 
         // Delegate to parent controller for unrecognized names
         return DelegationController::getTagForName(name, registeredTag);
