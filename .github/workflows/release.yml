@@ -33,6 +33,7 @@ on:
         # Add new plugins here (lowercase directory name)
         options:
           - iterum
+          - disrumpo
         default: iterum
       prerelease:
         description: 'Mark as pre-release?'
@@ -54,6 +55,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       plugin: ${{ steps.version.outputs.plugin }}
       plugin_name: ${{ steps.version.outputs.plugin_name }}
+      has_landing_page: ${{ steps.version.outputs.has_landing_page }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,6 +72,13 @@ jobs:
           echo "plugin_name=$PLUGIN_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+          # Check if plugin has a landing page template
+          if [ -f "plugins/${PLUGIN}/docs/index.html" ]; then
+            echo "has_landing_page=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_landing_page=false" >> $GITHUB_OUTPUT
+          fi
 
           echo "Release: $PLUGIN_NAME v$VERSION (tag: $TAG)"
 
@@ -119,7 +128,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/_deps
-          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ github.repository }}-${{ runner.os }}-
 
@@ -130,13 +139,31 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
+      - name: Determine Preset Generator
+        id: gen
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+        run: |
+          # Map plugin to its CMake preset generator target
+          # (iterum uses 'preset_generator', others use '{plugin}_preset_generator')
+          case "$PLUGIN" in
+            iterum)
+              echo "target=preset_generator" >> $GITHUB_OUTPUT
+              echo "binary=preset_generator" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "target=${PLUGIN}_preset_generator" >> $GITHUB_OUTPUT
+              echo "binary=${PLUGIN}_preset_generator" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
       - name: Build Preset Generator
-        run: cmake --build build --target preset_generator --parallel
+        run: cmake --build build --target ${{ steps.gen.outputs.target }} --parallel
 
       - name: Generate Presets
         run: |
           mkdir -p generated-presets
-          ./build/bin/preset_generator generated-presets
+          ./build/bin/${{ steps.gen.outputs.binary }} generated-presets
 
       - name: Upload Presets
         uses: actions/upload-artifact@v4
@@ -392,59 +419,99 @@ jobs:
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
 
-  # Deploy landing page to GitHub Pages
+  # Deploy plugin landing page to GitHub Pages (incremental via gh-pages branch)
+  # Each release updates only its plugin subdirectory and regenerates the root index.
+  # Other plugins' pages are preserved via keep_files.
   deploy-pages:
     name: Deploy Landing Page
     needs: [version, release]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pages: write
-      id-token: write
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Read Metadata
-        id: meta
+      - name: Generate Plugin Landing Page
+        if: needs.version.outputs.has_landing_page == 'true'
         env:
           PLUGIN: ${{ needs.version.outputs.plugin }}
-        run: |
-          echo "name=$(jq -r '.name' plugins/${PLUGIN}/version.json)" >> $GITHUB_OUTPUT
-          echo "description=$(jq -r '.description' plugins/${PLUGIN}/version.json)" >> $GITHUB_OUTPUT
-          echo "publisher=$(jq -r '.publisher' plugins/${PLUGIN}/version.json)" >> $GITHUB_OUTPUT
-          echo "url=$(jq -r '.url' plugins/${PLUGIN}/version.json)" >> $GITHUB_OUTPUT
-
-      - name: Generate Landing Page
-        env:
-          PLUGIN: ${{ needs.version.outputs.plugin }}
+          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
           VERSION: ${{ needs.version.outputs.version }}
           TAG: ${{ needs.version.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
-          mkdir -p _site
+          # Read metadata
+          DESCRIPTION=$(jq -r '.description' plugins/${PLUGIN}/version.json)
+          PUBLISHER=$(jq -r '.publisher' plugins/${PLUGIN}/version.json)
 
-          # Generate index.html from template
+          # Generate plugin page in its subdirectory
+          mkdir -p _site/${PLUGIN}
           sed -e "s|{{VERSION}}|$VERSION|g" \
               -e "s|{{TAG}}|$TAG|g" \
               -e "s|{{REPO}}|$REPO|g" \
-              -e "s|{{NAME}}|${{ steps.meta.outputs.name }}|g" \
-              -e "s|{{DESCRIPTION}}|${{ steps.meta.outputs.description }}|g" \
-              -e "s|{{PUBLISHER}}|${{ steps.meta.outputs.publisher }}|g" \
-              plugins/${PLUGIN}/docs/index.html > _site/index.html
+              -e "s|{{NAME}}|$PLUGIN_NAME|g" \
+              -e "s|{{DESCRIPTION}}|$DESCRIPTION|g" \
+              -e "s|{{PUBLISHER}}|$PUBLISHER|g" \
+              plugins/${PLUGIN}/docs/index.html > _site/${PLUGIN}/index.html
 
-          # Copy assets
-          cp -r plugins/${PLUGIN}/docs/assets _site/ 2>/dev/null || true
+          # Copy plugin-specific assets
+          cp -r plugins/${PLUGIN}/docs/assets _site/${PLUGIN}/ 2>/dev/null || true
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+      - name: Generate Root Index
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p _site/assets
 
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
+          # Copy root page assets
+          cp docs/assets/style.css _site/assets/
+
+          # Generate plugin cards from all version.json files and fill root template
+          python3 << 'PYEOF'
+          import json, glob, os
+
+          plugins = []
+          for vj in sorted(glob.glob('plugins/*/version.json')):
+              with open(vj) as f:
+                  data = json.load(f)
+              plugin_dir = os.path.basename(os.path.dirname(vj))
+              data['dir'] = plugin_dir
+              # Only link to plugins that have a landing page
+              has_page = os.path.isfile(f'plugins/{plugin_dir}/docs/index.html')
+              data['has_page'] = has_page
+              plugins.append(data)
+
+          cards = '\n'.join([
+              f'                <a href="{p["dir"]}/" class="plugin-card">'
+              f'\n                    <h2>{p["name"]}</h2>'
+              f'\n                    <p class="description">{p["description"]}</p>'
+              f'\n                    <span class="version">v{p["version"]}</span>'
+              f'\n                </a>'
+              if p['has_page'] else
+              f'                <div class="plugin-card">'
+              f'\n                    <h2>{p["name"]}</h2>'
+              f'\n                    <p class="description">{p["description"]}</p>'
+              f'\n                    <span class="version">v{p["version"]}</span>'
+              f'\n                </div>'
+              for p in plugins
+          ])
+
+          repo = os.environ['REPO']
+          with open('docs/index-template.html') as f:
+              template = f.read()
+
+          html = template.replace('{{PLUGIN_CARDS}}', cards).replace('{{REPO}}', repo)
+
+          os.makedirs('_site', exist_ok=True)
+          with open('_site/index.html', 'w') as f:
+              f.write(html)
+          PYEOF
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: _site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ github.token }}
+          publish_dir: ./_site
+          keep_files: true

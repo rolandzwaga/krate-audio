@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krate Audio - VST3 Plugins</title>
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Krate Audio</h1>
+            <p class="tagline">Open-source VST3 plugins for music production</p>
+        </header>
+
+        <section class="plugins">
+            <h2>Plugins</h2>
+            <div class="plugin-grid">
+                {{PLUGIN_CARDS}}
+            </div>
+        </section>
+
+        <footer>
+            <p>
+                <a href="https://github.com/{{REPO}}">GitHub</a> |
+                <a href="https://github.com/{{REPO}}/releases">All Releases</a> |
+                <a href="https://github.com/{{REPO}}/issues">Report Issue</a>
+            </p>
+            <p class="copyright">Krate Audio</p>
+        </footer>
+    </div>
+</body>
+</html>

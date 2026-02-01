@@ -1,4 +1,4 @@
-/* Iterum Landing Page Styles */
+/* Disrumpo Landing Page Styles */
 
 :root {
     --color-bg: #0a0a0f;
@@ -6,8 +6,8 @@
     --color-border: #2a2a3a;
     --color-text: #e8e8f0;
     --color-text-muted: #8888a0;
-    --color-accent: #6366f1;
-    --color-accent-hover: #818cf8;
+    --color-accent: #ef4444;
+    --color-accent-hover: #f87171;
     --color-windows: #0078d4;
     --color-macos: #a3aaae;
     --color-linux: #f5a623;
@@ -129,7 +129,7 @@ section h2 {
 .download-btn:hover {
     border-color: var(--color-accent);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.15);
 }
 
 .download-btn .icon {
