@@ -167,6 +167,13 @@ public:
         Steinberg::Vst::ParamID& id) override;
 
     // ===========================================================================
+    // IConnectionPoint (IMessage handling)
+    // ===========================================================================
+
+    /// Handle messages from Processor (e.g., spectrum FIFO pointers)
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
+
+    // ===========================================================================
     // Factory
     // ===========================================================================
 
@@ -218,6 +225,14 @@ private:
 
     /// Pointer to the SweepIndicator instance (for sweep visualization)
     SweepIndicator* sweepIndicator_ = nullptr;
+
+    // ==========================================================================
+    // Spectrum FIFO Cache (received from Processor via IMessage)
+    // ==========================================================================
+    // Cached so we can connect FIFOs when the editor opens after setActive()
+    void* cachedInputFIFO_ = nullptr;
+    void* cachedOutputFIFO_ = nullptr;
+    double cachedSpectrumSampleRate_ = 0.0;
 
     // ==========================================================================
     // Visibility Controllers (FR-021, FR-022, FR-025)

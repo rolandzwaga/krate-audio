@@ -3175,6 +3175,16 @@ VSTGUI::CView* Controller::createCustomView(
         // Store reference for later access (e.g., in willClose)
         spectrumDisplay_ = spectrumDisplay;
 
+        // Connect cached spectrum FIFOs (if processor already sent them via IMessage)
+        if (cachedInputFIFO_ || cachedOutputFIFO_) {
+            spectrumDisplay_->setSpectrumFIFOs(
+                static_cast<Krate::DSP::SpectrumFIFO<8192>*>(cachedInputFIFO_),
+                static_cast<Krate::DSP::SpectrumFIFO<8192>*>(cachedOutputFIFO_));
+            if (cachedSpectrumSampleRate_ > 0.0) {
+                spectrumDisplay_->startAnalysis(cachedSpectrumSampleRate_);
+            }
+        }
+
         // Connect crossover drag bridge so UI drags propagate to processor
         auto* bridge = new CrossoverDragBridge(this);
         crossoverDragBridge_ = Steinberg::owned(bridge);
@@ -4054,6 +4064,11 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         crossoverDragBridge_ = nullptr;
     }
 
+    // Spectrum analyzer: stop analysis before clearing display pointer
+    if (spectrumDisplay_) {
+        spectrumDisplay_->stopAnalysis();
+    }
+
     sweepIndicator_ = nullptr;
     spectrumDisplay_ = nullptr;
     activeEditor_ = nullptr;
@@ -4829,6 +4844,51 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     }
 
     return true;
+}
+
+// ==============================================================================
+// IMessage Handling (Processor -> Controller communication)
+// ==============================================================================
+
+Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* message) {
+    if (!message)
+        return Steinberg::kInvalidArgument;
+
+    if (strcmp(message->getMessageID(), "SpectrumFIFO") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        Steinberg::int64 inputPtr = 0;
+        Steinberg::int64 outputPtr = 0;
+        double sampleRate = 44100.0;
+
+        attrs->getInt("inputPtr", inputPtr);
+        attrs->getInt("outputPtr", outputPtr);
+        attrs->getFloat("sampleRate", sampleRate);
+
+        // Cache FIFO pointers so we can connect when editor opens later
+        cachedInputFIFO_ = reinterpret_cast<void*>(static_cast<intptr_t>(inputPtr));
+        cachedOutputFIFO_ = reinterpret_cast<void*>(static_cast<intptr_t>(outputPtr));
+        cachedSpectrumSampleRate_ = sampleRate;
+
+        // If editor is already open, connect immediately
+        if (spectrumDisplay_) {
+            if (inputPtr == 0 && outputPtr == 0) {
+                spectrumDisplay_->stopAnalysis();
+            } else {
+                spectrumDisplay_->setSpectrumFIFOs(
+                    static_cast<Krate::DSP::SpectrumFIFO<8192>*>(cachedInputFIFO_),
+                    static_cast<Krate::DSP::SpectrumFIFO<8192>*>(cachedOutputFIFO_));
+                spectrumDisplay_->startAnalysis(sampleRate);
+            }
+        }
+
+        return Steinberg::kResultOk;
+    }
+
+    // Delegate to parent for unhandled messages
+    return Steinberg::Vst::EditControllerEx1::notify(message);
 }
 
 } // namespace Disrumpo

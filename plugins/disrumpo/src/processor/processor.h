@@ -24,6 +24,7 @@
 #include "dsp/sweep_envelope.h"
 
 #include <krate/dsp/primitives/sweep_position_buffer.h>
+#include <krate/dsp/primitives/spectrum_fifo.h>
 #include <krate/dsp/systems/modulation_engine.h>
 
 #include <array>
@@ -223,6 +224,18 @@ private:
     /// @brief Modulation engine for all modulation sources and routing
     Krate::DSP::ModulationEngine modulationEngine_;
 
+    // ==========================================================================
+    // Spectrum Analyzer FIFOs (audio -> UI data transfer)
+    // ==========================================================================
+
+    /// @brief Lock-free FIFO for input audio samples (pre-distortion)
+    Krate::DSP::SpectrumFIFO<8192> spectrumInputFIFO_;
+
+    /// @brief Lock-free FIFO for output audio samples (post-distortion)
+    Krate::DSP::SpectrumFIFO<8192> spectrumOutputFIFO_;
+
+    /// @brief Send spectrum FIFO pointers to controller via IMessage
+    void sendSpectrumFIFOMessage();
 };
 
 } // namespace Disrumpo
