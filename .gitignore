@@ -56,4 +56,6 @@ tools/*.zip
 tools/*.txt
 /plugins/iterum/resources/win32resource.rc
 /plugins/iterum/src/version.h
+/plugins/disrumpo/resources/win32resource.rc
+/plugins/disrumpo/src/version.h
 tmpclaude-*
