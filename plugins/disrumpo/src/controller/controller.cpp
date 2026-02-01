@@ -2966,6 +2966,26 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
             }
             // else for b >= kMaxBands: data read-and-discarded (v7 migration)
         }
+
+        // Sync DisplayedType proxy from selected node's type for each band.
+        // DisplayedType drives UIViewSwitchContainer but isn't persisted;
+        // derive it from the node type we just restored.
+        for (int b = 0; b < kMaxBands; ++b) {
+            auto band = static_cast<uint8_t>(b);
+            auto* selParam = getParameterObject(
+                makeBandParamId(band, BandParamType::kBandSelectedNode));
+            int selNode = 0;
+            if (selParam)
+                selNode = std::clamp(
+                    static_cast<int>(selParam->getNormalized() * 3.0 + 0.5), 0, 3);
+            auto* nodeTypeParam = getParameterObject(
+                makeNodeParamId(band, static_cast<uint8_t>(selNode),
+                                NodeParamType::kNodeType));
+            if (nodeTypeParam)
+                setParamNormalized(
+                    makeBandParamId(band, BandParamType::kBandDisplayedType),
+                    nodeTypeParam->getNormalized());
+        }
     }
 
     return Steinberg::kResultOk;
@@ -3865,14 +3885,12 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 
     // T029/T030: Restore last window size (height may include mod panel)
     // Always request resize: the uidesc template size (1000x800) includes space
-    // for the mod panel, but the default window size is 1000x600 (5:3 ratio).
+    // for the mod panel, but the default window size is 1000x600.
+    // Use the saved dimensions directly — they were captured from the actual frame
+    // in willClose() and account for host-specific adjustments (DPI, decorations).
     {
-        bool modPanelOpen = modPanelParam && (modPanelParam->getNormalized() >= 0.5);
-        double extraH = modPanelOpen ? ModPanelToggleController::kModPanelHeight : 0.0;
-
         double constrainedWidth = std::clamp(lastWindowWidth_, 834.0, 1400.0);
-        double baseHeight = constrainedWidth * 3.0 / 5.0;
-        double constrainedHeight = baseHeight + extraH;
+        double constrainedHeight = std::clamp(lastWindowHeight_, 500.0, 1040.0);
         editor->requestResize(VSTGUI::CPoint(constrainedWidth, constrainedHeight));
     }
 
@@ -4047,8 +4065,15 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         auto* frame = editor->getFrame();
         if (frame) {
             auto rect = frame->getViewSize();
-            lastWindowWidth_ = rect.getWidth();
-            lastWindowHeight_ = rect.getHeight();
+            // Save the logical (unscaled) size. The frame's viewSize includes the
+            // zoom/DPI scale factor applied by CFrame::setZoom(). If we saved the
+            // scaled size, requestResize() in didOpen() would pass it before zoom
+            // is reapplied, causing the window to grow each open/close cycle.
+            double zoom = frame->getZoom();
+            if (zoom > 0.0) {
+                lastWindowWidth_ = std::floor(rect.getWidth() / zoom);
+                lastWindowHeight_ = std::floor(rect.getHeight() / zoom);
+            }
         }
     }
 
