@@ -15,6 +15,7 @@
 // ==============================================================================
 
 #include "plugin_ids.h"
+#include "controller/views/mod_slider.h"
 #include "vstgui/uidescription/delegationcontroller.h"
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/iuidescription.h"
@@ -120,6 +121,23 @@ public:
         return DelegationController::getTagForName(name, registeredTag);
     }
 
+    VSTGUI::CView* verifyView(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
+                               const VSTGUI::IUIDescription* description) override {
+        // Set modulation destination ID on ModSlider instances
+        if (auto* modSlider = dynamic_cast<ModSlider*>(view)) {
+            const auto* tagName = attributes.getAttributeValue("control-tag");
+            if (tagName) {
+                if (*tagName == "Band.NodeDrive")
+                    modSlider->setModDestId(
+                        ModDest::bandParam(bandIndex_, ModDest::kBandDrive));
+                else if (*tagName == "Band.NodeMix")
+                    modSlider->setModDestId(
+                        ModDest::bandParam(bandIndex_, ModDest::kBandMix));
+            }
+        }
+        return DelegationController::verifyView(view, attributes, description);
+    }
+
 protected:
     int bandIndex_;
 };
@@ -169,7 +187,8 @@ public:
                 }
             }
         }
-        return DelegationController::verifyView(view, attributes, description);
+
+        return BandSubController::verifyView(view, attributes, description);
     }
 };
 

@@ -1204,10 +1204,10 @@
   <!-- BandMainTab: Shared template using generic Band.* tags (remapped by sub-controller) -->
   <template name="BandMainTab" class="CViewContainer" size="215, 243" background-color="panel">
     <view class="CTextLabel" origin="0, 5" size="100, 15" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="0, 20" size="100, 20" orientation="horizontal" control-tag="Band.NodeDrive" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
+    <view class="ModSlider" origin="0, 20" size="100, 20" orientation="horizontal" control-tag="Band.NodeDrive" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
     <view class="CParamDisplay" origin="0, 42" size="100, 15" control-tag="Band.NodeDrive" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
     <view class="CTextLabel" origin="110, 5" size="100, 15" title="Mix" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" origin="110, 20" size="100, 20" orientation="horizontal" control-tag="Band.NodeMix" default-value="1.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
+    <view class="ModSlider" origin="110, 20" size="100, 20" orientation="horizontal" control-tag="Band.NodeMix" default-value="1.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
     <view class="CParamDisplay" origin="110, 42" size="100, 15" control-tag="Band.NodeMix" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
     <view class="CTextLabel" origin="0, 60" size="100, 15" title="Tone" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CSlider" origin="0, 75" size="100, 20" orientation="horizontal" control-tag="Band.NodeTone" default-value="0.487" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>

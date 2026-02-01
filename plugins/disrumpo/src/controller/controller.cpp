@@ -17,6 +17,7 @@
 #include "controller/views/node_editor_border.h"
 #include "controller/views/sweep_indicator.h"
 #include "controller/views/custom_curve_editor.h"
+#include "controller/views/mod_slider.h"
 #include "controller/morph_link.h"
 #include "controller/animated_expand_controller.h"
 #include "controller/keyboard_shortcut_handler.h"
@@ -1907,7 +1908,7 @@ void Controller::registerModulationParams() {
         routeSource->appendString(STR16("Transient"));
         parameters.addParameter(routeSource);
 
-        // Destination (named list of 54 modulatable parameters)
+        // Destination (named list of 30 modulatable parameters)
         auto* routeDest = new Steinberg::Vst::StringListParameter(
             STR16("Route Dest"), makeRoutingParamId(r, 1));
         // Global destinations (0-2)
@@ -1918,8 +1919,8 @@ void Controller::registerModulationParams() {
         routeDest->appendString(STR16("Sweep Freq"));
         routeDest->appendString(STR16("Sweep Width"));
         routeDest->appendString(STR16("Sweep Intensity"));
-        // Per-band destinations (6-53): 8 bands x 6 params
-        for (int b = 1; b <= 8; ++b) {
+        // Per-band destinations (6-29): 4 bands x 6 params
+        for (int b = 1; b <= kMaxBands; ++b) {
             routeDest->appendString(
                 Steinberg::String().printf("Band %d Morph X", b));
             routeDest->appendString(
@@ -3889,11 +3890,17 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     sweepVisualizationController_ = new SweepVisualizationController(
         this, &sweepIndicator_, &spectrumDisplay_);
 
-    // FR-047: Create 30fps timer for smooth sweep indicator redraws
+    // FR-047: Create 30fps timer for smooth sweep indicator and modulation redraws
     sweepVisualizationTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
         [this](VSTGUI::CVSTGUITimer* /*timer*/) {
             if (sweepIndicator_ && sweepIndicator_->isEnabled()) {
                 sweepIndicator_->setDirty();
+            }
+            // Update modulation indicators on ModSliders via tree walk
+            // (handles dynamic view creation/destruction from tabs/templates)
+            if (cachedModOffsets_ && activeEditor_) {
+                if (auto* frame = activeEditor_->getFrame())
+                    updateModSliders(frame);
             }
         },
         33  // ~30fps (33ms interval)
@@ -4887,8 +4894,34 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
         return Steinberg::kResultOk;
     }
 
+    if (strcmp(message->getMessageID(), "ModOffsets") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        Steinberg::int64 ptr = 0;
+        attrs->getInt("ptr", ptr);
+        cachedModOffsets_ = reinterpret_cast<const float*>(
+            static_cast<intptr_t>(ptr));
+
+        return Steinberg::kResultOk;
+    }
+
     // Delegate to parent for unhandled messages
     return Steinberg::Vst::EditControllerEx1::notify(message);
+}
+
+void Controller::updateModSliders(VSTGUI::CViewContainer* container) {
+    if (!container)
+        return;
+    container->forEachChild([this](VSTGUI::CView* child) {
+        if (auto* ms = dynamic_cast<ModSlider*>(child)) {
+            float offset = cachedModOffsets_[ms->getModDestId()];
+            ms->setModulationOffset(offset);
+        }
+        if (auto* vc = dynamic_cast<VSTGUI::CViewContainer*>(child))
+            updateModSliders(vc);
+    });
 }
 
 } // namespace Disrumpo

@@ -235,6 +235,14 @@ private:
     double cachedSpectrumSampleRate_ = 0.0;
 
     // ==========================================================================
+    // Modulation Offset Visualization
+    // ==========================================================================
+    // Pointer to processor's modulation offset array (received via IMessage)
+    const float* cachedModOffsets_ = nullptr;
+    // Recursively walk view tree and update ModSlider offsets from cached array
+    void updateModSliders(VSTGUI::CViewContainer* container);
+
+    // ==========================================================================
     // Visibility Controllers (FR-021, FR-022, FR-025)
     // ==========================================================================
     // Band visibility controllers - show/hide band containers based on Band Count

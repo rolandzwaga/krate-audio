@@ -90,6 +90,17 @@ public:
     /// @param timeMs Smoothing time in milliseconds
     void setSmoothingTime(float timeMs) noexcept;
 
+    /// @brief Set drive/mix modulation offsets from the modulation engine.
+    ///
+    /// Offsets are applied per-sample after morph interpolation (same-family)
+    /// or to each adapter (cross-family). Offset range is [-1, +1] normalized.
+    /// Drive offset is scaled by 10.0 (drive range [0, 10]).
+    /// Mix offset is applied directly (mix range [0, 1]).
+    ///
+    /// @param driveOffset Drive modulation offset [-1, +1]
+    /// @param mixOffset Mix modulation offset [-1, +1]
+    void setDriveMixModOffset(float driveOffset, float mixOffset) noexcept;
+
     /// @brief Set nodes from BandState.
     ///
     /// Copies node configurations for weight computation and processing.
@@ -225,6 +236,10 @@ private:
 
     // Prepared flag
     bool prepared_ = false;
+
+    // Drive/Mix modulation offsets (block-rate, from ModulationEngine)
+    float driveModOffset_ = 0.0f;  // [-1, +1] normalized offset
+    float mixModOffset_ = 0.0f;    // [-1, +1] normalized offset
 };
 
 } // namespace Disrumpo

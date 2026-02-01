@@ -236,6 +236,9 @@ private:
 
     /// @brief Send spectrum FIFO pointers to controller via IMessage
     void sendSpectrumFIFOMessage();
+
+    /// @brief Send modulation offset array pointer to controller via IMessage
+    void sendModOffsetsMessage();
 };
 
 } // namespace Disrumpo

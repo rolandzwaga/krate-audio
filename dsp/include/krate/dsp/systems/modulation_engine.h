@@ -259,6 +259,13 @@ public:
         return modOffsets_[destParamId];
     }
 
+    /// @brief Get direct pointer to modulation offset array for UI visualization.
+    /// Audio thread writes, UI thread reads at display rate (~30Hz).
+    /// Aligned float reads are naturally atomic on x86/ARM.
+    [[nodiscard]] const float* getModOffsetsArray() const noexcept {
+        return modOffsets_.data();
+    }
+
     /// @brief Get the modulated parameter value.
     /// @param destParamId Destination parameter ID
     /// @param baseNormalized Base parameter value (normalized 0-1)

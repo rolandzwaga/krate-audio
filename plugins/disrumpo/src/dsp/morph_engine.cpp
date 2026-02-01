@@ -85,6 +85,10 @@ void MorphEngine::reset() noexcept {
     // Reset weights to default (50/50 for 2-node)
     weights_ = {0.5f, 0.5f, 0.0f, 0.0f};
     transitionGains_ = {1.0f, 1.0f, 1.0f, 1.0f};
+
+    // Reset modulation offsets
+    driveModOffset_ = 0.0f;
+    mixModOffset_ = 0.0f;
 }
 
 // =============================================================================
@@ -104,6 +108,11 @@ void MorphEngine::setMode(MorphMode mode) noexcept {
     const float posX = smootherX_.getCurrentValue();
     const float posY = smootherY_.getCurrentValue();
     calculateMorphWeights(posX, posY);
+}
+
+void MorphEngine::setDriveMixModOffset(float driveOffset, float mixOffset) noexcept {
+    driveModOffset_ = driveOffset;
+    mixModOffset_ = mixOffset;
 }
 
 void MorphEngine::setSmoothingTime(float timeMs) noexcept {
@@ -522,7 +531,12 @@ float MorphEngine::processSameFamily(float input) noexcept {
     // Set blended adapter to dominant type with interpolated params
     blendedAdapter_.setType(nodes_[dominantNode].type);
     blendedAdapter_.setParams(interpolateParams());
-    blendedAdapter_.setCommonParams(interpolateCommonParams());
+
+    // Apply drive/mix modulation offsets after interpolation
+    auto cp = interpolateCommonParams();
+    cp.drive = std::clamp(cp.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f);
+    cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
+    blendedAdapter_.setCommonParams(cp);
 
     return blendedAdapter_.process(input);
 }
@@ -530,6 +544,16 @@ float MorphEngine::processSameFamily(float input) noexcept {
 float MorphEngine::processCrossFamily(float input) noexcept {
     // Cross-family: parallel processing with equal-power crossfade
     // Per spec FR-007, FR-008
+
+    // Apply drive/mix modulation offsets to per-node adapters (from base node params)
+    if (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f) {
+        for (int i = 0; i < activeNodeCount_; ++i) {
+            auto cp = nodes_[i].commonParams;
+            cp.drive = std::clamp(cp.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f);
+            cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
+            adapters_[i].setCommonParams(cp);
+        }
+    }
 
     float output = 0.0f;
 

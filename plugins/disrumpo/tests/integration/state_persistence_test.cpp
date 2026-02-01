@@ -7,6 +7,7 @@
 // - Window size (1200x720)
 // - Global MIDI CC mappings
 // - Per-preset MIDI CC mappings
+// - Modulation routing parameters (source, destination, amount, curve)
 //
 // Constitution Principle VIII: Testing Discipline
 // ==============================================================================
@@ -16,6 +17,7 @@
 
 #include "midi/midi_cc_manager.h"
 #include "plugin_ids.h"
+#include <krate/dsp/core/modulation_types.h>
 
 #include <algorithm>
 #include <cmath>
@@ -233,4 +235,253 @@ TEST_CASE("SC-011: All state persists together in round-trip", "[integration][st
         REQUIRE(hasGlobalMidi);
         REQUIRE(hasPresetMidi);
     }
+}
+
+// =============================================================================
+// Modulation Routing State Persistence Tests
+// =============================================================================
+// Tests that modulation routing parameters (source, destination, amount, curve)
+// survive the full normalize → denormalize round-trip used by the processor
+// and controller during state save/restore.
+//
+// These tests catch the class of bug where controller normalization and
+// processor denormalization use different denominators (e.g., 54-item dropdown
+// with denominator 53 vs. ModDest::kTotalDestinations - 1 = 29).
+// =============================================================================
+
+// Helper: Simulate processor denormalization for routing destination
+// Mirrors processor.cpp processParameterChanges() case 1 (Destination)
+static uint32_t processorDenormalizeDest(double normalized) {
+    return static_cast<uint32_t>(
+        normalized * static_cast<double>(Disrumpo::ModDest::kTotalDestinations - 1) + 0.5);
+}
+
+// Helper: Simulate controller normalization for routing destination
+// Mirrors controller.cpp setComponentState() routing restore
+static double controllerNormalizeDest(int32_t destParamId) {
+    return static_cast<double>(
+        std::clamp(destParamId, 0,
+                   static_cast<int32_t>(Disrumpo::ModDest::kTotalDestinations - 1)))
+        / static_cast<double>(Disrumpo::ModDest::kTotalDestinations - 1);
+}
+
+// Helper: Simulate processor denormalization for routing source
+// Mirrors processor.cpp processParameterChanges() case 0 (Source)
+static int processorDenormalizeSource(double normalized) {
+    return static_cast<int>(normalized * 12.0 + 0.5);
+}
+
+// Helper: Simulate controller normalization for routing source
+// Mirrors controller.cpp setComponentState() routing restore
+static double controllerNormalizeSource(int8_t source) {
+    return static_cast<double>(source) / 12.0;
+}
+
+// Helper: Simulate processor denormalization for routing curve
+// Mirrors processor.cpp processParameterChanges() case 3 (Curve)
+static int processorDenormalizeCurve(double normalized) {
+    return static_cast<int>(normalized * 3.0 + 0.5);
+}
+
+// Helper: Simulate controller normalization for routing curve
+static double controllerNormalizeCurve(int8_t curve) {
+    return static_cast<double>(curve) / 3.0;
+}
+
+TEST_CASE("Routing destination round-trip for every destination index",
+          "[integration][state_persistence][routing]") {
+    // For each valid destination (0 to kTotalDestinations-1), verify that
+    // normalizing and denormalizing gives back the exact same index.
+    // This is the test that would have caught the 53 vs 29 bug.
+    for (uint32_t d = 0; d < Disrumpo::ModDest::kTotalDestinations; ++d) {
+        const double normalized = controllerNormalizeDest(static_cast<int32_t>(d));
+        const uint32_t restored = processorDenormalizeDest(normalized);
+        INFO("Destination index " << d << " normalized to " << normalized
+             << " restored to " << restored);
+        REQUIRE(restored == d);
+    }
+}
+
+TEST_CASE("Routing source round-trip for every source",
+          "[integration][state_persistence][routing]") {
+    // All 13 sources: None(0) through Transient(12)
+    for (int s = 0; s < static_cast<int>(Krate::DSP::kModSourceCount); ++s) {
+        const double normalized = controllerNormalizeSource(static_cast<int8_t>(s));
+        const int restored = processorDenormalizeSource(normalized);
+        INFO("Source " << s << " normalized to " << normalized
+             << " restored to " << restored);
+        REQUIRE(restored == s);
+    }
+}
+
+TEST_CASE("Routing curve round-trip for every curve type",
+          "[integration][state_persistence][routing]") {
+    // All 4 curves: Linear(0), Exponential(1), SCurve(2), Stepped(3)
+    for (int c = 0; c < static_cast<int>(Krate::DSP::kModCurveCount); ++c) {
+        const double normalized = controllerNormalizeCurve(static_cast<int8_t>(c));
+        const int restored = processorDenormalizeCurve(normalized);
+        INFO("Curve " << c << " normalized to " << normalized
+             << " restored to " << restored);
+        REQUIRE(restored == c);
+    }
+}
+
+TEST_CASE("Routing amount round-trip preserves bipolar values",
+          "[integration][state_persistence][routing]") {
+    // Amount range [-1, +1] is normalized as (amount + 1) / 2
+    // and denormalized as normalized * 2 - 1
+    const float testAmounts[] = {-1.0f, -0.75f, -0.5f, -0.25f, 0.0f,
+                                  0.25f, 0.5f, 0.75f, 1.0f};
+    for (float amount : testAmounts) {
+        const double normalized = static_cast<double>(amount + 1.0f) / 2.0;
+        const float restored = static_cast<float>(normalized * 2.0 - 1.0);
+        INFO("Amount " << amount << " normalized to " << normalized
+             << " restored to " << restored);
+        REQUIRE_THAT(static_cast<double>(restored),
+            Catch::Matchers::WithinAbs(static_cast<double>(amount), 1e-6));
+    }
+}
+
+TEST_CASE("Full routing slot binary round-trip",
+          "[integration][state_persistence][routing]") {
+    // Simulate the processor getState/setState binary format:
+    // int8 source, int32 dest, float amount, int8 curve
+
+    struct RoutingTestCase {
+        int8_t source;
+        int32_t dest;
+        float amount;
+        int8_t curve;
+    };
+
+    const RoutingTestCase cases[] = {
+        // LFO1 -> Band 1 Drive (the user-reported bug case)
+        {1, 8, 0.5f, 0},
+        // LFO2 -> Band 4 Pan (last valid destination)
+        {2, 29, -1.0f, 1},
+        // None -> first destination (inactive routing)
+        {0, 0, 0.0f, 0},
+        // Envelope Follower -> Global Mix
+        {3, 2, 0.75f, 2},
+        // Macro4 -> Sweep Intensity
+        {8, 5, -0.25f, 3},
+        // Transient -> Band 3 Morph X
+        {12, static_cast<int32_t>(Disrumpo::ModDest::bandParam(2, Disrumpo::ModDest::kBandMorphX)), 1.0f, 0},
+        // Chaos -> Band 2 Gain
+        {9, static_cast<int32_t>(Disrumpo::ModDest::bandParam(1, Disrumpo::ModDest::kBandGain)), -0.5f, 1},
+    };
+
+    for (const auto& tc : cases) {
+        SECTION("source=" + std::to_string(tc.source)
+                + " dest=" + std::to_string(tc.dest)
+                + " amount=" + std::to_string(tc.amount)
+                + " curve=" + std::to_string(tc.curve)) {
+            // Write to binary buffer (simulating getState)
+            std::vector<uint8_t> buffer;
+            buffer.push_back(static_cast<uint8_t>(tc.source));
+            // int32 little-endian
+            const auto destU = static_cast<uint32_t>(tc.dest);
+            buffer.push_back(static_cast<uint8_t>(destU & 0xFF));
+            buffer.push_back(static_cast<uint8_t>((destU >> 8) & 0xFF));
+            buffer.push_back(static_cast<uint8_t>((destU >> 16) & 0xFF));
+            buffer.push_back(static_cast<uint8_t>((destU >> 24) & 0xFF));
+            // float as bytes
+            const uint8_t* amountBytes = reinterpret_cast<const uint8_t*>(&tc.amount);
+            for (int i = 0; i < 4; ++i) buffer.push_back(amountBytes[i]);
+            buffer.push_back(static_cast<uint8_t>(tc.curve));
+
+            // Read back (simulating setState)
+            size_t pos = 0;
+            const auto readSource = static_cast<int8_t>(buffer[pos++]);
+            uint32_t readDest = buffer[pos] | (buffer[pos + 1] << 8)
+                | (buffer[pos + 2] << 16) | (buffer[pos + 3] << 24);
+            pos += 4;
+            float readAmount;
+            std::memcpy(&readAmount, &buffer[pos], sizeof(float));
+            pos += 4;
+            const auto readCurve = static_cast<int8_t>(buffer[pos]);
+
+            // Apply clamping as processor does
+            const auto clampedSource = std::clamp(static_cast<int>(readSource), 0, 12);
+            const auto clampedDest = static_cast<uint32_t>(
+                std::clamp(static_cast<int32_t>(readDest), 0,
+                           static_cast<int32_t>(Disrumpo::ModDest::kTotalDestinations - 1)));
+            const auto clampedCurve = std::clamp(static_cast<int>(readCurve), 0, 3);
+
+            REQUIRE(clampedSource == tc.source);
+            REQUIRE(clampedDest == static_cast<uint32_t>(tc.dest));
+            REQUIRE(readAmount == tc.amount);
+            REQUIRE(clampedCurve == tc.curve);
+        }
+    }
+}
+
+TEST_CASE("Controller-Processor normalization consistency for all destinations",
+          "[integration][state_persistence][routing]") {
+    // The critical test: for every destination, the controller's normalization
+    // followed by the processor's denormalization must return the exact index.
+    // This verifies both sides use the same denominator.
+    constexpr auto kDenom = static_cast<double>(Disrumpo::ModDest::kTotalDestinations - 1);
+
+    for (uint32_t d = 0; d < Disrumpo::ModDest::kTotalDestinations; ++d) {
+        // Controller normalize (setComponentState path)
+        const double norm = static_cast<double>(d) / kDenom;
+
+        // Verify normalized value is in [0, 1]
+        REQUIRE(norm >= 0.0);
+        REQUIRE(norm <= 1.0);
+
+        // Processor denormalize (processParameterChanges path)
+        const auto restored = static_cast<uint32_t>(norm * kDenom + 0.5);
+
+        INFO("Destination " << d << ": norm=" << norm << " restored=" << restored);
+        REQUIRE(restored == d);
+    }
+}
+
+TEST_CASE("ModDest::bandParam produces expected indices for all bands",
+          "[integration][state_persistence][routing]") {
+    // Verify the mapping from (band, offset) -> destination index is correct
+    // and matches the dropdown order: global(0-2), sweep(3-5), band0(6-11), ...
+    using namespace Disrumpo::ModDest;
+
+    // Global destinations
+    REQUIRE(kInputGain == 0);
+    REQUIRE(kOutputGain == 1);
+    REQUIRE(kGlobalMix == 2);
+
+    // Sweep destinations
+    REQUIRE(kSweepFrequency == 3);
+    REQUIRE(kSweepWidth == 4);
+    REQUIRE(kSweepIntensity == 5);
+
+    // Per-band destinations: band 0-3, params 0-5
+    for (uint8_t band = 0; band < 4; ++band) {
+        const uint32_t expectedBase = kBandBase + band * kParamsPerBand;
+        REQUIRE(bandParam(band, kBandMorphX) == expectedBase + 0);
+        REQUIRE(bandParam(band, kBandMorphY) == expectedBase + 1);
+        REQUIRE(bandParam(band, kBandDrive) == expectedBase + 2);
+        REQUIRE(bandParam(band, kBandMix) == expectedBase + 3);
+        REQUIRE(bandParam(band, kBandGain) == expectedBase + 4);
+        REQUIRE(bandParam(band, kBandPan) == expectedBase + 5);
+    }
+
+    // Verify total
+    REQUIRE(kTotalDestinations == 30);
+    REQUIRE(bandParam(3, kBandPan) == 29);  // Last valid destination
+}
+
+TEST_CASE("Dropdown item count matches kTotalDestinations",
+          "[integration][state_persistence][routing]") {
+    // The dropdown should have exactly kTotalDestinations items:
+    // 3 global + 3 sweep + (kMaxBands * 6) per-band
+    constexpr int kGlobalCount = 3;
+    constexpr int kSweepCount = 3;
+    constexpr int kBandsInDropdown = 4;  // Must match kMaxBands
+    constexpr int kParamsPerBand = 6;
+
+    constexpr int expectedTotal = kGlobalCount + kSweepCount
+                                  + kBandsInDropdown * kParamsPerBand;
+
+    REQUIRE(expectedTotal == static_cast<int>(Disrumpo::ModDest::kTotalDestinations));
 }

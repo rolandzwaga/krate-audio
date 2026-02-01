@@ -133,6 +133,7 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         spectrumInputFIFO_.clear();
         spectrumOutputFIFO_.clear();
         sendSpectrumFIFOMessage();
+        sendModOffsetsMessage();
     } else {
         // Deactivating: notify controller to disconnect FIFOs
         spectrumInputFIFO_.clear();
@@ -258,23 +259,40 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         sweepProcessor_.setIntensity(modIntNorm * 2.0f);
     }
 
-    // --- Per-band parameters (gain, pan) ---
+    // --- Per-band parameters (gain, pan, morphX/Y, drive/mix) ---
     for (int b = 0; b < numBands; ++b) {
+        const auto bandIdx = static_cast<uint8_t>(b);
+
         // Band Gain: normalize to [0,1], apply offset, denormalize to dB
         const float baseGainNorm = (bandStates_[b].gainDb - kMinBandGainDb) /
                                    (kMaxBandGainDb - kMinBandGainDb);
         const float modGainNorm = modulationEngine_.getModulatedValue(
-            ModDest::bandParam(static_cast<uint8_t>(b), ModDest::kBandGain), baseGainNorm);
+            ModDest::bandParam(bandIdx, ModDest::kBandGain), baseGainNorm);
         bandProcessors_[b].setGainDb(kMinBandGainDb + modGainNorm * (kMaxBandGainDb - kMinBandGainDb));
 
         // Band Pan: normalize [-1,+1] to [0,1], apply offset, denormalize back
         const float basePanNorm = (bandStates_[b].pan + 1.0f) * 0.5f;
         const float modPanNorm = modulationEngine_.getModulatedValue(
-            ModDest::bandParam(static_cast<uint8_t>(b), ModDest::kBandPan), basePanNorm);
+            ModDest::bandParam(bandIdx, ModDest::kBandPan), basePanNorm);
         bandProcessors_[b].setPan(modPanNorm * 2.0f - 1.0f);
 
-        // MorphX/Y and Drive/Mix modulation destinations are wired via
-        // processParameterChanges() -> BandProcessor setters.
+        // Band MorphX/Y: already [0,1] normalized, apply offset
+        const float modMorphX = modulationEngine_.getModulatedValue(
+            ModDest::bandParam(bandIdx, ModDest::kBandMorphX),
+            bandMorphCache_[b].morphX);
+        const float modMorphY = modulationEngine_.getModulatedValue(
+            ModDest::bandParam(bandIdx, ModDest::kBandMorphY),
+            bandMorphCache_[b].morphY);
+        bandProcessors_[b].setMorphPosition(modMorphX, modMorphY);
+
+        // Band Drive/Mix: pass raw offsets to BandProcessor/MorphEngine
+        // For morph path: MorphEngine applies per-sample after interpolation
+        // For non-morph path: BandProcessor applies at block rate in processBlock()
+        const float driveOffset = modulationEngine_.getModulationOffset(
+            ModDest::bandParam(bandIdx, ModDest::kBandDrive));
+        const float mixOffset = modulationEngine_.getModulationOffset(
+            ModDest::bandParam(bandIdx, ModDest::kBandMix));
+        bandProcessors_[b].setDriveMixModOffset(driveOffset, mixOffset);
     }
 
     // ==========================================================================
@@ -403,6 +421,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     std::array<float, kMaxBands> bandsL{};
     std::array<float, kMaxBands> bandsR{};
 
+    // Apply block-rate drive/mix modulation to non-morph distortion adapters
+    for (int b = 0; b < numBands; ++b) {
+        bandProcessors_[b].beginBlockModulation();
+    }
+
     for (Steinberg::int32 n = 0; n < data.numSamples; ++n) {
         // Split input through crossover networks (FR-001b: independent L/R)
         crossoverL_.process(inputL[n], bandsL);
@@ -435,6 +458,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         outputL[n] = sumL;
         outputR[n] = sumR;
+    }
+
+    // Restore base distortion params after per-sample processing
+    for (int b = 0; b < numBands; ++b) {
+        bandProcessors_[b].endBlockModulation();
     }
 
     // ==========================================================================
@@ -1486,7 +1514,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                     routing.active = (routing.source != Krate::DSP::ModSource::None);
                                     break;
                                 case 1:  // Destination
-                                    routing.destParamId = static_cast<uint32_t>(value * 53.0 + 0.5);
+                                    routing.destParamId = static_cast<uint32_t>(
+                                        value * static_cast<double>(ModDest::kTotalDestinations - 1) + 0.5);
                                     break;
                                 case 2:  // Amount [-1, +1]
                                     routing.amount = static_cast<float>(value * 2.0 - 1.0);
@@ -1935,6 +1964,24 @@ void Processor::sendSpectrumFIFOMessage() {
         static_cast<Steinberg::int64>(
             reinterpret_cast<intptr_t>(&spectrumOutputFIFO_)));
     attrs->setFloat("sampleRate", sampleRate_);
+
+    sendMessage(msg);
+}
+
+void Processor::sendModOffsetsMessage() {
+    auto msg = Steinberg::owned(allocateMessage());
+    if (!msg)
+        return;
+
+    msg->setMessageID("ModOffsets");
+    auto* attrs = msg->getAttributes();
+    if (!attrs)
+        return;
+
+    // Send pointer to modulation offset array (safe: both components in-process)
+    attrs->setInt("ptr",
+        static_cast<Steinberg::int64>(
+            reinterpret_cast<intptr_t>(modulationEngine_.getModOffsetsArray())));
 
     sendMessage(msg);
 }

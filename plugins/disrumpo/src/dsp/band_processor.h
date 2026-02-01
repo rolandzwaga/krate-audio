@@ -285,6 +285,21 @@ public:
         }
     }
 
+    /// @brief Set drive/mix modulation offsets from the modulation engine.
+    ///
+    /// For morph path: forwards offsets to MorphEngine for per-sample application.
+    /// For non-morph path: offsets are applied at block rate in processBlock().
+    ///
+    /// @param driveOffset Drive modulation offset [-1, +1] normalized
+    /// @param mixOffset Mix modulation offset [-1, +1] normalized
+    void setDriveMixModOffset(float driveOffset, float mixOffset) noexcept {
+        driveModOffset_ = driveOffset;
+        mixModOffset_ = mixOffset;
+        if (morphEngine_) {
+            morphEngine_->setDriveMixModOffset(driveOffset, mixOffset);
+        }
+    }
+
     /// @brief Enable or disable morph engine.
     /// When disabled, uses single distortion adapter instead.
     /// @param enabled true to enable morphing, false for single distortion
@@ -398,6 +413,31 @@ public:
     // Processing
     // =========================================================================
 
+    /// @brief Apply block-rate drive/mix modulation to the distortion adapter.
+    /// Call once before the per-sample loop. For non-morph bands with active
+    /// modulation, this temporarily sets modulated params on the distortion
+    /// adapter. Must be paired with endBlockModulation() after the loop.
+    void beginBlockModulation() noexcept {
+        blockModActive_ = false;
+        if (!morphEnabled_ && (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f)) {
+            savedCommonParams_ = distortion_.getCommonParams();
+            distortion_.setCommonParams({
+                std::clamp(savedCommonParams_.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f),
+                std::clamp(savedCommonParams_.mix + mixModOffset_, 0.0f, 1.0f),
+                savedCommonParams_.toneHz});
+            blockModActive_ = true;
+        }
+    }
+
+    /// @brief Restore base distortion params after per-sample processing.
+    /// Must be called after the per-sample loop if beginBlockModulation() was called.
+    void endBlockModulation() noexcept {
+        if (blockModActive_) {
+            distortion_.setCommonParams(savedCommonParams_);
+            blockModActive_ = false;
+        }
+    }
+
     /// @brief Process stereo sample pair in-place.
     /// Applies sweep, distortion/morph with oversampling, gain, pan, and mute.
     /// Per plan.md signal flow:
@@ -423,8 +463,8 @@ public:
             left = morphEngine_->process(left);
             right = morphEngine_->process(right);
         } else {
-            // Legacy single distortion path
-            // Drive gate: if drive is essentially 0, skip distortion
+            // Legacy single distortion path (drive/mix modulation already
+            // applied by beginBlockModulation() at block rate)
             if (distortion_.getCommonParams().drive >= 0.0001f) {
                 left = distortion_.process(left);
                 right = distortion_.process(right);
@@ -458,17 +498,30 @@ public:
             return; // Leave input buffers unchanged
         }
 
+        beginBlockModulation();
+
         if (numSamples > maxBlockSize_) {
             // Process in chunks
             size_t offset = 0;
             while (offset < numSamples) {
                 size_t chunk = std::min(numSamples - offset, maxBlockSize_);
-                processBlock(left + offset, right + offset, chunk);
+                processBlockInner(left + offset, right + offset, chunk);
                 offset += chunk;
             }
-            return;
+        } else {
+            processBlockInner(left, right, numSamples);
         }
 
+        endBlockModulation();
+    }
+
+    // =========================================================================
+    // Queries
+    // =========================================================================
+
+    /// @brief Inner block processing (routes to crossfade or normal path).
+    /// Separated from processBlock() to allow block-rate modulation bracketing.
+    void processBlockInner(float* left, float* right, size_t numSamples) noexcept {
         // FR-010: Route to crossfade path when transition is active
         if (crossfadeActive_) {
             processBlockWithCrossfade(left, right, numSamples);
@@ -478,10 +531,6 @@ public:
         // Normal processing with current factor
         processWithFactor(left, right, numSamples, currentOversampleFactor_);
     }
-
-    // =========================================================================
-    // Queries
-    // =========================================================================
 
     /// @brief Check if all smoothers have settled.
     /// @return true if any smoother is still transitioning
@@ -741,6 +790,14 @@ private:
     std::unique_ptr<MorphEngine> morphEngine_;
     bool morphEnabled_ = false;  // Default to legacy mode for backward compatibility
     bool bypassed_ = false;       // FR-012: Band bypass flag
+
+    // Drive/Mix modulation offsets (block-rate, from ModulationEngine)
+    float driveModOffset_ = 0.0f;
+    float mixModOffset_ = 0.0f;
+
+    // Block-rate modulation save/restore state
+    DistortionCommonParams savedCommonParams_{};
+    bool blockModActive_ = false;
 
     // Cached morph state for oversampling factor computation (spec 009)
     std::array<MorphNode, kMaxMorphNodes> morphNodes_{};
