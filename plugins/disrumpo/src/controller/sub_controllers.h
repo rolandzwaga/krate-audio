@@ -19,14 +19,36 @@
 #include "vstgui/uidescription/delegationcontroller.h"
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/iuidescription.h"
+#include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/lib/controls/ctextlabel.h"
 
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <sstream>
 #include <string>
+#include <vector>
 
 namespace Disrumpo {
+
+// ==============================================================================
+// parseMenuItems: Parse comma-separated menu items from uidesc attribute
+// ==============================================================================
+// Used by BandSubController::verifyView() to populate COptionMenu controls
+// in TypeParams templates. Items defined via custom "menu-items" attribute.
+// ==============================================================================
+
+inline std::vector<std::string> parseMenuItems(const std::string& itemsStr) {
+    std::vector<std::string> items;
+    if (itemsStr.empty())
+        return items;
+    std::istringstream stream(itemsStr);
+    std::string item;
+    while (std::getline(stream, item, ',')) {
+        items.push_back(item);
+    }
+    return items;
+}
 
 // ==============================================================================
 // BandSubController: Base class for band-specific parameter remapping
@@ -151,6 +173,21 @@ public:
                         ModDest::bandParam(bandIndex_, ModDest::kBandMix));
             }
         }
+
+        // Populate COptionMenu controls from custom "menu-items" attribute.
+        // Shape slot parameters are RangeParameter(stepCount=0), so VSTGUI's
+        // auto-populate in ParameterChangeListener::updateControlValue() is
+        // skipped (it's gated by stepCount > 0). Our entries survive.
+        if (auto* menu = dynamic_cast<VSTGUI::COptionMenu*>(view)) {
+            const auto* menuItemsAttr = attributes.getAttributeValue("menu-items");
+            if (menuItemsAttr && !menuItemsAttr->empty()) {
+                auto items = parseMenuItems(*menuItemsAttr);
+                for (const auto& item : items) {
+                    menu->addEntry(item.c_str());
+                }
+            }
+        }
+
         return DelegationController::verifyView(view, attributes, description);
     }
 

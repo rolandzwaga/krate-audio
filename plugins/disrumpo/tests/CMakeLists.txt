@@ -101,6 +101,9 @@ add_executable(disrumpo_tests
     # Unit tests - Keyboard Shortcuts (012-progressive-disclosure)
     unit/keyboard_shortcut_test.cpp
 
+    # Unit tests - COptionMenu item population
+    unit/menu_items_test.cpp
+
     # Integration tests
     integration/band_management_integration_test.cpp
     integration/expand_collapse_test.cpp

@@ -3864,18 +3864,16 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     }
 
     // T029/T030: Restore last window size (height may include mod panel)
+    // Always request resize: the uidesc template size (1000x800) includes space
+    // for the mod panel, but the default window size is 1000x600 (5:3 ratio).
     {
         bool modPanelOpen = modPanelParam && (modPanelParam->getNormalized() >= 0.5);
         double extraH = modPanelOpen ? ModPanelToggleController::kModPanelHeight : 0.0;
-        double defaultH = 600.0 + extraH;
 
-        if (lastWindowWidth_ != 1000.0 || lastWindowHeight_ != defaultH) {
-            double constrainedWidth = std::clamp(lastWindowWidth_, 834.0, 1400.0);
-            // Base height from 5:3 ratio, then add mod panel if visible
-            double baseHeight = constrainedWidth * 3.0 / 5.0;
-            double constrainedHeight = baseHeight + extraH;
-            editor->requestResize(VSTGUI::CPoint(constrainedWidth, constrainedHeight));
-        }
+        double constrainedWidth = std::clamp(lastWindowWidth_, 834.0, 1400.0);
+        double baseHeight = constrainedWidth * 3.0 / 5.0;
+        double constrainedHeight = baseHeight + extraH;
+        editor->requestResize(VSTGUI::CPoint(constrainedWidth, constrainedHeight));
     }
 
     // T045/T047: Register keyboard shortcut handler and enable focus drawing

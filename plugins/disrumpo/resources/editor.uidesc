@@ -862,7 +862,7 @@
     <view class="CTextLabel" origin="75, 30" size="50, 12" title="Sag" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="77, 42" size="45, 45" default-value="0.3" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
     <view class="CTextLabel" origin="145, 30" size="60, 12" title="Stage" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="140, 48" size="70, 22" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="140, 48" size="70, 22" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="12AX7,EL84,6L6,300B"/>
   </template>
   <template name="TypeParams_Tape" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Tape" font="section-font" font-color="text-primary" text-alignment="center"/>
@@ -873,7 +873,7 @@
     <view class="CTextLabel" origin="105, 28" size="45, 12" title="Speed" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape2" origin="107, 40" size="40, 40" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
     <view class="CTextLabel" origin="155, 28" size="55, 12" title="Model" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape3" origin="155, 42" size="55, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape3" origin="155, 42" size="55, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Simple,Hysteresis"/>
     <view class="CTextLabel" origin="30, 85" size="50, 12" title="HF Roll" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape4" origin="32, 97" size="40, 40" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
     <view class="CTextLabel" origin="120, 85" size="50, 12" title="Flutter" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -886,7 +886,7 @@
     <view class="CTextLabel" origin="55, 28" size="45, 12" title="Gate" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="57, 40" size="38, 38" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
     <view class="CTextLabel" origin="105, 28" size="55, 12" title="Transistor" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="55, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="55, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Germanium,Silicon"/>
     <view class="CTextLabel" origin="30, 85" size="45, 12" title="Octave" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape3" origin="32, 97" size="38, 38" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
     <view class="CTextLabel" origin="120, 85" size="50, 12" title="Sustain" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -899,7 +899,7 @@
     <view class="CTextLabel" origin="55, 28" size="40, 12" title="Asym" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="57, 40" size="35, 35" default-value="0.3" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
     <view class="CTextLabel" origin="105, 28" size="50, 12" title="Trans" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Germanium,Silicon"/>
     <view class="CTextLabel" origin="163, 28" size="40, 12" title="Gate" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape3" origin="165, 40" size="35, 35" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-primary"/>
     <view class="CTextLabel" origin="5, 82" size="45, 12" title="Sustain" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -940,7 +940,7 @@
     <view class="CTextLabel" origin="55, 28" size="40, 12" title="Symm" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="57, 40" size="35, 35" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-secondary"/>
     <view class="CTextLabel" origin="105, 28" size="50, 12" title="Model" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Simple,Serge,Buchla,Lockhart"/>
     <view class="CTextLabel" origin="5, 82" size="38, 12" title="Bias" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape3" origin="7, 94" size="35, 35" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="accent-secondary"/>
     <view class="CTextLabel" origin="55, 82" size="40, 12" title="Shape" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -971,7 +971,7 @@
     <view class="CTextLabel" origin="55, 28" size="50, 12" title="Dither" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="57, 40" size="45, 45" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-3"/>
     <view class="CTextLabel" origin="108, 28" size="50, 12" title="Mode" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="108, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="108, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Truncate,Dither"/>
     <view class="CTextLabel" origin="162, 28" size="50, 12" title="Jitter" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape3" origin="164, 40" size="45, 45" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-3"/>
   </template>
@@ -982,7 +982,7 @@
     <view class="CTextLabel" origin="55, 28" size="50, 12" title="Jitter" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="57, 40" size="45, 45" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-3"/>
     <view class="CTextLabel" origin="108, 28" size="50, 12" title="Mode" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="108, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="108, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="ZOH,Linear"/>
     <view class="CTextLabel" origin="162, 28" size="50, 12" title="Smooth" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape3" origin="164, 40" size="45, 45" default-value="0.3" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-3"/>
   </template>
@@ -1000,7 +1000,7 @@
   <template name="TypeParams_Temporal" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Temporal" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Mode" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Follow,Inverse,Transient,Hyst"/>
     <view class="CTextLabel" origin="55, 28" size="35, 10" title="Sens" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="55, 38" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-5"/>
     <view class="CTextLabel" origin="105, 28" size="35, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1012,7 +1012,7 @@
     <view class="CTextLabel" origin="55, 78" size="35, 10" title="Depth" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape5" origin="55, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-5"/>
     <view class="CTextLabel" origin="105, 78" size="40, 10" title="Look" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape6" origin="105, 88" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape6" origin="105, 88" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Off,On"/>
     <view class="CTextLabel" origin="155, 78" size="35, 10" title="Hold" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape7" origin="155, 88" size="32, 32" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-5"/>
   </template>
@@ -1025,11 +1025,11 @@
     <view class="CTextLabel" origin="105, 28" size="40, 12" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape2" origin="107, 40" size="35, 35" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-6"/>
     <view class="CTextLabel" origin="5, 82" size="50, 12" title="Carrier" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape3" origin="5, 94" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape3" origin="5, 94" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Sine,Triangle,Square,Saw"/>
     <view class="CTextLabel" origin="70, 82" size="40, 12" title="Bias" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape4" origin="72, 94" size="35, 35" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-6"/>
     <view class="CTextLabel" origin="130, 82" size="50, 12" title="Freq" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="130, 94" size="55, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="130, 94" size="55, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Fixed,Harmonic,Track,Random"/>
   </template>
   <template name="TypeParams_Feedback" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Feedback" font="section-font" font-color="text-primary" text-alignment="center"/>
@@ -1040,11 +1040,11 @@
     <view class="CTextLabel" origin="105, 28" size="35, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape2" origin="105, 38" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-6"/>
     <view class="CTextLabel" origin="155, 28" size="40, 10" title="Filter" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape3" origin="155, 40" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape3" origin="155, 40" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Off,LP,BP,HP"/>
     <view class="CTextLabel" origin="5, 78" size="35, 10" title="Freq" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape4" origin="5, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-6"/>
     <view class="CTextLabel" origin="55, 78" size="40, 10" title="Stage" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="1x,2x,3x,4x"/>
     <view class="CTextLabel" origin="105, 78" size="35, 10" title="Lim" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COnOffButton" control-tag="Band.NodeShape6" origin="107, 90" size="25, 20" bitmap="onoff_25x20" default-value="1"/>
     <view class="CTextLabel" origin="155, 78" size="35, 10" title="Thr" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1066,7 +1066,7 @@
   <template name="TypeParams_Bitwise" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Bitwise Mangler" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="50, 12" title="Op" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="XorPat,XorPrev,Rotate,Shuffle,BitAnd,Overflow"/>
     <view class="CTextLabel" origin="60, 28" size="50, 12" title="Intensity" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="62, 40" size="40, 40" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-3"/>
     <view class="CTextLabel" origin="115, 28" size="50, 12" title="Pattern" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1079,7 +1079,7 @@
   <template name="TypeParams_Chaos" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Chaos" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Attr" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Lorenz,Rossler,Chua,Henon"/>
     <view class="CTextLabel" origin="55, 28" size="35, 10" title="Spd" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="55, 38" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="105, 28" size="35, 10" title="Amt" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1098,7 +1098,7 @@
   <template name="TypeParams_Formant" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Formant" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Vowel" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="A,E,I,O,U"/>
     <view class="CTextLabel" origin="55, 28" size="35, 10" title="Shift" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="55, 38" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="105, 28" size="35, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1108,7 +1108,7 @@
     <view class="CTextLabel" origin="5, 78" size="35, 10" title="BW" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape4" origin="5, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="55, 78" size="40, 10" title="Fmts" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="2,3,4,5"/>
     <view class="CTextLabel" origin="105, 78" size="40, 10" title="Gendr" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape6" origin="105, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="155, 78" size="40, 10" title="Blend" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1129,18 +1129,18 @@
     <view class="CTextLabel" origin="3, 78" size="35, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape5" origin="5, 88" size="30, 30" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="43, 78" size="35, 10" title="Env" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape6" origin="43, 90" size="35, 14" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape6" origin="43, 90" size="35, 14" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Hann,Trap,Sine,Blk"/>
     <view class="CTextLabel" origin="88, 78" size="35, 10" title="Sprd" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape7" origin="88, 90" size="35, 14" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape7" origin="88, 90" size="35, 14" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Tight,Medium,Wide,Full"/>
     <view class="CTextLabel" origin="135, 78" size="30, 10" title="Frz" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COnOffButton" control-tag="Band.NodeShape8" origin="135, 90" size="22, 20" bitmap="onoff_22x20" default-value="0"/>
   </template>
   <template name="TypeParams_Spectral" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Spectral" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Mode" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="PerBin,MagOnly,Selective,Bitcrush"/>
     <view class="CTextLabel" origin="55, 28" size="35, 10" title="FFT" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape1" origin="55, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape1" origin="55, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="512,1024,2048,4096"/>
     <view class="CTextLabel" origin="105, 28" size="35, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape2" origin="105, 38" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="155, 28" size="35, 10" title="Tilt" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1148,16 +1148,16 @@
     <view class="CTextLabel" origin="5, 78" size="35, 10" title="Thr" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape4" origin="5, 88" size="32, 32" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="55, 78" size="40, 10" title="Mag" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Linear,Log,Bark,ERB"/>
     <view class="CTextLabel" origin="105, 78" size="40, 10" title="Freq" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CSlider" control-tag="Band.NodeShape6" origin="105, 92" size="45, 18" orientation="horizontal" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="band-7" draw-frame="true" draw-frame-color="border"/>
     <view class="CTextLabel" origin="155, 78" size="40, 10" title="Phase" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape7" origin="155, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape7" origin="155, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Preserve,Random,Gradient,Temporal"/>
   </template>
   <template name="TypeParams_Fractal" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Fractal" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Mode" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Residual,Multiband,Harmonic,Cascade,Feedback"/>
     <view class="CTextLabel" origin="55, 28" size="35, 10" title="Iter" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="55, 38" size="32, 32" default-value="0.3" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="105, 28" size="35, 10" title="Scale" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1169,14 +1169,14 @@
     <view class="CTextLabel" origin="55, 78" size="30, 10" title="FB" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape5" origin="55, 88" size="32, 32" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="105, 78" size="40, 10" title="Blend" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape6" origin="105, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape6" origin="105, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Add,Multiply,Max,Screen"/>
     <view class="CTextLabel" origin="155, 78" size="35, 10" title="Depth" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape7" origin="155, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
   </template>
   <template name="TypeParams_Stochastic" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Stochastic" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="White,Pink,Brown,Weibull,Exp,Custom"/>
     <view class="CTextLabel" origin="55, 28" size="35, 10" title="Jit" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="55, 38" size="32, 32" default-value="0.3" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
     <view class="CTextLabel" origin="105, 28" size="35, 10" title="Rate" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1188,14 +1188,14 @@
     <view class="CTextLabel" origin="55, 78" size="35, 10" title="Seed" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CTextButton" origin="55, 90" size="38, 18" title="New" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
     <view class="CTextLabel" origin="105, 78" size="40, 10" title="Corr" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="105, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="105, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="None,Sample,Param,Both"/>
     <view class="CTextLabel" origin="155, 78" size="35, 10" title="Smth" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape6" origin="155, 88" size="32, 32" default-value="0.3" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-7"/>
   </template>
   <template name="TypeParams_AllpassRes" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Allpass Resonant" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Topo" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Single,Chain,Karplus,Matrix"/>
     <view class="CTextLabel" origin="55, 28" size="35, 10" title="Freq" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="55, 38" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-6"/>
     <view class="CTextLabel" origin="105, 28" size="30, 10" title="FB" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1205,7 +1205,7 @@
     <view class="CTextLabel" origin="5, 78" size="35, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape4" origin="5, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-6"/>
     <view class="CTextLabel" origin="55, 78" size="40, 10" title="Stage" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Tanh,Clip,Asym,Hyst"/>
     <view class="CTextLabel" origin="105, 78" size="35, 10" title="Pitch" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COnOffButton" control-tag="Band.NodeShape6" origin="110, 90" size="25, 20" bitmap="onoff_25x20" default-value="0"/>
     <view class="CTextLabel" origin="155, 78" size="40, 10" title="Damp" font="small-font" font-color="text-secondary" text-alignment="center"/>
