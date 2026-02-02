@@ -220,6 +220,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         currentProcessingMode_ = requestedMode;
         crossfadePosition_ = 0.0f;
         crossfadeActive_ = true;
+
+        // Clear stale delay buffers in the NEW mode so dormant audio
+        // from a previous session doesn't play back as "ghost" echoes.
+        resetMode(currentProcessingMode_);
     }
 
     if (crossfadeActive_) {
@@ -807,6 +811,26 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
         default:
             // Unknown mode - output is already a copy of input
             break;
+    }
+}
+
+// ==============================================================================
+// Mode Reset Helper
+// ==============================================================================
+
+void Processor::resetMode(int mode) noexcept {
+    switch (static_cast<DelayMode>(mode)) {
+        case DelayMode::Granular:  granularDelay_.reset();      break;
+        case DelayMode::Spectral:  spectralDelay_.reset();      break;
+        case DelayMode::Shimmer:   shimmerDelay_.reset();        break;
+        case DelayMode::Tape:      tapeDelay_.reset();           break;
+        case DelayMode::BBD:       bbdDelay_.reset();            break;
+        case DelayMode::Digital:   digitalDelay_.reset();        break;
+        case DelayMode::PingPong:  pingPongDelay_.reset();       break;
+        case DelayMode::Reverse:   reverseDelay_.reset();        break;
+        case DelayMode::MultiTap:  multiTapDelay_.reset();       break;
+        case DelayMode::Freeze:    patternFreezeMode_.reset();   break;
+        default: break;
     }
 }
 

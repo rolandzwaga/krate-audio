@@ -125,6 +125,10 @@ protected:
                      float* outputL, float* outputR, size_t numSamples,
                      const Krate::DSP::BlockContext& ctx);
 
+    /// Reset a single mode's DSP state (clears delay buffers, snaps smoothers)
+    /// Called when switching TO a mode to prevent stale buffer playback
+    void resetMode(int mode) noexcept;
+
 private:
     // ==========================================================================
     // Processing State

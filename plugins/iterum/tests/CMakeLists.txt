@@ -37,6 +37,7 @@ add_executable(plugin_tests
 
     # Processor tests
     unit/processor/mode_crossfade_tests.cpp
+    unit/processor/mode_switch_buffer_retention_test.cpp
     unit/processor/mix_parameter_conversion_test.cpp
 
     # UI tests
@@ -102,6 +103,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/preset/preset_loading_consistency_test.cpp
         unit/preset/preset_manager_test.cpp
         unit/processor/mode_crossfade_tests.cpp
+        unit/processor/mode_switch_buffer_retention_test.cpp
         unit/processor/mix_parameter_conversion_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )

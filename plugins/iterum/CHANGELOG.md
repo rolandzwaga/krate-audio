@@ -5,6 +5,12 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.1] - 2026-02-02
+
+### Fixed
+
+- **Ghost audio on delay mode switching**: Switching away from a mode and back would replay stale echoes from the previous session because delay buffers were never cleared. The processor now resets the target effect's DSP state (delay lines, feedback networks, smoothers) when initiating a mode crossfade, matching the reset behavior already used on plugin activation.
+
 ## [0.14.0] - 2026-02-02
 
 ### Removed
