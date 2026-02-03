@@ -4,12 +4,12 @@
 // Tests for centralized phase accumulator and utility functions.
 // Validates calculatePhaseIncrement, wrapPhase, detectPhaseWrap,
 // subsamplePhaseWrapOffset, and PhaseAccumulator behavior.
-// (SC-004 through SC-009)
+// (SC-001 through SC-012)
 //
 // Constitution Compliance:
 // - Principle XII: Test-First Development
 //
-// Reference: specs/013-polyblep-math/spec.md
+// Reference: specs/014-phase-accumulation-utils/spec.md
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -367,6 +367,119 @@ TEST_CASE("PhaseAccumulator setFrequency with zero sample rate", "[phase_utils]"
 
 // =============================================================================
 // T061-T063: LFO compatibility test (SC-009, User Story 3)
+// =============================================================================
+
+// =============================================================================
+// SC-005: Constexpr compile-time verification for utility functions
+// =============================================================================
+
+// Phase 3 (T004-T005): Constexpr verification for calculatePhaseIncrement and wrapPhase
+static_assert(calculatePhaseIncrement(440.0f, 44100.0f) > 0.0,
+              "calculatePhaseIncrement must be usable in constexpr context");
+static_assert(calculatePhaseIncrement(0.0f, 44100.0f) == 0.0,
+              "calculatePhaseIncrement with zero frequency must return 0");
+static_assert(calculatePhaseIncrement(440.0f, 0.0f) == 0.0,
+              "calculatePhaseIncrement with zero sample rate must return 0");
+
+static_assert(wrapPhase(0.5) >= 0.0 && wrapPhase(0.5) < 1.0,
+              "wrapPhase must be usable in constexpr context");
+static_assert(wrapPhase(0.5) == 0.5,
+              "wrapPhase of value already in range must return unchanged");
+static_assert(wrapPhase(1.3) >= 0.0 && wrapPhase(1.3) < 1.0,
+              "wrapPhase must wrap positive overflow to [0, 1)");
+static_assert(wrapPhase(-0.2) >= 0.0 && wrapPhase(-0.2) < 1.0,
+              "wrapPhase must wrap negative values to [0, 1)");
+
+// Phase 4 (T010-T011): Constexpr verification for detectPhaseWrap and subsamplePhaseWrapOffset
+static_assert(detectPhaseWrap(0.01, 0.99),
+              "detectPhaseWrap must detect wrap when current < previous");
+static_assert(!detectPhaseWrap(0.5, 0.4),
+              "detectPhaseWrap must not detect wrap when current > previous");
+static_assert(!detectPhaseWrap(0.5, 0.5),
+              "detectPhaseWrap must not detect wrap when values are equal");
+
+static_assert(subsamplePhaseWrapOffset(0.03, 0.05) > 0.0,
+              "subsamplePhaseWrapOffset must be usable in constexpr context");
+static_assert(subsamplePhaseWrapOffset(0.03, 0.0) == 0.0,
+              "subsamplePhaseWrapOffset with zero increment must return 0");
+
+TEST_CASE("Constexpr verification for phase utility functions (SC-005)", "[phase_utils][SC-005][constexpr]") {
+    // Runtime verification of the same constexpr values to make the test visible in output
+    SECTION("calculatePhaseIncrement is constexpr") {
+        constexpr double inc = calculatePhaseIncrement(440.0f, 44100.0f);
+        REQUIRE(inc == Approx(440.0 / 44100.0).margin(1e-6));
+    }
+
+    SECTION("wrapPhase is constexpr") {
+        constexpr double wrapped = wrapPhase(1.3);
+        REQUIRE(wrapped == Approx(0.3).margin(1e-12));
+    }
+
+    SECTION("detectPhaseWrap is constexpr") {
+        constexpr bool detected = detectPhaseWrap(0.01, 0.99);
+        REQUIRE(detected == true);
+    }
+
+    SECTION("subsamplePhaseWrapOffset is constexpr") {
+        constexpr double offset = subsamplePhaseWrapOffset(0.03, 0.05);
+        REQUIRE(offset == Approx(0.6).margin(1e-10));
+    }
+}
+
+// =============================================================================
+// US3-1: Exact acceptance scenario (increment=0.1, 10 advances, 1 wrap)
+// =============================================================================
+
+TEST_CASE("PhaseAccumulator US3-1: increment 0.1, 10 advances, exactly 1 wrap", "[phase_utils][US3-1]") {
+    // US3-1 Acceptance Scenario:
+    // Given increment=0.1, after 10 advances the phase should have traversed
+    // exactly one complete cycle (10 * 0.1 = 1.0 in exact math).
+    //
+    // IEEE 754 note: The accumulated sum of 0.1 added 10 times in double
+    // precision is 0.9999999999999999 (slightly less than 1.0), so the wrap
+    // condition (phase >= 1.0) triggers on the 11th advance instead of the
+    // 10th. This is a well-known IEEE 754 representation issue, not a bug.
+    // The test accounts for this by checking 11 advances to cover the
+    // boundary case.
+
+    PhaseAccumulator acc;
+    acc.increment = 0.1;
+
+    int wrapCount = 0;
+
+    // Advance 10 times
+    for (int i = 0; i < 10; ++i) {
+        if (acc.advance()) {
+            ++wrapCount;
+        }
+    }
+
+    // After 10 advances: phase is approximately at the 1.0 boundary.
+    // Due to IEEE 754, it may be just under 1.0 (no wrap yet) or wrapped to ~0.0.
+    // Either way, the phase has completed approximately one full cycle.
+    if (wrapCount == 0) {
+        // Phase accumulated to ~0.9999999999999999 (just under 1.0)
+        INFO("Phase after 10 advances (boundary case): " << acc.phase);
+        REQUIRE(acc.phase == Approx(1.0).margin(1e-14));
+
+        // 11th advance triggers the wrap
+        if (acc.advance()) {
+            ++wrapCount;
+        }
+    }
+
+    // Verify exactly 1 wrap occurred across the full cycle
+    INFO("Wrap count: " << wrapCount);
+    REQUIRE(wrapCount == 1);
+
+    // Phase should be near the cycle start (within one increment of 0.0)
+    // After wrapping, phase = accumulated_error + 0.1 (at most)
+    INFO("Final phase: " << acc.phase);
+    REQUIRE(acc.phase < acc.increment + 1e-10);
+}
+
+// =============================================================================
+// T061-T063: LFO compatibility test (SC-006, User Story 4)
 // =============================================================================
 
 TEST_CASE("PhaseAccumulator matches LFO phase logic over 1M samples", "[phase_utils][SC-009]") {

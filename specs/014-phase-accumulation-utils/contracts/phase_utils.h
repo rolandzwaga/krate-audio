@@ -30,15 +30,18 @@ namespace Krate {
 namespace DSP {
 
 // =============================================================================
-// Phase Utility Functions
+// Phase Utility Functions (FR-001 through FR-007, FR-014, FR-016, FR-017)
 // =============================================================================
 
 /// @brief Calculate normalized phase increment from frequency and sample rate.
 ///
+/// Computes the normalized phase advance per sample as frequency / sampleRate,
+/// using double precision internally to preserve accuracy.
+///
 /// @param frequency Oscillator frequency in Hz
 /// @param sampleRate Sample rate in Hz
 /// @return Normalized phase increment (frequency / sampleRate).
-///         Returns 0.0 if sampleRate is 0 (division-by-zero guard).
+///         Returns 0.0 if sampleRate is 0 (division-by-zero guard, FR-002).
 ///
 /// @example
 /// @code
@@ -47,12 +50,7 @@ namespace DSP {
 [[nodiscard]] constexpr double calculatePhaseIncrement(
     float frequency,
     float sampleRate
-) noexcept {
-    if (sampleRate == 0.0f) {
-        return 0.0;
-    }
-    return static_cast<double>(frequency) / static_cast<double>(sampleRate);
-}
+) noexcept;
 
 /// @brief Wrap phase to [0, 1) range using subtraction.
 ///
@@ -71,15 +69,7 @@ namespace DSP {
 /// double b = wrapPhase(-0.2);  // returns 0.8
 /// double c = wrapPhase(0.5);   // returns 0.5 (no change)
 /// @endcode
-[[nodiscard]] constexpr double wrapPhase(double phase) noexcept {
-    while (phase >= 1.0) {
-        phase -= 1.0;
-    }
-    while (phase < 0.0) {
-        phase += 1.0;
-    }
-    return phase;
-}
+[[nodiscard]] constexpr double wrapPhase(double phase) noexcept;
 
 /// @brief Detect whether a phase wrap occurred between two phase values.
 ///
@@ -93,9 +83,7 @@ namespace DSP {
 [[nodiscard]] constexpr bool detectPhaseWrap(
     double currentPhase,
     double previousPhase
-) noexcept {
-    return currentPhase < previousPhase;
-}
+) noexcept;
 
 /// @brief Calculate the fractional sample position where a phase wrap occurred.
 ///
@@ -108,11 +96,14 @@ namespace DSP {
 /// @param phase Current phase after wrapping [0, 1)
 /// @param increment Phase increment per sample (must be > 0)
 /// @return Fractional sample position [0, 1) where the wrap occurred.
-///         Returns 0.0 if increment is 0 (no advancement).
+///         Returns 0.0 if increment is 0 (no advancement guard, FR-006).
+///
+/// @pre Should only be called immediately after a detected wrap,
+///      when phase < increment (FR-007).
 ///
 /// @example
 /// @code
-/// // Phase was 0.98, increment is 0.05, so after advance:
+/// // Phase was 0.98, increment is 0.05, after advance:
 /// // unwrapped = 1.03, wrapped = 0.03
 /// // offset = 0.03 / 0.05 = 0.6 (wrap happened 60% through the sample)
 /// double offset = subsamplePhaseWrapOffset(0.03, 0.05);  // returns 0.6
@@ -120,15 +111,10 @@ namespace DSP {
 [[nodiscard]] constexpr double subsamplePhaseWrapOffset(
     double phase,
     double increment
-) noexcept {
-    if (increment > 0.0) {
-        return phase / increment;
-    }
-    return 0.0;
-}
+) noexcept;
 
 // =============================================================================
-// PhaseAccumulator Struct (FR-019, FR-020, FR-021)
+// PhaseAccumulator Struct (FR-008 through FR-013, FR-015)
 // =============================================================================
 
 /// @brief Lightweight phase accumulator for oscillator phase management.
@@ -152,31 +138,27 @@ namespace DSP {
 /// }
 /// @endcode
 struct PhaseAccumulator {
-    double phase = 0.0;       ///< Current phase position [0, 1)
-    double increment = 0.0;   ///< Phase advance per sample
+    double phase = 0.0;       ///< Current phase position [0, 1) (FR-008, FR-012, FR-013)
+    double increment = 0.0;   ///< Phase advance per sample (FR-008, FR-012, FR-013)
 
     /// @brief Advance phase by one sample and wrap if necessary.
+    ///
+    /// Adds increment to phase, wraps via `phase -= 1.0` when `phase >= 1.0`.
+    ///
     /// @return true if the phase wrapped around (crossed 1.0), false otherwise.
-    [[nodiscard]] bool advance() noexcept {
-        phase += increment;
-        if (phase >= 1.0) {
-            phase -= 1.0;
-            return true;
-        }
-        return false;
-    }
+    /// @note Assumes increment < 1.0 (frequency < sampleRate). (FR-009)
+    [[nodiscard]] bool advance() noexcept;
 
-    /// @brief Reset phase to 0.0. Preserves increment.
-    void reset() noexcept {
-        phase = 0.0;
-    }
+    /// @brief Reset phase to 0.0. Preserves increment.  (FR-010)
+    void reset() noexcept;
 
     /// @brief Set the phase increment from frequency and sample rate.
+    ///
+    /// Sets increment = calculatePhaseIncrement(frequency, sampleRate). (FR-011)
+    ///
     /// @param frequency Oscillator frequency in Hz
     /// @param sampleRate Sample rate in Hz
-    void setFrequency(float frequency, float sampleRate) noexcept {
-        increment = calculatePhaseIncrement(frequency, sampleRate);
-    }
+    void setFrequency(float frequency, float sampleRate) noexcept;
 };
 
 } // namespace DSP

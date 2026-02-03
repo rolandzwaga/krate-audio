@@ -18,6 +18,7 @@
 
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/math_constants.h>
+#include <krate/dsp/core/phase_utils.h>
 #include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/primitives/oversampler.h>
 
@@ -173,7 +174,7 @@ public:
         svf_.reset();
         oversampler2x_.reset();
         oversampler4x_.reset();
-        phase_ = 0.0;
+        phaseAcc_.reset();
         previousOutput_ = 0.0f;
     }
 
@@ -461,7 +462,7 @@ private:
     void updatePhaseIncrement() noexcept {
         // Phase increment per sample at base sample rate
         // For oversampled processing, this will be divided by factor
-        phaseIncrement_ = static_cast<double>(modulatorFreq_) / baseSampleRate_;
+        phaseAcc_.increment = calculatePhaseIncrement(modulatorFreq_, static_cast<float>(baseSampleRate_));
     }
 
     [[nodiscard]] float readOscillator() noexcept {
@@ -469,24 +470,21 @@ private:
 
         switch (waveform_) {
             case FMWaveform::Sine:
-                value = readWavetable(sineTable_, phase_);
+                value = readWavetable(sineTable_, phaseAcc_.phase);
                 break;
             case FMWaveform::Triangle:
-                value = readWavetable(triangleTable_, phase_);
+                value = readWavetable(triangleTable_, phaseAcc_.phase);
                 break;
             case FMWaveform::Sawtooth:
-                value = readWavetable(sawTable_, phase_);
+                value = readWavetable(sawTable_, phaseAcc_.phase);
                 break;
             case FMWaveform::Square:
-                value = readWavetable(squareTable_, phase_);
+                value = readWavetable(squareTable_, phaseAcc_.phase);
                 break;
         }
 
         // Advance phase
-        phase_ += phaseIncrement_;
-        if (phase_ >= 1.0) {
-            phase_ -= 1.0;
-        }
+        (void)phaseAcc_.advance();
 
         return value;
     }
@@ -496,24 +494,24 @@ private:
 
         switch (waveform_) {
             case FMWaveform::Sine:
-                value = readWavetable(sineTable_, phase_);
+                value = readWavetable(sineTable_, phaseAcc_.phase);
                 break;
             case FMWaveform::Triangle:
-                value = readWavetable(triangleTable_, phase_);
+                value = readWavetable(triangleTable_, phaseAcc_.phase);
                 break;
             case FMWaveform::Sawtooth:
-                value = readWavetable(sawTable_, phase_);
+                value = readWavetable(sawTable_, phaseAcc_.phase);
                 break;
             case FMWaveform::Square:
-                value = readWavetable(squareTable_, phase_);
+                value = readWavetable(squareTable_, phaseAcc_.phase);
                 break;
         }
 
-        // Advance phase at oversampled rate
-        double oversampledIncrement = phaseIncrement_ / static_cast<double>(factor);
-        phase_ += oversampledIncrement;
-        if (phase_ >= 1.0) {
-            phase_ -= 1.0;
+        // Advance phase at oversampled rate (FR-027: direct phase manipulation)
+        double oversampledIncrement = phaseAcc_.increment / static_cast<double>(factor);
+        phaseAcc_.phase += oversampledIncrement;
+        if (phaseAcc_.phase >= 1.0) {
+            phaseAcc_.phase -= 1.0;
         }
 
         return value;
@@ -671,8 +669,7 @@ private:
     float fmDepth_ = 1.0f;
 
     // Internal oscillator state
-    double phase_ = 0.0;
-    double phaseIncrement_ = 0.0;
+    PhaseAccumulator phaseAcc_;
 
     // Wavetables (FR-023)
     std::array<float, kWavetableSize> sineTable_{};

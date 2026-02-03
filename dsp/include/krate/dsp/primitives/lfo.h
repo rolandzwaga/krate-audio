@@ -15,6 +15,7 @@
 #pragma once
 
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/phase_utils.h>
 
 #include <algorithm>
 #include <array>
@@ -90,7 +91,7 @@ public:
 
     /// @brief Reset the LFO to initial state.
     void reset() noexcept {
-        phase_ = 0.0;
+        phaseAcc_.reset();
         // Initialize random state with a deterministic seed
         randomState_ = 12345u;
         currentRandom_ = nextRandomValue();
@@ -110,10 +111,7 @@ public:
         hasProcessed_ = true;  // Mark that processing has started
 
         // Calculate effective phase including offset
-        double effectivePhase = phase_ + phaseOffsetNorm_;
-        if (effectivePhase >= 1.0) {
-            effectivePhase -= 1.0;
-        }
+        double effectivePhase = wrapPhase(phaseAcc_.phase + phaseOffsetNorm_);
 
         float output = 0.0f;
 
@@ -135,12 +133,10 @@ public:
         }
 
         // Advance phase
-        phase_ += phaseIncrement_;
+        bool wrapped = phaseAcc_.advance();
 
         // Check for phase wrap (cycle complete)
-        if (phase_ >= 1.0) {
-            phase_ -= 1.0;
-
+        if (wrapped) {
             // Update random state at cycle boundary
             if (waveform_ == Waveform::SampleHold) {
                 currentRandom_ = nextRandomValue();
@@ -171,8 +167,7 @@ public:
             // During initial setup, switch immediately
             if (hasProcessed_) {
                 // Calculate current effective phase
-                double effectivePhase = phase_ + phaseOffsetNorm_;
-                if (effectivePhase >= 1.0) effectivePhase -= 1.0;
+                double effectivePhase = wrapPhase(phaseAcc_.phase + phaseOffsetNorm_);
 
                 // Capture the current output value to crossfade from
                 // This handles both normal transitions and mid-crossfade transitions
@@ -248,7 +243,7 @@ public:
     /// @brief Retrigger the LFO phase.
     void retrigger() noexcept {
         if (retriggerEnabled_) {
-            phase_ = 0.0;
+            phaseAcc_.reset();
             // Re-initialize random state for consistent retrigger behavior
             if (waveform_ == Waveform::SampleHold || waveform_ == Waveform::SmoothRandom) {
                 currentRandom_ = nextRandomValue();
@@ -429,7 +424,7 @@ private:
 
     void updatePhaseIncrement() noexcept {
         float freq = tempoSync_ ? tempoSyncFrequency_ : frequency_;
-        phaseIncrement_ = static_cast<double>(freq) / sampleRate_;
+        phaseAcc_.increment = calculatePhaseIncrement(freq, static_cast<float>(sampleRate_));
     }
 
     void updateCrossfadeIncrement() noexcept {
@@ -446,8 +441,7 @@ private:
     double sampleRate_ = 44100.0;
 
     // Phase state
-    double phase_ = 0.0;           // Current phase [0, 1)
-    double phaseIncrement_ = 0.0;  // Phase advance per sample
+    PhaseAccumulator phaseAcc_;        // Centralized phase management
     double phaseOffsetNorm_ = 0.0; // Phase offset [0, 1)
     float phaseOffsetDeg_ = 0.0f;  // Phase offset in degrees (for query)
 
