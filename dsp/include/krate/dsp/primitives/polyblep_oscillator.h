@@ -184,7 +184,10 @@ public:
         const float dt = (sampleRate_ > 0.0f) ? (effectiveFreq / sampleRate_) : 0.0f;
 
         // Read current phase and apply PM offset (FR-020)
-        float pmNormalized = pmOffset_ / kTwoPi;
+        // Guard against NaN/Inf in PM offset (FR-033)
+        float safePmOffset = (detail::isNaN(pmOffset_) || detail::isInf(pmOffset_))
+                           ? 0.0f : pmOffset_;
+        float pmNormalized = safePmOffset / kTwoPi;
         double effectivePhase = wrapPhase(phaseAcc_.phase + static_cast<double>(pmNormalized));
         const float t = static_cast<float>(effectivePhase);
 

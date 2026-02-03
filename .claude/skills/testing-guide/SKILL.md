@@ -330,7 +330,7 @@ REQUIRE(nearZeroValue == Approx(0.0f).margin(1e-6f));
 
 ## Guard Rail Tests
 
-Ensure DSP code doesn't produce invalid output:
+Ensure DSP code doesn't produce invalid output. **Important:** Never put `REQUIRE`/`INFO` inside sample-processing loops — collect metrics in the loop and assert once after. See [ANTI-PATTERNS.md #13](ANTI-PATTERNS.md#13-the-loop-assertion-catch2-performance-killer).
 
 ```cpp
 TEST_CASE("DSP output contains no NaN or Inf", "[dsp][safety]") {
@@ -344,20 +344,27 @@ TEST_CASE("DSP output contains no NaN or Inf", "[dsp][safety]") {
         generateSine(buffer.data(), 512, 440.0f, 44100.0f);
         sat.process(buffer.data(), 512);
 
+        bool hasNaN = false, hasInf = false;
         for (float sample : buffer) {
-            REQUIRE_FALSE(std::isnan(sample));
-            REQUIRE_FALSE(std::isinf(sample));
+            if (detail::isNaN(sample)) hasNaN = true;
+            if (detail::isInf(sample)) hasInf = true;
         }
+        REQUIRE_FALSE(hasNaN);
+        REQUIRE_FALSE(hasInf);
     }
 
     SECTION("extreme input") {
         std::fill(buffer.begin(), buffer.end(), 1000.0f);
         sat.process(buffer.data(), 512);
 
+        bool hasNaN = false;
+        float maxAbs = 0.0f;
         for (float sample : buffer) {
-            REQUIRE_FALSE(std::isnan(sample));
-            REQUIRE(std::abs(sample) <= 2.0f);
+            if (detail::isNaN(sample)) hasNaN = true;
+            maxAbs = std::max(maxAbs, std::abs(sample));
         }
+        REQUIRE_FALSE(hasNaN);
+        REQUIRE(maxAbs <= 2.0f);
     }
 }
 ```
