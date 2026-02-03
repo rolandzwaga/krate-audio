@@ -463,3 +463,101 @@ namespace Disrumpo::SweepMorphLink {
 - Mapping sweep frequency position to morph position in Disrumpo
 - Any feature needing normalized [0,1] position curve transformations
 - Building custom automation curves with predictable mathematical properties
+
+---
+
+## PolyBLEP/PolyBLAMP Correction Functions
+**Path:** [polyblep.h](../../dsp/include/krate/dsp/core/polyblep.h) | **Since:** 0.15.0
+
+Polynomial band-limited step (BLEP) and ramp (BLAMP) correction functions for anti-aliased waveform generation. Pure constexpr math with no state, no allocations.
+
+```cpp
+// 2-point variants (C1 continuity, correction region: dt)
+[[nodiscard]] constexpr float polyBlep(float t, float dt) noexcept;   // Step correction
+[[nodiscard]] constexpr float polyBlamp(float t, float dt) noexcept;  // Ramp correction
+
+// 4-point variants (C3 continuity, correction region: 2*dt)
+[[nodiscard]] constexpr float polyBlep4(float t, float dt) noexcept;  // Higher-quality step correction
+[[nodiscard]] constexpr float polyBlamp4(float t, float dt) noexcept; // Higher-quality ramp correction
+```
+
+| Function | Polynomial Degree | Kernel Width | Continuity | Use Case |
+|----------|------------------|--------------|------------|----------|
+| `polyBlep` | 2nd | 2 samples | C1 | Sawtooth/square anti-aliasing |
+| `polyBlep4` | 4th | 4 samples | C3 | High-quality step correction (hard sync, fast FM) |
+| `polyBlamp` | 3rd | 2 samples | C1 | Triangle peak smoothing |
+| `polyBlamp4` | 5th | 4 samples | C3 | High-quality ramp correction |
+
+**Parameters:**
+- `t`: Normalized phase [0, 1)
+- `dt`: Normalized frequency = frequency / sampleRate. Precondition: 0 < dt < 0.5
+
+**When to use:**
+- Building any PolyBLEP-based oscillator (sawtooth, square, triangle, pulse)
+- Correcting step discontinuities: `saw -= polyBlep(t, dt)`
+- Correcting ramp discontinuities: `tri += slopeChange * dt * polyBlamp(t, dt)`
+- Use 4-point variants when higher alias suppression is needed (hard sync, fast FM)
+
+**Do NOT use when:**
+- dt >= 0.5 (frequency at or above Nyquist) -- behavior undefined
+- Building wavetable oscillators (use bandlimited wavetables instead)
+
+---
+
+## Phase Accumulator & Utilities
+**Path:** [phase_utils.h](../../dsp/include/krate/dsp/core/phase_utils.h) | **Since:** 0.15.0
+
+Centralized phase accumulator and utility functions for oscillator infrastructure. Replaces duplicated phase logic in lfo.h, audio_rate_filter_fm.h, and frequency_shifter.h.
+
+```cpp
+// Standalone utility functions
+[[nodiscard]] constexpr double calculatePhaseIncrement(float frequency, float sampleRate) noexcept;
+[[nodiscard]] constexpr double wrapPhase(double phase) noexcept;       // Wraps to [0, 1) via subtraction
+[[nodiscard]] constexpr bool detectPhaseWrap(double currentPhase, double previousPhase) noexcept;
+[[nodiscard]] constexpr double subsamplePhaseWrapOffset(double phase, double increment) noexcept;
+
+// Phase accumulator struct
+struct PhaseAccumulator {
+    double phase = 0.0;       // Current phase [0, 1)
+    double increment = 0.0;   // Phase advance per sample
+
+    [[nodiscard]] bool advance() noexcept;                         // Returns true on wrap
+    void reset() noexcept;                                          // Phase -> 0, keeps increment
+    void setFrequency(float frequency, float sampleRate) noexcept; // Sets increment
+};
+```
+
+**Basic PhaseAccumulator pattern:**
+```cpp
+PhaseAccumulator acc;
+acc.setFrequency(440.0f, 44100.0f);
+
+for (int i = 0; i < numSamples; ++i) {
+    float saw = 2.0f * static_cast<float>(acc.phase) - 1.0f;
+    float t = static_cast<float>(acc.phase);
+    float dt = static_cast<float>(acc.increment);
+    saw -= polyBlep(t, dt);
+
+    bool wrapped = acc.advance();
+    if (wrapped) {
+        double offset = subsamplePhaseWrapOffset(acc.phase, acc.increment);
+        // Use offset for sub-sample-accurate BLEP placement
+    }
+    output[i] = saw;
+}
+```
+
+**Design decisions:**
+- `double` precision for phase/increment prevents accumulated rounding over long playback
+- Wrapping uses subtraction (not `std::fmod`) matching existing codebase pattern
+- `wrapPhase(double)` wraps to [0, 1) for oscillator use; distinct from `spectral_utils.h::wrapPhase(float)` which wraps to [-pi, pi]
+
+**When to use:**
+- Any oscillator or modulator needing phase management
+- Calculating phase increments from frequency/sample rate
+- Detecting and timing phase wraps for PolyBLEP correction
+- Replacing duplicated phase logic in existing components
+
+**Do NOT use when:**
+- You need spectral phase wrapping to [-pi, pi] (use `spectral_utils.h` instead)
+- You need quadrature oscillator (sin/cos rotation) pattern (use direct computation)

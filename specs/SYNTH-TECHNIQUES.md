@@ -2,7 +2,7 @@
 
 This document outlines a synthesizer architecture that leverages the novel DSP components documented in this project, including chaos-based oscillators, spectral morphing, and experimental distortion techniques.
 
-## Concept: "Entropy" - Chaos/Spectral Hybrid Synthesizer
+## Concept: "Ruinae" - Chaos/Spectral Hybrid Synthesizer
 
 A synthesizer built around controlled chaos and spectral manipulation, designed for evolving textures, aggressive leads, and experimental sound design.
 
@@ -546,5 +546,5 @@ class ChaosMod {
 
 - [DSP-OSCILLATOR-TECHNIQUES.md](DSP-OSCILLATOR-TECHNIQUES.md) - Novel oscillator implementations
 - [DST-ROADMAP.md](DST-ROADMAP.md) - Distortion technique roadmap
-- [080-spectral-morph-filter/spec.md](080-spectral-morph-filter/spec.md) - Spectral morphing specification
+- [080-spectral-morph-filter/spec.md](_archive_/080-spectral-morph-filter/spec.md) - Spectral morphing specification
 - Project Constitution: `.specify/memory/constitution.md`
