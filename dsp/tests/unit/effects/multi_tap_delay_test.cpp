@@ -715,7 +715,7 @@ TEST_CASE("Audio processing", "[multi-tap][process]") {
         // Check that left channel has more energy at first tap time
         // This is a simplified check
         float leftEnergy = 0.0f, rightEnergy = 0.0f;
-        for (size_t i = 22000; i < 23000 && i < totalSamples; ++i) {
+        for (size_t i = 22000; i < std::min(size_t{23000}, totalSamples); ++i) {
             leftEnergy += left[i] * left[i];
             rightEnergy += right[i] * right[i];
         }

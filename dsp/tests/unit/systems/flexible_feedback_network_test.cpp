@@ -146,7 +146,7 @@ TEST_CASE("IFeedbackProcessor interface contract", "[systems][flexible-feedback]
         std::array<float, 4> right = {1.0f, 1.0f, 1.0f, 1.0f};
 
         proc->process(left.data(), right.data(), 4);
-        proc->reset();
+        (*proc).reset();
 
         REQUIRE(proc->getLatencySamples() == 0);
     }

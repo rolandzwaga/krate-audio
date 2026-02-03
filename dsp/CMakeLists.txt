@@ -133,6 +133,17 @@ target_sources(KrateDSP PRIVATE
 )
 
 # ==============================================================================
+# Lint Stub (for strict clang-tidy analysis of all public headers)
+# ==============================================================================
+# This OBJECT library compiles a single .cpp that includes every public header,
+# giving clang-tidy a translation unit under the root .clang-tidy (strict).
+# Run: ./tools/run-clang-tidy.ps1 -Target dsp-lib
+add_library(dsp_lint_stub OBJECT lint_all_headers.cpp)
+target_link_libraries(dsp_lint_stub PRIVATE KrateDSP)
+target_compile_features(dsp_lint_stub PRIVATE cxx_std_20)
+set_target_properties(dsp_lint_stub PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
+# ==============================================================================
 # Tests
 # ==============================================================================
 if(VSTWORK_BUILD_TESTS)

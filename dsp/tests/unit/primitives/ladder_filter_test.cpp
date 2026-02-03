@@ -2148,7 +2148,7 @@ TEST_CASE("LadderFilter model switching during self-oscillation", "[ladder][edge
     // Start self-oscillation
     [[maybe_unused]] auto _ = filter.process(0.01f);
     for (int i = 0; i < 1000; ++i) {
-        [[maybe_unused]] auto __ = filter.process(0.0f);
+        [[maybe_unused]] auto unused = filter.process(0.0f);
     }
 
     // Switch to linear model

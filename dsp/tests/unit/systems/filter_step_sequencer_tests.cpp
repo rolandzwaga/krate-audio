@@ -1424,7 +1424,9 @@ TEST_CASE("FilterStepSequencer zero allocation - FR-019", "[filter_step_sequence
         // - Calls only noexcept methods on primitives
         // - No std::vector, std::string, or allocating operations
 
-        REQUIRE(sizeof(FilterStepSequencer) > 0);  // Compiles = passes static check
+        // NOLINTNEXTLINE(bugprone-sizeof-expression) - intentional completeness check
+        static_assert(sizeof(FilterStepSequencer) > 0, "type must be complete");
+        REQUIRE(true);  // placeholder assertion for test framework
     }
 }
 

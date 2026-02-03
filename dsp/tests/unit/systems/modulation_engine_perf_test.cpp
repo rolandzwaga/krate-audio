@@ -43,6 +43,7 @@ TEST_CASE("Performance: 32 active routings < 1% CPU", "[systems][modulation_engi
             case 3: r.source = ModSource::Random; break;
             case 4: r.source = ModSource::Macro1; break;
             case 5: r.source = ModSource::Transient; break;
+            default: break;
         }
         r.destParamId = static_cast<uint32_t>(i % kMaxModDestinations);
         r.amount = 0.5f;

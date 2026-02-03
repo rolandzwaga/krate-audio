@@ -601,7 +601,7 @@ TEST_CASE("GranularDistortion density changes are click-free (FR-009)",
     generateSine(buffer.data(), buffer.size(), 440.0f, 44100.0f, 0.3f);
 
     // Process first block
-    gd.process(&buffer[0], blockSize);
+    gd.process(buffer.data(), blockSize);
 
     // Change density abruptly
     gd.setGrainDensity(1.0f);

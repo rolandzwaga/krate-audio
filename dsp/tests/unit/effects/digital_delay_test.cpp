@@ -1278,7 +1278,7 @@ TEST_CASE("REGRESSION: Dry buffer size mismatch causes discontinuity at sample 8
 
         // With full dry mix, output should match input exactly
         // Check specifically around the buffer boundary
-        for (size_t i = 8100; i < 8300 && i < largeBlockSize; ++i) {
+        for (size_t i = 8100; i < std::min(size_t{8300}, largeBlockSize); ++i) {
             INFO("Sample " << i << ": original=" << originalLeft[i] << ", output=" << left[i]);
             REQUIRE(left[i] == Approx(originalLeft[i]).margin(0.01f));
         }

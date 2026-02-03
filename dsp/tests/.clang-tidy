@@ -1,0 +1,40 @@
+# ==============================================================================
+# Clang-Tidy Overrides for Test Files
+# ==============================================================================
+# Test code has relaxed linting requirements. Production code (dsp/include/,
+# plugins/*/src/) uses the strict root .clang-tidy config.
+#
+# Disabled checks fall into two categories:
+#   1. Catch2 macro false positives (macros expand inline at test source location)
+#   2. Stylistic/modernize checks that add noise without catching real bugs
+#
+# The root .clang-tidy config is inherited; only additional exclusions listed.
+# ==============================================================================
+
+InheritParentConfig: true
+
+Checks: >
+  -bugprone-chained-comparison,
+  -bugprone-exception-escape,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-integer-division,
+  -cert-err58-cpp,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-pro-type-member-init,
+  -misc-use-internal-linkage,
+  -misc-unused-using-decls,
+  -misc-unused-parameters,
+  -modernize-loop-convert,
+  -modernize-min-max-use-initializer-list,
+  -modernize-use-auto,
+  -modernize-use-designated-initializers,
+  -modernize-use-std-numbers,
+  -performance-inefficient-vector-operation,
+  -performance-unnecessary-copy-initialization,
+  -readability-container-size-empty,
+  -readability-convert-member-functions-to-static,
+  -readability-isolate-declaration,
+  -readability-redundant-casting,
+  -readability-use-anyofallof,
+  -readability-use-std-min-max,

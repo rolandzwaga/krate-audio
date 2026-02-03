@@ -376,6 +376,7 @@ TEST_CASE("processBlock() produces bit-identical output to N sequential process(
     }
 
     // Verify bit-identical using memcmp
+    // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison) - intentional bit-exact check
     REQUIRE(std::memcmp(blockBuffer.data(), sequentialBuffer.data(),
                         numSamples * sizeof(float)) == 0);
 }
