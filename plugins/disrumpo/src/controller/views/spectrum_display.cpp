@@ -14,6 +14,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <cstdio>
 
 namespace Disrumpo {
 
@@ -190,6 +191,40 @@ void SpectrumDisplay::stopAnalysis() {
 }
 
 // ==============================================================================
+// Frequency Formatting
+// ==============================================================================
+
+std::string SpectrumDisplay::formatFrequency(float freqHz, bool precise) {
+    char buf[32];
+    if (precise) {
+        if (freqHz < 1000.0f) {
+            std::snprintf(buf, sizeof(buf), "%d Hz", static_cast<int>(freqHz + 0.5f));
+        } else {
+            float kHz = freqHz / 1000.0f;
+            if (kHz >= 10.0f) {
+                std::snprintf(buf, sizeof(buf), "%.1f kHz", static_cast<double>(kHz));
+            } else {
+                std::snprintf(buf, sizeof(buf), "%.2f kHz", static_cast<double>(kHz));
+            }
+        }
+    } else {
+        if (freqHz < 1000.0f) {
+            std::snprintf(buf, sizeof(buf), "%d", static_cast<int>(freqHz + 0.5f));
+        } else {
+            float kHz = freqHz / 1000.0f;
+            if (kHz >= 10.0f) {
+                std::snprintf(buf, sizeof(buf), "%.0fk", static_cast<double>(kHz));
+            } else if (kHz == std::floor(kHz)) {
+                std::snprintf(buf, sizeof(buf), "%.0fk", static_cast<double>(kHz));
+            } else {
+                std::snprintf(buf, sizeof(buf), "%.1fk", static_cast<double>(kHz));
+            }
+        }
+    }
+    return buf;
+}
+
+// ==============================================================================
 // Drawing
 // ==============================================================================
 
@@ -247,6 +282,9 @@ void SpectrumDisplay::draw(VSTGUI::CDrawContext* context) {
     // Layer 6: Crossover dividers
     drawCrossoverDividers(context);
 
+    // Layer 6b: Crossover frequency labels
+    drawCrossoverLabels(context);
+
     // Layer 7: Frequency scale
     drawFrequencyScale(context);
 
@@ -268,6 +306,7 @@ VSTGUI::CMouseEventResult SpectrumDisplay::onMouseDown(
     int divider = hitTestDivider(localX);
     if (divider >= 0) {
         draggingDivider_ = divider;
+        hoveredDivider_ = -1;  // Drag takes priority over hover
         return VSTGUI::kMouseEventHandled;
     }
 
@@ -296,22 +335,44 @@ VSTGUI::CMouseEventResult SpectrumDisplay::onMouseUp(
 
     if (draggingDivider_ >= 0) {
         draggingDivider_ = -1;
+        invalid();
         return VSTGUI::kMouseEventHandled;
     }
 
     return VSTGUI::kMouseEventNotHandled;
 }
 
+VSTGUI::CMouseEventResult SpectrumDisplay::onMouseExited(
+    VSTGUI::CPoint& where,
+    const VSTGUI::CButtonState& buttons) {
+
+    (void)where;
+    (void)buttons;
+
+    if (hoveredDivider_ >= 0) {
+        hoveredDivider_ = -1;
+        invalid();
+    }
+    return VSTGUI::kMouseEventHandled;
+}
+
 VSTGUI::CMouseEventResult SpectrumDisplay::onMouseMoved(
     VSTGUI::CPoint& where,
     const VSTGUI::CButtonState& buttons) {
 
+    auto viewSize = getViewSize();
+    float localX = static_cast<float>(where.x - viewSize.left);
+
+    // When not dragging, track hover state for frequency labels
     if (draggingDivider_ < 0 || ((buttons & VSTGUI::kLButton) == 0)) {
+        int newHover = hitTestDivider(localX);
+        if (newHover != hoveredDivider_) {
+            hoveredDivider_ = newHover;
+            invalid();
+        }
         return VSTGUI::kMouseEventNotHandled;
     }
 
-    auto viewSize = getViewSize();
-    float localX = static_cast<float>(where.x - viewSize.left);
     float newFreq = xToFreq(localX);
 
     // Clamp to valid range
@@ -407,6 +468,90 @@ void SpectrumDisplay::drawCrossoverDividers(VSTGUI::CDrawContext* context) {
             context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
             path->forget();
         }
+    }
+}
+
+void SpectrumDisplay::drawCrossoverLabels(VSTGUI::CDrawContext* context) {
+    if (numBands_ <= 1) return;
+
+    auto viewSize = getViewSize();
+    float viewLeft = static_cast<float>(viewSize.left);
+
+    // Label geometry
+    constexpr float kLabelY = 13.0f;       // Top of label below triangle (triangle ends at 10)
+    constexpr float kLabelHeight = 14.0f;
+    constexpr float kLabelPadH = 4.0f;     // Horizontal padding for pill background
+    constexpr float kAbbrevHalfWidth = 18.0f;
+    constexpr float kPreciseHalfWidth = 30.0f;
+
+    VSTGUI::CFontRef font = VSTGUI::kNormalFontSmaller;
+    context->setFont(font);
+
+    // Build label rects and determine which are precise
+    struct LabelInfo {
+        float centerX;
+        bool precise;
+        std::string text;
+        VSTGUI::CRect rect;
+    };
+
+    int numDividers = numBands_ - 1;
+    std::vector<LabelInfo> labels(static_cast<size_t>(numDividers));
+
+    for (int i = 0; i < numDividers; ++i) {
+        auto& label = labels[static_cast<size_t>(i)];
+        label.centerX = freqToX(crossoverFreqs_[static_cast<size_t>(i)]) + viewLeft;
+        label.precise = (hoveredDivider_ == i || draggingDivider_ == i);
+        label.text = formatFrequency(crossoverFreqs_[static_cast<size_t>(i)], label.precise);
+
+        float halfW = label.precise ? kPreciseHalfWidth : kAbbrevHalfWidth;
+        float top = static_cast<float>(viewSize.top) + kLabelY;
+        label.rect = VSTGUI::CRect(
+            label.centerX - halfW, top,
+            label.centerX + halfW, top + kLabelHeight
+        );
+    }
+
+    // Simple collision avoidance: nudge overlapping adjacent labels apart
+    for (int i = 0; i < numDividers - 1; ++i) {
+        auto& left = labels[static_cast<size_t>(i)];
+        auto& right = labels[static_cast<size_t>(i + 1)];
+        float overlap = static_cast<float>(left.rect.right - right.rect.left);
+        if (overlap > 0.0f) {
+            float nudge = (overlap + 2.0f) / 2.0f;  // +2px gap
+            left.rect.offset(-nudge, 0);
+            left.centerX -= nudge;
+            right.rect.offset(nudge, 0);
+            right.centerX += nudge;
+        }
+    }
+
+    // Draw each label
+    for (int i = 0; i < numDividers; ++i) {
+        const auto& label = labels[static_cast<size_t>(i)];
+
+        if (label.precise) {
+            // Precise mode: dark pill background + white text
+            VSTGUI::CRect pillRect = label.rect;
+            pillRect.inset(-kLabelPadH, -1);
+
+            VSTGUI::CGraphicsPath* pill = context->createGraphicsPath();
+            if (pill) {
+                pill->addRoundRect(pillRect, 3.0);
+                context->setFillColor(VSTGUI::CColor(0x1A, 0x1A, 0x1E, 0xDD));
+                context->drawGraphicsPath(pill, VSTGUI::CDrawContext::kPathFilled);
+                pill->forget();
+            }
+
+            context->setFontColor(VSTGUI::CColor(0xFF, 0xFF, 0xFF, 0xFF));
+        } else {
+            // Abbreviated mode: band-colored text at reduced opacity
+            VSTGUI::CColor textColor = kBandColors[static_cast<size_t>(i)];
+            textColor.alpha = 180;  // ~70% opacity
+            context->setFontColor(textColor);
+        }
+
+        context->drawString(label.text.c_str(), label.rect, VSTGUI::kCenterText);
     }
 }
 

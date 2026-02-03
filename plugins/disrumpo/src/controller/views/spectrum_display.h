@@ -21,6 +21,7 @@
 #include <krate/dsp/primitives/spectrum_fifo.h>
 
 #include <array>
+#include <string>
 #include <vector>
 
 namespace Disrumpo {
@@ -144,6 +145,7 @@ public:
     VSTGUI::CMouseEventResult onMouseDown(VSTGUI::CPoint& where, const VSTGUI::CButtonState& buttons) override;
     VSTGUI::CMouseEventResult onMouseUp(VSTGUI::CPoint& where, const VSTGUI::CButtonState& buttons) override;
     VSTGUI::CMouseEventResult onMouseMoved(VSTGUI::CPoint& where, const VSTGUI::CButtonState& buttons) override;
+    VSTGUI::CMouseEventResult onMouseExited(VSTGUI::CPoint& where, const VSTGUI::CButtonState& buttons) override;
 
     CLASS_METHODS_NOCOPY(SpectrumDisplay, CView)
 
@@ -160,6 +162,15 @@ private:
 
     /// @brief Draw the frequency scale labels
     void drawFrequencyScale(VSTGUI::CDrawContext* context);
+
+    /// @brief Draw frequency labels below crossover handles
+    void drawCrossoverLabels(VSTGUI::CDrawContext* context);
+
+    /// @brief Format a frequency value for display
+    /// @param freqHz Frequency in Hz
+    /// @param precise If true, show full precision (e.g., "2.14 kHz"); if false, abbreviated (e.g., "2k")
+    /// @return Formatted string
+    static std::string formatFrequency(float freqHz, bool precise);
 
     /// @brief Hit test for crossover dividers
     /// @param x X coordinate to test
@@ -192,6 +203,9 @@ private:
 
     // Drag state (for Phase 8)
     int draggingDivider_ = -1;
+
+    // Hover state (for frequency label display)
+    int hoveredDivider_ = -1;
 
     // Band colors (from ui-mockups.md)
     static const std::array<VSTGUI::CColor, kMaxBands> kBandColors;
