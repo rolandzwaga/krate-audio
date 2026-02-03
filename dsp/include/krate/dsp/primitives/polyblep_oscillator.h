@@ -199,23 +199,33 @@ public:
 
             case OscWaveform::Sawtooth:
                 // FR-012: naive sawtooth minus PolyBLEP correction at wrap
+                // Uses 4-point PolyBLEP for improved alias suppression (>= 40 dB)
+                // Scale by 2: polyBlep4 corrects a unit step (0->1), but the
+                // sawtooth has a step of amplitude 2 (+1 to -1 at wrap).
                 output = 2.0f * t - 1.0f;
-                output -= polyBlep(t, dt);
+                output -= 2.0f * polyBlep4(t, dt);
                 break;
 
             case OscWaveform::Square: {
                 // FR-013: naive square with PolyBLEP at both edges
+                // Rising edge at phase=0 (from -1 to +1): ADD correction
+                // Falling edge at phase=0.5 (from +1 to -1): SUBTRACT correction
+                // Scale by 2: polyBlep4 corrects a unit step, but each square
+                // edge has amplitude 2 (from -1 to +1 or +1 to -1).
                 output = (t < 0.5f) ? 1.0f : -1.0f;
-                output -= polyBlep(t, dt);
-                output += polyBlep(static_cast<float>(wrapPhase(effectivePhase + 0.5)), dt);
+                output += 2.0f * polyBlep4(t, dt);
+                output -= 2.0f * polyBlep4(static_cast<float>(wrapPhase(effectivePhase + 0.5)), dt);
                 break;
             }
 
             case OscWaveform::Pulse: {
                 // FR-014: naive pulse with PolyBLEP at rising and falling edges
+                // Rising edge at phase=0 (from -1 to +1): ADD correction
+                // Falling edge at phase=pw (from +1 to -1): SUBTRACT correction
+                // Scale by 2: same reasoning as Square.
                 output = (t < pulseWidth_) ? 1.0f : -1.0f;
-                output -= polyBlep(t, dt);
-                output += polyBlep(
+                output += 2.0f * polyBlep4(t, dt);
+                output -= 2.0f * polyBlep4(
                     static_cast<float>(wrapPhase(effectivePhase + 1.0 - static_cast<double>(pulseWidth_))),
                     dt);
                 break;
@@ -224,9 +234,10 @@ public:
             case OscWaveform::Triangle: {
                 // FR-015: integrate PolyBLEP-corrected square wave with leaky integrator
                 // First compute the PolyBLEP-corrected square (50% duty cycle)
+                // Scale by 2: same reasoning as Square.
                 float square = (t < 0.5f) ? 1.0f : -1.0f;
-                square -= polyBlep(t, dt);
-                square += polyBlep(static_cast<float>(wrapPhase(effectivePhase + 0.5)), dt);
+                square += 2.0f * polyBlep4(t, dt);
+                square -= 2.0f * polyBlep4(static_cast<float>(wrapPhase(effectivePhase + 0.5)), dt);
 
                 // Leaky integrator with frequency-dependent coefficient
                 float leak = 1.0f - (4.0f * effectiveFreq / sampleRate_);
