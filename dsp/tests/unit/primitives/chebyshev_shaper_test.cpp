@@ -641,6 +641,6 @@ TEST_CASE("ChebyshevShaper is move constructible and assignable", "[chebyshev_sh
     ChebyshevShaper original;
     original.setHarmonicLevel(1, 0.5f);
 
-    ChebyshevShaper moved = std::move(original);
+    ChebyshevShaper moved(original);  // trivially copyable; move has no benefit
     REQUIRE(moved.getHarmonicLevel(1) == Approx(0.5f));
 }

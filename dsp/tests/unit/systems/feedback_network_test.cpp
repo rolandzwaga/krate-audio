@@ -1924,12 +1924,10 @@ TEST_CASE("FeedbackNetwork ClickDetector: no clicks on freeze mode transitions",
         }
 
         // Toggle freeze mode during processing
-        if (block == 10) {
+        if (block == 10 || block == 40) {
             network.setFreeze(true);
         } else if (block == 25) {
             network.setFreeze(false);
-        } else if (block == 40) {
-            network.setFreeze(true);
         }
 
         network.process(buffer.data(), buffer.size(), ctx);

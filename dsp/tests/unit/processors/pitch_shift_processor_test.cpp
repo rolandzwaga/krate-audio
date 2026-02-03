@@ -1574,7 +1574,7 @@ TEST_CASE("Parameter smoothing reaches target within 50ms", "[pitch][US6][automa
     }
 
     // After 50ms, the pitch ratio should be close to target
-    float targetRatio = std::pow(2.0f, 12.0f / 12.0f);  // 2.0
+    float targetRatio = 2.0f;  // std::pow(2, 12/12) = one octave up
     float actualRatio = shifter.getPitchRatio();
 
     // Allow 5% tolerance for reaching target

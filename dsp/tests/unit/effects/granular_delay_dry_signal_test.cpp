@@ -357,7 +357,7 @@ TEST_CASE("Short repeated notes at various intervals",
             std::vector<float> inputR(noteInterval, 0.0f);
 
             // Add impulse-like note
-            for (size_t i = 0; i < noteLength && i < noteInterval; ++i) {
+            for (size_t i = 0; i < std::min(noteLength, noteInterval); ++i) {
                 float t = static_cast<float>(i) / noteLength;
                 float envelope = 0.5f * (1.0f - std::cos(t * 2.0f * 3.14159f));  // Hann fade
                 inputL[i] = envelope;

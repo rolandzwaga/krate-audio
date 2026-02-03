@@ -9,27 +9,43 @@
     If compile_commands.json is available, it will be used for accurate flags.
     Otherwise, explicit include paths are used as a fallback.
 
+    Files are analyzed in parallel by default for faster execution.
+
 .PARAMETER BuildDir
     Path to the CMake build directory containing compile_commands.json.
     Default: build/windows-x64-release
 
 .PARAMETER Fix
     Apply suggested fixes automatically. Use with caution and review changes.
+    Forces sequential execution (-Jobs 1) to avoid concurrent edit conflicts.
 
 .PARAMETER Target
-    Limit analysis to a specific target: 'dsp', 'iterum', 'disrumpo', or 'all'.
+    Limit analysis to a specific target:
+      'dsp'       - DSP library headers + tests
+      'dsp-tests' - DSP test files only
+      'iterum'    - Iterum plugin source
+      'disrumpo'  - Disrumpo plugin source
+      'all'       - Everything
     Default: all
 
 .PARAMETER Quiet
     Suppress progress output, only show warnings and errors.
+
+.PARAMETER Jobs
+    Number of parallel clang-tidy processes. Default: number of logical processors.
+    Set to 1 for sequential execution.
 
 .EXAMPLE
     .\tools\run-clang-tidy.ps1
     # Run clang-tidy on all source files
 
 .EXAMPLE
+    .\tools\run-clang-tidy.ps1 -Target dsp-tests -Jobs 8
+    # Run on DSP tests with 8 parallel jobs
+
+.EXAMPLE
     .\tools\run-clang-tidy.ps1 -Target dsp -Fix
-    # Run on DSP library only and apply fixes
+    # Run on DSP library and apply fixes (sequential)
 
 .EXAMPLE
     .\tools\run-clang-tidy.ps1 -BuildDir build/windows-x64-debug -Quiet
@@ -39,9 +55,10 @@
 param(
     [string]$BuildDir = "build/windows-x64-release",
     [switch]$Fix,
-    [ValidateSet("all", "dsp", "iterum", "disrumpo")]
+    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo")]
     [string]$Target = "all",
-    [switch]$Quiet
+    [switch]$Quiet,
+    [int]$Jobs = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -85,6 +102,21 @@ if (-not $Quiet) {
     Write-Info "Using clang-tidy: $ClangTidyPath"
 }
 
+# Determine parallel job count
+if ($Jobs -le 0) {
+    $Jobs = [Environment]::ProcessorCount
+}
+
+# Force sequential when fixing to avoid concurrent file edits
+if ($Fix -and $Jobs -gt 1) {
+    Write-Warn "Fix mode: forcing sequential execution (-Jobs 1) to avoid conflicts"
+    $Jobs = 1
+}
+
+if (-not $Quiet) {
+    Write-Info "Parallel jobs: $Jobs"
+}
+
 # Check if compile_commands.json exists
 $CompileCommands = Join-Path $BuildDir "compile_commands.json"
 $UseCompileCommands = Test-Path $CompileCommands
@@ -101,12 +133,26 @@ if ($UseCompileCommands) {
 }
 
 # Determine source directories based on target
+# $SourceDirs     - searched recursively for .cpp files
+# $RootSourceDirs - searched non-recursively (e.g. dsp/ root for lint stub)
 $SourceDirs = @()
+$RootSourceDirs = @()
 $IncludeDirs = @()
 
 switch ($Target) {
     "dsp" {
         $SourceDirs += "dsp/include"
+        $SourceDirs += "dsp/tests"
+        $RootSourceDirs += "dsp"
+        $IncludeDirs += "dsp/include"
+    }
+    "dsp-lib" {
+        $SourceDirs += "dsp/include"
+        $RootSourceDirs += "dsp"
+        $IncludeDirs += "dsp/include"
+    }
+    "dsp-tests" {
+        $SourceDirs += "dsp/tests"
         $IncludeDirs += "dsp/include"
     }
     "iterum" {
@@ -123,6 +169,8 @@ switch ($Target) {
     }
     "all" {
         $SourceDirs += "dsp/include"
+        $SourceDirs += "dsp/tests"
+        $RootSourceDirs += "dsp"
         $SourceDirs += "plugins/iterum/src"
         $SourceDirs += "plugins/disrumpo/src"
         $IncludeDirs += "dsp/include"
@@ -134,11 +182,22 @@ switch ($Target) {
 
 # Find all source files (only .cpp files for analysis, headers are checked via includes)
 $SourceFiles = @()
+
+# Recursive search in subdirectories
 foreach ($Dir in $SourceDirs) {
     $FullPath = Join-Path $ProjectRoot $Dir
     if (Test-Path $FullPath) {
-        # Only analyze .cpp files (headers are analyzed through includes)
         $Files = Get-ChildItem -Path $FullPath -Recurse -Include "*.cpp" |
+            Where-Object { $_.FullName -notmatch "extern|build|vst3sdk" }
+        $SourceFiles += $Files
+    }
+}
+
+# Non-recursive search in root directories (e.g. dsp/ for lint_all_headers.cpp)
+foreach ($Dir in $RootSourceDirs) {
+    $FullPath = Join-Path $ProjectRoot $Dir
+    if (Test-Path $FullPath) {
+        $Files = Get-ChildItem -Path $FullPath -Filter "*.cpp" |
             Where-Object { $_.FullName -notmatch "extern|build|vst3sdk" }
         $SourceFiles += $Files
     }
@@ -154,7 +213,10 @@ if (-not $Quiet) {
 }
 
 # Build base clang-tidy arguments
-$BaseArgs = @("--config-file=.clang-tidy")
+# NOTE: Do NOT use --config-file here. It overrides the per-directory .clang-tidy
+# lookup, which we need for test-specific overrides (e.g. dsp/tests/.clang-tidy).
+# The root .clang-tidy is found automatically via directory walk.
+$BaseArgs = @()
 
 if ($UseCompileCommands) {
     $BaseArgs += "-p"
@@ -166,20 +228,12 @@ if ($Fix) {
     Write-Warn "Fix mode enabled - files will be modified!"
 }
 
-# Run clang-tidy on each file
-$ErrorCount = 0
-$WarningCount = 0
-$FileCount = 0
-
+# Build per-file argument lists
+$FileJobs = @()
 foreach ($File in $SourceFiles) {
     $RelativePath = $File.FullName.Replace($ProjectRoot + "\", "").Replace("\", "/")
 
-    if (-not $Quiet) {
-        Write-Host "Analyzing: $RelativePath" -ForegroundColor Gray
-    }
-
-    # Build arguments for this file
-    $TidyArgs = $BaseArgs.Clone()
+    $TidyArgs = @() + $BaseArgs
     $TidyArgs += $File.FullName
 
     # Add fallback compiler flags if no compile_commands.json
@@ -194,38 +248,153 @@ foreach ($File in $SourceFiles) {
         }
     }
 
-    # Capture output, suppressing stderr noise from clang-tidy
-    $ErrorActionPreference = "SilentlyContinue"
-    $Output = & $ClangTidyPath @TidyArgs 2>&1 | Out-String
-    $ErrorActionPreference = "Stop"
+    $FileJobs += @{
+        File         = $File
+        RelativePath = $RelativePath
+        Args         = $TidyArgs
+    }
+}
 
-    if ($Output) {
-        # Filter to only our code paths (plugins/ and dsp/)
-        $OurLines = $Output -split "`n" | Where-Object {
-            ($_ -match "plugins[/\\]" -or $_ -match "dsp[/\\]") -and
-            $_ -notmatch "Processing file" -and
-            $_ -notmatch "Error while processing"
+# Process clang-tidy output for a single file, applying project filters
+function Process-TidyOutput {
+    param(
+        [string]$Output,
+        [string]$RelativePath
+    )
+
+    if (-not $Output) {
+        return @{ Warnings = 0; Errors = 0; Lines = @() }
+    }
+
+    # Filter to only our code paths (plugins/ and dsp/)
+    $OurLines = $Output -split "`n" | Where-Object {
+        ($_ -match "plugins[/\\]" -or $_ -match "dsp[/\\]") -and
+        $_ -notmatch "Processing file" -and
+        $_ -notmatch "Error while processing"
+    }
+
+    # Filter out known Catch2 macro false positives in test files.
+    # Belt-and-suspenders with the per-directory .clang-tidy in dsp/tests/.
+    $Catch2FalsePositives = "bugprone-chained-comparison|cppcoreguidelines-avoid-do-while"
+    $OurLines = $OurLines | Where-Object {
+        -not ($RelativePath -match "tests[/\\]" -and $_ -match $Catch2FalsePositives)
+    }
+
+    $warnings = @($OurLines | Where-Object { $_ -match "\bwarning:" }).Count
+    $errors = @($OurLines | Where-Object { $_ -match "\berror:" -and $_ -notmatch "clang-diagnostic-error" }).Count
+
+    $diagLines = @()
+    if ($warnings -gt 0 -or $errors -gt 0) {
+        $diagLines = @($OurLines | Where-Object { $_ -match "warning:|error:|note:" })
+    }
+
+    return @{
+        Warnings = $warnings
+        Errors   = $errors
+        Lines    = $diagLines
+    }
+}
+
+# ==============================================================================
+# Parallel Execution
+# ==============================================================================
+$ErrorCount = 0
+$WarningCount = 0
+$FileCount = 0
+$TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "clang-tidy-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+
+try {
+    $Running = [System.Collections.ArrayList]::new()
+    $JobIndex = 0
+    $TotalFiles = $FileJobs.Count
+
+    while ($JobIndex -lt $TotalFiles -or $Running.Count -gt 0) {
+        # Launch new processes up to the parallel limit
+        while ($JobIndex -lt $TotalFiles -and $Running.Count -lt $Jobs) {
+            $job = $FileJobs[$JobIndex]
+            $outFile = Join-Path $TempDir "$JobIndex.out"
+            $errFile = Join-Path $TempDir "$JobIndex.err"
+
+            # Build argument string with proper quoting for paths with spaces
+            $argStr = ($job.Args | ForEach-Object {
+                if ($_ -match '\s') { "`"$_`"" } else { $_ }
+            }) -join ' '
+
+            $proc = Start-Process -FilePath $ClangTidyPath -ArgumentList $argStr `
+                -NoNewWindow -PassThru `
+                -RedirectStandardOutput $outFile `
+                -RedirectStandardError $errFile
+
+            [void]$Running.Add(@{
+                Process      = $proc
+                OutFile      = $outFile
+                ErrFile      = $errFile
+                RelativePath = $job.RelativePath
+            })
+
+            $JobIndex++
         }
 
-        # Count warnings and errors from our code only
-        $OurWarnings = ($OurLines | Where-Object { $_ -match "\bwarning:" }).Count
-        $OurErrors = ($OurLines | Where-Object { $_ -match "\berror:" -and $_ -notmatch "clang-diagnostic-error" }).Count
+        # Check for completed processes
+        $stillRunning = [System.Collections.ArrayList]::new()
 
-        $WarningCount += $OurWarnings
-        $ErrorCount += $OurErrors
-
-        if ($OurWarnings -gt 0 -or $OurErrors -gt 0) {
-            # Print warnings from our code
-            foreach ($line in $OurLines) {
-                if ($line -match "warning:|error:|note:") {
-                    Write-Host $line
+        foreach ($r in $Running) {
+            if ($r.Process.HasExited) {
+                # Read combined stdout + stderr
+                $output = ""
+                if (Test-Path $r.OutFile) {
+                    $content = Get-Content $r.OutFile -Raw -ErrorAction SilentlyContinue
+                    if ($content) { $output += $content }
                 }
+                if (Test-Path $r.ErrFile) {
+                    $content = Get-Content $r.ErrFile -Raw -ErrorAction SilentlyContinue
+                    if ($content) { $output += $content }
+                }
+
+                $result = Process-TidyOutput -Output $output -RelativePath $r.RelativePath
+
+                $WarningCount += $result.Warnings
+                $ErrorCount += $result.Errors
+                $FileCount++
+
+                # Print diagnostics for this file
+                if ($result.Lines.Count -gt 0) {
+                    Write-Host ""
+                    foreach ($line in $result.Lines) {
+                        Write-Host $line
+                    }
+                }
+
+                if (-not $Quiet) {
+                    Write-Host "`r[$FileCount/$TotalFiles] $($r.RelativePath)                    " -ForegroundColor Gray -NoNewline
+                }
+            } else {
+                [void]$stillRunning.Add($r)
             }
-            Write-Host ""
+        }
+        $Running = $stillRunning
+
+        # Avoid busy-waiting when all slots are occupied
+        if ($Running.Count -gt 0 -and $Running.Count -ge $Jobs) {
+            Start-Sleep -Milliseconds 100
         }
     }
 
-    $FileCount++
+    # Final newline after progress counter
+    if (-not $Quiet) {
+        Write-Host ""
+    }
+
+} finally {
+    # Kill any still-running processes on Ctrl+C / error
+    foreach ($r in $Running) {
+        if ($r.Process -and -not $r.Process.HasExited) {
+            try { $r.Process.Kill() } catch {}
+        }
+    }
+    # Clean up temp directory
+    Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 # Summary

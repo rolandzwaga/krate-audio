@@ -1526,13 +1526,9 @@ TEST_CASE("FR-006a: Type crossfade produces no audible clicks (T123, SC-004)", "
         }
 
         // Switch type every 4 blocks to test crossfade multiple times
-        if (block == 4) {
+        if (block == 4 || block == 12) {
             fuzz.setFuzzType(FuzzType::Silicon);
-        } else if (block == 8) {
-            fuzz.setFuzzType(FuzzType::Germanium);
-        } else if (block == 12) {
-            fuzz.setFuzzType(FuzzType::Silicon);
-        } else if (block == 16) {
+        } else if (block == 8 || block == 16) {
             fuzz.setFuzzType(FuzzType::Germanium);
         }
 

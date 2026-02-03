@@ -655,6 +655,7 @@ TEST_CASE("BitShuffle: SC-004 (same seed produces bit-exact identical output aft
     }
 
     // SC-004: Bit-exact identical output
+    // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison) - intentional bit-exact check
     REQUIRE(std::memcmp(output1.data(), output2.data(), numSamples * sizeof(float)) == 0);
 }
 
@@ -1108,6 +1109,7 @@ TEST_CASE("processBlock produces same output as sequential process calls (FR-020
     }
 
     // Should be bit-identical
+    // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison) - intentional bit-exact check
     REQUIRE(std::memcmp(blockOutput.data(), sequentialOutput.data(), numSamples * sizeof(float)) == 0);
 }
 

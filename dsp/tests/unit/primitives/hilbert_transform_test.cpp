@@ -17,6 +17,7 @@
 #include <cmath>
 #include <chrono>
 #include <limits>
+#include <utility>
 #include <vector>
 
 using namespace Krate::DSP;
@@ -192,7 +193,7 @@ float measureActualPhaseDifference(const float* outI, const float* outQ, size_t 
 
         for (size_t i = startSample; i < numSamples - static_cast<size_t>(std::abs(lag)); ++i) {
             const int j = static_cast<int>(i) + lag;
-            if (j >= 0 && static_cast<size_t>(j) < numSamples) {
+            if (j >= 0 && std::cmp_less(j, numSamples)) {
                 corr += static_cast<double>(outI[i]) * outQ[static_cast<size_t>(j)];
                 count++;
             }

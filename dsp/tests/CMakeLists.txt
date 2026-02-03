@@ -40,6 +40,8 @@ add_executable(dsp_tests
     unit/core/midi_utils_tests.cpp
     unit/core/modulation_types_test.cpp
     unit/core/modulation_curves_test.cpp
+    unit/core/polyblep_test.cpp
+    unit/core/phase_utils_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/delay_line_test.cpp
@@ -232,6 +234,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/midi_utils_tests.cpp
         unit/core/modulation_types_test.cpp
         unit/core/modulation_curves_test.cpp
+        unit/core/polyblep_test.cpp
+        unit/core/phase_utils_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/dc_blocker_test.cpp
         unit/primitives/oversampler_test.cpp
