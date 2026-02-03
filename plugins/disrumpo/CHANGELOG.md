@@ -5,6 +5,14 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-02-03
+
+### Added
+
+- Frequency labels on crossover band handles: abbreviated at rest (e.g., "200", "2k"), precise on hover/drag (e.g., "2.14 kHz")
+- Collision avoidance for adjacent crossover labels when handles are close together
+- Spectrum visualizer mode button (Wet/Dry/Both)
+
 ## [0.9.0] - 2026-02-01
 
 ### Added
