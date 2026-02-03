@@ -84,6 +84,7 @@ add_executable(dsp_tests
     unit/primitives/bitwise_mangler_test.cpp
     unit/primitives/sweep_position_buffer_test.cpp
     unit/primitives/spectrum_fifo_test.cpp
+    unit/primitives/polyblep_oscillator_test.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
