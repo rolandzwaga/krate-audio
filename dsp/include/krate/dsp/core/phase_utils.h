@@ -21,7 +21,7 @@
 // - Principle IX: Layer 0 (depends only on stdlib)
 // - Principle XII: Test-First Development
 //
-// Reference: specs/013-polyblep-math/spec.md
+// Reference: specs/014-phase-accumulation-utils/spec.md
 // ==============================================================================
 
 #pragma once
