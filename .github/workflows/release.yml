@@ -383,6 +383,11 @@ jobs:
       release_url: ${{ steps.release.outputs.url }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for per-plugin changelog generation
+
       - name: Download Windows Installer
         uses: actions/download-artifact@v4
         with:
@@ -404,16 +409,80 @@ jobs:
       - name: List Installers
         run: ls -la installers/
 
+      # Generate per-plugin release notes from CHANGELOG.md + filtered git log
+      - name: Generate Release Notes
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
+          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
+          VERSION: ${{ needs.version.outputs.version }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          # --- Extract CHANGELOG section for this version ---
+          CHANGELOG_FILE="plugins/${PLUGIN}/CHANGELOG.md"
+          CHANGELOG_SECTION=""
+          if [ -f "$CHANGELOG_FILE" ]; then
+            # Extract everything between "## [VERSION]" and the next "## [" header
+            CHANGELOG_SECTION=$(awk \
+              "/^## \\[${VERSION}\\]/{found=1; next} /^## \\[/{if(found) exit} found" \
+              "$CHANGELOG_FILE")
+          fi
+
+          # --- Find previous tag for THIS plugin specifically ---
+          PREV_TAG=$(git tag --list "${PLUGIN}/v*" --sort=-version:refname \
+            | grep -v "^${TAG}$" | head -1)
+
+          # --- Generate path-filtered commit list ---
+          COMMITS=""
+          if [ -n "$PREV_TAG" ]; then
+            echo "Comparing ${PREV_TAG}..${TAG}"
+            COMMITS=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges \
+              -- "plugins/${PLUGIN}/" "dsp/" "plugins/shared/")
+          else
+            echo "First release for ${PLUGIN} — using all commits touching this plugin"
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges \
+              -- "plugins/${PLUGIN}/" "dsp/" "plugins/shared/")
+          fi
+
+          # --- Compose the release body ---
+          {
+            # Primary: CHANGELOG content (if available)
+            if [ -n "$CHANGELOG_SECTION" ]; then
+              echo "$CHANGELOG_SECTION"
+            else
+              echo "Release ${PLUGIN_NAME} v${VERSION}"
+            fi
+
+            # Secondary: Filtered commit list in a collapsible section
+            if [ -n "$COMMITS" ]; then
+              echo ""
+              echo "<details>"
+              echo "<summary>Commits included in this release</summary>"
+              echo ""
+              echo "$COMMITS"
+              echo ""
+              echo "</details>"
+            fi
+
+            # Footer with comparison link
+            if [ -n "$PREV_TAG" ]; then
+              echo ""
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
+            fi
+          } > release_notes.md
+
+          echo "=== Generated Release Notes ==="
+          cat release_notes.md
+
       # Create GitHub Release and tag
       - name: Create Release
         id: release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
-          name: ${{ needs.version.outputs.plugin_name }} ${{ needs.version.outputs.tag }}
+          name: ${{ needs.version.outputs.plugin_name }} v${{ needs.version.outputs.version }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
-          generate_release_notes: true
+          body_path: release_notes.md
           files: |
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
             installers/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
