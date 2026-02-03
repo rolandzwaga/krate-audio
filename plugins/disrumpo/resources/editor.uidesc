@@ -46,6 +46,7 @@
     <control-tag name="GlobalMix" tag="3842"/>
     <control-tag name="BandCount" tag="3843"/>
     <control-tag name="OversampleMax" tag="3844"/>
+    <control-tag name="SpectrumMode" tag="3845"/>
     <control-tag name="SweepEnable" tag="3584"/>
     <control-tag name="SweepFrequency" tag="3585"/>
     <control-tag name="SweepWidth" tag="3586"/>
@@ -528,6 +529,7 @@
     </view>
     <view class="CView" custom-view-name="SpectrumDisplay" origin="20, 60" size="960, 120"/>
     <view class="CView" custom-view-name="SweepIndicator" origin="20, 60" size="960, 120"/>
+    <view class="CSegmentButton" origin="860, 62" size="115, 20" control-tag="SpectrumMode" default-value="0" style="horizontal" segment-names="Wet, Dry, Both" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
     <view class="CViewContainer" origin="20, 190" size="960, 350" background-color="background-primary">
       <view class="CViewContainer" origin="0, 0" size="235, 340" background-color="panel" control-tag="Band1Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1Container" back-color="transparent"/>

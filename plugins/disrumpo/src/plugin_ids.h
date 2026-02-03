@@ -64,6 +64,7 @@ enum class GlobalParamType : uint8_t {
     kGlobalMix             = 0x02,  ///< Global dry/wet mix [0, 100] %
     kGlobalBandCount       = 0x03,  ///< Band count [1-4]
     kGlobalOversample      = 0x04,  ///< Max oversample [1x, 2x, 4x, 8x]
+    kGlobalSpectrumMode    = 0x05,  ///< Spectrum view mode [Wet/Dry/Both]
     kGlobalModPanelVisible = 0x06,  ///< Modulation panel visibility [on/off] (Spec 012)
     kGlobalMidiLearnActive = 0x07,  ///< MIDI Learn mode active [on/off] (Spec 012)
     kGlobalMidiLearnTarget = 0x08,  ///< MIDI Learn target parameter ID (Spec 012)

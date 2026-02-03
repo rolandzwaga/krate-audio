@@ -165,7 +165,7 @@ void SpectrumDisplay::startAnalysis(double sampleRate) {
             if (outputFIFO_) {
                 needsRedraw |= outputAnalyzer_.process(outputFIFO_, kDeltaTime);
             }
-            if (inputFIFO_ && (showInput_ || overlaidMode_)) {
+            if (inputFIFO_ && viewMode_ != SpectrumViewMode::kWet) {
                 needsRedraw |= inputAnalyzer_.process(inputFIFO_, kDeltaTime);
             }
 
@@ -210,26 +210,26 @@ void SpectrumDisplay::draw(VSTGUI::CDrawContext* context) {
 
     // Layer 2: Spectrum filled areas (per-band colored)
     if (analysisActive_) {
-        if (overlaidMode_ && inputFIFO_) {
+        if (viewMode_ == SpectrumViewMode::kBoth && inputFIFO_) {
             drawSpectrumCurve(context, inputAnalyzer_, 0.2f);
         }
-        if (outputFIFO_) {
+        if (viewMode_ != SpectrumViewMode::kDry && outputFIFO_) {
             drawSpectrumCurve(context, outputAnalyzer_, 0.5f);
         }
-        if (showInput_ && !overlaidMode_ && inputFIFO_) {
+        if (viewMode_ == SpectrumViewMode::kDry && inputFIFO_) {
             drawSpectrumCurve(context, inputAnalyzer_, 0.5f);
         }
     }
 
     // Layer 3: Peak hold lines
     if (analysisActive_) {
-        if (overlaidMode_ && inputFIFO_) {
+        if (viewMode_ == SpectrumViewMode::kBoth && inputFIFO_) {
             drawPeakHoldLine(context, inputAnalyzer_, 80);
         }
-        if (outputFIFO_) {
+        if (viewMode_ != SpectrumViewMode::kDry && outputFIFO_) {
             drawPeakHoldLine(context, outputAnalyzer_, 140);
         }
-        if (showInput_ && !overlaidMode_ && inputFIFO_) {
+        if (viewMode_ == SpectrumViewMode::kDry && inputFIFO_) {
             drawPeakHoldLine(context, inputAnalyzer_, 140);
         }
     }

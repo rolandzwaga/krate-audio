@@ -312,6 +312,12 @@ private:
     Steinberg::IPtr<Steinberg::FObject> bandCountDisplayController_;
 
     // ==========================================================================
+    // Spectrum Mode Controller
+    // ==========================================================================
+    // Updates SpectrumDisplay view mode (Wet/Dry/Both) when parameter changes
+    Steinberg::IPtr<Steinberg::FObject> spectrumModeController_;
+
+    // ==========================================================================
     // Crossover Drag Bridge
     // ==========================================================================
     // Bridges SpectrumDisplay crossover drag events to VST3 parameter changes

@@ -25,6 +25,9 @@
 
 namespace Disrumpo {
 
+/// @brief Display mode for the spectrum visualizer
+enum class SpectrumViewMode { kWet, kDry, kBoth };
+
 /// @brief Listener interface for SpectrumDisplay events
 class SpectrumDisplayListener {
 public:
@@ -109,13 +112,9 @@ public:
     /// @brief Stop spectrum analysis and release timer
     void stopAnalysis();
 
-    /// @brief Toggle input spectrum visibility
-    /// @param show true to show input spectrum
-    void setShowInput(bool show) { showInput_ = show; invalid(); }
-
-    /// @brief Toggle overlaid mode (input + output simultaneously)
-    /// @param overlaid true for overlaid display
-    void setOverlaidMode(bool overlaid) { overlaidMode_ = overlaid; invalid(); }
+    /// @brief Set the spectrum view mode (Wet, Dry, or Both)
+    /// @param mode The desired view mode
+    void setViewMode(SpectrumViewMode mode) { viewMode_ = mode; invalid(); }
 
     /// @brief Check if spectrum analysis is active
     [[nodiscard]] bool isAnalysisActive() const { return analysisActive_; }
@@ -226,8 +225,7 @@ private:
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> analysisTimer_;
 
     /// @brief Display flags
-    bool showInput_ = false;
-    bool overlaidMode_ = false;
+    SpectrumViewMode viewMode_ = SpectrumViewMode::kWet;
     bool analysisActive_ = false;
 
     // ==========================================================================

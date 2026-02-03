@@ -448,6 +448,71 @@ private:
 };
 
 // ==============================================================================
+// SpectrumModeController: Update SpectrumDisplay view mode when param changes
+// ==============================================================================
+// Watches the spectrum mode parameter and calls setViewMode() on the
+// SpectrumDisplay so the visualizer switches between Wet/Dry/Both.
+// ==============================================================================
+class SpectrumModeController : public Steinberg::FObject {
+public:
+    SpectrumModeController(
+        SpectrumDisplay** displayPtr,
+        Steinberg::Vst::Parameter* modeParam)
+    : displayPtr_(displayPtr)
+    , modeParam_(modeParam)
+    {
+        if (modeParam_) {
+            modeParam_->addRef();
+            modeParam_->addDependent(this);
+        }
+    }
+
+    ~SpectrumModeController() override {
+        deactivate();
+        if (modeParam_) {
+            modeParam_->release();
+            modeParam_ = nullptr;
+        }
+    }
+
+    void deactivate() {
+        if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+            if (modeParam_) {
+                modeParam_->removeDependent(this);
+            }
+        }
+    }
+
+    void PLUGIN_API update(Steinberg::FUnknown* /*changedUnknown*/,
+                           Steinberg::int32 message) override {
+        if (!isActive_.load(std::memory_order_acquire)) return;
+
+        if (message == IDependent::kChanged && modeParam_
+            && displayPtr_ && *displayPtr_) {
+            applyMode();
+        }
+    }
+
+    void applyMode() {
+        if (!modeParam_ || !displayPtr_ || !*displayPtr_) return;
+        int index = static_cast<int>(std::round(modeParam_->getNormalized() * 2.0));
+        switch (index) {
+            case 0:  (*displayPtr_)->setViewMode(SpectrumViewMode::kWet);  break;
+            case 1:  (*displayPtr_)->setViewMode(SpectrumViewMode::kDry);  break;
+            case 2:  (*displayPtr_)->setViewMode(SpectrumViewMode::kBoth); break;
+            default: (*displayPtr_)->setViewMode(SpectrumViewMode::kWet);  break;
+        }
+    }
+
+    OBJ_METHODS(SpectrumModeController, FObject)
+
+private:
+    SpectrumDisplay** displayPtr_;
+    Steinberg::Vst::Parameter* modeParam_;
+    std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
 // MorphSweepLinkController: Update morph position based on sweep frequency
 // ==============================================================================
 // T159-T161: Listens to sweep frequency changes and updates morph X/Y positions
@@ -1276,6 +1341,19 @@ void Controller::registerGlobalParams() {
     oversampleParam->appendString(STR16("8x"));
     oversampleParam->setNormalized(2.0 / 3.0);  // Default to index 2 = "4x"
     parameters.addParameter(oversampleParam);
+
+    // Spectrum View Mode: StringListParameter ["Wet","Dry","Both"], default "Wet"
+    auto* spectrumModeParam = new Steinberg::Vst::StringListParameter(
+        STR16("Spectrum Mode"),
+        makeGlobalParamId(GlobalParamType::kGlobalSpectrumMode),
+        nullptr,
+        Steinberg::Vst::ParameterInfo::kNoFlags  // UI-only, not automatable
+    );
+    spectrumModeParam->appendString(STR16("Wet"));
+    spectrumModeParam->appendString(STR16("Dry"));
+    spectrumModeParam->appendString(STR16("Both"));
+    spectrumModeParam->setNormalized(0.0);  // Default: Wet (index 0)
+    parameters.addParameter(spectrumModeParam);
 
     // T033: Modulation Panel Visible (Spec 012 FR-007, FR-009)
     auto* modPanelParam = new Steinberg::Vst::Parameter(
@@ -3848,6 +3926,13 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             &spectrumDisplay_, bandCountParam);
     }
 
+    // Update SpectrumDisplay view mode when spectrum mode parameter changes
+    if (auto* spectrumModeParam = getParameterObject(
+            makeGlobalParamId(GlobalParamType::kGlobalSpectrumMode))) {
+        spectrumModeController_ = new SpectrumModeController(
+            &spectrumDisplay_, spectrumModeParam);
+    }
+
     // Create animated expand controllers (Spec 012 US1, replaces ContainerVisibilityController)
     // Show/hide BandStripExpanded based on Band*Expanded parameter with animation
     for (int b = 0; b < kMaxBands; ++b) {
@@ -4163,6 +4248,14 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
             bcdc->deactivate();
         }
         bandCountDisplayController_ = nullptr;
+    }
+
+    // Deactivate spectrum mode controller
+    if (spectrumModeController_) {
+        if (auto* smc = dynamic_cast<SpectrumModeController*>(spectrumModeController_.get())) {
+            smc->deactivate();
+        }
+        spectrumModeController_ = nullptr;
     }
 
     // T046: Unregister keyboard shortcut handler
