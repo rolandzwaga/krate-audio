@@ -1510,3 +1510,107 @@ if (sweepPositionBuffer_->getLatest(data)) {
 ```
 
 **Dependencies:** Standard library only (std::atomic, std::array)
+
+---
+
+## PolyBlepOscillator (Band-Limited Audio-Rate Oscillator)
+**Path:** [polyblep_oscillator.h](../../dsp/include/krate/dsp/primitives/polyblep_oscillator.h) | **Since:** 0.15.0
+
+Band-limited audio-rate oscillator using polynomial band-limited step (PolyBLEP) correction. Generates sine, sawtooth, square, pulse (variable width), and triangle waveforms with anti-aliased discontinuity handling. Triangle is generated via leaky integration of a PolyBLEP-corrected square wave.
+
+**Use when:**
+- Building synthesizer voices (subtractive, FM, additive)
+- Audio-rate modulation sources (FM operators, ring mod carriers)
+- Generating test signals with controlled spectral content
+- Any application requiring band-limited oscillation at audio frequencies
+
+**Note:** This is a scalar-only implementation designed for future SIMD optimization. Uses value semantics (copyable/movable) for efficient composition into multi-voice contexts (unison, supersaw). Does not perform internal oversampling -- compose with `Oversampler` if needed. Assumes FTZ/DAZ CPU flags are set at the processor level.
+
+```cpp
+enum class OscWaveform : uint8_t {
+    Sine = 0,       // Pure sine (no PolyBLEP)
+    Sawtooth = 1,   // PolyBLEP at wrap discontinuity
+    Square = 2,     // PolyBLEP at rising + falling edges
+    Pulse = 3,      // PolyBLEP at variable-position edges
+    Triangle = 4    // Leaky-integrated PolyBLEP square
+};
+
+class PolyBlepOscillator {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;          // Init (NOT real-time safe)
+    void reset() noexcept;                              // Clear state, preserve config
+
+    // Parameters
+    void setFrequency(float hz) noexcept;               // [0, sampleRate/2), NaN-safe
+    void setWaveform(OscWaveform waveform) noexcept;    // Clears integrator on Triangle switch
+    void setPulseWidth(float width) noexcept;            // [0.01, 0.99], Pulse only
+
+    // Processing (real-time safe, noexcept)
+    [[nodiscard]] float process() noexcept;              // Single sample
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // Phase access (for sync/sub-oscillator integration)
+    [[nodiscard]] double phase() const noexcept;         // [0, 1)
+    [[nodiscard]] bool phaseWrapped() const noexcept;    // True on cycle boundary
+    void resetPhase(double newPhase = 0.0) noexcept;    // Hard sync, preserves integrator
+
+    // Modulation (per-sample, non-accumulating)
+    void setPhaseModulation(float radians) noexcept;     // Yamaha-style PM
+    void setFrequencyModulation(float hz) noexcept;      // Linear FM offset
+};
+```
+
+| Waveform | Anti-Aliasing | Character |
+|----------|---------------|-----------|
+| Sine | None needed | Pure fundamental |
+| Sawtooth | 4-point PolyBLEP at wrap | Rich harmonics, bright |
+| Square | 4-point PolyBLEP at both edges | Hollow, odd harmonics |
+| Pulse | 4-point PolyBLEP at variable edges | PWM, duty cycle control |
+| Triangle | Leaky-integrated PolyBLEP square | Soft, odd harmonics |
+
+| Feature | Detail |
+|---------|--------|
+| Alias suppression | >= 40 dB below fundamental (SC-001 through SC-003) |
+| Output range | [-1.1, 1.1] nominal, sanitized to [-2, 2] |
+| Performance | ~6-9 ns/sample (~17-28 cycles at 3 GHz) |
+| NaN/Inf safety | Branchless sanitization, NaN-safe parameter setters |
+| Phase interface | phase(), phaseWrapped(), resetPhase() for sync |
+| FM/PM | Per-sample linear FM + Yamaha-style PM |
+
+**Reusability (downstream oscillator ecosystem):**
+- `OscWaveform` enum shared by SyncOscillator (Phase 5), SubOscillator (Phase 6), UnisonEngine (Phase 7)
+- `PolyBlepOscillator` composed into SyncOscillator (slave), UnisonEngine (per-voice), Rungler (Phase 15)
+- `phase()` / `phaseWrapped()` interface designed for master-slave sync topology
+- Value semantics enables direct array storage in multi-voice contexts
+
+**Example Usage:**
+```cpp
+PolyBlepOscillator osc;
+osc.prepare(44100.0);
+osc.setFrequency(440.0f);
+osc.setWaveform(OscWaveform::Sawtooth);
+
+// Single-sample processing
+for (int i = 0; i < numSamples; ++i) {
+    output[i] = osc.process();
+}
+
+// Block processing
+osc.processBlock(output, numSamples);
+
+// FM synthesis (per-sample modulation)
+for (int i = 0; i < numSamples; ++i) {
+    osc.setFrequencyModulation(modSignal[i] * 200.0f);
+    output[i] = osc.process();
+}
+
+// Sync detection (for master oscillator)
+for (int i = 0; i < numSamples; ++i) {
+    output[i] = osc.process();
+    if (osc.phaseWrapped()) {
+        slaveOsc.resetPhase(0.0);
+    }
+}
+```
+
+**Dependencies:** `core/polyblep.h` (polyBlep4), `core/phase_utils.h` (PhaseAccumulator, wrapPhase), `core/math_constants.h` (kTwoPi), `core/db_utils.h` (detail::isNaN, detail::isInf)

@@ -351,6 +351,7 @@ Before committing, check for these smells:
 | Relaxing on Crash | Loosening thresholds when tests crash | Use `detail::isNaN()`/`detail::isInf()` |
 | Using std::isfinite | `std::isnan()`, `std::isfinite()`, `std::isinf()` | Use bit-level checks from `db_utils.h` |
 | Build Paranoia | Rebuilding when tests ran successfully | Trust the output; only `--clean-first` if tests don't appear |
+| Loop Assertion | `REQUIRE`/`INFO` inside >100-iteration loops | Collect metrics in loop, assert once after |
 
 ---
 
@@ -574,3 +575,100 @@ cmake --build build --config Release --target dsp_tests --clean-first
 ```
 
 **STOP:** Do not rebuild unless one of the above symptoms applies. If tests run and fail, the failure is real—investigate the code, not the build.
+
+---
+
+## 13. The Loop Assertion (Catch2 Performance Killer)
+
+> **THIS WILL MAKE YOUR TESTS HANG INDEFINITELY**
+>
+> Placing `REQUIRE`, `CHECK`, or `INFO` inside tight sample-processing loops causes Catch2 to hang or run for minutes instead of milliseconds.
+
+### The Problem
+
+Catch2's assertion macros (`REQUIRE`, `CHECK`, `INFO`) have per-invocation overhead for bookkeeping, string formatting, and failure tracking. In a loop of 10,000–441,000 iterations (typical for DSP buffer processing), this overhead dominates execution time and can cause tests to appear hung.
+
+```cpp
+// BAD: This test will hang or take minutes to complete
+TEST_CASE("Sawtooth output is in range", "[oscillator]") {
+    PolyBlepOscillator osc;
+    osc.prepare(44100.0);
+    osc.setFrequency(440.0f);
+    osc.setWaveform(OscWaveform::Sawtooth);
+
+    for (int i = 0; i < 44100; ++i) {
+        float sample = osc.process();
+        INFO("Sample " << i << " = " << sample);   // 44100 string allocations!
+        REQUIRE(sample >= -1.1f);                    // 44100 assertion checks!
+        REQUIRE(sample <= 1.1f);                     // 88200 total assertions!
+    }
+}
+```
+
+**Why it hangs:** Each `REQUIRE` registers with Catch2's assertion tracker. Each `INFO` constructs a `std::string` and pushes it onto a scoped message stack. At 44,100 iterations with 2 REQUIREs and 1 INFO each, that's 132,300 Catch2 operations per test case. Multiply by dozens of test cases and the suite takes forever.
+
+### The Fix: Collect Metrics, Assert Once
+
+Move all assertions **outside** the loop. Inside the loop, collect scalar metrics (min, max, NaN count, etc.) using plain arithmetic. After the loop, assert on the collected metrics.
+
+```cpp
+// GOOD: Collects metrics in loop, asserts once after
+TEST_CASE("Sawtooth output is in range", "[oscillator]") {
+    PolyBlepOscillator osc;
+    osc.prepare(44100.0);
+    osc.setFrequency(440.0f);
+    osc.setWaveform(OscWaveform::Sawtooth);
+
+    float minVal = 1e9f, maxVal = -1e9f;
+    bool hasNaN = false;
+    int nanCount = 0;
+
+    for (int i = 0; i < 44100; ++i) {
+        float sample = osc.process();
+        if (sample != sample) { hasNaN = true; ++nanCount; }  // NaN check
+        minVal = std::min(minVal, sample);
+        maxVal = std::max(maxVal, sample);
+    }
+
+    INFO("Range: [" << minVal << ", " << maxVal << "], NaN count: " << nanCount);
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE(minVal >= -1.1f);
+    REQUIRE(maxVal <= 1.1f);
+}
+```
+
+### Common Metric Collection Patterns
+
+| What You're Checking | Metric Variables | Loop Body | Post-Loop Assert |
+|----------------------|------------------|-----------|------------------|
+| Output range | `float minVal, maxVal` | `minVal = min(minVal, s); maxVal = max(maxVal, s)` | `REQUIRE(minVal >= lo); REQUIRE(maxVal <= hi)` |
+| No NaN/Inf | `bool hasNaN = false` | `if (s != s) hasNaN = true` | `REQUIRE_FALSE(hasNaN)` |
+| Monotonic increase | `bool monotonic = true; float prev` | `if (s < prev) monotonic = false; prev = s` | `REQUIRE(monotonic)` |
+| Error tolerance | `float worstErr = 0` | `worstErr = max(worstErr, abs(s - expected))` | `REQUIRE(worstErr < tol)` |
+| Zero crossings | `int crossings = 0` | `if (prev * s < 0) ++crossings` | `REQUIRE(crossings == expected)` |
+| Phase wrap count | `int wraps = 0` | `if (osc.phaseWrapped()) ++wraps` | `REQUIRE(wraps == expected)` |
+| DC offset | `double sum = 0` | `sum += s` | `REQUIRE(abs(sum / N) < tol)` |
+
+### When Assertions Inside Loops ARE Okay
+
+Small iteration counts (< 100) are fine. The overhead only becomes a problem at DSP buffer sizes:
+
+```cpp
+// OK: Only 5 iterations
+const float testFreqs[] = {100.0f, 440.0f, 1000.0f, 5000.0f, 10000.0f};
+for (float freq : testFreqs) {
+    DYNAMIC_SECTION("Frequency: " << freq) {
+        osc.setFrequency(freq);
+        float sample = osc.process();
+        REQUIRE(sample >= -1.1f);  // Fine, only 5 iterations
+    }
+}
+```
+
+### Rule of Thumb
+
+> **If the loop iterates more than ~100 times, NEVER put REQUIRE/CHECK/INFO inside it.**
+>
+> Collect scalar metrics in the loop body using plain C++ (min, max, sum, count, bool flags).
+> Assert on the collected metrics once after the loop exits.
+> Use INFO before the post-loop REQUIRE to provide diagnostic context on failure.
