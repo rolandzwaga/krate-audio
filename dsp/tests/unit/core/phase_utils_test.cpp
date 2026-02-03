@@ -391,11 +391,11 @@ static_assert(wrapPhase(-0.2) >= 0.0 && wrapPhase(-0.2) < 1.0,
               "wrapPhase must wrap negative values to [0, 1)");
 
 // Phase 4 (T010-T011): Constexpr verification for detectPhaseWrap and subsamplePhaseWrapOffset
-static_assert(detectPhaseWrap(0.01, 0.99) == true,
+static_assert(detectPhaseWrap(0.01, 0.99),
               "detectPhaseWrap must detect wrap when current < previous");
-static_assert(detectPhaseWrap(0.5, 0.4) == false,
+static_assert(!detectPhaseWrap(0.5, 0.4),
               "detectPhaseWrap must not detect wrap when current > previous");
-static_assert(detectPhaseWrap(0.5, 0.5) == false,
+static_assert(!detectPhaseWrap(0.5, 0.5),
               "detectPhaseWrap must not detect wrap when values are equal");
 
 static_assert(subsamplePhaseWrapOffset(0.03, 0.05) > 0.0,
