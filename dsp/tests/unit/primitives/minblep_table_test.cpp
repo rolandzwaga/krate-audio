@@ -832,3 +832,181 @@ TEST_CASE("SC-015: re-prepare replaces table with new parameters",
     REQUIRE(table.isPrepared() == true);
 }
 
+// ==============================================================================
+// MinBLAMP Extension Tests (018-oscillator-sync, Phase 2)
+// ==============================================================================
+// Tests for: sampleBlamp(), Residual::addBlamp(), minBLAMP table generation
+// Reference: specs/018-oscillator-sync/contracts/minblep_table_extension.h
+
+TEST_CASE("MinBLAMP: sampleBlamp returns expected values after prepare",
+          "[MinBlepTable][blamp]") {
+    MinBlepTable table;
+    table.prepare(64, 8);
+
+    // sampleBlamp should return finite values for valid inputs
+    for (size_t i = 0; i < table.length(); ++i) {
+        float val = table.sampleBlamp(0.0f, i);
+        INFO("index = " << i);
+        REQUIRE_FALSE(detail::isNaN(val));
+        REQUIRE_FALSE(detail::isInf(val));
+    }
+
+    // sampleBlamp at various sub-sample offsets should return finite values
+    for (size_t i = 0; i < table.length(); ++i) {
+        float v0 = table.sampleBlamp(0.0f, i);
+        float v25 = table.sampleBlamp(0.25f, i);
+        float v50 = table.sampleBlamp(0.5f, i);
+        float v75 = table.sampleBlamp(0.75f, i);
+        REQUIRE_FALSE(detail::isNaN(v0));
+        REQUIRE_FALSE(detail::isNaN(v25));
+        REQUIRE_FALSE(detail::isNaN(v50));
+        REQUIRE_FALSE(detail::isNaN(v75));
+    }
+
+    // sampleBlamp beyond table length should return 0.0
+    // (BLAMP residual should converge to 0 beyond the table)
+    REQUIRE(table.sampleBlamp(0.0f, table.length()) == 0.0f);
+    REQUIRE(table.sampleBlamp(0.5f, table.length() + 100) == 0.0f);
+}
+
+TEST_CASE("MinBLAMP: Residual::addBlamp stamps correction into buffer",
+          "[MinBlepTable][blamp]") {
+    MinBlepTable table;
+    table.prepare(64, 8);
+
+    MinBlepTable::Residual residual(table);
+    residual.addBlamp(0.0f, 1.0f);
+
+    // At least some consume() values should be non-zero
+    float sum = 0.0f;
+    bool hasNonZero = false;
+    for (size_t i = 0; i < table.length(); ++i) {
+        float val = residual.consume();
+        REQUIRE_FALSE(detail::isNaN(val));
+        REQUIRE_FALSE(detail::isInf(val));
+        sum += val;
+        if (std::abs(val) > 1e-7f) {
+            hasNonZero = true;
+        }
+    }
+
+    REQUIRE(hasNonZero);
+
+    // After consuming all, further consume should return 0.0
+    REQUIRE(residual.consume() == Approx(0.0f).margin(1e-6f));
+}
+
+TEST_CASE("MinBLAMP: addBlamp scales linearly with amplitude",
+          "[MinBlepTable][blamp]") {
+    MinBlepTable table;
+    table.prepare(64, 8);
+
+    // Unit BLAMP
+    MinBlepTable::Residual res1(table);
+    res1.addBlamp(0.0f, 1.0f);
+    std::vector<float> unitValues;
+    for (size_t i = 0; i < table.length(); ++i) {
+        unitValues.push_back(res1.consume());
+    }
+
+    // Scaled BLAMP (3x)
+    MinBlepTable::Residual res2(table);
+    res2.addBlamp(0.0f, 3.0f);
+    std::vector<float> scaledValues;
+    for (size_t i = 0; i < table.length(); ++i) {
+        scaledValues.push_back(res2.consume());
+    }
+
+    // Each scaled value should be 3x the unit value
+    for (size_t i = 0; i < table.length(); ++i) {
+        REQUIRE(scaledValues[i] == Approx(unitValues[i] * 3.0f).margin(1e-5f));
+    }
+}
+
+TEST_CASE("MinBLAMP: addBlamp with NaN/Inf amplitude is no-op",
+          "[MinBlepTable][blamp]") {
+    MinBlepTable table;
+    table.prepare(64, 8);
+
+    SECTION("NaN amplitude") {
+        MinBlepTable::Residual residual(table);
+        residual.addBlamp(0.0f, std::numeric_limits<float>::quiet_NaN());
+        float sum = 0.0f;
+        for (size_t i = 0; i < table.length(); ++i) {
+            sum += residual.consume();
+        }
+        REQUIRE(sum == 0.0f);
+    }
+
+    SECTION("Inf amplitude") {
+        MinBlepTable::Residual residual(table);
+        residual.addBlamp(0.0f, std::numeric_limits<float>::infinity());
+        float sum = 0.0f;
+        for (size_t i = 0; i < table.length(); ++i) {
+            sum += residual.consume();
+        }
+        REQUIRE(sum == 0.0f);
+    }
+}
+
+TEST_CASE("MinBLAMP: table is integral of minBLEP residual",
+          "[MinBlepTable][blamp]") {
+    MinBlepTable table;
+    table.prepare(64, 8);
+
+    // The minBLAMP table should be the running sum of (minBLEP - 1.0).
+    // Verify by comparing sampleBlamp values against manual integration
+    // of sample() values at subsampleOffset = 0.0.
+    float runningSum = 0.0f;
+    for (size_t i = 0; i < table.length(); ++i) {
+        float blepResidual = table.sample(0.0f, i) - 1.0f;
+        runningSum += blepResidual;
+        float blampVal = table.sampleBlamp(0.0f, i);
+        INFO("index = " << i << " expected = " << runningSum << " actual = " << blampVal);
+        REQUIRE(blampVal == Approx(runningSum).margin(0.05f));
+    }
+}
+
+TEST_CASE("MinBLAMP: overlapping BLAMPs accumulate correctly",
+          "[MinBlepTable][blamp]") {
+    MinBlepTable table;
+    table.prepare(64, 8);
+
+    // Individual BLAMPs
+    MinBlepTable::Residual resA(table);
+    resA.addBlamp(0.0f, 1.0f);
+    std::vector<float> valuesA;
+    for (size_t i = 0; i < table.length(); ++i) {
+        valuesA.push_back(resA.consume());
+    }
+
+    MinBlepTable::Residual resB(table);
+    resB.addBlamp(0.3f, -0.5f);
+    std::vector<float> valuesB;
+    for (size_t i = 0; i < table.length(); ++i) {
+        valuesB.push_back(resB.consume());
+    }
+
+    // Combined
+    MinBlepTable::Residual resCombined(table);
+    resCombined.addBlamp(0.0f, 1.0f);
+    resCombined.addBlamp(0.3f, -0.5f);
+    std::vector<float> combinedValues;
+    for (size_t i = 0; i < table.length(); ++i) {
+        combinedValues.push_back(resCombined.consume());
+    }
+
+    // Combined should equal sum of individual
+    for (size_t i = 0; i < table.length(); ++i) {
+        REQUIRE(combinedValues[i] == Approx(valuesA[i] + valuesB[i]).margin(1e-5f));
+    }
+}
+
+TEST_CASE("MinBLAMP: sampleBlamp on unprepared table returns 0.0",
+          "[MinBlepTable][blamp]") {
+    MinBlepTable table;
+    // Not prepared
+    REQUIRE(table.sampleBlamp(0.0f, 0) == 0.0f);
+    REQUIRE(table.sampleBlamp(0.5f, 5) == 0.0f);
+}
+

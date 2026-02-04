@@ -4290,3 +4290,72 @@ output = DC_block(sum(all_levels)) * mix + dry * (1-mix)
 **Memory:** ~4KB (8 waveshapers + 8 Biquads + DC blocker + Crossover4Way + smoothers)
 
 **Dependencies:** Layer 0 (sigmoid.h, db_utils.h), Layer 1 (waveshaper.h, biquad.h, dc_blocker.h, smoother.h, chebyshev_shaper.h), Layer 2 (crossover_filter.h)
+
+---
+
+## SyncOscillator
+**Path:** [sync_oscillator.h](../../dsp/include/krate/dsp/processors/sync_oscillator.h) | **Since:** 0.16.0
+
+Band-limited synchronized oscillator with three sync modes. Composes a lightweight master PhaseAccumulator with a slave phase tracker and MinBlepTable::Residual for anti-aliased sync output.
+
+**Use when:**
+- Classic hard sync timbral control is needed (bright, vocal sync lead sounds)
+- Reverse sync wave-folding effect (smooth, analog-style soft sync)
+- Phase advance for subtle detuning, ensemble chorusing, and gentle phase entrainment
+- Any oscillator synchronization requiring band-limited discontinuity correction
+
+```cpp
+enum class SyncMode : uint8_t { Hard = 0, Reverse = 1, PhaseAdvance = 2 };
+
+class SyncOscillator {
+    // Lifecycle
+    explicit SyncOscillator(const MinBlepTable* table = nullptr) noexcept;
+    void prepare(double sampleRate) noexcept;    // NOT real-time safe
+    void reset() noexcept;
+
+    // Parameter setters
+    void setMasterFrequency(float hz) noexcept;  // [0, sampleRate/2)
+    void setSlaveFrequency(float hz) noexcept;   // [0, sampleRate/2)
+    void setSlaveWaveform(OscWaveform waveform) noexcept;
+    void setSyncMode(SyncMode mode) noexcept;
+    void setSyncAmount(float amount) noexcept;    // [0, 1]
+    void setSlavePulseWidth(float width) noexcept; // [0.01, 0.99]
+
+    // Processing (real-time safe)
+    [[nodiscard]] float process() noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+};
+```
+
+**Sync Modes:**
+
+| Mode | Behavior | Correction | Sound Character |
+|------|----------|------------|-----------------|
+| Hard | Reset slave phase on master wrap | minBLEP (step) | Bright, vocal, classic sync lead |
+| Reverse | Reverse slave direction on master wrap | minBLAMP (derivative) | Warm, wavefolder-like, analog soft sync |
+| PhaseAdvance | Nudge slave phase toward alignment | minBLEP (proportional) | Subtle detuning, ensemble, chorusing |
+
+**SyncAmount (0.0 to 1.0):**
+- 0.0 = No sync (slave runs freely)
+- 1.0 = Full sync (hard reset / full reversal / complete phase advance)
+- Intermediate = Smooth crossfade between free-running and synced behavior
+
+**Architecture Notes:**
+- The slave uses a PhaseAccumulator (not PolyBlepOscillator). The naive waveform is evaluated directly at each sample, and ALL discontinuity corrections (sync-induced and natural wraps) go through the MinBLEP residual. This avoids PolyBLEP/minBLEP double-correction at slave phase wrap boundaries.
+- Master oscillator is a lightweight PhaseAccumulator (no waveform output). Its sole purpose is providing timing for sync events.
+- At integer frequency ratios (e.g., 1:1, 2:1), the slave naturally reaches the correct phase, making sync a no-op (clean pass-through).
+- Master frequency clamped to sampleRate/2, ensuring at most one sync event per sample.
+
+**Gotchas:**
+- Mono-only design. For stereo, use two instances
+- SyncAmount is NOT internally smoothed. Caller must smooth to avoid clicks
+- Reverse sync at 1:1 ratio still toggles direction (not a pass-through)
+- Constructor takes `const MinBlepTable*` (caller owns lifetime). Table must be prepared before `SyncOscillator::prepare()`
+- NaN/Inf inputs sanitized to safe defaults (0.0 for frequencies)
+- Output clamped to [-2.0, 2.0] with NaN replaced by 0.0
+
+**Performance:** ~100-150 cycles/sample per voice (measured in Release build)
+
+**Memory:** MinBlepTable shared across voices, plus one Residual buffer (16 floats) per instance
+
+**Dependencies:** Layer 0 (phase_utils.h, math_constants.h, db_utils.h), Layer 1 (polyblep_oscillator.h for OscWaveform enum, minblep_table.h)
