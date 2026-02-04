@@ -269,14 +269,24 @@ See `dsp-architecture` skill for ODR symptoms and prevention patterns.
   - Placeholder values marked "needs proper design"
   - Removing scope without declaration
   - Saying "tests pass" when tests were weakened
+  - Filling compliance table from memory or assumptions without re-reading the actual code and test output
+  - Writing ✅ MET for any requirement without having just verified it against the implementation
+  - Using vague evidence like "implemented" or "test passes" — evidence must include file paths, line numbers, test names, and actual measured values
 
-- **Mandatory Verification**: Before claiming complete, review EVERY FR-xxx and SC-xxx. If ANY not met, spec is NOT complete.
+- **Mandatory Verification Process**: Before claiming complete, perform the following for EVERY FR-xxx and SC-xxx individually:
+  1. **Read the requirement** from the spec
+  2. **Open and read the implementation code** that satisfies it — cite file path and line number
+  3. **Run or read the test output** that proves it — cite the test name and actual result (not just "passes")
+  4. **For SC-xxx with numeric thresholds**: Record the actual measured value and compare against the spec target
+  5. **Only then** mark the row ✅ MET with this concrete evidence
 
-- **Compliance Table Format**:
+  If ANY requirement is not met, the spec is NOT complete. Do not mark ✅ and move on — mark ❌ and document why.
+
+- **Compliance Table Format** (evidence column must contain specifics, not summaries):
   | Requirement | Status | Evidence |
   |-------------|--------|----------|
-  | FR-001 | ✅ MET | Test X |
-  | FR-002 | ❌ NOT MET | Reason |
+  | FR-001 | ✅ MET | `wavetable_oscillator.h:42` — interpolation method selection; test `WavetableInterpolation` passes with max error 0.003 |
+  | FR-002 | ❌ NOT MET | Mipmap generation not implemented — only single-level table exists |
 
 ### XVII. Framework Knowledge Documentation
 

@@ -241,12 +241,15 @@ All code must compile with ZERO warnings. Common fixes:
 
 ## Completion Honesty (MANDATORY)
 
-Before claiming spec complete:
-1. Review EVERY FR-xxx and SC-xxx requirement
-2. Fill compliance table with evidence
-3. Self-check: No relaxed thresholds? No placeholders? No quietly removed features?
+**DO NOT fill the compliance table from memory or assumptions.** Every single row must be verified against actual code and test output.
 
-If requirements aren't met, be honest and document gaps.
+Before claiming spec complete:
+1. **For each FR-xxx**: Open the implementation file(s), read the relevant code, and confirm the requirement is met. Cite the file and line number.
+2. **For each SC-xxx**: Run the specific test or measurement. Copy the actual output. Compare it against the spec threshold. Do not paraphrase — use real numbers.
+3. **Fill the compliance table with this concrete evidence** (file paths, line numbers, test names, actual measured values). Generic claims like "implemented" or "test passes" without specifics are NOT acceptable.
+4. **Self-check**: No relaxed thresholds? No placeholders? No quietly removed features? No ✅ without having just now verified the code/test?
+
+If requirements aren't met, be honest and document gaps. A table full of ✅ that wasn't individually verified is worse than an honest ❌.
 
 ## Framework Debugging (MANDATORY)
 
