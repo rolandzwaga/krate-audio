@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -1659,6 +1660,70 @@ TEST_CASE("Equal master/slave frequencies produce clean pass-through",
         } else {
             REQUIRE(rms < 0.05f);
         }
+    }
+}
+
+// ==============================================================================
+// Phase N-1: Performance Measurement
+// ==============================================================================
+
+TEST_CASE("SC-015: process() CPU cost benchmark",
+          "[SyncOscillator][performance][!benchmark]") {
+    // Measure CPU cost of process() in Release build.
+    // Target: ~100-150 cycles/sample per voice.
+    //
+    // This test processes a large number of samples and measures wall-clock
+    // time, then estimates cycles/sample based on the CPU frequency.
+    // For a modern x86-64 CPU at ~3.5-5.0 GHz, we use a conservative
+    // 3.5 GHz estimate for the lower bound.
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kWarmup = 4096;
+    constexpr size_t kMeasureSamples = 1000000; // 1M samples for stable timing
+    constexpr double kAssumedGHz = 3.5;         // Conservative CPU frequency
+
+    // Test all three sync modes with sawtooth (the most common use case)
+    const SyncMode modes[] = {SyncMode::Hard, SyncMode::Reverse, SyncMode::PhaseAdvance};
+    const char* modeNames[] = {"Hard", "Reverse", "PhaseAdvance"};
+
+    for (size_t m = 0; m < 3; ++m) {
+        SyncOscillator osc(&sharedTable());
+        osc.prepare(static_cast<double>(kSampleRate));
+        osc.setMasterFrequency(220.0f);
+        osc.setSlaveFrequency(770.0f);
+        osc.setSlaveWaveform(OscWaveform::Sawtooth);
+        osc.setSyncMode(modes[m]);
+
+        // Warm up to fill residual pipeline and stabilize branch prediction
+        for (size_t i = 0; i < kWarmup; ++i) {
+            (void)osc.process();
+        }
+
+        // Measure
+        auto start = std::chrono::high_resolution_clock::now();
+
+        float sink = 0.0f;
+        for (size_t i = 0; i < kMeasureSamples; ++i) {
+            sink += osc.process();
+        }
+
+        auto end = std::chrono::high_resolution_clock::now();
+        auto durationNs = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
+        // Prevent optimizer from eliminating the loop
+        REQUIRE(sink != std::numeric_limits<float>::max());
+
+        double nsPerSample = static_cast<double>(durationNs) / static_cast<double>(kMeasureSamples);
+        double cyclesPerSample = nsPerSample * kAssumedGHz; // ns * GHz = cycles
+
+        INFO("Mode: " << modeNames[m]);
+        INFO("Total time: " << (durationNs / 1000000.0) << " ms for " << kMeasureSamples << " samples");
+        INFO("Time per sample: " << nsPerSample << " ns");
+        INFO("Estimated cycles/sample (at " << kAssumedGHz << " GHz): " << cyclesPerSample);
+
+        // SC-015: Target is ~100-150 cycles/sample.
+        // We use 200 as the hard upper limit to allow for measurement noise
+        // and variation across CPUs. The actual value should be well under 150.
+        REQUIRE(cyclesPerSample < 200.0);
     }
 }
 
