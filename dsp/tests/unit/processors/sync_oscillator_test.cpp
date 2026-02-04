@@ -710,14 +710,19 @@ TEST_CASE("SC-005: reverse sync fundamental = master, max step <= 0.1 at sync po
     // 2*pi*660/44100 ~ 0.094, so max step ~ 0.094 per sample in normal
     // traversal. At reversal, the slope changes sign but the VALUE is
     // continuous. The minBLAMP correction stamps a derivative correction
-    // which has some overshoot (minimum-phase filter ring), causing
-    // slightly larger sample-to-sample steps near the correction point.
+    // which has some overshoot (minimum-phase filter ring ~18% of step
+    // height, concentrated post-transition), causing slightly larger
+    // sample-to-sample steps near the correction point.
     // The BLAMP amplitude is 2 * derivative * slaveIncrement, which for
     // sine at its steepest point (2*pi * 660/44100 ≈ 0.094) gives
-    // ~0.188 per sample, and the minBLAMP table has ~2-3x overshoot.
-    // The key metric is that this is MUCH smaller than the ~2.0 step
-    // discontinuity of hard sync with sawtooth.
-    REQUIRE(maxStep < 1.0f);
+    // ~0.188 per sample. With minimum-phase overshoot (up to ~2x),
+    // combined with normal waveform progression, max step ~0.4-0.5.
+    // SC-005 spec target is 0.1; we use 0.6 to account for the
+    // minimum-phase minBLAMP overshoot (measured ~0.52 from the
+    // concentrated post-transition ringing of the minimum-phase
+    // transform). This is still much tighter than the previous 1.0
+    // and properly catches bugs (hard sync steps would be ~2.0).
+    REQUIRE(maxStep < 0.6f);
 
     // Also verify with Sawtooth to check the overall behavior.
     // Sawtooth has natural wraps with ~2.0 discontinuity. Reverse sync
@@ -1103,11 +1108,15 @@ TEST_CASE("FR-016: hard sync interpolates phase with syncAmount",
 
 TEST_CASE("FR-021: reverse sync blends increment with syncAmount",
           "[SyncOscillator][syncamount][reverseblend]") {
-    // Reverse sync with syncAmount < 1.0 should blend the reversal
+    // FR-021: effectiveIncrement = lerp(forwardInc, reversedInc, syncAmount)
+    // At syncAmount=0.0: slave always goes forward (no sync effect)
+    // At syncAmount=0.5: when reversed, effective increment = 0 (slave stops)
+    // At syncAmount=1.0: full direction reversal
+    // All three levels must produce measurably different outputs.
     constexpr float kSampleRate = 44100.0f;
     constexpr size_t kNumSamples = 2048;
 
-    // syncAmount = 0.0 (no reversal effect)
+    // syncAmount = 0.0 (no reversal effect - slave always forward)
     SyncOscillator osc0(&sharedTable());
     osc0.prepare(static_cast<double>(kSampleRate));
     osc0.setMasterFrequency(220.0f);
@@ -1117,6 +1126,17 @@ TEST_CASE("FR-021: reverse sync blends increment with syncAmount",
     osc0.setSyncAmount(0.0f);
     std::vector<float> out0(kNumSamples);
     osc0.processBlock(out0.data(), kNumSamples);
+
+    // syncAmount = 0.5 (when reversed, slave stops - effectiveInc = 0)
+    SyncOscillator osc5(&sharedTable());
+    osc5.prepare(static_cast<double>(kSampleRate));
+    osc5.setMasterFrequency(220.0f);
+    osc5.setSlaveFrequency(660.0f);
+    osc5.setSlaveWaveform(OscWaveform::Sawtooth);
+    osc5.setSyncMode(SyncMode::Reverse);
+    osc5.setSyncAmount(0.5f);
+    std::vector<float> out5(kNumSamples);
+    osc5.processBlock(out5.data(), kNumSamples);
 
     // syncAmount = 1.0 (full reversal)
     SyncOscillator osc1(&sharedTable());
@@ -1129,9 +1149,18 @@ TEST_CASE("FR-021: reverse sync blends increment with syncAmount",
     std::vector<float> out1(kNumSamples);
     osc1.processBlock(out1.data(), kNumSamples);
 
-    float rms = rmsDifference(out0.data(), out1.data(), kNumSamples);
-    INFO("RMS reverse 0.0 vs 1.0: " << rms);
-    REQUIRE(rms > 0.001f);
+    // All three must be distinct from each other
+    float rms05 = rmsDifference(out0.data(), out5.data(), kNumSamples);
+    float rms51 = rmsDifference(out5.data(), out1.data(), kNumSamples);
+    float rms01 = rmsDifference(out0.data(), out1.data(), kNumSamples);
+
+    INFO("RMS reverse 0.0 vs 0.5: " << rms05);
+    INFO("RMS reverse 0.5 vs 1.0: " << rms51);
+    INFO("RMS reverse 0.0 vs 1.0: " << rms01);
+
+    REQUIRE(rms05 > 0.001f);
+    REQUIRE(rms51 > 0.001f);
+    REQUIRE(rms01 > 0.001f);
 }
 
 TEST_CASE("SC-008: hard sync syncAmount=0.0 matches free-running",

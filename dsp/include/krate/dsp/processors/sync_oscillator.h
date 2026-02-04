@@ -62,8 +62,9 @@ enum class SyncMode : uint8_t {
 /// Supports three sync modes:
 /// - **Hard**: Classic hard sync. Slave phase is reset to master's fractional
 ///   position at each master wrap. MinBLEP correction at the discontinuity.
-/// - **Reverse**: Slave direction is reversed at each master wrap. MinBLAMP
-///   correction at the derivative discontinuity.
+/// - **Reverse**: Slave direction is reversed at each master wrap. The
+///   effective increment is lerped between forward and reversed based on
+///   syncAmount (FR-021). MinBLAMP correction at the derivative discontinuity.
 /// - **PhaseAdvance**: Slave phase is nudged toward alignment at each master
 ///   wrap, controlled by syncAmount. MinBLEP correction proportional to the
 ///   phase advance.
@@ -253,10 +254,20 @@ public:
         bool masterWrapped = masterPhase_.advance();
 
         // Step 2: Advance slave phase and detect natural wrap
+        // FR-021: In Reverse mode with reversed_ flag set, the effective
+        // increment is lerped between the forward and reversed increments
+        // based on syncAmount: effectiveInc = lerp(+inc, -inc, syncAmount)
+        //   = inc * (1 - 2 * syncAmount)
+        // At syncAmount=0: fully forward. At 0.5: stopped. At 1.0: fully reversed.
         bool slaveWrapped = false;
-        if (reversed_) {
-            slavePhase_.phase -= slavePhase_.increment;
-            if (slavePhase_.phase < 0.0) {
+        if (syncMode_ == SyncMode::Reverse && reversed_) {
+            double effInc = slavePhase_.increment
+                * (1.0 - 2.0 * static_cast<double>(syncAmount_));
+            slavePhase_.phase += effInc;
+            if (slavePhase_.phase >= 1.0) {
+                slavePhase_.phase -= 1.0;
+                slaveWrapped = true;
+            } else if (slavePhase_.phase < 0.0) {
                 slavePhase_.phase += 1.0;
                 slaveWrapped = true;
             }
@@ -267,10 +278,15 @@ public:
         // Step 3: If slave naturally wrapped, stamp minBLEP for wrap
         if (slaveWrapped) {
             double ssOff = 0.0;
-            if (reversed_) {
-                double overshoot = 1.0 - slavePhase_.phase;
-                if (slavePhase_.increment > 0.0) {
-                    ssOff = overshoot / slavePhase_.increment;
+            if (syncMode_ == SyncMode::Reverse && reversed_) {
+                double effInc = slavePhase_.increment
+                    * (1.0 - 2.0 * static_cast<double>(syncAmount_));
+                if (effInc > 0.0) {
+                    ssOff = subsamplePhaseWrapOffset(
+                        slavePhase_.phase, effInc);
+                } else if (effInc < 0.0) {
+                    double overshoot = 1.0 - slavePhase_.phase;
+                    ssOff = overshoot / std::abs(effInc);
                 }
             } else {
                 ssOff = subsamplePhaseWrapOffset(
@@ -291,7 +307,10 @@ public:
         // Step 4: Sync event processing if master wrapped
         // Done AFTER slave advance so that at integer ratios the slave
         // naturally reaches the correct phase without needing a sync reset.
-        if (masterWrapped && syncAmount_ > 0.0f) {
+        // Reverse mode always processes sync events (direction toggle is
+        // unconditional per FR-019; syncAmount only controls increment
+        // blending per FR-021). Hard and PhaseAdvance gate on syncAmount.
+        if (masterWrapped) {
             double subsampleOffset = subsamplePhaseWrapOffset(
                 masterPhase_.phase, masterPhase_.increment);
 
@@ -301,13 +320,13 @@ public:
 
             switch (syncMode_) {
                 case SyncMode::Hard:
-                    processHardSync(ssOffset);
+                    if (syncAmount_ > 0.0f) processHardSync(ssOffset);
                     break;
                 case SyncMode::Reverse:
                     processReverseSync(ssOffset);
                     break;
                 case SyncMode::PhaseAdvance:
-                    processPhaseAdvanceSync(ssOffset);
+                    if (syncAmount_ > 0.0f) processPhaseAdvanceSync(ssOffset);
                     break;
             }
         }
