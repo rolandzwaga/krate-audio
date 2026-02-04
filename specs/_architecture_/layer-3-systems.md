@@ -713,6 +713,76 @@ for (size_t i = 0; i < numSamples; ++i) {
 
 ---
 
+## UnisonEngine
+**Path:** [unison_engine.h](../../dsp/include/krate/dsp/systems/unison_engine.h) | **Since:** 0.14.0
+
+Multi-voice detuned oscillator with stereo spread (supersaw/unison engine).
+
+```cpp
+struct StereoOutput {
+    float left = 0.0f;
+    float right = 0.0f;
+};
+
+class UnisonEngine {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Parameter setters
+    void setNumVoices(size_t count) noexcept;        // [1, 16]
+    void setDetune(float amount) noexcept;            // [0, 1]
+    void setStereoSpread(float spread) noexcept;      // [0, 1]
+    void setWaveform(OscWaveform waveform) noexcept;  // All 5 waveforms
+    void setFrequency(float hz) noexcept;             // Base frequency
+    void setBlend(float blend) noexcept;              // [0, 1] center/outer mix
+
+    // Processing
+    [[nodiscard]] StereoOutput process() noexcept;
+    void processBlock(float* left, float* right, size_t numSamples) noexcept;
+};
+```
+
+**Key Features:**
+- Composes 16 PolyBlepOscillator (L1) instances pre-allocated as fixed-size array
+- JP-8000 inspired non-linear detune curve (power exponent 1.7)
+- Constant-power pan law: `cos((pan+1)*pi/4)`, `sin((pan+1)*pi/4)`
+- Equal-power crossfade blend between center and outer voices with group-size normalization
+- Gain compensation: `1/sqrt(numVoices)` for incoherent signal summation
+- Deterministic random phase initialization using Xorshift32 (seed 0x5EEDBA5E)
+- Output sanitization: NaN via bit_cast, clamp to [-2.0, 2.0]
+- Zero heap allocation, total instance size < 2048 bytes
+- Dependencies: Layer 0 (pitch_utils, crossfade_utils, random, math_constants, db_utils), Layer 1 (PolyBlepOscillator)
+
+**When to Use:**
+- Thick unison oscillator sounds (supersaw pads, detuned leads)
+- Classic 7-voice supersaw (Roland JP-8000 style)
+- Multi-waveform unison (square/triangle/sine unison stacks)
+- Any scenario requiring multiple detuned oscillator voices with stereo spread
+
+**Example:**
+```cpp
+UnisonEngine engine;
+engine.prepare(44100.0);
+
+// Classic 7-voice supersaw
+engine.setNumVoices(7);
+engine.setWaveform(OscWaveform::Sawtooth);
+engine.setFrequency(440.0f);
+engine.setDetune(0.5f);
+engine.setStereoSpread(0.8f);
+engine.setBlend(0.5f);
+
+// Per-sample processing
+StereoOutput out = engine.process();
+
+// Block processing (bit-identical to per-sample)
+std::array<float, 512> left{}, right{};
+engine.processBlock(left.data(), right.data(), 512);
+```
+
+---
+
 ## VowelSequencer
 **Path:** [vowel_sequencer.h](../../dsp/include/krate/dsp/systems/vowel_sequencer.h) | **Since:** 0.14.0
 
