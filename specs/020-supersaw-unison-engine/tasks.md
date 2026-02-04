@@ -418,22 +418,22 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T110 Review ALL FR-001 through FR-031 requirements from spec.md against implementation in dsp/include/krate/dsp/systems/unison_engine.h
+- [X] T110 Review ALL FR-001 through FR-031 requirements from spec.md against implementation in dsp/include/krate/dsp/systems/unison_engine.h
   - For each FR: Open the header file, find the code that satisfies it, record file path and line number
-- [ ] T111 Review ALL SC-001 through SC-015 success criteria and verify measurable targets are achieved
+- [X] T111 Review ALL SC-001 through SC-015 success criteria and verify measurable targets are achieved
   - For each SC: Run the specific test, copy actual output, compare against spec threshold, record test name and measured value
-- [ ] T112 Search for cheating patterns in implementation:
+- [X] T112 Search for cheating patterns in implementation:
   - No `// placeholder` or `// TODO` comments in new code
   - No test thresholds relaxed from spec requirements
   - No features quietly removed from scope
 
 ### 13.2 Fill Compliance Table in spec.md
 
-- [ ] T113 Update spec.md "Implementation Verification" section with compliance status for each FR-001 through FR-031
+- [X] T113 Update spec.md "Implementation Verification" section with compliance status for each FR-001 through FR-031
   - Include file path, line number, and brief verification for each requirement
-- [ ] T114 Update spec.md "Implementation Verification" section with compliance status for each SC-001 through SC-015
+- [X] T114 Update spec.md "Implementation Verification" section with compliance status for each SC-001 through SC-015
   - Include test name, actual measured value vs target, pass/fail for each criterion
-- [ ] T115 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T115 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 13.3 Honest Self-Check
 
@@ -445,7 +445,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T116 All self-check questions answered "no" (or gaps documented honestly)
+- [X] T116 All self-check questions answered "no" (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -457,21 +457,21 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 14.1 Final Verification
 
-- [ ] T117 Run full dsp_tests suite and verify all tests pass:
+- [X] T117 Run full dsp_tests suite and verify all tests pass:
   ```bash
   CMAKE="/c/Program Files/CMake/bin/cmake.exe"
   "$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests
   build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[UnisonEngine]"
   ```
-- [ ] T118 Verify zero compiler warnings on MSVC C++20
+- [X] T118 Verify zero compiler warnings on MSVC C++20
 
 ### 14.2 Final Commit
 
-- [ ] T119 Commit all final spec work to feature branch with message: "Complete spec 020-supersaw-unison-engine"
+- [X] T119 Commit all final spec work to feature branch with message: "Complete spec 020-supersaw-unison-engine"
 
 ### 14.3 Completion Claim
 
-- [ ] T120 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T120 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 
