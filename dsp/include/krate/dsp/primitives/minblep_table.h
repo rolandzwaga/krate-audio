@@ -77,6 +77,7 @@ public:
         // FR-006: Handle invalid parameters gracefully
         if (oversamplingFactor == 0 || zeroCrossings == 0) {
             table_.clear();
+            blampTable_.clear();
             length_ = 0;
             oversamplingFactor_ = 0;
             prepared_ = false;
@@ -234,6 +235,23 @@ public:
         // Also force the very last entry
         table_[tableSize - 1] = 1.0f;
 
+        // =====================================================================
+        // Step 6: Compute minBLAMP table by integrating minBLEP residual
+        // =====================================================================
+        // MinBLAMP is the integral of the minBLEP residual (table - 1.0).
+        // For each sub-sample phase, compute the running sum independently.
+        blampTable_.resize(tableSize);
+
+        for (size_t sub = 0; sub < oversamplingFactor_; ++sub) {
+            float blampSum = 0.0f;
+            for (size_t idx = 0; idx < length_; ++idx) {
+                size_t tableIdx = idx * oversamplingFactor_ + sub;
+                float blepResidual = table_[tableIdx] - 1.0f;
+                blampSum += blepResidual;
+                blampTable_[tableIdx] = blampSum;
+            }
+        }
+
         prepared_ = true;
     }
 
@@ -290,6 +308,60 @@ public:
         }
 
         // FR-010: Linear interpolation
+        return Interpolation::linearInterpolate(val0, val1, frac);
+    }
+
+    // =========================================================================
+    // MinBLAMP Table Query - Real-Time Safe
+    // =========================================================================
+
+    /// @brief Look up interpolated minBLAMP value at sub-sample position.
+    ///
+    /// MinBLAMP is the integral of the minBLEP residual, used for correcting
+    /// derivative discontinuities (e.g., direction reversals in reverse sync).
+    ///
+    /// @param subsampleOffset Fractional position within sample [0, 1), clamped
+    /// @param index Output-rate sample index [0, length())
+    /// @return Interpolated BLAMP table value. Returns 0.0 if index >= length()
+    ///         or if not prepared.
+    [[nodiscard]] inline float sampleBlamp(float subsampleOffset, size_t index) const noexcept {
+        if (!prepared_ || length_ == 0) {
+            return 0.0f;
+        }
+
+        // Beyond table: BLAMP residual has settled to 0.0
+        if (index >= length_) {
+            return 0.0f;
+        }
+
+        // Clamp subsampleOffset to [0, 1)
+        if (subsampleOffset < 0.0f) {
+            subsampleOffset = 0.0f;
+        }
+        if (subsampleOffset >= 1.0f) {
+            subsampleOffset = 1.0f - 1e-7f;
+        }
+
+        // Compute polyphase table position (same logic as sample())
+        float scaledOffset = subsampleOffset * static_cast<float>(oversamplingFactor_);
+        auto subIndex = static_cast<size_t>(scaledOffset);
+        float frac = scaledOffset - static_cast<float>(subIndex);
+
+        if (subIndex >= oversamplingFactor_) {
+            subIndex = oversamplingFactor_ - 1;
+            frac = 0.0f;
+        }
+
+        size_t tableIdx = index * oversamplingFactor_ + subIndex;
+
+        float val0 = blampTable_[tableIdx];
+
+        size_t nextIdx = tableIdx + 1;
+        float val1 = 0.0f;  // Default: settled value beyond table (BLAMP converges to 0)
+        if (nextIdx < blampTable_.size()) {
+            val1 = blampTable_[nextIdx];
+        }
+
         return Interpolation::linearInterpolate(val0, val1, frac);
     }
 
@@ -368,6 +440,28 @@ public:
             }
         }
 
+        /// @brief Stamp a scaled minBLAMP correction into the ring buffer.
+        ///
+        /// MinBLAMP corrects derivative discontinuities (kinks, direction reversals).
+        /// Correction formula: correction[i] = amplitude * table.sampleBlamp(offset, i)
+        /// NaN/Inf amplitude treated as 0.0.
+        inline void addBlamp(float subsampleOffset, float amplitude) noexcept {
+            if (detail::isNaN(amplitude) || detail::isInf(amplitude)) {
+                return;
+            }
+
+            if (table_ == nullptr || buffer_.empty()) {
+                return;
+            }
+
+            const size_t len = buffer_.size();
+            for (size_t i = 0; i < len; ++i) {
+                float tableVal = table_->sampleBlamp(subsampleOffset, i);
+                float correction = amplitude * tableVal;
+                buffer_[(readIdx_ + i) % len] += correction;
+            }
+        }
+
         /// @brief Extract next correction value from the ring buffer (FR-021).
         ///
         /// Returns buffer[readIdx], clears it to 0.0, advances readIdx.
@@ -396,7 +490,8 @@ public:
     };
 
 private:
-    std::vector<float> table_;       ///< Flat polyphase table [length * oversamplingFactor]
+    std::vector<float> table_;       ///< Flat polyphase minBLEP table [length * oversamplingFactor]
+    std::vector<float> blampTable_;  ///< Flat polyphase minBLAMP table (integral of minBLEP residual)
     size_t length_ = 0;             ///< Output-rate length (zeroCrossings * 2)
     size_t oversamplingFactor_ = 0; ///< Sub-sample resolution
     bool prepared_ = false;         ///< prepare() called successfully
