@@ -335,7 +335,7 @@ TEST_CASE("UnisonEngine: non-linear detune curve - outer > 1.5x inner",
     // Outer pair offset = 50 * (3/3)^1.7 = 50 cents
     // Ratio = 50 / 7.73 ≈ 6.47 >> 1.5
     const float innerOffset = 50.0f * std::pow(1.0f / 3.0f, 1.7f);  // ≈7.73 cents
-    const float outerOffset = 50.0f * std::pow(3.0f / 3.0f, 1.7f);  // =50.0 cents
+    const float outerOffset = 50.0f * std::pow(1.0f, 1.7f);  // =50.0 cents (3/3 = 1.0)
     const float ratio = outerOffset / innerOffset;
 
     INFO("Inner pair offset: " << innerOffset << " cents");
@@ -589,8 +589,8 @@ TEST_CASE("UnisonEngine: blend=0.0 shows dominant center frequency",
     // Find peak at fundamental
     float centerPeak = spectrum[fundamentalBin].magnitude();
     // Check bins 1-2 away for nearby peak due to windowing
-    for (int offset = -2; offset <= 2; ++offset) {
-        size_t b = static_cast<size_t>(static_cast<int>(fundamentalBin) + offset);
+    for (size_t offset = 0; offset <= 4; ++offset) {
+        size_t b = fundamentalBin - 2 + offset;
         centerPeak = std::max(centerPeak, spectrum[b].magnitude());
     }
 
@@ -657,8 +657,8 @@ TEST_CASE("UnisonEngine: blend=1.0 shows detuned peaks dominating",
     // the center voice is silenced. Only spectral leakage from detuned
     // voices contributes.
     float fundamentalPeak = 0.0f;
-    for (int offset = -1; offset <= 1; ++offset) {
-        size_t b = static_cast<size_t>(static_cast<int>(fundamentalBin) + offset);
+    for (size_t offset = 0; offset <= 2; ++offset) {
+        size_t b = fundamentalBin - 1 + offset;
         fundamentalPeak = std::max(fundamentalPeak, spectrum[b].magnitude());
     }
 
@@ -956,8 +956,8 @@ TEST_CASE("UnisonEngine: Square waveform shows odd harmonics",
     auto getMagnitude = [&](float freqHz) -> float {
         size_t bin = static_cast<size_t>(std::round(freqHz / binRes));
         float peak = 0.0f;
-        for (int offset = -2; offset <= 2; ++offset) {
-            size_t b = static_cast<size_t>(static_cast<int>(bin) + offset);
+        for (size_t offset = 0; offset <= 4; ++offset) {
+            size_t b = bin - 2 + offset;
             if (b < fft.numBins()) {
                 peak = std::max(peak, spectrum[b].magnitude());
             }

@@ -27,14 +27,14 @@
 #include <krate/dsp/primitives/polyblep_oscillator.h>
 
 // Standard library
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 
-namespace Krate {
-namespace DSP {
+namespace Krate::DSP {
 
 // =============================================================================
 // StereoOutput (FR-001)
@@ -237,13 +237,13 @@ inline void UnisonEngine::setNumVoices(size_t count) noexcept {
 
 inline void UnisonEngine::setDetune(float amount) noexcept {
     if (detail::isNaN(amount) || detail::isInf(amount)) return;
-    detune_ = (amount < 0.0f) ? 0.0f : ((amount > 1.0f) ? 1.0f : amount);
+    detune_ = std::clamp(amount, 0.0f, 1.0f);
     computeVoiceLayout();
 }
 
 inline void UnisonEngine::setStereoSpread(float spread) noexcept {
     if (detail::isNaN(spread) || detail::isInf(spread)) return;
-    stereoSpread_ = (spread < 0.0f) ? 0.0f : ((spread > 1.0f) ? 1.0f : spread);
+    stereoSpread_ = std::clamp(spread, 0.0f, 1.0f);
     computeVoiceLayout();
 }
 
@@ -264,7 +264,7 @@ inline void UnisonEngine::setFrequency(float hz) noexcept {
 
 inline void UnisonEngine::setBlend(float blend) noexcept {
     if (detail::isNaN(blend) || detail::isInf(blend)) return;
-    blend_ = (blend < 0.0f) ? 0.0f : ((blend > 1.0f) ? 1.0f : blend);
+    blend_ = std::clamp(blend, 0.0f, 1.0f);
     auto [cGain, oGain] = equalPowerGains(blend_);
     centerGain_ = cGain;
     outerGain_ = oGain;
@@ -423,5 +423,4 @@ inline void UnisonEngine::processBlock(float* left, float* right, size_t numSamp
     return x;
 }
 
-} // namespace DSP
-} // namespace Krate
+} // namespace Krate::DSP

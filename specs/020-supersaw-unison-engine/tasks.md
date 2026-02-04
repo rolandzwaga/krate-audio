@@ -370,8 +370,8 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 11.2 Final Commit
 
-- [ ] T103 Commit architecture documentation updates with message: "Document UnisonEngine in layer-3-systems.md"
-- [ ] T104 Verify all spec work is committed to feature branch
+- [X] T103 Commit architecture documentation updates with message: "Document UnisonEngine in layer-3-systems.md"
+- [X] T104 Verify all spec work is committed to feature branch
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
@@ -385,7 +385,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 12.1 Run Clang-Tidy Analysis
 
-- [ ] T105 Run clang-tidy on all new/modified source files:
+- [X] T105 Run clang-tidy on all new/modified source files:
   ```bash
   # Windows (PowerShell) - from repo root
   ./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
@@ -396,13 +396,13 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 12.2 Address Findings
 
-- [ ] T106 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T107 Review warnings and fix where appropriate (use judgment for DSP code - some warnings like magic-numbers are disabled)
-- [ ] T108 Document suppressions if any warnings are intentionally ignored (add NOLINT comment with reason)
+- [X] T106 Fix all errors reported by clang-tidy (blocking issues)
+- [X] T107 Review warnings and fix where appropriate (use judgment for DSP code - some warnings like magic-numbers are disabled)
+- [X] T108 Document suppressions if any warnings are intentionally ignored (add NOLINT comment with reason)
 
 ### 12.3 Commit
 
-- [ ] T109 Commit clang-tidy fixes with message: "Address clang-tidy findings for UnisonEngine"
+- [X] T109 Commit clang-tidy fixes with message: "Address clang-tidy findings for UnisonEngine"
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 
