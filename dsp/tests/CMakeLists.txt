@@ -42,6 +42,7 @@ add_executable(dsp_tests
     unit/core/modulation_curves_test.cpp
     unit/core/polyblep_test.cpp
     unit/core/phase_utils_test.cpp
+    unit/core/wavetable_data_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/delay_line_test.cpp
@@ -85,6 +86,8 @@ add_executable(dsp_tests
     unit/primitives/sweep_position_buffer_test.cpp
     unit/primitives/spectrum_fifo_test.cpp
     unit/primitives/polyblep_oscillator_test.cpp
+    unit/primitives/wavetable_generator_test.cpp
+    unit/primitives/wavetable_oscillator_test.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
@@ -237,6 +240,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/modulation_curves_test.cpp
         unit/core/polyblep_test.cpp
         unit/core/phase_utils_test.cpp
+        unit/core/wavetable_data_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/dc_blocker_test.cpp
         unit/primitives/oversampler_test.cpp
@@ -277,6 +281,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/sweep_position_buffer_test.cpp
         unit/primitives/spectrum_fifo_test.cpp
         unit/primitives/polyblep_oscillator_test.cpp
+        unit/primitives/wavetable_generator_test.cpp
+        unit/primitives/wavetable_oscillator_test.cpp
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
         unit/processors/envelope_follower_test.cpp

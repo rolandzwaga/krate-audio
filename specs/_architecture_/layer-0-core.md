@@ -504,6 +504,78 @@ Polynomial band-limited step (BLEP) and ramp (BLAMP) correction functions for an
 
 ---
 
+## Wavetable Data & Mipmap Level Selection
+**Path:** [wavetable_data.h](../../dsp/include/krate/dsp/core/wavetable_data.h) | **Since:** 0.15.0
+
+Mipmapped wavetable storage and mipmap level selection for alias-free wavetable oscillator playback. Each mipmap level contains a band-limited version of a single waveform cycle with guard samples enabling branchless cubic Hermite interpolation.
+
+```cpp
+// Constants
+inline constexpr size_t kDefaultTableSize = 2048;   // Samples per level (excluding guards)
+inline constexpr size_t kMaxMipmapLevels = 11;       // ~11 octaves of coverage
+inline constexpr size_t kGuardSamples = 4;            // 1 prepend + 3 append
+
+// Storage (~90 KB per instance)
+struct WavetableData {
+    [[nodiscard]] const float* getLevel(size_t level) const noexcept;   // Returns nullptr if invalid
+    float* getMutableLevel(size_t level) noexcept;                       // For generator use
+    [[nodiscard]] size_t tableSize() const noexcept;                     // Always 2048
+    [[nodiscard]] size_t numLevels() const noexcept;
+    void setNumLevels(size_t n) noexcept;                                // Clamped to [0, 11]
+};
+
+// Level selection functions
+[[nodiscard]] constexpr size_t selectMipmapLevel(float frequency, float sampleRate, size_t tableSize) noexcept;
+[[nodiscard]] inline float selectMipmapLevelFractional(float frequency, float sampleRate, size_t tableSize) noexcept;
+```
+
+**Memory Layout per Level:**
+```
+Physical: [prepend_guard][data_0..data_{N-1}][append_0][append_1][append_2]
+getLevel() returns pointer to data_0 (physical offset 1)
+p[-1] = data[N-1]   (prepend guard)
+p[N]  = data[0]     (first append guard)
+p[N+1] = data[1]    (second append guard)
+p[N+2] = data[2]    (third append guard)
+```
+
+**Level Selection Formula:**
+```
+level = max(0, ceil(log2(frequency * tableSize / sampleRate)))
+```
+
+| Frequency (at 44.1 kHz) | Integer Level | Fractional Level |
+|--------------------------|---------------|------------------|
+| 20 Hz | 0 | ~0.0 |
+| 440 Hz | 5 | ~4.4 |
+| 10,000 Hz | 9 | ~8.9 |
+| 22,050 Hz (Nyquist) | 10 | 10.0 |
+
+**When to use:**
+- Any wavetable-based synthesis component (oscillator, FM operator, PD oscillator)
+- Storing mipmapped single-cycle waveform data shared across polyphonic voices
+- Selecting appropriate mipmap level for alias-free playback at a given frequency
+
+**Do NOT use when:**
+- You need PolyBLEP oscillator (use `polyblep_oscillator.h` instead)
+- You need multi-cycle or streaming audio storage (use DelayLine or buffer)
+
+**Example Usage:**
+```cpp
+WavetableData sawTable;
+generateMipmappedSaw(sawTable);  // From wavetable_generator.h
+
+// Read from level 0 using guard samples for cubic Hermite
+const float* level0 = sawTable.getLevel(0);
+// Safe reads: level0[-1], level0[0], ..., level0[2047], level0[2048], level0[2049], level0[2050]
+
+// Select level for 440 Hz at 44100 Hz
+size_t level = selectMipmapLevel(440.0f, 44100.0f, sawTable.tableSize());
+float fracLevel = selectMipmapLevelFractional(440.0f, 44100.0f, sawTable.tableSize());
+```
+
+---
+
 ## Phase Accumulator & Utilities
 **Path:** [phase_utils.h](../../dsp/include/krate/dsp/core/phase_utils.h) | **Since:** 0.15.0
 

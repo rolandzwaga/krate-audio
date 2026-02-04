@@ -58,6 +58,7 @@ set(KRATE_DSP_CORE_HEADERS
     include/krate/dsp/core/pitch_utils.h
     include/krate/dsp/core/random.h
     include/krate/dsp/core/stereo_utils.h
+    include/krate/dsp/core/wavetable_data.h
     include/krate/dsp/core/window_functions.h
 )
 
@@ -78,6 +79,8 @@ set(KRATE_DSP_PRIMITIVES_HEADERS
     include/krate/dsp/primitives/spectral_buffer.h
     include/krate/dsp/primitives/spectrum_fifo.h
     include/krate/dsp/primitives/stft.h
+    include/krate/dsp/primitives/wavetable_generator.h
+    include/krate/dsp/primitives/wavetable_oscillator.h
 )
 
 # Layer 2: Processors

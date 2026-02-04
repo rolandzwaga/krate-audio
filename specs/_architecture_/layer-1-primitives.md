@@ -1513,6 +1513,167 @@ if (sweepPositionBuffer_->getLatest(data)) {
 
 ---
 
+## WavetableGenerator (Mipmapped Wavetable Generation)
+**Path:** [wavetable_generator.h](../../dsp/include/krate/dsp/primitives/wavetable_generator.h) | **Since:** 0.15.0
+
+Mipmapped wavetable generation via FFT/IFFT for standard waveforms, custom harmonic spectra, and raw waveform samples. Populates WavetableData with band-limited mipmap levels, each independently normalized with correct guard samples.
+
+**Use when:**
+- Generating mipmapped wavetables during plugin initialization
+- Creating standard waveforms (sawtooth, square, triangle) with band-limiting
+- Importing custom harmonic spectra or raw single-cycle waveforms
+- Populating WavetableData for use with WavetableOscillator
+
+**Note:** NOT real-time safe. All functions allocate temporary buffers and perform FFT. Call once during initialization, share the resulting WavetableData across oscillator instances via non-owning pointers.
+
+```cpp
+// Standard waveform generators
+inline void generateMipmappedSaw(WavetableData& data);       // 1/n harmonic series
+inline void generateMipmappedSquare(WavetableData& data);     // Odd harmonics, 1/n
+inline void generateMipmappedTriangle(WavetableData& data);   // Odd harmonics, 1/n^2, alternating sign
+
+// Custom spectrum generator
+inline void generateMipmappedFromHarmonics(
+    WavetableData& data,
+    const float* harmonicAmplitudes,   // index 0 = fundamental (harmonic 1)
+    size_t numHarmonics                // 0 = silence at all levels
+);
+
+// Raw sample generator (FFT analysis/resynthesis)
+inline void generateMipmappedFromSamples(
+    WavetableData& data,
+    const float* samples,              // Single-cycle waveform
+    size_t sampleCount                 // 0 = no modification
+);
+```
+
+| Function | Spectrum | Use Case |
+|----------|----------|----------|
+| `generateMipmappedSaw` | All harmonics, 1/n | Bright, rich oscillator |
+| `generateMipmappedSquare` | Odd harmonics, 1/n | Hollow, reedy tone |
+| `generateMipmappedTriangle` | Odd harmonics, 1/n^2 | Soft, mellow tone |
+| `generateMipmappedFromHarmonics` | User-defined | Custom timbres |
+| `generateMipmappedFromSamples` | Analyzed via FFT | External wavetable import |
+
+**Normalization:** Each mipmap level is independently normalized to ~0.96 peak amplitude.
+
+**Guard Samples:** All generators set wraparound guard samples for branchless cubic Hermite interpolation (p[-1] = last sample, p[N] = first sample, etc.).
+
+**Example Usage:**
+```cpp
+WavetableData sawTable;
+generateMipmappedSaw(sawTable);
+// sawTable.numLevels() == 11, each level band-limited for its frequency range
+
+// Custom organ-like harmonic spectrum
+float harmonics[] = {1.0f, 0.0f, 0.5f, 0.0f, 0.3f};  // 1st, 3rd, 5th only
+WavetableData organTable;
+generateMipmappedFromHarmonics(organTable, harmonics, 5);
+
+// Import external single-cycle waveform
+WavetableData importedTable;
+generateMipmappedFromSamples(importedTable, wavSamples, wavSampleCount);
+```
+
+**Dependencies:** `core/wavetable_data.h`, `core/math_constants.h`, `primitives/fft.h`
+
+---
+
+## WavetableOscillator (Mipmapped Wavetable Playback)
+**Path:** [wavetable_oscillator.h](../../dsp/include/krate/dsp/primitives/wavetable_oscillator.h) | **Since:** 0.15.0
+
+Real-time wavetable playback with automatic mipmap selection, cubic Hermite interpolation, and mipmap crossfading. Follows the same interface pattern as PolyBlepOscillator for interchangeability in downstream components (FM Operator, PD Oscillator, Vector Mixer).
+
+**Use when:**
+- Building synthesizer voices with arbitrary wavetable timbres
+- FM operators that need wavetable sources (instead of or alongside PolyBLEP)
+- Phase distortion (PD) oscillators reading from custom waveforms
+- Any application requiring alias-free playback of stored single-cycle waveforms
+
+**Note:** Holds a non-owning pointer to WavetableData. The caller must ensure the WavetableData outlives the oscillator. Multiple oscillators can share a single WavetableData (~90 KB) for polyphonic voices.
+
+```cpp
+class WavetableOscillator {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;           // Init (NOT real-time safe)
+    void reset() noexcept;                               // Clear state, preserve config
+
+    // Parameters
+    void setWavetable(const WavetableData* table) noexcept;  // Non-owning pointer
+    void setFrequency(float hz) noexcept;                     // [0, sampleRate/2), NaN-safe
+
+    // Processing (real-time safe, noexcept)
+    [[nodiscard]] float process() noexcept;              // Single sample
+    void processBlock(float* output, size_t numSamples) noexcept;
+    void processBlock(float* output, const float* fmBuffer, size_t numSamples) noexcept;
+
+    // Phase access (matches PolyBlepOscillator interface)
+    [[nodiscard]] double phase() const noexcept;         // [0, 1)
+    [[nodiscard]] bool phaseWrapped() const noexcept;    // True on cycle boundary
+    void resetPhase(double newPhase = 0.0) noexcept;     // Hard sync
+
+    // Modulation (per-sample, non-accumulating)
+    void setPhaseModulation(float radians) noexcept;     // Yamaha-style PM
+    void setFrequencyModulation(float hz) noexcept;      // Linear FM offset
+};
+```
+
+| Feature | Detail |
+|---------|--------|
+| Interpolation | Cubic Hermite (4-point, branchless via guard samples) |
+| Mipmap selection | Automatic fractional level from frequency |
+| Crossfading | Dual lookup with linear blend when frac in [0.05, 0.95] |
+| Output range | Sanitized to [-2.0, 2.0], NaN replaced with 0.0 |
+| Phase precision | double (prevents accumulated rounding over long playback) |
+| FM/PM | Per-sample, non-accumulating, reset after each process() call |
+
+**WavetableOscillator vs PolyBlepOscillator:**
+
+| Feature | WavetableOscillator | PolyBlepOscillator |
+|---------|---------------------|--------------------|
+| Timbres | Arbitrary (any wavetable) | 5 standard waveforms |
+| Anti-aliasing | Mipmap band-limiting (no aliasing) | PolyBLEP correction (~40 dB) |
+| Memory | ~90 KB per WavetableData (shared) | ~64 bytes per instance |
+| CPU | Table read + interpolation | Polynomial computation |
+| Best for | Custom timbres, wavetable synths | Simple waveforms, minimal memory |
+| Interface | Identical (interchangeable) | Identical (interchangeable) |
+
+**Complementary Roles:** These oscillators serve different use cases but share the same interface. Use PolyBlepOscillator for standard waveforms with minimal memory. Use WavetableOscillator when arbitrary timbres or zero-aliasing playback is needed. Downstream components (FM Operator, PD Oscillator, Vector Mixer) can accept either through their shared interface.
+
+**Example Usage:**
+```cpp
+// Initialize (once, at startup)
+WavetableData sawTable;
+generateMipmappedSaw(sawTable);
+
+// Create oscillator
+WavetableOscillator osc;
+osc.prepare(44100.0);
+osc.setWavetable(&sawTable);
+osc.setFrequency(440.0f);
+
+// Generate audio (real-time safe)
+float output[512];
+osc.processBlock(output, 512);
+
+// FM synthesis (per-sample modulation)
+float fmBuffer[512];  // Filled by modulator
+osc.processBlock(output, fmBuffer, 512);
+
+// Phase modulation
+osc.setPhaseModulation(modSignal * 3.14159f);
+float sample = osc.process();
+
+// Polyphonic sharing (multiple voices, one table)
+WavetableOscillator voice1, voice2;
+voice1.prepare(44100.0);  voice1.setWavetable(&sawTable);
+voice2.prepare(44100.0);  voice2.setWavetable(&sawTable);  // Same table pointer
+```
+
+**Dependencies:** `core/wavetable_data.h`, `core/interpolation.h`, `core/phase_utils.h`, `core/math_constants.h`, `core/db_utils.h`
+
+---
+
 ## PolyBlepOscillator (Band-Limited Audio-Rate Oscillator)
 **Path:** [polyblep_oscillator.h](../../dsp/include/krate/dsp/primitives/polyblep_oscillator.h) | **Since:** 0.15.0
 
