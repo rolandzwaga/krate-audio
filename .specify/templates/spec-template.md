@@ -163,8 +163,14 @@ grep -r "[key term 2]" dsp/ plugins/
 
 <!--
   CRITICAL: This section MUST be completed when claiming spec completion.
-  Constitution Principle XV: Honest Completion requires explicit verification
+  Constitution Principle XVI: Honest Completion requires explicit verification
   of ALL requirements before claiming "done".
+
+  DO NOT fill this table from memory or assumptions. Each row requires you to
+  re-read the actual implementation code and actual test output RIGHT NOW,
+  then record what you found with specific file paths, line numbers, and
+  measured values. Generic evidence like "implemented" or "test passes" is
+  NOT acceptable — it must be verifiable by a human reader.
 
   This section is EMPTY during specification phase and filled during
   implementation phase when /speckit.implement completes.
@@ -172,27 +178,36 @@ grep -r "[key term 2]" dsp/ plugins/
 
 ### Compliance Status
 
-*Fill this table when claiming completion. DO NOT claim completion if ANY requirement is ❌ NOT MET without explicit user approval.*
+*For EACH row below, you MUST perform these steps before writing the status:*
+1. *Re-read the requirement from the spec*
+2. *Open the implementation file and find the code that satisfies it — record the file path and line number*
+3. *Run or read the test that proves it — record the test name and its actual output/result*
+4. *For numeric thresholds (SC-xxx): record the actual measured value vs the spec target*
+5. *Only then write the status and evidence*
+
+*DO NOT mark ✅ without having just verified the code and test output. DO NOT claim completion if ANY requirement is ❌ NOT MET without explicit user approval.*
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | [✅/❌/⚠️/🔄] | [Test name or reason for failure] |
-| FR-002 | [✅/❌/⚠️/🔄] | [Test name or reason for failure] |
-| SC-001 | [✅/❌/⚠️/🔄] | [Measured value vs target] |
-| SC-002 | [✅/❌/⚠️/🔄] | [Measured value vs target] |
+| FR-001 | [✅/❌/⚠️/🔄] | [`file.h:line` — what it does; test `TestName` result: actual value] |
+| FR-002 | [✅/❌/⚠️/🔄] | [`file.h:line` — what it does; test `TestName` result: actual value] |
+| SC-001 | [✅/❌/⚠️/🔄] | [Test `TestName`: measured X.XX vs target Y.YY] |
+| SC-002 | [✅/❌/⚠️/🔄] | [Test `TestName`: measured X.XX vs target Y.YY] |
 
 **Status Key:**
-- ✅ MET: Requirement fully satisfied with test evidence
+- ✅ MET: Requirement verified against actual code and test output with specific evidence
 - ❌ NOT MET: Requirement not satisfied (spec is NOT complete)
-- ⚠️ PARTIAL: Partially met with documented gap
+- ⚠️ PARTIAL: Partially met with documented gap and specific evidence of what IS met
 - 🔄 DEFERRED: Explicitly moved to future work with user approval
 
 ### Completion Checklist
 
 *All items must be checked before claiming completion:*
 
-- [ ] All FR-xxx requirements verified against implementation
-- [ ] All SC-xxx success criteria measured and documented
+- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
 - [ ] No test thresholds relaxed from spec requirements
 - [ ] No placeholder values or TODO comments in new code
 - [ ] No features quietly removed from scope
