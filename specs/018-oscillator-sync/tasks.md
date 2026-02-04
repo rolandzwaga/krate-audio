@@ -182,34 +182,34 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T052 [P] [US2] Write failing test for FR-008 (setSyncMode() changes sync mode) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T053 [P] [US2] Write failing test for FR-019 (reverse sync reverses slave direction) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T054 [P] [US2] Write failing test for FR-020 (direction flag toggles on each wrap) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T055 [P] [US2] Write failing test for FR-021a (minBLAMP correction applied at reversal) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T056 [P] [US2] Write failing test for SC-005 (reverse sync fundamental = master, verify max step discontinuity ≤ 0.1 at sync points) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T057 [US2] Verify all new tests FAIL (no implementation exists yet)
+- [X] T052 [P] [US2] Write failing test for FR-008 (setSyncMode() changes sync mode) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T053 [P] [US2] Write failing test for FR-019 (reverse sync reverses slave direction) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T054 [P] [US2] Write failing test for FR-020 (direction flag toggles on each wrap) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T055 [P] [US2] Write failing test for FR-021a (minBLAMP correction applied at reversal) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T056 [P] [US2] Write failing test for SC-005 (reverse sync fundamental = master, verify max step discontinuity ≤ 0.1 at sync points) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T057 [US2] Verify all new tests FAIL (no implementation exists yet)
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T058 [US2] Implement `setSyncMode(SyncMode mode)` method (FR-008) in `dsp/include/krate/dsp/processors/sync_oscillator.h`
-- [ ] T059 [US2] Implement `evaluateWaveformDerivative()` private static helper in `dsp/include/krate/dsp/processors/sync_oscillator.h` for minBLAMP amplitude computation
-- [ ] T060 [US2] Implement reverse sync direction reversal logic (FR-019, FR-020) in `processReverseSync()` private method in `dsp/include/krate/dsp/processors/sync_oscillator.h`
-- [ ] T061 [US2] Implement minBLAMP correction at reversal points (FR-021a) in `processReverseSync()` in `dsp/include/krate/dsp/processors/sync_oscillator.h`
-- [ ] T062 [US2] Integrate reverse sync mode into `process()` switch statement in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T058 [US2] Implement `setSyncMode(SyncMode mode)` method (FR-008) in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T059 [US2] Implement `evaluateWaveformDerivative()` private static helper in `dsp/include/krate/dsp/processors/sync_oscillator.h` for minBLAMP amplitude computation
+- [X] T060 [US2] Implement reverse sync direction reversal logic (FR-019, FR-020) in `processReverseSync()` private method in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T061 [US2] Implement minBLAMP correction at reversal points (FR-021a) in `processReverseSync()` in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T062 [US2] Integrate reverse sync mode into `process()` switch statement in `dsp/include/krate/dsp/processors/sync_oscillator.h`
 
 ### 4.3 Verification for User Story 2
 
-- [ ] T063 [US2] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T064 [US2] Run User Story 2 tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][reverse]"` and verify all pass
-- [ ] T065 [US2] Verify no compiler warnings in sync_oscillator.h
+- [X] T063 [US2] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T064 [US2] Run User Story 2 tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][reverse]"` and verify all pass
+- [X] T065 [US2] Verify no compiler warnings in sync_oscillator.h
 
 ### 4.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T066 [US2] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
+- [X] T066 [US2] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
 
 ### 4.5 Commit (MANDATORY)
 
-- [ ] T067 [US2] Commit completed User Story 2 work with message: "Implement reverse sync mode (P2) with minBLAMP correction for derivative discontinuities"
+- [X] T067 [US2] Commit completed User Story 2 work with message: "Implement reverse sync mode (P2) with minBLAMP correction for derivative discontinuities"
 
 **Checkpoint**: User Stories 1 AND 2 should both work independently and be committed
 
@@ -225,31 +225,31 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T068 [P] [US3] Write failing test for FR-022 (phase advance nudges slave phase) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T069 [P] [US3] Write failing test for FR-023 (phase advance scales with syncAmount) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T070 [P] [US3] Write failing test for FR-024 (minBLEP correction proportional to discontinuity) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T071 [P] [US3] Write failing test for SC-006 (phase advance at syncAmount=0.0 matches free-running) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T072 [P] [US3] Write failing test for SC-007 (phase advance at syncAmount=1.0 matches hard sync fundamental) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T073 [US3] Verify all new tests FAIL (no implementation exists yet)
+- [X] T068 [P] [US3] Write failing test for FR-022 (phase advance nudges slave phase) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T069 [P] [US3] Write failing test for FR-023 (phase advance scales with syncAmount) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T070 [P] [US3] Write failing test for FR-024 (minBLEP correction proportional to discontinuity) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T071 [P] [US3] Write failing test for SC-006 (phase advance at syncAmount=0.0 matches free-running) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T072 [P] [US3] Write failing test for SC-007 (phase advance at syncAmount=1.0 matches hard sync fundamental) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T073 [US3] Verify all new tests FAIL (no implementation exists yet)
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T074 [US3] Implement phase advance sync logic (FR-022, FR-023, FR-024) in `processPhaseAdvanceSync()` private method in `dsp/include/krate/dsp/processors/sync_oscillator.h`
-- [ ] T075 [US3] Integrate phase advance sync mode into `process()` switch statement in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T074 [US3] Implement phase advance sync logic (FR-022, FR-023, FR-024) in `processPhaseAdvanceSync()` private method in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T075 [US3] Integrate phase advance sync mode into `process()` switch statement in `dsp/include/krate/dsp/processors/sync_oscillator.h`
 
 ### 5.3 Verification for User Story 3
 
-- [ ] T076 [US3] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T077 [US3] Run User Story 3 tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][phaseadvance]"` and verify all pass
-- [ ] T078 [US3] Verify no compiler warnings in sync_oscillator.h
+- [X] T076 [US3] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T077 [US3] Run User Story 3 tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][phaseadvance]"` and verify all pass
+- [X] T078 [US3] Verify no compiler warnings in sync_oscillator.h
 
 ### 5.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T079 [US3] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
+- [X] T079 [US3] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
 
 ### 5.5 Commit (MANDATORY)
 
-- [ ] T080 [US3] Commit completed User Story 3 work with message: "Implement phase advance sync mode (P2) with scalable sync amount"
+- [X] T080 [US3] Commit completed User Story 3 work with message: "Implement phase advance sync mode (P2) with scalable sync amount"
 
 **Checkpoint**: All three sync modes should now be independently functional and committed
 
@@ -265,33 +265,33 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T081 [P] [US4] Write failing test for FR-009 (setSyncAmount() clamps to [0.0, 1.0]) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T082 [P] [US4] Write failing test for FR-016 (hard sync interpolates phase with syncAmount) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T083 [P] [US4] Write failing test for FR-021 (reverse sync blends increment with syncAmount) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T084 [P] [US4] Write failing test for SC-008 (hard sync syncAmount=0.0 matches free-running) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T085 [P] [US4] Write failing test for SC-014 (syncAmount sweep produces no clicks) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T086 [US4] Verify all new tests FAIL (no implementation exists yet)
+- [X] T081 [P] [US4] Write failing test for FR-009 (setSyncAmount() clamps to [0.0, 1.0]) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T082 [P] [US4] Write failing test for FR-016 (hard sync interpolates phase with syncAmount) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T083 [P] [US4] Write failing test for FR-021 (reverse sync blends increment with syncAmount) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T084 [P] [US4] Write failing test for SC-008 (hard sync syncAmount=0.0 matches free-running) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T085 [P] [US4] Write failing test for SC-014 (syncAmount sweep produces no clicks) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T086 [US4] Verify all new tests FAIL (no implementation exists yet)
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T087 [US4] Implement `setSyncAmount(float amount)` method (FR-009) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - clamp to [0.0, 1.0]
-- [ ] T088 [US4] Implement syncAmount interpolation in `processHardSync()` (FR-016) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - lerp between current and synced phase
-- [ ] T089 [US4] Implement syncAmount blending in `processReverseSync()` (FR-021) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - lerp between forward and reversed increment
-- [ ] T090 [US4] Verify phase advance already scales with syncAmount (FR-023 from Phase 5)
+- [X] T087 [US4] Implement `setSyncAmount(float amount)` method (FR-009) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - clamp to [0.0, 1.0]
+- [X] T088 [US4] Implement syncAmount interpolation in `processHardSync()` (FR-016) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - lerp between current and synced phase
+- [X] T089 [US4] Implement syncAmount blending in `processReverseSync()` (FR-021) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - lerp between forward and reversed increment
+- [X] T090 [US4] Verify phase advance already scales with syncAmount (FR-023 from Phase 5)
 
 ### 6.3 Verification for User Story 4
 
-- [ ] T091 [US4] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T092 [US4] Run User Story 4 tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][syncamount]"` and verify all pass
-- [ ] T093 [US4] Verify no compiler warnings in sync_oscillator.h
+- [X] T091 [US4] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T092 [US4] Run User Story 4 tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][syncamount]"` and verify all pass
+- [X] T093 [US4] Verify no compiler warnings in sync_oscillator.h
 
 ### 6.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T094 [US4] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
+- [X] T094 [US4] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
 
 ### 6.5 Commit (MANDATORY)
 
-- [ ] T095 [US4] Commit completed User Story 4 work with message: "Implement sync amount control (P2) for crossfading between free-running and synced behavior"
+- [X] T095 [US4] Commit completed User Story 4 work with message: "Implement sync amount control (P2) for crossfading between free-running and synced behavior"
 
 **Checkpoint**: All sync modes now have continuous amount control and are committed
 
@@ -307,31 +307,31 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T096 [P] [US5] Write failing test for FR-010 (setSlavePulseWidth() delegates to PolyBlepOscillator) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T097 [P] [US5] Write failing test for SC-012 (hard sync with Square waveform has alias suppression >= 40 dB) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T098 [P] [US5] Write failing test for all five waveforms producing distinct spectra in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T099 [P] [US5] Write failing test for Pulse waveform with variable width in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T100 [US5] Verify all new tests FAIL (no implementation exists yet)
+- [X] T096 [P] [US5] Write failing test for FR-010 (setSlavePulseWidth() delegates to PolyBlepOscillator) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T097 [P] [US5] Write failing test for SC-012 (hard sync with Square waveform has alias suppression >= 40 dB) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T098 [P] [US5] Write failing test for all five waveforms producing distinct spectra in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T099 [P] [US5] Write failing test for Pulse waveform with variable width in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T100 [US5] Verify all new tests FAIL (no implementation exists yet)
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T101 [US5] Implement `setSlavePulseWidth(float width)` method (FR-010) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - delegate to PolyBlepOscillator
-- [ ] T102 [US5] Verify `evaluateWaveform()` handles all five waveforms (Sine, Sawtooth, Square, Pulse, Triangle) in `dsp/include/krate/dsp/processors/sync_oscillator.h`
-- [ ] T103 [US5] Verify `evaluateWaveformDerivative()` handles all five waveforms in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T101 [US5] Implement `setSlavePulseWidth(float width)` method (FR-010) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - delegate to PolyBlepOscillator
+- [X] T102 [US5] Verify `evaluateWaveform()` handles all five waveforms (Sine, Sawtooth, Square, Pulse, Triangle) in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T103 [US5] Verify `evaluateWaveformDerivative()` handles all five waveforms in `dsp/include/krate/dsp/processors/sync_oscillator.h`
 
 ### 7.3 Verification for User Story 5
 
-- [ ] T104 [US5] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T105 [US5] Run User Story 5 tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][waveforms]"` and verify all pass
-- [ ] T106 [US5] Verify no compiler warnings in sync_oscillator.h
+- [X] T104 [US5] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T105 [US5] Run User Story 5 tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][waveforms]"` and verify all pass
+- [X] T106 [US5] Verify no compiler warnings in sync_oscillator.h
 
 ### 7.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T107 [US5] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
+- [X] T107 [US5] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
 
 ### 7.5 Commit (MANDATORY)
 
-- [ ] T108 [US5] Commit completed User Story 5 work with message: "Add support for all five slave waveforms (P3) with distinct sync timbres"
+- [X] T108 [US5] Commit completed User Story 5 work with message: "Add support for all five slave waveforms (P3) with distinct sync timbres"
 
 **Checkpoint**: All slave waveforms supported across all sync modes and committed
 
@@ -347,35 +347,35 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T109 [P] [Edge] Write failing test for SC-009 (output clamped to [-2.0, 2.0] over 100k samples) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T110 [P] [Edge] Write failing test for SC-010 (no NaN/Inf output with randomized parameters) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T111 [P] [Edge] Write failing test for SC-013 (master frequency = 0 Hz produces free-running output) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T112 [P] [Edge] Write failing test for FR-035 (NaN/Inf inputs sanitized to safe defaults) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T113 [P] [Edge] Write failing test for FR-037 (no NaN/Inf/denormal over 100k samples) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T114 [P] [Edge] Write failing test for equal master/slave frequencies (1:1 ratio clean pass-through) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T115 [P] [Edge] Write failing test for processBlock with 0 samples (no-op) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
-- [ ] T116 [Edge] Verify all new tests FAIL (no implementation exists yet)
+- [X] T109 [P] [Edge] Write failing test for SC-009 (output clamped to [-2.0, 2.0] over 100k samples) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T110 [P] [Edge] Write failing test for SC-010 (no NaN/Inf output with randomized parameters) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T111 [P] [Edge] Write failing test for SC-013 (master frequency = 0 Hz produces free-running output) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T112 [P] [Edge] Write failing test for FR-035 (NaN/Inf inputs sanitized to safe defaults) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T113 [P] [Edge] Write failing test for FR-037 (no NaN/Inf/denormal over 100k samples) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T114 [P] [Edge] Write failing test for equal master/slave frequencies (1:1 ratio clean pass-through) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T115 [P] [Edge] Write failing test for processBlock with 0 samples (no-op) in `dsp/tests/unit/processors/sync_oscillator_test.cpp`
+- [X] T116 [Edge] Verify all new tests FAIL (no implementation exists yet)
 
 ### 8.2 Implementation for Edge Cases
 
-- [ ] T117 [Edge] Verify NaN/Inf sanitization in `setMasterFrequency()` (FR-005) in `dsp/include/krate/dsp/processors/sync_oscillator.h`
-- [ ] T118 [Edge] Verify NaN/Inf sanitization in `setSyncAmount()` (FR-009) in `dsp/include/krate/dsp/processors/sync_oscillator.h`
-- [ ] T119 [Edge] Verify output sanitization in `process()` (FR-036) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - clamp to [-2.0, 2.0], replace NaN with 0.0
-- [ ] T120 [Edge] Verify processBlock handles 0 samples gracefully in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T117 [Edge] Verify NaN/Inf sanitization in `setMasterFrequency()` (FR-005) in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T118 [Edge] Verify NaN/Inf sanitization in `setSyncAmount()` (FR-009) in `dsp/include/krate/dsp/processors/sync_oscillator.h`
+- [X] T119 [Edge] Verify output sanitization in `process()` (FR-036) in `dsp/include/krate/dsp/processors/sync_oscillator.h` - clamp to [-2.0, 2.0], replace NaN with 0.0
+- [X] T120 [Edge] Verify processBlock handles 0 samples gracefully in `dsp/include/krate/dsp/processors/sync_oscillator.h`
 
 ### 8.3 Verification for Edge Cases
 
-- [ ] T121 [Edge] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T122 [Edge] Run edge case tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][edge]"` and verify all pass
-- [ ] T123 [Edge] Verify no compiler warnings in sync_oscillator.h
+- [X] T121 [Edge] Build DSP tests: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T122 [Edge] Run edge case tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[SyncOscillator][edge]"` and verify all pass
+- [X] T123 [Edge] Verify no compiler warnings in sync_oscillator.h
 
 ### 8.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T124 [Edge] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
+- [X] T124 [Edge] Verify IEEE 754 compliance: Confirm `sync_oscillator_test.cpp` already in `-fno-fast-math` list from Phase 3
 
 ### 8.5 Commit (MANDATORY)
 
-- [ ] T125 [Edge] Commit completed edge case work with message: "Add edge case handling and robustness for production stability"
+- [X] T125 [Edge] Commit completed edge case work with message: "Add edge case handling and robustness for production stability"
 
 **Checkpoint**: All edge cases handled robustly and committed
 
