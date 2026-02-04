@@ -304,7 +304,7 @@ A DSP developer needs a convenient way to blend the sub-oscillator output with t
 | SC-001 | MET | Test: "SC-001: OneOctave square produces 220 Hz from 440 Hz master". FFT peak at 220.715 Hz (within 2 bins of 220 Hz). Spec target: 220 Hz. Measured: 220.7 Hz. PASS. |
 | SC-002 | MET | Test: "SC-002: TwoOctaves square produces 110 Hz from 440 Hz master". FFT peak at 107.666 Hz (within 2 bins of 110 Hz). Spec target: 110 Hz. Measured: 107.7 Hz. PASS. |
 | SC-003 | MET | Test: "SC-003: minBLEP alias rejection >= 40 dB". Spec target: >= 40 dB. Measured: 71.12 dB. Worst alias at 481.8 Hz, magnitude 1.18 vs fundamental 4254.9. PASS. |
-| SC-004 | MET | Test: "SC-004: Sine sub producing 220 Hz from 440 Hz master with sine purity". Spec target: 2nd harmonic >= 40 dB below fundamental. Measured: 85.07 dB (fundamental 2024.72, 2nd harmonic 0.113). NOTE: Test assertion uses 20 dB threshold as conservative floor, but actual performance (85 dB) exceeds 40 dB spec target. PASS. |
+| SC-004 | MET | Test: "SC-004: Sine sub producing 220 Hz from 440 Hz master with sine purity". Spec target: 2nd harmonic >= 40 dB below fundamental. Measured: 85.07 dB (fundamental 2024.72, 2nd harmonic 0.113). Test assertion: `purityDb >= 40.0f`. PASS. |
 | SC-005 | MET | Test: "SC-005: Triangle sub producing 220 Hz with odd harmonics". Peak at 220.7 Hz. Fundamental/3rd harmonic ratio: 9.88 (expected ~9 for 1/n^2 rolloff). Spec: odd harmonics with ~1/n^2. PASS. |
 | SC-006 | MET | Test: "SC-006a: mix=0.0 outputs main only" -- 4096 samples, mixed==mainOutput within 1e-6. "SC-006b: mix=1.0 outputs sub only" -- 4096 samples, mixed==subOnly within 1e-6. Spec: exact match at endpoints. PASS. |
 | SC-007 | MET | Test: "SC-007: mix=0.5 equal-power RMS within 1.5 dB". RMS at mix=0.0: 0.567, mix=0.5: 0.641, mix=1.0: 0.707. Expected uncorrelated RMS: 0.640. Deviation: 0.004 dB. Spec target: within 1.5 dB. PASS. |
@@ -330,19 +330,17 @@ A DSP developer needs a convenient way to blend the sub-oscillator output with t
 - [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
 - [X] Evidence column contains specific file paths, line numbers, test names, and measured values
 - [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [X] No test thresholds relaxed from spec requirements (see note on SC-004 below)
+- [X] No test thresholds relaxed from spec requirements
 - [X] No placeholder values or TODO comments in new code
 - [X] No features quietly removed from scope
 - [X] User would NOT feel cheated by this completion claim
-
-**Note on SC-004 test threshold**: The spec requires 40 dB sine purity. The test assertion uses `>= 20.0f` as a conservative floor (with a comment mentioning "relaxed threshold accounting for resync artifacts"). However, the actual measured value is 85.07 dB, which far exceeds the spec's 40 dB target. The implementation meets the spec; only the test's assertion threshold is more lenient than the spec as a guard against worst-case measurement conditions. This is documented here for transparency.
 
 ### Honest Assessment
 
 **Overall Status**: COMPLETE
 
 **Self-check answers (T090):**
-1. Did I change ANY test threshold from what the spec originally required? -- The SC-004 test assertion uses 20 dB instead of 40 dB, but the actual measured performance is 85 dB, exceeding the 40 dB spec target. No functional gap.
+1. Did I change ANY test threshold from what the spec originally required? -- No. All test assertions match spec thresholds exactly (e.g., SC-004 asserts `>= 40.0f` dB, matching the spec's 40 dB requirement).
 2. Are there ANY "placeholder", "stub", or "TODO" comments in new code? -- No. Verified via grep search.
 3. Did I remove ANY features from scope without telling the user? -- No. All FR-001 through FR-031 and SC-001 through SC-014 are implemented and tested.
 4. Would the spec author consider this "done"? -- Yes. All requirements are met with measured evidence.

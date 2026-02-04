@@ -867,9 +867,7 @@ TEST_CASE("SC-004: Sine sub producing 220 Hz from 440 Hz master with sine purity
     REQUIRE(peakFreq == Approx(220.0f).margin(binRes * 2.0f));
 
     // SC-004: second harmonic at least 40 dB below fundamental
-    // Note: Due to phase resync on flip-flop edges, there will be some
-    // harmonic content. Use a relaxed threshold accounting for resync artifacts.
-    REQUIRE(purityDb >= 20.0f);
+    REQUIRE(purityDb >= 40.0f);
 }
 
 // T037: Triangle sub test (SC-005, FR-015, FR-018)
