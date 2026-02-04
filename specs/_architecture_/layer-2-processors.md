@@ -4359,3 +4359,101 @@ class SyncOscillator {
 **Memory:** MinBlepTable shared across voices, plus one Residual buffer (16 floats) per instance
 
 **Dependencies:** Layer 0 (phase_utils.h, math_constants.h, db_utils.h), Layer 1 (polyblep_oscillator.h for OscWaveform enum, minblep_table.h)
+
+---
+
+## SubOscillator
+**Path:** [sub_oscillator.h](../../dsp/include/krate/dsp/processors/sub_oscillator.h) | **Since:** 0.17.0
+
+Frequency-divided sub-oscillator that tracks a master oscillator via flip-flop division, replicating the classic analog sub-oscillator behavior found in Moog, Sequential, and Oberheim hardware synthesizers. Supports square (with minBLEP), sine, and triangle waveforms at one-octave (divide-by-2) or two-octave (divide-by-4) depths, with an equal-power mix control.
+
+**Use when:**
+- Adding analog-style sub-bass beneath a main oscillator (synth voice architecture)
+- Classic sub-oscillator behavior with flip-flop frequency division
+- Combining sub-bass with the main oscillator using equal-power crossfade
+- Polyphonic sub-oscillators (up to 128 voices sharing one MinBlepTable)
+
+```cpp
+enum class SubOctave : uint8_t { OneOctave = 0, TwoOctaves = 1 };
+enum class SubWaveform : uint8_t { Square = 0, Sine = 1, Triangle = 2 };
+
+class SubOscillator {
+    // Lifecycle
+    explicit SubOscillator(const MinBlepTable* table = nullptr) noexcept;
+    void prepare(double sampleRate) noexcept;    // NOT real-time safe
+    void reset() noexcept;
+
+    // Parameter setters
+    void setOctave(SubOctave octave) noexcept;
+    void setWaveform(SubWaveform waveform) noexcept;
+    void setMix(float mix) noexcept;              // [0, 1], NaN/Inf ignored
+
+    // Processing (real-time safe)
+    [[nodiscard]] float process(bool masterPhaseWrapped,
+                                float masterPhaseIncrement) noexcept;
+    [[nodiscard]] float processMixed(float mainOutput,
+                                     bool masterPhaseWrapped,
+                                     float masterPhaseIncrement) noexcept;
+};
+```
+
+**Integration with PolyBlepOscillator:**
+
+```cpp
+MinBlepTable table;
+table.prepare(64, 8);
+
+PolyBlepOscillator master;
+master.prepare(44100.0);
+master.setFrequency(440.0f);
+master.setWaveform(OscWaveform::Sawtooth);
+
+SubOscillator sub(&table);
+sub.prepare(44100.0);
+sub.setOctave(SubOctave::OneOctave);
+sub.setWaveform(SubWaveform::Square);
+sub.setMix(0.5f);
+
+float phaseInc = 440.0f / 44100.0f;
+for (int i = 0; i < numSamples; ++i) {
+    float mainOut = master.process();
+    output[i] = sub.processMixed(mainOut, master.phaseWrapped(), phaseInc);
+}
+```
+
+**Waveforms:**
+
+| Waveform | Generation Method | Band-Limiting | Sound Character |
+|----------|-------------------|---------------|-----------------|
+| Square | Flip-flop state (+1/-1) | minBLEP at toggle points | Classic analog sub, punchy |
+| Sine | Phase accumulator + sin() | Inherently band-limited | Smooth, pure sub-bass |
+| Triangle | Phase accumulator + piecewise linear | Inherently band-limited | Warm, rounded sub |
+
+**Octave Division:**
+
+| Mode | Division | Mechanism | Example (440 Hz master) |
+|------|----------|-----------|-------------------------|
+| OneOctave | /2 | Single flip-flop | 220 Hz output |
+| TwoOctaves | /4 | Two-stage flip-flop chain | 110 Hz output |
+
+**Architecture Notes:**
+- The SubOscillator does NOT own a PolyBlepOscillator. It receives `masterPhaseWrapped` and `masterPhaseIncrement` as parameters to `process()`.
+- The flip-flop toggle drives both the square waveform output AND the sine/triangle phase resynchronization (phase reset to 0 on rising edge).
+- MinBLEP correction only applies to the Square waveform. Sine and triangle are smooth and do not need discontinuity correction.
+- Mix parameter gains are cached at `setMix()` time using `equalPowerGains()`, not computed per-sample.
+- Delta-phase tracking: sine/triangle frequency = `masterPhaseIncrement / octaveFactor`, providing zero-latency response to FM and pitch modulation.
+- All flip-flop states initialized to false in constructor, `prepare()`, and `reset()` for deterministic rendering (DAW bounce consistency).
+
+**Gotchas:**
+- Mono-only design. For stereo, use two instances
+- Mix parameter is NOT internally smoothed. Caller must smooth to avoid zipper noise
+- Constructor takes `const MinBlepTable*` (caller owns lifetime). Table must be prepared before `SubOscillator::prepare()`
+- NaN/Inf inputs to `setMix()` are ignored (previous value retained)
+- Output clamped to [-2.0, 2.0] with NaN replaced by 0.0
+- `phaseIncrement` parameter is a float (matching PolyBlepOscillator's `dt_` precision)
+
+**Performance:** < 50 cycles/sample per voice (measured in Release build)
+
+**Memory:** ~112 bytes per instance (standard table config: length=16). 128 instances = ~14 KB (fits in L1 cache).
+
+**Dependencies:** Layer 0 (phase_utils.h, math_constants.h, crossfade_utils.h, db_utils.h), Layer 1 (minblep_table.h)
