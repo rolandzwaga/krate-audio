@@ -831,3 +831,4 @@ TEST_CASE("SC-015: re-prepare replaces table with new parameters",
     // Table should reflect new params
     REQUIRE(table.isPrepared() == true);
 }
+

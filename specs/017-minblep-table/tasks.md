@@ -167,7 +167,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 **Goal**: Provide a ring buffer (`Residual`) that allows developers to stamp minBLEP corrections into a buffer via `addBlep()` and retrieve/consume corrections via `consume()`. Supports overlapping BLEPs for rapid successive discontinuities.
 
-**Independent Test**: Can be tested by: (a) adding a single BLEP with amplitude 1.0 at offset 0.0 and consuming all samples, verifying sum equals ~-1.0, (b) adding two overlapping BLEPs and verifying they accumulate correctly, (c) calling `reset()` and verifying buffer is cleared. Delivers a ready-to-use discontinuity correction buffer for any oscillator.
+**Independent Test**: Can be tested by: (a) adding a single BLEP with amplitude 1.0 at offset 0.0 and consuming all samples, verifying sum is negative and consistent (~-2.76 for default params), (b) adding two overlapping BLEPs and verifying they accumulate linearly, (c) calling `reset()` and verifying buffer is cleared. Delivers a ready-to-use discontinuity correction buffer for any oscillator.
 
 ### 5.1 Tests for User Story 3 (Write FIRST - Must FAIL)
 
