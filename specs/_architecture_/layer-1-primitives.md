@@ -1859,8 +1859,25 @@ for (size_t n = 0; n < numSamples; ++n) {
 - `sample(offset, index >= length())` returns 1.0 (settled value)
 - `sample()` on unprepared table returns 0.0
 - `addBlep()` with NaN/Inf amplitude is safely ignored (FR-037)
+- `addBlamp()` with NaN/Inf amplitude is safely ignored
 - Multiple Residual instances can share one MinBlepTable (read-only after prepare)
 - `consume()` on empty buffer returns 0.0
+
+**MinBLAMP Extension (since 0.16.0):**
+
+MinBLAMP (band-limited ramp) corrects derivative discontinuities (kinks, direction reversals) rather than step discontinuities. The BLAMP table is generated automatically during `prepare()` by integrating the minBLEP residual.
+
+```cpp
+// Additional table query
+[[nodiscard]] float sampleBlamp(float subsampleOffset, size_t index) const noexcept;
+
+// Additional Residual method
+void addBlamp(float subsampleOffset, float amplitude) noexcept;  // RT-safe
+```
+
+**When to use minBLAMP vs minBLEP:**
+- **minBLEP** (`addBlep`): Step discontinuities -- waveform value jumps (hard sync reset, sawtooth wrap)
+- **minBLAMP** (`addBlamp`): Derivative discontinuities -- slope changes sign (reverse sync direction reversal, triangle wave kinks)
 
 **Subsample Offset Convention:**
 - `subsampleOffset = 0.0`: Discontinuity at the exact sample boundary

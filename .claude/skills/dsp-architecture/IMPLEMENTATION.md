@@ -339,3 +339,54 @@ set_source_files_properties(
     PROPERTIES COMPILE_OPTIONS "-fno-fast-math"
 )
 ```
+
+---
+
+## MinBLEP and MinBLAMP Correction Patterns
+
+### MinBLEP (Band-Limited Step)
+
+**What:** Corrects step discontinuities (value jumps) in waveforms.
+
+**When to use:** Hard sync phase resets, sawtooth phase wraps, square/pulse edge transitions, any instantaneous value change.
+
+**Pattern:**
+```cpp
+// At a step discontinuity:
+float valueBefore = evaluateWaveform(phaseBefore);
+float valueAfter = evaluateWaveform(phaseAfter);
+float discontinuity = valueAfter - valueBefore;
+residual.addBlep(subsampleOffset, discontinuity);
+```
+
+### MinBLAMP (Band-Limited Ramp)
+
+**What:** Corrects derivative discontinuities (slope kinks) in waveforms. MinBLAMP is the integral of the minBLEP residual.
+
+**When to use:** Direction reversals (reverse sync), triangle wave kinks, any point where the waveform slope changes instantaneously without a value jump.
+
+**Pattern:**
+```cpp
+// At a derivative discontinuity (e.g., direction reversal):
+float derivative = evaluateWaveformDerivative(phase);
+float blampAmplitude = 2.0f * derivative * slaveIncrement;
+// Factor of 2: slope goes from +s to -s (or vice versa), total change = 2s
+residual.addBlamp(subsampleOffset, blampAmplitude);
+```
+
+### Integration with MinBlepTable
+
+Both minBLEP and minBLAMP corrections share the same `MinBlepTable::Residual` ring buffer and are consumed together:
+
+```cpp
+float naive = evaluateNaiveWaveform(phase);
+float output = naive + residual.consume();  // Applies both BLEP and BLAMP corrections
+```
+
+### Choosing Between MinBLEP and MinBLAMP
+
+| Discontinuity Type | Example | Correction |
+|--------------------|---------|------------|
+| Value jumps (C0 discontinuity) | Hard sync reset, sawtooth wrap | minBLEP (`addBlep`) |
+| Slope changes (C1 discontinuity) | Reverse sync, triangle peak | minBLAMP (`addBlamp`) |
+| Both value and slope | Sync reset at a kink | Both corrections |
