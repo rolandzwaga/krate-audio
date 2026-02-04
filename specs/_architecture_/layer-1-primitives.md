@@ -1775,3 +1775,108 @@ for (int i = 0; i < numSamples; ++i) {
 ```
 
 **Dependencies:** `core/polyblep.h` (polyBlep4), `core/phase_utils.h` (PhaseAccumulator, wrapPhase), `core/math_constants.h` (kTwoPi), `core/db_utils.h` (detail::isNaN, detail::isInf)
+
+---
+
+## MinBlepTable (Minimum-Phase Band-Limited Step Function)
+**Path:** [minblep_table.h](../../dsp/include/krate/dsp/primitives/minblep_table.h) | **Since:** 0.15.0
+
+Precomputed minimum-phase band-limited step function (minBLEP) table for high-quality discontinuity correction in sync oscillators, hard sync, and any waveform with instantaneous transitions. Generates the table once during initialization, then provides real-time sub-sample-accurate lookup.
+
+**Use when:**
+- Hard sync oscillators need discontinuity correction at the slave reset point
+- Sub-oscillator sync requires band-limited transitions
+- Any waveform generator produces hard discontinuities that cause aliasing
+- Higher quality than PolyBLEP is needed (>50 dB alias rejection vs ~40 dB)
+
+**Note:** MinBLEP is complementary to PolyBLEP. PolyBLEP is cheaper (no table lookup, ~40 dB rejection) and suitable for standard waveforms. MinBLEP provides higher quality (>50 dB with 32 zero crossings) at the cost of table memory and per-discontinuity ring buffer stamping. Use MinBLEP when the extra quality matters (sync oscillators, sub-oscillators, FM carrier resets).
+
+```cpp
+class MinBlepTable {
+    // Lifecycle (NOT real-time safe)
+    void prepare(size_t oversamplingFactor = 64, size_t zeroCrossings = 8);
+
+    // Table query (real-time safe, noexcept)
+    [[nodiscard]] float sample(float subsampleOffset, size_t index) const noexcept;
+    [[nodiscard]] size_t length() const noexcept;      // zeroCrossings * 2
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Nested correction buffer
+    struct Residual {
+        explicit Residual(const MinBlepTable& table);  // NOT real-time safe
+        void addBlep(float subsampleOffset, float amplitude) noexcept;  // RT-safe
+        [[nodiscard]] float consume() noexcept;                          // RT-safe
+        void reset() noexcept;                                           // RT-safe
+    };
+};
+```
+
+| Parameter | Default | Effect |
+|-----------|---------|--------|
+| oversamplingFactor | 64 | Sub-sample resolution (higher = smoother interpolation) |
+| zeroCrossings | 8 | Sinc lobes per side (higher = sharper cutoff, more memory) |
+
+| Zero Crossings | Table Length | Alias Rejection | Memory |
+|----------------|--------------|-----------------|--------|
+| 8 | 16 samples | ~35 dB | ~4 KB |
+| 16 | 32 samples | ~50 dB | ~8 KB |
+| 32 | 64 samples | >50 dB | ~16 KB |
+
+**Algorithm (prepare):**
+1. Generate Blackman-windowed sinc (BLIT)
+2. Minimum-phase transform via cepstral method (Oppenheim & Schafer)
+3. Integrate to produce minBLEP (cumulative sum)
+4. Normalize (scale last to 1.0, clamp first to 0.0)
+5. Store as flat polyphase table
+
+**Residual Usage Pattern:**
+```cpp
+// Initialize (once, at startup)
+MinBlepTable table;
+table.prepare(64, 8);
+MinBlepTable::Residual residual(table);
+
+// In audio processing loop:
+for (size_t n = 0; n < numSamples; ++n) {
+    float prevPhase = phase;
+    phase += phaseInc;
+
+    if (phase >= 1.0f) {
+        phase -= 1.0f;
+        // subsampleOffset = fractional samples past the discontinuity
+        float subsampleOffset = phase / phaseInc;
+        residual.addBlep(subsampleOffset, discontinuityAmplitude);
+    }
+
+    float naive = computeNaiveWaveform(phase);
+    output[n] = naive + residual.consume();
+}
+```
+
+**Key Behaviors:**
+- `sample(0.0, 0)` returns exactly 0.0 (step hasn't started)
+- `sample(0.0, length()-1)` returns exactly 1.0 (step complete)
+- `sample(offset, index >= length())` returns 1.0 (settled value)
+- `sample()` on unprepared table returns 0.0
+- `addBlep()` with NaN/Inf amplitude is safely ignored (FR-037)
+- Multiple Residual instances can share one MinBlepTable (read-only after prepare)
+- `consume()` on empty buffer returns 0.0
+
+**Subsample Offset Convention:**
+- `subsampleOffset = 0.0`: Discontinuity at the exact sample boundary
+- `subsampleOffset = 0.5`: Discontinuity occurred half a sample ago
+- Computed as `phase / phaseInc` after wrap (fractional samples past the transition)
+
+**Comparison with PolyBLEP:**
+
+| Feature | MinBLEP | PolyBLEP |
+|---------|---------|----------|
+| Alias rejection | >50 dB (32 ZC) | ~40 dB |
+| Memory | ~4-16 KB table | None (polynomial) |
+| Per-discontinuity cost | Ring buffer stamp (N samples) | 2-4 sample correction |
+| Minimum phase | Yes (energy front-loaded) | No (symmetric) |
+| Best for | Sync, hard transitions | Standard waveforms |
+
+**Related Primitives:** PolyBlepOscillator (complementary, lower quality/cost), FFT (used in table generation), WavetableOscillator (similar table lookup pattern)
+
+**Dependencies:** `core/interpolation.h` (linearInterpolate), `core/math_constants.h` (kPi), `core/window_functions.h` (generateBlackman), `core/db_utils.h` (isNaN, isInf), `primitives/fft.h` (cepstral transform)

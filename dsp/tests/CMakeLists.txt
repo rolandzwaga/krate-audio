@@ -88,6 +88,7 @@ add_executable(dsp_tests
     unit/primitives/polyblep_oscillator_test.cpp
     unit/primitives/wavetable_generator_test.cpp
     unit/primitives/wavetable_oscillator_test.cpp
+    unit/primitives/minblep_table_test.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
@@ -283,6 +284,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/polyblep_oscillator_test.cpp
         unit/primitives/wavetable_generator_test.cpp
         unit/primitives/wavetable_oscillator_test.cpp
+        unit/primitives/minblep_table_test.cpp
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
         unit/processors/envelope_follower_test.cpp
