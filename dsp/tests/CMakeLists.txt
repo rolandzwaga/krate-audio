@@ -144,6 +144,7 @@ add_executable(dsp_tests
     unit/processors/transient_detector_test.cpp
     unit/processors/sample_hold_source_test.cpp
     unit/processors/pitch_follower_source_test.cpp
+    unit/processors/sync_oscillator_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -388,6 +389,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/transient_detector_test.cpp
         unit/processors/sample_hold_source_test.cpp
         unit/processors/pitch_follower_source_test.cpp
+        unit/processors/sync_oscillator_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
