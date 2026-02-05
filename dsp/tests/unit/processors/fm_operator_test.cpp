@@ -1117,3 +1117,250 @@ TEST_CASE("FR-003: After reset(), output matches freshly prepared operator",
     }
     REQUIRE(allMatch);
 }
+
+// ==============================================================================
+// Phase 8: Edge Cases and Robustness
+// ==============================================================================
+// Goal: Verify edge case handling for production robustness.
+
+TEST_CASE("FR-004: Frequency 0 Hz produces silence",
+          "[FMOperator][EdgeCase][frequency]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kNumSamples = 1024;
+
+    FMOperator op;
+    op.prepare(kSampleRate);
+    op.setFrequency(0.0f);  // Zero frequency
+    op.setRatio(1.0f);
+    op.setFeedback(0.0f);
+    op.setLevel(1.0f);
+
+    std::vector<float> output(kNumSamples);
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        output[i] = op.process();
+    }
+
+    // Zero frequency should produce DC or silence
+    // With phase starting at 0 and no frequency change, output is sin(0) = 0
+    float rms = computeRMS(output.data(), kNumSamples);
+    INFO("RMS at frequency 0 Hz: " << rms);
+    REQUIRE(rms < 0.01f);  // Essentially silence
+}
+
+TEST_CASE("FR-004: Negative frequency clamped to 0 Hz",
+          "[FMOperator][EdgeCase][frequency]") {
+    constexpr float kSampleRate = 44100.0f;
+
+    FMOperator op;
+    op.prepare(kSampleRate);
+    op.setFrequency(-100.0f);  // Negative frequency
+
+    // Should be clamped to 0
+    REQUIRE(op.getFrequency() == 0.0f);
+}
+
+TEST_CASE("FR-004/FR-005: Frequency at/above Nyquist clamped",
+          "[FMOperator][EdgeCase][frequency]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr float kNyquist = kSampleRate / 2.0f;  // 22050 Hz
+    constexpr size_t kNumSamples = 4096;
+
+    FMOperator op;
+    op.prepare(kSampleRate);
+    op.setFrequency(kNyquist + 1000.0f);  // Above Nyquist
+    op.setRatio(1.0f);
+    op.setFeedback(0.0f);
+    op.setLevel(1.0f);
+
+    // Process should not crash and output should be bounded
+    bool hasNaN = false;
+    bool hasInf = false;
+    float maxAbs = 0.0f;
+
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        float sample = op.process();
+        if (detail::isNaN(sample)) hasNaN = true;
+        if (detail::isInf(sample)) hasInf = true;
+        maxAbs = std::max(maxAbs, std::abs(sample));
+    }
+
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE_FALSE(hasInf);
+    REQUIRE(maxAbs <= 1.0f);
+}
+
+TEST_CASE("FR-005: Ratio 0 produces silence",
+          "[FMOperator][EdgeCase][ratio]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kNumSamples = 1024;
+
+    FMOperator op;
+    op.prepare(kSampleRate);
+    op.setFrequency(440.0f);
+    op.setRatio(0.0f);  // Zero ratio = zero effective frequency
+    op.setFeedback(0.0f);
+    op.setLevel(1.0f);
+
+    std::vector<float> output(kNumSamples);
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        output[i] = op.process();
+    }
+
+    float rms = computeRMS(output.data(), kNumSamples);
+    INFO("RMS at ratio 0: " << rms);
+    REQUIRE(rms < 0.01f);  // Essentially silence
+}
+
+TEST_CASE("FR-005: Very large ratio clamped to 16.0",
+          "[FMOperator][EdgeCase][ratio]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kNumSamples = 4096;
+
+    FMOperator op;
+    op.prepare(kSampleRate);
+    op.setRatio(100.0f);  // Very large ratio
+
+    // Should be clamped to 16.0
+    REQUIRE(op.getRatio() == 16.0f);
+
+    // Process should not crash
+    op.setFrequency(440.0f);
+    op.setFeedback(0.0f);
+    op.setLevel(1.0f);
+
+    bool hasNaN = false;
+    bool hasInf = false;
+
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        float sample = op.process();
+        if (detail::isNaN(sample)) hasNaN = true;
+        if (detail::isInf(sample)) hasInf = true;
+    }
+
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE_FALSE(hasInf);
+}
+
+TEST_CASE("FR-012: NaN/Infinity inputs to parameters produce safe output",
+          "[FMOperator][EdgeCase][sanitization]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kNumSamples = 100;
+
+    FMOperator op;
+    op.prepare(kSampleRate);
+
+    // Set valid initial values
+    op.setFrequency(440.0f);
+    op.setRatio(1.0f);
+    op.setFeedback(0.3f);
+    op.setLevel(0.8f);
+
+    // Try to set NaN values - should preserve previous values
+    op.setFrequency(std::numeric_limits<float>::quiet_NaN());
+    REQUIRE(op.getFrequency() == 0.0f);  // NaN sanitized to 0
+
+    op.setFrequency(440.0f);  // Restore valid value
+
+    op.setRatio(std::numeric_limits<float>::quiet_NaN());
+    REQUIRE(op.getRatio() == 1.0f);  // Preserved (NaN ignored)
+
+    op.setFeedback(std::numeric_limits<float>::quiet_NaN());
+    REQUIRE(op.getFeedback() == 0.3f);  // Preserved (NaN ignored)
+
+    op.setLevel(std::numeric_limits<float>::quiet_NaN());
+    REQUIRE(op.getLevel() == 0.8f);  // Preserved (NaN ignored)
+
+    // Try infinity values
+    op.setFrequency(std::numeric_limits<float>::infinity());
+    REQUIRE(op.getFrequency() == 0.0f);  // Infinity sanitized to 0
+
+    op.setRatio(std::numeric_limits<float>::infinity());
+    REQUIRE(op.getRatio() == 1.0f);  // Preserved (Inf ignored)
+
+    op.setFeedback(std::numeric_limits<float>::infinity());
+    REQUIRE(op.getFeedback() == 0.3f);  // Preserved (Inf ignored)
+
+    op.setLevel(std::numeric_limits<float>::infinity());
+    REQUIRE(op.getLevel() == 0.8f);  // Preserved (Inf ignored)
+
+    // Process should produce valid output
+    op.setFrequency(440.0f);
+
+    bool hasNaN = false;
+    bool hasInf = false;
+
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        float sample = op.process();
+        if (detail::isNaN(sample)) hasNaN = true;
+        if (detail::isInf(sample)) hasInf = true;
+    }
+
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE_FALSE(hasInf);
+}
+
+TEST_CASE("FR-012: NaN/Infinity phaseModInput sanitized",
+          "[FMOperator][EdgeCase][sanitization]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kNumSamples = 100;
+
+    FMOperator op;
+    op.prepare(kSampleRate);
+    op.setFrequency(440.0f);
+    op.setRatio(1.0f);
+    op.setFeedback(0.0f);
+    op.setLevel(1.0f);
+
+    bool hasNaN = false;
+    bool hasInf = false;
+
+    // Process with NaN input
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        float pm = (i % 2 == 0) ? std::numeric_limits<float>::quiet_NaN()
+                                : std::numeric_limits<float>::infinity();
+        float sample = op.process(pm);
+        if (detail::isNaN(sample)) hasNaN = true;
+        if (detail::isInf(sample)) hasInf = true;
+    }
+
+    INFO("Has NaN in output: " << hasNaN);
+    INFO("Has Inf in output: " << hasInf);
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE_FALSE(hasInf);
+}
+
+TEST_CASE("FR-007: Negative level clamped to 0",
+          "[FMOperator][EdgeCase][level]") {
+    FMOperator op;
+    op.prepare(44100.0);
+    op.setLevel(-0.5f);
+
+    REQUIRE(op.getLevel() == 0.0f);
+}
+
+TEST_CASE("FR-007: Level > 1.0 clamped to 1.0",
+          "[FMOperator][EdgeCase][level]") {
+    FMOperator op;
+    op.prepare(44100.0);
+    op.setLevel(1.5f);
+
+    REQUIRE(op.getLevel() == 1.0f);
+}
+
+TEST_CASE("FR-006: Negative feedback clamped to 0",
+          "[FMOperator][EdgeCase][feedback]") {
+    FMOperator op;
+    op.prepare(44100.0);
+    op.setFeedback(-0.5f);
+
+    REQUIRE(op.getFeedback() == 0.0f);
+}
+
+TEST_CASE("FR-006: Feedback > 1.0 clamped to 1.0",
+          "[FMOperator][EdgeCase][feedback]") {
+    FMOperator op;
+    op.prepare(44100.0);
+    op.setFeedback(1.5f);
+
+    REQUIRE(op.getFeedback() == 1.0f);
+}
