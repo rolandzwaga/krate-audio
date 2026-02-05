@@ -721,55 +721,64 @@ public:
 
 ---
 
-### Phase 13: Formant Oscillator (Layer 2)
+### Phase 13: Formant Oscillator (Layer 2) - COMPLETE
 
 **Goal:** Direct formant synthesis using FOF (Fonction d'Onde Formantique) technique for vowel-like tones without filter chains.
 
 **Layer:** 2 (processors/)
-**Dependencies:** `core/math_constants.h`, `core/phase_utils.h`
+**Dependencies:** `core/math_constants.h`, `core/phase_utils.h`, `core/filter_tables.h`
 **Enables:** Used directly for vocal synthesis
+
+**Specification:** [specs/027-formant-oscillator/](027-formant-oscillator/)
+
+**Implementation:** [dsp/include/krate/dsp/processors/formant_oscillator.h](../dsp/include/krate/dsp/processors/formant_oscillator.h)
+
+**Completion Date:** 2026-02-06
 
 #### 13.1 Formant Oscillator (`processors/formant_oscillator.h`)
 
 ```
 Location: dsp/include/krate/dsp/processors/formant_oscillator.h
-Dependencies: core/math_constants.h, core/phase_utils.h
+Dependencies: core/math_constants.h, core/phase_utils.h, core/filter_tables.h
 ```
 
 ```cpp
-enum class VowelPreset : uint8_t {
-    A = 0, E, I, O, U
-};
-
 class FormantOscillator {
 public:
     static constexpr size_t kNumFormants = 5;
+    static constexpr size_t kGrainsPerFormant = 8;
+    static constexpr float kMasterGain = 0.4f;
 
     void prepare(double sampleRate) noexcept;
     void reset() noexcept;
 
-    void setFundamental(float hz) noexcept;
+    void setFundamental(float hz) noexcept;  // [20, 2000] Hz
 
     // Per-formant control
     void setFormantFrequency(size_t index, float hz) noexcept;
     void setFormantBandwidth(size_t index, float hz) noexcept;
     void setFormantAmplitude(size_t index, float amp) noexcept;
 
-    // Preset morphing
-    void setVowel(VowelPreset vowel) noexcept;
-    void morphVowels(VowelPreset from, VowelPreset to, float mix) noexcept;
+    // Vowel presets and morphing
+    void setVowel(Vowel vowel) noexcept;  // Reuses Vowel enum from filter_tables.h
+    void morphVowels(Vowel from, Vowel to, float mix) noexcept;
+    void setMorphPosition(float position) noexcept;  // [0, 4] for A-E-I-O-U
 
     [[nodiscard]] float process() noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
 };
 ```
 
 **Design Notes:**
-- FOF technique: damped sinusoids at formant frequencies, reset on fundamental period
-- 5 formants for realistic vowel reproduction
-- Morphing interpolates formant frequencies/bandwidths/amplitudes
-- Fundamentally different from `formant_filter.h` (which uses resonant filters on input)
+- FOF technique: 5 parallel formant generators with fixed 8-grain pools
+- 3ms attack (half-cycle raised cosine), 20ms grain duration, exponential decay
+- Bandwidth controls decay constant: decayConstant = pi * bandwidthHz
+- Vowel presets from Csound tables (bass male voice)
+- Position-based morphing: 0=A, 1=E, 2=I, 3=O, 4=U with linear interpolation
+- Master gain 0.4 (theoretical max output ~1.12)
+- Reuses existing Vowel enum for API consistency with FormantFilter
 
-**Status:** Not started
+**Status:** COMPLETE
 
 ---
 

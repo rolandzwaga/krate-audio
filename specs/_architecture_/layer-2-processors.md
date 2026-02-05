@@ -4902,3 +4902,75 @@ osc.processBlock(buffer, 512, extSignal);
 **Memory:** ~200 bytes per instance (no allocations, embedded DCBlocker)
 
 **Dependencies:** Layer 0 (fast_math.h, db_utils.h, math_constants.h), Layer 1 (dc_blocker.h)
+
+---
+
+## FormantOscillator
+**Path:** [formant_oscillator.h](../../dsp/include/krate/dsp/processors/formant_oscillator.h) | **Since:** 0.14.2
+
+FOF (Fonction d'Onde Formantique) synthesis oscillator for vowel-like sound generation.
+
+**Use when:**
+- Generating vowel-like sounds directly (no input signal required)
+- Creating vocal synthesis without external excitation
+- Need smooth vowel morphing for evolving timbres
+- Precise per-formant control for custom vocal sounds
+
+**Distinction from FormantFilter:**
+- **FormantOscillator**: Generates audio via FOF grain synthesis, no input needed
+- **FormantFilter**: Applies 3 bandpass resonances to an existing signal
+
+```cpp
+class FormantOscillator {
+    static constexpr size_t kNumFormants = 5;
+    static constexpr size_t kGrainsPerFormant = 8;
+    static constexpr float kMasterGain = 0.4f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float process() noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // Fundamental control
+    void setFundamental(float hz) noexcept;  // [20, 2000] Hz
+
+    // Vowel selection
+    void setVowel(Vowel vowel) noexcept;     // A, E, I, O, U
+    void morphVowels(Vowel from, Vowel to, float mix) noexcept;
+    void setMorphPosition(float position) noexcept;  // [0, 4]
+
+    // Per-formant control
+    void setFormantFrequency(size_t index, float hz) noexcept;
+    void setFormantBandwidth(size_t index, float hz) noexcept;
+    void setFormantAmplitude(size_t index, float amp) noexcept;
+};
+```
+
+**Vowel Presets (Bass Male Voice):**
+
+| Vowel | F1 (Hz) | F2 (Hz) | F3 (Hz) | F4 (Hz) | F5 (Hz) |
+|-------|---------|---------|---------|---------|---------|
+| A /a/ | 600 | 1040 | 2250 | 2450 | 2750 |
+| E /e/ | 400 | 1620 | 2400 | 2800 | 3100 |
+| I /i/ | 250 | 1750 | 2600 | 3050 | 3340 |
+| O /o/ | 400 | 750 | 2400 | 2600 | 2900 |
+| U /u/ | 350 | 600 | 2400 | 2675 | 2950 |
+
+**FOF Grain Architecture:**
+- 5 parallel formant generators (F1-F5)
+- 8-grain fixed-size pool per formant (40 grains total)
+- 3ms attack (half-cycle raised cosine)
+- 20ms grain duration
+- Exponential decay controlled by bandwidth
+
+**Gotchas:**
+- `prepare()` must be called before processing
+- Output may briefly exceed 1.0 during peak grain alignment (max ~1.12)
+- Spectral peaks are at harmonics nearest to formant frequencies
+- Setting all formant amplitudes to 0 produces silence
+
+**Performance:** <0.5% CPU per instance at 44.1kHz mono
+
+**Memory:** ~2.5KB per instance (no allocations, fixed grain pools)
+
+**Dependencies:** Layer 0 (phase_utils.h, filter_tables.h, math_constants.h)

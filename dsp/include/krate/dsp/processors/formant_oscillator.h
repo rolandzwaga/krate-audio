@@ -154,6 +154,31 @@ struct FormantGenerator {
 /// @par Real-Time Safety
 /// - prepare(): Allocation-free (just configuration)
 /// - All other methods: Real-time safe (noexcept, no allocations)
+///
+/// @par Example: Basic Vowel Generation
+/// @code
+/// FormantOscillator osc;
+/// osc.prepare(44100.0);           // Initialize at 44.1kHz
+/// osc.setFundamental(110.0f);     // A2 (male voice range)
+/// osc.setVowel(Vowel::A);         // Select vowel "ah"
+///
+/// float buffer[512];
+/// osc.processBlock(buffer, 512);  // Generate audio
+/// @endcode
+///
+/// @par Example: Vowel Morphing
+/// @code
+/// osc.morphVowels(Vowel::A, Vowel::O, 0.5f);  // 50% blend A to O
+/// // Or use position-based morphing (0=A, 1=E, 2=I, 3=O, 4=U):
+/// osc.setMorphPosition(1.5f);                  // Between E and I
+/// @endcode
+///
+/// @par Example: Per-Formant Control
+/// @code
+/// osc.setFormantFrequency(0, 800.0f);   // Custom F1 at 800Hz
+/// osc.setFormantBandwidth(1, 200.0f);   // Wider F2
+/// osc.setFormantAmplitude(2, 0.0f);     // Disable F3
+/// @endcode
 class FormantOscillator {
 public:
     // =========================================================================
