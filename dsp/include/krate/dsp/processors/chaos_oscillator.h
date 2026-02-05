@@ -250,7 +250,7 @@ public:
     ChaosOscillator() noexcept = default;
 
     /// @brief Destructor.
-    ~ChaosOscillator() = default;
+    ~ChaosOscillator() noexcept = default;
 
     // Non-copyable (contains DCBlocker state)
     ChaosOscillator(const ChaosOscillator&) = delete;

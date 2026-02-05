@@ -660,13 +660,19 @@ public:
 
 Each of these phases is independently implementable and targets creative sound design.
 
-### Phase 12: Chaos Attractor Oscillator (Layer 2)
+### Phase 12: Chaos Attractor Oscillator (Layer 2) - COMPLETE
 
 **Goal:** Audio-rate chaos oscillator generating waveforms from Lorenz, Rossler, and other attractor systems. Extends the existing control-rate ChaosModSource to audio rate with pitch control.
 
 **Layer:** 2 (processors/)
 **Dependencies:** `core/math_constants.h`, `core/fast_math.h`, `primitives/dc_blocker.h`
 **Enables:** Used directly for sound design
+
+**Specification:** [specs/026-chaos-attractor-oscillator/](026-chaos-attractor-oscillator/)
+
+**Implementation:** [dsp/include/krate/dsp/processors/chaos_oscillator.h](../dsp/include/krate/dsp/processors/chaos_oscillator.h)
+
+**Completion Date:** 2026-02-05
 
 #### 12.1 Chaos Oscillator (`processors/chaos_oscillator.h`)
 
@@ -708,8 +714,10 @@ public:
 - Divergence detection with automatic state reset
 - tanh normalization to [-1, 1] output range
 - Duffing and Van der Pol added for audio-suitable timbres
+- RK4 integration with adaptive substepping for numerical stability
+- baseDt values scaled 100x from original spec for audible output
 
-**Status:** Not started
+**Status:** COMPLETE
 
 ---
 

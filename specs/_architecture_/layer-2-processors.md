@@ -4789,3 +4789,116 @@ bell.processBlock(output, 512);
 **Memory:** ~80 KB per instance at FFT size 2048 (FFT twiddles, spectrum buffer, output buffer)
 
 **Dependencies:** Layer 0 (window_functions.h, phase_utils.h, math_constants.h, db_utils.h), Layer 1 (fft.h)
+
+---
+
+## ChaosOscillator
+**Path:** [chaos_oscillator.h](../../dsp/include/krate/dsp/processors/chaos_oscillator.h) | **Since:** 0.11.0
+
+Audio-rate chaos oscillator implementing 5 attractor types with RK4 adaptive substepping for numerical stability.
+
+**Use when:**
+- Need evolving, non-repetitive textures for experimental synthesis
+- Want organic, unpredictable timbral movement
+- Building chaos-based modulation or audio sources
+- Require smooth, controllable chaotic behavior with approximate pitch tracking
+
+**Attractor Types:**
+- **Lorenz**: Smooth, flowing, three-lobe butterfly pattern (classic chaos)
+- **Rossler**: Asymmetric single spiral, buzzy character
+- **Chua**: Harsh double-scroll with abrupt transitions
+- **Duffing**: Driven nonlinear oscillator, harmonically rich
+- **VanDerPol**: Relaxation oscillations, pulse-like waveform
+
+```cpp
+enum class ChaosAttractor : uint8_t { Lorenz, Rossler, Chua, Duffing, VanDerPol };
+
+class ChaosOscillator {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Parameter Setters
+    void setAttractor(ChaosAttractor type) noexcept;  // Attractor model
+    void setFrequency(float hz) noexcept;             // [0.1, 20000] Hz
+    void setChaos(float amount) noexcept;             // [0, 1] normalized
+    void setCoupling(float amount) noexcept;          // [0, 1] external coupling
+    void setOutput(size_t axis) noexcept;             // 0=x, 1=y, 2=z
+
+    // Processing
+    [[nodiscard]] float process(float externalInput = 0.0f) noexcept;
+    void processBlock(float* output, size_t numSamples, const float* extInput = nullptr) noexcept;
+
+    // Getters
+    [[nodiscard]] ChaosAttractor getAttractor() const noexcept;
+    [[nodiscard]] float getFrequency() const noexcept;
+    [[nodiscard]] float getChaos() const noexcept;
+    [[nodiscard]] float getCoupling() const noexcept;
+    [[nodiscard]] size_t getOutput() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+```
+
+**Basic Usage:**
+```cpp
+ChaosOscillator osc;
+osc.prepare(44100.0);
+osc.setAttractor(ChaosAttractor::Lorenz);
+osc.setFrequency(220.0f);
+osc.setChaos(1.0f);  // Maximum chaos (rho=28 for Lorenz)
+
+// Process single sample
+float sample = osc.process();
+
+// Process block
+float buffer[512];
+osc.processBlock(buffer, 512);
+
+// With external coupling (modulation/synchronization)
+osc.setCoupling(0.3f);
+float extSignal[512] = { /* ... */ };
+osc.processBlock(buffer, 512, extSignal);
+```
+
+**Parameter Ranges:**
+
+| Parameter | Range | Default | Notes |
+|-----------|-------|---------|-------|
+| frequency | [0.1, 20000] Hz | 220 Hz | Approximate pitch tracking |
+| chaos | [0, 1] | 1.0 | Maps to per-attractor range |
+| coupling | [0, 1] | 0.0 | External input strength |
+| output axis | [0, 2] | 0 (x) | Which state variable to output |
+
+**Chaos Parameter Mapping:**
+
+| Attractor | Parameter | Range at chaos=[0,1] |
+|-----------|-----------|---------------------|
+| Lorenz | rho | [20, 28] |
+| Rossler | c | [4, 8] |
+| Chua | alpha | [12, 18] |
+| Duffing | A (drive) | [0.2, 0.5] |
+| VanDerPol | mu | [0.5, 5.0] |
+
+**Key Behaviors:**
+- Output bounded to [-1, +1] via tanh soft-limiting
+- DC blocked at 10 Hz to remove offset
+- Automatic divergence detection and reset (within 1ms)
+- RK4 integration with adaptive substepping for stability
+- Each attractor has distinct spectral character (>20% centroid difference)
+- External coupling adds to x-derivative for synchronization
+
+**Distinction from ChaosModSource:**
+- **ChaosOscillator**: Audio-rate, RK4 integration, 5 attractors, frequency control
+- **ChaosModSource**: Control-rate, Euler integration, 4 attractors, rate control
+
+**Gotchas:**
+- `prepare()` must be called before processing
+- Frequency is approximate due to chaotic nature (within 0.5-1.5x target)
+- Attractor changes reset state to initial conditions
+- Output axis for 2D systems (Duffing, VanDerPol): z outputs 0
+
+**Performance:** <1% CPU per instance at 44.1kHz stereo
+
+**Memory:** ~200 bytes per instance (no allocations, embedded DCBlocker)
+
+**Dependencies:** Layer 0 (fast_math.h, db_utils.h, math_constants.h), Layer 1 (dc_blocker.h)
