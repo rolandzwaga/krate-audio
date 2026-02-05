@@ -713,6 +713,97 @@ for (size_t i = 0; i < numSamples; ++i) {
 
 ---
 
+## FMVoice
+**Path:** [fm_voice.h](../../dsp/include/krate/dsp/systems/fm_voice.h) | **Since:** 0.14.1
+
+Complete 4-operator FM synthesis voice with algorithm routing (DX7-style).
+
+```cpp
+enum class Algorithm : uint8_t {
+    Stacked2Op, Stacked4Op, Parallel2Plus2, Branched,
+    Stacked3PlusCarrier, Parallel4, YBranch, DeepStack,
+    kNumAlgorithms
+};
+
+enum class OperatorMode : uint8_t { Ratio, Fixed };
+
+class FMVoice {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Algorithm selection
+    void setAlgorithm(Algorithm algorithm) noexcept;
+    [[nodiscard]] Algorithm getAlgorithm() const noexcept;
+
+    // Voice control
+    void setFrequency(float hz) noexcept;
+    [[nodiscard]] float getFrequency() const noexcept;
+
+    // Per-operator configuration
+    void setOperatorRatio(size_t opIndex, float ratio) noexcept;       // [0, 16]
+    void setOperatorLevel(size_t opIndex, float level) noexcept;       // [0, 1]
+    void setOperatorMode(size_t opIndex, OperatorMode mode) noexcept;
+    void setOperatorFixedFrequency(size_t opIndex, float hz) noexcept; // Fixed mode only
+    void setFeedback(float amount) noexcept;                           // [0, 1]
+
+    // Processing
+    [[nodiscard]] float process() noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+};
+```
+
+**Key Features:**
+- Composes 4 FMOperator (L2) instances + DCBlocker (L1)
+- 8 selectable algorithm topologies (enum-indexed static constexpr tables)
+- Per-operator ratio (frequency tracking) or fixed frequency modes
+- Single feedback-enabled operator per algorithm (soft-limited via tanh)
+- Carrier output normalization: `sum / carrierCount` for consistent amplitude
+- DC blocking on output (20 Hz highpass)
+- Phase preservation on algorithm switch (click-free real-time modulation)
+- Compile-time topology validation via static_assert
+- NaN/Inf sanitization on all outputs, clamped to [-2.0, 2.0]
+- ~360 KB per instance (4 operators with wavetables)
+
+**Algorithm Topologies:**
+| Algorithm | Carriers | Description |
+|-----------|----------|-------------|
+| Stacked2Op | 1 | Simple 2->1 stack (bass, leads) |
+| Stacked4Op | 1 | Full 4->3->2->1 chain (rich leads, brass) |
+| Parallel2Plus2 | 2 | Two parallel 2-op stacks (organ, pads) |
+| Branched | 1 | Multiple mods to single carrier (bells, metallic) |
+| Stacked3PlusCarrier | 2 | 3-op stack + independent carrier (e-piano) |
+| Parallel4 | 4 | All 4 as carriers (additive/organ) |
+| YBranch | 1 | Mod feeding two parallel stacks (complex) |
+| DeepStack | 1 | 4->3->2->1 chain, mid-chain feedback (aggressive) |
+
+**When to Use:**
+- FM/PM synthesis voices for bass, leads, bells, e-pianos
+- DX7-style timbres requiring algorithm-based modulation routing
+- Sound design requiring precise control over operator relationships
+- Situations where per-operator ratio/fixed frequency modes are needed
+
+**Example:**
+```cpp
+FMVoice voice;
+voice.prepare(44100.0);
+
+// Classic 2-op FM bass
+voice.setAlgorithm(Algorithm::Stacked2Op);
+voice.setFrequency(110.0f);  // A2
+voice.setOperatorLevel(0, 1.0f);   // Carrier
+voice.setOperatorLevel(1, 0.5f);   // Modulator
+voice.setOperatorRatio(1, 2.0f);   // 2:1 ratio for second harmonic
+voice.setFeedback(0.2f);           // Subtle feedback richness
+
+// Process audio
+for (size_t i = 0; i < numSamples; ++i) {
+    buffer[i] = voice.process();
+}
+```
+
+---
+
 ## UnisonEngine
 **Path:** [unison_engine.h](../../dsp/include/krate/dsp/systems/unison_engine.h) | **Since:** 0.14.0
 
