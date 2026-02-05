@@ -807,8 +807,21 @@ TEST_CASE("FR-006/FR-012: Feedback 1.0 for 44100 samples is stable",
 
 TEST_CASE("FR-006/FR-012: Feedback 1.0 for 10 seconds shows no drift",
           "[FMOperator][US3][feedback]") {
-    // This test verifies long-term stability
-    // FM synthesis with feedback can have some DC offset (this is normal)
+    // This test verifies long-term stability with maximum feedback.
+    //
+    // DESIGN NOTE: FM feedback inherently produces steady-state DC offset.
+    // As feedback increases, the sine transforms toward an asymmetric sawtooth
+    // shape. This matches original DX7 behavior and is physically correct.
+    //
+    // We verify:
+    // 1. No NaN/Inf (numerical stability)
+    // 2. Output bounded to [-1, 1] (no runaway growth)
+    // 3. DC offset is STABLE (bounded, not growing) - we allow up to 10%
+    //
+    // DC blocking is NOT implemented at FMOperator level. It will be handled
+    // by a single ~20 Hz high-pass filter in the FM Voice (Layer 3) on the
+    // summed carrier output. This avoids wasting CPU on per-operator filtering
+    // when only the final output matters.
     constexpr float kSampleRate = 44100.0f;
     constexpr size_t kNumSamples = 441000;  // 10 seconds
 
@@ -839,9 +852,8 @@ TEST_CASE("FR-006/FR-012: Feedback 1.0 for 10 seconds shows no drift",
     REQUIRE_FALSE(hasNaN);
     REQUIRE_FALSE(hasInf);
     REQUIRE(maxAbs <= 1.0f);
-    // FM feedback can produce some DC offset depending on starting phase
-    // The key requirement is stability (no NaN/Inf/unbounded growth)
-    REQUIRE(std::abs(dcOffset) < 0.1f);  // Allow up to 10% DC (spec says "no drift")
+    // DC offset is expected (see design note above). We verify it's bounded, not zero.
+    REQUIRE(std::abs(dcOffset) < 0.1f);  // Bounded DC offset (stable, not growing)
 }
 
 // ==============================================================================

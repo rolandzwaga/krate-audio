@@ -57,6 +57,13 @@ namespace DSP {
 /// @par Real-Time Safety
 /// process() and all setters are fully real-time safe.
 /// prepare() is NOT real-time safe (generates wavetable).
+///
+/// @par DC Offset Behavior
+/// FM feedback inherently produces steady-state DC offset at higher feedback
+/// levels. As feedback increases, the sine transforms toward an asymmetric
+/// sawtooth shape. This matches original DX7 behavior and is physically correct.
+/// DC blocking is NOT implemented here—it should be applied once at the FM Voice
+/// (Layer 3) output via a ~20 Hz high-pass filter, not per-operator.
 class FMOperator {
 public:
     // =========================================================================
