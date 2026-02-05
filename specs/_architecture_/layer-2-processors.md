@@ -4457,3 +4457,102 @@ for (int i = 0; i < numSamples; ++i) {
 **Memory:** ~112 bytes per instance (standard table config: length=16). 128 instances = ~14 KB (fits in L1 cache).
 
 **Dependencies:** Layer 0 (phase_utils.h, math_constants.h, crossfade_utils.h, db_utils.h), Layer 1 (minblep_table.h)
+
+---
+
+## FMOperator
+**Path:** [fm_operator.h](../../dsp/include/krate/dsp/processors/fm_operator.h) | **Since:** 0.11.0
+
+Single FM synthesis operator (oscillator + ratio + feedback + level), the fundamental building block for FM/PM synthesis. Uses phase modulation (Yamaha DX7-style) where the modulator output is added to the carrier's phase, not frequency.
+
+**Use when:**
+- Building FM/PM synthesis voices
+- Need frequency-controllable sine oscillator with ratio multiplier
+- Want self-modulation feedback for harmonic richness
+- Chaining operators for FM algorithm topologies
+
+```cpp
+class FMOperator {
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float process(float phaseModInput = 0.0f) noexcept;
+    void setFrequency(float hz) noexcept;
+    void setRatio(float ratio) noexcept;      // [0, 16.0]
+    void setFeedback(float amount) noexcept;  // [0, 1.0]
+    void setLevel(float level) noexcept;      // [0, 1.0]
+    [[nodiscard]] float getFrequency() const noexcept;
+    [[nodiscard]] float getRatio() const noexcept;
+    [[nodiscard]] float getFeedback() const noexcept;
+    [[nodiscard]] float getLevel() const noexcept;
+    [[nodiscard]] float lastRawOutput() const noexcept;
+};
+```
+
+**Usage Example: Two-Operator FM Chain (Modulator -> Carrier)**
+
+```cpp
+// Create operators
+FMOperator modulator;
+FMOperator carrier;
+
+// Initialize
+modulator.prepare(44100.0);
+carrier.prepare(44100.0);
+
+// Configure modulator (2:1 ratio = one octave above base frequency)
+modulator.setFrequency(440.0f);
+modulator.setRatio(2.0f);       // 880 Hz
+modulator.setFeedback(0.0f);    // No self-modulation
+modulator.setLevel(0.5f);       // Modulation depth
+
+// Configure carrier (1:1 ratio = base frequency)
+carrier.setFrequency(440.0f);
+carrier.setRatio(1.0f);         // 440 Hz
+carrier.setFeedback(0.0f);      // No self-modulation
+carrier.setLevel(1.0f);         // Full output
+
+// Process audio
+for (size_t i = 0; i < numSamples; ++i) {
+    modulator.process();        // Advance modulator
+    float pm = modulator.lastRawOutput() * modulator.getLevel();
+    output[i] = carrier.process(pm);  // Apply modulation
+}
+```
+
+**Signal Flow:**
+1. effectiveFreq = frequency * ratio (Nyquist-clamped)
+2. feedbackPM = tanh(previousRawOutput * feedbackAmount)
+3. totalPM = phaseModInput + feedbackPM
+4. rawOutput = sin(phase + totalPM)
+5. output = rawOutput * level
+6. return sanitize(output)
+
+**Parameter Ranges:**
+
+| Parameter | Range | Default | Notes |
+|-----------|-------|---------|-------|
+| frequency | [0, Nyquist) | 0 Hz | Base frequency in Hz |
+| ratio | [0, 16.0] | 1.0 | Frequency multiplier |
+| feedback | [0, 1.0] | 0.0 | Self-modulation intensity |
+| level | [0, 1.0] | 0.0 | Output amplitude |
+
+**Feedback Behavior:**
+
+| Feedback | Character | THD |
+|----------|-----------|-----|
+| 0.0 | Pure sine | < 0.1% |
+| 0.3-0.5 | Saw-like, added harmonics | 5-20% |
+| 1.0 | Maximum richness, sawtooth-like | > 30% |
+
+**Gotchas:**
+- `prepare()` is NOT real-time safe (generates wavetable internally)
+- `process()` returns 0.0 if `prepare()` has not been called
+- NaN/Inf inputs to parameters are sanitized (frequency -> 0, others -> preserve previous)
+- Output clamped to [-2.0, 2.0] with NaN replaced by 0.0
+- Each instance owns ~90 KB for internal sine wavetable
+
+**Performance:** < 0.5% CPU for 1 second of audio at 44.1 kHz (Layer 2 budget)
+
+**Memory:** ~90 KB per instance (dominated by mipmapped sine wavetable)
+
+**Dependencies:** Layer 0 (fast_math.h, db_utils.h, math_constants.h), Layer 1 (wavetable_oscillator.h, wavetable_generator.h)
