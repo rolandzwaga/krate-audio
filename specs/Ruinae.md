@@ -39,6 +39,11 @@ A synthesizer built around controlled chaos and spectral manipulation, designed 
 │         └─────────┬─────────┘                                       │
 │                   ▼                                                  │
 │         ┌───────────────────┐                                       │
+│         │   Trance Gate     │◄──── Pattern, Rate, Depth (mod)      │
+│         │  (Rhythmic VCA)   │                                       │
+│         └─────────┬─────────┘                                       │
+│                   ▼                                                  │
+│         ┌───────────────────┐                                       │
 │         │       VCA         │◄──── Amp Envelope                    │
 │         └─────────┬─────────┘                                       │
 │                   │                                                  │
@@ -375,7 +380,115 @@ private:
 } // namespace Krate::DSP
 ```
 
-### 7. Delay Effect (Layer 4 - Effects)
+### 7. Trance Gate (Layer 2 - Voice Processor)
+
+A tempo-synchronized rhythmic amplitude modulator placed post-distortion and pre-VCA, used to impose macro-rhythmic structure on evolving or chaotic signals.
+
+**Characteristics:**
+- Acts as a shaped VCA (not a hard mute)
+- Pattern-based (step sequencer or binary mask)
+- Smooth ramps to avoid clicks
+- Tempo-sync and free-run modes
+- Can also function as a modulation source
+
+**Primary Use Cases:**
+- Rhythmic stabilization of chaotic oscillators
+- Gated distortion textures
+- Spectral motion accentuation
+- Polyrhythmic amplitude articulation
+
+**Design Note:**
+The Trance Gate is intentionally placed after nonlinear processing stages to avoid destabilizing distortion and filter behavior. It imposes rhythmic structure without interfering with internal chaotic dynamics.
+
+```cpp
+namespace Krate::DSP {
+
+enum class GatePattern : uint8_t {
+    Binary16,       // 16-step on/off pattern
+    Euclidean,      // Euclidean rhythm generator
+    Probability,    // Per-step probability
+    Custom          // User-defined pattern
+};
+
+struct TranceGateParams {
+    GatePattern pattern{GatePattern::Binary16};
+    uint16_t steps{0b1010101010101010};  // Binary pattern (16 bits)
+    int numSteps{16};                     // Active steps (1-32)
+    float rateHz{4.0f};                   // Free-run rate
+    float depth{1.0f};                    // 0 = bypass, 1 = full gate
+    float attackMs{1.0f};                 // Ramp up time per step
+    float releaseMs{10.0f};               // Ramp down time per step
+    float smoothing{0.5f};                // Edge smoothness (0 = hard, 1 = soft)
+    bool tempoSync{true};                 // Sync to host tempo
+    float noteValue{0.25f};               // Step length (1 = quarter note)
+
+    // Euclidean parameters
+    int euclideanHits{4};                 // Number of hits
+    int euclideanRotation{0};             // Pattern rotation
+
+    // Probability parameters
+    float probability{0.8f};              // Per-step trigger probability
+};
+
+class TranceGate {
+public:
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    void setParams(const TranceGateParams& params) noexcept;
+    void setTempo(double bpm) noexcept;
+
+    // Pattern control
+    void setPattern(uint32_t pattern, int numSteps) noexcept;
+    void setEuclidean(int hits, int steps, int rotation = 0) noexcept;
+    void setStep(int stepIndex, bool on) noexcept;
+
+    // Real-time parameter changes
+    void setDepth(float depth) noexcept;
+    void setRate(float rateHz) noexcept;
+    void setNoteValue(float noteValue) noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;
+
+    // Stereo processing (applies same gate to both channels)
+    void processBlock(float* left, float* right, size_t numSamples) noexcept;
+
+    // Modulation output (current gate envelope value)
+    [[nodiscard]] float getGateValue() const noexcept;
+
+    // State queries
+    [[nodiscard]] int getCurrentStep() const noexcept;
+    [[nodiscard]] bool isStepActive() const noexcept;
+
+private:
+    double sampleRate_{44100.0};
+    double phase_{0.0};
+    double phaseIncrement_{0.0};
+    int currentStep_{0};
+    float gateEnvelope_{0.0f};
+    float attackCoeff_{0.0f};
+    float releaseCoeff_{0.0f};
+
+    TranceGateParams params_;
+    uint32_t patternMask_{0xFFFF};
+
+    // Euclidean pattern generation
+    [[nodiscard]] static uint32_t generateEuclidean(int hits, int steps, int rotation) noexcept;
+};
+
+} // namespace Krate::DSP
+```
+
+**Implementation Notes:**
+- Uses exponential coefficients for smooth attack/release ramps
+- Euclidean pattern generated via Bjorklund algorithm
+- Gate envelope output useful as modulation source for filter cutoff, etc.
+- Probability mode uses internal PRNG for deterministic-per-seed randomness
+- Tempo sync uses BlockContext for sample-accurate beat tracking
+
+### 9. Delay Effect (Layer 4 - Effects)
 
 Already have delay infrastructure in Iterum plugin. Would need to extract/generalize for synth use:
 
@@ -408,7 +521,7 @@ private:
 } // namespace Krate::DSP
 ```
 
-### 8. Reverb (Layer 4 - Effects)
+### 10. Reverb (Layer 4 - Effects)
 
 ```cpp
 namespace Krate::DSP {
@@ -483,15 +596,16 @@ Minimal synthesis, maximum modulation:
 4. **MIDIHandler** - VST3 MIDI event processing
 5. **ModulationMatrix** - Flexible routing
 6. **SampleAndHold** - Additional mod source
+7. **TranceGate** - Rhythmic amplitude modulation, chaos stabilization
 
 ### Phase 3: Effects
-7. **StereoDelay** - Extract from Iterum
-8. **Reverb** - Essential for space/depth
+8. **StereoDelay** - Extract from Iterum
+9. **Reverb** - Essential for space/depth
 
 ### Phase 4: Advanced Features
-9. **MPE Support** - Expressive control
-10. **Microtuning** - Alternative scales
-11. **Additional chaos sources** - Chua, double pendulum
+10. **MPE Support** - Expressive control
+11. **Microtuning** - Alternative scales
+12. **Additional chaos sources** - Chua, double pendulum
 
 ---
 
@@ -530,6 +644,230 @@ class ChaosMod {
 ```
 
 ---
+
+# Trance Gate – Functional Specification
+
+### Conceptual role
+
+The trance gate is a **rhythmic energy shaper**, not a hard mute.
+It operates as a **pattern-driven, shaped VCA** placed **post-distortion, pre-VCA**, imposing macro-rhythm while preserving internal chaos.
+
+Key idea:
+
+> *It should never sound like the signal is being chopped by a knife.*
+
+---
+
+## 1. Core Signal Model
+
+The gate outputs a gain signal `g(t)` applied multiplicatively:
+
+```
+y(t) = x(t) * g(t)
+```
+
+Where:
+
+* `x(t)` is the post-distortion audio signal
+* `g(t)` ∈ [0, 1] (optionally >1 later for accenting)
+
+No hard zeros unless explicitly requested.
+
+---
+
+## 2. Pattern Engine
+
+### Pattern Representation
+
+* Fixed-length step pattern (initially):
+
+  * 8, 16, or 32 steps
+* Each step stores:
+
+  ```cpp
+  struct GateStep {
+      float level;   // 0.0 – 1.0 (not boolean)
+  };
+  ```
+
+This immediately enables:
+
+* Classic on/off gating (0 / 1)
+* Accents (e.g. 0.7, 1.0)
+* Ghost notes (0.2–0.4)
+* Future probability weighting
+
+Avoid boolean patterns — floats are strictly better.
+
+---
+
+### Step Timing
+
+* Tempo-synced to host BPM
+* Musical divisions:
+
+  * 1/4, 1/8, 1/16, triplet, dotted
+* Optional phase offset (pattern rotate)
+
+Gate clock is **sample-accurate**, but pattern advances at step boundaries only.
+
+---
+
+## 3. Edge Shaping (Critical)
+
+This is the most important part.
+
+### Attack / Release Smoothing
+
+Each step transition is smoothed using short ramps:
+
+Parameters:
+
+* `attackMs` (default ~1–5 ms)
+* `releaseMs` (default ~5–20 ms)
+
+Implementation:
+
+* Per-sample one-pole or exponential ramp
+* No discontinuities, ever
+
+This ensures:
+
+* No clicks
+* Distortion tails breathe naturally
+* Chaos oscillators aren’t “reset” perceptually
+
+Hard gating should be **impossible by default**.
+
+---
+
+## 4. Depth Control
+
+Depth determines how strongly the pattern affects the signal:
+
+```
+g_final(t) = lerp(1.0, g_pattern(t), depth)
+```
+
+Where:
+
+* `depth = 0.0` → gate bypassed
+* `depth = 1.0` → full pattern applied
+
+This is crucial for subtle rhythmic motion instead of EDM pumping.
+
+---
+
+## 5. Interaction with Amp Envelope
+
+This is where your design choice shines.
+
+Final amplitude path:
+
+```
+audio
+ → distortion
+ → trance gate (rhythm)
+ → amp envelope (note articulation)
+ → effects
+```
+
+Important rule:
+
+* **Gate does not affect voice lifetime**
+* Amp envelope still controls silence / release
+* Gate can be running even during release tails
+
+This avoids:
+
+* Choked releases
+* Voice stealing artifacts
+* “Machine-gun” note behavior
+
+---
+
+## 6. Modulation Support
+
+The gate should expose **three modulation destinations** minimum:
+
+1. **Depth**
+2. **Pattern Offset / Phase**
+3. **Rate / Division**
+
+Optionally later:
+
+* Step level modulation (wild but very “Ruinae”)
+
+Additionally:
+
+* Gate output itself should be a **modulation source**
+
+  * Bipolar or unipolar
+  * Useful for rhythmic chaos injection elsewhere
+
+This turns the gate into a *rhythmic control signal*, not just audio processing.
+
+---
+
+## 7. Per-Voice vs Global (Strong Recommendation)
+
+### Default: **Per-Voice**
+
+* Each voice has its own gate instance
+* Pattern phase resets on note-on (optionally)
+* Preserves polyphonic articulation
+
+### Optional Mode: Global
+
+* Shared clock and phase
+* For classic trance pumping
+
+Make this a mode switch, not two implementations.
+
+---
+
+## 8. Explicit Non-Goals (important for discipline)
+
+The trance gate should **not**:
+
+* Do sidechain compression
+* Auto-normalize
+* Randomize unless explicitly told
+* Modulate phase or frequency directly
+* Replace an envelope generator
+
+It is **not** a dynamics processor.
+It is a rhythmic mask.
+
+---
+
+## Minimal Parameter Set (v1)
+
+You can ship this confidently with:
+
+* On/Off
+* Pattern (8/16 steps)
+* Rate (tempo-sync)
+* Depth
+* Attack
+* Release
+* Phase Offset
+* Per-voice / Global
+
+Everything else can come later.
+
+---
+
+## Blunt verdict
+
+Adding this gate **elevates** the synth rather than cluttering it — *because* you put it post-distortion and spec’d it as a shaped VCA instead of a dumb chopper.
+
+If you want next, we can:
+
+* Turn this into a **formal spec block** for the markdown
+* Design a **probabilistic / chaos-mutated pattern mode**
+* Or sketch a **minimal RT-safe C++ class interface**
+
 
 ## Design Principles
 

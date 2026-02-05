@@ -111,16 +111,15 @@ struct AttractorConstants {
 
 /// @brief Constexpr array of per-attractor constants indexed by ChaosAttractor enum.
 ///
-/// NOTE: The baseDt values have been scaled up by 100x from the spec's original
-/// values to achieve audible output. The spec's values (0.01, 0.05, 0.02) were
-/// empirically too small when divided by sampleRate, resulting in near-zero
-/// attractor evolution per sample. The corrected values (1.0, 5.0, 2.0) produce
-/// meaningful audio-rate chaotic output with approximate pitch tracking.
+/// NOTE: The baseDt values have been empirically calibrated so that setFrequency(f)
+/// produces output with fundamental energy near f Hz (within +/-50% as per SC-008).
+/// Calibration method: measure autocorrelation-based fundamental at 440 Hz target,
+/// adjust baseDt to bring measured frequency within the 220-660 Hz spec range.
 inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // Lorenz (FR-001)
     {
         .dtMax = 0.001f,
-        .baseDt = 1.0f,  // Scaled 100x from spec (0.01) for audible output
+        .baseDt = 0.59f,  // Calibrated round 2: 0.22 * 2.68 (measured 164Hz at 440Hz target)
         .referenceFrequency = 100.0f,
         .safeBound = 500.0f,
         .xScale = 20.0f,
@@ -134,7 +133,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // Rossler (FR-002)
     {
         .dtMax = 0.002f,
-        .baseDt = 5.0f,  // Scaled 100x from spec (0.05) for audible output
+        .baseDt = 10.8f,  // Calibrated round 2: 1.10 * 9.78 (measured 45Hz at 440Hz target)
         .referenceFrequency = 80.0f,
         .safeBound = 300.0f,
         .xScale = 12.0f,
@@ -148,7 +147,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // Chua (FR-003)
     {
         .dtMax = 0.0005f,
-        .baseDt = 2.0f,  // Scaled 100x from spec (0.02) for audible output
+        .baseDt = 0.097f,  // Calibrated round 2: 0.44 / 4.56 (measured 2004Hz at 440Hz target)
         .referenceFrequency = 120.0f,
         .safeBound = 50.0f,
         .xScale = 2.5f,
@@ -162,7 +161,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // Duffing (FR-004)
     {
         .dtMax = 0.001f,
-        .baseDt = 1.4f,
+        .baseDt = 3.31f,  // Calibrated: 1.4 * 2.37 (measured 186Hz at 440Hz target)
         .referenceFrequency = 1.0f,
         .safeBound = 10.0f,
         .xScale = 2.0f,
@@ -176,7 +175,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // VanDerPol (FR-005)
     {
         .dtMax = 0.001f,
-        .baseDt = 1.0f,
+        .baseDt = 243.0f,  // Calibrated round 2: 11.6 * 21 (measured 21Hz at 440Hz target)
         .referenceFrequency = 1.0f,
         .safeBound = 10.0f,
         .xScale = 2.5f,
@@ -450,11 +449,36 @@ private:
     }
 
     /// @brief Update the integration timestep from frequency.
+    ///
+    /// For Duffing and VanDerPol, we use direct frequency control:
+    /// - Duffing: phase increment is computed directly from target frequency
+    /// - VanDerPol: dt is computed to achieve target frequency based on natural period
+    ///
+    /// For Lorenz, Rossler, Chua: uses calibrated dt scaling.
     void updateDt() noexcept {
         const auto& constants = detail::kAttractorConstants[static_cast<size_t>(attractor_)];
-        // FR-007: dt = baseDt * (targetFreq / refFreq) / sampleRate
-        dt_ = constants.baseDt * (frequency_ / constants.referenceFrequency)
-              / static_cast<float>(sampleRate_);
+
+        if (attractor_ == ChaosAttractor::Duffing) {
+            // Duffing: Use fixed dt for dynamics, control frequency via phase
+            // Phase increment per sample = 2π * targetFreq / sampleRate
+            duffingPhaseIncrement_ = kTwoPi * frequency_ / static_cast<float>(sampleRate_);
+            // Fixed dt for dynamics evolution (not too small to stall, not too big to diverge)
+            // The dynamics have a natural timescale ~1, so dt=0.01 is reasonable
+            dt_ = 0.01f;
+        } else if (attractor_ == ChaosAttractor::VanDerPol) {
+            // VanDerPol has natural angular frequency ω₀ ≈ 1, but the actual
+            // period depends on μ. For μ=1.0 (default), empirical calibration:
+            // - At 4π period, measured 476Hz for 440Hz target
+            // - Correction factor: 440/476 = 0.924
+            // - Adjusted period: 4π * 0.924 = 3.70π
+            constexpr float effectivePeriod = 3.70f * kPi;  // ~11.62
+            dt_ = effectivePeriod * frequency_ / static_cast<float>(sampleRate_);
+        } else {
+            // Lorenz, Rossler, Chua: calibrated dt scaling
+            // FR-007: dt = baseDt * (targetFreq / refFreq) / sampleRate
+            dt_ = constants.baseDt * (frequency_ / constants.referenceFrequency)
+                  / static_cast<float>(sampleRate_);
+        }
     }
 
     /// @brief Update the chaos parameter from normalized value.
@@ -488,6 +512,15 @@ private:
 
         for (int i = 0; i < numSubsteps; ++i) {
             rk4Step(dtSubstep, couplingForce);
+        }
+
+        // Advance Duffing phase once per sample (frequency-controlled)
+        if (attractor_ == ChaosAttractor::Duffing) {
+            duffingPhase_ += duffingPhaseIncrement_;
+            // Wrap phase to prevent overflow
+            if (duffingPhase_ > kTwoPi * 1000.0f) {
+                duffingPhase_ = std::fmod(duffingPhase_, kTwoPi);
+            }
         }
     }
 
@@ -526,16 +559,6 @@ private:
         state_.x = detail::flushDenormal(state_.x);
         state_.y = detail::flushDenormal(state_.y);
         state_.z = detail::flushDenormal(state_.z);
-
-        // FR-004: Advance Duffing phase in attractor time
-        if (attractor_ == ChaosAttractor::Duffing) {
-            constexpr float omega = 1.4f;
-            duffingPhase_ += omega * dt;
-            // Wrap phase to prevent overflow
-            if (duffingPhase_ > kTwoPi * 1000.0f) {
-                duffingPhase_ = std::fmod(duffingPhase_, kTwoPi);
-            }
-        }
     }
 
     /// @brief Compute derivatives for the current attractor type.
@@ -619,16 +642,20 @@ private:
     /// @brief Compute Duffing oscillator derivatives (FR-004).
     ///
     /// dx/dt = v (stored in y)
-    /// dv/dt = x - x^3 - gamma * v + A * cos(omega * phase)
+    /// dv/dt = x - x^3 - gamma * v + A * cos(phase)
+    ///
+    /// Note: The driving frequency is controlled by duffingPhaseIncrement_ which
+    /// advances duffingPhase_ by 2π * targetFreq / sampleRate per sample.
+    /// This provides direct pitch tracking independent of integration dt.
     [[nodiscard]] detail::AttractorState computeDuffingDerivatives(
         const detail::AttractorState& s, float couplingForce) const noexcept {
         constexpr float gamma = 0.1f;
-        constexpr float omega = 1.4f;
         float A = chaosParameter_;  // Maps to [0.2, 0.5]
 
         float v = s.y;  // y stores velocity
         float x3 = s.x * s.x * s.x;
-        float driving = A * std::cos(omega * duffingPhase_);
+        // Phase is directly controlled for target frequency tracking
+        float driving = A * std::cos(duffingPhase_);
 
         detail::AttractorState d;
         d.x = v + couplingForce;
@@ -732,6 +759,7 @@ private:
     // State
     detail::AttractorState state_;
     float duffingPhase_ = 0.0f;     // Duffing driving term phase
+    float duffingPhaseIncrement_ = 0.0f;  // Phase increment per sample for Duffing
     size_t resetCooldown_ = 0;      // Samples until next reset allowed
     double sampleRate_ = 44100.0;
     bool prepared_ = false;

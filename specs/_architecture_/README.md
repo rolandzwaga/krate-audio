@@ -4,7 +4,7 @@ Living inventory of components and APIs. Reference before writing specs to avoid
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document.
 
-**Last Updated**: 2026-01-14 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
+**Last Updated**: 2026-02-05 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
 
 ## Repository Structure
 
@@ -50,6 +50,7 @@ This architecture documentation is split into the following sections:
 | [Plugin Architecture](plugin-architecture.md) | VST3 components, parameter flow, state flow, UI components |
 | [Testing](testing.md) | Testing layers, test helpers infrastructure (artifact detection, signal metrics, golden reference) |
 | [Quick Reference](quick-reference.md) | Layer inclusion rules, common include patterns, ODR prevention |
+| [Synth Roadmap](synth-roadmap.md) | Missing components for VST synth: ADSR, Voice Allocator, Mono/Legato, Synth Voice |
 
 ---
 
