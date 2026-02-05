@@ -501,9 +501,9 @@ public:
 - Sine wave for classic FM (wavetable for extended FM)
 - Level controls modulation depth when used as modulator
 
-#### 8.2 FM Voice (Optional, Layer 3) (`systems/fm_voice.h`)
+#### 8.2 FM Voice (Layer 3) (`systems/fm_voice.h`)
 
-A system-level composition of 4-6 FMOperators with configurable algorithm routing. Can be deferred until actual synth voice needs arise. The FM operator alone (Phase 8) is independently useful for effects and modulation.
+A system-level composition of 4-6 FMOperators with configurable algorithm routing. The FM operator alone (Phase 8) is independently useful for effects and modulation.
 
 **Status:** Not started
 
