@@ -4556,3 +4556,121 @@ for (size_t i = 0; i < numSamples; ++i) {
 **Memory:** ~90 KB per instance (dominated by mipmapped sine wavetable)
 
 **Dependencies:** Layer 0 (fast_math.h, db_utils.h, math_constants.h), Layer 1 (wavetable_oscillator.h, wavetable_generator.h)
+
+---
+
+## PhaseDistortionOscillator
+**Path:** [phase_distortion_oscillator.h](../../dsp/include/krate/dsp/processors/phase_distortion_oscillator.h) | **Since:** 0.11.0
+
+Casio CZ-style Phase Distortion oscillator implementing 8 waveform types with DCW (Digitally Controlled Wave) morphing. At distortion=0.0, all waveforms produce pure sine. At distortion=1.0, each produces its characteristic shape.
+
+**Use when:**
+- Need CZ-style phase distortion synthesis
+- Want smooth morphing from sine to characteristic waveforms
+- Building hybrid synthesis (PD oscillator as FM carrier)
+- Need resonant filter-like timbres without actual filters
+
+```cpp
+enum class PDWaveform : uint8_t {
+    Saw, Square, Pulse, DoubleSine, HalfSine,
+    ResonantSaw, ResonantTriangle, ResonantTrapezoid
+};
+
+class PhaseDistortionOscillator {
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float process(float phaseModInput = 0.0f) noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+    void setFrequency(float hz) noexcept;
+    void setWaveform(PDWaveform waveform) noexcept;
+    void setDistortion(float amount) noexcept;  // [0, 1]
+    void setMaxResonanceFactor(float factor) noexcept;  // [0, 16]
+    [[nodiscard]] float getFrequency() const noexcept;
+    [[nodiscard]] PDWaveform getWaveform() const noexcept;
+    [[nodiscard]] float getDistortion() const noexcept;
+    [[nodiscard]] double phase() const noexcept;
+    [[nodiscard]] bool phaseWrapped() const noexcept;
+    void resetPhase(double newPhase = 0.0) noexcept;
+};
+```
+
+**Usage Example: Basic PD Waveform Generation**
+
+```cpp
+PhaseDistortionOscillator osc;
+osc.prepare(44100.0);
+osc.setFrequency(440.0f);
+osc.setWaveform(PDWaveform::Saw);
+osc.setDistortion(0.7f);  // 70% distortion
+
+// Generate audio
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = osc.process();
+}
+```
+
+**Usage Example: PD Oscillator as FM Carrier**
+
+```cpp
+// Modulator: standard FM operator
+FMOperator modulator;
+modulator.prepare(44100.0);
+modulator.setFrequency(440.0f);
+modulator.setRatio(2.0f);
+modulator.setLevel(0.3f);
+
+// Carrier: PD oscillator for unique timbre
+PhaseDistortionOscillator carrier;
+carrier.prepare(44100.0);
+carrier.setFrequency(440.0f);
+carrier.setWaveform(PDWaveform::ResonantSaw);
+carrier.setDistortion(0.5f);
+
+// Process with phase modulation
+for (size_t i = 0; i < numSamples; ++i) {
+    modulator.process();
+    float pm = modulator.lastRawOutput() * modulator.getLevel();
+    output[i] = carrier.process(pm);
+}
+```
+
+**Waveform Types:**
+
+| Waveform | Technique | Character |
+|----------|-----------|-----------|
+| Saw | Two-segment phase transfer | Bright, harmonically rich |
+| Square | Four-segment phase transfer | Hollow, odd harmonics |
+| Pulse | Asymmetric duty cycle | Nasal, bright |
+| DoubleSine | Phase doubling | Octave-doubled tone |
+| HalfSine | Phase reflection | Half-wave rectified |
+| ResonantSaw | Falling sawtooth window | Filter-like resonance |
+| ResonantTriangle | Triangle window | Softer resonance |
+| ResonantTrapezoid | Trapezoid window | Wide resonance |
+
+**Parameter Ranges:**
+
+| Parameter | Range | Default | Notes |
+|-----------|-------|---------|-------|
+| frequency | [0, Nyquist) | 440 Hz | Fundamental frequency |
+| distortion | [0, 1] | 0.0 | DCW amount (0=sine) |
+| waveform | enum | Saw | Waveform type |
+| maxResonanceFactor | [0, 16] | 8.0 | Resonant peak multiplier |
+
+**Key Behaviors:**
+- distortion=0.0: All waveforms produce pure sine (THD < 0.5%)
+- distortion=1.0: Full characteristic waveform shape
+- Resonant waveforms: Peak frequency = fundamental * (1 + distortion * maxResonanceFactor)
+
+**Gotchas:**
+- `prepare()` is NOT real-time safe (generates cosine wavetable)
+- `process()` returns 0.0 if `prepare()` has not been called
+- NaN/Inf inputs to setFrequency() are sanitized to 0.0
+- NaN/Inf inputs to setDistortion() preserve previous value
+- Output clamped to [-2.0, 2.0] with NaN replaced by 0.0
+- Each instance owns ~90 KB for internal cosine wavetable
+
+**Performance:** < 0.5 ms for 1 second of audio at 44.1 kHz (Layer 2 budget)
+
+**Memory:** ~90 KB per instance (dominated by mipmapped cosine wavetable)
+
+**Dependencies:** Layer 0 (phase_utils.h, math_constants.h, db_utils.h, interpolation.h, wavetable_data.h), Layer 1 (wavetable_oscillator.h, wavetable_generator.h)
