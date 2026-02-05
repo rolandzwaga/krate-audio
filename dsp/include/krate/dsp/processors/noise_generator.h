@@ -23,6 +23,7 @@
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/random.h>
 #include <krate/dsp/primitives/biquad.h>
+#include <krate/dsp/primitives/pink_noise_filter.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/envelope_follower.h>
 
@@ -60,62 +61,10 @@ enum class NoiseType : uint8_t {
 constexpr size_t kNumNoiseTypes = 13;
 
 // =============================================================================
-// PinkNoiseFilter (Internal)
-// =============================================================================
-
-/// @brief Paul Kellet's pink noise filter
-///
-/// Converts white noise to pink noise (-3dB/octave spectral rolloff).
-/// Uses a 7-state recursive filter for excellent accuracy with minimal CPU.
-///
-/// @par Algorithm
-/// Filter coefficients from Paul Kellet's "pink noise generation" article.
-/// Accuracy: -3dB/octave ±0.5dB across audible range.
-///
-/// @par Reference
-/// https://www.firstpr.com.au/dsp/pink-noise/
-class PinkNoiseFilter {
-public:
-    /// @brief Process one white noise sample through the filter
-    /// @param white Input white noise sample (typically [-1, 1])
-    /// @return Pink noise sample
-    [[nodiscard]] float process(float white) noexcept {
-        // Paul Kellet's filter coefficients
-        b0_ = 0.99886f * b0_ + white * 0.0555179f;
-        b1_ = 0.99332f * b1_ + white * 0.0750759f;
-        b2_ = 0.96900f * b2_ + white * 0.1538520f;
-        b3_ = 0.86650f * b3_ + white * 0.3104856f;
-        b4_ = 0.55000f * b4_ + white * 0.5329522f;
-        b5_ = -0.7616f * b5_ - white * 0.0168980f;
-
-        float pink = b0_ + b1_ + b2_ + b3_ + b4_ + b5_ + b6_ + white * 0.5362f;
-        b6_ = white * 0.115926f;
-
-        // Normalize output to stay within [-1, 1] range
-        // The filter has peak gain of approximately 5.0, so we use a conservative factor
-        // and clamp to ensure we never exceed the range
-        float normalized = pink * 0.2f;
-        return (normalized > 1.0f) ? 1.0f : ((normalized < -1.0f) ? -1.0f : normalized);
-    }
-
-    /// @brief Reset filter state to zero
-    void reset() noexcept {
-        b0_ = b1_ = b2_ = b3_ = b4_ = b5_ = b6_ = 0.0f;
-    }
-
-private:
-    float b0_ = 0.0f;
-    float b1_ = 0.0f;
-    float b2_ = 0.0f;
-    float b3_ = 0.0f;
-    float b4_ = 0.0f;
-    float b5_ = 0.0f;
-    float b6_ = 0.0f;
-};
-
-// =============================================================================
 // NoiseGenerator Class
 // =============================================================================
+// Note: PinkNoiseFilter has been extracted to a Layer 1 primitive at
+// krate/dsp/primitives/pink_noise_filter.h (spec 023, RF-001 to RF-004)
 
 /// @brief Layer 2 DSP Processor - Multi-type noise generator
 ///

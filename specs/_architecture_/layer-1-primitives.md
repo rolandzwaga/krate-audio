@@ -1897,3 +1897,71 @@ void addBlamp(float subsampleOffset, float amplitude) noexcept;  // RT-safe
 **Related Primitives:** PolyBlepOscillator (complementary, lower quality/cost), FFT (used in table generation), WavetableOscillator (similar table lookup pattern)
 
 **Dependencies:** `core/interpolation.h` (linearInterpolate), `core/math_constants.h` (kPi), `core/window_functions.h` (generateBlackman), `core/db_utils.h` (isNaN, isInf), `primitives/fft.h` (cepstral transform)
+
+---
+
+## PinkNoiseFilter
+**Path:** [pink_noise_filter.h](../../dsp/include/krate/dsp/primitives/pink_noise_filter.h) | **Since:** 0.14.2
+
+Paul Kellet's pink noise filter for converting white noise to pink noise (-3dB/octave).
+
+```cpp
+class PinkNoiseFilter {
+    [[nodiscard]] float process(float white) noexcept;  // White in, pink out [-1, 1]
+    void reset() noexcept;                              // Clear filter state
+};
+```
+
+**Algorithm:** 7-state recursive filter with fixed coefficients. Accuracy: +/-0.05dB from 9.2Hz to Nyquist at 44.1kHz. Sample-rate independent across 44.1kHz-192kHz.
+
+**When to use:**
+- Pink noise generation in synthesis (excitation, modulation)
+- Shared primitive used by both NoiseOscillator (Layer 1) and NoiseGenerator (Layer 2)
+
+**Reference:** [Paul Kellet's Pink Noise Algorithm](https://www.firstpr.com.au/dsp/pink-noise/)
+
+**Dependencies:** None (pure algorithm)
+
+---
+
+## NoiseOscillator
+**Path:** [noise_oscillator.h](../../dsp/include/krate/dsp/primitives/noise_oscillator.h) | **Since:** 0.14.2
+
+Lightweight noise oscillator providing six noise colors for synthesis-level composition.
+
+```cpp
+class NoiseOscillator {
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;                              // Restart from seed
+    void setColor(NoiseColor color) noexcept;           // White, Pink, Brown, Blue, Violet, Grey
+    void setSeed(uint32_t seed) noexcept;               // Deterministic sequences
+    [[nodiscard]] float process() noexcept;             // Single sample [-1, 1]
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // Queries
+    [[nodiscard]] NoiseColor color() const noexcept;
+    [[nodiscard]] uint32_t seed() const noexcept;
+    [[nodiscard]] double sampleRate() const noexcept;
+};
+```
+
+| Color | Slope | Algorithm |
+|-------|-------|-----------|
+| White | 0 dB/oct | Direct PRNG |
+| Pink | -3 dB/oct | Paul Kellet filter |
+| Brown | -6 dB/oct | Leaky integrator (leak=0.99) |
+| Blue | +3 dB/oct | Differentiated pink |
+| Violet | +6 dB/oct | Differentiated white |
+| Grey | Inverse A-weight | Dual biquad shelf cascade |
+
+**When to use:**
+- Karplus-Strong string excitation
+- LFO modulation source (noise-based randomness)
+- Audio testing and calibration (grey noise)
+- Synthesis-level noise generation
+
+**NoiseOscillator vs NoiseGenerator:**
+- **NoiseOscillator** (Layer 1): Lightweight primitive for oscillator composition, 6 colors
+- **NoiseGenerator** (Layer 2): Effects-oriented with level control, smoothing, signal-dependent modulation, 13 noise types including tape hiss, vinyl crackle
+
+**Dependencies:** `core/random.h` (Xorshift32), `core/pattern_freeze_types.h` (NoiseColor), `primitives/pink_noise_filter.h`, `primitives/biquad.h`
