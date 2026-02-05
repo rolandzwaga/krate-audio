@@ -150,6 +150,7 @@ add_executable(dsp_tests
     unit/processors/sub_oscillator_test.cpp
     unit/processors/fm_operator_test.cpp
     unit/processors/phase_distortion_oscillator_test.cpp
+    unit/processors/additive_oscillator_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -404,6 +405,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/sub_oscillator_test.cpp
         unit/processors/fm_operator_test.cpp
         unit/processors/phase_distortion_oscillator_test.cpp
+        unit/processors/additive_oscillator_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
