@@ -98,8 +98,40 @@ float calculateDCLevel(const std::vector<float>& samples) {
 // =============================================================================
 
 TEST_CASE("FR-001: Lorenz equations produce characteristic output", "[processors][chaos][lorenz][fr001]") {
-    // Test stub - implementation in Phase 2
-    SKIP("Phase 2: Lorenz implementation pending");
+    ChaosOscillator osc;
+    osc.prepare(44100.0);
+    osc.setAttractor(ChaosAttractor::Lorenz);
+    osc.setFrequency(220.0f);  // 220 Hz
+    osc.setChaos(1.0f);  // Full chaos (rho=28)
+
+    // Collect samples
+    std::vector<float> samples;
+    samples.reserve(88200);  // 2 seconds
+
+    for (int i = 0; i < 88200; ++i) {
+        samples.push_back(osc.process());
+    }
+
+    // Calculate statistics from second half (after DC blocker has settled)
+    float rms = 0.0f;
+    float minVal = samples[44100];
+    float maxVal = samples[44100];
+
+    for (size_t i = 44100; i < samples.size(); ++i) {
+        float s = samples[i];
+        rms += s * s;
+        minVal = std::min(minVal, s);
+        maxVal = std::max(maxVal, s);
+    }
+    rms = std::sqrt(rms / 44100.0f);
+    float range = maxVal - minVal;
+
+    INFO("RMS: " << rms);
+    INFO("Range: " << range << " (min: " << minVal << ", max: " << maxVal << ")");
+
+    // Verify non-silence - output must have activity
+    REQUIRE(rms > 0.0001f);  // Must have some output
+    REQUIRE(range > 0.001f); // Should have some dynamic range
 }
 
 // =============================================================================
@@ -143,8 +175,31 @@ TEST_CASE("FR-005: Van der Pol equations produce relaxation oscillations", "[pro
 // =============================================================================
 
 TEST_CASE("SC-001: Output bounded in [-1, +1] for 10 seconds (Lorenz)", "[processors][chaos][lorenz][sc001]") {
-    // Test stub - implementation in Phase 2
-    SKIP("Phase 2: Lorenz bounded output test pending");
+    ChaosOscillator osc;
+    osc.prepare(44100.0);
+    osc.setAttractor(ChaosAttractor::Lorenz);
+    osc.setFrequency(440.0f);
+    osc.setChaos(1.0f);
+
+    // Track bounds for later assertion (don't REQUIRE inside loop for performance)
+    bool foundNaN = false;
+    bool foundInf = false;
+    float minSample = 0.0f;
+    float maxSample = 0.0f;
+
+    // Process 10 seconds = 441000 samples
+    for (int i = 0; i < 441000; ++i) {
+        float sample = osc.process();
+        if (detail::isNaN(sample)) foundNaN = true;
+        if (detail::isInf(sample)) foundInf = true;
+        minSample = std::min(minSample, sample);
+        maxSample = std::max(maxSample, sample);
+    }
+
+    REQUIRE_FALSE(foundNaN);
+    REQUIRE_FALSE(foundInf);
+    REQUIRE(minSample >= -1.0f);
+    REQUIRE(maxSample <= 1.0f);
 }
 
 TEST_CASE("SC-001: Output bounded in [-1, +1] for 10 seconds (Rossler)", "[processors][chaos][rossler][sc001]") {
@@ -181,8 +236,32 @@ TEST_CASE("SC-002: Divergence recovery within 1ms (44 samples @ 44.1kHz)", "[pro
 // =============================================================================
 
 TEST_CASE("SC-003: Numerical stability at 20Hz-2000Hz (Lorenz)", "[processors][chaos][lorenz][sc003]") {
-    // Test stub - implementation in Phase 2
-    SKIP("Phase 2: Lorenz numerical stability test pending");
+    ChaosOscillator osc;
+    osc.prepare(44100.0);
+    osc.setAttractor(ChaosAttractor::Lorenz);
+    osc.setChaos(1.0f);
+
+    // Test frequencies across the specified range
+    std::array<float, 5> testFreqs = {20.0f, 100.0f, 440.0f, 1000.0f, 2000.0f};
+
+    for (float freq : testFreqs) {
+        osc.setFrequency(freq);
+        osc.reset();
+
+        bool foundNaN = false;
+        bool foundInf = false;
+
+        // Process 1 second at each frequency
+        for (int i = 0; i < 44100; ++i) {
+            float sample = osc.process();
+            if (detail::isNaN(sample)) foundNaN = true;
+            if (detail::isInf(sample)) foundInf = true;
+        }
+
+        CAPTURE(freq);
+        REQUIRE_FALSE(foundNaN);
+        REQUIRE_FALSE(foundInf);
+    }
 }
 
 TEST_CASE("SC-003: Numerical stability at 20Hz-2000Hz (Rossler)", "[processors][chaos][rossler][sc003]") {

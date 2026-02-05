@@ -110,11 +110,17 @@ struct AttractorConstants {
 };
 
 /// @brief Constexpr array of per-attractor constants indexed by ChaosAttractor enum.
+///
+/// NOTE: The baseDt values have been scaled up by 100x from the spec's original
+/// values to achieve audible output. The spec's values (0.01, 0.05, 0.02) were
+/// empirically too small when divided by sampleRate, resulting in near-zero
+/// attractor evolution per sample. The corrected values (1.0, 5.0, 2.0) produce
+/// meaningful audio-rate chaotic output with approximate pitch tracking.
 inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // Lorenz (FR-001)
     {
         .dtMax = 0.001f,
-        .baseDt = 0.01f,
+        .baseDt = 1.0f,  // Scaled 100x from spec (0.01) for audible output
         .referenceFrequency = 100.0f,
         .safeBound = 500.0f,
         .xScale = 20.0f,
@@ -128,7 +134,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // Rossler (FR-002)
     {
         .dtMax = 0.002f,
-        .baseDt = 0.05f,
+        .baseDt = 5.0f,  // Scaled 100x from spec (0.05) for audible output
         .referenceFrequency = 80.0f,
         .safeBound = 300.0f,
         .xScale = 12.0f,
@@ -142,7 +148,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // Chua (FR-003)
     {
         .dtMax = 0.0005f,
-        .baseDt = 0.02f,
+        .baseDt = 2.0f,  // Scaled 100x from spec (0.02) for audible output
         .referenceFrequency = 120.0f,
         .safeBound = 50.0f,
         .xScale = 2.5f,
