@@ -4674,3 +4674,118 @@ for (size_t i = 0; i < numSamples; ++i) {
 **Memory:** ~90 KB per instance (dominated by mipmapped cosine wavetable)
 
 **Dependencies:** Layer 0 (phase_utils.h, math_constants.h, db_utils.h, interpolation.h, wavetable_data.h), Layer 1 (wavetable_oscillator.h, wavetable_generator.h)
+
+---
+
+## AdditiveOscillator
+**Path:** [additive_oscillator.h](../../dsp/include/krate/dsp/processors/additive_oscillator.h) | **Since:** 0.12.0
+
+IFFT-based additive synthesis oscillator with up to 128 partials. Uses overlap-add resynthesis with Hann windowing at 75% overlap for efficient O(N log N) synthesis independent of partial count.
+
+**Use when:**
+- Building organ-like timbres with explicit harmonic control
+- Creating bell/piano sounds with inharmonicity
+- Need spectral morphing or resynthesis applications
+- Want per-partial amplitude, frequency ratio, and phase control
+
+```cpp
+class AdditiveOscillator {
+    static constexpr size_t kMaxPartials = 128;
+    static constexpr size_t kMinFFTSize = 512;
+    static constexpr size_t kMaxFFTSize = 4096;
+    static constexpr size_t kDefaultFFTSize = 2048;
+
+    void prepare(double sampleRate, size_t fftSize = kDefaultFFTSize) noexcept;
+    void reset() noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // Fundamental frequency
+    void setFundamental(float hz) noexcept;
+
+    // Per-partial control (1-based indexing)
+    void setPartialAmplitude(size_t partialNumber, float amplitude) noexcept;
+    void setPartialFrequencyRatio(size_t partialNumber, float ratio) noexcept;
+    void setPartialPhase(size_t partialNumber, float phase) noexcept;
+
+    // Macro controls
+    void setNumPartials(size_t count) noexcept;
+    void setSpectralTilt(float tiltDb) noexcept;      // [-24, +12] dB/octave
+    void setInharmonicity(float B) noexcept;          // [0, 0.1] bell-like stretching
+
+    // Query
+    [[nodiscard]] size_t latency() const noexcept;    // Returns FFT size
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] double sampleRate() const noexcept;
+    [[nodiscard]] size_t fftSize() const noexcept;
+    [[nodiscard]] float fundamental() const noexcept;
+    [[nodiscard]] size_t numPartials() const noexcept;
+};
+```
+
+**Usage Example: Organ-like Harmonic Series**
+
+```cpp
+AdditiveOscillator osc;
+osc.prepare(44100.0, 2048);
+osc.setFundamental(261.63f);  // Middle C
+osc.setNumPartials(8);
+
+// Organ drawbar-like amplitudes
+osc.setPartialAmplitude(1, 1.0f);   // 8'
+osc.setPartialAmplitude(2, 0.5f);   // 4'
+osc.setPartialAmplitude(3, 0.25f);  // 2 2/3'
+osc.setPartialAmplitude(4, 0.125f); // 2'
+
+osc.processBlock(output, 512);
+```
+
+**Usage Example: Bell-like Inharmonicity**
+
+```cpp
+AdditiveOscillator bell;
+bell.prepare(44100.0);
+bell.setFundamental(440.0f);
+bell.setNumPartials(16);
+bell.setInharmonicity(0.01f);  // Bell-like stretching
+bell.setSpectralTilt(-6.0f);   // Natural high-frequency rolloff
+
+// f_n = n * f1 * sqrt(1 + B * n^2)
+// Partial 10 at B=0.01: 440 * 10 * sqrt(1.01) = 4622 Hz (vs 4400 harmonic)
+
+bell.processBlock(output, 512);
+```
+
+**Parameter Ranges:**
+
+| Parameter | Range | Default | Notes |
+|-----------|-------|---------|-------|
+| fundamental | [0, Nyquist) | 440 Hz | 0 produces silence |
+| partialNumber | [1, 128] | - | 1-based indexing |
+| amplitude | [0, 1] | 1.0 (partial 1) | Per-partial amplitude |
+| ratio | (0, 64] | N (partial number) | Frequency multiplier |
+| phase | [0, 1) | 0.0 | Applied at reset() |
+| numPartials | [1, 128] | 1 | Active partial count |
+| spectralTilt | [-24, +12] | 0 dB/oct | Brightness control |
+| inharmonicity | [0, 0.1] | 0.0 | Piano-string formula |
+| fftSize | 512, 1024, 2048, 4096 | 2048 | Set at prepare() |
+
+**Key Behaviors:**
+- Latency = FFT size (e.g., 2048 samples at default)
+- Phase changes take effect at next reset(), not mid-playback
+- Partials above Nyquist are automatically excluded
+- Output sanitized to [-2, +2] with NaN/Inf replaced by 0
+- Spectral tilt formula: amplitude *= pow(10, tiltDb * log2(n) / 20)
+- Inharmonicity formula: f_n = n * f1 * sqrt(1 + B * n^2)
+
+**Gotchas:**
+- `prepare()` is NOT real-time safe (allocates FFT buffers, ~80 KB at FFT 2048)
+- `processBlock()` outputs zeros if `prepare()` has not been called
+- Fundamental = 0 produces silence (use for note-off)
+- Out-of-range partial numbers (0, >128) are silently ignored
+- NaN/Inf inputs to setters are sanitized to safe defaults
+
+**Performance:** O(N log N) per FFT frame, independent of partial count
+
+**Memory:** ~80 KB per instance at FFT size 2048 (FFT twiddles, spectrum buffer, output buffer)
+
+**Dependencies:** Layer 0 (window_functions.h, phase_utils.h, math_constants.h, db_utils.h), Layer 1 (fft.h)
