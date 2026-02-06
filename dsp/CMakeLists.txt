@@ -134,6 +134,7 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     include/krate/dsp/systems/modulation_matrix.h
     include/krate/dsp/systems/stereo_field.h
     include/krate/dsp/systems/tap_manager.h
+    include/krate/dsp/systems/vector_mixer.h
 )
 
 # Layer 4: Effects
