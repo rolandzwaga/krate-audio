@@ -217,7 +217,38 @@ See CLAUDE.md "Layer 0 Refactoring Analysis" for decision framework.
 
 **Reasoning**: [2-3 sentences explaining why, referencing the characteristics above]
 
-### Alternative Optimizations (if SIMD not viable)
+### Implementation Workflow
+
+<!--
+  IMPORTANT: SIMD is NEVER implemented first. The two-phase workflow below is
+  mandatory because:
+  1. Scalar code establishes correctness — SIMD bugs (wrong lane, bad shuffle,
+     alignment) are hard to debug without a known-good reference
+  2. Tests written against the scalar version become the oracle that validates
+     the SIMD version — same tests, same expected outputs
+  3. Profiling the scalar version reveals WHERE to optimize (the bottleneck may
+     not be where you assume)
+  4. A scalar fallback is required anyway for platforms without the target ISA
+     (e.g., ARM doesn't have SSE, older x86 lacks AVX)
+
+  Phase 1 happens during /speckit.implement. Phase 2 is a separate task group
+  in tasks.md (simple cases) or a follow-up spec (complex SIMD rewrites).
+-->
+
+**If verdict is BENEFICIAL:**
+
+| Phase | What | When | Deliverables |
+|-------|------|------|-------------|
+| **1. Scalar** | Implement full algorithm with scalar code | `/speckit.implement` | Working implementation + complete test suite + CPU baseline measurement |
+| **2. SIMD** | Add SIMD-optimized code path behind the same API | Separate task group or follow-up spec | SIMD implementation + all existing tests still pass + CPU improvement measured |
+
+- Phase 2 MUST NOT change the public API — same `process()` / `processBlock()` signatures
+- Phase 2 MUST keep the scalar path as a fallback (`#ifndef HAS_SSE` or runtime dispatch)
+- Phase 2 MUST re-run the full test suite to confirm bit-accurate (or tolerance-matched) output
+
+**If verdict is NOT BENEFICIAL or MARGINAL:** Skip Phase 2. Document alternative optimizations below.
+
+### Alternative Optimizations
 
 <!--
   If SIMD is not the right tool, document what IS. Common alternatives:
