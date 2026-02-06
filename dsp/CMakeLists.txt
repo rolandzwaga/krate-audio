@@ -4,6 +4,24 @@
 # Shared DSP library for all Krate Audio plugins
 # Contains: Layers 0-4 (core utilities, primitives, processors, systems, effects)
 
+# ==============================================================================
+# pffft - SIMD-optimized FFT library (BSD license, marton78 fork)
+# ==============================================================================
+# Auto-detects SIMD: SSE on x86/x64 (including MSVC), NEON on ARM, scalar fallback
+add_library(pffft STATIC
+    ${CMAKE_SOURCE_DIR}/extern/pffft/pffft.c
+    ${CMAKE_SOURCE_DIR}/extern/pffft/pffft_common.c
+)
+target_include_directories(pffft PUBLIC ${CMAKE_SOURCE_DIR}/extern/pffft)
+# pffft is C code - suppress C++ warnings that don't apply
+if(MSVC)
+    target_compile_options(pffft PRIVATE /W0)
+else()
+    target_compile_options(pffft PRIVATE -w)
+endif()
+# macOS universal binary (x86_64 + arm64) - must match KrateDSP/plugin targets
+smtg_target_setup_universal_binary(pffft)
+
 # Define KrateDSP as a static library
 # Most DSP code is header-only, but dsp_utils.cpp contains implementations
 add_library(KrateDSP STATIC
@@ -16,6 +34,10 @@ target_include_directories(KrateDSP
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
+
+# Link to pffft for SIMD-optimized FFT
+# PUBLIC because fft.h (a public header) includes <pffft.h>
+target_link_libraries(KrateDSP PUBLIC pffft)
 
 # C++20 requirement
 target_compile_features(KrateDSP PUBLIC cxx_std_20)

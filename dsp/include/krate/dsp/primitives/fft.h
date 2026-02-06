@@ -1,8 +1,9 @@
 // ==============================================================================
 // Layer 1: DSP Primitive - Fast Fourier Transform
 // ==============================================================================
-// Radix-2 Decimation-in-Time FFT implementation for spectral processing.
+// SIMD-accelerated FFT via pffft (Pretty Fast FFT).
 // Provides forward (real-to-complex) and inverse (complex-to-real) transforms.
+// Uses SSE on x86/x64, NEON on ARM, with scalar fallback.
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, allocations only in prepare())
@@ -12,7 +13,7 @@
 // - Principle XII: Test-First Development
 //
 // Reference: specs/007-fft-processor/spec.md
-// Algorithm: Cooley-Tukey Radix-2 DIT
+// Backend: pffft (marton78 fork, BSD license)
 // ==============================================================================
 
 #pragma once
@@ -21,9 +22,9 @@
 #include <bit>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
-#include <numbers>
-#include <vector>
+#include <memory>
+
+#include <pffft.h>
 
 namespace Krate {
 namespace DSP {
@@ -94,17 +95,42 @@ struct Complex {
 };
 
 // =============================================================================
+// RAII Helpers for pffft Resources
+// =============================================================================
+
+namespace detail {
+
+struct PffftSetupDeleter {
+    void operator()(PFFFT_Setup* s) const noexcept {
+        if (s) pffft_destroy_setup(s);
+    }
+};
+
+struct PffftAlignedDeleter {
+    void operator()(void* p) const noexcept {
+        if (p) pffft_aligned_free(p);
+    }
+};
+
+/// Allocate a SIMD-aligned float buffer via pffft
+inline std::unique_ptr<float, PffftAlignedDeleter> makeAlignedBuffer(size_t numFloats) {
+    return {static_cast<float*>(pffft_aligned_malloc(numFloats * sizeof(float))),
+            PffftAlignedDeleter{}};
+}
+
+} // namespace detail
+
+// =============================================================================
 // FFT Class
 // =============================================================================
 
-/// @brief Core Fast Fourier Transform processor
-/// @note Uses Radix-2 Decimation-in-Time (DIT) algorithm
+/// @brief Core Fast Fourier Transform processor (SIMD-accelerated via pffft)
 class FFT {
 public:
     FFT() noexcept = default;
     ~FFT() noexcept = default;
 
-    // Non-copyable, movable
+    // Non-copyable, movable (unique_ptr members enable default move)
     FFT(const FFT&) = delete;
     FFT& operator=(const FFT&) = delete;
     FFT(FFT&&) noexcept = default;
@@ -114,7 +140,7 @@ public:
     // Lifecycle
     // -------------------------------------------------------------------------
 
-    /// @brief Prepare FFT for given size (allocates LUTs and buffers)
+    /// @brief Prepare FFT for given size (allocates pffft setup and aligned buffers)
     /// @param fftSize Power of 2 in range [256, 8192]
     /// @pre fftSize is power of 2
     /// @note NOT real-time safe (allocates memory)
@@ -127,42 +153,25 @@ public:
             return;
         }
 
-        // Number of bits needed to represent indices
-        const size_t numBits = std::countr_zero(fftSize);
-
-        // T039: Generate bit-reversal LUT
-        bitReversalLUT_.resize(fftSize);
-        for (size_t i = 0; i < fftSize; ++i) {
-            size_t reversed = 0;
-            size_t temp = i;
-            for (size_t b = 0; b < numBits; ++b) {
-                reversed = (reversed << 1) | (temp & 1);
-                temp >>= 1;
-            }
-            bitReversalLUT_[i] = reversed;
+        // Create pffft setup for real-valued transforms
+        setup_.reset(pffft_new_setup(static_cast<int>(fftSize), PFFFT_REAL));
+        if (!setup_) {
+            size_ = 0;
+            return;
         }
 
-        // T040: Precompute twiddle factors W_N^k = exp(-2πik/N)
-        // Only need N/2 factors due to symmetry
-        const size_t halfSize = fftSize / 2;
-        twiddleFactors_.resize(halfSize);
-        const double twoPi = 2.0 * std::numbers::pi;
-        for (size_t k = 0; k < halfSize; ++k) {
-            const double angle = -twoPi * static_cast<double>(k) / static_cast<double>(fftSize);
-            twiddleFactors_[k] = {
-                static_cast<float>(std::cos(angle)),
-                static_cast<float>(std::sin(angle))
-            };
-        }
-
-        // Allocate work buffer
-        workBuffer_.resize(fftSize);
+        // Allocate SIMD-aligned buffers (16-byte on SSE, as required by pffft)
+        buf1_ = detail::makeAlignedBuffer(fftSize);
+        buf2_ = detail::makeAlignedBuffer(fftSize);
+        work_ = detail::makeAlignedBuffer(fftSize);
     }
 
-    /// @brief Reset internal work buffers (not LUTs)
+    /// @brief Reset internal work buffers
     /// @note Real-time safe
     void reset() noexcept {
-        std::fill(workBuffer_.begin(), workBuffer_.end(), Complex{0.0f, 0.0f});
+        if (buf1_) std::fill_n(buf1_.get(), size_, 0.0f);
+        if (buf2_) std::fill_n(buf2_.get(), size_, 0.0f);
+        if (work_) std::fill_n(work_.get(), size_, 0.0f);
     }
 
     // -------------------------------------------------------------------------
@@ -177,51 +186,26 @@ public:
     void forward(const float* input, Complex* output) noexcept {
         if (!isPrepared() || input == nullptr || output == nullptr) return;
 
-        // T041: Radix-2 DIT Forward FFT
+        const size_t N = size_;
 
-        // Step 1: Copy input to work buffer with bit-reversal permutation
-        for (size_t i = 0; i < size_; ++i) {
-            const size_t j = bitReversalLUT_[i];
-            workBuffer_[j] = {input[i], 0.0f};
+        // Copy input to SIMD-aligned buffer
+        std::copy_n(input, N, buf1_.get());
+
+        // SIMD-accelerated forward FFT (ordered output)
+        pffft_transform_ordered(setup_.get(), buf1_.get(), buf2_.get(),
+                                work_.get(), PFFFT_FORWARD);
+
+        // Convert pffft ordered output to our Complex format:
+        //   pffft: [DC_real, Nyquist_real, Re(1), Im(1), Re(2), Im(2), ...]
+        //   ours:  Complex[0]={DC,0}, Complex[k]={Re,Im}, Complex[N/2]={Nyq,0}
+        const float* fftOut = buf2_.get();
+
+        output[0] = {fftOut[0], 0.0f};        // DC bin (real only)
+        output[N / 2] = {fftOut[1], 0.0f};    // Nyquist bin (real only)
+
+        for (size_t k = 1; k < N / 2; ++k) {
+            output[k] = {fftOut[2 * k], fftOut[2 * k + 1]};
         }
-
-        // Step 2: Cooley-Tukey iterative FFT
-        // Process stages from 1-point DFTs up to N-point DFT
-        for (size_t stage = 1; stage < size_; stage <<= 1) {
-            const size_t twiddleStep = size_ / (stage << 1);
-
-            for (size_t k = 0; k < size_; k += (stage << 1)) {
-                size_t twiddleIndex = 0;
-
-                for (size_t j = 0; j < stage; ++j) {
-                    // Butterfly operation
-                    const Complex& twiddle = twiddleFactors_[twiddleIndex];
-                    const size_t evenIdx = k + j;
-                    const size_t oddIdx = evenIdx + stage;
-
-                    const Complex even = workBuffer_[evenIdx];
-                    const Complex odd = workBuffer_[oddIdx] * twiddle;
-
-                    workBuffer_[evenIdx] = even + odd;
-                    workBuffer_[oddIdx] = even - odd;
-
-                    twiddleIndex += twiddleStep;
-                }
-            }
-        }
-
-        // T042: Pack output (N/2+1 bins: DC to Nyquist)
-        // For real input, output has conjugate symmetry: X[k] = X[N-k]*
-        // We only need bins 0 to N/2 (inclusive)
-        const size_t numBins = size_ / 2 + 1;
-        for (size_t i = 0; i < numBins; ++i) {
-            output[i] = workBuffer_[i];
-        }
-
-        // DC and Nyquist bins should have zero imaginary part for real input
-        // (enforced by symmetry, but we explicitly zero for numerical stability)
-        output[0].imag = 0.0f;
-        output[size_ / 2].imag = 0.0f;
     }
 
     /// @brief Inverse FFT: complex frequency-domain → real time-domain
@@ -232,67 +216,28 @@ public:
     void inverse(const Complex* input, float* output) noexcept {
         if (!isPrepared() || input == nullptr || output == nullptr) return;
 
-        // T044: Unpack complex spectrum to full N-point complex array
-        // Reconstruct negative frequencies from conjugate symmetry: X[N-k] = X[k]*
-        const size_t halfSize = size_ / 2;
+        const size_t N = size_;
 
-        // DC bin (no conjugate)
-        workBuffer_[0] = input[0];
+        // Convert our Complex format to pffft ordered format
+        float* fftIn = buf1_.get();
 
-        // Positive frequencies and their conjugate mirrors
-        for (size_t k = 1; k < halfSize; ++k) {
-            workBuffer_[k] = input[k];
-            workBuffer_[size_ - k] = input[k].conjugate();
+        fftIn[0] = input[0].real;          // DC
+        fftIn[1] = input[N / 2].real;      // Nyquist
+
+        for (size_t k = 1; k < N / 2; ++k) {
+            fftIn[2 * k] = input[k].real;
+            fftIn[2 * k + 1] = input[k].imag;
         }
 
-        // Nyquist bin (no conjugate)
-        workBuffer_[halfSize] = input[halfSize];
+        // SIMD-accelerated inverse FFT (ordered input)
+        pffft_transform_ordered(setup_.get(), fftIn, buf2_.get(),
+                                work_.get(), PFFFT_BACKWARD);
 
-        // T045: Radix-2 DIT Inverse FFT
-        // IFFT is FFT with conjugate twiddle factors, followed by 1/N scaling
-        // Or equivalently: conjugate input, FFT, conjugate output, scale
-
-        // Conjugate the input
-        for (size_t i = 0; i < size_; ++i) {
-            workBuffer_[i].imag = -workBuffer_[i].imag;
-        }
-
-        // Apply bit-reversal permutation
-        for (size_t i = 0; i < size_; ++i) {
-            const size_t j = bitReversalLUT_[i];
-            if (i < j) {
-                std::swap(workBuffer_[i], workBuffer_[j]);
-            }
-        }
-
-        // Cooley-Tukey iterative FFT
-        for (size_t stage = 1; stage < size_; stage <<= 1) {
-            const size_t twiddleStep = size_ / (stage << 1);
-
-            for (size_t k = 0; k < size_; k += (stage << 1)) {
-                size_t twiddleIndex = 0;
-
-                for (size_t j = 0; j < stage; ++j) {
-                    const Complex& twiddle = twiddleFactors_[twiddleIndex];
-                    const size_t evenIdx = k + j;
-                    const size_t oddIdx = evenIdx + stage;
-
-                    const Complex even = workBuffer_[evenIdx];
-                    const Complex odd = workBuffer_[oddIdx] * twiddle;
-
-                    workBuffer_[evenIdx] = even + odd;
-                    workBuffer_[oddIdx] = even - odd;
-
-                    twiddleIndex += twiddleStep;
-                }
-            }
-        }
-
-        // Conjugate and scale output (1/N normalization)
-        const float scale = 1.0f / static_cast<float>(size_);
-        for (size_t i = 0; i < size_; ++i) {
-            // Output should be real; take conjugate then real part (imag should be ~0)
-            output[i] = workBuffer_[i].real * scale;
+        // Copy and normalize (pffft inverse is unscaled: IFFT(FFT(x)) = N*x)
+        const float scale = 1.0f / static_cast<float>(N);
+        const float* fftOut = buf2_.get();
+        for (size_t i = 0; i < N; ++i) {
+            output[i] = fftOut[i] * scale;
         }
     }
 
@@ -307,13 +252,14 @@ public:
     [[nodiscard]] size_t numBins() const noexcept { return size_ / 2 + 1; }
 
     /// @brief Check if prepare() has been called
-    [[nodiscard]] bool isPrepared() const noexcept { return size_ > 0; }
+    [[nodiscard]] bool isPrepared() const noexcept { return size_ > 0 && setup_ != nullptr; }
 
 private:
     size_t size_ = 0;
-    std::vector<size_t> bitReversalLUT_;
-    std::vector<Complex> twiddleFactors_;
-    std::vector<Complex> workBuffer_;
+    std::unique_ptr<PFFFT_Setup, detail::PffftSetupDeleter> setup_;
+    std::unique_ptr<float, detail::PffftAlignedDeleter> buf1_;  // Input staging
+    std::unique_ptr<float, detail::PffftAlignedDeleter> buf2_;  // Output staging
+    std::unique_ptr<float, detail::PffftAlignedDeleter> work_;  // pffft work buffer
 };
 
 } // namespace DSP

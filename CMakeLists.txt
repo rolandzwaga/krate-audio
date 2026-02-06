@@ -15,7 +15,7 @@ cmake_minimum_required(VERSION 3.20)
 project(KrateAudio
     VERSION 0.8.0
     DESCRIPTION "Krate Audio Plugin Suite"
-    LANGUAGES CXX
+    LANGUAGES C CXX
 )
 
 # C++ Standard (Constitution Principle III: C++17 minimum, C++20 preferred)

@@ -33,7 +33,8 @@ krate-audio/
 │       └── resources/        # UI assets, presets, installers
 │
 ├── tests/                    # Shared test infrastructure
-└── extern/vst3sdk/           # Steinberg VST3 SDK (submodule)
+├── extern/vst3sdk/           # Steinberg VST3 SDK (submodule)
+└── extern/pffft/             # SIMD-optimized FFT library (BSD license)
 ```
 
 ## Plugins
@@ -62,6 +63,7 @@ The KrateDSP library provides reusable DSP components organized in a 5-layer arc
 - **Modern C++20** - RAII, constexpr, concepts, value semantics
 - **Cross-Platform** - Windows, macOS (Intel & Apple Silicon), Linux
 - **Extensively Tested** - 3000+ test cases with 13M+ assertions, spectral analysis, and approval testing
+- **SIMD-Optimized FFT** - pffft backend with SSE (x86/x64) and NEON (ARM) acceleration
 - **Composable Anti-Aliasing** - Oversampling applied at appropriate abstraction levels
 - **Physical Modeling** - Resonator banks, formant filters, waveguide primitives
 
