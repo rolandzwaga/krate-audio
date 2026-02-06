@@ -27,10 +27,13 @@ krate-audio/
 │   └── tests/                # DSP unit tests (3000+ test cases)
 │
 ├── plugins/
-│   └── iterum/               # Iterum - Delay plugin with 11 modes
+│   ├── iterum/               # Iterum - Delay plugin with 11 modes
+│   │   ├── src/              # Plugin source (processor, controller, UI)
+│   │   ├── tests/            # Plugin-specific tests
+│   │   └── resources/        # UI assets, presets, installers
+│   └── disrumpo/             # Disrumpo - Multiband morphing distortion
 │       ├── src/              # Plugin source (processor, controller, UI)
-│       ├── tests/            # Plugin-specific tests
-│       └── resources/        # UI assets, presets, installers
+│       └── resources/        # UI assets, presets
 │
 ├── tests/                    # Shared test infrastructure
 ├── extern/vst3sdk/           # Steinberg VST3 SDK (submodule)
@@ -44,6 +47,10 @@ krate-audio/
 A feature-rich VST3/AU delay plugin with 11 distinct delay algorithms - from vintage tape and analog emulations to modern granular and spectral processing.
 
 [**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/) | [**Plugin README**](plugins/iterum/README.md)
+
+### Disrumpo
+
+A multiband morphing distortion VST3 plugin with a 4-band crossover network, smooth morph transitions between distortion types, and a sweep system with LFO and envelope modes.
 
 ## KrateDSP Library
 
