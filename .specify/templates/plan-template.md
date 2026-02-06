@@ -176,6 +176,63 @@ See CLAUDE.md "Layer 0 Refactoring Analysis" for decision framework.
 
 **Decision**: [Summary of what will be extracted vs kept local]
 
+## SIMD Optimization Analysis
+
+*GATE: Must complete during planning. Constitution Principle IV requires evaluating SIMD viability for all DSP features.*
+
+<!--
+  ACTION REQUIRED: Analyze whether the DSP algorithm being designed can benefit
+  from SIMD optimization. This is NOT about whether you CAN use SIMD intrinsics,
+  but whether doing so would provide meaningful performance gains given the
+  algorithm's structure.
+
+  SIMD works well when:
+  - Processing multiple independent data streams (voices, channels, particles)
+  - Inner loops are branchless or nearly branchless
+  - No sample-to-sample feedback dependencies in the parallelized dimension
+  - Data can be arranged in SoA (Structure of Arrays) layout
+  - Working set is large enough that SIMD overhead is amortized
+
+  SIMD does NOT work well when:
+  - Feedback loops create serial dependencies between samples
+  - Parallelism width is too narrow (e.g., only 2 oscillators = 50% lane waste)
+  - Inner loops are branch-heavy (direction reversal, conditional clocking)
+  - Algorithm is already well under CPU budget (optimization is unnecessary)
+  - Scalar bit manipulation dominates (shift registers, logic gates)
+-->
+
+### Algorithm Characteristics
+
+| Property | Assessment | Notes |
+|----------|------------|-------|
+| **Feedback loops** | [YES/NO] | [Which outputs feed back to inputs? How many samples of delay?] |
+| **Data parallelism width** | [N voices/channels/etc.] | [How many independent streams can be processed simultaneously?] |
+| **Branch density in inner loop** | [LOW/MEDIUM/HIGH] | [Conditionals per sample in the hot path] |
+| **Dominant operations** | [arithmetic/transcendental/bitwise/memory] | [What takes the most cycles?] |
+| **Current CPU budget vs expected usage** | [budget% vs expected%] | [Is there headroom or is optimization needed?] |
+
+### SIMD Viability Verdict
+
+**Verdict**: [BENEFICIAL / NOT BENEFICIAL / MARGINAL — DEFER]
+
+**Reasoning**: [2-3 sentences explaining why, referencing the characteristics above]
+
+### Alternative Optimizations (if SIMD not viable)
+
+<!--
+  If SIMD is not the right tool, document what IS. Common alternatives:
+  - Fast math approximations (exp2, sin, pow replacements)
+  - Lookup tables with interpolation
+  - Algorithmic changes (magic circle phasor, nearest-neighbor envelope)
+  - SoA layout for cache efficiency (even without SIMD)
+  - Skipping work when parameters are zero (early-out)
+-->
+
+| Optimization | Expected Impact | Complexity | Recommended? |
+|-------------|-----------------|------------|--------------|
+| [e.g., Fast exp2 approximation] | [e.g., ~20-30% in modulation path] | [LOW/MED/HIGH] | [YES/NO/DEFER] |
+| [e.g., Skip pow when depth=0] | [e.g., ~50% for unmodulated case] | [LOW] | [YES] |
+
 ## Higher-Layer Reusability Analysis
 
 *Forward-looking analysis: What code from THIS feature could be reused by SIBLING features at the same layer?*

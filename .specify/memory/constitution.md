@@ -1,8 +1,8 @@
-<!-- SYNC: v1.12.0→1.12.1 | IX-XI,XV: Skill references | XVII: vst-guide skill -->
+<!-- SYNC: v1.12.1→1.13.0 | IV: SIMD viability analysis requirement -->
 
 # VST Plugin Development Constitution
 
-**Version**: 1.12.1 | **Ratified**: 2025-12-21 | **Last Amended**: 2026-01-12
+**Version**: 1.13.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2026-02-06
 
 ---
 
@@ -46,6 +46,7 @@
 - Minimize branching in inner loops; prefer branchless algorithms
 - Avoid virtual function calls in tight processing loops
 - Profile before optimizing - measure actual bottlenecks
+- **SIMD Viability Analysis**: During `/speckit.plan`, MUST evaluate whether the DSP algorithm is amenable to SIMD optimization. Document the verdict and reasoning in the plan's "SIMD Optimization Analysis" section. SIMD is NOT always beneficial — feedback loops, narrow parallelism, and branch-heavy code can make it counterproductive. When SIMD is not viable, document why and identify alternative optimization strategies (fast approximations, lookup tables, algorithmic simplifications).
 
 ### V. VSTGUI Development
 
