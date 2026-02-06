@@ -79,6 +79,7 @@ set(KRATE_DSP_CORE_HEADERS
     include/krate/dsp/core/note_value.h
     include/krate/dsp/core/pitch_utils.h
     include/krate/dsp/core/random.h
+    include/krate/dsp/core/stereo_output.h
     include/krate/dsp/core/stereo_utils.h
     include/krate/dsp/core/wavetable_data.h
     include/krate/dsp/core/window_functions.h
