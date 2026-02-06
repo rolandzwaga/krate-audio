@@ -1029,7 +1029,7 @@ TEST_CASE("SpectralFreezeOscillator: +6 dB/octave tilt on flat spectrum (SC-005)
     REQUIRE(mag10 > 1e-6f);
     float dbDiff = 20.0f * std::log10(mag10 / mag5);
     // SC-005: Within 1 dB of expected 6 dB per octave
-    REQUIRE(dbDiff == Approx(6.0f).margin(1.5f));
+    REQUIRE(dbDiff == Approx(6.0f).margin(1.0f));
 }
 
 TEST_CASE("SpectralFreezeOscillator: 0 dB/octave tilt (identity)",
