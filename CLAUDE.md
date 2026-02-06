@@ -22,7 +22,8 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 │   ├── tests/                # Plugin tests
 │   └── resources/            # UI, presets, installers
 ├── tests/                    # Shared test infrastructure
-└── extern/vst3sdk/           # VST3 SDK (shared)
+├── extern/vst3sdk/           # VST3 SDK (shared)
+└── extern/pffft/             # SIMD-optimized FFT (BSD, marton78 fork)
 ```
 
 ## Critical Rules (Non-Negotiable)
@@ -199,6 +200,18 @@ grep -r "class ClassName" dsp/ plugins/
 ```
 
 Two classes with same name in same namespace = undefined behavior (garbage values, mysterious test failures). Check `dsp_utils.h` and `specs/_architecture_/` before adding components.
+
+## External Dependencies
+
+### pffft (SIMD-Optimized FFT)
+
+The `FFT` class (`dsp/include/krate/dsp/primitives/fft.h`) uses **pffft** ([marton78 fork](https://github.com/marton78/pffft), BSD license) as its backend. Source files live in `extern/pffft/`.
+
+- **SIMD auto-detection**: SSE on x86/x64 (including MSVC via `_mm_*` intrinsics), NEON on ARM, scalar fallback
+- **Build integration**: pffft is a static C library linked PUBLIC to KrateDSP (see `dsp/CMakeLists.txt`)
+- **Public API unchanged**: The `Complex` struct and `FFT::forward()`/`inverse()` signatures are the same for all consumers (STFT, OverlapAdd, spectral processors, additive oscillator, etc.)
+- **pffft output format**: For real transforms, ordered output is `[DC, Nyquist, Re(1), Im(1), Re(2), Im(2), ...]` — conversion to/from our `Complex[N/2+1]` format happens inside `fft.h`
+- **Inverse normalization**: pffft does NOT normalize the inverse transform; `FFT::inverse()` applies `1/N` scaling
 
 ## DSP Implementation Rules
 
