@@ -5053,3 +5053,97 @@ class ParticleOscillator {
 **Memory:** ~10KB per instance (64 particles + 6 envelope tables + sine wavetable, no allocations)
 
 **Dependencies:** Layer 0 (random.h, grain_envelope.h, pitch_utils.h, math_constants.h, db_utils.h)
+
+---
+
+## Rungler
+**Path:** [rungler.h](../../dsp/include/krate/dsp/processors/rungler.h) | **Since:** 0.14.3
+
+Benjolin-inspired chaotic stepped-voltage generator. Two cross-modulating triangle oscillators drive an N-bit shift register with XOR feedback, producing evolving stepped sequences via a 3-bit DAC. Five simultaneous outputs: osc1 triangle, osc2 triangle, rungler CV, PWM comparator, and mixed.
+
+**Use when:**
+- Generating chaotic, evolving stepped sequences for modulation
+- Need a self-modulating oscillator system with edge-of-chaos behavior
+- Want CV-like stepped waveforms with configurable smoothing
+- Building generative patches that evolve over time without external modulation
+- Need multiple correlated-but-different output signals from one source
+
+**Distinction from ChaosOscillator:**
+- **Rungler**: Shift-register based, produces stepped/quantized output, two triangle oscillators with cross-modulation, Benjolin-inspired
+- **ChaosOscillator**: Continuous attractor-based (Lorenz, Rossler, etc.), smooth output, single oscillator with RK4 integration
+
+```cpp
+class Rungler {
+    struct Output {
+        float osc1;    // Oscillator 1 triangle [-1, +1]
+        float osc2;    // Oscillator 2 triangle [-1, +1]
+        float rungler; // Rungler CV (filtered DAC) [0, +1]
+        float pwm;     // PWM comparator [-1, +1]
+        float mixed;   // (osc1 + osc2) * 0.5 [-1, +1]
+    };
+
+    static constexpr float kMinFrequency = 0.1f;
+    static constexpr float kMaxFrequency = 20000.0f;
+    static constexpr size_t kMinBits = 4;
+    static constexpr size_t kMaxBits = 16;
+    static constexpr size_t kDefaultBits = 8;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    void seed(uint32_t seedValue) noexcept;
+    [[nodiscard]] Output process() noexcept;
+    void processBlock(Output* output, size_t numSamples) noexcept;
+    void processBlockMixed(float* output, size_t numSamples) noexcept;
+    void processBlockRungler(float* output, size_t numSamples) noexcept;
+
+    // Parameter setters
+    void setOsc1Frequency(float hz) noexcept;        // [0.1, 20000] Hz
+    void setOsc2Frequency(float hz) noexcept;        // [0.1, 20000] Hz
+    void setOsc1RunglerDepth(float depth) noexcept;  // [0, 1]
+    void setOsc2RunglerDepth(float depth) noexcept;  // [0, 1]
+    void setRunglerDepth(float depth) noexcept;      // Sets both [0, 1]
+    void setFilterAmount(float amount) noexcept;     // [0, 1] CV smoothing
+    void setRunglerBits(size_t bits) noexcept;       // [4, 16]
+    void setLoopMode(bool loop) noexcept;            // Chaos vs loop
+};
+```
+
+**Modes:**
+
+| Mode | Data Input | Behavior |
+|------|-----------|----------|
+| Chaos (default) | Osc1 pulse XOR last bit | Evolving, non-repeating patterns |
+| Loop | Last bit recycled | Fixed repeating pattern |
+
+**Usage Example:**
+```cpp
+Rungler rungler;
+rungler.prepare(44100.0);
+rungler.setOsc1Frequency(200.0f);
+rungler.setOsc2Frequency(300.0f);
+rungler.setRunglerDepth(0.5f);        // Moderate cross-modulation
+rungler.setFilterAmount(0.0f);        // Raw stepped output
+
+auto out = rungler.process();
+// out.osc1    -> triangle wave [-1, +1]
+// out.rungler -> 8-level stepped CV [0, +1]
+// out.mixed   -> (osc1 + osc2) * 0.5
+
+// Deterministic output for tests:
+rungler.seed(12345);
+rungler.reset();
+```
+
+**Gotchas:**
+- `prepare()` must be called before processing (outputs silence otherwise)
+- Triangle oscillator increment is `4 * freq / sampleRate` (bipolar [-1, +1] traverses 4 units per cycle)
+- NaN/Inf inputs to frequency setters are sanitized to defaults (200 Hz for osc1, 300 Hz for osc2)
+- In loop mode, an all-zero register stays at zero DAC output (documented limitation)
+- Shift register is seeded randomly on `prepare()`; call `seed()` + `reset()` for deterministic output
+- Register length changes (`setRunglerBits()`) truncate the register immediately
+
+**Performance:** <0.1% CPU per instance at 44.1kHz (well within 0.5% Layer 2 budget). Only simple arithmetic, no trig/FFT.
+
+**Memory:** ~100 bytes per instance (no allocations, OnePoleLP filter state + oscillator phases + register)
+
+**Dependencies:** Layer 0 (random.h, db_utils.h), Layer 1 (one_pole.h)
