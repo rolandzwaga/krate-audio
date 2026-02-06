@@ -48,7 +48,7 @@ A feature-rich VST3/AU delay plugin with 11 distinct delay algorithms - from vin
 
 [**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/iterum//) | [**Plugin README**](plugins/iterum/README.md)
 
-### Disrumpo
+### [Disrumpo](plugins/disrumpo/README.md)
 
 A multiband morphing distortion VST3 plugin with a 4-band crossover network, smooth morph transitions between distortion types, and a sweep system with LFO and envelope modes.
 
