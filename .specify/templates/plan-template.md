@@ -176,6 +176,94 @@ See CLAUDE.md "Layer 0 Refactoring Analysis" for decision framework.
 
 **Decision**: [Summary of what will be extracted vs kept local]
 
+## SIMD Optimization Analysis
+
+*GATE: Must complete during planning. Constitution Principle IV requires evaluating SIMD viability for all DSP features.*
+
+<!--
+  ACTION REQUIRED: Analyze whether the DSP algorithm being designed can benefit
+  from SIMD optimization. This is NOT about whether you CAN use SIMD intrinsics,
+  but whether doing so would provide meaningful performance gains given the
+  algorithm's structure.
+
+  SIMD works well when:
+  - Processing multiple independent data streams (voices, channels, particles)
+  - Inner loops are branchless or nearly branchless
+  - No sample-to-sample feedback dependencies in the parallelized dimension
+  - Data can be arranged in SoA (Structure of Arrays) layout
+  - Working set is large enough that SIMD overhead is amortized
+
+  SIMD does NOT work well when:
+  - Feedback loops create serial dependencies between samples
+  - Parallelism width is too narrow (e.g., only 2 oscillators = 50% lane waste)
+  - Inner loops are branch-heavy (direction reversal, conditional clocking)
+  - Algorithm is already well under CPU budget (optimization is unnecessary)
+  - Scalar bit manipulation dominates (shift registers, logic gates)
+-->
+
+### Algorithm Characteristics
+
+| Property | Assessment | Notes |
+|----------|------------|-------|
+| **Feedback loops** | [YES/NO] | [Which outputs feed back to inputs? How many samples of delay?] |
+| **Data parallelism width** | [N voices/channels/etc.] | [How many independent streams can be processed simultaneously?] |
+| **Branch density in inner loop** | [LOW/MEDIUM/HIGH] | [Conditionals per sample in the hot path] |
+| **Dominant operations** | [arithmetic/transcendental/bitwise/memory] | [What takes the most cycles?] |
+| **Current CPU budget vs expected usage** | [budget% vs expected%] | [Is there headroom or is optimization needed?] |
+
+### SIMD Viability Verdict
+
+**Verdict**: [BENEFICIAL / NOT BENEFICIAL / MARGINAL — DEFER]
+
+**Reasoning**: [2-3 sentences explaining why, referencing the characteristics above]
+
+### Implementation Workflow
+
+<!--
+  IMPORTANT: SIMD is NEVER implemented first. The two-phase workflow below is
+  mandatory because:
+  1. Scalar code establishes correctness — SIMD bugs (wrong lane, bad shuffle,
+     alignment) are hard to debug without a known-good reference
+  2. Tests written against the scalar version become the oracle that validates
+     the SIMD version — same tests, same expected outputs
+  3. Profiling the scalar version reveals WHERE to optimize (the bottleneck may
+     not be where you assume)
+  4. A scalar fallback is required anyway for platforms without the target ISA
+     (e.g., ARM doesn't have SSE, older x86 lacks AVX)
+
+  Phase 1 happens during /speckit.implement. Phase 2 is a separate task group
+  in tasks.md (simple cases) or a follow-up spec (complex SIMD rewrites).
+-->
+
+**If verdict is BENEFICIAL:**
+
+| Phase | What | When | Deliverables |
+|-------|------|------|-------------|
+| **1. Scalar** | Implement full algorithm with scalar code | `/speckit.implement` | Working implementation + complete test suite + CPU baseline measurement |
+| **2. SIMD** | Add SIMD-optimized code path behind the same API | Separate task group or follow-up spec | SIMD implementation + all existing tests still pass + CPU improvement measured |
+
+- Phase 2 MUST NOT change the public API — same `process()` / `processBlock()` signatures
+- Phase 2 MUST keep the scalar path as a fallback (`#ifndef HAS_SSE` or runtime dispatch)
+- Phase 2 MUST re-run the full test suite to confirm bit-accurate (or tolerance-matched) output
+
+**If verdict is NOT BENEFICIAL or MARGINAL:** Skip Phase 2. Document alternative optimizations below.
+
+### Alternative Optimizations
+
+<!--
+  If SIMD is not the right tool, document what IS. Common alternatives:
+  - Fast math approximations (exp2, sin, pow replacements)
+  - Lookup tables with interpolation
+  - Algorithmic changes (magic circle phasor, nearest-neighbor envelope)
+  - SoA layout for cache efficiency (even without SIMD)
+  - Skipping work when parameters are zero (early-out)
+-->
+
+| Optimization | Expected Impact | Complexity | Recommended? |
+|-------------|-----------------|------------|--------------|
+| [e.g., Fast exp2 approximation] | [e.g., ~20-30% in modulation path] | [LOW/MED/HIGH] | [YES/NO/DEFER] |
+| [e.g., Skip pow when depth=0] | [e.g., ~50% for unmodulated case] | [LOW] | [YES] |
+
 ## Higher-Layer Reusability Analysis
 
 *Forward-looking analysis: What code from THIS feature could be reused by SIBLING features at the same layer?*
