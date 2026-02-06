@@ -19,6 +19,8 @@ if(MSVC)
 else()
     target_compile_options(pffft PRIVATE -w)
 endif()
+# macOS universal binary (x86_64 + arm64) - must match KrateDSP/plugin targets
+smtg_target_setup_universal_binary(pffft)
 
 # Define KrateDSP as a static library
 # Most DSP code is header-only, but dsp_utils.cpp contains implementations
