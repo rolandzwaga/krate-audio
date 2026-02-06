@@ -874,6 +874,92 @@ engine.processBlock(left.data(), right.data(), 512);
 
 ---
 
+## VectorMixer
+**Path:** [vector_mixer.h](../../dsp/include/krate/dsp/systems/vector_mixer.h) | **Since:** 0.14.1
+
+XY vector mixer for 4 audio sources with selectable topologies and mixing laws.
+
+```cpp
+enum class Topology : uint8_t { Square, Diamond };
+enum class MixingLaw : uint8_t { Linear, EqualPower, SquareRoot };
+
+struct Weights { float a, b, c, d; };
+
+class VectorMixer {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // XY Position (thread-safe atomic stores)
+    void setVectorX(float x) noexcept;         // [-1, 1], clamped
+    void setVectorY(float y) noexcept;         // [-1, 1], clamped
+    void setVectorPosition(float x, float y) noexcept;
+
+    // Configuration (NOT thread-safe)
+    void setTopology(Topology topo) noexcept;
+    void setMixingLaw(MixingLaw law) noexcept;
+    void setSmoothingTimeMs(float ms) noexcept;  // 0=instant, default 5ms
+
+    // Processing - Mono
+    [[nodiscard]] float process(float a, float b, float c, float d) noexcept;
+    void processBlock(const float* a, const float* b, const float* c, const float* d,
+                      float* output, size_t numSamples) noexcept;
+
+    // Processing - Stereo
+    [[nodiscard]] StereoOutput process(float aL, float aR, float bL, float bR,
+                                        float cL, float cR, float dL, float dR) noexcept;
+    void processBlock(const float* aL, const float* aR, const float* bL, const float* bR,
+                      const float* cL, const float* cR, const float* dL, const float* dR,
+                      float* outL, float* outR, size_t numSamples) noexcept;
+
+    // Weight Query
+    [[nodiscard]] Weights getWeights() const noexcept;
+};
+```
+
+**Key Features:**
+- Two topologies: Square (bilinear interpolation, corners) and Diamond (Prophet VS-style, cardinal points)
+- Three mixing laws: Linear (amplitude-preserving), EqualPower/SquareRoot (power-preserving via sqrt)
+- Per-axis one-pole exponential smoothing (configurable 0-inf ms)
+- Thread-safe X/Y/smoothingTime setters (std::atomic with relaxed ordering)
+- Header-only, ~52 bytes per instance, no heap allocation
+- Dependencies: Layer 0 only (math_constants.h, db_utils.h, stereo_output.h)
+- All methods noexcept, real-time safe
+
+**Topologies:**
+| Topology | Source Layout | At Center | Use Case |
+|----------|--------------|-----------|----------|
+| Square | A=TL, B=TR, C=BL, D=BR | All 0.25 | Standard XY pad |
+| Diamond | A=Left, B=Right, C=Top, D=Bottom | All 0.25 | Prophet VS-style |
+
+**When to Use:**
+- Blending 4 oscillator waveforms with XY joystick control
+- Vector synthesis (Prophet VS, Korg Wavestation style)
+- Any 4-source crossfade driven by 2D position
+- Stereo source blending with identical per-channel weights
+
+**Example:**
+```cpp
+VectorMixer mixer;
+mixer.setSmoothingTimeMs(5.0f);
+mixer.setTopology(Topology::Square);
+mixer.setMixingLaw(MixingLaw::EqualPower);
+mixer.prepare(44100.0);
+
+mixer.setVectorPosition(0.3f, -0.5f);  // Thread-safe
+
+// Mono processing
+float out = mixer.process(osc1, osc2, osc3, osc4);
+
+// Stereo processing
+StereoOutput stereo = mixer.process(aL, aR, bL, bR, cL, cR, dL, dR);
+
+// Weight query for UI
+Weights w = mixer.getWeights();
+```
+
+---
+
 ## VowelSequencer
 **Path:** [vowel_sequencer.h](../../dsp/include/krate/dsp/systems/vowel_sequencer.h) | **Since:** 0.14.0
 

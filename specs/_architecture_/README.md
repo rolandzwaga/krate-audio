@@ -50,7 +50,6 @@ This architecture documentation is split into the following sections:
 | [Plugin Architecture](plugin-architecture.md) | VST3 components, parameter flow, state flow, UI components |
 | [Testing](testing.md) | Testing layers, test helpers infrastructure (artifact detection, signal metrics, golden reference) |
 | [Quick Reference](quick-reference.md) | Layer inclusion rules, common include patterns, ODR prevention |
-| [Synth Roadmap](synth-roadmap.md) | Missing components for VST synth: ADSR, Voice Allocator, Mono/Legato, Synth Voice |
 
 ---
 

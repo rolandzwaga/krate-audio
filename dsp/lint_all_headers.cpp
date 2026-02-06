@@ -13,6 +13,7 @@
 
 // Layer 0: Core
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/stereo_output.h>
 #include <krate/dsp/core/chebyshev.h>
 #include <krate/dsp/core/crossfade_utils.h>
 #include <krate/dsp/core/db_utils.h>
@@ -139,6 +140,7 @@
 
 // Layer 3: Systems
 #include <krate/dsp/systems/amp_channel.h>
+#include <krate/dsp/systems/vector_mixer.h>
 #include <krate/dsp/systems/character_processor.h>
 #include <krate/dsp/systems/delay_engine.h>
 #include <krate/dsp/systems/distortion_rack.h>

@@ -22,6 +22,7 @@
 #include <krate/dsp/core/crossfade_utils.h>
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/random.h>
+#include <krate/dsp/core/stereo_output.h>
 
 // Layer 1 dependencies
 #include <krate/dsp/primitives/polyblep_oscillator.h>
@@ -35,19 +36,6 @@
 #include <cstdint>
 
 namespace Krate::DSP {
-
-// =============================================================================
-// StereoOutput (FR-001)
-// =============================================================================
-
-/// @brief Lightweight stereo sample pair.
-///
-/// Simple aggregate type for returning stereo audio from process().
-/// No user-declared constructors -- supports brace initialization.
-struct StereoOutput {
-    float left = 0.0f;   ///< Left channel sample
-    float right = 0.0f;  ///< Right channel sample
-};
 
 // =============================================================================
 // UnisonEngine (FR-002 through FR-031)
