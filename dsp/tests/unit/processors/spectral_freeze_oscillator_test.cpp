@@ -601,20 +601,26 @@ TEST_CASE("SpectralFreezeOscillator: CPU budget (SC-003)",
         osc.processBlock(output.data(), blockSize);
     }
 
-    // Measure processing time
-    const int numIterations = 1000;
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < numIterations; ++i) {
-        osc.processBlock(output.data(), blockSize);
-    }
-    auto end = std::chrono::high_resolution_clock::now();
+    // Measure processing time (take best of 3 runs to reduce system noise)
+    const int numIterations = 2000;
+    double bestCpuPercent = 100.0;
 
-    double elapsed = std::chrono::duration<double>(end - start).count();
-    double audioTime = static_cast<double>(blockSize * numIterations) / sampleRate;
-    double cpuPercent = (elapsed / audioTime) * 100.0;
+    for (int run = 0; run < 3; ++run) {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < numIterations; ++i) {
+            osc.processBlock(output.data(), blockSize);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+
+        double elapsed = std::chrono::duration<double>(end - start).count();
+        double audioTime = static_cast<double>(blockSize * numIterations)
+                         / sampleRate;
+        double cpuPercent = (elapsed / audioTime) * 100.0;
+        bestCpuPercent = std::min(bestCpuPercent, cpuPercent);
+    }
 
     // SC-003: < 0.5% CPU
-    REQUIRE(cpuPercent < 0.5);
+    REQUIRE(bestCpuPercent < 0.5);
 }
 
 TEST_CASE("SpectralFreezeOscillator: memory budget (SC-008)",

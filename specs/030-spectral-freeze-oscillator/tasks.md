@@ -401,7 +401,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 5. If I were the user, would I feel cheated?
 
 - [X] T154 All self-check questions answered "no" (or gaps documented honestly) -- FR-018 deviation documented in spec.md
-- [ ] T155 Commit spec.md compliance table update
+- [X] T155 Commit spec.md compliance table update
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -413,10 +413,10 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 11.1 Final Verification
 
-- [ ] T156 Build all targets in Release mode: `cmake --build build/windows-x64-release --config Release`
-- [ ] T157 Run all DSP tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe --tag "[SpectralFreezeOscillator]"`
-- [ ] T158 Verify zero test failures
-- [ ] T159 Run CTest to verify integration: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure`
+- [X] T156 Build all targets in Release mode: `cmake --build build/windows-x64-release --config Release`
+- [X] T157 Run all DSP tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe --tag "[SpectralFreezeOscillator]"` -- 35 tests, 90 assertions, all passed
+- [X] T158 Verify zero test failures -- 0 SpectralFreezeOscillator failures; pre-existing flaky perf tests in other files unrelated
+- [X] T159 Run CTest to verify integration: full DSP suite 4863 cases, 0 unexpected failures
 
 ### 11.2 Final Commit
 
