@@ -4974,3 +4974,82 @@ class FormantOscillator {
 **Memory:** ~2.5KB per instance (no allocations, fixed grain pools)
 
 **Dependencies:** Layer 0 (phase_utils.h, filter_tables.h, math_constants.h)
+
+---
+
+## ParticleOscillator
+**Path:** [particle_oscillator.h](../../dsp/include/krate/dsp/processors/particle_oscillator.h) | **Since:** 0.14.2
+
+Particle/swarm synthesis oscillator generating complex textural timbres from up to 64 lightweight sine oscillators ("particles") with individual frequency scatter, drift, lifetime, and spawn behavior.
+
+**Use when:**
+- Generating dense granular cloud textures from overlapping sine grains
+- Creating organic, living tones with evolving spectral content
+- Need multi-voice oscillation with per-particle frequency drift
+- Building particle/swarm synthesis with controllable spawn patterns
+- Want textured timbres that evolve continuously (not static additive)
+
+**Distinction from AdditiveOscillator:**
+- **ParticleOscillator**: Stochastic, short-lived sine grains with drift and spawn scheduling
+- **AdditiveOscillator**: Deterministic harmonic partials with IFFT-based resynthesis
+
+```cpp
+enum class SpawnMode : uint8_t { Regular, Random, Burst };
+
+class ParticleOscillator {
+    static constexpr size_t kMaxParticles = 64;
+    static constexpr size_t kEnvTableSize = 256;
+    static constexpr float kOutputClamp = 1.5f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] float process() noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // Frequency control
+    void setFrequency(float centerHz) noexcept;           // [1, Nyquist) Hz
+    void setFrequencyScatter(float semitones) noexcept;   // [0, 48] semitones
+
+    // Population control
+    void setDensity(float particles) noexcept;             // [1, 64] particles
+    void setLifetime(float ms) noexcept;                   // [1, 10000] ms
+
+    // Spawn behavior
+    void setSpawnMode(SpawnMode mode) noexcept;            // Regular/Random/Burst
+    void triggerBurst() noexcept;                          // Burst mode only
+
+    // Envelope and drift
+    void setEnvelopeType(GrainEnvelopeType type) noexcept; // 6 types
+    void setDriftAmount(float amount) noexcept;            // [0, 1]
+
+    // Seeding and query
+    void seed(uint32_t seedValue) noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] size_t activeParticleCount() const noexcept;
+};
+```
+
+**Spawn Modes:**
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| Regular | Evenly spaced intervals (lifetime/density) | Steady, predictable textures |
+| Random | Poisson-distributed stochastic timing | Natural, organic clouds |
+| Burst | Manual trigger via triggerBurst() | Impact transients, unison swells |
+
+**Envelope Types:** All 6 GrainEnvelopeType shapes (Hann, Trapezoid, Sine, Blackman, Linear, Exponential) are precomputed during prepare(). Switching is a zero-cost index swap.
+
+**Normalization:** Output is normalized by 1/sqrt(density) for stable perceived loudness across all density settings. Hard clamp at [-1.5, +1.5] prevents downstream damage.
+
+**Gotchas:**
+- `prepare()` must be called before processing (outputs silence otherwise)
+- `triggerBurst()` is a no-op in Regular and Random modes
+- Scatter offsets are assigned at spawn time; changing scatter mid-stream affects only new particles
+- Normalization uses target density (not active count) to avoid amplitude pumping
+- Sine wavetable (2048 entries) is used instead of std::sin for performance
+
+**Performance:** <2% CPU per instance at 44.1kHz mono with 64 particles (SC-003 target <0.5% on reference hardware)
+
+**Memory:** ~10KB per instance (64 particles + 6 envelope tables + sine wavetable, no allocations)
+
+**Dependencies:** Layer 0 (random.h, grain_envelope.h, pitch_utils.h, math_constants.h, db_utils.h)
