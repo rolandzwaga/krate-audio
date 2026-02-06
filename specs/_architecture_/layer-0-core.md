@@ -6,6 +6,26 @@
 
 ---
 
+## StereoOutput
+**Path:** [stereo_output.h](../../dsp/include/krate/dsp/core/stereo_output.h) | **Since:** 0.14.1
+
+Lightweight stereo sample pair for returning stereo audio from `process()` methods. Aggregate type -- no user-declared constructors, supports brace initialization.
+
+```cpp
+struct StereoOutput {
+    float left = 0.0f;   // Left channel sample
+    float right = 0.0f;  // Right channel sample
+};
+```
+
+**When to use:**
+- Return type for stereo `process()` methods in Layer 3 systems (VectorMixer, UnisonEngine)
+- Any component that needs to return a stereo pair from a single-sample process call
+
+**Why Layer 0:** Prevents ODR violations when multiple Layer 3 systems (e.g., UnisonEngine, VectorMixer) independently define the same return type.
+
+---
+
 ## dB/Linear Conversion
 **Path:** [db_utils.h](../../dsp/include/krate/dsp/core/db_utils.h) | **Since:** 0.0.1
 
