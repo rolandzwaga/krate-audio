@@ -200,6 +200,7 @@ private:
     float smoothedX_ = 0.0f;
     float smoothedY_ = 0.0f;
     float smoothCoeff_ = 0.0f;
+    float cachedSmoothingTimeMs_ = 5.0f;  // Mirrors smoothingTimeMs_ for change detection
 
     // Cached weights (updated per sample)
     Weights currentWeights_{};
@@ -228,7 +229,8 @@ inline void VectorMixer::prepare(double sampleRate) noexcept {
     smoothedX_ = targetX_.load(std::memory_order_relaxed);
     smoothedY_ = targetY_.load(std::memory_order_relaxed);
 
-    // Compute smoothing coefficient
+    // Sync cached smoothing time and compute coefficient
+    cachedSmoothingTimeMs_ = smoothingTimeMs_.load(std::memory_order_relaxed);
     updateSmoothCoeff();
 
     // Compute initial weights
@@ -279,11 +281,8 @@ inline void VectorMixer::setMixingLaw(MixingLaw law) noexcept {
 inline void VectorMixer::setSmoothingTimeMs(float ms) noexcept {
     const float clamped = (ms < 0.0f) ? 0.0f : ms;
     smoothingTimeMs_.store(clamped, std::memory_order_relaxed);
-    // Coefficient will be recomputed lazily per-sample or eagerly here
-    // if we have a valid sample rate
-    if (prepared_) {
-        updateSmoothCoeff();
-    }
+    // Coefficient recomputed lazily on the audio thread (advanceSmoothing)
+    // to avoid data race on smoothCoeff_ -- see FR-026.
 }
 
 inline void VectorMixer::updateSmoothCoeff() noexcept {
@@ -296,6 +295,14 @@ inline void VectorMixer::updateSmoothCoeff() noexcept {
 }
 
 inline void VectorMixer::advanceSmoothing() noexcept {
+    // Lazy coefficient recomputation: detect if smoothing time changed
+    // from the atomic (set by any thread) and recompute on the audio thread.
+    const float currentTimeMs = smoothingTimeMs_.load(std::memory_order_relaxed);
+    if (currentTimeMs != cachedSmoothingTimeMs_) {
+        cachedSmoothingTimeMs_ = currentTimeMs;
+        updateSmoothCoeff();
+    }
+
     const float targetX = targetX_.load(std::memory_order_relaxed);
     const float targetY = targetY_.load(std::memory_order_relaxed);
 
