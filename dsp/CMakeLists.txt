@@ -111,6 +111,7 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/ducking_processor.h
     include/krate/dsp/processors/dynamics_processor.h
     include/krate/dsp/processors/envelope_follower.h
+    include/krate/dsp/processors/formant_preserver.h
     include/krate/dsp/processors/grain_processor.h
     include/krate/dsp/processors/grain_scheduler.h
     include/krate/dsp/processors/midside_processor.h
@@ -119,6 +120,7 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/pitch_shift_processor.h
     include/krate/dsp/processors/reverse_feedback_processor.h
     include/krate/dsp/processors/saturation_processor.h
+    include/krate/dsp/processors/spectral_freeze_oscillator.h
 )
 
 # Layer 3: Systems

@@ -5147,3 +5147,101 @@ rungler.reset();
 **Memory:** ~100 bytes per instance (no allocations, OnePoleLP filter state + oscillator phases + register)
 
 **Dependencies:** Layer 0 (random.h, db_utils.h), Layer 1 (one_pole.h)
+
+---
+
+## FormantPreserver
+**Path:** [formant_preserver.h](../../dsp/include/krate/dsp/processors/formant_preserver.h) | **Since:** 0.14.4
+
+Cepstral spectral envelope extraction and reapplication for formant-preserving transformations. Separates the slowly-varying resonance structure (formants) from the fine harmonic structure using the cepstral method: log-magnitude -> IFFT -> low-pass lifter (Hann-windowed) -> FFT -> smoothed envelope.
+
+**Use when:**
+- Implementing formant-preserving pitch shift (keep vocal character while changing pitch)
+- Shifting formant structure independently of pitch (vowel morphing, gender effects)
+- Extracting a smooth spectral envelope from arbitrary magnitude spectra
+- Any spectral transformation that needs to separate fine vs. coarse spectral structure
+
+```cpp
+class FormantPreserver {
+    static constexpr float kMinMagnitude = 1e-10f;
+
+    void prepare(std::size_t fftSize, double sampleRate) noexcept;
+    void reset() noexcept;
+    void extractEnvelope(const float* magnitudes, float* outputEnvelope) noexcept;
+    void applyFormantPreservation(
+        const float* shiftedMagnitudes,
+        const float* originalEnvelope,
+        const float* shiftedEnvelope,
+        float* outputMagnitudes,
+        std::size_t numBins) const noexcept;
+};
+```
+
+**Gotchas:**
+- `prepare()` takes `double sampleRate` (not float)
+- Lifter cutoff is fixed at prepare-time: `lifterBins = 0.0015 * sampleRate` (~66 bins at 44.1kHz)
+- Internal FFT adds ~16 KB memory overhead
+- Envelopes may be unreliable for fundamentals below ~80 Hz (quefrency cutoff limitation)
+
+**Performance:** Negligible when called once per STFT hop (only at frame boundaries).
+
+**Memory:** ~70 KB at fftSize=2048 (internal FFT + work buffers + lifter window)
+
+**Dependencies:** Layer 0 (math_constants.h, window_functions.h), Layer 1 (fft.h)
+
+---
+
+## SpectralFreezeOscillator
+**Path:** [spectral_freeze_oscillator.h](../../dsp/include/krate/dsp/processors/spectral_freeze_oscillator.h) | **Since:** 0.14.4
+
+Captures a single FFT frame from audio input and continuously resynthesizes it as a frozen spectral drone. Uses coherent per-bin phase advancement with IFFT overlap-add resynthesis (Hann synthesis window, 75% overlap). Supports three spectral manipulations: pitch shift via bin remapping, spectral tilt (brightness control), and formant shift via cepstral envelope.
+
+**Use when:**
+- Turning transient audio events into infinite sustain/drone textures
+- Freezing and manipulating spectral snapshots for sound design
+- Building pad/drone synthesizers from arbitrary audio input
+- Need spectral manipulation (pitch, tilt, formant) on a frozen spectrum
+
+```cpp
+class SpectralFreezeOscillator {
+    // Lifecycle
+    void prepare(double sampleRate, size_t fftSize = 2048) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Freeze/Unfreeze
+    void freeze(const float* inputBlock, size_t blockSize) noexcept;
+    void unfreeze() noexcept;
+    [[nodiscard]] bool isFrozen() const noexcept;
+
+    // Processing
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // Parameters
+    void setPitchShift(float semitones) noexcept;     // [-24, +24]
+    void setSpectralTilt(float dbPerOctave) noexcept;  // [-24, +24]
+    void setFormantShift(float semitones) noexcept;    // [-24, +24]
+    [[nodiscard]] float getPitchShift() const noexcept;
+    [[nodiscard]] float getSpectralTilt() const noexcept;
+    [[nodiscard]] float getFormantShift() const noexcept;
+
+    // Query
+    [[nodiscard]] size_t getLatencySamples() const noexcept;
+    [[nodiscard]] size_t getFftSize() const noexcept;
+    [[nodiscard]] size_t getHopSize() const noexcept;
+};
+```
+
+**Gotchas:**
+- `freeze()` does NOT apply an analysis window (raw FFT capture prevents sidelobe beating)
+- Output is quantized to FFT bin center frequencies (bin spacing = sampleRate / fftSize)
+- Parameter changes take effect on synthesis frame boundaries (every hopSize samples)
+- FFT size clamped to power-of-2 in [256, 8192]
+- `processBlock()` outputs silence when not frozen or not prepared
+- Unfreeze crossfades to silence over one hop duration (fftSize/4 samples)
+
+**Performance:** <0.5% CPU single core @ 44.1kHz, 512 samples, 2048 FFT (SC-003).
+
+**Memory:** ~90 KB without formant, ~170 KB with formant shift (for fftSize=2048).
+
+**Dependencies:** Layer 0 (math_constants.h, window_functions.h, pitch_utils.h, db_utils.h), Layer 1 (fft.h, spectral_buffer.h, spectral_utils.h), Layer 2 (formant_preserver.h)
