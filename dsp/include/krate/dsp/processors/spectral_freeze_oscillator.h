@@ -142,7 +142,7 @@ public:
         captureBuffer_.resize(fftSize_, 0.0f);
         captureComplexBuf_.resize(numBins_);
 
-        // Generate Hann synthesis window (no analysis window needed -- see freeze())
+        // Generate Hann synthesis window (no analysis window in freeze(); see comment there)
         synthesisWindow_.resize(fftSize_, 0.0f);
         Window::generateHann(synthesisWindow_.data(), fftSize_);
 
@@ -206,7 +206,7 @@ public:
 
     /// @brief Capture spectral content from audio block (FR-004).
     ///
-    /// Performs FFT (without analysis window) on the input block and stores
+    /// Performs FFT on the input block (without analysis window) and stores
     /// magnitude and phase spectrum. If blockSize < fftSize, the block is
     /// zero-padded. Pre-fills the overlap-add pipeline for click-free start.
     ///
@@ -223,20 +223,24 @@ public:
         std::copy_n(inputBlock, copyLen, captureBuffer_.data());
 
         // Forward FFT WITHOUT analysis window.
-        // Spectral freeze captures the raw spectrum so that resynthesis
-        // with coherent phase advancement produces stable output. An analysis
-        // window (Hann) would create sidelobes at neighboring bins, and since
-        // each bin advances phase independently during resynthesis, those
-        // sidelobe components would beat against each other causing audible
-        // amplitude modulation at the bin-spacing frequency. The synthesis
-        // Hann window + COLA normalization ensures smooth overlap-add
-        // reconstruction regardless.
+        // In standard STFT, a Hann analysis window is applied before FFT. However,
+        // for spectral freeze with coherent per-bin phase advancement, an analysis
+        // window is counterproductive: the Hann DFT has non-zero coefficients at
+        // bins k±1, so even a bin-aligned sinusoid would spread energy to 3 bins.
+        // Since each bin advances phase independently, those 3 components produce
+        // beating at the bin-spacing frequency (~21 Hz for N=2048 at 44.1kHz).
+        // Without an analysis window, bin-aligned frequencies produce energy at
+        // exactly one bin, giving stable amplitude. Non-bin-aligned frequencies
+        // still produce leakage (inherent to any FFT), but the synthesis Hann
+        // window + COLA normalization ensures smooth overlap-add reconstruction.
         fft_.forward(captureBuffer_.data(), captureComplexBuf_.data());
 
         // Store magnitude and phase (FR-007, FR-009)
+        maxFrozenMagnitude_ = 0.0f;
         for (size_t k = 0; k < numBins_; ++k) {
             frozenMagnitudes_[k] = captureComplexBuf_[k].magnitude();
             initialPhases_[k] = captureComplexBuf_[k].phase();
+            maxFrozenMagnitude_ = std::max(maxFrozenMagnitude_, frozenMagnitudes_[k]);
         }
 
         // Initialize phase accumulators from captured phases (FR-009)
@@ -353,6 +357,12 @@ public:
                 }
             }
 
+            // FR-018: Clamp output to [-2.0, +2.0] (+6 dB headroom ceiling)
+            // Applied in the audio domain where "2.0 linear magnitude" is
+            // meaningful. Prevents extreme tilt from causing clipping while
+            // keeping spectral processing clean.
+            sample = std::clamp(sample, -2.0f, 2.0f);
+
             // Flush denormals (FR-025)
             output[i] = detail::flushDenormal(sample);
         }
@@ -444,9 +454,10 @@ private:
     ///
     /// For bin k at frequency f_k, gain_dB = tilt * log2(f_k / f_ref).
     /// Bin 0 (DC) is NOT modified (FR-017). Magnitudes clamped to non-negative
-    /// (FR-018 -- upper bound applied in output domain rather than magnitude domain,
-    /// since FFT magnitudes are inherently scaled by N and only become audio-range
-    /// after IFFT normalization).
+    /// (FR-018 floor). The +6 dB audio-level ceiling is enforced in processBlock
+    /// via output sample clamping to [-2.0, +2.0], matching the AdditiveOscillator
+    /// pattern. This keeps spectral tilt calculations clean while preventing
+    /// IFFT overflow in the output domain where it matters.
     void applySpectralTilt(float* magnitudes) noexcept {
         if (spectralTiltDbPerOctave_ == 0.0f) return;  // Optimization: skip when 0
 
@@ -467,9 +478,7 @@ private:
 
             magnitudes[k] *= gainLinear;
 
-            // FR-018: Clamp magnitude to non-negative (upper bound enforced by
-            // denormal flushing in output stage -- FFT magnitudes are O(N) scale
-            // and only reach audio range after IFFT 1/N normalization)
+            // FR-018: Clamp magnitude floor to zero
             if (magnitudes[k] < 0.0f) magnitudes[k] = 0.0f;
         }
     }
@@ -588,6 +597,7 @@ private:
     // Frozen state
     std::vector<float> frozenMagnitudes_;
     std::vector<float> initialPhases_;
+    float maxFrozenMagnitude_ = 0.0f;  // Cached for FR-018 clamping
     bool frozen_ = false;
 
     // Phase accumulation state

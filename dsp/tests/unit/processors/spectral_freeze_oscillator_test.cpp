@@ -231,10 +231,12 @@ TEST_CASE("SpectralFreezeOscillator: frozen sine wave output frequency stability
 
     constexpr double sampleRate = 44100.0;
     constexpr size_t fftSize = 2048;
-    // Use bin-aligned frequency to avoid spectral leakage beating.
-    // Spectral freeze quantizes to FFT bin centers -- this is inherent
-    // to the design (bin spacing = 44100/2048 = 21.53 Hz).
-    const float testFreq = binAlignedFreq(20, fftSize, static_cast<float>(sampleRate));
+    // SC-001: spec requires 440 Hz exactly. With fftSize=2048 at 44.1kHz,
+    // 440 Hz falls at bin 20.417 (between bins 20 and 21). The spectral
+    // freeze resynthesizes energy at each bin's center frequency, causing
+    // beating between bins 20 and 21. However, the *dominant frequency*
+    // (FFT peak with parabolic interpolation) remains stable at ~440 Hz.
+    const float testFreq = 440.0f;
 
     SpectralFreezeOscillator osc;
     osc.prepare(sampleRate, fftSize);
@@ -257,8 +259,12 @@ TEST_CASE("SpectralFreezeOscillator: frozen sine wave output frequency stability
         osc.processBlock(block.data(), blockSize);
     }
 
-    // Capture final portion for frequency analysis
-    const size_t analysisLen = 8192;
+    // Capture final portion for frequency analysis.
+    // Use fftSize-length analysis to match synthesis resolution -- the frozen
+    // output contains sinusoids at bin center frequencies which merge into a
+    // single peak when analyzed at matching resolution, allowing parabolic
+    // interpolation to find the true frequency between bins.
+    const size_t analysisLen = fftSize;
     std::vector<float> analysisBuffer(analysisLen);
 
     // Process remaining ~10 seconds
@@ -274,11 +280,13 @@ TEST_CASE("SpectralFreezeOscillator: frozen sine wave output frequency stability
         std::copy_n(block.data(), toProcess, analysisBuffer.data() + i);
     }
 
-    // Estimate frequency via FFT peak finding
+    // Estimate frequency via FFT peak finding with parabolic interpolation.
+    // At matching resolution, the energy at bins 20 and 21 merges into a
+    // single broad peak, and interpolation recovers the true frequency.
     float detectedFreq = estimateFundamental(
         analysisBuffer.data(), analysisLen, static_cast<float>(sampleRate));
 
-    // SC-001: Within 1% of test frequency over 10s of continuous output
+    // SC-001: Within 1% of 440 Hz over 10s of continuous output
     REQUIRE(detectedFreq > 0.0f);
     REQUIRE(detectedFreq == Approx(testFreq).epsilon(0.01));
 }
@@ -286,30 +294,40 @@ TEST_CASE("SpectralFreezeOscillator: frozen sine wave output frequency stability
 TEST_CASE("SpectralFreezeOscillator: magnitude spectrum fidelity (SC-002)",
           "[SpectralFreezeOscillator][US1][magnitude]") {
 
+    // SC-002: "The magnitude spectrum of the frozen output MUST match the
+    // captured frame's magnitude spectrum within 1 dB per bin (RMS error
+    // across all bins) when no modifications are applied."
+
     constexpr double sampleRate = 44100.0;
     constexpr size_t fftSize = 2048;
+    constexpr size_t numBins = fftSize / 2 + 1;
+    constexpr size_t blockSize = 512;
 
-    SpectralFreezeOscillator osc;
-    osc.prepare(sampleRate, fftSize);
-
-    // Generate a signal with known spectral content using bin-aligned frequencies
+    // Generate a two-tone signal at bin-aligned frequencies for clean comparison
     const float freq1 = binAlignedFreq(20, fftSize, static_cast<float>(sampleRate));
-    const float freq2 = binAlignedFreq(40, fftSize, static_cast<float>(sampleRate));
+    const float freq2 = binAlignedFreq(50, fftSize, static_cast<float>(sampleRate));
     std::vector<float> input(fftSize);
-    generateSine(input.data(), fftSize, freq1, static_cast<float>(sampleRate), 0.5f);
-    // Add a second harmonic at bin 40
+    generateSine(input.data(), fftSize, freq1, static_cast<float>(sampleRate), 0.7f);
     for (size_t i = 0; i < fftSize; ++i) {
-        input[i] += 0.25f * std::sin(
+        input[i] += 0.3f * std::sin(
             kTwoPi * freq2 * static_cast<float>(i) / static_cast<float>(sampleRate));
     }
 
+    // Compute reference spectrum: unwindowed FFT matching what freeze() does
+    // (freeze() does NOT apply an analysis window -- see comment in implementation)
+    FFT refFft;
+    refFft.prepare(fftSize);
+    std::vector<Complex> refSpectrum(numBins);
+    refFft.forward(input.data(), refSpectrum.data());
+
+    // Freeze the signal and generate output
+    SpectralFreezeOscillator osc;
+    osc.prepare(sampleRate, fftSize);
     osc.freeze(input.data(), input.size());
 
-    // Process several seconds to let OLA stabilize
-    const size_t warmupSamples = fftSize * 4;
-    const size_t blockSize = 512;
+    // Warmup: let OLA pipeline reach steady state
     std::vector<float> block(blockSize);
-    for (size_t i = 0; i < warmupSamples; i += blockSize) {
+    for (size_t i = 0; i < fftSize * 8; i += blockSize) {
         osc.processBlock(block.data(), blockSize);
     }
 
@@ -321,9 +339,52 @@ TEST_CASE("SpectralFreezeOscillator: magnitude spectrum fidelity (SC-002)",
         std::copy_n(block.data(), toProcess, outputFrame.data() + i);
     }
 
-    // Verify output has non-zero energy (not silence)
-    float rms = calculateRMS(outputFrame.data(), fftSize);
-    REQUIRE(rms > 0.01f);
+    // Unwindowed FFT of output (bin-aligned signals are periodic over fftSize,
+    // so no window needed for clean spectral lines matching the frozen reference)
+    std::vector<Complex> outSpectrum(numBins);
+    refFft.forward(outputFrame.data(), outSpectrum.data());
+
+    // Normalize both spectra to their respective peak magnitudes.
+    // The output has different overall gain than the reference due to the
+    // synthesis pipeline (IFFT 1/N, Hann window, COLA normalization, OLA).
+    // SC-002 is about spectral *shape* fidelity, not absolute level.
+    float refPeak = 0.0f;
+    float outPeak = 0.0f;
+    for (size_t k = 1; k < numBins; ++k) {
+        refPeak = std::max(refPeak, refSpectrum[k].magnitude());
+        outPeak = std::max(outPeak, outSpectrum[k].magnitude());
+    }
+    REQUIRE(refPeak > 1e-10f);
+    REQUIRE(outPeak > 1e-10f);
+
+    // Compare: RMS dB error across bins with significant magnitude
+    // after normalizing both spectra to unit peak
+    float sumSqDbError = 0.0f;
+    size_t count = 0;
+    constexpr float minMagRatio = 1e-4f;  // Skip bins below -80 dB from peak
+
+    for (size_t k = 1; k < numBins; ++k) {
+        float refMag = refSpectrum[k].magnitude() / refPeak;
+        float outMag = outSpectrum[k].magnitude() / outPeak;
+
+        // Skip bins where both are negligible relative to peak
+        if (refMag < minMagRatio && outMag < minMagRatio) continue;
+
+        refMag = std::max(refMag, minMagRatio);
+        outMag = std::max(outMag, minMagRatio);
+
+        float dbError = 20.0f * std::log10(outMag / refMag);
+        sumSqDbError += dbError * dbError;
+        ++count;
+    }
+
+    float rmsDbError = (count > 0)
+                     ? std::sqrt(sumSqDbError / static_cast<float>(count))
+                     : 0.0f;
+
+    // SC-002: Within 1 dB RMS error across all bins
+    REQUIRE(count > 0);
+    REQUIRE(rmsDbError < 1.0f);
 }
 
 TEST_CASE("SpectralFreezeOscillator: COLA-compliant resynthesis with Hann 75% overlap",
@@ -418,11 +479,17 @@ TEST_CASE("SpectralFreezeOscillator: coherent phase advancement over 10s",
     REQUIRE(ratio == Approx(1.0f).margin(0.15f));
 }
 
-TEST_CASE("SpectralFreezeOscillator: click-free unfreeze crossfade (SC-007)",
-          "[SpectralFreezeOscillator][US1][unfreeze]") {
+TEST_CASE("SpectralFreezeOscillator: click-free freeze transition (SC-007)",
+          "[SpectralFreezeOscillator][US1][freeze_transition]") {
+
+    // SC-007: "The transition from unfrozen to frozen state MUST NOT produce
+    // audible clicks, verified by checking that the peak amplitude of the
+    // output within the first 2 synthesis frames after freeze does not
+    // exceed 2x the steady-state RMS level."
 
     constexpr double sampleRate = 44100.0;
     constexpr size_t fftSize = 2048;
+    constexpr size_t hopSize = fftSize / 4;  // 512
     constexpr size_t blockSize = 512;
 
     SpectralFreezeOscillator osc;
@@ -434,9 +501,19 @@ TEST_CASE("SpectralFreezeOscillator: click-free unfreeze crossfade (SC-007)",
     generateSine(input.data(), fftSize, testFreq, static_cast<float>(sampleRate));
     osc.freeze(input.data(), input.size());
 
-    // Generate some steady-state output first
+    // Capture the first 2 synthesis frames of output immediately after freeze
+    const size_t transitionSamples = hopSize * 2;
+    std::vector<float> transitionOutput(transitionSamples);
+    for (size_t i = 0; i < transitionSamples; i += blockSize) {
+        size_t toProcess = std::min(blockSize, transitionSamples - i);
+        osc.processBlock(transitionOutput.data() + i, toProcess);
+    }
+
+    float transitionPeak = findPeak(transitionOutput.data(), transitionSamples);
+
+    // Continue processing to reach steady state
     std::vector<float> block(blockSize);
-    for (size_t i = 0; i < fftSize * 4; i += blockSize) {
+    for (size_t i = 0; i < fftSize * 8; i += blockSize) {
         osc.processBlock(block.data(), blockSize);
     }
 
@@ -444,27 +521,9 @@ TEST_CASE("SpectralFreezeOscillator: click-free unfreeze crossfade (SC-007)",
     osc.processBlock(block.data(), blockSize);
     float steadyRMS = calculateRMS(block.data(), blockSize);
 
-    // Trigger unfreeze
-    osc.unfreeze();
-
-    // Check transition: no sample should be more than 2x steady-state RMS
-    float maxPeak = 0.0f;
-    const size_t hopSize = fftSize / 4;
-    size_t transitionSamples = hopSize * 2;
-    std::vector<float> transitionBlock(transitionSamples);
-
-    for (size_t i = 0; i < transitionSamples; i += blockSize) {
-        size_t toProcess = std::min(blockSize, transitionSamples - i);
-        osc.processBlock(block.data(), toProcess);
-        for (size_t j = 0; j < toProcess; ++j) {
-            maxPeak = std::max(maxPeak, std::abs(block[j]));
-        }
-    }
-
-    // SC-007: Peak should not exceed 2x steady-state RMS
-    if (steadyRMS > 0.01f) {
-        REQUIRE(maxPeak < steadyRMS * 3.0f);
-    }
+    // SC-007: Peak in first 2 frames after freeze <= 2x steady-state RMS
+    REQUIRE(steadyRMS > 0.01f);
+    REQUIRE(transitionPeak < steadyRMS * 2.0f);
 }
 
 TEST_CASE("SpectralFreezeOscillator: silence when not frozen (FR-027)",
@@ -977,6 +1036,11 @@ TEST_CASE("SpectralFreezeOscillator: setSpectralTilt/getSpectralTilt parameter (
 TEST_CASE("SpectralFreezeOscillator: +6 dB/octave tilt on flat spectrum (SC-005)",
           "[SpectralFreezeOscillator][US3][tilt]") {
 
+    // SC-005: "Spectral tilt of +6 dB/octave applied to a frozen flat-spectrum
+    // signal MUST produce an output where the magnitude difference between
+    // octave-spaced frequency bands is 6 dB within 1 dB tolerance, measured
+    // across at least 3 octaves."
+
     constexpr double sampleRate = 44100.0;
     constexpr size_t fftSize = 2048;
     constexpr size_t blockSize = 512;
@@ -984,24 +1048,28 @@ TEST_CASE("SpectralFreezeOscillator: +6 dB/octave tilt on flat spectrum (SC-005)
     SpectralFreezeOscillator osc;
     osc.prepare(sampleRate, fftSize);
 
-    // Generate a signal with energy at two known bin-aligned frequencies
-    // to directly measure the tilt ratio between them.
-    // Use bins 5 (~107 Hz) and 10 (~215 Hz) -- one octave apart.
-    // Both have the same input amplitude so any difference is from tilt.
-    const float freq1 = binAlignedFreq(5, fftSize, static_cast<float>(sampleRate));
-    const float freq2 = binAlignedFreq(10, fftSize, static_cast<float>(sampleRate));
-    std::vector<float> input(fftSize);
-    generateSine(input.data(), fftSize, freq1, static_cast<float>(sampleRate), 0.5f);
-    for (size_t i = 0; i < fftSize; ++i) {
-        input[i] += 0.5f * std::sin(
-            kTwoPi * freq2 * static_cast<float>(i) / static_cast<float>(sampleRate));
+    // Generate a 4-tone signal at bin-aligned frequencies spanning 3 octaves:
+    // bins 5, 10, 20, 40 (frequencies ~107, ~215, ~430, ~861 Hz)
+    // All tones at equal amplitude so any difference comes from tilt.
+    // Low amplitude (0.02) to avoid FR-018 output clamp at ±2.0: with +6 dB/oct
+    // tilt, bin 40 gets ~40x gain. Peak output ≈ 4 * 0.02 * 40 ≈ 3.2 before COLA,
+    // which stays within ±2.0 after synthesis pipeline gain reduction.
+    constexpr size_t testBins[] = {5, 10, 20, 40};
+    std::vector<float> input(fftSize, 0.0f);
+    for (size_t b : testBins) {
+        float freq = binAlignedFreq(b, fftSize, static_cast<float>(sampleRate));
+        for (size_t i = 0; i < fftSize; ++i) {
+            input[i] += 0.02f * std::sin(
+                kTwoPi * freq * static_cast<float>(i)
+                / static_cast<float>(sampleRate));
+        }
     }
     osc.freeze(input.data(), input.size());
 
     // Apply +6 dB/octave tilt
     osc.setSpectralTilt(6.0f);
 
-    // Generate output and analyze spectral content
+    // Generate output and let OLA stabilize
     std::vector<float> block(blockSize);
     for (size_t i = 0; i < fftSize * 8; i += blockSize) {
         osc.processBlock(block.data(), blockSize);
@@ -1021,21 +1089,29 @@ TEST_CASE("SpectralFreezeOscillator: +6 dB/octave tilt on flat spectrum (SC-005)
     std::vector<Complex> outputSpectrum(fftSize / 2 + 1);
     analysisFft.forward(outputFrame.data(), outputSpectrum.data());
 
-    // Compare magnitudes at the two frequency bins
-    float mag5 = outputSpectrum[5].magnitude();
+    // Measure magnitudes at the 4 test bins
+    float mag5  = outputSpectrum[5].magnitude();
     float mag10 = outputSpectrum[10].magnitude();
+    float mag20 = outputSpectrum[20].magnitude();
+    float mag40 = outputSpectrum[40].magnitude();
 
-    // With +6 dB/octave tilt, bin 10 (one octave above bin 5) should be
-    // ~6 dB louder in amplitude (factor of 2 in amplitude).
-    // The reference freq is bin 1, so:
-    // - bin 5 tilt: 6 * log2(5/1) = 6 * 2.322 = +13.93 dB
-    // - bin 10 tilt: 6 * log2(10/1) = 6 * 3.322 = +19.93 dB
-    // Difference = 6 dB
+    // With +6 dB/octave tilt, each octave-spaced pair should differ by ~6 dB.
+    // Reference freq is bin 1, so tilt at bin k = 6 * log2(k).
+    // Between any two octave-spaced bins: diff = 6 * log2(2) = 6 dB.
     REQUIRE(mag5 > 1e-6f);
     REQUIRE(mag10 > 1e-6f);
-    float dbDiff = 20.0f * std::log10(mag10 / mag5);
-    // SC-005: Within 1 dB of expected 6 dB per octave
-    REQUIRE(dbDiff == Approx(6.0f).margin(1.0f));
+    REQUIRE(mag20 > 1e-6f);
+    REQUIRE(mag40 > 1e-6f);
+
+    float dbDiff_5_10  = 20.0f * std::log10(mag10 / mag5);
+    float dbDiff_10_20 = 20.0f * std::log10(mag20 / mag10);
+    float dbDiff_20_40 = 20.0f * std::log10(mag40 / mag20);
+
+    // SC-005: Each octave should show ~6 dB increase, within 1 dB tolerance,
+    // measured across 3 octaves
+    REQUIRE(dbDiff_5_10  == Approx(6.0f).margin(1.0f));
+    REQUIRE(dbDiff_10_20 == Approx(6.0f).margin(1.0f));
+    REQUIRE(dbDiff_20_40 == Approx(6.0f).margin(1.0f));
 }
 
 TEST_CASE("SpectralFreezeOscillator: 0 dB/octave tilt (identity)",
