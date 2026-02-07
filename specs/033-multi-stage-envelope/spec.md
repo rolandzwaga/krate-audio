@@ -5,23 +5,33 @@
 **Status**: Draft
 **Input**: User description: "Layer 2 DSP Processor: Multi-Stage Envelope Generator -- Extended envelope for complex modulation beyond ADSR. Configurable stages (4-8), loop points for LFO-like behavior, per-stage time/level/curve, sustain point selection. Inspired by Korg MS-20, Buchla 281, Yamaha DX7, and Roland Alpha Juno envelope designs. Must be real-time safe. Phase 1.2 of synth-roadmap.md."
 
+## Clarifications
+
+### Session 2026-02-07
+
+- Q: When gate-off is sent while the envelope is at the sustain point, what happens? → A: Post-sustain stages are skipped entirely; the envelope transitions from the sustain level directly to 0.0 over the configured release time. (Rationale: Classic DX7/Poly-800 style where sustain is a holding state and gate-off exits immediately to the release phase. Post-sustain stages are only traversed if the gate stays on long enough to move past the sustain point naturally, which would require looping or no sustain hold.)
+- Q: What tolerance determines when an exponential curve stage completes and transitions to the next stage? → A: Stage completes after the configured time duration in samples, regardless of whether the output has exactly reached the target. The final sample of the stage is set to the exact target level. (Rationale: Envelope stages have two responsibilities - shape the curve and respect musical time. The exponential math defines how the value moves, but the configured stage time defines when the stage ends. Snapping to the exact target at the time boundary provides deterministic timing, sample-accurate reproducibility, no cumulative drift, and predictable looping/retrigger behavior. Critical for DX7/Poly-800 style envelopes where rhythmic accuracy matters more than mathematical purity.)
+- Q: When the sustain level is changed while the envelope is holding at the sustain point, how is the 5ms smoothing transition implemented? → A: Use a separate one-pole smoother (matching ADSREnvelope's approach) that updates every sample during the sustain hold state, independent of the stage mechanism. (Rationale: This cleanly separates stage traversal logic from sustain smoothing logic. The envelope remains in its holding state while the output smoothly converges to the new sustain level over 5ms. Preserves click-free behavior, keeps timing deterministic, and matches the established ADSR approach without inventing temporary mini-stages or deferring updates.)
+- Q: What curve shape does the release phase use when transitioning from the current level to 0.0? → A: The release phase always uses an exponential curve (matching ADSREnvelope). (Rationale: The release is a global, gate-off-driven decay to zero, not a continuation of stage programming. Exponential curve matches ADSREnvelope behavior, mirrors classic analog envelope decay, sounds natural across all levels, and keeps the release predictable and simple. Reusing per-stage curves would blur responsibilities and complicate both implementation and mental model.)
+- Q: When gate-off is sent while the envelope is looping and currently mid-way through a stage, what happens? → A: The envelope immediately enters the release phase from the current output level at the current sample, without completing the current stage. (Rationale: Gate-off is a hard control event - looping stops immediately with no stage completion and no level snapping. The release starts from whatever the envelope value actually is at that instant. This matches FR-027 literally, preserves timing accuracy, avoids level jumps, and keeps behavior deterministic and click-free.)
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Multi-Stage Envelope Traversal (Priority: P1)
 
-A synthesizer voice component needs an envelope that goes beyond the fixed four-stage ADSR model. A sound designer configures an envelope with a variable number of stages (4 to 8), where each stage has an independently programmable target level and transition time. When a gate-on event occurs, the envelope begins at stage 0 and traverses each stage sequentially, transitioning from the current level to the next stage's target level over that stage's configured time. One stage is designated as the sustain point -- the envelope holds at that stage's level for as long as the gate remains on. When a gate-off event occurs, the envelope continues from its current level through any remaining post-sustain stages, and then returns to zero. This enables complex amplitude and modulation shapes such as the "spit brass" contour (initial peak followed by a dip and secondary rise to sustain), dual-decay envelopes (Korg Poly-800 DEG style), and delayed-attack effects -- none of which are possible with a standard ADSR.
+A synthesizer voice component needs an envelope that goes beyond the fixed four-stage ADSR model. A sound designer configures an envelope with a variable number of stages (4 to 8), where each stage has an independently programmable target level and transition time. When a gate-on event occurs, the envelope begins at stage 0 and traverses each stage sequentially, transitioning from the current level to the next stage's target level over that stage's configured time. One stage is designated as the sustain point -- the envelope holds at that stage's level for as long as the gate remains on. When a gate-off event occurs while holding at the sustain point, the envelope immediately enters the release phase, transitioning from the sustain level to zero over the configured release time. Post-sustain stages are only traversed if the gate stays on and the envelope moves past the sustain point naturally (which occurs when looping is enabled). This enables complex amplitude and modulation shapes such as the "spit brass" contour (initial peak followed by a dip and secondary rise to sustain), dual-decay envelopes (Korg Poly-800 DEG style), and delayed-attack effects -- none of which are possible with a standard ADSR.
 
 **Why this priority**: Without the core multi-stage traversal and sustain point mechanism, all other features (looping, curve control, gate behavior) have no foundation to build on. This is the minimum viable product that differentiates the multi-stage envelope from the existing ADSREnvelope.
 
-**Independent Test**: Can be fully tested by configuring an envelope with N stages (e.g., 6), designating a sustain point, sending gate-on, processing samples through all pre-sustain stages, verifying hold at sustain, sending gate-off, and confirming traversal through post-sustain stages to idle. Delivers a usable multi-stage modulation source.
+**Independent Test**: Can be fully tested by configuring an envelope with N stages (e.g., 6), designating a sustain point, sending gate-on, processing samples through all pre-sustain stages, verifying hold at sustain, sending gate-off, and confirming immediate transition to release phase and then to idle. Delivers a usable multi-stage modulation source.
 
 **Acceptance Scenarios**:
 
 1. **Given** an envelope with 6 stages (levels: 0.0, 1.0, 0.6, 0.8, 0.3, 0.0) with sustain point at stage 3 and times of 10ms per stage at 44100Hz, **When** gate-on is sent, **Then** the envelope traverses stages 0 through 3 sequentially, reaching each stage's target level within the configured time (within +/-1 sample).
 2. **Given** the envelope has reached stage 3 (sustain point) at level 0.8, **When** the gate remains on, **Then** the envelope holds at 0.8 indefinitely.
-3. **Given** the envelope is holding at the sustain point, **When** gate-off is sent, **Then** the envelope continues from stage 4 (level 0.3) through stage 5 (level 0.0), transitioning through each remaining stage's time.
-4. **Given** the envelope has completed all post-sustain stages and the output has fallen below the idle threshold, **When** processing continues, **Then** the envelope transitions to Idle state, the output becomes 0.0, and `isActive()` returns false.
-5. **Given** a 4-stage envelope with sustain at the last stage (stage 3), **When** gate-off is sent, **Then** the envelope transitions directly to the release phase (returning to 0.0) since there are no post-sustain stages.
+3. **Given** the envelope is holding at the sustain point (level 0.8), **When** gate-off is sent, **Then** the envelope immediately enters the release phase, transitioning from 0.8 toward 0.0 over the configured release time (post-sustain stages 4 and 5 are skipped).
+4. **Given** the envelope is in the release phase and the output has fallen below the idle threshold, **When** processing continues, **Then** the envelope transitions to Idle state, the output becomes 0.0, and `isActive()` returns false.
+5. **Given** a 4-stage envelope with sustain at the last stage (stage 3), **When** gate-off is sent, **Then** the envelope transitions directly to the release phase (returning to 0.0 over the release time).
 6. **Given** any valid stage configuration, **When** `processBlock()` is called with N samples, **Then** the output buffer contains the same values as calling `process()` N times sequentially.
 
 ---
@@ -46,7 +56,7 @@ A sound designer wants to sculpt the transition shape between each stage indepen
 
 ### User Story 3 - Loop Points for LFO-like Behavior (Priority: P3)
 
-A sound designer wants to create rhythmic or evolving modulation patterns by looping a section of the envelope while the gate is held. By designating a loop start stage and a loop end stage, the envelope cycles between those stages for as long as the gate remains on, producing LFO-like behavior with complex waveshapes determined by the stage levels and curves. This capability is inspired by the Buchla 281 cycling mode, the EMS Synthi trapezoid looping, and modern MSEG implementations in synthesizers like Surge XT. When the gate is released, the envelope exits the loop and continues through the post-sustain stages (or the release phase) to return to zero.
+A sound designer wants to create rhythmic or evolving modulation patterns by looping a section of the envelope while the gate is held. By designating a loop start stage and a loop end stage, the envelope cycles between those stages for as long as the gate remains on, producing LFO-like behavior with complex waveshapes determined by the stage levels and curves. This capability is inspired by the Buchla 281 cycling mode, the EMS Synthi trapezoid looping, and modern MSEG implementations in synthesizers like Surge XT. When the gate is released, the envelope exits the loop and enters the release phase, returning to zero over the configured release time.
 
 **Why this priority**: Looping is what transforms a one-shot envelope into a versatile modulation source capable of producing complex cyclic patterns. It is a secondary feature because it requires the core stage traversal and sustain mechanisms to be working. Loop behavior is the primary differentiator between a simple multi-stage envelope and a full-featured MSEG.
 
@@ -73,9 +83,9 @@ A synthesizer programmer needs to designate which stage serves as the sustain ho
 **Acceptance Scenarios**:
 
 1. **Given** a 6-stage envelope with sustain at stage 1, **When** gate-on is sent, **Then** the envelope traverses stage 0 and holds at stage 1's target level.
-2. **Given** the same envelope (sustain at stage 1), **When** gate-off is sent, **Then** the envelope traverses stages 2, 3, 4, and 5 before reaching idle.
+2. **Given** the same envelope (sustain at stage 1), **When** gate-off is sent while holding at sustain, **Then** the envelope enters the release phase directly, skipping stages 2-5, and transitions from stage 1's level to 0.0 over the release time.
 3. **Given** a 6-stage envelope with sustain at stage 5 (last stage), **When** gate-on is sent, **Then** the envelope traverses all 6 stages and holds at stage 5's level.
-4. **Given** an envelope with sustain at stage 5, **When** gate-off is sent, **Then** the envelope enters the release phase directly (no post-sustain stages) and returns to 0.0 over the configured release time.
+4. **Given** an envelope with sustain at stage 5, **When** gate-off is sent, **Then** the envelope enters the release phase and returns to 0.0 over the configured release time.
 5. **Given** the sustain point is changed while the envelope is in a pre-sustain stage, **When** processing continues, **Then** the envelope uses the new sustain point for the current cycle.
 
 ---
@@ -122,8 +132,9 @@ During a live performance or automation playback, a producer changes stage times
 - What happens when the number of stages is reduced while the envelope is active and the current stage is beyond the new count? The current stage is clamped to the new maximum, and the envelope continues from the clamped position.
 - What happens when all stage times are 0ms (instant transitions)? All stages complete in 1 sample each, producing a staircase pattern. The envelope reaches the sustain point within N samples (where N is the number of pre-sustain stages).
 - What happens when a stage time is set to the maximum (10,000ms)? The stage transitions correctly over ~441,000 samples at 44,100Hz without drift or precision loss.
-- What happens when gate-off is sent during a pre-sustain stage? The envelope immediately enters the release phase from its current level, bypassing the sustain point and any remaining pre-sustain stages.
-- What happens when gate-off is sent during the loop? The envelope exits the loop at its current position and enters the release phase.
+- What happens when gate-off is sent during a pre-sustain stage? The envelope immediately enters the release phase from its current level, bypassing the sustain point and any remaining pre-sustain stages. Post-sustain stages are also skipped.
+- What happens to post-sustain stages? Post-sustain stages (stages after the sustain point) are only traversed if the envelope naturally moves past the sustain point while the gate is still on. This occurs when looping is enabled and the loop includes stages beyond the sustain point, causing the envelope to cycle through those stages. If gate-off occurs while holding at the sustain point, post-sustain stages are skipped and the release phase begins immediately.
+- What happens when gate-off is sent during the loop? The envelope immediately exits the loop and enters the release phase from the current output level at the current sample, without completing the current stage.
 - What happens when the sustain point is set beyond the active stage count? The sustain point is clamped to the last active stage.
 - What happens when loop start equals loop end? The envelope re-enters the same stage repeatedly, creating an oscillation between the previous stage's end level and this stage's target level.
 - What happens when loop start is greater than loop end? Loop start is clamped to be less than or equal to loop end.
@@ -144,7 +155,7 @@ During a live performance or automation playback, a producer changes stage times
 - **FR-003**: The envelope MUST traverse stages sequentially from stage 0 through the configured number of stages, transitioning from the previous stage's level to the current stage's target level over the current stage's configured time.
 - **FR-004**: The envelope MUST implement a finite state machine with the following states: Idle, Running, Sustaining, Releasing. The state MUST be queryable at any time.
 - **FR-005**: The envelope MUST accept a gate signal (on/off). Gate-on initiates traversal from stage 0 (or the current stage in legato mode). Gate-off initiates the release phase.
-- **FR-006**: When the gate is off, the release phase MUST transition the output from its current level toward 0.0 over a configurable release time (0.0ms to 10,000ms).
+- **FR-006**: When the gate is off, the release phase MUST transition the output from its current level toward 0.0 over a configurable release time (0.0ms to 10,000ms) using an exponential curve (matching ADSREnvelope's release behavior).
 - **FR-007**: The envelope MUST transition to Idle when the release output falls below the idle threshold (same `kEnvelopeIdleThreshold = 1e-4` as ADSREnvelope), setting the output to exactly 0.0.
 - **FR-008**: The envelope MUST provide both per-sample processing (`process()`) and block processing (`processBlock()`). Block processing MUST produce identical output to calling per-sample processing sequentially.
 - **FR-009**: The envelope MUST report whether it is active (any state except Idle) and whether it is in the release phase, via dedicated query methods.
@@ -155,7 +166,7 @@ During a live performance or automation playback, a producer changes stage times
 
 - **FR-012**: The envelope MUST support designating any stage (0 to numStages-1) as the sustain point.
 - **FR-013**: When the envelope reaches the sustain point and the gate is on (and looping is disabled), the envelope MUST hold at the sustain stage's target level indefinitely.
-- **FR-014**: When gate-off is sent while holding at the sustain point, the envelope MUST continue through any post-sustain stages before entering the release phase. If the sustain point is the last stage, the envelope enters the release phase directly.
+- **FR-014**: When gate-off is sent while holding at the sustain point, the envelope MUST immediately enter the release phase, skipping any post-sustain stages. The envelope transitions from the sustain level directly to 0.0 over the configured release time.
 - **FR-015**: The sustain point MUST default to stage (numStages - 2), which for a 4-stage envelope is stage 2 -- equivalent to the sustain position in a standard ADSR.
 
 **Per-Stage Curve Control (P2)**
@@ -165,37 +176,38 @@ During a live performance or automation playback, a producer changes stage times
 - **FR-018**: Linear curves MUST produce constant-rate change (equal output increment per sample).
 - **FR-019**: Logarithmic curves MUST produce slow initial change with accelerating approach to target (inverse of exponential).
 - **FR-020**: The default curve for all stages MUST be Exponential, matching the natural behavior of analog synthesizer envelope circuits.
+- **FR-021**: Each stage MUST complete after its configured time duration in samples, computed as `roundToInt(timeMs * 0.001 * sampleRate)` with a minimum of 1 sample (for 0ms stages). This count is deterministic regardless of whether exponential/logarithmic curves have mathematically reached the target. The final sample of each stage MUST be set to the exact target level to ensure deterministic stage boundaries and prevent drift across stages.
 
 **Loop Points (P3)**
 
-- **FR-021**: The envelope MUST support a loop mode that is independently enabled or disabled.
-- **FR-022**: When loop mode is enabled, the envelope MUST support configurable loop start and loop end stage indices, both within the range [0, numStages-1].
-- **FR-023**: When loop mode is enabled and the envelope reaches the end of the loop end stage, it MUST jump back to the loop start stage and continue traversal, creating a cyclic modulation pattern.
-- **FR-024**: Loop start MUST always be less than or equal to loop end. Setting loop start above loop end MUST clamp loop start down.
-- **FR-025**: When loop mode is enabled, the sustain hold behavior (FR-013) MUST be bypassed. The envelope loops continuously while the gate is on, regardless of whether the sustain point falls within the loop region.
-- **FR-026**: When gate-off is sent while the envelope is looping, the envelope MUST exit the loop at its current position and enter the release phase, transitioning from the current level toward 0.0 over the release time.
+- **FR-022**: The envelope MUST support a loop mode that is independently enabled or disabled.
+- **FR-023**: When loop mode is enabled, the envelope MUST support configurable loop start and loop end stage indices, both within the range [0, numStages-1].
+- **FR-024**: When loop mode is enabled and the envelope reaches the end of the loop end stage, it MUST jump back to the loop start stage and continue traversal, creating a cyclic modulation pattern.
+- **FR-025**: Loop start MUST always be less than or equal to loop end. Setting loop start above loop end MUST clamp loop start down.
+- **FR-026**: When loop mode is enabled, the sustain hold behavior (FR-013) MUST be bypassed. The envelope loops continuously while the gate is on, regardless of whether the sustain point falls within the loop region.
+- **FR-027**: When gate-off is sent while the envelope is looping, the envelope MUST immediately exit the loop and enter the release phase, transitioning from the current output level toward 0.0 over the release time. The current stage does NOT complete; the release begins at the current sample regardless of stage progress.
 
 **Retrigger Modes (P5)**
 
-- **FR-027**: The envelope MUST support a hard-retrigger mode (default) where gate-on during an active envelope restarts from stage 0, beginning the first stage's transition from the current output level (not snapping to 0.0).
-- **FR-028**: The envelope MUST support a legato mode where gate-on during an active envelope does NOT restart. If the envelope is in the release phase, it returns to the sustain point (or the loop if looping is enabled), transitioning smoothly from the current level.
+- **FR-028**: The envelope MUST support a hard-retrigger mode (default) where gate-on during an active envelope restarts from stage 0, beginning the first stage's transition from the current output level (not snapping to 0.0).
+- **FR-029**: The envelope MUST support a legato mode where gate-on during an active envelope does NOT restart. If the envelope is in the release phase, it returns to the sustain point (or the loop if looping is enabled), transitioning smoothly from the current level.
 
 **Real-Time Parameter Changes (P6)**
 
-- **FR-029**: All stage parameters (time, level, curve), the sustain point, loop settings, and the release time MUST be changeable at any time during processing without restarting the envelope.
-- **FR-030**: When a stage's time is changed during that stage's active traversal, the envelope MUST recalculate its rate and continue from the current level with no output discontinuity.
-- **FR-031**: When the sustain level is changed while the envelope is holding at the sustain point, the output MUST smoothly transition to the new level over 5ms (matching ADSREnvelope's sustain smoothing behavior).
+- **FR-030**: All stage parameters (time, level, curve), the sustain point, loop settings, and the release time MUST be changeable at any time during processing without restarting the envelope.
+- **FR-031**: When a stage's time is changed during that stage's active traversal, the envelope MUST recalculate its rate and continue from the current level with no output discontinuity.
+- **FR-032**: When the sustain level is changed while the envelope is holding at the sustain point, the output MUST smoothly transition to the new level over 5ms using a separate one-pole smoother (matching ADSREnvelope's sustain smoothing behavior). The smoother coefficient is computed once in `prepare()`. When entering the Sustaining state, the output is already at the sustain level (snapped by FR-021), so no smoothing occurs on entry. Smoothing only activates when a `setStageLevel()` call changes the sustain stage's target while the envelope is already in the Sustaining state. The envelope remains in the Sustaining state during this transition; no temporary stage is created.
 
 **Real-Time Safety**
 
-- **FR-032**: All processing methods (`process()`, `processBlock()`, `gate()`) MUST be real-time safe: no memory allocations, no locks, no exceptions, no I/O.
-- **FR-033**: The envelope MUST use `noexcept` on all processing and parameter-setting methods.
-- **FR-034**: The envelope MUST not produce denormalized floating-point values during normal operation.
+- **FR-033**: All processing methods (`process()`, `processBlock()`, `gate()`) MUST be real-time safe: no memory allocations, no locks, no exceptions, no I/O.
+- **FR-034**: The envelope MUST use `noexcept` on all processing and parameter-setting methods.
+- **FR-035**: The envelope MUST not produce denormalized floating-point values during normal operation.
 
 **Layer Compliance**
 
-- **FR-035**: The envelope MUST reside at Layer 2 (processors) and depend only on Layer 0 (core utilities), Layer 1 (primitives), and the standard library.
-- **FR-036**: The envelope class MUST live in the `Krate::DSP` namespace.
+- **FR-036**: The envelope MUST reside at Layer 2 (processors) and depend only on Layer 0 (core utilities), Layer 1 (primitives), and the standard library.
+- **FR-037**: The envelope class MUST live in the `Krate::DSP` namespace.
 
 ### Key Entities
 
@@ -208,7 +220,7 @@ During a live performance or automation playback, a producer changes stage times
 
 ### Measurable Outcomes
 
-- **SC-001**: A full multi-stage cycle (gate-on through all pre-sustain stages, sustain hold, gate-off through post-sustain stages and release to idle) completes with all stage transitions occurring within +/-1 sample of the expected sample count based on configured times and sample rate.
+- **SC-001**: A full multi-stage cycle (gate-on through all pre-sustain stages, sustain hold, gate-off into release phase, and release to idle) completes with all stage transitions occurring within +/-1 sample of the expected sample count based on configured times and sample rate.
 - **SC-002**: Envelope output is continuous across all stage transitions -- the output difference between consecutive samples never exceeds the maximum per-sample increment for the active stage (no clicks or discontinuities).
 - **SC-003**: A single multi-stage envelope instance with 8 stages consumes less than 0.05% CPU at 44,100Hz sample rate. The per-sample operation is comparable to ADSREnvelope (one multiply + one add for exponential/linear curves, two multiplies + one add for logarithmic curves, plus a stage transition check).
 - **SC-004**: All three curve shapes (exponential, linear, logarithmic) produce measurably different output trajectories within each stage: at the midpoint of a stage's duration, linear output is within 2% of 0.5 (normalized to start/end), exponential output is above 0.55, and logarithmic output is below 0.45.
@@ -225,7 +237,7 @@ During a live performance or automation playback, a producer changes stage times
 - The multi-stage envelope operates as a Layer 2 processor that outputs a control signal (0.0 to 1.0). It does not process audio directly. It has no knowledge of MIDI, notes, or voices -- gate signals are provided by calling code.
 - The maximum stage count is fixed at 8, stored in a compile-time fixed-size array. No dynamic allocation is needed. Eight stages provide sufficient complexity for all classic multi-stage designs (Korg Poly-800 DEG uses 5 stages; Yamaha DX7 uses 4 rate/level pairs producing 4 segments; Roland Alpha Juno uses 4 time/3 level pairs) while remaining memory-efficient.
 - The minimum stage count is 4, ensuring the envelope always has at least enough stages to replicate standard ADSR behavior (attack level, decay level, sustain level, release level).
-- Per-stage curve shapes reuse the same one-pole iterative approach from ADSREnvelope (EarLevel Engineering method) for exponential and near-linear curves, and the same quadratic phase mapping for logarithmic curves. The coefficient calculation formulas are identical: `coef = exp(-log((1 + targetRatio) / targetRatio) / rate)` and `base = (target +/- targetRatio) * (1 - coef)`.
+- Per-stage curve shapes reuse the same one-pole iterative approach from ADSREnvelope (EarLevel Engineering method) for exponential and near-linear curves, and the same quadratic phase mapping for logarithmic curves. See research.md R-001 (extraction strategy) and R-002 (curve implementation approach) for full formulas and rationale.
 - The release phase uses a single configurable release time that applies regardless of the current level. This is a constant-rate release (matching ADSREnvelope convention): the configured release time specifies the duration for a full 1.0 to 0.0 transition; releasing from a lower level takes proportionally less time.
 - When looping is enabled, the sustain hold behavior is bypassed. The loop and sustain are mutually exclusive hold mechanisms: looping creates cyclic modulation, while sustain creates a static hold. This matches the behavior of Surge XT's MSEG "Gate" loop mode and the Buchla 281's cycling mode.
 - Stage 0's "from" level is the current output level (0.0 when starting from idle). There is no separate initial level parameter -- the first stage always transitions from whatever the output currently is to stage 0's target level. This naturally handles retrigger from non-zero levels.
@@ -244,7 +256,7 @@ During a live performance or automation playback, a producer changes stage times
 | ADSREnvelope | `dsp/include/krate/dsp/primitives/adsr_envelope.h` | Layer 1 dependency. Reuse `EnvCurve` enum, `kEnvelopeIdleThreshold`, `kMinEnvelopeTimeMs`, `kMaxEnvelopeTimeMs` constants, and potentially the `StageCoefficients` / `calcCoefficients()` static method for per-stage coefficient computation. Consider extracting shared coefficient calculation to a utility. |
 | `EnvCurve` enum | `dsp/include/krate/dsp/primitives/adsr_envelope.h:71-75` | Direct reuse. The multi-stage envelope uses the same three curve types. Either include the header or extract the enum to a shared location. |
 | `kEnvelopeIdleThreshold` | `dsp/include/krate/dsp/primitives/adsr_envelope.h:51` | Direct reuse for release-to-idle transition threshold. |
-| `calcCoefficients()` | `dsp/include/krate/dsp/primitives/adsr_envelope.h:341-358` | Static method computing one-pole coefficients from time, sample rate, target, and target ratio. Currently private to ADSREnvelope. Should be extracted to a shared utility (e.g., `envelope_utils.h` at Layer 1 or Layer 0) to avoid code duplication. |
+| `calcCoefficients()` → `calcEnvCoefficients()` | `dsp/include/krate/dsp/primitives/adsr_envelope.h:341-358` | Static method computing one-pole coefficients from time, sample rate, target, and target ratio. Currently private to ADSREnvelope. Will be extracted and renamed to `calcEnvCoefficients()` in `envelope_utils.h` (Layer 1) to avoid ambiguity with other coefficient functions and eliminate code duplication. |
 | MultiStageEnvelopeFilter | `dsp/include/krate/dsp/processors/multistage_env_filter.h` | Layer 2 processor with similar multi-stage concepts but fundamentally different purpose: it is a filter driven by an internal envelope. The new MultiStageEnvelope is a standalone control signal generator. Different name, no ODR conflict. The phase-based curve application (`applyCurve()`) is a reference for curve implementation. |
 | `detail::isNaN()`, `detail::isInf()` | `dsp/include/krate/dsp/core/db_utils.h` | Reuse for input validation in parameter setters (safe under `/fp:fast`). |
 | `ITERUM_NOINLINE` macro | `dsp/include/krate/dsp/primitives/adsr_envelope.h:37-45` | Reuse for NaN-safe setters (guarded `#ifndef`). |
@@ -276,7 +288,7 @@ grep -r "MultiStageEnvState" dsp/ plugins/
 - MultiStageEnvelopeFilter (existing) -- already has its own internal envelope; could potentially be refactored to use MultiStageEnvelope as its envelope source, but that is a separate refactoring task
 
 **Potential shared components** (preliminary, refined in plan.md):
-- **Envelope coefficient utilities**: The `calcCoefficients()` static method and related constants (`kDefaultTargetRatioA`, `kDefaultTargetRatioDR`, `kLinearTargetRatio`) should be extracted from ADSREnvelope into a shared `envelope_utils.h` at Layer 0 or Layer 1. Both ADSREnvelope and MultiStageEnvelope would then depend on this shared utility, eliminating code duplication.
+- **Envelope coefficient utilities**: The `calcCoefficients()` static method (renamed to `calcEnvCoefficients()`) and related constants (`kDefaultTargetRatioA`, `kDefaultTargetRatioDR`, `kLinearTargetRatio`) will be extracted from ADSREnvelope into a shared `envelope_utils.h` at Layer 1. Both ADSREnvelope and MultiStageEnvelope will depend on this shared utility, eliminating code duplication. See research.md R-001 for full rationale.
 - **Shared EnvCurve enum**: Could be extracted to a shared header if more envelope types are added in the future.
 - **Logarithmic curve phase mapping**: The quadratic phase-based mapping used by ADSREnvelope could be shared.
 

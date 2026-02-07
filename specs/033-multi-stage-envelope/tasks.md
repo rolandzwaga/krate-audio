@@ -82,10 +82,10 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T009 Create multi_stage_envelope.h skeleton at dsp/include/krate/dsp/processors/multi_stage_envelope.h with class structure and API signatures
-- [ ] T010 Create multi_stage_envelope_test.cpp skeleton at dsp/tests/unit/processors/multi_stage_envelope_test.cpp
-- [ ] T011 Add multi_stage_envelope_test to dsp/tests/CMakeLists.txt
-- [ ] T012 Verify test file compiles and links successfully
+- [X] T009 Create multi_stage_envelope.h skeleton at dsp/include/krate/dsp/processors/multi_stage_envelope.h with class structure and API signatures
+- [X] T010 Create multi_stage_envelope_test.cpp skeleton at dsp/tests/unit/processors/multi_stage_envelope_test.cpp
+- [X] T011 Add multi_stage_envelope_test to dsp/tests/CMakeLists.txt
+- [X] T012 Verify test file compiles and links successfully
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -101,39 +101,39 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T013 [P] [US1] Write failing tests for basic lifecycle (prepare, reset, initial state) in multi_stage_envelope_test.cpp
-- [ ] T014 [P] [US1] Write failing tests for stage configuration (setNumStages, setStageLevel, setStageTime) in multi_stage_envelope_test.cpp
-- [ ] T015 [P] [US1] Write failing tests for sequential stage traversal (6 stages, verify timing within +/-1 sample) in multi_stage_envelope_test.cpp
-- [ ] T016 [P] [US1] Write failing tests for sustain point hold behavior (reaches sustain, holds indefinitely) in multi_stage_envelope_test.cpp
-- [ ] T017 [P] [US1] Write failing tests for gate-off from sustain triggering release phase in multi_stage_envelope_test.cpp
-- [ ] T018 [P] [US1] Write failing tests for release phase completing and transitioning to Idle in multi_stage_envelope_test.cpp
-- [ ] T019 [P] [US1] Write failing tests for process() and processBlock() equivalence (FR-008) in multi_stage_envelope_test.cpp
-- [ ] T020 [P] [US1] Write failing tests for edge cases (4 stages minimum, 8 stages maximum, sustain at last stage) in multi_stage_envelope_test.cpp
+- [X] T013 [P] [US1] Write failing tests for basic lifecycle (prepare, reset, initial state) in multi_stage_envelope_test.cpp
+- [X] T014 [P] [US1] Write failing tests for stage configuration (setNumStages, setStageLevel, setStageTime) in multi_stage_envelope_test.cpp
+- [X] T015 [P] [US1] Write failing tests for sequential stage traversal (6 stages, verify timing within +/-1 sample) in multi_stage_envelope_test.cpp
+- [X] T016 [P] [US1] Write failing tests for sustain point hold behavior (reaches sustain, holds indefinitely) in multi_stage_envelope_test.cpp
+- [X] T017 [P] [US1] Write failing tests for gate-off from sustain triggering release phase in multi_stage_envelope_test.cpp
+- [X] T018 [P] [US1] Write failing tests for release phase completing and transitioning to Idle in multi_stage_envelope_test.cpp
+- [X] T019 [P] [US1] Write failing tests for process() and processBlock() equivalence (FR-008) in multi_stage_envelope_test.cpp
+- [X] T020 [P] [US1] Write failing tests for edge cases (4 stages minimum, 8 stages maximum, sustain at last stage) in multi_stage_envelope_test.cpp
 
 ### 3.2 Implementation for User Story 1
 
-- [ ] T021 [US1] Implement basic lifecycle methods (prepare, reset, constructor) in multi_stage_envelope.h
-- [ ] T022 [US1] Implement stage configuration methods (setNumStages, setStageLevel, setStageTime, setSustainPoint) in multi_stage_envelope.h
-- [ ] T023 [US1] Implement state machine (Idle, Running, Sustaining, Releasing) and state transition logic in multi_stage_envelope.h
-- [ ] T024 [US1] Implement enterStage helper method for stage entry initialization using calcEnvCoefficients from envelope_utils.h
-- [ ] T025 [US1] Implement processRunning method for sequential stage traversal with time-based completion (FR-021) in multi_stage_envelope.h
-- [ ] T026 [US1] Implement processSustaining method for sustain hold behavior in multi_stage_envelope.h
-- [ ] T027 [US1] Implement processReleasing method for exponential release to 0.0 using envelope_utils.h in multi_stage_envelope.h
-- [ ] T028 [US1] Implement gate method for gate-on and gate-off events (FR-005, FR-014, FR-027) in multi_stage_envelope.h
-- [ ] T029 [US1] Implement process method with state machine dispatch and denormal flushing in multi_stage_envelope.h
-- [ ] T030 [US1] Implement processBlock method as sequential process calls (FR-008) in multi_stage_envelope.h
-- [ ] T031 [US1] Implement state query methods (getState, isActive, isReleasing, getOutput, getCurrentStage) in multi_stage_envelope.h
-- [ ] T032 [US1] Verify all User Story 1 tests pass
-- [ ] T033 [US1] Build in Release configuration and verify zero compiler warnings
-- [ ] T034 [US1] Run basic performance check (estimate CPU usage for 8-stage envelope at 44.1kHz)
+- [X] T021 [US1] Implement basic lifecycle methods (prepare, reset, constructor) in multi_stage_envelope.h
+- [X] T022 [US1] Implement stage configuration methods (setNumStages, setStageLevel, setStageTime, setSustainPoint) in multi_stage_envelope.h
+- [X] T023 [US1] Implement state machine (Idle, Running, Sustaining, Releasing) and state transition logic in multi_stage_envelope.h
+- [X] T024 [US1] Implement enterStage helper method for stage entry initialization using calcEnvCoefficients from envelope_utils.h
+- [X] T025 [US1] Implement processRunning method for sequential stage traversal with time-based completion (FR-021) in multi_stage_envelope.h
+- [X] T026 [US1] Implement processSustaining method for sustain hold behavior in multi_stage_envelope.h
+- [X] T027 [US1] Implement processReleasing method for exponential release to 0.0 using envelope_utils.h in multi_stage_envelope.h
+- [X] T028 [US1] Implement gate method for gate-on and gate-off events (FR-005, FR-014, FR-027) in multi_stage_envelope.h
+- [X] T029 [US1] Implement process method with state machine dispatch and denormal flushing in multi_stage_envelope.h
+- [X] T030 [US1] Implement processBlock method as sequential process calls (FR-008) in multi_stage_envelope.h
+- [X] T031 [US1] Implement state query methods (getState, isActive, isReleasing, getOutput, getCurrentStage) in multi_stage_envelope.h
+- [X] T032 [US1] Verify all User Story 1 tests pass
+- [X] T033 [US1] Build in Release configuration and verify zero compiler warnings
+- [X] T034 [US1] Run basic performance check (estimate CPU usage for 8-stage envelope at 44.1kHz)
 
 ### 3.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T035 [US1] Verify IEEE 754 compliance: Check if multi_stage_envelope_test.cpp uses std::isnan/std::isfinite/std::isinf and add to -fno-fast-math list in dsp/tests/CMakeLists.txt
+- [X] T035 [US1] Verify IEEE 754 compliance: Check if multi_stage_envelope_test.cpp uses std::isnan/std::isfinite/std::isinf and add to -fno-fast-math list in dsp/tests/CMakeLists.txt
 
 ### 3.4 Commit (MANDATORY)
 
-- [ ] T036 [US1] Commit completed User Story 1 work
+- [X] T036 [US1] Commit completed User Story 1 work
 
 **Checkpoint**: Core multi-stage traversal with sustain and release is fully functional, tested, and committed
 
@@ -149,29 +149,29 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T037 [P] [US2] Write failing tests for exponential curve shape (midpoint > 0.55 for 0->1 transition) in multi_stage_envelope_test.cpp
-- [ ] T038 [P] [US2] Write failing tests for linear curve shape (midpoint within 2% of 0.5 for 0->1 transition) in multi_stage_envelope_test.cpp
-- [ ] T039 [P] [US2] Write failing tests for logarithmic curve shape (midpoint < 0.45 for 0->1 transition) in multi_stage_envelope_test.cpp
-- [ ] T040 [P] [US2] Write failing tests for falling transitions with exponential curve (fast initial drop) in multi_stage_envelope_test.cpp
-- [ ] T041 [P] [US2] Write failing tests for mixed curves across stages (exp on stage 0, linear on stage 1, log on stage 2) in multi_stage_envelope_test.cpp
+- [X] T037 [P] [US2] Write failing tests for exponential curve shape (midpoint > 0.55 for 0->1 transition) in multi_stage_envelope_test.cpp
+- [X] T038 [P] [US2] Write failing tests for linear curve shape (midpoint within 2% of 0.5 for 0->1 transition) in multi_stage_envelope_test.cpp
+- [X] T039 [P] [US2] Write failing tests for logarithmic curve shape (midpoint < 0.45 for 0->1 transition) in multi_stage_envelope_test.cpp
+- [X] T040 [P] [US2] Write failing tests for falling transitions with exponential curve (fast initial drop) in multi_stage_envelope_test.cpp
+- [X] T041 [P] [US2] Write failing tests for mixed curves across stages (exp on stage 0, linear on stage 1, log on stage 2) in multi_stage_envelope_test.cpp
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T042 [US2] Implement setStageCurve method and integrate EnvCurve into stage entry logic in multi_stage_envelope.h
-- [ ] T043 [US2] Implement exponential curve using one-pole method (reuse existing enterStage logic) in multi_stage_envelope.h
-- [ ] T044 [US2] Implement linear curve using one-pole method with kLinearTargetRatio from envelope_utils.h in multi_stage_envelope.h
-- [ ] T045 [US2] Implement logarithmic curve using quadratic phase mapping (phase-based approach for log curves) in multi_stage_envelope.h
-- [ ] T046 [US2] Update processRunning to dispatch to appropriate curve implementation based on stage configuration in multi_stage_envelope.h
-- [ ] T047 [US2] Verify all User Story 2 tests pass
-- [ ] T048 [US2] Build in Release configuration and verify zero compiler warnings
+- [X] T042 [US2] Implement setStageCurve method and integrate EnvCurve into stage entry logic in multi_stage_envelope.h
+- [X] T043 [US2] Implement exponential curve using one-pole method (reuse existing enterStage logic) in multi_stage_envelope.h
+- [X] T044 [US2] Implement linear curve using phase-based interpolation for precision at all durations in multi_stage_envelope.h
+- [X] T045 [US2] Implement logarithmic curve using quadratic phase mapping (phase-based approach for log curves) in multi_stage_envelope.h
+- [X] T046 [US2] Update processRunning to dispatch to appropriate curve implementation based on stage configuration in multi_stage_envelope.h
+- [X] T047 [US2] Verify all User Story 2 tests pass
+- [X] T048 [US2] Build in Release configuration and verify zero compiler warnings
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T049 [US2] Verify IEEE 754 compliance: Confirm curve tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
+- [X] T049 [US2] Verify IEEE 754 compliance: Confirm curve tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T050 [US2] Commit completed User Story 2 work
+- [X] T050 [US2] Commit completed User Story 2 work
 
 **Checkpoint**: Per-stage curve control is fully functional with all three curve shapes working independently
 
@@ -187,30 +187,30 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T051 [P] [US3] Write failing tests for basic loop behavior (loop stages 1-3, verify multiple cycles) in multi_stage_envelope_test.cpp
-- [ ] T052 [P] [US3] Write failing tests for gate-off during loop (immediate exit to release, no stage completion) in multi_stage_envelope_test.cpp
-- [ ] T053 [P] [US3] Write failing tests for single-stage loop (loopStart == loopEnd) in multi_stage_envelope_test.cpp
-- [ ] T054 [P] [US3] Write failing tests for full envelope loop (loop stages 0 to numStages-1) in multi_stage_envelope_test.cpp
-- [ ] T055 [P] [US3] Write failing tests for loop precision (100 consecutive cycles without drift > 0.001 at boundaries) in multi_stage_envelope_test.cpp
-- [ ] T056 [P] [US3] Write failing tests for sustain bypass when looping is enabled (FR-026) in multi_stage_envelope_test.cpp
+- [X] T051 [P] [US3] Write failing tests for basic loop behavior (loop stages 1-3, verify multiple cycles) in multi_stage_envelope_test.cpp
+- [X] T052 [P] [US3] Write failing tests for gate-off during loop (immediate exit to release, no stage completion) in multi_stage_envelope_test.cpp
+- [X] T053 [P] [US3] Write failing tests for single-stage loop (loopStart == loopEnd) in multi_stage_envelope_test.cpp
+- [X] T054 [P] [US3] Write failing tests for full envelope loop (loop stages 0 to numStages-1) in multi_stage_envelope_test.cpp
+- [X] T055 [P] [US3] Write failing tests for loop precision (100 consecutive cycles without drift > 0.001 at boundaries) in multi_stage_envelope_test.cpp
+- [X] T056 [P] [US3] Write failing tests for sustain bypass when looping is enabled (FR-026) in multi_stage_envelope_test.cpp
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T057 [US3] Implement setLoopEnabled, setLoopStart, setLoopEnd methods with validation (FR-025) in multi_stage_envelope.h
-- [ ] T058 [US3] Add loop boundary check to processRunning: detect loop end completion and jump back to loop start in multi_stage_envelope.h
-- [ ] T059 [US3] Implement sustain bypass logic when looping is enabled (FR-026) in multi_stage_envelope.h
-- [ ] T060 [US3] Implement gate-off during loop (immediate release from current level, FR-027) in multi_stage_envelope.h
-- [ ] T061 [US3] Update enterStage to handle loop wrap-around (from level = current output at loop boundary) in multi_stage_envelope.h
-- [ ] T062 [US3] Verify all User Story 3 tests pass
-- [ ] T063 [US3] Build in Release configuration and verify zero compiler warnings
+- [X] T057 [US3] Implement setLoopEnabled, setLoopStart, setLoopEnd methods with validation (FR-025) in multi_stage_envelope.h
+- [X] T058 [US3] Add loop boundary check to processRunning: detect loop end completion and jump back to loop start in multi_stage_envelope.h
+- [X] T059 [US3] Implement sustain bypass logic when looping is enabled (FR-026) in multi_stage_envelope.h
+- [X] T060 [US3] Implement gate-off during loop (immediate release from current level, FR-027) in multi_stage_envelope.h
+- [X] T061 [US3] Update enterStage to handle loop wrap-around (from level = current output at loop boundary) in multi_stage_envelope.h
+- [X] T062 [US3] Verify all User Story 3 tests pass
+- [X] T063 [US3] Build in Release configuration and verify zero compiler warnings
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T064 [US3] Verify IEEE 754 compliance: Confirm loop tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
+- [X] T064 [US3] Verify IEEE 754 compliance: Confirm loop tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T065 [US3] Commit completed User Story 3 work
+- [X] T065 [US3] Commit completed User Story 3 work
 
 **Checkpoint**: Loop functionality is complete and envelope can produce cyclic modulation patterns
 
@@ -226,27 +226,27 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T066 [P] [US4] Write failing tests for sustain at early stage (stage 1 of 6) in multi_stage_envelope_test.cpp
-- [ ] T067 [P] [US4] Write failing tests for sustain at last stage (stage 5 of 6) in multi_stage_envelope_test.cpp
-- [ ] T068 [P] [US4] Write failing tests for sustain point change while envelope is in pre-sustain stage in multi_stage_envelope_test.cpp
-- [ ] T069 [P] [US4] Write failing tests for gate-off from non-default sustain point skipping post-sustain stages in multi_stage_envelope_test.cpp
-- [ ] T070 [P] [US4] Write failing tests for sustain point validation (clamped to [0, numStages-1]) in multi_stage_envelope_test.cpp
+- [X] T066 [P] [US4] Write failing tests for sustain at early stage (stage 1 of 6) in multi_stage_envelope_test.cpp
+- [X] T067 [P] [US4] Write failing tests for sustain at last stage (stage 5 of 6) in multi_stage_envelope_test.cpp
+- [X] T068 [P] [US4] Write failing tests for sustain point change while envelope is in pre-sustain stage in multi_stage_envelope_test.cpp
+- [X] T069 [P] [US4] Write failing tests for gate-off from non-default sustain point skipping post-sustain stages in multi_stage_envelope_test.cpp
+- [X] T070 [P] [US4] Write failing tests for sustain point validation (clamped to [0, numStages-1]) in multi_stage_envelope_test.cpp
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T071 [US4] Verify setSustainPoint implementation with validation and clamping in multi_stage_envelope.h
-- [ ] T072 [US4] Update processRunning to check against dynamic sustain point (already implemented in US1, verify it works for all positions) in multi_stage_envelope.h
-- [ ] T073 [US4] Verify sustain point default (numStages - 2, FR-015) is correctly implemented in constructor in multi_stage_envelope.h
-- [ ] T074 [US4] Verify all User Story 4 tests pass
-- [ ] T075 [US4] Build in Release configuration and verify zero compiler warnings
+- [X] T071 [US4] Verify setSustainPoint implementation with validation and clamping in multi_stage_envelope.h
+- [X] T072 [US4] Update processRunning to check against dynamic sustain point (already implemented in US1, verify it works for all positions) in multi_stage_envelope.h
+- [X] T073 [US4] Verify sustain point default (numStages - 2, FR-015) is correctly implemented in constructor in multi_stage_envelope.h
+- [X] T074 [US4] Verify all User Story 4 tests pass
+- [X] T075 [US4] Build in Release configuration and verify zero compiler warnings
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T076 [US4] Verify IEEE 754 compliance: Confirm sustain point tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
+- [X] T076 [US4] Verify IEEE 754 compliance: Confirm sustain point tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T077 [US4] Commit completed User Story 4 work
+- [X] T077 [US4] Commit completed User Story 4 work
 
 **Checkpoint**: Sustain point is fully configurable and works at any stage position
 
@@ -262,27 +262,27 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T078 [P] [US5] Write failing tests for hard retrigger from sustain stage (restarts at stage 0 from current level) in multi_stage_envelope_test.cpp
-- [ ] T079 [P] [US5] Write failing tests for hard retrigger from release phase (restarts at stage 0 from current level) in multi_stage_envelope_test.cpp
-- [ ] T080 [P] [US5] Write failing tests for legato mode from running stage (continues without restart) in multi_stage_envelope_test.cpp
-- [ ] T081 [P] [US5] Write failing tests for legato mode from release phase (returns to sustain point) in multi_stage_envelope_test.cpp
-- [ ] T082 [P] [US5] Write failing tests for click-free transitions (output continuous between consecutive samples during retrigger) in multi_stage_envelope_test.cpp
+- [X] T078 [P] [US5] Write failing tests for hard retrigger from sustain stage (restarts at stage 0 from current level) in multi_stage_envelope_test.cpp
+- [X] T079 [P] [US5] Write failing tests for hard retrigger from release phase (restarts at stage 0 from current level) in multi_stage_envelope_test.cpp
+- [X] T080 [P] [US5] Write failing tests for legato mode from running stage (continues without restart) in multi_stage_envelope_test.cpp
+- [X] T081 [P] [US5] Write failing tests for legato mode from release phase (returns to sustain point) in multi_stage_envelope_test.cpp
+- [X] T082 [P] [US5] Write failing tests for click-free transitions (output continuous between consecutive samples during retrigger) in multi_stage_envelope_test.cpp
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T083 [US5] Implement setRetriggerMode method in multi_stage_envelope.h
-- [ ] T084 [US5] Update gate method to implement hard retrigger logic (FR-028: restart from stage 0 at current level) in multi_stage_envelope.h
-- [ ] T085 [US5] Update gate method to implement legato logic (FR-029: continue from current position or return to sustain) in multi_stage_envelope.h
-- [ ] T086 [US5] Verify all User Story 5 tests pass
-- [ ] T087 [US5] Build in Release configuration and verify zero compiler warnings
+- [X] T083 [US5] Implement setRetriggerMode method in multi_stage_envelope.h
+- [X] T084 [US5] Update gate method to implement hard retrigger logic (FR-028: restart from stage 0 at current level) in multi_stage_envelope.h
+- [X] T085 [US5] Update gate method to implement legato logic (FR-029: continue from current position or return to sustain) in multi_stage_envelope.h
+- [X] T086 [US5] Verify all User Story 5 tests pass
+- [X] T087 [US5] Build in Release configuration and verify zero compiler warnings
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T088 [US5] Verify IEEE 754 compliance: Confirm retrigger tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
+- [X] T088 [US5] Verify IEEE 754 compliance: Confirm retrigger tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
 
 ### 7.4 Commit (MANDATORY)
 
-- [ ] T089 [US5] Commit completed User Story 5 work
+- [X] T089 [US5] Commit completed User Story 5 work
 
 **Checkpoint**: Retrigger modes are fully functional for both staccato and legato playing styles
 
@@ -298,27 +298,27 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T090 [P] [US6] Write failing tests for mid-stage time change (recalculates rate, no discontinuity) in multi_stage_envelope_test.cpp
-- [ ] T091 [P] [US6] Write failing tests for sustain level change during hold (smooth transition over 5ms using one-pole smoother) in multi_stage_envelope_test.cpp
-- [ ] T092 [P] [US6] Write failing tests for future stage level change (takes effect on next stage entry) in multi_stage_envelope_test.cpp
-- [ ] T093 [P] [US6] Write failing tests for loop boundary changes during active loop (takes effect on next iteration) in multi_stage_envelope_test.cpp
+- [X] T090 [P] [US6] Write failing tests for mid-stage time change (recalculates rate, no discontinuity) in multi_stage_envelope_test.cpp
+- [X] T091 [P] [US6] Write failing tests for sustain level change during hold (smooth transition over 5ms using one-pole smoother) in multi_stage_envelope_test.cpp
+- [X] T092 [P] [US6] Write failing tests for future stage level change (takes effect on next stage entry) in multi_stage_envelope_test.cpp
+- [X] T093 [P] [US6] Write failing tests for loop boundary changes during active loop (takes effect on next iteration) in multi_stage_envelope_test.cpp
 
 ### 8.2 Implementation for User Story 6
 
-- [ ] T094 [US6] Implement sustain smoothing using one-pole coefficient (FR-032: kSustainSmoothTimeMs from envelope_utils.h) in multi_stage_envelope.h
-- [ ] T095 [US6] Update processSustaining to apply sustain level smoothing when target level changes in multi_stage_envelope.h
-- [ ] T096 [US6] Update setStageTime to handle mid-stage time changes (FR-031: recalculate rate based on remaining samples) in multi_stage_envelope.h
-- [ ] T097 [US6] Verify parameter setters are noexcept and real-time safe (FR-034) in multi_stage_envelope.h
-- [ ] T098 [US6] Verify all User Story 6 tests pass
-- [ ] T099 [US6] Build in Release configuration and verify zero compiler warnings
+- [X] T094 [US6] Implement sustain smoothing using one-pole coefficient (FR-032: kSustainSmoothTimeMs from envelope_utils.h) in multi_stage_envelope.h
+- [X] T095 [US6] Update processSustaining to apply sustain level smoothing when target level changes in multi_stage_envelope.h
+- [X] T096 [US6] Update setStageTime to handle mid-stage time changes (FR-031: recalculate rate based on remaining samples) in multi_stage_envelope.h
+- [X] T097 [US6] Verify parameter setters are noexcept and real-time safe (FR-034) in multi_stage_envelope.h
+- [X] T098 [US6] Verify all User Story 6 tests pass
+- [X] T099 [US6] Build in Release configuration and verify zero compiler warnings
 
 ### 8.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T100 [US6] Verify IEEE 754 compliance: Confirm parameter change tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
+- [X] T100 [US6] Verify IEEE 754 compliance: Confirm parameter change tests don't introduce new IEEE 754 function usage requiring -fno-fast-math
 
 ### 8.4 Commit (MANDATORY)
 
-- [ ] T101 [US6] Commit completed User Story 6 work
+- [X] T101 [US6] Commit completed User Story 6 work
 
 **Checkpoint**: Real-time parameter changes work smoothly without discontinuities
 
