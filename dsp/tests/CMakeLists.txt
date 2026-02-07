@@ -45,6 +45,7 @@ add_executable(dsp_tests
     unit/core/wavetable_data_test.cpp
 
     # Layer 1: Primitives
+    unit/primitives/envelope_utils_test.cpp
     unit/primitives/adsr_envelope_test.cpp
     unit/primitives/delay_line_test.cpp
     unit/primitives/crossfading_delay_line_test.cpp
@@ -157,6 +158,7 @@ add_executable(dsp_tests
     unit/processors/particle_oscillator_test.cpp
     unit/processors/rungler_test.cpp
     unit/processors/spectral_freeze_oscillator_test.cpp
+    unit/processors/multi_stage_envelope_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -258,6 +260,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/polyblep_test.cpp
         unit/core/phase_utils_test.cpp
         unit/core/wavetable_data_test.cpp
+        unit/primitives/envelope_utils_test.cpp
         unit/primitives/adsr_envelope_test.cpp
         unit/primitives/smoother_test.cpp
         unit/primitives/dc_blocker_test.cpp
@@ -420,6 +423,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/particle_oscillator_test.cpp
         unit/processors/rungler_test.cpp
         unit/processors/spectral_freeze_oscillator_test.cpp
+        unit/processors/multi_stage_envelope_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

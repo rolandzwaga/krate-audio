@@ -2020,4 +2020,43 @@ class ADSREnvelope {
 - Filter modulation source
 - General-purpose envelope modulation
 
-**Dependencies:** `core/db_utils.h` (`detail::isNaN()` for NaN-safe setters)
+**Dependencies:** `primitives/envelope_utils.h`, `core/db_utils.h` (`detail::isNaN()` for NaN-safe setters)
+
+---
+
+## Envelope Utilities
+**Path:** [envelope_utils.h](../../dsp/include/krate/dsp/primitives/envelope_utils.h) | **Since:** 0.16.0
+
+Shared envelope coefficient calculation utilities extracted from ADSREnvelope. Used by both ADSREnvelope and MultiStageEnvelope (Layer 2).
+
+```cpp
+// Constants
+constexpr float kEnvelopeIdleThreshold = 1e-4f;
+constexpr float kMinEnvelopeTimeMs = 0.1f;
+constexpr float kMaxEnvelopeTimeMs = 10000.0f;
+constexpr float kDefaultTargetRatioA = 0.3f;
+constexpr float kDefaultTargetRatioDR = 0.0001f;
+constexpr float kLinearTargetRatio = 100.0f;
+constexpr float kSustainSmoothTimeMs = 5.0f;
+
+// Enums (shared between all envelope types)
+enum class EnvCurve : uint8_t { Exponential, Linear, Logarithmic };
+enum class RetriggerMode : uint8_t { Hard, Legato };
+
+// One-pole envelope coefficient computation (EarLevel Engineering method)
+struct StageCoefficients { float coef; float base; };
+[[nodiscard]] StageCoefficients calcEnvCoefficients(
+    float timeMs, float sampleRate, float targetLevel,
+    float targetRatio, bool rising) noexcept;
+
+// Target ratio helpers
+[[nodiscard]] float getAttackTargetRatio(EnvCurve curve) noexcept;
+[[nodiscard]] float getDecayTargetRatio(EnvCurve curve) noexcept;
+```
+
+**When to use:**
+- Building any envelope generator that uses one-pole coefficient calculation
+- Sharing curve types and constants across envelope implementations
+- Avoid duplicating the EarLevel Engineering coefficient formula
+
+**Dependencies:** `core/db_utils.h` (for `ITERUM_NOINLINE`, `detail::flushDenormal()`)

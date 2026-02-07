@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <krate/dsp/primitives/envelope_utils.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -31,34 +33,9 @@ namespace Krate {
 namespace DSP {
 
 // =============================================================================
-// Compiler Compatibility Macros
+// Enumerations (FR-001)
 // =============================================================================
-
-#ifndef ITERUM_NOINLINE
-#if defined(_MSC_VER)
-#define ITERUM_NOINLINE __declspec(noinline)
-#elif defined(__GNUC__) || defined(__clang__)
-#define ITERUM_NOINLINE __attribute__((noinline))
-#else
-#define ITERUM_NOINLINE
-#endif
-#endif
-
-// =============================================================================
-// Constants (FR-007, FR-011)
-// =============================================================================
-
-inline constexpr float kEnvelopeIdleThreshold = 1e-4f;
-inline constexpr float kMinEnvelopeTimeMs = 0.1f;
-inline constexpr float kMaxEnvelopeTimeMs = 10000.0f;
-inline constexpr float kSustainSmoothTimeMs = 5.0f;
-inline constexpr float kDefaultTargetRatioA = 0.3f;
-inline constexpr float kDefaultTargetRatioDR = 0.0001f;
-inline constexpr float kLinearTargetRatio = 100.0f;
-
-// =============================================================================
-// Enumerations (FR-001, FR-013)
-// =============================================================================
+// Note: EnvCurve, RetriggerMode, and shared constants are now in envelope_utils.h
 
 enum class ADSRStage : uint8_t {
     Idle = 0,
@@ -66,17 +43,6 @@ enum class ADSRStage : uint8_t {
     Decay,
     Sustain,
     Release
-};
-
-enum class EnvCurve : uint8_t {
-    Exponential = 0,
-    Linear,
-    Logarithmic
-};
-
-enum class RetriggerMode : uint8_t {
-    Hard = 0,
-    Legato
 };
 
 // =============================================================================
@@ -333,54 +299,16 @@ private:
     // Coefficient Calculation
     // =========================================================================
 
-    struct StageCoefficients {
-        float coef = 0.0f;
-        float base = 0.0f;
-    };
-
-    static StageCoefficients calcCoefficients(
-        float timeMs, float sampleRate,
-        float targetLevel, float targetRatio, bool rising) noexcept
-    {
-        StageCoefficients result;
-        float rate = timeMs * 0.001f * sampleRate;
-        if (rate < 1.0f) rate = 1.0f;
-
-        result.coef = std::exp(-std::log((1.0f + targetRatio) / targetRatio) / rate);
-
-        if (rising) {
-            result.base = (targetLevel + targetRatio) * (1.0f - result.coef);
-        } else {
-            result.base = (targetLevel - targetRatio) * (1.0f - result.coef);
-        }
-
-        return result;
-    }
-
-    static float getAttackTargetRatio(EnvCurve curve) noexcept {
-        switch (curve) {
-            case EnvCurve::Exponential:  return kDefaultTargetRatioA;
-            case EnvCurve::Linear:       return kLinearTargetRatio;
-            case EnvCurve::Logarithmic:  return kDefaultTargetRatioA; // Not used for log
-        }
-        return kDefaultTargetRatioA;
-    }
-
-    static float getDecayTargetRatio(EnvCurve curve) noexcept {
-        switch (curve) {
-            case EnvCurve::Exponential:  return kDefaultTargetRatioDR;
-            case EnvCurve::Linear:       return kLinearTargetRatio;
-            case EnvCurve::Logarithmic:  return kDefaultTargetRatioDR; // Not used for log
-        }
-        return kDefaultTargetRatioDR;
-    }
+    // Coefficient calculation delegates to shared envelope_utils.h functions.
+    // StageCoefficients, calcEnvCoefficients, getAttackTargetRatio,
+    // getDecayTargetRatio are all provided by envelope_utils.h.
 
     void calcAttackCoefficients() noexcept {
         if (attackCurve_ == EnvCurve::Logarithmic) {
             logPhaseInc_ = 1.0f / std::max(1.0f, attackTimeMs_ * 0.001f * sampleRate_);
         } else {
             float ratio = getAttackTargetRatio(attackCurve_);
-            auto coeffs = calcCoefficients(attackTimeMs_, sampleRate_, peakLevel_, ratio, true);
+            auto coeffs = calcEnvCoefficients(attackTimeMs_, sampleRate_, peakLevel_, ratio, true);
             attackCoef_ = coeffs.coef;
             attackBase_ = coeffs.base;
         }
@@ -388,12 +316,12 @@ private:
 
     void calcDecayCoefficients() noexcept {
         if (decayCurve_ == EnvCurve::Logarithmic) {
-            // Phase increment for full peak→0 in decayTime (constant rate)
+            // Phase increment for full peak->0 in decayTime (constant rate)
             logPhaseInc_ = 1.0f / std::max(1.0f, decayTimeMs_ * 0.001f * sampleRate_);
         } else {
-            // FR-004: Decay time = full 1.0→0.0 ramp. Target 0.0 with undershoot.
+            // FR-004: Decay time = full 1.0->0.0 ramp. Target 0.0 with undershoot.
             float ratio = getDecayTargetRatio(decayCurve_);
-            auto coeffs = calcCoefficients(decayTimeMs_, sampleRate_, 0.0f, ratio, false);
+            auto coeffs = calcEnvCoefficients(decayTimeMs_, sampleRate_, 0.0f, ratio, false);
             decayCoef_ = coeffs.coef;
             decayBase_ = coeffs.base;
         }
@@ -404,7 +332,7 @@ private:
             logPhaseInc_ = 1.0f / std::max(1.0f, releaseTimeMs_ * 0.001f * sampleRate_);
         } else {
             float ratio = getDecayTargetRatio(releaseCurve_);
-            auto coeffs = calcCoefficients(releaseTimeMs_, sampleRate_, 0.0f, ratio, false);
+            auto coeffs = calcEnvCoefficients(releaseTimeMs_, sampleRate_, 0.0f, ratio, false);
             releaseCoef_ = coeffs.coef;
             releaseBase_ = coeffs.base;
         }
