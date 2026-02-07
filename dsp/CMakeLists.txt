@@ -140,6 +140,7 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     include/krate/dsp/systems/vector_mixer.h
     include/krate/dsp/systems/voice_allocator.h
     include/krate/dsp/systems/synth_voice.h
+    include/krate/dsp/systems/poly_synth_engine.h
 )
 
 # Layer 4: Effects

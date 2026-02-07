@@ -162,6 +162,7 @@
 #include <krate/dsp/systems/vowel_sequencer.h>
 
 #include <krate/dsp/systems/synth_voice.h>
+#include <krate/dsp/systems/poly_synth_engine.h>
 
 // Layer 4: Effects
 #include <krate/dsp/effects/bbd_delay.h>

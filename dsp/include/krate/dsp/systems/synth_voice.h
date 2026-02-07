@@ -161,6 +161,17 @@ public:
         filterEnv_.gate(true);
     }
 
+    /// @brief Update oscillator frequencies without retriggering envelopes.
+    /// Used by PolySynthEngine for mono mode legato pitch changes and
+    /// per-block pitch bend updates.
+    /// @param hz New frequency in Hz. NaN/Inf inputs are silently ignored.
+    void setFrequency(float hz) noexcept {
+        if (detail::isNaN(hz) || detail::isInf(hz)) return;
+        noteFrequency_ = (hz < 0.0f) ? 0.0f : hz;
+        osc1_.setFrequency(noteFrequency_);
+        updateOsc2Frequency();
+    }
+
     /// @brief Trigger release phase of both envelopes (FR-005).
     void noteOff() noexcept {
         ampEnv_.gate(false);
