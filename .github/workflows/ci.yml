@@ -46,6 +46,7 @@ jobs:
       dsp: ${{ steps.set-outputs.outputs.dsp }}
       iterum: ${{ steps.set-outputs.outputs.iterum }}
       disrumpo: ${{ steps.set-outputs.outputs.disrumpo }}
+      ruinae: ${{ steps.set-outputs.outputs.ruinae }}
       infra: ${{ steps.set-outputs.outputs.infra }}
     steps:
       - name: Checkout
@@ -63,6 +64,8 @@ jobs:
               - 'plugins/iterum/**'
             disrumpo:
               - 'plugins/disrumpo/**'
+            ruinae:
+              - 'plugins/ruinae/**'
             infra:
               - 'tests/**'
               - 'extern/**'
@@ -78,11 +81,13 @@ jobs:
             echo "dsp=true" >> $GITHUB_OUTPUT
             echo "iterum=true" >> $GITHUB_OUTPUT
             echo "disrumpo=true" >> $GITHUB_OUTPUT
+            echo "ruinae=true" >> $GITHUB_OUTPUT
             echo "infra=true" >> $GITHUB_OUTPUT
           else
             echo "dsp=${{ steps.filter.outputs.dsp }}" >> $GITHUB_OUTPUT
             echo "iterum=${{ steps.filter.outputs.iterum }}" >> $GITHUB_OUTPUT
             echo "disrumpo=${{ steps.filter.outputs.disrumpo }}" >> $GITHUB_OUTPUT
+            echo "ruinae=${{ steps.filter.outputs.ruinae }}" >> $GITHUB_OUTPUT
             echo "infra=${{ steps.filter.outputs.infra }}" >> $GITHUB_OUTPUT
           fi
 
@@ -103,7 +108,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/_deps
-          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vs-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vs-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ github.repository }}-${{ runner.os }}-vs-
 
@@ -127,6 +132,10 @@ jobs:
       - name: Build Disrumpo
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo --parallel
+
+      - name: Build Ruinae
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae --parallel
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -154,6 +163,14 @@ jobs:
         with:
           name: Disrumpo-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
+          if-no-files-found: warn
+
+      - name: Upload Ruinae Artifact
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.infra == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ruinae-Windows-x64
+          path: build/VST3/${{ env.BUILD_TYPE }}/Ruinae.vst3
           if-no-files-found: warn
 
   build-macos:
@@ -184,7 +201,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/_deps
-          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ github.repository }}-${{ runner.os }}-
 
@@ -211,6 +228,10 @@ jobs:
       - name: Build Disrumpo and AU
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo Disrumpo_AU --parallel
+
+      - name: Build Ruinae and AU
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU --parallel
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -246,6 +267,17 @@ jobs:
           sleep 2
           auval -v aufx Dsrm KrAt
 
+      # Install AU and run auval validation for Ruinae
+      - name: Run Ruinae AU Validation
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          rm -rf ~/Library/Audio/Plug-Ins/Components/Ruinae.component
+          cp -R build/VST3/${{ env.BUILD_TYPE }}/Ruinae.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          sleep 2
+          auval -v aumu Ruin KrAt
+
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
         if: always()
@@ -269,6 +301,16 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.component
+          if-no-files-found: warn
+
+      - name: Upload Ruinae Artifacts
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.infra == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ruinae-macOS
+          path: |
+            build/VST3/${{ env.BUILD_TYPE }}/Ruinae.vst3
+            build/VST3/${{ env.BUILD_TYPE }}/Ruinae.component
           if-no-files-found: warn
 
   # Linux build (optional per constitution - Platform Support Matrix)
@@ -307,7 +349,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/_deps
-          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ github.repository }}-${{ runner.os }}-
 
@@ -335,6 +377,10 @@ jobs:
       - name: Build Disrumpo
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target Disrumpo --parallel
+
+      - name: Build Ruinae
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --target Ruinae --parallel
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -367,4 +413,12 @@ jobs:
         with:
           name: Disrumpo-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
+          if-no-files-found: warn
+
+      - name: Upload Ruinae Artifact
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.infra == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ruinae-Linux-x64
+          path: build/VST3/${{ env.BUILD_TYPE }}/Ruinae.vst3
           if-no-files-found: warn
