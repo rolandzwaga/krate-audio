@@ -223,6 +223,9 @@ constexpr void stereoCrossBlend(float inL, float inR, float crossAmount, float& 
 [[nodiscard]] constexpr float semitonesToRatio(float semitones) noexcept;  // 12→2.0, -12→0.5
 [[nodiscard]] constexpr float ratioToSemitones(float ratio) noexcept;      // 2.0→12, 0.5→-12
 
+// Frequency-to-MIDI-note conversion (spec 037)
+[[nodiscard]] inline float frequencyToMidiNote(float hz) noexcept;         // 440→69.0, 261.63→60.0, 0→0.0
+
 // Frequency-to-note conversion (spec 093)
 [[nodiscard]] inline int frequencyToNoteClass(float hz) noexcept;          // 440→9 (A), 261.63→0 (C), 0→-1
 [[nodiscard]] inline float frequencyToCentsDeviation(float hz) noexcept;   // 442.55→+10 cents, 437.47→-10 cents
@@ -230,6 +233,7 @@ constexpr void stereoCrossBlend(float inL, float inR, float crossAmount, float& 
 
 | Function | Description | Use Case |
 |----------|-------------|----------|
+| `frequencyToMidiNote` | Maps Hz to continuous MIDI note number (69.0 = A4) | Filter key tracking in synth voices |
 | `frequencyToNoteClass` | Maps Hz to note class (0-11, 0=C) | Note-selective filtering, pitch detection |
 | `frequencyToCentsDeviation` | Cents deviation from nearest note (-50 to +50) | Pitch tolerance matching, tuning analysis |
 

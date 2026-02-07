@@ -253,6 +253,41 @@ TEST_CASE("quantizePitch Scale mode rounds to major scale degrees", "[core][pitc
 }
 
 // =============================================================================
+// frequencyToMidiNote Tests (spec 037-basic-synth-voice)
+// =============================================================================
+
+TEST_CASE("frequencyToMidiNote converts frequency to continuous MIDI note", "[core][pitch][layer0][synth-voice]") {
+
+    SECTION("440 Hz returns 69.0 (A4)") {
+        REQUIRE(frequencyToMidiNote(440.0f) == Approx(69.0f).margin(0.01f));
+    }
+
+    SECTION("261.63 Hz returns 60.0 (C4)") {
+        REQUIRE(frequencyToMidiNote(261.63f) == Approx(60.0f).margin(0.05f));
+    }
+
+    SECTION("frequency <= 0 returns 0.0") {
+        REQUIRE(frequencyToMidiNote(0.0f) == 0.0f);
+        REQUIRE(frequencyToMidiNote(-100.0f) == 0.0f);
+    }
+
+    SECTION("466.16 Hz returns ~70.0 (A#4)") {
+        REQUIRE(frequencyToMidiNote(466.16f) == Approx(70.0f).margin(0.05f));
+    }
+
+    SECTION("880 Hz returns 81.0 (A5)") {
+        REQUIRE(frequencyToMidiNote(880.0f) == Approx(81.0f).margin(0.01f));
+    }
+
+    SECTION("roundtrip with semitonesToRatio at A4") {
+        // If we go up 12 semitones from A4 (440 Hz), we get A5 (880 Hz)
+        float a5Hz = 440.0f * semitonesToRatio(12.0f);
+        float note = frequencyToMidiNote(a5Hz);
+        REQUIRE(note == Approx(81.0f).margin(0.05f));
+    }
+}
+
+// =============================================================================
 // frequencyToNoteClass Tests (spec 093-note-selective-filter, FR-011)
 // =============================================================================
 

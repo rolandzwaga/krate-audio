@@ -1,0 +1,361 @@
+# Feature Specification: Basic Synth Voice
+
+**Feature Branch**: `037-basic-synth-voice`
+**Created**: 2026-02-07
+**Status**: Draft
+**Input**: User description: "Basic Synth Voice - Layer 3 system composing 2 oscillators with mix/detune, 1 multimode filter, 2 ADSR envelopes (amp + filter), velocity to filter env amount, velocity to amplitude"
+
+## User Scenarios & Testing *(mandatory)*
+
+### User Story 1 - Single Voice Plays a Note (Priority: P1)
+
+A sound designer triggers a note on a synth voice and hears a complete subtractive synthesis signal: oscillator(s) through a filter, shaped by amplitude and filter envelopes. The voice produces sound on note-on, shapes the timbre via the filter envelope, sustains while the note is held, and fades out naturally after note-off via the release stages of both envelopes.
+
+**Why this priority**: This is the fundamental reason the component exists. Without a working voice that responds to note-on/note-off and produces shaped audio output, no other feature matters. This represents the minimum viable product: a single voice that plays and stops.
+
+**Independent Test**: Can be fully tested by preparing a voice, calling noteOn with a frequency and velocity, processing a block of samples, calling noteOff, and verifying the output transitions through attack, decay, sustain, and release stages with non-zero audio content.
+
+**Acceptance Scenarios**:
+
+1. **Given** a prepared voice with default parameters, **When** noteOn(440.0, 1.0) is called and samples are processed, **Then** the output contains non-zero audio that ramps up during the attack phase.
+2. **Given** a voice in the sustain stage, **When** noteOff() is called and samples are processed, **Then** the output decays to silence during the release phase and isActive() returns false after the release completes.
+3. **Given** a voice in the idle state (not playing), **When** samples are processed, **Then** all output samples are exactly 0.0.
+
+---
+
+### User Story 2 - Dual Oscillator Sound Shaping (Priority: P1)
+
+A sound designer configures two oscillators with different waveforms, detunes oscillator 2 for a rich "unison" effect, sets an oscillator octave offset, and blends the two oscillators using the mix control. The resulting sound is the weighted sum of both oscillators, providing timbral variety from a single voice.
+
+**Why this priority**: Two oscillators with mix and detune are fundamental to the classic subtractive synthesis sound and directly required by the roadmap. A single oscillator voice would be functionally incomplete.
+
+**Independent Test**: Can be tested independently by setting osc1 to sawtooth, osc2 to square with +7 cents detune and -1 octave, mix to 0.5, and verifying the output contains spectral content from both waveforms at the expected frequencies.
+
+**Acceptance Scenarios**:
+
+1. **Given** a voice with mix set to 0.0, **When** samples are processed, **Then** only oscillator 1 contributes to the output (oscillator 2 is silent).
+2. **Given** a voice with mix set to 1.0, **When** samples are processed, **Then** only oscillator 2 contributes to the output (oscillator 1 is silent).
+3. **Given** a voice with mix set to 0.5, osc2 detune at +10 cents, **When** samples are processed, **Then** the output exhibits audible beating at a rate consistent with the 10-cent frequency difference.
+4. **Given** a voice with osc2 octave set to +1, frequency 440 Hz, **When** samples are processed, **Then** oscillator 2 plays at 880 Hz (one octave above the note frequency).
+
+---
+
+### User Story 3 - Filter with Envelope Modulation (Priority: P1)
+
+A sound designer sets the filter cutoff low, configures a snappy filter envelope (short attack, medium decay, moderate sustain), and sets a positive filter envelope amount. On each note-on, the filter opens up quickly then settles back, creating the classic "pluck" or "bass sweep" sound characteristic of subtractive synthesis. The designer can also set a negative envelope amount to create inverted filter sweeps.
+
+**Why this priority**: Filter envelope modulation is the defining characteristic of subtractive synthesis. Without it, the voice is just an oscillator with a static filter, which has minimal musical utility.
+
+**Independent Test**: Can be tested by setting filter cutoff to 200 Hz, filter envelope amount to +48 semitones, and verifying that during the attack phase the effective cutoff rises well above 200 Hz, then settles back toward a lower value during decay.
+
+**Acceptance Scenarios**:
+
+1. **Given** a voice with filter cutoff 500 Hz and envelope amount +48 semitones, **When** a note is triggered and the filter envelope is at its peak (1.0), **Then** the effective filter cutoff is 500 Hz * 2^(48/12) = 8000 Hz.
+2. **Given** a voice with filter cutoff 2000 Hz and envelope amount -24 semitones, **When** a note is triggered and the filter envelope is at its peak, **Then** the effective filter cutoff is 2000 Hz * 2^(-24/12) = 500 Hz.
+3. **Given** a voice with filter envelope amount 0, **When** a note is triggered, **Then** the filter cutoff remains at the base cutoff value regardless of envelope state.
+
+---
+
+### User Story 4 - Filter Key Tracking (Priority: P2)
+
+A sound designer enables filter key tracking so that higher notes have a proportionally brighter sound. At 100% key tracking, the filter cutoff moves one semitone per keyboard semitone, keeping the harmonic content consistent across the keyboard. At 50%, the filter opens half as much per octave, creating a gradual brightening for higher notes.
+
+**Why this priority**: Key tracking is important for playable patches but not strictly required for a voice to produce musically useful sound. A voice without key tracking still functions; one with key tracking sounds more polished.
+
+**Independent Test**: Can be tested by comparing effective filter cutoff for two notes an octave apart (e.g., MIDI 60 vs MIDI 72) at 100% key tracking, verifying the cutoff doubles.
+
+**Acceptance Scenarios**:
+
+1. **Given** a voice with 100% key tracking, cutoff 1000 Hz, reference note C4 (MIDI 60), **When** playing C5 (MIDI 72, 12 semitones above reference), **Then** the key tracking contribution shifts cutoff up by 12 semitones (factor of 2.0), resulting in effective base cutoff of 2000 Hz (before envelope modulation).
+2. **Given** a voice with 0% key tracking, **When** notes at different pitches are played, **Then** the filter cutoff does not change based on pitch.
+3. **Given** a voice with 50% key tracking, playing a note 12 semitones above reference, **Then** the key tracking contribution shifts cutoff up by 6 semitones (factor of ~1.414).
+
+---
+
+### User Story 5 - Velocity-Sensitive Dynamics (Priority: P2)
+
+A sound designer plays notes at varying velocities. Softer notes are quieter and have less filter envelope modulation (duller timbre). Harder notes are louder and have more filter envelope modulation (brighter timbre). This creates expressive, velocity-responsive patches.
+
+**Why this priority**: Velocity sensitivity is essential for expressive playing but the voice is still usable with fixed velocity. It adds musicality without changing the core signal flow.
+
+**Independent Test**: Can be tested by triggering two notes at velocity 0.25 and 1.0, comparing peak amplitude and filter envelope depth.
+
+**Acceptance Scenarios**:
+
+1. **Given** a voice with velocity-to-amplitude enabled, **When** a note is triggered with velocity 0.5, **Then** the peak amplitude of the output is approximately 50% of the peak amplitude at velocity 1.0.
+2. **Given** a voice with velocity-to-filter-envelope amount set to 1.0, **When** a note is triggered with velocity 0.25, **Then** the effective filter envelope depth is 25% of the full envelope amount.
+3. **Given** a voice with velocity-to-filter-envelope amount set to 0.0, **When** notes are triggered at any velocity, **Then** the filter envelope depth is always at the full envelope amount setting.
+
+---
+
+### User Story 6 - Block Processing for Polyphonic Use (Priority: P2)
+
+A polyphonic synth engine needs to process multiple voices efficiently per audio buffer. Each voice processes an entire block of samples at once rather than sample-by-sample, and the engine sums all voice outputs. The block processing path produces the same result as calling per-sample processing repeatedly.
+
+**Why this priority**: Block processing is critical for performance in a polyphonic context but the voice still works correctly with per-sample processing alone.
+
+**Independent Test**: Can be tested by comparing output from processBlock() against a loop of process() calls, verifying bit-identical results.
+
+**Acceptance Scenarios**:
+
+1. **Given** a prepared voice with active note, **When** processBlock(output, 512) is called, **Then** the output buffer is filled with 512 samples identical to calling process() 512 times.
+2. **Given** a voice that completes its release phase mid-block, **When** processBlock is called, **Then** isActive() returns false after the call and remaining samples in the block are zero.
+
+---
+
+### Edge Cases
+
+- What happens when noteOn is called while a note is already playing? The voice restarts (retriggers): envelopes reset to attack phase with the new frequency and velocity. The oscillators maintain phase continuity to minimize clicks.
+- What happens when noteOff is called while the voice is idle? No effect; the voice remains idle.
+- What happens when noteOff is called during the attack phase? The voice immediately transitions to the release phase from the current envelope level.
+- What happens when frequency is set to 0 Hz or negative? The oscillators produce silence (frequency clamped to 0).
+- What happens when velocity is 0? The amplitude envelope peak is 0, resulting in silence. isActive() becomes false after the (zero-amplitude) release completes.
+- What happens when filter cutoff after all modulation exceeds Nyquist/2? The effective cutoff is clamped to a safe maximum (49.5% of sample rate).
+- What happens when filter cutoff after negative envelope modulation drops below minimum? The effective cutoff is clamped to the minimum filter frequency (20 Hz).
+- What happens when prepare() is called while a note is active? The voice is reset: all state cleared, envelopes return to idle, isActive() returns false.
+- What happens when process()/processBlock() is called before prepare()? Returns 0.0 / fills buffer with zeros.
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+#### Lifecycle and Initialization
+
+- **FR-001**: SynthVoice MUST provide a prepare(sampleRate, maxBlockSize) method that initializes all internal components (oscillators, filter, envelopes) for the given sample rate and pre-allocates any required buffers. This method is NOT real-time safe.
+- **FR-002**: SynthVoice MUST provide a reset() method that clears all internal state (envelope levels, oscillator phases, filter state) without reallocation. After reset(), isActive() MUST return false and process() MUST return 0.0. This method MUST be real-time safe.
+- **FR-003**: SynthVoice MUST return 0.0 from process() and fill buffers with zeros from processBlock() if called before prepare().
+
+#### Note Control
+
+- **FR-004**: SynthVoice MUST provide noteOn(frequency, velocity) that starts the voice playing at the specified frequency (Hz) and velocity (0.0 to 1.0). Both the amplitude and filter envelopes MUST enter their attack phase. The oscillators MUST begin generating at the specified frequency.
+- **FR-005**: SynthVoice MUST provide noteOff() that triggers the release phase of both envelopes. The voice continues producing output during the release tail until the amplitude envelope reaches idle.
+- **FR-006**: SynthVoice MUST provide isActive() that returns true when the voice is producing non-silent audio (i.e., the amplitude envelope has not reached idle). isActive() MUST return false when the voice is idle (before any noteOn, or after the amplitude envelope release completes).
+- **FR-007**: When noteOn() is called while the voice is already active (retrigger), both envelopes MUST re-enter their attack phase with the new frequency and velocity. Oscillator phases MUST NOT be hard-reset (phase continuity) to minimize audio discontinuities.
+
+#### Oscillators
+
+- **FR-008**: SynthVoice MUST contain two oscillators. Each oscillator MUST support the following waveforms: Sine, Sawtooth, Square, Pulse, and Triangle.
+- **FR-009**: SynthVoice MUST provide setOsc1Waveform(waveform) and setOsc2Waveform(waveform) to independently select the waveform for each oscillator. Default: both Sawtooth.
+- **FR-010**: SynthVoice MUST provide setOscMix(mix) where mix is a value from 0.0 to 1.0. The oscillator output is computed as: `output = (1.0 - mix) * osc1 + mix * osc2`. At mix 0.0, only oscillator 1 is heard. At mix 1.0, only oscillator 2 is heard. Default: 0.5.
+- **FR-011**: SynthVoice MUST provide setOsc2Detune(cents) to detune oscillator 2 relative to oscillator 1, in cents. Range: -100.0 to +100.0 cents. The detuned frequency is computed as: `freq2 = baseFrequency * 2^(cents/1200)`. Default: 0.0 cents.
+- **FR-012**: SynthVoice MUST provide setOsc2Octave(octave) to offset oscillator 2 by whole octaves. Range: -2 to +2 octaves. The octave-shifted frequency is: `freq2 = baseFrequency * 2^octave`. This compounds with detune: `freq2 = baseFrequency * 2^octave * 2^(cents/1200)`. Default: 0.
+
+#### Filter
+
+- **FR-013**: SynthVoice MUST contain one filter that supports at minimum: lowpass, highpass, bandpass, and notch modes.
+- **FR-014**: SynthVoice MUST provide setFilterType(type) to select the filter mode. Default: Lowpass.
+- **FR-015**: SynthVoice MUST provide setFilterCutoff(hz) to set the base filter cutoff frequency. Range: 20.0 Hz to 20000.0 Hz. Default: 1000.0 Hz.
+- **FR-016**: SynthVoice MUST provide setFilterResonance(q) to set the filter resonance (Q factor). Range: 0.1 to 30.0. Default: 0.707 (Butterworth, no resonant peak).
+
+#### Filter Envelope Modulation
+
+- **FR-017**: SynthVoice MUST provide setFilterEnvAmount(semitones) to set the filter envelope modulation depth in semitones. This is a bipolar parameter: positive values open the filter above the base cutoff when the envelope is at its peak; negative values close the filter below the base cutoff. Range: -96.0 to +96.0 semitones. Default: 0.0 (no modulation).
+- **FR-018**: The effective filter cutoff at any point in time MUST be computed as: `effectiveCutoff = baseCutoff * 2^((envAmount * envLevel + keyTrackSemitones) / 12.0)`, where envLevel is the current amplitude of the filter envelope (0.0 to 1.0), envAmount is the filter envelope amount in semitones, and keyTrackSemitones is the key tracking offset. The result MUST be clamped to the safe operating range of the filter (20 Hz to 49.5% of sample rate).
+- **FR-019**: The filter parameters (effective cutoff) MUST be updated at least once per audio block to reflect envelope and key tracking changes. Per-sample modulation of filter cutoff from the envelope is preferred for smooth sweeps but not required; per-block updates with smoothing are acceptable.
+
+#### Filter Key Tracking
+
+- **FR-020**: SynthVoice MUST provide setFilterKeyTrack(amount) where amount ranges from 0.0 to 1.0. At 0.0, the filter cutoff is independent of the note pitch. At 1.0, the filter cutoff shifts by one semitone for every semitone of note pitch change relative to a reference note. Default: 0.0.
+- **FR-021**: The key tracking offset in semitones MUST be computed as: `keyTrackSemitones = keyTrackAmount * (midiNoteEquivalent - referenceNote)`, where midiNoteEquivalent is derived from the note frequency using the standard 12-TET formula, and referenceNote is MIDI note 60 (C4, ~261.63 Hz).
+
+#### Envelopes
+
+- **FR-022**: SynthVoice MUST contain two independent ADSR envelopes: one for amplitude and one for filter modulation.
+- **FR-023**: SynthVoice MUST provide access to envelope parameters for both envelopes (attack time, decay time, sustain level, release time). Default amplitude envelope: A=10ms, D=50ms, S=1.0, R=100ms. Default filter envelope: A=10ms, D=200ms, S=0.0, R=100ms.
+- **FR-024**: Both envelopes MUST support configurable curve shapes per stage (exponential, linear, logarithmic), consistent with the existing ADSREnvelope component.
+- **FR-025**: The amplitude envelope MUST directly scale the voice output. When the amplitude envelope reaches idle (output = 0), the voice MUST transition to inactive (isActive() returns false).
+
+#### Velocity Mapping
+
+- **FR-026**: SynthVoice MUST apply velocity to the amplitude envelope peak level. The amplitude envelope's velocity scaling MUST be enabled, and the velocity value from noteOn() MUST be passed to the amplitude envelope. At velocity 1.0, the amplitude envelope reaches its full peak. At velocity 0.5, the amplitude envelope peak is 0.5.
+- **FR-027**: SynthVoice MUST provide setVelocityToFilterEnv(amount) where amount ranges from 0.0 to 1.0. This controls how much velocity scales the filter envelope modulation depth. The effective filter envelope amount becomes: `effectiveEnvAmount = envAmount * (1.0 - velToFilterEnv + velToFilterEnv * velocity)`. At amount 0.0, velocity does not affect filter envelope depth. At amount 1.0, the filter envelope depth scales linearly with velocity. Default: 0.0.
+
+#### Signal Flow
+
+- **FR-028**: The signal flow within the voice MUST follow this order: (1) Both oscillators generate samples at their respective frequencies and waveforms. (2) Oscillator outputs are mixed according to the mix parameter. (3) The mixed signal passes through the filter at the effective cutoff. (4) The filtered signal is multiplied by the current amplitude envelope level. (5) The result is the voice output.
+- **FR-029**: All processing methods (process(), processBlock()) MUST be real-time safe: no memory allocation, no exceptions, no blocking I/O, no locks.
+- **FR-030**: process() MUST return a single float sample. processBlock(output, numSamples) MUST fill the output buffer with numSamples of audio. The processBlock output MUST be identical to calling process() numSamples times.
+
+#### Parameter Safety
+
+- **FR-031**: All parameter setters MUST be real-time safe (no allocation, no locks) and callable at any time (before prepare, while playing, while idle).
+- **FR-032**: All parameter setters MUST silently clamp out-of-range values to the valid range. NaN and Inf inputs MUST be silently ignored (parameter unchanged).
+
+### Key Entities
+
+- **SynthVoice**: The complete single-voice synthesis unit. Contains two oscillators, one filter, two envelopes, and velocity/key-tracking state. Lifecycle: idle (not producing sound) or active (producing sound through note-on and release tail). Transitions: idle -> active on noteOn(), active -> idle when amplitude envelope finishes release.
+- **Voice Parameters**: The complete set of user-configurable parameters that define a sound: oscillator waveforms, mix, detune, octave offset, filter type/cutoff/resonance, envelope times, envelope amounts, key tracking, and velocity mappings. All parameters persist across note-on/note-off cycles.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: A single SynthVoice MUST consume less than 1% of a single CPU core at 44.1 kHz sample rate with both oscillators active, filter engaged, and both envelopes running. Measured by processing 1 second of audio (44100 samples) and computing the ratio of processing time to real-time duration.
+- **SC-002**: The voice MUST produce audible, non-silent output within the first audio block (up to 512 samples) after noteOn() is called.
+- **SC-003**: After the amplitude envelope release phase completes, the voice output MUST be exactly 0.0 for all subsequent samples and isActive() MUST return false.
+- **SC-004**: processBlock() MUST produce bit-identical output compared to the equivalent number of process() calls.
+- **SC-005**: The voice MUST correctly function at all standard sample rates: 44100, 48000, 88200, 96000, 176400, and 192000 Hz.
+- **SC-006**: Filter cutoff with envelope modulation and key tracking MUST stay within the safe range (20 Hz to 49.5% of sample rate) at all times, even with extreme parameter combinations (max envelope amount + max key tracking + highest note).
+- **SC-007**: When oscillator mix is set to 0.0, oscillator 2's contribution to the output MUST be exactly 0.0. When mix is set to 1.0, oscillator 1's contribution MUST be exactly 0.0.
+- **SC-008**: The voice MUST produce an output signal with amplitude in the range [-1.0, +1.0] under normal operating conditions (single-oscillator, no resonance boost). Resonance may cause transient peaks above 1.0 but the voice itself does not apply limiting.
+- **SC-009**: Retriggering a voice (noteOn while already active) MUST NOT produce audible clicks or discontinuities greater than the level of a single-sample impulse at -40 dBFS.
+- **SC-010**: All 32 functional requirements MUST have corresponding unit tests that verify their behavior.
+
+## Assumptions & Existing Components *(mandatory)*
+
+### Assumptions
+
+- The SynthVoice is a single monophonic voice. Polyphonic management (voice allocation, voice stealing, output summing) is handled by a higher-level component (Polyphonic Synth Engine, roadmap item 3.2).
+- The voice receives pre-computed frequency in Hz from the caller (via the VoiceAllocator or NoteProcessor), not raw MIDI note numbers. Key tracking requires reverse-computation of the MIDI note equivalent from frequency.
+- The voice does not own or manage MIDI input parsing. Note-on and note-off events are dispatched to the voice by the parent system.
+- The oscillators use anti-aliased PolyBLEP waveform generation from the existing PolyBlepOscillator primitive.
+- The filter uses the existing SVF primitive directly (not MultimodeFilter) to avoid the overhead of coefficient smoothing and oversampler allocation, since the voice updates filter parameters per-block. The SVF supports lowpass, highpass, bandpass, and notch modes which satisfies FR-013.
+- Velocity is provided as a float in the range 0.0 to 1.0, already mapped through a velocity curve by the NoteProcessor. The SynthVoice does not apply its own velocity curve.
+- The amplitude envelope's built-in velocity scaling feature (setVelocityScaling/setVelocity) is used directly to implement velocity-to-amplitude mapping.
+- Filter envelope modulation operates in the pitch domain (semitones) rather than linear frequency, which is the standard convention for musical filter sweeps. This ensures perceptually uniform modulation: a +12 semitone sweep always sounds like "one octave up" regardless of the base cutoff.
+
+### Existing Codebase Components (Principle XIV)
+
+*GATE: Must identify before `/speckit.plan` to prevent ODR violations.*
+
+**Relevant existing components that may be reused or extended:**
+
+| Component | Location | Relevance |
+|-----------|----------|-----------|
+| PolyBlepOscillator | `dsp/include/krate/dsp/primitives/polyblep_oscillator.h` | Direct reuse: two instances for osc1 and osc2. Provides all required waveforms (Sine, Saw, Square, Pulse, Triangle). |
+| OscWaveform enum | `dsp/include/krate/dsp/primitives/polyblep_oscillator.h` | Direct reuse: waveform selection enum shared by voice API. |
+| ADSREnvelope | `dsp/include/krate/dsp/primitives/adsr_envelope.h` | Direct reuse: two instances for amp and filter envelopes. Has built-in velocity scaling (FR-026). |
+| SVF | `dsp/include/krate/dsp/primitives/svf.h` | Direct reuse: one instance for the voice filter. Supports LP/HP/BP/Notch modes. Lightweight (no allocation). |
+| SVFMode enum | `dsp/include/krate/dsp/primitives/svf.h` | Direct reuse: filter type selection. |
+| MultimodeFilter | `dsp/include/krate/dsp/processors/multimode_filter.h` | Reference implementation only. Too heavy for per-voice use (smoothers, oversampler, vector allocation). SVF used directly instead. |
+| semitonesToRatio() | `dsp/include/krate/dsp/core/pitch_utils.h` | Direct reuse: for computing detune and key-tracking frequency offsets. Uses `2^(semitones/12)`. |
+| midiNoteToFrequency() | `dsp/include/krate/dsp/core/midi_utils.h` | Reference: for understanding frequency-to-note reverse mapping needed by key tracking. |
+| FMVoice | `dsp/include/krate/dsp/systems/fm_voice.h` | Reference pattern: Layer 3 voice system with prepare/reset/process pattern. Good model for component composition. |
+| VoiceAllocator | `dsp/include/krate/dsp/systems/voice_allocator.h` | Upstream consumer: will dispatch VoiceEvents to SynthVoice instances. API (noteOn frequency/velocity, noteOff) aligns. |
+| NoteProcessor | `dsp/include/krate/dsp/processors/note_processor.h` | Upstream component: provides frequency computation from MIDI notes with pitch bend. Voice receives pre-computed frequency. |
+| EnvCurve / RetriggerMode | `dsp/include/krate/dsp/primitives/envelope_utils.h` | Direct reuse: curve shape and retrigger mode enums shared with ADSREnvelope. |
+
+**Initial codebase search for key terms:**
+
+```bash
+grep -r "class SynthVoice" dsp/ plugins/
+# Result: No existing SynthVoice class found. Safe to create.
+
+grep -r "class SubtractiveVoice" dsp/ plugins/
+# Result: No existing SubtractiveVoice class found.
+
+grep -r "keyTrack" dsp/ plugins/
+# Result: No existing key tracking implementation found in DSP library.
+```
+
+**Search Results Summary**: No existing SynthVoice or key tracking implementation exists. All required primitives (PolyBlepOscillator, ADSREnvelope, SVF) are available and battle-tested. The FMVoice system provides the architectural pattern for voice composition.
+
+### Forward Reusability Consideration
+
+*Note for planning phase: SynthVoice is a Layer 3 system that will be consumed by the Polyphonic Synth Engine (roadmap item 3.2).*
+
+**Sibling features at same layer** (if known):
+- Polyphonic Synth Engine (roadmap 3.2) -- will manage a pool of SynthVoice instances
+- FMVoice -- existing Layer 3 voice, similar lifecycle pattern
+
+**Potential shared components** (preliminary, refined in plan.md):
+- The frequency-to-MIDI-note reverse computation for key tracking could be extracted to `pitch_utils.h` as a reusable Layer 0 utility, since other voice types (FMVoice, future wavetable voice) may also need key tracking.
+- The "voice lifecycle" pattern (noteOn/noteOff/isActive/prepare/reset) is shared with FMVoice. A base interface or concept could formalize this for the Polyphonic Synth Engine, though this is more relevant to the poly engine spec.
+
+## Implementation Verification *(mandatory at completion)*
+
+<!--
+  CRITICAL: This section MUST be completed when claiming spec completion.
+  Constitution Principle XVI: Honest Completion requires explicit verification
+  of ALL requirements before claiming "done".
+
+  DO NOT fill this table from memory or assumptions. Each row requires you to
+  re-read the actual implementation code and actual test output RIGHT NOW,
+  then record what you found with specific file paths, line numbers, and
+  measured values. Generic evidence like "implemented" or "test passes" is
+  NOT acceptable -- it must be verifiable by a human reader.
+
+  This section is EMPTY during specification phase and filled during
+  implementation phase when /speckit.implement completes.
+-->
+
+### Compliance Status
+
+*For EACH row below, you MUST perform these steps before writing the status:*
+1. *Re-read the requirement from the spec*
+2. *Open the implementation file and find the code that satisfies it -- record the file path and line number*
+3. *Run or read the test that proves it -- record the test name and its actual output/result*
+4. *For numeric thresholds (SC-xxx): record the actual measured value vs the spec target*
+5. *Only then write the status and evidence*
+
+*DO NOT mark MET without having just verified the code and test output. DO NOT claim completion if ANY requirement is NOT MET without explicit user approval.*
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| FR-001 | | |
+| FR-002 | | |
+| FR-003 | | |
+| FR-004 | | |
+| FR-005 | | |
+| FR-006 | | |
+| FR-007 | | |
+| FR-008 | | |
+| FR-009 | | |
+| FR-010 | | |
+| FR-011 | | |
+| FR-012 | | |
+| FR-013 | | |
+| FR-014 | | |
+| FR-015 | | |
+| FR-016 | | |
+| FR-017 | | |
+| FR-018 | | |
+| FR-019 | | |
+| FR-020 | | |
+| FR-021 | | |
+| FR-022 | | |
+| FR-023 | | |
+| FR-024 | | |
+| FR-025 | | |
+| FR-026 | | |
+| FR-027 | | |
+| FR-028 | | |
+| FR-029 | | |
+| FR-030 | | |
+| FR-031 | | |
+| FR-032 | | |
+| SC-001 | | |
+| SC-002 | | |
+| SC-003 | | |
+| SC-004 | | |
+| SC-005 | | |
+| SC-006 | | |
+| SC-007 | | |
+| SC-008 | | |
+| SC-009 | | |
+| SC-010 | | |
+
+**Status Key:**
+- MET: Requirement verified against actual code and test output with specific evidence
+- NOT MET: Requirement not satisfied (spec is NOT complete)
+- PARTIAL: Partially met with documented gap and specific evidence of what IS met
+- DEFERRED: Explicitly moved to future work with user approval
+
+### Completion Checklist
+
+*All items must be checked before claiming completion:*
+
+- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [ ] No test thresholds relaxed from spec requirements
+- [ ] No placeholder values or TODO comments in new code
+- [ ] No features quietly removed from scope
+- [ ] User would NOT feel cheated by this completion claim
+
+### Honest Assessment
+
+**Overall Status**: NOT COMPLETE (specification phase only)
+
+**Recommendation**: Proceed to `/speckit.plan` or `/speckit.implement` to begin implementation.
