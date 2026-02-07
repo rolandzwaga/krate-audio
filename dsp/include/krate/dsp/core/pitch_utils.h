@@ -116,6 +116,20 @@ enum class PitchQuantMode : uint8_t {
 }
 
 // =============================================================================
+// Frequency-to-MIDI-Note Conversion (spec 037-basic-synth-voice)
+// =============================================================================
+
+/// Convert frequency in Hz to continuous MIDI note number.
+/// Uses 12-TET: midiNote = 12 * log2(hz / 440) + 69
+/// @param hz Frequency in Hz (must be > 0)
+/// @return Continuous MIDI note (69.0 = A4, 60.0 = C4). Returns 0.0 if hz <= 0.
+/// @note Real-time safe: noexcept, no allocations
+[[nodiscard]] inline float frequencyToMidiNote(float hz) noexcept {
+    if (hz <= 0.0f) return 0.0f;
+    return 12.0f * std::log2(hz / 440.0f) + 69.0f;
+}
+
+// =============================================================================
 // Frequency-to-Note Conversion (spec 093-note-selective-filter, FR-011, FR-036)
 // =============================================================================
 

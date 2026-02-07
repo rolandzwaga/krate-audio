@@ -189,6 +189,7 @@ add_executable(dsp_tests
     unit/systems/fm_voice_test.cpp
     unit/systems/vector_mixer_tests.cpp
     unit/systems/voice_allocator_test.cpp
+    unit/systems/synth_voice_test.cpp
 
     # Layer 4: Effects
     unit/effects/tape_delay_test.cpp
@@ -361,6 +362,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/fm_voice_test.cpp
         unit/systems/vector_mixer_tests.cpp
         unit/systems/voice_allocator_test.cpp
+        unit/systems/synth_voice_test.cpp
         unit/effects/tape_delay_test.cpp
         unit/effects/tape_delay_params_diagnostic_test.cpp
         unit/effects/bbd_delay_test.cpp

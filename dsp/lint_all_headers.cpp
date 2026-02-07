@@ -161,6 +161,8 @@
 #include <krate/dsp/systems/timevar_comb_bank.h>
 #include <krate/dsp/systems/vowel_sequencer.h>
 
+#include <krate/dsp/systems/synth_voice.h>
+
 // Layer 4: Effects
 #include <krate/dsp/effects/bbd_delay.h>
 #include <krate/dsp/effects/digital_delay.h>

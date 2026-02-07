@@ -139,6 +139,7 @@ set(KRATE_DSP_SYSTEMS_HEADERS
     include/krate/dsp/systems/tap_manager.h
     include/krate/dsp/systems/vector_mixer.h
     include/krate/dsp/systems/voice_allocator.h
+    include/krate/dsp/systems/synth_voice.h
 )
 
 # Layer 4: Effects

@@ -1170,3 +1170,112 @@ allocator.setUnisonDetune(0.5f);
 auto unisonEvents = allocator.noteOn(60, 100);
 // unisonEvents has 3 NoteOn events with different voice indices and detuned frequencies
 ```
+
+---
+
+## SynthVoice
+**Path:** [synth_voice.h](../../dsp/include/krate/dsp/systems/synth_voice.h) | **Since:** 0.14.2
+
+Complete single-voice subtractive synthesis unit with dual oscillators, SVF filter, and ADSR envelopes.
+
+```cpp
+class SynthVoice {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Note control
+    void noteOn(float frequency, float velocity) noexcept;
+    void noteOff() noexcept;
+    [[nodiscard]] bool isActive() const noexcept;
+
+    // Oscillator parameters
+    void setOsc1Waveform(OscWaveform waveform) noexcept;
+    void setOsc2Waveform(OscWaveform waveform) noexcept;
+    void setOscMix(float mix) noexcept;           // [0, 1] (0=osc1, 1=osc2)
+    void setOsc2Detune(float cents) noexcept;      // [-100, +100]
+    void setOsc2Octave(int octave) noexcept;       // [-2, +2]
+
+    // Filter parameters
+    void setFilterType(SVFMode type) noexcept;     // LP/HP/BP/Notch
+    void setFilterCutoff(float hz) noexcept;       // [20, 20000]
+    void setFilterResonance(float q) noexcept;     // [0.1, 30]
+    void setFilterEnvAmount(float semitones) noexcept;  // [-96, +96]
+    void setFilterKeyTrack(float amount) noexcept; // [0, 1]
+
+    // Amplitude envelope (ADSR)
+    void setAmpAttack(float ms) noexcept;
+    void setAmpDecay(float ms) noexcept;
+    void setAmpSustain(float level) noexcept;
+    void setAmpRelease(float ms) noexcept;
+
+    // Filter envelope (ADSR)
+    void setFilterAttack(float ms) noexcept;
+    void setFilterDecay(float ms) noexcept;
+    void setFilterSustain(float level) noexcept;
+    void setFilterRelease(float ms) noexcept;
+
+    // Velocity mapping
+    void setVelocityToFilterEnv(float amount) noexcept;  // [0, 1]
+
+    // Processing
+    [[nodiscard]] float process() noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Osc1 --+
+       |-- Mix --> SVF Filter --> Amp Envelope --> Output
+Osc2 --+              ^
+                       |
+              [Filter Env * Velocity] + [Key Tracking]
+```
+
+**Key Features:**
+- Composes 2 PolyBlepOscillator (L1), 1 SVF (L1), 2 ADSREnvelope (L1)
+- Per-sample filter cutoff modulation from envelope (no zipper artifacts)
+- Filter key tracking: cutoff follows pitch relative to C4 (MIDI 60)
+- Velocity-to-filter-envelope scaling: `effectiveEnvAmount = envAmount * (1 - velToFilterEnv + velToFilterEnv * velocity)`
+- Hard retrigger: envelopes attack from current level, oscillator phase preserved
+- NaN/Inf guard on all setters and noteOn() inputs (FR-032)
+- processBlock() is bit-identical to process() loop (SC-004)
+- < 1% CPU at 44.1 kHz with both oscillators and filter modulation active
+- Header-only, zero heap allocation, all methods noexcept
+
+**When to Use:**
+- Single-voice subtractive synthesis for polyphonic engine
+- Classic analog-style synth patches (bass, leads, pads)
+- Any scenario requiring oscillator + filter + envelope signal chain
+
+**Related Components:**
+- FMVoice (Layer 3): FM synthesis voice (complementary synthesis method)
+- VoiceAllocator (Layer 3): manages note-to-voice routing for polyphonic playback
+- ADSREnvelope (Layer 1): the envelope generators used internally
+- PolyBlepOscillator (Layer 1): the anti-aliased oscillators used internally
+
+**Example:**
+```cpp
+SynthVoice voice;
+voice.prepare(44100.0);
+
+// Classic subtractive bass
+voice.setOsc1Waveform(OscWaveform::Sawtooth);
+voice.setOsc2Waveform(OscWaveform::Square);
+voice.setOscMix(0.5f);
+voice.setOsc2Detune(7.0f);          // +7 cents for thickness
+voice.setFilterCutoff(500.0f);
+voice.setFilterEnvAmount(48.0f);     // +4 octave sweep
+voice.setFilterAttack(0.1f);
+voice.setFilterDecay(300.0f);
+voice.setFilterSustain(0.2f);
+voice.setFilterKeyTrack(0.5f);
+
+voice.noteOn(110.0f, 0.8f);          // A2, velocity 0.8
+for (size_t i = 0; i < numSamples; ++i) {
+    output[i] = voice.process();
+}
+voice.noteOff();
+// Continue processing until voice.isActive() returns false
+```
