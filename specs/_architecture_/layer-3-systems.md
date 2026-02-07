@@ -1064,3 +1064,109 @@ for (size_t i = 0; i < numSamples; ++i) {
     buffer[i] = seq.process(buffer[i]);
 }
 ```
+
+---
+
+## VoiceAllocator
+**Path:** [voice_allocator.h](../../dsp/include/krate/dsp/systems/voice_allocator.h) | **Since:** 0.14.2
+
+Polyphonic voice management with configurable allocation strategies and voice stealing.
+
+```cpp
+enum class VoiceState : uint8_t { Idle, Active, Releasing };
+enum class AllocationMode : uint8_t { RoundRobin, Oldest, LowestVelocity, HighestNote };
+enum class StealMode : uint8_t { Hard, Soft };
+
+struct VoiceEvent {
+    enum class Type : uint8_t { NoteOn, NoteOff, Steal };
+    Type type;
+    uint8_t voiceIndex;
+    uint8_t note;
+    uint8_t velocity;
+    float frequency;
+};
+
+class VoiceAllocator {
+    static constexpr size_t kMaxVoices = 32;
+    static constexpr size_t kMaxUnisonCount = 8;
+    static constexpr size_t kMaxEvents = 64;
+
+    // Core note events
+    [[nodiscard]] std::span<const VoiceEvent> noteOn(uint8_t note, uint8_t velocity) noexcept;
+    [[nodiscard]] std::span<const VoiceEvent> noteOff(uint8_t note) noexcept;
+    void voiceFinished(size_t voiceIndex) noexcept;
+
+    // Configuration
+    void setAllocationMode(AllocationMode mode) noexcept;
+    void setStealMode(StealMode mode) noexcept;
+    [[nodiscard]] std::span<const VoiceEvent> setVoiceCount(size_t count) noexcept;
+    void setUnisonCount(size_t count) noexcept;
+    void setUnisonDetune(float amount) noexcept;
+    void setPitchBend(float semitones) noexcept;
+    void setTuningReference(float a4Hz) noexcept;
+
+    // Thread-safe state queries
+    [[nodiscard]] int getVoiceNote(size_t voiceIndex) const noexcept;
+    [[nodiscard]] VoiceState getVoiceState(size_t voiceIndex) const noexcept;
+    [[nodiscard]] bool isVoiceActive(size_t voiceIndex) const noexcept;
+    [[nodiscard]] uint32_t getActiveVoiceCount() const noexcept;
+
+    void reset() noexcept;
+};
+```
+
+**Key Features:**
+- Pure routing engine: produces VoiceEvent instructions, does NOT contain DSP
+- Four allocation strategies: RoundRobin, Oldest (default), LowestVelocity, HighestNote
+- Voice stealing: Hard (immediate Steal event) and Soft (NoteOff + NoteOn)
+- Releasing-voice preference: steals releasing voices before active voices
+- Same-note retrigger: reuses existing voice instead of consuming a new one
+- Unison mode: 1-8 voices per note with symmetric linear detune (+/-50 cents max)
+- Configurable voice count: 1-32 voices, runtime adjustable
+- Global pitch bend and custom A4 tuning reference
+- Thread-safe queries: getVoiceNote(), getVoiceState(), getActiveVoiceCount() use atomics
+- Zero heap allocation after construction, all arrays pre-allocated
+- Header-only, ~1200 bytes per instance, all methods noexcept
+- Dependencies: Layer 0 only (midi_utils.h, pitch_utils.h, db_utils.h)
+
+**When to Use:**
+- Implementing polyphonic synthesizers that need note-to-voice routing
+- Any scenario requiring voice stealing, allocation modes, and unison support
+- As the voice management layer in a PolyphonicSynthEngine (Phase 3.2)
+
+**Related Components:**
+- FMVoice (Layer 3): a single voice DSP system that would be managed by VoiceAllocator
+- UnisonEngine (Layer 3): complementary per-oscillator detuning (VoiceAllocator handles voice-level, UnisonEngine handles oscillator-level)
+- ADSREnvelope (Layer 1): voice lifecycle mirrors envelope lifecycle (Active=gate-on, Releasing=gate-off, Idle=envelope-complete)
+
+**Example:**
+```cpp
+Krate::DSP::VoiceAllocator allocator;
+allocator.setAllocationMode(AllocationMode::Oldest);
+allocator.setStealMode(StealMode::Hard);
+
+// Process note-on
+auto events = allocator.noteOn(60, 100); // Middle C, velocity 100
+for (const auto& e : events) {
+    switch (e.type) {
+        case VoiceEvent::Type::NoteOn:
+            voices[e.voiceIndex].start(e.frequency, e.velocity);
+            break;
+        case VoiceEvent::Type::Steal:
+            voices[e.voiceIndex].hardStop();
+            break;
+        case VoiceEvent::Type::NoteOff:
+            voices[e.voiceIndex].release();
+            break;
+    }
+}
+
+// When voice envelope finishes
+allocator.voiceFinished(voiceIndex);
+
+// Unison mode
+allocator.setUnisonCount(3);
+allocator.setUnisonDetune(0.5f);
+auto unisonEvents = allocator.noteOn(60, 100);
+// unisonEvents has 3 NoteOn events with different voice indices and detuned frequencies
+```
