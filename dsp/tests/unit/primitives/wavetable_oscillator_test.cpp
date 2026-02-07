@@ -328,8 +328,9 @@ TEST_CASE("WavetableOscillator alias suppression at 1000 Hz (SC-009)", "[Wavetab
         if (harmonicFreq < 22050.0f) {
             auto bin = static_cast<int>(std::round(harmonicFreq / binResolution));
             for (int d = -3; d <= 3; ++d) {
-                auto b = static_cast<size_t>(bin + d);
-                if (b < numBins) isExpectedBin[b] = true;
+                size_t idx = static_cast<size_t>(std::max(0, bin + d));
+                if (idx < numBins)
+                    isExpectedBin[idx] = true;
             }
         }
     }

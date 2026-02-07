@@ -87,6 +87,7 @@ set(KRATE_DSP_CORE_HEADERS
 
 # Layer 1: Primitives
 set(KRATE_DSP_PRIMITIVES_HEADERS
+    include/krate/dsp/primitives/adsr_envelope.h
     include/krate/dsp/primitives/biquad.h
     include/krate/dsp/primitives/bit_crusher.h
     include/krate/dsp/primitives/crossfading_delay_line.h

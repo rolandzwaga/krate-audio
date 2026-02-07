@@ -1965,3 +1965,59 @@ class NoiseOscillator {
 - **NoiseGenerator** (Layer 2): Effects-oriented with level control, smoothing, signal-dependent modulation, 13 noise types including tape hiss, vinyl crackle
 
 **Dependencies:** `core/random.h` (Xorshift32), `core/pattern_freeze_types.h` (NoiseColor), `primitives/pink_noise_filter.h`, `primitives/biquad.h`
+
+---
+
+## ADSREnvelope (ADSR Envelope Generator)
+**Path:** [adsr_envelope.h](../../dsp/include/krate/dsp/primitives/adsr_envelope.h) | **Since:** 0.15.0
+
+Five-state ADSR envelope generator using the EarLevel Engineering one-pole iterative approach.
+
+```cpp
+enum class ADSRStage : uint8_t { Idle, Attack, Decay, Sustain, Release };
+enum class EnvCurve : uint8_t { Exponential, Linear, Logarithmic };
+enum class RetriggerMode : uint8_t { Hard, Legato };
+
+class ADSREnvelope {
+    void prepare(float sampleRate) noexcept;
+    void reset() noexcept;
+    void gate(bool on) noexcept;
+
+    // Parameter setters (NaN-safe, real-time safe)
+    void setAttack(float ms) noexcept;       // 0.1 - 10000 ms
+    void setDecay(float ms) noexcept;        // 0.1 - 10000 ms
+    void setSustain(float level) noexcept;   // 0.0 - 1.0
+    void setRelease(float ms) noexcept;      // 0.1 - 10000 ms
+    void setAttackCurve(EnvCurve curve) noexcept;
+    void setDecayCurve(EnvCurve curve) noexcept;
+    void setReleaseCurve(EnvCurve curve) noexcept;
+    void setRetriggerMode(RetriggerMode mode) noexcept;
+    void setVelocityScaling(bool enabled) noexcept;
+    void setVelocity(float velocity) noexcept;
+
+    // Processing
+    [[nodiscard]] float process() noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // Queries
+    [[nodiscard]] ADSRStage getStage() const noexcept;
+    [[nodiscard]] bool isActive() const noexcept;
+    [[nodiscard]] bool isReleasing() const noexcept;
+    [[nodiscard]] float getOutput() const noexcept;
+};
+```
+
+| Curve | Attack Algorithm | Decay/Release Algorithm |
+|-------|-----------------|------------------------|
+| Exponential | One-pole (targetRatio=0.3) | One-pole (targetRatio=0.0001) |
+| Linear | One-pole (targetRatio=100.0) | One-pole (targetRatio=100.0) |
+| Logarithmic | Quadratic phase mapping (phase²) | Quadratic phase mapping ((1-phase)²) |
+
+**Per-sample cost:** 1 multiply + 1 add (exponential/linear), 2 multiplies + 1 add (logarithmic).
+
+**When to use:**
+- Synthesizer amplitude envelope (per-voice)
+- Filter modulation source
+- General-purpose envelope modulation
+
+**Dependencies:** `core/db_utils.h` (`detail::isNaN()` for NaN-safe setters)
