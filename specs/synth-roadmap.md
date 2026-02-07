@@ -140,6 +140,8 @@ enum class AllocationMode : uint8_t { RoundRobin, Oldest, LowestVelocity, Highes
 
 **Unlocks**: Polyphonic synth capability
 
+**status** Finished
+
 ---
 
 ### 2.2 Mono/Legato Handler
