@@ -433,20 +433,31 @@ constexpr int kMaxMidiVelocity = 127;     // Maximum MIDI velocity
 
 // MIDI velocity to linear gain
 [[nodiscard]] constexpr float velocityToGain(int velocity) noexcept;
+
+// Velocity curve types (since 0.17.0)
+enum class VelocityCurve : uint8_t { Linear, Soft, Hard, Fixed };
+
+// Map velocity through a curve (since 0.17.0)
+[[nodiscard]] inline float mapVelocity(int velocity, VelocityCurve curve) noexcept;
 ```
 
 | Function | Formula | Examples |
 |----------|---------|----------|
 | `midiNoteToFrequency` | `a4 * 2^((note - 69) / 12)` | 69 -> 440 Hz, 60 -> 261.63 Hz |
 | `velocityToGain` | `velocity / 127` | 127 -> 1.0, 64 -> ~0.5 (-6 dB) |
+| `mapVelocity` (Linear) | `velocity / 127` | 64 -> ~0.504 |
+| `mapVelocity` (Soft) | `sqrt(velocity / 127)` | 64 -> ~0.710 |
+| `mapVelocity` (Hard) | `(velocity / 127)^2` | 64 -> ~0.254 |
+| `mapVelocity` (Fixed) | `1.0` if vel > 0 | 1 -> 1.0, 0 -> 0.0 |
 
 **When to use:**
 - **Melodic DSP components:** Convert MIDI notes to oscillator/filter frequencies
 - **MIDI-controlled effects:** Map velocity to amplitude or modulation depth
 - **Custom tuning:** Pass alternate A4 frequency for non-standard tuning (e.g., 432 Hz)
+- **Velocity curves:** Use `mapVelocity()` with `VelocityCurve` for non-linear velocity response
+- **NoteProcessor, VoiceAllocator, MonoHandler:** All can use `mapVelocity()` for velocity mapping
 
 **Do NOT use when:**
-- You need a non-linear velocity curve (implement your own with `dbToGain()`)
 - You need microtonal tuning (this is strictly 12-TET)
 
 ---

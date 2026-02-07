@@ -227,6 +227,8 @@ enum class VelocityCurve : uint8_t { Linear, Soft, Hard, Fixed };
 
 **Dependencies**: Layer 0 (pitch_utils), Layer 1 (smoother)
 
+**status** Finished
+
 ---
 
 ## Phase 3: Synth Voice Composition
