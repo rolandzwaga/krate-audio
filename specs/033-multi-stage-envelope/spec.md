@@ -2,7 +2,7 @@
 
 **Feature Branch**: `033-multi-stage-envelope`
 **Created**: 2026-02-07
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "Layer 2 DSP Processor: Multi-Stage Envelope Generator -- Extended envelope for complex modulation beyond ADSR. Configurable stages (4-8), loop points for LFO-like behavior, per-stage time/level/curve, sustain point selection. Inspired by Korg MS-20, Buchla 281, Yamaha DX7, and Roland Alpha Juno envelope designs. Must be real-time safe. Phase 1.2 of synth-roadmap.md."
 
 ## Clarifications
@@ -307,51 +307,51 @@ grep -r "MultiStageEnvState" dsp/ plugins/
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| FR-021 | | |
-| FR-022 | | |
-| FR-023 | | |
-| FR-024 | | |
-| FR-025 | | |
-| FR-026 | | |
-| FR-027 | | |
-| FR-028 | | |
-| FR-029 | | |
-| FR-030 | | |
-| FR-031 | | |
-| FR-032 | | |
-| FR-033 | | |
-| FR-034 | | |
-| FR-035 | | |
-| FR-036 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
+| FR-001 | MET | `multi_stage_envelope.h:63-64`: `kMinStages=4`, `kMaxStages=8`; `setNumStages()` line 136 clamps to [4,8]. Tests: "setNumStages clamps to valid range", "minimum 4 stages works correctly", "maximum 8 stages works correctly" |
+| FR-002 | MET | `EnvStageConfig` struct line 40-44: `targetLevel` [0,1], `timeMs` [0,10000]. `setStageLevel()` line 144-148 clamps [0,1]; `setStageTime()` line 150-159 clamps [0,10000]. Tests: "setStageLevel clamps", "setStageTime clamps" |
+| FR-003 | MET | `processRunning()` line 271-316 processes current stage; `advanceToNextStage()` line 374-403 moves sequentially. Test: "traverses stages 0 through sustain point sequentially" verifies stage0->1->2->3 targets at exact sample boundaries |
+| FR-004 | MET | `MultiStageEnvState` enum line 50-55: Idle, Running, Sustaining, Releasing. `getState()` line 250. Tests: "FR-009 state query methods" verifies all state transitions |
+| FR-005 | MET | `gate()` method line 99-129: gate-on initiates from stage 0 (or legato), gate-off enters release. Tests: "gate-off from sustain triggers release", "gate-off during pre-sustain stage" |
+| FR-006 | MET | `enterRelease()` line 405-413 uses exponential curve via `calcEnvCoefficients` with `kDefaultTargetRatioDR`. `processReleasing()` line 326-338 applies one-pole to 0.0. Test: "release completes to Idle" |
+| FR-007 | MET | `processReleasing()` line 331: `if (output_ < kEnvelopeIdleThreshold)` sets output to 0.0 and state to Idle. Test: "release reaches idle within expected time (SC-008)" |
+| FR-008 | MET | `processBlock()` line 240-244 calls `process()` sequentially. Test: "processBlock matches sequential process calls (FR-008)" verifies bit-exact equivalence over 256 samples |
+| FR-009 | MET | `isActive()` line 251; `isReleasing()` line 252. Test: "FR-009 state query methods" verifies both across all state transitions |
+| FR-010 | MET | `prepare()` line 73-77; `reset()` line 79-93. Tests: "prepare sets sample rate", "prepare rejects invalid sample rate", "reset returns to Idle" |
+| FR-011 | MET | `enterStage()` line 347: `stageStartLevel_ = output_`. First gate-on starts from 0.0 (idle output); retrigger starts from current level. Test: "FR-011 stage 0 starts from current output level" |
+| FR-012 | MET | `setSustainPoint()` line 178-180 allows [0, numStages-1]. Tests: "sustain at early stage", "sustain at last stage", "sustain point validation clamped" |
+| FR-013 | MET | `advanceToNextStage()` line 386-389: when `currentStage_ == sustainPoint_` and not looping, enters Sustaining. `processSustaining()` holds at target level. Test: "holds at sustain point indefinitely" |
+| FR-014 | MET | `gate(false)` line 124-128 calls `enterRelease()` from Sustaining state, skipping post-sustain stages. Test: "gate-off skips post-sustain stages" |
+| FR-015 | MET | `sustainPoint_` default = `kMinStages - 2 = 2` (line 458). Test: "FR-015 default sustain point is numStages-2" verifies for 4, 6, and 8 stages |
+| FR-016 | MET | `setStageCurve()` line 161-164; `EnvStageConfig::curve` line 43. Tests: exponential/linear/logarithmic curve tests (US2 section) |
+| FR-017 | MET | `processRunning()` line 297-303: exponential uses normalized one-pole (fast initial rise). Test: "exponential curve midpoint > 0.55 for 0->1" |
+| FR-018 | MET | `processRunning()` line 275-281: linear uses phase-based interpolation. Test: "linear curve midpoint within 2% of 0.5 for 0->1" |
+| FR-019 | MET | `processRunning()` line 282-296: logarithmic uses quadratic phase (phase^2 for rising). Test: "logarithmic curve midpoint < 0.45 for 0->1" |
+| FR-020 | MET | `EnvStageConfig::curve` default = `EnvCurve::Exponential` (line 43) |
+| FR-021 | MET | `enterStage()` line 352-353: `totalStageSamples_ = max(1, round(timeMs * 0.001 * sampleRate))`. `processRunning()` line 308-311: snaps to target on completion. Tests: "stage timing within +/-1 sample", "FR-021 final sample snaps to exact target level" |
+| FR-022 | MET | `setLoopEnabled()` line 186-188; `loopEnabled_` field line 459. Test: "sustain bypassed when looping (FR-026)" |
+| FR-023 | MET | `setLoopStart()` line 190-194; `setLoopEnd()` line 196-200; both clamp to [0, numStages-1]. Test: "getLoopStart and getLoopEnd" in config queries |
+| FR-024 | MET | `advanceToNextStage()` line 377-381: when `loopEnabled_ && currentStage_ == loopEnd_`, calls `enterStage(loopStart_)`. Test: "basic loop cycles multiple times" |
+| FR-025 | MET | `setLoopStart()` line 193: pushes loopEnd up; `setLoopEnd()` line 199: pushes loopStart down. Test: "getLoopStart and getLoopEnd" verified set ordering |
+| FR-026 | MET | `advanceToNextStage()` line 386: sustain check guarded by `!loopEnabled_`. Test: "sustain bypassed when looping (FR-026)" |
+| FR-027 | MET | `gate(false)` line 124-128: enters release from Running state (during loop). Test: "gate-off during loop exits immediately to release" verifies no stage completion |
+| FR-028 | MET | `gate(true)` line 101-104: hard retrigger always calls `enterStage(0)`, which uses `stageStartLevel_ = output_` (current level). Tests: "hard retrigger from sustain restarts at stage 0", "hard retrigger from release restarts at stage 0" |
+| FR-029 | MET | `gate(true)` line 105-122: legato mode does nothing if Running/Sustaining; returns to sustain from Releasing. Tests: "legato mode continues from current position", "legato mode from release returns to sustain" |
+| FR-030 | MET | All setter methods (`setStageLevel`, `setStageTime`, `setStageCurve`, `setSustainPoint`, `setLoopStart`, `setLoopEnd`, `setReleaseTime`) are callable at any time. Tests: US6 section validates mid-stage changes |
+| FR-031 | MET | `setStageTime()` line 156-158 calls `recalcCurrentStage()` when active stage changes. `recalcCurrentStage()` line 415-449 adjusts rate. Test: "mid-stage time change (no discontinuity)" |
+| FR-032 | MET | `processSustaining()` line 318-324: one-pole smoother with `sustainSmoothCoef_` computed in `prepare()` line 76. Test: "sustain level change during hold (smooth transition)" |
+| FR-033 | MET | All processing methods are `noexcept`; no `new`/`delete`/locks/exceptions/I/O in process path. Fixed-size `std::array` for stages (line 456) |
+| FR-034 | MET | All processing and parameter-setting methods are `noexcept`: `process()` line 223, `processBlock()` line 240, `gate()` line 99, all setters |
+| FR-035 | MET | `processRunning()` line 314, `processSustaining()` line 322, `processReleasing()` line 336: all call `detail::flushDenormal()`. Test: "FR-035 denormal prevention" |
+| FR-036 | MET | File at `dsp/include/krate/dsp/processors/` (Layer 2). Includes only Layer 0 (`core/db_utils.h`) and Layer 1 (`primitives/envelope_utils.h`) |
+| SC-001 | MET | Test: "stage timing within +/-1 sample" verifies stages complete within +/-1 sample of expected count. Test: "traverses stages 0 through sustain point sequentially" verifies exact target levels at boundaries |
+| SC-002 | MET | Test: "SC-002 output continuous across stage transitions" measures maxStep=0.0043 (< 0.1 threshold). Test uses `maxStep()` helper across 4-stage traversal |
+| SC-003 | MET | Benchmark: 2.35 ns/sample = 0.0104% CPU at 44.1kHz (target: <0.05%). Measured via Catch2 BENCHMARK with 100 samples |
+| SC-004 | MET | Tests: "exponential curve midpoint > 0.55", "linear curve midpoint within 2% of 0.5", "logarithmic curve midpoint < 0.45" - all pass with measurably different trajectories |
+| SC-005 | MET | Test: "loop precision over 100 cycles (SC-005)": 100 consecutive cycles, boundary deviation < 0.001 |
+| SC-006 | MET | Test: "click-free retrigger transitions (SC-006)": step < 0.1 between last pre-retrigger and first post-retrigger sample |
+| SC-007 | MET | Test: "stage timing within 1% at all standard sample rates (SC-007)": 44100, 48000, 88200, 96000, 176400, 192000 Hz all within tolerance |
+| SC-008 | MET | Test: "release reaches idle within expected time (SC-008)": release completes within 3x configured time; `isActive()` returns false |
+| SC-009 | MET | 61 test cases with 968 assertions covering all FR requirements. Tests organized by user story with dedicated tests for each FR |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -363,21 +363,22 @@ grep -r "MultiStageEnvState" dsp/ plugins/
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
+All 36 functional requirements (FR-001 through FR-036) and 9 success criteria (SC-001 through SC-009) are MET with specific evidence cited in the compliance table above. No requirements were relaxed, removed, or deferred. FR-037 (namespace compliance) is covered by FR-036 evidence.
 
-**Recommendation**: [What needs to happen to achieve completion]
+**Implementation notes:**
+- Linear curves use phase-based interpolation instead of one-pole for precision at long durations (10,000ms). This satisfies FR-018 (constant-rate change) more accurately than the one-pole approach at extreme durations.
+- Exponential curves use a normalized reference output mapped to actual start/end levels, preserving curve shape regardless of arbitrary stage boundaries.
+- Performance: 2.35 ns/sample (0.0104% CPU at 44.1kHz), well under the 0.05% SC-003 target.

@@ -347,7 +347,7 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 - [X] T107 Write benchmark test for SC-003 (8-stage envelope < 0.05% CPU at 44.1kHz) in multi_stage_envelope_test.cpp
 - [X] T108 Run performance benchmark and record actual CPU usage (2.35ns/sample = 0.0104% CPU at 44.1kHz)
 - [X] T109 Verify SC-001 through SC-008 measurable outcomes against actual test results
-- [ ] T110 Document actual performance numbers in spec.md Implementation Verification table
+- [X] T110 Document actual performance numbers in spec.md Implementation Verification table
 
 ### 9.3 Sample Rate Accuracy
 
@@ -401,7 +401,7 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 ### 11.1 Run Clang-Tidy Analysis
 
-- [ ] T125 Run clang-tidy on all modified/new source files (envelope_utils.h, multi_stage_envelope.h, multi_stage_envelope_test.cpp, adsr_envelope.h):
+- [X] T125 Run clang-tidy on all modified/new source files (envelope_utils.h, multi_stage_envelope.h, multi_stage_envelope_test.cpp, adsr_envelope.h):
   ```bash
   # Windows (PowerShell)
   ./tools/run-clang-tidy.ps1 -Target dsp
@@ -412,10 +412,10 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 ### 11.2 Address Findings
 
-- [ ] T126 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T127 Review warnings and fix where appropriate (use judgment for DSP code)
-- [ ] T128 Document suppressions if any warnings are intentionally ignored (add NOLINT comment with reason)
-- [ ] T129 Commit clang-tidy fixes
+- [X] T126 Fix all errors reported by clang-tidy (blocking issues) - 0 errors found
+- [X] T127 Review warnings and fix where appropriate (use judgment for DSP code) - 0 warnings found
+- [X] T128 Document suppressions if any warnings are intentionally ignored (add NOLINT comment with reason) - none needed
+- [X] T129 Commit clang-tidy fixes - no fixes needed, analysis clean
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 
@@ -431,17 +431,17 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T130 Review ALL FR-001 through FR-037 requirements from spec.md against implementation (open files, read code, cite line numbers). Explicitly verify FR-037 (namespace compliance): all new types are in `Krate::DSP` namespace
-- [ ] T131 Review ALL SC-001 through SC-009 success criteria and verify measurable targets are achieved (run tests, record actual values)
-- [ ] T132 Search for cheating patterns in implementation:
-  - [ ] No `// placeholder` or `// TODO` comments in new code
-  - [ ] No test thresholds relaxed from spec requirements
-  - [ ] No features quietly removed from scope
+- [X] T130 Review ALL FR-001 through FR-037 requirements from spec.md against implementation (open files, read code, cite line numbers). Explicitly verify FR-037 (namespace compliance): all new types are in `Krate::DSP` namespace
+- [X] T131 Review ALL SC-001 through SC-009 success criteria and verify measurable targets are achieved (run tests, record actual values)
+- [X] T132 Search for cheating patterns in implementation:
+  - [X] No `// placeholder` or `// TODO` comments in new code
+  - [X] No test thresholds relaxed from spec requirements
+  - [X] No features quietly removed from scope
 
 ### 12.2 Fill Compliance Table in spec.md
 
-- [ ] T133 Update spec.md "Implementation Verification" section with compliance status for each FR-xxx and SC-xxx requirement (file paths, line numbers, test names, actual measured values)
-- [ ] T134 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T133 Update spec.md "Implementation Verification" section with compliance status for each FR-xxx and SC-xxx requirement (file paths, line numbers, test names, actual measured values)
+- [X] T134 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 12.3 Honest Self-Check
 
@@ -453,7 +453,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T135 All self-check questions answered "no" (or gaps documented honestly)
+- [X] T135 All self-check questions answered "no" (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -465,12 +465,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 13.1 Final Commit
 
-- [ ] T136 Commit all spec work to feature branch 033-multi-stage-envelope
-- [ ] T137 Verify all tests pass via CTest in Release configuration
+- [X] T136 Commit all spec work to feature branch 033-multi-stage-envelope
+- [X] T137 Verify all tests pass via CTest in Release configuration
 
 ### 13.2 Completion Claim
 
-- [ ] T138 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T138 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 
