@@ -72,6 +72,8 @@ enum class EnvCurve : uint8_t { Linear, Exponential, Logarithmic };
 
 **Unlocks**: Filter envelope, amplitude envelope, mod envelope, voice release detection
 
+**status** Finished
+
 ---
 
 ### 1.2 Multi-Stage Envelope (Optional Enhancement)
