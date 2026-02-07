@@ -5412,3 +5412,77 @@ if (!offEvent.isNoteOn) {
 **Memory:** ~72 bytes per instance (16-entry note stack + portamento state). Real-time safe, single-threaded.
 
 **Dependencies:** Layer 0 (midi_utils.h, pitch_utils.h, db_utils.h), Layer 1 (LinearRamp from smoother.h)
+
+---
+
+## NoteProcessor
+**Path:** [note_processor.h](../../dsp/include/krate/dsp/processors/note_processor.h) | **Since:** 0.17.0
+
+MIDI note processing with pitch bend smoothing and velocity curve mapping. Converts MIDI note numbers to frequencies using 12-TET with configurable A4 tuning (400-480 Hz), applies smoothed pitch bend with configurable range (0-24 semitones), and maps velocity through four curve types (Linear, Soft, Hard, Fixed) with multi-destination depth scaling (amplitude, filter, envelope time).
+
+```cpp
+struct VelocityOutput {
+    float amplitude    = 0.0f;  // Velocity scaled for amplitude
+    float filter       = 0.0f;  // Velocity scaled for filter cutoff
+    float envelopeTime = 0.0f;  // Velocity scaled for envelope time
+};
+
+class NoteProcessor {
+    // Initialization
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Pitch bend
+    void setPitchBend(float bipolar) noexcept;
+    [[nodiscard]] float processPitchBend() noexcept;
+    [[nodiscard]] float getFrequency(uint8_t note) const noexcept;
+
+    // Pitch bend configuration
+    void setPitchBendRange(float semitones) noexcept;   // [0, 24], default 2
+    void setSmoothingTime(float ms) noexcept;            // default 5ms
+
+    // Tuning
+    void setTuningReference(float hz) noexcept;          // [400, 480], default 440
+    [[nodiscard]] float getTuningReference() const noexcept;
+
+    // Velocity
+    void setVelocityCurve(VelocityCurve curve) noexcept;
+    [[nodiscard]] VelocityOutput mapVelocity(int velocity) const noexcept;
+    void setAmplitudeVelocityDepth(float depth) noexcept;   // [0, 1], default 1.0
+    void setFilterVelocityDepth(float depth) noexcept;      // [0, 1], default 0.0
+    void setEnvelopeTimeVelocityDepth(float depth) noexcept; // [0, 1], default 0.0
+};
+```
+
+**Usage example:**
+
+```cpp
+NoteProcessor noteProc;
+noteProc.prepare(44100.0);
+noteProc.setTuningReference(442.0f);
+noteProc.setVelocityCurve(VelocityCurve::Soft);
+noteProc.setAmplitudeVelocityDepth(1.0f);
+noteProc.setFilterVelocityDepth(0.5f);
+
+// Per note-on
+VelocityOutput vel = noteProc.mapVelocity(100);
+
+// Per audio block (once, shared by all voices)
+noteProc.setPitchBend(0.5f);
+noteProc.processPitchBend();
+
+// Per voice
+float freq = noteProc.getFrequency(69);
+```
+
+**When to use:**
+- Polyphonic/monophonic synthesizers needing note-to-frequency conversion
+- Any voice engine requiring smoothed pitch bend
+- Instruments needing configurable velocity response curves
+- Multi-destination velocity routing (amplitude + filter + envelope)
+
+**Usage pattern:** prepare once, processPitchBend once per block, getFrequency per voice, mapVelocity per note-on.
+
+**Memory:** ~60 bytes per instance (OnePoleSmoother + cached state). Real-time safe, single-threaded.
+
+**Dependencies:** Layer 0 (midi_utils.h, pitch_utils.h, db_utils.h), Layer 1 (OnePoleSmoother from smoother.h)

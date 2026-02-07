@@ -19,6 +19,7 @@
 #include <krate/dsp/core/db_utils.h>  // For detail::constexprExp
 
 #include <algorithm>  // For std::clamp
+#include <cmath>     // For std::sqrt, std::pow
 #include <cstdint>
 
 namespace Krate {
@@ -106,6 +107,67 @@ inline constexpr int kMaxMidiVelocity = 127;
                               : (velocity > kMaxMidiVelocity) ? kMaxMidiVelocity
                               : velocity;
     return static_cast<float>(clampedVelocity) / static_cast<float>(kMaxMidiVelocity);
+}
+
+// ==============================================================================
+// Velocity Curve Types
+// ==============================================================================
+
+/// Velocity-to-gain mapping curve types for MIDI velocity processing.
+///
+/// These curves determine how MIDI velocity (0-127) is mapped to a
+/// normalized gain value (0.0-1.0), shaping the dynamic response.
+///
+/// @note Velocity 0 always produces 0.0 regardless of curve type.
+enum class VelocityCurve : uint8_t {
+    Linear = 0,   ///< output = velocity / 127.0
+    Soft   = 1,   ///< output = sqrt(velocity / 127.0) -- concave, easier dynamics
+    Hard   = 2,   ///< output = (velocity / 127.0)^2   -- convex, emphasizes forte
+    Fixed  = 3    ///< output = 1.0 for any velocity > 0
+};
+
+/// Map MIDI velocity through the specified curve type.
+///
+/// Applies the selected velocity curve to produce a normalized gain value.
+/// All curves return 0.0 for velocity 0 (FR-015).
+/// Velocity is clamped to [0, 127] (FR-016).
+///
+/// @param velocity MIDI velocity (clamped to [0, 127])
+/// @param curve Velocity curve type
+/// @return Normalized gain [0.0, 1.0]
+///
+/// @note Real-time safe: no allocation, no exceptions
+///
+/// @example mapVelocity(127, VelocityCurve::Linear) -> 1.0
+/// @example mapVelocity(64, VelocityCurve::Soft)    -> ~0.710
+/// @example mapVelocity(64, VelocityCurve::Hard)    -> ~0.254
+/// @example mapVelocity(1, VelocityCurve::Fixed)    -> 1.0
+///
+[[nodiscard]] inline float mapVelocity(int velocity, VelocityCurve curve) noexcept {
+    // Clamp velocity to valid range (FR-016)
+    const int clamped = (velocity < kMinMidiVelocity) ? kMinMidiVelocity
+                      : (velocity > kMaxMidiVelocity) ? kMaxMidiVelocity
+                      : velocity;
+
+    // Velocity 0 always returns 0.0 regardless of curve (FR-015)
+    if (clamped == 0) {
+        return 0.0f;
+    }
+
+    const float normalized = static_cast<float>(clamped) / static_cast<float>(kMaxMidiVelocity);
+
+    switch (curve) {
+        case VelocityCurve::Linear:
+            return normalized;  // FR-011
+        case VelocityCurve::Soft:
+            return std::sqrt(normalized);  // FR-012
+        case VelocityCurve::Hard:
+            return normalized * normalized;  // FR-013
+        case VelocityCurve::Fixed:
+            return 1.0f;  // FR-014
+        default:
+            return normalized;  // Fallback to linear
+    }
 }
 
 }  // namespace DSP
