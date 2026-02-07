@@ -39,6 +39,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 namespace Krate {
@@ -93,6 +94,9 @@ public:
     /// Smoothing time constant (ms)
     static constexpr float kSmoothingTimeMs = 50.0f;
 
+    /// Sentinel value for invalid bin mapping (source beyond Nyquist)
+    static constexpr std::size_t kInvalidBin = std::numeric_limits<std::size_t>::max();
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -141,6 +145,17 @@ public:
         const std::size_t numBins = fftSize / 2 + 1;
         shiftedMagnitudes_.resize(numBins, 0.0f);
         shiftedPhases_.resize(numBins, 0.0f);
+
+        // Pre-compute octave distances from tilt pivot (eliminates log2 from hot loop)
+        octavesFromPivot_.resize(numBins, 0.0f);
+        const float binFreqStep = static_cast<float>(sampleRate) / static_cast<float>(fftSize);
+        for (std::size_t bin = 1; bin < numBins; ++bin) {
+            const float binFreq = static_cast<float>(bin) * binFreqStep;
+            octavesFromPivot_[bin] = std::log2(binFreq / kTiltPivotHz);
+        }
+
+        // Pre-compute spectral shift bin mapping
+        recomputeShiftMapping(numBins);
 
         // Configure smoothers (FR-018: smooth parameter changes)
         // Note: Smoothers are called once per frame, not once per sample,
@@ -411,7 +426,13 @@ public:
     /// @note Bins beyond Nyquist are zeroed
     /// @note FR-007
     void setSpectralShift(float semitones) noexcept {
-        spectralShift_ = std::clamp(semitones, kMinSpectralShift, kMaxSpectralShift);
+        const float clamped = std::clamp(semitones, kMinSpectralShift, kMaxSpectralShift);
+        if (clamped != spectralShift_) {
+            spectralShift_ = clamped;
+            if (prepared_) {
+                recomputeShiftMapping(fftSize_ / 2 + 1);
+            }
+        }
     }
 
     /// @brief Set spectral tilt (brightness control)
@@ -634,27 +655,21 @@ private:
     }
 
     /// @brief Apply spectral shift via bin rotation
-    void applySpectralShift(SpectralBuffer& spectrum, float semitones) noexcept {
+    /// @note Uses pre-computed bin mapping from setSpectralShift() to avoid
+    ///       division and rounding in the hot loop.
+    void applySpectralShift(SpectralBuffer& spectrum, [[maybe_unused]] float semitones) noexcept {
         const std::size_t numBins = spectrum.numBins();
-
-        // Convert semitones to frequency ratio: ratio = 2^(semitones/12)
-        const float ratio = std::pow(2.0f, semitones / 12.0f);
 
         // Clear temp buffers
         std::fill(shiftedMagnitudes_.begin(), shiftedMagnitudes_.end(), 0.0f);
         std::fill(shiftedPhases_.begin(), shiftedPhases_.end(), 0.0f);
 
-        // For each output bin, find the source bin
-        // Output bin k corresponds to frequency f_k
-        // Source frequency = f_k / ratio
-        // Source bin = k / ratio (nearest-neighbor rounding)
+        // Use pre-computed bin mapping (recomputed in setSpectralShift)
         for (std::size_t outBin = 0; outBin < numBins; ++outBin) {
-            // Calculate source bin (nearest-neighbor rounding)
-            const float srcBinFloat = static_cast<float>(outBin) / ratio;
-            const std::size_t srcBin = static_cast<std::size_t>(std::round(srcBinFloat));
+            const std::size_t srcBin = shiftBinMapping_[outBin];
 
-            // If source bin is valid, copy magnitude and phase
-            if (srcBin < numBins) {
+            // kInvalidBin sentinel means source bin was beyond Nyquist
+            if (srcBin != kInvalidBin && srcBin < numBins) {
                 shiftedMagnitudes_[outBin] = spectrum.getMagnitude(srcBin);
                 shiftedPhases_[outBin] = spectrum.getPhase(srcBin);
             }
@@ -669,28 +684,40 @@ private:
     }
 
     /// @brief Apply spectral tilt with 1 kHz pivot
+    /// @note Uses pre-computed octave distances from prepare() to avoid
+    ///       log2() in the hot loop. Only pow() remains per bin.
     void applySpectralTilt(SpectralBuffer& spectrum, float dBPerOctave) noexcept {
         const std::size_t numBins = spectrum.numBins();
-        const float binFreqStep = static_cast<float>(sampleRate_) / static_cast<float>(fftSize_);
-
-        // Pivot at 1 kHz
-        constexpr float pivotFreq = kTiltPivotHz;
 
         for (std::size_t bin = 1; bin < numBins; ++bin) {  // Skip DC bin
-            const float binFreq = static_cast<float>(bin) * binFreqStep;
-
-            // Calculate octave distance from pivot: octaves = log2(freq / pivot)
-            const float octaves = std::log2(binFreq / pivotFreq);
-
-            // Calculate gain: gain_dB = tilt * octaves
-            const float gainDb = dBPerOctave * octaves;
-
-            // Convert to linear: gain = 10^(gainDb/20)
+            // octavesFromPivot_[bin] was pre-computed in prepare()
+            const float gainDb = dBPerOctave * octavesFromPivot_[bin];
             const float gainLinear = std::pow(10.0f, gainDb / 20.0f);
 
-            // Apply gain to magnitude
             const float currentMag = spectrum.getMagnitude(bin);
             spectrum.setMagnitude(bin, currentMag * gainLinear);
+        }
+    }
+
+    /// @brief Recompute the bin mapping table for spectral shift
+    /// @note Called from setSpectralShift() and prepare()
+    void recomputeShiftMapping(std::size_t numBins) noexcept {
+        shiftBinMapping_.resize(numBins);
+
+        if (std::abs(spectralShift_) <= 0.001f) {
+            // Identity mapping when shift is effectively zero
+            for (std::size_t bin = 0; bin < numBins; ++bin) {
+                shiftBinMapping_[bin] = bin;
+            }
+            return;
+        }
+
+        const float ratio = std::pow(2.0f, spectralShift_ / 12.0f);
+
+        for (std::size_t outBin = 0; outBin < numBins; ++outBin) {
+            const float srcBinFloat = static_cast<float>(outBin) / ratio;
+            const auto srcBin = static_cast<std::size_t>(std::round(srcBinFloat));
+            shiftBinMapping_[outBin] = (srcBin < numBins) ? srcBin : kInvalidBin;
         }
     }
 
@@ -745,6 +772,10 @@ private:
     // Temp buffers for spectral shift
     std::vector<float> shiftedMagnitudes_;
     std::vector<float> shiftedPhases_;
+
+    // Pre-computed lookup tables (populated in prepare/setSpectralShift)
+    std::vector<float> octavesFromPivot_;       // Tilt: octave distance per bin
+    std::vector<std::size_t> shiftBinMapping_;  // Shift: source bin per output bin
 
     // Single-sample processing buffers
     std::vector<float> singleSampleInputBuffer_;
