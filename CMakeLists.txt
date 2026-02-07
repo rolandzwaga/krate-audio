@@ -234,6 +234,7 @@ add_subdirectory(plugins/shared)
 # ==============================================================================
 add_subdirectory(plugins/iterum)
 add_subdirectory(plugins/disrumpo)
+add_subdirectory(plugins/ruinae)
 
 # ==============================================================================
 # Tools (Shared development tools)

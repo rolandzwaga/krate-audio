@@ -1279,3 +1279,138 @@ for (size_t i = 0; i < numSamples; ++i) {
 voice.noteOff();
 // Continue processing until voice.isActive() returns false
 ```
+
+---
+
+## PolySynthEngine
+**Path:** [poly_synth_engine.h](../../dsp/include/krate/dsp/systems/poly_synth_engine.h) | **Since:** 0.14.2
+
+Complete polyphonic synthesis engine composing VoiceAllocator, SynthVoice pool, MonoHandler, NoteProcessor, and global SVF filter into a configurable engine.
+
+```cpp
+enum class VoiceMode : uint8_t { Poly, Mono };
+
+class PolySynthEngine {
+    static constexpr size_t kMaxPolyphony = 16;
+    static constexpr float kMinMasterGain = 0.0f;
+    static constexpr float kMaxMasterGain = 2.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    // Note dispatch
+    void noteOn(uint8_t note, uint8_t velocity) noexcept;
+    void noteOff(uint8_t note) noexcept;
+
+    // Configuration
+    void setPolyphony(size_t count) noexcept;        // [1, 16]
+    void setMode(VoiceMode mode) noexcept;           // Poly/Mono switching
+    void setMasterGain(float gain) noexcept;         // [0, 2]
+    void setSoftLimitEnabled(bool enabled) noexcept;
+
+    // Global filter
+    void setGlobalFilterEnabled(bool enabled) noexcept;
+    void setGlobalFilterCutoff(float hz) noexcept;   // [20, 20000]
+    void setGlobalFilterResonance(float q) noexcept; // [0.1, 30]
+    void setGlobalFilterType(SVFMode mode) noexcept;
+
+    // Mono mode config
+    void setMonoPriority(MonoMode mode) noexcept;
+    void setLegato(bool enabled) noexcept;
+    void setPortamentoTime(float ms) noexcept;
+    void setPortamentoMode(PortaMode mode) noexcept;
+
+    // Voice parameter forwarding (all 16 voices)
+    void setOsc1Waveform(OscWaveform waveform) noexcept;
+    void setOsc2Waveform(OscWaveform waveform) noexcept;
+    void setOscMix(float mix) noexcept;
+    void setFilterCutoff(float hz) noexcept;
+    void setFilterResonance(float q) noexcept;
+    void setAmpAttack(float ms) noexcept;
+    void setAmpRelease(float ms) noexcept;
+    // ... (30+ parameter forwarding methods)
+
+    // NoteProcessor config
+    void setPitchBend(float bipolar) noexcept;
+    void setPitchBendRange(float semitones) noexcept;
+    void setTuningReference(float a4Hz) noexcept;
+    void setVelocityCurve(VelocityCurve curve) noexcept;
+
+    // VoiceAllocator config
+    void setAllocationMode(AllocationMode mode) noexcept;
+    void setStealMode(StealMode mode) noexcept;
+
+    // Processing
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // State queries
+    [[nodiscard]] uint32_t getActiveVoiceCount() const noexcept;
+    [[nodiscard]] VoiceMode getMode() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Poly mode:
+  noteOn/Off -> VoiceAllocator -> SynthVoice[0..N-1]
+  -> Sum -> Global Filter (optional) -> Master Gain * 1/sqrt(N) -> Soft Limit (tanh)
+
+Mono mode:
+  noteOn/Off -> MonoHandler -> SynthVoice[0] (with legato/portamento)
+  -> Global Filter (optional) -> Master Gain * 1/sqrt(N) -> Soft Limit (tanh)
+```
+
+**Key Features:**
+- Composes 16 SynthVoice (L3), VoiceAllocator (L3), MonoHandler (L2), NoteProcessor (L2), SVF (L1)
+- Poly mode: full polyphonic playback with configurable voice count (1-16)
+- Mono mode: single-voice with legato, portamento, and note priority
+- Poly->Mono switch: most recent voice survives, others released
+- Gain compensation: `1/sqrt(polyphonyCount)` based on configured (not active) voice count
+- Soft limiting: `Sigmoid::tanh()` (Pade 5,4 approximant) prevents output exceeding [-1, +1]
+- Global post-mix SVF filter with enable/disable bypass
+- Unified parameter forwarding: set once on engine, applied to all 16 voices
+- NoteProcessor is source of truth for audio frequencies (applies tuning + pitch bend)
+- Deferred voiceFinished() notification (after processBlock, not mid-block)
+- NaN/Inf guard on all float setters
+- Per-sample portamento in mono mode for smooth frequency glides
+- Header-only, zero allocations in processBlock(), all methods noexcept
+- < 5% CPU with 8 voices at 44.1 kHz, < 32 KB static footprint
+
+**When to Use:**
+- Complete polyphonic synthesis engine for plugin integration
+- Any scenario requiring managed multi-voice synthesis with mode switching
+- Plugin processor that needs a single-call interface for synth functionality
+
+**Related Components:**
+- SynthVoice (Layer 3): individual voice DSP managed by this engine
+- VoiceAllocator (Layer 3): polyphonic voice routing managed by this engine
+- MonoHandler (Layer 2): monophonic note handling managed by this engine
+- NoteProcessor (Layer 2): pitch/velocity processing managed by this engine
+- FMVoice (Layer 3): alternative voice type for future multi-engine synth
+
+**Example:**
+```cpp
+PolySynthEngine engine;
+engine.prepare(44100.0, 512);
+
+// Configure sound
+engine.setOsc1Waveform(OscWaveform::Sawtooth);
+engine.setFilterCutoff(2000.0f);
+engine.setAmpRelease(500.0f);
+engine.setPolyphony(8);
+
+// Play a chord
+engine.noteOn(60, 100);  // C4
+engine.noteOn(64, 100);  // E4
+engine.noteOn(67, 100);  // G4
+
+// Process audio
+std::array<float, 512> output{};
+engine.processBlock(output.data(), output.size());
+
+// Release
+engine.noteOff(60);
+engine.noteOff(64);
+engine.noteOff(67);
+```

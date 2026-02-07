@@ -282,6 +282,8 @@ class SynthVoice {
 
 **Dependencies**: Layer 1 (PolyBlepOscillator, ADSREnvelope, SVF), Layer 2 (MultimodeFilter)
 
+**status** Finished
+
 ---
 
 ### 3.2 Polyphonic Synth Engine

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vstgui-ui-description version="1">
+    <!-- ==================================================================== -->
+    <!-- Ruinae - Chaos/Spectral Hybrid Synthesizer                          -->
+    <!-- Placeholder UI layout - will be designed in Phase 8                  -->
+    <!-- ==================================================================== -->
+
+    <template
+        name="editor"
+        minSize="900, 600"
+        maxSize="900, 600"
+        size="900, 600"
+        background-color="#2D2D2D"
+        class="CViewContainer"
+    >
+        <!-- Plugin Title -->
+        <view
+            class="CTextLabel"
+            origin="20, 10"
+            size="200, 30"
+            title="RUINAE"
+            font="~ NormalFontVeryBig"
+            font-color="#FFFFFF"
+            text-alignment="left"
+            transparent="true"
+        />
+
+        <!-- Version Label -->
+        <view
+            class="CTextLabel"
+            origin="700, 10"
+            size="180, 20"
+            title="v0.1.0"
+            font="~ NormalFontSmall"
+            font-color="#808080"
+            text-alignment="right"
+            transparent="true"
+        />
+
+        <!-- Placeholder message -->
+        <view
+            class="CTextLabel"
+            origin="200, 250"
+            size="500, 40"
+            title="UI will be designed in Phase 8"
+            font="~ NormalFontBig"
+            font-color="#606060"
+            text-alignment="center"
+            transparent="true"
+        />
+    </template>
+</vstgui-ui-description>

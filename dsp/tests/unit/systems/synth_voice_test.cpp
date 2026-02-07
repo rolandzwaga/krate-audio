@@ -1631,3 +1631,70 @@ TEST_CASE("SynthVoice CPU usage under 1%", "[synth-voice][performance]") {
     double cpuPercent = static_cast<double>(durationUs) / 1000000.0 * 100.0;
     REQUIRE(cpuPercent < 1.0);
 }
+
+// =============================================================================
+// setFrequency() Tests (spec 038 prerequisite)
+// =============================================================================
+
+TEST_CASE("SynthVoice setFrequency updates oscillator without retriggering", "[synth-voice]") {
+    auto voice = createPreparedVoice();
+
+    SECTION("setFrequency changes pitch during sustain") {
+        // Start note at 440 Hz, let envelope reach sustain
+        voice.setAmpAttack(1.0f);    // very short attack
+        voice.setAmpDecay(1.0f);     // very short decay
+        voice.setAmpSustain(1.0f);   // full sustain
+        voice.noteOn(440.0f, 0.8f);
+
+        // Process into sustain (after attack+decay)
+        std::vector<float> preChange(2048);
+        for (size_t i = 0; i < preChange.size(); ++i) {
+            preChange[i] = voice.process();
+        }
+
+        // Capture amp envelope level at sustain
+        float prePeak = 0.0f;
+        for (size_t i = 1900; i < 2048; ++i) {
+            prePeak = std::max(prePeak, std::abs(preChange[i]));
+        }
+        REQUIRE(prePeak > 0.0f); // Voice is active in sustain
+
+        // Change frequency to 880 Hz - should NOT retrigger envelope
+        voice.setFrequency(880.0f);
+
+        // Process more samples - envelope should remain in sustain
+        std::vector<float> postChange(512);
+        for (size_t i = 0; i < postChange.size(); ++i) {
+            postChange[i] = voice.process();
+        }
+
+        float postPeak = 0.0f;
+        for (size_t i = 0; i < postChange.size(); ++i) {
+            postPeak = std::max(postPeak, std::abs(postChange[i]));
+        }
+        // Should still be producing audio at similar level (no restart)
+        REQUIRE(postPeak > prePeak * 0.5f);
+    }
+
+    SECTION("NaN input is ignored") {
+        voice.noteOn(440.0f, 0.8f);
+        // Process a bit so voice is active
+        for (int i = 0; i < 100; ++i) { [[maybe_unused]] auto s = voice.process(); }
+
+        voice.setFrequency(std::numeric_limits<float>::quiet_NaN());
+        // Voice should still be active, frequency unchanged
+        REQUIRE(voice.isActive());
+        float sample = voice.process();
+        REQUIRE_FALSE(std::isnan(sample));
+    }
+
+    SECTION("Inf input is ignored") {
+        voice.noteOn(440.0f, 0.8f);
+        for (int i = 0; i < 100; ++i) { [[maybe_unused]] auto s = voice.process(); }
+
+        voice.setFrequency(std::numeric_limits<float>::infinity());
+        REQUIRE(voice.isActive());
+        float sample = voice.process();
+        REQUIRE_FALSE(std::isinf(sample));
+    }
+}
