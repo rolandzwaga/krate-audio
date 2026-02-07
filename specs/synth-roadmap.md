@@ -87,6 +87,8 @@ Extended envelope for complex modulation (Korg MS-20 style, looping envelopes).
 - Per-stage time and level
 - Sustain point selection
 
+**status** Finished
+
 ---
 
 ## Phase 2: Voice Management

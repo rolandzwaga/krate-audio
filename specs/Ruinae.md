@@ -868,6 +868,120 @@ If you want next, we can:
 * Design a **probabilistic / chaos-mutated pattern mode**
 * Or sketch a **minimal RT-safe C++ class interface**
 
+# Trance gate envelope integration
+
+## Envelope-Aware Trance Gate Modulation
+
+### Overview
+
+The Trance Gate may optionally operate as an **envelope-aware modulation source**, allowing rhythmic modulation characteristics to evolve in relation to the voice’s amplitude envelope. This feature is intended for **slow, pad-like patches** and is **disabled by default**.
+
+The goal is to create coherent, musically intentional motion by coupling **articulation (envelope stage)** with **rhythmic modulation**, without introducing discontinuities, clicks, or unpredictable behavior.
+
+---
+
+## Design Principles
+
+* Envelope–gate coupling is **opt-in**, never implicit.
+* Envelope stage transitions **must not reset gate phase**.
+* The Trance Gate remains a continuous, tempo-locked modulation signal.
+* Envelope-aware behavior is **control-rate only**.
+* Fast envelopes are explicitly excluded to prevent rhythmic instability.
+
+---
+
+## Operational Constraints
+
+* Envelope-aware gate modulation is only active when **all envelope stages involved exceed a minimum duration** (recommended: ≥ 250 ms).
+* If any stage duration falls below this threshold, the Trance Gate operates in standard, envelope-agnostic mode.
+* Gate phase continuity is preserved across all envelope stage transitions.
+
+---
+
+## Supported Coupling Modes
+
+### Mode 1: Envelope-Weighted Pattern Morph (Recommended)
+
+* Multiple Trance Gate patterns may be assigned.
+* Each envelope stage defines a **pattern weight vector**.
+* The effective gate signal is computed as a **weighted blend** of the active patterns.
+* Pattern blending is continuous and click-free.
+* No pattern retriggering occurs.
+
+**Use case:** Evolving rhythmic motion across long attack/sustain/release phases.
+
+---
+
+### Mode 2: Stage-Indexed Pattern Selection (Simple)
+
+* Each envelope stage may optionally reference a single Trance Gate pattern.
+* Pattern selection occurs **only at envelope stage entry**.
+* Gate phase continues uninterrupted.
+* Pattern selection is static for the duration of the stage.
+
+**Use case:** Clear rhythmic identity per articulation phase.
+
+---
+
+### Mode 3: Envelope-Modulated Gate Depth (Conservative)
+
+* The Trance Gate pattern remains constant.
+* Envelope stages modulate **gate depth** or **probability**.
+* Smoothing is applied at stage boundaries to prevent stepping artifacts.
+
+**Use case:** Subtle motion without changing rhythmic structure.
+
+---
+
+## Modulation Signal Characteristics
+
+* Trance Gate modulation output is available as:
+
+  * Unipolar [0.0, 1.0]
+  * Bipolar [-1.0, +1.0]
+* Optional smoothing is applied when used as a modulation source.
+* Smoothing time is fixed and short (recommended: 1–5 ms).
+
+---
+
+## Signal Path Integration
+
+* The Trance Gate continues to function as a **rhythmic VCA** in the audio path.
+* Envelope-aware modulation affects only:
+
+  * Gate pattern selection
+  * Pattern blending weights
+  * Gate depth/probability
+* Audio amplitude gating behavior remains unchanged.
+
+---
+
+## UI / UX Requirements
+
+* Envelope-aware gate modulation is hidden under an **Advanced / Pad Motion** section.
+* Default behavior is OFF.
+* Presets may enable this feature but must do so intentionally and transparently.
+* No parameter explosion: implementations should prefer macros or grouped controls.
+
+---
+
+## Non-Goals
+
+* Envelope stage transitions must not:
+
+  * Reset tempo phase
+  * Restart gate cycles
+  * Introduce discontinuities
+* Envelope-aware modulation is not intended for percussive or fast envelope use cases.
+* No audio-rate modulation of gate parameters.
+
+---
+
+## Rationale
+
+Coupling rhythmic modulation to envelope articulation creates **coherent temporal structure** in slow-evolving sounds, particularly pads and textures. By constraining the interaction to continuous, opt-in mechanisms, this design avoids the instability and cognitive overload common in over-modulated systems while enabling expressive, intentional motion.
+
+---
 
 ## Design Principles
 
