@@ -109,6 +109,7 @@
 #include <krate/dsp/processors/karplus_strong.h>
 #include <krate/dsp/processors/midside_processor.h>
 #include <krate/dsp/processors/modal_resonator.h>
+#include <krate/dsp/processors/mono_handler.h>
 #include <krate/dsp/processors/multimode_filter.h>
 #include <krate/dsp/processors/multistage_env_filter.h>
 #include <krate/dsp/processors/noise_generator.h>
