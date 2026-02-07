@@ -41,6 +41,7 @@
 #include <krate/dsp/core/window_functions.h>
 
 // Layer 1: Primitives
+#include <krate/dsp/primitives/adsr_envelope.h>
 #include <krate/dsp/primitives/allpass_1pole.h>
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/bit_crusher.h>
