@@ -5327,3 +5327,88 @@ class MultiStageEnvelope {
 **Performance:** ~2.35 ns/sample, 0.01% CPU at 44.1kHz (SC-003 target: <0.05%).
 
 **Dependencies:** Layer 0 (db_utils.h), Layer 1 (envelope_utils.h)
+
+---
+
+## MonoHandler
+**Path:** [mono_handler.h](../../dsp/include/krate/dsp/processors/mono_handler.h) | **Since:** 0.16.0
+
+Monophonic note management with legato and portamento. Manages a 16-entry fixed-capacity note stack, implements three note priority algorithms (LastNote, LowNote, HighNote), provides legato mode for envelope retrigger suppression, and offers constant-time portamento that operates linearly in pitch space (semitones). Does not produce audio -- returns `MonoNoteEvent` instructions for the caller (synth voice) to act on.
+
+```cpp
+// Event descriptor returned by noteOn/noteOff
+struct MonoNoteEvent {
+    float frequency;    // Hz (12-TET, A4=440Hz)
+    uint8_t velocity;   // 0-127
+    bool retrigger;     // true = restart envelopes
+    bool isNoteOn;      // true = note active
+};
+
+enum class MonoMode : uint8_t { LastNote, LowNote, HighNote };
+enum class PortaMode : uint8_t { Always, LegatoOnly };
+
+class MonoHandler {
+    // Initialization
+    void prepare(double sampleRate) noexcept;
+
+    // Note events -- return MonoNoteEvent instructions
+    [[nodiscard]] MonoNoteEvent noteOn(int note, int velocity) noexcept;
+    [[nodiscard]] MonoNoteEvent noteOff(int note) noexcept;
+
+    // Portamento -- call once per sample
+    [[nodiscard]] float processPortamento() noexcept;
+    [[nodiscard]] float getCurrentFrequency() const noexcept;
+
+    // Configuration
+    void setMode(MonoMode mode) noexcept;
+    void setLegato(bool enabled) noexcept;
+    void setPortamentoTime(float ms) noexcept;   // 0-10000 ms
+    void setPortamentoMode(PortaMode mode) noexcept;
+
+    // State
+    [[nodiscard]] bool hasActiveNote() const noexcept;
+    void reset() noexcept;
+};
+```
+
+**Usage example:**
+
+```cpp
+MonoHandler mono;
+mono.prepare(44100.0);
+mono.setPortamentoTime(50.0f);
+mono.setLegato(true);
+
+// On MIDI note-on
+auto event = mono.noteOn(60, 100);
+if (event.retrigger) {
+    envelope.trigger();
+}
+
+// Per-sample in audio callback
+for (int i = 0; i < blockSize; ++i) {
+    float freq = mono.processPortamento();
+    oscillator.setFrequency(freq);
+    output[i] = oscillator.process() * envelope.process();
+}
+
+// On MIDI note-off
+auto offEvent = mono.noteOff(60);
+if (!offEvent.isNoteOn) {
+    envelope.release();
+}
+```
+
+**When to use:**
+- Mono synth voice where only one note sounds at a time
+- Mono mode in a polyphonic synth engine (complementary to VoiceAllocator)
+- Lead and bass synth patches requiring legato phrasing and portamento
+- Classic mono synth emulation (Minimoog low-note, Korg MS-20 high-note, etc.)
+
+**When to use VoiceAllocator instead:**
+- Polyphonic voice management (multiple simultaneous notes)
+- Voice stealing, unison, round-robin allocation
+
+**Memory:** ~72 bytes per instance (16-entry note stack + portamento state). Real-time safe, single-threaded.
+
+**Dependencies:** Layer 0 (midi_utils.h, pitch_utils.h, db_utils.h), Layer 1 (LinearRamp from smoother.h)

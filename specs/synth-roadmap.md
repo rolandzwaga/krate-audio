@@ -188,6 +188,8 @@ enum class PortaMode : uint8_t { Always, LegatoOnly };
 
 **Dependencies**: Layer 0 (pitch_utils), Layer 1 (smoother)
 
+**status** Finished
+
 ---
 
 ### 2.3 Note Event Processor

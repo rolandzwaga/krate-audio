@@ -123,6 +123,7 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/reverse_feedback_processor.h
     include/krate/dsp/processors/saturation_processor.h
     include/krate/dsp/processors/spectral_freeze_oscillator.h
+    include/krate/dsp/processors/mono_handler.h
 )
 
 # Layer 3: Systems
