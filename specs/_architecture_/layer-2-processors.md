@@ -5245,3 +5245,85 @@ class SpectralFreezeOscillator {
 **Memory:** ~90 KB without formant, ~170 KB with formant shift (for fftSize=2048).
 
 **Dependencies:** Layer 0 (math_constants.h, window_functions.h, pitch_utils.h, db_utils.h), Layer 1 (fft.h, spectral_buffer.h, spectral_utils.h), Layer 2 (formant_preserver.h)
+
+---
+
+## MultiStageEnvelope (Multi-Stage Envelope Generator)
+**Path:** [multi_stage_envelope.h](../../dsp/include/krate/dsp/processors/multi_stage_envelope.h) | **Since:** 0.16.0
+
+Configurable multi-stage envelope generator (4-8 stages) with per-stage time/level/curve, sustain point selection, loop points for LFO-like behavior, and retrigger modes.
+
+```cpp
+struct EnvStageConfig {
+    float targetLevel = 0.0f;     // [0.0, 1.0]
+    float timeMs = 100.0f;       // [0.0, 10000.0]
+    EnvCurve curve = EnvCurve::Exponential;
+};
+
+enum class MultiStageEnvState : uint8_t { Idle, Running, Sustaining, Releasing };
+
+class MultiStageEnvelope {
+    static constexpr int kMinStages = 4;
+    static constexpr int kMaxStages = 8;
+    static constexpr float kMaxStageTimeMs = 10000.0f;
+
+    // Lifecycle
+    void prepare(float sampleRate) noexcept;
+    void reset() noexcept;
+    void gate(bool on) noexcept;
+
+    // Stage configuration
+    void setNumStages(int count) noexcept;           // [4, 8]
+    void setStageLevel(int stage, float level) noexcept;
+    void setStageTime(int stage, float ms) noexcept;
+    void setStageCurve(int stage, EnvCurve curve) noexcept;
+    void setStage(int stage, float level, float ms, EnvCurve curve) noexcept;
+
+    // Sustain and loop
+    void setSustainPoint(int stage) noexcept;
+    void setLoopEnabled(bool enabled) noexcept;
+    void setLoopStart(int stage) noexcept;
+    void setLoopEnd(int stage) noexcept;
+    void setReleaseTime(float ms) noexcept;
+    void setRetriggerMode(RetriggerMode mode) noexcept;
+
+    // Processing
+    [[nodiscard]] float process() noexcept;
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // Queries
+    [[nodiscard]] MultiStageEnvState getState() const noexcept;
+    [[nodiscard]] bool isActive() const noexcept;
+    [[nodiscard]] bool isReleasing() const noexcept;
+    [[nodiscard]] float getOutput() const noexcept;
+    [[nodiscard]] int getCurrentStage() const noexcept;
+    [[nodiscard]] int getNumStages() const noexcept;
+    [[nodiscard]] int getSustainPoint() const noexcept;
+    [[nodiscard]] bool getLoopEnabled() const noexcept;
+    [[nodiscard]] int getLoopStart() const noexcept;
+    [[nodiscard]] int getLoopEnd() const noexcept;
+};
+```
+
+**Curve algorithms per stage:**
+
+| Curve | Algorithm | Per-sample cost |
+|-------|-----------|----------------|
+| Exponential | Normalized one-pole (EarLevel) mapped to actual range | 2 mul + 2 add |
+| Linear | Phase-based interpolation | 1 mul + 1 add |
+| Logarithmic | Quadratic phase mapping (phase^2 rising, 1-(1-phase)^2 falling) | 2 mul + 1 add |
+
+**When to use:**
+- Complex amplitude envelopes beyond ADSR (spit brass, dual-decay, delayed-attack)
+- LFO-like cyclic modulation with complex waveshapes (via loop mode)
+- MSEG-style modulation sources
+- Korg Poly-800 DEG, Yamaha DX7, or Buchla 281 inspired envelope shapes
+
+**When to use ADSREnvelope instead:**
+- Standard ADSR envelope is sufficient
+- Need velocity scaling (not included in MultiStageEnvelope)
+- Per-stage curve control is not needed
+
+**Performance:** ~2.35 ns/sample, 0.01% CPU at 44.1kHz (SC-003 target: <0.05%).
+
+**Dependencies:** Layer 0 (db_utils.h), Layer 1 (envelope_utils.h)

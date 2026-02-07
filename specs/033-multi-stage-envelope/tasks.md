@@ -330,45 +330,45 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 ### 9.1 Edge Cases & Robustness
 
-- [ ] T102 [P] Write tests for all edge cases documented in spec.md (0ms times, 10000ms times, stage count changes while active, etc.) in multi_stage_envelope_test.cpp
-- [ ] T103 [P] Verify edge case tests pass
-- [ ] T104 [P] Write tests for adjacent stages with same target level (hold at level for stage duration) in multi_stage_envelope_test.cpp
-- [ ] T105 [P] Write tests for prepare with different sample rates (44.1kHz, 48kHz, 96kHz, 192kHz) in multi_stage_envelope_test.cpp
-- [ ] T106 Verify all edge case and robustness tests pass
-- [ ] T106a [P] Write test for FR-035 (denormal prevention): Process envelope at very low levels (<1e-6) and verify output never becomes denormal (check via `std::fpclassify` or performance degradation) in multi_stage_envelope_test.cpp
-- [ ] T106b Verify denormal prevention test passes
+- [X] T102 [P] Write tests for all edge cases documented in spec.md (0ms times, 10000ms times, stage count changes while active, etc.) in multi_stage_envelope_test.cpp
+- [X] T103 [P] Verify edge case tests pass
+- [X] T104 [P] Write tests for adjacent stages with same target level (hold at level for stage duration) in multi_stage_envelope_test.cpp
+- [X] T105 [P] Write tests for prepare with different sample rates (44.1kHz, 48kHz, 96kHz, 192kHz) in multi_stage_envelope_test.cpp
+- [X] T106 Verify all edge case and robustness tests pass
+- [X] T106a [P] Write test for FR-035 (denormal prevention): Process envelope at very low levels (<1e-6) and verify output never becomes denormal (check via `std::fpclassify` or performance degradation) in multi_stage_envelope_test.cpp
+- [X] T106b Verify denormal prevention test passes
 
 ### 9.1a Optional Optimizations (from plan.md)
 
-- [ ] T106c [OPTIONAL] Implement early-out for Idle state in `process()` / `processBlock()` (return 0.0 immediately, skip all state machine logic). Deferred to profiling results if SC-003 already passes without it.
+- [X] T106c [OPTIONAL] Implement early-out for Idle state in `process()` / `processBlock()` (return 0.0 immediately, skip all state machine logic). Already implemented in process() line 225-226.
 
 ### 9.2 Performance Validation
 
-- [ ] T107 Write benchmark test for SC-003 (8-stage envelope < 0.05% CPU at 44.1kHz) in multi_stage_envelope_test.cpp
-- [ ] T108 Run performance benchmark and record actual CPU usage
-- [ ] T109 Verify SC-001 through SC-008 measurable outcomes against actual test results
+- [X] T107 Write benchmark test for SC-003 (8-stage envelope < 0.05% CPU at 44.1kHz) in multi_stage_envelope_test.cpp
+- [X] T108 Run performance benchmark and record actual CPU usage (2.35ns/sample = 0.0104% CPU at 44.1kHz)
+- [X] T109 Verify SC-001 through SC-008 measurable outcomes against actual test results
 - [ ] T110 Document actual performance numbers in spec.md Implementation Verification table
 
 ### 9.3 Sample Rate Accuracy
 
-- [ ] T111 Write tests for SC-007 (stage timing within 1% at all standard sample rates) in multi_stage_envelope_test.cpp
-- [ ] T112 Verify sample rate accuracy tests pass
+- [X] T111 Write tests for SC-007 (stage timing within 1% at all standard sample rates) in multi_stage_envelope_test.cpp
+- [X] T112 Verify sample rate accuracy tests pass
 
 ### 9.4 Configuration Queries
 
-- [ ] T113 [P] Implement configuration query methods (getNumStages, getSustainPoint, getLoopEnabled, getLoopStart, getLoopEnd) in multi_stage_envelope.h
-- [ ] T114 [P] Write tests for all configuration query methods in multi_stage_envelope_test.cpp
-- [ ] T115 Verify configuration query tests pass
+- [X] T113 [P] Implement configuration query methods (getNumStages, getSustainPoint, getLoopEnabled, getLoopStart, getLoopEnd) in multi_stage_envelope.h
+- [X] T114 [P] Write tests for all configuration query methods in multi_stage_envelope_test.cpp
+- [X] T115 Verify configuration query tests pass
 
 ### 9.5 Build & Warnings
 
-- [ ] T116 Build all targets (dsp_tests, iterum) in Release configuration
-- [ ] T117 Verify zero compiler warnings across all platforms (Windows MSVC, macOS Clang, Linux GCC)
-- [ ] T118 Verify all dsp_tests pass via CTest
+- [X] T116 Build all targets (dsp_tests, iterum) in Release configuration
+- [X] T117 Verify zero compiler warnings across all platforms (Windows MSVC, macOS Clang, Linux GCC)
+- [X] T118 Verify all dsp_tests pass via CTest
 
 ### 9.6 Commit
 
-- [ ] T119 Commit completed polish work
+- [X] T119 Commit completed polish work
 
 ---
 
@@ -380,14 +380,14 @@ This phase extracts existing code from `adsr_envelope.h` into a new shared heade
 
 ### 10.1 Architecture Documentation Update
 
-- [ ] T120 Update specs/_architecture_/layer-1-primitives.md to document envelope_utils.h (purpose, public API, when to use)
-- [ ] T121 Update specs/_architecture_/layer-2-processors.md to document MultiStageEnvelope (purpose, public API, usage examples, when to use vs ADSREnvelope)
-- [ ] T122 Verify no duplicate functionality was introduced (check against existing components)
+- [X] T120 Update specs/_architecture_/layer-1-primitives.md to document envelope_utils.h (purpose, public API, when to use)
+- [X] T121 Update specs/_architecture_/layer-2-processors.md to document MultiStageEnvelope (purpose, public API, usage examples, when to use vs ADSREnvelope)
+- [X] T122 Verify no duplicate functionality was introduced (check against existing components)
 
 ### 10.2 Final Commit
 
-- [ ] T123 Commit architecture documentation updates
-- [ ] T124 Verify all spec work is committed to feature branch 033-multi-stage-envelope
+- [X] T123 Commit architecture documentation updates
+- [X] T124 Verify all spec work is committed to feature branch 033-multi-stage-envelope
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
