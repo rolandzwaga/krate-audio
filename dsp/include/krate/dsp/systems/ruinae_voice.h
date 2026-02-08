@@ -359,7 +359,8 @@ public:
                 lfoVal,
                 getGateValue(),
                 velocity_,
-                keyTrackValue
+                keyTrackValue,
+                aftertouch_
             );
 
             // Get scaled modulation offsets for each destination
@@ -371,11 +372,25 @@ public:
                 modRouter_.getOffset(VoiceModDest::MorphPosition)
                 * modDestScales_[static_cast<size_t>(VoiceModDest::MorphPosition)];
 
-            // Apply morph position modulation (FR-026)
-            if (mixMode_ == MixMode::CrossfadeMix && morphModOffset != 0.0f) {
+            // Apply OscALevel/OscBLevel modulation (042-ext-modulation-system FR-004)
+            const float oscALevelOffset =
+                modRouter_.getOffset(VoiceModDest::OscALevel)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::OscALevel)];
+            const float oscBLevelOffset =
+                modRouter_.getOffset(VoiceModDest::OscBLevel)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::OscBLevel)];
+            const float effectiveOscALevel = std::clamp(1.0f + oscALevelOffset, 0.0f, 1.0f);
+            const float effectiveOscBLevel = std::clamp(1.0f + oscBLevelOffset, 0.0f, 1.0f);
+
+            const float oscASample = oscABuffer_[i] * effectiveOscALevel;
+            const float oscBSample = oscBBuffer_[i] * effectiveOscBLevel;
+
+            // Apply morph position modulation (FR-026) with OscLevel-scaled samples
+            if (mixMode_ == MixMode::CrossfadeMix &&
+                (morphModOffset != 0.0f || effectiveOscALevel != 1.0f || effectiveOscBLevel != 1.0f)) {
                 const float modulatedMix = std::clamp(mixPosition_ + morphModOffset, 0.0f, 1.0f);
-                mixBuffer_[i] = oscABuffer_[i] * (1.0f - modulatedMix)
-                              + oscBBuffer_[i] * modulatedMix;
+                mixBuffer_[i] = oscASample * (1.0f - modulatedMix)
+                              + oscBSample * modulatedMix;
             }
 
             // Compute per-sample cutoff modulation (FR-011)
@@ -551,6 +566,21 @@ public:
 
     [[nodiscard]] float getGateValue() const noexcept {
         return tranceGateEnabled_ ? tranceGate_.getGateValue() : 1.0f;
+    }
+
+    // =========================================================================
+    // Aftertouch (FR-010, 042-ext-modulation-system)
+    // =========================================================================
+
+    /// @brief Set channel aftertouch value for per-voice modulation.
+    ///
+    /// Clamped to [0, 1]. NaN/Inf values are silently ignored (value unchanged).
+    /// The stored value is passed to computeOffsets() in processBlock().
+    ///
+    /// @param value Aftertouch pressure [0.0, 1.0]
+    void setAftertouch(float value) noexcept {
+        if (detail::isNaN(value) || detail::isInf(value)) return;
+        aftertouch_ = std::clamp(value, 0.0f, 1.0f);
     }
 
     // =========================================================================
@@ -885,6 +915,7 @@ private:
     // Voice state
     float noteFrequency_{0.0f};
     float velocity_{0.0f};
+    float aftertouch_{0.0f};  ///< Channel aftertouch [0, 1] (FR-010, 042-ext-modulation-system)
     double sampleRate_{0.0};
     size_t maxBlockSize_{0};
     bool prepared_{false};

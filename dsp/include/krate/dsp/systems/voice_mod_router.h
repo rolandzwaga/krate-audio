@@ -21,6 +21,7 @@
 #pragma once
 
 #include <krate/dsp/systems/ruinae_types.h>
+#include <krate/dsp/core/db_utils.h>
 
 #include <algorithm>
 #include <array>
@@ -131,12 +132,16 @@ public:
     /// Iterates all active routes, reads the source value for each, multiplies
     /// by the route amount, and accumulates to the destination offset.
     ///
+    /// After accumulation, all offsets are sanitized: NaN/Inf replaced with 0.0f,
+    /// denormals flushed to zero (FR-024, 042-ext-modulation-system).
+    ///
     /// Source value ranges:
     /// - env1, env2, env3: [0, 1] (envelope output)
     /// - lfo: [-1, +1] (bipolar LFO)
     /// - gate: [0, 1] (TranceGate smoothed value)
     /// - velocity: [0, 1] (constant per note)
     /// - keyTrack: [-1, +1] ((midiNote - 60) / 60)
+    /// - aftertouch: [0, 1] (channel aftertouch)
     ///
     /// @param env1 Amplitude envelope value (ENV 1)
     /// @param env2 Filter envelope value (ENV 2)
@@ -145,9 +150,11 @@ public:
     /// @param gate TranceGate output value
     /// @param velocity Note velocity (constant per note)
     /// @param keyTrack Key tracking value
+    /// @param aftertouch Channel aftertouch value (FR-003, 042-ext-modulation-system)
     void computeOffsets(float env1, float env2, float env3,
                         float lfo, float gate,
-                        float velocity, float keyTrack) noexcept {
+                        float velocity, float keyTrack,
+                        float aftertouch) noexcept {
         // Clear all destination offsets
         offsets_.fill(0.0f);
 
@@ -159,6 +166,7 @@ public:
         sourceValues_[static_cast<size_t>(VoiceModSource::GateOutput)] = gate;
         sourceValues_[static_cast<size_t>(VoiceModSource::Velocity)] = velocity;
         sourceValues_[static_cast<size_t>(VoiceModSource::KeyTrack)] = keyTrack;
+        sourceValues_[static_cast<size_t>(VoiceModSource::Aftertouch)] = aftertouch;
 
         // Accumulate each active route's contribution
         for (size_t i = 0; i < kMaxRoutes; ++i) {
@@ -176,6 +184,14 @@ public:
             const float contribution = sourceValue * route.amount;
 
             offsets_[destIdx] += contribution;
+        }
+
+        // Sanitize all offsets: replace NaN/Inf with 0.0, flush denormals (FR-024)
+        for (auto& offset : offsets_) {
+            if (detail::isNaN(offset) || detail::isInf(offset)) {
+                offset = 0.0f;
+            }
+            offset = detail::flushDenormal(offset);
         }
     }
 

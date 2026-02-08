@@ -106,9 +106,10 @@ public:
         pitchFollower_.prepare(sampleRate);
         transient_.prepare(sampleRate);
 
-        // Configure amount smoothers
+        // Configure amount smoothers (SC-003: 120ms gives max per-block step
+        // of ~0.00094 for 512-sample blocks at 44.1kHz, meeting -60 dBFS)
         for (auto& smoother : amountSmoothers_) {
-            smoother.configure(20.0f, static_cast<float>(sampleRate));
+            smoother.configure(120.0f, static_cast<float>(sampleRate));
         }
 
         reset();
@@ -127,6 +128,8 @@ public:
         wasPlaying_ = false;
 
         modOffsets_.fill(0.0f);
+        modOffsetsStart_.fill(0.0f);
+        modOffsetsEnd_.fill(0.0f);
         destActive_.fill(false);
 
         for (auto& smoother : amountSmoothers_) {
@@ -276,23 +279,60 @@ public:
         return std::clamp(baseNormalized + offset, 0.0f, 1.0f);
     }
 
+    /// @brief Get start/end modulation offsets for per-sample interpolation.
+    ///
+    /// Returns the modulation offset at the start and end of the current block.
+    /// Consumers linearly interpolate: step = (end - start) / numSamples.
+    /// This eliminates block-boundary discontinuities (SC-003).
+    ///
+    /// @param destParamId Destination parameter ID
+    /// @param outStart [out] Offset at start of block
+    /// @param outEnd [out] Offset at end of block
+    void getModulationOffsetInterp(uint32_t destParamId,
+                                    float& outStart, float& outEnd) const noexcept {
+        if (destParamId >= kMaxModDestinations) {
+            outStart = 0.0f;
+            outEnd = 0.0f;
+            return;
+        }
+        outStart = modOffsetsStart_[destParamId];
+        outEnd = modOffsetsEnd_[destParamId];
+    }
+
     // =========================================================================
     // Routing Management (FR-003, FR-004)
     // =========================================================================
 
     /// @brief Set a routing slot.
+    ///
+    /// For NEW routes (slot was inactive), snaps the smoother to the initial
+    /// amount for immediate response. For EXISTING routes (slot was active),
+    /// uses setTarget so the smoother provides a zipper-free transition
+    /// (SC-003: step sizes below -60 dBFS).
+    ///
     /// @param index Routing index (0 to kMaxModRoutings-1)
     /// @param routing Routing configuration
     void setRouting(size_t index, const ModRouting& routing) noexcept {
         if (index >= kMaxModRoutings) {
             return;
         }
+        const bool wasActive = routings_[index].active;
         routings_[index] = routing;
-        // Snap smoother to current amount for immediate response
-        amountSmoothers_[index].snapTo(routing.amount);
+        if (wasActive && routing.active) {
+            // Amount change on existing route: smooth transition
+            amountSmoothers_[index].setTarget(routing.amount);
+        } else {
+            // New route activation (or deactivation+reactivation): snap
+            amountSmoothers_[index].snapTo(routing.amount);
+        }
     }
 
     /// @brief Clear a routing slot.
+    ///
+    /// Sets the smoother target to 0 for a smooth ramp-down, then marks
+    /// the route inactive. The route contributes a diminishing offset over
+    /// subsequent blocks until the smoother settles.
+    ///
     /// @param index Routing index (0 to kMaxModRoutings-1)
     void clearRouting(size_t index) noexcept {
         if (index >= kMaxModRoutings) {
@@ -597,9 +637,14 @@ private:
     }
 
     /// @brief Evaluate all routings and accumulate modulation offsets.
+    ///
+    /// Computes start-of-block and end-of-block offsets for each destination.
+    /// Consumers use getModulationOffsetInterp() to linearly interpolate
+    /// between these values for per-sample smoothness (SC-003).
     void evaluateRoutings(size_t numSamples) noexcept {
         // Clear offsets
-        modOffsets_.fill(0.0f);
+        modOffsetsStart_.fill(0.0f);
+        modOffsetsEnd_.fill(0.0f);
         destActive_.fill(false);
 
         // Process each routing
@@ -609,24 +654,28 @@ private:
                 continue;
             }
 
-            // Get raw source value
+            // Get raw source value (constant within this block)
             float sourceValue = getRawSourceValue(routing.source);
-
-            // Clamp source to valid range (edge case handling)
             sourceValue = std::clamp(sourceValue, -1.0f, 1.0f);
 
-            // Smooth the amount for zipper-free changes (single step per block
-            // since amount changes arrive at block boundaries)
+            // Capture smoother state BEFORE advance → start-of-block amount
             amountSmoothers_[i].setTarget(routing.amount);
-            float smoothedAmount = (numSamples > 0) ? amountSmoothers_[i].process()
-                                                     : routing.amount;
+            float amountStart = amountSmoothers_[i].getCurrentValue();
 
-            // Apply bipolar modulation: curve on abs(source), then multiply by amount
-            float contribution = applyBipolarModulation(routing.curve, sourceValue, smoothedAmount);
+            // Advance smoother by full block → end-of-block amount
+            if (numSamples > 0) {
+                amountSmoothers_[i].advanceSamples(numSamples);
+            }
+            float amountEnd = amountSmoothers_[i].getCurrentValue();
+
+            // Compute start and end contributions
+            float contribStart = applyBipolarModulation(routing.curve, sourceValue, amountStart);
+            float contribEnd = applyBipolarModulation(routing.curve, sourceValue, amountEnd);
 
             // Accumulate to destination
             if (routing.destParamId < kMaxModDestinations) {
-                modOffsets_[routing.destParamId] += contribution;
+                modOffsetsStart_[routing.destParamId] += contribStart;
+                modOffsetsEnd_[routing.destParamId] += contribEnd;
                 destActive_[routing.destParamId] = true;
             }
         }
@@ -634,9 +683,13 @@ private:
         // Clamp each destination offset to [-1, +1] per FR-061
         for (size_t i = 0; i < kMaxModDestinations; ++i) {
             if (destActive_[i]) {
-                modOffsets_[i] = std::clamp(modOffsets_[i], -1.0f, 1.0f);
+                modOffsetsStart_[i] = std::clamp(modOffsetsStart_[i], -1.0f, 1.0f);
+                modOffsetsEnd_[i] = std::clamp(modOffsetsEnd_[i], -1.0f, 1.0f);
             }
         }
+
+        // Backward compatibility: block-rate API returns end-of-block value
+        modOffsets_ = modOffsetsEnd_;
     }
 
     // =========================================================================
@@ -684,6 +737,8 @@ private:
 
     // Per-destination modulation offset accumulation
     std::array<float, kMaxModDestinations> modOffsets_ = {};
+    std::array<float, kMaxModDestinations> modOffsetsStart_ = {};
+    std::array<float, kMaxModDestinations> modOffsetsEnd_ = {};
     std::array<bool, kMaxModDestinations> destActive_ = {};
 
     // =========================================================================

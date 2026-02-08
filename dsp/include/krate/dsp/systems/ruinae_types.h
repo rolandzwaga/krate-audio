@@ -120,7 +120,8 @@ enum class VoiceModSource : uint8_t {
     GateOutput,           ///< TranceGate envelope value
     Velocity,             ///< Note velocity (constant per note)
     KeyTrack,             ///< Key tracking relative to C4
-    NumSources            ///< Sentinel: total number of sources (= 7)
+    Aftertouch,           ///< Channel aftertouch [0, 1] (FR-001, 042-ext-modulation-system)
+    NumSources            ///< Sentinel: total number of sources (= 8)
 };
 
 // =============================================================================
@@ -140,7 +141,9 @@ enum class VoiceModDest : uint8_t {
     TranceGateDepth,      ///< TranceGate depth (linear offset)
     OscAPitch,            ///< OSC A pitch (semitone offset)
     OscBPitch,            ///< OSC B pitch (semitone offset)
-    NumDestinations       ///< Sentinel: total number of destinations (= 7)
+    OscALevel,            ///< OSC A level offset (FR-002, 042-ext-modulation-system)
+    OscBLevel,            ///< OSC B level offset (FR-002, 042-ext-modulation-system)
+    NumDestinations       ///< Sentinel: total number of destinations (= 9)
 };
 
 // =============================================================================

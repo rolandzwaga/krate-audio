@@ -10,6 +10,7 @@
 
 #include <krate/dsp/processors/rungler.h>
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/modulation_source.h>
 
 #include <catch2/catch_all.hpp>
 
@@ -1519,4 +1520,105 @@ TEST_CASE("Rungler CPU usage is within budget",
 
     // Layer 2 budget: < 0.5%
     REQUIRE(cpuPercent < 0.5);
+}
+
+// =============================================================================
+// 042-ext-modulation-system: User Story 6 - Rungler ModulationSource Interface
+// =============================================================================
+
+// T071: getCurrentValue() returns 0.0f before prepare
+TEST_CASE("Rungler ModulationSource: getCurrentValue returns 0 before prepare",
+          "[rungler][ext_modulation]") {
+    Rungler rungler;
+    REQUIRE(rungler.getCurrentValue() == Approx(0.0f));
+}
+
+// T072: getCurrentValue() matches process().rungler after processing
+TEST_CASE("Rungler ModulationSource: getCurrentValue matches process().rungler",
+          "[rungler][ext_modulation]") {
+    Rungler rungler;
+    rungler.prepare(44100.0);
+    rungler.seed(42);
+    rungler.reset();
+
+    // Process several samples and verify the value matches
+    for (int i = 0; i < 1000; ++i) {
+        auto out = rungler.process();
+        REQUIRE(rungler.getCurrentValue() == Approx(out.rungler));
+    }
+}
+
+// T073: getSourceRange() returns {0.0f, 1.0f}
+TEST_CASE("Rungler ModulationSource: getSourceRange returns {0.0, 1.0}",
+          "[rungler][ext_modulation]") {
+    Rungler rungler;
+    auto range = rungler.getSourceRange();
+    REQUIRE(range.first == Approx(0.0f));
+    REQUIRE(range.second == Approx(1.0f));
+}
+
+// T074: Correlation between getCurrentValue() and process().rungler > 0.99 (SC-007)
+TEST_CASE("Rungler ModulationSource: correlation > 0.99 with process output",
+          "[rungler][ext_modulation]") {
+    Rungler rungler;
+    rungler.prepare(44100.0);
+    rungler.seed(100);
+    rungler.reset();
+
+    constexpr size_t numSamples = 10000;
+    double sumXY = 0.0;
+    double sumX2 = 0.0;
+    double sumY2 = 0.0;
+    double sumX = 0.0;
+    double sumY = 0.0;
+
+    for (size_t i = 0; i < numSamples; ++i) {
+        auto out = rungler.process();
+        float x = out.rungler;
+        float y = rungler.getCurrentValue();
+        sumX += x;
+        sumY += y;
+        sumXY += static_cast<double>(x) * y;
+        sumX2 += static_cast<double>(x) * x;
+        sumY2 += static_cast<double>(y) * y;
+    }
+
+    const double n = static_cast<double>(numSamples);
+    const double numerator = n * sumXY - sumX * sumY;
+    const double denominator = std::sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+
+    double correlation = 1.0;
+    if (denominator > 1e-12) {
+        correlation = numerator / denominator;
+    }
+
+    INFO("Correlation: " << correlation);
+    REQUIRE(correlation > 0.99);
+}
+
+// T075: Polymorphic usage via ModulationSource pointer
+TEST_CASE("Rungler ModulationSource: polymorphic usage via base pointer",
+          "[rungler][ext_modulation]") {
+    Rungler rungler;
+    rungler.prepare(44100.0);
+    rungler.seed(42);
+    rungler.reset();
+
+    // Process some samples to get non-zero value
+    for (int i = 0; i < 100; ++i) {
+        (void)rungler.process();
+    }
+
+    // Cast to base pointer
+    ModulationSource* source = &rungler;
+
+    // Verify getCurrentValue() via base pointer matches direct call
+    float directValue = rungler.getCurrentValue();
+    float polyValue = source->getCurrentValue();
+    REQUIRE(directValue == Approx(polyValue));
+
+    // Verify getSourceRange() via base pointer
+    auto range = source->getSourceRange();
+    REQUIRE(range.first == Approx(0.0f));
+    REQUIRE(range.second == Approx(1.0f));
 }

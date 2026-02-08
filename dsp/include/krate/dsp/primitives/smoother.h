@@ -233,6 +233,26 @@ public:
         return std::abs(current_ - target_) < kCompletionThreshold;
     }
 
+    /// @brief Advance the smoother by N samples in O(1) using closed-form.
+    ///
+    /// Equivalent to calling process() N times but uses the exponential
+    /// formula: current = target + (current - target) * coeff^N.
+    /// Essential for correct smoothing when processing once per audio block.
+    ///
+    /// @param numSamples Number of samples to advance
+    void advanceSamples(size_t numSamples) noexcept {
+        if (numSamples == 0 || isComplete()) {
+            return;
+        }
+        const float diff = current_ - target_;
+        const float coeffN = std::pow(coefficient_, static_cast<float>(numSamples));
+        current_ = target_ + diff * coeffN;
+        current_ = detail::flushDenormal(current_);
+        if (std::abs(current_ - target_) < kCompletionThreshold) {
+            current_ = target_;
+        }
+    }
+
     /// @brief Immediately set current value to target (no smoothing).
     void snapToTarget() noexcept {
         current_ = target_;
