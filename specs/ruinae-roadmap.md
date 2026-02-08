@@ -1236,11 +1236,1411 @@ target_link_libraries(Ruinae PRIVATE sdk vstgui_support KrateDSP KratePluginsSha
 
 ### Custom VSTGUI Views Needed
 
-1. **StepPatternEditor**: Interactive trance gate pattern editor (similar to Iterum's `TapPatternEditor` but with float levels instead of boolean)
-2. **XYMorphPad**: 2D pad for spectral morph position (reuse `VectorMixer` concept)
-3. **ADSRDisplay**: Visual ADSR curve display (common synth UI element)
-4. **ModMatrixGrid**: Modulation routing display (source x destination grid)
-5. **OscillatorTypeSelector**: Visual oscillator type chooser with waveform previews
+#### 1. StepPatternEditor
+
+**Purpose:** Visual and interactive editor for TranceGate patterns, supporting variable-length, tempo-synced, and Euclidean rhythms with continuous step levels.
+
+##### 1.1 Core Data Model
+
+* **Steps:** 2-32 steps per pattern (`numSteps`).
+* **Step Levels:** Float [0.0-1.0] per step.
+  * 0.0 = silence
+  * 0.1-0.3 = ghost notes
+  * 0.4-0.6 = normal
+  * 0.7-0.9 = accents
+  * 1.0 = full volume
+* Steps are **equally spaced in time**.
+* **Tempo Sync:**
+  * `NoteValue` enum: Whole through SixtyFourth
+  * `NoteModifier` enum: None, Dotted, Triplet
+* **Alternative Rate:** Free-run in Hz.
+
+##### 1.2 Pattern Editing API
+
+* `setStep(index, level)` - Set a single step level.
+* `setPattern(array, numSteps)` - Load full pattern.
+* `setEuclidean(hits, steps, rotation)` - Generate Euclidean rhythm; produces binary base levels (0.0/1.0).
+* **Playback Feedback:**
+  * `getCurrentStep()` - Step currently playing.
+  * `getGateValue()` - Smoothed gate output for visual envelope display.
+
+##### 1.3 Step Grid Display
+
+* Horizontal bar chart, each bar height = step level.
+* Bars **equally spaced**, width adapts to step count.
+* Background grid at 25%, 50%, 75% for reference.
+* Step count label visible; bars shrink proportionally at higher step counts.
+* **Minimum width:** 350px. Zoom function for 24+ steps when precise editing is needed.
+
+##### 1.4 Level Editing Interaction
+
+* **Click + Vertical Drag:** Adjust step level (top = 1.0, bottom = 0.0).
+* **Click + Horizontal Drag (Paint Mode):** Edit multiple steps continuously. Each step under the cursor is set to the level corresponding to the cursor's Y position, allowing the user to "draw" a level curve across steps.
+* **Double-Click:** Reset step to 1.0.
+* **Alt+Click:** Toggle between 0.0 and 1.0 (quick mute/unmute). Right-click is reserved for the host's parameter context menu (automation assignment, MIDI learn).
+* **Shift+Click:** Fine adjustment (smaller increment per pixel).
+* **Escape:** Cancel drag, revert to pre-drag values.
+* **beginEdit/endEdit:** One pair per gesture. A single paint drag across multiple steps is one undo point in the host.
+
+##### 1.5 Accent Visualization
+
+* Step bar colors based on level range:
+  * 0.0 = outline only (silent)
+  * 0.01-0.39 = dim/desaturated (ghost)
+  * 0.40-0.79 = normal color
+  * 0.80-1.0 = bright/highlighted (accent)
+
+##### 1.6 Step Count Control
+
+* Dynamic resizing 2-32 steps.
+* Inline +/- buttons next to the grid for immediate visual feedback.
+* Existing levels preserved when step count is reduced.
+* Visual bar width updates to fit available editor width.
+
+##### 1.7 Euclidean Pattern Integration
+
+Euclidean mode uses an **accent template** approach: the Euclidean algorithm defines
+a suggested rhythmic structure (which steps are hits vs rests), while the user retains
+full control over individual step levels. The Euclidean pattern is a visual and
+structural overlay, not a hard gate.
+
+**Euclidean mode toggle:**
+
+* `[Eucl: ON/OFF]` toggle activates Euclidean mode.
+* When ON, Hits and Rotation controls appear in the toolbar:
+  `[Eucl: ON]  Hits: [−] 5 [+]  Rotation: [−] 0 [+]`
+* Steps parameter comes from the main step count control.
+
+**Euclidean dot indicators:**
+
+* A row of small filled/empty dots appears below each step bar, above the step labels.
+* Filled dot `●` = Euclidean hit. Empty dot `○` = Euclidean rest.
+* This structural overlay is always visible while Euclidean mode is active.
+
+**Level behavior on activation:**
+
+* When Euclidean mode is first enabled: hit steps are set to 1.0, rest steps are set to 0.0.
+* The user can then freely edit any step level (both hits and rests).
+
+**Non-destructive parameter changes:**
+
+* Changing **hits** or **rotation** repositions which steps are hits vs rests.
+* Steps that change from rest to hit: set to 1.0 only if they are currently at 0.0
+  (manual edits are preserved).
+* Steps that change from hit to rest: level is preserved (user may have set a ghost note).
+* This means rotating the Euclidean pattern doesn't wipe out manual level tweaks.
+
+**Modified indicator:**
+
+* If any step level deviates from the pure Euclidean pattern (hits=1.0, rests=0.0),
+  show `[Eucl: ON*]` with an asterisk indicating manual modifications.
+* Rest steps with nonzero levels (ghost notes on off-beats) are shown with their
+  normal accent-colored bar but the dot below remains empty `○`, making it clear
+  the step is structurally a rest with a manual override.
+
+**Regenerate:**
+
+* Clicking a "Regen" action (or re-pressing Eucl) resets all levels to pure
+  Euclidean (hits=1.0, rests=0.0), discarding manual tweaks.
+
+##### 1.8 Playback Position Indicator
+
+* Highlight the currently playing step (`getCurrentStep()`).
+* **Refresh strategy:** Timer-based (`CVSTGUITimer`) at ~30fps.
+* **Timer lifecycle:** Start timer when transport is playing, stop when stopped. Transport state communicated from processor via `IMessage`.
+
+##### 1.9 Tempo Display
+
+* Show current `NoteValue` + `NoteModifier` as informational label (e.g., "1/16", "1/8T", "1/4D").
+* Informational only; the actual values are controlled by separate knobs/selectors.
+
+##### 1.10 Presets / Quick Actions
+
+* **Pattern presets:** All On, All Off, Alternate, Ramp Up, Ramp Down, Random, Invert, Shift Left, Shift Right.
+* **Euclidean toggle:** `[Eucl]` button toggles Euclidean mode on/off. When ON, the Euclidean toolbar (Hits/Rotation controls) appears and dot indicators are drawn below the bars.
+* **Regen button:** Visible when Euclidean mode is active. Resets all step levels to pure Euclidean (hits=1.0, rests=0.0), discarding manual tweaks.
+* Row of small buttons for immediate access to common patterns.
+* Random pattern generation uses a controller-thread random source (not the DSP-layer Xorshift32).
+
+##### 1.11 Phase Offset Visualization
+
+* `phaseOffset` (0-1) rotates the pattern start point.
+* Show a small triangle/arrow above the step where playback currently begins. E.g., phaseOffset=0.5 with numSteps=16 places the arrow above step 8.
+
+##### 1.12 Parameter Communication
+
+* **32 hidden parameters** for step levels: `kTranceGateStep0LevelId` through `kTranceGateStep31LevelId`.
+  * Enables host automation of individual step levels.
+  * State save/load handled by the VST3 parameter system.
+  * Steps beyond current `numSteps` are ignored by the processor.
+* Step count changes observed via `IDependent` on the `kTranceGateNumStepsId` parameter.
+* Transport state (playing/stopped) received via `IMessage` from processor (controls playback indicator timer).
+
+##### 1.13 Visual Layout
+
+**Free mode (Euclidean OFF) — 16 steps, playing:**
+
+```
+┌─ TRANCE GATE ──────────────────────────────────────────────────────────────┐
+│                                                                            │
+│  [ON]    Note: 1/16 ▼   Mod: Normal ▼          Steps: [−] 16 [+]         │
+│                                                                            │
+│  ┌─ StepPatternEditor ──────────────────────────────────────────────────┐  │
+│  │         ▽                                    ← phase start (step 5) │  │
+│  │ ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── 1.0            │  │
+│  │ ██                ██                ██                ██             │  │
+│  │ ██          ██    ██                ██          ██    ██             │  │
+│  │ ██    ▓▓    ██    ██    ▓▓          ██    ▓▓    ██    ██    ▓▓      │  │
+│  │ ██    ▓▓    ██    ██    ▓▓    ▓▓    ██    ▓▓    ██    ██    ▓▓      │  │
+│  │ ██    ▓▓    ██    ██    ▓▓    ▓▓    ██    ▓▓    ██    ██    ▓▓      │  │
+│  │ ██    ▓▓    ██    ██    ▓▓    ▓▓    ██    ▓▓    ██    ██    ▓▓      │  │
+│  │ ██    ▓▓    ██    ██    ▓▓    ▓▓    ██    ▓▓    ██    ██    ▓▓      │  │
+│  │ ██ ░░ ▓▓ ·· ██ ░░ ██ ▒▒ ▓▓ ░░ ▓▓ ░░ ██ ▒▒ ▓▓ ·· ██ ░░ ██ ▒▒ ▓▓  │  │
+│  │ ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── 0.0            │  │
+│  │  1        5    ▲   9       13                                       │  │
+│  │              playhead                                               │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│  [All][Off][Alt][↗][↘][Rnd][Eucl][Inv][◀ ][▶ ]                           │
+│                                                                            │
+│   Rate ◯    Depth ◯    Attack ◯    Release ◯    Phase ◯                   │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Euclidean mode ON — E(5,16,0), pure pattern:**
+
+```
+┌─ TRANCE GATE ──────────────────────────────────────────────────────────────┐
+│                                                                            │
+│  [ON]  Note: 1/16 ▼  Mod: Normal ▼   Steps: [−] 16 [+]                  │
+│  [Eucl: ON]  Hits: [−] 5 [+]  Rotation: [−] 0 [+]                       │
+│                                                                            │
+│  ┌─ StepPatternEditor ──────────────────────────────────────────────────┐  │
+│  │         ▽                                    ← phase start (step 5) │  │
+│  │ ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── 1.0            │  │
+│  │ ██          ██                ██          ██                ██       │  │
+│  │ ██          ██                ██          ██                ██       │  │
+│  │ ██          ██                ██          ██                ██       │  │
+│  │ ██          ██                ██          ██                ██       │  │
+│  │ ██          ██                ██          ██                ██       │  │
+│  │ ██          ██                ██          ██                ██       │  │
+│  │ ██          ██                ██          ██                ██       │  │
+│  │ ██ ·· ·· ·· ██ ·· ·· ·· ·· ·· ██ ·· ·· ·· ██ ·· ·· ·· ·· ·· ██   │  │
+│  │ ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── 0.0            │  │
+│  │ ●  ○  ○  ○  ●  ○  ○  ●  ○  ○  ●  ○  ○  ○  ●  ○   ← Eucl dots    │  │
+│  │  1        5    ▲   9       13                                       │  │
+│  │              playhead                                               │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│  [All][Off][Alt][↗][↘][Rnd][Eucl][Inv][◀ ][▶ ]  [Regen]                  │
+│                                                                            │
+│   Rate ◯    Depth ◯    Attack ◯    Release ◯    Phase ◯                   │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+  Euclidean E(5,16,0): hits at steps 1, 5, 8, 11, 15 (Bjorklund).
+  ●=hit (1.0), ○=rest (0.0). All bars match pure pattern.
+```
+
+**Euclidean mode ON* — E(5,16,0), with manual tweaks (ghost notes on off-beats):**
+
+```
+┌─ StepPatternEditor ──────────────────────────────────────────────────────┐
+│         ▽                                                                │
+│ ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── 1.0                │
+│ ██                ██                ██                ██                 │
+│ ██                ██                ██          ██    ██                 │
+│ ██                ██                ██          ██    ██                 │
+│ ██                ██          ▓▓    ██    ▒▒    ██    ██                 │
+│ ██    ▒▒          ██    ▒▒   ▓▓    ██    ▒▒    ██    ██                 │
+│ ██    ▒▒          ██    ▒▒   ▓▓    ██    ▒▒    ██    ██                 │
+│ ██ ·· ▒▒ ·· ·· ·· ██ ·· ▒▒ ·· ▓▓ ·· ██ ·· ▒▒ ·· ██ ·· ·· ·· ·· ██   │
+│ ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── 0.0                │
+│ ●  ○· ○  ○  ●  ○· ○  ●  ○  ●  ○· ○  ●  ○                             │
+│  1        5    ▲   9       13                                           │
+│                                                                          │
+│ [Eucl: ON*]  ← asterisk indicates manual modifications                  │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  ●  = Euclidean hit (default 1.0, user may adjust level)
+  ○  = Euclidean rest (default 0.0)
+  ○· = Rest with manual ghost note (dot empty, bar visible)
+  *  = Pattern has been manually modified from pure Euclidean
+```
+
+**32 steps with zoom (showing steps 1-16 of 32):**
+
+```
+┌─ StepPatternEditor (32 steps, zoomed) ───────────────────────────────────┐
+│  ◀ ════════════════════════╤═══════╗ ▶         ← scroll/zoom indicator   │
+│      ▽                             ║                                      │
+│ ██ ▓▓ ██ ▓▓ ██ ▓▓ ██ ▒▒ ██ ▓▓ ██ ▓▓ ██ ▒▒ ██ ▓▓                       │
+│ ██ ▓▓ ██ ▓▓ ██ ▓▓ ██ ▒▒ ██ ▓▓ ██ ▓▓ ██    ██ ▓▓                       │
+│ ██ ▓▓ ██ ▓▓ ██ ▓▓ ██    ██ ▓▓ ██ ▓▓ ██    ██ ▓▓                       │
+│ ██ ▓▓ ██    ██ ▓▓ ██    ██    ██ ▓▓ ██    ██ ▓▓                       │
+│ ██ ░░ ██ ░░ ██ ░░ ██ ░░ ██ ░░ ██ ░░ ██ ░░ ██ ░░                       │
+│  1     5     9     13                                                    │
+│              ▲                                                            │
+└──────────────────────────────────────────────────────────────────────────┘
+  Showing steps 1-16 of 32. Scroll ◀▶ or pinch to zoom.
+```
+
+**Bar fill legend:**
+
+| Symbol | Level Range | Color | RGB |
+|--------|-------------|-------|-----|
+| `██` | 0.80-1.0 (accent) | Bright gold | `rgb(220,170,60)` |
+| `▓▓` | 0.40-0.79 (normal) | Standard blue | `rgb(80,140,200)` |
+| `▒▒` | 0.01-0.39 (ghost) | Dim blue | `rgb(60,90,120)` |
+| `░░` | 0.0 (silent) | Outline only | `rgb(50,50,55)` |
+| `··` | 0.0 (empty, no bar) | Background | `rgb(35,35,38)` |
+| `▽` | Phase offset start | Above bars | |
+| `▲` | Playback position | Below bars, animated | |
+| `──` | Grid lines | At 0.0, 0.25, 0.50, 0.75, 1.0 | |
+| `●` | Euclidean hit | Below bars (Eucl mode only) | `rgb(220,170,60)` |
+| `○` | Euclidean rest | Below bars (Eucl mode only) | `rgb(50,50,55)` |
+| `○·` | Rest w/ ghost note | Empty dot, bar visible | `rgb(50,50,55)` dot |
+
+**Component boundary breakdown:**
+
+```
+┌─ Trance Gate Section (CViewContainer in editor.uidesc) ──────────────────┐
+│                                                                           │
+│  ┌─ Toolbar (standard VSTGUI controls) ────────────────────────────────┐ │
+│  │  COnOffButton   COptionMenu  COptionMenu    CTextLabel  +/- buttons│ │
+│  │  [ON]           [1/16 ▼]     [Normal ▼]     "16"        [−] [+]   │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+│  ┌─ Euclidean Toolbar (visible when Eucl mode ON) ─────────────────────┐ │
+│  │  COnOffButton    CTextLabel  +/- buttons   CTextLabel  +/- buttons │ │
+│  │  [Eucl: ON*]     Hits "5"   [−] [+]       Rot "0"     [−] [+]    │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+│  ┌─ StepPatternEditor (custom CControl) ───────────────────────────────┐ │
+│  │  Responsible for:                                                    │ │
+│  │  • Bar rendering (accent-colored)                                   │ │
+│  │  • Phase offset triangle (▽ above bars)                             │ │
+│  │  • Playback indicator (▲ below bars, timer-driven)                  │ │
+│  │  • Euclidean dot overlay (● ○ below bars, when mode active)         │ │
+│  │  • Grid lines (0.25, 0.50, 0.75)                                   │ │
+│  │  • Step labels (every 4th: 1, 5, 9, 13...)                         │ │
+│  │  • Mouse interaction (click, drag, paint, alt+click, dbl-click)     │ │
+│  │  • Zoom scrollbar (when 24+ steps)                                  │ │
+│  │  • 32 hidden params (kTranceGateStep0LevelId..Step31LevelId)       │ │
+│  │  • IDependent on kTranceGateNumStepsId                              │ │
+│  │  • IMessage receiver for transport state                            │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+│  ┌─ Quick Actions (row of CTextButton or small CKickButton) ──────────┐ │
+│  │  [All][Off][Alt][↗][↘][Rnd][Eucl][Inv][◀][▶]  [Regen]            │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+│  ┌─ Knobs (standard CAnimKnob or CKnob) ──────────────────────────────┐ │
+│  │   Rate ◯     Depth ◯     Attack ◯     Release ◯     Phase ◯       │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+**Dimensions:**
+
+| Component | Width | Height |
+|-----------|-------|--------|
+| Full Trance Gate section | 450px | ~220px |
+| Toolbar row | 450px | 24px |
+| StepPatternEditor (bars) | 350-450px | 80-100px |
+| Quick action buttons | 450px | 22px |
+| Knob row | 450px | 50px |
+
+**Zoom behavior (24+ steps):**
+
+* Thin scrollbar appears above the step bars showing visible range within total pattern.
+* Mouse wheel horizontal-scrolls, Ctrl+wheel zooms.
+* Default zoom: fit all steps. User can zoom in for precision on individual steps.
+* Step labels shown every 4th step (1, 5, 9, 13...) to avoid clutter at high counts.
+
+#### 2. XYMorphPad
+
+**Purpose:** 2D pad for controlling the spectral morph space between OSC A and OSC B, combining morph position and spectral tilt into a single interactive surface. Adapted from Disrumpo's `MorphPad` with a simplified 2-axis gradient instead of 4-node IDW.
+
+##### 2.1 Axis Mapping
+
+* **X axis (horizontal):** Morph Position [0.0-1.0].
+  * 0.0 (left) = OSC A pure
+  * 0.5 (center) = equal blend
+  * 1.0 (right) = OSC B pure
+* **Y axis (vertical):** Spectral Tilt [-12, +12] dB/octave (1 kHz pivot).
+  * 0.0 (bottom) = -12 dB/oct (dark/warm)
+  * 0.5 (center) = 0 dB/oct (neutral)
+  * 1.0 (top) = +12 dB/oct (bright)
+* The pad is a "character space" — position defines both *what* you hear (A↔B) and *how* it sounds (dark↔bright).
+
+##### 2.2 Underlying DSP
+
+Both parameters map directly to existing `SpectralMorphFilter` parameters:
+* `morphAmount` [0.0-1.0] — magnitude interpolation between OSC A and OSC B
+* `tiltDb` [-12, +12] — spectral tilt applied to the morphed output
+
+No new DSP components required.
+
+##### 2.3 Gradient Background
+
+2-axis linear gradient rendered on a 24x24 grid (same resolution as Disrumpo):
+
+* **Horizontal:** OSC A color (left) fades to OSC B color (right).
+* **Vertical:** Darkened at bottom (warm tilt), full brightness at top (bright tilt).
+* Color at each grid cell: bilinear interpolation of the 4 corner colors.
+
+**Corner colors:**
+
+| Corner | Position | Meaning | Color |
+|--------|----------|---------|-------|
+| Bottom-left | (0,0) | OSC A, dark | `rgb(48,84,120)` — darkened blue |
+| Bottom-right | (1,0) | OSC B, dark | `rgb(132,102,36)` — darkened gold |
+| Top-left | (0,1) | OSC A, bright | `rgb(80,140,200)` — full blue |
+| Top-right | (1,1) | OSC B, bright | `rgb(220,170,60)` — full gold |
+
+Darken factor: 60% (bottom row at 60% brightness of top row).
+
+##### 2.4 Interaction Model
+
+Reuses proven patterns from Disrumpo's `MorphPad`:
+
+* **Click + Drag:** Move cursor to position.
+* **Shift + Drag:** Fine adjustment (0.1x scale, 10x precision).
+* **Double-Click:** Reset to center (0.5, 0.5) — neutral morph, flat tilt.
+* **Escape:** Cancel drag, revert to pre-drag values.
+* **Scroll wheel:** Vertical = adjust Y (tilt), Horizontal = adjust X (morph).
+
+##### 2.5 Visual Elements
+
+**Cursor:**
+* 16px open circle, 2px white stroke, 4px filled center dot (same as Disrumpo).
+
+**Corner labels:**
+* "A" at bottom-left, "B" at bottom-right.
+* "Dark" at bottom-center, "Bright" at top-center (or use icons).
+
+**Position label:**
+* Bottom-left corner: "Mix: 0.50  Tilt: 0.0dB" (formatted with units).
+
+**Crosshair lines (optional):**
+* Thin white lines (10-15% opacity) following cursor X and Y for precise alignment.
+
+**Modulation visualization:**
+* When morph position is modulated by LFO/envelope, show modulation range as a
+  ghost trail or translucent line extending from the cursor position.
+
+##### 2.6 Parameter Communication
+
+* **MorphX** (morph position): Sent via `CControl::setValue()` (tag = `kMorphPositionId`).
+* **MorphY** (spectral tilt): Sent via explicit `controller_->performEdit()` calls
+  (VSTGUI limitation: one value per CControl).
+* Both wrapped in `beginEdit()`/`endEdit()` for host undo support.
+
+##### 2.7 Visual Layout
+
+**XYMorphPad in context (Oscillator/Mixer section):**
+
+```
+┌─ OSCILLATOR MIXER ─────────────────────────────────────────────────────┐
+│                                                                        │
+│  OSC A: [Wavetable ▼]              OSC B: [Additive ▼]               │
+│                                                                        │
+│  ┌─ XYMorphPad ──────────────────────────────────────────────────┐    │
+│  │                         Bright                                 │    │
+│  │                                                                │    │
+│  │  ┌────────────────────────────────────────────────────────┐   │    │
+│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
+│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
+│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
+│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒○──▒▒▒▒▒▒▒▒▒▒▒▒████████████████   │   │    │
+│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
+│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
+│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
+│  │  └────────────────────────────────────────────────────────┘   │    │
+│  │                          Dark                                  │    │
+│  │  A                                                        B   │    │
+│  │  Mix: 0.45  Tilt: +2.1dB                                     │    │
+│  └────────────────────────────────────────────────────────────────┘    │
+│                                                                        │
+│  ░░ = OSC A dark     ▒▒ = blended zone     ○ = cursor                 │
+│  ▓▓ = blended zone   ██ = OSC B bright     ── = crosshair             │
+│                                                                        │
+│   Mix Mode: [Spectral ▼]    Shift ◯    Phase: [Blend ▼]              │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+**Gradient detail (what each quadrant represents):**
+
+```
+┌──────────────────────────────────────┐
+│  OSC A               OSC B          │
+│  Bright              Bright         │
+│  (blue, full)        (gold, full)   │
+│                                      │
+│              ○ cursor                │
+│                                      │
+│  OSC A               OSC B          │
+│  Dark                Dark           │
+│  (blue, dimmed)      (gold, dimmed) │
+└──────────────────────────────────────┘
+```
+
+**Component boundary breakdown:**
+
+```
+┌─ Oscillator Mixer Section (CViewContainer in editor.uidesc) ─────────┐
+│                                                                       │
+│  ┌─ OSC selectors (COptionMenu) ──────────────────────────────────┐  │
+│  │  [Wavetable ▼]                          [Additive ▼]           │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  ┌─ XYMorphPad (custom CControl) ─────────────────────────────────┐  │
+│  │  Responsible for:                                               │  │
+│  │  • 2-axis gradient background (24x24 grid, bilinear interp)    │  │
+│  │  • Cursor rendering (16px circle, 2px white stroke)            │  │
+│  │  • Corner labels (A, B, Dark, Bright)                          │  │
+│  │  • Position label (Mix + Tilt values)                          │  │
+│  │  • Optional crosshair lines at cursor position                 │  │
+│  │  • Modulation trail visualization                              │  │
+│  │  • Mouse interaction (drag, Shift+fine, dbl-click reset)       │  │
+│  │  • MorphX via CControl tag, MorphY via performEdit()           │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  ┌─ Mix controls (standard VSTGUI) ───────────────────────────────┐  │
+│  │  COptionMenu     CAnimKnob     COptionMenu                     │  │
+│  │  [Spectral ▼]    Shift ◯      [Blend ▼]                       │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+**Dimensions:**
+
+| Component | Width | Height |
+|-----------|-------|--------|
+| Full Oscillator Mixer section | 450px | ~200px |
+| OSC selector row | 450px | 24px |
+| XYMorphPad | 200-250px | 140-160px |
+| Mix controls row | 450px | 30px |
+
+##### 2.8 Differences from Disrumpo's MorphPad
+
+| Aspect | Disrumpo MorphPad | Ruinae XYMorphPad |
+|--------|-----------------|-------------------|
+| Node count | 2-4 (dynamic) | None (2-axis, no nodes) |
+| Gradient method | IDW (inverse distance²) | Bilinear (4-corner interpolation) |
+| Axes | Both = morph blend | X = morph position, Y = spectral tilt |
+| Modes | Linear1D / Planar2D / Radial2D | Always 2D |
+| Movable nodes | Yes (Alt+drag) | No (corners are fixed concepts) |
+| Connection lines | Cursor to each node | None |
+| Corner labels | A, B, C, D (node names) | A, B (oscillators), Dark, Bright (tilt) |
+| Position label | "X: 0.50 Y: 0.50" | "Mix: 0.50 Tilt: +2.1dB" |
+| Modulation trail | No | Yes (ghost cursor for LFO/env range) |
+
+**Reused from Disrumpo:**
+* CControl + FObject inheritance pattern
+* Dual-parameter trick (X via tag, Y via `performEdit()`)
+* Fine adjustment (Shift, 0.1x scale)
+* Double-click reset to center
+* Cursor visual (16px circle, 2px white stroke)
+* Grid-based gradient rendering (24x24)
+* `beginEdit()`/`endEdit()` for host undo
+
+#### 3. ADSRDisplay
+
+**Purpose:** Interactive ADSR envelope editor with per-segment curve shaping. Supports a simple drag-to-bend mode (continuous curve parameter) and a pro Bezier mode for S-curves and overshoots. Used for all three voice envelopes (Amp, Filter, Mod).
+
+##### 3.1 Core Data Model
+
+**ADSR Parameters (per envelope, already defined):**
+
+| Parameter | Range | Default | Units |
+|-----------|-------|---------|-------|
+| Attack | 0.1-10000 | 10.0 | ms |
+| Decay | 0.1-10000 | 50.0 | ms |
+| Sustain | 0.0-1.0 | 0.5 | normalized |
+| Release | 0.1-10000 | 100.0 | ms |
+
+**Curve Parameters (new, per envelope):**
+
+| Parameter | Range | Default | Units |
+|-----------|-------|---------|-------|
+| Attack Curve | -1.0 to +1.0 | 0.0 | continuous |
+| Decay Curve | -1.0 to +1.0 | 0.0 | continuous |
+| Release Curve | -1.0 to +1.0 | 0.0 | continuous |
+
+Curve interpretation:
+* -1.0 = logarithmic (fast start, slow end)
+* 0.0 = linear
+* +1.0 = exponential (slow start, fast end)
+
+**Bezier Control Points (pro mode, per segment):**
+
+Each segment has 2 control points (cp1, cp2) defining a cubic Bezier:
+* `cp1.x`, `cp1.y` — first handle (anchored to segment start)
+* `cp2.x`, `cp2.y` — second handle (anchored to segment end)
+* All values normalized [0.0-1.0] within the segment's bounding box.
+
+**Envelope Control Points (4 key positions):**
+
+```
+Level
+ 1.0 ─── ● Peak ──────────
+          │ ╲
+          │   ╲
+          │     ─── ● Sustain ───────
+          │                          ╲
+          │                            ╲
+ 0.0 ── ● Start                        ● End
+         │←Attack→│←Decay→│← Hold →│←Release→│
+```
+
+* **Start:** (0, 0) — fixed origin.
+* **Peak:** (attackTime, 1.0) — draggable horizontally only (level locked at 1.0).
+* **Sustain:** (attackTime + decayTime, sustainLevel) — draggable both axes. Horizontal = decay time, vertical = sustain level.
+* **End:** (totalTime, 0) — draggable horizontally only (level locked at 0.0). Horizontal = release time.
+
+##### 3.2 DSP Integration
+
+The DSP uses a **256-entry lookup table per segment** for curve evaluation:
+
+* **Simple mode:** The curve amount parameter [-1, +1] generates the table using a power
+  curve formula: `output = phase^(2^(curve * k))` where k controls curvature range.
+* **Pro/Bezier mode:** The cubic Bezier control points generate the table. Evaluated once
+  per parameter change, not per sample. Zero real-time cost beyond table lookup.
+* Both modes result in the same table-based processing — the audio thread sees no difference.
+
+Replaces the current discrete `EnvCurve` enum (Exponential/Linear/Logarithmic) with a
+continuous curve system. The 3 discrete values map to approximately: Logarithmic ≈ -0.7,
+Linear = 0.0, Exponential ≈ +0.7.
+
+##### 3.3 Envelope Display
+
+* **Background:** Dark fill `rgb(30,30,33)` with subtle grid.
+* **Grid lines:** Horizontal at 25%, 50%, 75% level. Vertical at time divisions (auto-scaled).
+* **Envelope curve:** Drawn as a filled area with gradient — fill color matches the envelope's
+  identity color, with a brighter stroke on top.
+* **Time axis:** Auto-scales to fit the full ADSR shape. Uses logarithmic scaling so
+  short attacks (1ms) and long releases (5s) are both visible.
+* **Sustain hold:** Shown as a horizontal dashed line from the sustain point to the
+  release start, indicating the held portion while gate is on.
+* **Gate marker:** A vertical dashed line separating the "gate on" (attack+decay+sustain)
+  and "gate off" (release) sections.
+
+**Envelope identity colors (one ADSRDisplay per envelope):**
+
+| Envelope | Fill Color | Stroke Color |
+|----------|-----------|--------------|
+| ENV 1 (Amp) | `rgba(80,140,200, 0.3)` | `rgb(80,140,200)` |
+| ENV 2 (Filter) | `rgba(220,170,60, 0.3)` | `rgb(220,170,60)` |
+| ENV 3 (Mod) | `rgba(160,90,200, 0.3)` | `rgb(160,90,200)` |
+
+##### 3.4 Interaction Model — Simple Mode (Default)
+
+**Dragging control points:**
+
+* **Peak point** (●): Drag horizontally to adjust attack time. Vertical locked at 1.0.
+* **Sustain point** (●): Drag horizontally to adjust decay time, vertically to adjust
+  sustain level. Shift+drag constrains to a single axis.
+* **End point** (●): Drag horizontally to adjust release time. Vertical locked at 0.0.
+* **Control point size:** 8px filled circles. Hit target: 12px radius for easy grabbing.
+
+**Dragging curves (curve amount):**
+
+* **Click + drag on the curve line itself** (not on a control point): Adjusts the curve
+  amount for that segment.
+  * Drag up = more logarithmic (negative curve amount).
+  * Drag down = more exponential (positive curve amount).
+* The curve visually bends in real-time as you drag.
+* A tooltip or label shows the current curve value (e.g., "Curve: -0.35").
+
+**Other interactions:**
+
+* **Double-click control point:** Reset that point to default (attack=10ms, decay=50ms,
+  sustain=0.5, release=100ms).
+* **Double-click curve:** Reset curve to linear (0.0).
+* **Shift+drag point:** Fine adjustment (0.1x scale).
+* **Escape:** Cancel drag, revert to pre-drag values.
+* **Right-click:** Reserved for host parameter context menu.
+
+##### 3.5 Interaction Model — Pro/Bezier Mode
+
+Activated by a small toggle button in the corner of the display: `[S]` (simple) / `[B]` (Bezier).
+
+**When Bezier mode is active:**
+
+* Each segment shows **2 Bezier control handles** connected to the segment endpoints
+  by thin gray lines.
+* **Drag a handle** to shape the cubic Bezier curve for that segment.
+* Handles can cross to create **S-curves** and **overshoots**.
+* The simple curve amount parameter is ignored; Bezier control points are the source of truth.
+
+**Handle visuals:**
+
+* Small 6px diamond shapes (◇) to distinguish from the main 8px circle control points.
+* Handle lines: thin 1px `rgb(100,100,100)` lines from endpoint to handle.
+* Active/dragged handle: brighter `rgb(200,200,200)`.
+
+**Bezier examples:**
+
+```
+  Standard curve         S-curve              Overshoot
+  (same as simple)       (pro only)           (pro only)
+
+  1.0 ─── ●              1.0 ─── ●            1.0 ─── ●╲
+          ╱                       ╱                     ╱  ╲ ← overshoots
+         ╱                      ╱╱                    ╱     ─●
+        ╱                   ╱╱╱                    ╱╱
+       ╱                ╱╱╱                    ╱╱
+  0.0 ●            0.0 ●                 0.0 ●
+```
+
+**Switching modes:**
+
+* Switching from Bezier to Simple: the current Bezier curve is approximated as a single
+  curve amount value (best-fit). Some fidelity may be lost (S-curves become simple curves).
+  Show a confirmation if the Bezier curve contains S-curves.
+* Switching from Simple to Bezier: the curve amount generates default Bezier handles
+  that reproduce the same curve shape.
+
+##### 3.6 Real-Time Playback Visualization
+
+* When a note is playing, show a **bright dot traveling along the curve** at the current
+  envelope position.
+* The dot's position reflects `getCurrentStage()` and the current output level.
+* **Refresh strategy:** Timer-based (`CVSTGUITimer`) at ~30fps. Timer started/stopped based
+  on voice activity (processor sends `IMessage` when voices are active).
+* If multiple voices are playing simultaneously, show the most recently triggered voice's
+  envelope position (avoids visual clutter from overlapping dots).
+
+##### 3.7 Time Axis Scaling
+
+* **Auto-scale:** The display automatically fits the full ADSR shape.
+* **Logarithmic time axis:** Short segments (1ms attack) and long segments (5s release)
+  are both comfortably visible.
+* **Time labels:** Show key time values at control points (e.g., "10ms", "50ms", "100ms").
+* **Total time label:** Bottom-right corner shows total envelope duration.
+* **Minimum segment width:** Each segment always occupies at least 15% of the display width,
+  even if its time is very short relative to others. This ensures all control points
+  remain grabbable.
+
+##### 3.8 Parameter Communication
+
+**Existing parameters (already defined in plugin_ids.h):**
+
+| Envelope | Attack | Decay | Sustain | Release |
+|----------|--------|-------|---------|---------|
+| Amp (ENV 1) | 700 | 701 | 702 | 703 |
+| Filter (ENV 2) | 800 | 801 | 802 | 803 |
+| Mod (ENV 3) | 900 | 901 | 902 | 903 |
+
+**New curve amount parameters:**
+
+| Envelope | Attack Curve | Decay Curve | Release Curve |
+|----------|-------------|-------------|---------------|
+| Amp (ENV 1) | 704 | 705 | 706 |
+| Filter (ENV 2) | 804 | 805 | 806 |
+| Mod (ENV 3) | 904 | 905 | 906 |
+
+**Bezier control point parameters (hidden, pro mode):**
+
+| Envelope | Segment | cp1.x | cp1.y | cp2.x | cp2.y |
+|----------|---------|-------|-------|-------|-------|
+| Amp | Attack | 710 | 711 | 712 | 713 |
+| Amp | Decay | 714 | 715 | 716 | 717 |
+| Amp | Release | 718 | 719 | 720 | 721 |
+| Filter | Attack | 810 | 811 | 812 | 813 |
+| Filter | Decay | 814 | 815 | 816 | 817 |
+| Filter | Release | 818 | 819 | 820 | 821 |
+| Mod | Attack | 910 | 911 | 912 | 913 |
+| Mod | Decay | 914 | 915 | 916 | 917 |
+| Mod | Release | 918 | 919 | 920 | 921 |
+
+Total new parameters: 9 curve amounts + 36 Bezier control points = **45 new parameters**.
+Bezier params are hidden (not shown in host automation list unless pro mode is active for
+that envelope).
+
+**Per-envelope mode flag:**
+
+| Envelope | Bezier Enabled |
+|----------|---------------|
+| Amp | 707 |
+| Filter | 807 |
+| Mod | 907 |
+
+**beginEdit/endEdit:** One pair per drag gesture (same as StepPatternEditor).
+
+##### 3.9 Visual Layout
+
+**Single ADSRDisplay (ENV 1 — Amp Envelope):**
+
+```
+┌─ ENV 1: AMP ───────────────────────────────────────────────────────┐
+│                                                                     │
+│  ┌─ ADSRDisplay ─────────────────────────────────────────────[S]─┐ │
+│  │                                                                │ │
+│  │ 1.0 ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──   │ │
+│  │              ● Peak                                            │ │
+│  │            ╱╱  ╲                                               │ │
+│  │          ╱╱      ╲╲                                            │ │
+│  │ 0.75── ╱╱── ── ── ╲╲── ── ── ── ── ── ── ── ── ── ── ── ──  │ │
+│  │       ╱              ╲╲                                        │ │
+│  │      ╱                 ╲╲                                      │ │
+│  │ 0.50╱── ── ── ── ── ── ── ● Sustain ─ ─ ─ ─ ┊ ── ── ── ──   │ │
+│  │    ╱                       (hold)             ┊╲╲              │ │
+│  │ 0.25── ── ── ── ── ── ── ── ── ── ── ── ── ──┊─ ╲╲── ── ──  │ │
+│  │   ╱                                           ┊    ╲╲         │ │
+│  │  ╱                                            ┊      ╲╲       │ │
+│  │ ● Start ── ── ── ── ── ── ── ── ── ── ── ── ─┊── ── ── ● End│ │
+│  │ 0.0                                           ┊               │ │
+│  │  10ms        50ms              (hold)     ┊   100ms           │ │
+│  │ │← Attack →│← Decay →│←── Sustain ──→│  ┊←Release→│         │ │
+│  │                                        gate off               │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                                                                     │
+│   Attack ◯    Decay ◯    Sustain ◯    Release ◯                    │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+  ● = draggable control point (8px circle)
+  ╱ = envelope curve (filled area underneath)
+  ┊ = gate-off marker (dashed vertical line)
+  ─ ─ = sustain hold (dashed horizontal line)
+  [S] = simple/bezier mode toggle
+```
+
+**Bezier mode active (showing handles on decay segment):**
+
+```
+┌─ ADSRDisplay (Bezier mode) ────────────────────────────────────[B]─┐
+│                                                                     │
+│ 1.0             ● Peak                                              │
+│               ╱╱ ╲                                                  │
+│             ╱╱    ╲   ◇ cp1  ← Bezier handle                       │
+│           ╱╱       ╲ ╱                                              │
+│ 0.75    ╱╱          ╳       ← S-curve (handles cross)              │
+│        ╱           ╱ ╲                                              │
+│       ╱      cp2 ◇    ╲╲                                           │
+│ 0.50 ╱                   ● Sustain ─ ─ ─ ─ ─ ─ ─ ─ ┊              │
+│     ╱                                                ┊╲╲            │
+│ 0.25                                                 ┊  ╲╲          │
+│    ╱                                                 ┊    ╲╲        │
+│ 0.0 ●                                               ┊      ● End  │
+│                                                                     │
+│  ◇ = Bezier handle (6px diamond)                                   │
+│  ── = handle line (thin gray)                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Three envelopes side by side (Envelope section layout):**
+
+```
+┌─ ENVELOPES ────────────────────────────────────────────────────────────────┐
+│                                                                            │
+│  ┌─ ENV 1: AMP ────────────┐ ┌─ ENV 2: FILTER ─────────┐ ┌─ ENV 3: MOD ─┐│
+│  │ ┌─ ADSRDisplay ──────[S]│ │ ┌─ ADSRDisplay ──────[S]│ │ ┌─ ADSR ──[S]││
+│  │ │        ●               │ │ │      ●                │ │ │    ●        ││
+│  │ │      ╱  ╲              │ │ │    ╱╱ ╲╲              │ │ │  ╱╱ ╲       ││
+│  │ │    ╱     ╲╲            │ │ │  ╱╱     ─● ─ ─┊      │ │ │╱╱    ● ─┊  ││
+│  │ │  ╱        ─● ─ ─┊     │ │ │╱╱             ┊╲╲    │ │ │        ┊╲╲ ││
+│  │ │╱               ┊╲╲   │ │ │●              ┊  ●   │ │ │●       ┊ ● ││
+│  │ │●               ┊  ●  │ │ └────────────────────────┘ │ └──────────────┘│
+│  │ └────────────────────────┘ │                          │ │              ││
+│  │  A ◯  D ◯  S ◯  R ◯      │  A ◯  D ◯  S ◯  R ◯    │  A◯ D◯ S◯ R◯ ││
+│  └──────────────────────────┘ └──────────────────────────┘ └──────────────┘│
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+  Blue fill = ENV 1 (Amp)
+  Gold fill = ENV 2 (Filter)
+  Purple fill = ENV 3 (Mod)
+```
+
+**Playback visualization (dot traveling along curve):**
+
+```
+  1.0             ● Peak
+                ╱╱  ╲
+              ╱╱      ╲╲
+            ╱╱      ◉   ╲╲        ← playback dot (bright, traveling)
+  0.50    ╱╱               ● Sustain ─ ─ ─ ─ ─ ─ ┊
+         ╱                                         ┊╲╲
+  0.0  ●                                           ┊    ● End
+
+  ◉ = current envelope position (bright dot, 6px, animated)
+      Updates at ~30fps while voices are active.
+```
+
+**Component boundary breakdown:**
+
+```
+┌─ Envelope Section (CViewContainer in editor.uidesc) ─────────────────────┐
+│                                                                           │
+│  ┌─ ADSRDisplay (custom CControl) ────────────────────────────────────┐  │
+│  │  Responsible for:                                                   │  │
+│  │  • Envelope curve rendering (filled area + stroke)                 │  │
+│  │  • Control point rendering and hit testing (●, 8px)                │  │
+│  │  • Curve drag interaction (bend curves in simple mode)             │  │
+│  │  • Bezier handle rendering and interaction (◇, 6px, pro mode)     │  │
+│  │  • Grid lines and time labels                                      │  │
+│  │  • Gate-off marker (dashed vertical line)                          │  │
+│  │  • Sustain hold line (dashed horizontal)                           │  │
+│  │  • Playback dot animation (timer-driven, ~30fps)                   │  │
+│  │  • Time axis auto-scaling (logarithmic)                            │  │
+│  │  • Mode toggle button [S]/[B] in top-right corner                  │  │
+│  │  • IDependent on ADSR + curve parameters                          │  │
+│  │  • IMessage receiver for voice activity (playback dot)             │  │
+│  │  Dimensions: 130-150px W × 80-100px H (per envelope)              │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+│  ┌─ Knobs (standard CAnimKnob, below display) ────────────────────────┐  │
+│  │  Attack ◯    Decay ◯    Sustain ◯    Release ◯                     │  │
+│  │  (linked to same params as the display — redundant input method)   │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+**Dimensions:**
+
+| Component | Width | Height |
+|-----------|-------|--------|
+| Full Envelope section (3 envelopes) | 450px | ~160px |
+| Single ADSRDisplay | 130-150px | 80-100px |
+| Knob row (per envelope) | 130-150px | 40px |
+| Mode toggle [S]/[B] | 16px | 16px |
+| Control point hit target | 12px radius | |
+| Bezier handle hit target | 8px radius | |
+
+##### 3.10 Knob-Display Synchronization
+
+The ADSR knobs below the display and the display's drag points control the **same
+parameters**. Either input method updates both:
+
+* Dragging the Peak point updates the Attack knob and vice versa.
+* Dragging the Sustain point updates both the Decay knob (horizontal) and Sustain knob
+  (vertical).
+* All updates go through the VST parameter system — no separate state.
+* Curve amount parameters have no knobs; they're controlled exclusively by dragging
+  the curve in the display.
+
+#### 4. ModMatrixGrid
+
+**Purpose:** Modulation routing management using a slot-based list with per-route controls,
+backed by modulation ring indicators on destination knobs throughout the UI and an optional
+read-only heatmap overview. This is a **two-component system**: the ModMatrixGrid panel
+(route list + heatmap) and ModRingIndicator overlays on destination knobs.
+
+##### 4.1 Design Rationale
+
+Industry convergence (Serum, Vital, Pigments, Phase Plant, Surge XT) shows that
+**slot list + knob indicators** is the correct primary interaction for modulation routing.
+A pure source×destination grid (Ableton Wavetable) creates a sparse, abstract UI that
+users find "hard to reason about." The slot list gives clarity and scalability; the
+knob rings give immediacy and intuition.
+
+Drag-to-target (Vital/Pigments) is skipped for V1 due to VSTGUI limitations
+(no built-in drag-and-drop between arbitrary views, fragile target highlighting).
+It can be added later as an **additive** enhancement, not a foundational change.
+
+##### 4.2 Modulation Architecture
+
+**Two-level system:**
+
+| Level | Scope | Max Routes | Backing | Automatable |
+|-------|-------|------------|---------|-------------|
+| Global | Engine-wide | 8 slots | VST parameters (IDs 1300-1323) | Yes |
+| Voice | Per-voice | 16 routes | `IMessage` to processor | No |
+
+**Global Sources (10):**
+
+| Source | Color | RGB |
+|--------|-------|-----|
+| ENV 1 (Amp) | Blue | `rgb(80,140,200)` |
+| ENV 2 (Filter) | Gold | `rgb(220,170,60)` |
+| ENV 3 (Mod) | Purple | `rgb(160,90,200)` |
+| Voice LFO | Green | `rgb(90,200,130)` |
+| Gate Output | Orange | `rgb(220,130,60)` |
+| Velocity | Light gray | `rgb(170,170,175)` |
+| Key Track | Cyan | `rgb(80,200,200)` |
+| Macros 1-4 | Pink | `rgb(200,100,140)` |
+| Chaos/Rungler | Deep red | `rgb(190,55,55)` |
+| LFO 1-2 (Global) | Bright green | `rgb(60,210,100)` |
+
+Color notes:
+* Velocity uses light gray with a subtle 1px outline (not pure white — avoids
+  disappearing on bright UI elements).
+* Gate Output (`rgb(220,130,60)`) and Chaos/Rungler (`rgb(190,55,55)`) are clearly
+  differentiated in both hue and saturation — orange-warm vs red-cool.
+
+**Per-Voice Sources (7):** ENV 1-3, Voice LFO, Gate Output, Velocity, Key Track.
+
+**Per-Voice Destinations (7):** Filter Cutoff, Filter Resonance, Morph Position,
+Distortion Drive, TranceGate Depth, OSC A Pitch, OSC B Pitch.
+
+**Global Destinations:** Global Filter Cutoff/Resonance, Master Volume, Effect Mix,
+plus forwarding to all voice destinations.
+
+##### 4.3 Slot-Based Route List
+
+Each route is a horizontal row with the following controls:
+
+```
+┌─ Route Row ──────────────────────────────────────────────────────────────┐
+│  ●  [ENV 2 ▼]  →  [Filter Cutoff ▼]  ◄━━━━━━━━━╋━━━━━━►  +0.72  [×]  │
+│  ↑                                     ↑        ↑                  ↑   │
+│  source color dot                     neg     center              remove│
+│                                     ◄──bipolar slider──►                │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Row elements (left to right):**
+
+1. **Source color dot** (●): 8px filled circle in source color. Visual identifier.
+2. **Source selector** (`COptionMenu`): Dropdown listing all available sources.
+3. **Arrow** (→): Static label indicating direction.
+4. **Destination selector** (`COptionMenu`): Dropdown listing all available destinations.
+5. **Bipolar amount slider**: Centered slider with midpoint = 0.
+   * Fill extends left for negative amounts, right for positive.
+   * Range: [-1.0, +1.0].
+   * Center tick mark always visible.
+   * Shift+drag for fine adjustment (0.1x scale).
+6. **Numeric label**: Shows exact value with sign (e.g., "+0.72", "-0.35").
+7. **Remove button** ([×]): Clears the route.
+
+**Empty slot:**
+
+```
+│  ○  [+ Add Route]                                                       │
+```
+
+Clicking `[+ Add Route]` creates a new route with default values (first available
+source → first available destination, amount = 0.0).
+
+**Row count:** 8 rows for Global tab, 16 rows for Voice tab. Only active routes
+are shown as full rows; remaining slots show as `[+ Add Route]`.
+
+##### 4.4 Expandable Per-Route Details
+
+Each route row is **expandable** (click a disclosure triangle or double-click the row).
+Collapsed by default for cleanliness. Expanded reveals:
+
+```
+┌─ Route Row (expanded) ──────────────────────────────────────────────────┐
+│  ●  [ENV 2 ▼]  →  [Filter Cutoff ▼]  ◄━━━━━━━━╋━━━━━━►  +0.72  [×]  │
+│  ┌─ Details ──────────────────────────────────────────────────────────┐ │
+│  │  Curve: [Linear ▼]   Smooth: ◯ 5ms   Scale: [×1 ▼]   [Bypass]  │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Detail controls:**
+
+* **Curve** (`COptionMenu`): Response curve — Linear, Exponential, Logarithmic, S-Curve.
+  Shapes how the source value maps to modulation output.
+* **Smooth** (`CKnob`): Smoothing time in ms (0-100ms). Especially useful for stepped
+  sources like Rungler or Velocity to avoid zipper noise.
+* **Scale** (`COptionMenu`): Quick multiplier — ×0.25, ×0.5, ×1, ×2, ×4. Scales the
+  amount without moving the slider. Useful for fine-tuning after initial routing.
+* **Bypass** (`COnOffButton`): Temporarily disables the route without removing it.
+  Bypassed rows show dimmed/grayed out. Essential for A/B comparison.
+
+##### 4.5 Modulation Ring Indicators (ModRingIndicator)
+
+The most important visual feedback mechanism. Every modulatable knob throughout the
+UI shows colored arcs indicating active modulation.
+
+**Arc rendering:**
+
+* Arc drawn as a colored stroke on the outer edge of the knob, overlaid on the
+  standard value indicator.
+* Arc extends from the current base value in the direction and magnitude of the
+  modulation amount.
+* **Range display:** The arc shows the actual range the parameter will sweep through,
+  not just the amount. If base value is near min/max, the arc clamps gracefully
+  (no wraparound).
+* **Base value:** Remains visually clear — the knob's primary indicator (line or dot)
+  always shows the base value. The arc extends from it.
+* **Color:** Matches the source color from section 4.2.
+
+**Multiple sources on one destination:**
+
+* Arcs are drawn as stacked layers, each in its source color.
+* **Cap at 4 visible arcs.** Beyond 4, merge additional sources into a single
+  composite gray arc labeled "+" to avoid visual clutter ("color salad").
+* Stacking order: most recent route on top.
+
+**Interaction:**
+
+* **Clicking a modulation arc** selects the corresponding route in the ModMatrixGrid
+  route list (if the modulation panel is visible). This closes the loop between
+  "what am I seeing?" and "where do I edit it?"
+* **Hover on arc** shows a tooltip: "ENV 2 → Filter Cutoff: +0.72".
+
+**Implementation:** `ModRingIndicator` is a custom `CView` overlay that wraps any
+`CKnob`/`CAnimKnob`. It observes the modulation parameters via `IDependent` and
+redraws when amounts or source values change.
+
+##### 4.6 Mini Heatmap (Read-Only Overview)
+
+A small source×destination grid rendered as a color-intensity heatmap. **Strictly
+passive — no editing, no dragging values in the grid.** Its sole purpose is to show
+the "shape" of the patch's modulation at a glance.
+
+**Rendering:**
+
+* Rows = sources, Columns = destinations.
+* Cell color = source color from section 4.2.
+* Cell intensity = `|amount|` (absolute value — polarity is NOT encoded here;
+  that's what the slot list is for).
+* Empty cells = dark background `rgb(30,30,33)`.
+* Active cells = source color at proportional brightness (|amount| × full brightness).
+
+**Interaction:**
+
+* **Clicking a cell** selects the corresponding route in the slot list. If no route
+  exists for that source→destination pair, no action (no implicit route creation).
+* **No dragging, no editing, no value changes.** This is a guardrail — grids
+  metastasize into control surfaces if you let them.
+
+**Labels:**
+
+* Column headers: abbreviated destination names (FCut, FRes, Mrph, Drv, Gate, OsA, OsB).
+* Row headers: abbreviated source names (E1, E2, E3, LFO, Gt, Vel, Key).
+* Tooltip on hover shows full names and amount.
+
+##### 4.7 Global / Voice Tabs
+
+**Tab bar:**
+
+```
+  [Global (3)]  [Voice (5)]
+```
+
+* Tab label includes active route count in parentheses.
+* Same visual layout for both tabs — only the data source differs.
+* **Global tab:** Backed by VST parameters (IDs 1300-1323). Host-automatable.
+  Changes go through `beginEdit()`/`performEdit()`/`endEdit()`.
+* **Voice tab:** Backed by `IMessage` communication to processor. NOT host-automatable.
+  Show a subtle info icon (ⓘ) with tooltip: "Voice modulation is per-voice and
+  not exposed as host automation."
+* Switching tabs updates both the route list and the heatmap.
+
+##### 4.8 Parameter Communication
+
+**Global modulation matrix (existing IDs):**
+
+```
+Per slot: Source (ID + 0), Destination (ID + 1), Amount (ID + 2)
+
+Slot 0: 1300, 1301, 1302
+Slot 1: 1303, 1304, 1305
+Slot 2: 1306, 1307, 1308
+Slot 3: 1309, 1310, 1311
+Slot 4: 1312, 1313, 1314
+Slot 5: 1315, 1316, 1317
+Slot 6: 1318, 1319, 1320
+Slot 7: 1321, 1322, 1323
+```
+
+**New per-route detail parameters (expandable row):**
+
+Each of the 8 global slots gets 4 additional parameters for the expanded details:
+
+| Slot | Curve | Smooth | Scale | Bypass |
+|------|-------|--------|-------|--------|
+| 0 | 1324 | 1325 | 1326 | 1327 |
+| 1 | 1328 | 1329 | 1330 | 1331 |
+| 2 | 1332 | 1333 | 1334 | 1335 |
+| 3 | 1336 | 1337 | 1338 | 1339 |
+| 4 | 1340 | 1341 | 1342 | 1343 |
+| 5 | 1344 | 1345 | 1346 | 1347 |
+| 6 | 1348 | 1349 | 1350 | 1351 |
+| 7 | 1352, 1353, 1354, 1355 |
+
+Total: 8 slots × (3 existing + 4 new) = **56 parameters** in range 1300-1355.
+
+**Per-voice modulation:** Controlled via `IMessage` containing serialized
+`VoiceModRoute` structs. No VST parameters — routes are set programmatically
+on the processor's `VoiceModRouter`.
+
+**ModRingIndicator updates:** The controller caches current modulation amounts
+and source values. Ring overlays observe these via `IDependent`. Refresh rate
+is display-driven (~30fps), not audio-rate.
+
+##### 4.9 Visual Layout
+
+**Full Modulation Panel:**
+
+```
+┌─ MODULATION ──────────────────────────────────────────────────────────────┐
+│                                                                            │
+│  [Global (3)]  [Voice (5)]                                    ⓘ          │
+│                                                                            │
+│  ┌─ Route List ────────────────────────────────────────────────────────┐  │
+│  │  ● [ENV 2 ▼]    → [Filter Cutoff ▼]  ◄━━━━━━━╋━━━►  +0.72  [×]  │  │
+│  │  ● [Voice LFO ▼]→ [Morph Position ▼] ◄━━━╋━━━━━━━►  +0.45  [×]  │  │
+│  │  ● [Velocity ▼] → [Dist. Drive ▼]    ◄━━━━━━╋━━━━►  +0.60  [×]  │  │
+│  │  ○ [+ Add Route]                                                   │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│  ┌─ Route 1 expanded ─────────────────────────────────────────────────┐  │
+│  │  ● [ENV 2 ▼]    → [Filter Cutoff ▼]  ◄━━━━━━━╋━━━►  +0.72  [×]  │  │
+│  │  ┌─ Details ────────────────────────────────────────────────────┐  │  │
+│  │  │  Curve: [Linear ▼]   Smooth: ◯ 5ms   Scale: [×1 ▼]  [Byp] │  │  │
+│  │  └──────────────────────────────────────────────────────────────┘  │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│  ┌─ Mini Heatmap ─────────────────────────────────────────────────────┐  │
+│  │         FCut  FRes  Mrph  Drv   Gate  OsA   OsB                   │  │
+│  │  E1   │  ░░                                                       │  │
+│  │  E2   │  ████               ▒▒                                    │  │
+│  │  E3   │              ░░                                           │  │
+│  │  LFO  │        ▒▒    ████                                         │  │
+│  │  Gt   │                                                           │  │
+│  │  Vel  │                     ████                                   │  │
+│  │  Key  │                                   ░░     ░░               │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│  Heatmap: intensity = |amount|, color = source color. Click to select.    │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Bipolar slider detail (centered at zero):**
+
+```
+  Negative amount (-0.45):     Positive amount (+0.72):     Zero (0.00):
+  ◄━━━━━━╋━━━━━━━━━━━━━━►    ◄━━━━━━━━━━━━━━╋━━━━━━►    ◄━━━━━━━━━━━╋►
+         ↑                                    ↑                        ↑
+     fill extends left                   fill extends right         no fill
+     from center                         from center             center tick
+```
+
+**Modulation rings on destination knobs (shown elsewhere in UI):**
+
+```
+  Single source:            Multiple sources (2):       Capped (4+):
+    ╭───╮                     ╭───╮                      ╭───╮
+   ╱ ██▓ ╲ ← gold arc       ╱▓██▓╲ ← gold + green     ╱▓▒▓▒╲ ← stacked
+  │  ◯   │ (ENV 2)         │  ◯   │                   │  ◯   │
+   ╲     ╱                   ╲   ▓╱                     ╲ +  ╱ ← "+" gray
+    ╰───╯                     ╰───╯                      ╰───╯
+
+  Arc = modulation range from base value.
+  Base value indicator (line/dot) always visible underneath.
+  Clicking arc → selects route in mod list.
+  Hover → tooltip "ENV 2 → Filter Cutoff: +0.72"
+```
+
+**Component boundary breakdown:**
+
+```
+┌─ Modulation Section (CViewContainer in editor.uidesc) ───────────────────┐
+│                                                                           │
+│  ┌─ Tab Bar (CSegmentButton or custom) ────────────────────────────────┐ │
+│  │  [Global (3)]  [Voice (5)]                                ⓘ        │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+│  ┌─ ModMatrixGrid (custom CViewContainer) ─────────────────────────────┐ │
+│  │  Responsible for:                                                    │ │
+│  │  • Route row rendering (source dot, dropdowns, slider, remove btn) │ │
+│  │  • Bipolar amount slider (centered, fill left/right)               │ │
+│  │  • Expandable row details (curve, smooth, scale, bypass)           │ │
+│  │  • [+ Add Route] empty slot interaction                            │ │
+│  │  • Scrollable if routes exceed visible height                      │ │
+│  │  • IDependent on mod matrix parameters (1300-1355)                 │ │
+│  │  • IMessage sender/receiver for Voice tab routes                   │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+│  ┌─ ModHeatmap (custom CView, read-only) ──────────────────────────────┐ │
+│  │  Responsible for:                                                    │ │
+│  │  • Grid cell rendering (source color × |amount| intensity)         │ │
+│  │  • Row/column labels (abbreviated)                                  │ │
+│  │  • Click-to-select (highlights route in list, no editing)          │ │
+│  │  • Tooltip on hover (full names + amount)                           │ │
+│  │  • IDependent on same mod matrix parameters                        │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
+
+Separate component (overlaid on knobs throughout UI):
+
+┌─ ModRingIndicator (custom CView overlay per knob) ─────────────────────┐
+│  Responsible for:                                                       │
+│  • Colored arc rendering on outer edge of destination knob             │
+│  • Range display (from base value, clamp at min/max, no wraparound)   │
+│  • Stacked arcs for multiple sources (max 4, then composite gray "+") │
+│  • Click-on-arc → selects route in ModMatrixGrid                      │
+│  • Hover → tooltip with source, destination, amount                    │
+│  • IDependent on mod matrix parameters                                 │
+│  • Refresh at display rate (~30fps), not audio rate                    │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Dimensions:**
+
+| Component | Width | Height |
+|-----------|-------|--------|
+| Full Modulation section | 450px | ~250px (collapsed routes) |
+| Tab bar | 450px | 24px |
+| Route row (collapsed) | 430px | 28px |
+| Route row (expanded) | 430px | 56px |
+| Mini heatmap | 300px | 80-100px |
+| ModRingIndicator (per knob) | Overlays existing knob | 2-4px stroke width |
+
+##### 4.10 Cross-Component Integration
+
+**Shared color system:** The source colors defined in section 4.2 are used
+consistently across all three sub-components (route list, heatmap, knob rings)
+and also in the ADSRDisplay envelope identity colors (section 3.3). ENV 1 is
+blue everywhere. ENV 2 is gold everywhere. No color conflicts.
+
+**XYMorphPad interaction:** When Morph Position is a modulation destination,
+the XYMorphPad's modulation trail visualization (section 2.5) uses the same
+source color as the ModRingIndicator arc on the Morph Position knob. The trail
+and the arc show the same information in different contexts.
+
+**StepPatternEditor interaction:** When TranceGate Depth is a modulation
+destination, the depth knob near the step editor shows a modulation ring.
+The Gate Output source color (`rgb(220,130,60)`) is visually distinct from
+the step editor's accent gold (`rgb(220,170,60)`) — similar hue but different
+saturation prevents confusion.
+
+#### 5. OscillatorTypeSelector
+
+Visual oscillator type chooser with waveform previews. Used for both OSC A
+(`kOscATypeId = 100`) and OSC B (`kOscBTypeId = 200`) — same component class,
+different parameter tag.
+
+##### 5.1 Core Data Model
+
+**10 oscillator types** from `OscType` enum (`ruinae_types.h`):
+
+| Index | Enum              | Abbrev | Waveform Icon Description                        |
+|-------|-------------------|--------|--------------------------------------------------|
+| 0     | PolyBLEP          | BLEP   | Classic saw/square hybrid silhouette              |
+| 1     | Wavetable          | WTbl   | Multi-frame wavetable stack (3 overlapping waves) |
+| 2     | PhaseDistortion    | PDst   | Bent sine (asymmetric curvature)                  |
+| 3     | Sync              | Sync   | Hard-sync waveform (truncated overtone burst)     |
+| 4     | Additive           | Add    | Harmonic bar spectrum (5-6 descending bars)       |
+| 5     | Chaos              | Chaos  | Lorenz-style attractor squiggle                   |
+| 6     | Particle           | Prtcl  | Scattered dot cluster with envelope arc           |
+| 7     | Formant            | Fmnt   | Vocal formant peaks (2-3 resonant humps)          |
+| 8     | SpectralFreeze     | SFrz   | Frozen spectral slice (vertical bars, snowflake)  |
+| 9     | Noise              | Noise  | Random noise band (jagged horizontal line)        |
+
+**State:** Single integer value 0–9 mapped to the bound VST parameter. The parameter
+is a `StringListParameter` with 10 entries, so normalized value = `index / 9.0`.
+
+##### 5.2 Waveform Preview Rendering
+
+All waveform icons are **drawn programmatically** via `CDrawContext` path operations
+(no bitmaps). This ensures clean scaling at any DPI.
+
+* **Icon area:** Each cell dedicates roughly 70% of its height to the waveform icon
+  and 30% to the abbreviated label below.
+* **Drawing style:** 1.5px stroke, anti-aliased. Unselected cells use a muted
+  foreground color (`rgb(140,140,150)`). Selected cell uses the oscillator's
+  identity color (see below).
+* **Identity colors:** OSC A = `rgb(100,180,255)` (blue), OSC B = `rgb(255,140,100)`
+  (warm orange). The selected cell's icon stroke and label use this color.
+* **Fill:** No fill on waveform paths — stroke only for clarity at small sizes.
+
+##### 5.3 Interaction
+
+| Action             | Behavior                                                |
+|--------------------|---------------------------------------------------------|
+| Click cell         | Select that oscillator type. Calls `beginEdit()`, `performEdit()`, `endEdit()` in a single gesture. |
+| Hover cell         | Highlight with subtle background tint (`rgba(255,255,255,0.06)`). Show tooltip with full name (e.g., "Phase Distortion", "Spectral Freeze"). |
+| Scroll wheel       | Increment/decrement selection by 1 (wraps around). Allows quick auditioning. |
+| Arrow keys (focus) | Left/Right moves selection horizontally, Up/Down moves between rows. |
+
+**No drag, no right-click, no modifier keys.** This is a simple selector.
+
+##### 5.4 Parameter Communication
+
+* **Tag binding:** The `CControl` tag maps directly to `kOscATypeId` (100) or
+  `kOscBTypeId` (200) depending on which oscillator section instantiates the view.
+* **Value mapping:** Normalized `0.0` = PolyBLEP (index 0), `1.0` = Noise (index 9).
+  Convert via `index = round(value * 9)`, `value = index / 9.0`.
+* **Host automation:** Fully automatable. When the host changes the parameter, the
+  view receives `valueChanged()` and redraws to reflect the new selection.
+* **No IMessage needed** — this is a plain parameter, no processor↔controller
+  messaging required.
+
+##### 5.5 Visual Layout
+
+**2×5 grid, tooltip-only with abbreviated labels:**
+
+```
+┌─ OSC A ──────────────────────────────────────────────┐
+│                                                        │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐       │
+│  │ /\/\ │ │≈≈≈≈≈≈│ │  ∿~  │ │/|/|/|│ │▎▎▎▎ │       │
+│  │      │ │      │ │      │ │      │ │      │       │
+│  │ BLEP │ │ WTbl │ │ PDst │ │ Sync │ │ Add  │       │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘       │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐       │
+│  │~*~*~ │ │ .··. │ │ ∩ ∩  │ │▮▮▮▯▯▯│ │▓░▓░▓░│       │
+│  │      │ │      │ │      │ │      │ │      │       │
+│  │Chaos │ │Prtcl │ │ Fmnt │ │ SFrz │ │Noise │       │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘       │
+│                                                        │
+│  [Tune: -24..+24] [Fine: -100..+100] [Level] [Phase] │
+└────────────────────────────────────────────────────────┘
+```
+
+**Dimensions:**
+
+| Property           | Value              |
+|--------------------|--------------------|
+| Grid size          | 2 rows × 5 columns |
+| Cell size          | 48 × 40 px         |
+| Cell gap           | 2 px                |
+| Total grid         | 248 × 82 px        |
+| Icon area per cell | 48 × 26 px         |
+| Label area         | 48 × 12 px (centered, 9px font) |
+| Selected border    | 1.5 px, identity color, rounded 3px |
+| Unselected border  | 1 px, `rgb(60,60,65)` |
+| Background         | `rgb(30,30,35)` (matches panel bg) |
+
+**Selected cell styling:**
+- Border: identity color at full opacity (blue for OSC A, orange for OSC B)
+- Background: identity color at 10% opacity (`rgba(100,180,255,0.10)`)
+- Icon stroke: identity color
+- Label: identity color
+
+**Unselected cell styling:**
+- Border: subtle dark (`rgb(60,60,65)`)
+- Background: transparent
+- Icon stroke: muted (`rgb(140,140,150)`)
+- Label: muted (`rgb(140,140,150)`)
+
+##### 5.6 Accessibility & Keyboard
+
+* **Tab focus:** The grid is a single focusable control. Arrow keys navigate cells.
+* **Keyboard selection:** Enter or Space selects the focused cell.
+* **Focus indicator:** Dotted 1px border around the focused cell (distinct from
+  selection highlight).
+* **Scroll wheel:** Cycles through types sequentially (wraps 9→0 and 0→9).
+
+##### 5.7 Implementation Notes
+
+* **Class:** `OscillatorTypeSelector : public CControl` in `plugins/shared/src/ui/`.
+* **Reusable:** Same class for OSC A and OSC B. The identity color is determined by
+  a custom attribute in `editor.uidesc` (e.g., `osc-identity="a"` or `"b"`).
+* **Waveform drawing:** Each type's icon is a static method returning a `CGraphicsPath`
+  or drawing directly to context. These are simple 5-10 point paths — no runtime
+  computation needed.
+* **Humble object:** Drawing logic is testable: a pure function maps
+  `(OscType, CRect, bool selected, CColor identityColor)` → draw commands.
+* **Hit testing:** `CPoint` → cell index via simple grid arithmetic:
+  `col = x / (cellW + gap)`, `row = y / (cellH + gap)`, `index = row * 5 + col`.
 
 ### VSTGUI Patterns (From Existing Codebase)
 
