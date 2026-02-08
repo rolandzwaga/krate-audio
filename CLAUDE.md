@@ -28,6 +28,10 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 
 ## Critical Rules (Non-Negotiable)
 
+### No Amending Commits
+
+**NEVER use `git commit --amend`.** Always create a new commit. Amending is ONLY allowed when the user explicitly asks for it.
+
 ### No Background Agents
 
 **NEVER run Task agents in the background.** Always use `run_in_background: false` (or omit the parameter). The user needs to monitor agent progress in real-time. Background execution obscures what's happening and is forbidden.
