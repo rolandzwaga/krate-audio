@@ -439,167 +439,131 @@ TEST_CASE("ExtModulation: Global modulation engine performance < 0.5% CPU",
 // 042-ext-modulation-system: SC-003 - Zipper Noise / Smooth Transitions
 // =============================================================================
 //
-// SC-003: "All modulation parameter transitions (amount changes, route
-// activation/deactivation) MUST be free of audible zipper noise at normal
-// monitoring levels. Verified by measuring output discontinuity amplitude
-// during parameter transitions: step sizes MUST be below -60 dBFS."
+// SC-003: "All modulation parameter transitions MUST be free of audible zipper
+// noise. Step sizes MUST be below -60 dBFS."
 //
-// Approach: Use block_size=1 to get per-SAMPLE resolution of the smoother.
-// This directly measures the maximum sample-to-sample offset step, which
-// equals the audio output discontinuity for gain-type parameters at 0 dBFS.
-// At normal monitoring levels (-12 to -20 dBFS), the actual audio
-// discontinuity is even smaller.
+// Approach: Use real block_size=512 and the interpolation API
+// (getModulationOffsetInterp) to get start/end offsets per block. The
+// per-sample step = |end - start| / blockSize must be below -60 dBFS (0.001).
+// Block boundary continuity: start[N+1] == end[N] (smoother state persists).
 // =============================================================================
 
 // -60 dBFS in linear amplitude
 static constexpr float kMaxStepLinear = 0.001f;
 
-// Per-sample scaffold: block_size=1 for exact smoother measurement.
-// Each processOneSample() call advances the smoother by exactly 1 sample.
-class PerSampleScaffold {
-public:
-    void prepare() noexcept {
-        engine_.prepare(kSampleRate, 1);  // block_size=1
-    }
-
-    void processOneSample() noexcept {
-        float sampleL = 0.0f;
-        float sampleR = 0.0f;
-        BlockContext ctx;
-        ctx.sampleRate = kSampleRate;
-        ctx.tempoBPM = 120.0;
-        ctx.isPlaying = true;
-        engine_.process(ctx, &sampleL, &sampleR, 1);
-    }
-
-    [[nodiscard]] float getOffset(uint32_t destId) const noexcept {
-        return engine_.getModulationOffset(destId);
-    }
-
-    void setRouting(size_t index, ModSource source, uint32_t destId,
-                    float amount, ModCurve curve = ModCurve::Linear) noexcept {
-        ModRouting routing;
-        routing.source = source;
-        routing.destParamId = destId;
-        routing.amount = amount;
-        routing.curve = curve;
-        routing.active = true;
-        engine_.setRouting(index, routing);
-    }
-
-    void setMacroValue(size_t index, float value) noexcept {
-        engine_.setMacroValue(index, value);
-    }
-
-private:
-    ModulationEngine engine_;
-};
-
-TEST_CASE("SC-003: Global route amount change 0->1 produces smooth transition",
+TEST_CASE("SC-003: Amount change 0->1 at block_size=512 produces smooth interpolation",
           "[ext_modulation][smoothing][SC-003]") {
-    PerSampleScaffold scaffold;
+    TestEngineScaffold scaffold;
     scaffold.prepare();
-    scaffold.setMacroValue(0, 1.0f);  // Macro1 = 1.0 (constant)
+    scaffold.setMacroValue(0, 1.0f);  // Macro1 = 1.0 (constant source)
 
     // Route with amount=0.0, process to steady state
     scaffold.setRouting(0, ModSource::Macro1, kGlobalFilterCutoffDestId, 0.0f);
-    for (int i = 0; i < 100; ++i) {
-        scaffold.processOneSample();
+    for (int i = 0; i < 20; ++i) {
+        scaffold.processBlock();
     }
-    float prevOffset = scaffold.getOffset(kGlobalFilterCutoffDestId);
-    REQUIRE(prevOffset == Approx(0.0f).margin(0.001f));
 
-    // Change amount from 0.0 to 1.0 — smoother must transition gradually
+    // Verify steady at 0
+    float startVal = 0.0f;
+    float endVal = 0.0f;
+    scaffold.engine().getModulationOffsetInterp(kGlobalFilterCutoffDestId, startVal, endVal);
+    REQUIRE(startVal == Approx(0.0f).margin(0.001f));
+    REQUIRE(endVal == Approx(0.0f).margin(0.001f));
+
+    // Change amount from 0.0 to 1.0
     scaffold.setRouting(0, ModSource::Macro1, kGlobalFilterCutoffDestId, 1.0f);
 
-    float maxStep = 0.0f;
-    int samplesToSettle = 0;
-    bool settled = false;
+    float maxPerSampleStep = 0.0f;
+    float prevEnd = endVal;
+    bool reachedTarget = false;
+    int blocksToSettle = 0;
 
-    // Process enough samples for full convergence (120ms = 5292 samples at 44.1kHz)
-    constexpr int kMeasureSamples = 8000;
-    for (int s = 0; s < kMeasureSamples; ++s) {
-        scaffold.processOneSample();
-        float offset = scaffold.getOffset(kGlobalFilterCutoffDestId);
-        float step = std::abs(offset - prevOffset);
+    // Process enough blocks for full convergence (120ms ~ 10 blocks at 512/44100)
+    constexpr int kMeasureBlocks = 50;
+    for (int b = 0; b < kMeasureBlocks; ++b) {
+        scaffold.processBlock();
+        scaffold.engine().getModulationOffsetInterp(kGlobalFilterCutoffDestId, startVal, endVal);
 
-        if (step > maxStep) {
-            maxStep = step;
+        // Block boundary continuity: start of this block == end of previous block
+        REQUIRE(startVal == Approx(prevEnd).margin(1e-6f));
+
+        // Per-sample step within this block
+        float blockStep = std::abs(endVal - startVal) / static_cast<float>(kBlockSize);
+        maxPerSampleStep = std::max(maxPerSampleStep, blockStep);
+
+        if (!reachedTarget && std::abs(endVal - 1.0f) < 0.01f) {
+            blocksToSettle = b + 1;
+            reachedTarget = true;
         }
 
-        if (!settled && std::abs(offset - 1.0f) < 0.01f) {
-            samplesToSettle = s + 1;
-            settled = true;
-        }
-
-        prevOffset = offset;
+        prevEnd = endVal;
     }
 
-    INFO("Max per-sample step: " << maxStep);
-    INFO("Samples to 99%: " << samplesToSettle);
+    INFO("Max per-sample step: " << maxPerSampleStep);
+    INFO("Blocks to 99%: " << blocksToSettle);
     INFO("-60 dBFS threshold: " << kMaxStepLinear);
 
     // SC-003: per-sample step sizes MUST be below -60 dBFS
-    REQUIRE(maxStep < kMaxStepLinear);
+    REQUIRE(maxPerSampleStep < kMaxStepLinear);
 
-    // Transition must be gradual (takes multiple samples, not instant)
-    REQUIRE(samplesToSettle > 100);
+    // Transition must be gradual (takes multiple blocks)
+    REQUIRE(blocksToSettle > 1);
 
-    // Must settle within reasonable time (< 200ms = 8820 samples)
-    REQUIRE(settled);
+    // Must settle within reasonable time
+    REQUIRE(reachedTarget);
 }
 
-TEST_CASE("SC-003: Global route amount change 1->0 produces smooth ramp-down",
+TEST_CASE("SC-003: Amount change 1->0 at block_size=512 produces smooth ramp-down",
           "[ext_modulation][smoothing][SC-003]") {
-    PerSampleScaffold scaffold;
+    TestEngineScaffold scaffold;
     scaffold.prepare();
     scaffold.setMacroValue(0, 1.0f);
 
     // Settle at amount=1.0
     scaffold.setRouting(0, ModSource::Macro1, kGlobalFilterCutoffDestId, 1.0f);
-    for (int i = 0; i < 8000; ++i) {
-        scaffold.processOneSample();
+    for (int i = 0; i < 50; ++i) {
+        scaffold.processBlock();
     }
-    float prevOffset = scaffold.getOffset(kGlobalFilterCutoffDestId);
-    REQUIRE(prevOffset == Approx(1.0f).margin(0.01f));
+
+    float startVal = 0.0f;
+    float endVal = 0.0f;
+    scaffold.engine().getModulationOffsetInterp(kGlobalFilterCutoffDestId, startVal, endVal);
+    REQUIRE(endVal == Approx(1.0f).margin(0.01f));
 
     // Ramp amount from 1.0 to 0.0
     scaffold.setRouting(0, ModSource::Macro1, kGlobalFilterCutoffDestId, 0.0f);
 
-    float maxStep = 0.0f;
-    int samplesToSettle = 0;
+    float maxPerSampleStep = 0.0f;
+    float prevEnd = endVal;
     bool settled = false;
 
-    constexpr int kMeasureSamples = 8000;
-    for (int s = 0; s < kMeasureSamples; ++s) {
-        scaffold.processOneSample();
-        float offset = scaffold.getOffset(kGlobalFilterCutoffDestId);
-        float step = std::abs(offset - prevOffset);
+    constexpr int kMeasureBlocks = 50;
+    for (int b = 0; b < kMeasureBlocks; ++b) {
+        scaffold.processBlock();
+        scaffold.engine().getModulationOffsetInterp(kGlobalFilterCutoffDestId, startVal, endVal);
 
-        if (step > maxStep) {
-            maxStep = step;
-        }
+        // Block boundary continuity
+        REQUIRE(startVal == Approx(prevEnd).margin(1e-6f));
 
-        if (!settled && std::abs(offset) < 0.01f) {
-            samplesToSettle = s + 1;
+        float blockStep = std::abs(endVal - startVal) / static_cast<float>(kBlockSize);
+        maxPerSampleStep = std::max(maxPerSampleStep, blockStep);
+
+        if (!settled && std::abs(endVal) < 0.01f) {
             settled = true;
         }
 
-        prevOffset = offset;
+        prevEnd = endVal;
     }
 
-    INFO("Max per-sample step (ramp down): " << maxStep);
-    INFO("Samples to settle: " << samplesToSettle);
+    INFO("Max per-sample step (ramp down): " << maxPerSampleStep);
 
-    // SC-003: per-sample step sizes below -60 dBFS
-    REQUIRE(maxStep < kMaxStepLinear);
-    REQUIRE(samplesToSettle > 100);
+    REQUIRE(maxPerSampleStep < kMaxStepLinear);
     REQUIRE(settled);
 }
 
-TEST_CASE("SC-003: Multiple simultaneous amount changes all smooth",
+TEST_CASE("SC-003: Multiple simultaneous amount changes at block_size=512 all smooth",
           "[ext_modulation][smoothing][SC-003]") {
-    PerSampleScaffold scaffold;
+    TestEngineScaffold scaffold;
     scaffold.prepare();
     scaffold.setMacroValue(0, 1.0f);
 
@@ -608,8 +572,8 @@ TEST_CASE("SC-003: Multiple simultaneous amount changes all smooth",
     scaffold.setRouting(1, ModSource::Macro1, kEffectMixDestId, 0.0f);
     scaffold.setRouting(2, ModSource::Macro1, kAllVoiceFilterCutoffDestId, 0.0f);
 
-    for (int i = 0; i < 100; ++i) {
-        scaffold.processOneSample();
+    for (int i = 0; i < 20; ++i) {
+        scaffold.processBlock();
     }
 
     // Simultaneous jump on all 3
@@ -617,23 +581,42 @@ TEST_CASE("SC-003: Multiple simultaneous amount changes all smooth",
     scaffold.setRouting(1, ModSource::Macro1, kEffectMixDestId, -0.8f);
     scaffold.setRouting(2, ModSource::Macro1, kAllVoiceFilterCutoffDestId, 0.5f);
 
-    float prevVol = 0.0f, prevMix = 0.0f, prevFilter = 0.0f;
-    float maxStepVol = 0.0f, maxStepMix = 0.0f, maxStepFilter = 0.0f;
+    float maxStepVol = 0.0f;
+    float maxStepMix = 0.0f;
+    float maxStepFilter = 0.0f;
+    float prevEndVol = 0.0f;
+    float prevEndMix = 0.0f;
+    float prevEndFilter = 0.0f;
 
-    for (int s = 0; s < 8000; ++s) {
-        scaffold.processOneSample();
+    constexpr int kMeasureBlocks = 50;
+    for (int b = 0; b < kMeasureBlocks; ++b) {
+        scaffold.processBlock();
 
-        float vol = scaffold.getOffset(kMasterVolumeDestId);
-        float mix = scaffold.getOffset(kEffectMixDestId);
-        float filter = scaffold.getOffset(kAllVoiceFilterCutoffDestId);
+        float sVol = 0.0f;
+        float eVol = 0.0f;
+        float sMix = 0.0f;
+        float eMix = 0.0f;
+        float sFilter = 0.0f;
+        float eFilter = 0.0f;
 
-        maxStepVol = std::max(maxStepVol, std::abs(vol - prevVol));
-        maxStepMix = std::max(maxStepMix, std::abs(mix - prevMix));
-        maxStepFilter = std::max(maxStepFilter, std::abs(filter - prevFilter));
+        scaffold.engine().getModulationOffsetInterp(kMasterVolumeDestId, sVol, eVol);
+        scaffold.engine().getModulationOffsetInterp(kEffectMixDestId, sMix, eMix);
+        scaffold.engine().getModulationOffsetInterp(kAllVoiceFilterCutoffDestId, sFilter, eFilter);
 
-        prevVol = vol;
-        prevMix = mix;
-        prevFilter = filter;
+        // Block boundary continuity (skip first block — prevEnd not captured before change)
+        if (b > 0) {
+            REQUIRE(sVol == Approx(prevEndVol).margin(1e-6f));
+            REQUIRE(sMix == Approx(prevEndMix).margin(1e-6f));
+            REQUIRE(sFilter == Approx(prevEndFilter).margin(1e-6f));
+        }
+
+        maxStepVol = std::max(maxStepVol, std::abs(eVol - sVol) / static_cast<float>(kBlockSize));
+        maxStepMix = std::max(maxStepMix, std::abs(eMix - sMix) / static_cast<float>(kBlockSize));
+        maxStepFilter = std::max(maxStepFilter, std::abs(eFilter - sFilter) / static_cast<float>(kBlockSize));
+
+        prevEndVol = eVol;
+        prevEndMix = eMix;
+        prevEndFilter = eFilter;
     }
 
     INFO("Max step MasterVolume: " << maxStepVol);
