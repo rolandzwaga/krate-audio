@@ -23,6 +23,7 @@
 #pragma once
 
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/modulation_source.h>
 #include <krate/dsp/core/random.h>
 #include <krate/dsp/primitives/one_pole.h>
 
@@ -59,7 +60,7 @@ namespace DSP {
 /// @par Real-Time Safety
 /// - prepare(): NOT real-time safe (prepares OnePoleLP filter)
 /// - All other methods: Real-time safe (noexcept, no allocations)
-class Rungler {
+class Rungler : public ModulationSource {
 public:
     // =========================================================================
     // Output Structure (FR-012)
@@ -226,6 +227,22 @@ public:
     /// @param seedValue Seed value (0 is replaced with default by Xorshift32) (FR-020)
     void seed(uint32_t seedValue) noexcept {
         rng_.seed(seedValue);
+    }
+
+    // =========================================================================
+    // ModulationSource Interface (042-ext-modulation-system)
+    // =========================================================================
+
+    /// @brief Get the current Rungler CV value.
+    /// @return Current filtered Rungler CV [0, 1] (or 0.0f before prepare)
+    [[nodiscard]] float getCurrentValue() const noexcept override {
+        return runglerCV_;
+    }
+
+    /// @brief Get the output range of the Rungler modulation source.
+    /// @return {0.0f, 1.0f} (unipolar)
+    [[nodiscard]] std::pair<float, float> getSourceRange() const noexcept override {
+        return {0.0f, 1.0f};
     }
 
     // =========================================================================
