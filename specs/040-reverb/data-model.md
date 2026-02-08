@@ -65,6 +65,7 @@ The main reverb processor. Layer 4 effect in `Krate::DSP` namespace.
 | `preDelayMsSmoother_` | Smooth pre-delay time changes (milliseconds) |
 | `diffusion1Smoother_` | Smooth input diffusion 1 coefficient |
 | `diffusion2Smoother_` | Smooth input diffusion 2 coefficient |
+| `modDepthSmoother_` | Smooth modulation depth changes |
 
 **Tank State Variables**:
 
@@ -102,7 +103,7 @@ Reverb "has" 2 OnePoleLP (tank damping filters)
 Reverb "has" 2 DelayLine (tank decay diffusion 2, fixed; allpass math inline for output tap access)
 Reverb "has" 2 DelayLine (tank post-damping delays)
 Reverb "has" 2 DCBlocker (tank DC blockers)
-Reverb "has" 8 OnePoleSmoother (parameter smoothing)
+Reverb "has" 9 OnePoleSmoother (parameter smoothing)
 ```
 
 ## Constants
