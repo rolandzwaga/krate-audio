@@ -43,6 +43,7 @@ add_executable(dsp_tests
     unit/core/polyblep_test.cpp
     unit/core/phase_utils_test.cpp
     unit/core/wavetable_data_test.cpp
+    unit/core/spectral_simd_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/envelope_utils_test.cpp
@@ -161,6 +162,7 @@ add_executable(dsp_tests
     unit/processors/multi_stage_envelope_test.cpp
     unit/processors/mono_handler_test.cpp
     unit/processors/note_processor_test.cpp
+    unit/processors/trance_gate_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -434,6 +436,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/multi_stage_envelope_test.cpp
         unit/processors/mono_handler_test.cpp
         unit/processors/note_processor_test.cpp
+        unit/processors/trance_gate_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

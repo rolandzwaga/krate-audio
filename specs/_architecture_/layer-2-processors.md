@@ -5486,3 +5486,69 @@ float freq = noteProc.getFrequency(69);
 **Memory:** ~60 bytes per instance (OnePoleSmoother + cached state). Real-time safe, single-threaded.
 
 **Dependencies:** Layer 0 (midi_utils.h, pitch_utils.h, db_utils.h), Layer 1 (OnePoleSmoother from smoother.h)
+
+---
+
+## TranceGate
+**Path:** [trance_gate.h](../../dsp/include/krate/dsp/processors/trance_gate.h) | **Since:** 0.10.0
+
+Rhythmic energy shaper -- pattern-driven VCA that applies a repeating step pattern as multiplicative gain to audio. Provides click-free transitions via asymmetric one-pole smoothing, Euclidean pattern generation, depth-controlled mixing, tempo-synced and free-running modes, and per-voice/global clock modes. Designed for placement post-distortion, pre-VCA in the Ruinae voice chain.
+
+```cpp
+struct GateStep {
+    float level{1.0f};  // 0.0 = silence, 1.0 = full volume
+};
+
+struct TranceGateParams {
+    int numSteps{16};                                // [2, 32]
+    float rateHz{4.0f};                              // Free-run Hz [0.1, 100.0]
+    float depth{1.0f};                               // [0.0, 1.0]: 0 = bypass, 1 = full
+    float attackMs{2.0f};                            // [1.0, 20.0] ms
+    float releaseMs{10.0f};                          // [1.0, 50.0] ms
+    float phaseOffset{0.0f};                         // [0.0, 1.0]
+    bool tempoSync{true};                            // true = tempo, false = free-run
+    NoteValue noteValue{NoteValue::Sixteenth};       // Step note value
+    NoteModifier noteModifier{NoteModifier::None};   // Dotted/Triplet
+    bool perVoice{true};                             // true = reset on noteOn
+};
+
+class TranceGate {
+    static constexpr int kMaxSteps = 32;
+    static constexpr int kMinSteps = 2;
+
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Configuration
+    void setParams(const TranceGateParams& params) noexcept;
+    void setTempo(double bpm) noexcept;
+
+    // Pattern Control
+    void setStep(int index, float level) noexcept;
+    void setPattern(const std::array<float, 32>& pattern, int numSteps) noexcept;
+    void setEuclidean(int hits, int steps, int rotation = 0) noexcept;
+
+    // Processing
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(float* buffer, size_t numSamples) noexcept;      // mono
+    void processBlock(float* left, float* right, size_t numSamples) noexcept; // stereo
+
+    // Queries
+    [[nodiscard]] float getGateValue() const noexcept;
+    [[nodiscard]] int getCurrentStep() const noexcept;
+};
+```
+
+**When to use:**
+- Rhythmic amplitude gating (trance gate, sidechain-style pumping)
+- Pattern-driven volume modulation with float-level steps (ghost notes, accents)
+- Euclidean rhythm generation for polyrhythmic effects
+- Any processor needing tempo-synced or free-running step patterns with click-free transitions
+- Post-distortion, pre-VCA position in synthesizer voice chains
+
+**Usage pattern:** prepare once, setParams/setTempo per block, process per sample or processBlock per block. Per-voice mode: call reset() on note-on. Global mode: continuous clock.
+
+**Memory:** ~200 bytes per instance (32-float pattern array + 2 smoothers + timing state). Header-only, real-time safe, single-threaded.
+
+**Dependencies:** Layer 0 (euclidean_pattern.h, note_value.h), Layer 1 (OnePoleSmoother from smoother.h)

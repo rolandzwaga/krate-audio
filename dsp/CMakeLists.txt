@@ -23,9 +23,10 @@ endif()
 smtg_target_setup_universal_binary(pffft)
 
 # Define KrateDSP as a static library
-# Most DSP code is header-only, but dsp_utils.cpp contains implementations
+# Most DSP code is header-only; .cpp files provide out-of-line implementations
 add_library(KrateDSP STATIC
     include/krate/dsp/core/dsp_utils.cpp
+    include/krate/dsp/core/spectral_simd.cpp
 )
 
 # Public include directory for consumers
@@ -38,6 +39,10 @@ target_include_directories(KrateDSP
 # Link to pffft for SIMD-optimized FFT
 # PUBLIC because fft.h (a public header) includes <pffft.h>
 target_link_libraries(KrateDSP PUBLIC pffft)
+
+# Link to Google Highway for SIMD-accelerated spectral math
+# PRIVATE because no Highway headers appear in public API
+target_link_libraries(KrateDSP PRIVATE hwy hwy_contrib)
 
 # C++20 requirement
 target_compile_features(KrateDSP PUBLIC cxx_std_20)
@@ -73,6 +78,7 @@ set(KRATE_DSP_CORE_HEADERS
     include/krate/dsp/core/db_utils.h
     include/krate/dsp/core/dsp_utils.h
     include/krate/dsp/core/fast_math.h
+    include/krate/dsp/core/spectral_simd.h
     include/krate/dsp/core/grain_envelope.h
     include/krate/dsp/core/interpolation.h
     include/krate/dsp/core/math_constants.h
