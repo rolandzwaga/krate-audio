@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <vector>
@@ -394,4 +395,42 @@ TEST_CASE("ExtModulation: Rungler via Macro3 -> GlobalFilterCutoff",
     float offset = scaffold.getOffset(kGlobalFilterCutoffDestId);
     // Macro3 output = 0.6, amount = 0.5 -> offset = 0.6 * 0.5 = 0.3
     REQUIRE(offset == Approx(0.3f).margin(0.01f));
+}
+
+// =============================================================================
+// 042-ext-modulation-system: US7 - Performance Benchmark (SC-002)
+// =============================================================================
+
+TEST_CASE("ExtModulation: Global modulation engine performance < 0.5% CPU",
+          "[ext_modulation][performance][SC-002]") {
+    TestEngineScaffold scaffold;
+    scaffold.prepare();
+
+    // Configure 32 routings (max capacity)
+    for (size_t i = 0; i < 32; ++i) {
+        // Cycle through source types (1..12, skip None=0)
+        auto src = static_cast<ModSource>(1 + (i % (kModSourceCount - 1)));
+        uint32_t destId = static_cast<uint32_t>(i % 10);
+        float amount = (i % 2 == 0) ? 0.7f : -0.4f;
+        scaffold.setRouting(i, src, destId, amount);
+    }
+
+    constexpr size_t blockSize = 512;
+    constexpr size_t totalBlocks = (44100 * 10) / blockSize; // 10 seconds
+
+    const auto start = std::chrono::high_resolution_clock::now();
+
+    for (size_t block = 0; block < totalBlocks; ++block) {
+        scaffold.processBlock();
+    }
+
+    const auto end = std::chrono::high_resolution_clock::now();
+    const double durationMs = std::chrono::duration<double, std::milli>(end - start).count();
+    const double cpuPercent = (durationMs / 10000.0) * 100.0;
+
+    INFO("Global modulation processing time: " << durationMs << " ms for 10s of audio");
+    INFO("CPU usage: " << cpuPercent << "%");
+
+    // SC-002: global modulation < 0.5% CPU
+    REQUIRE(cpuPercent < 0.5);
 }

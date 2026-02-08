@@ -13,6 +13,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <chrono>
+#include <cmath>
 #include <limits>
 
 using Catch::Approx;
@@ -485,4 +487,56 @@ TEST_CASE("VoiceModRouter: Inf source value is sanitized to zero offset",
 
     // Inf * 1.0 = Inf -> sanitized to 0.0
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.0f));
+}
+
+// =============================================================================
+// 042-ext-modulation-system: US7 - Performance Benchmark (SC-001)
+// =============================================================================
+
+TEST_CASE("VoiceModRouter performance: 16 routes, 8 voices, 512-sample blocks",
+          "[voice_mod_router][ext_modulation][performance][SC-001]") {
+    // Simulate 8 voices each with 16 routes
+    constexpr size_t numVoices = 8;
+    constexpr size_t blockSize = 512;
+    constexpr size_t totalBlocks = (44100 * 10) / blockSize; // 10 seconds
+
+    VoiceModRouter routers[numVoices];
+
+    // Configure 16 routes per voice (max capacity)
+    for (size_t v = 0; v < numVoices; ++v) {
+        for (size_t r = 0; r < 16; ++r) {
+            auto src = static_cast<VoiceModSource>(r % static_cast<size_t>(VoiceModSource::NumSources));
+            auto dst = static_cast<VoiceModDest>(r % static_cast<size_t>(VoiceModDest::NumDestinations));
+            float amount = (r % 2 == 0) ? 0.5f : -0.3f;
+            routers[v].setRoute(static_cast<int>(r), {src, dst, amount});
+        }
+    }
+
+    const auto start = std::chrono::high_resolution_clock::now();
+
+    for (size_t block = 0; block < totalBlocks; ++block) {
+        // Each block: compute offsets once per voice (block-rate, not per-sample)
+        for (size_t v = 0; v < numVoices; ++v) {
+            routers[v].computeOffsets(
+                0.8f,  // env1
+                0.5f,  // env2
+                0.3f,  // env3
+                std::sin(static_cast<float>(block) * 0.01f),  // lfo (varying)
+                1.0f,  // gate
+                0.7f,  // velocity
+                0.5f,  // keyTrack
+                0.4f   // aftertouch
+            );
+        }
+    }
+
+    const auto end = std::chrono::high_resolution_clock::now();
+    const double durationMs = std::chrono::duration<double, std::milli>(end - start).count();
+    const double cpuPercent = (durationMs / 10000.0) * 100.0;
+
+    INFO("Per-voice modulation processing time: " << durationMs << " ms for 10s of audio");
+    INFO("CPU usage: " << cpuPercent << "%");
+
+    // SC-001: per-voice modulation < 0.5% CPU
+    REQUIRE(cpuPercent < 0.5);
 }

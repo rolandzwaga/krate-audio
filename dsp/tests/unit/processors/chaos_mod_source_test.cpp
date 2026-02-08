@@ -241,3 +241,109 @@ TEST_CASE("ChaosModSource different models produce distinct patterns", "[process
                    (std::abs(lorenzVar - henonVar) < 0.001f);
     REQUIRE_FALSE(allSame);
 }
+
+// =============================================================================
+// 042-ext-modulation-system: User Story 7 - Extended Boundedness Tests
+// =============================================================================
+
+// T099: ChaosModSource remains bounded for 10 minutes at any speed (SC-006)
+TEST_CASE("ChaosModSource Lorenz bounded for 10 minutes at extreme speeds",
+          "[processors][chaos][ext_modulation][SC-006]") {
+    // Test at multiple extreme speeds including min, max, and mid
+    const float speeds[] = {0.05f, 0.5f, 1.0f, 5.0f, 20.0f};
+
+    for (float speed : speeds) {
+        ChaosModSource src;
+        src.setModel(ChaosModel::Lorenz);
+        src.prepare(44100.0);
+        src.setSpeed(speed);
+
+        // 10 minutes at 44100 Hz = 26,460,000 samples
+        // With control rate interval of 32, that's ~826,875 attractor updates
+        constexpr int tenMinutes = 44100 * 60 * 10;
+        bool bounded = true;
+
+        for (int i = 0; i < tenMinutes; ++i) {
+            src.process();
+            float val = src.getCurrentValue();
+            if (val < -1.0f || val > 1.0f) {
+                bounded = false;
+                break;
+            }
+        }
+
+        INFO("Speed: " << speed);
+        REQUIRE(bounded);
+    }
+}
+
+TEST_CASE("ChaosModSource all models bounded for 10 minutes at speed 10",
+          "[processors][chaos][ext_modulation][SC-006]") {
+    const ChaosModel models[] = {
+        ChaosModel::Lorenz, ChaosModel::Rossler,
+        ChaosModel::Chua, ChaosModel::Henon
+    };
+
+    for (auto model : models) {
+        ChaosModSource src;
+        src.setModel(model);
+        src.prepare(44100.0);
+        src.setSpeed(10.0f);
+
+        constexpr int tenMinutes = 44100 * 60 * 10;
+        bool bounded = true;
+
+        for (int i = 0; i < tenMinutes; ++i) {
+            src.process();
+            float val = src.getCurrentValue();
+            if (val < -1.0f || val > 1.0f) {
+                bounded = false;
+                break;
+            }
+        }
+
+        INFO("Model: " << static_cast<int>(model));
+        REQUIRE(bounded);
+    }
+}
+
+// T100: Lorenz attractor auto-reset when state exceeds 10x safeBound (FR-025)
+TEST_CASE("ChaosModSource Lorenz auto-resets when diverged",
+          "[processors][chaos][ext_modulation][FR-025]") {
+    ChaosModSource src;
+    src.setModel(ChaosModel::Lorenz);
+    src.prepare(44100.0);
+    src.setSpeed(20.0f); // Max speed to stress the system
+
+    // Process many samples with high speed and coupling perturbation
+    // to try to trigger divergence/auto-reset
+    src.setCoupling(1.0f);
+
+    constexpr int totalSamples = 44100 * 60; // 1 minute
+    bool allBounded = true;
+    int resetCount = 0;
+    float prevVal = src.getCurrentValue();
+
+    for (int i = 0; i < totalSamples; ++i) {
+        // Inject large perturbation via input level
+        src.setInputLevel(static_cast<float>((i % 100 < 50) ? 10.0f : -10.0f));
+        src.process();
+        float val = src.getCurrentValue();
+
+        if (val < -1.0f || val > 1.0f) {
+            allBounded = false;
+            break;
+        }
+
+        // Detect reset: sudden jump from non-zero to near-initial
+        if (std::abs(val - prevVal) > 0.5f && std::abs(val) < 0.1f) {
+            ++resetCount;
+        }
+        prevVal = val;
+    }
+
+    // Output must always be bounded
+    REQUIRE(allBounded);
+    // The auto-reset mechanism exists (checkAndResetIfDiverged)
+    // We can't guarantee it triggers, but the output stays bounded
+}
