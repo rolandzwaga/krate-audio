@@ -1414,3 +1414,180 @@ engine.noteOff(60);
 engine.noteOff(64);
 engine.noteOff(67);
 ```
+
+---
+
+## SelectableOscillator
+**Path:** [selectable_oscillator.h](../../dsp/include/krate/dsp/systems/selectable_oscillator.h) | **Since:** 0.15.0
+
+Variant-based oscillator wrapper supporting all 10 oscillator types with lazy initialization and real-time safe type switching.
+
+```cpp
+class SelectableOscillator {
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    // Type switching (FR-001 through FR-005)
+    void setType(OscType type, PhaseMode phase = PhaseMode::Reset) noexcept;
+    [[nodiscard]] OscType getType() const noexcept;
+
+    // Parameters
+    void setFrequency(float hz) noexcept;
+
+    // Processing
+    void processBlock(float* output, size_t numSamples) noexcept;
+};
+```
+
+**Key Features:**
+- OscillatorVariant: `std::variant<std::monostate, PolyBlepOscillator, WavetableOscillator, PhaseDistortionOscillator, SyncOscillator, AdditiveOscillator, ChaosOscillator, ParticleOscillator, FormantOscillator, SpectralFreezeOscillator, NoiseOscillator>`
+- Lazy initialization: starts with std::monostate, constructs active type on setType()
+- Type switch same-type is no-op (allocation-free)
+- Phase mode: Reset (default) or Continuous across type switches
+- processBlock before prepare produces silence
+- NaN/Inf frequency inputs silently ignored
+- All 10 types produce non-zero output at 440 Hz (RMS > -60 dBFS)
+
+**When to Use:**
+- Any voice architecture that needs runtime-selectable oscillator types
+- As the oscillator building block in RuinaeVoice (dual-oscillator setup)
+- When a single oscillator slot must support multiple synthesis methods
+
+---
+
+## VoiceModRouter
+**Path:** [voice_mod_router.h](../../dsp/include/krate/dsp/systems/voice_mod_router.h) | **Since:** 0.15.0
+
+Per-voice modulation router with fixed-size storage for up to 16 routes.
+
+```cpp
+class VoiceModRouter {
+    static constexpr int kMaxRoutes = 16;
+
+    // Route management
+    void setRoute(int index, VoiceModRoute route) noexcept;
+    void clearRoute(int index) noexcept;
+    void clearAllRoutes() noexcept;
+    [[nodiscard]] int getRouteCount() const noexcept;
+
+    // Per-block computation
+    void computeOffsets(float env1, float env2, float env3,
+                        float lfo, float gate,
+                        float velocity, float keyTrack) noexcept;
+
+    // Offset retrieval
+    [[nodiscard]] float getOffset(VoiceModDest dest) const noexcept;
+};
+```
+
+**Key Features:**
+- Fixed `std::array<VoiceModRoute, 16>` storage (zero allocation)
+- Route amount clamped to [-1.0, +1.0] on setRoute()
+- computeOffsets() iterates active routes, reads source value, multiplies by amount, accumulates to destination
+- Multiple routes to same destination are summed (FR-027)
+- Source values: Env1/2/3 [0,1], LFO [-1,+1], Gate [0,1], Velocity [0,1], KeyTrack [-1,+1]
+- 7 modulation destinations: FilterCutoff, FilterResonance, MorphPosition, DistortionDrive, TranceGateDepth, OscAPitch, OscBPitch
+
+**When to Use:**
+- Per-voice modulation routing in synthesizer voices
+- Any scenario requiring configurable source-to-destination modulation mapping
+- As the modulation component in RuinaeVoice
+
+---
+
+## RuinaeVoice
+**Path:** [ruinae_voice.h](../../dsp/include/krate/dsp/systems/ruinae_voice.h) | **Since:** 0.15.0
+
+Complete per-voice processing unit for the Ruinae chaos/spectral hybrid synthesizer.
+
+```cpp
+class RuinaeVoice {
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    // Note control
+    void noteOn(float frequency, float velocity) noexcept;
+    void noteOff() noexcept;
+    void setFrequency(float hz) noexcept;
+    [[nodiscard]] bool isActive() const noexcept;
+
+    // Processing
+    void processBlock(float* output, size_t numSamples) noexcept;
+
+    // Oscillator configuration
+    void setOscAType(OscType type) noexcept;
+    void setOscBType(OscType type) noexcept;
+
+    // Mixer configuration
+    void setMixMode(MixMode mode) noexcept;       // CrossfadeMix or SpectralMorph
+    void setMixPosition(float mix) noexcept;       // [0, 1]
+
+    // Filter configuration
+    void setFilterType(RuinaeFilterType type) noexcept;
+    void setFilterCutoff(float hz) noexcept;
+    void setFilterResonance(float q) noexcept;
+    void setFilterEnvAmount(float semitones) noexcept;
+    void setFilterKeyTrack(float amount) noexcept;
+
+    // Distortion configuration
+    void setDistortionType(RuinaeDistortionType type) noexcept;
+    void setDistortionDrive(float drive) noexcept;
+
+    // TranceGate configuration
+    void setTranceGateEnabled(bool enabled) noexcept;
+    void setTranceGateParams(const TranceGateParams& params) noexcept;
+
+    // Modulation routing
+    void setModRoute(int index, VoiceModRoute route) noexcept;
+    void setModRouteScale(VoiceModDest dest, float scale) noexcept;
+
+    // Envelope/LFO access
+    ADSREnvelope& getAmpEnvelope() noexcept;
+    ADSREnvelope& getFilterEnvelope() noexcept;
+    ADSREnvelope& getModEnvelope() noexcept;
+    LFO& getVoiceLFO() noexcept;
+};
+```
+
+**Signal Flow:**
+```
+OSC A --+
+        |-- Mixer (CrossfadeMix or SpectralMorph) --> Filter --> Distortion
+OSC B --+                                                          |
+                                                              DC Blocker
+                                                                   |
+                                                             TranceGate
+                                                                   |
+                                                              VCA (Amp Env)
+                                                                   |
+                                                                Output
+```
+
+**Key Features:**
+- 2x SelectableOscillator with 10 types each
+- Dual-mode mixer: CrossfadeMix (linear) or SpectralMorph (FFT-based, lazily allocated)
+- FilterVariant: `std::variant<SVF, LadderFilter, FormantFilter, FeedbackComb>` (7 modes)
+- DistortionVariant: `std::variant<std::monostate, ChaosWaveshaper, SpectralDistortion, GranularDistortion, Wavefolder, TapeSaturator>` (6 types)
+- TranceGate: post-distortion rhythmic gating with configurable pattern
+- 3x ADSR envelopes (amp, filter, modulation)
+- Per-voice LFO
+- VoiceModRouter with 7 sources and 7 destinations
+- Per-sample filter cutoff modulation (no zipper artifacts)
+- Per-sample modulation routing (sample-accurate)
+- NaN/Inf flush on all outputs
+- DC blocking after distortion
+- SpectralMorphFilter lazily allocated (only when SpectralMorph mode selected)
+- Voice lifetime determined solely by amp envelope
+
+**When to Use:**
+- As the per-voice unit in a Ruinae polyphonic synthesizer engine
+- Any synthesis scenario requiring a full signal chain with selectable components
+- Chaos/spectral hybrid synthesis with dual oscillators and modulation routing
+
+**Related Components:**
+- SelectableOscillator (Layer 3): oscillator slots
+- VoiceModRouter (Layer 3): modulation routing
+- SpectralMorphFilter (Layer 2): spectral morphing mixer mode
+- VoiceAllocator (Layer 3): for future polyphonic voice management
