@@ -1471,10 +1471,11 @@ class VoiceModRouter {
     void clearAllRoutes() noexcept;
     [[nodiscard]] int getRouteCount() const noexcept;
 
-    // Per-block computation
+    // Per-block computation (042-ext-modulation-system: 8 parameters with aftertouch)
     void computeOffsets(float env1, float env2, float env3,
                         float lfo, float gate,
-                        float velocity, float keyTrack) noexcept;
+                        float velocity, float keyTrack,
+                        float aftertouch) noexcept;
 
     // Offset retrieval
     [[nodiscard]] float getOffset(VoiceModDest dest) const noexcept;
@@ -1486,8 +1487,10 @@ class VoiceModRouter {
 - Route amount clamped to [-1.0, +1.0] on setRoute()
 - computeOffsets() iterates active routes, reads source value, multiplies by amount, accumulates to destination
 - Multiple routes to same destination are summed (FR-027)
-- Source values: Env1/2/3 [0,1], LFO [-1,+1], Gate [0,1], Velocity [0,1], KeyTrack [-1,+1]
-- 7 modulation destinations: FilterCutoff, FilterResonance, MorphPosition, DistortionDrive, TranceGateDepth, OscAPitch, OscBPitch
+- NaN/Inf/denormal sanitization on all computed offsets (042-ext-modulation-system FR-024)
+- Source values: Env1/2/3 [0,1], LFO [-1,+1], Gate [0,1], Velocity [0,1], KeyTrack [-1,+1], Aftertouch [0,1]
+- 8 modulation sources (VoiceModSource): Env1, Env2, Env3, VoiceLFO, GateOutput, Velocity, KeyTrack, Aftertouch
+- 9 modulation destinations (VoiceModDest): FilterCutoff, FilterResonance, MorphPosition, DistortionDrive, TranceGateDepth, OscAPitch, OscBPitch, OscALevel, OscBLevel
 
 **When to Use:**
 - Per-voice modulation routing in synthesizer voices
@@ -1542,6 +1545,7 @@ class RuinaeVoice {
     // Modulation routing
     void setModRoute(int index, VoiceModRoute route) noexcept;
     void setModRouteScale(VoiceModDest dest, float scale) noexcept;
+    void setAftertouch(float value) noexcept;  // [0, 1] channel pressure (042-ext-modulation-system)
 
     // Envelope/LFO access
     ADSREnvelope& getAmpEnvelope() noexcept;
@@ -1573,7 +1577,9 @@ OSC B --+                                                          |
 - TranceGate: post-distortion rhythmic gating with configurable pattern
 - 3x ADSR envelopes (amp, filter, modulation)
 - Per-voice LFO
-- VoiceModRouter with 7 sources and 7 destinations
+- VoiceModRouter with 8 sources and 9 destinations (042-ext-modulation-system)
+- Aftertouch (channel pressure) as modulation source via setAftertouch() (042-ext-modulation-system FR-010)
+- OscALevel/OscBLevel modulation destinations applied per-sample before mixing (042-ext-modulation-system FR-004)
 - Per-sample filter cutoff modulation (no zipper artifacts)
 - Per-sample modulation routing (sample-accurate)
 - NaN/Inf flush on all outputs

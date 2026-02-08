@@ -5073,7 +5073,7 @@ Benjolin-inspired chaotic stepped-voltage generator. Two cross-modulating triang
 - **ChaosOscillator**: Continuous attractor-based (Lorenz, Rossler, etc.), smooth output, single oscillator with RK4 integration
 
 ```cpp
-class Rungler {
+class Rungler : public ModulationSource {  // 042-ext-modulation-system
     struct Output {
         float osc1;    // Oscillator 1 triangle [-1, +1]
         float osc2;    // Oscillator 2 triangle [-1, +1]
@@ -5095,6 +5095,10 @@ class Rungler {
     void processBlock(Output* output, size_t numSamples) noexcept;
     void processBlockMixed(float* output, size_t numSamples) noexcept;
     void processBlockRungler(float* output, size_t numSamples) noexcept;
+
+    // ModulationSource interface (042-ext-modulation-system FR-017)
+    [[nodiscard]] float getCurrentValue() const noexcept override;  // returns runglerCV_ [0, 1]
+    [[nodiscard]] std::pair<float, float> getSourceRange() const noexcept override;  // {0.0, 1.0}
 
     // Parameter setters
     void setOsc1Frequency(float hz) noexcept;        // [0.1, 20000] Hz
@@ -5146,7 +5150,7 @@ rungler.reset();
 
 **Memory:** ~100 bytes per instance (no allocations, OnePoleLP filter state + oscillator phases + register)
 
-**Dependencies:** Layer 0 (random.h, db_utils.h), Layer 1 (one_pole.h)
+**Dependencies:** Layer 0 (random.h, db_utils.h, modulation_source.h), Layer 1 (one_pole.h)
 
 ---
 
