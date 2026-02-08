@@ -235,6 +235,9 @@ set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(HWY_ENABLE_CONTRIB ON CACHE BOOL "" FORCE)
 set(HWY_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(highway)
+# macOS universal binary (x86_64 + arm64) - must match KrateDSP/plugin targets
+smtg_target_setup_universal_binary(hwy)
+smtg_target_setup_universal_binary(hwy_contrib)
 
 # ==============================================================================
 # KrateDSP Library (Shared by all plugins)
