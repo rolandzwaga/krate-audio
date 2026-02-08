@@ -2513,7 +2513,134 @@ saturation prevents confusion.
 
 #### 5. OscillatorTypeSelector
 
-Visual oscillator type chooser with waveform previews.
+Visual oscillator type chooser with waveform previews. Used for both OSC A
+(`kOscATypeId = 100`) and OSC B (`kOscBTypeId = 200`) — same component class,
+different parameter tag.
+
+##### 5.1 Core Data Model
+
+**10 oscillator types** from `OscType` enum (`ruinae_types.h`):
+
+| Index | Enum              | Abbrev | Waveform Icon Description                        |
+|-------|-------------------|--------|--------------------------------------------------|
+| 0     | PolyBLEP          | BLEP   | Classic saw/square hybrid silhouette              |
+| 1     | Wavetable          | WTbl   | Multi-frame wavetable stack (3 overlapping waves) |
+| 2     | PhaseDistortion    | PDst   | Bent sine (asymmetric curvature)                  |
+| 3     | Sync              | Sync   | Hard-sync waveform (truncated overtone burst)     |
+| 4     | Additive           | Add    | Harmonic bar spectrum (5-6 descending bars)       |
+| 5     | Chaos              | Chaos  | Lorenz-style attractor squiggle                   |
+| 6     | Particle           | Prtcl  | Scattered dot cluster with envelope arc           |
+| 7     | Formant            | Fmnt   | Vocal formant peaks (2-3 resonant humps)          |
+| 8     | SpectralFreeze     | SFrz   | Frozen spectral slice (vertical bars, snowflake)  |
+| 9     | Noise              | Noise  | Random noise band (jagged horizontal line)        |
+
+**State:** Single integer value 0–9 mapped to the bound VST parameter. The parameter
+is a `StringListParameter` with 10 entries, so normalized value = `index / 9.0`.
+
+##### 5.2 Waveform Preview Rendering
+
+All waveform icons are **drawn programmatically** via `CDrawContext` path operations
+(no bitmaps). This ensures clean scaling at any DPI.
+
+* **Icon area:** Each cell dedicates roughly 70% of its height to the waveform icon
+  and 30% to the abbreviated label below.
+* **Drawing style:** 1.5px stroke, anti-aliased. Unselected cells use a muted
+  foreground color (`rgb(140,140,150)`). Selected cell uses the oscillator's
+  identity color (see below).
+* **Identity colors:** OSC A = `rgb(100,180,255)` (blue), OSC B = `rgb(255,140,100)`
+  (warm orange). The selected cell's icon stroke and label use this color.
+* **Fill:** No fill on waveform paths — stroke only for clarity at small sizes.
+
+##### 5.3 Interaction
+
+| Action             | Behavior                                                |
+|--------------------|---------------------------------------------------------|
+| Click cell         | Select that oscillator type. Calls `beginEdit()`, `performEdit()`, `endEdit()` in a single gesture. |
+| Hover cell         | Highlight with subtle background tint (`rgba(255,255,255,0.06)`). Show tooltip with full name (e.g., "Phase Distortion", "Spectral Freeze"). |
+| Scroll wheel       | Increment/decrement selection by 1 (wraps around). Allows quick auditioning. |
+| Arrow keys (focus) | Left/Right moves selection horizontally, Up/Down moves between rows. |
+
+**No drag, no right-click, no modifier keys.** This is a simple selector.
+
+##### 5.4 Parameter Communication
+
+* **Tag binding:** The `CControl` tag maps directly to `kOscATypeId` (100) or
+  `kOscBTypeId` (200) depending on which oscillator section instantiates the view.
+* **Value mapping:** Normalized `0.0` = PolyBLEP (index 0), `1.0` = Noise (index 9).
+  Convert via `index = round(value * 9)`, `value = index / 9.0`.
+* **Host automation:** Fully automatable. When the host changes the parameter, the
+  view receives `valueChanged()` and redraws to reflect the new selection.
+* **No IMessage needed** — this is a plain parameter, no processor↔controller
+  messaging required.
+
+##### 5.5 Visual Layout
+
+**2×5 grid, tooltip-only with abbreviated labels:**
+
+```
+┌─ OSC A ──────────────────────────────────────────────┐
+│                                                        │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐       │
+│  │ /\/\ │ │≈≈≈≈≈≈│ │  ∿~  │ │/|/|/|│ │▎▎▎▎ │       │
+│  │      │ │      │ │      │ │      │ │      │       │
+│  │ BLEP │ │ WTbl │ │ PDst │ │ Sync │ │ Add  │       │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘       │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐       │
+│  │~*~*~ │ │ .··. │ │ ∩ ∩  │ │▮▮▮▯▯▯│ │▓░▓░▓░│       │
+│  │      │ │      │ │      │ │      │ │      │       │
+│  │Chaos │ │Prtcl │ │ Fmnt │ │ SFrz │ │Noise │       │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘       │
+│                                                        │
+│  [Tune: -24..+24] [Fine: -100..+100] [Level] [Phase] │
+└────────────────────────────────────────────────────────┘
+```
+
+**Dimensions:**
+
+| Property           | Value              |
+|--------------------|--------------------|
+| Grid size          | 2 rows × 5 columns |
+| Cell size          | 48 × 40 px         |
+| Cell gap           | 2 px                |
+| Total grid         | 248 × 82 px        |
+| Icon area per cell | 48 × 26 px         |
+| Label area         | 48 × 12 px (centered, 9px font) |
+| Selected border    | 1.5 px, identity color, rounded 3px |
+| Unselected border  | 1 px, `rgb(60,60,65)` |
+| Background         | `rgb(30,30,35)` (matches panel bg) |
+
+**Selected cell styling:**
+- Border: identity color at full opacity (blue for OSC A, orange for OSC B)
+- Background: identity color at 10% opacity (`rgba(100,180,255,0.10)`)
+- Icon stroke: identity color
+- Label: identity color
+
+**Unselected cell styling:**
+- Border: subtle dark (`rgb(60,60,65)`)
+- Background: transparent
+- Icon stroke: muted (`rgb(140,140,150)`)
+- Label: muted (`rgb(140,140,150)`)
+
+##### 5.6 Accessibility & Keyboard
+
+* **Tab focus:** The grid is a single focusable control. Arrow keys navigate cells.
+* **Keyboard selection:** Enter or Space selects the focused cell.
+* **Focus indicator:** Dotted 1px border around the focused cell (distinct from
+  selection highlight).
+* **Scroll wheel:** Cycles through types sequentially (wraps 9→0 and 0→9).
+
+##### 5.7 Implementation Notes
+
+* **Class:** `OscillatorTypeSelector : public CControl` in `plugins/shared/src/ui/`.
+* **Reusable:** Same class for OSC A and OSC B. The identity color is determined by
+  a custom attribute in `editor.uidesc` (e.g., `osc-identity="a"` or `"b"`).
+* **Waveform drawing:** Each type's icon is a static method returning a `CGraphicsPath`
+  or drawing directly to context. These are simple 5-10 point paths — no runtime
+  computation needed.
+* **Humble object:** Drawing logic is testable: a pure function maps
+  `(OscType, CRect, bool selected, CColor identityColor)` → draw commands.
+* **Hit testing:** `CPoint` → cell index via simple grid arithmetic:
+  `col = x / (cellW + gap)`, `row = y / (cellH + gap)`, `index = row * 5 + col`.
 
 ### VSTGUI Patterns (From Existing Codebase)
 
