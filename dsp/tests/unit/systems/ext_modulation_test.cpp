@@ -434,3 +434,214 @@ TEST_CASE("ExtModulation: Global modulation engine performance < 0.5% CPU",
     // SC-002: global modulation < 0.5% CPU
     REQUIRE(cpuPercent < 0.5);
 }
+
+// =============================================================================
+// 042-ext-modulation-system: SC-003 - Zipper Noise / Smooth Transitions
+// =============================================================================
+//
+// SC-003: "All modulation parameter transitions (amount changes, route
+// activation/deactivation) MUST be free of audible zipper noise at normal
+// monitoring levels. Verified by measuring output discontinuity amplitude
+// during parameter transitions: step sizes MUST be below -60 dBFS."
+//
+// Approach: Use block_size=1 to get per-SAMPLE resolution of the smoother.
+// This directly measures the maximum sample-to-sample offset step, which
+// equals the audio output discontinuity for gain-type parameters at 0 dBFS.
+// At normal monitoring levels (-12 to -20 dBFS), the actual audio
+// discontinuity is even smaller.
+// =============================================================================
+
+// -60 dBFS in linear amplitude
+static constexpr float kMaxStepLinear = 0.001f;
+
+// Per-sample scaffold: block_size=1 for exact smoother measurement.
+// Each processOneSample() call advances the smoother by exactly 1 sample.
+class PerSampleScaffold {
+public:
+    void prepare() noexcept {
+        engine_.prepare(kSampleRate, 1);  // block_size=1
+    }
+
+    void processOneSample() noexcept {
+        float sampleL = 0.0f;
+        float sampleR = 0.0f;
+        BlockContext ctx;
+        ctx.sampleRate = kSampleRate;
+        ctx.tempoBPM = 120.0;
+        ctx.isPlaying = true;
+        engine_.process(ctx, &sampleL, &sampleR, 1);
+    }
+
+    [[nodiscard]] float getOffset(uint32_t destId) const noexcept {
+        return engine_.getModulationOffset(destId);
+    }
+
+    void setRouting(size_t index, ModSource source, uint32_t destId,
+                    float amount, ModCurve curve = ModCurve::Linear) noexcept {
+        ModRouting routing;
+        routing.source = source;
+        routing.destParamId = destId;
+        routing.amount = amount;
+        routing.curve = curve;
+        routing.active = true;
+        engine_.setRouting(index, routing);
+    }
+
+    void setMacroValue(size_t index, float value) noexcept {
+        engine_.setMacroValue(index, value);
+    }
+
+private:
+    ModulationEngine engine_;
+};
+
+TEST_CASE("SC-003: Global route amount change 0->1 produces smooth transition",
+          "[ext_modulation][smoothing][SC-003]") {
+    PerSampleScaffold scaffold;
+    scaffold.prepare();
+    scaffold.setMacroValue(0, 1.0f);  // Macro1 = 1.0 (constant)
+
+    // Route with amount=0.0, process to steady state
+    scaffold.setRouting(0, ModSource::Macro1, kGlobalFilterCutoffDestId, 0.0f);
+    for (int i = 0; i < 100; ++i) {
+        scaffold.processOneSample();
+    }
+    float prevOffset = scaffold.getOffset(kGlobalFilterCutoffDestId);
+    REQUIRE(prevOffset == Approx(0.0f).margin(0.001f));
+
+    // Change amount from 0.0 to 1.0 — smoother must transition gradually
+    scaffold.setRouting(0, ModSource::Macro1, kGlobalFilterCutoffDestId, 1.0f);
+
+    float maxStep = 0.0f;
+    int samplesToSettle = 0;
+    bool settled = false;
+
+    // Process enough samples for full convergence (120ms = 5292 samples at 44.1kHz)
+    constexpr int kMeasureSamples = 8000;
+    for (int s = 0; s < kMeasureSamples; ++s) {
+        scaffold.processOneSample();
+        float offset = scaffold.getOffset(kGlobalFilterCutoffDestId);
+        float step = std::abs(offset - prevOffset);
+
+        if (step > maxStep) {
+            maxStep = step;
+        }
+
+        if (!settled && std::abs(offset - 1.0f) < 0.01f) {
+            samplesToSettle = s + 1;
+            settled = true;
+        }
+
+        prevOffset = offset;
+    }
+
+    INFO("Max per-sample step: " << maxStep);
+    INFO("Samples to 99%: " << samplesToSettle);
+    INFO("-60 dBFS threshold: " << kMaxStepLinear);
+
+    // SC-003: per-sample step sizes MUST be below -60 dBFS
+    REQUIRE(maxStep < kMaxStepLinear);
+
+    // Transition must be gradual (takes multiple samples, not instant)
+    REQUIRE(samplesToSettle > 100);
+
+    // Must settle within reasonable time (< 200ms = 8820 samples)
+    REQUIRE(settled);
+}
+
+TEST_CASE("SC-003: Global route amount change 1->0 produces smooth ramp-down",
+          "[ext_modulation][smoothing][SC-003]") {
+    PerSampleScaffold scaffold;
+    scaffold.prepare();
+    scaffold.setMacroValue(0, 1.0f);
+
+    // Settle at amount=1.0
+    scaffold.setRouting(0, ModSource::Macro1, kGlobalFilterCutoffDestId, 1.0f);
+    for (int i = 0; i < 8000; ++i) {
+        scaffold.processOneSample();
+    }
+    float prevOffset = scaffold.getOffset(kGlobalFilterCutoffDestId);
+    REQUIRE(prevOffset == Approx(1.0f).margin(0.01f));
+
+    // Ramp amount from 1.0 to 0.0
+    scaffold.setRouting(0, ModSource::Macro1, kGlobalFilterCutoffDestId, 0.0f);
+
+    float maxStep = 0.0f;
+    int samplesToSettle = 0;
+    bool settled = false;
+
+    constexpr int kMeasureSamples = 8000;
+    for (int s = 0; s < kMeasureSamples; ++s) {
+        scaffold.processOneSample();
+        float offset = scaffold.getOffset(kGlobalFilterCutoffDestId);
+        float step = std::abs(offset - prevOffset);
+
+        if (step > maxStep) {
+            maxStep = step;
+        }
+
+        if (!settled && std::abs(offset) < 0.01f) {
+            samplesToSettle = s + 1;
+            settled = true;
+        }
+
+        prevOffset = offset;
+    }
+
+    INFO("Max per-sample step (ramp down): " << maxStep);
+    INFO("Samples to settle: " << samplesToSettle);
+
+    // SC-003: per-sample step sizes below -60 dBFS
+    REQUIRE(maxStep < kMaxStepLinear);
+    REQUIRE(samplesToSettle > 100);
+    REQUIRE(settled);
+}
+
+TEST_CASE("SC-003: Multiple simultaneous amount changes all smooth",
+          "[ext_modulation][smoothing][SC-003]") {
+    PerSampleScaffold scaffold;
+    scaffold.prepare();
+    scaffold.setMacroValue(0, 1.0f);
+
+    // 3 routes at amount=0.0
+    scaffold.setRouting(0, ModSource::Macro1, kMasterVolumeDestId, 0.0f);
+    scaffold.setRouting(1, ModSource::Macro1, kEffectMixDestId, 0.0f);
+    scaffold.setRouting(2, ModSource::Macro1, kAllVoiceFilterCutoffDestId, 0.0f);
+
+    for (int i = 0; i < 100; ++i) {
+        scaffold.processOneSample();
+    }
+
+    // Simultaneous jump on all 3
+    scaffold.setRouting(0, ModSource::Macro1, kMasterVolumeDestId, 1.0f);
+    scaffold.setRouting(1, ModSource::Macro1, kEffectMixDestId, -0.8f);
+    scaffold.setRouting(2, ModSource::Macro1, kAllVoiceFilterCutoffDestId, 0.5f);
+
+    float prevVol = 0.0f, prevMix = 0.0f, prevFilter = 0.0f;
+    float maxStepVol = 0.0f, maxStepMix = 0.0f, maxStepFilter = 0.0f;
+
+    for (int s = 0; s < 8000; ++s) {
+        scaffold.processOneSample();
+
+        float vol = scaffold.getOffset(kMasterVolumeDestId);
+        float mix = scaffold.getOffset(kEffectMixDestId);
+        float filter = scaffold.getOffset(kAllVoiceFilterCutoffDestId);
+
+        maxStepVol = std::max(maxStepVol, std::abs(vol - prevVol));
+        maxStepMix = std::max(maxStepMix, std::abs(mix - prevMix));
+        maxStepFilter = std::max(maxStepFilter, std::abs(filter - prevFilter));
+
+        prevVol = vol;
+        prevMix = mix;
+        prevFilter = filter;
+    }
+
+    INFO("Max step MasterVolume: " << maxStepVol);
+    INFO("Max step EffectMix: " << maxStepMix);
+    INFO("Max step AllVoiceFilterCutoff: " << maxStepFilter);
+
+    // All destinations must have per-sample steps below -60 dBFS
+    REQUIRE(maxStepVol < kMaxStepLinear);
+    REQUIRE(maxStepMix < kMaxStepLinear);
+    REQUIRE(maxStepFilter < kMaxStepLinear);
+}

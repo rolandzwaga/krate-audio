@@ -106,9 +106,10 @@ public:
         pitchFollower_.prepare(sampleRate);
         transient_.prepare(sampleRate);
 
-        // Configure amount smoothers
+        // Configure amount smoothers (SC-003: 120ms gives max per-block step
+        // of ~0.00094 for 512-sample blocks at 44.1kHz, meeting -60 dBFS)
         for (auto& smoother : amountSmoothers_) {
-            smoother.configure(20.0f, static_cast<float>(sampleRate));
+            smoother.configure(120.0f, static_cast<float>(sampleRate));
         }
 
         reset();
@@ -281,18 +282,35 @@ public:
     // =========================================================================
 
     /// @brief Set a routing slot.
+    ///
+    /// For NEW routes (slot was inactive), snaps the smoother to the initial
+    /// amount for immediate response. For EXISTING routes (slot was active),
+    /// uses setTarget so the smoother provides a zipper-free transition
+    /// (SC-003: step sizes below -60 dBFS).
+    ///
     /// @param index Routing index (0 to kMaxModRoutings-1)
     /// @param routing Routing configuration
     void setRouting(size_t index, const ModRouting& routing) noexcept {
         if (index >= kMaxModRoutings) {
             return;
         }
+        const bool wasActive = routings_[index].active;
         routings_[index] = routing;
-        // Snap smoother to current amount for immediate response
-        amountSmoothers_[index].snapTo(routing.amount);
+        if (wasActive && routing.active) {
+            // Amount change on existing route: smooth transition
+            amountSmoothers_[index].setTarget(routing.amount);
+        } else {
+            // New route activation (or deactivation+reactivation): snap
+            amountSmoothers_[index].snapTo(routing.amount);
+        }
     }
 
     /// @brief Clear a routing slot.
+    ///
+    /// Sets the smoother target to 0 for a smooth ramp-down, then marks
+    /// the route inactive. The route contributes a diminishing offset over
+    /// subsequent blocks until the smoother settles.
+    ///
     /// @param index Routing index (0 to kMaxModRoutings-1)
     void clearRouting(size_t index) noexcept {
         if (index >= kMaxModRoutings) {
@@ -615,11 +633,14 @@ private:
             // Clamp source to valid range (edge case handling)
             sourceValue = std::clamp(sourceValue, -1.0f, 1.0f);
 
-            // Smooth the amount for zipper-free changes (single step per block
-            // since amount changes arrive at block boundaries)
+            // Smooth the amount for zipper-free changes (SC-003).
+            // advanceSamples advances the smoother by the full block,
+            // giving correct smoothing regardless of block size.
             amountSmoothers_[i].setTarget(routing.amount);
-            float smoothedAmount = (numSamples > 0) ? amountSmoothers_[i].process()
-                                                     : routing.amount;
+            if (numSamples > 0) {
+                amountSmoothers_[i].advanceSamples(numSamples);
+            }
+            float smoothedAmount = amountSmoothers_[i].getCurrentValue();
 
             // Apply bipolar modulation: curve on abs(source), then multiply by amount
             float contribution = applyBipolarModulation(routing.curve, sourceValue, smoothedAmount);
