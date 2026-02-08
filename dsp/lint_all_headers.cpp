@@ -173,6 +173,7 @@
 #include <krate/dsp/effects/multi_tap_delay.h>
 #include <krate/dsp/effects/pattern_freeze_mode.h>
 #include <krate/dsp/effects/ping_pong_delay.h>
+#include <krate/dsp/effects/reverb.h>
 #include <krate/dsp/effects/reverse_delay.h>
 #include <krate/dsp/effects/shimmer_delay.h>
 #include <krate/dsp/effects/spectral_delay.h>

@@ -161,6 +161,7 @@ set(KRATE_DSP_EFFECTS_HEADERS
     include/krate/dsp/effects/reverse_delay.h
     include/krate/dsp/effects/shimmer_delay.h
     include/krate/dsp/effects/spectral_delay.h
+    include/krate/dsp/effects/reverb.h
     include/krate/dsp/effects/tape_delay.h
 )
 

@@ -346,6 +346,8 @@ private:
 - Header: `dsp/include/krate/dsp/processors/trance_gate.h`
 - Tests: `dsp/tests/unit/processors/trance_gate_test.cpp`
 
+**status** Finished
+
 ---
 
 ## Phase 2: Reverb
