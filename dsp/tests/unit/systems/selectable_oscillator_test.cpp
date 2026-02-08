@@ -307,44 +307,64 @@ void operator delete(void* p, [[maybe_unused]] std::size_t size) noexcept {
     std::free(p);
 }
 
-TEST_CASE("SelectableOscillator: zero heap allocations during type switch for non-FFT types",
+TEST_CASE("SelectableOscillator: zero heap allocations during type switch for ALL types (SC-004)",
           "[selectable_oscillator][sc004]") {
     SelectableOscillator osc;
     osc.prepare(kSampleRate, kBlockSize);
     osc.setFrequency(440.0f);
 
-    // Types that should NOT allocate on switch (SC-004)
-    // These types have no internal heap allocations (no FFT, no vectors).
-    // Exclude: Additive (FFT), SpectralFreeze (FFT), PhaseDistortion (wavetable FFT),
-    //          Wavetable (WavetableData creation), Sync (MinBLEP table),
-    //          Particle (may allocate grain pools)
-    const std::array<OscType, 4> nonFftTypes = {
+    // With pre-allocated slot pool, ALL 10 types should switch with zero allocations.
+    // All types are constructed and prepared at prepare() time.
+    const std::array<OscType, 10> allTypes = {
         OscType::PolyBLEP,
+        OscType::Wavetable,
+        OscType::PhaseDistortion,
+        OscType::Sync,
+        OscType::Additive,
         OscType::Chaos,
+        OscType::Particle,
         OscType::Formant,
+        OscType::SpectralFreeze,
         OscType::Noise
     };
 
-    // Pre-warm: switch to each type once to ensure any lazy initialization occurs
-    for (auto type : nonFftTypes) {
-        osc.setType(type);
+    for (auto type : allTypes) {
+        DYNAMIC_SECTION("OscType " << static_cast<int>(type)) {
+            // Switch to PolyBLEP first (baseline)
+            osc.setType(OscType::PolyBLEP);
+
+            // Track allocations during the switch
+            g_allocationCount.store(0, std::memory_order_relaxed);
+            g_trackAllocations = true;
+
+            osc.setType(type);
+
+            g_trackAllocations = false;
+            int allocs = g_allocationCount.load(std::memory_order_relaxed);
+
+            INFO("OscType " << static_cast<int>(type) << " caused " << allocs << " allocations");
+            REQUIRE(allocs == 0);
+        }
     }
-    osc.setType(OscType::PolyBLEP);
+}
 
-    for (auto type : nonFftTypes) {
-        // Switch to PolyBLEP first (baseline)
-        osc.setType(OscType::PolyBLEP);
+TEST_CASE("SelectableOscillator: zero heap allocations during processBlock (SC-004)",
+          "[selectable_oscillator][sc004]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setFrequency(440.0f);
 
-        // Now track allocations during the switch
-        g_allocationCount.store(0, std::memory_order_relaxed);
-        g_trackAllocations = true;
+    std::array<float, kBlockSize> buffer{};
 
-        osc.setType(type);
+    // Track allocations during processBlock
+    g_allocationCount.store(0, std::memory_order_relaxed);
+    g_trackAllocations = true;
 
-        g_trackAllocations = false;
-        int allocs = g_allocationCount.load(std::memory_order_relaxed);
+    osc.processBlock(buffer.data(), kBlockSize);
 
-        INFO("OscType " << static_cast<int>(type) << " caused " << allocs << " allocations");
-        REQUIRE(allocs == 0);
-    }
+    g_trackAllocations = false;
+    int allocs = g_allocationCount.load(std::memory_order_relaxed);
+
+    INFO("processBlock caused " << allocs << " allocations");
+    REQUIRE(allocs == 0);
 }

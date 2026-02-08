@@ -1560,25 +1560,19 @@ TEST_CASE("RuinaeVoice: SC-003 eight basic voices CPU < 8%", "[ruinae_voice][per
 // =============================================================================
 
 TEST_CASE("RuinaeVoice: SC-009 memory footprint per voice", "[ruinae_voice][performance][sc-009]") {
-    // SC-009 spec: "Memory footprint per voice MUST be under 64 KB
-    // (all pre-allocated oscillators, filters, distortions, buffers).
-    // Lazy initialization reduces working set to ~8-12 KB per voice."
-    //
-    // The std::variant approach reserves space for the largest oscillator type
-    // even when holding monostate, so sizeof(RuinaeVoice) is large (~340KB).
-    // This is a compile-time property of std::variant.
-    //
-    // The spec's 64KB target refers to the *active working set* after lazy
-    // initialization. We verify:
-    // 1. The heap allocations from prepare() for scratch buffers are reasonable
-    // 2. The voice functions correctly when heap-allocated
-    // 3. SpectralMorphFilter is lazily allocated (not in basic mode)
+    // SC-009 updated: With pointer-to-base + pre-allocated pool architecture,
+    // sizeof(RuinaeVoice) should be under 8KB (down from ~343KB with std::variant).
+    // Total heap per voice (all oscillators, filters, distortions pre-allocated)
+    // is ~641KB, allocated entirely at prepare() time.
     constexpr size_t maxBlockSize = 512;
 
-    // Heap allocations from prepare() for scratch buffers:
-    // 5 buffers * 512 samples * 4 bytes = 10,240 bytes (~10 KB)
+    // Verify sizeof(RuinaeVoice) is reasonable (no more inline variant bloat)
+    INFO("sizeof(RuinaeVoice) = " << sizeof(RuinaeVoice) << " bytes");
+    REQUIRE(sizeof(RuinaeVoice) < 8192);  // Must be under 8KB
+
+    // Scratch buffer memory is reasonable
     size_t scratchBufferBytes = 5 * maxBlockSize * sizeof(float);
-    REQUIRE(scratchBufferBytes < 65536); // Scratch buffers well under 64KB
+    REQUIRE(scratchBufferBytes < 65536);
 
     // Verify voice can be heap-allocated and functions correctly
     auto pVoice = std::make_unique<RuinaeVoice>();
@@ -1595,14 +1589,11 @@ TEST_CASE("RuinaeVoice: SC-009 memory footprint per voice", "[ruinae_voice][perf
 // SC-004: Zero heap allocations during type switches
 // =============================================================================
 
-// Global allocation counter for allocation detection tests
-static thread_local int g_allocationCount = 0;
-static thread_local bool g_trackAllocations = false;
-
-// NOTE: We cannot override global operator new in this translation unit
-// because it would conflict with other allocations. Instead, we verify
-// the type switch behavior produces valid output without crashes or NaN,
-// which is a practical proxy for allocation-free operation.
+// With the pointer-to-base + pre-allocated pool architecture, ALL type switches
+// (oscillator, filter, distortion, mix mode) are zero-allocation. All sub-component
+// types are pre-allocated at prepare() time. Type switching only changes the active
+// pointer or enum. The tests below verify valid output after switching, which
+// confirms the pre-allocated instances are functioning correctly.
 
 TEST_CASE("RuinaeVoice: SC-004 oscillator type switch during processBlock", "[ruinae_voice][allocation][sc-004]") {
     constexpr double sampleRate = 44100.0;

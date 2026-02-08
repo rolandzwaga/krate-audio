@@ -1,25 +1,21 @@
 // ==============================================================================
 // Layer 3: System Component - SelectableOscillator
 // ==============================================================================
-// Variant-based oscillator wrapper with lazy initialization for the Ruinae
-// voice architecture. Wraps all 10 oscillator types in a std::variant and
-// delegates processing via visitor dispatch.
+// Pointer-to-base oscillator wrapper with pre-allocated slot pool for the
+// Ruinae voice architecture. All 10 oscillator types are pre-allocated at
+// prepare() time; setType() swaps the active pointer with zero heap allocation.
 //
 // Feature: 041-ruinae-voice-architecture
 // Layer: 3 (Systems)
 // Dependencies:
 //   - Layer 0: core/db_utils.h (isNaN, isInf)
-//   - Layer 1: primitives/polyblep_oscillator.h, primitives/wavetable_oscillator.h,
-//              primitives/noise_oscillator.h
-//   - Layer 2: processors/phase_distortion_oscillator.h, processors/sync_oscillator.h,
-//              processors/additive_oscillator.h, processors/chaos_oscillator.h,
-//              processors/particle_oscillator.h, processors/formant_oscillator.h,
-//              processors/spectral_freeze_oscillator.h
+//   - Layer 3: systems/oscillator_slot.h, systems/oscillator_adapters.h,
+//              systems/ruinae_types.h
 //
 // Constitution Compliance:
-// - Principle II: Real-Time Safety (noexcept, no allocations in processBlock)
-// - Principle III: Modern C++ (C++20, std::variant, visitor dispatch)
-// - Principle IX: Layer 3 (depends on Layers 0, 1, 2)
+// - Principle II: Real-Time Safety (noexcept, zero allocations in setType/processBlock)
+// - Principle III: Modern C++ (C++20, virtual dispatch, unique_ptr)
+// - Principle IX: Layer 3 (depends on Layers 0, 1, 2, 3)
 // - Principle XIV: ODR Prevention (unique class name verified)
 //
 // Reference: specs/041-ruinae-voice-architecture/spec.md
@@ -28,80 +24,48 @@
 #pragma once
 
 #include <krate/dsp/systems/ruinae_types.h>
+#include <krate/dsp/systems/oscillator_slot.h>
+#include <krate/dsp/systems/oscillator_adapters.h>
 
 // Layer 0
 #include <krate/dsp/core/db_utils.h>
-#include <krate/dsp/core/math_constants.h>
-
-// Layer 1 oscillators
-#include <krate/dsp/primitives/polyblep_oscillator.h>
-#include <krate/dsp/primitives/wavetable_oscillator.h>
-#include <krate/dsp/primitives/wavetable_generator.h>
-#include <krate/dsp/primitives/minblep_table.h>
-#include <krate/dsp/primitives/noise_oscillator.h>
-
-// Layer 2 oscillators
-#include <krate/dsp/processors/phase_distortion_oscillator.h>
-#include <krate/dsp/processors/sync_oscillator.h>
-#include <krate/dsp/processors/additive_oscillator.h>
-#include <krate/dsp/processors/chaos_oscillator.h>
-#include <krate/dsp/processors/particle_oscillator.h>
-#include <krate/dsp/processors/formant_oscillator.h>
-#include <krate/dsp/processors/spectral_freeze_oscillator.h>
 
 #include <algorithm>
-#include <cmath>
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <variant>
-#include <vector>
+
+// For fallback resource creation
+#include <krate/dsp/primitives/wavetable_generator.h>
+#include <krate/dsp/primitives/minblep_table.h>
 
 namespace Krate::DSP {
-
-// =============================================================================
-// OscillatorVariant Type Alias (FR-002, FR-003)
-// =============================================================================
-
-/// @brief Type-erased oscillator storage using std::variant.
-///
-/// std::monostate represents the unprepared/empty state.
-/// Only the active oscillator type is initialized at any time (lazy init).
-using OscillatorVariant = std::variant<
-    std::monostate,
-    PolyBlepOscillator,
-    WavetableOscillator,
-    PhaseDistortionOscillator,
-    SyncOscillator,
-    AdditiveOscillator,
-    ChaosOscillator,
-    ParticleOscillator,
-    FormantOscillator,
-    SpectralFreezeOscillator,
-    NoiseOscillator
->;
 
 // =============================================================================
 // SelectableOscillator Class (FR-001 through FR-005)
 // =============================================================================
 
-/// @brief Variant-based oscillator wrapper with lazy initialization.
+/// @brief Pre-allocated oscillator pool with pointer-based type switching.
 ///
-/// Wraps all 10 oscillator types in a std::variant and delegates processing
-/// via visitor dispatch, following the DistortionRack pattern.
+/// All 10 oscillator types are heap-allocated and prepared at prepare() time.
+/// setType() swaps the active pointer (zero heap allocation, SC-004 compliant).
 ///
-/// @par Lazy Initialization
-/// On prepare(), only the default type (PolyBLEP) is constructed and prepared.
-/// When setType() is called with a different type, the new type is emplaced
-/// and prepared on-the-fly. Non-FFT types cause zero heap allocation.
+/// @par Pre-Allocation Strategy
+/// On prepare(), creates and prepares one instance of each oscillator type
+/// via OscillatorAdapter<T>. Active type is selected by pointer, not by
+/// constructing/destroying objects.
 ///
 /// @par Thread Safety
 /// Single-threaded model. All methods called from the audio thread.
 ///
 /// @par Real-Time Safety
-/// processBlock() is fully real-time safe for non-FFT oscillator types.
+/// setType() and processBlock() are fully real-time safe (zero allocations).
 /// prepare() is NOT real-time safe.
 class SelectableOscillator {
 public:
+    static constexpr size_t kNumOscTypes = static_cast<size_t>(OscType::NumTypes);
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -109,48 +73,65 @@ public:
     SelectableOscillator() noexcept = default;
     ~SelectableOscillator() noexcept = default;
 
-    // Non-copyable (some variant alternatives are non-copyable)
+    // Non-copyable (unique_ptrs are non-copyable)
     SelectableOscillator(const SelectableOscillator&) = delete;
     SelectableOscillator& operator=(const SelectableOscillator&) = delete;
     SelectableOscillator(SelectableOscillator&&) noexcept = default;
     SelectableOscillator& operator=(SelectableOscillator&&) noexcept = default;
 
-    /// @brief Initialize the oscillator for the given sample rate and block size.
+    /// @brief Pre-allocate and prepare all oscillator types.
     ///
-    /// Constructs and prepares the default oscillator type (PolyBLEP).
-    /// NOT real-time safe.
+    /// Creates one OscillatorAdapter for each of the 10 oscillator types,
+    /// prepares them all, and sets the active pointer to the default type.
+    /// NOT real-time safe (heap allocations).
     ///
     /// @param sampleRate Sample rate in Hz
     /// @param maxBlockSize Maximum block size in samples
-    void prepare(double sampleRate, size_t maxBlockSize) noexcept {
+    /// @param resources Shared oscillator resources (wavetable, minblep table)
+    void prepare(double sampleRate, size_t maxBlockSize,
+                 OscillatorResources* resources = nullptr) noexcept {
         sampleRate_ = sampleRate;
         maxBlockSize_ = maxBlockSize;
+
+        // Create and prepare all 10 oscillator slots
+        createAllSlots(resources);
+        for (auto& slot : slots_) {
+            if (slot) {
+                slot->prepare(sampleRate, maxBlockSize);
+            }
+        }
+
+        // Set active pointer to default type
+        active_ = slots_[static_cast<size_t>(activeType_)].get();
         prepared_ = true;
 
-        // Construct and prepare default type
-        emplaceAndPrepare(activeType_);
-        applyFrequency();
+        // Apply current frequency to active slot
+        if (active_) {
+            active_->setFrequency(currentFrequency_);
+        }
     }
 
     /// @brief Reset the active oscillator state without changing type.
     void reset() noexcept {
-        std::visit(ResetVisitor{}, oscillator_);
+        if (active_) {
+            active_->reset();
+        }
     }
 
     // =========================================================================
     // Type Selection (FR-002, FR-003, FR-004, FR-005)
     // =========================================================================
 
-    /// @brief Set the active oscillator type.
+    /// @brief Set the active oscillator type (SC-004: zero allocations).
     ///
-    /// If the type is the same as the current type, this is a no-op (AS-3.1).
-    /// Otherwise, the new type is emplaced and prepared.
-    /// The current frequency setting is preserved.
+    /// Switches the active pointer to the pre-allocated slot for the given
+    /// type. No heap allocation occurs. If the type is the same as the
+    /// current type, this is a no-op (AS-3.1).
     ///
     /// @param type The oscillator type to activate
     void setType(OscType type) noexcept {
         // No-op if same type (AS-3.1)
-        if (type == activeType_ && !std::holds_alternative<std::monostate>(oscillator_)) {
+        if (type == activeType_) {
             return;
         }
 
@@ -160,17 +141,21 @@ public:
             return;
         }
 
-        emplaceAndPrepare(type);
+        const auto idx = static_cast<size_t>(type);
+        if (idx >= kNumOscTypes || !slots_[idx]) {
+            return;
+        }
 
-        // Optionally reset phase (but NOT for SpectralFreeze, which was just
-        // freeze-initialized in emplaceAndPrepare and reset() would clear
-        // its frozen state)
+        active_ = slots_[idx].get();
+
+        // Optionally reset phase (but NOT for SpectralFreeze, which was
+        // freeze-initialized in prepare and reset() would clear its frozen state)
         if (phaseMode_ == PhaseMode::Reset && type != OscType::SpectralFreeze) {
-            std::visit(ResetVisitor{}, oscillator_);
+            active_->reset();
         }
 
         // Restore frequency
-        applyFrequency();
+        active_->setFrequency(currentFrequency_);
     }
 
     /// @brief Get the currently active oscillator type.
@@ -197,7 +182,9 @@ public:
             return;  // Silently ignore invalid values
         }
         currentFrequency_ = hz;
-        applyFrequency();
+        if (active_) {
+            active_->setFrequency(hz);
+        }
     }
 
     // =========================================================================
@@ -211,7 +198,7 @@ public:
     /// @param output Output buffer (must hold numSamples floats)
     /// @param numSamples Number of samples to generate
     void processBlock(float* output, size_t numSamples) noexcept {
-        if (!prepared_ || output == nullptr || numSamples == 0) {
+        if (!prepared_ || output == nullptr || numSamples == 0 || !active_) {
             if (output != nullptr) {
                 std::fill(output, output + numSamples, 0.0f);
             }
@@ -221,250 +208,78 @@ public:
         // Clamp to max block size to prevent buffer overruns
         numSamples = std::min(numSamples, maxBlockSize_);
 
-        std::visit(ProcessBlockVisitor{output, numSamples}, oscillator_);
+        active_->processBlock(output, numSamples);
     }
 
 private:
     // =========================================================================
-    // Visitor Structs
-    // =========================================================================
-
-    /// @brief Visitor for resetting oscillator state.
-    struct ResetVisitor {
-        void operator()(std::monostate&) const noexcept {}
-
-        void operator()(PolyBlepOscillator& osc) const noexcept { osc.reset(); }
-        void operator()(WavetableOscillator& osc) const noexcept { osc.reset(); }
-        void operator()(PhaseDistortionOscillator& osc) const noexcept { osc.reset(); }
-        void operator()(SyncOscillator& osc) const noexcept { osc.reset(); }
-        void operator()(AdditiveOscillator& osc) const noexcept { osc.reset(); }
-        void operator()(ChaosOscillator& osc) const noexcept { osc.reset(); }
-        void operator()(ParticleOscillator& osc) const noexcept { osc.reset(); }
-        void operator()(FormantOscillator& osc) const noexcept { osc.reset(); }
-        void operator()(SpectralFreezeOscillator& osc) const noexcept { osc.reset(); }
-        void operator()(NoiseOscillator& osc) const noexcept { osc.reset(); }
-    };
-
-    /// @brief Visitor for preparing oscillators.
-    struct PrepareVisitor {
-        double sampleRate;
-        size_t maxBlockSize;
-
-        void operator()(std::monostate&) const noexcept {}
-
-        void operator()(PolyBlepOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-        void operator()(WavetableOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-        void operator()(PhaseDistortionOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-        void operator()(SyncOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-        void operator()(AdditiveOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-        void operator()(ChaosOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-        void operator()(ParticleOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-        void operator()(FormantOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-        void operator()(SpectralFreezeOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-        void operator()(NoiseOscillator& osc) const noexcept {
-            osc.prepare(sampleRate);
-        }
-    };
-
-    /// @brief Visitor for setting frequency.
-    struct SetFrequencyVisitor {
-        float hz;
-
-        void operator()(std::monostate&) const noexcept {}
-
-        void operator()(PolyBlepOscillator& osc) const noexcept {
-            osc.setFrequency(hz);
-        }
-        void operator()(WavetableOscillator& osc) const noexcept {
-            osc.setFrequency(hz);
-        }
-        void operator()(PhaseDistortionOscillator& osc) const noexcept {
-            osc.setFrequency(hz);
-        }
-        void operator()(SyncOscillator& osc) const noexcept {
-            // SyncOscillator uses setMasterFrequency + setSlaveFrequency
-            osc.setMasterFrequency(hz);
-            osc.setSlaveFrequency(hz * 2.0f);  // Default: slave at 2x master
-        }
-        void operator()(AdditiveOscillator& osc) const noexcept {
-            osc.setFundamental(hz);
-        }
-        void operator()(ChaosOscillator& osc) const noexcept {
-            osc.setFrequency(hz);
-        }
-        void operator()(ParticleOscillator& osc) const noexcept {
-            osc.setFrequency(hz);
-        }
-        void operator()(FormantOscillator& osc) const noexcept {
-            osc.setFundamental(hz);
-        }
-        void operator()(SpectralFreezeOscillator& osc) const noexcept {
-            // SpectralFreezeOscillator uses setPitchShift(semitones)
-            // We map frequency to a pitch shift relative to the fundamental
-            // For standard usage: no pitch shift (0 semitones)
-            (void)osc;  // No direct frequency control; pitch shift handled separately
-        }
-        void operator()(NoiseOscillator&) const noexcept {
-            // NoiseOscillator has no frequency control
-        }
-    };
-
-    /// @brief Visitor for block processing.
-    struct ProcessBlockVisitor {
-        float* output;
-        size_t numSamples;
-
-        void operator()(std::monostate&) const noexcept {
-            std::fill(output, output + numSamples, 0.0f);
-        }
-
-        void operator()(PolyBlepOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-        void operator()(WavetableOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-        void operator()(PhaseDistortionOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-        void operator()(SyncOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-        void operator()(AdditiveOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-        void operator()(ChaosOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-        void operator()(ParticleOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-        void operator()(FormantOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-        void operator()(SpectralFreezeOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-        void operator()(NoiseOscillator& osc) const noexcept {
-            osc.processBlock(output, numSamples);
-        }
-    };
-
-    // =========================================================================
     // Internal Methods
     // =========================================================================
 
-    /// @brief Emplace a new oscillator type and prepare it.
+    /// @brief Create all 10 oscillator adapter slots.
     ///
-    /// Special handling for types that need extra initialization:
-    /// - Wavetable: generates a default sawtooth wavetable
-    /// - Sync: sets slave waveform to sawtooth
-    /// - SpectralFreeze: feeds a synthetic sine to freeze
-    void emplaceAndPrepare(OscType type) noexcept {
-        switch (type) {
-            case OscType::PolyBLEP:
-                oscillator_.emplace<PolyBlepOscillator>();
-                break;
-            case OscType::Wavetable: {
-                // Create default wavetable if not already available
-                if (!defaultWavetable_) {
-                    defaultWavetable_ = std::make_unique<WavetableData>();
-                    generateMipmappedSaw(*defaultWavetable_);
-                }
-                auto& wt = oscillator_.emplace<WavetableOscillator>();
-                wt.prepare(sampleRate_);
-                wt.setWavetable(defaultWavetable_.get());
-                return;  // Already prepared via special path
+    /// Shared resources (WavetableData, MinBlepTable) are passed via the
+    /// OscillatorResources struct and shared across all slots that need them.
+    /// If no resources are provided, fallback resources are created internally.
+    void createAllSlots(OscillatorResources* resources) noexcept {
+        OscillatorResources res;
+        if (resources) {
+            res = *resources;
+        } else {
+            // Create fallback resources for standalone use
+            if (!fallbackWavetable_) {
+                fallbackWavetable_ = std::make_unique<WavetableData>();
+                generateMipmappedSaw(*fallbackWavetable_);
             }
-            case OscType::PhaseDistortion:
-                oscillator_.emplace<PhaseDistortionOscillator>();
-                break;
-            case OscType::Sync: {
-                // Create MinBlepTable if not already available
-                if (!minBlepTable_) {
-                    minBlepTable_ = std::make_unique<MinBlepTable>();
-                    minBlepTable_->prepare();
-                }
-                auto& sync = oscillator_.emplace<SyncOscillator>(minBlepTable_.get());
-                sync.prepare(sampleRate_);
-                sync.setSlaveWaveform(OscWaveform::Sawtooth);
-                return;  // Already prepared via special path
+            if (!fallbackMinBlep_) {
+                fallbackMinBlep_ = std::make_unique<MinBlepTable>();
+                fallbackMinBlep_->prepare();
             }
-            case OscType::Additive:
-                oscillator_.emplace<AdditiveOscillator>();
-                break;
-            case OscType::Chaos:
-                oscillator_.emplace<ChaosOscillator>();
-                break;
-            case OscType::Particle:
-                oscillator_.emplace<ParticleOscillator>();
-                break;
-            case OscType::Formant:
-                oscillator_.emplace<FormantOscillator>();
-                break;
-            case OscType::SpectralFreeze: {
-                auto& sf = oscillator_.emplace<SpectralFreezeOscillator>();
-                sf.prepare(sampleRate_);
-                // Feed a synthetic sine wave and freeze it so the oscillator
-                // produces output immediately
-                initSpectralFreeze(sf);
-                return;  // Already prepared via special path
-            }
-            case OscType::Noise:
-                oscillator_.emplace<NoiseOscillator>();
-                break;
-            default:
-                oscillator_.emplace<PolyBlepOscillator>();
-                break;
+            res.wavetable = fallbackWavetable_.get();
+            res.minBlepTable = fallbackMinBlep_.get();
         }
 
-        // Prepare the newly emplaced oscillator (generic path)
-        std::visit(PrepareVisitor{sampleRate_, maxBlockSize_}, oscillator_);
-    }
+        slots_[static_cast<size_t>(OscType::PolyBLEP)] =
+            std::make_unique<OscillatorAdapter<PolyBlepOscillator>>(res);
 
-    /// @brief Initialize SpectralFreezeOscillator by feeding it a sine wave and freezing.
-    void initSpectralFreeze(SpectralFreezeOscillator& sf) noexcept {
-        // Generate a short sine wave buffer and freeze it.
-        // Use a fixed-size stack buffer matching the default FFT size.
-        constexpr size_t kFreezeBlockSize = 2048;
-        float sineBuffer[kFreezeBlockSize];
-        const float freq = currentFrequency_;
-        const double sr = sampleRate_;
-        for (size_t i = 0; i < kFreezeBlockSize; ++i) {
-            sineBuffer[i] = std::sin(kTwoPi * freq * static_cast<float>(i)
-                                     / static_cast<float>(sr));
-        }
-        sf.freeze(sineBuffer, kFreezeBlockSize);
-    }
+        slots_[static_cast<size_t>(OscType::Wavetable)] =
+            std::make_unique<OscillatorAdapter<WavetableOscillator>>(res);
 
-    /// @brief Apply the current frequency to the active oscillator.
-    void applyFrequency() noexcept {
-        std::visit(SetFrequencyVisitor{currentFrequency_}, oscillator_);
+        slots_[static_cast<size_t>(OscType::PhaseDistortion)] =
+            std::make_unique<OscillatorAdapter<PhaseDistortionOscillator>>(res);
+
+        slots_[static_cast<size_t>(OscType::Sync)] =
+            std::make_unique<OscillatorAdapter<SyncOscillator>>(res);
+
+        slots_[static_cast<size_t>(OscType::Additive)] =
+            std::make_unique<OscillatorAdapter<AdditiveOscillator>>(res);
+
+        slots_[static_cast<size_t>(OscType::Chaos)] =
+            std::make_unique<OscillatorAdapter<ChaosOscillator>>(res);
+
+        slots_[static_cast<size_t>(OscType::Particle)] =
+            std::make_unique<OscillatorAdapter<ParticleOscillator>>(res);
+
+        slots_[static_cast<size_t>(OscType::Formant)] =
+            std::make_unique<OscillatorAdapter<FormantOscillator>>(res);
+
+        slots_[static_cast<size_t>(OscType::SpectralFreeze)] =
+            std::make_unique<OscillatorAdapter<SpectralFreezeOscillator>>(res);
+
+        slots_[static_cast<size_t>(OscType::Noise)] =
+            std::make_unique<OscillatorAdapter<NoiseOscillator>>(res);
     }
 
     // =========================================================================
     // Member Variables
     // =========================================================================
 
-    OscillatorVariant oscillator_;
+    /// @brief Pre-allocated oscillator slots (one per type).
+    std::array<std::unique_ptr<OscillatorSlot>, kNumOscTypes> slots_;
+
+    /// @brief Raw pointer to the currently active slot (non-owning).
+    OscillatorSlot* active_{nullptr};
+
     OscType activeType_{OscType::PolyBLEP};
     PhaseMode phaseMode_{PhaseMode::Reset};
     float currentFrequency_{440.0f};
@@ -472,13 +287,10 @@ private:
     size_t maxBlockSize_{512};
     bool prepared_{false};
 
-    /// @brief Default wavetable for Wavetable oscillator type.
-    /// Lazily created on first use of OscType::Wavetable.
-    std::unique_ptr<WavetableData> defaultWavetable_;
-
-    /// @brief MinBLEP table for Sync oscillator type.
-    /// Lazily created on first use of OscType::Sync.
-    std::unique_ptr<MinBlepTable> minBlepTable_;
+    /// @brief Fallback resources created when no external resources are provided.
+    /// Used for standalone SelectableOscillator instances (e.g., in unit tests).
+    std::unique_ptr<WavetableData> fallbackWavetable_;
+    std::unique_ptr<MinBlepTable> fallbackMinBlep_;
 };
 
 } // namespace Krate::DSP
