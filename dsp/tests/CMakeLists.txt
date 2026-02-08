@@ -43,6 +43,7 @@ add_executable(dsp_tests
     unit/core/polyblep_test.cpp
     unit/core/phase_utils_test.cpp
     unit/core/wavetable_data_test.cpp
+    unit/core/spectral_simd_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/envelope_utils_test.cpp

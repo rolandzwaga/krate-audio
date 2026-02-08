@@ -220,6 +220,23 @@ if(VSTWORK_BUILD_TESTS)
 endif()
 
 # ==============================================================================
+# Google Highway (SIMD-accelerated math for spectral DSP)
+# ==============================================================================
+# Provides runtime dispatch: SSE2/AVX2/AVX-512 on x86, NEON on ARM.
+# Single binary uses the best available ISA at load time.
+include(FetchContent)
+FetchContent_Declare(
+    highway
+    GIT_REPOSITORY https://github.com/google/highway.git
+    GIT_TAG 1.2.0
+)
+set(HWY_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(HWY_ENABLE_CONTRIB ON CACHE BOOL "" FORCE)
+set(HWY_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(highway)
+
+# ==============================================================================
 # KrateDSP Library (Shared by all plugins)
 # ==============================================================================
 add_subdirectory(dsp)

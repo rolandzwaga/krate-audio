@@ -58,4 +58,6 @@ tools/*.txt
 /plugins/iterum/src/version.h
 /plugins/disrumpo/resources/win32resource.rc
 /plugins/disrumpo/src/version.h
+/plugins/ruinae/resources/win32resource.rc
+/plugins/ruinae/src/version.h
 tmpclaude-*
