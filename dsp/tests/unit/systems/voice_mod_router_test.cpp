@@ -13,6 +13,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <limits>
+
 using Catch::Approx;
 using namespace Krate::DSP;
 
@@ -39,7 +41,7 @@ constexpr float kKeyTrackValue = 0.2f;  // (midiNote - 60) / 60
 TEST_CASE("VoiceModRouter: empty router produces zero offsets",
           "[voice_mod_router]") {
     VoiceModRouter router;
-    router.computeOffsets(0.5f, 0.8f, 0.3f, -0.5f, 1.0f, 0.75f, 0.2f);
+    router.computeOffsets(0.5f, 0.8f, 0.3f, -0.5f, 1.0f, 0.75f, 0.2f, 0.0f);
 
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.0f));
     REQUIRE(router.getOffset(VoiceModDest::FilterResonance) == Approx(0.0f));
@@ -67,7 +69,7 @@ TEST_CASE("VoiceModRouter: single route Env2 -> FilterCutoff",
 
     // Env2 value = 0.8, amount = 1.0 -> offset = 0.8 * 1.0 = 0.8
     router.computeOffsets(kEnv1Value, kEnv2Value, kEnv3Value,
-                          kLfoValue, kGateValue, kVelocityValue, kKeyTrackValue);
+                          kLfoValue, kGateValue, kVelocityValue, kKeyTrackValue, 0.0f);
 
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.8f));
     // Other destinations should be zero
@@ -101,7 +103,7 @@ TEST_CASE("VoiceModRouter: two routes to same destination are summed",
     // Route 1 contribution: -0.3 * -0.25 = 0.075
     // Total: 0.475
     router.computeOffsets(kEnv1Value, kEnv2Value, kEnv3Value,
-                          kLfoValue, kGateValue, kVelocityValue, kKeyTrackValue);
+                          kLfoValue, kGateValue, kVelocityValue, kKeyTrackValue, 0.0f);
 
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.475f));
 }
@@ -121,7 +123,7 @@ TEST_CASE("VoiceModRouter: amount is clamped to [-1.0, +1.0]",
     router.setRoute(0, route);
 
     // Env1 = 0.5
-    router.computeOffsets(0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+    router.computeOffsets(0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
     // Clamped amount = 1.0, so offset = 0.5 * 1.0 = 0.5
     REQUIRE(router.getOffset(VoiceModDest::OscAPitch) == Approx(0.5f));
@@ -137,7 +139,7 @@ TEST_CASE("VoiceModRouter: negative amount exceeding -1.0 is clamped",
     route.amount = -3.0f;  // Exceeds min, should be clamped to -1.0
     router.setRoute(0, route);
 
-    router.computeOffsets(0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+    router.computeOffsets(0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
     // Clamped amount = -1.0, so offset = 0.5 * -1.0 = -0.5
     REQUIRE(router.getOffset(VoiceModDest::OscAPitch) == Approx(-0.5f));
@@ -158,11 +160,11 @@ TEST_CASE("VoiceModRouter: velocity source provides constant value per note",
     router.setRoute(0, route);
 
     // First call with velocity = 0.75
-    router.computeOffsets(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.75f, 0.0f);
+    router.computeOffsets(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.75f, 0.0f, 0.0f);
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.75f));
 
     // Second call with same velocity -- should produce same result
-    router.computeOffsets(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.75f, 0.0f);
+    router.computeOffsets(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.75f, 0.0f, 0.0f);
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.75f));
 }
 
@@ -185,13 +187,13 @@ TEST_CASE("VoiceModRouter: 16 routes all functional",
 
     REQUIRE(router.getRouteCount() == 16);
 
-    // With 16 routes distributed across 7 destinations, some will have multiple
+    // With 16 routes distributed across 9 destinations, some will have multiple
     // routes. Verify all routes contribute.
-    router.computeOffsets(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+    router.computeOffsets(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
-    // FilterCutoff gets routes at indices 0, 7, 14 (i % 7 == 0)
-    // Each contributes 1.0 * 0.1 = 0.1, so total = 0.3
-    REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.3f).margin(0.001f));
+    // FilterCutoff gets routes at indices 0, 9 (i % 9 == 0)
+    // Each contributes 1.0 * 0.1 = 0.1, so total = 0.2
+    REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.2f).margin(0.001f));
 }
 
 // =============================================================================
@@ -209,14 +211,14 @@ TEST_CASE("VoiceModRouter: clear route zeroes its contribution",
     router.setRoute(0, route);
 
     // Verify route contributes
-    router.computeOffsets(0.0f, 0.8f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+    router.computeOffsets(0.0f, 0.8f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.8f));
 
     // Clear the route
     router.clearRoute(0);
 
     // Verify contribution is zero
-    router.computeOffsets(0.0f, 0.8f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+    router.computeOffsets(0.0f, 0.8f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.0f));
 }
 
@@ -243,7 +245,7 @@ TEST_CASE("VoiceModRouter: clearAllRoutes resets everything",
 
     REQUIRE(router.getRouteCount() == 0);
 
-    router.computeOffsets(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+    router.computeOffsets(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.0f));
 }
 
@@ -279,7 +281,7 @@ TEST_CASE("VoiceModRouter: each source type maps to correct input value",
     // KeyTrack -> OscBPitch
     router.setRoute(6, {VoiceModSource::KeyTrack, VoiceModDest::OscBPitch, 1.0f});
 
-    router.computeOffsets(env1, env2, env3, lfo, gate, velocity, keyTrack);
+    router.computeOffsets(env1, env2, env3, lfo, gate, velocity, keyTrack, 0.0f);
 
     REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(env1));
     REQUIRE(router.getOffset(VoiceModDest::FilterResonance) == Approx(env2));
@@ -320,7 +322,7 @@ TEST_CASE("VoiceModRouter: out-of-range route index is ignored",
 TEST_CASE("VoiceModRouter: getOffset with out-of-range destination returns zero",
           "[voice_mod_router]") {
     VoiceModRouter router;
-    router.computeOffsets(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+    router.computeOffsets(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f);
 
     // NumDestinations is the sentinel -- should return 0
     REQUIRE(router.getOffset(VoiceModDest::NumDestinations) == Approx(0.0f));
@@ -343,6 +345,144 @@ TEST_CASE("VoiceModRouter: bipolar source with negative amount",
     router.setRoute(0, route);
 
     // LFO = -0.3, amount = -0.5 -> offset = -0.3 * -0.5 = 0.15
-    router.computeOffsets(0.0f, 0.0f, 0.0f, -0.3f, 0.0f, 0.0f, 0.0f);
+    router.computeOffsets(0.0f, 0.0f, 0.0f, -0.3f, 0.0f, 0.0f, 0.0f, 0.0f);
     REQUIRE(router.getOffset(VoiceModDest::OscAPitch) == Approx(0.15f));
+}
+
+// =============================================================================
+// 042-ext-modulation-system: User Story 1 Tests
+// =============================================================================
+
+// T006: Aftertouch single route
+TEST_CASE("VoiceModRouter: Aftertouch single route produces expected offset",
+          "[voice_mod_router][ext_modulation]") {
+    VoiceModRouter router;
+
+    // Route: Aftertouch -> FilterCutoff, amount = +1.0
+    router.setRoute(0, {VoiceModSource::Aftertouch, VoiceModDest::FilterCutoff, 1.0f});
+
+    // Aftertouch = 0.6, amount = 1.0 -> offset = 0.6
+    router.computeOffsets(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.6f);
+
+    REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.6f));
+}
+
+// T007: Aftertouch + Env2 multi-route summation to FilterCutoff
+TEST_CASE("VoiceModRouter: Aftertouch + Env2 multi-route summation",
+          "[voice_mod_router][ext_modulation]") {
+    VoiceModRouter router;
+
+    // Route 0: Aftertouch -> FilterCutoff, amount = +0.5
+    router.setRoute(0, {VoiceModSource::Aftertouch, VoiceModDest::FilterCutoff, 0.5f});
+    // Route 1: Env2 -> FilterCutoff, amount = +0.5
+    router.setRoute(1, {VoiceModSource::Env2, VoiceModDest::FilterCutoff, 0.5f});
+
+    // Aftertouch = 0.6 -> contribution = 0.6 * 0.5 = 0.3
+    // Env2 = 0.8 -> contribution = 0.8 * 0.5 = 0.4
+    // Total = 0.7
+    router.computeOffsets(0.0f, 0.8f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.6f);
+
+    REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.7f));
+}
+
+// T008: Zero aftertouch produces zero contribution
+TEST_CASE("VoiceModRouter: zero aftertouch produces zero contribution",
+          "[voice_mod_router][ext_modulation]") {
+    VoiceModRouter router;
+
+    router.setRoute(0, {VoiceModSource::Aftertouch, VoiceModDest::MorphPosition, 1.0f});
+
+    // Aftertouch = 0.0 -> offset = 0.0 * 1.0 = 0.0
+    router.computeOffsets(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+    REQUIRE(router.getOffset(VoiceModDest::MorphPosition) == Approx(0.0f));
+}
+
+// T009: OscALevel route (Env3 -> OscALevel, amount = +1.0)
+TEST_CASE("VoiceModRouter: OscALevel route from Env3",
+          "[voice_mod_router][ext_modulation]") {
+    VoiceModRouter router;
+
+    router.setRoute(0, {VoiceModSource::Env3, VoiceModDest::OscALevel, 1.0f});
+
+    // Env3 = 0.5 -> offset = 0.5 * 1.0 = 0.5
+    router.computeOffsets(0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+    REQUIRE(router.getOffset(VoiceModDest::OscALevel) == Approx(0.5f));
+}
+
+// T010: OscBLevel route (LFO -> OscBLevel, negative amount)
+TEST_CASE("VoiceModRouter: OscBLevel route with negative amount",
+          "[voice_mod_router][ext_modulation]") {
+    VoiceModRouter router;
+
+    router.setRoute(0, {VoiceModSource::VoiceLFO, VoiceModDest::OscBLevel, -0.5f});
+
+    // LFO = 0.8 -> offset = 0.8 * -0.5 = -0.4
+    router.computeOffsets(0.0f, 0.0f, 0.0f, 0.8f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+    REQUIRE(router.getOffset(VoiceModDest::OscBLevel) == Approx(-0.4f));
+}
+
+// T011: NaN source value sanitized to zero (FR-024)
+TEST_CASE("VoiceModRouter: NaN source value is sanitized to zero offset",
+          "[voice_mod_router][ext_modulation][nan_safety]") {
+    VoiceModRouter router;
+
+    router.setRoute(0, {VoiceModSource::Env1, VoiceModDest::FilterCutoff, 1.0f});
+
+    // Pass NaN as env1 source -- after sanitization offset should be 0.0
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    router.computeOffsets(nan, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+    // NaN * 1.0 = NaN -> sanitized to 0.0
+    REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.0f));
+}
+
+// T012: Denormal source value flushed to zero (FR-024)
+TEST_CASE("VoiceModRouter: denormal source value flushed to zero offset",
+          "[voice_mod_router][ext_modulation][nan_safety]") {
+    VoiceModRouter router;
+
+    router.setRoute(0, {VoiceModSource::Env1, VoiceModDest::FilterCutoff, 1.0f});
+
+    // Pass denormal value as env1 source (1e-40f is denormal for float)
+    router.computeOffsets(1e-40f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+    // 1e-40f * 1.0f = 1e-40f -> flushed to exactly 0.0f
+    REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == 0.0f);
+}
+
+// T013: No routes configured produces all-zero offsets (including new destinations)
+TEST_CASE("VoiceModRouter: no routes produces all-zero offsets including OscLevel",
+          "[voice_mod_router][ext_modulation]") {
+    VoiceModRouter router;
+
+    router.computeOffsets(0.5f, 0.8f, 0.3f, -0.5f, 1.0f, 0.75f, 0.2f, 0.6f);
+
+    // All 9 destinations should be zero
+    REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.0f));
+    REQUIRE(router.getOffset(VoiceModDest::FilterResonance) == Approx(0.0f));
+    REQUIRE(router.getOffset(VoiceModDest::MorphPosition) == Approx(0.0f));
+    REQUIRE(router.getOffset(VoiceModDest::DistortionDrive) == Approx(0.0f));
+    REQUIRE(router.getOffset(VoiceModDest::TranceGateDepth) == Approx(0.0f));
+    REQUIRE(router.getOffset(VoiceModDest::OscAPitch) == Approx(0.0f));
+    REQUIRE(router.getOffset(VoiceModDest::OscBPitch) == Approx(0.0f));
+    REQUIRE(router.getOffset(VoiceModDest::OscALevel) == Approx(0.0f));
+    REQUIRE(router.getOffset(VoiceModDest::OscBLevel) == Approx(0.0f));
+}
+
+// T011 supplement: Inf source value sanitized to zero (FR-024)
+TEST_CASE("VoiceModRouter: Inf source value is sanitized to zero offset",
+          "[voice_mod_router][ext_modulation][nan_safety]") {
+    VoiceModRouter router;
+
+    router.setRoute(0, {VoiceModSource::Env1, VoiceModDest::FilterCutoff, 1.0f});
+
+    // Pass Inf as env1 source
+    const float inf = std::numeric_limits<float>::infinity();
+    router.computeOffsets(inf, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+    // Inf * 1.0 = Inf -> sanitized to 0.0
+    REQUIRE(router.getOffset(VoiceModDest::FilterCutoff) == Approx(0.0f));
 }

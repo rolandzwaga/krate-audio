@@ -359,7 +359,8 @@ public:
                 lfoVal,
                 getGateValue(),
                 velocity_,
-                keyTrackValue
+                keyTrackValue,
+                aftertouch_
             );
 
             // Get scaled modulation offsets for each destination
@@ -885,6 +886,7 @@ private:
     // Voice state
     float noteFrequency_{0.0f};
     float velocity_{0.0f};
+    float aftertouch_{0.0f};  ///< Channel aftertouch [0, 1] (FR-010, 042-ext-modulation-system)
     double sampleRate_{0.0};
     size_t maxBlockSize_{0};
     bool prepared_{false};
