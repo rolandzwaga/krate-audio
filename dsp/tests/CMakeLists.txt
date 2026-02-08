@@ -213,6 +213,7 @@ add_executable(dsp_tests
     unit/effects/granular_delay_tempo_sync_test.cpp
     unit/effects/granular_delay_dry_signal_test.cpp
     unit/effects/test_pattern_freeze_mode.cpp
+    unit/effects/reverb_test.cpp
 
     # Test Helpers tests
     ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
@@ -385,6 +386,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/effects/granular_delay_tempo_sync_test.cpp
         unit/effects/granular_delay_dry_signal_test.cpp
         unit/effects/test_pattern_freeze_mode.cpp
+        unit/effects/reverb_test.cpp
         ${CMAKE_SOURCE_DIR}/tests/test_helpers/spectral_analysis_test.cpp
         unit/test_helpers/statistical_utils_tests.cpp
         unit/test_helpers/artifact_detection_tests.cpp

@@ -262,6 +262,44 @@ class DuckingDelay {
 
 ---
 
+## Reverb
+**Path:** [reverb.h](../../dsp/include/krate/dsp/effects/reverb.h) | **Since:** 0.0.40
+
+Dattorro plate reverb algorithm for spatial processing.
+
+**Composes:** DelayLine (pre-delay + 8 tank delays), OnePoleLP (bandwidth + 2 damping), DCBlocker x2, SchroederAllpass x4 (input diffusion), OnePoleSmoother x9
+
+**Purpose:** Implements the Dattorro plate reverb (1997) with figure-eight tank topology, quadrature LFO modulation, freeze mode for infinite sustain, and multi-tap stereo output with mid-side width control. Provides spatial depth for synthesizer output.
+
+**When to use:** Post-delay spatial processing, shared bus reverb effect, creative sound design with freeze mode.
+
+**Controls:** Room Size (0-1, decay), Damping (0-1, HF absorption), Width (0-1, stereo decorrelation), Mix (0-1, dry/wet), Pre-delay (0-100ms), Diffusion (0-1), Freeze (on/off), Mod Rate (0-2 Hz), Mod Depth (0-1)
+
+```cpp
+struct ReverbParams {
+    float roomSize = 0.5f;     // Decay control [0.0, 1.0]
+    float damping = 0.5f;      // HF absorption [0.0, 1.0]
+    float width = 1.0f;        // Stereo decorrelation [0.0, 1.0]
+    float mix = 0.3f;          // Dry/wet blend [0.0, 1.0]
+    float preDelayMs = 0.0f;   // Pre-delay in ms [0.0, 100.0]
+    float diffusion = 0.7f;    // Input diffusion [0.0, 1.0]
+    bool freeze = false;       // Infinite sustain mode
+    float modRate = 0.5f;      // Tank LFO rate [0.0, 2.0] Hz
+    float modDepth = 0.0f;     // Tank LFO depth [0.0, 1.0]
+};
+
+class Reverb {
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    void setParams(const ReverbParams& params) noexcept;
+    void process(float& left, float& right) noexcept;
+    void processBlock(float* left, float* right, size_t numSamples) noexcept;
+    bool isPrepared() const noexcept;
+};
+```
+
+---
+
 ## GranularDelay
 **Path:** [granular_delay.h](../../dsp/include/krate/dsp/effects/granular_delay.h) | **Since:** 0.0.35
 
