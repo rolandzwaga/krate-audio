@@ -369,7 +369,10 @@ public:
     void setGlobalLFO1Waveform(Waveform shape) noexcept { globalModEngine_.setLFO1Waveform(shape); }
     void setGlobalLFO2Rate(float hz) noexcept { globalModEngine_.setLFO2Rate(hz); }
     void setGlobalLFO2Waveform(Waveform shape) noexcept { globalModEngine_.setLFO2Waveform(shape); }
+    void setGlobalLFO1TempoSync(bool enabled) noexcept { globalModEngine_.setLFO1TempoSync(enabled); }
+    void setGlobalLFO2TempoSync(bool enabled) noexcept { globalModEngine_.setLFO2TempoSync(enabled); }
     void setChaosSpeed(float speed) noexcept { globalModEngine_.setChaosSpeed(speed); }
+    void setChaosModel(ChaosModel model) noexcept { globalModEngine_.setChaosModel(model); }
 
     void setMacroValue(size_t index, float value) noexcept {
         globalModEngine_.setMacroValue(index, value);
@@ -618,8 +621,38 @@ public:
         for (auto& voice : voices_) { voice.setOscBType(type); }
     }
 
+    void setOscATuneSemitones(float semitones) noexcept {
+        if (detail::isNaN(semitones) || detail::isInf(semitones)) return;
+        for (auto& voice : voices_) { voice.setOscATuneSemitones(semitones); }
+    }
+
+    void setOscAFineCents(float cents) noexcept {
+        if (detail::isNaN(cents) || detail::isInf(cents)) return;
+        for (auto& voice : voices_) { voice.setOscAFineCents(cents); }
+    }
+
+    void setOscALevel(float level) noexcept {
+        if (detail::isNaN(level) || detail::isInf(level)) return;
+        for (auto& voice : voices_) { voice.setOscALevel(level); }
+    }
+
     void setOscAPhaseMode(PhaseMode mode) noexcept {
         for (auto& voice : voices_) { voice.setOscAPhaseMode(mode); }
+    }
+
+    void setOscBTuneSemitones(float semitones) noexcept {
+        if (detail::isNaN(semitones) || detail::isInf(semitones)) return;
+        for (auto& voice : voices_) { voice.setOscBTuneSemitones(semitones); }
+    }
+
+    void setOscBFineCents(float cents) noexcept {
+        if (detail::isNaN(cents) || detail::isInf(cents)) return;
+        for (auto& voice : voices_) { voice.setOscBFineCents(cents); }
+    }
+
+    void setOscBLevel(float level) noexcept {
+        if (detail::isNaN(level) || detail::isInf(level)) return;
+        for (auto& voice : voices_) { voice.setOscBLevel(level); }
     }
 
     void setOscBPhaseMode(PhaseMode mode) noexcept {
@@ -679,6 +712,11 @@ public:
     void setDistortionCharacter(float character) noexcept {
         if (detail::isNaN(character) || detail::isInf(character)) return;
         for (auto& voice : voices_) { voice.setDistortionCharacter(character); }
+    }
+
+    void setDistortionMix(float mix) noexcept {
+        if (detail::isNaN(mix) || detail::isInf(mix)) return;
+        for (auto& voice : voices_) { voice.setDistortionMix(mix); }
     }
 
     // --- Trance Gate ---
