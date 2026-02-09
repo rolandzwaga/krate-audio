@@ -118,11 +118,11 @@ public:
         // Query spectral delay latency for compensation
         targetLatencySamples_ = spectralDelay_.getLatencySamples();
 
-        // Prepare compensation delays (4 pairs for non-spectral delays)
+        // Prepare compensation delays (2 shared pairs: active + standby)
         if (targetLatencySamples_ > 0) {
             float compDelaySec = static_cast<float>(targetLatencySamples_) /
                                  static_cast<float>(sampleRate);
-            for (size_t i = 0; i < 4; ++i) {
+            for (size_t i = 0; i < 2; ++i) {
                 compDelayL_[i].prepare(sampleRate, compDelaySec + 0.001f);
                 compDelayR_[i].prepare(sampleRate, compDelaySec + 0.001f);
             }
@@ -157,10 +157,12 @@ public:
         reverb_.reset();
 
         // Reset compensation delays
-        for (size_t i = 0; i < 4; ++i) {
+        for (size_t i = 0; i < 2; ++i) {
             compDelayL_[i].reset();
             compDelayR_[i].reset();
         }
+        activeCompIdx_ = 0;
+        freezeFadeRemaining_ = 0;
 
         // Reset crossfade state
         crossfading_ = false;
@@ -286,11 +288,20 @@ public:
     // =========================================================================
 
     /// @brief Activate/deactivate the freeze slot in the chain (FR-018).
+    ///
+    /// When disabling, continues processing through FreezeMode for ~50ms
+    /// to allow the dry/wet mix smoother to fade out smoothly (FR-020).
     void setFreezeEnabled(bool enabled) noexcept {
+        if (!enabled && freezeEnabled_) {
+            // Fade out: continue processing while mix smoother reaches 0
+            freeze_.setDryWetMix(0.0f);
+            freeze_.setFreezeEnabled(false);
+            freezeFadeRemaining_ = static_cast<size_t>(sampleRate_ * 0.05);
+        }
         freezeEnabled_ = enabled;
         if (enabled) {
-            // When used as insert, set dry/wet to 100% (full wet)
             freeze_.setDryWetMix(1.0f);
+            freezeFadeRemaining_ = 0;
         }
     }
 
@@ -350,24 +361,49 @@ private:
         ctx.isPlaying = true;
 
         // ---------------------------------------------------------------
-        // Slot 1: Freeze (FR-005)
+        // Slot 1: Freeze (FR-005, FR-020)
         // ---------------------------------------------------------------
-        if (freezeEnabled_) {
+        // Process when enabled or during fade-out (mix smoother reaching 0)
+        if (freezeEnabled_ || freezeFadeRemaining_ > 0) {
             freeze_.process(left, right, numSamples, ctx);
+            if (freezeFadeRemaining_ > 0) {
+                freezeFadeRemaining_ = (numSamples >= freezeFadeRemaining_)
+                    ? 0 : freezeFadeRemaining_ - numSamples;
+            }
         }
 
         // ---------------------------------------------------------------
         // Slot 2: Delay (FR-005) with crossfade (FR-010)
         // ---------------------------------------------------------------
         if (crossfading_) {
+            const bool outIsSpectral =
+                (activeDelayType_ == RuinaeDelayType::Spectral);
+            const bool inIsSpectral =
+                (incomingDelayType_ == RuinaeDelayType::Spectral);
+            const bool spectralInvolved = outIsSpectral || inIsSpectral;
+
             // Process OUTGOING delay into crossfade buffers
             std::memcpy(crossfadeOutL_.data(), left, numSamples * sizeof(float));
             std::memcpy(crossfadeOutR_.data(), right, numSamples * sizeof(float));
-            processDelayType(activeDelayType_, crossfadeOutL_.data(),
-                             crossfadeOutR_.data(), numSamples, ctx);
+            processDelayTypeRaw(activeDelayType_, crossfadeOutL_.data(),
+                                crossfadeOutR_.data(), numSamples, ctx);
 
             // Process INCOMING delay into left/right in-place
-            processDelayType(incomingDelayType_, left, right, numSamples, ctx);
+            processDelayTypeRaw(incomingDelayType_, left, right, numSamples, ctx);
+
+            // Per-path compensation only when spectral is involved
+            // (spectral has intrinsic 1024 latency, can't blend-then-compensate)
+            if (spectralInvolved) {
+                if (!outIsSpectral) {
+                    applyCompensationSingle(activeCompIdx_,
+                                            crossfadeOutL_.data(),
+                                            crossfadeOutR_.data(), numSamples);
+                }
+                if (!inIsSpectral) {
+                    applyCompensationSingle(1 - activeCompIdx_,
+                                            left, right, numSamples);
+                }
+            }
 
             // Linear crossfade blend (per-sample)
             for (size_t i = 0; i < numSamples; ++i) {
@@ -381,16 +417,26 @@ private:
                     // Crossfade complete (FR-013)
                     crossfadeAlpha_ = 1.0f;
                     completeCrossfade();
-                    // Remaining samples in this chunk are already processed
-                    // through the incoming delay (now the active delay).
-                    // The blend for remaining samples is alpha=1.0 which
-                    // means 100% incoming, which is already in left/right.
+                    // Remaining samples are 100% incoming (already in left/right)
                     break;
                 }
             }
+
+            // For non-spectral transitions, compensate the blended output.
+            // This avoids the per-path comp delay step discontinuity because
+            // the comp delay sees a smooth blend transition, not an abrupt
+            // switch from outgoing to incoming delay output.
+            if (!spectralInvolved) {
+                applyCompensation(left, right, numSamples);
+            }
         } else {
             // Normal processing: active delay only
-            processDelayType(activeDelayType_, left, right, numSamples, ctx);
+            processDelayTypeRaw(activeDelayType_, left, right, numSamples, ctx);
+            if (activeDelayType_ != RuinaeDelayType::Spectral) {
+                applyCompensation(left, right, numSamples);
+            } else {
+                warmBothCompDelays(left, right, numSamples);
+            }
         }
 
         // ---------------------------------------------------------------
@@ -399,38 +445,32 @@ private:
         reverb_.processBlock(left, right, numSamples);
     }
 
-    /// @brief Process audio through a specific delay type (R-001 dispatch).
-    void processDelayType(RuinaeDelayType type, float* left, float* right,
-                          size_t numSamples, const BlockContext& ctx) noexcept {
+    /// @brief Process audio through a specific delay type (no compensation).
+    void processDelayTypeRaw(RuinaeDelayType type, float* left, float* right,
+                             size_t numSamples, const BlockContext& ctx) noexcept {
         switch (type) {
             case RuinaeDelayType::Digital:
                 digitalDelay_.process(left, right, numSamples, ctx);
-                compensateLatency(0, left, right, numSamples);
                 break;
 
             case RuinaeDelayType::Tape:
-                tapeDelay_.process(left, right, numSamples);  // NO BlockContext!
-                compensateLatency(1, left, right, numSamples);
+                tapeDelay_.process(left, right, numSamples);
                 break;
 
             case RuinaeDelayType::PingPong:
                 pingPongDelay_.process(left, right, numSamples, ctx);
-                compensateLatency(2, left, right, numSamples);
                 break;
 
             case RuinaeDelayType::Granular: {
-                // R-005: GranularDelay uses separate in/out buffers
                 std::memcpy(tempL_.data(), left, numSamples * sizeof(float));
                 std::memcpy(tempR_.data(), right, numSamples * sizeof(float));
                 granularDelay_.process(tempL_.data(), tempR_.data(),
                                        left, right, numSamples, ctx);
-                compensateLatency(3, left, right, numSamples);
                 break;
             }
 
             case RuinaeDelayType::Spectral:
                 spectralDelay_.process(left, right, numSamples, ctx);
-                // NO compensation needed (latency is intrinsic)
                 break;
 
             default:
@@ -438,16 +478,48 @@ private:
         }
     }
 
-    /// @brief Apply latency compensation for non-spectral delay types (R-003).
-    void compensateLatency(size_t delayIndex, float* left, float* right,
+    /// @brief Apply latency compensation, writing to both shared delay pairs.
+    /// Used during normal (non-crossfade) processing. Keeps the standby
+    /// pair warm so it has valid history when a crossfade starts.
+    void applyCompensation(float* left, float* right,
                            size_t numSamples) noexcept {
         if (targetLatencySamples_ == 0) return;
-
+        const size_t a = activeCompIdx_;
+        const size_t b = 1 - a;
         for (size_t i = 0; i < numSamples; ++i) {
-            compDelayL_[delayIndex].write(left[i]);
-            compDelayR_[delayIndex].write(right[i]);
-            left[i] = compDelayL_[delayIndex].read(targetLatencySamples_);
-            right[i] = compDelayR_[delayIndex].read(targetLatencySamples_);
+            compDelayL_[a].write(left[i]);
+            compDelayR_[a].write(right[i]);
+            compDelayL_[b].write(left[i]);
+            compDelayR_[b].write(right[i]);
+            left[i] = compDelayL_[a].read(targetLatencySamples_);
+            right[i] = compDelayR_[a].read(targetLatencySamples_);
+        }
+    }
+
+    /// @brief Apply latency compensation using a single delay pair.
+    /// Used during crossfade for the outgoing or incoming path.
+    void applyCompensationSingle(size_t idx, float* left, float* right,
+                                 size_t numSamples) noexcept {
+        if (targetLatencySamples_ == 0) return;
+        for (size_t i = 0; i < numSamples; ++i) {
+            compDelayL_[idx].write(left[i]);
+            compDelayR_[idx].write(right[i]);
+            left[i] = compDelayL_[idx].read(targetLatencySamples_);
+            right[i] = compDelayR_[idx].read(targetLatencySamples_);
+        }
+    }
+
+    /// @brief Write to both compensation delays without reading (keep warm).
+    /// Used when spectral delay is active to maintain valid history for
+    /// future crossfades to non-spectral types.
+    void warmBothCompDelays(const float* left, const float* right,
+                            size_t numSamples) noexcept {
+        if (targetLatencySamples_ == 0) return;
+        for (size_t i = 0; i < numSamples; ++i) {
+            compDelayL_[0].write(left[i]);
+            compDelayR_[0].write(right[i]);
+            compDelayL_[1].write(left[i]);
+            compDelayR_[1].write(right[i]);
         }
     }
 
@@ -458,6 +530,7 @@ private:
 
         // Incoming becomes active
         activeDelayType_ = incomingDelayType_;
+        activeCompIdx_ = 1 - activeCompIdx_;  // Swap compensation delay pair
         crossfading_ = false;
         crossfadeAlpha_ = 0.0f;
         crossfadeIncrement_ = 0.0f;
@@ -517,10 +590,14 @@ private:
     float crossfadeAlpha_ = 0.0f;
     float crossfadeIncrement_ = 0.0f;
 
-    // Latency compensation (4 pairs for non-spectral delays)
+    // Latency compensation (2 shared pairs: active + standby)
     size_t targetLatencySamples_ = 0;
-    std::array<DelayLine, 4> compDelayL_;
-    std::array<DelayLine, 4> compDelayR_;
+    std::array<DelayLine, 2> compDelayL_;
+    std::array<DelayLine, 2> compDelayR_;
+    size_t activeCompIdx_ = 0;
+
+    // Freeze fade-out tracking
+    size_t freezeFadeRemaining_ = 0;
 
     // Reverb slot
     Reverb reverb_;
