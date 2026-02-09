@@ -198,6 +198,8 @@ add_executable(dsp_tests
     unit/systems/ruinae_voice_test.cpp
     unit/systems/ext_modulation_test.cpp
     unit/systems/ruinae_effects_chain_test.cpp
+    unit/systems/ruinae_engine_test.cpp
+    unit/systems/ruinae_engine_integration_test.cpp
 
     # Layer 4: Effects
     unit/effects/tape_delay_test.cpp
@@ -378,6 +380,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/ruinae_voice_test.cpp
         unit/systems/ext_modulation_test.cpp
         unit/systems/ruinae_effects_chain_test.cpp
+        unit/systems/ruinae_engine_test.cpp
+        unit/systems/ruinae_engine_integration_test.cpp
         unit/effects/tape_delay_test.cpp
         unit/effects/tape_delay_params_diagnostic_test.cpp
         unit/effects/bbd_delay_test.cpp

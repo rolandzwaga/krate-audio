@@ -447,6 +447,16 @@ public:
         oscB_.setType(type);
     }
 
+    /// @brief Set OSC A phase mode (Reset or Continuous).
+    void setOscAPhaseMode(PhaseMode mode) noexcept {
+        oscA_.setPhaseMode(mode);
+    }
+
+    /// @brief Set OSC B phase mode (Reset or Continuous).
+    void setOscBPhaseMode(PhaseMode mode) noexcept {
+        oscB_.setPhaseMode(mode);
+    }
+
     // =========================================================================
     // Mixer Configuration (FR-006, FR-007)
     // =========================================================================
