@@ -141,13 +141,13 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     return Steinberg::kResultTrue;
 }
 
-Steinberg::tresult PLUGIN_API Controller::getState(Steinberg::IBStream* state) {
+Steinberg::tresult PLUGIN_API Controller::getState(Steinberg::IBStream* /*state*/) {
     // Controller-specific state (UI settings, etc.)
     // Currently no controller-only state to save
     return Steinberg::kResultTrue;
 }
 
-Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
+Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* /*state*/) {
     // Controller-specific state restore
     return Steinberg::kResultTrue;
 }

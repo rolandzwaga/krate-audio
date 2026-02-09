@@ -11,6 +11,7 @@
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/note_value.h>
 #include <krate/dsp/effects/reverb.h>
 #include <krate/dsp/processors/trance_gate.h>
 #include <krate/dsp/systems/ruinae_types.h>
@@ -98,6 +99,12 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Process parameter changes first
     if (data.inputParameterChanges) {
         processParameterChanges(data.inputParameterChanges);
+    }
+
+    // Cache host tempo for sync computations in applyParamsToEngine()
+    if (data.processContext &&
+        (data.processContext->state & Steinberg::Vst::ProcessContext::kTempoValid)) {
+        tempoBPM_ = data.processContext->tempo;
     }
 
     // Apply all parameter values to the engine
@@ -349,6 +356,8 @@ void Processor::applyParamsToEngine() {
     engine_.setOscATuneSemitones(oscAParams_.tuneSemitones.load(std::memory_order_relaxed));
     engine_.setOscAFineCents(oscAParams_.fineCents.load(std::memory_order_relaxed));
     engine_.setOscALevel(oscAParams_.level.load(std::memory_order_relaxed));
+    engine_.setOscAPhaseMode(oscAParams_.phase.load(std::memory_order_relaxed) >= 0.5f
+        ? PhaseMode::Continuous : PhaseMode::Reset);
 
     // --- OSC B ---
     engine_.setOscBType(static_cast<OscType>(
@@ -356,6 +365,8 @@ void Processor::applyParamsToEngine() {
     engine_.setOscBTuneSemitones(oscBParams_.tuneSemitones.load(std::memory_order_relaxed));
     engine_.setOscBFineCents(oscBParams_.fineCents.load(std::memory_order_relaxed));
     engine_.setOscBLevel(oscBParams_.level.load(std::memory_order_relaxed));
+    engine_.setOscBPhaseMode(oscBParams_.phase.load(std::memory_order_relaxed) >= 0.5f
+        ? PhaseMode::Continuous : PhaseMode::Reset);
 
     // --- Mixer ---
     engine_.setMixMode(static_cast<MixMode>(
@@ -388,6 +399,10 @@ void Processor::applyParamsToEngine() {
         tgp.attackMs = tranceGateParams_.attackMs.load(std::memory_order_relaxed);
         tgp.releaseMs = tranceGateParams_.releaseMs.load(std::memory_order_relaxed);
         tgp.tempoSync = tranceGateParams_.tempoSync.load(std::memory_order_relaxed);
+        auto tgNoteMapping = getNoteValueFromDropdown(
+            tranceGateParams_.noteValue.load(std::memory_order_relaxed));
+        tgp.noteValue = tgNoteMapping.note;
+        tgp.noteModifier = tgNoteMapping.modifier;
         engine_.setTranceGateParams(tgp);
     }
 
@@ -413,14 +428,18 @@ void Processor::applyParamsToEngine() {
     engine_.setGlobalLFO1Rate(lfo1Params_.rateHz.load(std::memory_order_relaxed));
     engine_.setGlobalLFO1Waveform(static_cast<Waveform>(
         lfo1Params_.shape.load(std::memory_order_relaxed)));
+    engine_.setGlobalLFO1TempoSync(lfo1Params_.sync.load(std::memory_order_relaxed));
 
     // --- LFO 2 ---
     engine_.setGlobalLFO2Rate(lfo2Params_.rateHz.load(std::memory_order_relaxed));
     engine_.setGlobalLFO2Waveform(static_cast<Waveform>(
         lfo2Params_.shape.load(std::memory_order_relaxed)));
+    engine_.setGlobalLFO2TempoSync(lfo2Params_.sync.load(std::memory_order_relaxed));
 
     // --- Chaos Mod ---
     engine_.setChaosSpeed(chaosModParams_.rateHz.load(std::memory_order_relaxed));
+    engine_.setChaosModel(static_cast<ChaosModel>(
+        chaosModParams_.type.load(std::memory_order_relaxed)));
 
     // --- Mod Matrix (8 slots) ---
     for (int i = 0; i < 8; ++i) {
@@ -451,7 +470,12 @@ void Processor::applyParamsToEngine() {
     // --- Delay ---
     engine_.setDelayType(static_cast<RuinaeDelayType>(
         delayParams_.type.load(std::memory_order_relaxed)));
-    engine_.setDelayTime(delayParams_.timeMs.load(std::memory_order_relaxed));
+    if (delayParams_.sync.load(std::memory_order_relaxed)) {
+        engine_.setDelayTime(dropdownToDelayMs(
+            delayParams_.noteValue.load(std::memory_order_relaxed), tempoBPM_));
+    } else {
+        engine_.setDelayTime(delayParams_.timeMs.load(std::memory_order_relaxed));
+    }
     engine_.setDelayFeedback(delayParams_.feedback.load(std::memory_order_relaxed));
     engine_.setDelayMix(delayParams_.mix.load(std::memory_order_relaxed));
 

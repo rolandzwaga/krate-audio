@@ -59,7 +59,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --build-dir DIR   Build directory with compile_commands.json"
             echo "                    (auto-detected if not specified)"
-            echo "  --target TARGET   Target to analyze: all, dsp, iterum, disrumpo"
+            echo "  --target TARGET   Target to analyze: all, dsp, iterum, disrumpo, ruinae"
             echo "                    Default: all"
             echo "  --fix             Apply automatic fixes (use with caution)"
             echo "  --quiet           Suppress progress output"
@@ -132,8 +132,11 @@ case $TARGET in
     disrumpo)
         SOURCE_DIRS=("plugins/disrumpo/src" "plugins/disrumpo/tests")
         ;;
+    ruinae)
+        SOURCE_DIRS=("plugins/ruinae/src" "plugins/ruinae/tests")
+        ;;
     all)
-        SOURCE_DIRS=("dsp/include" "plugins/iterum/src" "plugins/disrumpo/src")
+        SOURCE_DIRS=("dsp/include" "plugins/iterum/src" "plugins/disrumpo/src" "plugins/ruinae/src")
         ;;
     *)
         error "Unknown target: $TARGET"
