@@ -77,6 +77,9 @@ public:
     /// @brief Maximum delay time for freeze
     static constexpr float kFreezeMaxDelayMs = 5000.0f;
 
+    /// @brief Minimum pre-warm duration in milliseconds (smoother settling)
+    static constexpr float kMinPreWarmMs = 20.0f;
+
     // =========================================================================
     // Lifecycle (FR-002, FR-003)
     // =========================================================================
@@ -164,6 +167,10 @@ public:
         activeCompIdx_ = 0;
         freezeFadeRemaining_ = 0;
 
+        // Reset pre-warm state
+        preWarming_ = false;
+        preWarmRemaining_ = 0;
+
         // Reset crossfade state
         crossfading_ = false;
         crossfadeAlpha_ = 0.0f;
@@ -219,8 +226,15 @@ public:
     /// @param type The delay type to activate
     void setDelayType(RuinaeDelayType type) noexcept {
         // FR-014: Same type is no-op
-        if (!crossfading_ && type == activeDelayType_) {
+        if (!crossfading_ && !preWarming_ && type == activeDelayType_) {
             return;
+        }
+
+        // Cancel active pre-warm if any
+        if (preWarming_) {
+            preWarming_ = false;
+            preWarmRemaining_ = 0;
+            resetDelayType(incomingDelayType_);
         }
 
         if (crossfading_) {
@@ -232,11 +246,16 @@ public:
             return;  // After fast-track, may already be the right type
         }
 
-        // Start new crossfade
+        // Start pre-warming the incoming delay before crossfade.
+        // Duration = max(delay_time, kMinPreWarmMs) + comp delay latency.
+        // The extra comp delay duration ensures the standby compensation
+        // delay has stable incoming output (past the delay-line-fill step)
+        // when the crossfade starts.
         incomingDelayType_ = type;
-        crossfading_ = true;
-        crossfadeAlpha_ = 0.0f;
-        crossfadeIncrement_ = crossfadeIncrement(kCrossfadeDurationMs, sampleRate_);
+        preWarming_ = true;
+        float preWarmMs = std::max(currentDelayTimeMs_, kMinPreWarmMs);
+        preWarmRemaining_ = static_cast<size_t>(
+            preWarmMs * sampleRate_ / 1000.0) + targetLatencySamples_;
     }
 
     /// @brief Get the currently active delay type.
@@ -250,12 +269,21 @@ public:
 
     /// @brief Set delay time in milliseconds (FR-015, FR-017).
     /// Forwarded to all delay types using correct per-type API.
+    /// Also tracks the value for pre-warm duration calculation.
     void setDelayTime(float ms) noexcept {
+        currentDelayTimeMs_ = ms;
         digitalDelay_.setTime(ms);
         tapeDelay_.setMotorSpeed(ms);
         pingPongDelay_.setDelayTimeMs(ms);
         granularDelay_.setDelayTime(ms);
         spectralDelay_.setBaseDelayMs(ms);
+
+        // Recalculate pre-warm duration if currently pre-warming
+        if (preWarming_) {
+            float preWarmMs = std::max(currentDelayTimeMs_, kMinPreWarmMs);
+            preWarmRemaining_ = static_cast<size_t>(
+                preWarmMs * sampleRate_ / 1000.0) + targetLatencySamples_;
+        }
     }
 
     /// @brief Set delay feedback amount (FR-015).
@@ -375,7 +403,53 @@ private:
         // ---------------------------------------------------------------
         // Slot 2: Delay (FR-005) with crossfade (FR-010)
         // ---------------------------------------------------------------
-        if (crossfading_) {
+        if (preWarming_) {
+            // Pre-warm phase: feed audio to incoming delay so its buffer
+            // fills before the crossfade begins (eliminates delay-line-fill
+            // artifact). Active delay produces output normally; incoming
+            // delay processes the same input but its output is discarded.
+
+            // Save input for the incoming delay (reuse crossfade buffers)
+            std::memcpy(crossfadeOutL_.data(), left, numSamples * sizeof(float));
+            std::memcpy(crossfadeOutR_.data(), right, numSamples * sizeof(float));
+
+            // Active delay produces output normally
+            processDelayTypeRaw(activeDelayType_, left, right, numSamples, ctx);
+
+            // Incoming delay processes same input (output discarded, fills buffer)
+            processDelayTypeRaw(incomingDelayType_, crossfadeOutL_.data(),
+                                crossfadeOutR_.data(), numSamples, ctx);
+
+            // Compensation delay handling during pre-warm.
+            // For non-spectral active: keep both comp delays in sync with
+            // active output (same as normal processing). The crossfade will
+            // use blend-then-compensate, so both comp delays need matching history.
+            // For spectral active: write active output to active comp delay,
+            // incoming output to standby (needed for per-path crossfade).
+            if (activeDelayType_ != RuinaeDelayType::Spectral) {
+                applyCompensation(left, right, numSamples);
+            } else {
+                if (targetLatencySamples_ > 0) {
+                    const size_t standbyIdx = 1 - activeCompIdx_;
+                    for (size_t i = 0; i < numSamples; ++i) {
+                        compDelayL_[activeCompIdx_].write(left[i]);
+                        compDelayR_[activeCompIdx_].write(right[i]);
+                        compDelayL_[standbyIdx].write(crossfadeOutL_[i]);
+                        compDelayR_[standbyIdx].write(crossfadeOutR_[i]);
+                    }
+                }
+            }
+
+            // Check if pre-warm is complete
+            if (numSamples >= preWarmRemaining_) {
+                preWarming_ = false;
+                preWarmRemaining_ = 0;
+                // Start the actual crossfade
+                startCrossfade();
+            } else {
+                preWarmRemaining_ -= numSamples;
+            }
+        } else if (crossfading_) {
             const bool outIsSpectral =
                 (activeDelayType_ == RuinaeDelayType::Spectral);
             const bool inIsSpectral =
@@ -523,6 +597,14 @@ private:
         }
     }
 
+    /// @brief Start a crossfade after pre-warming completes.
+    void startCrossfade() noexcept {
+        crossfading_ = true;
+        crossfadeAlpha_ = 0.0f;
+        float crossfadeSamples = kCrossfadeDurationMs * static_cast<float>(sampleRate_) / 1000.0f;
+        crossfadeIncrement_ = 1.0f / crossfadeSamples;
+    }
+
     /// @brief Complete a crossfade transition (FR-013).
     void completeCrossfade() noexcept {
         // Reset outgoing delay
@@ -595,6 +677,11 @@ private:
     std::array<DelayLine, 2> compDelayL_;
     std::array<DelayLine, 2> compDelayR_;
     size_t activeCompIdx_ = 0;
+
+    // Pre-warm state (delay-line-fill artifact elimination)
+    bool preWarming_ = false;
+    size_t preWarmRemaining_ = 0;
+    float currentDelayTimeMs_ = 50.0f;
 
     // Freeze fade-out tracking
     size_t freezeFadeRemaining_ = 0;
