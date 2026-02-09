@@ -1676,3 +1676,180 @@ Voice Sum -> [Freeze (if enabled)] -> [Active Delay Type] -> [Reverb] -> Output
 - Reverb (Layer 4): Dattorro plate reverb
 - DelayLine (Layer 1): used for per-delay latency compensation
 - crossfadeIncrement (Layer 0): calculates per-sample crossfade alpha increment
+
+---
+
+## RuinaeEngine
+**Path:** [ruinae_engine.h](../../dsp/include/krate/dsp/systems/ruinae_engine.h) | **Since:** 0.15.0
+
+Complete polyphonic Ruinae synthesizer engine composing 16 RuinaeVoice instances, VoiceAllocator, MonoHandler, NoteProcessor, ModulationEngine, global stereo SVF filter, RuinaeEffectsChain, and master output.
+
+```cpp
+enum class RuinaeModDest : uint32_t {
+    GlobalFilterCutoff = 64, GlobalFilterResonance = 65,
+    MasterVolume = 66, EffectMix = 67,
+    AllVoiceFilterCutoff = 68, AllVoiceMorphPosition = 69, AllVoiceTranceGateRate = 70
+};
+
+class RuinaeEngine {
+    static constexpr size_t kMaxPolyphony = 16;
+    static constexpr float kMinMasterGain = 0.0f;
+    static constexpr float kMaxMasterGain = 2.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    // Note dispatch
+    void noteOn(uint8_t note, uint8_t velocity) noexcept;
+    void noteOff(uint8_t note) noexcept;
+
+    // Configuration
+    void setPolyphony(size_t count) noexcept;        // [1, 16]
+    void setMode(VoiceMode mode) noexcept;           // Poly/Mono switching
+    void setMasterGain(float gain) noexcept;         // [0, 2]
+    void setSoftLimitEnabled(bool enabled) noexcept;
+
+    // Stereo mixing
+    void setStereoSpread(float spread) noexcept;     // [0, 1]
+    void setStereoWidth(float width) noexcept;       // [0, 2]
+
+    // Global filter
+    void setGlobalFilterEnabled(bool enabled) noexcept;
+    void setGlobalFilterCutoff(float hz) noexcept;
+    void setGlobalFilterResonance(float q) noexcept;
+    void setGlobalFilterType(SVFMode mode) noexcept;
+
+    // Global modulation
+    void setGlobalModRoute(int slot, ModSource source, RuinaeModDest dest, float amount) noexcept;
+    void clearGlobalModRoute(int slot) noexcept;
+    void setGlobalLFO1Rate(float hz) noexcept;
+    void setGlobalLFO1Waveform(Waveform shape) noexcept;
+    // ... (LFO2, Chaos, Macro setters)
+
+    // Performance controllers
+    void setPitchBend(float bipolar) noexcept;
+    void setAftertouch(float value) noexcept;
+    void setModWheel(float value) noexcept;
+
+    // Effects chain forwarding
+    void setDelayType(RuinaeDelayType type) noexcept;
+    void setDelayTime(float ms) noexcept;
+    void setDelayFeedback(float amount) noexcept;
+    void setDelayMix(float mix) noexcept;
+    void setReverbParams(const ReverbParams& params) noexcept;
+    void setFreezeEnabled(bool enabled) noexcept;
+    [[nodiscard]] size_t getLatencySamples() const noexcept;
+
+    // Voice parameter forwarding (all 16 voices)
+    void setOscAType(OscType type) noexcept;
+    void setOscBType(OscType type) noexcept;
+    void setFilterCutoff(float hz) noexcept;
+    void setFilterResonance(float q) noexcept;
+    void setAmpAttack(float ms) noexcept;
+    void setAmpRelease(float ms) noexcept;
+    // ... (50+ parameter forwarding methods for all voice subsystems)
+
+    // Mono mode config
+    void setMonoPriority(MonoMode mode) noexcept;
+    void setLegato(bool enabled) noexcept;
+    void setPortamentoTime(float ms) noexcept;
+
+    // NoteProcessor config
+    void setPitchBendRange(float semitones) noexcept;
+    void setTuningReference(float a4Hz) noexcept;
+    void setVelocityCurve(VelocityCurve curve) noexcept;
+
+    // Tempo/Transport
+    void setTempo(double bpm) noexcept;
+    void setBlockContext(const BlockContext& ctx) noexcept;
+
+    // Processing (stereo output)
+    void processBlock(float* left, float* right, size_t numSamples) noexcept;
+
+    // State queries
+    [[nodiscard]] uint32_t getActiveVoiceCount() const noexcept;
+    [[nodiscard]] VoiceMode getMode() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Poly mode:
+  noteOn/Off -> VoiceAllocator -> RuinaeVoice[0..N-1]
+  -> Equal-power stereo pan + Sum -> Stereo Width (Mid/Side)
+  -> Global Filter (optional) -> Effects Chain (Freeze/Delay/Reverb)
+  -> Master Gain * 1/sqrt(N) -> Soft Limit (tanh) -> NaN/Inf Flush -> Output
+
+Mono mode:
+  noteOn/Off -> MonoHandler -> RuinaeVoice[0] (with legato/per-sample portamento)
+  -> Equal-power stereo pan -> Stereo Width -> Global Filter -> Effects Chain
+  -> Master Gain * 1/sqrt(N) -> Soft Limit (tanh) -> NaN/Inf Flush -> Output
+```
+
+**Key Features:**
+- Composes 16 RuinaeVoice (L3), VoiceAllocator (L3), MonoHandler (L2), NoteProcessor (L2), ModulationEngine (L3), 2x SVF (L1), RuinaeEffectsChain (L3)
+- Poly mode: full polyphonic playback with configurable voice count (1-16)
+- Mono mode: single-voice with legato, portamento, and note priority
+- Stereo output with equal-power pan law: `leftGain = cos(pan * pi/2)`, `rightGain = sin(pan * pi/2)`
+- Stereo spread distributes voice pan positions evenly across field
+- Stereo width via Mid/Side encoding
+- Global ModulationEngine with 7 engine-level destinations (RuinaeModDest enum, values 64-70)
+- Previous block's output fed back as audio input for global modulation
+- Gain compensation: `1/sqrt(polyphonyCount)` based on configured voice count
+- Soft limiting: `Sigmoid::tanh()` prevents output exceeding [-1, +1]
+- NaN/Inf flush on all output samples
+- Deferred voiceFinished() notification (after processBlock, not mid-block)
+- NaN/Inf guard on all float setters (silently ignored)
+- Per-sample portamento in mono mode for smooth frequency glides
+- Effects chain latency reported via getLatencySamples() (typically 1024 samples from spectral delay FFT)
+- Header-only, zero allocations in processBlock(), all methods noexcept
+- ~3.4% CPU with 8 voices at 44.1 kHz (benchmark verified)
+
+**When to Use:**
+- Top-level DSP system for the Ruinae synthesizer plugin
+- Plugin processor instantiates this engine and forwards parameters
+- Phase 7 plugin shell will compose this as its audio processing core
+
+**Related Components:**
+- RuinaeVoice (Layer 3): per-voice synthesis unit managed by this engine
+- RuinaeEffectsChain (Layer 3): effects section after voice summing
+- VoiceAllocator (Layer 3): polyphonic voice routing
+- ModulationEngine (Layer 3): global modulation (LFOs, Chaos, Rungler, Macros)
+- MonoHandler (Layer 2): monophonic note handling
+- NoteProcessor (Layer 2): pitch/velocity processing
+- PolySynthEngine (Layer 3): reference pattern (this engine follows same architecture)
+
+**Example:**
+```cpp
+RuinaeEngine engine;
+engine.prepare(44100.0, 512);
+
+// Configure sound
+engine.setOscAType(OscType::PolyBLEP);
+engine.setOscBType(OscType::Wavetable);
+engine.setFilterCutoff(2000.0f);
+engine.setAmpRelease(500.0f);
+engine.setPolyphony(8);
+engine.setStereoSpread(0.5f);
+
+// Configure effects
+engine.setDelayType(RuinaeDelayType::Digital);
+engine.setDelayTime(300.0f);
+engine.setDelayMix(0.3f);
+engine.setReverbParams({.roomSize = 0.6f, .mix = 0.2f});
+
+// Play a chord
+engine.noteOn(60, 100);  // C4
+engine.noteOn(64, 100);  // E4
+engine.noteOn(67, 100);  // G4
+
+// Process stereo audio
+std::array<float, 512> left{}, right{};
+engine.processBlock(left.data(), right.data(), left.size());
+
+// Release
+engine.noteOff(60);
+engine.noteOff(64);
+engine.noteOff(67);
+```

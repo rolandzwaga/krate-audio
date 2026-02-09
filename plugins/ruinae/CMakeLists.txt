@@ -67,6 +67,11 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
 
     # Preset Configuration (adapter to shared library)
     src/preset/ruinae_preset_config.h
+
+    # Engine (plugin-specific composition)
+    src/engine/ruinae_engine.h
+    src/engine/ruinae_voice.h
+    src/engine/ruinae_effects_chain.h
 )
 
 # Link SDK, VSTGUI, and KrateDSP

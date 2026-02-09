@@ -1,5 +1,5 @@
 // ==============================================================================
-// Layer 3: System Component - RuinaeEffectsChain
+// Ruinae Plugin - Effects Chain
 // ==============================================================================
 // Stereo effects chain for the Ruinae synthesizer composing existing Layer 4
 // effects into a fixed-order processing chain:
@@ -13,14 +13,7 @@
 // - Fully real-time safe (all runtime methods noexcept, zero allocations)
 //
 // Feature: 043-effects-section
-// Layer: 3 (Systems) -- documented exception: composes Layer 4 effects
 // Reference: specs/043-effects-section/spec.md
-//
-// Constitution Compliance:
-// - Principle II: Real-Time Safety (noexcept, no allocations in processBlock)
-// - Principle III: Modern C++ (C++20, RAII, pre-allocated buffers)
-// - Principle IX: Layer 3 (composes Layer 4 effects -- documented exception)
-// - Principle XIV: ODR Prevention (unique class name verified)
 // ==============================================================================
 
 #pragma once
