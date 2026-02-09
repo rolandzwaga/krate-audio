@@ -519,7 +519,7 @@ public:
             static_cast<uint32_t>(RuinaeModDest::AllVoiceFilterCutoff));
         const float allVoiceMorphOffset = globalModEngine_.getModulationOffset(
             static_cast<uint32_t>(RuinaeModDest::AllVoiceMorphPosition));
-        [[maybe_unused]] const float allVoiceTranceGateOffset = globalModEngine_.getModulationOffset(
+        const float allVoiceTranceGateOffset = globalModEngine_.getModulationOffset(
             static_cast<uint32_t>(RuinaeModDest::AllVoiceTranceGateRate));
 
         // Step 5: Apply global modulation to engine-level params
@@ -551,9 +551,11 @@ public:
         [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend();
 
         if (mode_ == VoiceMode::Poly) {
-            processBlockPoly(numSamples, allVoiceFilterCutoffOffset, allVoiceMorphOffset);
+            processBlockPoly(numSamples, allVoiceFilterCutoffOffset,
+                             allVoiceMorphOffset, allVoiceTranceGateOffset);
         } else {
-            processBlockMono(numSamples, allVoiceFilterCutoffOffset, allVoiceMorphOffset);
+            processBlockMono(numSamples, allVoiceFilterCutoffOffset,
+                             allVoiceMorphOffset, allVoiceTranceGateOffset);
         }
 
         // Step 8: Apply stereo width (Mid/Side) (FR-014)
@@ -727,6 +729,12 @@ public:
 
     void setTranceGateParams(const TranceGateParams& params) noexcept {
         for (auto& voice : voices_) { voice.setTranceGateParams(params); }
+    }
+
+    void setTranceGateRate(float hz) noexcept {
+        if (detail::isNaN(hz) || detail::isInf(hz)) return;
+        baseTranceGateRateHz_ = std::clamp(hz, 0.1f, 100.0f);
+        for (auto& voice : voices_) { voice.setTranceGateRate(baseTranceGateRateHz_); }
     }
 
     void setTranceGateStep(int index, float level) noexcept {
@@ -1112,7 +1120,8 @@ private:
 
     void processBlockPoly(size_t numSamples,
                           float allVoiceFilterCutoffOffset,
-                          float allVoiceMorphOffset) noexcept {
+                          float allVoiceMorphOffset,
+                          float allVoiceTranceGateOffset) noexcept {
         // Track which voices were active before processing (for deferred finish)
         std::array<bool, kMaxPolyphony> wasActive{};
         for (size_t i = 0; i < polyphonyCount_; ++i) {
@@ -1136,6 +1145,14 @@ private:
                 voiceMixPosition_ + allVoiceMorphOffset, 0.0f, 1.0f);
             for (size_t i = 0; i < polyphonyCount_; ++i) {
                 voices_[i].setMixPosition(modMorph);
+            }
+        }
+        if (allVoiceTranceGateOffset != 0.0f) {
+            float modRate = std::clamp(
+                baseTranceGateRateHz_ + allVoiceTranceGateOffset * 50.0f,
+                0.1f, 100.0f);
+            for (size_t i = 0; i < polyphonyCount_; ++i) {
+                voices_[i].setTranceGateRate(modRate);
             }
         }
 
@@ -1179,7 +1196,8 @@ private:
 
     void processBlockMono(size_t numSamples,
                           float allVoiceFilterCutoffOffset,
-                          float allVoiceMorphOffset) noexcept {
+                          float allVoiceMorphOffset,
+                          float allVoiceTranceGateOffset) noexcept {
         // Forward AllVoice modulation offsets to voice 0 (FR-021)
         if (allVoiceFilterCutoffOffset != 0.0f) {
             float modCutoff = std::clamp(
@@ -1191,6 +1209,12 @@ private:
             float modMorph = std::clamp(
                 voiceMixPosition_ + allVoiceMorphOffset, 0.0f, 1.0f);
             voices_[0].setMixPosition(modMorph);
+        }
+        if (allVoiceTranceGateOffset != 0.0f) {
+            float modRate = std::clamp(
+                baseTranceGateRateHz_ + allVoiceTranceGateOffset * 50.0f,
+                0.1f, 100.0f);
+            voices_[0].setTranceGateRate(modRate);
         }
 
         // Track if voice 0 was active
@@ -1270,6 +1294,7 @@ private:
     float voiceFilterCutoffHz_ = 1000.0f;
     float voiceMixPosition_ = 0.5f;
     float baseDelayMix_ = 0.0f;
+    float baseTranceGateRateHz_ = 4.0f;
 };
 
 } // namespace Krate::DSP

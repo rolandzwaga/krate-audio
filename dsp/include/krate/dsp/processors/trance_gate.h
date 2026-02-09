@@ -168,6 +168,12 @@ public:
         updateStepDuration();
     }
 
+    /// @brief Set free-run rate in Hz (only effective when tempoSync is off).
+    void setRate(float hz) noexcept {
+        params_.rateHz = std::clamp(hz, 0.1f, 100.0f);
+        updateStepDuration();
+    }
+
     /// @brief Set tempo in BPM. Called once per processing block.
     void setTempo(double bpm) noexcept {
         tempoBPM_ = std::clamp(bpm, kMinTempoBPM, kMaxTempoBPM);

@@ -1121,6 +1121,70 @@ TEST_CASE("RuinaeEngine AllVoice modulation forwarding", "[ruinae-engine][modula
         }
     }
 
+    SECTION("AllVoiceTranceGateRate offset changes gating rhythm (FR-021)") {
+        // Enable trance gate with slow rate and alternating on/off pattern
+        TranceGateParams params;
+        params.tempoSync = false;
+        params.rateHz = 2.0f;  // Slow: one full cycle = 0.5s = 22050 samples
+        params.depth = 1.0f;
+        params.numSteps = 2;
+        params.attackMs = 1.0f;
+        params.releaseMs = 1.0f;
+        params.perVoice = true;
+
+        engine.setTranceGateEnabled(true);
+        engine.setTranceGateParams(params);
+        engine.setTranceGateRate(2.0f);
+        engine.setTranceGateStep(0, 1.0f);
+        engine.setTranceGateStep(1, 0.0f);
+
+        engine.noteOn(60, 100);
+
+        // Accumulate total energy over all blocks (slow gate stays mostly "on"
+        // because step 0 lasts 11025 samples and we only process 5120 total)
+        constexpr int kBlocks = 10;
+        constexpr size_t kBlockSize = 512;
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        double totalEnergySlow = 0.0;
+        for (int i = 0; i < kBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+            for (size_t s = 0; s < kBlockSize; ++s) {
+                totalEnergySlow += static_cast<double>(left[s]) * left[s];
+            }
+        }
+
+        // Reset and process WITH AllVoiceTranceGateRate modulation
+        // Offset pushes rate to 52 Hz: rapid on/off cycling averages to ~50%
+        engine.reset();
+        engine.setTranceGateEnabled(true);
+        engine.setTranceGateParams(params);
+        engine.setTranceGateRate(2.0f);
+        engine.setTranceGateStep(0, 1.0f);
+        engine.setTranceGateStep(1, 0.0f);
+        engine.setGlobalModRoute(0, ModSource::Macro1,
+                                 RuinaeModDest::AllVoiceTranceGateRate, 1.0f);
+        engine.setMacroValue(0, 1.0f); // +1.0 * 50.0 = +50 Hz -> 52 Hz
+
+        engine.noteOn(60, 100);
+
+        double totalEnergyFast = 0.0;
+        for (int i = 0; i < kBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+            for (size_t s = 0; s < kBlockSize; ++s) {
+                totalEnergyFast += static_cast<double>(left[s]) * left[s];
+            }
+        }
+
+        // Slow gate (2 Hz): stays on step 0 (full level) for all 5120 samples
+        // Fast gate (52 Hz): cycles on/off ~6 times, averaging ~50% level
+        // So total energy at slow rate should be significantly higher
+        INFO("Total energy slow (2 Hz): " << totalEnergySlow);
+        INFO("Total energy fast (52 Hz): " << totalEnergyFast);
+        REQUIRE(totalEnergySlow > 0.0);
+        REQUIRE(totalEnergyFast > 0.0);
+        REQUIRE(totalEnergySlow > totalEnergyFast * 1.2);
+    }
+
     SECTION("AllVoiceMorphPosition offset changes voice output (FR-021)") {
         // Set mix position to 0.0 (osc A only)
         engine.setMixPosition(0.0f);

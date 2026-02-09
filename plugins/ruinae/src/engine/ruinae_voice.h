@@ -611,6 +611,10 @@ public:
         tranceGate_.setStep(index, level);
     }
 
+    void setTranceGateRate(float hz) noexcept {
+        tranceGate_.setRate(hz);
+    }
+
     void setTranceGateTempo(double bpm) noexcept {
         tranceGate_.setTempo(bpm);
     }
