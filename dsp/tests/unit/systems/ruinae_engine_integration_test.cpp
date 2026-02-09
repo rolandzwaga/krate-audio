@@ -20,6 +20,7 @@
 #include <krate/dsp/systems/ruinae_engine.h>
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/midi_utils.h>
+#include <krate/dsp/primitives/fft.h>
 
 #include <algorithm>
 #include <array>
@@ -234,15 +235,24 @@ TEST_CASE("RuinaeEngine integration: stereo spread verification",
     engine.setSoftLimitEnabled(false);
     engine.setPolyphony(2);
 
-    SECTION("spread=1 creates stereo differentiation") {
+    SECTION("spread=1 creates at least 3 dB stereo differentiation (SC-010)") {
         engine.setStereoSpread(1.0f);
+        // Disable effects — reverb/delay smear stereo image
+        engine.setDelayMix(0.0f);
+        engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
 
-        engine.noteOn(60, 100);
-        engine.noteOn(72, 100);
+        // Use notes with very different frequencies for distinct per-channel content
+        engine.noteOn(36, 100); // C2 — panned left (voice 0)
+        engine.noteOn(84, 100); // C6 — panned right (voice 1)
 
         std::vector<float> left(kBlockSize), right(kBlockSize);
         float totalRmsL = 0.0f, totalRmsR = 0.0f;
-        for (int i = 0; i < kWarmUpBlocks; ++i) {
+
+        // Skip warm-up then measure
+        for (int i = 0; i < 5; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+        for (int i = 0; i < 10; ++i) {
             engine.processBlock(left.data(), right.data(), kBlockSize);
             totalRmsL += computeRMS(left.data(), kBlockSize);
             totalRmsR += computeRMS(right.data(), kBlockSize);
@@ -250,6 +260,12 @@ TEST_CASE("RuinaeEngine integration: stereo spread verification",
 
         REQUIRE(totalRmsL > 0.0f);
         REQUIRE(totalRmsR > 0.0f);
+
+        // SC-010: L/R energy must differ by at least 3 dB
+        float dBDiff = std::abs(20.0f * std::log10(totalRmsL / totalRmsR));
+        INFO("Stereo spread dB difference: " << dBDiff << " dB (L RMS: "
+             << totalRmsL << ", R RMS: " << totalRmsR << ")");
+        REQUIRE(dBDiff >= 3.0f);
     }
 }
 
@@ -438,7 +454,7 @@ TEST_CASE("RuinaeEngine integration: mode switching under load",
 
 TEST_CASE("RuinaeEngine integration: multi-sample-rate",
           "[ruinae-engine-integration][sample-rate]") {
-    const std::array<double, 4> sampleRates = {44100.0, 48000.0, 96000.0, 192000.0};
+    const std::array<double, 6> sampleRates = {44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0};
 
     for (double sr : sampleRates) {
         DYNAMIC_SECTION("sample rate " << sr) {
@@ -578,7 +594,10 @@ TEST_CASE("RuinaeEngine integration: soft limiter under full load",
     engine.setPolyphony(16);
     engine.setMasterGain(2.0f); // Maximum gain
 
-    SECTION("16 voices at full velocity with limiter stay in [-1, +1]") {
+    SECTION("16 voices at full velocity with limiter stay in [-1, +1] (SC-003)") {
+        // Spec requires sawtooth waveforms — PolyBLEP is the sawtooth type
+        engine.setOscAType(OscType::PolyBLEP);
+
         // Activate 16 voices at full velocity
         for (uint8_t i = 0; i < 16; ++i) {
             engine.noteOn(48 + i, 127);
@@ -608,12 +627,17 @@ TEST_CASE("RuinaeEngine integration: soft limiter transparency",
     RuinaeEngine engine;
     engine.prepare(44100.0, kBlockSize);
 
-    SECTION("at low levels tanh is approximately linear") {
+    SECTION("at low levels peak difference between limited and unlimited < 0.05 (SC-004)") {
         engine.setMasterGain(0.1f); // Very low gain
-        engine.noteOn(60, 50);      // Low velocity
+        engine.noteOn(60, 50);      // Low velocity (moderate = 0.5 normalized)
 
+        // Collect several blocks to get past latency
         std::vector<float> leftLim(kBlockSize), rightLim(kBlockSize);
-        float rmsLim = processAndAccumulateRMS(engine, leftLim, rightLim);
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            engine.processBlock(leftLim.data(), rightLim.data(), kBlockSize);
+        }
+        // Capture one more block with limiter ON
+        engine.processBlock(leftLim.data(), rightLim.data(), kBlockSize);
 
         engine.reset();
         engine.setSoftLimitEnabled(false);
@@ -621,14 +645,20 @@ TEST_CASE("RuinaeEngine integration: soft limiter transparency",
         engine.noteOn(60, 50);
 
         std::vector<float> leftNoLim(kBlockSize), rightNoLim(kBlockSize);
-        float rmsNoLim = processAndAccumulateRMS(engine, leftNoLim, rightNoLim);
-
-        // At low levels, tanh(x) approx x, so outputs should be very similar
-        if (rmsLim > 0.001f && rmsNoLim > 0.001f) {
-            float ratio = rmsLim / rmsNoLim;
-            REQUIRE(ratio > 0.8f);
-            REQUIRE(ratio < 1.2f);
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            engine.processBlock(leftNoLim.data(), rightNoLim.data(), kBlockSize);
         }
+        engine.processBlock(leftNoLim.data(), rightNoLim.data(), kBlockSize);
+
+        // Measure peak sample-by-sample difference (spec says < 0.05)
+        float maxDiff = 0.0f;
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            float diffL = std::abs(leftLim[i] - leftNoLim[i]);
+            float diffR = std::abs(rightLim[i] - rightNoLim[i]);
+            maxDiff = std::max(maxDiff, std::max(diffL, diffR));
+        }
+        INFO("Peak sample difference (limited vs unlimited): " << maxDiff);
+        REQUIRE(maxDiff < 0.05f);
     }
 }
 
@@ -642,26 +672,31 @@ TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
     engine.prepare(44100.0, kBlockSize);
     engine.setSoftLimitEnabled(false);
 
-    SECTION("gain compensation follows 1/sqrt(N)") {
-        // Process with polyphony = 1
+    SECTION("gain compensation follows 1/sqrt(N) for N=1,2,4,8 (SC-005)") {
+        // Measure RMS for N=1 as reference
         engine.setPolyphony(1);
         engine.noteOn(60, 100);
 
-        std::vector<float> left1(kBlockSize), right1(kBlockSize);
-        float rms1 = processAndAccumulateRMS(engine, left1, right1);
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        float rms1 = processAndAccumulateRMS(engine, left, right);
+        REQUIRE(rms1 > 0.001f);
 
-        // Process with polyphony = 4
-        engine.reset();
-        engine.setPolyphony(4);
-        engine.noteOn(60, 100);
+        // Test N=2, 4, 8 — each should scale as 1/sqrt(N)
+        const std::array<size_t, 3> polyphonyCounts = {2, 4, 8};
+        for (size_t n : polyphonyCounts) {
+            engine.reset();
+            engine.setPolyphony(n);
+            engine.noteOn(60, 100);
 
-        std::vector<float> left4(kBlockSize), right4(kBlockSize);
-        float rms4 = processAndAccumulateRMS(engine, left4, right4);
+            float rmsN = processAndAccumulateRMS(engine, left, right);
+            REQUIRE(rmsN > 0.001f);
 
-        // Expected ratio: (1/sqrt(4)) / (1/sqrt(1)) = 0.5
-        if (rms1 > 0.001f && rms4 > 0.001f) {
-            float ratio = rms4 / rms1;
-            REQUIRE(ratio == Approx(0.5f).margin(0.15f));
+            float expectedRatio = 1.0f / std::sqrt(static_cast<float>(n));
+            float actualRatio = rmsN / rms1;
+            INFO("N=" << n << ": expected ratio=" << expectedRatio
+                 << ", actual=" << actualRatio);
+            // 25% tolerance as per spec
+            REQUIRE(actualRatio == Approx(expectedRatio).margin(expectedRatio * 0.25f));
         }
     }
 }
@@ -678,15 +713,246 @@ TEST_CASE("RuinaeEngine integration: global modulation to filter cutoff",
     engine.setGlobalFilterEnabled(true);
     engine.setGlobalFilterCutoff(1000.0f);
 
-    SECTION("LFO routed to global filter cutoff modulates the filter") {
-        engine.setGlobalLFO1Rate(5.0f);
+    SECTION("LFO routed to global filter cutoff causes measurable RMS variation (SC-011)") {
+        engine.setGlobalLFO1Rate(2.0f); // 2 Hz LFO, sweeps over ~22 blocks at 512 samples
         engine.setGlobalLFO1Waveform(Waveform::Sine);
         engine.setGlobalModRoute(0, ModSource::LFO1,
-                                 RuinaeModDest::GlobalFilterCutoff, 0.8f);
+                                 RuinaeModDest::GlobalFilterCutoff, 1.0f);
 
         engine.noteOn(60, 100);
 
-        // Process multiple blocks
-        REQUIRE(processAndCheckForAudio(engine, 20));
+        // Process 40 blocks and track per-block RMS
+        constexpr int kNumMeasureBlocks = 40;
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        float minRms = std::numeric_limits<float>::max();
+        float maxRms = 0.0f;
+
+        for (int i = 0; i < kNumMeasureBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+            float rms = computeRMS(left.data(), kBlockSize);
+            if (rms > 0.0f) {
+                minRms = std::min(minRms, rms);
+                maxRms = std::max(maxRms, rms);
+            }
+        }
+
+        // The LFO sweeping the filter cutoff should cause RMS variation
+        INFO("Per-block RMS min: " << minRms << ", max: " << maxRms
+             << ", ratio: " << (minRms > 0 ? maxRms / minRms : 0));
+        REQUIRE(maxRms > 0.0f);
+        REQUIRE(minRms > 0.0f);
+        REQUIRE(maxRms / minRms > 1.5f);
+    }
+}
+
+// =============================================================================
+// Integration Test: Portamento Frequency at Midpoint (SC-006)
+// =============================================================================
+
+/// @brief Estimate frequency using interpolated zero-crossings.
+/// Works well for monophonic signals. Returns average frequency over the buffer.
+static float estimateFrequencyZeroCrossings(const float* data, size_t numSamples,
+                                             float sampleRate) {
+    // Find interpolated positive-going zero-crossing positions
+    std::vector<float> crossings;
+    for (size_t i = 1; i < numSamples; ++i) {
+        if (data[i - 1] < 0.0f && data[i] >= 0.0f) {
+            // Positive-going crossing — interpolate exact position
+            float frac = -data[i - 1] / (data[i] - data[i - 1]);
+            crossings.push_back(static_cast<float>(i - 1) + frac);
+        }
+    }
+    if (crossings.size() < 2) return 0.0f;
+
+    // Average period from consecutive positive-going crossings
+    float totalPeriod = 0.0f;
+    for (size_t i = 1; i < crossings.size(); ++i) {
+        totalPeriod += crossings[i] - crossings[i - 1];
+    }
+    float avgPeriodSamples = totalPeriod / static_cast<float>(crossings.size() - 1);
+    return sampleRate / avgPeriodSamples;
+}
+
+TEST_CASE("RuinaeEngine integration: portamento frequency at midpoint",
+          "[ruinae-engine-integration][mono]") {
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kSmallBlock = 256;
+
+    RuinaeEngine engine;
+    engine.prepare(kSampleRate, kSmallBlock);
+    engine.setMode(VoiceMode::Mono);
+    engine.setPortamentoTime(100.0f); // 100ms glide
+    engine.setPortamentoMode(PortaMode::Always);
+    engine.setSoftLimitEnabled(false);
+    engine.setGlobalFilterEnabled(false);
+    // Single oscillator for clean zero-crossing measurement
+    engine.setMixPosition(0.0f);
+    // Legato: no envelope retrigger during glide (avoids amplitude transient)
+    engine.setLegato(true);
+    // Open voice filter to avoid waveform distortion
+    engine.setFilterCutoff(20000.0f);
+    // Disable effects for clean frequency measurement
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
+
+    SECTION("frequency at midpoint is within 20 cents of note 66 (SC-006)") {
+        // Play first note and establish audio
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kSmallBlock), right(kSmallBlock);
+        for (int i = 0; i < 40; ++i) {
+            engine.processBlock(left.data(), right.data(), kSmallBlock);
+        }
+
+        // Start glide to note 72 (legato = no retrigger, portamento glides)
+        engine.noteOn(72, 100);
+
+        // 100ms glide at 44100 Hz = 4410 samples. Midpoint at 50ms = 2205 samples.
+        // The effects chain adds 1024 samples of latency compensation
+        // (spectral delay FFT size), so the midpoint appears at the output
+        // at sample 2205 + 1024 = 3229.
+        // Process 11 blocks of 256 = 2816 samples, then capture 3 blocks (768).
+        // Analysis center at output sample 3200 → portamento sample 2176 (~49.3ms).
+        for (int i = 0; i < 11; ++i) {
+            engine.processBlock(left.data(), right.data(), kSmallBlock);
+        }
+
+        // Capture 3 blocks (768 samples) for reliable zero-crossing measurement
+        // (~6 periods at ~370 Hz)
+        std::vector<float> analysisBuffer(kSmallBlock * 3);
+        for (int i = 0; i < 3; ++i) {
+            engine.processBlock(analysisBuffer.data() + i * kSmallBlock,
+                                right.data(), kSmallBlock);
+        }
+
+        float measuredFreq = estimateFrequencyZeroCrossings(
+            analysisBuffer.data(), analysisBuffer.size(), kSampleRate);
+
+        // Expected: note 66 = 440 * 2^((66-69)/12) ≈ 369.99 Hz
+        float expectedFreq = 440.0f * std::pow(2.0f, (66.0f - 69.0f) / 12.0f);
+
+        // 20 cents tolerance: freq * 2^(±20/1200)
+        float lowerBound = expectedFreq / std::pow(2.0f, 20.0f / 1200.0f);
+        float upperBound = expectedFreq * std::pow(2.0f, 20.0f / 1200.0f);
+
+        INFO("Measured frequency: " << measuredFreq << " Hz");
+        INFO("Expected (note 66): " << expectedFreq << " Hz");
+        INFO("Acceptable range: [" << lowerBound << ", " << upperBound << "] Hz");
+
+        // Verify within 20 cents of note 66
+        REQUIRE(measuredFreq >= lowerBound);
+        REQUIRE(measuredFreq <= upperBound);
+    }
+}
+
+// =============================================================================
+// Integration Test: Mode Switching Discontinuity (SC-007)
+// =============================================================================
+
+TEST_CASE("RuinaeEngine integration: mode switching discontinuity",
+          "[ruinae-engine-integration][mode]") {
+    RuinaeEngine engine;
+    engine.prepare(44100.0, kBlockSize);
+    engine.setSoftLimitEnabled(false);
+    // Disable effects for clean measurement
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
+
+    SECTION("poly->mono switch produces no discontinuity > -40 dBFS (SC-007)") {
+        engine.noteOn(60, 100);
+        engine.noteOn(64, 100);
+        engine.noteOn(67, 100);
+
+        // Process several blocks to establish steady-state audio
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        for (int i = 0; i < 20; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+
+        // Record last sample of the current block
+        float lastSampleL = left[kBlockSize - 1];
+        float lastSampleR = right[kBlockSize - 1];
+
+        // Switch to mono mode
+        engine.setMode(VoiceMode::Mono);
+
+        // Process the next block
+        engine.processBlock(left.data(), right.data(), kBlockSize);
+
+        // Measure the discontinuity at the boundary
+        float discontinuityL = std::abs(left[0] - lastSampleL);
+        float discontinuityR = std::abs(right[0] - lastSampleR);
+        float maxDiscontinuity = std::max(discontinuityL, discontinuityR);
+
+        // -40 dBFS threshold = 10^(-40/20) = 0.01
+        constexpr float kThreshold = 0.01f;
+        float discontinuityDb = (maxDiscontinuity > 0.0f)
+            ? 20.0f * std::log10(maxDiscontinuity) : -144.0f;
+
+        INFO("Discontinuity at switch point: " << maxDiscontinuity
+             << " (" << discontinuityDb << " dBFS)");
+        INFO("Threshold: " << kThreshold << " (-40 dBFS)");
+
+        REQUIRE(maxDiscontinuity <= kThreshold);
+    }
+}
+
+// =============================================================================
+// Integration Test: Reverb Tail Duration (SC-012)
+// =============================================================================
+
+TEST_CASE("RuinaeEngine integration: reverb tail duration",
+          "[ruinae-engine-integration][effects]") {
+    RuinaeEngine engine;
+    engine.prepare(44100.0, kBlockSize);
+    engine.setAmpRelease(5.0f); // Very short release
+
+    SECTION("reverb tail extends at least 500ms beyond voice release (SC-012)") {
+        // Enable reverb with high room size, disable delay
+        engine.setDelayMix(0.0f);
+        ReverbParams params;
+        params.roomSize = 0.9f;
+        params.damping = 0.3f;
+        params.mix = 0.5f;
+        engine.setReverbParams(params);
+
+        engine.noteOn(60, 100);
+
+        // Process blocks to establish audio through effects chain
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+
+        // Release the note
+        engine.noteOff(60);
+
+        // Process until voice finishes
+        int blocksUntilVoiceDone = 0;
+        for (int i = 0; i < 100; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+            ++blocksUntilVoiceDone;
+            if (engine.getActiveVoiceCount() == 0) break;
+        }
+        REQUIRE(engine.getActiveVoiceCount() == 0);
+
+        // Now count how many more blocks have audio above silence threshold
+        constexpr float kSilenceThreshold = 1e-6f;
+        int tailBlocks = 0;
+        for (int i = 0; i < 500; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+            float peakL = findPeak(left.data(), kBlockSize);
+            float peakR = findPeak(right.data(), kBlockSize);
+            if (peakL > kSilenceThreshold || peakR > kSilenceThreshold) {
+                ++tailBlocks;
+            } else {
+                break; // Tail has decayed
+            }
+        }
+
+        float tailDurationMs = static_cast<float>(tailBlocks * kBlockSize) / 44100.0f * 1000.0f;
+        INFO("Reverb tail duration after voice release: " << tailDurationMs << " ms"
+             << " (" << tailBlocks << " blocks)");
+        REQUIRE(tailDurationMs >= 500.0f);
     }
 }

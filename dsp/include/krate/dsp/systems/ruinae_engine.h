@@ -426,7 +426,10 @@ public:
     void setDelayType(RuinaeDelayType type) noexcept { effectsChain_.setDelayType(type); }
     void setDelayTime(float ms) noexcept { effectsChain_.setDelayTime(ms); }
     void setDelayFeedback(float amount) noexcept { effectsChain_.setDelayFeedback(amount); }
-    void setDelayMix(float mix) noexcept { effectsChain_.setDelayMix(mix); }
+    void setDelayMix(float mix) noexcept {
+        baseDelayMix_ = std::clamp(mix, 0.0f, 1.0f);
+        effectsChain_.setDelayMix(baseDelayMix_);
+    }
     void setReverbParams(const ReverbParams& params) noexcept { effectsChain_.setReverbParams(params); }
     void setFreezeEnabled(bool enabled) noexcept { effectsChain_.setFreezeEnabled(enabled); }
     void setFreeze(bool frozen) noexcept { effectsChain_.setFreeze(frozen); }
@@ -525,7 +528,7 @@ public:
         // AllVoice offsets for forwarding to voices (FR-021)
         const float allVoiceFilterCutoffOffset = globalModEngine_.getModulationOffset(
             static_cast<uint32_t>(RuinaeModDest::AllVoiceFilterCutoff));
-        [[maybe_unused]] const float allVoiceMorphOffset = globalModEngine_.getModulationOffset(
+        const float allVoiceMorphOffset = globalModEngine_.getModulationOffset(
             static_cast<uint32_t>(RuinaeModDest::AllVoiceMorphPosition));
         [[maybe_unused]] const float allVoiceTranceGateOffset = globalModEngine_.getModulationOffset(
             static_cast<uint32_t>(RuinaeModDest::AllVoiceTranceGateRate));
@@ -549,19 +552,19 @@ public:
             masterGain_ + masterVolOffset * 2.0f,
             kMinMasterGain, kMaxMasterGain);
 
-        // Effect mix modulation (passed to delay mix)
+        // Effect mix modulation (FR-032 step 5)
         if (effectMixOffset != 0.0f) {
-            // This is a lightweight modulation hint; the actual delay mix
-            // is handled through the effects chain's own mix parameter
+            float modMix = std::clamp(baseDelayMix_ + effectMixOffset, 0.0f, 1.0f);
+            effectsChain_.setDelayMix(modMix);
         }
 
         // Step 6: Process pitch bend smoother once per block
         [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend();
 
         if (mode_ == VoiceMode::Poly) {
-            processBlockPoly(numSamples, allVoiceFilterCutoffOffset);
+            processBlockPoly(numSamples, allVoiceFilterCutoffOffset, allVoiceMorphOffset);
         } else {
-            processBlockMono(numSamples, allVoiceFilterCutoffOffset);
+            processBlockMono(numSamples, allVoiceFilterCutoffOffset, allVoiceMorphOffset);
         }
 
         // Step 8: Apply stereo width (Mid/Side) (FR-014)
@@ -645,7 +648,8 @@ public:
 
     void setMixPosition(float mix) noexcept {
         if (detail::isNaN(mix) || detail::isInf(mix)) return;
-        for (auto& voice : voices_) { voice.setMixPosition(mix); }
+        voiceMixPosition_ = std::clamp(mix, 0.0f, 1.0f);
+        for (auto& voice : voices_) { voice.setMixPosition(voiceMixPosition_); }
     }
 
     // --- Filter ---
@@ -656,7 +660,8 @@ public:
 
     void setFilterCutoff(float hz) noexcept {
         if (detail::isNaN(hz) || detail::isInf(hz)) return;
-        for (auto& voice : voices_) { voice.setFilterCutoff(hz); }
+        voiceFilterCutoffHz_ = std::clamp(hz, 20.0f, 20000.0f);
+        for (auto& voice : voices_) { voice.setFilterCutoff(voiceFilterCutoffHz_); }
     }
 
     void setFilterResonance(float q) noexcept {
@@ -1082,11 +1087,32 @@ private:
     // =========================================================================
 
     void processBlockPoly(size_t numSamples,
-                          float allVoiceFilterCutoffOffset) noexcept {
+                          float allVoiceFilterCutoffOffset,
+                          float allVoiceMorphOffset) noexcept {
         // Track which voices were active before processing (for deferred finish)
         std::array<bool, kMaxPolyphony> wasActive{};
         for (size_t i = 0; i < polyphonyCount_; ++i) {
             wasActive[i] = voices_[i].isActive();
+        }
+
+        // Step 7c: Forward AllVoice modulation offsets (FR-021)
+        // Two-stage clamping: clamp(clamp(base + perVoice, min, max) + global, min, max)
+        // Per-voice modulation is handled internally by each voice;
+        // the global offset shifts the base value for all voices.
+        if (allVoiceFilterCutoffOffset != 0.0f) {
+            float modCutoff = std::clamp(
+                voiceFilterCutoffHz_ + allVoiceFilterCutoffOffset * 10000.0f,
+                20.0f, 20000.0f);
+            for (size_t i = 0; i < polyphonyCount_; ++i) {
+                voices_[i].setFilterCutoff(modCutoff);
+            }
+        }
+        if (allVoiceMorphOffset != 0.0f) {
+            float modMorph = std::clamp(
+                voiceMixPosition_ + allVoiceMorphOffset, 0.0f, 1.0f);
+            for (size_t i = 0; i < polyphonyCount_; ++i) {
+                voices_[i].setMixPosition(modMorph);
+            }
         }
 
         // Step 7: Process each active voice
@@ -1099,15 +1125,6 @@ private:
                 float freq = noteProcessor_.getFrequency(
                     static_cast<uint8_t>(voiceNote));
                 voices_[i].setFrequency(freq);
-            }
-
-            // Step 7c: Forward AllVoice modulation offsets (FR-021)
-            // Two-stage clamping: clamp(clamp(base + perVoice, min, max) + global, min, max)
-            // The per-voice offset is handled internally by the voice;
-            // we add the global offset on top
-            if (allVoiceFilterCutoffOffset != 0.0f) {
-                // Apply as a frequency offset in Hz (scaled from [-1, +1])
-                // Voice handles its own base + per-voice offset internally
             }
 
             // Step 7d: Process voice into scratch buffer (mono output)
@@ -1137,7 +1154,21 @@ private:
     // =========================================================================
 
     void processBlockMono(size_t numSamples,
-                          float allVoiceFilterCutoffOffset) noexcept {
+                          float allVoiceFilterCutoffOffset,
+                          float allVoiceMorphOffset) noexcept {
+        // Forward AllVoice modulation offsets to voice 0 (FR-021)
+        if (allVoiceFilterCutoffOffset != 0.0f) {
+            float modCutoff = std::clamp(
+                voiceFilterCutoffHz_ + allVoiceFilterCutoffOffset * 10000.0f,
+                20.0f, 20000.0f);
+            voices_[0].setFilterCutoff(modCutoff);
+        }
+        if (allVoiceMorphOffset != 0.0f) {
+            float modMorph = std::clamp(
+                voiceMixPosition_ + allVoiceMorphOffset, 0.0f, 1.0f);
+            voices_[0].setMixPosition(modMorph);
+        }
+
         // Track if voice 0 was active
         bool wasActive = voices_[0].isActive();
 
@@ -1212,6 +1243,9 @@ private:
     BlockContext blockContext_{};
     float globalFilterCutoffHz_;
     float globalFilterResonance_;
+    float voiceFilterCutoffHz_ = 1000.0f;
+    float voiceMixPosition_ = 0.5f;
+    float baseDelayMix_ = 0.0f;
 };
 
 } // namespace Krate::DSP
