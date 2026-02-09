@@ -42,6 +42,7 @@
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
+#include <atomic>
 #include <vector>
 
 namespace Ruinae {
@@ -150,6 +151,14 @@ private:
 
     std::vector<float> mixBufferL_;
     std::vector<float> mixBufferR_;
+
+    // ==========================================================================
+    // Playback Position (shared with controller via IMessage pointer)
+    // ==========================================================================
+
+    std::atomic<int> tranceGatePlaybackStep_{-1};
+    std::atomic<bool> isTransportPlaying_{false};
+    bool playbackMessageSent_ = false;
 };
 
 } // namespace Ruinae

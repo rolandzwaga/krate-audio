@@ -85,8 +85,10 @@ target_include_directories(${target}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/mocks
         # Include plugin src for TapPatternEditor
         ${CMAKE_SOURCE_DIR}/plugins/iterum/src
-        # Shared UI components (ArcKnob, etc.)
+        # Shared UI components (ArcKnob, StepPatternEditor, etc.)
         ${CMAKE_SOURCE_DIR}/plugins/shared/src
+        # KrateDSP headers (for EuclideanPattern used by StepPatternEditor)
+        ${CMAKE_SOURCE_DIR}/dsp/include
         # VSTGUI includes
         ${vst3sdk_SOURCE_DIR}/vstgui4
 )

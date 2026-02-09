@@ -17,6 +17,8 @@
 // Registered as "FieldsetContainer" via VSTGUI ViewCreator system.
 // ==============================================================================
 
+#include "color_utils.h"
+
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
@@ -116,31 +118,6 @@ public:
     CLASS_METHODS(FieldsetContainer, CViewContainer)
 
 private:
-    // =========================================================================
-    // Color Helpers
-    // =========================================================================
-
-    /// Brighten a color by a factor (1 = unchanged, >1 = brighter).
-    [[nodiscard]] static VSTGUI::CColor brightenColor(const VSTGUI::CColor& color,
-                                                       float factor) {
-        return VSTGUI::CColor(
-            static_cast<uint8_t>(std::min(255.0f, color.red * factor)),
-            static_cast<uint8_t>(std::min(255.0f, color.green * factor)),
-            static_cast<uint8_t>(std::min(255.0f, color.blue * factor)),
-            color.alpha);
-    }
-
-    /// Linearly interpolate between two colors.
-    [[nodiscard]] static VSTGUI::CColor lerpColor(const VSTGUI::CColor& a,
-                                                    const VSTGUI::CColor& b,
-                                                    float t) {
-        return VSTGUI::CColor(
-            static_cast<uint8_t>(a.red + (b.red - a.red) * t),
-            static_cast<uint8_t>(a.green + (b.green - a.green) * t),
-            static_cast<uint8_t>(a.blue + (b.blue - a.blue) * t),
-            static_cast<uint8_t>(a.alpha + (b.alpha - a.alpha) * t));
-    }
-
     // =========================================================================
     // Drawing Helpers
     // =========================================================================

@@ -57,7 +57,7 @@ void TestbenchDelegate::createMainWindow() {
     config.windowConfig.title = "Control Testbench";
     config.windowConfig.autoSaveFrameName = "ControlTestbenchFrame2";
     config.windowConfig.style.close().size().border();
-    config.windowConfig.size = {750, 710};
+    config.windowConfig.size = {750, 980};
     config.uiDescFileName = "testbench.uidesc";
     config.viewName = "view";
 

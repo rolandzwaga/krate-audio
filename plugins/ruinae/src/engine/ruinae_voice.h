@@ -623,6 +623,10 @@ public:
         return tranceGateEnabled_ ? tranceGate_.getGateValue() : 1.0f;
     }
 
+    [[nodiscard]] int getTranceGateCurrentStep() const noexcept {
+        return tranceGate_.getCurrentStep();
+    }
+
     // =========================================================================
     // Aftertouch (FR-010, 042-ext-modulation-system)
     // =========================================================================

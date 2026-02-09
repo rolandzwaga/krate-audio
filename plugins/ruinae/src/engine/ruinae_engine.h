@@ -741,6 +741,17 @@ public:
         for (auto& voice : voices_) { voice.setTranceGateStep(index, level); }
     }
 
+    /// Get the current trance gate step from the first active voice (for UI indicator).
+    /// Returns -1 if no voice is active or trance gate is disabled.
+    [[nodiscard]] int getTranceGateCurrentStep() const noexcept {
+        for (const auto& voice : voices_) {
+            if (voice.isActive()) {
+                return voice.getTranceGateCurrentStep();
+            }
+        }
+        return -1;
+    }
+
     // --- Amplitude Envelope ---
 
     void setAmpAttack(float ms) noexcept {

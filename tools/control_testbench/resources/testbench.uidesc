@@ -26,11 +26,11 @@
         <font name="mono" font-name="Consolas" size="9"/>
     </fonts>
 
-    <template name="view" size="750, 710" background-color="background">
+    <template name="view" size="750, 980" background-color="background">
         <!-- Main container with TestbenchController -->
         <view class="CViewContainer"
               origin="0, 0"
-              size="750, 710"
+              size="750, 980"
               background-color="background"
               sub-controller="TestbenchController">
 
@@ -274,10 +274,59 @@
             </view>
 
             <!-- ============================================================ -->
-            <!-- FieldsetContainer Demo Panel -->
+            <!-- Step Pattern Editor Panel -->
             <!-- ============================================================ -->
             <view class="CViewContainer"
                   origin="10, 580"
+                  size="730, 260"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="StepPatternEditor"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- The actual control under test -->
+                <view class="CView"
+                      origin="10, 25"
+                      size="500, 200"
+                      custom-view-name="StepPatternEditor"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="520, 25"
+                      size="200, 100"
+                      title="Bar chart step pattern editor for gate sequencers. Click-drag to set levels, paint mode across steps. Double-click reset, Alt+click toggle, Shift fine mode, Escape cancel."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Instructions -->
+                <view class="CTextLabel"
+                      origin="10, 230"
+                      size="700, 24"
+                      title="Click-drag vertical to set level. Drag horizontal for paint mode. Double-click=reset. Alt+click=toggle. Shift=fine (0.1x). Escape=cancel."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- FieldsetContainer Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="10, 850"
                   size="730, 120"
                   background-color="panel.background"
                   background-color-draw-style="filled">

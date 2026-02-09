@@ -60,14 +60,14 @@ void TapPatternEditor::drawGridLines(VSTGUI::CDrawContext* context) {
 
     // Vertical grid lines at 1/4 intervals (stop at ruler)
     for (int i = 1; i < 4; ++i) {
-        float x = viewRect.left + width * (static_cast<float>(i) / 4.0f);
+        float x = static_cast<float>(viewRect.left) + width * (static_cast<float>(i) / 4.0f);
         context->drawLine(
             VSTGUI::CPoint(x, viewRect.top),
             VSTGUI::CPoint(x, tapAreaBottom));
     }
 
     // Horizontal grid line at 50% level (within tap area)
-    float y = viewRect.top + tapAreaHeight * 0.5f;
+    float y = static_cast<float>(viewRect.top) + tapAreaHeight * 0.5f;
     context->drawLine(
         VSTGUI::CPoint(viewRect.left, y),
         VSTGUI::CPoint(viewRect.right, y));
@@ -88,8 +88,8 @@ void TapPatternEditor::drawTaps(VSTGUI::CDrawContext* context) {
         float level = tapLevels_[i];
 
         // Calculate tap bar position (within tap area, above ruler)
-        float centerX = viewRect.left + timeRatio * width;
-        float barTop = viewRect.top + (1.0f - level) * tapAreaHeight;
+        float centerX = static_cast<float>(viewRect.left) + timeRatio * width;
+        float barTop = static_cast<float>(viewRect.top) + (1.0f - level) * tapAreaHeight;
         float barBottom = static_cast<float>(viewRect.bottom) - kRulerHeight;
 
         // Tap bar rectangle

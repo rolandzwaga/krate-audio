@@ -6,6 +6,7 @@
 #include "plugin_ids.h"
 #include "version.h"
 #include "preset/ruinae_preset_config.h"
+#include "ui/step_pattern_editor.h"
 
 // Parameter pack headers (for registration, display, and controller sync)
 #include "parameters/global_params.h"
@@ -86,6 +87,9 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
 }
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
+    playbackPollTimer_ = nullptr;
+    tranceGatePlaybackStepPtr_ = nullptr;
+    isTransportPlayingPtr_ = nullptr;
     presetManager_.reset();
     return EditControllerEx1::terminate();
 }
@@ -225,6 +229,90 @@ Steinberg::tresult PLUGIN_API Controller::getParamValueByString(
 }
 
 // ==============================================================================
+// IMessage: Receive processor messages
+// ==============================================================================
+
+Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* message) {
+    if (!message)
+        return Steinberg::kInvalidArgument;
+
+    if (strcmp(message->getMessageID(), "TranceGatePlayback") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        Steinberg::int64 stepPtr = 0;
+        Steinberg::int64 playingPtr = 0;
+
+        if (attrs->getInt("stepPtr", stepPtr) == Steinberg::kResultOk) {
+            tranceGatePlaybackStepPtr_ = reinterpret_cast<std::atomic<int>*>(
+                static_cast<intptr_t>(stepPtr));
+        }
+        if (attrs->getInt("playingPtr", playingPtr) == Steinberg::kResultOk) {
+            isTransportPlayingPtr_ = reinterpret_cast<std::atomic<bool>*>(
+                static_cast<intptr_t>(playingPtr));
+        }
+
+        // Start a poll timer to push playback state to the editor (~30fps)
+        if (tranceGatePlaybackStepPtr_ && !playbackPollTimer_) {
+            playbackPollTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+                [this](VSTGUI::CVSTGUITimer*) {
+                    if (!stepPatternEditor_) return;
+                    if (tranceGatePlaybackStepPtr_) {
+                        stepPatternEditor_->setPlaybackStep(
+                            tranceGatePlaybackStepPtr_->load(std::memory_order_relaxed));
+                    }
+                    if (isTransportPlayingPtr_) {
+                        stepPatternEditor_->setPlaying(
+                            isTransportPlayingPtr_->load(std::memory_order_relaxed));
+                    }
+                }, 33); // ~30fps
+        }
+
+        return Steinberg::kResultOk;
+    }
+
+    return EditControllerEx1::notify(message);
+}
+
+// ==============================================================================
+// IEditController: Parameter Sync to Custom Views
+// ==============================================================================
+
+Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
+    Steinberg::Vst::ParamID tag, Steinberg::Vst::ParamValue value) {
+
+    // Let the base class handle its bookkeeping first
+    auto result = EditControllerEx1::setParamNormalized(tag, value);
+
+    // Push trance gate parameter changes to StepPatternEditor
+    if (stepPatternEditor_) {
+        if (tag >= kTranceGateStepLevel0Id && tag <= kTranceGateStepLevel31Id) {
+            int stepIndex = static_cast<int>(tag - kTranceGateStepLevel0Id);
+            stepPatternEditor_->setStepLevel(stepIndex, static_cast<float>(value));
+        } else if (tag == kTranceGateNumStepsId) {
+            int steps = std::clamp(
+                static_cast<int>(2.0 + std::round(value * 30.0)), 2, 32);
+            stepPatternEditor_->setNumSteps(steps);
+        } else if (tag == kTranceGateEuclideanEnabledId) {
+            stepPatternEditor_->setEuclideanEnabled(value >= 0.5);
+        } else if (tag == kTranceGateEuclideanHitsId) {
+            int hits = std::clamp(
+                static_cast<int>(std::round(value * 32.0)), 0, 32);
+            stepPatternEditor_->setEuclideanHits(hits);
+        } else if (tag == kTranceGateEuclideanRotationId) {
+            int rot = std::clamp(
+                static_cast<int>(std::round(value * 31.0)), 0, 31);
+            stepPatternEditor_->setEuclideanRotation(rot);
+        } else if (tag == kTranceGatePhaseOffsetId) {
+            stepPatternEditor_->setPhaseOffset(static_cast<float>(value));
+        }
+    }
+
+    return result;
+}
+
+// ==============================================================================
 // VST3EditorDelegate
 // ==============================================================================
 
@@ -234,7 +322,146 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (activeEditor_ == editor) {
+        stepPatternEditor_ = nullptr;
         activeEditor_ = nullptr;
+    }
+}
+
+
+
+VSTGUI::CView* Controller::verifyView(
+    VSTGUI::CView* view,
+    const VSTGUI::UIAttributes& /*attributes*/,
+    const VSTGUI::IUIDescription* /*description*/,
+    VSTGUI::VST3Editor* /*editor*/) {
+
+    // Register as sub-listener for action buttons (presets, transforms)
+    auto* control = dynamic_cast<VSTGUI::CControl*>(view);
+    if (control) {
+        auto tag = control->getTag();
+        if (tag >= kActionPresetAllTag && tag <= kActionEuclideanRegenTag) {
+            control->registerControlListener(this);
+        }
+    }
+
+    // Wire StepPatternEditor callbacks
+    auto* spe = dynamic_cast<Krate::Plugins::StepPatternEditor*>(view);
+    if (spe) {
+        stepPatternEditor_ = spe;
+
+        // Configure base parameter ID so editor knows which VST params to use
+        spe->setStepLevelBaseParamId(kTranceGateStepLevel0Id);
+
+        // Wire performEdit callback (editor -> host)
+        spe->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+
+        // Wire beginEdit/endEdit for gesture management
+        spe->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(paramId);
+            });
+
+        spe->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+
+        // Sync current parameter values to the editor
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kTranceGateStepLevel0Id + i);
+            auto paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                spe->setStepLevel(i,
+                    static_cast<float>(paramObj->getNormalized()));
+            }
+        }
+
+        // Sync numSteps
+        auto* numStepsParam = getParameterObject(kTranceGateNumStepsId);
+        if (numStepsParam) {
+            double val = numStepsParam->getNormalized();
+            int steps = std::clamp(
+                static_cast<int>(2.0 + std::round(val * 30.0)), 2, 32);
+            spe->setNumSteps(steps);
+        }
+
+        // Sync Euclidean params
+        auto* euclEnabledParam = getParameterObject(kTranceGateEuclideanEnabledId);
+        if (euclEnabledParam) {
+            spe->setEuclideanEnabled(euclEnabledParam->getNormalized() >= 0.5);
+        }
+        auto* euclHitsParam = getParameterObject(kTranceGateEuclideanHitsId);
+        if (euclHitsParam) {
+            int hits = std::clamp(
+                static_cast<int>(std::round(euclHitsParam->getNormalized() * 32.0)), 0, 32);
+            spe->setEuclideanHits(hits);
+        }
+        auto* euclRotParam = getParameterObject(kTranceGateEuclideanRotationId);
+        if (euclRotParam) {
+            int rot = std::clamp(
+                static_cast<int>(std::round(euclRotParam->getNormalized() * 31.0)), 0, 31);
+            spe->setEuclideanRotation(rot);
+        }
+
+        // Sync phase offset
+        auto* phaseParam = getParameterObject(kTranceGatePhaseOffsetId);
+        if (phaseParam) {
+            spe->setPhaseOffset(
+                static_cast<float>(phaseParam->getNormalized()));
+        }
+    }
+
+    return view;
+}
+
+// ==============================================================================
+// IControlListener: Action Button Handling
+// ==============================================================================
+
+void Controller::valueChanged(VSTGUI::CControl* control) {
+    if (!control || !stepPatternEditor_) return;
+
+    // Only respond to button press (value > 0.5), not release
+    if (control->getValue() < 0.5f) return;
+
+    auto tag = control->getTag();
+    switch (tag) {
+        case kActionPresetAllTag:
+            stepPatternEditor_->applyPresetAll();
+            break;
+        case kActionPresetOffTag:
+            stepPatternEditor_->applyPresetOff();
+            break;
+        case kActionPresetAlternateTag:
+            stepPatternEditor_->applyPresetAlternate();
+            break;
+        case kActionPresetRampUpTag:
+            stepPatternEditor_->applyPresetRampUp();
+            break;
+        case kActionPresetRampDownTag:
+            stepPatternEditor_->applyPresetRampDown();
+            break;
+        case kActionPresetRandomTag:
+            stepPatternEditor_->applyPresetRandom();
+            break;
+        case kActionTransformInvertTag:
+            stepPatternEditor_->applyTransformInvert();
+            break;
+        case kActionTransformShiftRightTag:
+            stepPatternEditor_->applyTransformShiftRight();
+            break;
+        case kActionTransformShiftLeftTag:
+            stepPatternEditor_->applyTransformShiftLeft();
+            break;
+        case kActionEuclideanRegenTag:
+            stepPatternEditor_->regenerateEuclidean();
+            break;
+        default:
+            break;
     }
 }
 

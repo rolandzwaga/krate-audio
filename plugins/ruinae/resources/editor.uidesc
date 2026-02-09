@@ -10,6 +10,25 @@
         <control-tag name="MasterGain" tag="0"/>
         <control-tag name="FilterCutoff" tag="401"/>
         <control-tag name="OscALevel" tag="103"/>
+
+        <!-- Trance Gate parameters -->
+        <control-tag name="TranceGateEnabled" tag="600"/>
+        <control-tag name="TranceGateNumSteps" tag="601"/>
+        <control-tag name="TranceGateEuclideanEnabled" tag="608"/>
+        <control-tag name="TranceGateEuclideanHits" tag="609"/>
+        <control-tag name="TranceGateEuclideanRotation" tag="610"/>
+        <control-tag name="TranceGatePhaseOffset" tag="611"/>
+
+        <!-- UI action button tags (not VST parameters) -->
+        <control-tag name="ActionPresetAll" tag="10000"/>
+        <control-tag name="ActionPresetOff" tag="10001"/>
+        <control-tag name="ActionPresetAlternate" tag="10002"/>
+        <control-tag name="ActionPresetRampUp" tag="10003"/>
+        <control-tag name="ActionPresetRampDown" tag="10004"/>
+        <control-tag name="ActionPresetRandom" tag="10005"/>
+        <control-tag name="ActionTransformInvert" tag="10006"/>
+        <control-tag name="ActionTransformShiftRight" tag="10007"/>
+        <control-tag name="ActionEuclideanRegen" tag="10009"/>
     </control-tags>
 
     <template
@@ -138,6 +157,201 @@
             arc-color="#B39DDB"
             guide-color="#FFFFFF28"
             indicator-length="6"
+        />
+
+        <!-- ============================================================ -->
+        <!-- Trance Gate Section                                          -->
+        <!-- ============================================================ -->
+
+        <!-- Trance Gate Section Label -->
+        <view
+            class="CTextLabel"
+            origin="20, 170"
+            size="300, 20"
+            title="Trance Gate Pattern"
+            font="~ NormalFontSmall"
+            font-color="#808080"
+            text-alignment="left"
+            transparent="true"
+        />
+
+        <!-- Step Pattern Editor -->
+        <view
+            class="StepPatternEditor"
+            origin="20, 195"
+            size="860, 200"
+            bar-color-accent="#DCA83C"
+            bar-color-normal="#508CC8"
+            bar-color-ghost="#3C5A78"
+            silent-outline-color="#323237"
+            grid-color="#FFFFFF1E"
+            background-color="#232326"
+            playback-color="#FFC850"
+            text-color="#B4B4B9"
+        />
+
+        <!-- Quick Action Buttons Row -->
+        <view
+            class="CKickButton"
+            origin="20, 400"
+            size="45, 22"
+            control-tag="ActionPresetAll"
+            title="All"
+            font="~ NormalFontSmaller"
+            font-color="#B4B4B9"
+            frame-color="#404044"
+        />
+        <view
+            class="CKickButton"
+            origin="70, 400"
+            size="45, 22"
+            control-tag="ActionPresetOff"
+            title="Off"
+            font="~ NormalFontSmaller"
+            font-color="#B4B4B9"
+            frame-color="#404044"
+        />
+        <view
+            class="CKickButton"
+            origin="120, 400"
+            size="45, 22"
+            control-tag="ActionPresetAlternate"
+            title="Alt"
+            font="~ NormalFontSmaller"
+            font-color="#B4B4B9"
+            frame-color="#404044"
+        />
+        <view
+            class="CKickButton"
+            origin="170, 400"
+            size="45, 22"
+            control-tag="ActionPresetRampUp"
+            title="Ramp+"
+            font="~ NormalFontSmaller"
+            font-color="#B4B4B9"
+            frame-color="#404044"
+        />
+        <view
+            class="CKickButton"
+            origin="220, 400"
+            size="45, 22"
+            control-tag="ActionPresetRampDown"
+            title="Ramp-"
+            font="~ NormalFontSmaller"
+            font-color="#B4B4B9"
+            frame-color="#404044"
+        />
+        <view
+            class="CKickButton"
+            origin="270, 400"
+            size="45, 22"
+            control-tag="ActionPresetRandom"
+            title="Rnd"
+            font="~ NormalFontSmaller"
+            font-color="#B4B4B9"
+            frame-color="#404044"
+        />
+        <view
+            class="CKickButton"
+            origin="320, 400"
+            size="45, 22"
+            control-tag="ActionTransformInvert"
+            title="Inv"
+            font="~ NormalFontSmaller"
+            font-color="#B4B4B9"
+            frame-color="#404044"
+        />
+        <view
+            class="CKickButton"
+            origin="370, 400"
+            size="45, 22"
+            control-tag="ActionTransformShiftRight"
+            title="&gt;&gt;"
+            font="~ NormalFontSmaller"
+            font-color="#B4B4B9"
+            frame-color="#404044"
+        />
+
+        <!-- ============================================================ -->
+        <!-- Euclidean Toolbar Row                                        -->
+        <!-- ============================================================ -->
+
+        <view
+            class="CTextLabel"
+            origin="20, 430"
+            size="60, 20"
+            title="Euclidean:"
+            font="~ NormalFontSmaller"
+            font-color="#808080"
+            text-alignment="left"
+            transparent="true"
+        />
+
+        <!-- Euclidean Enable Toggle -->
+        <view
+            class="COnOffButton"
+            origin="85, 430"
+            size="35, 20"
+            control-tag="TranceGateEuclideanEnabled"
+            default-value="0"
+        />
+
+        <view
+            class="CTextLabel"
+            origin="130, 430"
+            size="35, 20"
+            title="Hits:"
+            font="~ NormalFontSmaller"
+            font-color="#808080"
+            text-alignment="left"
+            transparent="true"
+        />
+
+        <!-- Euclidean Hits slider (simplified - could be +/- buttons later) -->
+        <view
+            class="CSlider"
+            origin="165, 430"
+            size="80, 20"
+            control-tag="TranceGateEuclideanHits"
+            default-value="0.125"
+            orientation="horizontal"
+            frame-color="#404044"
+            handle-color="#DCA850"
+        />
+
+        <view
+            class="CTextLabel"
+            origin="255, 430"
+            size="30, 20"
+            title="Rot:"
+            font="~ NormalFontSmaller"
+            font-color="#808080"
+            text-alignment="left"
+            transparent="true"
+        />
+
+        <!-- Euclidean Rotation slider -->
+        <view
+            class="CSlider"
+            origin="285, 430"
+            size="80, 20"
+            control-tag="TranceGateEuclideanRotation"
+            default-value="0"
+            orientation="horizontal"
+            frame-color="#404044"
+            handle-color="#508CC8"
+        />
+
+        <!-- Regen Button -->
+        <view
+            class="CKickButton"
+            origin="375, 430"
+            size="50, 20"
+            control-tag="ActionEuclideanRegen"
+            title="Regen"
+            font="~ NormalFontSmaller"
+            font-color="#B4B4B9"
+            frame-color="#404044"
         />
     </template>
 </vstgui-ui-description>

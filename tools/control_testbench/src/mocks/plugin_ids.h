@@ -42,3 +42,9 @@ constexpr uint32_t kMultiTapCustomLevel4Id = 3514;
 constexpr uint32_t kMultiTapCustomLevel5Id = 3515;
 constexpr uint32_t kMultiTapCustomLevel6Id = 3516;
 constexpr uint32_t kMultiTapCustomLevel7Id = 3517;
+
+// =============================================================================
+// StepPatternEditor Parameters (TranceGate step levels)
+// =============================================================================
+// Step levels 0-31 are contiguous: kTranceGateStepLevel0Id + i
+constexpr uint32_t kTranceGateStepLevel0Id = 668;

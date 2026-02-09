@@ -38,8 +38,10 @@ add_library(KratePluginsShared STATIC
     src/preset/preset_manager.cpp
 
     # UI Components
+    src/ui/color_utils.h
     src/ui/arc_knob.h
     src/ui/fieldset_container.h
+    src/ui/step_pattern_editor.h
     src/ui/search_debouncer.h
     src/ui/preset_browser_logic.h
     src/ui/category_tab_bar.h
@@ -101,4 +103,11 @@ else()
         -Wpedantic
         -Wno-unused-parameter
     )
+endif()
+
+# ==============================================================================
+# Tests
+# ==============================================================================
+if(VSTWORK_BUILD_TESTS)
+    add_subdirectory(tests)
 endif()

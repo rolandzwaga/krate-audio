@@ -94,12 +94,16 @@ plugins/shared/
 │   │   └── preset_info.h            # Preset metadata (name, path, subcategory)
 │   ├── platform/
 │   │   └── preset_paths.h/.cpp      # Cross-platform preset directory resolution
-│   └── ui/                         # VSTGUI preset browser components
+│   └── ui/                         # VSTGUI shared UI components
 │       ├── preset_browser_view.h/.cpp  # Modal preset browser overlay
 │       ├── category_tab_bar.h/.cpp     # Subcategory filter tabs
 │       ├── preset_data_source.h/.cpp   # CDataBrowser data source
 │       ├── save_preset_dialog_view.h/.cpp  # Save dialog overlay
-│       └── search_debouncer.h          # Search input debounce
+│       ├── search_debouncer.h          # Search input debounce
+│       ├── step_pattern_editor.h       # Visual step pattern editor (Spec 046)
+│       ├── arc_knob.h                  # Minimal arc-style knob control
+│       ├── fieldset_container.h        # Labeled container with border
+│       └── color_utils.h              # Shared color manipulation utilities
 └── tests/                         # Shared library tests
 ```
 
@@ -146,6 +150,85 @@ To add preset support to a new plugin:
 | `PresetDataSource` | CDataBrowser adapter for preset list display |
 | `SavePresetDialogView` | Inline save dialog with name field and category selector |
 | `SearchDebouncer` | Debounced text input for search field |
+
+### StepPatternEditor (Spec 046)
+**Path:** [step_pattern_editor.h](../../plugins/shared/src/ui/step_pattern_editor.h) | **Since:** 0.1.0
+
+Visual step pattern editor for creating and editing step sequences. Extends `VSTGUI::CControl`. Plugin-agnostic -- communicates exclusively via `ParameterCallback` and configurable base parameter IDs.
+
+```cpp
+class StepPatternEditor : public VSTGUI::CControl {
+    // Configuration
+    void setStepLevelBaseParamId(int32_t baseId);     // First step level parameter ID
+    void setNumSteps(int numSteps);                    // 2-32 visible steps
+    void setParameterCallback(ParameterCallback cb);   // Notify host of value changes
+    void setBeginEditCallback(BeginEditCallback cb);   // Gesture begin
+    void setEndEditCallback(EndEditCallback cb);       // Gesture end
+
+    // Step data
+    void setStepLevel(int index, float level);         // Set step level [0, 1]
+    float getStepLevel(int index) const;               // Get step level
+
+    // Euclidean rhythm
+    void setEuclideanEnabled(bool enabled);
+    void setEuclideanHits(int hits);
+    void setEuclideanRotation(int rotation);
+    void regenerateEuclidean();                         // Apply Bjorklund algorithm
+
+    // Playback
+    void setPlaybackStep(int step);                    // Highlight active step
+    void setPhaseOffset(float offset);                 // Visual phase offset line
+
+    // Presets and transforms
+    void applyPresetAll();                             // All steps to 1.0
+    void applyPresetOff();                             // All steps to 0.0
+    void applyPresetAlternate();                       // Alternating 1.0/0.0
+    void applyPresetRampUp();                          // Linear ramp 0->1
+    void applyPresetRampDown();                        // Linear ramp 1->0
+    void applyPresetRandom();                          // Random values
+    void applyTransformInvert();                       // 1.0 - level
+    void applyTransformShiftRight();                   // Rotate pattern right
+    void applyTransformShiftLeft();                    // Rotate pattern left
+};
+```
+
+**Features:**
+- Click-and-drag vertical editing with paint mode across steps
+- Shift+drag: fine mode (0.1x sensitivity, >= 1/1024th precision)
+- Double-click: reset step to 1.0; Alt+click: toggle 0/1
+- Escape key: revert to pre-drag levels
+- Euclidean dot indicators with ghost note preservation
+- Playback position highlight updated via atomic pointer (30fps poll)
+- Phase offset vertical line indicator
+- Scroll/zoom for high step counts (>16 steps)
+- Color-coded bars: accent (>0.85), normal (0.15-0.85), ghost (<0.15), silent (0.0)
+- Registered as "StepPatternEditor" via VSTGUI ViewCreator system
+
+**Consumers:** Ruinae TranceGate (Spec 046). Any future plugin needing step pattern editing.
+
+### ColorUtils
+**Path:** [color_utils.h](../../plugins/shared/src/ui/color_utils.h) | **Since:** 0.1.0
+
+Header-only color manipulation utilities for VSTGUI custom controls.
+
+```cpp
+namespace Krate::Plugins::ColorUtils {
+    CColor withAlpha(const CColor& color, uint8_t alpha);   // Set alpha channel
+    CColor blendColors(const CColor& a, const CColor& b, float t);  // Linear blend
+}
+```
+
+**Consumers:** ArcKnob, FieldsetContainer, StepPatternEditor.
+
+### ArcKnob
+**Path:** [arc_knob.h](../../plugins/shared/src/ui/arc_knob.h) | **Since:** 0.1.0
+
+Minimal arc-style knob control rendered as a filled arc with value indicator. Extends `VSTGUI::CControl`. Registered as "ArcKnob" via VSTGUI ViewCreator.
+
+### FieldsetContainer
+**Path:** [fieldset_container.h](../../plugins/shared/src/ui/fieldset_container.h) | **Since:** 0.1.0
+
+Labeled container with rounded border and title, similar to HTML fieldset. Extends `VSTGUI::CViewContainer`. Registered as "FieldsetContainer" via VSTGUI ViewCreator.
 
 ### Factory Preset Generator
 
@@ -472,7 +555,7 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 | 300-399 | Mixer (Mode, Position) | 2 |
 | 400-499 | Filter (Type, Cutoff, Resonance, EnvAmount, KeyTrack) | 5 |
 | 500-599 | Distortion (Type, Drive, Character, Mix) | 4 |
-| 600-699 | Trance Gate (Enabled, Steps, Rate, Depth, Attack, Release, Sync, NoteValue) | 8 |
+| 600-699 | Trance Gate (Enabled, NumSteps, Rate, Depth, Attack, Release, Sync, NoteValue, EuclideanEnabled, EuclideanHits, EuclideanRotation, PhaseOffset, StepLevels x32) | 44 |
 | 700-799 | Amp Envelope (ADSR) | 4 |
 | 800-899 | Filter Envelope (ADSR) | 4 |
 | 900-999 | Mod Envelope (ADSR) | 4 |
@@ -510,7 +593,8 @@ Stream Format (v1):
 
 - Unknown future versions: fail closed with safe defaults
 - Truncated streams: load what is available, keep defaults for rest
-- Version migration: stepwise N -> N+1 (to be implemented when v2 is needed)
+- Version migration: stepwise N -> N+1
+- TranceGateParams uses v2 format (adds 32 step levels, Euclidean params, phase offset; v1 migrates with full-volume defaults)
 
 ### Dropdown Mappings
 
