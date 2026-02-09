@@ -13,6 +13,24 @@ add_executable(ruinae_tests
     unit/ruinae_engine_integration_test.cpp
     unit/ruinae_voice_test.cpp
     unit/ruinae_effects_chain_test.cpp
+
+    # Plugin Shell Tests (045-plugin-shell)
+    unit/processor_bus_test.cpp
+    unit/param_denorm_test.cpp
+    unit/state_roundtrip_test.cpp
+    unit/state_migration_test.cpp
+    unit/controller_params_test.cpp
+    unit/controller_display_test.cpp
+    integration/processor_audio_test.cpp
+    integration/midi_events_test.cpp
+    integration/tempo_sync_test.cpp
+    integration/param_flow_test.cpp
+    integration/controller_state_test.cpp
+
+    # Processor/Controller implementation (needed by plugin shell tests)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 )
 
 target_link_libraries(ruinae_tests
@@ -41,6 +59,13 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/ruinae_engine_integration_test.cpp
         unit/ruinae_voice_test.cpp
         unit/ruinae_effects_chain_test.cpp
+        integration/processor_audio_test.cpp
+        integration/midi_events_test.cpp
+        integration/tempo_sync_test.cpp
+        integration/param_flow_test.cpp
+        integration/controller_state_test.cpp
+        unit/controller_params_test.cpp
+        unit/controller_display_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

@@ -57,6 +57,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Controller (UI Thread)
     src/controller/controller.h
     src/controller/controller.cpp
+    src/controller/parameter_helpers.h
 
     # VST3 SDK Common Sources (for MemoryStream used by preset saving)
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
@@ -64,6 +65,29 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Shared
     src/plugin_ids.h
     src/version.h
+
+    # Parameter Packs (19 sections)
+    src/parameters/dropdown_mappings.h
+    src/parameters/note_value_ui.h
+    src/parameters/global_params.h
+    src/parameters/osc_a_params.h
+    src/parameters/osc_b_params.h
+    src/parameters/mixer_params.h
+    src/parameters/filter_params.h
+    src/parameters/distortion_params.h
+    src/parameters/trance_gate_params.h
+    src/parameters/amp_env_params.h
+    src/parameters/filter_env_params.h
+    src/parameters/mod_env_params.h
+    src/parameters/lfo1_params.h
+    src/parameters/lfo2_params.h
+    src/parameters/chaos_mod_params.h
+    src/parameters/mod_matrix_params.h
+    src/parameters/global_filter_params.h
+    src/parameters/freeze_params.h
+    src/parameters/delay_params.h
+    src/parameters/reverb_params.h
+    src/parameters/mono_mode_params.h
 
     # Preset Configuration (adapter to shared library)
     src/preset/ruinae_preset_config.h

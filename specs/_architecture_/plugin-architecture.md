@@ -418,3 +418,107 @@ Band-level parameters use bit-encoded IDs:
 constexpr ParamID makeBandParamId(uint8_t band, BandParamType param);
 constexpr ParamID makeCrossoverParamId(uint8_t index);  // 0x0F10 + index
 ```
+
+---
+
+## Ruinae Plugin Components (Spec 045)
+
+### VST3 Components
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| Processor | `plugins/ruinae/src/processor/` | Audio processing (real-time) |
+| Controller | `plugins/ruinae/src/controller/` | UI state management |
+| Entry | `plugins/ruinae/src/entry.cpp` | Factory registration |
+| IDs | `plugins/ruinae/src/plugin_ids.h` | Parameter and component IDs |
+
+### RuinaeEngine Integration
+
+The Processor owns a `Krate::DSP::RuinaeEngine` instance that handles all DSP: voice pool (16 max), modulation, effects chain, and master output. The Processor serves as the bridge between VST3 host APIs and the engine.
+
+```
+Host MIDI events -> Processor::processEvents() -> engine_.noteOn/noteOff()
+Host param changes -> processParameterChanges() -> atomic storage -> applyParamsToEngine() -> engine setters
+Host tempo/transport -> ProcessContext -> BlockContext -> engine_.setBlockContext()
+Engine audio output -> process() output buffers -> Host
+```
+
+### Parameter Pack Pattern (19 Sections)
+
+Each synthesizer section has a self-contained header in `plugins/ruinae/src/parameters/`:
+
+```cpp
+// Example: global_params.h
+struct GlobalParams {                    // Atomic storage for thread-safe access
+    std::atomic<float> masterGain{1.0f};
+    std::atomic<int> voiceMode{0};
+    // ...
+};
+void handleGlobalParamChange(...);       // Denormalize 0-1 to real-world values
+void registerGlobalParams(...);          // Register in Controller with names/units
+tresult formatGlobalParam(...);          // Display formatting ("0.0 dB", "440 Hz")
+void saveGlobalParams(...);              // Serialize to IBStreamer
+bool loadGlobalParams(...);              // Deserialize from IBStreamer
+void loadGlobalParamsToController(...);  // Sync Controller display from state
+```
+
+### Parameter ID Allocation (Flat Ranges)
+
+| Range | Section | Count |
+|-------|---------|-------|
+| 0-99 | Global (Gain, Voice Mode, Polyphony, Soft Limit) | 4 |
+| 100-199 | OSC A (Type, Tune, Fine, Level, Phase) | 5 |
+| 200-299 | OSC B (same as OSC A) | 5 |
+| 300-399 | Mixer (Mode, Position) | 2 |
+| 400-499 | Filter (Type, Cutoff, Resonance, EnvAmount, KeyTrack) | 5 |
+| 500-599 | Distortion (Type, Drive, Character, Mix) | 4 |
+| 600-699 | Trance Gate (Enabled, Steps, Rate, Depth, Attack, Release, Sync, NoteValue) | 8 |
+| 700-799 | Amp Envelope (ADSR) | 4 |
+| 800-899 | Filter Envelope (ADSR) | 4 |
+| 900-999 | Mod Envelope (ADSR) | 4 |
+| 1000-1099 | LFO 1 (Rate, Shape, Depth, Sync) | 4 |
+| 1100-1199 | LFO 2 (same as LFO 1) | 4 |
+| 1200-1299 | Chaos Mod (Rate, Type, Depth) | 3 |
+| 1300-1399 | Mod Matrix (8 slots x Source/Dest/Amount) | 24 |
+| 1400-1499 | Global Filter (Enabled, Type, Cutoff, Resonance) | 4 |
+| 1500-1599 | Freeze (Enabled, Toggle) | 2 |
+| 1600-1699 | Delay (Type, Time, Feedback, Mix, Sync, NoteValue) | 6 |
+| 1700-1799 | Reverb (Size, Damping, Width, Mix, PreDelay, Diffusion, Freeze, ModRate, ModDepth) | 9 |
+| 1800-1899 | Mono Mode (Priority, Legato, Portamento, PortaMode) | 4 |
+
+### Denormalization Mappings
+
+| Mapping | Parameters | Formula |
+|---------|------------|---------|
+| Linear | Gain, Levels, Mix, Depth, Sustain | `value * range` |
+| Exponential | Filter Cutoff (20-20kHz) | `20 * pow(1000, normalized)` |
+| Exponential | LFO Rate (0.01-50Hz) | `0.01 * pow(5000, normalized)` |
+| Cubic | Envelope Times (0-10000ms) | `normalized^3 * 10000` |
+| Cubic | Portamento Time (0-5000ms) | `normalized^3 * 5000` |
+| Bipolar | Tune (-24/+24 st), Mod Amount (-1/+1) | `normalized * range - offset` |
+
+### Versioned State Persistence
+
+```
+Stream Format (v1):
+  int32: stateVersion (1)
+  [GlobalParams] [OscAParams] [OscBParams] [MixerParams] [FilterParams]
+  [DistortionParams] [TranceGateParams] [AmpEnvParams] [FilterEnvParams]
+  [ModEnvParams] [LFO1Params] [LFO2Params] [ChaosModParams] [ModMatrixParams]
+  [GlobalFilterParams] [FreezeParams] [DelayParams] [ReverbParams] [MonoModeParams]
+```
+
+- Unknown future versions: fail closed with safe defaults
+- Truncated streams: load what is available, keep defaults for rest
+- Version migration: stepwise N -> N+1 (to be implemented when v2 is needed)
+
+### Dropdown Mappings
+
+`plugins/ruinae/src/parameters/dropdown_mappings.h` provides enum-to-string mappings for all discrete parameters (OscType, FilterType, DistortionType, Waveform, MonoMode, PortaMode, SVFMode, ModSource, RuinaeModDest, ChaosType, NumSteps).
+
+### Shared Utilities
+
+| File | Purpose | Origin |
+|------|---------|--------|
+| `controller/parameter_helpers.h` | Dropdown parameter creation helpers | Copied from Iterum |
+| `parameters/note_value_ui.h` | Note value dropdown strings | Copied from Iterum |

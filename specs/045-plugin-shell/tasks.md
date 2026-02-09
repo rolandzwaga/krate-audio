@@ -64,9 +64,9 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 **Purpose**: Copy helper files and create dropdown mappings that all parameter packs depend on
 
-- [ ] T001 [P] Copy parameter_helpers.h from plugins/iterum/src/controller/parameter_helpers.h to plugins/ruinae/src/controller/parameter_helpers.h, change namespace from Iterum to Ruinae
-- [ ] T002 [P] Copy note_value_ui.h from plugins/iterum/src/parameters/note_value_ui.h to plugins/ruinae/src/parameters/note_value_ui.h, change namespace from Iterum::Parameters to Ruinae::Parameters
-- [ ] T003 Create dropdown_mappings.h in plugins/ruinae/src/parameters/dropdown_mappings.h with enum-to-dropdown conversion functions for all Ruinae types (OscType, RuinaeFilterType, RuinaeDistortionType, MixMode, RuinaeDelayType, Waveform, MonoMode, PortaMode, SVFMode, ModSource, RuinaeModDest)
+- [X] T001 [P] Copy parameter_helpers.h from plugins/iterum/src/controller/parameter_helpers.h to plugins/ruinae/src/controller/parameter_helpers.h, change namespace from Iterum to Ruinae
+- [X] T002 [P] Copy note_value_ui.h from plugins/iterum/src/parameters/note_value_ui.h to plugins/ruinae/src/parameters/note_value_ui.h, change namespace from Iterum::Parameters to Ruinae::Parameters
+- [X] T003 Create dropdown_mappings.h in plugins/ruinae/src/parameters/dropdown_mappings.h with enum-to-dropdown conversion functions for all Ruinae types (OscType, RuinaeFilterType, RuinaeDistortionType, MixMode, RuinaeDelayType, Waveform, MonoMode, PortaMode, SVFMode, ModSource, RuinaeModDest)
 
 ---
 
@@ -78,67 +78,67 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 2.1 Global Section Parameters (ID 0-99)
 
-- [ ] T004 [P] Create global_params.h in plugins/ruinae/src/parameters/global_params.h with GlobalParams struct (masterGain, voiceMode, polyphony, softLimit) and all 6 required functions
+- [X] T004 [P] Create global_params.h in plugins/ruinae/src/parameters/global_params.h with GlobalParams struct (masterGain, voiceMode, polyphony, softLimit) and all 6 required functions
 
 ### 2.2 Oscillator Parameters (ID 100-299)
 
-- [ ] T005 [P] Create osc_a_params.h in plugins/ruinae/src/parameters/osc_a_params.h with OscAParams struct (type, tuneSemitones, fineCents, level, phase) and all 6 required functions
-- [ ] T006 [P] Create osc_b_params.h in plugins/ruinae/src/parameters/osc_b_params.h with OscBParams struct (type, tuneSemitones, fineCents, level, phase) and all 6 required functions
+- [X] T005 [P] Create osc_a_params.h in plugins/ruinae/src/parameters/osc_a_params.h with OscAParams struct (type, tuneSemitones, fineCents, level, phase) and all 6 required functions
+- [X] T006 [P] Create osc_b_params.h in plugins/ruinae/src/parameters/osc_b_params.h with OscBParams struct (type, tuneSemitones, fineCents, level, phase) and all 6 required functions
 
 ### 2.3 Mixer Parameters (ID 300-399)
 
-- [ ] T007 [P] Create mixer_params.h in plugins/ruinae/src/parameters/mixer_params.h with MixerParams struct (mode, position) and all 6 required functions
+- [X] T007 [P] Create mixer_params.h in plugins/ruinae/src/parameters/mixer_params.h with MixerParams struct (mode, position) and all 6 required functions
 
 ### 2.4 Filter Parameters (ID 400-499)
 
-- [ ] T008 [P] Create filter_params.h in plugins/ruinae/src/parameters/filter_params.h with RuinaeFilterParams struct (type, cutoffHz, resonance, envAmount, keyTrack) and all 6 required functions
+- [X] T008 [P] Create filter_params.h in plugins/ruinae/src/parameters/filter_params.h with RuinaeFilterParams struct (type, cutoffHz, resonance, envAmount, keyTrack) and all 6 required functions
 
 ### 2.5 Distortion Parameters (ID 500-599)
 
-- [ ] T009 [P] Create distortion_params.h in plugins/ruinae/src/parameters/distortion_params.h with RuinaeDistortionParams struct (type, drive, character, mix) and all 6 required functions
+- [X] T009 [P] Create distortion_params.h in plugins/ruinae/src/parameters/distortion_params.h with RuinaeDistortionParams struct (type, drive, character, mix) and all 6 required functions
 
 ### 2.6 Trance Gate Parameters (ID 600-699)
 
-- [ ] T010 [P] Create trance_gate_params.h in plugins/ruinae/src/parameters/trance_gate_params.h with RuinaeTranceGateParams struct (enabled, numSteps, rateHz, depth, attackMs, releaseMs, tempoSync, noteValue) and all 6 required functions
+- [X] T010 [P] Create trance_gate_params.h in plugins/ruinae/src/parameters/trance_gate_params.h with RuinaeTranceGateParams struct (enabled, numSteps, rateHz, depth, attackMs, releaseMs, tempoSync, noteValue) and all 6 required functions
 
 ### 2.7 Envelope Parameters (ID 700-999)
 
-- [ ] T011 [P] Create amp_env_params.h in plugins/ruinae/src/parameters/amp_env_params.h with AmpEnvParams struct (attackMs, decayMs, sustain, releaseMs) and all 6 required functions
-- [ ] T012 [P] Create filter_env_params.h in plugins/ruinae/src/parameters/filter_env_params.h with FilterEnvParams struct (attackMs, decayMs, sustain, releaseMs) and all 6 required functions
-- [ ] T013 [P] Create mod_env_params.h in plugins/ruinae/src/parameters/mod_env_params.h with ModEnvParams struct (attackMs, decayMs, sustain, releaseMs) and all 6 required functions
+- [X] T011 [P] Create amp_env_params.h in plugins/ruinae/src/parameters/amp_env_params.h with AmpEnvParams struct (attackMs, decayMs, sustain, releaseMs) and all 6 required functions
+- [X] T012 [P] Create filter_env_params.h in plugins/ruinae/src/parameters/filter_env_params.h with FilterEnvParams struct (attackMs, decayMs, sustain, releaseMs) and all 6 required functions
+- [X] T013 [P] Create mod_env_params.h in plugins/ruinae/src/parameters/mod_env_params.h with ModEnvParams struct (attackMs, decayMs, sustain, releaseMs) and all 6 required functions
 
 ### 2.8 LFO Parameters (ID 1000-1199)
 
-- [ ] T014 [P] Create lfo1_params.h in plugins/ruinae/src/parameters/lfo1_params.h with LFO1Params struct (rateHz, shape, depth, sync) and all 6 required functions
-- [ ] T015 [P] Create lfo2_params.h in plugins/ruinae/src/parameters/lfo2_params.h with LFO2Params struct (rateHz, shape, depth, sync) and all 6 required functions
+- [X] T014 [P] Create lfo1_params.h in plugins/ruinae/src/parameters/lfo1_params.h with LFO1Params struct (rateHz, shape, depth, sync) and all 6 required functions
+- [X] T015 [P] Create lfo2_params.h in plugins/ruinae/src/parameters/lfo2_params.h with LFO2Params struct (rateHz, shape, depth, sync) and all 6 required functions
 
 ### 2.9 Chaos Modulation Parameters (ID 1200-1299)
 
-- [ ] T016 [P] Create chaos_mod_params.h in plugins/ruinae/src/parameters/chaos_mod_params.h with ChaosModParams struct (rateHz, type, depth) and all 6 required functions
+- [X] T016 [P] Create chaos_mod_params.h in plugins/ruinae/src/parameters/chaos_mod_params.h with ChaosModParams struct (rateHz, type, depth) and all 6 required functions
 
 ### 2.10 Modulation Matrix Parameters (ID 1300-1399)
 
-- [ ] T017 [P] Create mod_matrix_params.h in plugins/ruinae/src/parameters/mod_matrix_params.h with ModMatrixParams struct (8 slots with source, dest, amount per slot) and all 6 required functions
+- [X] T017 [P] Create mod_matrix_params.h in plugins/ruinae/src/parameters/mod_matrix_params.h with ModMatrixParams struct (8 slots with source, dest, amount per slot) and all 6 required functions
 
 ### 2.11 Global Filter Parameters (ID 1400-1499)
 
-- [ ] T018 [P] Create global_filter_params.h in plugins/ruinae/src/parameters/global_filter_params.h with GlobalFilterParams struct (enabled, type, cutoffHz, resonance) and all 6 required functions
+- [X] T018 [P] Create global_filter_params.h in plugins/ruinae/src/parameters/global_filter_params.h with GlobalFilterParams struct (enabled, type, cutoffHz, resonance) and all 6 required functions
 
 ### 2.12 Freeze Parameters (ID 1500-1599)
 
-- [ ] T019 [P] Create freeze_params.h in plugins/ruinae/src/parameters/freeze_params.h with RuinaeFreezeParams struct (enabled, freeze) and all 6 required functions
+- [X] T019 [P] Create freeze_params.h in plugins/ruinae/src/parameters/freeze_params.h with RuinaeFreezeParams struct (enabled, freeze) and all 6 required functions
 
 ### 2.13 Delay Parameters (ID 1600-1699)
 
-- [ ] T020 [P] Create delay_params.h in plugins/ruinae/src/parameters/delay_params.h with RuinaeDelayParams struct (type, timeMs, feedback, mix, sync, noteValue) and all 6 required functions
+- [X] T020 [P] Create delay_params.h in plugins/ruinae/src/parameters/delay_params.h with RuinaeDelayParams struct (type, timeMs, feedback, mix, sync, noteValue) and all 6 required functions
 
 ### 2.14 Reverb Parameters (ID 1700-1799)
 
-- [ ] T021 [P] Create reverb_params.h in plugins/ruinae/src/parameters/reverb_params.h with RuinaeReverbParams struct (size, damping, width, mix, preDelayMs, diffusion, freeze, modRateHz, modDepth) and all 6 required functions
+- [X] T021 [P] Create reverb_params.h in plugins/ruinae/src/parameters/reverb_params.h with RuinaeReverbParams struct (size, damping, width, mix, preDelayMs, diffusion, freeze, modRateHz, modDepth) and all 6 required functions
 
 ### 2.15 Mono Mode Parameters (ID 1800-1899)
 
-- [ ] T022 [P] Create mono_mode_params.h in plugins/ruinae/src/parameters/mono_mode_params.h with MonoModeParams struct (priority, legato, portamentoTimeMs, portaMode) and all 6 required functions
+- [X] T022 [P] Create mono_mode_params.h in plugins/ruinae/src/parameters/mono_mode_params.h with MonoModeParams struct (priority, legato, portamentoTimeMs, portaMode) and all 6 required functions
 
 **Checkpoint**: All 19 parameter packs created - ready for user story implementation
 
@@ -154,27 +154,27 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T023 [US1] Write failing integration test in plugins/ruinae/tests/integration/processor_audio_test.cpp verifying Processor lifecycle (initialize, setupProcessing, setActive, process with MIDI noteOn produces audio, noteOff leads to silence)
-- [ ] T024 [US1] Write failing unit test in plugins/ruinae/tests/unit/processor_bus_test.cpp verifying bus configuration (no audio input, one stereo output, setBusArrangements rejects invalid configs)
+- [X] T023 [US1] Write failing integration test in plugins/ruinae/tests/integration/processor_audio_test.cpp verifying Processor lifecycle (initialize, setupProcessing, setActive, process with MIDI noteOn produces audio, noteOff leads to silence)
+- [X] T024 [US1] Write failing unit test in plugins/ruinae/tests/unit/processor_bus_test.cpp verifying bus configuration (no audio input, one stereo output, setBusArrangements rejects invalid configs)
 
 ### 3.2 Implementation for User Story 1
 
-- [ ] T025 [US1] Update plugins/ruinae/src/processor/processor.h to add RuinaeEngine member, all 19 parameter pack struct members, scratch buffers for audio processing
-- [ ] T026 [US1] Implement Processor::initialize() in plugins/ruinae/src/processor/processor.cpp to configure bus layout (0 audio inputs, 1 stereo output, 1 event input)
-- [ ] T027 [US1] Implement Processor::setupProcessing() in plugins/ruinae/src/processor/processor.cpp to allocate scratch buffers and call engine.prepare(sampleRate, maxBlockSize)
-- [ ] T028 [US1] Implement Processor::setActive() in plugins/ruinae/src/processor/processor.cpp to call engine.reset() on activation
-- [ ] T029 [US1] Implement MIDI event dispatch in Processor::process() in plugins/ruinae/src/processor/processor.cpp to iterate IEventList, handle noteOn/noteOff events (including velocity-0 noteOn as noteOff), dispatch to engine.noteOn(note, velocity) and engine.noteOff(note)
-- [ ] T030 [US1] Implement audio generation in Processor::process() in plugins/ruinae/src/processor/processor.cpp to call engine.processBlock(leftOut, rightOut, numSamples) and copy to host output buffers
-- [ ] T031 [US1] Implement Processor::setBusArrangements() in plugins/ruinae/src/processor/processor.cpp to accept only zero audio inputs + one stereo output, reject all other configurations with kResultFalse
+- [X] T025 [US1] Update plugins/ruinae/src/processor/processor.h to add RuinaeEngine member, all 19 parameter pack struct members, scratch buffers for audio processing
+- [X] T026 [US1] Implement Processor::initialize() in plugins/ruinae/src/processor/processor.cpp to configure bus layout (0 audio inputs, 1 stereo output, 1 event input)
+- [X] T027 [US1] Implement Processor::setupProcessing() in plugins/ruinae/src/processor/processor.cpp to allocate scratch buffers and call engine.prepare(sampleRate, maxBlockSize)
+- [X] T028 [US1] Implement Processor::setActive() in plugins/ruinae/src/processor/processor.cpp to call engine.reset() on activation
+- [X] T029 [US1] Implement MIDI event dispatch in Processor::process() in plugins/ruinae/src/processor/processor.cpp to iterate IEventList, handle noteOn/noteOff events (including velocity-0 noteOn as noteOff), dispatch to engine.noteOn(note, velocity) and engine.noteOff(note)
+- [X] T030 [US1] Implement audio generation in Processor::process() in plugins/ruinae/src/processor/processor.cpp to call engine.processBlock(leftOut, rightOut, numSamples) and copy to host output buffers
+- [X] T031 [US1] Implement Processor::setBusArrangements() in plugins/ruinae/src/processor/processor.cpp to accept only zero audio inputs + one stereo output, reject all other configurations with kResultFalse
 
 ### 3.3 Verification for User Story 1
 
-- [ ] T032 [US1] Run plugins/ruinae/tests/integration/processor_audio_test.cpp and verify all tests pass
-- [ ] T033 [US1] Run plugins/ruinae/tests/unit/processor_bus_test.cpp and verify all tests pass
+- [X] T032 [US1] Run plugins/ruinae/tests/integration/processor_audio_test.cpp and verify all tests pass
+- [X] T033 [US1] Run plugins/ruinae/tests/unit/processor_bus_test.cpp and verify all tests pass
 
 ### 3.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T034 [US1] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
+- [X] T034 [US1] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
 
 ### 3.5 Commit (MANDATORY)
 
@@ -194,22 +194,22 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T036 [US2] Write failing unit test in plugins/ruinae/tests/unit/controller_params_test.cpp verifying all parameters are registered with correct count, names, units, step counts, and kCanAutomate flag
-- [ ] T037 [US2] Write failing unit test in plugins/ruinae/tests/unit/controller_display_test.cpp verifying getParamStringByValue() returns correct formatted strings with units for each parameter type (Hz, ms, %, st, dB, ct)
+- [X] T036 [US2] Write failing unit test in plugins/ruinae/tests/unit/controller_params_test.cpp verifying all parameters are registered with correct count, names, units, step counts, and kCanAutomate flag
+- [X] T037 [US2] Write failing unit test in plugins/ruinae/tests/unit/controller_display_test.cpp verifying getParamStringByValue() returns correct formatted strings with units for each parameter type (Hz, ms, %, st, dB, ct)
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T038 [US2] Implement Controller::initialize() in plugins/ruinae/src/controller/controller.cpp to call all 19 parameter pack registration functions (registerGlobalParams, registerOscAParams, registerOscBParams, registerMixerParams, registerFilterParams, registerDistortionParams, registerTranceGateParams, registerAmpEnvParams, registerFilterEnvParams, registerModEnvParams, registerLFO1Params, registerLFO2Params, registerChaosModParams, registerModMatrixParams, registerGlobalFilterParams, registerFreezeParams, registerDelayParams, registerReverbParams, registerMonoModeParams)
-- [ ] T039 [US2] Implement Controller::getParamStringByValue() in plugins/ruinae/src/controller/controller.cpp to route by ID range to each parameter pack's display formatter function
+- [X] T038 [US2] Implement Controller::initialize() in plugins/ruinae/src/controller/controller.cpp to call all 19 parameter pack registration functions (registerGlobalParams, registerOscAParams, registerOscBParams, registerMixerParams, registerFilterParams, registerDistortionParams, registerTranceGateParams, registerAmpEnvParams, registerFilterEnvParams, registerModEnvParams, registerLFO1Params, registerLFO2Params, registerChaosModParams, registerModMatrixParams, registerGlobalFilterParams, registerFreezeParams, registerDelayParams, registerReverbParams, registerMonoModeParams)
+- [X] T039 [US2] Implement Controller::getParamStringByValue() in plugins/ruinae/src/controller/controller.cpp to route by ID range to each parameter pack's display formatter function
 
 ### 4.3 Verification for User Story 2
 
-- [ ] T040 [US2] Run plugins/ruinae/tests/unit/controller_params_test.cpp and verify all tests pass
-- [ ] T041 [US2] Run plugins/ruinae/tests/unit/controller_display_test.cpp and verify all tests pass
+- [X] T040 [US2] Run plugins/ruinae/tests/unit/controller_params_test.cpp and verify all tests pass
+- [X] T041 [US2] Run plugins/ruinae/tests/unit/controller_display_test.cpp and verify all tests pass
 
 ### 4.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T042 [US2] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
+- [X] T042 [US2] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
 
 ### 4.5 Commit (MANDATORY)
 
@@ -229,23 +229,23 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T044 [US3] Write failing integration test in plugins/ruinae/tests/integration/param_flow_test.cpp verifying parameter changes flow from IParameterChanges queue through processParameterChanges() to engine (test filter cutoff, distortion type, oscillator type, and envelope times as representative examples)
-- [ ] T045 [US3] Write failing unit test in plugins/ruinae/tests/unit/param_denorm_test.cpp verifying denormalization produces correct real-world values for each parameter pack (exponential mappings for frequencies/times, linear for others, bipolar for mod matrix amounts)
+- [X] T044 [US3] Write failing integration test in plugins/ruinae/tests/integration/param_flow_test.cpp verifying parameter changes flow from IParameterChanges queue through processParameterChanges() to engine (test filter cutoff, distortion type, oscillator type, and envelope times as representative examples)
+- [X] T045 [US3] Write failing unit test in plugins/ruinae/tests/unit/param_denorm_test.cpp verifying denormalization produces correct real-world values for each parameter pack (exponential mappings for frequencies/times, linear for others, bipolar for mod matrix amounts)
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T046 [US3] Implement Processor::processParameterChanges() in plugins/ruinae/src/processor/processor.cpp to iterate IParameterChanges, get last point value, route by ID range to appropriate parameter pack handler (if id in 0-99: handleGlobalParamChange, if id in 100-199: handleOscAParamChange, if id in 200-299: handleOscBParamChange, etc. for all 19 sections)
-- [ ] T047 [US3] Implement applyParamsToEngine() helper function in plugins/ruinae/src/processor/processor.cpp to read all atomic parameter values and call corresponding RuinaeEngine setters (setMasterGain, setMode, setPolyphony, setSoftLimitEnabled, setOscAType, setOscBType, setMixMode, setMixPosition, setFilterType, setFilterCutoff, setFilterResonance, setFilterEnvAmount, setFilterKeyTrack, setDistortionType, setDistortionDrive, setDistortionCharacter, setTranceGateEnabled, setTranceGateParams, setAmpAttack/Decay/Sustain/Release, setFilterAttack/Decay/Sustain/Release, setModAttack/Decay/Sustain/Release, setGlobalLFO1Rate/Waveform, setGlobalLFO2Rate/Waveform, setChaosSpeed, setGlobalModRoute for all 8 slots, setGlobalFilterEnabled/Type/Cutoff/Resonance, setFreezeEnabled, setFreeze, setDelayType/Time/Feedback/Mix, setReverbParams, setMonoPriority, setLegato, setPortamentoTime, setPortamentoMode)
-- [ ] T048 [US3] Update Processor::process() in plugins/ruinae/src/processor/processor.cpp to call processParameterChanges() before audio processing and applyParamsToEngine() before calling engine.processBlock()
+- [X] T046 [US3] Implement Processor::processParameterChanges() in plugins/ruinae/src/processor/processor.cpp to iterate IParameterChanges, get last point value, route by ID range to appropriate parameter pack handler (if id in 0-99: handleGlobalParamChange, if id in 100-199: handleOscAParamChange, if id in 200-299: handleOscBParamChange, etc. for all 19 sections)
+- [X] T047 [US3] Implement applyParamsToEngine() helper function in plugins/ruinae/src/processor/processor.cpp to read all atomic parameter values and call corresponding RuinaeEngine setters (setMasterGain, setMode, setPolyphony, setSoftLimitEnabled, setOscAType, setOscBType, setMixMode, setMixPosition, setFilterType, setFilterCutoff, setFilterResonance, setFilterEnvAmount, setFilterKeyTrack, setDistortionType, setDistortionDrive, setDistortionCharacter, setTranceGateEnabled, setTranceGateParams, setAmpAttack/Decay/Sustain/Release, setFilterAttack/Decay/Sustain/Release, setModAttack/Decay/Sustain/Release, setGlobalLFO1Rate/Waveform, setGlobalLFO2Rate/Waveform, setChaosSpeed, setGlobalModRoute for all 8 slots, setGlobalFilterEnabled/Type/Cutoff/Resonance, setFreezeEnabled, setFreeze, setDelayType/Time/Feedback/Mix, setReverbParams, setMonoPriority, setLegato, setPortamentoTime, setPortamentoMode)
+- [X] T048 [US3] Update Processor::process() in plugins/ruinae/src/processor/processor.cpp to call processParameterChanges() before audio processing and applyParamsToEngine() before calling engine.processBlock()
 
 ### 5.3 Verification for User Story 3
 
-- [ ] T049 [US3] Run plugins/ruinae/tests/integration/param_flow_test.cpp and verify all tests pass
-- [ ] T050 [US3] Run plugins/ruinae/tests/unit/param_denorm_test.cpp and verify all tests pass
+- [X] T049 [US3] Run plugins/ruinae/tests/integration/param_flow_test.cpp and verify all tests pass
+- [X] T050 [US3] Run plugins/ruinae/tests/unit/param_denorm_test.cpp and verify all tests pass
 
 ### 5.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T051 [US3] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
+- [X] T051 [US3] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
 
 ### 5.5 Commit (MANDATORY)
 
@@ -265,25 +265,25 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T053 [US4] Write failing unit test in plugins/ruinae/tests/unit/state_roundtrip_test.cpp verifying getState() followed by setState() on new Processor preserves all parameter values (within 1e-6 precision)
-- [ ] T054 [US4] Write failing unit test in plugins/ruinae/tests/unit/state_migration_test.cpp verifying forward-compat rejection (version 999 loads with safe defaults and returns kResultTrue) and truncated stream handling (loads safe defaults without crash). Note (A7): Migration testing is baseline-only - v1 round-trip and forward-compat rejection. v1→v2 step migration testing will be added when v2 exists.
-- [ ] T055 [US4] Write failing integration test in plugins/ruinae/tests/integration/controller_state_test.cpp verifying Controller::setComponentState() synchronizes all parameters to match Processor state stream
+- [X] T053 [US4] Write failing unit test in plugins/ruinae/tests/unit/state_roundtrip_test.cpp verifying getState() followed by setState() on new Processor preserves all parameter values (within 1e-6 precision)
+- [X] T054 [US4] Write failing unit test in plugins/ruinae/tests/unit/state_migration_test.cpp verifying forward-compat rejection (version 999 loads with safe defaults and returns kResultTrue) and truncated stream handling (loads safe defaults without crash). Note (A7): Migration testing is baseline-only - v1 round-trip and forward-compat rejection. v1→v2 step migration testing will be added when v2 exists.
+- [X] T055 [US4] Write failing integration test in plugins/ruinae/tests/integration/controller_state_test.cpp verifying Controller::setComponentState() synchronizes all parameters to match Processor state stream
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T056 [US4] Implement Processor::getState() in plugins/ruinae/src/processor/processor.cpp to write stateVersion (int32, value=1) followed by all 19 parameter pack save functions in deterministic order (saveGlobalParams, saveOscAParams, saveOscBParams, saveMixerParams, saveFilterParams, saveDistortionParams, saveTranceGateParams, saveAmpEnvParams, saveFilterEnvParams, saveModEnvParams, saveLFO1Params, saveLFO2Params, saveChaosModParams, saveModMatrixParams, saveGlobalFilterParams, saveFreezeParams, saveDelayParams, saveReverbParams, saveMonoModeParams)
-- [ ] T057 [US4] Implement Processor::setState() in plugins/ruinae/src/processor/processor.cpp to read stateVersion (int32), verify version==1 or fail closed with safe defaults for future versions, call all 19 parameter pack load functions in same order as save, handle truncated streams gracefully by failing closed with safe defaults
-- [ ] T058 [US4] Implement Controller::setComponentState() in plugins/ruinae/src/controller/controller.cpp to read stateVersion, call all 19 parameter pack controller sync functions in same order (loadGlobalParamsToController, loadOscAParamsToController, etc.), each sync function reads stream and calls setParamNormalized() to update Controller parameter display
+- [X] T056 [US4] Implement Processor::getState() in plugins/ruinae/src/processor/processor.cpp to write stateVersion (int32, value=1) followed by all 19 parameter pack save functions in deterministic order (saveGlobalParams, saveOscAParams, saveOscBParams, saveMixerParams, saveFilterParams, saveDistortionParams, saveTranceGateParams, saveAmpEnvParams, saveFilterEnvParams, saveModEnvParams, saveLFO1Params, saveLFO2Params, saveChaosModParams, saveModMatrixParams, saveGlobalFilterParams, saveFreezeParams, saveDelayParams, saveReverbParams, saveMonoModeParams)
+- [X] T057 [US4] Implement Processor::setState() in plugins/ruinae/src/processor/processor.cpp to read stateVersion (int32), verify version==1 or fail closed with safe defaults for future versions, call all 19 parameter pack load functions in same order as save, handle truncated streams gracefully by failing closed with safe defaults
+- [X] T058 [US4] Implement Controller::setComponentState() in plugins/ruinae/src/controller/controller.cpp to read stateVersion, call all 19 parameter pack controller sync functions in same order (loadGlobalParamsToController, loadOscAParamsToController, etc.), each sync function reads stream and calls setParamNormalized() to update Controller parameter display
 
 ### 6.3 Verification for User Story 4
 
-- [ ] T059 [US4] Run plugins/ruinae/tests/unit/state_roundtrip_test.cpp and verify all tests pass
-- [ ] T060 [US4] Run plugins/ruinae/tests/unit/state_migration_test.cpp and verify all tests pass
-- [ ] T061 [US4] Run plugins/ruinae/tests/integration/controller_state_test.cpp and verify all tests pass
+- [X] T059 [US4] Run plugins/ruinae/tests/unit/state_roundtrip_test.cpp and verify all tests pass
+- [X] T060 [US4] Run plugins/ruinae/tests/unit/state_migration_test.cpp and verify all tests pass
+- [X] T061 [US4] Run plugins/ruinae/tests/integration/controller_state_test.cpp and verify all tests pass
 
 ### 6.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T062 [US4] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
+- [X] T062 [US4] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
 
 ### 6.5 Commit (MANDATORY)
 
@@ -303,19 +303,19 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T064 [US5] Write failing integration test in plugins/ruinae/tests/integration/midi_events_test.cpp verifying multiple noteOn events at different sample offsets are dispatched in order, noteOff events trigger release, pitch bend events update engine state, unsupported events are ignored
+- [X] T064 [US5] Write failing integration test in plugins/ruinae/tests/integration/midi_events_test.cpp verifying multiple noteOn events at different sample offsets are dispatched in order, noteOff events trigger release, pitch bend events update engine state, unsupported events are ignored
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T065 [US5] Enhance MIDI event handling in Processor::process() in plugins/ruinae/src/processor/processor.cpp to handle pitch bend events (call engine.setPitchBend(bipolar value)), aftertouch events (call engine.setAftertouch(value)), and ignore unsupported event types gracefully
+- [X] T065 [US5] Enhance MIDI event handling in Processor::process() in plugins/ruinae/src/processor/processor.cpp to handle pitch bend events (call engine.setPitchBend(bipolar value)), aftertouch events (call engine.setAftertouch(value)), and ignore unsupported event types gracefully
 
 ### 7.3 Verification for User Story 5
 
-- [ ] T066 [US5] Run plugins/ruinae/tests/integration/midi_events_test.cpp and verify all tests pass
+- [X] T066 [US5] Run plugins/ruinae/tests/integration/midi_events_test.cpp and verify all tests pass
 
 ### 7.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T067 [US5] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
+- [X] T067 [US5] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
 
 ### 7.5 Commit (MANDATORY)
 
@@ -335,19 +335,19 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T069 [US6] Write failing integration test in plugins/ruinae/tests/integration/tempo_sync_test.cpp verifying ProcessContext tempo/time signature are forwarded to engine BlockContext, and default values (120 BPM, 4/4) are used when ProcessContext is null
+- [X] T069 [US6] Write failing integration test in plugins/ruinae/tests/integration/tempo_sync_test.cpp verifying ProcessContext tempo/time signature are forwarded to engine BlockContext, and default values (120 BPM, 4/4) are used when ProcessContext is null
 
 ### 8.2 Implementation for User Story 6
 
-- [ ] T070 [US6] Implement tempo forwarding in Processor::process() in plugins/ruinae/src/processor/processor.cpp to read data.processContext (if available), extract tempo (tempoBPM), time signature (numerator, denominator), transport state (isPlaying), construct BlockContext struct, call engine.setBlockContext(ctx) before processBlock()
+- [X] T070 [US6] Implement tempo forwarding in Processor::process() in plugins/ruinae/src/processor/processor.cpp to read data.processContext (if available), extract tempo (tempoBPM), time signature (numerator, denominator), transport state (isPlaying), construct BlockContext struct, call engine.setBlockContext(ctx) before processBlock()
 
 ### 8.3 Verification for User Story 6
 
-- [ ] T071 [US6] Run plugins/ruinae/tests/integration/tempo_sync_test.cpp and verify all tests pass
+- [X] T071 [US6] Run plugins/ruinae/tests/integration/tempo_sync_test.cpp and verify all tests pass
 
 ### 8.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T072 [US6] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
+- [X] T072 [US6] Verify IEEE 754 compliance: Check if test files use std::isnan/std::isfinite/std::isinf, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
 
 ### 8.5 Commit (MANDATORY)
 
@@ -365,18 +365,18 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 9.1 Implementation for User Story 7
 
-- [ ] T074 [US7] Update plugins/ruinae/CMakeLists.txt to add all new source files (all 19 parameter pack headers, parameter_helpers.h, note_value_ui.h, dropdown_mappings.h) to the source list
-- [ ] T075 [US7] Update plugins/ruinae/tests/CMakeLists.txt to add all new test sources (processor_audio_test.cpp, processor_bus_test.cpp, controller_params_test.cpp, controller_display_test.cpp, param_flow_test.cpp, param_denorm_test.cpp, state_roundtrip_test.cpp, state_migration_test.cpp, controller_state_test.cpp, midi_events_test.cpp, tempo_sync_test.cpp)
-- [ ] T076 [US7] Build the plugin with CMake windows-x64-release preset and fix any compiler warnings (MSVC /W4 compliance)
+- [X] T074 [US7] Update plugins/ruinae/CMakeLists.txt to add all new source files (all 19 parameter pack headers, parameter_helpers.h, note_value_ui.h, dropdown_mappings.h) to the source list
+- [X] T075 [US7] Update plugins/ruinae/tests/CMakeLists.txt to add all new test sources (processor_audio_test.cpp, processor_bus_test.cpp, controller_params_test.cpp, controller_display_test.cpp, param_flow_test.cpp, param_denorm_test.cpp, state_roundtrip_test.cpp, state_migration_test.cpp, controller_state_test.cpp, midi_events_test.cpp, tempo_sync_test.cpp)
+- [X] T076 [US7] Build the plugin with CMake windows-x64-release preset and fix any compiler warnings (MSVC /W4 compliance)
 
 ### 9.2 Verification for User Story 7
 
-- [ ] T077 [US7] Run full CMake build and verify zero compiler warnings under /W4 (MSVC) or -Wall -Wextra -Wpedantic (GCC/Clang)
-- [ ] T078 [US7] Run pluginval at strictness level 5 against build/windows-x64-release/VST3/Release/Ruinae.vst3 and verify all tests pass (factory registration, parameter enumeration, state round-trip, bus configuration, real-time processing)
+- [X] T077 [US7] Run full CMake build and verify zero compiler warnings under /W4 (MSVC) or -Wall -Wextra -Wpedantic (GCC/Clang)
+- [X] T078 [US7] Run pluginval at strictness level 5 against build/windows-x64-release/VST3/Release/Ruinae.vst3 and verify all tests pass (factory registration, parameter enumeration, state round-trip, bus configuration, real-time processing)
 
 ### 9.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T079 [US7] Verify IEEE 754 compliance: Check all test files added in this spec for std::isnan/std::isfinite/std::isinf usage, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
+- [X] T079 [US7] Verify IEEE 754 compliance: Check all test files added in this spec for std::isnan/std::isfinite/std::isinf usage, add to -fno-fast-math list in plugins/ruinae/tests/CMakeLists.txt if needed
 
 ### 9.4 Commit (MANDATORY)
 
@@ -390,9 +390,9 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T081 [P] Review all parameter pack default values and verify they produce audible, musically useful sound on first plugin instantiation
-- [ ] T082 [P] Review all parameter display formatters for consistency (frequencies use 1 decimal place, times use 0-1 decimals depending on range, percentages use 0 decimals)
-- [ ] T083 Run quickstart.md validation: build plugin, run all tests, run pluginval, verify all commands succeed
+- [X] T081 [P] Review all parameter pack default values and verify they produce audible, musically useful sound on first plugin instantiation
+- [X] T082 [P] Review all parameter display formatters for consistency (frequencies use 1 decimal place, times use 0-1 decimals depending on range, percentages use 0 decimals)
+- [X] T083 Run quickstart.md validation: build plugin, run all tests, run pluginval, verify all commands succeed
 
 ---
 
@@ -404,7 +404,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 11.1 Architecture Documentation Update
 
-- [ ] T084 Update specs/_architecture_/plugin-layer.md with Ruinae plugin shell components: parameter packs pattern (19 sections, atomic storage, change handlers, registration, display, save/load, controller sync), Processor-to-Engine bridge, versioned state persistence, MIDI event dispatch, tempo forwarding
+- [X] T084 Update specs/_architecture_/plugin-architecture.md with Ruinae plugin shell components: parameter packs pattern (19 sections, atomic storage, change handlers, registration, display, save/load, controller sync), Processor-to-Engine bridge, versioned state persistence, MIDI event dispatch, tempo forwarding
 
 ### 11.2 Final Commit
 
@@ -447,14 +447,14 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T091 Review ALL FR-001 through FR-022 requirements from spec.md against implementation: open each implementation file, find code that satisfies requirement, record file path and line number in compliance table
-- [ ] T092 Review ALL SC-001 through SC-008 success criteria from spec.md and verify measurable targets are achieved: run tests, measure values, record actual results in compliance table
-- [ ] T093 Search for cheating patterns in implementation: no placeholder or TODO comments in new code, no test thresholds relaxed from spec requirements, no features quietly removed from scope
+- [X] T091 Review ALL FR-001 through FR-022 requirements from spec.md against implementation: open each implementation file, find code that satisfies requirement, record file path and line number in compliance table
+- [X] T092 Review ALL SC-001 through SC-008 success criteria from spec.md and verify measurable targets are achieved: run tests, measure values, record actual results in compliance table
+- [X] T093 Search for cheating patterns in implementation: no placeholder or TODO comments in new code, no test thresholds relaxed from spec requirements, no features quietly removed from scope
 
 ### 13.2 Fill Compliance Table in spec.md
 
-- [ ] T094 Update spec.md Implementation Verification section with compliance status for each FR-xxx and SC-xxx requirement with specific evidence (file paths, line numbers, test names, measured values)
-- [ ] T095 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T094 Update spec.md Implementation Verification section with compliance status for each FR-xxx and SC-xxx requirement with specific evidence (file paths, line numbers, test names, measured values)
+- [X] T095 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 13.3 Honest Self-Check
 
@@ -466,7 +466,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T096 All self-check questions answered "no" (or gaps documented honestly in spec.md)
+- [X] T096 All self-check questions answered "no" (or gaps documented honestly in spec.md)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -479,7 +479,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 ### 14.1 Final Commit
 
 - [ ] T097 Commit all spec work to feature branch 045-plugin-shell
-- [ ] T098 Verify all tests pass (run ctest --test-dir build/windows-x64-release -C Release --output-on-failure)
+- [X] T098 Verify all tests pass (run ctest --test-dir build/windows-x64-release -C Release --output-on-failure)
 
 ### 14.2 Completion Claim
 

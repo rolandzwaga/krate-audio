@@ -19,12 +19,35 @@
 // - Stereo audio output bus
 // ==============================================================================
 
+#include "engine/ruinae_engine.h"
+#include "parameters/global_params.h"
+#include "parameters/osc_a_params.h"
+#include "parameters/osc_b_params.h"
+#include "parameters/mixer_params.h"
+#include "parameters/filter_params.h"
+#include "parameters/distortion_params.h"
+#include "parameters/trance_gate_params.h"
+#include "parameters/amp_env_params.h"
+#include "parameters/filter_env_params.h"
+#include "parameters/mod_env_params.h"
+#include "parameters/lfo1_params.h"
+#include "parameters/lfo2_params.h"
+#include "parameters/chaos_mod_params.h"
+#include "parameters/mod_matrix_params.h"
+#include "parameters/global_filter_params.h"
+#include "parameters/freeze_params.h"
+#include "parameters/delay_params.h"
+#include "parameters/reverb_params.h"
+#include "parameters/mono_mode_params.h"
+
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
-#include <atomic>
 #include <vector>
 
 namespace Ruinae {
+
+// State version for serialization
+constexpr Steinberg::int32 kCurrentStateVersion = 1;
 
 // ==============================================================================
 // Processor Class
@@ -39,30 +62,21 @@ public:
     // IPluginBase
     // ===========================================================================
 
-    /// Called when the plugin is first loaded
     Steinberg::tresult PLUGIN_API initialize(FUnknown* context) override;
-
-    /// Called when the plugin is unloaded
     Steinberg::tresult PLUGIN_API terminate() override;
 
     // ===========================================================================
     // IAudioProcessor
     // ===========================================================================
 
-    /// Called before processing starts - allocate ALL buffers here
-    /// Constitution Principle II: Pre-allocate everything in this method
     Steinberg::tresult PLUGIN_API setupProcessing(
         Steinberg::Vst::ProcessSetup& setup) override;
 
-    /// Called when audio processing starts/stops
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
 
-    /// Main audio processing callback
-    /// Constitution Principle II: NO allocations, NO locks, NO exceptions
     Steinberg::tresult PLUGIN_API process(
         Steinberg::Vst::ProcessData& data) override;
 
-    /// Report audio I/O configuration support
     Steinberg::tresult PLUGIN_API setBusArrangements(
         Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
         Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
@@ -71,11 +85,7 @@ public:
     // IComponent
     // ===========================================================================
 
-    /// Save processor state (called by host for project save)
-    /// Constitution Principle I: State sync via setComponentState()
     Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
-
-    /// Restore processor state (called by host for project load)
     Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
 
     // ===========================================================================
@@ -91,12 +101,9 @@ protected:
     // Parameter Handling
     // ==========================================================================
 
-    /// Process parameter changes from the input queue
-    /// Called at the start of each process() call
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
-
-    /// Process MIDI events (noteOn, noteOff, etc.)
     void processEvents(Steinberg::Vst::IEventList* events);
+    void applyParamsToEngine();
 
 private:
     // ==========================================================================
@@ -107,24 +114,39 @@ private:
     Steinberg::int32 maxBlockSize_ = 0;
 
     // ==========================================================================
-    // Parameters (atomic for thread-safe access)
-    // Constitution Principle VI: Use std::atomic for simple shared state
+    // Parameter Packs (atomic for thread-safe access)
     // ==========================================================================
 
-    std::atomic<float> masterGain_{1.0f};
-    std::atomic<int> voiceMode_{0};      // 0=Poly, 1=Mono
-    std::atomic<int> polyphony_{8};      // 1-16
-    std::atomic<bool> softLimit_{true};
+    GlobalParams globalParams_;
+    OscAParams oscAParams_;
+    OscBParams oscBParams_;
+    MixerParams mixerParams_;
+    RuinaeFilterParams filterParams_;
+    RuinaeDistortionParams distortionParams_;
+    RuinaeTranceGateParams tranceGateParams_;
+    AmpEnvParams ampEnvParams_;
+    FilterEnvParams filterEnvParams_;
+    ModEnvParams modEnvParams_;
+    LFO1Params lfo1Params_;
+    LFO2Params lfo2Params_;
+    ChaosModParams chaosModParams_;
+    ModMatrixParams modMatrixParams_;
+    GlobalFilterParams globalFilterParams_;
+    RuinaeFreezeParams freezeParams_;
+    RuinaeDelayParams delayParams_;
+    RuinaeReverbParams reverbParams_;
+    MonoModeParams monoModeParams_;
 
     // ==========================================================================
     // DSP Engine
     // ==========================================================================
-    // TODO: Add RuinaeEngine when implemented (Phase 6)
-    // Krate::DSP::RuinaeEngine engine_;
+
+    Krate::DSP::RuinaeEngine engine_;
 
     // ==========================================================================
     // Scratch Buffers (pre-allocated in setupProcessing)
     // ==========================================================================
+
     std::vector<float> mixBufferL_;
     std::vector<float> mixBufferR_;
 };

@@ -7,10 +7,34 @@
 #include "version.h"
 #include "preset/ruinae_preset_config.h"
 
+// Parameter pack headers (for registration, display, and controller sync)
+#include "parameters/global_params.h"
+#include "parameters/osc_a_params.h"
+#include "parameters/osc_b_params.h"
+#include "parameters/mixer_params.h"
+#include "parameters/filter_params.h"
+#include "parameters/distortion_params.h"
+#include "parameters/trance_gate_params.h"
+#include "parameters/amp_env_params.h"
+#include "parameters/filter_env_params.h"
+#include "parameters/mod_env_params.h"
+#include "parameters/lfo1_params.h"
+#include "parameters/lfo2_params.h"
+#include "parameters/chaos_mod_params.h"
+#include "parameters/mod_matrix_params.h"
+#include "parameters/global_filter_params.h"
+#include "parameters/freeze_params.h"
+#include "parameters/delay_params.h"
+#include "parameters/reverb_params.h"
+#include "parameters/mono_mode_params.h"
+
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
 
 namespace Ruinae {
+
+// State version must match processor
+constexpr Steinberg::int32 kControllerStateVersion = 1;
 
 // ==============================================================================
 // Destructor
@@ -29,107 +53,28 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     }
 
     // ==========================================================================
-    // Register Parameters
-    // Constitution Principle V: All values normalized (0.0 to 1.0)
+    // Register All Parameters (19 sections)
     // ==========================================================================
 
-    // --- Global Parameters (0-99) ---
-    parameters.addParameter(STR16("Master Gain"), STR16("%"), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kMasterGainId);
-
-    parameters.addParameter(
-        new Steinberg::Vst::StringListParameter(
-            STR16("Voice Mode"), kVoiceModeId, nullptr,
-            Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList));
-    if (auto* p = static_cast<Steinberg::Vst::StringListParameter*>(
-            parameters.getParameter(kVoiceModeId))) {
-        p->appendString(STR16("Poly"));
-        p->appendString(STR16("Mono"));
-    }
-
-    parameters.addParameter(STR16("Polyphony"), STR16(""), 15, 7.0 / 15.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kPolyphonyId);
-
-    parameters.addParameter(STR16("Soft Limit"), STR16(""), 1, 1.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kSoftLimitId);
-
-    // --- OSC A Parameters (100-199) ---
-    parameters.addParameter(STR16("OSC A Type"), STR16(""), 9, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kOscATypeId);
-    parameters.addParameter(STR16("OSC A Tune"), STR16("st"), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kOscATuneId);
-    parameters.addParameter(STR16("OSC A Fine"), STR16("ct"), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kOscAFineId);
-    parameters.addParameter(STR16("OSC A Level"), STR16("%"), 0, 1.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kOscALevelId);
-
-    // --- OSC B Parameters (200-299) ---
-    parameters.addParameter(STR16("OSC B Type"), STR16(""), 9, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kOscBTypeId);
-    parameters.addParameter(STR16("OSC B Tune"), STR16("st"), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kOscBTuneId);
-    parameters.addParameter(STR16("OSC B Fine"), STR16("ct"), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kOscBFineId);
-    parameters.addParameter(STR16("OSC B Level"), STR16("%"), 0, 1.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kOscBLevelId);
-
-    // --- Mixer Parameters (300-399) ---
-    parameters.addParameter(STR16("Mix Mode"), STR16(""), 1, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kMixerModeId);
-    parameters.addParameter(STR16("Mix Position"), STR16("%"), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kMixerPositionId);
-
-    // --- Filter Parameters (400-499) ---
-    parameters.addParameter(STR16("Filter Type"), STR16(""), 3, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterTypeId);
-    parameters.addParameter(STR16("Filter Cutoff"), STR16("Hz"), 0, 1.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterCutoffId);
-    parameters.addParameter(STR16("Filter Resonance"), STR16(""), 0, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterResonanceId);
-    parameters.addParameter(STR16("Filter Env Amount"), STR16("st"), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterEnvAmountId);
-    parameters.addParameter(STR16("Filter Key Track"), STR16("%"), 0, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterKeyTrackId);
-
-    // --- Distortion Parameters (500-599) ---
-    parameters.addParameter(STR16("Distortion Type"), STR16(""), 5, 0.0 / 5.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kDistortionTypeId);
-    parameters.addParameter(STR16("Distortion Drive"), STR16("%"), 0, 0.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kDistortionDriveId);
-    parameters.addParameter(STR16("Distortion Character"), STR16(""), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kDistortionCharacterId);
-    parameters.addParameter(STR16("Distortion Mix"), STR16("%"), 0, 1.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kDistortionMixId);
-
-    // --- Amp Envelope Parameters (700-799) ---
-    parameters.addParameter(STR16("Amp Attack"), STR16("ms"), 0, 0.01,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kAmpEnvAttackId);
-    parameters.addParameter(STR16("Amp Decay"), STR16("ms"), 0, 0.1,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kAmpEnvDecayId);
-    parameters.addParameter(STR16("Amp Sustain"), STR16("%"), 0, 0.8,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kAmpEnvSustainId);
-    parameters.addParameter(STR16("Amp Release"), STR16("ms"), 0, 0.05,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kAmpEnvReleaseId);
-
-    // --- Filter Envelope Parameters (800-899) ---
-    parameters.addParameter(STR16("Filter Env Attack"), STR16("ms"), 0, 0.01,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterEnvAttackId);
-    parameters.addParameter(STR16("Filter Env Decay"), STR16("ms"), 0, 0.2,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterEnvDecayId);
-    parameters.addParameter(STR16("Filter Env Sustain"), STR16("%"), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterEnvSustainId);
-    parameters.addParameter(STR16("Filter Env Release"), STR16("ms"), 0, 0.1,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterEnvReleaseId);
-
-    // --- Reverb Parameters (1700-1799) ---
-    parameters.addParameter(STR16("Reverb Size"), STR16(""), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kReverbSizeId);
-    parameters.addParameter(STR16("Reverb Damping"), STR16(""), 0, 0.5,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kReverbDampingId);
-    parameters.addParameter(STR16("Reverb Width"), STR16(""), 0, 1.0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kReverbWidthId);
-    parameters.addParameter(STR16("Reverb Mix"), STR16("%"), 0, 0.3,
-        Steinberg::Vst::ParameterInfo::kCanAutomate, kReverbMixId);
+    registerGlobalParams(parameters);
+    registerOscAParams(parameters);
+    registerOscBParams(parameters);
+    registerMixerParams(parameters);
+    registerFilterParams(parameters);
+    registerDistortionParams(parameters);
+    registerTranceGateParams(parameters);
+    registerAmpEnvParams(parameters);
+    registerFilterEnvParams(parameters);
+    registerModEnvParams(parameters);
+    registerLFO1Params(parameters);
+    registerLFO2Params(parameters);
+    registerChaosModParams(parameters);
+    registerModMatrixParams(parameters);
+    registerGlobalFilterParams(parameters);
+    registerFreezeParams(parameters);
+    registerDelayParams(parameters);
+    registerReverbParams(parameters);
+    registerMonoModeParams(parameters);
 
     // ==========================================================================
     // Initialize Preset Manager
@@ -158,26 +103,40 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Read in same order as Processor::getState()
-    float gain = 1.0f;
-    if (streamer.readFloat(gain)) {
-        setParamNormalized(kMasterGainId, gain / 2.0);
+    // Read state version (must match Processor::getState format)
+    Steinberg::int32 version = 0;
+    if (!streamer.readInt32(version)) {
+        return Steinberg::kResultTrue; // Empty stream, keep defaults
     }
 
-    Steinberg::int32 voiceMode = 0;
-    if (streamer.readInt32(voiceMode)) {
-        setParamNormalized(kVoiceModeId, static_cast<double>(voiceMode));
-    }
+    // Lambda to sync controller parameter display
+    auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
+        setParamNormalized(id, value);
+    };
 
-    Steinberg::int32 polyphony = 8;
-    if (streamer.readInt32(polyphony)) {
-        setParamNormalized(kPolyphonyId, (polyphony - 1.0) / 15.0);
+    if (version == 1) {
+        // Sync all 19 parameter packs in same order as Processor::getState
+        loadGlobalParamsToController(streamer, setParam);
+        loadOscAParamsToController(streamer, setParam);
+        loadOscBParamsToController(streamer, setParam);
+        loadMixerParamsToController(streamer, setParam);
+        loadFilterParamsToController(streamer, setParam);
+        loadDistortionParamsToController(streamer, setParam);
+        loadTranceGateParamsToController(streamer, setParam);
+        loadAmpEnvParamsToController(streamer, setParam);
+        loadFilterEnvParamsToController(streamer, setParam);
+        loadModEnvParamsToController(streamer, setParam);
+        loadLFO1ParamsToController(streamer, setParam);
+        loadLFO2ParamsToController(streamer, setParam);
+        loadChaosModParamsToController(streamer, setParam);
+        loadModMatrixParamsToController(streamer, setParam);
+        loadGlobalFilterParamsToController(streamer, setParam);
+        loadFreezeParamsToController(streamer, setParam);
+        loadDelayParamsToController(streamer, setParam);
+        loadReverbParamsToController(streamer, setParam);
+        loadMonoModeParamsToController(streamer, setParam);
     }
-
-    Steinberg::int32 softLimit = 1;
-    if (streamer.readInt32(softLimit)) {
-        setParamNormalized(kSoftLimitId, softLimit ? 1.0 : 0.0);
-    }
+    // Unknown versions: keep defaults (fail closed)
 
     return Steinberg::kResultTrue;
 }
@@ -205,8 +164,56 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     Steinberg::Vst::ParamID id,
     Steinberg::Vst::ParamValue valueNormalized,
     Steinberg::Vst::String128 string) {
-    // Use default implementation for now
-    return EditControllerEx1::getParamStringByValue(id, valueNormalized, string);
+
+    // Route to appropriate parameter pack formatter by ID range
+    Steinberg::tresult result = Steinberg::kResultFalse;
+
+    if (id <= kGlobalEndId) {
+        result = formatGlobalParam(id, valueNormalized, string);
+    } else if (id >= kOscABaseId && id <= kOscAEndId) {
+        result = formatOscAParam(id, valueNormalized, string);
+    } else if (id >= kOscBBaseId && id <= kOscBEndId) {
+        result = formatOscBParam(id, valueNormalized, string);
+    } else if (id >= kMixerBaseId && id <= kMixerEndId) {
+        result = formatMixerParam(id, valueNormalized, string);
+    } else if (id >= kFilterBaseId && id <= kFilterEndId) {
+        result = formatFilterParam(id, valueNormalized, string);
+    } else if (id >= kDistortionBaseId && id <= kDistortionEndId) {
+        result = formatDistortionParam(id, valueNormalized, string);
+    } else if (id >= kTranceGateBaseId && id <= kTranceGateEndId) {
+        result = formatTranceGateParam(id, valueNormalized, string);
+    } else if (id >= kAmpEnvBaseId && id <= kAmpEnvEndId) {
+        result = formatAmpEnvParam(id, valueNormalized, string);
+    } else if (id >= kFilterEnvBaseId && id <= kFilterEnvEndId) {
+        result = formatFilterEnvParam(id, valueNormalized, string);
+    } else if (id >= kModEnvBaseId && id <= kModEnvEndId) {
+        result = formatModEnvParam(id, valueNormalized, string);
+    } else if (id >= kLFO1BaseId && id <= kLFO1EndId) {
+        result = formatLFO1Param(id, valueNormalized, string);
+    } else if (id >= kLFO2BaseId && id <= kLFO2EndId) {
+        result = formatLFO2Param(id, valueNormalized, string);
+    } else if (id >= kChaosModBaseId && id <= kChaosModEndId) {
+        result = formatChaosModParam(id, valueNormalized, string);
+    } else if (id >= kModMatrixBaseId && id <= kModMatrixEndId) {
+        result = formatModMatrixParam(id, valueNormalized, string);
+    } else if (id >= kGlobalFilterBaseId && id <= kGlobalFilterEndId) {
+        result = formatGlobalFilterParam(id, valueNormalized, string);
+    } else if (id >= kFreezeBaseId && id <= kFreezeEndId) {
+        result = formatFreezeParam(id, valueNormalized, string);
+    } else if (id >= kDelayBaseId && id <= kDelayEndId) {
+        result = formatDelayParam(id, valueNormalized, string);
+    } else if (id >= kReverbBaseId && id <= kReverbEndId) {
+        result = formatReverbParam(id, valueNormalized, string);
+    } else if (id >= kMonoBaseId && id <= kMonoEndId) {
+        result = formatMonoModeParam(id, valueNormalized, string);
+    }
+
+    // Fall back to default implementation for unhandled parameters
+    // (StringListParameter handles its own formatting)
+    if (result != Steinberg::kResultOk) {
+        return EditControllerEx1::getParamStringByValue(id, valueNormalized, string);
+    }
+    return result;
 }
 
 Steinberg::tresult PLUGIN_API Controller::getParamValueByString(

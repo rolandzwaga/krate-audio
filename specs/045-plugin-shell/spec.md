@@ -292,36 +292,36 @@ A developer builds the monorepo and the Ruinae plugin compiles successfully alon
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| FR-021 | | |
-| FR-022 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
+| FR-001 | MET | `processor.h` L144: `Krate::DSP::RuinaeEngine engine_` member. `processor.cpp` L76: `engine_.prepare()` in setupProcessing, L84: `engine_.reset()` in setActive, L165: `engine_.processBlock()` in process. Test: `processor_audio_test.cpp` "Processor produces audio from noteOn" passes. |
+| FR-002 | MET | `processor.cpp` L51-52: `addEventInput("Event Input")`, `addAudioOutput("Audio Output", kStereo)`. No `addAudioInput` call. Test: `processor_bus_test.cpp` "No audio input bus registered" passes. |
+| FR-003 | MET | 19 parameter pack headers in `parameters/`: global_params.h, osc_a_params.h, osc_b_params.h, mixer_params.h, filter_params.h, distortion_params.h, trance_gate_params.h, amp_env_params.h, filter_env_params.h, mod_env_params.h, lfo1_params.h, lfo2_params.h, chaos_mod_params.h, mod_matrix_params.h, global_filter_params.h, freeze_params.h, delay_params.h, reverb_params.h, mono_mode_params.h. Each contains: atomic struct, change handler, register function, display formatter, save/load, controller sync. |
+| FR-004 | MET | `plugin_ids.h` defines all 19 ID ranges: Global 0-99, OscA 100-199, OscB 200-299, Mixer 300-399, Filter 400-499, Distortion 500-599, TranceGate 600-699, AmpEnv 700-799, FilterEnv 800-899, ModEnv 900-999, LFO1 1000-1099, LFO2 1100-1199, ChaosMod 1200-1299, ModMatrix 1300-1399, GlobalFilter 1400-1499, Freeze 1500-1599, Delay 1600-1699, Reverb 1700-1799, Mono 1800-1899. Each pack header defines the exact parameters listed in the spec. Test: `controller_params_test.cpp` "Controller registers parameters on initialize" (>=80 params) and "Specific parameters are registered with correct names" pass. |
+| FR-005 | MET | `processor.cpp` L260-329: `processParameterChanges()` routes by ID range with if/else-if chain covering all 19 sections (L289-327). Test: `param_flow_test.cpp` "All 19 sections receive parameter changes in same block" passes. |
+| FR-006 | MET | Each parameter pack handler uses `std::clamp()` after denormalization. E.g., `global_params.h` L46: `std::clamp(static_cast<float>(value * 2.0), 0.0f, 2.0f)` for masterGain; `filter_params.h`: exponential cutoff `20*pow(1000,v)` clamped to 20-20000 Hz. Test: `param_denorm_test.cpp` passes all denormalization checks; `param_flow_test.cpp` "Out-of-range parameter values are clamped" passes. |
+| FR-007 | MET | `processor.cpp` L104: `applyParamsToEngine()` called every process() block. L335-480: reads ALL atomics and calls corresponding engine setters for all 19 sections. No dirty-flag optimization (MVP). Test: `param_flow_test.cpp` "Parameter changes affect audio output" passes. |
+| FR-008 | MET | `processor.cpp` L486-523: `processEvents()` handles kNoteOnEvent and kNoteOffEvent. L502-503: converts velocity float to uint8_t via `velocity * 127.0f + 0.5f`. Test: `processor_audio_test.cpp` "Processor produces audio from noteOn" and `midi_events_test.cpp` "Multiple noteOn events dispatched in order" pass. |
+| FR-009 | MET | `processor.cpp` L504-506: `if (velocity == 0) { engine_.noteOff(...); }`. Test: `midi_events_test.cpp` "Velocity-0 noteOn treated as noteOff" passes. |
+| FR-010 | MET | `processor.cpp` L187-214: `getState()` uses `IBStreamer(state, kLittleEndian)`, writes `kCurrentStateVersion` (int32=1) first at L191, then saves all 19 packs in deterministic order. Test: `state_roundtrip_test.cpp` "Default state round-trip" passes. |
+| FR-011 | MET | `processor.cpp` L217-254: `setState()` reads version (L222), v1 loads all packs (L226-248). Unknown versions keep defaults (L249-251, fail closed). Truncated streams handled by early return at each pack load (L229-247). Test: `state_migration_test.cpp` "Unknown future version loads with defaults" and "Truncated stream loads with defaults" pass. |
+| FR-012 | MET | `controller.cpp` L97-142: `setComponentState()` reads version, calls all 19 `loadXxxParamsToController()` functions in same order as Processor::getState. Each calls `setParamNormalized()` to sync display. Test: `controller_state_test.cpp` "Controller syncs default state from Processor" and "Controller syncs non-default state from Processor" pass. |
+| FR-013 | MET | `controller.cpp` L59-77: `initialize()` calls all 19 register functions. Each register function uses `StringListParameter` for dropdowns (e.g., OscType, FilterType) and `RangeParameter`/`Parameter` for continuous values. Test: `controller_params_test.cpp` "Controller registers parameters on initialize" (>=80 params), "All registered parameters have kCanAutomate flag", "Discrete parameters have correct step counts" all pass. |
+| FR-014 | MET | `controller.cpp` L163-217: `getParamStringByValue()` routes by ID range to 19 format functions. Each uses correct units: Hz/kHz for frequencies, ms/s for times, % for levels, st for semitones, dB for gain, ct for fine tuning. Test: `controller_display_test.cpp` -- all 12 test cases pass covering dB, Hz/kHz, ms/s, st, ct, %, bipolar %. |
+| FR-015 | MET | `processor.cpp` L65-78: `setupProcessing()` pre-allocates mixBufferL_/R_ (L72-73) and calls engine_.prepare() (L76). L81-90: `setActive(true)` resets engine and zeroes buffers. `process()` (L92-168) contains no new/delete/malloc/resize/string/throw. Code review confirms real-time safety. |
+| FR-016 | MET | `processor.cpp` L107-130: builds BlockContext from processContext -- extracts tempo (L115), time signature (L118-119), isPlaying (L121), transport position (L123-126). Calls `engine_.setBlockContext(ctx)` at L129. Default 120 BPM from BlockContext constructor. Test: `tempo_sync_test.cpp` "Processor forwards host tempo to engine" and "Default tempo when no ProcessContext" pass. |
+| FR-017 | MET | `entry.cpp` L35-45: DEF_CLASS2 for Processor with `INLINE_UID_FROM_FUID(Ruinae::kProcessorUID)`, `kDistributable`, `Ruinae::kSubCategories`. L50-59: DEF_CLASS2 for Controller with `INLINE_UID_FROM_FUID(Ruinae::kControllerUID)`. `plugin_ids.h` L290: `kSubCategories = "Instrument|Synth"`. `version.h` L32-34: vendor metadata (Krate Audio, URL, email). |
+| FR-018 | MET | `CMakeLists.txt` L102-108: links `sdk`, `vstgui_support`, `KrateDSP`, `KratePluginsShared`. L202-220: /W4 on MSVC, -Wall -Wextra -Wpedantic on GCC/Clang. Build produces zero warnings (verified: `grep -c -i warning` = 0). |
+| FR-019 | MET | pluginval --strictness-level 5 against Ruinae.vst3: all sections completed (Automation, Editor Automation, Automatable Parameters, auval, vst3 validator, Basic bus, Listing buses, Enabling buses, Disabling non-main, Restoring default). `grep -c FAILED` = 0. |
+| FR-020 | MET | `processor.cpp` L170-181: `setBusArrangements()` accepts only numIns==0, numOuts==1, outputs[0]==kStereo; returns kResultFalse otherwise. Test: `processor_bus_test.cpp` "Rejects mono output", "Rejects stereo input + stereo output" pass. |
+| FR-021 | MET | `plugin_ids.h` L62: `kPolyphonyId = 2` in Global range (0-99). `global_params.h` L29: `polyphony{8}` default, L55-59: denorm 0-1 to 1-16 with `std::clamp(..., 1, 16)`. `processor.cpp` L342-343: calls `engine_.setPolyphony()`. Test: `controller_params_test.cpp` "Discrete parameters have correct step counts" verifies polyphony stepCount==15. |
+| FR-022 | MET | `processor.h` L22: `#include "engine/ruinae_engine.h"`. `processor.cpp` L335-480: calls all engine setters including setOscATuneSemitones (L349), setOscAFineCents (L350), setOscALevel (L351), setOscBTuneSemitones (L356), setOscBFineCents (L357), setOscBLevel (L358), setDistortionMix (L378). All compile and link successfully. |
+| SC-001 | MET | Test: `processor_audio_test.cpp` "Processor produces audio from noteOn" -- sends noteOn, processes one buffer (512 samples), verifies non-zero output. "Processor eventually returns to silence after noteOff" -- sends noteOff, processes multiple buffers, verifies silence within 10s (default release ~200ms). All 209 tests pass (1832 assertions). |
+| SC-002 | MET | Test: `param_flow_test.cpp` "All 19 sections receive parameter changes in same block" sends changes to all sections and processes without crash. "Parameter changes affect audio output" verifies gain=0 silences output. `controller_params_test.cpp` verifies 80+ parameters registered. All pass. |
+| SC-003 | MET | Test: `state_roundtrip_test.cpp` "Default state round-trip preserves all parameters" and "Non-default state round-trip preserves all parameters" both verify all parameter values match within precision margin (Approx tolerance used, <1e-6). All assertions pass. |
+| SC-004 | MET | pluginval --strictness-level 5: zero failures. All test sections completed: factory, parameter enumeration, state round-trip, bus configuration, real-time processing. |
+| SC-005 | MET | `cmake --build` produces zero warnings for Ruinae target on MSVC /W4. CMakeLists.txt L214-219 configures -Wall -Wextra -Wpedantic for GCC/Clang (cross-platform compatible). |
+| SC-006 | MET | Code review of `process()` (processor.cpp L92-168): no `new`, `delete`, `malloc`, `free`, `.resize()`, `std::string`, `throw`, or `catch`. Only stack variables, atomic loads, and engine calls. Buffer allocation in setupProcessing() (L72-73). grep confirms no allocations in process path. |
+| SC-007 | MET | Test: `controller_display_test.cpp` -- 12 test cases verify: "Master Gain displays in dB" (0.0 dB, -80 dB), "Filter Cutoff displays in Hz or kHz", "Envelope times display in ms or s", "OSC A Tune displays in semitones", "OSC A Fine displays in cents", "Percentage parameters display with %", "LFO Rate displays in Hz", "Filter Env Amount displays with st", "Mod Matrix Amount displays as bipolar %", "Delay Time in ms or s", "Reverb Pre-Delay in ms", "Portamento Time in ms/s". All pass. |
+| SC-008 | MET | Test: `state_roundtrip_test.cpp` verifies v1 round-trip (default and non-default). `state_migration_test.cpp` "Unknown future version loads with defaults" verifies v999 fails gracefully (returns kResultTrue, keeps safe defaults). Baseline-only as documented in spec. |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -333,21 +333,19 @@ A developer builds the monorepo and the Ruinae plugin compiles successfully alon
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code (grep for TODO/FIXME/HACK/PLACEHOLDER/stub in src/ and tests/ returned zero matches)
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
+All 22 functional requirements (FR-001 through FR-022) are MET with specific code evidence and passing tests. All 8 success criteria (SC-001 through SC-008) are MET with actual test results and measured values. 209 test cases pass with 1832 assertions. pluginval passes at strictness level 5 with zero failures. Zero compiler warnings. Zero TODO/placeholder comments in new code.
 
-**Recommendation**: [What needs to happen to achieve completion]
+**Note on clang-tidy**: Static analysis (Phase 12, T087-T090) requires VS Developer PowerShell + Ninja setup which is outside the scope of this automated session. This is a code quality check, not a functional requirement. All functional requirements and success criteria are fully met.
