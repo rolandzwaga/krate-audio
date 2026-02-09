@@ -26,11 +26,11 @@
         <font name="mono" font-name="Consolas" size="9"/>
     </fonts>
 
-    <template name="view" size="750, 580" background-color="background">
+    <template name="view" size="750, 710" background-color="background">
         <!-- Main container with TestbenchController -->
         <view class="CViewContainer"
               origin="0, 0"
-              size="750, 580"
+              size="750, 710"
               background-color="background"
               sub-controller="TestbenchController">
 
@@ -266,6 +266,99 @@
                       origin="10, 55"
                       size="700, 40"
                       title="Drag tap bars horizontally to adjust timing. Drag handles vertically to adjust level.&#10;Double-click to reset. Hold Shift to constrain to one axis. Press Escape to cancel drag."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- FieldsetContainer Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="10, 580"
+                  size="730, 120"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="FieldsetContainer"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Titled fieldset (default gray) -->
+                <view class="FieldsetContainer"
+                      origin="10, 25"
+                      size="200, 85"
+                      fieldset-title="Delay Settings"
+                      fieldset-color="#505058"
+                      transparent="true">
+                    <view class="ArcKnob"
+                          origin="15, 20"
+                          size="40, 40"
+                          default-value="0.6"
+                          arc-color="#DCA850"
+                          guide-color="#FFFFFF28"/>
+                    <view class="ArcKnob"
+                          origin="70, 20"
+                          size="40, 40"
+                          default-value="0.4"
+                          arc-color="#4ECDC4"
+                          guide-color="#FFFFFF28"/>
+                    <view class="ArcKnob"
+                          origin="125, 20"
+                          size="40, 40"
+                          default-value="0.75"
+                          arc-color="#FF6B6B"
+                          guide-color="#FFFFFF28"/>
+                </view>
+
+                <!-- Titled fieldset (accent blue, larger radius) -->
+                <view class="FieldsetContainer"
+                      origin="220, 25"
+                      size="170, 85"
+                      fieldset-title="Modulation"
+                      fieldset-color="#5090c8"
+                      fieldset-radius="6"
+                      transparent="true">
+                    <view class="ArcKnob"
+                          origin="20, 20"
+                          size="50, 50"
+                          default-value="0.5"
+                          arc-color="#5090c8"
+                          guide-color="#FFFFFF28"
+                          indicator-length="5"/>
+                </view>
+
+                <!-- No-title fieldset (outline only) -->
+                <view class="FieldsetContainer"
+                      origin="400, 25"
+                      size="100, 85"
+                      fieldset-color="#505058"
+                      transparent="true">
+                    <view class="CTextLabel"
+                          origin="10, 30"
+                          size="80, 16"
+                          title="No title"
+                          font="label"
+                          font-color="text.secondary"
+                          text-alignment="center"
+                          background-color="~ TransparentCColor"
+                          frame-color="~ TransparentCColor"/>
+                </view>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="510, 30"
+                      size="210, 80"
+                      title="HTML fieldset-style container with rounded outline, title gap, and top-left corner highlight. Configurable color, radius, and line width."
                       font="label"
                       font-color="text.secondary"
                       text-alignment="left"

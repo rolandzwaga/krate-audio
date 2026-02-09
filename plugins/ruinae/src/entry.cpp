@@ -17,6 +17,7 @@
 
 // Shared UI controls - include triggers static ViewCreator registration
 #include "ui/arc_knob.h"
+#include "ui/fieldset_container.h"
 
 #include "public.sdk/source/main/pluginfactory.h"
 
