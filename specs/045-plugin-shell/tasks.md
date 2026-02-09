@@ -178,7 +178,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 3.5 Commit (MANDATORY)
 
-- [ ] T035 [US1] Commit completed User Story 1 work with message "US1: Processor-to-RuinaeEngine bridge with MIDI dispatch and audio generation"
+- [X] T035 [US1] Commit completed User Story 1 work with message "US1: Processor-to-RuinaeEngine bridge with MIDI dispatch and audio generation"
 
 **Checkpoint**: User Story 1 complete - plugin produces sound from MIDI notes
 
@@ -213,7 +213,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 4.5 Commit (MANDATORY)
 
-- [ ] T043 [US2] Commit completed User Story 2 work with message "US2: Complete parameter registration for all 19 synthesizer sections"
+- [X] T043 [US2] Commit completed User Story 2 work with message "US2: Complete parameter registration for all 19 synthesizer sections"
 
 **Checkpoint**: User Story 2 complete - all parameters registered and displayable
 
@@ -249,7 +249,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 5.5 Commit (MANDATORY)
 
-- [ ] T052 [US3] Commit completed User Story 3 work with message "US3: Parameter flow from host to RuinaeEngine with denormalization and atomic storage"
+- [X] T052 [US3] Commit completed User Story 3 work with message "US3: Parameter flow from host to RuinaeEngine with denormalization and atomic storage"
 
 **Checkpoint**: User Story 3 complete - parameters control sound
 
@@ -287,7 +287,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 6.5 Commit (MANDATORY)
 
-- [ ] T063 [US4] Commit completed User Story 4 work with message "US4: Versioned state persistence with stepwise migration and Controller sync"
+- [X] T063 [US4] Commit completed User Story 4 work with message "US4: Versioned state persistence with stepwise migration and Controller sync"
 
 **Checkpoint**: User Story 4 complete - state saves and loads correctly
 
@@ -319,7 +319,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 7.5 Commit (MANDATORY)
 
-- [ ] T068 [US5] Commit completed User Story 5 work with message "US5: Comprehensive MIDI event dispatch with pitch bend and aftertouch"
+- [X] T068 [US5] Commit completed User Story 5 work with message "US5: Comprehensive MIDI event dispatch with pitch bend and aftertouch"
 
 **Checkpoint**: User Story 5 complete - full MIDI event support
 
@@ -351,7 +351,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 8.5 Commit (MANDATORY)
 
-- [ ] T073 [US6] Commit completed User Story 6 work with message "US6: Host tempo and transport integration for tempo-synced features"
+- [X] T073 [US6] Commit completed User Story 6 work with message "US6: Host tempo and transport integration for tempo-synced features"
 
 **Checkpoint**: User Story 6 complete - tempo sync functional
 
@@ -380,7 +380,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 9.4 Commit (MANDATORY)
 
-- [ ] T080 [US7] Commit completed User Story 7 work with message "US7: CMake build integration with zero warnings and pluginval compliance"
+- [X] T080 [US7] Commit completed User Story 7 work with message "US7: CMake build integration with zero warnings and pluginval compliance"
 
 **Checkpoint**: User Story 7 complete - plugin builds and validates
 
@@ -408,8 +408,8 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 11.2 Final Commit
 
-- [ ] T085 Commit architecture documentation updates with message "Docs: Add Ruinae plugin shell architecture to plugin-layer.md"
-- [ ] T086 Verify all spec work is committed to feature branch 045-plugin-shell
+- [X] T085 Commit architecture documentation updates with message "Docs: Add Ruinae plugin shell architecture to plugin-architecture.md"
+- [X] T086 Verify all spec work is committed to feature branch 045-plugin-shell
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
@@ -478,12 +478,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 14.1 Final Commit
 
-- [ ] T097 Commit all spec work to feature branch 045-plugin-shell
+- [X] T097 Commit all spec work to feature branch 045-plugin-shell
 - [X] T098 Verify all tests pass (run ctest --test-dir build/windows-x64-release -C Release --output-on-failure)
 
 ### 14.2 Completion Claim
 
-- [ ] T099 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T099 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 
