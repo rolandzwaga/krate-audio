@@ -195,7 +195,7 @@ TEST_CASE("FreezeMode lifecycle prepare/reset/snapParameters", "[freeze-mode][US
 
     SECTION("snapParameters snaps all smoothers") {
         freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
-        freeze.setDryWetMix(75.0f);
+        freeze.setDryWetMix(0.75f);
         REQUIRE_NOTHROW(freeze.snapParameters());
     }
 }
@@ -226,7 +226,7 @@ TEST_CASE("FreezeMode freeze captures current delay buffer content", "[freeze-mo
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(100.0f);  // 100ms delay
     freeze.setFeedbackAmount(0.5f);
-    freeze.setDryWetMix(100.0f);  // Wet only
+    freeze.setDryWetMix(1.0f);  // Wet only
     freeze.snapParameters();
 
     auto ctx = makeTestContext();
@@ -262,7 +262,7 @@ TEST_CASE("FreezeMode input is muted when freeze engaged", "[freeze-mode][US1][F
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(20.0f);  // 20ms = 882 samples (quick fill)
     freeze.setFeedbackAmount(0.9f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setDecay(0.0f);  // Infinite sustain
     freeze.snapParameters();
 
@@ -308,7 +308,7 @@ TEST_CASE("FreezeMode frozen content sustains at full level", "[freeze-mode][US1
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);  // Short delay for faster test
     freeze.setFeedbackAmount(0.8f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setDecay(0.0f);  // Infinite sustain - key for this test
     freeze.snapParameters();
 
@@ -360,7 +360,7 @@ TEST_CASE("FreezeMode freeze transitions are click-free", "[freeze-mode][US1][FR
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(20.0f);  // 20ms = 882 samples (quick fill)
     freeze.setFeedbackAmount(0.8f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.snapParameters();
 
     auto ctx = makeTestContext();
@@ -414,7 +414,7 @@ TEST_CASE("FreezeMode freeze disengage returns to normal feedback decay", "[free
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.5f);  // 50% feedback - will decay
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setDecay(0.0f);
     freeze.snapParameters();
 
@@ -494,7 +494,7 @@ TEST_CASE("FreezeMode dry/wet mix control 0-100%", "[freeze-mode][US1][FR-024]")
     }
 
     SECTION("100% dry/wet = all wet") {
-        freeze.setDryWetMix(100.0f);
+        freeze.setDryWetMix(1.0f);
         freeze.snapParameters();
 
         // Feed some content first
@@ -560,9 +560,9 @@ TEST_CASE("FreezeMode pitch shift +12 semitones shifts up one octave", "[freeze-
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.9f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setPitchSemitones(12.0f);  // +1 octave
-    freeze.setShimmerMix(100.0f);     // Full pitch shift
+    freeze.setShimmerMix(1.0f);     // Full pitch shift
     freeze.setDecay(0.0f);            // Infinite sustain
     freeze.snapParameters();
 
@@ -596,9 +596,9 @@ TEST_CASE("FreezeMode pitch shift -7 semitones shifts down a fifth", "[freeze-mo
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.9f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setPitchSemitones(-7.0f);  // Down a fifth
-    freeze.setShimmerMix(100.0f);     // Full pitch shift
+    freeze.setShimmerMix(1.0f);     // Full pitch shift
     freeze.setDecay(0.0f);
     freeze.snapParameters();
 
@@ -630,7 +630,7 @@ TEST_CASE("FreezeMode shimmer mix blends pitched and unpitched", "[freeze-mode][
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(20.0f);
     freeze.setFeedbackAmount(0.8f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setPitchSemitones(12.0f);
     freeze.setDecay(0.0f);
     freeze.snapParameters();
@@ -660,7 +660,7 @@ TEST_CASE("FreezeMode shimmer mix blends pitched and unpitched", "[freeze-mode][
     }
 
     SECTION("100% shimmer mix = full pitch shifting") {
-        freeze.setShimmerMix(100.0f);
+        freeze.setShimmerMix(1.0f);
         freeze.snapParameters();
         freeze.setFreezeEnabled(true);
 
@@ -677,7 +677,7 @@ TEST_CASE("FreezeMode shimmer mix blends pitched and unpitched", "[freeze-mode][
     }
 
     SECTION("50% shimmer mix = blend of both") {
-        freeze.setShimmerMix(50.0f);
+        freeze.setShimmerMix(0.5f);
         freeze.snapParameters();
         freeze.setFreezeEnabled(true);
 
@@ -699,8 +699,8 @@ TEST_CASE("FreezeMode pitch shift parameter is modulatable", "[freeze-mode][US2]
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.8f);
-    freeze.setDryWetMix(100.0f);
-    freeze.setShimmerMix(100.0f);
+    freeze.setDryWetMix(1.0f);
+    freeze.setShimmerMix(1.0f);
     freeze.setDecay(0.0f);
     freeze.snapParameters();
 
@@ -759,7 +759,7 @@ TEST_CASE("FreezeMode decay 0% results in infinite sustain", "[freeze-mode][US3]
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);  // High feedback (freeze overrides to 100%)
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setDecay(0.0f);  // Infinite sustain
     freeze.setShimmerMix(0.0f);  // No shimmer for cleaner test
     freeze.snapParameters();
@@ -817,8 +817,8 @@ TEST_CASE("FreezeMode decay 100% reaches -60dB within 500ms", "[freeze-mode][US3
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(20.0f);  // Short delay for faster loop
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
-    freeze.setDecay(100.0f);  // Maximum decay
+    freeze.setDryWetMix(1.0f);
+    freeze.setDecay(1.0f);  // Maximum decay
     freeze.setShimmerMix(0.0f);
     freeze.snapParameters();
 
@@ -864,8 +864,8 @@ TEST_CASE("FreezeMode decay 50% fades gradually", "[freeze-mode][US3][FR-013]") 
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(20.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
-    freeze.setDecay(50.0f);  // Mid-range decay
+    freeze.setDryWetMix(1.0f);
+    freeze.setDecay(0.5f);  // Mid-range decay
     freeze.setShimmerMix(0.0f);
     freeze.snapParameters();
 
@@ -914,7 +914,7 @@ TEST_CASE("FreezeMode decay parameter is updateable", "[freeze-mode][US3][FR-016
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.9f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);  // Start with infinite sustain
     freeze.snapParameters();
@@ -940,7 +940,7 @@ TEST_CASE("FreezeMode decay parameter is updateable", "[freeze-mode][US3][FR-016
     float beforeDecayChange = calculateRMS(left.data(), kBlockSize);
 
     // Change decay to 100% mid-process
-    freeze.setDecay(100.0f);
+    freeze.setDecay(1.0f);
 
     // Process more blocks - should now decay
     int blocksFor300ms = static_cast<int>(0.3f * kSampleRate / kBlockSize);
@@ -966,7 +966,7 @@ TEST_CASE("FreezeMode diffusion 0% preserves transients", "[freeze-mode][US4][FR
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setDiffusionAmount(0.0f);  // No diffusion
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
@@ -1016,8 +1016,8 @@ TEST_CASE("FreezeMode diffusion 100% smears transients", "[freeze-mode][US4][FR-
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
-    freeze.setDiffusionAmount(100.0f);  // Full diffusion
+    freeze.setDryWetMix(1.0f);
+    freeze.setDiffusionAmount(1.0f);  // Full diffusion
     freeze.setDiffusionSize(50.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
@@ -1060,8 +1060,8 @@ TEST_CASE("FreezeMode diffusion preserves stereo width", "[freeze-mode][US4][FR-
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
-    freeze.setDiffusionAmount(50.0f);  // Moderate diffusion
+    freeze.setDryWetMix(1.0f);
+    freeze.setDiffusionAmount(0.5f);  // Moderate diffusion
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.snapParameters();
@@ -1110,7 +1110,7 @@ TEST_CASE("FreezeMode diffusion amount is updateable", "[freeze-mode][US4][FR-01
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setDiffusionAmount(0.0f);  // Start with no diffusion
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
@@ -1137,7 +1137,7 @@ TEST_CASE("FreezeMode diffusion amount is updateable", "[freeze-mode][US4][FR-01
     float rmsBefore = calculateRMS(left.data(), kBlockSize);
 
     // Change diffusion to 100% mid-process
-    freeze.setDiffusionAmount(100.0f);
+    freeze.setDiffusionAmount(1.0f);
 
     // Process more
     for (int i = 0; i < 10; ++i) {
@@ -1161,7 +1161,7 @@ TEST_CASE("FreezeMode lowpass filter attenuates high frequencies", "[freeze-mode
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.setDiffusionAmount(0.0f);
@@ -1217,7 +1217,7 @@ TEST_CASE("FreezeMode highpass filter attenuates low frequencies", "[freeze-mode
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.setDiffusionAmount(0.0f);
@@ -1270,7 +1270,7 @@ TEST_CASE("FreezeMode bandpass filter attenuates above and below cutoff", "[free
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.setDiffusionAmount(0.0f);
@@ -1324,7 +1324,7 @@ TEST_CASE("FreezeMode filter cutoff works across full range", "[freeze-mode][US5
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.setDiffusionAmount(0.0f);
@@ -1374,7 +1374,7 @@ TEST_CASE("FreezeMode filter disabled preserves full frequency range", "[freeze-
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.setDiffusionAmount(0.0f);
@@ -1419,7 +1419,7 @@ TEST_CASE("FreezeMode filter cutoff is updateable without crash", "[freeze-mode]
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(50.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.setDiffusionAmount(0.0f);
@@ -1479,7 +1479,7 @@ TEST_CASE("FreezeMode with empty delay buffer produces silence", "[freeze-mode][
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(100.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.snapParameters();
@@ -1510,7 +1510,7 @@ TEST_CASE("FreezeMode delay time change deferred when frozen", "[freeze-mode][ed
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(100.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.snapParameters();
@@ -1567,7 +1567,7 @@ TEST_CASE("FreezeMode short delay adapts smoothly", "[freeze-mode][edge-case]") 
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(20.0f);  // Very short delay
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.snapParameters();
@@ -1604,7 +1604,7 @@ TEST_CASE("FreezeMode multiple parameter changes while frozen apply smoothly", "
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(100.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
+    freeze.setDryWetMix(1.0f);
     freeze.setShimmerMix(0.0f);
     freeze.setDecay(0.0f);
     freeze.setDiffusionAmount(0.0f);
@@ -1631,13 +1631,13 @@ TEST_CASE("FreezeMode multiple parameter changes while frozen apply smoothly", "
     float rmsBaseline = calculateRMS(left.data(), kBlockSize);
 
     // Change multiple parameters at once
-    freeze.setShimmerMix(50.0f);
+    freeze.setShimmerMix(0.5f);
     freeze.setPitchSemitones(7.0f);
-    freeze.setDiffusionAmount(50.0f);
+    freeze.setDiffusionAmount(0.5f);
     freeze.setFilterEnabled(true);
     freeze.setFilterType(FilterType::Lowpass);
     freeze.setFilterCutoff(3000.0f);
-    freeze.setDecay(10.0f);
+    freeze.setDecay(0.1f);
 
     // Check for clicks during parameter transitions
     float maxDiff = 0.0f;
@@ -1701,11 +1701,11 @@ TEST_CASE("FreezeMode CPU usage is reasonable", "[freeze-mode][edge-case][SC-008
     freeze.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
     freeze.setDelayTimeMs(500.0f);
     freeze.setFeedbackAmount(0.99f);
-    freeze.setDryWetMix(100.0f);
-    freeze.setShimmerMix(50.0f);  // Enable shimmer for worst case
+    freeze.setDryWetMix(1.0f);
+    freeze.setShimmerMix(0.5f);  // Enable shimmer for worst case
     freeze.setPitchSemitones(12.0f);
-    freeze.setDiffusionAmount(50.0f);
-    freeze.setDecay(10.0f);
+    freeze.setDiffusionAmount(0.5f);
+    freeze.setDecay(0.1f);
     freeze.setFilterEnabled(true);
     freeze.setFilterCutoff(3000.0f);
     freeze.snapParameters();

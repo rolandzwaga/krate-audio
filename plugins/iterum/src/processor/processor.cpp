@@ -504,7 +504,7 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             spectralDelay_.setFeedbackTilt(spectralParams_.feedbackTilt.load(std::memory_order_relaxed));
             spectralDelay_.setFreezeEnabled(spectralParams_.freeze.load(std::memory_order_relaxed));
             spectralDelay_.setDiffusion(spectralParams_.diffusion.load(std::memory_order_relaxed));
-            spectralDelay_.setDryWetMix(spectralParams_.dryWet.load(std::memory_order_relaxed) * 100.0f);
+            spectralDelay_.setDryWetMix(spectralParams_.dryWet.load(std::memory_order_relaxed));
             spectralDelay_.setSpreadCurve(static_cast<Krate::DSP::SpreadCurve>(
                 spectralParams_.spreadCurve.load(std::memory_order_relaxed)));
             spectralDelay_.setStereoWidth(spectralParams_.stereoWidth.load(std::memory_order_relaxed));

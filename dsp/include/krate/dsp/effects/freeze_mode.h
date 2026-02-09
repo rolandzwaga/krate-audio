@@ -143,11 +143,11 @@ private:
 /// @par User Controls
 /// - Freeze Toggle: Engage/disengage freeze (FR-001 to FR-008)
 /// - Pitch: ±24 semitones for shimmer effect (FR-009 to FR-012)
-/// - Shimmer Mix: 0-100% blend of pitched/unpitched (FR-011)
-/// - Decay: 0-100% (0 = infinite sustain, 100 = fast fade) (FR-013 to FR-016)
-/// - Diffusion: 0-100% amount and size (FR-017 to FR-019)
+/// - Shimmer Mix: 0.0-1.0 blend of pitched/unpitched (FR-011)
+/// - Decay: 0.0-1.0 (0 = infinite sustain, 1 = fast fade) (FR-013 to FR-016)
+/// - Diffusion: 0.0-1.0 amount, 0-100 size (FR-017 to FR-019)
 /// - Filter: Optional lowpass/highpass/bandpass in feedback (FR-020 to FR-023)
-/// - Dry/Wet Mix: 0-100% blend (FR-024)
+/// - Dry/Wet Mix: 0.0-1.0 blend (FR-024)
 /// - Output Level: -inf to +6dB (FR-025)
 ///
 /// @par Constitution Compliance
@@ -189,9 +189,9 @@ public:
     static constexpr float kMaxPitchCents = 100.0f;
     static constexpr float kDefaultPitchCents = 0.0f;
 
-    // Shimmer mix (FR-011)
+    // Shimmer mix (FR-011) - 0.0 to 1.0
     static constexpr float kMinShimmerMix = 0.0f;
-    static constexpr float kMaxShimmerMix = 100.0f;
+    static constexpr float kMaxShimmerMix = 1.0f;
     static constexpr float kDefaultShimmerMix = 0.0f;  // Default: no pitch shifting
 
     // Feedback
@@ -199,15 +199,19 @@ public:
     static constexpr float kMaxFeedback = 1.2f;  // 120% for self-oscillation
     static constexpr float kDefaultFeedback = 0.5f;
 
-    // Decay (FR-013)
-    static constexpr float kMinDecay = 0.0f;      // Infinite sustain
-    static constexpr float kMaxDecay = 100.0f;   // Fast fade
+    // Decay (FR-013) - 0.0 to 1.0 (0 = infinite sustain, 1 = fast fade)
+    static constexpr float kMinDecay = 0.0f;
+    static constexpr float kMaxDecay = 1.0f;
     static constexpr float kDefaultDecay = 0.0f;  // Default: infinite sustain
 
-    // Diffusion (FR-017, FR-018)
-    static constexpr float kMinDiffusion = 0.0f;
-    static constexpr float kMaxDiffusion = 100.0f;
+    // Diffusion amount (FR-017) - 0.0 to 1.0
+    static constexpr float kMinDiffusionAmount = 0.0f;
+    static constexpr float kMaxDiffusionAmount = 1.0f;
     static constexpr float kDefaultDiffusionAmount = 0.0f;
+
+    // Diffusion size (FR-018) - 0.0 to 100.0 (forwarded to DiffusionNetwork)
+    static constexpr float kMinDiffusionSize = 0.0f;
+    static constexpr float kMaxDiffusionSize = 100.0f;
     static constexpr float kDefaultDiffusionSize = 50.0f;
 
     // Filter (FR-020 to FR-022)
@@ -215,10 +219,10 @@ public:
     static constexpr float kMaxFilterCutoff = 20000.0f;
     static constexpr float kDefaultFilterCutoff = 4000.0f;
 
-    // Output (FR-024)
+    // Output (FR-024) - 0.0 to 1.0
     static constexpr float kMinDryWetMix = 0.0f;
-    static constexpr float kMaxDryWetMix = 100.0f;
-    static constexpr float kDefaultDryWetMix = 50.0f;
+    static constexpr float kMaxDryWetMix = 1.0f;
+    static constexpr float kDefaultDryWetMix = 0.5f;
 
     // Internal
     static constexpr float kSmoothingTimeMs = 20.0f;
@@ -315,8 +319,8 @@ public:
     /// @brief Get fine pitch adjustment
     [[nodiscard]] float getPitchCents() const noexcept { return pitchCents_; }
 
-    /// @brief Set shimmer mix (% of feedback that is pitch-shifted)
-    void setShimmerMix(float percent) noexcept;
+    /// @brief Set shimmer mix (0.0 to 1.0, ratio of feedback that is pitch-shifted)
+    void setShimmerMix(float mix) noexcept;
 
     /// @brief Get shimmer mix
     [[nodiscard]] float getShimmerMix() const noexcept { return shimmerMix_; }
@@ -325,8 +329,8 @@ public:
     // Decay Configuration (FR-013 to FR-016)
     // =========================================================================
 
-    /// @brief Set decay amount (0 = infinite sustain, 100 = fast fade)
-    void setDecay(float percent) noexcept;
+    /// @brief Set decay amount (0.0 = infinite sustain, 1.0 = fast fade)
+    void setDecay(float amount) noexcept;
 
     /// @brief Get decay amount
     [[nodiscard]] float getDecay() const noexcept { return decayAmount_; }
@@ -335,14 +339,14 @@ public:
     // Diffusion Configuration (FR-017 to FR-019)
     // =========================================================================
 
-    /// @brief Set diffusion amount
-    void setDiffusionAmount(float percent) noexcept;
+    /// @brief Set diffusion amount (0.0 to 1.0)
+    void setDiffusionAmount(float amount) noexcept;
 
     /// @brief Get diffusion amount
     [[nodiscard]] float getDiffusionAmount() const noexcept { return diffusionAmount_; }
 
-    /// @brief Set diffusion size
-    void setDiffusionSize(float percent) noexcept;
+    /// @brief Set diffusion size (0.0 to 100.0)
+    void setDiffusionSize(float size) noexcept;
 
     /// @brief Get diffusion size
     [[nodiscard]] float getDiffusionSize() const noexcept { return diffusionSize_; }
@@ -373,8 +377,8 @@ public:
     // Output Configuration (FR-024)
     // =========================================================================
 
-    /// @brief Set dry/wet mix
-    void setDryWetMix(float percent) noexcept;
+    /// @brief Set dry/wet mix (0.0 to 1.0)
+    void setDryWetMix(float mix) noexcept;
 
     /// @brief Get dry/wet mix
     [[nodiscard]] float getDryWetMix() const noexcept { return dryWetMix_; }
@@ -619,13 +623,13 @@ inline void FreezeMode::prepare(double sampleRate, std::size_t maxBlockSize, flo
 
     // Initialize smoothers
     delaySmoother_.snapTo(delayTimeMs_);
-    dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
+    dryWetSmoother_.snapTo(dryWetMix_);
 
     // Initialize freeze processor parameters
-    freezeProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
-    freezeProcessor_.setDiffusionAmount(diffusionAmount_ / 100.0f);
+    freezeProcessor_.setShimmerMix(shimmerMix_);
+    freezeProcessor_.setDiffusionAmount(diffusionAmount_);
     freezeProcessor_.setDiffusionSize(diffusionSize_);
-    freezeProcessor_.setDecayAmount(decayAmount_ / 100.0f);
+    freezeProcessor_.setDecayAmount(decayAmount_);
     freezeProcessor_.setPitchSemitones(pitchSemitones_);
     freezeProcessor_.setPitchCents(pitchCents_);
 
@@ -640,14 +644,14 @@ inline void FreezeMode::reset() noexcept {
     freezeProcessor_.reset();
 
     delaySmoother_.snapTo(delayTimeMs_);
-    dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
+    dryWetSmoother_.snapTo(dryWetMix_);
 
     feedbackNetwork_.snapParameters();
 }
 
 inline void FreezeMode::snapParameters() noexcept {
     delaySmoother_.snapTo(delayTimeMs_);
-    dryWetSmoother_.snapTo(dryWetMix_ / 100.0f);
+    dryWetSmoother_.snapTo(dryWetMix_);
 
     feedbackNetwork_.setDelayTimeMs(delayTimeMs_);
     feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
@@ -656,10 +660,10 @@ inline void FreezeMode::snapParameters() noexcept {
     feedbackNetwork_.setFilterType(filterType_);
     feedbackNetwork_.snapParameters();
 
-    freezeProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
-    freezeProcessor_.setDiffusionAmount(diffusionAmount_ / 100.0f);
+    freezeProcessor_.setShimmerMix(shimmerMix_);
+    freezeProcessor_.setDiffusionAmount(diffusionAmount_);
     freezeProcessor_.setDiffusionSize(diffusionSize_);
-    freezeProcessor_.setDecayAmount(decayAmount_ / 100.0f);
+    freezeProcessor_.setDecayAmount(decayAmount_);
     freezeProcessor_.setPitchSemitones(pitchSemitones_);
     freezeProcessor_.setPitchCents(pitchCents_);
 }
@@ -698,23 +702,23 @@ inline void FreezeMode::setPitchCents(float cents) noexcept {
     freezeProcessor_.setPitchCents(pitchCents_);
 }
 
-inline void FreezeMode::setShimmerMix(float percent) noexcept {
-    shimmerMix_ = std::clamp(percent, kMinShimmerMix, kMaxShimmerMix);
-    freezeProcessor_.setShimmerMix(shimmerMix_ / 100.0f);
+inline void FreezeMode::setShimmerMix(float mix) noexcept {
+    shimmerMix_ = std::clamp(mix, kMinShimmerMix, kMaxShimmerMix);
+    freezeProcessor_.setShimmerMix(shimmerMix_);
 }
 
-inline void FreezeMode::setDecay(float percent) noexcept {
-    decayAmount_ = std::clamp(percent, kMinDecay, kMaxDecay);
-    freezeProcessor_.setDecayAmount(decayAmount_ / 100.0f);
+inline void FreezeMode::setDecay(float amount) noexcept {
+    decayAmount_ = std::clamp(amount, kMinDecay, kMaxDecay);
+    freezeProcessor_.setDecayAmount(decayAmount_);
 }
 
-inline void FreezeMode::setDiffusionAmount(float percent) noexcept {
-    diffusionAmount_ = std::clamp(percent, kMinDiffusion, kMaxDiffusion);
-    freezeProcessor_.setDiffusionAmount(diffusionAmount_ / 100.0f);
+inline void FreezeMode::setDiffusionAmount(float amount) noexcept {
+    diffusionAmount_ = std::clamp(amount, kMinDiffusionAmount, kMaxDiffusionAmount);
+    freezeProcessor_.setDiffusionAmount(diffusionAmount_);
 }
 
-inline void FreezeMode::setDiffusionSize(float percent) noexcept {
-    diffusionSize_ = std::clamp(percent, kMinDiffusion, kMaxDiffusion);
+inline void FreezeMode::setDiffusionSize(float size) noexcept {
+    diffusionSize_ = std::clamp(size, kMinDiffusionSize, kMaxDiffusionSize);
     freezeProcessor_.setDiffusionSize(diffusionSize_);
 }
 
@@ -733,9 +737,9 @@ inline void FreezeMode::setFilterCutoff(float hz) noexcept {
     feedbackNetwork_.setFilterCutoff(filterCutoffHz_);
 }
 
-inline void FreezeMode::setDryWetMix(float percent) noexcept {
-    dryWetMix_ = std::clamp(percent, kMinDryWetMix, kMaxDryWetMix);
-    dryWetSmoother_.setTarget(dryWetMix_ / 100.0f);
+inline void FreezeMode::setDryWetMix(float mix) noexcept {
+    dryWetMix_ = std::clamp(mix, kMinDryWetMix, kMaxDryWetMix);
+    dryWetSmoother_.setTarget(dryWetMix_);
 }
 
 inline std::size_t FreezeMode::getLatencySamples() const noexcept {

@@ -101,6 +101,27 @@ enum class RuinaeDistortionType : uint8_t {
 };
 
 // =============================================================================
+// RuinaeDelayType Enumeration (043-effects-section FR-007, FR-008)
+// =============================================================================
+
+/// @brief Delay type selection for the Ruinae effects chain.
+///
+/// Each type maps to a specific delay effect implementation in the chain:
+/// - Digital: Clean digital delay (DigitalDelay, Layer 4)
+/// - Tape: Tape echo emulation (TapeDelay, Layer 4)
+/// - PingPong: Alternating L/R delay (PingPongDelay, Layer 4)
+/// - Granular: Grain-based delay (GranularDelay, Layer 4)
+/// - Spectral: FFT per-bin delay (SpectralDelay, Layer 4)
+enum class RuinaeDelayType : uint8_t {
+    Digital = 0,    ///< DigitalDelay (pristine, 80s, lo-fi)
+    Tape = 1,       ///< TapeDelay (motor inertia, heads, wear)
+    PingPong = 2,   ///< PingPongDelay (alternating L/R)
+    Granular = 3,   ///< GranularDelay (grain-based)
+    Spectral = 4,   ///< SpectralDelay (FFT per-bin)
+    NumTypes = 5    ///< Sentinel: total number of delay types
+};
+
+// =============================================================================
 // VoiceModSource Enumeration (FR-025)
 // =============================================================================
 

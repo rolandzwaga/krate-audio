@@ -43,7 +43,7 @@ double benchmarkFFTSize(std::size_t fftSize, int numIterations) {
     delay.setFeedback(0.5f);
     delay.setFeedbackTilt(0.2f);
     delay.setDiffusion(0.3f);
-    delay.setDryWetMix(50.0f);
+    delay.setDryWetMix(0.5f);
     delay.snapParameters();
 
     // Allocate buffers
@@ -142,7 +142,7 @@ int main() {
         delay.setSpreadMs(300.0f);
         delay.setFeedback(0.5f);
         delay.setDiffusion(0.3f);
-        delay.setDryWetMix(50.0f);
+        delay.setDryWetMix(0.5f);
         delay.setFreezeEnabled(true);  // Enable freeze
         delay.snapParameters();
 

@@ -1,17 +1,11 @@
 // ==============================================================================
 // Regression Test: Mix Parameter Conversion (Processor → DSP)
 // ==============================================================================
-// Tests that the processor correctly converts normalized 0-1 mix parameters
-// to the 0-100 percentage values expected by DSP delay classes.
+// Tests that the processor correctly passes mix parameters to DSP delay classes.
 //
-// BUG HISTORY:
-// - Spectral, Shimmer, and MultiTap modes passed normalized 0-1 values
-//   directly to setDryWetMix() which expects 0-100 percentage.
-// - At 50% mix (0.5 normalized), only 0.5% wet signal was applied - inaudible!
-// - Fix: Multiply by 100.0f before calling setDryWetMix().
-//
-// This test catches the bug by verifying that setDryWetMix stores the correct
-// percentage value when given the converted input.
+// NOTE: SpectralDelay now uses normalized 0-1 API (no conversion needed).
+// ShimmerDelay and MultiTapDelay still use 0-100 percentage API and require
+// multiplication by 100.0f in the processor.
 //
 // Constitution Compliance:
 // - Principle VIII: Testing Discipline
@@ -29,36 +23,34 @@ using Catch::Approx;
 using namespace Krate::DSP;
 
 // =============================================================================
-// Regression Tests: Verify 0-1 → 0-100 conversion works correctly
+// SpectralDelay: Uses normalized 0-1 API (no conversion needed)
 // =============================================================================
-// These tests simulate the processor's conversion: value * 100.0f
-// If the conversion is missing, 50% mix → 0.5% wet → essentially silent delay
 
-TEST_CASE("SpectralDelay mix parameter: correct conversion stores 50%",
+TEST_CASE("SpectralDelay mix parameter: normalized 0-1 API",
           "[regression][mix][spectral]") {
     SpectralDelay delay;
 
-    SECTION("50% mix with correct conversion") {
-        const float normalizedMix = 0.5f;
-        delay.setDryWetMix(normalizedMix * 100.0f);  // Correct: 50.0f
-        REQUIRE(delay.getDryWetMix() == Approx(50.0f).margin(0.1f));
+    SECTION("50% mix passed directly as 0.5") {
+        delay.setDryWetMix(0.5f);
+        REQUIRE(delay.getDryWetMix() == Approx(0.5f).margin(0.001f));
     }
 
-    SECTION("100% mix with correct conversion") {
-        delay.setDryWetMix(1.0f * 100.0f);  // 100.0f
-        REQUIRE(delay.getDryWetMix() == Approx(100.0f).margin(0.1f));
+    SECTION("100% mix passed directly as 1.0") {
+        delay.setDryWetMix(1.0f);
+        REQUIRE(delay.getDryWetMix() == Approx(1.0f).margin(0.001f));
     }
 
-    SECTION("0% mix with correct conversion") {
-        delay.setDryWetMix(0.0f * 100.0f);  // 0.0f
-        REQUIRE(delay.getDryWetMix() == Approx(0.0f).margin(0.1f));
+    SECTION("0% mix passed directly as 0.0") {
+        delay.setDryWetMix(0.0f);
+        REQUIRE(delay.getDryWetMix() == Approx(0.0f).margin(0.001f));
     }
 
-    SECTION("BUG DETECTION: without *100, value would be 0.5 instead of 50") {
-        const float normalizedMix = 0.5f;
-        delay.setDryWetMix(normalizedMix);  // BUG: 0.5 instead of 50.0
-        // This shows what the bug looked like - storing 0.5% instead of 50%
-        REQUIRE(delay.getDryWetMix() == Approx(0.5f).margin(0.1f));
+    SECTION("Values are clamped to 0-1 range") {
+        delay.setDryWetMix(1.5f);
+        REQUIRE(delay.getDryWetMix() == Approx(1.0f).margin(0.001f));
+
+        delay.setDryWetMix(-0.5f);
+        REQUIRE(delay.getDryWetMix() == Approx(0.0f).margin(0.001f));
     }
 }
 
@@ -100,23 +92,22 @@ TEST_CASE("MultiTapDelay mix parameter: correct conversion stores 50%",
 // Documentation Test: API Contract
 // =============================================================================
 
-TEST_CASE("setDryWetMix API contract: expects 0-100 percentage",
+TEST_CASE("setDryWetMix API contract: SpectralDelay uses 0-1, others use 0-100",
           "[api][mix][contract]") {
-    // All delay types that use setDryWetMix expect 0-100 percentage range
-    // The processor must convert normalized 0-1 values by multiplying by 100
+    // SpectralDelay uses normalized 0-1 range (no conversion needed)
+    // ShimmerDelay, MultiTapDelay still use 0-100 percentage range
 
-    SECTION("Documentation: conversion formula") {
-        // Given: normalized VST parameter value in range [0, 1]
+    SECTION("SpectralDelay: processor passes normalized value directly") {
         const float normalizedValue = 0.5f;
+        SpectralDelay delay;
+        delay.setDryWetMix(normalizedValue);
+        REQUIRE(delay.getDryWetMix() == Approx(0.5f).margin(0.001f));
+    }
 
-        // When: processor passes to DSP
-        // CORRECT: float dspValue = normalizedValue * 100.0f;
-        // WRONG:   float dspValue = normalizedValue;  // This was the bug!
-
-        const float correctValue = normalizedValue * 100.0f;
-        REQUIRE(correctValue == 50.0f);
-
-        const float bugValue = normalizedValue;
-        REQUIRE(bugValue == 0.5f);
+    SECTION("ShimmerDelay: processor must multiply by 100") {
+        const float normalizedValue = 0.5f;
+        ShimmerDelay delay;
+        delay.setDryWetMix(normalizedValue * 100.0f);
+        REQUIRE(delay.getDryWetMix() == Approx(50.0f).margin(0.1f));
     }
 }
