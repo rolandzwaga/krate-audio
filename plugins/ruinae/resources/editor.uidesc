@@ -2,15 +2,22 @@
 <vstgui-ui-description version="1">
     <!-- ==================================================================== -->
     <!-- Ruinae - Chaos/Spectral Hybrid Synthesizer                          -->
-    <!-- Placeholder UI layout - will be designed in Phase 8                  -->
+    <!-- Phase 8: UI prototyping with ArcKnob controls                       -->
     <!-- ==================================================================== -->
+
+    <!-- Control Tags (parameter bindings) -->
+    <control-tags>
+        <control-tag name="MasterGain" tag="0"/>
+        <control-tag name="FilterCutoff" tag="401"/>
+        <control-tag name="OscALevel" tag="103"/>
+    </control-tags>
 
     <template
         name="editor"
         minSize="900, 600"
         maxSize="900, 600"
         size="900, 600"
-        background-color="#2D2D2D"
+        background-color="#1A1A1E"
         class="CViewContainer"
     >
         <!-- Plugin Title -->
@@ -37,16 +44,100 @@
             transparent="true"
         />
 
-        <!-- Placeholder message -->
+        <!-- ArcKnob Demo Section -->
         <view
             class="CTextLabel"
-            origin="200, 250"
-            size="500, 40"
-            title="UI will be designed in Phase 8"
-            font="~ NormalFontBig"
-            font-color="#606060"
+            origin="20, 60"
+            size="300, 20"
+            title="ArcKnob Demo"
+            font="~ NormalFontSmall"
+            font-color="#808080"
+            text-alignment="left"
+            transparent="true"
+        />
+
+        <!-- Master Gain knob (warm gold) -->
+        <view
+            class="CTextLabel"
+            origin="40, 130"
+            size="60, 16"
+            title="Gain"
+            font="~ NormalFontSmaller"
+            font-color="#808080"
             text-alignment="center"
             transparent="true"
+        />
+        <view
+            class="ArcKnob"
+            origin="40, 90"
+            size="40, 40"
+            control-tag="MasterGain"
+            default-value="0.7"
+            arc-color="#DCA850"
+            guide-color="#FFFFFF28"
+        />
+
+        <!-- Filter Cutoff knob (cyan) -->
+        <view
+            class="CTextLabel"
+            origin="120, 130"
+            size="60, 16"
+            title="Cutoff"
+            font="~ NormalFontSmaller"
+            font-color="#808080"
+            text-alignment="center"
+            transparent="true"
+        />
+        <view
+            class="ArcKnob"
+            origin="120, 90"
+            size="40, 40"
+            control-tag="FilterCutoff"
+            default-value="0.5"
+            arc-color="#4ECDC4"
+            guide-color="#FFFFFF28"
+        />
+
+        <!-- OSC A Level knob (coral) -->
+        <view
+            class="CTextLabel"
+            origin="200, 130"
+            size="60, 16"
+            title="Level"
+            font="~ NormalFontSmaller"
+            font-color="#808080"
+            text-alignment="center"
+            transparent="true"
+        />
+        <view
+            class="ArcKnob"
+            origin="200, 90"
+            size="40, 40"
+            control-tag="OscALevel"
+            default-value="0.8"
+            arc-color="#FF6B6B"
+            guide-color="#FFFFFF28"
+        />
+
+        <!-- Larger knob demo (60px) -->
+        <view
+            class="CTextLabel"
+            origin="310, 130"
+            size="80, 16"
+            title="Large"
+            font="~ NormalFontSmaller"
+            font-color="#808080"
+            text-alignment="center"
+            transparent="true"
+        />
+        <view
+            class="ArcKnob"
+            origin="310, 80"
+            size="60, 60"
+            default-value="0.65"
+            arc-color="#B39DDB"
+            guide-color="#FFFFFF28"
+            indicator-length="6"
         />
     </template>
 </vstgui-ui-description>

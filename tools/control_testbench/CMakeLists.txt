@@ -85,6 +85,8 @@ target_include_directories(${target}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/mocks
         # Include plugin src for TapPatternEditor
         ${CMAKE_SOURCE_DIR}/plugins/iterum/src
+        # Shared UI components (ArcKnob, etc.)
+        ${CMAKE_SOURCE_DIR}/plugins/shared/src
         # VSTGUI includes
         ${vst3sdk_SOURCE_DIR}/vstgui4
 )

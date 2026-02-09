@@ -26,11 +26,11 @@
         <font name="mono" font-name="Consolas" size="9"/>
     </fonts>
 
-    <template name="view" size="750, 450" background-color="background">
+    <template name="view" size="750, 580" background-color="background">
         <!-- Main container with TestbenchController -->
         <view class="CViewContainer"
               origin="0, 0"
-              size="750, 450"
+              size="750, 580"
               background-color="background"
               sub-controller="TestbenchController">
 
@@ -45,9 +45,146 @@
                   background-color="~ TransparentCColor"
                   frame-color="~ TransparentCColor"/>
 
-            <!-- Control panel (left side) -->
+            <!-- ============================================================ -->
+            <!-- ArcKnob Demo Panel -->
+            <!-- ============================================================ -->
             <view class="CViewContainer"
                   origin="10, 35"
+                  size="730, 130"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="ArcKnob"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Small gold knob (40px) -->
+                <view class="CTextLabel"
+                      origin="10, 95"
+                      size="50, 14"
+                      title="Gold 40"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="ArcKnob"
+                      origin="15, 28"
+                      size="40, 40"
+                      default-value="0.7"
+                      arc-color="#DCA850"
+                      guide-color="#FFFFFF28"/>
+
+                <!-- Small cyan knob (40px) -->
+                <view class="CTextLabel"
+                      origin="75, 95"
+                      size="50, 14"
+                      title="Cyan 40"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="ArcKnob"
+                      origin="80, 28"
+                      size="40, 40"
+                      default-value="0.5"
+                      arc-color="#4ECDC4"
+                      guide-color="#FFFFFF28"/>
+
+                <!-- Small coral knob (40px) -->
+                <view class="CTextLabel"
+                      origin="140, 95"
+                      size="50, 14"
+                      title="Coral 40"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="ArcKnob"
+                      origin="145, 28"
+                      size="40, 40"
+                      default-value="0.3"
+                      arc-color="#FF6B6B"
+                      guide-color="#FFFFFF28"/>
+
+                <!-- Medium purple knob (60px) -->
+                <view class="CTextLabel"
+                      origin="210, 95"
+                      size="60, 14"
+                      title="Purple 60"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="ArcKnob"
+                      origin="215, 25"
+                      size="60, 60"
+                      default-value="0.65"
+                      arc-color="#B39DDB"
+                      guide-color="#FFFFFF28"
+                      indicator-length="6"/>
+
+                <!-- Large white knob (80px) -->
+                <view class="CTextLabel"
+                      origin="295, 110"
+                      size="80, 14"
+                      title="White 80"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="ArcKnob"
+                      origin="305, 22"
+                      size="80, 80"
+                      default-value="0.85"
+                      arc-color="#E0E0E5"
+                      guide-color="#FFFFFF28"
+                      indicator-length="8"
+                      arc-width="1.5"/>
+
+                <!-- Modulation demo (programmatic, 60px) -->
+                <view class="CTextLabel"
+                      origin="405, 95"
+                      size="70, 14"
+                      title="Mod Demo"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="410, 25"
+                      size="60, 60"
+                      custom-view-name="ArcKnobModDemo"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="500, 30"
+                      size="220, 80"
+                      title="Minimal arc knob with gradient trail, radial indicator, and optional modulation ring. Configurable colors and sizes."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- Tap Pattern Editor Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="10, 175"
                   size="480, 280"
                   background-color="panel.background"
                   background-color-draw-style="filled">
@@ -72,7 +209,7 @@
 
             <!-- Parameter log panel (right side) -->
             <view class="CViewContainer"
-                  origin="500, 35"
+                  origin="500, 175"
                   size="240, 280"
                   background-color="panel.background"
                   background-color-draw-style="filled">
@@ -86,8 +223,8 @@
 
             <!-- Control settings panel (bottom) -->
             <view class="CViewContainer"
-                  origin="10, 325"
-                  size="730, 115"
+                  origin="10, 465"
+                  size="730, 105"
                   background-color="panel.background"
                   background-color-draw-style="filled">
 
@@ -124,33 +261,11 @@
                       background-color="~ TransparentCColor"
                       frame-color="~ TransparentCColor"/>
 
-                <!-- Snap Division label -->
-                <view class="CTextLabel"
-                      origin="150, 30"
-                      size="90, 20"
-                      title="Snap Division:"
-                      font="label"
-                      font-color="text.primary"
-                      text-alignment="left"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-
-                <!-- Snap display -->
-                <view class="CTextLabel"
-                      origin="240, 30"
-                      size="50, 20"
-                      title="1/4"
-                      font="label"
-                      font-color="accent"
-                      text-alignment="center"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-
                 <!-- Instructions -->
                 <view class="CTextLabel"
                       origin="10, 55"
-                      size="700, 50"
-                      title="Drag tap bars horizontally to adjust timing. Drag handles (top of bars) vertically to adjust level.&#10;Double-click to reset a tap. Hold Shift while dragging to constrain to one axis.&#10;Press Escape during drag to cancel."
+                      size="700, 40"
+                      title="Drag tap bars horizontally to adjust timing. Drag handles vertically to adjust level.&#10;Double-click to reset. Hold Shift to constrain to one axis. Press Escape to cancel drag."
                       font="label"
                       font-color="text.secondary"
                       text-alignment="left"

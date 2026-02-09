@@ -6,6 +6,9 @@
 #include "parameter_logger.h"
 #include "ui/tap_pattern_editor.h"
 
+// Shared UI controls - include triggers static ViewCreator registration
+#include "ui/arc_knob.h"
+
 namespace Testbench {
 
 // =============================================================================
@@ -87,6 +90,18 @@ VSTGUI::CView* TestbenchController::createView(
             editor->setActiveTapCount(4);
 
             return editor;
+        }
+        else if (*customViewName == "ArcKnobModDemo") {
+            // ArcKnob with modulation range preset for demo
+            VSTGUI::CRect size(0, 0, 60, 60);
+            auto* knob = new Krate::Plugins::ArcKnob(size, nullptr, -1);
+            knob->setArcColor(VSTGUI::CColor(78, 205, 196, 255));   // Cyan
+            knob->setModColor(VSTGUI::CColor(255, 107, 107, 180));  // Coral
+            knob->setGuideColor(VSTGUI::CColor(255, 255, 255, 40));
+            knob->setIndicatorLength(6.0);
+            knob->setValue(0.5f);
+            knob->setModulationRange(0.25f);
+            return knob;
         }
         else if (*customViewName == "ParameterLog") {
             VSTGUI::CRect size(0, 0, 300, 300);

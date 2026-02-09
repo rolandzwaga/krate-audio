@@ -54,10 +54,10 @@ void TestbenchDelegate::createMainWindow() {
     controller_ = std::make_shared<TestbenchController>();
 
     UIDesc::Config config;
-    config.windowConfig.title = "Control Testbench - Tap Pattern Editor";
+    config.windowConfig.title = "Control Testbench";
     config.windowConfig.autoSaveFrameName = "ControlTestbenchFrame";
     config.windowConfig.style.close().size().border();
-    config.windowConfig.size = {750, 450};
+    config.windowConfig.size = {750, 580};
     config.uiDescFileName = "testbench.uidesc";
     config.viewName = "view";
 

@@ -15,6 +15,9 @@
 #include "processor/processor.h"
 #include "controller/controller.h"
 
+// Shared UI controls - include triggers static ViewCreator registration
+#include "ui/arc_knob.h"
+
 #include "public.sdk/source/main/pluginfactory.h"
 
 // ==============================================================================
