@@ -9,6 +9,7 @@
 // Shared UI controls - include triggers static ViewCreator registration
 #include "ui/arc_knob.h"
 #include "ui/fieldset_container.h"
+#include "ui/step_pattern_editor.h"
 
 namespace Testbench {
 
@@ -104,6 +105,28 @@ VSTGUI::CView* TestbenchController::createView(
             knob->setModulationRange(0.25f);
             return knob;
         }
+        else if (*customViewName == "StepPatternEditor") {
+            VSTGUI::CRect size(0, 0, 500, 200);
+
+            auto* editor = new Krate::Plugins::StepPatternEditor(size, nullptr, -1);
+
+            // Wire parameter callback to logger
+            editor->setStepLevelBaseParamId(kTranceGateStepLevel0Id);
+            editor->setParameterCallback([](uint32_t paramId, float value) {
+                logParameterChange(paramId, value);
+            });
+            editor->setBeginEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -1.0f);  // sentinel for "begin edit"
+            });
+            editor->setEndEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -2.0f);  // sentinel for "end edit"
+            });
+
+            // Set 16 steps as default for testing
+            editor->setNumSteps(16);
+
+            return editor;
+        }
         else if (*customViewName == "ParameterLog") {
             VSTGUI::CRect size(0, 0, 300, 300);
             auto* logger = new ParameterLogView(size);
@@ -154,6 +177,28 @@ static bool _tap_editor_registered = []() {
                 logParameterChange(paramId, value);
             });
             editor->setActiveTapCount(4);
+            return editor;
+        }
+    );
+    return true;
+}();
+
+// Register StepPatternEditor
+static bool _step_editor_registered = []() {
+    ControlRegistry::instance().registerControl(
+        "step_pattern_editor",
+        {
+            "Step Pattern Editor",
+            "Step pattern bar chart editor for TranceGate (shared component)",
+            "step_pattern_editor.uidesc"
+        },
+        [](const VSTGUI::CRect& size) -> VSTGUI::CView* {
+            auto* editor = new Krate::Plugins::StepPatternEditor(size, nullptr, -1);
+            editor->setStepLevelBaseParamId(kTranceGateStepLevel0Id);
+            editor->setParameterCallback([](uint32_t paramId, float value) {
+                logParameterChange(paramId, value);
+            });
+            editor->setNumSteps(16);
             return editor;
         }
     );

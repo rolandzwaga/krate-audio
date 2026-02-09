@@ -101,10 +101,6 @@ public:
         for (int i = 0; i < steps; ++i) {
             if (accumulator >= steps) {
                 accumulator -= steps;
-                // Apply rotation: read from rotated position, write to position i
-                // rotation shifts the pattern to the right (later positions)
-                const int srcPos = ((i - rotation) % steps + steps) % steps;
-                // We set bit at srcPos in unrotated, which becomes bit i in rotated
                 pattern |= (1u << i);
             }
             accumulator += pulses;
