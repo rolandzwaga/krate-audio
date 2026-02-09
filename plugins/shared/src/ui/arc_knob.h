@@ -18,6 +18,8 @@
 // Registered as "ArcKnob" via VSTGUI ViewCreator system.
 // ==============================================================================
 
+#include "color_utils.h"
+
 #include "vstgui/lib/controls/cknob.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
@@ -133,27 +135,6 @@ private:
         double cy = vs.top + vs.getHeight() / 2.0;
         return VSTGUI::CPoint(cx + std::cos(angleRad) * radius,
                               cy + std::sin(angleRad) * radius);
-    }
-
-    /// Darken a color by a factor (0 = black, 1 = unchanged).
-    [[nodiscard]] static VSTGUI::CColor darkenColor(const VSTGUI::CColor& color,
-                                                     float factor) {
-        return VSTGUI::CColor(
-            static_cast<uint8_t>(color.red * factor),
-            static_cast<uint8_t>(color.green * factor),
-            static_cast<uint8_t>(color.blue * factor),
-            color.alpha);
-    }
-
-    /// Linearly interpolate between two colors.
-    [[nodiscard]] static VSTGUI::CColor lerpColor(const VSTGUI::CColor& a,
-                                                    const VSTGUI::CColor& b,
-                                                    float t) {
-        return VSTGUI::CColor(
-            static_cast<uint8_t>(a.red + (b.red - a.red) * t),
-            static_cast<uint8_t>(a.green + (b.green - a.green) * t),
-            static_cast<uint8_t>(a.blue + (b.blue - a.blue) * t),
-            static_cast<uint8_t>(a.alpha + (b.alpha - a.alpha) * t));
     }
 
     /// Get the arc rectangle (centered in view, inset for indicator).

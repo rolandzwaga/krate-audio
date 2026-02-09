@@ -17,13 +17,17 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
+#include "vstgui/lib/cvstguitimer.h"
+#include "vstgui/lib/controls/ccontrol.h"
 #include "preset/preset_manager.h"
 
+#include <atomic>
 #include <memory>
 
 namespace Krate::Plugins {
 class PresetBrowserView;
 class SavePresetDialogView;
+class StepPatternEditor;
 }
 
 namespace Ruinae {
@@ -33,7 +37,8 @@ namespace Ruinae {
 // ==============================================================================
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
-                   public VSTGUI::VST3EditorDelegate {
+                   public VSTGUI::VST3EditorDelegate,
+                   public VSTGUI::IControlListener {
 public:
     Controller() = default;
     ~Controller() override;
@@ -81,6 +86,19 @@ public:
         Steinberg::Vst::ParamValue& valueNormalized) override;
 
     // ===========================================================================
+    // IEditController (parameter sync)
+    // ===========================================================================
+
+    /// Push host parameter changes to custom views (StepPatternEditor)
+    Steinberg::tresult PLUGIN_API setParamNormalized(
+        Steinberg::Vst::ParamID tag,
+        Steinberg::Vst::ParamValue value) override;
+
+    /// Receive IMessage from processor (playback position, transport state)
+    Steinberg::tresult PLUGIN_API notify(
+        Steinberg::Vst::IMessage* message) override;
+
+    // ===========================================================================
     // VST3EditorDelegate (VSTGUI)
     // ===========================================================================
 
@@ -89,6 +107,19 @@ public:
 
     /// Called when the editor is about to close
     void willClose(VSTGUI::VST3Editor* editor) override;
+
+    /// Called for each view created by UIDescription - wire custom controls
+    VSTGUI::CView* verifyView(VSTGUI::CView* view,
+                               const VSTGUI::UIAttributes& attributes,
+                               const VSTGUI::IUIDescription* description,
+                               VSTGUI::VST3Editor* editor) override;
+
+    // ===========================================================================
+    // IControlListener (for action buttons)
+    // ===========================================================================
+
+    /// Handle action button clicks (presets, transforms, Euclidean regen)
+    void valueChanged(VSTGUI::CControl* control) override;
 
     // ===========================================================================
     // Factory
@@ -115,6 +146,12 @@ private:
     // ==========================================================================
 
     VSTGUI::VST3Editor* activeEditor_ = nullptr;
+    Krate::Plugins::StepPatternEditor* stepPatternEditor_ = nullptr;
+
+    // Playback position shared from processor via IMessage pointer
+    std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;
+    std::atomic<bool>* isTransportPlayingPtr_ = nullptr;
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> playbackPollTimer_;
 
     // ==========================================================================
     // Preset Browser

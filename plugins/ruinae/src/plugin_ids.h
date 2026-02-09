@@ -120,13 +120,52 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // ==========================================================================
     kTranceGateBaseId = 600,
     kTranceGateEnabledId = 600, // on/off
-    kTranceGateNumStepsId = 601, // 8, 16, 32
+    kTranceGateNumStepsId = 601, // 2-32 (RangeParameter, stepCount=30)
     kTranceGateRateId = 602,   // Free-run rate Hz
     kTranceGateDepthId = 603,  // 0-1
     kTranceGateAttackId = 604, // 1-20ms
     kTranceGateReleaseId = 605, // 1-50ms
     kTranceGateTempoSyncId = 606, // on/off
     kTranceGateNoteValueId = 607, // step length
+    kTranceGateEuclideanEnabledId = 608, // on/off toggle
+    kTranceGateEuclideanHitsId = 609,    // 0-32 integer
+    kTranceGateEuclideanRotationId = 610, // 0-31 integer
+    kTranceGatePhaseOffsetId = 611,       // 0.0-1.0 continuous
+
+    // Step level parameters: contiguous block of 32
+    // Usage: kTranceGateStepLevel0Id + stepIndex
+    kTranceGateStepLevel0Id = 668,
+    kTranceGateStepLevel1Id = 669,
+    kTranceGateStepLevel2Id = 670,
+    kTranceGateStepLevel3Id = 671,
+    kTranceGateStepLevel4Id = 672,
+    kTranceGateStepLevel5Id = 673,
+    kTranceGateStepLevel6Id = 674,
+    kTranceGateStepLevel7Id = 675,
+    kTranceGateStepLevel8Id = 676,
+    kTranceGateStepLevel9Id = 677,
+    kTranceGateStepLevel10Id = 678,
+    kTranceGateStepLevel11Id = 679,
+    kTranceGateStepLevel12Id = 680,
+    kTranceGateStepLevel13Id = 681,
+    kTranceGateStepLevel14Id = 682,
+    kTranceGateStepLevel15Id = 683,
+    kTranceGateStepLevel16Id = 684,
+    kTranceGateStepLevel17Id = 685,
+    kTranceGateStepLevel18Id = 686,
+    kTranceGateStepLevel19Id = 687,
+    kTranceGateStepLevel20Id = 688,
+    kTranceGateStepLevel21Id = 689,
+    kTranceGateStepLevel22Id = 690,
+    kTranceGateStepLevel23Id = 691,
+    kTranceGateStepLevel24Id = 692,
+    kTranceGateStepLevel25Id = 693,
+    kTranceGateStepLevel26Id = 694,
+    kTranceGateStepLevel27Id = 695,
+    kTranceGateStepLevel28Id = 696,
+    kTranceGateStepLevel29Id = 697,
+    kTranceGateStepLevel30Id = 698,
+    kTranceGateStepLevel31Id = 699,
     kTranceGateEndId = 699,
 
     // ==========================================================================
@@ -275,7 +314,21 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMonoEndId = 1899,
 
     // ==========================================================================
-    kNumParameters = 2000
+    kNumParameters = 2000,
+
+    // ==========================================================================
+    // UI Action Button Tags (NOT VST parameters - UI-only triggers)
+    // ==========================================================================
+    kActionPresetAllTag = 10000,
+    kActionPresetOffTag = 10001,
+    kActionPresetAlternateTag = 10002,
+    kActionPresetRampUpTag = 10003,
+    kActionPresetRampDownTag = 10004,
+    kActionPresetRandomTag = 10005,
+    kActionTransformInvertTag = 10006,
+    kActionTransformShiftRightTag = 10007,
+    kActionTransformShiftLeftTag = 10008,
+    kActionEuclideanRegenTag = 10009,
 };
 
 // ==============================================================================

@@ -171,6 +171,32 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Process audio through the engine
     engine_.processBlock(outputL, outputR, numSamples);
 
+    // Update shared playback position atomics for controller UI
+    tranceGatePlaybackStep_.store(
+        engine_.getTranceGateCurrentStep(), std::memory_order_relaxed);
+    bool playing = data.processContext &&
+        (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
+    isTransportPlaying_.store(playing, std::memory_order_relaxed);
+
+    // Send playback pointer message to controller (one-time setup)
+    if (!playbackMessageSent_) {
+        auto msg = Steinberg::owned(allocateMessage());
+        if (msg) {
+            msg->setMessageID("TranceGatePlayback");
+            auto* attrs = msg->getAttributes();
+            if (attrs) {
+                attrs->setInt("stepPtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&tranceGatePlaybackStep_)));
+                attrs->setInt("playingPtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&isTransportPlaying_)));
+                sendMessage(msg);
+                playbackMessageSent_ = true;
+            }
+        }
+    }
+
     return Steinberg::kResultTrue;
 }
 
@@ -392,18 +418,25 @@ void Processor::applyParamsToEngine() {
     engine_.setTranceGateEnabled(tranceGateParams_.enabled.load(std::memory_order_relaxed));
     {
         TranceGateParams tgp;
-        tgp.numSteps = numStepsFromIndex(
-            tranceGateParams_.numStepsIndex.load(std::memory_order_relaxed));
+        tgp.numSteps = tranceGateParams_.numSteps.load(std::memory_order_relaxed);
         tgp.rateHz = tranceGateParams_.rateHz.load(std::memory_order_relaxed);
         tgp.depth = tranceGateParams_.depth.load(std::memory_order_relaxed);
         tgp.attackMs = tranceGateParams_.attackMs.load(std::memory_order_relaxed);
         tgp.releaseMs = tranceGateParams_.releaseMs.load(std::memory_order_relaxed);
+        tgp.phaseOffset = tranceGateParams_.phaseOffset.load(std::memory_order_relaxed);
         tgp.tempoSync = tranceGateParams_.tempoSync.load(std::memory_order_relaxed);
         auto tgNoteMapping = getNoteValueFromDropdown(
             tranceGateParams_.noteValue.load(std::memory_order_relaxed));
         tgp.noteValue = tgNoteMapping.note;
         tgp.noteModifier = tgNoteMapping.modifier;
         engine_.setTranceGateParams(tgp);
+
+        // Apply step levels to DSP engine
+        for (int i = 0; i < 32; ++i) {
+            engine_.setTranceGateStep(i,
+                tranceGateParams_.stepLevels[static_cast<size_t>(i)].load(
+                    std::memory_order_relaxed));
+        }
     }
 
     // --- Amp Envelope ---
