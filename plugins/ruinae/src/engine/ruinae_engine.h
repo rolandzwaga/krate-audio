@@ -618,8 +618,38 @@ public:
         for (auto& voice : voices_) { voice.setOscBType(type); }
     }
 
+    void setOscATuneSemitones(float semitones) noexcept {
+        if (detail::isNaN(semitones) || detail::isInf(semitones)) return;
+        for (auto& voice : voices_) { voice.setOscATuneSemitones(semitones); }
+    }
+
+    void setOscAFineCents(float cents) noexcept {
+        if (detail::isNaN(cents) || detail::isInf(cents)) return;
+        for (auto& voice : voices_) { voice.setOscAFineCents(cents); }
+    }
+
+    void setOscALevel(float level) noexcept {
+        if (detail::isNaN(level) || detail::isInf(level)) return;
+        for (auto& voice : voices_) { voice.setOscALevel(level); }
+    }
+
     void setOscAPhaseMode(PhaseMode mode) noexcept {
         for (auto& voice : voices_) { voice.setOscAPhaseMode(mode); }
+    }
+
+    void setOscBTuneSemitones(float semitones) noexcept {
+        if (detail::isNaN(semitones) || detail::isInf(semitones)) return;
+        for (auto& voice : voices_) { voice.setOscBTuneSemitones(semitones); }
+    }
+
+    void setOscBFineCents(float cents) noexcept {
+        if (detail::isNaN(cents) || detail::isInf(cents)) return;
+        for (auto& voice : voices_) { voice.setOscBFineCents(cents); }
+    }
+
+    void setOscBLevel(float level) noexcept {
+        if (detail::isNaN(level) || detail::isInf(level)) return;
+        for (auto& voice : voices_) { voice.setOscBLevel(level); }
     }
 
     void setOscBPhaseMode(PhaseMode mode) noexcept {
@@ -679,6 +709,11 @@ public:
     void setDistortionCharacter(float character) noexcept {
         if (detail::isNaN(character) || detail::isInf(character)) return;
         for (auto& voice : voices_) { voice.setDistortionCharacter(character); }
+    }
+
+    void setDistortionMix(float mix) noexcept {
+        if (detail::isNaN(mix) || detail::isInf(mix)) return;
+        for (auto& voice : voices_) { voice.setDistortionMix(mix); }
     }
 
     // --- Trance Gate ---

@@ -92,7 +92,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         Steinberg::Vst::ParameterInfo::kCanAutomate, kFilterKeyTrackId);
 
     // --- Distortion Parameters (500-599) ---
-    parameters.addParameter(STR16("Distortion Type"), STR16(""), 5, 5.0 / 5.0,
+    parameters.addParameter(STR16("Distortion Type"), STR16(""), 5, 0.0 / 5.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, kDistortionTypeId);
     parameters.addParameter(STR16("Distortion Drive"), STR16("%"), 0, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, kDistortionDriveId);

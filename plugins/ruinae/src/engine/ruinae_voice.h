@@ -221,9 +221,8 @@ public:
         noteFrequency_ = (frequency < 0.0f) ? 0.0f : frequency;
         velocity_ = std::clamp(velocity, 0.0f, 1.0f);
 
-        // Update oscillator frequencies
-        oscA_.setFrequency(noteFrequency_);
-        oscB_.setFrequency(noteFrequency_);
+        // Update oscillator frequencies (with per-osc tuning)
+        updateOscFrequencies();
 
         // Gate all envelopes (retrigger from current level)
         ampEnv_.gate(true);
@@ -246,8 +245,7 @@ public:
     void setFrequency(float hz) noexcept {
         if (detail::isNaN(hz) || detail::isInf(hz)) return;
         noteFrequency_ = (hz < 0.0f) ? 0.0f : hz;
-        oscA_.setFrequency(noteFrequency_);
-        oscB_.setFrequency(noteFrequency_);
+        updateOscFrequencies();
     }
 
     /// @brief Check if the voice is producing audio (FR-021).
@@ -361,8 +359,8 @@ public:
             const float oscBLevelOffset =
                 modRouter_.getOffset(VoiceModDest::OscBLevel)
                 * modDestScales_[static_cast<size_t>(VoiceModDest::OscBLevel)];
-            const float effectiveOscALevel = std::clamp(1.0f + oscALevelOffset, 0.0f, 1.0f);
-            const float effectiveOscBLevel = std::clamp(1.0f + oscBLevelOffset, 0.0f, 1.0f);
+            const float effectiveOscALevel = std::clamp(oscALevel_ + oscALevelOffset, 0.0f, 1.0f);
+            const float effectiveOscBLevel = std::clamp(oscBLevel_ + oscBLevelOffset, 0.0f, 1.0f);
 
             const float oscASample = oscABuffer_[i] * effectiveOscALevel;
             const float oscBSample = oscBBuffer_[i] * effectiveOscBLevel;
@@ -391,7 +389,21 @@ public:
         }
 
         // Step 5: Distortion (FR-013 through FR-015)
-        processActiveDistortionBlock(mixBuffer_.data(), numSamples);
+        if (distortionType_ != RuinaeDistortionType::Clean && distortionMix_ > 0.0f) {
+            if (distortionMix_ >= 1.0f) {
+                processActiveDistortionBlock(mixBuffer_.data(), numSamples);
+            } else {
+                // Wet/dry blend: save dry, process wet, mix
+                std::copy(mixBuffer_.data(), mixBuffer_.data() + numSamples,
+                          distortionBuffer_.data());
+                processActiveDistortionBlock(mixBuffer_.data(), numSamples);
+                const float wet = distortionMix_;
+                const float dry = 1.0f - wet;
+                for (size_t s = 0; s < numSamples; ++s) {
+                    mixBuffer_[s] = mixBuffer_[s] * wet + distortionBuffer_[s] * dry;
+                }
+            }
+        }
 
         // Step 6-8: DC Blocker + TranceGate + VCA per sample
         for (size_t i = 0; i < numSamples; ++i) {
@@ -437,6 +449,46 @@ public:
     /// @brief Set OSC B phase mode (Reset or Continuous).
     void setOscBPhaseMode(PhaseMode mode) noexcept {
         oscB_.setPhaseMode(mode);
+    }
+
+    /// @brief Set OSC A coarse tuning in semitones [-48, +48].
+    void setOscATuneSemitones(float semitones) noexcept {
+        if (detail::isNaN(semitones) || detail::isInf(semitones)) return;
+        oscATuneSemitones_ = std::clamp(semitones, -48.0f, 48.0f);
+        updateOscFrequencies();
+    }
+
+    /// @brief Set OSC A fine tuning in cents [-100, +100].
+    void setOscAFineCents(float cents) noexcept {
+        if (detail::isNaN(cents) || detail::isInf(cents)) return;
+        oscAFineCents_ = std::clamp(cents, -100.0f, 100.0f);
+        updateOscFrequencies();
+    }
+
+    /// @brief Set OSC A output level [0.0, 1.0].
+    void setOscALevel(float level) noexcept {
+        if (detail::isNaN(level) || detail::isInf(level)) return;
+        oscALevel_ = std::clamp(level, 0.0f, 1.0f);
+    }
+
+    /// @brief Set OSC B coarse tuning in semitones [-48, +48].
+    void setOscBTuneSemitones(float semitones) noexcept {
+        if (detail::isNaN(semitones) || detail::isInf(semitones)) return;
+        oscBTuneSemitones_ = std::clamp(semitones, -48.0f, 48.0f);
+        updateOscFrequencies();
+    }
+
+    /// @brief Set OSC B fine tuning in cents [-100, +100].
+    void setOscBFineCents(float cents) noexcept {
+        if (detail::isNaN(cents) || detail::isInf(cents)) return;
+        oscBFineCents_ = std::clamp(cents, -100.0f, 100.0f);
+        updateOscFrequencies();
+    }
+
+    /// @brief Set OSC B output level [0.0, 1.0].
+    void setOscBLevel(float level) noexcept {
+        if (detail::isNaN(level) || detail::isInf(level)) return;
+        oscBLevel_ = std::clamp(level, 0.0f, 1.0f);
     }
 
     // =========================================================================
@@ -534,6 +586,13 @@ public:
     void setDistortionCharacter(float character) noexcept {
         if (detail::isNaN(character) || detail::isInf(character)) return;
         distortionCharacter_ = std::clamp(character, 0.0f, 1.0f);
+    }
+
+    /// @brief Set the distortion wet/dry mix [0.0, 1.0].
+    /// 0.0 = fully dry (bypass), 1.0 = fully wet.
+    void setDistortionMix(float mix) noexcept {
+        if (detail::isNaN(mix) || detail::isInf(mix)) return;
+        distortionMix_ = std::clamp(mix, 0.0f, 1.0f);
     }
 
     // =========================================================================
@@ -822,6 +881,21 @@ private:
     }
 
     // =========================================================================
+    // Oscillator Frequency Helpers
+    // =========================================================================
+
+    /// @brief Recompute per-oscillator frequencies from noteFrequency_ and
+    ///        per-osc tuning offsets (semitones + cents).
+    void updateOscFrequencies() noexcept {
+        const float freqA = noteFrequency_
+            * semitonesToRatio(oscATuneSemitones_ + oscAFineCents_ / 100.0f);
+        const float freqB = noteFrequency_
+            * semitonesToRatio(oscBTuneSemitones_ + oscBFineCents_ / 100.0f);
+        oscA_.setFrequency(freqA);
+        oscB_.setFrequency(freqB);
+    }
+
+    // =========================================================================
     // Comb Filter Helpers
     // =========================================================================
 
@@ -844,6 +918,12 @@ private:
     // Oscillators
     SelectableOscillator oscA_;
     SelectableOscillator oscB_;
+    float oscATuneSemitones_{0.0f};
+    float oscAFineCents_{0.0f};
+    float oscALevel_{1.0f};
+    float oscBTuneSemitones_{0.0f};
+    float oscBFineCents_{0.0f};
+    float oscBLevel_{1.0f};
 
     // Shared oscillator resources (owned here, shared with both oscillators)
     struct SharedOscResources {
@@ -883,6 +963,7 @@ private:
     RuinaeDistortionType distortionType_{RuinaeDistortionType::Clean};
     float distortionDrive_{0.0f};
     float distortionCharacter_{0.5f};
+    float distortionMix_{1.0f};
 
     // TranceGate (FR-016: post-distortion, pre-VCA)
     TranceGate tranceGate_;
