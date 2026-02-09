@@ -1,5 +1,5 @@
 // ==============================================================================
-// Layer 3: System Component - RuinaeEngine
+// Ruinae Plugin - Engine Composition
 // ==============================================================================
 // Complete polyphonic Ruinae synthesizer engine composing all sub-components:
 // - 16 pre-allocated RuinaeVoice instances (voice pool)
@@ -17,22 +17,6 @@
 //   -> Master Gain * 1/sqrt(N) -> Soft Limit -> NaN/Inf Flush -> Output
 //
 // Feature: 044-engine-composition
-// Layer: 3 (Systems)
-// Dependencies:
-//   - Layer 0: core/sigmoid.h, core/db_utils.h, core/math_constants.h,
-//              core/block_context.h
-//   - Layer 1: primitives/svf.h
-//   - Layer 2: processors/mono_handler.h, processors/note_processor.h
-//   - Layer 3: systems/voice_allocator.h, systems/ruinae_voice.h,
-//              systems/modulation_engine.h, systems/ruinae_effects_chain.h
-//
-// Constitution Compliance:
-// - Principle II:  Real-Time Safety (noexcept, zero allocations in processBlock)
-// - Principle III: Modern C++ (C++20, pre-allocated concrete members)
-// - Principle IX:  Layer 3 (depends on Layers 0, 1, 2, 3)
-// - Principle XII: Test-First Development
-// - Principle XIV: ODR Prevention (unique class name verified)
-//
 // Reference: specs/044-engine-composition/spec.md
 // ==============================================================================
 
@@ -52,12 +36,14 @@
 #include <krate/dsp/processors/mono_handler.h>
 #include <krate/dsp/processors/note_processor.h>
 
-// Layer 3
+// Shared DSP systems
 #include <krate/dsp/systems/modulation_engine.h>
 #include <krate/dsp/systems/poly_synth_engine.h>  // For VoiceMode enum
-#include <krate/dsp/systems/ruinae_effects_chain.h>
-#include <krate/dsp/systems/ruinae_voice.h>
 #include <krate/dsp/systems/voice_allocator.h>
+
+// Plugin engine components (co-located)
+#include "ruinae_effects_chain.h"
+#include "ruinae_voice.h"
 
 // Standard library
 #include <algorithm>

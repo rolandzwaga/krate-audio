@@ -17,7 +17,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 
-#include <krate/dsp/systems/ruinae_engine.h>
+#include "engine/ruinae_engine.h"
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/primitives/fft.h>

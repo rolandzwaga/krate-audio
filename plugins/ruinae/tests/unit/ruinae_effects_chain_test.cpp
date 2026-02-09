@@ -11,7 +11,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
-#include <krate/dsp/systems/ruinae_effects_chain.h>
+#include "engine/ruinae_effects_chain.h"
 #include <krate/dsp/systems/ruinae_types.h>
 
 #include <artifact_detection.h>

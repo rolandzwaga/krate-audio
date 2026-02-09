@@ -1,5 +1,5 @@
 // ==============================================================================
-// Layer 3: System Component - RuinaeVoice
+// Ruinae Plugin - Voice Processing Unit
 // ==============================================================================
 // Complete per-voice processing unit for the Ruinae chaos/spectral hybrid
 // synthesizer. All sub-components are pre-allocated at prepare() time;
@@ -8,24 +8,6 @@
 // Signal flow: OSC A + OSC B -> Mixer -> Filter -> Distortion -> DC Blocker -> TranceGate -> VCA -> Output
 //
 // Feature: 041-ruinae-voice-architecture
-// Layer: 3 (Systems)
-// Dependencies:
-//   - Layer 0: core/db_utils.h, core/pitch_utils.h
-//   - Layer 1: primitives/adsr_envelope.h, primitives/svf.h,
-//              primitives/ladder_filter.h, primitives/comb_filter.h,
-//              primitives/dc_blocker.h, primitives/lfo.h,
-//              primitives/chaos_waveshaper.h, primitives/wavefolder.h
-//   - Layer 2: processors/formant_filter.h, processors/spectral_distortion.h,
-//              processors/granular_distortion.h, processors/tape_saturator.h,
-//              processors/trance_gate.h, processors/spectral_morph_filter.h
-//   - Layer 3: systems/selectable_oscillator.h, systems/voice_mod_router.h
-//
-// Constitution Compliance:
-// - Principle II: Real-Time Safety (noexcept, zero allocations in processBlock/setType)
-// - Principle III: Modern C++ (C++20, pre-allocated concrete members)
-// - Principle IX: Layer 3 (depends on Layers 0, 1, 2, 3)
-// - Principle XIV: ODR Prevention (unique class name verified)
-//
 // Reference: specs/041-ruinae-voice-architecture/spec.md
 // ==============================================================================
 
