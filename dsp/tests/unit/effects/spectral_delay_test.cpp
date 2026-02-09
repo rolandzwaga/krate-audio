@@ -138,7 +138,7 @@ TEST_CASE("SpectralDelay reset clears state", "[spectral-delay][foundational]") 
     std::vector<float> right(512, 0.5f);
     auto ctx = makeTestContext();
 
-    delay.setDryWetMix(100.0f);  // Wet only
+    delay.setDryWetMix(1.0f);  // Wet only
     delay.setBaseDelayMs(100.0f);
     for (int i = 0; i < 10; ++i) {
         delay.process(left.data(), right.data(), 512, ctx);
@@ -214,7 +214,7 @@ TEST_CASE("SpectralDelay with 0ms spread produces coherent echo", "[spectral-del
     // Configure uniform delay (0ms spread = all bands same delay)
     delay.setBaseDelayMs(100.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);  // Wet only
+    delay.setDryWetMix(1.0f);  // Wet only
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -263,7 +263,7 @@ TEST_CASE("SpectralDelay delayed output appears after configured delay", "[spect
     // Short delay for easier measurement
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);  // Wet only
+    delay.setDryWetMix(1.0f);  // Wet only
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -361,7 +361,7 @@ TEST_CASE("SpectralDelay 100% wet outputs only delayed signal", "[spectral-delay
     delay.prepare(44100.0, 512);
 
     delay.setBaseDelayMs(100.0f);
-    delay.setDryWetMix(100.0f);  // Wet only
+    delay.setDryWetMix(1.0f);  // Wet only
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -394,7 +394,7 @@ TEST_CASE("SpectralDelay 50% wet blends dry and delayed signal", "[spectral-dela
 
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(50.0f);  // 50/50 mix
+    delay.setDryWetMix(0.5f);  // 50/50 mix
     delay.snapParameters();
 
     auto ctx = makeTestContext();
@@ -437,7 +437,7 @@ TEST_CASE("SpectralDelay spread direction LowToHigh", "[spectral-delay][US2][FR-
     delay.setBaseDelayMs(100.0f);
     delay.setSpreadMs(200.0f);  // Total range: 100ms to 300ms
     delay.setSpreadDirection(SpreadDirection::LowToHigh);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -470,7 +470,7 @@ TEST_CASE("SpectralDelay spread direction HighToLow", "[spectral-delay][US2][FR-
     delay.setBaseDelayMs(100.0f);
     delay.setSpreadMs(200.0f);
     delay.setSpreadDirection(SpreadDirection::HighToLow);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.snapParameters();
 
     REQUIRE(delay.getSpreadDirection() == SpreadDirection::HighToLow);
@@ -496,7 +496,7 @@ TEST_CASE("SpectralDelay spread direction CenterOut", "[spectral-delay][US2][FR-
     delay.setBaseDelayMs(100.0f);
     delay.setSpreadMs(200.0f);
     delay.setSpreadDirection(SpreadDirection::CenterOut);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.snapParameters();
 
     REQUIRE(delay.getSpreadDirection() == SpreadDirection::CenterOut);
@@ -590,7 +590,7 @@ TEST_CASE("SpectralDelay freeze holds spectrum output", "[spectral-delay][US3][F
 
     delay.setBaseDelayMs(10.0f);  // Short delay
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);  // Wet only
+    delay.setDryWetMix(1.0f);  // Wet only
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -634,7 +634,7 @@ TEST_CASE("SpectralDelay freeze ignores new input", "[spectral-delay][US3][FR-01
     delay.prepare(44100.0, 512);
 
     delay.setBaseDelayMs(10.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -691,7 +691,7 @@ TEST_CASE("SpectralDelay freeze transition is smooth", "[spectral-delay][US3][FR
     delay.prepare(44100.0, 512);
 
     delay.setBaseDelayMs(10.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -736,7 +736,7 @@ TEST_CASE("SpectralDelay unfreeze resumes normal processing", "[spectral-delay][
     delay.prepare(44100.0, 512);
 
     delay.setBaseDelayMs(10.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -817,7 +817,7 @@ TEST_CASE("SpectralDelay feedback creates repeating echoes", "[spectral-delay][U
 
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.5f);  // 50% feedback
     delay.snapParameters();
 
@@ -863,7 +863,7 @@ TEST_CASE("SpectralDelay 0 feedback has no repeating echoes", "[spectral-delay][
 
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);  // No feedback
     delay.snapParameters();
 
@@ -926,7 +926,7 @@ TEST_CASE("SpectralDelay feedback >1.0 is soft limited", "[spectral-delay][US4][
 
     delay.setBaseDelayMs(20.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(1.2f);  // Over 100% feedback
     delay.snapParameters();
 
@@ -989,7 +989,7 @@ TEST_CASE("SpectralDelay 0 diffusion preserves spectrum", "[spectral-delay][US5]
 
     delay.setBaseDelayMs(10.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.setDiffusion(0.0f);  // No diffusion
     delay.snapParameters();
@@ -1021,7 +1021,7 @@ TEST_CASE("SpectralDelay diffusion spreads spectrum", "[spectral-delay][US5][FR-
 
     delay.setBaseDelayMs(10.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.setDiffusion(1.0f);  // Maximum diffusion
     delay.snapParameters();
@@ -1058,7 +1058,7 @@ TEST_CASE("SpectralDelay processes without errors at all settings", "[spectral-d
     delay.setFeedback(0.7f);
     delay.setFeedbackTilt(-0.5f);
     delay.setDiffusion(0.5f);
-    delay.setDryWetMix(75.0f);
+    delay.setDryWetMix(0.75f);
     delay.snapParameters();
 
     auto ctx = makeTestContext(48000.0);
@@ -1112,7 +1112,7 @@ TEST_CASE("SpectralDelay phase coherence with high feedback and spread",
     delay.setFeedback(0.9f);  // High feedback as reported
     delay.setFeedbackTilt(0.0f);
     delay.setDiffusion(0.0f);  // No diffusion to isolate the issue
-    delay.setDryWetMix(100.0f);  // 100% wet to hear only delayed signal
+    delay.setDryWetMix(1.0f);  // 100% wet to hear only delayed signal
     delay.snapParameters();
 
     auto ctx = makeTestContext();
@@ -1232,7 +1232,7 @@ TEST_CASE("SpectralDelay phase interpolation correctness",
     delay.setSpreadMs(200.0f);  // Creates fractional frame delays
     delay.setSpreadDirection(SpreadDirection::LowToHigh);
     delay.setFeedback(0.8f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.snapParameters();
 
     auto ctx = makeTestContext();
@@ -1298,7 +1298,7 @@ TEST_CASE("SpectralDelay diffusion is deterministic",
     delay1.setBaseDelayMs(100.0f);
     delay1.setFeedback(0.0f);
     delay1.setDiffusion(1.0f);
-    delay1.setDryWetMix(100.0f);
+    delay1.setDryWetMix(1.0f);
     delay1.snapParameters();
 
     SpectralDelay delay2;
@@ -1309,7 +1309,7 @@ TEST_CASE("SpectralDelay diffusion is deterministic",
     delay2.setBaseDelayMs(100.0f);
     delay2.setFeedback(0.0f);
     delay2.setDiffusion(1.0f);
-    delay2.setDryWetMix(100.0f);
+    delay2.setDryWetMix(1.0f);
     delay2.snapParameters();
 
     auto ctx = makeTestContext();
@@ -1383,7 +1383,7 @@ TEST_CASE("SpectralDelay diffusion creates spectral smear",
     delay.setBaseDelayMs(50.0f);
     delay.setFeedback(0.9f);  // High feedback
     delay.setDiffusion(0.8f);  // High diffusion
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.snapParameters();
 
     auto ctx = makeTestContext();
@@ -1448,7 +1448,7 @@ TEST_CASE("SpectralDelay freeze with phase drift prevents static resonance",
     delay.setBaseDelayMs(100.0f);
     delay.setFeedback(0.0f);
     delay.setDiffusion(0.0f);  // No diffusion to isolate freeze behavior
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.snapParameters();
 
     auto ctx = makeTestContext();
@@ -1548,7 +1548,7 @@ TEST_CASE("SpectralDelay logarithmic spread applies log-scaled delays",
     delay.setSpreadMs(500.0f);  // Large spread to see the difference
     delay.setSpreadDirection(SpreadDirection::LowToHigh);
     delay.setFeedback(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
 
     // Test with spread curve set to logarithmic
     // Phase 3.1: Now implemented - test the API exists and affects behavior
@@ -1622,7 +1622,7 @@ TEST_CASE("SpectralDelay stereo width creates channel differences",
     delay.setBaseDelayMs(100.0f);
     delay.setSpreadMs(100.0f);
     delay.setFeedback(0.5f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.snapParameters();
 
     auto ctx = makeTestContext();
@@ -1760,7 +1760,7 @@ TEST_CASE("SpectralDelay synced mode 1/4 note at 120 BPM equals 500ms delay",
     delay.setTimeMode(1);  // Synced
     delay.setNoteValue(6);  // 1/4 note (index 6 in dropdown)
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -1842,7 +1842,7 @@ TEST_CASE("SpectralDelay synced mode 1/8 note at 120 BPM equals 250ms delay",
     delay.setTimeMode(1);  // Synced
     delay.setNoteValue(4);  // 1/8 note (index 4 in dropdown)
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -1912,7 +1912,7 @@ TEST_CASE("SpectralDelay free mode uses setBaseDelayMs value",
     delay.setBaseDelayMs(100.0f);  // 100ms delay
     delay.setNoteValue(9);  // 1/1 note = 2000ms at 120 BPM (should be ignored!)
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -1987,7 +1987,7 @@ TEST_CASE("SpectralDelay synced mode fallback to 120 BPM when tempo is 0",
     delay.setTimeMode(1);  // Synced
     delay.setNoteValue(6);  // 1/4 note
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -2056,7 +2056,7 @@ TEST_CASE("SpectralDelay synced mode delay clamped to 2000ms maximum",
     delay.setTimeMode(1);  // Synced
     delay.setNoteValue(9);  // 1/1 note (whole note = 4 beats)
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.snapParameters();
 
@@ -2148,7 +2148,7 @@ TEST_CASE("SpectralDelay diffusion produces click-free output",
 
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);  // Wet only to isolate effect
+    delay.setDryWetMix(1.0f);  // Wet only to isolate effect
     delay.setFeedback(0.0f);
     delay.setDiffusion(0.8f);  // High diffusion - prone to artifacts
     delay.snapParameters();
@@ -2220,7 +2220,7 @@ TEST_CASE("SpectralDelay stereo width produces click-free output",
 
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.setDiffusion(0.0f);
     delay.setStereoWidth(1.0f);  // Full stereo width - prone to artifacts
@@ -2299,7 +2299,7 @@ TEST_CASE("SpectralDelay stereo width parameter is smoothed",
 
     delay.setBaseDelayMs(50.0f);
     delay.setSpreadMs(0.0f);
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.0f);
     delay.setDiffusion(0.0f);
     delay.setStereoWidth(0.0f);  // Start at 0
@@ -2367,7 +2367,7 @@ TEST_CASE("SpectralDelay spread change is click-free",
 
     delay.setBaseDelayMs(100.0f);
     delay.setSpreadMs(0.0f);  // Start at 0
-    delay.setDryWetMix(100.0f);
+    delay.setDryWetMix(1.0f);
     delay.setFeedback(0.3f);
     delay.setDiffusion(0.0f);
     delay.setStereoWidth(0.0f);
@@ -2455,7 +2455,7 @@ TEST_CASE("SpectralDelay feedback transition doesn't cause distortion",
     delay.prepare(kSampleRate, kBlockSize);
     delay.setBaseDelayMs(50.0f);   // Short delay for faster buildup
     delay.setSpreadMs(0.0f);       // No spread for simpler test
-    delay.setDryWetMix(50.0f);     // 50% mix
+    delay.setDryWetMix(0.5f);     // 50% mix
     delay.setDiffusion(0.0f);      // No diffusion
     delay.setFreezeEnabled(false);
     delay.snapParameters();

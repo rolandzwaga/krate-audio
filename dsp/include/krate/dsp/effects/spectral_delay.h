@@ -105,8 +105,8 @@ public:
     static constexpr float kMaxDiffusion = 1.0f;
 
     static constexpr float kMinDryWet = 0.0f;
-    static constexpr float kMaxDryWet = 100.0f;
-    static constexpr float kDefaultDryWet = 50.0f;
+    static constexpr float kMaxDryWet = 1.0f;
+    static constexpr float kDefaultDryWet = 0.5f;
 
     // Phase 3.2: Stereo width/decorrelation
     static constexpr float kMinStereoWidth = 0.0f;
@@ -199,7 +199,7 @@ public:
         feedbackSmoother_.setTarget(feedback_);
         tiltSmoother_.setTarget(feedbackTilt_);
         diffusionSmoother_.setTarget(diffusion_);
-        dryWetSmoother_.setTarget(dryWetMix_ / 100.0f);
+        dryWetSmoother_.setTarget(dryWetMix_);
         stereoWidthSmoother_.setTarget(stereoWidth_);
 
         // Snap smoothers to initial values
@@ -496,10 +496,10 @@ public:
     // Output
     // =========================================================================
 
-    /// @brief Set dry/wet mix (0 to 100 percent)
-    void setDryWetMix(float percent) noexcept {
-        dryWetMix_ = std::clamp(percent, kMinDryWet, kMaxDryWet);
-        dryWetSmoother_.setTarget(dryWetMix_ / 100.0f);
+    /// @brief Set dry/wet mix (0.0 to 1.0)
+    void setDryWetMix(float mix) noexcept {
+        dryWetMix_ = std::clamp(mix, kMinDryWet, kMaxDryWet);
+        dryWetSmoother_.setTarget(dryWetMix_);
     }
     [[nodiscard]] float getDryWetMix() const noexcept { return dryWetMix_; }
 

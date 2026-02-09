@@ -1597,3 +1597,82 @@ OSC B --+                                                          |
 - VoiceModRouter (Layer 3): modulation routing
 - SpectralMorphFilter (Layer 2): spectral morphing mixer mode
 - VoiceAllocator (Layer 3): for future polyphonic voice management
+
+---
+
+## RuinaeEffectsChain
+**Path:** [ruinae_effects_chain.h](../../dsp/include/krate/dsp/systems/ruinae_effects_chain.h) | **Since:** 0.15.0
+
+Stereo effects chain for the Ruinae synthesizer composing existing Layer 4 effects into a fixed-order processing chain: Freeze -> Delay -> Reverb -> Output.
+
+```cpp
+enum class RuinaeDelayType : uint8_t {
+    Digital = 0, Tape = 1, PingPong = 2, Granular = 3, Spectral = 4, NumTypes = 5
+};
+
+class RuinaeEffectsChain {
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    // Processing (FR-004, FR-005, FR-028)
+    void processBlock(float* left, float* right, size_t numSamples) noexcept;
+
+    // Delay type selection (FR-009 through FR-014)
+    void setDelayType(RuinaeDelayType type) noexcept;
+    [[nodiscard]] RuinaeDelayType getActiveDelayType() const noexcept;
+
+    // Delay parameter forwarding (FR-015 through FR-017)
+    void setDelayTime(float ms) noexcept;
+    void setDelayFeedback(float amount) noexcept;
+    void setDelayMix(float mix) noexcept;
+    void setDelayTempo(double bpm) noexcept;
+
+    // Freeze control (FR-018 through FR-020)
+    void setFreezeEnabled(bool enabled) noexcept;
+    void setFreeze(bool frozen) noexcept;
+    void setFreezePitchSemitones(float semitones) noexcept;
+    void setFreezeShimmerMix(float mix) noexcept;
+    void setFreezeDecay(float decay) noexcept;
+
+    // Reverb control (FR-021 through FR-023)
+    void setReverbParams(const ReverbParams& params) noexcept;
+
+    // Latency (FR-026, FR-027)
+    [[nodiscard]] size_t getLatencySamples() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Voice Sum -> [Freeze (if enabled)] -> [Active Delay Type] -> [Reverb] -> Output
+                                           |
+                                    [Crossfade partner during type switch]
+                                           |
+                                    [Latency Compensation (non-spectral types)]
+```
+
+**Key Features:**
+- Composes 5 Layer 4 delay effects (DigitalDelay, TapeDelay, PingPongDelay, GranularDelay, SpectralDelay)
+- FreezeMode (Layer 4) as insert effect with pitch shifting, shimmer, and decay
+- Dattorro Reverb (Layer 4) with independent freeze control
+- Click-free delay type switching via 30ms linear crossfade (within 25-50ms spec)
+- Fast-track crossfade: snap-to-completion when new type switch requested mid-fade
+- Constant worst-case latency reporting (spectral delay FFT size, typically 1024 samples)
+- Per-delay latency compensation using DelayLine pairs (4 pairs for non-spectral types)
+- Unified parameter forwarding API normalizes different delay type setter names
+- Chunk processing: processBlock splits large blocks into maxBlockSize chunks
+- All runtime methods noexcept, zero allocations in processBlock
+- Header-only, Layer 3 (documented exception: composes Layer 4 effects)
+
+**When to Use:**
+- Ruinae engine composition (Phase 6) as the effects section after voice summing
+- Any multi-effect chain requiring delay type selection with constant latency
+
+**Related Components:**
+- RuinaeVoice (Layer 3): per-voice synthesis, feeds into this effects chain
+- DigitalDelay, TapeDelay, PingPongDelay, GranularDelay, SpectralDelay (Layer 4): composed delay types
+- FreezeMode (Layer 4): spectral freeze effect
+- Reverb (Layer 4): Dattorro plate reverb
+- DelayLine (Layer 1): used for per-delay latency compensation
+- crossfadeIncrement (Layer 0): calculates per-sample crossfade alpha increment
