@@ -481,5 +481,50 @@
             control-point-color="#FFFFFF"
             text-color="#FFFFFFB4"
         />
+        <!-- ============================================================ -->
+        <!-- Modulation Matrix Section (spec 049)                       -->
+        <!-- ============================================================ -->
+
+        <!-- Modulation Section Label -->
+        <view
+            class="CTextLabel"
+            origin="660, 60"
+            size="220, 20"
+            title="Modulation Matrix"
+            font="~ NormalFontSmall"
+            font-color="#FFFFFF"
+            text-alignment="left"
+            transparent="true"
+        />
+
+        <!-- ModMatrixGrid (T141) -->
+        <view
+            class="ModMatrixGrid"
+            origin="660, 85"
+            size="220, 200"
+            background-color="#1E1E21"
+        />
+
+        <!-- ModHeatmap (T142) -->
+        <view
+            class="ModHeatmap"
+            origin="660, 290"
+            size="220, 80"
+            background-color="#1E1E21"
+        />
+
+        <!-- ModRingIndicator overlays on destination knobs -->
+
+        <!-- T143: Filter Cutoff ring overlay (dest-index=0) -->
+        <view
+            class="ModRingIndicator"
+            origin="120, 90"
+            size="40, 40"
+            transparent="true"
+            mouse-enabled="true"
+            stroke-width="3.0"
+            dest-index="0"
+        />
+
     </template>
 </vstgui-ui-description>

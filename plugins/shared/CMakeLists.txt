@@ -44,6 +44,11 @@ add_library(KratePluginsShared STATIC
     src/ui/step_pattern_editor.h
     src/ui/xy_morph_pad.h
     src/ui/adsr_display.h
+    src/ui/mod_source_colors.h
+    src/ui/bipolar_slider.h
+    src/ui/mod_matrix_grid.h
+    src/ui/mod_ring_indicator.h
+    src/ui/mod_heatmap.h
     src/ui/search_debouncer.h
     src/ui/preset_browser_logic.h
     src/ui/category_tab_bar.h

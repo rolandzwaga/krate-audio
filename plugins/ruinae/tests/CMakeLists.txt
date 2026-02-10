@@ -21,6 +21,11 @@ add_executable(ruinae_tests
     unit/state_migration_test.cpp
     unit/controller_params_test.cpp
     unit/controller_display_test.cpp
+
+    # Mod Matrix Tests (049-mod-matrix-grid)
+    unit/mod_matrix_params_test.cpp
+    integration/mod_matrix_grid_test.cpp
+    integration/mod_ring_indicator_test.cpp
     integration/processor_audio_test.cpp
     integration/midi_events_test.cpp
     integration/tempo_sync_test.cpp

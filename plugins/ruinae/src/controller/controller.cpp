@@ -9,6 +9,9 @@
 #include "ui/step_pattern_editor.h"
 #include "ui/xy_morph_pad.h"
 #include "ui/adsr_display.h"
+#include "ui/mod_matrix_grid.h"
+#include "ui/mod_ring_indicator.h"
+#include "ui/mod_heatmap.h"
 
 // Parameter pack headers (for registration, display, and controller sync)
 #include "parameters/global_params.h"
@@ -34,10 +37,28 @@
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
 
+#include <cstring>
+
 namespace Ruinae {
 
 // State version must match processor
-constexpr Steinberg::int32 kControllerStateVersion = 1;
+constexpr Steinberg::int32 kControllerStateVersion = 3;
+
+// Maps ModDestination enum value to the actual VST parameter ID of that knob.
+// Used by ModRingIndicator base value sync (T069-T072).
+static constexpr std::array<Steinberg::Vst::ParamID, 11> kDestParamIds = {{
+    kFilterCutoffId,          // 0: FilterCutoff
+    kFilterResonanceId,       // 1: FilterResonance
+    kMixerPositionId,         // 2: MorphPosition
+    kDistortionDriveId,       // 3: DistortionDrive
+    kTranceGateDepthId,       // 4: TranceGateDepth
+    kOscATuneId,              // 5: OscAPitch
+    kOscBTuneId,              // 6: OscBPitch
+    kGlobalFilterCutoffId,    // 7: GlobalFilterCutoff
+    kGlobalFilterResonanceId, // 8: GlobalFilterResonance
+    kMasterGainId,            // 9: MasterVolume
+    kDelayMixId,              // 10: EffectMix
+}};
 
 // ==============================================================================
 // Destructor
@@ -127,8 +148,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         setParamNormalized(id, value);
     };
 
-    if (version == 1) {
-        // Sync all 19 parameter packs in same order as Processor::getState
+    // Helper: load common packs before mod matrix
+    auto loadCommonPacks = [&]() {
         loadGlobalParamsToController(streamer, setParam);
         loadOscAParamsToController(streamer, setParam);
         loadOscBParamsToController(streamer, setParam);
@@ -142,12 +163,34 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         loadLFO1ParamsToController(streamer, setParam);
         loadLFO2ParamsToController(streamer, setParam);
         loadChaosModParamsToController(streamer, setParam);
-        loadModMatrixParamsToController(streamer, setParam);
+    };
+
+    auto loadPostModMatrix = [&]() {
         loadGlobalFilterParamsToController(streamer, setParam);
         loadFreezeParamsToController(streamer, setParam);
         loadDelayParamsToController(streamer, setParam);
         loadReverbParamsToController(streamer, setParam);
         loadMonoModeParamsToController(streamer, setParam);
+    };
+
+    if (version == 1) {
+        // v1: base mod matrix only (source, dest, amount per slot)
+        loadCommonPacks();
+        loadModMatrixParamsToControllerV1(streamer, setParam);
+        loadPostModMatrix();
+    } else if (version == 2) {
+        // v2: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
+        loadCommonPacks();
+        loadModMatrixParamsToController(streamer, setParam);
+        loadPostModMatrix();
+    } else if (version == 3) {
+        // v3: v2 + voice modulation routes (voice routes arrive via IMessage,
+        // not read from stream here -- processor sends VoiceModRouteState)
+        loadCommonPacks();
+        loadModMatrixParamsToController(streamer, setParam);
+        loadPostModMatrix();
+        // Voice routes are skipped here; processor sends VoiceModRouteState
+        // via IMessage after setState(), which is handled in Controller::notify()
     }
     // Unknown versions: keep defaults (fail closed)
 
@@ -324,6 +367,42 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
         return Steinberg::kResultOk;
     }
 
+    if (strcmp(message->getMessageID(), "VoiceModRouteState") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        // Decode binary route data (T087)
+        const void* data = nullptr;
+        Steinberg::uint32 dataSize = 0;
+        if (attrs->getBinary("routeData", data, dataSize) == Steinberg::kResultOk &&
+            data && dataSize >= 224) {
+
+            static constexpr size_t kBytesPerRoute = 14;
+            const auto* bytes = static_cast<const uint8_t*>(data);
+
+            for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
+                const auto* ptr = &bytes[static_cast<size_t>(i) * kBytesPerRoute];
+
+                Krate::Plugins::ModRoute route;
+                route.source = static_cast<Krate::Plugins::ModSource>(ptr[0]);
+                route.destination = static_cast<Krate::Plugins::ModDestination>(ptr[1]);
+                std::memcpy(&route.amount, &ptr[2], sizeof(float));
+                route.curve = ptr[6];
+                std::memcpy(&route.smoothMs, &ptr[7], sizeof(float));
+                route.scale = ptr[11];
+                route.bypass = (ptr[12] != 0);
+                route.active = (ptr[13] != 0);
+
+                if (modMatrixGrid_) {
+                    modMatrixGrid_->setVoiceRoute(i, route);
+                }
+            }
+        }
+
+        return Steinberg::kResultOk;
+    }
+
     return EditControllerEx1::notify(message);
 }
 
@@ -383,6 +462,24 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         kModEnvAttackId, kModEnvAttackCurveId,
         kModEnvBezierEnabledId, kModEnvBezierAttackCp1XId);
 
+    // Push mod matrix parameter changes to ModMatrixGrid and ModRingIndicators
+    if (tag >= kModMatrixBaseId && tag <= kModMatrixDetailEndId) {
+        if (modMatrixGrid_) {
+            syncModMatrixGrid();
+        }
+        rebuildRingIndicators();
+    }
+
+    // Sync destination knob value to ModRingIndicator base value
+    for (int i = 0; i < kMaxRingIndicators; ++i) {
+        if (ringIndicators_[static_cast<size_t>(i)] &&
+            kDestParamIds[static_cast<size_t>(i)] == tag) {
+            ringIndicators_[static_cast<size_t>(i)]->setBaseValue(
+                static_cast<float>(value));
+            break;
+        }
+    }
+
     return result;
 }
 
@@ -398,6 +495,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (activeEditor_ == editor) {
         stepPatternEditor_ = nullptr;
         xyMorphPad_ = nullptr;
+        modMatrixGrid_ = nullptr;
+        ringIndicators_.fill(nullptr);
         ampEnvDisplay_ = nullptr;
         filterEnvDisplay_ = nullptr;
         modEnvDisplay_ = nullptr;
@@ -514,6 +613,32 @@ VSTGUI::CView* Controller::verifyView(
     auto* adsrDisplay = dynamic_cast<Krate::Plugins::ADSRDisplay*>(view);
     if (adsrDisplay) {
         wireAdsrDisplay(adsrDisplay);
+    }
+
+    // Wire ModMatrixGrid callbacks (T047, T048, T049)
+    auto* modGrid = dynamic_cast<Krate::Plugins::ModMatrixGrid*>(view);
+    if (modGrid) {
+        wireModMatrixGrid(modGrid);
+    }
+
+    // Wire ModRingIndicator overlays (T069)
+    auto* ringIndicator = dynamic_cast<Krate::Plugins::ModRingIndicator*>(view);
+    if (ringIndicator) {
+        wireModRingIndicator(ringIndicator);
+    }
+
+    // Wire ModHeatmap cell click callback (T155)
+    auto* heatmap = dynamic_cast<Krate::Plugins::ModHeatmap*>(view);
+    if (heatmap) {
+        heatmap->setCellClickCallback(
+            [this](int sourceIndex, int destIndex) {
+                selectModulationRoute(sourceIndex, destIndex);
+            });
+
+        // Wire heatmap to ModMatrixGrid if available
+        if (modMatrixGrid_) {
+            modMatrixGrid_->setHeatmap(heatmap);
+        }
     }
 
     return view;
@@ -752,6 +877,313 @@ void Controller::wireEnvDisplayPlayback() {
     if (modEnvDisplay_ && modEnvOutputPtr_ && modEnvStagePtr_ && envVoiceActivePtr_) {
         modEnvDisplay_->setPlaybackStatePointers(
             modEnvOutputPtr_, modEnvStagePtr_, envVoiceActivePtr_);
+    }
+}
+
+// ==============================================================================
+// ModMatrixGrid Wiring (T047, T048, T049)
+// ==============================================================================
+
+void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
+    if (!grid) return;
+
+    modMatrixGrid_ = grid;
+
+    // T048: Set ParameterCallback for direct parameter changes (T039-T041)
+    grid->setParameterCallback(
+        [this](int32_t paramId, float normalizedValue) {
+            performEdit(static_cast<Steinberg::Vst::ParamID>(paramId),
+                        static_cast<double>(normalizedValue));
+        });
+
+    // T048: Set BeginEditCallback (T042)
+    grid->setBeginEditCallback(
+        [this](int32_t paramId) {
+            beginEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+        });
+
+    // T048: Set EndEditCallback (T042)
+    grid->setEndEditCallback(
+        [this](int32_t paramId) {
+            endEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+        });
+
+    // T048: Set RouteChangedCallback (T049, T088)
+    grid->setRouteChangedCallback(
+        [this](int tab, int slot, const Krate::Plugins::ModRoute& route) {
+            if (tab == 0) {
+                // Global routes use VST params
+                auto sourceId = static_cast<Steinberg::Vst::ParamID>(
+                    Krate::Plugins::modSlotSourceId(slot));
+                auto destId = static_cast<Steinberg::Vst::ParamID>(
+                    Krate::Plugins::modSlotDestinationId(slot));
+                auto amountId = static_cast<Steinberg::Vst::ParamID>(
+                    Krate::Plugins::modSlotAmountId(slot));
+
+                int srcIdx = static_cast<int>(route.source);
+                int dstIdx = static_cast<int>(route.destination);
+
+                double srcNorm = (kModSourceCount > 1)
+                    ? static_cast<double>(srcIdx) / static_cast<double>(kModSourceCount - 1)
+                    : 0.0;
+                setParamNormalized(sourceId, srcNorm);
+
+                double dstNorm = (kModDestCount > 1)
+                    ? static_cast<double>(dstIdx) / static_cast<double>(kModDestCount - 1)
+                    : 0.0;
+                setParamNormalized(destId, dstNorm);
+
+                double amtNorm = static_cast<double>((route.amount + 1.0f) / 2.0f);
+                setParamNormalized(amountId, amtNorm);
+            } else {
+                // Voice routes use IMessage (T088)
+                auto msg = Steinberg::owned(allocateMessage());
+                if (msg) {
+                    msg->setMessageID("VoiceModRouteUpdate");
+                    auto* attrs = msg->getAttributes();
+                    if (attrs) {
+                        attrs->setInt("slotIndex", static_cast<Steinberg::int64>(slot));
+                        attrs->setInt("source", static_cast<Steinberg::int64>(route.source));
+                        attrs->setInt("destination", static_cast<Steinberg::int64>(route.destination));
+                        attrs->setFloat("amount", static_cast<double>(route.amount));
+                        attrs->setInt("curve", static_cast<Steinberg::int64>(route.curve));
+                        attrs->setFloat("smoothMs", static_cast<double>(route.smoothMs));
+                        attrs->setInt("scale", static_cast<Steinberg::int64>(route.scale));
+                        attrs->setInt("bypass", route.bypass ? 1 : 0);
+                        attrs->setInt("active", route.active ? 1 : 0);
+                        sendMessage(msg);
+                    }
+                }
+            }
+        });
+
+    // T048: Set RouteRemovedCallback (T088)
+    grid->setRouteRemovedCallback(
+        [this](int tab, int slot) {
+            if (tab == 0) {
+                // Global routes: reset slot parameters to defaults
+                auto sourceId = static_cast<Steinberg::Vst::ParamID>(
+                    Krate::Plugins::modSlotSourceId(slot));
+                auto destId = static_cast<Steinberg::Vst::ParamID>(
+                    Krate::Plugins::modSlotDestinationId(slot));
+                auto amountId = static_cast<Steinberg::Vst::ParamID>(
+                    Krate::Plugins::modSlotAmountId(slot));
+
+                beginEdit(sourceId);
+                performEdit(sourceId, 0.0);
+                endEdit(sourceId);
+
+                beginEdit(destId);
+                performEdit(destId, 0.0);
+                endEdit(destId);
+
+                beginEdit(amountId);
+                performEdit(amountId, 0.5); // 0.5 normalized = 0.0 bipolar
+                endEdit(amountId);
+            } else {
+                // Voice routes: send remove via IMessage (T088)
+                auto msg = Steinberg::owned(allocateMessage());
+                if (msg) {
+                    msg->setMessageID("VoiceModRouteUpdate");
+                    auto* attrs = msg->getAttributes();
+                    if (attrs) {
+                        attrs->setInt("slotIndex", static_cast<Steinberg::int64>(slot));
+                        attrs->setInt("active", 0);
+                        sendMessage(msg);
+                    }
+                }
+            }
+        });
+
+    // Sync initial state from current parameters to the grid
+    syncModMatrixGrid();
+}
+
+void Controller::syncModMatrixGrid() {
+    if (!modMatrixGrid_) return;
+
+    // Read current parameter values and build ModRoute for each slot
+    for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
+        Krate::Plugins::ModRoute route;
+
+        // Source
+        auto* srcParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotSourceId(i)));
+        if (srcParam) {
+            int srcIdx = static_cast<int>(
+                std::round(srcParam->getNormalized() * (kModSourceCount - 1)));
+            route.source = static_cast<Krate::Plugins::ModSource>(
+                std::clamp(srcIdx, 0, static_cast<int>(Krate::Plugins::ModSource::kNumSources) - 1));
+        }
+
+        // Destination
+        auto* dstParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotDestinationId(i)));
+        if (dstParam) {
+            int dstIdx = static_cast<int>(
+                std::round(dstParam->getNormalized() * (kModDestCount - 1)));
+            route.destination = static_cast<Krate::Plugins::ModDestination>(
+                std::clamp(dstIdx, 0, static_cast<int>(Krate::Plugins::ModDestination::kNumDestinations) - 1));
+        }
+
+        // Amount
+        auto* amtParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotAmountId(i)));
+        if (amtParam) {
+            route.amount = static_cast<float>(amtParam->getNormalized() * 2.0 - 1.0);
+        }
+
+        // Detail params
+        auto* curveParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotCurveId(i)));
+        if (curveParam) {
+            route.curve = static_cast<uint8_t>(std::clamp(
+                static_cast<int>(std::round(curveParam->getNormalized() * 3.0)),
+                0, 3));
+        }
+
+        auto* smoothParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotSmoothId(i)));
+        if (smoothParam) {
+            route.smoothMs = static_cast<float>(smoothParam->getNormalized() * 100.0);
+        }
+
+        auto* scaleParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotScaleId(i)));
+        if (scaleParam) {
+            route.scale = static_cast<uint8_t>(std::clamp(
+                static_cast<int>(std::round(scaleParam->getNormalized() * 4.0)),
+                0, 4));
+        }
+
+        auto* bypassParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotBypassId(i)));
+        if (bypassParam) {
+            route.bypass = bypassParam->getNormalized() >= 0.5;
+        }
+
+        // Determine if this route is "active" based on whether amount is non-zero
+        // or source/dest are non-default. For now, mark as active if amount != 0
+        // (The UI manages active state; on sync, all slots are populated.)
+        route.active = (std::abs(route.amount) > 0.001f ||
+                        route.source != Krate::Plugins::ModSource::Env1 ||
+                        route.destination != Krate::Plugins::ModDestination::FilterCutoff);
+
+        modMatrixGrid_->setGlobalRoute(i, route);
+    }
+}
+
+// ==============================================================================
+// ModRingIndicator Wiring (T069, T070, T071, T072)
+// ==============================================================================
+
+void Controller::wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicator) {
+    if (!indicator) return;
+
+    int destIdx = indicator->getDestinationIndex();
+    if (destIdx < 0 || destIdx >= kMaxRingIndicators) return;
+
+    ringIndicators_[static_cast<size_t>(destIdx)] = indicator;
+
+    // Wire controller for cross-component communication
+    indicator->setController(this);
+
+    // Wire click-to-select callback (FR-027, T070)
+    indicator->setSelectCallback(
+        [this](int sourceIndex, int destIndex) {
+            selectModulationRoute(sourceIndex, destIndex);
+        });
+
+    // Sync initial base value from destination knob parameter
+    if (destIdx < static_cast<int>(kDestParamIds.size())) {
+        auto destParamId = kDestParamIds[static_cast<size_t>(destIdx)];
+        auto* param = getParameterObject(destParamId);
+        if (param) {
+            indicator->setBaseValue(static_cast<float>(param->getNormalized()));
+        }
+    }
+
+    // Sync initial arc state from current parameters
+    rebuildRingIndicators();
+}
+
+void Controller::selectModulationRoute(int sourceIndex, int destIndex) {
+    // Mediate selection to ModMatrixGrid (FR-027, T070)
+    if (modMatrixGrid_) {
+        modMatrixGrid_->selectRoute(sourceIndex, destIndex);
+    }
+}
+
+void Controller::rebuildRingIndicators() {
+    // Read all global routes and build ArcInfo lists per destination (T071)
+    // First, collect all active routes grouped by destination
+    using ArcInfo = Krate::Plugins::ModRingIndicator::ArcInfo;
+
+    // Build route data from current parameters
+    struct RouteData {
+        int sourceIndex = 0;
+        int destIndex = 0;
+        float amount = 0.0f;
+        bool bypass = false;
+        bool active = false;
+    };
+
+    std::array<RouteData, Krate::Plugins::kMaxGlobalRoutes> routes{};
+
+    for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
+        auto* srcParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotSourceId(i)));
+        auto* dstParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotDestinationId(i)));
+        auto* amtParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotAmountId(i)));
+        auto* bypassParam = getParameterObject(
+            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotBypassId(i)));
+
+        if (srcParam) {
+            routes[static_cast<size_t>(i)].sourceIndex = static_cast<int>(
+                std::round(srcParam->getNormalized() * (kModSourceCount - 1)));
+        }
+        if (dstParam) {
+            routes[static_cast<size_t>(i)].destIndex = static_cast<int>(
+                std::round(dstParam->getNormalized() * (kModDestCount - 1)));
+        }
+        if (amtParam) {
+            routes[static_cast<size_t>(i)].amount =
+                static_cast<float>(amtParam->getNormalized() * 2.0 - 1.0);
+        }
+        if (bypassParam) {
+            routes[static_cast<size_t>(i)].bypass = bypassParam->getNormalized() >= 0.5;
+        }
+
+        // Route is active if amount is non-zero or source/dest are non-default
+        routes[static_cast<size_t>(i)].active =
+            (std::abs(routes[static_cast<size_t>(i)].amount) > 0.001f ||
+             routes[static_cast<size_t>(i)].sourceIndex != 0 ||
+             routes[static_cast<size_t>(i)].destIndex != 0);
+    }
+
+    // For each destination with a ring indicator, build the arc list
+    for (int destIdx = 0; destIdx < kMaxRingIndicators; ++destIdx) {
+        auto* indicator = ringIndicators_[static_cast<size_t>(destIdx)];
+        if (!indicator) continue;
+
+        std::vector<ArcInfo> arcs;
+        for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
+            const auto& r = routes[static_cast<size_t>(i)];
+            if (!r.active) continue;
+            if (r.destIndex != destIdx) continue;
+
+            ArcInfo arc;
+            arc.amount = r.amount;
+            arc.color = Krate::Plugins::sourceColorForIndex(r.sourceIndex);
+            arc.sourceIndex = r.sourceIndex;
+            arc.destIndex = r.destIndex;
+            arc.bypassed = r.bypass;
+            arcs.push_back(arc);
+        }
+
+        indicator->setArcs(arcs);
     }
 }
 

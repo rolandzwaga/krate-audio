@@ -40,15 +40,21 @@
 #include "parameters/reverb_params.h"
 #include "parameters/mono_mode_params.h"
 
+#include "ui/mod_source_colors.h"
+
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
+#include <array>
 #include <atomic>
 #include <vector>
 
 namespace Ruinae {
 
 // State version for serialization
-constexpr Steinberg::int32 kCurrentStateVersion = 1;
+// v1: Original 19 parameter packs (base mod matrix: source, dest, amount only)
+// v2: Extended mod matrix with detail params (curve, smooth, scale, bypass)
+// v3: Voice modulation routes (16 slots, IMessage-based, persisted in state)
+constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
 // ==============================================================================
 // Processor Class
@@ -88,6 +94,14 @@ public:
 
     Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
     Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
+
+    // ===========================================================================
+    // IMessage (Voice Route Communication, T085-T086)
+    // ===========================================================================
+
+    /// Receive messages from controller (VoiceModRouteUpdate)
+    Steinberg::tresult PLUGIN_API notify(
+        Steinberg::Vst::IMessage* message) override;
 
     // ===========================================================================
     // Factory
@@ -180,6 +194,16 @@ private:
     std::atomic<bool> envVoiceActive_{false};
 
     bool envDisplayMessageSent_ = false;
+
+    // ==========================================================================
+    // Voice Route State (communicated via IMessage, T085-T086)
+    // ==========================================================================
+
+    std::array<Krate::Plugins::VoiceModRoute, Krate::Plugins::kMaxVoiceRoutes>
+        voiceRoutes_{};
+
+    /// Send authoritative voice route state to controller
+    void sendVoiceModRouteState();
 };
 
 } // namespace Ruinae

@@ -96,12 +96,12 @@ TEST_CASE("State version is written first", "[state][roundtrip]") {
     Steinberg::MemoryStream stream;
     proc->getState(&stream);
 
-    // Read the first int32 -- should be state version 1
+    // Read the first int32 -- should be current state version
     stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     Steinberg::IBStreamer streamer(&stream, kLittleEndian);
     Steinberg::int32 version = 0;
     REQUIRE(streamer.readInt32(version));
-    REQUIRE(version == 1);
+    REQUIRE(version == Ruinae::kCurrentStateVersion);
 
     proc->terminate();
 }
