@@ -47,10 +47,10 @@ target_link_libraries(ruinae_tests
         KratePluginsShared
         Catch2::Catch2
         test_helpers
-        sdk
         vstgui_uidescription
         vstgui_support
         vstgui
+        sdk
 )
 
 target_include_directories(ruinae_tests
