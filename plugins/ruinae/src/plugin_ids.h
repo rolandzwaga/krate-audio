@@ -177,6 +177,25 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kAmpEnvDecayId = 701,      // 0-10000ms
     kAmpEnvSustainId = 702,    // 0-1
     kAmpEnvReleaseId = 703,    // 0-10000ms
+    // Curve amounts [-1, +1]
+    kAmpEnvAttackCurveId = 704,
+    kAmpEnvDecayCurveId = 705,
+    kAmpEnvReleaseCurveId = 706,
+    // Bezier mode flag (0 or 1)
+    kAmpEnvBezierEnabledId = 707,
+    // Bezier control points [0, 1] (3 segments x 2 handles x 2 axes = 12)
+    kAmpEnvBezierAttackCp1XId = 710,
+    kAmpEnvBezierAttackCp1YId = 711,
+    kAmpEnvBezierAttackCp2XId = 712,
+    kAmpEnvBezierAttackCp2YId = 713,
+    kAmpEnvBezierDecayCp1XId = 714,
+    kAmpEnvBezierDecayCp1YId = 715,
+    kAmpEnvBezierDecayCp2XId = 716,
+    kAmpEnvBezierDecayCp2YId = 717,
+    kAmpEnvBezierReleaseCp1XId = 718,
+    kAmpEnvBezierReleaseCp1YId = 719,
+    kAmpEnvBezierReleaseCp2XId = 720,
+    kAmpEnvBezierReleaseCp2YId = 721,
     kAmpEnvEndId = 799,
 
     // ==========================================================================
@@ -187,6 +206,25 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kFilterEnvDecayId = 801,
     kFilterEnvSustainId = 802,
     kFilterEnvReleaseId = 803,
+    // Curve amounts [-1, +1]
+    kFilterEnvAttackCurveId = 804,
+    kFilterEnvDecayCurveId = 805,
+    kFilterEnvReleaseCurveId = 806,
+    // Bezier mode flag (0 or 1)
+    kFilterEnvBezierEnabledId = 807,
+    // Bezier control points [0, 1] (3 segments x 2 handles x 2 axes = 12)
+    kFilterEnvBezierAttackCp1XId = 810,
+    kFilterEnvBezierAttackCp1YId = 811,
+    kFilterEnvBezierAttackCp2XId = 812,
+    kFilterEnvBezierAttackCp2YId = 813,
+    kFilterEnvBezierDecayCp1XId = 814,
+    kFilterEnvBezierDecayCp1YId = 815,
+    kFilterEnvBezierDecayCp2XId = 816,
+    kFilterEnvBezierDecayCp2YId = 817,
+    kFilterEnvBezierReleaseCp1XId = 818,
+    kFilterEnvBezierReleaseCp1YId = 819,
+    kFilterEnvBezierReleaseCp2XId = 820,
+    kFilterEnvBezierReleaseCp2YId = 821,
     kFilterEnvEndId = 899,
 
     // ==========================================================================
@@ -197,6 +235,25 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kModEnvDecayId = 901,
     kModEnvSustainId = 902,
     kModEnvReleaseId = 903,
+    // Curve amounts [-1, +1]
+    kModEnvAttackCurveId = 904,
+    kModEnvDecayCurveId = 905,
+    kModEnvReleaseCurveId = 906,
+    // Bezier mode flag (0 or 1)
+    kModEnvBezierEnabledId = 907,
+    // Bezier control points [0, 1] (3 segments x 2 handles x 2 axes = 12)
+    kModEnvBezierAttackCp1XId = 910,
+    kModEnvBezierAttackCp1YId = 911,
+    kModEnvBezierAttackCp2XId = 912,
+    kModEnvBezierAttackCp2YId = 913,
+    kModEnvBezierDecayCp1XId = 914,
+    kModEnvBezierDecayCp1YId = 915,
+    kModEnvBezierDecayCp2XId = 916,
+    kModEnvBezierDecayCp2YId = 917,
+    kModEnvBezierReleaseCp1XId = 918,
+    kModEnvBezierReleaseCp1YId = 919,
+    kModEnvBezierReleaseCp2XId = 920,
+    kModEnvBezierReleaseCp2YId = 921,
     kModEnvEndId = 999,
 
     // ==========================================================================

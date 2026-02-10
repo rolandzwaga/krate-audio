@@ -990,3 +990,136 @@ TEST_CASE("ADSR: Gate-off during Release has no effect", "[adsr][us1]") {
     env.gate(false); // redundant gate-off
     CHECK(env.getStage() == ADSRStage::Release); // no change
 }
+
+// =============================================================================
+// Continuous Curve Amount Tests (048-adsr-display)
+// =============================================================================
+
+TEST_CASE("ADSR: setAttackCurve(float) with 0.0 produces linear-like attack", "[adsr][curve]") {
+    ADSREnvelope env;
+    env.prepare(44100.0f);
+    env.setAttack(50.0f);
+    env.setDecay(50.0f);
+    env.setSustain(0.5f);
+    env.setRelease(50.0f);
+    env.setAttackCurve(0.0f);  // Linear
+
+    env.gate(true);
+
+    // Collect attack samples
+    auto output = processAndCollect(env, static_cast<int>(50.0f * 0.001f * 44100.0f));
+
+    // For linear attack, the output should increase roughly linearly
+    // Check midpoint is near 50% of peak
+    size_t mid = output.size() / 2;
+    if (mid > 0 && mid < output.size()) {
+        REQUIRE(output[mid] > 0.3f);
+        REQUIRE(output[mid] < 0.7f);
+    }
+}
+
+TEST_CASE("ADSR: setDecayCurve(float) generates correct table", "[adsr][curve]") {
+    ADSREnvelope env;
+    env.prepare(44100.0f);
+    env.setAttack(1.0f);    // Very fast attack
+    env.setDecay(100.0f);
+    env.setSustain(0.3f);
+    env.setRelease(50.0f);
+    env.setDecayCurve(0.5f);  // Moderately exponential
+
+    env.gate(true);
+
+    // Process through attack quickly
+    processUntilStage(env, ADSRStage::Decay, 1000);
+    REQUIRE(env.getStage() == ADSRStage::Decay);
+
+    // Collect some decay samples
+    auto output = processAndCollect(env, 1000);
+
+    // Output should be decreasing (from ~1.0 toward sustain 0.3)
+    bool decreasing = true;
+    for (size_t i = 1; i < output.size() && env.getStage() == ADSRStage::Decay; ++i) {
+        if (output[i] > output[i - 1] + 1e-6f) {
+            decreasing = false;
+            break;
+        }
+    }
+    REQUIRE(decreasing);
+}
+
+TEST_CASE("ADSR: setReleaseCurve(float) generates correct table", "[adsr][curve]") {
+    ADSREnvelope env;
+    env.prepare(44100.0f);
+    env.setAttack(1.0f);
+    env.setDecay(1.0f);
+    env.setSustain(0.8f);
+    env.setRelease(100.0f);
+    env.setReleaseCurve(-0.5f);  // Logarithmic-ish
+
+    env.gate(true);
+    processUntilStage(env, ADSRStage::Sustain, 5000);
+    env.gate(false);
+
+    REQUIRE(env.getStage() == ADSRStage::Release);
+
+    // Collect release samples
+    auto output = processAndCollect(env, 2000);
+
+    // Output should be decreasing toward 0
+    bool decreasing = true;
+    for (size_t i = 1; i < output.size(); ++i) {
+        if (output[i] > output[i - 1] + 1e-5f) {
+            decreasing = false;
+            break;
+        }
+    }
+    REQUIRE(decreasing);
+}
+
+TEST_CASE("ADSR: setAttackCurve(EnvCurve) backward compatibility", "[adsr][curve]") {
+    ADSREnvelope env;
+    env.prepare(44100.0f);
+    env.setAttack(50.0f);
+    env.setDecay(50.0f);
+    env.setSustain(0.5f);
+    env.setRelease(50.0f);
+
+    // The existing EnvCurve overload should still work
+    env.setAttackCurve(EnvCurve::Exponential);
+    env.gate(true);
+
+    auto output = processAndCollect(env, static_cast<int>(50.0f * 0.001f * 44100.0f));
+
+    // Should reach near peak
+    float maxVal = *std::max_element(output.begin(), output.end());
+    REQUIRE(maxVal > 0.5f);
+}
+
+TEST_CASE("ADSR: Table lookup produces correct envelope shape", "[adsr][curve]") {
+    ADSREnvelope env;
+    env.prepare(44100.0f);
+    env.setAttack(10.0f);
+    env.setDecay(50.0f);
+    env.setSustain(0.5f);
+    env.setRelease(100.0f);
+    env.setAttackCurve(0.0f);
+    env.setDecayCurve(0.0f);
+    env.setReleaseCurve(0.0f);
+
+    // Full envelope cycle
+    env.gate(true);
+    processUntilStage(env, ADSRStage::Sustain, 100000);
+    REQUIRE(env.getStage() == ADSRStage::Sustain);
+
+    // Sustain output should be near 0.5
+    float sustainOut = env.getOutput();
+    REQUIRE(sustainOut == Approx(0.5f).margin(0.05f));
+
+    env.gate(false);
+    REQUIRE(env.getStage() == ADSRStage::Release);
+
+    // Process until idle
+    processUntilStage(env, ADSRStage::Idle, 100000);
+    REQUIRE(env.getStage() == ADSRStage::Idle);
+    REQUIRE(env.getOutput() == Approx(0.0f).margin(0.001f));
+}

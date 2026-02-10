@@ -20,9 +20,11 @@
 
 #pragma once
 
+#include <krate/dsp/core/curve_table.h>
 #include <krate/dsp/primitives/envelope_utils.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -152,6 +154,30 @@ public:
         calcReleaseCoefficients();
     }
 
+    // Continuous curve amount overloads (048-adsr-display)
+    // curveAmount: [-1, +1], 0=linear, -1=logarithmic, +1=exponential
+
+    void setAttackCurve(float amount) noexcept {
+        attackCurveAmount_ = std::clamp(amount, -1.0f, 1.0f);
+        generatePowerCurveTable(attackTable_, attackCurveAmount_, 0.0f, 1.0f);
+        useTableProcessing_ = true;
+        calcAttackCoefficients();
+    }
+
+    void setDecayCurve(float amount) noexcept {
+        decayCurveAmount_ = std::clamp(amount, -1.0f, 1.0f);
+        generatePowerCurveTable(decayTable_, decayCurveAmount_, 1.0f, 0.0f);
+        useTableProcessing_ = true;
+        calcDecayCoefficients();
+    }
+
+    void setReleaseCurve(float amount) noexcept {
+        releaseCurveAmount_ = std::clamp(amount, -1.0f, 1.0f);
+        generatePowerCurveTable(releaseTable_, releaseCurveAmount_, 1.0f, 0.0f);
+        useTableProcessing_ = true;
+        calcReleaseCoefficients();
+    }
+
     // =========================================================================
     // Retrigger Mode (FR-018, FR-019)
     // =========================================================================
@@ -223,6 +249,20 @@ private:
     // =========================================================================
 
     float processAttack() noexcept {
+        if (useTableProcessing_) {
+            logPhase_ += logPhaseInc_;
+            if (logPhase_ >= 1.0f) {
+                logPhase_ = 1.0f;
+                output_ = peakLevel_;
+                enterDecay();
+            } else {
+                // Table maps phase [0,1] to normalized level [0,1]
+                float tableVal = lookupCurveTable(attackTable_, logPhase_);
+                output_ = logStartLevel_ + (peakLevel_ - logStartLevel_) * tableVal;
+            }
+            return output_;
+        }
+
         if (attackCurve_ == EnvCurve::Logarithmic) {
             // Logarithmic attack: quadratic phase mapping (convex: slow start, fast finish)
             logPhase_ += logPhaseInc_;
@@ -247,6 +287,20 @@ private:
     float processDecay() noexcept {
         float sustainTarget = sustainLevel_ * peakLevel_;
 
+        if (useTableProcessing_) {
+            logPhase_ += logPhaseInc_;
+            if (logPhase_ >= 1.0f) {
+                logPhase_ = 1.0f;
+                output_ = sustainTarget;
+                stage_ = ADSRStage::Sustain;
+            } else {
+                // Table maps phase [0,1] to normalized level [1,0]
+                float tableVal = lookupCurveTable(decayTable_, logPhase_);
+                output_ = sustainTarget + (logStartLevel_ - sustainTarget) * tableVal;
+            }
+            return output_;
+        }
+
         if (decayCurve_ == EnvCurve::Logarithmic) {
             // Logarithmic decay: quadratic phase (slow initial drop, fast approach to sustain)
             logPhase_ += logPhaseInc_;
@@ -270,6 +324,23 @@ private:
     }
 
     float processRelease() noexcept {
+        if (useTableProcessing_) {
+            logPhase_ += logPhaseInc_;
+            if (logPhase_ >= 1.0f) {
+                output_ = 0.0f;
+                stage_ = ADSRStage::Idle;
+            } else {
+                // Table maps phase [0,1] to normalized level [1,0]
+                float tableVal = lookupCurveTable(releaseTable_, logPhase_);
+                output_ = logStartLevel_ * tableVal;
+                if (output_ < kEnvelopeIdleThreshold) {
+                    output_ = 0.0f;
+                    stage_ = ADSRStage::Idle;
+                }
+            }
+            return output_;
+        }
+
         if (releaseCurve_ == EnvCurve::Logarithmic) {
             // Logarithmic release: quadratic phase (slow initial drop, fast approach to zero)
             logPhase_ += logPhaseInc_;
@@ -355,7 +426,11 @@ private:
 
     void enterAttack() noexcept {
         stage_ = ADSRStage::Attack;
-        if (attackCurve_ == EnvCurve::Logarithmic) {
+        if (useTableProcessing_) {
+            logStartLevel_ = output_;
+            logPhase_ = 0.0f;
+            logPhaseInc_ = 1.0f / std::max(1.0f, attackTimeMs_ * 0.001f * sampleRate_);
+        } else if (attackCurve_ == EnvCurve::Logarithmic) {
             logStartLevel_ = output_;
             float range = peakLevel_ - logStartLevel_;
             if (range > 0.0f) {
@@ -371,16 +446,19 @@ private:
 
     void enterDecay() noexcept {
         stage_ = ADSRStage::Decay;
-        if (decayCurve_ == EnvCurve::Logarithmic) {
+        if (useTableProcessing_) {
+            logStartLevel_ = output_;
+            logPhase_ = 0.0f;
+            logPhaseInc_ = 1.0f / std::max(1.0f, decayTimeMs_ * 0.001f * sampleRate_);
+        } else if (decayCurve_ == EnvCurve::Logarithmic) {
             logStartLevel_ = output_;
             logPhase_ = 0.0f;
             calcDecayCoefficients();
-            // Scale phase increment for partial range (constant rate: full peak→0 in decayTime)
+            // Scale phase increment for partial range (constant rate: full peak->0 in decayTime)
             float fullRange = peakLevel_;
             float actualRange = logStartLevel_ - sustainLevel_ * peakLevel_;
             if (fullRange > 0.0f && actualRange > 0.0f) {
                 float fraction = actualRange / fullRange;
-                // Phase needs to go from 0 to 1 in fraction * decayTime
                 logPhaseInc_ = 1.0f / std::max(1.0f, fraction * decayTimeMs_ * 0.001f * sampleRate_);
             }
         } else {
@@ -390,11 +468,15 @@ private:
 
     void enterRelease() noexcept {
         stage_ = ADSRStage::Release;
-        if (releaseCurve_ == EnvCurve::Logarithmic) {
+        if (useTableProcessing_) {
+            logStartLevel_ = output_;
+            logPhase_ = 0.0f;
+            logPhaseInc_ = 1.0f / std::max(1.0f, releaseTimeMs_ * 0.001f * sampleRate_);
+        } else if (releaseCurve_ == EnvCurve::Logarithmic) {
             logStartLevel_ = output_;
             logPhase_ = 0.0f;
             calcReleaseCoefficients();
-            // Scale phase increment for partial range (constant rate: full 1→0 in releaseTime)
+            // Scale phase increment for partial range (constant rate: full 1->0 in releaseTime)
             if (peakLevel_ > 0.0f && logStartLevel_ > 0.0f) {
                 float fraction = logStartLevel_ / peakLevel_;
                 logPhaseInc_ = 1.0f / std::max(1.0f, fraction * releaseTimeMs_ * 0.001f * sampleRate_);
@@ -420,6 +502,17 @@ private:
     EnvCurve attackCurve_ = EnvCurve::Exponential;
     EnvCurve decayCurve_ = EnvCurve::Exponential;
     EnvCurve releaseCurve_ = EnvCurve::Exponential;
+
+    // Continuous curve amounts (048-adsr-display)
+    float attackCurveAmount_ = 0.7f;   // Default matches EnvCurve::Exponential
+    float decayCurveAmount_ = 0.7f;
+    float releaseCurveAmount_ = 0.7f;
+
+    // Curve lookup tables (256 entries each)
+    std::array<float, kCurveTableSize> attackTable_{};
+    std::array<float, kCurveTableSize> decayTable_{};
+    std::array<float, kCurveTableSize> releaseTable_{};
+    bool useTableProcessing_ = false;  // Set to true when float curve overloads used
 
     RetriggerMode retriggerMode_ = RetriggerMode::Hard;
 
