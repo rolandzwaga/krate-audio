@@ -37,6 +37,8 @@ add_executable(ruinae_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
+    # Stub for GetPluginFactory (provided by entry.cpp in the real plugin, not in tests)
+    vstgui_test_stubs.cpp
 )
 
 target_link_libraries(ruinae_tests
@@ -45,8 +47,8 @@ target_link_libraries(ruinae_tests
         KratePluginsShared
         Catch2::Catch2
         test_helpers
-        sdk
         vstgui_support
+        sdk
 )
 
 target_include_directories(ruinae_tests
