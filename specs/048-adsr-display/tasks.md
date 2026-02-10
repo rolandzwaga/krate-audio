@@ -505,61 +505,61 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T074 [P] [US6] Write failing unit tests for playback dot positioning in `plugins/shared/tests/adsr_display_tests.cpp`
+- [X] T074 [P] [US6] Write failing unit tests for playback dot positioning in `plugins/shared/tests/adsr_display_tests.cpp`
   - Test dot position calculation from envelope output level and stage
   - Test dot visibility based on voiceActive_ flag
   - Test most-recent-voice selection logic (if multiple voices)
 
 ### 8.2 Processor-Side Playback State
 
-- [ ] T075 [US6] Add envelope display state fields to processor in `plugins/ruinae/src/processor/processor.h`
+- [X] T075 [US6] Add envelope display state fields to processor in `plugins/ruinae/src/processor/processor.h`
   - std::atomic<float> ampEnvDisplayOutput_{0.0f}
   - std::atomic<int> ampEnvDisplayStage_{0}
   - std::atomic<bool> ampEnvVoiceActive_{false}
   - (Same for Filter and Mod envelopes)
-- [ ] T076 [US6] Update envelope display state in processor process() in `plugins/ruinae/src/processor/processor.cpp` (FR-037)
+- [X] T076 [US6] Update envelope display state in processor process() in `plugins/ruinae/src/processor/processor.cpp` (FR-037)
   - After voice processing, find most recently triggered active voice
   - Read envelope output and stage from that voice
   - Store in atomic display state fields
   - Set voiceActive_ = true if any voice active, false otherwise
-- [ ] T077 [US6] Send envelope display atomic pointers via IMessage in `plugins/ruinae/src/processor/processor.cpp` (FR-035)
+- [X] T077 [US6] Send envelope display atomic pointers via IMessage in `plugins/ruinae/src/processor/processor.cpp` (FR-035)
   - In initialize(), send IMessage "EnvelopeDisplayState" with atomic addresses as int64
   - Follow TranceGate IMessage pointer pattern
 
 ### 8.3 Controller-Side Playback Visualization
 
-- [ ] T078 [US6] Receive envelope display atomic pointers in controller in `plugins/ruinae/src/controller/controller.cpp`
+- [X] T078 [US6] Receive envelope display atomic pointers in controller in `plugins/ruinae/src/controller/controller.cpp`
   - In notify() IMessage handler, receive "EnvelopeDisplayState" message
   - Store atomic pointers in controller fields
   - Wire pointers to ADSRDisplay instances via setPlaybackStatePointers()
-- [ ] T079 [US6] Implement playback refresh timer in `plugins/shared/src/ui/adsr_display.h` (FR-036)
+- [X] T079 [US6] Implement playback refresh timer in `plugins/shared/src/ui/adsr_display.h` (FR-036)
   - Add CVSTGUITimer field (refreshTimer_)
   - Add atomic pointer fields for playback state (outputPtr_, stagePtr_, activePtr_)
   - Start timer on first voice activation (33ms interval = ~30fps)
   - Stop timer when voiceActive_ becomes false
   - Timer callback reads atomics and calls setPlaybackState()
-- [ ] T080 [US6] Implement playback dot rendering in `plugins/shared/src/ui/adsr_display.h` (FR-034)
+- [X] T080 [US6] Implement playback dot rendering in `plugins/shared/src/ui/adsr_display.h` (FR-034)
   - Add playbackOutput_, playbackStage_, voiceActive_ fields
   - setPlaybackState(output, stage, active) setter
   - drawPlaybackDot() with 6px bright dot at current position on curve
   - Calculate dot position: identify segment from stage, interpolate position along curve
   - Only draw if voiceActive_ == true
-- [ ] T081 [US6] Add playback dot to main draw() method in `plugins/shared/src/ui/adsr_display.h`
+- [X] T081 [US6] Add playback dot to main draw() method in `plugins/shared/src/ui/adsr_display.h`
   - Call drawPlaybackDot() after all other elements
   - Dot rendered on top of curve
-- [ ] T082 [US6] Verify all playback visualization tests pass
-- [ ] T083 [US6] Build plugin and test playback dot during note playback (SC-007)
+- [X] T082 [US6] Verify all playback visualization tests pass
+- [X] T083 [US6] Build plugin and test playback dot during note playback (SC-007)
   - Verify dot moves along curve at ~30fps
   - Verify dot disappears when envelope idle
   - Verify most-recent-voice selection with multiple notes
 
 ### 8.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T084 [US6] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
+- [X] T084 [US6] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
 
 ### 8.5 Commit (MANDATORY)
 
-- [ ] T085 [US6] **Commit completed User Story 6 work**
+- [X] T085 [US6] **Commit completed User Story 6 work**
 
 **Checkpoint**: User Story 6 should be fully functional - playback dot visualizes envelope in real-time
 

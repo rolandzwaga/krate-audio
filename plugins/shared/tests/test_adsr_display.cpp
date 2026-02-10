@@ -587,3 +587,101 @@ TEST_CASE("Bezier handle hit test in Bezier mode detects handles",
     auto target = display.hitTest(onCp1);
     REQUIRE(target == ADSRDisplay::DragTarget::BezierHandle);
 }
+
+// =============================================================================
+// T074: Playback Dot Positioning Tests
+// =============================================================================
+
+TEST_CASE("Playback dot position calculation for attack stage",
+          "[adsr_display][playback]") {
+    auto display = makeDisplayWithValues(100.0f, 200.0f, 0.6f, 300.0f);
+    auto layout = display.getLayout();
+
+    // Stage 1 = Attack, output = 0.5 means halfway through attack ramp
+    display.setPlaybackState(0.5f, 1, true);
+
+    // Get dot position via public accessor
+    auto dotPos = display.getPlaybackDotPosition();
+
+    // Dot should be somewhere in the attack segment horizontally
+    REQUIRE(dotPos.x >= layout.attackStartX);
+    REQUIRE(dotPos.x <= layout.attackEndX);
+
+    // Dot Y should correspond to output level 0.5
+    float expectedY = display.levelToPixelY(0.5f);
+    REQUIRE(static_cast<float>(dotPos.y) == Approx(expectedY).margin(2.0f));
+}
+
+TEST_CASE("Playback dot position calculation for sustain stage",
+          "[adsr_display][playback]") {
+    auto display = makeDisplayWithValues(100.0f, 200.0f, 0.6f, 300.0f);
+    auto layout = display.getLayout();
+
+    // Stage 3 = Sustain, output = sustain level
+    display.setPlaybackState(0.6f, 3, true);
+
+    auto dotPos = display.getPlaybackDotPosition();
+
+    // Dot should be in the sustain-hold segment
+    REQUIRE(dotPos.x >= layout.decayEndX);
+    REQUIRE(dotPos.x <= layout.sustainEndX);
+
+    // Dot Y should be at sustain level
+    float expectedY = display.levelToPixelY(0.6f);
+    REQUIRE(static_cast<float>(dotPos.y) == Approx(expectedY).margin(2.0f));
+}
+
+TEST_CASE("Playback dot position calculation for release stage",
+          "[adsr_display][playback]") {
+    auto display = makeDisplayWithValues(100.0f, 200.0f, 0.6f, 300.0f);
+    auto layout = display.getLayout();
+
+    // Stage 4 = Release, output = 0.3 means partway through release
+    display.setPlaybackState(0.3f, 4, true);
+
+    auto dotPos = display.getPlaybackDotPosition();
+
+    // Dot should be in the release segment
+    REQUIRE(dotPos.x >= layout.sustainEndX);
+    REQUIRE(dotPos.x <= layout.releaseEndX);
+
+    // Dot Y should correspond to output level 0.3
+    float expectedY = display.levelToPixelY(0.3f);
+    REQUIRE(static_cast<float>(dotPos.y) == Approx(expectedY).margin(2.0f));
+}
+
+TEST_CASE("Playback dot is not visible when voice is inactive",
+          "[adsr_display][playback]") {
+    auto display = makeDisplay();
+
+    // No active voice
+    display.setPlaybackState(0.0f, 0, false);
+    REQUIRE(display.isPlaybackDotVisible() == false);
+
+    // Active voice
+    display.setPlaybackState(0.5f, 1, true);
+    REQUIRE(display.isPlaybackDotVisible() == true);
+
+    // Voice becomes inactive again
+    display.setPlaybackState(0.0f, 0, false);
+    REQUIRE(display.isPlaybackDotVisible() == false);
+}
+
+TEST_CASE("Playback dot position for decay stage interpolates toward sustain",
+          "[adsr_display][playback]") {
+    auto display = makeDisplayWithValues(100.0f, 200.0f, 0.6f, 300.0f);
+    auto layout = display.getLayout();
+
+    // Stage 2 = Decay, output = 0.8 (between peak 1.0 and sustain 0.6)
+    display.setPlaybackState(0.8f, 2, true);
+
+    auto dotPos = display.getPlaybackDotPosition();
+
+    // Dot should be in the decay segment
+    REQUIRE(dotPos.x >= layout.attackEndX);
+    REQUIRE(dotPos.x <= layout.decayEndX);
+
+    // Dot Y should correspond to output level 0.8
+    float expectedY = display.levelToPixelY(0.8f);
+    REQUIRE(static_cast<float>(dotPos.y) == Approx(expectedY).margin(2.0f));
+}

@@ -92,6 +92,13 @@ Steinberg::tresult PLUGIN_API Controller::terminate() {
     playbackPollTimer_ = nullptr;
     tranceGatePlaybackStepPtr_ = nullptr;
     isTransportPlayingPtr_ = nullptr;
+    ampEnvOutputPtr_ = nullptr;
+    ampEnvStagePtr_ = nullptr;
+    filterEnvOutputPtr_ = nullptr;
+    filterEnvStagePtr_ = nullptr;
+    modEnvOutputPtr_ = nullptr;
+    modEnvStagePtr_ = nullptr;
+    envVoiceActivePtr_ = nullptr;
     presetManager_.reset();
     return EditControllerEx1::terminate();
 }
@@ -271,6 +278,48 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
                     }
                 }, 33); // ~30fps
         }
+
+        return Steinberg::kResultOk;
+    }
+
+    if (strcmp(message->getMessageID(), "EnvelopeDisplayState") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        Steinberg::int64 val = 0;
+
+        if (attrs->getInt("ampOutputPtr", val) == Steinberg::kResultOk) {
+            ampEnvOutputPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+        if (attrs->getInt("ampStagePtr", val) == Steinberg::kResultOk) {
+            ampEnvStagePtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+        if (attrs->getInt("filterOutputPtr", val) == Steinberg::kResultOk) {
+            filterEnvOutputPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+        if (attrs->getInt("filterStagePtr", val) == Steinberg::kResultOk) {
+            filterEnvStagePtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+        if (attrs->getInt("modOutputPtr", val) == Steinberg::kResultOk) {
+            modEnvOutputPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+        if (attrs->getInt("modStagePtr", val) == Steinberg::kResultOk) {
+            modEnvStagePtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+        if (attrs->getInt("voiceActivePtr", val) == Steinberg::kResultOk) {
+            envVoiceActivePtr_ = reinterpret_cast<std::atomic<bool>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+
+        // Wire the atomic pointers to existing ADSRDisplay instances
+        wireEnvDisplayPlayback();
 
         return Steinberg::kResultOk;
     }
@@ -582,6 +631,9 @@ void Controller::wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display) {
 
     // Sync current parameter values to the display
     syncAdsrDisplay(display, adsrBaseId, curveBaseId, bezierEnabledId, bezierBaseId);
+
+    // Wire playback state pointers if already available
+    wireEnvDisplayPlayback();
 }
 
 void Controller::syncAdsrDisplay(Krate::Plugins::ADSRDisplay* display,
@@ -684,6 +736,22 @@ void Controller::syncAdsrParamToDisplay(
         int axis = idx % 2;    // 0=x, 1=y
         display->setBezierHandleValue(seg, handle, axis,
             static_cast<float>(value));
+    }
+}
+
+void Controller::wireEnvDisplayPlayback() {
+    // Wire atomic pointers to each ADSRDisplay instance for playback visualization
+    if (ampEnvDisplay_ && ampEnvOutputPtr_ && ampEnvStagePtr_ && envVoiceActivePtr_) {
+        ampEnvDisplay_->setPlaybackStatePointers(
+            ampEnvOutputPtr_, ampEnvStagePtr_, envVoiceActivePtr_);
+    }
+    if (filterEnvDisplay_ && filterEnvOutputPtr_ && filterEnvStagePtr_ && envVoiceActivePtr_) {
+        filterEnvDisplay_->setPlaybackStatePointers(
+            filterEnvOutputPtr_, filterEnvStagePtr_, envVoiceActivePtr_);
+    }
+    if (modEnvDisplay_ && modEnvOutputPtr_ && modEnvStagePtr_ && envVoiceActivePtr_) {
+        modEnvDisplay_->setPlaybackStatePointers(
+            modEnvOutputPtr_, modEnvStagePtr_, envVoiceActivePtr_);
     }
 }
 

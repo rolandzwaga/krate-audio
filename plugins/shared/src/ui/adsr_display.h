@@ -281,6 +281,71 @@ public:
         setDirty();
     }
 
+    /// Set pointers to atomic playback state from processor (for timer-based polling)
+    void setPlaybackStatePointers(std::atomic<float>* outputPtr,
+                                   std::atomic<int>* stagePtr,
+                                   std::atomic<bool>* activePtr) {
+        playbackOutputPtr_ = outputPtr;
+        playbackStagePtr_ = stagePtr;
+        playbackActivePtr_ = activePtr;
+
+        // Start playback poll timer if we have valid pointers
+        if (outputPtr && stagePtr && activePtr && !playbackTimer_) {
+            playbackTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+                [this](VSTGUI::CVSTGUITimer*) {
+                    pollPlaybackState();
+                }, 33); // ~30fps
+        }
+    }
+
+    /// Check if the playback dot should be visible
+    [[nodiscard]] bool isPlaybackDotVisible() const {
+        return voiceActive_;
+    }
+
+    /// Calculate the pixel position of the playback dot based on current stage and output
+    [[nodiscard]] VSTGUI::CPoint getPlaybackDotPosition() const {
+        float output = playbackOutput_;
+        int stage = playbackStage_;
+
+        float dotX = 0.0f;
+        float dotY = levelToPixelY(output);
+
+        switch (stage) {
+            case 1: { // Attack: output goes from 0 to 1
+                // Interpolate X across the attack segment based on output level
+                float progress = std::clamp(output, 0.0f, 1.0f);
+                dotX = layout_.attackStartX + progress * (layout_.attackEndX - layout_.attackStartX);
+                break;
+            }
+            case 2: { // Decay: output goes from 1.0 down to sustainLevel
+                float range = 1.0f - sustainLevel_;
+                float progress = (range > 0.001f)
+                    ? std::clamp((1.0f - output) / range, 0.0f, 1.0f)
+                    : 0.5f;
+                dotX = layout_.attackEndX + progress * (layout_.decayEndX - layout_.attackEndX);
+                break;
+            }
+            case 3: { // Sustain: hold at sustain level in the middle of sustain segment
+                dotX = (layout_.decayEndX + layout_.sustainEndX) * 0.5f;
+                break;
+            }
+            case 4: { // Release: output goes from sustainLevel down to 0
+                float progress = (sustainLevel_ > 0.001f)
+                    ? std::clamp(1.0f - output / sustainLevel_, 0.0f, 1.0f)
+                    : 0.5f;
+                dotX = layout_.sustainEndX + progress * (layout_.releaseEndX - layout_.sustainEndX);
+                break;
+            }
+            default: // Idle or unknown
+                dotX = layout_.attackStartX;
+                dotY = layout_.bottomY;
+                break;
+        }
+
+        return VSTGUI::CPoint(dotX, dotY);
+    }
+
     // =========================================================================
     // Getters (for tests and readback)
     // =========================================================================
@@ -406,6 +471,7 @@ public:
         }
         drawModeToggle(context);
         drawCurveTooltip(context);
+        drawPlaybackDot(context);
 
         setDirty(false);
     }
@@ -1531,6 +1597,43 @@ private:
             btnRect, VSTGUI::kCenterText);
     }
 
+    void pollPlaybackState() {
+        if (!playbackOutputPtr_ || !playbackStagePtr_ || !playbackActivePtr_)
+            return;
+
+        float output = playbackOutputPtr_->load(std::memory_order_relaxed);
+        int stage = playbackStagePtr_->load(std::memory_order_relaxed);
+        bool active = playbackActivePtr_->load(std::memory_order_relaxed);
+
+        // Only redraw if state actually changed
+        if (output != playbackOutput_ || stage != playbackStage_ || active != voiceActive_) {
+            playbackOutput_ = output;
+            playbackStage_ = stage;
+            voiceActive_ = active;
+            setDirty();
+        }
+    }
+
+    void drawPlaybackDot(VSTGUI::CDrawContext* context) const {
+        if (!voiceActive_) return;
+
+        auto dotPos = getPlaybackDotPosition();
+
+        // Draw a bright 6px dot
+        constexpr float kPlaybackDotRadius = 3.0f;
+
+        // Glow effect: slightly larger semi-transparent circle behind the dot
+        VSTGUI::CColor glowColor = strokeColor_;
+        glowColor.alpha = 80;
+        context->setFillColor(glowColor);
+        drawCircle(context, dotPos, kPlaybackDotRadius + 2.0f);
+
+        // Bright dot on top
+        VSTGUI::CColor dotColor(255, 255, 255, 255);
+        context->setFillColor(dotColor);
+        drawCircle(context, dotPos, kPlaybackDotRadius);
+    }
+
     void drawBezierHandles(VSTGUI::CDrawContext* context) const {
         VSTGUI::CColor handleColor(180, 180, 190, 255);
         VSTGUI::CColor activeColor(230, 230, 240, 255);
@@ -1629,8 +1732,13 @@ private:
     EditCallback beginEditCallback_;
     EditCallback endEditCallback_;
 
-    // Timer for playback refresh
-    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> refreshTimer_;
+    // Playback state atomic pointers (from processor via IMessage)
+    std::atomic<float>* playbackOutputPtr_ = nullptr;
+    std::atomic<int>* playbackStagePtr_ = nullptr;
+    std::atomic<bool>* playbackActivePtr_ = nullptr;
+
+    // Timer for playback refresh (~30fps)
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> playbackTimer_;
 };
 
 // =============================================================================

@@ -157,6 +157,9 @@ private:
                                  Krate::Plugins::ADSRDisplay* display,
                                  uint32_t adsrBaseId, uint32_t curveBaseId,
                                  uint32_t bezierEnabledId, uint32_t bezierBaseId);
+
+    /// Wire envelope display playback state pointers to ADSRDisplay instances
+    void wireEnvDisplayPlayback();
     // ==========================================================================
     // UI State
     // ==========================================================================
@@ -172,6 +175,15 @@ private:
     std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;
     std::atomic<bool>* isTransportPlayingPtr_ = nullptr;
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> playbackPollTimer_;
+
+    // Envelope display state shared from processor via IMessage pointer
+    std::atomic<float>* ampEnvOutputPtr_ = nullptr;
+    std::atomic<int>* ampEnvStagePtr_ = nullptr;
+    std::atomic<float>* filterEnvOutputPtr_ = nullptr;
+    std::atomic<int>* filterEnvStagePtr_ = nullptr;
+    std::atomic<float>* modEnvOutputPtr_ = nullptr;
+    std::atomic<int>* modEnvStagePtr_ = nullptr;
+    std::atomic<bool>* envVoiceActivePtr_ = nullptr;
 
     // ==========================================================================
     // Preset Browser
