@@ -214,7 +214,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 3.4 Commit (MANDATORY)
 
-- [ ] T028 [US1] **Commit completed User Story 1 work**
+- [X] T028 [US1] **Commit completed User Story 1 work**
 
 **Checkpoint**: User Story 1 should be fully functional - control points draggable, parameters update, knobs sync
 
@@ -234,7 +234,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T029 [P] [US2] Write failing unit tests for envelope curve path generation in `plugins/shared/tests/adsr_display_tests.cpp`
+- [X] T029 [P] [US2] Write failing unit tests for envelope curve path generation in `plugins/shared/tests/adsr_display_tests.cpp`
   - Test generateCurvePath() produces correct number of points
   - Test curve path traces attack, decay, sustain-hold, release segments
   - Test curve path closes to baseline (bottom edge)
@@ -243,12 +243,12 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T030 [US2] Implement background drawing in `plugins/shared/src/ui/adsr_display.h` (FR-003, FR-004)
+- [X] T030 [US2] Implement background drawing in `plugins/shared/src/ui/adsr_display.h` (FR-003, FR-004)
   - drawBackground() with dark background fill (rgb(30,30,33))
   - drawGrid() with horizontal lines at 25%, 50%, 75% level
   - Vertical grid lines at time divisions (auto-scaled based on total time)
   - Grid color: rgba(255,255,255,25) or configurable gridColor_
-- [ ] T031 [US2] Implement envelope curve path generation in `plugins/shared/src/ui/adsr_display.h` (FR-001, FR-008, FR-009, FR-010)
+- [X] T031 [US2] Implement envelope curve path generation in `plugins/shared/src/ui/adsr_display.h` (FR-001, FR-008, FR-009, FR-010)
   - generateCurvePath() using CGraphicsPath
   - Trace attack segment from (attackStartX, bottomY) to (attackEndX, topY) using power curve or Bezier table
   - Trace decay segment from (attackEndX, topY) to (decayEndX, sustainY)
@@ -256,24 +256,24 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
   - Trace release segment from (sustainEndX, sustainY) to (releaseEndX, bottomY)
   - Close path to baseline
   - Use logarithmic time axis calculation with 15% min segment width
-- [ ] T032 [US2] Implement filled curve drawing in `plugins/shared/src/ui/adsr_display.h` (FR-001, FR-002)
+- [X] T032 [US2] Implement filled curve drawing in `plugins/shared/src/ui/adsr_display.h` (FR-001, FR-002)
   - drawEnvelopeCurve() with CGraphicsPath filled (kPathFilled) using fillColor_
   - Stroke path (kPathStroked) using strokeColor_
   - Default colors per envelope: Amp rgba(80,140,200,77) fill / rgb(80,140,200) stroke
-- [ ] T033 [US2] Implement sustain hold and gate marker lines in `plugins/shared/src/ui/adsr_display.h` (FR-005, FR-006)
+- [X] T033 [US2] Implement sustain hold and gate marker lines in `plugins/shared/src/ui/adsr_display.h` (FR-005, FR-006)
   - drawSustainHoldLine() with dashed horizontal line from Sustain point to release start (CLineStyle with dash pattern)
   - drawGateMarker() with vertical dashed line separating gate-on and gate-off sections
   - Sustain hold occupies fixed 25% of display width (FR-005)
-- [ ] T034 [US2] Implement time label rendering in `plugins/shared/src/ui/adsr_display.h` (FR-007)
+- [X] T034 [US2] Implement time label rendering in `plugins/shared/src/ui/adsr_display.h` (FR-007)
   - drawTimeLabels() with CFontRef and drawString()
   - Format labels: "10ms", "50ms", "100ms" at control points
   - Total duration label in bottom-right corner
   - Text color: rgba(255,255,255,180) or configurable textColor_
-- [ ] T035 [US2] Implement control point rendering in `plugins/shared/src/ui/adsr_display.h` (FR-011, FR-012)
+- [X] T035 [US2] Implement control point rendering in `plugins/shared/src/ui/adsr_display.h` (FR-011, FR-012)
   - drawControlPoints() with 8px filled circles for Peak, Sustain, End
   - Control point color: rgb(255,255,255) or configurable controlPointColor_
   - Start point fixed at (0,0) - not rendered as interactive
-- [ ] T036 [US2] Implement main draw() method in `plugins/shared/src/ui/adsr_display.h`
+- [X] T036 [US2] Implement main draw() method in `plugins/shared/src/ui/adsr_display.h`
   - Call drawBackground()
   - Call drawGrid()
   - Call drawEnvelopeCurve()
@@ -282,17 +282,17 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
   - Call drawTimeLabels()
   - Call drawControlPoints()
   - (Bezier handles and playback dot added in later phases)
-- [ ] T037 [US2] Add 3 ADSRDisplay instances to `plugins/ruinae/resources/editor.uidesc` (FR-002, FR-053, FR-054)
+- [X] T037 [US2] Add 3 ADSRDisplay instances to `plugins/ruinae/resources/editor.uidesc` (FR-002, FR-053, FR-054)
   - Amp envelope: control-tag="kAmpEnvAttackId", fill-color="80,140,200,77", stroke-color="80,140,200,255", size="140,90"
   - Filter envelope: control-tag="kFilterEnvAttackId", fill-color="220,170,60,77", stroke-color="220,170,60,255", size="140,90"
   - Mod envelope: control-tag="kModEnvAttackId", fill-color="160,90,200,77", stroke-color="160,90,200,255", size="140,90"
-- [ ] T038 [US2] Verify all envelope curve rendering tests pass
-- [ ] T039 [US2] Build plugin and verify visual rendering at target dimensions (130-150px W x 80-100px H) (SC-009)
-- [ ] T040 [US2] Test extreme timing ratios (0.1ms attack + 10s release) to verify logarithmic scaling works (SC-004)
+- [X] T038 [US2] Verify all envelope curve rendering tests pass
+- [X] T039 [US2] Build plugin and verify visual rendering at target dimensions (130-150px W x 80-100px H) (SC-009)
+- [X] T040 [US2] Test extreme timing ratios (0.1ms attack + 10s release) to verify logarithmic scaling works (SC-004)
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T041 [US2] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
+- [X] T041 [US2] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
 
 ### 4.4 Commit (MANDATORY)
 

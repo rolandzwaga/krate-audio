@@ -23,6 +23,11 @@
         <control-tag name="MixPosition" tag="301"/>
         <control-tag name="MixerTilt" tag="302"/>
 
+        <!-- Envelope display tags (attack param ID used to identify envelope) -->
+        <control-tag name="AmpEnvAttack" tag="700"/>
+        <control-tag name="FilterEnvAttack" tag="800"/>
+        <control-tag name="ModEnvAttack" tag="900"/>
+
         <!-- UI action button tags (not VST parameters) -->
         <control-tag name="ActionPresetAll" tag="10000"/>
         <control-tag name="ActionPresetOff" tag="10001"/>
@@ -388,6 +393,93 @@
             label-color="#AAAAAA"
             crosshair-opacity="0.12"
             grid-size="24"
+        />
+
+        <!-- ============================================================ -->
+        <!-- Envelope Displays Section                                    -->
+        <!-- ============================================================ -->
+
+        <view
+            class="CTextLabel"
+            origin="500, 270"
+            size="300, 20"
+            title="Envelopes"
+            font="~ NormalFontSmall"
+            font-color="#808080"
+            text-alignment="left"
+            transparent="true"
+        />
+
+        <!-- Amp Envelope Display (blue) -->
+        <view
+            class="CTextLabel"
+            origin="500, 390"
+            size="140, 16"
+            title="Amp Env"
+            font="~ NormalFontSmaller"
+            font-color="#508CC8"
+            text-alignment="center"
+            transparent="true"
+        />
+        <view
+            class="ADSRDisplay"
+            origin="500, 295"
+            size="140, 90"
+            control-tag="AmpEnvAttack"
+            fill-color="#508CC84D"
+            stroke-color="#508CC8"
+            background-color="#1E1E21"
+            grid-color="#FFFFFF19"
+            control-point-color="#FFFFFF"
+            text-color="#FFFFFFB4"
+        />
+
+        <!-- Filter Envelope Display (amber) -->
+        <view
+            class="CTextLabel"
+            origin="650, 390"
+            size="140, 16"
+            title="Filter Env"
+            font="~ NormalFontSmaller"
+            font-color="#DCAA3C"
+            text-alignment="center"
+            transparent="true"
+        />
+        <view
+            class="ADSRDisplay"
+            origin="650, 295"
+            size="140, 90"
+            control-tag="FilterEnvAttack"
+            fill-color="#DCAA3C4D"
+            stroke-color="#DCAA3C"
+            background-color="#1E1E21"
+            grid-color="#FFFFFF19"
+            control-point-color="#FFFFFF"
+            text-color="#FFFFFFB4"
+        />
+
+        <!-- Mod Envelope Display (purple) -->
+        <view
+            class="CTextLabel"
+            origin="500, 510"
+            size="140, 16"
+            title="Mod Env"
+            font="~ NormalFontSmaller"
+            font-color="#A05AC8"
+            text-alignment="center"
+            transparent="true"
+        />
+        <view
+            class="ADSRDisplay"
+            origin="500, 415"
+            size="140, 90"
+            control-tag="ModEnvAttack"
+            fill-color="#A05AC84D"
+            stroke-color="#A05AC8"
+            background-color="#1E1E21"
+            grid-color="#FFFFFF19"
+            control-point-color="#FFFFFF"
+            text-color="#FFFFFFB4"
         />
     </template>
 </vstgui-ui-description>

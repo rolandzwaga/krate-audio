@@ -378,6 +378,7 @@ public:
         drawEnvelopeCurve(context);
         drawSustainHoldLine(context);
         drawGateMarker(context);
+        drawTimeLabels(context);
         drawControlPoints(context);
 
         setDirty(false);
@@ -1069,6 +1070,79 @@ private:
         context->drawLine(
             VSTGUI::CPoint(gateX, layout_.topY),
             VSTGUI::CPoint(gateX, layout_.bottomY));
+    }
+
+    void drawTimeLabels(VSTGUI::CDrawContext* context) const {
+        VSTGUI::CRect vs = getViewSize();
+        float displayHeight = static_cast<float>(vs.getHeight());
+
+        // Skip labels if display is too small to fit them readably
+        if (displayHeight < 60.0f) return;
+
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 8.0);
+        context->setFont(font);
+        context->setFontColor(textColor_);
+
+        constexpr float kLabelHeight = 10.0f;
+        constexpr float kLabelWidth = 40.0f;
+        constexpr float kLabelOffsetY = 2.0f;
+
+        // Attack time label (below Peak point)
+        {
+            char buf[16];
+            formatTimeLabel(buf, sizeof(buf), attackMs_);
+            VSTGUI::CRect labelRect(
+                layout_.attackEndX - kLabelWidth * 0.5,
+                layout_.topY - kLabelHeight - kLabelOffsetY,
+                layout_.attackEndX + kLabelWidth * 0.5,
+                layout_.topY - kLabelOffsetY);
+            // Clamp to display bounds
+            if (labelRect.top < vs.top) {
+                labelRect.offset(0, vs.top - labelRect.top + 1);
+            }
+            context->drawString(VSTGUI::UTF8String(buf), labelRect,
+                                VSTGUI::kCenterText);
+        }
+
+        // Release time label (near End point)
+        {
+            char buf[16];
+            formatTimeLabel(buf, sizeof(buf), releaseMs_);
+            VSTGUI::CRect labelRect(
+                layout_.releaseEndX - kLabelWidth,
+                layout_.bottomY - kLabelHeight,
+                layout_.releaseEndX,
+                layout_.bottomY);
+            context->drawString(VSTGUI::UTF8String(buf), labelRect,
+                                VSTGUI::kRightText);
+        }
+
+        // Total duration label (bottom-right corner)
+        {
+            float totalMs = attackMs_ + decayMs_ + releaseMs_;
+            char buf[24];
+            formatTimeLabel(buf, sizeof(buf), totalMs);
+            VSTGUI::CRect labelRect(
+                vs.right - kLabelWidth - kPadding,
+                vs.bottom - kLabelHeight - 1,
+                vs.right - kPadding,
+                vs.bottom - 1);
+            context->drawString(VSTGUI::UTF8String(buf), labelRect,
+                                VSTGUI::kRightText);
+        }
+    }
+
+    /// Format a time value as a compact string (e.g., "10ms", "1.5s")
+    static void formatTimeLabel(char* buf, size_t bufSize, float timeMs) {
+        if (timeMs >= 1000.0f) {
+            std::snprintf(buf, bufSize, "%.1fs", timeMs / 1000.0f);
+        } else if (timeMs >= 100.0f) {
+            std::snprintf(buf, bufSize, "%.0fms", timeMs);
+        } else if (timeMs >= 10.0f) {
+            std::snprintf(buf, bufSize, "%.0fms", timeMs);
+        } else {
+            std::snprintf(buf, bufSize, "%.1fms", timeMs);
+        }
     }
 
     void drawControlPoints(VSTGUI::CDrawContext* context) const {
