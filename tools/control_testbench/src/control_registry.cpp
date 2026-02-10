@@ -9,7 +9,12 @@
 // Shared UI controls - include triggers static ViewCreator registration
 #include "ui/adsr_display.h"
 #include "ui/arc_knob.h"
+#include "ui/bipolar_slider.h"
 #include "ui/fieldset_container.h"
+#include "ui/mod_heatmap.h"
+#include "ui/mod_matrix_grid.h"
+#include "ui/mod_ring_indicator.h"
+#include "ui/mod_source_colors.h"
 #include "ui/step_pattern_editor.h"
 #include "ui/xy_morph_pad.h"
 
@@ -236,6 +241,126 @@ VSTGUI::CView* TestbenchController::createView(
                 logParameterChange(paramId, -2.0f);
             });
             return display;
+        }
+        else if (*customViewName == "BipolarSliderDemo") {
+            VSTGUI::CRect size(0, 0, 200, 24);
+            auto* slider = new Krate::Plugins::BipolarSlider(size, nullptr, -1);
+            slider->setValue(0.5f);  // center = bipolar 0
+            return slider;
+        }
+        else if (*customViewName == "BipolarSliderNeg") {
+            VSTGUI::CRect size(0, 0, 200, 24);
+            auto* slider = new Krate::Plugins::BipolarSlider(size, nullptr, -1);
+            slider->setValue(0.25f);  // bipolar -0.5
+            return slider;
+        }
+        else if (*customViewName == "BipolarSliderPos") {
+            VSTGUI::CRect size(0, 0, 200, 24);
+            auto* slider = new Krate::Plugins::BipolarSlider(size, nullptr, -1);
+            slider->setValue(0.86f);  // bipolar +0.72
+            return slider;
+        }
+        else if (*customViewName == "ModMatrixGridDemo") {
+            VSTGUI::CRect size(0, 0, 450, 280);
+            auto* grid = new Krate::Plugins::ModMatrixGrid(size);
+
+            // Wire parameter callback to logger
+            grid->setParameterCallback([](uint32_t paramId, float value) {
+                logParameterChange(paramId, value);
+            });
+            grid->setBeginEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -1.0f);
+            });
+            grid->setEndEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -2.0f);
+            });
+
+            // Pre-populate with 3 demo routes
+            using namespace Krate::Plugins;
+            ModRoute route0{};
+            route0.source = ModSource::Env2;
+            route0.destination = ModDestination::FilterCutoff;
+            route0.amount = 0.72f;
+            route0.active = true;
+            grid->setGlobalRoute(0, route0);
+
+            ModRoute route1{};
+            route1.source = ModSource::VoiceLFO;
+            route1.destination = ModDestination::FilterResonance;
+            route1.amount = -0.35f;
+            route1.active = true;
+            grid->setGlobalRoute(1, route1);
+
+            ModRoute route2{};
+            route2.source = ModSource::Velocity;
+            route2.destination = ModDestination::OscAPitch;
+            route2.amount = 0.15f;
+            route2.curve = 1;  // Exponential
+            route2.active = true;
+            grid->setGlobalRoute(2, route2);
+
+            return grid;
+        }
+        else if (*customViewName == "ModRingIndicatorDemo") {
+            VSTGUI::CRect size(0, 0, 60, 60);
+            auto* ring = new Krate::Plugins::ModRingIndicator(size);
+            ring->setBaseValue(0.5f);
+
+            // Set up 2 demo arcs
+            using namespace Krate::Plugins;
+            std::vector<ModRingIndicator::ArcInfo> arcs;
+            arcs.push_back({0.72f, VSTGUI::CColor(220, 170, 60, 255),
+                static_cast<int>(ModSource::Env2),
+                static_cast<int>(ModDestination::FilterCutoff), false});
+            arcs.push_back({-0.35f, VSTGUI::CColor(90, 200, 130, 255),
+                static_cast<int>(ModSource::VoiceLFO),
+                static_cast<int>(ModDestination::FilterCutoff), false});
+            ring->setArcs(arcs);
+            return ring;
+        }
+        else if (*customViewName == "ModRingIndicator4Arcs") {
+            VSTGUI::CRect size(0, 0, 60, 60);
+            auto* ring = new Krate::Plugins::ModRingIndicator(size);
+            ring->setBaseValue(0.4f);
+
+            using namespace Krate::Plugins;
+            std::vector<ModRingIndicator::ArcInfo> arcs;
+            arcs.push_back({0.5f, VSTGUI::CColor(80, 140, 200, 255), 0, 0, false});
+            arcs.push_back({-0.3f, VSTGUI::CColor(220, 170, 60, 255), 1, 0, false});
+            arcs.push_back({0.2f, VSTGUI::CColor(160, 90, 200, 255), 2, 0, false});
+            arcs.push_back({-0.15f, VSTGUI::CColor(90, 200, 130, 255), 3, 0, false});
+            ring->setArcs(arcs);
+            return ring;
+        }
+        else if (*customViewName == "ModRingIndicatorComposite") {
+            VSTGUI::CRect size(0, 0, 60, 60);
+            auto* ring = new Krate::Plugins::ModRingIndicator(size);
+            ring->setBaseValue(0.3f);
+
+            using namespace Krate::Plugins;
+            std::vector<ModRingIndicator::ArcInfo> arcs;
+            // 6 arcs = 4 individual + 1 composite gray for the 2 oldest
+            arcs.push_back({0.1f, VSTGUI::CColor(80, 140, 200, 255), 0, 0, false});
+            arcs.push_back({-0.1f, VSTGUI::CColor(220, 170, 60, 255), 1, 0, false});
+            arcs.push_back({0.3f, VSTGUI::CColor(160, 90, 200, 255), 2, 0, false});
+            arcs.push_back({0.2f, VSTGUI::CColor(90, 200, 130, 255), 3, 0, false});
+            arcs.push_back({-0.4f, VSTGUI::CColor(220, 130, 60, 255), 4, 0, false});
+            arcs.push_back({0.15f, VSTGUI::CColor(200, 100, 140, 255), 5, 0, false});
+            ring->setArcs(arcs);
+            return ring;
+        }
+        else if (*customViewName == "ModHeatmapDemo") {
+            VSTGUI::CRect size(0, 0, 320, 120);
+            auto* heatmap = new Krate::Plugins::ModHeatmap(size);
+            heatmap->setMode(0);  // 0 = Global
+
+            // Populate some demo cells
+            heatmap->setCell(1, 0, 0.72f, true);   // ENV 2 -> FilterCutoff
+            heatmap->setCell(3, 1, -0.35f, true);  // VoiceLFO -> FilterRes
+            heatmap->setCell(5, 5, 0.15f, true);   // Velocity -> OscAPitch
+            heatmap->setCell(0, 0, 0.5f, true);    // ENV 1 -> FilterCutoff
+            heatmap->setCell(7, 3, -0.8f, true);   // Macro1 -> DistDrive
+            return heatmap;
         }
         else if (*customViewName == "ParameterLog") {
             VSTGUI::CRect size(0, 0, 300, 300);

@@ -87,3 +87,17 @@ constexpr uint32_t kModEnvDecayCurveId = 905;
 constexpr uint32_t kModEnvReleaseCurveId = 906;
 constexpr uint32_t kModEnvBezierEnabledId = 907;
 constexpr uint32_t kModEnvBezierAttackCp1xId = 910;
+
+// =============================================================================
+// Mod Matrix Parameters (Global Routes, 8 slots)
+// =============================================================================
+// Base params: Source/Dest/Amount per slot (3 per slot, IDs 1300-1323)
+constexpr uint32_t kModMatrixBaseId = 1300;
+constexpr uint32_t kModSlot0SourceId = 1300;
+constexpr uint32_t kModSlot0DestId = 1301;
+constexpr uint32_t kModSlot0AmountId = 1302;
+// Detail params: Curve/Smooth/Scale/Bypass per slot (4 per slot, IDs 1324-1355)
+constexpr uint32_t kModSlot0CurveId = 1324;
+constexpr uint32_t kModSlot0SmoothId = 1325;
+constexpr uint32_t kModSlot0ScaleId = 1326;
+constexpr uint32_t kModSlot0BypassId = 1327;
