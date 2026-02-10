@@ -87,8 +87,8 @@ public:
         , colorTopRight_(other.colorTopRight_)
         , cursorColor_(other.cursorColor_)
         , labelColor_(other.labelColor_)
-        , crosshairOpacity_(other.crosshairOpacity_)
-        , secondaryParamId_(other.secondaryParamId_) {}
+        , secondaryParamId_(other.secondaryParamId_)
+        , crosshairOpacity_(other.crosshairOpacity_) {}
 
     CLASS_METHODS(XYMorphPad, CControl)
 

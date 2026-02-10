@@ -126,6 +126,10 @@ jobs:
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests --parallel
 
+      - name: Build Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target shared_tests --parallel
+
       - name: Build Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
@@ -145,6 +149,10 @@ jobs:
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
+
+      - name: Run Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
 
       - name: Run Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -226,6 +234,10 @@ jobs:
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests --parallel
 
+      - name: Build Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target shared_tests --parallel
+
       - name: Build Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
@@ -245,6 +257,10 @@ jobs:
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
+
+      - name: Run Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
 
       - name: Run Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -379,6 +395,10 @@ jobs:
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target dsp_tests --parallel
 
+      - name: Build Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --target shared_tests --parallel
+
       - name: Build Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target plugin_tests approval_tests --parallel
@@ -398,6 +418,10 @@ jobs:
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
+
+      - name: Run Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
 
       - name: Run Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'

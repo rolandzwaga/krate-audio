@@ -82,10 +82,10 @@ inline void saveLFO2Params(const LFO2Params& params, Steinberg::IBStreamer& stre
 
 inline bool loadLFO2Params(LFO2Params& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) return false; params.rateHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.shape.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false; params.depth.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.sync.store(iv != 0, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.shape.store(iv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.sync.store(iv != 0, std::memory_order_relaxed);
     return true;
 }
 

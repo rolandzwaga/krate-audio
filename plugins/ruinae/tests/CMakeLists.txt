@@ -36,6 +36,9 @@ add_executable(ruinae_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+
+    # Stubs for vstgui_support entry point symbols (not present in test executables)
+    vstgui_test_stubs.cpp
 )
 
 target_link_libraries(ruinae_tests
@@ -45,7 +48,9 @@ target_link_libraries(ruinae_tests
         Catch2::Catch2
         test_helpers
         sdk
+        vstgui_uidescription
         vstgui_support
+        vstgui
 )
 
 target_include_directories(ruinae_tests
@@ -53,6 +58,7 @@ target_include_directories(ruinae_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/../src
         ${CMAKE_SOURCE_DIR}/tests
         ${vst3sdk_SOURCE_DIR}
+        ${vst3sdk_SOURCE_DIR}/vstgui4
 )
 
 target_compile_features(ruinae_tests PRIVATE cxx_std_20)

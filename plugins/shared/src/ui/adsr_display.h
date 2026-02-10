@@ -61,7 +61,6 @@ public:
 
     static constexpr float kControlPointRadius = 12.0f;
     static constexpr float kControlPointDrawRadius = 4.0f;
-    static constexpr float kMinSegmentWidthFraction = 0.0f;
     static constexpr float kSustainHoldFraction = 0.25f;
     static constexpr float kFineAdjustmentScale = 0.1f;
     static constexpr float kPadding = 4.0f;
@@ -114,7 +113,7 @@ public:
         float bottomY = 0.0f;     // Bottom of envelope drawing area
         float labelTopY = 0.0f;   // Top of value label strip (== bottomY)
         float viewBottomY = 0.0f; // Actual bottom of view (after label strip)
-    };;
+    };
 
     struct PreDragValues {
         float attackMs = 0.0f;
@@ -125,7 +124,7 @@ public:
         float attackCurve = 0.0f;
         float decayCurve = 0.0f;
         float releaseCurve = 0.0f;
-    };;
+    };
 
     struct BezierHandles {
         float cp1x = 0.33f;
@@ -668,61 +667,20 @@ private:
             attackFrac = decayFrac = releaseFrac = 1.0f / 3.0f;
         }
 
-        // Enforce 15% minimum segment width relative to total display width.
-        // Each time segment must be at least kMinSegmentWidthFraction of totalWidth.
-        // Convert the totalWidth-based minimum to a timeWidth-based fraction.
-        float minFracOfTimeWidth = (timeWidth > 0.0f)
-            ? (kMinSegmentWidthFraction * totalWidth / timeWidth) : 0.0f;
-        enforceMinimumFractions(attackFrac, decayFrac, releaseFrac, minFracOfTimeWidth);
-
         float attackWidth = attackFrac * timeWidth;
         float decayWidth = decayFrac * timeWidth;
         float releaseWidth = releaseFrac * timeWidth;
+
+        // Enforce 1px minimum per segment so every segment remains visible
+        attackWidth = std::max(attackWidth, 1.0f);
+        decayWidth = std::max(decayWidth, 1.0f);
+        releaseWidth = std::max(releaseWidth, 1.0f);
 
         layout_.attackStartX = displayLeft;
         layout_.attackEndX = displayLeft + attackWidth;
         layout_.decayEndX = layout_.attackEndX + decayWidth;
         layout_.sustainEndX = layout_.decayEndX + sustainWidth;
         layout_.releaseEndX = layout_.sustainEndX + releaseWidth;
-    }
-
-    /// Enforce minimum fraction for each segment, redistributing from larger segments
-    static void enforceMinimumFractions(float& a, float& b, float& c, float minFrac) {
-        // Iteratively adjust until all segments meet the minimum
-        for (int iter = 0; iter < 3; ++iter) {
-            float deficit = 0.0f;
-            int overCount = 0;
-
-            if (a < minFrac) deficit += minFrac - a;
-            else overCount++;
-
-            if (b < minFrac) deficit += minFrac - b;
-            else overCount++;
-
-            if (c < minFrac) deficit += minFrac - c;
-            else overCount++;
-
-            if (deficit <= 0.0f || overCount <= 0) break;
-
-            float perOver = deficit / static_cast<float>(overCount);
-
-            if (a < minFrac) a = minFrac;
-            else a -= perOver;
-
-            if (b < minFrac) b = minFrac;
-            else b -= perOver;
-
-            if (c < minFrac) c = minFrac;
-            else c -= perOver;
-        }
-
-        // Normalize to sum to 1.0
-        float sum = a + b + c;
-        if (sum > 0.0f) {
-            a /= sum;
-            b /= sum;
-            c /= sum;
-        }
     }
 
     // =========================================================================

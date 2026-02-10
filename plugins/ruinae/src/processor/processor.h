@@ -40,7 +40,7 @@
 #include "parameters/reverb_params.h"
 #include "parameters/mono_mode_params.h"
 
-#include "ui/mod_source_colors.h"
+#include "ui/mod_matrix_types.h"
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
 

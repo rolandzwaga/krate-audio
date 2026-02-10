@@ -510,7 +510,7 @@ VSTGUI::CView* Controller::verifyView(
     auto* control = dynamic_cast<VSTGUI::CControl*>(view);
     if (control) {
         auto tag = control->getTag();
-        if (tag >= kActionPresetAllTag && tag <= kActionEuclideanRegenTag) {
+        if (tag >= static_cast<int32_t>(kActionPresetAllTag) && tag <= static_cast<int32_t>(kActionEuclideanRegenTag)) {
             control->registerControlListener(this);
         }
     }

@@ -138,8 +138,8 @@ public:
         , driftOneMinusCoeff_(1.0f)
         , inverseSampleRate_(1.0f / 44100.0f)
         , sampleRate_(44100.0)
-        , samplesUntilNextSpawn_(0.0f)
         , activeCount_(0)
+        , samplesUntilNextSpawn_(0.0f)
         , rng_(12345)
         , prepared_(false) {
     }

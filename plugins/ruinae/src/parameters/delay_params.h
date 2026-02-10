@@ -119,12 +119,12 @@ inline void saveDelayParams(const RuinaeDelayParams& params, Steinberg::IBStream
 
 inline bool loadDelayParams(RuinaeDelayParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
-    if (!streamer.readInt32(iv)) return false; params.type.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false; params.timeMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false; params.feedback.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false; params.mix.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.sync.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.noteValue.store(iv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.type.store(iv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.timeMs.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.feedback.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.mix.store(fv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.sync.store(iv != 0, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.noteValue.store(iv, std::memory_order_relaxed);
     return true;
 }
 
