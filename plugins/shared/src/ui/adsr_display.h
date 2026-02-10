@@ -380,6 +380,7 @@ public:
         drawGateMarker(context);
         drawTimeLabels(context);
         drawControlPoints(context);
+        drawCurveTooltip(context);
 
         setDirty(false);
     }
@@ -1143,6 +1144,43 @@ private:
         } else {
             std::snprintf(buf, bufSize, "%.1fms", timeMs);
         }
+    }
+
+    void drawCurveTooltip(VSTGUI::CDrawContext* context) const {
+        // Only show during curve segment drags
+        if (!isDragging_) return;
+
+        float curveVal = 0.0f;
+        switch (dragTarget_) {
+            case DragTarget::AttackCurve:
+                curveVal = attackCurve_;
+                break;
+            case DragTarget::DecayCurve:
+                curveVal = decayCurve_;
+                break;
+            case DragTarget::ReleaseCurve:
+                curveVal = releaseCurve_;
+                break;
+            default:
+                return; // Not a curve drag
+        }
+
+        char buf[24];
+        std::snprintf(buf, sizeof(buf), "Curve: %+.2f", curveVal);
+
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 9.0);
+        context->setFont(font);
+        context->setFontColor(controlPointColor_);
+
+        // Draw tooltip in upper-left area of the display
+        VSTGUI::CRect vs = getViewSize();
+        VSTGUI::CRect tooltipRect(
+            vs.left + kPadding + 2,
+            vs.top + kPadding,
+            vs.left + kPadding + 80,
+            vs.top + kPadding + 12);
+        context->drawString(VSTGUI::UTF8String(buf), tooltipRect,
+                            VSTGUI::kLeftText);
     }
 
     void drawControlPoints(VSTGUI::CDrawContext* context) const {

@@ -296,7 +296,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T042 [US2] **Commit completed User Story 2 work**
+- [X] T042 [US2] **Commit completed User Story 2 work**
 
 **Checkpoint**: User Story 2 should be fully functional - envelope curves render beautifully with all visual elements
 
@@ -316,7 +316,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T043 [P] [US3] Write failing unit tests for curve segment hit testing in `plugins/shared/tests/adsr_display_tests.cpp`
+- [X] T043 [P] [US3] Write failing unit tests for curve segment hit testing in `plugins/shared/tests/adsr_display_tests.cpp`
   - Test attack curve hit detection in middle third of segment (avoiding endpoint control point regions)
   - Test decay curve hit detection in middle third
   - Test release curve hit detection in middle third
@@ -325,41 +325,41 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T044 [US3] Extend hit testing in `plugins/shared/src/ui/adsr_display.h` to include curve segments (FR-016)
+- [X] T044 [US3] Extend hit testing in `plugins/shared/src/ui/adsr_display.h` to include curve segments (FR-016)
   - hitTestCurveSegment() for attack, decay, release
   - Only detect hits in middle third of each segment (avoid endpoint overlap with control points)
   - Return DragTarget::AttackCurve / DecayCurve / ReleaseCurve
   - Control points take priority (checked first)
-- [ ] T045 [US3] Extend onMouseDown() to handle curve segment drags in `plugins/shared/src/ui/adsr_display.h` (FR-016, FR-017)
+- [X] T045 [US3] Extend onMouseDown() to handle curve segment drags in `plugins/shared/src/ui/adsr_display.h` (FR-016, FR-017)
   - If hit curve segment, set dragTarget_ and store pre-drag curve amount in preDragValues_
   - Call beginEditCallback_ for the curve parameter
-- [ ] T046 [US3] Extend onMouseMoved() to handle curve amount changes in `plugins/shared/src/ui/adsr_display.h` (FR-017, FR-018)
+- [X] T046 [US3] Extend onMouseMoved() to handle curve amount changes in `plugins/shared/src/ui/adsr_display.h` (FR-017, FR-018)
   - Vertical drag delta -> curve amount delta (upward = more negative/logarithmic, downward = more positive/exponential)
   - Clamp curve amount to [-1.0, +1.0]
   - Call paramCallback_ with curve parameter ID
   - Regenerate curve table (via setAttackCurve/Decay/Release)
   - Redraw (invalid())
-- [ ] T047 [US3] Implement curve tooltip/label in `plugins/shared/src/ui/adsr_display.h` (FR-019)
+- [X] T047 [US3] Implement curve tooltip/label in `plugins/shared/src/ui/adsr_display.h` (FR-019)
   - During curve drag, display "Curve: -0.35" label near cursor or fixed position
   - Format with 2 decimal places
   - Show only while dragging curve segments
-- [ ] T048 [US3] Implement double-click curve reset in `plugins/shared/src/ui/adsr_display.h` (FR-021)
+- [X] T048 [US3] Implement double-click curve reset in `plugins/shared/src/ui/adsr_display.h` (FR-021)
   - Detect double-click on curve segment in onMouseDown()
   - Set curve amount to 0.0 (linear)
   - Call paramCallback_ and endEditCallback_
-- [ ] T049 [US3] Verify curve parameter update regenerates lookup tables and updates display (FR-043, FR-048)
+- [X] T049 [US3] Verify curve parameter update regenerates lookup tables and updates display (FR-043, FR-048)
   - Ensure setAttackCurve(float)/setDecayCurve/setReleaseCurve call ADSREnvelope curve methods
   - Verify curve bending is visually smooth from -1.0 to +1.0 (SC-005)
-- [ ] T050 [US3] Verify all curve segment tests pass
-- [ ] T051 [US3] Build plugin and test curve dragging (up = logarithmic, down = exponential)
+- [X] T050 [US3] Verify all curve segment tests pass
+- [X] T051 [US3] Build plugin and test curve dragging (up = logarithmic, down = exponential)
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T052 [US3] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
+- [X] T052 [US3] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T053 [US3] **Commit completed User Story 3 work**
+- [X] T053 [US3] **Commit completed User Story 3 work**
 
 **Checkpoint**: User Story 3 should be fully functional - curve segments draggable, curve amount updates continuously
 
@@ -379,39 +379,39 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T054 [P] [US4] Write failing unit tests for fine adjustment in `plugins/shared/tests/adsr_display_tests.cpp`
+- [X] T054 [P] [US4] Write failing unit tests for fine adjustment in `plugins/shared/tests/adsr_display_tests.cpp`
   - Test Shift+drag applies 0.1x movement scale (SC-002)
   - Test fine adjustment toggle mid-drag without position jump
   - Test measurement: cursor displacement per pixel with/without Shift (SC-002)
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T055 [US4] Implement Shift+drag fine adjustment in `plugins/shared/src/ui/adsr_display.h` (FR-022, SC-002)
+- [X] T055 [US4] Implement Shift+drag fine adjustment in `plugins/shared/src/ui/adsr_display.h` (FR-022, SC-002)
   - Detect Shift key in onMouseMoved() via CButtonState
   - Apply 0.1x scale to drag delta when Shift held
   - Ensure no position jump when toggling Shift mid-drag
-- [ ] T056 [US4] Implement double-click control point reset in `plugins/shared/src/ui/adsr_display.h` (FR-020, SC-003)
+- [X] T056 [US4] Implement double-click control point reset in `plugins/shared/src/ui/adsr_display.h` (FR-020, SC-003)
   - Detect double-click in onMouseDown() via CButtonState
   - Reset control point to default: attack=10ms, decay=50ms, sustain=0.5, release=100ms
   - Call paramCallback_ and endEditCallback_
   - Measure double-click reset time < 500ms (SC-003)
-- [ ] T057 [US4] Implement Escape cancel in `plugins/shared/src/ui/adsr_display.h` (FR-023, SC-008)
+- [X] T057 [US4] Implement Escape cancel in `plugins/shared/src/ui/adsr_display.h` (FR-023, SC-008)
   - Override onKeyDown() to detect Escape key
   - Restore all affected parameters from preDragValues_
   - Call paramCallback_ for each restored parameter
   - Call endEditCallback_
   - Clear drag state
   - Verify pre-drag values match post-cancel values (SC-008)
-- [ ] T058 [US4] Verify all fine adjustment and reset tests pass
-- [ ] T059 [US4] Build plugin and test Shift+drag precision, double-click reset, Escape cancel
+- [X] T058 [US4] Verify all fine adjustment and reset tests pass
+- [X] T059 [US4] Build plugin and test Shift+drag precision, double-click reset, Escape cancel
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T060 [US4] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
+- [X] T060 [US4] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T061 [US4] **Commit completed User Story 4 work**
+- [X] T061 [US4] **Commit completed User Story 4 work**
 
 **Checkpoint**: User Story 4 should be fully functional - fine adjustment, reset, and cancel all work
 

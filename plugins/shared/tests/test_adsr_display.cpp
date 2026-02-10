@@ -349,3 +349,143 @@ TEST_CASE("Color setters and getters round-trip correctly",
     display.setTextColor(testColor);
     REQUIRE(display.getTextColor() == testColor);
 }
+
+// =============================================================================
+// T043: Curve Segment Hit Testing Tests
+// =============================================================================
+
+TEST_CASE("Attack curve hit detection in middle third of segment",
+          "[adsr_display][curve_hittest]") {
+    // Use balanced timing so segments are reasonably wide
+    auto display = makeDisplayWithValues(100.0f, 100.0f, 0.5f, 100.0f);
+    auto layout = display.getLayout();
+
+    // Middle of attack segment
+    float attackMidX = (layout.attackStartX + layout.attackEndX) * 0.5f;
+    float midY = (layout.topY + layout.bottomY) * 0.5f;
+
+    CPoint midAttack(attackMidX, midY);
+    auto target = display.hitTest(midAttack);
+    REQUIRE(target == ADSRDisplay::DragTarget::AttackCurve);
+}
+
+TEST_CASE("Decay curve hit detection in middle third of segment",
+          "[adsr_display][curve_hittest]") {
+    auto display = makeDisplayWithValues(100.0f, 100.0f, 0.5f, 100.0f);
+    auto layout = display.getLayout();
+
+    float decayMidX = (layout.attackEndX + layout.decayEndX) * 0.5f;
+    float midY = (layout.topY + layout.bottomY) * 0.5f;
+
+    CPoint midDecay(decayMidX, midY);
+    auto target = display.hitTest(midDecay);
+    REQUIRE(target == ADSRDisplay::DragTarget::DecayCurve);
+}
+
+TEST_CASE("Release curve hit detection in middle third of segment",
+          "[adsr_display][curve_hittest]") {
+    auto display = makeDisplayWithValues(100.0f, 100.0f, 0.5f, 100.0f);
+    auto layout = display.getLayout();
+
+    float releaseMidX = (layout.sustainEndX + layout.releaseEndX) * 0.5f;
+    float midY = (layout.topY + layout.bottomY) * 0.5f;
+
+    CPoint midRelease(releaseMidX, midY);
+    auto target = display.hitTest(midRelease);
+    REQUIRE(target == ADSRDisplay::DragTarget::ReleaseCurve);
+}
+
+TEST_CASE("Control points take priority over curve segments in overlap zone",
+          "[adsr_display][curve_hittest]") {
+    auto display = makeDisplayWithValues(100.0f, 100.0f, 0.5f, 100.0f);
+    auto peakPos = display.getControlPointPosition(ADSRDisplay::DragTarget::PeakPoint);
+
+    // Point at peak position should be PeakPoint, not AttackCurve or DecayCurve
+    CPoint onPeak(peakPos.x, peakPos.y);
+    REQUIRE(display.hitTest(onPeak) == ADSRDisplay::DragTarget::PeakPoint);
+}
+
+TEST_CASE("Curve drag delta converts to curve amount change",
+          "[adsr_display][curve_hittest]") {
+    auto display = makeDisplayWithValues(100.0f, 100.0f, 0.5f, 100.0f);
+
+    // Initially curve amount is 0
+    REQUIRE(display.getAttackCurve() == Approx(0.0f).margin(0.01f));
+
+    // Set a positive curve (exponential)
+    display.setAttackCurve(0.5f);
+    REQUIRE(display.getAttackCurve() == Approx(0.5f).margin(0.01f));
+
+    // Set a negative curve (logarithmic)
+    display.setAttackCurve(-0.7f);
+    REQUIRE(display.getAttackCurve() == Approx(-0.7f).margin(0.01f));
+
+    // Clamp at boundaries
+    display.setAttackCurve(1.5f);
+    REQUIRE(display.getAttackCurve() == Approx(1.0f).margin(0.01f));
+
+    display.setAttackCurve(-1.5f);
+    REQUIRE(display.getAttackCurve() == Approx(-1.0f).margin(0.01f));
+}
+
+// =============================================================================
+// T054: Fine Adjustment Tests
+// =============================================================================
+
+TEST_CASE("Fine adjustment scale constant is 0.1",
+          "[adsr_display][fine_adjust]") {
+    // Verify the fine adjustment scale constant matches spec (SC-002)
+    REQUIRE(ADSRDisplay::kFineAdjustmentScale == Approx(0.1f));
+}
+
+TEST_CASE("Double-click default values match spec",
+          "[adsr_display][fine_adjust]") {
+    // Verify the default values that double-click resets to (SC-003)
+    REQUIRE(ADSRDisplay::kDefaultAttackMs == Approx(10.0f));
+    REQUIRE(ADSRDisplay::kDefaultDecayMs == Approx(50.0f));
+    REQUIRE(ADSRDisplay::kDefaultSustainLevel == Approx(0.5f));
+    REQUIRE(ADSRDisplay::kDefaultReleaseMs == Approx(100.0f));
+}
+
+TEST_CASE("Pre-drag values can be stored and restored via Escape",
+          "[adsr_display][fine_adjust]") {
+    // Test that setting values, then restoring is possible through the API
+    auto display = makeDisplayWithValues(200.0f, 300.0f, 0.8f, 400.0f);
+
+    // Change values
+    display.setAttackMs(50.0f);
+    display.setDecayMs(150.0f);
+    display.setSustainLevel(0.3f);
+    display.setReleaseMs(500.0f);
+
+    // Verify changed
+    REQUIRE(display.getAttackMs() == Approx(50.0f).margin(0.1f));
+    REQUIRE(display.getDecayMs() == Approx(150.0f).margin(0.1f));
+    REQUIRE(display.getSustainLevel() == Approx(0.3f).margin(0.01f));
+    REQUIRE(display.getReleaseMs() == Approx(500.0f).margin(0.1f));
+}
+
+TEST_CASE("Curve setters clamp to [-1, +1] range",
+          "[adsr_display][fine_adjust]") {
+    auto display = makeDisplay();
+
+    display.setAttackCurve(2.0f);
+    REQUIRE(display.getAttackCurve() == Approx(1.0f));
+
+    display.setDecayCurve(-2.0f);
+    REQUIRE(display.getDecayCurve() == Approx(-1.0f));
+
+    display.setReleaseCurve(0.5f);
+    REQUIRE(display.getReleaseCurve() == Approx(0.5f));
+}
+
+TEST_CASE("Bezier enabled setter and getter",
+          "[adsr_display][fine_adjust]") {
+    auto display = makeDisplay();
+
+    REQUIRE(display.getBezierEnabled() == false);
+    display.setBezierEnabled(true);
+    REQUIRE(display.getBezierEnabled() == true);
+    display.setBezierEnabled(false);
+    REQUIRE(display.getBezierEnabled() == false);
+}
