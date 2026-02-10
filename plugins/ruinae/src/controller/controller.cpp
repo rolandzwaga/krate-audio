@@ -246,11 +246,12 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
         Steinberg::int64 playingPtr = 0;
 
         if (attrs->getInt("stepPtr", stepPtr) == Steinberg::kResultOk) {
-            tranceGatePlaybackStepPtr_ = reinterpret_cast<std::atomic<int>*>(
+            // IMessage only supports int64 for pointer transport (VST3 SDK limitation)
+            tranceGatePlaybackStepPtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
                 static_cast<intptr_t>(stepPtr));
         }
         if (attrs->getInt("playingPtr", playingPtr) == Steinberg::kResultOk) {
-            isTransportPlayingPtr_ = reinterpret_cast<std::atomic<bool>*>(
+            isTransportPlayingPtr_ = reinterpret_cast<std::atomic<bool>*>( // NOLINT(performance-no-int-to-ptr)
                 static_cast<intptr_t>(playingPtr));
         }
 
@@ -386,7 +387,7 @@ VSTGUI::CView* Controller::verifyView(
         for (int i = 0; i < 32; ++i) {
             auto paramId = static_cast<Steinberg::Vst::ParamID>(
                 kTranceGateStepLevel0Id + i);
-            auto paramObj = getParameterObject(paramId);
+            auto* paramObj = getParameterObject(paramId);
             if (paramObj) {
                 spe->setStepLevel(i,
                     static_cast<float>(paramObj->getNormalized()));
