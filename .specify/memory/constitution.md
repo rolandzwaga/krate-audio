@@ -1,8 +1,8 @@
-<!-- SYNC: v1.13.1→1.14.0 | VIII: Warning ownership rule -->
+<!-- SYNC: v1.14.0→1.15.0 | VIII: Test failure ownership rule -->
 
 # VST Plugin Development Constitution
 
-**Version**: 1.14.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2026-02-10
+**Version**: 1.15.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2026-02-10
 
 ---
 
@@ -100,7 +100,7 @@
 - Integration tests MUST verify plugin loads correctly in test host
 - Tests MUST run in CI/CD on every commit
 - NEVER commit code that breaks existing tests
-- **Warning Ownership**: You are responsible for ALL compiler warnings and static analysis findings encountered during a build or clang-tidy run, not just those in files belonging to the current spec. If you see a warning anywhere in the codebase, you MUST fix it (or add a NOLINT with documented justification if unfixable). "Pre-existing" is not an excuse to ignore warnings — every build is an opportunity to leave the codebase cleaner than you found it.
+- **Warning & Test Ownership**: You are responsible for ALL compiler warnings, static analysis findings, and test failures encountered during a build, clang-tidy run, or test run — not just those in files belonging to the current spec. If you see a warning or failing test anywhere in the codebase, you MUST investigate and fix it (or add a NOLINT with documented justification if a warning is unfixable). "Pre-existing" and "flaky" are not excuses to ignore failures — a failing test means something is broken, and your job is to find out what. Every build and test run is an opportunity to leave the codebase cleaner than you found it.
 
 ---
 
