@@ -673,6 +673,12 @@ public:
         for (auto& voice : voices_) { voice.setMixPosition(voiceMixPosition_); }
     }
 
+    void setMixTilt(float tiltDb) noexcept {
+        if (detail::isNaN(tiltDb) || detail::isInf(tiltDb)) return;
+        voiceMixTilt_ = std::clamp(tiltDb, -12.0f, 12.0f);
+        for (auto& voice : voices_) { voice.setMixTilt(voiceMixTilt_); }
+    }
+
     // --- Filter ---
 
     void setFilterType(RuinaeFilterType type) noexcept {
@@ -1304,6 +1310,7 @@ private:
     float globalFilterResonance_;
     float voiceFilterCutoffHz_ = 1000.0f;
     float voiceMixPosition_ = 0.5f;
+    float voiceMixTilt_ = 0.0f;
     float baseDelayMix_ = 0.0f;
     float baseTranceGateRateHz_ = 4.0f;
 };

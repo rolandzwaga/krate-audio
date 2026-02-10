@@ -398,6 +398,7 @@ void Processor::applyParamsToEngine() {
     engine_.setMixMode(static_cast<MixMode>(
         mixerParams_.mode.load(std::memory_order_relaxed)));
     engine_.setMixPosition(mixerParams_.position.load(std::memory_order_relaxed));
+    engine_.setMixTilt(mixerParams_.tilt.load(std::memory_order_relaxed));
 
     // --- Filter ---
     engine_.setFilterType(static_cast<RuinaeFilterType>(

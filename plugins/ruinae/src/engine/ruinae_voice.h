@@ -511,6 +511,14 @@ public:
         if (spectralMorph_) spectralMorph_->setMorphAmount(mixPosition_);
     }
 
+    /// @brief Set the spectral tilt (brightness control) for SpectralMorph mode.
+    ///
+    /// Range: -12.0 to +12.0 dB/octave. Pivot at 1 kHz.
+    void setMixTilt(float tiltDb) noexcept {
+        if (detail::isNaN(tiltDb) || detail::isInf(tiltDb)) return;
+        if (spectralMorph_) spectralMorph_->setSpectralTilt(tiltDb);
+    }
+
     // =========================================================================
     // Filter Configuration (FR-010, FR-011, FR-012)
     // =========================================================================

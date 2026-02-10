@@ -368,7 +368,7 @@ grep -r "kMixerTilt" plugins/
 *All items must be checked before claiming completion:*
 
 - [x] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [x] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed) — SC-002/SC-004/SC-005/SC-006/SC-008/SC-009 verified by tests or code with line numbers; SC-001/SC-003/SC-007 verified by code analysis only (UI interaction timing not automatable without GUI test framework)
 - [x] Evidence column contains specific file paths, line numbers, test names, and measured values
 - [x] No evidence column contains only generic claims like "implemented", "works", or "test passes"
 - [x] No test thresholds relaxed from spec requirements
@@ -389,6 +389,6 @@ grep -r "kMixerTilt" plugins/
 
 **SC-007 (visual integration):** Verified by successful build + pluginval pass. Visual correctness requires manual inspection in host.
 
-**Engine wiring:** `engine_.setMixTilt()` does not exist on RuinaeEngine yet; the tilt parameter value is stored in `MixerParams.tilt` but not applied to the DSP engine. The full parameter plumbing (host -> processor -> MixerParams atomic) is complete and will work once the engine method is added. This is expected -- the spec is for the UI control, not the DSP integration.
+**Engine wiring:** Complete. `RuinaeVoice::setMixTilt()` (`ruinae_voice.h:514-517`) forwards to `SpectralMorphFilter::setSpectralTilt()`. `RuinaeEngine::setMixTilt()` (`ruinae_engine.h:676-680`) stores + broadcasts to all voices. `processor.cpp:401` loads from `mixerParams_.tilt` atomic and calls `engine_.setMixTilt()`. Full path: Host -> Processor -> MixerParams atomic -> Engine -> Voice -> SpectralMorphFilter.
 
 **Warning Ownership:** Fixed 2 pre-existing C4189 warnings in DSP headers (`phase_distortion_oscillator.h` unused `pmRadians`, `spectral_morph_filter.h` unused `mag`) per Constitution v1.14.0 Section VIII.

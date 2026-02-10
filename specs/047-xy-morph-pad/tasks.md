@@ -46,7 +46,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 - [X] T005 Add tilt parameter handler to denormalize [0,1] -> [-12, +12] in `plugins/ruinae/src/parameters/mixer_params.h`
 - [X] T006 Add tilt to state save/load in `plugins/ruinae/src/parameters/mixer_params.h`
 - [X] T007 Add atomic for kMixerTiltId in `plugins/ruinae/src/processor/processor.h` (N/A: MixerParams struct already used by processor, no separate atomic needed)
-- [X] T008 Add kMixerTiltId handling in processParameterChanges() in `plugins/ruinae/src/processor/processor.cpp` (handled via existing handleMixerParamChange routing; engine wiring skipped since setMixTilt() does not exist yet)
+- [X] T008 Add kMixerTiltId handling in processParameterChanges() in `plugins/ruinae/src/processor/processor.cpp` (handled via existing handleMixerParamChange routing; engine wired: RuinaeVoice::setMixTilt -> SpectralMorphFilter::setSpectralTilt)
 
 **Checkpoint**: Shared infrastructure ready - XYMorphPad implementation can begin
 
