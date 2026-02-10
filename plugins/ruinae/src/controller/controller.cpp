@@ -178,19 +178,13 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         loadCommonPacks();
         loadModMatrixParamsToControllerV1(streamer, setParam);
         loadPostModMatrix();
-    } else if (version == 2) {
-        // v2: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
+    } else if (version >= 2) {
+        // v2+: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
+        // v3 adds voice routes, but those arrive via IMessage from processor,
+        // not from the stream -- processor sends VoiceModRouteState after setState()
         loadCommonPacks();
         loadModMatrixParamsToController(streamer, setParam);
         loadPostModMatrix();
-    } else if (version == 3) {
-        // v3: v2 + voice modulation routes (voice routes arrive via IMessage,
-        // not read from stream here -- processor sends VoiceModRouteState)
-        loadCommonPacks();
-        loadModMatrixParamsToController(streamer, setParam);
-        loadPostModMatrix();
-        // Voice routes are skipped here; processor sends VoiceModRouteState
-        // via IMessage after setState(), which is handled in Controller::notify()
     }
     // Unknown versions: keep defaults (fail closed)
 
@@ -1095,7 +1089,7 @@ void Controller::wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicato
         });
 
     // Sync initial base value from destination knob parameter
-    if (destIdx < static_cast<int>(kDestParamIds.size())) {
+    if (static_cast<size_t>(destIdx) < kDestParamIds.size()) {
         auto destParamId = kDestParamIds[static_cast<size_t>(destIdx)];
         auto* param = getParameterObject(destParamId);
         if (param) {

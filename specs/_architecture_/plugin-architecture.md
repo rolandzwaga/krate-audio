@@ -104,7 +104,12 @@ plugins/shared/
 │       ├── xy_morph_pad.h             # 2D XY morph pad control (Spec 047)
 │       ├── arc_knob.h                  # Minimal arc-style knob control
 │       ├── fieldset_container.h        # Labeled container with border
-│       └── color_utils.h              # Shared color manipulation utilities
+│       ├── color_utils.h              # Shared color manipulation utilities
+│       ├── mod_source_colors.h        # Modulation source/dest enums, colors, route structs (Spec 049)
+│       ├── mod_matrix_grid.h          # Slot-based modulation route list with tabs (Spec 049)
+│       ├── mod_ring_indicator.h       # Colored arc overlays on destination knobs (Spec 049)
+│       ├── mod_heatmap.h             # Source-by-destination routing heatmap (Spec 049)
+│       └── bipolar_slider.h          # Bipolar (-1 to +1) slider control (Spec 049)
 └── tests/                         # Shared library tests
 ```
 
@@ -343,6 +348,194 @@ class ADSRDisplay : public VSTGUI::CControl {
 - Mod envelope base: 900 (ADSR), 904 (curves), 907 (Bezier enabled), 908 (Bezier CPs)
 
 **Consumers:** Ruinae Amp/Filter/Mod envelope displays (Spec 048). Any future synthesizer plugin needing ADSR editing.
+
+### ModSourceColors / Data Model (Spec 049)
+**Path:** [mod_source_colors.h](../../plugins/shared/src/ui/mod_source_colors.h) | **Since:** 0.19.0
+
+Header-only modulation data model providing enums, color registry, route structs, and abbreviation tables for modulation routing UI components.
+
+```cpp
+namespace Krate::Plugins {
+    enum class ModSource : int { ENV1=0, ENV2, ENV3, LFO1, LFO2, Velocity, KeyTrack, Aftertouch, ModWheel, GateOutput };
+    enum class ModDestination : int { FilterCutoff=0, FilterResonance, MorphPosition, DistortionDrive, TranceGateDepth, OscAPitch, OscBPitch, GlobalFilterCutoff, GlobalFilterResonance, MasterVolume, DelayMix };
+
+    struct ModSourceInfo { CColor color; const char* fullName; const char* abbreviation; };
+    struct ModDestInfo { const char* fullName; const char* voiceAbbr; const char* globalAbbr; };
+    struct ModRoute { ModSource source; ModDestination destination; float amount; int curve; float smoothMs; int scale; bool bypass; bool active; };
+    struct VoiceModRoute { /* 14-byte fixed-size serializable route for IMessage protocol */ };
+
+    constexpr int kMaxGlobalRoutes = 8;
+    constexpr int kMaxVoiceRoutes = 16;
+    constexpr int kNumModSources = 10;
+    constexpr int kNumModDestinations = 11;
+    constexpr int kNumVoiceModSources = 7;
+    constexpr int kNumVoiceModDestinations = 7;
+}
+```
+
+**Source Colors (FR-011, FR-048):**
+- ENV 1: rgb(80,140,200) blue -- matches ADSRDisplay Amp envelope
+- ENV 2: rgb(220,170,60) amber -- matches ADSRDisplay Filter envelope
+- ENV 3: rgb(160,90,200) purple -- matches ADSRDisplay Mod envelope
+- LFO 1: rgb(78,205,196) teal
+- LFO 2: rgb(255,107,107) coral
+- Velocity: rgb(149,232,107) green
+- KeyTrack: rgb(137,221,255) light blue
+- Aftertouch: rgb(199,146,234) lavender
+- ModWheel: rgb(255,203,107) yellow
+- GateOutput: rgb(220,130,60) orange
+
+**Consumers:** ModMatrixGrid, ModRingIndicator, ModHeatmap, Controller integration code.
+
+### ModMatrixGrid (Spec 049)
+**Path:** [mod_matrix_grid.h](../../plugins/shared/src/ui/mod_matrix_grid.h) | **Since:** 0.19.0
+
+Slot-based modulation route list with Global/Voice tabs, expandable detail rows, and scrollable route area. Extends `VSTGUI::CViewContainer`. Registered as "ModMatrixGrid" via VSTGUI ViewCreator.
+
+```cpp
+class ModMatrixGrid : public VSTGUI::CViewContainer {
+    // Route management
+    void addRoute();                                    // Add to first empty slot
+    void removeRoute(int slotIndex);                    // Remove and shift up
+    void setGlobalRoute(int index, const ModRoute& route);  // Programmatic sync
+    void setVoiceRoute(int index, const VoiceModRoute& route);
+
+    // Tab control
+    void setActiveTab(int tab);                         // 0=Global, 1=Voice
+    int getActiveTab() const;
+
+    // Route selection
+    void selectRoute(int sourceIndex, int destIndex);   // Cross-component mediation
+
+    // Callbacks (decoupled from controller)
+    void setRouteChangedCallback(RouteChangedCallback cb);
+    void setRouteRemovedCallback(RouteRemovedCallback cb);
+    void setBeginEditCallback(BeginEditCallback cb);
+    void setEndEditCallback(EndEditCallback cb);
+
+    // Heatmap sync
+    void syncHeatmap();
+};
+```
+
+**Features:**
+- 8 global slots (VST parameters) + 16 voice slots (IMessage protocol)
+- Tab bar with route count labels ("Global (3)" / "Voice (1)")
+- Scrollable route list via CScrollView (FR-061)
+- Per-row controls: source color dot, source/dest dropdowns, BipolarSlider, numeric label, remove button
+- Expandable detail section: Curve, Smooth, Scale, Bypass controls per route
+- Disclosure triangle toggle for expand/collapse
+- Bypassed routes rendered dimmed
+- Source/destination dropdowns filtered by tab (Global: 10/11, Voice: 7/7)
+
+**Parameter IDs (Ruinae, Global Routes):**
+- Source: 1300 + slot*3 (IDs 1300, 1303, 1306, ...)
+- Destination: 1301 + slot*3 (IDs 1301, 1304, 1307, ...)
+- Amount: 1302 + slot*3 (IDs 1302, 1305, 1308, ...)
+- Curve: 1324 + slot*4 (IDs 1324, 1328, 1332, ...)
+- Smooth: 1325 + slot*4 (IDs 1325, 1329, 1333, ...)
+- Scale: 1326 + slot*4 (IDs 1326, 1330, 1334, ...)
+- Bypass: 1327 + slot*4 (IDs 1327, 1331, 1335, ...)
+
+**Consumers:** Ruinae modulation section (Spec 049). Any future plugin needing modulation routing UI.
+
+### ModRingIndicator (Spec 049)
+**Path:** [mod_ring_indicator.h](../../plugins/shared/src/ui/mod_ring_indicator.h) | **Since:** 0.19.0
+
+Colored arc overlay rendered on top of destination knobs showing modulation ranges. Extends `VSTGUI::CView`. Registered as "ModRingIndicator" via VSTGUI ViewCreator.
+
+```cpp
+class ModRingIndicator : public VSTGUI::CView {
+    // Arc data
+    void setArcs(const std::vector<ArcInfo>& arcs);    // Up to 4 individual + composite
+    void setBaseValue(float value);                     // Destination knob current value
+
+    // Configuration
+    void setStrokeWidth(float width);                   // Arc line width (default 3.0)
+    void setDestinationIndex(int index);                // ModDestination enum value
+    void setController(void* controller);               // For cross-component mediation
+    void setSelectCallback(SelectCallback cb);          // Click-to-select handler
+
+    // Queries
+    [[nodiscard]] const std::vector<ArcInfo>& getArcs() const;
+    [[nodiscard]] int getDestinationIndex() const;
+};
+```
+
+**Features:**
+- Arc rendering using CGraphicsPath (135-405 degree convention matching ArcKnob)
+- Up to 4 individual colored arcs per destination (most recent on top, FR-025)
+- 5+ sources: composite gray arc with "+" label (FR-026)
+- Arc clamping at 0.0 and 1.0 boundaries (no wraparound, FR-022)
+- Bypassed routes excluded from rendering (FR-019)
+- Click-to-select: arc hit testing selects route in ModMatrixGrid (FR-027)
+- Dynamic tooltip: "{SourceFullName} -> {DestFullName}: {signedAmount}" (FR-028)
+
+**ViewCreator Attributes:**
+- `stroke-width` (kFloatType, default 3.0)
+- `dest-index` (kIntegerType, ModDestination enum value)
+
+**Consumers:** Ruinae destination knob overlays (Spec 049).
+
+### ModHeatmap (Spec 049)
+**Path:** [mod_heatmap.h](../../plugins/shared/src/ui/mod_heatmap.h) | **Since:** 0.19.0
+
+Read-only source-by-destination grid visualization showing modulation routing intensity. Extends `VSTGUI::CView`. Registered as "ModHeatmap" via VSTGUI ViewCreator.
+
+```cpp
+class ModHeatmap : public VSTGUI::CView {
+    // Cell data
+    void setCell(int sourceRow, int destCol, float amount, bool active);
+    void setMode(int mode);                             // 0=Global (10x11), 1=Voice (7x7)
+    void setHeatmap(const std::vector<HeatmapCell>& cells);  // Bulk update
+
+    // Interaction
+    void setCellClickCallback(CellClickCallback cb);    // Click on active cell
+
+    // Queries
+    [[nodiscard]] float getCellAmount(int row, int col) const;
+    [[nodiscard]] bool isCellActive(int row, int col) const;
+};
+```
+
+**Features:**
+- Grid rendering: source color * |amount| intensity per cell (FR-033)
+- Row headers: abbreviated source names (FR-036)
+- Column headers: abbreviated destination names (FR-035)
+- Empty cells: dark background rgb(30,30,33) (FR-034)
+- Click-to-select on active cells: fires CellClickCallback (FR-037)
+- Dynamic tooltip: "{SourceFullName} -> {DestFullName}: {signedAmount}" (FR-038)
+- Mode switching: Global (10 sources x 11 dests) or Voice (7x7)
+
+**Consumers:** Ruinae modulation section (Spec 049).
+
+### BipolarSlider (Spec 049)
+**Path:** [bipolar_slider.h](../../plugins/shared/src/ui/bipolar_slider.h) | **Since:** 0.19.0
+
+Bipolar slider control for -1.0 to +1.0 range with centered fill visualization. Extends `VSTGUI::CControl`. Registered as "BipolarSlider" via VSTGUI ViewCreator.
+
+```cpp
+class BipolarSlider : public VSTGUI::CControl {
+    // Colors
+    void setFillColor(const CColor& color);
+    void setTrackColor(const CColor& color);
+    void setCenterTickColor(const CColor& color);
+};
+```
+
+**Features:**
+- Centered fill: left of center for negative values, right for positive (FR-007)
+- Center tick always visible (FR-008)
+- Fine adjustment: Shift+drag at 0.1x scale (FR-009)
+- Escape key: cancel drag and revert (FR-010)
+- beginEdit/endEdit wrapping for gesture tracking
+
+**ViewCreator Attributes:**
+- `fill-color` (kColorType)
+- `track-color` (kColorType)
+- `center-tick-color` (kColorType)
+
+**Consumers:** ModMatrixGrid route rows (Spec 049). Any future control needing bipolar range input.
 
 ### Factory Preset Generator
 
@@ -676,7 +869,7 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 | 1000-1099 | LFO 1 (Rate, Shape, Depth, Sync) | 4 |
 | 1100-1199 | LFO 2 (same as LFO 1) | 4 |
 | 1200-1299 | Chaos Mod (Rate, Type, Depth) | 3 |
-| 1300-1399 | Mod Matrix (8 slots x Source/Dest/Amount) | 24 |
+| 1300-1355 | Mod Matrix (8 slots: Source/Dest/Amount 1300-1323, Curve/Smooth/Scale/Bypass 1324-1355) | 56 |
 | 1400-1499 | Global Filter (Enabled, Type, Cutoff, Resonance) | 4 |
 | 1500-1599 | Freeze (Enabled, Toggle) | 2 |
 | 1600-1699 | Delay (Type, Time, Feedback, Mix, Sync, NoteValue) | 6 |
@@ -701,14 +894,20 @@ Stream Format (v1):
   int32: stateVersion (1)
   [GlobalParams] [OscAParams] [OscBParams] [MixerParams] [FilterParams]
   [DistortionParams] [TranceGateParams] [AmpEnvParams] [FilterEnvParams]
-  [ModEnvParams] [LFO1Params] [LFO2Params] [ChaosModParams] [ModMatrixParams]
+  [ModEnvParams] [LFO1Params] [LFO2Params] [ChaosModParams] [ModMatrixParams(v1: 24 params)]
   [GlobalFilterParams] [FreezeParams] [DelayParams] [ReverbParams] [MonoModeParams]
+
+Stream Format (v2): Same as v1 but ModMatrixParams extended to 56 params (adds Curve/Smooth/Scale/Bypass)
+
+Stream Format (v3): Same as v2 + voice routes (16 x VoiceModRoute, 14 bytes each = 224 bytes)
+  Voice routes also sent via VoiceModRouteState IMessage from Processor to Controller
 ```
 
 - Unknown future versions: fail closed with safe defaults
 - Truncated streams: load what is available, keep defaults for rest
 - Version migration: stepwise N -> N+1
 - TranceGateParams uses v2 format (adds 32 step levels, Euclidean params, phase offset; v1 migrates with full-volume defaults)
+- v3 voice routes: serialized as 224-byte binary blob (16 routes x 14 bytes), sent bidirectionally via IMessage protocol (VoiceModRouteUpdate, VoiceModRouteRemove, VoiceModRouteState)
 
 ### Dropdown Mappings
 
