@@ -64,8 +64,8 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 - [X] T012 Implement CLASS_METHODS macro for VSTGUI RTTI support in XYMorphPad
 - [X] T013 Add configuration API methods (setController, setSecondaryParamId, setMorphPosition, setModulationRange, color getters/setters) per contracts/xy_morph_pad_api.md
 - [X] T014 Implement coordinate conversion methods (positionToPixel, pixelToPosition) with Y-axis inversion and padding per research.md R4
-- [ ] T014a Write unit test for pixelToPosition() with out-of-bounds input: verify values outside pad bounds return clamped [0.0, 1.0] results
-- [ ] T014b Write unit test for coordinate round-trip: positionToPixel(pixelToPosition(x, y)) within 0.01 tolerance (SC-006)
+- [X] T014a Write unit test for pixelToPosition() with out-of-bounds input: verify values outside pad bounds return clamped [0.0, 1.0] results — `test_xy_morph_pad.cpp` 5 clamping tests
+- [X] T014b Write unit test for coordinate round-trip: positionToPixel(pixelToPosition(x, y)) within 0.01 tolerance (SC-006) — `test_xy_morph_pad.cpp` 7 round-trip tests
 - [X] T015 Create XYMorphPadCreator struct (ViewCreatorAdapter) with registration pattern per plan.md
 - [X] T016 Implement XYMorphPadCreator::create() method returning new XYMorphPad
 - [X] T017 Implement XYMorphPadCreator::apply() for all ViewCreator attributes (colors, grid-size, crosshair-opacity, secondary-tag)
@@ -214,9 +214,9 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 **Verification method**: Write a unit test for `bilinearColor()` that validates corner and center colors mathematically. For visual verification, take a screenshot and use a color picker tool to spot-check pixel colors at known positions.
 
-- [ ] T073 [US4] Write unit test: `bilinearColor(BL, BR, TL, TR, 0.0, 0.0)` returns BL color exactly
-- [ ] T073a [US4] Write unit test: `bilinearColor(BL, BR, TL, TR, 1.0, 1.0)` returns TR color exactly
-- [ ] T073b [US4] Write unit test: `bilinearColor(BL, BR, TL, TR, 0.5, 0.5)` returns expected center blend (mathematically verify against spec corner colors)
+- [X] T073 [US4] Write unit test: `bilinearColor(BL, BR, TL, TR, 0.0, 0.0)` returns BL color exactly — `test_color_utils.cpp`
+- [X] T073a [US4] Write unit test: `bilinearColor(BL, BR, TL, TR, 1.0, 1.0)` returns TR color exactly — `test_color_utils.cpp`
+- [X] T073b [US4] Write unit test: `bilinearColor(BL, BR, TL, TR, 0.5, 0.5)` returns expected center blend — `test_color_utils.cpp`
 - [ ] T074 [US4] Render pad in plugin, take screenshot, use color picker to verify bottom-left corner is approximately rgb(48, 84, 120) - acceptance scenario 1
 - [ ] T075 [US4] Use color picker to verify top-right corner is approximately rgb(220, 170, 60) - acceptance scenario 2
 - [ ] T078 [US4] Use color picker to verify center is bilinear blend of all four corners at 50%/50% - acceptance scenario 3

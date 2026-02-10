@@ -607,14 +607,7 @@ private:
         float cosPhase = normalizedPhase + 0.25f;
         if (cosPhase >= 1.0f) cosPhase -= 1.0f;
 
-        // Set up oscillator to read at this phase
-        // Since we're using the oscillator purely as a lookup, we set the
-        // phase modulation to achieve our desired phase.
-        // The oscillator's internal phase is kept at 0, so PM = cosPhase * 2*pi
-        float pmRadians = cosPhase * kTwoPi;
-
-        // Use temporary local copy for lookup (const method)
-        // Actually, we need a non-const reference. Use direct table lookup instead.
+        // Direct table lookup at the computed cosine phase
         const float* table = cosineTable_.getLevel(0);  // Use level 0 for best quality
         if (table == nullptr) {
             return 0.0f;

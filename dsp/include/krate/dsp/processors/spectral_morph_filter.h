@@ -630,9 +630,6 @@ private:
                 {
                     const float invMorph = 1.0f - morphAmount;
                     for (std::size_t bin = 0; bin < numBins; ++bin) {
-                        // Get current output magnitude (already interpolated)
-                        const float mag = output.getMagnitude(bin);
-
                         // Get complex values from both sources
                         const float realA = specA.getReal(bin);
                         const float imagA = specA.getImag(bin);
