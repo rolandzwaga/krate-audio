@@ -446,9 +446,9 @@ Phase 12 (Completion Verification)
 
 ### Tasks
 
-- [ ] T177 **Commit all spec work** to feature branch `049-mod-matrix-grid`
-- [ ] T178 Verify all tests pass
-- [ ] T179 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T177 **Commit all spec work** to feature branch `049-mod-matrix-grid`
+- [X] T178 Verify all tests pass
+- [X] T179 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 ---
 
