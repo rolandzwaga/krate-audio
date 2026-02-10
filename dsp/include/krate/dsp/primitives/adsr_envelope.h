@@ -178,6 +178,30 @@ public:
         calcReleaseCoefficients();
     }
 
+    /// Set Bezier curve for attack segment (4 control point coordinates)
+    void setAttackBezierCurve(float cp1x, float cp1y,
+                               float cp2x, float cp2y) noexcept {
+        generateBezierCurveTable(attackTable_, cp1x, cp1y, cp2x, cp2y, 0.0f, 1.0f);
+        useTableProcessing_ = true;
+        calcAttackCoefficients();
+    }
+
+    /// Set Bezier curve for decay segment (4 control point coordinates)
+    void setDecayBezierCurve(float cp1x, float cp1y,
+                              float cp2x, float cp2y) noexcept {
+        generateBezierCurveTable(decayTable_, cp1x, cp1y, cp2x, cp2y, 1.0f, 0.0f);
+        useTableProcessing_ = true;
+        calcDecayCoefficients();
+    }
+
+    /// Set Bezier curve for release segment (4 control point coordinates)
+    void setReleaseBezierCurve(float cp1x, float cp1y,
+                                float cp2x, float cp2y) noexcept {
+        generateBezierCurveTable(releaseTable_, cp1x, cp1y, cp2x, cp2y, 1.0f, 0.0f);
+        useTableProcessing_ = true;
+        calcReleaseCoefficients();
+    }
+
     // =========================================================================
     // Retrigger Mode (FR-018, FR-019)
     // =========================================================================

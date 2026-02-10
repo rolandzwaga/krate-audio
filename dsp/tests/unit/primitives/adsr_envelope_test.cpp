@@ -1123,3 +1123,121 @@ TEST_CASE("ADSR: Table lookup produces correct envelope shape", "[adsr][curve]")
     REQUIRE(env.getStage() == ADSRStage::Idle);
     REQUIRE(env.getOutput() == Approx(0.0f).margin(0.001f));
 }
+
+// =============================================================================
+// Bezier Curve Support
+// =============================================================================
+
+TEST_CASE("ADSREnvelope: Bezier attack - linear handles produce linear ramp",
+          "[adsr][bezier]") {
+    auto env = makeDefaultEnvelope();
+    env.setAttack(50.0f);
+    // Linear Bezier: control points on the diagonal
+    env.setAttackBezierCurve(0.33f, 0.33f, 0.67f, 0.67f);
+
+    env.gate(true);
+    auto output = processAndCollect(env, 2205); // 50ms at 44100
+
+    // Check midpoint is near 0.5 (linear ramp)
+    float midVal = output[static_cast<size_t>(output.size() / 2)];
+    REQUIRE(midVal == Approx(0.5f).margin(0.05f));
+
+    // Should reach peak
+    processUntilStage(env, ADSRStage::Decay, 10000);
+    REQUIRE(env.getStage() == ADSRStage::Decay);
+}
+
+TEST_CASE("ADSREnvelope: Bezier attack - convex curve front-loads output",
+          "[adsr][bezier]") {
+    auto env = makeDefaultEnvelope();
+    env.setAttack(50.0f);
+    // Convex: fast rise at start
+    env.setAttackBezierCurve(0.0f, 1.0f, 0.0f, 1.0f);
+
+    env.gate(true);
+    auto output = processAndCollect(env, 2205);
+
+    // At 25% through, output should be well above 0.25 (front-loaded)
+    float quarterVal = output[static_cast<size_t>(output.size() / 4)];
+    REQUIRE(quarterVal > 0.5f);
+}
+
+TEST_CASE("ADSREnvelope: Bezier attack - concave curve back-loads output",
+          "[adsr][bezier]") {
+    auto env = makeDefaultEnvelope();
+    env.setAttack(50.0f);
+    // Concave: slow rise at start
+    env.setAttackBezierCurve(1.0f, 0.0f, 1.0f, 0.0f);
+
+    env.gate(true);
+    auto output = processAndCollect(env, 2205);
+
+    // At 75% through, output should still be below 0.5 (back-loaded)
+    float threeQuarterVal = output[static_cast<size_t>(3 * output.size() / 4)];
+    REQUIRE(threeQuarterVal < 0.5f);
+}
+
+TEST_CASE("ADSREnvelope: Bezier decay ramps down correctly",
+          "[adsr][bezier]") {
+    auto env = makeDefaultEnvelope();
+    env.setAttack(1.0f);  // Very short attack
+    env.setDecay(50.0f);
+    env.setSustain(0.2f);
+    env.setDecayBezierCurve(0.33f, 0.33f, 0.67f, 0.67f); // Linear
+
+    env.gate(true);
+    processUntilStage(env, ADSRStage::Decay, 10000);
+    REQUIRE(env.getStage() == ADSRStage::Decay);
+
+    auto decayOutput = processAndCollect(env, 2205);
+
+    // Output should decrease monotonically
+    bool monotonic = true;
+    for (size_t i = 1; i < decayOutput.size(); ++i) {
+        if (decayOutput[i] > decayOutput[i - 1] + 0.001f) {
+            monotonic = false;
+            break;
+        }
+    }
+    REQUIRE(monotonic);
+
+    // Should reach sustain
+    processUntilStage(env, ADSRStage::Sustain, 10000);
+    REQUIRE(env.getOutput() == Approx(0.2f).margin(0.02f));
+}
+
+TEST_CASE("ADSREnvelope: Bezier release ramps down to zero",
+          "[adsr][bezier]") {
+    auto env = makeDefaultEnvelope();
+    env.setRelease(50.0f);
+    env.setReleaseBezierCurve(0.33f, 0.33f, 0.67f, 0.67f); // Linear
+
+    env.gate(true);
+    processUntilStage(env, ADSRStage::Sustain, 100000);
+
+    env.gate(false);
+    REQUIRE(env.getStage() == ADSRStage::Release);
+
+    processUntilStage(env, ADSRStage::Idle, 100000);
+    REQUIRE(env.getStage() == ADSRStage::Idle);
+    REQUIRE(env.getOutput() == Approx(0.0f).margin(0.001f));
+}
+
+TEST_CASE("ADSREnvelope: switching from power curve to Bezier",
+          "[adsr][bezier]") {
+    auto env = makeDefaultEnvelope();
+    env.setAttack(50.0f);
+
+    // First set a power curve
+    env.setAttackCurve(0.5f);
+
+    // Then override with Bezier - last call wins
+    env.setAttackBezierCurve(0.0f, 1.0f, 0.0f, 1.0f); // Convex
+
+    env.gate(true);
+    auto output = processAndCollect(env, 2205);
+
+    // Should behave as convex Bezier, not the power curve
+    float quarterVal = output[static_cast<size_t>(output.size() / 4)];
+    REQUIRE(quarterVal > 0.5f);
+}
