@@ -203,17 +203,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         envVoiceActive_.store(anyActive, std::memory_order_relaxed);
 
         if (anyActive) {
-            auto& ampEnv = engine_.getVoiceAmpEnvelope(bestVoice);
+            const auto& ampEnv = engine_.getVoiceAmpEnvelope(bestVoice);
             ampEnvDisplayOutput_.store(ampEnv.getOutput(), std::memory_order_relaxed);
             ampEnvDisplayStage_.store(
                 static_cast<int>(ampEnv.getStage()), std::memory_order_relaxed);
 
-            auto& filterEnv = engine_.getVoiceFilterEnvelope(bestVoice);
+            const auto& filterEnv = engine_.getVoiceFilterEnvelope(bestVoice);
             filterEnvDisplayOutput_.store(filterEnv.getOutput(), std::memory_order_relaxed);
             filterEnvDisplayStage_.store(
                 static_cast<int>(filterEnv.getStage()), std::memory_order_relaxed);
 
-            auto& modEnv = engine_.getVoiceModEnvelope(bestVoice);
+            const auto& modEnv = engine_.getVoiceModEnvelope(bestVoice);
             modEnvDisplayOutput_.store(modEnv.getOutput(), std::memory_order_relaxed);
             modEnvDisplayStage_.store(
                 static_cast<int>(modEnv.getStage()), std::memory_order_relaxed);

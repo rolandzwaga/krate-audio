@@ -605,8 +605,8 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 10.2 Final Commit
 
-- [ ] T091 **Commit architecture documentation updates**
-- [ ] T092 Verify all spec work is committed to feature branch
+- [X] T091 **Commit architecture documentation updates**
+- [X] T092 Verify all spec work is committed to feature branch
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
@@ -620,7 +620,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 11.1 Run Clang-Tidy Analysis
 
-- [ ] T093 **Run clang-tidy** on all modified/new source files:
+- [X] T093 **Run clang-tidy** on all modified/new source files:
   ```bash
   # Windows (PowerShell)
   ./tools/run-clang-tidy.ps1 -Target all
@@ -631,9 +631,9 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 11.2 Address Findings
 
-- [ ] T094 **Fix all errors** reported by clang-tidy (blocking issues)
-- [ ] T095 **Review warnings** and fix where appropriate (use judgment for DSP code)
-- [ ] T096 **Document suppressions** if any warnings are intentionally ignored (add NOLINT comment with reason)
+- [X] T094 **Fix all errors** reported by clang-tidy (blocking issues)
+- [X] T095 **Review warnings** and fix where appropriate (use judgment for DSP code)
+- [X] T096 **Document suppressions** if any warnings are intentionally ignored (add NOLINT comment with reason)
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 

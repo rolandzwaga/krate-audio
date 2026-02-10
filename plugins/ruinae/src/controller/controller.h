@@ -152,11 +152,11 @@ private:
                          uint32_t bezierEnabledId, uint32_t bezierBaseId);
 
     /// Push a single parameter change to an ADSRDisplay if it matches
-    void syncAdsrParamToDisplay(Steinberg::Vst::ParamID tag,
-                                 Steinberg::Vst::ParamValue value,
-                                 Krate::Plugins::ADSRDisplay* display,
-                                 uint32_t adsrBaseId, uint32_t curveBaseId,
-                                 uint32_t bezierEnabledId, uint32_t bezierBaseId);
+    static void syncAdsrParamToDisplay(Steinberg::Vst::ParamID tag,
+                                        Steinberg::Vst::ParamValue value,
+                                        Krate::Plugins::ADSRDisplay* display,
+                                        uint32_t adsrBaseId, uint32_t curveBaseId,
+                                        uint32_t bezierEnabledId, uint32_t bezierBaseId);
 
     /// Wire envelope display playback state pointers to ADSRDisplay instances
     void wireEnvDisplayPlayback();
