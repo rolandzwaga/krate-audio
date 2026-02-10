@@ -91,6 +91,8 @@ target_include_directories(${target}
         ${CMAKE_SOURCE_DIR}/dsp/include
         # VSTGUI includes
         ${vst3sdk_SOURCE_DIR}/vstgui4
+        # VST3 SDK includes (needed for XYMorphPad's EditControllerEx1 type)
+        ${vst3sdk_SOURCE_DIR}
 )
 
 # ==============================================================================
@@ -109,6 +111,7 @@ target_link_libraries(${target}
         vstgui
         vstgui_uidescription
         vstgui_standalone
+        sdk
 )
 
 # Platform-specific libraries
