@@ -1,8 +1,8 @@
-<!-- SYNC: v1.13.0→1.13.1 | IV: Scalar-first SIMD workflow -->
+<!-- SYNC: v1.13.1→1.14.0 | VIII: Warning ownership rule -->
 
 # VST Plugin Development Constitution
 
-**Version**: 1.13.1 | **Ratified**: 2025-12-21 | **Last Amended**: 2026-02-06
+**Version**: 1.14.0 | **Ratified**: 2025-12-21 | **Last Amended**: 2026-02-10
 
 ---
 
@@ -100,6 +100,7 @@
 - Integration tests MUST verify plugin loads correctly in test host
 - Tests MUST run in CI/CD on every commit
 - NEVER commit code that breaks existing tests
+- **Warning Ownership**: You are responsible for ALL compiler warnings and static analysis findings encountered during a build or clang-tidy run, not just those in files belonging to the current spec. If you see a warning anywhere in the codebase, you MUST fix it (or add a NOLINT with documented justification if unfixable). "Pre-existing" is not an excuse to ignore warnings — every build is an opportunity to leave the codebase cleaner than you found it.
 
 ---
 
