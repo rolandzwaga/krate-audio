@@ -43,6 +43,7 @@ add_library(KratePluginsShared STATIC
     src/ui/fieldset_container.h
     src/ui/step_pattern_editor.h
     src/ui/xy_morph_pad.h
+    src/ui/adsr_display.h
     src/ui/search_debouncer.h
     src/ui/preset_browser_logic.h
     src/ui/category_tab_bar.h
@@ -67,6 +68,7 @@ target_link_libraries(KratePluginsShared
     PUBLIC
         sdk
         vstgui
+        KrateDSP
 )
 
 # FR-025c: macOS AppKit framework for accessibility detection (NSWorkspace API)

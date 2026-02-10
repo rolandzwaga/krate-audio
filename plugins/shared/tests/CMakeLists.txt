@@ -9,6 +9,7 @@ add_executable(shared_tests
     test_color_utils.cpp
     test_step_pattern_editor.cpp
     test_xy_morph_pad.cpp
+    test_adsr_display.cpp
 )
 
 target_link_libraries(shared_tests

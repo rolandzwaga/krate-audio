@@ -29,6 +29,7 @@ class PresetBrowserView;
 class SavePresetDialogView;
 class StepPatternEditor;
 class XYMorphPad;
+class ADSRDisplay;
 }
 
 namespace Ruinae {
@@ -142,6 +143,20 @@ public:
     DELEGATE_REFCOUNT(EditController)
 
 private:
+    /// Wire an ADSRDisplay instance based on its control-tag
+    void wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display);
+
+    /// Sync an ADSRDisplay from current parameter state
+    void syncAdsrDisplay(Krate::Plugins::ADSRDisplay* display,
+                         uint32_t adsrBaseId, uint32_t curveBaseId,
+                         uint32_t bezierEnabledId, uint32_t bezierBaseId);
+
+    /// Push a single parameter change to an ADSRDisplay if it matches
+    void syncAdsrParamToDisplay(Steinberg::Vst::ParamID tag,
+                                 Steinberg::Vst::ParamValue value,
+                                 Krate::Plugins::ADSRDisplay* display,
+                                 uint32_t adsrBaseId, uint32_t curveBaseId,
+                                 uint32_t bezierEnabledId, uint32_t bezierBaseId);
     // ==========================================================================
     // UI State
     // ==========================================================================
@@ -149,6 +164,9 @@ private:
     VSTGUI::VST3Editor* activeEditor_ = nullptr;
     Krate::Plugins::StepPatternEditor* stepPatternEditor_ = nullptr;
     Krate::Plugins::XYMorphPad* xyMorphPad_ = nullptr;
+    Krate::Plugins::ADSRDisplay* ampEnvDisplay_ = nullptr;
+    Krate::Plugins::ADSRDisplay* filterEnvDisplay_ = nullptr;
+    Krate::Plugins::ADSRDisplay* modEnvDisplay_ = nullptr;
 
     // Playback position shared from processor via IMessage pointer
     std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;
