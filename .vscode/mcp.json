@@ -11,7 +11,9 @@
         "--context",
         "ide",
         "--project",
-        "${workspaceFolder}"
+        "${workspaceFolder}",
+        "--open-web-dashboard",
+        "False"
       ]
     }
   },
