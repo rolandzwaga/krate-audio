@@ -48,3 +48,42 @@ constexpr uint32_t kMultiTapCustomLevel7Id = 3517;
 // =============================================================================
 // Step levels 0-31 are contiguous: kTranceGateStepLevel0Id + i
 constexpr uint32_t kTranceGateStepLevel0Id = 668;
+
+// =============================================================================
+// ADSRDisplay Parameters (Amp Envelope)
+// =============================================================================
+constexpr uint32_t kAmpEnvAttackId = 700;
+constexpr uint32_t kAmpEnvDecayId = 701;
+constexpr uint32_t kAmpEnvSustainId = 702;
+constexpr uint32_t kAmpEnvReleaseId = 703;
+constexpr uint32_t kAmpEnvAttackCurveId = 704;
+constexpr uint32_t kAmpEnvDecayCurveId = 705;
+constexpr uint32_t kAmpEnvReleaseCurveId = 706;
+constexpr uint32_t kAmpEnvBezierEnabledId = 707;
+constexpr uint32_t kAmpEnvBezierAttackCp1xId = 710;
+
+// =============================================================================
+// ADSRDisplay Parameters (Filter Envelope)
+// =============================================================================
+constexpr uint32_t kFilterEnvAttackId = 800;
+constexpr uint32_t kFilterEnvDecayId = 801;
+constexpr uint32_t kFilterEnvSustainId = 802;
+constexpr uint32_t kFilterEnvReleaseId = 803;
+constexpr uint32_t kFilterEnvAttackCurveId = 804;
+constexpr uint32_t kFilterEnvDecayCurveId = 805;
+constexpr uint32_t kFilterEnvReleaseCurveId = 806;
+constexpr uint32_t kFilterEnvBezierEnabledId = 807;
+constexpr uint32_t kFilterEnvBezierAttackCp1xId = 810;
+
+// =============================================================================
+// ADSRDisplay Parameters (Mod Envelope)
+// =============================================================================
+constexpr uint32_t kModEnvAttackId = 900;
+constexpr uint32_t kModEnvDecayId = 901;
+constexpr uint32_t kModEnvSustainId = 902;
+constexpr uint32_t kModEnvReleaseId = 903;
+constexpr uint32_t kModEnvAttackCurveId = 904;
+constexpr uint32_t kModEnvDecayCurveId = 905;
+constexpr uint32_t kModEnvReleaseCurveId = 906;
+constexpr uint32_t kModEnvBezierEnabledId = 907;
+constexpr uint32_t kModEnvBezierAttackCp1xId = 910;

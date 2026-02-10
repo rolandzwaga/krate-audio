@@ -26,11 +26,11 @@
         <font name="mono" font-name="Consolas" size="9"/>
     </fonts>
 
-    <template name="view" size="750, 1200" background-color="background">
+    <template name="view" size="750, 1400" background-color="background">
         <!-- Main container with TestbenchController -->
         <view class="CViewContainer"
               origin="0, 0"
-              size="750, 1200"
+              size="750, 1400"
               background-color="background"
               sub-controller="TestbenchController">
 
@@ -376,10 +376,87 @@
             </view>
 
             <!-- ============================================================ -->
-            <!-- FieldsetContainer Demo Panel -->
+            <!-- ADSRDisplay Demo Panel -->
             <!-- ============================================================ -->
             <view class="CViewContainer"
                   origin="10, 1070"
+                  size="730, 180"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="ADSRDisplay"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Amp envelope (blue) -->
+                <view class="CTextLabel"
+                      origin="10, 150"
+                      size="200, 14"
+                      title="Amp (A=10ms D=80ms S=0.7 R=200ms)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="10, 25"
+                      size="200, 120"
+                      custom-view-name="ADSRDisplayAmp"/>
+
+                <!-- Filter envelope (amber) -->
+                <view class="CTextLabel"
+                      origin="225, 150"
+                      size="200, 14"
+                      title="Filter (A=1ms D=150ms S=0.4 R=500ms)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="225, 25"
+                      size="200, 120"
+                      custom-view-name="ADSRDisplayFilter"/>
+
+                <!-- Mod envelope (purple) -->
+                <view class="CTextLabel"
+                      origin="440, 150"
+                      size="200, 14"
+                      title="Mod (A=50ms D=200ms S=0.5 R=1000ms)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="440, 25"
+                      size="200, 120"
+                      custom-view-name="ADSRDisplayMod"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="655, 25"
+                      size="65, 140"
+                      title="Interactive ADSR envelope editor. Drag points, bend curves, Shift=fine, dbl-click=reset, Esc=cancel, [S]/[B] toggle."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- FieldsetContainer Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="10, 1260"
                   size="730, 120"
                   background-color="panel.background"
                   background-color-draw-style="filled">

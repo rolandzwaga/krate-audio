@@ -20,6 +20,7 @@
 #include "ui/fieldset_container.h"
 #include "ui/step_pattern_editor.h"
 #include "ui/xy_morph_pad.h"
+#include "ui/adsr_display.h"
 
 #include "public.sdk/source/main/pluginfactory.h"
 

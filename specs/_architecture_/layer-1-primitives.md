@@ -1969,9 +1969,9 @@ class NoiseOscillator {
 ---
 
 ## ADSREnvelope (ADSR Envelope Generator)
-**Path:** [adsr_envelope.h](../../dsp/include/krate/dsp/primitives/adsr_envelope.h) | **Since:** 0.15.0
+**Path:** [adsr_envelope.h](../../dsp/include/krate/dsp/primitives/adsr_envelope.h) | **Since:** 0.15.0 | **Modified:** 0.18.0
 
-Five-state ADSR envelope generator using the EarLevel Engineering one-pole iterative approach.
+Five-state ADSR envelope generator. Supports both discrete `EnvCurve` enum (backward compat) and continuous float curve amounts with 256-entry lookup tables (Spec 048).
 
 ```cpp
 enum class ADSRStage : uint8_t { Idle, Attack, Decay, Sustain, Release };
@@ -1988,9 +1988,15 @@ class ADSREnvelope {
     void setDecay(float ms) noexcept;        // 0.1 - 10000 ms
     void setSustain(float level) noexcept;   // 0.0 - 1.0
     void setRelease(float ms) noexcept;      // 0.1 - 10000 ms
-    void setAttackCurve(EnvCurve curve) noexcept;
+
+    // Curve setters (two overloads each)
+    void setAttackCurve(EnvCurve curve) noexcept;      // Discrete enum (backward compat)
+    void setAttackCurve(float curveAmount) noexcept;    // Continuous [-1, +1] (Spec 048)
     void setDecayCurve(EnvCurve curve) noexcept;
+    void setDecayCurve(float curveAmount) noexcept;
     void setReleaseCurve(EnvCurve curve) noexcept;
+    void setReleaseCurve(float curveAmount) noexcept;
+
     void setRetriggerMode(RetriggerMode mode) noexcept;
     void setVelocityScaling(bool enabled) noexcept;
     void setVelocity(float velocity) noexcept;
@@ -2007,20 +2013,24 @@ class ADSREnvelope {
 };
 ```
 
-| Curve | Attack Algorithm | Decay/Release Algorithm |
-|-------|-----------------|------------------------|
-| Exponential | One-pole (targetRatio=0.3) | One-pole (targetRatio=0.0001) |
-| Linear | One-pole (targetRatio=100.0) | One-pole (targetRatio=100.0) |
-| Logarithmic | Quadratic phase mapping (phase²) | Quadratic phase mapping ((1-phase)²) |
+**Curve Shaping (since 0.18.0):**
 
-**Per-sample cost:** 1 multiply + 1 add (exponential/linear), 2 multiplies + 1 add (logarithmic).
+Each stage (attack, decay, release) has a 256-entry lookup table generated via `curve_table.h`. The `float` overload of `setAttackCurve()`/`setDecayCurve()`/`setReleaseCurve()` regenerates the table using `generatePowerCurveTable()`. The `EnvCurve` overload maps to float via `envCurveToCurveAmount()` for backward compatibility.
+
+| curveAmount | Shape | Legacy Equivalent |
+|-------------|-------|-------------------|
+| -1.0 to -0.5 | Logarithmic | `EnvCurve::Logarithmic` (-0.7) |
+| ~0.0 | Linear | `EnvCurve::Linear` (0.0) |
+| +0.5 to +1.0 | Exponential | `EnvCurve::Exponential` (+0.7) |
+
+**Per-sample cost:** 1 table lookup + 1 linear interpolation (1 multiply + 1 add). Same cost regardless of curve shape.
 
 **When to use:**
 - Synthesizer amplitude envelope (per-voice)
 - Filter modulation source
 - General-purpose envelope modulation
 
-**Dependencies:** `primitives/envelope_utils.h`, `core/db_utils.h` (`detail::isNaN()` for NaN-safe setters)
+**Dependencies:** `core/curve_table.h` (table generation), `primitives/envelope_utils.h`, `core/db_utils.h` (`detail::isNaN()` for NaN-safe setters)
 
 ---
 

@@ -956,6 +956,47 @@ public:
         return mode_;
     }
 
+    // =========================================================================
+    // Voice Envelope Access (for playback visualization)
+    // =========================================================================
+
+    /// @brief Check if a specific voice is active.
+    [[nodiscard]] bool isVoiceActive(size_t voiceIndex) const noexcept {
+        if (voiceIndex >= kMaxPolyphony) return false;
+        return voices_[voiceIndex].isActive();
+    }
+
+    /// @brief Get the index of the most recently triggered active voice.
+    /// @return Voice index (0 to kMaxPolyphony-1), or 0 if no active voices.
+    [[nodiscard]] size_t getMostRecentActiveVoice() const noexcept {
+        size_t bestVoice = 0;
+        uint64_t maxTimestamp = 0;
+
+        size_t count = (mode_ == VoiceMode::Poly) ? polyphonyCount_ : 1;
+        for (size_t i = 0; i < count; ++i) {
+            if (voices_[i].isActive() && noteOnTimestamps_[i] > maxTimestamp) {
+                maxTimestamp = noteOnTimestamps_[i];
+                bestVoice = i;
+            }
+        }
+        return bestVoice;
+    }
+
+    /// @brief Get the amp envelope of a specific voice (for display state readback).
+    [[nodiscard]] const ADSREnvelope& getVoiceAmpEnvelope(size_t voiceIndex) const noexcept {
+        return voices_[std::min(voiceIndex, kMaxPolyphony - 1)].getAmpEnvelope();
+    }
+
+    /// @brief Get the filter envelope of a specific voice (for display state readback).
+    [[nodiscard]] const ADSREnvelope& getVoiceFilterEnvelope(size_t voiceIndex) const noexcept {
+        return voices_[std::min(voiceIndex, kMaxPolyphony - 1)].getFilterEnvelope();
+    }
+
+    /// @brief Get the mod envelope of a specific voice (for display state readback).
+    [[nodiscard]] const ADSREnvelope& getVoiceModEnvelope(size_t voiceIndex) const noexcept {
+        return voices_[std::min(voiceIndex, kMaxPolyphony - 1)].getModEnvelope();
+    }
+
 private:
     // =========================================================================
     // Poly Mode Note Dispatch

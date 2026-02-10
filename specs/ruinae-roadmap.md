@@ -2131,7 +2131,7 @@ parameters**. Either input method updates both:
 #### 4. ModMatrixGrid
 
 **Purpose:** Modulation routing management using a slot-based list with per-route controls,
-backed by modulation ring indicators on destination knobs throughout the UI and an optional
+backed by modulation ring indicators on destination knobs throughout the UI and a
 read-only heatmap overview. This is a **two-component system**: the ModMatrixGrid panel
 (route list + heatmap) and ModRingIndicator overlays on destination knobs.
 

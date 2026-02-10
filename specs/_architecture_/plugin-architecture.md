@@ -282,6 +282,68 @@ class XYMorphPad : public VSTGUI::CControl {
 
 **Consumers:** Ruinae Oscillator Mixer (Spec 047). Any future plugin needing 2D parameter control.
 
+### ADSRDisplay (Spec 048)
+**Path:** [adsr_display.h](../../plugins/shared/src/ui/adsr_display.h) | **Since:** 0.18.0
+
+Interactive ADSR envelope editor and display with per-segment curve shaping. Extends `VSTGUI::CControl`. Registered as "ADSRDisplay" via VSTGUI ViewCreator. Plugin-agnostic -- communicates exclusively via `ParameterCallback`, configurable base parameter IDs, and atomic pointers for playback visualization.
+
+```cpp
+class ADSRDisplay : public VSTGUI::CControl {
+    // ADSR time/level setters (called from controller on parameter changes)
+    void setAttackMs(float ms);              // 0.1 - 10000
+    void setDecayMs(float ms);               // 0.1 - 10000
+    void setSustainLevel(float level);       // 0.0 - 1.0
+    void setReleaseMs(float ms);             // 0.1 - 10000
+
+    // Simple curve shaping
+    void setAttackCurve(float curveAmount);  // [-1, +1]
+    void setDecayCurve(float curveAmount);
+    void setReleaseCurve(float curveAmount);
+
+    // Bezier mode
+    void setBezierEnabled(bool enabled);
+    void setBezierHandleValue(int segment, int handle, int axis, float value);
+
+    // Parameter ID configuration
+    void setAdsrBaseParamId(uint32_t baseId);       // Attack, Decay, Sustain, Release
+    void setCurveBaseParamId(uint32_t baseId);       // AttackCurve, DecayCurve, ReleaseCurve
+    void setBezierEnabledParamId(uint32_t paramId);
+    void setBezierBaseParamId(uint32_t baseId);      // 12 Bezier CPs (3 segments x 2 handles x 2 axes)
+
+    // Callbacks (decoupled from controller)
+    void setParameterCallback(ParameterCallback cb);
+    void setBeginEditCallback(EditCallback cb);
+    void setEndEditCallback(EditCallback cb);
+
+    // Playback visualization (atomic pointer wiring)
+    void setPlaybackStatePointers(std::atomic<float>* outputPtr,
+                                   std::atomic<int>* stagePtr,
+                                   std::atomic<bool>* activePtr);
+};
+```
+
+**Features:**
+- Logarithmic time axis with 15% minimum segment width (extreme ratios always visible)
+- Draggable control points: Peak (attack time), Sustain (decay time + sustain level), End (release time)
+- Draggable curve segments: vertical drag adjusts curve amount [-1, +1] continuously
+- Bezier mode: toggle [S]/[B] button enables 2 handles per segment for S-curves and overshoots
+- Shift+drag: fine mode (0.1x sensitivity) with no-jump mid-drag toggle
+- Double-click: reset control point or curve to default
+- Escape: cancel drag and revert to pre-drag values
+- Real-time playback dot: bright dot traces envelope position at ~30fps via atomic pointer polling
+- Visual elements: filled gradient curve, grid lines, time labels, sustain hold dashed line, gate marker
+- Color-per-envelope identity (Amp=blue, Filter=amber, Mod=purple configured in editor.uidesc)
+
+**ViewCreator Attributes:**
+- `fill-color`, `stroke-color`, `background-color`, `grid-color`, `control-point-color`, `text-color` (kColorType)
+
+**Parameter IDs (Ruinae):**
+- Amp envelope base: 700 (ADSR), 704 (curves), 707 (Bezier enabled), 708 (Bezier CPs)
+- Filter envelope base: 800 (ADSR), 804 (curves), 807 (Bezier enabled), 808 (Bezier CPs)
+- Mod envelope base: 900 (ADSR), 904 (curves), 907 (Bezier enabled), 908 (Bezier CPs)
+
+**Consumers:** Ruinae Amp/Filter/Mod envelope displays (Spec 048). Any future synthesizer plugin needing ADSR editing.
+
 ### Factory Preset Generator
 
 Tools for generating factory presets at build time:

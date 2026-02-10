@@ -7,6 +7,7 @@
 #include "ui/tap_pattern_editor.h"
 
 // Shared UI controls - include triggers static ViewCreator registration
+#include "ui/adsr_display.h"
 #include "ui/arc_knob.h"
 #include "ui/fieldset_container.h"
 #include "ui/step_pattern_editor.h"
@@ -149,6 +150,92 @@ VSTGUI::CView* TestbenchController::createView(
             pad->setMorphPosition(0.5f, 0.5f);
             pad->setModulationRange(0.3f, 0.2f);
             return pad;
+        }
+        else if (*customViewName == "ADSRDisplayAmp") {
+            VSTGUI::CRect size(0, 0, 200, 120);
+            auto* display = new Krate::Plugins::ADSRDisplay(size, nullptr, -1);
+            display->setFillColor(VSTGUI::CColor(80, 140, 200, 77));
+            display->setStrokeColor(VSTGUI::CColor(80, 140, 200, 255));
+            display->setBackgroundColor(VSTGUI::CColor(30, 30, 33, 255));
+            display->setGridColor(VSTGUI::CColor(255, 255, 255, 25));
+            display->setControlPointColor(VSTGUI::CColor(255, 255, 255, 255));
+            display->setTextColor(VSTGUI::CColor(255, 255, 255, 180));
+            display->setAdsrBaseParamId(kAmpEnvAttackId);
+            display->setCurveBaseParamId(kAmpEnvAttackCurveId);
+            display->setBezierEnabledParamId(kAmpEnvBezierEnabledId);
+            display->setBezierBaseParamId(kAmpEnvBezierAttackCp1xId);
+            display->setAttackMs(10.0f);
+            display->setDecayMs(80.0f);
+            display->setSustainLevel(0.7f);
+            display->setReleaseMs(200.0f);
+            display->setParameterCallback([](uint32_t paramId, float value) {
+                logParameterChange(paramId, value);
+            });
+            display->setBeginEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -1.0f);
+            });
+            display->setEndEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -2.0f);
+            });
+            return display;
+        }
+        else if (*customViewName == "ADSRDisplayFilter") {
+            VSTGUI::CRect size(0, 0, 200, 120);
+            auto* display = new Krate::Plugins::ADSRDisplay(size, nullptr, -1);
+            display->setFillColor(VSTGUI::CColor(220, 170, 60, 77));
+            display->setStrokeColor(VSTGUI::CColor(220, 170, 60, 255));
+            display->setBackgroundColor(VSTGUI::CColor(30, 30, 33, 255));
+            display->setGridColor(VSTGUI::CColor(255, 255, 255, 25));
+            display->setControlPointColor(VSTGUI::CColor(255, 255, 255, 255));
+            display->setTextColor(VSTGUI::CColor(255, 255, 255, 180));
+            display->setAdsrBaseParamId(kFilterEnvAttackId);
+            display->setCurveBaseParamId(kFilterEnvAttackCurveId);
+            display->setBezierEnabledParamId(kFilterEnvBezierEnabledId);
+            display->setBezierBaseParamId(kFilterEnvBezierAttackCp1xId);
+            display->setAttackMs(1.0f);
+            display->setDecayMs(150.0f);
+            display->setSustainLevel(0.4f);
+            display->setReleaseMs(500.0f);
+            display->setAttackCurve(-0.5f);
+            display->setParameterCallback([](uint32_t paramId, float value) {
+                logParameterChange(paramId, value);
+            });
+            display->setBeginEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -1.0f);
+            });
+            display->setEndEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -2.0f);
+            });
+            return display;
+        }
+        else if (*customViewName == "ADSRDisplayMod") {
+            VSTGUI::CRect size(0, 0, 200, 120);
+            auto* display = new Krate::Plugins::ADSRDisplay(size, nullptr, -1);
+            display->setFillColor(VSTGUI::CColor(160, 90, 200, 77));
+            display->setStrokeColor(VSTGUI::CColor(160, 90, 200, 255));
+            display->setBackgroundColor(VSTGUI::CColor(30, 30, 33, 255));
+            display->setGridColor(VSTGUI::CColor(255, 255, 255, 25));
+            display->setControlPointColor(VSTGUI::CColor(255, 255, 255, 255));
+            display->setTextColor(VSTGUI::CColor(255, 255, 255, 180));
+            display->setAdsrBaseParamId(kModEnvAttackId);
+            display->setCurveBaseParamId(kModEnvAttackCurveId);
+            display->setBezierEnabledParamId(kModEnvBezierEnabledId);
+            display->setBezierBaseParamId(kModEnvBezierAttackCp1xId);
+            display->setAttackMs(50.0f);
+            display->setDecayMs(200.0f);
+            display->setSustainLevel(0.5f);
+            display->setReleaseMs(1000.0f);
+            display->setDecayCurve(0.6f);
+            display->setParameterCallback([](uint32_t paramId, float value) {
+                logParameterChange(paramId, value);
+            });
+            display->setBeginEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -1.0f);
+            });
+            display->setEndEditCallback([](uint32_t paramId) {
+                logParameterChange(paramId, -2.0f);
+            });
+            return display;
         }
         else if (*customViewName == "ParameterLog") {
             VSTGUI::CRect size(0, 0, 300, 300);

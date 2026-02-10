@@ -44,6 +44,7 @@ add_executable(dsp_tests
     unit/core/phase_utils_test.cpp
     unit/core/wavetable_data_test.cpp
     unit/core/spectral_simd_test.cpp
+    unit/core/curve_table_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/envelope_utils_test.cpp
@@ -271,6 +272,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/polyblep_test.cpp
         unit/core/phase_utils_test.cpp
         unit/core/wavetable_data_test.cpp
+        unit/core/curve_table_test.cpp
         unit/primitives/envelope_utils_test.cpp
         unit/primitives/adsr_envelope_test.cpp
         unit/primitives/smoother_test.cpp

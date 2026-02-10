@@ -674,6 +674,10 @@ public:
     ADSREnvelope& getModEnvelope() noexcept { return modEnv_; }
     LFO& getVoiceLFO() noexcept { return voiceLfo_; }
 
+    [[nodiscard]] const ADSREnvelope& getAmpEnvelope() const noexcept { return ampEnv_; }
+    [[nodiscard]] const ADSREnvelope& getFilterEnvelope() const noexcept { return filterEnv_; }
+    [[nodiscard]] const ADSREnvelope& getModEnvelope() const noexcept { return modEnv_; }
+
 private:
     // =========================================================================
     // Filter Pre-allocation and Dispatch

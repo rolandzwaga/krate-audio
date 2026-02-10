@@ -178,6 +178,48 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
     isTransportPlaying_.store(playing, std::memory_order_relaxed);
 
+    // Update envelope display state from the most recently triggered voice
+    {
+        // Find most recently triggered active voice
+        size_t bestVoice = 0;
+        bool anyActive = false;
+
+        // Check all voices for the one with highest timestamp
+        for (size_t i = 0; i < 16; ++i) {
+            if (engine_.isVoiceActive(i)) {
+                anyActive = true;
+                bestVoice = i;
+                break; // Use first active voice as fallback
+            }
+        }
+
+        // Use the most recently triggered voice from engine
+        size_t mrv = engine_.getMostRecentActiveVoice();
+        if (engine_.isVoiceActive(mrv)) {
+            bestVoice = mrv;
+            anyActive = true;
+        }
+
+        envVoiceActive_.store(anyActive, std::memory_order_relaxed);
+
+        if (anyActive) {
+            const auto& ampEnv = engine_.getVoiceAmpEnvelope(bestVoice);
+            ampEnvDisplayOutput_.store(ampEnv.getOutput(), std::memory_order_relaxed);
+            ampEnvDisplayStage_.store(
+                static_cast<int>(ampEnv.getStage()), std::memory_order_relaxed);
+
+            const auto& filterEnv = engine_.getVoiceFilterEnvelope(bestVoice);
+            filterEnvDisplayOutput_.store(filterEnv.getOutput(), std::memory_order_relaxed);
+            filterEnvDisplayStage_.store(
+                static_cast<int>(filterEnv.getStage()), std::memory_order_relaxed);
+
+            const auto& modEnv = engine_.getVoiceModEnvelope(bestVoice);
+            modEnvDisplayOutput_.store(modEnv.getOutput(), std::memory_order_relaxed);
+            modEnvDisplayStage_.store(
+                static_cast<int>(modEnv.getStage()), std::memory_order_relaxed);
+        }
+    }
+
     // Send playback pointer message to controller (one-time setup)
     if (!playbackMessageSent_) {
         auto msg = Steinberg::owned(allocateMessage());
@@ -193,6 +235,40 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                         reinterpret_cast<intptr_t>(&isTransportPlaying_)));
                 sendMessage(msg);
                 playbackMessageSent_ = true;
+            }
+        }
+    }
+
+    // Send envelope display state pointers to controller (one-time setup)
+    if (!envDisplayMessageSent_) {
+        auto msg = Steinberg::owned(allocateMessage());
+        if (msg) {
+            msg->setMessageID("EnvelopeDisplayState");
+            auto* attrs = msg->getAttributes();
+            if (attrs) {
+                attrs->setInt("ampOutputPtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&ampEnvDisplayOutput_)));
+                attrs->setInt("ampStagePtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&ampEnvDisplayStage_)));
+                attrs->setInt("filterOutputPtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&filterEnvDisplayOutput_)));
+                attrs->setInt("filterStagePtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&filterEnvDisplayStage_)));
+                attrs->setInt("modOutputPtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&modEnvDisplayOutput_)));
+                attrs->setInt("modStagePtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&modEnvDisplayStage_)));
+                attrs->setInt("voiceActivePtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&envVoiceActive_)));
+                sendMessage(msg);
+                envDisplayMessageSent_ = true;
             }
         }
     }

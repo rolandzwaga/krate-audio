@@ -159,6 +159,27 @@ private:
     std::atomic<int> tranceGatePlaybackStep_{-1};
     std::atomic<bool> isTransportPlaying_{false};
     bool playbackMessageSent_ = false;
+
+    // ==========================================================================
+    // Envelope Display State (shared with controller via IMessage pointer)
+    // ==========================================================================
+
+    // Amp envelope display state (most-recently-triggered voice)
+    std::atomic<float> ampEnvDisplayOutput_{0.0f};
+    std::atomic<int> ampEnvDisplayStage_{0};
+
+    // Filter envelope display state
+    std::atomic<float> filterEnvDisplayOutput_{0.0f};
+    std::atomic<int> filterEnvDisplayStage_{0};
+
+    // Mod envelope display state
+    std::atomic<float> modEnvDisplayOutput_{0.0f};
+    std::atomic<int> modEnvDisplayStage_{0};
+
+    // Any voice active flag (shared across all envelope displays)
+    std::atomic<bool> envVoiceActive_{false};
+
+    bool envDisplayMessageSent_ = false;
 };
 
 } // namespace Ruinae
