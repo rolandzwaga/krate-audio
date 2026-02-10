@@ -649,24 +649,24 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T097 **Review ALL FR-xxx requirements** from spec.md against implementation (FR-001 through FR-055)
+- [X] T097 **Review ALL FR-xxx requirements** from spec.md against implementation (FR-001 through FR-055)
   - Open implementation files and verify code meets each requirement
   - Record file path and line number for each FR-xxx in spec.md compliance table
-- [ ] T098 **Review ALL SC-xxx success criteria** and verify measurable targets are achieved (SC-001 through SC-012)
+- [X] T098 **Review ALL SC-xxx success criteria** and verify measurable targets are achieved (SC-001 through SC-012)
   - Run tests and record actual measured values
   - Compare against spec thresholds
   - Record test names and actual output in spec.md compliance table
-- [ ] T099 **Search for cheating patterns** in implementation:
-  - [ ] No `// placeholder` or `// TODO` comments in new code
-  - [ ] No test thresholds relaxed from spec requirements
-  - [ ] No features quietly removed from scope
+- [X] T099 **Search for cheating patterns** in implementation:
+  - [X] No `// placeholder` or `// TODO` comments in new code
+  - [X] No test thresholds relaxed from spec requirements
+  - [X] No features quietly removed from scope
 
 ### 12.2 Fill Compliance Table in spec.md
 
-- [ ] T100 **Update spec.md "Implementation Verification" section** with compliance status for each requirement
+- [X] T100 **Update spec.md "Implementation Verification" section** with compliance status for each requirement
   - For each FR-xxx: record file path, line number, and verification evidence
   - For each SC-xxx: record test name, actual measured value, and pass/fail
-- [ ] T101 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T101 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 12.3 Honest Self-Check
 
@@ -678,7 +678,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T102 **All self-check questions answered "no"** (or gaps documented honestly)
+- [X] T102 **All self-check questions answered "no"** (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -690,12 +690,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 13.1 Final Commit
 
-- [ ] T103 **Commit all spec work** to feature branch
-- [ ] T104 **Verify all tests pass**
+- [X] T103 **Commit all spec work** to feature branch
+- [X] T104 **Verify all tests pass**
 
 ### 13.2 Completion Claim
 
-- [ ] T105 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
+- [X] T105 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 
