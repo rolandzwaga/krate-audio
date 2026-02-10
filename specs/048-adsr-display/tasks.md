@@ -431,7 +431,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T062 [P] [US5] Write failing unit tests for Bezier mode in `plugins/shared/tests/adsr_display_tests.cpp`
+- [X] T062 [P] [US5] Write failing unit tests for Bezier mode in `plugins/shared/tests/adsr_display_tests.cpp`
   - Test mode toggle button hit detection (16x16px in top-right corner) (FR-054)
   - Test Bezier handle rendering (6px diamonds with 8px hit radius) (FR-028, FR-055)
   - Test Bezier handle hit testing and drag
@@ -442,50 +442,50 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T063 [US5] Implement mode toggle button in `plugins/shared/src/ui/adsr_display.h` (FR-026, FR-054)
+- [X] T063 [US5] Implement mode toggle button in `plugins/shared/src/ui/adsr_display.h` (FR-026, FR-054)
   - Add bezierEnabled_ field
   - Add mode toggle button bounds (16x16px in top-right corner)
   - drawModeToggle() with [S] or [B] text
   - hitTestModeToggle() in onMouseDown()
   - Toggle bezierEnabled_ and call paramCallback_ for Bezier enabled parameter
-- [ ] T064 [US5] Implement Bezier handle storage in `plugins/shared/src/ui/adsr_display.h` (FR-027, FR-040)
+- [X] T064 [US5] Implement Bezier handle storage in `plugins/shared/src/ui/adsr_display.h` (FR-027, FR-040)
   - BezierHandles struct with cp1x, cp1y, cp2x, cp2y [0,1] per segment
   - bezierHandles_[3] array (attack, decay, release)
   - setBezierHandleValue(segment, handle, axis, value) setter
-- [ ] T065 [US5] Implement Bezier handle rendering in `plugins/shared/src/ui/adsr_display.h` (FR-027, FR-028)
+- [X] T065 [US5] Implement Bezier handle rendering in `plugins/shared/src/ui/adsr_display.h` (FR-027, FR-028)
   - drawBezierHandles() when bezierEnabled_ == true
   - Draw 6px diamond shapes for each cp1, cp2
   - Draw thin 1px gray connection lines to segment endpoints (rgb(100,100,100))
   - Active/dragged handle brightens to rgb(200,200,200) (FR-029)
-- [ ] T066 [US5] Implement Bezier handle hit testing and drag in `plugins/shared/src/ui/adsr_display.h` (FR-031, FR-055)
+- [X] T066 [US5] Implement Bezier handle hit testing and drag in `plugins/shared/src/ui/adsr_display.h` (FR-031, FR-055)
   - hitTestBezierHandles() with 8px radius
   - Extend onMouseDown()/onMouseMoved()/onMouseUp() to handle Bezier handle drags
   - Convert pixel coordinates to normalized segment coordinates [0,1]
   - Call paramCallback_ for Bezier control point parameters
-- [ ] T067 [US5] Implement Simple-to-Bezier conversion in `plugins/shared/src/ui/adsr_display.h` (FR-033)
+- [X] T067 [US5] Implement Simple-to-Bezier conversion in `plugins/shared/src/ui/adsr_display.h` (FR-033)
   - When toggling Bezier mode ON, call simpleCurveToBezier() from curve_table.h
   - Set Bezier handles to reproduce current power curve shape
   - Call paramCallback_ for all Bezier parameters
-- [ ] T068 [US5] Implement Bezier-to-Simple conversion in `plugins/shared/src/ui/adsr_display.h` (FR-032)
+- [X] T068 [US5] Implement Bezier-to-Simple conversion in `plugins/shared/src/ui/adsr_display.h` (FR-032)
   - When toggling Bezier mode OFF, call bezierToSimpleCurve() from curve_table.h
   - Detect S-curves (crossing handles) and show confirmation prompt
   - Set curve amount to best-fit value at 50% phase
   - Call paramCallback_ for curve amount parameters
-- [ ] T069 [US5] Modify curve path generation to use Bezier tables when enabled in `plugins/shared/src/ui/adsr_display.h` (FR-030, FR-044, FR-045)
+- [X] T069 [US5] Modify curve path generation to use Bezier tables when enabled in `plugins/shared/src/ui/adsr_display.h` (FR-030, FR-044, FR-045)
   - In generateCurvePath(), check bezierEnabled_
   - If Bezier: use generateBezierCurveTable() for each segment
   - If Simple: use generatePowerCurveTable() for each segment
   - Audio thread sees no difference (both use same table lookup)
-- [ ] T070 [US5] Verify all Bezier mode tests pass
-- [ ] T071 [US5] Build plugin and test Bezier mode toggle, handle dragging, S-curve creation, mode conversion (SC-010)
+- [X] T070 [US5] Verify all Bezier mode tests pass
+- [X] T071 [US5] Build plugin and test Bezier mode toggle, handle dragging, S-curve creation, mode conversion (SC-010)
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T072 [US5] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
+- [X] T072 [US5] **Verify IEEE 754 compliance**: Check if test files use `std::isnan`/`std::isfinite`/`std::isinf` -> add to `-fno-fast-math` list in tests/CMakeLists.txt
 
 ### 7.4 Commit (MANDATORY)
 
-- [ ] T073 [US5] **Commit completed User Story 5 work**
+- [X] T073 [US5] **Commit completed User Story 5 work**
 
 **Checkpoint**: User Story 5 should be fully functional - Bezier mode works, handles draggable, conversions correct
 

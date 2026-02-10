@@ -69,6 +69,13 @@ public:
     static constexpr float kMaxTimeMs = 10000.0f;
     static constexpr float kCurveDragSensitivity = 0.005f;
 
+    // Mode toggle button
+    static constexpr float kModeToggleSize = 16.0f;
+
+    // Bezier handle sizes
+    static constexpr float kBezierHandleDrawSize = 3.0f;  // half-size for diamond
+    static constexpr float kBezierHandleHitRadius = 8.0f;
+
     // Default ADSR values
     static constexpr float kDefaultAttackMs = 10.0f;
     static constexpr float kDefaultDecayMs = 50.0f;
@@ -87,7 +94,8 @@ public:
         AttackCurve,     // Curve amount [-1, +1]
         DecayCurve,      // Curve amount [-1, +1]
         ReleaseCurve,    // Curve amount [-1, +1]
-        BezierHandle     // Specific Bezier cp (identified by segment + handle index)
+        BezierHandle,    // Specific Bezier cp (identified by segment + handle index)
+        ModeToggle       // [S]/[B] toggle button in top-right corner
     };
 
     struct SegmentLayout {
@@ -319,6 +327,11 @@ public:
 
     /// Hit test: determine which element is at the given point
     [[nodiscard]] DragTarget hitTest(const VSTGUI::CPoint& point) const {
+        // Mode toggle button in top-right corner (highest priority)
+        if (hitTestModeToggle(point)) {
+            return DragTarget::ModeToggle;
+        }
+
         // Control points take priority over curve segments
         auto peakPos = getControlPointPosition(DragTarget::PeakPoint);
         if (distanceSquared(point, peakPos) <= kControlPointRadius * kControlPointRadius) {
@@ -333,6 +346,14 @@ public:
         auto endPos = getControlPointPosition(DragTarget::EndPoint);
         if (distanceSquared(point, endPos) <= kControlPointRadius * kControlPointRadius) {
             return DragTarget::EndPoint;
+        }
+
+        // Bezier handle hit testing (when in Bezier mode)
+        if (bezierEnabled_) {
+            auto bezierTarget = hitTestBezierHandles(point);
+            if (bezierTarget != DragTarget::None) {
+                return bezierTarget;
+            }
         }
 
         // Curve segment hit testing (middle third of each segment)
@@ -380,6 +401,10 @@ public:
         drawGateMarker(context);
         drawTimeLabels(context);
         drawControlPoints(context);
+        if (bezierEnabled_) {
+            drawBezierHandles(context);
+        }
+        drawModeToggle(context);
         drawCurveTooltip(context);
 
         setDirty(false);
@@ -395,6 +420,12 @@ public:
         DragTarget target = hitTest(where);
         if (target == DragTarget::None)
             return VSTGUI::kMouseEventNotHandled;
+
+        // Mode toggle is a click action, not a drag
+        if (target == DragTarget::ModeToggle) {
+            handleModeToggle();
+            return VSTGUI::kMouseEventHandled;
+        }
 
         // Double-click: reset to defaults
         if (buttons.isDoubleClick()) {
@@ -627,6 +658,74 @@ private:
         return DragTarget::None;
     }
 
+    /// Hit test the mode toggle button (16x16 in top-right corner)
+    [[nodiscard]] bool hitTestModeToggle(const VSTGUI::CPoint& point) const {
+        VSTGUI::CRect vs = getViewSize();
+        float btnRight = static_cast<float>(vs.right) - kPadding;
+        float btnLeft = btnRight - kModeToggleSize;
+        float btnTop = static_cast<float>(vs.top) + kPadding;
+        float btnBottom = btnTop + kModeToggleSize;
+
+        float px = static_cast<float>(point.x);
+        float py = static_cast<float>(point.y);
+        return px >= btnLeft && px <= btnRight && py >= btnTop && py <= btnBottom;
+    }
+
+    /// Hit test Bezier handles (6 handles: 2 per segment x 3 segments)
+    [[nodiscard]] DragTarget hitTestBezierHandles(const VSTGUI::CPoint& point) const {
+        // Check each segment's two handles
+        for (int seg = 0; seg < 3; ++seg) {
+            for (int handle = 0; handle < 2; ++handle) {
+                auto handlePos = getBezierHandlePixelPos(seg, handle);
+                if (distanceSquared(point, handlePos) <=
+                    kBezierHandleHitRadius * kBezierHandleHitRadius) {
+                    // Store which specific handle was hit
+                    activeBezierSegment_ = seg;
+                    activeBezierHandle_ = handle;
+                    return DragTarget::BezierHandle;
+                }
+            }
+        }
+        return DragTarget::None;
+    }
+
+    /// Get pixel position for a Bezier handle
+    [[nodiscard]] VSTGUI::CPoint getBezierHandlePixelPos(int seg, int handle) const {
+        const auto& bh = bezierHandles_[static_cast<size_t>(seg)];
+        float normX = (handle == 0) ? bh.cp1x : bh.cp2x;
+        float normY = (handle == 0) ? bh.cp1y : bh.cp2y;
+
+        float segStartX = 0.0f, segEndX = 0.0f;
+        float segStartY = 0.0f, segEndY = 0.0f;
+
+        switch (seg) {
+            case 0: // Attack: bottom to top
+                segStartX = layout_.attackStartX;
+                segEndX = layout_.attackEndX;
+                segStartY = layout_.bottomY;
+                segEndY = layout_.topY;
+                break;
+            case 1: // Decay: top to sustain
+                segStartX = layout_.attackEndX;
+                segEndX = layout_.decayEndX;
+                segStartY = layout_.topY;
+                segEndY = levelToPixelY(sustainLevel_);
+                break;
+            case 2: // Release: sustain to bottom
+                segStartX = layout_.sustainEndX;
+                segEndX = layout_.releaseEndX;
+                segStartY = levelToPixelY(sustainLevel_);
+                segEndY = layout_.bottomY;
+                break;
+            default:
+                return VSTGUI::CPoint(0, 0);
+        }
+
+        float pixelX = segStartX + normX * (segEndX - segStartX);
+        float pixelY = segStartY + normY * (segEndY - segStartY);
+        return VSTGUI::CPoint(pixelX, pixelY);
+    }
+
     // =========================================================================
     // Drag Handling
     // =========================================================================
@@ -650,6 +749,9 @@ private:
                 break;
             case DragTarget::ReleaseCurve:
                 handleCurveDrag(releaseCurve_, releaseCurveParamId_, deltaY);
+                break;
+            case DragTarget::BezierHandle:
+                handleBezierHandleDrag(deltaX, deltaY);
                 break;
             default:
                 break;
@@ -749,6 +851,137 @@ private:
             float normalized = (curveAmount + 1.0f) * 0.5f;
             paramCallback_(paramId, normalized);
         }
+    }
+
+    // =========================================================================
+    // Bezier Handle Drag
+    // =========================================================================
+
+    void handleBezierHandleDrag(float deltaX, float deltaY) {
+        int seg = activeBezierSegment_;
+        int handle = activeBezierHandle_;
+        if (seg < 0 || seg > 2 || handle < 0 || handle > 1) return;
+
+        auto& bh = bezierHandles_[static_cast<size_t>(seg)];
+
+        // Get segment bounds for pixel-to-normalized conversion
+        float segStartX = 0.0f, segEndX = 0.0f;
+        float segStartY = 0.0f, segEndY = 0.0f;
+        getSegmentBounds(seg, segStartX, segEndX, segStartY, segEndY);
+
+        float segWidth = segEndX - segStartX;
+        float segHeight = segEndY - segStartY;
+
+        // Convert pixel delta to normalized delta
+        float normDeltaX = (segWidth > 0.0f) ? (deltaX / segWidth) : 0.0f;
+        float normDeltaY = (std::abs(segHeight) > 0.0f) ? (deltaY / segHeight) : 0.0f;
+
+        if (handle == 0) {
+            bh.cp1x = std::clamp(bh.cp1x + normDeltaX, 0.0f, 1.0f);
+            bh.cp1y = std::clamp(bh.cp1y + normDeltaY, 0.0f, 1.0f);
+        } else {
+            bh.cp2x = std::clamp(bh.cp2x + normDeltaX, 0.0f, 1.0f);
+            bh.cp2y = std::clamp(bh.cp2y + normDeltaY, 0.0f, 1.0f);
+        }
+        setDirty();
+
+        // Notify parameter changes for Bezier control points
+        if (paramCallback_ && bezierBaseParamId_ > 0) {
+            uint32_t offset = static_cast<uint32_t>(seg * 4);
+            if (handle == 0) {
+                paramCallback_(bezierBaseParamId_ + offset, bh.cp1x);
+                paramCallback_(bezierBaseParamId_ + offset + 1, bh.cp1y);
+            } else {
+                paramCallback_(bezierBaseParamId_ + offset + 2, bh.cp2x);
+                paramCallback_(bezierBaseParamId_ + offset + 3, bh.cp2y);
+            }
+        }
+    }
+
+    void getSegmentBounds(int seg, float& startX, float& endX,
+                           float& startY, float& endY) const {
+        switch (seg) {
+            case 0: // Attack
+                startX = layout_.attackStartX;
+                endX = layout_.attackEndX;
+                startY = layout_.bottomY;
+                endY = layout_.topY;
+                break;
+            case 1: // Decay
+                startX = layout_.attackEndX;
+                endX = layout_.decayEndX;
+                startY = layout_.topY;
+                endY = levelToPixelY(sustainLevel_);
+                break;
+            case 2: // Release
+                startX = layout_.sustainEndX;
+                endX = layout_.releaseEndX;
+                startY = levelToPixelY(sustainLevel_);
+                endY = layout_.bottomY;
+                break;
+            default:
+                startX = endX = startY = endY = 0.0f;
+                break;
+        }
+    }
+
+    // =========================================================================
+    // Mode Toggle
+    // =========================================================================
+
+    void handleModeToggle() {
+        if (bezierEnabled_) {
+            // Bezier -> Simple: convert handle positions to curve amounts
+            for (int seg = 0; seg < 3; ++seg) {
+                const auto& bh = bezierHandles_[static_cast<size_t>(seg)];
+                float curveAmount = Krate::DSP::bezierToSimpleCurve(
+                    bh.cp1x, bh.cp1y, bh.cp2x, bh.cp2y);
+
+                float* targetCurve = nullptr;
+                uint32_t curveParamId = 0;
+                switch (seg) {
+                    case 0: targetCurve = &attackCurve_; curveParamId = attackCurveParamId_; break;
+                    case 1: targetCurve = &decayCurve_; curveParamId = decayCurveParamId_; break;
+                    case 2: targetCurve = &releaseCurve_; curveParamId = releaseCurveParamId_; break;
+                    default: break;
+                }
+                if (targetCurve) {
+                    *targetCurve = std::clamp(curveAmount, -1.0f, 1.0f);
+                    if (paramCallback_ && curveParamId > 0) {
+                        float normalized = (*targetCurve + 1.0f) * 0.5f;
+                        paramCallback_(curveParamId, normalized);
+                    }
+                }
+            }
+
+            bezierEnabled_ = false;
+        } else {
+            // Simple -> Bezier: convert curve amounts to handle positions
+            float curves[3] = {attackCurve_, decayCurve_, releaseCurve_};
+            for (int seg = 0; seg < 3; ++seg) {
+                auto& bh = bezierHandles_[static_cast<size_t>(seg)];
+                Krate::DSP::simpleCurveToBezier(curves[seg],
+                    bh.cp1x, bh.cp1y, bh.cp2x, bh.cp2y);
+
+                // Notify parameter changes for all Bezier control points
+                if (paramCallback_ && bezierBaseParamId_ > 0) {
+                    uint32_t offset = static_cast<uint32_t>(seg * 4);
+                    paramCallback_(bezierBaseParamId_ + offset, bh.cp1x);
+                    paramCallback_(bezierBaseParamId_ + offset + 1, bh.cp1y);
+                    paramCallback_(bezierBaseParamId_ + offset + 2, bh.cp2x);
+                    paramCallback_(bezierBaseParamId_ + offset + 3, bh.cp2y);
+                }
+            }
+
+            bezierEnabled_ = true;
+        }
+
+        // Notify Bezier enabled state change
+        if (paramCallback_ && bezierEnabledParamId_ > 0) {
+            paramCallback_(bezierEnabledParamId_, bezierEnabled_ ? 1.0f : 0.0f);
+        }
+
+        setDirty();
     }
 
     // =========================================================================
@@ -896,6 +1129,13 @@ private:
             case DragTarget::ReleaseCurve:
                 if (releaseCurveParamId_ > 0) beginEditCallback_(releaseCurveParamId_);
                 break;
+            case DragTarget::BezierHandle:
+                if (bezierBaseParamId_ > 0) {
+                    uint32_t offset = static_cast<uint32_t>(activeBezierSegment_ * 4 + activeBezierHandle_ * 2);
+                    beginEditCallback_(bezierBaseParamId_ + offset);
+                    beginEditCallback_(bezierBaseParamId_ + offset + 1);
+                }
+                break;
             default:
                 break;
         }
@@ -923,6 +1163,13 @@ private:
                 break;
             case DragTarget::ReleaseCurve:
                 if (releaseCurveParamId_ > 0) endEditCallback_(releaseCurveParamId_);
+                break;
+            case DragTarget::BezierHandle:
+                if (bezierBaseParamId_ > 0) {
+                    uint32_t offset = static_cast<uint32_t>(activeBezierSegment_ * 4 + activeBezierHandle_ * 2);
+                    endEditCallback_(bezierBaseParamId_ + offset);
+                    endEditCallback_(bezierBaseParamId_ + offset + 1);
+                }
                 break;
             default:
                 break;
@@ -980,24 +1227,33 @@ private:
         // Start at bottom-left (attack start, level=0)
         path->beginSubpath(VSTGUI::CPoint(layout_.attackStartX, layout_.bottomY));
 
-        // Attack segment: (attackStartX, bottomY) -> (attackEndX, topY)
-        drawCurveSegment(path, layout_.attackStartX, layout_.bottomY,
-                         layout_.attackEndX, layout_.topY,
-                         attackCurve_, kCurveResolution);
-
-        // Decay segment: (attackEndX, topY) -> (decayEndX, sustainY)
         float sustainY = levelToPixelY(sustainLevel_);
-        drawCurveSegment(path, layout_.attackEndX, layout_.topY,
-                         layout_.decayEndX, sustainY,
-                         decayCurve_, kCurveResolution);
 
-        // Sustain hold: horizontal line at sustainY
-        path->addLine(VSTGUI::CPoint(layout_.sustainEndX, sustainY));
-
-        // Release segment: (sustainEndX, sustainY) -> (releaseEndX, bottomY)
-        drawCurveSegment(path, layout_.sustainEndX, sustainY,
-                         layout_.releaseEndX, layout_.bottomY,
-                         releaseCurve_, kCurveResolution);
+        if (bezierEnabled_) {
+            // Bezier mode: use Bezier tables for curve segments
+            drawBezierCurveSegment(path, layout_.attackStartX, layout_.bottomY,
+                                    layout_.attackEndX, layout_.topY,
+                                    bezierHandles_[0], kCurveResolution);
+            drawBezierCurveSegment(path, layout_.attackEndX, layout_.topY,
+                                    layout_.decayEndX, sustainY,
+                                    bezierHandles_[1], kCurveResolution);
+            path->addLine(VSTGUI::CPoint(layout_.sustainEndX, sustainY));
+            drawBezierCurveSegment(path, layout_.sustainEndX, sustainY,
+                                    layout_.releaseEndX, layout_.bottomY,
+                                    bezierHandles_[2], kCurveResolution);
+        } else {
+            // Simple mode: use power curve tables
+            drawCurveSegment(path, layout_.attackStartX, layout_.bottomY,
+                             layout_.attackEndX, layout_.topY,
+                             attackCurve_, kCurveResolution);
+            drawCurveSegment(path, layout_.attackEndX, layout_.topY,
+                             layout_.decayEndX, sustainY,
+                             decayCurve_, kCurveResolution);
+            path->addLine(VSTGUI::CPoint(layout_.sustainEndX, sustainY));
+            drawCurveSegment(path, layout_.sustainEndX, sustainY,
+                             layout_.releaseEndX, layout_.bottomY,
+                             releaseCurve_, kCurveResolution);
+        }
 
         // Close path to baseline
         path->addLine(VSTGUI::CPoint(layout_.releaseEndX, layout_.bottomY));
@@ -1021,6 +1277,27 @@ private:
         // Generate a temporary table for the curve shape
         std::array<float, Krate::DSP::kCurveTableSize> table{};
         Krate::DSP::generatePowerCurveTable(table, curveAmount);
+
+        for (int i = 1; i <= resolution; ++i) {
+            float phase = static_cast<float>(i) / static_cast<float>(resolution);
+            float curveVal = Krate::DSP::lookupCurveTable(table, phase);
+
+            float x = startX + phase * (endX - startX);
+            float y = startY + curveVal * (endY - startY);
+            path->addLine(VSTGUI::CPoint(x, y));
+        }
+    }
+
+    /// Draw a curved segment using Bezier curve lookup
+    static void drawBezierCurveSegment(
+        VSTGUI::SharedPointer<VSTGUI::CGraphicsPath>& path,
+        float startX, float startY,
+        float endX, float endY,
+        const BezierHandles& handles, int resolution)
+    {
+        std::array<float, Krate::DSP::kCurveTableSize> table{};
+        Krate::DSP::generateBezierCurveTable(table,
+            handles.cp1x, handles.cp1y, handles.cp2x, handles.cp2y);
 
         for (int i = 1; i <= resolution; ++i) {
             float phase = static_cast<float>(i) / static_cast<float>(resolution);
@@ -1207,6 +1484,88 @@ private:
         context->drawEllipse(circleRect, VSTGUI::kDrawFilled);
     }
 
+    /// Draw diamond shape for Bezier handles
+    static void drawDiamond(VSTGUI::CDrawContext* context,
+                             const VSTGUI::CPoint& center, float halfSize) {
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (!path) return;
+
+        path->beginSubpath(VSTGUI::CPoint(center.x, center.y - halfSize));
+        path->addLine(VSTGUI::CPoint(center.x + halfSize, center.y));
+        path->addLine(VSTGUI::CPoint(center.x, center.y + halfSize));
+        path->addLine(VSTGUI::CPoint(center.x - halfSize, center.y));
+        path->closeSubpath();
+
+        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+    }
+
+    void drawModeToggle(VSTGUI::CDrawContext* context) const {
+        VSTGUI::CRect vs = getViewSize();
+        float btnRight = static_cast<float>(vs.right) - kPadding;
+        float btnLeft = btnRight - kModeToggleSize;
+        float btnTop = static_cast<float>(vs.top) + kPadding;
+        float btnBottom = btnTop + kModeToggleSize;
+
+        VSTGUI::CRect btnRect(btnLeft, btnTop, btnRight, btnBottom);
+
+        // Draw button background
+        VSTGUI::CColor btnBg = bezierEnabled_
+            ? VSTGUI::CColor(80, 100, 160, 200)
+            : VSTGUI::CColor(60, 60, 65, 200);
+        context->setFillColor(btnBg);
+        context->drawRect(btnRect, VSTGUI::kDrawFilled);
+
+        // Draw border
+        context->setFrameColor(VSTGUI::CColor(120, 120, 130, 200));
+        context->setLineWidth(1.0);
+        context->setLineStyle(VSTGUI::kLineSolid);
+        context->drawRect(btnRect, VSTGUI::kDrawStroked);
+
+        // Draw label
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 9.0,
+            VSTGUI::kBoldFace);
+        context->setFont(font);
+        context->setFontColor(VSTGUI::CColor(220, 220, 230, 255));
+        context->drawString(
+            VSTGUI::UTF8String(bezierEnabled_ ? "B" : "S"),
+            btnRect, VSTGUI::kCenterText);
+    }
+
+    void drawBezierHandles(VSTGUI::CDrawContext* context) const {
+        VSTGUI::CColor handleColor(180, 180, 190, 255);
+        VSTGUI::CColor activeColor(230, 230, 240, 255);
+        VSTGUI::CColor lineColor(100, 100, 100, 200);
+
+        context->setLineWidth(1.0);
+        context->setLineStyle(VSTGUI::kLineSolid);
+
+        for (int seg = 0; seg < 3; ++seg) {
+            float segStartX = 0.0f, segEndX = 0.0f;
+            float segStartY = 0.0f, segEndY = 0.0f;
+            getSegmentBounds(seg, segStartX, segEndX, segStartY, segEndY);
+
+            VSTGUI::CPoint segStart(segStartX, segStartY);
+            VSTGUI::CPoint segEnd(segEndX, segEndY);
+
+            for (int handle = 0; handle < 2; ++handle) {
+                auto handlePos = getBezierHandlePixelPos(seg, handle);
+
+                // Draw connection line to segment endpoint
+                context->setFrameColor(lineColor);
+                auto lineTarget = (handle == 0) ? segStart : segEnd;
+                context->drawLine(lineTarget, handlePos);
+
+                // Draw diamond handle
+                bool isActive = isDragging_ &&
+                    dragTarget_ == DragTarget::BezierHandle &&
+                    activeBezierSegment_ == seg &&
+                    activeBezierHandle_ == handle;
+                context->setFillColor(isActive ? activeColor : handleColor);
+                drawDiamond(context, handlePos, kBezierHandleDrawSize);
+            }
+        }
+    }
+
     // =========================================================================
     // State
     // =========================================================================
@@ -1238,6 +1597,8 @@ private:
     DragTarget dragTarget_ = DragTarget::None;
     VSTGUI::CPoint lastDragPoint_{0, 0};
     PreDragValues preDragValues_{};
+    mutable int activeBezierSegment_ = -1;   // mutable: set in const hitTest
+    mutable int activeBezierHandle_ = -1;    // mutable: set in const hitTest
 
     // Playback visualization
     float playbackOutput_ = 0.0f;

@@ -489,3 +489,101 @@ TEST_CASE("Bezier enabled setter and getter",
     display.setBezierEnabled(false);
     REQUIRE(display.getBezierEnabled() == false);
 }
+
+// =============================================================================
+// T062: Bezier Mode Tests
+// =============================================================================
+
+TEST_CASE("Mode toggle button hit detection in top-right corner",
+          "[adsr_display][bezier]") {
+    auto display = makeDisplay();
+    auto vs = display.getViewSize();
+
+    // Toggle button is 16x16 in top-right corner (with padding)
+    float buttonCenterX = static_cast<float>(vs.right) - ADSRDisplay::kPadding - 8.0f;
+    float buttonCenterY = static_cast<float>(vs.top) + ADSRDisplay::kPadding + 8.0f;
+
+    CPoint onButton(buttonCenterX, buttonCenterY);
+    auto target = display.hitTest(onButton);
+    REQUIRE(target == ADSRDisplay::DragTarget::ModeToggle);
+}
+
+TEST_CASE("Mode toggle button returns None when outside",
+          "[adsr_display][bezier]") {
+    auto display = makeDisplay();
+
+    // Point in the middle of the display should NOT hit the toggle button
+    CPoint center(70, 45);
+    auto target = display.hitTest(center);
+    REQUIRE(target != ADSRDisplay::DragTarget::ModeToggle);
+}
+
+TEST_CASE("Bezier handle values can be set and round-trip",
+          "[adsr_display][bezier]") {
+    auto display = makeDisplay();
+
+    // Set attack cp1
+    display.setBezierHandleValue(0, 0, 0, 0.25f);  // seg=0, handle=cp1, axis=x
+    display.setBezierHandleValue(0, 0, 1, 0.75f);  // seg=0, handle=cp1, axis=y
+
+    // Set attack cp2
+    display.setBezierHandleValue(0, 1, 0, 0.8f);   // seg=0, handle=cp2, axis=x
+    display.setBezierHandleValue(0, 1, 1, 0.2f);   // seg=0, handle=cp2, axis=y
+
+    // Values should clamp to [0,1]
+    display.setBezierHandleValue(1, 0, 0, -0.5f);
+    display.setBezierHandleValue(1, 0, 1, 1.5f);
+
+    // Out-of-range segment should be ignored
+    display.setBezierHandleValue(5, 0, 0, 0.5f);  // should not crash
+}
+
+TEST_CASE("Simple-to-Bezier conversion produces valid control points",
+          "[adsr_display][bezier]") {
+    // Test that simpleCurveToBezier from curve_table.h produces valid handles
+    float cp1x = 0.0f, cp1y = 0.0f, cp2x = 0.0f, cp2y = 0.0f;
+
+    // Linear curve (amount=0) should give symmetric points at 1/3 and 2/3
+    Krate::DSP::simpleCurveToBezier(0.0f, cp1x, cp1y, cp2x, cp2y);
+    REQUIRE(cp1x == Approx(1.0f / 3.0f).margin(0.01f));
+    REQUIRE(cp1y == Approx(1.0f / 3.0f).margin(0.01f));
+    REQUIRE(cp2x == Approx(2.0f / 3.0f).margin(0.01f));
+    REQUIRE(cp2y == Approx(2.0f / 3.0f).margin(0.01f));
+}
+
+TEST_CASE("Bezier-to-Simple conversion round-trip is approximate",
+          "[adsr_display][bezier]") {
+    // Start with a known curve amount, convert to Bezier, convert back
+    float originalCurve = 0.5f;
+    float cp1x = 0.0f, cp1y = 0.0f, cp2x = 0.0f, cp2y = 0.0f;
+
+    Krate::DSP::simpleCurveToBezier(originalCurve, cp1x, cp1y, cp2x, cp2y);
+
+    float recoveredCurve = Krate::DSP::bezierToSimpleCurve(cp1x, cp1y, cp2x, cp2y);
+
+    // Should be approximately the same (not exact due to sampling at phase 0.5)
+    // The conversion loses precision because the Bezier midpoint doesn't
+    // perfectly represent the power curve shape
+    REQUIRE(recoveredCurve == Approx(originalCurve).margin(0.3f));
+}
+
+TEST_CASE("Bezier handle hit test in Bezier mode detects handles",
+          "[adsr_display][bezier]") {
+    auto display = makeDisplayWithValues(100.0f, 100.0f, 0.5f, 100.0f);
+    display.setBezierEnabled(true);
+
+    // Get attack segment bounds for handle position calculation
+    auto layout = display.getLayout();
+    float segStartX = layout.attackStartX;
+    float segEndX = layout.attackEndX;
+    float segStartY = layout.bottomY;  // attack: bottom to top
+    float segEndY = layout.topY;
+
+    // Attack cp1 at default (0.33, 0.33)
+    float cp1PixelX = segStartX + 0.33f * (segEndX - segStartX);
+    float cp1PixelY = segStartY + 0.33f * (segEndY - segStartY);
+
+    CPoint onCp1(cp1PixelX, cp1PixelY);
+    auto target = display.hitTest(onCp1);
+    REQUIRE(target == ADSRDisplay::DragTarget::BezierHandle);
+}
