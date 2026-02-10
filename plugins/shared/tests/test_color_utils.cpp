@@ -138,3 +138,90 @@ TEST_CASE("brightenColor preserves alpha", "[color_utils]") {
 
     REQUIRE(result.alpha == 42);
 }
+
+// ==============================================================================
+// bilinearColor Tests (047-xy-morph-pad T073, T073a, T073b)
+// ==============================================================================
+
+TEST_CASE("bilinearColor returns bottom-left at (0,0)", "[color_utils][bilinear]") {
+    CColor bl{48, 84, 120, 255};
+    CColor br{132, 102, 36, 255};
+    CColor tl{80, 140, 200, 255};
+    CColor tr{220, 170, 60, 255};
+
+    CColor result = bilinearColor(bl, br, tl, tr, 0.0f, 0.0f);
+
+    REQUIRE(result.red == 48);
+    REQUIRE(result.green == 84);
+    REQUIRE(result.blue == 120);
+    REQUIRE(result.alpha == 255);
+}
+
+TEST_CASE("bilinearColor returns top-right at (1,1)", "[color_utils][bilinear]") {
+    CColor bl{48, 84, 120, 255};
+    CColor br{132, 102, 36, 255};
+    CColor tl{80, 140, 200, 255};
+    CColor tr{220, 170, 60, 255};
+
+    CColor result = bilinearColor(bl, br, tl, tr, 1.0f, 1.0f);
+
+    REQUIRE(result.red == 220);
+    REQUIRE(result.green == 170);
+    REQUIRE(result.blue == 60);
+    REQUIRE(result.alpha == 255);
+}
+
+TEST_CASE("bilinearColor returns bottom-right at (1,0)", "[color_utils][bilinear]") {
+    CColor bl{48, 84, 120, 255};
+    CColor br{132, 102, 36, 255};
+    CColor tl{80, 140, 200, 255};
+    CColor tr{220, 170, 60, 255};
+
+    CColor result = bilinearColor(bl, br, tl, tr, 1.0f, 0.0f);
+
+    REQUIRE(result.red == 132);
+    REQUIRE(result.green == 102);
+    REQUIRE(result.blue == 36);
+    REQUIRE(result.alpha == 255);
+}
+
+TEST_CASE("bilinearColor returns top-left at (0,1)", "[color_utils][bilinear]") {
+    CColor bl{48, 84, 120, 255};
+    CColor br{132, 102, 36, 255};
+    CColor tl{80, 140, 200, 255};
+    CColor tr{220, 170, 60, 255};
+
+    CColor result = bilinearColor(bl, br, tl, tr, 0.0f, 1.0f);
+
+    REQUIRE(result.red == 80);
+    REQUIRE(result.green == 140);
+    REQUIRE(result.blue == 200);
+    REQUIRE(result.alpha == 255);
+}
+
+TEST_CASE("bilinearColor returns center blend at (0.5,0.5)", "[color_utils][bilinear]") {
+    CColor bl{0, 0, 0, 255};
+    CColor br{200, 0, 0, 255};
+    CColor tl{0, 200, 0, 255};
+    CColor tr{200, 200, 0, 255};
+
+    CColor result = bilinearColor(bl, br, tl, tr, 0.5f, 0.5f);
+
+    // At center: bottom lerp = (100, 0, 0), top lerp = (100, 200, 0)
+    // vertical lerp at 0.5 = (100, 100, 0)
+    REQUIRE(result.red == 100);
+    REQUIRE(result.green == 100);
+    REQUIRE(result.blue == 0);
+    REQUIRE(result.alpha == 255);
+}
+
+TEST_CASE("bilinearColor preserves alpha interpolation", "[color_utils][bilinear]") {
+    CColor bl{100, 100, 100, 0};
+    CColor br{100, 100, 100, 0};
+    CColor tl{100, 100, 100, 200};
+    CColor tr{100, 100, 100, 200};
+
+    CColor result = bilinearColor(bl, br, tl, tr, 0.5f, 0.5f);
+
+    REQUIRE(result.alpha == 100);
+}

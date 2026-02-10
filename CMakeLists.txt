@@ -297,3 +297,15 @@ option(BUILD_CONTROL_TESTBENCH "Build the control testbench tool" ON)
 if(BUILD_CONTROL_TESTBENCH)
     add_subdirectory(tools/control_testbench)
 endif()
+
+# ==============================================================================
+# Copy compile_commands.json to project root (for clangd / Serena)
+# ==============================================================================
+if(EXISTS "${CMAKE_BINARY_DIR}/compile_commands.json")
+    configure_file(
+        "${CMAKE_BINARY_DIR}/compile_commands.json"
+        "${CMAKE_SOURCE_DIR}/compile_commands.json"
+        COPYONLY
+    )
+    message(STATUS "[KRATE] Copied compile_commands.json to project root")
+endif()

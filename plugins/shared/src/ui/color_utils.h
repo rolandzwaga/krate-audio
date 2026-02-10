@@ -56,4 +56,23 @@ namespace Krate::Plugins {
         color.alpha);
 }
 
+/// @brief Bilinear interpolation of 4 corner colors.
+/// @param bottomLeft Color at (0, 0)
+/// @param bottomRight Color at (1, 0)
+/// @param topLeft Color at (0, 1)
+/// @param topRight Color at (1, 1)
+/// @param tx Horizontal interpolation factor [0.0, 1.0]
+/// @param ty Vertical interpolation factor [0.0, 1.0]
+/// @return Interpolated color
+[[nodiscard]] inline VSTGUI::CColor bilinearColor(
+    const VSTGUI::CColor& bottomLeft,
+    const VSTGUI::CColor& bottomRight,
+    const VSTGUI::CColor& topLeft,
+    const VSTGUI::CColor& topRight,
+    float tx, float ty) {
+    VSTGUI::CColor bottom = lerpColor(bottomLeft, bottomRight, tx);
+    VSTGUI::CColor top = lerpColor(topLeft, topRight, tx);
+    return lerpColor(bottom, top, ty);
+}
+
 } // namespace Krate::Plugins

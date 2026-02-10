@@ -42,6 +42,7 @@ add_library(KratePluginsShared STATIC
     src/ui/arc_knob.h
     src/ui/fieldset_container.h
     src/ui/step_pattern_editor.h
+    src/ui/xy_morph_pad.h
     src/ui/search_debouncer.h
     src/ui/preset_browser_logic.h
     src/ui/category_tab_bar.h

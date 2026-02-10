@@ -92,6 +92,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMixerBaseId = 300,
     kMixerModeId = 300,        // 0=Crossfade, 1=SpectralMorph
     kMixerPositionId = 301,    // 0=A, 1=B
+    kMixerTiltId = 302,        // Spectral tilt [-12, +12] dB/oct
     kMixerEndId = 399,
 
     // ==========================================================================

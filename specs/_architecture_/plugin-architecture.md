@@ -101,6 +101,7 @@ plugins/shared/
 │       ├── save_preset_dialog_view.h/.cpp  # Save dialog overlay
 │       ├── search_debouncer.h          # Search input debounce
 │       ├── step_pattern_editor.h       # Visual step pattern editor (Spec 046)
+│       ├── xy_morph_pad.h             # 2D XY morph pad control (Spec 047)
 │       ├── arc_knob.h                  # Minimal arc-style knob control
 │       ├── fieldset_container.h        # Labeled container with border
 │       └── color_utils.h              # Shared color manipulation utilities
@@ -216,9 +217,13 @@ namespace Krate::Plugins::ColorUtils {
     CColor withAlpha(const CColor& color, uint8_t alpha);   // Set alpha channel
     CColor blendColors(const CColor& a, const CColor& b, float t);  // Linear blend
 }
+
+// Free functions in Krate::Plugins namespace
+CColor lerpColor(const CColor& a, const CColor& b, float t);  // Component-wise lerp
+CColor bilinearColor(bottomLeft, bottomRight, topLeft, topRight, tx, ty);  // 4-corner interpolation
 ```
 
-**Consumers:** ArcKnob, FieldsetContainer, StepPatternEditor.
+**Consumers:** ArcKnob, FieldsetContainer, StepPatternEditor, XYMorphPad.
 
 ### ArcKnob
 **Path:** [arc_knob.h](../../plugins/shared/src/ui/arc_knob.h) | **Since:** 0.1.0
@@ -229,6 +234,53 @@ Minimal arc-style knob control rendered as a filled arc with value indicator. Ex
 **Path:** [fieldset_container.h](../../plugins/shared/src/ui/fieldset_container.h) | **Since:** 0.1.0
 
 Labeled container with rounded border and title, similar to HTML fieldset. Extends `VSTGUI::CViewContainer`. Registered as "FieldsetContainer" via VSTGUI ViewCreator.
+
+### XYMorphPad (Spec 047)
+**Path:** [xy_morph_pad.h](../../plugins/shared/src/ui/xy_morph_pad.h) | **Since:** 0.1.0
+
+2D XY pad for simultaneous control of two parameters with bilinear gradient background. Extends `VSTGUI::CControl`. Registered as "XYMorphPad" via VSTGUI ViewCreator.
+
+```cpp
+class XYMorphPad : public VSTGUI::CControl {
+    // Configuration
+    void setController(EditControllerEx1* controller);
+    void setSecondaryParamId(ParamID paramId);
+    void setMorphPosition(float x, float y);        // [0, 1] for both axes
+    void setModulationRange(float rangeX, float rangeY); // Bipolar mod ranges
+
+    // Colors
+    void setColorBottomLeft/BottomRight/TopLeft/TopRight(CColor);
+    void setCursorColor(CColor);
+    void setLabelColor(CColor);
+
+    // Display options
+    void setGridSize(int size);                      // Gradient resolution (4-64)
+    void setCrosshairOpacity(float opacity);          // [0, 1]
+};
+```
+
+**Features:**
+- Bilinear gradient background: 4-corner color interpolation on configurable grid (default 24x24)
+- Cursor rendering: 16px open circle + 4px center dot
+- Crosshair lines at cursor position (configurable opacity, default 12%)
+- Corner labels: "A"/"B" (bottom-left/right), "Dark"/"Bright" (bottom/top center)
+- Position readout: "Mix: 0.XX  Tilt: +Y.YdB" (hidden below 100px)
+- Dual-parameter pattern: X axis via CControl tag/setValue, Y axis via controller->performEdit()
+- Shift+drag: fine mode (0.1x sensitivity) with no-jump re-anchoring on Shift toggle
+- Double-click: reset to center (0.5, 0.5)
+- Scroll wheel: vertical adjusts Y (tilt), horizontal adjusts X (morph), Shift for fine
+- Escape: cancel drag and revert to pre-drag values
+- Modulation visualization: translucent stripes/rectangle showing LFO sweep extent
+- Minimum size: 80x80px
+
+**ViewCreator Attributes:**
+- `bottom-left-color`, `bottom-right-color`, `top-left-color`, `top-right-color` (kColorType)
+- `cursor-color`, `label-color` (kColorType)
+- `crosshair-opacity` (kFloatType)
+- `grid-size` (kIntegerType)
+- `secondary-tag` (kTagType)
+
+**Consumers:** Ruinae Oscillator Mixer (Spec 047). Any future plugin needing 2D parameter control.
 
 ### Factory Preset Generator
 
@@ -552,7 +604,7 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 | 0-99 | Global (Gain, Voice Mode, Polyphony, Soft Limit) | 4 |
 | 100-199 | OSC A (Type, Tune, Fine, Level, Phase) | 5 |
 | 200-299 | OSC B (same as OSC A) | 5 |
-| 300-399 | Mixer (Mode, Position) | 2 |
+| 300-399 | Mixer (Mode, Position, Tilt) | 3 |
 | 400-499 | Filter (Type, Cutoff, Resonance, EnvAmount, KeyTrack) | 5 |
 | 500-599 | Distortion (Type, Drive, Character, Mix) | 4 |
 | 600-699 | Trance Gate (Enabled, NumSteps, Rate, Depth, Attack, Release, Sync, NoteValue, EuclideanEnabled, EuclideanHits, EuclideanRotation, PhaseOffset, StepLevels x32) | 44 |

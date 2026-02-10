@@ -26,11 +26,11 @@
         <font name="mono" font-name="Consolas" size="9"/>
     </fonts>
 
-    <template name="view" size="750, 980" background-color="background">
+    <template name="view" size="750, 1200" background-color="background">
         <!-- Main container with TestbenchController -->
         <view class="CViewContainer"
               origin="0, 0"
-              size="750, 980"
+              size="750, 1200"
               background-color="background"
               sub-controller="TestbenchController">
 
@@ -323,10 +323,63 @@
             </view>
 
             <!-- ============================================================ -->
-            <!-- FieldsetContainer Demo Panel -->
+            <!-- XYMorphPad Demo Panel -->
             <!-- ============================================================ -->
             <view class="CViewContainer"
                   origin="10, 850"
+                  size="730, 210"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="XYMorphPad"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Default pad (250x160) -->
+                <view class="CView"
+                      origin="10, 25"
+                      size="250, 160"
+                      custom-view-name="XYMorphPad"/>
+
+                <!-- Modulation demo pad (250x160) -->
+                <view class="CTextLabel"
+                      origin="270, 5"
+                      size="120, 16"
+                      title="With Modulation"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="270, 25"
+                      size="250, 160"
+                      custom-view-name="XYMorphPadModDemo"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="530, 25"
+                      size="190, 160"
+                      title="2D XY pad for simultaneous control of two parameters. Bilinear gradient background, crosshair cursor, modulation range overlay. Shift=fine (0.1x), double-click=center, Escape=cancel."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- FieldsetContainer Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="10, 1070"
                   size="730, 120"
                   background-color="panel.background"
                   background-color-draw-style="filled">

@@ -7,6 +7,7 @@
 #include "version.h"
 #include "preset/ruinae_preset_config.h"
 #include "ui/step_pattern_editor.h"
+#include "ui/xy_morph_pad.h"
 
 // Parameter pack headers (for registration, display, and controller sync)
 #include "parameters/global_params.h"
@@ -245,11 +246,12 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
         Steinberg::int64 playingPtr = 0;
 
         if (attrs->getInt("stepPtr", stepPtr) == Steinberg::kResultOk) {
-            tranceGatePlaybackStepPtr_ = reinterpret_cast<std::atomic<int>*>(
+            // IMessage only supports int64 for pointer transport (VST3 SDK limitation)
+            tranceGatePlaybackStepPtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
                 static_cast<intptr_t>(stepPtr));
         }
         if (attrs->getInt("playingPtr", playingPtr) == Steinberg::kResultOk) {
-            isTransportPlayingPtr_ = reinterpret_cast<std::atomic<bool>*>(
+            isTransportPlayingPtr_ = reinterpret_cast<std::atomic<bool>*>( // NOLINT(performance-no-int-to-ptr)
                 static_cast<intptr_t>(playingPtr));
         }
 
@@ -309,6 +311,17 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
+    // Push mixer parameter changes to XYMorphPad
+    if (xyMorphPad_) {
+        if (tag == kMixerPositionId) {
+            xyMorphPad_->setMorphPosition(
+                static_cast<float>(value), xyMorphPad_->getMorphY());
+        } else if (tag == kMixerTiltId) {
+            xyMorphPad_->setMorphPosition(
+                xyMorphPad_->getMorphX(), static_cast<float>(value));
+        }
+    }
+
     return result;
 }
 
@@ -323,6 +336,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (activeEditor_ == editor) {
         stepPatternEditor_ = nullptr;
+        xyMorphPad_ = nullptr;
         activeEditor_ = nullptr;
     }
 }
@@ -373,7 +387,7 @@ VSTGUI::CView* Controller::verifyView(
         for (int i = 0; i < 32; ++i) {
             auto paramId = static_cast<Steinberg::Vst::ParamID>(
                 kTranceGateStepLevel0Id + i);
-            auto paramObj = getParameterObject(paramId);
+            auto* paramObj = getParameterObject(paramId);
             if (paramObj) {
                 spe->setStepLevel(i,
                     static_cast<float>(paramObj->getNormalized()));
@@ -413,6 +427,23 @@ VSTGUI::CView* Controller::verifyView(
             spe->setPhaseOffset(
                 static_cast<float>(phaseParam->getNormalized()));
         }
+    }
+
+    // Wire XYMorphPad callbacks
+    auto* xyPad = dynamic_cast<Krate::Plugins::XYMorphPad*>(view);
+    if (xyPad) {
+        xyMorphPad_ = xyPad;
+        xyPad->setController(this);
+        xyPad->setSecondaryParamId(kMixerTiltId);
+
+        // Sync initial position from current parameter state
+        auto* posParam = getParameterObject(kMixerPositionId);
+        auto* tiltParam = getParameterObject(kMixerTiltId);
+        float initX = posParam
+            ? static_cast<float>(posParam->getNormalized()) : 0.5f;
+        float initY = tiltParam
+            ? static_cast<float>(tiltParam->getNormalized()) : 0.5f;
+        xyPad->setMorphPosition(initX, initY);
     }
 
     return view;

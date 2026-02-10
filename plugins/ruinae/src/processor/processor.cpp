@@ -174,7 +174,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Update shared playback position atomics for controller UI
     tranceGatePlaybackStep_.store(
         engine_.getTranceGateCurrentStep(), std::memory_order_relaxed);
-    bool playing = data.processContext &&
+    bool playing = data.processContext != nullptr &&
         (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
     isTransportPlaying_.store(playing, std::memory_order_relaxed);
 
@@ -398,6 +398,7 @@ void Processor::applyParamsToEngine() {
     engine_.setMixMode(static_cast<MixMode>(
         mixerParams_.mode.load(std::memory_order_relaxed)));
     engine_.setMixPosition(mixerParams_.position.load(std::memory_order_relaxed));
+    engine_.setMixTilt(mixerParams_.tilt.load(std::memory_order_relaxed));
 
     // --- Filter ---
     engine_.setFilterType(static_cast<RuinaeFilterType>(

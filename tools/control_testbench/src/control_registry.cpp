@@ -10,6 +10,7 @@
 #include "ui/arc_knob.h"
 #include "ui/fieldset_container.h"
 #include "ui/step_pattern_editor.h"
+#include "ui/xy_morph_pad.h"
 
 namespace Testbench {
 
@@ -126,6 +127,28 @@ VSTGUI::CView* TestbenchController::createView(
             editor->setNumSteps(16);
 
             return editor;
+        }
+        else if (*customViewName == "XYMorphPad") {
+            VSTGUI::CRect size(0, 0, 250, 160);
+            auto* pad = new Krate::Plugins::XYMorphPad(size, nullptr, -1);
+            // Default Ruinae colors: blue-ish (OSC A) to gold (OSC B), dark to bright
+            pad->setColorBottomLeft(VSTGUI::CColor(48, 84, 120, 255));
+            pad->setColorBottomRight(VSTGUI::CColor(132, 102, 36, 255));
+            pad->setColorTopLeft(VSTGUI::CColor(80, 140, 200, 255));
+            pad->setColorTopRight(VSTGUI::CColor(220, 170, 60, 255));
+            pad->setMorphPosition(0.5f, 0.5f);
+            return pad;
+        }
+        else if (*customViewName == "XYMorphPadModDemo") {
+            VSTGUI::CRect size(0, 0, 250, 160);
+            auto* pad = new Krate::Plugins::XYMorphPad(size, nullptr, -1);
+            pad->setColorBottomLeft(VSTGUI::CColor(48, 84, 120, 255));
+            pad->setColorBottomRight(VSTGUI::CColor(132, 102, 36, 255));
+            pad->setColorTopLeft(VSTGUI::CColor(80, 140, 200, 255));
+            pad->setColorTopRight(VSTGUI::CColor(220, 170, 60, 255));
+            pad->setMorphPosition(0.5f, 0.5f);
+            pad->setModulationRange(0.3f, 0.2f);
+            return pad;
         }
         else if (*customViewName == "ParameterLog") {
             VSTGUI::CRect size(0, 0, 300, 300);
