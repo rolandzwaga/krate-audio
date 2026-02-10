@@ -37,8 +37,6 @@ add_executable(ruinae_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
-    # Stubs for vstgui_support entry point symbols (not present in test executables)
-    vstgui_test_stubs.cpp
 )
 
 target_link_libraries(ruinae_tests
@@ -47,10 +45,8 @@ target_link_libraries(ruinae_tests
         KratePluginsShared
         Catch2::Catch2
         test_helpers
-        vstgui_uidescription
-        vstgui_support
-        vstgui
         sdk
+        vstgui_support
 )
 
 target_include_directories(ruinae_tests
