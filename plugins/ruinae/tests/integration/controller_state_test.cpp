@@ -115,9 +115,10 @@ TEST_CASE("Controller syncs non-default state from Processor", "[controller_stat
     streamer.writeFloat(1.0f);
     streamer.writeFloat(0.0f);
 
-    // Mixer: mode=0, position=0.5
+    // Mixer: mode=0, position=0.5, tilt=0.0
     streamer.writeInt32(0);
     streamer.writeFloat(0.5f);
+    streamer.writeFloat(0.0f);
 
     // Filter: type=0, cutoff=1000.0, resonance=5.0, envAmount=24.0, keyTrack=0.5
     streamer.writeInt32(0);
