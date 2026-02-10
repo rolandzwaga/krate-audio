@@ -685,3 +685,104 @@ TEST_CASE("Playback dot position for decay stage interpolates toward sustain",
     float expectedY = display.levelToPixelY(0.8f);
     REQUIRE(static_cast<float>(dotPos.y) == Approx(expectedY).margin(2.0f));
 }
+
+// =============================================================================
+// T087: Edge Case Tests
+// =============================================================================
+
+TEST_CASE("Control point clamping at time boundaries",
+          "[adsr_display][edge_cases]") {
+    auto display = makeDisplay();
+
+    // Minimum time
+    display.setAttackMs(0.01f);  // Below kMinTimeMs
+    REQUIRE(display.getAttackMs() == Approx(ADSRDisplay::kMinTimeMs).margin(0.01f));
+
+    // Maximum time
+    display.setDecayMs(20000.0f);  // Above kMaxTimeMs
+    REQUIRE(display.getDecayMs() == Approx(ADSRDisplay::kMaxTimeMs).margin(1.0f));
+
+    // Sustain boundaries
+    display.setSustainLevel(-0.5f);
+    REQUIRE(display.getSustainLevel() == Approx(0.0f).margin(0.01f));
+
+    display.setSustainLevel(1.5f);
+    REQUIRE(display.getSustainLevel() == Approx(1.0f).margin(0.01f));
+}
+
+TEST_CASE("Display at minimum dimensions still works",
+          "[adsr_display][edge_cases]") {
+    // Tiny 30x20 display
+    ADSRDisplay display(CRect(0, 0, 30, 20), nullptr, -1);
+    display.setAttackMs(10.0f);
+    display.setDecayMs(50.0f);
+    display.setSustainLevel(0.5f);
+    display.setReleaseMs(100.0f);
+
+    auto layout = display.getLayout();
+
+    // Layout should still produce valid segment positions
+    REQUIRE(layout.attackStartX < layout.releaseEndX);
+    REQUIRE(layout.topY < layout.bottomY);
+
+    // Hit testing should still work
+    auto peakPos = display.getControlPointPosition(ADSRDisplay::DragTarget::PeakPoint);
+    CPoint onPeak(peakPos.x, peakPos.y);
+    auto target = display.hitTest(onPeak);
+    REQUIRE(target == ADSRDisplay::DragTarget::PeakPoint);
+}
+
+TEST_CASE("Three ADSRDisplay instances do not interfere (SC-011)",
+          "[adsr_display][edge_cases]") {
+    // Create three independent instances
+    auto amp = makeDisplayWithValues(10.0f, 50.0f, 0.8f, 100.0f);
+    auto filter = makeDisplayWithValues(5.0f, 200.0f, 0.3f, 500.0f);
+    auto mod = makeDisplayWithValues(100.0f, 100.0f, 0.6f, 300.0f);
+
+    // Set different colors
+    amp.setStrokeColor(CColor(80, 140, 200, 255));
+    filter.setStrokeColor(CColor(220, 170, 60, 255));
+    mod.setStrokeColor(CColor(160, 90, 200, 255));
+
+    // Verify each instance maintains its own state
+    REQUIRE(amp.getAttackMs() == Approx(10.0f).margin(0.1f));
+    REQUIRE(filter.getAttackMs() == Approx(5.0f).margin(0.1f));
+    REQUIRE(mod.getAttackMs() == Approx(100.0f).margin(0.1f));
+
+    REQUIRE(amp.getSustainLevel() == Approx(0.8f).margin(0.01f));
+    REQUIRE(filter.getSustainLevel() == Approx(0.3f).margin(0.01f));
+    REQUIRE(mod.getSustainLevel() == Approx(0.6f).margin(0.01f));
+
+    // Modifying one doesn't affect others
+    amp.setAttackMs(500.0f);
+    REQUIRE(amp.getAttackMs() == Approx(500.0f).margin(0.1f));
+    REQUIRE(filter.getAttackMs() == Approx(5.0f).margin(0.1f));
+    REQUIRE(mod.getAttackMs() == Approx(100.0f).margin(0.1f));
+}
+
+TEST_CASE("Programmatic parameter updates (host automation)",
+          "[adsr_display][edge_cases]") {
+    auto display = makeDisplay();
+    uint32_t lastParamId = 0;
+    float lastValue = 0.0f;
+    int callCount = 0;
+
+    display.setParameterCallback([&](uint32_t id, float val) {
+        lastParamId = id;
+        lastValue = val;
+        callCount++;
+    });
+
+    display.setAdsrBaseParamId(100);
+
+    // Programmatic setters should not trigger callbacks (only drags do)
+    display.setAttackMs(200.0f);
+    REQUIRE(callCount == 0);  // setters don't call paramCallback_
+
+    display.setSustainLevel(0.3f);
+    REQUIRE(callCount == 0);
+
+    // Verify the display updates its internal state correctly
+    REQUIRE(display.getAttackMs() == Approx(200.0f).margin(0.1f));
+    REQUIRE(display.getSustainLevel() == Approx(0.3f).margin(0.01f));
+}

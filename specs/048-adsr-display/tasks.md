@@ -569,20 +569,20 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T086 [P] Add parameter save/load state handling in controller setState/getState in `plugins/ruinae/src/controller/controller.cpp`
+- [X] T086 [P] Add parameter save/load state handling in controller setState/getState in `plugins/ruinae/src/controller/controller.cpp`
   - Save/restore curve amounts (9 parameters)
   - Save/restore Bezier enabled flags (3 parameters)
   - Save/restore Bezier control points (36 parameters)
-- [ ] T087 [P] Test edge cases (FR-024, SC-011)
+- [X] T087 [P] Test edge cases (FR-024, SC-011)
   - Test control point clamping at boundaries (attack/decay/release [0.1, 10000], sustain [0, 1])
   - Test host automation playback (programmatic parameter updates)
   - Test extreme timing ratios (0.1ms attack + 10s release)
   - Test sustain=0.0 and sustain=1.0 edge cases
   - Test display at minimum usable dimensions (hide labels if too small)
   - Test three ADSRDisplay instances side-by-side without interference (SC-011)
-- [ ] T088 Run pluginval to verify VST3 compliance
+- [X] T088 Run pluginval to verify VST3 compliance
   - `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Iterum.vst3"`
-- [ ] T089 Validate against quickstart.md scenarios
+- [X] T089 Validate against quickstart.md scenarios
   - Verify all quickstart examples work
   - Verify all patterns are correctly followed
 
