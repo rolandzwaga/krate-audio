@@ -61,3 +61,5 @@ tools/*.txt
 /plugins/ruinae/resources/win32resource.rc
 /plugins/ruinae/src/version.h
 tmpclaude-*
+.serena/
+/compile_commands.json

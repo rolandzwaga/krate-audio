@@ -7,6 +7,7 @@
 #include "version.h"
 #include "preset/ruinae_preset_config.h"
 #include "ui/step_pattern_editor.h"
+#include "ui/xy_morph_pad.h"
 
 // Parameter pack headers (for registration, display, and controller sync)
 #include "parameters/global_params.h"
@@ -309,6 +310,17 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
+    // Push mixer parameter changes to XYMorphPad
+    if (xyMorphPad_) {
+        if (tag == kMixerPositionId) {
+            xyMorphPad_->setMorphPosition(
+                static_cast<float>(value), xyMorphPad_->getMorphY());
+        } else if (tag == kMixerTiltId) {
+            xyMorphPad_->setMorphPosition(
+                xyMorphPad_->getMorphX(), static_cast<float>(value));
+        }
+    }
+
     return result;
 }
 
@@ -323,6 +335,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (activeEditor_ == editor) {
         stepPatternEditor_ = nullptr;
+        xyMorphPad_ = nullptr;
         activeEditor_ = nullptr;
     }
 }
@@ -413,6 +426,23 @@ VSTGUI::CView* Controller::verifyView(
             spe->setPhaseOffset(
                 static_cast<float>(phaseParam->getNormalized()));
         }
+    }
+
+    // Wire XYMorphPad callbacks
+    auto* xyPad = dynamic_cast<Krate::Plugins::XYMorphPad*>(view);
+    if (xyPad) {
+        xyMorphPad_ = xyPad;
+        xyPad->setController(this);
+        xyPad->setSecondaryParamId(kMixerTiltId);
+
+        // Sync initial position from current parameter state
+        auto* posParam = getParameterObject(kMixerPositionId);
+        auto* tiltParam = getParameterObject(kMixerTiltId);
+        float initX = posParam
+            ? static_cast<float>(posParam->getNormalized()) : 0.5f;
+        float initY = tiltParam
+            ? static_cast<float>(tiltParam->getNormalized()) : 0.5f;
+        xyPad->setMorphPosition(initX, initY);
     }
 
     return view;

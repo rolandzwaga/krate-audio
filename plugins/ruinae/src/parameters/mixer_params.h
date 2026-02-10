@@ -21,6 +21,7 @@ namespace Ruinae {
 struct MixerParams {
     std::atomic<int> mode{0};         // 0=Crossfade, 1=SpectralMorph
     std::atomic<float> position{0.5f}; // 0=A, 1=B
+    std::atomic<float> tilt{0.0f};     // Spectral tilt [-12, +12] dB/oct
 };
 
 inline void handleMixerParamChange(
@@ -37,6 +38,12 @@ inline void handleMixerParamChange(
                 std::clamp(static_cast<float>(value), 0.0f, 1.0f),
                 std::memory_order_relaxed);
             break;
+        case kMixerTiltId:
+            // Denormalize [0,1] -> [-12, +12] dB/oct
+            params.tilt.store(
+                -12.0f + static_cast<float>(value) * 24.0f,
+                std::memory_order_relaxed);
+            break;
         default: break;
     }
 }
@@ -49,6 +56,9 @@ inline void registerMixerParams(Steinberg::Vst::ParameterContainer& parameters) 
     ));
     parameters.addParameter(STR16("Mix Position"), STR16("%"), 0, 0.5,
         ParameterInfo::kCanAutomate, kMixerPositionId);
+    parameters.addParameter(
+        new RangeParameter(STR16("Spectral Tilt"), kMixerTiltId, STR16("dB/oct"),
+            -12.0, 12.0, 0.0, 0, ParameterInfo::kCanAutomate));
 }
 
 inline Steinberg::tresult formatMixerParam(
@@ -61,12 +71,22 @@ inline Steinberg::tresult formatMixerParam(
         UString(string, 128).fromAscii(text);
         return kResultOk;
     }
+    if (id == kMixerTiltId) {
+        // RangeParameter handles toPlain conversion, but we format manually
+        // Normalized [0,1] -> [-12, +12] dB/oct
+        double tiltDb = -12.0 + value * 24.0;
+        char8 text[32];
+        snprintf(text, sizeof(text), "%+.1f dB/oct", tiltDb);
+        UString(string, 128).fromAscii(text);
+        return kResultOk;
+    }
     return kResultFalse;
 }
 
 inline void saveMixerParams(const MixerParams& params, Steinberg::IBStreamer& streamer) {
     streamer.writeInt32(params.mode.load(std::memory_order_relaxed));
     streamer.writeFloat(params.position.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.tilt.load(std::memory_order_relaxed));
 }
 
 inline bool loadMixerParams(MixerParams& params, Steinberg::IBStreamer& streamer) {
@@ -75,6 +95,8 @@ inline bool loadMixerParams(MixerParams& params, Steinberg::IBStreamer& streamer
     params.mode.store(intVal, std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.position.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.tilt.store(floatVal, std::memory_order_relaxed);
     return true;
 }
 
@@ -86,6 +108,11 @@ inline void loadMixerParamsToController(
         setParam(kMixerModeId, static_cast<double>(intVal) / (kMixModeCount - 1));
     if (streamer.readFloat(floatVal))
         setParam(kMixerPositionId, static_cast<double>(floatVal));
+    if (streamer.readFloat(floatVal)) {
+        // Normalize tilt from [-12, +12] dB/oct to [0, 1]
+        double normalized = (static_cast<double>(floatVal) + 12.0) / 24.0;
+        setParam(kMixerTiltId, normalized);
+    }
 }
 
 } // namespace Ruinae

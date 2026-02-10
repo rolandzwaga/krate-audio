@@ -28,6 +28,7 @@ namespace Krate::Plugins {
 class PresetBrowserView;
 class SavePresetDialogView;
 class StepPatternEditor;
+class XYMorphPad;
 }
 
 namespace Ruinae {
@@ -147,6 +148,7 @@ private:
 
     VSTGUI::VST3Editor* activeEditor_ = nullptr;
     Krate::Plugins::StepPatternEditor* stepPatternEditor_ = nullptr;
+    Krate::Plugins::XYMorphPad* xyMorphPad_ = nullptr;
 
     // Playback position shared from processor via IMessage pointer
     std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;

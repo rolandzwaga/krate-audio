@@ -19,6 +19,10 @@
         <control-tag name="TranceGateEuclideanRotation" tag="610"/>
         <control-tag name="TranceGatePhaseOffset" tag="611"/>
 
+        <!-- Mixer parameters -->
+        <control-tag name="MixPosition" tag="301"/>
+        <control-tag name="MixerTilt" tag="302"/>
+
         <!-- UI action button tags (not VST parameters) -->
         <control-tag name="ActionPresetAll" tag="10000"/>
         <control-tag name="ActionPresetOff" tag="10001"/>
@@ -352,6 +356,38 @@
             font="~ NormalFontSmaller"
             font-color="#B4B4B9"
             frame-color="#404044"
+        />
+
+        <!-- ============================================================ -->
+        <!-- Oscillator Mixer Section                                     -->
+        <!-- ============================================================ -->
+
+        <view
+            class="CTextLabel"
+            origin="500, 60"
+            size="300, 20"
+            title="Oscillator Mixer"
+            font="~ NormalFontSmall"
+            font-color="#808080"
+            text-alignment="left"
+            transparent="true"
+        />
+
+        <view
+            class="XYMorphPad"
+            origin="500, 85"
+            size="250, 160"
+            control-tag="MixPosition"
+            secondary-tag="MixerTilt"
+            default-value="0.5"
+            color-bottom-left="#304878"
+            color-bottom-right="#846624"
+            color-top-left="#508CC8"
+            color-top-right="#DCAA3C"
+            cursor-color="#FFFFFF"
+            label-color="#AAAAAA"
+            crosshair-opacity="0.12"
+            grid-size="24"
         />
     </template>
 </vstgui-ui-description>
