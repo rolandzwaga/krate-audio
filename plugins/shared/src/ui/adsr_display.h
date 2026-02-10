@@ -61,7 +61,7 @@ public:
 
     static constexpr float kControlPointRadius = 12.0f;
     static constexpr float kControlPointDrawRadius = 4.0f;
-    static constexpr float kMinSegmentWidthFraction = 0.15f;
+    static constexpr float kMinSegmentWidthFraction = 0.0f;
     static constexpr float kSustainHoldFraction = 0.25f;
     static constexpr float kFineAdjustmentScale = 0.1f;
     static constexpr float kPadding = 4.0f;
@@ -76,11 +76,15 @@ public:
     static constexpr float kBezierHandleDrawSize = 3.0f;  // half-size for diamond
     static constexpr float kBezierHandleHitRadius = 8.0f;
 
+    // Label strip
+    static constexpr float kLabelStripHeight = 14.0f;
+
     // Default ADSR values
     static constexpr float kDefaultAttackMs = 10.0f;
     static constexpr float kDefaultDecayMs = 50.0f;
     static constexpr float kDefaultSustainLevel = 0.5f;
     static constexpr float kDefaultReleaseMs = 100.0f;
+    static constexpr float kDefaultPeakLevel = 1.0f;
 
     // =========================================================================
     // Types
@@ -104,19 +108,24 @@ public:
         float decayEndX = 0.0f;
         float sustainEndX = 0.0f;
         float releaseEndX = 0.0f;
-        float topY = 0.0f;
-        float bottomY = 0.0f;
-    };
+        float viewTopY = 0.0f;    // Actual top of view (before letter strip)
+        float letterBottomY = 0.0f; // Bottom of letter strip / top of envelope area
+        float topY = 0.0f;        // Top of envelope drawing area
+        float bottomY = 0.0f;     // Bottom of envelope drawing area
+        float labelTopY = 0.0f;   // Top of value label strip (== bottomY)
+        float viewBottomY = 0.0f; // Actual bottom of view (after label strip)
+    };;
 
     struct PreDragValues {
         float attackMs = 0.0f;
         float decayMs = 0.0f;
         float sustainLevel = 0.0f;
         float releaseMs = 0.0f;
+        float peakLevel = 1.0f;
         float attackCurve = 0.0f;
         float decayCurve = 0.0f;
         float releaseCurve = 0.0f;
-    };
+    };;
 
     struct BezierHandles {
         float cp1x = 0.33f;
@@ -149,6 +158,7 @@ public:
         , decayMs_(other.decayMs_)
         , sustainLevel_(other.sustainLevel_)
         , releaseMs_(other.releaseMs_)
+        , peakLevel_(other.peakLevel_)
         , attackCurve_(other.attackCurve_)
         , decayCurve_(other.decayCurve_)
         , releaseCurve_(other.releaseCurve_)
@@ -161,10 +171,15 @@ public:
         , gridColor_(other.gridColor_)
         , controlPointColor_(other.controlPointColor_)
         , textColor_(other.textColor_)
+        , attackBandColor_(other.attackBandColor_)
+        , decayBandColor_(other.decayBandColor_)
+        , sustainBandColor_(other.sustainBandColor_)
+        , releaseBandColor_(other.releaseBandColor_)
         , attackParamId_(other.attackParamId_)
         , decayParamId_(other.decayParamId_)
         , sustainParamId_(other.sustainParamId_)
         , releaseParamId_(other.releaseParamId_)
+        , peakLevelParamId_(other.peakLevelParamId_)
         , attackCurveParamId_(other.attackCurveParamId_)
         , decayCurveParamId_(other.decayCurveParamId_)
         , releaseCurveParamId_(other.releaseCurveParamId_)
@@ -196,6 +211,11 @@ public:
     void setReleaseMs(float ms) {
         releaseMs_ = std::clamp(ms, kMinTimeMs, kMaxTimeMs);
         recalculateLayout();
+        setDirty();
+    }
+
+    void setPeakLevel(float level) {
+        peakLevel_ = std::clamp(level, 0.01f, 1.0f);
         setDirty();
     }
 
@@ -246,6 +266,10 @@ public:
         decayParamId_ = baseId + 1;
         sustainParamId_ = baseId + 2;
         releaseParamId_ = baseId + 3;
+    }
+
+    void setPeakLevelParamId(uint32_t paramId) {
+        peakLevelParamId_ = paramId;
     }
 
     void setCurveBaseParamId(uint32_t baseId) {
@@ -312,16 +336,17 @@ public:
         float dotY = levelToPixelY(output);
 
         switch (stage) {
-            case 1: { // Attack: output goes from 0 to 1
-                // Interpolate X across the attack segment based on output level
-                float progress = std::clamp(output, 0.0f, 1.0f);
+            case 1: { // Attack: output goes from 0 to peakLevel
+                float progress = (peakLevel_ > 0.001f)
+                    ? std::clamp(output / peakLevel_, 0.0f, 1.0f)
+                    : 0.0f;
                 dotX = layout_.attackStartX + progress * (layout_.attackEndX - layout_.attackStartX);
                 break;
             }
-            case 2: { // Decay: output goes from 1.0 down to sustainLevel
-                float range = 1.0f - sustainLevel_;
+            case 2: { // Decay: output goes from peakLevel down to sustainLevel
+                float range = peakLevel_ - sustainLevel_;
                 float progress = (range > 0.001f)
-                    ? std::clamp((1.0f - output) / range, 0.0f, 1.0f)
+                    ? std::clamp((peakLevel_ - output) / range, 0.0f, 1.0f)
                     : 0.5f;
                 dotX = layout_.attackEndX + progress * (layout_.decayEndX - layout_.attackEndX);
                 break;
@@ -354,6 +379,7 @@ public:
     [[nodiscard]] float getDecayMs() const { return decayMs_; }
     [[nodiscard]] float getSustainLevel() const { return sustainLevel_; }
     [[nodiscard]] float getReleaseMs() const { return releaseMs_; }
+    [[nodiscard]] float getPeakLevel() const { return peakLevel_; }
     [[nodiscard]] float getAttackCurve() const { return attackCurve_; }
     [[nodiscard]] float getDecayCurve() const { return decayCurve_; }
     [[nodiscard]] float getReleaseCurve() const { return releaseCurve_; }
@@ -379,7 +405,8 @@ public:
     [[nodiscard]] VSTGUI::CPoint getControlPointPosition(DragTarget target) const {
         switch (target) {
             case DragTarget::PeakPoint:
-                return VSTGUI::CPoint(layout_.attackEndX, layout_.topY);
+                return VSTGUI::CPoint(layout_.attackEndX,
+                                       levelToPixelY(peakLevel_));
             case DragTarget::SustainPoint:
                 return VSTGUI::CPoint(layout_.decayEndX,
                                        levelToPixelY(sustainLevel_));
@@ -452,14 +479,32 @@ public:
     void setTextColor(const VSTGUI::CColor& color) { textColor_ = color; }
     [[nodiscard]] VSTGUI::CColor getTextColor() const { return textColor_; }
 
+    void setAttackBandColor(const VSTGUI::CColor& color) { attackBandColor_ = color; }
+    [[nodiscard]] VSTGUI::CColor getAttackBandColor() const { return attackBandColor_; }
+
+    void setDecayBandColor(const VSTGUI::CColor& color) { decayBandColor_ = color; }
+    [[nodiscard]] VSTGUI::CColor getDecayBandColor() const { return decayBandColor_; }
+
+    void setSustainBandColor(const VSTGUI::CColor& color) { sustainBandColor_ = color; }
+    [[nodiscard]] VSTGUI::CColor getSustainBandColor() const { return sustainBandColor_; }
+
+    void setReleaseBandColor(const VSTGUI::CColor& color) { releaseBandColor_ = color; }
+    [[nodiscard]] VSTGUI::CColor getReleaseBandColor() const { return releaseBandColor_; }
+
     // =========================================================================
     // CControl Overrides
     // =========================================================================
+
+    void setViewSize(const VSTGUI::CRect& rect, bool invalid = true) override {
+        CControl::setViewSize(rect, invalid);
+        recalculateLayout();
+    }
 
     void draw(VSTGUI::CDrawContext* context) override {
         context->setDrawMode(VSTGUI::kAntiAliasing | VSTGUI::kNonIntegralMode);
 
         drawBackground(context);
+        drawSegmentLetters(context);
         drawGrid(context);
         drawEnvelopeCurve(context);
         drawSustainHoldLine(context);
@@ -509,6 +554,7 @@ public:
         preDragValues_.decayMs = decayMs_;
         preDragValues_.sustainLevel = sustainLevel_;
         preDragValues_.releaseMs = releaseMs_;
+        preDragValues_.peakLevel = peakLevel_;
         preDragValues_.attackCurve = attackCurve_;
         preDragValues_.decayCurve = decayCurve_;
         preDragValues_.releaseCurve = releaseCurve_;
@@ -584,9 +630,19 @@ private:
         float displayRight = static_cast<float>(vs.right) - kPadding;
         float displayTop = static_cast<float>(vs.top) + kPadding;
         float displayBottom = static_cast<float>(vs.bottom) - kPadding;
+        float displayHeight = displayBottom - displayTop;
 
-        layout_.topY = displayTop;
-        layout_.bottomY = displayBottom;
+        // Reserve space for letter strip at top and value strip at bottom
+        bool hasStrips = displayHeight > 55.0f;
+        float letterStripH = hasStrips ? kLabelStripHeight : 0.0f;
+        float valueStripH = hasStrips ? kLabelStripHeight : 0.0f;
+
+        layout_.viewTopY = displayTop;
+        layout_.letterBottomY = displayTop + letterStripH;
+        layout_.topY = layout_.letterBottomY;
+        layout_.bottomY = displayBottom - valueStripH;
+        layout_.labelTopY = layout_.bottomY;
+        layout_.viewBottomY = displayBottom;
 
         float totalWidth = displayRight - displayLeft;
 
@@ -799,7 +855,7 @@ private:
     void handleDrag(DragTarget target, float deltaX, float deltaY) {
         switch (target) {
             case DragTarget::PeakPoint:
-                handlePeakDrag(deltaX);
+                handlePeakDrag(deltaX, deltaY);
                 break;
             case DragTarget::SustainPoint:
                 handleSustainDrag(deltaX, deltaY);
@@ -824,28 +880,39 @@ private:
         }
     }
 
-    void handlePeakDrag(float deltaX) {
+    void handlePeakDrag(float deltaX, float deltaY) {
         // Horizontal drag changes attack time
         float totalTimeWidth = layout_.releaseEndX - layout_.sustainEndX +
                                layout_.decayEndX - layout_.attackEndX +
                                layout_.attackEndX - layout_.attackStartX;
-        if (totalTimeWidth <= 0.0f) return;
+        if (totalTimeWidth > 0.0f) {
+            float timeFraction = deltaX / totalTimeWidth;
+            float logRange = std::log1p(kMaxTimeMs) - std::log1p(kMinTimeMs);
+            float currentLogTime = std::log1p(attackMs_);
+            float newLogTime = currentLogTime + timeFraction * logRange * 0.3f;
+            float newAttackMs = std::clamp(std::expm1(newLogTime), kMinTimeMs, kMaxTimeMs);
 
-        float timeFraction = deltaX / totalTimeWidth;
-        float logRange = std::log1p(kMaxTimeMs) - std::log1p(kMinTimeMs);
-        float currentLogTime = std::log1p(attackMs_);
-        float newLogTime = currentLogTime + timeFraction * logRange * 0.3f;
-        float newAttackMs = std::clamp(std::expm1(newLogTime), kMinTimeMs, kMaxTimeMs);
+            attackMs_ = newAttackMs;
 
-        attackMs_ = newAttackMs;
+            if (paramCallback_ && attackParamId_ > 0) {
+                float normalized = timeMsToNormalized(attackMs_);
+                paramCallback_(attackParamId_, normalized);
+            }
+        }
+
+        // Vertical drag changes peak level
+        float envelopeHeight = layout_.bottomY - layout_.topY;
+        if (envelopeHeight > 0.0f) {
+            float levelDelta = -deltaY / envelopeHeight; // Negative: up = higher
+            peakLevel_ = std::clamp(peakLevel_ + levelDelta, 0.01f, 1.0f);
+
+            if (paramCallback_ && peakLevelParamId_ > 0) {
+                paramCallback_(peakLevelParamId_, peakLevel_);
+            }
+        }
+
         recalculateLayout();
         setDirty();
-
-        // Notify parameter change (normalized: cubic mapping)
-        if (paramCallback_ && attackParamId_ > 0) {
-            float normalized = timeMsToNormalized(attackMs_);
-            paramCallback_(attackParamId_, normalized);
-        }
     }
 
     void handleSustainDrag(float deltaX, float deltaY) {
@@ -971,12 +1038,12 @@ private:
                 startX = layout_.attackStartX;
                 endX = layout_.attackEndX;
                 startY = layout_.bottomY;
-                endY = layout_.topY;
+                endY = levelToPixelY(peakLevel_);
                 break;
             case 1: // Decay
                 startX = layout_.attackEndX;
                 endX = layout_.decayEndX;
-                startY = layout_.topY;
+                startY = levelToPixelY(peakLevel_);
                 endY = levelToPixelY(sustainLevel_);
                 break;
             case 2: // Release
@@ -1059,10 +1126,14 @@ private:
             case DragTarget::PeakPoint:
                 notifyBeginEdit(target);
                 attackMs_ = kDefaultAttackMs;
+                peakLevel_ = kDefaultPeakLevel;
                 recalculateLayout();
                 setDirty();
                 if (paramCallback_ && attackParamId_ > 0) {
                     paramCallback_(attackParamId_, timeMsToNormalized(attackMs_));
+                }
+                if (paramCallback_ && peakLevelParamId_ > 0) {
+                    paramCallback_(peakLevelParamId_, peakLevel_);
                 }
                 notifyEndEdit(target);
                 break;
@@ -1134,6 +1205,7 @@ private:
         decayMs_ = preDragValues_.decayMs;
         sustainLevel_ = preDragValues_.sustainLevel;
         releaseMs_ = preDragValues_.releaseMs;
+        peakLevel_ = preDragValues_.peakLevel;
         attackCurve_ = preDragValues_.attackCurve;
         decayCurve_ = preDragValues_.decayCurve;
         releaseCurve_ = preDragValues_.releaseCurve;
@@ -1159,6 +1231,8 @@ private:
                 paramCallback_(sustainParamId_, sustainLevel_);
             if (releaseParamId_ > 0)
                 paramCallback_(releaseParamId_, timeMsToNormalized(releaseMs_));
+            if (peakLevelParamId_ > 0)
+                paramCallback_(peakLevelParamId_, peakLevel_);
             if (attackCurveParamId_ > 0)
                 paramCallback_(attackCurveParamId_, (attackCurve_ + 1.0f) * 0.5f);
             if (decayCurveParamId_ > 0)
@@ -1178,6 +1252,7 @@ private:
         switch (target) {
             case DragTarget::PeakPoint:
                 if (attackParamId_ > 0) beginEditCallback_(attackParamId_);
+                if (peakLevelParamId_ > 0) beginEditCallback_(peakLevelParamId_);
                 break;
             case DragTarget::SustainPoint:
                 if (decayParamId_ > 0) beginEditCallback_(decayParamId_);
@@ -1213,6 +1288,7 @@ private:
         switch (target) {
             case DragTarget::PeakPoint:
                 if (attackParamId_ > 0) endEditCallback_(attackParamId_);
+                if (peakLevelParamId_ > 0) endEditCallback_(peakLevelParamId_);
                 break;
             case DragTarget::SustainPoint:
                 if (decayParamId_ > 0) endEditCallback_(decayParamId_);
@@ -1266,8 +1342,22 @@ private:
 
     void drawBackground(VSTGUI::CDrawContext* context) const {
         VSTGUI::CRect vs = getViewSize();
+        // Fill entire view with base background
         context->setFillColor(backgroundColor_);
         context->drawRect(vs, VSTGUI::kDrawFilled);
+
+        // Draw colored vertical bands for each ADSR segment
+        auto drawBand = [&](float left, float right, const VSTGUI::CColor& color) {
+            if (right <= left) return;
+            VSTGUI::CRect band(left, layout_.topY, right, layout_.bottomY);
+            context->setFillColor(color);
+            context->drawRect(band, VSTGUI::kDrawFilled);
+        };
+
+        drawBand(layout_.attackStartX, layout_.attackEndX, attackBandColor_);
+        drawBand(layout_.attackEndX, layout_.decayEndX, decayBandColor_);
+        drawBand(layout_.decayEndX, layout_.sustainEndX, sustainBandColor_);
+        drawBand(layout_.sustainEndX, layout_.releaseEndX, releaseBandColor_);
     }
 
     void drawGrid(VSTGUI::CDrawContext* context) const {
@@ -1293,14 +1383,15 @@ private:
         // Start at bottom-left (attack start, level=0)
         path->beginSubpath(VSTGUI::CPoint(layout_.attackStartX, layout_.bottomY));
 
+        float peakY = levelToPixelY(peakLevel_);
         float sustainY = levelToPixelY(sustainLevel_);
 
         if (bezierEnabled_) {
             // Bezier mode: use Bezier tables for curve segments
             drawBezierCurveSegment(path, layout_.attackStartX, layout_.bottomY,
-                                    layout_.attackEndX, layout_.topY,
+                                    layout_.attackEndX, peakY,
                                     bezierHandles_[0], kCurveResolution);
-            drawBezierCurveSegment(path, layout_.attackEndX, layout_.topY,
+            drawBezierCurveSegment(path, layout_.attackEndX, peakY,
                                     layout_.decayEndX, sustainY,
                                     bezierHandles_[1], kCurveResolution);
             path->addLine(VSTGUI::CPoint(layout_.sustainEndX, sustainY));
@@ -1310,9 +1401,9 @@ private:
         } else {
             // Simple mode: use power curve tables
             drawCurveSegment(path, layout_.attackStartX, layout_.bottomY,
-                             layout_.attackEndX, layout_.topY,
+                             layout_.attackEndX, peakY,
                              attackCurve_, kCurveResolution);
-            drawCurveSegment(path, layout_.attackEndX, layout_.topY,
+            drawCurveSegment(path, layout_.attackEndX, peakY,
                              layout_.decayEndX, sustainY,
                              decayCurve_, kCurveResolution);
             path->addLine(VSTGUI::CPoint(layout_.sustainEndX, sustainY));
@@ -1416,63 +1507,73 @@ private:
             VSTGUI::CPoint(gateX, layout_.bottomY));
     }
 
-    void drawTimeLabels(VSTGUI::CDrawContext* context) const {
-        VSTGUI::CRect vs = getViewSize();
-        float displayHeight = static_cast<float>(vs.getHeight());
+    void drawSegmentLetters(VSTGUI::CDrawContext* context) const {
+        // Skip if letter strip has no height (display too small)
+        if (layout_.letterBottomY <= layout_.viewTopY + 1.0f) return;
 
-        // Skip labels if display is too small to fit them readably
-        if (displayHeight < 60.0f) return;
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 9.0,
+            VSTGUI::kBoldFace);
+        context->setFont(font);
+        context->setFontColor(textColor_);
+
+        auto drawLetter = [&](float left, float right, const char* letter) {
+            if (right <= left + 4.0f) return;
+            VSTGUI::CRect labelRect(
+                left, layout_.viewTopY,
+                right, layout_.letterBottomY);
+            context->drawString(VSTGUI::UTF8String(letter), labelRect,
+                                VSTGUI::kCenterText);
+        };
+
+        drawLetter(layout_.attackStartX, layout_.attackEndX, "A");
+        drawLetter(layout_.attackEndX, layout_.decayEndX, "D");
+        drawLetter(layout_.decayEndX, layout_.sustainEndX, "S");
+        drawLetter(layout_.sustainEndX, layout_.releaseEndX, "R");
+    }
+
+    void drawTimeLabels(VSTGUI::CDrawContext* context) const {
+        // Skip labels if the label strip has no height (display too small)
+        if (layout_.viewBottomY <= layout_.labelTopY + 1.0f) return;
 
         auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 8.0);
         context->setFont(font);
         context->setFontColor(textColor_);
 
-        constexpr float kLabelHeight = 10.0f;
-        constexpr float kLabelWidth = 40.0f;
-        constexpr float kLabelOffsetY = 2.0f;
+        constexpr float kLabelInset = 2.0f;
 
-        // Attack time label (below Peak point)
+        auto drawValueLabel = [&](float left, float right, const char* text) {
+            if (right <= left + 4.0f) return; // too narrow
+            VSTGUI::CRect labelRect(
+                left + kLabelInset, layout_.labelTopY + 1.0f,
+                right - kLabelInset, layout_.viewBottomY);
+            context->drawString(VSTGUI::UTF8String(text), labelRect,
+                                VSTGUI::kLeftText);
+        };
+
+        // Attack time
         {
             char buf[16];
             formatTimeLabel(buf, sizeof(buf), attackMs_);
-            VSTGUI::CRect labelRect(
-                layout_.attackEndX - kLabelWidth * 0.5,
-                layout_.topY - kLabelHeight - kLabelOffsetY,
-                layout_.attackEndX + kLabelWidth * 0.5,
-                layout_.topY - kLabelOffsetY);
-            // Clamp to display bounds
-            if (labelRect.top < vs.top) {
-                labelRect.offset(0, vs.top - labelRect.top + 1);
-            }
-            context->drawString(VSTGUI::UTF8String(buf), labelRect,
-                                VSTGUI::kCenterText);
+            drawValueLabel(layout_.attackStartX, layout_.attackEndX, buf);
         }
-
-        // Release time label (near End point)
+        // Decay time
+        {
+            char buf[16];
+            formatTimeLabel(buf, sizeof(buf), decayMs_);
+            drawValueLabel(layout_.attackEndX, layout_.decayEndX, buf);
+        }
+        // Sustain level
+        {
+            char buf[16];
+            std::snprintf(buf, sizeof(buf), "%.0f%%",
+                          sustainLevel_ * 100.0f);
+            drawValueLabel(layout_.decayEndX, layout_.sustainEndX, buf);
+        }
+        // Release time
         {
             char buf[16];
             formatTimeLabel(buf, sizeof(buf), releaseMs_);
-            VSTGUI::CRect labelRect(
-                layout_.releaseEndX - kLabelWidth,
-                layout_.bottomY - kLabelHeight,
-                layout_.releaseEndX,
-                layout_.bottomY);
-            context->drawString(VSTGUI::UTF8String(buf), labelRect,
-                                VSTGUI::kRightText);
-        }
-
-        // Total duration label (bottom-right corner)
-        {
-            float totalMs = attackMs_ + decayMs_ + releaseMs_;
-            char buf[24];
-            formatTimeLabel(buf, sizeof(buf), totalMs);
-            VSTGUI::CRect labelRect(
-                vs.right - kLabelWidth - kPadding,
-                vs.bottom - kLabelHeight - 1,
-                vs.right - kPadding,
-                vs.bottom - 1);
-            context->drawString(VSTGUI::UTF8String(buf), labelRect,
-                                VSTGUI::kRightText);
+            drawValueLabel(layout_.sustainEndX, layout_.releaseEndX, buf);
         }
     }
 
@@ -1678,6 +1779,7 @@ private:
     float decayMs_ = kDefaultDecayMs;
     float sustainLevel_ = kDefaultSustainLevel;
     float releaseMs_ = kDefaultReleaseMs;
+    float peakLevel_ = kDefaultPeakLevel;
 
     // Curve amounts
     float attackCurve_ = 0.0f;
@@ -1716,11 +1818,18 @@ private:
     VSTGUI::CColor controlPointColor_{255, 255, 255, 255};
     VSTGUI::CColor textColor_{255, 255, 255, 180};
 
+    // Segment band colors (muted tints for A/D/S/R background bands)
+    VSTGUI::CColor attackBandColor_{32, 32, 42, 255};
+    VSTGUI::CColor decayBandColor_{32, 36, 33, 255};
+    VSTGUI::CColor sustainBandColor_{30, 30, 33, 255};
+    VSTGUI::CColor releaseBandColor_{36, 32, 33, 255};
+
     // Parameter IDs
     uint32_t attackParamId_ = 0;
     uint32_t decayParamId_ = 0;
     uint32_t sustainParamId_ = 0;
     uint32_t releaseParamId_ = 0;
+    uint32_t peakLevelParamId_ = 0;
     uint32_t attackCurveParamId_ = 0;
     uint32_t decayCurveParamId_ = 0;
     uint32_t releaseCurveParamId_ = 0;
@@ -1794,6 +1903,18 @@ struct ADSRDisplayCreator : VSTGUI::ViewCreatorAdapter {
         if (VSTGUI::UIViewCreator::stringToColor(
                 attributes.getAttributeValue("text-color"), color, description))
             display->setTextColor(color);
+        if (VSTGUI::UIViewCreator::stringToColor(
+                attributes.getAttributeValue("attack-band-color"), color, description))
+            display->setAttackBandColor(color);
+        if (VSTGUI::UIViewCreator::stringToColor(
+                attributes.getAttributeValue("decay-band-color"), color, description))
+            display->setDecayBandColor(color);
+        if (VSTGUI::UIViewCreator::stringToColor(
+                attributes.getAttributeValue("sustain-band-color"), color, description))
+            display->setSustainBandColor(color);
+        if (VSTGUI::UIViewCreator::stringToColor(
+                attributes.getAttributeValue("release-band-color"), color, description))
+            display->setReleaseBandColor(color);
 
         return true;
     }
@@ -1806,6 +1927,10 @@ struct ADSRDisplayCreator : VSTGUI::ViewCreatorAdapter {
         attributeNames.emplace_back("grid-color");
         attributeNames.emplace_back("control-point-color");
         attributeNames.emplace_back("text-color");
+        attributeNames.emplace_back("attack-band-color");
+        attributeNames.emplace_back("decay-band-color");
+        attributeNames.emplace_back("sustain-band-color");
+        attributeNames.emplace_back("release-band-color");
         return true;
     }
 
@@ -1816,6 +1941,10 @@ struct ADSRDisplayCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "grid-color") return kColorType;
         if (attributeName == "control-point-color") return kColorType;
         if (attributeName == "text-color") return kColorType;
+        if (attributeName == "attack-band-color") return kColorType;
+        if (attributeName == "decay-band-color") return kColorType;
+        if (attributeName == "sustain-band-color") return kColorType;
+        if (attributeName == "release-band-color") return kColorType;
         return kUnknownType;
     }
 
@@ -1855,6 +1984,26 @@ struct ADSRDisplayCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "text-color") {
             VSTGUI::UIViewCreator::colorToString(
                 display->getTextColor(), stringValue, desc);
+            return true;
+        }
+        if (attributeName == "attack-band-color") {
+            VSTGUI::UIViewCreator::colorToString(
+                display->getAttackBandColor(), stringValue, desc);
+            return true;
+        }
+        if (attributeName == "decay-band-color") {
+            VSTGUI::UIViewCreator::colorToString(
+                display->getDecayBandColor(), stringValue, desc);
+            return true;
+        }
+        if (attributeName == "sustain-band-color") {
+            VSTGUI::UIViewCreator::colorToString(
+                display->getSustainBandColor(), stringValue, desc);
+            return true;
+        }
+        if (attributeName == "release-band-color") {
+            VSTGUI::UIViewCreator::colorToString(
+                display->getReleaseBandColor(), stringValue, desc);
             return true;
         }
         return false;
