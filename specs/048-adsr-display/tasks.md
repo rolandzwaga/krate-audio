@@ -596,7 +596,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 10.1 Architecture Documentation Update
 
-- [ ] T090 **Update `specs/_architecture_/`** with new components:
+- [X] T090 **Update `specs/_architecture_/`** with new components:
   - Add curve_table.h to layer-0-core.md (purpose: 256-entry curve lookup table generation for envelopes)
   - Add ADSREnvelope modifications to layer-1-primitives.md (continuous curve support with tables)
   - Add ADSRDisplay to shared UI components documentation (purpose: interactive ADSR envelope editor/display)

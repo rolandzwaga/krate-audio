@@ -668,3 +668,67 @@ for (int i = 0; i < numSamples; ++i) {
 **Do NOT use when:**
 - You need spectral phase wrapping to [-pi, pi] (use `spectral_utils.h` instead)
 - You need quadrature oscillator (sin/cos rotation) pattern (use direct computation)
+
+---
+
+## Curve Table Generation
+**Path:** [curve_table.h](../../dsp/include/krate/dsp/core/curve_table.h) | **Since:** 0.18.0
+
+256-entry lookup table generation for parametric envelope curves. Provides both power-curve and cubic Bezier curve table generation, plus conversion utilities between the two representations.
+
+```cpp
+inline constexpr size_t kCurveTableSize = 256;
+inline constexpr float kCurveRangeK = 3.0f;  // Exponent range: 2^(-3) to 2^(+3)
+
+// Power curve: table[i] = startLevel + range * phase^(2^(curveAmount*k))
+inline void generatePowerCurveTable(
+    std::array<float, kCurveTableSize>& table,
+    float curveAmount,                        // [-1, +1]
+    float startLevel = 0.0f,
+    float endLevel = 1.0f) noexcept;
+
+// Cubic Bezier curve (4 control points -> 256-entry table)
+inline void generateBezierCurveTable(
+    std::array<float, kCurveTableSize>& table,
+    float cp1x, float cp1y,                  // First control point [0, 1]
+    float cp2x, float cp2y,                  // Second control point [0, 1]
+    float startLevel = 0.0f,
+    float endLevel = 1.0f) noexcept;
+
+// Linear interpolation lookup (phase 0-1 -> table value)
+[[nodiscard]] constexpr float lookupCurveTable(
+    const std::array<float, kCurveTableSize>& table,
+    float phase) noexcept;
+
+// EnvCurve enum -> continuous float (backward compat)
+[[nodiscard]] constexpr float envCurveToCurveAmount(EnvCurve curve) noexcept;
+// Exponential -> +0.7, Linear -> 0.0, Logarithmic -> -0.7
+
+// Bezier -> simple: sample at 50% phase to derive curveAmount
+[[nodiscard]] constexpr float bezierToSimpleCurve(
+    float cp1x, float cp1y, float cp2x, float cp2y) noexcept;
+
+// Simple -> Bezier: place handles at 1/3 and 2/3 along power curve
+inline void simpleCurveToBezier(float curveAmount,
+    float& cp1x, float& cp1y, float& cp2x, float& cp2y) noexcept;
+```
+
+| curveAmount | Exponent | Shape |
+|-------------|----------|-------|
+| -1.0 | 0.125 | Very logarithmic (fast rise, slow finish) |
+| 0.0 | 1.0 | Linear ramp |
+| +1.0 | 8.0 | Very exponential (slow rise, fast finish) |
+
+**When to use:**
+- Envelope curve shaping (ADSREnvelope per-stage tables)
+- UI display of envelope curves (ADSRDisplay)
+- Any parametric curve that maps [0,1] phase to [0,1] output
+- Converting between simple curve amount and Bezier representations
+
+**Do NOT use when:**
+- You need per-sample waveshaping (use `sigmoid.h` instead)
+- You need audio-rate interpolation (table is 256 entries, designed for envelope shapes)
+
+**Consumers:** ADSREnvelope (Layer 1), ADSRDisplay (shared UI)
+
+**Dependencies:** `primitives/envelope_utils.h` (for `EnvCurve` enum in `envCurveToCurveAmount`)
