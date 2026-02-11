@@ -53,25 +53,20 @@ TEST_CASE("recalculateLayout produces valid segment positions", "[adsr_display][
     REQUIRE(layout.topY < layout.bottomY);
 }
 
-TEST_CASE("Segment positions respect 15% minimum width", "[adsr_display][coord]") {
+TEST_CASE("Segment positions respect 1px minimum width", "[adsr_display][coord]") {
     // Extreme ratio: very short attack, very long release
     auto display = makeDisplayWithValues(0.1f, 0.1f, 0.5f, 10000.0f);
     auto layout = display.getLayout();
 
-    float totalWidth = layout.releaseEndX - layout.attackStartX;
-    float minSegWidth = totalWidth * 0.15f;
-
-    // Each time segment should have at least 15% of total width
+    // Each time segment should be at least 1 pixel wide (visible)
     float attackWidth = layout.attackEndX - layout.attackStartX;
     float decayWidth = layout.decayEndX - layout.attackEndX;
     // Sustain is fixed 25%, so skip its minimum check
     float releaseWidth = layout.releaseEndX - layout.sustainEndX;
 
-    // Attack and decay should have at least near the minimum
-    // (exact enforcement depends on implementation, but must be visible)
-    REQUIRE(attackWidth >= minSegWidth * 0.9f);
-    REQUIRE(decayWidth >= minSegWidth * 0.9f);
-    REQUIRE(releaseWidth >= minSegWidth * 0.9f);
+    REQUIRE(attackWidth >= 1.0f);
+    REQUIRE(decayWidth >= 1.0f);
+    REQUIRE(releaseWidth >= 1.0f);
 }
 
 TEST_CASE("Level 1.0 maps to topY, level 0.0 maps to bottomY", "[adsr_display][coord]") {
@@ -243,23 +238,14 @@ TEST_CASE("Extreme timing ratio: 0.1ms attack + 10s release keeps all segments v
     auto display = makeDisplayWithValues(0.1f, 1.0f, 0.5f, 10000.0f);
     auto layout = display.getLayout();
 
-    float totalWidth = layout.releaseEndX - layout.attackStartX;
-    float minVisibleWidth = 3.0f; // pixels - a 3px segment is still visible
-
     float attackWidth = layout.attackEndX - layout.attackStartX;
     float decayWidth = layout.decayEndX - layout.attackEndX;
     float releaseWidth = layout.releaseEndX - layout.sustainEndX;
 
-    // All time segments must be visible even with 100000:1 ratio
-    REQUIRE(attackWidth >= minVisibleWidth);
-    REQUIRE(decayWidth >= minVisibleWidth);
-    REQUIRE(releaseWidth >= minVisibleWidth);
-
-    // Each segment occupies at least ~15% of total width
-    float minSegWidth = totalWidth * 0.15f;
-    REQUIRE(attackWidth >= minSegWidth * 0.9f);
-    REQUIRE(decayWidth >= minSegWidth * 0.9f);
-    REQUIRE(releaseWidth >= minSegWidth * 0.9f);
+    // All time segments must be at least 1 pixel even with extreme ratio
+    REQUIRE(attackWidth >= 1.0f);
+    REQUIRE(decayWidth >= 1.0f);
+    REQUIRE(releaseWidth >= 1.0f);
 }
 
 TEST_CASE("Curve table integration: power curve with curveAmount=0 is linear",

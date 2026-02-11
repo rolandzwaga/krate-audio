@@ -126,6 +126,10 @@ jobs:
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests --parallel
 
+      - name: Build Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target shared_tests --parallel
+
       - name: Build Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
@@ -138,17 +142,25 @@ jobs:
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo --parallel
 
-      - name: Build Ruinae
+      - name: Build Ruinae and Tests
         if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae ruinae_tests --parallel
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
 
+      - name: Run Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
+
       - name: Run Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
+
+      - name: Run Ruinae Tests
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "ruinae_tests"
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -222,6 +234,10 @@ jobs:
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests --parallel
 
+      - name: Build Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target shared_tests --parallel
+
       - name: Build Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
@@ -234,17 +250,25 @@ jobs:
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo Disrumpo_AU --parallel
 
-      - name: Build Ruinae and AU
+      - name: Build Ruinae, AU, and Tests
         if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU ruinae_tests --parallel
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
 
+      - name: Run Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
+
       - name: Run Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
+
+      - name: Run Ruinae Tests
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "ruinae_tests"
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -371,6 +395,10 @@ jobs:
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target dsp_tests --parallel
 
+      - name: Build Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --target shared_tests --parallel
+
       - name: Build Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target plugin_tests approval_tests --parallel
@@ -383,17 +411,25 @@ jobs:
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target Disrumpo --parallel
 
-      - name: Build Ruinae
+      - name: Build Ruinae and Tests
         if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target Ruinae --parallel
+        run: cmake --build build --target Ruinae ruinae_tests --parallel
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
 
+      - name: Run Shared Tests
+        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
+
       - name: Run Iterum Tests
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
+
+      - name: Run Ruinae Tests
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "ruinae_tests"
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'

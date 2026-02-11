@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 
 namespace Ruinae {
 
@@ -320,6 +321,19 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveReverbParams(reverbParams_, streamer);
     saveMonoModeParams(monoModeParams_, streamer);
 
+    // Save voice route state (T085-T086)
+    // Write 16 VoiceModRoute structs (14 bytes each = 224 bytes total)
+    for (const auto& r : voiceRoutes_) {
+        streamer.writeInt8(static_cast<Steinberg::int8>(r.source));
+        streamer.writeInt8(static_cast<Steinberg::int8>(r.destination));
+        streamer.writeFloat(r.amount);
+        streamer.writeInt8(static_cast<Steinberg::int8>(r.curve));
+        streamer.writeFloat(r.smoothMs);
+        streamer.writeInt8(static_cast<Steinberg::int8>(r.scale));
+        streamer.writeInt8(static_cast<Steinberg::int8>(r.bypass));
+        streamer.writeInt8(static_cast<Steinberg::int8>(r.active));
+    }
+
     return Steinberg::kResultTrue;
 }
 
@@ -332,31 +346,71 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         return Steinberg::kResultTrue; // Empty stream, keep defaults
     }
 
+    // Helper lambda: load all packs except mod matrix (shared between v1/v2)
+    auto loadCommonPacks = [&]() -> bool {
+        if (!loadGlobalParams(globalParams_, streamer)) return false;
+        if (!loadOscAParams(oscAParams_, streamer)) return false;
+        if (!loadOscBParams(oscBParams_, streamer)) return false;
+        if (!loadMixerParams(mixerParams_, streamer)) return false;
+        if (!loadFilterParams(filterParams_, streamer)) return false;
+        if (!loadDistortionParams(distortionParams_, streamer)) return false;
+        if (!loadTranceGateParams(tranceGateParams_, streamer)) return false;
+        if (!loadAmpEnvParams(ampEnvParams_, streamer)) return false;
+        if (!loadFilterEnvParams(filterEnvParams_, streamer)) return false;
+        if (!loadModEnvParams(modEnvParams_, streamer)) return false;
+        if (!loadLFO1Params(lfo1Params_, streamer)) return false;
+        if (!loadLFO2Params(lfo2Params_, streamer)) return false;
+        if (!loadChaosModParams(chaosModParams_, streamer)) return false;
+        return true;
+    };
+
+    auto loadPostModMatrix = [&]() -> bool {
+        if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return false;
+        if (!loadFreezeParams(freezeParams_, streamer)) return false;
+        if (!loadDelayParams(delayParams_, streamer)) return false;
+        if (!loadReverbParams(reverbParams_, streamer)) return false;
+        if (!loadMonoModeParams(monoModeParams_, streamer)) return false;
+        return true;
+    };
+
     if (version == 1) {
-        // Load v1 state - all 19 parameter packs in deterministic order
-        // If any pack fails to load, remaining packs keep defaults (fail closed)
-        if (!loadGlobalParams(globalParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadOscAParams(oscAParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadOscBParams(oscBParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadMixerParams(mixerParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadFilterParams(filterParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadDistortionParams(distortionParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadTranceGateParams(tranceGateParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadAmpEnvParams(ampEnvParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadFilterEnvParams(filterEnvParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadModEnvParams(modEnvParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadLFO1Params(lfo1Params_, streamer)) return Steinberg::kResultTrue;
-        if (!loadLFO2Params(lfo2Params_, streamer)) return Steinberg::kResultTrue;
-        if (!loadChaosModParams(chaosModParams_, streamer)) return Steinberg::kResultTrue;
+        // v1: base mod matrix only (source, dest, amount per slot)
+        if (!loadCommonPacks()) return Steinberg::kResultTrue;
+        if (!loadModMatrixParamsV1(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
+        if (!loadPostModMatrix()) return Steinberg::kResultTrue;
+    } else if (version == 2) {
+        // v2: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
+        if (!loadCommonPacks()) return Steinberg::kResultTrue;
         if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadFreezeParams(freezeParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadDelayParams(delayParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadReverbParams(reverbParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadMonoModeParams(monoModeParams_, streamer)) return Steinberg::kResultTrue;
+        if (!loadPostModMatrix()) return Steinberg::kResultTrue;
+    } else if (version == 3) {
+        // v3: v2 + voice modulation routes
+        if (!loadCommonPacks()) return Steinberg::kResultTrue;
+        if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
+        if (!loadPostModMatrix()) return Steinberg::kResultTrue;
+
+        // Load voice routes (16 slots)
+        for (auto& r : voiceRoutes_) {
+            Steinberg::int8 i8 = 0;
+            if (!streamer.readInt8(i8)) break;
+            r.source = static_cast<uint8_t>(i8);
+            if (!streamer.readInt8(i8)) break;
+            r.destination = static_cast<uint8_t>(i8);
+            if (!streamer.readFloat(r.amount)) break;
+            if (!streamer.readInt8(i8)) break;
+            r.curve = static_cast<uint8_t>(i8);
+            if (!streamer.readFloat(r.smoothMs)) break;
+            if (!streamer.readInt8(i8)) break;
+            r.scale = static_cast<uint8_t>(i8);
+            if (!streamer.readInt8(i8)) break;
+            r.bypass = static_cast<uint8_t>(i8);
+            if (!streamer.readInt8(i8)) break;
+            r.active = static_cast<uint8_t>(i8);
+        }
+
+        // Send voice route state to controller for UI sync
+        sendVoiceModRouteState();
     }
-    // Future versions: add stepwise migration here
-    // else if (version == 2) { ... }
     // Unknown future versions: keep safe defaults (fail closed)
 
     return Steinberg::kResultTrue;
@@ -654,6 +708,129 @@ void Processor::processEvents(Steinberg::Vst::IEventList* events) {
                 break;
         }
     }
+}
+
+// ==============================================================================
+// IMessage: Receive Controller Messages (T085)
+// ==============================================================================
+
+Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message) {
+    if (!message)
+        return Steinberg::kInvalidArgument;
+
+    if (strcmp(message->getMessageID(), "VoiceModRouteUpdate") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        Steinberg::int64 slotIndex = 0;
+        if (attrs->getInt("slotIndex", slotIndex) != Steinberg::kResultOk)
+            return Steinberg::kResultFalse;
+
+        if (slotIndex < 0 || slotIndex >= Krate::Plugins::kMaxVoiceRoutes)
+            return Steinberg::kResultFalse;
+
+        auto& route = voiceRoutes_[static_cast<size_t>(slotIndex)];
+
+        Steinberg::int64 val = 0;
+        double dval = 0.0;
+
+        if (attrs->getInt("source", val) == Steinberg::kResultOk)
+            route.source = static_cast<uint8_t>(std::clamp(val, Steinberg::int64{0}, Steinberg::int64{9}));
+
+        if (attrs->getInt("destination", val) == Steinberg::kResultOk)
+            route.destination = static_cast<uint8_t>(std::clamp(val, Steinberg::int64{0}, Steinberg::int64{6}));
+
+        if (attrs->getFloat("amount", dval) == Steinberg::kResultOk)
+            route.amount = static_cast<float>(std::clamp(dval, -1.0, 1.0));
+
+        if (attrs->getInt("curve", val) == Steinberg::kResultOk)
+            route.curve = static_cast<uint8_t>(std::clamp(val, Steinberg::int64{0}, Steinberg::int64{3}));
+
+        if (attrs->getFloat("smoothMs", dval) == Steinberg::kResultOk)
+            route.smoothMs = static_cast<float>(std::clamp(dval, 0.0, 100.0));
+
+        if (attrs->getInt("scale", val) == Steinberg::kResultOk)
+            route.scale = static_cast<uint8_t>(std::clamp(val, Steinberg::int64{0}, Steinberg::int64{4}));
+
+        if (attrs->getInt("bypass", val) == Steinberg::kResultOk)
+            route.bypass = static_cast<uint8_t>(val != 0 ? 1 : 0);
+
+        if (attrs->getInt("active", val) == Steinberg::kResultOk)
+            route.active = static_cast<uint8_t>(val != 0 ? 1 : 0);
+
+        // Send authoritative state back to controller (T086)
+        sendVoiceModRouteState();
+
+        return Steinberg::kResultOk;
+    }
+
+    if (strcmp(message->getMessageID(), "VoiceModRouteRemove") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        Steinberg::int64 slotIndex = 0;
+        if (attrs->getInt("slotIndex", slotIndex) != Steinberg::kResultOk)
+            return Steinberg::kResultFalse;
+
+        if (slotIndex < 0 || slotIndex >= Krate::Plugins::kMaxVoiceRoutes)
+            return Steinberg::kResultFalse;
+
+        // Deactivate the slot
+        voiceRoutes_[static_cast<size_t>(slotIndex)] = Krate::Plugins::VoiceModRoute{};
+
+        // Send authoritative state back to controller (T086)
+        sendVoiceModRouteState();
+
+        return Steinberg::kResultOk;
+    }
+
+    return AudioEffect::notify(message);
+}
+
+// ==============================================================================
+// Voice Route State Sender (T086)
+// ==============================================================================
+
+void Processor::sendVoiceModRouteState() {
+    auto msg = Steinberg::owned(allocateMessage());
+    if (!msg) return;
+
+    msg->setMessageID("VoiceModRouteState");
+    auto* attrs = msg->getAttributes();
+    if (!attrs) return;
+
+    // Count active routes
+    Steinberg::int64 activeCount = 0;
+    for (const auto& r : voiceRoutes_) {
+        if (r.active != 0) ++activeCount;
+    }
+    attrs->setInt("routeCount", activeCount);
+
+    // Pack route data as binary blob (14 bytes per route, 16 routes = 224 bytes)
+    // Per contract: source(1), dest(1), amount(4), curve(1), smoothMs(4), scale(1),
+    //              bypass(1), active(1) = 14 bytes
+    static constexpr size_t kBytesPerRoute = 14;
+    static constexpr size_t kTotalBytes = kBytesPerRoute * Krate::Plugins::kMaxVoiceRoutes;
+    uint8_t buffer[kTotalBytes]{};
+
+    for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
+        const auto& r = voiceRoutes_[static_cast<size_t>(i)];
+        auto* ptr = &buffer[static_cast<size_t>(i) * kBytesPerRoute];
+
+        ptr[0] = r.source;
+        ptr[1] = r.destination;
+        std::memcpy(&ptr[2], &r.amount, sizeof(float));
+        ptr[6] = r.curve;
+        std::memcpy(&ptr[7], &r.smoothMs, sizeof(float));
+        ptr[11] = r.scale;
+        ptr[12] = r.bypass;
+        ptr[13] = r.active;
+    }
+
+    attrs->setBinary("routeData", buffer, kTotalBytes);
+    sendMessage(msg);
 }
 
 } // namespace Ruinae

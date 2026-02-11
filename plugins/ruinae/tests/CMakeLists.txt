@@ -21,6 +21,11 @@ add_executable(ruinae_tests
     unit/state_migration_test.cpp
     unit/controller_params_test.cpp
     unit/controller_display_test.cpp
+
+    # Mod Matrix Tests (049-mod-matrix-grid)
+    unit/mod_matrix_params_test.cpp
+    integration/mod_matrix_grid_test.cpp
+    integration/mod_ring_indicator_test.cpp
     integration/processor_audio_test.cpp
     integration/midi_events_test.cpp
     integration/tempo_sync_test.cpp
@@ -31,6 +36,9 @@ add_executable(ruinae_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+
+    # Stub for GetPluginFactory (provided by entry.cpp in the real plugin, not in tests)
+    vstgui_test_stubs.cpp
 )
 
 target_link_libraries(ruinae_tests
@@ -39,8 +47,8 @@ target_link_libraries(ruinae_tests
         KratePluginsShared
         Catch2::Catch2
         test_helpers
-        sdk
         vstgui_support
+        sdk
 )
 
 target_include_directories(ruinae_tests
@@ -48,6 +56,7 @@ target_include_directories(ruinae_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/../src
         ${CMAKE_SOURCE_DIR}/tests
         ${vst3sdk_SOURCE_DIR}
+        ${vst3sdk_SOURCE_DIR}/vstgui4
 )
 
 target_compile_features(ruinae_tests PRIVATE cxx_std_20)

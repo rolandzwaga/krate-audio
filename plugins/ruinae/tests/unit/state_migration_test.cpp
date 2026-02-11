@@ -57,12 +57,12 @@ TEST_CASE("Unknown future version loads with defaults", "[state][migration]") {
     auto saveResult = proc->getState(&outStream);
     REQUIRE(saveResult == Steinberg::kResultTrue);
 
-    // The saved state should have version 1 (current)
+    // The saved state should have the current version
     outStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     Steinberg::IBStreamer outStreamer(&outStream, kLittleEndian);
     Steinberg::int32 savedVersion = 0;
     REQUIRE(outStreamer.readInt32(savedVersion));
-    REQUIRE(savedVersion == 1);
+    REQUIRE(savedVersion == Ruinae::kCurrentStateVersion);
 
     proc->terminate();
 }

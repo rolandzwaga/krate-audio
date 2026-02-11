@@ -194,10 +194,10 @@ inline void saveModEnvParams(const ModEnvParams& params, Steinberg::IBStreamer& 
 
 inline bool loadModEnvParams(ModEnvParams& params, Steinberg::IBStreamer& streamer) {
     float v = 0.0f;
-    if (!streamer.readFloat(v)) return false; params.attackMs.store(v, std::memory_order_relaxed);
-    if (!streamer.readFloat(v)) return false; params.decayMs.store(v, std::memory_order_relaxed);
-    if (!streamer.readFloat(v)) return false; params.sustain.store(v, std::memory_order_relaxed);
-    if (!streamer.readFloat(v)) return false; params.releaseMs.store(v, std::memory_order_relaxed);
+    if (!streamer.readFloat(v)) { return false; } params.attackMs.store(v, std::memory_order_relaxed);
+    if (!streamer.readFloat(v)) { return false; } params.decayMs.store(v, std::memory_order_relaxed);
+    if (!streamer.readFloat(v)) { return false; } params.sustain.store(v, std::memory_order_relaxed);
+    if (!streamer.readFloat(v)) { return false; } params.releaseMs.store(v, std::memory_order_relaxed);
     // Optional curve/Bezier fields (backward compatibility)
     if (streamer.readFloat(v)) { params.attackCurve.store(v, std::memory_order_relaxed); } else return true;
     if (streamer.readFloat(v)) { params.decayCurve.store(v, std::memory_order_relaxed); } else return true;

@@ -1206,32 +1206,185 @@ target_link_libraries(Ruinae PRIVATE sdk vstgui_support KrateDSP KratePluginsSha
 
 ### UI Layout Concept
 
+The layout follows a top-to-bottom patch design workflow: **create sound → shape
+it → animate it → place it in space**. The spectral morph is center stage in the
+top row as the visual and conceptual identity of the synth.
+
+**Key space-saving strategies:**
+* **Oscillator type selector** is a compact dropdown (180 × 28 px collapsed) that
+  opens a 5×2 popup tile grid on click. See section 5 for details.
+* **Envelopes** are tabbed — one full ADSR editor at a time, with mini sparkline
+  thumbnails of all three curves rendered inline in the tab labels.
+* **Effects** are a collapsible strip — on/off toggles and mix knobs are always
+  visible; full controls expand for one effect at a time.
+
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  RUINAE                                                    [Preset ▼]  │
-├─────────────┬──────────────┬───────────────┬───────────────┬───────────┤
-│   OSC A     │    OSC B     │    MIXER      │   FILTER      │   DIST    │
-│ [Type ▼]    │ [Type ▼]     │ [Mode ▼]      │ [Type ▼]      │ [Type ▼]  │
-│  Tune       │  Tune        │  Position     │  Cutoff       │  Drive    │
-│  Detune     │  Detune      │    ◯          │  Resonance    │  Char     │
-│  Level      │  Level       │               │  Env Amt      │  Mix      │
-│  [params]   │  [params]    │               │  Key Track    │           │
-├─────────────┴──────────────┴───────────────┴───────────────┴───────────┤
-│  TRANCE GATE              │  ENVELOPES                                 │
-│  [On/Off] [Pattern View]  │  ┌─AMP──┐ ┌─FILTER┐ ┌─MOD───┐           │
-│  Rate  Depth  Atk  Rel    │  │ ADSR │ │ ADSR  │ │ ADSR  │           │
-│  [Steps: ○●○●○●○●○●○●○●]  │  └──────┘ └───────┘ └───────┘           │
-├────────────────────────────┴───────────────────────────────────────────┤
-│  MODULATION                                                            │
-│  LFO1: Rate Shape Depth  │  LFO2: Rate Shape Depth  │  Chaos: Rate   │
-│  [Matrix: 8 slots]       │  Src ▼  →  Dest ▼  Amt   │  Rungler  S&H  │
-├────────────────────────────────────────────────────────────────────────┤
-│  EFFECTS                                                               │
-│  [FREEZE]    [DELAY]              [REVERB]              [MASTER]      │
-│  ◯ On/Off    Type ▼               Size    Damping       Gain          │
-│              Time  Feedback       Width   Mix           Polyphony ▼   │
-│              Mix   Sync           PreDly  Freeze        Soft Limit    │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  RUINAE                                                        [Preset ▼]   │
+│                                                                              │
+│  ROW 1: SOUND SOURCE                                                         │
+│  ┌─ OSC A ──────────┐  ┌───── SPECTRAL MORPH ─────┐  ┌─ OSC B ──────────┐ │
+│  │ [/\/\ PolyBLEP ▾]│  │                           │  │ [.··. Particle ▾]│ │
+│  │ Tune      Detune  │  │    ┌──────────────┐       │  │ Tune      Detune  │ │
+│  │ Level      Phase  │  │    │              │       │  │ Level      Phase  │ │
+│  │                   │  │    │   XY Morph   │       │  │                   │ │
+│  │ [type-specific    │  │    │     Pad      │       │  │ [type-specific    │ │
+│  │  params]          │  │    │              │       │  │  params]          │ │
+│  │                   │  │    └──────────────┘       │  │                   │ │
+│  │                   │  │  Mode ▼     Sub-mode      │  │                   │ │
+│  └──────────────────┘  └──────────────────────────┘  └──────────────────┘ │
+│                                                                              │
+│  ROW 2: TIMBRE & DYNAMICS                                                    │
+│  ┌─ FILTER ──────────┐ ┌─ DISTORTION ──┐ ┌─ ENVELOPES ──────────────────┐  │
+│  │ [Type ▼]          │ │ [Type ▼]      │ │                              │  │
+│  │ Cutoff    Res     │ │ Drive   Char  │ │ [■Amp╱╲_╲] [Flt╱╲╲] [Md╱╲_]│  │
+│  │ Env Amt           │ │ Mix           │ │ ┌─ ADSR Display ──────────┐ │  │
+│  │ Key Track         │ │               │ │ │    ╱╲                   │ │  │
+│  │                   │ │               │ │ │   ╱  ╲________         │ │  │
+│  │                   │ │               │ │ │  ╱             ╲       │ │  │
+│  │                   │ │               │ │ └─────────────────────────┘ │  │
+│  │                   │ │               │ │  A    D    S    R   Curve  │  │
+│  └───────────────────┘ └───────────────┘ └───────────────────────────────┘  │
+│                                                                              │
+│  ROW 3: MOVEMENT & MODULATION                                                │
+│  ┌─ TRANCE GATE ─────────────────────┐ ┌─ MODULATION ───────────────────┐  │
+│  │ [ON]  Rate  Depth  Atk  Rel       │ │ LFO1: Rate   Shape   Depth    │  │
+│  │ ┌─ Step Pattern ───────────────┐  │ │ LFO2: Rate   Shape   Depth    │  │
+│  │ │ ██ ▓▓ ██ ░░ ██ ▓▓ ██ ░░ ██  │  │ │ Chaos: Rate   S&H    Rungler │  │
+│  │ │ ██ ▓▓ ██    ██ ▓▓ ██    ██  │  │ │                               │  │
+│  │ │ ██    ██    ██    ██    ██  │  │ │ ┌─ Mod Matrix ─────────────┐  │  │
+│  │ │ ██    ██    ██    ██    ██  │  │ │ │    (Heatmap / Routes)    │  │  │
+│  │ └─────────────────────────────┘  │ │ │                          │  │  │
+│  │ Steps:[−]16[+]  [Eucl]  [Preset] │ │ └──────────────────────────┘  │  │
+│  └───────────────────────────────────┘ └────────────────────────────────┘  │
+│                                                                              │
+│  ROW 4: EFFECTS & OUTPUT                                                     │
+│  ┌─ FX ──────────────────────────────────────────────────┐ ┌─ MASTER ────┐ │
+│  │ [Freeze●] Mix◯   [Delay●] Mix◯   [Reverb●] Mix◯     │ │  Out   Poly │ │
+│  │ ┌─ (expanded controls for selected effect) ─────────┐ │ │  ◯     [▼]  │ │
+│  │ └───────────────────────────────────────────────────┘ │ │  Limit      │ │
+│  └───────────────────────────────────────────────────────┘ └─────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Row summary:**
+
+| Row | Sections | Workflow Stage |
+|-----|----------|----------------|
+| 1. Sound Source | OSC A, Spectral Morph (center), OSC B | "What am I hearing?" — morph pad connects the two oscillators |
+| 2. Timbre & Dynamics | Filter, Distortion, Envelopes (tabbed w/ thumbnails) | "How does it sound over time?" |
+| 3. Movement | Trance Gate (step editor), Modulation (LFOs, Chaos, Matrix) | "What makes it interesting?" |
+| 4. Effects & Output | FX strip (collapsible detail), Master | "Where does it live?" — minimal footprint |
+
+### UI Control Palette
+
+All Ruinae UI controls are drawn from the shared control library at
+`plugins/shared/src/ui/`. Using these consistently across the entire synth
+ensures a cohesive visual identity. **No stock VSTGUI knobs or containers.**
+
+#### Standard Controls (Use Everywhere)
+
+| Purpose | Control | Class / File | Notes |
+|---------|---------|-------------|-------|
+| **All knobs** | ArcKnob | `arc_knob.h` | Replaces `CKnob` / `CAnimKnob` everywhere. Gradient arc trail, 270-degree sweep, built-in modulation ring overlay. Configure `arc-color` per section identity. |
+| **Section grouping** | FieldsetContainer | `fieldset_container.h` | Replaces plain `CViewContainer` for all named sections (OSC A, Filter, Envelopes, etc.). Rounded outline with title gap in top edge, corner highlight. Every section in the layout diagram is a FieldsetContainer. |
+| **Bipolar amounts** | BipolarSlider | `bipolar_slider.h` | Centered fill slider for mod matrix route amounts. |
+| **Mod destination rings** | ModRingIndicator | `mod_ring_indicator.h` | Overlay on ArcKnobs to show modulation ranges. Stacks up to 4 colored arcs per knob. |
+| **Color utilities** | — | `color_utils.h` | `lerpColor()`, `darkenColor()`, `brightenColor()` used by all custom controls. |
+
+#### Section-Specific Controls
+
+| Purpose | Control | Class / File | Notes |
+|---------|---------|-------------|-------|
+| **Oscillator type** | OscillatorTypeSelector | *(new, see section 5)* | Dropdown with popup 5×2 tile grid. One per oscillator section. |
+| **Spectral morph** | XYMorphPad | `xy_morph_pad.h` | 2-axis morph pad with gradient background and cursor. |
+| **Trance gate pattern** | StepPatternEditor | `step_pattern_editor.h` | Horizontal bar chart, paint mode, Euclidean overlay. |
+| **Envelope display** | ADSRDisplay | `adsr_display.h` | Interactive ADSR curve with draggable control points, bezier mode, playback dot. Used in tabbed envelope section. |
+| **Mod matrix routes** | ModMatrixGrid | `mod_matrix_grid.h` | Slot-based route list with source/dest dropdowns and BipolarSliders. |
+| **Mod heatmap** | ModHeatmap | `mod_heatmap.h` | Read-only grid visualization of routing intensity by source color. |
+| **Mod source colors** | — | `mod_source_colors.h` | Canonical color map for ENV1 (blue), ENV2 (gold), LFO1, LFO2, Chaos, etc. Shared across all mod-aware controls. |
+| **Preset browser** | PresetBrowserView | `preset_browser_view.h` | Category tabs, search, save dialog. |
+| **Category tabs** | CategoryTabBar | `category_tab_bar.h` | Vertical tab bar for preset categories. Also used for envelope tab switching (Amp/Filter/Mod). |
+
+#### Standard VSTGUI Controls (Allowed)
+
+These stock controls are acceptable where custom rendering isn't needed:
+
+| Purpose | Control | Notes |
+|---------|---------|-------|
+| **Type selectors** | `COptionMenu` | Filter type, distortion type, morph mode, note value, etc. Native dropdown menus are fine for simple lists. |
+| **On/off toggles** | `COnOffButton` | Effect enable, trance gate enable, freeze. |
+| **Labels** | `CTextLabel` | Section labels, value readouts. |
+| **Value display** | `CParamDisplay` | Numeric readouts next to knobs if needed. |
+
+#### Control Mapping to Layout Sections
+
+Each section in the layout wraps its controls in a **FieldsetContainer** with
+the section title (e.g., `fieldset-title="OSC A"`). All continuous parameters
+use **ArcKnob** (never `CKnob` or `CAnimKnob`).
+
+```
+FieldsetContainer "OSC A"
+├── OscillatorTypeSelector (tag: kOscATypeId)
+├── ArcKnob "Tune"
+├── ArcKnob "Detune"
+├── ArcKnob "Level"
+├── ArcKnob "Phase"
+└── [type-specific ArcKnobs, visibility-switched by sub-controller]
+
+FieldsetContainer "SPECTRAL MORPH"
+├── XYMorphPad (tags: kMorphPositionId, kMorphTiltId)
+├── COptionMenu "Mode" (tag: kMorphModeId)
+└── ArcKnob "Shift"
+
+FieldsetContainer "OSC B"
+├── OscillatorTypeSelector (tag: kOscBTypeId)
+├── ArcKnob "Tune" / "Detune" / "Level" / "Phase"
+└── [type-specific ArcKnobs]
+
+FieldsetContainer "FILTER"
+├── COptionMenu "Type" (tag: kFilterTypeId)
+├── ArcKnob "Cutoff" + ModRingIndicator overlay
+├── ArcKnob "Resonance" + ModRingIndicator overlay
+├── ArcKnob "Env Amount"
+└── ArcKnob "Key Track"
+
+FieldsetContainer "DISTORTION"
+├── COptionMenu "Type" (tag: kDistortionTypeId)
+├── ArcKnob "Drive"
+├── ArcKnob "Character"
+└── ArcKnob "Mix"
+
+FieldsetContainer "ENVELOPES"
+├── CategoryTabBar [Amp, Filter, Mod] (with sparkline thumbnails)
+├── ADSRDisplay (switches parameter tags per selected tab)
+└── ArcKnob "A" / "D" / "S" / "R" / "Curve" (switch tags per tab)
+
+FieldsetContainer "TRANCE GATE"
+├── COnOffButton "Enable"
+├── StepPatternEditor (32 step level tags)
+├── ArcKnob "Rate" / "Depth" / "Attack" / "Release"
+└── COptionMenu "Note Value"
+
+FieldsetContainer "MODULATION"
+├── ArcKnob "LFO1 Rate" / "Shape" / "Depth"
+├── ArcKnob "LFO2 Rate" / "Shape" / "Depth"
+├── ArcKnob "Chaos Rate"
+├── ModMatrixGrid (8 global + 16 voice route slots)
+└── ModHeatmap
+
+FieldsetContainer "EFFECTS"
+├── COnOffButton "Freeze" + ArcKnob "Mix"
+├── COnOffButton "Delay" + ArcKnob "Mix" (+ expandable detail)
+│   └── COptionMenu "Type" + ArcKnob "Time" / "Feedback" / "Sync" / "Mod"
+├── COnOffButton "Reverb" + ArcKnob "Mix" (+ expandable detail)
+│   └── ArcKnob "Size" / "Damping" / "Width" / "PreDelay"
+└── (only one detail panel expanded at a time)
+
+FieldsetContainer "MASTER"
+├── ArcKnob "Output"
+├── COptionMenu "Polyphony"
+└── COnOffButton "Soft Limit"
 ```
 
 ### Custom VSTGUI Views Needed
@@ -1641,36 +1794,29 @@ Reuses proven patterns from Disrumpo's `MorphPad`:
 
 ##### 2.7 Visual Layout
 
-**XYMorphPad in context (Oscillator/Mixer section):**
+**XYMorphPad in context (Spectral Morph section, flanked by oscillator sections):**
+
+In the main layout, the Spectral Morph section sits between OSC A and OSC B in
+Row 1 (Sound Source). The oscillator type selectors live in their own sections
+as compact dropdowns (see section 5: OscillatorTypeSelector).
 
 ```
-┌─ OSCILLATOR MIXER ─────────────────────────────────────────────────────┐
-│                                                                        │
-│  OSC A: [Wavetable ▼]              OSC B: [Additive ▼]               │
-│                                                                        │
-│  ┌─ XYMorphPad ──────────────────────────────────────────────────┐    │
-│  │                         Bright                                 │    │
-│  │                                                                │    │
-│  │  ┌────────────────────────────────────────────────────────┐   │    │
-│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
-│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
-│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
-│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒○──▒▒▒▒▒▒▒▒▒▒▒▒████████████████   │   │    │
-│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
-│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
-│  │  │░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓████████████████   │   │    │
-│  │  └────────────────────────────────────────────────────────┘   │    │
-│  │                          Dark                                  │    │
-│  │  A                                                        B   │    │
-│  │  Mix: 0.45  Tilt: +2.1dB                                     │    │
-│  └────────────────────────────────────────────────────────────────┘    │
-│                                                                        │
-│  ░░ = OSC A dark     ▒▒ = blended zone     ○ = cursor                 │
-│  ▓▓ = blended zone   ██ = OSC B bright     ── = crosshair             │
-│                                                                        │
-│   Mix Mode: [Spectral ▼]    Shift ◯    Phase: [Blend ▼]              │
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
+┌─ OSC A ──────────┐ ┌─── SPECTRAL MORPH ──────────────────────┐ ┌─ OSC B ──────────┐
+│ [/\/\ PolyBLEP ▾]│ │                                          │ │ [▎▎ Additive   ▾]│
+│ Tune      Detune  │ │  ┌─ XYMorphPad ─────────────────────┐   │ │ Tune      Detune  │
+│ Level      Phase  │ │  │                 Bright             │   │ │ Level      Phase  │
+│                   │ │  │                                    │   │ │                   │
+│ [Waveform ▼      ]│ │  │  ░░░░░▒▒▒▒▒▒▓▓▓▓▓▓██████████    │   │ │ [Partial 1  ◯   ]│
+│ [Pulse Width ◯   ]│ │  │  ░░░░░▒▒▒▒○─▒▒▒▒▒▒██████████    │   │ │ [Partial 2  ◯   ]│
+│                   │ │  │  ░░░░░▒▒▒▒▒▒▓▓▓▓▓▓██████████    │   │ │ [Partial 3  ◯   ]│
+│                   │ │  │                  Dark              │   │ │                   │
+│                   │ │  │  A                            B   │   │ │                   │
+│                   │ │  │  Mix: 0.45  Tilt: +2.1dB          │   │ │                   │
+│                   │ │  └────────────────────────────────────┘   │ │                   │
+│                   │ │                                          │ │                   │
+│                   │ │  Mode: [Spectral ▼]  Shift ◯  [Blend ▼] │ │                   │
+│                   │ │                                          │ │                   │
+└───────────────────┘ └──────────────────────────────────────────┘ └───────────────────┘
 ```
 
 **Gradient detail (what each quadrant represents):**
@@ -1692,11 +1838,7 @@ Reuses proven patterns from Disrumpo's `MorphPad`:
 **Component boundary breakdown:**
 
 ```
-┌─ Oscillator Mixer Section (CViewContainer in editor.uidesc) ─────────┐
-│                                                                       │
-│  ┌─ OSC selectors (COptionMenu) ──────────────────────────────────┐  │
-│  │  [Wavetable ▼]                          [Additive ▼]           │  │
-│  └────────────────────────────────────────────────────────────────┘  │
+┌─ Spectral Morph Section (CViewContainer in editor.uidesc) ───────────┐
 │                                                                       │
 │  ┌─ XYMorphPad (custom CControl) ─────────────────────────────────┐  │
 │  │  Responsible for:                                               │  │
@@ -1716,16 +1858,21 @@ Reuses proven patterns from Disrumpo's `MorphPad`:
 │  └────────────────────────────────────────────────────────────────┘  │
 │                                                                       │
 └───────────────────────────────────────────────────────────────────────┘
+
+Note: OSC A and OSC B are separate CViewContainers flanking the Spectral
+Morph section. Each contains an OscillatorTypeSelector (compact dropdown,
+see section 5) plus type-specific parameter controls.
 ```
 
 **Dimensions:**
 
 | Component | Width | Height |
 |-----------|-------|--------|
-| Full Oscillator Mixer section | 450px | ~200px |
-| OSC selector row | 450px | 24px |
+| Spectral Morph section | ~250px | ~200px |
 | XYMorphPad | 200-250px | 140-160px |
-| Mix controls row | 450px | 30px |
+| Mix controls row | 250px | 30px |
+| OSC A / OSC B section (each) | ~170px | ~200px |
+| OscillatorTypeSelector (collapsed) | 180 × 28 px | (in each OSC section) |
 
 ##### 2.8 Differences from Disrumpo's MorphPad
 
@@ -2513,26 +2660,28 @@ saturation prevents confusion.
 
 #### 5. OscillatorTypeSelector
 
-Visual oscillator type chooser with waveform previews. Used for both OSC A
-(`kOscATypeId = 100`) and OSC B (`kOscBTypeId = 200`) — same component class,
-different parameter tag.
+Dropdown-style oscillator type chooser with a popup tile grid. The collapsed
+state shows the current selection compactly (waveform icon + name); clicking it
+opens a 5×2 popup grid with waveform previews for all 10 types. Used for both
+OSC A (`kOscATypeId = 100`) and OSC B (`kOscBTypeId = 200`) — same component
+class, different parameter tag.
 
 ##### 5.1 Core Data Model
 
 **10 oscillator types** from `OscType` enum (`ruinae_types.h`):
 
-| Index | Enum              | Abbrev | Waveform Icon Description                        |
-|-------|-------------------|--------|--------------------------------------------------|
-| 0     | PolyBLEP          | BLEP   | Classic saw/square hybrid silhouette              |
-| 1     | Wavetable          | WTbl   | Multi-frame wavetable stack (3 overlapping waves) |
-| 2     | PhaseDistortion    | PDst   | Bent sine (asymmetric curvature)                  |
-| 3     | Sync              | Sync   | Hard-sync waveform (truncated overtone burst)     |
-| 4     | Additive           | Add    | Harmonic bar spectrum (5-6 descending bars)       |
-| 5     | Chaos              | Chaos  | Lorenz-style attractor squiggle                   |
-| 6     | Particle           | Prtcl  | Scattered dot cluster with envelope arc           |
-| 7     | Formant            | Fmnt   | Vocal formant peaks (2-3 resonant humps)          |
-| 8     | SpectralFreeze     | SFrz   | Frozen spectral slice (vertical bars, snowflake)  |
-| 9     | Noise              | Noise  | Random noise band (jagged horizontal line)        |
+| Index | Enum              | Display Name       | Waveform Icon Description                        |
+|-------|-------------------|--------------------|--------------------------------------------------|
+| 0     | PolyBLEP          | PolyBLEP           | Classic saw/square hybrid silhouette              |
+| 1     | Wavetable          | Wavetable          | Multi-frame wavetable stack (3 overlapping waves) |
+| 2     | PhaseDistortion    | Phase Distortion   | Bent sine (asymmetric curvature)                  |
+| 3     | Sync              | Sync               | Hard-sync waveform (truncated overtone burst)     |
+| 4     | Additive           | Additive           | Harmonic bar spectrum (5-6 descending bars)       |
+| 5     | Chaos              | Chaos              | Lorenz-style attractor squiggle                   |
+| 6     | Particle           | Particle           | Scattered dot cluster with envelope arc           |
+| 7     | Formant            | Formant            | Vocal formant peaks (2-3 resonant humps)          |
+| 8     | SpectralFreeze     | Spectral Freeze    | Frozen spectral slice (vertical bars, snowflake)  |
+| 9     | Noise              | Noise              | Random noise band (jagged horizontal line)        |
 
 **State:** Single integer value 0–9 mapped to the bound VST parameter. The parameter
 is a `StringListParameter` with 10 entries, so normalized value = `index / 9.0`.
@@ -2542,60 +2691,129 @@ is a `StringListParameter` with 10 entries, so normalized value = `index / 9.0`.
 All waveform icons are **drawn programmatically** via `CDrawContext` path operations
 (no bitmaps). This ensures clean scaling at any DPI.
 
-* **Icon area:** Each cell dedicates roughly 70% of its height to the waveform icon
-  and 30% to the abbreviated label below.
-* **Drawing style:** 1.5px stroke, anti-aliased. Unselected cells use a muted
-  foreground color (`rgb(140,140,150)`). Selected cell uses the oscillator's
-  identity color (see below).
+* **Drawing style:** 1.5px stroke, anti-aliased. Stroke only — no fill on waveform
+  paths for clarity at small sizes.
 * **Identity colors:** OSC A = `rgb(100,180,255)` (blue), OSC B = `rgb(255,140,100)`
-  (warm orange). The selected cell's icon stroke and label use this color.
-* **Fill:** No fill on waveform paths — stroke only for clarity at small sizes.
+  (warm orange).
+* **Collapsed state icon:** Drawn at 20 × 14 px within the collapsed control, using
+  the identity color.
+* **Popup grid icons:** Each cell dedicates roughly 70% of its height to the waveform
+  icon and 30% to the abbreviated label below. Unselected cells use a muted foreground
+  color (`rgb(140,140,150)`). The currently selected cell uses the identity color.
 
-##### 5.3 Interaction
+##### 5.3 Collapsed State (Always Visible)
+
+The control displays as a compact, single-line dropdown showing the currently
+selected oscillator type:
+
+```
+┌──────────────────────────────┐
+│  /\/\  PolyBLEP            ▾ │
+└──────────────────────────────┘
+```
+
+* **Content:** Waveform icon (20 × 14 px, identity color) + display name
+  (11px font, `rgb(220,220,225)`) + dropdown arrow indicator (`▾`).
+* **Background:** `rgb(38,38,42)` with 1px border `rgb(60,60,65)`, rounded 3px.
+* **Hover:** Border brightens to `rgb(90,90,95)`.
+* **Click:** Opens the popup tile grid (see 5.4).
+* **Scroll wheel:** Increment/decrement selection by 1 (wraps 9→0 and 0→9).
+  Allows quick auditioning without opening the popup.
+
+##### 5.4 Popup Tile Grid (Opened State)
+
+Clicking the collapsed control opens a floating popup anchored below it, containing
+the 5×2 tile grid. The popup is an overlay that renders on top of surrounding UI.
+
+```
+┌──────────────────────────────┐
+│  /\/\  PolyBLEP            ▾ │  ← collapsed control
+└──┬───────────────────────────┘
+   │
+   ▼
+┌──────────────────────────────────────────────────────┐
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐      │
+│  │ /\/\ │ │≈≈≈≈≈≈│ │  ∿~  │ │/|/|/|│ │▎▎▎▎ │      │
+│  │      │ │      │ │      │ │      │ │      │      │
+│  │ BLEP │ │ WTbl │ │ PDst │ │ Sync │ │ Add  │      │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘      │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐      │
+│  │~*~*~ │ │ .··. │ │ ∩ ∩  │ │▮▮▮▯▯▯│ │▓░▓░▓░│      │
+│  │      │ │      │ │      │ │      │ │      │      │
+│  │Chaos │ │Prtcl │ │ Fmnt │ │ SFrz │ │Noise │      │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘      │
+└──────────────────────────────────────────────────────┘
+```
+
+**Popup positioning:**
+* Anchored to the bottom-left corner of the collapsed control.
+* If the popup would extend below the editor window, flip to open above instead.
+* Left edge aligned with the collapsed control's left edge.
+
+**Popup dismissal:**
+* **Click a tile:** Selects that type, closes popup.
+* **Click outside:** Closes popup without changing selection.
+* **Escape key:** Closes popup without changing selection.
+* **Scroll wheel (while open):** Changes selection and closes popup.
+
+##### 5.5 Popup Grid Interaction
 
 | Action             | Behavior                                                |
 |--------------------|---------------------------------------------------------|
-| Click cell         | Select that oscillator type. Calls `beginEdit()`, `performEdit()`, `endEdit()` in a single gesture. |
-| Hover cell         | Highlight with subtle background tint (`rgba(255,255,255,0.06)`). Show tooltip with full name (e.g., "Phase Distortion", "Spectral Freeze"). |
-| Scroll wheel       | Increment/decrement selection by 1 (wraps around). Allows quick auditioning. |
-| Arrow keys (focus) | Left/Right moves selection horizontally, Up/Down moves between rows. |
+| Click cell         | Select that oscillator type. Calls `beginEdit()`, `performEdit()`, `endEdit()` in a single gesture. Closes popup. |
+| Hover cell         | Highlight with subtle background tint (`rgba(255,255,255,0.06)`). Show tooltip with full display name (e.g., "Phase Distortion", "Spectral Freeze"). |
+| Arrow keys (focus) | Left/Right moves highlight horizontally, Up/Down moves between rows. Enter/Space confirms selection and closes popup. |
 
 **No drag, no right-click, no modifier keys.** This is a simple selector.
 
-##### 5.4 Parameter Communication
+##### 5.6 Parameter Communication
 
 * **Tag binding:** The `CControl` tag maps directly to `kOscATypeId` (100) or
   `kOscBTypeId` (200) depending on which oscillator section instantiates the view.
 * **Value mapping:** Normalized `0.0` = PolyBLEP (index 0), `1.0` = Noise (index 9).
   Convert via `index = round(value * 9)`, `value = index / 9.0`.
 * **Host automation:** Fully automatable. When the host changes the parameter, the
-  view receives `valueChanged()` and redraws to reflect the new selection.
+  collapsed control redraws to reflect the new selection (updated icon + name).
 * **No IMessage needed** — this is a plain parameter, no processor↔controller
   messaging required.
 
-##### 5.5 Visual Layout
+##### 5.7 Visual Layout
 
-**2×5 grid, tooltip-only with abbreviated labels:**
+**Collapsed control in oscillator section context:**
 
 ```
-┌─ OSC A ──────────────────────────────────────────────┐
-│                                                        │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐       │
-│  │ /\/\ │ │≈≈≈≈≈≈│ │  ∿~  │ │/|/|/|│ │▎▎▎▎ │       │
-│  │      │ │      │ │      │ │      │ │      │       │
-│  │ BLEP │ │ WTbl │ │ PDst │ │ Sync │ │ Add  │       │
-│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘       │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐       │
-│  │~*~*~ │ │ .··. │ │ ∩ ∩  │ │▮▮▮▯▯▯│ │▓░▓░▓░│       │
-│  │      │ │      │ │      │ │      │ │      │       │
-│  │Chaos │ │Prtcl │ │ Fmnt │ │ SFrz │ │Noise │       │
-│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘       │
-│                                                        │
-│  [Tune: -24..+24] [Fine: -100..+100] [Level] [Phase] │
-└────────────────────────────────────────────────────────┘
+┌─ OSC A ──────────────────────────────┐
+│                                        │
+│  ┌──────────────────────────────────┐  │
+│  │  /\/\  PolyBLEP               ▾ │  │  ← collapsed selector
+│  └──────────────────────────────────┘  │
+│                                        │
+│  Tune      Detune     Level     Phase  │
+│   ◯         ◯          ◯         ◯    │
+│                                        │
+│  [type-specific params]                │
+│  Waveform ▼    Pulse Width             │
+│                                        │
+└────────────────────────────────────────┘
 ```
 
-**Dimensions:**
+**Collapsed control dimensions:**
+
+| Property           | Value              |
+|--------------------|--------------------|
+| Control size       | 180 × 28 px        |
+| Icon area          | 20 × 14 px         |
+| Icon-to-text gap   | 6 px               |
+| Font size          | 11 px              |
+| Dropdown arrow     | 8 × 5 px, right-aligned |
+| Horizontal padding | 8 px               |
+| Border radius      | 3 px               |
+| Background         | `rgb(38,38,42)`    |
+| Border (idle)      | 1 px, `rgb(60,60,65)` |
+| Border (hover)     | 1 px, `rgb(90,90,95)` |
+| Text color         | `rgb(220,220,225)` |
+
+**Popup grid dimensions:**
 
 | Property           | Value              |
 |--------------------|--------------------|
@@ -2603,52 +2821,78 @@ All waveform icons are **drawn programmatically** via `CDrawContext` path operat
 | Cell size          | 48 × 40 px         |
 | Cell gap           | 2 px                |
 | Total grid         | 248 × 82 px        |
+| Popup padding      | 6 px (all sides)   |
+| Total popup        | 260 × 94 px        |
 | Icon area per cell | 48 × 26 px         |
 | Label area         | 48 × 12 px (centered, 9px font) |
-| Selected border    | 1.5 px, identity color, rounded 3px |
-| Unselected border  | 1 px, `rgb(60,60,65)` |
-| Background         | `rgb(30,30,35)` (matches panel bg) |
+| Popup background   | `rgb(30,30,35)` with 1px border `rgb(70,70,75)` |
+| Popup shadow       | 4px blur, `rgba(0,0,0,0.5)` (if supported by VSTGUI) |
 
-**Selected cell styling:**
+**Selected cell styling (in popup):**
 - Border: identity color at full opacity (blue for OSC A, orange for OSC B)
 - Background: identity color at 10% opacity (`rgba(100,180,255,0.10)`)
 - Icon stroke: identity color
 - Label: identity color
 
-**Unselected cell styling:**
+**Unselected cell styling (in popup):**
 - Border: subtle dark (`rgb(60,60,65)`)
 - Background: transparent
 - Icon stroke: muted (`rgb(140,140,150)`)
 - Label: muted (`rgb(140,140,150)`)
 
-##### 5.6 Accessibility & Keyboard
+##### 5.8 Accessibility & Keyboard
 
-* **Tab focus:** The grid is a single focusable control. Arrow keys navigate cells.
-* **Keyboard selection:** Enter or Space selects the focused cell.
-* **Focus indicator:** Dotted 1px border around the focused cell (distinct from
+* **Tab focus:** The collapsed control is a single focusable control.
+* **Enter/Space (collapsed):** Opens the popup grid.
+* **Arrow keys (popup open):** Navigate cells. Enter/Space confirms and closes.
+* **Escape (popup open):** Closes popup without changing selection.
+* **Focus indicator:** Dotted 1px border around the collapsed control when focused.
+  Inside the popup, a dotted 1px border around the highlighted cell (distinct from
   selection highlight).
-* **Scroll wheel:** Cycles through types sequentially (wraps 9→0 and 0→9).
+* **Scroll wheel (collapsed):** Cycles through types sequentially (wraps 9→0 and
+  0→9) without opening the popup.
 
-##### 5.7 Implementation Notes
+##### 5.9 Implementation Notes
 
 * **Class:** `OscillatorTypeSelector : public CControl` in `plugins/shared/src/ui/`.
+* **Popup view:** The tile grid is created as a child `CViewContainer` added to the
+  editor's top-level frame (`CFrame`) when opened, ensuring it renders above all
+  sibling views. Removed from the frame on dismissal.
+* **Modal behavior:** While the popup is open, install a mouse hook on the `CFrame`
+  to detect clicks outside the popup for dismissal (similar to `COptionMenu`'s
+  modal tracking).
 * **Reusable:** Same class for OSC A and OSC B. The identity color is determined by
   a custom attribute in `editor.uidesc` (e.g., `osc-identity="a"` or `"b"`).
 * **Waveform drawing:** Each type's icon is a static method returning a `CGraphicsPath`
   or drawing directly to context. These are simple 5-10 point paths — no runtime
-  computation needed.
+  computation needed. The same drawing functions are used for both the collapsed icon
+  (scaled to 20 × 14 px) and the popup cell icons (48 × 26 px).
 * **Humble object:** Drawing logic is testable: a pure function maps
   `(OscType, CRect, bool selected, CColor identityColor)` → draw commands.
-* **Hit testing:** `CPoint` → cell index via simple grid arithmetic:
-  `col = x / (cellW + gap)`, `row = y / (cellH + gap)`, `index = row * 5 + col`.
+* **Hit testing (popup):** `CPoint` → cell index via simple grid arithmetic:
+  `col = (x - pad) / (cellW + gap)`, `row = (y - pad) / (cellH + gap)`,
+  `index = row * 5 + col`.
 
 ### VSTGUI Patterns (From Existing Codebase)
 
-All custom views follow the patterns in `plugins/shared/src/ui/` and use:
-- `CView` / `CControl` base classes
-- `IDependent` for parameter change notifications
-- Sub-controllers for section visibility
-- `editor.uidesc` XML for layout
+All custom views live in `plugins/shared/src/ui/` and follow these patterns:
+
+**Base classes:**
+- `CView` for read-only displays (ModHeatmap, ModRingIndicator)
+- `CControl` for interactive controls (ArcKnob, ADSRDisplay, BipolarSlider,
+  StepPatternEditor, XYMorphPad, OscillatorTypeSelector)
+- `CViewContainer` for containers (FieldsetContainer, ModMatrixGrid)
+
+**Registration:** Each control has an inline `ViewCreator` struct registered
+via `VSTGUI::UIViewFactory::registerViewCreator()`. Include the header from
+the plugin's `entry.cpp` to auto-register.
+
+**Parameter binding:** `IDependent` for parameter change notifications, `CControl`
+tag binding for direct parameter mapping, sub-controllers for section visibility.
+
+**Layout:** `editor.uidesc` XML. All sections are `FieldsetContainer` nodes with
+`fieldset-title`, `fieldset-color`, and `fieldset-radius` attributes. All knobs
+are `ArcKnob` nodes with `arc-color`, `control-tag`, and `default-value` attributes.
 
 ---
 

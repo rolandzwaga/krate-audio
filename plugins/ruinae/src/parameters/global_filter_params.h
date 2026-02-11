@@ -90,10 +90,10 @@ inline void saveGlobalFilterParams(const GlobalFilterParams& params, Steinberg::
 
 inline bool loadGlobalFilterParams(GlobalFilterParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
-    if (!streamer.readInt32(iv)) return false; params.enabled.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.type.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false; params.cutoffHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false; params.resonance.store(fv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.enabled.store(iv != 0, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.type.store(iv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.cutoffHz.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.resonance.store(fv, std::memory_order_relaxed);
     return true;
 }
 

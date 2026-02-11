@@ -287,9 +287,13 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // ==========================================================================
     // Modulation Matrix Parameters (1300-1399)
-    // 8 slots x (Source + Dest + Amount) = 24 IDs
+    // Base: 8 slots x (Source + Dest + Amount) = 24 IDs (1300-1323)
+    // Detail: 8 slots x (Curve + Smooth + Scale + Bypass) = 32 IDs (1324-1355)
+    // Total: 56 parameters (spec 049)
     // ==========================================================================
     kModMatrixBaseId = 1300,
+
+    // --- Base Parameters: Source, Destination, Amount (3 per slot) ---
     kModMatrixSlot0SourceId = 1300,
     kModMatrixSlot0DestId = 1301,
     kModMatrixSlot0AmountId = 1302,
@@ -314,6 +318,45 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kModMatrixSlot7SourceId = 1321,
     kModMatrixSlot7DestId = 1322,
     kModMatrixSlot7AmountId = 1323,
+
+    // --- Detail Parameters: Curve, Smooth, Scale, Bypass (4 per slot) ---
+    // Formula: Curve = 1324 + slot*4, Smooth = 1325 + slot*4,
+    //          Scale = 1326 + slot*4, Bypass = 1327 + slot*4
+    kModMatrixDetailBaseId = 1324,
+    kModMatrixSlot0CurveId = 1324,
+    kModMatrixSlot0SmoothId = 1325,
+    kModMatrixSlot0ScaleId = 1326,
+    kModMatrixSlot0BypassId = 1327,
+    kModMatrixSlot1CurveId = 1328,
+    kModMatrixSlot1SmoothId = 1329,
+    kModMatrixSlot1ScaleId = 1330,
+    kModMatrixSlot1BypassId = 1331,
+    kModMatrixSlot2CurveId = 1332,
+    kModMatrixSlot2SmoothId = 1333,
+    kModMatrixSlot2ScaleId = 1334,
+    kModMatrixSlot2BypassId = 1335,
+    kModMatrixSlot3CurveId = 1336,
+    kModMatrixSlot3SmoothId = 1337,
+    kModMatrixSlot3ScaleId = 1338,
+    kModMatrixSlot3BypassId = 1339,
+    kModMatrixSlot4CurveId = 1340,
+    kModMatrixSlot4SmoothId = 1341,
+    kModMatrixSlot4ScaleId = 1342,
+    kModMatrixSlot4BypassId = 1343,
+    kModMatrixSlot5CurveId = 1344,
+    kModMatrixSlot5SmoothId = 1345,
+    kModMatrixSlot5ScaleId = 1346,
+    kModMatrixSlot5BypassId = 1347,
+    kModMatrixSlot6CurveId = 1348,
+    kModMatrixSlot6SmoothId = 1349,
+    kModMatrixSlot6ScaleId = 1350,
+    kModMatrixSlot6BypassId = 1351,
+    kModMatrixSlot7CurveId = 1352,
+    kModMatrixSlot7SmoothId = 1353,
+    kModMatrixSlot7ScaleId = 1354,
+    kModMatrixSlot7BypassId = 1355,
+    kModMatrixDetailEndId = 1355,
+
     kModMatrixEndId = 1399,
 
     // ==========================================================================

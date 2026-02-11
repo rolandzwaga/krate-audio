@@ -86,10 +86,10 @@ inline void saveMonoModeParams(const MonoModeParams& params, Steinberg::IBStream
 
 inline bool loadMonoModeParams(MonoModeParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
-    if (!streamer.readInt32(iv)) return false; params.priority.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.legato.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false; params.portamentoTimeMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.portaMode.store(iv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.priority.store(iv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.legato.store(iv != 0, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.portamentoTimeMs.store(fv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.portaMode.store(iv, std::memory_order_relaxed);
     return true;
 }
 

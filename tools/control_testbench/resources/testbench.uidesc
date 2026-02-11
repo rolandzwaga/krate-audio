@@ -3,12 +3,11 @@
     <!--
     Control Testbench UI Description
     ================================
-    Main layout for the control testing application.
+    Two-column layout for the control testing application.
 
-    Structure:
-    - Left panel: Control under test (TapPatternEditor)
-    - Right panel: Parameter log
-    - Bottom: Control options/settings
+    Left column:  ArcKnob, TapPatternEditor+Log+Settings, ModHeatmap, ModMatrixGrid
+    Right column: FieldsetContainer, StepPatternEditor, XYMorphPad, ADSRDisplay,
+                  BipolarSlider, ModRingIndicator
     -->
 
     <colors>
@@ -26,11 +25,11 @@
         <font name="mono" font-name="Consolas" size="9"/>
     </fonts>
 
-    <template name="view" size="750, 1400" background-color="background">
+    <template name="view" size="1500, 1150" background-color="background">
         <!-- Main container with TestbenchController -->
         <view class="CViewContainer"
               origin="0, 0"
-              size="750, 1400"
+              size="1500, 1150"
               background-color="background"
               sub-controller="TestbenchController">
 
@@ -44,6 +43,10 @@
                   text-alignment="left"
                   background-color="~ TransparentCColor"
                   frame-color="~ TransparentCColor"/>
+
+            <!-- ============================================================ -->
+            <!-- LEFT COLUMN (x=10)                                           -->
+            <!-- ============================================================ -->
 
             <!-- ============================================================ -->
             <!-- ArcKnob Demo Panel -->
@@ -207,7 +210,7 @@
                       custom-view-name="TapPatternEditor"/>
             </view>
 
-            <!-- Parameter log panel (right side) -->
+            <!-- Parameter log panel (right of TapPattern) -->
             <view class="CViewContainer"
                   origin="500, 175"
                   size="240, 280"
@@ -221,7 +224,7 @@
                       custom-view-name="ParameterLog"/>
             </view>
 
-            <!-- Control settings panel (bottom) -->
+            <!-- Control settings panel (below TapPattern) -->
             <view class="CViewContainer"
                   origin="10, 465"
                   size="730, 105"
@@ -274,11 +277,11 @@
             </view>
 
             <!-- ============================================================ -->
-            <!-- Step Pattern Editor Panel -->
+            <!-- ModHeatmap Demo Panel -->
             <!-- ============================================================ -->
             <view class="CViewContainer"
                   origin="10, 580"
-                  size="730, 260"
+                  size="730, 170"
                   background-color="panel.background"
                   background-color-draw-style="filled">
 
@@ -286,24 +289,62 @@
                 <view class="CTextLabel"
                       origin="10, 5"
                       size="200, 16"
-                      title="StepPatternEditor"
+                      title="ModHeatmap"
                       font="title"
                       font-color="text.secondary"
                       text-alignment="left"
                       background-color="~ TransparentCColor"
                       frame-color="~ TransparentCColor"/>
 
-                <!-- The actual control under test -->
+                <!-- Heatmap -->
                 <view class="CView"
                       origin="10, 25"
-                      size="500, 200"
-                      custom-view-name="StepPatternEditor"/>
+                      size="420, 130"
+                      custom-view-name="ModHeatmapDemo"/>
 
                 <!-- Description -->
                 <view class="CTextLabel"
-                      origin="520, 25"
-                      size="200, 100"
-                      title="Bar chart step pattern editor for gate sequencers. Click-drag to set levels, paint mode across steps. Double-click reset, Alt+click toggle, Shift fine mode, Escape cancel."
+                      origin="440, 25"
+                      size="280, 130"
+                      title="Source-by-destination heatmap grid. Cell color = source identity color, intensity = |amount|. Row headers (sources), column headers (destinations). Click active cell to select route, hover for tooltip. Read-only visualization. Switches between Global (10x11) and Voice (7x7) modes."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- ModMatrixGrid Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="10, 760"
+                  size="730, 380"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="ModMatrixGrid"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- The mod matrix grid -->
+                <view class="CView"
+                      origin="10, 25"
+                      size="450, 280"
+                      custom-view-name="ModMatrixGridDemo"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="470, 25"
+                      size="250, 200"
+                      title="Slot-based modulation route list. Global/Voice tabs, source color dots, source/dest dropdowns, bipolar amount sliders, expandable detail rows (Curve, Smooth, Scale, Bypass). Click disclosure triangle to expand. Add/remove routes. 3 demo routes pre-populated. Shift=fine (0.1x) on inline slider."
                       font="label"
                       font-color="text.secondary"
                       text-alignment="left"
@@ -312,9 +353,9 @@
 
                 <!-- Instructions -->
                 <view class="CTextLabel"
-                      origin="10, 230"
-                      size="700, 24"
-                      title="Click-drag vertical to set level. Drag horizontal for paint mode. Double-click=reset. Alt+click=toggle. Shift=fine (0.1x). Escape=cancel."
+                      origin="10, 315"
+                      size="700, 50"
+                      title="Click [+ Add Route] to add. Click [x] to remove. Click disclosure triangle to expand details.&#10;Drag amount slider to adjust. Click source/dest dropdown to cycle. Click Curve/Scale to cycle, drag Smooth to adjust."
                       font="label"
                       font-color="text.secondary"
                       text-alignment="left"
@@ -323,140 +364,14 @@
             </view>
 
             <!-- ============================================================ -->
-            <!-- XYMorphPad Demo Panel -->
+            <!-- RIGHT COLUMN (x=760)                                         -->
             <!-- ============================================================ -->
-            <view class="CViewContainer"
-                  origin="10, 850"
-                  size="730, 210"
-                  background-color="panel.background"
-                  background-color-draw-style="filled">
-
-                <!-- Panel title -->
-                <view class="CTextLabel"
-                      origin="10, 5"
-                      size="200, 16"
-                      title="XYMorphPad"
-                      font="title"
-                      font-color="text.secondary"
-                      text-alignment="left"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-
-                <!-- Default pad (250x160) -->
-                <view class="CView"
-                      origin="10, 25"
-                      size="250, 160"
-                      custom-view-name="XYMorphPad"/>
-
-                <!-- Modulation demo pad (250x160) -->
-                <view class="CTextLabel"
-                      origin="270, 5"
-                      size="120, 16"
-                      title="With Modulation"
-                      font="mono"
-                      font-color="text.secondary"
-                      text-alignment="left"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-                <view class="CView"
-                      origin="270, 25"
-                      size="250, 160"
-                      custom-view-name="XYMorphPadModDemo"/>
-
-                <!-- Description -->
-                <view class="CTextLabel"
-                      origin="530, 25"
-                      size="190, 160"
-                      title="2D XY pad for simultaneous control of two parameters. Bilinear gradient background, crosshair cursor, modulation range overlay. Shift=fine (0.1x), double-click=center, Escape=cancel."
-                      font="label"
-                      font-color="text.secondary"
-                      text-alignment="left"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-            </view>
-
-            <!-- ============================================================ -->
-            <!-- ADSRDisplay Demo Panel -->
-            <!-- ============================================================ -->
-            <view class="CViewContainer"
-                  origin="10, 1070"
-                  size="730, 180"
-                  background-color="panel.background"
-                  background-color-draw-style="filled">
-
-                <!-- Panel title -->
-                <view class="CTextLabel"
-                      origin="10, 5"
-                      size="200, 16"
-                      title="ADSRDisplay"
-                      font="title"
-                      font-color="text.secondary"
-                      text-alignment="left"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-
-                <!-- Amp envelope (blue) -->
-                <view class="CTextLabel"
-                      origin="10, 150"
-                      size="200, 14"
-                      title="Amp (A=10ms D=80ms S=0.7 R=200ms)"
-                      font="mono"
-                      font-color="text.secondary"
-                      text-alignment="center"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-                <view class="CView"
-                      origin="10, 25"
-                      size="200, 120"
-                      custom-view-name="ADSRDisplayAmp"/>
-
-                <!-- Filter envelope (amber) -->
-                <view class="CTextLabel"
-                      origin="225, 150"
-                      size="200, 14"
-                      title="Filter (A=1ms D=150ms S=0.4 R=500ms)"
-                      font="mono"
-                      font-color="text.secondary"
-                      text-alignment="center"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-                <view class="CView"
-                      origin="225, 25"
-                      size="200, 120"
-                      custom-view-name="ADSRDisplayFilter"/>
-
-                <!-- Mod envelope (purple) -->
-                <view class="CTextLabel"
-                      origin="440, 150"
-                      size="200, 14"
-                      title="Mod (A=50ms D=200ms S=0.5 R=1000ms)"
-                      font="mono"
-                      font-color="text.secondary"
-                      text-alignment="center"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-                <view class="CView"
-                      origin="440, 25"
-                      size="200, 120"
-                      custom-view-name="ADSRDisplayMod"/>
-
-                <!-- Description -->
-                <view class="CTextLabel"
-                      origin="655, 25"
-                      size="65, 140"
-                      title="Interactive ADSR envelope editor. Drag points, bend curves, Shift=fine, dbl-click=reset, Esc=cancel, [S]/[B] toggle."
-                      font="label"
-                      font-color="text.secondary"
-                      text-alignment="left"
-                      background-color="~ TransparentCColor"
-                      frame-color="~ TransparentCColor"/>
-            </view>
 
             <!-- ============================================================ -->
             <!-- FieldsetContainer Demo Panel -->
             <!-- ============================================================ -->
             <view class="CViewContainer"
-                  origin="10, 1260"
+                  origin="760, 35"
                   size="730, 120"
                   background-color="panel.background"
                   background-color-draw-style="filled">
@@ -538,6 +453,357 @@
                       origin="510, 30"
                       size="210, 80"
                       title="HTML fieldset-style container with rounded outline, title gap, and top-left corner highlight. Configurable color, radius, and line width."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- Step Pattern Editor Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="760, 165"
+                  size="730, 260"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="StepPatternEditor"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- The actual control under test -->
+                <view class="CView"
+                      origin="10, 25"
+                      size="500, 200"
+                      custom-view-name="StepPatternEditor"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="520, 25"
+                      size="200, 100"
+                      title="Bar chart step pattern editor for gate sequencers. Click-drag to set levels, paint mode across steps. Double-click reset, Alt+click toggle, Shift fine mode, Escape cancel."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Instructions -->
+                <view class="CTextLabel"
+                      origin="10, 230"
+                      size="700, 24"
+                      title="Click-drag vertical to set level. Drag horizontal for paint mode. Double-click=reset. Alt+click=toggle. Shift=fine (0.1x). Escape=cancel."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- XYMorphPad Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="760, 435"
+                  size="730, 210"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="XYMorphPad"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Default pad (250x160) -->
+                <view class="CView"
+                      origin="10, 25"
+                      size="250, 160"
+                      custom-view-name="XYMorphPad"/>
+
+                <!-- Modulation demo pad (250x160) -->
+                <view class="CTextLabel"
+                      origin="270, 5"
+                      size="120, 16"
+                      title="With Modulation"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="270, 25"
+                      size="250, 160"
+                      custom-view-name="XYMorphPadModDemo"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="530, 25"
+                      size="190, 160"
+                      title="2D XY pad for simultaneous control of two parameters. Bilinear gradient background, crosshair cursor, modulation range overlay. Shift=fine (0.1x), double-click=center, Escape=cancel."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- ADSRDisplay Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="760, 655"
+                  size="730, 180"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="ADSRDisplay"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Amp envelope (blue) -->
+                <view class="CTextLabel"
+                      origin="10, 150"
+                      size="200, 14"
+                      title="Amp (A=10ms D=80ms S=0.7 R=200ms)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="10, 25"
+                      size="200, 120"
+                      custom-view-name="ADSRDisplayAmp"/>
+
+                <!-- Filter envelope (amber) -->
+                <view class="CTextLabel"
+                      origin="225, 150"
+                      size="200, 14"
+                      title="Filter (A=1ms D=150ms S=0.4 R=500ms)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="225, 25"
+                      size="200, 120"
+                      custom-view-name="ADSRDisplayFilter"/>
+
+                <!-- Mod envelope (purple) -->
+                <view class="CTextLabel"
+                      origin="440, 150"
+                      size="200, 14"
+                      title="Mod (A=50ms D=200ms S=0.5 R=1000ms)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="440, 25"
+                      size="200, 120"
+                      custom-view-name="ADSRDisplayMod"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="655, 25"
+                      size="65, 140"
+                      title="Interactive ADSR envelope editor. Drag points, bend curves, Shift=fine, dbl-click=reset, Esc=cancel, [S]/[B] toggle."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- BipolarSlider Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="760, 845"
+                  size="730, 100"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="BipolarSlider"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- Center (0.0) -->
+                <view class="CTextLabel"
+                      origin="10, 55"
+                      size="200, 14"
+                      title="Center (0.0)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="10, 28"
+                      size="200, 24"
+                      custom-view-name="BipolarSliderDemo"/>
+
+                <!-- Negative (-0.5) -->
+                <view class="CTextLabel"
+                      origin="225, 55"
+                      size="200, 14"
+                      title="Negative (-0.50)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="225, 28"
+                      size="200, 24"
+                      custom-view-name="BipolarSliderNeg"/>
+
+                <!-- Positive (+0.72) -->
+                <view class="CTextLabel"
+                      origin="440, 55"
+                      size="200, 14"
+                      title="Positive (+0.72)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="440, 28"
+                      size="200, 24"
+                      custom-view-name="BipolarSliderPos"/>
+
+                <!-- Instructions -->
+                <view class="CTextLabel"
+                      origin="10, 75"
+                      size="700, 16"
+                      title="Drag to adjust [-1, +1]. Shift=fine (0.1x). Escape=cancel. Centered fill extends left/right from center tick."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- ModRingIndicator Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="760, 955"
+                  size="730, 130"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="200, 16"
+                      title="ModRingIndicator"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- 2-arc demo with ArcKnob underneath -->
+                <view class="CTextLabel"
+                      origin="10, 95"
+                      size="80, 14"
+                      title="2 arcs"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="ArcKnob"
+                      origin="20, 25"
+                      size="60, 60"
+                      default-value="0.5"
+                      arc-color="#DCA850"
+                      guide-color="#FFFFFF28"/>
+                <view class="CView"
+                      origin="20, 25"
+                      size="60, 60"
+                      custom-view-name="ModRingIndicatorDemo"/>
+
+                <!-- 4-arc demo -->
+                <view class="CTextLabel"
+                      origin="110, 95"
+                      size="80, 14"
+                      title="4 arcs"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="ArcKnob"
+                      origin="120, 25"
+                      size="60, 60"
+                      default-value="0.4"
+                      arc-color="#4ECDC4"
+                      guide-color="#FFFFFF28"/>
+                <view class="CView"
+                      origin="120, 25"
+                      size="60, 60"
+                      custom-view-name="ModRingIndicator4Arcs"/>
+
+                <!-- Composite (6 arcs -> 4 individual + gray) -->
+                <view class="CTextLabel"
+                      origin="210, 95"
+                      size="80, 14"
+                      title="6 arcs (+)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="ArcKnob"
+                      origin="220, 25"
+                      size="60, 60"
+                      default-value="0.3"
+                      arc-color="#B39DDB"
+                      guide-color="#FFFFFF28"/>
+                <view class="CView"
+                      origin="220, 25"
+                      size="60, 60"
+                      custom-view-name="ModRingIndicatorComposite"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="320, 25"
+                      size="400, 80"
+                      title="Colored modulation arc overlays on destination knobs. Up to 4 individual arcs in source colors, 5+ triggers composite gray arc with '+' label. Click arc to select route, hover for tooltip. No timer -- IDependent-driven redraw only."
                       font="label"
                       font-color="text.secondary"
                       text-alignment="left"

@@ -855,7 +855,7 @@ private:
             float centerX = static_cast<float>(barArea.left) +
                 (static_cast<float>(visibleIndex) + 0.5f) * barWidth;
 
-            char label[8];
+            char label[16];
             snprintf(label, sizeof(label), "%d", i + 1);
 
             VSTGUI::CRect labelRect(centerX - 10.0f, labelTop,

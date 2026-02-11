@@ -47,8 +47,8 @@ inline void saveFreezeParams(const RuinaeFreezeParams& params, Steinberg::IBStre
 
 inline bool loadFreezeParams(RuinaeFreezeParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0;
-    if (!streamer.readInt32(iv)) return false; params.enabled.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.freeze.store(iv != 0, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.enabled.store(iv != 0, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.freeze.store(iv != 0, std::memory_order_relaxed);
     return true;
 }
 

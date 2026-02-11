@@ -21,6 +21,7 @@
 #include "vstgui/lib/controls/ccontrol.h"
 #include "preset/preset_manager.h"
 
+#include <array>
 #include <atomic>
 #include <memory>
 
@@ -30,6 +31,8 @@ class SavePresetDialogView;
 class StepPatternEditor;
 class XYMorphPad;
 class ADSRDisplay;
+class ModMatrixGrid;
+class ModRingIndicator;
 }
 
 namespace Ruinae {
@@ -160,6 +163,22 @@ private:
 
     /// Wire envelope display playback state pointers to ADSRDisplay instances
     void wireEnvDisplayPlayback();
+
+    /// Wire ModMatrixGrid instance with callbacks for parameter editing
+    void wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid);
+
+    /// Sync ModMatrixGrid route data from current parameter state
+    void syncModMatrixGrid();
+
+    /// Wire a ModRingIndicator instance found in verifyView()
+    void wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicator);
+
+    /// Rebuild ArcInfo lists for all ModRingIndicator instances from current params
+    void rebuildRingIndicators();
+
+    /// Select a modulation route for cross-component communication (FR-027)
+    void selectModulationRoute(int sourceIndex, int destIndex);
+
     // ==========================================================================
     // UI State
     // ==========================================================================
@@ -167,6 +186,12 @@ private:
     VSTGUI::VST3Editor* activeEditor_ = nullptr;
     Krate::Plugins::StepPatternEditor* stepPatternEditor_ = nullptr;
     Krate::Plugins::XYMorphPad* xyMorphPad_ = nullptr;
+    Krate::Plugins::ModMatrixGrid* modMatrixGrid_ = nullptr;
+
+    /// ModRingIndicator pointers indexed by ModDestination enum value (up to 11)
+    static constexpr int kMaxRingIndicators = 11;
+    std::array<Krate::Plugins::ModRingIndicator*, 11> ringIndicators_{};
+
     Krate::Plugins::ADSRDisplay* ampEnvDisplay_ = nullptr;
     Krate::Plugins::ADSRDisplay* filterEnvDisplay_ = nullptr;
     Krate::Plugins::ADSRDisplay* modEnvDisplay_ = nullptr;

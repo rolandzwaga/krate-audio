@@ -75,9 +75,9 @@ inline void saveChaosModParams(const ChaosModParams& params, Steinberg::IBStream
 
 inline bool loadChaosModParams(ChaosModParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) return false; params.rateHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.type.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false; params.depth.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.type.store(iv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
     return true;
 }
 
