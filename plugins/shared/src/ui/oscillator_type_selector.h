@@ -751,7 +751,17 @@ private:
     // =========================================================================
 
     [[nodiscard]] VSTGUI::CRect computePopupRect() const {
-        auto controlRect = getViewSize();
+        // Convert control bounds from parent-local to frame coordinates.
+        // getViewSize() is in parent coords, but the popup is added to CFrame
+        // and needs frame-absolute coordinates.
+        VSTGUI::CPoint frameOrigin(0, 0);
+        localToFrame(frameOrigin);
+        auto vs = getViewSize();
+        VSTGUI::CRect controlRect(
+            frameOrigin.x, frameOrigin.y,
+            frameOrigin.x + vs.getWidth(),
+            frameOrigin.y + vs.getHeight());
+
         auto* frame = getFrame();
         VSTGUI::CRect frameRect;
         if (frame) {

@@ -25,11 +25,11 @@
         <font name="mono" font-name="Consolas" size="9"/>
     </fonts>
 
-    <template name="view" size="1500, 1150" background-color="background">
+    <template name="view" size="1500, 1250" background-color="background">
         <!-- Main container with TestbenchController -->
         <view class="CViewContainer"
               origin="0, 0"
-              size="1500, 1150"
+              size="1500, 1250"
               background-color="background"
               sub-controller="TestbenchController">
 
@@ -804,6 +804,68 @@
                       origin="320, 25"
                       size="400, 80"
                       title="Colored modulation arc overlays on destination knobs. Up to 4 individual arcs in source colors, 5+ triggers composite gray arc with '+' label. Click arc to select route, hover for tooltip. No timer -- IDependent-driven redraw only."
+                      font="label"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+            </view>
+
+            <!-- ============================================================ -->
+            <!-- OscillatorTypeSelector Demo Panel -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer"
+                  origin="760, 1095"
+                  size="730, 100"
+                  background-color="panel.background"
+                  background-color-draw-style="filled">
+
+                <!-- Panel title -->
+                <view class="CTextLabel"
+                      origin="10, 5"
+                      size="250, 16"
+                      title="OscillatorTypeSelector"
+                      font="title"
+                      font-color="text.secondary"
+                      text-alignment="left"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+
+                <!-- OSC A (blue identity) -->
+                <view class="CTextLabel"
+                      origin="10, 60"
+                      size="180, 14"
+                      title="OSC A (blue, PolyBLEP)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="10, 28"
+                      size="180, 28"
+                      custom-view-name="OscSelectorA"/>
+
+                <!-- OSC B (orange identity) -->
+                <view class="CTextLabel"
+                      origin="210, 60"
+                      size="180, 14"
+                      title="OSC B (orange, Particle)"
+                      font="mono"
+                      font-color="text.secondary"
+                      text-alignment="center"
+                      background-color="~ TransparentCColor"
+                      frame-color="~ TransparentCColor"/>
+                <view class="CView"
+                      origin="210, 28"
+                      size="180, 28"
+                      custom-view-name="OscSelectorB"/>
+
+                <!-- Description -->
+                <view class="CTextLabel"
+                      origin="410, 25"
+                      size="310, 65"
+                      title="Dropdown-style oscillator type selector with waveform icons, popup grid overlay, keyboard navigation, scroll wheel cycling. Two identity colors: blue (OSC A) and orange (OSC B). Click to open popup, scroll to cycle."
                       font="label"
                       font-color="text.secondary"
                       text-alignment="left"
