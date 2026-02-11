@@ -1325,7 +1325,7 @@ void Controller::registerGlobalParams() {
         intToString128(i, str);
         bandCountParam->appendString(str);
     }
-    bandCountParam->setNormalized(3.0 / 3.0);  // Default to index 3 = "4"
+    bandCountParam->setNormalized(1.0);  // Default to index 3 = "4" (3/3 steps)
     parameters.addParameter(bandCountParam);
 
     // Oversample Max: StringListParameter ["1x","2x","4x","8x"], default "4x"
@@ -3030,6 +3030,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
                     }
 
                     // v9: Per-type shadow storage (26 types × 10 slots)
+                    // NOLINTNEXTLINE(modernize-loop-convert) index needed: array access conditional on b < kMaxBands
                     for (int t = 0; t < kDistortionTypeCount; ++t) {
                         for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
                             float shadowValue;
@@ -3186,7 +3187,7 @@ Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString nam
         {
             auto* mpParam = getParameterObject(
                 makeGlobalParamId(GlobalParamType::kGlobalModPanelVisible));
-            bool modVis = mpParam && (mpParam->getNormalized() >= 0.5);
+            bool modVis = (mpParam != nullptr) && (mpParam->getNormalized() >= 0.5);
             double extraH = modVis ? ModPanelToggleController::kModPanelHeight : 0.0;
             editor->setEditorSizeConstrains(
                 VSTGUI::CPoint(834, 500 + extraH),
@@ -4084,7 +4085,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     for (int b = 0; b < kMaxBands; ++b) {
         nodeSelectionControllers_[b] = new NodeSelectionController(
             this, static_cast<uint8_t>(b),
-            &shapeShadowStorage_[b][0]);
+            shapeShadowStorage_[b].data());
     }
 
     // FR-047, FR-049: Create sweep visualization controller
@@ -4675,9 +4676,9 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
 
             // v9: Per-type shadow storage (26 types × 10 slots)
             const auto& shadow = shapeShadowStorage_[b][n];
-            for (int t = 0; t < kDistortionTypeCount; ++t) {
-                for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
-                    streamer.writeFloat(shadow.typeSlots[t][s]);
+            for (const auto& typeSlot : shadow.typeSlots) {
+                for (float slotValue : typeSlot) {
+                    streamer.writeFloat(slotValue);
                 }
             }
         }
@@ -5057,8 +5058,12 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
                 const auto node = static_cast<uint8_t>(n);
 
                 Steinberg::int8 nodeType = 0;
-                float drive = 1.0f, mix = 1.0f, tone = 4000.0f;
-                float bias = 0.0f, folds = 1.0f, bitDepth = 16.0f;
+                float drive = 1.0f;
+                float mix = 1.0f;
+                float tone = 4000.0f;
+                float bias = 0.0f;
+                float folds = 1.0f;
+                float bitDepth = 16.0f;
 
                 bool rType = streamer.readInt8(nodeType);
                 bool rDrive = streamer.readFloat(drive);
@@ -5092,6 +5097,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
                     }
 
                     // v9: Per-type shadow storage (26 types × 10 slots)
+                    // NOLINTNEXTLINE(modernize-loop-convert) index needed: array access conditional on b < kMaxBands
                     for (int t = 0; t < kDistortionTypeCount; ++t) {
                         for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
                             float shadowValue;
@@ -5132,7 +5138,9 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
         attrs->getFloat("sampleRate", sampleRate);
 
         // Cache FIFO pointers so we can connect when editor opens later
+        // NOLINTNEXTLINE(performance-no-int-to-ptr) VST3 IMessage pointer transfer pattern
         cachedInputFIFO_ = reinterpret_cast<void*>(static_cast<intptr_t>(inputPtr));
+        // NOLINTNEXTLINE(performance-no-int-to-ptr) VST3 IMessage pointer transfer pattern
         cachedOutputFIFO_ = reinterpret_cast<void*>(static_cast<intptr_t>(outputPtr));
         cachedSpectrumSampleRate_ = sampleRate;
 
@@ -5158,7 +5166,7 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
 
         Steinberg::int64 ptr = 0;
         attrs->getInt("ptr", ptr);
-        cachedModOffsets_ = reinterpret_cast<const float*>(
+        cachedModOffsets_ = reinterpret_cast<const float*>(  // NOLINT(performance-no-int-to-ptr) VST3 IMessage pointer transfer
             static_cast<intptr_t>(ptr));
 
         return Steinberg::kResultOk;

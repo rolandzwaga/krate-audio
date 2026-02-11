@@ -212,9 +212,7 @@ std::string SpectrumDisplay::formatFrequency(float freqHz, bool precise) {
             std::snprintf(buf, sizeof(buf), "%d", static_cast<int>(freqHz + 0.5f));
         } else {
             float kHz = freqHz / 1000.0f;
-            if (kHz >= 10.0f) {
-                std::snprintf(buf, sizeof(buf), "%.0fk", static_cast<double>(kHz));
-            } else if (kHz == std::floor(kHz)) {
+            if (kHz >= 10.0f || kHz == std::floor(kHz)) {
                 std::snprintf(buf, sizeof(buf), "%.0fk", static_cast<double>(kHz));
             } else {
                 std::snprintf(buf, sizeof(buf), "%.1fk", static_cast<double>(kHz));
@@ -489,8 +487,8 @@ void SpectrumDisplay::drawCrossoverLabels(VSTGUI::CDrawContext* context) {
 
     // Build label rects and determine which are precise
     struct LabelInfo {
-        float centerX;
-        bool precise;
+        float centerX = 0.0f;
+        bool precise = false;
         std::string text;
         VSTGUI::CRect rect;
     };
@@ -515,7 +513,7 @@ void SpectrumDisplay::drawCrossoverLabels(VSTGUI::CDrawContext* context) {
     // Simple collision avoidance: nudge overlapping adjacent labels apart
     for (int i = 0; i < numDividers - 1; ++i) {
         auto& left = labels[static_cast<size_t>(i)];
-        auto& right = labels[static_cast<size_t>(i + 1)];
+        auto& right = labels[static_cast<size_t>(i) + 1];
         float overlap = static_cast<float>(left.rect.right - right.rect.left);
         if (overlap > 0.0f) {
             float nudge = (overlap + 2.0f) / 2.0f;  // +2px gap

@@ -481,6 +481,6 @@ All 43 functional requirements (FR-001 through FR-043) and all 8 success criteri
 - `Ruinae` plugin: Builds with zero errors and zero warnings
 - `control_testbench`: Builds with zero errors and zero warnings
 
-**Static analysis (Phase 9):** SKIPPED -- clang-tidy is not installed on this system. Recommended to run when available.
+**Static analysis (Phase 9):** PASSED -- `./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja` analyzed 226 files. Initial run found 31 warnings across 5 files. All 31 fixed or NOLINT-suppressed with documented justification per Constitution VIII. Final re-run: 0 errors, 0 warnings.
 
-**Recommendation**: None -- all requirements are met. Consider running clang-tidy when available as a quality gate.
+**Recommendation**: None -- all requirements are met.

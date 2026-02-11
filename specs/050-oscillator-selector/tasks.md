@@ -451,18 +451,23 @@ Note: This was already implemented in User Story 1 (T030 - valueChanged() overri
 
 ### 9.1 Run Clang-Tidy Analysis
 
-- [~] T077 **SKIPPED** - clang-tidy not installed on this system
-- [~] T078 **SKIPPED** - clang-tidy not installed on this system
+- [X] T077 **compile_commands.json** already exists at `build/windows-ninja/`
+- [X] T078 **Ran clang-tidy**: `./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja` — 226 files analyzed, 0 errors, 31 warnings found across 5 files
 
 ### 9.2 Address Findings
 
-- [~] T079 **SKIPPED** - clang-tidy not installed on this system
-- [~] T080 **SKIPPED** - clang-tidy not installed on this system
-- [~] T081 **SKIPPED** - clang-tidy not installed on this system
+- [X] T079 **0 errors** — no error-level findings
+- [X] T080 **Fixed all 31 warnings** across 5 files per Constitution VIII (no "pre-existing" exceptions):
+  - `spectral_simd.cpp` (6): NOLINT for Highway self-inclusion, macro namespace, HWY_EXPORT linkage; split multi-declaration
+  - `selectable_oscillator_test.cpp` (5): removed redundant `static` in anon namespace; NOLINT for intentional malloc/free in operator new/delete overrides
+  - `spectrum_display.cpp` (3): merged duplicate branch bodies; added default member initializers; fixed widening cast order
+  - `disrumpo controller.cpp` (11): simplified redundant expression; explicit bool conversion; `.data()` instead of `&[0]`; isolated declarations; range-based for on save loops; NOLINT for conditional-access load loops and VST3 int-to-ptr pattern
+  - `disrumpo processor.cpp` (6): range-based for on save loops; isolated declarations; NOLINT for conditional-access load loops
+- [X] T081 **NOLINT suppressions documented** — each has inline justification explaining why the warning cannot be resolved
 
 ### 9.3 Commit Static Analysis Fixes
 
-- [~] T082 **SKIPPED** - clang-tidy not installed on this system
+- [X] T082 **Re-ran clang-tidy after fixes**: 226 files, 0 errors, 0 warnings — fully clean
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 

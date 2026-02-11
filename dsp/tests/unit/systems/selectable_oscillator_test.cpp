@@ -287,8 +287,8 @@ TEST_CASE("SelectableOscillator: SpectralFreeze produces output",
 // The allocation tracking uses a simple counter approach.
 
 namespace {
-static std::atomic<int> g_allocationCount{0};
-static bool g_trackAllocations = false;
+std::atomic<int> g_allocationCount{0};
+bool g_trackAllocations = false;
 } // anonymous namespace
 
 // Override global operator new for allocation tracking
@@ -296,17 +296,17 @@ void* operator new(std::size_t size) {
     if (g_trackAllocations) {
         g_allocationCount.fetch_add(1, std::memory_order_relaxed);
     }
-    void* p = std::malloc(size);
+    void* p = std::malloc(size);  // NOLINT(cppcoreguidelines-no-malloc) intentional: operator new override for allocation tracking
     if (!p) throw std::bad_alloc();
     return p;
 }
 
 void operator delete(void* p) noexcept {
-    std::free(p);
+    std::free(p);  // NOLINT(cppcoreguidelines-no-malloc) intentional: operator delete override
 }
 
 void operator delete(void* p, [[maybe_unused]] std::size_t size) noexcept {
-    std::free(p);
+    std::free(p);  // NOLINT(cppcoreguidelines-no-malloc) intentional: operator delete override
 }
 
 TEST_CASE("SelectableOscillator: zero heap allocations during type switch for ALL types (SC-004)",
