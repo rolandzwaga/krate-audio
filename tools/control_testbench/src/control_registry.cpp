@@ -17,6 +17,7 @@
 #include "ui/mod_source_colors.h"
 #include "ui/step_pattern_editor.h"
 #include "ui/xy_morph_pad.h"
+#include "ui/oscillator_type_selector.h"
 
 namespace Testbench {
 
@@ -361,6 +362,20 @@ VSTGUI::CView* TestbenchController::createView(
             heatmap->setCell(0, 0, 0.5f, true);    // ENV 1 -> FilterCutoff
             heatmap->setCell(7, 3, -0.8f, true);   // Macro1 -> DistDrive
             return heatmap;
+        }
+        else if (*customViewName == "OscSelectorA") {
+            VSTGUI::CRect size(0, 0, 180, 28);
+            auto* sel = new Krate::Plugins::OscillatorTypeSelector(size, nullptr, kTestOscATypeId);
+            sel->setIdentity("a");
+            sel->setValue(0.0f);  // PolyBLEP
+            return sel;
+        }
+        else if (*customViewName == "OscSelectorB") {
+            VSTGUI::CRect size(0, 0, 180, 28);
+            auto* sel = new Krate::Plugins::OscillatorTypeSelector(size, nullptr, kTestOscBTypeId);
+            sel->setIdentity("b");
+            sel->setValue(0.667f);  // Particle (index 6)
+            return sel;
         }
         else if (*customViewName == "ParameterLog") {
             VSTGUI::CRect size(0, 0, 300, 300);

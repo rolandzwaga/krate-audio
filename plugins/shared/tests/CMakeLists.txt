@@ -10,6 +10,7 @@ add_executable(shared_tests
     test_step_pattern_editor.cpp
     test_xy_morph_pad.cpp
     test_adsr_display.cpp
+    test_oscillator_type_selector.cpp
 )
 
 target_link_libraries(shared_tests
@@ -45,6 +46,15 @@ else()
         -Wextra
         -Wpedantic
         -Wno-unused-parameter
+    )
+endif()
+
+# IEEE 754 compliance: test_oscillator_type_selector.cpp uses std::isnan/std::isinf
+# which are broken by -ffast-math (VST3 SDK enables it globally)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    set_source_files_properties(
+        test_oscillator_type_selector.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
 

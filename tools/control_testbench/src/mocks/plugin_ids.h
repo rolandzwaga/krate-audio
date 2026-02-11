@@ -101,3 +101,9 @@ constexpr uint32_t kModSlot0CurveId = 1324;
 constexpr uint32_t kModSlot0SmoothId = 1325;
 constexpr uint32_t kModSlot0ScaleId = 1326;
 constexpr uint32_t kModSlot0BypassId = 1327;
+
+// =============================================================================
+// OscillatorTypeSelector Parameters
+// =============================================================================
+constexpr uint32_t kTestOscATypeId = 100;
+constexpr uint32_t kTestOscBTypeId = 200;
