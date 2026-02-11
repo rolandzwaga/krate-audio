@@ -93,6 +93,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMixerModeId = 300,        // 0=Crossfade, 1=SpectralMorph
     kMixerPositionId = 301,    // 0=A, 1=B
     kMixerTiltId = 302,        // Spectral tilt [-12, +12] dB/oct
+    kMixerShiftId = 303,       // Spectral frequency shift
     kMixerEndId = 399,
 
     // ==========================================================================
@@ -430,6 +431,11 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kActionTransformShiftRightTag = 10007,
     kActionTransformShiftLeftTag = 10008,
     kActionEuclideanRegenTag = 10009,
+
+    // FX Detail Panel Expand/Collapse Chevrons (UI-only, not VST parameters)
+    kActionFxExpandFreezeTag = 10010,
+    kActionFxExpandDelayTag = 10011,
+    kActionFxExpandReverbTag = 10012,
 };
 
 // ==============================================================================

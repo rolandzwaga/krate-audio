@@ -17,11 +17,16 @@
 
 // Shared UI controls - include triggers static ViewCreator registration
 #include "ui/arc_knob.h"
+#include "ui/bipolar_slider.h"
 #include "ui/fieldset_container.h"
+#include "ui/mod_heatmap.h"
+#include "ui/mod_matrix_grid.h"
+#include "ui/mod_ring_indicator.h"
 #include "ui/step_pattern_editor.h"
 #include "ui/xy_morph_pad.h"
 #include "ui/adsr_display.h"
 #include "ui/oscillator_type_selector.h"
+#include "ui/power_button.h"
 
 #include "public.sdk/source/main/pluginfactory.h"
 

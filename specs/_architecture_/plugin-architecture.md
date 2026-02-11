@@ -969,3 +969,47 @@ Stream Format (v3): Same as v2 + voice routes (16 x VoiceModRoute, 14 bytes each
 |------|---------|--------|
 | `controller/parameter_helpers.h` | Dropdown parameter creation helpers | Copied from Iterum |
 | `parameters/note_value_ui.h` | Note value dropdown strings | Copied from Iterum |
+
+### Ruinae UI Layout Patterns (Spec 051)
+
+#### 4-Row Layout Structure
+
+The Ruinae editor uses a fixed 900x600px window divided into four horizontal rows, each containing FieldsetContainer sections with accent colors for visual grouping:
+
+| Row | Y Offset | Height | Sections |
+|-----|----------|--------|----------|
+| Header | 0 | 30px | Logo, PresetBrowserView |
+| Row 1: Sound Source | 32 | 160px | OSC A (blue #64B4FF), Spectral Morph (gold #DCA850), OSC B (orange #FF8C64) |
+| Row 2: Timbre & Dynamics | 194 | 138px | Filter (cyan #4ECDC4), Distortion (red #E8644C), Envelopes (gray) |
+| Row 3: Movement & Modulation | 334 | 130px | Trance Gate (gold #DCA83C), Modulation (green #5AC882) |
+| Row 4: Effects & Output | 466 | 80px | Effects (gray #6E7078), Master (silver #C8C8CC) |
+
+The top-to-bottom flow mirrors the signal chain: source generation, timbre shaping, modulation, and output processing.
+
+#### UIViewSwitchContainer for Oscillator Type-Specific Parameters
+
+Each oscillator (OSC A, OSC B) uses a `UIViewSwitchContainer` bound to its type parameter (`OscAType` / `OscBType`) via the `template-switch-control` attribute. Ten templates per oscillator provide type-specific controls (e.g., PW knob for PolyBLEP, Position/Frame for Wavetable).
+
+```xml
+<view class="UIViewSwitchContainer"
+      template-names="OscA_PolyBLEP,OscA_Wavetable,..."
+      template-switch-control="OscAType" />
+```
+
+**Key constraint**: Templates are destroyed and recreated when the type changes. Never cache pointers to controls inside the switch container -- use dynamic tag-based lookup if needed.
+
+The `template-switch-control` attribute binds to a `StringListParameter` by name (not ID). The parameter's discrete index (0-9) selects which template is displayed.
+
+#### FX Chevron Expand/Collapse Pattern
+
+The Effects row uses controller-managed UI state (not VST parameters) to show/hide detail panels. Three `CViewContainer` detail panels are identified by `custom-view-name` attribute in `verifyView()`:
+
+| Panel | custom-view-name | Action Tag |
+|-------|-----------------|------------|
+| Freeze | `FreezeDetail` | `kActionFxExpandFreezeTag` (10010) |
+| Delay | `DelayDetail` | `kActionFxExpandDelayTag` (10011) |
+| Reverb | `ReverbDetail` | `kActionFxExpandReverbTag` (10012) |
+
+Chevron buttons are `COnOffButton` controls using action tags (not `control-tag` bindings). When clicked, `valueChanged()` in the controller calls `toggleFxDetail(panelIndex)`, which shows the selected panel and hides the others. Only one panel is visible at a time. All panel pointers are nulled in `willClose()` to prevent dangling references.
+
+This pattern is appropriate when expand/collapse state is transient UI state that does not need to be persisted in the plugin state or exposed to host automation.

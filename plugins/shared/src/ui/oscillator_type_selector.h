@@ -971,7 +971,12 @@ private:
     void selectType(int index) {
         float newValue = normalizedFromOscTypeIndex(index);
         beginEdit();
-        setValue(newValue);
+        // Use setValueNormalized() instead of setValue() because VSTGUI's
+        // parameter binding (updateControlValue) changes our min/max from
+        // 0/1 to 0/stepCount for discrete parameters. setValue() with an
+        // already-normalized value would be double-normalized by
+        // getValueNormalized(), causing all selections to collapse to 0.
+        setValueNormalized(newValue);
         valueChanged();
         endEdit();
         invalid();

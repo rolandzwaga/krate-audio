@@ -19,6 +19,7 @@
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/cviewcontainer.h"
 #include "preset/preset_manager.h"
 
 #include <array>
@@ -179,6 +180,9 @@ private:
     /// Select a modulation route for cross-component communication (FR-027)
     void selectModulationRoute(int sourceIndex, int destIndex);
 
+    /// Toggle FX detail panel visibility (expand one, collapse others)
+    void toggleFxDetail(int panelIndex);
+
     // ==========================================================================
     // UI State
     // ==========================================================================
@@ -195,6 +199,12 @@ private:
     Krate::Plugins::ADSRDisplay* ampEnvDisplay_ = nullptr;
     Krate::Plugins::ADSRDisplay* filterEnvDisplay_ = nullptr;
     Krate::Plugins::ADSRDisplay* modEnvDisplay_ = nullptr;
+
+    // FX detail panel expand/collapse state
+    VSTGUI::CViewContainer* fxDetailFreeze_ = nullptr;
+    VSTGUI::CViewContainer* fxDetailDelay_ = nullptr;
+    VSTGUI::CViewContainer* fxDetailReverb_ = nullptr;
+    int expandedFxPanel_ = -1;  // -1=none, 0=freeze, 1=delay, 2=reverb
 
     // Playback position shared from processor via IMessage pointer
     std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;
