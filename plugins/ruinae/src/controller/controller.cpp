@@ -12,6 +12,7 @@
 #include "ui/mod_matrix_grid.h"
 #include "ui/mod_ring_indicator.h"
 #include "ui/mod_heatmap.h"
+#include "ui/category_tab_bar.h"
 
 // Parameter pack headers (for registration, display, and controller sync)
 #include "parameters/global_params.h"
@@ -494,6 +495,13 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         ampEnvDisplay_ = nullptr;
         filterEnvDisplay_ = nullptr;
         modEnvDisplay_ = nullptr;
+
+        // FX detail panel cleanup (T092)
+        fxDetailFreeze_ = nullptr;
+        fxDetailDelay_ = nullptr;
+        fxDetailReverb_ = nullptr;
+        expandedFxPanel_ = -1;
+
         activeEditor_ = nullptr;
     }
 }
@@ -502,15 +510,15 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
 
 VSTGUI::CView* Controller::verifyView(
     VSTGUI::CView* view,
-    const VSTGUI::UIAttributes& /*attributes*/,
+    const VSTGUI::UIAttributes& attributes,
     const VSTGUI::IUIDescription* /*description*/,
     VSTGUI::VST3Editor* /*editor*/) {
 
-    // Register as sub-listener for action buttons (presets, transforms)
+    // Register as sub-listener for action buttons (presets, transforms, FX chevrons)
     auto* control = dynamic_cast<VSTGUI::CControl*>(view);
     if (control) {
         auto tag = control->getTag();
-        if (tag >= static_cast<int32_t>(kActionPresetAllTag) && tag <= static_cast<int32_t>(kActionEuclideanRegenTag)) {
+        if (tag >= static_cast<int32_t>(kActionPresetAllTag) && tag <= static_cast<int32_t>(kActionFxExpandReverbTag)) {
             control->registerControlListener(this);
         }
     }
@@ -635,6 +643,34 @@ VSTGUI::CView* Controller::verifyView(
         }
     }
 
+    // Wire CategoryTabBar selection callback (T075)
+    auto* tabBar = dynamic_cast<Krate::Plugins::CategoryTabBar*>(view);
+    if (tabBar) {
+        tabBar->setSelectionCallback([this](int tab) {
+            if (modMatrixGrid_) {
+                modMatrixGrid_->setActiveTab(tab);
+            }
+        });
+    }
+
+    // Wire FX detail panels by custom-view-name (T089)
+    auto* container = dynamic_cast<VSTGUI::CViewContainer*>(view);
+    if (container) {
+        const auto* name = attributes.getAttributeValue("custom-view-name");
+        if (name) {
+            if (*name == "FreezeDetail") {
+                fxDetailFreeze_ = container;
+                container->setVisible(false);
+            } else if (*name == "DelayDetail") {
+                fxDetailDelay_ = container;
+                container->setVisible(false);
+            } else if (*name == "ReverbDetail") {
+                fxDetailReverb_ = container;
+                container->setVisible(false);
+            }
+        }
+    }
+
     return view;
 }
 
@@ -643,43 +679,56 @@ VSTGUI::CView* Controller::verifyView(
 // ==============================================================================
 
 void Controller::valueChanged(VSTGUI::CControl* control) {
-    if (!control || !stepPatternEditor_) return;
+    if (!control) return;
 
     // Only respond to button press (value > 0.5), not release
     if (control->getValue() < 0.5f) return;
 
     auto tag = control->getTag();
     switch (tag) {
+        // Step pattern editor presets/transforms
         case kActionPresetAllTag:
-            stepPatternEditor_->applyPresetAll();
+            if (stepPatternEditor_) stepPatternEditor_->applyPresetAll();
             break;
         case kActionPresetOffTag:
-            stepPatternEditor_->applyPresetOff();
+            if (stepPatternEditor_) stepPatternEditor_->applyPresetOff();
             break;
         case kActionPresetAlternateTag:
-            stepPatternEditor_->applyPresetAlternate();
+            if (stepPatternEditor_) stepPatternEditor_->applyPresetAlternate();
             break;
         case kActionPresetRampUpTag:
-            stepPatternEditor_->applyPresetRampUp();
+            if (stepPatternEditor_) stepPatternEditor_->applyPresetRampUp();
             break;
         case kActionPresetRampDownTag:
-            stepPatternEditor_->applyPresetRampDown();
+            if (stepPatternEditor_) stepPatternEditor_->applyPresetRampDown();
             break;
         case kActionPresetRandomTag:
-            stepPatternEditor_->applyPresetRandom();
+            if (stepPatternEditor_) stepPatternEditor_->applyPresetRandom();
             break;
         case kActionTransformInvertTag:
-            stepPatternEditor_->applyTransformInvert();
+            if (stepPatternEditor_) stepPatternEditor_->applyTransformInvert();
             break;
         case kActionTransformShiftRightTag:
-            stepPatternEditor_->applyTransformShiftRight();
+            if (stepPatternEditor_) stepPatternEditor_->applyTransformShiftRight();
             break;
         case kActionTransformShiftLeftTag:
-            stepPatternEditor_->applyTransformShiftLeft();
+            if (stepPatternEditor_) stepPatternEditor_->applyTransformShiftLeft();
             break;
         case kActionEuclideanRegenTag:
-            stepPatternEditor_->regenerateEuclidean();
+            if (stepPatternEditor_) stepPatternEditor_->regenerateEuclidean();
             break;
+
+        // FX detail panel expand/collapse (T091)
+        case kActionFxExpandFreezeTag:
+            toggleFxDetail(0);
+            break;
+        case kActionFxExpandDelayTag:
+            toggleFxDetail(1);
+            break;
+        case kActionFxExpandReverbTag:
+            toggleFxDetail(2);
+            break;
+
         default:
             break;
     }
@@ -1106,6 +1155,22 @@ void Controller::selectModulationRoute(int sourceIndex, int destIndex) {
     if (modMatrixGrid_) {
         modMatrixGrid_->selectRoute(sourceIndex, destIndex);
     }
+}
+
+// ==============================================================================
+// FX Detail Panel Expand/Collapse (T090)
+// ==============================================================================
+
+void Controller::toggleFxDetail(int panelIndex) {
+    auto panels = {fxDetailFreeze_, fxDetailDelay_, fxDetailReverb_};
+    int idx = 0;
+    for (auto* panel : panels) {
+        if (panel) {
+            panel->setVisible(idx == panelIndex && expandedFxPanel_ != panelIndex);
+        }
+        ++idx;
+    }
+    expandedFxPanel_ = (expandedFxPanel_ == panelIndex) ? -1 : panelIndex;
 }
 
 void Controller::rebuildRingIndicators() {

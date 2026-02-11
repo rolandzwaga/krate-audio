@@ -2,31 +2,110 @@
 <vstgui-ui-description version="1">
     <!-- ==================================================================== -->
     <!-- Ruinae - Chaos/Spectral Hybrid Synthesizer                          -->
-    <!-- Phase 8: UI prototyping with ArcKnob controls                       -->
+    <!-- Production 4-row layout (spec 051-main-layout)                      -->
     <!-- ==================================================================== -->
 
     <!-- Control Tags (parameter bindings) -->
     <control-tags>
+        <!-- Master/Global -->
         <control-tag name="MasterGain" tag="0"/>
-        <control-tag name="FilterCutoff" tag="401"/>
-        <control-tag name="OscALevel" tag="103"/>
+        <control-tag name="Polyphony" tag="2"/>
+        <control-tag name="SoftLimit" tag="3"/>
 
-        <!-- Trance Gate parameters -->
+        <!-- OSC A -->
+        <control-tag name="OscAType" tag="100"/>
+        <control-tag name="OscATune" tag="101"/>
+        <control-tag name="OscAFine" tag="102"/>
+        <control-tag name="OscALevel" tag="103"/>
+        <control-tag name="OscAPhase" tag="104"/>
+
+        <!-- OSC B -->
+        <control-tag name="OscBType" tag="200"/>
+        <control-tag name="OscBTune" tag="201"/>
+        <control-tag name="OscBFine" tag="202"/>
+        <control-tag name="OscBLevel" tag="203"/>
+        <control-tag name="OscBPhase" tag="204"/>
+
+        <!-- Spectral Morph (Mixer) -->
+        <control-tag name="MixerMode" tag="300"/>
+        <control-tag name="MixPosition" tag="301"/>
+        <control-tag name="MixerTilt" tag="302"/>
+        <control-tag name="MixerShift" tag="303"/>
+
+        <!-- Filter -->
+        <control-tag name="FilterType" tag="400"/>
+        <control-tag name="FilterCutoff" tag="401"/>
+        <control-tag name="FilterResonance" tag="402"/>
+        <control-tag name="FilterEnvAmount" tag="403"/>
+        <control-tag name="FilterKeyTrack" tag="404"/>
+
+        <!-- Distortion -->
+        <control-tag name="DistortionType" tag="500"/>
+        <control-tag name="DistortionDrive" tag="501"/>
+        <control-tag name="DistortionCharacter" tag="502"/>
+        <control-tag name="DistortionMix" tag="503"/>
+
+        <!-- Trance Gate -->
         <control-tag name="TranceGateEnabled" tag="600"/>
         <control-tag name="TranceGateNumSteps" tag="601"/>
+        <control-tag name="TranceGateRate" tag="602"/>
+        <control-tag name="TranceGateDepth" tag="603"/>
+        <control-tag name="TranceGateAttack" tag="604"/>
+        <control-tag name="TranceGateRelease" tag="605"/>
+        <control-tag name="TranceGateNoteValue" tag="607"/>
         <control-tag name="TranceGateEuclideanEnabled" tag="608"/>
         <control-tag name="TranceGateEuclideanHits" tag="609"/>
         <control-tag name="TranceGateEuclideanRotation" tag="610"/>
         <control-tag name="TranceGatePhaseOffset" tag="611"/>
 
-        <!-- Mixer parameters -->
-        <control-tag name="MixPosition" tag="301"/>
-        <control-tag name="MixerTilt" tag="302"/>
-
-        <!-- Envelope display tags (attack param ID used to identify envelope) -->
+        <!-- Envelopes: Amp (ENV 1) -->
         <control-tag name="AmpEnvAttack" tag="700"/>
+        <control-tag name="AmpEnvDecay" tag="701"/>
+        <control-tag name="AmpEnvSustain" tag="702"/>
+        <control-tag name="AmpEnvRelease" tag="703"/>
+
+        <!-- Envelopes: Filter (ENV 2) -->
         <control-tag name="FilterEnvAttack" tag="800"/>
+        <control-tag name="FilterEnvDecay" tag="801"/>
+        <control-tag name="FilterEnvSustain" tag="802"/>
+        <control-tag name="FilterEnvRelease" tag="803"/>
+
+        <!-- Envelopes: Mod (ENV 3) -->
         <control-tag name="ModEnvAttack" tag="900"/>
+        <control-tag name="ModEnvDecay" tag="901"/>
+        <control-tag name="ModEnvSustain" tag="902"/>
+        <control-tag name="ModEnvRelease" tag="903"/>
+
+        <!-- LFO 1 -->
+        <control-tag name="LFO1Rate" tag="1000"/>
+        <control-tag name="LFO1Shape" tag="1001"/>
+        <control-tag name="LFO1Depth" tag="1002"/>
+
+        <!-- LFO 2 -->
+        <control-tag name="LFO2Rate" tag="1100"/>
+        <control-tag name="LFO2Shape" tag="1101"/>
+        <control-tag name="LFO2Depth" tag="1102"/>
+
+        <!-- Chaos -->
+        <control-tag name="ChaosRate" tag="1200"/>
+
+        <!-- FX: Freeze -->
+        <control-tag name="FreezeEnabled" tag="1500"/>
+        <control-tag name="FreezeToggle" tag="1501"/>
+
+        <!-- FX: Delay -->
+        <control-tag name="DelayType" tag="1600"/>
+        <control-tag name="DelayTime" tag="1601"/>
+        <control-tag name="DelayFeedback" tag="1602"/>
+        <control-tag name="DelayMix" tag="1603"/>
+        <control-tag name="DelaySync" tag="1604"/>
+
+        <!-- FX: Reverb -->
+        <control-tag name="ReverbSize" tag="1700"/>
+        <control-tag name="ReverbDamping" tag="1701"/>
+        <control-tag name="ReverbWidth" tag="1702"/>
+        <control-tag name="ReverbMix" tag="1703"/>
+        <control-tag name="ReverbPreDelay" tag="1704"/>
 
         <!-- UI action button tags (not VST parameters) -->
         <control-tag name="ActionPresetAll" tag="10000"/>
@@ -37,8 +116,292 @@
         <control-tag name="ActionPresetRandom" tag="10005"/>
         <control-tag name="ActionTransformInvert" tag="10006"/>
         <control-tag name="ActionTransformShiftRight" tag="10007"/>
+        <control-tag name="ActionTransformShiftLeft" tag="10008"/>
         <control-tag name="ActionEuclideanRegen" tag="10009"/>
+
+        <!-- FX Expand/Collapse Chevrons (UI-only actions) -->
+        <control-tag name="ActionFxExpandFreeze" tag="10010"/>
+        <control-tag name="ActionFxExpandDelay" tag="10011"/>
+        <control-tag name="ActionFxExpandReverb" tag="10012"/>
     </control-tags>
+
+    <!-- ================================================================ -->
+    <!-- OSC A Type-Specific Templates (T022)                             -->
+    <!-- ================================================================ -->
+
+    <!-- PolyBLEP: Pulse Width -->
+    <template name="OscA_PolyBLEP" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="PW"/>
+    </template>
+
+    <!-- Wavetable: Position, Frame -->
+    <template name="OscA_Wavetable" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Pos"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Frame"/>
+    </template>
+
+    <!-- PhaseDist: Amount, Symmetry -->
+    <template name="OscA_PhaseDist" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Amt"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Sym"/>
+    </template>
+
+    <!-- Sync: Ratio, Shape -->
+    <template name="OscA_Sync" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Ratio"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Shape"/>
+    </template>
+
+    <!-- Additive: Harmonics, Rolloff -->
+    <template name="OscA_Additive" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Harm"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Roll"/>
+    </template>
+
+    <!-- Chaos: Complexity, Feedback -->
+    <template name="OscA_Chaos" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Cmplx"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Fdbk"/>
+    </template>
+
+    <!-- Particle: Density, Spread -->
+    <template name="OscA_Particle" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Dens"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Sprd"/>
+    </template>
+
+    <!-- Formant: Vowel, Resonance -->
+    <template name="OscA_Formant" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Vowel"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Reso"/>
+    </template>
+
+    <!-- SpectralFreeze: FreezeAmt, Blur -->
+    <template name="OscA_SpectralFreeze" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Frz"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Blur"/>
+    </template>
+
+    <!-- Noise: Color, Bandwidth -->
+    <template name="OscA_Noise" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Color"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="BW"/>
+    </template>
+
+    <!-- ================================================================ -->
+    <!-- OSC B Type-Specific Templates (T023)                             -->
+    <!-- ================================================================ -->
+
+    <!-- PolyBLEP: Pulse Width -->
+    <template name="OscB_PolyBLEP" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="PW"/>
+    </template>
+
+    <!-- Wavetable: Position, Frame -->
+    <template name="OscB_Wavetable" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Pos"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Frame"/>
+    </template>
+
+    <!-- PhaseDist: Amount, Symmetry -->
+    <template name="OscB_PhaseDist" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Amt"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Sym"/>
+    </template>
+
+    <!-- Sync: Ratio, Shape -->
+    <template name="OscB_Sync" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Ratio"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Shape"/>
+    </template>
+
+    <!-- Additive: Harmonics, Rolloff -->
+    <template name="OscB_Additive" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Harm"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Roll"/>
+    </template>
+
+    <!-- Chaos: Complexity, Feedback -->
+    <template name="OscB_Chaos" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Cmplx"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Fdbk"/>
+    </template>
+
+    <!-- Particle: Density, Spread -->
+    <template name="OscB_Particle" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Dens"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Sprd"/>
+    </template>
+
+    <!-- Formant: Vowel, Resonance -->
+    <template name="OscB_Formant" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Vowel"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Reso"/>
+    </template>
+
+    <!-- SpectralFreeze: FreezeAmt, Blur -->
+    <template name="OscB_SpectralFreeze" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Frz"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Blur"/>
+    </template>
+
+    <!-- Noise: Color, Bandwidth -->
+    <template name="OscB_Noise" size="212, 32" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="10, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="Color"/>
+        <view class="ArcKnob" origin="100, 2" size="28, 28"
+              default-value="0.5" arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              font="~ NormalFontSmaller" font-color="#808080"
+              text-alignment="left" transparent="true" title="BW"/>
+    </template>
 
     <template
         name="editor"
@@ -48,483 +411,926 @@
         background-color="#1A1A1E"
         class="CViewContainer"
     >
-        <!-- Plugin Title -->
+        <!-- ============================================================ -->
+        <!-- HEADER BAR (y=0, height=30)                                  -->
+        <!-- ============================================================ -->
         <view
-            class="CTextLabel"
-            origin="20, 10"
-            size="200, 30"
-            title="RUINAE"
-            font="~ NormalFontVeryBig"
-            font-color="#FFFFFF"
-            text-alignment="left"
+            class="CViewContainer"
+            origin="0, 0"
+            size="900, 30"
+            transparent="true"
+        >
+            <!-- Plugin Title -->
+            <view
+                class="CTextLabel"
+                origin="12, 4"
+                size="120, 22"
+                title="RUINAE"
+                font="~ NormalFontVeryBig"
+                font-color="#FFFFFF"
+                text-alignment="left"
+                transparent="true"
+            />
+
+            <!-- Preset Browser -->
+            <view
+                class="PresetBrowserView"
+                origin="500, 2"
+                size="392, 26"
+                transparent="true"
+            />
+        </view>
+
+        <!-- ============================================================ -->
+        <!-- ROW 1: SOUND SOURCE (y=32, height=160)                       -->
+        <!-- ============================================================ -->
+        <view
+            class="CViewContainer"
+            origin="0, 32"
+            size="900, 160"
             transparent="true"
         />
 
-        <!-- Version Label -->
+        <!-- ROW 2: TIMBRE & DYNAMICS (y=194, height=138) -->
         <view
-            class="CTextLabel"
-            origin="700, 10"
-            size="180, 20"
-            title="v0.1.0"
-            font="~ NormalFontSmall"
-            font-color="#808080"
-            text-alignment="right"
+            class="CViewContainer"
+            origin="0, 194"
+            size="900, 138"
             transparent="true"
         />
 
-        <!-- ArcKnob Demo Section -->
+        <!-- ROW 3: MOVEMENT & MODULATION (y=334, height=130) -->
         <view
-            class="CTextLabel"
-            origin="20, 60"
-            size="300, 20"
-            title="ArcKnob Demo"
-            font="~ NormalFontSmall"
-            font-color="#808080"
-            text-alignment="left"
+            class="CViewContainer"
+            origin="0, 334"
+            size="900, 130"
             transparent="true"
         />
 
-        <!-- Master Gain knob (warm gold) -->
+        <!-- ROW 4: EFFECTS & OUTPUT (y=466, height=80) -->
         <view
-            class="CTextLabel"
-            origin="40, 130"
-            size="60, 16"
-            title="Gain"
-            font="~ NormalFontSmaller"
-            font-color="#808080"
-            text-alignment="center"
+            class="CViewContainer"
+            origin="0, 466"
+            size="900, 80"
             transparent="true"
-        />
-        <view
-            class="ArcKnob"
-            origin="40, 90"
-            size="40, 40"
-            control-tag="MasterGain"
-            default-value="0.7"
-            arc-color="#DCA850"
-            guide-color="#FFFFFF28"
-        />
-
-        <!-- Filter Cutoff knob (cyan) -->
-        <view
-            class="CTextLabel"
-            origin="120, 130"
-            size="60, 16"
-            title="Cutoff"
-            font="~ NormalFontSmaller"
-            font-color="#808080"
-            text-alignment="center"
-            transparent="true"
-        />
-        <view
-            class="ArcKnob"
-            origin="120, 90"
-            size="40, 40"
-            control-tag="FilterCutoff"
-            default-value="0.5"
-            arc-color="#4ECDC4"
-            guide-color="#FFFFFF28"
-        />
-
-        <!-- OSC A Level knob (coral) -->
-        <view
-            class="CTextLabel"
-            origin="200, 130"
-            size="60, 16"
-            title="Level"
-            font="~ NormalFontSmaller"
-            font-color="#808080"
-            text-alignment="center"
-            transparent="true"
-        />
-        <view
-            class="ArcKnob"
-            origin="200, 90"
-            size="40, 40"
-            control-tag="OscALevel"
-            default-value="0.8"
-            arc-color="#FF6B6B"
-            guide-color="#FFFFFF28"
-        />
-
-        <!-- Larger knob demo (60px) -->
-        <view
-            class="CTextLabel"
-            origin="310, 130"
-            size="80, 16"
-            title="Large"
-            font="~ NormalFontSmaller"
-            font-color="#808080"
-            text-alignment="center"
-            transparent="true"
-        />
-        <view
-            class="ArcKnob"
-            origin="310, 80"
-            size="60, 60"
-            default-value="0.65"
-            arc-color="#B39DDB"
-            guide-color="#FFFFFF28"
-            indicator-length="6"
         />
 
         <!-- ============================================================ -->
-        <!-- Trance Gate Section                                          -->
+        <!-- FIELDSET CONTAINERS (absolute coordinates within 900x600)     -->
         <!-- ============================================================ -->
 
-        <!-- Trance Gate Section Label -->
+        <!-- Row 1: Sound Source -->
+
+        <!-- OSC A (blue accent) -->
         <view
-            class="CTextLabel"
-            origin="20, 170"
-            size="300, 20"
-            title="Trance Gate Pattern"
-            font="~ NormalFontSmall"
-            font-color="#808080"
-            text-alignment="left"
+            class="FieldsetContainer"
+            origin="8, 32"
+            size="220, 160"
+            fieldset-title="OSC A"
+            fieldset-color="#64B4FF"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
             transparent="true"
-        />
+        >
+            <!-- T024: OscillatorTypeSelector -->
+            <view class="OscillatorTypeSelector"
+                  origin="16, 44" size="180, 28"
+                  control-tag="OscAType" osc-identity="a"
+                  min-value="0" max-value="1"
+                  default-value="0"/>
 
-        <!-- Step Pattern Editor -->
-        <view
-            class="StepPatternEditor"
-            origin="20, 195"
-            size="860, 200"
-            bar-color-accent="#DCA83C"
-            bar-color-normal="#508CC8"
-            bar-color-ghost="#3C5A78"
-            silent-outline-color="#323237"
-            grid-color="#FFFFFF1E"
-            background-color="#232326"
-            playback-color="#FFC850"
-            text-color="#B4B4B9"
-        />
+            <!-- T025: Tune knob -->
+            <view class="ArcKnob" origin="16, 78" size="36, 36"
+                  control-tag="OscATune" default-value="0.5"
+                  arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="8, 114" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Tune"/>
 
-        <!-- Quick Action Buttons Row -->
-        <view
-            class="CKickButton"
-            origin="20, 400"
-            size="45, 22"
-            control-tag="ActionPresetAll"
-            title="All"
-            font="~ NormalFontSmaller"
-            font-color="#B4B4B9"
-            frame-color="#404044"
-        />
-        <view
-            class="CKickButton"
-            origin="70, 400"
-            size="45, 22"
-            control-tag="ActionPresetOff"
-            title="Off"
-            font="~ NormalFontSmaller"
-            font-color="#B4B4B9"
-            frame-color="#404044"
-        />
-        <view
-            class="CKickButton"
-            origin="120, 400"
-            size="45, 22"
-            control-tag="ActionPresetAlternate"
-            title="Alt"
-            font="~ NormalFontSmaller"
-            font-color="#B4B4B9"
-            frame-color="#404044"
-        />
-        <view
-            class="CKickButton"
-            origin="170, 400"
-            size="45, 22"
-            control-tag="ActionPresetRampUp"
-            title="Ramp+"
-            font="~ NormalFontSmaller"
-            font-color="#B4B4B9"
-            frame-color="#404044"
-        />
-        <view
-            class="CKickButton"
-            origin="220, 400"
-            size="45, 22"
-            control-tag="ActionPresetRampDown"
-            title="Ramp-"
-            font="~ NormalFontSmaller"
-            font-color="#B4B4B9"
-            frame-color="#404044"
-        />
-        <view
-            class="CKickButton"
-            origin="270, 400"
-            size="45, 22"
-            control-tag="ActionPresetRandom"
-            title="Rnd"
-            font="~ NormalFontSmaller"
-            font-color="#B4B4B9"
-            frame-color="#404044"
-        />
-        <view
-            class="CKickButton"
-            origin="320, 400"
-            size="45, 22"
-            control-tag="ActionTransformInvert"
-            title="Inv"
-            font="~ NormalFontSmaller"
-            font-color="#B4B4B9"
-            frame-color="#404044"
-        />
-        <view
-            class="CKickButton"
-            origin="370, 400"
-            size="45, 22"
-            control-tag="ActionTransformShiftRight"
-            title="&gt;&gt;"
-            font="~ NormalFontSmaller"
-            font-color="#B4B4B9"
-            frame-color="#404044"
-        />
+            <!-- T026: Detune knob -->
+            <view class="ArcKnob" origin="66, 78" size="36, 36"
+                  control-tag="OscAFine" default-value="0.5"
+                  arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="58, 114" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Detune"/>
 
-        <!-- ============================================================ -->
-        <!-- Euclidean Toolbar Row                                        -->
-        <!-- ============================================================ -->
+            <!-- T027: Level knob -->
+            <view class="ArcKnob" origin="116, 78" size="36, 36"
+                  control-tag="OscALevel" default-value="0.5"
+                  arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="108, 114" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Level"/>
 
+            <!-- T028: Phase knob -->
+            <view class="ArcKnob" origin="166, 78" size="36, 36"
+                  control-tag="OscAPhase" default-value="0.5"
+                  arc-color="#64B4FF" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="158, 114" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Phase"/>
+
+            <!-- T029: UIViewSwitchContainer for type-specific params -->
+            <view class="UIViewSwitchContainer"
+                  origin="4, 126" size="212, 32"
+                  template-names="OscA_PolyBLEP,OscA_Wavetable,OscA_PhaseDist,OscA_Sync,OscA_Additive,OscA_Chaos,OscA_Particle,OscA_Formant,OscA_SpectralFreeze,OscA_Noise"
+                  template-switch-control="OscAType"
+                  transparent="true"/>
+        </view>
+
+        <!-- SPECTRAL MORPH (gold accent) -->
         <view
-            class="CTextLabel"
-            origin="20, 430"
-            size="60, 20"
-            title="Euclidean:"
-            font="~ NormalFontSmaller"
-            font-color="#808080"
-            text-alignment="left"
-            transparent="true"
-        />
-
-        <!-- Euclidean Enable Toggle -->
-        <view
-            class="COnOffButton"
-            origin="85, 430"
-            size="35, 20"
-            control-tag="TranceGateEuclideanEnabled"
-            default-value="0"
-        />
-
-        <view
-            class="CTextLabel"
-            origin="130, 430"
-            size="35, 20"
-            title="Hits:"
-            font="~ NormalFontSmaller"
-            font-color="#808080"
-            text-alignment="left"
-            transparent="true"
-        />
-
-        <!-- Euclidean Hits slider (simplified - could be +/- buttons later) -->
-        <view
-            class="CSlider"
-            origin="165, 430"
-            size="80, 20"
-            control-tag="TranceGateEuclideanHits"
-            default-value="0.125"
-            orientation="horizontal"
-            frame-color="#404044"
-            handle-color="#DCA850"
-        />
-
-        <view
-            class="CTextLabel"
-            origin="255, 430"
-            size="30, 20"
-            title="Rot:"
-            font="~ NormalFontSmaller"
-            font-color="#808080"
-            text-alignment="left"
-            transparent="true"
-        />
-
-        <!-- Euclidean Rotation slider -->
-        <view
-            class="CSlider"
-            origin="285, 430"
-            size="80, 20"
-            control-tag="TranceGateEuclideanRotation"
-            default-value="0"
-            orientation="horizontal"
-            frame-color="#404044"
-            handle-color="#508CC8"
-        />
-
-        <!-- Regen Button -->
-        <view
-            class="CKickButton"
-            origin="375, 430"
-            size="50, 20"
-            control-tag="ActionEuclideanRegen"
-            title="Regen"
-            font="~ NormalFontSmaller"
-            font-color="#B4B4B9"
-            frame-color="#404044"
-        />
-
-        <!-- ============================================================ -->
-        <!-- Oscillator Mixer Section                                     -->
-        <!-- ============================================================ -->
-
-        <view
-            class="CTextLabel"
-            origin="500, 60"
-            size="300, 20"
-            title="Oscillator Mixer"
-            font="~ NormalFontSmall"
-            font-color="#808080"
-            text-alignment="left"
-            transparent="true"
-        />
-
-        <view
-            class="XYMorphPad"
-            origin="500, 85"
+            class="FieldsetContainer"
+            origin="236, 32"
             size="250, 160"
-            control-tag="MixPosition"
-            secondary-tag="MixerTilt"
-            default-value="0.5"
-            color-bottom-left="#304878"
-            color-bottom-right="#846624"
-            color-top-left="#508CC8"
-            color-top-right="#DCAA3C"
-            cursor-color="#FFFFFF"
-            label-color="#AAAAAA"
-            crosshair-opacity="0.12"
-            grid-size="24"
-        />
-
-        <!-- ============================================================ -->
-        <!-- Envelope Displays Section                                    -->
-        <!-- ============================================================ -->
-
-        <view
-            class="CTextLabel"
-            origin="500, 270"
-            size="300, 20"
-            title="Envelopes"
-            font="~ NormalFontSmall"
-            font-color="#808080"
-            text-alignment="left"
+            fieldset-title="SPECTRAL MORPH"
+            fieldset-color="#DCA850"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
             transparent="true"
-        />
+        >
+            <!-- T036: XYMorphPad (FR-012: 200-250px wide, 140-160px tall) -->
+            <view class="XYMorphPad"
+                  origin="8, 14" size="230, 140"
+                  control-tag-x="MixPosition" control-tag-y="MixerTilt"
+                  transparent="false"/>
 
-        <!-- Amp Envelope Display (blue) -->
+            <!-- T037: Mode dropdown (overlay at bottom of pad) -->
+            <view class="COptionMenu"
+                  origin="8, 136" size="80, 18"
+                  control-tag="MixerMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="#C0C0C0"
+                  back-color="#2A2A2E" frame-color="#404048"/>
+
+            <!-- T038: Shift knob (overlay at bottom-right of pad) -->
+            <view class="ArcKnob" origin="168, 122" size="36, 36"
+                  control-tag="MixerShift" default-value="0.5"
+                  arc-color="#DCA850" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="204, 136" size="36, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Shift"/>
+        </view>
+
+        <!-- OSC B (orange accent) -->
         <view
-            class="CTextLabel"
-            origin="500, 390"
-            size="140, 16"
-            title="Amp Env"
-            font="~ NormalFontSmaller"
-            font-color="#508CC8"
-            text-alignment="center"
+            class="FieldsetContainer"
+            origin="494, 32"
+            size="220, 160"
+            fieldset-title="OSC B"
+            fieldset-color="#FF8C64"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
             transparent="true"
-        />
-        <view
-            class="ADSRDisplay"
-            origin="500, 295"
-            size="140, 90"
-            control-tag="AmpEnvAttack"
-            fill-color="#508CC84D"
-            stroke-color="#508CC8"
-            background-color="#1E1E21"
-            grid-color="#FFFFFF19"
-            control-point-color="#FFFFFF"
-            text-color="#FFFFFFB4"
-        />
+        >
+            <!-- T030: OscillatorTypeSelector -->
+            <view class="OscillatorTypeSelector"
+                  origin="16, 44" size="180, 28"
+                  control-tag="OscBType" osc-identity="b"
+                  min-value="0" max-value="1"
+                  default-value="0"/>
 
-        <!-- Filter Envelope Display (amber) -->
+            <!-- T031: Tune knob -->
+            <view class="ArcKnob" origin="16, 78" size="36, 36"
+                  control-tag="OscBTune" default-value="0.5"
+                  arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="8, 114" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Tune"/>
+
+            <!-- T032: Detune knob -->
+            <view class="ArcKnob" origin="66, 78" size="36, 36"
+                  control-tag="OscBFine" default-value="0.5"
+                  arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="58, 114" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Detune"/>
+
+            <!-- T033: Level knob -->
+            <view class="ArcKnob" origin="116, 78" size="36, 36"
+                  control-tag="OscBLevel" default-value="0.5"
+                  arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="108, 114" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Level"/>
+
+            <!-- T034: Phase knob -->
+            <view class="ArcKnob" origin="166, 78" size="36, 36"
+                  control-tag="OscBPhase" default-value="0.5"
+                  arc-color="#FF8C64" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="158, 114" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Phase"/>
+
+            <!-- T035: UIViewSwitchContainer for type-specific params -->
+            <view class="UIViewSwitchContainer"
+                  origin="4, 126" size="212, 32"
+                  template-names="OscB_PolyBLEP,OscB_Wavetable,OscB_PhaseDist,OscB_Sync,OscB_Additive,OscB_Chaos,OscB_Particle,OscB_Formant,OscB_SpectralFreeze,OscB_Noise"
+                  template-switch-control="OscBType"
+                  transparent="true"/>
+        </view>
+
+        <!-- Row 2: Timbre & Dynamics -->
+
+        <!-- FILTER (cyan accent) -->
         <view
-            class="CTextLabel"
-            origin="650, 390"
-            size="140, 16"
-            title="Filter Env"
-            font="~ NormalFontSmaller"
-            font-color="#DCAA3C"
-            text-alignment="center"
+            class="FieldsetContainer"
+            origin="8, 194"
+            size="170, 138"
+            fieldset-title="FILTER"
+            fieldset-color="#4ECDC4"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
             transparent="true"
-        />
-        <view
-            class="ADSRDisplay"
-            origin="650, 295"
-            size="140, 90"
-            control-tag="FilterEnvAttack"
-            fill-color="#DCAA3C4D"
-            stroke-color="#DCAA3C"
-            background-color="#1E1E21"
-            grid-color="#FFFFFF19"
-            control-point-color="#FFFFFF"
-            text-color="#FFFFFFB4"
-        />
+        >
+            <!-- T042: Filter Type dropdown -->
+            <view class="COptionMenu" origin="8, 16" size="100, 18"
+                  control-tag="FilterType" default-value="0"
+                  font="~ NormalFontSmaller" font-color="#C0C0C0"
+                  back-color="#2A2A2E" frame-color="#404048"/>
 
-        <!-- Mod Envelope Display (purple) -->
+            <!-- T043: Cutoff knob + ModRingIndicator overlay -->
+            <view class="ArcKnob" origin="8, 40" size="36, 36"
+                  control-tag="FilterCutoff" default-value="0.5"
+                  arc-color="#4ECDC4" guide-color="#FFFFFF28"/>
+            <view class="ModRingIndicator" origin="8, 40" size="36, 36"
+                  dest-index="0"/>
+            <view class="CTextLabel" origin="0, 76" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Cutoff"/>
+
+            <!-- T044: Resonance knob + ModRingIndicator overlay -->
+            <view class="ArcKnob" origin="58, 40" size="36, 36"
+                  control-tag="FilterResonance" default-value="0.5"
+                  arc-color="#4ECDC4" guide-color="#FFFFFF28"/>
+            <view class="ModRingIndicator" origin="58, 40" size="36, 36"
+                  dest-index="1"/>
+            <view class="CTextLabel" origin="50, 76" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Resonance"/>
+
+            <!-- T045: Env Amount knob -->
+            <view class="ArcKnob" origin="108, 40" size="36, 36"
+                  control-tag="FilterEnvAmount" default-value="0.5"
+                  arc-color="#4ECDC4" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="100, 76" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Env Amt"/>
+
+            <!-- T046: Key Track knob -->
+            <view class="ArcKnob" origin="8, 92" size="36, 36"
+                  control-tag="FilterKeyTrack" default-value="0.5"
+                  arc-color="#4ECDC4" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="0, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Key Track"/>
+        </view>
+
+        <!-- DISTORTION (red accent) -->
         <view
-            class="CTextLabel"
-            origin="500, 510"
-            size="140, 16"
-            title="Mod Env"
-            font="~ NormalFontSmaller"
-            font-color="#A05AC8"
-            text-alignment="center"
+            class="FieldsetContainer"
+            origin="186, 194"
+            size="130, 138"
+            fieldset-title="DISTORTION"
+            fieldset-color="#E8644C"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
             transparent="true"
-        />
-        <view
-            class="ADSRDisplay"
-            origin="500, 415"
-            size="140, 90"
-            control-tag="ModEnvAttack"
-            fill-color="#A05AC84D"
-            stroke-color="#A05AC8"
-            background-color="#1E1E21"
-            grid-color="#FFFFFF19"
-            control-point-color="#FFFFFF"
-            text-color="#FFFFFFB4"
-        />
-        <!-- ============================================================ -->
-        <!-- Modulation Matrix Section (spec 049)                       -->
-        <!-- ============================================================ -->
+        >
+            <!-- T047: Distortion Type dropdown -->
+            <view class="COptionMenu" origin="8, 16" size="100, 18"
+                  control-tag="DistortionType" default-value="0"
+                  font="~ NormalFontSmaller" font-color="#C0C0C0"
+                  back-color="#2A2A2E" frame-color="#404048"/>
 
-        <!-- Modulation Section Label -->
+            <!-- T048: Drive knob -->
+            <view class="ArcKnob" origin="8, 40" size="36, 36"
+                  control-tag="DistortionDrive" default-value="0.5"
+                  arc-color="#E8644C" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="0, 76" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Drive"/>
+
+            <!-- T049: Character knob -->
+            <view class="ArcKnob" origin="66, 40" size="36, 36"
+                  control-tag="DistortionCharacter" default-value="0.5"
+                  arc-color="#E8644C" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="52, 76" size="64, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Character"/>
+
+            <!-- T050: Mix knob -->
+            <view class="ArcKnob" origin="8, 92" size="36, 36"
+                  control-tag="DistortionMix" default-value="0.5"
+                  arc-color="#E8644C" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="0, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Mix"/>
+        </view>
+
+        <!-- ENVELOPES (gray accent) -->
         <view
-            class="CTextLabel"
-            origin="660, 60"
-            size="220, 20"
-            title="Modulation Matrix"
-            font="~ NormalFontSmall"
-            font-color="#FFFFFF"
-            text-alignment="left"
+            class="FieldsetContainer"
+            origin="324, 194"
+            size="568, 138"
+            fieldset-title="ENVELOPES"
+            fieldset-color="#808088"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
             transparent="true"
-        />
+        >
+            <!-- ======================================================== -->
+            <!-- T051: ENV 1 - Amp Envelope (blue #508CC8)                -->
+            <!-- ======================================================== -->
+            <view class="ADSRDisplay" origin="8, 14" size="170, 74"
+                  control-tag="AmpEnvAttack"
+                  fill-color="#508CC840" stroke-color="#508CC8"
+                  control-point-color="#508CC8"
+                  background-color="#1E1E22" grid-color="#FFFFFF10"
+                  text-color="#808080"/>
 
-        <!-- ModMatrixGrid (T141) -->
+            <!-- A/D/S/R knobs for ENV 1 -->
+            <view class="ArcKnob" origin="8, 92" size="36, 36"
+                  control-tag="AmpEnvAttack" default-value="0.2"
+                  arc-color="#508CC8" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="0, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="A"/>
+
+            <view class="ArcKnob" origin="48, 92" size="36, 36"
+                  control-tag="AmpEnvDecay" default-value="0.3"
+                  arc-color="#508CC8" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="40, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="D"/>
+
+            <view class="ArcKnob" origin="88, 92" size="36, 36"
+                  control-tag="AmpEnvSustain" default-value="0.7"
+                  arc-color="#508CC8" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="80, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="S"/>
+
+            <view class="ArcKnob" origin="128, 92" size="36, 36"
+                  control-tag="AmpEnvRelease" default-value="0.3"
+                  arc-color="#508CC8" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="120, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="R"/>
+
+            <!-- ======================================================== -->
+            <!-- T052: ENV 2 - Filter Envelope (gold #DCAA3C)            -->
+            <!-- ======================================================== -->
+            <view class="ADSRDisplay" origin="190, 14" size="170, 74"
+                  control-tag="FilterEnvAttack"
+                  fill-color="#DCAA3C40" stroke-color="#DCAA3C"
+                  control-point-color="#DCAA3C"
+                  background-color="#1E1E22" grid-color="#FFFFFF10"
+                  text-color="#808080"/>
+
+            <!-- A/D/S/R knobs for ENV 2 -->
+            <view class="ArcKnob" origin="190, 92" size="36, 36"
+                  control-tag="FilterEnvAttack" default-value="0.2"
+                  arc-color="#DCAA3C" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="182, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="A"/>
+
+            <view class="ArcKnob" origin="230, 92" size="36, 36"
+                  control-tag="FilterEnvDecay" default-value="0.3"
+                  arc-color="#DCAA3C" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="222, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="D"/>
+
+            <view class="ArcKnob" origin="270, 92" size="36, 36"
+                  control-tag="FilterEnvSustain" default-value="0.7"
+                  arc-color="#DCAA3C" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="262, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="S"/>
+
+            <view class="ArcKnob" origin="310, 92" size="36, 36"
+                  control-tag="FilterEnvRelease" default-value="0.3"
+                  arc-color="#DCAA3C" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="302, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="R"/>
+
+            <!-- ======================================================== -->
+            <!-- T053: ENV 3 - Mod Envelope (purple #A05AC8)              -->
+            <!-- ======================================================== -->
+            <view class="ADSRDisplay" origin="372, 14" size="170, 74"
+                  control-tag="ModEnvAttack"
+                  fill-color="#A05AC840" stroke-color="#A05AC8"
+                  control-point-color="#A05AC8"
+                  background-color="#1E1E22" grid-color="#FFFFFF10"
+                  text-color="#808080"/>
+
+            <!-- A/D/S/R knobs for ENV 3 -->
+            <view class="ArcKnob" origin="372, 92" size="36, 36"
+                  control-tag="ModEnvAttack" default-value="0.2"
+                  arc-color="#A05AC8" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="364, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="A"/>
+
+            <view class="ArcKnob" origin="412, 92" size="36, 36"
+                  control-tag="ModEnvDecay" default-value="0.3"
+                  arc-color="#A05AC8" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="404, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="D"/>
+
+            <view class="ArcKnob" origin="452, 92" size="36, 36"
+                  control-tag="ModEnvSustain" default-value="0.7"
+                  arc-color="#A05AC8" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="444, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="S"/>
+
+            <view class="ArcKnob" origin="492, 92" size="36, 36"
+                  control-tag="ModEnvRelease" default-value="0.3"
+                  arc-color="#A05AC8" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="484, 125" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="R"/>
+        </view>
+
+        <!-- Row 3: Movement & Modulation -->
+
+        <!-- TRANCE GATE (gold accent) -->
         <view
-            class="ModMatrixGrid"
-            origin="660, 85"
-            size="220, 200"
-            background-color="#1E1E21"
-        />
-
-        <!-- ModHeatmap (T142) -->
-        <view
-            class="ModHeatmap"
-            origin="660, 290"
-            size="220, 80"
-            background-color="#1E1E21"
-        />
-
-        <!-- ModRingIndicator overlays on destination knobs -->
-
-        <!-- T143: Filter Cutoff ring overlay (dest-index=0) -->
-        <view
-            class="ModRingIndicator"
-            origin="120, 90"
-            size="40, 40"
+            class="FieldsetContainer"
+            origin="8, 334"
+            size="380, 130"
+            fieldset-title="TRANCE GATE"
+            fieldset-color="#DCA83C"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
             transparent="true"
-            mouse-enabled="true"
-            stroke-width="3.0"
-            dest-index="0"
-        />
+        >
+            <!-- ======================================================== -->
+            <!-- T057: Enable button                                       -->
+            <!-- T059: Note Value dropdown                                 -->
+            <!-- T064a: Modifier dropdown                                  -->
+            <!-- T064b: Step count controls                                -->
+            <!-- T064c: Euclidean toggle                                   -->
+            <!-- ======================================================== -->
+
+            <!-- Toolbar row (y=14) -->
+            <view class="COnOffButton" origin="8, 14" size="40, 18"
+                  control-tag="TranceGateEnabled" default-value="0"
+                  transparent="false"/>
+
+            <view class="COptionMenu" origin="52, 14" size="70, 18"
+                  control-tag="TranceGateNoteValue" default-value="0"
+                  font="~ NormalFontSmaller" font-color="#C0C0C0"
+                  back-color="#2A2A2E" frame-color="#404048"/>
+
+            <view class="COptionMenu" origin="126, 14" size="70, 18"
+                  default-value="0"
+                  font="~ NormalFontSmaller" font-color="#C0C0C0"
+                  back-color="#2A2A2E" frame-color="#404048"/>
+
+            <!-- Step count display + increment/decrement -->
+            <view class="CTextLabel" origin="200, 14" size="30, 18"
+                  font="~ NormalFontSmaller" font-color="#C0C0C0"
+                  text-alignment="center" transparent="false"
+                  back-color="#2A2A2E" frame-color="#404048"
+                  title="16"/>
+
+            <view class="COnOffButton" origin="230, 14" size="20, 18"
+                  control-tag="TranceGateNumSteps" default-value="0"
+                  transparent="false"/>
+
+            <view class="COnOffButton" origin="252, 14" size="20, 18"
+                  control-tag="TranceGateNumSteps" default-value="0"
+                  transparent="false"/>
+
+            <!-- Euclidean toggle -->
+            <view class="COnOffButton" origin="278, 14" size="90, 18"
+                  control-tag="TranceGateEuclideanEnabled" default-value="0"
+                  transparent="false"/>
+
+            <!-- ======================================================== -->
+            <!-- T058: StepPatternEditor                                   -->
+            <!-- ======================================================== -->
+            <view class="StepPatternEditor" origin="8, 34" size="360, 46"
+                  transparent="false"/>
+
+            <!-- ======================================================== -->
+            <!-- T064e: Quick action button row (11 buttons, 24x24)       -->
+            <!-- ======================================================== -->
+            <view class="COnOffButton" origin="8, 82" size="24, 24"
+                  control-tag="ActionPresetAll" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="34, 82" size="24, 24"
+                  control-tag="ActionPresetOff" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="60, 82" size="24, 24"
+                  control-tag="ActionPresetAlternate" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="86, 82" size="24, 24"
+                  control-tag="ActionPresetRampUp" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="112, 82" size="24, 24"
+                  control-tag="ActionPresetRampDown" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="138, 82" size="24, 24"
+                  control-tag="ActionPresetRandom" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="164, 82" size="24, 24"
+                  control-tag="TranceGateEuclideanEnabled" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="190, 82" size="24, 24"
+                  control-tag="ActionTransformInvert" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="216, 82" size="24, 24"
+                  control-tag="ActionTransformShiftLeft" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="242, 82" size="24, 24"
+                  control-tag="ActionTransformShiftRight" default-value="0"
+                  transparent="false"/>
+            <view class="COnOffButton" origin="268, 82" size="24, 24"
+                  control-tag="ActionEuclideanRegen" default-value="0"
+                  transparent="false"/>
+
+            <!-- ======================================================== -->
+            <!-- T064d: Euclidean Hits/Rotation knobs (secondary toolbar) -->
+            <!-- ======================================================== -->
+            <view class="ArcKnob" origin="296, 82" size="28, 28"
+                  control-tag="TranceGateEuclideanHits" default-value="0.5"
+                  arc-color="#DCA83C" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="290, 110" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Hits"/>
+
+            <view class="ArcKnob" origin="336, 82" size="28, 28"
+                  control-tag="TranceGateEuclideanRotation" default-value="0.0"
+                  arc-color="#DCA83C" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="328, 110" size="44, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Rotate"/>
+
+            <!-- ======================================================== -->
+            <!-- T060-T064: Knob row (Rate, Depth, Attack, Release, Phase)-->
+            <!-- 5 knobs at 22x22 with labels, spaced across bottom         -->
+            <!-- ======================================================== -->
+
+            <!-- Rate -->
+            <view class="CTextLabel" origin="2, 97" size="42, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Rate"/>
+            <view class="ArcKnob" origin="8, 108" size="22, 22"
+                  control-tag="TranceGateRate" default-value="0.5"
+                  arc-color="#DCA83C" guide-color="#FFFFFF28"/>
+
+            <!-- Depth -->
+            <view class="CTextLabel" origin="44, 97" size="42, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Depth"/>
+            <view class="ArcKnob" origin="50, 108" size="22, 22"
+                  control-tag="TranceGateDepth" default-value="0.5"
+                  arc-color="#DCA83C" guide-color="#FFFFFF28"/>
+
+            <!-- Attack -->
+            <view class="CTextLabel" origin="86, 97" size="42, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Attack"/>
+            <view class="ArcKnob" origin="92, 108" size="22, 22"
+                  control-tag="TranceGateAttack" default-value="0.2"
+                  arc-color="#DCA83C" guide-color="#FFFFFF28"/>
+
+            <!-- Release -->
+            <view class="CTextLabel" origin="126, 97" size="46, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Release"/>
+            <view class="ArcKnob" origin="134, 108" size="22, 22"
+                  control-tag="TranceGateRelease" default-value="0.3"
+                  arc-color="#DCA83C" guide-color="#FFFFFF28"/>
+
+            <!-- Phase -->
+            <view class="CTextLabel" origin="170, 97" size="42, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Phase"/>
+            <view class="ArcKnob" origin="176, 108" size="22, 22"
+                  control-tag="TranceGatePhaseOffset" default-value="0.0"
+                  arc-color="#DCA83C" guide-color="#FFFFFF28"/>
+        </view>
+
+        <!-- MODULATION (green accent) -->
+        <view
+            class="FieldsetContainer"
+            origin="396, 334"
+            size="496, 130"
+            fieldset-title="MODULATION"
+            fieldset-color="#5AC882"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
+            transparent="true"
+        >
+            <!-- ======================================================== -->
+            <!-- T065-T067: LFO1 knobs (Row 1, y=14)                      -->
+            <!-- ======================================================== -->
+
+            <!-- LFO1 Rate -->
+            <view class="ArcKnob" origin="8, 14" size="28, 28"
+                  control-tag="LFO1Rate" default-value="0.5"
+                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="2, 42" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Rate"/>
+
+            <!-- LFO1 Shape -->
+            <view class="ArcKnob" origin="48, 14" size="28, 28"
+                  control-tag="LFO1Shape" default-value="0.0"
+                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="42, 42" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Shape"/>
+
+            <!-- LFO1 Depth -->
+            <view class="ArcKnob" origin="88, 14" size="28, 28"
+                  control-tag="LFO1Depth" default-value="0.5"
+                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="82, 42" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Depth"/>
+
+            <!-- LFO1 section label -->
+            <view class="CTextLabel" origin="8, 52" size="108, 10"
+                  font="~ NormalFontSmaller" font-color="#5AC882"
+                  text-alignment="center" transparent="true" title="LFO 1"/>
+
+            <!-- ======================================================== -->
+            <!-- T068-T070: LFO2 knobs (Row 2, y=64)                      -->
+            <!-- ======================================================== -->
+
+            <!-- LFO2 Rate -->
+            <view class="ArcKnob" origin="8, 64" size="28, 28"
+                  control-tag="LFO2Rate" default-value="0.5"
+                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="2, 92" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Rate"/>
+
+            <!-- LFO2 Shape -->
+            <view class="ArcKnob" origin="48, 64" size="28, 28"
+                  control-tag="LFO2Shape" default-value="0.0"
+                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="42, 92" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Shape"/>
+
+            <!-- LFO2 Depth -->
+            <view class="ArcKnob" origin="88, 64" size="28, 28"
+                  control-tag="LFO2Depth" default-value="0.5"
+                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="82, 92" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Depth"/>
+
+            <!-- T071: Chaos Rate -->
+            <view class="ArcKnob" origin="128, 64" size="28, 28"
+                  control-tag="ChaosRate" default-value="0.5"
+                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="122, 92" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="#808080"
+                  text-alignment="center" transparent="true" title="Chaos"/>
+
+            <!-- LFO2 + Chaos section label -->
+            <view class="CTextLabel" origin="8, 102" size="158, 10"
+                  font="~ NormalFontSmaller" font-color="#5AC882"
+                  text-alignment="center" transparent="true" title="LFO 2 / Chaos"/>
+
+            <!-- ======================================================== -->
+            <!-- T072: CategoryTabBar (Global | Voice)                     -->
+            <!-- ======================================================== -->
+            <view class="CategoryTabBar" origin="168, 14" size="150, 18"
+                  transparent="false"/>
+
+            <!-- ======================================================== -->
+            <!-- T073: ModMatrixGrid                                       -->
+            <!-- ======================================================== -->
+            <view class="ModMatrixGrid" origin="168, 34" size="168, 90"
+                  transparent="false"/>
+
+            <!-- ======================================================== -->
+            <!-- T074: ModHeatmap                                          -->
+            <!-- ======================================================== -->
+            <view class="ModHeatmap" origin="340, 14" size="148, 110"
+                  transparent="false"/>
+        </view>
+
+        <!-- Row 4: Effects & Output -->
+
+        <!-- EFFECTS (gray accent) -->
+        <view
+            class="FieldsetContainer"
+            origin="8, 466"
+            size="730, 80"
+            fieldset-title="EFFECTS"
+            fieldset-color="#6E7078"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
+            transparent="true"
+        >
+            <!-- Compact FX strip (always visible) -->
+            <view class="CViewContainer" origin="4, 14" size="722, 28" transparent="true">
+                <!-- Freeze group -->
+                <view class="COnOffButton" origin="0, 4" size="50, 20"
+                      control-tag="FreezeEnabled"
+                      title="Freeze"
+                      font="~ NormalFontSmaller"
+                      font-color="#C8C8CC"
+                      text-color="#C8C8CC"
+                      transparent="true"/>
+                <view class="ArcKnob" origin="60, 0" size="28, 28"
+                      control-tag="FreezeToggle"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="CTextLabel" origin="52, 28" size="44, 0" title=""
+                      transparent="true"/>
+                <view class="COnOffButton" origin="100, 4" size="20, 20"
+                      control-tag="ActionFxExpandFreeze"
+                      title=">"
+                      font="~ NormalFontSmaller"
+                      font-color="#808080"
+                      transparent="true"/>
+
+                <!-- Delay group -->
+                <view class="COnOffButton" origin="240, 4" size="50, 20"
+                      title="Delay"
+                      font="~ NormalFontSmaller"
+                      font-color="#C8C8CC"
+                      text-color="#C8C8CC"
+                      transparent="true"/>
+                <view class="ArcKnob" origin="300, 0" size="28, 28"
+                      control-tag="DelayMix"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="COnOffButton" origin="340, 4" size="20, 20"
+                      control-tag="ActionFxExpandDelay"
+                      title=">"
+                      font="~ NormalFontSmaller"
+                      font-color="#808080"
+                      transparent="true"/>
+
+                <!-- Reverb group -->
+                <view class="COnOffButton" origin="480, 4" size="50, 20"
+                      title="Reverb"
+                      font="~ NormalFontSmaller"
+                      font-color="#C8C8CC"
+                      text-color="#C8C8CC"
+                      transparent="true"/>
+                <view class="ArcKnob" origin="540, 0" size="28, 28"
+                      control-tag="ReverbMix"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="COnOffButton" origin="580, 4" size="20, 20"
+                      control-tag="ActionFxExpandReverb"
+                      title=">"
+                      font="~ NormalFontSmaller"
+                      font-color="#808080"
+                      transparent="true"/>
+            </view>
+
+            <!-- Freeze detail panel (initially hidden, shown by controller) -->
+            <view class="CViewContainer" origin="4, 44" size="722, 32"
+                  custom-view-name="FreezeDetail" transparent="true">
+                <!-- Placeholder - Freeze detail controls added in future spec -->
+                <view class="CTextLabel" origin="8, 6" size="120, 20"
+                      title="Freeze Detail"
+                      font="~ NormalFontSmaller"
+                      font-color="#808080"
+                      transparent="true"/>
+            </view>
+
+            <!-- Delay detail panel (initially hidden, shown by controller) -->
+            <view class="CViewContainer" origin="4, 44" size="722, 32"
+                  custom-view-name="DelayDetail" transparent="true">
+                <view class="COptionMenu" origin="8, 6" size="80, 20"
+                      control-tag="DelayType"
+                      font="~ NormalFontSmaller"
+                      font-color="#C8C8CC"
+                      back-color="#2A2A2E"
+                      frame-color="#3A3A3E"
+                      transparent="false"/>
+                <view class="ArcKnob" origin="100, 2" size="28, 28"
+                      control-tag="DelayTime"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="ArcKnob" origin="140, 2" size="28, 28"
+                      control-tag="DelayFeedback"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="ArcKnob" origin="180, 2" size="28, 28"
+                      control-tag="DelaySync"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="CTextLabel" origin="174, 21" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="#808080"
+                      text-alignment="center" transparent="true" title="Sync"/>
+                <view class="ArcKnob" origin="220, 2" size="28, 28"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="CTextLabel" origin="214, 21" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="#808080"
+                      text-alignment="center" transparent="true" title="Mod"/>
+            </view>
+
+            <!-- Reverb detail panel (initially hidden, shown by controller) -->
+            <view class="CViewContainer" origin="4, 44" size="722, 32"
+                  custom-view-name="ReverbDetail" transparent="true">
+                <view class="ArcKnob" origin="8, 2" size="28, 28"
+                      control-tag="ReverbSize"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="ArcKnob" origin="48, 2" size="28, 28"
+                      control-tag="ReverbDamping"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="ArcKnob" origin="88, 2" size="28, 28"
+                      control-tag="ReverbWidth"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+                <view class="ArcKnob" origin="128, 2" size="28, 28"
+                      control-tag="ReverbPreDelay"
+                      default-value="0.5"
+                      arc-color="#6E7078"
+                      guide-color="#FFFFFF28"/>
+            </view>
+        </view>
+
+        <!-- MASTER (silver accent) -->
+        <view
+            class="FieldsetContainer"
+            origin="746, 466"
+            size="146, 80"
+            fieldset-title="MASTER"
+            fieldset-color="#C8C8CC"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
+            transparent="true"
+        >
+            <!-- Output knob -->
+            <view class="ArcKnob" origin="8, 16" size="36, 36"
+                  control-tag="MasterGain"
+                  default-value="0.5"
+                  arc-color="#C8C8CC"
+                  guide-color="#FFFFFF28"/>
+            <view class="CTextLabel" origin="0, 52" size="52, 12"
+                  title="Output"
+                  font="~ NormalFontSmaller"
+                  font-color="#808080"
+                  text-alignment="center"
+                  transparent="true"/>
+
+            <!-- Polyphony dropdown -->
+            <view class="COptionMenu" origin="60, 20" size="80, 20"
+                  control-tag="Polyphony"
+                  font="~ NormalFontSmaller"
+                  font-color="#C8C8CC"
+                  back-color="#2A2A2E"
+                  frame-color="#3A3A3E"
+                  transparent="false"/>
+            <view class="CTextLabel" origin="60, 42" size="80, 12"
+                  title="Polyphony"
+                  font="~ NormalFontSmaller"
+                  font-color="#808080"
+                  text-alignment="center"
+                  transparent="true"/>
+
+            <!-- Soft Limit toggle -->
+            <view class="COnOffButton" origin="60, 56" size="80, 18"
+                  control-tag="SoftLimit"
+                  title="Soft Limit"
+                  font="~ NormalFontSmaller"
+                  font-color="#C8C8CC"
+                  text-color="#C8C8CC"
+                  transparent="true"/>
+        </view>
 
     </template>
 </vstgui-ui-description>
