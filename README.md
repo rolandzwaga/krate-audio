@@ -24,16 +24,27 @@ krate-audio/
 │   │   ├── processors/       # Layer 2: Composed processors (filters, saturation, dynamics)
 │   │   ├── systems/          # Layer 3: Complex systems (feedback networks, character)
 │   │   └── effects/          # Layer 4: Complete effect algorithms
-│   └── tests/                # DSP unit tests (3000+ test cases)
+│   └── tests/                # DSP unit tests (5400+ test cases)
 │
 ├── plugins/
 │   ├── iterum/               # Iterum - Delay plugin with 11 modes
 │   │   ├── src/              # Plugin source (processor, controller, UI)
 │   │   ├── tests/            # Plugin-specific tests
 │   │   └── resources/        # UI assets, presets, installers
-│   └── disrumpo/             # Disrumpo - Multiband morphing distortion
-│       ├── src/              # Plugin source (processor, controller, UI)
-│       └── resources/        # UI assets, presets
+│   ├── disrumpo/             # Disrumpo - Multiband morphing distortion
+│   │   ├── src/              # Plugin source (processor, controller, UI)
+│   │   ├── tests/            # Plugin-specific tests
+│   │   └── resources/        # UI assets, presets
+│   ├── ruinae/               # Ruinae - Chaos/spectral hybrid synthesizer
+│   │   ├── src/              # Plugin source (engine, processor, controller)
+│   │   ├── tests/            # Plugin-specific tests
+│   │   └── resources/        # UI assets, presets, installers
+│   └── shared/               # Shared plugin components (UI controls, presets, MIDI)
+│       ├── src/ui/           # Reusable VSTGUI controls
+│       └── tests/            # Shared component tests
+│
+├── tools/
+│   └── control_testbench/    # Standalone app for testing custom VSTGUI controls
 │
 ├── tests/                    # Shared test infrastructure
 ├── extern/vst3sdk/           # Steinberg VST3 SDK (submodule)
@@ -54,24 +65,28 @@ A multiband morphing distortion VST3 plugin with a 4-band crossover network, smo
 
 [**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/disrumpo//) | [**Plugin README**](plugins/disrumpo/README.md)
 
+### Ruinae
+
+A chaos/spectral hybrid synthesizer VST3 plugin featuring a modular synthesis engine with modulation matrix, multiple oscillator types, and an effects chain.
+
 ## KrateDSP Library
 
 The KrateDSP library provides reusable DSP components organized in a 5-layer architecture where each layer can only depend on layers below it:
 
 | Layer | Directory | Components | Examples |
 |-------|-----------|------------|----------|
-| 0 | `core/` | Math utilities | dB conversion, sigmoid functions, interpolation |
-| 1 | `primitives/` | 29 basic DSP blocks | Biquad, SVF, ladder filter, delay lines, LFOs, FFT/STFT |
-| 2 | `processors/` | 27 composed processors | Filters (formant, phaser, spectral morph), saturation, resonator bank |
-| 3 | `systems/` | 12 complex systems | Tape machine, amp channel, feedback networks, granular engine |
-| 4 | `effects/` | 12 complete algorithms | Tape delay, granular delay, shimmer, spectral, BBD |
+| 0 | `core/` | Math utilities, constants | dB conversion, sigmoid functions, interpolation, window functions |
+| 1 | `primitives/` | 49 basic DSP blocks | Biquad, SVF, ladder filter, delay lines, LFOs, FFT/STFT, oscillators |
+| 2 | `processors/` | 68 composed processors | Filters (formant, phaser, spectral morph), saturation, resonator bank, particle oscillator |
+| 3 | `systems/` | 29 complex systems | Tape machine, amp channel, feedback networks, granular engine, synth voice, modulation matrix |
+| 4 | `effects/` | 13 complete algorithms | Tape delay, granular delay, shimmer, spectral, BBD, reverb |
 
 ### Key Features
 
 - **Real-Time Safe** - No allocations in audio processing, lock-free operations
 - **Modern C++20** - RAII, constexpr, concepts, value semantics
 - **Cross-Platform** - Windows, macOS (Intel & Apple Silicon), Linux
-- **Extensively Tested** - 3000+ test cases with 13M+ assertions, spectral analysis, and approval testing
+- **Extensively Tested** - 6500+ test cases across 300+ test files, spectral analysis, and approval testing
 - **SIMD-Optimized FFT** - pffft backend with SSE (x86/x64) and NEON (ARM) acceleration
 - **Composable Anti-Aliasing** - Oversampling applied at appropriate abstraction levels
 - **Physical Modeling** - Resonator banks, formant filters, waveguide primitives
@@ -111,6 +126,8 @@ cmake --build build/windows-x64-release --target dsp_tests
 | Target | Location |
 |--------|----------|
 | Iterum plugin | `build/<preset>/VST3/Release/Iterum.vst3` |
+| Disrumpo plugin | `build/<preset>/VST3/Release/Disrumpo.vst3` |
+| Ruinae plugin | `build/<preset>/VST3/Release/Ruinae.vst3` |
 | DSP tests | `build/<preset>/dsp/tests/Release/dsp_tests` |
 | KrateDSP library | `build/<preset>/dsp/Release/KrateDSP.lib` |
 
