@@ -50,6 +50,7 @@ add_library(KratePluginsShared STATIC
     src/ui/mod_matrix_grid.h
     src/ui/mod_ring_indicator.h
     src/ui/mod_heatmap.h
+    src/ui/oscillator_type_selector.h
     src/ui/search_debouncer.h
     src/ui/preset_browser_logic.h
     src/ui/category_tab_bar.h

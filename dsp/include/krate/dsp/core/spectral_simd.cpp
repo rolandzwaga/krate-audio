@@ -12,7 +12,7 @@
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "krate/dsp/core/spectral_simd.cpp"
-#include "hwy/foreach_target.h"  // Re-includes THIS file per ISA target
+#include "hwy/foreach_target.h"  // NOLINT(misc-header-include-cycle) Highway self-inclusion by design
 #include "hwy/highway.h"
 #include "hwy/contrib/math/math-inl.h"
 
@@ -25,6 +25,7 @@
 
 HWY_BEFORE_NAMESPACE();
 
+// NOLINTNEXTLINE(modernize-concat-nested-namespaces) HWY_NAMESPACE is a macro
 namespace Krate {
 namespace DSP {
 namespace HWY_NAMESPACE {
@@ -35,6 +36,7 @@ namespace hn = hwy::HWY_NAMESPACE;
 // ComputePolarImpl: Complex[] -> mags[] + phases[]
 // -----------------------------------------------------------------------------
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) exported via HWY_EXPORT
 void ComputePolarImpl(const float* HWY_RESTRICT complexData, size_t numBins,
                       float* HWY_RESTRICT mags, float* HWY_RESTRICT phases) {
     const hn::ScalableTag<float> d;
@@ -45,7 +47,8 @@ void ComputePolarImpl(const float* HWY_RESTRICT complexData, size_t numBins,
     // SIMD loop: process N bins per iteration
     for (; k + N <= numBins; k += N) {
         // Load interleaved [real0, imag0, real1, imag1, ...] into separate vectors
-        hn::Vec<decltype(d)> re, im;
+        hn::Vec<decltype(d)> re;
+        hn::Vec<decltype(d)> im;
         hn::LoadInterleaved2(d, complexData + k * 2, re, im);
 
         // Magnitude: sqrt(re^2 + im^2)
@@ -72,6 +75,7 @@ void ComputePolarImpl(const float* HWY_RESTRICT complexData, size_t numBins,
 // ReconstructCartesianImpl: mags[] + phases[] -> Complex[]
 // -----------------------------------------------------------------------------
 
+// NOLINTNEXTLINE(misc-use-internal-linkage) exported via HWY_EXPORT
 void ReconstructCartesianImpl(const float* HWY_RESTRICT mags,
                                const float* HWY_RESTRICT phases,
                                size_t numBins,
@@ -119,6 +123,7 @@ HWY_AFTER_NAMESPACE();
 
 #include "krate/dsp/core/spectral_simd.h"
 
+// NOLINTNEXTLINE(modernize-concat-nested-namespaces) HWY_NAMESPACE dispatch section
 namespace Krate {
 namespace DSP {
 

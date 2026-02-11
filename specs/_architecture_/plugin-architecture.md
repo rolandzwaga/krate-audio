@@ -109,7 +109,8 @@ plugins/shared/
 │       ├── mod_matrix_grid.h          # Slot-based modulation route list with tabs (Spec 049)
 │       ├── mod_ring_indicator.h       # Colored arc overlays on destination knobs (Spec 049)
 │       ├── mod_heatmap.h             # Source-by-destination routing heatmap (Spec 049)
-│       └── bipolar_slider.h          # Bipolar (-1 to +1) slider control (Spec 049)
+│       ├── bipolar_slider.h          # Bipolar (-1 to +1) slider control (Spec 049)
+│       └── oscillator_type_selector.h  # Dropdown tile grid oscillator type chooser (Spec 050)
 └── tests/                         # Shared library tests
 ```
 
@@ -536,6 +537,55 @@ class BipolarSlider : public VSTGUI::CControl {
 - `center-tick-color` (kColorType)
 
 **Consumers:** ModMatrixGrid route rows (Spec 049). Any future control needing bipolar range input.
+
+### OscillatorTypeSelector (Spec 050)
+**Path:** [oscillator_type_selector.h](../../plugins/shared/src/ui/oscillator_type_selector.h) | **Since:** 0.19.0
+
+Dropdown-style oscillator type selector with popup 5x2 tile grid. Extends `VSTGUI::CControl`, implements `IMouseObserver` and `IKeyboardHook`. Registered as "OscillatorTypeSelector" via VSTGUI ViewCreator.
+
+```cpp
+class OscillatorTypeSelector : public VSTGUI::CControl,
+                               public VSTGUI::IMouseObserver,
+                               public VSTGUI::IKeyboardHook {
+    // Identity
+    void setIdentity(const std::string& identity);  // "a" = blue, "b" = orange
+    const std::string& getIdentity() const;
+    CColor getIdentityColor() const;
+
+    // State
+    int getCurrentIndex() const;             // 0-9
+    OscType getCurrentType() const;          // OscType enum
+    bool isPopupOpen() const;
+};
+```
+
+**Features:**
+- Collapsed state: waveform icon (20x14) + display name (11px) + dropdown arrow (8x5)
+- Popup overlay: 260x94px, 5x2 grid of 48x40px cells with waveform icons and labels
+- 10 programmatic waveform icons (no bitmaps) via CGraphicsPath
+- Identity color support: OSC A = blue rgb(100,180,255), OSC B = orange rgb(255,140,100)
+- Smart popup positioning with 4-corner fallback (below-left, below-right, above-left, above-right)
+- Click cell to select, click outside or press Escape to dismiss
+- Scroll wheel auditioning: cycle through types without opening popup, wraps 0-9
+- Keyboard navigation: Enter/Space to open, arrow keys to navigate grid, Enter/Space to confirm
+- Host automation: valueChanged() updates display without opening popup
+- Multi-instance exclusivity: static sOpenInstance_ ensures only one popup open at a time
+- NaN/inf defense: corrupt values treated as 0.5, clamped to valid range (FR-042)
+
+**ViewCreator Attributes:**
+- `osc-identity` (kStringType, "a" or "b")
+
+**Free Functions (testable without VSTGUI):**
+- `oscTypeIndexFromNormalized(float)` - normalized [0,1] to index [0,9] with NaN defense
+- `normalizedFromOscTypeIndex(int)` - index [0,9] to normalized [0,1]
+- `oscTypeDisplayName(int)` - full display name for collapsed state
+- `oscTypePopupLabel(int)` - abbreviated label for popup cell
+- `hitTestPopupCell(double x, double y)` - grid hit testing, returns cell index or -1
+- `OscWaveformIcons::getIconPath(OscType)` - normalized point data for icon drawing
+
+**When to use:** When you need a type selector with visual waveform icons and rapid auditioning (scroll wheel) support. Reusable for any plugin that needs oscillator type selection with visual feedback.
+
+**Consumers:** Ruinae OSC A/B type selectors (Spec 050). Control testbench demo instances.
 
 ### Factory Preset Generator
 

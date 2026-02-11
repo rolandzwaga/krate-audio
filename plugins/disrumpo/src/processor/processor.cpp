@@ -1047,15 +1047,15 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
             if (!streamer.writeFloat(mn.params.bitDepth)) return Steinberg::kResultFalse;
 
             // v9: Shape parameter slots
-            for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
-                if (!streamer.writeFloat(mn.shapeSlots[s])) return Steinberg::kResultFalse;
+            for (float slotValue : mn.shapeSlots) {
+                if (!streamer.writeFloat(slotValue)) return Steinberg::kResultFalse;
             }
 
             // v9: Per-type shadow storage (26 types × 10 slots)
             const auto& shadow = bandMorphCache_[b].shapeShadow[static_cast<size_t>(n)];
-            for (int t = 0; t < kDistortionTypeCount; ++t) {
-                for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
-                    if (!streamer.writeFloat(shadow.typeSlots[t][s]))
+            for (const auto& typeSlot : shadow.typeSlots) {
+                for (float slotValue : typeSlot) {
+                    if (!streamer.writeFloat(slotValue))
                         return Steinberg::kResultFalse;
                 }
             }
@@ -1492,8 +1492,12 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             // Per-node state (always read to advance stream)
             for (int n = 0; n < kMaxMorphNodes; ++n) {
                 Steinberg::int8 nodeType = 0;
-                float drive = 1.0f, mix = 1.0f, toneHz = 4000.0f;
-                float bias = 0.0f, folds = 1.0f, bitDepth = 16.0f;
+                float drive = 1.0f;
+                float mix = 1.0f;
+                float toneHz = 4000.0f;
+                float bias = 0.0f;
+                float folds = 1.0f;
+                float bitDepth = 16.0f;
 
                 streamer.readInt8(nodeType);
                 streamer.readFloat(drive);
@@ -1517,6 +1521,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 
                 // v9: Shape parameter slots
                 if (version >= 9) {
+                    // NOLINTNEXTLINE(modernize-loop-convert) index needed: array access conditional on b < kMaxBands
                     for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
                         float slotValue;
                         if (streamer.readFloat(slotValue)) {
@@ -1527,6 +1532,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                     }
 
                     // v9: Per-type shadow storage (26 types × 10 slots)
+                    // NOLINTNEXTLINE(modernize-loop-convert) index needed: array access conditional on b < kMaxBands
                     for (int t = 0; t < kDistortionTypeCount; ++t) {
                         for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
                             float shadowValue;
