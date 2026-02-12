@@ -850,13 +850,10 @@
                   font="~ NormalFontSmaller" font-color="#C0C0C0"
                   back-color="#2A2A2E" frame-color="#404048"/>
 
-            <view class="ToggleButton" origin="130, 14" size="20, 18"
-                  control-tag="TranceGateNumSteps" default-value="0"
-                  transparent="false"/>
-
-            <view class="ToggleButton" origin="152, 14" size="20, 18"
-                  control-tag="TranceGateNumSteps" default-value="0"
-                  transparent="false"/>
+            <view class="COptionMenu" origin="130, 14" size="56, 18"
+                  control-tag="TranceGateNumSteps" default-value="0.467"
+                  font="~ NormalFontSmaller" font-color="#C0C0C0"
+                  back-color="#2A2A2E" frame-color="#404048"/>
 
             <view class="ToggleButton" origin="786, 14" size="90, 18"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
@@ -879,23 +876,23 @@
                   back-color="#2A2A2E" frame-color="#404048"/>
 
             <!-- Transform buttons -->
-            <view class="ToggleButton" origin="126, 110" size="26, 26"
+            <view class="ActionButton" origin="126, 110" size="26, 26"
                   control-tag="ActionTransformInvert" default-value="0"
-                  transparent="false"/>
-            <view class="ToggleButton" origin="154, 110" size="26, 26"
+                  icon-style="invert" transparent="false"/>
+            <view class="ActionButton" origin="154, 110" size="26, 26"
                   control-tag="ActionTransformShiftLeft" default-value="0"
-                  transparent="false"/>
-            <view class="ToggleButton" origin="182, 110" size="26, 26"
+                  icon-style="shift-left" transparent="false"/>
+            <view class="ActionButton" origin="182, 110" size="26, 26"
                   control-tag="ActionTransformShiftRight" default-value="0"
-                  transparent="false"/>
+                  icon-style="shift-right" transparent="false"/>
 
             <!-- Euclidean action buttons -->
             <view class="ToggleButton" origin="216, 110" size="26, 26"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
                   transparent="false"/>
-            <view class="ToggleButton" origin="244, 110" size="26, 26"
+            <view class="ActionButton" origin="244, 110" size="26, 26"
                   control-tag="ActionEuclideanRegen" default-value="0"
-                  transparent="false"/>
+                  icon-style="regen" transparent="false"/>
 
             <!-- Parameter knobs: Rate, Depth, Attack, Release, Phase -->
             <view class="ArcKnob" origin="380, 108" size="28, 28"

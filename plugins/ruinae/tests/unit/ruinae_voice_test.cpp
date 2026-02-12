@@ -2194,3 +2194,51 @@ TEST_CASE("RuinaeVoice: all 10 OSC B types produce output at mix=1.0",
         }
     }
 }
+
+// =============================================================================
+// Formant filter output level integration test
+// =============================================================================
+
+TEST_CASE("RuinaeVoice: formant filter output level is audible", "[ruinae_voice][filter][formant]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 512;
+    constexpr size_t totalSamples = 44100; // 1 second
+
+    // Helper: set up a voice playing a note and return RMS after sustain
+    auto measureFilterLevel = [&](RuinaeFilterType filterType) -> float {
+        auto voice = createPreparedVoice(sampleRate, blockSize);
+        voice.setFilterType(filterType);
+        voice.setFilterCutoff(1000.0f);
+        voice.setFilterResonance(1.0f);
+        voice.getAmpEnvelope().setAttack(0.1f);
+        voice.getAmpEnvelope().setSustain(1.0f);
+        voice.noteOn(440.0f, 1.0f);
+
+        // Skip attack/transient (first 100ms)
+        processNSamples(voice, static_cast<size_t>(sampleRate * 0.1));
+
+        // Measure sustained output
+        auto output = processNSamples(voice, totalSamples);
+        return computeRMS(output.data(), output.size());
+    };
+
+    const float rmsFormant = measureFilterLevel(RuinaeFilterType::Formant);
+    const float rmsSvfLP = measureFilterLevel(RuinaeFilterType::SVF_LP);
+
+    const float dbFormant = (rmsFormant > 0.0f) ? 20.0f * std::log10(rmsFormant) : -200.0f;
+    const float dbSvfLP = (rmsSvfLP > 0.0f) ? 20.0f * std::log10(rmsSvfLP) : -200.0f;
+    const float dbDifference = dbFormant - dbSvfLP;
+
+    INFO("Formant RMS: " << rmsFormant << " (" << dbFormant << " dBFS)");
+    INFO("SVF LP RMS:  " << rmsSvfLP << " (" << dbSvfLP << " dBFS)");
+    INFO("Difference:  " << dbDifference << " dB");
+
+    // Formant filter output must be clearly audible (above -60 dBFS)
+    REQUIRE(dbFormant > -60.0f);
+
+    // Formant filter should be within 20 dB of SVF LP output level.
+    // Before the fix, the formant filter was ~20 dB quieter, making it
+    // almost inaudible. With Q-based gain compensation, it should be
+    // within a reasonable range of other filter types.
+    REQUIRE(dbDifference > -20.0f);
+}

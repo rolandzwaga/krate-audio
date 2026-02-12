@@ -971,3 +971,50 @@ TEST_CASE("FormantFilter parameter clamping", "[formant][edge]") {
     filter.setGender(100.0f);
     REQUIRE(filter.getGender() == Approx(1.0f));
 }
+
+// ==============================================================================
+// Output Level Tests (regression for formant filter being too quiet)
+// ==============================================================================
+
+TEST_CASE("FormantFilter output level is within -12 dB of input for white noise", "[formant][level]") {
+    FormantFilter filter;
+    constexpr float sampleRate = 44100.0f;
+    filter.prepare(sampleRate);
+
+    for (auto vowel : {Vowel::A, Vowel::E, Vowel::I, Vowel::O, Vowel::U}) {
+        DYNAMIC_SECTION("Vowel " << static_cast<int>(vowel)) {
+            filter.setVowel(vowel);
+            filter.setFormantShift(0.0f);
+            filter.setGender(0.0f);
+            filter.reset();
+
+            constexpr size_t numSamples = 16384;
+            std::vector<float> input(numSamples);
+            generateWhiteNoise(input.data(), numSamples);
+
+            const float inputRMS = calculateRMS(input.data(), numSamples);
+
+            // Process through formant filter
+            filter.processBlock(input.data(), numSamples);
+
+            // Skip initial transient, measure sustained portion
+            const float outputRMS = calculateRMS(input.data() + numSamples / 4,
+                                                  numSamples * 3 / 4);
+
+            const float inputDb = linearToDb(inputRMS);
+            const float outputDb = linearToDb(outputRMS);
+            const float levelDiff = outputDb - inputDb;
+
+            INFO("Input RMS:  " << inputRMS << " (" << inputDb << " dB)");
+            INFO("Output RMS: " << outputRMS << " (" << outputDb << " dB)");
+            INFO("Level diff: " << levelDiff << " dB");
+
+            // Output should be within -12 dB of input (was ~-20 dB before fix)
+            REQUIRE(levelDiff > -12.0f);
+            // Output should not exceed input by more than +10 dB
+            // (formant filters concentrate energy at resonant peaks, so some
+            // boost above input level is expected for broadband input)
+            REQUIRE(levelDiff < 10.0f);
+        }
+    }
+}

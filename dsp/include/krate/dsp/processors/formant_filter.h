@@ -251,6 +251,11 @@ private:
     // Filter stages (3 parallel bandpass)
     std::array<Biquad, kNumFormants> formants_{};
 
+    // Per-band gain compensation (Q value of each band)
+    // Converts from "constant 0 dB peak gain" to "constant skirt gain"
+    // bandpass behavior, matching standard formant synthesizer gain structure.
+    std::array<float, kNumFormants> bandGain_{1.0f, 1.0f, 1.0f};
+
     // Parameter smoothers (3 frequencies + 3 bandwidths)
     std::array<OnePoleSmoother, kNumFormants> freqSmoothers_{};
     std::array<OnePoleSmoother, kNumFormants> bwSmoothers_{};
@@ -409,10 +414,16 @@ inline void FormantFilter::updateFilterCoefficients() noexcept {
     const float bw2 = bwSmoothers_[1].process();
     const float bw3 = bwSmoothers_[2].process();
 
-    // Calculate Q values and configure filters
+    // Calculate Q values, store as per-band gain, and configure filters
     const float q1 = calculateQ(f1, bw1);
     const float q2 = calculateQ(f2, bw2);
     const float q3 = calculateQ(f3, bw3);
+
+    // Store Q as gain to convert "constant 0 dB peak" BPF to
+    // "constant skirt gain" BPF (standard formant synthesizer behavior)
+    bandGain_[0] = q1;
+    bandGain_[1] = q2;
+    bandGain_[2] = q3;
 
     const float sr = static_cast<float>(sampleRate_);
     formants_[0].configure(FilterType::Bandpass, f1, q1, 0.0f, sr);
@@ -438,9 +449,11 @@ inline float FormantFilter::process(float input) noexcept {
     updateFilterCoefficients();
 
     // Process through all 3 parallel formant filters and sum
+    // Each band is scaled by Q (bandGain_) to convert from "constant 0 dB peak"
+    // to "constant skirt gain" bandpass, matching formant synthesizer convention.
     float output = 0.0f;
-    for (auto& filter : formants_) {
-        output += filter.process(input);
+    for (int i = 0; i < kNumFormants; ++i) {
+        output += formants_[i].process(input) * bandGain_[i];
     }
 
     return output;
