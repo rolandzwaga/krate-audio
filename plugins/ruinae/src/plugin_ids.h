@@ -421,12 +421,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)
     // ==========================================================================
-    kActionPresetAllTag = 10000,
-    kActionPresetOffTag = 10001,
-    kActionPresetAlternateTag = 10002,
-    kActionPresetRampUpTag = 10003,
-    kActionPresetRampDownTag = 10004,
-    kActionPresetRandomTag = 10005,
     kActionTransformInvertTag = 10006,
     kActionTransformShiftRightTag = 10007,
     kActionTransformShiftLeftTag = 10008,

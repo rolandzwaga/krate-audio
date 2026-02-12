@@ -19,6 +19,7 @@
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/lib/cviewcontainer.h"
 #include "preset/preset_manager.h"
 
@@ -192,6 +193,7 @@ private:
 
     VSTGUI::VST3Editor* activeEditor_ = nullptr;
     Krate::Plugins::StepPatternEditor* stepPatternEditor_ = nullptr;
+    VSTGUI::COptionMenu* presetDropdown_ = nullptr;
     Krate::Plugins::XYMorphPad* xyMorphPad_ = nullptr;
     Krate::Plugins::ModMatrixGrid* modMatrixGrid_ = nullptr;
 

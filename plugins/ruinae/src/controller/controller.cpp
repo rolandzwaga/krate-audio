@@ -493,6 +493,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (activeEditor_ == editor) {
         stepPatternEditor_ = nullptr;
+        presetDropdown_ = nullptr;
         xyMorphPad_ = nullptr;
         modMatrixGrid_ = nullptr;
         ringIndicators_.fill(nullptr);
@@ -524,12 +525,28 @@ VSTGUI::CView* Controller::verifyView(
     const VSTGUI::IUIDescription* /*description*/,
     VSTGUI::VST3Editor* /*editor*/) {
 
-    // Register as sub-listener for action buttons (presets, transforms, FX/env chevrons)
+    // Register as sub-listener for action buttons (transforms, FX/env chevrons)
     auto* control = dynamic_cast<VSTGUI::CControl*>(view);
     if (control) {
         auto tag = control->getTag();
-        if (tag >= static_cast<int32_t>(kActionPresetAllTag) && tag <= static_cast<int32_t>(kActionEnvExpandModTag)) {
+        if (tag >= static_cast<int32_t>(kActionTransformInvertTag) && tag <= static_cast<int32_t>(kActionEnvExpandModTag)) {
             control->registerControlListener(this);
+        }
+    }
+
+    // Populate the pattern preset dropdown (identified by custom-id, no control-tag)
+    if (auto customId = attributes.getAttributeValue("custom-id")) {
+        if (*customId == "preset-dropdown") {
+            if (auto* menu = dynamic_cast<VSTGUI::COptionMenu*>(view)) {
+                menu->addEntry("All On");
+                menu->addEntry("All Off");
+                menu->addEntry("Alternate");
+                menu->addEntry("Ramp Up");
+                menu->addEntry("Ramp Down");
+                menu->addEntry("Random");
+                menu->registerControlListener(this);
+                presetDropdown_ = menu;
+            }
         }
     }
 
@@ -713,29 +730,26 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
         default: break;
     }
 
+    // Pattern preset dropdown (identified by pointer, no control-tag)
+    if (control == presetDropdown_) {
+        if (!stepPatternEditor_) return;
+        int index = static_cast<int>(control->getValue());
+        switch (index) {
+            case 0: stepPatternEditor_->applyPresetAll(); break;
+            case 1: stepPatternEditor_->applyPresetOff(); break;
+            case 2: stepPatternEditor_->applyPresetAlternate(); break;
+            case 3: stepPatternEditor_->applyPresetRampUp(); break;
+            case 4: stepPatternEditor_->applyPresetRampDown(); break;
+            case 5: stepPatternEditor_->applyPresetRandom(); break;
+            default: break;
+        }
+        return;
+    }
+
     // Momentary buttons: only respond to press (value > 0.5), not release
     if (control->getValue() < 0.5f) return;
 
     switch (tag) {
-        // Step pattern editor presets/transforms
-        case kActionPresetAllTag:
-            if (stepPatternEditor_) stepPatternEditor_->applyPresetAll();
-            break;
-        case kActionPresetOffTag:
-            if (stepPatternEditor_) stepPatternEditor_->applyPresetOff();
-            break;
-        case kActionPresetAlternateTag:
-            if (stepPatternEditor_) stepPatternEditor_->applyPresetAlternate();
-            break;
-        case kActionPresetRampUpTag:
-            if (stepPatternEditor_) stepPatternEditor_->applyPresetRampUp();
-            break;
-        case kActionPresetRampDownTag:
-            if (stepPatternEditor_) stepPatternEditor_->applyPresetRampDown();
-            break;
-        case kActionPresetRandomTag:
-            if (stepPatternEditor_) stepPatternEditor_->applyPresetRandom();
-            break;
         case kActionTransformInvertTag:
             if (stepPatternEditor_) stepPatternEditor_->applyTransformInvert();
             break;

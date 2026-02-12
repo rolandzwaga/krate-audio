@@ -108,12 +108,6 @@
         <control-tag name="ReverbPreDelay" tag="1704"/>
 
         <!-- UI action button tags (not VST parameters) -->
-        <control-tag name="ActionPresetAll" tag="10000"/>
-        <control-tag name="ActionPresetOff" tag="10001"/>
-        <control-tag name="ActionPresetAlternate" tag="10002"/>
-        <control-tag name="ActionPresetRampUp" tag="10003"/>
-        <control-tag name="ActionPresetRampDown" tag="10004"/>
-        <control-tag name="ActionPresetRandom" tag="10005"/>
         <control-tag name="ActionTransformInvert" tag="10006"/>
         <control-tag name="ActionTransformShiftRight" tag="10007"/>
         <control-tag name="ActionTransformShiftLeft" tag="10008"/>
@@ -889,42 +883,28 @@
             <!-- Bottom row: Action buttons (left) + Knobs (right)        -->
             <!-- ======================================================== -->
 
-            <!-- Preset buttons -->
-            <view class="ToggleButton" origin="8, 110" size="26, 26"
-                  control-tag="ActionPresetAll" default-value="0"
-                  transparent="false"/>
-            <view class="ToggleButton" origin="36, 110" size="26, 26"
-                  control-tag="ActionPresetOff" default-value="0"
-                  transparent="false"/>
-            <view class="ToggleButton" origin="64, 110" size="26, 26"
-                  control-tag="ActionPresetAlternate" default-value="0"
-                  transparent="false"/>
-            <view class="ToggleButton" origin="92, 110" size="26, 26"
-                  control-tag="ActionPresetRampUp" default-value="0"
-                  transparent="false"/>
-            <view class="ToggleButton" origin="120, 110" size="26, 26"
-                  control-tag="ActionPresetRampDown" default-value="0"
-                  transparent="false"/>
-            <view class="ToggleButton" origin="148, 110" size="26, 26"
-                  control-tag="ActionPresetRandom" default-value="0"
-                  transparent="false"/>
+            <!-- Pattern preset dropdown (no control-tag to avoid VST3Editor PCL recursion) -->
+            <view class="COptionMenu" origin="8, 112" size="110, 22"
+                  custom-id="preset-dropdown" default-value="0"
+                  font="~ NormalFontSmaller" font-color="#C0C0C0"
+                  back-color="#2A2A2E" frame-color="#404048"/>
 
             <!-- Transform buttons -->
-            <view class="ToggleButton" origin="182, 110" size="26, 26"
+            <view class="ToggleButton" origin="126, 110" size="26, 26"
                   control-tag="ActionTransformInvert" default-value="0"
                   transparent="false"/>
-            <view class="ToggleButton" origin="210, 110" size="26, 26"
+            <view class="ToggleButton" origin="154, 110" size="26, 26"
                   control-tag="ActionTransformShiftLeft" default-value="0"
                   transparent="false"/>
-            <view class="ToggleButton" origin="238, 110" size="26, 26"
+            <view class="ToggleButton" origin="182, 110" size="26, 26"
                   control-tag="ActionTransformShiftRight" default-value="0"
                   transparent="false"/>
 
             <!-- Euclidean action buttons -->
-            <view class="ToggleButton" origin="272, 110" size="26, 26"
+            <view class="ToggleButton" origin="216, 110" size="26, 26"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
                   transparent="false"/>
-            <view class="ToggleButton" origin="300, 110" size="26, 26"
+            <view class="ToggleButton" origin="244, 110" size="26, 26"
                   control-tag="ActionEuclideanRegen" default-value="0"
                   transparent="false"/>
 
