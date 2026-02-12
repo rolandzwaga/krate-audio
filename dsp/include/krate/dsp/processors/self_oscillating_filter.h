@@ -41,17 +41,16 @@
 
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/fast_math.h>
+#include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/ladder_filter.h>
 #include <krate/dsp/primitives/smoother.h>
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <utility>
 
 namespace Krate {
 namespace DSP {
@@ -134,17 +133,22 @@ public:
     static constexpr float kMaxLevelDb = 6.0f;
 
     /// Internal resonance value for reliable self-oscillation
-    /// LadderFilter resonance max is 4.0, self-oscillation at ~3.9
-    static constexpr float kSelfOscResonance = 3.95f;
+    /// With linear feedback and 4x iteration (Huovilainen), the small-signal
+    /// threshold is very close to k = 4.0 at all frequencies. k = 5.0
+    /// provides 25% margin for reliable oscillation while keeping tanh
+    /// compression moderate for good frequency accuracy and amplitude.
+    static constexpr float kSelfOscResonance = 5.0f;
 
     /// Envelope release completion threshold (dB)
     static constexpr float kReleaseThresholdDb = -60.0f;
 
+    /// Internal gain for self-oscillation output normalization.
+    /// The tanh saturation limits oscillation amplitude to ~0.17 peak.
+    /// This gain brings it to a usable level (~0.85 peak at 0 dB).
+    static constexpr float kSelfOscGain = 5.0f;
+
     /// Default parameter smoothing time (ms)
     static constexpr float kDefaultSmoothingMs = 5.0f;
-
-    /// Reference sample rate for pitch compensation calibration
-    static constexpr float kPitchCompensationRefRate = 44100.0f;
 
     // =========================================================================
     // Lifecycle
@@ -168,13 +172,17 @@ public:
         filter_.prepare(sampleRate, maxBlockSize);
         filter_.setModel(LadderModel::Nonlinear);  // For authentic oscillation
         filter_.setSlope(4);  // 24 dB/oct for best self-oscillation
-        filter_.setOversamplingFactor(2);  // 2x oversampling for quality
+        filter_.setOversamplingFactor(1);  // Per-sample path doesn't use block oversampling
+        filter_.setIterations(4);  // 4x iteration for accurate self-oscillation
         filter_.setResonance(mapResonanceToFilter(resonance_));
         filter_.setCutoff(frequency_);
         needsKick_ = true;  // Will kick-start oscillation on first process
 
-        // Configure DC blocker
-        dcBlocker_.prepare(sampleRate, 10.0f);  // 10 Hz cutoff for DC removal
+        // Configure DC blocker for self-oscillation mode only.
+        // Low cutoff (10 Hz) is fine because DC blocking is only applied when
+        // resonance > 0.85 (approaching self-oscillation). In standard filter
+        // mode, the DC blocker is bypassed to preserve transient response.
+        dcBlocker_.prepare(sampleRate, 10.0f);
 
         // Configure frequency ramp for glide
         frequencyRamp_.configure(glideMs_, static_cast<float>(sampleRate));
@@ -257,17 +265,41 @@ public:
         float filterInput = externalInput * mix;
 
         // Kick-start oscillation with impulse if needed
-        // This is required because self-oscillation needs some initial energy
+        // This is required because self-oscillation needs some initial energy.
+        // We must snap the ladder filter's cutoff smoother to the target
+        // frequency before kicking, otherwise the kick goes through at the
+        // wrong cutoff (from the smoother's previous state).
         if (needsKick_ && resonance_ > 0.9f) {
-            filterInput += 0.01f;  // Larger kick for reliable startup
+            filter_.setCutoff(compensatedCutoff);
+            filter_.reset();  // Snaps cutoff smoother to target, clears state
+            filterInput += 1.0f;  // Strong kick to seed self-oscillation
             needsKick_ = false;
         }
 
         // Process through ladder filter
         float output = filter_.process(filterInput);
 
-        // FR-019: DC blocking after filter
-        output = dcBlocker_.process(output);
+        // FR-019: DC blocking - crossfade based on resonance.
+        // Always process through DC blocker to keep its state current, but
+        // only blend in the result near self-oscillation (res > 0.85).
+        // In standard filter mode (res < 0.85), the DC blocker's slow step
+        // response would interfere with the filter's resonant ringing.
+        {
+            float dcBlocked = dcBlocker_.process(output);
+            float dcMix = std::clamp((resonance_ - 0.85f) / 0.1f, 0.0f, 1.0f);
+            output = output + dcMix * (dcBlocked - output);
+        }
+
+        // Gain normalization for self-oscillation mode.
+        // The tanh saturation in the nonlinear ladder filter produces a
+        // low-amplitude self-oscillation (~0.17 peak). Apply gain ramp in
+        // the self-oscillation region (resonance 0.9-1.0) to bring the
+        // output to a usable level without affecting standard filter mode.
+        if (resonance_ > 0.9f) {
+            float selfOscAmount = (resonance_ - 0.9f) / 0.1f;  // 0-1
+            float gain = 1.0f + selfOscAmount * (kSelfOscGain - 1.0f);
+            output *= gain;
+        }
 
         // Apply wave shaping if enabled
         output = applyWaveShaping(output);
@@ -577,79 +609,56 @@ private:
 
     /// @brief Calculate compensated cutoff for pitch-accurate oscillation
     ///
-    /// The ladder filter self-oscillation frequency is lower than the cutoff
-    /// frequency due to phase shift through the 4 stages. The offset varies
-    /// non-linearly with frequency, so we use a piecewise linear lookup table
-    /// calibrated at 44100 Hz for best accuracy across the musical range.
+    /// The nonlinear (tanh) processing in the ladder filter causes the
+    /// self-oscillation frequency to be slightly below the cutoff. This
+    /// is due to the amplitude-dependent gain reduction from tanh saturation,
+    /// which shifts the phase crossover frequency downward. The offset is
+    /// larger at lower frequencies (higher oscillation amplitude → more
+    /// compression) and negligible above ~1.5 kHz.
+    ///
+    /// Compensation: linear ramp from +4.3% at DC to 0% at 1500 Hz.
+    /// Derived empirically for k=5.0, kThermal=1.22, 4x iteration.
     ///
     /// @param targetOscFreq Desired oscillation frequency in Hz
     /// @return Compensated cutoff frequency to pass to LadderFilter
     [[nodiscard]] float calculateCompensatedCutoff(float targetOscFreq) const noexcept {
-        // Compensation lookup table (frequency Hz, compensation Hz)
-        // Empirically calibrated at 44100 Hz sample rate for +/- 10 cents accuracy
-        // The relationship is non-linear due to ladder filter phase characteristics
-        static constexpr std::array<std::pair<float, float>, 6> kCompTable = {{
-            {200.0f, 258.0f},   // Low frequencies: ~258 Hz comp
-            {330.0f, 254.0f},   // E4 region: tuned for accuracy
-            {440.0f, 256.0f},   // A4: ~256 Hz comp
-            {880.0f, 266.0f},   // A5: peak compensation ~266 Hz
-            {1760.0f, 240.0f},  // A6: ~240 Hz comp
-            {3500.0f, 220.0f}   // High: ~220 Hz comp
-        }};
-
-        // Scale factor for sample rate
-        float rateScale = static_cast<float>(sampleRate_) / kPitchCompensationRefRate;
-
-        // Find interpolation segment
-        float compensation;
-        if (targetOscFreq <= kCompTable[0].first) {
-            // Below table: use first value
-            compensation = kCompTable[0].second;
-        } else if (targetOscFreq >= kCompTable.back().first) {
-            // Above table: use last value
-            compensation = kCompTable.back().second;
-        } else {
-            // Interpolate between table entries
-            for (size_t i = 0; i < kCompTable.size() - 1; ++i) {
-                if (targetOscFreq >= kCompTable[i].first && targetOscFreq < kCompTable[i + 1].first) {
-                    float f0 = kCompTable[i].first;
-                    float f1 = kCompTable[i + 1].first;
-                    float c0 = kCompTable[i].second;
-                    float c1 = kCompTable[i + 1].second;
-
-                    // Linear interpolation
-                    float t = (targetOscFreq - f0) / (f1 - f0);
-                    compensation = c0 + t * (c1 - c0);
-                    break;
-                }
-            }
-        }
-
-        // Apply scaled compensation
-        float compensatedCutoff = targetOscFreq + compensation * rateScale;
-
-        // Clamp to valid range
+        // Linear compensation ramp: full boost at low freq, zero above 1500 Hz
+        float ratio = std::max(0.0f, 1.0f - targetOscFreq / 1500.0f);
+        float compensation = 1.0f + 0.043f * ratio;
+        float compensatedFreq = targetOscFreq * compensation;
         float maxCutoff = static_cast<float>(sampleRate_) * 0.45f;
-        return std::clamp(compensatedCutoff, kMinFrequency, maxCutoff);
+        return std::clamp(compensatedFreq, kMinFrequency, maxCutoff);
     }
 
     /// @brief Map normalized resonance to filter resonance
     ///
-    /// Maps user-facing 0-1 range to LadderFilter's 0-4 range, with
+    /// Maps user-facing 0-1 range to LadderFilter resonance, with
     /// special handling for self-oscillation region:
     /// - 0.0 -> 0.0
-    /// - 0.95 -> 3.9 (self-oscillation threshold)
-    /// - 1.0 -> 3.95 (reliable self-oscillation)
+    /// - 0.3 -> ~2.3 (moderate resonance, sufficient for ringing)
+    /// - 0.9 -> 3.6 (high resonance, just below self-oscillation)
+    /// - 1.0 -> 5.0 (reliable self-oscillation at all frequencies)
+    ///
+    /// Below the self-oscillation threshold, a power curve (x^0.4) is used
+    /// to ensure sufficient Q for resonant ringing at medium settings.
+    /// The 4-pole ladder filter needs k > ~2 for audible ringing.
     ///
     /// @param normalized User resonance (0.0 to 1.0)
-    /// @return Filter resonance (0.0 to ~4.0)
+    /// @return Filter resonance (0.0 to 5.0)
     [[nodiscard]] float mapResonanceToFilter(float normalized) const noexcept {
-        // Below oscillation threshold: linear mapping 0-0.95 -> 0-3.9
-        if (normalized <= 0.95f) {
-            return normalized * (3.9f / 0.95f);
+        if (normalized <= 0.0f) {
+            return 0.0f;
         }
-        // Above threshold: map 0.95-1.0 -> 3.9-3.95 for reliable oscillation
-        return 3.9f + (normalized - 0.95f) * (0.05f / 0.05f);
+        // Below oscillation threshold: power curve 0-0.9 -> 0-3.6
+        // x^0.2 gives strong resonance at medium settings, ensuring
+        // sufficient Q for audible ringing in filter ping mode.
+        // At res=0.3: k≈2.9 gives Q≈5-6, enough for detectable ringing.
+        if (normalized <= 0.9f) {
+            float t = normalized / 0.9f;
+            return 3.6f * std::pow(t, 0.2f);
+        }
+        // Above threshold: map 0.9-1.0 -> 3.6-5.0 for reliable oscillation
+        return 3.6f + (normalized - 0.9f) * (1.4f / 0.1f);
     }
 
     // =========================================================================

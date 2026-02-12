@@ -45,6 +45,81 @@ static Ruinae::Controller* makeControllerRaw() {
     return ctrl;
 }
 
+// Subclass to expose protected processParameterChanges for testing
+class TestableProcessor : public Ruinae::Processor {
+public:
+    using Ruinae::Processor::processParameterChanges;
+};
+
+// Mock single-value parameter queue for feeding parameter changes
+class StateTestParamQueue : public Steinberg::Vst::IParamValueQueue {
+public:
+    StateTestParamQueue(Steinberg::Vst::ParamID id, double value)
+        : paramId_(id), value_(value) {}
+
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+
+    Steinberg::Vst::ParamID PLUGIN_API getParameterId() override { return paramId_; }
+    Steinberg::int32 PLUGIN_API getPointCount() override { return 1; }
+
+    Steinberg::tresult PLUGIN_API getPoint(
+        Steinberg::int32 index,
+        Steinberg::int32& sampleOffset,
+        Steinberg::Vst::ParamValue& value) override {
+        if (index != 0) return Steinberg::kResultFalse;
+        sampleOffset = 0;
+        value = value_;
+        return Steinberg::kResultTrue;
+    }
+
+    Steinberg::tresult PLUGIN_API addPoint(
+        Steinberg::int32, Steinberg::Vst::ParamValue,
+        Steinberg::int32&) override {
+        return Steinberg::kResultFalse;
+    }
+
+private:
+    Steinberg::Vst::ParamID paramId_;
+    double value_;
+};
+
+// Mock parameter changes container
+class StateTestParamChanges : public Steinberg::Vst::IParameterChanges {
+public:
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+
+    Steinberg::int32 PLUGIN_API getParameterCount() override {
+        return static_cast<Steinberg::int32>(queues_.size());
+    }
+
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(
+        Steinberg::int32 index) override {
+        if (index < 0 || index >= static_cast<Steinberg::int32>(queues_.size()))
+            return nullptr;
+        return &queues_[static_cast<size_t>(index)];
+    }
+
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(
+        const Steinberg::Vst::ParamID&, Steinberg::int32&) override {
+        return nullptr;
+    }
+
+    void addChange(Steinberg::Vst::ParamID id, double value) {
+        queues_.emplace_back(id, value);
+    }
+
+private:
+    std::vector<StateTestParamQueue> queues_;
+};
+
 // =============================================================================
 // Tests
 // =============================================================================
@@ -82,167 +157,55 @@ TEST_CASE("Controller syncs default state from Processor", "[controller_state][i
 }
 
 TEST_CASE("Controller syncs non-default state from Processor", "[controller_state][integration]") {
-    auto proc = makeProcessor();
+    // Create a processor with test-accessible parameter changes
+    auto proc = std::make_unique<TestableProcessor>();
+    proc->initialize(nullptr);
 
-    // Manually create a state stream with non-default values
-    // We'll use the Processor to save, but first we need to get non-default values in there
-    // The simplest way: save default state, create a new processor, load it, verify sync
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = 512;
+    proc->setupProcessing(setup);
 
-    // For a real non-default test, we create the stream manually
+    // Set non-default parameter values through the VST3 parameter change path.
+    // All values are NORMALIZED (0.0 to 1.0) at the VST boundary.
+    StateTestParamChanges paramChanges;
+
+    // Master Gain 1.5 -> normalized 1.5/2.0 = 0.75
+    paramChanges.addChange(Ruinae::kMasterGainId, 0.75);
+
+    // Voice Mode = 1 (Mono) -> normalized 1.0
+    paramChanges.addChange(Ruinae::kVoiceModeId, 1.0);
+
+    // Polyphony = 4 -> normalized (4-1)/15 = 0.2
+    paramChanges.addChange(Ruinae::kPolyphonyId, 3.0 / 15.0);
+
+    // OSC A Level = 0.7
+    paramChanges.addChange(Ruinae::kOscALevelId, 0.7);
+
+    // Filter cutoff 1000.0 Hz -> normalized = log(1000/20)/log(1000)
+    double cutoffNorm = std::log(1000.0 / 20.0) / std::log(1000.0);
+    paramChanges.addChange(Ruinae::kFilterCutoffId, cutoffNorm);
+
+    // Apply changes through the processor's parameter handling
+    proc->processParameterChanges(&paramChanges);
+
+    // Save the processor's state (in current format, always correct)
     Steinberg::MemoryStream stream;
-    Steinberg::IBStreamer streamer(&stream, kLittleEndian);
+    REQUIRE(proc->getState(&stream) == Steinberg::kResultTrue);
 
-    // Write version
-    streamer.writeInt32(1);
-
-    // Global params: masterGain=1.5, voiceMode=1(Mono), polyphony=4, softLimit=false
-    streamer.writeFloat(1.5f);
-    streamer.writeInt32(1);
-    streamer.writeInt32(4);
-    streamer.writeInt32(0);
-
-    // OSC A: type=3(Sync), tune=12.0, fine=50.0, level=0.7, phase=0.25
-    streamer.writeInt32(3);
-    streamer.writeFloat(12.0f);
-    streamer.writeFloat(50.0f);
-    streamer.writeFloat(0.7f);
-    streamer.writeFloat(0.25f);
-
-    // OSC B: type=0, tune=0, fine=0, level=1.0, phase=0
-    streamer.writeInt32(0);
-    streamer.writeFloat(0.0f);
-    streamer.writeFloat(0.0f);
-    streamer.writeFloat(1.0f);
-    streamer.writeFloat(0.0f);
-
-    // Mixer: mode=0, position=0.5, tilt=0.0
-    streamer.writeInt32(0);
-    streamer.writeFloat(0.5f);
-    streamer.writeFloat(0.0f);
-
-    // Filter: type=0, cutoff=1000.0, resonance=5.0, envAmount=24.0, keyTrack=0.5
-    streamer.writeInt32(0);
-    streamer.writeFloat(1000.0f);
-    streamer.writeFloat(5.0f);
-    streamer.writeFloat(24.0f);
-    streamer.writeFloat(0.5f);
-
-    // Distortion: type=1, drive=0.5, character=0.5, mix=1.0
-    streamer.writeInt32(1);
-    streamer.writeFloat(0.5f);
-    streamer.writeFloat(0.5f);
-    streamer.writeFloat(1.0f);
-
-    // Trance Gate: enabled=false, numSteps=1, rate=4.0, depth=1.0,
-    //              attack=2.0, release=10.0, tempoSync=true, noteValue=default
-    streamer.writeInt32(0);
-    streamer.writeInt32(1);
-    streamer.writeFloat(4.0f);
-    streamer.writeFloat(1.0f);
-    streamer.writeFloat(2.0f);
-    streamer.writeFloat(10.0f);
-    streamer.writeInt32(1);
-    streamer.writeInt32(0);
-
-    // Amp Env: attack=10, decay=100, sustain=0.8, release=200
-    streamer.writeFloat(10.0f);
-    streamer.writeFloat(100.0f);
-    streamer.writeFloat(0.8f);
-    streamer.writeFloat(200.0f);
-
-    // Filter Env: attack=10, decay=100, sustain=0.8, release=200
-    streamer.writeFloat(10.0f);
-    streamer.writeFloat(100.0f);
-    streamer.writeFloat(0.8f);
-    streamer.writeFloat(200.0f);
-
-    // Mod Env: attack=10, decay=100, sustain=0.8, release=200
-    streamer.writeFloat(10.0f);
-    streamer.writeFloat(100.0f);
-    streamer.writeFloat(0.8f);
-    streamer.writeFloat(200.0f);
-
-    // LFO 1: rate=1.0, shape=0, depth=1.0, sync=false
-    streamer.writeFloat(1.0f);
-    streamer.writeInt32(0);
-    streamer.writeFloat(1.0f);
-    streamer.writeInt32(0);
-
-    // LFO 2: rate=1.0, shape=0, depth=1.0, sync=false
-    streamer.writeFloat(1.0f);
-    streamer.writeInt32(0);
-    streamer.writeFloat(1.0f);
-    streamer.writeInt32(0);
-
-    // Chaos Mod: rate=1.0, type=0, depth=0.5
-    streamer.writeFloat(1.0f);
-    streamer.writeInt32(0);
-    streamer.writeFloat(0.5f);
-
-    // Mod Matrix: 8 slots, all zeros
-    for (int i = 0; i < 8; ++i) {
-        streamer.writeInt32(0);  // source
-        streamer.writeInt32(0);  // dest
-        streamer.writeFloat(0.0f); // amount
-    }
-
-    // Global Filter: enabled=false, type=0, cutoff=20000.0, resonance=0.1
-    streamer.writeInt32(0);
-    streamer.writeInt32(0);
-    streamer.writeFloat(20000.0f);
-    streamer.writeFloat(0.1f);
-
-    // Freeze: enabled=false, freeze=false
-    streamer.writeInt32(0);
-    streamer.writeInt32(0);
-
-    // Delay: type=0, time=500.0, feedback=0.4, mix=0.0, sync=false, noteValue=0
-    streamer.writeInt32(0);
-    streamer.writeFloat(500.0f);
-    streamer.writeFloat(0.4f);
-    streamer.writeFloat(0.0f);
-    streamer.writeInt32(0);
-    streamer.writeInt32(0);
-
-    // Reverb: size=0.5, damping=0.5, width=1.0, mix=0.3,
-    //         preDelay=0.0, diffusion=0.7, freeze=false, modRate=0.5, modDepth=0.0
-    streamer.writeFloat(0.5f);
-    streamer.writeFloat(0.5f);
-    streamer.writeFloat(1.0f);
-    streamer.writeFloat(0.3f);
-    streamer.writeFloat(0.0f);
-    streamer.writeFloat(0.7f);
-    streamer.writeInt32(0);
-    streamer.writeFloat(0.5f);
-    streamer.writeFloat(0.0f);
-
-    // Mono Mode: priority=0, legato=false, portamento=0.0, portaMode=0
-    streamer.writeInt32(0);
-    streamer.writeInt32(0);
-    streamer.writeFloat(0.0f);
-    streamer.writeInt32(0);
-
-    // Now sync controller with this state
+    // Sync controller with this state
     auto* ctrl = makeControllerRaw();
     stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(ctrl->setComponentState(&stream) == Steinberg::kResultTrue);
 
     // Verify the non-default values are synced
-    // Master Gain 1.5 -> normalized 1.5/2.0 = 0.75
     CHECK(ctrl->getParamNormalized(Ruinae::kMasterGainId) == Approx(0.75).margin(0.01));
-
-    // Voice Mode = 1 (Mono)
     CHECK(ctrl->getParamNormalized(Ruinae::kVoiceModeId) == Approx(1.0).margin(0.01));
-
-    // Polyphony = 4 -> normalized (4-1)/15 = 0.2
     CHECK(ctrl->getParamNormalized(Ruinae::kPolyphonyId) == Approx(3.0 / 15.0).margin(0.01));
-
-    // OSC A Level = 0.7
     CHECK(ctrl->getParamNormalized(Ruinae::kOscALevelId) == Approx(0.7).margin(0.01));
-
-    // Filter cutoff 1000.0 Hz -> normalized = log(1000/20)/log(1000)
-    double expectedCutoffNorm = std::log(1000.0 / 20.0) / std::log(1000.0);
-    CHECK(ctrl->getParamNormalized(Ruinae::kFilterCutoffId) == Approx(expectedCutoffNorm).margin(0.02));
+    CHECK(ctrl->getParamNormalized(Ruinae::kFilterCutoffId) == Approx(cutoffNorm).margin(0.02));
 
     proc->terminate();
     ctrl->terminate();

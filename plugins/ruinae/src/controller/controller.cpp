@@ -149,12 +149,16 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         setParamNormalized(id, value);
     };
 
-    // Helper: load common packs before mod matrix
-    auto loadCommonPacks = [&]() {
+    // Helper: load common packs before mod matrix (version-aware mixer loading)
+    auto loadCommonPacks = [&](Steinberg::int32 ver) {
         loadGlobalParamsToController(streamer, setParam);
         loadOscAParamsToController(streamer, setParam);
         loadOscBParamsToController(streamer, setParam);
-        loadMixerParamsToController(streamer, setParam);
+        // v4 added MixerShift field to mixer pack
+        if (ver >= 4)
+            loadMixerParamsToController(streamer, setParam);
+        else
+            loadMixerParamsToControllerV3(streamer, setParam);
         loadFilterParamsToController(streamer, setParam);
         loadDistortionParamsToController(streamer, setParam);
         loadTranceGateParamsToController(streamer, setParam);
@@ -176,18 +180,18 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
 
     if (version == 1) {
         // v1: base mod matrix only (source, dest, amount per slot)
-        loadCommonPacks();
+        loadCommonPacks(version);
         loadModMatrixParamsToControllerV1(streamer, setParam);
         loadPostModMatrix();
     } else if (version >= 2) {
         // v2+: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
-        // v3 adds voice routes, but those arrive via IMessage from processor,
-        // not from the stream -- processor sends VoiceModRouteState after setState()
-        loadCommonPacks();
+        // v3+ adds voice routes via IMessage from processor (not from stream)
+        // v4+ adds MixerShift to mixer pack (handled by loadCommonPacks)
+        loadCommonPacks(version);
         loadModMatrixParamsToController(streamer, setParam);
         loadPostModMatrix();
     }
-    // Unknown versions: keep defaults (fail closed)
+    // Unknown versions (v0 or negative): keep defaults (fail closed)
 
     return Steinberg::kResultTrue;
 }

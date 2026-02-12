@@ -346,12 +346,17 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         return Steinberg::kResultTrue; // Empty stream, keep defaults
     }
 
-    // Helper lambda: load all packs except mod matrix (shared between v1/v2)
-    auto loadCommonPacks = [&]() -> bool {
+    // Helper: load all packs except mod matrix, with version-aware mixer loading
+    auto loadCommonPacks = [&](Steinberg::int32 ver) -> bool {
         if (!loadGlobalParams(globalParams_, streamer)) return false;
         if (!loadOscAParams(oscAParams_, streamer)) return false;
         if (!loadOscBParams(oscBParams_, streamer)) return false;
-        if (!loadMixerParams(mixerParams_, streamer)) return false;
+        // v4 added MixerShift field to mixer pack
+        if (ver >= 4) {
+            if (!loadMixerParams(mixerParams_, streamer)) return false;
+        } else {
+            if (!loadMixerParamsV3(mixerParams_, streamer)) return false;
+        }
         if (!loadFilterParams(filterParams_, streamer)) return false;
         if (!loadDistortionParams(distortionParams_, streamer)) return false;
         if (!loadTranceGateParams(tranceGateParams_, streamer)) return false;
@@ -375,21 +380,22 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 
     if (version == 1) {
         // v1: base mod matrix only (source, dest, amount per slot)
-        if (!loadCommonPacks()) return Steinberg::kResultTrue;
+        if (!loadCommonPacks(version)) return Steinberg::kResultTrue;
         if (!loadModMatrixParamsV1(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadPostModMatrix()) return Steinberg::kResultTrue;
     } else if (version == 2) {
         // v2: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
-        if (!loadCommonPacks()) return Steinberg::kResultTrue;
+        if (!loadCommonPacks(version)) return Steinberg::kResultTrue;
         if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadPostModMatrix()) return Steinberg::kResultTrue;
-    } else if (version == 3) {
+    } else if (version >= 3) {
         // v3: v2 + voice modulation routes
-        if (!loadCommonPacks()) return Steinberg::kResultTrue;
+        // v4: added MixerShift to mixer pack (handled by loadCommonPacks)
+        if (!loadCommonPacks(version)) return Steinberg::kResultTrue;
         if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadPostModMatrix()) return Steinberg::kResultTrue;
 
-        // Load voice routes (16 slots)
+        // Load voice routes (16 slots, added in v3)
         for (auto& r : voiceRoutes_) {
             Steinberg::int8 i8 = 0;
             if (!streamer.readInt8(i8)) break;
@@ -411,7 +417,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         // Send voice route state to controller for UI sync
         sendVoiceModRouteState();
     }
-    // Unknown future versions: keep safe defaults (fail closed)
+    // Unknown future versions (v0 or negative): keep safe defaults
 
     return Steinberg::kResultTrue;
 }

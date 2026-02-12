@@ -449,6 +449,48 @@ TEST_CASE("RuinaeVoice: Ladder filter at max resonance self-oscillates (AS-4.2)"
     REQUIRE_FALSE(hasNaN);
 }
 
+TEST_CASE("RuinaeVoice: Ladder filter at max SVF resonance produces bounded output", "[ruinae_voice][filter][ladder]") {
+    // This is the core test for the Ruinae ladder filter noise bug fix.
+    // Max SVF resonance (30.0) maps to ladder k=3.8 via remapResonanceForLadder(),
+    // which is safely below the self-oscillation threshold. The nonlinear model's
+    // tanh saturation provides additional safety. Output must be bounded.
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 512;
+
+    auto voice = createPreparedVoice(sampleRate, blockSize);
+    voice.setFilterType(RuinaeFilterType::Ladder);
+    voice.setFilterCutoff(1000.0f);
+    voice.setFilterResonance(30.0f);  // Max SVF Q → ladder k=3.8
+    voice.getAmpEnvelope().setAttack(0.1f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+    voice.setMixPosition(0.0f);
+    voice.noteOn(440.0f, 1.0f);
+
+    // Process 1 second total
+    constexpr size_t totalSamples = 44100;
+    float maxOutput = 0.0f;
+    bool hasNaN = false;
+    bool hasInf = false;
+
+    for (size_t processed = 0; processed < totalSamples; processed += blockSize) {
+        size_t n = std::min(blockSize, totalSamples - processed);
+        auto output = processNSamples(voice, n);
+        for (float s : output) {
+            if (detail::isNaN(s)) hasNaN = true;
+            if (detail::isInf(s)) hasInf = true;
+            maxOutput = std::max(maxOutput, std::abs(s));
+        }
+        if (hasNaN || hasInf || maxOutput > 100.0f) break;
+    }
+
+    INFO("Max output at resonance 30.0 (ladder k=3.8): " << maxOutput);
+
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE_FALSE(hasInf);
+    REQUIRE(maxOutput < 10.0f);  // Must be bounded (was previously blowing up)
+    REQUIRE(maxOutput > 0.001f); // Must produce some output
+}
+
 TEST_CASE("RuinaeVoice: key tracking doubles cutoff for octave (AS-4.3)", "[ruinae_voice][filter]") {
     constexpr double sampleRate = 44100.0;
     constexpr size_t blockSize = 512;

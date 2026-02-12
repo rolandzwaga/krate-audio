@@ -556,6 +556,8 @@
             <view class="XYMorphPad"
                   origin="8, 14" size="280, 108"
                   control-tag-x="MixPosition" control-tag-y="MixerTilt"
+                  color-bottom-left="#3C6C99" color-top-left="#64B4FF"
+                  color-bottom-right="#99533C" color-top-right="#FF8C64"
                   transparent="false"/>
 
             <!-- T037: Mode dropdown (below pad) -->

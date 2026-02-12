@@ -12,8 +12,9 @@
 // 3. Modulation ring: optional inner arc showing bidirectional mod range
 // 4. Indicator: 4px radial tick pointing inward from the arc circle
 //
-// Inherits CKnobBase for mouse interaction (circular drag, shift-zoom,
-// mouse wheel, keyboard). Default angles: 7 o'clock to 5 o'clock (270 deg).
+// Overrides CKnobBase mouse interaction with vertical linear tracking
+// (drag up = increase, drag down = decrease, shift for precision).
+// Mouse wheel and keyboard still work. Default angles: 7 o'clock to 5 o'clock (270 deg).
 //
 // Registered as "ArcKnob" via VSTGUI ViewCreator system.
 // ==============================================================================
@@ -110,6 +111,82 @@ public:
         drawIndicator(context);
 
         setDirty(false);
+    }
+
+    // =========================================================================
+    // Mouse Interaction (vertical linear tracking)
+    // =========================================================================
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where, const VSTGUI::CButtonState& buttons) override {
+        if (!buttons.isLeftButton())
+            return VSTGUI::kMouseEventNotHandled;
+
+        beginEdit();
+
+        mouseState_.firstPoint = where;
+        mouseState_.entryValue = value;
+        mouseState_.range = knobRange;
+        if (buttons & kZoomModifier)
+            mouseState_.range *= zoomFactor;
+        mouseState_.coef = (getMax() - getMin()) / mouseState_.range;
+        mouseState_.oldButton = buttons;
+        mouseState_.active = true;
+
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseMoved(
+        VSTGUI::CPoint& where, const VSTGUI::CButtonState& buttons) override {
+        if (!buttons.isLeftButton() || !mouseState_.active)
+            return VSTGUI::kMouseEventNotHandled;
+
+        auto diff = mouseState_.firstPoint.y - where.y; // up = increase
+
+        if (buttons != mouseState_.oldButton) {
+            mouseState_.range = knobRange;
+            if (buttons & kZoomModifier)
+                mouseState_.range *= zoomFactor;
+            float newCoef = (getMax() - getMin()) / mouseState_.range;
+            mouseState_.entryValue +=
+                static_cast<float>(diff) * (mouseState_.coef - newCoef);
+            mouseState_.coef = newCoef;
+            mouseState_.oldButton = buttons;
+        }
+
+        value = mouseState_.entryValue +
+                static_cast<float>(diff) * mouseState_.coef;
+        bounceValue();
+
+        if (value != getOldValue())
+            valueChanged();
+        if (isDirty())
+            invalid();
+
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseUp(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        if (mouseState_.active) {
+            mouseState_.active = false;
+            endEdit();
+        }
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseCancel() override {
+        if (mouseState_.active) {
+            value = mouseState_.entryValue;
+            if (isDirty()) {
+                valueChanged();
+                invalid();
+            }
+            mouseState_.active = false;
+            endEdit();
+        }
+        return VSTGUI::kMouseEventHandled;
     }
 
     CLASS_METHODS(ArcKnob, CKnobBase)
@@ -278,6 +355,17 @@ private:
     // =========================================================================
     // State
     // =========================================================================
+
+    // Linear mouse tracking state
+    struct MouseState {
+        VSTGUI::CPoint firstPoint;
+        float entryValue = 0.0f;
+        float range = 0.0f;
+        float coef = 0.0f;
+        VSTGUI::CButtonState oldButton;
+        bool active = false;
+    };
+    MouseState mouseState_;
 
     float modRange_ = 0.0f;
 

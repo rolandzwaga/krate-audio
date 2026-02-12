@@ -692,8 +692,10 @@ private:
 
         filterLadder_ = std::make_unique<LadderFilter>();
         filterLadder_->prepare(sampleRate_, static_cast<int>(maxBlockSize_));
+        filterLadder_->setModel(LadderModel::Nonlinear);
+        filterLadder_->setOversamplingFactor(1);  // 1x for per-sample processing path
         filterLadder_->setCutoff(filterCutoffHz_);
-        filterLadder_->setResonance(filterResonance_);
+        filterLadder_->setResonance(remapResonanceForLadder(filterResonance_));
 
         filterFormant_ = std::make_unique<FormantFilter>();
         filterFormant_->prepare(sampleRate_);
@@ -771,7 +773,7 @@ private:
                 filterSvf_.setResonance(q);
                 break;
             case RuinaeFilterType::Ladder:
-                if (filterLadder_) filterLadder_->setResonance(q);
+                if (filterLadder_) filterLadder_->setResonance(remapResonanceForLadder(q));
                 break;
             case RuinaeFilterType::Formant:
                 // FormantFilter doesn't have a direct resonance parameter
@@ -913,6 +915,19 @@ private:
             * semitonesToRatio(oscBTuneSemitones_ + oscBFineCents_ / 100.0f);
         oscA_.setFrequency(freqA);
         oscB_.setFrequency(freqB);
+    }
+
+    // =========================================================================
+    // Ladder Filter Helpers
+    // =========================================================================
+
+    /// @brief Remap voice resonance (SVF Q range [0.1, 30]) to ladder resonance [0, 3.8].
+    ///
+    /// The ladder filter resonance range [0, 4] has a self-oscillation threshold at ~3.9.
+    /// We cap at 3.8 to stay safely below that boundary while still allowing strong resonance.
+    [[nodiscard]] static float remapResonanceForLadder(float q) noexcept {
+        float normalized = std::clamp((q - 0.1f) / 29.9f, 0.0f, 1.0f);
+        return normalized * 3.8f;
     }
 
     // =========================================================================

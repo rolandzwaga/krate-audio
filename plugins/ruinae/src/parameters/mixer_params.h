@@ -104,7 +104,8 @@ inline void saveMixerParams(const MixerParams& params, Steinberg::IBStreamer& st
     streamer.writeFloat(params.shift.load(std::memory_order_relaxed));
 }
 
-inline bool loadMixerParams(MixerParams& params, Steinberg::IBStreamer& streamer) {
+// v1-v3: mixer had 3 fields (mode, position, tilt)
+inline bool loadMixerParamsV3(MixerParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
     if (!streamer.readInt32(intVal)) return false;
     params.mode.store(intVal, std::memory_order_relaxed);
@@ -112,13 +113,21 @@ inline bool loadMixerParams(MixerParams& params, Steinberg::IBStreamer& streamer
     params.position.store(floatVal, std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.tilt.store(floatVal, std::memory_order_relaxed);
+    return true;
+}
+
+// v4+: mixer has 4 fields (mode, position, tilt, shift)
+inline bool loadMixerParams(MixerParams& params, Steinberg::IBStreamer& streamer) {
+    if (!loadMixerParamsV3(params, streamer)) return false;
+    float floatVal = 0.0f;
     if (!streamer.readFloat(floatVal)) return false;
     params.shift.store(floatVal, std::memory_order_relaxed);
     return true;
 }
 
+// v1-v3: mixer had 3 fields (mode, position, tilt)
 template<typename SetParamFunc>
-inline void loadMixerParamsToController(
+inline void loadMixerParamsToControllerV3(
     Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
     if (streamer.readInt32(intVal))
@@ -130,6 +139,14 @@ inline void loadMixerParamsToController(
         double normalized = (static_cast<double>(floatVal) + 12.0) / 24.0;
         setParam(kMixerTiltId, normalized);
     }
+}
+
+// v4+: mixer has 4 fields (mode, position, tilt, shift)
+template<typename SetParamFunc>
+inline void loadMixerParamsToController(
+    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    loadMixerParamsToControllerV3(streamer, setParam);
+    float floatVal = 0.0f;
     if (streamer.readFloat(floatVal))
         setParam(kMixerShiftId, static_cast<double>(floatVal));
 }

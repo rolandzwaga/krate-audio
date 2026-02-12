@@ -103,8 +103,10 @@ public:
     /// Minimum resonance value
     static constexpr float kMinResonance = 0.0f;
 
-    /// Maximum resonance value (self-oscillation occurs around 3.9)
-    static constexpr float kMaxResonance = 4.0f;
+    /// Maximum resonance value
+    /// Nonlinear model handles high k safely via tanh saturation.
+    /// Self-oscillation onset depends on model and frequency.
+    static constexpr float kMaxResonance = 8.0f;
 
     /// Minimum drive in dB (unity gain)
     static constexpr float kMinDriveDb = 0.0f;
@@ -117,6 +119,10 @@ public:
 
     /// Maximum slope (4 poles = 24 dB/oct)
     static constexpr int kMaxSlope = 4;
+
+    /// Maximum resonance for linear model (below self-oscillation threshold)
+    /// Linear model has no amplitude limiting, so k=4.0 causes unbounded growth
+    static constexpr float kMaxLinearResonance = 3.85f;
 
     /// Default parameter smoothing time in milliseconds
     static constexpr float kDefaultSmoothingTimeMs = 5.0f;
@@ -189,6 +195,21 @@ public:
     /// @note Safe to call during processing (click-free transition)
     void setModel(LadderModel model) noexcept {
         model_ = model;
+    }
+
+    /// @brief Set number of iterations per sample for nonlinear model
+    ///
+    /// Multiple iterations reduce the effective feedback delay, improving
+    /// self-oscillation frequency accuracy and lowering the threshold.
+    /// Based on Huovilainen's approach: N iterations with coefficients at
+    /// N*sampleRate effectively process at N times the base rate.
+    ///
+    /// @param n Number of iterations (1-4). Default is 1.
+    ///
+    /// @note Only affects nonlinear model via process(). No effect on
+    ///       Linear model or oversampled processBlock() path.
+    void setIterations(int n) noexcept {
+        iterations_ = std::clamp(n, 1, 4);
     }
 
     /// @brief Set oversampling factor for nonlinear model
@@ -336,18 +357,23 @@ public:
         float smoothedCutoff = cutoffSmoother_.process();
         float smoothedResonance = resonanceSmoother_.process();
 
-        // Calculate coefficient at base sample rate for single-sample processing
-        // Note: Oversampling is only applied in processBlock()
-        float g = calculateG(smoothedCutoff, static_cast<float>(sampleRate_));
-
         // Apply drive
         input *= driveGain_;
 
         // Process based on model
         float output;
         if (model_ == LadderModel::Linear) {
+            float g = calculateG(smoothedCutoff, static_cast<float>(sampleRate_));
             output = processLinear(input, g, smoothedResonance);
         } else {
+            // Huovilainen N-iteration approach: process filter N times per sample
+            // using coefficients at N*sampleRate. This reduces the effective
+            // feedback delay by 1/N, improving self-oscillation accuracy.
+            float effectiveRate = static_cast<float>(sampleRate_) * static_cast<float>(iterations_);
+            float g = calculateG(smoothedCutoff, effectiveRate);
+            for (int i = 0; i < iterations_ - 1; ++i) {
+                (void)processNonlinear(input, g, smoothedResonance);
+            }
             output = processNonlinear(input, g, smoothedResonance);
         }
 
@@ -448,6 +474,9 @@ private:
     /// Oversampling factor (1, 2, or 4)
     int oversamplingFactor_ = 2;
 
+    /// Number of iterations per sample for nonlinear model (1-4)
+    int iterations_ = 1;
+
     /// Number of poles (1-4)
     int slope_ = 4;
 
@@ -509,8 +538,13 @@ private:
         // Calculate normalized coefficient for trapezoidal integration
         float a = 2.0f * g / (1.0f + g);
 
+        // Cap resonance below self-oscillation threshold for linear model.
+        // At k=4.0 the loop gain equals 1 and self-oscillation occurs.
+        // Without tanh saturation (nonlinear model), amplitude grows unbounded.
+        float safeK = std::min(k, kMaxLinearResonance);
+
         // Feedback from 4th stage
-        float fb = state_[3] * k;
+        float fb = state_[3] * safeK;
         float u = input - fb;
 
         // Cascade through 4 stages using trapezoidal one-pole
@@ -525,33 +559,50 @@ private:
 
     /// Nonlinear model processing (Huovilainen)
     ///
-    /// Implements the Huovilainen algorithm (DAFX 2004):
+    /// Implements a bilinear-transform variant of the Huovilainen algorithm:
     /// - Per-stage tanh saturation for analog-like nonlinearity
     /// - Thermal voltage scaling (kThermal = 1.22)
-    /// - Feedback from 4th stage through tanh
+    /// - Accumulation in voltage domain (state_[i]), not tanh-compressed domain
+    /// - Thermal compensation in coefficient (divide by kThermal) ensures
+    ///   small-signal behavior matches linear model
+    /// - LINEAR feedback path (tanh only inside stages, not on feedback)
+    ///
+    /// Self-oscillation occurs at k ≈ 4.0 (same as linear model for small
+    /// signals). The tanh inside each stage naturally limits oscillation
+    /// amplitude. Uses half-sample delay averaging for improved frequency
+    /// accuracy at higher cutoff settings.
+    ///
+    /// Reference: Huovilainen, A. (2004). "Non-Linear Digital Implementation
+    /// of the Moog Ladder Filter", Proc. DAFx-04
     [[nodiscard]] float processNonlinear(float input, float g, float k) noexcept {
-        // Calculate normalized coefficient for trapezoidal integration
-        float a = 2.0f * g / (1.0f + g);
+        // Calculate normalized coefficient for trapezoidal integration.
+        // Divide by kThermal to compensate for tanh(x*T) gain: small-signal
+        // behavior matches linear model (tanh(x*T) ≈ x*T, coefficient/T cancels).
+        float a = 2.0f * g / ((1.0f + g) * kThermal);
 
-        // Feedback with tanh saturation from 4th stage
-        // The feedback amount is scaled by resonance (k)
-        float fb = FastMath::fastTanh(state_[3] * k);
+        // Linear feedback from 4th stage output.
+        // The tanh nonlinearity belongs INSIDE the stages only (not on feedback).
+        // With bilinear transform discretization, the tan() pre-warping handles
+        // frequency mapping correctly without needing half-sample delay averaging.
+        float fb = k * state_[3];
         float u = input - fb;
 
-        // Cascade through 4 stages with per-stage saturation
-        // Huovilainen uses tanh on both input and state, with trapezoidal integration
+        // Cascade through 4 stages with per-stage saturation.
+        // KEY: Accumulate in voltage domain (state_[i]), apply tanh only for
+        // the difference computation. This gives correct DC gain of 1.0 per stage.
         for (int i = 0; i < 4; ++i) {
             float stageInput = (i == 0) ? u : state_[i - 1];
 
-            // Apply thermal scaling to input
+            // Apply thermal scaling to compress input
             float tanhInput = FastMath::fastTanh(stageInput * kThermal);
 
-            // Trapezoidal one-pole with saturation
-            // y = y_prev + a * (tanh(x) - tanh(y_prev))
-            float newState = tanhState_[i] + a * (tanhInput - tanhState_[i]);
+            // Trapezoidal one-pole with saturation:
+            // state += (a/T) * (tanh(input * T) - tanh(state * T))
+            // For small signals: state += a * (input - state) [T cancels out]
+            float newState = state_[i] + a * (tanhInput - tanhState_[i]);
             state_[i] = detail::flushDenormal(newState);
 
-            // Cache the tanh of state for next iteration
+            // Cache the tanh of updated state for next stage and next sample
             tanhState_[i] = FastMath::fastTanh(state_[i] * kThermal);
         }
 
