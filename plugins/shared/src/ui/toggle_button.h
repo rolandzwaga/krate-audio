@@ -1,21 +1,24 @@
 #pragma once
 
 // ==============================================================================
-// PowerButton - Vector-drawn IEC 5009 Power Toggle Button
+// ToggleButton - Vector-drawn Toggle Button with Configurable Icon
 // ==============================================================================
-// A CControl toggle button rendering the standard power symbol (circle with
-// vertical line at top). Click toggles between on (value=1) and off (value=0).
+// A CControl toggle button with selectable icon styles. Click toggles between
+// on (value=1) and off (value=0).
+//
+// Icon styles:
+// - "power": IEC 5009 power symbol (circle with vertical line). Default.
+// - "chevron": Directional chevron arrow with configurable on/off orientations.
 //
 // Visual states:
 // - On (value >= 0.5): icon/text drawn in configurable bright accent color
 // - Off (value < 0.5): icon/text drawn in configurable dimmed/muted color
 //
-// When title is empty: draws the IEC 5009 power icon (arc + vertical line).
-// When title is set: draws centered text label instead of the icon.
+// When title is set: draws centered text label instead of any icon.
 //
 // All drawing uses CGraphicsPath (no bitmaps, cross-platform).
 //
-// Registered as "PowerButton" via VSTGUI ViewCreator system.
+// Registered as "ToggleButton" via VSTGUI ViewCreator system.
 // ==============================================================================
 
 #include "vstgui/lib/controls/ccontrol.h"
@@ -37,33 +40,43 @@
 namespace Krate::Plugins {
 
 // ==============================================================================
-// PowerButton Control
+// Enums
 // ==============================================================================
 
-class PowerButton : public VSTGUI::CControl {
+enum class IconStyle { kPower, kChevron };
+enum class Orientation { kRight, kDown, kLeft, kUp };
+
+// ==============================================================================
+// ToggleButton Control
+// ==============================================================================
+
+class ToggleButton : public VSTGUI::CControl {
 public:
     // =========================================================================
     // Construction
     // =========================================================================
 
-    PowerButton(const VSTGUI::CRect& size,
-                VSTGUI::IControlListener* listener,
-                int32_t tag)
+    ToggleButton(const VSTGUI::CRect& size,
+                 VSTGUI::IControlListener* listener,
+                 int32_t tag)
         : CControl(size, listener, tag) {
         setMin(0.0f);
         setMax(1.0f);
     }
 
-    PowerButton(const PowerButton& other)
+    ToggleButton(const ToggleButton& other)
         : CControl(other)
         , onColor_(other.onColor_)
         , offColor_(other.offColor_)
         , iconSize_(other.iconSize_)
         , strokeWidth_(other.strokeWidth_)
+        , iconStyle_(other.iconStyle_)
+        , onOrientation_(other.onOrientation_)
+        , offOrientation_(other.offOrientation_)
         , title_(other.title_)
         , font_(other.font_) {}
 
-    CLASS_METHODS(PowerButton, CControl)
+    CLASS_METHODS(ToggleButton, CControl)
 
     // =========================================================================
     // Color/Geometry Attributes (ViewCreator)
@@ -80,6 +93,19 @@ public:
 
     void setStrokeWidth(VSTGUI::CCoord width) { strokeWidth_ = width; setDirty(); }
     [[nodiscard]] VSTGUI::CCoord getStrokeWidth() const { return strokeWidth_; }
+
+    // =========================================================================
+    // Icon Style Attributes
+    // =========================================================================
+
+    void setIconStyle(IconStyle style) { iconStyle_ = style; setDirty(); }
+    [[nodiscard]] IconStyle getIconStyle() const { return iconStyle_; }
+
+    void setOnOrientation(Orientation o) { onOrientation_ = o; setDirty(); }
+    [[nodiscard]] Orientation getOnOrientation() const { return onOrientation_; }
+
+    void setOffOrientation(Orientation o) { offOrientation_ = o; setDirty(); }
+    [[nodiscard]] Orientation getOffOrientation() const { return offOrientation_; }
 
     // =========================================================================
     // Title/Font Attributes
@@ -105,10 +131,12 @@ public:
         bool isOn = getValueNormalized() >= 0.5f;
         VSTGUI::CColor activeColor = isOn ? onColor_ : offColor_;
 
-        if (title_.empty()) {
-            drawPowerIcon(context, activeColor);
-        } else {
+        if (!title_.empty()) {
             drawTitle(context, activeColor);
+        } else if (iconStyle_ == IconStyle::kChevron) {
+            drawChevronIcon(context, activeColor, isOn);
+        } else {
+            drawPowerIcon(context, activeColor);
         }
 
         setDirty(false);
@@ -131,6 +159,16 @@ public:
         endEdit();
         invalid();
         return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+    }
+
+    // Re-entrancy guard: VST3Editor's ParameterChangeListener calls
+    // c->valueChanged() from updateControlValue() for non-parameter controls,
+    // which re-enters this method and causes infinite recursion / stack overflow.
+    void valueChanged() override {
+        if (inValueChanged_) return;
+        inValueChanged_ = true;
+        CControl::valueChanged();
+        inValueChanged_ = false;
     }
 
 private:
@@ -176,6 +214,52 @@ private:
                           VSTGUI::CPoint(cx, lineBottomY));
     }
 
+    void drawChevronIcon(VSTGUI::CDrawContext* context,
+                         const VSTGUI::CColor& color,
+                         bool isOn) const {
+        VSTGUI::CRect vs = getViewSize();
+
+        double viewW = vs.getWidth();
+        double viewH = vs.getHeight();
+        double dim = std::min(viewW, viewH) * static_cast<double>(iconSize_);
+        double half = dim / 2.0;
+        double cx = vs.left + viewW / 2.0;
+        double cy = vs.top + viewH / 2.0;
+
+        // Base chevron points to the right: ">"
+        // Tip at +half, arms at -half. Draws relative to center, then rotates.
+        double tipX = half;
+        double armX = -half;
+        double armY = half;
+
+        Orientation orient = isOn ? onOrientation_ : offOrientation_;
+        double angleDeg = orientationToDegrees(orient);
+        double angleRad = angleDeg * 3.14159265358979323846 / 180.0;
+        double cosA = std::cos(angleRad);
+        double sinA = std::sin(angleRad);
+
+        // Rotate and translate the 3 points
+        auto rotate = [&](double x, double y) -> VSTGUI::CPoint {
+            return VSTGUI::CPoint(cx + x * cosA - y * sinA,
+                                  cy + x * sinA + y * cosA);
+        };
+
+        VSTGUI::CPoint tip = rotate(tipX, 0.0);
+        VSTGUI::CPoint topArm = rotate(armX, -armY);
+        VSTGUI::CPoint bottomArm = rotate(armX, armY);
+
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (path) {
+            path->beginSubpath(topArm);
+            path->addLine(tip);
+            path->addLine(bottomArm);
+            path->closeSubpath();
+
+            context->setFillColor(color);
+            context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+        }
+    }
+
     void drawTitle(VSTGUI::CDrawContext* context,
                    const VSTGUI::CColor& color) const {
         context->setFont(font_);
@@ -184,29 +268,75 @@ private:
                             VSTGUI::kCenterText);
     }
 
+    static double orientationToDegrees(Orientation o) {
+        switch (o) {
+            case Orientation::kRight: return 0.0;
+            case Orientation::kDown:  return 90.0;
+            case Orientation::kLeft:  return 180.0;
+            case Orientation::kUp:    return 270.0;
+        }
+        return 0.0;
+    }
+
     // =========================================================================
     // Members
     // =========================================================================
 
     VSTGUI::CColor onColor_{100, 180, 255, 255};   // #64B4FF blue
-    VSTGUI::CColor offColor_{96, 96, 104, 255};    // #606068 gray
+    VSTGUI::CColor offColor_{96, 96, 104, 255};     // #606068 gray
     float iconSize_ = 0.6f;
     VSTGUI::CCoord strokeWidth_ = 2.0;
+    IconStyle iconStyle_ = IconStyle::kPower;
+    Orientation onOrientation_ = Orientation::kDown;
+    Orientation offOrientation_ = Orientation::kRight;
     std::string title_;
     VSTGUI::SharedPointer<VSTGUI::CFontDesc> font_{VSTGUI::kNormalFontSmall};
+    bool inValueChanged_ = false;
 };
+
+// =============================================================================
+// String ↔ Enum Helpers
+// =============================================================================
+
+inline IconStyle iconStyleFromString(const std::string& s) {
+    if (s == "chevron") return IconStyle::kChevron;
+    return IconStyle::kPower;
+}
+
+inline std::string iconStyleToString(IconStyle style) {
+    switch (style) {
+        case IconStyle::kChevron: return "chevron";
+        default: return "power";
+    }
+}
+
+inline Orientation orientationFromString(const std::string& s) {
+    if (s == "up")    return Orientation::kUp;
+    if (s == "down")  return Orientation::kDown;
+    if (s == "left")  return Orientation::kLeft;
+    return Orientation::kRight;
+}
+
+inline std::string orientationToString(Orientation o) {
+    switch (o) {
+        case Orientation::kUp:    return "up";
+        case Orientation::kDown:  return "down";
+        case Orientation::kLeft:  return "left";
+        default: return "right";
+    }
+}
 
 // =============================================================================
 // ViewCreator Registration
 // =============================================================================
 
-struct PowerButtonCreator : VSTGUI::ViewCreatorAdapter {
-    PowerButtonCreator() {
+struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
+    ToggleButtonCreator() {
         VSTGUI::UIViewFactory::registerViewCreator(*this);
     }
 
     VSTGUI::IdStringPtr getViewName() const override {
-        return "PowerButton";
+        return "ToggleButton";
     }
 
     VSTGUI::IdStringPtr getBaseViewName() const override {
@@ -214,18 +344,18 @@ struct PowerButtonCreator : VSTGUI::ViewCreatorAdapter {
     }
 
     VSTGUI::UTF8StringPtr getDisplayName() const override {
-        return "Power Button";
+        return "Toggle Button";
     }
 
     VSTGUI::CView* create(
         const VSTGUI::UIAttributes& /*attributes*/,
         const VSTGUI::IUIDescription* /*description*/) const override {
-        return new PowerButton(VSTGUI::CRect(0, 0, 24, 24), nullptr, -1);
+        return new ToggleButton(VSTGUI::CRect(0, 0, 24, 24), nullptr, -1);
     }
 
     bool apply(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
                const VSTGUI::IUIDescription* description) const override {
-        auto* btn = dynamic_cast<PowerButton*>(view);
+        auto* btn = dynamic_cast<ToggleButton*>(view);
         if (!btn)
             return false;
 
@@ -245,11 +375,21 @@ struct PowerButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (attributes.getDoubleAttribute("stroke-width", d))
             btn->setStrokeWidth(d);
 
+        // Icon style
+        if (auto val = attributes.getAttributeValue("icon-style"))
+            btn->setIconStyle(iconStyleFromString(*val));
+
+        // Orientation attributes
+        if (auto val = attributes.getAttributeValue("on-orientation"))
+            btn->setOnOrientation(orientationFromString(*val));
+        if (auto val = attributes.getAttributeValue("off-orientation"))
+            btn->setOffOrientation(orientationFromString(*val));
+
         // Title
         if (auto val = attributes.getAttributeValue("title"))
             btn->setTitle(*val);
 
-        // Font (resolved from IUIDescription named fonts, e.g. "~ NormalFontSmaller")
+        // Font (resolved from IUIDescription named fonts)
         if (auto val = attributes.getAttributeValue("font")) {
             if (description) {
                 auto font = description->getFont(val->data());
@@ -267,6 +407,9 @@ struct PowerButtonCreator : VSTGUI::ViewCreatorAdapter {
         attributeNames.emplace_back("off-color");
         attributeNames.emplace_back("icon-size");
         attributeNames.emplace_back("stroke-width");
+        attributeNames.emplace_back("icon-style");
+        attributeNames.emplace_back("on-orientation");
+        attributeNames.emplace_back("off-orientation");
         attributeNames.emplace_back("title");
         attributeNames.emplace_back("font");
         return true;
@@ -278,16 +421,44 @@ struct PowerButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "off-color") return kColorType;
         if (attributeName == "icon-size") return kFloatType;
         if (attributeName == "stroke-width") return kFloatType;
+        if (attributeName == "icon-style") return kListType;
+        if (attributeName == "on-orientation") return kListType;
+        if (attributeName == "off-orientation") return kListType;
         if (attributeName == "title") return kStringType;
         if (attributeName == "font") return kFontType;
         return kUnknownType;
+    }
+
+    bool getPossibleListValues(
+        const std::string& attributeName,
+        VSTGUI::IViewCreator::ConstStringPtrList& values) const override {
+        if (attributeName == "icon-style") {
+            static const std::string kPower = "power";
+            static const std::string kChevron = "chevron";
+            values.emplace_back(&kPower);
+            values.emplace_back(&kChevron);
+            return true;
+        }
+        if (attributeName == "on-orientation" ||
+            attributeName == "off-orientation") {
+            static const std::string kUp = "up";
+            static const std::string kDown = "down";
+            static const std::string kLeft = "left";
+            static const std::string kRight = "right";
+            values.emplace_back(&kUp);
+            values.emplace_back(&kDown);
+            values.emplace_back(&kLeft);
+            values.emplace_back(&kRight);
+            return true;
+        }
+        return false;
     }
 
     bool getAttributeValue(VSTGUI::CView* view,
                            const std::string& attributeName,
                            std::string& stringValue,
                            const VSTGUI::IUIDescription* desc) const override {
-        auto* btn = dynamic_cast<PowerButton*>(view);
+        auto* btn = dynamic_cast<ToggleButton*>(view);
         if (!btn)
             return false;
 
@@ -311,6 +482,18 @@ struct PowerButtonCreator : VSTGUI::ViewCreatorAdapter {
                 btn->getStrokeWidth());
             return true;
         }
+        if (attributeName == "icon-style") {
+            stringValue = iconStyleToString(btn->getIconStyle());
+            return true;
+        }
+        if (attributeName == "on-orientation") {
+            stringValue = orientationToString(btn->getOnOrientation());
+            return true;
+        }
+        if (attributeName == "off-orientation") {
+            stringValue = orientationToString(btn->getOffOrientation());
+            return true;
+        }
         if (attributeName == "title") {
             stringValue = btn->getTitle();
             return true;
@@ -327,6 +510,6 @@ struct PowerButtonCreator : VSTGUI::ViewCreatorAdapter {
     }
 };
 
-inline PowerButtonCreator gPowerButtonCreator;
+inline ToggleButtonCreator gToggleButtonCreator;
 
 } // namespace Krate::Plugins

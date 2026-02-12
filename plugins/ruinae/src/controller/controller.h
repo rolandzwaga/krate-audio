@@ -183,6 +183,9 @@ private:
     /// Toggle FX detail panel visibility (expand one, collapse others)
     void toggleFxDetail(int panelIndex);
 
+    /// Toggle envelope panel expand/collapse (resize + visibility)
+    void toggleEnvExpand(int panelIndex);
+
     // ==========================================================================
     // UI State
     // ==========================================================================
@@ -205,6 +208,12 @@ private:
     VSTGUI::CViewContainer* fxDetailDelay_ = nullptr;
     VSTGUI::CViewContainer* fxDetailReverb_ = nullptr;
     int expandedFxPanel_ = -1;  // -1=none, 0=freeze, 1=delay, 2=reverb
+
+    // Envelope expand/collapse state
+    VSTGUI::CViewContainer* envGroupAmp_ = nullptr;
+    VSTGUI::CViewContainer* envGroupFilter_ = nullptr;
+    VSTGUI::CViewContainer* envGroupMod_ = nullptr;
+    int expandedEnvPanel_ = -1;  // -1=none, 0=amp, 1=filter, 2=mod
 
     // Playback position shared from processor via IMessage pointer
     std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;

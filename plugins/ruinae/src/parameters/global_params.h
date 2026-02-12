@@ -84,10 +84,14 @@ inline void registerGlobalParams(Steinberg::Vst::ParameterContainer& parameters)
         {STR16("Poly"), STR16("Mono")}
     ));
 
-    // Polyphony (1-16, default 8 => normalized = 7/15)
-    parameters.addParameter(
-        STR16("Polyphony"), STR16(""), 15, 7.0 / 15.0,
-        ParameterInfo::kCanAutomate, kPolyphonyId);
+    // Polyphony (1-16, default 8 => index 7)
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("Polyphony"), kPolyphonyId, 7,
+        {STR16("1"), STR16("2"), STR16("3"), STR16("4"),
+         STR16("5"), STR16("6"), STR16("7"), STR16("8"),
+         STR16("9"), STR16("10"), STR16("11"), STR16("12"),
+         STR16("13"), STR16("14"), STR16("15"), STR16("16")}
+    ));
 
     // Soft Limit (on/off, default on)
     parameters.addParameter(

@@ -436,6 +436,11 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kActionFxExpandFreezeTag = 10010,
     kActionFxExpandDelayTag = 10011,
     kActionFxExpandReverbTag = 10012,
+
+    // Envelope Expand/Collapse Chevrons (UI-only, not VST parameters)
+    kActionEnvExpandAmpTag = 10013,
+    kActionEnvExpandFilterTag = 10014,
+    kActionEnvExpandModTag = 10015,
 };
 
 // ==============================================================================

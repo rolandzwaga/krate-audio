@@ -506,6 +506,12 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         fxDetailReverb_ = nullptr;
         expandedFxPanel_ = -1;
 
+        // Envelope expand/collapse cleanup
+        envGroupAmp_ = nullptr;
+        envGroupFilter_ = nullptr;
+        envGroupMod_ = nullptr;
+        expandedEnvPanel_ = -1;
+
         activeEditor_ = nullptr;
     }
 }
@@ -518,11 +524,11 @@ VSTGUI::CView* Controller::verifyView(
     const VSTGUI::IUIDescription* /*description*/,
     VSTGUI::VST3Editor* /*editor*/) {
 
-    // Register as sub-listener for action buttons (presets, transforms, FX chevrons)
+    // Register as sub-listener for action buttons (presets, transforms, FX/env chevrons)
     auto* control = dynamic_cast<VSTGUI::CControl*>(view);
     if (control) {
         auto tag = control->getTag();
-        if (tag >= static_cast<int32_t>(kActionPresetAllTag) && tag <= static_cast<int32_t>(kActionFxExpandReverbTag)) {
+        if (tag >= static_cast<int32_t>(kActionPresetAllTag) && tag <= static_cast<int32_t>(kActionEnvExpandModTag)) {
             control->registerControlListener(this);
         }
     }
@@ -657,11 +663,12 @@ VSTGUI::CView* Controller::verifyView(
         });
     }
 
-    // Wire FX detail panels by custom-view-name (T089)
+    // Wire named containers by custom-view-name
     auto* container = dynamic_cast<VSTGUI::CViewContainer*>(view);
     if (container) {
         const auto* name = attributes.getAttributeValue("custom-view-name");
         if (name) {
+            // FX detail panels (T089)
             if (*name == "FreezeDetail") {
                 fxDetailFreeze_ = container;
                 container->setVisible(false);
@@ -671,6 +678,14 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "ReverbDetail") {
                 fxDetailReverb_ = container;
                 container->setVisible(false);
+            }
+            // Envelope expand/collapse groups
+            else if (*name == "EnvGroupAmp") {
+                envGroupAmp_ = container;
+            } else if (*name == "EnvGroupFilter") {
+                envGroupFilter_ = container;
+            } else if (*name == "EnvGroupMod") {
+                envGroupMod_ = container;
             }
         }
     }
@@ -685,10 +700,22 @@ VSTGUI::CView* Controller::verifyView(
 void Controller::valueChanged(VSTGUI::CControl* control) {
     if (!control) return;
 
-    // Only respond to button press (value > 0.5), not release
+    auto tag = control->getTag();
+
+    // Toggle buttons: respond to both on/off clicks (no value guard)
+    switch (tag) {
+        case kActionFxExpandFreezeTag:  toggleFxDetail(0); return;
+        case kActionFxExpandDelayTag:   toggleFxDetail(1); return;
+        case kActionFxExpandReverbTag:  toggleFxDetail(2); return;
+        case kActionEnvExpandAmpTag:    toggleEnvExpand(0); return;
+        case kActionEnvExpandFilterTag: toggleEnvExpand(1); return;
+        case kActionEnvExpandModTag:    toggleEnvExpand(2); return;
+        default: break;
+    }
+
+    // Momentary buttons: only respond to press (value > 0.5), not release
     if (control->getValue() < 0.5f) return;
 
-    auto tag = control->getTag();
     switch (tag) {
         // Step pattern editor presets/transforms
         case kActionPresetAllTag:
@@ -720,17 +747,6 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
             break;
         case kActionEuclideanRegenTag:
             if (stepPatternEditor_) stepPatternEditor_->regenerateEuclidean();
-            break;
-
-        // FX detail panel expand/collapse (T091)
-        case kActionFxExpandFreezeTag:
-            toggleFxDetail(0);
-            break;
-        case kActionFxExpandDelayTag:
-            toggleFxDetail(1);
-            break;
-        case kActionFxExpandReverbTag:
-            toggleFxDetail(2);
             break;
 
         default:
@@ -1175,6 +1191,57 @@ void Controller::toggleFxDetail(int panelIndex) {
         ++idx;
     }
     expandedFxPanel_ = (expandedFxPanel_ == panelIndex) ? -1 : panelIndex;
+}
+
+// ==============================================================================
+// Envelope Expand/Collapse
+// ==============================================================================
+
+void Controller::toggleEnvExpand(int panelIndex) {
+    VSTGUI::CViewContainer* groups[] = {envGroupAmp_, envGroupFilter_, envGroupMod_};
+    Krate::Plugins::ADSRDisplay* displays[] = {ampEnvDisplay_, filterEnvDisplay_, modEnvDisplay_};
+
+    // Original container rects (relative to fieldset)
+    static constexpr VSTGUI::CRect kOrigGroupRects[] = {
+        {8, 14, 178, 134},    // AMP
+        {190, 14, 360, 134},  // FILTER
+        {372, 14, 542, 134},  // MOD
+    };
+    // Original display rect (relative to group container) — same for all three
+    static constexpr VSTGUI::CRect kOrigDisplayRect = {16, 0, 170, 120};
+    // Expanded rects
+    static constexpr VSTGUI::CRect kExpandedGroupRect = {8, 14, 542, 134};
+    static constexpr VSTGUI::CRect kExpandedDisplayRect = {16, 0, 534, 120};
+
+    if (expandedEnvPanel_ == panelIndex) {
+        // Collapse: restore all three
+        for (int i = 0; i < 3; ++i) {
+            if (groups[i]) {
+                groups[i]->setViewSize(kOrigGroupRects[i]);
+                groups[i]->setVisible(true);
+            }
+            if (displays[i]) {
+                displays[i]->setViewSize(kOrigDisplayRect);
+            }
+        }
+        expandedEnvPanel_ = -1;
+    } else {
+        // Expand: hide others, resize target
+        for (int i = 0; i < 3; ++i) {
+            if (i == panelIndex) {
+                if (groups[i]) {
+                    groups[i]->setViewSize(kExpandedGroupRect);
+                    groups[i]->setVisible(true);
+                }
+                if (displays[i]) {
+                    displays[i]->setViewSize(kExpandedDisplayRect);
+                }
+            } else {
+                if (groups[i]) groups[i]->setVisible(false);
+            }
+        }
+        expandedEnvPanel_ = panelIndex;
+    }
 }
 
 void Controller::rebuildRingIndicators() {

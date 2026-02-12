@@ -26,7 +26,7 @@
 #include "ui/xy_morph_pad.h"
 #include "ui/adsr_display.h"
 #include "ui/oscillator_type_selector.h"
-#include "ui/power_button.h"
+#include "ui/toggle_button.h"
 
 #include "public.sdk/source/main/pluginfactory.h"
 

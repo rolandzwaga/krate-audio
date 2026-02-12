@@ -1241,3 +1241,82 @@ TEST_CASE("ADSREnvelope: switching from power curve to Bezier",
     float quarterVal = output[static_cast<size_t>(output.size() / 4)];
     REQUIRE(quarterVal > 0.5f);
 }
+
+// =============================================================================
+// Regression: Filter envelope decay timing with float curve amount
+// =============================================================================
+// Bug: When curve parameters were not forwarded from processor to engine, the
+// ADSR defaulted to EnvCurve::Exponential with kDefaultTargetRatioDR = 0.0001.
+// This made a 2000ms decay reach sustain=0.5 in ~150ms instead of ~1000ms.
+// The fix: forward the float curve amount (default 0.0 = linear) to the ADSR,
+// which uses table-based processing with correct timing.
+
+TEST_CASE("ADSR: Regression - decay with float curve 0.0 reaches sustain in ~decayTime",
+          "[adsr][regression]") {
+    const float sampleRate = 44100.0f;
+    const float decayMs = 2000.0f;
+    const float sustainLevel = 0.5f;
+
+    ADSREnvelope env;
+    env.prepare(sampleRate);
+    env.setAttack(1.0f);       // Near-instant attack
+    env.setDecay(decayMs);
+    env.setSustain(sustainLevel);
+    env.setRelease(100.0f);
+    env.setDecayCurve(0.0f);   // Linear curve (the default UI value)
+
+    env.gate(true);
+    processUntilStage(env, ADSRStage::Decay, 500);
+    REQUIRE(env.getStage() == ADSRStage::Decay);
+
+    int decaySamples = processUntilStage(env, ADSRStage::Sustain);
+    REQUIRE(env.getStage() == ADSRStage::Sustain);
+
+    // With table-based processing (float curve overload), the phase ramps 0->1
+    // over the full decayTime, reaching sustain at phase=1.0.
+    // So decay time = time to reach sustain = 2000ms = 88200 samples.
+    const int expectedSamples = static_cast<int>(decayMs * 0.001f * sampleRate);
+    CHECK(decaySamples == Approx(expectedSamples).margin(100));
+
+    // The bug caused decay to complete in ~6600 samples (~150ms) because the
+    // default EnvCurve::Exponential with targetRatio=0.0001 was used instead
+    // of the user's linear curve. Ensure we're nowhere near that.
+    REQUIRE(decaySamples > expectedSamples / 2);
+}
+
+TEST_CASE("ADSR: Regression - default exponential decay is much faster than linear",
+          "[adsr][regression]") {
+    const float sampleRate = 44100.0f;
+    const float decayMs = 2000.0f;
+    const float sustainLevel = 0.5f;
+
+    // Envelope with default exponential curve (no float curve set)
+    ADSREnvelope envExp;
+    envExp.prepare(sampleRate);
+    envExp.setAttack(1.0f);
+    envExp.setDecay(decayMs);
+    envExp.setSustain(sustainLevel);
+    envExp.setRelease(100.0f);
+    // No curve set - uses default EnvCurve::Exponential
+
+    envExp.gate(true);
+    processUntilStage(envExp, ADSRStage::Decay, 500);
+    int expDecaySamples = processUntilStage(envExp, ADSRStage::Sustain);
+
+    // Envelope with linear float curve (as the UI defaults)
+    ADSREnvelope envLin;
+    envLin.prepare(sampleRate);
+    envLin.setAttack(1.0f);
+    envLin.setDecay(decayMs);
+    envLin.setSustain(sustainLevel);
+    envLin.setRelease(100.0f);
+    envLin.setDecayCurve(0.0f);  // Linear
+
+    envLin.gate(true);
+    processUntilStage(envLin, ADSRStage::Decay, 500);
+    int linDecaySamples = processUntilStage(envLin, ADSRStage::Sustain);
+
+    // The default exponential should reach sustain MUCH faster than linear.
+    // This documents the dramatic difference that caused the original bug.
+    REQUIRE(expDecaySamples < linDecaySamples / 4);
+}

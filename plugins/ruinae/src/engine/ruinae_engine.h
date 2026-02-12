@@ -826,6 +826,21 @@ public:
         for (auto& voice : voices_) { voice.getFilterEnvelope().setReleaseCurve(curve); }
     }
 
+    void setFilterAttackCurve(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.getFilterEnvelope().setAttackCurve(amount); }
+    }
+
+    void setFilterDecayCurve(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.getFilterEnvelope().setDecayCurve(amount); }
+    }
+
+    void setFilterReleaseCurve(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.getFilterEnvelope().setReleaseCurve(amount); }
+    }
+
     // --- Modulation Envelope ---
 
     void setModAttack(float ms) noexcept {

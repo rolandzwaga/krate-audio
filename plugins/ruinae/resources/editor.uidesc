@@ -123,6 +123,11 @@
         <control-tag name="ActionFxExpandFreeze" tag="10010"/>
         <control-tag name="ActionFxExpandDelay" tag="10011"/>
         <control-tag name="ActionFxExpandReverb" tag="10012"/>
+
+        <!-- Envelope Expand/Collapse Chevrons (UI-only actions) -->
+        <control-tag name="ActionEnvExpandAmp" tag="10013"/>
+        <control-tag name="ActionEnvExpandFilter" tag="10014"/>
+        <control-tag name="ActionEnvExpandMod" tag="10015"/>
     </control-tags>
 
     <!-- ================================================================ -->
@@ -748,34 +753,73 @@
             transparent="true"
         >
             <!-- ======================================================== -->
-            <!-- T051: ENV 1 - Amp Envelope (blue #508CC8)                -->
+            <!-- ENV 1 - Amp Envelope group (blue #508CC8)              -->
             <!-- ======================================================== -->
-            <view class="ADSRDisplay" origin="8, 14" size="170, 120"
-                  control-tag="AmpEnvAttack"
-                  fill-color="#508CC840" stroke-color="#508CC8"
-                  control-point-color="#508CC8"
-                  background-color="#1E1E22" grid-color="#FFFFFF10"
-                  text-color="#808080"/>
+            <view class="CViewContainer" origin="8, 14" size="170, 120"
+                  custom-view-name="EnvGroupAmp" transparent="true">
+                <view class="ToggleButton" origin="0, 0" size="14, 28"
+                      control-tag="ActionEnvExpandAmp"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="#508CC8" off-color="#508CC880"
+                      transparent="true"/>
+                <view class="CTextLabel" origin="0, 30" size="14, 90"
+                      font="~ NormalFontSmaller" font-color="#508CC8"
+                      text-alignment="center" transparent="true"
+                      text-rotation="270" title="AMP"/>
+                <view class="ADSRDisplay" origin="16, 0" size="154, 120"
+                      control-tag="AmpEnvAttack"
+                      fill-color="#508CC840" stroke-color="#508CC8"
+                      control-point-color="#508CC8"
+                      background-color="#1E1E22" grid-color="#FFFFFF10"
+                      text-color="#808080"/>
+            </view>
 
             <!-- ======================================================== -->
-            <!-- T052: ENV 2 - Filter Envelope (gold #DCAA3C)            -->
+            <!-- ENV 2 - Filter Envelope group (gold #DCAA3C)            -->
             <!-- ======================================================== -->
-            <view class="ADSRDisplay" origin="190, 14" size="170, 120"
-                  control-tag="FilterEnvAttack"
-                  fill-color="#DCAA3C40" stroke-color="#DCAA3C"
-                  control-point-color="#DCAA3C"
-                  background-color="#1E1E22" grid-color="#FFFFFF10"
-                  text-color="#808080"/>
+            <view class="CViewContainer" origin="190, 14" size="170, 120"
+                  custom-view-name="EnvGroupFilter" transparent="true">
+                <view class="ToggleButton" origin="0, 0" size="14, 28"
+                      control-tag="ActionEnvExpandFilter"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="#DCAA3C" off-color="#DCAA3C80"
+                      transparent="true"/>
+                <view class="CTextLabel" origin="0, 30" size="14, 90"
+                      font="~ NormalFontSmaller" font-color="#DCAA3C"
+                      text-alignment="center" transparent="true"
+                      text-rotation="270" title="FILTER"/>
+                <view class="ADSRDisplay" origin="16, 0" size="154, 120"
+                      control-tag="FilterEnvAttack"
+                      fill-color="#DCAA3C40" stroke-color="#DCAA3C"
+                      control-point-color="#DCAA3C"
+                      background-color="#1E1E22" grid-color="#FFFFFF10"
+                      text-color="#808080"/>
+            </view>
 
             <!-- ======================================================== -->
-            <!-- T053: ENV 3 - Mod Envelope (purple #A05AC8)              -->
+            <!-- ENV 3 - Mod Envelope group (purple #A05AC8)              -->
             <!-- ======================================================== -->
-            <view class="ADSRDisplay" origin="372, 14" size="170, 120"
-                  control-tag="ModEnvAttack"
-                  fill-color="#A05AC840" stroke-color="#A05AC8"
-                  control-point-color="#A05AC8"
-                  background-color="#1E1E22" grid-color="#FFFFFF10"
-                  text-color="#808080"/>
+            <view class="CViewContainer" origin="372, 14" size="170, 120"
+                  custom-view-name="EnvGroupMod" transparent="true">
+                <view class="ToggleButton" origin="0, 0" size="14, 28"
+                      control-tag="ActionEnvExpandMod"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="#A05AC8" off-color="#A05AC880"
+                      transparent="true"/>
+                <view class="CTextLabel" origin="0, 30" size="14, 90"
+                      font="~ NormalFontSmaller" font-color="#A05AC8"
+                      text-alignment="center" transparent="true"
+                      text-rotation="270" title="MOD"/>
+                <view class="ADSRDisplay" origin="16, 0" size="154, 120"
+                      control-tag="ModEnvAttack"
+                      fill-color="#A05AC840" stroke-color="#A05AC8"
+                      control-point-color="#A05AC8"
+                      background-color="#1E1E22" grid-color="#FFFFFF10"
+                      text-color="#808080"/>
+            </view>
         </view>
 
         <!-- Row 3: Movement & Modulation -->
@@ -801,7 +845,7 @@
             <!-- ======================================================== -->
 
             <!-- Toolbar row (y=14) -->
-            <view class="PowerButton" origin="8, 14" size="40, 18"
+            <view class="ToggleButton" origin="8, 14" size="40, 18"
                   control-tag="TranceGateEnabled" default-value="0"
                   transparent="false"/>
 
@@ -822,16 +866,16 @@
                   back-color="#2A2A2E" frame-color="#404048"
                   title="16"/>
 
-            <view class="PowerButton" origin="230, 14" size="20, 18"
+            <view class="ToggleButton" origin="230, 14" size="20, 18"
                   control-tag="TranceGateNumSteps" default-value="0"
                   transparent="false"/>
 
-            <view class="PowerButton" origin="252, 14" size="20, 18"
+            <view class="ToggleButton" origin="252, 14" size="20, 18"
                   control-tag="TranceGateNumSteps" default-value="0"
                   transparent="false"/>
 
             <!-- Euclidean toggle -->
-            <view class="PowerButton" origin="278, 14" size="90, 18"
+            <view class="ToggleButton" origin="278, 14" size="90, 18"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
                   transparent="false"/>
 
@@ -844,37 +888,37 @@
             <!-- ======================================================== -->
             <!-- T064e: Quick action button row (11 buttons, 24x24)       -->
             <!-- ======================================================== -->
-            <view class="PowerButton" origin="8, 82" size="24, 24"
+            <view class="ToggleButton" origin="8, 82" size="24, 24"
                   control-tag="ActionPresetAll" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="34, 82" size="24, 24"
+            <view class="ToggleButton" origin="34, 82" size="24, 24"
                   control-tag="ActionPresetOff" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="60, 82" size="24, 24"
+            <view class="ToggleButton" origin="60, 82" size="24, 24"
                   control-tag="ActionPresetAlternate" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="86, 82" size="24, 24"
+            <view class="ToggleButton" origin="86, 82" size="24, 24"
                   control-tag="ActionPresetRampUp" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="112, 82" size="24, 24"
+            <view class="ToggleButton" origin="112, 82" size="24, 24"
                   control-tag="ActionPresetRampDown" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="138, 82" size="24, 24"
+            <view class="ToggleButton" origin="138, 82" size="24, 24"
                   control-tag="ActionPresetRandom" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="164, 82" size="24, 24"
+            <view class="ToggleButton" origin="164, 82" size="24, 24"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="190, 82" size="24, 24"
+            <view class="ToggleButton" origin="190, 82" size="24, 24"
                   control-tag="ActionTransformInvert" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="216, 82" size="24, 24"
+            <view class="ToggleButton" origin="216, 82" size="24, 24"
                   control-tag="ActionTransformShiftLeft" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="242, 82" size="24, 24"
+            <view class="ToggleButton" origin="242, 82" size="24, 24"
                   control-tag="ActionTransformShiftRight" default-value="0"
                   transparent="false"/>
-            <view class="PowerButton" origin="268, 82" size="24, 24"
+            <view class="ToggleButton" origin="268, 82" size="24, 24"
                   control-tag="ActionEuclideanRegen" default-value="0"
                   transparent="false"/>
 
@@ -1063,7 +1107,7 @@
             <!-- Compact FX strip (always visible) -->
             <view class="CViewContainer" origin="4, 14" size="722, 28" transparent="true">
                 <!-- Freeze group -->
-                <view class="PowerButton" origin="0, 4" size="50, 20"
+                <view class="ToggleButton" origin="0, 4" size="50, 20"
                       control-tag="FreezeEnabled"
                       title="Freeze"
                       font="~ NormalFontSmaller"
@@ -1077,15 +1121,15 @@
                       guide-color="#FFFFFF28"/>
                 <view class="CTextLabel" origin="52, 28" size="44, 0" title=""
                       transparent="true"/>
-                <view class="PowerButton" origin="100, 4" size="20, 20"
+                <view class="ToggleButton" origin="100, 4" size="20, 20"
                       control-tag="ActionFxExpandFreeze"
-                      title=">"
-                      font="~ NormalFontSmaller"
-                      font-color="#808080"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="#C8C8CC" off-color="#808080"
                       transparent="true"/>
 
                 <!-- Delay group -->
-                <view class="PowerButton" origin="240, 4" size="50, 20"
+                <view class="ToggleButton" origin="240, 4" size="50, 20"
                       title="Delay"
                       font="~ NormalFontSmaller"
                       font-color="#C8C8CC"
@@ -1096,15 +1140,15 @@
                       default-value="0.5"
                       arc-color="#6E7078"
                       guide-color="#FFFFFF28"/>
-                <view class="PowerButton" origin="340, 4" size="20, 20"
+                <view class="ToggleButton" origin="340, 4" size="20, 20"
                       control-tag="ActionFxExpandDelay"
-                      title=">"
-                      font="~ NormalFontSmaller"
-                      font-color="#808080"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="#C8C8CC" off-color="#808080"
                       transparent="true"/>
 
                 <!-- Reverb group -->
-                <view class="PowerButton" origin="480, 4" size="50, 20"
+                <view class="ToggleButton" origin="480, 4" size="50, 20"
                       title="Reverb"
                       font="~ NormalFontSmaller"
                       font-color="#C8C8CC"
@@ -1115,11 +1159,11 @@
                       default-value="0.5"
                       arc-color="#6E7078"
                       guide-color="#FFFFFF28"/>
-                <view class="PowerButton" origin="580, 4" size="20, 20"
+                <view class="ToggleButton" origin="580, 4" size="20, 20"
                       control-tag="ActionFxExpandReverb"
-                      title=">"
-                      font="~ NormalFontSmaller"
-                      font-color="#808080"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="#C8C8CC" off-color="#808080"
                       transparent="true"/>
             </view>
 
@@ -1238,7 +1282,7 @@
                   transparent="true"/>
 
             <!-- Soft Limit toggle -->
-            <view class="PowerButton" origin="60, 56" size="80, 18"
+            <view class="ToggleButton" origin="60, 56" size="80, 18"
                   control-tag="SoftLimit"
                   title="Soft Limit"
                   font="~ NormalFontSmaller"

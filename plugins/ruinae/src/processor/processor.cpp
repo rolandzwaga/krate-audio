@@ -587,6 +587,9 @@ void Processor::applyParamsToEngine() {
     engine_.setFilterDecay(filterEnvParams_.decayMs.load(std::memory_order_relaxed));
     engine_.setFilterSustain(filterEnvParams_.sustain.load(std::memory_order_relaxed));
     engine_.setFilterRelease(filterEnvParams_.releaseMs.load(std::memory_order_relaxed));
+    engine_.setFilterAttackCurve(filterEnvParams_.attackCurve.load(std::memory_order_relaxed));
+    engine_.setFilterDecayCurve(filterEnvParams_.decayCurve.load(std::memory_order_relaxed));
+    engine_.setFilterReleaseCurve(filterEnvParams_.releaseCurve.load(std::memory_order_relaxed));
 
     // --- Mod Envelope ---
     engine_.setModAttack(modEnvParams_.attackMs.load(std::memory_order_relaxed));
