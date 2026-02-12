@@ -169,6 +169,29 @@ public:
 
     void processBlock(float* output, size_t numSamples) noexcept override {
         osc_.processBlock(output, numSamples);
+
+        // Per-type gain compensation to equalize perceived loudness across
+        // all oscillator types. Reference: PolyBLEP sawtooth at 440 Hz.
+        // Measured RMS deltas and computed linear gain = 10^(deltaDb/20).
+        // See selectable_oscillator_test.cpp "RMS levels" test for verification.
+        constexpr float kGain = []() constexpr {
+            if constexpr (std::is_same_v<OscT, ChaosOscillator>)
+                return 10.0f;   // was 8.0; delta was -2.9 dB, now ~-1.0 dB
+            else if constexpr (std::is_same_v<OscT, FormantOscillator>)
+                return 2.7f;    // delta was -8.6 dB → +8.6 dB compensation
+            else if constexpr (std::is_same_v<OscT, ParticleOscillator>)
+                return 1.63f;   // delta was -4.3 dB → +4.3 dB compensation
+            else if constexpr (std::is_same_v<OscT, WavetableOscillator>)
+                return 1.47f;   // delta was -3.4 dB → +3.4 dB compensation
+            else
+                return 1.0f;    // no compensation needed
+        }();
+
+        if constexpr (kGain != 1.0f) {
+            for (size_t i = 0; i < numSamples; ++i) {
+                output[i] *= kGain;
+            }
+        }
     }
 
     [[nodiscard]] size_t getLatencySamples() const noexcept override {

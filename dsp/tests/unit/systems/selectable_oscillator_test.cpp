@@ -280,6 +280,99 @@ TEST_CASE("SelectableOscillator: SpectralFreeze produces output",
 }
 
 // =============================================================================
+// RMS Level Measurement Across All Oscillator Types
+// =============================================================================
+// Measures the RMS output (in dBFS) of each oscillator type at 440 Hz over
+// 1 second. Used to verify that gain compensation in OscillatorAdapter keeps
+// all types within a reasonable loudness range of each other.
+
+TEST_CASE("SelectableOscillator: RMS levels within +/-3 dB across all types",
+          "[selectable_oscillator][rms_levels]") {
+    constexpr size_t kOneSec = 44100;
+    constexpr size_t kChunkSize = 512;
+    constexpr float kFrequency = 440.0f;
+
+    // Reference: PolyBLEP sawtooth (most common waveform, middle-of-the-road energy)
+    // All other types should be within +/-3 dB of this reference.
+    constexpr float kMaxDeviationDb = 3.0f;
+
+    // Measure RMS for each type
+    struct Measurement {
+        OscType type;
+        const char* name;
+        float rmsDbfs;
+    };
+
+    // SpectralFreeze is excluded: it resynthesizes input, not a self-generating
+    // oscillator in the same sense. Noise is also excluded since it has no
+    // pitch and its RMS depends on color, not gain compensation.
+    const std::array<std::pair<OscType, const char*>, 8> typesToMeasure = {{
+        {OscType::PolyBLEP, "PolyBLEP"},
+        {OscType::Wavetable, "Wavetable"},
+        {OscType::PhaseDistortion, "PhaseDistortion"},
+        {OscType::Sync, "Sync"},
+        {OscType::Additive, "Additive"},
+        {OscType::Chaos, "Chaos"},
+        {OscType::Particle, "Particle"},
+        {OscType::Formant, "Formant"},
+    }};
+
+    // First pass: measure all types and find the reference (PolyBLEP)
+    std::array<float, 8> rmsValues{};
+    float referenceDbfs = 0.0f;
+
+    for (size_t t = 0; t < typesToMeasure.size(); ++t) {
+        auto [type, name] = typesToMeasure[t];
+
+        SelectableOscillator osc;
+        osc.prepare(kSampleRate, kChunkSize);
+        osc.setType(type);
+        osc.setFrequency(kFrequency);
+
+        double totalSumSq = 0.0;
+        size_t totalSamples = 0;
+        std::array<float, kChunkSize> buffer{};
+
+        for (size_t processed = 0; processed < kOneSec; processed += kChunkSize) {
+            size_t chunk = std::min(kChunkSize, kOneSec - processed);
+            osc.processBlock(buffer.data(), chunk);
+            for (size_t i = 0; i < chunk; ++i) {
+                totalSumSq += static_cast<double>(buffer[i])
+                            * static_cast<double>(buffer[i]);
+            }
+            totalSamples += chunk;
+        }
+
+        float rms = static_cast<float>(
+            std::sqrt(totalSumSq / static_cast<double>(totalSamples)));
+        rmsValues[t] = rmsToDbfs(rms);
+
+        if (type == OscType::PolyBLEP) {
+            referenceDbfs = rmsValues[t];
+        }
+    }
+
+    // Print all measurements for diagnostics
+    for (size_t t = 0; t < typesToMeasure.size(); ++t) {
+        INFO(typesToMeasure[t].second << ": " << rmsValues[t]
+             << " dBFS (delta: " << (rmsValues[t] - referenceDbfs) << " dB)");
+    }
+
+    // Second pass: verify each is within tolerance of reference
+    for (size_t t = 0; t < typesToMeasure.size(); ++t) {
+        auto [type, name] = typesToMeasure[t];
+        float delta = rmsValues[t] - referenceDbfs;
+
+        DYNAMIC_SECTION(name << " within +/-" << kMaxDeviationDb << " dB of PolyBLEP") {
+            INFO(name << " RMS = " << rmsValues[t] << " dBFS, reference = "
+                 << referenceDbfs << " dBFS, delta = " << delta << " dB");
+            REQUIRE(delta >= -kMaxDeviationDb);
+            REQUIRE(delta <= kMaxDeviationDb);
+        }
+    }
+}
+
+// =============================================================================
 // Zero Heap Allocations During Type Switch (SC-004)
 // =============================================================================
 // Note: We test non-FFT types only because FFT-based oscillators
