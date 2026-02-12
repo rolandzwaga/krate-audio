@@ -555,7 +555,7 @@
             <!-- T036: XYMorphPad (230x108, non-square is fine) -->
             <view class="XYMorphPad"
                   origin="8, 14" size="280, 108"
-                  control-tag-x="MixPosition" control-tag-y="MixerTilt"
+                  control-tag="MixPosition" secondary-tag="MixerTilt"
                   color-bottom-left="#3C6C99" color-top-left="#64B4FF"
                   color-bottom-right="#99533C" color-top-right="#FF8C64"
                   transparent="false"/>

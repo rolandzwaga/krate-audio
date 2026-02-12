@@ -88,6 +88,12 @@ public:
     static constexpr float kMaxSpectralTilt = +12.0f;
     static constexpr float kTiltPivotHz = 1000.0f;
 
+    /// Per-bin tilt gain clamp (dB). Prevents extreme attenuation/boost at
+    /// bins far from the pivot (e.g. 43 Hz bin is 4.5 octaves below 1 kHz,
+    /// unclamped +12 dB/oct tilt would yield -54 dB there).
+    static constexpr float kMinTiltGainDb = -24.0f;
+    static constexpr float kMaxTiltGainDb = +24.0f;
+
     /// FR-006: Snapshot averaging
     static constexpr std::size_t kDefaultSnapshotFrames = 4;
 
@@ -683,12 +689,16 @@ private:
     /// @brief Apply spectral tilt with 1 kHz pivot
     /// @note Uses pre-computed octave distances from prepare() to avoid
     ///       log2() in the hot loop. Only pow() remains per bin.
+    /// @note Per-bin gain is clamped to ±24 dB to prevent extreme
+    ///       attenuation (inaudible fundamentals) and boost (clipping artifacts)
+    ///       at bins far from the pivot frequency.
     void applySpectralTilt(SpectralBuffer& spectrum, float dBPerOctave) noexcept {
         const std::size_t numBins = spectrum.numBins();
 
         for (std::size_t bin = 1; bin < numBins; ++bin) {  // Skip DC bin
             // octavesFromPivot_[bin] was pre-computed in prepare()
-            const float gainDb = dBPerOctave * octavesFromPivot_[bin];
+            const float gainDb = std::clamp(dBPerOctave * octavesFromPivot_[bin],
+                                            kMinTiltGainDb, kMaxTiltGainDb);
             const float gainLinear = std::pow(10.0f, gainDb / 20.0f);
 
             const float currentMag = spectrum.getMagnitude(bin);

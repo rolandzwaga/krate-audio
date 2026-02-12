@@ -2134,3 +2134,63 @@ TEST_CASE("RuinaeVoice: OscBLevel positive offset clamped to unity",
     REQUIRE(rmsBase > 0.0f);
     REQUIRE(rmsClamped == Approx(rmsBase).margin(0.01f));
 }
+
+// =============================================================================
+// Regression: OSC B Chaos at mix=1.0 produces non-zero output
+// =============================================================================
+
+TEST_CASE("RuinaeVoice: OSC B Chaos at mix=1.0 produces output",
+          "[ruinae_voice][dual-osc][chaos]") {
+    auto voice = createPreparedVoice();
+    voice.setFilterCutoff(20000.0f);
+    voice.setOscBType(OscType::Chaos);
+    voice.setMixPosition(1.0f); // OSC B only
+    voice.getAmpEnvelope().setAttack(0.1f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+    voice.noteOn(440.0f, 1.0f);
+
+    // Process 1 second to let chaos attractor settle
+    auto out = processNSamples(voice, 44100);
+    float rms = computeRMS(out.data(), out.size());
+    float dbfs = (rms > 0.0f) ? 20.0f * std::log10(rms) : -200.0f;
+
+    INFO("OSC B Chaos at mix=1.0: RMS = " << rms << ", dBFS = " << dbfs);
+    REQUIRE(rms > 0.001f);
+    REQUIRE(dbfs > -60.0f);
+}
+
+TEST_CASE("RuinaeVoice: all 10 OSC B types produce output at mix=1.0",
+          "[ruinae_voice][dual-osc][regression]") {
+    const std::array<OscType, 10> allTypes = {
+        OscType::PolyBLEP,
+        OscType::Wavetable,
+        OscType::PhaseDistortion,
+        OscType::Sync,
+        OscType::Additive,
+        OscType::Chaos,
+        OscType::Particle,
+        OscType::Formant,
+        OscType::SpectralFreeze,
+        OscType::Noise
+    };
+
+    for (auto type : allTypes) {
+        DYNAMIC_SECTION("OSC B type " << static_cast<int>(type)) {
+            auto voice = createPreparedVoice();
+            voice.setFilterCutoff(20000.0f);
+            voice.setOscBType(type);
+            voice.setMixPosition(1.0f); // OSC B only
+            voice.getAmpEnvelope().setAttack(0.1f);
+            voice.getAmpEnvelope().setSustain(1.0f);
+            voice.noteOn(440.0f, 1.0f);
+
+            auto out = processNSamples(voice, 44100);
+            float rms = computeRMS(out.data(), out.size());
+            float dbfs = (rms > 0.0f) ? 20.0f * std::log10(rms) : -200.0f;
+
+            INFO("OSC B type " << static_cast<int>(type)
+                 << ": RMS = " << rms << ", dBFS = " << dbfs);
+            REQUIRE(dbfs > -60.0f);
+        }
+    }
+}
