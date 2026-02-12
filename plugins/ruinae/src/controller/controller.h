@@ -205,6 +205,9 @@ private:
     Krate::Plugins::ADSRDisplay* filterEnvDisplay_ = nullptr;
     Krate::Plugins::ADSRDisplay* modEnvDisplay_ = nullptr;
 
+    /// Euclidean regen button - hidden when Euclidean mode is off
+    VSTGUI::CView* euclideanRegenButton_ = nullptr;
+
     // FX detail panel expand/collapse state
     VSTGUI::CViewContainer* fxDetailFreeze_ = nullptr;
     VSTGUI::CViewContainer* fxDetailDelay_ = nullptr;

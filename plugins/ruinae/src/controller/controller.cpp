@@ -426,6 +426,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             stepPatternEditor_->setNumSteps(steps);
         } else if (tag == kTranceGateEuclideanEnabledId) {
             stepPatternEditor_->setEuclideanEnabled(value >= 0.5);
+            if (euclideanRegenButton_)
+                euclideanRegenButton_->setVisible(value >= 0.5);
         } else if (tag == kTranceGateEuclideanHitsId) {
             int hits = std::clamp(
                 static_cast<int>(std::round(value * 32.0)), 0, 32);
@@ -500,6 +502,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         ampEnvDisplay_ = nullptr;
         filterEnvDisplay_ = nullptr;
         modEnvDisplay_ = nullptr;
+        euclideanRegenButton_ = nullptr;
 
         // FX detail panel cleanup (T092)
         fxDetailFreeze_ = nullptr;
@@ -531,6 +534,15 @@ VSTGUI::CView* Controller::verifyView(
         auto tag = control->getTag();
         if (tag >= static_cast<int32_t>(kActionTransformInvertTag) && tag <= static_cast<int32_t>(kActionEnvExpandModTag)) {
             control->registerControlListener(this);
+        }
+
+        // Track the Euclidean regen button for visibility toggling
+        if (tag == static_cast<int32_t>(kActionEuclideanRegenTag)) {
+            euclideanRegenButton_ = view;
+            // Set initial visibility from current Euclidean enabled state
+            auto* param = getParameterObject(kTranceGateEuclideanEnabledId);
+            bool enabled = param && param->getNormalized() >= 0.5;
+            view->setVisible(enabled);
         }
     }
 
