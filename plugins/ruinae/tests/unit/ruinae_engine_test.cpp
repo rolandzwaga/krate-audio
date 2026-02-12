@@ -1264,3 +1264,142 @@ TEST_CASE("RuinaeEngine parameter safety", "[ruinae-engine][safety]") {
         REQUIRE(allSamplesFinite(right.data(), 512));
     }
 }
+
+// =============================================================================
+// Bug reproduction: envelope should stay in sustain during held note
+// =============================================================================
+// When a single note is held with default parameters, the amp envelope should
+// reach Sustain stage and stay there indefinitely. The user reported that the
+// envelope appears to restart after ~1 second, causing stuttering audio.
+
+TEST_CASE("RuinaeEngine sustained note keeps envelope in sustain",
+          "[ruinae-engine][bug-repro]") {
+    using namespace Krate::DSP;
+
+    constexpr float kSampleRate = 44100.0f;
+    constexpr size_t kBlockSize = 512;
+    constexpr float kTestDurationSec = 3.0f;
+    constexpr size_t kTotalSamples = static_cast<size_t>(kSampleRate * kTestDurationSec);
+    constexpr size_t kNumBlocks = kTotalSamples / kBlockSize + 1;
+
+    RuinaeEngine engine;
+    engine.prepare(kSampleRate, kBlockSize);
+
+    // Set parameters matching the processor defaults (applyParamsToEngine)
+    engine.setMode(VoiceMode::Poly);
+    engine.setPolyphony(8);
+    engine.setMasterGain(1.0f);
+    engine.setSoftLimitEnabled(true);
+
+    // Amp envelope defaults from amp_env_params.h
+    engine.setAmpAttack(10.0f);
+    engine.setAmpDecay(100.0f);
+    engine.setAmpSustain(0.8f);
+    engine.setAmpRelease(200.0f);
+
+    // Filter defaults
+    engine.setFilterCutoff(20000.0f);
+    engine.setFilterResonance(0.1f);
+    engine.setFilterEnvAmount(0.0f);
+    engine.setFilterKeyTrack(0.0f);
+
+    // Filter envelope defaults
+    engine.setFilterAttack(10.0f);
+    engine.setFilterDecay(100.0f);
+    engine.setFilterSustain(0.8f);
+    engine.setFilterRelease(200.0f);
+
+    // Mod envelope defaults
+    engine.setModAttack(10.0f);
+    engine.setModDecay(100.0f);
+    engine.setModSustain(0.8f);
+    engine.setModRelease(200.0f);
+
+    // Set a block context (simulating host)
+    BlockContext ctx{};
+    ctx.sampleRate = kSampleRate;
+    ctx.blockSize = kBlockSize;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    engine.setBlockContext(ctx);
+
+    // Play a single note
+    engine.noteOn(60, 100);
+
+    std::vector<float> left(kBlockSize, 0.0f);
+    std::vector<float> right(kBlockSize, 0.0f);
+
+    // Track envelope stages
+    bool reachedSustain = false;
+    bool envelopeRestarted = false;
+    int restartBlock = -1;
+    ADSRStage previousStage = ADSRStage::Idle;
+
+    for (size_t block = 0; block < kNumBlocks; ++block) {
+        // Simulate applyParamsToEngine calling setters every block (like the real processor)
+        engine.setAmpAttack(10.0f);
+        engine.setAmpDecay(100.0f);
+        engine.setAmpSustain(0.8f);
+        engine.setAmpRelease(200.0f);
+        engine.setFilterAttack(10.0f);
+        engine.setFilterDecay(100.0f);
+        engine.setFilterSustain(0.8f);
+        engine.setFilterRelease(200.0f);
+        engine.setModAttack(10.0f);
+        engine.setModDecay(100.0f);
+        engine.setModSustain(0.8f);
+        engine.setModRelease(200.0f);
+
+        // Also simulate other per-block param forwarding
+        engine.setPolyphony(8);
+        engine.setMode(VoiceMode::Poly);
+        engine.setMasterGain(1.0f);
+        engine.setFilterCutoff(20000.0f);
+
+        engine.processBlock(left.data(), right.data(), kBlockSize);
+
+        // Check voice 0 amp envelope stage
+        ADSRStage currentStage = engine.getVoiceAmpEnvelope(0).getStage();
+
+        if (currentStage == ADSRStage::Sustain) {
+            reachedSustain = true;
+        }
+
+        // Once we've reached sustain, the envelope should NEVER go back to Attack
+        if (reachedSustain && currentStage == ADSRStage::Attack) {
+            envelopeRestarted = true;
+            restartBlock = static_cast<int>(block);
+            float timeAtRestart = static_cast<float>(block * kBlockSize) / kSampleRate;
+            INFO("Envelope restarted at block " << block
+                 << " (time: " << timeAtRestart << "s)"
+                 << " previous stage: " << static_cast<int>(previousStage));
+            break;
+        }
+
+        // The envelope should never go Idle while note is held
+        if (reachedSustain && currentStage == ADSRStage::Idle) {
+            envelopeRestarted = true;
+            restartBlock = static_cast<int>(block);
+            float timeAtRestart = static_cast<float>(block * kBlockSize) / kSampleRate;
+            INFO("Envelope went Idle at block " << block
+                 << " (time: " << timeAtRestart << "s)"
+                 << " previous stage: " << static_cast<int>(previousStage));
+            break;
+        }
+
+        previousStage = currentStage;
+    }
+
+    // Check that envelope stayed in sustain throughout
+    REQUIRE(reachedSustain);
+    CHECK_FALSE(envelopeRestarted);
+
+    // Also verify there's continuous non-zero audio output at the end
+    engine.processBlock(left.data(), right.data(), kBlockSize);
+    float peak = 0.0f;
+    for (size_t i = 0; i < kBlockSize; ++i) {
+        float absVal = std::abs(left[i]);
+        if (absVal > peak) peak = absVal;
+    }
+    CHECK(peak > 0.001f);
+}
