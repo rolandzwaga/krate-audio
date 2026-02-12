@@ -850,22 +850,11 @@
                   font="~ NormalFontSmaller" font-color="#C0C0C0"
                   back-color="#2A2A2E" frame-color="#404048"/>
 
-            <view class="COptionMenu" origin="130, 14" size="70, 18"
-                  default-value="0"
-                  font="~ NormalFontSmaller" font-color="#C0C0C0"
-                  back-color="#2A2A2E" frame-color="#404048"/>
-
-            <view class="CTextLabel" origin="208, 14" size="30, 18"
-                  font="~ NormalFontSmaller" font-color="#C0C0C0"
-                  text-alignment="center" transparent="false"
-                  back-color="#2A2A2E" frame-color="#404048"
-                  title="16"/>
-
-            <view class="ToggleButton" origin="238, 14" size="20, 18"
+            <view class="ToggleButton" origin="130, 14" size="20, 18"
                   control-tag="TranceGateNumSteps" default-value="0"
                   transparent="false"/>
 
-            <view class="ToggleButton" origin="260, 14" size="20, 18"
+            <view class="ToggleButton" origin="152, 14" size="20, 18"
                   control-tag="TranceGateNumSteps" default-value="0"
                   transparent="false"/>
 
