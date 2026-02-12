@@ -1096,7 +1096,7 @@
         <view
             class="FieldsetContainer"
             origin="8, 466"
-            size="730, 80"
+            size="884, 80"
             fieldset-title="EFFECTS"
             fieldset-color="#6E7078"
             fieldset-radius="4"
@@ -1241,11 +1241,11 @@
             </view>
         </view>
 
-        <!-- MASTER (silver accent) -->
+        <!-- MASTER (silver accent) — Row 1, right of OSC B -->
         <view
             class="FieldsetContainer"
-            origin="746, 466"
-            size="146, 80"
+            origin="772, 32"
+            size="120, 160"
             fieldset-title="MASTER"
             fieldset-color="#C8C8CC"
             fieldset-radius="4"
@@ -1254,12 +1254,12 @@
             transparent="true"
         >
             <!-- Output knob -->
-            <view class="ArcKnob" origin="8, 16" size="36, 36"
+            <view class="ArcKnob" origin="42, 14" size="36, 36"
                   control-tag="MasterGain"
                   default-value="0.5"
                   arc-color="#C8C8CC"
                   guide-color="#FFFFFF28"/>
-            <view class="CTextLabel" origin="0, 52" size="52, 12"
+            <view class="CTextLabel" origin="34, 50" size="52, 12"
                   title="Output"
                   font="~ NormalFontSmaller"
                   font-color="#808080"
@@ -1267,14 +1267,14 @@
                   transparent="true"/>
 
             <!-- Polyphony dropdown -->
-            <view class="COptionMenu" origin="60, 20" size="80, 20"
+            <view class="COptionMenu" origin="20, 68" size="80, 20"
                   control-tag="Polyphony"
                   font="~ NormalFontSmaller"
                   font-color="#C8C8CC"
                   back-color="#2A2A2E"
                   frame-color="#3A3A3E"
                   transparent="false"/>
-            <view class="CTextLabel" origin="60, 42" size="80, 12"
+            <view class="CTextLabel" origin="20, 88" size="80, 12"
                   title="Polyphony"
                   font="~ NormalFontSmaller"
                   font-color="#808080"
@@ -1282,7 +1282,7 @@
                   transparent="true"/>
 
             <!-- Soft Limit toggle -->
-            <view class="ToggleButton" origin="60, 56" size="80, 18"
+            <view class="ToggleButton" origin="20, 106" size="80, 18"
                   control-tag="SoftLimit"
                   title="Soft Limit"
                   font="~ NormalFontSmaller"
