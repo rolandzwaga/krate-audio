@@ -25,6 +25,12 @@ struct RuinaeFilterParams {
     std::atomic<float> resonance{0.1f};  // 0.1-30.0
     std::atomic<float> envAmount{0.0f};  // -48 to +48 semitones
     std::atomic<float> keyTrack{0.0f};   // 0-1
+    // Type-specific params
+    std::atomic<int> ladderSlope{4};     // 1-4 poles
+    std::atomic<float> ladderDrive{0.0f}; // 0-24 dB
+    std::atomic<float> formantMorph{0.0f}; // 0-4 (A=0, E=1, I=2, O=3, U=4)
+    std::atomic<float> formantGender{0.0f}; // -1 to +1
+    std::atomic<float> combDamping{0.0f}; // 0-1
 };
 
 inline void handleFilterParamChange(
@@ -61,6 +67,36 @@ inline void handleFilterParamChange(
                 std::clamp(static_cast<float>(value), 0.0f, 1.0f),
                 std::memory_order_relaxed);
             break;
+        // Type-specific params
+        case kFilterLadderSlopeId:
+            // 0-1 -> 1-4 poles (stepCount=3)
+            params.ladderSlope.store(
+                std::clamp(static_cast<int>(value * 3.0 + 0.5) + 1, 1, 4),
+                std::memory_order_relaxed);
+            break;
+        case kFilterLadderDriveId:
+            // 0-1 -> 0-24 dB
+            params.ladderDrive.store(
+                std::clamp(static_cast<float>(value * 24.0), 0.0f, 24.0f),
+                std::memory_order_relaxed);
+            break;
+        case kFilterFormantMorphId:
+            // 0-1 -> 0-4
+            params.formantMorph.store(
+                std::clamp(static_cast<float>(value * 4.0), 0.0f, 4.0f),
+                std::memory_order_relaxed);
+            break;
+        case kFilterFormantGenderId:
+            // 0-1 -> -1 to +1
+            params.formantGender.store(
+                std::clamp(static_cast<float>(value * 2.0 - 1.0), -1.0f, 1.0f),
+                std::memory_order_relaxed);
+            break;
+        case kFilterCombDampingId:
+            params.combDamping.store(
+                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                std::memory_order_relaxed);
+            break;
         default: break;
     }
 }
@@ -80,6 +116,21 @@ inline void registerFilterParams(Steinberg::Vst::ParameterContainer& parameters)
         ParameterInfo::kCanAutomate, kFilterEnvAmountId);
     parameters.addParameter(STR16("Filter Key Track"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kFilterKeyTrackId);
+    // Ladder-specific
+    parameters.addParameter(createDropdownParameter(
+        STR16("Ladder Slope"), kFilterLadderSlopeId,
+        {STR16("6 dB"), STR16("12 dB"), STR16("18 dB"), STR16("24 dB")}
+    ));
+    parameters.addParameter(STR16("Ladder Drive"), STR16("dB"), 0, 0.0,
+        ParameterInfo::kCanAutomate, kFilterLadderDriveId);
+    // Formant-specific
+    parameters.addParameter(STR16("Formant Vowel"), STR16(""), 0, 0.0,
+        ParameterInfo::kCanAutomate, kFilterFormantMorphId);
+    parameters.addParameter(STR16("Formant Gender"), STR16(""), 0, 0.5,
+        ParameterInfo::kCanAutomate, kFilterFormantGenderId);
+    // Comb-specific
+    parameters.addParameter(STR16("Comb Damping"), STR16(""), 0, 0.0,
+        ParameterInfo::kCanAutomate, kFilterCombDampingId);
 }
 
 inline Steinberg::tresult formatFilterParam(
@@ -113,6 +164,40 @@ inline Steinberg::tresult formatFilterParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+        case kFilterLadderDriveId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.1f dB", value * 24.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kFilterFormantMorphId: {
+            char8 text[32];
+            float morph = static_cast<float>(value * 4.0);
+            static const char* vowels[] = {"A", "E", "I", "O", "U"};
+            int idx = std::clamp(static_cast<int>(morph + 0.5f), 0, 4);
+            float frac = morph - static_cast<float>(static_cast<int>(morph));
+            if (frac < 0.05f || frac > 0.95f || morph >= 3.95f)
+                snprintf(text, sizeof(text), "%s", vowels[idx]);
+            else {
+                int lo = std::clamp(static_cast<int>(morph), 0, 3);
+                snprintf(text, sizeof(text), "%s>%s", vowels[lo], vowels[lo + 1]);
+            }
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kFilterFormantGenderId: {
+            char8 text[32];
+            float g = static_cast<float>(value * 2.0 - 1.0);
+            snprintf(text, sizeof(text), "%+.0f%%", g * 100.0f);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kFilterCombDampingId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
         default: break;
     }
     return kResultFalse;
@@ -124,6 +209,12 @@ inline void saveFilterParams(const RuinaeFilterParams& params, Steinberg::IBStre
     streamer.writeFloat(params.resonance.load(std::memory_order_relaxed));
     streamer.writeFloat(params.envAmount.load(std::memory_order_relaxed));
     streamer.writeFloat(params.keyTrack.load(std::memory_order_relaxed));
+    // Type-specific (v4+)
+    streamer.writeInt32(params.ladderSlope.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.ladderDrive.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.formantMorph.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.formantGender.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.combDamping.load(std::memory_order_relaxed));
 }
 
 inline bool loadFilterParams(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
@@ -138,6 +229,22 @@ inline bool loadFilterParams(RuinaeFilterParams& params, Steinberg::IBStreamer& 
     params.envAmount.store(floatVal, std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.keyTrack.store(floatVal, std::memory_order_relaxed);
+    return true;
+}
+
+inline bool loadFilterParamsV4(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
+    if (!loadFilterParams(params, streamer)) return false;
+    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    if (!streamer.readInt32(intVal)) return false;
+    params.ladderSlope.store(intVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.ladderDrive.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.formantMorph.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.formantGender.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.combDamping.store(floatVal, std::memory_order_relaxed);
     return true;
 }
 
@@ -158,6 +265,23 @@ inline void loadFilterParamsToController(
         setParam(kFilterEnvAmountId, static_cast<double>((floatVal + 48.0f) / 96.0f));
     if (streamer.readFloat(floatVal))
         setParam(kFilterKeyTrackId, static_cast<double>(floatVal));
+}
+
+template<typename SetParamFunc>
+inline void loadFilterParamsToControllerV4(
+    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    loadFilterParamsToController(streamer, setParam);
+    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    if (streamer.readInt32(intVal))
+        setParam(kFilterLadderSlopeId, static_cast<double>(intVal - 1) / 3.0);
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterLadderDriveId, static_cast<double>(floatVal / 24.0f));
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterFormantMorphId, static_cast<double>(floatVal / 4.0f));
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterFormantGenderId, static_cast<double>((floatVal + 1.0f) / 2.0f));
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterCombDampingId, static_cast<double>(floatVal));
 }
 
 } // namespace Ruinae

@@ -711,6 +711,30 @@ public:
         for (auto& voice : voices_) { voice.setFilterKeyTrack(amount); }
     }
 
+    void setFilterLadderSlope(int poles) noexcept {
+        for (auto& voice : voices_) { voice.setFilterLadderSlope(poles); }
+    }
+
+    void setFilterLadderDrive(float db) noexcept {
+        if (detail::isNaN(db) || detail::isInf(db)) return;
+        for (auto& voice : voices_) { voice.setFilterLadderDrive(db); }
+    }
+
+    void setFilterFormantMorph(float position) noexcept {
+        if (detail::isNaN(position) || detail::isInf(position)) return;
+        for (auto& voice : voices_) { voice.setFilterFormantMorph(position); }
+    }
+
+    void setFilterFormantGender(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.setFilterFormantGender(amount); }
+    }
+
+    void setFilterCombDamping(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.setFilterCombDamping(amount); }
+    }
+
     // --- Distortion ---
 
     void setDistortionType(RuinaeDistortionType type) noexcept {

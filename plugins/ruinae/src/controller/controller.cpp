@@ -168,7 +168,11 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             loadMixerParamsToController(streamer, setParam);
         else
             loadMixerParamsToControllerV3(streamer, setParam);
-        loadFilterParamsToController(streamer, setParam);
+        // v5 added type-specific filter params (ladder/formant/comb)
+        if (ver >= 5)
+            loadFilterParamsToControllerV4(streamer, setParam);
+        else
+            loadFilterParamsToController(streamer, setParam);
         loadDistortionParamsToController(streamer, setParam);
         loadTranceGateParamsToController(streamer, setParam);
         loadAmpEnvParamsToController(streamer, setParam);

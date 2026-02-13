@@ -90,6 +90,12 @@
         <control-tag name="FilterResonance" tag="402"/>
         <control-tag name="FilterEnvAmount" tag="403"/>
         <control-tag name="FilterKeyTrack" tag="404"/>
+        <!-- Filter type-specific -->
+        <control-tag name="FilterLadderSlope" tag="405"/>
+        <control-tag name="FilterLadderDrive" tag="406"/>
+        <control-tag name="FilterFormantMorph" tag="407"/>
+        <control-tag name="FilterFormantGender" tag="408"/>
+        <control-tag name="FilterCombDamping" tag="409"/>
 
         <!-- Distortion -->
         <control-tag name="DistortionType" tag="500"/>
@@ -456,6 +462,59 @@
               text-alignment="left" transparent="true" title="BW"/>
     </template>
 
+    <!-- ================================================================ -->
+    <!-- Filter Type-Specific Templates                                  -->
+    <!-- ================================================================ -->
+
+    <!-- SVF LP/HP/BP/Notch: no extra params -->
+    <template name="Filter_SVF_LP" size="104, 40" class="CViewContainer" transparent="true"/>
+    <template name="Filter_SVF_HP" size="104, 40" class="CViewContainer" transparent="true"/>
+    <template name="Filter_SVF_BP" size="104, 40" class="CViewContainer" transparent="true"/>
+    <template name="Filter_SVF_Notch" size="104, 40" class="CViewContainer" transparent="true"/>
+
+    <!-- Ladder: Slope selector + Drive knob -->
+    <template name="Filter_Ladder" size="104, 40" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="0, 4" size="48, 18"
+              control-tag="FilterLadderSlope" default-value="1.0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="0, 24" size="48, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slope"/>
+        <view class="ArcKnob" origin="56, 2" size="28, 28"
+              control-tag="FilterLadderDrive" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="50, 30" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+    </template>
+
+    <!-- Formant: Vowel Morph + Gender -->
+    <template name="Filter_Formant" size="104, 40" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="4, 2" size="28, 28"
+              control-tag="FilterFormantMorph" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 30" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Vowel"/>
+        <view class="ArcKnob" origin="56, 2" size="28, 28"
+              control-tag="FilterFormantGender" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="46, 30" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Gender"/>
+    </template>
+
+    <!-- Comb: Damping -->
+    <template name="Filter_Comb" size="104, 40" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="4, 2" size="28, 28"
+              control-tag="FilterCombDamping" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 30" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Damp"/>
+    </template>
+
     <template
         name="editor"
         minSize="900, 750"
@@ -751,6 +810,13 @@
             <view class="CTextLabel" origin="0, 125" size="52, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Key Track"/>
+
+            <!-- Type-specific params (switches based on FilterType) -->
+            <view class="UIViewSwitchContainer"
+                  origin="58, 90" size="104, 40"
+                  template-names="Filter_SVF_LP,Filter_SVF_HP,Filter_SVF_BP,Filter_SVF_Notch,Filter_Ladder,Filter_Formant,Filter_Comb"
+                  template-switch-control="FilterType"
+                  transparent="true"/>
         </view>
 
         <!-- DISTORTION (red accent) -->

@@ -582,6 +582,35 @@ public:
         filterKeyTrack_ = std::clamp(amount, 0.0f, 1.0f);
     }
 
+    /// @brief Set ladder filter slope (1-4 poles = 6-24 dB/oct).
+    void setFilterLadderSlope(int poles) noexcept {
+        if (filterLadder_) filterLadder_->setSlope(std::clamp(poles, 1, 4));
+    }
+
+    /// @brief Set ladder filter drive (0-24 dB).
+    void setFilterLadderDrive(float db) noexcept {
+        if (detail::isNaN(db) || detail::isInf(db)) return;
+        if (filterLadder_) filterLadder_->setDrive(std::clamp(db, 0.0f, 24.0f));
+    }
+
+    /// @brief Set formant filter vowel morph position (0-4: A,E,I,O,U).
+    void setFilterFormantMorph(float position) noexcept {
+        if (detail::isNaN(position) || detail::isInf(position)) return;
+        if (filterFormant_) filterFormant_->setVowelMorph(std::clamp(position, 0.0f, 4.0f));
+    }
+
+    /// @brief Set formant filter gender (-1 male, 0 neutral, +1 female).
+    void setFilterFormantGender(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        if (filterFormant_) filterFormant_->setGender(std::clamp(amount, -1.0f, 1.0f));
+    }
+
+    /// @brief Set comb filter damping (0 bright, 1 dark).
+    void setFilterCombDamping(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        if (filterComb_) filterComb_->setDamping(std::clamp(amount, 0.0f, 1.0f));
+    }
+
     // =========================================================================
     // Distortion Configuration (FR-013 through FR-015)
     // =========================================================================

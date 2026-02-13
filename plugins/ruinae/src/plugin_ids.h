@@ -105,6 +105,12 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kFilterResonanceId = 402,  // 0.1-30.0
     kFilterEnvAmountId = 403,  // -48 to +48 semitones
     kFilterKeyTrackId = 404,   // 0-1
+    // Type-specific params (405-409)
+    kFilterLadderSlopeId = 405,    // 1-4 poles (6/12/18/24 dB/oct)
+    kFilterLadderDriveId = 406,    // 0-24 dB
+    kFilterFormantMorphId = 407,   // 0-4 (A=0, E=1, I=2, O=3, U=4)
+    kFilterFormantGenderId = 408,  // -1 to +1
+    kFilterCombDampingId = 409,    // 0-1
     kFilterEndId = 499,
 
     // ==========================================================================

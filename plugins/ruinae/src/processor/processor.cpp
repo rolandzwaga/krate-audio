@@ -357,7 +357,12 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         } else {
             if (!loadMixerParamsV3(mixerParams_, streamer)) return false;
         }
-        if (!loadFilterParams(filterParams_, streamer)) return false;
+        // v5 added type-specific filter params (ladder/formant/comb)
+        if (ver >= 5) {
+            if (!loadFilterParamsV4(filterParams_, streamer)) return false;
+        } else {
+            if (!loadFilterParams(filterParams_, streamer)) return false;
+        }
         if (!loadDistortionParams(distortionParams_, streamer)) return false;
         if (!loadTranceGateParams(tranceGateParams_, streamer)) return false;
         if (!loadAmpEnvParams(ampEnvParams_, streamer)) return false;
@@ -543,6 +548,11 @@ void Processor::applyParamsToEngine() {
     engine_.setFilterResonance(filterParams_.resonance.load(std::memory_order_relaxed));
     engine_.setFilterEnvAmount(filterParams_.envAmount.load(std::memory_order_relaxed));
     engine_.setFilterKeyTrack(filterParams_.keyTrack.load(std::memory_order_relaxed));
+    engine_.setFilterLadderSlope(filterParams_.ladderSlope.load(std::memory_order_relaxed));
+    engine_.setFilterLadderDrive(filterParams_.ladderDrive.load(std::memory_order_relaxed));
+    engine_.setFilterFormantMorph(filterParams_.formantMorph.load(std::memory_order_relaxed));
+    engine_.setFilterFormantGender(filterParams_.formantGender.load(std::memory_order_relaxed));
+    engine_.setFilterCombDamping(filterParams_.combDamping.load(std::memory_order_relaxed));
 
     // --- Distortion ---
     engine_.setDistortionType(static_cast<RuinaeDistortionType>(

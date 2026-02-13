@@ -55,7 +55,8 @@ namespace Ruinae {
 // v2: Extended mod matrix with detail params (curve, smooth, scale, bypass)
 // v3: Voice modulation routes (16 slots, IMessage-based, persisted in state)
 // v4: Added MixerShift parameter to mixer pack
-constexpr Steinberg::int32 kCurrentStateVersion = 4;
+// v5: Added filter type-specific params (ladder slope/drive, formant morph/gender, comb damping)
+constexpr Steinberg::int32 kCurrentStateVersion = 5;
 
 // ==============================================================================
 // Processor Class
