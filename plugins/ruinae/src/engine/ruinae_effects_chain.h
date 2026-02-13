@@ -3,9 +3,10 @@
 // ==============================================================================
 // Stereo effects chain for the Ruinae synthesizer composing existing Layer 4
 // effects into a fixed-order processing chain:
-//   Voice Sum -> Delay -> Reverb -> Output
+//   Voice Sum -> Phaser -> Delay -> Reverb -> Output
 //
 // Features:
+// - Stereo phaser with tempo sync
 // - Five selectable delay types with click-free crossfade switching (25-50ms)
 // - Dattorro plate reverb
 // - Constant worst-case latency reporting with per-delay compensation
@@ -19,6 +20,7 @@
 
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/crossfade_utils.h>
+#include <krate/dsp/core/note_value.h>
 #include <krate/dsp/effects/digital_delay.h>
 #include <krate/dsp/effects/granular_delay.h>
 #include <krate/dsp/effects/ping_pong_delay.h>
@@ -26,6 +28,7 @@
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/effects/tape_delay.h>
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/processors/phaser.h>
 #include "ruinae_types.h"
 
 #include <algorithm>
@@ -38,8 +41,8 @@ namespace Krate::DSP {
 
 /// @brief Stereo effects chain for the Ruinae synthesizer (Layer 3).
 ///
-/// Composes existing Layer 4 effects into a fixed-order processing chain:
-///   Voice Sum -> Delay -> Reverb -> Output
+/// Composes existing effects into a fixed-order processing chain:
+///   Voice Sum -> Phaser -> Delay -> Reverb -> Output
 ///
 /// Features:
 /// - Five selectable delay types with click-free crossfade switching
@@ -100,6 +103,9 @@ public:
         granularDelay_.prepare(sampleRate);  // Only sampleRate!
         spectralDelay_.prepare(sampleRate, maxBlockSize);
 
+        // Prepare phaser
+        phaser_.prepare(sampleRate);
+
         // Prepare reverb
         reverb_.prepare(sampleRate);
 
@@ -135,6 +141,7 @@ public:
     /// Clears delay lines, reverb tank, and crossfade state.
     /// Does not deallocate memory.
     void reset() noexcept {
+        phaser_.reset();
         digitalDelay_.reset();
         tapeDelay_.reset();
         pingPongDelay_.reset();
@@ -194,6 +201,14 @@ public:
     }
 
     // =========================================================================
+    // FX Enable/Disable
+    // =========================================================================
+
+    void setDelayEnabled(bool enabled) noexcept { delayEnabled_ = enabled; }
+    void setReverbEnabled(bool enabled) noexcept { reverbEnabled_ = enabled; }
+    void setPhaserEnabled(bool enabled) noexcept { phaserEnabled_ = enabled; }
+
+    // =========================================================================
     // Delay Type Selection (FR-009 through FR-014)
     // =========================================================================
 
@@ -207,6 +222,11 @@ public:
     void setDelayType(RuinaeDelayType type) noexcept {
         // FR-014: Same type is no-op
         if (!crossfading_ && !preWarming_ && type == activeDelayType_) {
+            return;
+        }
+
+        // Already transitioning to this type — let it continue
+        if ((preWarming_ || crossfading_) && type == incomingDelayType_) {
             return;
         }
 
@@ -232,6 +252,7 @@ public:
         // delay has stable incoming output (past the delay-line-fill step)
         // when the crossfade starts.
         incomingDelayType_ = type;
+        resetDelayType(type);  // Clear stale buffers before pre-warm
         preWarming_ = true;
         float preWarmMs = std::max(currentDelayTimeMs_, kMinPreWarmMs);
         preWarmRemaining_ = static_cast<size_t>(
@@ -292,6 +313,168 @@ public:
     }
 
     // =========================================================================
+    // Digital Delay Type-Specific
+    // =========================================================================
+
+    void setDelayDigitalEra(int era) noexcept {
+        digitalDelay_.setEra(static_cast<DigitalEra>(std::clamp(era, 0, 2)));
+    }
+    void setDelayDigitalAge(float amount) noexcept {
+        digitalDelay_.setAge(amount);
+    }
+    void setDelayDigitalLimiter(int character) noexcept {
+        digitalDelay_.setLimiterCharacter(static_cast<LimiterCharacter>(std::clamp(character, 0, 2)));
+    }
+    void setDelayDigitalModDepth(float depth) noexcept {
+        digitalDelay_.setModulationDepth(depth);
+    }
+    void setDelayDigitalModRate(float rateHz) noexcept {
+        digitalDelay_.setModulationRate(rateHz);
+    }
+    void setDelayDigitalModWaveform(int waveform) noexcept {
+        digitalDelay_.setModulationWaveform(static_cast<Waveform>(std::clamp(waveform, 0, 5)));
+    }
+    void setDelayDigitalWidth(float percent) noexcept {
+        digitalDelay_.setWidth(percent);
+    }
+    void setDelayDigitalWavefoldAmount(float amount) noexcept {
+        digitalDelay_.setWavefoldAmount(amount);
+    }
+    void setDelayDigitalWavefoldModel(int model) noexcept {
+        digitalDelay_.setWavefoldModel(static_cast<WavefolderModel>(std::clamp(model, 0, 3)));
+    }
+    void setDelayDigitalWavefoldSymmetry(float symmetry) noexcept {
+        digitalDelay_.setWavefoldSymmetry(symmetry);
+    }
+
+    // =========================================================================
+    // Tape Delay Type-Specific
+    // =========================================================================
+
+    void setDelayTapeMotorInertia(float ms) noexcept {
+        tapeDelay_.setMotorInertia(ms);
+    }
+    void setDelayTapeWear(float amount) noexcept {
+        tapeDelay_.setWear(amount);
+    }
+    void setDelayTapeSaturation(float amount) noexcept {
+        tapeDelay_.setSaturation(amount);
+    }
+    void setDelayTapeAge(float amount) noexcept {
+        tapeDelay_.setAge(amount);
+    }
+    void setDelayTapeSpliceEnabled(bool enabled) noexcept {
+        tapeDelay_.setSpliceEnabled(enabled);
+    }
+    void setDelayTapeSpliceIntensity(float intensity) noexcept {
+        tapeDelay_.setSpliceIntensity(intensity);
+    }
+    void setDelayTapeHeadEnabled(size_t index, bool enabled) noexcept {
+        tapeDelay_.setHeadEnabled(index, enabled);
+    }
+    void setDelayTapeHeadLevel(size_t index, float levelDb) noexcept {
+        tapeDelay_.setHeadLevel(index, levelDb);
+    }
+    void setDelayTapeHeadPan(size_t index, float pan) noexcept {
+        tapeDelay_.setHeadPan(index, pan);
+    }
+
+    // =========================================================================
+    // Granular Delay Type-Specific
+    // =========================================================================
+
+    void setDelayGranularSize(float ms) noexcept {
+        granularDelay_.setGrainSize(ms);
+    }
+    void setDelayGranularDensity(float grainsPerSec) noexcept {
+        granularDelay_.setDensity(grainsPerSec);
+    }
+    void setDelayGranularPitch(float semitones) noexcept {
+        granularDelay_.setPitch(semitones);
+    }
+    void setDelayGranularPitchSpray(float amount) noexcept {
+        granularDelay_.setPitchSpray(amount);
+    }
+    void setDelayGranularPitchQuant(int mode) noexcept {
+        granularDelay_.setPitchQuantMode(static_cast<PitchQuantMode>(std::clamp(mode, 0, 4)));
+    }
+    void setDelayGranularPositionSpray(float amount) noexcept {
+        granularDelay_.setPositionSpray(amount);
+    }
+    void setDelayGranularReverseProb(float prob) noexcept {
+        granularDelay_.setReverseProbability(prob);
+    }
+    void setDelayGranularPanSpray(float amount) noexcept {
+        granularDelay_.setPanSpray(amount);
+    }
+    void setDelayGranularJitter(float amount) noexcept {
+        granularDelay_.setJitter(amount);
+    }
+    void setDelayGranularTexture(float amount) noexcept {
+        granularDelay_.setTexture(amount);
+    }
+    void setDelayGranularWidth(float amount) noexcept {
+        granularDelay_.setStereoWidth(amount);
+    }
+    void setDelayGranularEnvelope(int type) noexcept {
+        granularDelay_.setEnvelopeType(static_cast<GrainEnvelopeType>(std::clamp(type, 0, 5)));
+    }
+    void setDelayGranularFreeze(bool frozen) noexcept {
+        granularDelay_.setFreeze(frozen);
+    }
+
+    // =========================================================================
+    // Spectral Delay Type-Specific
+    // =========================================================================
+
+    void setDelaySpectralFFTSize(int index) noexcept {
+        constexpr size_t kFFTSizes[] = {512, 1024, 2048, 4096};
+        int clamped = std::clamp(index, 0, 3);
+        spectralDelay_.setFFTSize(kFFTSizes[clamped]);
+    }
+    void setDelaySpectralSpread(float ms) noexcept {
+        spectralDelay_.setSpreadMs(ms);
+    }
+    void setDelaySpectralDirection(int dir) noexcept {
+        spectralDelay_.setSpreadDirection(static_cast<SpreadDirection>(std::clamp(dir, 0, 2)));
+    }
+    void setDelaySpectralCurve(int curve) noexcept {
+        spectralDelay_.setSpreadCurve(static_cast<SpreadCurve>(std::clamp(curve, 0, 1)));
+    }
+    void setDelaySpectralTilt(float tilt) noexcept {
+        spectralDelay_.setFeedbackTilt(tilt);
+    }
+    void setDelaySpectralDiffusion(float amount) noexcept {
+        spectralDelay_.setDiffusion(amount);
+    }
+    void setDelaySpectralWidth(float amount) noexcept {
+        spectralDelay_.setStereoWidth(amount);
+    }
+    void setDelaySpectralFreeze(bool enabled) noexcept {
+        spectralDelay_.setFreezeEnabled(enabled);
+    }
+
+    // =========================================================================
+    // PingPong Delay Type-Specific
+    // =========================================================================
+
+    void setDelayPingPongRatio(int ratio) noexcept {
+        pingPongDelay_.setLRRatio(static_cast<LRRatio>(std::clamp(ratio, 0, 6)));
+    }
+    void setDelayPingPongCrossFeed(float amount) noexcept {
+        pingPongDelay_.setCrossFeedback(amount);
+    }
+    void setDelayPingPongWidth(float percent) noexcept {
+        pingPongDelay_.setWidth(percent);
+    }
+    void setDelayPingPongModDepth(float depth) noexcept {
+        pingPongDelay_.setModulationDepth(depth);
+    }
+    void setDelayPingPongModRate(float rateHz) noexcept {
+        pingPongDelay_.setModulationRate(rateHz);
+    }
+
+    // =========================================================================
     // =========================================================================
     // Reverb Control (FR-021 through FR-023)
     // =========================================================================
@@ -300,6 +483,26 @@ public:
     void setReverbParams(const ReverbParams& params) noexcept {
         reverb_.setParams(params);
     }
+
+    // =========================================================================
+    // Phaser Control
+    // =========================================================================
+
+    void setPhaserRate(float hz) noexcept { phaser_.setRate(hz); }
+    void setPhaserDepth(float amount) noexcept { phaser_.setDepth(amount); }
+    void setPhaserFeedback(float amount) noexcept { phaser_.setFeedback(amount); }
+    void setPhaserMix(float mix) noexcept { phaser_.setMix(mix); }
+    void setPhaserStages(int stages) noexcept { phaser_.setNumStages(stages); }
+    void setPhaserCenterFrequency(float hz) noexcept { phaser_.setCenterFrequency(hz); }
+    void setPhaserStereoSpread(float degrees) noexcept { phaser_.setStereoSpread(degrees); }
+    void setPhaserWaveform(int waveform) noexcept {
+        phaser_.setWaveform(static_cast<Waveform>(std::clamp(waveform, 0, 3)));
+    }
+    void setPhaserTempoSync(bool enabled) noexcept { phaser_.setTempoSync(enabled); }
+    void setPhaserNoteValue(NoteValue value, NoteModifier modifier) noexcept {
+        phaser_.setNoteValue(value, modifier);
+    }
+    void setPhaserTempo(float bpm) noexcept { phaser_.setTempo(bpm); }
 
     // =========================================================================
     // Latency (FR-026, FR-027)
@@ -328,9 +531,18 @@ private:
         ctx.isPlaying = true;
 
         // ---------------------------------------------------------------
+        // Slot 0: Phaser (before delay)
+        // ---------------------------------------------------------------
+        if (phaserEnabled_) {
+            phaser_.processStereo(left, right, numSamples);
+        }
+
+        // ---------------------------------------------------------------
         // Slot 1: Delay (FR-005) with crossfade (FR-010)
         // ---------------------------------------------------------------
-        if (preWarming_) {
+        if (!delayEnabled_) {
+            // Skip delay processing entirely
+        } else if (preWarming_) {
             // Pre-warm phase: feed audio to incoming delay so its buffer
             // fills before the crossfade begins (eliminates delay-line-fill
             // artifact). Active delay produces output normally; incoming
@@ -443,7 +655,9 @@ private:
         // ---------------------------------------------------------------
         // Slot 2: Reverb (FR-005, FR-022)
         // ---------------------------------------------------------------
-        reverb_.processBlock(left, right, numSamples);
+        if (reverbEnabled_) {
+            reverb_.processBlock(left, right, numSamples);
+        }
     }
 
     /// @brief Process audio through a specific delay type (no compensation).
@@ -580,6 +794,12 @@ private:
     size_t maxBlockSize_ = 512;
     bool prepared_ = false;
     double tempoBPM_ = 120.0;
+    bool delayEnabled_ = false;
+    bool reverbEnabled_ = false;
+    bool phaserEnabled_ = false;
+
+    // Phaser slot (before delay)
+    Phaser phaser_;
 
     // Delay slot (5 types)
     DigitalDelay digitalDelay_;

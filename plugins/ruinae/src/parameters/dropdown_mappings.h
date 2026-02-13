@@ -246,4 +246,177 @@ inline int numStepsToIndex(int steps) {
     return 2;
 }
 
+// =============================================================================
+// Digital Delay: Era dropdown (3 presets, stepCount = 2)
+// =============================================================================
+
+inline constexpr int kDigitalEraCount = 3;
+
+inline const Steinberg::Vst::TChar* const kDigitalEraStrings[] = {
+    STR16("Pristine"),
+    STR16("80s Digital"),
+    STR16("Lo-Fi"),
+};
+
+// =============================================================================
+// Digital Delay: LimiterCharacter dropdown (3 modes, stepCount = 2)
+// =============================================================================
+
+inline constexpr int kLimiterCharacterCount = 3;
+
+inline const Steinberg::Vst::TChar* const kLimiterCharacterStrings[] = {
+    STR16("Soft"),
+    STR16("Medium"),
+    STR16("Hard"),
+};
+
+// =============================================================================
+// Digital Delay: WavefolderModel dropdown (4 models, stepCount = 3)
+// =============================================================================
+
+inline constexpr int kWavefolderModelCount = 4;
+
+inline const Steinberg::Vst::TChar* const kWavefolderModelStrings[] = {
+    STR16("Simple"),
+    STR16("Serge"),
+    STR16("Buchla 259"),
+    STR16("Lockhart"),
+};
+
+// =============================================================================
+// PingPong Delay: LRRatio dropdown (7 ratios, stepCount = 6)
+// =============================================================================
+
+inline constexpr int kLRRatioCount = 7;
+
+inline const Steinberg::Vst::TChar* const kLRRatioStrings[] = {
+    STR16("1:1"),
+    STR16("2:1"),
+    STR16("3:2"),
+    STR16("4:3"),
+    STR16("1:2"),
+    STR16("2:3"),
+    STR16("3:4"),
+};
+
+// =============================================================================
+// Granular Delay: PitchQuantMode dropdown (5 modes, stepCount = 4)
+// =============================================================================
+
+inline constexpr int kPitchQuantModeCount = 5;
+
+inline const Steinberg::Vst::TChar* const kPitchQuantModeStrings[] = {
+    STR16("Off"),
+    STR16("Semitones"),
+    STR16("Octaves"),
+    STR16("Fifths"),
+    STR16("Scale"),
+};
+
+// =============================================================================
+// Granular Delay: GrainEnvelopeType dropdown (6 types, stepCount = 5)
+// =============================================================================
+
+inline constexpr int kGrainEnvelopeCount = 6;
+
+inline const Steinberg::Vst::TChar* const kGrainEnvelopeStrings[] = {
+    STR16("Hann"),
+    STR16("Trapezoid"),
+    STR16("Sine"),
+    STR16("Blackman"),
+    STR16("Linear"),
+    STR16("Exponential"),
+};
+
+// =============================================================================
+// Spectral Delay: FFTSize dropdown (4 sizes, stepCount = 3)
+// =============================================================================
+
+inline constexpr int kFFTSizeCount = 4;
+
+inline const Steinberg::Vst::TChar* const kFFTSizeStrings[] = {
+    STR16("512"),
+    STR16("1024"),
+    STR16("2048"),
+    STR16("4096"),
+};
+
+// Helper: map dropdown index to actual FFT size
+inline size_t fftSizeFromIndex(int index) {
+    constexpr size_t kFFTSizes[] = {512, 1024, 2048, 4096};
+    if (index < 0 || index >= kFFTSizeCount) return 1024;
+    return kFFTSizes[index];
+}
+
+// Helper: map actual FFT size to dropdown index
+inline int fftSizeToIndex(size_t fftSize) {
+    if (fftSize <= 512) return 0;
+    if (fftSize <= 1024) return 1;
+    if (fftSize <= 2048) return 2;
+    return 3;
+}
+
+// =============================================================================
+// Spectral Delay: SpreadDirection dropdown (3 directions, stepCount = 2)
+// =============================================================================
+
+inline constexpr int kSpreadDirectionCount = 3;
+
+inline const Steinberg::Vst::TChar* const kSpreadDirectionStrings[] = {
+    STR16("Low > High"),
+    STR16("High > Low"),
+    STR16("Center Out"),
+};
+
+// =============================================================================
+// Spectral Delay: SpreadCurve dropdown (2 curves, stepCount = 1)
+// =============================================================================
+
+inline constexpr int kSpreadCurveCount = 2;
+
+inline const Steinberg::Vst::TChar* const kSpreadCurveStrings[] = {
+    STR16("Linear"),
+    STR16("Logarithmic"),
+};
+
+// =============================================================================
+// Phaser: Stages dropdown (6 options, stepCount = 5)
+// =============================================================================
+
+inline constexpr int kPhaserStagesCount = 6;
+
+inline const Steinberg::Vst::TChar* const kPhaserStagesStrings[] = {
+    STR16("2"),
+    STR16("4"),
+    STR16("6"),
+    STR16("8"),
+    STR16("10"),
+    STR16("12"),
+};
+
+// Helper: map dropdown index to actual stage count
+inline int phaserStagesFromIndex(int index) {
+    constexpr int kStages[] = {2, 4, 6, 8, 10, 12};
+    if (index < 0 || index >= kPhaserStagesCount) return 4;
+    return kStages[index];
+}
+
+// Helper: map stage count to dropdown index
+inline int phaserStagesToIndex(int stages) {
+    return std::clamp((stages - 2) / 2, 0, kPhaserStagesCount - 1);
+}
+
+// =============================================================================
+// Phaser: Waveform dropdown (4 shapes, stepCount = 3)
+// =============================================================================
+
+inline constexpr int kPhaserWaveformCount = 4;
+
+inline const Steinberg::Vst::TChar* const kPhaserWaveformStrings[] = {
+    STR16("Sine"),
+    STR16("Triangle"),
+    STR16("Sawtooth"),
+    STR16("Square"),
+};
+
 } // namespace Ruinae

@@ -796,6 +796,9 @@ TEST_CASE("RuinaeEngine integration: portamento frequency at midpoint",
     engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
 
     SECTION("frequency at midpoint is within 20 cents of note 66 (SC-006)") {
+        // Enable delay for compensation delay (latency path)
+        engine.setDelayEnabled(true);
+
         // Play first note and establish audio
         engine.noteOn(60, 100);
 
@@ -854,7 +857,8 @@ TEST_CASE("RuinaeEngine integration: mode switching discontinuity",
     RuinaeEngine engine;
     engine.prepare(44100.0, kBlockSize);
     engine.setSoftLimitEnabled(false);
-    // Disable effects for clean measurement
+    // Disable effects for clean measurement but keep delay enabled for compensation delay
+    engine.setDelayEnabled(true);
     engine.setDelayMix(0.0f);
     engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
 
@@ -909,6 +913,7 @@ TEST_CASE("RuinaeEngine integration: reverb tail duration",
 
     SECTION("reverb tail extends at least 500ms beyond voice release (SC-012)") {
         // Enable reverb with high room size, disable delay
+        engine.setReverbEnabled(true);
         engine.setDelayMix(0.0f);
         ReverbParams params;
         params.roomSize = 0.9f;

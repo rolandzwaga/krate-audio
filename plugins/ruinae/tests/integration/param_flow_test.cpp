@@ -155,6 +155,12 @@ struct ParamFlowFixture {
         setup.maxSamplesPerBlock = static_cast<Steinberg::int32>(kBlockSize);
         processor.setupProcessing(setup);
         processor.setActive(true);
+
+        // Enable delay and reverb (effects chain defaults to disabled)
+        TestParamChanges enableParams;
+        enableParams.addChange(Ruinae::kDelayEnabledId, 1.0);
+        enableParams.addChange(Ruinae::kReverbEnabledId, 1.0);
+        processWithParams(enableParams);
     }
 
     ~ParamFlowFixture() {

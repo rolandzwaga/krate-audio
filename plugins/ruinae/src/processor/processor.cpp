@@ -336,6 +336,14 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         streamer.writeInt8(static_cast<Steinberg::int8>(r.active));
     }
 
+    // v10: FX enable flags
+    streamer.writeInt8(delayEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
+    streamer.writeInt8(reverbEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
+
+    // v11: Phaser params + enable flag
+    savePhaserParams(phaserParams_, streamer);
+    streamer.writeInt8(phaserEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
+
     return Steinberg::kResultTrue;
 }
 
@@ -388,7 +396,11 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             if (!streamer.readInt32(dummy)) return false;
             if (!streamer.readInt32(dummy)) return false;
         }
-        if (!loadDelayParams(delayParams_, streamer)) return false;
+        if (ver >= 9) {
+            if (!loadDelayParamsV9(delayParams_, streamer)) return false;
+        } else {
+            if (!loadDelayParams(delayParams_, streamer)) return false;
+        }
         if (!loadReverbParams(reverbParams_, streamer)) return false;
         if (!loadMonoModeParams(monoModeParams_, streamer)) return false;
         return true;
@@ -433,6 +445,23 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 
         // Send voice route state to controller for UI sync
         sendVoiceModRouteState();
+
+        // v10: FX enable flags
+        if (version >= 10) {
+            Steinberg::int8 i8 = 0;
+            if (streamer.readInt8(i8))
+                delayEnabled_.store(i8 != 0, std::memory_order_relaxed);
+            if (streamer.readInt8(i8))
+                reverbEnabled_.store(i8 != 0, std::memory_order_relaxed);
+        }
+
+        // v11: Phaser params + enable flag
+        if (version >= 11) {
+            loadPhaserParams(phaserParams_, streamer);
+            Steinberg::int8 i8 = 0;
+            if (streamer.readInt8(i8))
+                phaserEnabled_.store(i8 != 0, std::memory_order_relaxed);
+        }
     }
     // Unknown future versions (v0 or negative): keep safe defaults
 
@@ -502,10 +531,18 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleModMatrixParamChange(modMatrixParams_, paramId, value);
         } else if (paramId >= kGlobalFilterBaseId && paramId <= kGlobalFilterEndId) {
             handleGlobalFilterParamChange(globalFilterParams_, paramId, value);
+        } else if (paramId == kDelayEnabledId) {
+            delayEnabled_.store(value >= 0.5, std::memory_order_relaxed);
+        } else if (paramId == kReverbEnabledId) {
+            reverbEnabled_.store(value >= 0.5, std::memory_order_relaxed);
+        } else if (paramId == kPhaserEnabledId) {
+            phaserEnabled_.store(value >= 0.5, std::memory_order_relaxed);
         } else if (paramId >= kDelayBaseId && paramId <= kDelayEndId) {
             handleDelayParamChange(delayParams_, paramId, value);
         } else if (paramId >= kReverbBaseId && paramId <= kReverbEndId) {
             handleReverbParamChange(reverbParams_, paramId, value);
+        } else if (paramId >= kPhaserBaseId && paramId <= kPhaserEndId) {
+            handlePhaserParamChange(phaserParams_, paramId, value);
         } else if (paramId >= kMonoBaseId && paramId <= kMonoEndId) {
             handleMonoModeParamChange(monoModeParams_, paramId, value);
         }
@@ -697,6 +734,11 @@ void Processor::applyParamsToEngine() {
     engine_.setGlobalFilterCutoff(globalFilterParams_.cutoffHz.load(std::memory_order_relaxed));
     engine_.setGlobalFilterResonance(globalFilterParams_.resonance.load(std::memory_order_relaxed));
 
+    // --- FX Enable ---
+    engine_.setDelayEnabled(delayEnabled_.load(std::memory_order_relaxed));
+    engine_.setReverbEnabled(reverbEnabled_.load(std::memory_order_relaxed));
+    engine_.setPhaserEnabled(phaserEnabled_.load(std::memory_order_relaxed));
+
     // --- Delay ---
     engine_.setDelayType(static_cast<RuinaeDelayType>(
         delayParams_.type.load(std::memory_order_relaxed)));
@@ -708,6 +750,64 @@ void Processor::applyParamsToEngine() {
     }
     engine_.setDelayFeedback(delayParams_.feedback.load(std::memory_order_relaxed));
     engine_.setDelayMix(delayParams_.mix.load(std::memory_order_relaxed));
+
+    // --- Delay type-specific ---
+    // Digital
+    engine_.setDelayDigitalEra(delayParams_.digitalEra.load(std::memory_order_relaxed));
+    engine_.setDelayDigitalAge(delayParams_.digitalAge.load(std::memory_order_relaxed));
+    engine_.setDelayDigitalLimiter(delayParams_.digitalLimiter.load(std::memory_order_relaxed));
+    engine_.setDelayDigitalModDepth(delayParams_.digitalModDepth.load(std::memory_order_relaxed));
+    engine_.setDelayDigitalModRate(delayParams_.digitalModRateHz.load(std::memory_order_relaxed));
+    engine_.setDelayDigitalModWaveform(delayParams_.digitalModWaveform.load(std::memory_order_relaxed));
+    engine_.setDelayDigitalWidth(delayParams_.digitalWidth.load(std::memory_order_relaxed));
+    engine_.setDelayDigitalWavefoldAmount(delayParams_.digitalWavefoldAmt.load(std::memory_order_relaxed));
+    engine_.setDelayDigitalWavefoldModel(delayParams_.digitalWavefoldModel.load(std::memory_order_relaxed));
+    engine_.setDelayDigitalWavefoldSymmetry(delayParams_.digitalWavefoldSym.load(std::memory_order_relaxed));
+    // Tape
+    engine_.setDelayTapeMotorInertia(delayParams_.tapeInertiaMs.load(std::memory_order_relaxed));
+    engine_.setDelayTapeWear(delayParams_.tapeWear.load(std::memory_order_relaxed));
+    engine_.setDelayTapeSaturation(delayParams_.tapeSaturation.load(std::memory_order_relaxed));
+    engine_.setDelayTapeAge(delayParams_.tapeAge.load(std::memory_order_relaxed));
+    engine_.setDelayTapeSpliceEnabled(delayParams_.tapeSpliceEnabled.load(std::memory_order_relaxed));
+    engine_.setDelayTapeSpliceIntensity(delayParams_.tapeSpliceIntensity.load(std::memory_order_relaxed));
+    engine_.setDelayTapeHeadEnabled(0, delayParams_.tapeHead1Enabled.load(std::memory_order_relaxed));
+    engine_.setDelayTapeHeadLevel(0, delayParams_.tapeHead1Level.load(std::memory_order_relaxed));
+    engine_.setDelayTapeHeadPan(0, delayParams_.tapeHead1Pan.load(std::memory_order_relaxed));
+    engine_.setDelayTapeHeadEnabled(1, delayParams_.tapeHead2Enabled.load(std::memory_order_relaxed));
+    engine_.setDelayTapeHeadLevel(1, delayParams_.tapeHead2Level.load(std::memory_order_relaxed));
+    engine_.setDelayTapeHeadPan(1, delayParams_.tapeHead2Pan.load(std::memory_order_relaxed));
+    engine_.setDelayTapeHeadEnabled(2, delayParams_.tapeHead3Enabled.load(std::memory_order_relaxed));
+    engine_.setDelayTapeHeadLevel(2, delayParams_.tapeHead3Level.load(std::memory_order_relaxed));
+    engine_.setDelayTapeHeadPan(2, delayParams_.tapeHead3Pan.load(std::memory_order_relaxed));
+    // Granular
+    engine_.setDelayGranularSize(delayParams_.granularSizeMs.load(std::memory_order_relaxed));
+    engine_.setDelayGranularDensity(delayParams_.granularDensity.load(std::memory_order_relaxed));
+    engine_.setDelayGranularPitch(delayParams_.granularPitch.load(std::memory_order_relaxed));
+    engine_.setDelayGranularPitchSpray(delayParams_.granularPitchSpray.load(std::memory_order_relaxed));
+    engine_.setDelayGranularPitchQuant(delayParams_.granularPitchQuant.load(std::memory_order_relaxed));
+    engine_.setDelayGranularPositionSpray(delayParams_.granularPosSpray.load(std::memory_order_relaxed));
+    engine_.setDelayGranularReverseProb(delayParams_.granularReverseProb.load(std::memory_order_relaxed));
+    engine_.setDelayGranularPanSpray(delayParams_.granularPanSpray.load(std::memory_order_relaxed));
+    engine_.setDelayGranularJitter(delayParams_.granularJitter.load(std::memory_order_relaxed));
+    engine_.setDelayGranularTexture(delayParams_.granularTexture.load(std::memory_order_relaxed));
+    engine_.setDelayGranularWidth(delayParams_.granularWidth.load(std::memory_order_relaxed));
+    engine_.setDelayGranularEnvelope(delayParams_.granularEnvelope.load(std::memory_order_relaxed));
+    engine_.setDelayGranularFreeze(delayParams_.granularFreeze.load(std::memory_order_relaxed));
+    // Spectral
+    engine_.setDelaySpectralFFTSize(delayParams_.spectralFFTSize.load(std::memory_order_relaxed));
+    engine_.setDelaySpectralSpread(delayParams_.spectralSpreadMs.load(std::memory_order_relaxed));
+    engine_.setDelaySpectralDirection(delayParams_.spectralDirection.load(std::memory_order_relaxed));
+    engine_.setDelaySpectralCurve(delayParams_.spectralCurve.load(std::memory_order_relaxed));
+    engine_.setDelaySpectralTilt(delayParams_.spectralTilt.load(std::memory_order_relaxed));
+    engine_.setDelaySpectralDiffusion(delayParams_.spectralDiffusion.load(std::memory_order_relaxed));
+    engine_.setDelaySpectralWidth(delayParams_.spectralWidth.load(std::memory_order_relaxed));
+    engine_.setDelaySpectralFreeze(delayParams_.spectralFreeze.load(std::memory_order_relaxed));
+    // PingPong
+    engine_.setDelayPingPongRatio(delayParams_.pingPongRatio.load(std::memory_order_relaxed));
+    engine_.setDelayPingPongCrossFeed(delayParams_.pingPongCrossFeed.load(std::memory_order_relaxed));
+    engine_.setDelayPingPongWidth(delayParams_.pingPongWidth.load(std::memory_order_relaxed));
+    engine_.setDelayPingPongModDepth(delayParams_.pingPongModDepth.load(std::memory_order_relaxed));
+    engine_.setDelayPingPongModRate(delayParams_.pingPongModRateHz.load(std::memory_order_relaxed));
 
     // --- Reverb ---
     {
@@ -722,6 +822,23 @@ void Processor::applyParamsToEngine() {
         rp.modRate = reverbParams_.modRateHz.load(std::memory_order_relaxed);
         rp.modDepth = reverbParams_.modDepth.load(std::memory_order_relaxed);
         engine_.setReverbParams(rp);
+    }
+
+    // --- Phaser ---
+    engine_.setPhaserRate(phaserParams_.rateHz.load(std::memory_order_relaxed));
+    engine_.setPhaserDepth(phaserParams_.depth.load(std::memory_order_relaxed));
+    engine_.setPhaserFeedback(phaserParams_.feedback.load(std::memory_order_relaxed));
+    engine_.setPhaserMix(phaserParams_.mix.load(std::memory_order_relaxed));
+    engine_.setPhaserStages(phaserStagesFromIndex(
+        phaserParams_.stages.load(std::memory_order_relaxed)));
+    engine_.setPhaserCenterFrequency(phaserParams_.centerFreqHz.load(std::memory_order_relaxed));
+    engine_.setPhaserStereoSpread(phaserParams_.stereoSpread.load(std::memory_order_relaxed));
+    engine_.setPhaserWaveform(phaserParams_.waveform.load(std::memory_order_relaxed));
+    engine_.setPhaserTempoSync(phaserParams_.sync.load(std::memory_order_relaxed));
+    {
+        auto mapping = getNoteValueFromDropdown(
+            phaserParams_.noteValue.load(std::memory_order_relaxed));
+        engine_.setPhaserNoteValue(mapping.note, mapping.modifier);
     }
 
     // --- Mono Mode ---

@@ -169,12 +169,14 @@ TEST_CASE("RuinaeEffectsChain FR-006: dry pass-through at default settings",
     // The compensation delay uses integer-read DelayLine (sample-perfect).
     RuinaeEffectsChain chain;
     prepareChain(chain);
+    chain.setDelayEnabled(true);
 
-    // Set delay mix to 0 (dry only) and reverb mix to 0
+    // Set delay mix to 0 (dry only), reverb mix to 0, phaser disabled
     chain.setDelayMix(0.0f);
     ReverbParams reverbParams;
     reverbParams.mix = 0.0f;
     chain.setReverbParams(reverbParams);
+    chain.setPhaserEnabled(false);
 
     // Let the DigitalDelay mix smoother settle to 0.0
     // (default mix may be non-zero; smoother needs ~882 samples at 20ms)
@@ -221,6 +223,8 @@ TEST_CASE("RuinaeEffectsChain FR-005: fixed processing order (delay -> reverb)",
     // If reverb ran first, energy would appear at ~latency (reverb of impulse).
     RuinaeEffectsChain chain;
     prepareChain(chain);
+    chain.setDelayEnabled(true);
+    chain.setReverbEnabled(true);
 
     chain.setDelayMix(1.0f);       // Full wet (no dry)
     chain.setDelayTime(200.0f);    // 200ms = 8820 samples at 44.1k
@@ -292,6 +296,7 @@ TEST_CASE("RuinaeEffectsChain FR-009: setDelayType selects active delay",
           "[systems][ruinae_effects_chain][US2]") {
     RuinaeEffectsChain chain;
     prepareChain(chain);
+    chain.setDelayEnabled(true);
 
     SECTION("default is Digital") {
         REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Digital);
@@ -419,6 +424,7 @@ TEST_CASE("RuinaeEffectsChain all 5 delay types produce different outputs",
     for (int typeIdx = 0; typeIdx < 5; ++typeIdx) {
         RuinaeEffectsChain chain;
         prepareChain(chain);
+        chain.setDelayEnabled(true);
 
         auto type = static_cast<RuinaeDelayType>(typeIdx);
         chain.setDelayType(type);
@@ -504,6 +510,8 @@ TEST_CASE("RuinaeEffectsChain FR-022: reverb processes delay output not dry inpu
     // Chain 1: delay + reverb
     RuinaeEffectsChain chain1;
     prepareChain(chain1);
+    chain1.setDelayEnabled(true);
+    chain1.setReverbEnabled(true);
     chain1.setDelayMix(1.0f);
     chain1.setDelayTime(100.0f);
     chain1.setDelayFeedback(0.0f);
@@ -515,6 +523,8 @@ TEST_CASE("RuinaeEffectsChain FR-022: reverb processes delay output not dry inpu
     // Chain 2: reverb only (no delay)
     RuinaeEffectsChain chain2;
     prepareChain(chain2);
+    chain2.setDelayEnabled(true);
+    chain2.setReverbEnabled(true);
     chain2.setDelayMix(0.0f);
     ReverbParams params2;
     params2.mix = 0.5f;
@@ -611,6 +621,7 @@ TEST_CASE("RuinaeEffectsChain FR-010: crossfade blends outgoing and incoming",
           "[systems][ruinae_effects_chain][US5]") {
     RuinaeEffectsChain chain;
     prepareChain(chain);
+    chain.setDelayEnabled(true);
 
     chain.setDelayMix(1.0f);
     chain.setDelayTime(50.0f);
@@ -638,6 +649,7 @@ TEST_CASE("RuinaeEffectsChain FR-011: crossfade duration 25-50ms",
           "[systems][ruinae_effects_chain][US5]") {
     RuinaeEffectsChain chain;
     prepareChain(chain);
+    chain.setDelayEnabled(true);
 
     chain.setDelayMix(1.0f);
     // Use short delay time so pre-warm is minimal (20ms minimum).
@@ -673,6 +685,7 @@ TEST_CASE("RuinaeEffectsChain FR-012: fast-track on type switch during crossfade
           "[systems][ruinae_effects_chain][US5]") {
     RuinaeEffectsChain chain;
     prepareChain(chain);
+    chain.setDelayEnabled(true);
 
     // Start Digital -> Tape crossfade
     chain.setDelayType(RuinaeDelayType::Tape);
@@ -703,6 +716,7 @@ TEST_CASE("RuinaeEffectsChain FR-013: outgoing delay reset after crossfade compl
     // process silence — if properly reset, output should be near-silent.
     RuinaeEffectsChain chain;
     prepareChain(chain);
+    chain.setDelayEnabled(true);
 
     chain.setDelayMix(1.0f);
     chain.setDelayTime(50.0f);
@@ -710,6 +724,7 @@ TEST_CASE("RuinaeEffectsChain FR-013: outgoing delay reset after crossfade compl
     ReverbParams reverbParams;
     reverbParams.mix = 0.0f;
     chain.setReverbParams(reverbParams);
+    chain.setPhaserEnabled(false);
 
     // Build up loud feedback state in Digital delay
     for (int block = 0; block < 16; ++block) {
@@ -1072,6 +1087,7 @@ TEST_CASE("RuinaeEffectsChain latency compensation for non-spectral delays",
     // Verify compensation delays are applied to non-spectral types
     RuinaeEffectsChain chain;
     prepareChain(chain);
+    chain.setDelayEnabled(true);
 
     chain.setDelayMix(0.0f);  // Dry only to test compensation delay
     ReverbParams reverbParams;
@@ -1310,4 +1326,66 @@ TEST_CASE("RuinaeEffectsChain SC-001: CPU benchmark",
     // SC-001 spec target: <3.0% CPU
     // Regression guard at 10.0% to allow hardware variance on CI
     CHECK(cpuPercent < 10.0);
+}
+
+// =============================================================================
+// Phaser Integration: verify phaser actually modifies signal
+// =============================================================================
+
+TEST_CASE("RuinaeEffectsChain phaser modifies signal after prepare+reset",
+          "[systems][ruinae_effects_chain][phaser]") {
+    // Mimics the real plugin lifecycle: prepare → reset → process
+    RuinaeEffectsChain chain;
+    chain.prepare(kSampleRate, kBlockSize);
+    chain.reset();  // simulates setActive(true)
+
+    // Disable delay and reverb so we only test phaser
+    chain.setDelayEnabled(false);
+    chain.setReverbEnabled(false);
+
+    // Use DEFAULT phaser settings to test real-world scenario
+    chain.setPhaserEnabled(true);
+    chain.setPhaserMix(0.5f);
+    chain.setPhaserDepth(0.5f);
+    chain.setPhaserRate(0.5f);
+    chain.setPhaserFeedback(0.0f);
+    chain.setPhaserStages(4);
+    chain.setPhaserCenterFrequency(1000.0f);
+
+    // Generate a harmonically rich signal (sum of harmonics = pseudo-sawtooth)
+    constexpr size_t kLen = 8192;
+    std::vector<float> left(kLen), right(kLen);
+    std::vector<float> origLeft(kLen), origRight(kLen);
+    // Sum first 10 harmonics of 220 Hz for rich spectral content
+    for (int h = 1; h <= 10; ++h) {
+        float amp = 1.0f / static_cast<float>(h);
+        for (size_t i = 0; i < kLen; ++i) {
+            float val = amp * std::sin(
+                2.0f * 3.14159265358979323846f * 220.0f * static_cast<float>(h)
+                * static_cast<float>(i) / static_cast<float>(kSampleRate));
+            left[i] += val;
+            right[i] += val;
+        }
+    }
+    std::copy(left.begin(), left.end(), origLeft.begin());
+    std::copy(right.begin(), right.end(), origRight.begin());
+
+    // Process through the effects chain
+    chain.processBlock(left.data(), right.data(), kLen);
+
+    // Skip first samples (compensation delay latency + settling)
+    size_t latency = chain.getLatencySamples();
+    size_t start = latency + 1024;
+    REQUIRE(start < kLen);
+
+    // Compute difference between processed and original (aligned by latency)
+    float maxDiff = 0.0f;
+    for (size_t i = start; i < kLen; ++i) {
+        float diff = std::abs(left[i] - origLeft[i - latency]);
+        maxDiff = std::max(maxDiff, diff);
+    }
+
+    INFO("Max difference between phased and original: " << maxDiff);
+    // With aggressive settings and rich signal, phaser should clearly modify audio
+    REQUIRE(maxDiff > 0.05f);
 }

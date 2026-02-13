@@ -32,6 +32,7 @@
 #include "parameters/global_filter_params.h"
 #include "parameters/delay_params.h"
 #include "parameters/reverb_params.h"
+#include "parameters/phaser_params.h"
 #include "parameters/mono_mode_params.h"
 
 #include "base/source/fstreamer.h"
@@ -104,8 +105,10 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerChaosModParams(parameters);
     registerModMatrixParams(parameters);
     registerGlobalFilterParams(parameters);
+    registerFxEnableParams(parameters);
     registerDelayParams(parameters);
     registerReverbParams(parameters);
+    registerPhaserParams(parameters);
     registerMonoModeParams(parameters);
 
     // ==========================================================================
@@ -193,7 +196,10 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             streamer.readInt32(dummy);
             streamer.readInt32(dummy);
         }
-        loadDelayParamsToController(streamer, setParam);
+        if (ver >= 9)
+            loadDelayParamsToControllerV9(streamer, setParam);
+        else
+            loadDelayParamsToController(streamer, setParam);
         loadReverbParamsToController(streamer, setParam);
         loadMonoModeParamsToController(streamer, setParam);
     };
@@ -211,6 +217,38 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         loadCommonPacks(version);
         loadModMatrixParamsToController(streamer, setParam);
         loadPostModMatrix(version);
+
+        // v3+: skip voice routes (16 slots x 14 bytes each = 224 bytes)
+        if (version >= 3) {
+            for (int i = 0; i < 16; ++i) {
+                Steinberg::int8 i8 = 0; float fv = 0;
+                streamer.readInt8(i8);   // source
+                streamer.readInt8(i8);   // destination
+                streamer.readFloat(fv);  // amount
+                streamer.readInt8(i8);   // curve
+                streamer.readFloat(fv);  // smoothMs
+                streamer.readInt8(i8);   // scale
+                streamer.readInt8(i8);   // bypass
+                streamer.readInt8(i8);   // active
+            }
+        }
+
+        // v10: FX enable flags
+        if (version >= 10) {
+            Steinberg::int8 i8 = 0;
+            if (streamer.readInt8(i8))
+                setParam(kDelayEnabledId, i8 != 0 ? 1.0 : 0.0);
+            if (streamer.readInt8(i8))
+                setParam(kReverbEnabledId, i8 != 0 ? 1.0 : 0.0);
+        }
+
+        // v11: Phaser params + enable flag
+        if (version >= 11) {
+            loadPhaserParamsToController(streamer, setParam);
+            Steinberg::int8 i8 = 0;
+            if (streamer.readInt8(i8))
+                setParam(kPhaserEnabledId, i8 != 0 ? 1.0 : 0.0);
+        }
     }
     // Unknown versions (v0 or negative): keep defaults (fail closed)
 
@@ -278,6 +316,8 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatDelayParam(id, valueNormalized, string);
     } else if (id >= kReverbBaseId && id <= kReverbEndId) {
         result = formatReverbParam(id, valueNormalized, string);
+    } else if (id >= kPhaserBaseId && id <= kPhaserEndId) {
+        result = formatPhaserParam(id, valueNormalized, string);
     } else if (id >= kMonoBaseId && id <= kMonoEndId) {
         result = formatMonoModeParam(id, valueNormalized, string);
     }
@@ -466,6 +506,17 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     if (tag == kLFO2SyncId && lfo2RateGroup_)
         lfo2RateGroup_->setVisible(value < 0.5);
 
+    // Toggle Delay Time/NoteValue visibility based on sync state
+    if (tag == kDelaySyncId) {
+        if (delayTimeGroup_) delayTimeGroup_->setVisible(value < 0.5);
+        if (delayNoteValueGroup_) delayNoteValueGroup_->setVisible(value >= 0.5);
+    }
+    // Toggle Phaser Rate/NoteValue visibility based on sync state
+    if (tag == kPhaserSyncId) {
+        if (phaserRateGroup_) phaserRateGroup_->setVisible(value < 0.5);
+        if (phaserNoteValueGroup_) phaserNoteValueGroup_->setVisible(value >= 0.5);
+    }
+
     // Push mixer parameter changes to XYMorphPad
     if (xyMorphPad_) {
         if (tag == kMixerPositionId) {
@@ -531,10 +582,18 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         euclideanRegenButton_ = nullptr;
         lfo1RateGroup_ = nullptr;
         lfo2RateGroup_ = nullptr;
+        delayTimeGroup_ = nullptr;
+        delayNoteValueGroup_ = nullptr;
+        phaserRateGroup_ = nullptr;
+        phaserNoteValueGroup_ = nullptr;
 
         // FX detail panel cleanup (T092)
         fxDetailDelay_ = nullptr;
         fxDetailReverb_ = nullptr;
+        fxDetailPhaser_ = nullptr;
+        fxExpandDelayChevron_ = nullptr;
+        fxExpandReverbChevron_ = nullptr;
+        fxExpandPhaserChevron_ = nullptr;
         expandedFxPanel_ = -1;
 
         // Envelope expand/collapse cleanup
@@ -559,7 +618,7 @@ VSTGUI::CView* Controller::verifyView(
     auto* control = dynamic_cast<VSTGUI::CControl*>(view);
     if (control) {
         auto tag = control->getTag();
-        if (tag >= static_cast<int32_t>(kActionTransformInvertTag) && tag <= static_cast<int32_t>(kActionEnvExpandModTag)) {
+        if (tag >= static_cast<int32_t>(kActionTransformInvertTag) && tag <= static_cast<int32_t>(kActionFxExpandPhaserTag)) {
             control->registerControlListener(this);
         }
 
@@ -731,6 +790,9 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "ReverbDetail") {
                 fxDetailReverb_ = container;
                 container->setVisible(false);
+            } else if (*name == "PhaserDetail") {
+                fxDetailPhaser_ = container;
+                container->setVisible(false);
             }
             // LFO Rate groups (hidden when tempo sync is active)
             else if (*name == "LFO1RateGroup") {
@@ -744,6 +806,30 @@ VSTGUI::CView* Controller::verifyView(
                 bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             }
+            // Delay Time/NoteValue groups (toggled by sync state)
+            else if (*name == "DelayTimeGroup") {
+                delayTimeGroup_ = container;
+                auto* syncParam = getParameterObject(kDelaySyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
+            } else if (*name == "DelayNoteValueGroup") {
+                delayNoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kDelaySyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
+            }
+            // Phaser Rate/NoteValue groups (toggled by sync state)
+            else if (*name == "PhaserRateGroup") {
+                phaserRateGroup_ = container;
+                auto* syncParam = getParameterObject(kPhaserSyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
+            } else if (*name == "PhaserNoteValueGroup") {
+                phaserNoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kPhaserSyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
+            }
             // Envelope expand/collapse groups
             else if (*name == "EnvGroupAmp") {
                 envGroupAmp_ = container;
@@ -753,6 +839,15 @@ VSTGUI::CView* Controller::verifyView(
                 envGroupMod_ = container;
             }
         }
+    }
+
+    // Capture FX expand chevron controls by tag
+    auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view);
+    if (ctrl) {
+        auto tag = ctrl->getTag();
+        if (tag == kActionFxExpandDelayTag)  fxExpandDelayChevron_ = ctrl;
+        if (tag == kActionFxExpandReverbTag) fxExpandReverbChevron_ = ctrl;
+        if (tag == kActionFxExpandPhaserTag) fxExpandPhaserChevron_ = ctrl;
     }
 
     return view;
@@ -771,6 +866,7 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
     switch (tag) {
         case kActionFxExpandDelayTag:   toggleFxDetail(0); return;
         case kActionFxExpandReverbTag:  toggleFxDetail(1); return;
+        case kActionFxExpandPhaserTag:  toggleFxDetail(2); return;
         case kActionEnvExpandAmpTag:    toggleEnvExpand(0); return;
         case kActionEnvExpandFilterTag: toggleEnvExpand(1); return;
         case kActionEnvExpandModTag:    toggleEnvExpand(2); return;
@@ -1326,15 +1422,24 @@ void Controller::selectModulationRoute(int sourceIndex, int destIndex) {
 // ==============================================================================
 
 void Controller::toggleFxDetail(int panelIndex) {
-    auto panels = {fxDetailDelay_, fxDetailReverb_};
-    int idx = 0;
-    for (auto* panel : panels) {
-        if (panel) {
-            panel->setVisible(idx == panelIndex && expandedFxPanel_ != panelIndex);
+    bool opening = (expandedFxPanel_ != panelIndex);
+
+    VSTGUI::CViewContainer* panels[] = {fxDetailDelay_, fxDetailReverb_, fxDetailPhaser_};
+    for (int i = 0; i < 3; ++i) {
+        if (panels[i]) {
+            panels[i]->setVisible(i == panelIndex && opening);
         }
-        ++idx;
     }
-    expandedFxPanel_ = (expandedFxPanel_ == panelIndex) ? -1 : panelIndex;
+    expandedFxPanel_ = opening ? panelIndex : -1;
+
+    // Reset the OTHER chevrons so only one appears expanded at a time
+    VSTGUI::CControl* chevrons[] = {fxExpandDelayChevron_, fxExpandReverbChevron_, fxExpandPhaserChevron_};
+    for (int i = 0; i < 3; ++i) {
+        if (i != panelIndex && chevrons[i]) {
+            chevrons[i]->setValue(0.f);
+            chevrons[i]->invalid();
+        }
+    }
 }
 
 // ==============================================================================

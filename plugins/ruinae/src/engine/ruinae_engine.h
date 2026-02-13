@@ -425,6 +425,9 @@ public:
     // Effects Chain (FR-026, FR-027, FR-028)
     // =========================================================================
 
+    void setDelayEnabled(bool enabled) noexcept { effectsChain_.setDelayEnabled(enabled); }
+    void setReverbEnabled(bool enabled) noexcept { effectsChain_.setReverbEnabled(enabled); }
+
     void setDelayType(RuinaeDelayType type) noexcept { effectsChain_.setDelayType(type); }
     void setDelayTime(float ms) noexcept { effectsChain_.setDelayTime(ms); }
     void setDelayFeedback(float amount) noexcept { effectsChain_.setDelayFeedback(amount); }
@@ -432,7 +435,79 @@ public:
         baseDelayMix_ = std::clamp(mix, 0.0f, 1.0f);
         effectsChain_.setDelayMix(baseDelayMix_);
     }
+
+    // Digital delay type-specific
+    void setDelayDigitalEra(int era) noexcept { effectsChain_.setDelayDigitalEra(era); }
+    void setDelayDigitalAge(float amount) noexcept { effectsChain_.setDelayDigitalAge(amount); }
+    void setDelayDigitalLimiter(int character) noexcept { effectsChain_.setDelayDigitalLimiter(character); }
+    void setDelayDigitalModDepth(float depth) noexcept { effectsChain_.setDelayDigitalModDepth(depth); }
+    void setDelayDigitalModRate(float rateHz) noexcept { effectsChain_.setDelayDigitalModRate(rateHz); }
+    void setDelayDigitalModWaveform(int waveform) noexcept { effectsChain_.setDelayDigitalModWaveform(waveform); }
+    void setDelayDigitalWidth(float percent) noexcept { effectsChain_.setDelayDigitalWidth(percent); }
+    void setDelayDigitalWavefoldAmount(float amount) noexcept { effectsChain_.setDelayDigitalWavefoldAmount(amount); }
+    void setDelayDigitalWavefoldModel(int model) noexcept { effectsChain_.setDelayDigitalWavefoldModel(model); }
+    void setDelayDigitalWavefoldSymmetry(float sym) noexcept { effectsChain_.setDelayDigitalWavefoldSymmetry(sym); }
+
+    // Tape delay type-specific
+    void setDelayTapeMotorInertia(float ms) noexcept { effectsChain_.setDelayTapeMotorInertia(ms); }
+    void setDelayTapeWear(float amount) noexcept { effectsChain_.setDelayTapeWear(amount); }
+    void setDelayTapeSaturation(float amount) noexcept { effectsChain_.setDelayTapeSaturation(amount); }
+    void setDelayTapeAge(float amount) noexcept { effectsChain_.setDelayTapeAge(amount); }
+    void setDelayTapeSpliceEnabled(bool enabled) noexcept { effectsChain_.setDelayTapeSpliceEnabled(enabled); }
+    void setDelayTapeSpliceIntensity(float intensity) noexcept { effectsChain_.setDelayTapeSpliceIntensity(intensity); }
+    void setDelayTapeHeadEnabled(size_t idx, bool enabled) noexcept { effectsChain_.setDelayTapeHeadEnabled(idx, enabled); }
+    void setDelayTapeHeadLevel(size_t idx, float dB) noexcept { effectsChain_.setDelayTapeHeadLevel(idx, dB); }
+    void setDelayTapeHeadPan(size_t idx, float pan) noexcept { effectsChain_.setDelayTapeHeadPan(idx, pan); }
+
+    // Granular delay type-specific
+    void setDelayGranularSize(float ms) noexcept { effectsChain_.setDelayGranularSize(ms); }
+    void setDelayGranularDensity(float gps) noexcept { effectsChain_.setDelayGranularDensity(gps); }
+    void setDelayGranularPitch(float st) noexcept { effectsChain_.setDelayGranularPitch(st); }
+    void setDelayGranularPitchSpray(float amt) noexcept { effectsChain_.setDelayGranularPitchSpray(amt); }
+    void setDelayGranularPitchQuant(int mode) noexcept { effectsChain_.setDelayGranularPitchQuant(mode); }
+    void setDelayGranularPositionSpray(float amt) noexcept { effectsChain_.setDelayGranularPositionSpray(amt); }
+    void setDelayGranularReverseProb(float prob) noexcept { effectsChain_.setDelayGranularReverseProb(prob); }
+    void setDelayGranularPanSpray(float amt) noexcept { effectsChain_.setDelayGranularPanSpray(amt); }
+    void setDelayGranularJitter(float amt) noexcept { effectsChain_.setDelayGranularJitter(amt); }
+    void setDelayGranularTexture(float amt) noexcept { effectsChain_.setDelayGranularTexture(amt); }
+    void setDelayGranularWidth(float amt) noexcept { effectsChain_.setDelayGranularWidth(amt); }
+    void setDelayGranularEnvelope(int type) noexcept { effectsChain_.setDelayGranularEnvelope(type); }
+    void setDelayGranularFreeze(bool frozen) noexcept { effectsChain_.setDelayGranularFreeze(frozen); }
+
+    // Spectral delay type-specific
+    void setDelaySpectralFFTSize(int index) noexcept { effectsChain_.setDelaySpectralFFTSize(index); }
+    void setDelaySpectralSpread(float ms) noexcept { effectsChain_.setDelaySpectralSpread(ms); }
+    void setDelaySpectralDirection(int dir) noexcept { effectsChain_.setDelaySpectralDirection(dir); }
+    void setDelaySpectralCurve(int curve) noexcept { effectsChain_.setDelaySpectralCurve(curve); }
+    void setDelaySpectralTilt(float tilt) noexcept { effectsChain_.setDelaySpectralTilt(tilt); }
+    void setDelaySpectralDiffusion(float amt) noexcept { effectsChain_.setDelaySpectralDiffusion(amt); }
+    void setDelaySpectralWidth(float amt) noexcept { effectsChain_.setDelaySpectralWidth(amt); }
+    void setDelaySpectralFreeze(bool enabled) noexcept { effectsChain_.setDelaySpectralFreeze(enabled); }
+
+    // PingPong delay type-specific
+    void setDelayPingPongRatio(int ratio) noexcept { effectsChain_.setDelayPingPongRatio(ratio); }
+    void setDelayPingPongCrossFeed(float amt) noexcept { effectsChain_.setDelayPingPongCrossFeed(amt); }
+    void setDelayPingPongWidth(float pct) noexcept { effectsChain_.setDelayPingPongWidth(pct); }
+    void setDelayPingPongModDepth(float depth) noexcept { effectsChain_.setDelayPingPongModDepth(depth); }
+    void setDelayPingPongModRate(float hz) noexcept { effectsChain_.setDelayPingPongModRate(hz); }
+
     void setReverbParams(const ReverbParams& params) noexcept { effectsChain_.setReverbParams(params); }
+
+    // Phaser
+    void setPhaserEnabled(bool enabled) noexcept { effectsChain_.setPhaserEnabled(enabled); }
+    void setPhaserRate(float hz) noexcept { effectsChain_.setPhaserRate(hz); }
+    void setPhaserDepth(float amount) noexcept { effectsChain_.setPhaserDepth(amount); }
+    void setPhaserFeedback(float amount) noexcept { effectsChain_.setPhaserFeedback(amount); }
+    void setPhaserMix(float mix) noexcept { effectsChain_.setPhaserMix(mix); }
+    void setPhaserStages(int stages) noexcept { effectsChain_.setPhaserStages(stages); }
+    void setPhaserCenterFrequency(float hz) noexcept { effectsChain_.setPhaserCenterFrequency(hz); }
+    void setPhaserStereoSpread(float degrees) noexcept { effectsChain_.setPhaserStereoSpread(degrees); }
+    void setPhaserWaveform(int waveform) noexcept { effectsChain_.setPhaserWaveform(waveform); }
+    void setPhaserTempoSync(bool enabled) noexcept { effectsChain_.setPhaserTempoSync(enabled); }
+    void setPhaserNoteValue(NoteValue value, NoteModifier modifier) noexcept {
+        effectsChain_.setPhaserNoteValue(value, modifier);
+    }
+    void setPhaserTempo(float bpm) noexcept { effectsChain_.setPhaserTempo(bpm); }
 
     /// @brief Get total processing latency from effects chain (FR-028).
     [[nodiscard]] size_t getLatencySamples() const noexcept {
@@ -1112,6 +1187,7 @@ public:
     void setTempo(double bpm) noexcept {
         blockContext_.tempoBPM = bpm;
         effectsChain_.setDelayTempo(bpm);
+        effectsChain_.setPhaserTempo(static_cast<float>(bpm));
         // Forward tempo to all voices' trance gates
         for (auto& voice : voices_) {
             voice.setTranceGateTempo(bpm);

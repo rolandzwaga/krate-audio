@@ -37,6 +37,7 @@
 #include "parameters/global_filter_params.h"
 #include "parameters/delay_params.h"
 #include "parameters/reverb_params.h"
+#include "parameters/phaser_params.h"
 #include "parameters/mono_mode_params.h"
 
 #include "ui/mod_matrix_types.h"
@@ -58,7 +59,9 @@ namespace Ruinae {
 // v6: Added SVF slope/drive params
 // v7: Added SVF gain, envelope filter, and self-oscillating filter params
 // v8: Removed freeze effect from effects chain
-constexpr Steinberg::int32 kCurrentStateVersion = 8;
+// v9: Added type-specific delay parameters (51 new params)
+// v10: Added FX enable parameters (delay/reverb on/off)
+constexpr Steinberg::int32 kCurrentStateVersion = 11;
 
 // ==============================================================================
 // Processor Class
@@ -152,8 +155,14 @@ private:
     ChaosModParams chaosModParams_;
     ModMatrixParams modMatrixParams_;
     GlobalFilterParams globalFilterParams_;
+    // FX Enable (1500-1502)
+    std::atomic<bool> delayEnabled_{false};
+    std::atomic<bool> reverbEnabled_{false};
+    std::atomic<bool> phaserEnabled_{false};
+
     RuinaeDelayParams delayParams_;
     RuinaeReverbParams reverbParams_;
+    RuinaePhaserParams phaserParams_;
     MonoModeParams monoModeParams_;
 
     // ==========================================================================

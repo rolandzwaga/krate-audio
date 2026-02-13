@@ -216,10 +216,22 @@ private:
     VSTGUI::CView* lfo1RateGroup_ = nullptr;
     VSTGUI::CView* lfo2RateGroup_ = nullptr;
 
+    /// Delay Time/NoteValue groups - toggled by sync state
+    VSTGUI::CView* delayTimeGroup_ = nullptr;
+    VSTGUI::CView* delayNoteValueGroup_ = nullptr;
+
+    /// Phaser Rate/NoteValue groups - toggled by sync state
+    VSTGUI::CView* phaserRateGroup_ = nullptr;
+    VSTGUI::CView* phaserNoteValueGroup_ = nullptr;
+
     // FX detail panel expand/collapse state
     VSTGUI::CViewContainer* fxDetailDelay_ = nullptr;
     VSTGUI::CViewContainer* fxDetailReverb_ = nullptr;
-    int expandedFxPanel_ = -1;  // -1=none, 0=delay, 1=reverb
+    VSTGUI::CViewContainer* fxDetailPhaser_ = nullptr;
+    VSTGUI::CControl* fxExpandDelayChevron_ = nullptr;
+    VSTGUI::CControl* fxExpandReverbChevron_ = nullptr;
+    VSTGUI::CControl* fxExpandPhaserChevron_ = nullptr;
+    int expandedFxPanel_ = -1;  // -1=none, 0=delay, 1=reverb, 2=phaser
 
     // Envelope expand/collapse state
     VSTGUI::CViewContainer* envGroupAmp_ = nullptr;

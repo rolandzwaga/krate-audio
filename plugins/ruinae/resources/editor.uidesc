@@ -179,12 +179,79 @@
         <control-tag name="ChaosRate" tag="1200"/>
 
 
+        <!-- FX Enable -->
+        <control-tag name="DelayEnabled" tag="1500"/>
+        <control-tag name="ReverbEnabled" tag="1501"/>
+        <control-tag name="PhaserEnabled" tag="1502"/>
+
         <!-- FX: Delay -->
         <control-tag name="DelayType" tag="1600"/>
         <control-tag name="DelayTime" tag="1601"/>
         <control-tag name="DelayFeedback" tag="1602"/>
         <control-tag name="DelayMix" tag="1603"/>
         <control-tag name="DelaySync" tag="1604"/>
+        <control-tag name="DelayNoteValue" tag="1605"/>
+
+        <!-- Delay: Digital type-specific -->
+        <control-tag name="DelayDigitalEra" tag="1606"/>
+        <control-tag name="DelayDigitalAge" tag="1607"/>
+        <control-tag name="DelayDigitalLimiter" tag="1608"/>
+        <control-tag name="DelayDigitalModDepth" tag="1609"/>
+        <control-tag name="DelayDigitalModRate" tag="1610"/>
+        <control-tag name="DelayDigitalModWaveform" tag="1611"/>
+        <control-tag name="DelayDigitalWidth" tag="1612"/>
+        <control-tag name="DelayDigitalWavefoldAmt" tag="1613"/>
+        <control-tag name="DelayDigitalWavefoldModel" tag="1614"/>
+        <control-tag name="DelayDigitalWavefoldSym" tag="1615"/>
+
+        <!-- Delay: Tape type-specific -->
+        <control-tag name="DelayTapeInertia" tag="1626"/>
+        <control-tag name="DelayTapeWear" tag="1627"/>
+        <control-tag name="DelayTapeSaturation" tag="1628"/>
+        <control-tag name="DelayTapeAge" tag="1629"/>
+        <control-tag name="DelayTapeSpliceEnabled" tag="1630"/>
+        <control-tag name="DelayTapeSpliceIntensity" tag="1631"/>
+        <control-tag name="DelayTapeHead1Enabled" tag="1632"/>
+        <control-tag name="DelayTapeHead1Level" tag="1633"/>
+        <control-tag name="DelayTapeHead1Pan" tag="1634"/>
+        <control-tag name="DelayTapeHead2Enabled" tag="1635"/>
+        <control-tag name="DelayTapeHead2Level" tag="1636"/>
+        <control-tag name="DelayTapeHead2Pan" tag="1637"/>
+        <control-tag name="DelayTapeHead3Enabled" tag="1638"/>
+        <control-tag name="DelayTapeHead3Level" tag="1639"/>
+        <control-tag name="DelayTapeHead3Pan" tag="1640"/>
+
+        <!-- Delay: Granular type-specific -->
+        <control-tag name="DelayGranularSize" tag="1646"/>
+        <control-tag name="DelayGranularDensity" tag="1647"/>
+        <control-tag name="DelayGranularPitch" tag="1648"/>
+        <control-tag name="DelayGranularPitchSpray" tag="1649"/>
+        <control-tag name="DelayGranularPitchQuant" tag="1650"/>
+        <control-tag name="DelayGranularPosSpray" tag="1651"/>
+        <control-tag name="DelayGranularReverseProb" tag="1652"/>
+        <control-tag name="DelayGranularPanSpray" tag="1653"/>
+        <control-tag name="DelayGranularJitter" tag="1654"/>
+        <control-tag name="DelayGranularTexture" tag="1655"/>
+        <control-tag name="DelayGranularWidth" tag="1656"/>
+        <control-tag name="DelayGranularEnvelope" tag="1657"/>
+        <control-tag name="DelayGranularFreeze" tag="1658"/>
+
+        <!-- Delay: Spectral type-specific -->
+        <control-tag name="DelaySpectralFFTSize" tag="1666"/>
+        <control-tag name="DelaySpectralSpread" tag="1667"/>
+        <control-tag name="DelaySpectralDirection" tag="1668"/>
+        <control-tag name="DelaySpectralCurve" tag="1669"/>
+        <control-tag name="DelaySpectralTilt" tag="1670"/>
+        <control-tag name="DelaySpectralDiffusion" tag="1671"/>
+        <control-tag name="DelaySpectralWidth" tag="1672"/>
+        <control-tag name="DelaySpectralFreeze" tag="1673"/>
+
+        <!-- Delay: PingPong type-specific -->
+        <control-tag name="DelayPingPongRatio" tag="1686"/>
+        <control-tag name="DelayPingPongCrossFeed" tag="1687"/>
+        <control-tag name="DelayPingPongWidth" tag="1688"/>
+        <control-tag name="DelayPingPongModDepth" tag="1689"/>
+        <control-tag name="DelayPingPongModRate" tag="1690"/>
 
         <!-- FX: Reverb -->
         <control-tag name="ReverbSize" tag="1700"/>
@@ -197,6 +264,18 @@
         <control-tag name="ReverbModRate" tag="1707"/>
         <control-tag name="ReverbModDepth" tag="1708"/>
 
+        <!-- FX: Phaser -->
+        <control-tag name="PhaserRate" tag="1900"/>
+        <control-tag name="PhaserDepth" tag="1901"/>
+        <control-tag name="PhaserFeedback" tag="1902"/>
+        <control-tag name="PhaserMix" tag="1903"/>
+        <control-tag name="PhaserStages" tag="1904"/>
+        <control-tag name="PhaserCenterFreq" tag="1905"/>
+        <control-tag name="PhaserStereoSpread" tag="1906"/>
+        <control-tag name="PhaserWaveform" tag="1907"/>
+        <control-tag name="PhaserSync" tag="1908"/>
+        <control-tag name="PhaserNoteValue" tag="1909"/>
+
         <!-- UI action button tags (not VST parameters) -->
         <control-tag name="ActionTransformInvert" tag="10006"/>
         <control-tag name="ActionTransformShiftRight" tag="10007"/>
@@ -207,6 +286,7 @@
 
         <control-tag name="ActionFxExpandDelay" tag="10011"/>
         <control-tag name="ActionFxExpandReverb" tag="10012"/>
+        <control-tag name="ActionFxExpandPhaser" tag="10018"/>
 
         <!-- Envelope Expand/Collapse Chevrons (UI-only actions) -->
         <control-tag name="ActionEnvExpandAmp" tag="10013"/>
@@ -965,11 +1045,413 @@
               text-alignment="center" transparent="true" title="Bias"/>
     </template>
 
+    <!-- ================================================================== -->
+    <!-- Delay Type-Specific Templates                                      -->
+    <!-- ================================================================== -->
+
+    <!-- Digital: Era, Age, Limiter, Width | ModDepth, ModRate, ModWaveform | WavefoldAmt, WavefoldModel, WavefoldSym -->
+    <template name="Delay_Digital" size="590, 112" class="CViewContainer" transparent="true">
+        <!-- Row A (y=4): Era, Age, Limiter, Width, ModWaveform — 5 items, ~118px spacing -->
+        <view class="COptionMenu" origin="8, 6" size="80, 18"
+              control-tag="DelayDigitalEra" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 26" size="80, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Era"/>
+
+        <view class="ArcKnob" origin="126, 4" size="28, 28"
+              control-tag="DelayDigitalAge" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="120, 34" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Age"/>
+
+        <view class="COptionMenu" origin="222, 6" size="72, 18"
+              control-tag="DelayDigitalLimiter" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="222, 26" size="72, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Limiter"/>
+
+        <view class="ArcKnob" origin="340, 4" size="28, 28"
+              control-tag="DelayDigitalWidth" default-value="0.5"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="334, 34" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Width"/>
+
+        <view class="COptionMenu" origin="440, 6" size="90, 18"
+              control-tag="DelayDigitalModWaveform" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="440, 26" size="90, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Mod Wave"/>
+
+        <!-- Row B (y=56): ModDepth, ModRate, WavefoldAmt, WavefoldModel, WavefoldSym -->
+        <view class="ArcKnob" origin="22, 56" size="28, 28"
+              control-tag="DelayDigitalModDepth" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="12, 86" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Mod Dpt"/>
+
+        <view class="ArcKnob" origin="126, 56" size="28, 28"
+              control-tag="DelayDigitalModRate" default-value="0.091"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="118, 86" size="44, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Mod Rt"/>
+
+        <view class="ArcKnob" origin="236, 56" size="28, 28"
+              control-tag="DelayDigitalWavefoldAmt" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="228, 86" size="44, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Fold"/>
+
+        <view class="COptionMenu" origin="340, 60" size="90, 18"
+              control-tag="DelayDigitalWavefoldModel" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="340, 80" size="90, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Fold Model"/>
+
+        <view class="ArcKnob" origin="472, 56" size="28, 28"
+              control-tag="DelayDigitalWavefoldSym" default-value="0.5"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="462, 86" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Fold Sym"/>
+    </template>
+
+    <!-- Tape: Inertia, Wear, Saturation, Age, Splice, SpliceInt | Head1, Head2, Head3 -->
+    <template name="Delay_Tape" size="590, 112" class="CViewContainer" transparent="true">
+        <!-- Row A (y=4): 6 knobs, ~96px spacing -->
+        <view class="ArcKnob" origin="14, 4" size="28, 28"
+              control-tag="DelayTapeInertia" default-value="0.222"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="4, 34" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Inertia"/>
+
+        <view class="ArcKnob" origin="110, 4" size="28, 28"
+              control-tag="DelayTapeWear" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="104, 34" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Wear"/>
+
+        <view class="ArcKnob" origin="206, 4" size="28, 28"
+              control-tag="DelayTapeSaturation" default-value="0.5"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="200, 34" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Sat"/>
+
+        <view class="ArcKnob" origin="302, 4" size="28, 28"
+              control-tag="DelayTapeAge" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="296, 34" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Age"/>
+
+        <view class="ArcKnob" origin="398, 4" size="28, 28"
+              control-tag="DelayTapeSpliceEnabled" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="388, 34" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Splice"/>
+
+        <view class="ArcKnob" origin="494, 4" size="28, 28"
+              control-tag="DelayTapeSpliceIntensity" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="484, 34" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Spl Int"/>
+
+        <!-- Row B (y=52): Head 1, Head 2, Head 3 — 3 groups, ~196px spacing -->
+        <view class="CTextLabel" origin="8, 54" size="20, 10"
+              font="~ NormalFontSmaller" font-color="master"
+              text-alignment="left" transparent="true" title="H1"/>
+        <view class="ArcKnob" origin="28, 52" size="28, 28"
+              control-tag="DelayTapeHead1Enabled" default-value="1.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="22, 82" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="On"/>
+        <view class="ArcKnob" origin="68, 52" size="28, 28"
+              control-tag="DelayTapeHead1Level" default-value="0.941"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="62, 82" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Level"/>
+        <view class="ArcKnob" origin="108, 52" size="28, 28"
+              control-tag="DelayTapeHead1Pan" default-value="0.5"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="102, 82" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Pan"/>
+
+        <view class="CTextLabel" origin="200, 54" size="20, 10"
+              font="~ NormalFontSmaller" font-color="master"
+              text-alignment="left" transparent="true" title="H2"/>
+        <view class="ArcKnob" origin="220, 52" size="28, 28"
+              control-tag="DelayTapeHead2Enabled" default-value="1.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="214, 82" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="On"/>
+        <view class="ArcKnob" origin="260, 52" size="28, 28"
+              control-tag="DelayTapeHead2Level" default-value="0.941"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="254, 82" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Level"/>
+        <view class="ArcKnob" origin="300, 52" size="28, 28"
+              control-tag="DelayTapeHead2Pan" default-value="0.5"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="294, 82" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Pan"/>
+
+        <view class="CTextLabel" origin="392, 54" size="20, 10"
+              font="~ NormalFontSmaller" font-color="master"
+              text-alignment="left" transparent="true" title="H3"/>
+        <view class="ArcKnob" origin="412, 52" size="28, 28"
+              control-tag="DelayTapeHead3Enabled" default-value="1.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="406, 82" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="On"/>
+        <view class="ArcKnob" origin="452, 52" size="28, 28"
+              control-tag="DelayTapeHead3Level" default-value="0.941"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="446, 82" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Level"/>
+        <view class="ArcKnob" origin="492, 52" size="28, 28"
+              control-tag="DelayTapeHead3Pan" default-value="0.5"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="486, 82" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Pan"/>
+    </template>
+
+    <!-- PingPong: LRRatio, CrossFeed, Width, ModDepth, ModRate (single row, centered) -->
+    <template name="Delay_PingPong" size="590, 112" class="CViewContainer" transparent="true">
+        <!-- Single row, vertically centered (y=20), 5 items, ~118px spacing -->
+        <view class="COptionMenu" origin="28, 24" size="60, 18"
+              control-tag="DelayPingPongRatio" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="18, 44" size="80, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="L/R Ratio"/>
+
+        <view class="ArcKnob" origin="162, 20" size="28, 28"
+              control-tag="DelayPingPongCrossFeed" default-value="1.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="154, 50" size="44, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="XFeed"/>
+
+        <view class="ArcKnob" origin="280, 20" size="28, 28"
+              control-tag="DelayPingPongWidth" default-value="0.5"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="274, 50" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Width"/>
+
+        <view class="ArcKnob" origin="398, 20" size="28, 28"
+              control-tag="DelayPingPongModDepth" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="388, 50" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Mod Dpt"/>
+
+        <view class="ArcKnob" origin="516, 20" size="28, 28"
+              control-tag="DelayPingPongModRate" default-value="0.091"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="508, 50" size="44, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Mod Rt"/>
+    </template>
+
+    <!-- Granular: Size, Density, Pitch, PitchQuant, PitchSpray, PosSpray, Reverse | PanSpray, Jitter, Texture, Width, Envelope, Freeze -->
+    <template name="Delay_Granular" size="590, 112" class="CViewContainer" transparent="true">
+        <!-- Row A (y=4): 7 items, ~84px spacing -->
+        <view class="ArcKnob" origin="14, 4" size="28, 28"
+              control-tag="DelayGranularSize" default-value="0.184"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="8, 34" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Size"/>
+
+        <view class="ArcKnob" origin="98, 4" size="28, 28"
+              control-tag="DelayGranularDensity" default-value="0.091"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="88, 34" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Density"/>
+
+        <view class="ArcKnob" origin="182, 4" size="28, 28"
+              control-tag="DelayGranularPitch" default-value="0.5"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="176, 34" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Pitch"/>
+
+        <view class="COptionMenu" origin="248, 8" size="76, 18"
+              control-tag="DelayGranularPitchQuant" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="248, 28" size="76, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Pitch Q"/>
+
+        <view class="ArcKnob" origin="350, 4" size="28, 28"
+              control-tag="DelayGranularPitchSpray" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="340, 34" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Pit Spr"/>
+
+        <view class="ArcKnob" origin="434, 4" size="28, 28"
+              control-tag="DelayGranularPosSpray" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="424, 34" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Pos Spr"/>
+
+        <view class="ArcKnob" origin="518, 4" size="28, 28"
+              control-tag="DelayGranularReverseProb" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="508, 34" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Reverse"/>
+
+        <!-- Row B (y=56): 6 items, ~98px spacing -->
+        <view class="ArcKnob" origin="14, 56" size="28, 28"
+              control-tag="DelayGranularPanSpray" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="4, 86" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Pan Spr"/>
+
+        <view class="ArcKnob" origin="112, 56" size="28, 28"
+              control-tag="DelayGranularJitter" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="106, 86" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Jitter"/>
+
+        <view class="ArcKnob" origin="210, 56" size="28, 28"
+              control-tag="DelayGranularTexture" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="200, 86" size="48, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Texture"/>
+
+        <view class="ArcKnob" origin="308, 56" size="28, 28"
+              control-tag="DelayGranularWidth" default-value="1.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="302, 86" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Width"/>
+
+        <view class="COptionMenu" origin="386, 60" size="90, 18"
+              control-tag="DelayGranularEnvelope" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="386, 80" size="90, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Envelope"/>
+
+        <view class="ToggleButton" origin="510, 60" size="50, 20"
+              control-tag="DelayGranularFreeze"
+              title="Freeze"
+              font="~ NormalFontSmaller"
+              font-color="effects"
+              text-color="effects"
+              tooltip="Freeze granular buffer"
+              transparent="true"/>
+    </template>
+
+    <!-- Spectral: FFTSize, Spread, Direction, Curve | Tilt, Diffusion, Width, Freeze -->
+    <template name="Delay_Spectral" size="590, 112" class="CViewContainer" transparent="true">
+        <!-- Row A (y=4): 4 items, ~148px spacing -->
+        <view class="COptionMenu" origin="24, 6" size="60, 18"
+              control-tag="DelaySpectralFFTSize" default-value="0.333"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="14, 26" size="80, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="FFT Size"/>
+
+        <view class="ArcKnob" origin="172, 4" size="28, 28"
+              control-tag="DelaySpectralSpread" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="164, 34" size="44, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Spread"/>
+
+        <view class="COptionMenu" origin="290, 6" size="76, 18"
+              control-tag="DelaySpectralDirection" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="284, 26" size="88, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Direction"/>
+
+        <view class="COptionMenu" origin="444, 6" size="80, 18"
+              control-tag="DelaySpectralCurve" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="440, 26" size="88, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Curve"/>
+
+        <!-- Row B (y=56): 4 items -->
+        <view class="ArcKnob" origin="40, 56" size="28, 28"
+              control-tag="DelaySpectralTilt" default-value="0.5"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="34, 86" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Tilt"/>
+
+        <view class="ArcKnob" origin="172, 56" size="28, 28"
+              control-tag="DelaySpectralDiffusion" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="160, 86" size="52, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Diffusion"/>
+
+        <view class="ArcKnob" origin="320, 56" size="28, 28"
+              control-tag="DelaySpectralWidth" default-value="0.0"
+              arc-color="effects" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="314, 86" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Width"/>
+
+        <view class="ToggleButton" origin="460, 60" size="50, 20"
+              control-tag="DelaySpectralFreeze"
+              title="Freeze"
+              font="~ NormalFontSmaller"
+              font-color="effects"
+              text-color="effects"
+              tooltip="Freeze spectral buffer"
+              transparent="true"/>
+    </template>
+
     <template
         name="editor"
-        minSize="900, 750"
-        maxSize="900, 750"
-        size="900, 750"
+        minSize="900, 830"
+        maxSize="900, 830"
+        size="900, 830"
         background-color="bg-main"
         class="CViewContainer"
     >
@@ -1620,7 +2102,7 @@
         <view
             class="FieldsetContainer"
             origin="8, 658"
-            size="884, 80"
+            size="884, 160"
             fieldset-title="EFFECTS"
             fieldset-color="effects"
             fieldset-radius="4"
@@ -1628,10 +2110,12 @@
             fieldset-font-size="10"
             transparent="true"
         >
-            <!-- Compact FX strip (always visible) -->
-            <view class="CViewContainer" origin="4, 14" size="722, 28" transparent="true">
+            <!-- FX strip (always visible) — Enable + Mix + Expand only -->
+            <view class="CViewContainer" origin="4, 14" size="870, 28" transparent="true">
                 <!-- Delay group -->
                 <view class="ToggleButton" origin="0, 4" size="50, 20"
+                      control-tag="DelayEnabled"
+                      default-value="1.0"
                       title="Delay"
                       font="~ NormalFontSmaller"
                       font-color="master"
@@ -1652,6 +2136,8 @@
 
                 <!-- Reverb group -->
                 <view class="ToggleButton" origin="240, 4" size="50, 20"
+                      control-tag="ReverbEnabled"
+                      default-value="1.0"
                       title="Reverb"
                       font="~ NormalFontSmaller"
                       font-color="master"
@@ -1669,47 +2155,98 @@
                       on-color="master" off-color="text-secondary"
                       tooltip="Expand reverb settings"
                       transparent="true"/>
+
+                <!-- Phaser group -->
+                <view class="ToggleButton" origin="480, 4" size="50, 20"
+                      control-tag="PhaserEnabled"
+                      default-value="1.0"
+                      title="Phaser"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      text-color="master"
+                      transparent="true"/>
+                <view class="ArcKnob" origin="540, 0" size="28, 28"
+                      control-tag="PhaserMix"
+                      default-value="0.5"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="ToggleButton" origin="580, 4" size="20, 20"
+                      control-tag="ActionFxExpandPhaser"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="master" off-color="text-secondary"
+                      tooltip="Expand phaser settings"
+                      transparent="true"/>
             </view>
 
             <!-- Delay detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="722, 32"
+            <view class="CViewContainer" origin="4, 44" size="870, 112"
                   custom-view-name="DelayDetail" transparent="true">
-                <view class="COptionMenu" origin="8, 6" size="80, 20"
+
+                <!-- Left panel: Common delay controls (260px) -->
+                <view class="COptionMenu" origin="8, 10" size="120, 20"
                       control-tag="DelayType"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       back-color="bg-dropdown"
                       frame-color="frame-dropdown-dim"
                       transparent="false"/>
-                <view class="ArcKnob" origin="100, 2" size="28, 28"
-                      control-tag="DelayTime"
-                      default-value="0.5"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="140, 2" size="28, 28"
-                      control-tag="DelayFeedback"
-                      default-value="0.5"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="180, 2" size="28, 28"
+                <view class="CTextLabel" origin="8, 32" size="120, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Type"/>
+
+                <view class="ToggleButton" origin="148, 12" size="50, 20"
                       control-tag="DelaySync"
-                      default-value="0.5"
+                      default-value="1.0"
+                      title="Sync"
+                      font="~ NormalFontSmaller"
+                      font-color="effects"
+                      text-color="effects"
+                      transparent="true"/>
+
+                <!-- Time group (hidden when synced) -->
+                <view class="CViewContainer" origin="8, 56" size="110, 28"
+                      custom-view-name="DelayTimeGroup" transparent="true">
+                    <view class="ArcKnob" origin="0, 0" size="28, 28"
+                          control-tag="DelayTime"
+                          default-value="0.1"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                </view>
+                <!-- NoteValue group (shown when synced — default) -->
+                <view class="CViewContainer" origin="8, 56" size="110, 28"
+                      custom-view-name="DelayNoteValueGroup" transparent="true">
+                    <view class="COptionMenu" origin="0, 4" size="80, 20"
+                          control-tag="DelayNoteValue"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                </view>
+                <view class="CTextLabel" origin="2, 86" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Time"/>
+
+                <view class="ArcKnob" origin="168, 56" size="28, 28"
+                      control-tag="DelayFeedback"
+                      default-value="0.333"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="174, 21" size="40, 10"
+                <view class="CTextLabel" origin="156, 86" size="52, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Sync"/>
-                <view class="ArcKnob" origin="220, 2" size="28, 28"
-                      default-value="0.5"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="214, 21" size="40, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Mod"/>
+                      text-alignment="center" transparent="true" title="Feedback"/>
+
+                <!-- Right panel: Type-specific controls -->
+                <view class="UIViewSwitchContainer"
+                      origin="270, 0" size="590, 112"
+                      template-names="Delay_Digital,Delay_Tape,Delay_PingPong,Delay_Granular,Delay_Spectral"
+                      template-switch-control="DelayType"
+                      transparent="true"/>
             </view>
 
             <!-- Reverb detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="722, 32"
+            <view class="CViewContainer" origin="4, 44" size="870, 32"
                   custom-view-name="ReverbDetail" transparent="true">
                 <view class="ArcKnob" origin="8, 2" size="28, 28"
                       control-tag="ReverbSize"
@@ -1775,6 +2312,103 @@
                       text-color="effects"
                       tooltip="Freeze reverb tail"
                       transparent="true"/>
+            </view>
+
+            <!-- Phaser detail panel (initially hidden, shown by controller) -->
+            <view class="CViewContainer" origin="4, 44" size="870, 60"
+                  custom-view-name="PhaserDetail" transparent="true">
+
+                <!-- Rate / Sync section -->
+                <view class="ToggleButton" origin="8, 2" size="40, 20"
+                      control-tag="PhaserSync"
+                      default-value="0.0"
+                      title="Sync"
+                      font="~ NormalFontSmaller"
+                      font-color="effects"
+                      text-color="effects"
+                      transparent="true"/>
+
+                <!-- Rate group (shown when NOT synced — default) -->
+                <view class="CViewContainer" origin="56, 0" size="80, 40"
+                      custom-view-name="PhaserRateGroup" transparent="true">
+                    <view class="ArcKnob" origin="0, 0" size="28, 28"
+                          control-tag="PhaserRate"
+                          default-value="0.0245"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Rate"/>
+                </view>
+                <!-- NoteValue group (shown when synced) -->
+                <view class="CViewContainer" origin="56, 0" size="80, 40"
+                      custom-view-name="PhaserNoteValueGroup" transparent="true">
+                    <view class="COptionMenu" origin="0, 4" size="80, 20"
+                          control-tag="PhaserNoteValue"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                </view>
+
+                <view class="ArcKnob" origin="148, 0" size="28, 28"
+                      control-tag="PhaserDepth"
+                      default-value="0.5"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="142, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Depth"/>
+
+                <view class="ArcKnob" origin="198, 0" size="28, 28"
+                      control-tag="PhaserFeedback"
+                      default-value="0.5"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="190, 28" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Resonance"/>
+
+                <view class="COptionMenu" origin="258, 4" size="80, 20"
+                      control-tag="PhaserStages"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="258, 26" size="80, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Stages"/>
+
+                <view class="ArcKnob" origin="358, 0" size="28, 28"
+                      control-tag="PhaserCenterFreq"
+                      default-value="0.0909"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="348, 28" size="48, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Center"/>
+
+                <view class="ArcKnob" origin="418, 0" size="28, 28"
+                      control-tag="PhaserStereoSpread"
+                      default-value="0.0"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="410, 28" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Spread"/>
+
+                <view class="COptionMenu" origin="478, 4" size="90, 20"
+                      control-tag="PhaserWaveform"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="478, 26" size="90, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Waveform"/>
             </view>
         </view>
 

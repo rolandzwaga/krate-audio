@@ -45,11 +45,11 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   1200-1299: Chaos Mod (Rate, Type, Depth)
 //   1300-1399: Modulation Matrix (Source, Dest, Amount x 8 slots)
 //   1400-1499: Global Filter (Enabled, Type, Cutoff, Resonance)
-//   1500-1599: (Reserved)
+//   1500-1599: FX Enable (Delay, Reverb, Phaser)
 //   1600-1699: Delay Effect (Type, Time, Feedback, Mix, Sync, ...)
 //   1700-1799: Reverb (Size, Damping, Width, Mix, PreDelay, ...)
 //   1800-1899: Mono Mode (Priority, Legato, Portamento Time, PortaMode)
-//   1900-1999: Reserved for expansion
+//   1900-1999: Phaser (Rate, Depth, Feedback, Mix, Stages, ...)
 // ==============================================================================
 
 enum ParameterIDs : Steinberg::Vst::ParamID {
@@ -417,6 +417,13 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kGlobalFilterEndId = 1499,
 
     // ==========================================================================
+    // FX Enable Parameters (1500-1502)
+    // ==========================================================================
+    kDelayEnabledId = 1500,    // on/off (default: on)
+    kReverbEnabledId = 1501,   // on/off (default: on)
+    kPhaserEnabledId = 1502,   // on/off (default: on)
+
+    // ==========================================================================
     // Delay Effect Parameters (1600-1699)
     // ==========================================================================
     kDelayBaseId = 1600,
@@ -426,6 +433,68 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kDelayMixId = 1603,        // 0-1
     kDelaySyncId = 1604,       // on/off
     kDelayNoteValueId = 1605,
+
+    // Digital delay type-specific (1606-1615)
+    kDelayDigitalEraId = 1606,            // DigitalEra (0-2)
+    kDelayDigitalAgeId = 1607,            // 0-1 (0-100%)
+    kDelayDigitalLimiterId = 1608,        // LimiterCharacter (0-2)
+    kDelayDigitalModDepthId = 1609,       // 0-1
+    kDelayDigitalModRateId = 1610,        // 0.1-10 Hz
+    kDelayDigitalModWaveformId = 1611,    // Waveform (0-5)
+    kDelayDigitalWidthId = 1612,          // 0-200%
+    kDelayDigitalWavefoldAmountId = 1613, // 0-100%
+    kDelayDigitalWavefoldModelId = 1614,  // WavefolderModel (0-3)
+    kDelayDigitalWavefoldSymmetryId = 1615, // -1 to +1
+
+    // Tape delay type-specific (1626-1640)
+    kDelayTapeMotorInertiaId = 1626,      // 100-1000 ms
+    kDelayTapeWearId = 1627,              // 0-1
+    kDelayTapeSaturationId = 1628,        // 0-1
+    kDelayTapeAgeId = 1629,              // 0-1
+    kDelayTapeSpliceEnabledId = 1630,     // on/off
+    kDelayTapeSpliceIntensityId = 1631,   // 0-1
+    kDelayTapeHead1EnabledId = 1632,      // on/off
+    kDelayTapeHead1LevelId = 1633,        // -96 to +6 dB
+    kDelayTapeHead1PanId = 1634,          // -100 to +100
+    kDelayTapeHead2EnabledId = 1635,      // on/off
+    kDelayTapeHead2LevelId = 1636,        // -96 to +6 dB
+    kDelayTapeHead2PanId = 1637,          // -100 to +100
+    kDelayTapeHead3EnabledId = 1638,      // on/off
+    kDelayTapeHead3LevelId = 1639,        // -96 to +6 dB
+    kDelayTapeHead3PanId = 1640,          // -100 to +100
+
+    // Granular delay type-specific (1646-1658)
+    kDelayGranularSizeId = 1646,          // 10-500 ms
+    kDelayGranularDensityId = 1647,       // 1-100 grains/s
+    kDelayGranularPitchId = 1648,         // -24 to +24 st
+    kDelayGranularPitchSprayId = 1649,    // 0-1
+    kDelayGranularPitchQuantId = 1650,    // PitchQuantMode (0-4)
+    kDelayGranularPositionSprayId = 1651, // 0-1
+    kDelayGranularReverseProbId = 1652,   // 0-1
+    kDelayGranularPanSprayId = 1653,      // 0-1
+    kDelayGranularJitterId = 1654,        // 0-1
+    kDelayGranularTextureId = 1655,       // 0-1
+    kDelayGranularWidthId = 1656,         // 0-1
+    kDelayGranularEnvelopeId = 1657,      // GrainEnvelopeType (0-5)
+    kDelayGranularFreezeId = 1658,        // on/off
+
+    // Spectral delay type-specific (1666-1673)
+    kDelaySpectralFFTSizeId = 1666,       // 512/1024/2048/4096
+    kDelaySpectralSpreadId = 1667,        // 0-2000 ms
+    kDelaySpectralDirectionId = 1668,     // SpreadDirection (0-2)
+    kDelaySpectralCurveId = 1669,         // SpreadCurve (0-1)
+    kDelaySpectralTiltId = 1670,          // -1 to +1
+    kDelaySpectralDiffusionId = 1671,     // 0-1
+    kDelaySpectralWidthId = 1672,         // 0-1
+    kDelaySpectralFreezeId = 1673,        // on/off
+
+    // PingPong delay type-specific (1686-1690)
+    kDelayPingPongRatioId = 1686,         // LRRatio (0-6)
+    kDelayPingPongCrossFeedId = 1687,     // 0-1
+    kDelayPingPongWidthId = 1688,         // 0-200%
+    kDelayPingPongModDepthId = 1689,      // 0-1
+    kDelayPingPongModRateId = 1690,       // 0.1-10 Hz
+
     kDelayEndId = 1699,
 
     // ==========================================================================
@@ -454,6 +523,22 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kMonoEndId = 1899,
 
     // ==========================================================================
+    // Phaser Parameters (1900-1999)
+    // ==========================================================================
+    kPhaserBaseId = 1900,
+    kPhaserRateId = 1900,           // 0.01-20 Hz
+    kPhaserDepthId = 1901,          // 0-1
+    kPhaserFeedbackId = 1902,       // -1 to +1
+    kPhaserMixId = 1903,            // 0-1
+    kPhaserStagesId = 1904,         // 2/4/6/8/10/12 (dropdown)
+    kPhaserCenterFreqId = 1905,     // 100-10000 Hz
+    kPhaserStereoSpreadId = 1906,   // 0-360 degrees
+    kPhaserWaveformId = 1907,       // Sine/Triangle/Square/Sawtooth (dropdown)
+    kPhaserSyncId = 1908,           // on/off
+    kPhaserNoteValueId = 1909,      // Note value (dropdown)
+    kPhaserEndId = 1999,
+
+    // ==========================================================================
     kNumParameters = 2000,
 
     // ==========================================================================
@@ -478,6 +563,9 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // Distortion View Mode Tab (UI-only, ephemeral - not saved with state)
     kDistortionViewModeTag = 10017,
+
+    // Phaser FX Detail Panel Expand/Collapse Chevron (UI-only)
+    kActionFxExpandPhaserTag = 10018,
 };
 
 // ==============================================================================
