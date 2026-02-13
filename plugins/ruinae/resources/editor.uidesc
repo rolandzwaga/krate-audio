@@ -178,9 +178,6 @@
         <!-- Chaos -->
         <control-tag name="ChaosRate" tag="1200"/>
 
-        <!-- FX: Freeze -->
-        <control-tag name="FreezeEnabled" tag="1500"/>
-        <control-tag name="FreezeToggle" tag="1501"/>
 
         <!-- FX: Delay -->
         <control-tag name="DelayType" tag="1600"/>
@@ -195,6 +192,10 @@
         <control-tag name="ReverbWidth" tag="1702"/>
         <control-tag name="ReverbMix" tag="1703"/>
         <control-tag name="ReverbPreDelay" tag="1704"/>
+        <control-tag name="ReverbDiffusion" tag="1705"/>
+        <control-tag name="ReverbFreeze" tag="1706"/>
+        <control-tag name="ReverbModRate" tag="1707"/>
+        <control-tag name="ReverbModDepth" tag="1708"/>
 
         <!-- UI action button tags (not VST parameters) -->
         <control-tag name="ActionTransformInvert" tag="10006"/>
@@ -203,7 +204,7 @@
         <control-tag name="ActionEuclideanRegen" tag="10009"/>
 
         <!-- FX Expand/Collapse Chevrons (UI-only actions) -->
-        <control-tag name="ActionFxExpandFreeze" tag="10010"/>
+
         <control-tag name="ActionFxExpandDelay" tag="10011"/>
         <control-tag name="ActionFxExpandReverb" tag="10012"/>
 
@@ -1629,43 +1630,19 @@
         >
             <!-- Compact FX strip (always visible) -->
             <view class="CViewContainer" origin="4, 14" size="722, 28" transparent="true">
-                <!-- Freeze group -->
-                <view class="ToggleButton" origin="0, 4" size="50, 20"
-                      control-tag="FreezeEnabled"
-                      title="Freeze"
-                      font="~ NormalFontSmaller"
-                      font-color="master"
-                      text-color="master"
-                      tooltip="Enable freeze effect"
-                      transparent="true"/>
-                <view class="ArcKnob" origin="60, 0" size="28, 28"
-                      control-tag="FreezeToggle"
-                      default-value="0.5"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="52, 28" size="44, 0" title=""
-                      transparent="true"/>
-                <view class="ToggleButton" origin="100, 4" size="20, 20"
-                      control-tag="ActionFxExpandFreeze"
-                      icon-style="chevron"
-                      on-orientation="down" off-orientation="right"
-                      on-color="master" off-color="text-secondary"
-                      tooltip="Expand freeze settings"
-                      transparent="true"/>
-
                 <!-- Delay group -->
-                <view class="ToggleButton" origin="240, 4" size="50, 20"
+                <view class="ToggleButton" origin="0, 4" size="50, 20"
                       title="Delay"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       text-color="master"
                       transparent="true"/>
-                <view class="ArcKnob" origin="300, 0" size="28, 28"
+                <view class="ArcKnob" origin="60, 0" size="28, 28"
                       control-tag="DelayMix"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="ToggleButton" origin="340, 4" size="20, 20"
+                <view class="ToggleButton" origin="100, 4" size="20, 20"
                       control-tag="ActionFxExpandDelay"
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
@@ -1674,34 +1651,23 @@
                       transparent="true"/>
 
                 <!-- Reverb group -->
-                <view class="ToggleButton" origin="480, 4" size="50, 20"
+                <view class="ToggleButton" origin="240, 4" size="50, 20"
                       title="Reverb"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       text-color="master"
                       transparent="true"/>
-                <view class="ArcKnob" origin="540, 0" size="28, 28"
+                <view class="ArcKnob" origin="300, 0" size="28, 28"
                       control-tag="ReverbMix"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="ToggleButton" origin="580, 4" size="20, 20"
+                <view class="ToggleButton" origin="340, 4" size="20, 20"
                       control-tag="ActionFxExpandReverb"
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
                       on-color="master" off-color="text-secondary"
                       tooltip="Expand reverb settings"
-                      transparent="true"/>
-            </view>
-
-            <!-- Freeze detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="722, 32"
-                  custom-view-name="FreezeDetail" transparent="true">
-                <!-- Placeholder - Freeze detail controls added in future spec -->
-                <view class="CTextLabel" origin="8, 6" size="120, 20"
-                      title="Freeze Detail"
-                      font="~ NormalFontSmaller"
-                      font-color="text-secondary"
                       transparent="true"/>
             </view>
 
@@ -1750,21 +1716,65 @@
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="2, 21" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Size"/>
                 <view class="ArcKnob" origin="48, 2" size="28, 28"
                       control-tag="ReverbDamping"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="42, 21" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Damp"/>
                 <view class="ArcKnob" origin="88, 2" size="28, 28"
                       control-tag="ReverbWidth"
-                      default-value="0.5"
+                      default-value="1.0"
                       arc-color="effects"
                       guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="82, 21" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Width"/>
                 <view class="ArcKnob" origin="128, 2" size="28, 28"
                       control-tag="ReverbPreDelay"
-                      default-value="0.5"
+                      default-value="0.0"
                       arc-color="effects"
                       guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="122, 21" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Pre-D"/>
+                <view class="ArcKnob" origin="168, 2" size="28, 28"
+                      control-tag="ReverbDiffusion"
+                      default-value="0.7"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="162, 21" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Diff"/>
+                <view class="ArcKnob" origin="228, 2" size="28, 28"
+                      control-tag="ReverbModRate"
+                      default-value="0.25"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="222, 21" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Rate"/>
+                <view class="ArcKnob" origin="268, 2" size="28, 28"
+                      control-tag="ReverbModDepth"
+                      default-value="0.0"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="262, 21" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Mod"/>
+                <view class="ToggleButton" origin="320, 4" size="50, 20"
+                      control-tag="ReverbFreeze"
+                      title="Freeze"
+                      font="~ NormalFontSmaller"
+                      font-color="effects"
+                      text-color="effects"
+                      tooltip="Freeze reverb tail"
+                      transparent="true"/>
             </view>
         </view>
 

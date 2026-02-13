@@ -3,11 +3,10 @@
 // ==============================================================================
 // Stereo effects chain for the Ruinae synthesizer composing existing Layer 4
 // effects into a fixed-order processing chain:
-//   Voice Sum -> Spectral Freeze -> Delay -> Reverb -> Output
+//   Voice Sum -> Delay -> Reverb -> Output
 //
 // Features:
 // - Five selectable delay types with click-free crossfade switching (25-50ms)
-// - Spectral freeze with pitch shifting, shimmer, and decay
 // - Dattorro plate reverb
 // - Constant worst-case latency reporting with per-delay compensation
 // - Fully real-time safe (all runtime methods noexcept, zero allocations)
@@ -21,7 +20,6 @@
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/crossfade_utils.h>
 #include <krate/dsp/effects/digital_delay.h>
-#include <krate/dsp/effects/freeze_mode.h>
 #include <krate/dsp/effects/granular_delay.h>
 #include <krate/dsp/effects/ping_pong_delay.h>
 #include <krate/dsp/effects/reverb.h>
@@ -41,11 +39,10 @@ namespace Krate::DSP {
 /// @brief Stereo effects chain for the Ruinae synthesizer (Layer 3).
 ///
 /// Composes existing Layer 4 effects into a fixed-order processing chain:
-///   Voice Sum -> Spectral Freeze -> Delay -> Reverb -> Output
+///   Voice Sum -> Delay -> Reverb -> Output
 ///
 /// Features:
 /// - Five selectable delay types with click-free crossfade switching
-/// - Spectral freeze with pitch shifting, shimmer, and decay
 /// - Dattorro plate reverb
 /// - Constant worst-case latency reporting with per-delay compensation
 /// - Fully real-time safe (all runtime methods noexcept, zero allocations)
@@ -67,8 +64,6 @@ public:
     /// @brief Maximum delay time for delay types (per FR-024: 5000 ms)
     static constexpr float kMaxDelayMs = 5000.0f;
 
-    /// @brief Maximum delay time for freeze
-    static constexpr float kFreezeMaxDelayMs = 5000.0f;
 
     /// @brief Minimum pre-warm duration in milliseconds (smoother settling)
     static constexpr float kMinPreWarmMs = 20.0f;
@@ -89,7 +84,7 @@ public:
     /// @brief Prepare all internal effects for processing (FR-002).
     ///
     /// Allocates all temporary buffers and prepares all five delay types,
-    /// the freeze effect, reverb, and latency compensation delays.
+    /// the reverb, and latency compensation delays.
     /// May allocate memory. NOT real-time safe.
     ///
     /// @param sampleRate Sample rate in Hz
@@ -104,9 +99,6 @@ public:
         pingPongDelay_.prepare(sampleRate, maxBlockSize, kMaxDelayMs);
         granularDelay_.prepare(sampleRate);  // Only sampleRate!
         spectralDelay_.prepare(sampleRate, maxBlockSize);
-
-        // Prepare freeze with maxDelayMs=5000
-        freeze_.prepare(sampleRate, maxBlockSize, kFreezeMaxDelayMs);
 
         // Prepare reverb
         reverb_.prepare(sampleRate);
@@ -134,14 +126,13 @@ public:
         digitalDelay_.snapParameters();
         pingPongDelay_.snapParameters();
         spectralDelay_.snapParameters();
-        freeze_.snapParameters();
 
         prepared_ = true;
     }
 
     /// @brief Clear all internal state without re-preparation (FR-003).
     ///
-    /// Clears delay lines, reverb tank, freeze buffers, and crossfade state.
+    /// Clears delay lines, reverb tank, and crossfade state.
     /// Does not deallocate memory.
     void reset() noexcept {
         digitalDelay_.reset();
@@ -149,7 +140,6 @@ public:
         pingPongDelay_.reset();
         granularDelay_.reset();
         spectralDelay_.reset();
-        freeze_.reset();
         reverb_.reset();
 
         // Reset compensation delays
@@ -158,7 +148,6 @@ public:
             compDelayR_[i].reset();
         }
         activeCompIdx_ = 0;
-        freezeFadeRemaining_ = 0;
 
         // Reset pre-warm state
         preWarming_ = false;
@@ -173,7 +162,6 @@ public:
         digitalDelay_.snapParameters();
         pingPongDelay_.snapParameters();
         spectralDelay_.snapParameters();
-        freeze_.snapParameters();
     }
 
     // =========================================================================
@@ -183,9 +171,8 @@ public:
     /// @brief Process stereo audio in-place through the effects chain (FR-004).
     ///
     /// Processing order (FR-005):
-    /// 1. Spectral freeze (if enabled)
-    /// 2. Active delay type (+ crossfade partner during transitions)
-    /// 3. Reverb
+    /// 1. Active delay type (+ crossfade partner during transitions)
+    /// 2. Reverb
     ///
     /// @param left Left channel buffer (modified in-place)
     /// @param right Right channel buffer (modified in-place)
@@ -305,47 +292,6 @@ public:
     }
 
     // =========================================================================
-    // Freeze Control (FR-018 through FR-020)
-    // =========================================================================
-
-    /// @brief Activate/deactivate the freeze slot in the chain (FR-018).
-    ///
-    /// When disabling, continues processing through FreezeMode for ~50ms
-    /// to allow the dry/wet mix smoother to fade out smoothly (FR-020).
-    void setFreezeEnabled(bool enabled) noexcept {
-        if (!enabled && freezeEnabled_) {
-            // Fade out: continue processing while mix smoother reaches 0
-            freeze_.setDryWetMix(0.0f);
-            freeze_.setFreezeEnabled(false);
-            freezeFadeRemaining_ = static_cast<size_t>(sampleRate_ * 0.05);
-        }
-        freezeEnabled_ = enabled;
-        if (enabled) {
-            freeze_.setDryWetMix(1.0f);
-            freezeFadeRemaining_ = 0;
-        }
-    }
-
-    /// @brief Toggle the freeze capture state (FR-018).
-    void setFreeze(bool frozen) noexcept {
-        freeze_.setFreezeEnabled(frozen);
-    }
-
-    /// @brief Set freeze pitch shift in semitones [-24, +24] (FR-018).
-    void setFreezePitchSemitones(float semitones) noexcept {
-        freeze_.setPitchSemitones(semitones);
-    }
-
-    /// @brief Set freeze shimmer mix [0.0, 1.0] (FR-018).
-    void setFreezeShimmerMix(float mix) noexcept {
-        freeze_.setShimmerMix(mix);
-    }
-
-    /// @brief Set freeze decay [0.0, 1.0] (FR-018).
-    void setFreezeDecay(float decay) noexcept {
-        freeze_.setDecay(decay);
-    }
-
     // =========================================================================
     // Reverb Control (FR-021 through FR-023)
     // =========================================================================
@@ -382,19 +328,7 @@ private:
         ctx.isPlaying = true;
 
         // ---------------------------------------------------------------
-        // Slot 1: Freeze (FR-005, FR-020)
-        // ---------------------------------------------------------------
-        // Process when enabled or during fade-out (mix smoother reaching 0)
-        if (freezeEnabled_ || freezeFadeRemaining_ > 0) {
-            freeze_.process(left, right, numSamples, ctx);
-            if (freezeFadeRemaining_ > 0) {
-                freezeFadeRemaining_ = (numSamples >= freezeFadeRemaining_)
-                    ? 0 : freezeFadeRemaining_ - numSamples;
-            }
-        }
-
-        // ---------------------------------------------------------------
-        // Slot 2: Delay (FR-005) with crossfade (FR-010)
+        // Slot 1: Delay (FR-005) with crossfade (FR-010)
         // ---------------------------------------------------------------
         if (preWarming_) {
             // Pre-warm phase: feed audio to incoming delay so its buffer
@@ -507,7 +441,7 @@ private:
         }
 
         // ---------------------------------------------------------------
-        // Slot 3: Reverb (FR-005, FR-022)
+        // Slot 2: Reverb (FR-005, FR-022)
         // ---------------------------------------------------------------
         reverb_.processBlock(left, right, numSamples);
     }
@@ -647,10 +581,6 @@ private:
     bool prepared_ = false;
     double tempoBPM_ = 120.0;
 
-    // Freeze slot
-    FreezeMode freeze_;
-    bool freezeEnabled_ = false;
-
     // Delay slot (5 types)
     DigitalDelay digitalDelay_;
     TapeDelay tapeDelay_;
@@ -675,9 +605,6 @@ private:
     bool preWarming_ = false;
     size_t preWarmRemaining_ = 0;
     float currentDelayTimeMs_ = 50.0f;
-
-    // Freeze fade-out tracking
-    size_t freezeFadeRemaining_ = 0;
 
     // Reverb slot
     Reverb reverb_;

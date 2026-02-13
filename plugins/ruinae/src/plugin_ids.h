@@ -45,7 +45,7 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   1200-1299: Chaos Mod (Rate, Type, Depth)
 //   1300-1399: Modulation Matrix (Source, Dest, Amount x 8 slots)
 //   1400-1499: Global Filter (Enabled, Type, Cutoff, Resonance)
-//   1500-1599: Freeze Effect (Enabled, Freeze Toggle)
+//   1500-1599: (Reserved)
 //   1600-1699: Delay Effect (Type, Time, Feedback, Mix, Sync, ...)
 //   1700-1799: Reverb (Size, Damping, Width, Mix, PreDelay, ...)
 //   1800-1899: Mono Mode (Priority, Legato, Portamento Time, PortaMode)
@@ -417,14 +417,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kGlobalFilterEndId = 1499,
 
     // ==========================================================================
-    // Freeze Effect Parameters (1500-1599)
-    // ==========================================================================
-    kFreezeBaseId = 1500,
-    kFreezeEnabledId = 1500,
-    kFreezeToggleId = 1501,
-    kFreezeEndId = 1599,
-
-    // ==========================================================================
     // Delay Effect Parameters (1600-1699)
     // ==========================================================================
     kDelayBaseId = 1600,
@@ -473,7 +465,6 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kActionEuclideanRegenTag = 10009,
 
     // FX Detail Panel Expand/Collapse Chevrons (UI-only, not VST parameters)
-    kActionFxExpandFreezeTag = 10010,
     kActionFxExpandDelayTag = 10011,
     kActionFxExpandReverbTag = 10012,
 

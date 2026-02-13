@@ -214,7 +214,7 @@ TEST_CASE("RuinaeEffectsChain FR-006: dry pass-through at default settings",
     REQUIRE(maxDeviation < 1e-6f);
 }
 
-TEST_CASE("RuinaeEffectsChain FR-005: fixed processing order (freeze -> delay -> reverb)",
+TEST_CASE("RuinaeEffectsChain FR-005: fixed processing order (delay -> reverb)",
           "[systems][ruinae_effects_chain][US1]") {
     // Strategy: impulse with delay=200ms (8820 samples), reverb mix=0.3.
     // If delay runs before reverb, energy appears at ~latency+8820, not earlier.
@@ -463,301 +463,6 @@ TEST_CASE("RuinaeEffectsChain all 5 delay types produce different outputs",
 }
 
 // =============================================================================
-// Phase 5: User Story 3 - Spectral Freeze (FR-018, FR-019, FR-020)
-// =============================================================================
-
-TEST_CASE("RuinaeEffectsChain FR-018: setFreezeEnabled activates freeze slot",
-          "[systems][ruinae_effects_chain][US3]") {
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-
-    // Enable freeze and set to frozen
-    chain.setFreezeEnabled(true);
-    chain.setFreeze(true);
-
-    // Process some audio to capture spectrum
-    std::vector<float> left(4096);
-    std::vector<float> right(4096);
-    fillSine(left.data(), 4096, 440.0f, kSampleRate);
-    fillSine(right.data(), 4096, 440.0f, kSampleRate);
-    chain.processBlock(left.data(), right.data(), 4096);
-
-    // Signal should be processed (not silent, not identical to input)
-    float rms = calculateRMS(left.data(), 4096);
-    REQUIRE(rms > 0.0f);
-}
-
-TEST_CASE("RuinaeEffectsChain FR-019: freeze captures and holds spectrum",
-          "[systems][ruinae_effects_chain][US3]") {
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-
-    // Disable delay and reverb to isolate freeze
-    chain.setDelayMix(0.0f);
-    ReverbParams reverbParams;
-    reverbParams.mix = 0.0f;
-    chain.setReverbParams(reverbParams);
-
-    // Step 1: Enable freeze slot but do NOT engage freeze yet
-    chain.setFreezeEnabled(true);
-    // FreezeMode is processing in pass-through (not frozen)
-
-    // Step 2: Feed audio to fill the freeze delay buffer
-    for (int block = 0; block < 32; ++block) {
-        std::vector<float> left(kBlockSize);
-        std::vector<float> right(kBlockSize);
-        fillSine(left.data(), kBlockSize, 440.0f, kSampleRate);
-        fillSine(right.data(), kBlockSize, 440.0f, kSampleRate);
-        chain.processBlock(left.data(), right.data(), kBlockSize);
-    }
-
-    // Step 3: NOW engage freeze to capture the current buffer content
-    chain.setFreeze(true);
-
-    // Step 4: Continue feeding a few more blocks to let the frozen loop stabilize
-    for (int block = 0; block < 8; ++block) {
-        std::vector<float> left(kBlockSize);
-        std::vector<float> right(kBlockSize);
-        fillSine(left.data(), kBlockSize, 440.0f, kSampleRate);
-        fillSine(right.data(), kBlockSize, 440.0f, kSampleRate);
-        chain.processBlock(left.data(), right.data(), kBlockSize);
-    }
-
-    // Step 5: Feed silence - frozen output should still produce signal
-    float frozenRMS = 0.0f;
-    for (int block = 0; block < 8; ++block) {
-        std::vector<float> silenceL(kBlockSize, 0.0f);
-        std::vector<float> silenceR(kBlockSize, 0.0f);
-        chain.processBlock(silenceL.data(), silenceR.data(), kBlockSize);
-        float blockRMS = calculateRMS(silenceL.data(), kBlockSize);
-        frozenRMS = std::max(frozenRMS, blockRMS);
-    }
-
-    INFO("Max frozen output RMS after feeding silence: " << frozenRMS);
-    REQUIRE(frozenRMS > 0.001f);
-}
-
-TEST_CASE("RuinaeEffectsChain FR-020: freeze enable/disable transitions are click-free",
-          "[systems][ruinae_effects_chain][US3]") {
-    using namespace Krate::DSP::TestUtils;
-
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-    chain.setDelayMix(0.0f);
-    ReverbParams reverbParams;
-    reverbParams.mix = 0.0f;
-    chain.setReverbParams(reverbParams);
-
-    constexpr size_t kBlock = 512;
-    constexpr size_t kWarmup = 8;
-    constexpr size_t kToggles = 10;
-    constexpr size_t kTotal = kWarmup + kToggles;
-    constexpr size_t kTotalSamples = kTotal * kBlock;
-
-    // Pre-generate continuous phase-coherent sine
-    std::vector<float> outputL(kTotalSamples);
-    std::vector<float> outputR(kTotalSamples);
-    for (size_t i = 0; i < kTotalSamples; ++i) {
-        float sample = 0.5f * std::sin(
-            2.0f * 3.14159265358979323846f * 440.0f
-            * static_cast<float>(i) / static_cast<float>(kSampleRate));
-        outputL[i] = sample;
-        outputR[i] = sample;
-    }
-
-    // Process warmup
-    for (size_t b = 0; b < kWarmup; ++b) {
-        chain.processBlock(outputL.data() + b * kBlock,
-                          outputR.data() + b * kBlock, kBlock);
-    }
-
-    // Toggle freeze rapidly
-    for (size_t toggle = 0; toggle < kToggles; ++toggle) {
-        chain.setFreezeEnabled(toggle % 2 == 0);
-        if (toggle % 2 == 0) chain.setFreeze(true);
-
-        size_t blockIdx = kWarmup + toggle;
-        chain.processBlock(outputL.data() + blockIdx * kBlock,
-                          outputR.data() + blockIdx * kBlock, kBlock);
-    }
-
-    // ClickDetector analysis on toggle region
-    ClickDetectorConfig clickConfig{
-        .sampleRate = static_cast<float>(kSampleRate),
-        .frameSize = 256,
-        .hopSize = 128,
-        .detectionThreshold = 5.0f,
-        .energyThresholdDb = -60.0f,
-        .mergeGap = 5
-    };
-
-    ClickDetector detector(clickConfig);
-    detector.prepare();
-
-    const size_t measureStart = kWarmup * kBlock;
-    const size_t measureLen = kToggles * kBlock;
-    auto clicks = detector.detect(outputL.data() + measureStart, measureLen);
-
-    INFO("Clicks detected during freeze toggling: " << clicks.size());
-    for (size_t c = 0; c < clicks.size(); ++c) {
-        INFO("  Click " << c << " at sample " << clicks[c].sampleIndex
-             << " amplitude " << clicks[c].amplitude);
-    }
-    // Allow up to 1 mild artifact for initial freeze capture transition
-    REQUIRE(clicks.size() <= 1);
-}
-
-TEST_CASE("RuinaeEffectsChain FR-018: freeze parameter forwarding",
-          "[systems][ruinae_effects_chain][US3]") {
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-
-    // Set all freeze parameters - should not crash
-    chain.setFreezePitchSemitones(12.0f);
-    chain.setFreezeShimmerMix(0.5f);
-    chain.setFreezeDecay(0.3f);
-
-    std::vector<float> left(kBlockSize);
-    std::vector<float> right(kBlockSize);
-    fillSine(left.data(), kBlockSize, 440.0f, kSampleRate);
-    fillSine(right.data(), kBlockSize, 440.0f, kSampleRate);
-
-    chain.setFreezeEnabled(true);
-    chain.setFreeze(true);
-    chain.processBlock(left.data(), right.data(), kBlockSize);
-
-    // Should not crash
-    REQUIRE(true);
-}
-
-TEST_CASE("RuinaeEffectsChain freeze pitch shifting",
-          "[systems][ruinae_effects_chain][US3]") {
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-
-    chain.setFreezeEnabled(true);
-    chain.setFreezePitchSemitones(12.0f);
-    chain.setFreezeShimmerMix(1.0f);
-    chain.setDelayMix(0.0f);
-    ReverbParams reverbParams;
-    reverbParams.mix = 0.0f;
-    chain.setReverbParams(reverbParams);
-
-    // Feed a tone to fill the freeze delay buffer (not frozen yet)
-    for (int block = 0; block < 32; ++block) {
-        std::vector<float> left(kBlockSize);
-        std::vector<float> right(kBlockSize);
-        fillSine(left.data(), kBlockSize, 220.0f, kSampleRate);
-        fillSine(right.data(), kBlockSize, 220.0f, kSampleRate);
-        chain.processBlock(left.data(), right.data(), kBlockSize);
-    }
-
-    // Engage freeze to capture
-    chain.setFreeze(true);
-
-    // Continue to let frozen loop produce output through compensation
-    // Need more blocks because pitch shifter adds its own latency
-    for (int block = 0; block < 32; ++block) {
-        std::vector<float> left(kBlockSize);
-        std::vector<float> right(kBlockSize);
-        fillSine(left.data(), kBlockSize, 220.0f, kSampleRate);
-        fillSine(right.data(), kBlockSize, 220.0f, kSampleRate);
-        chain.processBlock(left.data(), right.data(), kBlockSize);
-    }
-
-    // Check output across several blocks (pitch shifter output may be
-    // delayed by its own processing latency)
-    float maxRMS = 0.0f;
-    for (int block = 0; block < 8; ++block) {
-        std::vector<float> left(kBlockSize);
-        std::vector<float> right(kBlockSize);
-        fillSine(left.data(), kBlockSize, 220.0f, kSampleRate);
-        fillSine(right.data(), kBlockSize, 220.0f, kSampleRate);
-        chain.processBlock(left.data(), right.data(), kBlockSize);
-        maxRMS = std::max(maxRMS, calculateRMS(left.data(), kBlockSize));
-    }
-
-    INFO("Max RMS from frozen pitch-shifted output: " << maxRMS);
-    REQUIRE(maxRMS > 0.0f);
-}
-
-TEST_CASE("RuinaeEffectsChain shimmer mix blending",
-          "[systems][ruinae_effects_chain][US3]") {
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-
-    chain.setFreezeEnabled(true);
-    chain.setFreeze(true);
-    chain.setDelayMix(0.0f);
-    ReverbParams reverbParams;
-    reverbParams.mix = 0.0f;
-    chain.setReverbParams(reverbParams);
-
-    // Test shimmer mix = 0 (unpitched)
-    chain.setFreezeShimmerMix(0.0f);
-    chain.setFreezePitchSemitones(12.0f);
-
-    for (int block = 0; block < 8; ++block) {
-        std::vector<float> left(kBlockSize);
-        std::vector<float> right(kBlockSize);
-        fillSine(left.data(), kBlockSize, 440.0f, kSampleRate);
-        fillSine(right.data(), kBlockSize, 440.0f, kSampleRate);
-        chain.processBlock(left.data(), right.data(), kBlockSize);
-    }
-
-    // Output with shimmer mix = 0 should differ from shimmer mix = 1
-    // This is a basic functionality check
-    REQUIRE(true);
-}
-
-TEST_CASE("RuinaeEffectsChain freeze decay control",
-          "[systems][ruinae_effects_chain][US3]") {
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-
-    chain.setFreezeEnabled(true);
-    chain.setFreezeDecay(0.0f);  // Infinite sustain
-    chain.setDelayMix(0.0f);
-    ReverbParams reverbParams;
-    reverbParams.mix = 0.0f;
-    chain.setReverbParams(reverbParams);
-
-    // Feed a tone to fill freeze buffer (not frozen yet)
-    for (int block = 0; block < 32; ++block) {
-        std::vector<float> left(kBlockSize);
-        std::vector<float> right(kBlockSize);
-        fillSine(left.data(), kBlockSize, 440.0f, kSampleRate);
-        fillSine(right.data(), kBlockSize, 440.0f, kSampleRate);
-        chain.processBlock(left.data(), right.data(), kBlockSize);
-    }
-
-    // Engage freeze to capture
-    chain.setFreeze(true);
-
-    // Process more blocks to let freeze loop produce output through compensation
-    for (int block = 0; block < 8; ++block) {
-        std::vector<float> left(kBlockSize);
-        std::vector<float> right(kBlockSize);
-        fillSine(left.data(), kBlockSize, 440.0f, kSampleRate);
-        fillSine(right.data(), kBlockSize, 440.0f, kSampleRate);
-        chain.processBlock(left.data(), right.data(), kBlockSize);
-    }
-
-    // With decay = 0, frozen output should sustain when we feed silence
-    float sustainRMS = 0.0f;
-    for (int block = 0; block < 8; ++block) {
-        std::vector<float> silenceL(kBlockSize, 0.0f);
-        std::vector<float> silenceR(kBlockSize, 0.0f);
-        chain.processBlock(silenceL.data(), silenceR.data(), kBlockSize);
-        float blockRMS = calculateRMS(silenceL.data(), kBlockSize);
-        sustainRMS = std::max(sustainRMS, blockRMS);
-    }
-
-    INFO("Max sustain RMS with decay=0: " << sustainRMS);
-    REQUIRE(sustainRMS > 0.0001f);
-}
-
-// =============================================================================
 // Phase 6: User Story 4 - Dattorro Reverb Integration (FR-021, FR-022, FR-023)
 // =============================================================================
 
@@ -833,44 +538,6 @@ TEST_CASE("RuinaeEffectsChain FR-022: reverb processes delay output not dry inpu
     }
     INFO("Total difference: " << diff);
     REQUIRE(diff > 0.01f);
-}
-
-TEST_CASE("RuinaeEffectsChain FR-023: reverb freeze independent of spectral freeze",
-          "[systems][ruinae_effects_chain][US4]") {
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-
-    // Enable spectral freeze slot (not frozen yet) and reverb (not frozen yet)
-    chain.setFreezeEnabled(true);
-    ReverbParams params;
-    params.freeze = false;  // Start with reverb NOT frozen
-    params.mix = 0.5f;
-    chain.setReverbParams(params);
-
-    // Settle: fill freeze buffer, reverb tank, and compensation delays with audio
-    settleChain(chain, 16);
-
-    // Now engage BOTH freezes independently
-    chain.setFreeze(true);       // Spectral freeze captures
-    params.freeze = true;        // Reverb freeze captures
-    chain.setReverbParams(params);
-
-    // Process more blocks to let frozen outputs emerge through compensation
-    settleChain(chain, 16);
-
-    // Measurement: check several blocks for non-zero output
-    float maxRMS = 0.0f;
-    for (int block = 0; block < 4; ++block) {
-        std::vector<float> left(kBlockSize);
-        std::vector<float> right(kBlockSize);
-        fillSine(left.data(), kBlockSize, 440.0f, kSampleRate);
-        fillSine(right.data(), kBlockSize, 440.0f, kSampleRate);
-        chain.processBlock(left.data(), right.data(), kBlockSize);
-        maxRMS = std::max(maxRMS, calculateRMS(left.data(), kBlockSize));
-    }
-
-    INFO("Max RMS with both freezes active: " << maxRMS);
-    REQUIRE(maxRMS > 0.0f);
 }
 
 TEST_CASE("RuinaeEffectsChain reverb parameter changes during playback",
@@ -1443,34 +1110,6 @@ TEST_CASE("RuinaeEffectsChain latency compensation for non-spectral delays",
 // Phase 9: User Story 6 - Individual Effect Bypass (US6)
 // =============================================================================
 
-TEST_CASE("RuinaeEffectsChain US6: delay disabled while freeze+reverb enabled",
-          "[systems][ruinae_effects_chain][US6]") {
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-
-    // Enable freeze and reverb, disable delay
-    chain.setFreezeEnabled(true);
-    chain.setFreeze(true);
-    chain.setDelayMix(0.0f);
-    ReverbParams params;
-    params.mix = 0.5f;
-    params.roomSize = 0.5f;
-    chain.setReverbParams(params);
-
-    // Settle the chain to fill latency compensation
-    settleChain(chain);
-
-    // Process measurement block
-    std::vector<float> left(kBlockSize);
-    std::vector<float> right(kBlockSize);
-    fillSine(left.data(), kBlockSize, 440.0f, kSampleRate);
-    fillSine(right.data(), kBlockSize, 440.0f, kSampleRate);
-    chain.processBlock(left.data(), right.data(), kBlockSize);
-
-    // Signal should still flow (freeze + reverb active)
-    REQUIRE(calculateRMS(left.data(), kBlockSize) > 0.0f);
-}
-
 TEST_CASE("RuinaeEffectsChain US6: all effects disabled, enable single effect",
           "[systems][ruinae_effects_chain][US6]") {
     RuinaeEffectsChain chain;
@@ -1478,7 +1117,6 @@ TEST_CASE("RuinaeEffectsChain US6: all effects disabled, enable single effect",
 
     // All off
     chain.setDelayMix(0.0f);
-    chain.setFreezeEnabled(false);
     ReverbParams params;
     params.mix = 0.0f;
     chain.setReverbParams(params);
@@ -1499,7 +1137,6 @@ TEST_CASE("RuinaeEffectsChain US6: all effects disabled, enable single effect",
     chain2.setDelayMix(0.5f);
     chain2.setDelayTime(100.0f);
     chain2.setDelayFeedback(0.3f);
-    chain2.setFreezeEnabled(false);
     ReverbParams params2;
     params2.mix = 0.0f;
     chain2.setReverbParams(params2);
@@ -1607,11 +1244,6 @@ TEST_CASE("RuinaeEffectsChain FR-028: all runtime methods are noexcept",
     static_assert(noexcept(chain.setDelayTime(0.0f)));
     static_assert(noexcept(chain.setDelayFeedback(0.0f)));
     static_assert(noexcept(chain.setDelayMix(0.0f)));
-    static_assert(noexcept(chain.setFreeze(false)));
-    static_assert(noexcept(chain.setFreezeEnabled(false)));
-    static_assert(noexcept(chain.setFreezePitchSemitones(0.0f)));
-    static_assert(noexcept(chain.setFreezeShimmerMix(0.0f)));
-    static_assert(noexcept(chain.setFreezeDecay(0.0f)));
     static_assert(noexcept(chain.setDelayTempo(120.0)));
     static_assert(noexcept(chain.getActiveDelayType()));
     static_assert(noexcept(chain.getLatencySamples()));

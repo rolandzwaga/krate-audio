@@ -98,7 +98,8 @@ static constexpr float kBandwidthCoeff = 0.9995f;
 static constexpr float kMaxExcursionRef = 8.0f;
 
 /// Output gain applied to tap sums (R8)
-static constexpr float kOutputGain = 0.6f;
+/// Compensates for mono input sum (0.5x) and tap cancellation.
+static constexpr float kOutputGain = 3.0f;
 
 /// Parameter smoothing time in milliseconds (R4)
 static constexpr float kSmoothingTimeMs = 10.0f;
@@ -276,7 +277,7 @@ public:
 
         // -- Initialize smoother targets to defaults --
         ReverbParams defaultParams;
-        float defaultDecay = 0.5f + defaultParams.roomSize * defaultParams.roomSize * 0.45f;
+        float defaultDecay = 0.75f + defaultParams.roomSize * 0.2495f;
         float defaultDampCutoff = 200.0f * std::pow(100.0f, 1.0f - defaultParams.damping);
 
         decaySmoother_.snapTo(defaultDecay);
@@ -366,8 +367,9 @@ public:
         float modRate = std::clamp(params.modRate, 0.0f, 2.0f);
         float modDepth = std::clamp(params.modDepth, 0.0f, 1.0f);
 
-        // -- RoomSize to decay mapping (FR-011): decay = 0.5 + roomSize^2 * 0.45 --
-        float targetDecay = 0.5f + roomSize * roomSize * 0.45f;
+        // -- RoomSize to decay mapping (FR-011) --
+        // Linear: roomSize 0→0.75, 0.5→0.875, 1.0→0.9995
+        float targetDecay = 0.75f + roomSize * 0.2495f;
 
         // -- Damping to cutoff Hz mapping (FR-011, FR-013) --
         float targetDampCutoff = 200.0f * std::pow(100.0f, 1.0f - damping);

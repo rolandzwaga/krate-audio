@@ -319,7 +319,6 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveChaosModParams(chaosModParams_, streamer);
     saveModMatrixParams(modMatrixParams_, streamer);
     saveGlobalFilterParams(globalFilterParams_, streamer);
-    saveFreezeParams(freezeParams_, streamer);
     saveDelayParams(delayParams_, streamer);
     saveReverbParams(reverbParams_, streamer);
     saveMonoModeParams(monoModeParams_, streamer);
@@ -381,9 +380,14 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         return true;
     };
 
-    auto loadPostModMatrix = [&]() -> bool {
+    auto loadPostModMatrix = [&](Steinberg::int32 ver) -> bool {
         if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return false;
-        if (!loadFreezeParams(freezeParams_, streamer)) return false;
+        if (ver <= 7) {
+            // v1-v7 had freeze params here (2 x int32); skip them
+            Steinberg::int32 dummy = 0;
+            if (!streamer.readInt32(dummy)) return false;
+            if (!streamer.readInt32(dummy)) return false;
+        }
         if (!loadDelayParams(delayParams_, streamer)) return false;
         if (!loadReverbParams(reverbParams_, streamer)) return false;
         if (!loadMonoModeParams(monoModeParams_, streamer)) return false;
@@ -394,18 +398,19 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         // v1: base mod matrix only (source, dest, amount per slot)
         if (!loadCommonPacks(version)) return Steinberg::kResultTrue;
         if (!loadModMatrixParamsV1(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadPostModMatrix()) return Steinberg::kResultTrue;
+        if (!loadPostModMatrix(version)) return Steinberg::kResultTrue;
     } else if (version == 2) {
         // v2: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
         if (!loadCommonPacks(version)) return Steinberg::kResultTrue;
         if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadPostModMatrix()) return Steinberg::kResultTrue;
+        if (!loadPostModMatrix(version)) return Steinberg::kResultTrue;
     } else if (version >= 3) {
         // v3: v2 + voice modulation routes
         // v4: added MixerShift to mixer pack (handled by loadCommonPacks)
+        // v8: removed freeze effect
         if (!loadCommonPacks(version)) return Steinberg::kResultTrue;
         if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadPostModMatrix()) return Steinberg::kResultTrue;
+        if (!loadPostModMatrix(version)) return Steinberg::kResultTrue;
 
         // Load voice routes (16 slots, added in v3)
         for (auto& r : voiceRoutes_) {
@@ -497,8 +502,6 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleModMatrixParamChange(modMatrixParams_, paramId, value);
         } else if (paramId >= kGlobalFilterBaseId && paramId <= kGlobalFilterEndId) {
             handleGlobalFilterParamChange(globalFilterParams_, paramId, value);
-        } else if (paramId >= kFreezeBaseId && paramId <= kFreezeEndId) {
-            handleFreezeParamChange(freezeParams_, paramId, value);
         } else if (paramId >= kDelayBaseId && paramId <= kDelayEndId) {
             handleDelayParamChange(delayParams_, paramId, value);
         } else if (paramId >= kReverbBaseId && paramId <= kReverbEndId) {
@@ -693,10 +696,6 @@ void Processor::applyParamsToEngine() {
     }
     engine_.setGlobalFilterCutoff(globalFilterParams_.cutoffHz.load(std::memory_order_relaxed));
     engine_.setGlobalFilterResonance(globalFilterParams_.resonance.load(std::memory_order_relaxed));
-
-    // --- Freeze ---
-    engine_.setFreezeEnabled(freezeParams_.enabled.load(std::memory_order_relaxed));
-    engine_.setFreeze(freezeParams_.freeze.load(std::memory_order_relaxed));
 
     // --- Delay ---
     engine_.setDelayType(static_cast<RuinaeDelayType>(

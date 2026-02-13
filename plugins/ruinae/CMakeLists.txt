@@ -84,7 +84,6 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/parameters/chaos_mod_params.h
     src/parameters/mod_matrix_params.h
     src/parameters/global_filter_params.h
-    src/parameters/freeze_params.h
     src/parameters/delay_params.h
     src/parameters/reverb_params.h
     src/parameters/mono_mode_params.h

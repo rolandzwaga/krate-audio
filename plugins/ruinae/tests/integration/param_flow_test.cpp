@@ -212,7 +212,6 @@ TEST_CASE("Multiple parameter changes in same block all take effect", "[param_fl
     params.addChange(Ruinae::kChaosModRateId, 0.3);
     params.addChange(Ruinae::kModMatrixSlot0AmountId, 0.75);
     params.addChange(Ruinae::kGlobalFilterCutoffId, 0.5);
-    params.addChange(Ruinae::kFreezeEnabledId, 1.0);
     params.addChange(Ruinae::kDelayTimeId, 0.2);
     params.addChange(Ruinae::kReverbSizeId, 0.6);
     params.addChange(Ruinae::kMonoPortamentoTimeId, 0.3);

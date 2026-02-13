@@ -35,7 +35,6 @@
 #include "parameters/chaos_mod_params.h"
 #include "parameters/mod_matrix_params.h"
 #include "parameters/global_filter_params.h"
-#include "parameters/freeze_params.h"
 #include "parameters/delay_params.h"
 #include "parameters/reverb_params.h"
 #include "parameters/mono_mode_params.h"
@@ -58,7 +57,8 @@ namespace Ruinae {
 // v5: Added filter type-specific params (ladder slope/drive, formant morph/gender, comb damping)
 // v6: Added SVF slope/drive params
 // v7: Added SVF gain, envelope filter, and self-oscillating filter params
-constexpr Steinberg::int32 kCurrentStateVersion = 7;
+// v8: Removed freeze effect from effects chain
+constexpr Steinberg::int32 kCurrentStateVersion = 8;
 
 // ==============================================================================
 // Processor Class
@@ -152,7 +152,6 @@ private:
     ChaosModParams chaosModParams_;
     ModMatrixParams modMatrixParams_;
     GlobalFilterParams globalFilterParams_;
-    RuinaeFreezeParams freezeParams_;
     RuinaeDelayParams delayParams_;
     RuinaeReverbParams reverbParams_;
     MonoModeParams monoModeParams_;

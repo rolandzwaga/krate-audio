@@ -697,14 +697,6 @@ TEST_CASE("RuinaeEngine effects parameter forwarding", "[ruinae-engine][effects]
         // Should not crash
     }
 
-    SECTION("freeze parameters forward correctly (FR-027)") {
-        engine.setFreezeEnabled(true);
-        engine.setFreeze(true);
-        engine.setFreezePitchSemitones(7.0f);
-        engine.setFreezeShimmerMix(0.4f);
-        engine.setFreezeDecay(0.8f);
-        // Should not crash
-    }
 }
 
 TEST_CASE("RuinaeEngine getLatencySamples", "[ruinae-engine][effects][US5]") {

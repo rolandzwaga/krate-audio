@@ -217,10 +217,9 @@ private:
     VSTGUI::CView* lfo2RateGroup_ = nullptr;
 
     // FX detail panel expand/collapse state
-    VSTGUI::CViewContainer* fxDetailFreeze_ = nullptr;
     VSTGUI::CViewContainer* fxDetailDelay_ = nullptr;
     VSTGUI::CViewContainer* fxDetailReverb_ = nullptr;
-    int expandedFxPanel_ = -1;  // -1=none, 0=freeze, 1=delay, 2=reverb
+    int expandedFxPanel_ = -1;  // -1=none, 0=delay, 1=reverb
 
     // Envelope expand/collapse state
     VSTGUI::CViewContainer* envGroupAmp_ = nullptr;

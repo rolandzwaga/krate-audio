@@ -8,7 +8,7 @@
 // - NoteProcessor (pitch bend smoothing, velocity curves)
 // - ModulationEngine (global modulation: LFOs, Chaos, Rungler, Macros)
 // - 2x SVF (global stereo filter)
-// - RuinaeEffectsChain (freeze, delay, reverb)
+// - RuinaeEffectsChain (delay, reverb)
 // - Master output with gain compensation, soft limiting, NaN/Inf flush
 //
 // Signal flow:
@@ -433,11 +433,6 @@ public:
         effectsChain_.setDelayMix(baseDelayMix_);
     }
     void setReverbParams(const ReverbParams& params) noexcept { effectsChain_.setReverbParams(params); }
-    void setFreezeEnabled(bool enabled) noexcept { effectsChain_.setFreezeEnabled(enabled); }
-    void setFreeze(bool frozen) noexcept { effectsChain_.setFreeze(frozen); }
-    void setFreezePitchSemitones(float semitones) noexcept { effectsChain_.setFreezePitchSemitones(semitones); }
-    void setFreezeShimmerMix(float mix) noexcept { effectsChain_.setFreezeShimmerMix(mix); }
-    void setFreezeDecay(float decay) noexcept { effectsChain_.setFreezeDecay(decay); }
 
     /// @brief Get total processing latency from effects chain (FR-028).
     [[nodiscard]] size_t getLatencySamples() const noexcept {

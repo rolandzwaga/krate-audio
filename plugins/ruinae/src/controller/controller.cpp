@@ -30,7 +30,6 @@
 #include "parameters/chaos_mod_params.h"
 #include "parameters/mod_matrix_params.h"
 #include "parameters/global_filter_params.h"
-#include "parameters/freeze_params.h"
 #include "parameters/delay_params.h"
 #include "parameters/reverb_params.h"
 #include "parameters/mono_mode_params.h"
@@ -105,7 +104,6 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerChaosModParams(parameters);
     registerModMatrixParams(parameters);
     registerGlobalFilterParams(parameters);
-    registerFreezeParams(parameters);
     registerDelayParams(parameters);
     registerReverbParams(parameters);
     registerMonoModeParams(parameters);
@@ -187,9 +185,14 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         loadChaosModParamsToController(streamer, setParam);
     };
 
-    auto loadPostModMatrix = [&]() {
+    auto loadPostModMatrix = [&](Steinberg::int32 ver) {
         loadGlobalFilterParamsToController(streamer, setParam);
-        loadFreezeParamsToController(streamer, setParam);
+        if (ver <= 7) {
+            // v1-v7 had freeze params here (2 x int32); skip them
+            Steinberg::int32 dummy = 0;
+            streamer.readInt32(dummy);
+            streamer.readInt32(dummy);
+        }
         loadDelayParamsToController(streamer, setParam);
         loadReverbParamsToController(streamer, setParam);
         loadMonoModeParamsToController(streamer, setParam);
@@ -199,14 +202,15 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         // v1: base mod matrix only (source, dest, amount per slot)
         loadCommonPacks(version);
         loadModMatrixParamsToControllerV1(streamer, setParam);
-        loadPostModMatrix();
+        loadPostModMatrix(version);
     } else if (version >= 2) {
         // v2+: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
         // v3+ adds voice routes via IMessage from processor (not from stream)
         // v4+ adds MixerShift to mixer pack (handled by loadCommonPacks)
+        // v8: removed freeze effect
         loadCommonPacks(version);
         loadModMatrixParamsToController(streamer, setParam);
-        loadPostModMatrix();
+        loadPostModMatrix(version);
     }
     // Unknown versions (v0 or negative): keep defaults (fail closed)
 
@@ -270,8 +274,6 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatModMatrixParam(id, valueNormalized, string);
     } else if (id >= kGlobalFilterBaseId && id <= kGlobalFilterEndId) {
         result = formatGlobalFilterParam(id, valueNormalized, string);
-    } else if (id >= kFreezeBaseId && id <= kFreezeEndId) {
-        result = formatFreezeParam(id, valueNormalized, string);
     } else if (id >= kDelayBaseId && id <= kDelayEndId) {
         result = formatDelayParam(id, valueNormalized, string);
     } else if (id >= kReverbBaseId && id <= kReverbEndId) {
@@ -531,7 +533,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         lfo2RateGroup_ = nullptr;
 
         // FX detail panel cleanup (T092)
-        fxDetailFreeze_ = nullptr;
         fxDetailDelay_ = nullptr;
         fxDetailReverb_ = nullptr;
         expandedFxPanel_ = -1;
@@ -724,10 +725,7 @@ VSTGUI::CView* Controller::verifyView(
         const auto* name = attributes.getAttributeValue("custom-view-name");
         if (name) {
             // FX detail panels (T089)
-            if (*name == "FreezeDetail") {
-                fxDetailFreeze_ = container;
-                container->setVisible(false);
-            } else if (*name == "DelayDetail") {
+            if (*name == "DelayDetail") {
                 fxDetailDelay_ = container;
                 container->setVisible(false);
             } else if (*name == "ReverbDetail") {
@@ -771,9 +769,8 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
 
     // Toggle buttons: respond to both on/off clicks (no value guard)
     switch (tag) {
-        case kActionFxExpandFreezeTag:  toggleFxDetail(0); return;
-        case kActionFxExpandDelayTag:   toggleFxDetail(1); return;
-        case kActionFxExpandReverbTag:  toggleFxDetail(2); return;
+        case kActionFxExpandDelayTag:   toggleFxDetail(0); return;
+        case kActionFxExpandReverbTag:  toggleFxDetail(1); return;
         case kActionEnvExpandAmpTag:    toggleEnvExpand(0); return;
         case kActionEnvExpandFilterTag: toggleEnvExpand(1); return;
         case kActionEnvExpandModTag:    toggleEnvExpand(2); return;
@@ -1329,7 +1326,7 @@ void Controller::selectModulationRoute(int sourceIndex, int destIndex) {
 // ==============================================================================
 
 void Controller::toggleFxDetail(int panelIndex) {
-    auto panels = {fxDetailFreeze_, fxDetailDelay_, fxDetailReverb_};
+    auto panels = {fxDetailDelay_, fxDetailReverb_};
     int idx = 0;
     for (auto* panel : panels) {
         if (panel) {
