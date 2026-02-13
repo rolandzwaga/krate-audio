@@ -786,10 +786,10 @@ TEST_CASE("ModMatrixGrid: source count matches tab", "[modmatrix][grid][tab][int
     REQUIRE(grid.getVoiceRoute(0).source == 7);
 }
 
-// T090: Destination filtering - Global shows 7 dests, Voice shows 7
+// T090: Destination filtering - Global shows 8 dests, Voice shows 8
 TEST_CASE("ModMatrixGrid: destination count matches tab", "[modmatrix][grid][tab][integration]") {
-    REQUIRE(kNumGlobalDestinations == 7);
-    REQUIRE(kNumVoiceDestinations == 7);
+    REQUIRE(kNumGlobalDestinations == 8);
+    REQUIRE(kNumVoiceDestinations == 8);
 
     ModMatrixGrid grid(VSTGUI::CRect(0, 0, 430, 250));
     grid.setRouteChangedCallback([](int, int, const ModRoute&) {});
@@ -798,16 +798,16 @@ TEST_CASE("ModMatrixGrid: destination count matches tab", "[modmatrix][grid][tab
     grid.addRoute();
     ModRoute r;
     r.active = true;
-    r.destination = ModDestination::OscBPitch; // index 6 (last global dest)
+    r.destination = ModDestination::OscBPitch; // index 6
     grid.setGlobalRoute(0, r);
     REQUIRE(static_cast<int>(grid.getGlobalRoute(0).destination) == 6);
 
-    // Voice tab: 7 destinations (per-voice)
+    // Voice tab: 8 destinations (per-voice)
     grid.setActiveTab(1);
     grid.addRoute();
     ModRoute vr;
     vr.active = true;
-    vr.destination = ModDestination::OscBPitch; // index 6 (last voice dest)
+    vr.destination = ModDestination::OscBPitch; // index 6
     grid.setVoiceRoute(0, vr);
     REQUIRE(static_cast<int>(grid.getVoiceRoute(0).destination) == 6);
 }

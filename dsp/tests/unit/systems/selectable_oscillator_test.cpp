@@ -60,7 +60,7 @@ TEST_CASE("Ruinae types: enum sizes", "[ruinae_types]") {
     STATIC_REQUIRE(static_cast<uint8_t>(RuinaeFilterType::NumTypes) == 7);
     STATIC_REQUIRE(static_cast<uint8_t>(RuinaeDistortionType::NumTypes) == 6);
     STATIC_REQUIRE(static_cast<uint8_t>(VoiceModSource::NumSources) == 8);
-    STATIC_REQUIRE(static_cast<uint8_t>(VoiceModDest::NumDestinations) == 9);
+    STATIC_REQUIRE(static_cast<uint8_t>(VoiceModDest::NumDestinations) == 10);
 }
 
 // =============================================================================

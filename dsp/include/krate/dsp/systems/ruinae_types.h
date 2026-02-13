@@ -153,7 +153,7 @@ enum class VoiceModSource : uint8_t {
 ///
 /// Offset interpretation:
 /// - FilterCutoff, OscAPitch, OscBPitch: semitones
-/// - FilterResonance, MorphPosition, DistortionDrive, TranceGateDepth: linear
+/// - FilterResonance, MorphPosition, DistortionDrive, TranceGateDepth, SpectralTilt: linear
 enum class VoiceModDest : uint8_t {
     FilterCutoff = 0,     ///< Filter cutoff (semitone offset)
     FilterResonance,      ///< Filter resonance (linear offset)
@@ -164,7 +164,8 @@ enum class VoiceModDest : uint8_t {
     OscBPitch,            ///< OSC B pitch (semitone offset)
     OscALevel,            ///< OSC A level offset (FR-002, 042-ext-modulation-system)
     OscBLevel,            ///< OSC B level offset (FR-002, 042-ext-modulation-system)
-    NumDestinations       ///< Sentinel: total number of destinations (= 9)
+    SpectralTilt,         ///< Spectral tilt offset (dB/octave, linear offset)
+    NumDestinations       ///< Sentinel: total number of destinations (= 10)
 };
 
 // =============================================================================

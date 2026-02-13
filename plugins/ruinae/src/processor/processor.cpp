@@ -748,7 +748,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
             route.source = static_cast<uint8_t>(std::clamp(val, Steinberg::int64{0}, Steinberg::int64{9}));
 
         if (attrs->getInt("destination", val) == Steinberg::kResultOk)
-            route.destination = static_cast<uint8_t>(std::clamp(val, Steinberg::int64{0}, Steinberg::int64{6}));
+            route.destination = static_cast<uint8_t>(std::clamp(val, Steinberg::int64{0}, Steinberg::int64{7}));
 
         if (attrs->getFloat("amount", dval) == Steinberg::kResultOk)
             route.amount = static_cast<float>(std::clamp(dval, -1.0, 1.0));

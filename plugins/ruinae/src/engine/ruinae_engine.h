@@ -69,7 +69,8 @@ enum class RuinaeModDest : uint32_t {
     EffectMix              = 67,  ///< Effect chain mix offset (delay mix)
     AllVoiceFilterCutoff   = 68,  ///< Offset forwarded to all voices' filter cutoff
     AllVoiceMorphPosition  = 69,  ///< Offset forwarded to all voices' morph position
-    AllVoiceTranceGateRate = 70   ///< Offset forwarded to all voices' trance gate rate
+    AllVoiceTranceGateRate = 70,  ///< Offset forwarded to all voices' trance gate rate
+    AllVoiceSpectralTilt  = 71   ///< Offset forwarded to all voices' spectral tilt
 };
 
 // =============================================================================
@@ -521,6 +522,8 @@ public:
             static_cast<uint32_t>(RuinaeModDest::AllVoiceMorphPosition));
         const float allVoiceTranceGateOffset = globalModEngine_.getModulationOffset(
             static_cast<uint32_t>(RuinaeModDest::AllVoiceTranceGateRate));
+        const float allVoiceTiltOffset = globalModEngine_.getModulationOffset(
+            static_cast<uint32_t>(RuinaeModDest::AllVoiceSpectralTilt));
 
         // Step 5: Apply global modulation to engine-level params
         // Global filter: two-stage clamping (FR-021)
@@ -552,10 +555,12 @@ public:
 
         if (mode_ == VoiceMode::Poly) {
             processBlockPoly(numSamples, allVoiceFilterCutoffOffset,
-                             allVoiceMorphOffset, allVoiceTranceGateOffset);
+                             allVoiceMorphOffset, allVoiceTranceGateOffset,
+                             allVoiceTiltOffset);
         } else {
             processBlockMono(numSamples, allVoiceFilterCutoffOffset,
-                             allVoiceMorphOffset, allVoiceTranceGateOffset);
+                             allVoiceMorphOffset, allVoiceTranceGateOffset,
+                             allVoiceTiltOffset);
         }
 
         // Step 8: Apply stereo width (Mid/Side) (FR-014)
@@ -1194,7 +1199,8 @@ private:
     void processBlockPoly(size_t numSamples,
                           float allVoiceFilterCutoffOffset,
                           float allVoiceMorphOffset,
-                          float allVoiceTranceGateOffset) noexcept {
+                          float allVoiceTranceGateOffset,
+                          float allVoiceTiltOffset) noexcept {
         // Track which voices were active before processing (for deferred finish)
         std::array<bool, kMaxPolyphony> wasActive{};
         for (size_t i = 0; i < polyphonyCount_; ++i) {
@@ -1226,6 +1232,14 @@ private:
                 0.1f, 100.0f);
             for (size_t i = 0; i < polyphonyCount_; ++i) {
                 voices_[i].setTranceGateRate(modRate);
+            }
+        }
+        if (allVoiceTiltOffset != 0.0f) {
+            float modTilt = std::clamp(
+                voiceMixTilt_ + allVoiceTiltOffset * 24.0f,
+                -12.0f, 12.0f);
+            for (size_t i = 0; i < polyphonyCount_; ++i) {
+                voices_[i].setMixTilt(modTilt);
             }
         }
 
@@ -1270,7 +1284,8 @@ private:
     void processBlockMono(size_t numSamples,
                           float allVoiceFilterCutoffOffset,
                           float allVoiceMorphOffset,
-                          float allVoiceTranceGateOffset) noexcept {
+                          float allVoiceTranceGateOffset,
+                          float allVoiceTiltOffset) noexcept {
         // Forward AllVoice modulation offsets to voice 0 (FR-021)
         if (allVoiceFilterCutoffOffset != 0.0f) {
             float modCutoff = std::clamp(
@@ -1288,6 +1303,12 @@ private:
                 baseTranceGateRateHz_ + allVoiceTranceGateOffset * 50.0f,
                 0.1f, 100.0f);
             voices_[0].setTranceGateRate(modRate);
+        }
+        if (allVoiceTiltOffset != 0.0f) {
+            float modTilt = std::clamp(
+                voiceMixTilt_ + allVoiceTiltOffset * 24.0f,
+                -12.0f, 12.0f);
+            voices_[0].setMixTilt(modTilt);
         }
 
         // Track if voice 0 was active

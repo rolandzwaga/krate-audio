@@ -179,11 +179,11 @@ inline const Steinberg::Vst::TChar* const kModSourceStrings[] = {
 };
 
 // =============================================================================
-// RuinaeModDest dropdown (7 destinations, stepCount = 6)
-// Values start at 64 in the enum, so we map 0-6 to 64-70.
+// RuinaeModDest dropdown (8 destinations, stepCount = 7)
+// Values start at 64 in the enum, so we map 0-7 to 64-71.
 // =============================================================================
 
-inline constexpr int kModDestCount = 7;
+inline constexpr int kModDestCount = 8;
 
 inline const Steinberg::Vst::TChar* const kModDestStrings[] = {
     STR16("Global Flt Cutoff"),
@@ -193,9 +193,10 @@ inline const Steinberg::Vst::TChar* const kModDestStrings[] = {
     STR16("All Voice Flt Cutoff"),
     STR16("All Voice Morph Pos"),
     STR16("All Voice Gate Rate"),
+    STR16("All Voice Spectral Tilt"),
 };
 
-// Helper: map dropdown index (0-6) to RuinaeModDest enum value (64-70)
+// Helper: map dropdown index (0-7) to RuinaeModDest enum value (64-71)
 inline Krate::DSP::RuinaeModDest modDestFromIndex(int index) {
     return static_cast<Krate::DSP::RuinaeModDest>(
         static_cast<uint32_t>(Krate::DSP::RuinaeModDest::GlobalFilterCutoff) + index);

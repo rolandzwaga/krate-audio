@@ -638,6 +638,7 @@ TEST_CASE("RuinaeEngine RuinaeModDest enum values", "[ruinae-engine][modulation]
         REQUIRE(static_cast<uint32_t>(RuinaeModDest::AllVoiceFilterCutoff) == 68);
         REQUIRE(static_cast<uint32_t>(RuinaeModDest::AllVoiceMorphPosition) == 69);
         REQUIRE(static_cast<uint32_t>(RuinaeModDest::AllVoiceTranceGateRate) == 70);
+        REQUIRE(static_cast<uint32_t>(RuinaeModDest::AllVoiceSpectralTilt) == 71);
     }
 }
 
@@ -1217,6 +1218,41 @@ TEST_CASE("RuinaeEngine AllVoice modulation forwarding", "[ruinae-engine][modula
         REQUIRE(rmsMorph > 0.0f);
         // We can't predict which is louder, but they should differ
         // (unless both oscillators are identical, which is unlikely)
+    }
+
+    SECTION("AllVoiceSpectralTilt offset changes voice output") {
+        // Use SpectralMorph mode where tilt has an effect
+        engine.setMixMode(MixMode::SpectralMorph);
+        engine.setMixPosition(0.5f);
+        engine.setMixTilt(0.0f); // Neutral tilt
+        engine.noteOn(60, 100);
+
+        std::vector<float> leftFlat(512), rightFlat(512);
+        for (int i = 0; i < 10; ++i) {
+            engine.processBlock(leftFlat.data(), rightFlat.data(), 512);
+        }
+        float rmsFlat = computeRMS(leftFlat.data(), 512);
+
+        // Reset and apply AllVoiceSpectralTilt offset
+        engine.reset();
+        engine.setMixMode(MixMode::SpectralMorph);
+        engine.setMixPosition(0.5f);
+        engine.setMixTilt(0.0f);
+        engine.setGlobalModRoute(0, ModSource::Macro1,
+                                 RuinaeModDest::AllVoiceSpectralTilt, 1.0f);
+        engine.setMacroValue(0, 1.0f); // Push tilt toward +12 dB/oct
+
+        engine.noteOn(60, 100);
+
+        std::vector<float> leftTilt(512), rightTilt(512);
+        for (int i = 0; i < 10; ++i) {
+            engine.processBlock(leftTilt.data(), rightTilt.data(), 512);
+        }
+        float rmsTilt = computeRMS(leftTilt.data(), 512);
+
+        // Both should produce audio
+        REQUIRE(rmsFlat > 0.0f);
+        REQUIRE(rmsTilt > 0.0f);
     }
 }
 

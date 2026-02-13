@@ -37,12 +37,12 @@ inline constexpr int kNumVoiceSources = 8;
 // ModDestination Enum
 // ==============================================================================
 // Destination indices are tab-dependent (same pattern as sources):
-//   Voice tab:  indices 0-6 → per-voice targets (FilterCutoff..OscBPitch)
-//   Global tab: indices 0-6 → global/all-voice targets matching DSP RuinaeModDest
+//   Voice tab:  indices 0-7 → per-voice targets (FilterCutoff..SpectralTilt)
+//   Global tab: indices 0-7 → global/all-voice targets matching DSP RuinaeModDest
 // FR-012, FR-013, FR-014
 
 enum class ModDestination : uint8_t {
-    // Voice tab destinations (0-6). On the Global tab, indices 0-6 have
+    // Voice tab destinations (0-7). On the Global tab, indices 0-7 have
     // different meanings — see kGlobalDestNames for global tab labels.
     FilterCutoff = 0,
     FilterResonance,
@@ -51,14 +51,15 @@ enum class ModDestination : uint8_t {
     TranceGateDepth,
     OscAPitch,
     OscBPitch,
-    kNumDestinations = 7
+    SpectralTilt,
+    kNumDestinations = 8
 };
 
 /// Number of destinations visible in the Voice tab (per-voice)
-inline constexpr int kNumVoiceDestinations = 7;
+inline constexpr int kNumVoiceDestinations = 8;
 
 /// Number of destinations visible in the Global tab (matching DSP kModDestCount)
-inline constexpr int kNumGlobalDestinations = 7;
+inline constexpr int kNumGlobalDestinations = 8;
 
 // ==============================================================================
 // ModRoute Struct
@@ -141,8 +142,8 @@ struct ModDestInfo {
     const char* abbreviation;
 };
 
-/// Voice tab destinations (indices 0-6): per-voice targets
-inline constexpr std::array<ModDestInfo, 7> kVoiceDestNames = {{
+/// Voice tab destinations (indices 0-7): per-voice targets
+inline constexpr std::array<ModDestInfo, 8> kVoiceDestNames = {{
     {"Filter Cutoff",      "FCut"},
     {"Filter Resonance",   "FRes"},
     {"Morph Position",     "Mrph"},
@@ -150,10 +151,11 @@ inline constexpr std::array<ModDestInfo, 7> kVoiceDestNames = {{
     {"TranceGate Depth",   "Gate"},
     {"OSC A Pitch",        "OsA"},
     {"OSC B Pitch",        "OsB"},
+    {"Spectral Tilt",      "Tilt"},
 }};
 
-/// Global tab destinations (indices 0-6): matching DSP RuinaeModDest 64-70
-inline constexpr std::array<ModDestInfo, 7> kGlobalDestNames = {{
+/// Global tab destinations (indices 0-7): matching DSP RuinaeModDest 64-71
+inline constexpr std::array<ModDestInfo, 8> kGlobalDestNames = {{
     {"Global Filter Cutoff",    "GFCt"},
     {"Global Filter Resonance", "GFRs"},
     {"Master Volume",           "Mstr"},
@@ -161,6 +163,7 @@ inline constexpr std::array<ModDestInfo, 7> kGlobalDestNames = {{
     {"All Voice Filter Cutoff", "VFCt"},
     {"All Voice Morph Pos",     "VMrp"},
     {"All Voice Gate Rate",     "VGat"},
+    {"All Voice Spectral Tilt", "VTlt"},
 }};
 
 // ==============================================================================

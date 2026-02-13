@@ -388,6 +388,17 @@ public:
             output[i] = ampEnvVal;
         }
 
+        // Apply per-voice spectral tilt modulation (takes effect on next SpectralMorph block)
+        {
+            const float tiltModOffset =
+                modRouter_.getOffset(VoiceModDest::SpectralTilt)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::SpectralTilt)];
+            if (tiltModOffset != 0.0f && spectralMorph_) {
+                const float modulatedTilt = std::clamp(mixTilt_ + tiltModOffset, -12.0f, 12.0f);
+                spectralMorph_->setSpectralTilt(modulatedTilt);
+            }
+        }
+
         // Step 5: Distortion (FR-013 through FR-015)
         if (distortionType_ != RuinaeDistortionType::Clean && distortionMix_ > 0.0f) {
             if (distortionMix_ >= 1.0f) {
@@ -516,7 +527,8 @@ public:
     /// Range: -12.0 to +12.0 dB/octave. Pivot at 1 kHz.
     void setMixTilt(float tiltDb) noexcept {
         if (detail::isNaN(tiltDb) || detail::isInf(tiltDb)) return;
-        if (spectralMorph_) spectralMorph_->setSpectralTilt(tiltDb);
+        mixTilt_ = std::clamp(tiltDb, -12.0f, 12.0f);
+        if (spectralMorph_) spectralMorph_->setSpectralTilt(mixTilt_);
     }
 
     // =========================================================================
@@ -976,6 +988,7 @@ private:
     // Mixer
     MixMode mixMode_{MixMode::CrossfadeMix};
     float mixPosition_{0.5f};
+    float mixTilt_{0.0f};   // Base spectral tilt in dB/octave [-12, +12]
     std::unique_ptr<SpectralMorphFilter> spectralMorph_;  // Pre-allocated at prepare() (SC-004)
 
     // Pre-allocated filters (FR-010: all types alive simultaneously)

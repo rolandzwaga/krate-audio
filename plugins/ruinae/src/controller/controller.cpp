@@ -48,7 +48,7 @@ constexpr Steinberg::int32 kControllerStateVersion = 3;
 // Maps destination index to the actual VST parameter ID of that knob.
 // Tab-dependent: voice tab (0-6) and global tab (0-6) have different mappings.
 // Used by ModRingIndicator base value sync (T069-T072).
-static constexpr std::array<Steinberg::Vst::ParamID, 7> kVoiceDestParamIds = {{
+static constexpr std::array<Steinberg::Vst::ParamID, 8> kVoiceDestParamIds = {{
     kFilterCutoffId,          // 0: Filter Cutoff
     kFilterResonanceId,       // 1: Filter Resonance
     kMixerPositionId,         // 2: Morph Position
@@ -56,9 +56,10 @@ static constexpr std::array<Steinberg::Vst::ParamID, 7> kVoiceDestParamIds = {{
     kTranceGateDepthId,       // 4: TranceGate Depth
     kOscATuneId,              // 5: OSC A Pitch
     kOscBTuneId,              // 6: OSC B Pitch
+    kMixerTiltId,             // 7: Spectral Tilt
 }};
 
-static constexpr std::array<Steinberg::Vst::ParamID, 7> kGlobalDestParamIds = {{
+static constexpr std::array<Steinberg::Vst::ParamID, 8> kGlobalDestParamIds = {{
     kGlobalFilterCutoffId,    // 0: Global Filter Cutoff
     kGlobalFilterResonanceId, // 1: Global Filter Resonance
     kMasterGainId,            // 2: Master Volume
@@ -66,6 +67,7 @@ static constexpr std::array<Steinberg::Vst::ParamID, 7> kGlobalDestParamIds = {{
     kFilterCutoffId,          // 4: All Voice Filter Cutoff
     kMixerPositionId,         // 5: All Voice Morph Position
     kTranceGateDepthId,       // 6: All Voice TranceGate Rate
+    kMixerTiltId,             // 7: All Voice Spectral Tilt
 }};
 
 // ==============================================================================
