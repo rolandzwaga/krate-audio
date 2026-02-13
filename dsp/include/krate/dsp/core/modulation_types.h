@@ -97,6 +97,7 @@ struct ModRouting {
     uint32_t destParamId = 0;              ///< Destination VST parameter ID
     float amount = 0.0f;                   ///< Bipolar amount [-1.0, +1.0]
     ModCurve curve = ModCurve::Linear;     ///< Response curve shape
+    float smoothMs = 0.0f;                 ///< Per-route output smoothing time (0 = off)
     bool active = false;                   ///< Whether this slot is in use
 };
 

@@ -12,7 +12,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include "engine/ruinae_effects_chain.h"
-#include <krate/dsp/systems/ruinae_types.h>
+#include "ruinae_types.h"
 
 #include <artifact_detection.h>
 

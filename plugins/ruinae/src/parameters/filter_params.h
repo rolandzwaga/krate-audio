@@ -20,7 +20,7 @@
 namespace Ruinae {
 
 struct RuinaeFilterParams {
-    std::atomic<int> type{0};            // RuinaeFilterType (0-6)
+    std::atomic<int> type{0};            // RuinaeFilterType (0-12)
     std::atomic<float> cutoffHz{20000.0f}; // 20-20000 Hz (exponential)
     std::atomic<float> resonance{0.1f};  // 0.1-30.0
     std::atomic<float> envAmount{0.0f};  // -48 to +48 semitones
@@ -34,6 +34,19 @@ struct RuinaeFilterParams {
     // SVF-specific
     std::atomic<int> svfSlope{1};        // 1=12dB (single), 2=24dB (cascaded)
     std::atomic<float> svfDrive{0.0f};   // 0-24 dB
+    std::atomic<float> svfGain{0.0f};    // -24 to +24 dB (Peak/LowShelf/HighShelf)
+    // Envelope filter-specific
+    std::atomic<int> envSubType{0};      // 0=LP, 1=BP, 2=HP
+    std::atomic<float> envSensitivity{0.0f}; // -24 to +24 dB
+    std::atomic<float> envDepth{1.0f};   // 0-1
+    std::atomic<float> envAttack{10.0f}; // 0.1-500 ms
+    std::atomic<float> envRelease{100.0f}; // 1-5000 ms
+    std::atomic<int> envDirection{0};    // 0=Up, 1=Down
+    // Self-oscillating filter-specific
+    std::atomic<float> selfOscGlide{0.0f};   // 0-5000 ms
+    std::atomic<float> selfOscExtMix{0.5f};  // 0-1 (0=pure osc, 1=external only)
+    std::atomic<float> selfOscShape{0.0f};   // 0-1 saturation
+    std::atomic<float> selfOscRelease{500.0f}; // 10-2000 ms
 };
 
 inline void handleFilterParamChange(
@@ -113,6 +126,77 @@ inline void handleFilterParamChange(
                 std::clamp(static_cast<float>(value * 24.0), 0.0f, 24.0f),
                 std::memory_order_relaxed);
             break;
+        case kFilterSvfGainId:
+            // 0-1 -> -24 to +24 dB
+            params.svfGain.store(
+                std::clamp(static_cast<float>(value * 48.0 - 24.0), -24.0f, 24.0f),
+                std::memory_order_relaxed);
+            break;
+        // Envelope filter params
+        case kFilterEnvFltSubTypeId:
+            // 0-1 -> 0-2 (stepCount=2)
+            params.envSubType.store(
+                std::clamp(static_cast<int>(value * 2.0 + 0.5), 0, 2),
+                std::memory_order_relaxed);
+            break;
+        case kFilterEnvFltSensitivityId:
+            // 0-1 -> -24 to +24 dB
+            params.envSensitivity.store(
+                std::clamp(static_cast<float>(value * 48.0 - 24.0), -24.0f, 24.0f),
+                std::memory_order_relaxed);
+            break;
+        case kFilterEnvFltDepthId:
+            params.envDepth.store(
+                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                std::memory_order_relaxed);
+            break;
+        case kFilterEnvFltAttackId: {
+            // 0-1 -> 0.1-500 ms (exponential)
+            float ms = 0.1f * std::pow(5000.0f, static_cast<float>(value));
+            params.envAttack.store(
+                std::clamp(ms, 0.1f, 500.0f),
+                std::memory_order_relaxed);
+            break;
+        }
+        case kFilterEnvFltReleaseId: {
+            // 0-1 -> 1-5000 ms (exponential)
+            float ms = 1.0f * std::pow(5000.0f, static_cast<float>(value));
+            params.envRelease.store(
+                std::clamp(ms, 1.0f, 5000.0f),
+                std::memory_order_relaxed);
+            break;
+        }
+        case kFilterEnvFltDirectionId:
+            // 0-1 -> 0 or 1 (stepCount=1)
+            params.envDirection.store(
+                std::clamp(static_cast<int>(value + 0.5), 0, 1),
+                std::memory_order_relaxed);
+            break;
+        // Self-oscillating filter params
+        case kFilterSelfOscGlideId:
+            // 0-1 -> 0-5000 ms
+            params.selfOscGlide.store(
+                std::clamp(static_cast<float>(value * 5000.0), 0.0f, 5000.0f),
+                std::memory_order_relaxed);
+            break;
+        case kFilterSelfOscExtMixId:
+            params.selfOscExtMix.store(
+                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                std::memory_order_relaxed);
+            break;
+        case kFilterSelfOscShapeId:
+            params.selfOscShape.store(
+                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                std::memory_order_relaxed);
+            break;
+        case kFilterSelfOscReleaseId: {
+            // 0-1 -> 10-2000 ms (exponential)
+            float ms = 10.0f * std::pow(200.0f, static_cast<float>(value));
+            params.selfOscRelease.store(
+                std::clamp(ms, 10.0f, 2000.0f),
+                std::memory_order_relaxed);
+            break;
+        }
         default: break;
     }
 }
@@ -122,7 +206,9 @@ inline void registerFilterParams(Steinberg::Vst::ParameterContainer& parameters)
     parameters.addParameter(createDropdownParameter(
         STR16("Filter Type"), kFilterTypeId,
         {STR16("SVF LP"), STR16("SVF HP"), STR16("SVF BP"), STR16("SVF Notch"),
-         STR16("Ladder"), STR16("Formant"), STR16("Comb")}
+         STR16("Ladder"), STR16("Formant"), STR16("Comb"),
+         STR16("SVF Allpass"), STR16("SVF Peak"), STR16("SVF Lo Shelf"),
+         STR16("SVF Hi Shelf"), STR16("Env Filter"), STR16("Self-Osc")}
     ));
     parameters.addParameter(STR16("Filter Cutoff"), STR16("Hz"), 0, 1.0,
         ParameterInfo::kCanAutomate, kFilterCutoffId);
@@ -154,6 +240,34 @@ inline void registerFilterParams(Steinberg::Vst::ParameterContainer& parameters)
     ));
     parameters.addParameter(STR16("SVF Drive"), STR16("dB"), 0, 0.0,
         ParameterInfo::kCanAutomate, kFilterSvfDriveId);
+    parameters.addParameter(STR16("SVF Gain"), STR16("dB"), 0, 0.5,
+        ParameterInfo::kCanAutomate, kFilterSvfGainId);
+    // Envelope filter-specific
+    parameters.addParameter(createDropdownParameter(
+        STR16("Env Filter Type"), kFilterEnvFltSubTypeId,
+        {STR16("LP"), STR16("BP"), STR16("HP")}
+    ));
+    parameters.addParameter(STR16("Env Sensitivity"), STR16("dB"), 0, 0.5,
+        ParameterInfo::kCanAutomate, kFilterEnvFltSensitivityId);
+    parameters.addParameter(STR16("Env Depth"), STR16(""), 0, 1.0,
+        ParameterInfo::kCanAutomate, kFilterEnvFltDepthId);
+    parameters.addParameter(STR16("Env Attack"), STR16("ms"), 0, 0.35,
+        ParameterInfo::kCanAutomate, kFilterEnvFltAttackId);
+    parameters.addParameter(STR16("Env Release"), STR16("ms"), 0, 0.54,
+        ParameterInfo::kCanAutomate, kFilterEnvFltReleaseId);
+    parameters.addParameter(createDropdownParameter(
+        STR16("Env Direction"), kFilterEnvFltDirectionId,
+        {STR16("Up"), STR16("Down")}
+    ));
+    // Self-oscillating filter-specific
+    parameters.addParameter(STR16("Self-Osc Glide"), STR16("ms"), 0, 0.0,
+        ParameterInfo::kCanAutomate, kFilterSelfOscGlideId);
+    parameters.addParameter(STR16("Self-Osc Ext Mix"), STR16(""), 0, 0.5,
+        ParameterInfo::kCanAutomate, kFilterSelfOscExtMixId);
+    parameters.addParameter(STR16("Self-Osc Shape"), STR16(""), 0, 0.0,
+        ParameterInfo::kCanAutomate, kFilterSelfOscShapeId);
+    parameters.addParameter(STR16("Self-Osc Release"), STR16("ms"), 0, 0.47,
+        ParameterInfo::kCanAutomate, kFilterSelfOscReleaseId);
     // UI-only: Filter view mode tab (General/Type), ephemeral, not persisted
     auto* viewModeParam = new StringListParameter(
         STR16("Filter View"), kFilterViewModeTag);
@@ -193,7 +307,8 @@ inline Steinberg::tresult formatFilterParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
-        case kFilterLadderDriveId: {
+        case kFilterLadderDriveId:
+        case kFilterSvfDriveId: {
             char8 text[32];
             snprintf(text, sizeof(text), "%.1f dB", value * 24.0);
             UString(string, 128).fromAscii(text);
@@ -221,15 +336,48 @@ inline Steinberg::tresult formatFilterParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
-        case kFilterCombDampingId: {
+        case kFilterCombDampingId:
+        case kFilterEnvFltDepthId:
+        case kFilterSelfOscExtMixId:
+        case kFilterSelfOscShapeId: {
             char8 text[32];
             snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
-        case kFilterSvfDriveId: {
+        case kFilterSvfGainId:
+        case kFilterEnvFltSensitivityId: {
             char8 text[32];
-            snprintf(text, sizeof(text), "%.1f dB", value * 24.0);
+            snprintf(text, sizeof(text), "%+.1f dB", value * 48.0 - 24.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kFilterEnvFltAttackId: {
+            float ms = 0.1f * std::pow(5000.0f, static_cast<float>(value));
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.1f ms", ms);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kFilterEnvFltReleaseId: {
+            float ms = 1.0f * std::pow(5000.0f, static_cast<float>(value));
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f ms", ms);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kFilterSelfOscGlideId: {
+            float ms = static_cast<float>(value * 5000.0);
+            char8 text[32];
+            if (ms < 1.0f) snprintf(text, sizeof(text), "Off");
+            else snprintf(text, sizeof(text), "%.0f ms", ms);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kFilterSelfOscReleaseId: {
+            float ms = 10.0f * std::pow(200.0f, static_cast<float>(value));
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f ms", ms);
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
@@ -253,6 +401,18 @@ inline void saveFilterParams(const RuinaeFilterParams& params, Steinberg::IBStre
     // SVF-specific (v6+)
     streamer.writeInt32(params.svfSlope.load(std::memory_order_relaxed));
     streamer.writeFloat(params.svfDrive.load(std::memory_order_relaxed));
+    // New filter types (v7+)
+    streamer.writeFloat(params.svfGain.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.envSubType.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.envSensitivity.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.envDepth.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.envAttack.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.envRelease.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.envDirection.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.selfOscGlide.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.selfOscExtMix.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.selfOscShape.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.selfOscRelease.load(std::memory_order_relaxed));
 }
 
 inline bool loadFilterParams(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
@@ -293,6 +453,37 @@ inline bool loadFilterParamsV5(RuinaeFilterParams& params, Steinberg::IBStreamer
     params.svfSlope.store(intVal, std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.svfDrive.store(floatVal, std::memory_order_relaxed);
+    return true;
+}
+
+inline bool loadFilterParamsV6(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
+    if (!loadFilterParamsV5(params, streamer)) return false;
+    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    // SVF gain
+    if (!streamer.readFloat(floatVal)) return false;
+    params.svfGain.store(floatVal, std::memory_order_relaxed);
+    // Envelope filter
+    if (!streamer.readInt32(intVal)) return false;
+    params.envSubType.store(intVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.envSensitivity.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.envDepth.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.envAttack.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.envRelease.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readInt32(intVal)) return false;
+    params.envDirection.store(intVal, std::memory_order_relaxed);
+    // Self-oscillating filter
+    if (!streamer.readFloat(floatVal)) return false;
+    params.selfOscGlide.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.selfOscExtMix.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.selfOscShape.store(floatVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.selfOscRelease.store(floatVal, std::memory_order_relaxed);
     return true;
 }
 
@@ -341,6 +532,47 @@ inline void loadFilterParamsToControllerV5(
         setParam(kFilterSvfSlopeId, static_cast<double>(intVal - 1));
     if (streamer.readFloat(floatVal))
         setParam(kFilterSvfDriveId, static_cast<double>(floatVal / 24.0f));
+}
+
+template<typename SetParamFunc>
+inline void loadFilterParamsToControllerV6(
+    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    loadFilterParamsToControllerV5(streamer, setParam);
+    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    // SVF gain: -24..+24 -> 0..1
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterSvfGainId, static_cast<double>((floatVal + 24.0f) / 48.0f));
+    // Envelope filter
+    if (streamer.readInt32(intVal))
+        setParam(kFilterEnvFltSubTypeId, static_cast<double>(intVal) / 2.0);
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterEnvFltSensitivityId, static_cast<double>((floatVal + 24.0f) / 48.0f));
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterEnvFltDepthId, static_cast<double>(floatVal));
+    if (streamer.readFloat(floatVal)) {
+        // Inverse of exponential: 0.1*5000^x = ms -> x = log(ms/0.1)/log(5000)
+        double norm = (floatVal > 0.1f) ? std::log(floatVal / 0.1) / std::log(5000.0) : 0.0;
+        setParam(kFilterEnvFltAttackId, std::clamp(norm, 0.0, 1.0));
+    }
+    if (streamer.readFloat(floatVal)) {
+        // Inverse of exponential: 1*5000^x = ms -> x = log(ms)/log(5000)
+        double norm = (floatVal > 1.0f) ? std::log(static_cast<double>(floatVal)) / std::log(5000.0) : 0.0;
+        setParam(kFilterEnvFltReleaseId, std::clamp(norm, 0.0, 1.0));
+    }
+    if (streamer.readInt32(intVal))
+        setParam(kFilterEnvFltDirectionId, static_cast<double>(intVal));
+    // Self-oscillating filter
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterSelfOscGlideId, static_cast<double>(floatVal / 5000.0f));
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterSelfOscExtMixId, static_cast<double>(floatVal));
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterSelfOscShapeId, static_cast<double>(floatVal));
+    if (streamer.readFloat(floatVal)) {
+        // Inverse of exponential: 10*200^x = ms -> x = log(ms/10)/log(200)
+        double norm = (floatVal > 10.0f) ? std::log(floatVal / 10.0) / std::log(200.0) : 0.0;
+        setParam(kFilterSelfOscReleaseId, std::clamp(norm, 0.0, 1.0));
+    }
 }
 
 } // namespace Ruinae

@@ -7,7 +7,7 @@
 // Feature: 041-ruinae-voice-architecture
 // Layer: 3 (Systems)
 // Dependencies:
-//   - ruinae_types.h (VoiceModRoute, VoiceModSource, VoiceModDest enums)
+//   - voice_mod_types.h (VoiceModRoute, VoiceModSource, VoiceModDest enums)
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations, fixed-size arrays)
@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <krate/dsp/systems/ruinae_types.h>
+#include <krate/dsp/systems/voice_mod_types.h>
 #include <krate/dsp/core/db_utils.h>
 
 #include <algorithm>

@@ -112,6 +112,12 @@ public:
             smoother.configure(120.0f, static_cast<float>(sampleRate));
         }
 
+        // Per-route signal smoothers start disabled (0ms = passthrough)
+        for (auto& smoother : signalSmoothers_) {
+            smoother.configure(kDefaultSmoothingTimeMs, static_cast<float>(sampleRate));
+            smoother.snapTo(0.0f);
+        }
+
         reset();
     }
 
@@ -133,6 +139,9 @@ public:
         destActive_.fill(false);
 
         for (auto& smoother : amountSmoothers_) {
+            smoother.reset();
+        }
+        for (auto& smoother : signalSmoothers_) {
             smoother.reset();
         }
 
@@ -324,6 +333,12 @@ public:
         } else {
             // New route activation (or deactivation+reactivation): snap
             amountSmoothers_[index].snapTo(routing.amount);
+        }
+
+        // Configure signal smoother if smoothMs changed
+        if (routing.smoothMs > 0.0f) {
+            signalSmoothers_[index].configure(routing.smoothMs,
+                                               static_cast<float>(sampleRate_));
         }
     }
 
@@ -672,6 +687,17 @@ private:
             float contribStart = applyBipolarModulation(routing.curve, sourceValue, amountStart);
             float contribEnd = applyBipolarModulation(routing.curve, sourceValue, amountEnd);
 
+            // Apply per-route signal smoothing if enabled
+            if (routing.smoothMs > 0.0f) {
+                // Use smoother on end-of-block value; start = previous smoothed state
+                contribStart = signalSmoothers_[i].getCurrentValue();
+                signalSmoothers_[i].setTarget(contribEnd);
+                if (numSamples > 0) {
+                    signalSmoothers_[i].advanceSamples(numSamples);
+                }
+                contribEnd = signalSmoothers_[i].getCurrentValue();
+            }
+
             // Accumulate to destination
             if (routing.destParamId < kMaxModDestinations) {
                 modOffsetsStart_[routing.destParamId] += contribStart;
@@ -734,6 +760,7 @@ private:
 
     std::array<ModRouting, kMaxModRoutings> routings_ = {};
     std::array<OnePoleSmoother, kMaxModRoutings> amountSmoothers_;
+    std::array<OnePoleSmoother, kMaxModRoutings> signalSmoothers_;
 
     // Per-destination modulation offset accumulation
     std::array<float, kMaxModDestinations> modOffsets_ = {};

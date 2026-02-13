@@ -98,6 +98,17 @@
         <control-tag name="FilterCombDamping" tag="409"/>
         <control-tag name="FilterSvfSlope" tag="410"/>
         <control-tag name="FilterSvfDrive" tag="411"/>
+        <control-tag name="FilterSvfGain" tag="412"/>
+        <control-tag name="FilterEnvFltSubType" tag="413"/>
+        <control-tag name="FilterEnvFltSensitivity" tag="414"/>
+        <control-tag name="FilterEnvFltDepth" tag="415"/>
+        <control-tag name="FilterEnvFltAttack" tag="416"/>
+        <control-tag name="FilterEnvFltRelease" tag="417"/>
+        <control-tag name="FilterEnvFltDirection" tag="418"/>
+        <control-tag name="FilterSelfOscGlide" tag="421"/>
+        <control-tag name="FilterSelfOscExtMix" tag="422"/>
+        <control-tag name="FilterSelfOscShape" tag="423"/>
+        <control-tag name="FilterSelfOscRelease" tag="424"/>
         <control-tag name="FilterViewMode" tag="10016"/>
 
         <!-- Distortion -->
@@ -126,10 +137,10 @@
         <control-tag name="AmpEnvRelease" tag="703"/>
 
         <!-- Envelopes: Filter (ENV 2) -->
-        <control-tag name="FilterEnvAttack" tag="800"/>
+        <control-tag name="FilterEnvFltAttack" tag="800"/>
         <control-tag name="FilterEnvDecay" tag="801"/>
         <control-tag name="FilterEnvSustain" tag="802"/>
-        <control-tag name="FilterEnvRelease" tag="803"/>
+        <control-tag name="FilterEnvFltRelease" tag="803"/>
 
         <!-- Envelopes: Mod (ENV 3) -->
         <control-tag name="ModEnvAttack" tag="900"/>
@@ -510,7 +521,7 @@
     <template name="Filter_TypeSpecific" size="154, 96" class="CViewContainer" transparent="true">
         <view class="UIViewSwitchContainer"
               origin="0, 0" size="154, 96"
-              template-names="Filter_SVF_LP,Filter_SVF_HP,Filter_SVF_BP,Filter_SVF_Notch,Filter_Ladder,Filter_Formant,Filter_Comb"
+              template-names="Filter_SVF_LP,Filter_SVF_HP,Filter_SVF_BP,Filter_SVF_Notch,Filter_Ladder,Filter_Formant,Filter_Comb,Filter_SVF_Allpass,Filter_SVF_Peak,Filter_SVF_LowShelf,Filter_SVF_HighShelf,Filter_EnvFilter,Filter_SelfOsc"
               template-switch-control="FilterType"
               transparent="true"/>
     </template>
@@ -628,6 +639,166 @@
         <view class="CTextLabel" origin="0, 36" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Damp"/>
+    </template>
+
+    <!-- SVF Allpass: Slope + Drive (same layout as SVF LP) -->
+    <template name="Filter_SVF_Allpass" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="60, 18"
+              control-tag="FilterSvfSlope" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 24" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slope"/>
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
+              control-tag="FilterSvfDrive" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+    </template>
+
+    <!-- SVF Peak: Slope + Drive + Gain -->
+    <template name="Filter_SVF_Peak" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="60, 18"
+              control-tag="FilterSvfSlope" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 24" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slope"/>
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
+              control-tag="FilterSvfDrive" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+        <view class="ArcKnob" origin="8, 48" size="36, 36"
+              control-tag="FilterSvfGain" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 84" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Gain"/>
+    </template>
+
+    <!-- SVF Low Shelf: Slope + Drive + Gain -->
+    <template name="Filter_SVF_LowShelf" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="60, 18"
+              control-tag="FilterSvfSlope" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 24" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slope"/>
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
+              control-tag="FilterSvfDrive" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+        <view class="ArcKnob" origin="8, 48" size="36, 36"
+              control-tag="FilterSvfGain" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 84" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Gain"/>
+    </template>
+
+    <!-- SVF High Shelf: Slope + Drive + Gain -->
+    <template name="Filter_SVF_HighShelf" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="60, 18"
+              control-tag="FilterSvfSlope" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 24" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slope"/>
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
+              control-tag="FilterSvfDrive" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+        <view class="ArcKnob" origin="8, 48" size="36, 36"
+              control-tag="FilterSvfGain" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 84" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Gain"/>
+    </template>
+
+    <!-- Envelope Filter: SubType + Sensitivity + Depth + Direction + Attack + Release -->
+    <template name="Filter_EnvFilter" size="154, 96" class="CViewContainer" transparent="true">
+        <!-- Row 1: SubType dropdown + Sensitivity knob + Depth knob -->
+        <view class="COptionMenu" origin="8, 4" size="56, 18"
+              control-tag="FilterEnvFltSubType" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 24" size="56, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Type"/>
+        <view class="ArcKnob" origin="72, 0" size="36, 36"
+              control-tag="FilterEnvFltSensitivity" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="64, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Sens"/>
+        <view class="ArcKnob" origin="116, 0" size="36, 36"
+              control-tag="FilterEnvFltDepth" default-value="1.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="108, 36" size="44, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Depth"/>
+        <!-- Row 2: Direction dropdown + Attack knob + Release knob -->
+        <view class="COptionMenu" origin="8, 52" size="56, 18"
+              control-tag="FilterEnvFltDirection" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 72" size="56, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Dir"/>
+        <view class="ArcKnob" origin="72, 48" size="36, 36"
+              control-tag="FilterEnvFltAttack" default-value="0.35"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="64, 84" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Attack"/>
+        <view class="ArcKnob" origin="116, 48" size="36, 36"
+              control-tag="FilterEnvFltRelease" default-value="0.54"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="108, 84" size="44, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Release"/>
+    </template>
+
+    <!-- Self-Oscillating Filter: Glide + Ext Mix + Shape + Release -->
+    <template name="Filter_SelfOsc" size="154, 96" class="CViewContainer" transparent="true">
+        <!-- Row 1: Glide + Ext Mix -->
+        <view class="ArcKnob" origin="8, 0" size="36, 36"
+              control-tag="FilterSelfOscGlide" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Glide"/>
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
+              control-tag="FilterSelfOscExtMix" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Ext Mix"/>
+        <!-- Row 2: Shape + Release -->
+        <view class="ArcKnob" origin="8, 48" size="36, 36"
+              control-tag="FilterSelfOscShape" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 84" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Shape"/>
+        <view class="ArcKnob" origin="84, 48" size="36, 36"
+              control-tag="FilterSelfOscRelease" default-value="0.47"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 84" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Release"/>
     </template>
 
     <template
@@ -1002,7 +1173,7 @@
                       text-alignment="center" transparent="true"
                       text-rotation="270" title="FILTER"/>
                 <view class="ADSRDisplay" origin="16, 0" size="154, 120"
-                      control-tag="FilterEnvAttack"
+                      control-tag="FilterEnvFltAttack"
                       fill-color="filter-env-fill" stroke-color="filter-env"
                       control-point-color="filter-env"
                       background-color="bg-display" grid-color="grid"

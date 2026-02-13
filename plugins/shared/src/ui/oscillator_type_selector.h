@@ -48,7 +48,7 @@
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/detail/uiviewcreatorattributes.h"
 
-#include <krate/dsp/systems/ruinae_types.h>
+#include <krate/dsp/systems/oscillator_types.h>
 
 #include <algorithm>
 #include <array>

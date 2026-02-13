@@ -14,7 +14,9 @@
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/effects/reverb.h>
 #include <krate/dsp/processors/trance_gate.h>
-#include <krate/dsp/systems/ruinae_types.h>
+#include "ruinae_types.h"
+#include <krate/dsp/systems/oscillator_types.h>
+#include <krate/dsp/systems/voice_mod_types.h>
 #include <krate/dsp/primitives/lfo.h>
 #include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/processors/mono_handler.h>
@@ -357,8 +359,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         } else {
             if (!loadMixerParamsV3(mixerParams_, streamer)) return false;
         }
-        // v6 added SVF slope/drive; v5 added type-specific filter params
-        if (ver >= 6) {
+        // v7 added SVF gain, env filter, self-osc; v6 added SVF slope/drive; v5 added type-specific
+        if (ver >= 7) {
+            if (!loadFilterParamsV6(filterParams_, streamer)) return false;
+        } else if (ver >= 6) {
             if (!loadFilterParamsV5(filterParams_, streamer)) return false;
         } else if (ver >= 5) {
             if (!loadFilterParamsV4(filterParams_, streamer)) return false;
@@ -557,6 +561,17 @@ void Processor::applyParamsToEngine() {
     engine_.setFilterCombDamping(filterParams_.combDamping.load(std::memory_order_relaxed));
     engine_.setFilterSvfSlope(filterParams_.svfSlope.load(std::memory_order_relaxed));
     engine_.setFilterSvfDrive(filterParams_.svfDrive.load(std::memory_order_relaxed));
+    engine_.setFilterSvfGain(filterParams_.svfGain.load(std::memory_order_relaxed));
+    engine_.setFilterEnvSubType(filterParams_.envSubType.load(std::memory_order_relaxed));
+    engine_.setFilterEnvSensitivity(filterParams_.envSensitivity.load(std::memory_order_relaxed));
+    engine_.setFilterEnvDepth(filterParams_.envDepth.load(std::memory_order_relaxed));
+    engine_.setFilterEnvAttack(filterParams_.envAttack.load(std::memory_order_relaxed));
+    engine_.setFilterEnvRelease(filterParams_.envRelease.load(std::memory_order_relaxed));
+    engine_.setFilterEnvDirection(filterParams_.envDirection.load(std::memory_order_relaxed));
+    engine_.setFilterSelfOscGlide(filterParams_.selfOscGlide.load(std::memory_order_relaxed));
+    engine_.setFilterSelfOscExtMix(filterParams_.selfOscExtMix.load(std::memory_order_relaxed));
+    engine_.setFilterSelfOscShape(filterParams_.selfOscShape.load(std::memory_order_relaxed));
+    engine_.setFilterSelfOscRelease(filterParams_.selfOscRelease.load(std::memory_order_relaxed));
 
     // --- Distortion ---
     engine_.setDistortionType(static_cast<RuinaeDistortionType>(
@@ -629,13 +644,21 @@ void Processor::applyParamsToEngine() {
         chaosModParams_.type.load(std::memory_order_relaxed)));
 
     // --- Mod Matrix (8 slots) ---
+    static constexpr float kScaleMultipliers[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
     for (int i = 0; i < 8; ++i) {
+        const auto& slot = modMatrixParams_.slots[static_cast<size_t>(i)];
         auto src = static_cast<ModSource>(
-            modMatrixParams_.slots[static_cast<size_t>(i)].source.load(std::memory_order_relaxed));
+            slot.source.load(std::memory_order_relaxed));
         auto dst = modDestFromIndex(
-            modMatrixParams_.slots[static_cast<size_t>(i)].dest.load(std::memory_order_relaxed));
-        float amt = modMatrixParams_.slots[static_cast<size_t>(i)].amount.load(std::memory_order_relaxed);
-        engine_.setGlobalModRoute(i, src, dst, amt);
+            slot.dest.load(std::memory_order_relaxed));
+        float amt = slot.amount.load(std::memory_order_relaxed);
+        int curveIdx = std::clamp(slot.curve.load(std::memory_order_relaxed), 0, 3);
+        int scaleIdx = std::clamp(slot.scale.load(std::memory_order_relaxed), 0, 4);
+        bool bypass = slot.bypass.load(std::memory_order_relaxed) != 0;
+        float smoothMs = slot.smoothMs.load(std::memory_order_relaxed);
+        auto curve = static_cast<ModCurve>(curveIdx);
+        float scaleMul = kScaleMultipliers[scaleIdx];
+        engine_.setGlobalModRoute(i, src, dst, amt, curve, scaleMul, bypass, smoothMs);
     }
 
     // --- Global Filter ---

@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include <krate/dsp/systems/ruinae_types.h>
+#include "ruinae_types.h"
 #include <krate/dsp/systems/selectable_oscillator.h>
 #include <krate/dsp/systems/voice_mod_router.h>
 
@@ -40,6 +40,8 @@
 #include <krate/dsp/processors/tape_saturator.h>
 #include <krate/dsp/processors/trance_gate.h>
 #include <krate/dsp/processors/spectral_morph_filter.h>
+#include <krate/dsp/processors/envelope_filter.h>
+#include <krate/dsp/processors/self_oscillating_filter.h>
 
 #include <algorithm>
 #include <array>
@@ -246,6 +248,13 @@ public:
         filterEnv_.gate(true);
         modEnv_.gate(true);
 
+        // Trigger self-oscillating filter if active
+        if (filterType_ == RuinaeFilterType::SelfOscillating && filterSelfOsc_) {
+            int midiNote = static_cast<int>(std::round(frequencyToMidiNote(noteFrequency_)));
+            int vel = static_cast<int>(std::round(velocity_ * 127.0f));
+            filterSelfOsc_->noteOn(std::clamp(midiNote, 0, 127), std::clamp(vel, 1, 127));
+        }
+
         // Reset per-voice LFO and TranceGate on note start
         voiceLfo_.reset();
         tranceGate_.reset();
@@ -256,6 +265,10 @@ public:
         ampEnv_.gate(false);
         filterEnv_.gate(false);
         modEnv_.gate(false);
+
+        if (filterType_ == RuinaeFilterType::SelfOscillating && filterSelfOsc_) {
+            filterSelfOsc_->noteOff();
+        }
     }
 
     /// @brief Update oscillator frequencies without retriggering envelopes (FR-030).
@@ -639,6 +652,85 @@ public:
         svfDriveDb_ = std::clamp(db, 0.0f, 24.0f);
     }
 
+    /// @brief Set SVF gain for Peak/Shelf modes (-24 to +24 dB).
+    void setFilterSvfGain(float db) noexcept {
+        if (detail::isNaN(db) || detail::isInf(db)) return;
+        svfGainDb_ = std::clamp(db, -24.0f, 24.0f);
+        filterSvf_.setGain(svfGainDb_);
+        filterSvf2_.setGain(svfGainDb_);
+    }
+
+    // --- Envelope filter setters ---
+
+    /// @brief Set envelope filter sub-type (0=LP, 1=BP, 2=HP).
+    void setFilterEnvSubType(int type) noexcept {
+        if (!filterEnvFilter_) return;
+        static constexpr EnvelopeFilter::FilterType types[] = {
+            EnvelopeFilter::FilterType::Lowpass,
+            EnvelopeFilter::FilterType::Bandpass,
+            EnvelopeFilter::FilterType::Highpass
+        };
+        filterEnvFilter_->setFilterType(types[std::clamp(type, 0, 2)]);
+    }
+
+    /// @brief Set envelope filter sensitivity (-24 to +24 dB).
+    void setFilterEnvSensitivity(float db) noexcept {
+        if (detail::isNaN(db) || detail::isInf(db)) return;
+        if (filterEnvFilter_) filterEnvFilter_->setSensitivity(std::clamp(db, -24.0f, 24.0f));
+    }
+
+    /// @brief Set envelope filter depth (0-1).
+    void setFilterEnvDepth(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        if (filterEnvFilter_) filterEnvFilter_->setDepth(std::clamp(amount, 0.0f, 1.0f));
+    }
+
+    /// @brief Set envelope filter attack time in ms.
+    void setFilterEnvAttack(float ms) noexcept {
+        if (detail::isNaN(ms) || detail::isInf(ms)) return;
+        if (filterEnvFilter_) filterEnvFilter_->setAttack(std::clamp(ms, 0.1f, 500.0f));
+    }
+
+    /// @brief Set envelope filter release time in ms.
+    void setFilterEnvRelease(float ms) noexcept {
+        if (detail::isNaN(ms) || detail::isInf(ms)) return;
+        if (filterEnvFilter_) filterEnvFilter_->setRelease(std::clamp(ms, 1.0f, 5000.0f));
+    }
+
+    /// @brief Set envelope filter direction (0=Up, 1=Down).
+    void setFilterEnvDirection(int dir) noexcept {
+        if (!filterEnvFilter_) return;
+        filterEnvFilter_->setDirection(dir == 0
+            ? EnvelopeFilter::Direction::Up
+            : EnvelopeFilter::Direction::Down);
+    }
+
+    // --- Self-oscillating filter setters ---
+
+    /// @brief Set self-oscillating filter glide time in ms.
+    void setFilterSelfOscGlide(float ms) noexcept {
+        if (detail::isNaN(ms) || detail::isInf(ms)) return;
+        if (filterSelfOsc_) filterSelfOsc_->setGlide(std::clamp(ms, 0.0f, 5000.0f));
+    }
+
+    /// @brief Set self-oscillating filter external input mix (0=pure osc, 1=external only).
+    void setFilterSelfOscExtMix(float mix) noexcept {
+        if (detail::isNaN(mix) || detail::isInf(mix)) return;
+        if (filterSelfOsc_) filterSelfOsc_->setExternalMix(std::clamp(mix, 0.0f, 1.0f));
+    }
+
+    /// @brief Set self-oscillating filter wave shape (0=clean, 1=saturated).
+    void setFilterSelfOscShape(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        if (filterSelfOsc_) filterSelfOsc_->setWaveShape(std::clamp(amount, 0.0f, 1.0f));
+    }
+
+    /// @brief Set self-oscillating filter release time in ms.
+    void setFilterSelfOscRelease(float ms) noexcept {
+        if (detail::isNaN(ms) || detail::isInf(ms)) return;
+        if (filterSelfOsc_) filterSelfOsc_->setRelease(std::clamp(ms, 10.0f, 2000.0f));
+    }
+
     // =========================================================================
     // Distortion Configuration (FR-013 through FR-015)
     // =========================================================================
@@ -780,6 +872,14 @@ private:
         filterComb_->prepare(sampleRate_, 0.05f);
         updateCombDelay(*filterComb_, filterCutoffHz_);
         updateCombFeedback(*filterComb_, filterResonance_);
+
+        filterEnvFilter_ = std::make_unique<EnvelopeFilter>();
+        filterEnvFilter_->prepare(sampleRate_);
+        filterEnvFilter_->setMix(1.0f);  // Fully wet in voice chain
+
+        filterSelfOsc_ = std::make_unique<SelfOscillatingFilter>();
+        filterSelfOsc_->prepare(sampleRate_, static_cast<int>(maxBlockSize_));
+        filterSelfOsc_->setExternalMix(0.5f);
     }
 
     /// @brief Update SVF mode based on filter type enum (both stages).
@@ -801,6 +901,28 @@ private:
                 filterSvf_.setMode(SVFMode::Notch);
                 filterSvf2_.setMode(SVFMode::Notch);
                 break;
+            case RuinaeFilterType::SVF_Allpass:
+                filterSvf_.setMode(SVFMode::Allpass);
+                filterSvf2_.setMode(SVFMode::Allpass);
+                break;
+            case RuinaeFilterType::SVF_Peak:
+                filterSvf_.setMode(SVFMode::Peak);
+                filterSvf2_.setMode(SVFMode::Peak);
+                filterSvf_.setGain(svfGainDb_);
+                filterSvf2_.setGain(svfGainDb_);
+                break;
+            case RuinaeFilterType::SVF_LowShelf:
+                filterSvf_.setMode(SVFMode::LowShelf);
+                filterSvf2_.setMode(SVFMode::LowShelf);
+                filterSvf_.setGain(svfGainDb_);
+                filterSvf2_.setGain(svfGainDb_);
+                break;
+            case RuinaeFilterType::SVF_HighShelf:
+                filterSvf_.setMode(SVFMode::HighShelf);
+                filterSvf2_.setMode(SVFMode::HighShelf);
+                filterSvf_.setGain(svfGainDb_);
+                filterSvf2_.setGain(svfGainDb_);
+                break;
             default: break;
         }
     }
@@ -815,6 +937,10 @@ private:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
             case RuinaeFilterType::SVF_Notch:
+            case RuinaeFilterType::SVF_Allpass:
+            case RuinaeFilterType::SVF_Peak:
+            case RuinaeFilterType::SVF_LowShelf:
+            case RuinaeFilterType::SVF_HighShelf:
                 filterSvf_.reset();
                 filterSvf2_.reset();
                 break;
@@ -826,6 +952,12 @@ private:
                 break;
             case RuinaeFilterType::Comb:
                 if (filterComb_) filterComb_->reset();
+                break;
+            case RuinaeFilterType::EnvelopeFilter:
+                if (filterEnvFilter_) filterEnvFilter_->reset();
+                break;
+            case RuinaeFilterType::SelfOscillating:
+                if (filterSelfOsc_) filterSelfOsc_->reset();
                 break;
             default: break;
         }
@@ -842,12 +974,16 @@ private:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
             case RuinaeFilterType::SVF_Notch:
+            case RuinaeFilterType::SVF_Allpass:
+            case RuinaeFilterType::SVF_Peak:
+            case RuinaeFilterType::SVF_LowShelf:
+            case RuinaeFilterType::SVF_HighShelf:
                 filterSvf_.snapToTarget();
                 filterSvf2_.snapToTarget();
                 break;
             default:
-                // Ladder/Formant/Comb: setCutoff already set the new
-                // coefficients. No additional snap needed.
+                // Ladder/Formant/Comb/EnvFilter/SelfOsc: setCutoff already
+                // set the new coefficients. No additional snap needed.
                 break;
         }
     }
@@ -859,6 +995,10 @@ private:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
             case RuinaeFilterType::SVF_Notch:
+            case RuinaeFilterType::SVF_Allpass:
+            case RuinaeFilterType::SVF_Peak:
+            case RuinaeFilterType::SVF_LowShelf:
+            case RuinaeFilterType::SVF_HighShelf:
                 filterSvf_.setCutoff(hz);
                 filterSvf2_.setCutoff(hz);
                 break;
@@ -873,6 +1013,15 @@ private:
             case RuinaeFilterType::Comb:
                 if (filterComb_) updateCombDelay(*filterComb_, hz);
                 break;
+            case RuinaeFilterType::EnvelopeFilter:
+                if (filterEnvFilter_) {
+                    filterEnvFilter_->setMinFrequency(std::max(20.0f, hz / 10.0f));
+                    filterEnvFilter_->setMaxFrequency(hz);
+                }
+                break;
+            case RuinaeFilterType::SelfOscillating:
+                if (filterSelfOsc_) filterSelfOsc_->setFrequency(hz);
+                break;
             default: break;
         }
     }
@@ -884,6 +1033,10 @@ private:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
             case RuinaeFilterType::SVF_Notch:
+            case RuinaeFilterType::SVF_Allpass:
+            case RuinaeFilterType::SVF_Peak:
+            case RuinaeFilterType::SVF_LowShelf:
+            case RuinaeFilterType::SVF_HighShelf:
                 filterSvf_.setResonance(q);
                 filterSvf2_.setResonance(q);
                 break;
@@ -896,6 +1049,12 @@ private:
             case RuinaeFilterType::Comb:
                 if (filterComb_) updateCombFeedback(*filterComb_, q);
                 break;
+            case RuinaeFilterType::EnvelopeFilter:
+                if (filterEnvFilter_) filterEnvFilter_->setResonance(std::clamp(q, 0.5f, 20.0f));
+                break;
+            case RuinaeFilterType::SelfOscillating:
+                if (filterSelfOsc_) filterSelfOsc_->setResonance(std::clamp((q - 0.1f) / 29.9f, 0.0f, 1.0f));
+                break;
             default: break;
         }
     }
@@ -906,7 +1065,11 @@ private:
             case RuinaeFilterType::SVF_LP:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
-            case RuinaeFilterType::SVF_Notch: {
+            case RuinaeFilterType::SVF_Notch:
+            case RuinaeFilterType::SVF_Allpass:
+            case RuinaeFilterType::SVF_Peak:
+            case RuinaeFilterType::SVF_LowShelf:
+            case RuinaeFilterType::SVF_HighShelf: {
                 float out = filterSvf_.process(input);
                 if (svfSlopeStages_ >= 2)
                     out = filterSvf2_.process(out);
@@ -920,6 +1083,10 @@ private:
                 return filterFormant_ ? filterFormant_->process(input) : input;
             case RuinaeFilterType::Comb:
                 return filterComb_ ? filterComb_->process(input) : input;
+            case RuinaeFilterType::EnvelopeFilter:
+                return filterEnvFilter_ ? filterEnvFilter_->process(input) : input;
+            case RuinaeFilterType::SelfOscillating:
+                return filterSelfOsc_ ? filterSelfOsc_->process(input) : input;
             default:
                 return input;
         }
@@ -1105,9 +1272,12 @@ private:
     SVF filterSvf2_;                    // Second SVF stage for 24dB cascade
     int svfSlopeStages_{1};             // 1=12dB (single), 2=24dB (cascaded)
     float svfDriveDb_{0.0f};            // 0-24 dB post-filter saturation
+    float svfGainDb_{0.0f};             // -24 to +24 dB (Peak/LowShelf/HighShelf)
     std::unique_ptr<LadderFilter> filterLadder_;
     std::unique_ptr<FormantFilter> filterFormant_;
     std::unique_ptr<FeedbackComb> filterComb_;
+    std::unique_ptr<EnvelopeFilter> filterEnvFilter_;
+    std::unique_ptr<SelfOscillatingFilter> filterSelfOsc_;
     RuinaeFilterType filterType_{RuinaeFilterType::SVF_LP};
     float filterCutoffHz_{1000.0f};
     float filterResonance_{0.707f};

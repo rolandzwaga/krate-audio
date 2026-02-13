@@ -7,7 +7,8 @@
 // Used by parameter registration and display formatting functions.
 // ==============================================================================
 
-#include <krate/dsp/systems/ruinae_types.h>
+#include "ruinae_types.h"
+#include <krate/dsp/systems/oscillator_types.h>
 #include <krate/dsp/core/modulation_types.h>
 #include <krate/dsp/primitives/lfo.h>
 #include <krate/dsp/primitives/svf.h>
@@ -39,7 +40,7 @@ inline const Steinberg::Vst::TChar* const kOscTypeStrings[] = {
 };
 
 // =============================================================================
-// RuinaeFilterType dropdown (7 types, stepCount = 6)
+// RuinaeFilterType dropdown (13 types, stepCount = 12)
 // =============================================================================
 
 inline constexpr int kFilterTypeCount = static_cast<int>(Krate::DSP::RuinaeFilterType::NumTypes);
@@ -52,6 +53,12 @@ inline const Steinberg::Vst::TChar* const kFilterTypeStrings[] = {
     STR16("Ladder"),
     STR16("Formant"),
     STR16("Comb"),
+    STR16("SVF Allpass"),
+    STR16("SVF Peak"),
+    STR16("SVF Lo Shelf"),
+    STR16("SVF Hi Shelf"),
+    STR16("Env Filter"),
+    STR16("Self-Osc"),
 };
 
 // =============================================================================

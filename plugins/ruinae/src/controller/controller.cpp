@@ -168,8 +168,10 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             loadMixerParamsToController(streamer, setParam);
         else
             loadMixerParamsToControllerV3(streamer, setParam);
-        // v6 added SVF slope/drive; v5 added type-specific filter params
-        if (ver >= 6)
+        // v7 added SVF gain, env filter, self-osc; v6 added SVF slope/drive
+        if (ver >= 7)
+            loadFilterParamsToControllerV6(streamer, setParam);
+        else if (ver >= 6)
             loadFilterParamsToControllerV5(streamer, setParam);
         else if (ver >= 5)
             loadFilterParamsToControllerV4(streamer, setParam);

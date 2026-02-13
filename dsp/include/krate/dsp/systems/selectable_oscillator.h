@@ -10,7 +10,7 @@
 // Dependencies:
 //   - Layer 0: core/db_utils.h (isNaN, isInf)
 //   - Layer 3: systems/oscillator_slot.h, systems/oscillator_adapters.h,
-//              systems/ruinae_types.h
+//              systems/oscillator_types.h
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, zero allocations in setType/processBlock)
@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include <krate/dsp/systems/ruinae_types.h>
+#include <krate/dsp/systems/oscillator_types.h>
 #include <krate/dsp/systems/oscillator_slot.h>
 #include <krate/dsp/systems/oscillator_adapters.h>
 

@@ -28,7 +28,7 @@
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/effects/tape_delay.h>
 #include <krate/dsp/primitives/delay_line.h>
-#include <krate/dsp/systems/ruinae_types.h>
+#include "ruinae_types.h"
 
 #include <algorithm>
 #include <array>

@@ -57,7 +57,8 @@ namespace Ruinae {
 // v4: Added MixerShift parameter to mixer pack
 // v5: Added filter type-specific params (ladder slope/drive, formant morph/gender, comb damping)
 // v6: Added SVF slope/drive params
-constexpr Steinberg::int32 kCurrentStateVersion = 6;
+// v7: Added SVF gain, envelope filter, and self-oscillating filter params
+constexpr Steinberg::int32 kCurrentStateVersion = 7;
 
 // ==============================================================================
 // Processor Class

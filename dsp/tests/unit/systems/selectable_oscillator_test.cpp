@@ -8,7 +8,8 @@
 // ==============================================================================
 
 #include <krate/dsp/systems/selectable_oscillator.h>
-#include <krate/dsp/systems/ruinae_types.h>
+#include <krate/dsp/systems/oscillator_types.h>
+#include <krate/dsp/systems/voice_mod_types.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
@@ -55,10 +56,8 @@ constexpr size_t kBlockSize = 512;
 // Phase 2: Enumeration Verification (T002)
 // =============================================================================
 
-TEST_CASE("Ruinae types: enum sizes", "[ruinae_types]") {
+TEST_CASE("DSP types: enum sizes", "[dsp_types]") {
     STATIC_REQUIRE(static_cast<uint8_t>(OscType::NumTypes) == 10);
-    STATIC_REQUIRE(static_cast<uint8_t>(RuinaeFilterType::NumTypes) == 7);
-    STATIC_REQUIRE(static_cast<uint8_t>(RuinaeDistortionType::NumTypes) == 6);
     STATIC_REQUIRE(static_cast<uint8_t>(VoiceModSource::NumSources) == 8);
     STATIC_REQUIRE(static_cast<uint8_t>(VoiceModDest::NumDestinations) == 10);
 }

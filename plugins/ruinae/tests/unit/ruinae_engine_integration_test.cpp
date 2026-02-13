@@ -1057,3 +1057,218 @@ TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
     CHECK(clicksL.empty());
     CHECK(clicksR.empty());
 }
+
+// =============================================================================
+// Regression: Mod matrix detail params (curve, scale, bypass) have no effect
+// =============================================================================
+// The UI stores curve, scale, smoothing, and bypass for each mod matrix slot,
+// but the processor/engine ignores them — curve is hardcoded to Linear, scale
+// and bypass are never read. These tests verify each parameter actually changes
+// the modulation output.
+
+TEST_CASE("RuinaeEngine regression: mod route scale affects modulation depth",
+          "[ruinae-engine-integration][modulation][regression]") {
+    // Route Macro1 (DC source at 1.0) → MasterVolume with amount=0.25.
+    // MasterVolume modulation: gain = masterGain_ + offset * 2.0
+    //
+    // With scale x1: effective amount = 0.25, offset = 0.25, gain = 1.0 + 0.5 = 1.5
+    // With scale x4: effective amount = 1.0,  offset = 1.0,  gain = 1.0 + 2.0 = 2.0 (clamped)
+    // RMS ratio should be ~2.0/1.5 = 1.33
+
+    constexpr size_t kBlock = 512;
+    constexpr int kMeasureBlocks = 20;
+
+    auto measureRmsWithScale = [&](float scaleMul) -> float {
+        RuinaeEngine engine;
+        engine.prepare(44100.0, kBlock);
+        engine.setSoftLimitEnabled(false);
+
+        // Macro1 as DC source at 1.0
+        engine.setMacroValue(0, 1.0f);
+        engine.setGlobalModRoute(0, ModSource::Macro1,
+                                 RuinaeModDest::MasterVolume, 0.25f,
+                                 ModCurve::Linear, scaleMul, false);
+
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kBlock), right(kBlock);
+        float totalRms = 0.0f;
+        for (int i = 0; i < kMeasureBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlock);
+            totalRms += computeRMS(left.data(), kBlock);
+        }
+        return totalRms;
+    };
+
+    float rmsScale1 = measureRmsWithScale(1.0f);
+    float rmsScale4 = measureRmsWithScale(4.0f);
+
+    INFO("RMS with scale x1: " << rmsScale1);
+    INFO("RMS with scale x4: " << rmsScale4);
+
+    REQUIRE(rmsScale1 > 0.001f);
+    REQUIRE(rmsScale4 > 0.001f);
+
+    // Scale x4 produces a larger master gain → louder output
+    REQUIRE(rmsScale4 > rmsScale1 * 1.2f);
+}
+
+TEST_CASE("RuinaeEngine regression: mod route curve affects modulation shape",
+          "[ruinae-engine-integration][modulation][regression]") {
+    // Route Macro1 (DC at 0.5) → MasterVolume with amount=1.0.
+    // MasterVolume modulation: gain = masterGain_ + offset * 2.0
+    //
+    // With Linear curve: offset = applyBipolarModulation(Linear, 0.5, 1.0) = 0.5
+    //   → gain = 1.0 + 0.5*2.0 = 2.0 (clamped)
+    //
+    // With Exponential curve: offset = applyBipolarModulation(Exp, 0.5, 1.0) = 0.25
+    //   → gain = 1.0 + 0.25*2.0 = 1.5
+    //
+    // Linear should produce higher RMS (louder).
+
+    constexpr size_t kBlock = 512;
+    constexpr int kMeasureBlocks = 20;
+
+    auto measureRmsWithCurve = [&](ModCurve curve) -> float {
+        RuinaeEngine engine;
+        engine.prepare(44100.0, kBlock);
+        engine.setSoftLimitEnabled(false);
+
+        engine.setMacroValue(0, 0.5f);
+        engine.setGlobalModRoute(0, ModSource::Macro1,
+                                 RuinaeModDest::MasterVolume, 1.0f,
+                                 curve, 1.0f, false);
+
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kBlock), right(kBlock);
+        float totalRms = 0.0f;
+        for (int i = 0; i < kMeasureBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlock);
+            totalRms += computeRMS(left.data(), kBlock);
+        }
+        return totalRms;
+    };
+
+    float rmsLinear = measureRmsWithCurve(ModCurve::Linear);
+    float rmsExponential = measureRmsWithCurve(ModCurve::Exponential);
+
+    INFO("RMS with Linear curve: " << rmsLinear);
+    INFO("RMS with Exponential curve: " << rmsExponential);
+
+    REQUIRE(rmsLinear > 0.001f);
+    REQUIRE(rmsExponential > 0.001f);
+
+    // Linear curve at source=0.5 gives offset 0.5; Exponential gives 0.25.
+    // Linear results in higher master gain → louder output.
+    REQUIRE(rmsLinear > rmsExponential * 1.1f);
+}
+
+TEST_CASE("RuinaeEngine regression: mod route bypass disables modulation",
+          "[ruinae-engine-integration][modulation][regression]") {
+    // Route LFO1 → GlobalFilterCutoff with high amount.
+    // With bypass=false: filter cutoff sweeps → significant per-block RMS variation.
+    // With bypass=true: no modulation → stable per-block RMS (no sweep).
+
+    constexpr size_t kBlock = 512;
+    constexpr int kMeasureBlocks = 40;
+
+    auto measureRmsVariation = [&](bool bypass) -> float {
+        RuinaeEngine engine;
+        engine.prepare(44100.0, kBlock);
+        engine.setSoftLimitEnabled(false);
+        engine.setGlobalFilterEnabled(true);
+        engine.setGlobalFilterCutoff(1000.0f);
+        engine.setGlobalFilterType(SVFMode::Lowpass);
+        engine.setOscAType(OscType::PolyBLEP);
+
+        engine.setGlobalLFO1Rate(2.0f); // 2 Hz sweep
+        engine.setGlobalLFO1Waveform(Waveform::Sine);
+        engine.setGlobalModRoute(0, ModSource::LFO1,
+                                 RuinaeModDest::GlobalFilterCutoff, 1.0f,
+                                 ModCurve::Linear, 1.0f, bypass);
+
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kBlock), right(kBlock);
+        float minRms = std::numeric_limits<float>::max();
+        float maxRms = 0.0f;
+
+        for (int i = 0; i < kMeasureBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlock);
+            float rms = computeRMS(left.data(), kBlock);
+            if (rms > 0.0f) {
+                minRms = std::min(minRms, rms);
+                maxRms = std::max(maxRms, rms);
+            }
+        }
+
+        return (minRms > 0.0f) ? maxRms / minRms : 0.0f;
+    };
+
+    float variationActive = measureRmsVariation(false);
+    float variationBypassed = measureRmsVariation(true);
+
+    INFO("RMS variation (active, bypass=false): " << variationActive);
+    INFO("RMS variation (bypassed, bypass=true): " << variationBypassed);
+
+    // Active modulation should show significant RMS variation (filter sweep)
+    REQUIRE(variationActive > 1.5f);
+
+    // Bypassed modulation should show much less variation
+    REQUIRE(variationBypassed < variationActive * 0.5f);
+}
+
+TEST_CASE("RuinaeEngine regression: mod route smoothing damps rapid modulation",
+          "[ruinae-engine-integration][modulation][regression]") {
+    // Route LFO1 (fast sine) → MasterVolume.
+    // MasterVolume modulation: gain = masterGain_ + offset * 2.0
+    //
+    // Without smoothing (0ms): gain follows LFO rapidly → high per-block RMS variation
+    // With smoothing (100ms): gain changes are damped → lower per-block RMS variation
+
+    constexpr size_t kBlock = 512;
+    constexpr int kMeasureBlocks = 40;
+
+    auto measureRmsVariation = [&](float smoothMs) -> float {
+        RuinaeEngine engine;
+        engine.prepare(44100.0, kBlock);
+        engine.setSoftLimitEnabled(false);
+
+        // Fast LFO (10 Hz) for rapid modulation
+        engine.setGlobalLFO1Rate(10.0f);
+        engine.setGlobalLFO1Waveform(Waveform::Sine);
+        engine.setGlobalModRoute(0, ModSource::LFO1,
+                                 RuinaeModDest::MasterVolume, 0.5f,
+                                 ModCurve::Linear, 1.0f, false, smoothMs);
+
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kBlock), right(kBlock);
+        float minRms = std::numeric_limits<float>::max();
+        float maxRms = 0.0f;
+
+        for (int i = 0; i < kMeasureBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlock);
+            float rms = computeRMS(left.data(), kBlock);
+            if (rms > 0.0f) {
+                minRms = std::min(minRms, rms);
+                maxRms = std::max(maxRms, rms);
+            }
+        }
+
+        return (minRms > 0.0f) ? maxRms / minRms : 0.0f;
+    };
+
+    float variationNoSmooth = measureRmsVariation(0.0f);
+    float variationSmoothed = measureRmsVariation(100.0f);
+
+    INFO("RMS variation (no smoothing): " << variationNoSmooth);
+    INFO("RMS variation (100ms smoothing): " << variationSmoothed);
+
+    // Unsmoothed should have significant variation from the LFO
+    REQUIRE(variationNoSmooth > 1.3f);
+
+    // Smoothed should have notably less variation
+    REQUIRE(variationSmoothed < variationNoSmooth * 0.8f);
+}

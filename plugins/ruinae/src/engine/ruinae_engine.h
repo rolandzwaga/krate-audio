@@ -343,16 +343,25 @@ public:
     // =========================================================================
 
     /// @brief Set a global modulation routing (FR-019).
+    /// @param curve  Response curve shape (default: Linear)
+    /// @param scaleMul  Amount multiplier (default: 1.0 = no scaling)
+    /// @param bypass  If true, route is inactive (default: false)
+    /// @param smoothMs  Per-route signal smoothing time in ms (0 = off)
     void setGlobalModRoute(int slot, ModSource source,
-                           RuinaeModDest dest, float amount) noexcept {
+                           RuinaeModDest dest, float amount,
+                           ModCurve curve = ModCurve::Linear,
+                           float scaleMul = 1.0f,
+                           bool bypass = false,
+                           float smoothMs = 0.0f) noexcept {
         if (slot < 0 || static_cast<size_t>(slot) >= kMaxModRoutings) return;
 
         ModRouting routing;
         routing.source = source;
         routing.destParamId = static_cast<uint32_t>(dest);
-        routing.amount = amount;
-        routing.curve = ModCurve::Linear;
-        routing.active = true;
+        routing.amount = std::clamp(amount * scaleMul, -1.0f, 1.0f);
+        routing.curve = curve;
+        routing.smoothMs = smoothMs;
+        routing.active = !bypass && (source != ModSource::None);
         globalModEngine_.setRouting(static_cast<size_t>(slot), routing);
     }
 
@@ -742,6 +751,63 @@ public:
     void setFilterSvfDrive(float db) noexcept {
         if (detail::isNaN(db) || detail::isInf(db)) return;
         for (auto& voice : voices_) { voice.setFilterSvfDrive(db); }
+    }
+
+    void setFilterSvfGain(float db) noexcept {
+        if (detail::isNaN(db) || detail::isInf(db)) return;
+        for (auto& voice : voices_) { voice.setFilterSvfGain(db); }
+    }
+
+    // --- Envelope Filter ---
+
+    void setFilterEnvSubType(int type) noexcept {
+        for (auto& voice : voices_) { voice.setFilterEnvSubType(type); }
+    }
+
+    void setFilterEnvSensitivity(float db) noexcept {
+        if (detail::isNaN(db) || detail::isInf(db)) return;
+        for (auto& voice : voices_) { voice.setFilterEnvSensitivity(db); }
+    }
+
+    void setFilterEnvDepth(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.setFilterEnvDepth(amount); }
+    }
+
+    void setFilterEnvAttack(float ms) noexcept {
+        if (detail::isNaN(ms) || detail::isInf(ms)) return;
+        for (auto& voice : voices_) { voice.setFilterEnvAttack(ms); }
+    }
+
+    void setFilterEnvRelease(float ms) noexcept {
+        if (detail::isNaN(ms) || detail::isInf(ms)) return;
+        for (auto& voice : voices_) { voice.setFilterEnvRelease(ms); }
+    }
+
+    void setFilterEnvDirection(int dir) noexcept {
+        for (auto& voice : voices_) { voice.setFilterEnvDirection(dir); }
+    }
+
+    // --- Self-Oscillating Filter ---
+
+    void setFilterSelfOscGlide(float ms) noexcept {
+        if (detail::isNaN(ms) || detail::isInf(ms)) return;
+        for (auto& voice : voices_) { voice.setFilterSelfOscGlide(ms); }
+    }
+
+    void setFilterSelfOscExtMix(float mix) noexcept {
+        if (detail::isNaN(mix) || detail::isInf(mix)) return;
+        for (auto& voice : voices_) { voice.setFilterSelfOscExtMix(mix); }
+    }
+
+    void setFilterSelfOscShape(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.setFilterSelfOscShape(amount); }
+    }
+
+    void setFilterSelfOscRelease(float ms) noexcept {
+        if (detail::isNaN(ms) || detail::isInf(ms)) return;
+        for (auto& voice : voices_) { voice.setFilterSelfOscRelease(ms); }
     }
 
     // --- Distortion ---

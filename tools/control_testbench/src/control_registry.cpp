@@ -277,23 +277,25 @@ VSTGUI::CView* TestbenchController::createView(
             });
 
             // Pre-populate with 3 demo routes
+            // Source indices are tab-dependent raw uint8_t values:
+            //   Voice tab: 0=Env1, 1=Env2, 2=Env3, 3=VoiceLFO, 4=Gate, 5=Velocity, 6=KeyTrack, 7=AT
             using namespace Krate::Plugins;
             ModRoute route0{};
-            route0.source = ModSource::Env2;
+            route0.source = 1;  // ENV 2 (Filter)
             route0.destination = ModDestination::FilterCutoff;
             route0.amount = 0.72f;
             route0.active = true;
             grid->setGlobalRoute(0, route0);
 
             ModRoute route1{};
-            route1.source = ModSource::VoiceLFO;
+            route1.source = 3;  // Voice LFO
             route1.destination = ModDestination::FilterResonance;
             route1.amount = -0.35f;
             route1.active = true;
             grid->setGlobalRoute(1, route1);
 
             ModRoute route2{};
-            route2.source = ModSource::Velocity;
+            route2.source = 5;  // Velocity
             route2.destination = ModDestination::OscAPitch;
             route2.amount = 0.15f;
             route2.curve = 1;  // Exponential
@@ -307,14 +309,14 @@ VSTGUI::CView* TestbenchController::createView(
             auto* ring = new Krate::Plugins::ModRingIndicator(size);
             ring->setBaseValue(0.5f);
 
-            // Set up 2 demo arcs
+            // Set up 2 demo arcs (source indices: 1=Env2, 3=VoiceLFO)
             using namespace Krate::Plugins;
             std::vector<ModRingIndicator::ArcInfo> arcs;
             arcs.push_back({0.72f, VSTGUI::CColor(220, 170, 60, 255),
-                static_cast<int>(ModSource::Env2),
+                1,  // ENV 2
                 static_cast<int>(ModDestination::FilterCutoff), false});
             arcs.push_back({-0.35f, VSTGUI::CColor(90, 200, 130, 255),
-                static_cast<int>(ModSource::VoiceLFO),
+                3,  // Voice LFO
                 static_cast<int>(ModDestination::FilterCutoff), false});
             ring->setArcs(arcs);
             return ring;

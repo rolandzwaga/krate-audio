@@ -113,6 +113,19 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kFilterCombDampingId = 409,    // 0-1
     kFilterSvfSlopeId = 410,       // 12dB or 24dB (cascaded 2-pole)
     kFilterSvfDriveId = 411,       // 0-24 dB post-filter saturation
+    kFilterSvfGainId = 412,        // -24 to +24 dB (Peak/LowShelf/HighShelf)
+    // Envelope filter (auto-wah) type-specific (413-418)
+    kFilterEnvFltSubTypeId = 413,     // 0=LP, 1=BP, 2=HP
+    kFilterEnvFltSensitivityId = 414, // -24 to +24 dB
+    kFilterEnvFltDepthId = 415,       // 0.0 to 1.0
+    kFilterEnvFltAttackId = 416,      // 0.1 to 500 ms
+    kFilterEnvFltReleaseId = 417,     // 1 to 5000 ms
+    kFilterEnvFltDirectionId = 418,   // 0=Up, 1=Down
+    // Self-oscillating filter type-specific (421-424)
+    kFilterSelfOscGlideId = 421,   // 0 to 5000 ms
+    kFilterSelfOscExtMixId = 422,  // 0.0 to 1.0
+    kFilterSelfOscShapeId = 423,   // 0.0 to 1.0
+    kFilterSelfOscReleaseId = 424, // 10 to 2000 ms
     kFilterEndId = 499,
 
     // ==========================================================================

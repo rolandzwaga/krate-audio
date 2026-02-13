@@ -8,7 +8,7 @@
 // ==============================================================================
 
 #include <krate/dsp/systems/voice_mod_router.h>
-#include <krate/dsp/systems/ruinae_types.h>
+#include <krate/dsp/systems/voice_mod_types.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
