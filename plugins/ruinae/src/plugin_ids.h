@@ -111,6 +111,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kFilterFormantMorphId = 407,   // 0-4 (A=0, E=1, I=2, O=3, U=4)
     kFilterFormantGenderId = 408,  // -1 to +1
     kFilterCombDampingId = 409,    // 0-1
+    kFilterSvfSlopeId = 410,       // 12dB or 24dB (cascaded 2-pole)
+    kFilterSvfDriveId = 411,       // 0-24 dB post-filter saturation
     kFilterEndId = 499,
 
     // ==========================================================================
@@ -441,6 +443,9 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kActionEnvExpandAmpTag = 10013,
     kActionEnvExpandFilterTag = 10014,
     kActionEnvExpandModTag = 10015,
+
+    // Filter View Mode Tab (UI-only, ephemeral - not saved with state)
+    kFilterViewModeTag = 10016,
 };
 
 // ==============================================================================

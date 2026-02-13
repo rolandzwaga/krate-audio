@@ -956,3 +956,104 @@ TEST_CASE("RuinaeEngine integration: reverb tail duration",
         REQUIRE(tailDurationMs >= 500.0f);
     }
 }
+
+// =============================================================================
+// Regression: Fast note retrigger click/pop detection (engine level)
+// =============================================================================
+// Full end-to-end: MIDI noteOn → VoiceAllocator → RuinaeVoice → stereo output.
+// Exercises voice stealing, filter state handling, and all post-processing.
+
+#include <artifact_detection.h>
+
+TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
+          "[ruinae-engine-integration][regression][artifacts]") {
+    // Full engine-level test: play notes rapidly via MIDI noteOn,
+    // capturing the continuous stereo output and checking for clicks.
+    // Effects are disabled to isolate the voice signal chain.
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 128;  // Small blocks = more boundaries
+
+    RuinaeEngine engine;
+    engine.prepare(sampleRate, blockSize);
+
+    // Configure voice signal chain
+    engine.setFilterType(RuinaeFilterType::SVF_LP);
+    engine.setFilterCutoff(2000.0f);
+    engine.setFilterResonance(5.0f);
+    engine.setFilterKeyTrack(1.0f);  // Full key tracking
+    engine.setAmpAttack(1.0f);       // 1ms attack
+    engine.setAmpDecay(100.0f);
+    engine.setAmpSustain(1.0f);
+    engine.setAmpRelease(10.0f);     // 10ms release
+
+    // Disable effects chain (isolate voices)
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f,
+                            .width = 1.0f, .mix = 0.0f});
+    engine.setSoftLimitEnabled(false);
+
+    // Polyphony: set to 1 so every noteOn steals the previous voice
+    engine.setPolyphony(1);
+
+    // Play first note and let it reach sustain
+    engine.noteOn(60, 100);  // C4
+
+    std::vector<float> left(blockSize), right(blockSize);
+    // Warm up: 200ms to reach sustain
+    for (int i = 0; i < 70; ++i) {
+        engine.processBlock(left.data(), right.data(), blockSize);
+    }
+
+    // Verify we have audio
+    float warmupRMS = computeRMS(left.data(), blockSize);
+    REQUIRE(warmupRMS > 0.001f);
+
+    // Now rapidly retrigger with different notes, capturing continuous output.
+    // With polyphony=1, each noteOn steals the active voice:
+    // allocator sends Steal(voice0) + NoteOn(voice0) in the same event batch.
+    constexpr uint8_t kNotes[] = {72, 48, 67, 55, 76, 43, 64, 50, 69, 57, 74, 45};
+    constexpr size_t kNumRetriggers = sizeof(kNotes) / sizeof(kNotes[0]);
+    constexpr size_t kBlocksPerNote = 3;  // ~8.7ms per note at 128 samples
+
+    const size_t totalBlocks = kNumRetriggers * kBlocksPerNote;
+    const size_t totalSamples = totalBlocks * blockSize;
+    std::vector<float> outputL(totalSamples);
+    std::vector<float> outputR(totalSamples);
+
+    for (size_t note = 0; note < kNumRetriggers; ++note) {
+        engine.noteOn(kNotes[note], 100);
+
+        for (size_t b = 0; b < kBlocksPerNote; ++b) {
+            const size_t sampleOffset = (note * kBlocksPerNote + b) * blockSize;
+            engine.processBlock(outputL.data() + sampleOffset,
+                                outputR.data() + sampleOffset, blockSize);
+        }
+    }
+
+    // Detect clicks in the continuous left-channel output
+    Krate::DSP::TestUtils::ClickDetectorConfig cfg;
+    cfg.sampleRate = static_cast<float>(sampleRate);
+    cfg.frameSize = 128;
+    cfg.hopSize = 32;
+    cfg.detectionThreshold = 4.0f;
+    Krate::DSP::TestUtils::ClickDetector detector(cfg);
+    detector.prepare();
+
+    auto clicksL = detector.detect(outputL.data(), totalSamples);
+    auto clicksR = detector.detect(outputR.data(), totalSamples);
+
+    INFO("Left channel: " << clicksL.size() << " clicks across "
+         << kNumRetriggers << " retriggered notes");
+    for (const auto& c : clicksL) {
+        UNSCOPED_INFO("  L click at sample " << c.sampleIndex
+             << " (t=" << c.timeSeconds << "s, amp=" << c.amplitude << ")");
+    }
+    INFO("Right channel: " << clicksR.size() << " clicks");
+    for (const auto& c : clicksR) {
+        UNSCOPED_INFO("  R click at sample " << c.sampleIndex
+             << " (t=" << c.timeSeconds << "s, amp=" << c.amplitude << ")");
+    }
+
+    CHECK(clicksL.empty());
+    CHECK(clicksR.empty());
+}

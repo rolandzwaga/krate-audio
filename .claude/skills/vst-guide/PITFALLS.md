@@ -252,6 +252,43 @@ The flow for proxy parameter (BROKEN):
 
 ---
 
+### Pitfall 8: Cached View Pointers + UIViewSwitchContainer = Dangling Pointers
+
+**Problem:** UIViewSwitchContainer destroys and recreates template view hierarchies on every switch. If the controller caches raw pointers to views inside those templates, the pointers become dangling when the template is torn down.
+
+**Wrong:**
+```cpp
+// In verifyView() — stores pointer to a view inside a UIViewSwitchContainer template
+auto* indicator = dynamic_cast<ModRingIndicator*>(view);
+if (indicator) {
+    ringIndicators_[destIdx] = indicator;  // Dangling after template switch!
+}
+```
+
+After switching templates, `ringIndicators_[destIdx]` points to freed memory. Any access (parameter sync, rebuild, etc.) crashes.
+
+**Right:** Wire a removal callback so the pointer is nulled when the view is destroyed:
+
+```cpp
+// In the custom view class:
+bool removed(CView* parent) override {
+    if (removedCallback_) removedCallback_();
+    return CView::removed(parent);
+}
+
+// In verifyView() / wireMyView():
+indicator->setRemovedCallback([this, destIdx]() {
+    ringIndicators_[destIdx] = nullptr;
+});
+ringIndicators_[destIdx] = indicator;
+```
+
+When `UIViewSwitchContainer` tears down the old template, `CView::removed()` fires, which nulls the pointer. When the template is recreated on switch-back, `verifyView()` re-wires it.
+
+**General rule:** Any raw pointer cached in the controller to a view that lives inside a `UIViewSwitchContainer` template MUST have a removal callback to null it out. This applies to all custom views (ModRingIndicator, ModMatrixGrid, etc.), not just to views with complex lifecycle. The `verifyView()` → cache pattern is safe ONLY for views that live for the entire editor lifetime.
+
+---
+
 ## Key Takeaways
 
 1. **Use the right parameter type** - `StringListParameter` for dropdowns, `RangeParameter` for ranges
@@ -262,3 +299,4 @@ The flow for proxy parameter (BROKEN):
 6. **Create helpers** - Prevent future mistakes with helper functions that enforce correct usage
 7. **Check parameter units** - Verify normalized values are converted to the units DSP APIs expect
 8. **Proxy parameters need hidden controls** - UIViewSwitchContainer uses IControlListener on CControls, not IDependent on Parameters
+9. **Null cached view pointers on removal** - Views inside UIViewSwitchContainer templates get destroyed on every switch; wire `removed()` callbacks to null cached pointers

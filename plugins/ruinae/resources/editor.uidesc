@@ -96,6 +96,9 @@
         <control-tag name="FilterFormantMorph" tag="407"/>
         <control-tag name="FilterFormantGender" tag="408"/>
         <control-tag name="FilterCombDamping" tag="409"/>
+        <control-tag name="FilterSvfSlope" tag="410"/>
+        <control-tag name="FilterSvfDrive" tag="411"/>
+        <control-tag name="FilterViewMode" tag="10016"/>
 
         <!-- Distortion -->
         <control-tag name="DistortionType" tag="500"/>
@@ -463,54 +466,166 @@
     </template>
 
     <!-- ================================================================ -->
-    <!-- Filter Type-Specific Templates                                  -->
+    <!-- Filter View Templates (General + Type-Specific)                 -->
     <!-- ================================================================ -->
 
-    <!-- SVF LP/HP/BP/Notch: no extra params -->
-    <template name="Filter_SVF_LP" size="104, 40" class="CViewContainer" transparent="true"/>
-    <template name="Filter_SVF_HP" size="104, 40" class="CViewContainer" transparent="true"/>
-    <template name="Filter_SVF_BP" size="104, 40" class="CViewContainer" transparent="true"/>
-    <template name="Filter_SVF_Notch" size="104, 40" class="CViewContainer" transparent="true"/>
+    <!-- General view: Cutoff, Resonance, Env Amount, Key Track -->
+    <template name="Filter_General" size="154, 96" class="CViewContainer" transparent="true">
+        <!-- Row 1: Cutoff + Resonance + Env Amount -->
+        <view class="ArcKnob" origin="8, 0" size="36, 36"
+              control-tag="FilterCutoff" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="ModRingIndicator" origin="8, 0" size="36, 36"
+              dest-index="0"/>
+        <view class="CTextLabel" origin="0, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Cutoff"/>
+
+        <view class="ArcKnob" origin="58, 0" size="36, 36"
+              control-tag="FilterResonance" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="ModRingIndicator" origin="58, 0" size="36, 36"
+              dest-index="1"/>
+        <view class="CTextLabel" origin="50, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Resonance"/>
+
+        <view class="ArcKnob" origin="108, 0" size="36, 36"
+              control-tag="FilterEnvAmount" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="100, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Env Amt"/>
+
+        <!-- Row 2: Key Track -->
+        <view class="ArcKnob" origin="8, 50" size="36, 36"
+              control-tag="FilterKeyTrack" default-value="0.5"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 83" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Key Track"/>
+    </template>
+
+    <!-- Type-specific view: nested UIViewSwitchContainer by FilterType -->
+    <template name="Filter_TypeSpecific" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="UIViewSwitchContainer"
+              origin="0, 0" size="154, 96"
+              template-names="Filter_SVF_LP,Filter_SVF_HP,Filter_SVF_BP,Filter_SVF_Notch,Filter_Ladder,Filter_Formant,Filter_Comb"
+              template-switch-control="FilterType"
+              transparent="true"/>
+    </template>
+
+    <!-- ================================================================ -->
+    <!-- Filter Type-Specific Sub-Templates                              -->
+    <!-- ================================================================ -->
+
+    <!-- SVF LP: Slope + Drive -->
+    <template name="Filter_SVF_LP" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="60, 18"
+              control-tag="FilterSvfSlope" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 24" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slope"/>
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
+              control-tag="FilterSvfDrive" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+    </template>
+
+    <!-- SVF HP: Slope + Drive -->
+    <template name="Filter_SVF_HP" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="60, 18"
+              control-tag="FilterSvfSlope" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 24" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slope"/>
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
+              control-tag="FilterSvfDrive" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+    </template>
+
+    <!-- SVF BP: Slope + Drive -->
+    <template name="Filter_SVF_BP" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="60, 18"
+              control-tag="FilterSvfSlope" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 24" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slope"/>
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
+              control-tag="FilterSvfDrive" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+    </template>
+
+    <!-- SVF Notch: Slope + Drive -->
+    <template name="Filter_SVF_Notch" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="60, 18"
+              control-tag="FilterSvfSlope" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="CTextLabel" origin="8, 24" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slope"/>
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
+              control-tag="FilterSvfDrive" default-value="0.0"
+              arc-color="filter" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+    </template>
 
     <!-- Ladder: Slope selector + Drive knob -->
-    <template name="Filter_Ladder" size="104, 40" class="CViewContainer" transparent="true">
-        <view class="COptionMenu" origin="0, 4" size="48, 18"
+    <template name="Filter_Ladder" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterLadderSlope" default-value="1.0"
               font="~ NormalFontSmaller" font-color="text-menu"
               back-color="bg-dropdown" frame-color="frame-dropdown"/>
-        <view class="CTextLabel" origin="0, 24" size="48, 12"
+        <view class="CTextLabel" origin="8, 24" size="60, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Slope"/>
-        <view class="ArcKnob" origin="56, 2" size="28, 28"
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
               control-tag="FilterLadderDrive" default-value="0.0"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="50, 30" size="40, 10"
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Drive"/>
     </template>
 
     <!-- Formant: Vowel Morph + Gender -->
-    <template name="Filter_Formant" size="104, 40" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="4, 2" size="28, 28"
+    <template name="Filter_Formant" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="8, 0" size="36, 36"
               control-tag="FilterFormantMorph" default-value="0.0"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 30" size="36, 10"
+        <view class="CTextLabel" origin="0, 36" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Vowel"/>
-        <view class="ArcKnob" origin="56, 2" size="28, 28"
+        <view class="ArcKnob" origin="84, 0" size="36, 36"
               control-tag="FilterFormantGender" default-value="0.5"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="46, 30" size="48, 10"
+        <view class="CTextLabel" origin="76, 36" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Gender"/>
     </template>
 
     <!-- Comb: Damping -->
-    <template name="Filter_Comb" size="104, 40" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="4, 2" size="28, 28"
+    <template name="Filter_Comb" size="154, 96" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="8, 0" size="36, 36"
               control-tag="FilterCombDamping" default-value="0.0"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 30" size="40, 10"
+        <view class="CTextLabel" origin="0, 36" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Damp"/>
     </template>
@@ -769,53 +884,25 @@
             fieldset-font-size="10"
             transparent="true"
         >
-            <!-- T042: Filter Type dropdown -->
-            <view class="COptionMenu" origin="8, 16" size="100, 18"
+            <!-- Top row: Filter Type dropdown + General/Type segment button -->
+            <view class="COptionMenu" origin="8, 16" size="80, 18"
                   control-tag="FilterType" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
-            <!-- T043: Cutoff knob + ModRingIndicator overlay -->
-            <view class="ArcKnob" origin="8, 40" size="36, 36"
-                  control-tag="FilterCutoff" default-value="0.5"
-                  arc-color="filter" guide-color="knob-guide"/>
-            <view class="ModRingIndicator" origin="8, 40" size="36, 36"
-                  dest-index="0"/>
-            <view class="CTextLabel" origin="0, 76" size="52, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Cutoff"/>
+            <view class="IconSegmentButton" origin="92, 16" size="40, 18"
+                  control-tag="FilterViewMode" default-value="0"
+                  segment-names="General,Type-specific"
+                  segment-icons="gear,funnel"
+                  selected-color="filter" unselected-color="text-secondary"
+                  frame-color="frame-dropdown" highlight-color="bg-dropdown"
+                  round-radius="3" icon-size="0.55" stroke-width="1.5"/>
 
-            <!-- T044: Resonance knob + ModRingIndicator overlay -->
-            <view class="ArcKnob" origin="58, 40" size="36, 36"
-                  control-tag="FilterResonance" default-value="0.5"
-                  arc-color="filter" guide-color="knob-guide"/>
-            <view class="ModRingIndicator" origin="58, 40" size="36, 36"
-                  dest-index="1"/>
-            <view class="CTextLabel" origin="50, 76" size="52, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Resonance"/>
-
-            <!-- T045: Env Amount knob -->
-            <view class="ArcKnob" origin="108, 40" size="36, 36"
-                  control-tag="FilterEnvAmount" default-value="0.5"
-                  arc-color="filter" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="100, 76" size="52, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Env Amt"/>
-
-            <!-- T046: Key Track knob -->
-            <view class="ArcKnob" origin="8, 92" size="36, 36"
-                  control-tag="FilterKeyTrack" default-value="0.5"
-                  arc-color="filter" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="0, 125" size="52, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Key Track"/>
-
-            <!-- Type-specific params (switches based on FilterType) -->
+            <!-- Switched content: General or Type-specific view -->
             <view class="UIViewSwitchContainer"
-                  origin="58, 90" size="104, 40"
-                  template-names="Filter_SVF_LP,Filter_SVF_HP,Filter_SVF_BP,Filter_SVF_Notch,Filter_Ladder,Filter_Formant,Filter_Comb"
-                  template-switch-control="FilterType"
+                  origin="0, 38" size="154, 96"
+                  template-names="Filter_General,Filter_TypeSpecific"
+                  template-switch-control="FilterViewMode"
                   transparent="true"/>
         </view>
 

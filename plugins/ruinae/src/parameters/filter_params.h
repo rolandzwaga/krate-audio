@@ -31,6 +31,9 @@ struct RuinaeFilterParams {
     std::atomic<float> formantMorph{0.0f}; // 0-4 (A=0, E=1, I=2, O=3, U=4)
     std::atomic<float> formantGender{0.0f}; // -1 to +1
     std::atomic<float> combDamping{0.0f}; // 0-1
+    // SVF-specific
+    std::atomic<int> svfSlope{1};        // 1=12dB (single), 2=24dB (cascaded)
+    std::atomic<float> svfDrive{0.0f};   // 0-24 dB
 };
 
 inline void handleFilterParamChange(
@@ -97,6 +100,19 @@ inline void handleFilterParamChange(
                 std::clamp(static_cast<float>(value), 0.0f, 1.0f),
                 std::memory_order_relaxed);
             break;
+        // SVF-specific params
+        case kFilterSvfSlopeId:
+            // 0-1 -> 1-2 (stepCount=1)
+            params.svfSlope.store(
+                std::clamp(static_cast<int>(value + 0.5) + 1, 1, 2),
+                std::memory_order_relaxed);
+            break;
+        case kFilterSvfDriveId:
+            // 0-1 -> 0-24 dB
+            params.svfDrive.store(
+                std::clamp(static_cast<float>(value * 24.0), 0.0f, 24.0f),
+                std::memory_order_relaxed);
+            break;
         default: break;
     }
 }
@@ -131,6 +147,19 @@ inline void registerFilterParams(Steinberg::Vst::ParameterContainer& parameters)
     // Comb-specific
     parameters.addParameter(STR16("Comb Damping"), STR16(""), 0, 0.0,
         ParameterInfo::kCanAutomate, kFilterCombDampingId);
+    // SVF-specific
+    parameters.addParameter(createDropdownParameter(
+        STR16("SVF Slope"), kFilterSvfSlopeId,
+        {STR16("12 dB"), STR16("24 dB")}
+    ));
+    parameters.addParameter(STR16("SVF Drive"), STR16("dB"), 0, 0.0,
+        ParameterInfo::kCanAutomate, kFilterSvfDriveId);
+    // UI-only: Filter view mode tab (General/Type), ephemeral, not persisted
+    auto* viewModeParam = new StringListParameter(
+        STR16("Filter View"), kFilterViewModeTag);
+    viewModeParam->appendString(STR16("General"));
+    viewModeParam->appendString(STR16("Type"));
+    parameters.addParameter(viewModeParam);
 }
 
 inline Steinberg::tresult formatFilterParam(
@@ -198,6 +227,12 @@ inline Steinberg::tresult formatFilterParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+        case kFilterSvfDriveId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.1f dB", value * 24.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
         default: break;
     }
     return kResultFalse;
@@ -215,6 +250,9 @@ inline void saveFilterParams(const RuinaeFilterParams& params, Steinberg::IBStre
     streamer.writeFloat(params.formantMorph.load(std::memory_order_relaxed));
     streamer.writeFloat(params.formantGender.load(std::memory_order_relaxed));
     streamer.writeFloat(params.combDamping.load(std::memory_order_relaxed));
+    // SVF-specific (v6+)
+    streamer.writeInt32(params.svfSlope.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.svfDrive.load(std::memory_order_relaxed));
 }
 
 inline bool loadFilterParams(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
@@ -245,6 +283,16 @@ inline bool loadFilterParamsV4(RuinaeFilterParams& params, Steinberg::IBStreamer
     params.formantGender.store(floatVal, std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.combDamping.store(floatVal, std::memory_order_relaxed);
+    return true;
+}
+
+inline bool loadFilterParamsV5(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
+    if (!loadFilterParamsV4(params, streamer)) return false;
+    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    if (!streamer.readInt32(intVal)) return false;
+    params.svfSlope.store(intVal, std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.svfDrive.store(floatVal, std::memory_order_relaxed);
     return true;
 }
 
@@ -282,6 +330,17 @@ inline void loadFilterParamsToControllerV4(
         setParam(kFilterFormantGenderId, static_cast<double>((floatVal + 1.0f) / 2.0f));
     if (streamer.readFloat(floatVal))
         setParam(kFilterCombDampingId, static_cast<double>(floatVal));
+}
+
+template<typename SetParamFunc>
+inline void loadFilterParamsToControllerV5(
+    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
+    loadFilterParamsToControllerV4(streamer, setParam);
+    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    if (streamer.readInt32(intVal))
+        setParam(kFilterSvfSlopeId, static_cast<double>(intVal - 1));
+    if (streamer.readFloat(floatVal))
+        setParam(kFilterSvfDriveId, static_cast<double>(floatVal / 24.0f));
 }
 
 } // namespace Ruinae

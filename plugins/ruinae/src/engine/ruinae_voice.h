@@ -224,6 +224,23 @@ public:
         // Update oscillator frequencies (with per-osc tuning)
         updateOscFrequencies();
 
+        // Snap filter coefficients to new note's cutoff without zeroing state.
+        // The amp envelope retriggers from its current level (not zero), so
+        // zeroing the filter's integrators would create an output discontinuity
+        // (signal → ~0) that the VCA passes straight through as a click.
+        // The TPT SVF is unconditionally stable, so stale resonant energy
+        // decays naturally at the new frequency — no reset needed.
+        {
+            const float keyTrackSemitones = (noteFrequency_ > 0.0f)
+                ? filterKeyTrack_ * (frequencyToMidiNote(noteFrequency_) - 60.0f)
+                : 0.0f;
+            const float maxCutoff = static_cast<float>(sampleRate_) * 0.495f;
+            float initialCutoff = filterCutoffHz_ * semitonesToRatio(keyTrackSemitones);
+            initialCutoff = std::clamp(initialCutoff, 20.0f, maxCutoff);
+            setActiveFilterCutoff(initialCutoff);
+        }
+        snapActiveFilterToTarget();
+
         // Gate all envelopes (retrigger from current level)
         ampEnv_.gate(true);
         filterEnv_.gate(true);
@@ -611,6 +628,17 @@ public:
         if (filterComb_) filterComb_->setDamping(std::clamp(amount, 0.0f, 1.0f));
     }
 
+    /// @brief Set SVF slope (1=12dB single stage, 2=24dB cascaded).
+    void setFilterSvfSlope(int stages) noexcept {
+        svfSlopeStages_ = std::clamp(stages, 1, 2);
+    }
+
+    /// @brief Set SVF drive (0-24 dB post-filter soft clipping).
+    void setFilterSvfDrive(float db) noexcept {
+        if (detail::isNaN(db) || detail::isInf(db)) return;
+        svfDriveDb_ = std::clamp(db, 0.0f, 24.0f);
+    }
+
     // =========================================================================
     // Distortion Configuration (FR-013 through FR-015)
     // =========================================================================
@@ -727,9 +755,16 @@ private:
     /// @brief Prepare all 4 filter types unconditionally.
     void prepareAllFilters() noexcept {
         filterSvf_.prepare(sampleRate_);
+        filterSvf_.enableSmoothing(true);
         filterSvf_.setMode(SVFMode::Lowpass);
         filterSvf_.setCutoff(filterCutoffHz_);
         filterSvf_.setResonance(filterResonance_);
+
+        filterSvf2_.prepare(sampleRate_);
+        filterSvf2_.enableSmoothing(true);
+        filterSvf2_.setMode(SVFMode::Lowpass);
+        filterSvf2_.setCutoff(filterCutoffHz_);
+        filterSvf2_.setResonance(filterResonance_);
 
         filterLadder_ = std::make_unique<LadderFilter>();
         filterLadder_->prepare(sampleRate_, static_cast<int>(maxBlockSize_));
@@ -747,18 +782,33 @@ private:
         updateCombFeedback(*filterComb_, filterResonance_);
     }
 
-    /// @brief Update SVF mode based on filter type enum.
+    /// @brief Update SVF mode based on filter type enum (both stages).
     void updateSvfMode(RuinaeFilterType type) noexcept {
         switch (type) {
-            case RuinaeFilterType::SVF_LP: filterSvf_.setMode(SVFMode::Lowpass); break;
-            case RuinaeFilterType::SVF_HP: filterSvf_.setMode(SVFMode::Highpass); break;
-            case RuinaeFilterType::SVF_BP: filterSvf_.setMode(SVFMode::Bandpass); break;
-            case RuinaeFilterType::SVF_Notch: filterSvf_.setMode(SVFMode::Notch); break;
+            case RuinaeFilterType::SVF_LP:
+                filterSvf_.setMode(SVFMode::Lowpass);
+                filterSvf2_.setMode(SVFMode::Lowpass);
+                break;
+            case RuinaeFilterType::SVF_HP:
+                filterSvf_.setMode(SVFMode::Highpass);
+                filterSvf2_.setMode(SVFMode::Highpass);
+                break;
+            case RuinaeFilterType::SVF_BP:
+                filterSvf_.setMode(SVFMode::Bandpass);
+                filterSvf2_.setMode(SVFMode::Bandpass);
+                break;
+            case RuinaeFilterType::SVF_Notch:
+                filterSvf_.setMode(SVFMode::Notch);
+                filterSvf2_.setMode(SVFMode::Notch);
+                break;
             default: break;
         }
     }
 
-    /// @brief Reset the currently active filter.
+    /// @brief Reset the currently active filter (zeros state).
+    ///
+    /// Use only for full voice reset (e.g., stolen voice). For note retrigger,
+    /// use snapActiveFilterToTarget() to avoid output discontinuity.
     void resetActiveFilter() noexcept {
         switch (filterType_) {
             case RuinaeFilterType::SVF_LP:
@@ -766,6 +816,7 @@ private:
             case RuinaeFilterType::SVF_BP:
             case RuinaeFilterType::SVF_Notch:
                 filterSvf_.reset();
+                filterSvf2_.reset();
                 break;
             case RuinaeFilterType::Ladder:
                 if (filterLadder_) filterLadder_->reset();
@@ -780,6 +831,27 @@ private:
         }
     }
 
+    /// @brief Snap filter coefficients to target without zeroing state.
+    ///
+    /// For SVF: instantly moves smoothed coefficients (g, k, mix) to their
+    /// targets. Integrator state is preserved for output continuity.
+    /// For other filter types: no-op (setCutoff already updated coefficients).
+    void snapActiveFilterToTarget() noexcept {
+        switch (filterType_) {
+            case RuinaeFilterType::SVF_LP:
+            case RuinaeFilterType::SVF_HP:
+            case RuinaeFilterType::SVF_BP:
+            case RuinaeFilterType::SVF_Notch:
+                filterSvf_.snapToTarget();
+                filterSvf2_.snapToTarget();
+                break;
+            default:
+                // Ladder/Formant/Comb: setCutoff already set the new
+                // coefficients. No additional snap needed.
+                break;
+        }
+    }
+
     /// @brief Set cutoff on the active filter.
     void setActiveFilterCutoff(float hz) noexcept {
         switch (filterType_) {
@@ -788,6 +860,7 @@ private:
             case RuinaeFilterType::SVF_BP:
             case RuinaeFilterType::SVF_Notch:
                 filterSvf_.setCutoff(hz);
+                filterSvf2_.setCutoff(hz);
                 break;
             case RuinaeFilterType::Ladder:
                 if (filterLadder_) filterLadder_->setCutoff(hz);
@@ -812,6 +885,7 @@ private:
             case RuinaeFilterType::SVF_BP:
             case RuinaeFilterType::SVF_Notch:
                 filterSvf_.setResonance(q);
+                filterSvf2_.setResonance(q);
                 break;
             case RuinaeFilterType::Ladder:
                 if (filterLadder_) filterLadder_->setResonance(remapResonanceForLadder(q));
@@ -832,8 +906,14 @@ private:
             case RuinaeFilterType::SVF_LP:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
-            case RuinaeFilterType::SVF_Notch:
-                return filterSvf_.process(input);
+            case RuinaeFilterType::SVF_Notch: {
+                float out = filterSvf_.process(input);
+                if (svfSlopeStages_ >= 2)
+                    out = filterSvf2_.process(out);
+                if (svfDriveDb_ > 0.0f)
+                    out = std::tanh(out * dbToGain(svfDriveDb_));
+                return out;
+            }
             case RuinaeFilterType::Ladder:
                 return filterLadder_ ? filterLadder_->process(input) : input;
             case RuinaeFilterType::Formant:
@@ -1022,6 +1102,9 @@ private:
 
     // Pre-allocated filters (FR-010: all types alive simultaneously)
     SVF filterSvf_;
+    SVF filterSvf2_;                    // Second SVF stage for 24dB cascade
+    int svfSlopeStages_{1};             // 1=12dB (single), 2=24dB (cascaded)
+    float svfDriveDb_{0.0f};            // 0-24 dB post-filter saturation
     std::unique_ptr<LadderFilter> filterLadder_;
     std::unique_ptr<FormantFilter> filterFormant_;
     std::unique_ptr<FeedbackComb> filterComb_;

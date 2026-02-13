@@ -56,7 +56,8 @@ namespace Ruinae {
 // v3: Voice modulation routes (16 slots, IMessage-based, persisted in state)
 // v4: Added MixerShift parameter to mixer pack
 // v5: Added filter type-specific params (ladder slope/drive, formant morph/gender, comb damping)
-constexpr Steinberg::int32 kCurrentStateVersion = 5;
+// v6: Added SVF slope/drive params
+constexpr Steinberg::int32 kCurrentStateVersion = 6;
 
 // ==============================================================================
 // Processor Class

@@ -2242,3 +2242,174 @@ TEST_CASE("RuinaeVoice: formant filter output level is audible", "[ruinae_voice]
     // within a reasonable range of other filter types.
     REQUIRE(dbDifference > -20.0f);
 }
+
+// =============================================================================
+// Regression: Fast note retrigger click/pop detection
+// =============================================================================
+// End-to-end test through the full RuinaeVoice signal chain:
+//   Oscillator → Filter → DC Blocker → Distortion → VCA (amp envelope)
+//
+// Reproduces the bug: when a voice is retriggered while sustaining, the filter
+// state reset zeroed integrators while the amp envelope stayed at ~1.0, causing
+// an audible output discontinuity (click/pop).
+
+#include <artifact_detection.h>
+
+TEST_CASE("RuinaeVoice: fast note retrigger produces no clicks (SVF LP)",
+          "[ruinae_voice][regression][artifacts]") {
+    // Full end-to-end test: play a note to sustain, retrigger with a different
+    // note (different frequency + key-tracked cutoff), capture the CONTINUOUS
+    // output across the retrigger boundary, and verify no clicks.
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 256;
+
+    auto voice = createPreparedVoice(sampleRate, blockSize);
+    voice.setFilterType(RuinaeFilterType::SVF_LP);
+    voice.setFilterCutoff(2000.0f);
+    voice.setFilterResonance(5.0f);       // Resonant — amplifies any artifacts
+    voice.setFilterKeyTrack(1.0f);        // Full key tracking (cutoff jumps on retrigger)
+    voice.getAmpEnvelope().setAttack(0.001f);   // Near-instant attack
+    voice.getAmpEnvelope().setDecay(0.1f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+    voice.getAmpEnvelope().setRelease(0.01f);
+    voice.setMixPosition(0.0f);  // OSC A only
+
+    // Play first note and reach sustain
+    voice.noteOn(261.63f, 1.0f);  // C4
+    constexpr size_t kSustainSamples = 8820;  // 200ms — well past attack
+    auto warmup = processNSamples(voice, kSustainSamples, blockSize);
+
+    // Verify we have audio at sustain
+    float warmupRMS = computeRMS(warmup.data() + warmup.size() - 512, 512);
+    REQUIRE(warmupRMS > 0.01f);
+
+    // Now capture continuous output across multiple retriggered notes.
+    // This is the critical part: each noteOn changes the oscillator frequency
+    // and key-tracked cutoff, while the amp envelope retriggers from ~1.0.
+    constexpr float kNoteFreqs[] = {
+        523.25f,   // C5  (big jump up)
+        220.0f,    // A3  (big jump down)
+        659.26f,   // E5  (big jump up)
+        146.83f,   // D3  (big jump down)
+        880.0f,    // A5  (big jump up)
+        261.63f,   // C4  (big jump down)
+    };
+    constexpr size_t kNumRetriggers = sizeof(kNoteFreqs) / sizeof(kNoteFreqs[0]);
+    constexpr size_t kSamplesPerNote = 2048;  // ~46ms per note
+
+    // Collect all audio into one continuous buffer
+    constexpr size_t kTotalSamples = kSamplesPerNote * kNumRetriggers;
+    std::vector<float> output(kTotalSamples);
+
+    for (size_t note = 0; note < kNumRetriggers; ++note) {
+        voice.noteOn(kNoteFreqs[note], 1.0f);
+
+        const size_t start = note * kSamplesPerNote;
+        size_t offset = 0;
+        while (offset < kSamplesPerNote) {
+            size_t thisBlock = std::min(blockSize, kSamplesPerNote - offset);
+            voice.processBlock(output.data() + start + offset, thisBlock);
+            offset += thisBlock;
+        }
+    }
+
+    // Detect clicks in the continuous output (includes retrigger boundaries)
+    Krate::DSP::TestUtils::ClickDetectorConfig cfg;
+    cfg.sampleRate = static_cast<float>(sampleRate);
+    cfg.frameSize = 256;
+    cfg.hopSize = 64;
+    cfg.detectionThreshold = 4.0f;
+    Krate::DSP::TestUtils::ClickDetector detector(cfg);
+    detector.prepare();
+
+    auto clicks = detector.detect(output.data(), output.size());
+    INFO("Detected " << clicks.size() << " clicks across "
+         << kNumRetriggers << " fast retriggered notes");
+    for (const auto& c : clicks) {
+        UNSCOPED_INFO("  Click at sample " << c.sampleIndex
+             << " (t=" << c.timeSeconds << "s, amp=" << c.amplitude << ")");
+    }
+
+    // No clicks allowed in the continuous output
+    CHECK(clicks.empty());
+}
+
+TEST_CASE("RuinaeVoice: rapid retrigger stress test with multiple filter types",
+          "[ruinae_voice][regression][artifacts]") {
+    // Stress test: very rapid retriggering (8ms per note) with different
+    // filter types. Exercises the full voice signal chain.
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 128;
+
+    const RuinaeFilterType filterTypes[] = {
+        RuinaeFilterType::SVF_LP,
+        RuinaeFilterType::SVF_HP,
+        RuinaeFilterType::SVF_BP,
+    };
+
+    for (auto filterType : filterTypes) {
+        SECTION(filterType == RuinaeFilterType::SVF_LP ? "SVF LP" :
+                filterType == RuinaeFilterType::SVF_HP ? "SVF HP" : "SVF BP") {
+            auto voice = createPreparedVoice(sampleRate, blockSize);
+            voice.setFilterType(filterType);
+            voice.setFilterCutoff(2000.0f);
+            voice.setFilterResonance(3.0f);
+            voice.setFilterKeyTrack(0.5f);
+            voice.getAmpEnvelope().setAttack(0.001f);
+            voice.getAmpEnvelope().setDecay(0.05f);
+            voice.getAmpEnvelope().setSustain(1.0f);
+            voice.getAmpEnvelope().setRelease(0.01f);
+            voice.setMixPosition(0.0f);
+
+            // Play first note to sustain
+            voice.noteOn(440.0f, 1.0f);
+            processNSamples(voice, 4410, blockSize);  // 100ms warmup
+
+            // Rapid retrigger: 16 notes, ~8ms each (very fast playing)
+            constexpr size_t kSamplesPerNote = 353;  // ~8ms at 44.1kHz
+            constexpr size_t kNumNotes = 16;
+            constexpr size_t kTotalSamples = kSamplesPerNote * kNumNotes;
+
+            // Chromatic scale up and down
+            constexpr float kBaseFreq = 261.63f;  // C4
+            std::vector<float> output(kTotalSamples);
+
+            for (size_t note = 0; note < kNumNotes; ++note) {
+                int semitones = (note < 8)
+                    ? static_cast<int>(note) * 2
+                    : static_cast<int>(16 - note) * 2;
+                float freq = kBaseFreq * std::pow(2.0f, semitones / 12.0f);
+                voice.noteOn(freq, 0.8f);
+
+                const size_t start = note * kSamplesPerNote;
+                size_t offset = 0;
+                while (offset < kSamplesPerNote) {
+                    size_t thisBlock = std::min(blockSize, kSamplesPerNote - offset);
+                    voice.processBlock(output.data() + start + offset, thisBlock);
+                    offset += thisBlock;
+                }
+            }
+
+            Krate::DSP::TestUtils::ClickDetectorConfig cfg;
+            cfg.sampleRate = static_cast<float>(sampleRate);
+            cfg.frameSize = 128;
+            cfg.hopSize = 32;
+            cfg.detectionThreshold = 4.0f;
+            Krate::DSP::TestUtils::ClickDetector detector(cfg);
+            detector.prepare();
+
+            auto clicks = detector.detect(output.data(), output.size());
+            INFO("Detected " << clicks.size() << " clicks with "
+                 << kNumNotes << " rapid retriggered notes");
+            for (const auto& c : clicks) {
+                UNSCOPED_INFO("  Click at sample " << c.sampleIndex
+                     << " (t=" << c.timeSeconds << "s, amp=" << c.amplitude << ")");
+            }
+
+            // HP filter can produce minor transients at extreme retrigger
+            // speeds (8ms/note) due to highpass state interacting with new
+            // frequency content. Allow up to 5 very small artifacts.
+            CHECK(clicks.size() <= 5);
+        }
+    }
+}

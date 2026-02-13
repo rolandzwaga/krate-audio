@@ -144,6 +144,14 @@ public:
     /// Calling process() before prepare() returns input unchanged.
     SVF() noexcept = default;
 
+    /// @brief Default smoothing time constant in seconds (5ms).
+    ///
+    /// This is the time for the smoothed g coefficient to reach ~63% of
+    /// its target. Full convergence (99%) takes about 5x this value (~25ms).
+    /// Short enough to not audibly affect envelope modulation, long enough
+    /// to eliminate clicks from abrupt parameter jumps even at high Q.
+    static constexpr float kDefaultSmoothingTimeSec = 0.005f;
+
     /// @brief Prepare the filter for processing at the given sample rate.
     ///
     /// Must be called before processing. Can be called again if sample rate changes.
@@ -155,8 +163,16 @@ public:
         sampleRate_ = (sampleRate >= 1000.0) ? sampleRate : 1000.0;
         prepared_ = true;
 
-        // Recalculate all coefficients
+        // Recalculate smoothing coefficient for new sample rate
+        recalcSmoothCoeff();
+
+        // Recalculate all coefficients and snap targets
         updateCoefficients();
+        gTarget_ = g_;
+        kTarget_ = k_;
+        m0Target_ = m0_;
+        m1Target_ = m1_;
+        m2Target_ = m2_;
     }
 
     // =========================================================================
@@ -171,29 +187,69 @@ public:
     /// @see SVFMode for available modes
     void setMode(SVFMode mode) noexcept {
         mode_ = mode;
-        updateMixCoefficients();
+        if (smoothingEnabled_) {
+            computeMixTargets();
+        } else {
+            updateMixCoefficients();
+        }
     }
 
     /// @brief Set the cutoff/center frequency.
     ///
-    /// Coefficients are recalculated immediately (no smoothing).
-    /// The frequency is clamped to [1 Hz, sampleRate * 0.495].
+    /// When smoothing is disabled (default), coefficients update immediately.
+    /// When smoothing is enabled, sets the target and coefficients ramp
+    /// smoothly in process() to avoid clicks on abrupt changes.
     ///
     /// @param hz Cutoff frequency in Hz
     void setCutoff(float hz) noexcept {
         cutoffHz_ = clampCutoff(hz);
-        updateCoefficients();
+        if (smoothingEnabled_) {
+            gTarget_ = computeG(cutoffHz_);
+        } else {
+            updateCoefficients();
+            gTarget_ = g_;
+        }
     }
 
     /// @brief Set the Q factor (resonance).
     ///
-    /// Coefficients are recalculated immediately (no smoothing).
-    /// The Q is clamped to [0.1, 30.0].
+    /// When smoothing is disabled (default), coefficients update immediately.
+    /// When smoothing is enabled, sets the target and coefficients ramp
+    /// smoothly in process() to avoid clicks on abrupt changes.
     ///
     /// @param q Q factor (0.7071 = Butterworth, higher = more resonant)
     void setResonance(float q) noexcept {
         q_ = clampQ(q);
-        updateCoefficients();
+        if (smoothingEnabled_) {
+            kTarget_ = 1.0f / q_;
+        } else {
+            updateCoefficients();
+            kTarget_ = k_;
+        }
+    }
+
+    /// @brief Enable or disable per-sample coefficient smoothing.
+    ///
+    /// When enabled, setCutoff() and setResonance() set targets that
+    /// process() smoothly ramps toward. This eliminates clicks from
+    /// abrupt parameter changes (host automation, block boundaries).
+    ///
+    /// @param enabled true to enable smoothing
+    /// @param timeSec Smoothing time constant in seconds (default 0.3ms)
+    void enableSmoothing(bool enabled,
+                         float timeSec = kDefaultSmoothingTimeSec) noexcept {
+        smoothingEnabled_ = enabled;
+        smoothingTimeSec_ = timeSec;
+        recalcSmoothCoeff();
+        if (!enabled) {
+            // Snap to current targets immediately
+            g_ = gTarget_;
+            k_ = kTarget_;
+            m0_ = m0Target_;
+            m1_ = m1Target_;
+            m2_ = m2Target_;
+            updateDerivedCoefficients();
+        }
     }
 
     /// @brief Set the gain for peak and shelf modes.
@@ -206,16 +262,48 @@ public:
         gainDb_ = clampGainDb(dB);
         // FR-008: Calculate A immediately
         A_ = detail::constexprPow10(gainDb_ / 40.0f);
-        updateMixCoefficients();  // m1_, m2_ depend on A_ for shelf modes
+        if (smoothingEnabled_) {
+            computeMixTargets();  // Smooth transition for shelf/peak modes
+        } else {
+            updateMixCoefficients();
+        }
     }
 
     /// @brief Reset filter state without changing parameters.
     ///
-    /// Clears the internal integrator states (ic1eq, ic2eq) to zero.
+    /// Clears the internal integrator states (ic1eq, ic2eq) to zero
+    /// and snaps the smoother to the current target (no ramp on restart).
     /// Use when starting a new audio region to prevent click artifacts.
     void reset() noexcept {
         ic1eq_ = 0.0f;
         ic2eq_ = 0.0f;
+        // Snap smoother to target so first sample uses correct coefficients
+        g_ = gTarget_;
+        k_ = kTarget_;
+        m0_ = m0Target_;
+        m1_ = m1Target_;
+        m2_ = m2Target_;
+        updateDerivedCoefficients();
+    }
+
+    /// @brief Snap coefficients to target without clearing state.
+    ///
+    /// Instantly moves all smoothed coefficients (g, k, mix) to their
+    /// target values and recalculates derived coefficients. Does NOT
+    /// zero the integrator states, preserving output continuity.
+    ///
+    /// Use on note retrigger: the TPT topology is unconditionally stable,
+    /// so sudden coefficient changes are handled gracefully. Stale resonant
+    /// energy decays naturally at the new frequency.
+    void snapToTarget() noexcept {
+        g_ = gTarget_;
+        k_ = kTarget_;
+        m0_ = m0Target_;
+        m1_ = m1Target_;
+        m2_ = m2Target_;
+        a1_ = 1.0f / (1.0f + g_ * (g_ + k_));
+        a2_ = g_ * a1_;
+        a3_ = g_ * a2_;
     }
 
     // =========================================================================
@@ -261,6 +349,11 @@ public:
         if (detail::isNaN(input) || detail::isInf(input)) {
             reset();
             return 0.0f;
+        }
+
+        // Per-sample coefficient smoothing (when enabled)
+        if (smoothingEnabled_) {
+            advanceSmoother();
         }
 
         // FR-016: Per-sample computation
@@ -326,6 +419,11 @@ public:
             return SVFOutputs{0.0f, 0.0f, 0.0f, 0.0f};
         }
 
+        // Per-sample coefficient smoothing (when enabled)
+        if (smoothingEnabled_) {
+            advanceSmoother();
+        }
+
         // FR-016: Per-sample computation
         const float v3 = input - ic2eq_;
         const float v1 = a1_ * ic1eq_ + a2_ * v3;
@@ -359,18 +457,71 @@ private:
     /// @brief Update all filter coefficients based on current parameters.
     void updateCoefficients() noexcept {
         // FR-013: g = tan(pi * cutoff / sampleRate)
-        g_ = std::tan(kPi * cutoffHz_ / static_cast<float>(sampleRate_));
+        g_ = computeG(cutoffHz_);
 
         // FR-013: k = 1/Q
         k_ = 1.0f / q_;
 
         // FR-014: Derived coefficients
+        updateDerivedCoefficients();
+    }
+
+    /// @brief Recompute a1, a2, a3 and mix coefficients from current g_ and k_.
+    void updateDerivedCoefficients() noexcept {
         a1_ = 1.0f / (1.0f + g_ * (g_ + k_));
         a2_ = g_ * a1_;
         a3_ = g_ * a2_;
-
-        // Update mode mixing (depends on k_ and A_)
         updateMixCoefficients();
+    }
+
+    /// @brief Compute the g coefficient from a cutoff frequency.
+    [[nodiscard]] float computeG(float hz) const noexcept {
+        return std::tan(kPi * hz / static_cast<float>(sampleRate_));
+    }
+
+    /// @brief Advance the one-pole smoother for g, k, and mix coefficients.
+    void advanceSmoother() noexcept {
+        const float gDiff = gTarget_ - g_;
+        const float kDiff = kTarget_ - k_;
+        const float m0Diff = m0Target_ - m0_;
+        const float m1Diff = m1Target_ - m1_;
+        const float m2Diff = m2Target_ - m2_;
+
+        constexpr float kEpsilon = 1e-7f;
+        const bool gkSettled = std::abs(gDiff) < kEpsilon
+                            && std::abs(kDiff) < kEpsilon;
+        const bool mixSettled = std::abs(m0Diff) < kEpsilon
+                             && std::abs(m1Diff) < kEpsilon
+                             && std::abs(m2Diff) < kEpsilon;
+
+        if (gkSettled && mixSettled) return;
+
+        if (!gkSettled) {
+            g_ += smoothCoeff_ * gDiff;
+            k_ += smoothCoeff_ * kDiff;
+            // Update derived a1/a2/a3 (NOT mix - those are smoothed separately)
+            a1_ = 1.0f / (1.0f + g_ * (g_ + k_));
+            a2_ = g_ * a1_;
+            a3_ = g_ * a2_;
+            // Recompute mix targets for modes that depend on k (e.g. Bandpass)
+            computeMixTargets();
+        }
+
+        if (!mixSettled) {
+            m0_ += smoothCoeff_ * m0Diff;
+            m1_ += smoothCoeff_ * m1Diff;
+            m2_ += smoothCoeff_ * m2Diff;
+        }
+    }
+
+    /// @brief Recalculate smoothing coefficient from time constant and sample rate.
+    void recalcSmoothCoeff() noexcept {
+        if (smoothingTimeSec_ > 0.0f && sampleRate_ > 0.0) {
+            smoothCoeff_ = 1.0f - std::exp(
+                -1.0f / (smoothingTimeSec_ * static_cast<float>(sampleRate_)));
+        } else {
+            smoothCoeff_ = 1.0f; // Instant (no smoothing)
+        }
     }
 
     /// @brief Update mode mixing coefficients based on current mode and parameters.
@@ -489,6 +640,41 @@ private:
         }
     }
 
+    /// @brief Compute mix coefficient targets for the current mode and k value.
+    ///
+    /// Same logic as updateMixCoefficients() but writes to target variables
+    /// instead of active values, for use with the per-sample smoother.
+    void computeMixTargets() noexcept {
+        switch (mode_) {
+            case SVFMode::Lowpass:
+                m0Target_ = 0.0f; m1Target_ = 0.0f; m2Target_ = 1.0f;
+                break;
+            case SVFMode::Highpass:
+                m0Target_ = 1.0f; m1Target_ = 0.0f; m2Target_ = 0.0f;
+                break;
+            case SVFMode::Bandpass:
+                m0Target_ = 0.0f; m1Target_ = k_; m2Target_ = 0.0f;
+                break;
+            case SVFMode::Notch:
+                m0Target_ = 1.0f; m1Target_ = 0.0f; m2Target_ = 1.0f;
+                break;
+            case SVFMode::Allpass:
+                m0Target_ = 1.0f; m1Target_ = -k_; m2Target_ = 1.0f;
+                break;
+            case SVFMode::Peak:
+                m0Target_ = 1.0f; m1Target_ = k_ * A_ * A_; m2Target_ = 1.0f;
+                break;
+            case SVFMode::LowShelf:
+                m0Target_ = 1.0f; m1Target_ = k_ * A_; m2Target_ = A_ * A_;
+                break;
+            case SVFMode::HighShelf:
+                m0Target_ = A_ * A_;
+                m1Target_ = k_ * (A_ * A_ + A_ - 1.0f);
+                m2Target_ = 1.0f;
+                break;
+        }
+    }
+
     /// @brief Clamp cutoff frequency to valid range.
     [[nodiscard]] float clampCutoff(float hz) const noexcept {
         const float maxFreq = static_cast<float>(sampleRate_) * kMaxCutoffRatio;
@@ -531,14 +717,26 @@ private:
     float a3_ = 0.0f;  // g * a2
     float A_ = 1.0f;   // 10^(dB/40) for shelf/peak
 
-    // Mode mixing coefficients
+    // Mode mixing coefficients (active)
     float m0_ = 0.0f;  // high coefficient
     float m1_ = 0.0f;  // band coefficient
     float m2_ = 1.0f;  // low coefficient
 
+    // Mode mixing coefficient targets (for smoothing)
+    float m0Target_ = 0.0f;
+    float m1Target_ = 0.0f;
+    float m2Target_ = 1.0f;
+
     // Integrator state
     float ic1eq_ = 0.0f;
     float ic2eq_ = 0.0f;
+
+    // Coefficient smoothing
+    float gTarget_ = 0.0f;
+    float kTarget_ = 1.0f;
+    float smoothCoeff_ = 1.0f;
+    float smoothingTimeSec_ = kDefaultSmoothingTimeSec;
+    bool smoothingEnabled_ = false;
 };
 
 } // namespace DSP

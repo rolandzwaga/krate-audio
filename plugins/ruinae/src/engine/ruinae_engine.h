@@ -735,6 +735,15 @@ public:
         for (auto& voice : voices_) { voice.setFilterCombDamping(amount); }
     }
 
+    void setFilterSvfSlope(int stages) noexcept {
+        for (auto& voice : voices_) { voice.setFilterSvfSlope(stages); }
+    }
+
+    void setFilterSvfDrive(float db) noexcept {
+        if (detail::isNaN(db) || detail::isInf(db)) return;
+        for (auto& voice : voices_) { voice.setFilterSvfDrive(db); }
+    }
+
     // --- Distortion ---
 
     void setDistortionType(RuinaeDistortionType type) noexcept {

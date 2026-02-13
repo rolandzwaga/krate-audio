@@ -357,8 +357,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         } else {
             if (!loadMixerParamsV3(mixerParams_, streamer)) return false;
         }
-        // v5 added type-specific filter params (ladder/formant/comb)
-        if (ver >= 5) {
+        // v6 added SVF slope/drive; v5 added type-specific filter params
+        if (ver >= 6) {
+            if (!loadFilterParamsV5(filterParams_, streamer)) return false;
+        } else if (ver >= 5) {
             if (!loadFilterParamsV4(filterParams_, streamer)) return false;
         } else {
             if (!loadFilterParams(filterParams_, streamer)) return false;
@@ -553,6 +555,8 @@ void Processor::applyParamsToEngine() {
     engine_.setFilterFormantMorph(filterParams_.formantMorph.load(std::memory_order_relaxed));
     engine_.setFilterFormantGender(filterParams_.formantGender.load(std::memory_order_relaxed));
     engine_.setFilterCombDamping(filterParams_.combDamping.load(std::memory_order_relaxed));
+    engine_.setFilterSvfSlope(filterParams_.svfSlope.load(std::memory_order_relaxed));
+    engine_.setFilterSvfDrive(filterParams_.svfDrive.load(std::memory_order_relaxed));
 
     // --- Distortion ---
     engine_.setDistortionType(static_cast<RuinaeDistortionType>(

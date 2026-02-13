@@ -168,8 +168,10 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             loadMixerParamsToController(streamer, setParam);
         else
             loadMixerParamsToControllerV3(streamer, setParam);
-        // v5 added type-specific filter params (ladder/formant/comb)
-        if (ver >= 5)
+        // v6 added SVF slope/drive; v5 added type-specific filter params
+        if (ver >= 6)
+            loadFilterParamsToControllerV5(streamer, setParam);
+        else if (ver >= 5)
             loadFilterParamsToControllerV4(streamer, setParam);
         else
             loadFilterParamsToController(streamer, setParam);
@@ -1286,6 +1288,13 @@ void Controller::wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicato
 
     // Wire controller for cross-component communication
     indicator->setController(this);
+
+    // Wire removed callback so UIViewSwitchContainer template teardown
+    // nulls the cached pointer (prevents dangling pointer crashes)
+    indicator->setRemovedCallback(
+        [this, destIdx]() {
+            ringIndicators_[static_cast<size_t>(destIdx)] = nullptr;
+        });
 
     // Wire click-to-select callback (FR-027, T070)
     indicator->setSelectCallback(

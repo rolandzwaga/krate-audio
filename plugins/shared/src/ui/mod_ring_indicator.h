@@ -219,11 +219,25 @@ public:
     }
 
     // =========================================================================
-    // Selection Callback
+    // Lifecycle
+    // =========================================================================
+
+    /// Called when this view is removed from its parent (e.g. by UIViewSwitchContainer).
+    /// Fires the removed callback so the controller can null out cached pointers.
+    bool removed(VSTGUI::CView* parent) override {
+        if (removedCallback_) removedCallback_();
+        return CView::removed(parent);
+    }
+
+    // =========================================================================
+    // Callbacks
     // =========================================================================
 
     using SelectCallback = std::function<void(int sourceIndex, int destIndex)>;
     void setSelectCallback(SelectCallback cb) { selectCallback_ = std::move(cb); }
+
+    using RemovedCallback = std::function<void()>;
+    void setRemovedCallback(RemovedCallback cb) { removedCallback_ = std::move(cb); }
 
 private:
     // =========================================================================
@@ -339,6 +353,7 @@ private:
     float strokeWidth_ = 3.0f;
     int destinationIndex_ = -1;     // ModDestination enum value (-1 = unset)
     SelectCallback selectCallback_;
+    RemovedCallback removedCallback_;
 };
 
 // =============================================================================

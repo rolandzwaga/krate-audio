@@ -29,6 +29,7 @@
 #include "ui/oscillator_type_selector.h"
 #include "ui/lfo_shape_selector.h"
 #include "ui/toggle_button.h"
+#include "ui/icon_segment_button.h"
 
 #include "public.sdk/source/main/pluginfactory.h"
 
