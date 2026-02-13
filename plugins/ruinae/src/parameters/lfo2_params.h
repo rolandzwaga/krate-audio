@@ -17,7 +17,7 @@ struct LFO2Params {
     std::atomic<float> rateHz{1.0f};
     std::atomic<int> shape{0};
     std::atomic<float> depth{1.0f};
-    std::atomic<bool> sync{false};
+    std::atomic<bool> sync{true};
 };
 
 inline void handleLFO2ParamChange(
@@ -47,7 +47,7 @@ inline void registerLFO2Params(Steinberg::Vst::ParameterContainer& parameters) {
     ));
     parameters.addParameter(STR16("LFO 2 Depth"), STR16("%"), 0, 1.0,
         ParameterInfo::kCanAutomate, kLFO2DepthId);
-    parameters.addParameter(STR16("LFO 2 Sync"), STR16(""), 1, 0.0,
+    parameters.addParameter(STR16("LFO 2 Sync"), STR16(""), 1, 1.0,
         ParameterInfo::kCanAutomate, kLFO2SyncId);
 }
 

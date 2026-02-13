@@ -7,8 +7,8 @@
 // intensity. Cell color = source color, brightness = |amount|.
 // Supports click-to-select and hover tooltips.
 //
-// Global mode: 10 sources x 11 destinations grid
-// Voice mode:   7 sources x  7 destinations grid
+// Global mode: 12 sources x 11 destinations grid
+// Voice mode:   8 sources x  7 destinations grid
 //
 // Registered as "ModHeatmap" via VSTGUI ViewCreator system.
 // Spec: 049-mod-matrix-grid (FR-031 to FR-038)
@@ -46,7 +46,7 @@ public:
     // Constants
     // =========================================================================
 
-    static constexpr int kMaxSources = 10;      // Global mode max
+    static constexpr int kMaxSources = 12;      // Global mode max
     static constexpr int kMaxDestinations = 11;  // Global mode max
     static constexpr VSTGUI::CCoord kHeaderHeight = 16.0;
     static constexpr VSTGUI::CCoord kRowHeaderWidth = 30.0;
@@ -133,7 +133,7 @@ public:
                 vs.left + kRowHeaderWidth + (d + 1) * cellW, vs.top + kHeaderHeight);
             context->setFontColor(VSTGUI::CColor(140, 140, 150, 255));
             context->drawString(
-                VSTGUI::UTF8String(destinationAbbrForIndex(d, isGlobal)),
+                VSTGUI::UTF8String(destinationAbbrForTab(isGlobal ? 0 : 1, d)),
                 headerRect, VSTGUI::kCenterText, true);
         }
 
@@ -142,9 +142,9 @@ public:
             VSTGUI::CRect headerRect(
                 vs.left, vs.top + kHeaderHeight + s * cellH,
                 vs.left + kRowHeaderWidth, vs.top + kHeaderHeight + (s + 1) * cellH);
-            context->setFontColor(sourceColorForIndex(s));
+            context->setFontColor(sourceColorForTab(mode_, s));
             context->drawString(
-                VSTGUI::UTF8String(sourceAbbrForIndex(s)),
+                VSTGUI::UTF8String(sourceAbbrForTab(mode_, s)),
                 headerRect, VSTGUI::kCenterText, true);
         }
 
@@ -161,7 +161,7 @@ public:
 
                 if (cell.active) {
                     // Active cell: source color * |amount| intensity (FR-033)
-                    VSTGUI::CColor srcColor = sourceColorForIndex(s);
+                    VSTGUI::CColor srcColor = sourceColorForTab(mode_, s);
                     float intensity = std::abs(cell.amount);
                     VSTGUI::CColor cellColor = lerpColor(bgColor, srcColor, intensity);
                     context->setFillColor(cellColor);
@@ -211,8 +211,8 @@ public:
             if (cell.active) {
                 bool isGlobal = (mode_ == 0);
                 std::ostringstream tooltip;
-                tooltip << sourceNameForIndex(s)
-                        << " -> " << destinationNameForIndex(d)
+                tooltip << sourceNameForTab(mode_, s)
+                        << " -> " << destinationNameForTab(isGlobal ? 0 : 1, d)
                         << ": " << (cell.amount >= 0.0f ? "+" : "")
                         << std::fixed << std::setprecision(2) << cell.amount;
                 setTooltipText(VSTGUI::UTF8String(tooltip.str()).data());

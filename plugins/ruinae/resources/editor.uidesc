@@ -80,11 +80,13 @@
         <control-tag name="LFO1Rate" tag="1000"/>
         <control-tag name="LFO1Shape" tag="1001"/>
         <control-tag name="LFO1Depth" tag="1002"/>
+        <control-tag name="LFO1Sync" tag="1003"/>
 
         <!-- LFO 2 -->
         <control-tag name="LFO2Rate" tag="1100"/>
         <control-tag name="LFO2Shape" tag="1101"/>
         <control-tag name="LFO2Depth" tag="1102"/>
+        <control-tag name="LFO2Sync" tag="1103"/>
 
         <!-- Chaos -->
         <control-tag name="ChaosRate" tag="1200"/>
@@ -764,6 +766,7 @@
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
                       on-color="#508CC8" off-color="#508CC880"
+                      tooltip="Expand amp envelope"
                       transparent="true"/>
                 <view class="CTextLabel" origin="0, 30" size="14, 90"
                       font="~ NormalFontSmaller" font-color="#508CC8"
@@ -787,6 +790,7 @@
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
                       on-color="#DCAA3C" off-color="#DCAA3C80"
+                      tooltip="Expand filter envelope"
                       transparent="true"/>
                 <view class="CTextLabel" origin="0, 30" size="14, 90"
                       font="~ NormalFontSmaller" font-color="#DCAA3C"
@@ -810,6 +814,7 @@
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
                       on-color="#A05AC8" off-color="#A05AC880"
+                      tooltip="Expand mod envelope"
                       transparent="true"/>
                 <view class="CTextLabel" origin="0, 30" size="14, 90"
                       font="~ NormalFontSmaller" font-color="#A05AC8"
@@ -843,6 +848,7 @@
             <!-- ======================================================== -->
             <view class="ToggleButton" origin="8, 14" size="40, 18"
                   control-tag="TranceGateEnabled" default-value="0"
+                  tooltip="Enable trance gate"
                   transparent="false"/>
 
             <view class="COptionMenu" origin="56, 14" size="70, 18"
@@ -854,10 +860,6 @@
                   control-tag="TranceGateNumSteps" default-value="0.467"
                   font="~ NormalFontSmaller" font-color="#C0C0C0"
                   back-color="#2A2A2E" frame-color="#404048"/>
-
-            <view class="ToggleButton" origin="786, 14" size="90, 18"
-                  control-tag="TranceGateEuclideanEnabled" default-value="0"
-                  transparent="false"/>
 
             <!-- ======================================================== -->
             <!-- Step Pattern Editor (full width)                          -->
@@ -878,21 +880,26 @@
             <!-- Transform buttons -->
             <view class="ActionButton" origin="126, 110" size="26, 26"
                   control-tag="ActionTransformInvert" default-value="0"
-                  icon-style="invert" transparent="false"/>
+                  icon-style="invert" tooltip="Invert pattern"
+                  transparent="false"/>
             <view class="ActionButton" origin="154, 110" size="26, 26"
                   control-tag="ActionTransformShiftLeft" default-value="0"
-                  icon-style="shift-left" transparent="false"/>
+                  icon-style="shift-left" tooltip="Shift pattern left"
+                  transparent="false"/>
             <view class="ActionButton" origin="182, 110" size="26, 26"
                   control-tag="ActionTransformShiftRight" default-value="0"
-                  icon-style="shift-right" transparent="false"/>
+                  icon-style="shift-right" tooltip="Shift pattern right"
+                  transparent="false"/>
 
             <!-- Euclidean action buttons -->
             <view class="ToggleButton" origin="216, 110" size="26, 26"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
+                  tooltip="Enable euclidean mode"
                   transparent="false"/>
             <view class="ActionButton" origin="244, 110" size="26, 26"
                   control-tag="ActionEuclideanRegen" default-value="0"
-                  icon-style="regen" transparent="false"/>
+                  icon-style="regen" tooltip="Regenerate pattern"
+                  transparent="false"/>
 
             <!-- Parameter knobs: Rate, Depth, Attack, Release, Phase -->
             <view class="ArcKnob" origin="380, 108" size="28, 28"
@@ -964,19 +971,30 @@
             <!-- T065-T067: LFO1 knobs (Row 1, y=14)                      -->
             <!-- ======================================================== -->
 
-            <!-- LFO1 Rate -->
-            <view class="ArcKnob" origin="8, 14" size="28, 28"
-                  control-tag="LFO1Rate" default-value="0.5"
-                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
-            <view class="CTextLabel" origin="2, 42" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="#808080"
-                  text-alignment="center" transparent="true" title="Rate"/>
+            <!-- LFO1 Rate (hidden when sync active) -->
+            <view class="CViewContainer" origin="0, 14" size="44, 38"
+                  custom-view-name="LFO1RateGroup" transparent="true">
+                <view class="ArcKnob" origin="8, 0" size="28, 28"
+                      control-tag="LFO1Rate" default-value="0.5"
+                      arc-color="#5AC882" guide-color="#FFFFFF28"/>
+                <view class="CTextLabel" origin="2, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="#808080"
+                      text-alignment="center" transparent="true" title="Rate"/>
+            </view>
+            <!-- LFO1 Sync toggle -->
+            <view class="ToggleButton" origin="2, 54" size="40, 12"
+                  control-tag="LFO1Sync" default-value="1.0"
+                  title="Sync"
+                  on-color="#5AC882" off-color="#505055"
+                  font-size="9"/>
 
-            <!-- LFO1 Shape -->
-            <view class="ArcKnob" origin="48, 14" size="28, 28"
-                  control-tag="LFO1Shape" default-value="0.0"
-                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
-            <view class="CTextLabel" origin="42, 42" size="40, 10"
+            <!-- LFO1 Shape selector -->
+            <view class="LfoShapeSelector"
+                  origin="44, 14" size="36, 28"
+                  control-tag="LFO1Shape"
+                  lfo-color="#5AC882"
+                  min-value="0" max-value="1"/>
+            <view class="CTextLabel" origin="38, 42" size="48, 10"
                   font="~ NormalFontSmaller" font-color="#808080"
                   text-alignment="center" transparent="true" title="Shape"/>
 
@@ -997,19 +1015,30 @@
             <!-- T068-T070: LFO2 knobs (Row 2, y=64)                      -->
             <!-- ======================================================== -->
 
-            <!-- LFO2 Rate -->
-            <view class="ArcKnob" origin="8, 64" size="28, 28"
-                  control-tag="LFO2Rate" default-value="0.5"
-                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
-            <view class="CTextLabel" origin="2, 92" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="#808080"
-                  text-alignment="center" transparent="true" title="Rate"/>
+            <!-- LFO2 Rate (hidden when sync active) -->
+            <view class="CViewContainer" origin="0, 64" size="44, 38"
+                  custom-view-name="LFO2RateGroup" transparent="true">
+                <view class="ArcKnob" origin="8, 0" size="28, 28"
+                      control-tag="LFO2Rate" default-value="0.5"
+                      arc-color="#5AC882" guide-color="#FFFFFF28"/>
+                <view class="CTextLabel" origin="2, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="#808080"
+                      text-alignment="center" transparent="true" title="Rate"/>
+            </view>
+            <!-- LFO2 Sync toggle -->
+            <view class="ToggleButton" origin="2, 104" size="40, 12"
+                  control-tag="LFO2Sync" default-value="1.0"
+                  title="Sync"
+                  on-color="#5AC882" off-color="#505055"
+                  font-size="9"/>
 
-            <!-- LFO2 Shape -->
-            <view class="ArcKnob" origin="48, 64" size="28, 28"
-                  control-tag="LFO2Shape" default-value="0.0"
-                  arc-color="#5AC882" guide-color="#FFFFFF28"/>
-            <view class="CTextLabel" origin="42, 92" size="40, 10"
+            <!-- LFO2 Shape selector -->
+            <view class="LfoShapeSelector"
+                  origin="44, 64" size="36, 28"
+                  control-tag="LFO2Shape"
+                  lfo-color="#5AC882"
+                  min-value="0" max-value="1"/>
+            <view class="CTextLabel" origin="38, 92" size="48, 10"
                   font="~ NormalFontSmaller" font-color="#808080"
                   text-alignment="center" transparent="true" title="Shape"/>
 
@@ -1037,19 +1066,19 @@
             <!-- ======================================================== -->
             <!-- T072: CategoryTabBar (Global | Voice)                     -->
             <!-- ======================================================== -->
-            <view class="CategoryTabBar" origin="168, 14" size="150, 18"
+            <view class="CategoryTabBar" origin="168, 14" size="340, 18"
                   transparent="false"/>
 
             <!-- ======================================================== -->
             <!-- T073: ModMatrixGrid                                       -->
             <!-- ======================================================== -->
-            <view class="ModMatrixGrid" origin="168, 34" size="168, 90"
+            <view class="ModMatrixGrid" origin="168, 34" size="340, 108"
                   transparent="false"/>
 
             <!-- ======================================================== -->
             <!-- T074: ModHeatmap                                          -->
             <!-- ======================================================== -->
-            <view class="ModHeatmap" origin="340, 14" size="148, 110"
+            <view class="ModHeatmap" origin="516, 14" size="360, 128"
                   transparent="false"/>
         </view>
 
@@ -1076,6 +1105,7 @@
                       font="~ NormalFontSmaller"
                       font-color="#C8C8CC"
                       text-color="#C8C8CC"
+                      tooltip="Enable freeze effect"
                       transparent="true"/>
                 <view class="ArcKnob" origin="60, 0" size="28, 28"
                       control-tag="FreezeToggle"
@@ -1089,6 +1119,7 @@
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
                       on-color="#C8C8CC" off-color="#808080"
+                      tooltip="Expand freeze settings"
                       transparent="true"/>
 
                 <!-- Delay group -->
@@ -1108,6 +1139,7 @@
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
                       on-color="#C8C8CC" off-color="#808080"
+                      tooltip="Expand delay settings"
                       transparent="true"/>
 
                 <!-- Reverb group -->
@@ -1127,6 +1159,7 @@
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
                       on-color="#C8C8CC" off-color="#808080"
+                      tooltip="Expand reverb settings"
                       transparent="true"/>
             </view>
 
@@ -1251,6 +1284,7 @@
                   font="~ NormalFontSmaller"
                   font-color="#C8C8CC"
                   text-color="#C8C8CC"
+                  tooltip="Limit output level"
                   transparent="true"/>
         </view>
 

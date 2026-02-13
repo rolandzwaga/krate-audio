@@ -26,6 +26,7 @@
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
 #include "vstgui/lib/cfont.h"
+#include "vstgui/lib/cframe.h"
 #include "vstgui/uidescription/iviewcreator.h"
 #include "vstgui/uidescription/uiviewfactory.h"
 #include "vstgui/uidescription/uiviewcreator.h"
@@ -143,8 +144,37 @@ public:
     }
 
     // =========================================================================
+    // Lifecycle
+    // =========================================================================
+
+    bool attached(VSTGUI::CView* parent) override {
+        if (CControl::attached(parent)) {
+            if (auto* frame = getFrame())
+                frame->enableTooltips(true, 500);
+            return true;
+        }
+        return false;
+    }
+
+    // =========================================================================
     // Mouse Interaction (click to toggle)
     // =========================================================================
+
+    VSTGUI::CMouseEventResult onMouseEntered(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override {
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorHand);
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override {
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        return VSTGUI::kMouseEventHandled;
+    }
 
     VSTGUI::CMouseEventResult onMouseDown(
         VSTGUI::CPoint& where,

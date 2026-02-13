@@ -207,8 +207,8 @@ public:
         if (hitIndex >= 0 && hitIndex < static_cast<int>(arcs_.size())) {
             const auto& arc = arcs_[static_cast<size_t>(hitIndex)];
             std::ostringstream tooltip;
-            tooltip << sourceNameForIndex(arc.sourceIndex)
-                    << " -> " << destinationNameForIndex(arc.destIndex)
+            tooltip << sourceNameForTab(0, arc.sourceIndex)
+                    << " -> " << destinationNameForTab(0, arc.destIndex)
                     << ": " << (arc.amount >= 0.0f ? "+" : "")
                     << std::fixed << std::setprecision(2) << arc.amount;
             setTooltipText(VSTGUI::UTF8String(tooltip.str()).data());

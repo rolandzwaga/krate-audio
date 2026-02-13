@@ -17,7 +17,7 @@ struct LFO1Params {
     std::atomic<float> rateHz{1.0f};   // 0.01-50 Hz
     std::atomic<int> shape{0};         // Waveform enum (0-5)
     std::atomic<float> depth{1.0f};    // 0-1
-    std::atomic<bool> sync{false};     // on/off
+    std::atomic<bool> sync{true};      // on/off (default: sync to host)
 };
 
 // Exponential rate: 0-1 -> 0.01-50 Hz
@@ -58,7 +58,7 @@ inline void registerLFO1Params(Steinberg::Vst::ParameterContainer& parameters) {
     ));
     parameters.addParameter(STR16("LFO 1 Depth"), STR16("%"), 0, 1.0,
         ParameterInfo::kCanAutomate, kLFO1DepthId);
-    parameters.addParameter(STR16("LFO 1 Sync"), STR16(""), 1, 0.0,
+    parameters.addParameter(STR16("LFO 1 Sync"), STR16(""), 1, 1.0,
         ParameterInfo::kCanAutomate, kLFO1SyncId);
 }
 

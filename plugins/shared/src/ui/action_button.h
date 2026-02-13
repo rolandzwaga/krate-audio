@@ -22,6 +22,7 @@
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
+#include "vstgui/lib/cframe.h"
 #include "vstgui/uidescription/iviewcreator.h"
 #include "vstgui/uidescription/uiviewfactory.h"
 #include "vstgui/uidescription/uiviewcreator.h"
@@ -89,6 +90,19 @@ public:
     [[nodiscard]] ActionIconStyle getIconStyle() const { return iconStyle_; }
 
     // =========================================================================
+    // Lifecycle
+    // =========================================================================
+
+    bool attached(VSTGUI::CView* parent) override {
+        if (CControl::attached(parent)) {
+            if (auto* frame = getFrame())
+                frame->enableTooltips(true, 500);
+            return true;
+        }
+        return false;
+    }
+
+    // =========================================================================
     // Drawing
     // =========================================================================
 
@@ -118,6 +132,22 @@ public:
     // =========================================================================
     // Mouse Interaction (momentary)
     // =========================================================================
+
+    VSTGUI::CMouseEventResult onMouseEntered(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override {
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorHand);
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override {
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        return VSTGUI::kMouseEventHandled;
+    }
 
     VSTGUI::CMouseEventResult onMouseDown(
         VSTGUI::CPoint& where,

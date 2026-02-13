@@ -45,20 +45,27 @@ namespace Ruinae {
 // State version must match processor
 constexpr Steinberg::int32 kControllerStateVersion = 3;
 
-// Maps ModDestination enum value to the actual VST parameter ID of that knob.
+// Maps destination index to the actual VST parameter ID of that knob.
+// Tab-dependent: voice tab (0-6) and global tab (0-6) have different mappings.
 // Used by ModRingIndicator base value sync (T069-T072).
-static constexpr std::array<Steinberg::Vst::ParamID, 11> kDestParamIds = {{
-    kFilterCutoffId,          // 0: FilterCutoff
-    kFilterResonanceId,       // 1: FilterResonance
-    kMixerPositionId,         // 2: MorphPosition
-    kDistortionDriveId,       // 3: DistortionDrive
-    kTranceGateDepthId,       // 4: TranceGateDepth
-    kOscATuneId,              // 5: OscAPitch
-    kOscBTuneId,              // 6: OscBPitch
-    kGlobalFilterCutoffId,    // 7: GlobalFilterCutoff
-    kGlobalFilterResonanceId, // 8: GlobalFilterResonance
-    kMasterGainId,            // 9: MasterVolume
-    kDelayMixId,              // 10: EffectMix
+static constexpr std::array<Steinberg::Vst::ParamID, 7> kVoiceDestParamIds = {{
+    kFilterCutoffId,          // 0: Filter Cutoff
+    kFilterResonanceId,       // 1: Filter Resonance
+    kMixerPositionId,         // 2: Morph Position
+    kDistortionDriveId,       // 3: Distortion Drive
+    kTranceGateDepthId,       // 4: TranceGate Depth
+    kOscATuneId,              // 5: OSC A Pitch
+    kOscBTuneId,              // 6: OSC B Pitch
+}};
+
+static constexpr std::array<Steinberg::Vst::ParamID, 7> kGlobalDestParamIds = {{
+    kGlobalFilterCutoffId,    // 0: Global Filter Cutoff
+    kGlobalFilterResonanceId, // 1: Global Filter Resonance
+    kMasterGainId,            // 2: Master Volume
+    kDelayMixId,              // 3: Effect Mix
+    kFilterCutoffId,          // 4: All Voice Filter Cutoff
+    kMixerPositionId,         // 5: All Voice Morph Position
+    kTranceGateDepthId,       // 6: All Voice TranceGate Rate
 }};
 
 // ==============================================================================
@@ -384,7 +391,7 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
                 const auto* ptr = &bytes[static_cast<size_t>(i) * kBytesPerRoute];
 
                 Krate::Plugins::ModRoute route;
-                route.source = static_cast<Krate::Plugins::ModSource>(ptr[0]);
+                route.source = ptr[0];
                 route.destination = static_cast<Krate::Plugins::ModDestination>(ptr[1]);
                 std::memcpy(&route.amount, &ptr[2], sizeof(float));
                 route.curve = ptr[6];
@@ -441,6 +448,12 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
+    // Toggle LFO Rate knob visibility based on sync state
+    if (tag == kLFO1SyncId && lfo1RateGroup_)
+        lfo1RateGroup_->setVisible(value < 0.5);
+    if (tag == kLFO2SyncId && lfo2RateGroup_)
+        lfo2RateGroup_->setVisible(value < 0.5);
+
     // Push mixer parameter changes to XYMorphPad
     if (xyMorphPad_) {
         if (tag == kMixerPositionId) {
@@ -464,8 +477,9 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         kModEnvBezierEnabledId, kModEnvBezierAttackCp1XId);
 
     // Push mod matrix parameter changes to ModMatrixGrid and ModRingIndicators
+    // Skip sync when the grid itself is the source (reentrancy guard)
     if (tag >= kModMatrixBaseId && tag <= kModMatrixDetailEndId) {
-        if (modMatrixGrid_) {
+        if (modMatrixGrid_ && !suppressModMatrixSync_) {
             syncModMatrixGrid();
         }
         rebuildRingIndicators();
@@ -474,7 +488,7 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // Sync destination knob value to ModRingIndicator base value
     for (int i = 0; i < kMaxRingIndicators; ++i) {
         if (ringIndicators_[static_cast<size_t>(i)] &&
-            kDestParamIds[static_cast<size_t>(i)] == tag) {
+            kVoiceDestParamIds[static_cast<size_t>(i)] == tag) {
             ringIndicators_[static_cast<size_t>(i)]->setBaseValue(
                 static_cast<float>(value));
             break;
@@ -503,6 +517,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         filterEnvDisplay_ = nullptr;
         modEnvDisplay_ = nullptr;
         euclideanRegenButton_ = nullptr;
+        lfo1RateGroup_ = nullptr;
+        lfo2RateGroup_ = nullptr;
 
         // FX detail panel cleanup (T092)
         fxDetailFreeze_ = nullptr;
@@ -707,6 +723,18 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "ReverbDetail") {
                 fxDetailReverb_ = container;
                 container->setVisible(false);
+            }
+            // LFO Rate groups (hidden when tempo sync is active)
+            else if (*name == "LFO1RateGroup") {
+                lfo1RateGroup_ = container;
+                auto* syncParam = getParameterObject(kLFO1SyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
+            } else if (*name == "LFO2RateGroup") {
+                lfo2RateGroup_ = container;
+                auto* syncParam = getParameterObject(kLFO2SyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
             }
             // Envelope expand/collapse groups
             else if (*name == "EnvGroupAmp") {
@@ -979,22 +1007,29 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
     modMatrixGrid_ = grid;
 
     // T048: Set ParameterCallback for direct parameter changes (T039-T041)
+    // Suppress sync: the grid is the source of truth during user interaction
     grid->setParameterCallback(
         [this](int32_t paramId, float normalizedValue) {
+            suppressModMatrixSync_ = true;
             performEdit(static_cast<Steinberg::Vst::ParamID>(paramId),
                         static_cast<double>(normalizedValue));
+            suppressModMatrixSync_ = false;
         });
 
     // T048: Set BeginEditCallback (T042)
     grid->setBeginEditCallback(
         [this](int32_t paramId) {
+            suppressModMatrixSync_ = true;
             beginEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+            suppressModMatrixSync_ = false;
         });
 
     // T048: Set EndEditCallback (T042)
     grid->setEndEditCallback(
         [this](int32_t paramId) {
+            suppressModMatrixSync_ = true;
             endEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+            suppressModMatrixSync_ = false;
         });
 
     // T048: Set RouteChangedCallback (T049, T088)
@@ -1009,21 +1044,36 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
                 auto amountId = static_cast<Steinberg::Vst::ParamID>(
                     Krate::Plugins::modSlotAmountId(slot));
 
-                int srcIdx = static_cast<int>(route.source);
+                // UI source index 0-11 maps to DSP ModSource 1-12 (skip None=0)
+                int dspSrcIdx = static_cast<int>(route.source) + 1;
                 int dstIdx = static_cast<int>(route.destination);
 
+                // Suppress sync-back: grid is the source of truth here
+                suppressModMatrixSync_ = true;
+
                 double srcNorm = (kModSourceCount > 1)
-                    ? static_cast<double>(srcIdx) / static_cast<double>(kModSourceCount - 1)
+                    ? static_cast<double>(dspSrcIdx) / static_cast<double>(kModSourceCount - 1)
                     : 0.0;
                 setParamNormalized(sourceId, srcNorm);
+                beginEdit(sourceId);
+                performEdit(sourceId, srcNorm);
+                endEdit(sourceId);
 
                 double dstNorm = (kModDestCount > 1)
                     ? static_cast<double>(dstIdx) / static_cast<double>(kModDestCount - 1)
                     : 0.0;
                 setParamNormalized(destId, dstNorm);
+                beginEdit(destId);
+                performEdit(destId, dstNorm);
+                endEdit(destId);
 
                 double amtNorm = static_cast<double>((route.amount + 1.0f) / 2.0f);
                 setParamNormalized(amountId, amtNorm);
+                beginEdit(amountId);
+                performEdit(amountId, amtNorm);
+                endEdit(amountId);
+
+                suppressModMatrixSync_ = false;
             } else {
                 // Voice routes use IMessage (T088)
                 auto msg = Steinberg::owned(allocateMessage());
@@ -1058,6 +1108,8 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
                 auto amountId = static_cast<Steinberg::Vst::ParamID>(
                     Krate::Plugins::modSlotAmountId(slot));
 
+                suppressModMatrixSync_ = true;
+
                 beginEdit(sourceId);
                 performEdit(sourceId, 0.0);
                 endEdit(sourceId);
@@ -1069,6 +1121,8 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
                 beginEdit(amountId);
                 performEdit(amountId, 0.5); // 0.5 normalized = 0.0 bipolar
                 endEdit(amountId);
+
+                suppressModMatrixSync_ = false;
             } else {
                 // Voice routes: send remove via IMessage (T088)
                 auto msg = Steinberg::owned(allocateMessage());
@@ -1095,24 +1149,25 @@ void Controller::syncModMatrixGrid() {
     for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
         Krate::Plugins::ModRoute route;
 
-        // Source
+        // Source: DSP index 0-12 → UI index (dspIdx - 1), clamped to 0-11
         auto* srcParam = getParameterObject(
             static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotSourceId(i)));
+        int dspSrcIdx = 0;
         if (srcParam) {
-            int srcIdx = static_cast<int>(
+            dspSrcIdx = static_cast<int>(
                 std::round(srcParam->getNormalized() * (kModSourceCount - 1)));
-            route.source = static_cast<Krate::Plugins::ModSource>(
-                std::clamp(srcIdx, 0, static_cast<int>(Krate::Plugins::ModSource::kNumSources) - 1));
+            int uiSrcIdx = std::clamp(dspSrcIdx - 1, 0, Krate::Plugins::kNumGlobalSources - 1);
+            route.source = static_cast<uint8_t>(uiSrcIdx);
         }
 
-        // Destination
+        // Destination: DSP index 0-6 maps directly to global tab dest index
         auto* dstParam = getParameterObject(
             static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotDestinationId(i)));
         if (dstParam) {
             int dstIdx = static_cast<int>(
                 std::round(dstParam->getNormalized() * (kModDestCount - 1)));
             route.destination = static_cast<Krate::Plugins::ModDestination>(
-                std::clamp(dstIdx, 0, static_cast<int>(Krate::Plugins::ModDestination::kNumDestinations) - 1));
+                std::clamp(dstIdx, 0, Krate::Plugins::kNumGlobalDestinations - 1));
         }
 
         // Amount
@@ -1151,12 +1206,8 @@ void Controller::syncModMatrixGrid() {
             route.bypass = bypassParam->getNormalized() >= 0.5;
         }
 
-        // Determine if this route is "active" based on whether amount is non-zero
-        // or source/dest are non-default. For now, mark as active if amount != 0
-        // (The UI manages active state; on sync, all slots are populated.)
-        route.active = (std::abs(route.amount) > 0.001f ||
-                        route.source != Krate::Plugins::ModSource::Env1 ||
-                        route.destination != Krate::Plugins::ModDestination::FilterCutoff);
+        // Route is active if DSP source is not None (0) — None means empty slot
+        route.active = (dspSrcIdx > 0);
 
         modMatrixGrid_->setGlobalRoute(i, route);
     }
@@ -1184,8 +1235,8 @@ void Controller::wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicato
         });
 
     // Sync initial base value from destination knob parameter
-    if (static_cast<size_t>(destIdx) < kDestParamIds.size()) {
-        auto destParamId = kDestParamIds[static_cast<size_t>(destIdx)];
+    if (static_cast<size_t>(destIdx) < kVoiceDestParamIds.size()) {
+        auto destParamId = kVoiceDestParamIds[static_cast<size_t>(destIdx)];
         auto* param = getParameterObject(destParamId);
         if (param) {
             indicator->setBaseValue(static_cast<float>(param->getNormalized()));
@@ -1296,9 +1347,13 @@ void Controller::rebuildRingIndicators() {
         auto* bypassParam = getParameterObject(
             static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotBypassId(i)));
 
+        int dspSrcIdx = 0;
         if (srcParam) {
-            routes[static_cast<size_t>(i)].sourceIndex = static_cast<int>(
+            dspSrcIdx = static_cast<int>(
                 std::round(srcParam->getNormalized() * (kModSourceCount - 1)));
+            // DSP index → UI index (subtract 1, clamp to 0-11)
+            routes[static_cast<size_t>(i)].sourceIndex =
+                std::clamp(dspSrcIdx - 1, 0, Krate::Plugins::kNumGlobalSources - 1);
         }
         if (dstParam) {
             routes[static_cast<size_t>(i)].destIndex = static_cast<int>(
@@ -1312,27 +1367,34 @@ void Controller::rebuildRingIndicators() {
             routes[static_cast<size_t>(i)].bypass = bypassParam->getNormalized() >= 0.5;
         }
 
-        // Route is active if amount is non-zero or source/dest are non-default
-        routes[static_cast<size_t>(i)].active =
-            (std::abs(routes[static_cast<size_t>(i)].amount) > 0.001f ||
-             routes[static_cast<size_t>(i)].sourceIndex != 0 ||
-             routes[static_cast<size_t>(i)].destIndex != 0);
+        // Route is active if DSP source is not None (0)
+        routes[static_cast<size_t>(i)].active = (dspSrcIdx > 0);
     }
 
-    // For each destination with a ring indicator, build the arc list
+    // For each destination with a ring indicator, build the arc list.
+    // Ring indicators use voice dest indices (0-6) and sit on voice knobs.
+    // Match global routes to ring indicators via parameter ID so that
+    // e.g. global dest 4 (All Voice Filter Cutoff) shows on ring indicator 0
+    // (which sits on the per-voice filter cutoff knob).
     for (int destIdx = 0; destIdx < kMaxRingIndicators; ++destIdx) {
         auto* indicator = ringIndicators_[static_cast<size_t>(destIdx)];
         if (!indicator) continue;
+
+        auto indicatorParamId = kVoiceDestParamIds[static_cast<size_t>(destIdx)];
 
         std::vector<ArcInfo> arcs;
         for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
             const auto& r = routes[static_cast<size_t>(i)];
             if (!r.active) continue;
-            if (r.destIndex != destIdx) continue;
+            if (r.destIndex < 0 ||
+                r.destIndex >= static_cast<int>(kGlobalDestParamIds.size()))
+                continue;
+            if (kGlobalDestParamIds[static_cast<size_t>(r.destIndex)] != indicatorParamId)
+                continue;
 
             ArcInfo arc;
             arc.amount = r.amount;
-            arc.color = Krate::Plugins::sourceColorForIndex(r.sourceIndex);
+            arc.color = Krate::Plugins::sourceColorForTab(0, r.sourceIndex);
             arc.sourceIndex = r.sourceIndex;
             arc.destIndex = r.destIndex;
             arc.bypassed = r.bypass;

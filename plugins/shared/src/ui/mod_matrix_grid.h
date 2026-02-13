@@ -27,6 +27,7 @@
 #include "vstgui/lib/cfont.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/uidescription/iviewcreator.h"
 #include "vstgui/uidescription/uiviewfactory.h"
 #include "vstgui/uidescription/uiviewcreator.h"
@@ -451,23 +452,23 @@ public:
                     return VSTGUI::kMouseEventHandled;
                 }
 
-                // Check source label area (T039)
+                // Check source label area (T039) — popup selection
                 VSTGUI::CCoord srcAreaLeft = kRowPadding + 16.0;
                 VSTGUI::CCoord srcAreaRight = srcAreaLeft + kColorDotSize + 4.0 + 42.0;
                 if (localX >= srcAreaLeft && localX < srcAreaRight &&
                     localY >= y && localY < y + kRowHeight) {
-                    fireSourceCycleForSlot(i);
+                    showSourcePopupForSlot(i, where);
                     selectedSlot_ = i;
                     setDirty();
                     return VSTGUI::kMouseEventHandled;
                 }
 
-                // Check destination label area (T040)
+                // Check destination label area (T040) — popup selection
                 VSTGUI::CCoord dstAreaLeft = srcAreaRight + 22.0; // After arrow
                 VSTGUI::CCoord dstAreaRight = dstAreaLeft + 42.0;
                 if (localX >= dstAreaLeft && localX < dstAreaRight &&
                     localY >= y && localY < y + kRowHeight) {
-                    fireDestCycleForSlot(i);
+                    showDestPopupForSlot(i, where);
                     selectedSlot_ = i;
                     setDirty();
                     return VSTGUI::kMouseEventHandled;
@@ -479,9 +480,9 @@ public:
                 VSTGUI::CCoord detailY = y + kRowHeight;
                 if (expanded_[static_cast<size_t>(i)] && localY >= detailY &&
                     localY < y + rowH) {
-                    // Curve click-to-cycle (T100)
+                    // Curve popup selection (T100)
                     if (localX >= kDetailCurveLeft && localX < kDetailCurveRight) {
-                        fireCurveCycleForSlot(i);
+                        showCurvePopupForSlot(i, where);
                         selectedSlot_ = i;
                         return VSTGUI::kMouseEventHandled;
                     }
@@ -497,9 +498,9 @@ public:
                         setDirty();
                         return VSTGUI::kMouseEventHandled;
                     }
-                    // Scale click-to-cycle (T102)
+                    // Scale popup selection (T102)
                     if (localX >= kDetailScaleLeft && localX < kDetailScaleRight) {
-                        fireScaleCycleForSlot(i);
+                        showScalePopupForSlot(i, where);
                         selectedSlot_ = i;
                         return VSTGUI::kMouseEventHandled;
                     }
@@ -787,7 +788,152 @@ private:
     }
 
     // =========================================================================
-    // Source/Dest Cycling (T039, T040)
+    // Source/Dest/Curve/Scale Popup Selection
+    // =========================================================================
+
+    void showSourcePopupForSlot(int slot, const VSTGUI::CPoint& where) {
+        auto& route = getMutableRouteForTab(activeTab_, slot);
+        int maxSources = (activeTab_ == 0) ? kNumGlobalSources : kNumVoiceSources;
+        int currentIndex = static_cast<int>(route.source);
+
+        auto* menu = new VSTGUI::COptionMenu(
+            VSTGUI::CRect(0, 0, 0, 0), nullptr, -1, nullptr, nullptr,
+            VSTGUI::COptionMenu::kPopupStyle | VSTGUI::COptionMenu::kCheckStyle);
+
+        for (int j = 0; j < maxSources; ++j)
+            menu->addEntry(sourceNameForTab(activeTab_, j));
+        menu->setCurrent(currentIndex);
+
+        VSTGUI::CRect vs = getViewSize();
+        VSTGUI::CPoint framePos(where.x - vs.left, where.y - vs.top);
+        localToFrame(framePos);
+
+        int tab = activeTab_;
+        menu->popup(getFrame(), framePos, [this, slot, tab, maxSources](VSTGUI::COptionMenu* m) {
+            int32_t selected = m->getCurrentIndex();
+            if (selected < 0 || selected >= maxSources) return;
+            if (activeTab_ != tab) return;
+
+            auto& r = getMutableRouteForTab(tab, slot);
+            r.source = static_cast<uint8_t>(selected);
+
+            // Source normalization is tab-dependent (UI index != DSP index),
+            // so let routeChangedCallback_ handle the correct DSP normalization
+            // with proper beginEdit/performEdit/endEdit wrapping.
+            if (routeChangedCallback_) routeChangedCallback_(tab, slot, r);
+            setDirty();
+        });
+    }
+
+    void showDestPopupForSlot(int slot, const VSTGUI::CPoint& where) {
+        auto& route = getMutableRouteForTab(activeTab_, slot);
+        int maxDests = (activeTab_ == 0) ? kNumGlobalDestinations : kNumVoiceDestinations;
+        int currentIndex = static_cast<int>(route.destination);
+
+        auto* menu = new VSTGUI::COptionMenu(
+            VSTGUI::CRect(0, 0, 0, 0), nullptr, -1, nullptr, nullptr,
+            VSTGUI::COptionMenu::kPopupStyle | VSTGUI::COptionMenu::kCheckStyle);
+
+        for (int j = 0; j < maxDests; ++j)
+            menu->addEntry(destinationNameForTab(activeTab_, j));
+        menu->setCurrent(currentIndex);
+
+        VSTGUI::CRect vs = getViewSize();
+        VSTGUI::CPoint framePos(where.x - vs.left, where.y - vs.top);
+        localToFrame(framePos);
+
+        int tab = activeTab_;
+        menu->popup(getFrame(), framePos, [this, slot, tab, maxDests](VSTGUI::COptionMenu* m) {
+            int32_t selected = m->getCurrentIndex();
+            if (selected < 0 || selected >= maxDests) return;
+            if (activeTab_ != tab) return;
+
+            auto& r = getMutableRouteForTab(tab, slot);
+            r.destination = static_cast<ModDestination>(selected);
+
+            // Destination normalization is tab-dependent,
+            // so let routeChangedCallback_ handle the correct DSP normalization.
+            if (routeChangedCallback_) routeChangedCallback_(tab, slot, r);
+            setDirty();
+        });
+    }
+
+    void showCurvePopupForSlot(int slot, const VSTGUI::CPoint& where) {
+        auto& route = getMutableRouteForTab(activeTab_, slot);
+        int currentIndex = static_cast<int>(route.curve);
+        int numCurves = static_cast<int>(kCurveTypeNames.size());
+
+        auto* menu = new VSTGUI::COptionMenu(
+            VSTGUI::CRect(0, 0, 0, 0), nullptr, -1, nullptr, nullptr,
+            VSTGUI::COptionMenu::kPopupStyle | VSTGUI::COptionMenu::kCheckStyle);
+
+        for (int j = 0; j < numCurves; ++j)
+            menu->addEntry(kCurveTypeNames[static_cast<size_t>(j)]);
+        menu->setCurrent(currentIndex);
+
+        VSTGUI::CRect vs = getViewSize();
+        VSTGUI::CPoint framePos(where.x - vs.left, where.y - vs.top);
+        localToFrame(framePos);
+
+        int tab = activeTab_;
+        menu->popup(getFrame(), framePos, [this, slot, tab, numCurves](VSTGUI::COptionMenu* m) {
+            int32_t selected = m->getCurrentIndex();
+            if (selected < 0 || selected >= numCurves) return;
+            if (activeTab_ != tab) return;
+
+            auto& r = getMutableRouteForTab(tab, slot);
+            r.curve = static_cast<uint8_t>(selected);
+
+            int32_t curveId = modSlotCurveId(slot);
+            float normalized = static_cast<float>(selected) /
+                static_cast<float>(numCurves - 1);
+            if (beginEditCallback_) beginEditCallback_(curveId);
+            if (paramCallback_) paramCallback_(curveId, normalized);
+            if (endEditCallback_) endEditCallback_(curveId);
+            if (routeChangedCallback_) routeChangedCallback_(tab, slot, r);
+            setDirty();
+        });
+    }
+
+    void showScalePopupForSlot(int slot, const VSTGUI::CPoint& where) {
+        auto& route = getMutableRouteForTab(activeTab_, slot);
+        int currentIndex = static_cast<int>(route.scale);
+        int numScales = static_cast<int>(kScaleNames.size());
+
+        auto* menu = new VSTGUI::COptionMenu(
+            VSTGUI::CRect(0, 0, 0, 0), nullptr, -1, nullptr, nullptr,
+            VSTGUI::COptionMenu::kPopupStyle | VSTGUI::COptionMenu::kCheckStyle);
+
+        for (int j = 0; j < numScales; ++j)
+            menu->addEntry(kScaleNames[static_cast<size_t>(j)]);
+        menu->setCurrent(currentIndex);
+
+        VSTGUI::CRect vs = getViewSize();
+        VSTGUI::CPoint framePos(where.x - vs.left, where.y - vs.top);
+        localToFrame(framePos);
+
+        int tab = activeTab_;
+        menu->popup(getFrame(), framePos, [this, slot, tab, numScales](VSTGUI::COptionMenu* m) {
+            int32_t selected = m->getCurrentIndex();
+            if (selected < 0 || selected >= numScales) return;
+            if (activeTab_ != tab) return;
+
+            auto& r = getMutableRouteForTab(tab, slot);
+            r.scale = static_cast<uint8_t>(selected);
+
+            int32_t scaleId = modSlotScaleId(slot);
+            float normalized = static_cast<float>(selected) /
+                static_cast<float>(numScales - 1);
+            if (beginEditCallback_) beginEditCallback_(scaleId);
+            if (paramCallback_) paramCallback_(scaleId, normalized);
+            if (endEditCallback_) endEditCallback_(scaleId);
+            if (routeChangedCallback_) routeChangedCallback_(tab, slot, r);
+            setDirty();
+        });
+    }
+
+    // =========================================================================
+    // Source/Dest Cycling (T039, T040) — kept for programmatic use
     // =========================================================================
 
     void fireSourceCycleForSlot(int slot) {
@@ -795,16 +941,10 @@ private:
         int srcIndex = static_cast<int>(route.source);
         int maxSources = (activeTab_ == 0) ? kNumGlobalSources : kNumVoiceSources;
         int newIndex = (srcIndex + 1) % maxSources;
-        route.source = static_cast<ModSource>(newIndex);
+        route.source = static_cast<uint8_t>(newIndex);
 
-        // Fire callbacks (T039, T042)
-        int32_t sourceId = modSlotSourceId(slot);
-        float normalized = static_cast<float>(newIndex) /
-            static_cast<float>(maxSources - 1);
-        if (beginEditCallback_) beginEditCallback_(sourceId);
-        if (paramCallback_) paramCallback_(sourceId, normalized);
-        if (endEditCallback_) endEditCallback_(sourceId);
-
+        // Source normalization is tab-dependent (UI index != DSP index),
+        // so let routeChangedCallback_ handle the correct DSP normalization.
         if (routeChangedCallback_)
             routeChangedCallback_(activeTab_, slot, route);
     }
@@ -816,14 +956,8 @@ private:
         int newIndex = (dstIndex + 1) % maxDests;
         route.destination = static_cast<ModDestination>(newIndex);
 
-        // Fire callbacks (T040, T042)
-        int32_t destId = modSlotDestinationId(slot);
-        float normalized = static_cast<float>(newIndex) /
-            static_cast<float>(maxDests - 1);
-        if (beginEditCallback_) beginEditCallback_(destId);
-        if (paramCallback_) paramCallback_(destId, normalized);
-        if (endEditCallback_) endEditCallback_(destId);
-
+        // Destination normalization is tab-dependent,
+        // so let routeChangedCallback_ handle the correct DSP normalization.
         if (routeChangedCallback_)
             routeChangedCallback_(activeTab_, slot, route);
     }
@@ -989,7 +1123,7 @@ private:
         context->setFont(font);
 
         int srcIndex = static_cast<int>(route.source);
-        VSTGUI::CColor srcColor = sourceColorForIndex(srcIndex);
+        VSTGUI::CColor srcColor = sourceColorForTab(activeTab_, srcIndex);
         if (isBypassed)
             srcColor = darkenColor(srcColor, 0.5f);
 
@@ -1008,7 +1142,7 @@ private:
             : VSTGUI::CColor(200, 200, 210, 255);
         context->setFontColor(textColor);
 
-        const char* srcName = sourceAbbrForIndex(srcIndex);
+        const char* srcName = sourceAbbrForTab(activeTab_, srcIndex);
         VSTGUI::CRect srcRect(x, y, x + 40.0, y + kRowHeight);
         context->drawString(VSTGUI::UTF8String(srcName), srcRect,
                             VSTGUI::kLeftText, true);
@@ -1023,8 +1157,7 @@ private:
 
         // Destination name label (clickable area for T040)
         int dstIndex = static_cast<int>(route.destination);
-        bool isGlobal = (activeTab_ == 0);
-        const char* dstName = destinationAbbrForIndex(dstIndex, isGlobal);
+        const char* dstName = destinationAbbrForTab(activeTab_, dstIndex);
         context->setFontColor(textColor);
         VSTGUI::CRect dstRect(x, y, x + 40.0, y + kRowHeight);
         context->drawString(VSTGUI::UTF8String(dstName), dstRect,

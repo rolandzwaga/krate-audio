@@ -11,6 +11,7 @@ add_executable(shared_tests
     test_xy_morph_pad.cpp
     test_adsr_display.cpp
     test_oscillator_type_selector.cpp
+    test_lfo_shape_selector.cpp
 )
 
 target_link_libraries(shared_tests
@@ -54,6 +55,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     set_source_files_properties(
         test_oscillator_type_selector.cpp
+        test_lfo_shape_selector.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

@@ -112,13 +112,13 @@ TEST_CASE("ModMatrixGrid: source cycle fires ParameterCallback", "[modmatrix][gr
     // We test the public interface - set a route and verify parameter IDs
     ModRoute newRoute;
     newRoute.active = true;
-    newRoute.source = ModSource::Env2;
+    newRoute.source = 1; // Env2 in voice tab (or LFO2 in global tab)
     newRoute.destination = ModDestination::FilterCutoff;
     newRoute.amount = 0.5f;
     grid.setGlobalRoute(0, newRoute);
 
     auto updated = grid.getGlobalRoute(0);
-    REQUIRE(static_cast<int>(updated.source) == static_cast<int>(ModSource::Env2));
+    REQUIRE(updated.source == 1);
     REQUIRE(updated.amount == Approx(0.5f));
 }
 
@@ -147,19 +147,19 @@ TEST_CASE("ModMatrixGrid: remove route shifts remaining routes up", "[modmatrix]
     // Modify routes to distinguish them
     ModRoute r0;
     r0.active = true;
-    r0.source = ModSource::Env1;
+    r0.source = 0;
     r0.amount = 0.1f;
     grid.setGlobalRoute(0, r0);
 
     ModRoute r1;
     r1.active = true;
-    r1.source = ModSource::Env2;
+    r1.source = 1;
     r1.amount = 0.2f;
     grid.setGlobalRoute(1, r1);
 
     ModRoute r2;
     r2.active = true;
-    r2.source = ModSource::Env3;
+    r2.source = 2;
     r2.amount = 0.3f;
     grid.setGlobalRoute(2, r2);
 
@@ -172,13 +172,13 @@ TEST_CASE("ModMatrixGrid: remove route shifts remaining routes up", "[modmatrix]
     REQUIRE(removedSlot == 1);
     REQUIRE(grid.getActiveRouteCount(0) == 2);
 
-    // Verify remaining routes shifted: slot 0 = Env1, slot 1 = Env3 (was slot 2)
+    // Verify remaining routes shifted: slot 0 = source 0, slot 1 = source 2 (was slot 2)
     auto remaining0 = grid.getGlobalRoute(0);
-    REQUIRE(static_cast<int>(remaining0.source) == static_cast<int>(ModSource::Env1));
+    REQUIRE(remaining0.source == 0);
     REQUIRE(remaining0.amount == Approx(0.1f));
 
     auto remaining1 = grid.getGlobalRoute(1);
-    REQUIRE(static_cast<int>(remaining1.source) == static_cast<int>(ModSource::Env3));
+    REQUIRE(remaining1.source == 2);
     REQUIRE(remaining1.amount == Approx(0.3f));
 
     // Slot 2 should now be empty
@@ -281,8 +281,7 @@ TEST_CASE("ModMatrixGrid: tab switch resets scroll and selection", "[modmatrix][
     grid.addRoute();
 
     // Select route
-    grid.selectRoute(static_cast<int>(ModSource::Env1),
-                     static_cast<int>(ModDestination::FilterCutoff));
+    grid.selectRoute(0, static_cast<int>(ModDestination::FilterCutoff));
 
     // Switch to Voice tab
     grid.setActiveTab(1);
@@ -579,7 +578,7 @@ TEST_CASE("ModMatrixGrid: bypass affects ring indicator arc filtering", "[modmat
     // Set up routes
     ModRoute r0;
     r0.active = true;
-    r0.source = ModSource::Env1;
+    r0.source = 0;
     r0.destination = ModDestination::FilterCutoff;
     r0.amount = 0.5f;
     r0.bypass = false;
@@ -587,7 +586,7 @@ TEST_CASE("ModMatrixGrid: bypass affects ring indicator arc filtering", "[modmat
 
     ModRoute r1;
     r1.active = true;
-    r1.source = ModSource::Env2;
+    r1.source = 1;
     r1.destination = ModDestination::FilterCutoff;
     r1.amount = 0.3f;
     r1.bypass = true;
@@ -628,7 +627,7 @@ TEST_CASE("ModMatrixGrid: route update syncs heatmap cell", "[modmatrix][grid][h
 
     ModRoute r;
     r.active = true;
-    r.source = ModSource::Env2;
+    r.source = 1;
     r.destination = ModDestination::FilterCutoff;
     r.amount = 0.72f;
     grid.setGlobalRoute(0, r);
@@ -656,14 +655,14 @@ TEST_CASE("ModMatrixGrid: add and remove routes sync heatmap", "[modmatrix][grid
     // Modify routes
     ModRoute r0;
     r0.active = true;
-    r0.source = ModSource::Env1;
+    r0.source = 0;
     r0.destination = ModDestination::FilterCutoff;
     r0.amount = 0.5f;
     grid.setGlobalRoute(0, r0);
 
     ModRoute r1;
     r1.active = true;
-    r1.source = ModSource::Env2;
+    r1.source = 1;
     r1.destination = ModDestination::FilterResonance;
     r1.amount = -0.3f;
     grid.setGlobalRoute(1, r1);
@@ -710,7 +709,7 @@ TEST_CASE("ModHeatmap: cell click callback fires for active cell", "[modmatrix][
     });
 
     // Set an active cell
-    int srcIdx = static_cast<int>(ModSource::Env2);
+    int srcIdx = 1; // source index 1
     int dstIdx = static_cast<int>(ModDestination::FilterCutoff);
     heatmap.setCell(srcIdx, dstIdx, 0.72f, true);
 
@@ -755,13 +754,13 @@ TEST_CASE("ModMatrixGrid: null heatmap does not crash", "[modmatrix][grid][heatm
 // Phase 5 Tests: Global/Voice Tab Filtering (T089-T091, T093)
 // =============================================================================
 
-// T089: Source filtering - Global shows 10 sources, Voice shows 7
+// T089: Source filtering - Global shows 12 sources, Voice shows 8
 TEST_CASE("ModMatrixGrid: source count matches tab", "[modmatrix][grid][tab][integration]") {
-    // Global sources = 10 (all), Voice sources = 7 (per-voice only)
-    REQUIRE(kNumGlobalSources == 10);
-    REQUIRE(kNumVoiceSources == 7);
+    // Global sources = 12 (LFO1..Transient), Voice sources = 8 (Env1..Aftertouch)
+    REQUIRE(kNumGlobalSources == 12);
+    REQUIRE(kNumVoiceSources == 8);
 
-    // Source cycling in global tab wraps at 10
+    // Source cycling in global tab wraps at 12
     ModMatrixGrid grid(VSTGUI::CRect(0, 0, 430, 250));
     grid.setRouteChangedCallback([](int, int, const ModRoute&) {});
     grid.setParameterCallback([](int32_t, float) {});
@@ -770,40 +769,40 @@ TEST_CASE("ModMatrixGrid: source count matches tab", "[modmatrix][grid][tab][int
 
     grid.addRoute();
 
-    // Set source to last global source (index 9 = GlobalLFO)
+    // Set source to last global source (index 11 = Transient)
     ModRoute r;
     r.active = true;
-    r.source = ModSource::GlobalLFO; // index 9
+    r.source = 11; // last global source (Transient)
     grid.setGlobalRoute(0, r);
-    REQUIRE(static_cast<int>(grid.getGlobalRoute(0).source) == 9);
+    REQUIRE(grid.getGlobalRoute(0).source == 11);
 
     // Verify voice tab limits
     grid.setActiveTab(1);
     grid.addRoute();
     ModRoute vr;
     vr.active = true;
-    vr.source = ModSource::KeyTrack; // index 6 (last voice source)
+    vr.source = 7; // last voice source (Aftertouch)
     grid.setVoiceRoute(0, vr);
-    REQUIRE(static_cast<int>(grid.getVoiceRoute(0).source) == 6);
+    REQUIRE(grid.getVoiceRoute(0).source == 7);
 }
 
-// T090: Destination filtering - Global shows 11 dests, Voice shows 7
+// T090: Destination filtering - Global shows 7 dests, Voice shows 7
 TEST_CASE("ModMatrixGrid: destination count matches tab", "[modmatrix][grid][tab][integration]") {
-    REQUIRE(kNumGlobalDestinations == 11);
+    REQUIRE(kNumGlobalDestinations == 7);
     REQUIRE(kNumVoiceDestinations == 7);
 
     ModMatrixGrid grid(VSTGUI::CRect(0, 0, 430, 250));
     grid.setRouteChangedCallback([](int, int, const ModRoute&) {});
 
-    // Global tab: can set any of 11 destinations
+    // Global tab: 7 destinations (matching DSP RuinaeModDest)
     grid.addRoute();
     ModRoute r;
     r.active = true;
-    r.destination = ModDestination::EffectMix; // index 10 (global-only)
+    r.destination = ModDestination::OscBPitch; // index 6 (last global dest)
     grid.setGlobalRoute(0, r);
-    REQUIRE(static_cast<int>(grid.getGlobalRoute(0).destination) == 10);
+    REQUIRE(static_cast<int>(grid.getGlobalRoute(0).destination) == 6);
 
-    // Voice tab: limited to 7 destinations
+    // Voice tab: 7 destinations (per-voice)
     grid.setActiveTab(1);
     grid.addRoute();
     ModRoute vr;
@@ -1014,7 +1013,7 @@ TEST_CASE("Voice tab setVoiceRoute stores data correctly (programmatic sync)",
     // It does NOT fire RouteChangedCallback (to avoid infinite loops).
     ModRoute r;
     r.active = true;
-    r.source = ModSource::Velocity;
+    r.source = 5; // Velocity
     r.destination = ModDestination::FilterCutoff;
     r.amount = 0.5f;
     r.curve = 1;
@@ -1025,7 +1024,7 @@ TEST_CASE("Voice tab setVoiceRoute stores data correctly (programmatic sync)",
 
     auto stored = grid.getVoiceRoute(0);
     REQUIRE(stored.active == true);
-    REQUIRE(static_cast<int>(stored.source) == static_cast<int>(ModSource::Velocity));
+    REQUIRE(stored.source == 5);
     REQUIRE(static_cast<int>(stored.destination) == static_cast<int>(ModDestination::FilterCutoff));
     REQUIRE(stored.amount == Approx(0.5f));
     REQUIRE(stored.curve == 1);
@@ -1179,14 +1178,14 @@ TEST_CASE("Voice route setVoiceRoute updates grid and triggers callback",
     // Add some voice routes programmatically (as if received from processor)
     ModRoute r1;
     r1.active = true;
-    r1.source = ModSource::Env1;
+    r1.source = 0; // Env1
     r1.destination = ModDestination::FilterCutoff;
     r1.amount = 0.8f;
     grid.setVoiceRoute(0, r1);
 
     ModRoute r2;
     r2.active = true;
-    r2.source = ModSource::KeyTrack;
+    r2.source = 6; // KeyTrack
     r2.destination = ModDestination::OscAPitch;
     r2.amount = -0.3f;
     grid.setVoiceRoute(1, r2);
@@ -1196,12 +1195,12 @@ TEST_CASE("Voice route setVoiceRoute updates grid and triggers callback",
 
     auto route0 = grid.getVoiceRoute(0);
     REQUIRE(route0.active == true);
-    REQUIRE(static_cast<int>(route0.source) == static_cast<int>(ModSource::Env1));
+    REQUIRE(route0.source == 0);
     REQUIRE(route0.amount == Approx(0.8f));
 
     auto route1 = grid.getVoiceRoute(1);
     REQUIRE(route1.active == true);
-    REQUIRE(static_cast<int>(route1.source) == static_cast<int>(ModSource::KeyTrack));
+    REQUIRE(route1.source == 6);
     REQUIRE(route1.amount == Approx(-0.3f));
 }
 
@@ -1219,7 +1218,7 @@ TEST_CASE("Route in grid produces arc data for matching ring indicator",
     grid.addRoute();
     ModRoute r;
     r.active = true;
-    r.source = ModSource::Env2;
+    r.source = 1; // source index 1
     r.destination = ModDestination::FilterCutoff;
     r.amount = 0.72f;
     grid.setGlobalRoute(0, r);
@@ -1233,8 +1232,8 @@ TEST_CASE("Route in grid produces arc data for matching ring indicator",
 
         ModRingIndicator::ArcInfo arc;
         arc.amount = route.amount;
-        arc.color = sourceColorForIndex(static_cast<int>(route.source));
-        arc.sourceIndex = static_cast<int>(route.source);
+        arc.color = sourceColorForTab(0, route.source); // global tab
+        arc.sourceIndex = route.source;
         arc.destIndex = static_cast<int>(route.destination);
         arc.bypassed = route.bypass;
         arcs.push_back(arc);
@@ -1244,7 +1243,7 @@ TEST_CASE("Route in grid produces arc data for matching ring indicator",
 
     REQUIRE(indicator.getArcs().size() == 1);
     REQUIRE(indicator.getArcs()[0].amount == Approx(0.72f));
-    REQUIRE(indicator.getArcs()[0].sourceIndex == static_cast<int>(ModSource::Env2));
+    REQUIRE(indicator.getArcs()[0].sourceIndex == 1);
 }
 
 // =============================================================================
@@ -1257,11 +1256,11 @@ TEST_CASE("Route in grid updates heatmap cell via syncHeatmap",
     ModHeatmap heatmap(VSTGUI::CRect(0, 0, 300, 100));
     grid.setHeatmap(&heatmap);
 
-    // Add a route: Env2 -> FilterCutoff at +0.72
+    // Add a route: source 1 -> FilterCutoff at +0.72
     grid.addRoute();
     ModRoute r;
     r.active = true;
-    r.source = ModSource::Env2;
+    r.source = 1;
     r.destination = ModDestination::FilterCutoff;
     r.amount = 0.72f;
     grid.setGlobalRoute(0, r);
@@ -1294,7 +1293,7 @@ TEST_CASE("Ring indicator select callback mediates to grid selectRoute",
     grid.addRoute();
     ModRoute r;
     r.active = true;
-    r.source = ModSource::Env2;
+    r.source = 1; // source index 1
     r.destination = ModDestination::FilterCutoff;
     r.amount = 0.5f;
     grid.setGlobalRoute(0, r);
@@ -1303,9 +1302,9 @@ TEST_CASE("Ring indicator select callback mediates to grid selectRoute",
     std::vector<ModRingIndicator::ArcInfo> arcs;
     ModRingIndicator::ArcInfo arc;
     arc.amount = 0.5f;
-    arc.sourceIndex = static_cast<int>(ModSource::Env2);
+    arc.sourceIndex = 1;
     arc.destIndex = static_cast<int>(ModDestination::FilterCutoff);
-    arc.color = sourceColorForIndex(arc.sourceIndex);
+    arc.color = sourceColorForTab(0, arc.sourceIndex); // global tab
     arc.bypassed = false;
     arcs.push_back(arc);
     indicator.setArcs(arcs);
@@ -1313,7 +1312,7 @@ TEST_CASE("Ring indicator select callback mediates to grid selectRoute",
 
     // Verify arcs are set (actual mouse click would require positioned hit test)
     REQUIRE(indicator.getArcs().size() == 1);
-    REQUIRE(indicator.getArcs()[0].sourceIndex == static_cast<int>(ModSource::Env2));
+    REQUIRE(indicator.getArcs()[0].sourceIndex == 1);
 }
 
 // =============================================================================
@@ -1339,7 +1338,7 @@ TEST_CASE("Heatmap cell click callback mediates to grid selectRoute",
     grid.addRoute();
     ModRoute r;
     r.active = true;
-    r.source = ModSource::Env1;
+    r.source = 0;
     r.destination = ModDestination::FilterCutoff;
     r.amount = 0.5f;
     grid.setGlobalRoute(0, r);
@@ -1396,15 +1395,15 @@ TEST_CASE("All 56 global mod matrix params have correct ID formulas",
 
 TEST_CASE("Gate Output color is distinct from StepPatternEditor accent gold",
           "[modmatrix][integration][color]") {
-    // Gate Output: rgb(220, 130, 60) -- orange
-    auto gateColor = sourceColorForIndex(static_cast<int>(ModSource::GateOutput));
+    // Gate Output: voice source index 4, rgb(220, 130, 60) -- orange
+    auto gateColor = sourceColorForTab(1, 4); // voice tab, Gate Output
     REQUIRE(gateColor.red == 220);
     REQUIRE(gateColor.green == 130);
     REQUIRE(gateColor.blue == 60);
 
     // StepPatternEditor accent gold: rgb(220, 170, 60)
     // ENV 2 (Filter) color: rgb(220, 170, 60) -- same as accent gold
-    auto env2Color = sourceColorForIndex(static_cast<int>(ModSource::Env2));
+    auto env2Color = sourceColorForTab(1, 1); // voice tab, Env2
     REQUIRE(env2Color.red == 220);
     REQUIRE(env2Color.green == 170);
     REQUIRE(env2Color.blue == 60);

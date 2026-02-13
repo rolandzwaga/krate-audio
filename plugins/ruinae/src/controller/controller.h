@@ -196,10 +196,11 @@ private:
     VSTGUI::COptionMenu* presetDropdown_ = nullptr;
     Krate::Plugins::XYMorphPad* xyMorphPad_ = nullptr;
     Krate::Plugins::ModMatrixGrid* modMatrixGrid_ = nullptr;
+    bool suppressModMatrixSync_ = false;  // Reentrancy guard for grid→param→sync loop
 
-    /// ModRingIndicator pointers indexed by ModDestination enum value (up to 11)
-    static constexpr int kMaxRingIndicators = 11;
-    std::array<Krate::Plugins::ModRingIndicator*, 11> ringIndicators_{};
+    /// ModRingIndicator pointers indexed by voice destination index (up to 7)
+    static constexpr int kMaxRingIndicators = 7;
+    std::array<Krate::Plugins::ModRingIndicator*, 7> ringIndicators_{};
 
     Krate::Plugins::ADSRDisplay* ampEnvDisplay_ = nullptr;
     Krate::Plugins::ADSRDisplay* filterEnvDisplay_ = nullptr;
@@ -207,6 +208,10 @@ private:
 
     /// Euclidean regen button - hidden when Euclidean mode is off
     VSTGUI::CView* euclideanRegenButton_ = nullptr;
+
+    /// LFO Rate groups - hidden when tempo sync is active
+    VSTGUI::CView* lfo1RateGroup_ = nullptr;
+    VSTGUI::CView* lfo2RateGroup_ = nullptr;
 
     // FX detail panel expand/collapse state
     VSTGUI::CViewContainer* fxDetailFreeze_ = nullptr;

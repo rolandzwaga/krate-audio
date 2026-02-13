@@ -31,8 +31,8 @@ TEST_CASE("ModRingIndicator: single arc with source color", "[modmatrix][ring][i
     std::vector<ModRingIndicator::ArcInfo> arcs;
     ModRingIndicator::ArcInfo arc;
     arc.amount = 0.72f;
-    arc.color = sourceColorForIndex(static_cast<int>(ModSource::Env2)); // Gold
-    arc.sourceIndex = static_cast<int>(ModSource::Env2);
+    arc.color = sourceColorForTab(1, 1); // Gold
+    arc.sourceIndex = 1;
     arc.destIndex = static_cast<int>(ModDestination::FilterCutoff);
     arc.bypassed = false;
     arcs.push_back(arc);
@@ -59,16 +59,16 @@ TEST_CASE("ModRingIndicator: 2 stacked arcs to same destination", "[modmatrix][r
     // Arc 1: ENV 1 -> Filter Cutoff +0.3
     ModRingIndicator::ArcInfo arc1;
     arc1.amount = 0.3f;
-    arc1.color = sourceColorForIndex(static_cast<int>(ModSource::Env1));
-    arc1.sourceIndex = static_cast<int>(ModSource::Env1);
+    arc1.color = sourceColorForTab(1, 0);
+    arc1.sourceIndex = 0;
     arc1.destIndex = static_cast<int>(ModDestination::FilterCutoff);
     arcs.push_back(arc1);
 
     // Arc 2: ENV 2 -> Filter Cutoff -0.5
     ModRingIndicator::ArcInfo arc2;
     arc2.amount = -0.5f;
-    arc2.color = sourceColorForIndex(static_cast<int>(ModSource::Env2));
-    arc2.sourceIndex = static_cast<int>(ModSource::Env2);
+    arc2.color = sourceColorForTab(1, 1);
+    arc2.sourceIndex = 1;
     arc2.destIndex = static_cast<int>(ModDestination::FilterCutoff);
     arcs.push_back(arc2);
 
@@ -90,7 +90,7 @@ TEST_CASE("ModRingIndicator: 5 arcs triggers composite mode", "[modmatrix][ring]
     for (int i = 0; i < 5; ++i) {
         ModRingIndicator::ArcInfo arc;
         arc.amount = 0.1f * static_cast<float>(i + 1);
-        arc.color = sourceColorForIndex(i);
+        arc.color = sourceColorForTab(0,i);
         arc.sourceIndex = i;
         arc.destIndex = static_cast<int>(ModDestination::FilterCutoff);
         arcs.push_back(arc);
@@ -111,7 +111,7 @@ TEST_CASE("ModRingIndicator: exactly 4 arcs does NOT trigger composite", "[modma
     for (int i = 0; i < 4; ++i) {
         ModRingIndicator::ArcInfo arc;
         arc.amount = 0.2f;
-        arc.color = sourceColorForIndex(i);
+        arc.color = sourceColorForTab(0,i);
         arc.sourceIndex = i;
         arc.destIndex = 0;
         arcs.push_back(arc);
@@ -134,7 +134,7 @@ TEST_CASE("ModRingIndicator: arc clamping at boundaries", "[modmatrix][ring][int
         std::vector<ModRingIndicator::ArcInfo> arcs;
         ModRingIndicator::ArcInfo arc;
         arc.amount = 0.5f; // Would go to 1.4, clamped to 1.0
-        arc.color = sourceColorForIndex(0);
+        arc.color = sourceColorForTab(0,0);
         arc.sourceIndex = 0;
         arc.destIndex = 0;
         arcs.push_back(arc);
@@ -151,7 +151,7 @@ TEST_CASE("ModRingIndicator: arc clamping at boundaries", "[modmatrix][ring][int
         std::vector<ModRingIndicator::ArcInfo> arcs;
         ModRingIndicator::ArcInfo arc;
         arc.amount = -0.5f; // Would go to -0.4, clamped to 0.0
-        arc.color = sourceColorForIndex(0);
+        arc.color = sourceColorForTab(0,0);
         arc.sourceIndex = 0;
         arc.destIndex = 0;
         arcs.push_back(arc);
@@ -175,7 +175,7 @@ TEST_CASE("ModRingIndicator: bypassed arcs are filtered out", "[modmatrix][ring]
     // Active arc
     ModRingIndicator::ArcInfo active;
     active.amount = 0.5f;
-    active.color = sourceColorForIndex(0);
+    active.color = sourceColorForTab(0,0);
     active.sourceIndex = 0;
     active.destIndex = 0;
     active.bypassed = false;
@@ -184,7 +184,7 @@ TEST_CASE("ModRingIndicator: bypassed arcs are filtered out", "[modmatrix][ring]
     // Bypassed arc
     ModRingIndicator::ArcInfo bypassed;
     bypassed.amount = -0.3f;
-    bypassed.color = sourceColorForIndex(1);
+    bypassed.color = sourceColorForTab(0,1);
     bypassed.sourceIndex = 1;
     bypassed.destIndex = 0;
     bypassed.bypassed = true;
@@ -193,7 +193,7 @@ TEST_CASE("ModRingIndicator: bypassed arcs are filtered out", "[modmatrix][ring]
     // Another active arc
     ModRingIndicator::ArcInfo active2;
     active2.amount = 0.2f;
-    active2.color = sourceColorForIndex(2);
+    active2.color = sourceColorForTab(0,2);
     active2.sourceIndex = 2;
     active2.destIndex = 0;
     active2.bypassed = false;
@@ -214,7 +214,7 @@ TEST_CASE("ModRingIndicator: all bypassed arcs results in empty", "[modmatrix][r
     for (int i = 0; i < 3; ++i) {
         ModRingIndicator::ArcInfo arc;
         arc.amount = 0.3f;
-        arc.color = sourceColorForIndex(i);
+        arc.color = sourceColorForTab(0,i);
         arc.sourceIndex = i;
         arc.destIndex = 0;
         arc.bypassed = true;

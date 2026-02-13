@@ -6,6 +6,10 @@
 // Enums, route structs, constants, and parameter ID helpers used by both
 // processor (DSP) and controller (UI) sides. No VSTGUI dependency.
 //
+// Source indices are tab-dependent:
+//   Global tab: indices 0-11 map to DSP ModSource 1-12 (LFO1..Transient)
+//   Voice tab:  indices 0-7  map to DSP VoiceModSource 0-7 (Env1..Aftertouch)
+//
 // Shared across: processor.h, mod_source_colors.h, ModMatrixGrid, ModRingIndicator,
 // ModHeatmap, BipolarSlider.
 //
@@ -18,43 +22,28 @@
 namespace Krate::Plugins {
 
 // ==============================================================================
-// ModSource Enum
+// Source Counts (tab-dependent)
 // ==============================================================================
-// Per-voice sources (0-6) available in both Voice and Global tabs.
-// Global-only sources (7-9) available only in Global tab.
-// FR-011: Each source has a unique identity color.
+// Global tab sources match DSP ModSource enum (skip None=0): LFO1..Transient
+// Voice tab sources match DSP VoiceModSource enum: Env1..Aftertouch
 
-enum class ModSource : uint8_t {
-    // Per-Voice sources (0-6)
-    Env1 = 0,         // ENV 1 (Amp)
-    Env2,              // ENV 2 (Filter)
-    Env3,              // ENV 3 (Mod)
-    VoiceLFO,          // Voice LFO
-    GateOutput,        // Gate Output
-    Velocity,          // Velocity
-    KeyTrack,          // Key Track
-    // Global-only sources (7-9)
-    Macros,            // Macros 1-4
-    ChaosRungler,      // Chaos/Rungler
-    GlobalLFO,         // LFO 1-2 (Global)
-    kNumSources = 10
-};
+/// Number of sources visible in the Global tab (DSP ModSource 1-12)
+inline constexpr int kNumGlobalSources = 12;
 
-/// Number of sources visible in the Voice tab (per-voice only)
-inline constexpr int kNumVoiceSources = 7;
-
-/// Number of sources visible in the Global tab (all sources)
-inline constexpr int kNumGlobalSources = static_cast<int>(ModSource::kNumSources);
+/// Number of sources visible in the Voice tab (DSP VoiceModSource 0-7)
+inline constexpr int kNumVoiceSources = 8;
 
 // ==============================================================================
 // ModDestination Enum
 // ==============================================================================
-// Per-voice destinations (0-6) available in both Voice and Global tabs.
-// Global-only destinations (7-10) available only in Global tab.
+// Destination indices are tab-dependent (same pattern as sources):
+//   Voice tab:  indices 0-6 → per-voice targets (FilterCutoff..OscBPitch)
+//   Global tab: indices 0-6 → global/all-voice targets matching DSP RuinaeModDest
 // FR-012, FR-013, FR-014
 
 enum class ModDestination : uint8_t {
-    // Per-Voice destinations (0-6)
+    // Voice tab destinations (0-6). On the Global tab, indices 0-6 have
+    // different meanings — see kGlobalDestNames for global tab labels.
     FilterCutoff = 0,
     FilterResonance,
     MorphPosition,
@@ -62,28 +51,26 @@ enum class ModDestination : uint8_t {
     TranceGateDepth,
     OscAPitch,
     OscBPitch,
-    // Global-only destinations (7-10)
-    GlobalFilterCutoff,
-    GlobalFilterResonance,
-    MasterVolume,
-    EffectMix,
-    kNumDestinations = 11
+    kNumDestinations = 7
 };
 
-/// Number of destinations visible in the Voice tab (per-voice only)
+/// Number of destinations visible in the Voice tab (per-voice)
 inline constexpr int kNumVoiceDestinations = 7;
 
-/// Number of destinations visible in the Global tab (all destinations)
-inline constexpr int kNumGlobalDestinations = static_cast<int>(ModDestination::kNumDestinations);
+/// Number of destinations visible in the Global tab (matching DSP kModDestCount)
+inline constexpr int kNumGlobalDestinations = 7;
 
 // ==============================================================================
 // ModRoute Struct
 // ==============================================================================
 // Represents a single modulation route (used internally by UI components).
+// The source field is a raw index whose meaning depends on the tab:
+//   Global routes: index into kGlobalSourceNames (0-11)
+//   Voice routes:  index into kVoiceSourceNames (0-7)
 // FR-001 to FR-010
 
 struct ModRoute {
-    ModSource source = ModSource::Env1;
+    uint8_t source = 0;
     ModDestination destination = ModDestination::FilterCutoff;
     float amount = 0.0f;           // [-1.0, +1.0] bipolar
     uint8_t curve = 0;             // 0=Linear, 1=Exponential, 2=Logarithmic, 3=S-Curve
@@ -101,7 +88,7 @@ struct ModRoute {
 // FR-046
 
 struct VoiceModRoute {
-    uint8_t source = 0;            // ModSource value
+    uint8_t source = 0;            // VoiceModSource value
     uint8_t destination = 0;       // ModDestination value
     float amount = 0.0f;          // [-1.0, +1.0]
     uint8_t curve = 0;            // 0-3
@@ -147,30 +134,37 @@ inline constexpr std::array<float, 5> kScaleValues = {{
 // ==============================================================================
 // Destination Name Registry (FR-035, FR-036)
 // ==============================================================================
-// No VSTGUI dependency - pure string data.
+// Tab-dependent, matching the source pattern. No VSTGUI dependency.
 
 struct ModDestInfo {
     const char* fullName;
-    const char* voiceAbbr;   // For voice tab heatmap columns
-    const char* globalAbbr;  // For global tab heatmap columns
+    const char* abbreviation;
 };
 
-inline constexpr std::array<ModDestInfo, 11> kModDestinations = {{
-    {"Filter Cutoff",           "FCut", "FCut"},
-    {"Filter Resonance",        "FRes", "FRes"},
-    {"Morph Position",          "Mrph", "Mrph"},
-    {"Distortion Drive",        "Drv",  "Drv"},
-    {"TranceGate Depth",        "Gate", "Gate"},
-    {"OSC A Pitch",             "OsA",  "OsA"},
-    {"OSC B Pitch",             "OsB",  "OsB"},
-    {"Global Filter Cutoff",    "",     "GFCt"},
-    {"Global Filter Resonance", "",     "GFRs"},
-    {"Master Volume",           "",     "Mstr"},
-    {"Effect Mix",              "",     "FxMx"},
+/// Voice tab destinations (indices 0-6): per-voice targets
+inline constexpr std::array<ModDestInfo, 7> kVoiceDestNames = {{
+    {"Filter Cutoff",      "FCut"},
+    {"Filter Resonance",   "FRes"},
+    {"Morph Position",     "Mrph"},
+    {"Distortion Drive",   "Drv"},
+    {"TranceGate Depth",   "Gate"},
+    {"OSC A Pitch",        "OsA"},
+    {"OSC B Pitch",        "OsB"},
+}};
+
+/// Global tab destinations (indices 0-6): matching DSP RuinaeModDest 64-70
+inline constexpr std::array<ModDestInfo, 7> kGlobalDestNames = {{
+    {"Global Filter Cutoff",    "GFCt"},
+    {"Global Filter Resonance", "GFRs"},
+    {"Master Volume",           "Mstr"},
+    {"Effect Mix",              "FxMx"},
+    {"All Voice Filter Cutoff", "VFCt"},
+    {"All Voice Morph Pos",     "VMrp"},
+    {"All Voice Gate Rate",     "VGat"},
 }};
 
 // ==============================================================================
-// Source Name Registry (no color - see mod_source_colors.h for colors)
+// Source Name Registry (tab-dependent, no color - see mod_source_colors.h)
 // ==============================================================================
 
 struct ModSourceName {
@@ -178,55 +172,78 @@ struct ModSourceName {
     const char* abbreviation;
 };
 
-inline constexpr std::array<ModSourceName, 10> kModSourceNames = {{
-    {"ENV 1 (Amp)",      "E1"},
-    {"ENV 2 (Filter)",    "E2"},
-    {"ENV 3 (Mod)",       "E3"},
-    {"Voice LFO",         "VLFO"},
-    {"Gate Output",       "Gt"},
-    {"Velocity",          "Vel"},
-    {"Key Track",         "Key"},
-    {"Macros 1-4",        "M1-4"},
-    {"Chaos/Rungler",     "Chao"},
-    {"LFO 1-2 (Global)",  "LF12"},
+/// Global tab sources (indices 0-11, matching DSP ModSource 1-12)
+inline constexpr std::array<ModSourceName, 12> kGlobalSourceNames = {{
+    {"LFO 1",           "LF1"},
+    {"LFO 2",           "LF2"},
+    {"Env Follower",    "EnvF"},
+    {"Random",          "Rnd"},
+    {"Macro 1",         "M1"},
+    {"Macro 2",         "M2"},
+    {"Macro 3",         "M3"},
+    {"Macro 4",         "M4"},
+    {"Chaos",           "Chao"},
+    {"Sample & Hold",   "S&H"},
+    {"Pitch Follower",  "PFol"},
+    {"Transient",       "Tran"},
 }};
 
-/// Get the full source name for a given source index.
-/// Returns "Unknown" for invalid indices.
-[[nodiscard]] inline const char* sourceNameForIndex(int index) {
-    if (index >= 0 && index < static_cast<int>(kModSourceNames.size())) {
-        return kModSourceNames[static_cast<size_t>(index)].fullName;
+/// Voice tab sources (indices 0-7, matching DSP VoiceModSource 0-7)
+inline constexpr std::array<ModSourceName, 8> kVoiceSourceNames = {{
+    {"ENV 1 (Amp)",     "E1"},
+    {"ENV 2 (Filter)",  "E2"},
+    {"ENV 3 (Mod)",     "E3"},
+    {"Voice LFO",       "VLFO"},
+    {"Gate Output",     "Gt"},
+    {"Velocity",        "Vel"},
+    {"Key Track",       "Key"},
+    {"Aftertouch",      "AT"},
+}};
+
+/// Get the full source name for a given tab and source index.
+[[nodiscard]] inline const char* sourceNameForTab(int tab, int index) {
+    if (tab == 0) {
+        if (index >= 0 && index < static_cast<int>(kGlobalSourceNames.size()))
+            return kGlobalSourceNames[static_cast<size_t>(index)].fullName;
+    } else {
+        if (index >= 0 && index < static_cast<int>(kVoiceSourceNames.size()))
+            return kVoiceSourceNames[static_cast<size_t>(index)].fullName;
     }
     return "Unknown";
 }
 
-/// Get the abbreviated source name for a given source index.
-/// Returns "?" for invalid indices.
-[[nodiscard]] inline const char* sourceAbbrForIndex(int index) {
-    if (index >= 0 && index < static_cast<int>(kModSourceNames.size())) {
-        return kModSourceNames[static_cast<size_t>(index)].abbreviation;
+/// Get the abbreviated source name for a given tab and source index.
+[[nodiscard]] inline const char* sourceAbbrForTab(int tab, int index) {
+    if (tab == 0) {
+        if (index >= 0 && index < static_cast<int>(kGlobalSourceNames.size()))
+            return kGlobalSourceNames[static_cast<size_t>(index)].abbreviation;
+    } else {
+        if (index >= 0 && index < static_cast<int>(kVoiceSourceNames.size()))
+            return kVoiceSourceNames[static_cast<size_t>(index)].abbreviation;
     }
     return "?";
 }
 
-/// Get the full destination name for a given destination index.
-/// Returns "Unknown" for invalid indices.
-[[nodiscard]] inline const char* destinationNameForIndex(int index) {
-    if (index >= 0 && index < static_cast<int>(kModDestinations.size())) {
-        return kModDestinations[static_cast<size_t>(index)].fullName;
+/// Get the full destination name for a given tab and destination index.
+[[nodiscard]] inline const char* destinationNameForTab(int tab, int index) {
+    if (tab == 0) {
+        if (index >= 0 && index < static_cast<int>(kGlobalDestNames.size()))
+            return kGlobalDestNames[static_cast<size_t>(index)].fullName;
+    } else {
+        if (index >= 0 && index < static_cast<int>(kVoiceDestNames.size()))
+            return kVoiceDestNames[static_cast<size_t>(index)].fullName;
     }
     return "Unknown";
 }
 
-/// Get the abbreviated destination name for a given destination index.
-/// @param index Destination index
-/// @param globalTab If true, returns the global tab abbreviation
-/// Returns "?" for invalid indices.
-[[nodiscard]] inline const char* destinationAbbrForIndex(int index, bool globalTab = true) {
-    if (index >= 0 && index < static_cast<int>(kModDestinations.size())) {
-        return globalTab
-            ? kModDestinations[static_cast<size_t>(index)].globalAbbr
-            : kModDestinations[static_cast<size_t>(index)].voiceAbbr;
+/// Get the abbreviated destination name for a given tab and destination index.
+[[nodiscard]] inline const char* destinationAbbrForTab(int tab, int index) {
+    if (tab == 0) {
+        if (index >= 0 && index < static_cast<int>(kGlobalDestNames.size()))
+            return kGlobalDestNames[static_cast<size_t>(index)].abbreviation;
+    } else {
+        if (index >= 0 && index < static_cast<int>(kVoiceDestNames.size()))
+            return kVoiceDestNames[static_cast<size_t>(index)].abbreviation;
     }
     return "?";
 }
