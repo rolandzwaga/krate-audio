@@ -1100,41 +1100,34 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
 
     // T048: Set RouteRemovedCallback (T088)
     grid->setRouteRemovedCallback(
-        [this](int tab, int slot) {
+        [this](int tab, [[maybe_unused]] int slot) {
             if (tab == 0) {
-                // Global routes: reset slot parameters to defaults
-                auto sourceId = static_cast<Steinberg::Vst::ParamID>(
-                    Krate::Plugins::modSlotSourceId(slot));
-                auto destId = static_cast<Steinberg::Vst::ParamID>(
-                    Krate::Plugins::modSlotDestinationId(slot));
-                auto amountId = static_cast<Steinberg::Vst::ParamID>(
-                    Krate::Plugins::modSlotAmountId(slot));
-
+                // Grid has already shifted routes up after removal,
+                // so ALL slot parameters must be re-synced from the grid's
+                // current state — not just the removed slot.
                 suppressModMatrixSync_ = true;
-
-                beginEdit(sourceId);
-                performEdit(sourceId, 0.0);
-                endEdit(sourceId);
-
-                beginEdit(destId);
-                performEdit(destId, 0.0);
-                endEdit(destId);
-
-                beginEdit(amountId);
-                performEdit(amountId, 0.5); // 0.5 normalized = 0.0 bipolar
-                endEdit(amountId);
-
+                pushAllGlobalRouteParams();
                 suppressModMatrixSync_ = false;
             } else {
-                // Voice routes: send remove via IMessage (T088)
-                auto msg = Steinberg::owned(allocateMessage());
-                if (msg) {
-                    msg->setMessageID("VoiceModRouteUpdate");
-                    auto* attrs = msg->getAttributes();
-                    if (attrs) {
-                        attrs->setInt("slotIndex", static_cast<Steinberg::int64>(slot));
-                        attrs->setInt("active", 0);
-                        sendMessage(msg);
+                // Voice routes: send full re-sync via IMessage
+                for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
+                    auto route = modMatrixGrid_->getVoiceRoute(i);
+                    auto msg = Steinberg::owned(allocateMessage());
+                    if (msg) {
+                        msg->setMessageID("VoiceModRouteUpdate");
+                        auto* attrs = msg->getAttributes();
+                        if (attrs) {
+                            attrs->setInt("slotIndex", static_cast<Steinberg::int64>(i));
+                            attrs->setInt("source", static_cast<Steinberg::int64>(route.source));
+                            attrs->setInt("destination", static_cast<Steinberg::int64>(route.destination));
+                            attrs->setFloat("amount", static_cast<double>(route.amount));
+                            attrs->setInt("curve", static_cast<Steinberg::int64>(route.curve));
+                            attrs->setFloat("smoothMs", static_cast<double>(route.smoothMs));
+                            attrs->setInt("scale", static_cast<Steinberg::int64>(route.scale));
+                            attrs->setInt("bypass", route.bypass ? 1 : 0);
+                            attrs->setInt("active", route.active ? 1 : 0);
+                            sendMessage(msg);
+                        }
                     }
                 }
             }
@@ -1212,6 +1205,66 @@ void Controller::syncModMatrixGrid() {
         route.active = (dspSrcIdx > 0);
 
         modMatrixGrid_->setGlobalRoute(i, route);
+    }
+}
+
+// ==============================================================================
+// ModRingIndicator Wiring (T069, T070, T071, T072)
+// ==============================================================================
+
+void Controller::pushAllGlobalRouteParams() {
+    if (!modMatrixGrid_) return;
+
+    for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
+        auto route = modMatrixGrid_->getGlobalRoute(i);
+
+        auto sourceId = static_cast<Steinberg::Vst::ParamID>(
+            Krate::Plugins::modSlotSourceId(i));
+        auto destId = static_cast<Steinberg::Vst::ParamID>(
+            Krate::Plugins::modSlotDestinationId(i));
+        auto amountId = static_cast<Steinberg::Vst::ParamID>(
+            Krate::Plugins::modSlotAmountId(i));
+
+        if (route.active) {
+            // UI source index 0-11 maps to DSP ModSource 1-12 (skip None=0)
+            int dspSrcIdx = static_cast<int>(route.source) + 1;
+            int dstIdx = static_cast<int>(route.destination);
+
+            double srcNorm = (kModSourceCount > 1)
+                ? static_cast<double>(dspSrcIdx) / static_cast<double>(kModSourceCount - 1)
+                : 0.0;
+            setParamNormalized(sourceId, srcNorm);
+            beginEdit(sourceId);
+            performEdit(sourceId, srcNorm);
+            endEdit(sourceId);
+
+            double dstNorm = (kModDestCount > 1)
+                ? static_cast<double>(dstIdx) / static_cast<double>(kModDestCount - 1)
+                : 0.0;
+            setParamNormalized(destId, dstNorm);
+            beginEdit(destId);
+            performEdit(destId, dstNorm);
+            endEdit(destId);
+
+            double amtNorm = static_cast<double>((route.amount + 1.0f) / 2.0f);
+            setParamNormalized(amountId, amtNorm);
+            beginEdit(amountId);
+            performEdit(amountId, amtNorm);
+            endEdit(amountId);
+        } else {
+            // Inactive slot: reset to defaults (source=None)
+            beginEdit(sourceId);
+            performEdit(sourceId, 0.0);
+            endEdit(sourceId);
+
+            beginEdit(destId);
+            performEdit(destId, 0.0);
+            endEdit(destId);
+
+            beginEdit(amountId);
+            performEdit(amountId, 0.5); // 0.5 normalized = 0.0 bipolar
+            endEdit(amountId);
+        }
     }
 }
 

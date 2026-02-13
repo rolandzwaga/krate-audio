@@ -172,11 +172,9 @@ public:
                 if (!globalRoutes_[static_cast<size_t>(i)].active) {
                     globalRoutes_[static_cast<size_t>(i)] = ModRoute{};
                     globalRoutes_[static_cast<size_t>(i)].active = true;
-                    syncHeatmap(); // T126
                     setDirty();
-                    if (routeChangedCallback_)
-                        routeChangedCallback_(activeTab_, i,
-                                              globalRoutes_[static_cast<size_t>(i)]);
+                    fireRouteChanged(activeTab_, i,
+                                     globalRoutes_[static_cast<size_t>(i)]);
                     return i;
                 }
             }
@@ -185,11 +183,9 @@ public:
                 if (!voiceRoutes_[static_cast<size_t>(i)].active) {
                     voiceRoutes_[static_cast<size_t>(i)] = ModRoute{};
                     voiceRoutes_[static_cast<size_t>(i)].active = true;
-                    syncHeatmap(); // T126
                     setDirty();
-                    if (routeChangedCallback_)
-                        routeChangedCallback_(activeTab_, i,
-                                              voiceRoutes_[static_cast<size_t>(i)]);
+                    fireRouteChanged(activeTab_, i,
+                                     voiceRoutes_[static_cast<size_t>(i)]);
                     return i;
                 }
             }
@@ -439,7 +435,7 @@ public:
                     localY >= y && localY < y + kRowHeight) {
                     // Begin amount slider drag
                     amountDragSlot_ = i;
-                    amountDragStartY_ = where.y;
+                    amountDragStartX_ = where.x;
                     amountPreDragValue_ = route.amount;
 
                     // Fire beginEdit (T042)
@@ -543,8 +539,8 @@ public:
                 sensitivity *= kFineAmountScale; // FR-009
             }
 
-            float delta = static_cast<float>(amountDragStartY_ - where.y) * sensitivity;
-            amountDragStartY_ = where.y;
+            float delta = static_cast<float>(where.x - amountDragStartX_) * sensitivity;
+            amountDragStartX_ = where.x;
 
             // Update bipolar amount
             float newBipolar = std::clamp(
@@ -558,10 +554,9 @@ public:
             if (paramCallback_)
                 paramCallback_(amountId, normalized);
 
-            // Fire route changed callback
-            if (routeChangedCallback_)
-                routeChangedCallback_(activeTab_, amountDragSlot_,
-                    getRouteForTab(activeTab_, amountDragSlot_));
+            // Fire route changed callback + heatmap sync
+            fireRouteChanged(activeTab_, amountDragSlot_,
+                getRouteForTab(activeTab_, amountDragSlot_));
 
             setDirty();
             return VSTGUI::kMouseEventHandled;
@@ -588,9 +583,8 @@ public:
             if (paramCallback_)
                 paramCallback_(smoothId, normalized);
 
-            if (routeChangedCallback_)
-                routeChangedCallback_(activeTab_, smoothDragSlot_,
-                    getRouteForTab(activeTab_, smoothDragSlot_));
+            fireRouteChanged(activeTab_, smoothDragSlot_,
+                getRouteForTab(activeTab_, smoothDragSlot_));
 
             setDirty();
             return VSTGUI::kMouseEventHandled;
@@ -687,6 +681,14 @@ private:
         if (tab == 0)
             return globalRoutes_[static_cast<size_t>(slot)];
         return voiceRoutes_[static_cast<size_t>(slot)];
+    }
+
+    /// Fire route changed callback AND sync heatmap. Every route data
+    /// mutation must go through this to keep the heatmap in sync.
+    void fireRouteChanged(int tab, int slot, const ModRoute& route) {
+        syncHeatmap();
+        if (routeChangedCallback_)
+            routeChangedCallback_(tab, slot, route);
     }
 
     // =========================================================================
@@ -817,10 +819,7 @@ private:
             auto& r = getMutableRouteForTab(tab, slot);
             r.source = static_cast<uint8_t>(selected);
 
-            // Source normalization is tab-dependent (UI index != DSP index),
-            // so let routeChangedCallback_ handle the correct DSP normalization
-            // with proper beginEdit/performEdit/endEdit wrapping.
-            if (routeChangedCallback_) routeChangedCallback_(tab, slot, r);
+            fireRouteChanged(tab, slot, r);
             setDirty();
         });
     }
@@ -851,9 +850,7 @@ private:
             auto& r = getMutableRouteForTab(tab, slot);
             r.destination = static_cast<ModDestination>(selected);
 
-            // Destination normalization is tab-dependent,
-            // so let routeChangedCallback_ handle the correct DSP normalization.
-            if (routeChangedCallback_) routeChangedCallback_(tab, slot, r);
+            fireRouteChanged(tab, slot, r);
             setDirty();
         });
     }
@@ -890,7 +887,7 @@ private:
             if (beginEditCallback_) beginEditCallback_(curveId);
             if (paramCallback_) paramCallback_(curveId, normalized);
             if (endEditCallback_) endEditCallback_(curveId);
-            if (routeChangedCallback_) routeChangedCallback_(tab, slot, r);
+            fireRouteChanged(tab, slot, r);
             setDirty();
         });
     }
@@ -927,7 +924,7 @@ private:
             if (beginEditCallback_) beginEditCallback_(scaleId);
             if (paramCallback_) paramCallback_(scaleId, normalized);
             if (endEditCallback_) endEditCallback_(scaleId);
-            if (routeChangedCallback_) routeChangedCallback_(tab, slot, r);
+            fireRouteChanged(tab, slot, r);
             setDirty();
         });
     }
@@ -942,11 +939,7 @@ private:
         int maxSources = (activeTab_ == 0) ? kNumGlobalSources : kNumVoiceSources;
         int newIndex = (srcIndex + 1) % maxSources;
         route.source = static_cast<uint8_t>(newIndex);
-
-        // Source normalization is tab-dependent (UI index != DSP index),
-        // so let routeChangedCallback_ handle the correct DSP normalization.
-        if (routeChangedCallback_)
-            routeChangedCallback_(activeTab_, slot, route);
+        fireRouteChanged(activeTab_, slot, route);
     }
 
     void fireDestCycleForSlot(int slot) {
@@ -955,11 +948,7 @@ private:
         int maxDests = (activeTab_ == 0) ? kNumGlobalDestinations : kNumVoiceDestinations;
         int newIndex = (dstIndex + 1) % maxDests;
         route.destination = static_cast<ModDestination>(newIndex);
-
-        // Destination normalization is tab-dependent,
-        // so let routeChangedCallback_ handle the correct DSP normalization.
-        if (routeChangedCallback_)
-            routeChangedCallback_(activeTab_, slot, route);
+        fireRouteChanged(activeTab_, slot, route);
     }
 
     // =========================================================================
@@ -980,9 +969,7 @@ private:
         if (paramCallback_) paramCallback_(curveId, normalized);
         if (endEditCallback_) endEditCallback_(curveId);
 
-        if (routeChangedCallback_)
-            routeChangedCallback_(activeTab_, slot, route);
-
+        fireRouteChanged(activeTab_, slot, route);
         setDirty();
     }
 
@@ -1000,9 +987,7 @@ private:
         if (paramCallback_) paramCallback_(scaleId, normalized);
         if (endEditCallback_) endEditCallback_(scaleId);
 
-        if (routeChangedCallback_)
-            routeChangedCallback_(activeTab_, slot, route);
-
+        fireRouteChanged(activeTab_, slot, route);
         setDirty();
     }
 
@@ -1017,9 +1002,7 @@ private:
         if (paramCallback_) paramCallback_(bypassId, normalized);
         if (endEditCallback_) endEditCallback_(bypassId);
 
-        if (routeChangedCallback_)
-            routeChangedCallback_(activeTab_, slot, route);
-
+        fireRouteChanged(activeTab_, slot, route);
         setDirty();
     }
 
@@ -1178,7 +1161,9 @@ private:
         VSTGUI::CCoord amountLabelLeft = sliderRect.right + 4.0;
         VSTGUI::CRect amountRect(amountLabelLeft, y, width - 28.0, y + kRowHeight);
         context->setFont(font);
-        context->setFontColor(srcColor);
+        VSTGUI::CColor amountLabelColor = (bipolarAmount < 0.0f)
+            ? darkenColor(srcColor, 0.55f) : srcColor;
+        context->setFontColor(amountLabelColor);
         context->drawString(VSTGUI::UTF8String(amountStr.str()), amountRect,
                             VSTGUI::kRightText, true);
 
@@ -1233,7 +1218,7 @@ private:
                           const VSTGUI::CRect& rect,
                           bool isBypassed) const {
         VSTGUI::CColor trackColor(50, 50, 55, 255);
-        VSTGUI::CColor fillColor = isBypassed ? darkenColor(srcColor, 0.5f) : srcColor;
+        VSTGUI::CColor baseColor = isBypassed ? darkenColor(srcColor, 0.5f) : srcColor;
 
         // Draw track background
         context->setFillColor(trackColor);
@@ -1244,6 +1229,10 @@ private:
         float normalized = (route.amount + 1.0f) / 2.0f; // bipolar to [0,1]
         VSTGUI::CCoord valueX = rect.left + static_cast<VSTGUI::CCoord>(
             normalized * rect.getWidth());
+
+        // Darker fill for negative amounts
+        VSTGUI::CColor fillColor = (normalized < 0.5f)
+            ? darkenColor(baseColor, 0.55f) : baseColor;
 
         VSTGUI::CRect fillRect;
         if (normalized < 0.5f) {
@@ -1413,7 +1402,7 @@ private:
 
     // Amount drag state (T041)
     int amountDragSlot_ = -1;
-    VSTGUI::CCoord amountDragStartY_ = 0.0;
+    VSTGUI::CCoord amountDragStartX_ = 0.0;
     float amountPreDragValue_ = 0.0f;
 
     // Smooth drag state (T101)

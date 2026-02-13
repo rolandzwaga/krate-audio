@@ -172,6 +172,9 @@ private:
     /// Sync ModMatrixGrid route data from current parameter state
     void syncModMatrixGrid();
 
+    /// Push all global route slot parameters from grid state to VST params
+    void pushAllGlobalRouteParams();
+
     /// Wire a ModRingIndicator instance found in verifyView()
     void wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicator);
 

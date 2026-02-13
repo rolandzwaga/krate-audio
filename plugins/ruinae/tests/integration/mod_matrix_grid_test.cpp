@@ -944,12 +944,12 @@ TEST_CASE("ModMatrixGrid: inline slider fine adjustment constants", "[modmatrix]
 // =============================================================================
 
 TEST_CASE("ModMatrixGrid: delta-based drag prevents jump on modifier change", "[modmatrix][grid][fine][unit]") {
-    // The inline slider uses delta-based dragging (amountDragStartY_ is updated each move)
+    // The inline slider uses delta-based dragging (amountDragStartX_ is updated each move)
     // This means pressing Shift mid-drag only changes the FUTURE sensitivity,
     // not the accumulated value - no discontinuous jump occurs.
     //
     // We verify this design by checking that the drag uses incremental deltas
-    // (amountDragStartY_ is set to where.y after each move in onMouseMoved).
+    // (amountDragStartX_ is set to where.x after each move in onMouseMoved).
     // This is a structural/design verification since we can't simulate mouse events.
 
     ModMatrixGrid grid(VSTGUI::CRect(0, 0, 430, 250));
@@ -968,8 +968,8 @@ TEST_CASE("ModMatrixGrid: delta-based drag prevents jump on modifier change", "[
     REQUIRE(grid.getGlobalRoute(0).amount == Approx(0.0f));
 
     // The delta-based design guarantees no jump:
-    // - Each mouse move calculates: delta = (startY - currentY) * sensitivity
-    // - Then startY is updated to currentY
+    // - Each mouse move calculates: delta = (currentX - startX) * sensitivity
+    // - Then startX is updated to currentX
     // - So changing sensitivity mid-drag only affects future deltas
     // This is verified by the implementation structure (not by mouse simulation)
     REQUIRE(true);

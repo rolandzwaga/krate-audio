@@ -132,7 +132,9 @@ public:
             // Positive: fill from center to valueX
             fillRect = VSTGUI::CRect(centerX, trackTop, valueX, trackBottom);
         }
-        context->setFillColor(fillColor_);
+        VSTGUI::CColor activeFill = (normalized < 0.5f)
+            ? darkenColor(fillColor_, 0.55f) : fillColor_;
+        context->setFillColor(activeFill);
         context->drawRect(fillRect, VSTGUI::kDrawFilled);
 
         // Draw center tick mark
@@ -149,7 +151,7 @@ public:
         VSTGUI::CRect indicatorRect(
             valueX - indicatorRadius, indicatorY - indicatorRadius,
             valueX + indicatorRadius, indicatorY + indicatorRadius);
-        context->setFillColor(fillColor_);
+        context->setFillColor(activeFill);
         context->drawEllipse(indicatorRect, VSTGUI::kDrawFilled);
 
         setDirty(false);
@@ -168,7 +170,7 @@ public:
         beginEdit();
         dragging_ = true;
         preDragValue_ = getValueNormalized();
-        lastMouseY_ = where.y;
+        lastMouseX_ = where.x;
         return VSTGUI::kMouseEventHandled;
     }
 
@@ -185,9 +187,9 @@ public:
             sensitivity *= kFineScale;
         }
 
-        // Vertical drag: up = increase, down = decrease
-        float delta = static_cast<float>(lastMouseY_ - where.y) * sensitivity;
-        lastMouseY_ = where.y;
+        // Horizontal drag: right = increase, left = decrease
+        float delta = static_cast<float>(where.x - lastMouseX_) * sensitivity;
+        lastMouseX_ = where.x;
 
         float newValue = std::clamp(getValueNormalized() + delta, 0.0f, 1.0f);
         setValueNormalized(newValue);
@@ -227,7 +229,7 @@ private:
 
     bool dragging_ = false;
     float preDragValue_ = 0.5f;
-    VSTGUI::CCoord lastMouseY_ = 0.0;
+    VSTGUI::CCoord lastMouseX_ = 0.0;
 };
 
 // =============================================================================
