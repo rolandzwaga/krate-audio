@@ -78,6 +78,7 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 
     // Prepare engine (allocates internal buffers)
     engine_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
+    engine_.setGainCompensationEnabled(false);
 
     return AudioEffect::setupProcessing(setup);
 }
@@ -579,6 +580,26 @@ void Processor::applyParamsToEngine() {
     engine_.setDistortionDrive(distortionParams_.drive.load(std::memory_order_relaxed));
     engine_.setDistortionCharacter(distortionParams_.character.load(std::memory_order_relaxed));
     engine_.setDistortionMix(distortionParams_.mix.load(std::memory_order_relaxed));
+
+    // Distortion type-specific params
+    engine_.setDistortionChaosModel(distortionParams_.chaosModel.load(std::memory_order_relaxed));
+    engine_.setDistortionChaosSpeed(distortionParams_.chaosSpeed.load(std::memory_order_relaxed));
+    engine_.setDistortionChaosCoupling(distortionParams_.chaosCoupling.load(std::memory_order_relaxed));
+
+    engine_.setDistortionSpectralMode(distortionParams_.spectralMode.load(std::memory_order_relaxed));
+    engine_.setDistortionSpectralCurve(distortionParams_.spectralCurve.load(std::memory_order_relaxed));
+    engine_.setDistortionSpectralBits(distortionParams_.spectralBits.load(std::memory_order_relaxed));
+
+    engine_.setDistortionGrainSize(distortionParams_.grainSize.load(std::memory_order_relaxed));
+    engine_.setDistortionGrainDensity(distortionParams_.grainDensity.load(std::memory_order_relaxed));
+    engine_.setDistortionGrainVariation(distortionParams_.grainVariation.load(std::memory_order_relaxed));
+    engine_.setDistortionGrainJitter(distortionParams_.grainJitter.load(std::memory_order_relaxed));
+
+    engine_.setDistortionFoldType(distortionParams_.foldType.load(std::memory_order_relaxed));
+
+    engine_.setDistortionTapeModel(distortionParams_.tapeModel.load(std::memory_order_relaxed));
+    engine_.setDistortionTapeSaturation(distortionParams_.tapeSaturation.load(std::memory_order_relaxed));
+    engine_.setDistortionTapeBias(distortionParams_.tapeBias.load(std::memory_order_relaxed));
 
     // --- Trance Gate ---
     engine_.setTranceGateEnabled(tranceGateParams_.enabled.load(std::memory_order_relaxed));

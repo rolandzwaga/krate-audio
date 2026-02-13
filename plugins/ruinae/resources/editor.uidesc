@@ -116,6 +116,21 @@
         <control-tag name="DistortionDrive" tag="501"/>
         <control-tag name="DistortionCharacter" tag="502"/>
         <control-tag name="DistortionMix" tag="503"/>
+        <control-tag name="DistortionChaosModel" tag="510"/>
+        <control-tag name="DistortionChaosSpeed" tag="511"/>
+        <control-tag name="DistortionChaosCoupling" tag="512"/>
+        <control-tag name="DistortionSpectralMode" tag="520"/>
+        <control-tag name="DistortionSpectralCurve" tag="521"/>
+        <control-tag name="DistortionSpectralBits" tag="522"/>
+        <control-tag name="DistortionGrainSize" tag="530"/>
+        <control-tag name="DistortionGrainDensity" tag="531"/>
+        <control-tag name="DistortionGrainVariation" tag="532"/>
+        <control-tag name="DistortionGrainJitter" tag="533"/>
+        <control-tag name="DistortionFoldType" tag="540"/>
+        <control-tag name="DistortionTapeModel" tag="550"/>
+        <control-tag name="DistortionTapeSaturation" tag="551"/>
+        <control-tag name="DistortionTapeBias" tag="552"/>
+        <control-tag name="DistortionViewMode" tag="10017"/>
 
         <!-- Trance Gate -->
         <control-tag name="TranceGateEnabled" tag="600"/>
@@ -801,6 +816,154 @@
               text-alignment="center" transparent="true" title="Release"/>
     </template>
 
+    <!-- ================================================================ -->
+    <!-- DISTORTION VIEW TEMPLATES                                        -->
+    <!-- ================================================================ -->
+
+    <!-- Distortion General view: nested switch hides controls for Clean -->
+    <template name="Distortion_General" size="146, 96" class="CViewContainer" transparent="true">
+        <view class="UIViewSwitchContainer"
+              origin="0, 0" size="146, 96"
+              template-names="Dist_Clean,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active"
+              template-switch-control="DistortionType"
+              transparent="true"/>
+    </template>
+
+    <!-- General controls for active (non-Clean) distortion types: Drive + Mix -->
+    <template name="Dist_General_Active" size="146, 96" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="8, 4" size="36, 36"
+              control-tag="DistortionDrive" default-value="0.5"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 40" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drive"/>
+
+        <view class="ArcKnob" origin="72, 4" size="36, 36"
+              control-tag="DistortionMix" default-value="0.5"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="64, 40" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Mix"/>
+    </template>
+
+    <!-- Distortion Type-Specific view: nested switch on DistortionType -->
+    <template name="Distortion_TypeSpecific" size="146, 96" class="CViewContainer" transparent="true">
+        <view class="UIViewSwitchContainer"
+              origin="0, 0" size="146, 96"
+              template-names="Dist_Clean,Dist_Chaos,Dist_Spectral,Dist_Granular,Dist_Wavefolder,Dist_Tape"
+              template-switch-control="DistortionType"
+              transparent="true"/>
+    </template>
+
+    <!-- Clean: no type-specific params -->
+    <template name="Dist_Clean" size="146, 96" class="CViewContainer" transparent="true">
+        <view class="CTextLabel" origin="0, 36" size="146, 20"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="No parameters"/>
+    </template>
+
+    <!-- Chaos Waveshaper: Model dropdown, Speed + Coupling knobs -->
+    <template name="Dist_Chaos" size="146, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="110, 18"
+              control-tag="DistortionChaosModel" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+        <view class="ArcKnob" origin="8, 28" size="36, 36"
+              control-tag="DistortionChaosSpeed" default-value="0.5"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 64" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Speed"/>
+
+        <view class="ArcKnob" origin="72, 28" size="36, 36"
+              control-tag="DistortionChaosCoupling" default-value="0.0"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="60, 64" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Coupling"/>
+    </template>
+
+    <!-- Spectral Distortion: Mode + Curve dropdowns, Bits knob -->
+    <template name="Dist_Spectral" size="146, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="62, 18"
+              control-tag="DistortionSpectralMode" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="COptionMenu" origin="74, 4" size="62, 18"
+              control-tag="DistortionSpectralCurve" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+        <view class="ArcKnob" origin="8, 28" size="36, 36"
+              control-tag="DistortionSpectralBits" default-value="1.0"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 64" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Bits"/>
+    </template>
+
+    <!-- Granular Distortion: Size + Density + Variation + Jitter knobs -->
+    <template name="Dist_Granular" size="146, 96" class="CViewContainer" transparent="true">
+        <view class="ArcKnob" origin="8, 4" size="36, 36"
+              control-tag="DistortionGrainSize" default-value="0.47"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 40" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Size"/>
+
+        <view class="ArcKnob" origin="72, 4" size="36, 36"
+              control-tag="DistortionGrainDensity" default-value="0.43"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="60, 40" size="60, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Density"/>
+
+        <view class="ArcKnob" origin="8, 52" size="36, 36"
+              control-tag="DistortionGrainVariation" default-value="0.0"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 88" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Var"/>
+
+        <view class="ArcKnob" origin="72, 52" size="36, 36"
+              control-tag="DistortionGrainJitter" default-value="0.0"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="64, 88" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Jitter"/>
+    </template>
+
+    <!-- Wavefolder: Type dropdown -->
+    <template name="Dist_Wavefolder" size="146, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="110, 18"
+              control-tag="DistortionFoldType" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+    </template>
+
+    <!-- Tape Saturator: Model dropdown, Saturation + Bias knobs -->
+    <template name="Dist_Tape" size="146, 96" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="110, 18"
+              control-tag="DistortionTapeModel" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+        <view class="ArcKnob" origin="8, 28" size="36, 36"
+              control-tag="DistortionTapeSaturation" default-value="0.5"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 64" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Saturation"/>
+
+        <view class="ArcKnob" origin="72, 28" size="36, 36"
+              control-tag="DistortionTapeBias" default-value="0.5"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="64, 64" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Bias"/>
+    </template>
+
     <template
         name="editor"
         minSize="900, 750"
@@ -1081,7 +1244,7 @@
         <view
             class="FieldsetContainer"
             origin="186, 194"
-            size="130, 138"
+            size="154, 138"
             fieldset-title="DISTORTION"
             fieldset-color="distortion"
             fieldset-radius="4"
@@ -1089,42 +1252,34 @@
             fieldset-font-size="10"
             transparent="true"
         >
-            <!-- T047: Distortion Type dropdown -->
-            <view class="COptionMenu" origin="8, 16" size="100, 18"
+            <!-- Distortion Type dropdown -->
+            <view class="COptionMenu" origin="8, 16" size="90, 18"
                   control-tag="DistortionType" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
-            <!-- T048: Drive knob -->
-            <view class="ArcKnob" origin="8, 40" size="36, 36"
-                  control-tag="DistortionDrive" default-value="0.5"
-                  arc-color="distortion" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="0, 76" size="52, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Drive"/>
+            <!-- General/Type-Specific toggle (same pattern as filter) -->
+            <view class="IconSegmentButton" origin="102, 16" size="40, 18"
+                  control-tag="DistortionViewMode" default-value="0"
+                  segment-names="General,Type-specific"
+                  segment-icons="gear,funnel"
+                  selected-color="distortion" unselected-color="text-secondary"
+                  frame-color="frame-dropdown" highlight-color="bg-dropdown"
+                  round-radius="3" icon-size="0.55" stroke-width="1.5"/>
 
-            <!-- T049: Character knob -->
-            <view class="ArcKnob" origin="66, 40" size="36, 36"
-                  control-tag="DistortionCharacter" default-value="0.5"
-                  arc-color="distortion" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="52, 76" size="64, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Character"/>
-
-            <!-- T050: Mix knob -->
-            <view class="ArcKnob" origin="8, 92" size="36, 36"
-                  control-tag="DistortionMix" default-value="0.5"
-                  arc-color="distortion" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="0, 125" size="52, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Mix"/>
+            <!-- Switchable content area -->
+            <view class="UIViewSwitchContainer"
+                  origin="0, 38" size="146, 96"
+                  template-names="Distortion_General,Distortion_TypeSpecific"
+                  template-switch-control="DistortionViewMode"
+                  transparent="true"/>
         </view>
 
         <!-- ENVELOPES (gray accent) -->
         <view
             class="FieldsetContainer"
-            origin="324, 194"
-            size="568, 138"
+            origin="348, 194"
+            size="544, 138"
             fieldset-title="ENVELOPES"
             fieldset-color="envelopes"
             fieldset-radius="4"

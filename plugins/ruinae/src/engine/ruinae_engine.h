@@ -110,6 +110,7 @@ public:
         , polyphonyCount_(8)
         , masterGain_(1.0f)
         , gainCompensation_(1.0f / std::sqrt(8.0f))
+        , gainCompensationEnabled_(true)
         , softLimitEnabled_(true)
         , globalFilterEnabled_(false)
         , stereoSpread_(0.0f)
@@ -259,8 +260,10 @@ public:
             }
         }
 
-        // Recalculate gain compensation: 1/sqrt(N)
-        gainCompensation_ = 1.0f / std::sqrt(static_cast<float>(polyphonyCount_));
+        // Recalculate gain compensation: 1/sqrt(N) if enabled
+        if (gainCompensationEnabled_) {
+            gainCompensation_ = 1.0f / std::sqrt(static_cast<float>(polyphonyCount_));
+        }
 
         // Recalculate pan positions for new voice count
         recalculatePanPositions();
@@ -454,6 +457,15 @@ public:
     /// @brief Enable/disable the soft limiter (FR-030).
     void setSoftLimitEnabled(bool enabled) noexcept {
         softLimitEnabled_ = enabled;
+    }
+
+    /// @brief Enable/disable automatic 1/sqrt(N) gain compensation.
+    /// When disabled, voice count changes do not affect output gain.
+    void setGainCompensationEnabled(bool enabled) noexcept {
+        gainCompensationEnabled_ = enabled;
+        gainCompensation_ = enabled
+            ? 1.0f / std::sqrt(static_cast<float>(polyphonyCount_))
+            : 1.0f;
     }
 
     // =========================================================================
@@ -829,6 +841,64 @@ public:
     void setDistortionMix(float mix) noexcept {
         if (detail::isNaN(mix) || detail::isInf(mix)) return;
         for (auto& voice : voices_) { voice.setDistortionMix(mix); }
+    }
+
+    // --- Distortion Type-Specific ---
+
+    void setDistortionChaosModel(int model) noexcept {
+        for (auto& voice : voices_) { voice.setDistortionChaosModel(model); }
+    }
+    void setDistortionChaosSpeed(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        for (auto& voice : voices_) { voice.setDistortionChaosSpeed(normalized); }
+    }
+    void setDistortionChaosCoupling(float coupling) noexcept {
+        if (detail::isNaN(coupling) || detail::isInf(coupling)) return;
+        for (auto& voice : voices_) { voice.setDistortionChaosCoupling(coupling); }
+    }
+
+    void setDistortionSpectralMode(int mode) noexcept {
+        for (auto& voice : voices_) { voice.setDistortionSpectralMode(mode); }
+    }
+    void setDistortionSpectralCurve(int curve) noexcept {
+        for (auto& voice : voices_) { voice.setDistortionSpectralCurve(curve); }
+    }
+    void setDistortionSpectralBits(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        for (auto& voice : voices_) { voice.setDistortionSpectralBits(normalized); }
+    }
+
+    void setDistortionGrainSize(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        for (auto& voice : voices_) { voice.setDistortionGrainSize(normalized); }
+    }
+    void setDistortionGrainDensity(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        for (auto& voice : voices_) { voice.setDistortionGrainDensity(normalized); }
+    }
+    void setDistortionGrainVariation(float variation) noexcept {
+        if (detail::isNaN(variation) || detail::isInf(variation)) return;
+        for (auto& voice : voices_) { voice.setDistortionGrainVariation(variation); }
+    }
+    void setDistortionGrainJitter(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        for (auto& voice : voices_) { voice.setDistortionGrainJitter(normalized); }
+    }
+
+    void setDistortionFoldType(int type) noexcept {
+        for (auto& voice : voices_) { voice.setDistortionFoldType(type); }
+    }
+
+    void setDistortionTapeModel(int model) noexcept {
+        for (auto& voice : voices_) { voice.setDistortionTapeModel(model); }
+    }
+    void setDistortionTapeSaturation(float saturation) noexcept {
+        if (detail::isNaN(saturation) || detail::isInf(saturation)) return;
+        for (auto& voice : voices_) { voice.setDistortionTapeSaturation(saturation); }
+    }
+    void setDistortionTapeBias(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        for (auto& voice : voices_) { voice.setDistortionTapeBias(normalized); }
     }
 
     // --- Trance Gate ---
@@ -1471,6 +1541,7 @@ private:
     size_t polyphonyCount_;
     float masterGain_;
     float gainCompensation_;
+    bool gainCompensationEnabled_;
     bool softLimitEnabled_;
     bool globalFilterEnabled_;
     float stereoSpread_;

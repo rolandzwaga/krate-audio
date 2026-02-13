@@ -134,8 +134,33 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kDistortionBaseId = 500,
     kDistortionTypeId = 500,   // ChaosWaveshaper/Spectral/Granular/Wavefolder/Tape/Clean
     kDistortionDriveId = 501,  // 0-1
-    kDistortionCharacterId = 502, // 0-1
+    kDistortionCharacterId = 502, // 0-1 (DEAD CODE - reserved for backward compat)
     kDistortionMixId = 503,    // 0-1
+
+    // Chaos Waveshaper type-specific params
+    kDistortionChaosModelId = 510,     // 0-3 (Lorenz/Rossler/Chua/Henon)
+    kDistortionChaosSpeedId = 511,     // 0-1 mapped to [0.01, 100]
+    kDistortionChaosCouplingId = 512,  // 0-1
+
+    // Spectral Distortion type-specific params
+    kDistortionSpectralModeId = 520,   // 0-3 (PerBinSaturate/MagnitudeOnly/BinSelective/SpectralBitcrush)
+    kDistortionSpectralCurveId = 521,  // 0-8 (9 waveshape types)
+    kDistortionSpectralBitsId = 522,   // 0-1 mapped to [1, 16]
+
+    // Granular Distortion type-specific params
+    kDistortionGrainSizeId = 530,      // 0-1 mapped to [5, 100] ms
+    kDistortionGrainDensityId = 531,   // 0-1 mapped to [1, 8]
+    kDistortionGrainVariationId = 532, // 0-1
+    kDistortionGrainJitterId = 533,    // 0-1 mapped to [0, 50] ms
+
+    // Wavefolder type-specific params
+    kDistortionFoldTypeId = 540,       // 0-2 (Triangle/Sine/Lockhart)
+
+    // Tape Saturator type-specific params
+    kDistortionTapeModelId = 550,      // 0-1 (Simple/Hysteresis)
+    kDistortionTapeSaturationId = 551, // 0-1
+    kDistortionTapeBiasId = 552,       // 0-1 mapped to [-1, +1]
+
     kDistortionEndId = 599,
 
     // ==========================================================================
@@ -459,6 +484,9 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // Filter View Mode Tab (UI-only, ephemeral - not saved with state)
     kFilterViewModeTag = 10016,
+
+    // Distortion View Mode Tab (UI-only, ephemeral - not saved with state)
+    kDistortionViewModeTag = 10017,
 };
 
 // ==============================================================================

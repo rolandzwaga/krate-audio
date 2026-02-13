@@ -765,6 +765,97 @@ public:
     }
 
     // =========================================================================
+    // Distortion Type-Specific Parameters
+    // =========================================================================
+
+    // --- Chaos Waveshaper ---
+
+    void setDistortionChaosModel(int model) noexcept {
+        if (distChaos_) distChaos_->setModel(static_cast<ChaosModel>(std::clamp(model, 0, 3)));
+    }
+
+    void setDistortionChaosSpeed(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        // Map 0-1 to 0.01-100 (exponential)
+        float speed = 0.01f * std::pow(10000.0f, std::clamp(normalized, 0.0f, 1.0f));
+        if (distChaos_) distChaos_->setAttractorSpeed(speed);
+    }
+
+    void setDistortionChaosCoupling(float coupling) noexcept {
+        if (detail::isNaN(coupling) || detail::isInf(coupling)) return;
+        if (distChaos_) distChaos_->setInputCoupling(std::clamp(coupling, 0.0f, 1.0f));
+    }
+
+    // --- Spectral Distortion ---
+
+    void setDistortionSpectralMode(int mode) noexcept {
+        if (distSpectral_) distSpectral_->setMode(static_cast<SpectralDistortionMode>(std::clamp(mode, 0, 3)));
+    }
+
+    void setDistortionSpectralCurve(int curve) noexcept {
+        if (distSpectral_) distSpectral_->setSaturationCurve(static_cast<WaveshapeType>(std::clamp(curve, 0, 8)));
+    }
+
+    void setDistortionSpectralBits(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        // Map 0-1 to 1-16
+        float bits = 1.0f + std::clamp(normalized, 0.0f, 1.0f) * 15.0f;
+        if (distSpectral_) distSpectral_->setMagnitudeBits(bits);
+    }
+
+    // --- Granular Distortion ---
+
+    void setDistortionGrainSize(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        // Map 0-1 to 5-100ms
+        float ms = 5.0f + std::clamp(normalized, 0.0f, 1.0f) * 95.0f;
+        if (distGranular_) distGranular_->setGrainSize(ms);
+    }
+
+    void setDistortionGrainDensity(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        // Map 0-1 to 1-8
+        float density = 1.0f + std::clamp(normalized, 0.0f, 1.0f) * 7.0f;
+        if (distGranular_) distGranular_->setGrainDensity(density);
+    }
+
+    void setDistortionGrainVariation(float variation) noexcept {
+        if (detail::isNaN(variation) || detail::isInf(variation)) return;
+        if (distGranular_) distGranular_->setDriveVariation(std::clamp(variation, 0.0f, 1.0f));
+    }
+
+    void setDistortionGrainJitter(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        // Map 0-1 to 0-50ms
+        float ms = std::clamp(normalized, 0.0f, 1.0f) * 50.0f;
+        if (distGranular_) distGranular_->setPositionJitter(ms);
+    }
+
+    // --- Wavefolder ---
+
+    void setDistortionFoldType(int type) noexcept {
+        distWavefolder_.setType(static_cast<WavefoldType>(std::clamp(type, 0, 2)));
+    }
+
+    // --- Tape Saturator ---
+
+    void setDistortionTapeModel(int model) noexcept {
+        if (distTape_) distTape_->setModel(static_cast<TapeModel>(std::clamp(model, 0, 1)));
+    }
+
+    void setDistortionTapeSaturation(float saturation) noexcept {
+        if (detail::isNaN(saturation) || detail::isInf(saturation)) return;
+        if (distTape_) distTape_->setSaturation(std::clamp(saturation, 0.0f, 1.0f));
+    }
+
+    void setDistortionTapeBias(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        // Map 0-1 to -1..+1
+        float bias = std::clamp(normalized, 0.0f, 1.0f) * 2.0f - 1.0f;
+        if (distTape_) distTape_->setBias(bias);
+    }
+
+    // =========================================================================
     // TranceGate Configuration (FR-016 through FR-019)
     // =========================================================================
 
