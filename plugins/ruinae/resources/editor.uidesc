@@ -1374,6 +1374,7 @@
         <view class="ToggleButton" origin="510, 60" size="50, 20"
               control-tag="DelayGranularFreeze"
               title="Freeze"
+              title-position="right"
               font="~ NormalFontSmaller"
               font-color="effects"
               text-color="effects"
@@ -1440,6 +1441,7 @@
         <view class="ToggleButton" origin="460, 60" size="50, 20"
               control-tag="DelaySpectralFreeze"
               title="Freeze"
+              title-position="right"
               font="~ NormalFontSmaller"
               font-color="effects"
               text-color="effects"
@@ -2117,6 +2119,7 @@
                       control-tag="DelayEnabled"
                       default-value="1.0"
                       title="Delay"
+                      title-position="right"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       text-color="master"
@@ -2135,10 +2138,11 @@
                       transparent="true"/>
 
                 <!-- Reverb group -->
-                <view class="ToggleButton" origin="240, 4" size="50, 20"
+                <view class="ToggleButton" origin="230, 4" size="60, 20"
                       control-tag="ReverbEnabled"
                       default-value="1.0"
                       title="Reverb"
+                      title-position="right"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       text-color="master"
@@ -2157,10 +2161,11 @@
                       transparent="true"/>
 
                 <!-- Phaser group -->
-                <view class="ToggleButton" origin="480, 4" size="50, 20"
+                <view class="ToggleButton" origin="475, 4" size="60, 20"
                       control-tag="PhaserEnabled"
                       default-value="1.0"
                       title="Phaser"
+                      title-position="right"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       text-color="master"
@@ -2199,6 +2204,7 @@
                       control-tag="DelaySync"
                       default-value="1.0"
                       title="Sync"
+                      title-position="right"
                       font="~ NormalFontSmaller"
                       font-color="effects"
                       text-color="effects"
@@ -2246,67 +2252,68 @@
             </view>
 
             <!-- Reverb detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="870, 32"
+            <view class="CViewContainer" origin="4, 44" size="870, 46"
                   custom-view-name="ReverbDetail" transparent="true">
-                <view class="ArcKnob" origin="8, 2" size="28, 28"
+                <view class="ArcKnob" origin="8, 0" size="32, 32"
                       control-tag="ReverbSize"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="2, 21" size="40, 10"
+                <view class="CTextLabel" origin="4, 34" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Size"/>
-                <view class="ArcKnob" origin="48, 2" size="28, 28"
+                <view class="ArcKnob" origin="48, 0" size="32, 32"
                       control-tag="ReverbDamping"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="42, 21" size="40, 10"
+                <view class="CTextLabel" origin="44, 34" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Damp"/>
-                <view class="ArcKnob" origin="88, 2" size="28, 28"
+                <view class="ArcKnob" origin="88, 0" size="32, 32"
                       control-tag="ReverbWidth"
                       default-value="1.0"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="82, 21" size="40, 10"
+                <view class="CTextLabel" origin="84, 34" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Width"/>
-                <view class="ArcKnob" origin="128, 2" size="28, 28"
+                <view class="ArcKnob" origin="128, 0" size="32, 32"
                       control-tag="ReverbPreDelay"
                       default-value="0.0"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="122, 21" size="40, 10"
+                <view class="CTextLabel" origin="124, 34" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Pre-D"/>
-                <view class="ArcKnob" origin="168, 2" size="28, 28"
+                <view class="ArcKnob" origin="168, 0" size="32, 32"
                       control-tag="ReverbDiffusion"
                       default-value="0.7"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="162, 21" size="40, 10"
+                <view class="CTextLabel" origin="164, 34" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Diff"/>
-                <view class="ArcKnob" origin="228, 2" size="28, 28"
+                <view class="ArcKnob" origin="228, 0" size="32, 32"
                       control-tag="ReverbModRate"
                       default-value="0.25"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="222, 21" size="40, 10"
+                <view class="CTextLabel" origin="224, 34" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Rate"/>
-                <view class="ArcKnob" origin="268, 2" size="28, 28"
+                <view class="ArcKnob" origin="268, 0" size="32, 32"
                       control-tag="ReverbModDepth"
                       default-value="0.0"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="262, 21" size="40, 10"
+                <view class="CTextLabel" origin="264, 34" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Mod"/>
-                <view class="ToggleButton" origin="320, 4" size="50, 20"
+                <view class="ToggleButton" origin="320, 8" size="60, 20"
                       control-tag="ReverbFreeze"
                       title="Freeze"
+                      title-position="right"
                       font="~ NormalFontSmaller"
                       font-color="effects"
                       text-color="effects"
@@ -2319,17 +2326,18 @@
                   custom-view-name="PhaserDetail" transparent="true">
 
                 <!-- Rate / Sync section -->
-                <view class="ToggleButton" origin="8, 2" size="40, 20"
+                <view class="ToggleButton" origin="8, 2" size="50, 20"
                       control-tag="PhaserSync"
                       default-value="0.0"
                       title="Sync"
+                      title-position="right"
                       font="~ NormalFontSmaller"
                       font-color="effects"
                       text-color="effects"
                       transparent="true"/>
 
                 <!-- Rate group (shown when NOT synced — default) -->
-                <view class="CViewContainer" origin="56, 0" size="80, 40"
+                <view class="CViewContainer" origin="66, 0" size="80, 40"
                       custom-view-name="PhaserRateGroup" transparent="true">
                     <view class="ArcKnob" origin="0, 0" size="28, 28"
                           control-tag="PhaserRate"
@@ -2341,7 +2349,7 @@
                           text-alignment="center" transparent="true" title="Rate"/>
                 </view>
                 <!-- NoteValue group (shown when synced) -->
-                <view class="CViewContainer" origin="56, 0" size="80, 40"
+                <view class="CViewContainer" origin="66, 0" size="80, 40"
                       custom-view-name="PhaserNoteValueGroup" transparent="true">
                     <view class="COptionMenu" origin="0, 4" size="80, 20"
                           control-tag="PhaserNoteValue"
@@ -2352,61 +2360,61 @@
                           transparent="false"/>
                 </view>
 
-                <view class="ArcKnob" origin="148, 0" size="28, 28"
+                <view class="ArcKnob" origin="158, 0" size="28, 28"
                       control-tag="PhaserDepth"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="142, 28" size="40, 10"
+                <view class="CTextLabel" origin="152, 28" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Depth"/>
 
-                <view class="ArcKnob" origin="198, 0" size="28, 28"
+                <view class="ArcKnob" origin="208, 0" size="28, 28"
                       control-tag="PhaserFeedback"
                       default-value="0.75"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="190, 28" size="44, 10"
+                <view class="CTextLabel" origin="200, 28" size="44, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Feedback"/>
 
-                <view class="COptionMenu" origin="258, 4" size="80, 20"
+                <view class="COptionMenu" origin="268, 4" size="80, 20"
                       control-tag="PhaserStages"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       back-color="bg-dropdown"
                       frame-color="frame-dropdown-dim"
                       transparent="false"/>
-                <view class="CTextLabel" origin="258, 26" size="80, 10"
+                <view class="CTextLabel" origin="268, 26" size="80, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Stages"/>
 
-                <view class="ArcKnob" origin="358, 0" size="28, 28"
+                <view class="ArcKnob" origin="368, 0" size="28, 28"
                       control-tag="PhaserCenterFreq"
                       default-value="0.0909"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="348, 28" size="48, 10"
+                <view class="CTextLabel" origin="358, 28" size="48, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Center"/>
 
-                <view class="ArcKnob" origin="418, 0" size="28, 28"
+                <view class="ArcKnob" origin="428, 0" size="28, 28"
                       control-tag="PhaserStereoSpread"
                       default-value="0.0"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="410, 28" size="44, 10"
+                <view class="CTextLabel" origin="420, 28" size="44, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Spread"/>
 
-                <view class="COptionMenu" origin="478, 4" size="90, 20"
+                <view class="COptionMenu" origin="488, 4" size="90, 20"
                       control-tag="PhaserWaveform"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       back-color="bg-dropdown"
                       frame-color="frame-dropdown-dim"
                       transparent="false"/>
-                <view class="CTextLabel" origin="478, 26" size="90, 10"
+                <view class="CTextLabel" origin="488, 26" size="90, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Waveform"/>
             </view>

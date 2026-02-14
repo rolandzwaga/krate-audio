@@ -15,6 +15,7 @@
 // - Off (value < 0.5): icon/text drawn in configurable dimmed/muted color
 //
 // When title is set: draws centered text label instead of any icon.
+// When title AND title-position are set: draws both icon and text side by side.
 //
 // All drawing uses CGraphicsPath (no bitmaps, cross-platform).
 //
@@ -46,6 +47,7 @@ namespace Krate::Plugins {
 
 enum class IconStyle { kPower, kChevron };
 enum class Orientation { kRight, kDown, kLeft, kUp };
+enum class TitlePosition { kNone, kLeft, kRight, kTop, kBottom };
 
 // ==============================================================================
 // ToggleButton Control
@@ -75,6 +77,7 @@ public:
         , onOrientation_(other.onOrientation_)
         , offOrientation_(other.offOrientation_)
         , title_(other.title_)
+        , titlePosition_(other.titlePosition_)
         , font_(other.font_) {}
 
     CLASS_METHODS(ToggleButton, CControl)
@@ -115,6 +118,9 @@ public:
     void setTitle(const std::string& title) { title_ = title; setDirty(); }
     [[nodiscard]] const std::string& getTitle() const { return title_; }
 
+    void setTitlePosition(TitlePosition pos) { titlePosition_ = pos; setDirty(); }
+    [[nodiscard]] TitlePosition getTitlePosition() const { return titlePosition_; }
+
     void setFont(VSTGUI::CFontRef font) {
         if (font)
             font_ = font;
@@ -132,7 +138,9 @@ public:
         bool isOn = getValueNormalized() >= 0.5f;
         VSTGUI::CColor activeColor = isOn ? onColor_ : offColor_;
 
-        if (!title_.empty()) {
+        if (!title_.empty() && titlePosition_ != TitlePosition::kNone) {
+            drawIconAndTitle(context, activeColor, isOn);
+        } else if (!title_.empty()) {
             drawTitle(context, activeColor);
         } else if (iconStyle_ == IconStyle::kChevron) {
             drawChevronIcon(context, activeColor, isOn);
@@ -208,19 +216,19 @@ private:
 
     void drawPowerIcon(VSTGUI::CDrawContext* context,
                        const VSTGUI::CColor& color) const {
-        VSTGUI::CRect vs = getViewSize();
+        drawPowerIconInRect(context, getViewSize(), color);
+    }
 
-        // Icon dimensions: square, centered in view
-        double viewW = vs.getWidth();
-        double viewH = vs.getHeight();
+    void drawPowerIconInRect(VSTGUI::CDrawContext* context,
+                             const VSTGUI::CRect& rect,
+                             const VSTGUI::CColor& color) const {
+        double viewW = rect.getWidth();
+        double viewH = rect.getHeight();
         double dim = std::min(viewW, viewH) * static_cast<double>(iconSize_);
         double radius = dim / 2.0;
-        double cx = vs.left + viewW / 2.0;
-        double cy = vs.top + viewH / 2.0;
+        double cx = rect.left + viewW / 2.0;
+        double cy = rect.top + viewH / 2.0;
 
-        // Circle arc (300 degrees, 60-degree gap at 12 o'clock)
-        // VSTGUI angles: 0=East, clockwise. Top = 270 degrees.
-        // Gap: 30 degrees each side of 270 -> arc from 300 to 240 (clockwise)
         VSTGUI::CRect arcRect(cx - radius, cy - radius,
                                cx + radius, cy + radius);
 
@@ -236,7 +244,6 @@ private:
             context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
         }
 
-        // Vertical line from top of icon to center ("I" in the gap)
         double lineTopY = cy - radius;
         double lineBottomY = cy;
         context->setFrameColor(color);
@@ -247,17 +254,20 @@ private:
     void drawChevronIcon(VSTGUI::CDrawContext* context,
                          const VSTGUI::CColor& color,
                          bool isOn) const {
-        VSTGUI::CRect vs = getViewSize();
+        drawChevronIconInRect(context, getViewSize(), color, isOn);
+    }
 
-        double viewW = vs.getWidth();
-        double viewH = vs.getHeight();
+    void drawChevronIconInRect(VSTGUI::CDrawContext* context,
+                               const VSTGUI::CRect& rect,
+                               const VSTGUI::CColor& color,
+                               bool isOn) const {
+        double viewW = rect.getWidth();
+        double viewH = rect.getHeight();
         double dim = std::min(viewW, viewH) * static_cast<double>(iconSize_);
         double half = dim / 2.0;
-        double cx = vs.left + viewW / 2.0;
-        double cy = vs.top + viewH / 2.0;
+        double cx = rect.left + viewW / 2.0;
+        double cy = rect.top + viewH / 2.0;
 
-        // Base chevron points to the right: ">"
-        // Tip at +half, arms at -half. Draws relative to center, then rotates.
         double tipX = half;
         double armX = -half;
         double armY = half;
@@ -268,7 +278,6 @@ private:
         double cosA = std::cos(angleRad);
         double sinA = std::sin(angleRad);
 
-        // Rotate and translate the 3 points
         auto rotate = [&](double x, double y) -> VSTGUI::CPoint {
             return VSTGUI::CPoint(cx + x * cosA - y * sinA,
                                   cy + x * sinA + y * cosA);
@@ -292,10 +301,71 @@ private:
 
     void drawTitle(VSTGUI::CDrawContext* context,
                    const VSTGUI::CColor& color) const {
+        drawTitleInRect(context, getViewSize(), color, VSTGUI::kCenterText);
+    }
+
+    void drawTitleInRect(VSTGUI::CDrawContext* context,
+                         const VSTGUI::CRect& rect,
+                         const VSTGUI::CColor& color,
+                         VSTGUI::CHoriTxtAlign align) const {
         context->setFont(font_);
         context->setFontColor(color);
-        context->drawString(VSTGUI::UTF8String(title_), getViewSize(),
-                            VSTGUI::kCenterText);
+        context->drawString(VSTGUI::UTF8String(title_), rect, align);
+    }
+
+    void drawIconAndTitle(VSTGUI::CDrawContext* context,
+                          const VSTGUI::CColor& color,
+                          bool isOn) const {
+        VSTGUI::CRect vs = getViewSize();
+        constexpr double kGap = 4.0;
+
+        VSTGUI::CRect iconRect = vs;
+        VSTGUI::CRect textRect = vs;
+        VSTGUI::CHoriTxtAlign textAlign = VSTGUI::kCenterText;
+
+        bool horizontal = (titlePosition_ == TitlePosition::kLeft ||
+                           titlePosition_ == TitlePosition::kRight);
+
+        if (horizontal) {
+            // Icon gets a square region based on view height
+            double iconDim = vs.getHeight();
+
+            if (titlePosition_ == TitlePosition::kRight) {
+                // [icon | text]
+                iconRect.right = iconRect.left + iconDim;
+                textRect.left = iconRect.right + kGap;
+                textAlign = VSTGUI::kLeftText;
+            } else {
+                // [text | icon]
+                iconRect.left = iconRect.right - iconDim;
+                textRect.right = iconRect.left - kGap;
+                textAlign = VSTGUI::kRightText;
+            }
+        } else {
+            // Icon gets a square region based on view width
+            double iconDim = vs.getWidth();
+
+            if (titlePosition_ == TitlePosition::kBottom) {
+                // icon above, text below
+                iconRect.bottom = iconRect.top + iconDim;
+                textRect.top = iconRect.bottom + kGap;
+            } else {
+                // text above, icon below
+                iconRect.top = iconRect.bottom - iconDim;
+                textRect.bottom = iconRect.top - kGap;
+            }
+            textAlign = VSTGUI::kCenterText;
+        }
+
+        // Draw the icon in its sub-rect
+        if (iconStyle_ == IconStyle::kChevron) {
+            drawChevronIconInRect(context, iconRect, color, isOn);
+        } else {
+            drawPowerIconInRect(context, iconRect, color);
+        }
+
+        // Draw the title in its sub-rect
+        drawTitleInRect(context, textRect, color, textAlign);
     }
 
     static double orientationToDegrees(Orientation o) {
@@ -320,6 +390,7 @@ private:
     Orientation onOrientation_ = Orientation::kDown;
     Orientation offOrientation_ = Orientation::kRight;
     std::string title_;
+    TitlePosition titlePosition_ = TitlePosition::kNone;
     VSTGUI::SharedPointer<VSTGUI::CFontDesc> font_{VSTGUI::kNormalFontSmall};
     bool inValueChanged_ = false;
 };
@@ -353,6 +424,24 @@ inline std::string orientationToString(Orientation o) {
         case Orientation::kDown:  return "down";
         case Orientation::kLeft:  return "left";
         default: return "right";
+    }
+}
+
+inline TitlePosition titlePositionFromString(const std::string& s) {
+    if (s == "left")   return TitlePosition::kLeft;
+    if (s == "right")  return TitlePosition::kRight;
+    if (s == "top")    return TitlePosition::kTop;
+    if (s == "bottom") return TitlePosition::kBottom;
+    return TitlePosition::kNone;
+}
+
+inline std::string titlePositionToString(TitlePosition p) {
+    switch (p) {
+        case TitlePosition::kLeft:   return "left";
+        case TitlePosition::kRight:  return "right";
+        case TitlePosition::kTop:    return "top";
+        case TitlePosition::kBottom: return "bottom";
+        default: return "";
     }
 }
 
@@ -415,9 +504,11 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (auto val = attributes.getAttributeValue("off-orientation"))
             btn->setOffOrientation(orientationFromString(*val));
 
-        // Title
+        // Title and title position
         if (auto val = attributes.getAttributeValue("title"))
             btn->setTitle(*val);
+        if (auto val = attributes.getAttributeValue("title-position"))
+            btn->setTitlePosition(titlePositionFromString(*val));
 
         // Font (resolved from IUIDescription named fonts)
         if (auto val = attributes.getAttributeValue("font")) {
@@ -441,6 +532,7 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
         attributeNames.emplace_back("on-orientation");
         attributeNames.emplace_back("off-orientation");
         attributeNames.emplace_back("title");
+        attributeNames.emplace_back("title-position");
         attributeNames.emplace_back("font");
         return true;
     }
@@ -455,6 +547,7 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "on-orientation") return kListType;
         if (attributeName == "off-orientation") return kListType;
         if (attributeName == "title") return kStringType;
+        if (attributeName == "title-position") return kListType;
         if (attributeName == "font") return kFontType;
         return kUnknownType;
     }
@@ -467,6 +560,17 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
             static const std::string kChevron = "chevron";
             values.emplace_back(&kPower);
             values.emplace_back(&kChevron);
+            return true;
+        }
+        if (attributeName == "title-position") {
+            static const std::string kLeft = "left";
+            static const std::string kRight = "right";
+            static const std::string kTop = "top";
+            static const std::string kBottom = "bottom";
+            values.emplace_back(&kLeft);
+            values.emplace_back(&kRight);
+            values.emplace_back(&kTop);
+            values.emplace_back(&kBottom);
             return true;
         }
         if (attributeName == "on-orientation" ||
@@ -526,6 +630,10 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
         }
         if (attributeName == "title") {
             stringValue = btn->getTitle();
+            return true;
+        }
+        if (attributeName == "title-position") {
+            stringValue = titlePositionToString(btn->getTitlePosition());
             return true;
         }
         if (attributeName == "font") {
