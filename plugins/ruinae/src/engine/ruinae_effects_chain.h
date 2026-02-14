@@ -43,6 +43,7 @@
 #if RUINAE_FX_CHAIN_DEBUG
 #include <cstdarg>
 #include <cstdio>
+#ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -50,6 +51,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#endif
 extern int s_logCounter;
 static inline void logFxChain(const char* fmt, ...) {
     char buf[512];
@@ -57,7 +59,11 @@ static inline void logFxChain(const char* fmt, ...) {
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
+#ifdef _WIN32
     OutputDebugStringA(buf);
+#else
+    fprintf(stderr, "%s", buf);
+#endif
 }
 static inline float peakLevel(const float* buf, size_t n) {
     float peak = 0.0f;
