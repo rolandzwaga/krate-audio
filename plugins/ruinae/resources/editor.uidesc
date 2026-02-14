@@ -65,6 +65,7 @@
         <control-tag name="Polyphony" tag="2"/>
         <control-tag name="SoftLimit" tag="3"/>
         <control-tag name="Width" tag="4"/>
+        <control-tag name="Spread" tag="5"/>
 
         <!-- OSC A -->
         <control-tag name="OscAType" tag="100"/>
@@ -2687,11 +2688,13 @@
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Spread knob (placeholder, no control-tag) -->
-            <view class="ArcKnob" origin="62, 100" size="28, 28"
+            <!-- Spread knob (functional, wired to parameter) -->
+            <view class="ArcKnob" origin="62, 104" size="28, 28"
+                  control-tag="Spread"
+                  default-value="0"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="58, 128" size="40, 10"
+            <view class="CTextLabel" origin="58, 132" size="40, 10"
                   title="Spread"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
