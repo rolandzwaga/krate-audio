@@ -28,6 +28,8 @@ struct GlobalParams {
     std::atomic<int> voiceMode{0};          // 0=Poly, 1=Mono
     std::atomic<int> polyphony{8};          // 1-16
     std::atomic<bool> softLimit{true};      // on/off
+    std::atomic<float> width{1.0f};         // 0-2 (stereo width: 0=mono, 1=natural, 2=extra-wide)
+    std::atomic<float> spread{0.0f};        // 0-1 (voice spread: 0=center, 1=full)
 };
 
 // ==============================================================================
@@ -61,6 +63,18 @@ inline void handleGlobalParamChange(
         case kSoftLimitId:
             params.softLimit.store(value >= 0.5, std::memory_order_relaxed);
             break;
+        case kWidthId:
+            // 0-1 normalized -> 0-2 stereo width
+            params.width.store(
+                std::clamp(static_cast<float>(value * 2.0), 0.0f, 2.0f),
+                std::memory_order_relaxed);
+            break;
+        case kSpreadId:
+            // 0-1 normalized -> 0-1 spread (1:1 mapping)
+            params.spread.store(
+                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                std::memory_order_relaxed);
+            break;
         default:
             break;
     }
@@ -81,7 +95,7 @@ inline void registerGlobalParams(Steinberg::Vst::ParameterContainer& parameters)
     // Voice Mode
     parameters.addParameter(createDropdownParameter(
         STR16("Voice Mode"), kVoiceModeId,
-        {STR16("Poly"), STR16("Mono")}
+        {STR16("Polyphonic"), STR16("Mono")}
     ));
 
     // Polyphony (1-16, default 8 => index 7)
@@ -97,6 +111,16 @@ inline void registerGlobalParams(Steinberg::Vst::ParameterContainer& parameters)
     parameters.addParameter(
         STR16("Soft Limit"), STR16(""), 1, 1.0,
         ParameterInfo::kCanAutomate, kSoftLimitId);
+
+    // Width (0-200%, default 100% = normalized 0.5)
+    parameters.addParameter(
+        STR16("Width"), STR16("%"), 0, 0.5,
+        ParameterInfo::kCanAutomate, kWidthId);
+
+    // Spread (0-100%, default 0%)
+    parameters.addParameter(
+        STR16("Spread"), STR16("%"), 0, 0.0,
+        ParameterInfo::kCanAutomate, kSpreadId);
 }
 
 // ==============================================================================
@@ -126,6 +150,20 @@ inline Steinberg::tresult formatGlobalParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+        case kWidthId: {
+            int pct = static_cast<int>(value * 200.0 + 0.5);
+            char8 text[32];
+            snprintf(text, sizeof(text), "%d%%", pct);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kSpreadId: {
+            int pct = static_cast<int>(value * 100.0 + 0.5);
+            char8 text[32];
+            snprintf(text, sizeof(text), "%d%%", pct);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
         // VoiceMode and SoftLimit handled by StringListParameter/default
         default:
             break;
@@ -142,6 +180,8 @@ inline void saveGlobalParams(const GlobalParams& params, Steinberg::IBStreamer& 
     streamer.writeInt32(params.voiceMode.load(std::memory_order_relaxed));
     streamer.writeInt32(params.polyphony.load(std::memory_order_relaxed));
     streamer.writeInt32(params.softLimit.load(std::memory_order_relaxed) ? 1 : 0);
+    streamer.writeFloat(params.width.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.spread.load(std::memory_order_relaxed));
 }
 
 inline bool loadGlobalParams(GlobalParams& params, Steinberg::IBStreamer& streamer) {
@@ -159,6 +199,16 @@ inline bool loadGlobalParams(GlobalParams& params, Steinberg::IBStreamer& stream
 
     if (!streamer.readInt32(intVal)) return false;
     params.softLimit.store(intVal != 0, std::memory_order_relaxed);
+
+    // Width (new - EOF-safe for old presets)
+    if (streamer.readFloat(floatVal))
+        params.width.store(floatVal, std::memory_order_relaxed);
+    // else: keep default 1.0f (natural stereo width)
+
+    // Spread (new - EOF-safe for old presets)
+    if (streamer.readFloat(floatVal))
+        params.spread.store(floatVal, std::memory_order_relaxed);
+    // else: keep default 0.0f (all voices centered)
 
     return true;
 }
@@ -182,6 +232,14 @@ inline void loadGlobalParamsToController(
         setParam(kPolyphonyId, (static_cast<double>(intVal) - 1.0) / 15.0);
     if (streamer.readInt32(intVal))
         setParam(kSoftLimitId, intVal != 0 ? 1.0 : 0.0);
+
+    // Width: engine value (0-2) -> normalized (0-1)
+    if (streamer.readFloat(floatVal))
+        setParam(kWidthId, static_cast<double>(floatVal / 2.0f));
+
+    // Spread: stored value (0-1) = normalized (0-1)
+    if (streamer.readFloat(floatVal))
+        setParam(kSpreadId, static_cast<double>(floatVal));
 }
 
 } // namespace Ruinae

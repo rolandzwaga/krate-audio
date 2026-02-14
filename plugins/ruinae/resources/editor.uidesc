@@ -61,6 +61,7 @@
     <control-tags>
         <!-- Master/Global -->
         <control-tag name="MasterGain" tag="0"/>
+        <control-tag name="VoiceMode" tag="1"/>
         <control-tag name="Polyphony" tag="2"/>
         <control-tag name="SoftLimit" tag="3"/>
 
@@ -2616,8 +2617,35 @@
             fieldset-font-size="10"
             transparent="true"
         >
-            <!-- Polyphony dropdown (repositioned, compact) -->
-            <view class="COptionMenu" origin="8, 14" size="60, 18"
+            <!-- Row 1: Voice Mode dropdown with "Mode" label + gear icon -->
+            <view class="CTextLabel" origin="4, 14" size="28, 18"
+                  title="Mode"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="left"
+                  transparent="true"/>
+            <view class="COptionMenu" origin="32, 14" size="56, 18"
+                  control-tag="VoiceMode"
+                  default-value="0"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  tooltip="Voice Mode"
+                  transparent="false"/>
+
+            <!-- Gear icon (inert placeholder for future settings drawer) -->
+            <view class="ToggleButton" origin="92, 14" size="18, 18"
+                  icon-style="gear"
+                  on-color="master"
+                  off-color="text-secondary"
+                  icon-size="0.65"
+                  stroke-width="1.5"
+                  tooltip="Settings"
+                  transparent="true"/>
+
+            <!-- Row 2: Polyphony dropdown -->
+            <view class="COptionMenu" origin="8, 34" size="60, 18"
                   control-tag="Polyphony"
                   font="~ NormalFontSmaller"
                   font-color="master"
@@ -2625,21 +2653,11 @@
                   frame-color="frame-dropdown-dim"
                   tooltip="Polyphony"
                   transparent="false"/>
-            <view class="CTextLabel" origin="8, 32" size="60, 10"
+            <view class="CTextLabel" origin="8, 52" size="60, 10"
                   title="Poly"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
                   text-alignment="center"
-                  transparent="true"/>
-
-            <!-- Gear icon (inert placeholder for future settings drawer) -->
-            <view class="ToggleButton" origin="72, 14" size="18, 18"
-                  icon-style="gear"
-                  on-color="master"
-                  off-color="text-secondary"
-                  icon-size="0.65"
-                  stroke-width="1.5"
-                  tooltip="Settings"
                   transparent="true"/>
 
             <!-- Output knob (repositioned, centered) -->
