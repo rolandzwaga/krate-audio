@@ -622,7 +622,6 @@ private:
 
     // --- Compact active list ---
     std::array<uint8_t, kMaxParticles> activeIndices_{};  ///< Indices of active slots
-    size_t activeCount_;                                   ///< Number of active particles
     std::array<uint8_t, kMaxParticles> slotActive_{};     ///< Per-slot active flag
 
     // --- Configuration state (set via setters) ---
@@ -642,6 +641,9 @@ private:
     float driftFilterCoeff_;    ///< One-pole LPF coefficient for drift
     float driftOneMinusCoeff_;  ///< 1.0f - driftFilterCoeff_ (precomputed)
     float inverseSampleRate_;   ///< 1.0f / sampleRate (for fast division)
+
+    // --- Active count (after inverseSampleRate_ to match initializer order) ---
+    size_t activeCount_;        ///< Number of active particles
 
     // --- Processing state ---
     double sampleRate_;         ///< Current sample rate

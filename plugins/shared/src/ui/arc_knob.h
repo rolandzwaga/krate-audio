@@ -130,7 +130,7 @@ public:
         if (buttons & kZoomModifier)
             mouseState_.range *= zoomFactor;
         mouseState_.coef = (getMax() - getMin()) / mouseState_.range;
-        mouseState_.oldButton = buttons;
+        mouseState_.oldButton = buttons();  // Use int32_t assignment to avoid deprecated implicit copy
         mouseState_.active = true;
 
         return VSTGUI::kMouseEventHandled;
@@ -151,7 +151,7 @@ public:
             mouseState_.entryValue +=
                 static_cast<float>(diff) * (mouseState_.coef - newCoef);
             mouseState_.coef = newCoef;
-            mouseState_.oldButton = buttons;
+            mouseState_.oldButton = buttons();  // Use int32_t assignment to avoid deprecated implicit copy
         }
 
         value = mouseState_.entryValue +
