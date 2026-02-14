@@ -202,13 +202,13 @@
 
 ### 8.1 Run Clang-Tidy Analysis
 
-- [ ] T063 Run clang-tidy on all modified source files (./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja)
+- [X] T063 Run clang-tidy on all modified source files (./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja)
 
 ### 8.2 Address Findings
 
-- [ ] T064 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T065 Review warnings and fix where appropriate (none expected for this UI-only change)
-- [ ] T066 Document suppressions if any warnings are intentionally ignored (add NOLINT comment with reason)
+- [X] T064 Fix all errors reported by clang-tidy (blocking issues)
+- [X] T065 Review warnings and fix where appropriate (none expected for this UI-only change)
+- [X] T066 Document suppressions if any warnings are intentionally ignored (add NOLINT comment with reason)
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 
@@ -224,41 +224,41 @@
 
 Before claiming this spec is complete, verify EVERY requirement by re-reading implementation code and test output:
 
-- [ ] T067 Open plugins/ruinae/resources/editor.uidesc and verify FR-001 (IconSegmentButton replaced with COptionMenu matching Distortion Type dropdown style) - record line numbers
-- [ ] T068 Open dropdown in plugin UI and verify FR-002 (dropdown lists 10 sources in correct order: LFO 1, LFO 2, Chaos, Macros, Rungler, Env Follower, S&H, Random, Pitch Follower, Transient) - screenshot as evidence
-- [ ] T069 Select each of 10 dropdown items and verify FR-003 (view area switches to correct template) - test each one, record results
-- [ ] T070 Open plugins/ruinae/resources/editor.uidesc and verify FR-004 (UIViewSwitchContainer pattern used with template-switch-control) - record line numbers
-- [ ] T071 Measure dropdown height in plugin UI and verify FR-005 (dropdown max 20px, source view has 100px+) - record measurements
-- [ ] T072 Select LFO 1 and test all controls verify FR-006 (all LFO 1 controls functional: Rate, Shape, Depth, Phase, Sync with Rate/NoteValue swap, Retrigger, Unipolar, Fade In, Symmetry, Quantize) - test each control, record results
-- [ ] T073 Select LFO 2 and test all controls verify FR-007 (all LFO 2 controls functional with identical layout to LFO 1) - test each control, record results
-- [ ] T074 Select Chaos and test all controls verify FR-008 (all Chaos controls functional: Rate, Type, Depth, Sync with Rate/NoteValue swap) - test each control, record results
-- [ ] T075 Open plugins/ruinae/resources/editor.uidesc and verify FR-009 (7 separate empty placeholder templates exist) - record template names and line numbers
-- [ ] T076 Open plugins/ruinae/src/parameters/chaos_mod_params.h and verify FR-010 (ModSourceViewMode parameter has 10 entries, ephemeral, defaults to index 0) - record line numbers
-- [ ] T077 Search plugins/ruinae/src/controller/ and verify FR-011 (custom visibility logic removed, UIViewSwitchContainer handles switching) - confirm no manual setVisible() calls for mod source views
-- [ ] T078 Open plugins/ruinae/resources/editor.uidesc and verify FR-012 (templates named ModSource_LFO1, ModSource_LFO2, ModSource_Chaos) - record line numbers
-- [ ] T079 Test dropdown with all 3 implemented sources and verify SC-001 (all controls fully functional, matching pre-migration behavior) - compare against pre-migration reference
-- [ ] T080 Measure mod source area in plugin UI and verify SC-002 (fits within 158px wide, no overflow/clipping) - record measurements
-- [ ] T081 Select all 10 dropdown entries and verify SC-003 (clean transitions, no crashes/artifacts) - test each entry
-- [ ] T082 Search plugins/ruinae/src/controller/ and verify SC-004 (modLFO1View_, modLFO2View_, modChaosView_ manual visibility code fully removed) - confirm grep returns no matches
-- [ ] T083 Review editor.uidesc template structure and verify SC-005 (future phases can add source by creating template and adding to template-names) - confirm pattern is reusable
-- [ ] T084 Run pluginval and verify SC-006 (passes at strictness level 5) - record actual output
+- [X] T067 Open plugins/ruinae/resources/editor.uidesc and verify FR-001 (IconSegmentButton replaced with COptionMenu matching Distortion Type dropdown style) - record line numbers
+- [X] T068 Open dropdown in plugin UI and verify FR-002 (dropdown lists 10 sources in correct order: LFO 1, LFO 2, Chaos, Macros, Rungler, Env Follower, S&H, Random, Pitch Follower, Transient) - screenshot as evidence
+- [X] T069 Select each of 10 dropdown items and verify FR-003 (view area switches to correct template) - test each one, record results
+- [X] T070 Open plugins/ruinae/resources/editor.uidesc and verify FR-004 (UIViewSwitchContainer pattern used with template-switch-control) - record line numbers
+- [X] T071 Measure dropdown height in plugin UI and verify FR-005 (dropdown max 20px, source view has 100px+) - record measurements
+- [X] T072 Select LFO 1 and test all controls verify FR-006 (all LFO 1 controls functional: Rate, Shape, Depth, Phase, Sync with Rate/NoteValue swap, Retrigger, Unipolar, Fade In, Symmetry, Quantize) - test each control, record results
+- [X] T073 Select LFO 2 and test all controls verify FR-007 (all LFO 2 controls functional with identical layout to LFO 1) - test each control, record results
+- [X] T074 Select Chaos and test all controls verify FR-008 (all Chaos controls functional: Rate, Type, Depth, Sync with Rate/NoteValue swap) - test each control, record results
+- [X] T075 Open plugins/ruinae/resources/editor.uidesc and verify FR-009 (7 separate empty placeholder templates exist) - record template names and line numbers
+- [X] T076 Open plugins/ruinae/src/parameters/chaos_mod_params.h and verify FR-010 (ModSourceViewMode parameter has 10 entries, ephemeral, defaults to index 0) - record line numbers
+- [X] T077 Search plugins/ruinae/src/controller/ and verify FR-011 (custom visibility logic removed, UIViewSwitchContainer handles switching) - confirm no manual setVisible() calls for mod source views
+- [X] T078 Open plugins/ruinae/resources/editor.uidesc and verify FR-012 (templates named ModSource_LFO1, ModSource_LFO2, ModSource_Chaos) - record line numbers
+- [X] T079 Test dropdown with all 3 implemented sources and verify SC-001 (all controls fully functional, matching pre-migration behavior) - compare against pre-migration reference
+- [X] T080 Measure mod source area in plugin UI and verify SC-002 (fits within 158px wide, no overflow/clipping) - record measurements
+- [X] T081 Select all 10 dropdown entries and verify SC-003 (clean transitions, no crashes/artifacts) - test each entry
+- [X] T082 Search plugins/ruinae/src/controller/ and verify SC-004 (modLFO1View_, modLFO2View_, modChaosView_ manual visibility code fully removed) - confirm grep returns no matches
+- [X] T083 Review editor.uidesc template structure and verify SC-005 (future phases can add source by creating template and adding to template-names) - confirm pattern is reusable
+- [X] T084 Run pluginval and verify SC-006 (passes at strictness level 5) - record actual output
 
 ### 9.2 Fill Compliance Table in spec.md
 
-- [ ] T085 Open F:\projects\iterum\specs\053-mod-source-dropdown\spec.md and fill Implementation Verification section with evidence from T067-T084
-- [ ] T086 For each FR-xxx requirement, record: file path, line numbers, and specific code that satisfies it
-- [ ] T087 For each SC-xxx success criterion, record: test performed, actual result, comparison to spec threshold
-- [ ] T088 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T085 Open F:\projects\iterum\specs\053-mod-source-dropdown\spec.md and fill Implementation Verification section with evidence from T067-T084
+- [X] T086 For each FR-xxx requirement, record: file path, line numbers, and specific code that satisfies it
+- [X] T087 For each SC-xxx success criterion, record: test performed, actual result, comparison to spec threshold
+- [X] T088 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 9.3 Honest Self-Check
 
 Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
-- [ ] T089 Check: Did I change ANY test threshold from what the spec originally required? (Answer must be NO)
-- [ ] T090 Check: Are there ANY placeholder, stub, or TODO comments in new code? (Answer must be NO - search for these in modified files)
-- [ ] T091 Check: Did I remove ANY features from scope without telling the user? (Answer must be NO)
-- [ ] T092 Check: Would the spec author consider this "done"? (Answer must be YES)
-- [ ] T093 Check: If I were the user, would I feel cheated? (Answer must be NO)
+- [X] T089 Check: Did I change ANY test threshold from what the spec originally required? (Answer must be NO) -- Answer: NO
+- [X] T090 Check: Are there ANY placeholder, stub, or TODO comments in new code? (Answer must be NO - search for these in modified files) -- Answer: NO
+- [X] T091 Check: Did I remove ANY features from scope without telling the user? (Answer must be NO) -- Answer: NO
+- [X] T092 Check: Would the spec author consider this "done"? (Answer must be YES) -- Answer: YES
+- [X] T093 Check: If I were the user, would I feel cheated? (Answer must be NO) -- Answer: NO
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -270,14 +270,14 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 10.1 Final Commit
 
-- [ ] T094 Verify all files modified during implementation are committed to feature branch
-- [ ] T095 Run git status to confirm no uncommitted changes remain
-- [ ] T096 Build plugin one final time and verify all tests pass (pluginval)
+- [X] T094 Verify all files modified during implementation are committed to feature branch
+- [X] T095 Run git status to confirm no uncommitted changes remain
+- [X] T096 Build plugin one final time and verify all tests pass (pluginval)
 
 ### 10.2 Completion Claim
 
-- [ ] T097 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
-- [ ] T098 Update spec.md status field from "Draft" to "Complete" (only if T097 confirms completion)
+- [X] T097 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T098 Update spec.md status field from "Draft" to "Complete" (only if T097 confirms completion)
 
 **Checkpoint**: Spec implementation honestly complete
 
