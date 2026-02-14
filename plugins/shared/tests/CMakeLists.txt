@@ -8,6 +8,7 @@ add_executable(shared_tests
     test_main.cpp
     test_color_utils.cpp
     test_step_pattern_editor.cpp
+    test_toggle_button.cpp
     test_xy_morph_pad.cpp
     test_adsr_display.cpp
     test_oscillator_type_selector.cpp

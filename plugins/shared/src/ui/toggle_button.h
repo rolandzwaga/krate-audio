@@ -9,6 +9,7 @@
 // Icon styles:
 // - "power": IEC 5009 power symbol (circle with vertical line). Default.
 // - "chevron": Directional chevron arrow with configurable on/off orientations.
+// - "gear": 6-tooth gear/cog icon for settings access points.
 //
 // Visual states:
 // - On (value >= 0.5): icon/text drawn in configurable bright accent color
@@ -45,7 +46,7 @@ namespace Krate::Plugins {
 // Enums
 // ==============================================================================
 
-enum class IconStyle { kPower, kChevron };
+enum class IconStyle { kPower, kChevron, kGear };
 enum class Orientation { kRight, kDown, kLeft, kUp };
 enum class TitlePosition { kNone, kLeft, kRight, kTop, kBottom };
 
@@ -144,6 +145,8 @@ public:
             drawTitle(context, activeColor);
         } else if (iconStyle_ == IconStyle::kChevron) {
             drawChevronIcon(context, activeColor, isOn);
+        } else if (iconStyle_ == IconStyle::kGear) {
+            drawGearIcon(context, activeColor);
         } else {
             drawPowerIcon(context, activeColor);
         }
@@ -299,6 +302,75 @@ private:
         }
     }
 
+    void drawGearIcon(VSTGUI::CDrawContext* context,
+                      const VSTGUI::CColor& color) const {
+        drawGearIconInRect(context, getViewSize(), color);
+    }
+
+    void drawGearIconInRect(VSTGUI::CDrawContext* context,
+                            const VSTGUI::CRect& rect,
+                            const VSTGUI::CColor& color) const {
+        constexpr double kPi = 3.14159265358979323846;
+        constexpr int kNumTeeth = 6;
+        constexpr double kInnerRatio = 0.65;
+        constexpr double kToothHalfAngleFraction = 0.45;
+        constexpr double kCenterHoleRatio = 0.3;
+
+        double viewW = rect.getWidth();
+        double viewH = rect.getHeight();
+        double dim = std::min(viewW, viewH) * static_cast<double>(iconSize_);
+        double outerRadius = dim / 2.0;
+        double innerRadius = outerRadius * kInnerRatio;
+        double centerHoleRadius = outerRadius * kCenterHoleRatio;
+        double cx = rect.left + viewW / 2.0;
+        double cy = rect.top + viewH / 2.0;
+
+        double sectorAngle = 2.0 * kPi / kNumTeeth;
+        double toothHalfAngle = sectorAngle * kToothHalfAngleFraction;
+
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (!path)
+            return;
+
+        // Build gear outline as polygon: for each tooth, 4 vertices
+        for (int i = 0; i < kNumTeeth; ++i) {
+            double baseAngle = i * sectorAngle;
+
+            double aLeading = baseAngle - toothHalfAngle;
+            double aTrailing = baseAngle + toothHalfAngle;
+
+            VSTGUI::CPoint innerLeading(cx + innerRadius * std::cos(aLeading),
+                                         cy + innerRadius * std::sin(aLeading));
+            VSTGUI::CPoint outerLeading(cx + outerRadius * std::cos(aLeading),
+                                         cy + outerRadius * std::sin(aLeading));
+            VSTGUI::CPoint outerTrailing(cx + outerRadius * std::cos(aTrailing),
+                                          cy + outerRadius * std::sin(aTrailing));
+            VSTGUI::CPoint innerTrailing(cx + innerRadius * std::cos(aTrailing),
+                                          cy + innerRadius * std::sin(aTrailing));
+
+            if (i == 0) {
+                path->beginSubpath(innerLeading);
+            } else {
+                path->addLine(innerLeading);
+            }
+            path->addLine(outerLeading);
+            path->addLine(outerTrailing);
+            path->addLine(innerTrailing);
+        }
+        path->closeSubpath();
+
+        // Add center hole as a separate subpath for even-odd fill
+        if (centerHoleRadius > 0.5) {
+            VSTGUI::CRect holeRect(cx - centerHoleRadius, cy - centerHoleRadius,
+                                    cx + centerHoleRadius, cy + centerHoleRadius);
+            path->addEllipse(holeRect);
+        }
+
+        // Fill with even-odd rule so the center hole is transparent
+        context->setFillColor(color);
+        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilledEvenOdd);
+    }
+
     void drawTitle(VSTGUI::CDrawContext* context,
                    const VSTGUI::CColor& color) const {
         drawTitleInRect(context, getViewSize(), color, VSTGUI::kCenterText);
@@ -360,6 +432,8 @@ private:
         // Draw the icon in its sub-rect
         if (iconStyle_ == IconStyle::kChevron) {
             drawChevronIconInRect(context, iconRect, color, isOn);
+        } else if (iconStyle_ == IconStyle::kGear) {
+            drawGearIconInRect(context, iconRect, color);
         } else {
             drawPowerIconInRect(context, iconRect, color);
         }
@@ -401,12 +475,14 @@ private:
 
 inline IconStyle iconStyleFromString(const std::string& s) {
     if (s == "chevron") return IconStyle::kChevron;
+    if (s == "gear") return IconStyle::kGear;
     return IconStyle::kPower;
 }
 
 inline std::string iconStyleToString(IconStyle style) {
     switch (style) {
         case IconStyle::kChevron: return "chevron";
+        case IconStyle::kGear: return "gear";
         default: return "power";
     }
 }
@@ -558,8 +634,10 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "icon-style") {
             static const std::string kPower = "power";
             static const std::string kChevron = "chevron";
+            static const std::string kGear = "gear";
             values.emplace_back(&kPower);
             values.emplace_back(&kChevron);
+            values.emplace_back(&kGear);
             return true;
         }
         if (attributeName == "title-position") {
