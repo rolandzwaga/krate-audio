@@ -307,6 +307,80 @@ TEST_CASE("ChaosModSource all models bounded for 10 minutes at speed 10",
     }
 }
 
+// =============================================================================
+// Regression: processBlock must be equivalent to per-sample process()
+// =============================================================================
+// The ChaosModSource was originally only called via process() once per audio
+// block in the ModulationEngine, making the attractor evolve ~500x too slowly
+// (1 tick per block instead of numSamples ticks per block). processBlock()
+// fixes this. This test ensures the two paths remain equivalent.
+
+TEST_CASE("ChaosModSource processBlock produces same result as per-sample process",
+          "[processors][chaos][regression]") {
+    constexpr size_t kBlockSize = 512;
+    constexpr int kNumBlocks = 100;
+
+    for (auto model : {ChaosModel::Lorenz, ChaosModel::Rossler,
+                       ChaosModel::Chua, ChaosModel::Henon}) {
+        // Instance A: per-sample process()
+        ChaosModSource perSample;
+        perSample.setModel(model);
+        perSample.prepare(44100.0);
+        perSample.setSpeed(5.0f);
+
+        // Instance B: processBlock()
+        ChaosModSource perBlock;
+        perBlock.setModel(model);
+        perBlock.prepare(44100.0);
+        perBlock.setSpeed(5.0f);
+
+        for (int b = 0; b < kNumBlocks; ++b) {
+            for (size_t i = 0; i < kBlockSize; ++i) {
+                perSample.process();
+            }
+            perBlock.processBlock(kBlockSize);
+
+            INFO("Model: " << static_cast<int>(model) << " Block: " << b);
+            REQUIRE(perBlock.getCurrentValue()
+                    == Approx(perSample.getCurrentValue()).margin(1e-6f));
+        }
+    }
+}
+
+TEST_CASE("ChaosModSource processBlock produces non-trivial output over one second",
+          "[processors][chaos][regression]") {
+    // Catches the original bug: if processBlock is accidentally reverted to a
+    // single process() call, the attractor barely evolves and output stays
+    // near its initial value (~0.05 for Lorenz).
+    constexpr size_t kBlockSize = 512;
+    constexpr float kSampleRate = 44100.0f;
+    constexpr int kOneSecondBlocks =
+        static_cast<int>(kSampleRate / static_cast<float>(kBlockSize));
+
+    ChaosModSource src;
+    src.setModel(ChaosModel::Lorenz);
+    src.prepare(kSampleRate);
+    src.setSpeed(5.0f);
+
+    float minVal = 1.0f;
+    float maxVal = -1.0f;
+
+    for (int b = 0; b < kOneSecondBlocks; ++b) {
+        src.processBlock(kBlockSize);
+        float val = src.getCurrentValue();
+        minVal = std::min(minVal, val);
+        maxVal = std::max(maxVal, val);
+    }
+
+    float range = maxVal - minVal;
+    INFO("Chaos output range over 1 second: " << range
+         << " (min=" << minVal << ", max=" << maxVal << ")");
+
+    // A properly running Lorenz attractor at speed 5.0 should swing widely.
+    // With the old bug (single process() per block), range was < 0.05.
+    REQUIRE(range > 0.5f);
+}
+
 // T100: Lorenz attractor auto-reset when state exceeds 10x safeBound (FR-025)
 TEST_CASE("ChaosModSource Lorenz auto-resets when diverged",
           "[processors][chaos][ext_modulation][FR-025]") {

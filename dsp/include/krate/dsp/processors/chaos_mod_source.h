@@ -73,6 +73,22 @@ public:
         }
     }
 
+    /// @brief Process a block of samples (call once per block).
+    /// Advances the attractor by the correct number of control-rate steps.
+    /// @param numSamples Number of audio samples in this block
+    void processBlock(size_t numSamples) noexcept {
+        auto remaining = static_cast<int>(numSamples);
+        while (remaining > 0) {
+            if (samplesUntilUpdate_ <= 0) {
+                samplesUntilUpdate_ = static_cast<int>(kControlRateInterval);
+                updateAttractor();
+            }
+            int advance = std::min(remaining, samplesUntilUpdate_);
+            samplesUntilUpdate_ -= advance;
+            remaining -= advance;
+        }
+    }
+
     // ModulationSource interface
     [[nodiscard]] float getCurrentValue() const noexcept override {
         return normalizedOutput_;

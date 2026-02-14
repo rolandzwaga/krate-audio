@@ -231,7 +231,7 @@ public:
             random_.processBlock(safeSamples);
         }
         if (sourceActive_[static_cast<size_t>(ModSource::Chaos)]) {
-            chaos_.process();
+            chaos_.processBlock(safeSamples);
         }
         if (sourceActive_[static_cast<size_t>(ModSource::SampleHold)]) {
             sampleHold_.processBlock(safeSamples);

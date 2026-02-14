@@ -1470,3 +1470,72 @@ TEST_CASE("RuinaeEngine regression: AllVoice filter cutoff LFO modulation "
         REQUIRE(rmsVariation < 20.0f);
     }
 }
+
+// =============================================================================
+// Regression: Chaos source must produce audible modulation through engine
+// =============================================================================
+// The Chaos source was originally called via process() (single tick) per block
+// instead of processBlock(numSamples), making it evolve ~500x too slowly.
+// This test verifies that Chaos routed to AllVoiceFilterCutoff produces
+// measurable output variation within a few seconds.
+
+TEST_CASE("RuinaeEngine regression: Chaos source produces audible filter modulation",
+          "[ruinae-engine-integration][modulation][regression][chaos]") {
+
+    constexpr size_t kBlock = 512;
+    constexpr float kSampleRate = 44100.0f;
+    // 3 seconds of audio — enough for Lorenz to exhibit chaotic movement
+    constexpr int kTotalBlocks =
+        static_cast<int>(3.0f * kSampleRate / static_cast<float>(kBlock));
+
+    RuinaeEngine engine;
+    engine.prepare(kSampleRate, kBlock);
+    engine.setSoftLimitEnabled(false);
+
+    // Voice filter: lowpass at 1 kHz
+    engine.setFilterType(RuinaeFilterType::SVF_LP);
+    engine.setFilterCutoff(1000.0f);
+    engine.setFilterResonance(2.0f);
+
+    // Disable effects
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f,
+                            .width = 1.0f, .mix = 0.0f});
+
+    // Chaos source at speed 5 → AllVoiceFilterCutoff, full amount
+    engine.setChaosSpeed(5.0f);
+    engine.setChaosModel(ChaosModel::Lorenz);
+    engine.setGlobalModRoute(0, ModSource::Chaos,
+                             RuinaeModDest::AllVoiceFilterCutoff, 1.0f,
+                             ModCurve::Linear, 1.0f, false);
+
+    engine.noteOn(60, 100);
+
+    std::vector<float> left(kBlock), right(kBlock);
+    float minRms = std::numeric_limits<float>::max();
+    float maxRms = 0.0f;
+
+    for (int i = 0; i < kTotalBlocks; ++i) {
+        engine.processBlock(left.data(), right.data(), kBlock);
+        if (i >= 10) {  // Skip warm-up
+            float rms = computeRMS(left.data(), kBlock);
+            if (rms > 0.0f) {
+                minRms = std::min(minRms, rms);
+                maxRms = std::max(maxRms, rms);
+            }
+        }
+    }
+
+    float rmsVariation = (minRms > 0.0f) ? maxRms / minRms : 1.0f;
+
+    INFO("Chaos → AllVoiceFilterCutoff over 3 seconds:");
+    INFO("  Per-block RMS min: " << minRms);
+    INFO("  Per-block RMS max: " << maxRms);
+    INFO("  RMS variation ratio: " << rmsVariation);
+
+    // The chaos attractor should cause the filter cutoff to wander,
+    // producing at least 2:1 RMS variation over 3 seconds.
+    // With the old bug (single process() tick per block), variation was ~1.0
+    // because the attractor was essentially frozen.
+    REQUIRE(rmsVariation > 2.0f);
+}
