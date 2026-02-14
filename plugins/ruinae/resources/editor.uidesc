@@ -2663,12 +2663,12 @@
                   transparent="true"/>
 
             <!-- Output knob (repositioned, centered) -->
-            <view class="ArcKnob" origin="42, 48" size="36, 36"
+            <view class="ArcKnob" origin="42, 56" size="36, 36"
                   control-tag="MasterGain"
                   default-value="0.5"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="34, 84" size="52, 12"
+            <view class="CTextLabel" origin="34, 92" size="52, 10"
                   title="Output"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
@@ -2702,7 +2702,7 @@
                   transparent="true"/>
 
             <!-- Soft Limit toggle (repositioned to bottom) -->
-            <view class="ToggleButton" origin="20, 142" size="80, 16"
+            <view class="ToggleButton" origin="20, 144" size="80, 16"
                   control-tag="SoftLimit"
                   title="Soft Limit"
                   font="~ NormalFontSmaller"

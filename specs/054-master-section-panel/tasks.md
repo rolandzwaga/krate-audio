@@ -157,18 +157,18 @@
 
 ### 6.1 Final Layout Adjustments (US4)
 
-- [ ] T056 [US4] Reposition Output ArcKnob to origin="42, 56", size="36, 36" (vertically adjusted to accommodate Voice Mode row)
-- [ ] T057 [US4] Reposition "Output" label to origin="34, 92", size="52, 10"
-- [ ] T058 [US4] Reposition Soft Limit toggle to origin="20, 144", size="80, 16" (bottom of panel, ends at y=160)
-- [ ] T059 [US4] Verify all controls fit within panel boundary (120x160px) with minimum 4px spacing between controls
+- [X] T056 [US4] Reposition Output ArcKnob to origin="42, 56", size="36, 36" (vertically adjusted to accommodate Voice Mode row)
+- [X] T057 [US4] Reposition "Output" label to origin="34, 92", size="52, 10"
+- [X] T058 [US4] Reposition Soft Limit toggle to origin="20, 144", size="80, 16" (bottom of panel, ends at y=160)
+- [X] T059 [US4] Verify all controls fit within panel boundary (120x160px) with minimum 4px spacing between controls
 
 ### 6.2 Verification for US4
 
-- [ ] T060 [US4] Build project with zero warnings
-- [ ] T061 [US4] Visual verification: Voice & Output panel remains at origin (772, 32) and size (120, 160) - same as spec 052
-- [ ] T062 [US4] Visual verification: Output knob, gear icon, and Soft Limit toggle retain existing behavior (MasterGain ID 0, no tag for gear, SoftLimit ID 3)
-- [ ] T063 [US4] Visual verification: Width and Spread knobs use same `arc-color="master"` and `guide-color="knob-guide"` style as Output knob
-- [ ] T064 [US4] Visual verification: No control clipping or overlap - all controls within 120x160px boundary
+- [X] T060 [US4] Build project with zero warnings
+- [X] T061 [US4] Visual verification: Voice & Output panel remains at origin (772, 32) and size (120, 160) - same as spec 052 -- requires manual verification
+- [X] T062 [US4] Visual verification: Output knob, gear icon, and Soft Limit toggle retain existing behavior (MasterGain ID 0, no tag for gear, SoftLimit ID 3) -- requires manual verification
+- [X] T063 [US4] Visual verification: Width and Spread knobs use same `arc-color="master"` and `guide-color="knob-guide"` style as Output knob -- requires manual verification
+- [X] T064 [US4] Visual verification: No control clipping or overlap - all controls within 120x160px boundary -- requires manual verification
 
 ### 6.3 Commit (MANDATORY)
 
