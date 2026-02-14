@@ -2599,48 +2599,81 @@
             </view>
         </view>
 
-        <!-- MASTER (silver accent) — Row 1, right of OSC B -->
+        <!-- Voice & Output (silver accent) — Row 1, right of OSC B -->
         <view
             class="FieldsetContainer"
             origin="772, 32"
             size="120, 160"
-            fieldset-title="MASTER"
+            fieldset-title="Voice &amp; Output"
             fieldset-color="master"
             fieldset-radius="4"
             fieldset-line-width="1"
             fieldset-font-size="10"
             transparent="true"
         >
-            <!-- Output knob -->
-            <view class="ArcKnob" origin="42, 14" size="36, 36"
+            <!-- Polyphony dropdown (repositioned, compact) -->
+            <view class="COptionMenu" origin="8, 14" size="60, 18"
+                  control-tag="Polyphony"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  tooltip="Polyphony"
+                  transparent="false"/>
+            <view class="CTextLabel" origin="8, 32" size="60, 10"
+                  title="Poly"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="center"
+                  transparent="true"/>
+
+            <!-- Gear icon (inert placeholder for future settings drawer) -->
+            <view class="ToggleButton" origin="72, 14" size="18, 18"
+                  icon-style="gear"
+                  on-color="master"
+                  off-color="text-secondary"
+                  icon-size="0.65"
+                  stroke-width="1.5"
+                  tooltip="Settings"
+                  transparent="true"/>
+
+            <!-- Output knob (repositioned, centered) -->
+            <view class="ArcKnob" origin="42, 48" size="36, 36"
                   control-tag="MasterGain"
                   default-value="0.5"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="34, 50" size="52, 12"
+            <view class="CTextLabel" origin="34, 84" size="52, 12"
                   title="Output"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Polyphony dropdown -->
-            <view class="COptionMenu" origin="20, 68" size="80, 20"
-                  control-tag="Polyphony"
-                  font="~ NormalFontSmaller"
-                  font-color="master"
-                  back-color="bg-dropdown"
-                  frame-color="frame-dropdown-dim"
-                  transparent="false"/>
-            <view class="CTextLabel" origin="20, 88" size="80, 12"
-                  title="Polyphony"
+            <!-- Width knob (placeholder, no control-tag) -->
+            <view class="ArcKnob" origin="14, 100" size="28, 28"
+                  arc-color="master"
+                  guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="10, 128" size="36, 10"
+                  title="Width"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Soft Limit toggle -->
-            <view class="ToggleButton" origin="20, 106" size="80, 18"
+            <!-- Spread knob (placeholder, no control-tag) -->
+            <view class="ArcKnob" origin="62, 100" size="28, 28"
+                  arc-color="master"
+                  guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="58, 128" size="40, 10"
+                  title="Spread"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="center"
+                  transparent="true"/>
+
+            <!-- Soft Limit toggle (repositioned to bottom) -->
+            <view class="ToggleButton" origin="20, 142" size="80, 16"
                   control-tag="SoftLimit"
                   title="Soft Limit"
                   font="~ NormalFontSmaller"

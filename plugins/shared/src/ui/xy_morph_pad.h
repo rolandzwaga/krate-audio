@@ -695,7 +695,6 @@ private:
 
     // Controller for Y-axis parameter updates
     Steinberg::Vst::EditControllerEx1* controller_ = nullptr;
-    Steinberg::Vst::ParamID secondaryParamId_ = 0;
 
     // Gradient corner colors
     VSTGUI::CColor colorBottomLeft_{48, 84, 120, 255};
@@ -705,6 +704,10 @@ private:
 
     // Cursor and label colors
     VSTGUI::CColor cursorColor_{255, 255, 255, 255};
+
+    // Secondary parameter ID (after colors to match copy-constructor init order)
+    Steinberg::Vst::ParamID secondaryParamId_ = 0;
+
     VSTGUI::CColor labelColor_{170, 170, 170, 255};
 
     // Crosshair opacity
