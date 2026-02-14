@@ -67,7 +67,7 @@
 
 ### 3.6 Commit (MANDATORY)
 
-- [ ] T018 [US1] Commit completed User Story 1 work with message describing dropdown migration for 3 implemented sources
+- [X] T018 [US1] Commit completed User Story 1 work with message describing dropdown migration for 3 implemented sources
 
 **Checkpoint**: User Story 1 should be fully functional - dropdown works for LFO 1, LFO 2, and Chaos
 
@@ -83,12 +83,12 @@
 
 ### 4.1 Layout Verification
 
-- [ ] T019 [US2] Verify dropdown height is approximately 18-20px (visual measurement in editor)
-- [ ] T020 [US2] Verify source view area has approximately 100px vertical space available below dropdown
-- [ ] T021 [US2] Verify LFO 1 template fits within 158x120 view area with no clipping (all 11 controls visible)
-- [ ] T022 [US2] Verify LFO 2 template fits within 158x120 view area with no clipping (all 11 controls visible)
-- [ ] T023 [US2] Verify Chaos template fits within 158x120 view area with no clipping (all 5 controls visible, extra vertical space is transparent)
-- [ ] T024 [US2] Verify Modulation FieldsetContainer does not overflow (total height within 160px limit)
+- [X] T019 [US2] Verify dropdown height is approximately 18-20px (visual measurement in editor)
+- [X] T020 [US2] Verify source view area has approximately 100px vertical space available below dropdown
+- [X] T021 [US2] Verify LFO 1 template fits within 158x120 view area with no clipping (all 11 controls visible)
+- [X] T022 [US2] Verify LFO 2 template fits within 158x120 view area with no clipping (all 11 controls visible)
+- [X] T023 [US2] Verify Chaos template fits within 158x120 view area with no clipping (all 5 controls visible, extra vertical space is transparent)
+- [X] T024 [US2] Verify Modulation FieldsetContainer does not overflow (total height within 160px limit)
 
 ### 4.2 Cross-DAW Verification (Optional but Recommended)
 
@@ -98,7 +98,7 @@
 
 ### 4.3 Commit (MANDATORY)
 
-- [ ] T028 [US2] Commit any layout adjustments (if needed) with message describing layout verification
+- [X] T028 [US2] Commit any layout adjustments (if needed) with message describing layout verification
 
 **Checkpoint**: User Story 2 verified - layout fits within existing mod source area
 
@@ -112,22 +112,22 @@
 
 ### 5.1 Placeholder Template Creation
 
-- [ ] T029 [P] [US3] Create empty template ModSource_Macros in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
-- [ ] T030 [P] [US3] Create empty template ModSource_Rungler in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
-- [ ] T031 [P] [US3] Create empty template ModSource_EnvFollower in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
-- [ ] T032 [P] [US3] Create empty template ModSource_SampleHold in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
-- [ ] T033 [P] [US3] Create empty template ModSource_Random in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
-- [ ] T034 [P] [US3] Create empty template ModSource_PitchFollower in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
-- [ ] T035 [P] [US3] Create empty template ModSource_Transient in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
+- [X] T029 [P] [US3] Create empty template ModSource_Macros in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
+- [X] T030 [P] [US3] Create empty template ModSource_Rungler in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
+- [X] T031 [P] [US3] Create empty template ModSource_EnvFollower in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
+- [X] T032 [P] [US3] Create empty template ModSource_SampleHold in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
+- [X] T033 [P] [US3] Create empty template ModSource_Random in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
+- [X] T034 [P] [US3] Create empty template ModSource_PitchFollower in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
+- [X] T035 [P] [US3] Create empty template ModSource_Transient in plugins/ruinae/resources/editor.uidesc (size 158x120, transparent, no child views)
 
 ### 5.2 Update UIViewSwitchContainer Template List
 
-- [ ] T036 [US3] Update UIViewSwitchContainer template-names attribute to include all 10 templates in plugins/ruinae/resources/editor.uidesc (ModSource_LFO1,ModSource_LFO2,ModSource_Chaos,ModSource_Macros,ModSource_Rungler,ModSource_EnvFollower,ModSource_SampleHold,ModSource_Random,ModSource_PitchFollower,ModSource_Transient)
+- [X] T036 [US3] Update UIViewSwitchContainer template-names attribute to include all 10 templates in plugins/ruinae/resources/editor.uidesc (ModSource_LFO1,ModSource_LFO2,ModSource_Chaos,ModSource_Macros,ModSource_Rungler,ModSource_EnvFollower,ModSource_SampleHold,ModSource_Random,ModSource_PitchFollower,ModSource_Transient)
 
 ### 5.3 Manual Verification
 
-- [ ] T037 [US3] Build plugin and verify no compilation errors
-- [ ] T038 [US3] Verify dropdown shows all 10 entries (LFO 1 through Transient)
+- [X] T037 [US3] Build plugin and verify no compilation errors
+- [X] T038 [US3] Verify dropdown shows all 10 entries (LFO 1 through Transient)
 - [ ] T039 [P] [US3] Select Macros from dropdown, verify empty placeholder view appears (no crash)
 - [ ] T040 [P] [US3] Select Rungler from dropdown, verify empty placeholder view appears (no crash)
 - [ ] T041 [P] [US3] Select Env Follower from dropdown, verify empty placeholder view appears (no crash)

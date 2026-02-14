@@ -1704,6 +1704,14 @@
               font-size="9"/>
     </template>
 
+    <template name="ModSource_Macros" size="158, 120" class="CViewContainer" transparent="true"/>
+    <template name="ModSource_Rungler" size="158, 120" class="CViewContainer" transparent="true"/>
+    <template name="ModSource_EnvFollower" size="158, 120" class="CViewContainer" transparent="true"/>
+    <template name="ModSource_SampleHold" size="158, 120" class="CViewContainer" transparent="true"/>
+    <template name="ModSource_Random" size="158, 120" class="CViewContainer" transparent="true"/>
+    <template name="ModSource_PitchFollower" size="158, 120" class="CViewContainer" transparent="true"/>
+    <template name="ModSource_Transient" size="158, 120" class="CViewContainer" transparent="true"/>
+
     <template
         name="editor"
         minSize="900, 830"
@@ -2251,7 +2259,7 @@
             <!-- ======================================================== -->
             <view class="UIViewSwitchContainer"
                   origin="0, 36" size="158, 120"
-                  template-names="ModSource_LFO1,ModSource_LFO2,ModSource_Chaos"
+                  template-names="ModSource_LFO1,ModSource_LFO2,ModSource_Chaos,ModSource_Macros,ModSource_Rungler,ModSource_EnvFollower,ModSource_SampleHold,ModSource_Random,ModSource_PitchFollower,ModSource_Transient"
                   template-switch-control="ModSourceViewMode"
                   transparent="true"/>
 
