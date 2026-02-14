@@ -219,6 +219,10 @@ private:
     VSTGUI::CView* lfo1NoteValueGroup_ = nullptr;
     VSTGUI::CView* lfo2NoteValueGroup_ = nullptr;
 
+    /// Chaos Rate/NoteValue groups - toggled by sync state
+    VSTGUI::CView* chaosRateGroup_ = nullptr;
+    VSTGUI::CView* chaosNoteValueGroup_ = nullptr;
+
     /// Mod source view containers - switched by ModSourceViewMode segment button
     VSTGUI::CView* modLFO1View_ = nullptr;
     VSTGUI::CView* modLFO2View_ = nullptr;

@@ -786,6 +786,12 @@ void Processor::applyParamsToEngine() {
     engine_.setChaosSpeed(chaosModParams_.rateHz.load(std::memory_order_relaxed));
     engine_.setChaosModel(static_cast<ChaosModel>(
         chaosModParams_.type.load(std::memory_order_relaxed)));
+    engine_.setChaosTempoSync(chaosModParams_.sync.load(std::memory_order_relaxed));
+    {
+        auto mapping = getNoteValueFromDropdown(
+            chaosModParams_.noteValue.load(std::memory_order_relaxed));
+        engine_.setChaosNoteValue(mapping.note, mapping.modifier);
+    }
 
     // --- Mod Matrix (8 slots) ---
     static constexpr float kScaleMultipliers[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};

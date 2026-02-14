@@ -409,6 +409,10 @@ public:
     void setGlobalLFO2Quantize(int steps) noexcept { globalModEngine_.setLFO2Quantize(steps); }
     void setChaosSpeed(float speed) noexcept { globalModEngine_.setChaosSpeed(speed); }
     void setChaosModel(ChaosModel model) noexcept { globalModEngine_.setChaosModel(model); }
+    void setChaosTempoSync(bool enabled) noexcept { globalModEngine_.setChaosTempoSync(enabled); }
+    void setChaosNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept {
+        globalModEngine_.setChaosNoteValue(value, modifier);
+    }
 
     void setMacroValue(size_t index, float value) noexcept {
         globalModEngine_.setMacroValue(index, value);

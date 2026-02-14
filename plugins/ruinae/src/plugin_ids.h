@@ -344,6 +344,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kChaosModRateId = 1200,
     kChaosModTypeId = 1201,    // Lorenz/Rossler
     kChaosModDepthId = 1202,
+    kChaosModSyncId = 1203,    // Tempo sync on/off
+    kChaosModNoteValueId = 1204, // Note value dropdown (21 entries)
     kChaosModEndId = 1299,
 
     // ==========================================================================

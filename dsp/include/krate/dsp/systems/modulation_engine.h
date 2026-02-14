@@ -231,6 +231,7 @@ public:
             random_.processBlock(safeSamples);
         }
         if (sourceActive_[static_cast<size_t>(ModSource::Chaos)]) {
+            chaos_.setTempo(static_cast<float>(ctx.tempoBPM));
             chaos_.processBlock(safeSamples);
         }
         if (sourceActive_[static_cast<size_t>(ModSource::SampleHold)]) {
@@ -472,6 +473,10 @@ public:
     void setChaosModel(ChaosModel model) noexcept { chaos_.setModel(model); }
     void setChaosSpeed(float speed) noexcept { chaos_.setSpeed(speed); }
     void setChaosCoupling(float coupling) noexcept { chaos_.setCoupling(coupling); }
+    void setChaosTempoSync(bool enabled) noexcept { chaos_.setTempoSync(enabled); }
+    void setChaosNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept {
+        chaos_.setNoteValue(value, modifier);
+    }
 
     // =========================================================================
     // Sample & Hold Parameters (FR-036 to FR-040)
@@ -557,6 +562,9 @@ public:
     [[nodiscard]] ChaosModel getChaosModel() const noexcept { return chaos_.getModel(); }
     [[nodiscard]] float getChaosSpeed() const noexcept { return chaos_.getSpeed(); }
     [[nodiscard]] float getChaosCoupling() const noexcept { return chaos_.getCoupling(); }
+    [[nodiscard]] bool getChaosTempoSync() const noexcept { return chaos_.isTempoSynced(); }
+    [[nodiscard]] NoteValue getChaosNoteValue() const noexcept { return chaos_.getNoteValue(); }
+    [[nodiscard]] NoteModifier getChaosNoteModifier() const noexcept { return chaos_.getNoteModifier(); }
 
     // Sample & Hold
     [[nodiscard]] SampleHoldInputType getSampleHoldSource() const noexcept { return sampleHold_.getInputType(); }

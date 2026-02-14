@@ -524,6 +524,10 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         if (lfo2RateGroup_) lfo2RateGroup_->setVisible(value < 0.5);
         if (lfo2NoteValueGroup_) lfo2NoteValueGroup_->setVisible(value >= 0.5);
     }
+    if (tag == kChaosModSyncId) {
+        if (chaosRateGroup_) chaosRateGroup_->setVisible(value < 0.5);
+        if (chaosNoteValueGroup_) chaosNoteValueGroup_->setVisible(value >= 0.5);
+    }
 
     // Toggle Delay Time/NoteValue visibility based on sync state
     if (tag == kDelaySyncId) {
@@ -603,6 +607,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         lfo2RateGroup_ = nullptr;
         lfo1NoteValueGroup_ = nullptr;
         lfo2NoteValueGroup_ = nullptr;
+        chaosRateGroup_ = nullptr;
+        chaosNoteValueGroup_ = nullptr;
         delayTimeGroup_ = nullptr;
         delayNoteValueGroup_ = nullptr;
         phaserRateGroup_ = nullptr;
@@ -853,6 +859,18 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "LFO2NoteValueGroup") {
                 lfo2NoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kLFO2SyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
+            }
+            // Chaos Rate/NoteValue groups (toggled by sync state)
+            else if (*name == "ChaosRateGroup") {
+                chaosRateGroup_ = container;
+                auto* syncParam = getParameterObject(kChaosModSyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
+            } else if (*name == "ChaosNoteValueGroup") {
+                chaosNoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kChaosModSyncId);
                 bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             }

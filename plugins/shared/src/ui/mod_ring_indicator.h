@@ -132,7 +132,7 @@ public:
 
         VSTGUI::CRect vs = getViewSize();
         double dim = std::min(vs.getWidth(), vs.getHeight());
-        double radius = (dim / 2.0) - strokeWidth_ - 1.0;
+        double radius = (dim / 2.0) - 3.5 - strokeWidth_ / 2.0;
         double cx = vs.left + vs.getWidth() / 2.0;
         double cy = vs.top + vs.getHeight() / 2.0;
 
@@ -274,7 +274,8 @@ private:
 
         path->addArc(arcRect, startDeg, endDeg, true);
 
-        context->setFrameColor(arc.color);
+        auto lightened = lerpColor(arc.color, VSTGUI::CColor(255, 255, 255, arc.color.alpha), 0.3f);
+        context->setFrameColor(lightened);
         context->setLineWidth(strokeWidth_);
         context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
     }
@@ -312,7 +313,7 @@ private:
         double cx = vs.left + vs.getWidth() / 2.0;
         double cy = vs.top + vs.getHeight() / 2.0;
         double dim = std::min(vs.getWidth(), vs.getHeight());
-        double radius = (dim / 2.0) - strokeWidth_ - 1.0;
+        double radius = (dim / 2.0) - 3.5 - strokeWidth_ / 2.0;
 
         // Check if point is near the arc ring
         double dx = where.x - cx;
@@ -350,7 +351,7 @@ private:
     float baseValue_ = 0.5f;
     std::vector<ArcInfo> arcs_;
     Steinberg::Vst::EditController* controller_ = nullptr;
-    float strokeWidth_ = 3.0f;
+    float strokeWidth_ = 1.0f;
     int destinationIndex_ = -1;     // ModDestination enum value (-1 = unset)
     SelectCallback selectCallback_;
     RemovedCallback removedCallback_;

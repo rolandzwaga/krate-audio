@@ -193,6 +193,8 @@
         <control-tag name="ChaosRate" tag="1200"/>
         <control-tag name="ChaosType" tag="1201"/>
         <control-tag name="ChaosDepth" tag="1202"/>
+        <control-tag name="ChaosSync" tag="1203"/>
+        <control-tag name="ChaosNoteValue" tag="1204"/>
 
         <!-- Modulation Source View Mode (UI-only) -->
         <control-tag name="ModSourceViewMode" tag="10019"/>
@@ -2204,13 +2206,32 @@
             <view class="CViewContainer" origin="0, 36" size="158, 106"
                   custom-view-name="ModChaosView" transparent="true"
                   visible="false">
-                <!-- Rate -->
-                <view class="ArcKnob" origin="8, 0" size="28, 28"
-                      control-tag="ChaosRate" default-value="0.5"
-                      arc-color="modulation" guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="2, 28" size="40, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Rate"/>
+                <!-- Row 1: Rate/NoteValue | Type | Depth -->
+                <!-- Rate (hidden when sync active) -->
+                <view class="CViewContainer" origin="0, 0" size="36, 38"
+                      custom-view-name="ChaosRateGroup" transparent="true">
+                    <view class="ArcKnob" origin="4, 0" size="28, 28"
+                          control-tag="ChaosRate" default-value="0.5"
+                          arc-color="modulation" guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="0, 28" size="36, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Rate"/>
+                </view>
+                <!-- Note Value (visible when sync active) -->
+                <view class="CViewContainer" origin="0, 0" size="36, 38"
+                      custom-view-name="ChaosNoteValueGroup" transparent="true"
+                      visible="false">
+                    <view class="COptionMenu" origin="2, 6" size="32, 16"
+                          control-tag="ChaosNoteValue"
+                          font="~ NormalFontSmaller" font-color="text-primary"
+                          back-color="bg-dropdown" frame-color="frame-dropdown"
+                          round-rect-radius="2" frame-width="1"
+                          min-value="0" max-value="1"
+                          default-value="0.5"/>
+                    <view class="CTextLabel" origin="0, 28" size="36, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Note"/>
+                </view>
                 <!-- Type dropdown (Lorenz/Rossler) -->
                 <view class="COptionMenu" origin="44, 4" size="60, 18"
                       control-tag="ChaosType" default-value="0"
@@ -2228,6 +2249,13 @@
                 <view class="CTextLabel" origin="108, 28" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Depth"/>
+
+                <!-- Row 2: Sync toggle -->
+                <view class="ToggleButton" origin="2, 42" size="36, 12"
+                      control-tag="ChaosSync" default-value="0.0"
+                      title="Sync"
+                      on-color="modulation" off-color="toggle-off"
+                      font-size="9"/>
             </view>
 
             <!-- ======================================================== -->

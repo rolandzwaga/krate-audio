@@ -310,7 +310,7 @@ private:
 
         // Inner ring: smaller radius
         double arcRadius = getArcRadius();
-        double modRadius = arcRadius - arcLineWidth_ - 2.0;
+        double modRadius = arcRadius - arcLineWidth_ / 2.0 - modArcLineWidth_ / 2.0 - 2.0;
         if (modRadius < 1.0)
             return;
 
@@ -370,12 +370,12 @@ private:
     float modRange_ = 0.0f;
 
     VSTGUI::CColor arcColor_{220, 180, 100, 255};      // Warm gold default
-    VSTGUI::CColor modColor_{100, 200, 255, 180};      // Semi-transparent cyan
+    VSTGUI::CColor modColor_{130, 215, 255, 210};      // Semi-transparent cyan
     VSTGUI::CColor guideColor_{255, 255, 255, 40};     // Very dim white
 
     VSTGUI::CCoord indicatorLength_ = 4.0;
     VSTGUI::CCoord arcLineWidth_ = 1.0;
-    VSTGUI::CCoord modArcLineWidth_ = 2.0;
+    VSTGUI::CCoord modArcLineWidth_ = 1.0;
 };
 
 // =============================================================================

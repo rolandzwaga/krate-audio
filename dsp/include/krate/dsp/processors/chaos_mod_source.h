@@ -14,6 +14,7 @@
 #pragma once
 
 #include <krate/dsp/core/modulation_source.h>
+#include <krate/dsp/core/note_value.h>
 #include <krate/dsp/primitives/chaos_waveshaper.h>  // ChaosModel enum
 
 #include <algorithm>
@@ -119,10 +120,33 @@ public:
         inputLevel_ = level;
     }
 
+    // Tempo sync
+    void setTempoSync(bool enabled) noexcept {
+        tempoSync_ = enabled;
+    }
+
+    void setTempo(float bpm) noexcept {
+        bpm_ = std::clamp(bpm, 1.0f, 999.0f);
+        if (tempoSync_) {
+            updateTempoSyncSpeed();
+        }
+    }
+
+    void setNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept {
+        noteValue_ = value;
+        noteModifier_ = modifier;
+        if (tempoSync_) {
+            updateTempoSyncSpeed();
+        }
+    }
+
     // Parameter getters
     [[nodiscard]] ChaosModel getModel() const noexcept { return model_; }
     [[nodiscard]] float getSpeed() const noexcept { return speed_; }
     [[nodiscard]] float getCoupling() const noexcept { return coupling_; }
+    [[nodiscard]] bool isTempoSynced() const noexcept { return tempoSync_; }
+    [[nodiscard]] NoteValue getNoteValue() const noexcept { return noteValue_; }
+    [[nodiscard]] NoteModifier getNoteModifier() const noexcept { return noteModifier_; }
 
 private:
     struct AttractorState {
@@ -175,8 +199,16 @@ private:
         henonPhase_ = 0.0f;
     }
 
+    void updateTempoSyncSpeed() noexcept {
+        float beatsPerNote = getBeatsForNote(noteValue_, noteModifier_);
+        float beatsPerSecond = bpm_ / 60.0f;
+        tempoSyncSpeed_ = beatsPerSecond / beatsPerNote;
+        tempoSyncSpeed_ = std::clamp(tempoSyncSpeed_, kMinSpeed, kMaxSpeed);
+    }
+
     void updateAttractor() noexcept {
-        float dt = baseDt_ * speed_;
+        float effectiveSpeed = tempoSync_ ? tempoSyncSpeed_ : speed_;
+        float dt = baseDt_ * effectiveSpeed;
 
         // Apply coupling perturbation
         if (coupling_ > 0.0f && std::abs(inputLevel_) > 0.001f) {
@@ -294,6 +326,13 @@ private:
     float speed_ = kDefaultSpeed;
     float coupling_ = kDefaultCoupling;
     double sampleRate_ = 44100.0;
+
+    // Tempo sync
+    bool tempoSync_ = false;
+    float bpm_ = 120.0f;
+    NoteValue noteValue_ = NoteValue::Quarter;
+    NoteModifier noteModifier_ = NoteModifier::None;
+    float tempoSyncSpeed_ = 2.0f;
 
     // Per-model parameters
     float baseDt_ = 0.005f;

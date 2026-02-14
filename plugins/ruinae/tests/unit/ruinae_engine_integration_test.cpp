@@ -1539,3 +1539,67 @@ TEST_CASE("RuinaeEngine regression: Chaos source produces audible filter modulat
     // because the attractor was essentially frozen.
     REQUIRE(rmsVariation > 2.0f);
 }
+
+// =============================================================================
+// Chaos tempo sync: engine-level integration
+// =============================================================================
+
+TEST_CASE("RuinaeEngine: Chaos tempo sync produces modulation at tempo-correlated rate",
+          "[ruinae-engine-integration][modulation][chaos][tempo_sync]") {
+
+    constexpr size_t kBlock = 512;
+    constexpr float kSampleRate = 44100.0f;
+    constexpr int kTotalBlocks =
+        static_cast<int>(3.0f * kSampleRate / static_cast<float>(kBlock));
+
+    RuinaeEngine engine;
+    engine.prepare(kSampleRate, kBlock);
+    engine.setSoftLimitEnabled(false);
+
+    // Voice filter: lowpass at 1 kHz
+    engine.setFilterType(RuinaeFilterType::SVF_LP);
+    engine.setFilterCutoff(1000.0f);
+    engine.setFilterResonance(2.0f);
+
+    // Disable effects
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f,
+                            .width = 1.0f, .mix = 0.0f});
+
+    // Chaos source: tempo synced at 120 BPM, quarter note
+    engine.setChaosSpeed(5.0f);  // free speed ignored when synced
+    engine.setChaosModel(ChaosModel::Lorenz);
+    engine.setChaosTempoSync(true);
+    engine.setChaosNoteValue(NoteValue::Quarter);
+    engine.setGlobalModRoute(0, ModSource::Chaos,
+                             RuinaeModDest::AllVoiceFilterCutoff, 1.0f,
+                             ModCurve::Linear, 1.0f, false);
+
+    engine.noteOn(60, 100);
+
+    std::vector<float> left(kBlock), right(kBlock);
+    float minRms = std::numeric_limits<float>::max();
+    float maxRms = 0.0f;
+
+    for (int i = 0; i < kTotalBlocks; ++i) {
+        engine.processBlock(left.data(), right.data(), kBlock);
+        if (i >= 10) {
+            float rms = computeRMS(left.data(), kBlock);
+            if (rms > 0.0f) {
+                minRms = std::min(minRms, rms);
+                maxRms = std::max(maxRms, rms);
+            }
+        }
+    }
+
+    float rmsVariation = (minRms > 0.0f) ? maxRms / minRms : 1.0f;
+
+    INFO("Chaos (tempo synced 120BPM quarter) → AllVoiceFilterCutoff:");
+    INFO("  Per-block RMS min: " << minRms);
+    INFO("  Per-block RMS max: " << maxRms);
+    INFO("  RMS variation ratio: " << rmsVariation);
+
+    // Tempo-synced chaos at 120 BPM quarter = speed 2.0 Hz.
+    // Should produce audible modulation over 3 seconds.
+    REQUIRE(rmsVariation > 2.0f);
+}

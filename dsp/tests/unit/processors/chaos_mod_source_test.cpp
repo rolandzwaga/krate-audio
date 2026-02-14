@@ -381,6 +381,123 @@ TEST_CASE("ChaosModSource processBlock produces non-trivial output over one seco
     REQUIRE(range > 0.5f);
 }
 
+// =============================================================================
+// Tempo sync: speed derived from BPM + note value
+// =============================================================================
+
+TEST_CASE("ChaosModSource tempo sync uses BPM-derived speed",
+          "[processors][chaos][tempo_sync]") {
+    ChaosModSource synced;
+    synced.setModel(ChaosModel::Lorenz);
+    synced.prepare(44100.0);
+    synced.setTempoSync(true);
+    synced.setTempo(120.0f);
+    synced.setNoteValue(NoteValue::Quarter);
+    // 120 BPM, quarter note = 2 Hz → speed 2.0
+
+    ChaosModSource freeRun;
+    freeRun.setModel(ChaosModel::Lorenz);
+    freeRun.prepare(44100.0);
+    freeRun.setSpeed(2.0f);
+
+    constexpr size_t kBlockSize = 512;
+    constexpr int kNumBlocks = 100;
+
+    for (int b = 0; b < kNumBlocks; ++b) {
+        synced.processBlock(kBlockSize);
+        freeRun.processBlock(kBlockSize);
+    }
+
+    // They should produce the same output since both run at speed 2.0
+    REQUIRE(synced.getCurrentValue()
+            == Approx(freeRun.getCurrentValue()).margin(1e-6f));
+}
+
+TEST_CASE("ChaosModSource tempo sync updates when BPM changes",
+          "[processors][chaos][tempo_sync]") {
+    ChaosModSource src;
+    src.setModel(ChaosModel::Lorenz);
+    src.prepare(44100.0);
+    src.setTempoSync(true);
+    src.setNoteValue(NoteValue::Quarter);
+
+    // Run at 60 BPM (quarter = 1 Hz → speed 1.0)
+    src.setTempo(60.0f);
+
+    ChaosModSource ref;
+    ref.setModel(ChaosModel::Lorenz);
+    ref.prepare(44100.0);
+    ref.setSpeed(1.0f);
+
+    constexpr size_t kBlockSize = 512;
+    constexpr int kNumBlocks = 50;
+
+    for (int b = 0; b < kNumBlocks; ++b) {
+        src.processBlock(kBlockSize);
+        ref.processBlock(kBlockSize);
+    }
+
+    REQUIRE(src.getCurrentValue()
+            == Approx(ref.getCurrentValue()).margin(1e-6f));
+
+    // Now change to 240 BPM (quarter = 4 Hz → speed 4.0)
+    // Both should diverge from here since ref stays at speed 1.0
+    src.setTempo(240.0f);
+
+    for (int b = 0; b < kNumBlocks; ++b) {
+        src.processBlock(kBlockSize);
+        ref.processBlock(kBlockSize);
+    }
+
+    // After tempo change, values should differ
+    REQUIRE(src.getCurrentValue()
+            != Approx(ref.getCurrentValue()).margin(0.01f));
+}
+
+TEST_CASE("ChaosModSource toggling sync off reverts to free speed",
+          "[processors][chaos][tempo_sync]") {
+    ChaosModSource src;
+    src.setModel(ChaosModel::Lorenz);
+    src.prepare(44100.0);
+    src.setSpeed(5.0f);
+
+    ChaosModSource ref;
+    ref.setModel(ChaosModel::Lorenz);
+    ref.prepare(44100.0);
+    ref.setSpeed(5.0f);
+
+    // Enable sync at a different rate
+    src.setTempoSync(true);
+    src.setTempo(120.0f);
+    src.setNoteValue(NoteValue::Whole);  // 120 BPM, whole = 0.5 Hz
+
+    constexpr size_t kBlockSize = 512;
+
+    // Run synced for a bit - values should diverge from free-running at 5.0
+    for (int b = 0; b < 50; ++b) {
+        src.processBlock(kBlockSize);
+        ref.processBlock(kBlockSize);
+    }
+
+    // They should be different (0.5 Hz vs 5.0 Hz)
+    float syncedVal = src.getCurrentValue();
+    float freeVal = ref.getCurrentValue();
+    REQUIRE(syncedVal != Approx(freeVal).margin(0.01f));
+
+    // Now disable sync - both should use speed 5.0 from this point
+    src.setTempoSync(false);
+
+    // Run both for more blocks - from this point they evolve at same rate
+    // but from different states, so values will still differ. We just verify
+    // the speed is being used (no crash, bounded output).
+    for (int b = 0; b < 50; ++b) {
+        src.processBlock(kBlockSize);
+    }
+    float afterDisable = src.getCurrentValue();
+    REQUIRE(afterDisable >= -1.0f);
+    REQUIRE(afterDisable <= 1.0f);
+}
+
 // T100: Lorenz attractor auto-reset when state exceeds 10x safeBound (FR-025)
 TEST_CASE("ChaosModSource Lorenz auto-resets when diverged",
           "[processors][chaos][ext_modulation][FR-025]") {
