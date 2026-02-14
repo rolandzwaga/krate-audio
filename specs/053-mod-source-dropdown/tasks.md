@@ -180,15 +180,15 @@
 
 ### 7.1 Architecture Documentation Update
 
-- [ ] T057 Review specs/_architecture_/ to determine if UI pattern documentation exists for UIViewSwitchContainer usage
-- [ ] T058 If no UI pattern documentation exists, create entry documenting the COptionMenu + UIViewSwitchContainer + StringListParameter pattern
-- [ ] T059 Document that mod source area now follows same pattern as oscillator/filter/distortion/delay type switching
-- [ ] T060 Note that future mod source phases only need to replace placeholder templates, no controller code changes
+- [X] T057 Review specs/_architecture_/ to determine if UI pattern documentation exists for UIViewSwitchContainer usage
+- [X] T058 If no UI pattern documentation exists, create entry documenting the COptionMenu + UIViewSwitchContainer + StringListParameter pattern
+- [X] T059 Document that mod source area now follows same pattern as oscillator/filter/distortion/delay type switching
+- [X] T060 Note that future mod source phases only need to replace placeholder templates, no controller code changes
 
 ### 7.2 Final Commit
 
-- [ ] T061 Commit architecture documentation updates
-- [ ] T062 Verify all spec work is committed to feature branch
+- [X] T061 Commit architecture documentation updates
+- [X] T062 Verify all spec work is committed to feature branch
 
 **Checkpoint**: Architecture documentation reflects new UI pattern usage
 
