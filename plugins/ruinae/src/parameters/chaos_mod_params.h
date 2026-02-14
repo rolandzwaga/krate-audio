@@ -61,12 +61,19 @@ inline void registerChaosModParams(Steinberg::Vst::ParameterContainer& parameter
         Parameters::kNoteValueDropdownCount,
         Parameters::kNoteValueDefaultIndex));
 
-    // UI-only: Mod source view mode tab (LFO1/LFO2/Chaos), ephemeral, not persisted
+    // UI-only: Mod source view mode dropdown (10 entries), ephemeral, not persisted
     auto* modViewParam = new StringListParameter(
         STR16("Mod Source View"), kModSourceViewModeTag);
     modViewParam->appendString(STR16("LFO 1"));
     modViewParam->appendString(STR16("LFO 2"));
     modViewParam->appendString(STR16("Chaos"));
+    modViewParam->appendString(STR16("Macros"));
+    modViewParam->appendString(STR16("Rungler"));
+    modViewParam->appendString(STR16("Env Follower"));
+    modViewParam->appendString(STR16("S&H"));
+    modViewParam->appendString(STR16("Random"));
+    modViewParam->appendString(STR16("Pitch Follower"));
+    modViewParam->appendString(STR16("Transient"));
     parameters.addParameter(modViewParam);
 }
 

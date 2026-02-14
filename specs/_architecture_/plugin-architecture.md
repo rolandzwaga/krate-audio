@@ -986,19 +986,48 @@ The Ruinae editor uses a fixed 900x600px window divided into four horizontal row
 
 The top-to-bottom flow mirrors the signal chain: source generation, timbre shaping, modulation, and output processing.
 
-#### UIViewSwitchContainer for Oscillator Type-Specific Parameters
+#### COptionMenu + UIViewSwitchContainer + StringListParameter Pattern
 
-Each oscillator (OSC A, OSC B) uses a `UIViewSwitchContainer` bound to its type parameter (`OscAType` / `OscBType`) via the `template-switch-control` attribute. Ten templates per oscillator provide type-specific controls (e.g., PW knob for PolyBLEP, Position/Frame for Wavetable).
+Ruinae uses a consistent pattern throughout the UI for switching between different control layouts based on a discrete parameter selection. The pattern has three components:
+
+1. **StringListParameter** -- A discrete parameter with named entries (registered in a parameter pack header). Drives both the dropdown and the view switcher.
+2. **COptionMenu** -- A dropdown selector in `editor.uidesc` bound to the parameter via `control-tag`. Auto-populates its entries from the StringListParameter.
+3. **UIViewSwitchContainer** -- A container in `editor.uidesc` bound to the same parameter via `template-switch-control`. Displays one named template at a time, selected by the parameter's discrete index.
 
 ```xml
+<!-- Dropdown selector -->
+<view class="COptionMenu" control-tag="MyViewMode" ... />
+
+<!-- Automatic view switching -->
 <view class="UIViewSwitchContainer"
-      template-names="OscA_PolyBLEP,OscA_Wavetable,..."
-      template-switch-control="OscAType" />
+      template-names="MyType_Option1,MyType_Option2,..."
+      template-switch-control="MyViewMode" />
 ```
 
-**Key constraint**: Templates are destroyed and recreated when the type changes. Never cache pointers to controls inside the switch container -- use dynamic tag-based lookup if needed.
+**Key constraints:**
+- `template-switch-control` binds by parameter **name** (not ID). The parameter's discrete index (0, 1, 2, ...) selects which template is displayed.
+- Templates are destroyed and recreated when the selection changes. Never cache pointers to controls inside the switch container.
+- No controller code is needed for view switching -- the framework handles it automatically. This eliminates manual `setVisible()` calls and member variable tracking.
 
-The `template-switch-control` attribute binds to a `StringListParameter` by name (not ID). The parameter's discrete index (0-9) selects which template is displayed.
+**Areas using this pattern in Ruinae:**
+
+| Area | Parameter | Templates | Count |
+|------|-----------|-----------|-------|
+| OSC A type | `OscAType` | `OscA_PolyBLEP`, `OscA_Wavetable`, ... | 10 |
+| OSC B type | `OscBType` | `OscB_PolyBLEP`, `OscB_Wavetable`, ... | 10 |
+| Filter view | `FilterViewMode` | `Filter_General`, `Filter_Envelope`, ... | varies |
+| Distortion view | `DistortionViewMode` | `Dist_Clean`, `Dist_Tube`, ... | varies |
+| Delay type | `DelayViewMode` | `Delay_Default`, ... | varies |
+| Mod source | `ModSourceViewMode` | `ModSource_LFO1`, `ModSource_LFO2`, `ModSource_Chaos`, + 7 placeholders | 10 |
+
+**Adding a new entry to an existing switcher:**
+1. Add the new entry string to the `StringListParameter` in the parameter pack header
+2. Create a new named template in `editor.uidesc`
+3. Append the template name to the `template-names` attribute of the `UIViewSwitchContainer`
+
+No controller code changes are needed. The dropdown auto-populates and the view switcher auto-selects.
+
+**Mod source area (Spec 053):** The mod source dropdown replaced a manual `IconSegmentButton` + `setVisible()` pattern with this standard COptionMenu + UIViewSwitchContainer approach. Seven placeholder templates (`ModSource_Macros`, `ModSource_Rungler`, `ModSource_EnvFollower`, `ModSource_SampleHold`, `ModSource_Random`, `ModSource_PitchFollower`, `ModSource_Transient`) are empty and ready for future phases to populate with controls -- no dropdown or controller changes needed.
 
 #### FX Chevron Expand/Collapse Pattern
 

@@ -507,14 +507,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
-    // Toggle mod source view (LFO1 / LFO2 / Chaos) based on segment button
-    if (tag == kModSourceViewModeTag) {
-        int sel = static_cast<int>(std::round(value * 2.0));
-        if (modLFO1View_)  modLFO1View_->setVisible(sel == 0);
-        if (modLFO2View_)  modLFO2View_->setVisible(sel == 1);
-        if (modChaosView_) modChaosView_->setVisible(sel == 2);
-    }
-
     // Toggle LFO Rate/NoteValue visibility based on sync state
     if (tag == kLFO1SyncId) {
         if (lfo1RateGroup_) lfo1RateGroup_->setVisible(value < 0.5);
@@ -820,23 +812,6 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "PhaserDetail") {
                 fxDetailPhaser_ = container;
                 container->setVisible(false);
-            }
-            // Mod source view containers (switched by segment button)
-            else if (*name == "ModLFO1View") {
-                modLFO1View_ = container;
-                auto* viewParam = getParameterObject(kModSourceViewModeTag);
-                int sel = viewParam ? static_cast<int>(std::round(viewParam->getNormalized() * 2.0)) : 0;
-                container->setVisible(sel == 0);
-            } else if (*name == "ModLFO2View") {
-                modLFO2View_ = container;
-                auto* viewParam = getParameterObject(kModSourceViewModeTag);
-                int sel = viewParam ? static_cast<int>(std::round(viewParam->getNormalized() * 2.0)) : 0;
-                container->setVisible(sel == 1);
-            } else if (*name == "ModChaosView") {
-                modChaosView_ = container;
-                auto* viewParam = getParameterObject(kModSourceViewModeTag);
-                int sel = viewParam ? static_cast<int>(std::round(viewParam->getNormalized() * 2.0)) : 0;
-                container->setVisible(sel == 2);
             }
             // LFO Rate groups (hidden when tempo sync is active)
             else if (*name == "LFO1RateGroup") {

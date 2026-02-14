@@ -223,11 +223,6 @@ private:
     VSTGUI::CView* chaosRateGroup_ = nullptr;
     VSTGUI::CView* chaosNoteValueGroup_ = nullptr;
 
-    /// Mod source view containers - switched by ModSourceViewMode segment button
-    VSTGUI::CView* modLFO1View_ = nullptr;
-    VSTGUI::CView* modLFO2View_ = nullptr;
-    VSTGUI::CView* modChaosView_ = nullptr;
-
     /// Delay Time/NoteValue groups - toggled by sync state
     VSTGUI::CView* delayTimeGroup_ = nullptr;
     VSTGUI::CView* delayNoteValueGroup_ = nullptr;
