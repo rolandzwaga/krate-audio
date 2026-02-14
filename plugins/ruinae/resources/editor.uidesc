@@ -64,6 +64,7 @@
         <control-tag name="VoiceMode" tag="1"/>
         <control-tag name="Polyphony" tag="2"/>
         <control-tag name="SoftLimit" tag="3"/>
+        <control-tag name="Width" tag="4"/>
 
         <!-- OSC A -->
         <control-tag name="OscAType" tag="100"/>
@@ -2673,11 +2674,13 @@
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Width knob (placeholder, no control-tag) -->
-            <view class="ArcKnob" origin="14, 100" size="28, 28"
+            <!-- Width knob (functional, wired to parameter) -->
+            <view class="ArcKnob" origin="14, 104" size="28, 28"
+                  control-tag="Width"
+                  default-value="0.5"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="10, 128" size="36, 10"
+            <view class="CTextLabel" origin="10, 132" size="36, 10"
                   title="Width"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
