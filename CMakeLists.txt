@@ -188,6 +188,26 @@ add_subdirectory(${vst3sdk_SOURCE_DIR} ${PROJECT_BINARY_DIR}/vst3sdk)
 set(CMAKE_CXX_CLANG_TIDY "${_SAVED_CLANG_TIDY}")
 smtg_enable_vst3_sdk()
 
+# Suppress compiler warnings from VST3 SDK and VSTGUI headers.
+# The SDK sets PUBLIC (non-SYSTEM) include directories, which causes GCC/Clang
+# to emit warnings for third-party code we can't modify. Re-adding them as
+# SYSTEM tells the compiler to treat those headers like system headers.
+function(smtg_mark_includes_as_system target)
+    if(NOT TARGET ${target})
+        return()
+    endif()
+    get_target_property(_inc ${target} INTERFACE_INCLUDE_DIRECTORIES)
+    if(_inc)
+        set_target_properties(${target} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
+        target_include_directories(${target} SYSTEM INTERFACE ${_inc})
+    endif()
+endfunction()
+
+smtg_mark_includes_as_system(sdk_common)
+smtg_mark_includes_as_system(sdk)
+smtg_mark_includes_as_system(sdk_hosting)
+smtg_mark_includes_as_system(base)
+
 # ==============================================================================
 # Testing Configuration (Constitution Principle VIII)
 # ==============================================================================
