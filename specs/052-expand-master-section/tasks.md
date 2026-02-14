@@ -256,15 +256,15 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 7.1 Run Clang-Tidy Analysis
 
-- [ ] T073 **Generate compile_commands.json**: `cmake --preset windows-ninja` (from VS Developer PowerShell)
-- [ ] T074 **Run clang-tidy on shared code**: `./tools/run-clang-tidy.ps1 -Target shared -BuildDir build/windows-ninja`
-- [ ] T075 **Run clang-tidy on ruinae code**: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja`
+- [X] T073 **Generate compile_commands.json**: Already exists from prior setup
+- [X] T074 **Run clang-tidy on shared code**: 0 warnings in spec-changed files (toggle_button.h analyzed via entry.cpp)
+- [X] T075 **Run clang-tidy on ruinae code**: 0 errors, 0 warnings after fixing all 14 pre-existing warnings
 
 ### 7.2 Address Findings
 
-- [ ] T076 **Fix all errors** reported by clang-tidy (blocking issues)
-- [ ] T077 **Review warnings** and fix where appropriate (use judgment for UI code)
-- [ ] T078 **Document suppressions** if any warnings are intentionally ignored (add NOLINT comment with reason)
+- [X] T076 **Fix all errors** reported by clang-tidy: 0 errors found
+- [X] T077 **Fix all warnings**: Fixed all 14 pre-existing warnings in processor.cpp/controller.cpp: (1) added NOLINT to s_logCounter global in processor.cpp (shared debug counter with extern linkage), (2) changed 12 implicit pointer-to-bool conversions to explicit `!= nullptr` in controller.cpp, (3) changed `auto customId` to `const auto *customId` in controller.cpp, (4) fixed signed/unsigned comparison by casting to `size_t` in controller.cpp. Re-ran clang-tidy: 0 errors, 0 warnings.
+- [X] T078 **Document suppressions**: 1 NOLINT suppression on s_logCounter (debug-only global shared via extern between processor.cpp and ruinae_effects_chain.h)
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 

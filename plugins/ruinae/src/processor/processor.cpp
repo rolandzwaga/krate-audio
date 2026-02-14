@@ -45,7 +45,7 @@
 #endif
 #include <windows.h>
 
-int s_logCounter = 0;
+int s_logCounter = 0;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables) shared debug counter with ruinae_effects_chain.h
 
 static void logPhaser(const char* fmt, ...) {
     char buf[512];

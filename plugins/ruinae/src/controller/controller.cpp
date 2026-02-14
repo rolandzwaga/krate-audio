@@ -654,13 +654,13 @@ VSTGUI::CView* Controller::verifyView(
             euclideanRegenButton_ = view;
             // Set initial visibility from current Euclidean enabled state
             auto* param = getParameterObject(kTranceGateEuclideanEnabledId);
-            bool enabled = param && param->getNormalized() >= 0.5;
+            bool enabled = (param != nullptr) && param->getNormalized() >= 0.5;
             view->setVisible(enabled);
         }
     }
 
     // Populate the pattern preset dropdown (identified by custom-id, no control-tag)
-    if (auto customId = attributes.getAttributeValue("custom-id")) {
+    if (const auto* customId = attributes.getAttributeValue("custom-id")) {
         if (*customId == "preset-dropdown") {
             if (auto* menu = dynamic_cast<VSTGUI::COptionMenu*>(view)) {
                 menu->addEntry("All On");
@@ -842,60 +842,60 @@ VSTGUI::CView* Controller::verifyView(
             else if (*name == "LFO1RateGroup") {
                 lfo1RateGroup_ = container;
                 auto* syncParam = getParameterObject(kLFO1SyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "LFO2RateGroup") {
                 lfo2RateGroup_ = container;
                 auto* syncParam = getParameterObject(kLFO2SyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             }
             // LFO Note Value groups (visible when tempo sync is active)
             else if (*name == "LFO1NoteValueGroup") {
                 lfo1NoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kLFO1SyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "LFO2NoteValueGroup") {
                 lfo2NoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kLFO2SyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             }
             // Chaos Rate/NoteValue groups (toggled by sync state)
             else if (*name == "ChaosRateGroup") {
                 chaosRateGroup_ = container;
                 auto* syncParam = getParameterObject(kChaosModSyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "ChaosNoteValueGroup") {
                 chaosNoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kChaosModSyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             }
             // Delay Time/NoteValue groups (toggled by sync state)
             else if (*name == "DelayTimeGroup") {
                 delayTimeGroup_ = container;
                 auto* syncParam = getParameterObject(kDelaySyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "DelayNoteValueGroup") {
                 delayNoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kDelaySyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             }
             // Phaser Rate/NoteValue groups (toggled by sync state)
             else if (*name == "PhaserRateGroup") {
                 phaserRateGroup_ = container;
                 auto* syncParam = getParameterObject(kPhaserSyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "PhaserNoteValueGroup") {
                 phaserNoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kPhaserSyncId);
-                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             }
             // Envelope expand/collapse groups
@@ -1627,7 +1627,7 @@ void Controller::rebuildRingIndicators() {
             const auto& r = routes[static_cast<size_t>(i)];
             if (!r.active) continue;
             if (r.destIndex < 0 ||
-                r.destIndex >= static_cast<int>(kGlobalDestParamIds.size()))
+                static_cast<size_t>(r.destIndex) >= kGlobalDestParamIds.size())
                 continue;
             if (kGlobalDestParamIds[static_cast<size_t>(r.destIndex)] != indicatorParamId)
                 continue;
