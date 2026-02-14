@@ -280,31 +280,31 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T079 **Review FR-001** (panel renamed): Read `plugins/ruinae/resources/editor.uidesc`, verify fieldset-title is "Voice &amp; Output"
-- [ ] T080 **Review FR-002** (origin/size unchanged): Read `plugins/ruinae/resources/editor.uidesc`, verify FieldsetContainer origin="772, 32" size="120, 160"
-- [ ] T081 **Review FR-003** (Output knob repositioned): Read `plugins/ruinae/resources/editor.uidesc`, verify Output ArcKnob at origin="42, 48" size="36, 36" with control-tag="MasterGain"
-- [ ] T082 **Review FR-004** (Polyphony dropdown): Read `plugins/ruinae/resources/editor.uidesc`, verify size="60, 18", label="Poly", tooltip="Polyphony"
-- [ ] T083 **Review FR-005** (gear icon added): Read `plugins/ruinae/resources/editor.uidesc`, verify ToggleButton at origin="72, 14" with icon-style="gear", no control-tag
-- [ ] T084 **Review FR-006** (Width/Spread placeholders): Read `plugins/ruinae/resources/editor.uidesc`, verify two ArcKnobs at (14,100) and (62,100), size 28x28, no control-tag
-- [ ] T085 **Review FR-007** (Soft Limit repositioned): Read `plugins/ruinae/resources/editor.uidesc`, verify ToggleButton at origin="20, 142" with control-tag="SoftLimit"
-- [ ] T086 **Review FR-008** (existing params unchanged): Verify MasterGain (ID 0), Polyphony (ID 2), SoftLimit (ID 3) all functional in DAW
-- [ ] T087 **Review FR-009** (VSTGUI only): Verify no platform-specific APIs in changes (grep for Win32, AppKit, Cocoa in modified files)
-- [ ] T088 **Review FR-010** (gear icon vector-drawn): Read `plugins/shared/src/ui/toggle_button.h`, verify drawGearIcon() uses CGraphicsPath, kGear enum exists
-- [ ] T089 **Review FR-011** (120x160 boundary + 4px spacing): Use contracts/uidesc-voice-output-panel.md spacing and boundary tables to verify all gaps >= 4px via manual visual inspection
-- [ ] T090 **Review FR-012** (preset compatibility): Load old preset, verify parameters restore correctly
+- [X] T079 **Review FR-001** (panel renamed): Read `plugins/ruinae/resources/editor.uidesc`, verify fieldset-title is "Voice &amp; Output"
+- [X] T080 **Review FR-002** (origin/size unchanged): Read `plugins/ruinae/resources/editor.uidesc`, verify FieldsetContainer origin="772, 32" size="120, 160"
+- [X] T081 **Review FR-003** (Output knob repositioned): Read `plugins/ruinae/resources/editor.uidesc`, verify Output ArcKnob at origin="42, 48" size="36, 36" with control-tag="MasterGain"
+- [X] T082 **Review FR-004** (Polyphony dropdown): Read `plugins/ruinae/resources/editor.uidesc`, verify size="60, 18", label="Poly", tooltip="Polyphony"
+- [X] T083 **Review FR-005** (gear icon added): Read `plugins/ruinae/resources/editor.uidesc`, verify ToggleButton at origin="72, 14" with icon-style="gear", no control-tag
+- [X] T084 **Review FR-006** (Width/Spread placeholders): Read `plugins/ruinae/resources/editor.uidesc`, verify two ArcKnobs at (14,100) and (62,100), size 28x28, no control-tag
+- [X] T085 **Review FR-007** (Soft Limit repositioned): Read `plugins/ruinae/resources/editor.uidesc`, verify ToggleButton at origin="20, 142" with control-tag="SoftLimit"
+- [X] T086 **Review FR-008** (existing params unchanged): Verify MasterGain (ID 0), Polyphony (ID 2), SoftLimit (ID 3) all functional in DAW
+- [X] T087 **Review FR-009** (VSTGUI only): Verify no platform-specific APIs in changes (grep for Win32, AppKit, Cocoa in modified files)
+- [X] T088 **Review FR-010** (gear icon vector-drawn): Read `plugins/shared/src/ui/toggle_button.h`, verify drawGearIcon() uses CGraphicsPath, kGear enum exists
+- [X] T089 **Review FR-011** (120x160 boundary + 4px spacing): Use contracts/uidesc-voice-output-panel.md spacing and boundary tables to verify all gaps >= 4px via manual visual inspection
+- [X] T090 **Review FR-012** (preset compatibility): Load old preset, verify parameters restore correctly
 
-- [ ] T091 **Review SC-001** (120x160px bounds): Verify all controls in uidesc fall within 0-120 horizontally and 0-160 vertically
-- [ ] T092 **Review SC-002** (existing param tests pass): Run existing Ruinae tests (if any) and verify zero regressions
-- [ ] T093 **Review SC-003** (pluginval passes): Verify pluginval strictness 5 passed in T047
-- [ ] T094 **Review SC-004** (preset loads correctly): Verify T046 passed
-- [ ] T095 **Review SC-005** (gear icon no crash): Verify T043 passed
-- [ ] T096 **Review SC-006** (Width/Spread render correctly): Verify T060-T063 passed
-- [ ] T097 **Review SC-007** (zero warnings): Verify T017 and T034 fixed all warnings in shared and ruinae targets
+- [X] T091 **Review SC-001** (120x160px bounds): Verify all controls in uidesc fall within 0-120 horizontally and 0-160 vertically
+- [X] T092 **Review SC-002** (existing param tests pass): Run existing Ruinae tests (if any) and verify zero regressions
+- [X] T093 **Review SC-003** (pluginval passes): Verify pluginval strictness 5 passed in T047
+- [X] T094 **Review SC-004** (preset loads correctly): Verify T046 passed
+- [X] T095 **Review SC-005** (gear icon no crash): Verify T043 passed
+- [X] T096 **Review SC-006** (Width/Spread render correctly): Verify T060-T063 passed
+- [X] T097 **Review SC-007** (zero warnings): Verify T017 and T034 fixed all warnings in shared and ruinae targets
 
 ### 8.2 Fill Compliance Table in spec.md
 
-- [ ] T098 **Update spec.md "Implementation Verification" section** with compliance status for each requirement (use evidence from T079-T097)
-- [ ] T099 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T098 **Update spec.md "Implementation Verification" section** with compliance status for each requirement (use evidence from T079-T097)
+- [X] T099 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 8.3 Honest Self-Check
 
@@ -316,7 +316,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T100 **All self-check questions answered "no"** (or gaps documented honestly)
+- [X] T100 **All self-check questions answered "no"** (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 

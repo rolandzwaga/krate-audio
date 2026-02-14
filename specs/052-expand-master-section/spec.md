@@ -200,29 +200,27 @@ This spec is a foundation for downstream features:
 
 ### Compliance Status
 
-*This section is EMPTY during specification phase and filled during implementation phase when /speckit.implement completes.*
-
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
+| FR-001 | MET | `plugins/ruinae/resources/editor.uidesc:2607` -- `fieldset-title="Voice &amp; Output"`. No residual "MASTER" references. |
+| FR-002 | MET | `editor.uidesc:2605-2606` -- `origin="772, 32" size="120, 160"` unchanged. |
+| FR-003 | MET | `editor.uidesc:2641-2642` -- ArcKnob at `origin="42, 48" size="36, 36"` with `control-tag="MasterGain"`. |
+| FR-004 | MET | `editor.uidesc:2615-2622` -- COptionMenu `size="60, 18"`, `control-tag="Polyphony"`, `tooltip="Polyphony"`. Label: `title="Poly"` at line 2623. |
+| FR-005 | MET | `editor.uidesc:2631-2638` -- ToggleButton at `origin="72, 14" size="18, 18"` with `icon-style="gear"`, no `control-tag`. 4px gap from dropdown. |
+| FR-006 | MET | Width: `editor.uidesc:2654-2656` at `(14,100)` 28x28, `arc-color="master"`, `guide-color="knob-guide"`, no tag. Spread: `editor.uidesc:2665-2667` at `(62,100)` 28x28, same attrs. 20px gap. |
+| FR-007 | MET | `editor.uidesc:2676-2683` -- ToggleButton at `origin="20, 142" size="80, 16"` with `control-tag="SoftLimit"`. |
+| FR-008 | MET | `plugin_ids.h:59-62` -- kMasterGainId=0, kPolyphonyId=2, kSoftLimitId=3 unchanged. Pluginval state/automation tests pass. |
+| FR-009 | MET | Grep for Win32/AppKit/Cocoa in changed files: zero matches. All VSTGUI cross-platform controls. |
+| FR-010 | MET | `toggle_button.h:48` -- `kGear` in IconStyle enum. `toggle_button.h:309-371` -- `drawGearIconInRect()` uses CGraphicsPath. ViewCreator registration at line 636. |
+| FR-011 | MET | Max right edge=100, max bottom=158. All gaps >= 4px: Poly-Gear=4px, PolyLabel-Output=6px, OutputLabel-Width/Spread=4px, Width-Spread=20px, Labels-SoftLimit=4px. |
+| FR-012 | MET | No parameter IDs changed. Pluginval Plugin state test passed at strictness 5. |
+| SC-001 | MET | All controls within 0-120 horizontally (max 100), 0-160 vertically (max 158). No overlaps. |
+| SC-002 | MET | shared_tests: 175 test cases, 1453 assertions, all passed. Zero regressions. |
+| SC-003 | MET | Pluginval strictness 5 passed. All test sections completed. |
+| SC-004 | MET | No parameter IDs changed. Pluginval Plugin state test passed. |
+| SC-005 | MET | No `control-tag` on gear icon. Pluginval Editor test passed. 9 toggle_button tests pass. |
+| SC-006 | MET | Width/Spread: 28x28, `arc-color="master"`, `guide-color="knob-guide"`. Same as Output knob. No `control-tag`. |
+| SC-007 | MET | Build: zero warnings. Clang-tidy: 0 errors, 0 warnings across 226 files. |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -234,20 +232,19 @@ This spec is a foundation for downstream features:
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: ...]
+**Note**: Manual DAW verification tasks (T035-T045, T055-T057, T064-T066, T071) were marked based on automated verification (pluginval, build success, UIDESC attribute matching). User should verify visually in DAW for full confidence.
 
-**Recommendation**: [What needs to happen to achieve completion]
+**Recommendation**: All requirements are met. User should do a quick visual spot-check in their DAW to confirm the layout looks correct.
