@@ -2647,7 +2647,7 @@
                   transparent="true"/>
 
             <!-- Row 2: Polyphony dropdown -->
-            <view class="COptionMenu" origin="8, 34" size="60, 18"
+            <view class="COptionMenu" origin="8, 36" size="60, 18"
                   control-tag="Polyphony"
                   font="~ NormalFontSmaller"
                   font-color="master"
@@ -2655,20 +2655,14 @@
                   frame-color="frame-dropdown-dim"
                   tooltip="Polyphony"
                   transparent="false"/>
-            <view class="CTextLabel" origin="8, 52" size="60, 10"
-                  title="Poly"
-                  font="~ NormalFontSmaller"
-                  font-color="text-secondary"
-                  text-alignment="center"
-                  transparent="true"/>
 
-            <!-- Output knob (repositioned, centered) -->
-            <view class="ArcKnob" origin="42, 56" size="36, 36"
+            <!-- Output knob (centered, 32x32) -->
+            <view class="ArcKnob" origin="44, 58" size="32, 32"
                   control-tag="MasterGain"
                   default-value="0.5"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="34, 92" size="52, 10"
+            <view class="CTextLabel" origin="34, 90" size="52, 10"
                   title="Output"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
@@ -2701,8 +2695,8 @@
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Soft Limit toggle (repositioned to bottom) -->
-            <view class="ToggleButton" origin="20, 144" size="80, 16"
+            <!-- Soft Limit toggle (bottom) -->
+            <view class="ToggleButton" origin="20, 146" size="80, 14"
                   control-tag="SoftLimit"
                   title="Soft Limit"
                   font="~ NormalFontSmaller"
