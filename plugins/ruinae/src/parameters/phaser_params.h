@@ -20,7 +20,7 @@ namespace Ruinae {
 struct RuinaePhaserParams {
     std::atomic<float> rateHz{0.5f};        // 0.01-20 Hz
     std::atomic<float> depth{0.5f};         // 0-1
-    std::atomic<float> feedback{0.0f};      // -1 to +1
+    std::atomic<float> feedback{0.5f};      // -1 to +1 (default +50%)
     std::atomic<float> mix{0.5f};           // 0-1
     std::atomic<int> stages{1};             // dropdown index (0-5), default 1 = 4 stages
     std::atomic<float> centerFreqHz{1000.0f}; // 100-10000 Hz
@@ -96,8 +96,8 @@ inline void registerPhaserParams(Steinberg::Vst::ParameterContainer& parameters)
         ParameterInfo::kCanAutomate, kPhaserRateId);  // default ~0.5 Hz
     parameters.addParameter(STR16("Phaser Depth"), STR16("%"), 0, 0.5,
         ParameterInfo::kCanAutomate, kPhaserDepthId);
-    parameters.addParameter(STR16("Phaser Feedback"), STR16(""), 0, 0.5,
-        ParameterInfo::kCanAutomate, kPhaserFeedbackId);  // default 0 (center of bipolar)
+    parameters.addParameter(STR16("Phaser Feedback"), STR16(""), 0, 0.75,
+        ParameterInfo::kCanAutomate, kPhaserFeedbackId);  // default 0.75 norm = +50% feedback
     parameters.addParameter(STR16("Phaser Mix"), STR16("%"), 0, 0.5,
         ParameterInfo::kCanAutomate, kPhaserMixId);
     parameters.addParameter(createDropdownParameterWithDefault(

@@ -2363,12 +2363,12 @@
 
                 <view class="ArcKnob" origin="198, 0" size="28, 28"
                       control-tag="PhaserFeedback"
-                      default-value="0.5"
+                      default-value="0.75"
                       arc-color="effects"
                       guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="190, 28" size="44, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Resonance"/>
+                      text-alignment="center" transparent="true" title="Feedback"/>
 
                 <view class="COptionMenu" origin="258, 4" size="80, 20"
                       control-tag="PhaserStages"

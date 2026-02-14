@@ -33,9 +33,41 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstring>
 #include <vector>
+
+// DEBUG: Phaser signal path tracing (remove after debugging)
+#define RUINAE_FX_CHAIN_DEBUG 1
+#if RUINAE_FX_CHAIN_DEBUG
+#include <cstdarg>
+#include <cstdio>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+extern int s_logCounter;
+static inline void logFxChain(const char* fmt, ...) {
+    char buf[512];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    OutputDebugStringA(buf);
+}
+static inline float peakLevel(const float* buf, size_t n) {
+    float peak = 0.0f;
+    for (size_t i = 0; i < n; ++i) {
+        float a = std::fabs(buf[i]);
+        if (a > peak) peak = a;
+    }
+    return peak;
+}
+#endif
 
 namespace Krate::DSP {
 
@@ -533,9 +565,51 @@ private:
         // ---------------------------------------------------------------
         // Slot 0: Phaser (before delay)
         // ---------------------------------------------------------------
+#if RUINAE_FX_CHAIN_DEBUG
+        // Save pre-phaser samples for comparison (stack buffer, max 512)
+        float preSnapL[512];
+        float preSnapR[512];
+        size_t snapN = std::min(numSamples, size_t(512));
+        if (s_logCounter % 200 == 0 && phaserEnabled_) {
+            std::memcpy(preSnapL, left, snapN * sizeof(float));
+            std::memcpy(preSnapR, right, snapN * sizeof(float));
+        }
+#endif
         if (phaserEnabled_) {
             phaser_.processStereo(left, right, numSamples);
         }
+#if RUINAE_FX_CHAIN_DEBUG
+        if (s_logCounter % 200 == 0) {
+            float preL = peakLevel(preSnapL, snapN);
+            if (phaserEnabled_ && preL > 0.001f) {
+                // Compute RMS diff and max diff
+                float sumSqDiff = 0.0f;
+                float maxDiff = 0.0f;
+                int maxDiffIdx = 0;
+                for (size_t i = 0; i < snapN; ++i) {
+                    float d = left[i] - preSnapL[i];
+                    sumSqDiff += d * d;
+                    if (std::fabs(d) > maxDiff) {
+                        maxDiff = std::fabs(d);
+                        maxDiffIdx = static_cast<int>(i);
+                    }
+                }
+                float rmsDiff = std::sqrt(sumSqDiff / static_cast<float>(snapN));
+                logFxChain("[RUINAE][FX] phaserEnabled_=1 prePeak=%.6f  rmsDiff=%.8f maxDiff=%.8f @sample%d\n",
+                    preL, rmsDiff, maxDiff, maxDiffIdx);
+                // Log first few sample diffs
+                if (snapN >= 4) {
+                    logFxChain("[RUINAE][FX] samples: pre[0]=%.6f post[0]=%.6f  pre[1]=%.6f post[1]=%.6f\n",
+                        preSnapL[0], left[0], preSnapL[1], left[1]);
+                    logFxChain("[RUINAE][FX] samples: pre[2]=%.6f post[2]=%.6f  pre[3]=%.6f post[3]=%.6f\n",
+                        preSnapL[2], left[2], preSnapL[3], left[3]);
+                }
+            } else {
+                logFxChain("[RUINAE][FX] phaserEnabled_=%d prePeak=%.6f (silent or off)\n",
+                    phaserEnabled_ ? 1 : 0, phaserEnabled_ ? peakLevel(left, snapN) : 0.0f);
+            }
+        }
+#endif
 
         // ---------------------------------------------------------------
         // Slot 1: Delay (FR-005) with crossfade (FR-010)

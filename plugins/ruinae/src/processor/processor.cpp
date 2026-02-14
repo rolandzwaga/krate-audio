@@ -29,6 +29,36 @@
 #include <cstdint>
 #include <cstring>
 
+// =============================================================================
+// DEBUG: Phaser signal path tracing (remove after debugging)
+// =============================================================================
+#define RUINAE_PHASER_DEBUG 1
+
+#if RUINAE_PHASER_DEBUG
+#include <cstdarg>
+#include <cstdio>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
+int s_logCounter = 0;
+
+static void logPhaser(const char* fmt, ...) {
+    char buf[512];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    OutputDebugStringA(buf);
+}
+#else
+static void logPhaser(const char*, ...) {}
+#endif
+
 namespace Ruinae {
 
 // ==============================================================================
@@ -80,6 +110,8 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     engine_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
     engine_.setGainCompensationEnabled(false);
 
+    logPhaser("[RUINAE] setupProcessing: sampleRate=%.0f maxBlock=%d\n", sampleRate_, maxBlockSize_);
+
     return AudioEffect::setupProcessing(setup);
 }
 
@@ -113,6 +145,22 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // Apply all parameter values to the engine
     applyParamsToEngine();
+
+#if RUINAE_PHASER_DEBUG
+    if (s_logCounter % 200 == 0) {
+        bool pEn = phaserEnabled_.load(std::memory_order_relaxed);
+        float pRate = phaserParams_.rateHz.load(std::memory_order_relaxed);
+        float pDepth = phaserParams_.depth.load(std::memory_order_relaxed);
+        float pMix = phaserParams_.mix.load(std::memory_order_relaxed);
+        float pFb = phaserParams_.feedback.load(std::memory_order_relaxed);
+        int pStages = phaserParams_.stages.load(std::memory_order_relaxed);
+        float pCenter = phaserParams_.centerFreqHz.load(std::memory_order_relaxed);
+        logPhaser("[RUINAE][block %d] phaserEnabled=%d rate=%.2f depth=%.2f mix=%.2f fb=%.2f stages=%d(%d) center=%.0f\n",
+            s_logCounter, pEn ? 1 : 0, pRate, pDepth, pMix, pFb,
+            pStages, phaserStagesFromIndex(pStages), pCenter);
+    }
+    ++s_logCounter;
+#endif
 
     // Build and forward BlockContext from host tempo/transport
     {
@@ -537,12 +585,15 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             reverbEnabled_.store(value >= 0.5, std::memory_order_relaxed);
         } else if (paramId == kPhaserEnabledId) {
             phaserEnabled_.store(value >= 0.5, std::memory_order_relaxed);
+            logPhaser("[RUINAE][PARAM] kPhaserEnabledId received: raw=%.4f -> enabled=%d\n",
+                value, (value >= 0.5) ? 1 : 0);
         } else if (paramId >= kDelayBaseId && paramId <= kDelayEndId) {
             handleDelayParamChange(delayParams_, paramId, value);
         } else if (paramId >= kReverbBaseId && paramId <= kReverbEndId) {
             handleReverbParamChange(reverbParams_, paramId, value);
         } else if (paramId >= kPhaserBaseId && paramId <= kPhaserEndId) {
             handlePhaserParamChange(phaserParams_, paramId, value);
+            logPhaser("[RUINAE][PARAM] phaser param %d received: raw=%.4f\n", paramId, value);
         } else if (paramId >= kMonoBaseId && paramId <= kMonoEndId) {
             handleMonoModeParamChange(monoModeParams_, paramId, value);
         }
