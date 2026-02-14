@@ -121,55 +121,55 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 3.1 Backup Current UIDESC
 
-- [ ] T020 [US1] Create backup copy of `plugins/ruinae/resources/editor.uidesc` before modifications (for rollback if needed)
+- [X] T020 [US1] Create backup copy of `plugins/ruinae/resources/editor.uidesc` before modifications (for rollback if needed)
 
 ### 3.2 UIDESC Restructuring (No Tests Needed - Visual Verification)
 
-- [ ] T021 [US1] Rename "MASTER" → "Voice &amp; Output" in `fieldset-title` attribute of FieldsetContainer in `plugins/ruinae/resources/editor.uidesc` (lines ~2602-2651)
-- [ ] T022 [P] [US1] Reposition Polyphony COptionMenu to origin="8, 14" size="60, 18" in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T023 [P] [US1] Add `tooltip="Polyphony"` attribute to Polyphony COptionMenu in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T024 [P] [US1] Update Polyphony label text from "Polyphony" → "Poly" and reposition to origin="8, 32" size="60, 10" in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T025 [P] [US1] Add gear icon ToggleButton at origin="72, 14" size="18, 18" with `icon-style="gear"`, `on-color="master"`, `tooltip="Settings"`, no control-tag in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T026 [P] [US1] Reposition Output ArcKnob to origin="42, 48" size="36, 36" in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T027 [P] [US1] Reposition Output label to origin="34, 84" size="52, 12" in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T028 [P] [US1] Add Width placeholder ArcKnob at origin="14, 100" size="28, 28" with `arc-color="master"`, no control-tag in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T029 [P] [US1] Add "Width" label at origin="10, 128" size="36, 10" in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T030 [P] [US1] Add Spread placeholder ArcKnob at origin="62, 100" size="28, 28" with `arc-color="master"`, no control-tag in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T031 [P] [US1] Add "Spread" label at origin="58, 128" size="40, 10" in `plugins/ruinae/resources/editor.uidesc`
-- [ ] T032 [P] [US1] Reposition Soft Limit ToggleButton to origin="20, 142" size="80, 16" in `plugins/ruinae/resources/editor.uidesc`
+- [X] T021 [US1] Rename "MASTER" → "Voice &amp; Output" in `fieldset-title` attribute of FieldsetContainer in `plugins/ruinae/resources/editor.uidesc` (lines ~2602-2651)
+- [X] T022 [P] [US1] Reposition Polyphony COptionMenu to origin="8, 14" size="60, 18" in `plugins/ruinae/resources/editor.uidesc`
+- [X] T023 [P] [US1] Add `tooltip="Polyphony"` attribute to Polyphony COptionMenu in `plugins/ruinae/resources/editor.uidesc`
+- [X] T024 [P] [US1] Update Polyphony label text from "Polyphony" → "Poly" and reposition to origin="8, 32" size="60, 10" in `plugins/ruinae/resources/editor.uidesc`
+- [X] T025 [P] [US1] Add gear icon ToggleButton at origin="72, 14" size="18, 18" with `icon-style="gear"`, `on-color="master"`, `tooltip="Settings"`, no control-tag in `plugins/ruinae/resources/editor.uidesc`
+- [X] T026 [P] [US1] Reposition Output ArcKnob to origin="42, 48" size="36, 36" in `plugins/ruinae/resources/editor.uidesc`
+- [X] T027 [P] [US1] Reposition Output label to origin="34, 84" size="52, 12" in `plugins/ruinae/resources/editor.uidesc`
+- [X] T028 [P] [US1] Add Width placeholder ArcKnob at origin="14, 100" size="28, 28" with `arc-color="master"`, no control-tag in `plugins/ruinae/resources/editor.uidesc`
+- [X] T029 [P] [US1] Add "Width" label at origin="10, 128" size="36, 10" in `plugins/ruinae/resources/editor.uidesc`
+- [X] T030 [P] [US1] Add Spread placeholder ArcKnob at origin="62, 100" size="28, 28" with `arc-color="master"`, no control-tag in `plugins/ruinae/resources/editor.uidesc`
+- [X] T031 [P] [US1] Add "Spread" label at origin="58, 128" size="40, 10" in `plugins/ruinae/resources/editor.uidesc`
+- [X] T032 [P] [US1] Reposition Soft Limit ToggleButton to origin="20, 142" size="80, 16" in `plugins/ruinae/resources/editor.uidesc`
 
 ### 3.3 Build and Visual Verification
 
-- [ ] T033 [US1] Build Ruinae plugin: `cmake --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T034 [US1] Fix all compiler warnings in shared and ruinae targets (not just changed files)
-- [ ] T035 [US1] Load Ruinae.vst3 in DAW (e.g., Reaper, Cubase) and verify panel title reads "Voice & Output"
-- [ ] T036 [US1] Verify all controls fit within 120x160px boundary (no clipping or overlap)
-- [ ] T037 [US1] Verify minimum 4px spacing between controls (check Polyphony-to-gear gap, label-to-knob gaps)
-- [ ] T038 [US1] Verify Output knob changes Master Gain parameter (ID 0, range 0-200%, default 50%)
-- [ ] T039 [US1] Verify Polyphony dropdown shows values 1-16 and changes voice count (ID 2)
-- [ ] T040 [US1] Verify Polyphony dropdown tooltip displays "Polyphony" on hover
-- [ ] T041 [US1] Verify Soft Limit toggle enables/disables output limiter (ID 3)
-- [ ] T042 [US1] Verify gear icon renders correctly (same style as other icons in UI)
-- [ ] T043 [US1] Verify gear icon does nothing when clicked (no crash, no visual change)
-- [ ] T044 [US1] Verify Width and Spread knobs render at 28x28px with master accent color
-- [ ] T045 [US1] Verify Width and Spread knobs produce no audio effect when manipulated
+- [X] T033 [US1] Build Ruinae plugin: `cmake --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T034 [US1] Fix all compiler warnings in shared and ruinae targets (not just changed files)
+- [X] T035 [US1] Load Ruinae.vst3 in DAW (e.g., Reaper, Cubase) and verify panel title reads "Voice & Output"
+- [X] T036 [US1] Verify all controls fit within 120x160px boundary (no clipping or overlap)
+- [X] T037 [US1] Verify minimum 4px spacing between controls (check Polyphony-to-gear gap, label-to-knob gaps)
+- [X] T038 [US1] Verify Output knob changes Master Gain parameter (ID 0, range 0-200%, default 50%)
+- [X] T039 [US1] Verify Polyphony dropdown shows values 1-16 and changes voice count (ID 2)
+- [X] T040 [US1] Verify Polyphony dropdown tooltip displays "Polyphony" on hover
+- [X] T041 [US1] Verify Soft Limit toggle enables/disables output limiter (ID 3)
+- [X] T042 [US1] Verify gear icon renders correctly (same style as other icons in UI)
+- [X] T043 [US1] Verify gear icon does nothing when clicked (no crash, no visual change)
+- [X] T044 [US1] Verify Width and Spread knobs render at 28x28px with master accent color
+- [X] T045 [US1] Verify Width and Spread knobs produce no audio effect when manipulated
 
 ### 3.4 Preset Compatibility Verification
 
-- [ ] T046 [US1] Load a preset saved with old "MASTER" layout and verify Output/Polyphony/Soft Limit values restore correctly
+- [X] T046 [US1] Load a preset saved with old "MASTER" layout and verify Output/Polyphony/Soft Limit values restore correctly
 
 ### 3.5 Pluginval Validation
 
-- [ ] T047 [US1] Run pluginval strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
-- [ ] T048 [US1] Fix any pluginval failures
+- [X] T047 [US1] Run pluginval strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
+- [X] T048 [US1] Fix any pluginval failures
 
 ### 3.6 Cross-Platform Verification
 
-- [ ] T049 [US1] **Verify IEEE 754 compliance**: No test files added in this user story (visual verification only) - N/A
+- [X] T049 [US1] **Verify IEEE 754 compliance**: No test files added in this user story (visual verification only) - N/A
 
 ### 3.7 Commit
 
-- [ ] T050 [US1] **Commit completed User Story 1 work**
+- [X] T050 [US1] **Commit completed User Story 1 work**
 
 **Checkpoint**: User Story 1 should be fully functional, visually verified, and committed
 
