@@ -393,6 +393,10 @@ public:
     void setLFO1Unipolar(bool enabled) noexcept { lfo1Unipolar_ = enabled; }
     void setLFO1Retrigger(bool enabled) noexcept { lfo1_.setRetriggerEnabled(enabled); }
 
+    void setLFO1FadeIn(float ms) noexcept { lfo1_.setFadeInTime(ms); }
+    void setLFO1Symmetry(float value) noexcept { lfo1_.setSymmetry(value); }
+    void setLFO1Quantize(int steps) noexcept { lfo1_.setQuantizeSteps(steps); }
+
     // =========================================================================
     // LFO 2 Parameters (same API as LFO 1)
     // =========================================================================
@@ -406,6 +410,10 @@ public:
     }
     void setLFO2Unipolar(bool enabled) noexcept { lfo2Unipolar_ = enabled; }
     void setLFO2Retrigger(bool enabled) noexcept { lfo2_.setRetriggerEnabled(enabled); }
+
+    void setLFO2FadeIn(float ms) noexcept { lfo2_.setFadeInTime(ms); }
+    void setLFO2Symmetry(float value) noexcept { lfo2_.setSymmetry(value); }
+    void setLFO2Quantize(int steps) noexcept { lfo2_.setQuantizeSteps(steps); }
 
     // =========================================================================
     // Envelope Follower Parameters (FR-015 to FR-020a)
@@ -516,6 +524,10 @@ public:
     [[nodiscard]] bool getLFO1Unipolar() const noexcept { return lfo1Unipolar_; }
     [[nodiscard]] bool getLFO1Retrigger() const noexcept { return lfo1_.retriggerEnabled(); }
 
+    [[nodiscard]] float getLFO1FadeIn() const noexcept { return lfo1_.fadeInTime(); }
+    [[nodiscard]] float getLFO1Symmetry() const noexcept { return lfo1_.symmetry(); }
+    [[nodiscard]] int getLFO1Quantize() const noexcept { return lfo1_.quantizeSteps(); }
+
     // LFO 2
     [[nodiscard]] float getLFO2Rate() const noexcept { return lfo2_.freeRunningFrequency(); }
     [[nodiscard]] Waveform getLFO2Waveform() const noexcept { return lfo2_.waveform(); }
@@ -525,6 +537,10 @@ public:
     [[nodiscard]] NoteModifier getLFO2NoteModifier() const noexcept { return lfo2_.noteModifier(); }
     [[nodiscard]] bool getLFO2Unipolar() const noexcept { return lfo2Unipolar_; }
     [[nodiscard]] bool getLFO2Retrigger() const noexcept { return lfo2_.retriggerEnabled(); }
+
+    [[nodiscard]] float getLFO2FadeIn() const noexcept { return lfo2_.fadeInTime(); }
+    [[nodiscard]] float getLFO2Symmetry() const noexcept { return lfo2_.symmetry(); }
+    [[nodiscard]] int getLFO2Quantize() const noexcept { return lfo2_.quantizeSteps(); }
 
     // Envelope Follower
     [[nodiscard]] float getEnvFollowerAttack() const noexcept { return envFollower_.getAttackTime(); }

@@ -168,16 +168,34 @@
         <control-tag name="LFO1Shape" tag="1001"/>
         <control-tag name="LFO1Depth" tag="1002"/>
         <control-tag name="LFO1Sync" tag="1003"/>
+        <control-tag name="LFO1Phase" tag="1004"/>
+        <control-tag name="LFO1Retrigger" tag="1005"/>
+        <control-tag name="LFO1NoteValue" tag="1006"/>
+        <control-tag name="LFO1Unipolar" tag="1007"/>
+        <control-tag name="LFO1FadeIn" tag="1008"/>
+        <control-tag name="LFO1Symmetry" tag="1009"/>
+        <control-tag name="LFO1Quantize" tag="1010"/>
 
         <!-- LFO 2 -->
         <control-tag name="LFO2Rate" tag="1100"/>
         <control-tag name="LFO2Shape" tag="1101"/>
         <control-tag name="LFO2Depth" tag="1102"/>
         <control-tag name="LFO2Sync" tag="1103"/>
+        <control-tag name="LFO2Phase" tag="1104"/>
+        <control-tag name="LFO2Retrigger" tag="1105"/>
+        <control-tag name="LFO2NoteValue" tag="1106"/>
+        <control-tag name="LFO2Unipolar" tag="1107"/>
+        <control-tag name="LFO2FadeIn" tag="1108"/>
+        <control-tag name="LFO2Symmetry" tag="1109"/>
+        <control-tag name="LFO2Quantize" tag="1110"/>
 
         <!-- Chaos -->
         <control-tag name="ChaosRate" tag="1200"/>
+        <control-tag name="ChaosType" tag="1201"/>
+        <control-tag name="ChaosDepth" tag="1202"/>
 
+        <!-- Modulation Source View Mode (UI-only) -->
+        <control-tag name="ModSourceViewMode" tag="10019"/>
 
         <!-- FX Enable -->
         <control-tag name="DelayEnabled" tag="1500"/>
@@ -1984,100 +2002,233 @@
             transparent="true"
         >
             <!-- ======================================================== -->
-            <!-- T065-T067: LFO1 knobs (Row 1, y=14)                      -->
+            <!-- Mod Source Selector: LFO1 | LFO2 | Chaos               -->
             <!-- ======================================================== -->
+            <view class="IconSegmentButton" origin="0, 14" size="158, 18"
+                  control-tag="ModSourceViewMode" default-value="0"
+                  segment-names="LFO 1,LFO 2,Chaos"
+                  selected-color="modulation" unselected-color="text-secondary"
+                  frame-color="frame-dropdown" highlight-color="bg-dropdown"
+                  round-radius="3" font-size="9" stroke-width="1.5"/>
 
-            <!-- LFO1 Rate (hidden when sync active) -->
-            <view class="CViewContainer" origin="0, 14" size="44, 38"
-                  custom-view-name="LFO1RateGroup" transparent="true">
+            <!-- ======================================================== -->
+            <!-- LFO1 View (visible when ModSourceViewMode = 0)          -->
+            <!-- ======================================================== -->
+            <view class="CViewContainer" origin="0, 36" size="158, 120"
+                  custom-view-name="ModLFO1View" transparent="true">
+                <!-- Row 1: Rate/NoteValue | Shape | Depth | Phase -->
+                <!-- Rate (hidden when sync active) -->
+                <view class="CViewContainer" origin="0, 0" size="36, 38"
+                      custom-view-name="LFO1RateGroup" transparent="true">
+                    <view class="ArcKnob" origin="4, 0" size="28, 28"
+                          control-tag="LFO1Rate" default-value="0.5"
+                          arc-color="modulation" guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="0, 28" size="36, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Rate"/>
+                </view>
+                <!-- Note Value (visible when sync active) -->
+                <view class="CViewContainer" origin="0, 0" size="36, 38"
+                      custom-view-name="LFO1NoteValueGroup" transparent="true"
+                      visible="false">
+                    <view class="COptionMenu" origin="2, 6" size="32, 16"
+                          control-tag="LFO1NoteValue"
+                          font="~ NormalFontSmaller" font-color="text-primary"
+                          back-color="bg-dropdown" frame-color="frame-dropdown"
+                          round-rect-radius="2" frame-width="1"
+                          min-value="0" max-value="1"
+                          default-value="0.5"/>
+                    <view class="CTextLabel" origin="0, 28" size="36, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Note"/>
+                </view>
+                <!-- Shape selector -->
+                <view class="LfoShapeSelector"
+                      origin="38, 0" size="36, 28"
+                      control-tag="LFO1Shape"
+                      lfo-color="modulation"
+                      min-value="0" max-value="1"/>
+                <view class="CTextLabel" origin="34, 28" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Shape"/>
+                <!-- Depth -->
+                <view class="ArcKnob" origin="82, 0" size="28, 28"
+                      control-tag="LFO1Depth" default-value="0.5"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="76, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Depth"/>
+                <!-- Phase Offset -->
+                <view class="ArcKnob" origin="122, 0" size="28, 28"
+                      control-tag="LFO1Phase" default-value="0.0"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="116, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Phase"/>
+
+                <!-- Row 2: Sync | Retrigger | Unipolar -->
+                <view class="ToggleButton" origin="2, 42" size="36, 12"
+                      control-tag="LFO1Sync" default-value="1.0"
+                      title="Sync"
+                      on-color="modulation" off-color="toggle-off"
+                      font-size="9"/>
+                <view class="ToggleButton" origin="42, 42" size="46, 12"
+                      control-tag="LFO1Retrigger" default-value="1.0"
+                      title="Retrig"
+                      on-color="modulation" off-color="toggle-off"
+                      font-size="9"/>
+                <view class="ToggleButton" origin="92, 42" size="50, 12"
+                      control-tag="LFO1Unipolar" default-value="0.0"
+                      title="Unipolar"
+                      on-color="modulation" off-color="toggle-off"
+                      font-size="9"/>
+
+                <!-- Row 3: Fade-in | Symmetry | Quantize -->
+                <view class="ArcKnob" origin="8, 60" size="28, 28"
+                      control-tag="LFO1FadeIn" default-value="0.0"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="0, 88" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Fade In"/>
+                <view class="ArcKnob" origin="58, 60" size="28, 28"
+                      control-tag="LFO1Symmetry" default-value="0.5"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="48, 88" size="48, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Symmetry"/>
+                <view class="ArcKnob" origin="108, 60" size="28, 28"
+                      control-tag="LFO1Quantize" default-value="0.0"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="100, 88" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Quantize"/>
+            </view>
+
+            <!-- ======================================================== -->
+            <!-- LFO2 View (visible when ModSourceViewMode = 1)          -->
+            <!-- ======================================================== -->
+            <view class="CViewContainer" origin="0, 36" size="158, 120"
+                  custom-view-name="ModLFO2View" transparent="true"
+                  visible="false">
+                <!-- Row 1: Rate/NoteValue | Shape | Depth | Phase -->
+                <!-- Rate (hidden when sync active) -->
+                <view class="CViewContainer" origin="0, 0" size="36, 38"
+                      custom-view-name="LFO2RateGroup" transparent="true">
+                    <view class="ArcKnob" origin="4, 0" size="28, 28"
+                          control-tag="LFO2Rate" default-value="0.5"
+                          arc-color="modulation" guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="0, 28" size="36, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Rate"/>
+                </view>
+                <!-- Note Value (visible when sync active) -->
+                <view class="CViewContainer" origin="0, 0" size="36, 38"
+                      custom-view-name="LFO2NoteValueGroup" transparent="true"
+                      visible="false">
+                    <view class="COptionMenu" origin="2, 6" size="32, 16"
+                          control-tag="LFO2NoteValue"
+                          font="~ NormalFontSmaller" font-color="text-primary"
+                          back-color="bg-dropdown" frame-color="frame-dropdown"
+                          round-rect-radius="2" frame-width="1"
+                          min-value="0" max-value="1"
+                          default-value="0.5"/>
+                    <view class="CTextLabel" origin="0, 28" size="36, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Note"/>
+                </view>
+                <!-- Shape selector -->
+                <view class="LfoShapeSelector"
+                      origin="38, 0" size="36, 28"
+                      control-tag="LFO2Shape"
+                      lfo-color="modulation"
+                      min-value="0" max-value="1"/>
+                <view class="CTextLabel" origin="34, 28" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Shape"/>
+                <!-- Depth -->
+                <view class="ArcKnob" origin="82, 0" size="28, 28"
+                      control-tag="LFO2Depth" default-value="0.5"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="76, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Depth"/>
+                <!-- Phase Offset -->
+                <view class="ArcKnob" origin="122, 0" size="28, 28"
+                      control-tag="LFO2Phase" default-value="0.0"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="116, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Phase"/>
+
+                <!-- Row 2: Sync | Retrigger | Unipolar -->
+                <view class="ToggleButton" origin="2, 42" size="36, 12"
+                      control-tag="LFO2Sync" default-value="1.0"
+                      title="Sync"
+                      on-color="modulation" off-color="toggle-off"
+                      font-size="9"/>
+                <view class="ToggleButton" origin="42, 42" size="46, 12"
+                      control-tag="LFO2Retrigger" default-value="1.0"
+                      title="Retrig"
+                      on-color="modulation" off-color="toggle-off"
+                      font-size="9"/>
+                <view class="ToggleButton" origin="92, 42" size="50, 12"
+                      control-tag="LFO2Unipolar" default-value="0.0"
+                      title="Unipolar"
+                      on-color="modulation" off-color="toggle-off"
+                      font-size="9"/>
+
+                <!-- Row 3: Fade-in | Symmetry | Quantize -->
+                <view class="ArcKnob" origin="8, 60" size="28, 28"
+                      control-tag="LFO2FadeIn" default-value="0.0"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="0, 88" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Fade In"/>
+                <view class="ArcKnob" origin="58, 60" size="28, 28"
+                      control-tag="LFO2Symmetry" default-value="0.5"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="48, 88" size="48, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Symmetry"/>
+                <view class="ArcKnob" origin="108, 60" size="28, 28"
+                      control-tag="LFO2Quantize" default-value="0.0"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="100, 88" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Quantize"/>
+            </view>
+
+            <!-- ======================================================== -->
+            <!-- Chaos View (visible when ModSourceViewMode = 2)         -->
+            <!-- ======================================================== -->
+            <view class="CViewContainer" origin="0, 36" size="158, 106"
+                  custom-view-name="ModChaosView" transparent="true"
+                  visible="false">
+                <!-- Rate -->
                 <view class="ArcKnob" origin="8, 0" size="28, 28"
-                      control-tag="LFO1Rate" default-value="0.5"
+                      control-tag="ChaosRate" default-value="0.5"
                       arc-color="modulation" guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="2, 28" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Rate"/>
-            </view>
-            <!-- LFO1 Sync toggle -->
-            <view class="ToggleButton" origin="2, 54" size="40, 12"
-                  control-tag="LFO1Sync" default-value="1.0"
-                  title="Sync"
-                  on-color="modulation" off-color="toggle-off"
-                  font-size="9"/>
-
-            <!-- LFO1 Shape selector -->
-            <view class="LfoShapeSelector"
-                  origin="44, 14" size="36, 28"
-                  control-tag="LFO1Shape"
-                  lfo-color="modulation"
-                  min-value="0" max-value="1"/>
-            <view class="CTextLabel" origin="38, 42" size="48, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Shape"/>
-
-            <!-- LFO1 Depth -->
-            <view class="ArcKnob" origin="88, 14" size="28, 28"
-                  control-tag="LFO1Depth" default-value="0.5"
-                  arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="82, 42" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Depth"/>
-
-            <!-- LFO1 section label -->
-            <view class="CTextLabel" origin="8, 52" size="108, 10"
-                  font="~ NormalFontSmaller" font-color="modulation"
-                  text-alignment="center" transparent="true" title="LFO 1"/>
-
-            <!-- ======================================================== -->
-            <!-- T068-T070: LFO2 knobs (Row 2, y=64)                      -->
-            <!-- ======================================================== -->
-
-            <!-- LFO2 Rate (hidden when sync active) -->
-            <view class="CViewContainer" origin="0, 64" size="44, 38"
-                  custom-view-name="LFO2RateGroup" transparent="true">
-                <view class="ArcKnob" origin="8, 0" size="28, 28"
-                      control-tag="LFO2Rate" default-value="0.5"
-                      arc-color="modulation" guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="2, 28" size="40, 10"
+                <!-- Type dropdown (Lorenz/Rossler) -->
+                <view class="COptionMenu" origin="44, 4" size="60, 18"
+                      control-tag="ChaosType" default-value="0"
+                      font="~ NormalFontSmaller" font-color="text-primary"
+                      back-color="bg-dropdown" frame-color="frame-dropdown"
+                      round-rect-radius="3" frame-width="1"
+                      text-alignment="center" transparent="false"/>
+                <view class="CTextLabel" origin="44, 28" size="60, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Rate"/>
+                      text-alignment="center" transparent="true" title="Type"/>
+                <!-- Depth -->
+                <view class="ArcKnob" origin="114, 0" size="28, 28"
+                      control-tag="ChaosDepth" default-value="0.0"
+                      arc-color="modulation" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="108, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Depth"/>
             </view>
-            <!-- LFO2 Sync toggle -->
-            <view class="ToggleButton" origin="2, 104" size="40, 12"
-                  control-tag="LFO2Sync" default-value="1.0"
-                  title="Sync"
-                  on-color="modulation" off-color="toggle-off"
-                  font-size="9"/>
-
-            <!-- LFO2 Shape selector -->
-            <view class="LfoShapeSelector"
-                  origin="44, 64" size="36, 28"
-                  control-tag="LFO2Shape"
-                  lfo-color="modulation"
-                  min-value="0" max-value="1"/>
-            <view class="CTextLabel" origin="38, 92" size="48, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Shape"/>
-
-            <!-- LFO2 Depth -->
-            <view class="ArcKnob" origin="88, 64" size="28, 28"
-                  control-tag="LFO2Depth" default-value="0.5"
-                  arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="82, 92" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Depth"/>
-
-            <!-- T071: Chaos Rate -->
-            <view class="ArcKnob" origin="128, 64" size="28, 28"
-                  control-tag="ChaosRate" default-value="0.5"
-                  arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="122, 92" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Chaos"/>
-
-            <!-- LFO2 + Chaos section label -->
-            <view class="CTextLabel" origin="8, 102" size="158, 10"
-                  font="~ NormalFontSmaller" font-color="modulation"
-                  text-alignment="center" transparent="true" title="LFO 2 / Chaos"/>
 
             <!-- ======================================================== -->
             <!-- T072: CategoryTabBar (Global | Voice)                     -->

@@ -43,6 +43,14 @@ inline void registerChaosModParams(Steinberg::Vst::ParameterContainer& parameter
     ));
     parameters.addParameter(STR16("Chaos Depth"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kChaosModDepthId);
+
+    // UI-only: Mod source view mode tab (LFO1/LFO2/Chaos), ephemeral, not persisted
+    auto* modViewParam = new StringListParameter(
+        STR16("Mod Source View"), kModSourceViewModeTag);
+    modViewParam->appendString(STR16("LFO 1"));
+    modViewParam->appendString(STR16("LFO 2"));
+    modViewParam->appendString(STR16("Chaos"));
+    parameters.addParameter(modViewParam);
 }
 
 inline Steinberg::tresult formatChaosModParam(

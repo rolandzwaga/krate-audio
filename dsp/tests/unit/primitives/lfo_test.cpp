@@ -1360,3 +1360,256 @@ TEST_CASE("Rapid waveform changes remain click-free (SC-008)", "[lfo][SC-008][wa
     // Even with rapid changes, no clicks (large discontinuities)
     CHECK(maxDiff < 0.1f);
 }
+
+// ==============================================================================
+// Fade-In Tests
+// ==============================================================================
+
+TEST_CASE("LFO fade-in defaults to disabled", "[lfo][fadein]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    CHECK(lfo.fadeInTime() == 0.0f);
+}
+
+TEST_CASE("LFO fade-in setter/getter round-trips", "[lfo][fadein]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setFadeInTime(500.0f);
+    CHECK(lfo.fadeInTime() == 500.0f);
+    lfo.setFadeInTime(0.0f);
+    CHECK(lfo.fadeInTime() == 0.0f);
+}
+
+TEST_CASE("LFO fade-in ramps output from 0 to full after retrigger", "[lfo][fadein]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setWaveform(Waveform::Square);  // Constant +1 or -1
+    lfo.setFrequency(0.5f);            // Slow so we stay in positive half
+    lfo.setFadeInTime(100.0f);          // 100ms fade-in
+    lfo.setRetriggerEnabled(true);
+
+    // Process some samples to get into steady state
+    for (int i = 0; i < 100; ++i) (void)lfo.process();
+
+    // Retrigger — should reset fade-in
+    lfo.retrigger();
+
+    // First sample after retrigger should be near zero (faded in from 0)
+    float first = std::abs(lfo.process());
+    CHECK(first < 0.01f);
+
+    // After half the fade-in time (~2205 samples at 44100), should be ~50%
+    int halfFadeSamples = static_cast<int>(44100.0 * 0.05);  // 50ms
+    float sample = 0.0f;
+    for (int i = 0; i < halfFadeSamples; ++i) {
+        sample = lfo.process();
+    }
+    // Should be roughly 50% amplitude
+    CHECK(std::abs(sample) > 0.3f);
+    CHECK(std::abs(sample) < 0.7f);
+
+    // After full fade-in (100ms total), should be at full amplitude
+    for (int i = 0; i < halfFadeSamples + 100; ++i) {
+        sample = lfo.process();
+    }
+    CHECK(std::abs(sample) > 0.95f);
+}
+
+TEST_CASE("LFO fade-in disabled produces full output immediately", "[lfo][fadein]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setWaveform(Waveform::Square);
+    lfo.setFrequency(0.5f);
+    lfo.setFadeInTime(0.0f);  // Disabled
+    lfo.setRetriggerEnabled(true);
+    lfo.retrigger();
+
+    float first = std::abs(lfo.process());
+    CHECK(first > 0.95f);  // Full amplitude immediately
+}
+
+// ==============================================================================
+// Symmetry/Skew Tests
+// ==============================================================================
+
+TEST_CASE("LFO symmetry defaults to 0.5 (centered)", "[lfo][symmetry]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    CHECK(lfo.symmetry() == Approx(0.5f));
+}
+
+TEST_CASE("LFO symmetry setter/getter round-trips", "[lfo][symmetry]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setSymmetry(0.25f);
+    CHECK(lfo.symmetry() == Approx(0.25f));
+    lfo.setSymmetry(0.75f);
+    CHECK(lfo.symmetry() == Approx(0.75f));
+}
+
+TEST_CASE("LFO symmetry clamps to safe range", "[lfo][symmetry]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setSymmetry(0.0f);
+    CHECK(lfo.symmetry() > 0.0f);  // Clamped away from 0
+    lfo.setSymmetry(1.0f);
+    CHECK(lfo.symmetry() < 1.0f);  // Clamped away from 1
+}
+
+TEST_CASE("LFO symmetry at 0.5 produces same output as without", "[lfo][symmetry]") {
+    // Generate a sine cycle with default symmetry (0.5)
+    LFO lfo1;
+    lfo1.prepare(44100.0);
+    lfo1.setWaveform(Waveform::Sine);
+    lfo1.setFrequency(1.0f);
+    lfo1.setSymmetry(0.5f);
+
+    LFO lfo2;
+    lfo2.prepare(44100.0);
+    lfo2.setWaveform(Waveform::Sine);
+    lfo2.setFrequency(1.0f);
+    // Don't set symmetry — it defaults to 0.5
+
+    for (int i = 0; i < 1000; ++i) {
+        float s1 = lfo1.process();
+        float s2 = lfo2.process();
+        CHECK(s1 == Approx(s2).margin(0.001f));
+    }
+}
+
+TEST_CASE("LFO symmetry skews triangle waveform", "[lfo][symmetry]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setWaveform(Waveform::Triangle);
+    lfo.setFrequency(1.0f);
+    lfo.setSymmetry(0.25f);  // Rise in 25% of cycle, fall in 75%
+
+    // Generate one full cycle
+    int samplesPerCycle = 44100;
+    std::vector<float> output(static_cast<size_t>(samplesPerCycle));
+    for (int i = 0; i < samplesPerCycle; ++i) {
+        output[static_cast<size_t>(i)] = lfo.process();
+    }
+
+    // Find the peak position (where max value occurs)
+    auto maxIt = std::max_element(output.begin(), output.end());
+    size_t peakPos = static_cast<size_t>(std::distance(output.begin(), maxIt));
+    float peakRatio = static_cast<float>(peakPos) / static_cast<float>(samplesPerCycle);
+
+    // Peak should occur in the first half of the cycle (symmetry=0.25 compresses the rise)
+    // The warped phase reaches 0.5 (triangle peak) when raw phase = symmetry = 0.25,
+    // but the triangle wavetable peaks at phase 0.25 (quarter cycle), so the warped peak
+    // occurs at raw phase = 0.25 * 0.25/0.5 = 0.125
+    CHECK(peakRatio < 0.25f);  // Peak is significantly earlier than default (0.25)
+}
+
+TEST_CASE("LFO symmetry does not affect SampleHold waveform", "[lfo][symmetry]") {
+    LFO lfo1;
+    lfo1.prepare(44100.0);
+    lfo1.setWaveform(Waveform::SampleHold);
+    lfo1.setFrequency(2.0f);
+    lfo1.setSymmetry(0.1f);
+
+    LFO lfo2;
+    lfo2.prepare(44100.0);
+    lfo2.setWaveform(Waveform::SampleHold);
+    lfo2.setFrequency(2.0f);
+    // Default symmetry 0.5
+
+    // Both should produce identical output since S&H ignores symmetry
+    for (int i = 0; i < 500; ++i) {
+        float s1 = lfo1.process();
+        float s2 = lfo2.process();
+        CHECK(s1 == Approx(s2).margin(0.001f));
+    }
+}
+
+// ==============================================================================
+// Quantize Tests
+// ==============================================================================
+
+TEST_CASE("LFO quantize defaults to off", "[lfo][quantize]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    CHECK(lfo.quantizeSteps() == 0);
+}
+
+TEST_CASE("LFO quantize setter/getter round-trips", "[lfo][quantize]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setQuantizeSteps(4);
+    CHECK(lfo.quantizeSteps() == 4);
+    lfo.setQuantizeSteps(0);
+    CHECK(lfo.quantizeSteps() == 0);
+    lfo.setQuantizeSteps(16);
+    CHECK(lfo.quantizeSteps() == 16);
+}
+
+TEST_CASE("LFO quantize clamps out-of-range values", "[lfo][quantize]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setQuantizeSteps(1);   // Too low, treated as off
+    CHECK(lfo.quantizeSteps() == 0);
+    lfo.setQuantizeSteps(20);  // Clamped to 16
+    CHECK(lfo.quantizeSteps() == 16);
+}
+
+TEST_CASE("LFO quantize produces discrete output levels", "[lfo][quantize]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setWaveform(Waveform::Sine);
+    lfo.setFrequency(1.0f);
+    lfo.setQuantizeSteps(4);
+
+    // Generate one full cycle and collect unique output values
+    int samplesPerCycle = 44100;
+    std::vector<float> uniqueValues;
+
+    for (int i = 0; i < samplesPerCycle; ++i) {
+        float sample = lfo.process();
+        bool found = false;
+        for (float uv : uniqueValues) {
+            if (std::abs(sample - uv) < 0.001f) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            uniqueValues.push_back(sample);
+        }
+    }
+
+    // With 4 steps, output = round(x * 4) / 4
+    // Possible values: -1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0
+    // (at most 2*steps+1 = 9 values)
+    INFO("Unique values: " << uniqueValues.size());
+    CHECK(uniqueValues.size() <= 2u * 4u + 1u);
+    CHECK(uniqueValues.size() >= 3u);  // Should have at least a few discrete levels
+}
+
+TEST_CASE("LFO quantize off produces continuous output", "[lfo][quantize]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setWaveform(Waveform::Sine);
+    lfo.setFrequency(1.0f);
+    lfo.setQuantizeSteps(0);  // Off
+
+    // Collect many samples, expect lots of unique values
+    std::vector<float> uniqueValues;
+    for (int i = 0; i < 1000; ++i) {
+        float sample = lfo.process();
+        bool found = false;
+        for (float uv : uniqueValues) {
+            if (std::abs(sample - uv) < 0.0001f) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            uniqueValues.push_back(sample);
+        }
+    }
+
+    // Should have many unique values (continuous)
+    CHECK(uniqueValues.size() > 100u);
+}

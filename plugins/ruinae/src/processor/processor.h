@@ -61,7 +61,9 @@ namespace Ruinae {
 // v8: Removed freeze effect from effects chain
 // v9: Added type-specific delay parameters (51 new params)
 // v10: Added FX enable parameters (delay/reverb on/off)
-constexpr Steinberg::int32 kCurrentStateVersion = 11;
+// v11: Added phaser params + enable flag
+// v12: Extended LFO params (phase offset, retrigger, note value, unipolar, fade-in, symmetry, quantize)
+constexpr Steinberg::int32 kCurrentStateVersion = 12;
 
 // ==============================================================================
 // Processor Class

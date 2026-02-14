@@ -1277,3 +1277,196 @@ TEST_CASE("RuinaeEngine regression: mod route smoothing damps rapid modulation",
     // Smoothed should have notably less variation
     REQUIRE(variationSmoothed < variationNoSmooth * 0.8f);
 }
+
+// =============================================================================
+// Regression: AllVoiceFilterCutoff modulation uses linear Hz scaling (BUG)
+// =============================================================================
+// The AllVoiceFilterCutoff modulation in processBlockPoly/Mono uses:
+//   voiceFilterCutoffHz_ + offset * 10000.0f
+//
+// This LINEAR Hz addition is wrong for filter cutoff. With base=1000Hz:
+//   offset +1.0 → 1000 + 10000 = 11000 Hz (bright, audible)
+//   offset -1.0 → 1000 - 10000 = -9000 → clamped to 20 Hz (SILENCE)
+//
+// The correct approach (used by per-voice filter modulation) is EXPONENTIAL:
+//   filterCutoffHz_ * semitonesToRatio(semitones)
+// which preserves perceptual symmetry:
+//   +48 semitones → 1000 * 2^4 = 16000 Hz (bright)
+//   -48 semitones → 1000 * 2^-4 = 62.5 Hz (dark, but audible)
+//
+// User report: "LFO1 → AllVoiceFilterCutoff sounds like volume fading,
+// not like a filter cutoff being modulated. +1.00 and -1.00 sound the same."
+// =============================================================================
+
+TEST_CASE("RuinaeEngine regression: AllVoice filter cutoff negative modulation "
+          "should not silence the signal",
+          "[ruinae-engine-integration][modulation][regression][allvoice-cutoff]") {
+
+    // Strategy: Use Macro1 as a DC source (value=1.0) routed to
+    // AllVoiceFilterCutoff. Test that both positive and negative amounts
+    // produce audible output (RMS above silence threshold).
+    //
+    // With the linear Hz bug:
+    //   amount +1.0 → offset +1.0 → cutoff 11000 Hz → audible
+    //   amount -1.0 → offset -1.0 → cutoff 20 Hz → near-silent (BUG)
+    //
+    // With correct exponential scaling:
+    //   amount +1.0 → cutoff ~16000 Hz → audible (bright)
+    //   amount -1.0 → cutoff ~62 Hz → audible (dark, muffled)
+
+    constexpr size_t kBlock = 512;
+    constexpr int kMeasureBlocks = 30;
+    constexpr float kSilenceThreshold = 0.0001f;
+
+    auto measureRmsWithAmount = [&](float amount) -> float {
+        RuinaeEngine engine;
+        engine.prepare(44100.0, kBlock);
+        engine.setSoftLimitEnabled(false);
+
+        // Use lowpass filter so cutoff changes are audible
+        engine.setFilterType(RuinaeFilterType::SVF_LP);
+        engine.setFilterCutoff(1000.0f);  // Base cutoff at 1 kHz
+        engine.setFilterResonance(0.707f);
+
+        // Disable effects to isolate voice filter behavior
+        engine.setDelayMix(0.0f);
+        engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f,
+                                .width = 1.0f, .mix = 0.0f});
+
+        // Use Macro1 as a DC source at full value
+        engine.setMacroValue(0, 1.0f);
+        engine.setGlobalModRoute(0, ModSource::Macro1,
+                                 RuinaeModDest::AllVoiceFilterCutoff, amount,
+                                 ModCurve::Linear, 1.0f, false);
+
+        engine.noteOn(60, 100);
+
+        // Process blocks and measure RMS (skip first few for warm-up)
+        std::vector<float> left(kBlock), right(kBlock);
+        float totalRms = 0.0f;
+        int rmsBlocks = 0;
+        for (int i = 0; i < kMeasureBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlock);
+            if (i >= 5) {  // Skip warm-up blocks
+                totalRms += computeRMS(left.data(), kBlock);
+                rmsBlocks++;
+            }
+        }
+        return (rmsBlocks > 0) ? totalRms / static_cast<float>(rmsBlocks) : 0.0f;
+    };
+
+    float rmsPositive = measureRmsWithAmount(+1.0f);
+    float rmsNegative = measureRmsWithAmount(-1.0f);
+    float rmsNoMod    = measureRmsWithAmount(0.0f);
+
+    INFO("RMS with amount +1.0 (high cutoff): " << rmsPositive);
+    INFO("RMS with amount -1.0 (low cutoff):  " << rmsNegative);
+    INFO("RMS with amount  0.0 (no mod):      " << rmsNoMod);
+
+    SECTION("positive modulation produces audible output") {
+        REQUIRE(rmsPositive > kSilenceThreshold);
+    }
+
+    SECTION("negative modulation should ALSO produce audible output") {
+        // This is the key assertion that exposes the bug.
+        // With linear Hz scaling, -1.0 clamps cutoff to 20Hz → near-silence.
+        // With exponential scaling, -1.0 gives ~62Hz → still audible (dark).
+        REQUIRE(rmsNegative > kSilenceThreshold);
+    }
+
+    SECTION("negative and positive amounts should have comparable amplitude") {
+        // Both should produce audible signal. The negative case will be
+        // quieter (4-octave down = 62.5 Hz lowpass on a 261 Hz note),
+        // but not by more than ~30dB (ratio < 32:1).
+        // With the linear Hz bug, the ratio was ~170:1 (effectively infinite).
+        if (rmsPositive > kSilenceThreshold && rmsNegative > kSilenceThreshold) {
+            float ratio = rmsPositive / rmsNegative;
+            INFO("Amplitude ratio (+1/-1): " << ratio);
+            REQUIRE(ratio < 32.0f);
+        }
+    }
+}
+
+TEST_CASE("RuinaeEngine regression: AllVoice filter cutoff LFO modulation "
+          "should produce tonal sweep, not volume gating",
+          "[ruinae-engine-integration][modulation][regression][allvoice-cutoff]") {
+
+    // Strategy: Route a slow LFO sine to AllVoiceFilterCutoff.
+    // Measure per-block RMS over a full LFO cycle.
+    //
+    // With the linear Hz bug:
+    //   LFO trough → cutoff 20Hz → near-silent blocks (RMS ≈ 0)
+    //   This means the minimum RMS approaches zero (volume gating).
+    //
+    // With correct exponential scaling:
+    //   LFO trough → cutoff ~62Hz → audible but dark
+    //   The minimum RMS should stay well above silence.
+
+    constexpr size_t kBlock = 512;
+    constexpr float kSampleRate = 44100.0f;
+
+    RuinaeEngine engine;
+    engine.prepare(kSampleRate, kBlock);
+    engine.setSoftLimitEnabled(false);
+
+    // Voice filter: lowpass at 1 kHz
+    engine.setFilterType(RuinaeFilterType::SVF_LP);
+    engine.setFilterCutoff(1000.0f);
+    engine.setFilterResonance(0.707f);
+
+    // Disable effects
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f,
+                            .width = 1.0f, .mix = 0.0f});
+
+    // Slow LFO sine at 1 Hz → one full cycle in ~86 blocks at 512 samples
+    engine.setGlobalLFO1Rate(1.0f);
+    engine.setGlobalLFO1Waveform(Waveform::Sine);
+    engine.setGlobalModRoute(0, ModSource::LFO1,
+                             RuinaeModDest::AllVoiceFilterCutoff, 1.0f,
+                             ModCurve::Linear, 1.0f, false);
+
+    engine.noteOn(60, 100);
+
+    // Process enough blocks for a full LFO cycle plus warm-up
+    constexpr int kTotalBlocks = 120;
+    std::vector<float> left(kBlock), right(kBlock);
+    std::vector<float> perBlockRms;
+
+    for (int i = 0; i < kTotalBlocks; ++i) {
+        engine.processBlock(left.data(), right.data(), kBlock);
+        float rms = computeRMS(left.data(), kBlock);
+        if (i >= 10) {  // Skip warm-up
+            perBlockRms.push_back(rms);
+        }
+    }
+
+    REQUIRE(!perBlockRms.empty());
+
+    float minRms = *std::min_element(perBlockRms.begin(), perBlockRms.end());
+    float maxRms = *std::max_element(perBlockRms.begin(), perBlockRms.end());
+    float rmsVariation = (minRms > 0.0f) ? maxRms / minRms : 1000.0f;
+
+    INFO("Per-block RMS min: " << minRms);
+    INFO("Per-block RMS max: " << maxRms);
+    INFO("RMS variation ratio: " << rmsVariation);
+
+    SECTION("modulated filter cutoff produces tonal variation") {
+        // There should be SOME RMS variation from the filter sweep
+        REQUIRE(rmsVariation > 1.5f);
+    }
+
+    SECTION("minimum RMS should be well above silence (filter stays audible)") {
+        // With the linear bug, the LFO trough drives cutoff to 20Hz
+        // which makes minRms approach 0.
+        // With exponential scaling, the trough is ~62Hz → still audible.
+        REQUIRE(minRms > 0.001f);
+    }
+
+    SECTION("RMS variation should be moderate, not extreme volume gating") {
+        // A filter sweep should cause moderate tonal variation (maybe 3:1 to 6:1
+        // RMS ratio), NOT extreme volume gating (100:1+).
+        // With the linear bug, the ratio is extreme because the signal goes silent.
+        REQUIRE(rmsVariation < 20.0f);
+    }
+}

@@ -27,6 +27,7 @@
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/modulation_types.h>
+#include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/sigmoid.h>
 
 // Layer 1
@@ -384,6 +385,28 @@ public:
     void setGlobalLFO2Waveform(Waveform shape) noexcept { globalModEngine_.setLFO2Waveform(shape); }
     void setGlobalLFO1TempoSync(bool enabled) noexcept { globalModEngine_.setLFO1TempoSync(enabled); }
     void setGlobalLFO2TempoSync(bool enabled) noexcept { globalModEngine_.setLFO2TempoSync(enabled); }
+
+    // LFO 1 extended params
+    void setGlobalLFO1PhaseOffset(float degrees) noexcept { globalModEngine_.setLFO1PhaseOffset(degrees); }
+    void setGlobalLFO1Retrigger(bool enabled) noexcept { globalModEngine_.setLFO1Retrigger(enabled); }
+    void setGlobalLFO1NoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept {
+        globalModEngine_.setLFO1NoteValue(value, modifier);
+    }
+    void setGlobalLFO1Unipolar(bool enabled) noexcept { globalModEngine_.setLFO1Unipolar(enabled); }
+    void setGlobalLFO1FadeIn(float ms) noexcept { globalModEngine_.setLFO1FadeIn(ms); }
+    void setGlobalLFO1Symmetry(float value) noexcept { globalModEngine_.setLFO1Symmetry(value); }
+    void setGlobalLFO1Quantize(int steps) noexcept { globalModEngine_.setLFO1Quantize(steps); }
+
+    // LFO 2 extended params
+    void setGlobalLFO2PhaseOffset(float degrees) noexcept { globalModEngine_.setLFO2PhaseOffset(degrees); }
+    void setGlobalLFO2Retrigger(bool enabled) noexcept { globalModEngine_.setLFO2Retrigger(enabled); }
+    void setGlobalLFO2NoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept {
+        globalModEngine_.setLFO2NoteValue(value, modifier);
+    }
+    void setGlobalLFO2Unipolar(bool enabled) noexcept { globalModEngine_.setLFO2Unipolar(enabled); }
+    void setGlobalLFO2FadeIn(float ms) noexcept { globalModEngine_.setLFO2FadeIn(ms); }
+    void setGlobalLFO2Symmetry(float value) noexcept { globalModEngine_.setLFO2Symmetry(value); }
+    void setGlobalLFO2Quantize(int steps) noexcept { globalModEngine_.setLFO2Quantize(steps); }
     void setChaosSpeed(float speed) noexcept { globalModEngine_.setChaosSpeed(speed); }
     void setChaosModel(ChaosModel model) noexcept { globalModEngine_.setChaosModel(model); }
 
@@ -617,9 +640,10 @@ public:
             static_cast<uint32_t>(RuinaeModDest::AllVoiceSpectralTilt));
 
         // Step 5: Apply global modulation to engine-level params
-        // Global filter: two-stage clamping (FR-021)
+        // Global filter: exponential semitone scaling (±48 semitones = ±4 octaves)
+        constexpr float kFilterModSemitones = 48.0f;
         const float modulatedCutoff = std::clamp(
-            globalFilterCutoffHz_ + cutoffOffset * 10000.0f,
+            globalFilterCutoffHz_ * semitonesToRatio(cutoffOffset * kFilterModSemitones),
             20.0f, 20000.0f);
         globalFilterL_.setCutoff(modulatedCutoff);
         globalFilterR_.setCutoff(modulatedCutoff);
@@ -1448,12 +1472,15 @@ private:
         }
 
         // Step 7c: Forward AllVoice modulation offsets (FR-021)
-        // Two-stage clamping: clamp(clamp(base + perVoice, min, max) + global, min, max)
+        // Exponential semitone scaling: cutoff * 2^(offset * 48 / 12)
+        // ±1.0 offset = ±48 semitones (4 octaves), perceptually symmetric.
         // Per-voice modulation is handled internally by each voice;
         // the global offset shifts the base value for all voices.
         if (allVoiceFilterCutoffOffset != 0.0f) {
+            constexpr float kFilterModSemitones = 48.0f;
             float modCutoff = std::clamp(
-                voiceFilterCutoffHz_ + allVoiceFilterCutoffOffset * 10000.0f,
+                voiceFilterCutoffHz_ * semitonesToRatio(
+                    allVoiceFilterCutoffOffset * kFilterModSemitones),
                 20.0f, 20000.0f);
             for (size_t i = 0; i < polyphonyCount_; ++i) {
                 voices_[i].setFilterCutoff(modCutoff);
@@ -1527,9 +1554,12 @@ private:
                           float allVoiceTranceGateOffset,
                           float allVoiceTiltOffset) noexcept {
         // Forward AllVoice modulation offsets to voice 0 (FR-021)
+        // Exponential semitone scaling (same as poly path)
         if (allVoiceFilterCutoffOffset != 0.0f) {
+            constexpr float kFilterModSemitones = 48.0f;
             float modCutoff = std::clamp(
-                voiceFilterCutoffHz_ + allVoiceFilterCutoffOffset * 10000.0f,
+                voiceFilterCutoffHz_ * semitonesToRatio(
+                    allVoiceFilterCutoffOffset * kFilterModSemitones),
                 20.0f, 20000.0f);
             voices_[0].setFilterCutoff(modCutoff);
         }

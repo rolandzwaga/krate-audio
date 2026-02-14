@@ -38,6 +38,7 @@
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
 
+#include <cmath>
 #include <cstring>
 
 namespace Ruinae {
@@ -248,6 +249,12 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             Steinberg::int8 i8 = 0;
             if (streamer.readInt8(i8))
                 setParam(kPhaserEnabledId, i8 != 0 ? 1.0 : 0.0);
+        }
+
+        // v12: Extended LFO params
+        if (version >= 12) {
+            loadLFO1ExtendedParamsToController(streamer, setParam);
+            loadLFO2ExtendedParamsToController(streamer, setParam);
         }
     }
     // Unknown versions (v0 or negative): keep defaults (fail closed)
@@ -500,11 +507,23 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
-    // Toggle LFO Rate knob visibility based on sync state
-    if (tag == kLFO1SyncId && lfo1RateGroup_)
-        lfo1RateGroup_->setVisible(value < 0.5);
-    if (tag == kLFO2SyncId && lfo2RateGroup_)
-        lfo2RateGroup_->setVisible(value < 0.5);
+    // Toggle mod source view (LFO1 / LFO2 / Chaos) based on segment button
+    if (tag == kModSourceViewModeTag) {
+        int sel = static_cast<int>(std::round(value * 2.0));
+        if (modLFO1View_)  modLFO1View_->setVisible(sel == 0);
+        if (modLFO2View_)  modLFO2View_->setVisible(sel == 1);
+        if (modChaosView_) modChaosView_->setVisible(sel == 2);
+    }
+
+    // Toggle LFO Rate/NoteValue visibility based on sync state
+    if (tag == kLFO1SyncId) {
+        if (lfo1RateGroup_) lfo1RateGroup_->setVisible(value < 0.5);
+        if (lfo1NoteValueGroup_) lfo1NoteValueGroup_->setVisible(value >= 0.5);
+    }
+    if (tag == kLFO2SyncId) {
+        if (lfo2RateGroup_) lfo2RateGroup_->setVisible(value < 0.5);
+        if (lfo2NoteValueGroup_) lfo2NoteValueGroup_->setVisible(value >= 0.5);
+    }
 
     // Toggle Delay Time/NoteValue visibility based on sync state
     if (tag == kDelaySyncId) {
@@ -582,6 +601,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         euclideanRegenButton_ = nullptr;
         lfo1RateGroup_ = nullptr;
         lfo2RateGroup_ = nullptr;
+        lfo1NoteValueGroup_ = nullptr;
+        lfo2NoteValueGroup_ = nullptr;
         delayTimeGroup_ = nullptr;
         delayNoteValueGroup_ = nullptr;
         phaserRateGroup_ = nullptr;
@@ -794,6 +815,23 @@ VSTGUI::CView* Controller::verifyView(
                 fxDetailPhaser_ = container;
                 container->setVisible(false);
             }
+            // Mod source view containers (switched by segment button)
+            else if (*name == "ModLFO1View") {
+                modLFO1View_ = container;
+                auto* viewParam = getParameterObject(kModSourceViewModeTag);
+                int sel = viewParam ? static_cast<int>(std::round(viewParam->getNormalized() * 2.0)) : 0;
+                container->setVisible(sel == 0);
+            } else if (*name == "ModLFO2View") {
+                modLFO2View_ = container;
+                auto* viewParam = getParameterObject(kModSourceViewModeTag);
+                int sel = viewParam ? static_cast<int>(std::round(viewParam->getNormalized() * 2.0)) : 0;
+                container->setVisible(sel == 1);
+            } else if (*name == "ModChaosView") {
+                modChaosView_ = container;
+                auto* viewParam = getParameterObject(kModSourceViewModeTag);
+                int sel = viewParam ? static_cast<int>(std::round(viewParam->getNormalized() * 2.0)) : 0;
+                container->setVisible(sel == 2);
+            }
             // LFO Rate groups (hidden when tempo sync is active)
             else if (*name == "LFO1RateGroup") {
                 lfo1RateGroup_ = container;
@@ -805,6 +843,18 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kLFO2SyncId);
                 bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
+            }
+            // LFO Note Value groups (visible when tempo sync is active)
+            else if (*name == "LFO1NoteValueGroup") {
+                lfo1NoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kLFO1SyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
+            } else if (*name == "LFO2NoteValueGroup") {
+                lfo2NoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kLFO2SyncId);
+                bool syncOn = syncParam && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
             }
             // Delay Time/NoteValue groups (toggled by sync state)
             else if (*name == "DelayTimeGroup") {

@@ -1,9 +1,10 @@
 #pragma once
 
 // ==============================================================================
-// IconSegmentButton - Compact Segment Button with Vector Icons and Tooltips
+// IconSegmentButton - Compact Segment Button with Vector Icons/Text and Tooltips
 // ==============================================================================
-// A CControl segment button that displays named vector icons instead of text.
+// A CControl segment button that displays named vector icons or text labels.
+// When a segment has no icon name, its name is drawn as centered text.
 // Segment names appear as tooltips on hover.
 //
 // Value mapping (same as CSegmentButton):
@@ -23,6 +24,7 @@
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
+#include "vstgui/lib/cfont.h"
 #include "vstgui/lib/cframe.h"
 #include "vstgui/uidescription/iviewcreator.h"
 #include "vstgui/uidescription/uiviewfactory.h"
@@ -77,6 +79,7 @@ public:
         , roundRadius_(other.roundRadius_)
         , iconSize_(other.iconSize_)
         , strokeWidth_(other.strokeWidth_)
+        , textFontSize_(other.textFontSize_)
         , hoverSegment_(kNoSegment) {}
 
     CLASS_METHODS(IconSegmentButton, CControl)
@@ -140,6 +143,9 @@ public:
     void setStrokeWidth(double w) { strokeWidth_ = w; setDirty(); }
     [[nodiscard]] double getStrokeWidth() const { return strokeWidth_; }
 
+    void setTextFontSize(double s) { textFontSize_ = s; setDirty(); }
+    [[nodiscard]] double getTextFontSize() const { return textFontSize_; }
+
     // =========================================================================
     // Selected Segment
     // =========================================================================
@@ -184,11 +190,12 @@ public:
         if (selected < segments_.size())
             drawSelectedHighlight(context, segments_[selected].rect, selected);
 
-        // Icons
+        // Icons / Text
         for (uint32_t i = 0; i < static_cast<uint32_t>(segments_.size()); ++i) {
             bool isSel = (i == selected);
             VSTGUI::CColor iconColor = isSel ? selectedColor_ : unselectedColor_;
-            drawIcon(context, segments_[i].rect, segments_[i].iconName, iconColor);
+            drawIcon(context, segments_[i].rect, segments_[i].iconName,
+                     iconColor, segments_[i].name);
         }
 
         // Frame
@@ -349,11 +356,14 @@ private:
     void drawIcon(VSTGUI::CDrawContext* context,
                   const VSTGUI::CRect& segRect,
                   const std::string& iconName,
-                  const VSTGUI::CColor& color) const {
+                  const VSTGUI::CColor& color,
+                  const std::string& segName = {}) const {
         if (iconName == "gear")
             drawGearIcon(context, segRect, color);
         else if (iconName == "funnel")
             drawFunnelIcon(context, segRect, color);
+        else if (iconName.empty() && !segName.empty())
+            drawTextLabel(context, segRect, segName, color);
         else
             drawFallbackDot(context, segRect, color);
     }
@@ -447,6 +457,19 @@ private:
 
         context->setFillColor(color);
         context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+    }
+
+    void drawTextLabel(VSTGUI::CDrawContext* context,
+                       const VSTGUI::CRect& segRect,
+                       const std::string& text,
+                       const VSTGUI::CColor& color) const {
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>(
+            "Helvetica", static_cast<VSTGUI::CCoord>(textFontSize_));
+        context->setFont(font);
+        context->setFontColor(color);
+        context->drawString(
+            VSTGUI::UTF8String(text).getPlatformString(), segRect,
+            VSTGUI::kCenterText);
     }
 
     void drawFallbackDot(VSTGUI::CDrawContext* context,
@@ -579,6 +602,7 @@ private:
     double roundRadius_ = 3.0;
     float iconSize_ = 0.55f;
     double strokeWidth_ = 1.5;
+    double textFontSize_ = 9.0;
     uint32_t hoverSegment_ = kNoSegment;
     bool inValueChanged_ = false;
 };
@@ -645,6 +669,8 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
             btn->setIconSize(static_cast<float>(d));
         if (attributes.getDoubleAttribute("stroke-width", d))
             btn->setStrokeWidth(d);
+        if (attributes.getDoubleAttribute("font-size", d))
+            btn->setTextFontSize(d);
 
         return true;
     }
@@ -660,6 +686,7 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
         attributeNames.emplace_back("round-radius");
         attributeNames.emplace_back("icon-size");
         attributeNames.emplace_back("stroke-width");
+        attributeNames.emplace_back("font-size");
         return true;
     }
 
@@ -674,6 +701,7 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "round-radius") return kFloatType;
         if (attributeName == "icon-size") return kFloatType;
         if (attributeName == "stroke-width") return kFloatType;
+        if (attributeName == "font-size") return kFloatType;
         return kUnknownType;
     }
 
@@ -726,6 +754,11 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "stroke-width") {
             stringValue = VSTGUI::UIAttributes::doubleToString(
                 btn->getStrokeWidth());
+            return true;
+        }
+        if (attributeName == "font-size") {
+            stringValue = VSTGUI::UIAttributes::doubleToString(
+                btn->getTextFontSize());
             return true;
         }
         return false;

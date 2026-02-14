@@ -392,6 +392,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     savePhaserParams(phaserParams_, streamer);
     streamer.writeInt8(phaserEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
 
+    // v12: Extended LFO params
+    saveLFO1ExtendedParams(lfo1Params_, streamer);
+    saveLFO2ExtendedParams(lfo2Params_, streamer);
+
     return Steinberg::kResultTrue;
 }
 
@@ -509,6 +513,12 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             Steinberg::int8 i8 = 0;
             if (streamer.readInt8(i8))
                 phaserEnabled_.store(i8 != 0, std::memory_order_relaxed);
+        }
+
+        // v12: Extended LFO params
+        if (version >= 12) {
+            loadLFO1ExtendedParams(lfo1Params_, streamer);
+            loadLFO2ExtendedParams(lfo2Params_, streamer);
         }
     }
     // Unknown future versions (v0 or negative): keep safe defaults
@@ -743,12 +753,34 @@ void Processor::applyParamsToEngine() {
     engine_.setGlobalLFO1Waveform(static_cast<Waveform>(
         lfo1Params_.shape.load(std::memory_order_relaxed)));
     engine_.setGlobalLFO1TempoSync(lfo1Params_.sync.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO1PhaseOffset(lfo1Params_.phaseOffset.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO1Retrigger(lfo1Params_.retrigger.load(std::memory_order_relaxed));
+    {
+        auto mapping = getNoteValueFromDropdown(
+            lfo1Params_.noteValue.load(std::memory_order_relaxed));
+        engine_.setGlobalLFO1NoteValue(mapping.note, mapping.modifier);
+    }
+    engine_.setGlobalLFO1Unipolar(lfo1Params_.unipolar.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO1FadeIn(lfo1Params_.fadeInMs.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO1Symmetry(lfo1Params_.symmetry.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO1Quantize(lfo1Params_.quantizeSteps.load(std::memory_order_relaxed));
 
     // --- LFO 2 ---
     engine_.setGlobalLFO2Rate(lfo2Params_.rateHz.load(std::memory_order_relaxed));
     engine_.setGlobalLFO2Waveform(static_cast<Waveform>(
         lfo2Params_.shape.load(std::memory_order_relaxed)));
     engine_.setGlobalLFO2TempoSync(lfo2Params_.sync.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO2PhaseOffset(lfo2Params_.phaseOffset.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO2Retrigger(lfo2Params_.retrigger.load(std::memory_order_relaxed));
+    {
+        auto mapping = getNoteValueFromDropdown(
+            lfo2Params_.noteValue.load(std::memory_order_relaxed));
+        engine_.setGlobalLFO2NoteValue(mapping.note, mapping.modifier);
+    }
+    engine_.setGlobalLFO2Unipolar(lfo2Params_.unipolar.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO2FadeIn(lfo2Params_.fadeInMs.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO2Symmetry(lfo2Params_.symmetry.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO2Quantize(lfo2Params_.quantizeSteps.load(std::memory_order_relaxed));
 
     // --- Chaos Mod ---
     engine_.setChaosSpeed(chaosModParams_.rateHz.load(std::memory_order_relaxed));

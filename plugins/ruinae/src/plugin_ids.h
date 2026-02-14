@@ -311,6 +311,13 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kLFO1ShapeId = 1001,       // Sine/Tri/Saw/Sq/S&H/SmoothRandom
     kLFO1DepthId = 1002,       // 0-1
     kLFO1SyncId = 1003,        // on/off
+    kLFO1PhaseOffsetId = 1004, // 0-360 degrees
+    kLFO1RetriggerId = 1005,   // on/off
+    kLFO1NoteValueId = 1006,   // note value dropdown (21 entries)
+    kLFO1UnipolarId = 1007,    // bipolar/unipolar toggle
+    kLFO1FadeInId = 1008,      // 0-5000 ms fade-in time
+    kLFO1SymmetryId = 1009,    // 0-100% waveform skew
+    kLFO1QuantizeId = 1010,    // 0=off, 2-16 steps
     kLFO1EndId = 1099,
 
     // ==========================================================================
@@ -321,6 +328,13 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kLFO2ShapeId = 1101,
     kLFO2DepthId = 1102,
     kLFO2SyncId = 1103,
+    kLFO2PhaseOffsetId = 1104,
+    kLFO2RetriggerId = 1105,
+    kLFO2NoteValueId = 1106,
+    kLFO2UnipolarId = 1107,
+    kLFO2FadeInId = 1108,
+    kLFO2SymmetryId = 1109,
+    kLFO2QuantizeId = 1110,
     kLFO2EndId = 1199,
 
     // ==========================================================================
@@ -566,6 +580,9 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // Phaser FX Detail Panel Expand/Collapse Chevron (UI-only)
     kActionFxExpandPhaserTag = 10018,
+
+    // Modulation Source View Mode Tab (UI-only, ephemeral - not saved with state)
+    kModSourceViewModeTag = 10019,
 };
 
 // ==============================================================================

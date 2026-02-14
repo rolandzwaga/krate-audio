@@ -215,6 +215,14 @@ private:
     /// LFO Rate groups - hidden when tempo sync is active
     VSTGUI::CView* lfo1RateGroup_ = nullptr;
     VSTGUI::CView* lfo2RateGroup_ = nullptr;
+    /// LFO Note Value groups - visible when tempo sync is active
+    VSTGUI::CView* lfo1NoteValueGroup_ = nullptr;
+    VSTGUI::CView* lfo2NoteValueGroup_ = nullptr;
+
+    /// Mod source view containers - switched by ModSourceViewMode segment button
+    VSTGUI::CView* modLFO1View_ = nullptr;
+    VSTGUI::CView* modLFO2View_ = nullptr;
+    VSTGUI::CView* modChaosView_ = nullptr;
 
     /// Delay Time/NoteValue groups - toggled by sync state
     VSTGUI::CView* delayTimeGroup_ = nullptr;

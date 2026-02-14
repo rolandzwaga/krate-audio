@@ -100,6 +100,8 @@ public:
         // Reset crossfade state
         crossfadeProgress_ = 1.0f;  // Not crossfading
         hasProcessed_ = false;      // Allow immediate waveform changes after reset
+        // Reset fade-in (start at full gain, retrigger will reset to 0)
+        fadeInGain_ = 1.0f;
     }
 
     // =========================================================================
@@ -113,10 +115,19 @@ public:
         // Calculate effective phase including offset
         double effectivePhase = wrapPhase(phaseAcc_.phase + phaseOffsetNorm_);
 
+        // Apply symmetry/skew to wavetable-based waveforms
+        double lookupPhase = effectivePhase;
+        if (symmetry_ != 0.5f &&
+            waveform_ != Waveform::SampleHold &&
+            waveform_ != Waveform::SmoothRandom) {
+            lookupPhase = static_cast<double>(
+                applySymmetry(static_cast<float>(effectivePhase), symmetry_));
+        }
+
         float output = 0.0f;
 
         // Get current waveform value
-        float newValue = getWaveformValue(waveform_, effectivePhase, false);
+        float newValue = getWaveformValue(waveform_, lookupPhase, false);
 
         // Handle crossfading between waveforms
         if (crossfadeProgress_ < 1.0f) {
@@ -130,6 +141,18 @@ public:
             }
         } else {
             output = newValue;
+        }
+
+        // Apply quantization
+        if (quantizeSteps_ >= 2) {
+            float steps = static_cast<float>(quantizeSteps_);
+            output = std::round(output * steps) / steps;
+        }
+
+        // Apply fade-in envelope
+        if (fadeInGain_ < 1.0f) {
+            output *= fadeInGain_;
+            fadeInGain_ = std::min(1.0f, fadeInGain_ + fadeInIncrement_);
         }
 
         // Advance phase
@@ -250,12 +273,35 @@ public:
                 previousRandom_ = currentRandom_;
                 targetRandom_ = nextRandomValue();
             }
+            // Reset fade-in envelope
+            if (fadeInTimeMs_ > 0.0f) {
+                fadeInGain_ = 0.0f;
+            }
         }
     }
 
     /// @brief Enable or disable retrigger functionality.
     void setRetriggerEnabled(bool enabled) noexcept {
         retriggerEnabled_ = enabled;
+    }
+
+    /// @brief Set the fade-in time after retrigger.
+    /// @param ms Time in milliseconds for LFO depth to ramp from 0 to full (0 = disabled)
+    void setFadeInTime(float ms) noexcept {
+        fadeInTimeMs_ = std::max(0.0f, ms);
+        updateFadeInIncrement();
+    }
+
+    /// @brief Set the symmetry/skew of the LFO waveform.
+    /// @param value 0.0-1.0 where 0.5 = no skew (centered). Affects Sine/Tri/Saw/Square.
+    void setSymmetry(float value) noexcept {
+        symmetry_ = std::clamp(value, 0.001f, 0.999f);
+    }
+
+    /// @brief Set the number of quantization steps for the LFO output.
+    /// @param steps 0 = off (continuous), 2-16 = quantize to discrete levels
+    void setQuantizeSteps(int steps) noexcept {
+        quantizeSteps_ = (steps < 2) ? 0 : std::min(steps, 16);
     }
 
     // =========================================================================
@@ -300,6 +346,15 @@ public:
     [[nodiscard]] NoteModifier noteModifier() const noexcept {
         return noteModifier_;
     }
+
+    /// @brief Get the current fade-in time.
+    [[nodiscard]] float fadeInTime() const noexcept { return fadeInTimeMs_; }
+
+    /// @brief Get the current symmetry value.
+    [[nodiscard]] float symmetry() const noexcept { return symmetry_; }
+
+    /// @brief Get the current quantize steps (0 = off).
+    [[nodiscard]] int quantizeSteps() const noexcept { return quantizeSteps_; }
 
 private:
     // =========================================================================
@@ -433,6 +488,27 @@ private:
         crossfadeIncrement_ = 1.0f / crossfadeSamples;
     }
 
+    /// @brief Update the fade-in increment based on current sample rate and time.
+    void updateFadeInIncrement() noexcept {
+        if (fadeInTimeMs_ <= 0.0f || sampleRate_ <= 0.0) {
+            fadeInIncrement_ = 1.0f;  // instant (no fade)
+        } else {
+            float fadeInSamples = static_cast<float>(sampleRate_) * fadeInTimeMs_ / 1000.0f;
+            fadeInIncrement_ = 1.0f / fadeInSamples;
+        }
+    }
+
+    /// @brief Apply symmetry/skew warping to phase.
+    /// @param phase Raw phase in [0, 1)
+    /// @return Warped phase in [0, 1)
+    [[nodiscard]] static float applySymmetry(float phase, float symmetry) noexcept {
+        if (phase < symmetry) {
+            return 0.5f * (phase / symmetry);
+        } else {
+            return 0.5f + 0.5f * ((phase - symmetry) / (1.0f - symmetry));
+        }
+    }
+
     // =========================================================================
     // State Variables
     // =========================================================================
@@ -476,6 +552,17 @@ private:
     float crossfadeIncrement_ = 0.0f;   // Progress per sample
     float crossfadeFromValue_ = 0.0f;   // Captured output value at start of crossfade
     bool hasProcessed_ = false;         // True after first process() call; controls crossfade behavior
+
+    // Fade-in state
+    float fadeInTimeMs_ = 0.0f;       ///< Fade-in time in ms (0 = disabled)
+    float fadeInGain_ = 1.0f;         ///< Current fade-in multiplier (0→1 ramp)
+    float fadeInIncrement_ = 1.0f;    ///< Per-sample increment for fade-in ramp
+
+    // Symmetry/skew
+    float symmetry_ = 0.5f;          ///< Waveform symmetry (0.001-0.999, 0.5 = centered)
+
+    // Quantize
+    int quantizeSteps_ = 0;           ///< 0 = off, 2-16 = number of discrete steps
 };
 
 } // namespace DSP
