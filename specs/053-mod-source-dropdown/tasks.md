@@ -139,7 +139,7 @@
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T047 [US3] Commit placeholder templates with message describing 7 future source placeholders
+- [X] T047 [US3] Commit placeholder templates with message describing 7 future source placeholders
 
 **Checkpoint**: All user stories complete - dropdown shows 10 sources, 3 implemented + 7 placeholders
 
@@ -151,24 +151,24 @@
 
 ### 6.1 Pluginval Verification
 
-- [ ] T048 Run pluginval at strictness level 5 on Ruinae plugin (tools/pluginval.exe --strictness-level 5 --validate build/VST3/Release/Ruinae.vst3)
-- [ ] T049 Verify pluginval passes with no errors (all tests green)
+- [X] T048 Run pluginval at strictness level 5 on Ruinae plugin (tools/pluginval.exe --strictness-level 5 --validate build/windows-x64-release/VST3/Release/Ruinae.vst3)
+- [X] T049 Verify pluginval passes with no errors (all tests green, exit code 0)
 
 ### 6.2 Edge Case Testing
 
-- [ ] T050 Rapidly switch between all 10 sources, verify no flicker or visual artifacts
-- [ ] T051 Close plugin window and reopen, verify defaults to LFO 1 each time
-- [ ] T052 Select a future source, save preset, load preset, verify defaults back to LFO 1 (not persisted)
-- [ ] T053 Click dropdown to open menu, click outside dropdown without selecting, verify it closes without changing selection
+- [ ] T050 Rapidly switch between all 10 sources, verify no flicker or visual artifacts (manual)
+- [ ] T051 Close plugin window and reopen, verify defaults to LFO 1 each time (manual)
+- [ ] T052 Select a future source, save preset, load preset, verify defaults back to LFO 1 (not persisted) (manual)
+- [ ] T053 Click dropdown to open menu, click outside dropdown without selecting, verify it closes without changing selection (manual)
 
 ### 6.3 Documentation Update
 
-- [ ] T054 Update quickstart.md verification section if any manual steps changed
-- [ ] T055 Add note to research.md documenting any unexpected behavior or workarounds discovered during implementation
+- [X] T054 Update quickstart.md verification section if any manual steps changed
+- [X] T055 Add note to research.md documenting any unexpected behavior or workarounds discovered during implementation
 
 ### 6.4 Commit Polish Work
 
-- [ ] T056 Commit documentation updates and any final polish with message describing completion of mod source dropdown migration
+- [X] T056 Commit documentation updates and any final polish with message describing completion of mod source dropdown migration
 
 ---
 
