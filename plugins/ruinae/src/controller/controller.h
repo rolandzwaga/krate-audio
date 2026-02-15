@@ -231,6 +231,10 @@ private:
     VSTGUI::CView* phaserRateGroup_ = nullptr;
     VSTGUI::CView* phaserNoteValueGroup_ = nullptr;
 
+    /// Trance Gate Rate/NoteValue groups - toggled by sync state
+    VSTGUI::CView* tranceGateRateGroup_ = nullptr;
+    VSTGUI::CView* tranceGateNoteValueGroup_ = nullptr;
+
     // FX detail panel expand/collapse state
     VSTGUI::CViewContainer* fxDetailDelay_ = nullptr;
     VSTGUI::CViewContainer* fxDetailReverb_ = nullptr;
