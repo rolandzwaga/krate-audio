@@ -34,6 +34,7 @@
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
 #include "parameters/mono_mode_params.h"
+#include "parameters/macro_params.h"
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
@@ -111,6 +112,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerReverbParams(parameters);
     registerPhaserParams(parameters);
     registerMonoModeParams(parameters);
+    registerMacroParams(parameters);
 
     // ==========================================================================
     // Initialize Preset Manager
@@ -256,6 +258,11 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             loadLFO1ExtendedParamsToController(streamer, setParam);
             loadLFO2ExtendedParamsToController(streamer, setParam);
         }
+
+        // v13: Macro and Rungler params
+        if (version >= 13) {
+            loadMacroParamsToController(streamer, setParam);
+        }
     }
     // Unknown versions (v0 or negative): keep defaults (fail closed)
 
@@ -327,6 +334,8 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatPhaserParam(id, valueNormalized, string);
     } else if (id >= kMonoBaseId && id <= kMonoEndId) {
         result = formatMonoModeParam(id, valueNormalized, string);
+    } else if (id >= kMacroBaseId && id <= kMacroEndId) {
+        result = formatMacroParam(id, valueNormalized, string);
     }
 
     // Fall back to default implementation for unhandled parameters

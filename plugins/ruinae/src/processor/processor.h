@@ -39,6 +39,7 @@
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
 #include "parameters/mono_mode_params.h"
+#include "parameters/macro_params.h"
 
 #include "ui/mod_matrix_types.h"
 
@@ -63,7 +64,8 @@ namespace Ruinae {
 // v10: Added FX enable parameters (delay/reverb on/off)
 // v11: Added phaser params + enable flag
 // v12: Extended LFO params (phase offset, retrigger, note value, unipolar, fade-in, symmetry, quantize)
-constexpr Steinberg::int32 kCurrentStateVersion = 12;
+// v13: Macro and Rungler params
+constexpr Steinberg::int32 kCurrentStateVersion = 13;
 
 // ==============================================================================
 // Processor Class
@@ -166,6 +168,7 @@ private:
     RuinaeReverbParams reverbParams_;
     RuinaePhaserParams phaserParams_;
     MonoModeParams monoModeParams_;
+    MacroParams macroParams_;
 
     // ==========================================================================
     // DSP Engine

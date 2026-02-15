@@ -154,70 +154,70 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 4.1 Write Tests for Macro Parameters
 
-- [ ] T036 [P] [US1] Write test for macro param handling in plugins/ruinae/tests/unit/processor/processor_test.cpp: create test case "Macro parameter changes update engine", create processor, send kMacro1ValueId param change (value 0.5), call applyParamsToEngine, verify engine macro value is 0.5 (will FAIL - macro_params.h not created yet)
-- [ ] T037 [P] [US1] Write test for macro state persistence in plugins/ruinae/tests/unit/processor/state_persistence_test.cpp: create test case "Macro params save and load", set macro values [0.25, 0.5, 0.75, 0.0], save state, reset values to 0, load state, verify values restored (will FAIL - no save/load functions yet)
+- [X] T036 [P] [US1] Write test for macro param handling in plugins/ruinae/tests/unit/processor/processor_test.cpp: create test case "Macro parameter changes update engine", create processor, send kMacro1ValueId param change (value 0.5), call applyParamsToEngine, verify engine macro value is 0.5 (will FAIL - macro_params.h not created yet)
+- [X] T037 [P] [US1] Write test for macro state persistence in plugins/ruinae/tests/unit/processor/state_persistence_test.cpp: create test case "Macro params save and load", set macro values [0.25, 0.5, 0.75, 0.0], save state, reset values to 0, load state, verify values restored (will FAIL - no save/load functions yet)
 
 ### 4.2 Create macro_params.h Parameter File
 
-- [ ] T038 [US1] Create new file plugins/ruinae/src/parameters/macro_params.h with header guards and includes (Steinberg headers, atomic, clamp)
-- [ ] T039 [US1] Define MacroParams struct in macro_params.h with 4 std::atomic<float> values (default 0.0f) in array or individual fields values[0-3]
-- [ ] T040 [US1] Implement handleMacroParamChange() function in macro_params.h: switch on paramId (kMacro1ValueId through kMacro4ValueId), store clamped value [0,1] to macroParams.values[index]
-- [ ] T041 [US1] Implement registerMacroParams() function in macro_params.h: loop 0-3, call parameters.addParameter() for each macro with title "Macro 1".."Macro 4", unit "%", stepCount 0, default 0.0, flags kCanAutomate
-- [ ] T042 [US1] Implement formatMacroParam() function in macro_params.h: return formatted string "XX%" (0 decimals) for all 4 macro IDs, return kResultFalse for non-macro IDs
-- [ ] T043 [US1] Implement saveMacroParams() function in macro_params.h: write 4 floats in order (values[0] through values[3]) using streamer.writeFloat()
-- [ ] T044 [US1] Implement loadMacroParams() function in macro_params.h: read 4 floats in order, store to macroParams.values[0-3], return false on readFloat failure (EOF-safe)
-- [ ] T045 [US1] Implement loadMacroParamsToController() function in macro_params.h: read 4 floats, call setParam(kMacroNValueId, value) for each (value already normalized, no mapping needed)
+- [X] T038 [US1] Create new file plugins/ruinae/src/parameters/macro_params.h with header guards and includes (Steinberg headers, atomic, clamp)
+- [X] T039 [US1] Define MacroParams struct in macro_params.h with 4 std::atomic<float> values (default 0.0f) in array or individual fields values[0-3]
+- [X] T040 [US1] Implement handleMacroParamChange() function in macro_params.h: switch on paramId (kMacro1ValueId through kMacro4ValueId), store clamped value [0,1] to macroParams.values[index]
+- [X] T041 [US1] Implement registerMacroParams() function in macro_params.h: loop 0-3, call parameters.addParameter() for each macro with title "Macro 1".."Macro 4", unit "%", stepCount 0, default 0.0, flags kCanAutomate
+- [X] T042 [US1] Implement formatMacroParam() function in macro_params.h: return formatted string "XX%" (0 decimals) for all 4 macro IDs, return kResultFalse for non-macro IDs
+- [X] T043 [US1] Implement saveMacroParams() function in macro_params.h: write 4 floats in order (values[0] through values[3]) using streamer.writeFloat()
+- [X] T044 [US1] Implement loadMacroParams() function in macro_params.h: read 4 floats in order, store to macroParams.values[0-3], return false on readFloat failure (EOF-safe)
+- [X] T045 [US1] Implement loadMacroParamsToController() function in macro_params.h: read 4 floats, call setParam(kMacroNValueId, value) for each (value already normalized, no mapping needed)
 
 ### 4.3 Wire Macro Parameters to Processor
 
-- [ ] T046 [US1] Add `#include "parameters/macro_params.h"` in plugins/ruinae/src/processor/processor.h after other param includes
-- [ ] T047 [US1] Add `MacroParams macroParams_;` field to Processor class in processor.h after monoModeParams_ (line 139)
-- [ ] T048 [US1] Add macro param handling case to processParameterChanges() in plugins/ruinae/src/processor/processor.cpp after mono mode block (line 193): `} else if (paramId >= kMacroBaseId && paramId <= kMacroEndId) { handleMacroParamChange(macroParams_, paramId, value); }`
-- [ ] T049 [US1] Add macro forwarding to applyParamsToEngine() in processor.cpp after mono mode section (line 323): loop i=0 to 3, call engine_.setMacroValue(i, macroParams_.values[i].load(memory_order_relaxed))
-- [ ] T050 [US1] Bump kCurrentStateVersion from 12 to 13 in plugins/ruinae/src/plugin_ids.h (line 23)
-- [ ] T051 [US1] Add saveMacroParams(macroParams_, streamer) to getState() in processor.cpp after v12 LFO extended params (line 358), preceded by comment "// v13: Macro and Rungler params"
-- [ ] T052 [US1] Add loadMacroParams(macroParams_, streamer) to setState() in processor.cpp inside `if (version >= 13)` block after v12 LFO loading (line 407)
+- [X] T046 [US1] Add `#include "parameters/macro_params.h"` in plugins/ruinae/src/processor/processor.h after other param includes
+- [X] T047 [US1] Add `MacroParams macroParams_;` field to Processor class in processor.h after monoModeParams_ (line 139)
+- [X] T048 [US1] Add macro param handling case to processParameterChanges() in plugins/ruinae/src/processor/processor.cpp after mono mode block (line 193): `} else if (paramId >= kMacroBaseId && paramId <= kMacroEndId) { handleMacroParamChange(macroParams_, paramId, value); }`
+- [X] T049 [US1] Add macro forwarding to applyParamsToEngine() in processor.cpp after mono mode section (line 323): loop i=0 to 3, call engine_.setMacroValue(i, macroParams_.values[i].load(memory_order_relaxed))
+- [X] T050 [US1] Bump kCurrentStateVersion from 12 to 13 in plugins/ruinae/src/plugin_ids.h (line 23)
+- [X] T051 [US1] Add saveMacroParams(macroParams_, streamer) to getState() in processor.cpp after v12 LFO extended params (line 358), preceded by comment "// v13: Macro and Rungler params"
+- [X] T052 [US1] Add loadMacroParams(macroParams_, streamer) to setState() in processor.cpp inside `if (version >= 13)` block after v12 LFO loading (line 407)
 
 ### 4.4 Wire Macro Parameters to Controller
 
-- [ ] T053 [US1] Add `#include "parameters/macro_params.h"` in plugins/ruinae/src/controller/controller.cpp after other param includes
-- [ ] T054 [US1] Add registerMacroParams(parameters) call to Controller::initialize() in controller.cpp after registerMonoModeParams (line 173)
-- [ ] T055 [US1] Add loadMacroParamsToController(streamer, setParam) call to setComponentState() in controller.cpp inside `if (version >= 13)` block after v12 LFO loading (line 239)
-- [ ] T056 [US1] Add macro formatting case to getParamStringByValue() in controller.cpp after mono mode block (line 497): `} else if (id >= kMacroBaseId && id <= kMacroEndId) { result = formatMacroParam(id, valueNormalized, string); }`
+- [X] T053 [US1] Add `#include "parameters/macro_params.h"` in plugins/ruinae/src/controller/controller.cpp after other param includes
+- [X] T054 [US1] Add registerMacroParams(parameters) call to Controller::initialize() in controller.cpp after registerMonoModeParams (line 173)
+- [X] T055 [US1] Add loadMacroParamsToController(streamer, setParam) call to setComponentState() in controller.cpp inside `if (version >= 13)` block after v12 LFO loading (line 239)
+- [X] T056 [US1] Add macro formatting case to getParamStringByValue() in controller.cpp after mono mode block (line 497): `} else if (id >= kMacroBaseId && id <= kMacroEndId) { result = formatMacroParam(id, valueNormalized, string); }`
 
 ### 4.5 Add Macro Control-Tags to UIDESC
 
-- [ ] T057 [US1] Add 4 control-tag entries in plugins/ruinae/resources/editor.uidesc control-tags section after Mono Mode tags (line 78): Macro1Value (2000), Macro2Value (2001), Macro3Value (2002), Macro4Value (2003)
+- [X] T057 [US1] Add 4 control-tag entries in plugins/ruinae/resources/editor.uidesc control-tags section after Mono Mode tags (line 78): Macro1Value (2000), Macro2Value (2001), Macro3Value (2002), Macro4Value (2003)
 
 ### 4.6 Populate ModSource_Macros Template
 
-- [ ] T058 [P] [US1] Add M1 ArcKnob to ModSource_Macros template in editor.uidesc: origin (4, 0), size (28, 28), control-tag="Macro1Value", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
-- [ ] T059 [P] [US1] Add M1 CTextLabel below M1 knob in editor.uidesc: origin (4, 28), size (28, 10), title="M1", font-color="modulation"
-- [ ] T060 [P] [US1] Add M2 ArcKnob to ModSource_Macros template: origin (42, 0), size (28, 28), control-tag="Macro2Value", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
-- [ ] T061 [P] [US1] Add M2 CTextLabel: origin (42, 28), size (28, 10), title="M2", font-color="modulation"
-- [ ] T062 [P] [US1] Add M3 ArcKnob to ModSource_Macros template: origin (80, 0), size (28, 28), control-tag="Macro3Value", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
-- [ ] T063 [P] [US1] Add M3 CTextLabel: origin (80, 28), size (28, 10), title="M3", font-color="modulation"
-- [ ] T064 [P] [US1] Add M4 ArcKnob to ModSource_Macros template: origin (118, 0), size (28, 28), control-tag="Macro4Value", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
-- [ ] T065 [P] [US1] Add M4 CTextLabel: origin (118, 28), size (28, 10), title="M4", font-color="modulation"
+- [X] T058 [P] [US1] Add M1 ArcKnob to ModSource_Macros template in editor.uidesc: origin (4, 0), size (28, 28), control-tag="Macro1Value", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
+- [X] T059 [P] [US1] Add M1 CTextLabel below M1 knob in editor.uidesc: origin (4, 28), size (28, 10), title="M1", font-color="modulation"
+- [X] T060 [P] [US1] Add M2 ArcKnob to ModSource_Macros template: origin (42, 0), size (28, 28), control-tag="Macro2Value", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
+- [X] T061 [P] [US1] Add M2 CTextLabel: origin (42, 28), size (28, 10), title="M2", font-color="modulation"
+- [X] T062 [P] [US1] Add M3 ArcKnob to ModSource_Macros template: origin (80, 0), size (28, 28), control-tag="Macro3Value", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
+- [X] T063 [P] [US1] Add M3 CTextLabel: origin (80, 28), size (28, 10), title="M3", font-color="modulation"
+- [X] T064 [P] [US1] Add M4 ArcKnob to ModSource_Macros template: origin (118, 0), size (28, 28), control-tag="Macro4Value", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
+- [X] T065 [P] [US1] Add M4 CTextLabel: origin (118, 28), size (28, 10), title="M4", font-color="modulation"
 
 ### 4.7 Build & Verify Tests Pass
 
-- [ ] T066 [US1] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T067 [US1] Run Ruinae tests for macro param handling: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[processor]"`
-- [ ] T068 [US1] Run Ruinae tests for macro state persistence: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
-- [ ] T069 [US1] Verify zero compiler warnings for macro_params.h, processor changes, controller changes
+- [X] T066 [US1] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T067 [US1] Run Ruinae tests for macro param handling: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[processor]"`
+- [X] T068 [US1] Run Ruinae tests for macro state persistence: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
+- [X] T069 [US1] Verify zero compiler warnings for macro_params.h, processor changes, controller changes
 
 ### 4.8 Manual Verification
 
-- [ ] T070 [US1] Manual test: Open plugin, select "Macros" from mod source dropdown, verify 4 knobs (M1-M4) appear
-- [ ] T071 [US1] Manual test: Turn M1 to 75%, add mod matrix route "Macro 1 -> Filter Cutoff" with amount +0.5, play audio, verify filter cutoff increases (75% * 0.5 = 37.5% offset)
-- [ ] T072 [US1] Manual test: Turn M1 to 0%, verify filter cutoff returns to base value (no modulation)
-- [ ] T073 [US1] Manual test: Set M2 to 50%, add route "Macro 2 -> Reverb Mix" with amount +1.0, verify reverb mix increases by 50%
-- [ ] T074 [US1] Manual test: Verify all 4 macros are independent (adjusting one does not affect routes from other macros)
+- [X] T070 [US1] Manual test: Open plugin, select "Macros" from mod source dropdown, verify 4 knobs (M1-M4) appear
+- [X] T071 [US1] Manual test: Turn M1 to 75%, add mod matrix route "Macro 1 -> Filter Cutoff" with amount +0.5, play audio, verify filter cutoff increases (75% * 0.5 = 37.5% offset)
+- [X] T072 [US1] Manual test: Turn M1 to 0%, verify filter cutoff returns to base value (no modulation)
+- [X] T073 [US1] Manual test: Set M2 to 50%, add route "Macro 2 -> Reverb Mix" with amount +1.0, verify reverb mix increases by 50%
+- [X] T074 [US1] Manual test: Verify all 4 macros are independent (adjusting one does not affect routes from other macros)
 
 ### 4.9 Commit
 
-- [ ] T075 [US1] Commit completed User Story 1 work (Macro knobs as modulation sources)
+- [X] T075 [US1] Commit completed User Story 1 work (Macro knobs as modulation sources)
 
 **Checkpoint**: User Story 1 complete - Macros view shows 4 knobs, macros route to destinations, preset persistence works
 

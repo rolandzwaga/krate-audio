@@ -402,6 +402,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveLFO1ExtendedParams(lfo1Params_, streamer);
     saveLFO2ExtendedParams(lfo2Params_, streamer);
 
+    // v13: Macro and Rungler params
+    saveMacroParams(macroParams_, streamer);
+
     return Steinberg::kResultTrue;
 }
 
@@ -526,6 +529,11 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             loadLFO1ExtendedParams(lfo1Params_, streamer);
             loadLFO2ExtendedParams(lfo2Params_, streamer);
         }
+
+        // v13: Macro and Rungler params
+        if (version >= 13) {
+            loadMacroParams(macroParams_, streamer);
+        }
     }
     // Unknown future versions (v0 or negative): keep safe defaults
 
@@ -612,6 +620,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             logPhaser("[RUINAE][PARAM] phaser param %d received: raw=%.4f\n", paramId, value);
         } else if (paramId >= kMonoBaseId && paramId <= kMonoEndId) {
             handleMonoModeParamChange(monoModeParams_, paramId, value);
+        } else if (paramId >= kMacroBaseId && paramId <= kMacroEndId) {
+            handleMacroParamChange(macroParams_, paramId, value);
         }
     }
 }
@@ -936,6 +946,12 @@ void Processor::applyParamsToEngine() {
         auto mapping = getNoteValueFromDropdown(
             phaserParams_.noteValue.load(std::memory_order_relaxed));
         engine_.setPhaserNoteValue(mapping.note, mapping.modifier);
+    }
+
+    // --- Macros ---
+    for (int i = 0; i < 4; ++i) {
+        engine_.setMacroValue(static_cast<size_t>(i),
+            macroParams_.values[i].load(std::memory_order_relaxed));
     }
 
     // --- Mono Mode ---
