@@ -939,16 +939,16 @@
     <!-- ================================================================ -->
 
     <!-- Distortion General view: nested switch hides controls for Clean -->
-    <template name="Distortion_General" size="146, 96" class="CViewContainer" transparent="true">
+    <template name="Distortion_General" size="171, 96" class="CViewContainer" transparent="true">
         <view class="UIViewSwitchContainer"
-              origin="0, 0" size="146, 96"
+              origin="0, 0" size="171, 96"
               template-names="Dist_Clean,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active"
               template-switch-control="DistortionType"
               transparent="true"/>
     </template>
 
     <!-- General controls for active (non-Clean) distortion types: Drive + Mix -->
-    <template name="Dist_General_Active" size="146, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_General_Active" size="171, 96" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="8, 4" size="36, 36"
               control-tag="DistortionDrive" default-value="0.5"
               arc-color="distortion" guide-color="knob-guide"/>
@@ -965,23 +965,23 @@
     </template>
 
     <!-- Distortion Type-Specific view: nested switch on DistortionType -->
-    <template name="Distortion_TypeSpecific" size="146, 96" class="CViewContainer" transparent="true">
+    <template name="Distortion_TypeSpecific" size="171, 96" class="CViewContainer" transparent="true">
         <view class="UIViewSwitchContainer"
-              origin="0, 0" size="146, 96"
+              origin="0, 0" size="171, 96"
               template-names="Dist_Clean,Dist_Chaos,Dist_Spectral,Dist_Granular,Dist_Wavefolder,Dist_Tape"
               template-switch-control="DistortionType"
               transparent="true"/>
     </template>
 
     <!-- Clean: no type-specific params -->
-    <template name="Dist_Clean" size="146, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Clean" size="171, 96" class="CViewContainer" transparent="true">
         <view class="CTextLabel" origin="0, 36" size="146, 20"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="No parameters"/>
     </template>
 
     <!-- Chaos Waveshaper: Model dropdown, Speed + Coupling knobs -->
-    <template name="Dist_Chaos" size="146, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Chaos" size="171, 96" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="110, 18"
               control-tag="DistortionChaosModel" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1003,7 +1003,7 @@
     </template>
 
     <!-- Spectral Distortion: Mode + Curve dropdowns, Bits knob -->
-    <template name="Dist_Spectral" size="146, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Spectral" size="171, 96" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="62, 18"
               control-tag="DistortionSpectralMode" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1022,7 +1022,7 @@
     </template>
 
     <!-- Granular Distortion: Size + Density + Variation + Jitter knobs -->
-    <template name="Dist_Granular" size="146, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Granular" size="171, 96" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="8, 4" size="36, 36"
               control-tag="DistortionGrainSize" default-value="0.47"
               arc-color="distortion" guide-color="knob-guide"/>
@@ -1053,7 +1053,7 @@
     </template>
 
     <!-- Wavefolder: Type dropdown -->
-    <template name="Dist_Wavefolder" size="146, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Wavefolder" size="171, 96" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="110, 18"
               control-tag="DistortionFoldType" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1061,7 +1061,7 @@
     </template>
 
     <!-- Tape Saturator: Model dropdown, Saturation + Bias knobs -->
-    <template name="Dist_Tape" size="146, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Tape" size="171, 96" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="110, 18"
               control-tag="DistortionTapeModel" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1087,7 +1087,7 @@
     <!-- ================================================================== -->
 
     <!-- Digital: Era, Age, Limiter, Width | ModDepth, ModRate, ModWaveform | WavefoldAmt, WavefoldModel, WavefoldSym -->
-    <template name="Delay_Digital" size="590, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_Digital" size="615, 112" class="CViewContainer" transparent="true">
         <!-- Row A (y=4): Era, Age, Limiter, Width, ModWaveform — 5 items, ~118px spacing -->
         <view class="COptionMenu" origin="8, 6" size="80, 18"
               control-tag="DelayDigitalEra" default-value="0"
@@ -1166,7 +1166,7 @@
     </template>
 
     <!-- Tape: Inertia, Wear, Saturation, Age, Splice, SpliceInt | Head1, Head2, Head3 -->
-    <template name="Delay_Tape" size="590, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_Tape" size="615, 112" class="CViewContainer" transparent="true">
         <!-- Row A (y=4): 6 knobs, ~96px spacing -->
         <view class="ArcKnob" origin="14, 4" size="28, 28"
               control-tag="DelayTapeInertia" default-value="0.222"
@@ -1279,7 +1279,7 @@
     </template>
 
     <!-- PingPong: LRRatio, CrossFeed, Width, ModDepth, ModRate (single row, centered) -->
-    <template name="Delay_PingPong" size="590, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_PingPong" size="615, 112" class="CViewContainer" transparent="true">
         <!-- Single row, vertically centered (y=20), 5 items, ~118px spacing -->
         <view class="COptionMenu" origin="28, 24" size="60, 18"
               control-tag="DelayPingPongRatio" default-value="0"
@@ -1319,7 +1319,7 @@
     </template>
 
     <!-- Granular: Size, Density, Pitch, PitchQuant, PitchSpray, PosSpray, Reverse | PanSpray, Jitter, Texture, Width, Envelope, Freeze -->
-    <template name="Delay_Granular" size="590, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_Granular" size="615, 112" class="CViewContainer" transparent="true">
         <!-- Row A (y=4): 7 items, ~84px spacing -->
         <view class="ArcKnob" origin="14, 4" size="28, 28"
               control-tag="DelayGranularSize" default-value="0.184"
@@ -1420,7 +1420,7 @@
     </template>
 
     <!-- Spectral: FFTSize, Spread, Direction, Curve | Tilt, Diffusion, Width, Freeze -->
-    <template name="Delay_Spectral" size="590, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_Spectral" size="615, 112" class="CViewContainer" transparent="true">
         <!-- Row A (y=4): 4 items, ~148px spacing -->
         <view class="COptionMenu" origin="24, 6" size="60, 18"
               control-tag="DelaySpectralFFTSize" default-value="0.333"
@@ -1731,9 +1731,9 @@
 
     <template
         name="editor"
-        minSize="900, 880"
-        maxSize="900, 880"
-        size="900, 880"
+        minSize="925, 880"
+        maxSize="925, 880"
+        size="925, 880"
         background-color="bg-main"
         class="CViewContainer"
     >
@@ -2009,7 +2009,7 @@
         <view
             class="FieldsetContainer"
             origin="186, 194"
-            size="154, 138"
+            size="179, 138"
             fieldset-title="DISTORTION"
             fieldset-color="distortion"
             fieldset-radius="4"
@@ -2034,7 +2034,7 @@
 
             <!-- Switchable content area -->
             <view class="UIViewSwitchContainer"
-                  origin="0, 38" size="146, 96"
+                  origin="0, 38" size="171, 96"
                   template-names="Distortion_General,Distortion_TypeSpecific"
                   template-switch-control="DistortionViewMode"
                   transparent="true"/>
@@ -2043,7 +2043,7 @@
         <!-- ENVELOPES (gray accent) -->
         <view
             class="FieldsetContainer"
-            origin="348, 194"
+            origin="373, 194"
             size="544, 138"
             fieldset-title="ENVELOPES"
             fieldset-color="envelopes"
@@ -2131,7 +2131,7 @@
         <view
             class="FieldsetContainer"
             origin="8, 334"
-            size="884, 50"
+            size="909, 50"
             fieldset-title="GLOBAL FILTER"
             fieldset-color="global-filter"
             fieldset-radius="4"
@@ -2174,7 +2174,7 @@
         <view
             class="FieldsetContainer"
             origin="8, 384"
-            size="884, 160"
+            size="909, 160"
             fieldset-title="TRANCE GATE"
             fieldset-color="trance-gate"
             fieldset-radius="4"
@@ -2220,7 +2220,7 @@
             <!-- ======================================================== -->
             <!-- Step Pattern Editor (full width)                          -->
             <!-- ======================================================== -->
-            <view class="StepPatternEditor" origin="8, 36" size="868, 68"
+            <view class="StepPatternEditor" origin="8, 36" size="893, 68"
                   transparent="false"/>
 
             <!-- ======================================================== -->
@@ -2334,7 +2334,7 @@
         <view
             class="FieldsetContainer"
             origin="8, 546"
-            size="884, 160"
+            size="909, 160"
             fieldset-title="MODULATION"
             fieldset-color="modulation"
             fieldset-radius="4"
@@ -2374,7 +2374,7 @@
             <!-- ======================================================== -->
             <!-- T074: ModHeatmap                                          -->
             <!-- ======================================================== -->
-            <view class="ModHeatmap" origin="516, 14" size="360, 128"
+            <view class="ModHeatmap" origin="516, 14" size="385, 128"
                   transparent="false"/>
         </view>
 
@@ -2384,7 +2384,7 @@
         <view
             class="FieldsetContainer"
             origin="8, 708"
-            size="884, 160"
+            size="909, 160"
             fieldset-title="EFFECTS"
             fieldset-color="effects"
             fieldset-radius="4"
@@ -2393,7 +2393,7 @@
             transparent="true"
         >
             <!-- FX strip (always visible) — Enable + Mix + Expand only -->
-            <view class="CViewContainer" origin="4, 14" size="870, 28" transparent="true">
+            <view class="CViewContainer" origin="4, 14" size="895, 28" transparent="true">
                 <!-- Delay group -->
                 <view class="ToggleButton" origin="0, 4" size="50, 20"
                       control-tag="DelayEnabled"
@@ -2465,7 +2465,7 @@
             </view>
 
             <!-- Delay detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="870, 112"
+            <view class="CViewContainer" origin="4, 44" size="895, 112"
                   custom-view-name="DelayDetail" transparent="true">
 
                 <!-- Left panel: Common delay controls (260px) -->
@@ -2525,14 +2525,14 @@
 
                 <!-- Right panel: Type-specific controls -->
                 <view class="UIViewSwitchContainer"
-                      origin="270, 0" size="590, 112"
+                      origin="270, 0" size="615, 112"
                       template-names="Delay_Digital,Delay_Tape,Delay_PingPong,Delay_Granular,Delay_Spectral"
                       template-switch-control="DelayType"
                       transparent="true"/>
             </view>
 
             <!-- Reverb detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="870, 46"
+            <view class="CViewContainer" origin="4, 44" size="895, 46"
                   custom-view-name="ReverbDetail" transparent="true">
                 <view class="ArcKnob" origin="8, 0" size="32, 32"
                       control-tag="ReverbSize"
@@ -2602,7 +2602,7 @@
             </view>
 
             <!-- Phaser detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="870, 60"
+            <view class="CViewContainer" origin="4, 44" size="895, 60"
                   custom-view-name="PhaserDetail" transparent="true">
 
                 <!-- Rate / Sync section -->
@@ -2704,7 +2704,7 @@
         <view
             class="FieldsetContainer"
             origin="772, 32"
-            size="120, 160"
+            size="145, 160"
             fieldset-title="Voice &amp; Output"
             fieldset-color="master"
             fieldset-radius="4"
@@ -2740,9 +2740,9 @@
                   transparent="true"/>
 
             <!-- Row 2: Polyphony dropdown (visible when Voice Mode = Poly) -->
-            <view class="CViewContainer" origin="8, 36" size="112, 18"
+            <view class="CViewContainer" origin="8, 36" size="137, 18"
                   custom-view-name="PolyGroup" transparent="true">
-                <view class="COptionMenu" origin="0, 0" size="60, 18"
+                <view class="COptionMenu" origin="0, 0" size="85, 18"
                       control-tag="Polyphony"
                       font="~ NormalFontSmaller"
                       font-color="master"
@@ -2752,7 +2752,7 @@
                       transparent="false"/>
             </view>
             <!-- Mono controls (visible when Voice Mode = Mono) -->
-            <view class="CViewContainer" origin="8, 36" size="112, 18"
+            <view class="CViewContainer" origin="8, 36" size="137, 18"
                   custom-view-name="MonoGroup" transparent="true"
                   visible="false">
                 <view class="ToggleButton" origin="0, 0" size="22, 18"
@@ -2767,7 +2767,7 @@
                       off-color="text-secondary"
                       tooltip="Legato mode"
                       transparent="true"/>
-                <view class="COptionMenu" origin="24, 0" size="36, 18"
+                <view class="COptionMenu" origin="24, 0" size="48, 18"
                       control-tag="MonoPriority"
                       default-value="0"
                       font="~ NormalFontSmaller"
@@ -2776,13 +2776,13 @@
                       frame-color="frame-dropdown-dim"
                       tooltip="Note priority"
                       transparent="false"/>
-                <view class="ArcKnob" origin="62, 0" size="18, 18"
+                <view class="ArcKnob" origin="74, 0" size="18, 18"
                       control-tag="MonoPortamentoTime"
                       default-value="0"
                       arc-color="master"
                       guide-color="knob-guide"
                       tooltip="Portamento time"/>
-                <view class="COptionMenu" origin="82, 0" size="30, 18"
+                <view class="COptionMenu" origin="94, 0" size="43, 18"
                       control-tag="MonoPortaMode"
                       default-value="0"
                       font="~ NormalFontSmaller"
