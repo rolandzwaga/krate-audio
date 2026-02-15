@@ -2195,12 +2195,18 @@
                   tooltip="Enable tempo sync"
                   transparent="true"/>
 
-            <view class="COptionMenu" origin="110, 14" size="70, 18"
+            <view class="CTextLabel" origin="120, 16" size="52, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Step size"/>
+            <view class="COptionMenu" origin="172, 14" size="70, 18"
                   control-tag="TranceGateNoteValue" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
-            <view class="COptionMenu" origin="184, 14" size="56, 18"
+            <view class="CTextLabel" origin="252, 16" size="60, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Step count"/>
+            <view class="COptionMenu" origin="312, 14" size="56, 18"
                   control-tag="TranceGateNumSteps" default-value="0.467"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
@@ -2247,7 +2253,7 @@
 
             <!-- Parameter knobs: Rate, Depth, Attack, Release, Phase -->
             <!-- Rate (hidden when sync active — default sync=on) -->
-            <view class="CViewContainer" origin="380, 108" size="48, 38"
+            <view class="CViewContainer" origin="375, 108" size="48, 38"
                   custom-view-name="TranceGateRateGroup" transparent="true"
                   visible="false">
                 <view class="ArcKnob" origin="0, 0" size="28, 28"
@@ -2258,7 +2264,7 @@
                       text-alignment="center" transparent="true" title="Rate"/>
             </view>
             <!-- Note Value (visible when sync active — default sync=on) -->
-            <view class="CViewContainer" origin="380, 108" size="80, 38"
+            <view class="CViewContainer" origin="375, 108" size="80, 38"
                   custom-view-name="TranceGateNoteValueGroup" transparent="true">
                 <view class="COptionMenu" origin="0, 4" size="70, 20"
                       control-tag="TranceGateNoteValue"
