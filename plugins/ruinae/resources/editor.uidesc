@@ -1725,9 +1725,9 @@
 
     <template
         name="editor"
-        minSize="900, 866"
-        maxSize="900, 866"
-        size="900, 866"
+        minSize="900, 880"
+        maxSize="900, 880"
+        size="900, 880"
         background-color="bg-main"
         class="CViewContainer"
     >
@@ -1782,7 +1782,7 @@
         <!-- ROW 3: TRANCE GATE (y=370, height=160) -->
         <view
             class="CViewContainer"
-            origin="0, 370"
+            origin="0, 384"
             size="900, 160"
             transparent="true"
         />
@@ -1790,7 +1790,7 @@
         <!-- ROW 4: MODULATION (y=532, height=160) -->
         <view
             class="CViewContainer"
-            origin="0, 532"
+            origin="0, 546"
             size="900, 160"
             transparent="true"
         />
@@ -1798,7 +1798,7 @@
         <!-- ROW 5: EFFECTS & OUTPUT (y=694, height=80) -->
         <view
             class="CViewContainer"
-            origin="0, 694"
+            origin="0, 708"
             size="900, 80"
             transparent="true"
         />
@@ -2125,7 +2125,7 @@
         <view
             class="FieldsetContainer"
             origin="8, 334"
-            size="884, 36"
+            size="884, 50"
             fieldset-title="GLOBAL FILTER"
             fieldset-color="global-filter"
             fieldset-radius="4"
@@ -2134,30 +2134,30 @@
             transparent="true"
         >
             <!-- On/Off toggle -->
-            <view class="ToggleButton" origin="8, 8" size="40, 18"
+            <view class="ToggleButton" origin="8, 16" size="40, 18"
                   control-tag="GlobalFilterEnabled" default-value="0"
                   tooltip="Enable global filter"
                   transparent="false"/>
 
             <!-- Type dropdown -->
-            <view class="COptionMenu" origin="56, 8" size="90, 18"
+            <view class="COptionMenu" origin="56, 16" size="90, 18"
                   control-tag="GlobalFilterType"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
             <!-- Cutoff knob + label (beside, to the right) -->
-            <view class="ArcKnob" origin="200, 4" size="24, 24"
+            <view class="ArcKnob" origin="200, 14" size="24, 24"
                   control-tag="GlobalFilterCutoff" default-value="0.574"
                   arc-color="global-filter" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="228, 10" size="40, 12"
+            <view class="CTextLabel" origin="228, 18" size="40, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="left" transparent="true" title="Cutoff"/>
 
             <!-- Resonance knob + label (beside, to the right) -->
-            <view class="ArcKnob" origin="320, 4" size="24, 24"
+            <view class="ArcKnob" origin="320, 14" size="24, 24"
                   control-tag="GlobalFilterResonance" default-value="0.020"
                   arc-color="global-filter" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="348, 10" size="36, 12"
+            <view class="CTextLabel" origin="348, 18" size="36, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="left" transparent="true" title="Reso"/>
         </view>
@@ -2167,7 +2167,7 @@
         <!-- TRANCE GATE (gold accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 370"
+            origin="8, 384"
             size="884, 160"
             fieldset-title="TRANCE GATE"
             fieldset-color="trance-gate"
@@ -2321,7 +2321,7 @@
         <!-- MODULATION (green accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 532"
+            origin="8, 546"
             size="884, 160"
             fieldset-title="MODULATION"
             fieldset-color="modulation"
@@ -2371,7 +2371,7 @@
         <!-- EFFECTS (gray accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 694"
+            origin="8, 708"
             size="884, 160"
             fieldset-title="EFFECTS"
             fieldset-color="effects"
