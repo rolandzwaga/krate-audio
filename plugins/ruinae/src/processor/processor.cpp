@@ -630,6 +630,8 @@ void Processor::applyParamsToEngine() {
     engine_.setPolyphony(static_cast<size_t>(
         globalParams_.polyphony.load(std::memory_order_relaxed)));
     engine_.setSoftLimitEnabled(globalParams_.softLimit.load(std::memory_order_relaxed));
+    engine_.setStereoWidth(globalParams_.width.load(std::memory_order_relaxed));
+    engine_.setStereoSpread(globalParams_.spread.load(std::memory_order_relaxed));
 
     // --- OSC A ---
     engine_.setOscAType(static_cast<OscType>(

@@ -60,6 +60,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kVoiceModeId = 1,          // 0=Poly, 1=Mono
     kPolyphonyId = 2,          // 1-16 voices
     kSoftLimitId = 3,          // on/off
+    kWidthId = 4,              // 0-200% stereo width (norm * 2.0)
+    kSpreadId = 5,             // 0-100% voice spread
     kGlobalEndId = 99,
 
     // ==========================================================================

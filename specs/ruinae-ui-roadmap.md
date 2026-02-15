@@ -1,7 +1,8 @@
 # Ruinae UI Gaps Roadmap
 
 **Date**: 2026-02-14
-**Status**: Approved
+**Status**: Approved (In Progress)
+**Last Updated**: 2026-02-15
 **Context**: [ui-gaps-assessment.md](specs/ui-gaps-assessment.md)
 
 ---
@@ -49,7 +50,7 @@ Window height may increase modestly (830 → ~866px) to accommodate the Global F
 
 Before adding features, restructure the Master section and Modulation row to create slots for new content.
 
-### 0A. Expand Master Section into a "Voice & Output" Panel
+### 0A. Expand Master Section into a "Voice & Output" Panel -- DONE (Spec 052 + 054)
 
 **Current**: Master has only 3 controls (Output knob, Polyphony dropdown, Soft Limit toggle) in 120x160px.
 
@@ -70,7 +71,7 @@ Before adding features, restructure the Master section and Modulation row to cre
 
 This fits within the existing 120x160 footprint by tightening spacing. The `[⚙]` opens a settings overlay (Phase 5).
 
-### 0B. Replace Mod Source Tabs with Dropdown Selector
+### 0B. Replace Mod Source Tabs with Dropdown Selector -- DONE (Spec 053)
 
 **Current**: Mod source tabs are `LFO1 | LFO2 | Chaos` sharing a 158x120 view area.
 
@@ -116,12 +117,13 @@ This uses the same `UIViewSwitchContainer` pattern already used for oscillator t
 
 **Goal**: Expose already-registered parameters that just need uidesc controls.
 
-### 1.1 Voice Mode Selector
+### 1.1 Voice Mode Selector -- DONE (Spec 054)
 - **What**: Add Poly/Mono dropdown to Master section
 - **Param**: `kVoiceModeId` (1) - already registered
 - **Where**: Replace or sit alongside Polyphony dropdown in Master section
 - **Effort**: Small (1 uidesc control + visibility wiring)
 - **Unlocks**: Access to mono mode
+- **Implemented**: COptionMenu with "Polyphonic"/"Mono" items, "Mode" label, control-tag="VoiceMode" tag="1"
 
 ### 1.2 Trance Gate Tempo Sync Toggle
 - **What**: Add sync toggle button next to the Trance Gate rate/note controls
@@ -130,12 +132,13 @@ This uses the same `UIViewSwitchContainer` pattern already used for oscillator t
 - **Effort**: Small (1 toggle + rate/note visibility switch — same pattern as LFO sync)
 - **Unlocks**: Tempo-synced trance gate
 
-### 1.3 Stereo Width & Spread
+### 1.3 Stereo Width & Spread -- DONE (Spec 054)
 - **What**: Two knobs for stereo field control
-- **Params**: Need new IDs (not yet defined)
+- **Params**: `kWidthId` (4), `kSpreadId` (5) - defined in spec 054
 - **Where**: Master/Voice section (see Phase 0A layout)
 - **Effort**: Medium (2 new param IDs + processor wiring + 2 uidesc knobs)
 - **Unlocks**: Stereo field shaping
+- **Implemented**: Width (0-200%, default 100%) via `engine_.setStereoWidth()`, Spread (0-100%, default 0%) via `engine_.setStereoSpread()`, EOF-safe state loading for backward compatibility
 
 **Phase 1 total**: ~3-5 controls, minimal layout disruption
 
@@ -307,13 +310,18 @@ Each source needs: DSP implementation, parameter IDs, processor wiring, controll
 ```
 Phase 0: Layout prep                          ┐
   0A. Restructure Master → Voice & Output     │ Foundation
+      ✅ DONE (Spec 052 layout + Spec 054     │
+         wiring)                              │
   0B. Replace mod source tabs with dropdown   │
+      ✅ DONE (Spec 053)                      │
   0C. Add Global Filter strip slot             ┘
 
 Phase 1: Quick wins                           ┐
-  1.1 Voice Mode selector                     │ Already registered,
-  1.2 Trance Gate sync toggle                 │ just need uidesc controls
-  1.3 Stereo Width/Spread knobs               ┘
+  1.1 Voice Mode selector                     │
+      ✅ DONE (Spec 054)                      │
+  1.2 Trance Gate sync toggle                 │
+  1.3 Stereo Width/Spread knobs               │
+      ✅ DONE (Spec 054)                      ┘
 
 Phase 2: Global Filter strip                    Post-mix filter exposed
 
@@ -339,10 +347,10 @@ Phase 6: All 5 mod sources (equal priority)   ┐ Major DSP + UI work
 ### Dependency Graph
 
 ```
-Phase 0A ──→ Phase 1.1 ──→ Phase 3 (mono needs voice mode selector)
-Phase 0A ──→ Phase 1.3 (stereo knobs need space in Master)
-Phase 0B ──→ Phase 4.2, 4.3 (dropdown needed for new source views)
-Phase 0B ──→ Phase 6.1-6.5 (dropdown needed for new source views)
+Phase 0A ✅ ──→ Phase 1.1 ✅ ──→ Phase 3 (mono needs voice mode selector)
+Phase 0A ✅ ──→ Phase 1.3 ✅ (stereo knobs need space in Master)
+Phase 0B ✅ ──→ Phase 4.2, 4.3 (dropdown needed for new source views)
+Phase 0B ✅ ──→ Phase 6.1-6.5 (dropdown needed for new source views)
 Phase 0C ──→ Phase 2 (filter strip needs layout slot)
 Phase 4.1 ──→ Phase 4.2, 4.3 (UI needs param IDs)
 Phase 5.1 ──→ (standalone, needs param IDs for settings)
@@ -354,15 +362,15 @@ Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
 
 ## Effort Estimates by Phase
 
-| Phase | New Param IDs | UIDESC Controls | Layout Changes | Relative Size |
-|-------|---------------|-----------------|----------------|---------------|
-| 0     | 0             | ~1 (dropdown)   | 3 sections     | Medium        |
-| 1     | 2 (stereo)    | ~5              | Minimal        | Small         |
-| 2     | 0             | 4               | Height +36px   | Small-Medium  |
-| 3     | 0             | 4               | Conditional    | Medium        |
-| 4     | ~12           | ~10             | New dropdown views | Large     |
-| 5     | ~6            | ~10             | Drawer + strip | Large         |
-| 6     | ~15           | ~15             | 5 dropdown views + DSP | Very Large |
+| Phase | New Param IDs | UIDESC Controls | Layout Changes | Relative Size | Status |
+|-------|---------------|-----------------|----------------|---------------|--------|
+| 0     | 0             | ~1 (dropdown)   | 3 sections     | Medium        | 0A ✅ 0B ✅ 0C pending |
+| 1     | 2 (stereo)    | ~5              | Minimal        | Small         | 1.1 ✅ 1.2 pending 1.3 ✅ |
+| 2     | 0             | 4               | Height +36px   | Small-Medium  | Pending |
+| 3     | 0             | 4               | Conditional    | Medium        | Pending |
+| 4     | ~12           | ~10             | New dropdown views | Large     | Pending |
+| 5     | ~6            | ~10             | Drawer + strip | Large         | Pending |
+| 6     | ~15           | ~15             | 5 dropdown views + DSP | Very Large | Pending |
 
 ---
 
@@ -375,3 +383,18 @@ Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
 | 3 | Settings panel style | Slide-out drawer from right edge, non-modal |
 | 4 | Rungler scope | Full configuration — expose all params (~8 controls) |
 | 5 | Phase 6 priority | All 5 mod sources equally — implement together |
+
+---
+
+## Spec Tracking
+
+| Spec | Roadmap Items | Status | Branch |
+|------|--------------|--------|--------|
+| 052 - Expand Master Section | Phase 0A (layout/placeholders) | Merged | `052-expand-master-section` |
+| 053 - Mod Source Dropdown | Phase 0B | Merged | `053-mod-source-dropdown` |
+| 054 - Master Section Panel | Phase 0A (wiring) + Phase 1.1 + Phase 1.3 | Complete (pending merge) | `054-master-section-panel` |
+
+### Next Up (unblocked)
+- **Phase 0C**: Global Filter strip slot (no dependencies)
+- **Phase 1.2**: Trance Gate tempo sync toggle (no dependencies)
+- **Phase 3**: Mono Mode conditional panel (dependency met: Phase 1.1 done)

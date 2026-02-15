@@ -61,8 +61,11 @@
     <control-tags>
         <!-- Master/Global -->
         <control-tag name="MasterGain" tag="0"/>
+        <control-tag name="VoiceMode" tag="1"/>
         <control-tag name="Polyphony" tag="2"/>
         <control-tag name="SoftLimit" tag="3"/>
+        <control-tag name="Width" tag="4"/>
+        <control-tag name="Spread" tag="5"/>
 
         <!-- OSC A -->
         <control-tag name="OscAType" tag="100"/>
@@ -2616,24 +2619,25 @@
             fieldset-font-size="10"
             transparent="true"
         >
-            <!-- Polyphony dropdown (repositioned, compact) -->
-            <view class="COptionMenu" origin="8, 14" size="60, 18"
-                  control-tag="Polyphony"
+            <!-- Row 1: Voice Mode dropdown with "Mode" label + gear icon -->
+            <view class="CTextLabel" origin="4, 14" size="28, 18"
+                  title="Mode"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="left"
+                  transparent="true"/>
+            <view class="COptionMenu" origin="32, 14" size="56, 18"
+                  control-tag="VoiceMode"
+                  default-value="0"
                   font="~ NormalFontSmaller"
                   font-color="master"
                   back-color="bg-dropdown"
                   frame-color="frame-dropdown-dim"
-                  tooltip="Polyphony"
+                  tooltip="Voice Mode"
                   transparent="false"/>
-            <view class="CTextLabel" origin="8, 32" size="60, 10"
-                  title="Poly"
-                  font="~ NormalFontSmaller"
-                  font-color="text-secondary"
-                  text-alignment="center"
-                  transparent="true"/>
 
             <!-- Gear icon (inert placeholder for future settings drawer) -->
-            <view class="ToggleButton" origin="72, 14" size="18, 18"
+            <view class="ToggleButton" origin="92, 14" size="18, 18"
                   icon-style="gear"
                   on-color="master"
                   off-color="text-secondary"
@@ -2642,43 +2646,57 @@
                   tooltip="Settings"
                   transparent="true"/>
 
-            <!-- Output knob (repositioned, centered) -->
-            <view class="ArcKnob" origin="42, 48" size="36, 36"
+            <!-- Row 2: Polyphony dropdown -->
+            <view class="COptionMenu" origin="8, 36" size="60, 18"
+                  control-tag="Polyphony"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  tooltip="Polyphony"
+                  transparent="false"/>
+
+            <!-- Output knob (centered, 32x32) -->
+            <view class="ArcKnob" origin="44, 58" size="32, 32"
                   control-tag="MasterGain"
                   default-value="0.5"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="34, 84" size="52, 12"
+            <view class="CTextLabel" origin="34, 90" size="52, 10"
                   title="Output"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Width knob (placeholder, no control-tag) -->
-            <view class="ArcKnob" origin="14, 100" size="28, 28"
+            <!-- Width knob (functional, wired to parameter) -->
+            <view class="ArcKnob" origin="14, 104" size="28, 28"
+                  control-tag="Width"
+                  default-value="0.5"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="10, 128" size="36, 10"
+            <view class="CTextLabel" origin="10, 132" size="36, 10"
                   title="Width"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Spread knob (placeholder, no control-tag) -->
-            <view class="ArcKnob" origin="62, 100" size="28, 28"
+            <!-- Spread knob (functional, wired to parameter) -->
+            <view class="ArcKnob" origin="62, 104" size="28, 28"
+                  control-tag="Spread"
+                  default-value="0"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="58, 128" size="40, 10"
+            <view class="CTextLabel" origin="58, 132" size="40, 10"
                   title="Spread"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Soft Limit toggle (repositioned to bottom) -->
-            <view class="ToggleButton" origin="20, 142" size="80, 16"
+            <!-- Soft Limit toggle (bottom) -->
+            <view class="ToggleButton" origin="20, 146" size="80, 14"
                   control-tag="SoftLimit"
                   title="Soft Limit"
                   font="~ NormalFontSmaller"

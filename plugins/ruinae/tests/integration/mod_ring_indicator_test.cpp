@@ -233,7 +233,7 @@ TEST_CASE("ModRingIndicator: base value and stroke width", "[modmatrix][ring][un
     ModRingIndicator ring(VSTGUI::CRect(0, 0, 50, 50));
 
     REQUIRE(ring.getBaseValue() == Approx(0.5f));
-    REQUIRE(ring.getStrokeWidth() == Approx(3.0f));
+    REQUIRE(ring.getStrokeWidth() == Approx(1.0f));
 
     ring.setBaseValue(0.75f);
     REQUIRE(ring.getBaseValue() == Approx(0.75f));

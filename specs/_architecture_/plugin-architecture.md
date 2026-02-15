@@ -906,7 +906,7 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 
 | Range | Section | Count |
 |-------|---------|-------|
-| 0-99 | Global (Gain, Voice Mode, Polyphony, Soft Limit) | 4 |
+| 0-99 | Global (Gain, Voice Mode, Polyphony, Soft Limit, Width, Spread) | 6 |
 | 100-199 | OSC A (Type, Tune, Fine, Level, Phase) | 5 |
 | 200-299 | OSC B (same as OSC A) | 5 |
 | 300-399 | Mixer (Mode, Position, Tilt) | 3 |
@@ -926,16 +926,43 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 | 1700-1799 | Reverb (Size, Damping, Width, Mix, PreDelay, Diffusion, Freeze, ModRate, ModDepth) | 9 |
 | 1800-1899 | Mono Mode (Priority, Legato, Portamento, PortaMode) | 4 |
 
+### Global Parameters (IDs 0-5)
+
+| ID | Name | Atomic Type | Range (Engine) | Normalized | Default (Norm) | Engine Method | Spec |
+|----|------|-------------|----------------|------------|----------------|---------------|------|
+| 0 | MasterGain | `std::atomic<float>` | 0.0-2.0 (linear gain) | norm * 2.0 | 0.5 | `engine_.setMasterGain()` | 045 |
+| 1 | VoiceMode | `std::atomic<int>` | 0=Polyphonic, 1=Mono | StringListParameter | 0 (Poly) | `engine_.setMode()` | 045, 054 |
+| 2 | Polyphony | `std::atomic<int>` | 1-16 voices | StringListParameter | 7 (8 voices) | `engine_.setPolyphony()` | 045 |
+| 3 | SoftLimit | `std::atomic<bool>` | on/off | 0=off, 1=on | 1 (on) | `engine_.setSoftLimitEnabled()` | 045 |
+| 4 | Width | `std::atomic<float>` | 0.0-2.0 (stereo width) | norm * 2.0 | 0.5 (100%) | `engine_.setStereoWidth()` | 054 |
+| 5 | Spread | `std::atomic<float>` | 0.0-1.0 (voice spread) | 1:1 mapping | 0.0 (0%) | `engine_.setStereoSpread()` | 054 |
+
+**Width Parameter (kWidthId = 4)**:
+Controls stereo width of the final output via Mid/Side processing. At 0% (engine 0.0) the output collapses to mono. At 100% (engine 1.0, norm 0.5) the stereo image is unchanged (natural). At 200% (engine 2.0, norm 1.0) the stereo image is exaggerated beyond natural width. Displayed as percentage: `int(norm * 200 + 0.5)` followed by "%".
+
+**Spread Parameter (kSpreadId = 5)**:
+Controls distribution of polyphonic voices across the stereo field. At 0% all voices are panned to center. At 100% voices are distributed evenly across the stereo field from left to right. Has no audible effect in Mono mode (only one voice exists). Displayed as percentage: `int(norm * 100 + 0.5)` followed by "%".
+
+**When to use Width vs Spread:**
+- **Width** affects the overall stereo image using Mid/Side processing. It works on any signal (mono or stereo, single voice or polyphonic). Use Width to narrow or widen the entire output mix.
+- **Spread** affects per-voice panning distribution. It only has an audible effect with multiple simultaneous voices in Polyphonic mode. Use Spread to create a wider sound by panning individual voices across the stereo field.
+- Both can be used together: Width controls the global stereo balance while Spread controls how voices are distributed within that stereo field.
+
+**VoiceMode UI Control Binding (Spec 054)**:
+The VoiceMode parameter (ID 1) was registered as a `StringListParameter` with entries "Polyphonic" and "Mono" in Spec 045 but had no UI control. Spec 054 added a `control-tag` named "VoiceMode" (tag 1) and a `COptionMenu` dropdown in the Voice & Output panel. The COptionMenu auto-populates its items from the StringListParameter -- no manual menu item addition is needed. A "Mode" `CTextLabel` is placed to the left of the dropdown.
+
 ### Denormalization Mappings
 
 | Mapping | Parameters | Formula |
 |---------|------------|---------|
 | Linear | Gain, Levels, Mix, Depth, Sustain | `value * range` |
+| Linear (x2) | Width (0-200%) | `normalized * 2.0` |
 | Exponential | Filter Cutoff (20-20kHz) | `20 * pow(1000, normalized)` |
 | Exponential | LFO Rate (0.01-50Hz) | `0.01 * pow(5000, normalized)` |
 | Cubic | Envelope Times (0-10000ms) | `normalized^3 * 10000` |
 | Cubic | Portamento Time (0-5000ms) | `normalized^3 * 5000` |
 | Bipolar | Tune (-24/+24 st), Mod Amount (-1/+1) | `normalized * range - offset` |
+| Identity | Spread (0-100%) | `normalized` (1:1) |
 
 ### Versioned State Persistence
 
@@ -958,6 +985,29 @@ Stream Format (v3): Same as v2 + voice routes (16 x VoiceModRoute, 14 bytes each
 - Version migration: stepwise N -> N+1
 - TranceGateParams uses v2 format (adds 32 step levels, Euclidean params, phase offset; v1 migrates with full-volume defaults)
 - v3 voice routes: serialized as 224-byte binary blob (16 routes x 14 bytes), sent bidirectionally via IMessage protocol (VoiceModRouteUpdate, VoiceModRouteRemove, VoiceModRouteState)
+- GlobalParams Width/Spread use EOF-safe loading (Spec 054): see pattern below
+
+#### EOF-Safe State Loading Pattern (Spec 054)
+
+When adding new fields to the end of an existing parameter pack's serialized state, use this pattern to maintain backward compatibility with old presets that lack the new fields:
+
+```cpp
+// In loadGlobalParams() -- AFTER reading all existing (required) fields:
+
+// Width (added in Spec 054 -- EOF-safe for old presets)
+if (streamer.readFloat(floatVal))
+    params.width.store(floatVal, std::memory_order_relaxed);
+// else: keep default 1.0f (natural stereo width)
+
+// Spread (added in Spec 054 -- EOF-safe for old presets)
+if (streamer.readFloat(floatVal))
+    params.spread.store(floatVal, std::memory_order_relaxed);
+// else: keep default 0.0f (all voices centered)
+```
+
+**Key difference from existing fields:** The original fields (masterGain, voiceMode, polyphony, softLimit) use `if (!read()) return false` -- hard failure that aborts the entire load. The new fields use `if (read()) store()` -- soft failure that keeps defaults. This asymmetry is intentional: old presets legitimately lack the new fields, so a missing read is not an error.
+
+**When to use this pattern:** Any future spec that appends new global parameters to `GlobalParams` should follow this same pattern. Write the new fields at the end in `saveGlobalParams()`, and read them with soft EOF handling in both `loadGlobalParams()` and `loadGlobalParamsToController()`.
 
 ### Dropdown Mappings
 
