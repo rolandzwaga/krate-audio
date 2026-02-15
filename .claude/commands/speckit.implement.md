@@ -87,31 +87,41 @@ Read these files for context:
 
 Complete all tasks in Phase {N}. Mark each task [X] as you complete it.
 Do NOT work on any other phase. Do NOT fill compliance tables.
-When done, summarize: files created/modified, tests written/run, builds performed.
+
+BUILD+TEST GATE (mandatory before finishing):
+1. Build the project using commands from quickstart.md — ZERO warnings required
+2. Run ALL test suites using commands from quickstart.md — ALL must pass
+3. If ANY test fails — including tests outside the current spec's scope — you MUST
+   fix it before returning. "Pre-existing" is NOT an excuse (Constitution Section VIII).
+4. Do NOT run pluginval or clang-tidy — those run once at the end, not per phase.
+
+When done, summarize: files created/modified, build result (0 warnings confirmed),
+test result (all suites passing with counts), any test failures you fixed.
 ```
 
 Wait for the agent to return.
 
-**Spawn `speckit-comply` agent** to verify the phase:
+**Spawn `speckit-comply` agent** to verify the phase (code review only — no build/test):
 
 ```
 Verify Phase {N} of spec {feature-name} implementation.
 
 Feature dir: {FEATURE_DIR}/
-Mode: Phase Verification
+Mode: Phase Verification (Lightweight)
 
 Read these files:
 - tasks.md (Phase {N} — check all tasks are marked [X])
 - spec.md (FR-xxx and SC-xxx requirements covered by this phase)
 - plan.md (architecture decisions that should be reflected)
-- quickstart.md (build and test commands)
 
 Then verify:
-1. Check every task marked [X] in Phase {N} — verify the work was actually done
-2. Build the project using commands from quickstart.md
-3. Run tests using commands from quickstart.md
-4. For each FR-xxx/SC-xxx covered by this phase: read the code, cite evidence
-5. Check for constitution violations (Section VIII warnings, XVI cheating, XIII test-first)
+1. Check every task marked [X] in Phase {N} — read the actual code to verify work was done
+2. For each FR-xxx/SC-xxx covered by this phase: read the code, cite file:line evidence
+3. Check for constitution violations (Section VIII warnings, XVI cheating, XIII test-first)
+4. Verify the implement agent reported a clean build (0 warnings) and all tests passing
+
+Do NOT build the project or run tests — the implement agent already did this as a
+mandatory gate. Your job is independent code review, not re-running the same commands.
 
 Output the compliance report. Do NOT modify any files.
 ```
@@ -129,22 +139,30 @@ Wait for the comply agent to return. Parse its report:
 Fix compliance issues in Phase {N} of spec {feature-name}.
 
 Feature dir: {FEATURE_DIR}/
+Read quickstart.md for build/test commands.
 
 The compliance agent found these issues:
 {paste the comply agent's issues list here}
 
 Fix ONLY the issues listed above. Do NOT re-implement tasks that already passed.
-When done, summarize what you changed.
+
+BUILD+TEST GATE (mandatory before finishing):
+1. Build the project — ZERO warnings required
+2. Run ALL test suites — ALL must pass
+3. If ANY test fails, fix it before returning (Constitution Section VIII).
+4. Do NOT run pluginval or clang-tidy.
+
+When done, summarize what you changed, build result, test result.
 ```
 
 Wait for the agent to return.
 
-**Spawn `speckit-comply` agent** again to re-verify:
+**Spawn `speckit-comply` agent** again to re-verify (same lightweight code-review prompt as above):
 
 ```
 Re-verify Phase {N} of spec {feature-name} after fixes.
 
-{same prompt as before}
+{same lightweight Phase Verification prompt as before — code review only, no build/test}
 ```
 
 - **If PASS**: Move to the next phase.
@@ -190,7 +208,10 @@ Mark the static analysis tasks [X] in tasks.md when done.
 
 Then re-run comply to verify the fixes.
 
-**Completion Verification (Phase N-1)**: Spawn `speckit-comply` agent:
+**Completion Verification (Phase N-1)**: Spawn `speckit-comply` agent.
+
+This is the ONE phase where build, tests, and pluginval actually run as verification.
+Per-phase comply agents do NOT build/test — this final sweep catches any regressions.
 
 ```
 Perform final completion verification for spec {feature-name}.
@@ -198,19 +219,26 @@ Perform final completion verification for spec {feature-name}.
 Feature dir: {FEATURE_DIR}/
 Mode: Final Completion Verification
 
+Read quickstart.md for build and test commands.
+
 Steps:
 1. Read spec.md — list ALL FR-xxx and SC-xxx requirements
 2. For EACH requirement individually:
    a. Find the implementation code — cite file:line
    b. Find the test — cite test name and actual result
    c. For SC-xxx with numeric targets — run/read actual values, compare against spec
-3. Run full test suite
-4. Run pluginval if plugin code was changed:
-   tools/pluginval.exe --strictness-level 5 --validate "build/VST3/Release/Iterum.vst3"
-5. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
-6. Produce the full compliance table with REAL evidence
+3. Build the project using commands from quickstart.md — verify 0 warnings
+4. Run full test suite — ALL tests must pass (Constitution Section VIII)
+5. Run pluginval if plugin code was changed:
+   tools/pluginval.exe --strictness-level 5 --validate "<path to built .vst3>"
+   (Check quickstart.md for the correct plugin path)
+6. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
+7. Produce the full compliance table with REAL evidence
 
 Output the final compliance report with:
+- Build result: 0 warnings confirmed
+- Test result: all suites passing with counts
+- Pluginval result: pass/fail (if applicable)
 - Full compliance table (every FR-xxx and SC-xxx with file:line evidence)
 - Overall status: COMPLETE / NOT COMPLETE / PARTIAL
 - List of unmet requirements (if any)
@@ -267,3 +295,6 @@ After all phases are complete, report to the user:
 5. **Max 1 retry per phase** — don't loop endlessly on failures
 6. **The comply agent's report is authoritative** — if it says FAIL, it's FAIL
 7. **User can override** — if the user says to skip verification or continue despite failures, respect that
+8. **Build+test responsibility belongs to the implement agent** — the per-phase comply agent does code review only. The final verification phase (Phase N-1) is the only comply phase that builds, tests, and runs pluginval.
+9. **No pluginval or clang-tidy in implementation phases** — these run ONCE at the end (clang-tidy in Phase N-1.0, pluginval in Phase N-1). Do NOT generate or execute these in per-phase work.
+10. **ALL test failures must be fixed immediately** — if the implement agent encounters ANY failing test (including ones outside the current spec's scope), it MUST fix the test before returning. "Pre-existing" is not an excuse (Constitution Section VIII). If an implement agent returns with known failing tests, the orchestrator MUST send it back to fix them before proceeding.
