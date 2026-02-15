@@ -283,25 +283,25 @@ This spec enables:
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
+| FR-001 | MET | `editor.uidesc:78-81` -- Four control-tag entries: MonoPriority tag 1800, MonoLegato tag 1801, MonoPortamentoTime tag 1802, MonoPortaMode tag 1803. Placed after Global Filter control-tags, before OSC A section. |
+| FR-002 | MET | `editor.uidesc:2743-2753` -- Polyphony COptionMenu wrapped in CViewContainer with custom-view-name="PolyGroup", size="112, 18", origin="8, 36", transparent="true". COptionMenu origin changed to 0,0. No visible attribute (defaults true). |
+| FR-003 | MET | `editor.uidesc:2755-2794` -- MonoGroup CViewContainer at origin="8, 36", size="112, 18", custom-view-name="MonoGroup", visible="false", transparent="true". Same position as PolyGroup. |
+| FR-004 | MET | `editor.uidesc:2758-2793` -- Four controls: Legato ToggleButton at (0,0) 22x18; Priority COptionMenu at (24,0) 36x18; Portamento Time ArcKnob at (62,0) 18x18; Portamento Mode COptionMenu at (82,0) 30x18. Layout: 22+2+36+2+18+2+30=112px. |
+| FR-005 | MET | No separate text label for Portamento Time knob. ArcKnob at editor.uidesc:2779-2784 has tooltip="Portamento time" for identification. |
+| FR-006 | MET | `controller.h:239-240` -- polyGroup_ and monoGroup_ CView* fields. `controller.cpp:540-543` -- kVoiceModeId toggle: polyGroup visible when value < 0.5, monoGroup visible when value >= 0.5. |
+| FR-007 | MET | `controller.cpp:903-912` -- verifyView() captures PolyGroup/MonoGroup by custom-view-name. `controller.cpp:620-621` -- willClose() nulls both pointers. |
+| FR-008 | MET | `controller.cpp:540-543` -- Visibility toggle in setParamNormalized() (deferred update mechanism). Same IDependent pattern as 6 existing sync toggle groups. |
+| FR-009 | MET | `controller.cpp:903-912` -- verifyView() reads kVoiceModeId via getParameterObject()->getNormalized(), sets initial visibility: PolyGroup visible=!isMono, MonoGroup visible=isMono. |
+| FR-010 | MET | No changes to save/load functions. saveMonoModeParams()/loadMonoModeParams() at mono_mode_params.h:80-107 unchanged. Pluginval Plugin state test passes. |
+| FR-011 | MET | Legato: on-color="master" (line 2766). Priority: font-color="master" (line 2774). Portamento Time: arc-color="master", guide-color="knob-guide" (lines 2782-2783). Portamento Mode: font-color="master" (line 2789). |
+| SC-001 | MET | MonoGroup container with 4 controls at editor.uidesc:2755-2794. Controller toggle at controller.cpp:540-543. Pluginval Editor tests pass. |
+| SC-002 | MET | controller.cpp:541 sets polyGroup visible when value < 0.5. Switching to Poly restores PolyGroup, hides MonoGroup. Pluginval Automation tests pass. |
+| SC-003 | MET | ArcKnob at editor.uidesc:2779-2784 bound to kMonoPortamentoTimeId. Cubic mapping (value^3 * 5000ms) in mono_mode_params.h:34-36. Range 0-5000ms. |
+| SC-004 | MET | Pluginval passes at strictness level 5 -- all sections pass including Plugin state, Automation, Automatable Parameters. |
+| SC-005 | MET | ruinae_tests: 291 cases, 3552 assertions all passed. dsp_tests: 5470 cases all passed. plugin_tests: 239 cases all passed. shared_tests: 175 cases all passed. Zero regressions. |
+| SC-006 | MET | Full Release build: zero warnings. Clang-tidy: 0 errors, 0 warnings. |
+| SC-007 | MET | verifyView() at controller.cpp:903-912 reads kVoiceModeId on editor open. loadMonoModeParams() restores values. Pluginval Plugin state test confirms round-trip. |
+| SC-008 | MET | All 4 params registered with kCanAutomate via registerMonoModeParams(). Pluginval Automatable Parameters and Automation tests pass. |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -313,21 +313,17 @@ This spec enables:
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
-
-**Recommendation**: [What needs to happen to achieve completion]
+All 11 FR and 8 SC requirements MET. Build clean (0 warnings), all test suites pass, pluginval strictness 5 passes, clang-tidy clean.

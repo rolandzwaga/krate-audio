@@ -536,6 +536,11 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         if (tranceGateRateGroup_) tranceGateRateGroup_->setVisible(value < 0.5);
         if (tranceGateNoteValueGroup_) tranceGateNoteValueGroup_->setVisible(value >= 0.5);
     }
+    // Toggle Poly/Mono visibility based on voice mode
+    if (tag == kVoiceModeId) {
+        if (polyGroup_) polyGroup_->setVisible(value < 0.5);
+        if (monoGroup_) monoGroup_->setVisible(value >= 0.5);
+    }
 
     // Push mixer parameter changes to XYMorphPad
     if (xyMorphPad_) {
@@ -612,6 +617,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         phaserNoteValueGroup_ = nullptr;
         tranceGateRateGroup_ = nullptr;
         tranceGateNoteValueGroup_ = nullptr;
+        polyGroup_ = nullptr;
+        monoGroup_ = nullptr;
 
         // FX detail panel cleanup (T092)
         fxDetailDelay_ = nullptr;
@@ -891,6 +898,18 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kTranceGateTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
+            }
+            // Poly/Mono visibility groups (toggled by voice mode)
+            else if (*name == "PolyGroup") {
+                polyGroup_ = container;
+                auto* voiceModeParam = getParameterObject(kVoiceModeId);
+                bool isMono = (voiceModeParam != nullptr) && voiceModeParam->getNormalized() >= 0.5;
+                container->setVisible(!isMono);
+            } else if (*name == "MonoGroup") {
+                monoGroup_ = container;
+                auto* voiceModeParam = getParameterObject(kVoiceModeId);
+                bool isMono = (voiceModeParam != nullptr) && voiceModeParam->getNormalized() >= 0.5;
+                container->setVisible(isMono);
             }
             // Envelope expand/collapse groups
             else if (*name == "EnvGroupAmp") {

@@ -235,6 +235,10 @@ private:
     VSTGUI::CView* tranceGateRateGroup_ = nullptr;
     VSTGUI::CView* tranceGateNoteValueGroup_ = nullptr;
 
+    /// Poly/Mono visibility groups - toggled by voice mode
+    VSTGUI::CView* polyGroup_ = nullptr;
+    VSTGUI::CView* monoGroup_ = nullptr;
+
     // FX detail panel expand/collapse state
     VSTGUI::CViewContainer* fxDetailDelay_ = nullptr;
     VSTGUI::CViewContainer* fxDetailReverb_ = nullptr;

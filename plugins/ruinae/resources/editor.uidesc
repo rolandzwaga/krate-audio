@@ -74,6 +74,12 @@
         <control-tag name="GlobalFilterCutoff" tag="1402"/>
         <control-tag name="GlobalFilterResonance" tag="1403"/>
 
+        <!-- Mono Mode -->
+        <control-tag name="MonoPriority" tag="1800"/>
+        <control-tag name="MonoLegato" tag="1801"/>
+        <control-tag name="MonoPortamentoTime" tag="1802"/>
+        <control-tag name="MonoPortaMode" tag="1803"/>
+
         <!-- OSC A -->
         <control-tag name="OscAType" tag="100"/>
         <control-tag name="OscATune" tag="101"/>
@@ -2733,15 +2739,59 @@
                   tooltip="Settings"
                   transparent="true"/>
 
-            <!-- Row 2: Polyphony dropdown -->
-            <view class="COptionMenu" origin="8, 36" size="60, 18"
-                  control-tag="Polyphony"
-                  font="~ NormalFontSmaller"
-                  font-color="master"
-                  back-color="bg-dropdown"
-                  frame-color="frame-dropdown-dim"
-                  tooltip="Polyphony"
-                  transparent="false"/>
+            <!-- Row 2: Polyphony dropdown (visible when Voice Mode = Poly) -->
+            <view class="CViewContainer" origin="8, 36" size="112, 18"
+                  custom-view-name="PolyGroup" transparent="true">
+                <view class="COptionMenu" origin="0, 0" size="60, 18"
+                      control-tag="Polyphony"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      tooltip="Polyphony"
+                      transparent="false"/>
+            </view>
+            <!-- Mono controls (visible when Voice Mode = Mono) -->
+            <view class="CViewContainer" origin="8, 36" size="112, 18"
+                  custom-view-name="MonoGroup" transparent="true"
+                  visible="false">
+                <view class="ToggleButton" origin="0, 0" size="22, 18"
+                      control-tag="MonoLegato"
+                      default-value="0"
+                      title="Leg"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      text-color="master"
+                      on-color="master"
+                      off-color="text-secondary"
+                      tooltip="Legato mode"
+                      transparent="true"/>
+                <view class="COptionMenu" origin="24, 0" size="36, 18"
+                      control-tag="MonoPriority"
+                      default-value="0"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      tooltip="Note priority"
+                      transparent="false"/>
+                <view class="ArcKnob" origin="62, 0" size="18, 18"
+                      control-tag="MonoPortamentoTime"
+                      default-value="0"
+                      arc-color="master"
+                      guide-color="knob-guide"
+                      tooltip="Portamento time"/>
+                <view class="COptionMenu" origin="82, 0" size="30, 18"
+                      control-tag="MonoPortaMode"
+                      default-value="0"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      tooltip="Portamento mode"
+                      transparent="false"/>
+            </view>
 
             <!-- Output knob (centered, 32x32) -->
             <view class="ArcKnob" origin="44, 58" size="32, 32"

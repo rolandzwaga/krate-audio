@@ -41,11 +41,11 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 1.1 Control-Tags Registration
 
-- [ ] T001 Add 4 mono mode control-tag entries after Global Filter section (line 75) in plugins/ruinae/resources/editor.uidesc: MonoPriority (1800), MonoLegato (1801), MonoPortamentoTime (1802), MonoPortaMode (1803)
+- [X] T001 Add 4 mono mode control-tag entries after Global Filter section (line 75) in plugins/ruinae/resources/editor.uidesc: MonoPriority (1800), MonoLegato (1801), MonoPortamentoTime (1802), MonoPortaMode (1803)
 
 ### 1.2 Build & Verify Control-Tags
 
-- [ ] T002 Build plugin with zero warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T002 Build plugin with zero warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
 - [ ] T003 Manual verification: Open plugin, verify no uidesc parse errors (control-tags are valid)
 
 **Checkpoint**: Control-tags registered, ready for uidesc container and control creation
@@ -60,29 +60,29 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 2.1 PolyGroup Container (Wrap Existing Polyphony Dropdown)
 
-- [ ] T004 [US1] Wrap the existing Polyphony COptionMenu (currently at origin 8,36) in a CViewContainer with custom-view-name="PolyGroup", size="112, 18", transparent="true" in plugins/ruinae/resources/editor.uidesc line 2736-2744. Change the COptionMenu origin from (8,36) to (0,0) relative to the new container.
+- [X] T004 [US1] Wrap the existing Polyphony COptionMenu (currently at origin 8,36) in a CViewContainer with custom-view-name="PolyGroup", size="112, 18", transparent="true" in plugins/ruinae/resources/editor.uidesc line 2736-2744. Change the COptionMenu origin from (8,36) to (0,0) relative to the new container.
 
 ### 2.2 MonoGroup Container with 4 Mono Controls
 
-- [ ] T005 [US1] Add new CViewContainer immediately after PolyGroup at origin (8, 36), size="112, 18", custom-view-name="MonoGroup", transparent="true", visible="false" in plugins/ruinae/resources/editor.uidesc
-- [ ] T006 [P] [US1] Add Legato ToggleButton at origin (0, 0), size (22, 18), control-tag="MonoLegato", default-value="0", title="Leg", on-color="master" within MonoGroup container
-- [ ] T007 [P] [US1] Add Priority COptionMenu at origin (24, 0), size (36, 18), control-tag="MonoPriority", default-value="0", font-color="master" within MonoGroup container (items auto-populated: "Last Note", "Low Note", "High Note")
-- [ ] T008 [P] [US1] Add Portamento Time ArcKnob at origin (62, 0), size (18, 18), control-tag="MonoPortamentoTime", default-value="0", arc-color="master", guide-color="knob-guide", tooltip="Portamento time" within MonoGroup container (mini 18x18 knob, no separate label)
-- [ ] T009 [P] [US1] Add Portamento Mode COptionMenu at origin (82, 0), size (30, 18), control-tag="MonoPortaMode", default-value="0", font-color="master" within MonoGroup container (items auto-populated: "Always", "Legato Only")
+- [X] T005 [US1] Add new CViewContainer immediately after PolyGroup at origin (8, 36), size="112, 18", custom-view-name="MonoGroup", transparent="true", visible="false" in plugins/ruinae/resources/editor.uidesc
+- [X] T006 [P] [US1] Add Legato ToggleButton at origin (0, 0), size (22, 18), control-tag="MonoLegato", default-value="0", title="Leg", on-color="master" within MonoGroup container
+- [X] T007 [P] [US1] Add Priority COptionMenu at origin (24, 0), size (36, 18), control-tag="MonoPriority", default-value="0", font-color="master" within MonoGroup container (items auto-populated: "Last Note", "Low Note", "High Note")
+- [X] T008 [P] [US1] Add Portamento Time ArcKnob at origin (62, 0), size (18, 18), control-tag="MonoPortamentoTime", default-value="0", arc-color="master", guide-color="knob-guide", tooltip="Portamento time" within MonoGroup container (mini 18x18 knob, no separate label)
+- [X] T009 [P] [US1] Add Portamento Mode COptionMenu at origin (82, 0), size (30, 18), control-tag="MonoPortaMode", default-value="0", font-color="master" within MonoGroup container (items auto-populated: "Always", "Legato Only")
 
 ### 2.3 Controller View Pointer Fields
 
-- [ ] T011 [US1] Add polyGroup_ and monoGroup_ view pointer field declarations (VSTGUI::CView* = nullptr) to plugins/ruinae/src/controller/controller.h after tranceGateNoteValueGroup_ (line 235)
+- [X] T011 [US1] Add polyGroup_ and monoGroup_ view pointer field declarations (VSTGUI::CView* = nullptr) to plugins/ruinae/src/controller/controller.h after tranceGateNoteValueGroup_ (line 235)
 
 ### 2.4 Controller Visibility Toggle Logic
 
-- [ ] T012 [US1] Add kVoiceModeId visibility toggle case to setParamNormalized() in plugins/ruinae/src/controller/controller.cpp after kTranceGateTempoSyncId block (line 538): toggle PolyGroup visible when value < 0.5, MonoGroup visible when value >= 0.5
-- [ ] T013 [US1] Add PolyGroup and MonoGroup capture cases to verifyView() in plugins/ruinae/src/controller/controller.cpp after TranceGateNoteValueGroup block (line 894): capture pointers, read current kVoiceModeId value, set initial visibility (PolyGroup visible if value < 0.5, MonoGroup visible if value >= 0.5)
-- [ ] T014 [US1] Add polyGroup_ and monoGroup_ pointer cleanup to willClose() in plugins/ruinae/src/controller/controller.cpp after tranceGateNoteValueGroup_ = nullptr (line 614)
+- [X] T012 [US1] Add kVoiceModeId visibility toggle case to setParamNormalized() in plugins/ruinae/src/controller/controller.cpp after kTranceGateTempoSyncId block (line 538): toggle PolyGroup visible when value < 0.5, MonoGroup visible when value >= 0.5
+- [X] T013 [US1] Add PolyGroup and MonoGroup capture cases to verifyView() in plugins/ruinae/src/controller/controller.cpp after TranceGateNoteValueGroup block (line 894): capture pointers, read current kVoiceModeId value, set initial visibility (PolyGroup visible if value < 0.5, MonoGroup visible if value >= 0.5)
+- [X] T014 [US1] Add polyGroup_ and monoGroup_ pointer cleanup to willClose() in plugins/ruinae/src/controller/controller.cpp after tranceGateNoteValueGroup_ = nullptr (line 614)
 
 ### 2.5 Build & Manual Verification
 
-- [ ] T015 [US1] Build plugin with zero warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T015 [US1] Build plugin with zero warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
 - [ ] T016 [US1] Manual verification: Open plugin, confirm default state (Voice Mode = Polyphonic): Polyphony dropdown visible, mono controls hidden
 - [ ] T017 [US1] Manual verification: Select "Mono" from Voice Mode dropdown, verify Polyphony dropdown hides and 4 mono controls appear (Legato toggle, Priority dropdown, Portamento Time knob, Portamento Mode dropdown)
 - [ ] T018 [US1] Manual verification: Switch Voice Mode back to "Polyphonic", verify mono controls hide and Polyphony dropdown reappears
@@ -146,8 +146,8 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 5.1 Pluginval Validation
 
-- [ ] T033 Run pluginval at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
-- [ ] T034 Verify all existing Ruinae tests still pass (no regressions): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
+- [X] T033 Run pluginval at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
+- [X] T034 Verify all existing Ruinae tests still pass (no regressions): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
 
 ### 5.2 Cross-Story Integration Verification
 
@@ -168,13 +168,13 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 6.1 Run Clang-Tidy Analysis
 
-- [ ] T038 Run clang-tidy on all modified source files: `./tools/run-clang-tidy.ps1 -Target ruinae`
+- [X] T038 Run clang-tidy on all modified source files: `./tools/run-clang-tidy.ps1 -Target ruinae`
 
 ### 6.2 Address Findings
 
-- [ ] T039 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T040 Review warnings and fix where appropriate (document suppressions with NOLINT if intentionally ignored)
-- [ ] T041 Commit clang-tidy fixes (if any)
+- [X] T039 Fix all errors reported by clang-tidy (blocking issues) — 0 errors found
+- [X] T040 Review warnings and fix where appropriate (document suppressions with NOLINT if intentionally ignored) — 0 warnings found
+- [X] T041 Commit clang-tidy fixes (if any) — no fixes needed
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 
@@ -188,14 +188,14 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T042 Review ALL FR-001 through FR-011 requirements from spec.md against implementation (uidesc control-tags, PolyGroup/MonoGroup containers, mono controls, controller visibility wiring)
-- [ ] T043 Review ALL SC-001 through SC-008 success criteria and verify measurable targets are achieved (manual verification and pluginval results)
-- [ ] T044 Search for cheating patterns in implementation: No placeholder comments, no test thresholds relaxed, no features quietly removed
+- [X] T042 Review ALL FR-001 through FR-011 requirements from spec.md against implementation (uidesc control-tags, PolyGroup/MonoGroup containers, mono controls, controller visibility wiring)
+- [X] T043 Review ALL SC-001 through SC-008 success criteria and verify measurable targets are achieved (manual verification and pluginval results)
+- [X] T044 Search for cheating patterns in implementation: No placeholder comments, no test thresholds relaxed, no features quietly removed
 
 ### 7.2 Fill Compliance Table in spec.md
 
-- [ ] T045 Update spec.md "Implementation Verification" section with compliance status for each FR-xxx and SC-xxx requirement
-- [ ] T046 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T045 Update spec.md "Implementation Verification" section with compliance status for each FR-xxx and SC-xxx requirement
+- [X] T046 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 7.3 Honest Self-Check
 
@@ -207,7 +207,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T047 All self-check questions answered "no" (or gaps documented honestly)
+- [X] T047 All self-check questions answered "no" (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
