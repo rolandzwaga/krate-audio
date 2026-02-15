@@ -126,21 +126,21 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 3.1 Write Tests for RuinaeEngine Forwarding
 
-- [ ] T030 Write test for Rungler forwarding in plugins/ruinae/tests/unit/engine/ruinae_engine_test.cpp: create test case "Rungler setters forward to ModulationEngine", create engine, call setRunglerOsc1Freq(5.0f), process block with Rungler routed, verify output changes (will FAIL - no forwarding methods yet)
+- [X] T030 Write test for Rungler forwarding in plugins/ruinae/tests/unit/engine/ruinae_engine_test.cpp: create test case "Rungler setters forward to ModulationEngine", create engine, call setRunglerOsc1Freq(5.0f), process block with Rungler routed, verify output changes (will FAIL - no forwarding methods yet)
 
 ### 3.2 Implement Rungler Forwarding Methods
 
-- [ ] T031 Add 6 public setter methods to RuinaeEngine in plugins/ruinae/src/engine/ruinae_engine.h after setMacroValue() (line 419): setRunglerOsc1Freq(float hz), setRunglerOsc2Freq(float hz), setRunglerDepth(float depth), setRunglerFilter(float amount), setRunglerBits(size_t bits), setRunglerLoopMode(bool loop) - each forwarding to globalModEngine_.setRunglerXxx()
+- [X] T031 Add 6 public setter methods to RuinaeEngine in plugins/ruinae/src/engine/ruinae_engine.h after setMacroValue() (line 419): setRunglerOsc1Freq(float hz), setRunglerOsc2Freq(float hz), setRunglerDepth(float depth), setRunglerFilter(float amount), setRunglerBits(size_t bits), setRunglerLoopMode(bool loop) - each forwarding to globalModEngine_.setRunglerXxx()
 
 ### 3.3 Verify Tests Pass
 
-- [ ] T032 Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T033 Run Ruinae unit tests for engine forwarding: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[ruinae_engine]"`
-- [ ] T034 Verify zero compiler warnings for ruinae_engine.h changes
+- [X] T032 Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T033 Run Ruinae unit tests for engine forwarding: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[ruinae_engine]"`
+- [X] T034 Verify zero compiler warnings for ruinae_engine.h changes
 
 ### 3.4 Commit
 
-- [ ] T035 Commit Phase 3 work: RuinaeEngine Rungler forwarding methods
+- [X] T035 Commit Phase 3 work: RuinaeEngine Rungler forwarding methods
 
 **Checkpoint**: RuinaeEngine can forward Rungler configuration to ModulationEngine
 

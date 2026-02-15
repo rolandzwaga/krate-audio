@@ -418,6 +418,14 @@ public:
         globalModEngine_.setMacroValue(index, value);
     }
 
+    // Rungler source setters (FR-010, Spec 057)
+    void setRunglerOsc1Freq(float hz) noexcept { globalModEngine_.setRunglerOsc1Freq(hz); }
+    void setRunglerOsc2Freq(float hz) noexcept { globalModEngine_.setRunglerOsc2Freq(hz); }
+    void setRunglerDepth(float depth) noexcept { globalModEngine_.setRunglerDepth(depth); }
+    void setRunglerFilter(float amount) noexcept { globalModEngine_.setRunglerFilter(amount); }
+    void setRunglerBits(size_t bits) noexcept { globalModEngine_.setRunglerBits(bits); }
+    void setRunglerLoopMode(bool loop) noexcept { globalModEngine_.setRunglerLoopMode(loop); }
+
     // =========================================================================
     // Performance Controllers (FR-023, FR-024, FR-025)
     // =========================================================================
