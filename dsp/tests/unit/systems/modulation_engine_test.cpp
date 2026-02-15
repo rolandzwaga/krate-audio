@@ -1010,3 +1010,125 @@ TEST_CASE("ModSource enum count is 14 after Rungler insertion", "[systems][modul
     // Spec 057 (FR-009): Rungler inserted at position 10, kModSourceCount updated to 14
     REQUIRE(kModSourceCount == 14);
 }
+
+// =============================================================================
+// Spec 057: Rungler ModulationEngine Integration Tests
+// =============================================================================
+
+TEST_CASE("Rungler source processes and returns value", "[systems][modulation_engine]") {
+    // Spec 057 (FR-008): Rungler integrated into ModulationEngine as new source
+    auto engine = createEngine(44100.0);
+
+    // Configure rungler with moderate frequencies (enough clock events per block)
+    // At 50 Hz, one cycle = 882 samples, so 512-sample block gives ~0.58 cycles
+    // At 70 Hz, one cycle = 630 samples, so per block ~0.81 cycles => ~0.81 clock events
+    engine.setRunglerOsc1Freq(50.0f);
+    engine.setRunglerOsc2Freq(70.0f);
+    engine.setRunglerDepth(0.5f);
+    engine.setRunglerFilter(0.0f);  // No filter smoothing for clearer signal
+    engine.setRunglerBits(8);
+
+    // Route Rungler to a test destination
+    ModRouting routing;
+    routing.source = ModSource::Rungler;
+    routing.destParamId = 50;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    std::array<float, 512> silence{};
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    ctx.blockSize = 512;
+
+    // Process enough blocks for multiple osc2 clock events
+    // 100 blocks * 512 = 51200 samples at 70 Hz osc2 = ~81 clock events
+    bool hasNonZeroValue = false;
+    bool hasNonZeroOffset = false;
+    for (int block = 0; block < 100; ++block) {
+        engine.process(ctx, silence.data(), silence.data(), 512);
+        float value = engine.getSourceValue(ModSource::Rungler);
+        float off = engine.getModulationOffset(50);
+
+        // Check value in [0, 1] range
+        REQUIRE(value >= 0.0f);
+        REQUIRE(value <= 1.0f);
+
+        if (value > 0.001f) hasNonZeroValue = true;
+        if (std::abs(off) > 0.001f) hasNonZeroOffset = true;
+        if (hasNonZeroValue && hasNonZeroOffset) break;
+    }
+
+    // Rungler should produce non-zero CV after multiple clock events
+    REQUIRE(hasNonZeroValue);
+    REQUIRE(hasNonZeroOffset);
+}
+
+TEST_CASE("Rungler only processes when sourceActive_ is true", "[systems][modulation_engine]") {
+    // Spec 057: Rungler should follow the sourceActive_ pattern
+    auto engine = createEngine(44100.0);
+
+    // Configure rungler with higher frequencies for fast evolution
+    engine.setRunglerOsc1Freq(100.0f);
+    engine.setRunglerOsc2Freq(130.0f);
+    engine.setRunglerDepth(0.5f);
+    engine.setRunglerFilter(0.0f);
+
+    std::array<float, 512> silence{};
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    ctx.blockSize = 512;
+
+    // Process WITHOUT any routing using Rungler source
+    // Rungler should NOT be processed (sourceActive_ is false)
+    for (int block = 0; block < 20; ++block) {
+        engine.process(ctx, silence.data(), silence.data(), 512);
+    }
+
+    // Get raw value - even without routing, we can query it
+    // but Rungler won't have been processed (stays at 0)
+    float valueBeforeRouting = engine.getSourceValue(ModSource::Rungler);
+
+    // Now add a routing that uses Rungler
+    ModRouting routing;
+    routing.source = ModSource::Rungler;
+    routing.destParamId = 60;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    // Process WITH routing active - Rungler SHOULD be processed now
+    // At 130 Hz osc2, 100 blocks * 512 samples = 51200 samples => ~150 clock events
+    bool hasChangedValue = false;
+    float prevValue = valueBeforeRouting;
+    for (int block = 0; block < 100; ++block) {
+        engine.process(ctx, silence.data(), silence.data(), 512);
+        float currentValue = engine.getSourceValue(ModSource::Rungler);
+        if (std::abs(currentValue - prevValue) > 0.0001f) {
+            hasChangedValue = true;
+            break;
+        }
+        prevValue = currentValue;
+    }
+
+    // With routing active, Rungler should evolve over time
+    REQUIRE(hasChangedValue);
+
+    // Remove routing
+    engine.clearRouting(0);
+
+    // Process again - Rungler should NOT be processed
+    float valueAfterClear = engine.getSourceValue(ModSource::Rungler);
+    // After clearing, the value stays at whatever it was last
+    for (int block = 0; block < 20; ++block) {
+        engine.process(ctx, silence.data(), silence.data(), 512);
+    }
+    float valueAfterProcessing = engine.getSourceValue(ModSource::Rungler);
+
+    // The value should not change since Rungler is not being processed
+    REQUIRE(valueAfterProcessing == Approx(valueAfterClear).margin(0.0001f));
+}

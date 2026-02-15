@@ -85,34 +85,34 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 2.1 Write Tests for Rungler Integration
 
-- [ ] T017 Write test for Rungler source processing in dsp/tests/systems/modulation_engine_test.cpp: create test case "Rungler source processes and returns value", prepare engine, set rungler freq/depth, process block, call getRawSourceValue(ModSource::Rungler), verify non-zero value in [0,1] range (will FAIL - Rungler not integrated yet)
-- [ ] T018 Write test for Rungler sourceActive_ pattern in dsp/tests/systems/modulation_engine_test.cpp: create test case "Rungler only processes when sourceActive_ is true", add routing with Rungler source, verify processBlock calls Rungler, remove routing, verify Rungler not called (will FAIL initially)
+- [X] T017 Write test for Rungler source processing in dsp/tests/systems/modulation_engine_test.cpp: create test case "Rungler source processes and returns value", prepare engine, set rungler freq/depth, process block, call getRawSourceValue(ModSource::Rungler), verify non-zero value in [0,1] range (will FAIL - Rungler not integrated yet)
+- [X] T018 Write test for Rungler sourceActive_ pattern in dsp/tests/systems/modulation_engine_test.cpp: create test case "Rungler only processes when sourceActive_ is true", add routing with Rungler source, verify processBlock calls Rungler, remove routing, verify Rungler not called (will FAIL initially)
 
 ### 2.2 Implement Rungler Field and Methods in ModulationEngine
 
-- [ ] T019 Add `#include <krate/dsp/processors/rungler.h>` at top of dsp/include/krate/dsp/systems/modulation_engine.h (after other processor includes)
-- [ ] T020 Add `Rungler rungler_;` field to ModulationEngine private section in modulation_engine.h after transient_ field (line 689)
-- [ ] T021 [P] Add 6 public setter methods to ModulationEngine in modulation_engine.h after existing mod source setters (line 450): setRunglerOsc1Freq(float hz), setRunglerOsc2Freq(float hz), setRunglerDepth(float depth), setRunglerFilter(float amount), setRunglerBits(size_t bits), setRunglerLoopMode(bool loop) - each forwarding to rungler_ member
+- [X] T019 Add `#include <krate/dsp/processors/rungler.h>` at top of dsp/include/krate/dsp/systems/modulation_engine.h (after other processor includes)
+- [X] T020 Add `Rungler rungler_;` field to ModulationEngine private section in modulation_engine.h after transient_ field (line 689)
+- [X] T021 [P] Add 6 public setter methods to ModulationEngine in modulation_engine.h after existing mod source setters (line 450): setRunglerOsc1Freq(float hz), setRunglerOsc2Freq(float hz), setRunglerDepth(float depth), setRunglerFilter(float amount), setRunglerBits(size_t bits), setRunglerLoopMode(bool loop) - each forwarding to rungler_ member
 
 ### 2.3 Integrate Rungler in prepare/reset/process
 
-- [ ] T022 Add `rungler_.prepare(sampleRate);` in ModulationEngine::prepare() after transient_.prepare() (line 71)
-- [ ] T023 Add `rungler_.reset();` in ModulationEngine::reset() after transient_.reset() (line 98)
-- [ ] T024 Add Rungler processing block in ModulationEngine::process() after transient processBlock (line 189): `if (sourceActive_[static_cast<size_t>(ModSource::Rungler)]) { rungler_.processBlock(safeSamples); }`
+- [X] T022 Add `rungler_.prepare(sampleRate);` in ModulationEngine::prepare() after transient_.prepare() (line 71)
+- [X] T023 Add `rungler_.reset();` in ModulationEngine::reset() after transient_.reset() (line 98)
+- [X] T024 Add Rungler processing block in ModulationEngine::process() after transient processBlock (line 189): `if (sourceActive_[static_cast<size_t>(ModSource::Rungler)]) { rungler_.processBlock(safeSamples); }`
 
 ### 2.4 Add Rungler Case to getRawSourceValue
 
-- [ ] T025 Insert `case ModSource::Rungler: return rungler_.getCurrentValue();` in ModulationEngine::getRawSourceValue() switch statement before case ModSource::SampleHold (line 261)
+- [X] T025 Insert `case ModSource::Rungler: return rungler_.getCurrentValue();` in ModulationEngine::getRawSourceValue() switch statement before case ModSource::SampleHold (line 261)
 
 ### 2.5 Verify Tests Pass
 
-- [ ] T026 Build DSP library: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target KrateDSP`
-- [ ] T027 Run DSP tests for Rungler integration: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[modulation_engine]"`
-- [ ] T028 Verify zero compiler warnings for modulation_engine.h changes
+- [X] T026 Build DSP library: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target KrateDSP`
+- [X] T027 Run DSP tests for Rungler integration: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "[modulation_engine]"`
+- [X] T028 Verify zero compiler warnings for modulation_engine.h changes
 
 ### 2.6 Commit
 
-- [ ] T029 Commit Phase 2 work: Rungler integrated into ModulationEngine
+- [X] T029 Commit Phase 2 work: Rungler integrated into ModulationEngine
 
 **Checkpoint**: Rungler fully integrated as ModSource::Rungler, processes when routed, returns CV value
 
