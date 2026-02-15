@@ -94,7 +94,7 @@ This fits within the existing 120x160 footprint by tightening spacing. The `[⚙
 
 This uses the same `UIViewSwitchContainer` pattern already used for oscillator types and filter types. The dropdown takes ~20px height, leaving ~100px for the source view — comparable to the current tab layout.
 
-### 0C. Add Global Filter Strip to Row 2
+### 0C. Add Global Filter Strip to Row 2 -- DONE (Spec 055)
 
 **Current Row 2**: `Filter (170) | Distortion (154) | Envelopes (544)` = 868px
 
@@ -125,12 +125,13 @@ This uses the same `UIViewSwitchContainer` pattern already used for oscillator t
 - **Unlocks**: Access to mono mode
 - **Implemented**: COptionMenu with "Polyphonic"/"Mono" items, "Mode" label, control-tag="VoiceMode" tag="1"
 
-### 1.2 Trance Gate Tempo Sync Toggle
+### 1.2 Trance Gate Tempo Sync Toggle -- DONE (Spec 055)
 - **What**: Add sync toggle button next to the Trance Gate rate/note controls
 - **Param**: `kTranceGateTempoSyncId` (606) - already registered
 - **Where**: Trance Gate toolbar, next to existing Rate/NoteValue
 - **Effort**: Small (1 toggle + rate/note visibility switch — same pattern as LFO sync)
 - **Unlocks**: Tempo-synced trance gate
+- **Implemented**: Sync toggle in Trance Gate toolbar (leftmost position after On/Off), Rate/NoteValue visibility switching via controller, new NoteValue dropdown with tempo-synced rate values
 
 ### 1.3 Stereo Width & Spread -- DONE (Spec 054)
 - **What**: Two knobs for stereo field control
@@ -144,17 +145,18 @@ This uses the same `UIViewSwitchContainer` pattern already used for oscillator t
 
 ---
 
-## Phase 2: Global Filter Section
+## Phase 2: Global Filter Section -- DONE (Spec 055)
 
 **Goal**: Expose the fully-implemented global stereo filter.
 
-### 2.1 Global Filter Strip
+### 2.1 Global Filter Strip -- DONE (Spec 055)
 - **What**: Horizontal strip with Enable toggle, Type dropdown, Cutoff knob, Resonance knob
 - **Params**: `kGlobalFilterEnabledId` (1400), `kGlobalFilterTypeId` (1401), `kGlobalFilterCutoffId` (1402), `kGlobalFilterResonanceId` (1403) - all registered
 - **Where**: New slim strip between Row 2 and Row 3 (Phase 0C, Option B)
 - **Layout**: `[On/Off] [Type ▼]  ─(Cutoff)─  ─(Resonance)─`
 - **Effort**: Medium (layout height change + 4 uidesc controls)
 - **Dependencies**: Phase 0C layout change
+- **Implemented**: 36px-high strip with "global-filter" accent color, On/Off toggle, Type dropdown (LP/HP/BP/Notch), Cutoff and Resonance knobs with labels beside (right), window height 830→866px
 
 ---
 
@@ -314,16 +316,19 @@ Phase 0: Layout prep                          ┐
          wiring)                              │
   0B. Replace mod source tabs with dropdown   │
       ✅ DONE (Spec 053)                      │
-  0C. Add Global Filter strip slot             ┘
+  0C. Add Global Filter strip slot             │
+      ✅ DONE (Spec 055)                      ┘
 
 Phase 1: Quick wins                           ┐
   1.1 Voice Mode selector                     │
       ✅ DONE (Spec 054)                      │
   1.2 Trance Gate sync toggle                 │
+      ✅ DONE (Spec 055)                      │
   1.3 Stereo Width/Spread knobs               │
       ✅ DONE (Spec 054)                      ┘
 
-Phase 2: Global Filter strip                    Post-mix filter exposed
+Phase 2: Global Filter strip                  ┐ Post-mix filter exposed
+      ✅ DONE (Spec 055)                      ┘
 
 Phase 3: Mono Mode conditional panel            Mono becomes usable
 
@@ -351,7 +356,7 @@ Phase 0A ✅ ──→ Phase 1.1 ✅ ──→ Phase 3 (mono needs voice mode se
 Phase 0A ✅ ──→ Phase 1.3 ✅ (stereo knobs need space in Master)
 Phase 0B ✅ ──→ Phase 4.2, 4.3 (dropdown needed for new source views)
 Phase 0B ✅ ──→ Phase 6.1-6.5 (dropdown needed for new source views)
-Phase 0C ──→ Phase 2 (filter strip needs layout slot)
+Phase 0C ✅ ──→ Phase 2 ✅ (filter strip needs layout slot)
 Phase 4.1 ──→ Phase 4.2, 4.3 (UI needs param IDs)
 Phase 5.1 ──→ (standalone, needs param IDs for settings)
 Phase 5.2 ──→ (standalone, params already registered)
@@ -364,9 +369,9 @@ Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
 
 | Phase | New Param IDs | UIDESC Controls | Layout Changes | Relative Size | Status |
 |-------|---------------|-----------------|----------------|---------------|--------|
-| 0     | 0             | ~1 (dropdown)   | 3 sections     | Medium        | 0A ✅ 0B ✅ 0C pending |
-| 1     | 2 (stereo)    | ~5              | Minimal        | Small         | 1.1 ✅ 1.2 pending 1.3 ✅ |
-| 2     | 0             | 4               | Height +36px   | Small-Medium  | Pending |
+| 0     | 0             | ~1 (dropdown)   | 3 sections     | Medium        | ✅ All done (0A: 052/054, 0B: 053, 0C: 055) |
+| 1     | 2 (stereo)    | ~5              | Minimal        | Small         | ✅ All done (1.1/1.3: 054, 1.2: 055) |
+| 2     | 0             | 4               | Height +36px   | Small-Medium  | ✅ Done (055) |
 | 3     | 0             | 4               | Conditional    | Medium        | Pending |
 | 4     | ~12           | ~10             | New dropdown views | Large     | Pending |
 | 5     | ~6            | ~10             | Drawer + strip | Large         | Pending |
@@ -392,9 +397,10 @@ Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
 |------|--------------|--------|--------|
 | 052 - Expand Master Section | Phase 0A (layout/placeholders) | Merged | `052-expand-master-section` |
 | 053 - Mod Source Dropdown | Phase 0B | Merged | `053-mod-source-dropdown` |
-| 054 - Master Section Panel | Phase 0A (wiring) + Phase 1.1 + Phase 1.3 | Complete (pending merge) | `054-master-section-panel` |
+| 054 - Master Section Panel | Phase 0A (wiring) + Phase 1.1 + Phase 1.3 | Merged | `054-master-section-panel` |
+| 055 - Global Filter & Trance Gate Tempo | Phase 0C + Phase 1.2 + Phase 2 | Merged | `055-global-filter-trancegate-tempo` |
+| 056 - Mono Mode | Phase 3 | In Progress | `056-mono-mode` |
 
 ### Next Up (unblocked)
-- **Phase 0C**: Global Filter strip slot (no dependencies)
-- **Phase 1.2**: Trance Gate tempo sync toggle (no dependencies)
-- **Phase 3**: Mono Mode conditional panel (dependency met: Phase 1.1 done)
+- **Phase 5.2**: Mod matrix detail strip (standalone, params already registered)
+- **Phase 4**: Macros & Rungler (Phase 0B dropdown infrastructure done)
