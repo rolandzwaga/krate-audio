@@ -1001,3 +1001,12 @@ TEST_CASE("Routing getters return set values", "[systems][modulation_engine][sta
     REQUIRE(got.curve == ModCurve::Stepped);
     REQUIRE(got.active == true);
 }
+
+// =============================================================================
+// Spec 057: ModSource enum count after Rungler insertion
+// =============================================================================
+
+TEST_CASE("ModSource enum count is 14 after Rungler insertion", "[systems][modulation_engine]") {
+    // Spec 057 (FR-009): Rungler inserted at position 10, kModSourceCount updated to 14
+    REQUIRE(kModSourceCount == 14);
+}

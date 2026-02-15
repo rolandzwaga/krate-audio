@@ -7,7 +7,7 @@
 // processor (DSP) and controller (UI) sides. No VSTGUI dependency.
 //
 // Source indices are tab-dependent:
-//   Global tab: indices 0-11 map to DSP ModSource 1-12 (LFO1..Transient)
+//   Global tab: indices 0-12 map to DSP ModSource 1-13 (LFO1..Transient)
 //   Voice tab:  indices 0-7  map to DSP VoiceModSource 0-7 (Env1..Aftertouch)
 //
 // Shared across: processor.h, mod_source_colors.h, ModMatrixGrid, ModRingIndicator,
@@ -27,8 +27,8 @@ namespace Krate::Plugins {
 // Global tab sources match DSP ModSource enum (skip None=0): LFO1..Transient
 // Voice tab sources match DSP VoiceModSource enum: Env1..Aftertouch
 
-/// Number of sources visible in the Global tab (DSP ModSource 1-12)
-inline constexpr int kNumGlobalSources = 12;
+/// Number of sources visible in the Global tab (DSP ModSource 1-13)
+inline constexpr int kNumGlobalSources = 13;
 
 /// Number of sources visible in the Voice tab (DSP VoiceModSource 0-7)
 inline constexpr int kNumVoiceSources = 8;
@@ -66,7 +66,7 @@ inline constexpr int kNumGlobalDestinations = 8;
 // ==============================================================================
 // Represents a single modulation route (used internally by UI components).
 // The source field is a raw index whose meaning depends on the tab:
-//   Global routes: index into kGlobalSourceNames (0-11)
+//   Global routes: index into kGlobalSourceNames (0-12)
 //   Voice routes:  index into kVoiceSourceNames (0-7)
 // FR-001 to FR-010
 
@@ -175,8 +175,8 @@ struct ModSourceName {
     const char* abbreviation;
 };
 
-/// Global tab sources (indices 0-11, matching DSP ModSource 1-12)
-inline constexpr std::array<ModSourceName, 12> kGlobalSourceNames = {{
+/// Global tab sources (indices 0-12, matching DSP ModSource 1-13)
+inline constexpr std::array<ModSourceName, 13> kGlobalSourceNames = {{
     {"LFO 1",           "LF1"},
     {"LFO 2",           "LF2"},
     {"Env Follower",    "EnvF"},
@@ -186,6 +186,7 @@ inline constexpr std::array<ModSourceName, 12> kGlobalSourceNames = {{
     {"Macro 3",         "M3"},
     {"Macro 4",         "M4"},
     {"Chaos",           "Chao"},
+    {"Rungler",         "Rung"},
     {"Sample & Hold",   "S&H"},
     {"Pitch Follower",  "PFol"},
     {"Transient",       "Tran"},

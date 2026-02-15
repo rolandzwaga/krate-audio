@@ -268,13 +268,13 @@ static double controllerNormalizeDest(int32_t destParamId) {
 // Helper: Simulate processor denormalization for routing source
 // Mirrors processor.cpp processParameterChanges() case 0 (Source)
 static int processorDenormalizeSource(double normalized) {
-    return static_cast<int>(normalized * 12.0 + 0.5);
+    return static_cast<int>(normalized * (Krate::DSP::kModSourceCount - 1) + 0.5);
 }
 
 // Helper: Simulate controller normalization for routing source
 // Mirrors controller.cpp setComponentState() routing restore
 static double controllerNormalizeSource(int8_t source) {
-    return static_cast<double>(source) / 12.0;
+    return static_cast<double>(source) / (Krate::DSP::kModSourceCount - 1);
 }
 
 // Helper: Simulate processor denormalization for routing curve
@@ -304,7 +304,7 @@ TEST_CASE("Routing destination round-trip for every destination index",
 
 TEST_CASE("Routing source round-trip for every source",
           "[integration][state_persistence][routing]") {
-    // All 13 sources: None(0) through Transient(12)
+    // All 14 sources: None(0) through Transient(13)
     for (int s = 0; s < static_cast<int>(Krate::DSP::kModSourceCount); ++s) {
         const double normalized = controllerNormalizeSource(static_cast<int8_t>(s));
         const int restored = processorDenormalizeSource(normalized);
