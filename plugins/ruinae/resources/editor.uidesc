@@ -31,6 +31,7 @@
         <color name="modulation" rgba="#5AC882ff"/>
         <color name="effects" rgba="#6E7078ff"/>
         <color name="master" rgba="#C8C8CCff"/>
+        <color name="global-filter" rgba="#C8649Cff"/>
 
         <!-- Envelope colors (with alpha variants) -->
         <color name="amp-env" rgba="#508CC8ff"/>
@@ -66,6 +67,12 @@
         <control-tag name="SoftLimit" tag="3"/>
         <control-tag name="Width" tag="4"/>
         <control-tag name="Spread" tag="5"/>
+
+        <!-- Global Filter -->
+        <control-tag name="GlobalFilterEnabled" tag="1400"/>
+        <control-tag name="GlobalFilterType" tag="1401"/>
+        <control-tag name="GlobalFilterCutoff" tag="1402"/>
+        <control-tag name="GlobalFilterResonance" tag="1403"/>
 
         <!-- OSC A -->
         <control-tag name="OscAType" tag="100"/>
@@ -142,6 +149,7 @@
         <control-tag name="TranceGateDepth" tag="603"/>
         <control-tag name="TranceGateAttack" tag="604"/>
         <control-tag name="TranceGateRelease" tag="605"/>
+        <control-tag name="TranceGateSync" tag="606"/>
         <control-tag name="TranceGateNoteValue" tag="607"/>
         <control-tag name="TranceGateEuclideanEnabled" tag="608"/>
         <control-tag name="TranceGateEuclideanHits" tag="609"/>
@@ -1717,9 +1725,9 @@
 
     <template
         name="editor"
-        minSize="900, 830"
-        maxSize="900, 830"
-        size="900, 830"
+        minSize="900, 880"
+        maxSize="900, 880"
+        size="900, 880"
         background-color="bg-main"
         class="CViewContainer"
     >
@@ -1771,26 +1779,26 @@
             transparent="true"
         />
 
-        <!-- ROW 3: TRANCE GATE (y=334, height=160) -->
+        <!-- ROW 3: TRANCE GATE (y=370, height=160) -->
         <view
             class="CViewContainer"
-            origin="0, 334"
+            origin="0, 384"
             size="900, 160"
             transparent="true"
         />
 
-        <!-- ROW 4: MODULATION (y=496, height=160) -->
+        <!-- ROW 4: MODULATION (y=532, height=160) -->
         <view
             class="CViewContainer"
-            origin="0, 496"
+            origin="0, 546"
             size="900, 160"
             transparent="true"
         />
 
-        <!-- ROW 5: EFFECTS & OUTPUT (y=658, height=80) -->
+        <!-- ROW 5: EFFECTS & OUTPUT (y=694, height=80) -->
         <view
             class="CViewContainer"
-            origin="0, 658"
+            origin="0, 708"
             size="900, 80"
             transparent="true"
         />
@@ -2111,12 +2119,55 @@
             </view>
         </view>
 
+        <!-- Row 2.5: Global Filter -->
+
+        <!-- GLOBAL FILTER (rose accent) -->
+        <view
+            class="FieldsetContainer"
+            origin="8, 334"
+            size="884, 50"
+            fieldset-title="GLOBAL FILTER"
+            fieldset-color="global-filter"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
+            transparent="true"
+        >
+            <!-- On/Off toggle -->
+            <view class="ToggleButton" origin="8, 16" size="40, 18"
+                  control-tag="GlobalFilterEnabled" default-value="0"
+                  tooltip="Enable global filter"
+                  transparent="false"/>
+
+            <!-- Type dropdown -->
+            <view class="COptionMenu" origin="56, 16" size="90, 18"
+                  control-tag="GlobalFilterType"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+            <!-- Cutoff knob + label (beside, to the right) -->
+            <view class="ArcKnob" origin="200, 14" size="24, 24"
+                  control-tag="GlobalFilterCutoff" default-value="0.574"
+                  arc-color="global-filter" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="228, 18" size="40, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Cutoff"/>
+
+            <!-- Resonance knob + label (beside, to the right) -->
+            <view class="ArcKnob" origin="320, 14" size="24, 24"
+                  control-tag="GlobalFilterResonance" default-value="0.020"
+                  arc-color="global-filter" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="348, 18" size="36, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Reso"/>
+        </view>
+
         <!-- Row 3: Trance Gate -->
 
         <!-- TRANCE GATE (gold accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 334"
+            origin="8, 384"
             size="884, 160"
             fieldset-title="TRANCE GATE"
             fieldset-color="trance-gate"
@@ -2133,12 +2184,29 @@
                   tooltip="Enable trance gate"
                   transparent="false"/>
 
-            <view class="COptionMenu" origin="56, 14" size="70, 18"
+            <view class="ToggleButton" origin="56, 14" size="50, 18"
+                  control-tag="TranceGateSync"
+                  default-value="1.0"
+                  title="Sync"
+                  title-position="right"
+                  font="~ NormalFontSmaller"
+                  font-color="trance-gate"
+                  text-color="trance-gate"
+                  tooltip="Enable tempo sync"
+                  transparent="true"/>
+
+            <view class="CTextLabel" origin="120, 16" size="52, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Step size"/>
+            <view class="COptionMenu" origin="172, 14" size="70, 18"
                   control-tag="TranceGateNoteValue" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
-            <view class="COptionMenu" origin="130, 14" size="56, 18"
+            <view class="CTextLabel" origin="252, 16" size="60, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Step count"/>
+            <view class="COptionMenu" origin="312, 14" size="56, 18"
                   control-tag="TranceGateNumSteps" default-value="0.467"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
@@ -2184,12 +2252,31 @@
                   transparent="false"/>
 
             <!-- Parameter knobs: Rate, Depth, Attack, Release, Phase -->
-            <view class="ArcKnob" origin="380, 108" size="28, 28"
-                  control-tag="TranceGateRate" default-value="0.5"
-                  arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="374, 136" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Rate"/>
+            <!-- Rate (hidden when sync active — default sync=on) -->
+            <view class="CViewContainer" origin="375, 108" size="48, 38"
+                  custom-view-name="TranceGateRateGroup" transparent="true"
+                  visible="false">
+                <view class="ArcKnob" origin="0, 0" size="28, 28"
+                      control-tag="TranceGateRate" default-value="0.5"
+                      arc-color="trance-gate" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Rate"/>
+            </view>
+            <!-- Note Value (visible when sync active — default sync=on) -->
+            <view class="CViewContainer" origin="375, 108" size="80, 38"
+                  custom-view-name="TranceGateNoteValueGroup" transparent="true">
+                <view class="COptionMenu" origin="0, 4" size="70, 20"
+                      control-tag="TranceGateNoteValue"
+                      font="~ NormalFontSmaller"
+                      font-color="trance-gate"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="0, 28" size="70, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Note"/>
+            </view>
 
             <view class="ArcKnob" origin="448, 108" size="28, 28"
                   control-tag="TranceGateDepth" default-value="0.5"
@@ -2240,7 +2327,7 @@
         <!-- MODULATION (green accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 496"
+            origin="8, 546"
             size="884, 160"
             fieldset-title="MODULATION"
             fieldset-color="modulation"
@@ -2290,7 +2377,7 @@
         <!-- EFFECTS (gray accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 658"
+            origin="8, 708"
             size="884, 160"
             fieldset-title="EFFECTS"
             fieldset-color="effects"

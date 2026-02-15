@@ -531,6 +531,11 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         if (phaserRateGroup_) phaserRateGroup_->setVisible(value < 0.5);
         if (phaserNoteValueGroup_) phaserNoteValueGroup_->setVisible(value >= 0.5);
     }
+    // Toggle TranceGate Rate/NoteValue visibility based on sync state
+    if (tag == kTranceGateTempoSyncId) {
+        if (tranceGateRateGroup_) tranceGateRateGroup_->setVisible(value < 0.5);
+        if (tranceGateNoteValueGroup_) tranceGateNoteValueGroup_->setVisible(value >= 0.5);
+    }
 
     // Push mixer parameter changes to XYMorphPad
     if (xyMorphPad_) {
@@ -605,6 +610,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         delayNoteValueGroup_ = nullptr;
         phaserRateGroup_ = nullptr;
         phaserNoteValueGroup_ = nullptr;
+        tranceGateRateGroup_ = nullptr;
+        tranceGateNoteValueGroup_ = nullptr;
 
         // FX detail panel cleanup (T092)
         fxDetailDelay_ = nullptr;
@@ -870,6 +877,18 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "PhaserNoteValueGroup") {
                 phaserNoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kPhaserSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
+            }
+            // TranceGate Rate/NoteValue groups (toggled by sync state)
+            else if (*name == "TranceGateRateGroup") {
+                tranceGateRateGroup_ = container;
+                auto* syncParam = getParameterObject(kTranceGateTempoSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
+            } else if (*name == "TranceGateNoteValueGroup") {
+                tranceGateNoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kTranceGateTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             }

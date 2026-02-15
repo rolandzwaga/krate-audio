@@ -30,6 +30,7 @@ add_executable(ruinae_tests
     integration/midi_events_test.cpp
     integration/tempo_sync_test.cpp
     integration/param_flow_test.cpp
+    integration/trance_gate_param_flow_test.cpp
     integration/controller_state_test.cpp
 
     # Processor/Controller implementation (needed by plugin shell tests)
@@ -72,6 +73,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/midi_events_test.cpp
         integration/tempo_sync_test.cpp
         integration/param_flow_test.cpp
+        integration/trance_gate_param_flow_test.cpp
         integration/controller_state_test.cpp
         unit/controller_params_test.cpp
         unit/controller_display_test.cpp
