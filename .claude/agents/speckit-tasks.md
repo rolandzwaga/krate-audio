@@ -60,6 +60,14 @@ Context for task generation is provided as input to this agent.
    - Suggested MVP scope (typically just User Story 1)
    - Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
 
+6. **Sync to Beads** (optional): If the `bd` CLI is available on PATH, sync the generated tasks to the beads issue tracker:
+   ```
+   powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/sync-beads.ps1 -TasksFile <absolute-path-to-tasks.md>
+   ```
+   - This creates beads issues (epics for phases, tasks for subtask groups) from the tasks.md
+   - If `bd` is not installed, skip this step silently — it is not required
+   - Report sync results if it ran (number of issues created, manifest path)
+
 The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without additional context.
 
 ## Task Generation Rules

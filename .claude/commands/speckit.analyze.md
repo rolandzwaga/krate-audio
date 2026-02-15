@@ -1,5 +1,5 @@
 ---
-description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
+description: Analyze spec/plan/tasks for consistency issues, then remediate with user approval.
 ---
 
 ## Environment
@@ -22,6 +22,10 @@ Spawn the `speckit-analyze` agent to handle this task.
 $ARGUMENTS
 ```
 
-The agent has access to: Read, Bash, Glob (read-only - no Write/Edit tools).
+The agent has access to: Read, Write, Edit, Bash, Glob.
 
-Execute the full analysis workflow as defined in the agent. This is a READ-ONLY operation.
+Execute the full analysis and remediation workflow as defined in the agent. The agent will:
+1. Analyze all artifacts (read-only)
+2. Present findings report
+3. Ask user for approval to fix issues
+4. If approved: apply all edits, then reset and re-sync beads if tasks.md changed
