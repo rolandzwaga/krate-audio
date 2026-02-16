@@ -332,7 +332,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.1 Architecture Documentation Update
 
-- [ ] T111 Update F:\projects\iterum\specs\_architecture_\ with new components added by this spec:
+- [X] T111 Update F:\projects\iterum\specs\_architecture_\ with new components added by this spec:
   - Document settings parameters (IDs 2200-2205) and their mapping to engine methods in appropriate layer section
   - Document settings drawer UI (animation pattern, gear icon toggle, click-outside dismiss) in UI patterns section
   - Document state version 14 format (appended settings param pack: 4 floats, 3 int32s, 24 bytes total)
@@ -341,8 +341,8 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.2 Final Commit
 
-- [ ] T112 Commit architecture documentation updates
-- [ ] T113 Verify all spec work is committed to feature branch
+- [X] T112 Commit architecture documentation updates
+- [X] T113 Verify all spec work is committed to feature branch
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 

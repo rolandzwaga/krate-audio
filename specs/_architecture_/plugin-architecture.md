@@ -883,7 +883,7 @@ Host tempo/transport -> ProcessContext -> BlockContext -> engine_.setBlockContex
 Engine audio output -> process() output buffers -> Host
 ```
 
-### Parameter Pack Pattern (19 Sections)
+### Parameter Pack Pattern (20 Sections)
 
 Each synthesizer section has a self-contained header in `plugins/ruinae/src/parameters/`:
 
@@ -928,6 +928,7 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 | 1900-1999 | Phaser | varies |
 | 2000-2099 | Macros (Macro 1-4 Value) | 4 |
 | 2100-2199 | Rungler (Osc1Freq, Osc2Freq, Depth, Filter, Bits, LoopMode) | 6 |
+| 2200-2299 | Settings (PitchBendRange, VelocityCurve, TuningRef, AllocMode, StealMode, GainComp) | 6 |
 
 ### Global Parameters (IDs 0-5)
 
@@ -984,6 +985,10 @@ Stream Format (v3): Same as v2 + voice routes (16 x VoiceModRoute, 14 bytes each
 
 Stream Format (v13): Same as v12 + MacroParams (4 floats) + RunglerParams (4 floats + 2 int32s)
   ModSource enum migration for v < 13: source values >= 10 incremented by 1 (Rungler inserted at 10)
+
+Stream Format (v14): Same as v13 + SettingsParams (2 floats + 4 int32s = 24 bytes)
+  Settings: pitchBendRangeSemitones, velocityCurve, tuningReferenceHz, voiceAllocMode, voiceStealMode, gainCompensation
+  Backward compat for v < 14: settings default to pre-spec values (gain comp OFF)
   See [Plugin State Persistence](plugin-state-persistence.md) for full details.
 ```
 
@@ -1099,3 +1104,67 @@ The Effects row uses controller-managed UI state (not VST parameters) to show/hi
 Chevron buttons are `COnOffButton` controls using action tags (not `control-tag` bindings). When clicked, `valueChanged()` in the controller calls `toggleFxDetail(panelIndex)`, which shows the selected panel and hides the others. Only one panel is visible at a time. All panel pointers are nulled in `willClose()` to prevent dangling references.
 
 This pattern is appropriate when expand/collapse state is transient UI state that does not need to be persisted in the plugin state or exposed to host automation.
+
+#### Settings Drawer Slide-Out Pattern (Spec 058)
+
+The Settings drawer is a `CViewContainer` that slides in from the right edge of the 925x880 window when the gear icon in the Master section is clicked. It partially overlaps the main UI content.
+
+**Geometry:**
+
+| State | Drawer X Position | Visible Area |
+|-------|-------------------|--------------|
+| Closed | x=925 (off-screen) | None |
+| Open | x=705 | 220px wide, overlaps rightmost ~195px of main content |
+
+**Components:**
+
+| Element | custom-view-name / control-tag | Purpose |
+|---------|-------------------------------|---------|
+| Drawer container | `SettingsDrawer` (CViewContainer) | 220x880px panel with bg-drawer background |
+| Click-outside overlay | `SettingsOverlay` (ToggleButton) | 925x880px transparent overlay for dismiss gesture |
+| Gear icon | `ActionSettingsToggle` (tag 10020) | Existing gear ToggleButton in Master section, now wired |
+
+**Action Tags:**
+
+| Tag | ID | Purpose |
+|-----|-----|---------|
+| `kActionSettingsToggleTag` | 10020 | Gear icon click toggles drawer open/close |
+| `kActionSettingsOverlayTag` | 10021 | Transparent overlay click dismisses open drawer |
+
+**Animation:**
+- Duration: 160ms (~10 frames at 60fps)
+- Timer: `CVSTGUITimer` with 16ms interval
+- Curve: Quadratic ease-out (`1 - (1-t)^2` for opening, `t * (2-t)` for closing)
+- Position interpolation: Linear progress 0-1, mapped through ease curve to x position [925, 705]
+- Interruption: Changing direction mid-animation naturally reverses from current position (timer continues with flipped target, no restart needed)
+
+**Controller Fields:**
+```cpp
+CViewContainer* settingsDrawer_ = nullptr;
+CView* settingsOverlay_ = nullptr;
+CControl* gearButton_ = nullptr;
+SharedPointer<CVSTGUITimer> settingsAnimTimer_;
+bool settingsDrawerOpen_ = false;
+float settingsDrawerProgress_ = 0.0f;   // 0.0 = closed, 1.0 = open
+bool settingsDrawerTargetOpen_ = false;
+```
+
+**Lifecycle:**
+- `verifyView()`: Captures `settingsDrawer_`, `settingsOverlay_`, `gearButton_` pointers
+- `valueChanged()`: Handles `kActionSettingsToggleTag` (toggle) and `kActionSettingsOverlayTag` (dismiss)
+- `willClose()`: Nulls all drawer pointers and timer, resets state flags
+
+**Z-Order (critical):** In `editor.uidesc`, the overlay and drawer must be the last children of the root template:
+1. All main content containers
+2. `SettingsOverlay` (transparent click catcher, z-order below drawer)
+3. `SettingsDrawer` (topmost, draws on top of overlay and content)
+
+**Drawer state is NOT persisted:** The drawer always starts closed when the plugin loads. Open/closed state is transient UI state, not saved in the preset stream.
+
+**Controls inside drawer:**
+- Pitch Bend Range: ArcKnob (tag 2200), default 0.0833
+- Velocity Curve: COptionMenu (tag 2201), auto-populated from StringListParameter
+- Tuning Reference: ArcKnob (tag 2202), default 0.5
+- Voice Allocation: COptionMenu (tag 2203), auto-populated from StringListParameter
+- Voice Steal: COptionMenu (tag 2204), auto-populated from StringListParameter
+- Gain Compensation: ToggleButton (tag 2205), default ON
