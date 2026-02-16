@@ -83,7 +83,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 2.3 Commit
 
-- [ ] T018 Commit Phase 2 work: RuinaeEngine forwarding methods for 5 modulation sources
+- [X] T018 Commit Phase 2 work: RuinaeEngine forwarding methods for 5 modulation sources
 
 **Checkpoint**: RuinaeEngine has all forwarding methods, ready for processor wiring
 
