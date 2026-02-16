@@ -290,17 +290,17 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 7.1 Pluginval Validation
 
-- [ ] T102 Run pluginval at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
-- [ ] T103 Verify all existing Ruinae tests still pass (no regressions): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe` (Note: Per Constitution Principle VIII, regression testing should ideally occur after each major phase, but is consolidated here due to task organization constraints)
+- [X] T102 Run pluginval at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
+- [X] T103 Verify all existing Ruinae tests still pass (no regressions): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe` (Note: Per Constitution Principle VIII, regression testing should ideally occur after each major phase, but is consolidated here due to task organization constraints)
 
 ### 7.2 Cross-Story Integration Verification
 
-- [ ] T104 Manual verification: Open plugin, verify all 4 user stories work together: drawer opens/closes correctly, all 6 controls functional, preset persistence works, automation works, backward compatibility preserved
-- [ ] T105 Manual verification: Test edge cases from spec: set pitch bend range to 0 (verify wheel has no effect), set tuning to boundary values 400/480 Hz (verify clamping works), click gear twice quickly (verify animation reverses smoothly), save preset with drawer open (verify drawer state NOT saved, always starts closed)
+- [X] T104 Manual verification: Open plugin, verify all 4 user stories work together: drawer opens/closes correctly, all 6 controls functional, preset persistence works, automation works, backward compatibility preserved
+- [X] T105 Manual verification: Test edge cases from spec: set pitch bend range to 0 (verify wheel has no effect), set tuning to boundary values 400/480 Hz (verify clamping works), click gear twice quickly (verify animation reverses smoothly), save preset with drawer open (verify drawer state NOT saved, always starts closed)
 
 ### 7.3 Commit
 
-- [ ] T106 Commit any fixes from validation (if needed)
+- [X] T106 Commit any fixes from validation (if needed)
 
 **Checkpoint**: All user stories validated, pluginval passes, no regressions
 
