@@ -489,8 +489,8 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 11.2 Final Commit
 
-- [ ] T200 Commit architecture documentation updates
-- [ ] T201 Verify all spec work is committed to feature branch `059-additional-mod-sources`
+- [X] T200 Commit architecture documentation updates
+- [X] T201 Verify all spec work is committed to feature branch `059-additional-mod-sources`
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
