@@ -36,6 +36,7 @@ add_executable(ruinae_tests
     integration/param_flow_test.cpp
     integration/trance_gate_param_flow_test.cpp
     integration/controller_state_test.cpp
+    integration/mod_source_pipeline_test.cpp
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
@@ -79,6 +80,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/param_flow_test.cpp
         integration/trance_gate_param_flow_test.cpp
         integration/controller_state_test.cpp
+        integration/mod_source_pipeline_test.cpp
         unit/controller_params_test.cpp
         unit/controller_display_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"

@@ -835,10 +835,10 @@ void Processor::applyParamsToEngine() {
     static constexpr float kScaleMultipliers[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
     for (int i = 0; i < 8; ++i) {
         const auto& slot = modMatrixParams_.slots[static_cast<size_t>(i)];
-        auto src = static_cast<ModSource>(
-            slot.source.load(std::memory_order_relaxed));
-        auto dst = modDestFromIndex(
-            slot.dest.load(std::memory_order_relaxed));
+        int srcInt = slot.source.load(std::memory_order_relaxed);
+        int dstInt = slot.dest.load(std::memory_order_relaxed);
+        auto src = static_cast<ModSource>(srcInt);
+        auto dst = modDestFromIndex(dstInt);
         float amt = slot.amount.load(std::memory_order_relaxed);
         int curveIdx = std::clamp(slot.curve.load(std::memory_order_relaxed), 0, 3);
         int scaleIdx = std::clamp(slot.scale.load(std::memory_order_relaxed), 0, 4);
@@ -847,6 +847,7 @@ void Processor::applyParamsToEngine() {
         auto curve = static_cast<ModCurve>(curveIdx);
         float scaleMul = kScaleMultipliers[scaleIdx];
         engine_.setGlobalModRoute(i, src, dst, amt, curve, scaleMul, bypass, smoothMs);
+
     }
 
     // --- Global Filter ---
