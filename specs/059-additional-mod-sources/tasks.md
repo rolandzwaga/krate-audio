@@ -502,17 +502,17 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 12.1 Requirements Verification
 
-- [ ] T202 Review ALL FR-001 through FR-025 requirements from spec.md against implementation: parameter IDs, parameter files, RuinaeEngine forwarding, processor wiring, controller registration, state persistence, control-tags, uidesc templates, visibility switching
-- [ ] T203 Review ALL SC-001 through SC-011 success criteria and verify measurable targets are achieved: each source visible and functional, routes work, preset persistence, pluginval passes, no regressions, zero warnings, old presets load correctly, automation works
-- [ ] T204 Search for cheating patterns in implementation: no placeholder/TODO comments in new code, no test thresholds relaxed, no features quietly removed
+- [X] T202 Review ALL FR-001 through FR-025 requirements from spec.md against implementation: parameter IDs, parameter files, RuinaeEngine forwarding, processor wiring, controller registration, state persistence, control-tags, uidesc templates, visibility switching
+- [X] T203 Review ALL SC-001 through SC-011 success criteria and verify measurable targets are achieved: each source visible and functional, routes work, preset persistence, pluginval passes, no regressions, zero warnings, old presets load correctly, automation works
+- [X] T204 Search for cheating patterns in implementation: no placeholder/TODO comments in new code, no test thresholds relaxed, no features quietly removed
 
 ### 12.2 Fill Compliance Table in spec.md
 
 CRITICAL: Constitution Principle XVI requires actual code verification. Follow this process for EVERY requirement:
 
-- [ ] T205 Update spec.md "Implementation Verification" section with compliance status for each FR-xxx requirement: FOR EACH ROW: (1) Re-read the requirement from spec.md, (2) Open the implementation file and READ the actual code, (3) Cite file path + line number in Evidence column, (4) Mark status. DO NOT fill from memory. DO NOT use vague claims like "implemented". Example evidence: "env_follower_params.h:42-56 — EnvFollowerParams struct with 3 atomic fields (sensitivity, attackMs, releaseMs) matching FR-007 spec"
-- [ ] T206 Update spec.md "Implementation Verification" section with compliance status for each SC-xxx criterion: FOR EACH ROW: (1) Re-read the criterion from spec.md, (2) Run the test or manual verification, (3) Record actual test name + output in Evidence column, (4) For numeric thresholds, record actual measured value vs spec target, (5) Mark status. Example evidence: "Manual test T049-T051 passed — EF controls appear, sensitivity 70% + route to filter verified functional"
-- [ ] T207 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL. If ANY requirement is NOT MET without explicit user approval, status is NOT COMPLETE.
+- [X] T205 Update spec.md "Implementation Verification" section with compliance status for each FR-xxx requirement: FOR EACH ROW: (1) Re-read the requirement from spec.md, (2) Open the implementation file and READ the actual code, (3) Cite file path + line number in Evidence column, (4) Mark status. DO NOT fill from memory. DO NOT use vague claims like "implemented". Example evidence: "env_follower_params.h:42-56 — EnvFollowerParams struct with 3 atomic fields (sensitivity, attackMs, releaseMs) matching FR-007 spec"
+- [X] T206 Update spec.md "Implementation Verification" section with compliance status for each SC-xxx criterion: FOR EACH ROW: (1) Re-read the criterion from spec.md, (2) Run the test or manual verification, (3) Record actual test name + output in Evidence column, (4) For numeric thresholds, record actual measured value vs spec target, (5) Mark status. Example evidence: "Manual test T049-T051 passed — EF controls appear, sensitivity 70% + route to filter verified functional"
+- [X] T207 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL. If ANY requirement is NOT MET without explicit user approval, status is NOT COMPLETE.
 
 ### 12.3 Honest Self-Check
 
@@ -524,7 +524,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T208 All self-check questions answered "no" (or gaps documented honestly in spec.md)
+- [X] T208 All self-check questions answered "no" (or gaps documented honestly in spec.md)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 

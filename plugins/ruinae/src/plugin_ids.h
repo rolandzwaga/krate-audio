@@ -52,6 +52,12 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   1900-1999: Phaser (Rate, Depth, Feedback, Mix, Stages, ...)
 //   2000-2099: Macros (Macro 1-4 values)
 //   2100-2199: Rungler (Osc1 Freq, Osc2 Freq, Depth, Filter, Bits, Loop Mode)
+//   2200-2299: Settings (Pitch Bend Range, Velocity Curve, Tuning Ref, Alloc Mode, Steal Mode, Gain Comp)
+//   2300-2399: Env Follower
+//   2400-2499: Sample & Hold
+//   2500-2599: Random
+//   2600-2699: Pitch Follower
+//   2700-2799: Transient Detector
 // ==============================================================================
 
 enum ParameterIDs : Steinberg::Vst::ParamID {
