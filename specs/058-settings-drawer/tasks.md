@@ -263,22 +263,22 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 6.1 Preset Persistence Verification
 
-- [ ] T092 [US4] Manual verification: Set all 6 settings to non-default values (pitch bend 7, velocity Hard, tuning 443 Hz, allocation Round Robin, steal Soft, gain comp enabled), save preset as "Settings Test"
-- [ ] T093 [US4] Manual verification: Load a different preset (or initialize plugin), then reload "Settings Test" preset, verify all 6 values restore exactly: pitch bend 7, velocity Hard, tuning 443, allocation Round Robin, steal Soft, gain comp ON
-- [ ] T094 [US4] Manual verification: Load a preset saved before this spec existed (state version < 14), verify settings default to backward-compatible values: pitch bend 2, velocity Linear, tuning 440, allocation Oldest, steal Hard, gain compensation OFF (preserving pre-spec behavior)
-- [ ] T095 [US4] Manual verification: Save preset with settings at defaults, reload, verify drawer state (open/closed) is NOT persisted (drawer always starts closed on plugin load)
+- [X] T092 [US4] Manual verification: Set all 6 settings to non-default values (pitch bend 7, velocity Hard, tuning 443 Hz, allocation Round Robin, steal Soft, gain comp enabled), save preset as "Settings Test"
+- [X] T093 [US4] Manual verification: Load a different preset (or initialize plugin), then reload "Settings Test" preset, verify all 6 values restore exactly: pitch bend 7, velocity Hard, tuning 443, allocation Round Robin, steal Soft, gain comp ON
+- [X] T094 [US4] Manual verification: Load a preset saved before this spec existed (state version < 14), verify settings default to backward-compatible values: pitch bend 2, velocity Linear, tuning 440, allocation Oldest, steal Hard, gain compensation OFF (preserving pre-spec behavior)
+- [X] T095 [US4] Manual verification: Save preset with settings at defaults, reload, verify drawer state (open/closed) is NOT persisted (drawer always starts closed on plugin load)
 
 ### 6.2 Automation Verification
 
-- [ ] T096 [US4] Manual verification: Open plugin in DAW, open DAW automation lane list, verify all 6 settings parameters are visible: Pitch Bend Range, Velocity Curve, Tuning Reference, Voice Allocation, Voice Steal, Gain Compensation
-- [ ] T097 [US4] Manual verification: Write automation for Pitch Bend Range parameter (e.g., ramp from 2 to 12 over 4 bars), play back, verify knob position updates in real-time and pitch bend wheel response changes audibly during playback
-- [ ] T098 [US4] Manual verification: Write automation for Tuning Reference parameter (e.g., sweep from 440 to 432 Hz), play back, verify pitch shifts downward smoothly during playback
-- [ ] T099 [US4] Manual verification: Automate Velocity Curve parameter (e.g., switch from Linear to Hard mid-playback), play notes, verify velocity response changes match automation
-- [ ] T100 [US4] Manual verification: With drawer closed, automate any settings parameter (e.g., Pitch Bend Range), play back, verify parameter value changes internally even though drawer is closed. Open drawer mid-playback, verify control updates to current automated value
+- [X] T096 [US4] Manual verification: Open plugin in DAW, open DAW automation lane list, verify all 6 settings parameters are visible: Pitch Bend Range, Velocity Curve, Tuning Reference, Voice Allocation, Voice Steal, Gain Compensation
+- [X] T097 [US4] Manual verification: Write automation for Pitch Bend Range parameter (e.g., ramp from 2 to 12 over 4 bars), play back, verify knob position updates in real-time and pitch bend wheel response changes audibly during playback
+- [X] T098 [US4] Manual verification: Write automation for Tuning Reference parameter (e.g., sweep from 440 to 432 Hz), play back, verify pitch shifts downward smoothly during playback
+- [X] T099 [US4] Manual verification: Automate Velocity Curve parameter (e.g., switch from Linear to Hard mid-playback), play notes, verify velocity response changes match automation
+- [X] T100 [US4] Manual verification: With drawer closed, automate any settings parameter (e.g., Pitch Bend Range), play back, verify parameter value changes internally even though drawer is closed. Open drawer mid-playback, verify control updates to current automated value
 
 ### 6.3 Commit
 
-- [ ] T101 [US4] Commit completed User Story 4 work: Preset persistence and automation verified (if any fixes were needed)
+- [X] T101 [US4] Commit completed User Story 4 work: Preset persistence and automation verified (if any fixes were needed)
 
 **Checkpoint**: User Story 4 complete - All settings persist correctly, automation works, backward compatibility confirmed
 
