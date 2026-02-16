@@ -426,6 +426,32 @@ public:
     void setRunglerBits(size_t bits) noexcept { globalModEngine_.setRunglerBits(bits); }
     void setRunglerLoopMode(bool loop) noexcept { globalModEngine_.setRunglerLoopMode(loop); }
 
+    // Env Follower source setters
+    void setEnvFollowerSensitivity(float v) noexcept { globalModEngine_.setEnvFollowerSensitivity(v); }
+    void setEnvFollowerAttack(float ms) noexcept { globalModEngine_.setEnvFollowerAttack(ms); }
+    void setEnvFollowerRelease(float ms) noexcept { globalModEngine_.setEnvFollowerRelease(ms); }
+
+    // Sample & Hold source setters
+    void setSampleHoldRate(float hz) noexcept { globalModEngine_.setSampleHoldRate(hz); }
+    void setSampleHoldSlew(float ms) noexcept { globalModEngine_.setSampleHoldSlew(ms); }
+
+    // Random source setters
+    // NOTE: setRandomTempoSync and setRandomTempo are NOT forwarded -- Random sync is handled
+    // entirely at processor level via NoteValue-to-Hz conversion (same pattern as S&H)
+    void setRandomRate(float hz) noexcept { globalModEngine_.setRandomRate(hz); }
+    void setRandomSmoothness(float v) noexcept { globalModEngine_.setRandomSmoothness(v); }
+
+    // Pitch Follower source setters
+    void setPitchFollowerMinHz(float hz) noexcept { globalModEngine_.setPitchFollowerMinHz(hz); }
+    void setPitchFollowerMaxHz(float hz) noexcept { globalModEngine_.setPitchFollowerMaxHz(hz); }
+    void setPitchFollowerConfidence(float v) noexcept { globalModEngine_.setPitchFollowerConfidence(v); }
+    void setPitchFollowerTrackingSpeed(float ms) noexcept { globalModEngine_.setPitchFollowerTrackingSpeed(ms); }
+
+    // Transient Detector source setters
+    void setTransientSensitivity(float v) noexcept { globalModEngine_.setTransientSensitivity(v); }
+    void setTransientAttack(float ms) noexcept { globalModEngine_.setTransientAttack(ms); }
+    void setTransientDecay(float ms) noexcept { globalModEngine_.setTransientDecay(ms); }
+
     // =========================================================================
     // Performance Controllers (FR-023, FR-024, FR-025)
     // =========================================================================

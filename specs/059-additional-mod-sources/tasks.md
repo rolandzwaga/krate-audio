@@ -56,7 +56,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 1.3 Commit
 
-- [ ] T010 Commit Phase 1 work: Parameter IDs allocated for 5 modulation sources
+- [X] T010 Commit Phase 1 work: Parameter IDs allocated for 5 modulation sources
 
 **Checkpoint**: All 18 parameter IDs defined, kNumParameters=2800
 
@@ -70,16 +70,16 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 2.1 Add RuinaeEngine Forwarding Methods
 
-- [ ] T011 [P] Add 3 Env Follower forwarding methods to plugins/ruinae/src/engine/ruinae_engine.h after existing mod source methods: setEnvFollowerSensitivity(float), setEnvFollowerAttack(float ms), setEnvFollowerRelease(float ms) - each forwarding to globalModEngine_.setEnvFollowerXxx()
-- [ ] T012 [P] Add 2 Sample & Hold forwarding methods to ruinae_engine.h: setSampleHoldRate(float hz), setSampleHoldSlew(float ms) - forwarding to globalModEngine_.setSampleHoldXxx()
-- [ ] T013 [P] Add 2 Random forwarding methods to ruinae_engine.h: setRandomRate(float hz), setRandomSmoothness(float) - forwarding to globalModEngine_.setRandomXxx(). NOTE: Do NOT add setRandomTempoSync or setRandomTempo forwarding - Random sync is handled entirely at processor level via NoteValue-to-Hz conversion (same pattern as S&H)
-- [ ] T014 [P] Add 4 Pitch Follower forwarding methods to ruinae_engine.h: setPitchFollowerMinHz(float hz), setPitchFollowerMaxHz(float hz), setPitchFollowerConfidence(float), setPitchFollowerTrackingSpeed(float ms) - forwarding to globalModEngine_.setPitchFollowerXxx()
-- [ ] T015 [P] Add 3 Transient forwarding methods to ruinae_engine.h: setTransientSensitivity(float), setTransientAttack(float ms), setTransientDecay(float ms) - forwarding to globalModEngine_.setTransientXxx()
+- [X] T011 [P] Add 3 Env Follower forwarding methods to plugins/ruinae/src/engine/ruinae_engine.h after existing mod source methods: setEnvFollowerSensitivity(float), setEnvFollowerAttack(float ms), setEnvFollowerRelease(float ms) - each forwarding to globalModEngine_.setEnvFollowerXxx()
+- [X] T012 [P] Add 2 Sample & Hold forwarding methods to ruinae_engine.h: setSampleHoldRate(float hz), setSampleHoldSlew(float ms) - forwarding to globalModEngine_.setSampleHoldXxx()
+- [X] T013 [P] Add 2 Random forwarding methods to ruinae_engine.h: setRandomRate(float hz), setRandomSmoothness(float) - forwarding to globalModEngine_.setRandomXxx(). NOTE: Do NOT add setRandomTempoSync or setRandomTempo forwarding - Random sync is handled entirely at processor level via NoteValue-to-Hz conversion (same pattern as S&H)
+- [X] T014 [P] Add 4 Pitch Follower forwarding methods to ruinae_engine.h: setPitchFollowerMinHz(float hz), setPitchFollowerMaxHz(float hz), setPitchFollowerConfidence(float), setPitchFollowerTrackingSpeed(float ms) - forwarding to globalModEngine_.setPitchFollowerXxx()
+- [X] T015 [P] Add 3 Transient forwarding methods to ruinae_engine.h: setTransientSensitivity(float), setTransientAttack(float ms), setTransientDecay(float ms) - forwarding to globalModEngine_.setTransientXxx()
 
 ### 2.2 Verify Build
 
-- [ ] T016 Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T017 Verify zero compiler warnings for ruinae_engine.h changes
+- [X] T016 Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T017 Verify zero compiler warnings for ruinae_engine.h changes
 
 ### 2.3 Commit
 
