@@ -209,14 +209,14 @@ Wire up all 5 remaining modulation sources (Env Follower, Sample & Hold, Random,
 
 | Component | Gotcha | Correct Usage |
 |-----------|--------|---------------|
-| `SampleHoldSource` | Has NO `setTempoSync()` or `setTempo()` methods | Must convert NoteValue+tempo to Hz at plugin level and call `setSampleHoldRate(hz)` |
-| `RandomSource` | HAS `setTempoSync()` and `setTempo()` | Use directly, but NoteValue must still be converted at plugin level |
+| `SampleHoldSource` | Has NO `setTempoSync()` or `setTempo()` methods | Must convert NoteValue+tempo to Hz at plugin level and call `setSampleHoldRate(hz)`. If tempo invalid (0 BPM) or dropdownToDelayMs returns <=0, use 4 Hz fallback |
+| `RandomSource` | HAS `setTempoSync()` and `setTempo()` but MUST NOT use them | Bypass RandomSource built-in sync entirely. Handle sync at processor level via NoteValue-to-Hz conversion for consistent UX across all syncable sources. NEVER call setRandomTempoSync or setRandomTempo |
 | `ModulationEngine` | No `setSampleHoldTempoSync()` or `setSampleHoldNoteValue()` exists | S&H sync must be handled entirely at processor level: `dropdownToDelayMs()` -> convert to Hz -> `setSampleHoldRate()` |
-| `ModulationEngine` | No `setRandomNoteValue()` exists | Random NoteValue must be handled at processor level, but Random already handles tempo sync internally via `setRandomTempoSync(bool)` + `setRandomTempo(bpm)` |
+| `ModulationEngine` | No `setRandomNoteValue()` exists | Random NoteValue must be handled at processor level. RandomSource.setTempoSync/setTempo are NOT forwarded to RuinaeEngine -- processor bypasses them |
 | `EnvFollowerSensitivity` | Parameter is `envFollowerSensitivity_` in ModulationEngine, separate from the EnvelopeFollower class | `setEnvFollowerSensitivity(float)` stores it internally, applied during `getRawSourceValue()` |
 | State version | Currently 14 | Bump to 15; new data appended AFTER v14 settings params |
-| `lfoRateFromNormalized` | Maps [0,1] to [0.01, 50] Hz | Same range spec requires for S&H Rate (0.1-50 Hz) and Random Rate (0.1-50 Hz). Note: LFO min is 0.01 Hz but spec says 0.1 Hz -- use lfoRateFromNormalized anyway and clamp in the handle function to [0.1, 50] |
-| `dropdownToDelayMs` | Returns milliseconds, S&H needs Hz | Convert: `rateHz = 1000.0f / dropdownToDelayMs(noteIdx, bpm)` |
+| `lfoRateFromNormalized` | Maps [0,1] to [0.01, 50] Hz | Same range spec requires for S&H Rate (0.1-50 Hz) and Random Rate (0.1-50 Hz). Use lfoRateFromNormalized with explicit clamp in handle function: `std::clamp(lfoRateFromNormalized(value), 0.1f, 50.0f)` |
+| `dropdownToDelayMs` | Returns milliseconds, S&H/Random need Hz | Convert: `rateHz = 1000.0f / dropdownToDelayMs(noteIdx, bpm)`. If result <=0, use 4 Hz fallback |
 
 ## Layer 0 Candidate Analysis
 
@@ -500,10 +500,10 @@ void setSampleHoldRate(float hz) noexcept { globalModEngine_.setSampleHoldRate(h
 void setSampleHoldSlew(float ms) noexcept { globalModEngine_.setSampleHoldSlew(ms); }
 
 // Random source setters
+// NOTE: setRandomTempoSync and setRandomTempo are NOT added -- Random sync is handled
+// entirely at processor level via NoteValue-to-Hz conversion (same pattern as S&H)
 void setRandomRate(float hz) noexcept { globalModEngine_.setRandomRate(hz); }
 void setRandomSmoothness(float v) noexcept { globalModEngine_.setRandomSmoothness(v); }
-void setRandomTempoSync(bool enabled) noexcept { globalModEngine_.setRandomTempoSync(enabled); }
-void setRandomTempo(float bpm) noexcept { globalModEngine_.setRandomTempo(bpm); }
 
 // Pitch Follower source setters
 void setPitchFollowerMinHz(float hz) noexcept { globalModEngine_.setPitchFollowerMinHz(hz); }
@@ -517,9 +517,11 @@ void setTransientAttack(float ms) noexcept { globalModEngine_.setTransientAttack
 void setTransientDecay(float ms) noexcept { globalModEngine_.setTransientDecay(ms); }
 ```
 
-**Total**: 18 forwarding methods (3 + 2 + 4 + 4 + 3 = 16 unique engine calls, but S&H has no sync forwarding and Random has tempo forwarding).
+**Total**: 13 forwarding methods (3 + 2 + 2 + 4 + 3 = 14 minus 2 Random sync methods that are not used).
 
-**Note on S&H Sync**: Unlike other sources, S&H sync is handled entirely at the processor level. The `applyParamsToEngine()` method converts NoteValue + BPM to Hz when Sync is on and calls `setSampleHoldRate(hz)`. There is no `setSampleHoldTempoSync()` forwarding needed.
+**Note on S&H Sync**: Unlike other sources, S&H sync is handled entirely at the processor level. The `applyParamsToEngine()` method converts NoteValue + BPM to Hz when Sync is on and calls `setSampleHoldRate(hz)`. If tempo is invalid or dropdownToDelayMs returns <=0, a 4 Hz fallback is used. There is no `setSampleHoldTempoSync()` forwarding needed.
+
+**Note on Random Sync**: RandomSource has built-in `setTempoSync(bool)` and `setTempo(float)` methods but they are NOT used. Random sync is handled identically to S&H sync at the processor level via NoteValue-to-Hz conversion for consistent UX. The `setRandomTempoSync` and `setRandomTempo` methods are NOT forwarded to RuinaeEngine.
 
 ### Task Group 4: Processor Wiring (FR-013 through FR-017)
 
@@ -574,27 +576,30 @@ if (sampleHoldParams_.sync.load(std::memory_order_relaxed)) {
     // When synced, convert NoteValue + tempo to rate in Hz
     int noteIdx = sampleHoldParams_.noteValue.load(std::memory_order_relaxed);
     float delayMs = dropdownToDelayMs(noteIdx, tempoBPM_);
+    // Fallback to 4 Hz if tempo invalid or delayMs <=0
     float rateHz = (delayMs > 0.0f) ? (1000.0f / delayMs) : 4.0f;
     engine_.setSampleHoldRate(rateHz);
 } else {
+    // When not synced, use Rate knob value (already clamped in handleParamChange)
     engine_.setSampleHoldRate(sampleHoldParams_.rateHz.load(std::memory_order_relaxed));
 }
 engine_.setSampleHoldSlew(sampleHoldParams_.slewMs.load(std::memory_order_relaxed));
 
 // --- Random ---
-engine_.setRandomRate(randomParams_.rateHz.load(std::memory_order_relaxed));
-engine_.setRandomSmoothness(randomParams_.smoothness.load(std::memory_order_relaxed));
-engine_.setRandomTempoSync(randomParams_.sync.load(std::memory_order_relaxed));
-engine_.setRandomTempo(tempoBPM_);
-// Note: When Random sync is on, RandomSource internally uses tempo to compute rate.
-// NoteValue is not directly used by RandomSource -- it uses the rate/tempo internally.
-// However, we need to convert NoteValue to rate when sync is on, similar to S&H:
+// Note: RandomSource built-in tempo sync is NOT used. Sync is handled at processor level
+// via NoteValue-to-Hz conversion (same pattern as S&H) for consistent UX across all sources.
 if (randomParams_.sync.load(std::memory_order_relaxed)) {
+    // When synced, convert NoteValue + tempo to rate in Hz
     int noteIdx = randomParams_.noteValue.load(std::memory_order_relaxed);
     float delayMs = dropdownToDelayMs(noteIdx, tempoBPM_);
+    // Fallback to 4 Hz if tempo invalid or delayMs <=0
     float rateHz = (delayMs > 0.0f) ? (1000.0f / delayMs) : 4.0f;
     engine_.setRandomRate(rateHz);
+} else {
+    // When not synced, use Rate knob value (already clamped in handleParamChange)
+    engine_.setRandomRate(randomParams_.rateHz.load(std::memory_order_relaxed));
 }
+engine_.setRandomSmoothness(randomParams_.smoothness.load(std::memory_order_relaxed));
 
 // --- Pitch Follower ---
 engine_.setPitchFollowerMinHz(pitchFollowerParams_.minHz.load(std::memory_order_relaxed));
