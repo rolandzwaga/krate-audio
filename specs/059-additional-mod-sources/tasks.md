@@ -536,13 +536,13 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 13.1 Final Commit
 
-- [ ] T209 Commit all spec work to feature branch `059-additional-mod-sources`
-- [ ] T210 Verify all tests pass: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
-- [ ] T211 Verify pluginval passes: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
+- [X] T209 Commit all spec work to feature branch `059-additional-mod-sources`
+- [X] T210 Verify all tests pass: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
+- [X] T211 Verify pluginval passes: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
 
 ### 13.2 Completion Claim
 
-- [ ] T212 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T212 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 
