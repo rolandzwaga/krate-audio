@@ -36,6 +36,7 @@
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
 #include "parameters/rungler_params.h"
+#include "parameters/settings_params.h"
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
@@ -115,6 +116,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerMonoModeParams(parameters);
     registerMacroParams(parameters);
     registerRunglerParams(parameters);
+    registerSettingsParams(parameters);
 
     // ==========================================================================
     // Initialize Preset Manager
@@ -266,6 +268,16 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             loadMacroParamsToController(streamer, setParam);
             loadRunglerParamsToController(streamer, setParam);
         }
+
+        // v14: Settings params
+        if (version >= 14) {
+            loadSettingsParamsToController(streamer, setParam);
+        }
+        // For version < 14, settings params keep their registration defaults
+        // EXCEPT gain compensation must be OFF for old presets (registration default is ON)
+        if (version < 14) {
+            setParam(kSettingsGainCompensationId, 0.0); // OFF for pre-spec-058 presets
+        }
     }
 
     // =========================================================================
@@ -370,6 +382,8 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatMacroParam(id, valueNormalized, string);
     } else if (id >= kRunglerBaseId && id <= kRunglerEndId) {
         result = formatRunglerParam(id, valueNormalized, string);
+    } else if (id >= kSettingsBaseId && id <= kSettingsEndId) {
+        result = formatSettingsParam(id, valueNormalized, string);
     }
 
     // Fall back to default implementation for unhandled parameters

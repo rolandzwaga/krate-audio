@@ -67,48 +67,48 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 2.1 Write Tests for Settings Parameters
 
-- [ ] T008 [P] Write test for settings param handling in F:\projects\iterum\plugins\ruinae\tests\unit\processor\processor_test.cpp: create test case "Settings parameter changes update engine", send kSettingsPitchBendRangeId param change (value 0.5 = 12 semitones), call applyParamsToEngine, verify engine pitch bend range is 12.0f (will FAIL - settings_params.h not created yet)
-- [ ] T009 [P] Write test for settings state persistence in F:\projects\iterum\plugins\ruinae\tests\unit\processor\state_persistence_test.cpp: create test case "Settings params save and load", set non-default values (pitchBendRange=7, velocityCurve=2/Hard, tuning=432Hz, allocMode=0/RoundRobin, stealMode=1/Soft, gainComp=true), save state, reset values to defaults, load state, verify values restored (will FAIL - no save/load functions yet)
+- [X] T008 [P] Write test for settings param handling in F:\projects\iterum\plugins\ruinae\tests\unit\processor\processor_test.cpp: create test case "Settings parameter changes update engine", send kSettingsPitchBendRangeId param change (value 0.5 = 12 semitones), call applyParamsToEngine, verify engine pitch bend range is 12.0f (will FAIL - settings_params.h not created yet)
+- [X] T009 [P] Write test for settings state persistence in F:\projects\iterum\plugins\ruinae\tests\unit\processor\state_persistence_test.cpp: create test case "Settings params save and load", set non-default values (pitchBendRange=7, velocityCurve=2/Hard, tuning=432Hz, allocMode=0/RoundRobin, stealMode=1/Soft, gainComp=true), save state, reset values to defaults, load state, verify values restored (will FAIL - no save/load functions yet)
 
 ### 2.2 Create settings_params.h Parameter File
 
-- [ ] T010 [US2] [US3] Create new file F:\projects\iterum\plugins\ruinae\src\parameters\settings_params.h with header guards, includes (Steinberg headers, atomic, clamp, cmath for round)
-- [ ] T011 [US2] [US3] Define SettingsParams struct in settings_params.h with 6 atomic fields: pitchBendRangeSemitones (default 2.0f), velocityCurve (default 0), tuningReferenceHz (default 440.0f), voiceAllocMode (default 1=Oldest), voiceStealMode (default 0=Hard), gainCompensation (default true)
-- [ ] T012 [US2] [US3] Implement handleSettingsParamChange() function in settings_params.h: switch on paramId, denormalize using appropriate mappings (pitch bend: round(norm*24), velocity curve: round(norm*3), tuning: 400+norm*80, alloc mode: round(norm*3), steal mode: round(norm*1), gain comp: norm>=0.5), store clamped values
-- [ ] T013 [US2] [US3] Implement registerSettingsParams() function in settings_params.h: register Pitch Bend Range (stepCount=24, default 2/24=0.0833, unit "st"), Velocity Curve (StringListParameter via createDropdownParameter with 4 items: Linear/Soft/Hard/Fixed), Tuning Reference (stepCount=0, default 0.5, unit "Hz"), Voice Allocation (StringListParameter via createDropdownParameterWithDefault with 4 items: RoundRobin/Oldest/LowestVelocity/HighestNote, defaultIndex=1), Voice Steal (StringListParameter via createDropdownParameter with 2 items: Hard/Soft), Gain Compensation (stepCount=1, default 1.0 = ON)
-- [ ] T014 [US2] Implement formatSettingsParam() function in settings_params.h: format pitch bend range as "X st" (integer), tuning reference as "XXX.X Hz" (1 decimal), return kResultFalse for dropdown IDs (framework handles them), return kResultFalse for non-settings IDs
-- [ ] T015 [US2] [US3] [US4] Implement saveSettingsParams() function in settings_params.h: write pitchBendRangeSemitones, velocityCurve, tuningReferenceHz, voiceAllocMode, voiceStealMode, gainCompensation (4 floats, 2 int32s for enum indices, 1 int32 for bool) using streamer.writeFloat/Int32
-- [ ] T016 [US2] [US3] [US4] Implement loadSettingsParams() function in settings_params.h: read 4 floats and 3 int32s in same order, store to settingsParams fields, return false on read failure (EOF-safe)
-- [ ] T017 [US2] [US3] [US4] Implement loadSettingsParamsToController() function in settings_params.h: read 6 values, apply inverse mappings (pitch bend: semitones/24, velocity curve: index/3, tuning: (hz-400)/80, alloc mode: index/3, steal mode: index/1, gain comp: bool to 0.0 or 1.0), call setParam for each of 6 IDs
+- [X] T010 [US2] [US3] Create new file F:\projects\iterum\plugins\ruinae\src\parameters\settings_params.h with header guards, includes (Steinberg headers, atomic, clamp, cmath for round)
+- [X] T011 [US2] [US3] Define SettingsParams struct in settings_params.h with 6 atomic fields: pitchBendRangeSemitones (default 2.0f), velocityCurve (default 0), tuningReferenceHz (default 440.0f), voiceAllocMode (default 1=Oldest), voiceStealMode (default 0=Hard), gainCompensation (default true)
+- [X] T012 [US2] [US3] Implement handleSettingsParamChange() function in settings_params.h: switch on paramId, denormalize using appropriate mappings (pitch bend: round(norm*24), velocity curve: round(norm*3), tuning: 400+norm*80, alloc mode: round(norm*3), steal mode: round(norm*1), gain comp: norm>=0.5), store clamped values
+- [X] T013 [US2] [US3] Implement registerSettingsParams() function in settings_params.h: register Pitch Bend Range (stepCount=24, default 2/24=0.0833, unit "st"), Velocity Curve (StringListParameter via createDropdownParameter with 4 items: Linear/Soft/Hard/Fixed), Tuning Reference (stepCount=0, default 0.5, unit "Hz"), Voice Allocation (StringListParameter via createDropdownParameterWithDefault with 4 items: RoundRobin/Oldest/LowestVelocity/HighestNote, defaultIndex=1), Voice Steal (StringListParameter via createDropdownParameter with 2 items: Hard/Soft), Gain Compensation (stepCount=1, default 1.0 = ON)
+- [X] T014 [US2] Implement formatSettingsParam() function in settings_params.h: format pitch bend range as "X st" (integer), tuning reference as "XXX.X Hz" (1 decimal), return kResultFalse for dropdown IDs (framework handles them), return kResultFalse for non-settings IDs
+- [X] T015 [US2] [US3] [US4] Implement saveSettingsParams() function in settings_params.h: write pitchBendRangeSemitones, velocityCurve, tuningReferenceHz, voiceAllocMode, voiceStealMode, gainCompensation (4 floats, 2 int32s for enum indices, 1 int32 for bool) using streamer.writeFloat/Int32
+- [X] T016 [US2] [US3] [US4] Implement loadSettingsParams() function in settings_params.h: read 4 floats and 3 int32s in same order, store to settingsParams fields, return false on read failure (EOF-safe)
+- [X] T017 [US2] [US3] [US4] Implement loadSettingsParamsToController() function in settings_params.h: read 6 values, apply inverse mappings (pitch bend: semitones/24, velocity curve: index/3, tuning: (hz-400)/80, alloc mode: index/3, steal mode: index/1, gain comp: bool to 0.0 or 1.0), call setParam for each of 6 IDs
 
 ### 2.3 Wire Settings Parameters to Processor
 
-- [ ] T018 [US2] [US3] Add `#include "parameters/settings_params.h"` in F:\projects\iterum\plugins\ruinae\src\processor\processor.h after other param includes
-- [ ] T019 [US2] [US3] Add `SettingsParams settingsParams_;` field to Processor class in processor.h after runglerParams_ field
-- [ ] T020 [US2] Bump kCurrentStateVersion from 13 to 14 in processor.h (line 69)
-- [ ] T021 [US2] Add settings param handling case to processParameterChanges() in F:\projects\iterum\plugins\ruinae\src\processor\processor.cpp after rungler block: `} else if (paramId >= kSettingsBaseId && paramId <= kSettingsEndId) { handleSettingsParamChange(settingsParams_, paramId, value); }`
-- [ ] T022 [US2] [US3] Add settings forwarding to applyParamsToEngine() in processor.cpp after Rungler section: call engine_.setPitchBendRange(pitchBendRangeSemitones.load), engine_.setVelocityCurve(static_cast<VelocityCurve>(velocityCurve.load)), engine_.setTuningReference(tuningReferenceHz.load), engine_.setAllocationMode(static_cast<AllocationMode>(voiceAllocMode.load)), engine_.setStealMode(static_cast<StealMode>(voiceStealMode.load)), engine_.setGainCompensationEnabled(gainCompensation.load)
-- [ ] T023 [US2] [US3] Remove hardcoded `engine_.setGainCompensationEnabled(false);` from processor.cpp line 117 (gain comp now parameter-driven)
-- [ ] T024 [US2] [US3] [US4] Add saveSettingsParams(settingsParams_, streamer) to getState() in processor.cpp after v13 macro/rungler params, preceded by comment "// v14: Settings params"
-- [ ] T025 [US2] [US3] [US4] Add settings loading to setState() in processor.cpp: inside `if (version >= 14)` block after v13 loading, call loadSettingsParams(settingsParams_, streamer); in `else` block for version < 14, explicitly set backward-compatible defaults (pitchBendRange=2, velocityCurve=0, tuning=440, allocMode=1, stealMode=0, gainCompensation=false to match pre-spec behavior)
+- [X] T018 [US2] [US3] Add `#include "parameters/settings_params.h"` in F:\projects\iterum\plugins\ruinae\src\processor\processor.h after other param includes
+- [X] T019 [US2] [US3] Add `SettingsParams settingsParams_;` field to Processor class in processor.h after runglerParams_ field
+- [X] T020 [US2] Bump kCurrentStateVersion from 13 to 14 in processor.h (line 69)
+- [X] T021 [US2] Add settings param handling case to processParameterChanges() in F:\projects\iterum\plugins\ruinae\src\processor\processor.cpp after rungler block: `} else if (paramId >= kSettingsBaseId && paramId <= kSettingsEndId) { handleSettingsParamChange(settingsParams_, paramId, value); }`
+- [X] T022 [US2] [US3] Add settings forwarding to applyParamsToEngine() in processor.cpp after Rungler section: call engine_.setPitchBendRange(pitchBendRangeSemitones.load), engine_.setVelocityCurve(static_cast<VelocityCurve>(velocityCurve.load)), engine_.setTuningReference(tuningReferenceHz.load), engine_.setAllocationMode(static_cast<AllocationMode>(voiceAllocMode.load)), engine_.setStealMode(static_cast<StealMode>(voiceStealMode.load)), engine_.setGainCompensationEnabled(gainCompensation.load)
+- [X] T023 [US2] [US3] Remove hardcoded `engine_.setGainCompensationEnabled(false);` from processor.cpp line 117 (gain comp now parameter-driven)
+- [X] T024 [US2] [US3] [US4] Add saveSettingsParams(settingsParams_, streamer) to getState() in processor.cpp after v13 macro/rungler params, preceded by comment "// v14: Settings params"
+- [X] T025 [US2] [US3] [US4] Add settings loading to setState() in processor.cpp: inside `if (version >= 14)` block after v13 loading, call loadSettingsParams(settingsParams_, streamer); in `else` block for version < 14, explicitly set backward-compatible defaults (pitchBendRange=2, velocityCurve=0, tuning=440, allocMode=1, stealMode=0, gainCompensation=false to match pre-spec behavior)
 
 ### 2.4 Wire Settings Parameters to Controller
 
-- [ ] T026 [US2] [US3] Add `#include "parameters/settings_params.h"` in F:\projects\iterum\plugins\ruinae\src\controller\controller.cpp after other param includes
-- [ ] T027 [US2] [US3] Add registerSettingsParams(parameters) call to Controller::initialize() in controller.cpp after registerRunglerParams
-- [ ] T028 [US2] [US3] [US4] Add settings loading to setComponentState() in controller.cpp: inside `if (version >= 14)` block after v13 loading, call loadSettingsParamsToController(streamer, setParam); in version < 14 path, explicitly set gain compensation to OFF (setParam(kSettingsGainCompensationId, 0.0)) to preserve pre-spec behavior for old presets
-- [ ] T029 [US2] Add settings formatting case to getParamStringByValue() in controller.cpp after rungler block: `} else if (id >= kSettingsBaseId && id <= kSettingsEndId) { result = formatSettingsParam(id, valueNormalized, string); }`
+- [X] T026 [US2] [US3] Add `#include "parameters/settings_params.h"` in F:\projects\iterum\plugins\ruinae\src\controller\controller.cpp after other param includes
+- [X] T027 [US2] [US3] Add registerSettingsParams(parameters) call to Controller::initialize() in controller.cpp after registerRunglerParams
+- [X] T028 [US2] [US3] [US4] Add settings loading to setComponentState() in controller.cpp: inside `if (version >= 14)` block after v13 loading, call loadSettingsParamsToController(streamer, setParam); in version < 14 path, explicitly set gain compensation to OFF (setParam(kSettingsGainCompensationId, 0.0)) to preserve pre-spec behavior for old presets
+- [X] T029 [US2] Add settings formatting case to getParamStringByValue() in controller.cpp after rungler block: `} else if (id >= kSettingsBaseId && id <= kSettingsEndId) { result = formatSettingsParam(id, valueNormalized, string); }`
 
 ### 2.5 Build & Verify Tests Pass
 
-- [ ] T030 Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T031 Run Ruinae tests for settings param handling: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[processor]"`
-- [ ] T032 Run Ruinae tests for settings state persistence: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
-- [ ] T033 Verify zero compiler warnings for settings_params.h, processor changes, controller changes
+- [X] T030 Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T031 Run Ruinae tests for settings param handling: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[processor]"`
+- [X] T032 Run Ruinae tests for settings state persistence: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
+- [X] T033 Verify zero compiler warnings for settings_params.h, processor changes, controller changes
 
 ### 2.6 Commit
 
-- [ ] T034 Commit Phase 2 work: Settings parameter infrastructure complete (not yet accessible via UI)
+- [X] T034 Commit Phase 2 work: Settings parameter infrastructure complete (not yet accessible via UI)
 
 **Checkpoint**: Settings parameters registered, handled, saved/loaded, backward-compatible, but no UI controls yet (drawer infrastructure needed)
 
