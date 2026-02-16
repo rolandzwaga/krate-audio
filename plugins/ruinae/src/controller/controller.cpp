@@ -267,6 +267,35 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             loadRunglerParamsToController(streamer, setParam);
         }
     }
+
+    // =========================================================================
+    // ModSource enum migration (FR-009a): Rungler inserted at position 10
+    // Old presets (version < 13) have SampleHold=10, PitchFollower=11,
+    // Transient=12. These must shift +1 to make room for Rungler=10.
+    // Controller stores normalized values, so we denormalize, migrate,
+    // and renormalize using the current kModSourceCount (14).
+    // =========================================================================
+    if (version >= 1 && version < 13) {
+        const Steinberg::Vst::ParamID srcIds[] = {
+            kModMatrixSlot0SourceId, kModMatrixSlot1SourceId,
+            kModMatrixSlot2SourceId, kModMatrixSlot3SourceId,
+            kModMatrixSlot4SourceId, kModMatrixSlot5SourceId,
+            kModMatrixSlot6SourceId, kModMatrixSlot7SourceId,
+        };
+        constexpr double kMaxSourceIdx =
+            static_cast<double>(kModSourceCount - 1); // 13.0
+        for (const auto& srcId : srcIds) {
+            double norm = getParamNormalized(srcId);
+            int sourceIdx =
+                static_cast<int>(norm * kMaxSourceIdx + 0.5);
+            if (sourceIdx >= 10) {
+                sourceIdx += 1;
+                setParam(srcId,
+                         static_cast<double>(sourceIdx) / kMaxSourceIdx);
+            }
+        }
+    }
+
     // Unknown versions (v0 or negative): keep defaults (fail closed)
 
     return Steinberg::kResultTrue;

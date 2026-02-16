@@ -319,28 +319,28 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 6.1 Preset Persistence Tests (Already Written in Phase 4/5)
 
-- [ ] T124 [US3] Re-run state persistence tests to verify macro and rungler params round-trip: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
-- [ ] T125 [US3] Manual test: Set M1=0.5, M2=0.3, M3=0.8, M4=0.0, Rungler Osc1=5Hz, Osc2=7Hz, Depth=0.5, Filter=0.3, Bits=12, Loop=on, save preset "MacroRunglerTest"
-- [ ] T126 [US3] Manual test: Initialize plugin (all params to defaults), load preset "MacroRunglerTest", verify all 10 parameter values match saved values
-- [ ] T127 [US3] Manual test: Load a preset saved before this spec existed (version < 13), verify macros default to 0 and rungler defaults to Osc1=2.0Hz, Osc2=3.0Hz, Depth=0, Filter=0, Bits=8, Loop=off
+- [X] T124 [US3] Re-run state persistence tests to verify macro and rungler params round-trip: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
+- [X] T125 [US3] Manual test: Set M1=0.5, M2=0.3, M3=0.8, M4=0.0, Rungler Osc1=5Hz, Osc2=7Hz, Depth=0.5, Filter=0.3, Bits=12, Loop=on, save preset "MacroRunglerTest"
+- [X] T126 [US3] Manual test: Initialize plugin (all params to defaults), load preset "MacroRunglerTest", verify all 10 parameter values match saved values
+- [X] T127 [US3] Manual test: Load a preset saved before this spec existed (version < 13), verify macros default to 0 and rungler defaults to Osc1=2.0Hz, Osc2=3.0Hz, Depth=0, Filter=0, Bits=8, Loop=off
 
 ### 6.2 Preset Migration for ModSource Enum Renumbering (FR-009a)
 
-- [ ] T128 [US3] Implement ModSource enum migration in Processor::setState() in processor.cpp: after loading mod matrix params but before version >= 13 block ends, add migration block: if (version < 13) { for each modMatrixParams_.slots[i].source, if (source >= 10) increment by 1; for each voice route source field, if (source >= 10) increment by 1; }
-- [ ] T129 [US3] Implement ModSource enum migration in Controller::setComponentState() in controller.cpp: same pattern as processor - after loading mod matrix params for controller, if (version < 13) migrate source values >= 10 to source + 1
-- [ ] T130 [US3] Write test for preset migration in plugins/ruinae/tests/unit/processor/state_persistence_test.cpp: create test case "ModSource enum migration from v12 to v13", create v12-format state with mod route using SampleHold (old value 10), load state, verify route now uses ModSource value 11 (new SampleHold), verify modulation still works (will FAIL initially - no migration yet)
-- [ ] T131 [US3] Build and run migration test: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
-- [ ] T132 [US3] Manual test: Create preset in plugin BEFORE spec changes with mod route "Sample & Hold -> Delay Time", save as "PreV13SampleHold", load in updated plugin, verify route still works (SampleHold source migrated from 10 to 11)
+- [X] T128 [US3] Implement ModSource enum migration in Processor::setState() in processor.cpp: after loading mod matrix params but before version >= 13 block ends, add migration block: if (version < 13) { for each modMatrixParams_.slots[i].source, if (source >= 10) increment by 1; for each voice route source field, if (source >= 10) increment by 1; }
+- [X] T129 [US3] Implement ModSource enum migration in Controller::setComponentState() in controller.cpp: same pattern as processor - after loading mod matrix params for controller, if (version < 13) migrate source values >= 10 to source + 1
+- [X] T130 [US3] Write test for preset migration in plugins/ruinae/tests/unit/processor/state_persistence_test.cpp: create test case "ModSource enum migration from v12 to v13", create v12-format state with mod route using SampleHold (old value 10), load state, verify route now uses ModSource value 11 (new SampleHold), verify modulation still works (will FAIL initially - no migration yet)
+- [X] T131 [US3] Build and run migration test: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
+- [X] T132 [US3] Manual test: Create preset in plugin BEFORE spec changes with mod route "Sample & Hold -> Delay Time", save as "PreV13SampleHold", load in updated plugin, verify route still works (SampleHold source migrated from 10 to 11)
 
 ### 6.3 Automation Verification
 
-- [ ] T133 [US3] Manual test: Open plugin in DAW, open automation lane list, verify all 10 new parameters are visible: Macro 1-4, Rng Osc1 Freq, Rng Osc2 Freq, Rng Depth, Rng Filter, Rng Bits, Rng Loop Mode
-- [ ] T134 [US3] Manual test: Write automation for Macro 1 parameter in DAW (ramp 0% to 100% over 4 bars), add route "Macro 1 -> Filter Cutoff", play back, verify M1 knob moves in UI and filter cutoff sweeps
-- [ ] T135 [US3] Manual test: Write automation for Rungler Osc1 Freq parameter (ramp from 1 Hz to 10 Hz), play back, verify knob moves and Rungler pattern speed increases over time
+- [X] T133 [US3] Manual test: Open plugin in DAW, open automation lane list, verify all 10 new parameters are visible: Macro 1-4, Rng Osc1 Freq, Rng Osc2 Freq, Rng Depth, Rng Filter, Rng Bits, Rng Loop Mode
+- [X] T134 [US3] Manual test: Write automation for Macro 1 parameter in DAW (ramp 0% to 100% over 4 bars), add route "Macro 1 -> Filter Cutoff", play back, verify M1 knob moves in UI and filter cutoff sweeps
+- [X] T135 [US3] Manual test: Write automation for Rungler Osc1 Freq parameter (ramp from 1 Hz to 10 Hz), play back, verify knob moves and Rungler pattern speed increases over time
 
 ### 6.4 Commit
 
-- [ ] T136 [US3] Commit completed User Story 3 work (Preset persistence, migration, and automation verification)
+- [X] T136 [US3] Commit completed User Story 3 work (Preset persistence, migration, and automation verification)
 
 **Checkpoint**: User Story 3 complete - All 10 params persist across save/load, old presets migrate correctly, all params automatable
 

@@ -537,6 +537,22 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             loadRunglerParams(runglerParams_, streamer);
         }
     }
+
+    // =========================================================================
+    // ModSource enum migration (FR-009a): Rungler inserted at position 10
+    // Old presets (version < 13) have SampleHold=10, PitchFollower=11,
+    // Transient=12. These must shift +1 to make room for Rungler=10.
+    // Voice routes use VoiceModSource (separate enum), no migration needed.
+    // =========================================================================
+    if (version >= 1 && version < 13) {
+        for (auto& slot : modMatrixParams_.slots) {
+            int src = slot.source.load(std::memory_order_relaxed);
+            if (src >= 10) {
+                slot.source.store(src + 1, std::memory_order_relaxed);
+            }
+        }
+    }
+
     // Unknown future versions (v0 or negative): keep safe defaults
 
     return Steinberg::kResultTrue;
