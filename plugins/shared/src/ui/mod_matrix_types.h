@@ -28,9 +28,11 @@ namespace Krate::Plugins {
 // Voice tab sources match DSP VoiceModSource enum: Env1..Aftertouch
 
 /// Number of sources visible in the Global tab (DSP ModSource 1-13)
+/// Must match kGlobalSourceNames.size() — enforced by static_assert below.
 inline constexpr int kNumGlobalSources = 13;
 
 /// Number of sources visible in the Voice tab (DSP VoiceModSource 0-7)
+/// Must match kVoiceSourceNames.size() — enforced by static_assert below.
 inline constexpr int kNumVoiceSources = 8;
 
 // ==============================================================================
@@ -59,7 +61,7 @@ enum class ModDestination : uint8_t {
 inline constexpr int kNumVoiceDestinations = 8;
 
 /// Number of destinations visible in the Global tab (matching DSP kModDestCount)
-inline constexpr int kNumGlobalDestinations = 8;
+inline constexpr int kNumGlobalDestinations = 10;
 
 // ==============================================================================
 // ModRoute Struct
@@ -138,32 +140,35 @@ inline constexpr std::array<float, 5> kScaleValues = {{
 // Tab-dependent, matching the source pattern. No VSTGUI dependency.
 
 struct ModDestInfo {
-    const char* fullName;
-    const char* abbreviation;
+    const char* fullName;       ///< Full name for our UI dropdown (e.g. "Global Filter Cutoff")
+    const char* hostName;       ///< Shorter name for VST host parameter display (e.g. "Global Flt Cutoff")
+    const char* abbreviation;   ///< Compact abbreviation for grid cells (e.g. "GFCt")
 };
 
 /// Voice tab destinations (indices 0-7): per-voice targets
 inline constexpr std::array<ModDestInfo, 8> kVoiceDestNames = {{
-    {"Filter Cutoff",      "FCut"},
-    {"Filter Resonance",   "FRes"},
-    {"Morph Position",     "Mrph"},
-    {"Distortion Drive",   "Drv"},
-    {"TranceGate Depth",   "Gate"},
-    {"OSC A Pitch",        "OsA"},
-    {"OSC B Pitch",        "OsB"},
-    {"Spectral Tilt",      "Tilt"},
+    {"Filter Cutoff",      "Flt Cutoff",     "FCut"},
+    {"Filter Resonance",   "Flt Reso",       "FRes"},
+    {"Morph Position",     "Morph Pos",      "Mrph"},
+    {"Distortion Drive",   "Dist Drive",     "Drv"},
+    {"TranceGate Depth",   "Gate Depth",     "Gate"},
+    {"OSC A Pitch",        "OSC A Pitch",    "OsA"},
+    {"OSC B Pitch",        "OSC B Pitch",    "OsB"},
+    {"Spectral Tilt",      "Spectral Tilt",  "Tilt"},
 }};
 
-/// Global tab destinations (indices 0-7): matching DSP RuinaeModDest 64-71
-inline constexpr std::array<ModDestInfo, 8> kGlobalDestNames = {{
-    {"Global Filter Cutoff",    "GFCt"},
-    {"Global Filter Resonance", "GFRs"},
-    {"Master Volume",           "Mstr"},
-    {"Effect Mix",              "FxMx"},
-    {"All Voice Filter Cutoff", "VFCt"},
-    {"All Voice Morph Pos",     "VMrp"},
-    {"All Voice Gate Rate",     "VGat"},
-    {"All Voice Spectral Tilt", "VTlt"},
+/// Global tab destinations (indices 0-9): matching DSP RuinaeModDest 64-73
+inline constexpr std::array<ModDestInfo, 10> kGlobalDestNames = {{
+    {"Global Filter Cutoff",    "Global Flt Cutoff",     "GFCt"},
+    {"Global Filter Resonance", "Global Flt Reso",       "GFRs"},
+    {"Master Volume",           "Master Volume",         "Mstr"},
+    {"Effect Mix",              "Effect Mix",            "FxMx"},
+    {"All Voice Filter Cutoff", "All Voice Flt Cutoff",  "VFCt"},
+    {"All Voice Morph Pos",     "All Voice Morph Pos",   "VMrp"},
+    {"All Voice Gate Rate",     "All Voice Gate Rate",   "VGat"},
+    {"All Voice Spectral Tilt", "All Voice Spectral Tilt", "VTlt"},
+    {"All Voice Resonance",     "All Voice Resonance",   "VRso"},
+    {"All Voice Flt Env Amt",   "All Voice Flt Env Amt", "VEnv"},
 }};
 
 // ==============================================================================
@@ -203,6 +208,22 @@ inline constexpr std::array<ModSourceName, 8> kVoiceSourceNames = {{
     {"Key Track",       "Key"},
     {"Aftertouch",      "AT"},
 }};
+
+// ==============================================================================
+// Registry Size Validation
+// ==============================================================================
+// Compile-time checks that count constants match their corresponding arrays.
+// Adding an entry to an array without updating the count (or vice versa) will
+// fail the build here, preventing silent data mismatches.
+
+static_assert(kGlobalSourceNames.size() == static_cast<size_t>(kNumGlobalSources),
+    "kNumGlobalSources must match kGlobalSourceNames array size");
+static_assert(kVoiceSourceNames.size() == static_cast<size_t>(kNumVoiceSources),
+    "kNumVoiceSources must match kVoiceSourceNames array size");
+static_assert(kGlobalDestNames.size() == static_cast<size_t>(kNumGlobalDestinations),
+    "kNumGlobalDestinations must match kGlobalDestNames array size");
+static_assert(kVoiceDestNames.size() == static_cast<size_t>(kNumVoiceDestinations),
+    "kNumVoiceDestinations must match kVoiceDestNames array size");
 
 /// Get the full source name for a given tab and source index.
 [[nodiscard]] inline const char* sourceNameForTab(int tab, int index) {

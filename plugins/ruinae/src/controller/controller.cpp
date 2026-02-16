@@ -55,9 +55,11 @@ namespace Ruinae {
 constexpr Steinberg::int32 kControllerStateVersion = 3;
 
 // Maps destination index to the actual VST parameter ID of that knob.
-// Tab-dependent: voice tab (0-6) and global tab (0-6) have different mappings.
+// Tab-dependent: voice tab and global tab have different mappings.
+// Sizes derived from central registry in mod_matrix_types.h.
 // Used by ModRingIndicator base value sync (T069-T072).
-static constexpr std::array<Steinberg::Vst::ParamID, 8> kVoiceDestParamIds = {{
+static constexpr std::array<Steinberg::Vst::ParamID,
+    Krate::Plugins::kNumVoiceDestinations> kVoiceDestParamIds = {{
     kFilterCutoffId,          // 0: Filter Cutoff
     kFilterResonanceId,       // 1: Filter Resonance
     kMixerPositionId,         // 2: Morph Position
@@ -68,7 +70,8 @@ static constexpr std::array<Steinberg::Vst::ParamID, 8> kVoiceDestParamIds = {{
     kMixerTiltId,             // 7: Spectral Tilt
 }};
 
-static constexpr std::array<Steinberg::Vst::ParamID, 8> kGlobalDestParamIds = {{
+static constexpr std::array<Steinberg::Vst::ParamID,
+    Krate::Plugins::kNumGlobalDestinations> kGlobalDestParamIds = {{
     kGlobalFilterCutoffId,    // 0: Global Filter Cutoff
     kGlobalFilterResonanceId, // 1: Global Filter Resonance
     kMasterGainId,            // 2: Master Volume
@@ -77,7 +80,15 @@ static constexpr std::array<Steinberg::Vst::ParamID, 8> kGlobalDestParamIds = {{
     kMixerPositionId,         // 5: All Voice Morph Position
     kTranceGateDepthId,       // 6: All Voice TranceGate Rate
     kMixerTiltId,             // 7: All Voice Spectral Tilt
+    kFilterResonanceId,       // 8: All Voice Resonance
+    kFilterEnvAmountId,       // 9: All Voice Filter Env Amount
 }};
+
+// Compile-time validation: param ID arrays must match destination registries
+static_assert(kVoiceDestParamIds.size() == Krate::Plugins::kVoiceDestNames.size(),
+    "kVoiceDestParamIds must match kVoiceDestNames size");
+static_assert(kGlobalDestParamIds.size() == Krate::Plugins::kGlobalDestNames.size(),
+    "kGlobalDestParamIds must match kGlobalDestNames size");
 
 // ==============================================================================
 // Destructor

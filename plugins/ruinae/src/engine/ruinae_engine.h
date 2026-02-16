@@ -71,7 +71,9 @@ enum class RuinaeModDest : uint32_t {
     AllVoiceFilterCutoff   = 68,  ///< Offset forwarded to all voices' filter cutoff
     AllVoiceMorphPosition  = 69,  ///< Offset forwarded to all voices' morph position
     AllVoiceTranceGateRate = 70,  ///< Offset forwarded to all voices' trance gate rate
-    AllVoiceSpectralTilt  = 71   ///< Offset forwarded to all voices' spectral tilt
+    AllVoiceSpectralTilt   = 71,  ///< Offset forwarded to all voices' spectral tilt
+    AllVoiceResonance      = 72,  ///< Offset forwarded to all voices' filter resonance
+    AllVoiceFilterEnvAmt   = 73   ///< Offset forwarded to all voices' filter env amount
 };
 
 // =============================================================================
@@ -676,6 +678,10 @@ public:
             static_cast<uint32_t>(RuinaeModDest::AllVoiceTranceGateRate));
         const float allVoiceTiltOffset = globalModEngine_.getModulationOffset(
             static_cast<uint32_t>(RuinaeModDest::AllVoiceSpectralTilt));
+        const float allVoiceResonanceOffset = globalModEngine_.getModulationOffset(
+            static_cast<uint32_t>(RuinaeModDest::AllVoiceResonance));
+        const float allVoiceFilterEnvAmtOffset = globalModEngine_.getModulationOffset(
+            static_cast<uint32_t>(RuinaeModDest::AllVoiceFilterEnvAmt));
 
         // Step 5: Apply global modulation to engine-level params
         // Global filter: exponential semitone scaling (±48 semitones = ±4 octaves)
@@ -709,11 +715,13 @@ public:
         if (mode_ == VoiceMode::Poly) {
             processBlockPoly(numSamples, allVoiceFilterCutoffOffset,
                              allVoiceMorphOffset, allVoiceTranceGateOffset,
-                             allVoiceTiltOffset);
+                             allVoiceTiltOffset, allVoiceResonanceOffset,
+                             allVoiceFilterEnvAmtOffset);
         } else {
             processBlockMono(numSamples, allVoiceFilterCutoffOffset,
                              allVoiceMorphOffset, allVoiceTranceGateOffset,
-                             allVoiceTiltOffset);
+                             allVoiceTiltOffset, allVoiceResonanceOffset,
+                             allVoiceFilterEnvAmtOffset);
         }
 
         // Step 8: Apply stereo width (Mid/Side) (FR-014)
@@ -851,12 +859,14 @@ public:
 
     void setFilterResonance(float q) noexcept {
         if (detail::isNaN(q) || detail::isInf(q)) return;
-        for (auto& voice : voices_) { voice.setFilterResonance(q); }
+        voiceFilterResonance_ = std::clamp(q, 0.1f, 30.0f);
+        for (auto& voice : voices_) { voice.setFilterResonance(voiceFilterResonance_); }
     }
 
     void setFilterEnvAmount(float semitones) noexcept {
         if (detail::isNaN(semitones) || detail::isInf(semitones)) return;
-        for (auto& voice : voices_) { voice.setFilterEnvAmount(semitones); }
+        voiceFilterEnvAmount_ = std::clamp(semitones, -96.0f, 96.0f);
+        for (auto& voice : voices_) { voice.setFilterEnvAmount(voiceFilterEnvAmount_); }
     }
 
     void setFilterKeyTrack(float amount) noexcept {
@@ -1502,7 +1512,9 @@ private:
                           float allVoiceFilterCutoffOffset,
                           float allVoiceMorphOffset,
                           float allVoiceTranceGateOffset,
-                          float allVoiceTiltOffset) noexcept {
+                          float allVoiceTiltOffset,
+                          float allVoiceResonanceOffset,
+                          float allVoiceFilterEnvAmtOffset) noexcept {
         // Track which voices were active before processing (for deferred finish)
         std::array<bool, kMaxPolyphony> wasActive{};
         for (size_t i = 0; i < polyphonyCount_; ++i) {
@@ -1545,6 +1557,22 @@ private:
                 -12.0f, 12.0f);
             for (size_t i = 0; i < polyphonyCount_; ++i) {
                 voices_[i].setMixTilt(modTilt);
+            }
+        }
+        if (allVoiceResonanceOffset != 0.0f) {
+            float modReso = std::clamp(
+                voiceFilterResonance_ + allVoiceResonanceOffset * 10.0f,
+                0.1f, 30.0f);
+            for (size_t i = 0; i < polyphonyCount_; ++i) {
+                voices_[i].setFilterResonance(modReso);
+            }
+        }
+        if (allVoiceFilterEnvAmtOffset != 0.0f) {
+            float modEnvAmt = std::clamp(
+                voiceFilterEnvAmount_ + allVoiceFilterEnvAmtOffset * 48.0f,
+                -96.0f, 96.0f);
+            for (size_t i = 0; i < polyphonyCount_; ++i) {
+                voices_[i].setFilterEnvAmount(modEnvAmt);
             }
         }
 
@@ -1590,7 +1618,9 @@ private:
                           float allVoiceFilterCutoffOffset,
                           float allVoiceMorphOffset,
                           float allVoiceTranceGateOffset,
-                          float allVoiceTiltOffset) noexcept {
+                          float allVoiceTiltOffset,
+                          float allVoiceResonanceOffset,
+                          float allVoiceFilterEnvAmtOffset) noexcept {
         // Forward AllVoice modulation offsets to voice 0 (FR-021)
         // Exponential semitone scaling (same as poly path)
         if (allVoiceFilterCutoffOffset != 0.0f) {
@@ -1617,6 +1647,18 @@ private:
                 voiceMixTilt_ + allVoiceTiltOffset * 24.0f,
                 -12.0f, 12.0f);
             voices_[0].setMixTilt(modTilt);
+        }
+        if (allVoiceResonanceOffset != 0.0f) {
+            float modReso = std::clamp(
+                voiceFilterResonance_ + allVoiceResonanceOffset * 10.0f,
+                0.1f, 30.0f);
+            voices_[0].setFilterResonance(modReso);
+        }
+        if (allVoiceFilterEnvAmtOffset != 0.0f) {
+            float modEnvAmt = std::clamp(
+                voiceFilterEnvAmount_ + allVoiceFilterEnvAmtOffset * 48.0f,
+                -96.0f, 96.0f);
+            voices_[0].setFilterEnvAmount(modEnvAmt);
         }
 
         // Track if voice 0 was active
@@ -1695,6 +1737,8 @@ private:
     float globalFilterCutoffHz_;
     float globalFilterResonance_;
     float voiceFilterCutoffHz_ = 1000.0f;
+    float voiceFilterResonance_ = 0.707f;
+    float voiceFilterEnvAmount_ = 0.0f;
     float voiceMixPosition_ = 0.5f;
     float voiceMixTilt_ = 0.0f;
     float baseDelayMix_ = 0.0f;

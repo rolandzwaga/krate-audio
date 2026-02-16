@@ -182,18 +182,18 @@ inline void registerModMatrixParams(Steinberg::Vst::ParameterContainer& paramete
         Steinberg::UString(dstNameW, 128).fromAscii(dstName);
         Steinberg::UString(amtNameW, 128).fromAscii(amtName);
 
-        // Source dropdown (T010)
+        // Source dropdown (T010) — names from central registry
         auto* srcParam = new StringListParameter(
             srcNameW, slotSourceIds[i], nullptr,
             ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
-        for (int s = 0; s < kModSourceCount; ++s) srcParam->appendString(kModSourceStrings[s]);
+        appendSourceStrings(srcParam);
         parameters.addParameter(srcParam);
 
-        // Dest dropdown (T011)
+        // Dest dropdown (T011) — names from central registry
         auto* dstParam = new StringListParameter(
             dstNameW, slotDestIds[i], nullptr,
             ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
-        for (int d = 0; d < kModDestCount; ++d) dstParam->appendString(kModDestStrings[d]);
+        appendDestStrings(dstParam);
         parameters.addParameter(dstParam);
 
         // Amount - bipolar (T012)

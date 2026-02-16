@@ -8,11 +8,14 @@
 // ==============================================================================
 
 #include "ruinae_types.h"
+#include "ui/mod_matrix_types.h"
 #include <krate/dsp/systems/oscillator_types.h>
 #include <krate/dsp/core/modulation_types.h>
 #include <krate/dsp/primitives/lfo.h>
 #include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/processors/mono_handler.h>
+#include "pluginterfaces/base/ustring.h"
+#include "public.sdk/source/vst/vstparameters.h"
 #include <krate/dsp/systems/poly_synth_engine.h>
 #include "engine/ruinae_engine.h"  // For RuinaeModDest
 
@@ -164,45 +167,39 @@ inline const Steinberg::Vst::TChar* const kGlobalFilterTypeStrings[] = {
 };
 
 // =============================================================================
-// ModSource dropdown (14 sources, stepCount = 13)
+// ModSource / ModDest — derived from central registry in mod_matrix_types.h
 // =============================================================================
+// Names and counts are defined once in kGlobalSourceNames / kGlobalDestNames.
+// These aliases and helpers exist for backward compatibility with parameter
+// registration and value denormalization code.
 
-inline constexpr int kModSourceCount = static_cast<int>(Krate::DSP::kModSourceCount);
+/// Total source parameter count: kNumGlobalSources + 1 for "None" at index 0
+inline constexpr int kModSourceCount = Krate::Plugins::kNumGlobalSources + 1;
 
-inline const Steinberg::Vst::TChar* const kModSourceStrings[] = {
-    STR16("None"),
-    STR16("LFO 1"),
-    STR16("LFO 2"),
-    STR16("Env Follower"),
-    STR16("Random"),
-    STR16("Macro 1"),
-    STR16("Macro 2"),
-    STR16("Macro 3"),
-    STR16("Macro 4"),
-    STR16("Chaos"),
-    STR16("Rungler"),
-    STR16("Sample & Hold"),
-    STR16("Pitch Follower"),
-    STR16("Transient"),
-};
+/// Total dest parameter count: matches kNumGlobalDestinations
+inline constexpr int kModDestCount = Krate::Plugins::kNumGlobalDestinations;
 
-// =============================================================================
-// RuinaeModDest dropdown (8 destinations, stepCount = 7)
-// Values start at 64 in the enum, so we map 0-7 to 64-71.
-// =============================================================================
+/// Populate a StringListParameter with source names from the central registry.
+/// Prepends "None" at index 0, then appends kGlobalSourceNames[0..12].
+inline void appendSourceStrings(Steinberg::Vst::StringListParameter* param) {
+    Steinberg::Vst::String128 buf;
+    Steinberg::UString(buf, 128).fromAscii("None");
+    param->appendString(buf);
+    for (const auto& src : Krate::Plugins::kGlobalSourceNames) {
+        Steinberg::UString(buf, 128).fromAscii(src.fullName);
+        param->appendString(buf);
+    }
+}
 
-inline constexpr int kModDestCount = 8;
-
-inline const Steinberg::Vst::TChar* const kModDestStrings[] = {
-    STR16("Global Flt Cutoff"),
-    STR16("Global Flt Reso"),
-    STR16("Master Volume"),
-    STR16("Effect Mix"),
-    STR16("All Voice Flt Cutoff"),
-    STR16("All Voice Morph Pos"),
-    STR16("All Voice Gate Rate"),
-    STR16("All Voice Spectral Tilt"),
-};
+/// Populate a StringListParameter with destination names from the central registry.
+/// Uses hostName (shorter) for VST host parameter display.
+inline void appendDestStrings(Steinberg::Vst::StringListParameter* param) {
+    Steinberg::Vst::String128 buf;
+    for (const auto& dest : Krate::Plugins::kGlobalDestNames) {
+        Steinberg::UString(buf, 128).fromAscii(dest.hostName);
+        param->appendString(buf);
+    }
+}
 
 // Helper: map dropdown index (0-7) to RuinaeModDest enum value (64-71)
 inline Krate::DSP::RuinaeModDest modDestFromIndex(int index) {
