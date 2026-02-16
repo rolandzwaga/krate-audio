@@ -24,6 +24,7 @@ add_executable(ruinae_tests
 
     # Macro/Rungler Parameter Tests (057-macros-rungler)
     unit/macro_params_test.cpp
+    unit/rungler_params_test.cpp
 
     # Mod Matrix Tests (049-mod-matrix-grid)
     unit/mod_matrix_params_test.cpp

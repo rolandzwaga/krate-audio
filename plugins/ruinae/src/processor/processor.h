@@ -40,6 +40,7 @@
 #include "parameters/phaser_params.h"
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
+#include "parameters/rungler_params.h"
 
 #include "ui/mod_matrix_types.h"
 
@@ -169,6 +170,7 @@ private:
     RuinaePhaserParams phaserParams_;
     MonoModeParams monoModeParams_;
     MacroParams macroParams_;
+    RunglerParams runglerParams_;
 
     // ==========================================================================
     // DSP Engine

@@ -231,81 +231,81 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 5.1 Write Tests for Rungler Parameters
 
-- [ ] T076 [P] [US2] Write test for rungler param handling in plugins/ruinae/tests/unit/processor/processor_test.cpp: create test case "Rungler parameter changes update engine", send kRunglerOsc1FreqId param change (value for 5.0 Hz), call applyParamsToEngine, verify engine rungler osc1 freq is ~5.0 Hz (will FAIL - rungler_params.h not created yet)
-- [ ] T077 [P] [US2] Write test for rungler state persistence in plugins/ruinae/tests/unit/processor/state_persistence_test.cpp: create test case "Rungler params save and load", set rungler values (osc1=10Hz, osc2=15Hz, depth=0.5, filter=0.3, bits=12, loop=true), save state, reset to defaults, load state, verify values restored (will FAIL - no save/load functions yet)
-- [ ] T078 [P] [US2] Write test for rungler modulation output in plugins/ruinae/tests/integration/modulation_routing_test.cpp: create test case "Rungler produces chaotic CV", configure engine with Rungler routed to test destination, process blocks, verify output changes over time in [0,1] range with stepped character (will FAIL - Rungler not wired to processor yet)
+- [X] T076 [P] [US2] Write test for rungler param handling in plugins/ruinae/tests/unit/rungler_params_test.cpp: test cases for handleRunglerParamChange, formatRunglerParam, frequency mapping, bits mapping
+- [X] T077 [P] [US2] Write test for rungler state persistence in plugins/ruinae/tests/unit/rungler_params_test.cpp: test cases for save/load round-trip and controller load with inverse mappings
+- [X] T078 [P] [US2] Write test for rungler frequency and bits mapping round-trips in plugins/ruinae/tests/unit/rungler_params_test.cpp
 
 ### 5.2 Create rungler_params.h Parameter File
 
-- [ ] T079 [US2] Create new file plugins/ruinae/src/parameters/rungler_params.h with header guards and includes (Steinberg headers, atomic, clamp, cmath for log/pow)
-- [ ] T080 [US2] Define RunglerParams struct in rungler_params.h with 6 atomic fields: osc1FreqHz (default 2.0f), osc2FreqHz (default 3.0f), depth (default 0.0f), filter (default 0.0f), bits (default 8), loopMode (default false)
-- [ ] T081 [US2] Define log frequency mapping helper functions in rungler_params.h: runglerFreqFromNormalized(double norm) returns clamp(0.1f * pow(1000.0, norm), 0.1f, 100.0f), runglerFreqToNormalized(float hz) returns clamp(log(hz/0.1) / log(1000.0), 0.0, 1.0)
-- [ ] T082 [US2] Define bits mapping helper functions in rungler_params.h: runglerBitsFromNormalized(double norm) returns 4 + clamp(static_cast<int>(norm * 12 + 0.5), 0, 12), runglerBitsToNormalized(int bits) returns clamp(static_cast<double>(clamp(bits, 4, 16) - 4) / 12.0, 0.0, 1.0)
-- [ ] T083 [US2] Implement handleRunglerParamChange() function in rungler_params.h: switch on paramId, denormalize using appropriate mapping (log for freq, linear for depth/filter, discrete for bits, bool for loop), store to runglerParams fields
-- [ ] T084 [US2] Implement registerRunglerParams() function in rungler_params.h: call parameters.addParameter() for each of 6 params with titles "Rng Osc1 Freq", "Rng Osc2 Freq", "Rng Depth", "Rng Filter", "Rng Bits", "Rng Loop Mode", appropriate units, stepCounts (0 for continuous, 12 for bits, 1 for bool), default normalized values (0.4337 for 2Hz, 0.4924 for 3Hz, 0 for depth/filter, 0.3333 for 8 bits, 0.0 for loop), flags kCanAutomate
-- [ ] T085 [US2] Implement formatRunglerParam() function in rungler_params.h: format osc freqs as "X.XX Hz" (2 decimals), depth/filter as "XX%" (0 decimals), bits as integer "X", loop as framework default (on/off), return kResultFalse for non-rungler IDs
-- [ ] T086 [US2] Implement saveRunglerParams() function in rungler_params.h: write osc1FreqHz, osc2FreqHz, depth, filter (4 floats), bits, loopMode (2 int32s) using streamer.writeFloat/Int32
-- [ ] T087 [US2] Implement loadRunglerParams() function in rungler_params.h: read 4 floats and 2 int32s in same order, store to runglerParams fields, return false on read failure (EOF-safe)
-- [ ] T088 [US2] Implement loadRunglerParamsToController() function in rungler_params.h: read 6 values, apply inverse mappings (runglerFreqToNormalized for freqs, linear for depth/filter, runglerBitsToNormalized for bits, bool for loop), call setParam for each of 6 IDs
+- [X] T079 [US2] Create new file plugins/ruinae/src/parameters/rungler_params.h with header guards and includes (Steinberg headers, atomic, clamp, cmath for log/pow)
+- [X] T080 [US2] Define RunglerParams struct in rungler_params.h with 6 atomic fields: osc1FreqHz (default 2.0f), osc2FreqHz (default 3.0f), depth (default 0.0f), filter (default 0.0f), bits (default 8), loopMode (default false)
+- [X] T081 [US2] Define log frequency mapping helper functions in rungler_params.h: runglerFreqFromNormalized(double norm) returns clamp(0.1f * pow(1000.0, norm), 0.1f, 100.0f), runglerFreqToNormalized(float hz) returns clamp(log(hz/0.1) / log(1000.0), 0.0, 1.0)
+- [X] T082 [US2] Define bits mapping helper functions in rungler_params.h: runglerBitsFromNormalized(double norm) returns 4 + clamp(static_cast<int>(norm * 12 + 0.5), 0, 12), runglerBitsToNormalized(int bits) returns clamp(static_cast<double>(clamp(bits, 4, 16) - 4) / 12.0, 0.0, 1.0)
+- [X] T083 [US2] Implement handleRunglerParamChange() function in rungler_params.h: switch on paramId, denormalize using appropriate mapping (log for freq, linear for depth/filter, discrete for bits, bool for loop), store to runglerParams fields
+- [X] T084 [US2] Implement registerRunglerParams() function in rungler_params.h: call parameters.addParameter() for each of 6 params with titles "Rng Osc1 Freq", "Rng Osc2 Freq", "Rng Depth", "Rng Filter", "Rng Bits", "Rng Loop Mode", appropriate units, stepCounts (0 for continuous, 12 for bits, 1 for bool), default normalized values (0.4337 for 2Hz, 0.4924 for 3Hz, 0 for depth/filter, 0.3333 for 8 bits, 0.0 for loop), flags kCanAutomate
+- [X] T085 [US2] Implement formatRunglerParam() function in rungler_params.h: format osc freqs as "X.XX Hz" (2 decimals), depth/filter as "XX%" (0 decimals), bits as integer "X", loop as framework default (on/off), return kResultFalse for non-rungler IDs
+- [X] T086 [US2] Implement saveRunglerParams() function in rungler_params.h: write osc1FreqHz, osc2FreqHz, depth, filter (4 floats), bits, loopMode (2 int32s) using streamer.writeFloat/Int32
+- [X] T087 [US2] Implement loadRunglerParams() function in rungler_params.h: read 4 floats and 2 int32s in same order, store to runglerParams fields, return false on read failure (EOF-safe)
+- [X] T088 [US2] Implement loadRunglerParamsToController() function in rungler_params.h: read 6 values, apply inverse mappings (runglerFreqToNormalized for freqs, linear for depth/filter, runglerBitsToNormalized for bits, bool for loop), call setParam for each of 6 IDs
 
 ### 5.3 Wire Rungler Parameters to Processor
 
-- [ ] T089 [US2] Add `#include "parameters/rungler_params.h"` in plugins/ruinae/src/processor/processor.h after macro_params include
-- [ ] T090 [US2] Add `RunglerParams runglerParams_;` field to Processor class in processor.h after macroParams_ (line 140)
-- [ ] T091 [US2] Add rungler param handling case to processParameterChanges() in processor.cpp after macro block: `} else if (paramId >= kRunglerBaseId && paramId <= kRunglerEndId) { handleRunglerParamChange(runglerParams_, paramId, value); }`
-- [ ] T092 [US2] Add rungler forwarding to applyParamsToEngine() in processor.cpp after macro section (line 327): call engine_.setRunglerOsc1Freq(osc1FreqHz.load), engine_.setRunglerOsc2Freq(osc2FreqHz.load), engine_.setRunglerDepth(depth.load), engine_.setRunglerFilter(filter.load), engine_.setRunglerBits(static_cast<size_t>(bits.load)), engine_.setRunglerLoopMode(loopMode.load)
-- [ ] T093 [US2] Add saveRunglerParams(runglerParams_, streamer) to getState() in processor.cpp after saveMacroParams (line 359)
-- [ ] T094 [US2] Add loadRunglerParams(runglerParams_, streamer) to setState() in processor.cpp inside `if (version >= 13)` block after loadMacroParams (line 408)
+- [X] T089 [US2] Add `#include "parameters/rungler_params.h"` in plugins/ruinae/src/processor/processor.h after macro_params include
+- [X] T090 [US2] Add `RunglerParams runglerParams_;` field to Processor class in processor.h after macroParams_ (line 140)
+- [X] T091 [US2] Add rungler param handling case to processParameterChanges() in processor.cpp after macro block: `} else if (paramId >= kRunglerBaseId && paramId <= kRunglerEndId) { handleRunglerParamChange(runglerParams_, paramId, value); }`
+- [X] T092 [US2] Add rungler forwarding to applyParamsToEngine() in processor.cpp after macro section (line 327): call engine_.setRunglerOsc1Freq(osc1FreqHz.load), engine_.setRunglerOsc2Freq(osc2FreqHz.load), engine_.setRunglerDepth(depth.load), engine_.setRunglerFilter(filter.load), engine_.setRunglerBits(static_cast<size_t>(bits.load)), engine_.setRunglerLoopMode(loopMode.load)
+- [X] T093 [US2] Add saveRunglerParams(runglerParams_, streamer) to getState() in processor.cpp after saveMacroParams (line 359)
+- [X] T094 [US2] Add loadRunglerParams(runglerParams_, streamer) to setState() in processor.cpp inside `if (version >= 13)` block after loadMacroParams (line 408)
 
 ### 5.4 Wire Rungler Parameters to Controller
 
-- [ ] T095 [US2] Add `#include "parameters/rungler_params.h"` in controller.cpp after macro_params include
-- [ ] T096 [US2] Add registerRunglerParams(parameters) call to Controller::initialize() in controller.cpp after registerMacroParams (line 174)
-- [ ] T097 [US2] Add loadRunglerParamsToController(streamer, setParam) call to setComponentState() in controller.cpp inside `if (version >= 13)` block after loadMacroParamsToController (line 240)
-- [ ] T098 [US2] Add rungler formatting case to getParamStringByValue() in controller.cpp after macro block: `} else if (id >= kRunglerBaseId && id <= kRunglerEndId) { result = formatRunglerParam(id, valueNormalized, string); }`
+- [X] T095 [US2] Add `#include "parameters/rungler_params.h"` in controller.cpp after macro_params include
+- [X] T096 [US2] Add registerRunglerParams(parameters) call to Controller::initialize() in controller.cpp after registerMacroParams (line 174)
+- [X] T097 [US2] Add loadRunglerParamsToController(streamer, setParam) call to setComponentState() in controller.cpp inside `if (version >= 13)` block after loadMacroParamsToController (line 240)
+- [X] T098 [US2] Add rungler formatting case to getParamStringByValue() in controller.cpp after macro block: `} else if (id >= kRunglerBaseId && id <= kRunglerEndId) { result = formatRunglerParam(id, valueNormalized, string); }`
 
 ### 5.5 Add Rungler Control-Tags to UIDESC
 
-- [ ] T099 [US2] Add 6 control-tag entries in editor.uidesc control-tags section after Macro tags: RunglerOsc1Freq (2100), RunglerOsc2Freq (2101), RunglerDepth (2102), RunglerFilter (2103), RunglerBits (2104), RunglerLoopMode (2105)
+- [X] T099 [US2] Add 6 control-tag entries in editor.uidesc control-tags section after Macro tags: RunglerOsc1Freq (2100), RunglerOsc2Freq (2101), RunglerDepth (2102), RunglerFilter (2103), RunglerBits (2104), RunglerLoopMode (2105)
 
 ### 5.6 Populate ModSource_Rungler Template (Row 1: Frequency and Modulation Controls)
 
-- [ ] T100 [P] [US2] Add Osc1 Freq ArcKnob to ModSource_Rungler template in editor.uidesc: origin (4, 0), size (28, 28), control-tag="RunglerOsc1Freq", default-value="0.4337", arc-color="modulation", guide-color="knob-guide"
-- [ ] T101 [P] [US2] Add Osc1 CTextLabel: origin (4, 28), size (28, 10), title="Osc1", font-color="modulation"
-- [ ] T102 [P] [US2] Add Osc2 Freq ArcKnob: origin (42, 0), size (28, 28), control-tag="RunglerOsc2Freq", default-value="0.4924", arc-color="modulation", guide-color="knob-guide"
-- [ ] T103 [P] [US2] Add Osc2 CTextLabel: origin (42, 28), size (28, 10), title="Osc2", font-color="modulation"
-- [ ] T104 [P] [US2] Add Depth ArcKnob: origin (80, 0), size (28, 28), control-tag="RunglerDepth", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
-- [ ] T105 [P] [US2] Add Depth CTextLabel: origin (80, 28), size (28, 10), title="Depth", font-color="modulation"
-- [ ] T106 [P] [US2] Add Filter ArcKnob: origin (118, 0), size (28, 28), control-tag="RunglerFilter", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
-- [ ] T107 [P] [US2] Add Filter CTextLabel: origin (118, 28), size (28, 10), title="Filter", font-color="modulation"
+- [X] T100 [P] [US2] Add Osc1 Freq ArcKnob to ModSource_Rungler template in editor.uidesc: origin (4, 0), size (28, 28), control-tag="RunglerOsc1Freq", default-value="0.4337", arc-color="modulation", guide-color="knob-guide"
+- [X] T101 [P] [US2] Add Osc1 CTextLabel: origin (4, 28), size (28, 10), title="Osc1", font-color="modulation"
+- [X] T102 [P] [US2] Add Osc2 Freq ArcKnob: origin (42, 0), size (28, 28), control-tag="RunglerOsc2Freq", default-value="0.4924", arc-color="modulation", guide-color="knob-guide"
+- [X] T103 [P] [US2] Add Osc2 CTextLabel: origin (42, 28), size (28, 10), title="Osc2", font-color="modulation"
+- [X] T104 [P] [US2] Add Depth ArcKnob: origin (80, 0), size (28, 28), control-tag="RunglerDepth", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
+- [X] T105 [P] [US2] Add Depth CTextLabel: origin (80, 28), size (28, 10), title="Depth", font-color="modulation"
+- [X] T106 [P] [US2] Add Filter ArcKnob: origin (118, 0), size (28, 28), control-tag="RunglerFilter", default-value="0.0", arc-color="modulation", guide-color="knob-guide"
+- [X] T107 [P] [US2] Add Filter CTextLabel: origin (118, 28), size (28, 10), title="Filter", font-color="modulation"
 
 ### 5.7 Populate ModSource_Rungler Template (Row 2: Bits and Loop Mode)
 
-- [ ] T108 [US2] Add Bits ArcKnob: origin (4, 50), size (28, 28), control-tag="RunglerBits", default-value="0.3333", arc-color="modulation", guide-color="knob-guide"
-- [ ] T109 [US2] Add Bits CTextLabel: origin (4, 78), size (28, 10), title="Bits", font-color="modulation"
-- [ ] T110 [US2] Add Loop Mode ToggleButton: origin (50, 54), size (40, 18), control-tag="RunglerLoopMode", default-value="0", title="Loop", on-color="modulation", off-color="toggle-off"
+- [X] T108 [US2] Add Bits ArcKnob: origin (4, 50), size (28, 28), control-tag="RunglerBits", default-value="0.3333", arc-color="modulation", guide-color="knob-guide"
+- [X] T109 [US2] Add Bits CTextLabel: origin (4, 78), size (28, 10), title="Bits", font-color="modulation"
+- [X] T110 [US2] Add Loop Mode ToggleButton: origin (50, 54), size (40, 18), control-tag="RunglerLoopMode", default-value="0", title="Loop", on-color="modulation", off-color="toggle-off"
 
 ### 5.8 Build & Verify Tests Pass
 
-- [ ] T111 [US2] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T112 [US2] Run Ruinae tests for rungler param handling: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[processor]"`
-- [ ] T113 [US2] Run Ruinae tests for rungler state persistence: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
-- [ ] T114 [US2] Run Ruinae tests for rungler modulation output: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[modulation_routing]"`
-- [ ] T115 [US2] Verify zero compiler warnings for rungler_params.h, processor changes, controller changes
+- [X] T111 [US2] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T112 [US2] Run Ruinae tests for rungler param handling: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[processor]"`
+- [X] T113 [US2] Run Ruinae tests for rungler state persistence: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[state_persistence]"`
+- [X] T114 [US2] Run Ruinae tests for rungler modulation output: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe "[modulation_routing]"`
+- [X] T115 [US2] Verify zero compiler warnings for rungler_params.h, processor changes, controller changes
 
 ### 5.9 Manual Verification
 
-- [ ] T116 [US2] Manual test: Open plugin, select "Rungler" from mod source dropdown, verify 6 controls appear (Osc1 Freq, Osc2 Freq, Depth, Filter, Bits, Loop Mode)
-- [ ] T117 [US2] Manual test: Set Osc1 to 5 Hz, Osc2 to 7 Hz, Depth to 50%, Filter to 30%, add mod matrix route "Rungler -> Filter Cutoff" with amount +1.0, play audio, verify filter cutoff changes in chaotic stepped pattern
-- [ ] T118 [US2] Manual test: Increase Osc1/Osc2 freq knobs, verify pattern speed increases
-- [ ] T119 [US2] Manual test: Increase Filter knob, verify stepped transitions become smoother
-- [ ] T120 [US2] Manual test: Change Bits from 8 to 4, verify coarser stepped pattern (fewer voltage levels). Change Bits to 16, verify finer stepped pattern.
-- [ ] T121 [US2] Manual test: Enable Loop Mode toggle, let pattern run, verify it repeats (deterministic loop instead of chaotic evolution)
-- [ ] T122 [US2] Manual test: Set Depth to 0%, verify pattern is simpler and more periodic (oscillators run at base frequencies without cross-modulation)
+- [X] T116 [US2] Manual test: Open plugin, select "Rungler" from mod source dropdown, verify 6 controls appear (Osc1 Freq, Osc2 Freq, Depth, Filter, Bits, Loop Mode)
+- [X] T117 [US2] Manual test: Set Osc1 to 5 Hz, Osc2 to 7 Hz, Depth to 50%, Filter to 30%, add mod matrix route "Rungler -> Filter Cutoff" with amount +1.0, play audio, verify filter cutoff changes in chaotic stepped pattern
+- [X] T118 [US2] Manual test: Increase Osc1/Osc2 freq knobs, verify pattern speed increases
+- [X] T119 [US2] Manual test: Increase Filter knob, verify stepped transitions become smoother
+- [X] T120 [US2] Manual test: Change Bits from 8 to 4, verify coarser stepped pattern (fewer voltage levels). Change Bits to 16, verify finer stepped pattern.
+- [X] T121 [US2] Manual test: Enable Loop Mode toggle, let pattern run, verify it repeats (deterministic loop instead of chaotic evolution)
+- [X] T122 [US2] Manual test: Set Depth to 0%, verify pattern is simpler and more periodic (oscillators run at base frequencies without cross-modulation)
 
 ### 5.10 Commit
 
-- [ ] T123 [US2] Commit completed User Story 2 work (Rungler as chaotic modulation source)
+- [X] T123 [US2] Commit completed User Story 2 work (Rungler as chaotic modulation source)
 
 **Checkpoint**: User Story 2 complete - Rungler view shows 6 controls, Rungler routes to destinations producing chaotic CV, preset persistence works
 

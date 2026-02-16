@@ -404,6 +404,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
 
     // v13: Macro and Rungler params
     saveMacroParams(macroParams_, streamer);
+    saveRunglerParams(runglerParams_, streamer);
 
     return Steinberg::kResultTrue;
 }
@@ -533,6 +534,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         // v13: Macro and Rungler params
         if (version >= 13) {
             loadMacroParams(macroParams_, streamer);
+            loadRunglerParams(runglerParams_, streamer);
         }
     }
     // Unknown future versions (v0 or negative): keep safe defaults
@@ -622,6 +624,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleMonoModeParamChange(monoModeParams_, paramId, value);
         } else if (paramId >= kMacroBaseId && paramId <= kMacroEndId) {
             handleMacroParamChange(macroParams_, paramId, value);
+        } else if (paramId >= kRunglerBaseId && paramId <= kRunglerEndId) {
+            handleRunglerParamChange(runglerParams_, paramId, value);
         }
     }
 }
@@ -953,6 +957,14 @@ void Processor::applyParamsToEngine() {
         engine_.setMacroValue(static_cast<size_t>(i),
             macroParams_.values[i].load(std::memory_order_relaxed));
     }
+
+    // --- Rungler ---
+    engine_.setRunglerOsc1Freq(runglerParams_.osc1FreqHz.load(std::memory_order_relaxed));
+    engine_.setRunglerOsc2Freq(runglerParams_.osc2FreqHz.load(std::memory_order_relaxed));
+    engine_.setRunglerDepth(runglerParams_.depth.load(std::memory_order_relaxed));
+    engine_.setRunglerFilter(runglerParams_.filter.load(std::memory_order_relaxed));
+    engine_.setRunglerBits(static_cast<size_t>(runglerParams_.bits.load(std::memory_order_relaxed)));
+    engine_.setRunglerLoopMode(runglerParams_.loopMode.load(std::memory_order_relaxed));
 
     // --- Mono Mode ---
     engine_.setMonoPriority(static_cast<MonoMode>(
