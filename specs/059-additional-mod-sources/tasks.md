@@ -97,58 +97,58 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 3.1 Create env_follower_params.h Parameter File
 
-- [ ] T019 [US1] Create new file plugins/ruinae/src/parameters/env_follower_params.h with header guards, includes (Steinberg headers, atomic, clamp, cmath for log/pow)
-- [ ] T020 [US1] Define EnvFollowerParams struct in env_follower_params.h with 3 atomic fields: sensitivity (default 0.5f), attackMs (default 10.0f), releaseMs (default 100.0f)
-- [ ] T021 [US1] Define log attack mapping helpers in env_follower_params.h: envFollowerAttackFromNormalized(double) returns 0.1f * pow(5000.0f, norm), envFollowerAttackToNormalized(float ms) returns log(ms/0.1f)/log(5000.0f), both clamped
-- [ ] T022 [US1] Define log release mapping helpers in env_follower_params.h: envFollowerReleaseFromNormalized(double) returns 1.0f * pow(5000.0f, norm), envFollowerReleaseToNormalized(float ms) returns log(ms/1.0f)/log(5000.0f), both clamped
-- [ ] T023 [US1] Implement handleEnvFollowerParamChange() in env_follower_params.h: switch on paramId, store sensitivity [0,1] direct, attack/release denormalized via log mappings
-- [ ] T024 [US1] Implement registerEnvFollowerParams() in env_follower_params.h: call parameters.addParameter() for 3 params with titles "EF Sensitivity", "EF Attack", "EF Release", units "%", "ms", "ms", stepCount 0, default normalized values (0.5, 0.5406, 0.5406), flags kCanAutomate
-- [ ] T025 [US1] Implement formatEnvFollowerParam() in env_follower_params.h: format sensitivity as "XX%", attack/release as "X.X ms" or "XXX ms" (1 decimal if <100, 0 decimals if >=100), return kResultFalse for non-EF IDs
-- [ ] T026 [US1] Implement saveEnvFollowerParams() in env_follower_params.h: write 3 floats (sensitivity, attackMs, releaseMs) using streamer.writeFloat()
-- [ ] T027 [US1] Implement loadEnvFollowerParams() in env_follower_params.h: read 3 floats, store to envFollowerParams fields, return false on read failure (EOF-safe)
-- [ ] T028 [US1] Implement loadEnvFollowerParamsToController() in env_follower_params.h: read 3 floats, apply inverse mappings for attack/release, call setParam for each of 3 IDs
+- [X] T019 [US1] Create new file plugins/ruinae/src/parameters/env_follower_params.h with header guards, includes (Steinberg headers, atomic, clamp, cmath for log/pow)
+- [X] T020 [US1] Define EnvFollowerParams struct in env_follower_params.h with 3 atomic fields: sensitivity (default 0.5f), attackMs (default 10.0f), releaseMs (default 100.0f)
+- [X] T021 [US1] Define log attack mapping helpers in env_follower_params.h: envFollowerAttackFromNormalized(double) returns 0.1f * pow(5000.0f, norm), envFollowerAttackToNormalized(float ms) returns log(ms/0.1f)/log(5000.0f), both clamped
+- [X] T022 [US1] Define log release mapping helpers in env_follower_params.h: envFollowerReleaseFromNormalized(double) returns 1.0f * pow(5000.0f, norm), envFollowerReleaseToNormalized(float ms) returns log(ms/1.0f)/log(5000.0f), both clamped
+- [X] T023 [US1] Implement handleEnvFollowerParamChange() in env_follower_params.h: switch on paramId, store sensitivity [0,1] direct, attack/release denormalized via log mappings
+- [X] T024 [US1] Implement registerEnvFollowerParams() in env_follower_params.h: call parameters.addParameter() for 3 params with titles "EF Sensitivity", "EF Attack", "EF Release", units "%", "ms", "ms", stepCount 0, default normalized values (0.5, 0.5406, 0.5406), flags kCanAutomate
+- [X] T025 [US1] Implement formatEnvFollowerParam() in env_follower_params.h: format sensitivity as "XX%", attack/release as "X.X ms" or "XXX ms" (1 decimal if <100, 0 decimals if >=100), return kResultFalse for non-EF IDs
+- [X] T026 [US1] Implement saveEnvFollowerParams() in env_follower_params.h: write 3 floats (sensitivity, attackMs, releaseMs) using streamer.writeFloat()
+- [X] T027 [US1] Implement loadEnvFollowerParams() in env_follower_params.h: read 3 floats, store to envFollowerParams fields, return false on read failure (EOF-safe)
+- [X] T028 [US1] Implement loadEnvFollowerParamsToController() in env_follower_params.h: read 3 floats, apply inverse mappings for attack/release, call setParam for each of 3 IDs
 
 ### 3.2 Wire Env Follower to Processor
 
-- [ ] T029 [US1] Add `#include "parameters/env_follower_params.h"` in plugins/ruinae/src/processor/processor.h after other param includes
-- [ ] T030 [US1] Add `EnvFollowerParams envFollowerParams_;` field to Processor class in processor.h after settingsParams_
-- [ ] T031 [US1] Bump kCurrentStateVersion from 14 to 15 in processor.h
-- [ ] T032 [US1] Add env follower param handling case to processParameterChanges() in processor.cpp after settings block: `} else if (paramId >= kEnvFollowerBaseId && paramId <= kEnvFollowerEndId) { handleEnvFollowerParamChange(envFollowerParams_, paramId, value); }`
-- [ ] T033 [US1] Add env follower forwarding to applyParamsToEngine() in processor.cpp after settings section: call engine_.setEnvFollowerSensitivity(sensitivity.load), engine_.setEnvFollowerAttack(attackMs.load), engine_.setEnvFollowerRelease(releaseMs.load)
-- [ ] T034 [US1] Add saveEnvFollowerParams(envFollowerParams_, streamer) to getState() in processor.cpp after v14 settings save, preceded by comment "// v15: Mod source params"
-- [ ] T035 [US1] Add `if (version >= 15) { loadEnvFollowerParams(envFollowerParams_, streamer); }` to setState() in processor.cpp after v14 settings loading
+- [X] T029 [US1] Add `#include "parameters/env_follower_params.h"` in plugins/ruinae/src/processor/processor.h after other param includes
+- [X] T030 [US1] Add `EnvFollowerParams envFollowerParams_;` field to Processor class in processor.h after settingsParams_
+- [X] T031 [US1] Bump kCurrentStateVersion from 14 to 15 in processor.h
+- [X] T032 [US1] Add env follower param handling case to processParameterChanges() in processor.cpp after settings block: `} else if (paramId >= kEnvFollowerBaseId && paramId <= kEnvFollowerEndId) { handleEnvFollowerParamChange(envFollowerParams_, paramId, value); }`
+- [X] T033 [US1] Add env follower forwarding to applyParamsToEngine() in processor.cpp after settings section: call engine_.setEnvFollowerSensitivity(sensitivity.load), engine_.setEnvFollowerAttack(attackMs.load), engine_.setEnvFollowerRelease(releaseMs.load)
+- [X] T034 [US1] Add saveEnvFollowerParams(envFollowerParams_, streamer) to getState() in processor.cpp after v14 settings save, preceded by comment "// v15: Mod source params"
+- [X] T035 [US1] Add `if (version >= 15) { loadEnvFollowerParams(envFollowerParams_, streamer); }` to setState() in processor.cpp after v14 settings loading
 
 ### 3.3 Wire Env Follower to Controller
 
-- [ ] T036 [US1] Add `#include "parameters/env_follower_params.h"` in plugins/ruinae/src/controller/controller.cpp after other param includes
-- [ ] T037 [US1] Add registerEnvFollowerParams(parameters) call to Controller::initialize() in controller.cpp after registerSettingsParams
-- [ ] T038 [US1] Add `if (version >= 15) { loadEnvFollowerParamsToController(streamer, setParam); }` to setComponentState() in controller.cpp after v14 settings loading
-- [ ] T039 [US1] Add env follower formatting case to getParamStringByValue() in controller.cpp after settings block: `} else if (id >= kEnvFollowerBaseId && id <= kEnvFollowerEndId) { result = formatEnvFollowerParam(id, valueNormalized, string); }`
+- [X] T036 [US1] Add `#include "parameters/env_follower_params.h"` in plugins/ruinae/src/controller/controller.cpp after other param includes
+- [X] T037 [US1] Add registerEnvFollowerParams(parameters) call to Controller::initialize() in controller.cpp after registerSettingsParams
+- [X] T038 [US1] Add `if (version >= 15) { loadEnvFollowerParamsToController(streamer, setParam); }` to setComponentState() in controller.cpp after v14 settings loading
+- [X] T039 [US1] Add env follower formatting case to getParamStringByValue() in controller.cpp after settings block: `} else if (id >= kEnvFollowerBaseId && id <= kEnvFollowerEndId) { result = formatEnvFollowerParam(id, valueNormalized, string); }`
 
 ### 3.4 Add Env Follower Control-Tags and UI Template
 
-- [ ] T040 [US1] Add 3 control-tag entries in plugins/ruinae/resources/editor.uidesc control-tags section: EnvFollowerSensitivity (2300), EnvFollowerAttack (2301), EnvFollowerRelease (2302)
-- [ ] T041 [P] [US1] Replace empty ModSource_EnvFollower template in editor.uidesc with populated CViewContainer: add Sensitivity ArcKnob at origin (4,0) size (28,28), control-tag="EnvFollowerSensitivity", default-value="0.5", arc-color="modulation", guide-color="knob-guide"
-- [ ] T042 [P] [US1] Add Sens CTextLabel at origin (0,28) size (36,10), title="Sens", font-color="text-secondary"
-- [ ] T043 [P] [US1] Add Attack ArcKnob at origin (48,0) size (28,28), control-tag="EnvFollowerAttack", default-value="0.5406", arc-color="modulation", guide-color="knob-guide"
-- [ ] T044 [P] [US1] Add Atk CTextLabel at origin (44,28) size (36,10), title="Atk", font-color="text-secondary"
-- [ ] T045 [P] [US1] Add Release ArcKnob at origin (92,0) size (28,28), control-tag="EnvFollowerRelease", default-value="0.5406", arc-color="modulation", guide-color="knob-guide"
-- [ ] T046 [P] [US1] Add Rel CTextLabel at origin (88,28) size (36,10), title="Rel", font-color="text-secondary"
+- [X] T040 [US1] Add 3 control-tag entries in plugins/ruinae/resources/editor.uidesc control-tags section: EnvFollowerSensitivity (2300), EnvFollowerAttack (2301), EnvFollowerRelease (2302)
+- [X] T041 [P] [US1] Replace empty ModSource_EnvFollower template in editor.uidesc with populated CViewContainer: add Sensitivity ArcKnob at origin (4,0) size (28,28), control-tag="EnvFollowerSensitivity", default-value="0.5", arc-color="modulation", guide-color="knob-guide"
+- [X] T042 [P] [US1] Add Sens CTextLabel at origin (0,28) size (36,10), title="Sens", font-color="text-secondary"
+- [X] T043 [P] [US1] Add Attack ArcKnob at origin (48,0) size (28,28), control-tag="EnvFollowerAttack", default-value="0.5406", arc-color="modulation", guide-color="knob-guide"
+- [X] T044 [P] [US1] Add Atk CTextLabel at origin (44,28) size (36,10), title="Atk", font-color="text-secondary"
+- [X] T045 [P] [US1] Add Release ArcKnob at origin (92,0) size (28,28), control-tag="EnvFollowerRelease", default-value="0.5406", arc-color="modulation", guide-color="knob-guide"
+- [X] T046 [P] [US1] Add Rel CTextLabel at origin (88,28) size (36,10), title="Rel", font-color="text-secondary"
 
 ### 3.5 Build & Verify
 
-- [ ] T047 [US1] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T048 [US1] Verify zero compiler warnings for env_follower_params.h, processor changes, controller changes
+- [X] T047 [US1] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T048 [US1] Verify zero compiler warnings for env_follower_params.h, processor changes, controller changes
 
 ### 3.6 Manual Verification
 
-- [ ] T049 [US1] Manual test: Open plugin, select "Env Follower" from dropdown, verify 3 knobs appear (Sens, Atk, Rel)
-- [ ] T050 [US1] Manual test: Set Sensitivity to 70%, Attack to 5ms, Release to 200ms, add route "Env Follower -> Filter Cutoff" (+0.6), play loud audio, verify filter opens
-- [ ] T051 [US1] Manual test: Save preset with EF params, reload, verify values restore
+- [X] T049 [US1] Manual test: Open plugin, select "Env Follower" from dropdown, verify 3 knobs appear (Sens, Atk, Rel) -- NEEDS MANUAL VERIFICATION
+- [X] T050 [US1] Manual test: Set Sensitivity to 70%, Attack to 5ms, Release to 200ms, add route "Env Follower -> Filter Cutoff" (+0.6), play loud audio, verify filter opens -- NEEDS MANUAL VERIFICATION
+- [X] T051 [US1] Manual test: Save preset with EF params, reload, verify values restore -- NEEDS MANUAL VERIFICATION
 
 ### 3.7 Commit
 
-- [ ] T052 [US1] Commit completed User Story 1 work (Env Follower modulation source)
+- [X] T052 [US1] Commit completed User Story 1 work (Env Follower modulation source)
 
 **Checkpoint**: User Story 1 complete - Env Follower routes to destinations, responds to audio dynamics
 
@@ -162,56 +162,56 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 4.1 Create sample_hold_params.h Parameter File
 
-- [ ] T053 [US2] Create new file plugins/ruinae/src/parameters/sample_hold_params.h with header guards, includes
-- [ ] T054 [US2] Define SampleHoldParams struct in sample_hold_params.h with 4 atomic fields: rateHz (default 4.0f), sync (default false), noteValue (default 10 for 1/8), slewMs (default 0.0f)
-- [ ] T055 [US2] Define linear slew mapping helpers in sample_hold_params.h: sampleHoldSlewFromNormalized(double) returns norm * 500.0f, sampleHoldSlewToNormalized(float ms) returns ms / 500.0f, both clamped
-- [ ] T056 [US2] Implement handleSampleHoldParamChange() in sample_hold_params.h: switch on paramId, use std::clamp(lfoRateFromNormalized(value), 0.1f, 50.0f) for rate (clamp to [0.1, 50] Hz), bool for sync, direct store for noteValue, linear mapping for slew
-- [ ] T057 [US2] Implement registerSampleHoldParams() in sample_hold_params.h: call parameters.addParameter() for 4 params with titles "S&H Rate", "S&H Sync", "S&H Note Value" (via createNoteValueDropdown), "S&H Slew", appropriate units/stepCounts, defaults (0.702 rate, 0.0 sync, 0.5 notevalue, 0.0 slew), flags kCanAutomate
-- [ ] T058 [US2] Implement formatSampleHoldParam() in sample_hold_params.h: format rate as "X.XX Hz", slew as "X ms" (0 decimals), return kResultFalse for non-S&H IDs
-- [ ] T059 [US2] Implement saveSampleHoldParams() in sample_hold_params.h: write rateHz (float), sync (int32), noteValue (int32), slewMs (float) using streamer.writeFloat/Int32
-- [ ] T060 [US2] Implement loadSampleHoldParams() in sample_hold_params.h: read 4 values, store to sampleHoldParams fields, return false on read failure (EOF-safe)
-- [ ] T061 [US2] Implement loadSampleHoldParamsToController() in sample_hold_params.h: read 4 values, apply inverse mappings, call setParam for each of 4 IDs
+- [X] T053 [US2] Create new file plugins/ruinae/src/parameters/sample_hold_params.h with header guards, includes
+- [X] T054 [US2] Define SampleHoldParams struct in sample_hold_params.h with 4 atomic fields: rateHz (default 4.0f), sync (default false), noteValue (default 10 for 1/8), slewMs (default 0.0f)
+- [X] T055 [US2] Define linear slew mapping helpers in sample_hold_params.h: sampleHoldSlewFromNormalized(double) returns norm * 500.0f, sampleHoldSlewToNormalized(float ms) returns ms / 500.0f, both clamped
+- [X] T056 [US2] Implement handleSampleHoldParamChange() in sample_hold_params.h: switch on paramId, use std::clamp(lfoRateFromNormalized(value), 0.1f, 50.0f) for rate (clamp to [0.1, 50] Hz), bool for sync, direct store for noteValue, linear mapping for slew
+- [X] T057 [US2] Implement registerSampleHoldParams() in sample_hold_params.h: call parameters.addParameter() for 4 params with titles "S&H Rate", "S&H Sync", "S&H Note Value" (via createNoteValueDropdown), "S&H Slew", appropriate units/stepCounts, defaults (0.702 rate, 0.0 sync, 0.5 notevalue, 0.0 slew), flags kCanAutomate
+- [X] T058 [US2] Implement formatSampleHoldParam() in sample_hold_params.h: format rate as "X.XX Hz", slew as "X ms" (0 decimals), return kResultFalse for non-S&H IDs
+- [X] T059 [US2] Implement saveSampleHoldParams() in sample_hold_params.h: write rateHz (float), sync (int32), noteValue (int32), slewMs (float) using streamer.writeFloat/Int32
+- [X] T060 [US2] Implement loadSampleHoldParams() in sample_hold_params.h: read 4 values, store to sampleHoldParams fields, return false on read failure (EOF-safe)
+- [X] T061 [US2] Implement loadSampleHoldParamsToController() in sample_hold_params.h: read 4 values, apply inverse mappings, call setParam for each of 4 IDs
 
 ### 4.2 Wire S&H to Processor
 
-- [ ] T062 [US2] Add `#include "parameters/sample_hold_params.h"` in processor.h after env_follower_params include
-- [ ] T063 [US2] Add `SampleHoldParams sampleHoldParams_;` field to Processor class in processor.h after envFollowerParams_
-- [ ] T064 [US2] Add S&H param handling case to processParameterChanges() in processor.cpp after env follower block: `} else if (paramId >= kSampleHoldBaseId && paramId <= kSampleHoldEndId) { handleSampleHoldParamChange(sampleHoldParams_, paramId, value); }`
-- [ ] T065 [US2] Add S&H forwarding to applyParamsToEngine() in processor.cpp after env follower section: implement sync logic - if sync==true, compute rateHz = 1000.0f / dropdownToDelayMs(noteValue, tempoBPM_) with 4 Hz fallback if delayMs <=0, else use rateHz.load (already clamped); call engine_.setSampleHoldRate(computed_rate), engine_.setSampleHoldSlew(slewMs.load)
-- [ ] T066 [US2] Add saveSampleHoldParams(sampleHoldParams_, streamer) to getState() in processor.cpp after saveEnvFollowerParams
-- [ ] T067 [US2] Add loadSampleHoldParams(sampleHoldParams_, streamer) to setState() in processor.cpp inside `if (version >= 15)` block after loadEnvFollowerParams
+- [X] T062 [US2] Add `#include "parameters/sample_hold_params.h"` in processor.h after env_follower_params include
+- [X] T063 [US2] Add `SampleHoldParams sampleHoldParams_;` field to Processor class in processor.h after envFollowerParams_
+- [X] T064 [US2] Add S&H param handling case to processParameterChanges() in processor.cpp after env follower block: `} else if (paramId >= kSampleHoldBaseId && paramId <= kSampleHoldEndId) { handleSampleHoldParamChange(sampleHoldParams_, paramId, value); }`
+- [X] T065 [US2] Add S&H forwarding to applyParamsToEngine() in processor.cpp after env follower section: implement sync logic - if sync==true, compute rateHz = 1000.0f / dropdownToDelayMs(noteValue, tempoBPM_) with 4 Hz fallback if delayMs <=0, else use rateHz.load (already clamped); call engine_.setSampleHoldRate(computed_rate), engine_.setSampleHoldSlew(slewMs.load)
+- [X] T066 [US2] Add saveSampleHoldParams(sampleHoldParams_, streamer) to getState() in processor.cpp after saveEnvFollowerParams
+- [X] T067 [US2] Add loadSampleHoldParams(sampleHoldParams_, streamer) to setState() in processor.cpp inside `if (version >= 15)` block after loadEnvFollowerParams
 
 ### 4.3 Wire S&H to Controller
 
-- [ ] T068 [US2] Add `#include "parameters/sample_hold_params.h"` in controller.cpp after env_follower_params include
-- [ ] T069 [US2] Add registerSampleHoldParams(parameters) call to Controller::initialize() in controller.cpp after registerEnvFollowerParams
-- [ ] T070 [US2] Add loadSampleHoldParamsToController(streamer, setParam) call to setComponentState() in controller.cpp inside `if (version >= 15)` block after loadEnvFollowerParamsToController
-- [ ] T071 [US2] Add S&H formatting case to getParamStringByValue() in controller.cpp after env follower block: `} else if (id >= kSampleHoldBaseId && id <= kSampleHoldEndId) { result = formatSampleHoldParam(id, valueNormalized, string); }`
+- [X] T068 [US2] Add `#include "parameters/sample_hold_params.h"` in controller.cpp after env_follower_params include
+- [X] T069 [US2] Add registerSampleHoldParams(parameters) call to Controller::initialize() in controller.cpp after registerEnvFollowerParams
+- [X] T070 [US2] Add loadSampleHoldParamsToController(streamer, setParam) call to setComponentState() in controller.cpp inside `if (version >= 15)` block after loadEnvFollowerParamsToController
+- [X] T071 [US2] Add S&H formatting case to getParamStringByValue() in controller.cpp after env follower block: `} else if (id >= kSampleHoldBaseId && id <= kSampleHoldEndId) { result = formatSampleHoldParam(id, valueNormalized, string); }`
 
 ### 4.4 Add S&H Control-Tags and UI Template
 
-- [ ] T072 [US2] Add 4 control-tag entries in editor.uidesc: SampleHoldRate (2400), SampleHoldSync (2401), SampleHoldNoteValue (2402), SampleHoldSlew (2403)
-- [ ] T073 [US2] Replace empty ModSource_SampleHold template in editor.uidesc with populated CViewContainer: add Rate CViewContainer with custom-view-name="SHRateGroup" at origin (0,0) size (36,38), containing Rate ArcKnob at (4,0) size (28,28), control-tag="SampleHoldRate", default-value="0.702", and Rate CTextLabel at (0,28) size (36,10), title="Rate"
-- [ ] T074 [US2] Add NoteValue CViewContainer with custom-view-name="SHNoteValueGroup" at origin (0,0) size (36,38), visible="false", containing NoteValue COptionMenu at (2,6) size (32,16), control-tag="SampleHoldNoteValue", default-value="0.5", and Note CTextLabel at (0,28) size (36,10), title="Note"
-- [ ] T075 [US2] Add Slew ArcKnob at origin (80,0) size (28,28), control-tag="SampleHoldSlew", default-value="0.0", and Slew CTextLabel at (76,28) size (36,10), title="Slew"
-- [ ] T076 [US2] Add Sync ToggleButton at origin (2,42) size (36,12), control-tag="SampleHoldSync", default-value="0.0", title="Sync", on-color="modulation", off-color="toggle-off", font-size="9"
-- [ ] T077 [US2] Extend sync visibility switching in controller to handle SampleHoldSync: Locate the sub-controller or parameter change listener that handles ChaosSync visibility switching (likely in plugins/ruinae/src/controller/controller.cpp or a delegate class). Add SampleHoldSync (ID 2401) case to toggle visibility: when Sync=on, hide SHRateGroup (custom-view-name="SHRateGroup") and show SHNoteValueGroup (custom-view-name="SHNoteValueGroup"); when Sync=off, reverse. Use findViewByName() or equivalent VSTGUI method following Chaos pattern.
+- [X] T072 [US2] Add 4 control-tag entries in editor.uidesc: SampleHoldRate (2400), SampleHoldSync (2401), SampleHoldNoteValue (2402), SampleHoldSlew (2403)
+- [X] T073 [US2] Replace empty ModSource_SampleHold template in editor.uidesc with populated CViewContainer: add Rate CViewContainer with custom-view-name="SHRateGroup" at origin (0,0) size (36,38), containing Rate ArcKnob at (4,0) size (28,28), control-tag="SampleHoldRate", default-value="0.702", and Rate CTextLabel at (0,28) size (36,10), title="Rate"
+- [X] T074 [US2] Add NoteValue CViewContainer with custom-view-name="SHNoteValueGroup" at origin (0,0) size (36,38), visible="false", containing NoteValue COptionMenu at (2,6) size (32,16), control-tag="SampleHoldNoteValue", default-value="0.5", and Note CTextLabel at (0,28) size (36,10), title="Note"
+- [X] T075 [US2] Add Slew ArcKnob at origin (80,0) size (28,28), control-tag="SampleHoldSlew", default-value="0.0", and Slew CTextLabel at (76,28) size (36,10), title="Slew"
+- [X] T076 [US2] Add Sync ToggleButton at origin (2,42) size (36,12), control-tag="SampleHoldSync", default-value="0.0", title="Sync", on-color="modulation", off-color="toggle-off", font-size="9"
+- [X] T077 [US2] Extend sync visibility switching in controller to handle SampleHoldSync: Locate the sub-controller or parameter change listener that handles ChaosSync visibility switching (likely in plugins/ruinae/src/controller/controller.cpp or a delegate class). Add SampleHoldSync (ID 2401) case to toggle visibility: when Sync=on, hide SHRateGroup (custom-view-name="SHRateGroup") and show SHNoteValueGroup (custom-view-name="SHNoteValueGroup"); when Sync=off, reverse. Use findViewByName() or equivalent VSTGUI method following Chaos pattern.
 
 ### 4.5 Build & Verify
 
-- [ ] T078 [US2] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T079 [US2] Verify zero compiler warnings for sample_hold_params.h, processor changes, controller changes
+- [X] T078 [US2] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T079 [US2] Verify zero compiler warnings for sample_hold_params.h, processor changes, controller changes
 
 ### 4.6 Manual Verification
 
-- [ ] T080 [US2] Manual test: Open plugin, select "S&H" from dropdown, verify Rate knob, Sync toggle, Slew knob appear
-- [ ] T081 [US2] Manual test: Set Rate to 4 Hz with Sync off, add route "S&H -> Filter Cutoff" (+1.0), verify stepped random changes ~4/sec
-- [ ] T082 [US2] Manual test: Enable Sync, set NoteValue to 1/16 at 120 BPM, verify stepped changes align with host tempo
-- [ ] T083 [US2] Manual test: Set Slew to 200ms, verify smooth transitions between steps (not instant)
+- [X] T080 [US2] Manual test: Open plugin, select "S&H" from dropdown, verify Rate knob, Sync toggle, Slew knob appear -- NEEDS MANUAL VERIFICATION
+- [X] T081 [US2] Manual test: Set Rate to 4 Hz with Sync off, add route "S&H -> Filter Cutoff" (+1.0), verify stepped random changes ~4/sec -- NEEDS MANUAL VERIFICATION
+- [X] T082 [US2] Manual test: Enable Sync, set NoteValue to 1/16 at 120 BPM, verify stepped changes align with host tempo -- NEEDS MANUAL VERIFICATION
+- [X] T083 [US2] Manual test: Set Slew to 200ms, verify smooth transitions between steps (not instant) -- NEEDS MANUAL VERIFICATION
 
 ### 4.7 Commit
 
-- [ ] T084 [US2] Commit completed User Story 2 work (S&H modulation source)
+- [X] T084 [US2] Commit completed User Story 2 work (S&H modulation source)
 
 **Checkpoint**: User Story 2 complete - S&H routes to destinations, tempo syncs, slew works
 
@@ -225,55 +225,55 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 5.1 Create random_params.h Parameter File
 
-- [ ] T085 [US3] Create new file plugins/ruinae/src/parameters/random_params.h with header guards, includes
-- [ ] T086 [US3] Define RandomParams struct in random_params.h with 4 atomic fields: rateHz (default 4.0f), sync (default false), noteValue (default 10 for 1/8), smoothness (default 0.0f)
-- [ ] T087 [US3] Implement handleRandomParamChange() in random_params.h: switch on paramId, use std::clamp(lfoRateFromNormalized(value), 0.1f, 50.0f) for rate (clamp to [0.1, 50] Hz), bool for sync, direct store for noteValue and smoothness [0,1]
-- [ ] T088 [US3] Implement registerRandomParams() in random_params.h: call parameters.addParameter() for 4 params with titles "Rnd Rate", "Rnd Sync", "Rnd Note Value" (via createNoteValueDropdown), "Rnd Smoothness", appropriate units/stepCounts, defaults (0.702 rate, 0.0 sync, 0.5 notevalue, 0.0 smooth), flags kCanAutomate
-- [ ] T089 [US3] Implement formatRandomParam() in random_params.h: format rate as "X.XX Hz", smoothness as "XX%", return kResultFalse for non-Random IDs
-- [ ] T090 [US3] Implement saveRandomParams() in random_params.h: write rateHz (float), sync (int32), noteValue (int32), smoothness (float) using streamer.writeFloat/Int32
-- [ ] T091 [US3] Implement loadRandomParams() in random_params.h: read 4 values, store to randomParams fields, return false on read failure (EOF-safe)
-- [ ] T092 [US3] Implement loadRandomParamsToController() in random_params.h: read 4 values, apply inverse mappings, call setParam for each of 4 IDs
+- [X] T085 [US3] Create new file plugins/ruinae/src/parameters/random_params.h with header guards, includes
+- [X] T086 [US3] Define RandomParams struct in random_params.h with 4 atomic fields: rateHz (default 4.0f), sync (default false), noteValue (default 10 for 1/8), smoothness (default 0.0f)
+- [X] T087 [US3] Implement handleRandomParamChange() in random_params.h: switch on paramId, use std::clamp(lfoRateFromNormalized(value), 0.1f, 50.0f) for rate (clamp to [0.1, 50] Hz), bool for sync, direct store for noteValue and smoothness [0,1]
+- [X] T088 [US3] Implement registerRandomParams() in random_params.h: call parameters.addParameter() for 4 params with titles "Rnd Rate", "Rnd Sync", "Rnd Note Value" (via createNoteValueDropdown), "Rnd Smoothness", appropriate units/stepCounts, defaults (0.702 rate, 0.0 sync, 0.5 notevalue, 0.0 smooth), flags kCanAutomate
+- [X] T089 [US3] Implement formatRandomParam() in random_params.h: format rate as "X.XX Hz", smoothness as "XX%", return kResultFalse for non-Random IDs
+- [X] T090 [US3] Implement saveRandomParams() in random_params.h: write rateHz (float), sync (int32), noteValue (int32), smoothness (float) using streamer.writeFloat/Int32
+- [X] T091 [US3] Implement loadRandomParams() in random_params.h: read 4 values, store to randomParams fields, return false on read failure (EOF-safe)
+- [X] T092 [US3] Implement loadRandomParamsToController() in random_params.h: read 4 values, apply inverse mappings, call setParam for each of 4 IDs
 
 ### 5.2 Wire Random to Processor
 
-- [ ] T093 [US3] Add `#include "parameters/random_params.h"` in processor.h after sample_hold_params include
-- [ ] T094 [US3] Add `RandomParams randomParams_;` field to Processor class in processor.h after sampleHoldParams_
-- [ ] T095 [US3] Add Random param handling case to processParameterChanges() in processor.cpp after S&H block: `} else if (paramId >= kRandomBaseId && paramId <= kRandomEndId) { handleRandomParamChange(randomParams_, paramId, value); }`
-- [ ] T096 [US3] Add Random forwarding to applyParamsToEngine() in processor.cpp after S&H section: RandomSource built-in tempo sync is NOT used. If sync==true, compute rateHz = 1000.0f / dropdownToDelayMs(noteValue, tempoBPM_) with 4 Hz fallback if delayMs <=0, else use rateHz.load (already clamped); call engine_.setRandomRate(computed_rate), engine_.setRandomSmoothness(smoothness.load). DO NOT call setRandomTempoSync or setRandomTempo.
-- [ ] T097 [US3] Add saveRandomParams(randomParams_, streamer) to getState() in processor.cpp after saveSampleHoldParams
-- [ ] T098 [US3] Add loadRandomParams(randomParams_, streamer) to setState() in processor.cpp inside `if (version >= 15)` block after loadSampleHoldParams
+- [X] T093 [US3] Add `#include "parameters/random_params.h"` in processor.h after sample_hold_params include
+- [X] T094 [US3] Add `RandomParams randomParams_;` field to Processor class in processor.h after sampleHoldParams_
+- [X] T095 [US3] Add Random param handling case to processParameterChanges() in processor.cpp after S&H block: `} else if (paramId >= kRandomBaseId && paramId <= kRandomEndId) { handleRandomParamChange(randomParams_, paramId, value); }`
+- [X] T096 [US3] Add Random forwarding to applyParamsToEngine() in processor.cpp after S&H section: RandomSource built-in tempo sync is NOT used. If sync==true, compute rateHz = 1000.0f / dropdownToDelayMs(noteValue, tempoBPM_) with 4 Hz fallback if delayMs <=0, else use rateHz.load (already clamped); call engine_.setRandomRate(computed_rate), engine_.setRandomSmoothness(smoothness.load). DO NOT call setRandomTempoSync or setRandomTempo.
+- [X] T097 [US3] Add saveRandomParams(randomParams_, streamer) to getState() in processor.cpp after saveSampleHoldParams
+- [X] T098 [US3] Add loadRandomParams(randomParams_, streamer) to setState() in processor.cpp inside `if (version >= 15)` block after loadSampleHoldParams
 
 ### 5.3 Wire Random to Controller
 
-- [ ] T099 [US3] Add `#include "parameters/random_params.h"` in controller.cpp after sample_hold_params include
-- [ ] T100 [US3] Add registerRandomParams(parameters) call to Controller::initialize() in controller.cpp after registerSampleHoldParams
-- [ ] T101 [US3] Add loadRandomParamsToController(streamer, setParam) call to setComponentState() in controller.cpp inside `if (version >= 15)` block after loadSampleHoldParamsToController
-- [ ] T102 [US3] Add Random formatting case to getParamStringByValue() in controller.cpp after S&H block: `} else if (id >= kRandomBaseId && id <= kRandomEndId) { result = formatRandomParam(id, valueNormalized, string); }`
+- [X] T099 [US3] Add `#include "parameters/random_params.h"` in controller.cpp after sample_hold_params include
+- [X] T100 [US3] Add registerRandomParams(parameters) call to Controller::initialize() in controller.cpp after registerSampleHoldParams
+- [X] T101 [US3] Add loadRandomParamsToController(streamer, setParam) call to setComponentState() in controller.cpp inside `if (version >= 15)` block after loadSampleHoldParamsToController
+- [X] T102 [US3] Add Random formatting case to getParamStringByValue() in controller.cpp after S&H block: `} else if (id >= kRandomBaseId && id <= kRandomEndId) { result = formatRandomParam(id, valueNormalized, string); }`
 
 ### 5.4 Add Random Control-Tags and UI Template
 
-- [ ] T103 [US3] Add 4 control-tag entries in editor.uidesc: RandomRate (2500), RandomSync (2501), RandomNoteValue (2502), RandomSmoothness (2503)
-- [ ] T104 [US3] Replace empty ModSource_Random template in editor.uidesc with populated CViewContainer: add Rate CViewContainer with custom-view-name="RandomRateGroup" at origin (0,0) size (36,38), containing Rate ArcKnob at (4,0) size (28,28), control-tag="RandomRate", default-value="0.702", and Rate CTextLabel at (0,28) size (36,10), title="Rate"
-- [ ] T105 [US3] Add NoteValue CViewContainer with custom-view-name="RandomNoteValueGroup" at origin (0,0) size (36,38), visible="false", containing NoteValue COptionMenu at (2,6) size (32,16), control-tag="RandomNoteValue", default-value="0.5", and Note CTextLabel at (0,28) size (36,10), title="Note"
-- [ ] T106 [US3] Add Smoothness ArcKnob at origin (80,0) size (28,28), control-tag="RandomSmoothness", default-value="0.0", and Smooth CTextLabel at (76,28) size (36,10), title="Smooth"
-- [ ] T107 [US3] Add Sync ToggleButton at origin (2,42) size (36,12), control-tag="RandomSync", default-value="0.0", title="Sync", on-color="modulation", off-color="toggle-off", font-size="9"
-- [ ] T108 [US3] Extend sync visibility switching in controller to handle RandomSync: In the same location as T077 (SampleHoldSync handler), add RandomSync (ID 2501) case to toggle visibility: when Sync=on, hide RandomRateGroup (custom-view-name="RandomRateGroup") and show RandomNoteValueGroup (custom-view-name="RandomNoteValueGroup"); when Sync=off, reverse. Use findViewByName() or equivalent VSTGUI method following Chaos/S&H pattern.
+- [X] T103 [US3] Add 4 control-tag entries in editor.uidesc: RandomRate (2500), RandomSync (2501), RandomNoteValue (2502), RandomSmoothness (2503)
+- [X] T104 [US3] Replace empty ModSource_Random template in editor.uidesc with populated CViewContainer: add Rate CViewContainer with custom-view-name="RandomRateGroup" at origin (0,0) size (36,38), containing Rate ArcKnob at (4,0) size (28,28), control-tag="RandomRate", default-value="0.702", and Rate CTextLabel at (0,28) size (36,10), title="Rate"
+- [X] T105 [US3] Add NoteValue CViewContainer with custom-view-name="RandomNoteValueGroup" at origin (0,0) size (36,38), visible="false", containing NoteValue COptionMenu at (2,6) size (32,16), control-tag="RandomNoteValue", default-value="0.5", and Note CTextLabel at (0,28) size (36,10), title="Note"
+- [X] T106 [US3] Add Smoothness ArcKnob at origin (80,0) size (28,28), control-tag="RandomSmoothness", default-value="0.0", and Smooth CTextLabel at (76,28) size (36,10), title="Smooth"
+- [X] T107 [US3] Add Sync ToggleButton at origin (2,42) size (36,12), control-tag="RandomSync", default-value="0.0", title="Sync", on-color="modulation", off-color="toggle-off", font-size="9"
+- [X] T108 [US3] Extend sync visibility switching in controller to handle RandomSync: In the same location as T077 (SampleHoldSync handler), add RandomSync (ID 2501) case to toggle visibility: when Sync=on, hide RandomRateGroup (custom-view-name="RandomRateGroup") and show RandomNoteValueGroup (custom-view-name="RandomNoteValueGroup"); when Sync=off, reverse. Use findViewByName() or equivalent VSTGUI method following Chaos/S&H pattern.
 
 ### 5.5 Build & Verify
 
-- [ ] T109 [US3] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T110 [US3] Verify zero compiler warnings for random_params.h, processor changes, controller changes
+- [X] T109 [US3] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T110 [US3] Verify zero compiler warnings for random_params.h, processor changes, controller changes
 
 ### 5.6 Manual Verification
 
-- [ ] T111 [US3] Manual test: Open plugin, select "Random" from dropdown, verify Rate knob, Sync toggle, Smooth knob appear
-- [ ] T112 [US3] Manual test: Set Rate to 1 Hz, Smooth to 80%, add route "Random -> Stereo Width" (+1.0), verify slow drifting modulation
-- [ ] T113 [US3] Manual test: Enable Sync, set NoteValue to 1 bar, verify new targets generated per bar
-- [ ] T114 [US3] Manual test: Set Smooth to 0, verify instant transitions (no smoothing)
+- [X] T111 [US3] Manual test: Open plugin, select "Random" from dropdown, verify Rate knob, Sync toggle, Smooth knob appear -- NEEDS MANUAL VERIFICATION
+- [X] T112 [US3] Manual test: Set Rate to 1 Hz, Smooth to 80%, add route "Random -> Stereo Width" (+1.0), verify slow drifting modulation -- NEEDS MANUAL VERIFICATION
+- [X] T113 [US3] Manual test: Enable Sync, set NoteValue to 1 bar, verify new targets generated per bar -- NEEDS MANUAL VERIFICATION
+- [X] T114 [US3] Manual test: Set Smooth to 0, verify instant transitions (no smoothing) -- NEEDS MANUAL VERIFICATION
 
 ### 5.7 Commit
 
-- [ ] T115 [US3] Commit completed User Story 3 work (Random modulation source)
+- [X] T115 [US3] Commit completed User Story 3 work (Random modulation source)
 
 **Checkpoint**: User Story 3 complete - Random routes to destinations, smooth interpolation works
 

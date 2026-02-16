@@ -37,6 +37,9 @@
 #include "parameters/macro_params.h"
 #include "parameters/rungler_params.h"
 #include "parameters/settings_params.h"
+#include "parameters/env_follower_params.h"
+#include "parameters/sample_hold_params.h"
+#include "parameters/random_params.h"
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
@@ -117,6 +120,9 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerMacroParams(parameters);
     registerRunglerParams(parameters);
     registerSettingsParams(parameters);
+    registerEnvFollowerParams(parameters);
+    registerSampleHoldParams(parameters);
+    registerRandomParams(parameters);
 
     // ==========================================================================
     // Initialize Preset Manager
@@ -278,6 +284,13 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         if (version < 14) {
             setParam(kSettingsGainCompensationId, 0.0); // OFF for pre-spec-058 presets
         }
+
+        // v15: Mod source params
+        if (version >= 15) {
+            loadEnvFollowerParamsToController(streamer, setParam);
+            loadSampleHoldParamsToController(streamer, setParam);
+            loadRandomParamsToController(streamer, setParam);
+        }
     }
 
     // =========================================================================
@@ -384,6 +397,12 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatRunglerParam(id, valueNormalized, string);
     } else if (id >= kSettingsBaseId && id <= kSettingsEndId) {
         result = formatSettingsParam(id, valueNormalized, string);
+    } else if (id >= kEnvFollowerBaseId && id <= kEnvFollowerEndId) {
+        result = formatEnvFollowerParam(id, valueNormalized, string);
+    } else if (id >= kSampleHoldBaseId && id <= kSampleHoldEndId) {
+        result = formatSampleHoldParam(id, valueNormalized, string);
+    } else if (id >= kRandomBaseId && id <= kRandomEndId) {
+        result = formatRandomParam(id, valueNormalized, string);
     }
 
     // Fall back to default implementation for unhandled parameters
@@ -577,6 +596,16 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         if (chaosRateGroup_) chaosRateGroup_->setVisible(value < 0.5);
         if (chaosNoteValueGroup_) chaosNoteValueGroup_->setVisible(value >= 0.5);
     }
+    // Toggle S&H Rate/NoteValue visibility based on sync state
+    if (tag == kSampleHoldSyncId) {
+        if (shRateGroup_) shRateGroup_->setVisible(value < 0.5);
+        if (shNoteValueGroup_) shNoteValueGroup_->setVisible(value >= 0.5);
+    }
+    // Toggle Random Rate/NoteValue visibility based on sync state
+    if (tag == kRandomSyncId) {
+        if (randomRateGroup_) randomRateGroup_->setVisible(value < 0.5);
+        if (randomNoteValueGroup_) randomNoteValueGroup_->setVisible(value >= 0.5);
+    }
 
     // Toggle Delay Time/NoteValue visibility based on sync state
     if (tag == kDelaySyncId) {
@@ -668,6 +697,10 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         lfo2NoteValueGroup_ = nullptr;
         chaosRateGroup_ = nullptr;
         chaosNoteValueGroup_ = nullptr;
+        shRateGroup_ = nullptr;
+        shNoteValueGroup_ = nullptr;
+        randomRateGroup_ = nullptr;
+        randomNoteValueGroup_ = nullptr;
         delayTimeGroup_ = nullptr;
         delayNoteValueGroup_ = nullptr;
         phaserRateGroup_ = nullptr;
@@ -926,6 +959,30 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "ChaosNoteValueGroup") {
                 chaosNoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kChaosModSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
+            }
+            // S&H Rate/NoteValue groups (toggled by sync state)
+            else if (*name == "SHRateGroup") {
+                shRateGroup_ = container;
+                auto* syncParam = getParameterObject(kSampleHoldSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
+            } else if (*name == "SHNoteValueGroup") {
+                shNoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kSampleHoldSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
+            }
+            // Random Rate/NoteValue groups (toggled by sync state)
+            else if (*name == "RandomRateGroup") {
+                randomRateGroup_ = container;
+                auto* syncParam = getParameterObject(kRandomSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
+            } else if (*name == "RandomNoteValueGroup") {
+                randomNoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kRandomSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             }

@@ -226,6 +226,14 @@ private:
     VSTGUI::CView* chaosRateGroup_ = nullptr;
     VSTGUI::CView* chaosNoteValueGroup_ = nullptr;
 
+    /// S&H Rate/NoteValue groups - toggled by sync state
+    VSTGUI::CView* shRateGroup_ = nullptr;
+    VSTGUI::CView* shNoteValueGroup_ = nullptr;
+
+    /// Random Rate/NoteValue groups - toggled by sync state
+    VSTGUI::CView* randomRateGroup_ = nullptr;
+    VSTGUI::CView* randomNoteValueGroup_ = nullptr;
+
     /// Delay Time/NoteValue groups - toggled by sync state
     VSTGUI::CView* delayTimeGroup_ = nullptr;
     VSTGUI::CView* delayNoteValueGroup_ = nullptr;
