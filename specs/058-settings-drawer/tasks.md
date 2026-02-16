@@ -122,69 +122,69 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 3.1 Add Settings Control-Tags to UIDESC
 
-- [ ] T035 [US1] Add 6 settings control-tag entries in F:\projects\iterum\plugins\ruinae\resources\editor.uidesc control-tags section after Rungler tags: SettingsPitchBendRange (2200), SettingsVelocityCurve (2201), SettingsTuningReference (2202), SettingsVoiceAllocMode (2203), SettingsVoiceStealMode (2204), SettingsGainCompensation (2205)
-- [ ] T036 [US1] Add action control-tags after existing action tags: ActionSettingsToggle (10020), ActionSettingsOverlay (10021)
+- [X] T035 [US1] Add 6 settings control-tag entries in F:\projects\iterum\plugins\ruinae\resources\editor.uidesc control-tags section after Rungler tags: SettingsPitchBendRange (2200), SettingsVelocityCurve (2201), SettingsTuningReference (2202), SettingsVoiceAllocMode (2203), SettingsVoiceStealMode (2204), SettingsGainCompensation (2205)
+- [X] T036 [US1] Add action control-tags after existing action tags: ActionSettingsToggle (10020), ActionSettingsOverlay (10021)
 
 ### 3.2 Activate Gear Icon and Add Drawer Color
 
-- [ ] T037 [US1] Add bg-drawer color to colors section in editor.uidesc: `<color name="bg-drawer" rgba="#131316ff"/>` (approximately 12-15% darker than bg-main for visual distinction)
-- [ ] T038 [US1] Modify existing gear icon ToggleButton in Master section (line ~2814) to add control-tag="ActionSettingsToggle" (currently has no tag, making it inert)
+- [X] T037 [US1] Add bg-drawer color to colors section in editor.uidesc: `<color name="bg-drawer" rgba="#131316ff"/>` (approximately 12-15% darker than bg-main for visual distinction)
+- [X] T038 [US1] Modify existing gear icon ToggleButton in Master section (line ~2814) to add control-tag="ActionSettingsToggle" (currently has no tag, making it inert)
 
 ### 3.3 Add Click-Outside Overlay to UIDESC
 
-- [ ] T039 [US1] Add transparent overlay ToggleButton at root level (after all main content, before drawer) in editor.uidesc: origin (0, 0), size (925, 880), control-tag="ActionSettingsOverlay", icon-style="" (no icon), on-color="~ TransparentCColor", off-color="~ TransparentCColor", transparent="true", visible="false", custom-view-name="SettingsOverlay" (acts as click-outside dismiss gesture)
+- [X] T039 [US1] Add transparent overlay ToggleButton at root level (after all main content, before drawer) in editor.uidesc: origin (0, 0), size (925, 880), control-tag="ActionSettingsOverlay", icon-style="" (no icon), on-color="~ TransparentCColor", off-color="~ TransparentCColor", transparent="true", visible="false", custom-view-name="SettingsOverlay" (acts as click-outside dismiss gesture)
 
 ### 3.4 Add Settings Drawer Container to UIDESC
 
-- [ ] T040 [US1] Add settings drawer CViewContainer as LAST child of root template in editor.uidesc (so it draws on top due to z-order): origin (925, 0) (off-screen when closed), size (220, 880), background-color="bg-drawer", custom-view-name="SettingsDrawer", transparent="false"
-- [ ] T041 [P] [US1] Add SETTINGS title CTextLabel inside drawer container: origin (16, 16), size (188, 20), title="SETTINGS", font="~ NormalFontBig", font-color="text-light", text-alignment="left"
+- [X] T040 [US1] Add settings drawer CViewContainer as LAST child of root template in editor.uidesc (so it draws on top due to z-order): origin (925, 0) (off-screen when closed), size (220, 880), background-color="bg-drawer", custom-view-name="SettingsDrawer", transparent="false"
+- [X] T041 [P] [US1] Add SETTINGS title CTextLabel inside drawer container: origin (16, 16), size (188, 20), title="SETTINGS", font="~ NormalFontBig", font-color="text-light", text-alignment="left"
 
 ### 3.5 Add Placeholder Controls to Drawer (Initially)
 
-- [ ] T042 [P] [US1] Add Pitch Bend Range label + placeholder control: CTextLabel at (16, 56) size (120, 14), title="Pitch Bend Range", font-color="text-secondary"; placeholder CView below it (will be replaced with ArcKnob in User Story 2)
-- [ ] T043 [P] [US1] Add Velocity Curve label + placeholder control: CTextLabel at (16, 126) size (120, 14), title="Velocity Curve"; placeholder CView below it
-- [ ] T044 [P] [US1] Add Tuning Reference label + placeholder control: CTextLabel at (16, 182) size (120, 14), title="Tuning Reference"; placeholder CView below it
-- [ ] T045 [P] [US1] Add Voice Allocation label + placeholder control: CTextLabel at (16, 252) size (120, 14), title="Voice Allocation"; placeholder CView below it
-- [ ] T046 [P] [US1] Add Voice Steal label + placeholder control: CTextLabel at (16, 308) size (120, 14), title="Voice Steal"; placeholder CView below it
-- [ ] T047 [P] [US1] Add Gain Compensation label + placeholder control: CTextLabel at (16, 364) size (120, 14), title="Gain Compensation"; placeholder CView below it
+- [X] T042 [P] [US1] Add Pitch Bend Range label + placeholder control: CTextLabel at (16, 56) size (120, 14), title="Pitch Bend Range", font-color="text-secondary"; placeholder CView below it (will be replaced with ArcKnob in User Story 2)
+- [X] T043 [P] [US1] Add Velocity Curve label + placeholder control: CTextLabel at (16, 126) size (120, 14), title="Velocity Curve"; placeholder CView below it
+- [X] T044 [P] [US1] Add Tuning Reference label + placeholder control: CTextLabel at (16, 182) size (120, 14), title="Tuning Reference"; placeholder CView below it
+- [X] T045 [P] [US1] Add Voice Allocation label + placeholder control: CTextLabel at (16, 252) size (120, 14), title="Voice Allocation"; placeholder CView below it
+- [X] T046 [P] [US1] Add Voice Steal label + placeholder control: CTextLabel at (16, 308) size (120, 14), title="Voice Steal"; placeholder CView below it
+- [X] T047 [P] [US1] Add Gain Compensation label + placeholder control: CTextLabel at (16, 364) size (120, 14), title="Gain Compensation"; placeholder CView below it
 
 ### 3.6 Add Controller Drawer Fields and Methods
 
-- [ ] T048 [US1] Add drawer fields to F:\projects\iterum\plugins\ruinae\src\controller\controller.h after existing view pointer fields: settingsDrawer_ (CViewContainer* = nullptr), settingsOverlay_ (CView* = nullptr), gearButton_ (CControl* = nullptr), settingsAnimTimer_ (SharedPointer<CVSTGUITimer>), settingsDrawerOpen_ (bool = false), settingsDrawerProgress_ (float = 0.0f), settingsDrawerTargetOpen_ (bool = false)
-- [ ] T049 [US1] Add toggleSettingsDrawer() method declaration to controller.h private methods section
+- [X] T048 [US1] Add drawer fields to F:\projects\iterum\plugins\ruinae\src\controller\controller.h after existing view pointer fields: settingsDrawer_ (CViewContainer* = nullptr), settingsOverlay_ (CView* = nullptr), gearButton_ (CControl* = nullptr), settingsAnimTimer_ (SharedPointer<CVSTGUITimer>), settingsDrawerOpen_ (bool = false), settingsDrawerProgress_ (float = 0.0f), settingsDrawerTargetOpen_ (bool = false)
+- [X] T049 [US1] Add toggleSettingsDrawer() method declaration to controller.h private methods section
 
 ### 3.7 Implement Drawer Animation Logic
 
-- [ ] T050 [US1] Implement toggleSettingsDrawer() method in F:\projects\iterum\plugins\ruinae\src\controller\controller.cpp: flip settingsDrawerTargetOpen_ flag, if timer already running return (animation will naturally reverse due to changed target), otherwise create CVSTGUITimer with 16ms interval (~60fps), animation logic moves progress toward target (linear step kTimerInterval/kAnimDuration where kAnimDuration=0.16f = 160ms), apply quadratic ease-out curve (opening: 1-(1-t)^2, closing: t*(2-t)), map progress to x position (closed=925, open=705), call setViewSize on drawer, check if animation complete (progress reached 0.0 or 1.0), on completion set settingsDrawerOpen_ flag, stop timer, update overlay visibility, update gear button value
+- [X] T050 [US1] Implement toggleSettingsDrawer() method in F:\projects\iterum\plugins\ruinae\src\controller\controller.cpp: flip settingsDrawerTargetOpen_ flag, if timer already running return (animation will naturally reverse due to changed target), otherwise create CVSTGUITimer with 16ms interval (~60fps), animation logic moves progress toward target (linear step kTimerInterval/kAnimDuration where kAnimDuration=0.16f = 160ms), apply quadratic ease-out curve (opening: 1-(1-t)^2, closing: t*(2-t)), map progress to x position (closed=925, open=705), call setViewSize on drawer, check if animation complete (progress reached 0.0 or 1.0), on completion set settingsDrawerOpen_ flag, stop timer, update overlay visibility, update gear button value
 
 ### 3.8 Wire Drawer in Controller verifyView
 
-- [ ] T051 [US1] Add SettingsDrawer capture case to verifyView() in controller.cpp custom-view-name section: capture settingsDrawer_ pointer from container
-- [ ] T052 [US1] Add SettingsOverlay capture case to verifyView(): capture settingsOverlay_ pointer, set initial visible=false
-- [ ] T053 [US1] Add gear button capture case to verifyView() in control-tag registration section: if tag == kActionSettingsToggleTag, capture gearButton_ pointer, register controller as control listener
+- [X] T051 [US1] Add SettingsDrawer capture case to verifyView() in controller.cpp custom-view-name section: capture settingsDrawer_ pointer from container
+- [X] T052 [US1] Add SettingsOverlay capture case to verifyView(): capture settingsOverlay_ pointer, set initial visible=false
+- [X] T053 [US1] Add gear button capture case to verifyView() in control-tag registration section: if tag == kActionSettingsToggleTag, capture gearButton_ pointer, register controller as control listener
 
 ### 3.9 Handle Gear Icon and Overlay Clicks
 
-- [ ] T054 [US1] Add kActionSettingsToggleTag case to valueChanged() in controller.cpp toggle buttons section: call toggleSettingsDrawer(), return
-- [ ] T055 [US1] Add kActionSettingsOverlayTag case to valueChanged(): if settingsDrawerOpen_ is true, call toggleSettingsDrawer() to close drawer, return
+- [X] T054 [US1] Add kActionSettingsToggleTag case to valueChanged() in controller.cpp toggle buttons section: call toggleSettingsDrawer(), return
+- [X] T055 [US1] Add kActionSettingsOverlayTag case to valueChanged(): if settingsDrawerOpen_ is true, call toggleSettingsDrawer() to close drawer, return
 
 ### 3.10 Clean Up in willClose
 
-- [ ] T056 [US1] Add drawer pointer cleanup to willClose() in controller.cpp: set settingsDrawer_ = nullptr, settingsOverlay_ = nullptr, gearButton_ = nullptr, settingsAnimTimer_ = nullptr, settingsDrawerOpen_ = false, settingsDrawerProgress_ = 0.0f, settingsDrawerTargetOpen_ = false
+- [X] T056 [US1] Add drawer pointer cleanup to willClose() in controller.cpp: set settingsDrawer_ = nullptr, settingsOverlay_ = nullptr, gearButton_ = nullptr, settingsAnimTimer_ = nullptr, settingsDrawerOpen_ = false, settingsDrawerProgress_ = 0.0f, settingsDrawerTargetOpen_ = false
 
 ### 3.11 Build & Manual Verification
 
-- [ ] T057 [US1] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T058 [US1] Verify zero compiler warnings for controller changes
-- [ ] T059 [US1] Manual verification: Open plugin, click gear icon in Master section, verify drawer slides in from right edge with smooth ease-out animation (160ms duration), verify placeholder controls visible
-- [ ] T060 [US1] Manual verification: Click gear icon again, verify drawer slides out smoothly and disappears off-screen
-- [ ] T061 [US1] Manual verification: Open drawer, click anywhere on main UI area outside drawer bounds, verify drawer closes (overlay click-dismiss works)
-- [ ] T062 [US1] Manual verification: Click gear icon twice quickly during animation, verify drawer immediately reverses direction from current position (no visual glitches)
-- [ ] T063 [US1] Manual verification: With drawer open, click on controls inside drawer, verify drawer remains open (does not dismiss on internal interaction)
+- [X] T057 [US1] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T058 [US1] Verify zero compiler warnings for controller changes
+- [X] T059 [US1] Manual verification: Open plugin, click gear icon in Master section, verify drawer slides in from right edge with smooth ease-out animation (160ms duration), verify placeholder controls visible
+- [X] T060 [US1] Manual verification: Click gear icon again, verify drawer slides out smoothly and disappears off-screen
+- [X] T061 [US1] Manual verification: Open drawer, click anywhere on main UI area outside drawer bounds, verify drawer closes (overlay click-dismiss works)
+- [X] T062 [US1] Manual verification: Click gear icon twice quickly during animation, verify drawer immediately reverses direction from current position (no visual glitches)
+- [X] T063 [US1] Manual verification: With drawer open, click on controls inside drawer, verify drawer remains open (does not dismiss on internal interaction)
 
 ### 3.12 Commit
 
-- [ ] T064 [US1] Commit completed User Story 1 work: Settings drawer infrastructure with animation and dismiss gestures
+- [X] T064 [US1] Commit completed User Story 1 work: Settings drawer infrastructure with animation and dismiss gestures
 
 **Checkpoint**: User Story 1 complete - Drawer opens/closes smoothly, gear icon works, click-outside dismisses, animation handles interruptions correctly
 

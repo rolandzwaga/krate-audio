@@ -692,6 +692,15 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         envGroupMod_ = nullptr;
         expandedEnvPanel_ = -1;
 
+        // Settings drawer cleanup
+        settingsDrawer_ = nullptr;
+        settingsOverlay_ = nullptr;
+        gearButton_ = nullptr;
+        settingsAnimTimer_ = nullptr;
+        settingsDrawerOpen_ = false;
+        settingsDrawerProgress_ = 0.0f;
+        settingsDrawerTargetOpen_ = false;
+
         activeEditor_ = nullptr;
     }
 }
@@ -976,6 +985,10 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "EnvGroupMod") {
                 envGroupMod_ = container;
             }
+            // Settings drawer container
+            else if (*name == "SettingsDrawer") {
+                settingsDrawer_ = container;
+            }
         }
     }
 
@@ -986,6 +999,18 @@ VSTGUI::CView* Controller::verifyView(
         if (tag == kActionFxExpandDelayTag)  fxExpandDelayChevron_ = ctrl;
         if (tag == kActionFxExpandReverbTag) fxExpandReverbChevron_ = ctrl;
         if (tag == kActionFxExpandPhaserTag) fxExpandPhaserChevron_ = ctrl;
+
+        // Settings drawer: capture gear button and register as listener
+        if (tag == static_cast<int32_t>(kActionSettingsToggleTag)) {
+            gearButton_ = ctrl;
+            ctrl->registerControlListener(this);
+        }
+        // Settings drawer: capture overlay and register as listener
+        if (tag == static_cast<int32_t>(kActionSettingsOverlayTag)) {
+            settingsOverlay_ = view;
+            view->setVisible(false);
+            ctrl->registerControlListener(this);
+        }
     }
 
     return view;
@@ -1008,6 +1033,10 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
         case kActionEnvExpandAmpTag:    toggleEnvExpand(0); return;
         case kActionEnvExpandFilterTag: toggleEnvExpand(1); return;
         case kActionEnvExpandModTag:    toggleEnvExpand(2); return;
+        case kActionSettingsToggleTag:  toggleSettingsDrawer(); return;
+        case kActionSettingsOverlayTag:
+            if (settingsDrawerOpen_) toggleSettingsDrawer();
+            return;
         default: break;
     }
 
@@ -1628,6 +1657,73 @@ void Controller::toggleEnvExpand(int panelIndex) {
             }
         }
         expandedEnvPanel_ = panelIndex;
+    }
+}
+
+void Controller::toggleSettingsDrawer() {
+    settingsDrawerTargetOpen_ = !settingsDrawerTargetOpen_;
+
+    // If timer already running (animation in progress), it will naturally
+    // reverse direction because we changed the target. No need to restart.
+    if (settingsAnimTimer_) return;
+
+    settingsAnimTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+        [this](VSTGUI::CVSTGUITimer*) {
+            constexpr float kAnimDuration = 0.16f;   // 160ms
+            constexpr float kTimerInterval = 0.016f;  // ~60fps
+            constexpr float kStep = kTimerInterval / kAnimDuration;
+
+            if (settingsDrawerTargetOpen_) {
+                settingsDrawerProgress_ = std::min(settingsDrawerProgress_ + kStep, 1.0f);
+            } else {
+                settingsDrawerProgress_ = std::max(settingsDrawerProgress_ - kStep, 0.0f);
+            }
+
+            // Ease-out curve: 1 - (1-t)^2
+            float t = settingsDrawerProgress_;
+            float eased = 1.0f - (1.0f - t) * (1.0f - t);
+
+            // Map eased progress to x position: closed=925, open=705
+            constexpr float kClosedX = 925.0f;
+            constexpr float kOpenX = 705.0f;
+            float x = kClosedX + (kOpenX - kClosedX) * eased;
+
+            if (settingsDrawer_) {
+                VSTGUI::CRect r = settingsDrawer_->getViewSize();
+                r.moveTo(VSTGUI::CPoint(x, 0));
+                settingsDrawer_->setViewSize(r);
+                settingsDrawer_->invalid();
+            }
+
+            // Check if animation is complete
+            bool done = settingsDrawerTargetOpen_
+                ? (settingsDrawerProgress_ >= 1.0f)
+                : (settingsDrawerProgress_ <= 0.0f);
+
+            if (done) {
+                settingsDrawerOpen_ = settingsDrawerTargetOpen_;
+                settingsAnimTimer_ = nullptr;
+
+                // Show/hide overlay
+                if (settingsOverlay_) {
+                    settingsOverlay_->setVisible(settingsDrawerOpen_);
+                }
+
+                // Update gear button state
+                if (gearButton_) {
+                    gearButton_->setValue(settingsDrawerOpen_ ? 1.0f : 0.0f);
+                    gearButton_->invalid();
+                }
+            }
+        }, 16);  // ~60fps
+
+    // Show overlay immediately when opening
+    if (settingsDrawerTargetOpen_ && settingsOverlay_) {
+        settingsOverlay_->setVisible(true);
+    }
+    // Hide overlay immediately when closing
+    if (!settingsDrawerTargetOpen_ && settingsOverlay_) {
+        settingsOverlay_->setVisible(false);
     }
 }
 
