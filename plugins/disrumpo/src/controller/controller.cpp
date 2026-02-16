@@ -8,6 +8,7 @@
 #include "controller.h"
 #include "controller/sub_controllers.h"
 #include "plugin_ids.h"
+#include <krate/dsp/core/modulation_types.h>
 #include "version.h"
 #include "dsp/band_state.h"
 #include "preset/disrumpo_preset_config.h"
@@ -2032,6 +2033,7 @@ void Controller::registerModulationParams() {
         routeSource->appendString(STR16("Macro 3"));
         routeSource->appendString(STR16("Macro 4"));
         routeSource->appendString(STR16("Chaos"));
+        routeSource->appendString(STR16("Rungler"));
         routeSource->appendString(STR16("S&H"));
         routeSource->appendString(STR16("Pitch"));
         routeSource->appendString(STR16("Transient"));
@@ -2899,7 +2901,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
             Steinberg::int8 source = 0;
             if (streamer.readInt8(source))
                 setParamNormalized(makeRoutingParamId(r, 0),
-                                   static_cast<double>(source) / 12.0);
+                                   static_cast<double>(source) / static_cast<double>(Krate::DSP::kModSourceCount - 1));
             int32_t dest = 0;
             if (streamer.readInt32(dest))
                 setParamNormalized(makeRoutingParamId(r, 1),
@@ -5004,7 +5006,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         for (uint8_t r = 0; r < 32; ++r) {
             Steinberg::int8 source = 0;
             if (streamer.readInt8(source))
-                editParamWithNotify(makeRoutingParamId(r, 0), static_cast<double>(source) / 12.0);
+                editParamWithNotify(makeRoutingParamId(r, 0), static_cast<double>(source) / static_cast<double>(Krate::DSP::kModSourceCount - 1));
             int32_t dest = 0;
             if (streamer.readInt32(dest))
                 editParamWithNotify(makeRoutingParamId(r, 1),

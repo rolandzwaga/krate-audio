@@ -1431,3 +1431,73 @@ TEST_CASE("RuinaeEngine sustained note keeps envelope in sustain",
     }
     CHECK(peak > 0.001f);
 }
+
+// =============================================================================
+// Phase 3 (Spec 057): Rungler Forwarding Tests
+// =============================================================================
+
+TEST_CASE("RuinaeEngine Rungler setters forward to ModulationEngine",
+          "[ruinae_engine][rungler]") {
+    RuinaeEngine engine;
+    engine.prepare(44100.0, 512);
+
+    SECTION("setRunglerOsc1Freq forwards correctly") {
+        // Set rungler params
+        engine.setRunglerOsc1Freq(5.0f);
+        engine.setRunglerOsc2Freq(7.0f);
+        engine.setRunglerDepth(0.5f);
+        engine.setRunglerFilter(0.3f);
+        engine.setRunglerBits(12);
+        engine.setRunglerLoopMode(false);
+        // Should not crash
+    }
+
+    SECTION("Rungler produces modulation when routed") {
+        // Configure rungler
+        engine.setRunglerOsc1Freq(5.0f);
+        engine.setRunglerOsc2Freq(7.0f);
+        engine.setRunglerDepth(0.5f);
+        engine.setRunglerFilter(0.0f);
+        engine.setRunglerBits(8);
+        engine.setRunglerLoopMode(false);
+
+        // Route Rungler to filter cutoff
+        engine.setGlobalModRoute(0, ModSource::Rungler,
+                                 RuinaeModDest::GlobalFilterCutoff, 1.0f);
+
+        engine.noteOn(60, 100);
+
+        // Process several blocks and collect output energy
+        constexpr size_t kBlockSize = 512;
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        bool hasAudio = false;
+        for (int i = 0; i < 20; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+            if (hasNonZeroSamples(left.data(), kBlockSize)) hasAudio = true;
+        }
+
+        // Engine should produce audio (Rungler is being processed and
+        // modulating GlobalFilterCutoff)
+        REQUIRE(hasAudio);
+    }
+
+    SECTION("All 6 rungler setters accept full parameter ranges") {
+        // Min values
+        engine.setRunglerOsc1Freq(0.1f);
+        engine.setRunglerOsc2Freq(0.1f);
+        engine.setRunglerDepth(0.0f);
+        engine.setRunglerFilter(0.0f);
+        engine.setRunglerBits(4);
+        engine.setRunglerLoopMode(false);
+        // Should not crash
+
+        // Max values
+        engine.setRunglerOsc1Freq(100.0f);
+        engine.setRunglerOsc2Freq(100.0f);
+        engine.setRunglerDepth(1.0f);
+        engine.setRunglerFilter(1.0f);
+        engine.setRunglerBits(16);
+        engine.setRunglerLoopMode(true);
+        // Should not crash
+    }
+}

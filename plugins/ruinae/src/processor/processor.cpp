@@ -402,6 +402,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveLFO1ExtendedParams(lfo1Params_, streamer);
     saveLFO2ExtendedParams(lfo2Params_, streamer);
 
+    // v13: Macro and Rungler params
+    saveMacroParams(macroParams_, streamer);
+    saveRunglerParams(runglerParams_, streamer);
+
     return Steinberg::kResultTrue;
 }
 
@@ -526,7 +530,29 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             loadLFO1ExtendedParams(lfo1Params_, streamer);
             loadLFO2ExtendedParams(lfo2Params_, streamer);
         }
+
+        // v13: Macro and Rungler params
+        if (version >= 13) {
+            loadMacroParams(macroParams_, streamer);
+            loadRunglerParams(runglerParams_, streamer);
+        }
     }
+
+    // =========================================================================
+    // ModSource enum migration (FR-009a): Rungler inserted at position 10
+    // Old presets (version < 13) have SampleHold=10, PitchFollower=11,
+    // Transient=12. These must shift +1 to make room for Rungler=10.
+    // Voice routes use VoiceModSource (separate enum), no migration needed.
+    // =========================================================================
+    if (version >= 1 && version < 13) {
+        for (auto& slot : modMatrixParams_.slots) {
+            int src = slot.source.load(std::memory_order_relaxed);
+            if (src >= 10) {
+                slot.source.store(src + 1, std::memory_order_relaxed);
+            }
+        }
+    }
+
     // Unknown future versions (v0 or negative): keep safe defaults
 
     return Steinberg::kResultTrue;
@@ -612,6 +638,10 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             logPhaser("[RUINAE][PARAM] phaser param %d received: raw=%.4f\n", paramId, value);
         } else if (paramId >= kMonoBaseId && paramId <= kMonoEndId) {
             handleMonoModeParamChange(monoModeParams_, paramId, value);
+        } else if (paramId >= kMacroBaseId && paramId <= kMacroEndId) {
+            handleMacroParamChange(macroParams_, paramId, value);
+        } else if (paramId >= kRunglerBaseId && paramId <= kRunglerEndId) {
+            handleRunglerParamChange(runglerParams_, paramId, value);
         }
     }
 }
@@ -937,6 +967,20 @@ void Processor::applyParamsToEngine() {
             phaserParams_.noteValue.load(std::memory_order_relaxed));
         engine_.setPhaserNoteValue(mapping.note, mapping.modifier);
     }
+
+    // --- Macros ---
+    for (int i = 0; i < 4; ++i) {
+        engine_.setMacroValue(static_cast<size_t>(i),
+            macroParams_.values[i].load(std::memory_order_relaxed));
+    }
+
+    // --- Rungler ---
+    engine_.setRunglerOsc1Freq(runglerParams_.osc1FreqHz.load(std::memory_order_relaxed));
+    engine_.setRunglerOsc2Freq(runglerParams_.osc2FreqHz.load(std::memory_order_relaxed));
+    engine_.setRunglerDepth(runglerParams_.depth.load(std::memory_order_relaxed));
+    engine_.setRunglerFilter(runglerParams_.filter.load(std::memory_order_relaxed));
+    engine_.setRunglerBits(static_cast<size_t>(runglerParams_.bits.load(std::memory_order_relaxed)));
+    engine_.setRunglerLoopMode(runglerParams_.loopMode.load(std::memory_order_relaxed));
 
     // --- Mono Mode ---
     engine_.setMonoPriority(static_cast<MonoMode>(

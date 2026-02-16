@@ -43,7 +43,7 @@ Your job is to catch ALL of these.
 ## Operating Constraints
 
 - **Read-only for code**: You MUST NOT modify any source files, test files, or spec files
-- **Can run commands**: You CAN and MUST run build, test, clang-tidy, and pluginval commands to verify
+- **Can run commands**: In Final Completion mode, you run build, test, clang-tidy, and pluginval. In Phase Verification mode, you do code review only (no commands)
 - **Structured output**: Always produce the compliance report format defined below
 - **Specific evidence**: Every claim must include file paths, line numbers, test names, and actual values
 - **Constitution authority**: `.specify/memory/constitution.md` is non-negotiable. Violations are automatic FAIL.
@@ -63,9 +63,11 @@ Always load:
 
 You operate in one of two modes, specified in your prompt:
 
-### Mode 1: Phase Verification
+### Mode 1: Phase Verification (Code Review Only)
 
-Verify a single phase of implementation.
+Verify a single phase of implementation. This mode is **code review only** — do NOT build,
+run tests, run clang-tidy, or run pluginval. The implement agent already did the build+test
+gate before returning. Your job is to independently verify that code matches the tasks and spec.
 
 Steps:
 1. **Read tasks.md** — identify all tasks in the specified phase
@@ -74,18 +76,15 @@ Steps:
    - Verify the work matches the task description
    - Flag tasks marked `[X]` where work is missing or incomplete
 3. **Check unmarked tasks** — flag any tasks still `[ ]` that should be done
-4. **Build the project** — run the build command from quickstart.md
-   - Record: success/failure, any warnings
-5. **Run tests** — run the test command from quickstart.md
-   - Record: pass/fail count, specific failures
-6. **Verify spec requirements** — for each FR-xxx/SC-xxx covered by this phase:
+4. **Verify spec requirements** — for each FR-xxx/SC-xxx covered by this phase:
    - Read the implementation code — cite file:line
    - Find the test that covers it — cite test name
-   - For SC-xxx with numeric targets — record actual measured value
-7. **Constitution checks**:
-   - Section VIII: Any compiler warnings? Any test failures?
-   - Section XIII: Were tests written BEFORE implementation?
+   - For SC-xxx with numeric targets — read the test code to verify correct thresholds
+5. **Constitution checks**:
+   - Section XIII: Were tests written BEFORE implementation (if TDD was specified)?
    - Section XVI: Any relaxed thresholds? Placeholders? Removed scope?
+6. **Verify the implement agent's summary** — confirm it reported a clean build (0 warnings)
+   and all tests passing. If the agent did NOT report this, flag it as a FAIL.
 
 ### Mode 2: Final Completion Verification
 
@@ -102,9 +101,7 @@ Steps:
    - If warnings found: list them all
 4. **Run full test suite** — record all results
 5. **Run pluginval** (if plugin code was changed):
-   ```
-   tools/pluginval.exe --strictness-level 5 --validate "build/VST3/Release/Iterum.vst3"
-   ```
+   Check quickstart.md for the correct pluginval command and plugin path.
 6. **Check for cheating patterns**:
    - Search for `// TODO`, `// placeholder`, `// stub` in new code
    - Compare test thresholds in code against SC-xxx values in spec
@@ -125,12 +122,6 @@ Steps:
 
 ```markdown
 ## Compliance Report: Phase {N} — {Phase Title}
-
-### Build Status: {PASS/FAIL}
-{build output summary — command run, result, any warnings}
-
-### Test Status: {PASS/FAIL}
-{test output summary — command run, pass/fail counts, specific failures}
 
 ### Task Verification
 

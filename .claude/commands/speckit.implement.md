@@ -91,11 +91,14 @@ Use `bd list --status=open` to find matching issues by title, then close them as
 Do NOT work on any other phase. Do NOT fill compliance tables.
 
 BUILD+TEST GATE (mandatory before finishing):
-1. Build the project using commands from quickstart.md — ZERO warnings required
-2. Run ALL test suites using commands from quickstart.md — ALL must pass
+1. Build the project ONCE using the build command from quickstart.md — ZERO warnings required.
+   Do NOT build individual targets separately — one build command covers everything.
+2. Run each test executable ONCE (no tag filters, no subsets) — ALL must pass.
+   Check quickstart.md for the list of test executables.
 3. If ANY test fails — including tests outside the current spec's scope — you MUST
    fix it before returning. "Pre-existing" is NOT an excuse (Constitution Section VIII).
 4. Do NOT run pluginval or clang-tidy — those run once at the end, not per phase.
+5. Do NOT re-run builds or tests you already ran unless you made additional code changes.
 
 When done, summarize: files created/modified, build result (0 warnings confirmed),
 test result (all suites passing with counts), any test failures you fixed.
@@ -109,21 +112,21 @@ Wait for the agent to return.
 Verify Phase {N} of spec {feature-name} implementation.
 
 Feature dir: {FEATURE_DIR}/
-Mode: Phase Verification (Lightweight)
+Mode: Phase Verification (Code Review Only)
 
 Read these files:
 - tasks.md (Phase {N} — check all tasks are marked [X])
 - spec.md (FR-xxx and SC-xxx requirements covered by this phase)
 - plan.md (architecture decisions that should be reflected)
 
-Then verify:
+Then verify (CODE REVIEW ONLY — do NOT build, run tests, run clang-tidy, or run pluginval):
 1. Check every task marked [X] in Phase {N} — read the actual code to verify work was done
 2. For each FR-xxx/SC-xxx covered by this phase: read the code, cite file:line evidence
-3. Check for constitution violations (Section VIII warnings, XVI cheating, XIII test-first)
+3. Check for constitution violations (XVI cheating, XIII test-first if TDD specified)
 4. Verify the implement agent reported a clean build (0 warnings) and all tests passing
 
-Do NOT build the project or run tests — the implement agent already did this as a
-mandatory gate. Your job is independent code review, not re-running the same commands.
+Do NOT build the project, run tests, run clang-tidy, or run pluginval. The implement agent
+already did build+test as a mandatory gate. Your job is independent code review only.
 
 Output the compliance report. Do NOT modify any files.
 ```
@@ -151,8 +154,8 @@ When marking a task [X], also close its corresponding beads issue: `bd close <id
 Use `bd list --status=open` to find matching issues by title, then close them as you go.
 
 BUILD+TEST GATE (mandatory before finishing):
-1. Build the project — ZERO warnings required
-2. Run ALL test suites — ALL must pass
+1. Build ONCE using the build command from quickstart.md — ZERO warnings required.
+2. Run each test executable ONCE (no tag filters) — ALL must pass.
 3. If ANY test fails, fix it before returning (Constitution Section VIII).
 4. Do NOT run pluginval or clang-tidy.
 
@@ -161,12 +164,12 @@ When done, summarize what you changed, build result, test result.
 
 Wait for the agent to return.
 
-**Spawn `speckit-comply` agent** again to re-verify (same lightweight code-review prompt as above):
+**Spawn `speckit-comply` agent** again to re-verify (same Code Review Only prompt as above):
 
 ```
 Re-verify Phase {N} of spec {feature-name} after fixes.
 
-{same lightweight Phase Verification prompt as before — code review only, no build/test}
+{same Code Review Only Phase Verification prompt as before — no build/test/clang-tidy/pluginval}
 ```
 
 - **If PASS**: Move to the next phase.

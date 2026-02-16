@@ -79,6 +79,19 @@ Always load:
 5. **Build after changes** — Run the build command after writing code to catch compilation errors
 6. **Test after implementation** — Run tests to verify your code works
 
+## Build & Test Efficiency (CRITICAL)
+
+**Build**: Run ONE build command that covers all targets. Use the build command from quickstart.md
+as-is. Do NOT build individual targets separately (e.g., don't build DSP then plugin then tests
+as separate commands — one build covers everything).
+
+**Tests**: Run each test executable ONCE with no filtering. Do NOT run filtered subsets by tag
+and then the full suite — just run each test executable once and record the results. Check
+quickstart.md for the list of test executables (typically DSP tests and plugin tests).
+
+**Avoid redundancy**: If you already built and tested successfully, do NOT build/test again
+unless you made additional code changes afterward.
+
 ## Code Quality Standards
 
 - Follow existing project patterns

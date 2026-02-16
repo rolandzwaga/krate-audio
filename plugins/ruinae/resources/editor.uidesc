@@ -80,6 +80,20 @@
         <control-tag name="MonoPortamentoTime" tag="1802"/>
         <control-tag name="MonoPortaMode" tag="1803"/>
 
+        <!-- Macros -->
+        <control-tag name="Macro1Value" tag="2000"/>
+        <control-tag name="Macro2Value" tag="2001"/>
+        <control-tag name="Macro3Value" tag="2002"/>
+        <control-tag name="Macro4Value" tag="2003"/>
+
+        <!-- Rungler -->
+        <control-tag name="RunglerOsc1Freq" tag="2100"/>
+        <control-tag name="RunglerOsc2Freq" tag="2101"/>
+        <control-tag name="RunglerDepth" tag="2102"/>
+        <control-tag name="RunglerFilter" tag="2103"/>
+        <control-tag name="RunglerBits" tag="2104"/>
+        <control-tag name="RunglerLoopMode" tag="2105"/>
+
         <!-- OSC A -->
         <control-tag name="OscAType" tag="100"/>
         <control-tag name="OscATune" tag="101"/>
@@ -1721,8 +1735,75 @@
               font-size="9"/>
     </template>
 
-    <template name="ModSource_Macros" size="158, 120" class="CViewContainer" transparent="true"/>
-    <template name="ModSource_Rungler" size="158, 120" class="CViewContainer" transparent="true"/>
+    <template name="ModSource_Macros" size="158, 120" class="CViewContainer" transparent="true">
+        <!-- M1 -->
+        <view class="ArcKnob" origin="4, 0" size="28, 28"
+              control-tag="Macro1Value" default-value="0.0"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="4, 28" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="M1"/>
+        <!-- M2 -->
+        <view class="ArcKnob" origin="42, 0" size="28, 28"
+              control-tag="Macro2Value" default-value="0.0"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="42, 28" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="M2"/>
+        <!-- M3 -->
+        <view class="ArcKnob" origin="80, 0" size="28, 28"
+              control-tag="Macro3Value" default-value="0.0"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="80, 28" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="M3"/>
+        <!-- M4 -->
+        <view class="ArcKnob" origin="118, 0" size="28, 28"
+              control-tag="Macro4Value" default-value="0.0"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="118, 28" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="M4"/>
+    </template>
+    <template name="ModSource_Rungler" size="158, 120" class="CViewContainer" transparent="true">
+        <!-- Row 1: Osc1 Freq, Osc2 Freq, Depth, Filter -->
+        <view class="ArcKnob" origin="4, 0" size="28, 28"
+              control-tag="RunglerOsc1Freq" default-value="0.4337"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="4, 28" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Osc1"/>
+        <view class="ArcKnob" origin="42, 0" size="28, 28"
+              control-tag="RunglerOsc2Freq" default-value="0.4924"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="42, 28" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Osc2"/>
+        <view class="ArcKnob" origin="80, 0" size="28, 28"
+              control-tag="RunglerDepth" default-value="0.0"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="80, 28" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Depth"/>
+        <view class="ArcKnob" origin="118, 0" size="28, 28"
+              control-tag="RunglerFilter" default-value="0.0"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="118, 28" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Filter"/>
+        <!-- Row 2: Bits knob + Loop Mode toggle -->
+        <view class="ArcKnob" origin="4, 50" size="28, 28"
+              control-tag="RunglerBits" default-value="0.3333"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="4, 78" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Bits"/>
+        <view class="ToggleButton" origin="50, 54" size="40, 18"
+              control-tag="RunglerLoopMode" default-value="0"
+              title="Loop"
+              on-color="modulation" off-color="toggle-off"
+              font-size="9"/>
+    </template>
     <template name="ModSource_EnvFollower" size="158, 120" class="CViewContainer" transparent="true"/>
     <template name="ModSource_SampleHold" size="158, 120" class="CViewContainer" transparent="true"/>
     <template name="ModSource_Random" size="158, 120" class="CViewContainer" transparent="true"/>

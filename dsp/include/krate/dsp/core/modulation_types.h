@@ -44,13 +44,14 @@ enum class ModSource : uint8_t {
     Macro3 = 7,         ///< Macro 3 (FR-026)
     Macro4 = 8,         ///< Macro 4 (FR-026)
     Chaos = 9,          ///< Chaos attractor (FR-030)
-    SampleHold = 10,    ///< Sample & Hold (FR-036)
-    PitchFollower = 11, ///< Pitch Follower (FR-041)
-    Transient = 12      ///< Transient Detector (FR-048)
+    Rungler = 10,       ///< Rungler (Benjolin chaotic oscillator)
+    SampleHold = 11,    ///< Sample & Hold (renumbered from 10)
+    PitchFollower = 12, ///< Pitch Follower (renumbered from 11)
+    Transient = 13      ///< Transient Detector (renumbered from 12)
 };
 
 /// Total number of ModSource values (including None).
-inline constexpr uint8_t kModSourceCount = 13;
+inline constexpr uint8_t kModSourceCount = 14;
 
 // =============================================================================
 // Modulation Curve Enumeration (FR-058)

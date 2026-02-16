@@ -25,6 +25,7 @@
 #include <krate/dsp/processors/pitch_follower_source.h>
 #include <krate/dsp/processors/random_source.h>
 #include <krate/dsp/processors/sample_hold_source.h>
+#include <krate/dsp/processors/rungler.h>
 #include <krate/dsp/processors/transient_detector.h>
 
 #include <algorithm>
@@ -41,12 +42,12 @@ inline constexpr size_t kMaxModDestinations = 128;
 
 /// @brief Layer 3 System Component - Modulation Engine
 ///
-/// Owns all 12 modulation sources and processes up to 32 routings per block.
+/// Owns all 13 modulation sources and processes up to 32 routings per block.
 /// Each routing specifies source, destination, bipolar amount, and curve shape.
 ///
 /// @par Features
-/// - 12 modulation sources: 2 LFOs, EnvFollower, Random, 4 Macros,
-///   Chaos, S&H, PitchFollower, Transient
+/// - 13 modulation sources: 2 LFOs, EnvFollower, Random, 4 Macros,
+///   Chaos, Rungler, S&H, PitchFollower, Transient
 /// - Up to 32 simultaneous routings (FR-004)
 /// - 4 curve shapes per routing: Linear, Exponential, S-Curve, Stepped (FR-058)
 /// - Bipolar amount [-1, +1] with correct curve application order (FR-059)
@@ -105,6 +106,7 @@ public:
         sampleHold_.setLFOPointers(&lfo1_, &lfo2_);
         pitchFollower_.prepare(sampleRate);
         transient_.prepare(sampleRate);
+        rungler_.prepare(sampleRate);
 
         // Configure amount smoothers (SC-003: 120ms gives max per-block step
         // of ~0.00094 for 512-sample blocks at 44.1kHz, meeting -60 dBFS)
@@ -131,6 +133,7 @@ public:
         sampleHold_.reset();
         pitchFollower_.reset();
         transient_.reset();
+        rungler_.reset();
         wasPlaying_ = false;
 
         modOffsets_.fill(0.0f);
@@ -236,6 +239,11 @@ public:
         }
         if (sourceActive_[static_cast<size_t>(ModSource::SampleHold)]) {
             sampleHold_.processBlock(safeSamples);
+        }
+        if (sourceActive_[static_cast<size_t>(ModSource::Rungler)]) {
+            for (size_t i = 0; i < safeSamples; ++i) {
+                (void)rungler_.process();
+            }
         }
 
         // Update chaos coupling from audio envelope
@@ -505,6 +513,17 @@ public:
     void setTransientDecay(float ms) noexcept { transient_.setDecayTime(ms); }
 
     // =========================================================================
+    // Rungler Parameters (Spec 057, FR-008)
+    // =========================================================================
+
+    void setRunglerOsc1Freq(float hz) noexcept { rungler_.setOsc1Frequency(hz); }
+    void setRunglerOsc2Freq(float hz) noexcept { rungler_.setOsc2Frequency(hz); }
+    void setRunglerDepth(float depth) noexcept { rungler_.setRunglerDepth(depth); }
+    void setRunglerFilter(float amount) noexcept { rungler_.setFilterAmount(amount); }
+    void setRunglerBits(size_t bits) noexcept { rungler_.setRunglerBits(bits); }
+    void setRunglerLoopMode(bool loop) noexcept { rungler_.setLoopMode(loop); }
+
+    // =========================================================================
     // Query
     // =========================================================================
 
@@ -628,6 +647,8 @@ private:
                 return getMacroOutput(3);
             case ModSource::Chaos:
                 return chaos_.getCurrentValue();
+            case ModSource::Rungler:
+                return rungler_.getCurrentValue();
             case ModSource::SampleHold:
                 return sampleHold_.getCurrentValue();
             case ModSource::PitchFollower:
@@ -754,6 +775,7 @@ private:
     SampleHoldSource sampleHold_;
     PitchFollowerSource pitchFollower_;
     TransientDetector transient_;
+    Rungler rungler_;
 
     // Cached LFO output values (last sample in block)
     float lfo1LastValue_ = 0.0f;

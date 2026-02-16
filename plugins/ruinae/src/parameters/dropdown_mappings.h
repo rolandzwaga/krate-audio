@@ -164,7 +164,7 @@ inline const Steinberg::Vst::TChar* const kGlobalFilterTypeStrings[] = {
 };
 
 // =============================================================================
-// ModSource dropdown (13 sources, stepCount = 12)
+// ModSource dropdown (14 sources, stepCount = 13)
 // =============================================================================
 
 inline constexpr int kModSourceCount = static_cast<int>(Krate::DSP::kModSourceCount);
@@ -180,6 +180,7 @@ inline const Steinberg::Vst::TChar* const kModSourceStrings[] = {
     STR16("Macro 3"),
     STR16("Macro 4"),
     STR16("Chaos"),
+    STR16("Rungler"),
     STR16("Sample & Hold"),
     STR16("Pitch Follower"),
     STR16("Transient"),

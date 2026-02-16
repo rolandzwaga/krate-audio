@@ -50,6 +50,8 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   1700-1799: Reverb (Size, Damping, Width, Mix, PreDelay, ...)
 //   1800-1899: Mono Mode (Priority, Legato, Portamento Time, PortaMode)
 //   1900-1999: Phaser (Rate, Depth, Feedback, Mix, Stages, ...)
+//   2000-2099: Macros (Macro 1-4 values)
+//   2100-2199: Rungler (Osc1 Freq, Osc2 Freq, Depth, Filter, Bits, Loop Mode)
 // ==============================================================================
 
 enum ParameterIDs : Steinberg::Vst::ParamID {
@@ -557,7 +559,29 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kPhaserEndId = 1999,
 
     // ==========================================================================
-    kNumParameters = 2000,
+    // Macro Parameters (2000-2099)
+    // ==========================================================================
+    kMacroBaseId = 2000,
+    kMacro1ValueId = 2000,     // Macro 1 knob value [0, 1] (default 0)
+    kMacro2ValueId = 2001,     // Macro 2 knob value [0, 1] (default 0)
+    kMacro3ValueId = 2002,     // Macro 3 knob value [0, 1] (default 0)
+    kMacro4ValueId = 2003,     // Macro 4 knob value [0, 1] (default 0)
+    kMacroEndId = 2099,
+
+    // ==========================================================================
+    // Rungler Parameters (2100-2199)
+    // ==========================================================================
+    kRunglerBaseId = 2100,
+    kRunglerOsc1FreqId = 2100, // Osc1 frequency [0.1, 100] Hz (default 2.0 Hz)
+    kRunglerOsc2FreqId = 2101, // Osc2 frequency [0.1, 100] Hz (default 3.0 Hz)
+    kRunglerDepthId = 2102,    // Cross-mod depth [0, 1] (default 0)
+    kRunglerFilterId = 2103,   // CV filter amount [0, 1] (default 0)
+    kRunglerBitsId = 2104,     // Shift register bits [4, 16] (default 8)
+    kRunglerLoopModeId = 2105, // Loop mode on/off (default off = chaos)
+    kRunglerEndId = 2199,
+
+    // ==========================================================================
+    kNumParameters = 2200,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)
