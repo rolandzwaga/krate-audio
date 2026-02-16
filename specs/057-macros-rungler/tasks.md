@@ -352,24 +352,24 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 7.1 Pluginval Validation
 
-- [ ] T137 Run pluginval at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
-- [ ] T138 Verify pluginval passes with no errors (all 10 new parameters accessible, automatable, state save/load cycle works)
+- [X] T137 Run pluginval at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
+- [X] T138 Verify pluginval passes with no errors (all 10 new parameters accessible, automatable, state save/load cycle works)
 
 ### 7.2 Cross-Story Integration Verification
 
-- [ ] T139 Manual test: Open plugin, select "Macros" from dropdown, verify all 4 knobs appear and route correctly to destinations
-- [ ] T140 Manual test: Select "Rungler" from dropdown, verify all 6 controls appear and route correctly to destinations
-- [ ] T141 Manual test: Create complex preset using M1 for filter, M2 for reverb, Rungler for stereo width, save, reload, verify all macros and rungler config restore and modulation still works
-- [ ] T142 Manual test: Load preset saved before spec (v < 13), verify macros default to 0, rungler defaults correct, and any old mod routes with SampleHold/PitchFollower/Transient still work (enum migrated)
+- [X] T139 Manual test: Open plugin, select "Macros" from dropdown, verify all 4 knobs appear and route correctly to destinations
+- [X] T140 Manual test: Select "Rungler" from dropdown, verify all 6 controls appear and route correctly to destinations
+- [X] T141 Manual test: Create complex preset using M1 for filter, M2 for reverb, Rungler for stereo width, save, reload, verify all macros and rungler config restore and modulation still works
+- [X] T142 Manual test: Load preset saved before spec (v < 13), verify macros default to 0, rungler defaults correct, and any old mod routes with SampleHold/PitchFollower/Transient still work (enum migrated)
 
 ### 7.3 Regression Testing
 
-- [ ] T143 Run full Ruinae test suite to verify no regressions: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
-- [ ] T144 Verify zero compiler warnings across all modified files
+- [X] T143 Run full Ruinae test suite to verify no regressions: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
+- [X] T144 Verify zero compiler warnings across all modified files
 
 ### 7.4 Commit
 
-- [ ] T145 Commit Phase 7 work (if any fixes were needed)
+- [X] T145 Commit Phase 7 work (if any fixes were needed)
 
 **Checkpoint**: All user stories validated, pluginval passes, no regressions
 
