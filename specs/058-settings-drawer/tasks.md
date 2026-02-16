@@ -312,13 +312,13 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 8.1 Run Clang-Tidy Analysis
 
-- [ ] T107 Run clang-tidy on all modified source files: `./tools/run-clang-tidy.ps1 -Target ruinae`
+- [X] T107 Run clang-tidy on all modified source files: `./tools/run-clang-tidy.ps1 -Target ruinae`
 
 ### 8.2 Address Findings
 
-- [ ] T108 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T109 Review warnings and fix where appropriate (document suppressions with NOLINT if intentionally ignored)
-- [ ] T110 Commit clang-tidy fixes (if any)
+- [X] T108 Fix all errors reported by clang-tidy (blocking issues)
+- [X] T109 Review warnings and fix where appropriate (document suppressions with NOLINT if intentionally ignored)
+- [X] T110 Commit clang-tidy fixes (if any)
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 
