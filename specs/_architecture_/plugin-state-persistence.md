@@ -22,14 +22,15 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
 | 4-11 | various | TranceGate v2 format, envelope bezier, LFO extended params, etc. |
 | 12 | 055 | LFO extended params (fade-in, symmetry, quantize) |
 | 13 | 057 | Macro params (4 floats) + Rungler params (4 floats + 2 int32s) + ModSource enum migration |
-| **14** | **058** | **Settings params (2 floats + 4 int32s = 24 bytes): pitch bend range, velocity curve, tuning reference, voice alloc mode, voice steal mode, gain compensation** |
+| 14 | 058 | Settings params (2 floats + 4 int32s = 24 bytes): pitch bend range, velocity curve, tuning reference, voice alloc mode, voice steal mode, gain compensation |
+| **15** | **059** | **Mod source params (3+4+4+4+3 = 18 values, 72 bytes): Env Follower (3 floats), S&H (2 floats + 2 int32s), Random (2 floats + 2 int32s), Pitch Follower (4 floats), Transient (3 floats)** |
 
 ---
 
-## Stream Format (Version 14)
+## Stream Format (Version 15)
 
 ```
-[int32: stateVersion = 14]
+[int32: stateVersion = 15]
 
 --- Existing packs (v1 through v12) ---
 [GlobalParams]        // masterGain, voiceMode, polyphony, softLimit, width, spread
@@ -61,6 +62,13 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
 --- New in v14 (Spec 058) ---
 [SettingsParams]      // 2 floats + 4 int32s (24 bytes): pitchBendRangeSemitones, velocityCurve,
                       // tuningReferenceHz, voiceAllocMode, voiceStealMode, gainCompensation
+
+--- New in v15 (Spec 059) ---
+[EnvFollowerParams]   // 3 floats (12 bytes): sensitivity, attackMs, releaseMs
+[SampleHoldParams]    // 2 floats + 2 int32s (16 bytes): rateHz, sync, noteValue, slewMs
+[RandomParams]        // 2 floats + 2 int32s (16 bytes): rateHz, sync, noteValue, smoothness
+[PitchFollowerParams] // 4 floats (16 bytes): minHz, maxHz, confidence, speedMs
+[TransientParams]     // 3 floats (12 bytes): sensitivity, attackMs, decayMs
 ```
 
 ---
@@ -90,6 +98,21 @@ if (version >= 14) {
     settingsParams_.gainCompensation.store(false, relaxed);  // OFF for old presets
 }
 
+// v15: Mod source params
+if (version >= 15) {
+    loadEnvFollowerParams(envFollowerParams_, streamer);
+    loadSampleHoldParams(sampleHoldParams_, streamer);
+    loadRandomParams(randomParams_, streamer);
+    loadPitchFollowerParams(pitchFollowerParams_, streamer);
+    loadTransientParams(transientParams_, streamer);
+}
+// If version < 15: all mod source params keep their struct defaults:
+// Env Follower: Sensitivity=0.5, Attack=10ms, Release=100ms
+// S&H: Rate=4Hz, Sync=off, NoteValue=1/8, Slew=0ms
+// Random: Rate=4Hz, Sync=off, NoteValue=1/8, Smoothness=0
+// Pitch Follower: MinHz=80, MaxHz=2000, Confidence=0.5, Speed=50ms
+// Transient: Sensitivity=0.5, Attack=2ms, Decay=50ms
+
 // In Controller::setComponentState():
 if (version >= 13) {
     loadMacroParamsToController(streamer, setParam);
@@ -100,6 +123,13 @@ if (version >= 14) {
 }
 if (version < 14) {
     setParam(kSettingsGainCompensationId, 0.0);  // OFF for pre-spec-058 presets
+}
+if (version >= 15) {
+    loadEnvFollowerParamsToController(streamer, setParam);
+    loadSampleHoldParamsToController(streamer, setParam);
+    loadRandomParamsToController(streamer, setParam);
+    loadPitchFollowerParamsToController(streamer, setParam);
+    loadTransientParamsToController(streamer, setParam);
 }
 ```
 
@@ -173,6 +203,41 @@ Gain compensation has different defaults for new vs old presets:
 This asymmetry is intentional. The hardcoded `false` in `Processor::initialize()` was removed because gain compensation is now parameter-driven. Old presets must preserve the original behavior (OFF) while new presets use the improved default (ON).
 
 The controller also explicitly sets gain compensation to OFF for old presets: `setParam(kSettingsGainCompensationId, 0.0)` when `version < 14`.
+
+---
+
+## Mod Source Parameters Backward Compatibility (Version < 15 -> 15)
+
+### Background
+
+Spec 059 added 18 parameters across 5 modulation sources (IDs 2300-2799) as 5 new parameter packs appended after the Settings parameters. Before this spec, all 5 DSP processors were fully implemented in the ModulationEngine but had no plugin-layer parameter exposure -- they used their constructor defaults.
+
+### Backward Compatibility
+
+For presets saved before Spec 059 (version < 15), all mod source parameters default to their DSP class constructor defaults:
+
+| Source | Parameter | Default | Notes |
+|--------|-----------|---------|-------|
+| Env Follower | Sensitivity | 0.5 | Mid-range sensitivity |
+| Env Follower | Attack | 10 ms | Fast response |
+| Env Follower | Release | 100 ms | Medium decay |
+| S&H | Rate | 4 Hz | Medium stepping rate |
+| S&H | Sync | OFF | Free-running |
+| S&H | Note Value | 1/8 (index 10) | Standard subdivision |
+| S&H | Slew | 0 ms | Instant transitions |
+| Random | Rate | 4 Hz | Medium generation rate |
+| Random | Sync | OFF | Free-running |
+| Random | Note Value | 1/8 (index 10) | Standard subdivision |
+| Random | Smoothness | 0 | Instant transitions |
+| Pitch Follower | Min Hz | 80 Hz | Below typical vocal range |
+| Pitch Follower | Max Hz | 2000 Hz | Above typical vocal range |
+| Pitch Follower | Confidence | 0.5 | Mid-range threshold |
+| Pitch Follower | Speed | 50 ms | Medium tracking speed |
+| Transient | Sensitivity | 0.5 | Mid-range detection |
+| Transient | Attack | 2 ms | Fast attack envelope |
+| Transient | Decay | 50 ms | Medium decay envelope |
+
+No explicit backward-compatibility overrides are needed (unlike Settings/Gain Compensation). The struct member initializers provide correct defaults for old presets.
 
 ---
 

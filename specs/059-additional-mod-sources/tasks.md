@@ -483,9 +483,9 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 11.1 Architecture Documentation Update
 
-- [ ] T197 Update `specs/_architecture_/plugin-parameter-system.md` to document all 5 mod source parameter flows: EnvFollowerParams/SampleHoldParams/RandomParams/PitchFollowerParams/TransientParams structs, handleParamChange patterns, applyParamsToEngine forwarding (including S&H/Random sync logic), state version 15 format
-- [ ] T198 Update `specs/_architecture_/plugin-state-persistence.md` to document state version 15 format (72 bytes appended after v14: 3 EF floats, 4 S&H values, 4 Random values, 4 PF floats, 3 Trn floats), backward compatibility (v < 15 uses struct defaults)
-- [ ] T199 Update `specs/_architecture_/plugin-ui-patterns.md` (or create if not exists) to document sync visibility switching pattern for S&H and Random (custom-view-name groups, controller sub-controller toggling, same pattern as Chaos)
+- [X] T197 Update `specs/_architecture_/plugin-parameter-system.md` to document all 5 mod source parameter flows: EnvFollowerParams/SampleHoldParams/RandomParams/PitchFollowerParams/TransientParams structs, handleParamChange patterns, applyParamsToEngine forwarding (including S&H/Random sync logic), state version 15 format
+- [X] T198 Update `specs/_architecture_/plugin-state-persistence.md` to document state version 15 format (72 bytes appended after v14: 3 EF floats, 4 S&H values, 4 Random values, 4 PF floats, 3 Trn floats), backward compatibility (v < 15 uses struct defaults)
+- [X] T199 Update `specs/_architecture_/plugin-ui-patterns.md` (or create if not exists) to document sync visibility switching pattern for S&H and Random (custom-view-name groups, controller sub-controller toggling, same pattern as Chaos)
 
 ### 11.2 Final Commit
 
