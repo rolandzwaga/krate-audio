@@ -6,6 +6,17 @@
 
 ---
 
+## Project Structure (Monorepo)
+
+This is a **monorepo** (`f:\projects\iterum`) containing multiple plugins and a shared DSP library:
+- **KrateDSP**: Shared DSP library at `dsp/` (namespace: `Krate::DSP`)
+- **Ruinae**: Synthesizer plugin at `plugins/ruinae/`
+- **Iterum**: Delay plugin at `plugins/iterum/`
+
+The repo name "iterum" does NOT imply all specs target the Iterum plugin. Each spec targets a specific plugin — check the spec's file paths to determine which.
+
+---
+
 ## Core Principles
 
 ### I. VST3 Architecture Separation
