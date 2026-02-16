@@ -1,0 +1,104 @@
+﻿{
+    "SpecPath":  "F:\\projects\\iterum\\specs\\058-settings-drawer\\tasks.md",
+    "LastSyncedAt":  "2026-02-16T16:45:41.6044144+01:00",
+    "EpicId":  "kratedsp-65",
+    "Phases":  {
+                   "7":  {
+                             "BeadsId":  "kratedsp-102",
+                             "SubtaskGroups":  {
+                                                   "7.3":  "kratedsp-105",
+                                                   "7.2":  "kratedsp-104",
+                                                   "7.1":  "kratedsp-103"
+                                               }
+                         },
+                   "9":  {
+                             "BeadsId":  "kratedsp-109",
+                             "SubtaskGroups":  {
+                                                   "9.1":  "kratedsp-110",
+                                                   "9.2":  "kratedsp-111"
+                                               }
+                         },
+                   "10":  {
+                              "BeadsId":  "kratedsp-112",
+                              "SubtaskGroups":  {
+                                                    "10.1":  "kratedsp-113",
+                                                    "10.3":  "kratedsp-115",
+                                                    "10.2":  "kratedsp-114"
+                                                }
+                          },
+                   "3":  {
+                             "BeadsId":  "kratedsp-77",
+                             "SubtaskGroups":  {
+                                                   "3.12":  "kratedsp-89",
+                                                   "3.11":  "kratedsp-88",
+                                                   "3.10":  "kratedsp-87",
+                                                   "3.5":  "kratedsp-82",
+                                                   "3.8":  "kratedsp-85",
+                                                   "3.6":  "kratedsp-83",
+                                                   "3.1":  "kratedsp-78",
+                                                   "3.4":  "kratedsp-81",
+                                                   "3.7":  "kratedsp-84",
+                                                   "3.2":  "kratedsp-79",
+                                                   "3.9":  "kratedsp-86",
+                                                   "3.3":  "kratedsp-80"
+                                               }
+                         },
+                   "11":  {
+                              "BeadsId":  "kratedsp-116",
+                              "SubtaskGroups":  {
+                                                    "11.1":  "kratedsp-117",
+                                                    "11.2":  "kratedsp-118"
+                                                }
+                          },
+                   "2":  {
+                             "BeadsId":  "kratedsp-70",
+                             "SubtaskGroups":  {
+                                                   "2.2":  "kratedsp-72",
+                                                   "2.3":  "kratedsp-73",
+                                                   "2.5":  "kratedsp-75",
+                                                   "2.6":  "kratedsp-76",
+                                                   "2.4":  "kratedsp-74",
+                                                   "2.1":  "kratedsp-71"
+                                               }
+                         },
+                   "1":  {
+                             "BeadsId":  "kratedsp-66",
+                             "SubtaskGroups":  {
+                                                   "1.3":  "kratedsp-69",
+                                                   "1.1":  "kratedsp-67",
+                                                   "1.2":  "kratedsp-68"
+                                               }
+                         },
+                   "4":  {
+                             "BeadsId":  "kratedsp-90",
+                             "SubtaskGroups":  {
+                                                   "4.2":  "kratedsp-92",
+                                                   "4.3":  "kratedsp-93",
+                                                   "4.1":  "kratedsp-91"
+                                               }
+                         },
+                   "6":  {
+                             "BeadsId":  "kratedsp-98",
+                             "SubtaskGroups":  {
+                                                   "6.2":  "kratedsp-100",
+                                                   "6.3":  "kratedsp-101",
+                                                   "6.1":  "kratedsp-99"
+                                               }
+                         },
+                   "5":  {
+                             "BeadsId":  "kratedsp-94",
+                             "SubtaskGroups":  {
+                                                   "5.3":  "kratedsp-97",
+                                                   "5.1":  "kratedsp-95",
+                                                   "5.2":  "kratedsp-96"
+                                               }
+                         },
+                   "8":  {
+                             "BeadsId":  "kratedsp-106",
+                             "SubtaskGroups":  {
+                                                   "8.2":  "kratedsp-108",
+                                                   "8.1":  "kratedsp-107"
+                                               }
+                         }
+               }
+}

@@ -21,14 +21,15 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
 | 3 | 042 | Voice routes appended (16 x VoiceModRoute, 14 bytes each = 224 bytes) |
 | 4-11 | various | TranceGate v2 format, envelope bezier, LFO extended params, etc. |
 | 12 | 055 | LFO extended params (fade-in, symmetry, quantize) |
-| **13** | **057** | **Macro params (4 floats) + Rungler params (4 floats + 2 int32s) + ModSource enum migration** |
+| 13 | 057 | Macro params (4 floats) + Rungler params (4 floats + 2 int32s) + ModSource enum migration |
+| **14** | **058** | **Settings params (2 floats + 4 int32s = 24 bytes): pitch bend range, velocity curve, tuning reference, voice alloc mode, voice steal mode, gain compensation** |
 
 ---
 
-## Stream Format (Version 13)
+## Stream Format (Version 14)
 
 ```
-[int32: stateVersion = 13]
+[int32: stateVersion = 14]
 
 --- Existing packs (v1 through v12) ---
 [GlobalParams]        // masterGain, voiceMode, polyphony, softLimit, width, spread
@@ -56,6 +57,10 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
 --- New in v13 (Spec 057) ---
 [MacroParams]         // 4 floats: values[0], values[1], values[2], values[3]
 [RunglerParams]       // 4 floats + 2 int32s: osc1FreqHz, osc2FreqHz, depth, filter, bits, loopMode
+
+--- New in v14 (Spec 058) ---
+[SettingsParams]      // 2 floats + 4 int32s (24 bytes): pitchBendRangeSemitones, velocityCurve,
+                      // tuningReferenceHz, voiceAllocMode, voiceStealMode, gainCompensation
 ```
 
 ---
@@ -73,10 +78,28 @@ if (version >= 13) {
 // If version < 13: macroParams_ and runglerParams_ keep their struct defaults
 // (macros = 0.0, rungler = 2.0 Hz / 3.0 Hz / depth 0 / filter 0 / 8 bits / chaos mode)
 
+if (version >= 14) {
+    loadSettingsParams(settingsParams_, streamer);
+} else {
+    // Backward compatibility: old presets get pre-spec defaults
+    settingsParams_.pitchBendRangeSemitones.store(2.0f, relaxed);
+    settingsParams_.velocityCurve.store(0, relaxed);         // Linear
+    settingsParams_.tuningReferenceHz.store(440.0f, relaxed);
+    settingsParams_.voiceAllocMode.store(1, relaxed);        // Oldest
+    settingsParams_.voiceStealMode.store(0, relaxed);        // Hard
+    settingsParams_.gainCompensation.store(false, relaxed);  // OFF for old presets
+}
+
 // In Controller::setComponentState():
 if (version >= 13) {
     loadMacroParamsToController(streamer, setParam);
     loadRunglerParamsToController(streamer, setParam);
+}
+if (version >= 14) {
+    loadSettingsParamsToController(streamer, setParam);
+}
+if (version < 14) {
+    setParam(kSettingsGainCompensationId, 0.0);  // OFF for pre-spec-058 presets
 }
 ```
 
@@ -122,6 +145,34 @@ Two data structures contain ModSource enum values that need migration:
 2. **Voice routes** (voice route source fields): 16 routes per voice, stored as int8_t
 
 Values 0-9 are unchanged (None through Chaos). Values 10+ shift by +1 (SampleHold, PitchFollower, Transient). The new Rungler value (10) only appears in presets saved with version >= 13.
+
+---
+
+## Settings Parameters Backward Compatibility (Version < 14 -> 14)
+
+### Background
+
+Spec 058 added 6 global settings parameters (IDs 2200-2205) as a new parameter pack appended after the Rungler parameters. Before this spec, these engine behaviors were either hardcoded or not user-controllable:
+
+| Setting | Pre-Spec Behavior | Spec 058 Behavior |
+|---------|-------------------|-------------------|
+| Pitch Bend Range | Hardcoded 2 semitones | Parameter-driven (0-24 st) |
+| Velocity Curve | Hardcoded Linear | Parameter-driven (4 curves) |
+| Tuning Reference | Hardcoded 440 Hz | Parameter-driven (400-480 Hz) |
+| Voice Allocation | Hardcoded Oldest | Parameter-driven (4 modes) |
+| Voice Steal | Hardcoded Hard | Parameter-driven (Hard/Soft) |
+| Gain Compensation | **Hardcoded OFF** | Parameter-driven (default ON for new presets) |
+
+### Gain Compensation Default Asymmetry
+
+Gain compensation has different defaults for new vs old presets:
+
+- **New presets** (version >= 14): `gainCompensation{true}` (ON) -- struct initializer default
+- **Old presets** (version < 14): Explicitly set to `false` (OFF) -- matches hardcoded `setGainCompensationEnabled(false)` that was removed
+
+This asymmetry is intentional. The hardcoded `false` in `Processor::initialize()` was removed because gain compensation is now parameter-driven. Old presets must preserve the original behavior (OFF) while new presets use the improved default (ON).
+
+The controller also explicitly sets gain compensation to OFF for old presets: `setParam(kSettingsGainCompensationId, 0.0)` when `version < 14`.
 
 ---
 

@@ -56,6 +56,33 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 
 enum ParameterIDs : Steinberg::Vst::ParamID {
     // ==========================================================================
+    // ID Range Allocation:
+    //   0-99:     Global (Master Gain, Voice Mode, Polyphony, Soft Limit, Width, Spread)
+    //   100-199:  OSC A
+    //   200-299:  OSC B
+    //   300-399:  Mixer
+    //   400-499:  Filter
+    //   500-599:  Distortion
+    //   600-699:  Trance Gate
+    //   700-799:  Amp Envelope
+    //   800-899:  Filter Envelope
+    //   900-999:  Mod Envelope
+    //   1000-1099: LFO 1
+    //   1100-1199: LFO 2
+    //   1200-1299: Chaos Mod
+    //   1300-1399: Mod Matrix
+    //   1400-1499: Global Filter
+    //   1500-1502: FX Enables
+    //   1600-1699: Delay
+    //   1700-1799: Reverb
+    //   1800-1899: Mono Mode
+    //   1900-1999: Phaser
+    //   2000-2099: Macros
+    //   2100-2199: Rungler
+    //   2200-2299: Settings (Pitch Bend Range, Velocity Curve, Tuning Ref, Alloc Mode, Steal Mode, Gain Comp)
+    // ==========================================================================
+
+    // ==========================================================================
     // Global Parameters (0-99)
     // ==========================================================================
     kMasterGainId = 0,
@@ -581,7 +608,19 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kRunglerEndId = 2199,
 
     // ==========================================================================
-    kNumParameters = 2200,
+    // Settings Parameters (2200-2299)
+    // ==========================================================================
+    kSettingsBaseId = 2200,
+    kSettingsPitchBendRangeId = 2200,  // Pitch bend range [0, 24] semitones (default 2)
+    kSettingsVelocityCurveId = 2201,   // Velocity curve (4 options: Linear/Soft/Hard/Fixed, default 0 = Linear)
+    kSettingsTuningReferenceId = 2202, // A4 tuning reference [400, 480] Hz (default 440)
+    kSettingsVoiceAllocModeId = 2203,  // Voice allocation (4 options: RR/Oldest/LowVel/HighNote, default 1 = Oldest)
+    kSettingsVoiceStealModeId = 2204,  // Voice steal (2 options: Hard/Soft, default 0 = Hard)
+    kSettingsGainCompensationId = 2205, // Gain compensation on/off (default 1 = enabled for new presets)
+    kSettingsEndId = 2299,
+
+    // ==========================================================================
+    kNumParameters = 2300,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)
@@ -611,6 +650,12 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // Modulation Source View Mode Tab (UI-only, ephemeral - not saved with state)
     kModSourceViewModeTag = 10019,
+
+    // Settings Drawer Toggle (UI-only, gear icon click)
+    kActionSettingsToggleTag = 10020,
+
+    // Settings Drawer Click-Outside Overlay (UI-only, dismiss gesture)
+    kActionSettingsOverlayTag = 10021,
 };
 
 // ==============================================================================

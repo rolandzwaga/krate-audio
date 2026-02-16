@@ -114,7 +114,6 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 
     // Prepare engine (allocates internal buffers)
     engine_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
-    engine_.setGainCompensationEnabled(false);
 
     logPhaser("[RUINAE] setupProcessing: sampleRate=%.0f maxBlock=%d\n", sampleRate_, maxBlockSize_);
 
@@ -406,6 +405,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveMacroParams(macroParams_, streamer);
     saveRunglerParams(runglerParams_, streamer);
 
+    // v14: Settings params
+    saveSettingsParams(settingsParams_, streamer);
+
     return Steinberg::kResultTrue;
 }
 
@@ -536,6 +538,29 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             loadMacroParams(macroParams_, streamer);
             loadRunglerParams(runglerParams_, streamer);
         }
+
+        // v14: Settings params
+        if (version >= 14) {
+            loadSettingsParams(settingsParams_, streamer);
+        } else {
+            // Backward compatibility: old presets get these defaults
+            // (matching hardcoded behavior before this spec)
+            settingsParams_.pitchBendRangeSemitones.store(2.0f, std::memory_order_relaxed);
+            settingsParams_.velocityCurve.store(0, std::memory_order_relaxed);    // Linear
+            settingsParams_.tuningReferenceHz.store(440.0f, std::memory_order_relaxed);
+            settingsParams_.voiceAllocMode.store(1, std::memory_order_relaxed);   // Oldest
+            settingsParams_.voiceStealMode.store(0, std::memory_order_relaxed);   // Hard
+            settingsParams_.gainCompensation.store(false, std::memory_order_relaxed); // OFF for old presets
+        }
+    }
+
+    // =========================================================================
+    // Settings backward compatibility for v1-v2 (which don't enter the v3+ block)
+    // Struct default is gainCompensation=true, but old presets must be false.
+    // Other settings struct defaults are correct for old presets.
+    // =========================================================================
+    if (version >= 1 && version < 3) {
+        settingsParams_.gainCompensation.store(false, std::memory_order_relaxed);
     }
 
     // =========================================================================
@@ -642,6 +667,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleMacroParamChange(macroParams_, paramId, value);
         } else if (paramId >= kRunglerBaseId && paramId <= kRunglerEndId) {
             handleRunglerParamChange(runglerParams_, paramId, value);
+        } else if (paramId >= kSettingsBaseId && paramId <= kSettingsEndId) {
+            handleSettingsParamChange(settingsParams_, paramId, value);
         }
     }
 }
@@ -982,6 +1009,17 @@ void Processor::applyParamsToEngine() {
     engine_.setRunglerFilter(runglerParams_.filter.load(std::memory_order_relaxed));
     engine_.setRunglerBits(static_cast<size_t>(runglerParams_.bits.load(std::memory_order_relaxed)));
     engine_.setRunglerLoopMode(runglerParams_.loopMode.load(std::memory_order_relaxed));
+
+    // --- Settings ---
+    engine_.setPitchBendRange(settingsParams_.pitchBendRangeSemitones.load(std::memory_order_relaxed));
+    engine_.setVelocityCurve(static_cast<Krate::DSP::VelocityCurve>(
+        settingsParams_.velocityCurve.load(std::memory_order_relaxed)));
+    engine_.setTuningReference(settingsParams_.tuningReferenceHz.load(std::memory_order_relaxed));
+    engine_.setAllocationMode(static_cast<Krate::DSP::AllocationMode>(
+        settingsParams_.voiceAllocMode.load(std::memory_order_relaxed)));
+    engine_.setStealMode(static_cast<Krate::DSP::StealMode>(
+        settingsParams_.voiceStealMode.load(std::memory_order_relaxed)));
+    engine_.setGainCompensationEnabled(settingsParams_.gainCompensation.load(std::memory_order_relaxed));
 
     // --- Mono Mode ---
     engine_.setMonoPriority(static_cast<MonoMode>(

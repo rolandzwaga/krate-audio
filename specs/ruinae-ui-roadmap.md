@@ -2,7 +2,7 @@
 
 **Date**: 2026-02-14
 **Status**: Approved (In Progress)
-**Last Updated**: 2026-02-16
+**Last Updated**: 2026-02-16 (Phase 5.1 DONE — Spec 058; Phase 5.2 marked DONE)
 **Context**: [ui-gaps-assessment.md](specs/ui-gaps-assessment.md)
 
 ---
@@ -235,7 +235,7 @@ This uses the same `UIViewSwitchContainer` pattern already used for oscillator t
 
 **Goal**: Expose lower-priority global settings and mod matrix per-slot detail parameters.
 
-### 5.1 Settings Drawer
+### 5.1 Settings Drawer -- DONE (Spec 058)
 - **What**: A gear icon (in Master section) opens a slide-out drawer from the right edge with:
   - Pitch Bend Range
   - Velocity Curve selector
@@ -243,19 +243,20 @@ This uses the same `UIViewSwitchContainer` pattern already used for oscillator t
   - Voice Allocation Mode
   - Voice Steal Mode
   - Gain Compensation toggle
-- **Params**: All need new IDs (~6 new params)
+- **Params**: 6 new IDs (2200-2205) + 2 action tags (10020-10021)
 - **Design**: Drawer slides in from the right, overlapping part of the main UI. Non-modal — user can close by clicking outside or pressing the gear icon again. Contains a vertical list of labeled controls.
-- **Implementation**: VSTGUI `CViewContainer` with animation (`CViewContainer::setViewSize` + timer for slide). Gear icon toggles drawer visibility.
+- **Implementation**: VSTGUI `CViewContainer` with animation (`CViewContainer::setViewSize` + CVSTGUITimer for 160ms quadratic ease-out slide). Gear icon toggles drawer visibility. Click-outside dismiss via transparent overlay.
 - **Effort**: Medium-Large (drawer infrastructure + 6 new param IDs + wiring)
+- **Implemented**: 220px slide-out drawer with SettingsParams struct, full save/load with backward compatibility (state version 13→14), gain compensation defaults ON for new presets / OFF for old presets. ArcKnobs for Pitch Bend Range and Tuning Reference, COptionMenus for Velocity Curve, Voice Allocation, Voice Steal, ToggleButton for Gain Compensation.
 
-### 5.2 Mod Matrix Detail Expansion
+### 5.2 Mod Matrix Detail Expansion -- DONE (implemented as expandable rows in mod matrix grid)
 - **What**: Per-slot access to Curve, Smooth, Scale, Bypass
-- **Params**: IDs 1324-1355 - already registered
+- **Params**: IDs 1324-1355 - all registered and working
 - **Options**:
   - **A) Expand row on click**: Clicking a mod matrix row reveals detail controls below it
   - **B) Detail panel**: Selecting a slot shows Curve/Smooth/Scale/Bypass in a side panel
   - **C) Right-click context**: Right-click slot for detail popover
-- **Recommendation**: Option B — a detail strip below the ModMatrixGrid that updates when a slot is selected. Fits naturally in existing space if the heatmap compresses slightly.
+- **Implemented**: Option A -- expandable rows in the mod matrix grid. Clicking a slot reveals Curve dropdown, Smooth knob, Scale knob, and Bypass toggle below it. Parameters 1324-1355 (4 per slot x 8 slots = 32 params) are all registered and functional.
 - **Layout**:
   ```
   ┌─────────────────────────────────────┐
@@ -346,7 +347,9 @@ Phase 4: Macros & Rungler                     ┐ New param IDs needed,
 
 Phase 5: Polish & detail                      ┐
   5.1 Settings drawer (slide-out)             │ Lower-priority params,
-  5.2 Mod matrix detail strip                 ┘ quality-of-life
+      ✅ DONE (Spec 058)                      │ quality-of-life
+  5.2 Mod matrix detail strip                 │
+      ✅ DONE (expandable rows in grid)       ┘
 
 Phase 6: All 5 mod sources (equal priority)   ┐ Major DSP + UI work
   6.1 Env Follower                            │ ~15 new params,
@@ -365,9 +368,9 @@ Phase 0B ✅ ──→ Phase 4.2 ✅, 4.3 ✅ (dropdown needed for new source vi
 Phase 0B ✅ ──→ Phase 6.1-6.5 (dropdown needed for new source views)
 Phase 0C ✅ ──→ Phase 2 ✅ (filter strip needs layout slot)
 Phase 4.1 ✅ ──→ Phase 4.2 ✅, 4.3 ✅ (UI needs param IDs)
-Phase 5.1 ──→ (standalone, needs param IDs for settings)
-Phase 5.2 ──→ (standalone, params already registered)
-Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
+Phase 5.1 ✅ ──→ (standalone, needs param IDs for settings) -- DONE (Spec 058)
+Phase 5.2 ✅ ──→ (standalone, params already registered) -- DONE
+Phase 1-5 ✅ ──→ Phase 6 (all existing features complete — Phase 6 is now unblocked)
 ```
 
 ---
@@ -381,7 +384,7 @@ Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
 | 2     | 0             | 4               | Height +36px   | Small-Medium  | ✅ Done (055) |
 | 3     | 0             | 4               | Conditional    | Medium        | ✅ Done (056) |
 | 4     | 10            | 10              | New dropdown views | Large     | ✅ Done (057) |
-| 5     | ~6            | ~10             | Drawer + strip | Large         | Pending |
+| 5     | 6             | ~10             | Drawer + strip | Large         | ✅ All done (5.1: 058, 5.2: expandable rows) |
 | 6     | ~15           | ~15             | 5 dropdown views + DSP | Very Large | Pending |
 
 ---
@@ -408,8 +411,9 @@ Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
 | 055 - Global Filter & Trance Gate Tempo | Phase 0C + Phase 1.2 + Phase 2 | Merged | `055-global-filter-trancegate-tempo` |
 | 056 - Mono Mode | Phase 3 | Merged | `056-mono-mode` |
 | 057 - Macros & Rungler | Phase 4 (4.1 + 4.2 + 4.3) | Complete | `057-macros-rungler` |
+| 058 - Settings Drawer | Phase 5.1 | Complete | `058-settings-drawer` |
 
 ### Next Up (unblocked)
-- **Phase 5.1**: Settings drawer (standalone, needs param IDs for settings)
-- **Phase 5.2**: Mod matrix detail strip (standalone, params already registered)
-- **Phase 6**: All 5 mod sources (depends on Phase 1-5 completion — Phase 5 still pending)
+- **Phase 5.1**: ~~Settings drawer~~ -- **DONE (Spec 058)** (6 global settings params, slide-out drawer with animation, backward-compatible state v14)
+- **Phase 5.2**: ~~Mod matrix detail strip~~ -- **DONE** (expandable rows with Curve, Smooth, Scale, Bypass; params 1324-1355 all registered and working)
+- **Phase 6**: All 5 mod sources — **NOW UNBLOCKED** (Phases 1-5 all complete; Env Follower, S&H, Random, Pitch Follower, Transient Detector)

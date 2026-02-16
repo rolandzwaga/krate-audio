@@ -190,6 +190,9 @@ private:
     /// Toggle envelope panel expand/collapse (resize + visibility)
     void toggleEnvExpand(int panelIndex);
 
+    /// Toggle settings drawer open/closed with animation
+    void toggleSettingsDrawer();
+
     // ==========================================================================
     // UI State
     // ==========================================================================
@@ -253,6 +256,15 @@ private:
     VSTGUI::CViewContainer* envGroupFilter_ = nullptr;
     VSTGUI::CViewContainer* envGroupMod_ = nullptr;
     int expandedEnvPanel_ = -1;  // -1=none, 0=amp, 1=filter, 2=mod
+
+    // Settings drawer state
+    VSTGUI::CViewContainer* settingsDrawer_ = nullptr;
+    VSTGUI::CView* settingsOverlay_ = nullptr;
+    VSTGUI::CControl* gearButton_ = nullptr;
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> settingsAnimTimer_;
+    bool settingsDrawerOpen_ = false;
+    float settingsDrawerProgress_ = 0.0f;  // 0.0 = closed, 1.0 = open
+    bool settingsDrawerTargetOpen_ = false;
 
     // Playback position shared from processor via IMessage pointer
     std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;

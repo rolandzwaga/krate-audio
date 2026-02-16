@@ -80,8 +80,9 @@ Processor::setState()
 | 1900-1999 | Phaser | `phaser_params.h` | varies |
 | **2000-2099** | **Macros** | **`macro_params.h`** | **4** |
 | **2100-2199** | **Rungler** | **`rungler_params.h`** | **6** |
+| **2200-2299** | **Settings** | **`settings_params.h`** | **6** |
 
-**Sentinel**: `kNumParameters = 2200`
+**Sentinel**: `kNumParameters = 2300`
 
 ---
 
@@ -214,6 +215,115 @@ Controller loading requires inverse mapping for frequency and bits parameters:
 
 ---
 
+## Settings Parameters (Spec 058)
+
+**File**: `plugins/ruinae/src/parameters/settings_params.h`
+**IDs**: 2200-2205
+
+### SettingsParams Struct
+
+```cpp
+struct SettingsParams {
+    std::atomic<float> pitchBendRangeSemitones{2.0f};  // [0, 24] semitones
+    std::atomic<int> velocityCurve{0};                  // VelocityCurve index (0-3)
+    std::atomic<float> tuningReferenceHz{440.0f};       // [400, 480] Hz
+    std::atomic<int> voiceAllocMode{1};                 // AllocationMode index (0-3), default=Oldest(1)
+    std::atomic<int> voiceStealMode{0};                 // StealMode index (0-1), default=Hard(0)
+    std::atomic<bool> gainCompensation{true};           // default=ON for new presets
+};
+```
+
+### Parameter Details
+
+| ID | Name | Display | Unit | Default (Norm) | Mapping |
+|----|------|---------|------|----------------|---------|
+| 2200 | Pitch Bend Range | "X st" | st | 0.0833 (= 2/24) | Linear discrete: `round(norm * 24)`, stepCount=24 |
+| 2201 | Velocity Curve | StringListParameter | - | 0 (Linear) | Discrete: Linear/Soft/Hard/Fixed (stepCount=3) |
+| 2202 | Tuning Reference | "XXX.X Hz" | Hz | 0.5 (= 440 Hz) | Linear: `400 + norm * 80`, continuous |
+| 2203 | Voice Allocation | StringListParameter | - | 1 (Oldest) | Discrete: RoundRobin/Oldest/LowestVelocity/HighestNote (stepCount=3, default index=1) |
+| 2204 | Voice Steal | StringListParameter | - | 0 (Hard) | Discrete: Hard/Soft (stepCount=1) |
+| 2205 | Gain Compensation | on/off | - | 1.0 (ON) | Boolean: stepCount=1 |
+
+### Pitch Bend Range Mapping
+
+```cpp
+// Normalized [0, 1] -> Semitones [0, 24] (integer steps)
+float pitchBendFromNormalized(double norm) {
+    return clamp(static_cast<float>(round(norm * 24.0)), 0.0f, 24.0f);
+}
+```
+
+Default of 2 semitones (normalized 2/24 = 0.0833) is the standard MIDI pitch bend range.
+
+### Tuning Reference Mapping
+
+```cpp
+// Normalized [0, 1] -> Hz [400, 480]
+float tuningFromNormalized(double norm) {
+    return clamp(400.0f + static_cast<float>(norm) * 80.0f, 400.0f, 480.0f);
+}
+
+// Hz [400, 480] -> Normalized [0, 1]
+double tuningToNormalized(float hz) {
+    return static_cast<double>((hz - 400.0f) / 80.0f);
+}
+```
+
+Default of 440 Hz (normalized 0.5) is the ISO 16 standard tuning frequency for A4.
+
+### Voice Allocation Default
+
+Voice Allocation defaults to Oldest (index 1), NOT the first list item (Round Robin). Uses `createDropdownParameterWithDefault()` with `defaultIndex=1` to set the initial selection correctly.
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToEngine():
+engine_.setPitchBendRange(settingsParams_.pitchBendRangeSemitones.load(relaxed));
+engine_.setVelocityCurve(static_cast<VelocityCurve>(settingsParams_.velocityCurve.load(relaxed)));
+engine_.setTuningReference(settingsParams_.tuningReferenceHz.load(relaxed));
+engine_.setAllocationMode(static_cast<AllocationMode>(settingsParams_.voiceAllocMode.load(relaxed)));
+engine_.setStealMode(static_cast<StealMode>(settingsParams_.voiceStealMode.load(relaxed)));
+engine_.setGainCompensationEnabled(settingsParams_.gainCompensation.load(relaxed));
+```
+
+All 6 engine methods existed before this spec (Spec 048). This spec exposes them as automatable VST parameters instead of using hardcoded values.
+
+**Note**: Spec 058 removed the hardcoded `engine_.setGainCompensationEnabled(false)` from `Processor::initialize()`. Gain compensation is now exclusively driven by the parameter value.
+
+### State Persistence
+
+Settings state consists of 2 floats + 4 int32s written sequentially (24 bytes total):
+```
+[float: pitchBendRangeSemitones] [int32: velocityCurve] [float: tuningReferenceHz]
+[int32: voiceAllocMode] [int32: voiceStealMode] [int32: gainCompensation (0 or 1)]
+```
+
+Controller loading requires inverse mapping for continuous parameters:
+- Pitch Bend Range: `semitones / 24.0` converts semitones back to normalized [0, 1]
+- Tuning Reference: `(hz - 400) / 80` converts Hz back to normalized [0, 1]
+- Velocity Curve: `index / 3.0` converts index back to normalized [0, 1]
+- Voice Allocation: `index / 3.0` converts index back to normalized [0, 1]
+- Voice Steal: `index / 1.0` (identity) converts index to normalized [0, 1]
+- Gain Compensation: `int32 != 0 ? 1.0 : 0.0` converts to boolean normalized
+
+### Backward Compatibility (Version < 14)
+
+For presets saved before Spec 058 (version < 14), settings parameters default to pre-spec behavior:
+
+| Parameter | Backward-Compat Default | Rationale |
+|-----------|------------------------|-----------|
+| Pitch Bend Range | 2 semitones | Standard MIDI default |
+| Velocity Curve | Linear (0) | Original behavior |
+| Tuning Reference | 440 Hz | Standard tuning |
+| Voice Allocation | Oldest (1) | Original behavior |
+| Voice Steal | Hard (0) | Original behavior |
+| Gain Compensation | **OFF (false)** | Preserves pre-spec behavior (was hardcoded `false`) |
+
+**Important**: Gain compensation defaults to ON for new presets (`gainCompensation{true}` in struct) but is explicitly set to OFF when loading old presets (`version < 14`). This is because gain compensation was previously hardcoded to `false` in `Processor::initialize()`, so old presets must maintain that behavior.
+
+---
+
 ## Denormalization Mappings Reference
 
 | Mapping | Parameters | Formula |
@@ -227,8 +337,10 @@ Controller loading requires inverse mapping for frequency and bits parameters:
 | Cubic | Envelope Times (0-10000ms) | `normalized^3 * 10000` |
 | Cubic | Portamento Time (0-5000ms) | `normalized^3 * 5000` |
 | Bipolar | Tune (-24/+24), Mod Amount (-1/+1) | `normalized * range - offset` |
+| Linear (offset+scale) | Tuning Reference (400-480Hz) | `400 + normalized * 80` |
+| Discrete (stepped) | Pitch Bend Range (0-24st) | `round(normalized * 24)` |
 | Discrete | Rungler Bits (4-16) | `4 + round(normalized * 12)` |
-| Boolean | Loop Mode, Enabled flags | `normalized >= 0.5` |
+| Boolean | Loop Mode, Enabled flags, Gain Comp | `normalized >= 0.5` |
 
 ---
 
@@ -236,7 +348,7 @@ Controller loading requires inverse mapping for frequency and bits parameters:
 
 To add a new parameter section, follow these steps:
 
-1. **Allocate ID range** in `plugin_ids.h` (e.g., `kMyBaseId = 2200, kMyParam1Id = 2200, ...`)
+1. **Allocate ID range** in `plugin_ids.h` (e.g., `kMyBaseId = 2300, kMyParam1Id = 2300, ...`)
 2. **Create parameter header** `plugins/ruinae/src/parameters/my_params.h` with:
    - `MyParams` struct with `std::atomic<>` fields
    - `handleMyParamChange()` -- denormalize and store
@@ -268,6 +380,7 @@ Each parameter must have a corresponding `<control-tag>` entry:
 ```xml
 <control-tag name="Macro1Value" tag="2000"/>
 <control-tag name="RunglerOsc1Freq" tag="2100"/>
+<control-tag name="SettingsPitchBendRange" tag="2200"/>
 ```
 
 ### Mod Source Dropdown Integration

@@ -26,6 +26,9 @@ add_executable(ruinae_tests
     unit/macro_params_test.cpp
     unit/rungler_params_test.cpp
 
+    # Settings Parameter Tests (058-settings-drawer)
+    unit/settings_params_test.cpp
+
     # Mod Matrix Tests (049-mod-matrix-grid)
     unit/mod_matrix_params_test.cpp
     integration/mod_matrix_grid_test.cpp

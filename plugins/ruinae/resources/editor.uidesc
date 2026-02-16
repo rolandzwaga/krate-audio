@@ -6,6 +6,7 @@
         <color name="bg-main" rgba="#1A1A1Eff"/>
         <color name="bg-dropdown" rgba="#2A2A2Eff"/>
         <color name="bg-display" rgba="#1E1E22ff"/>
+        <color name="bg-drawer" rgba="#131316ff"/>
 
         <!-- Text -->
         <color name="text-light" rgba="#FFFFFFff"/>
@@ -93,6 +94,14 @@
         <control-tag name="RunglerFilter" tag="2103"/>
         <control-tag name="RunglerBits" tag="2104"/>
         <control-tag name="RunglerLoopMode" tag="2105"/>
+
+        <!-- Settings -->
+        <control-tag name="SettingsPitchBendRange" tag="2200"/>
+        <control-tag name="SettingsVelocityCurve" tag="2201"/>
+        <control-tag name="SettingsTuningReference" tag="2202"/>
+        <control-tag name="SettingsVoiceAllocMode" tag="2203"/>
+        <control-tag name="SettingsVoiceStealMode" tag="2204"/>
+        <control-tag name="SettingsGainCompensation" tag="2205"/>
 
         <!-- OSC A -->
         <control-tag name="OscAType" tag="100"/>
@@ -343,6 +352,10 @@
         <control-tag name="ActionEnvExpandAmp" tag="10013"/>
         <control-tag name="ActionEnvExpandFilter" tag="10014"/>
         <control-tag name="ActionEnvExpandMod" tag="10015"/>
+
+        <!-- Settings Drawer Toggle + Click-Outside Overlay (UI-only actions) -->
+        <control-tag name="ActionSettingsToggle" tag="10020"/>
+        <control-tag name="ActionSettingsOverlay" tag="10021"/>
     </control-tags>
 
     <!-- ================================================================ -->
@@ -2810,8 +2823,9 @@
                   tooltip="Voice Mode"
                   transparent="false"/>
 
-            <!-- Gear icon (inert placeholder for future settings drawer) -->
+            <!-- Gear icon (toggles settings drawer) -->
             <view class="ToggleButton" origin="92, 14" size="18, 18"
+                  control-tag="ActionSettingsToggle"
                   icon-style="gear"
                   on-color="master"
                   off-color="text-secondary"
@@ -2921,6 +2935,118 @@
                   font-color="master"
                   text-color="master"
                   tooltip="Limit output level"
+                  transparent="true"/>
+        </view>
+
+        <!-- Settings Drawer Click-Outside Overlay (transparent, catches clicks to dismiss) -->
+        <view class="ToggleButton" origin="0, 0" size="925, 880"
+              control-tag="ActionSettingsOverlay"
+              custom-view-name="SettingsOverlay"
+              icon-style=""
+              on-color="~ TransparentCColor"
+              off-color="~ TransparentCColor"
+              transparent="true"
+              visible="false"/>
+
+        <!-- Settings Drawer (slides in from right edge) -->
+        <view
+            class="CViewContainer"
+            origin="925, 0"
+            size="220, 880"
+            background-color="bg-drawer"
+            custom-view-name="SettingsDrawer"
+            transparent="false"
+        >
+            <!-- SETTINGS title -->
+            <view class="CTextLabel" origin="16, 16" size="188, 20"
+                  title="SETTINGS"
+                  font="~ NormalFontBig"
+                  font-color="text-light"
+                  text-alignment="left"
+                  transparent="true"/>
+
+            <!-- Pitch Bend Range -->
+            <view class="CTextLabel" origin="16, 56" size="120, 14"
+                  title="Pitch Bend Range"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="left"
+                  transparent="true"/>
+            <view class="ArcKnob" origin="16, 74" size="36, 36"
+                  control-tag="SettingsPitchBendRange" default-value="0.0833"
+                  arc-color="master" guide-color="knob-guide"/>
+
+            <!-- Velocity Curve -->
+            <view class="CTextLabel" origin="16, 126" size="120, 14"
+                  title="Velocity Curve"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="left"
+                  transparent="true"/>
+            <view class="COptionMenu" origin="16, 144" size="140, 20"
+                  control-tag="SettingsVelocityCurve"
+                  default-value="0"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  transparent="false"/>
+
+            <!-- Tuning Reference -->
+            <view class="CTextLabel" origin="16, 182" size="120, 14"
+                  title="Tuning Reference"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="left"
+                  transparent="true"/>
+            <view class="ArcKnob" origin="16, 200" size="36, 36"
+                  control-tag="SettingsTuningReference" default-value="0.5"
+                  arc-color="master" guide-color="knob-guide"/>
+
+            <!-- Voice Allocation -->
+            <view class="CTextLabel" origin="16, 252" size="120, 14"
+                  title="Voice Allocation"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="left"
+                  transparent="true"/>
+            <view class="COptionMenu" origin="16, 270" size="140, 20"
+                  control-tag="SettingsVoiceAllocMode"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  transparent="false"/>
+
+            <!-- Voice Steal -->
+            <view class="CTextLabel" origin="16, 308" size="120, 14"
+                  title="Voice Steal"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="left"
+                  transparent="true"/>
+            <view class="COptionMenu" origin="16, 326" size="140, 20"
+                  control-tag="SettingsVoiceStealMode"
+                  default-value="0"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  transparent="false"/>
+
+            <!-- Gain Compensation -->
+            <view class="CTextLabel" origin="16, 364" size="120, 14"
+                  title="Gain Compensation"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-alignment="left"
+                  transparent="true"/>
+            <view class="ToggleButton" origin="16, 382" size="50, 20"
+                  control-tag="SettingsGainCompensation"
+                  default-value="1"
+                  title="On"
+                  on-color="master"
+                  off-color="toggle-off"
                   transparent="true"/>
         </view>
 

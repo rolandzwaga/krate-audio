@@ -41,6 +41,7 @@
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
 #include "parameters/rungler_params.h"
+#include "parameters/settings_params.h"
 
 #include "ui/mod_matrix_types.h"
 
@@ -66,7 +67,8 @@ namespace Ruinae {
 // v11: Added phaser params + enable flag
 // v12: Extended LFO params (phase offset, retrigger, note value, unipolar, fade-in, symmetry, quantize)
 // v13: Macro and Rungler params
-constexpr Steinberg::int32 kCurrentStateVersion = 13;
+// v14: Settings params (pitch bend range, velocity curve, tuning ref, alloc mode, steal mode, gain comp)
+constexpr Steinberg::int32 kCurrentStateVersion = 14;
 
 // ==============================================================================
 // Processor Class
@@ -171,6 +173,7 @@ private:
     MonoModeParams monoModeParams_;
     MacroParams macroParams_;
     RunglerParams runglerParams_;
+    SettingsParams settingsParams_;
 
     // ==========================================================================
     // DSP Engine
