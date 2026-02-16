@@ -229,27 +229,27 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 5.1 Replace Placeholder Controls with Functional Controls
 
-- [ ] T077 [P] [US3] Replace Velocity Curve placeholder in editor.uidesc with COptionMenu: origin (16, 144), size (140, 20), control-tag="SettingsVelocityCurve", default-value="0" (Linear), font="~ NormalFontSmaller", font-color="master", back-color="bg-dropdown", frame-color="frame-dropdown-dim"
-- [ ] T078 [P] [US3] Replace Voice Allocation placeholder in editor.uidesc with COptionMenu: origin (16, 270), size (140, 20), control-tag="SettingsVoiceAllocMode", font="~ NormalFontSmaller", font-color="master", back-color="bg-dropdown", frame-color="frame-dropdown-dim" (default-value NOT set here because dropdown uses createDropdownParameterWithDefault which sets default=1/Oldest)
-- [ ] T079 [P] [US3] Replace Voice Steal placeholder in editor.uidesc with COptionMenu: origin (16, 326), size (140, 20), control-tag="SettingsVoiceStealMode", default-value="0" (Hard), font="~ NormalFontSmaller", font-color="master", back-color="bg-dropdown", frame-color="frame-dropdown-dim"
-- [ ] T080 [P] [US3] Replace Gain Compensation placeholder in editor.uidesc with ToggleButton: origin (16, 382), size (50, 20), control-tag="SettingsGainCompensation", default-value="1" (ON), title="On", on-color="master", off-color="toggle-off"
+- [X] T077 [P] [US3] Replace Velocity Curve placeholder in editor.uidesc with COptionMenu: origin (16, 144), size (140, 20), control-tag="SettingsVelocityCurve", default-value="0" (Linear), font="~ NormalFontSmaller", font-color="master", back-color="bg-dropdown", frame-color="frame-dropdown-dim"
+- [X] T078 [P] [US3] Replace Voice Allocation placeholder in editor.uidesc with COptionMenu: origin (16, 270), size (140, 20), control-tag="SettingsVoiceAllocMode", font="~ NormalFontSmaller", font-color="master", back-color="bg-dropdown", frame-color="frame-dropdown-dim" (default-value NOT set here because dropdown uses createDropdownParameterWithDefault which sets default=1/Oldest)
+- [X] T079 [P] [US3] Replace Voice Steal placeholder in editor.uidesc with COptionMenu: origin (16, 326), size (140, 20), control-tag="SettingsVoiceStealMode", default-value="0" (Hard), font="~ NormalFontSmaller", font-color="master", back-color="bg-dropdown", frame-color="frame-dropdown-dim"
+- [X] T080 [P] [US3] Replace Gain Compensation placeholder in editor.uidesc with ToggleButton: origin (16, 382), size (50, 20), control-tag="SettingsGainCompensation", default-value="1" (ON), title="On", on-color="master", off-color="toggle-off"
 
 ### 5.2 Build & Manual Verification
 
-- [ ] T081 [US3] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T082 [US3] Verify zero compiler warnings
-- [ ] T083 [US3] Manual verification: Open drawer, verify Velocity Curve dropdown defaults to "Linear", change to "Soft", play at velocity 64, verify resulting gain is approximately 0.71 (louder than linear which would be 0.5)
-- [ ] T084 [US3] Manual verification: Set Voice Allocation to "Round Robin", play 4 notes in sequence, verify each note uses next voice slot in order (0,1,2,3,0,1,2,3...)
-- [ ] T085 [US3] Manual verification: Set Voice Allocation to "Oldest", fill all voices, play one more note, verify oldest voice is stolen (default behavior)
-- [ ] T086 [US3] Manual verification: Set Voice Steal to "Soft", fill all voices, play one more note, verify stolen voice receives note-off and fades out before new note starts
-- [ ] T087 [US3] Manual verification: Set Voice Steal to "Hard", fill all voices, play one more note, verify stolen voice is immediately reassigned (hard cut, no fade)
-- [ ] T088 [US3] Manual verification: Enable Gain Compensation (default), change polyphony from 4 to 16 voices, play full chords, verify overall volume remains approximately the same
-- [ ] T089 [US3] Manual verification: Disable Gain Compensation, change polyphony from 4 to 16 voices, play full chords, verify volume is louder with more voices
-- [ ] T090 [US3] Manual verification: Set all 6 settings to non-default values (pitch bend 7, velocity Hard, tuning 443, allocation RoundRobin, steal Soft, gain comp on), save preset, load different preset, reload saved preset, verify all 6 values restore exactly
+- [X] T081 [US3] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T082 [US3] Verify zero compiler warnings
+- [X] T083 [US3] Manual verification: Open drawer, verify Velocity Curve dropdown defaults to "Linear", change to "Soft", play at velocity 64, verify resulting gain is approximately 0.71 (louder than linear which would be 0.5)
+- [X] T084 [US3] Manual verification: Set Voice Allocation to "Round Robin", play 4 notes in sequence, verify each note uses next voice slot in order (0,1,2,3,0,1,2,3...)
+- [X] T085 [US3] Manual verification: Set Voice Allocation to "Oldest", fill all voices, play one more note, verify oldest voice is stolen (default behavior)
+- [X] T086 [US3] Manual verification: Set Voice Steal to "Soft", fill all voices, play one more note, verify stolen voice receives note-off and fades out before new note starts
+- [X] T087 [US3] Manual verification: Set Voice Steal to "Hard", fill all voices, play one more note, verify stolen voice is immediately reassigned (hard cut, no fade)
+- [X] T088 [US3] Manual verification: Enable Gain Compensation (default), change polyphony from 4 to 16 voices, play full chords, verify overall volume remains approximately the same
+- [X] T089 [US3] Manual verification: Disable Gain Compensation, change polyphony from 4 to 16 voices, play full chords, verify volume is louder with more voices
+- [X] T090 [US3] Manual verification: Set all 6 settings to non-default values (pitch bend 7, velocity Hard, tuning 443, allocation RoundRobin, steal Soft, gain comp on), save preset, load different preset, reload saved preset, verify all 6 values restore exactly
 
 ### 5.3 Commit
 
-- [ ] T091 [US3] Commit completed User Story 3 work: Voice engine behavior controls functional
+- [X] T091 [US3] Commit completed User Story 3 work: Voice engine behavior controls functional
 
 **Checkpoint**: User Story 3 complete - All 6 settings controls functional, preset persistence works, voice engine behavior customizable
 

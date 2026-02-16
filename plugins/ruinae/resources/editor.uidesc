@@ -2983,6 +2983,14 @@
                   font-color="text-secondary"
                   text-alignment="left"
                   transparent="true"/>
+            <view class="COptionMenu" origin="16, 144" size="140, 20"
+                  control-tag="SettingsVelocityCurve"
+                  default-value="0"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  transparent="false"/>
 
             <!-- Tuning Reference -->
             <view class="CTextLabel" origin="16, 182" size="120, 14"
@@ -3002,6 +3010,13 @@
                   font-color="text-secondary"
                   text-alignment="left"
                   transparent="true"/>
+            <view class="COptionMenu" origin="16, 270" size="140, 20"
+                  control-tag="SettingsVoiceAllocMode"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  transparent="false"/>
 
             <!-- Voice Steal -->
             <view class="CTextLabel" origin="16, 308" size="120, 14"
@@ -3010,6 +3025,14 @@
                   font-color="text-secondary"
                   text-alignment="left"
                   transparent="true"/>
+            <view class="COptionMenu" origin="16, 326" size="140, 20"
+                  control-tag="SettingsVoiceStealMode"
+                  default-value="0"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  transparent="false"/>
 
             <!-- Gain Compensation -->
             <view class="CTextLabel" origin="16, 364" size="120, 14"
@@ -3017,6 +3040,13 @@
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
                   text-alignment="left"
+                  transparent="true"/>
+            <view class="ToggleButton" origin="16, 382" size="50, 20"
+                  control-tag="SettingsGainCompensation"
+                  default-value="1"
+                  title="On"
+                  on-color="master"
+                  off-color="toggle-off"
                   transparent="true"/>
         </view>
 
