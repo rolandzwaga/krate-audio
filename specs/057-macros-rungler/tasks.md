@@ -418,15 +418,15 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 10.1 Requirements Verification
 
-- [ ] T155 Review ALL FR-001 through FR-016 requirements from spec.md against implementation: parameter IDs, enum changes, ModulationEngine integration, RuinaeEngine forwarding, parameter files, processor wiring, state persistence, control-tags, uidesc templates, ModSource dropdown strings
-- [ ] T156 Review ALL SC-001 through SC-010 success criteria and verify measurable targets are achieved: macros visible and functional, rungler visible and functional, rungler produces modulation, preset persistence, pluginval passes, no regressions, zero warnings, old presets load correctly, enum migration works, automation works
-- [ ] T157 Search for cheating patterns in implementation: no placeholder/TODO comments in new code, no test thresholds relaxed, no features quietly removed
+- [X] T155 Review ALL FR-001 through FR-016 requirements from spec.md against implementation: parameter IDs, enum changes, ModulationEngine integration, RuinaeEngine forwarding, parameter files, processor wiring, state persistence, control-tags, uidesc templates, ModSource dropdown strings
+- [X] T156 Review ALL SC-001 through SC-010 success criteria and verify measurable targets are achieved: macros visible and functional, rungler visible and functional, rungler produces modulation, preset persistence, pluginval passes, no regressions, zero warnings, old presets load correctly, enum migration works, automation works
+- [X] T157 Search for cheating patterns in implementation: no placeholder/TODO comments in new code, no test thresholds relaxed, no features quietly removed
 
 ### 10.2 Fill Compliance Table in spec.md
 
-- [ ] T158 Update spec.md "Implementation Verification" section with compliance status for each FR-xxx requirement: cite file paths, line numbers, specific code that satisfies each requirement
-- [ ] T159 Update spec.md "Implementation Verification" section with compliance status for each SC-xxx criterion: cite test names, actual measured values, manual verification results
-- [ ] T160 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T158 Update spec.md "Implementation Verification" section with compliance status for each FR-xxx requirement: cite file paths, line numbers, specific code that satisfies each requirement
+- [X] T159 Update spec.md "Implementation Verification" section with compliance status for each SC-xxx criterion: cite test names, actual measured values, manual verification results
+- [X] T160 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 10.3 Honest Self-Check
 
@@ -438,7 +438,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T161 All self-check questions answered "no" (or gaps documented honestly in spec.md)
+- [X] T161 All self-check questions answered "no" (or gaps documented honestly in spec.md)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -450,13 +450,13 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 11.1 Final Commit
 
-- [ ] T162 Commit all spec work to feature branch `057-macros-rungler`
-- [ ] T163 Verify all tests pass: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
-- [ ] T164 Verify pluginval passes: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
+- [X] T162 Commit all spec work to feature branch `057-macros-rungler`
+- [X] T163 Verify all tests pass: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
+- [X] T164 Verify pluginval passes: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
 
 ### 11.2 Completion Claim
 
-- [ ] T165 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T165 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 

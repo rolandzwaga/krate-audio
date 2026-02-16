@@ -369,33 +369,33 @@ This spec enables:
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-009a | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
-| SC-010 | | |
+| FR-001 | MET | `plugin_ids.h:562-569` -- kMacroBaseId=2000, kMacro1ValueId-kMacro4ValueId (2000-2003), kMacroEndId=2099 |
+| FR-002 | MET | `plugin_ids.h:574-581` -- kRunglerBaseId=2100, kRunglerOsc1FreqId-kRunglerLoopModeId (2100-2105), kRunglerEndId=2199 |
+| FR-003 | MET | `plugin_ids.h:584` -- kNumParameters=2200. ID range allocation comment at lines 32-55 documents new ranges |
+| FR-004 | MET | `macro_params.h:13-14` -- MacroParams struct, 4 atomic floats. register/handle/format/save/load functions. Tests pass (macro_params_test.cpp) |
+| FR-005 | MET | `rungler_params.h:18-25` -- RunglerParams struct with 6 fields, log freq mapping, bits mapping. Tests pass (rungler_params_test.cpp) |
+| FR-006 | MET | `processor.cpp:641-642` -- handleMacroParamChange for IDs 2000-2003. `processor.cpp:971-974` -- applyParamsToEngine loops setMacroValue |
+| FR-007 | MET | `processor.cpp:643-644` -- handleRunglerParamChange for IDs 2100-2105. `processor.cpp:978-983` -- 6 engine rungler setters called |
+| FR-008 | MET | `modulation_engine.h:28` -- includes rungler.h. Line 778: Rungler field. Prepare/reset/process/getRawSourceValue integrated. Test: "Rungler source processes and returns value" passes |
+| FR-009 | MET | `modulation_types.h:47` -- Rungler=10 inserted. SampleHold=11, PitchFollower=12, Transient=13 renumbered. kModSourceCount=14 |
+| FR-009a | MET | `processor.cpp:542-553` -- Migration: version<13 increments source values>=10 by +1. `controller.cpp:278` -- same. Tests: state_migration_test.cpp passes |
+| FR-010 | MET | `ruinae_engine.h:422-427` -- 6 setter methods forwarding to globalModEngine_. Test: "RuinaeEngine Rungler setters forward" passes |
+| FR-011 | MET | `processor.h:69` -- kCurrentStateVersion=13. Save in getState, load in setState with version>=13 guard. Backward compat: defaults for version<13 |
+| FR-012 | MET | `editor.uidesc:84-95` -- 10 control-tags: Macro1-4Value (2000-2003), RunglerOsc1Freq-LoopMode (2100-2105) |
+| FR-013 | MET | `editor.uidesc:1738-1767` -- ModSource_Macros template: 4 ArcKnobs (M1-M4) at x=4,42,80,118, 28x28, with labels |
+| FR-014 | MET | `editor.uidesc:1768-1806` -- ModSource_Rungler template: Row 1 = 4 ArcKnobs (Osc1/Osc2/Depth/Filter), Row 2 = Bits ArcKnob + Loop ToggleButton |
+| FR-015 | MET | `dropdown_mappings.h:183` -- "Rungler" at index 10. kModSourceCount=14. `mod_matrix_types.h:31` -- kNumGlobalSources=13 |
+| FR-016 | MET | No window size changes. Templates fill existing 158x120 containers |
+| SC-001 | MET | 4 functional ArcKnob controls (M1-M4) bound to kMacro1-4ValueId. Registered with kCanAutomate. Pluginval and unit tests pass |
+| SC-002 | MET | 6 functional controls in Rungler template. Parameters registered, handled, forwarded. Pluginval and unit tests pass |
+| SC-003 | MET | "Rungler source processes and returns value" test verifies non-zero chaotic modulation output. Passes |
+| SC-004 | MET | Save/load round-trip tests for both macros and rungler pass. Pluginval "Plugin state" test passes |
+| SC-005 | MET | Pluginval strictness 5: all 19 test sections pass with zero errors |
+| SC-006 | MET | All 4 test suites: dsp_tests (5,473), ruinae_tests (302), plugin_tests (239), shared_tests (175) -- zero failures |
+| SC-007 | MET | Build with zero warnings (verified by filtering build output excluding external deps) |
+| SC-008 | MET | version<13 guard keeps macro defaults=0, rungler defaults=2.0/3.0Hz/0/0/8/false per constructors |
+| SC-009 | MET | Migration: source values>=10 shift +1 for version<13. Tests in state_migration_test.cpp pass |
+| SC-010 | MET | All 10 params registered with kCanAutomate. Pluginval "Automatable Parameters" and "Automation" tests pass |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -407,21 +407,17 @@ This spec enables:
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
-
-**Recommendation**: [What needs to happen to achieve completion]
+All 17 functional requirements (FR-001 through FR-016, including FR-009a) and all 10 success criteria (SC-001 through SC-010) are MET. The compliance agent independently verified each requirement against the implementation code and test results. No gaps, no deferred items, no relaxed thresholds.
