@@ -1417,6 +1417,186 @@ engine.noteOff(67);
 
 ---
 
+## ModulationEngine
+**Path:** [modulation_engine.h](../../dsp/include/krate/dsp/systems/modulation_engine.h) | **Since:** 0.15.0 | **Updated:** 0.20.0 (Spec 057: Rungler integration)
+
+Global modulation engine managing all modulation sources, macro values, and source-to-destination routing with per-block processing.
+
+```cpp
+class ModulationEngine {
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    // Processing
+    void process(size_t numSamples, float* audioInputL, float* audioInputR,
+                 const BlockContext& ctx) noexcept;
+
+    // Routing management
+    void setRouting(size_t slot, ModSource source, uint32_t destId,
+                    float amount, int curve = 0, float smoothMs = 5.0f,
+                    int scale = 0, bool bypass = false) noexcept;
+    void clearRouting(size_t slot) noexcept;
+
+    // LFO 1 setters
+    void setLFO1Rate(float hz) noexcept;
+    void setLFO1Waveform(Waveform shape) noexcept;
+    void setLFO1PhaseOffset(float degrees) noexcept;
+    void setLFO1TempoSync(bool sync) noexcept;
+    void setLFO1NoteValue(NoteValue value, NoteModifier modifier) noexcept;
+    void setLFO1Unipolar(bool unipolar) noexcept;
+    void setLFO1Retrigger(bool retrig) noexcept;
+    void setLFO1FadeIn(float ms) noexcept;
+    void setLFO1Symmetry(float amount) noexcept;
+    void setLFO1Quantize(int steps) noexcept;
+
+    // LFO 2 setters (same signature pattern as LFO 1)
+    // ...
+
+    // Envelope Follower setters
+    void setEnvFollowerAttack(float ms) noexcept;
+    void setEnvFollowerRelease(float ms) noexcept;
+    void setEnvFollowerSensitivity(float sensitivity) noexcept;
+    void setEnvFollowerSource(int sourceType) noexcept;
+
+    // Macro setters
+    void setMacroValue(size_t index, float value) noexcept;     // [0, 1]
+    void setMacroMin(size_t index, float min) noexcept;
+    void setMacroMax(size_t index, float max) noexcept;
+    void setMacroCurve(size_t index, float curve) noexcept;
+
+    // Random source setters
+    void setRandomRate(float hz) noexcept;
+    void setRandomSmoothness(float amount) noexcept;
+    void setRandomTempoSync(bool sync) noexcept;
+    void setRandomTempo(float bpm) noexcept;
+
+    // Chaos source setters
+    void setChaosModel(int model) noexcept;
+    void setChaosSpeed(float speed) noexcept;
+    void setChaosCoupling(float coupling) noexcept;
+    void setChaosTempoSync(bool sync) noexcept;
+    void setChaosNoteValue(NoteValue value, NoteModifier modifier) noexcept;
+
+    // Sample & Hold setters
+    void setSampleHoldSource(int source) noexcept;
+    void setSampleHoldRate(float hz) noexcept;
+    void setSampleHoldSlew(float slew) noexcept;
+    void setSampleHoldExternalLevel(float level) noexcept;
+
+    // Pitch Follower setters
+    void setPitchFollowerMinHz(float hz) noexcept;
+    void setPitchFollowerMaxHz(float hz) noexcept;
+    void setPitchFollowerConfidence(float conf) noexcept;
+    void setPitchFollowerTrackingSpeed(float speed) noexcept;
+
+    // Transient Detector setters
+    void setTransientSensitivity(float sens) noexcept;
+    void setTransientAttack(float ms) noexcept;
+    void setTransientDecay(float ms) noexcept;
+
+    // Rungler setters (Spec 057)
+    void setRunglerOsc1Freq(float hz) noexcept;
+    void setRunglerOsc2Freq(float hz) noexcept;
+    void setRunglerDepth(float depth) noexcept;
+    void setRunglerFilter(float amount) noexcept;
+    void setRunglerBits(size_t bits) noexcept;
+    void setRunglerLoopMode(bool loop) noexcept;
+
+    // Modulation offset retrieval
+    [[nodiscard]] float getModulationOffset(uint32_t destId) const noexcept;
+    [[nodiscard]] float getModulatedValue(uint32_t destId, float baseValue) const noexcept;
+    [[nodiscard]] float getSourceValue(ModSource source) const noexcept;
+};
+```
+
+**Modulation Sources (ModSource enum, 14 values):**
+
+| Value | Source | Output Range | Processing |
+|-------|--------|-------------|------------|
+| 0 | None | 0.0 (inactive) | - |
+| 1 | LFO1 | [-1, +1] or [0, 1] (unipolar) | Per-sample |
+| 2 | LFO2 | [-1, +1] or [0, 1] (unipolar) | Per-sample |
+| 3 | EnvFollower | [0, 1] | Per-sample (audio input) |
+| 4 | Random | [0, 1] | Per-block |
+| 5-8 | Macro1-4 | [0, 1] (mapped via min/max/curve) | Per-block |
+| 9 | Chaos | [0, 1] | Per-block |
+| 10 | Rungler | [0, 1] | Per-block (Spec 057) |
+| 11 | SampleHold | [0, 1] | Per-block |
+| 12 | PitchFollower | [0, 1] | Per-sample (audio input) |
+| 13 | Transient | [0, 1] | Per-sample (audio input) |
+
+**Processing Flow:**
+```
+process():
+  1. Update sourceActive_ flags from current routings
+  2. Per-sample sources:
+     - LFO1, LFO2: advance phase, compute output
+     - EnvFollower: process audio input samples (if active)
+     - PitchFollower: analyze pitch from audio (if active)
+     - Transient: detect transients from audio (if active)
+  3. Per-block sources (only if sourceActive_[source] is true):
+     - Random: step random generator
+     - Chaos: advance chaos attractor
+     - SampleHold: sample and hold current value
+     - Rungler: advance oscillators and shift register
+  4. Evaluate routings: for each active slot, read source value,
+     apply amount/curve/scale/smoothing, accumulate to destination offset
+```
+
+**Key Features:**
+- Composes LFO x2 (L1), EnvelopeFollower (L2), RandomModSource (L2), ChaosModSource (L2), SampleHoldModSource (L2), PitchFollower (L2), TransientDetector (L2), Rungler (L2)
+- 4 MacroConfig values with configurable min/max/curve mapping
+- Up to 8 routing slots with amount, curve, smoothing, scale, and bypass per slot
+- sourceActive_ optimization: per-block sources only process when at least one routing references them
+- Per-routing smoothing via OnePoleSmoother (configurable time in ms)
+- Modulation offsets stored in fixed-size array indexed by destination ID
+- Thread-safe: all setters are noexcept, suitable for audio thread calls from applyParamsToEngine()
+- Non-copyable, non-movable (contains DSP state)
+- Header-only, zero allocations in process()
+
+**Rungler Integration (Spec 057):**
+
+The Rungler (Layer 2 processor, `dsp/include/krate/dsp/processors/rungler.h`) was integrated into ModulationEngine as `ModSource::Rungler` (value 10). This required:
+
+1. **Field**: `Rungler rungler_` added as private member alongside other modulation sources
+2. **Prepare/Reset**: `rungler_.prepare(sampleRate)` and `rungler_.reset()` called in respective lifecycle methods
+3. **Process**: Rungler processes per-block via `rungler_.processBlock(numSamples)` only when `sourceActive_[10]` is true (at least one routing uses Rungler as source)
+4. **getRawSourceValue**: `case ModSource::Rungler: return rungler_.getCurrentValue()` returns the filtered CV output [0, 1]
+5. **Setter forwarding**: Six setter methods delegate to the Rungler instance:
+   - `setRunglerOsc1Freq(hz)` -> `rungler_.setOsc1Frequency(hz)`
+   - `setRunglerOsc2Freq(hz)` -> `rungler_.setOsc2Frequency(hz)`
+   - `setRunglerDepth(depth)` -> `rungler_.setRunglerDepth(depth)` (sets both oscillator cross-modulation depths)
+   - `setRunglerFilter(amount)` -> `rungler_.setFilterAmount(amount)`
+   - `setRunglerBits(bits)` -> `rungler_.setRunglerBits(bits)` (shift register length, 4-16)
+   - `setRunglerLoopMode(loop)` -> `rungler_.setLoopMode(loop)`
+
+**sourceActive_ Early-Out Pattern:**
+
+All per-block modulation sources (Random, Chaos, SampleHold, Rungler) use the `sourceActive_` optimization:
+
+```cpp
+// In process():
+if (sourceActive_[static_cast<size_t>(ModSource::Rungler)]) {
+    rungler_.processBlock(safeSamples);
+}
+```
+
+The `sourceActive_` array is rebuilt at the start of each `process()` call by scanning all active routing slots. If no routing references a given source, that source's processing is skipped entirely. This is critical for CPU efficiency since most users will only use 2-3 modulation sources at a time.
+
+**When to Use:**
+- As the global modulation system in a synthesizer engine (composed by RuinaeEngine)
+- Any scenario requiring flexible source-to-destination modulation routing
+- Per-plugin modulation systems that need LFO, chaos, macro, and Rungler sources
+
+**Related Components:**
+- RuinaeEngine (Layer 3): composes this as `globalModEngine_` for global modulation
+- Rungler (Layer 2): Benjolin-inspired chaotic oscillator, composed as modulation source
+- LFO (Layer 1): two instances for per-block oscillation sources
+- ModulationMatrix (Layer 3): lower-level routing matrix (ModulationEngine is the higher-level system)
+
+---
+
 ## SelectableOscillator
 **Path:** [selectable_oscillator.h](../../dsp/include/krate/dsp/systems/selectable_oscillator.h) | **Since:** 0.15.0
 
@@ -1726,6 +1906,14 @@ class RuinaeEngine {
     void setGlobalLFO1Rate(float hz) noexcept;
     void setGlobalLFO1Waveform(Waveform shape) noexcept;
     // ... (LFO2, Chaos, Macro setters)
+
+    // Rungler forwarding (Spec 057)
+    void setRunglerOsc1Freq(float hz) noexcept;
+    void setRunglerOsc2Freq(float hz) noexcept;
+    void setRunglerDepth(float depth) noexcept;
+    void setRunglerFilter(float amount) noexcept;
+    void setRunglerBits(size_t bits) noexcept;
+    void setRunglerLoopMode(bool loop) noexcept;
 
     // Performance controllers
     void setPitchBend(float bipolar) noexcept;

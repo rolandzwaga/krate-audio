@@ -925,6 +925,9 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 | 1600-1699 | Delay (Type, Time, Feedback, Mix, Sync, NoteValue) | 6 |
 | 1700-1799 | Reverb (Size, Damping, Width, Mix, PreDelay, Diffusion, Freeze, ModRate, ModDepth) | 9 |
 | 1800-1899 | Mono Mode (Priority, Legato, Portamento, PortaMode) | 4 |
+| 1900-1999 | Phaser | varies |
+| 2000-2099 | Macros (Macro 1-4 Value) | 4 |
+| 2100-2199 | Rungler (Osc1Freq, Osc2Freq, Depth, Filter, Bits, LoopMode) | 6 |
 
 ### Global Parameters (IDs 0-5)
 
@@ -978,6 +981,10 @@ Stream Format (v2): Same as v1 but ModMatrixParams extended to 56 params (adds C
 
 Stream Format (v3): Same as v2 + voice routes (16 x VoiceModRoute, 14 bytes each = 224 bytes)
   Voice routes also sent via VoiceModRouteState IMessage from Processor to Controller
+
+Stream Format (v13): Same as v12 + MacroParams (4 floats) + RunglerParams (4 floats + 2 int32s)
+  ModSource enum migration for v < 13: source values >= 10 incremented by 1 (Rungler inserted at 10)
+  See [Plugin State Persistence](plugin-state-persistence.md) for full details.
 ```
 
 - Unknown future versions: fail closed with safe defaults

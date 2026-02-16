@@ -381,13 +381,13 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 8.1 Run Clang-Tidy Analysis
 
-- [ ] T146 Run clang-tidy on all modified/new source files: `./tools/run-clang-tidy.ps1 -Target ruinae` (or `./tools/run-clang-tidy.sh --target ruinae` on Linux/macOS)
+- [X] T146 Run clang-tidy on all modified/new source files: `./tools/run-clang-tidy.ps1 -Target ruinae` (or `./tools/run-clang-tidy.sh --target ruinae` on Linux/macOS)
 
 ### 8.2 Address Findings
 
-- [ ] T147 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T148 Review warnings and fix where appropriate (use judgment for DSP code, document suppressions with NOLINT if intentionally ignored)
-- [ ] T149 Commit clang-tidy fixes (if any)
+- [X] T147 Fix all errors reported by clang-tidy (blocking issues)
+- [X] T148 Review warnings and fix where appropriate (use judgment for DSP code, document suppressions with NOLINT if intentionally ignored)
+- [X] T149 Commit clang-tidy fixes (if any)
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 
@@ -399,14 +399,14 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.1 Architecture Documentation Update
 
-- [ ] T150 Update `specs/_architecture_/dsp-layer-3-systems.md` to document Rungler integration into ModulationEngine: add Rungler field, describe prepare/reset/process pattern, note sourceActive_ early-out, document getRawSourceValue case
-- [ ] T151 Update `specs/_architecture_/plugin-parameter-system.md` (or create if not exists) to document macro and rungler parameter flows: MacroParams/RunglerParams structs, handleParamChange pattern, applyParamsToEngine forwarding, state version 13 format
-- [ ] T152 Update `specs/_architecture_/plugin-state-persistence.md` to document state version 13 format (macro + rungler params appended after v12 LFO params), ModSource enum migration pattern for v < 13 presets
+- [X] T150 Update `specs/_architecture_/dsp-layer-3-systems.md` to document Rungler integration into ModulationEngine: add Rungler field, describe prepare/reset/process pattern, note sourceActive_ early-out, document getRawSourceValue case
+- [X] T151 Update `specs/_architecture_/plugin-parameter-system.md` (or create if not exists) to document macro and rungler parameter flows: MacroParams/RunglerParams structs, handleParamChange pattern, applyParamsToEngine forwarding, state version 13 format
+- [X] T152 Update `specs/_architecture_/plugin-state-persistence.md` to document state version 13 format (macro + rungler params appended after v12 LFO params), ModSource enum migration pattern for v < 13 presets
 
 ### 9.2 Final Commit
 
-- [ ] T153 Commit architecture documentation updates
-- [ ] T154 Verify all spec work is committed to feature branch `057-macros-rungler`
+- [X] T153 Commit architecture documentation updates
+- [X] T154 Verify all spec work is committed to feature branch `057-macros-rungler`
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
