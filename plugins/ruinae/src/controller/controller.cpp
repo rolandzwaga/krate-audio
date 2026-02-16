@@ -40,6 +40,8 @@
 #include "parameters/env_follower_params.h"
 #include "parameters/sample_hold_params.h"
 #include "parameters/random_params.h"
+#include "parameters/pitch_follower_params.h"
+#include "parameters/transient_params.h"
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
@@ -123,6 +125,8 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerEnvFollowerParams(parameters);
     registerSampleHoldParams(parameters);
     registerRandomParams(parameters);
+    registerPitchFollowerParams(parameters);
+    registerTransientParams(parameters);
 
     // ==========================================================================
     // Initialize Preset Manager
@@ -290,6 +294,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             loadEnvFollowerParamsToController(streamer, setParam);
             loadSampleHoldParamsToController(streamer, setParam);
             loadRandomParamsToController(streamer, setParam);
+            loadPitchFollowerParamsToController(streamer, setParam);
+            loadTransientParamsToController(streamer, setParam);
         }
     }
 
@@ -403,6 +409,10 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatSampleHoldParam(id, valueNormalized, string);
     } else if (id >= kRandomBaseId && id <= kRandomEndId) {
         result = formatRandomParam(id, valueNormalized, string);
+    } else if (id >= kPitchFollowerBaseId && id <= kPitchFollowerEndId) {
+        result = formatPitchFollowerParam(id, valueNormalized, string);
+    } else if (id >= kTransientBaseId && id <= kTransientEndId) {
+        result = formatTransientParam(id, valueNormalized, string);
     }
 
     // Fall back to default implementation for unhandled parameters

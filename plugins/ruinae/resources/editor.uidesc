@@ -120,6 +120,17 @@
         <control-tag name="RandomNoteValue" tag="2502"/>
         <control-tag name="RandomSmoothness" tag="2503"/>
 
+        <!-- Pitch Follower -->
+        <control-tag name="PitchFollowerMinHz" tag="2600"/>
+        <control-tag name="PitchFollowerMaxHz" tag="2601"/>
+        <control-tag name="PitchFollowerConfidence" tag="2602"/>
+        <control-tag name="PitchFollowerSpeed" tag="2603"/>
+
+        <!-- Transient -->
+        <control-tag name="TransientSensitivity" tag="2700"/>
+        <control-tag name="TransientAttack" tag="2701"/>
+        <control-tag name="TransientDecay" tag="2702"/>
+
         <!-- OSC A -->
         <control-tag name="OscAType" tag="100"/>
         <control-tag name="OscATune" tag="101"/>
@@ -1937,8 +1948,59 @@
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
     </template>
-    <template name="ModSource_PitchFollower" size="158, 120" class="CViewContainer" transparent="true"/>
-    <template name="ModSource_Transient" size="158, 120" class="CViewContainer" transparent="true"/>
+    <template name="ModSource_PitchFollower" size="158, 120" class="CViewContainer" transparent="true">
+        <!-- Min Hz -->
+        <view class="ArcKnob" origin="4, 0" size="28, 28"
+              control-tag="PitchFollowerMinHz" default-value="0.4307"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Min"/>
+        <!-- Max Hz -->
+        <view class="ArcKnob" origin="42, 0" size="28, 28"
+              control-tag="PitchFollowerMaxHz" default-value="0.7153"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="38, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Max"/>
+        <!-- Confidence -->
+        <view class="ArcKnob" origin="80, 0" size="28, 28"
+              control-tag="PitchFollowerConfidence" default-value="0.5"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Conf"/>
+        <!-- Tracking Speed -->
+        <view class="ArcKnob" origin="118, 0" size="28, 28"
+              control-tag="PitchFollowerSpeed" default-value="0.1379"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="114, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Speed"/>
+    </template>
+    <template name="ModSource_Transient" size="158, 120" class="CViewContainer" transparent="true">
+        <!-- Sensitivity -->
+        <view class="ArcKnob" origin="4, 0" size="28, 28"
+              control-tag="TransientSensitivity" default-value="0.5"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Sens"/>
+        <!-- Attack -->
+        <view class="ArcKnob" origin="48, 0" size="28, 28"
+              control-tag="TransientAttack" default-value="0.1579"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="44, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Atk"/>
+        <!-- Decay -->
+        <view class="ArcKnob" origin="92, 0" size="28, 28"
+              control-tag="TransientDecay" default-value="0.1667"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="88, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Decay"/>
+    </template>
 
     <template
         name="editor"

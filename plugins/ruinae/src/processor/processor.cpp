@@ -412,6 +412,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveEnvFollowerParams(envFollowerParams_, streamer);
     saveSampleHoldParams(sampleHoldParams_, streamer);
     saveRandomParams(randomParams_, streamer);
+    savePitchFollowerParams(pitchFollowerParams_, streamer);
+    saveTransientParams(transientParams_, streamer);
 
     return Steinberg::kResultTrue;
 }
@@ -563,6 +565,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             loadEnvFollowerParams(envFollowerParams_, streamer);
             loadSampleHoldParams(sampleHoldParams_, streamer);
             loadRandomParams(randomParams_, streamer);
+            loadPitchFollowerParams(pitchFollowerParams_, streamer);
+            loadTransientParams(transientParams_, streamer);
         }
         // Note: For version < 15, all mod source params keep their struct defaults
     }
@@ -688,6 +692,10 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleSampleHoldParamChange(sampleHoldParams_, paramId, value);
         } else if (paramId >= kRandomBaseId && paramId <= kRandomEndId) {
             handleRandomParamChange(randomParams_, paramId, value);
+        } else if (paramId >= kPitchFollowerBaseId && paramId <= kPitchFollowerEndId) {
+            handlePitchFollowerParamChange(pitchFollowerParams_, paramId, value);
+        } else if (paramId >= kTransientBaseId && paramId <= kTransientEndId) {
+            handleTransientParamChange(transientParams_, paramId, value);
         }
     }
 }
@@ -1082,6 +1090,17 @@ void Processor::applyParamsToEngine() {
         engine_.setRandomRate(randomParams_.rateHz.load(std::memory_order_relaxed));
     }
     engine_.setRandomSmoothness(randomParams_.smoothness.load(std::memory_order_relaxed));
+
+    // --- Pitch Follower ---
+    engine_.setPitchFollowerMinHz(pitchFollowerParams_.minHz.load(std::memory_order_relaxed));
+    engine_.setPitchFollowerMaxHz(pitchFollowerParams_.maxHz.load(std::memory_order_relaxed));
+    engine_.setPitchFollowerConfidence(pitchFollowerParams_.confidence.load(std::memory_order_relaxed));
+    engine_.setPitchFollowerTrackingSpeed(pitchFollowerParams_.speedMs.load(std::memory_order_relaxed));
+
+    // --- Transient ---
+    engine_.setTransientSensitivity(transientParams_.sensitivity.load(std::memory_order_relaxed));
+    engine_.setTransientAttack(transientParams_.attackMs.load(std::memory_order_relaxed));
+    engine_.setTransientDecay(transientParams_.decayMs.load(std::memory_order_relaxed));
 }
 
 // ==============================================================================

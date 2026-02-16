@@ -45,6 +45,8 @@
 #include "parameters/env_follower_params.h"
 #include "parameters/sample_hold_params.h"
 #include "parameters/random_params.h"
+#include "parameters/pitch_follower_params.h"
+#include "parameters/transient_params.h"
 
 #include "ui/mod_matrix_types.h"
 
@@ -181,6 +183,8 @@ private:
     EnvFollowerParams envFollowerParams_;
     SampleHoldParams sampleHoldParams_;
     RandomParams randomParams_;
+    PitchFollowerParams pitchFollowerParams_;
+    TransientParams transientParams_;
 
     // ==========================================================================
     // DSP Engine
