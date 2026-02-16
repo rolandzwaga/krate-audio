@@ -2,7 +2,7 @@
 
 **Date**: 2026-02-14
 **Status**: Approved (In Progress)
-**Last Updated**: 2026-02-15
+**Last Updated**: 2026-02-16
 **Context**: [ui-gaps-assessment.md](specs/ui-gaps-assessment.md)
 
 ---
@@ -189,19 +189,20 @@ This uses the same `UIViewSwitchContainer` pattern already used for oscillator t
 
 ---
 
-## Phase 4: Macros & Rungler
+## Phase 4: Macros & Rungler -- DONE (Spec 057)
 
 **Goal**: Give users direct control over Macros 1-4 and the Rungler.
 
-### 4.1 Define Parameter IDs
+### 4.1 Define Parameter IDs -- DONE (Spec 057)
 - **What**: Create param IDs for Macros 1-4 values, Rungler configuration (osc freqs, depth, filter, bits, loop mode)
-- **Scope**: ~4 macro params + ~8 rungler params = ~12 new IDs
+- **Scope**: 4 macro params + 6 rungler params = 10 new IDs (Clock Div/Slew deferred)
 - **Where**: `plugin_ids.h`, parameter registration in controller, processor wiring
-- **Effort**: Medium-Large (full param pipeline for ~12 params)
+- **Effort**: Medium-Large (full param pipeline for 10 params)
+- **Implemented**: Macro IDs 2000-2003, Rungler IDs 2100-2105. MacroParams and RunglerParams structs with full register/handle/format/save/load functions. ModSource::Rungler inserted at enum position 10 with enum migration for backward compatibility. State version bumped to 13.
 
-### 4.2 Macro Knobs Tab
-- **What**: "Macros" tab in Modulation row showing 4 macro knobs
-- **Where**: Mod source tab bar (Phase 0B)
+### 4.2 Macro Knobs View -- DONE (Spec 057)
+- **What**: "Macros" view in Modulation row showing 4 macro knobs
+- **Where**: Mod source dropdown (Phase 0B)
 - **Layout**:
   ```
   ┌─ Macros ─────────────┐
@@ -209,23 +210,24 @@ This uses the same `UIViewSwitchContainer` pattern already used for oscillator t
   │ Macro1 Macro2 ...     │  Labels
   └───────────────────────┘
   ```
-- **Effort**: Small (4 knobs in existing tab infrastructure)
+- **Effort**: Small (4 knobs in existing dropdown infrastructure)
 - **Dependencies**: Phase 4.1, Phase 0B
+- **Implemented**: 4 ArcKnobs (28x28) in ModSource_Macros template at x=4,42,80,118 with M1-M4 labels
 
-### 4.3 Rungler Configuration View
+### 4.3 Rungler Configuration View -- DONE (Spec 057)
 - **What**: Full Rungler configuration accessible via mod source dropdown
 - **Where**: Mod source dropdown (Phase 0B)
-- **Layout** (full config — all Rungler params exposed):
+- **Layout** (6 params exposed, Clock Div/Slew deferred):
   ```
   ┌─ Rungler ─────────────────────┐
   │ (Osc1 Freq) (Osc2 Freq)      │  Oscillator frequencies
   │ (Depth)     (Filter)          │  Modulation depth + filter
-  │ (Bits)      [Loop Mode▼]     │  Shift register bits + loop
-  │ (Clock Div) (Slew)           │  Clock divider + slew rate
+  │ (Bits)      [Loop]            │  Shift register bits + loop toggle
   └───────────────────────────────┘
   ```
-- **Effort**: Medium (new dropdown view + ~8 controls)
+- **Effort**: Medium (new dropdown view + 6 controls)
 - **Dependencies**: Phase 4.1, Phase 0B
+- **Implemented**: Row 1: 4 ArcKnobs (Osc1/Osc2/Depth/Filter). Row 2: Bits ArcKnob + Loop ToggleButton. Log frequency mapping (0.1-100 Hz). Rungler integrated into ModulationEngine as active modulation source.
 
 ---
 
@@ -335,9 +337,12 @@ Phase 3: Mono Mode conditional panel
       ✅ DONE (Spec 056)                          Mono becomes usable
 
 Phase 4: Macros & Rungler                     ┐ New param IDs needed,
-  4.1 Define param IDs (~12 params)           │ medium-large effort
+  4.1 Define param IDs (10 params)            │ medium-large effort
+      ✅ DONE (Spec 057)                      │
   4.2 Macro knobs view                        │
-  4.3 Rungler config view (full)              ┘
+      ✅ DONE (Spec 057)                      │
+  4.3 Rungler config view (6 params)          │
+      ✅ DONE (Spec 057)                      ┘
 
 Phase 5: Polish & detail                      ┐
   5.1 Settings drawer (slide-out)             │ Lower-priority params,
@@ -356,10 +361,10 @@ Phase 6: All 5 mod sources (equal priority)   ┐ Major DSP + UI work
 ```
 Phase 0A ✅ ──→ Phase 1.1 ✅ ──→ Phase 3 ✅ (mono needs voice mode selector)
 Phase 0A ✅ ──→ Phase 1.3 ✅ (stereo knobs need space in Master)
-Phase 0B ✅ ──→ Phase 4.2, 4.3 (dropdown needed for new source views)
+Phase 0B ✅ ──→ Phase 4.2 ✅, 4.3 ✅ (dropdown needed for new source views)
 Phase 0B ✅ ──→ Phase 6.1-6.5 (dropdown needed for new source views)
 Phase 0C ✅ ──→ Phase 2 ✅ (filter strip needs layout slot)
-Phase 4.1 ──→ Phase 4.2, 4.3 (UI needs param IDs)
+Phase 4.1 ✅ ──→ Phase 4.2 ✅, 4.3 ✅ (UI needs param IDs)
 Phase 5.1 ──→ (standalone, needs param IDs for settings)
 Phase 5.2 ──→ (standalone, params already registered)
 Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
@@ -375,7 +380,7 @@ Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
 | 1     | 2 (stereo)    | ~5              | Minimal        | Small         | ✅ All done (1.1/1.3: 054, 1.2: 055) |
 | 2     | 0             | 4               | Height +36px   | Small-Medium  | ✅ Done (055) |
 | 3     | 0             | 4               | Conditional    | Medium        | ✅ Done (056) |
-| 4     | ~12           | ~10             | New dropdown views | Large     | Pending |
+| 4     | 10            | 10              | New dropdown views | Large     | ✅ Done (057) |
 | 5     | ~6            | ~10             | Drawer + strip | Large         | Pending |
 | 6     | ~15           | ~15             | 5 dropdown views + DSP | Very Large | Pending |
 
@@ -402,9 +407,9 @@ Phase 1-5 ──→ Phase 6 (complete existing features before adding new DSP)
 | 054 - Master Section Panel | Phase 0A (wiring) + Phase 1.1 + Phase 1.3 | Merged | `054-master-section-panel` |
 | 055 - Global Filter & Trance Gate Tempo | Phase 0C + Phase 1.2 + Phase 2 | Merged | `055-global-filter-trancegate-tempo` |
 | 056 - Mono Mode | Phase 3 | Merged | `056-mono-mode` |
-| 057 - Macros & Rungler | Phase 4 (4.1 + 4.2 + 4.3) | Draft | `057-macros-rungler` |
+| 057 - Macros & Rungler | Phase 4 (4.1 + 4.2 + 4.3) | Complete | `057-macros-rungler` |
 
 ### Next Up (unblocked)
-- **Phase 4**: Macros & Rungler -- **Spec 057 drafted** (6 Rungler params, Clock Div/Slew deferred)
 - **Phase 5.1**: Settings drawer (standalone, needs param IDs for settings)
 - **Phase 5.2**: Mod matrix detail strip (standalone, params already registered)
+- **Phase 6**: All 5 mod sources (depends on Phase 1-5 completion — Phase 5 still pending)
