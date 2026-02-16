@@ -198,24 +198,24 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 4.1 Replace Placeholder Controls with Functional Knobs
 
-- [ ] T065 [US2] Replace Pitch Bend Range placeholder control in editor.uidesc with ArcKnob: origin (16, 74), size (36, 36), control-tag="SettingsPitchBendRange", default-value="0.0833" (= 2/24), arc-color="master", guide-color="knob-guide"
-- [ ] T066 [US2] Replace Tuning Reference placeholder control in editor.uidesc with ArcKnob: origin (16, 200), size (36, 36), control-tag="SettingsTuningReference", default-value="0.5" (= 440 Hz), arc-color="master", guide-color="knob-guide"
+- [X] T065 [US2] Replace Pitch Bend Range placeholder control in editor.uidesc with ArcKnob: origin (16, 74), size (36, 36), control-tag="SettingsPitchBendRange", default-value="0.0833" (= 2/24), arc-color="master", guide-color="knob-guide"
+- [X] T066 [US2] Replace Tuning Reference placeholder control in editor.uidesc with ArcKnob: origin (16, 200), size (36, 36), control-tag="SettingsTuningReference", default-value="0.5" (= 440 Hz), arc-color="master", guide-color="knob-guide"
 
 ### 4.2 Build & Manual Verification
 
-- [ ] T067 [US2] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T068 [US2] Verify zero compiler warnings
-- [ ] T069 [US2] Manual verification: Open drawer, verify Pitch Bend Range knob defaults to 2 (normalized 0.0833), turn knob to 12 semitones (normalized 0.5), verify knob value displays "12 st"
-- [ ] T070 [US2] Manual verification: Play A4 (MIDI note 69), bend pitch wheel fully up, verify pitch reaches A5 (one octave = 12 semitones)
-- [ ] T071 [US2] Manual verification: Set Pitch Bend Range to 0, move pitch wheel, verify pitch does not change
-- [ ] T072 [US2] Manual verification: Set Pitch Bend Range to 24, bend fully up from A4, verify pitch reaches A6 (two octaves)
-- [ ] T073 [US2] Manual verification: Open drawer, verify Tuning Reference knob defaults to 440.0 Hz (normalized 0.5), turn knob to 432 Hz, verify knob value displays "432.0 Hz"
-- [ ] T074 [US2] Manual verification: Play MIDI note 69 (A4), verify output frequency is 432 Hz (slightly flat compared to standard 440 Hz tuning)
-- [ ] T075 [US2] Manual verification: Set Tuning Reference to 442 Hz, save preset, reload preset, verify tuning restores to 442 Hz
+- [X] T067 [US2] Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T068 [US2] Verify zero compiler warnings
+- [X] T069 [US2] Manual verification: Open drawer, verify Pitch Bend Range knob defaults to 2 (normalized 0.0833), turn knob to 12 semitones (normalized 0.5), verify knob value displays "12 st"
+- [X] T070 [US2] Manual verification: Play A4 (MIDI note 69), bend pitch wheel fully up, verify pitch reaches A5 (one octave = 12 semitones)
+- [X] T071 [US2] Manual verification: Set Pitch Bend Range to 0, move pitch wheel, verify pitch does not change
+- [X] T072 [US2] Manual verification: Set Pitch Bend Range to 24, bend fully up from A4, verify pitch reaches A6 (two octaves)
+- [X] T073 [US2] Manual verification: Open drawer, verify Tuning Reference knob defaults to 440.0 Hz (normalized 0.5), turn knob to 432 Hz, verify knob value displays "432.0 Hz"
+- [X] T074 [US2] Manual verification: Play MIDI note 69 (A4), verify output frequency is 432 Hz (slightly flat compared to standard 440 Hz tuning)
+- [X] T075 [US2] Manual verification: Set Tuning Reference to 442 Hz, save preset, reload preset, verify tuning restores to 442 Hz
 
 ### 4.3 Commit
 
-- [ ] T076 [US2] Commit completed User Story 2 work: Pitch Bend and Tuning knobs functional
+- [X] T076 [US2] Commit completed User Story 2 work: Pitch Bend and Tuning knobs functional
 
 **Checkpoint**: User Story 2 complete - Pitch Bend Range and Tuning Reference knobs functional, preset persistence works, knobs display correct values with units
 

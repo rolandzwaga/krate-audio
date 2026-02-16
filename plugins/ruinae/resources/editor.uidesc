@@ -2972,6 +2972,9 @@
                   font-color="text-secondary"
                   text-alignment="left"
                   transparent="true"/>
+            <view class="ArcKnob" origin="16, 74" size="36, 36"
+                  control-tag="SettingsPitchBendRange" default-value="0.0833"
+                  arc-color="master" guide-color="knob-guide"/>
 
             <!-- Velocity Curve -->
             <view class="CTextLabel" origin="16, 126" size="120, 14"
@@ -2988,6 +2991,9 @@
                   font-color="text-secondary"
                   text-alignment="left"
                   transparent="true"/>
+            <view class="ArcKnob" origin="16, 200" size="36, 36"
+                  control-tag="SettingsTuningReference" default-value="0.5"
+                  arc-color="master" guide-color="knob-guide"/>
 
             <!-- Voice Allocation -->
             <view class="CTextLabel" origin="16, 252" size="120, 14"
