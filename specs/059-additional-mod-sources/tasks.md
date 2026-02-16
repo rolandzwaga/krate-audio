@@ -41,18 +41,18 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 1.1 Add Parameter ID Definitions
 
-- [ ] T001 Add Env Follower parameter IDs (2300-2302) to plugins/ruinae/src/plugin_ids.h after kSettingsEndId: kEnvFollowerBaseId=2300, kEnvFollowerSensitivityId=2300, kEnvFollowerAttackId=2301, kEnvFollowerReleaseId=2302, kEnvFollowerEndId=2399 with inline comments documenting ranges [0,1], [0.1-500]ms log, [1-5000]ms log
-- [ ] T002 [P] Add Sample & Hold parameter IDs (2400-2403) to plugin_ids.h: kSampleHoldBaseId=2400, kSampleHoldRateId=2400, kSampleHoldSyncId=2401, kSampleHoldNoteValueId=2402, kSampleHoldSlewId=2403, kSampleHoldEndId=2499 with inline comments documenting ranges and sync pattern
-- [ ] T003 [P] Add Random parameter IDs (2500-2503) to plugin_ids.h: kRandomBaseId=2500, kRandomRateId=2500, kRandomSyncId=2501, kRandomNoteValueId=2502, kRandomSmoothnessId=2503, kRandomEndId=2599 with inline comments documenting ranges and sync pattern
-- [ ] T004 [P] Add Pitch Follower parameter IDs (2600-2603) to plugin_ids.h: kPitchFollowerBaseId=2600, kPitchFollowerMinHzId=2600, kPitchFollowerMaxHzId=2601, kPitchFollowerConfidenceId=2602, kPitchFollowerSpeedId=2603, kPitchFollowerEndId=2699 with inline comments documenting ranges
-- [ ] T005 [P] Add Transient Detector parameter IDs (2700-2702) to plugin_ids.h: kTransientBaseId=2700, kTransientSensitivityId=2700, kTransientAttackId=2701, kTransientDecayId=2702, kTransientEndId=2799 with inline comments documenting ranges
-- [ ] T006 Update kNumParameters sentinel from 2300 to 2800 in plugin_ids.h
-- [ ] T007 Update ID range allocation comment block at top of ParameterIDs enum in plugin_ids.h to document all 5 new ranges (2300-2399 Env Follower, 2400-2499 S&H, 2500-2599 Random, 2600-2699 Pitch Follower, 2700-2799 Transient)
+- [X] T001 Add Env Follower parameter IDs (2300-2302) to plugins/ruinae/src/plugin_ids.h after kSettingsEndId: kEnvFollowerBaseId=2300, kEnvFollowerSensitivityId=2300, kEnvFollowerAttackId=2301, kEnvFollowerReleaseId=2302, kEnvFollowerEndId=2399 with inline comments documenting ranges [0,1], [0.1-500]ms log, [1-5000]ms log
+- [X] T002 [P] Add Sample & Hold parameter IDs (2400-2403) to plugin_ids.h: kSampleHoldBaseId=2400, kSampleHoldRateId=2400, kSampleHoldSyncId=2401, kSampleHoldNoteValueId=2402, kSampleHoldSlewId=2403, kSampleHoldEndId=2499 with inline comments documenting ranges and sync pattern
+- [X] T003 [P] Add Random parameter IDs (2500-2503) to plugin_ids.h: kRandomBaseId=2500, kRandomRateId=2500, kRandomSyncId=2501, kRandomNoteValueId=2502, kRandomSmoothnessId=2503, kRandomEndId=2599 with inline comments documenting ranges and sync pattern
+- [X] T004 [P] Add Pitch Follower parameter IDs (2600-2603) to plugin_ids.h: kPitchFollowerBaseId=2600, kPitchFollowerMinHzId=2600, kPitchFollowerMaxHzId=2601, kPitchFollowerConfidenceId=2602, kPitchFollowerSpeedId=2603, kPitchFollowerEndId=2699 with inline comments documenting ranges
+- [X] T005 [P] Add Transient Detector parameter IDs (2700-2702) to plugin_ids.h: kTransientBaseId=2700, kTransientSensitivityId=2700, kTransientAttackId=2701, kTransientDecayId=2702, kTransientEndId=2799 with inline comments documenting ranges
+- [X] T006 Update kNumParameters sentinel from 2300 to 2800 in plugin_ids.h
+- [X] T007 Update ID range allocation comment block at top of ParameterIDs enum in plugin_ids.h to document all 5 new ranges (2300-2399 Env Follower, 2400-2499 S&H, 2500-2599 Random, 2600-2699 Pitch Follower, 2700-2799 Transient)
 
 ### 1.2 Verify Build
 
-- [ ] T008 Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
-- [ ] T009 Verify zero compiler warnings for plugin_ids.h changes
+- [X] T008 Build Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Ruinae`
+- [X] T009 Verify zero compiler warnings for plugin_ids.h changes
 
 ### 1.3 Commit
 
