@@ -389,12 +389,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 11.1 Final Commit
 
-- [ ] T120 Commit all spec work to feature branch `058-settings-drawer`
-- [ ] T121 Verify all tests pass and pluginval passes
+- [X] T120 Commit all spec work to feature branch `058-settings-drawer`
+- [X] T121 Verify all tests pass and pluginval passes
 
 ### 11.2 Completion Claim
 
-- [ ] T122 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T122 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 
