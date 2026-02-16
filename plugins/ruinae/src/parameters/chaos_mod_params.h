@@ -6,7 +6,6 @@
 #include "parameters/lfo1_params.h"  // for lfoRateFromNormalized/lfoRateToNormalized
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
-#include "public.sdk/source/vst/vsteditcontroller.h"
 #include "base/source/fstreamer.h"
 #include <algorithm>
 #include <atomic>
@@ -60,21 +59,6 @@ inline void registerChaosModParams(Steinberg::Vst::ParameterContainer& parameter
         Parameters::kNoteValueDropdownStrings,
         Parameters::kNoteValueDropdownCount,
         Parameters::kNoteValueDefaultIndex));
-
-    // UI-only: Mod source view mode dropdown (10 entries), ephemeral, not persisted
-    auto* modViewParam = new StringListParameter(
-        STR16("Mod Source View"), kModSourceViewModeTag);
-    modViewParam->appendString(STR16("LFO 1"));
-    modViewParam->appendString(STR16("LFO 2"));
-    modViewParam->appendString(STR16("Chaos"));
-    modViewParam->appendString(STR16("Macros"));
-    modViewParam->appendString(STR16("Rungler"));
-    modViewParam->appendString(STR16("Env Follower"));
-    modViewParam->appendString(STR16("S&H"));
-    modViewParam->appendString(STR16("Random"));
-    modViewParam->appendString(STR16("Pitch Follower"));
-    modViewParam->appendString(STR16("Transient"));
-    parameters.addParameter(modViewParam);
 }
 
 inline Steinberg::tresult formatChaosModParam(
