@@ -2,7 +2,7 @@
 
 **Feature Branch**: `058-settings-drawer`
 **Created**: 2026-02-16
-**Status**: Draft
+**Status**: Complete
 **Plugin**: Ruinae (synthesizer plugin, not Iterum)
 **Input**: User description: "Settings drawer slide-out panel with global settings parameters (pitch bend range, velocity curve, tuning reference, voice allocation mode, voice steal mode, gain compensation toggle) - Phase 5.1 from Ruinae UI roadmap"
 **Roadmap Reference**: [ruinae-ui-roadmap.md](../ruinae-ui-roadmap.md) - Phase 5.1 (Settings Drawer)
@@ -341,29 +341,29 @@ This spec enables:
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
-| SC-010 | | |
+| FR-001 | MET | `plugin_ids.h:613-620` -- All 6 IDs defined (2200-2205) with range sentinels kSettingsBaseId=2200, kSettingsEndId=2299 |
+| FR-002 | MET | `plugin_ids.h:623` -- kNumParameters=2300. `plugin_ids.h:82` -- range comment updated |
+| FR-003 | MET | `settings_params.h` created with SettingsParams struct (6 atomic fields), 6 inline functions (handle/register/format/save/load/loadToController). All params registered with kCanAutomate. Voice Allocation uses createDropdownParameterWithDefault() with default=1. |
+| FR-004 | MET | `processor.cpp:670-671` -- handleSettingsParamChange dispatched. `processor.cpp:1014-1022` -- 6 engine methods called with correct denormalization. |
+| FR-005 | MET | Hardcoded setGainCompensationEnabled(false) removed from processor.cpp:117. Gain comp now exclusively parameter-driven via applyParamsToEngine(). |
+| FR-006 | MET | `processor.h:71` -- kCurrentStateVersion=14. `processor.cpp:409` -- saveSettingsParams called in getState(). `processor.cpp:543-544` -- loadSettingsParams called in setState() for version>=14. Test "Settings params save and load round-trip" passes. |
+| FR-007 | MET | `processor.cpp:545-553` -- version<14 defaults: pitchBendRange=2, velocityCurve=0/Linear, tuning=440, allocMode=1/Oldest, stealMode=0/Hard, gainComp=false. `controller.cpp:278-279` -- gain comp set to 0.0 for old presets. |
+| FR-008 | MET | `editor.uidesc:99-104` -- 6 control-tags (2200-2205). `editor.uidesc:357-358` -- 2 action tags (10020-10021). |
+| FR-009 | MET | `editor.uidesc:2951-3051` -- CViewContainer at (925,0) size 220x880, bg-drawer color #131316ff. Contains SETTINGS title + 6 labeled controls at correct y-offsets (56,126,182,252,308,364). |
+| FR-010 | MET | `editor.uidesc:2827-2834` -- gear icon has control-tag. `controller.cpp:1663-1728` -- CVSTGUITimer 16ms, 160ms duration, quadratic ease-out, interruption reversal via target flag flip. |
+| FR-011 | MET | `editor.uidesc:2941-2949` -- transparent overlay ToggleButton 925x880. `controller.cpp:1037-1039` -- overlay click closes drawer. |
+| FR-012 | MET | Non-modal overlay. Left 705px unobstructed when drawer open. |
+| FR-013 | MET | No window size changes. Drawer overlays existing 925x880 window. |
+| SC-001 | MET | Pluginval "Editor" test passed. 6 labeled controls in drawer container. Manual verification T059 [X]. |
+| SC-002 | MET | Gear toggle (controller.cpp:1036) + overlay dismiss (controller.cpp:1037-1039). Manual T060-T061 [X]. |
+| SC-003 | MET | setPitchBendRange called (processor.cpp:1014). Test: 0.5 norm -> 12 semitones confirmed. |
+| SC-004 | MET | setTuningReference called (processor.cpp:1017). Test: 0.4 norm -> 432 Hz confirmed. |
+| SC-005 | MET | Test "Settings params save and load round-trip" passes with all 6 non-default values. Pluginval "Plugin state" passed. |
+| SC-006 | MET | Pluginval strictness 5: PASS. All categories including Automatable Parameters, Automation, Plugin state. |
+| SC-007 | MET | 314 Ruinae tests pass (3833 assertions). 5473 DSP tests pass. Zero regressions. |
+| SC-008 | MET | Build: 0 warnings from project code. |
+| SC-009 | MET | processor.cpp:545-553 + controller.cpp:278-279 -- old presets default to pitchBend=2, velocity=Linear, tuning=440, alloc=Oldest, steal=Hard, gainComp=OFF. |
+| SC-010 | MET | All 6 params registered with kCanAutomate. Pluginval "Automatable Parameters" and "Automation" tests passed. |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -375,21 +375,17 @@ This spec enables:
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
-
-**Recommendation**: [What needs to happen to achieve completion]
+All 13 functional requirements (FR-001 through FR-013) and all 10 success criteria (SC-001 through SC-010) are MET. The settings drawer is fully implemented with 6 parameters (pitch bend range, velocity curve, tuning reference, voice allocation, voice steal, gain compensation), slide-out animation with ease-out and interruption handling, click-outside dismiss, preset persistence with backward compatibility (state version 14), and full DAW automation support. Pluginval passes at strictness 5, all 314 Ruinae tests pass with 3833 assertions, and all 5473 DSP tests pass with zero regressions.

@@ -358,14 +358,14 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T114 Review ALL FR-001 through FR-013 requirements from spec.md against implementation (param IDs, settings_params.h, processor wiring, controller registration, drawer UI, animation, click-outside dismiss)
-- [ ] T115 Review ALL SC-001 through SC-010 success criteria and verify measurable targets are achieved (manual verification results, pluginval pass, automation visibility)
-- [ ] T116 Search for cheating patterns in implementation: No placeholder comments, no test thresholds relaxed, no features quietly removed
+- [X] T114 Review ALL FR-001 through FR-013 requirements from spec.md against implementation (param IDs, settings_params.h, processor wiring, controller registration, drawer UI, animation, click-outside dismiss)
+- [X] T115 Review ALL SC-001 through SC-010 success criteria and verify measurable targets are achieved (manual verification results, pluginval pass, automation visibility)
+- [X] T116 Search for cheating patterns in implementation: No placeholder comments, no test thresholds relaxed, no features quietly removed
 
 ### 10.2 Fill Compliance Table in spec.md
 
-- [ ] T117 Update F:\projects\iterum\specs\058-settings-drawer\spec.md "Implementation Verification" section with compliance status for each FR-xxx and SC-xxx requirement
-- [ ] T118 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T117 Update F:\projects\iterum\specs\058-settings-drawer\spec.md "Implementation Verification" section with compliance status for each FR-xxx and SC-xxx requirement
+- [X] T118 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 10.3 Honest Self-Check
 
@@ -377,7 +377,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T119 All self-check questions answered "no" (or gaps documented honestly)
+- [X] T119 All self-check questions answered "no" (or gaps documented honestly)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
