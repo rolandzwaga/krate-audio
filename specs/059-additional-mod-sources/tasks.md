@@ -435,25 +435,25 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.1 Pluginval Validation
 
-- [ ] T185 Run pluginval at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
-- [ ] T186 Verify pluginval passes with no errors (all 18 new parameters accessible, automatable, state save/load cycle works)
+- [X] T185 Run pluginval at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
+- [X] T186 Verify pluginval passes with no errors (all 18 new parameters accessible, automatable, state save/load cycle works)
 
 ### 9.2 Cross-Story Integration Verification
 
-- [ ] T187 Manual test: Open plugin, select each of 5 sources from dropdown in sequence, verify all controls appear and are functional
-- [ ] T188 Manual test: Create complex preset using EF for filter, S&H for pitch, Random for stereo width, PF for reverb, Transient for delay feedback, save, reload, verify all sources restore and modulation still works
-- [ ] T189 Manual test: Load preset saved before spec (v < 15), verify all 5 sources default correctly, and any existing mod routes continue to work
-- [ ] T189a Manual test (CPU load): Configure routes from all 5 sources to different destinations simultaneously (e.g., EF->Filter, S&H->Pitch, Random->Width, PF->Reverb, Transient->Delay), play audio, verify plugin CPU usage remains <5% single core at 44.1kHz stereo (measure via host CPU meter or profiler). Verify audio glitch-free.
-- [ ] T189b Manual test (control-tag count): Open editor.uidesc in text editor, search for control-tag entries with tag values 2300-2302, 2400-2403, 2500-2503, 2600-2603, 2700-2702. Verify exactly 18 new control-tags exist (3+4+4+4+3=18). No missing or duplicate tags.
+- [ ] T187 Manual test: Open plugin, select each of 5 sources from dropdown in sequence, verify all controls appear and are functional -- NEEDS MANUAL VERIFICATION
+- [ ] T188 Manual test: Create complex preset using EF for filter, S&H for pitch, Random for stereo width, PF for reverb, Transient for delay feedback, save, reload, verify all sources restore and modulation still works -- NEEDS MANUAL VERIFICATION
+- [ ] T189 Manual test: Load preset saved before spec (v < 15), verify all 5 sources default correctly, and any existing mod routes continue to work -- NEEDS MANUAL VERIFICATION
+- [ ] T189a Manual test (CPU load): Configure routes from all 5 sources to different destinations simultaneously (e.g., EF->Filter, S&H->Pitch, Random->Width, PF->Reverb, Transient->Delay), play audio, verify plugin CPU usage remains <5% single core at 44.1kHz stereo (measure via host CPU meter or profiler). Verify audio glitch-free. -- NEEDS MANUAL VERIFICATION
+- [ ] T189b Manual test (control-tag count): Open editor.uidesc in text editor, search for control-tag entries with tag values 2300-2302, 2400-2403, 2500-2503, 2600-2603, 2700-2702. Verify exactly 18 new control-tags exist (3+4+4+4+3=18). No missing or duplicate tags. -- NEEDS MANUAL VERIFICATION
 
 ### 9.3 Regression Testing
 
-- [ ] T190 Run full Ruinae test suite to verify no regressions: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
-- [ ] T191 Verify zero compiler warnings across all modified files
+- [X] T190 Run full Ruinae test suite to verify no regressions: `build/windows-x64-release/plugins/ruinae/tests/Release/ruinae_tests.exe`
+- [X] T191 Verify zero compiler warnings across all modified files
 
 ### 9.4 Commit
 
-- [ ] T192 Commit Phase 9 work (if any fixes were needed)
+- [X] T192 Commit Phase 9 work (if any fixes were needed)
 
 **Checkpoint**: All user stories validated, pluginval passes, no regressions
 
