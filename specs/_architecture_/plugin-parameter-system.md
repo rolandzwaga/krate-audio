@@ -81,8 +81,13 @@ Processor::setState()
 | **2000-2099** | **Macros** | **`macro_params.h`** | **4** |
 | **2100-2199** | **Rungler** | **`rungler_params.h`** | **6** |
 | **2200-2299** | **Settings** | **`settings_params.h`** | **6** |
+| **2300-2399** | **Env Follower** | **`env_follower_params.h`** | **3** |
+| **2400-2499** | **Sample & Hold** | **`sample_hold_params.h`** | **4** |
+| **2500-2599** | **Random** | **`random_params.h`** | **4** |
+| **2600-2699** | **Pitch Follower** | **`pitch_follower_params.h`** | **4** |
+| **2700-2799** | **Transient** | **`transient_params.h`** | **3** |
 
-**Sentinel**: `kNumParameters = 2300`
+**Sentinel**: `kNumParameters = 2800`
 
 ---
 
@@ -324,23 +329,337 @@ For presets saved before Spec 058 (version < 14), settings parameters default to
 
 ---
 
+## Envelope Follower Parameters (Spec 059)
+
+**File**: `plugins/ruinae/src/parameters/env_follower_params.h`
+**IDs**: 2300-2302
+
+### EnvFollowerParams Struct
+
+```cpp
+struct EnvFollowerParams {
+    std::atomic<float> sensitivity{0.5f};   // [0, 1]
+    std::atomic<float> attackMs{10.0f};     // [0.1, 500] ms
+    std::atomic<float> releaseMs{100.0f};   // [1, 5000] ms
+};
+```
+
+### Parameter Details
+
+| ID | Name | Display | Unit | Default (Norm) | Mapping |
+|----|------|---------|------|----------------|---------|
+| 2300 | EF Sensitivity | "XX%" | % | 0.5 | Identity: `norm` |
+| 2301 | EF Attack | "X.X ms" / "XXX ms" | ms | 0.5406 | Log: `0.1 * pow(5000, norm)` |
+| 2302 | EF Release | "X.X ms" / "XXXX ms" | ms | 0.5406 | Log: `1.0 * pow(5000, norm)` |
+
+### Attack/Release Logarithmic Mappings
+
+```cpp
+// Attack: Normalized [0, 1] -> ms [0.1, 500]
+float envFollowerAttackFromNormalized(double norm) {
+    return clamp(0.1f * pow(5000.0, norm), 0.1f, 500.0f);
+}
+
+// Release: Normalized [0, 1] -> ms [1, 5000]
+float envFollowerReleaseFromNormalized(double norm) {
+    return clamp(1.0f * pow(5000.0, norm), 1.0f, 5000.0f);
+}
+```
+
+Default attack (10 ms) and release (100 ms): `norm = log(100) / log(5000) = 0.5406`.
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToEngine():
+engine_.setEnvFollowerSensitivity(envFollowerParams_.sensitivity.load(relaxed));
+engine_.setEnvFollowerAttack(envFollowerParams_.attackMs.load(relaxed));
+engine_.setEnvFollowerRelease(envFollowerParams_.releaseMs.load(relaxed));
+```
+
+These forward through `RuinaeEngine` -> `ModulationEngine` -> `EnvelopeFollower` (Layer 2). Sensitivity scales the follower output before routing.
+
+### State Persistence
+
+Env Follower state consists of 3 floats written sequentially (12 bytes):
+```
+[float: sensitivity] [float: attackMs] [float: releaseMs]
+```
+
+Controller loading requires inverse log mapping for attack/release:
+- Sensitivity: stored as normalized [0, 1], no conversion needed
+- Attack: `log(ms / 0.1) / log(5000)` converts ms back to normalized
+- Release: `log(ms / 1.0) / log(5000)` converts ms back to normalized
+
+---
+
+## Sample & Hold Parameters (Spec 059)
+
+**File**: `plugins/ruinae/src/parameters/sample_hold_params.h`
+**IDs**: 2400-2403
+
+### SampleHoldParams Struct
+
+```cpp
+struct SampleHoldParams {
+    std::atomic<float> rateHz{4.0f};    // [0.1, 50] Hz
+    std::atomic<bool>  sync{false};     // Tempo sync on/off
+    std::atomic<int>   noteValue{10};   // Note value dropdown index (default 1/8)
+    std::atomic<float> slewMs{0.0f};    // [0, 500] ms
+};
+```
+
+### Parameter Details
+
+| ID | Name | Display | Unit | Default (Norm) | Mapping |
+|----|------|---------|------|----------------|---------|
+| 2400 | S&H Rate | "X.XX Hz" | Hz | 0.702 | Log: `lfoRateFromNormalized()` clamped to [0.1, 50] Hz |
+| 2401 | S&H Sync | on/off | - | 0.0 | Boolean: stepCount=1 |
+| 2402 | S&H Note Value | dropdown | - | 0.5 | Discrete: `createNoteValueDropdown()` |
+| 2403 | S&H Slew | "X ms" | ms | 0.0 | Linear: `norm * 500` |
+
+### Sync Logic in applyParamsToEngine()
+
+S&H has no built-in tempo sync in the DSP class. Sync is handled entirely at the processor level:
+
+```cpp
+// In applyParamsToEngine():
+if (sampleHoldParams_.sync.load(relaxed)) {
+    int noteIdx = sampleHoldParams_.noteValue.load(relaxed);
+    float delayMs = dropdownToDelayMs(noteIdx, tempoBPM_);
+    float rateHz = (delayMs > 0.0f) ? (1000.0f / delayMs) : 4.0f;
+    engine_.setSampleHoldRate(rateHz);
+} else {
+    engine_.setSampleHoldRate(sampleHoldParams_.rateHz.load(relaxed));
+}
+engine_.setSampleHoldSlew(sampleHoldParams_.slewMs.load(relaxed));
+```
+
+When Sync is ON, the NoteValue dropdown index is converted to a delay in ms via `dropdownToDelayMs()`, then to Hz. If the tempo is invalid (0 BPM) or delay is <= 0, a 4 Hz fallback is used. When Sync is OFF, the Rate knob value is used directly.
+
+### State Persistence
+
+S&H state consists of 2 floats + 2 int32s written sequentially (16 bytes):
+```
+[float: rateHz] [int32: sync (0 or 1)] [int32: noteValue] [float: slewMs]
+```
+
+Controller loading requires inverse mapping:
+- Rate: `lfoRateToNormalized(hz)` converts Hz back to normalized
+- Sync: `int32 != 0 ? 1.0 : 0.0` converts to boolean normalized
+- Note Value: `index / stepCount` converts index to normalized
+- Slew: `ms / 500.0` converts ms back to normalized
+
+---
+
+## Random Parameters (Spec 059)
+
+**File**: `plugins/ruinae/src/parameters/random_params.h`
+**IDs**: 2500-2503
+
+### RandomParams Struct
+
+```cpp
+struct RandomParams {
+    std::atomic<float> rateHz{4.0f};      // [0.1, 50] Hz
+    std::atomic<bool>  sync{false};       // Tempo sync on/off
+    std::atomic<int>   noteValue{10};     // Note value dropdown index (default 1/8)
+    std::atomic<float> smoothness{0.0f};  // [0, 1]
+};
+```
+
+### Parameter Details
+
+| ID | Name | Display | Unit | Default (Norm) | Mapping |
+|----|------|---------|------|----------------|---------|
+| 2500 | Rnd Rate | "X.XX Hz" | Hz | 0.702 | Log: `lfoRateFromNormalized()` clamped to [0.1, 50] Hz |
+| 2501 | Rnd Sync | on/off | - | 0.0 | Boolean: stepCount=1 |
+| 2502 | Rnd Note Value | dropdown | - | 0.5 | Discrete: `createNoteValueDropdown()` |
+| 2503 | Rnd Smoothness | "XX%" | % | 0.0 | Identity: `norm` |
+
+### Sync Logic in applyParamsToEngine()
+
+Random sync uses the same processor-level NoteValue-to-Hz conversion as S&H, bypassing RandomSource's built-in `setTempoSync()`/`setTempo()` methods for consistent UX:
+
+```cpp
+// In applyParamsToEngine():
+if (randomParams_.sync.load(relaxed)) {
+    int noteIdx = randomParams_.noteValue.load(relaxed);
+    float delayMs = dropdownToDelayMs(noteIdx, tempoBPM_);
+    float rateHz = (delayMs > 0.0f) ? (1000.0f / delayMs) : 4.0f;
+    engine_.setRandomRate(rateHz);
+} else {
+    engine_.setRandomRate(randomParams_.rateHz.load(relaxed));
+}
+engine_.setRandomSmoothness(randomParams_.smoothness.load(relaxed));
+```
+
+**Design decision**: RandomSource has built-in `setTempoSync(bool)` and `setTempo(float bpm)` methods, but they only support BPM-based rate scaling without NoteValue selection. To maintain consistent UX across all tempo-syncable sources (LFO, Chaos, S&H, Random), the plugin layer bypasses the built-in sync and computes Hz directly from NoteValue + BPM. The `setRandomTempoSync()` and `setRandomTempo()` methods are NOT forwarded through RuinaeEngine.
+
+### State Persistence
+
+Random state consists of 2 floats + 2 int32s written sequentially (16 bytes):
+```
+[float: rateHz] [int32: sync (0 or 1)] [int32: noteValue] [float: smoothness]
+```
+
+Controller loading follows the same pattern as S&H.
+
+---
+
+## Pitch Follower Parameters (Spec 059)
+
+**File**: `plugins/ruinae/src/parameters/pitch_follower_params.h`
+**IDs**: 2600-2603
+
+### PitchFollowerParams Struct
+
+```cpp
+struct PitchFollowerParams {
+    std::atomic<float> minHz{80.0f};       // [20, 500] Hz
+    std::atomic<float> maxHz{2000.0f};     // [200, 5000] Hz
+    std::atomic<float> confidence{0.5f};   // [0, 1]
+    std::atomic<float> speedMs{50.0f};     // [10, 300] ms
+};
+```
+
+### Parameter Details
+
+| ID | Name | Display | Unit | Default (Norm) | Mapping |
+|----|------|---------|------|----------------|---------|
+| 2600 | PF Min Hz | "XXX Hz" | Hz | 0.4307 | Log: `20 * pow(25, norm)` |
+| 2601 | PF Max Hz | "XXXX Hz" | Hz | 0.7153 | Log: `200 * pow(25, norm)` |
+| 2602 | PF Confidence | "XX%" | % | 0.5 | Identity: `norm` |
+| 2603 | PF Speed | "XX ms" | ms | 0.1379 | Linear: `10 + norm * 290` |
+
+### Frequency Mappings
+
+```cpp
+// Min Hz: Normalized [0, 1] -> Hz [20, 500]
+float pitchFollowerMinHzFromNormalized(double norm) {
+    return clamp(20.0f * pow(25.0, norm), 20.0f, 500.0f);
+}
+
+// Max Hz: Normalized [0, 1] -> Hz [200, 5000]
+float pitchFollowerMaxHzFromNormalized(double norm) {
+    return clamp(200.0f * pow(25.0, norm), 200.0f, 5000.0f);
+}
+```
+
+Default min (80 Hz): `norm = log(80/20) / log(25) = 0.4307`. Default max (2000 Hz): `norm = log(2000/200) / log(25) = 0.7153`.
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToEngine():
+engine_.setPitchFollowerMinHz(pitchFollowerParams_.minHz.load(relaxed));
+engine_.setPitchFollowerMaxHz(pitchFollowerParams_.maxHz.load(relaxed));
+engine_.setPitchFollowerConfidence(pitchFollowerParams_.confidence.load(relaxed));
+engine_.setPitchFollowerTrackingSpeed(pitchFollowerParams_.speedMs.load(relaxed));
+```
+
+These forward through `RuinaeEngine` -> `ModulationEngine` -> `PitchFollowerSource` (Layer 2). Min/Max Hz define the pitch detection frequency range. Confidence sets the minimum detection threshold to update output. Speed controls smoothing for pitch changes.
+
+### State Persistence
+
+Pitch Follower state consists of 4 floats written sequentially (16 bytes):
+```
+[float: minHz] [float: maxHz] [float: confidence] [float: speedMs]
+```
+
+Controller loading requires inverse mapping:
+- Min Hz: `log(hz / 20) / log(25)` converts Hz back to normalized
+- Max Hz: `log(hz / 200) / log(25)` converts Hz back to normalized
+- Confidence: stored as normalized [0, 1], no conversion needed
+- Speed: `(ms - 10) / 290` converts ms back to normalized
+
+---
+
+## Transient Detector Parameters (Spec 059)
+
+**File**: `plugins/ruinae/src/parameters/transient_params.h`
+**IDs**: 2700-2702
+
+### TransientParams Struct
+
+```cpp
+struct TransientParams {
+    std::atomic<float> sensitivity{0.5f};  // [0, 1]
+    std::atomic<float> attackMs{2.0f};     // [0.5, 10] ms
+    std::atomic<float> decayMs{50.0f};     // [20, 200] ms
+};
+```
+
+### Parameter Details
+
+| ID | Name | Display | Unit | Default (Norm) | Mapping |
+|----|------|---------|------|----------------|---------|
+| 2700 | Trn Sensitivity | "XX%" | % | 0.5 | Identity: `norm` |
+| 2701 | Trn Attack | "X.X ms" | ms | 0.1579 | Linear: `0.5 + norm * 9.5` |
+| 2702 | Trn Decay | "XXX ms" | ms | 0.1667 | Linear: `20 + norm * 180` |
+
+### Linear Mappings
+
+```cpp
+// Attack: Normalized [0, 1] -> ms [0.5, 10]
+float transientAttackFromNormalized(double norm) {
+    return clamp(0.5f + static_cast<float>(norm) * 9.5f, 0.5f, 10.0f);
+}
+
+// Decay: Normalized [0, 1] -> ms [20, 200]
+float transientDecayFromNormalized(double norm) {
+    return clamp(20.0f + static_cast<float>(norm) * 180.0f, 20.0f, 200.0f);
+}
+```
+
+Default attack (2 ms): `norm = (2 - 0.5) / 9.5 = 0.1579`. Default decay (50 ms): `norm = (50 - 20) / 180 = 0.1667`.
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToEngine():
+engine_.setTransientSensitivity(transientParams_.sensitivity.load(relaxed));
+engine_.setTransientAttack(transientParams_.attackMs.load(relaxed));
+engine_.setTransientDecay(transientParams_.decayMs.load(relaxed));
+```
+
+These forward through `RuinaeEngine` -> `ModulationEngine` -> `TransientDetector` (Layer 2). Sensitivity controls how easily transients are detected. Attack/Decay shape the output envelope.
+
+### State Persistence
+
+Transient state consists of 3 floats written sequentially (12 bytes):
+```
+[float: sensitivity] [float: attackMs] [float: decayMs]
+```
+
+Controller loading requires inverse mapping:
+- Sensitivity: stored as normalized [0, 1], no conversion needed
+- Attack: `(ms - 0.5) / 9.5` converts ms back to normalized
+- Decay: `(ms - 20) / 180` converts ms back to normalized
+
+---
+
 ## Denormalization Mappings Reference
 
 | Mapping | Parameters | Formula |
 |---------|------------|---------|
-| Identity | Macro values, Depth, Filter, Spread | `normalized` (1:1) |
+| Identity | Macro values, Depth, Filter, Spread, EF Sensitivity, PF Confidence, Trn Sensitivity, Rnd Smoothness | `normalized` (1:1) |
 | Linear (x2) | Width (0-200%) | `normalized * 2.0` |
-| Linear (scaled) | Gain (0-2), Levels, Mix | `normalized * range` |
+| Linear (scaled) | Gain (0-2), Levels, Mix, S&H Slew (0-500ms) | `normalized * range` |
+| Linear (offset+scale) | Tuning Reference (400-480Hz), PF Speed (10-300ms), Trn Attack (0.5-10ms), Trn Decay (20-200ms) | `offset + normalized * range` |
 | Exponential | Filter Cutoff (20-20kHz) | `20 * pow(1000, normalized)` |
-| Exponential | LFO Rate (0.01-50Hz) | `0.01 * pow(5000, normalized)` |
+| Exponential | LFO Rate (0.01-50Hz), S&H Rate, Rnd Rate | `0.01 * pow(5000, normalized)` |
 | Logarithmic | Rungler Freq (0.1-100Hz) | `0.1 * pow(1000, normalized)` |
+| Logarithmic | EF Attack (0.1-500ms) | `0.1 * pow(5000, normalized)` |
+| Logarithmic | EF Release (1-5000ms) | `1.0 * pow(5000, normalized)` |
+| Logarithmic | PF Min Hz (20-500Hz) | `20 * pow(25, normalized)` |
+| Logarithmic | PF Max Hz (200-5000Hz) | `200 * pow(25, normalized)` |
 | Cubic | Envelope Times (0-10000ms) | `normalized^3 * 10000` |
 | Cubic | Portamento Time (0-5000ms) | `normalized^3 * 5000` |
 | Bipolar | Tune (-24/+24), Mod Amount (-1/+1) | `normalized * range - offset` |
-| Linear (offset+scale) | Tuning Reference (400-480Hz) | `400 + normalized * 80` |
 | Discrete (stepped) | Pitch Bend Range (0-24st) | `round(normalized * 24)` |
 | Discrete | Rungler Bits (4-16) | `4 + round(normalized * 12)` |
-| Boolean | Loop Mode, Enabled flags, Gain Comp | `normalized >= 0.5` |
+| Boolean | Loop Mode, Enabled flags, Gain Comp, S&H Sync, Rnd Sync | `normalized >= 0.5` |
 
 ---
 
@@ -381,15 +700,27 @@ Each parameter must have a corresponding `<control-tag>` entry:
 <control-tag name="Macro1Value" tag="2000"/>
 <control-tag name="RunglerOsc1Freq" tag="2100"/>
 <control-tag name="SettingsPitchBendRange" tag="2200"/>
+<control-tag name="EnvFollowerSensitivity" tag="2300"/>
+<control-tag name="SampleHoldRate" tag="2400"/>
+<control-tag name="RandomRate" tag="2500"/>
+<control-tag name="PitchFollowerMinHz" tag="2600"/>
+<control-tag name="TransientSensitivity" tag="2700"/>
 ```
 
 ### Mod Source Dropdown Integration
 
-The `ModSourceViewMode` StringListParameter drives a UIViewSwitchContainer. Selecting "Macros" or "Rungler" from the dropdown displays the corresponding template:
+The `ModSourceViewMode` StringListParameter drives a UIViewSwitchContainer. Selecting a source from the dropdown displays the corresponding template:
 
 | Dropdown Entry | Template | Controls |
 |----------------|----------|----------|
 | Macros | `ModSource_Macros` | 4 ArcKnobs (M1-M4) + 4 CTextLabels |
 | Rungler | `ModSource_Rungler` | 4 ArcKnobs (Osc1, Osc2, Depth, Filter) + 1 ArcKnob (Bits) + 1 ToggleButton (Loop) + 6 CTextLabels |
+| Env Follower | `ModSource_EnvFollower` | 3 ArcKnobs (Sens, Atk, Rel) + 3 CTextLabels |
+| S&H | `ModSource_SampleHold` | Rate/NoteValue switching groups + 1 ArcKnob (Slew) + 1 ToggleButton (Sync) + CTextLabels |
+| Random | `ModSource_Random` | Rate/NoteValue switching groups + 1 ArcKnob (Smooth) + 1 ToggleButton (Sync) + CTextLabels |
+| Pitch Follower | `ModSource_PitchFollower` | 4 ArcKnobs (Min, Max, Conf, Speed) + 4 CTextLabels |
+| Transient | `ModSource_Transient` | 3 ArcKnobs (Sens, Atk, Decay) + 3 CTextLabels |
 
 All ArcKnobs use `arc-color="modulation"` and `guide-color="knob-guide"` for visual consistency with the modulation section theme.
+
+S&H and Random templates use the sync visibility switching pattern (see [Plugin UI Patterns](plugin-ui-patterns.md)) to toggle between Rate knob and NoteValue dropdown based on the Sync toggle state.

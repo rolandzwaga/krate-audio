@@ -52,6 +52,12 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   1900-1999: Phaser (Rate, Depth, Feedback, Mix, Stages, ...)
 //   2000-2099: Macros (Macro 1-4 values)
 //   2100-2199: Rungler (Osc1 Freq, Osc2 Freq, Depth, Filter, Bits, Loop Mode)
+//   2200-2299: Settings (Pitch Bend Range, Velocity Curve, Tuning Ref, Alloc Mode, Steal Mode, Gain Comp)
+//   2300-2399: Env Follower
+//   2400-2499: Sample & Hold
+//   2500-2599: Random
+//   2600-2699: Pitch Follower
+//   2700-2799: Transient Detector
 // ==============================================================================
 
 enum ParameterIDs : Steinberg::Vst::ParamID {
@@ -80,6 +86,11 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     //   2000-2099: Macros
     //   2100-2199: Rungler
     //   2200-2299: Settings (Pitch Bend Range, Velocity Curve, Tuning Ref, Alloc Mode, Steal Mode, Gain Comp)
+    //   2300-2399: Env Follower
+    //   2400-2499: Sample & Hold
+    //   2500-2599: Random
+    //   2600-2699: Pitch Follower
+    //   2700-2799: Transient Detector
     // ==========================================================================
 
     // ==========================================================================
@@ -620,7 +631,55 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kSettingsEndId = 2299,
 
     // ==========================================================================
-    kNumParameters = 2300,
+    // Env Follower Parameters (2300-2399)
+    // ==========================================================================
+    kEnvFollowerBaseId = 2300,
+    kEnvFollowerSensitivityId = 2300, // Sensitivity [0, 1] (default 0.5)
+    kEnvFollowerAttackId = 2301,      // Attack time [0.1, 500] ms (default 10 ms)
+    kEnvFollowerReleaseId = 2302,     // Release time [1, 5000] ms (default 100 ms)
+    kEnvFollowerEndId = 2399,
+
+    // ==========================================================================
+    // Sample & Hold Parameters (2400-2499)
+    // ==========================================================================
+    kSampleHoldBaseId = 2400,
+    kSampleHoldRateId = 2400,         // Rate [0.1, 50] Hz (default 4 Hz)
+    kSampleHoldSyncId = 2401,         // Tempo sync on/off (default off)
+    kSampleHoldNoteValueId = 2402,    // Note value dropdown (default 1/8)
+    kSampleHoldSlewId = 2403,         // Slew time [0, 500] ms (default 0 ms)
+    kSampleHoldEndId = 2499,
+
+    // ==========================================================================
+    // Random Parameters (2500-2599)
+    // ==========================================================================
+    kRandomBaseId = 2500,
+    kRandomRateId = 2500,             // Rate [0.1, 50] Hz (default 4 Hz)
+    kRandomSyncId = 2501,             // Tempo sync on/off (default off)
+    kRandomNoteValueId = 2502,        // Note value dropdown (default 1/8)
+    kRandomSmoothnessId = 2503,       // Smoothness [0, 1] (default 0)
+    kRandomEndId = 2599,
+
+    // ==========================================================================
+    // Pitch Follower Parameters (2600-2699)
+    // ==========================================================================
+    kPitchFollowerBaseId = 2600,
+    kPitchFollowerMinHzId = 2600,     // Min frequency [20, 500] Hz (default 80 Hz)
+    kPitchFollowerMaxHzId = 2601,     // Max frequency [200, 5000] Hz (default 2000 Hz)
+    kPitchFollowerConfidenceId = 2602, // Confidence [0, 1] (default 0.5)
+    kPitchFollowerSpeedId = 2603,     // Tracking speed [10, 300] ms (default 50 ms)
+    kPitchFollowerEndId = 2699,
+
+    // ==========================================================================
+    // Transient Detector Parameters (2700-2799)
+    // ==========================================================================
+    kTransientBaseId = 2700,
+    kTransientSensitivityId = 2700,   // Sensitivity [0, 1] (default 0.5)
+    kTransientAttackId = 2701,        // Attack time [0.5, 10] ms (default 2 ms)
+    kTransientDecayId = 2702,         // Decay time [20, 200] ms (default 50 ms)
+    kTransientEndId = 2799,
+
+    // ==========================================================================
+    kNumParameters = 2800,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

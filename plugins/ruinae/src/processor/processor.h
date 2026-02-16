@@ -42,6 +42,11 @@
 #include "parameters/macro_params.h"
 #include "parameters/rungler_params.h"
 #include "parameters/settings_params.h"
+#include "parameters/env_follower_params.h"
+#include "parameters/sample_hold_params.h"
+#include "parameters/random_params.h"
+#include "parameters/pitch_follower_params.h"
+#include "parameters/transient_params.h"
 
 #include "ui/mod_matrix_types.h"
 
@@ -68,7 +73,8 @@ namespace Ruinae {
 // v12: Extended LFO params (phase offset, retrigger, note value, unipolar, fade-in, symmetry, quantize)
 // v13: Macro and Rungler params
 // v14: Settings params (pitch bend range, velocity curve, tuning ref, alloc mode, steal mode, gain comp)
-constexpr Steinberg::int32 kCurrentStateVersion = 14;
+// v15: Mod source params (Env Follower, S&H, Random, Pitch Follower, Transient)
+constexpr Steinberg::int32 kCurrentStateVersion = 15;
 
 // ==============================================================================
 // Processor Class
@@ -174,6 +180,11 @@ private:
     MacroParams macroParams_;
     RunglerParams runglerParams_;
     SettingsParams settingsParams_;
+    EnvFollowerParams envFollowerParams_;
+    SampleHoldParams sampleHoldParams_;
+    RandomParams randomParams_;
+    PitchFollowerParams pitchFollowerParams_;
+    TransientParams transientParams_;
 
     // ==========================================================================
     // DSP Engine

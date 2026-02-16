@@ -7,7 +7,7 @@
 // mod_matrix_types.h. Include this header in UI components that need colors.
 // Processor code should include mod_matrix_types.h instead.
 //
-// Global tab: 12 sources (DSP ModSource 1-12: LFO1..Transient)
+// Global tab: 13 sources (DSP ModSource 1-13: LFO1..Transient)
 // Voice tab:  8 sources (DSP VoiceModSource 0-7: Env1..Aftertouch)
 //
 // Shared across: ModMatrixGrid, ModRingIndicator, ModHeatmap, BipolarSlider.
@@ -31,10 +31,10 @@ struct ModSourceInfo {
 };
 
 // ==============================================================================
-// Global Tab Sources (12 entries, matching DSP ModSource 1-12)
+// Global Tab Sources (13 entries, matching DSP ModSource 1-13)
 // ==============================================================================
 
-inline constexpr std::array<ModSourceInfo, 12> kGlobalSourceInfos = {{
+inline constexpr std::array<ModSourceInfo, 13> kGlobalSourceInfos = {{
     {{60, 210, 100, 255},  "LFO 1",           "LF1"},    // 0 -> DSP 1
     {{90, 200, 130, 255},  "LFO 2",           "LF2"},    // 1 -> DSP 2
     {{220, 170, 60, 255},  "Env Follower",    "EnvF"},   // 2 -> DSP 3
@@ -44,9 +44,10 @@ inline constexpr std::array<ModSourceInfo, 12> kGlobalSourceInfos = {{
     {{220, 130, 170, 255}, "Macro 3",         "M3"},     // 6 -> DSP 7
     {{230, 145, 185, 255}, "Macro 4",         "M4"},     // 7 -> DSP 8
     {{190, 55, 55, 255},   "Chaos",           "Chao"},   // 8 -> DSP 9
-    {{80, 200, 200, 255},  "Sample & Hold",   "S&H"},    // 9 -> DSP 10
-    {{80, 180, 160, 255},  "Pitch Follower",  "PFol"},   // 10 -> DSP 11
-    {{220, 200, 60, 255},  "Transient",       "Tran"},   // 11 -> DSP 12
+    {{100, 160, 220, 255}, "Rungler",         "Rung"},   // 9 -> DSP 10
+    {{80, 200, 200, 255},  "Sample & Hold",   "S&H"},    // 10 -> DSP 11
+    {{80, 180, 160, 255},  "Pitch Follower",  "PFol"},   // 11 -> DSP 12
+    {{220, 200, 60, 255},  "Transient",       "Tran"},   // 12 -> DSP 13
 }};
 
 // ==============================================================================

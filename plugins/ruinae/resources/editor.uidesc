@@ -103,6 +103,34 @@
         <control-tag name="SettingsVoiceStealMode" tag="2204"/>
         <control-tag name="SettingsGainCompensation" tag="2205"/>
 
+        <!-- Env Follower -->
+        <control-tag name="EnvFollowerSensitivity" tag="2300"/>
+        <control-tag name="EnvFollowerAttack" tag="2301"/>
+        <control-tag name="EnvFollowerRelease" tag="2302"/>
+
+        <!-- Sample & Hold -->
+        <control-tag name="SampleHoldRate" tag="2400"/>
+        <control-tag name="SampleHoldSync" tag="2401"/>
+        <control-tag name="SampleHoldNoteValue" tag="2402"/>
+        <control-tag name="SampleHoldSlew" tag="2403"/>
+
+        <!-- Random -->
+        <control-tag name="RandomRate" tag="2500"/>
+        <control-tag name="RandomSync" tag="2501"/>
+        <control-tag name="RandomNoteValue" tag="2502"/>
+        <control-tag name="RandomSmoothness" tag="2503"/>
+
+        <!-- Pitch Follower -->
+        <control-tag name="PitchFollowerMinHz" tag="2600"/>
+        <control-tag name="PitchFollowerMaxHz" tag="2601"/>
+        <control-tag name="PitchFollowerConfidence" tag="2602"/>
+        <control-tag name="PitchFollowerSpeed" tag="2603"/>
+
+        <!-- Transient -->
+        <control-tag name="TransientSensitivity" tag="2700"/>
+        <control-tag name="TransientAttack" tag="2701"/>
+        <control-tag name="TransientDecay" tag="2702"/>
+
         <!-- OSC A -->
         <control-tag name="OscAType" tag="100"/>
         <control-tag name="OscATune" tag="101"/>
@@ -1817,11 +1845,162 @@
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
     </template>
-    <template name="ModSource_EnvFollower" size="158, 120" class="CViewContainer" transparent="true"/>
-    <template name="ModSource_SampleHold" size="158, 120" class="CViewContainer" transparent="true"/>
-    <template name="ModSource_Random" size="158, 120" class="CViewContainer" transparent="true"/>
-    <template name="ModSource_PitchFollower" size="158, 120" class="CViewContainer" transparent="true"/>
-    <template name="ModSource_Transient" size="158, 120" class="CViewContainer" transparent="true"/>
+    <template name="ModSource_EnvFollower" size="158, 120" class="CViewContainer" transparent="true">
+        <!-- Sensitivity -->
+        <view class="ArcKnob" origin="4, 0" size="28, 28"
+              control-tag="EnvFollowerSensitivity" default-value="0.5"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Sens"/>
+        <!-- Attack -->
+        <view class="ArcKnob" origin="48, 0" size="28, 28"
+              control-tag="EnvFollowerAttack" default-value="0.5406"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="44, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Atk"/>
+        <!-- Release -->
+        <view class="ArcKnob" origin="92, 0" size="28, 28"
+              control-tag="EnvFollowerRelease" default-value="0.5406"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="88, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Rel"/>
+    </template>
+    <template name="ModSource_SampleHold" size="158, 120" class="CViewContainer" transparent="true">
+        <!-- Rate (hidden when sync active) -->
+        <view class="CViewContainer" origin="0, 0" size="36, 38"
+              custom-view-name="SHRateGroup" transparent="true">
+            <view class="ArcKnob" origin="4, 0" size="28, 28"
+                  control-tag="SampleHoldRate" default-value="0.702"
+                  arc-color="modulation" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="0, 28" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Rate"/>
+        </view>
+        <!-- Note Value (visible when sync active) -->
+        <view class="CViewContainer" origin="0, 0" size="36, 38"
+              custom-view-name="SHNoteValueGroup" transparent="true"
+              visible="false">
+            <view class="COptionMenu" origin="2, 6" size="32, 16"
+                  control-tag="SampleHoldNoteValue"
+                  font="~ NormalFontSmaller" font-color="text-primary"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  round-rect-radius="2" frame-width="1"
+                  min-value="0" max-value="1"
+                  default-value="0.5"/>
+            <view class="CTextLabel" origin="0, 28" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Note"/>
+        </view>
+        <!-- Slew -->
+        <view class="ArcKnob" origin="80, 0" size="28, 28"
+              control-tag="SampleHoldSlew" default-value="0.0"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Slew"/>
+        <!-- Sync toggle -->
+        <view class="ToggleButton" origin="2, 42" size="36, 12"
+              control-tag="SampleHoldSync" default-value="0.0"
+              title="Sync"
+              on-color="modulation" off-color="toggle-off"
+              font-size="9"/>
+    </template>
+    <template name="ModSource_Random" size="158, 120" class="CViewContainer" transparent="true">
+        <!-- Rate (hidden when sync active) -->
+        <view class="CViewContainer" origin="0, 0" size="36, 38"
+              custom-view-name="RandomRateGroup" transparent="true">
+            <view class="ArcKnob" origin="4, 0" size="28, 28"
+                  control-tag="RandomRate" default-value="0.702"
+                  arc-color="modulation" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="0, 28" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Rate"/>
+        </view>
+        <!-- Note Value (visible when sync active) -->
+        <view class="CViewContainer" origin="0, 0" size="36, 38"
+              custom-view-name="RandomNoteValueGroup" transparent="true"
+              visible="false">
+            <view class="COptionMenu" origin="2, 6" size="32, 16"
+                  control-tag="RandomNoteValue"
+                  font="~ NormalFontSmaller" font-color="text-primary"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  round-rect-radius="2" frame-width="1"
+                  min-value="0" max-value="1"
+                  default-value="0.5"/>
+            <view class="CTextLabel" origin="0, 28" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Note"/>
+        </view>
+        <!-- Smoothness -->
+        <view class="ArcKnob" origin="80, 0" size="28, 28"
+              control-tag="RandomSmoothness" default-value="0.0"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Smooth"/>
+        <!-- Sync toggle -->
+        <view class="ToggleButton" origin="2, 42" size="36, 12"
+              control-tag="RandomSync" default-value="0.0"
+              title="Sync"
+              on-color="modulation" off-color="toggle-off"
+              font-size="9"/>
+    </template>
+    <template name="ModSource_PitchFollower" size="158, 120" class="CViewContainer" transparent="true">
+        <!-- Min Hz -->
+        <view class="ArcKnob" origin="4, 0" size="28, 28"
+              control-tag="PitchFollowerMinHz" default-value="0.4307"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Min"/>
+        <!-- Max Hz -->
+        <view class="ArcKnob" origin="42, 0" size="28, 28"
+              control-tag="PitchFollowerMaxHz" default-value="0.7153"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="38, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Max"/>
+        <!-- Confidence -->
+        <view class="ArcKnob" origin="80, 0" size="28, 28"
+              control-tag="PitchFollowerConfidence" default-value="0.5"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="76, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Conf"/>
+        <!-- Tracking Speed -->
+        <view class="ArcKnob" origin="118, 0" size="28, 28"
+              control-tag="PitchFollowerSpeed" default-value="0.1379"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="114, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Speed"/>
+    </template>
+    <template name="ModSource_Transient" size="158, 120" class="CViewContainer" transparent="true">
+        <!-- Sensitivity -->
+        <view class="ArcKnob" origin="4, 0" size="28, 28"
+              control-tag="TransientSensitivity" default-value="0.5"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Sens"/>
+        <!-- Attack -->
+        <view class="ArcKnob" origin="48, 0" size="28, 28"
+              control-tag="TransientAttack" default-value="0.1579"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="44, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Atk"/>
+        <!-- Decay -->
+        <view class="ArcKnob" origin="92, 0" size="28, 28"
+              control-tag="TransientDecay" default-value="0.1667"
+              arc-color="modulation" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="88, 28" size="36, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Decay"/>
+    </template>
 
     <template
         name="editor"

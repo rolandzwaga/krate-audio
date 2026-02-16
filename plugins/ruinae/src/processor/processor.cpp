@@ -408,6 +408,13 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // v14: Settings params
     saveSettingsParams(settingsParams_, streamer);
 
+    // v15: Mod source params
+    saveEnvFollowerParams(envFollowerParams_, streamer);
+    saveSampleHoldParams(sampleHoldParams_, streamer);
+    saveRandomParams(randomParams_, streamer);
+    savePitchFollowerParams(pitchFollowerParams_, streamer);
+    saveTransientParams(transientParams_, streamer);
+
     return Steinberg::kResultTrue;
 }
 
@@ -552,6 +559,16 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             settingsParams_.voiceStealMode.store(0, std::memory_order_relaxed);   // Hard
             settingsParams_.gainCompensation.store(false, std::memory_order_relaxed); // OFF for old presets
         }
+
+        // v15: Mod source params
+        if (version >= 15) {
+            loadEnvFollowerParams(envFollowerParams_, streamer);
+            loadSampleHoldParams(sampleHoldParams_, streamer);
+            loadRandomParams(randomParams_, streamer);
+            loadPitchFollowerParams(pitchFollowerParams_, streamer);
+            loadTransientParams(transientParams_, streamer);
+        }
+        // Note: For version < 15, all mod source params keep their struct defaults
     }
 
     // =========================================================================
@@ -669,6 +686,16 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleRunglerParamChange(runglerParams_, paramId, value);
         } else if (paramId >= kSettingsBaseId && paramId <= kSettingsEndId) {
             handleSettingsParamChange(settingsParams_, paramId, value);
+        } else if (paramId >= kEnvFollowerBaseId && paramId <= kEnvFollowerEndId) {
+            handleEnvFollowerParamChange(envFollowerParams_, paramId, value);
+        } else if (paramId >= kSampleHoldBaseId && paramId <= kSampleHoldEndId) {
+            handleSampleHoldParamChange(sampleHoldParams_, paramId, value);
+        } else if (paramId >= kRandomBaseId && paramId <= kRandomEndId) {
+            handleRandomParamChange(randomParams_, paramId, value);
+        } else if (paramId >= kPitchFollowerBaseId && paramId <= kPitchFollowerEndId) {
+            handlePitchFollowerParamChange(pitchFollowerParams_, paramId, value);
+        } else if (paramId >= kTransientBaseId && paramId <= kTransientEndId) {
+            handleTransientParamChange(transientParams_, paramId, value);
         }
     }
 }
@@ -1028,6 +1055,52 @@ void Processor::applyParamsToEngine() {
     engine_.setPortamentoTime(monoModeParams_.portamentoTimeMs.load(std::memory_order_relaxed));
     engine_.setPortamentoMode(static_cast<PortaMode>(
         monoModeParams_.portaMode.load(std::memory_order_relaxed)));
+
+    // --- Env Follower ---
+    engine_.setEnvFollowerSensitivity(envFollowerParams_.sensitivity.load(std::memory_order_relaxed));
+    engine_.setEnvFollowerAttack(envFollowerParams_.attackMs.load(std::memory_order_relaxed));
+    engine_.setEnvFollowerRelease(envFollowerParams_.releaseMs.load(std::memory_order_relaxed));
+
+    // --- Sample & Hold ---
+    if (sampleHoldParams_.sync.load(std::memory_order_relaxed)) {
+        // When synced, convert NoteValue + tempo to rate in Hz
+        int noteIdx = sampleHoldParams_.noteValue.load(std::memory_order_relaxed);
+        float delayMs = Krate::DSP::dropdownToDelayMs(noteIdx, static_cast<float>(tempoBPM_));
+        // Fallback to 4 Hz if tempo invalid or delayMs <= 0
+        float rateHz = (delayMs > 0.0f) ? (1000.0f / delayMs) : 4.0f;
+        engine_.setSampleHoldRate(rateHz);
+    } else {
+        // When not synced, use Rate knob value (already clamped in handleParamChange)
+        engine_.setSampleHoldRate(sampleHoldParams_.rateHz.load(std::memory_order_relaxed));
+    }
+    engine_.setSampleHoldSlew(sampleHoldParams_.slewMs.load(std::memory_order_relaxed));
+
+    // --- Random ---
+    // Note: RandomSource built-in tempo sync is NOT used. Sync is handled at processor level
+    // via NoteValue-to-Hz conversion (same pattern as S&H) for consistent UX across all sources.
+    if (randomParams_.sync.load(std::memory_order_relaxed)) {
+        // When synced, convert NoteValue + tempo to rate in Hz
+        int noteIdx = randomParams_.noteValue.load(std::memory_order_relaxed);
+        float delayMs = Krate::DSP::dropdownToDelayMs(noteIdx, static_cast<float>(tempoBPM_));
+        // Fallback to 4 Hz if tempo invalid or delayMs <= 0
+        float rateHz = (delayMs > 0.0f) ? (1000.0f / delayMs) : 4.0f;
+        engine_.setRandomRate(rateHz);
+    } else {
+        // When not synced, use Rate knob value (already clamped in handleParamChange)
+        engine_.setRandomRate(randomParams_.rateHz.load(std::memory_order_relaxed));
+    }
+    engine_.setRandomSmoothness(randomParams_.smoothness.load(std::memory_order_relaxed));
+
+    // --- Pitch Follower ---
+    engine_.setPitchFollowerMinHz(pitchFollowerParams_.minHz.load(std::memory_order_relaxed));
+    engine_.setPitchFollowerMaxHz(pitchFollowerParams_.maxHz.load(std::memory_order_relaxed));
+    engine_.setPitchFollowerConfidence(pitchFollowerParams_.confidence.load(std::memory_order_relaxed));
+    engine_.setPitchFollowerTrackingSpeed(pitchFollowerParams_.speedMs.load(std::memory_order_relaxed));
+
+    // --- Transient ---
+    engine_.setTransientSensitivity(transientParams_.sensitivity.load(std::memory_order_relaxed));
+    engine_.setTransientAttack(transientParams_.attackMs.load(std::memory_order_relaxed));
+    engine_.setTransientDecay(transientParams_.decayMs.load(std::memory_order_relaxed));
 }
 
 // ==============================================================================
