@@ -1,6 +1,6 @@
 # Harmonizer Effect Development Roadmap
 
-**Status**: In Progress (Phase 1 complete) | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
+**Status**: In Progress (Phase 1, Phase 2A complete) | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
 
 A comprehensive, dependency-ordered development roadmap for the Harmonizer effect in the KrateDSP shared library. Every phase maps directly to existing codebase building blocks, identifies gaps, and provides implementation-level detail.
 
@@ -35,14 +35,14 @@ The KrateDSP library already provides **~80% of the required DSP components** fo
 ### Critical Path
 
 ```
-Phase 1: ScaleHarmonizer (L0) ──────────┐
-                                         │
-Phase 2A: Identity Phase Locking (L2) ──┤
-                                         ├──► Phase 4: HarmonizerEngine (L3)
-Phase 2B: Spectral Transient Det. (L1) ─┤
-                                         │
-Phase 3: PitchTracker (L1) ─────────────┘
-                                              Phase 5: SIMD (independent)
+Phase 1: ScaleHarmonizer (L0) ✅ ────────┐
+                                          │
+Phase 2A: Identity Phase Locking (L2) ✅ ┤
+                                          ├──► Phase 4: HarmonizerEngine (L3)
+Phase 2B: Spectral Transient Det. (L1) ──┤
+                                          │
+Phase 3: PitchTracker (L1) ──────────────┘
+                                               Phase 5: SIMD (independent)
 ```
 
 ---
@@ -117,7 +117,7 @@ Every component below has been verified to exist in the codebase with its exact 
 |---|-----------|-------|-----------|------------|-----------------|--------|
 | 1 | **ScaleHarmonizer** | 0 | LOW | Nothing | Diatonic interval calculation (core musical intelligence) | **COMPLETE** (spec 060, `scale_harmonizer.h`) |
 | 2 | **PitchTracker** | 1 | LOW | Nothing | Smoothed pitch detection with hysteresis & confidence gating | **MISSING** (`PitchDetector` exists but output is raw/jittery, no smoothing or note-hold logic) |
-| 3 | **Identity Phase Locking** | 2 | LOW-MED | Nothing | Laroche-Dolson phase locking for `PhaseVocoderPitchShifter` | **CONFIRMED MISSING** (code review: `processFrame()` uses basic per-bin phase accumulation only, no peak detection, no region assignment) |
+| 3 | **Identity Phase Locking** | 2 | LOW-MED | Nothing | Laroche-Dolson phase locking for `PhaseVocoderPitchShifter` | **COMPLETE** (spec 061, integrated into `PhaseVocoderPitchShifter`) |
 | 4 | **SpectralTransientDetector** | 1 | LOW-MED | Nothing | Spectral flux transient detection + phase reset for phase vocoder | **CONFIRMED MISSING** (existing `TransientDetector` is time-domain/modulation-source, not spectral) |
 | 5 | **HarmonizerEngine** | 3 | MODERATE | 1, 2, 3, 4 | Multi-voice orchestration with harmony modes | **MISSING** |
 | 6 | **SIMD Math Header** | 0 | MODERATE | Nothing | Vectorized `atan2`, `sincos`, `log`, `exp` for spectral pipeline | **MISSING** |
@@ -146,7 +146,7 @@ Every component below has been verified to exist in the codebase with its exact 
 |------|------------|-----|
 | ~~Diatonic interval lookup~~ | ~~`quantizePitch()` snaps to scale degrees~~ | **RESOLVED**: `ScaleHarmonizer` (spec 060) provides full diatonic interval computation for 8 scales + chromatic, any key. |
 | Robust pitch tracking | `PitchDetector` provides raw pitch | No median filtering, hysteresis, confidence gating, or minimum note duration |
-| Phase-locked pitch shifting | `PhaseVocoderPitchShifter` does phase vocoder | No peak detection, no region-of-influence, per-bin phase accumulation destroys vertical coherence |
+| ~~Phase-locked pitch shifting~~ | ~~`PhaseVocoderPitchShifter` does phase vocoder~~ | **RESOLVED**: Identity phase locking (Laroche-Dolson 1999) implemented in spec 061 with peak detection, region-of-influence assignment, and phase-locked propagation. |
 | Transient-aware pitch shifting | `TransientDetector` detects transients | Time-domain (envelope derivative), not spectral flux. No phase reset integration with phase vocoder. |
 
 ---
@@ -315,12 +315,14 @@ The existing `PhaseVocoderPitchShifter` has two confirmed quality issues:
 
 Both issues have well-understood solutions from the academic literature.
 
-### Phase 2A: Identity Phase Locking (Laroche & Dolson, 1999)
+### Phase 2A: Identity Phase Locking (Laroche & Dolson, 1999) -- COMPLETE
 
-**Files to modify:**
-- `dsp/include/krate/dsp/processors/pitch_shift_processor.h` (modify `PhaseVocoderPitchShifter`)
+**Status**: Complete -- implemented in spec [061-phase-locking](061-phase-locking/spec.md), merged to main.
 
-**Files to create:**
+**Files modified:**
+- `dsp/include/krate/dsp/processors/pitch_shift_processor.h` (modified `PhaseVocoderPitchShifter`)
+
+**Files created:**
 - `dsp/tests/unit/processors/phase_locking_test.cpp`
 
 #### Algorithm (research doc Section 2.5)
@@ -958,11 +960,11 @@ From research doc Section 3.1: The cepstral pipeline `log(|X[k]|) → IFFT → l
 ## Dependency Graph
 
 ```
-Phase 1: ScaleHarmonizer (L0)                         Phase 5: SIMD (L0-1)
-   │  [1-2 days]                                         [3-5 days, independent]
+Phase 1: ScaleHarmonizer (L0) ✅                       Phase 5: SIMD (L0-1)
+   │  [COMPLETE]                                         [3-5 days, independent]
    │
-   │  Phase 2A: Identity Phase Locking (L2)
-   │     │  [2-3 days, parallel with P1]
+   │  Phase 2A: Identity Phase Locking (L2) ✅
+   │     │  [COMPLETE]
    │     │
    │  Phase 2B: SpectralTransientDetector (L1)
    │     │  [1-2 days, parallel with P1]
@@ -1055,7 +1057,7 @@ NEW (must build):                   ~20% of DSP functionality
 ├── ScaleHarmonizer (L0) -- COMPLETE (spec 060, scale_harmonizer.h)
 ├── PitchTracker (L1) -- median filter + hysteresis + confidence gate
 ├── SpectralTransientDetector (L1) -- spectral flux onset detection
-├── Identity Phase Locking (L2) -- modification to existing PhaseVocoderPitchShifter
+├── Identity Phase Locking (L2) -- COMPLETE (spec 061, integrated into PhaseVocoderPitchShifter)
 ├── HarmonizerEngine (L3) -- orchestration of existing components
 └── SIMD Math Header (L0) -- vectorized atan2/sincos/log/exp
 ```
