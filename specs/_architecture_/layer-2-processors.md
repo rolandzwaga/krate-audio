@@ -499,6 +499,88 @@ Layer 0 (math_constants.h), Layer 1 (spectral_utils.h `wrapPhase()`, spectral_bu
 - Laroche, J. & Dolson, M. (1999). "Improved phase vocoder time-scale modification of audio." IEEE Trans. Speech Audio Processing, 7(3):323-332.
 - Laroche, J. & Dolson, M. (1999). "New phase-vocoder techniques for pitch-shifting, harmonizing and other exotic effects." IEEE WASPAA.
 
+### Transient-Aware Phase Reset (PhaseVocoderPitchShifter)
+
+**Path:** [pitch_shift_processor.h](../../dsp/include/krate/dsp/processors/pitch_shift_processor.h) | **Since:** 0.18.0 | **Spec:** [062-spectral-transient-detector](../062-spectral-transient-detector/spec.md)
+
+The `PhaseVocoderPitchShifter` integrates a `SpectralTransientDetector` (Layer 1) for transient-aware phase reset. When a transient is detected in the magnitude spectrum during `processFrame()`, synthesis phases are reset to match analysis phases (`synthPhase_[k] = prevPhase_[k]`), preserving transient sharpness instead of smearing them across STFT frames. Phase reset is disabled by default to maintain backward compatibility.
+
+#### API
+
+```cpp
+class PhaseVocoderPitchShifter {
+    // ... existing API ...
+
+    // Phase reset control (since 0.18.0)
+    void setPhaseReset(bool enabled) noexcept;          // Toggle phase reset (default: false)
+    [[nodiscard]] bool getPhaseReset() const noexcept;  // Query current state
+};
+```
+
+The `PitchShiftProcessor` public API wrapper also exposes these methods:
+
+```cpp
+class PitchShiftProcessor {
+    // ... existing API ...
+
+    // Phase reset control (since 0.18.0)
+    void setPhaseReset(bool enabled) noexcept;          // Delegates to PhaseVocoderPitchShifter
+    [[nodiscard]] bool getPhaseReset() const noexcept;
+};
+```
+
+- `setPhaseReset(bool)` -- Enable or disable transient-aware phase reset at runtime. When enabled, the detector runs on every frame and resets synthesis phases when a transient is detected. Safe to call between process calls; NOT safe to call concurrently with `processFrame()` from another thread.
+- `getPhaseReset()` -- Returns the current phase reset state. Read-only; safe from any thread if no concurrent write is in progress.
+
+#### Integration Point in processFrame()
+
+Phase reset is inserted as **Step 1b-reset** in `processFrame()`, after magnitude extraction (Step 1a, formant envelope) and before phase locking setup (Step 1c). This placement ensures:
+
+1. The `magnitude_[]` array is already populated for `detect()` input
+2. `prevPhase_[k]` already holds the current frame's analysis phase (updated before Step 1a)
+3. Phase locking (if enabled) operates on the reset phases, combining both features correctly
+
+```
+processFrame() flow:
+  Step 1a: Magnitude extraction + formant envelope
+  Step 1b-reset: Transient detection and phase reset (NEW)
+  Step 1c: Phase locking setup (peak detection, region assignment)
+  Step 2: Synthesis phase computation (basic or phase-locked)
+  Step 3: Formant preservation (optional)
+```
+
+#### New Member Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `transientDetector_` | `SpectralTransientDetector` | Layer 1 onset detector instance |
+| `phaseResetEnabled_` | `bool` (default: `false`) | Phase reset toggle |
+
+#### Independence from Phase Locking
+
+Phase reset and phase locking are independently toggleable. Both can be enabled simultaneously without interference:
+
+| Phase Reset | Phase Locking | Behavior |
+|-------------|---------------|----------|
+| OFF | OFF | Basic phase vocoder (per-bin accumulation) |
+| OFF | ON | Phase-locked vocoder (Laroche & Dolson) |
+| ON | OFF | Phase reset on transients, basic accumulation otherwise |
+| ON | ON | Phase reset on transients, phase-locked accumulation otherwise |
+
+#### Lifecycle
+
+- `prepare()`: Calls `transientDetector_.prepare(kFFTSize / 2 + 1)` to allocate the detector's internal buffer
+- `reset()`: Calls `transientDetector_.reset()` to clear detection state without reallocation
+
+#### Dependencies
+
+Layer 0 (math_constants.h), Layer 1 (spectral_transient_detector.h, spectral_utils.h, spectral_buffer.h, stft.h), Layer 2 peer (formant_preserver.h -- unchanged)
+
+#### References
+
+- Duxbury, C., Davies, M., & Sandler, M. (2002). "Separation of transient information in musical audio using multiresolution analysis techniques." Proc. DAFx.
+- Roebel, A. (2003). "A new approach to transient processing in the phase vocoder." Proc. DAFx.
+
 ---
 
 ## Diffuser

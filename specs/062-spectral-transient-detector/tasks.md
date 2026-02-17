@@ -262,9 +262,9 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 **Purpose**: Improvements that affect multiple user stories or the overall implementation.
 
-- [ ] T022 [P] Verify `dsp_tests.exe` run without the filter passes with zero failures: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe` (full test suite regression)
-- [ ] T023 [P] Confirm SC-005 CPU overhead: the `detect()` method is a single linear pass over ~2049 floats with 3 arithmetic operations per bin (subtract, max, add) and no transcendental math. Document in code comment that the algorithm is O(numBins) per frame with negligible overhead (< 0.01% at 44.1kHz/4096 FFT). No benchmark harness required per plan.md SIMD analysis.
-- [ ] T024 Verify `SpectralTransientDetector` is non-copyable (copy constructor and copy assignment deleted per contract) and movable (move constructor and move assignment defaulted). Confirm this matches the API contract at `specs/062-spectral-transient-detector/contracts/spectral_transient_detector.h`.
+- [X] T022 [P] Verify `dsp_tests.exe` run without the filter passes with zero failures: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe` (full test suite regression)
+- [X] T023 [P] Confirm SC-005 CPU overhead: the `detect()` method is a single linear pass over ~2049 floats with 3 arithmetic operations per bin (subtract, max, add) and no transcendental math. Document in code comment that the algorithm is O(numBins) per frame with negligible overhead (< 0.01% at 44.1kHz/4096 FFT). No benchmark harness required per plan.md SIMD analysis.
+- [X] T024 Verify `SpectralTransientDetector` is non-copyable (copy constructor and copy assignment deleted per contract) and movable (move constructor and move assignment defaulted). Confirm this matches the API contract at `specs/062-spectral-transient-detector/contracts/spectral_transient_detector.h`.
 
 ---
 
@@ -276,7 +276,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 7.1 Layer 1 Primitives Documentation
 
-- [ ] T025 Update `specs/_architecture_/layer-1-primitives.md` to add a `SpectralTransientDetector` entry:
+- [X] T025 Update `specs/_architecture_/layer-1-primitives.md` to add a `SpectralTransientDetector` entry:
   - Purpose: spectral flux-based onset detection on magnitude spectra
   - Public API summary: `prepare()`, `reset()`, `detect()`, `setThreshold()`, `setSmoothingCoeff()`, `getSpectralFlux()`, `getRunningAverage()`, `isTransient()`
   - File location: `dsp/include/krate/dsp/primitives/spectral_transient_detector.h`
@@ -285,7 +285,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 7.2 Layer 2 Processors Documentation
 
-- [ ] T026 Update `specs/_architecture_/layer-2-processors.md` to document the phase reset integration in `PhaseVocoderPitchShifter`:
+- [X] T026 Update `specs/_architecture_/layer-2-processors.md` to document the phase reset integration in `PhaseVocoderPitchShifter`:
   - New members: `transientDetector_` (SpectralTransientDetector), `phaseResetEnabled_` (bool, default false)
   - New public API on `PhaseVocoderPitchShifter`: `setPhaseReset()`, `getPhaseReset()`
   - New public API on `PitchShiftProcessor`: `setPhaseReset()`, `getPhaseReset()`
@@ -294,7 +294,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 7.3 Final Architecture Commit
 
-- [ ] T027 Commit architecture documentation updates to `specs/_architecture_/layer-1-primitives.md` and `specs/_architecture_/layer-2-processors.md`
+- [X] T027 Commit architecture documentation updates to `specs/_architecture_/layer-1-primitives.md` and `specs/_architecture_/layer-2-processors.md`
 
 **Checkpoint**: Architecture documentation reflects all new functionality.
 
