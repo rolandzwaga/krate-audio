@@ -264,7 +264,7 @@ Note: The rotation angle formula is implemented in T018 (Pass 2). This phase ver
 
 ### 9.2 Final Documentation Commit
 
-- [ ] T069 Commit architecture documentation update to feature branch `061-phase-locking`
+- [X] T069 Commit architecture documentation update to feature branch `061-phase-locking`
 
 **Checkpoint**: Architecture documentation reflects all new functionality.
 
@@ -278,14 +278,14 @@ Note: The rotation angle formula is implemented in T018 (Pass 2). This phase ver
 
 ### 10.1 Run Clang-Tidy Analysis
 
-- [ ] T070 Generate `compile_commands.json` via Ninja preset if not current: `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja` (from VS Developer PowerShell)
-- [ ] T071 Run clang-tidy on DSP target: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
+- [X] T070 Generate `compile_commands.json` via Ninja preset if not current: `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja` (from VS Developer PowerShell)
+- [X] T071 Run clang-tidy on DSP target: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
 
 ### 10.2 Address Findings
 
-- [ ] T072 Fix all clang-tidy errors reported for `pitch_shift_processor.h` and `phase_locking_test.cpp` (blocking issues)
-- [ ] T073 Review clang-tidy warnings and fix where appropriate; add `// NOLINT(<check-name>): <reason>` comments for any intentional suppressions in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` or `dsp/tests/unit/processors/phase_locking_test.cpp`
-- [ ] T074 Rebuild and re-run tests after clang-tidy fixes: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests` then run full test suite
+- [X] T072 Fix all clang-tidy errors reported for `pitch_shift_processor.h` and `phase_locking_test.cpp` (blocking issues) - N/A -- no issues found
+- [X] T073 Review clang-tidy warnings and fix where appropriate; add `// NOLINT(<check-name>): <reason>` comments for any intentional suppressions in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` or `dsp/tests/unit/processors/phase_locking_test.cpp` - N/A -- no issues found
+- [X] T074 Rebuild and re-run tests after clang-tidy fixes: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests` then run full test suite
 
 **Checkpoint**: Static analysis clean - ready for completion verification.
 
@@ -299,14 +299,14 @@ Note: The rotation angle formula is implemented in T018 (Pass 2). This phase ver
 
 ### 11.1 Requirements Verification
 
-- [ ] T075 Review all FR-001 through FR-016 requirements from `specs/061-phase-locking/spec.md` against the actual implementation in `dsp/include/krate/dsp/processors/pitch_shift_processor.h`; record file path and line number for each requirement
-- [ ] T076 Review all SC-001 through SC-008 success criteria; run relevant test cases and record actual measured values versus spec thresholds (e.g., actual energy concentration percentage for SC-001, actual peak count for SC-003)
-- [ ] T077 Search implementation for cheating patterns: no `// placeholder` or `// TODO` in `pitch_shift_processor.h` or `phase_locking_test.cpp`; no test thresholds relaxed below spec values; no features removed from scope
+- [X] T075 Review all FR-001 through FR-016 requirements from `specs/061-phase-locking/spec.md` against the actual implementation in `dsp/include/krate/dsp/processors/pitch_shift_processor.h`; record file path and line number for each requirement
+- [X] T076 Review all SC-001 through SC-008 success criteria; run relevant test cases and record actual measured values versus spec thresholds (e.g., actual energy concentration percentage for SC-001, actual peak count for SC-003)
+- [X] T077 Search implementation for cheating patterns: no `// placeholder` or `// TODO` in `pitch_shift_processor.h` or `phase_locking_test.cpp`; no test thresholds relaxed below spec values; no features removed from scope
 
 ### 11.2 Fill Compliance Table in spec.md
 
-- [ ] T078 Update `specs/061-phase-locking/spec.md` "Implementation Verification" section: fill the compliance table for each FR-xxx and SC-xxx row with status (MET/NOT MET/PARTIAL/DEFERRED) and concrete evidence (file paths, line numbers, test names, actual measured values)
-- [ ] T079 Mark overall spec status honestly (COMPLETE / NOT COMPLETE / PARTIAL) in the "Honest Assessment" section of `specs/061-phase-locking/spec.md`
+- [X] T078 Update `specs/061-phase-locking/spec.md` "Implementation Verification" section: fill the compliance table for each FR-xxx and SC-xxx row with status (MET/NOT MET/PARTIAL/DEFERRED) and concrete evidence (file paths, line numbers, test names, actual measured values)
+- [X] T079 Mark overall spec status honestly (COMPLETE / NOT COMPLETE / PARTIAL) in the "Honest Assessment" section of `specs/061-phase-locking/spec.md`
 
 ### 11.3 Honest Self-Check
 
@@ -318,12 +318,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T080 All self-check questions answered "no" (or gaps documented honestly in spec.md)
+- [X] T080 All self-check questions answered "no" (or gaps documented honestly in spec.md)
 
 ### 11.4 Final Commit
 
-- [ ] T081 Commit compliance table update and all remaining changes to feature branch `061-phase-locking`
-- [ ] T082 Run full `dsp_tests` suite one final time and confirm all tests pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
+- [X] T081 Commit compliance table update and all remaining changes to feature branch `061-phase-locking`
+- [X] T082 Run full `dsp_tests` suite one final time and confirm all tests pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
 
 **Checkpoint**: Spec implementation honestly complete and committed.
 
