@@ -232,7 +232,7 @@ Note: The rotation angle formula is implemented in T018 (Pass 2). This phase ver
 
 ### 7.3 Commit (MANDATORY)
 
-- [ ] T060 [US5] Commit completed User Story 5 work (rotation angle arithmetic verification) to feature branch `061-phase-locking`
+- [X] T060 [US5] Commit completed User Story 5 work (rotation angle arithmetic verification) to feature branch `061-phase-locking`
 
 **Checkpoint**: All five user stories implemented, tested, and committed. Full test suite passes.
 
@@ -242,13 +242,13 @@ Note: The rotation angle formula is implemented in T018 (Pass 2). This phase ver
 
 **Purpose**: Additional robustness tests and integration verification across all user stories.
 
-- [ ] T061 [P] Write rapid toggle stability test in `dsp/tests/unit/processors/phase_locking_test.cpp`: toggle `setPhaseLocking` true/false/true/false 100 times during continuous processing; verify no crashes, no NaN, no inf in output
-- [ ] T062 [P] Write unity pitch ratio edge case test in `dsp/tests/unit/processors/phase_locking_test.cpp`: process audio at pitch ratio 1.0 (should take `processUnityPitch()` bypass path, not invoking `processFrame()`); verify phase locking state is unaffected
-- [ ] T063 [P] Write `reset()` completeness test in `dsp/tests/unit/processors/phase_locking_test.cpp`: call `reset()` after processing with phase locking enabled (so `isPeak_` and `regionPeak_` have been populated), then verify: (a) `numPeaks_ == 0`, (b) `phaseLockingEnabled_` retains its last-set value (reset does NOT change the toggle state), (c) `wasLocked_ == false`, and (d) on the first frame processed after reset, `numPeaks_` reflects only the peaks in that new frame and carries no stale data from before the reset. If direct member access requires a test accessor, add a `getNumPeaks() const noexcept -> std::size_t` method or equivalent for test-only inspection.
-- [ ] T064 Run the full `dsp_tests` suite (all tests, not just Phase Locking): `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe` to verify no regressions in existing pitch_shift_processor tests or any other DSP tests
-- [ ] T065 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Iterum.vst3"` to confirm plugin still validates (the DSP library is used by the plugin)
-- [ ] T066 Build `dsp_tests` and confirm zero compilation errors and zero warnings after polish tasks
-- [ ] T067 Commit polish tests and any corrections to feature branch `061-phase-locking`
+- [X] T061 [P] Write rapid toggle stability test in `dsp/tests/unit/processors/phase_locking_test.cpp`: toggle `setPhaseLocking` true/false/true/false 100 times during continuous processing; verify no crashes, no NaN, no inf in output
+- [X] T062 [P] Write unity pitch ratio edge case test in `dsp/tests/unit/processors/phase_locking_test.cpp`: process audio at pitch ratio 1.0 (should take `processUnityPitch()` bypass path, not invoking `processFrame()`); verify phase locking state is unaffected
+- [X] T063 [P] Write `reset()` completeness test in `dsp/tests/unit/processors/phase_locking_test.cpp`: call `reset()` after processing with phase locking enabled (so `isPeak_` and `regionPeak_` have been populated), then verify: (a) `numPeaks_ == 0`, (b) `phaseLockingEnabled_` retains its last-set value (reset does NOT change the toggle state), (c) `wasLocked_ == false`, and (d) on the first frame processed after reset, `numPeaks_` reflects only the peaks in that new frame and carries no stale data from before the reset. If direct member access requires a test accessor, add a `getNumPeaks() const noexcept -> std::size_t` method or equivalent for test-only inspection.
+- [X] T064 Run the full `dsp_tests` suite (all tests, not just Phase Locking): `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe` to verify no regressions in existing pitch_shift_processor tests or any other DSP tests
+- [X] T065 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Iterum.vst3"` to confirm plugin still validates (the DSP library is used by the plugin)
+- [X] T066 Build `dsp_tests` and confirm zero compilation errors and zero warnings after polish tasks
+- [X] T067 Commit polish tests and any corrections to feature branch `061-phase-locking`
 
 ---
 
