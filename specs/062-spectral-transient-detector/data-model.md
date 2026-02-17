@@ -79,7 +79,8 @@ PitchShiftProcessor (Layer 2, public API)
 | Component | Size (4096-point FFT) | Allocation Timing |
 |-----------|----------------------|-------------------|
 | `prevMagnitudes_` (2049 floats) | 8,196 bytes | `prepare()` |
-| Scalar state (6 fields) | ~20 bytes | Construction |
+| `std::vector` object header (pointer + size + capacity) | ~24 bytes (64-bit) | Construction |
+| 7 scalar fields: `runningAverage_`, `threshold_`, `smoothingCoeff_`, `lastFlux_` (4 floats = 16 bytes), `transientDetected_`, `isFirstFrame_` (2 bools = 2 bytes), `numBins_` (size_t = 8 bytes) | ~26 bytes | Construction |
 | **Total per detector** | **~8.2 KB** | |
 
-All memory is allocated in `prepare()`. The `detect()` path performs zero allocations.
+All heap memory is allocated in `prepare()`. The `detect()` path performs zero allocations.

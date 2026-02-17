@@ -3,6 +3,8 @@
 **Feature**: 062-spectral-transient-detector
 **Target**: `PhaseVocoderPitchShifter` in `dsp/include/krate/dsp/processors/pitch_shift_processor.h`
 
+> **Test Subject**: Integration tests in `phase_reset_test.cpp` drive the feature through the `PitchShiftProcessor` public API (not `PhaseVocoderPitchShifter` directly). The `PhaseVocoderPitchShifter` changes documented here are internal implementation; callers always use `PitchShiftProcessor`.
+
 ## New Public Methods
 
 ```cpp
@@ -32,7 +34,7 @@ bool phaseResetEnabled_ = false;               // Independent toggle (default: o
 
 ## Integration Point in processFrame()
 
-The transient detection and phase reset must be inserted **after** magnitude extraction (Step 1, line 1146) and **before** phase locking setup (Step 1c, line 1154).
+The transient detection and phase reset must be inserted **after** Step 1a (formant envelope extraction, line ~1151) and **before** Step 1c (phase locking setup, line ~1154). This is named "Step 1b-reset" to avoid renumbering existing steps.
 
 ### Pseudocode
 

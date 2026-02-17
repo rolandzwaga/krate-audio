@@ -38,9 +38,29 @@ build/windows-x64-release/dsp/tests/Release/dsp_tests.exe
 # Run only transient detector tests
 build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "SpectralTransientDetector*"
 
-# Run only phase reset tests
+# Run only phase reset tests (all test names in phase_reset_test.cpp start with "PhaseReset")
 build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PhaseReset*"
 ```
+
+## Clang-Tidy
+
+Clang-tidy requires the `windows-ninja` build preset (generates `compile_commands.json`).
+
+```powershell
+# One-time: generate Ninja build (run from VS Developer PowerShell)
+cmake --preset windows-ninja
+
+# Run static analysis on DSP targets
+./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
+
+# Files checked by clang-tidy for this feature:
+#   dsp/include/krate/dsp/primitives/spectral_transient_detector.h
+#   dsp/include/krate/dsp/processors/pitch_shift_processor.h
+#   dsp/tests/unit/primitives/spectral_transient_detector_test.cpp
+#   dsp/tests/unit/processors/phase_reset_test.cpp
+```
+
+**Note**: The `windows-x64-release` preset used for building tests does NOT produce `compile_commands.json`. Use `windows-ninja` exclusively for clang-tidy runs.
 
 ## Usage Example: Standalone
 

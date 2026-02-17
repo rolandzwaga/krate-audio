@@ -37,12 +37,12 @@ Implement a spectral flux-based transient detector (`SpectralTransientDetector`)
 - [x] Integration into PhaseVocoderPitchShifter is Layer 2 depending on Layer 1 (valid)
 - [x] No circular dependencies introduced
 
-**Required Check - Principle XII (Test-First Development):**
+**Required Check - Principle XIII (Test-First Development):**
 - [x] Skills auto-load (testing-guide, vst-guide) - no manual context verification needed
 - [x] Tests will be written BEFORE implementation code
 - [x] Each task group will end with a commit step
 
-**Required Check - Principle XIV (ODR Prevention):**
+**Required Check - Principle XV (ODR Prevention):**
 - [x] Codebase Research section below is complete
 - [x] No duplicate classes/functions will be created
 
@@ -56,7 +56,7 @@ Implement a spectral flux-based transient detector (`SpectralTransientDetector`)
 - [x] Header-only implementation follows existing pattern
 - [x] Phase reset toggle independent of phase locking (no coupling violation)
 
-## Codebase Research (Principle XIV - ODR Prevention)
+## Codebase Research (Principle XV - ODR Prevention)
 
 *GATE: Must complete BEFORE creating any new classes, structs, or functions.*
 

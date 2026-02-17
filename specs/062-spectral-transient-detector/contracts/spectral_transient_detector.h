@@ -37,7 +37,10 @@ namespace DSP {
 /// Not thread-safe. Must be called from a single thread.
 ///
 /// @par Real-Time Safety
-/// - `prepare()`: NOT real-time safe (allocates memory)
+/// - `prepare()`: NOT real-time safe (allocates memory via std::vector). Declared
+///   noexcept intentionally: OOM during prepare() is unrecoverable in a DSP context
+///   and std::terminate() is the appropriate response (consistent with DSP plugin
+///   lifecycle where host calls prepare() outside the audio thread before processing).
 /// - `detect()`, `reset()`, getters, setters: Real-time safe (noexcept, no alloc)
 ///
 /// @par Usage
@@ -79,14 +82,17 @@ public:
     /// If called with the same bin count, still resets all state.
     ///
     /// @param numBins Number of magnitude bins (typically fftSize/2 + 1)
-    /// @pre numBins > 0
+    /// @pre numBins > 0. If numBins == 0, the detector enters an invalid state
+    ///      where subsequent detect() calls return false without processing.
     /// @post detect() can be called with up to numBins bins
-    /// @note NOT real-time safe (allocates memory)
+    /// @note NOT real-time safe (allocates memory). noexcept is intentional:
+    ///       OOM during prepare() causes std::terminate() by design.
     void prepare(std::size_t numBins) noexcept;
 
-    /// @brief Reset all internal state without reallocating.
+    /// @brief Reset all detection state without reallocating.
     ///
-    /// Clears previous magnitudes, running average, and detection flag.
+    /// Clears previous magnitudes, running average, lastFlux_, and detection flag.
+    /// Configuration parameters (threshold_ and smoothingCoeff_) are preserved.
     /// The next detect() call will be treated as the first frame
     /// (detection suppressed, flux seeds the running average).
     ///

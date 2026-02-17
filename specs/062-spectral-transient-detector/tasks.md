@@ -8,7 +8,7 @@ description: "Task list for Spectral Transient Detector implementation"
 **Input**: Design documents from `/specs/062-spectral-transient-detector/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: This project follows TEST-FIRST methodology (Constitution Principle XII). Tests MUST be written before implementation.
+**Tests**: This project follows TEST-FIRST methodology (Constitution Principle XIII). Tests MUST be written before implementation.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -88,13 +88,13 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 3.1 Tests for User Story 1 (Write FIRST - Must FAIL)
 
-> **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
+> **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
 - [ ] T005 [P] [US1] Write failing tests in `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp` covering:
   - Default construction state (threshold=1.5, smoothingCoeff=0.95, isTransient()=false, getSpectralFlux()=0, getRunningAverage()=0)
   - `prepare()` allocates state and marks first-frame suppression
   - `prepare()` called twice with different bin counts reallocates and resets all state
-  - `reset()` clears state without reallocation
+  - `reset()` clears state without reallocation; `threshold_` and `smoothingCoeff_` are preserved (FR-008)
   - First `detect()` after `prepare()` always returns `false` (FR-010), even with a large impulse input
   - First-frame flux still seeds the running average (FR-010)
   - Sustained-sine scenario: 100 identical frames produce zero detections (SC-002, FR-002)
@@ -103,9 +103,10 @@ There is no shared foundational infrastructure beyond the CMake registration alr
   - Silence edge case: all-zero magnitudes produce zero flux, no detection, stable running average (FR-011)
   - Running average floor: after prolonged silence, first real onset is still detected (FR-011)
   - Single-bin spike: isolated single-bin energy increase does not trigger detection (from spec edge cases)
-  - Bin-count mismatch in release mode: `detect()` with wrong count clamps silently (FR-016)
+  - Bin-count mismatch in release mode: `detect()` with wrong count clamps silently; `detect()` with passedCount=0 returns `false` and updates running average with flux=0 (FR-016)
   - Getter methods `getSpectralFlux()`, `getRunningAverage()`, `isTransient()` return values from most recent `detect()` call (FR-009)
-  - Works with different FFT sizes: 512, 1024, 2048, 4096, 8192 bin counts (FR-014, SC-007)
+  - `noexcept` verification: `static_assert(noexcept(detector.detect(nullptr, 0)))`, `static_assert(noexcept(detector.reset()))`, `static_assert(noexcept(detector.getSpectralFlux()))`, `static_assert(noexcept(detector.getRunningAverage()))`, `static_assert(noexcept(detector.isTransient()))`, `static_assert(noexcept(detector.setThreshold(1.5f)))`, `static_assert(noexcept(detector.setSmoothingCoeff(0.95f)))` (FR-015)
+  - Works with correct bin counts for all supported FFT sizes: 257 bins (512-point FFT), 513 bins (1024-point FFT), 1025 bins (2048-point FFT), 2049 bins (4096-point FFT), 4097 bins (8192-point FFT) (FR-014, SC-007)
 
 ### 3.2 Build Verification (Tests Must FAIL)
 
@@ -119,9 +120,9 @@ There is no shared foundational infrastructure beyond the CMake registration alr
   - Default constructor, destructor, move constructor, move assignment (all `noexcept = default`)
   - Copy constructor and copy assignment deleted (owns buffer)
   - `prepare(std::size_t numBins) noexcept` - allocates `prevMagnitudes_`, zeros it, resets all scalar state, sets `isFirstFrame_ = true`; reallocates if bin count changes (FR-007)
-  - `reset() noexcept` - zeros `prevMagnitudes_`, clears `runningAverage_`, `lastFlux_`, `transientDetected_`, sets `isFirstFrame_ = true`, keeps allocation (FR-008)
+  - `reset() noexcept` - zeros `prevMagnitudes_`, clears `runningAverage_`, `lastFlux_`, `transientDetected_`, sets `isFirstFrame_ = true`, keeps allocation; does NOT reset `threshold_` or `smoothingCoeff_` (FR-008)
   - `[[nodiscard]] bool detect(const float* magnitudes, std::size_t numBins) noexcept` - computes half-wave rectified spectral flux `SF(n) = sum(max(0, mag[k] - prevMag[k]))`, updates EMA `runningAvg = alpha * runningAvg + (1-alpha) * flux`, enforces floor of 1e-10f on running average (FR-011), suppresses detection on first frame but still seeds EMA (FR-010), compares `SF > threshold * runningAvg` for normal frames, copies current magnitudes to `prevMagnitudes_`, stores `lastFlux_` and `transientDetected_`, returns result (FR-001, FR-002, FR-005, FR-006, FR-015)
-  - Debug assert on bin-count mismatch; release clamping to `min(numBins, numBins_)` (FR-016)
+  - Debug assert on bin-count mismatch; release clamping to `min(numBins, numBins_)`; if the clamped count is 0, return `false` and update running average with flux=0 (FR-016)
   - `setThreshold(float multiplier) noexcept` - clamps to [1.0, 5.0] (FR-003)
   - `setSmoothingCoeff(float coeff) noexcept` - clamps to [0.8, 0.99] (FR-004)
   - `[[nodiscard]] float getSpectralFlux() const noexcept` (FR-009)
@@ -155,7 +156,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 4.1 Tests for User Story 2 (Write FIRST - Must FAIL - or EXTEND Existing Test File)
 
-> **Constitution Principle XII**: Tests MUST be written and FAIL (or be absent) before implementation.
+> **Constitution Principle XIII**: Tests MUST be written and FAIL (or be absent) before implementation.
 > Since the setter bodies may already compile, write the tests first and confirm no test yet covers sensitivity monotonicity.
 
 - [ ] T011 [P] [US2] Add sensitivity configuration tests to `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp`:
@@ -195,15 +196,18 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 5.1 Tests for User Story 3 (Write FIRST - Must FAIL)
 
-> **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
+> **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
+
+> **Test Naming**: All test case names in `phase_reset_test.cpp` MUST begin with `"PhaseReset"` (e.g., `"PhaseResetDefault"`, `"PhaseResetTransientSharpness"`) so the filter `"PhaseReset*"` in build/verification commands captures all tests in this file.
 
 - [ ] T015 [P] [US3] Write failing tests in `dsp/tests/unit/processors/phase_reset_test.cpp` covering:
   - `PhaseVocoderPitchShifter` has `setPhaseReset(bool)` and `getPhaseReset()` methods
   - `PitchShiftProcessor` has `setPhaseReset(bool)` and `getPhaseReset()` public methods
   - Phase reset disabled by default: `getPhaseReset()` returns `false` after `prepare()` (FR-013, backward compatibility)
+  - Round-trip getter: `setPhaseReset(true)` followed by `getPhaseReset()` returns `true`; `setPhaseReset(false)` followed by `getPhaseReset()` returns `false`
   - Phase reset and phase locking are independently togglable: both can be enabled simultaneously without interference (FR-013)
   - Sustained tonal input: output with phase reset enabled is identical to output without phase reset (spec US3 scenario 2)
-  - Transient sharpness test: pitch-shifted drum-hit-like signal with phase reset enabled produces >= 2 dB higher peak-to-RMS ratio in first 5ms after onset frame than without phase reset (SC-004)
+  - Transient sharpness test: pitch-shifted synthetic impulse (amplitude 1.0, preceded by 10 silence frames, 4096-point FFT, 1024-sample hop, 44100 Hz, ratio 2.0) with phase reset enabled produces >= 2 dB higher peak-to-RMS ratio in first 5ms after onset frame than without phase reset (SC-004); record the actual measured dB value in the test output
   - Mid-stream toggle: enabling/disabling phase reset between frames produces no NaN values in output (spec US3 scenario 3)
   - `transientDetector_.prepare()` is called inside `PhaseVocoderPitchShifter::prepare()` (no separate call needed by caller)
   - `transientDetector_.reset()` is called inside `PhaseVocoderPitchShifter::reset()` (FR-007 prepare lifecycle)
@@ -268,7 +272,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 **Purpose**: Update living architecture documentation before spec completion.
 
-> **Constitution Principle XIII**: Every spec implementation MUST update architecture documentation as a final task.
+> **Constitution Principle XIV**: Every spec implementation MUST update architecture documentation as a final task.
 
 ### 7.1 Layer 1 Primitives Documentation
 
@@ -328,7 +332,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 **Purpose**: Honestly verify all requirements are met before claiming completion.
 
-> **Constitution Principle XV**: Spec implementations MUST be honestly assessed. Claiming "done" when requirements are not met is a violation of trust.
+> **Constitution Principle XVI**: Spec implementations MUST be honestly assessed. Claiming "done" when requirements are not met is a violation of trust.
 
 ### 9.1 Requirements Verification
 
@@ -340,7 +344,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
   - FR-005: `detect()` accepts `const float*` and bin count only (no phase, no complex, no audio) in `spectral_transient_detector.h`
   - FR-006: `prevMagnitudes_` updated after each `detect()` call in `spectral_transient_detector.h`
   - FR-007: `prepare()` allocates and resets; re-prepare with different count reallocates in `spectral_transient_detector.h`
-  - FR-008: `reset()` clears state without reallocation in `spectral_transient_detector.h`
+  - FR-008: `reset()` clears detection state without reallocation and preserves `threshold_` and `smoothingCoeff_` in `spectral_transient_detector.h`
   - FR-009: three getter methods exist and return values from most recent `detect()` call in `spectral_transient_detector.h`
   - FR-010: first-frame suppression via `isFirstFrame_` flag in `spectral_transient_detector.h`
   - FR-011: minimum floor 1e-10f on running average in `spectral_transient_detector.h`
@@ -357,7 +361,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
   - SC-004: peak-to-RMS >= 2 dB improvement test passes in `phase_reset_test.cpp` (record actual measured dB value)
   - SC-005: confirm `detect()` is a single linear pass with no transcendental math (code review + comment in header)
   - SC-006: monotonicity test passes in `spectral_transient_detector_test.cpp` (higher threshold = fewer/equal detections)
-  - SC-007: multi-FFT-size test passes in `spectral_transient_detector_test.cpp` (512, 1024, 2048, 4096, 8192 bins)
+  - SC-007: multi-FFT-size test passes in `spectral_transient_detector_test.cpp` (bin counts: 257, 513, 1025, 2049, 4097 for FFT sizes 512, 1024, 2048, 4096, 8192 respectively)
 
 - [ ] T033 Search for cheating patterns in all new code:
   - No `// placeholder` or `// TODO` comments
@@ -516,11 +520,11 @@ Sequential:
 - [US1], [US2], [US3] labels map tasks to specific user stories for traceability
 - Each user story is independently completable and testable
 - Skills auto-load when needed (testing-guide, vst-guide)
-- **MANDATORY**: Write tests that FAIL before implementing (Principle XII)
+- **MANDATORY**: Write tests that FAIL before implementing (Principle XIII)
 - **MANDATORY**: Verify cross-platform IEEE 754 compliance (both test files in `-fno-fast-math` list in `dsp/tests/CMakeLists.txt`)
 - **MANDATORY**: Commit work at end of each user story
-- **MANDATORY**: Update `specs/_architecture_/` before spec completion (Principle XIII)
-- **MANDATORY**: Complete honesty verification before claiming spec complete (Principle XV)
+- **MANDATORY**: Update `specs/_architecture_/` before spec completion (Principle XIV)
+- **MANDATORY**: Complete honesty verification before claiming spec complete (Principle XVI)
 - **MANDATORY**: Fill Implementation Verification table in `specs/062-spectral-transient-detector/spec.md`
 - **NEVER claim completion if ANY requirement is not met** - document gaps honestly instead
 - The `prevPhase_[k]` gotcha (plan.md table): at the phase reset insertion point in `processFrame()`, `prevPhase_[k]` already holds the current frame's analysis phase (updated at line ~1134). `synthPhase_[k] = prevPhase_[k]` is correct.

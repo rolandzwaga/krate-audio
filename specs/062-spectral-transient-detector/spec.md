@@ -69,7 +69,7 @@ A DSP developer integrates the SpectralTransientDetector into the PhaseVocoderPi
 
 ### Edge Cases
 
-- What happens when the detector receives the very first frame (no previous magnitudes for comparison)? The threshold comparison is skipped entirely and `detect()` returns `false`, suppressing the guaranteed false positive that would otherwise occur because the previous magnitude buffer initializes to all zeros. The first frame's computed spectral flux is still used to seed the running average for subsequent frames.
+- What happens when the detector receives the very first frame (no previous magnitudes for comparison)? Detection is suppressed and `detect()` returns `false` (see FR-010), preventing the guaranteed false positive that would otherwise occur because the previous magnitude buffer initializes to all zeros. The first frame's computed spectral flux is still used to seed the running average for subsequent frames.
 - What happens when all bins have zero magnitude (silence)? Spectral flux is zero, no transient is detected, and the running average remains stable (does not decay to an arbitrarily small value that causes false positives on any subsequent energy).
 - What happens when a single bin has a large magnitude increase but all others are stable? The spectral flux contribution from one bin alone should typically be below the adaptive threshold (which is based on broadband flux), preventing false detection from isolated bin noise.
 - What happens when the running average is very close to zero (e.g., after prolonged silence) and then sudden input arrives? A minimum floor on the running average prevents division-by-zero or ultra-sensitive detection. The first real onset after prolonged silence should still be detected.
@@ -81,7 +81,7 @@ A DSP developer integrates the SpectralTransientDetector into the PhaseVocoderPi
 
 ### Functional Requirements
 
-- **FR-001**: The detector MUST compute half-wave rectified spectral flux per frame: `SF(n) = sum(max(0, |X_n[k]| - |X_{n-1}[k]|))` for all bins k, where only positive magnitude differences (energy increases) contribute to the flux value. This follows the established onset detection methodology (Duxbury et al., 2002; Dixon, 2006).
+- **FR-001**: The detector MUST compute half-wave rectified spectral flux per frame: `SF(n) = sum(max(0, |X_n[k]| - |X_{n-1}[k]|))` for `k = 0..numBins-1`, where only positive magnitude differences (energy increases) contribute to the flux value. This follows the established onset detection methodology (Duxbury et al., 2002; Dixon, 2006).
 
 - **FR-002**: The detector MUST maintain an adaptive threshold based on a smoothed running average of past spectral flux values: `runningAvg(n) = alpha * runningAvg(n-1) + (1 - alpha) * SF(n)`, where `alpha` is the smoothing coefficient (default: 0.95). A transient is detected when `SF(n) > threshold * runningAvg(n)`.
 
@@ -95,7 +95,7 @@ A DSP developer integrates the SpectralTransientDetector into the PhaseVocoderPi
 
 - **FR-007**: The detector MUST provide a `prepare(numBins)` method that allocates all necessary internal storage (previous magnitudes buffer). If `prepare()` is called a second time with a different bin count, it MUST reallocate to the new size and fully reset all internal state (previous magnitudes, running average, detection flag) — identical behavior to the first call. All subsequent `detect()` calls MUST NOT perform any memory allocation.
 
-- **FR-008**: The detector MUST provide a `reset()` method that clears all internal state (previous magnitudes, running average, detection flag) to initial values, enabling clean restarts without reallocation.
+- **FR-008**: The detector MUST provide a `reset()` method that clears all detection state (previous magnitudes, running average, `lastFlux_`, and detection flag) to initial values, enabling clean restarts without reallocation. Configuration parameters (`threshold_` and `smoothingCoeff_`) are preserved across `reset()` calls; only detection state is cleared.
 
 - **FR-009**: The detector MUST return a `bool` transient detection result from each `detect()` call and MUST expose the values computed during the most recent `detect()` call through three separate `noexcept` getter methods: `getSpectralFlux()` (returns the raw half-wave rectified flux scalar), `getRunningAverage()` (returns the current exponential moving average), and `isTransient()` (returns the boolean detection flag). This API is consistent with other KrateDSP Layer 1 primitives.
 
@@ -103,7 +103,7 @@ A DSP developer integrates the SpectralTransientDetector into the PhaseVocoderPi
 
 - **FR-011**: The detector MUST enforce a minimum floor on the running average (1e-10) to prevent division-by-zero or numerically unstable threshold comparisons after prolonged silence.
 
-- **FR-012**: The PhaseVocoderPitchShifter MUST integrate the SpectralTransientDetector into its `processFrame()` method. When a transient is detected, the synthesis phase array MUST be reset to match the analysis phase: `synthPhase_[k] = analysisPhase[k]` for all bins. This follows the phase reset technique described by Duxbury et al. (2002) and Roebel (2003).
+- **FR-012**: The PhaseVocoderPitchShifter MUST integrate the SpectralTransientDetector into its `processFrame()` method. When a transient is detected, the synthesis phase array MUST be reset to match the analysis phase: `synthPhase_[k] = prevPhase_[k]` for all bins (where `prevPhase_[k]` holds the current frame's analysis phase at the reset insertion point). This follows the phase reset technique described by Duxbury et al. (2002) and Roebel (2003).
 
 - **FR-013**: The PhaseVocoderPitchShifter MUST provide a method to enable/disable transient-aware phase reset independently of phase locking. Both features should be independently toggleable with no interference.
 
@@ -111,7 +111,7 @@ A DSP developer integrates the SpectralTransientDetector into the PhaseVocoderPi
 
 - **FR-015**: All methods on the detector MUST be `noexcept` and safe for use on the audio thread (no allocations, no exceptions, no locks, no I/O in the `detect()` path).
 
-- **FR-016**: When `detect()` is called with a bin count that does not match the bin count from the most recent `prepare()` call, the detector MUST: (a) fire a debug assertion in debug builds to surface the programming error, and (b) in release builds, silently clamp processing to `min(passedCount, preparedCount)` bins and return a valid (possibly degraded) detection result. No undefined behavior, crash, or memory access out of bounds is permitted in any build configuration.
+- **FR-016**: When `detect()` is called with a bin count that does not match the bin count from the most recent `prepare()` call, the detector MUST: (a) fire a debug assertion in debug builds to surface the programming error, and (b) in release builds, silently clamp processing to `min(passedCount, preparedCount)` bins and return a valid (possibly degraded) detection result. If `passedCount` is 0 after clamping (i.e., both counts are 0), `detect()` MUST return `false` and update the running average with a flux value of 0. No undefined behavior, crash, or memory access out of bounds is permitted in any build configuration.
 
 ### Key Entities
 
@@ -131,13 +131,13 @@ A DSP developer integrates the SpectralTransientDetector into the PhaseVocoderPi
 
 - **SC-003**: The detector correctly identifies each onset in a synthetic drum pattern (alternating impulse/silence, minimum 5 onsets) with 100% detection rate at default sensitivity.
 
-- **SC-004**: When integrated with the PhaseVocoderPitchShifter, pitch-shifted transient material (drum hit) shows a measurably higher peak-to-RMS ratio in the first 5ms after onset compared to processing without phase reset (improvement target: at least 2 dB higher peak-to-RMS with phase reset enabled). The 5ms measurement window begins at the first output sample of the STFT frame for which `isTransient()` returned `true`, testing the full integrated pipeline end-to-end. RMS is computed over that same 5ms window; peak is the maximum absolute sample value within it.
+- **SC-004**: When integrated with the PhaseVocoderPitchShifter, pitch-shifted transient material shows a measurably higher peak-to-RMS ratio in the first 5ms after onset compared to processing without phase reset (improvement target: at least 2 dB higher peak-to-RMS with phase reset enabled). The 5ms measurement window begins at the first output sample of the STFT frame for which `isTransient()` returned `true` — for a 4096-point FFT with 1024-sample hop, this is the first sample of the 1024-sample output block corresponding to that frame. RMS is computed over that same 5ms window; peak is the maximum absolute sample value within it. The reference test signal is a synthetic impulse of amplitude 1.0 preceded by 10 frames of silence, processed with a 4096-point FFT, 1024-sample hop size, 44100 Hz sample rate, and 1-octave upward pitch shift (ratio 2.0).
 
 - **SC-005**: The detector's per-frame processing adds less than 0.01% CPU overhead at 44.1 kHz with a 4096-point FFT (2049 bins). The operation is a single linear pass over the magnitude array with no transcendental math.
 
 - **SC-006**: Changing the threshold multiplier between 1.0 and 5.0 produces a monotonically non-increasing number of detections on the same test signal (higher threshold = fewer or equal detections).
 
-- **SC-007**: The detector works identically across all supported FFT sizes (512, 1024, 2048, 4096, 8192) for equivalent spectral content scaled to the appropriate bin count.
+- **SC-007**: The detector works correctly across all supported FFT sizes (512, 1024, 2048, 4096, 8192), corresponding to bin counts of 257, 513, 1025, 2049, and 4097 respectively, for equivalent spectral content scaled to the appropriate bin count.
 
 ## Assumptions & Existing Components *(mandatory)*
 
