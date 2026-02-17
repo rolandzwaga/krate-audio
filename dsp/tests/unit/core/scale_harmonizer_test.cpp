@@ -8,6 +8,48 @@
 // Tests for: dsp/include/krate/dsp/core/scale_harmonizer.h
 // Purpose: Verify diatonic interval computation for harmonizer effects
 // Tags: [scale-harmonizer]
+//
+// ==============================================================================
+// FR-015 Thread Safety Verification (by code inspection)
+// ==============================================================================
+// All query methods (calculate(), getScaleDegree(), quantizeToScale(),
+// getSemitoneShift(), getScaleIntervals(), getKey(), getScale()) are safe
+// for concurrent reads because:
+//
+//  1. All write operations are setKey() and setScale(), which the host
+//     guarantees are NOT called during process() (parameter changes are
+//     serialized before the audio callback).
+//
+//  2. All query methods are marked `const` and modify no shared state.
+//     They read rootNote_ and scale_ but never write to them.
+//
+//  3. No `mutable` keyword, no lazy caches, no static locals, and no
+//     computed fields exist in the ScaleHarmonizer class.  The only
+//     mutable data is the constexpr lookup tables in namespace detail,
+//     which are compile-time constants and inherently thread-safe.
+//
+// Therefore, after configuration via setKey()/setScale(), the object is
+// effectively immutable and safe for concurrent reads from the audio
+// thread without any synchronization.
+//
+// ==============================================================================
+// FR-016 Layer 0 Dependency Rule Verification (by code inspection)
+// ==============================================================================
+// The #include directives in scale_harmonizer.h are:
+//
+//   Standard library (Layer 0 allowed):
+//     <algorithm>   -- std::clamp
+//     <array>       -- std::array for lookup tables
+//     <cmath>       -- std::round (in getSemitoneShift)
+//     <cstdint>     -- uint8_t for ScaleType underlying type
+//
+//   Layer 0 headers:
+//     <krate/dsp/core/midi_utils.h>   -- kMinMidiNote, kMaxMidiNote constants
+//     <krate/dsp/core/pitch_utils.h>  -- frequencyToMidiNote() for getSemitoneShift()
+//
+// No Layer 1+ headers (primitives/, processors/, systems/, effects/) are
+// included.  This satisfies the Layer 0 dependency rule: only stdlib and
+// other Layer 0 utilities.
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
