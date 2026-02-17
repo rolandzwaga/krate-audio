@@ -74,6 +74,7 @@
 #include <krate/dsp/primitives/slice_pool.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/spectral_buffer.h>
+#include <krate/dsp/primitives/spectral_transient_detector.h>
 #include <krate/dsp/primitives/spectral_utils.h>
 #include <krate/dsp/primitives/spectrum_fifo.h>
 #include <krate/dsp/primitives/stft.h>

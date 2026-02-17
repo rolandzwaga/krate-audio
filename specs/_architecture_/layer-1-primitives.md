@@ -2070,3 +2070,56 @@ struct StageCoefficients { float coef; float base; };
 - Avoid duplicating the EarLevel Engineering coefficient formula
 
 **Dependencies:** `core/db_utils.h` (for `ITERUM_NOINLINE`, `detail::flushDenormal()`)
+
+---
+
+## SpectralTransientDetector
+**Path:** [spectral_transient_detector.h](../../dsp/include/krate/dsp/primitives/spectral_transient_detector.h) | **Since:** 0.18.0 | **Spec:** [062-spectral-transient-detector](../062-spectral-transient-detector/spec.md)
+
+Spectral flux-based onset detection on magnitude spectra. Computes half-wave rectified spectral flux per frame (sum of positive magnitude differences between consecutive frames), compares against an adaptive threshold derived from an exponential moving average (EMA), and flags transient onsets. Used by `PhaseVocoderPitchShifter` for transient-aware phase reset.
+
+**Use when:**
+- Any spectral processor that needs onset/transient detection without phase information
+- Triggering phase reset in phase vocoders to preserve transient sharpness
+- Onset-aligned granular processing or spectral freeze effects
+- Detecting drum hits, consonant attacks, or plucked string onsets in spectral domain
+
+**Note:** The `detect()` path is real-time safe (no allocations, no exceptions, no locks, no I/O). All memory is allocated in `prepare()`. First `detect()` call after `prepare()` or `reset()` always returns `false` (first-frame suppression) but still seeds the running average.
+
+```cpp
+class SpectralTransientDetector {
+    // Lifecycle
+    void prepare(std::size_t numBins) noexcept;   // Allocate and reset (reallocates if bin count changes)
+    void reset() noexcept;                         // Clear state, preserve threshold/smoothingCoeff
+
+    // Detection (real-time safe)
+    [[nodiscard]] bool detect(const float* magnitudes, std::size_t numBins) noexcept;
+
+    // Configuration
+    void setThreshold(float multiplier) noexcept;      // [1.0, 5.0] (default: 1.5)
+    void setSmoothingCoeff(float coeff) noexcept;       // [0.8, 0.99] (default: 0.95)
+
+    // Getters (values from most recent detect() call)
+    [[nodiscard]] float getSpectralFlux() const noexcept;
+    [[nodiscard]] float getRunningAverage() const noexcept;
+    [[nodiscard]] bool isTransient() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| threshold | 1.5 | [1.0, 5.0] | Multiplier on running average for detection. Lower = more sensitive. |
+| smoothingCoeff | 0.95 | [0.8, 0.99] | EMA alpha. Higher = slower-moving average (more historical context). |
+
+**Algorithm:**
+1. Compute half-wave rectified spectral flux: `SF(n) = sum(max(0, mag[k] - prevMag[k]))` for all bins
+2. Update EMA: `runningAvg = alpha * runningAvg + (1 - alpha) * SF`
+3. Enforce floor of 1e-10 on running average (prevents instability after prolonged silence)
+4. Detect transient: `SF > threshold * runningAvg` (suppressed on first frame)
+5. Store current magnitudes as previous for next frame
+
+**Supported bin counts:** 257 (512-point FFT), 513 (1024-point FFT), 1025 (2048-point FFT), 2049 (4096-point FFT), 4097 (8192-point FFT).
+
+**Performance:** O(numBins) per frame with 3 arithmetic operations per bin (subtract, max, add). No transcendental math. Negligible overhead (< 0.01% CPU at 44.1kHz/4096-point FFT).
+
+**Dependencies:** Standard library only (`<vector>`, `<cstddef>`, `<cmath>`, `<algorithm>`, `<cassert>`)

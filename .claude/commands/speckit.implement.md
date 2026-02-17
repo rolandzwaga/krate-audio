@@ -63,7 +63,12 @@ or
 
 Build an ordered list of phases with their section content (task lists).
 
-**Important**: Identify which phases are "implementation phases" (write code) vs "verification phases" (Phase N-1: Completion Verification, Phase N-1.0: Static Analysis, Phase N-2: Final Documentation). The verification phases are handled differently — they are given to the comply agent directly.
+**Important**: Identify phase types:
+- **Code phases** (write implementation code or tests) — get implement agent + comply agent verification
+- **Lightweight phases** (CMake setup, file scaffolding, architecture docs, final docs) — get implement agent only, NO comply agent (verifying boilerplate/docs is wasteful)
+- **Verification phases** (Phase N-1: Completion Verification, Phase N-1.0: Static Analysis) — handled differently, given to the comply agent directly
+
+Only phases that produce **implementation code or tests** warrant compliance verification. Phases that only register files in build systems, create placeholders, or write documentation are lightweight: spawn `speckit-implement`, skip compliance verification, move on.
 
 ## Step 3: Execute Phase Loop
 
@@ -177,42 +182,27 @@ Re-verify Phase {N} of spec {feature-name} after fixes.
 
 For phases like "Phase N-1.0: Static Analysis", "Phase N-1: Completion Verification", and "Phase N-2: Final Documentation":
 
-**Static Analysis (Phase N-1.0)**: Spawn `speckit-comply` agent directly:
+**Static Analysis (Phase N-1.0)**: The orchestrator runs clang-tidy directly (no agent needed for just running a script). Run:
 
-```
-Run static analysis for spec {feature-name}.
-
-Feature dir: {FEATURE_DIR}/
-Mode: Static Analysis
-
-Steps:
-1. Run clang-tidy: ./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja
-2. Record all findings (file count, errors, warnings)
-3. If warnings exist: list them ALL with file paths and line numbers
-
-Output the static analysis report.
-Do NOT modify any files — only report findings.
+```bash
+powershell -ExecutionPolicy Bypass -File ./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja
 ```
 
-If clang-tidy finds issues, spawn `speckit-implement` to fix them:
+Parse the output. If **0 warnings/errors**: mark static analysis tasks [X] in tasks.md, move on.
+
+If warnings/errors exist, spawn `speckit-implement` with just the findings:
 
 ```
-Fix clang-tidy findings for spec {feature-name}.
-
-Feature dir: {FEATURE_DIR}/
+Fix these clang-tidy findings for spec {feature-name}. Feature dir: {FEATURE_DIR}/
 Read quickstart.md for build commands.
 
-The static analysis found these issues:
-{paste clang-tidy findings here}
+{paste the clang-tidy output here}
 
-Fix ALL warnings and errors. Use NOLINT with documented justification ONLY when a warning
-is genuinely unfixable (e.g., Highway macro patterns). Build after fixing to verify.
-Mark the static analysis tasks [X] in tasks.md when done.
-Do NOT re-run clang-tidy yourself — the orchestrator handles that.
+Fix all issues. NOLINT only when genuinely unfixable (with justification comment).
+Build after fixing. Mark static analysis tasks [X] in tasks.md.
 ```
 
-Do NOT re-run clang-tidy after fixes. The implement agent already built clean after fixing.
-Move on to the next phase.
+Move on after fixes — do NOT re-run clang-tidy (the build already verified compilation).
 
 **Completion Verification (Phase N-1)**: Spawn `speckit-comply` agent.
 
@@ -269,7 +259,7 @@ Update the "Implementation Verification" section of spec.md with:
 3. Mark the completion verification tasks [X] in tasks.md
 ```
 
-**Final Documentation (Phase N-2)**: Spawn `speckit-implement` as normal (architecture docs are implementation work).
+**Final Documentation / Architecture Docs**: Spawn `speckit-implement` to write the documentation. Do NOT spawn `speckit-comply` afterward — verifying documentation writing is wasteful. Mark the phase as PASS and move on.
 
 ## Step 4: Final Report
 
@@ -296,7 +286,7 @@ After all phases are complete, report to the user:
 ## Important Rules for the Orchestrator
 
 1. **NEVER run both agents in parallel** — implementation MUST complete before compliance starts
-2. **NEVER skip the comply agent** — every implementation phase gets verified
+2. **NEVER skip the comply agent for code phases** — every phase that writes implementation code or tests gets verified. Lightweight phases (setup/scaffolding, documentation) skip compliance verification.
 3. **NEVER let the impl agent grade its own work** — that's the comply agent's job
 4. **Report progress to user** after each phase (phase name + PASS/FAIL)
 5. **Max 1 retry per phase** — don't loop endlessly on failures
