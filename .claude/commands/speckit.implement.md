@@ -200,6 +200,7 @@ If clang-tidy finds issues, spawn `speckit-implement` to fix them:
 Fix clang-tidy findings for spec {feature-name}.
 
 Feature dir: {FEATURE_DIR}/
+Read quickstart.md for build commands.
 
 The static analysis found these issues:
 {paste clang-tidy findings here}
@@ -207,9 +208,11 @@ The static analysis found these issues:
 Fix ALL warnings and errors. Use NOLINT with documented justification ONLY when a warning
 is genuinely unfixable (e.g., Highway macro patterns). Build after fixing to verify.
 Mark the static analysis tasks [X] in tasks.md when done.
+Do NOT re-run clang-tidy yourself — the orchestrator handles that.
 ```
 
-Then re-run comply to verify the fixes.
+Do NOT re-run clang-tidy after fixes. The implement agent already built clean after fixing.
+Move on to the next phase.
 
 **Completion Verification (Phase N-1)**: Spawn `speckit-comply` agent.
 
@@ -235,8 +238,9 @@ Steps:
 5. Run pluginval if plugin code was changed:
    tools/pluginval.exe --strictness-level 5 --validate "<path to built .vst3>"
    (Check quickstart.md for the correct plugin path)
-6. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
-7. Produce the full compliance table with REAL evidence
+6. Do NOT run clang-tidy — it already ran in Phase N-1.0 (Static Analysis).
+7. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
+8. Produce the full compliance table with REAL evidence
 
 Output the final compliance report with:
 - Build result: 0 warnings confirmed

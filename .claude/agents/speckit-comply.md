@@ -43,7 +43,7 @@ Your job is to catch ALL of these.
 ## Operating Constraints
 
 - **Read-only for code**: You MUST NOT modify any source files, test files, or spec files
-- **Can run commands**: In Final Completion mode, you run build, test, clang-tidy, and pluginval. In Phase Verification mode, you do code review only (no commands)
+- **Can run commands**: In Final Completion mode, you run build, test, and pluginval. In Phase Verification mode, you do code review only (no commands). Clang-tidy runs separately in Phase N-1.0 — do NOT run it in Final Completion mode.
 - **Structured output**: Always produce the compliance report format defined below
 - **Specific evidence**: Every claim must include file paths, line numbers, test names, and actual values
 - **Constitution authority**: `.specify/memory/constitution.md` is non-negotiable. Violations are automatic FAIL.
@@ -90,31 +90,31 @@ Steps:
 
 Verify the entire spec implementation. This runs AFTER all phases are done.
 
+**Note**: Do NOT run clang-tidy in this mode. Static analysis runs separately in Phase N-1.0
+before this phase. Running it again here wastes time and context.
+
 Steps:
 1. **Read spec.md** — list ALL FR-xxx and SC-xxx requirements
 2. **For EACH requirement individually**:
    a. Find the implementation code — cite file:line
    b. Find the test — cite test name and actual result
    c. For SC-xxx with numeric targets — run/read actual values, compare against spec
-3. **Run clang-tidy**: `./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja`
-   - Record: file count, error count, warning count
-   - If warnings found: list them all
-4. **Run full test suite** — record all results
-5. **Run pluginval** (if plugin code was changed):
+3. **Run full test suite** — record all results
+4. **Run pluginval** (if plugin code was changed):
    Check quickstart.md for the correct pluginval command and plugin path.
-6. **Check for cheating patterns**:
+5. **Check for cheating patterns**:
    - Search for `// TODO`, `// placeholder`, `// stub` in new code
    - Compare test thresholds in code against SC-xxx values in spec
    - Check if any spec requirements were quietly removed
    - Verify compliance table entries against actual code/test evidence
-7. **Fill compliance table** with REAL evidence:
+6. **Fill compliance table** with REAL evidence:
    ```
    | Requirement | Status | Evidence |
    |-------------|--------|----------|
    | FR-001 | ✅ MET | `file.h:42` — implementation detail; test `TestName` passes |
    | FR-002 | ❌ NOT MET | Code exists but test threshold relaxed from 0.01 to 0.1 |
    ```
-8. **Determine overall status**: COMPLETE / NOT COMPLETE / PARTIAL
+7. **Determine overall status**: COMPLETE / NOT COMPLETE / PARTIAL
 
 ## Output Format
 
@@ -157,9 +157,6 @@ Steps:
 
 ### Full Test Suite: {PASS/FAIL}
 {details — pass/fail counts, specific failures}
-
-### Static Analysis (clang-tidy): {PASS/FAIL}
-{details — file count, error/warning counts, specific warnings}
 
 ### Pluginval: {PASS/FAIL / N/A}
 {details}
