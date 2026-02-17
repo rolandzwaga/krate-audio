@@ -260,7 +260,7 @@ Note: The rotation angle formula is implemented in T018 (Pass 2). This phase ver
 
 ### 9.1 Architecture Documentation Update
 
-- [ ] T068 Update `specs/_architecture_/layer-2-processors.md` with the phase locking additions to `PhaseVocoderPitchShifter`: add subsection documenting the new `setPhaseLocking()`/`getPhaseLocking()` API, the identity phase locking algorithm (Laroche & Dolson 1999), new member variables and their memory footprint (~13.3 KB per instance), the two-pass synthesis structure, and the formant preservation compatibility note
+- [X] T068 Update `specs/_architecture_/layer-2-processors.md` with the phase locking additions to `PhaseVocoderPitchShifter`: add subsection documenting the new `setPhaseLocking()`/`getPhaseLocking()` API, the identity phase locking algorithm (Laroche & Dolson 1999), new member variables and their memory footprint (~13.3 KB per instance), the two-pass synthesis structure, and the formant preservation compatibility note
 
 ### 9.2 Final Documentation Commit
 

@@ -428,6 +428,77 @@ class PitchShifter {
 };
 ```
 
+### Identity Phase Locking (PhaseVocoderPitchShifter)
+
+**Path:** [pitch_shift_processor.h](../../dsp/include/krate/dsp/processors/pitch_shift_processor.h) | **Since:** 0.17.0 | **Spec:** [061-phase-locking](../061-phase-locking/spec.md)
+
+The `PhaseVocoderPitchShifter` class (the internal engine used by `PitchShifter` in PhaseVocoder mode) implements identity phase locking based on Laroche & Dolson (1999). This algorithm preserves vertical phase coherence (phase relationships between adjacent frequency bins within a single STFT frame), dramatically reducing the "phasiness" artifact inherent in standard phase vocoders. Phase locking is enabled by default.
+
+#### API
+
+```cpp
+class PhaseVocoderPitchShifter {
+    // ... existing API ...
+
+    // Phase locking control (since 0.17.0)
+    void setPhaseLocking(bool enabled) noexcept;          // Toggle phase locking (default: true)
+    [[nodiscard]] bool getPhaseLocking() const noexcept;  // Query current state
+};
+```
+
+- `setPhaseLocking(bool)` -- Enable or disable identity phase locking at runtime. When disabled, behavior is identical to the pre-modification basic phase vocoder (per-bin phase accumulation). Safe to call between process calls; NOT safe to call concurrently with `processFrame()` from another thread.
+- `getPhaseLocking()` -- Returns the current phase locking state. Read-only; safe from any thread if no concurrent write is in progress.
+
+#### Algorithm: Identity Phase Locking (Laroche & Dolson, 1999)
+
+The algorithm modifies the synthesis phase computation in `processFrame()` to preserve vertical phase coherence. It operates in three stages per STFT frame:
+
+**Stage A -- Peak Detection** (analysis domain):
+Scans `magnitude_[1..numBins-2]` for 3-point local maxima using strict inequality (`magnitude[k] > magnitude[k-1] AND magnitude[k] > magnitude[k+1]`). DC (bin 0) and Nyquist (bin numBins-1) are excluded. Detected peak indices are stored in `peakIndices_[]` (capped at `kMaxPeaks = 512`). Typical count: 20-100 peaks for music signals with a 4096-point FFT.
+
+**Stage B -- Region-of-Influence Assignment** (analysis domain):
+Assigns every analysis bin (0 to numBins-1) to its nearest detected peak. Boundaries between regions are placed at midpoints between adjacent peaks: `midpoint = (peak_i + peak_{i+1}) / 2` (integer division, which rounds toward the lower-frequency peak when equidistant). Single-peak case: all bins assigned to that peak. Zero-peaks case: falls back to basic per-bin phase accumulation.
+
+**Stage C -- Two-Pass Synthesis** (synthesis domain):
+The synthesis loop is split into two passes to resolve an ordering dependency (non-peak bins need peak synthesis phases that may not yet be computed in a single forward pass during pitch-up shifts):
+
+- **Pass 1 (peak bins):** For each synthesis bin `k` whose source analysis bin (via `srcBin = k / pitchRatio`) is a peak, apply standard horizontal phase propagation: `synthPhase_[k] += freq; synthPhase_[k] = wrapPhase(synthPhase_[k])`. Compute Cartesian output from the accumulated phase.
+- **Pass 2 (non-peak bins):** For each synthesis bin `k` whose source analysis bin is NOT a peak, look up the controlling analysis peak via `regionPeak_[srcBinRounded]`. Compute the rotation angle: `rotationAngle = synthPhase_[synthPeakBin] - prevPhase_[analysisPeak]`. Apply to the interpolated analysis phase: `phi_out[k] = analysisPhaseAtSrc + rotationAngle`. Store the locked phase in `synthPhase_[k]` for formant step compatibility and compute Cartesian output.
+
+This ensures that within each spectral lobe (region of influence), the phase relationships between bins are identical to the input -- hence "identity" phase locking.
+
+#### New Member Variables
+
+| Variable | Type | Size | Description |
+|----------|------|------|-------------|
+| `isPeak_` | `std::array<bool, kMaxBins>` | 4097 B | Per-analysis-bin peak flag |
+| `peakIndices_` | `std::array<uint16_t, kMaxPeaks>` | 1024 B | Analysis-domain peak bin indices |
+| `numPeaks_` | `std::size_t` | 8 B | Count of detected peaks in current frame |
+| `regionPeak_` | `std::array<uint16_t, kMaxBins>` | 8194 B | Region-peak assignment per analysis bin |
+| `phaseLockingEnabled_` | `bool` | 1 B | Phase locking toggle (default: enabled) |
+| `wasLocked_` | `bool` | 1 B | Previous frame's locking state for toggle re-init |
+
+**Constants:** `kMaxBins = 4097` (8192/2+1, max supported FFT), `kMaxPeaks = 512`.
+
+**Total memory footprint:** ~13.3 KB per `PhaseVocoderPitchShifter` instance. The `uint16_t` element type for `peakIndices_` and `regionPeak_` (bin indices never exceed 4096) reduces combined array size from ~36 KB (`std::size_t`) to ~9 KB, improving cache behavior for the 4-voice HarmonizerEngine use case.
+
+#### Formant Preservation Compatibility
+
+The existing formant preservation step (Step 3 in `processFrame()`) recomputes `cos(synthPhase_[k])` / `sin(synthPhase_[k])` for all bins. Phase locking is compatible because non-peak bins write their locked phase to `synthPhase_[k]` in Pass 2, ensuring the formant step always has the correct phase for every bin. The formant preservation code itself is unchanged.
+
+#### Toggle Behavior
+
+Toggling from locked to basic (`setPhaseLocking(false)`) re-initializes `synthPhase_[k] = prevPhase_[k]` for all bins on the next processed frame (detected via the `wasLocked_` flag). This prevents phase jumps from stale accumulator values. A brief single-frame artifact is acceptable. Toggling from basic to locked requires no special handling -- the rotation angle is derived fresh from the current analysis frame.
+
+#### Dependencies
+
+Layer 0 (math_constants.h), Layer 1 (spectral_utils.h `wrapPhase()`, spectral_buffer.h, stft.h), Layer 2 peer (formant_preserver.h -- unchanged)
+
+#### References
+
+- Laroche, J. & Dolson, M. (1999). "Improved phase vocoder time-scale modification of audio." IEEE Trans. Speech Audio Processing, 7(3):323-332.
+- Laroche, J. & Dolson, M. (1999). "New phase-vocoder techniques for pitch-shifting, harmonizing and other exotic effects." IEEE WASPAA.
+
 ---
 
 ## Diffuser
