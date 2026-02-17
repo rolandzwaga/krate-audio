@@ -1045,6 +1045,12 @@ public:
         return peakIndices_[i];
     }
 
+    /// Returns a const reference to the synthesis spectrum buffer (test accessor).
+    /// Allows tests to inspect output Cartesian values for phase verification.
+    [[nodiscard]] const SpectralBuffer& getSynthesisSpectrum() const noexcept {
+        return synthesisSpectrum_;
+    }
+
     void process(const float* input, float* output, std::size_t numSamples,
                  float pitchRatio) noexcept {
         // At unity pitch, pass through (with latency compensation)

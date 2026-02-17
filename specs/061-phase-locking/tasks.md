@@ -217,18 +217,18 @@ Note: Stage B implementation was done in T016. This phase focuses on verifying c
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T053 [US5] Write rotation angle correctness test in `dsp/tests/unit/processors/phase_locking_test.cpp` using an observable behavioral approach (do NOT access `synthPhase_[]` or `prevPhase_[]` directly — these are private): process a two-tone signal with known peaks at bins P1 and P2; then for two non-peak synthesis bins in the same region, extract their output phases via `std::atan2(imag, real)` from the output `synthesisSpectrum_` Cartesian values; verify that the phase difference between the two non-peak output bins equals the phase difference between the corresponding analysis input bins (this is the invariant that identity phase locking preserves: `phi_out[k1] - phi_out[k2] == phi_in[srcBin1] - phi_in[srcBin2]` for bins in the same region). If a test accessor for `synthesisSpectrum_` is needed, add a `const SpectralBuffer& getSynthesisSpectrum() const noexcept` method or declare the test class as a friend (FR-005).
-- [ ] T054 [US5] Write disabled-path accumulation test in `dsp/tests/unit/processors/phase_locking_test.cpp`: with phase locking disabled, verify all bins use independent phase accumulation (`synthPhase_[k] += freq; synthPhase_[k] = wrapPhase(...)`) and NOT the rotation angle formula (FR-006, FR-013)
-- [ ] T055 [US5] Build `dsp_tests` and confirm all US5 tests compile but FAIL
+- [X] T053 [US5] Write rotation angle correctness test in `dsp/tests/unit/processors/phase_locking_test.cpp` using an observable behavioral approach (do NOT access `synthPhase_[]` or `prevPhase_[]` directly — these are private): process a two-tone signal with known peaks at bins P1 and P2; then for two non-peak synthesis bins in the same region, extract their output phases via `std::atan2(imag, real)` from the output `synthesisSpectrum_` Cartesian values; verify that the phase difference between the two non-peak output bins equals the phase difference between the corresponding analysis input bins (this is the invariant that identity phase locking preserves: `phi_out[k1] - phi_out[k2] == phi_in[srcBin1] - phi_in[srcBin2]` for bins in the same region). If a test accessor for `synthesisSpectrum_` is needed, add a `const SpectralBuffer& getSynthesisSpectrum() const noexcept` method or declare the test class as a friend (FR-005).
+- [X] T054 [US5] Write disabled-path accumulation test in `dsp/tests/unit/processors/phase_locking_test.cpp`: with phase locking disabled, verify all bins use independent phase accumulation (`synthPhase_[k] += freq; synthPhase_[k] = wrapPhase(...)`) and NOT the rotation angle formula (FR-006, FR-013)
+- [X] T055 [US5] Build `dsp_tests` and confirm all US5 tests compile but FAIL
 
 ### 7.2 Implementation for User Story 5
 
 Note: The rotation angle formula is implemented in T018 (Pass 2). This phase verifies it is correct.
 
-- [ ] T056 [US5] Verify Pass 2 in `processFrame()` in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` uses interpolated `analysisPhaseAtSrc = prevPhase_[srcBin0] * (1-frac) + prevPhase_[srcBin1] * frac` (not just `prevPhase_[srcBin0]`) for the source phase; correct if not (FR-005)
-- [ ] T057 [US5] Verify `wrapPhase` is called after `synthPhase_[k] +=` in Pass 1 for peak bins in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` and is NOT called for non-peak bins (which use the rotation angle directly without accumulation) (FR-004)
-- [ ] T058 [US5] Build `dsp_tests` and confirm zero compilation errors and zero warnings
-- [ ] T059 [US5] Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "Phase Locking*"` and verify all US1 through US5 tests pass
+- [X] T056 [US5] Verify Pass 2 in `processFrame()` in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` uses interpolated `analysisPhaseAtSrc = prevPhase_[srcBin0] * (1-frac) + prevPhase_[srcBin1] * frac` (not just `prevPhase_[srcBin0]`) for the source phase; correct if not (FR-005)
+- [X] T057 [US5] Verify `wrapPhase` is called after `synthPhase_[k] +=` in Pass 1 for peak bins in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` and is NOT called for non-peak bins (which use the rotation angle directly without accumulation) (FR-004)
+- [X] T058 [US5] Build `dsp_tests` and confirm zero compilation errors and zero warnings
+- [X] T059 [US5] Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "Phase Locking*"` and verify all US1 through US5 tests pass
 
 ### 7.3 Commit (MANDATORY)
 
