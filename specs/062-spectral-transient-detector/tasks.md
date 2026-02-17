@@ -200,7 +200,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 > **Test Naming**: All test case names in `phase_reset_test.cpp` MUST begin with `"PhaseReset"` (e.g., `"PhaseResetDefault"`, `"PhaseResetTransientSharpness"`) so the filter `"PhaseReset*"` in build/verification commands captures all tests in this file.
 
-- [ ] T015 [P] [US3] Write failing tests in `dsp/tests/unit/processors/phase_reset_test.cpp` covering:
+- [X] T015 [P] [US3] Write failing tests in `dsp/tests/unit/processors/phase_reset_test.cpp` covering:
   - `PhaseVocoderPitchShifter` has `setPhaseReset(bool)` and `getPhaseReset()` methods
   - `PitchShiftProcessor` has `setPhaseReset(bool)` and `getPhaseReset()` public methods
   - Phase reset disabled by default: `getPhaseReset()` returns `false` after `prepare()` (FR-013, backward compatibility)
@@ -214,11 +214,11 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 5.2 Build Verification (Tests Must FAIL)
 
-- [ ] T016 [US3] Build `dsp_tests` and confirm `phase_reset_test.cpp` compiles but all phase-reset tests FAIL (methods do not exist yet): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T016 [US3] Build `dsp_tests` and confirm `phase_reset_test.cpp` compiles but all phase-reset tests FAIL (methods do not exist yet): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests`
 
 ### 5.3 Implementation for User Story 3
 
-- [ ] T017 [US3] Modify `dsp/include/krate/dsp/processors/pitch_shift_processor.h` - add to `PhaseVocoderPitchShifter`:
+- [X] T017 [US3] Modify `dsp/include/krate/dsp/processors/pitch_shift_processor.h` - add to `PhaseVocoderPitchShifter`:
   - New include: `#include <krate/dsp/primitives/spectral_transient_detector.h>` (at top of file with other includes)
   - New private members: `SpectralTransientDetector transientDetector_` and `bool phaseResetEnabled_ = false`
   - New public methods: `void setPhaseReset(bool enabled) noexcept` and `[[nodiscard]] bool getPhaseReset() const noexcept`
@@ -238,21 +238,21 @@ There is no shared foundational infrastructure beyond the CMake registration alr
     ```
   - Note: `prevPhase_[k]` at the phase reset insertion point already holds the current frame's analysis phase (updated at line ~1134 per plan.md gotchas table). This is correct for phase reset per FR-012.
 
-- [ ] T018 [US3] Modify `dsp/include/krate/dsp/processors/pitch_shift_processor.h` - add to `PitchShiftProcessor` (public API wrapper):
+- [X] T018 [US3] Modify `dsp/include/krate/dsp/processors/pitch_shift_processor.h` - add to `PitchShiftProcessor` (public API wrapper):
   - New public methods `setPhaseReset(bool enable) noexcept` and `[[nodiscard]] bool getPhaseReset() const noexcept`
   - Implementations: `pImpl_->phaseVocoderShifter.setPhaseReset(enable)` and `return pImpl_->phaseVocoderShifter.getPhaseReset()` (per phase_reset_integration.md PitchShiftProcessor section)
 
 ### 5.4 Verify Tests Pass
 
-- [ ] T019 [US3] Build `dsp_tests` and run phase reset tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PhaseReset*"` - all tests must pass including the SC-004 2 dB improvement test
+- [X] T019 [US3] Build `dsp_tests` and run phase reset tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PhaseReset*"` - all tests must pass including the SC-004 2 dB improvement test
 
 ### 5.5 Cross-Platform Verification (MANDATORY)
 
-- [ ] T020 [US3] Confirm `dsp/tests/unit/processors/phase_reset_test.cpp` is in the `-fno-fast-math` block in `dsp/tests/CMakeLists.txt` (added in T003/T004). Use `Approx().margin()` for all floating-point comparisons. Confirm no narrowing conversions in designated initializers used for `BlockContext` or similar structs. Confirm no platform-specific code was introduced in `pitch_shift_processor.h`.
+- [X] T020 [US3] Confirm `dsp/tests/unit/processors/phase_reset_test.cpp` is in the `-fno-fast-math` block in `dsp/tests/CMakeLists.txt` (added in T003/T004). Use `Approx().margin()` for all floating-point comparisons. Confirm no narrowing conversions in designated initializers used for `BlockContext` or similar structs. Confirm no platform-specific code was introduced in `pitch_shift_processor.h`.
 
 ### 5.6 Commit (MANDATORY)
 
-- [ ] T021 [US3] Commit all User Story 3 work: modified `pitch_shift_processor.h` and new test file `phase_reset_test.cpp`
+- [X] T021 [US3] Commit all User Story 3 work: modified `pitch_shift_processor.h` and new test file `phase_reset_test.cpp`
 
 **Checkpoint**: Phase reset integration is fully functional and tested. All three US3 acceptance scenarios verified. SC-004 (2 dB improvement) confirmed by test output.
 

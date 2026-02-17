@@ -41,6 +41,9 @@
 #include <krate/dsp/primitives/spectral_buffer.h>
 #include <krate/dsp/core/window_functions.h>
 
+// Layer 1 dependencies (spectral transient detection)
+#include <krate/dsp/primitives/spectral_transient_detector.h>
+
 // Layer 2 dependencies (extracted)
 #include <krate/dsp/processors/formant_preserver.h>
 
@@ -252,6 +255,19 @@ public:
     /// @brief Get formant preservation state
     /// @return true if formant preservation is enabled
     [[nodiscard]] bool getFormantPreserve() const noexcept;
+
+    //=========================================================================
+    // Parameters - Phase Reset
+    //=========================================================================
+
+    /// @brief Enable or disable transient-aware phase reset for PhaseVocoder mode.
+    /// Only effective when mode is PitchMode::PhaseVocoder.
+    /// @param enable true to enable, false to disable
+    void setPhaseReset(bool enable) noexcept;
+
+    /// @brief Get phase reset state
+    /// @return true if phase reset is enabled
+    [[nodiscard]] bool getPhaseReset() const noexcept;
 
     //=========================================================================
     // Latency
@@ -974,6 +990,9 @@ public:
         shiftedEnvelope_.resize(numBins, 1.0f);
         shiftedMagnitude_.resize(numBins, 0.0f);
 
+        // Prepare transient detector for phase reset
+        transientDetector_.prepare(numBins);
+
         reset();
     }
 
@@ -1003,6 +1022,9 @@ public:
         numPeaks_ = 0;
         regionPeak_.fill(0);
         wasLocked_ = false;
+
+        // Transient detector state
+        transientDetector_.reset();
     }
 
     /// @brief Enable or disable formant preservation
@@ -1025,6 +1047,19 @@ public:
     /// @brief Get phase locking state
     [[nodiscard]] bool getPhaseLocking() const noexcept {
         return phaseLockingEnabled_;
+    }
+
+    /// @brief Enable or disable transient-aware phase reset.
+    /// When enabled, synthesis phases are reset to analysis phases at transient frames.
+    /// Independent of phase locking -- both can be enabled simultaneously.
+    /// Phase reset is disabled by default.
+    void setPhaseReset(bool enabled) noexcept {
+        phaseResetEnabled_ = enabled;
+    }
+
+    /// @brief Get phase reset state
+    [[nodiscard]] bool getPhaseReset() const noexcept {
+        return phaseResetEnabled_;
     }
 
     /// Returns the number of peaks detected in the most recent frame.
@@ -1148,6 +1183,19 @@ private:
         // Step 1b: Extract original spectral envelope if formant preservation enabled
         if (formantPreserve_) {
             formantPreserver_.extractEnvelope(magnitude_.data(), originalEnvelope_.data());
+        }
+
+        // Step 1b-reset: Transient detection and phase reset (FR-012)
+        // Note: prevPhase_[k] already holds the current frame's analysis phase
+        // (updated above at line: prevPhase_[k] = phase), which is correct for
+        // phase reset per FR-012.
+        if (phaseResetEnabled_) {
+            const bool isTransient = transientDetector_.detect(magnitude_.data(), numBins);
+            if (isTransient) {
+                for (std::size_t k = 0; k < numBins; ++k) {
+                    synthPhase_[k] = prevPhase_[k];
+                }
+            }
         }
 
         // Step 1c: Phase locking setup (peak detection + region assignment)
@@ -1369,6 +1417,10 @@ private:
     bool phaseLockingEnabled_ = true;                   // Phase locking toggle (default: enabled)
     bool wasLocked_ = false;                            // Previous frame's locking state (for toggle-to-basic re-init)
 
+    // Transient detection for phase reset (FR-012, FR-013)
+    SpectralTransientDetector transientDetector_;       // Spectral flux onset detector
+    bool phaseResetEnabled_ = false;                    // Independent toggle (default: off)
+
     // I/O buffers for sample-level processing
     std::vector<float> inputBuffer_;
     std::vector<float> outputBuffer_;
@@ -1542,6 +1594,14 @@ inline void PitchShiftProcessor::setFormantPreserve(bool enable) noexcept {
 
 inline bool PitchShiftProcessor::getFormantPreserve() const noexcept {
     return pImpl_->formantPreserve;
+}
+
+inline void PitchShiftProcessor::setPhaseReset(bool enable) noexcept {
+    pImpl_->phaseVocoderShifter.setPhaseReset(enable);
+}
+
+inline bool PitchShiftProcessor::getPhaseReset() const noexcept {
+    return pImpl_->phaseVocoderShifter.getPhaseReset();
 }
 
 inline std::size_t PitchShiftProcessor::getLatencySamples() const noexcept {
