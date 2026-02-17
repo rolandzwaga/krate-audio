@@ -308,7 +308,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 8.1 Run Clang-Tidy Analysis
 
-- [ ] T028 Run clang-tidy on all new and modified source files:
+- [X] T028 Run clang-tidy on all new and modified source files:
   ```powershell
   # Windows (PowerShell, from repo root)
   ./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
@@ -321,8 +321,8 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 8.2 Address Findings
 
-- [ ] T029 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T030 Review warnings and fix where appropriate; document any intentional suppressions with `// NOLINT(<check>) - <reason>` comment
+- [X] T029 Fix all errors reported by clang-tidy (blocking issues)
+- [X] T030 Review warnings and fix where appropriate; document any intentional suppressions with `// NOLINT(<check>) - <reason>` comment
 
 **Checkpoint**: Static analysis clean - ready for completion verification.
 
@@ -336,7 +336,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 9.1 Requirements Verification
 
-- [ ] T031 Verify every FR-xxx requirement from `specs/062-spectral-transient-detector/spec.md` against the implementation. For each requirement, open the implementation file, find the relevant code, and record the file path and line number.
+- [X] T031 Verify every FR-xxx requirement from `specs/062-spectral-transient-detector/spec.md` against the implementation. For each requirement, open the implementation file, find the relevant code, and record the file path and line number.
   - FR-001: half-wave rectified flux formula in `detect()` in `spectral_transient_detector.h`
   - FR-002: EMA threshold comparison in `detect()` in `spectral_transient_detector.h`
   - FR-003: `setThreshold()` clamps to [1.0, 5.0] in `spectral_transient_detector.h`
@@ -354,7 +354,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
   - FR-015: all `detect()`, `reset()`, getter, setter methods are `noexcept` in `spectral_transient_detector.h`
   - FR-016: debug assert on mismatch in debug, release clamp to `min()` in `spectral_transient_detector.h`
 
-- [ ] T032 Verify every SC-xxx success criterion from `specs/062-spectral-transient-detector/spec.md` by reading actual test output:
+- [X] T032 Verify every SC-xxx success criterion from `specs/062-spectral-transient-detector/spec.md` by reading actual test output:
   - SC-001: impulse onset detection test passes in `spectral_transient_detector_test.cpp`
   - SC-002: zero false positives on 100 sustained-sine frames test passes in `spectral_transient_detector_test.cpp`
   - SC-003: 5+ onset drum pattern 100% detection test passes in `spectral_transient_detector_test.cpp`
@@ -363,14 +363,14 @@ There is no shared foundational infrastructure beyond the CMake registration alr
   - SC-006: monotonicity test passes in `spectral_transient_detector_test.cpp` (higher threshold = fewer/equal detections)
   - SC-007: multi-FFT-size test passes in `spectral_transient_detector_test.cpp` (bin counts: 257, 513, 1025, 2049, 4097 for FFT sizes 512, 1024, 2048, 4096, 8192 respectively)
 
-- [ ] T033 Search for cheating patterns in all new code:
+- [X] T033 Search for cheating patterns in all new code:
   - No `// placeholder` or `// TODO` comments
   - No test thresholds relaxed from spec requirements
   - No features quietly removed from scope
 
 ### 9.2 Fill Compliance Table in spec.md
 
-- [ ] T034 Update `specs/062-spectral-transient-detector/spec.md` "Implementation Verification" section with compliance status for all FR-xxx and SC-xxx rows. Record specific file paths, line numbers, test names, and (for SC-004) the actual measured peak-to-RMS dB value vs. the 2 dB target.
+- [X] T034 Update `specs/062-spectral-transient-detector/spec.md` "Implementation Verification" section with compliance status for all FR-xxx and SC-xxx rows. Record specific file paths, line numbers, test names, and (for SC-004) the actual measured peak-to-RMS dB value vs. the 2 dB target.
 
 ### 9.3 Honest Self-Check
 
@@ -382,7 +382,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T035 All self-check questions answered "no" (or gaps documented honestly with user notification)
+- [X] T035 All self-check questions answered "no" (or gaps documented honestly with user notification)
 
 **Checkpoint**: Honest assessment complete - ready for final phase.
 
@@ -394,16 +394,16 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 10.1 Full Test Suite
 
-- [ ] T036 Run the full `dsp_tests` suite without filter and confirm zero failures: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
+- [X] T036 Run the full `dsp_tests` suite without filter and confirm zero failures: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
 
 ### 10.2 Final Commit
 
-- [ ] T037 Commit compliance table update in `spec.md` and any remaining uncommitted changes
-- [ ] T038 Verify feature branch `062-spectral-transient-detector` has all work committed: `git status` shows clean working tree
+- [X] T037 Commit compliance table update in `spec.md` and any remaining uncommitted changes
+- [X] T038 Verify feature branch `062-spectral-transient-detector` has all work committed: `git status` shows clean working tree
 
 ### 10.3 Completion Claim
 
-- [ ] T039 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user). State the honest overall status: COMPLETE / NOT COMPLETE / PARTIAL.
+- [X] T039 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user). State the honest overall status: COMPLETE / NOT COMPLETE / PARTIAL.
 
 **Checkpoint**: Spec implementation honestly complete.
 
