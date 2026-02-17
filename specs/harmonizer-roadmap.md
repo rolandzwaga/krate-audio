@@ -194,7 +194,7 @@ struct DiatonicInterval {
     int semitones;       ///< Actual semitone shift (e.g., +3 or +4)
     int targetNote;      ///< Absolute MIDI note of target (0-127)
     int scaleDegree;     ///< Target scale degree (0-6)
-    int octaveOffset;    ///< Octave adjustment if interval wraps around
+    int octaveOffset;    ///< Number of complete octaves traversed by the diatonic interval
 };
 
 /// @brief Diatonic interval calculator for harmonizer intelligence (Layer 0).
@@ -270,15 +270,15 @@ private:
 
 Tests must cover the exact example from the research doc (Section 4.1 -- Key of C Major, Harmony = "3rd above"):
 
-| Input | Scale Degree | 3rd Above | Shift (semitones) |
-|-------|-------------|-----------|-------------------|
-| C (60) | 1 | E | +4 (major 3rd) |
-| D (62) | 2 | F | +3 (minor 3rd) |
-| E (64) | 3 | G | +3 (minor 3rd) |
-| F (65) | 4 | A | +4 (major 3rd) |
-| G (67) | 5 | B | +4 (major 3rd) |
-| A (69) | 6 | C | +3 (minor 3rd) |
-| B (71) | 7 | D | +3 (minor 3rd) |
+| Input | Scale Degree (0-based) | 3rd Above | Shift (semitones) |
+|-------|----------------------|-----------|-------------------|
+| C (60) | 0 | E | +4 (major 3rd) |
+| D (62) | 1 | F | +3 (minor 3rd) |
+| E (64) | 2 | G | +3 (minor 3rd) |
+| F (65) | 3 | A | +4 (major 3rd) |
+| G (67) | 4 | B | +4 (major 3rd) |
+| A (69) | 5 | C | +3 (minor 3rd) |
+| B (71) | 6 | D | +3 (minor 3rd) |
 
 Additional test cases:
 - All 8 scale types with 2nd, 3rd, 5th, octave intervals

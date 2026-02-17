@@ -319,8 +319,8 @@ build/windows-x64-release/dsp/tests/Release/dsp_tests.exe
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T082 **Review ALL FR-001 through FR-016** from `specs/060-scale-interval-foundation/spec.md` against the implementation in `dsp/include/krate/dsp/core/scale_harmonizer.h`. For each FR: open the file, find the code that satisfies it, record file path and relevant method.
-- [ ] T083 **Review ALL SC-001 through SC-008** by running the tests and verifying measured results:
+- [X] T082 **Review ALL FR-001 through FR-016** from `specs/060-scale-interval-foundation/spec.md` against the implementation in `dsp/include/krate/dsp/core/scale_harmonizer.h`. For each FR: open the file, find the code that satisfies it, record file path and relevant method.
+- [X] T083 **Review ALL SC-001 through SC-008** by running the tests and verifying measured results:
   - SC-001: Run `[scale-harmonizer][us1]`, verify C Major 3rd-above reference table passes
   - SC-002: Count test cases — 8 scales x 12 keys x 4 intervals x 7 degrees = 2688, all pass
   - SC-003: Run `[scale-harmonizer][us2]`, verify 100% of chromatic passing tone cases pass
@@ -329,20 +329,20 @@ Before claiming this spec is complete, verify EVERY requirement:
   - SC-006: Verify multi-octave interval tests (diatonicSteps=+9, +14, -9) pass
   - SC-007: Verify MIDI boundary clamping tests pass (input 0 and 127)
   - SC-008: Verify by code inspection that all methods are noexcept and no heap allocations occur
-- [ ] T084 **Search for cheating patterns** in `dsp/include/krate/dsp/core/scale_harmonizer.h`:
-  - [ ] No `// placeholder` or `// TODO` comments
-  - [ ] No test thresholds relaxed from spec requirements
-  - [ ] No features quietly removed from scope
+- [X] T084 **Search for cheating patterns** in `dsp/include/krate/dsp/core/scale_harmonizer.h`:
+  - [X] No `// placeholder` or `// TODO` comments
+  - [X] No test thresholds relaxed from spec requirements
+  - [X] No features quietly removed from scope
 
 ### 11.2 Fill Compliance Table in spec.md
 
-- [ ] T085 **Update `specs/060-scale-interval-foundation/spec.md` "Implementation Verification" section** with compliance status for each FR and SC requirement. Fill the evidence column with specific file paths, method names, test names, and actual measured values — not generic claims like "implemented" or "test passes".
-- [ ] T086 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T085 **Update `specs/060-scale-interval-foundation/spec.md` "Implementation Verification" section** with compliance status for each FR and SC requirement. Fill the evidence column with specific file paths, method names, test names, and actual measured values — not generic claims like "implemented" or "test passes".
+- [X] T086 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 11.3 Final Commit
 
-- [ ] T087 **Commit the filled compliance table in spec.md**
-- [ ] T088 **Verify all spec work is committed to `060-scale-interval-foundation` branch**: `git status` should show clean
+- [X] T087 **Commit the filled compliance table in spec.md**
+- [X] T088 **Verify all spec work is committed to `060-scale-interval-foundation` branch**: `git status` should show clean
 
 **Checkpoint**: Honest assessment complete. Spec is done only if ALL requirements are MET with specific evidence.
 
