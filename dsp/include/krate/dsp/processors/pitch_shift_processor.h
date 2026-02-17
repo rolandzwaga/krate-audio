@@ -1029,6 +1029,22 @@ public:
         return numPeaks_;
     }
 
+    /// Returns the region-peak assignment for a given analysis bin (test accessor).
+    /// The returned value is the bin index of the peak that controls the given bin.
+    [[nodiscard]] uint16_t getRegionPeak(std::size_t bin) const noexcept {
+        return regionPeak_[bin];
+    }
+
+    /// Returns whether a given analysis bin is a detected peak (test accessor).
+    [[nodiscard]] bool getIsPeak(std::size_t bin) const noexcept {
+        return isPeak_[bin];
+    }
+
+    /// Returns the bin index of the i-th detected peak (test accessor).
+    [[nodiscard]] uint16_t getPeakIndex(std::size_t i) const noexcept {
+        return peakIndices_[i];
+    }
+
     void process(const float* input, float* output, std::size_t numSamples,
                  float pitchRatio) noexcept {
         // At unity pitch, pass through (with latency compensation)

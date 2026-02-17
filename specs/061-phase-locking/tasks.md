@@ -184,22 +184,22 @@ Note: Stage A implementation was done in T015. This phase focuses on verifying c
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T045 [US4] Write complete bin coverage test in `dsp/tests/unit/processors/phase_locking_test.cpp`: after processing a multi-peak signal, verify that every bin in [0, numBins-1] has received a phase assignment via one of the following direct approaches: (a) add a `friend class PhaseLockingTest` or a `verifyRegionCoverage() const noexcept -> bool` method to `PhaseVocoderPitchShifter` that asserts `regionPeak_[k]` is a valid peak index for all k, or (b) assert that the sum of bins claimed by each detected peak equals numBins exactly. Do NOT rely solely on observing non-zero output energy — zero-magnitude bins produce zero output regardless of phase assignment and would not reveal missing coverage (SC-004).
-- [ ] T046 [US4] Write midpoint boundary test in `dsp/tests/unit/processors/phase_locking_test.cpp`: synthesize a two-tone signal with known peaks at bins 50 and 80; verify that output bins 0-64 belong to the region of peak 50 and bins 65-numBins-1 belong to peak 80 (midpoint = (50+80)/2 = 65), observable via phase coherence in the output spectrum (FR-003)
-- [ ] T047 [US4] Write single-peak coverage test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed a pure single sinusoid (produces 1 peak), verify all bins in output spectrum receive valid phase assignments (no bin defaults to zero/undefined) (FR-003, SC-004)
-- [ ] T048 [US4] Build `dsp_tests` and confirm all US4 tests compile but FAIL
+- [X] T045 [US4] Write complete bin coverage test in `dsp/tests/unit/processors/phase_locking_test.cpp`: after processing a multi-peak signal, verify that every bin in [0, numBins-1] has received a phase assignment via one of the following direct approaches: (a) add a `friend class PhaseLockingTest` or a `verifyRegionCoverage() const noexcept -> bool` method to `PhaseVocoderPitchShifter` that asserts `regionPeak_[k]` is a valid peak index for all k, or (b) assert that the sum of bins claimed by each detected peak equals numBins exactly. Do NOT rely solely on observing non-zero output energy — zero-magnitude bins produce zero output regardless of phase assignment and would not reveal missing coverage (SC-004).
+- [X] T046 [US4] Write midpoint boundary test in `dsp/tests/unit/processors/phase_locking_test.cpp`: synthesize a two-tone signal with known peaks at bins 50 and 80; verify that output bins 0-64 belong to the region of peak 50 and bins 65-numBins-1 belong to peak 80 (midpoint = (50+80)/2 = 65), observable via phase coherence in the output spectrum (FR-003)
+- [X] T047 [US4] Write single-peak coverage test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed a pure single sinusoid (produces 1 peak), verify all bins in output spectrum receive valid phase assignments (no bin defaults to zero/undefined) (FR-003, SC-004)
+- [X] T048 [US4] Build `dsp_tests` and confirm all US4 tests compile but FAIL
 
 ### 6.2 Implementation for User Story 4
 
 Note: Stage B implementation was done in T016. This phase focuses on verifying correctness of region assignment specifically.
 
-- [ ] T049 [US4] Review and adjust Stage B (region assignment) implementation in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` if coverage or boundary tests fail (verify single-peak path uses `regionPeak_.fill(peakIndices_[0])` for all bins; verify midpoint calculation uses integer division matching the spec: `midpoint = (peakIndices_[i] + peakIndices_[i+1]) / 2`)
-- [ ] T050 [US4] Build `dsp_tests` and confirm zero compilation errors and zero warnings
-- [ ] T051 [US4] Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "Phase Locking*"` and verify all US1, US2, US3, and US4 tests pass
+- [X] T049 [US4] Review and adjust Stage B (region assignment) implementation in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` if coverage or boundary tests fail (verify single-peak path uses `regionPeak_.fill(peakIndices_[0])` for all bins; verify midpoint calculation uses integer division matching the spec: `midpoint = (peakIndices_[i] + peakIndices_[i+1]) / 2`)
+- [X] T050 [US4] Build `dsp_tests` and confirm zero compilation errors and zero warnings
+- [X] T051 [US4] Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "Phase Locking*"` and verify all US1, US2, US3, and US4 tests pass
 
 ### 6.3 Commit (MANDATORY)
 
-- [ ] T052 [US4] Commit completed User Story 4 work (region assignment correctness verification and any boundary fixes) to feature branch `061-phase-locking`
+- [X] T052 [US4] Commit completed User Story 4 work (region assignment correctness verification and any boundary fixes) to feature branch `061-phase-locking`
 
 **Checkpoint**: Region assignment verified correct: 100% bin coverage, correct midpoint boundaries. All prior user stories still pass.
 

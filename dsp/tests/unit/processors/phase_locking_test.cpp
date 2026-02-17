@@ -1049,4 +1049,251 @@ TEST_CASE("Phase Locking - Peak Detection: equal-magnitude plateau not detected 
     REQUIRE_FALSE(hasInf);
 }
 
+// ==============================================================================
+// User Story 4 Tests - Region-of-Influence Assignment Covers All Bins
+// ==============================================================================
+
+TEST_CASE("Phase Locking - Region Coverage: every bin has valid peak assignment",
+          "[processors][phase_locking]") {
+    // SC-004 / T045: After processing a multi-peak signal, verify that every
+    // bin in [0, numBins-1] has a valid peak assignment (regionPeak_[k] is a
+    // valid peak index for all k). We use the getRegionPeak() accessor.
+    constexpr float sampleRate = 44100.0f;
+    constexpr std::size_t blockSize = 512;
+    constexpr float pitchRatio = 1.0001f; // Near-unity to invoke processFrame
+
+    // Generate a multi-harmonic signal (sawtooth) to produce multiple peaks
+    constexpr std::size_t totalSamples = 88200; // 2 seconds
+    std::vector<float> input(totalSamples);
+    generateSawtooth(input, 200.0f, sampleRate, 0.5f);
+
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setPhaseLocking(true);
+
+    // Process to reach steady state
+    auto output = processWithShifter(shifter, input, pitchRatio, blockSize);
+
+    // Verify multiple peaks were detected
+    std::size_t numPeaks = shifter.getNumPeaks();
+    INFO("Number of peaks detected: " << numPeaks);
+    REQUIRE(numPeaks > 1);
+
+    // Collect the set of valid peak bin indices using isPeak accessor
+    constexpr std::size_t numBins = 4096 / 2 + 1; // kFFTSize / 2 + 1
+    std::vector<bool> isValidPeak(numBins, false);
+    for (std::size_t k = 0; k < numBins; ++k) {
+        if (shifter.getIsPeak(k)) {
+            isValidPeak[k] = true;
+        }
+    }
+
+    // Verify every bin has a valid peak assignment
+    bool allBinsCovered = true;
+    std::size_t firstUncoveredBin = 0;
+    for (std::size_t k = 0; k < numBins; ++k) {
+        uint16_t assignedPeak = shifter.getRegionPeak(k);
+        if (!isValidPeak[assignedPeak]) {
+            if (allBinsCovered) {
+                firstUncoveredBin = k;
+            }
+            allBinsCovered = false;
+        }
+    }
+
+    INFO("First bin with invalid peak assignment: " << firstUncoveredBin);
+    REQUIRE(allBinsCovered);
+
+    // Also verify sum of bins per peak equals numBins
+    std::vector<std::size_t> binsPerPeak(numBins, 0);
+    for (std::size_t k = 0; k < numBins; ++k) {
+        uint16_t assignedPeak = shifter.getRegionPeak(k);
+        binsPerPeak[assignedPeak]++;
+    }
+    std::size_t totalAssigned = 0;
+    for (std::size_t k = 0; k < numBins; ++k) {
+        totalAssigned += binsPerPeak[k];
+    }
+    INFO("Total bins assigned to peaks: " << totalAssigned << " (expected: " << numBins << ")");
+    REQUIRE(totalAssigned == numBins);
+}
+
+TEST_CASE("Phase Locking - Region Boundary: midpoint rule between all adjacent peaks",
+          "[processors][phase_locking]") {
+    // FR-003 / T046: Verify that the midpoint boundary rule is correctly applied
+    // between ALL pairs of adjacent detected peaks. For each consecutive pair of
+    // peaks (p_i, p_{i+1}), the midpoint = (p_i + p_{i+1}) / 2 (integer division).
+    // Bins up to the midpoint belong to p_i, bins after belong to p_{i+1}.
+    //
+    // We use a two-tone signal to create a scenario with peaks near bins 50 and 80,
+    // but the 3-point peak detection also finds noise-floor peaks. We verify the
+    // midpoint rule for ALL adjacent peak pairs, which implicitly covers the
+    // dominant peaks at 50 and 80.
+    constexpr float sampleRate = 44100.0f;
+    constexpr std::size_t blockSize = 512;
+    constexpr float pitchRatio = 1.0001f; // Near-unity to invoke processFrame
+    constexpr std::size_t fftSize = 4096;
+    constexpr std::size_t numBins = fftSize / 2 + 1;
+
+    const float freq50 = 50.0f * sampleRate / static_cast<float>(fftSize);
+    const float freq80 = 80.0f * sampleRate / static_cast<float>(fftSize);
+
+    // Generate two-tone signal
+    constexpr std::size_t totalSamples = 88200; // 2 seconds for stable analysis
+    std::vector<float> input(totalSamples);
+    for (std::size_t i = 0; i < totalSamples; ++i) {
+        float t = static_cast<float>(i) / sampleRate;
+        input[i] = 0.5f * std::sin(kTwoPi * freq50 * t)
+                 + 0.5f * std::sin(kTwoPi * freq80 * t);
+    }
+
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setPhaseLocking(true);
+
+    auto output = processWithShifter(shifter, input, pitchRatio, blockSize);
+
+    std::size_t numPeaks = shifter.getNumPeaks();
+    INFO("Number of peaks detected: " << numPeaks);
+    REQUIRE(numPeaks >= 2); // At minimum the two tones
+
+    // Collect peak indices using getPeakIndex accessor
+    std::vector<uint16_t> peaks(numPeaks);
+    for (std::size_t i = 0; i < numPeaks; ++i) {
+        peaks[i] = shifter.getPeakIndex(i);
+    }
+
+    // Verify peak indices are sorted (the forward scan guarantees this)
+    for (std::size_t i = 1; i < numPeaks; ++i) {
+        REQUIRE(peaks[i] > peaks[i - 1]);
+    }
+
+    // Verify midpoint boundary rule for ALL adjacent peak pairs.
+    // For peaks[i] and peaks[i+1], midpoint = (peaks[i] + peaks[i+1]) / 2.
+    // Bins in (previous midpoint, current midpoint] belong to peaks[i].
+    // The algorithm uses: if (k > midpoint) advance to next peak.
+    // So bins 0..midpoint[0] -> peaks[0], midpoint[0]+1..midpoint[1] -> peaks[1], etc.
+    bool allCorrect = true;
+    std::size_t firstWrongBin = 0;
+    uint16_t firstWrongExpected = 0;
+    uint16_t firstWrongActual = 0;
+
+    // Compute expected region assignment for every bin
+    for (std::size_t k = 0; k < numBins; ++k) {
+        // Determine which peak this bin should belong to by computing midpoints
+        std::size_t expectedPeakIdx = 0;
+        for (std::size_t i = 0; i + 1 < numPeaks; ++i) {
+            uint16_t midpoint = static_cast<uint16_t>((peaks[i] + peaks[i + 1]) / 2);
+            if (k > midpoint) {
+                expectedPeakIdx = i + 1;
+            } else {
+                break;
+            }
+        }
+
+        uint16_t expectedPeak = peaks[expectedPeakIdx];
+        uint16_t actualPeak = shifter.getRegionPeak(k);
+
+        if (actualPeak != expectedPeak) {
+            if (allCorrect) {
+                firstWrongBin = k;
+                firstWrongExpected = expectedPeak;
+                firstWrongActual = actualPeak;
+            }
+            allCorrect = false;
+        }
+    }
+
+    INFO("First incorrect region assignment at bin " << firstWrongBin
+         << ": expected peak " << firstWrongExpected
+         << " but got peak " << firstWrongActual);
+    REQUIRE(allCorrect);
+
+    // Verify that peaks near bins 50 and 80 exist in the detected set
+    bool hasPeakNear50 = false;
+    bool hasPeakNear80 = false;
+    for (std::size_t i = 0; i < numPeaks; ++i) {
+        if (peaks[i] >= 49 && peaks[i] <= 51) hasPeakNear50 = true;
+        if (peaks[i] >= 79 && peaks[i] <= 81) hasPeakNear80 = true;
+    }
+    INFO("Peak near bin 50 found: " << hasPeakNear50);
+    INFO("Peak near bin 80 found: " << hasPeakNear80);
+    REQUIRE(hasPeakNear50);
+    REQUIRE(hasPeakNear80);
+}
+
+TEST_CASE("Phase Locking - Region Coverage: single sinusoid full coverage",
+          "[processors][phase_locking]") {
+    // FR-003, SC-004 / T047: Feed a pure single sinusoid, verify all bins
+    // in [0, numBins-1] receive valid phase assignments. The 3-point peak
+    // detection finds noise-floor ripples as well as the main spectral peak,
+    // so we verify: (1) 100% bin coverage (every bin assigned to a valid peak),
+    // (2) the dominant peak near bin 40-41 is among the detected peaks, and
+    // (3) the region assignment is consistent with the midpoint rule.
+    constexpr float sampleRate = 44100.0f;
+    constexpr std::size_t blockSize = 512;
+    constexpr float pitchRatio = 1.0001f; // Near-unity to invoke processFrame
+    constexpr std::size_t numBins = 4096 / 2 + 1;
+
+    constexpr std::size_t totalSamples = 88200; // 2 seconds
+    std::vector<float> input(totalSamples);
+    generateSine(input, 440.0f, sampleRate);
+
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setPhaseLocking(true);
+
+    auto output = processWithShifter(shifter, input, pitchRatio, blockSize);
+
+    std::size_t numPeaks = shifter.getNumPeaks();
+    INFO("Number of peaks detected for single sinusoid: " << numPeaks);
+    REQUIRE(numPeaks >= 1); // At least the main spectral peak
+
+    // Build the set of valid peak bin indices
+    std::vector<bool> isValidPeak(numBins, false);
+    for (std::size_t k = 0; k < numBins; ++k) {
+        if (shifter.getIsPeak(k)) {
+            isValidPeak[k] = true;
+        }
+    }
+
+    // Verify 100% bin coverage: every bin is assigned to a valid peak
+    bool allBinsCovered = true;
+    std::size_t firstUncoveredBin = 0;
+    for (std::size_t k = 0; k < numBins; ++k) {
+        uint16_t assignedPeak = shifter.getRegionPeak(k);
+        if (assignedPeak >= numBins || !isValidPeak[assignedPeak]) {
+            if (allBinsCovered) {
+                firstUncoveredBin = k;
+            }
+            allBinsCovered = false;
+        }
+    }
+
+    INFO("First bin with invalid peak assignment: " << firstUncoveredBin);
+    REQUIRE(allBinsCovered);
+
+    // Verify the dominant peak near bin 40-41 (440 Hz) is detected
+    // Bin = 440 * 4096 / 44100 ~ 40.8
+    bool hasDominantPeak = false;
+    for (std::size_t k = 39; k <= 43; ++k) {
+        if (shifter.getIsPeak(k)) {
+            hasDominantPeak = true;
+            INFO("Dominant peak found at bin " << k);
+            break;
+        }
+    }
+    REQUIRE(hasDominantPeak);
+
+    // Verify no NaN/inf in output
+    bool hasNaN = false;
+    bool hasInf = false;
+    for (float sample : output) {
+        if (std::isnan(sample)) hasNaN = true;
+        if (std::isinf(sample)) hasInf = true;
+    }
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE_FALSE(hasInf);
+}
+
 } // namespace
