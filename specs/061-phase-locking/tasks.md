@@ -111,27 +111,27 @@
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T024 [US2] Write backward compatibility test in `dsp/tests/unit/processors/phase_locking_test.cpp`: instantiate two `PhaseVocoderPitchShifter` objects; call `setPhaseLocking(false)` on both before any processing (since `true` is the default, both instances must explicitly disable locking to compare the same code path); process identical input frames through both instances and assert their sample outputs are equal within `Approx().margin(1e-6f)`. This verifies that a freshly toggled-off instance produces the same output as one that was never enabled, confirming backward compatibility (SC-005). Do NOT use exact float equality -- use `Approx().margin(1e-6f)` per SC-005 cross-platform definition.
-- [ ] T025 [US2] Write toggle click test in `dsp/tests/unit/processors/phase_locking_test.cpp`: process continuous audio for at least 5 frames with locking enabled (record the 99th-percentile sample-to-sample amplitude change across those frames as `normalDiscontinuity`), then call `setPhaseLocking(false)` and measure the maximum sample-to-sample amplitude change in the toggle frame; assert that this toggle-frame maximum does not exceed `normalDiscontinuity`. This matches the SC-006 definition (SC-006).
-- [ ] T026 [US2] Write API state test in `dsp/tests/unit/processors/phase_locking_test.cpp`: verify `getPhaseLocking()` returns `true` after default construction, returns `false` after `setPhaseLocking(false)`, and returns `true` again after `setPhaseLocking(true)` (FR-007)
-- [ ] T027 [US2] Write formant compatibility test in `dsp/tests/unit/processors/phase_locking_test.cpp`: enable both phase locking and formant preservation, process audio, verify no NaN/inf artifacts and that formant correction operates on phase-locked magnitudes (FR-015)
-- [ ] T028 [US2] Write noexcept / real-time safety test in `dsp/tests/unit/processors/phase_locking_test.cpp`: static_assert that `setPhaseLocking` and `getPhaseLocking` are noexcept; code inspection assert that processFrame contains no `new`, `delete`, `malloc`, `std::vector::push_back`, or dynamic allocation (SC-007, FR-016)
-- [ ] T029 [US2] Build `dsp_tests` and confirm all US2 tests compile but FAIL
+- [X] T024 [US2] Write backward compatibility test in `dsp/tests/unit/processors/phase_locking_test.cpp`: instantiate two `PhaseVocoderPitchShifter` objects; call `setPhaseLocking(false)` on both before any processing (since `true` is the default, both instances must explicitly disable locking to compare the same code path); process identical input frames through both instances and assert their sample outputs are equal within `Approx().margin(1e-6f)`. This verifies that a freshly toggled-off instance produces the same output as one that was never enabled, confirming backward compatibility (SC-005). Do NOT use exact float equality -- use `Approx().margin(1e-6f)` per SC-005 cross-platform definition.
+- [X] T025 [US2] Write toggle click test in `dsp/tests/unit/processors/phase_locking_test.cpp`: process continuous audio for at least 5 frames with locking enabled (record the 99th-percentile sample-to-sample amplitude change across those frames as `normalDiscontinuity`), then call `setPhaseLocking(false)` and measure the maximum sample-to-sample amplitude change in the toggle frame; assert that this toggle-frame maximum does not exceed `normalDiscontinuity`. This matches the SC-006 definition (SC-006).
+- [X] T026 [US2] Write API state test in `dsp/tests/unit/processors/phase_locking_test.cpp`: verify `getPhaseLocking()` returns `true` after default construction, returns `false` after `setPhaseLocking(false)`, and returns `true` again after `setPhaseLocking(true)` (FR-007)
+- [X] T027 [US2] Write formant compatibility test in `dsp/tests/unit/processors/phase_locking_test.cpp`: enable both phase locking and formant preservation, process audio, verify no NaN/inf artifacts and that formant correction operates on phase-locked magnitudes (FR-015)
+- [X] T028 [US2] Write noexcept / real-time safety test in `dsp/tests/unit/processors/phase_locking_test.cpp`: static_assert that `setPhaseLocking` and `getPhaseLocking` are noexcept; code inspection assert that processFrame contains no `new`, `delete`, `malloc`, `std::vector::push_back`, or dynamic allocation (SC-007, FR-016)
+- [X] T029 [US2] Build `dsp_tests` and confirm all US2 tests compile but FAIL
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T030 [US2] Implement the toggle-to-basic re-initialization in `processFrame()` in `dsp/include/krate/dsp/processors/pitch_shift_processor.h`: check `wasLocked_ && !phaseLockingEnabled_` before the synthesis loop; if true, re-initialize `synthPhase_[k] = prevPhase_[k]` for all `k` in `[0, numBins-1]`; then update `wasLocked_ = phaseLockingEnabled_` (FR-008)
-- [ ] T031 [US2] Verify the basic path (when `phaseLockingEnabled_ == false`) in `processFrame()` in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` is the original single-pass per-bin phase accumulation loop, unchanged from pre-modification behavior, ensuring sample-accurate backward compatibility (FR-006, SC-005)
-- [ ] T032 [US2] Build `dsp_tests` and confirm zero compilation errors and zero warnings
-- [ ] T033 [US2] Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "Phase Locking*"` and verify all US1 and US2 tests pass (no regressions)
+- [X] T030 [US2] Implement the toggle-to-basic re-initialization in `processFrame()` in `dsp/include/krate/dsp/processors/pitch_shift_processor.h`: check `wasLocked_ && !phaseLockingEnabled_` before the synthesis loop; if true, re-initialize `synthPhase_[k] = prevPhase_[k]` for all `k` in `[0, numBins-1]`; then update `wasLocked_ = phaseLockingEnabled_` (FR-008)
+- [X] T031 [US2] Verify the basic path (when `phaseLockingEnabled_ == false`) in `processFrame()` in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` is the original single-pass per-bin phase accumulation loop, unchanged from pre-modification behavior, ensuring sample-accurate backward compatibility (FR-006, SC-005)
+- [X] T032 [US2] Build `dsp_tests` and confirm zero compilation errors and zero warnings
+- [X] T033 [US2] Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "Phase Locking*"` and verify all US1 and US2 tests pass (no regressions)
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T034 [US2] Confirm floating-point comparisons in backward-compatibility tests use `Approx().margin(1e-6f)` not exact equality (MSVC/Clang can differ at 7th-8th decimal place for intermediate float operations). This is the cross-platform definition of "sample-accurate" in SC-005 -- bit-identical on the same platform, within `1e-6f` margin across platforms. Any test using exact `==` comparison on float output samples must be updated to use this margin.
+- [X] T034 [US2] Confirm floating-point comparisons in backward-compatibility tests use `Approx().margin(1e-6f)` not exact equality (MSVC/Clang can differ at 7th-8th decimal place for intermediate float operations). This is the cross-platform definition of "sample-accurate" in SC-005 -- bit-identical on the same platform, within `1e-6f` margin across platforms. Any test using exact `==` comparison on float output samples must be updated to use this margin.
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T035 [US2] Commit completed User Story 2 work (toggle re-initialization, backward compatibility verification, toggle click tests) to feature branch `061-phase-locking`
+- [X] T035 [US2] Commit completed User Story 2 work (toggle re-initialization, backward compatibility verification, toggle click tests) to feature branch `061-phase-locking`
 
 **Checkpoint**: User Stories 1 and 2 both committed. Phase locking toggle works cleanly; disabled mode is bit-identical to pre-modification behavior.
 

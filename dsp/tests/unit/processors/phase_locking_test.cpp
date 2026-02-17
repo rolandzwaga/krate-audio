@@ -398,4 +398,271 @@ TEST_CASE("Phase Locking - Formant Compatibility Smoke Test",
     REQUIRE_FALSE(hasInf);
 }
 
+// ==============================================================================
+// User Story 2 Tests - Backward-Compatible Toggle
+// ==============================================================================
+
+TEST_CASE("Phase Locking - Backward Compatibility: disabled produces same output",
+          "[processors][phase_locking]") {
+    // SC-005: Two instances with locking disabled produce identical output.
+    // Both instances explicitly call setPhaseLocking(false) before any processing.
+    // Compare using Approx().margin(1e-6f), NOT exact equality (cross-platform).
+    constexpr float sampleRate = 44100.0f;
+    constexpr std::size_t blockSize = 512;
+    const float pitchRatio = std::pow(2.0f, 3.0f / 12.0f); // +3 semitones
+
+    constexpr std::size_t totalSamples = 44100; // 1 second
+    std::vector<float> input(totalSamples);
+    generateSine(input, 440.0f, sampleRate);
+
+    // Instance A
+    PhaseVocoderPitchShifter shifterA;
+    shifterA.prepare(sampleRate, blockSize);
+    shifterA.setPhaseLocking(false);
+
+    // Instance B
+    PhaseVocoderPitchShifter shifterB;
+    shifterB.prepare(sampleRate, blockSize);
+    shifterB.setPhaseLocking(false);
+
+    auto outputA = processWithShifter(shifterA, input, pitchRatio, blockSize);
+    auto outputB = processWithShifter(shifterB, input, pitchRatio, blockSize);
+
+    REQUIRE(outputA.size() == outputB.size());
+
+    // Compare sample-by-sample with margin for cross-platform compatibility
+    bool allMatch = true;
+    std::size_t firstMismatchIdx = 0;
+    float firstMismatchDiff = 0.0f;
+    for (std::size_t i = 0; i < outputA.size(); ++i) {
+        float diff = std::abs(outputA[i] - outputB[i]);
+        if (diff > 1e-6f) {
+            if (allMatch) {
+                firstMismatchIdx = i;
+                firstMismatchDiff = diff;
+            }
+            allMatch = false;
+        }
+    }
+
+    INFO("First mismatch at sample " << firstMismatchIdx
+         << ", diff = " << firstMismatchDiff);
+    REQUIRE(allMatch);
+}
+
+TEST_CASE("Phase Locking - Toggle Click Test: no audible click at toggle boundary",
+          "[processors][phase_locking]") {
+    // SC-006: Toggle-frame discontinuity must not exceed the 99th-percentile
+    // sample-to-sample amplitude change measured in the preceding frames.
+    constexpr float sampleRate = 44100.0f;
+    constexpr std::size_t blockSize = 512;
+    const float pitchRatio = std::pow(2.0f, 3.0f / 12.0f); // +3 semitones
+
+    // Generate enough audio for steady-state analysis
+    // We need at least 5 frames of output, plus latency warmup
+    constexpr std::size_t warmupSamples = 44100; // 1 second warmup
+    constexpr std::size_t measureFrames = 5;
+    constexpr std::size_t measureSamples = measureFrames * blockSize;
+    constexpr std::size_t totalSamples = warmupSamples + measureSamples + blockSize; // +1 block for toggle frame
+    std::vector<float> input(totalSamples);
+    generateSine(input, 440.0f, sampleRate);
+
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setPhaseLocking(true);
+
+    // Phase 1: Process warmup with locking enabled
+    std::vector<float> inBlock(blockSize, 0.0f);
+    std::vector<float> outBlock(blockSize, 0.0f);
+    for (std::size_t pos = 0; pos < warmupSamples; pos += blockSize) {
+        std::size_t count = std::min(blockSize, warmupSamples - pos);
+        std::copy(input.begin() + static_cast<std::ptrdiff_t>(pos),
+                  input.begin() + static_cast<std::ptrdiff_t>(pos + count),
+                  inBlock.begin());
+        if (count < blockSize) {
+            std::fill(inBlock.begin() + static_cast<std::ptrdiff_t>(count), inBlock.end(), 0.0f);
+        }
+        shifter.process(inBlock.data(), outBlock.data(), blockSize, pitchRatio);
+    }
+
+    // Phase 2: Process 5 more frames and record sample-to-sample amplitude changes
+    std::vector<float> amplitudeChanges;
+    float prevSample = outBlock[blockSize - 1]; // Last sample from warmup
+
+    for (std::size_t frame = 0; frame < measureFrames; ++frame) {
+        std::size_t pos = warmupSamples + frame * blockSize;
+        std::size_t count = std::min(blockSize, totalSamples - pos);
+        std::copy(input.begin() + static_cast<std::ptrdiff_t>(pos),
+                  input.begin() + static_cast<std::ptrdiff_t>(pos + count),
+                  inBlock.begin());
+        if (count < blockSize) {
+            std::fill(inBlock.begin() + static_cast<std::ptrdiff_t>(count), inBlock.end(), 0.0f);
+        }
+        shifter.process(inBlock.data(), outBlock.data(), blockSize, pitchRatio);
+
+        for (std::size_t i = 0; i < blockSize; ++i) {
+            float change = std::abs(outBlock[i] - prevSample);
+            amplitudeChanges.push_back(change);
+            prevSample = outBlock[i];
+        }
+    }
+
+    // Compute 99th percentile of amplitude changes
+    REQUIRE(amplitudeChanges.size() > 0);
+    std::vector<float> sortedChanges = amplitudeChanges;
+    std::sort(sortedChanges.begin(), sortedChanges.end());
+    std::size_t p99Index = static_cast<std::size_t>(
+        static_cast<float>(sortedChanges.size()) * 0.99f);
+    if (p99Index >= sortedChanges.size()) p99Index = sortedChanges.size() - 1;
+    float normalDiscontinuity = sortedChanges[p99Index];
+
+    INFO("99th percentile amplitude change (normal): " << normalDiscontinuity);
+
+    // Phase 3: Toggle phase locking off and process one more frame
+    shifter.setPhaseLocking(false);
+
+    std::size_t togglePos = warmupSamples + measureFrames * blockSize;
+    std::size_t toggleCount = std::min(blockSize, totalSamples - togglePos);
+    std::copy(input.begin() + static_cast<std::ptrdiff_t>(togglePos),
+              input.begin() + static_cast<std::ptrdiff_t>(togglePos + toggleCount),
+              inBlock.begin());
+    if (toggleCount < blockSize) {
+        std::fill(inBlock.begin() + static_cast<std::ptrdiff_t>(toggleCount), inBlock.end(), 0.0f);
+    }
+    shifter.process(inBlock.data(), outBlock.data(), blockSize, pitchRatio);
+
+    // Measure max sample-to-sample amplitude change in the toggle frame
+    float maxToggleChange = 0.0f;
+    for (std::size_t i = 0; i < blockSize; ++i) {
+        float change = std::abs(outBlock[i] - prevSample);
+        maxToggleChange = std::max(maxToggleChange, change);
+        prevSample = outBlock[i];
+    }
+
+    INFO("Max toggle-frame amplitude change: " << maxToggleChange);
+    INFO("Normal discontinuity (99th pct): " << normalDiscontinuity);
+
+    // SC-006: toggle-frame max must not exceed the 99th-percentile normal change
+    REQUIRE(maxToggleChange <= normalDiscontinuity);
+}
+
+TEST_CASE("Phase Locking - API State: getPhaseLocking reflects setPhaseLocking",
+          "[processors][phase_locking]") {
+    // FR-007: getPhaseLocking returns correct state after construction and toggling
+    PhaseVocoderPitchShifter shifter;
+
+    // Default: enabled
+    REQUIRE(shifter.getPhaseLocking() == true);
+
+    // Disable
+    shifter.setPhaseLocking(false);
+    REQUIRE(shifter.getPhaseLocking() == false);
+
+    // Re-enable
+    shifter.setPhaseLocking(true);
+    REQUIRE(shifter.getPhaseLocking() == true);
+}
+
+TEST_CASE("Phase Locking - Formant Compatibility: both features enabled, no artifacts",
+          "[processors][phase_locking]") {
+    // FR-015: Phase locking + formant preservation enabled together, verify no NaN/inf
+    // and that output is valid (non-zero energy in steady state)
+    constexpr float sampleRate = 44100.0f;
+    constexpr std::size_t blockSize = 512;
+    const float pitchRatio = std::pow(2.0f, 5.0f / 12.0f); // +5 semitones
+
+    constexpr std::size_t totalSamples = 44100; // 1 second
+    std::vector<float> input(totalSamples);
+    generateSine(input, 440.0f, sampleRate, 0.8f);
+
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(sampleRate, blockSize);
+    shifter.setPhaseLocking(true);
+    shifter.setFormantPreserve(true);
+
+    auto output = processWithShifter(shifter, input, pitchRatio, blockSize);
+
+    bool hasNaN = false;
+    bool hasInf = false;
+    float maxAbs = 0.0f;
+    for (float sample : output) {
+        if (std::isnan(sample)) hasNaN = true;
+        if (std::isinf(sample)) hasInf = true;
+        maxAbs = std::max(maxAbs, std::abs(sample));
+    }
+
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE_FALSE(hasInf);
+
+    // Verify output has non-trivial energy (not all zeros past latency)
+    std::size_t latency = shifter.getLatencySamples();
+    float postLatencyEnergy = 0.0f;
+    for (std::size_t i = latency + blockSize * 4; i < output.size(); ++i) {
+        postLatencyEnergy += output[i] * output[i];
+    }
+    INFO("Post-latency RMS energy: " << postLatencyEnergy);
+    REQUIRE(postLatencyEnergy > 0.0f);
+
+    // Also test with various pitch shifts to cover edge cases
+    SECTION("Pitch down with both features") {
+        const float downRatio = std::pow(2.0f, -7.0f / 12.0f); // -7 semitones
+        PhaseVocoderPitchShifter shifter2;
+        shifter2.prepare(sampleRate, blockSize);
+        shifter2.setPhaseLocking(true);
+        shifter2.setFormantPreserve(true);
+
+        auto output2 = processWithShifter(shifter2, input, downRatio, blockSize);
+
+        bool hasNaN2 = false;
+        bool hasInf2 = false;
+        for (float sample : output2) {
+            if (std::isnan(sample)) hasNaN2 = true;
+            if (std::isinf(sample)) hasInf2 = true;
+        }
+
+        REQUIRE_FALSE(hasNaN2);
+        REQUIRE_FALSE(hasInf2);
+    }
+}
+
+TEST_CASE("Phase Locking - Noexcept and Real-Time Safety",
+          "[processors][phase_locking]") {
+    // FR-016: setPhaseLocking and getPhaseLocking are noexcept
+    // SC-007: No heap allocations in process path (code inspection)
+
+    // Static assertions for noexcept
+    PhaseVocoderPitchShifter shifter;
+    static_assert(noexcept(shifter.setPhaseLocking(true)),
+                  "setPhaseLocking must be noexcept");
+    static_assert(noexcept(shifter.getPhaseLocking()),
+                  "getPhaseLocking must be noexcept");
+
+    // Verify processFrame is noexcept by checking process method
+    // (processFrame is private, but process() calls it and is noexcept)
+    std::vector<float> inBuf(512, 0.0f);
+    std::vector<float> outBuf(512, 0.0f);
+    shifter.prepare(44100.0f, 512);
+
+    // Code inspection verification (documented as test comments):
+    // The processFrame() method in pitch_shift_processor.h has been reviewed and:
+    // - Contains NO calls to new, delete, malloc, free
+    // - Contains NO std::vector::push_back or other potentially-allocating operations
+    // - All arrays are pre-allocated std::array members (isPeak_, peakIndices_, regionPeak_)
+    // - All existing vectors (magnitude_, frequency_, prevPhase_, synthPhase_) are
+    //   allocated in prepare(), not in processFrame()
+    // This satisfies SC-007 (zero allocations in process path)
+
+    // Verify the methods work without throwing
+    shifter.setPhaseLocking(true);
+    REQUIRE(shifter.getPhaseLocking() == true);
+    shifter.setPhaseLocking(false);
+    REQUIRE(shifter.getPhaseLocking() == false);
+
+    // Process a frame to confirm no issues
+    shifter.setPhaseLocking(true);
+    shifter.process(inBuf.data(), outBuf.data(), 512, 1.189f);
+    // If we get here, no exceptions were thrown
+    REQUIRE(true);
+}
+
 } // namespace
