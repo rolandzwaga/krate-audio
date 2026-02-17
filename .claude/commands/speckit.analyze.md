@@ -28,4 +28,4 @@ Execute the full analysis and remediation workflow as defined in the agent. The 
 1. Analyze all artifacts (read-only)
 2. Present findings report
 3. Ask user for approval to fix issues
-4. If approved: apply all edits, then reset and re-sync beads if tasks.md changed
+4. If approved: apply all edits

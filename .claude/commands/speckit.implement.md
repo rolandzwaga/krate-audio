@@ -86,8 +86,6 @@ Read these files for context:
 - research.md (if referenced by tasks)
 
 Complete all tasks in Phase {N}. Mark each task [X] as you complete it.
-When marking a task [X], also close its corresponding beads issue: `bd close <id>`.
-Use `bd list --status=open` to find matching issues by title, then close them as you go.
 Do NOT work on any other phase. Do NOT fill compliance tables.
 
 BUILD+TEST GATE (mandatory before finishing):
@@ -150,8 +148,6 @@ The compliance agent found these issues:
 {paste the comply agent's issues list here}
 
 Fix ONLY the issues listed above. Do NOT re-implement tasks that already passed.
-When marking a task [X], also close its corresponding beads issue: `bd close <id>`.
-Use `bd list --status=open` to find matching issues by title, then close them as you go.
 
 BUILD+TEST GATE (mandatory before finishing):
 1. Build ONCE using the build command from quickstart.md — ZERO warnings required.
@@ -204,6 +200,7 @@ If clang-tidy finds issues, spawn `speckit-implement` to fix them:
 Fix clang-tidy findings for spec {feature-name}.
 
 Feature dir: {FEATURE_DIR}/
+Read quickstart.md for build commands.
 
 The static analysis found these issues:
 {paste clang-tidy findings here}
@@ -211,11 +208,11 @@ The static analysis found these issues:
 Fix ALL warnings and errors. Use NOLINT with documented justification ONLY when a warning
 is genuinely unfixable (e.g., Highway macro patterns). Build after fixing to verify.
 Mark the static analysis tasks [X] in tasks.md when done.
-When marking a task [X], also close its corresponding beads issue: `bd close <id>`.
-Use `bd list --status=open` to find matching issues by title, then close them as you go.
+Do NOT re-run clang-tidy yourself — the orchestrator handles that.
 ```
 
-Then re-run comply to verify the fixes.
+Do NOT re-run clang-tidy after fixes. The implement agent already built clean after fixing.
+Move on to the next phase.
 
 **Completion Verification (Phase N-1)**: Spawn `speckit-comply` agent.
 
@@ -241,8 +238,9 @@ Steps:
 5. Run pluginval if plugin code was changed:
    tools/pluginval.exe --strictness-level 5 --validate "<path to built .vst3>"
    (Check quickstart.md for the correct plugin path)
-6. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
-7. Produce the full compliance table with REAL evidence
+6. Do NOT run clang-tidy — it already ran in Phase N-1.0 (Static Analysis).
+7. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
+8. Produce the full compliance table with REAL evidence
 
 Output the final compliance report with:
 - Build result: 0 warnings confirmed
@@ -269,7 +267,6 @@ Update the "Implementation Verification" section of spec.md with:
 1. The compliance table (copy exactly as provided — do NOT modify status or evidence)
 2. The overall status
 3. Mark the completion verification tasks [X] in tasks.md
-4. Close the corresponding beads issues: `bd list --status=open` to find them, then `bd close <id>`
 ```
 
 **Final Documentation (Phase N-2)**: Spawn `speckit-implement` as normal (architecture docs are implementation work).

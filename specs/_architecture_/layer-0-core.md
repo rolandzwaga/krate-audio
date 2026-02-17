@@ -732,3 +732,90 @@ inline void simpleCurveToBezier(float curveAmount,
 **Consumers:** ADSREnvelope (Layer 1), ADSRDisplay (shared UI)
 
 **Dependencies:** `primitives/envelope_utils.h` (for `EnvCurve` enum in `envCurveToCurveAmount`)
+
+---
+
+## ScaleHarmonizer (Diatonic Interval Calculator)
+**Path:** [scale_harmonizer.h](../../dsp/include/krate/dsp/core/scale_harmonizer.h) | **Since:** 0.19.0
+
+Computes musically correct diatonic intervals for harmonizer effects. Given an input MIDI note, root key, scale type, and diatonic step count, returns the semitone shift that maintains scale-correctness. The algorithm uses precomputed constexpr lookup tables for O(1) performance with integer-only arithmetic.
+
+### ScaleType Enum
+
+```cpp
+enum class ScaleType : uint8_t {
+    Major = 0,           // Ionian:  {0, 2, 4, 5, 7, 9, 11}
+    NaturalMinor = 1,    // Aeolian: {0, 2, 3, 5, 7, 8, 10}
+    HarmonicMinor = 2,   //          {0, 2, 3, 5, 7, 8, 11}
+    MelodicMinor = 3,    // Asc:     {0, 2, 3, 5, 7, 9, 11}
+    Dorian = 4,          //          {0, 2, 3, 5, 7, 9, 10}
+    Mixolydian = 5,      //          {0, 2, 4, 5, 7, 9, 10}
+    Phrygian = 6,        //          {0, 1, 3, 5, 7, 8, 10}
+    Lydian = 7,          //          {0, 2, 4, 6, 7, 9, 11}
+    Chromatic = 8,       // Fixed shift passthrough, no diatonic logic
+};
+```
+
+### DiatonicInterval Struct
+
+```cpp
+struct DiatonicInterval {
+    int semitones;       // Actual semitone shift from input to target (can be negative)
+    int targetNote;      // Absolute MIDI note of the target (0-127, clamped)
+    int scaleDegree;     // Target note's scale degree (0-6), or -1 in Chromatic mode
+    int octaveOffset;    // Number of complete octaves traversed by the diatonic interval
+};
+```
+
+### Public API Summary
+
+```cpp
+class ScaleHarmonizer {
+    // Configuration
+    void setKey(int rootNote) noexcept;                    // Root note 0-11, wraps via % 12
+    void setScale(ScaleType type) noexcept;                // Scale selector
+
+    // Getters
+    [[nodiscard]] int getKey() const noexcept;
+    [[nodiscard]] ScaleType getScale() const noexcept;
+
+    // Core interval calculation
+    [[nodiscard]] DiatonicInterval calculate(int inputMidiNote, int diatonicSteps) const noexcept;
+
+    // Convenience: frequency-based interface
+    [[nodiscard]] float getSemitoneShift(float inputFrequencyHz, int diatonicSteps) const noexcept;
+
+    // Queries
+    [[nodiscard]] int getScaleDegree(int midiNote) const noexcept;   // Returns 0-6 or -1
+    [[nodiscard]] int quantizeToScale(int midiNote) const noexcept;  // Snaps to nearest scale note
+
+    // Static: scale data access
+    [[nodiscard]] static constexpr std::array<int, 7> getScaleIntervals(ScaleType type) noexcept;
+};
+```
+
+### When to use
+
+- **Harmonizer effects:** Primary consumer. Computes the correct pitch shift for each voice of a multi-voice harmonizer to stay in key.
+- **Scale-aware pitch quantization:** Use `quantizeToScale()` to snap arbitrary MIDI notes to the nearest scale degree.
+- **Scale membership queries:** Use `getScaleDegree()` to check if a note belongs to the current key/scale.
+- **UI scale display:** Use `getScaleIntervals()` to retrieve the semitone pattern for any scale type.
+
+### When NOT to use
+
+- **Float-based pitch quantization for Shimmer:** Use `quantizePitch(PitchQuantMode::Scale)` in `pitch_utils.h` instead (different semantics: operates on continuous pitch values, C-major only).
+- **Audio-rate processing:** While the methods are fast enough for per-sample use, the typical pattern is to call `calculate()` once per note-on or parameter change, then use the resulting shift for the duration of the note.
+
+### Dependencies
+
+| Header | What is used |
+|--------|-------------|
+| `pitch_utils.h` (Layer 0) | `frequencyToMidiNote()` in `getSemitoneShift()` |
+| `midi_utils.h` (Layer 0) | `kMinMidiNote`, `kMaxMidiNote` for MIDI note clamping |
+
+No Layer 1+ dependencies. Standard library: `<algorithm>`, `<array>`, `<cmath>`, `<cstdint>`.
+
+### Future consumers
+
+- **HarmonizerEngine (Layer 3, Phase 4 of harmonizer roadmap):** Primary downstream consumer. Will use `ScaleHarmonizer` to compute intervals for multi-voice pitch shifting.
+- **UI scale selector (Phase 5):** May use `ScaleType` enum values for dropdown population.

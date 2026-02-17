@@ -34,6 +34,7 @@
 #include <krate/dsp/core/phase_utils.h>
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/polyblep.h>
+#include <krate/dsp/core/scale_harmonizer.h>
 #include <krate/dsp/core/random.h>
 #include <krate/dsp/core/sigmoid.h>
 #include <krate/dsp/core/stereo_utils.h>

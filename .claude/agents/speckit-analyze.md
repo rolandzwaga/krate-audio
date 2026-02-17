@@ -27,7 +27,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 **Two-Phase Workflow**: This agent operates in two phases:
 1. **Analysis phase** (steps 1-7): Read-only. Produce a structured analysis report. Do NOT modify any files.
-2. **Remediation phase** (steps 8-9): Write-enabled. After user explicitly approves, apply all fixes across all artifacts. If `tasks.md` was modified, reset and re-sync beads.
+2. **Remediation phase** (step 8): Write-enabled. After user explicitly approves, apply all fixes across all artifacts.
 
 **Never skip the approval gate.** The agent MUST present the full report and wait for explicit user consent before making any edits.
 
@@ -186,39 +186,12 @@ Once the user approves, apply fixes for ALL findings (all severities) across all
 
 **Cross-Artifact Cascade:**
 - When fixing a finding in spec.md, check if the same concept appears in plan.md and tasks.md and fix those too
-- Track whether `tasks.md` was modified (needed for step 9)
 
 **After all edits**, output a summary of changes made:
 
 | Finding ID | Files Modified | Change Description |
 |------------|---------------|--------------------|
 | A1 | spec.md, plan.md | Merged duplicate requirement, updated plan reference |
-
-### 9. Beads Re-sync (Conditional)
-
-**This step runs ONLY if `tasks.md` was modified in step 8.**
-
-When tasks change, the beads issue tracker must be reset and regenerated to stay in sync. Execute the following sequence:
-
-```bash
-# 1. Truncate the beads issues database (removes all issues including tombstones)
-: > .beads/issues.jsonl
-
-# 2. Delete the sync manifest so the script creates fresh issues instead of updating
-rm -f <FEATURE_DIR>/.beads-sync.json
-
-# 3. Re-sync: parse tasks.md and create new beads issues
-powershell -ExecutionPolicy Bypass -File .specify/scripts/powershell/sync-beads.ps1 -TasksFile <TASKS_PATH> -Force
-```
-
-Replace `<FEATURE_DIR>` and `<TASKS_PATH>` with the actual paths derived in step 1.
-
-After re-sync, verify success:
-```bash
-bd list --status=open
-```
-
-Report the number of issues created and confirm they match the task count.
 
 ## Operating Principles
 
@@ -243,7 +216,6 @@ Report the number of issues created and confirm they match the task count.
 - **Edit surgically** — change only what the finding requires, do not refactor surrounding code
 - **Cascade consistently** — if you fix a term in spec.md, fix it everywhere
 - **Verify after editing** — re-read edited sections to confirm correctness
-- **Reset beads only when tasks change** — if only spec.md or plan.md changed, skip step 9
 
 ## No External Research Needed
 
