@@ -96,6 +96,7 @@ add_executable(dsp_tests
     unit/primitives/minblep_table_test.cpp
     unit/primitives/pink_noise_filter_test.cpp
     unit/primitives/noise_oscillator_test.cpp
+    unit/primitives/spectral_transient_detector_test.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
@@ -108,6 +109,7 @@ add_executable(dsp_tests
     unit/processors/diffusion_network_test.cpp
     unit/processors/pitch_shift_processor_test.cpp
     unit/processors/phase_locking_test.cpp
+    unit/processors/phase_reset_test.cpp
     unit/processors/reverse_feedback_processor_test.cpp
     unit/processors/grain_scheduler_test.cpp
     unit/processors/grain_processor_test.cpp
@@ -323,6 +325,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/minblep_table_test.cpp
         unit/primitives/pink_noise_filter_test.cpp
         unit/primitives/noise_oscillator_test.cpp
+        unit/primitives/spectral_transient_detector_test.cpp
         unit/processors/multimode_filter_test.cpp
         unit/processors/saturation_processor_test.cpp
         unit/processors/envelope_follower_test.cpp
@@ -333,6 +336,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/diffusion_network_test.cpp
         unit/processors/pitch_shift_processor_test.cpp
         unit/processors/phase_locking_test.cpp
+        unit/processors/phase_reset_test.cpp
         unit/processors/reverse_feedback_processor_test.cpp
         unit/processors/grain_scheduler_test.cpp
         unit/processors/grain_processor_test.cpp

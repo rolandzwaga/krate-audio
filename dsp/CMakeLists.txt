@@ -107,6 +107,7 @@ set(KRATE_DSP_PRIMITIVES_HEADERS
     include/krate/dsp/primitives/sample_rate_reducer.h
     include/krate/dsp/primitives/smoother.h
     include/krate/dsp/primitives/spectral_buffer.h
+    include/krate/dsp/primitives/spectral_transient_detector.h
     include/krate/dsp/primitives/spectrum_fifo.h
     include/krate/dsp/primitives/stft.h
     include/krate/dsp/primitives/wavetable_generator.h

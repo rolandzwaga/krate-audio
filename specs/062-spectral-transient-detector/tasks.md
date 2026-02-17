@@ -56,10 +56,10 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 **Purpose**: Register new files in the build system so compilation targets are aware of them before any code is written.
 
-- [ ] T001 Add `spectral_transient_detector.h` entry to `KRATE_DSP_PRIMITIVES_HEADERS` list in `dsp/CMakeLists.txt`
-- [ ] T002 Add `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp` to the `dsp_tests` target sources in `dsp/tests/CMakeLists.txt`
-- [ ] T003 Add `dsp/tests/unit/processors/phase_reset_test.cpp` to the `dsp_tests` target sources in `dsp/tests/CMakeLists.txt`
-- [ ] T004 Add both new test files to the `-fno-fast-math` compiler flags block in `dsp/tests/CMakeLists.txt` (guards IEEE 754 compliance for `std::isnan` / `std::isfinite` if used in tests)
+- [X] T001 Add `spectral_transient_detector.h` entry to `KRATE_DSP_PRIMITIVES_HEADERS` list in `dsp/CMakeLists.txt`
+- [X] T002 Add `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp` to the `dsp_tests` target sources in `dsp/tests/CMakeLists.txt`
+- [X] T003 Add `dsp/tests/unit/processors/phase_reset_test.cpp` to the `dsp_tests` target sources in `dsp/tests/CMakeLists.txt`
+- [X] T004 Add both new test files to the `-fno-fast-math` compiler flags block in `dsp/tests/CMakeLists.txt` (guards IEEE 754 compliance for `std::isnan` / `std::isfinite` if used in tests)
 
 ---
 
@@ -90,7 +90,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T005 [P] [US1] Write failing tests in `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp` covering:
+- [X] T005 [P] [US1] Write failing tests in `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp` covering:
   - Default construction state (threshold=1.5, smoothingCoeff=0.95, isTransient()=false, getSpectralFlux()=0, getRunningAverage()=0)
   - `prepare()` allocates state and marks first-frame suppression
   - `prepare()` called twice with different bin counts reallocates and resets all state
@@ -110,11 +110,11 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 3.2 Build Verification (Tests Must FAIL)
 
-- [ ] T006 [US1] Build `dsp_tests` target and confirm test file compiles but all SpectralTransientDetector tests FAIL (header does not exist yet): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T006 [US1] Build `dsp_tests` target and confirm test file compiles but all SpectralTransientDetector tests FAIL (header does not exist yet): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests`
 
 ### 3.3 Implementation for User Story 1
 
-- [ ] T007 [US1] Create `dsp/include/krate/dsp/primitives/spectral_transient_detector.h` with:
+- [X] T007 [US1] Create `dsp/include/krate/dsp/primitives/spectral_transient_detector.h` with:
   - Class `SpectralTransientDetector` in namespace `Krate::DSP`
   - Private fields exactly as specified in data-model.md: `prevMagnitudes_` (std::vector<float>), `runningAverage_` (float, 0.0f), `threshold_` (float, 1.5f), `smoothingCoeff_` (float, 0.95f), `lastFlux_` (float, 0.0f), `transientDetected_` (bool, false), `isFirstFrame_` (bool, true), `numBins_` (size_t, 0)
   - Default constructor, destructor, move constructor, move assignment (all `noexcept = default`)
@@ -132,15 +132,15 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 3.4 Verify Tests Pass
 
-- [ ] T008 [US1] Build `dsp_tests` and run SpectralTransientDetector tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "SpectralTransientDetector*"` - all tests must pass
+- [X] T008 [US1] Build `dsp_tests` and run SpectralTransientDetector tests: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "SpectralTransientDetector*"` - all tests must pass
 
 ### 3.5 Cross-Platform Verification (MANDATORY)
 
-- [ ] T009 [US1] Confirm `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp` is in the `-fno-fast-math` block in `dsp/tests/CMakeLists.txt` (added in T004). Verify the Catch2 `Approx().margin()` is used for any floating-point comparisons (not exact equality). No `std::isnan` usage expected in this file since flux is always >= 0, but confirm.
+- [X] T009 [US1] Confirm `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp` is in the `-fno-fast-math` block in `dsp/tests/CMakeLists.txt` (added in T004). Verify the Catch2 `Approx().margin()` is used for any floating-point comparisons (not exact equality). No `std::isnan` usage expected in this file since flux is always >= 0, but confirm.
 
 ### 3.6 Commit (MANDATORY)
 
-- [ ] T010 [US1] Commit all User Story 1 work: header `spectral_transient_detector.h`, test file `spectral_transient_detector_test.cpp`, and CMakeLists.txt changes (Phases 1 and 3)
+- [X] T010 [US1] Commit all User Story 1 work: header `spectral_transient_detector.h`, test file `spectral_transient_detector_test.cpp`, and CMakeLists.txt changes (Phases 1 and 3)
 
 **Checkpoint**: `SpectralTransientDetector` is fully functional as a standalone primitive with 100% test coverage of its API and all three acceptance scenarios verified.
 
