@@ -159,7 +159,7 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 > **Constitution Principle XIII**: Tests MUST be written and FAIL (or be absent) before implementation.
 > Since the setter bodies may already compile, write the tests first and confirm no test yet covers sensitivity monotonicity.
 
-- [ ] T011 [P] [US2] Add sensitivity configuration tests to `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp`:
+- [X] T011 [P] [US2] Add sensitivity configuration tests to `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp`:
   - `setThreshold()` clamps values below 1.0 to 1.0 (FR-003)
   - `setThreshold()` clamps values above 5.0 to 5.0 (FR-003)
   - `setSmoothingCoeff()` clamps values below 0.8 to 0.8 (FR-004)
@@ -171,15 +171,15 @@ There is no shared foundational infrastructure beyond the CMake registration alr
 
 ### 4.2 Build Verification
 
-- [ ] T012 [US2] Build and run: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "SpectralTransientDetector*"` - all tests including new sensitivity tests must pass (implementation was already delivered in T007)
+- [X] T012 [US2] Build and run: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "SpectralTransientDetector*"` - all tests including new sensitivity tests must pass (implementation was already delivered in T007)
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T013 [US2] Confirm no new IEEE 754 functions were introduced in sensitivity tests. Floating-point comparisons use `Approx().margin()`. No additional CMakeLists.txt changes required.
+- [X] T013 [US2] Confirm no new IEEE 754 functions were introduced in sensitivity tests. Floating-point comparisons use `Approx().margin()`. No additional CMakeLists.txt changes required.
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T014 [US2] Commit all User Story 2 test additions to `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp`
+- [X] T014 [US2] Commit all User Story 2 test additions to `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp`
 
 **Checkpoint**: Sensitivity configuration is proven correct by tests. SC-006 (monotonicity) and all three US2 acceptance scenarios are verified.
 
