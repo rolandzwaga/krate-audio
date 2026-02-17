@@ -355,6 +355,21 @@ public:
     /// @return Current pan position, or 0.0f if out-of-range
     [[nodiscard]] float getTapPan(size_t tapIndex) const noexcept;
 
+    /// @brief Get tap filter cutoff frequency
+    /// @param tapIndex Tap index [0, 15]
+    /// @return Current cutoff in Hz, or kDefaultFilterCutoff if out-of-range
+    [[nodiscard]] float getTapFilterCutoff(size_t tapIndex) const noexcept;
+
+    /// @brief Get tap filter mode
+    /// @param tapIndex Tap index [0, 15]
+    /// @return Current filter mode, or TapFilterMode::Bypass if out-of-range
+    [[nodiscard]] TapFilterMode getTapFilterMode(size_t tapIndex) const noexcept;
+
+    /// @brief Get tap filter Q factor
+    /// @param tapIndex Tap index [0, 15]
+    /// @return Current Q factor, or kDefaultFilterQ if out-of-range
+    [[nodiscard]] float getTapFilterQ(size_t tapIndex) const noexcept;
+
 private:
     // =========================================================================
     // Internal Helpers
@@ -903,6 +918,21 @@ inline float TapManager::getTapLevelDb(size_t tapIndex) const noexcept {
 inline float TapManager::getTapPan(size_t tapIndex) const noexcept {
     if (tapIndex >= kMaxTaps) return 0.0f;
     return taps_[tapIndex].pan;
+}
+
+inline float TapManager::getTapFilterCutoff(size_t tapIndex) const noexcept {
+    if (tapIndex >= kMaxTaps) return kDefaultFilterCutoff;
+    return taps_[tapIndex].filterCutoff;
+}
+
+inline TapFilterMode TapManager::getTapFilterMode(size_t tapIndex) const noexcept {
+    if (tapIndex >= kMaxTaps) return TapFilterMode::Bypass;
+    return taps_[tapIndex].filterMode;
+}
+
+inline float TapManager::getTapFilterQ(size_t tapIndex) const noexcept {
+    if (tapIndex >= kMaxTaps) return kDefaultFilterQ;
+    return taps_[tapIndex].filterQ;
 }
 
 } // namespace DSP

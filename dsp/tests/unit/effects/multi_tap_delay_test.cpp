@@ -1328,3 +1328,97 @@ TEST_CASE("MultiTapDelay: Note Value works when DAW transport is stopped",
     REQUIRE(tap0_long > tap0_short);
     REQUIRE(tap0_long / tap0_short == Approx(16.0f).margin(2.0f));
 }
+
+// =============================================================================
+// Cutoff Modulation Tests (FR-022)
+// =============================================================================
+
+namespace {
+/// Simple mock modulation source with a controllable output value
+class TestModSource : public ModulationSource {
+public:
+    explicit TestModSource(float value = 0.0f)
+        : value_(value) {}
+
+    [[nodiscard]] float getCurrentValue() const noexcept override {
+        return value_;
+    }
+
+    [[nodiscard]] std::pair<float, float> getSourceRange() const noexcept override {
+        return {-1.0f, 1.0f};
+    }
+
+    void setValue(float v) noexcept { value_ = v; }
+
+private:
+    float value_;
+};
+} // namespace
+
+TEST_CASE("MultiTapDelay cutoff modulation applies octave scaling",
+          "[multi-tap][modulation][filter]") {
+    MultiTapDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    delay.loadTimingPattern(TimingPattern::QuarterNote, 4);
+    delay.setTempo(120.0f);
+
+    // Set a known filter cutoff on tap 0
+    delay.setTapFilterCutoff(0, 1000.0f);
+    delay.setTapFilterMode(0, TapFilterMode::Lowpass);
+
+    // Set up modulation: source -> destination 48 (cutoff of tap 0)
+    ModulationMatrix modMatrix;
+    modMatrix.prepare(kSampleRate, kBlockSize);
+
+    TestModSource cutoffSource(0.0f);  // Start with no modulation
+    modMatrix.registerSource(0, &cutoffSource);
+    modMatrix.registerDestination(48, -1.0f, 1.0f, "Tap0 Cutoff");
+
+    // Create route: source 0 -> destination 48, full depth, bipolar
+    int route = modMatrix.createRoute(0, 48, 1.0f, ModulationMode::Bipolar);
+    REQUIRE(route >= 0);
+
+    delay.setModulationMatrix(&modMatrix);
+
+    BlockContext ctx{kSampleRate, kBlockSize, 120.0, 4, 4, true};
+    std::array<float, 512> left{}, right{};
+
+    SECTION("positive modulation shifts cutoff up by 2 octaves") {
+        cutoffSource.setValue(1.0f);  // Full positive = +2 octaves
+        // Snap smoother so modulation takes effect immediately
+        modMatrix.reset();
+        cutoffSource.setValue(1.0f);
+
+        // Process to apply modulation
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        // After mod=+1.0 with ±2 octave range: 1000 * 2^(1.0 * 2) = 1000 * 4 = 4000 Hz
+        float cutoff = delay.getTapFilterCutoff(0);
+        CHECK(cutoff == Approx(4000.0f).margin(100.0f));
+    }
+
+    SECTION("negative modulation shifts cutoff down by 2 octaves") {
+        cutoffSource.setValue(-1.0f);  // Full negative = -2 octaves
+        modMatrix.reset();
+        cutoffSource.setValue(-1.0f);
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        // After mod=-1.0 with ±2 octave range: 1000 * 2^(-1.0 * 2) = 1000 * 0.25 = 250 Hz
+        float cutoff = delay.getTapFilterCutoff(0);
+        CHECK(cutoff == Approx(250.0f).margin(50.0f));
+    }
+
+    SECTION("zero modulation leaves cutoff unchanged") {
+        cutoffSource.setValue(0.0f);
+        modMatrix.reset();
+
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+
+        float cutoff = delay.getTapFilterCutoff(0);
+        CHECK(cutoff == Approx(1000.0f).margin(10.0f));
+    }
+
+    // Disconnect mod matrix to avoid dangling pointer
+    delay.setModulationMatrix(nullptr);
+}

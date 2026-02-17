@@ -781,6 +781,84 @@ TEST_CASE("TapManager: Filter Q clamped to valid range (FR-017)", "[tap-manager]
 }
 
 // =============================================================================
+// Filter Getter Tests
+// =============================================================================
+
+TEST_CASE("TapManager: getTapFilterCutoff() returns current cutoff", "[tap-manager][tap-config]") {
+    auto tm = createPreparedTapManager();
+
+    SECTION("Default cutoff is 1000 Hz") {
+        CHECK(tm.getTapFilterCutoff(0) == Approx(1000.0f));
+    }
+
+    SECTION("Returns set value") {
+        tm.setTapFilterCutoff(0, 5000.0f);
+        CHECK(tm.getTapFilterCutoff(0) == Approx(5000.0f));
+    }
+
+    SECTION("Returns clamped value for out-of-range input") {
+        tm.setTapFilterCutoff(0, 10.0f);  // Below min 20
+        CHECK(tm.getTapFilterCutoff(0) == Approx(20.0f));
+
+        tm.setTapFilterCutoff(0, 30000.0f);  // Above max 20000
+        CHECK(tm.getTapFilterCutoff(0) == Approx(20000.0f));
+    }
+
+    SECTION("Out-of-range tap index returns default") {
+        CHECK(tm.getTapFilterCutoff(16) == Approx(1000.0f));
+        CHECK(tm.getTapFilterCutoff(999) == Approx(1000.0f));
+    }
+}
+
+TEST_CASE("TapManager: getTapFilterMode() returns current mode", "[tap-manager][tap-config]") {
+    auto tm = createPreparedTapManager();
+
+    SECTION("Default mode is Bypass") {
+        CHECK(tm.getTapFilterMode(0) == TapFilterMode::Bypass);
+    }
+
+    SECTION("Returns set value") {
+        tm.setTapFilterMode(0, TapFilterMode::Lowpass);
+        CHECK(tm.getTapFilterMode(0) == TapFilterMode::Lowpass);
+
+        tm.setTapFilterMode(0, TapFilterMode::Highpass);
+        CHECK(tm.getTapFilterMode(0) == TapFilterMode::Highpass);
+
+        tm.setTapFilterMode(0, TapFilterMode::Bypass);
+        CHECK(tm.getTapFilterMode(0) == TapFilterMode::Bypass);
+    }
+
+    SECTION("Out-of-range tap index returns Bypass") {
+        CHECK(tm.getTapFilterMode(16) == TapFilterMode::Bypass);
+    }
+}
+
+TEST_CASE("TapManager: getTapFilterQ() returns current Q factor", "[tap-manager][tap-config]") {
+    auto tm = createPreparedTapManager();
+
+    SECTION("Default Q is Butterworth (0.707)") {
+        CHECK(tm.getTapFilterQ(0) == Approx(0.707f).margin(0.001f));
+    }
+
+    SECTION("Returns set value") {
+        tm.setTapFilterQ(0, 2.5f);
+        CHECK(tm.getTapFilterQ(0) == Approx(2.5f));
+    }
+
+    SECTION("Returns clamped value for out-of-range input") {
+        tm.setTapFilterQ(0, 0.1f);  // Below min 0.5
+        CHECK(tm.getTapFilterQ(0) == Approx(0.5f));
+
+        tm.setTapFilterQ(0, 20.0f);  // Above max 10.0
+        CHECK(tm.getTapFilterQ(0) == Approx(10.0f));
+    }
+
+    SECTION("Out-of-range tap index returns default") {
+        CHECK(tm.getTapFilterQ(16) == Approx(0.707f).margin(0.001f));
+    }
+}
+
+// =============================================================================
 // Feedback Tests (FR-019 to FR-021)
 // =============================================================================
 

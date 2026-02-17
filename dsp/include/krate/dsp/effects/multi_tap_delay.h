@@ -403,11 +403,32 @@ public:
         tapManager_.setTapFilterMode(tapIndex, mode);
     }
 
+    /// @brief Get tap filter mode
+    /// @param tapIndex Tap index [0, 15]
+    /// @return Current filter mode, or TapFilterMode::Bypass if out-of-range
+    [[nodiscard]] TapFilterMode getTapFilterMode(size_t tapIndex) const noexcept {
+        return tapManager_.getTapFilterMode(tapIndex);
+    }
+
     /// @brief Set tap filter cutoff
     /// @param tapIndex Tap index [0, 15]
     /// @param cutoffHz Cutoff frequency [20, 20000]
     void setTapFilterCutoff(size_t tapIndex, float cutoffHz) noexcept {
         tapManager_.setTapFilterCutoff(tapIndex, cutoffHz);
+    }
+
+    /// @brief Get tap filter cutoff frequency
+    /// @param tapIndex Tap index [0, 15]
+    /// @return Current cutoff in Hz, or kDefaultFilterCutoff if out-of-range
+    [[nodiscard]] float getTapFilterCutoff(size_t tapIndex) const noexcept {
+        return tapManager_.getTapFilterCutoff(tapIndex);
+    }
+
+    /// @brief Get tap filter Q factor
+    /// @param tapIndex Tap index [0, 15]
+    /// @return Current Q factor, or kDefaultFilterQ if out-of-range
+    [[nodiscard]] float getTapFilterQ(size_t tapIndex) const noexcept {
+        return tapManager_.getTapFilterQ(tapIndex);
     }
 
     /// @brief Set tap mute state
@@ -1078,7 +1099,9 @@ private:
             // Cutoff modulation (±2 octaves)
             float cutoffMod = modMatrix_->getCurrentModulation(static_cast<uint8_t>(48 + i));
             if (std::abs(cutoffMod) > 0.0f) {
-                // TODO: Apply cutoff modulation when getTapFilterCutoff is available
+                float baseCutoff = tapManager_.getTapFilterCutoff(i);
+                float modCutoff = baseCutoff * std::pow(2.0f, cutoffMod * 2.0f);
+                tapManager_.setTapFilterCutoff(i, modCutoff);  // setter clamps to [20, 20000] Hz
             }
         }
     }
