@@ -28,6 +28,7 @@ add_executable(dsp_tests
     unit/core/interpolation_test.cpp
     unit/core/stereo_utils_test.cpp
     unit/core/pitch_utils_test.cpp
+    unit/core/scale_harmonizer_test.cpp
     unit/core/grain_envelope_test.cpp
     unit/core/crossfade_utils_test.cpp
     unit/core/sigmoid_test.cpp
@@ -257,6 +258,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/fast_math_test.cpp
         unit/core/interpolation_test.cpp
         unit/core/pitch_utils_test.cpp
+        unit/core/scale_harmonizer_test.cpp
         unit/core/grain_envelope_test.cpp
         unit/core/crossfade_utils_test.cpp
         unit/core/sigmoid_test.cpp
