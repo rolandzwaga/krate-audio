@@ -107,6 +107,7 @@ add_executable(dsp_tests
     unit/processors/midside_processor_test.cpp
     unit/processors/diffusion_network_test.cpp
     unit/processors/pitch_shift_processor_test.cpp
+    unit/processors/phase_locking_test.cpp
     unit/processors/reverse_feedback_processor_test.cpp
     unit/processors/grain_scheduler_test.cpp
     unit/processors/grain_processor_test.cpp
@@ -331,6 +332,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/midside_processor_test.cpp
         unit/processors/diffusion_network_test.cpp
         unit/processors/pitch_shift_processor_test.cpp
+        unit/processors/phase_locking_test.cpp
         unit/processors/reverse_feedback_processor_test.cpp
         unit/processors/grain_scheduler_test.cpp
         unit/processors/grain_processor_test.cpp

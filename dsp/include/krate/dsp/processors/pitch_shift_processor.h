@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cmath>
@@ -916,7 +917,9 @@ private:
 class PhaseVocoderPitchShifter {
 public:
     static constexpr std::size_t kFFTSize = 4096;      // ~93ms at 44.1kHz
-    static constexpr std::size_t kHopSize = 1024;      // 25% overlap (4x)
+    static constexpr std::size_t kHopSize = 1024;      // 75% overlap (4x)
+    static constexpr std::size_t kMaxBins = 4097;      // 8192/2+1 (max supported FFT)
+    static constexpr std::size_t kMaxPeaks = 512;      // Max detectable peaks per frame
     // Note: kPi and kTwoPi are now defined in math_constants.h (Layer 0)
 
     PhaseVocoderPitchShifter() = default;
@@ -989,6 +992,13 @@ public:
         outputReadPos_ = 0;
         outputWritePos_ = 0;
         outputSamplesReady_ = 0;
+
+        // Phase locking state
+        isPeak_.fill(false);
+        peakIndices_.fill(0);
+        numPeaks_ = 0;
+        regionPeak_.fill(0);
+        wasLocked_ = false;
     }
 
     /// @brief Enable or disable formant preservation
@@ -999,6 +1009,18 @@ public:
     /// @brief Get formant preservation state
     [[nodiscard]] bool getFormantPreserve() const noexcept {
         return formantPreserve_;
+    }
+
+    /// @brief Enable or disable identity phase locking.
+    /// When disabled, behavior is identical to the pre-modification basic phase vocoder.
+    /// Phase locking is enabled by default.
+    void setPhaseLocking(bool enabled) noexcept {
+        phaseLockingEnabled_ = enabled;
+    }
+
+    /// @brief Get phase locking state
+    [[nodiscard]] bool getPhaseLocking() const noexcept {
+        return phaseLockingEnabled_;
     }
 
     void process(const float* input, float* output, std::size_t numSamples,
@@ -1082,11 +1104,11 @@ private:
             // Subtract expected phase increment to get deviation
             float deviation = phaseDiff - expectedPhaseInc_[k];
 
-            // Wrap deviation to [-π, π]
+            // Wrap deviation to [-pi, pi]
             deviation = wrapPhase(deviation);
 
             // Compute true frequency as deviation from bin center
-            // true_freq = bin_freq + deviation / (2π * hopSize / sampleRate)
+            // true_freq = bin_freq + deviation / (2pi * hopSize / sampleRate)
             // But we store as phase per hop for synthesis
             frequency_[k] = expectedPhaseInc_[k] + deviation;
         }
@@ -1096,38 +1118,167 @@ private:
             formantPreserver_.extractEnvelope(magnitude_.data(), originalEnvelope_.data());
         }
 
+        // Step 1c: Phase locking setup (peak detection + region assignment)
+        if (phaseLockingEnabled_) {
+            // Stage A: Peak detection in analysis-domain magnitude spectrum
+            numPeaks_ = 0;
+            // Clear only the bins we use (numBins, not kMaxBins)
+            for (std::size_t k = 0; k < numBins; ++k) {
+                isPeak_[k] = false;
+            }
+
+            for (std::size_t k = 1; k < numBins - 1 && numPeaks_ < kMaxPeaks; ++k) {
+                if (magnitude_[k] > magnitude_[k - 1] && magnitude_[k] > magnitude_[k + 1]) {
+                    isPeak_[k] = true;
+                    peakIndices_[numPeaks_] = static_cast<uint16_t>(k);
+                    ++numPeaks_;
+                }
+            }
+
+            // Stage B: Region-of-influence assignment
+            if (numPeaks_ > 0) {
+                if (numPeaks_ == 1) {
+                    // Single peak: all bins assigned to it
+                    for (std::size_t k = 0; k < numBins; ++k) {
+                        regionPeak_[k] = peakIndices_[0];
+                    }
+                } else {
+                    // Forward scan: assign bins to peaks based on midpoint boundaries
+                    std::size_t peakIdx = 0;
+                    for (std::size_t k = 0; k < numBins; ++k) {
+                        // Move to next peak if we've passed the midpoint
+                        if (peakIdx + 1 < numPeaks_) {
+                            uint16_t midpoint = static_cast<uint16_t>(
+                                (peakIndices_[peakIdx] + peakIndices_[peakIdx + 1]) / 2);
+                            if (k > midpoint) {
+                                ++peakIdx;
+                            }
+                        }
+                        regionPeak_[k] = peakIndices_[peakIdx];
+                    }
+                }
+            }
+        }
+
+        // Toggle-to-basic re-initialization check
+        if (wasLocked_ && !phaseLockingEnabled_) {
+            for (std::size_t k = 0; k < numBins; ++k) {
+                synthPhase_[k] = prevPhase_[k];
+            }
+        }
+        wasLocked_ = phaseLockingEnabled_;
+
         // Step 2: Pitch shift by scaling frequencies and resampling spectrum
         synthesisSpectrum_.reset();
 
-        for (std::size_t k = 0; k < numBins; ++k) {
-            // Map source bin to destination bin
-            float srcBin = static_cast<float>(k) / pitchRatio;
+        if (phaseLockingEnabled_ && numPeaks_ > 0) {
+            // Two-pass synthesis: peaks first, then non-peaks
 
-            // Skip if source bin is out of range
-            if (srcBin >= static_cast<float>(numBins - 1)) continue;
+            // Pass 1: Process PEAK bins only (accumulate synthPhase_ for peaks)
+            for (std::size_t k = 0; k < numBins; ++k) {
+                float srcBin = static_cast<float>(k) / pitchRatio;
+                if (srcBin >= static_cast<float>(numBins - 1)) continue;
 
-            // Linear interpolation for magnitude
-            std::size_t srcBin0 = static_cast<std::size_t>(srcBin);
-            std::size_t srcBin1 = srcBin0 + 1;
-            if (srcBin1 >= numBins) srcBin1 = numBins - 1;
+                std::size_t srcBinRounded = static_cast<std::size_t>(srcBin + 0.5f);
+                if (srcBinRounded >= numBins) srcBinRounded = numBins - 1;
 
-            float frac = srcBin - static_cast<float>(srcBin0);
-            float mag = magnitude_[srcBin0] * (1.0f - frac) + magnitude_[srcBin1] * frac;
+                if (!isPeak_[srcBinRounded]) continue; // Skip non-peaks in Pass 1
 
-            // Store shifted magnitude for formant preservation
-            shiftedMagnitude_[k] = mag;
+                // Standard bin mapping and magnitude interpolation
+                std::size_t srcBin0 = static_cast<std::size_t>(srcBin);
+                std::size_t srcBin1 = srcBin0 + 1;
+                if (srcBin1 >= numBins) srcBin1 = numBins - 1;
 
-            // Scale frequency by pitch ratio
-            float freq = frequency_[srcBin0] * pitchRatio;
+                float frac = srcBin - static_cast<float>(srcBin0);
+                float mag = magnitude_[srcBin0] * (1.0f - frac) + magnitude_[srcBin1] * frac;
+                shiftedMagnitude_[k] = mag;
 
-            // Accumulate synthesis phase
-            synthPhase_[k] += freq;
-            synthPhase_[k] = wrapPhase(synthPhase_[k]);
+                // Peak bin: standard horizontal phase propagation
+                float freq = frequency_[srcBin0] * pitchRatio;
+                synthPhase_[k] += freq;
+                synthPhase_[k] = wrapPhase(synthPhase_[k]);
 
-            // Set synthesis bin (Cartesian form) - will be updated if formant preserve enabled
-            float real = mag * std::cos(synthPhase_[k]);
-            float imag = mag * std::sin(synthPhase_[k]);
-            synthesisSpectrum_.setCartesian(k, real, imag);
+                float real = mag * std::cos(synthPhase_[k]);
+                float imag = mag * std::sin(synthPhase_[k]);
+                synthesisSpectrum_.setCartesian(k, real, imag);
+            }
+
+            // Pass 2: Process NON-PEAK bins (use peak phases from Pass 1)
+            for (std::size_t k = 0; k < numBins; ++k) {
+                float srcBin = static_cast<float>(k) / pitchRatio;
+                if (srcBin >= static_cast<float>(numBins - 1)) continue;
+
+                std::size_t srcBinRounded = static_cast<std::size_t>(srcBin + 0.5f);
+                if (srcBinRounded >= numBins) srcBinRounded = numBins - 1;
+
+                if (isPeak_[srcBinRounded]) continue; // Skip peaks in Pass 2
+
+                // Standard bin mapping and magnitude interpolation
+                std::size_t srcBin0 = static_cast<std::size_t>(srcBin);
+                std::size_t srcBin1 = srcBin0 + 1;
+                if (srcBin1 >= numBins) srcBin1 = numBins - 1;
+
+                float frac = srcBin - static_cast<float>(srcBin0);
+                float mag = magnitude_[srcBin0] * (1.0f - frac) + magnitude_[srcBin1] * frac;
+                shiftedMagnitude_[k] = mag;
+
+                // Non-peak bin: identity phase locking via rotation angle
+                uint16_t analysisPeak = regionPeak_[srcBinRounded];
+
+                // Find the synthesis bin corresponding to the analysis peak
+                std::size_t synthPeakBin = static_cast<std::size_t>(
+                    static_cast<float>(analysisPeak) * pitchRatio + 0.5f);
+                if (synthPeakBin >= numBins) synthPeakBin = numBins - 1;
+
+                // Rotation angle: peak's synthesis phase minus peak's analysis phase
+                float analysisPhaseAtPeak = prevPhase_[analysisPeak];
+                float rotationAngle = synthPhase_[synthPeakBin] - analysisPhaseAtPeak;
+
+                // Apply rotation to this bin's analysis phase (interpolated)
+                float analysisPhaseAtSrc = prevPhase_[srcBin0] * (1.0f - frac)
+                                         + prevPhase_[srcBin1] * frac;
+                float phaseForOutput = analysisPhaseAtSrc + rotationAngle;
+
+                // Store in synthPhase_ for formant step compatibility
+                synthPhase_[k] = phaseForOutput;
+
+                float real = mag * std::cos(phaseForOutput);
+                float imag = mag * std::sin(phaseForOutput);
+                synthesisSpectrum_.setCartesian(k, real, imag);
+            }
+        } else {
+            // Basic path: standard per-bin phase accumulation (pre-modification behavior)
+            // Also used as fallback when phaseLockingEnabled_ && numPeaks_ == 0 (FR-011)
+            for (std::size_t k = 0; k < numBins; ++k) {
+                // Map source bin to destination bin
+                float srcBin = static_cast<float>(k) / pitchRatio;
+
+                // Skip if source bin is out of range
+                if (srcBin >= static_cast<float>(numBins - 1)) continue;
+
+                // Linear interpolation for magnitude
+                std::size_t srcBin0 = static_cast<std::size_t>(srcBin);
+                std::size_t srcBin1 = srcBin0 + 1;
+                if (srcBin1 >= numBins) srcBin1 = numBins - 1;
+
+                float frac = srcBin - static_cast<float>(srcBin0);
+                float mag = magnitude_[srcBin0] * (1.0f - frac) + magnitude_[srcBin1] * frac;
+
+                // Store shifted magnitude for formant preservation
+                shiftedMagnitude_[k] = mag;
+
+                // Scale frequency by pitch ratio
+                float freq = frequency_[srcBin0] * pitchRatio;
+
+                // Accumulate synthesis phase
+                synthPhase_[k] += freq;
+                synthPhase_[k] = wrapPhase(synthPhase_[k]);
+
+                // Set synthesis bin (Cartesian form)
+                float real = mag * std::cos(synthPhase_[k]);
+                float imag = mag * std::sin(synthPhase_[k]);
+                synthesisSpectrum_.setCartesian(k, real, imag);
+            }
         }
 
         // Step 3: Apply formant preservation if enabled
@@ -1177,6 +1328,14 @@ private:
     std::vector<float> shiftedEnvelope_;   // Envelope of shifted spectrum
     std::vector<float> shiftedMagnitude_;  // Shifted magnitude for formant adjustment
     bool formantPreserve_ = false;
+
+    // Phase locking state (pre-allocated, zero runtime allocation)
+    std::array<bool, kMaxBins> isPeak_{};               // Peak flag per analysis bin
+    std::array<uint16_t, kMaxPeaks> peakIndices_{};     // Analysis-domain peak bin indices
+    std::size_t numPeaks_ = 0;                          // Number of detected peaks this frame
+    std::array<uint16_t, kMaxBins> regionPeak_{};       // Region-peak assignment per analysis bin
+    bool phaseLockingEnabled_ = true;                   // Phase locking toggle (default: enabled)
+    bool wasLocked_ = false;                            // Previous frame's locking state (for toggle-to-basic re-init)
 
     // I/O buffers for sample-level processing
     std::vector<float> inputBuffer_;
