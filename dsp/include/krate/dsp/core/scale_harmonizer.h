@@ -300,16 +300,35 @@ public:
 
     /// Get the scale degree of a MIDI note in the current key/scale.
     /// Stub for Phase 6 implementation (FR-010).
-    [[nodiscard]] int getScaleDegree([[maybe_unused]] int midiNote) const noexcept {
-        // Stub -- will be implemented in Phase 6
+    [[nodiscard]] [[nodiscard]] int getScaleDegree(int midiNote) const noexcept {
+        if (scale_ == ScaleType::Chromatic) return -1;
+
+        int pitchClass = ((midiNote % 12) + 12) % 12;
+        int offset = ((pitchClass - rootNote_) % 12 + 12) % 12;
+
+        int scaleIdx = static_cast<int>(static_cast<uint8_t>(scale_));
+        const auto& intervals = detail::kScaleIntervals[static_cast<size_t>(scaleIdx)];
+
+        for (int d = 0; d < 7; ++d) {
+            if (intervals[static_cast<size_t>(d)] == offset) return d;
+        }
         return -1;
     }
 
     /// Quantize a MIDI note to the nearest scale degree.
     /// Stub for Phase 6 implementation (FR-011).
-    [[nodiscard]] int quantizeToScale([[maybe_unused]] int midiNote) const noexcept {
-        // Stub -- will be implemented in Phase 6
-        return midiNote;
+    [[nodiscard]] [[nodiscard]] int quantizeToScale(int midiNote) const noexcept {
+        if (scale_ == ScaleType::Chromatic) return midiNote;
+
+        int pitchClass = ((midiNote % 12) + 12) % 12;
+        int offset = ((pitchClass - rootNote_) % 12 + 12) % 12;
+
+        int scaleIdx = static_cast<int>(static_cast<uint8_t>(scale_));
+        int nearestDegree = detail::kReverseLookup[static_cast<size_t>(scaleIdx)][static_cast<size_t>(offset)];
+        int nearestOffset = detail::kScaleIntervals[static_cast<size_t>(scaleIdx)][static_cast<size_t>(nearestDegree)];
+
+        int diff = nearestOffset - offset;  // snap direction: negative = down, positive = up
+        return midiNote + diff;
     }
 
     // =========================================================================
