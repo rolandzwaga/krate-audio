@@ -41,7 +41,8 @@ namespace DSP {
 inline constexpr size_t kMaxModulationSources = 16;
 
 /// Maximum number of modulation destinations (parameters)
-inline constexpr size_t kMaxModulationDestinations = 16;
+/// MultiTapDelay uses 4 × 16 = 64 destinations (time, level, pan, cutoff per tap)
+inline constexpr size_t kMaxModulationDestinations = 64;
 
 /// Maximum number of modulation routes
 inline constexpr size_t kMaxModulationRoutes = 32;

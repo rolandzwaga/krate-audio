@@ -309,8 +309,10 @@ TEST_CASE("ModulationMatrix registerDestination() works correctly", "[modulation
         REQUIRE(matrix.getDestinationCount() == 3);
     }
 
-    SECTION("rejects invalid destination id >= 16") {
-        REQUIRE(matrix.registerDestination(16, 0.0f, 100.0f, "Invalid") == false);
+    SECTION("rejects invalid destination id >= kMaxModulationDestinations") {
+        REQUIRE(matrix.registerDestination(
+            static_cast<uint8_t>(kMaxModulationDestinations),
+            0.0f, 100.0f, "Invalid") == false);
         REQUIRE(matrix.getDestinationCount() == 0);
     }
 
