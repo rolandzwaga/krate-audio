@@ -156,6 +156,10 @@ public:
     // Processing
     //=========================================================================
 
+    /// @brief Sub-block size for parameter smoothing granularity.
+    /// At 44.1 kHz this gives ~689 ratio updates/sec; at 96 kHz ~1500/sec.
+    static constexpr std::size_t kSmoothingSubBlockSize = 64;
+
     /// @brief Process audio through pitch shifter
     ///
     /// Applies pitch shift to input samples and writes to output.
@@ -1456,39 +1460,46 @@ inline void PitchShiftProcessor::process(const float* input, float* output,
     pImpl_->semitoneSmoother.setTarget(pImpl_->semitones);
     pImpl_->centsSmoother.setTarget(pImpl_->cents);
 
-    // Advance smoothers through the block for click-free parameter changes
-    // Note: This provides block-rate smoothing. Per-sample smoothing would be
-    // ideal but requires passing per-sample pitch ratios to underlying shifters.
-    // TODO: Implement per-sample smoothing for parameter automation (US6)
-    for (size_t i = 0; i < numSamples; ++i) {
-        (void)pImpl_->semitoneSmoother.process();
-        (void)pImpl_->centsSmoother.process();
-    }
+    // Sub-block processing: advance smoothers and recompute pitch ratio every
+    // kSmoothingSubBlockSize samples for smooth parameter automation.
+    std::size_t samplesProcessed = 0;
+    while (samplesProcessed < numSamples) {
+        const std::size_t subBlockSize = std::min(kSmoothingSubBlockSize,
+                                                   numSamples - samplesProcessed);
 
-    // Calculate pitch ratio from smoothed parameters
-    float smoothedSemitones = pImpl_->semitoneSmoother.getCurrentValue();
-    float smoothedCents = pImpl_->centsSmoother.getCurrentValue();
-    float totalSemitones = smoothedSemitones + smoothedCents / 100.0f;
+        // Advance smoothers by sub-block size (O(1) closed-form)
+        pImpl_->semitoneSmoother.advanceSamples(subBlockSize);
+        pImpl_->centsSmoother.advanceSamples(subBlockSize);
 
-    float pitchRatio = semitonesToRatio(totalSemitones);
+        // Compute pitch ratio from smoothed parameters
+        const float smoothedSemitones = pImpl_->semitoneSmoother.getCurrentValue();
+        const float smoothedCents = pImpl_->centsSmoother.getCurrentValue();
+        const float totalSemitones = smoothedSemitones + smoothedCents / 100.0f;
+        const float pitchRatio = semitonesToRatio(totalSemitones);
 
-    // Route to appropriate processor based on mode
-    switch (pImpl_->mode) {
-        case PitchMode::Simple:
-            pImpl_->simpleShifter.process(input, output, numSamples, pitchRatio);
-            break;
+        const float* subInput = input + samplesProcessed;
+        float* subOutput = output + samplesProcessed;
 
-        case PitchMode::Granular:
-            pImpl_->granularShifter.process(input, output, numSamples, pitchRatio);
-            break;
+        // Route sub-block to appropriate processor
+        switch (pImpl_->mode) {
+            case PitchMode::Simple:
+                pImpl_->simpleShifter.process(subInput, subOutput, subBlockSize, pitchRatio);
+                break;
 
-        case PitchMode::PhaseVocoder:
-            pImpl_->phaseVocoderShifter.process(input, output, numSamples, pitchRatio);
-            break;
+            case PitchMode::Granular:
+                pImpl_->granularShifter.process(subInput, subOutput, subBlockSize, pitchRatio);
+                break;
 
-        case PitchMode::PitchSync:
-            pImpl_->pitchSyncShifter.process(input, output, numSamples, pitchRatio);
-            break;
+            case PitchMode::PhaseVocoder:
+                pImpl_->phaseVocoderShifter.process(subInput, subOutput, subBlockSize, pitchRatio);
+                break;
+
+            case PitchMode::PitchSync:
+                pImpl_->pitchSyncShifter.process(subInput, subOutput, subBlockSize, pitchRatio);
+                break;
+        }
+
+        samplesProcessed += subBlockSize;
     }
 }
 
