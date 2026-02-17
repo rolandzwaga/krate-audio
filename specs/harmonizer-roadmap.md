@@ -1,6 +1,6 @@
 # Harmonizer Effect Development Roadmap
 
-**Status**: Planning | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
+**Status**: In Progress (Phase 1 complete) | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
 
 A comprehensive, dependency-ordered development roadmap for the Harmonizer effect in the KrateDSP shared library. Every phase maps directly to existing codebase building blocks, identifies gaps, and provides implementation-level detail.
 
@@ -115,7 +115,7 @@ Every component below has been verified to exist in the codebase with its exact 
 
 | # | Component | Layer | Complexity | Blocked By | Harmonizer Role | Status |
 |---|-----------|-------|-----------|------------|-----------------|--------|
-| 1 | **ScaleHarmonizer** | 0 | LOW | Nothing | Diatonic interval calculation (core musical intelligence) | **CONFIRMED MISSING** (`pitch_utils.h` only has major scale quantization with hardcoded root=0; no interval computation) |
+| 1 | **ScaleHarmonizer** | 0 | LOW | Nothing | Diatonic interval calculation (core musical intelligence) | **COMPLETE** (spec 060, `scale_harmonizer.h`) |
 | 2 | **PitchTracker** | 1 | LOW | Nothing | Smoothed pitch detection with hysteresis & confidence gating | **MISSING** (`PitchDetector` exists but output is raw/jittery, no smoothing or note-hold logic) |
 | 3 | **Identity Phase Locking** | 2 | LOW-MED | Nothing | Laroche-Dolson phase locking for `PhaseVocoderPitchShifter` | **CONFIRMED MISSING** (code review: `processFrame()` uses basic per-bin phase accumulation only, no peak detection, no region assignment) |
 | 4 | **SpectralTransientDetector** | 1 | LOW-MED | Nothing | Spectral flux transient detection + phase reset for phase vocoder | **CONFIRMED MISSING** (existing `TransientDetector` is time-domain/modulation-source, not spectral) |
@@ -138,24 +138,26 @@ Every component below has been verified to exist in the codebase with its exact 
 | Delay lines | `DelayLine` (L1) | Circular, linear/allpass interpolation |
 | Stereo processing | `StereoField` (L3) | Width, M/S processing |
 | Shimmer effect | `ShimmerDelay` (L4) | Pitch shift in feedback loop, reference architecture |
+| Diatonic intervals | `ScaleHarmonizer` (L0) | 8 diatonic scales + chromatic, any key, O(1) constexpr lookup (spec 060) |
 
 ### Components Partially Available
 
 | Need | What Exists | Gap |
 |------|------------|-----|
-| Diatonic interval lookup | `quantizePitch()` snaps to scale degrees | Only snaps -- doesn't compute "N-th above in key X". Major scale only, root hardcoded to C. |
+| ~~Diatonic interval lookup~~ | ~~`quantizePitch()` snaps to scale degrees~~ | **RESOLVED**: `ScaleHarmonizer` (spec 060) provides full diatonic interval computation for 8 scales + chromatic, any key. |
 | Robust pitch tracking | `PitchDetector` provides raw pitch | No median filtering, hysteresis, confidence gating, or minimum note duration |
 | Phase-locked pitch shifting | `PhaseVocoderPitchShifter` does phase vocoder | No peak detection, no region-of-influence, per-bin phase accumulation destroys vertical coherence |
 | Transient-aware pitch shifting | `TransientDetector` detects transients | Time-domain (envelope derivative), not spectral flux. No phase reset integration with phase vocoder. |
 
 ---
 
-## Phase 1: Scale & Interval Foundation
+## Phase 1: Scale & Interval Foundation -- COMPLETE
 
 **Layer**: 0 (Core)
 **Blocks**: Phase 4 (HarmonizerEngine depends on interval calculation)
 **Effort**: ~1-2 days
 **Depends On**: Nothing (can start immediately)
+**Status**: Complete -- implemented in spec [060-scale-interval-foundation](060-scale-interval-foundation/spec.md), merged to main.
 
 ### Why This Exists
 
@@ -1050,7 +1052,7 @@ EXISTING (reuse directly):          ~80% of DSP functionality
 └── ShimmerDelay (pitch-shift-in-feedback reference architecture)
 
 NEW (must build):                   ~20% of DSP functionality
-├── ScaleHarmonizer (L0) -- diatonic interval lookup (pure math, no DSP)
+├── ScaleHarmonizer (L0) -- COMPLETE (spec 060, scale_harmonizer.h)
 ├── PitchTracker (L1) -- median filter + hysteresis + confidence gate
 ├── SpectralTransientDetector (L1) -- spectral flux onset detection
 ├── Identity Phase Locking (L2) -- modification to existing PhaseVocoderPitchShifter
