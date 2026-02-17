@@ -13,6 +13,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <krate/dsp/core/scale_harmonizer.h>
 #include <array>
+#include <type_traits>
 
 using namespace Krate::DSP;
 
@@ -1141,4 +1142,241 @@ TEST_CASE("ScaleHarmonizer multi-octave negative intervals",
         CHECK(result.scaleDegree == 2);
         CHECK(result.octaveOffset == -1);
     }
+}
+
+// =============================================================================
+// Phase 9: MIDI Boundary Clamping Tests (T061 / FR-009 / SC-007)
+// =============================================================================
+
+TEST_CASE("ScaleHarmonizer MIDI boundary clamping",
+          "[scale-harmonizer][edge]") {
+    ScaleHarmonizer harm;
+    harm.setKey(0);  // C
+    harm.setScale(ScaleType::Major);
+
+    SECTION("Input MIDI 127 + large positive interval clamps targetNote to 127") {
+        // MIDI 127 (G9). Diatonic steps +7 (octave above) would put target at 139.
+        // Must clamp targetNote to 127 and recompute semitones.
+        auto result = harm.calculate(127, +7);
+        CHECK(result.targetNote <= 127);
+        CHECK(result.semitones == result.targetNote - 127);
+    }
+
+    SECTION("Input MIDI 0 + large negative interval clamps targetNote to 0") {
+        // MIDI 0. Diatonic steps -7 (octave below) would put target at -12.
+        // Must clamp targetNote to 0 and recompute semitones.
+        auto result = harm.calculate(0, -7);
+        CHECK(result.targetNote >= 0);
+        CHECK(result.semitones == result.targetNote - 0);
+    }
+
+    SECTION("Clamping at upper boundary: semitones reflects clamped shift") {
+        // MIDI 120 + very large positive interval
+        auto result = harm.calculate(120, +14);  // 2 octaves up = +24 semitones, 120+24=144 -> clamp to 127
+        CHECK(result.targetNote == 127);
+        CHECK(result.semitones == 7);  // 127 - 120
+    }
+
+    SECTION("Clamping at lower boundary: semitones reflects clamped shift") {
+        // MIDI 5 + very large negative interval
+        auto result = harm.calculate(5, -14);  // 2 octaves down = -24 semitones, 5-24=-19 -> clamp to 0
+        CHECK(result.targetNote == 0);
+        CHECK(result.semitones == -5);  // 0 - 5
+    }
+
+    SECTION("Chromatic mode also clamps correctly") {
+        harm.setScale(ScaleType::Chromatic);
+
+        // Upper boundary
+        auto resultHigh = harm.calculate(127, +10);
+        CHECK(resultHigh.targetNote == 127);
+        CHECK(resultHigh.semitones == 0);  // 127 - 127
+
+        // Lower boundary
+        auto resultLow = harm.calculate(0, -10);
+        CHECK(resultLow.targetNote == 0);
+        CHECK(resultLow.semitones == 0);  // 0 - 0
+    }
+
+    SECTION("Exact boundary: MIDI 127 with diatonicSteps=0") {
+        auto result = harm.calculate(127, 0);
+        CHECK(result.targetNote == 127);
+        CHECK(result.semitones == 0);
+    }
+
+    SECTION("Exact boundary: MIDI 0 with diatonicSteps=0") {
+        auto result = harm.calculate(0, 0);
+        CHECK(result.targetNote == 0);
+        CHECK(result.semitones == 0);
+    }
+}
+
+// =============================================================================
+// Phase 9: Unison Tests (T062 / FR-006)
+// =============================================================================
+
+TEST_CASE("ScaleHarmonizer unison (diatonicSteps=0) behavior",
+          "[scale-harmonizer][edge]") {
+    ScaleHarmonizer harm;
+
+    SECTION("Unison always returns semitones=0, octaveOffset=0, targetNote=inputMidiNote") {
+        // Test across all 8 diatonic scales and all 12 keys
+        constexpr std::array<ScaleType, 8> scales = {
+            ScaleType::Major, ScaleType::NaturalMinor, ScaleType::HarmonicMinor,
+            ScaleType::MelodicMinor, ScaleType::Dorian, ScaleType::Mixolydian,
+            ScaleType::Phrygian, ScaleType::Lydian,
+        };
+
+        for (auto scaleType : scales) {
+            for (int key = 0; key < 12; ++key) {
+                harm.setKey(key);
+                harm.setScale(scaleType);
+
+                // Test a few representative MIDI notes
+                for (int note : {0, 36, 60, 69, 96, 127}) {
+                    INFO("Scale=" << static_cast<int>(scaleType)
+                         << " Key=" << key << " Note=" << note);
+                    auto result = harm.calculate(note, 0);
+                    CHECK(result.semitones == 0);
+                    CHECK(result.targetNote == note);
+                    CHECK(result.octaveOffset == 0);
+                }
+            }
+        }
+    }
+
+    SECTION("Unison scaleDegree matches getScaleDegree for scale notes") {
+        harm.setKey(0);  // C
+        harm.setScale(ScaleType::Major);
+
+        // C Major scale notes in octave 4: C=60, D=62, E=64, F=65, G=67, A=69, B=71
+        constexpr std::array<int, 7> scaleNotes = {60, 62, 64, 65, 67, 69, 71};
+        constexpr std::array<int, 7> expectedDegrees = {0, 1, 2, 3, 4, 5, 6};
+
+        for (int i = 0; i < 7; ++i) {
+            INFO("Scale note: " << scaleNotes[static_cast<size_t>(i)]);
+            auto result = harm.calculate(scaleNotes[static_cast<size_t>(i)], 0);
+            CHECK(result.scaleDegree == expectedDegrees[static_cast<size_t>(i)]);
+            CHECK(result.scaleDegree == harm.getScaleDegree(scaleNotes[static_cast<size_t>(i)]));
+        }
+    }
+
+    SECTION("Unison for non-scale notes: scaleDegree is nearest scale degree (not -1)") {
+        harm.setKey(0);  // C
+        harm.setScale(ScaleType::Major);
+
+        // C#4 (MIDI 61) is not in C Major.
+        // Nearest degree via reverse lookup = 0 (C, round-down on tie).
+        auto result = harm.calculate(61, 0);
+        CHECK(result.semitones == 0);
+        CHECK(result.targetNote == 61);
+        // scaleDegree = nearest degree from reverse lookup, NOT -1
+        // (For unison, target note = input note, resolved via nearest degree)
+        CHECK(result.scaleDegree == 0);  // nearest to C# is C (degree 0)
+
+        // Eb4 (MIDI 63) -> nearest degree is D (degree 1), round-down on tie
+        auto result2 = harm.calculate(63, 0);
+        CHECK(result2.scaleDegree == 1);
+    }
+
+    SECTION("Chromatic mode unison: scaleDegree is -1") {
+        harm.setScale(ScaleType::Chromatic);
+        auto result = harm.calculate(60, 0);
+        CHECK(result.semitones == 0);
+        CHECK(result.targetNote == 60);
+        CHECK(result.scaleDegree == -1);
+        CHECK(result.octaveOffset == 0);
+    }
+}
+
+// =============================================================================
+// Phase 9: getSemitoneShift() Frequency Convenience Method (T063 / FR-012)
+// =============================================================================
+
+TEST_CASE("ScaleHarmonizer getSemitoneShift frequency convenience method",
+          "[scale-harmonizer][edge]") {
+    ScaleHarmonizer harm;
+    harm.setKey(0);  // C
+    harm.setScale(ScaleType::Major);
+
+    SECTION("440.0f Hz (A4=MIDI 69) with 3rd above returns same as calculate(69, +2)") {
+        auto calcResult = harm.calculate(69, +2);
+        float shiftFromFreq = harm.getSemitoneShift(440.0f, +2);
+        CHECK(shiftFromFreq == static_cast<float>(calcResult.semitones));
+    }
+
+    SECTION("261.63f Hz (C4 ~= MIDI 60) with 3rd above returns same as calculate(60, +2)") {
+        // Middle C is approximately 261.63 Hz -> MIDI 60
+        auto calcResult = harm.calculate(60, +2);
+        float shiftFromFreq = harm.getSemitoneShift(261.63f, +2);
+        CHECK(shiftFromFreq == static_cast<float>(calcResult.semitones));
+    }
+
+    SECTION("Fractional MIDI note rounding: 440.5 Hz rounds to MIDI 69") {
+        // 440.5 Hz -> frequencyToMidiNote = 12 * log2(440.5/440) + 69 = ~69.019
+        // Rounds to MIDI 69
+        auto calcResult = harm.calculate(69, +2);
+        float shiftFromFreq = harm.getSemitoneShift(440.5f, +2);
+        CHECK(shiftFromFreq == static_cast<float>(calcResult.semitones));
+    }
+
+    SECTION("Fractional MIDI note rounding: 453.08 Hz rounds to MIDI 70 (Bb4)") {
+        // 453.08 Hz -> frequencyToMidiNote = 12 * log2(453.08/440) + 69 = ~69.508
+        // Rounds to MIDI 70
+        // But Bb4 (70) is not in C Major; nearest degree = A (degree 5)
+        auto calcResult = harm.calculate(70, +2);
+        float shiftFromFreq = harm.getSemitoneShift(453.08f, +2);
+        CHECK(shiftFromFreq == static_cast<float>(calcResult.semitones));
+    }
+
+    SECTION("Negative interval via frequency") {
+        // A4 = 440 Hz = MIDI 69, 3rd below (-2 steps)
+        auto calcResult = harm.calculate(69, -2);
+        float shiftFromFreq = harm.getSemitoneShift(440.0f, -2);
+        CHECK(shiftFromFreq == static_cast<float>(calcResult.semitones));
+    }
+
+    SECTION("Chromatic mode via frequency") {
+        harm.setScale(ScaleType::Chromatic);
+        // 440 Hz = MIDI 69, +7 semitones
+        float shiftFromFreq = harm.getSemitoneShift(440.0f, +7);
+        CHECK(shiftFromFreq == 7.0f);
+    }
+}
+
+// =============================================================================
+// Phase 9: noexcept Verification (T064 / SC-008)
+// =============================================================================
+
+TEST_CASE("ScaleHarmonizer all methods are noexcept",
+          "[scale-harmonizer][edge]") {
+    // Verify at compile time that all public methods are noexcept
+    // per FR-014 and SC-008.
+    static_assert(noexcept(std::declval<ScaleHarmonizer>().setKey(0)),
+                  "setKey must be noexcept");
+    static_assert(noexcept(std::declval<ScaleHarmonizer>().setScale(ScaleType::Major)),
+                  "setScale must be noexcept");
+    static_assert(noexcept(std::declval<const ScaleHarmonizer>().getKey()),
+                  "getKey must be noexcept");
+    static_assert(noexcept(std::declval<const ScaleHarmonizer>().getScale()),
+                  "getScale must be noexcept");
+    static_assert(noexcept(std::declval<const ScaleHarmonizer>().calculate(60, 2)),
+                  "calculate must be noexcept");
+    static_assert(noexcept(std::declval<const ScaleHarmonizer>().getSemitoneShift(440.0f, 2)),
+                  "getSemitoneShift must be noexcept");
+    static_assert(noexcept(std::declval<const ScaleHarmonizer>().getScaleDegree(60)),
+                  "getScaleDegree must be noexcept");
+    static_assert(noexcept(std::declval<const ScaleHarmonizer>().quantizeToScale(60)),
+                  "quantizeToScale must be noexcept");
+    static_assert(noexcept(ScaleHarmonizer::getScaleIntervals(ScaleType::Major)),
+                  "getScaleIntervals must be noexcept");
+
+    // SC-008: Verify zero heap allocations by code inspection.
+    // ScaleHarmonizer uses only:
+    // - constexpr arrays (compile-time, no heap)
+    // - int and enum members (stack/register)
+    // - std::clamp, std::round (no allocations)
+    // - std::log2 (in frequencyToMidiNote, no allocations)
+    // No std::string, std::vector, new/delete, or malloc/free anywhere.
+    SUCCEED("All methods verified noexcept via static_assert; zero allocations confirmed by inspection");
 }

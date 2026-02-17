@@ -18,6 +18,9 @@
 #include <cmath>
 #include <cstdint>
 
+#include <krate/dsp/core/midi_utils.h>
+#include <krate/dsp/core/pitch_utils.h>
+
 namespace Krate::DSP {
 
 // =============================================================================
@@ -208,7 +211,7 @@ public:
     [[nodiscard]] DiatonicInterval calculate(int inputMidiNote, int diatonicSteps) const noexcept {
         // Chromatic mode: passthrough, diatonicSteps = raw semitones
         if (scale_ == ScaleType::Chromatic) {
-            int target = std::clamp(inputMidiNote + diatonicSteps, 0, 127);
+            int target = std::clamp(inputMidiNote + diatonicSteps, kMinMidiNote, kMaxMidiNote);
             return DiatonicInterval{
                 target - inputMidiNote,
                 target,
@@ -268,7 +271,7 @@ public:
 
         // Step 6: Compute target MIDI note and clamp
         int targetNote = inputMidiNote + semitoneShift;
-        targetNote = std::clamp(targetNote, 0, 127);
+        targetNote = std::clamp(targetNote, kMinMidiNote, kMaxMidiNote);
 
         // Recompute semitones after clamping to maintain invariant
         semitoneShift = targetNote - inputMidiNote;
@@ -286,12 +289,17 @@ public:
     // =========================================================================
 
     /// Compute semitone shift from input frequency.
-    /// Stub for Phase 9 implementation (FR-012).
+    ///
+    /// Converts Hz to MIDI note (via frequencyToMidiNote()), rounds to nearest
+    /// integer, then calls calculate(). Returns the semitone shift as a float
+    /// for direct use with semitonesToRatio().
+    ///
+    /// @param inputFrequencyHz Input frequency in Hz (must be > 0)
+    /// @param diatonicSteps Scale degrees to shift
+    /// @return Semitone shift (float for potential sub-semitone adjustments)
     [[nodiscard]] float getSemitoneShift(float inputFrequencyHz, int diatonicSteps) const noexcept {
-        // Stub -- will be implemented in Phase 9
-        (void)inputFrequencyHz;
-        (void)diatonicSteps;
-        return 0.0f;
+        int midiNote = static_cast<int>(std::round(frequencyToMidiNote(inputFrequencyHz)));
+        return static_cast<float>(calculate(midiNote, diatonicSteps).semitones);
     }
 
     // =========================================================================
@@ -299,8 +307,11 @@ public:
     // =========================================================================
 
     /// Get the scale degree of a MIDI note in the current key/scale.
-    /// Stub for Phase 6 implementation (FR-010).
-    [[nodiscard]] [[nodiscard]] int getScaleDegree(int midiNote) const noexcept {
+    ///
+    /// @param midiNote MIDI note number
+    /// @return Scale degree (0-6) if the note is in the scale, -1 if not.
+    ///         Always returns -1 in Chromatic mode.
+    [[nodiscard]] int getScaleDegree(int midiNote) const noexcept {
         if (scale_ == ScaleType::Chromatic) return -1;
 
         int pitchClass = ((midiNote % 12) + 12) % 12;
@@ -316,8 +327,15 @@ public:
     }
 
     /// Quantize a MIDI note to the nearest scale degree.
-    /// Stub for Phase 6 implementation (FR-011).
-    [[nodiscard]] [[nodiscard]] int quantizeToScale(int midiNote) const noexcept {
+    ///
+    /// Snaps the input note to the nearest note that belongs to the current
+    /// key/scale. When equidistant between two scale notes, rounds down
+    /// (toward the lower note).
+    ///
+    /// @param midiNote Input MIDI note number
+    /// @return The nearest MIDI note that is in the current scale.
+    ///         In Chromatic mode, returns the input unchanged.
+    [[nodiscard]] int quantizeToScale(int midiNote) const noexcept {
         if (scale_ == ScaleType::Chromatic) return midiNote;
 
         int pitchClass = ((midiNote % 12) + 12) % 12;
