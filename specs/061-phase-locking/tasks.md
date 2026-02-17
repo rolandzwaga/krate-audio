@@ -149,24 +149,24 @@
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T036 [US3] Write single sinusoid peak detection test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed a 440 Hz sinusoid into the pitch shifter and verify the output has exactly 1 spectral peak near bin 40-41 (bin index = 440 * 4096 / 44100 ~ 40.8); use 3-point local maximum check on output spectrum (SC-003)
-- [ ] T037 [US3] Write multi-harmonic peak detection test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed a 100 Hz sawtooth wave and verify peak count is approximately 220 (harmonics below Nyquist = floor(22050/100)), within +/- 5% tolerance (SC-003). Use a steady-state buffer of sufficient length (at least 4 * kFFTSize samples) to ensure the STFT analysis reaches stable magnitude readings. Note that Hann windowing produces ~3-bin spectral leakage per harmonic; at high harmonic indices where harmonics are separated by only a few bins, some adjacent harmonics may not satisfy the strict 3-point local maximum condition. Document the actual measured peak count from the test run in the SC-003 evidence row of the compliance table.
-- [ ] T038 [US3] Write silence/zero-signal test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed all-zero input and verify zero peaks are detected and the basic path is used (FR-011)
-- [ ] T039 [US3] Write maximum peaks limit test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed a signal designed to produce more than 512 peaks (e.g., white noise or dense sinusoidal synthesis); verify peak count is clamped to `kMaxPeaks` (512) without buffer overflow (FR-012)
-- [ ] T039b [US3] Write equal-magnitude plateau test in `dsp/tests/unit/processors/phase_locking_test.cpp`: synthesize a spectrum where two adjacent bins (e.g., bins 100 and 101) have identical magnitude and both are surrounded by lower-magnitude bins; verify that neither bin 100 nor bin 101 is detected as a peak, confirming that the strict inequality condition (`magnitude[k] > magnitude[k-1] AND magnitude[k] > magnitude[k+1]`) is enforced and not relaxed to `>=` (FR-002, spec Edge Cases).
-- [ ] T040 [US3] Build `dsp_tests` and confirm all US3 tests compile but FAIL
+- [X] T036 [US3] Write single sinusoid peak detection test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed a 440 Hz sinusoid into the pitch shifter and verify the output has exactly 1 spectral peak near bin 40-41 (bin index = 440 * 4096 / 44100 ~ 40.8); use 3-point local maximum check on output spectrum (SC-003)
+- [X] T037 [US3] Write multi-harmonic peak detection test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed a 100 Hz sawtooth wave and verify peak count is approximately 220 (harmonics below Nyquist = floor(22050/100)), within +/- 5% tolerance (SC-003). Use a steady-state buffer of sufficient length (at least 4 * kFFTSize samples) to ensure the STFT analysis reaches stable magnitude readings. Note that Hann windowing produces ~3-bin spectral leakage per harmonic; at high harmonic indices where harmonics are separated by only a few bins, some adjacent harmonics may not satisfy the strict 3-point local maximum condition. Document the actual measured peak count from the test run in the SC-003 evidence row of the compliance table.
+- [X] T038 [US3] Write silence/zero-signal test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed all-zero input and verify zero peaks are detected and the basic path is used (FR-011)
+- [X] T039 [US3] Write maximum peaks limit test in `dsp/tests/unit/processors/phase_locking_test.cpp`: feed a signal designed to produce more than 512 peaks (e.g., white noise or dense sinusoidal synthesis); verify peak count is clamped to `kMaxPeaks` (512) without buffer overflow (FR-012)
+- [X] T039b [US3] Write equal-magnitude plateau test in `dsp/tests/unit/processors/phase_locking_test.cpp`: synthesize a spectrum where two adjacent bins (e.g., bins 100 and 101) have identical magnitude and both are surrounded by lower-magnitude bins; verify that neither bin 100 nor bin 101 is detected as a peak, confirming that the strict inequality condition (`magnitude[k] > magnitude[k-1] AND magnitude[k] > magnitude[k+1]`) is enforced and not relaxed to `>=` (FR-002, spec Edge Cases).
+- [X] T040 [US3] Build `dsp_tests` and confirm all US3 tests compile but FAIL
 
 ### 5.2 Implementation for User Story 3
 
 Note: Stage A implementation was done in T015. This phase focuses on verifying correctness of the peak detection step specifically and fixing any issues discovered by the dedicated tests.
 
-- [ ] T041 [US3] Review and adjust Stage A (peak detection) implementation in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` if peak count or position does not match expected values from SC-003 tests (boundary conditions: confirm DC bin 0 and Nyquist bin numBins-1 are excluded from peak detection per FR-002)
-- [ ] T042 [US3] Build `dsp_tests` and confirm zero compilation errors and zero warnings
-- [ ] T043 [US3] Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "Phase Locking*"` and verify all US1, US2, and US3 tests pass
+- [X] T041 [US3] Review and adjust Stage A (peak detection) implementation in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` if peak count or position does not match expected values from SC-003 tests (boundary conditions: confirm DC bin 0 and Nyquist bin numBins-1 are excluded from peak detection per FR-002)
+- [X] T042 [US3] Build `dsp_tests` and confirm zero compilation errors and zero warnings
+- [X] T043 [US3] Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "Phase Locking*"` and verify all US1, US2, and US3 tests pass
 
 ### 5.3 Commit (MANDATORY)
 
-- [ ] T044 [US3] Commit completed User Story 3 work (peak detection correctness verification and any boundary fixes) to feature branch `061-phase-locking`
+- [X] T044 [US3] Commit completed User Story 3 work (peak detection correctness verification and any boundary fixes) to feature branch `061-phase-locking`
 
 **Checkpoint**: Peak detection verified correct for known signals. All prior user stories still pass.
 

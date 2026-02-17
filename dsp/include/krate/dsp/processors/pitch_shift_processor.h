@@ -1023,6 +1023,12 @@ public:
         return phaseLockingEnabled_;
     }
 
+    /// Returns the number of peaks detected in the most recent frame.
+    /// Intended for testing/diagnostics only.
+    [[nodiscard]] std::size_t getNumPeaks() const noexcept {
+        return numPeaks_;
+    }
+
     void process(const float* input, float* output, std::size_t numSamples,
                  float pitchRatio) noexcept {
         // At unity pitch, pass through (with latency compensation)
