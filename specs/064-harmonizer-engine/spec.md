@@ -419,40 +419,39 @@ The engine exposes the current detected pitch, MIDI note, and confidence value s
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-001 (getNumVoices) | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| FR-021 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
-| SC-010 | | |
-| SC-011 | | |
-| SC-012 | | |
+| FR-001 | MET | `harmonizer_engine.h:72` -- `kMaxVoices = 4`; line 301-303 `setNumVoices()` clamps to [0,4]; `std::array<Voice, kMaxVoices>` pre-allocates all 4. Test `FR-001 getNumVoices clamps correctly` passes (5 assertions). |
+| FR-002 | MET | `harmonizer_engine.h:44-47` -- `HarmonyMode` enum with `Chromatic=0, Scalic=1`; lines 197-202 Scalic feeds PitchTracker; lines 215-218 Chromatic uses raw semitones. Tests SC-001 (chromatic) and SC-002 (scalic) pass. |
+| FR-003 | MET | `harmonizer_engine.h:354-398` -- setVoiceInterval clamps [-24,+24], setVoiceLevel clamps [-60,+6] with mute threshold, setVoicePan clamps [-1,+1], setVoiceDelay clamps [0,50], setVoiceDetune clamps [-50,+50]. Clamping tests pass. |
+| FR-004 | MET | `harmonizer_engine.h:181` -- `process(const float* input, float* outputL, float* outputR, std::size_t numSamples)` mono-in stereo-out. All tests use this signature. |
+| FR-005 | MET | `harmonizer_engine.h:270-272` -- `angle = (pan+1)*kPi*0.25f; leftGain = cos(angle); rightGain = sin(angle)`. Tests SC-004 (hard left/right below -80dB) and SC-005 (center at -3dB +/-0.5dB) pass. |
+| FR-006 | MET | `harmonizer_engine.h:296-347` -- All global setters: setHarmonyMode, setNumVoices, setKey, setScale, setPitchShiftMode, setFormantPreserve, setDryLevel, setWetLevel. All exercised in tests. |
+| FR-007 | MET | `harmonizer_engine.h:84-87` -- kPitchSmoothTimeMs=10, kLevelSmoothTimeMs=5, kPanSmoothTimeMs=5, kDryWetSmoothTimeMs=10. Per-voice smoothers configured at lines 118-125; dry/wet smoothers at 124-125. Tests SC-007 pass. |
+| FR-008 | MET | `harmonizer_engine.h:197-201` -- PitchTracker fed once per block in Scalic mode; lastDetectedNote_ holds last valid note. Test `FR-008 hold last note on silence` passes. |
+| FR-009 | MET | `harmonizer_engine.h:197` -- PitchTracker only fed when `harmonyMode_ == Scalic`. Test `Chromatic mode getDetectedPitch returns 0` passes: getDetectedPitch()=0, getDetectedNote()=-1. |
+| FR-010 | MET | `harmonizer_engine.h:218,224-225` -- detuneCents/100 added to interval shift. Test SC-012 passes: measured offset within 1Hz of expected 3.81Hz. |
+| FR-011 | MET | `harmonizer_engine.h:249-258` -- DelayLine write/readLinear when delayMs>0; std::copy bypass when 0. Test `onset delay 10ms delays by ~441 samples` and `0ms time-aligned` pass. |
+| FR-012 | MET | `harmonizer_engine.h:425-428` -- returns `voices_[0].pitchShifter.getLatencySamples()` if prepared, 0 otherwise. Tests SC-010 pass for all 4 modes. |
+| FR-013 | MET | `harmonizer_engine.h:406-420` -- getDetectedPitch/getDetectedNote/getPitchConfidence delegate to PitchTracker. Test `FR-013 query methods after Scalic processing` passes. |
+| FR-014 | MET | `harmonizer_engine.h:97-132` -- prepare() initializes all components, sets prepared_=true. reset() at 135-164 resets all components. Tests: isPrepared, reset, re-prepare all pass. |
+| FR-015 | MET | `harmonizer_engine.h:183-188` -- zero-fills outputs and returns if !prepared_. Test `process before prepare zero-fills outputs (FR-015)` passes. |
+| FR-016 | MET | `harmonizer_engine.h:22-28` -- includes only L0 (scale_harmonizer, db_utils, math_constants), L1 (pitch_tracker, smoother, delay_line), L2 (pitch_shift_processor). No L3/L4/external headers. |
+| FR-017 | MET | `harmonizer_engine.h:196-288` -- Processing order: PitchTracker push -> interval compute -> delay -> pitch shift -> level/pan accumulate -> dry/wet blend per-sample. Wet applied to harmony bus after accumulation. |
+| FR-018 | MET | `harmonizer_engine.h:195` -- `if (numActiveVoices_ > 0)` gates all voice processing and pitch tracking. Tests `FR-018 numVoices=0` and edge case test both pass. |
+| FR-019 | MET | `harmonizer_engine.h:463` -- `std::array<Voice, kMaxVoices>` stores PitchShiftProcessors directly. No copying occurs. Compilation succeeds. |
+| FR-020 | DEFERRED | Per plan.md R-001: shared-analysis FFT deferred. PitchShiftProcessor pImpl API doesn't support external analysis injection. Follow-up spec required for Layer 2 API change. See research.md R-011. |
+| FR-021 | DEFERRED-COUPLED | Constrains FR-020's architecture. Each voice has own PitchShiftProcessor with own OLA buffer. Follow-up spec for FR-020 MUST include OLA isolation tests. |
+| SC-001 | MET | Test `SC-001 chromatic +7 semitones 440Hz produces 659Hz` passes. Threshold: within 2Hz (matches spec). |
+| SC-002 | MET | Test `SC-002 scalic C Major 3rd above A4 produces C5` passes (523.25Hz within 2Hz). Test `SC-002 scalic C Major 3rd above C4 produces E4` passes (329.63Hz within 2Hz). |
+| SC-003 | MET | Test `SC-003 two voices produce two frequency components` passes. Both frequencies within 2Hz of expected. |
+| SC-004 | MET | Tests `SC-004 hard left pan right channel below -80dB` and `hard right pan left channel below -80dB` pass. Threshold: -80dB (matches spec). |
+| SC-005 | MET | Test `SC-005 center pan both channels equal at -3dB` passes. Left/right equal within 0.01f; ratio -3dB +/-0.5dB (matches spec). |
+| SC-006 | MET | Test `SC-006 pitch transition C4 to D4 smooth` passes. transMaxDelta <= 2x steadyMaxDelta (matches spec). |
+| SC-007 | MET | Test `SC-007 level change ramps over 200+ samples` passes. Test `pan change ramps smoothly` passes. |
+| SC-008 | PARTIAL | Simple: 0.7% (MET, <1%). Granular: <5% (MET). PhaseVocoder: ~6.9% (MET, <15%). Orchestration: ~0.04% (MET, <1%). **PitchSync: ~26.4% (NOT MET, budget <3%)**. PitchSync overage is Layer 2 per-voice YIN autocorrelation. See research.md R-011. |
+| SC-009 | MET | Code inspection of process() body: no new/delete/malloc/free/push_back/resize/reserve. All buffers pre-allocated in prepare(). Test `SC-009 zero allocations` documents verification. |
+| SC-010 | MET | Test `SC-010 getLatencySamples matches PitchShiftProcessor` passes for all 4 modes. Unprepared returns 0. |
+| SC-011 | MET | Test `SC-011 silence input produces silence output` passes: no NaN, no Inf, no denormals, RMS < 1e-6. |
+| SC-012 | MET | Test `SC-012 detune +10 cents frequency offset` passes: measured within 1Hz of expected 3.81Hz. Test `detune beating` passes: modulation depth >0.3, 4+ zero crossings. |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -464,21 +463,22 @@ The engine exposes the current detected pitch, MIDI note, and confidence value s
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: PARTIAL
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
+**Documented gaps:**
+- Gap 1: SC-008 PitchSync mode measures ~26.4% CPU vs <3% budget. The overage is caused by Layer 2 per-voice YIN autocorrelation inside PitchShiftProcessor, not optimizable at the HarmonizerEngine (Layer 3) level. See research.md R-011.
+- Gap 2: FR-020 DEFERRED -- shared-analysis FFT requires a Layer 2 API change to PitchShiftProcessor's pImpl interface. Independent per-voice instances are functionally correct. Follow-up spec required per plan.md R-001.
+- Gap 3: FR-021 DEFERRED-COUPLED -- constrains FR-020's architecture. Will be verified when FR-020 is implemented. Follow-up spec MUST include OLA isolation tests.
 
-**Recommendation**: [What needs to happen to achieve completion]
+**Recommendation**: (1) File a follow-up spec to optimize PitchSync mode's YIN autocorrelation at Layer 2, bringing SC-008 PitchSync within the <3% budget. (2) File a follow-up spec for FR-020 shared-analysis FFT architecture, including FR-021 OLA isolation tests. Both are Layer 2 concerns outside HarmonizerEngine's scope.

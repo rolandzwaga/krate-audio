@@ -38,10 +38,10 @@ CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 "$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests
 
 # Run HarmonizerEngine tests only
-build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "HarmonizerEngine*"
+build/windows-x64-release/bin/Release/dsp_tests.exe "HarmonizerEngine*"
 
 # Run all DSP tests
-build/windows-x64-release/dsp/tests/Release/dsp_tests.exe
+build/windows-x64-release/bin/Release/dsp_tests.exe
 ```
 
 ### Cross-Platform IEEE 754 Check
@@ -415,11 +415,11 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 - [X] T113 Write CPU benchmark test in `dsp/tests/unit/systems/harmonizer_engine_test.cpp` using Catch2 benchmark macros: 4 active voices, 44.1kHz, block 256, all 4 modes measured separately
 - [X] T113b Write orchestration-overhead benchmark: configure engine with 4 voices at level <= -60 dB (all muted, `PitchShiftProcessor` bypassed per mute-threshold optimization) and measure engine CPU. This isolates PitchTracker + ScaleHarmonizer + panning + smoothing overhead. SC-008 requires this orchestration overhead to be less than 1% CPU regardless of mode. Record result alongside per-mode results.
-- [X] T114 Build and run benchmark: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "HarmonizerEngine*benchmark*" --benchmark-samples 100`
+- [X] T114 Build and run benchmark: `build/windows-x64-release/bin/Release/dsp_tests.exe "HarmonizerEngine*benchmark*" --benchmark-samples 100`
 - [X] T115 Record actual measured CPU percentages for each mode AND for the orchestration-overhead measurement from T113b. Results: Simple=0.7% (MET), PitchSync=50% (NOT MET, per-voice YIN), Granular=0.8% (MET), PhaseVocoder=24% (NOT MET, FR-020 deferred), Orchestration Chromatic=0.04% (MET), Orchestration Scalic+PT=9% (PitchTracker overhead). See research.md R-011.
 - [X] T116 If any mode exceeds its SC-008 budget: investigate and optimize in `dsp/include/krate/dsp/systems/harmonizer_engine.h` (mute threshold skip, zero-delay bypass, skip PitchTracker in Chromatic mode per FR-009/FR-018 -- these are already in the spec). Investigated: all optimizations already implemented. PitchSync and PhaseVocoder overage is in Layer 2 components, not optimizable at HarmonizerEngine layer. See research.md R-011.
 - [X] T117 If PhaseVocoder exceeds 15%: document in research.md that the shared-analysis FR-020 optimization must be implemented as an urgent follow-up spec. Documented in research.md R-011.
-- [ ] T118 Commit: "perf(harmonizer): add CPU benchmarks for all pitch-shift modes (SC-008)"
+- [X] T118 Commit: "perf(harmonizer): add CPU benchmarks for all pitch-shift modes (SC-008)"
 
 **Checkpoint**: All per-mode CPU budgets verified or gaps documented.
 
@@ -431,20 +431,20 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 ### 13.1 Edge Case Coverage
 
-- [ ] T119 [P] Write edge case test: `setNumVoices(0)` produces only dry signal with no voice processing or pitch tracking (FR-018). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T120 [P] Write edge case test: all voices muted (levelDb <= -60) -- wet output is silence, only dry signal passes (validation rules in data-model.md). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T121 [P] Write edge case test: `prepare()` called twice with different sample rates -- verify all components are re-prepared and state is reset. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T122 [P] Write edge case test: pitch shift mode change at runtime (Simple to PhaseVocoder) -- verify no crash and next process() call produces valid output. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T123 [P] Write edge case test: key or scale change at runtime in Scalic mode -- verify ScaleHarmonizer is reconfigured and next PitchTracker commit recomputes intervals. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T123b [P] Write edge case test: input frequency outside PitchTracker detection range in Scalic mode -- feed a 30Hz sine wave (below the ~50Hz detection floor) for several blocks, then verify: (a) no crash, (b) no NaN or infinity in output buffers, (c) `getDetectedNote()` returns -1 or the last valid held note (per spec Edge Cases section), (d) `getPitchConfidence()` returns a low value. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T124 Build and run all edge case tests, confirm PASS
-- [ ] T125 Commit: "test(harmonizer): add edge case coverage for runtime configuration changes"
+- [X] T119 [P] Write edge case test: `setNumVoices(0)` produces only dry signal with no voice processing or pitch tracking (FR-018). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T120 [P] Write edge case test: all voices muted (levelDb <= -60) -- wet output is silence, only dry signal passes (validation rules in data-model.md). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T121 [P] Write edge case test: `prepare()` called twice with different sample rates -- verify all components are re-prepared and state is reset. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T122 [P] Write edge case test: pitch shift mode change at runtime (Simple to PhaseVocoder) -- verify no crash and next process() call produces valid output. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T123 [P] Write edge case test: key or scale change at runtime in Scalic mode -- verify ScaleHarmonizer is reconfigured and next PitchTracker commit recomputes intervals. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T123b [P] Write edge case test: input frequency outside PitchTracker detection range in Scalic mode -- feed a 30Hz sine wave (below the ~50Hz detection floor) for several blocks, then verify: (a) no crash, (b) no NaN or infinity in output buffers, (c) `getDetectedNote()` returns -1 or the last valid held note (per spec Edge Cases section), (d) `getPitchConfidence()` returns a low value. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T124 Build and run all edge case tests, confirm PASS
+- [X] T125 Commit: "test(harmonizer): add edge case coverage for runtime configuration changes"
 
 ### 13.2 Final Build and Test Verification
 
-- [ ] T126 Build `dsp_tests` target in Release mode: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T127 Run complete HarmonizerEngine test suite: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "HarmonizerEngine*"` -- confirm ALL tests pass
-- [ ] T128 Run complete DSP test suite: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe` -- confirm no regressions in other tests
+- [X] T126 Build `dsp_tests` target in Release mode: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T127 Run complete HarmonizerEngine test suite: `build/windows-x64-release/bin/Release/dsp_tests.exe "HarmonizerEngine*"` -- confirm ALL tests pass
+- [X] T128 Run complete DSP test suite: `build/windows-x64-release/bin/Release/dsp_tests.exe` -- confirm no regressions in other tests
 
 ---
 
@@ -452,11 +452,11 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 **Purpose**: Verify code quality with clang-tidy before architecture documentation and completion.
 
-- [ ] T129 Run clang-tidy on DSP library target from Windows: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` (requires windows-ninja preset configured first: `"$CMAKE" --preset windows-ninja`)
-- [ ] T130 Fix all errors reported by clang-tidy in `dsp/include/krate/dsp/systems/harmonizer_engine.h` (blocking issues)
-- [ ] T131 Review all warnings and fix where appropriate; add `// NOLINT(check-name): reason` comments for any intentionally suppressed warnings
-- [ ] T132 Build `dsp_tests` after clang-tidy fixes and confirm all tests still pass
-- [ ] T133 Commit: "refactor(harmonizer): address clang-tidy findings in harmonizer_engine.h"
+- [X] T129 Run clang-tidy on DSP library target from Windows: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` (requires windows-ninja preset configured first: `"$CMAKE" --preset windows-ninja`). Result: 0 errors, 0 warnings across 211 files.
+- [X] T130 Fix all errors reported by clang-tidy in `dsp/include/krate/dsp/systems/harmonizer_engine.h` (blocking issues). N/A -- no errors found.
+- [X] T131 Review all warnings and fix where appropriate; add `// NOLINT(check-name): reason` comments for any intentionally suppressed warnings. N/A -- no warnings found.
+- [X] T132 Build `dsp_tests` after clang-tidy fixes and confirm all tests still pass. N/A -- no fixes needed.
+- [X] T133 Commit: "refactor(harmonizer): address clang-tidy findings in harmonizer_engine.h". N/A -- no changes needed.
 
 **Checkpoint**: Static analysis clean.
 
@@ -466,7 +466,7 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 **Purpose**: Update living architecture documentation before spec completion (Constitution Principle XIII).
 
-- [ ] T134 Update `specs/_architecture_/layer-3-systems.md`: add HarmonizerEngine entry with: purpose (multi-voice harmonizer orchestration), public API summary (prepare, reset, process, setHarmonyMode, setNumVoices, per-voice setters, query methods), file location (`dsp/include/krate/dsp/systems/harmonizer_engine.h`), layer dependencies (L0: ScaleHarmonizer, db_utils, math_constants; L1: PitchTracker, OnePoleSmoother, DelayLine; L2: PitchShiftProcessor), usage note (HarmonyMode::Chromatic vs Scalic), and note about FR-020 shared-analysis FFT deferral
+- [X] T134 Update `specs/_architecture_/layer-3-systems.md`: add HarmonizerEngine entry with: purpose (multi-voice harmonizer orchestration), public API summary (prepare, reset, process, setHarmonyMode, setNumVoices, per-voice setters, query methods), file location (`dsp/include/krate/dsp/systems/harmonizer_engine.h`), layer dependencies (L0: ScaleHarmonizer, db_utils, math_constants; L1: PitchTracker, OnePoleSmoother, DelayLine; L2: PitchShiftProcessor), usage note (HarmonyMode::Chromatic vs Scalic), and note about FR-020 shared-analysis FFT deferral
 - [ ] T135 Commit: "docs: add HarmonizerEngine to layer-3-systems.md architecture docs"
 
 **Checkpoint**: Architecture documentation reflects HarmonizerEngine.
@@ -479,14 +479,14 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 ### 16.1 Requirements Verification
 
-- [ ] T135b Verify FR-016 layer compliance: open `dsp/include/krate/dsp/systems/harmonizer_engine.h` and confirm all `#include` directives reference only Layer 0 headers (`scale_harmonizer.h`, `db_utils.h`, `math_constants.h`, `pitch_utils.h`), Layer 1 headers (`pitch_tracker.h`, `smoother.h`, `delay_line.h`), and Layer 2 headers (`pitch_shift_processor.h`). Confirm no Layer 4 (`effects/`) headers or external non-SDK headers are included. Document the include list in the compliance table evidence for FR-016.
-- [ ] T136 Review ALL FR-001 through FR-021 in `specs/064-harmonizer-engine/spec.md` against actual implementation in `dsp/include/krate/dsp/systems/harmonizer_engine.h` -- for each FR: open the file, find the code, cite line number
-- [ ] T137 Review ALL SC-001 through SC-012 in spec.md -- for each SC: run the relevant test, record actual measured value vs spec threshold
-- [ ] T138 Search for cheating patterns in implementation: no `// placeholder`, `// TODO`, or `// stub` comments in `dsp/include/krate/dsp/systems/harmonizer_engine.h`; no test thresholds relaxed from spec requirements in `dsp/tests/unit/systems/harmonizer_engine_test.cpp`; no features quietly removed from scope
+- [X] T135b Verify FR-016 layer compliance: open `dsp/include/krate/dsp/systems/harmonizer_engine.h` and confirm all `#include` directives reference only Layer 0 headers (`scale_harmonizer.h`, `db_utils.h`, `math_constants.h`, `pitch_utils.h`), Layer 1 headers (`pitch_tracker.h`, `smoother.h`, `delay_line.h`), and Layer 2 headers (`pitch_shift_processor.h`). Confirm no Layer 4 (`effects/`) headers or external non-SDK headers are included. Document the include list in the compliance table evidence for FR-016.
+- [X] T136 Review ALL FR-001 through FR-021 in `specs/064-harmonizer-engine/spec.md` against actual implementation in `dsp/include/krate/dsp/systems/harmonizer_engine.h` -- for each FR: open the file, find the code, cite line number
+- [X] T137 Review ALL SC-001 through SC-012 in spec.md -- for each SC: run the relevant test, record actual measured value vs spec threshold
+- [X] T138 Search for cheating patterns in implementation: no `// placeholder`, `// TODO`, or `// stub` comments in `dsp/include/krate/dsp/systems/harmonizer_engine.h`; no test thresholds relaxed from spec requirements in `dsp/tests/unit/systems/harmonizer_engine_test.cpp`; no features quietly removed from scope
 
 ### 16.2 Fill Compliance Table
 
-- [ ] T139 Update `specs/064-harmonizer-engine/spec.md` Implementation Verification section: fill each FR-xxx and SC-xxx row with status (MET/NOT MET/PARTIAL/DEFERRED) and specific evidence (file path, line number, test name, measured value). For FR-020: mark DEFERRED and cite plan.md R-001 as rationale ("Requires Layer 2 API change to PhaseVocoderPitchShifter; deferred to follow-up spec. Independent per-voice instances are functionally correct."). For FR-021: mark DEFERRED-COUPLED ("FR-021 constrains the FR-020 shared-analysis architecture; it will be verified when FR-020 is implemented. The follow-up spec MUST include tests that confirm OLA buffers are never shared across voices."). For SC-009: evidence MUST include the verification method used (grep command output or ASan run result from T024), not just "inspection passed".
+- [X] T139 Update `specs/064-harmonizer-engine/spec.md` Implementation Verification section: fill each FR-xxx and SC-xxx row with status (MET/NOT MET/PARTIAL/DEFERRED) and specific evidence (file path, line number, test name, measured value). For FR-020: mark DEFERRED and cite plan.md R-001 as rationale ("Requires Layer 2 API change to PhaseVocoderPitchShifter; deferred to follow-up spec. Independent per-voice instances are functionally correct."). For FR-021: mark DEFERRED-COUPLED ("FR-021 constrains the FR-020 shared-analysis architecture; it will be verified when FR-020 is implemented. The follow-up spec MUST include tests that confirm OLA buffers are never shared across voices."). For SC-009: evidence MUST include the verification method used (grep command output or ASan run result from T024), not just "inspection passed".
 
 ### 16.3 Honest Self-Check
 
@@ -497,11 +497,11 @@ Answer these questions. If ANY answer is "yes", CANNOT claim completion:
 3. Were any features removed from scope without telling the user?
 4. Would the spec author consider this done?
 
-- [ ] T140 All self-check questions answered "no" (or gaps documented honestly with user notification)
+- [X] T140 All self-check questions answered "no" (or gaps documented honestly with user notification)
 
 ### 16.4 Final Commit
 
-- [ ] T141 Commit: "chore(harmonizer): fill spec compliance table, complete US1-US9 implementation"
+- [X] T141 Commit: "chore(harmonizer): fill spec compliance table, complete US1-US9 implementation"
 - [ ] T142 Verify all tests pass on clean build: delete build artifacts, reconfigure, rebuild, run full test suite
 
 **Checkpoint**: Honest assessment complete. All requirements verified against code and test output.

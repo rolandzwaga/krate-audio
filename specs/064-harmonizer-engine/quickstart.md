@@ -155,5 +155,5 @@ CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 "$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests
 
 # Run HarmonizerEngine tests
-build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "HarmonizerEngine*"
+build/windows-x64-release/bin/Release/dsp_tests.exe "HarmonizerEngine*"
 ```
