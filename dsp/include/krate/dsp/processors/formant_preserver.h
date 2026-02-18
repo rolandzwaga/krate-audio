@@ -32,6 +32,7 @@
 #include <algorithm>
 
 #include <krate/dsp/core/math_constants.h>
+#include <krate/dsp/core/spectral_simd.h>
 #include <krate/dsp/primitives/fft.h>
 
 namespace Krate::DSP {
@@ -115,11 +116,9 @@ public:
             return;
         }
 
-        // Step 1: Compute log magnitude spectrum (symmetric for real signal)
-        for (std::size_t k = 0; k < numBins_; ++k) {
-            float mag = std::max(magnitudes[k], kMinMagnitude);
-            logMag_[k] = std::log10(mag);
-        }
+        // Step 1: Compute log magnitude spectrum using SIMD batch log10
+        // batchLog10 clamps non-positive inputs to kMinLogInput (== kMinMagnitude)
+        batchLog10(magnitudes, logMag_.data(), numBins_);
 
         // Mirror to negative frequencies (symmetric log-mag spectrum)
         for (std::size_t k = 1; k < numBins_ - 1; ++k) {
@@ -215,12 +214,13 @@ private:
     void reconstructEnvelope() noexcept {
         fft_.forward(cepstrum_.data(), complexBuf_.data());
 
+        // Stage: copy Complex::real fields into contiguous buffer for batchPow10
         for (std::size_t k = 0; k < numBins_; ++k) {
-            float logEnv = complexBuf_[k].real;
-            envelope_[k] = std::pow(10.0f, logEnv);
-
-            envelope_[k] = std::max(kMinMagnitude, std::min(envelope_[k], 1e6f));
+            logMag_[k] = complexBuf_[k].real;
         }
+
+        // batchPow10 clamps output to [kMinLogInput, kMaxPow10Output] = [1e-10, 1e6]
+        batchPow10(logMag_.data(), envelope_.data(), numBins_);
     }
 
     FFT fft_;
