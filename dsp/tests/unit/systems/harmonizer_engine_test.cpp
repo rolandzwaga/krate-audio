@@ -1100,3 +1100,170 @@ TEST_CASE("HarmonizerEngine SC-010 getLatencySamples matches PitchShiftProcessor
         REQUIRE(latency == 0);
     }
 }
+
+// =============================================================================
+// Phase 5: User Story 3 - Per-Voice Pan and Stereo Output
+// =============================================================================
+
+// T049: 2 voices panned left (-0.5) and right (+0.5) -- left channel dominated
+// by voice 0, right channel by voice 1, with partial overlap in both
+TEST_CASE("HarmonizerEngine US3 two voices panned left and right",
+          "[systems][harmonizer][pan][US3]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 512;
+    constexpr float inputFreq = 440.0f;
+
+    Krate::DSP::HarmonizerEngine engine;
+    setupChromaticEngine(engine, sampleRate, blockSize);
+    engine.setNumVoices(2);
+
+    // Voice 0: +4 semitones, panned left (-0.5)
+    engine.setVoiceInterval(0, 4);
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, -0.5f);
+
+    // Voice 1: +7 semitones, panned right (+0.5)
+    engine.setVoiceInterval(1, 7);
+    engine.setVoiceLevel(1, 0.0f);
+    engine.setVoicePan(1, 0.5f);
+
+    constexpr std::size_t totalSamples = 32768;
+    std::vector<float> input(totalSamples);
+    std::vector<float> outputL(totalSamples, 0.0f);
+    std::vector<float> outputR(totalSamples, 0.0f);
+
+    fillSine(input.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+        std::size_t n = std::min(blockSize, totalSamples - offset);
+        engine.process(input.data() + offset,
+                       outputL.data() + offset,
+                       outputR.data() + offset, n);
+    }
+
+    // Find the two peak frequencies in left and right channels separately
+    const float expectedFreq0 = 440.0f * std::pow(2.0f, 4.0f / 12.0f);  // ~554.4Hz
+    const float expectedFreq1 = 440.0f * std::pow(2.0f, 7.0f / 12.0f);  // ~659.3Hz
+
+    // Use FFT to find the dominant frequency in each channel
+    // For left channel: voice 0 (panned -0.5) should be stronger than voice 1 (panned +0.5)
+    // For right channel: voice 1 (panned +0.5) should be stronger than voice 0 (panned -0.5)
+
+    // Analyze using full spectrum: find magnitudes at both expected frequencies
+    std::size_t fftSize = 8192;
+    Krate::DSP::FFT fft;
+    fft.prepare(fftSize);
+
+    // Analyze left channel (last fftSize samples)
+    const float* startL = outputL.data() + (totalSamples - fftSize);
+    std::vector<float> windowedL(fftSize);
+    for (std::size_t i = 0; i < fftSize; ++i) {
+        float w = 0.5f * (1.0f - std::cos(Krate::DSP::kTwoPi *
+                  static_cast<float>(i) / static_cast<float>(fftSize)));
+        windowedL[i] = startL[i] * w;
+    }
+    std::size_t specSize = fftSize / 2 + 1;
+    std::vector<Krate::DSP::Complex> specL(specSize);
+    fft.forward(windowedL.data(), specL.data());
+
+    // Analyze right channel
+    const float* startR = outputR.data() + (totalSamples - fftSize);
+    std::vector<float> windowedR(fftSize);
+    for (std::size_t i = 0; i < fftSize; ++i) {
+        float w = 0.5f * (1.0f - std::cos(Krate::DSP::kTwoPi *
+                  static_cast<float>(i) / static_cast<float>(fftSize)));
+        windowedR[i] = startR[i] * w;
+    }
+    std::vector<Krate::DSP::Complex> specR(specSize);
+    fft.forward(windowedR.data(), specR.data());
+
+    // Find bins closest to expected frequencies
+    float binWidth = static_cast<float>(sampleRate) / static_cast<float>(fftSize);
+    std::size_t bin0 = static_cast<std::size_t>(expectedFreq0 / binWidth + 0.5f);
+    std::size_t bin1 = static_cast<std::size_t>(expectedFreq1 / binWidth + 0.5f);
+
+    // Find peak magnitude near each expected frequency bin (+/- 2 bins)
+    auto findLocalPeak = [&](const std::vector<Krate::DSP::Complex>& spec,
+                             std::size_t centerBin) -> float {
+        float maxMag = 0.0f;
+        std::size_t lo = (centerBin > 2) ? centerBin - 2 : 1;
+        std::size_t hi = std::min(centerBin + 3, specSize);
+        for (std::size_t i = lo; i < hi; ++i) {
+            float mag = spec[i].magnitude();
+            if (mag > maxMag) maxMag = mag;
+        }
+        return maxMag;
+    };
+
+    float leftMagVoice0 = findLocalPeak(specL, bin0);   // Voice 0 (~554Hz) in left
+    float leftMagVoice1 = findLocalPeak(specL, bin1);   // Voice 1 (~659Hz) in left
+    float rightMagVoice0 = findLocalPeak(specR, bin0);  // Voice 0 (~554Hz) in right
+    float rightMagVoice1 = findLocalPeak(specR, bin1);  // Voice 1 (~659Hz) in right
+
+    INFO("Left channel - Voice 0 (554Hz) magnitude: " << leftMagVoice0);
+    INFO("Left channel - Voice 1 (659Hz) magnitude: " << leftMagVoice1);
+    INFO("Right channel - Voice 0 (554Hz) magnitude: " << rightMagVoice0);
+    INFO("Right channel - Voice 1 (659Hz) magnitude: " << rightMagVoice1);
+
+    // Left channel: voice 0 (panned -0.5) should be stronger than voice 1 (panned +0.5)
+    // Pan -0.5: angle = (-0.5+1)*pi/4 = pi/8 -> leftGain = cos(pi/8) ~ 0.924
+    // Pan +0.5: angle = (0.5+1)*pi/4 = 3*pi/8 -> leftGain = cos(3*pi/8) ~ 0.383
+    // So voice 0 should be ~2.4x stronger in left channel
+    REQUIRE(leftMagVoice0 > leftMagVoice1);
+
+    // Right channel: voice 1 (panned +0.5) should be stronger than voice 0 (panned -0.5)
+    // Pan +0.5: rightGain = sin(3*pi/8) ~ 0.924
+    // Pan -0.5: rightGain = sin(pi/8) ~ 0.383
+    REQUIRE(rightMagVoice1 > rightMagVoice0);
+
+    // Both voices should have some presence in both channels (partial overlap)
+    REQUIRE(leftMagVoice1 > 0.0f);
+    REQUIRE(rightMagVoice0 > 0.0f);
+}
+
+// T050: Hard right pan (+1.0) produces zero in left channel (below -80dB relative)
+TEST_CASE("HarmonizerEngine SC-004 hard right pan left channel below -80dB",
+          "[systems][harmonizer][pan][SC-004][US3]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 512;
+    constexpr float inputFreq = 440.0f;
+
+    Krate::DSP::HarmonizerEngine engine;
+    setupChromaticEngine(engine, sampleRate, blockSize);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 7);
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 1.0f);  // Hard right
+
+    constexpr std::size_t totalSamples = 8192;
+    std::vector<float> input(totalSamples);
+    std::vector<float> outputL(totalSamples, 0.0f);
+    std::vector<float> outputR(totalSamples, 0.0f);
+
+    fillSine(input.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+        std::size_t n = std::min(blockSize, totalSamples - offset);
+        engine.process(input.data() + offset,
+                       outputL.data() + offset,
+                       outputR.data() + offset, n);
+    }
+
+    // Measure RMS of the last 2048 samples (after smoothers settled)
+    std::size_t measureStart = totalSamples - 2048;
+    float rmsL = computeRMS(outputL.data() + measureStart, 2048);
+    float rmsR = computeRMS(outputR.data() + measureStart, 2048);
+
+    INFO("Left channel RMS: " << rmsL);
+    INFO("Right channel RMS: " << rmsR);
+    REQUIRE(rmsR > 0.01f);  // Right should have signal
+
+    // Left channel should be at least 80dB below right
+    if (rmsR > 0.0f) {
+        float ratioDb = 20.0f * std::log10(rmsL / rmsR);
+        INFO("Left-to-right ratio: " << ratioDb << " dB");
+        REQUIRE(ratioDb < -80.0f);
+    }
+}

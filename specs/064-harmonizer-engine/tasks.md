@@ -166,7 +166,7 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 - [X] T045 [US2] Build `dsp_tests` target and fix any compilation errors
 - [X] T046 [US2] Run HarmonizerEngine tests and confirm T034-T038 tests PASS
 - [X] T047 [US2] Fix all compiler warnings
-- [ ] T048 [US2] Commit: "feat(harmonizer): implement Scalic mode with PitchTracker and ScaleHarmonizer (US2)"
+- [X] T048 [US2] Commit: "feat(harmonizer): implement Scalic mode with PitchTracker and ScaleHarmonizer (US2)"
 
 **Checkpoint**: Scalic mode operational. Diatonic harmony generation tested end-to-end with A4/C4 inputs in C Major. UI query methods verified.
 
@@ -188,16 +188,16 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 > Constitution Principle XIII: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T049 [US3] Write failing test: 2 voices panned left (-0.5) and right (+0.5): left channel is dominated by voice 0, right channel by voice 1, with partial overlap in both (US3 scenario 4 from spec). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T050 [US3] Write failing test: hard right pan (+1.0) produces zero in left channel (below -80dB relative). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T051 [US3] Build and confirm T049-T050 tests FAIL (or that existing panning implementation does not yet handle all edge cases)
+- [X] T049 [US3] Write failing test: 2 voices panned left (-0.5) and right (+0.5): left channel is dominated by voice 0, right channel by voice 1, with partial overlap in both (US3 scenario 4 from spec). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T050 [US3] Write failing test: hard right pan (+1.0) produces zero in left channel (below -80dB relative). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T051 [US3] Build and confirm T049-T050 tests FAIL (or that existing panning implementation does not yet handle all edge cases)
 
 ### 5.2 Implementation Verification for User Story 3
 
-- [ ] T052 [US3] Verify `process()` implementation in `dsp/include/krate/dsp/systems/harmonizer_engine.h` correctly applies the constant-power formula: `float angle = (voice.pan + 1.0f) * Krate::DSP::kPi * 0.25f; float leftGain = std::cos(angle); float rightGain = std::sin(angle);` for each sample using the smoothed pan value from `panSmoother_.process()`
-- [ ] T053 [US3] Verify pan smoother is advanced per-sample in the accumulation loop (not once per block) using smoothed pan value for each sample's angle calculation
-- [ ] T054 [US3] Build `dsp_tests` and run T049-T050 tests, confirm PASS
-- [ ] T055 [US3] Fix all compiler warnings
+- [X] T052 [US3] Verify `process()` implementation in `dsp/include/krate/dsp/systems/harmonizer_engine.h` correctly applies the constant-power formula: `float angle = (voice.pan + 1.0f) * Krate::DSP::kPi * 0.25f; float leftGain = std::cos(angle); float rightGain = std::sin(angle);` for each sample using the smoothed pan value from `panSmoother_.process()`
+- [X] T053 [US3] Verify pan smoother is advanced per-sample in the accumulation loop (not once per block) using smoothed pan value for each sample's angle calculation
+- [X] T054 [US3] Build `dsp_tests` and run T049-T050 tests, confirm PASS
+- [X] T055 [US3] Fix all compiler warnings
 - [ ] T056 [US3] Commit: "feat(harmonizer): verify constant-power pan stereo output (US3)"
 
 **Checkpoint**: All pan scenarios pass. Hard left/right isolation and center -3dB behavior confirmed across multi-voice configurations.
