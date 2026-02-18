@@ -23,6 +23,7 @@
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/scale_harmonizer.h>
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/primitives/pitch_detector.h>
 #include <krate/dsp/primitives/pitch_tracker.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/spectral_buffer.h>
@@ -140,6 +141,10 @@ public:
         delayScratch_.resize(maxBlockSize, 0.0f);
         voiceScratch_.resize(maxBlockSize, 0.0f);
 
+        // Prepare shared pitch detector (PitchSync mode optimization)
+        // Same window size (256) as the per-voice detectors in PitchSyncGranularShifter
+        sharedPitchDetector_.prepare(sampleRate, 256);
+
         // Prepare shared-analysis resources for PhaseVocoder mode (spec 065)
         constexpr auto fftSize = PitchShiftProcessor::getPhaseVocoderFFTSize();
         constexpr auto hopSize = PitchShiftProcessor::getPhaseVocoderHopSize();
@@ -177,6 +182,9 @@ public:
         // Zero scratch buffers
         std::fill(delayScratch_.begin(), delayScratch_.end(), 0.0f);
         std::fill(voiceScratch_.begin(), voiceScratch_.end(), 0.0f);
+
+        // Reset shared pitch detector
+        sharedPitchDetector_.reset();
 
         // Reset shared-analysis resources (spec 065)
         sharedStft_.reset();
@@ -350,8 +358,82 @@ public:
                         outputR[s] += sample * rightGain;
                     }
                 }
+            } else if (pitchShiftMode_ == PitchMode::PitchSync) {
+                // ====== SHARED PITCH DETECTION PATH (PitchSync optimization) ======
+                // Run a single PitchDetector on the input and pass results to all voices.
+                // Eliminates 75% redundant autocorrelation for 4-voice configurations.
+
+                // Step 2a: Run shared pitch detection ONCE for all voices
+                sharedPitchDetector_.pushBlock(input, numSamples);
+                const float sharedPeriod = sharedPitchDetector_.getDetectedPeriod();
+                const float sharedConfidence = sharedPitchDetector_.getConfidence();
+
+                for (int v = 0; v < numActiveVoices_; ++v) {
+                    auto& voice = voices_[static_cast<std::size_t>(v)];
+
+                    // Skip muted voices (optimization)
+                    if (voice.linearGain == 0.0f) {
+                        continue;
+                    }
+
+                    // Step 2b: Compute target semitones (same as standard path)
+                    float targetSemitones = 0.0f;
+                    if (harmonyMode_ == HarmonyMode::Chromatic) {
+                        targetSemitones = static_cast<float>(voice.interval) +
+                                         voice.detuneCents / 100.0f;
+                    } else {
+                        if (lastDetectedNote_ >= 0) {
+                            auto result = scaleHarmonizer_.calculate(
+                                lastDetectedNote_, voice.interval);
+                            targetSemitones = static_cast<float>(result.semitones) +
+                                              voice.detuneCents / 100.0f;
+                        } else {
+                            targetSemitones = voice.detuneCents / 100.0f;
+                        }
+                    }
+
+                    voice.pitchSmoother.setTarget(targetSemitones);
+
+                    float smoothedPitch = voice.pitchSmoother.process();
+                    voice.pitchShifter.setSemitones(smoothedPitch);
+
+                    if (numSamples > 1) {
+                        voice.pitchSmoother.advanceSamples(numSamples - 1);
+                    }
+
+                    // Step 3: Process delay line (pre-pitch in non-PV modes)
+                    if (voice.delayMs > 0.0f) {
+                        for (std::size_t s = 0; s < numSamples; ++s) {
+                            voice.delayLine.write(input[s]);
+                            delayScratch_[s] = voice.delayLine.readLinear(
+                                voice.delaySamples);
+                        }
+                    } else {
+                        std::copy(input, input + numSamples, delayScratch_.data());
+                    }
+
+                    // Step 4: Process pitch shift with shared pitch detection
+                    voice.pitchShifter.processWithSharedPitch(
+                        delayScratch_.data(), voiceScratch_.data(), numSamples,
+                        sharedPeriod, sharedConfidence);
+
+                    // Step 5: Per-sample accumulation with level and pan smoothing
+                    for (std::size_t s = 0; s < numSamples; ++s) {
+                        float levelGain = voice.levelSmoother.process();
+                        float panVal = voice.panSmoother.process();
+
+                        // Constant-power pan (FR-005)
+                        float angle = (panVal + 1.0f) * kPi * 0.25f;
+                        float leftGain = std::cos(angle);
+                        float rightGain = std::sin(angle);
+
+                        float sample = voiceScratch_[s] * levelGain;
+                        outputL[s] += sample * leftGain;
+                        outputR[s] += sample * rightGain;
+                    }
+                }
             } else {
-                // ====== STANDARD PER-VOICE PATH (unchanged) ======
+                // ====== STANDARD PER-VOICE PATH (Simple, Granular) ======
 
                 for (int v = 0; v < numActiveVoices_; ++v) {
                     auto& voice = voices_[static_cast<std::size_t>(v)];
@@ -616,6 +698,11 @@ private:
     // Scratch buffers (pre-allocated in prepare())
     std::vector<float> delayScratch_;   // Delayed input per voice
     std::vector<float> voiceScratch_;   // Pitch-shifted voice output
+
+    // Shared pitch detection (PitchSync mode optimization)
+    // Runs a single PitchDetector on the mono input and passes results to all
+    // PitchSync voices, eliminating 75% redundant autocorrelation for 4 voices.
+    PitchDetector sharedPitchDetector_;
 
     // Shared-analysis resources (PhaseVocoder mode only, spec 065)
     // All three are pre-allocated in prepare() and never resized in process().

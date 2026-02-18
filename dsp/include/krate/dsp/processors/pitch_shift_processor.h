@@ -337,6 +337,30 @@ public:
     /// @return Samples available, or 0 if mode is not PhaseVocoder.
     [[nodiscard]] std::size_t sharedAnalysisSamplesAvailable() const noexcept;
 
+    //=========================================================================
+    // Shared Pitch Detection API (PitchSync optimization)
+    //=========================================================================
+
+    /// @brief Process PitchSync audio with externally-provided pitch detection.
+    ///
+    /// When mode is PitchSync: delegates to PitchSyncGranularShifter's
+    /// processWithSharedPitch(), bypassing the internal per-voice PitchDetector.
+    /// The caller (HarmonizerEngine) runs a single shared PitchDetector and
+    /// passes the results to all voices, eliminating 75% of redundant
+    /// autocorrelation computation for 4-voice configurations.
+    ///
+    /// When mode is NOT PitchSync: falls back to standard process().
+    ///
+    /// @param input           Input samples
+    /// @param output          Output samples (can equal input)
+    /// @param numSamples      Number of samples to process
+    /// @param sharedPeriod    Detected pitch period in samples (shared detector)
+    /// @param sharedConfidence Detection confidence [0,1] (shared detector)
+    void processWithSharedPitch(const float* input, float* output,
+                                std::size_t numSamples,
+                                float sharedPeriod,
+                                float sharedConfidence) noexcept;
+
     /// @brief Get the PhaseVocoder's FFT size for shared STFT configuration.
     /// @return 4096 (compile-time constant).
     [[nodiscard]] static constexpr std::size_t getPhaseVocoderFFTSize() noexcept {
@@ -849,63 +873,49 @@ public:
             pitchDetector_.push(input[i]);
 
             // Update grain size based on detected pitch
-            updateGrainSize();
+            updateGrainSizeFromDetector();
 
-            // Crossfade parameters based on current grain size
-            const float crossfadeLength = maxDelay_ * 0.4f;  // 40% crossfade
-            const float crossfadeRate = 1.0f / crossfadeLength;
-            const float triggerThreshold = crossfadeLength;
+            processGranularSample(output, i, pitchRatio, delayChange, bufferSizeF);
+        }
+    }
 
-            // Read from both delay taps
-            float readPos1 = static_cast<float>(writePos_) - delay1_;
-            float readPos2 = static_cast<float>(writePos_) - delay2_;
-
-            if (readPos1 < 0.0f) readPos1 += bufferSizeF;
-            if (readPos2 < 0.0f) readPos2 += bufferSizeF;
-
-            float sample1 = readInterpolated(readPos1);
-            float sample2 = readInterpolated(readPos2);
-
-            // Hann window crossfade
-            std::size_t fadeIdx = static_cast<std::size_t>(crossfadePhase_ *
-                                  static_cast<float>(crossfadeWindowSize_));
-            if (fadeIdx >= crossfadeWindowSize_) fadeIdx = crossfadeWindowSize_ - 1;
-
-            float gain2 = crossfadeWindow_[fadeIdx];
-            float gain1 = 1.0f - gain2;
-
-            output[i] = sample1 * gain1 + sample2 * gain2;
-
-            // Update both delays
-            delay1_ += delayChange;
-            delay2_ += delayChange;
-
-            // Check if we need to start a crossfade
-            if (!needsCrossfade_) {
-                bool approachingLimit = (delayChange < 0.0f && delay1_ <= minDelay_ + triggerThreshold) ||
-                                        (delayChange > 0.0f && delay1_ >= maxDelay_ - triggerThreshold);
-
-                if (approachingLimit) {
-                    delay2_ = (pitchRatio > 1.0f) ? maxDelay_ : minDelay_;
-                    needsCrossfade_ = true;
-                }
+    /// @brief Process audio with externally-provided pitch detection results.
+    ///
+    /// Same granular synthesis as process(), but skips the internal
+    /// PitchDetector. Used by HarmonizerEngine to share a single pitch
+    /// detection across all PitchSync voices (eliminates 75% redundant work).
+    ///
+    /// @param input         Input samples
+    /// @param output        Output samples (can equal input for in-place)
+    /// @param numSamples    Number of samples to process
+    /// @param pitchRatio    Pitch shift ratio (e.g. 2.0 = octave up)
+    /// @param sharedPeriod  Detected pitch period in samples (from shared detector)
+    /// @param sharedConfidence  Detection confidence [0,1] (from shared detector)
+    void processWithSharedPitch(const float* input, float* output,
+                                std::size_t numSamples, float pitchRatio,
+                                float sharedPeriod,
+                                float sharedConfidence) noexcept {
+        // At unity pitch, pass through
+        if (std::abs(pitchRatio - 1.0f) < 0.0001f) {
+            if (input != output) {
+                std::copy(input, input + numSamples, output);
             }
+            return;
+        }
 
-            // Manage crossfade
-            if (needsCrossfade_) {
-                crossfadePhase_ += crossfadeRate;
+        pitchRatio = std::clamp(pitchRatio, 0.25f, 4.0f);
 
-                if (crossfadePhase_ >= 1.0f) {
-                    crossfadePhase_ = 0.0f;
-                    needsCrossfade_ = false;
-                    std::swap(delay1_, delay2_);
-                }
-            }
+        const float delayChange = 1.0f - pitchRatio;
+        const float bufferSizeF = static_cast<float>(bufferSize_);
 
-            delay1_ = std::clamp(delay1_, minDelay_, maxDelay_);
-            delay2_ = std::clamp(delay2_, minDelay_, maxDelay_);
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            // Write to buffer (still needed for granular read-back)
+            buffer_[writePos_] = input[i];
 
-            writePos_ = (writePos_ + 1) % bufferSize_;
+            // Use shared pitch detection results instead of internal detector
+            updateGrainSizeFromPeriod(sharedPeriod, sharedConfidence);
+
+            processGranularSample(output, i, pitchRatio, delayChange, bufferSizeF);
         }
     }
 
@@ -925,10 +935,85 @@ public:
     }
 
 private:
-    /// @brief Update grain size based on pitch detection
-    void updateGrainSize() noexcept {
-        float period = pitchDetector_.getDetectedPeriod();
+    /// @brief Core per-sample granular synthesis (shared by process and processWithSharedPitch)
+    void processGranularSample(float* output, std::size_t i,
+                               float pitchRatio, float delayChange,
+                               float bufferSizeF) noexcept {
+        // Crossfade parameters based on current grain size
+        const float crossfadeLength = maxDelay_ * 0.4f;  // 40% crossfade
+        const float crossfadeRate = 1.0f / crossfadeLength;
+        const float triggerThreshold = crossfadeLength;
 
+        // Read from both delay taps
+        float readPos1 = static_cast<float>(writePos_) - delay1_;
+        float readPos2 = static_cast<float>(writePos_) - delay2_;
+
+        if (readPos1 < 0.0f) readPos1 += bufferSizeF;
+        if (readPos2 < 0.0f) readPos2 += bufferSizeF;
+
+        float sample1 = readInterpolated(readPos1);
+        float sample2 = readInterpolated(readPos2);
+
+        // Hann window crossfade
+        std::size_t fadeIdx = static_cast<std::size_t>(crossfadePhase_ *
+                              static_cast<float>(crossfadeWindowSize_));
+        if (fadeIdx >= crossfadeWindowSize_) fadeIdx = crossfadeWindowSize_ - 1;
+
+        float gain2 = crossfadeWindow_[fadeIdx];
+        float gain1 = 1.0f - gain2;
+
+        output[i] = sample1 * gain1 + sample2 * gain2;
+
+        // Update both delays
+        delay1_ += delayChange;
+        delay2_ += delayChange;
+
+        // Check if we need to start a crossfade
+        if (!needsCrossfade_) {
+            bool approachingLimit = (delayChange < 0.0f && delay1_ <= minDelay_ + triggerThreshold) ||
+                                    (delayChange > 0.0f && delay1_ >= maxDelay_ - triggerThreshold);
+
+            if (approachingLimit) {
+                delay2_ = (pitchRatio > 1.0f) ? maxDelay_ : minDelay_;
+                needsCrossfade_ = true;
+            }
+        }
+
+        // Manage crossfade
+        if (needsCrossfade_) {
+            crossfadePhase_ += crossfadeRate;
+
+            if (crossfadePhase_ >= 1.0f) {
+                crossfadePhase_ = 0.0f;
+                needsCrossfade_ = false;
+                std::swap(delay1_, delay2_);
+            }
+        }
+
+        delay1_ = std::clamp(delay1_, minDelay_, maxDelay_);
+        delay2_ = std::clamp(delay2_, minDelay_, maxDelay_);
+
+        writePos_ = (writePos_ + 1) % bufferSize_;
+    }
+
+    /// @brief Update grain size from internal pitch detector
+    void updateGrainSizeFromDetector() noexcept {
+        applyGrainSize(pitchDetector_.getDetectedPeriod());
+    }
+
+    /// @brief Update grain size from externally-provided pitch period
+    /// @param period  Detected period in samples
+    /// @param confidence  Detection confidence [0,1]; uses default period if below threshold
+    void updateGrainSizeFromPeriod(float period, float confidence) noexcept {
+        if (confidence < PitchDetector::kConfidenceThreshold) {
+            // Low confidence: use default period (same behavior as internal detector)
+            period = PitchDetector::kDefaultPeriodMs * 0.001f * sampleRate_;
+        }
+        applyGrainSize(period);
+    }
+
+    /// @brief Apply detected period to grain size (common logic)
+    void applyGrainSize(float period) noexcept {
         // Use 2x period for grain size (gives one complete cycle + crossfade)
         float grainSizeF = period * kPeriodMultiplier;
 
@@ -1674,6 +1759,18 @@ struct PitchShiftProcessor::Impl {
         if (!prepared || mode != PitchMode::PhaseVocoder) return 0;
         return phaseVocoderShifter.outputSamplesAvailable();
     }
+
+    // Shared pitch detection delegation (PitchSync optimization)
+    void processWithSharedPitch(const float* input, float* output,
+                                std::size_t numSamples, float pitchRatio,
+                                float sharedPeriod,
+                                float sharedConfidence) noexcept {
+        if (!prepared) return;
+        if (mode != PitchMode::PitchSync) return;
+        pitchSyncShifter.processWithSharedPitch(input, output, numSamples,
+                                                 pitchRatio, sharedPeriod,
+                                                 sharedConfidence);
+    }
 };
 
 inline PitchShiftProcessor::PitchShiftProcessor() noexcept
@@ -1860,6 +1957,42 @@ inline std::size_t PitchShiftProcessor::sharedAnalysisSamplesAvailable() const n
 inline void PitchShiftProcessor::synthesizePassthrough(
     const SpectralBuffer& analysis) noexcept {
     pImpl_->synthesizePassthrough(analysis);
+}
+
+inline void PitchShiftProcessor::processWithSharedPitch(
+    const float* input, float* output, std::size_t numSamples,
+    float sharedPeriod, float sharedConfidence) noexcept {
+    if (!pImpl_->prepared || input == nullptr || output == nullptr || numSamples == 0) {
+        return;
+    }
+
+    // Update smoother targets
+    pImpl_->semitoneSmoother.setTarget(pImpl_->semitones);
+    pImpl_->centsSmoother.setTarget(pImpl_->cents);
+
+    // Sub-block processing with smoothing (same pattern as standard process())
+    std::size_t samplesProcessed = 0;
+    while (samplesProcessed < numSamples) {
+        const std::size_t subBlockSize = std::min(kSmoothingSubBlockSize,
+                                                   numSamples - samplesProcessed);
+
+        pImpl_->semitoneSmoother.advanceSamples(subBlockSize);
+        pImpl_->centsSmoother.advanceSamples(subBlockSize);
+
+        const float smoothedSemitones = pImpl_->semitoneSmoother.getCurrentValue();
+        const float smoothedCents = pImpl_->centsSmoother.getCurrentValue();
+        const float totalSemitones = smoothedSemitones + smoothedCents / 100.0f;
+        const float pitchRatio = semitonesToRatio(totalSemitones);
+
+        const float* subInput = input + samplesProcessed;
+        float* subOutput = output + samplesProcessed;
+
+        pImpl_->processWithSharedPitch(subInput, subOutput, subBlockSize,
+                                        pitchRatio, sharedPeriod,
+                                        sharedConfidence);
+
+        samplesProcessed += subBlockSize;
+    }
 }
 
 } // namespace Krate::DSP
