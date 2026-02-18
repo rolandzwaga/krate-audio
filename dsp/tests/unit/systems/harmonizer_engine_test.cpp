@@ -2500,3 +2500,176 @@ TEST_CASE("HarmonizerEngine setVoiceDelay clamps to 50ms maximum",
     float onsetFloat = static_cast<float>(onset50);
     REQUIRE(std::abs(onsetFloat - expectedDelaySamples) <= 5.0f);
 }
+
+// =============================================================================
+// Phase 10: User Story 8 - Latency Reporting (FR-012, SC-010)
+// =============================================================================
+
+// T095: getLatencySamples() returns 0 for Simple mode.
+// NOTE: T038 Test 1 already covers the basic Simple mode = 0 latency case.
+// This test adds value by verifying Simple mode latency is 0 across multiple
+// sample rates (44100, 48000, 96000) -- a differentiated scenario.
+TEST_CASE("HarmonizerEngine getLatencySamples returns 0 for Simple mode at various sample rates",
+          "[systems][harmonizer][latency][SC-010]") {
+    constexpr std::size_t blockSize = 512;
+
+    for (double sr : {44100.0, 48000.0, 96000.0}) {
+        INFO("Sample rate: " << sr);
+        Krate::DSP::HarmonizerEngine engine;
+        engine.prepare(sr, blockSize);
+        engine.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+
+        std::size_t latency = engine.getLatencySamples();
+        INFO("Simple mode latency at " << sr << " Hz: " << latency);
+        REQUIRE(latency == 0);
+    }
+}
+
+// T096: After setPitchShiftMode(PhaseVocoder), getLatencySamples() returns
+// non-zero matching PitchShiftProcessor.
+// NOTE: T038 Test 2 already covers this for 44100Hz. This test adds value by
+// verifying the latency matches across all 4 pitch shift modes (Simple,
+// PitchSync, Granular, PhaseVocoder) -- a differentiated scenario covering all
+// modes, not just Simple and PhaseVocoder.
+TEST_CASE("HarmonizerEngine getLatencySamples matches PitchShiftProcessor for all modes",
+          "[systems][harmonizer][latency][SC-010]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 512;
+
+    const Krate::DSP::PitchMode modes[] = {
+        Krate::DSP::PitchMode::Simple,
+        Krate::DSP::PitchMode::PitchSync,
+        Krate::DSP::PitchMode::Granular,
+        Krate::DSP::PitchMode::PhaseVocoder
+    };
+
+    for (auto mode : modes) {
+        INFO("PitchMode: " << static_cast<int>(mode));
+
+        Krate::DSP::HarmonizerEngine engine;
+        engine.prepare(sampleRate, blockSize);
+        engine.setPitchShiftMode(mode);
+
+        Krate::DSP::PitchShiftProcessor refShifter;
+        refShifter.prepare(sampleRate, blockSize);
+        refShifter.setMode(mode);
+        refShifter.reset();
+
+        std::size_t engineLatency = engine.getLatencySamples();
+        std::size_t refLatency = refShifter.getLatencySamples();
+
+        INFO("Engine latency: " << engineLatency);
+        INFO("Reference latency: " << refLatency);
+        REQUIRE(engineLatency == refLatency);
+    }
+}
+
+// T097: Mode change Simple -> PhaseVocoder -> Simple: latency returns to 0.
+// This is the genuinely new round-trip test not covered by T038.
+TEST_CASE("HarmonizerEngine latency round-trip Simple->PhaseVocoder->Simple returns to 0",
+          "[systems][harmonizer][latency][SC-010]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 512;
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+
+    // Start in Simple mode
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    std::size_t latencySimple1 = engine.getLatencySamples();
+    INFO("Initial Simple latency: " << latencySimple1);
+    REQUIRE(latencySimple1 == 0);
+
+    // Switch to PhaseVocoder -- latency should become non-zero
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    std::size_t latencyPV = engine.getLatencySamples();
+    INFO("PhaseVocoder latency: " << latencyPV);
+    REQUIRE(latencyPV > 0);
+
+    // Switch back to Simple -- latency should return to 0
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    std::size_t latencySimple2 = engine.getLatencySamples();
+    INFO("Final Simple latency: " << latencySimple2);
+    REQUIRE(latencySimple2 == 0);
+}
+
+// =============================================================================
+// Phase 11: User Story 9 - Pitch Detection Feedback for UI (FR-013, FR-009)
+// =============================================================================
+
+// T104: Silence input in Scalic mode -- getPitchConfidence() < 0.5 after
+// processing several blocks of zeros. PitchTracker should report low confidence
+// when there is no pitched content in the input.
+TEST_CASE("HarmonizerEngine silence input Scalic mode getPitchConfidence below 0.5",
+          "[systems][harmonizer][scalic][pitch_feedback][FR-013]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+
+    Krate::DSP::HarmonizerEngine engine;
+    setupScalicEngine(engine, sampleRate, blockSize);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 2);
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+
+    // Feed many blocks of silence (zeros) to ensure PitchTracker has had
+    // sufficient input to produce a stable low-confidence reading.
+    constexpr std::size_t numBlocks = 200;
+    std::vector<float> silenceInput(blockSize, 0.0f);
+    std::vector<float> outL(blockSize, 0.0f);
+    std::vector<float> outR(blockSize, 0.0f);
+
+    for (std::size_t b = 0; b < numBlocks; ++b) {
+        engine.process(silenceInput.data(), outL.data(), outR.data(), blockSize);
+    }
+
+    float confidence = engine.getPitchConfidence();
+    INFO("Confidence after silence input: " << confidence);
+    REQUIRE(confidence < 0.5f);
+}
+
+// T105: Chromatic mode -- getDetectedPitch() returns 0 because PitchTracker
+// is not fed audio in Chromatic mode (FR-009). Even after processing pitched
+// input, the PitchTracker has never received data so reports no detection.
+TEST_CASE("HarmonizerEngine Chromatic mode getDetectedPitch returns 0",
+          "[systems][harmonizer][chromatic][pitch_feedback][FR-009][FR-013]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f; // A4
+
+    Krate::DSP::HarmonizerEngine engine;
+    setupChromaticEngine(engine, sampleRate, blockSize);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 7);  // +7 semitones
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+
+    // Feed many blocks of 440Hz sine wave
+    constexpr std::size_t numBlocks = 200;
+    constexpr std::size_t totalSamples = numBlocks * blockSize;
+
+    std::vector<float> input(totalSamples);
+    fillSine(input.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    std::vector<float> outL(blockSize, 0.0f);
+    std::vector<float> outR(blockSize, 0.0f);
+
+    for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+        engine.process(input.data() + offset,
+                       outL.data(), outR.data(), blockSize);
+    }
+
+    // In Chromatic mode, PitchTracker is NOT fed audio (FR-009)
+    // so getDetectedPitch() should return 0 (no note committed)
+    float detectedPitch = engine.getDetectedPitch();
+    int detectedNote = engine.getDetectedNote();
+    float confidence = engine.getPitchConfidence();
+
+    INFO("Detected pitch in Chromatic mode: " << detectedPitch << " Hz");
+    INFO("Detected note in Chromatic mode: " << detectedNote);
+    INFO("Pitch confidence in Chromatic mode: " << confidence);
+
+    REQUIRE(detectedPitch == 0.0f);
+    REQUIRE(detectedNote == -1);
+}
