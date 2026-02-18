@@ -151,27 +151,27 @@ This is required because VST3 SDK enables `-ffast-math` globally, breaking `std:
 
 > **Constitution Principle XII**: Write new test cases that FAIL with default confidence threshold behavior before any changes.
 
-- [ ] T026 [P] [US2] Write SC-005 voiced/silent alternating test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed 500ms of 440Hz sine (voiced), then 500ms of silence (unvoiced, confidence drops below 0.5), verify `isPitchValid()` is false during silence and `getMidiNote()` returns 69 throughout
-- [ ] T027 [P] [US2] Write FR-004 confidence-gate hold-state test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed pitched A4 to establish committed note, then feed white noise (low confidence), verify `isPitchValid() == false`, `getMidiNote() == 69` (held), `getFrequency()` is non-zero (smoother holds last valid value), and `getConfidence()` returns the raw confidence value from the underlying PitchDetector (not 0 or -1 -- the delegation to `detector_.getConfidence()` must be verified to be a direct pass-through, not filtered)
-- [ ] T028 [P] [US2] Write FR-004 resume-after-silence test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: after a silent segment where `isPitchValid() == false`, feed C5 (523.25Hz), verify tracker eventually transitions to MIDI note 72 and `isPitchValid()` returns true
-- [ ] T029 [US2] Verify new User Story 2 tests compile and FAIL as expected: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
+- [X] T026 [P] [US2] Write SC-005 voiced/silent alternating test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed 500ms of 440Hz sine (voiced), then 500ms of silence (unvoiced, confidence drops below 0.5), verify `isPitchValid()` is false during silence and `getMidiNote()` returns 69 throughout
+- [X] T027 [P] [US2] Write FR-004 confidence-gate hold-state test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed pitched A4 to establish committed note, then feed white noise (low confidence), verify `isPitchValid() == false`, `getMidiNote() == 69` (held), `getFrequency()` is non-zero (smoother holds last valid value), and `getConfidence()` returns the raw confidence value from the underlying PitchDetector (not 0 or -1 -- the delegation to `detector_.getConfidence()` must be verified to be a direct pass-through, not filtered)
+- [X] T028 [P] [US2] Write FR-004 resume-after-silence test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: after a silent segment where `isPitchValid() == false`, feed C5 (523.25Hz), verify tracker eventually transitions to MIDI note 72 and `isPitchValid()` returns true
+- [X] T029 [US2] Verify new User Story 2 tests compile and FAIL as expected: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
 
 ### 4.2 Implementation for User Story 2
 
 The confidence gate behavior (stage 1 of `runPipeline()`) was already implemented in T019. US2 tests verify that behavior is correct for unvoiced hold-last-note semantics. If any US2 test fails, fix the gap in `runPipeline()` stage 1:
 
-- [ ] T030 [US2] Verify stage 1 of `runPipeline()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h` correctly sets `pitchValid_ = false` and returns WITHOUT modifying `currentNote_`, `candidateNote_`, or `noteHoldTimer_` when confidence is below `confidenceThreshold_`. Fix if incorrect.
-- [ ] T031 [US2] Verify that `getFrequency()` returns the last smoothed frequency (not 0) during unvoiced segments (smoother is not reset on low-confidence frames). Fix `runPipeline()` stage 1 early-return if it incorrectly resets smoother state.
-- [ ] T032 [US2] Build DSP tests and verify zero compiler warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T033 [US2] Run all PitchTracker tests and verify they pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
+- [X] T030 [US2] Verify stage 1 of `runPipeline()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h` correctly sets `pitchValid_ = false` and returns WITHOUT modifying `currentNote_`, `candidateNote_`, or `noteHoldTimer_` when confidence is below `confidenceThreshold_`. Fix if incorrect.
+- [X] T031 [US2] Verify that `getFrequency()` returns the last smoothed frequency (not 0) during unvoiced segments (smoother is not reset on low-confidence frames). Fix `runPipeline()` stage 1 early-return if it incorrectly resets smoother state.
+- [X] T032 [US2] Build DSP tests and verify zero compiler warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T033 [US2] Run all PitchTracker tests and verify they pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T034 [US2] Confirm that no new source files were added (US2 tests extend the existing `pitch_tracker_test.cpp`); no additional `-fno-fast-math` changes needed beyond T003.
+- [X] T034 [US2] Confirm that no new source files were added (US2 tests extend the existing `pitch_tracker_test.cpp`); no additional `-fno-fast-math` changes needed beyond T003.
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T035 [US2] Commit User Story 2 work: `git commit` with message "Add confidence gating hold-state tests (US2: unvoiced segment handling)"
+- [X] T035 [US2] Commit User Story 2 work: `git commit` with message "Add confidence gating hold-state tests (US2: unvoiced segment handling)"
 
 **Checkpoint**: Confidence gate hold-state behavior verified and committed. SC-005 verified.
 

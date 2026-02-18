@@ -7,6 +7,9 @@
 //
 // Phase 3 (User Story 1): Stable Pitch Input for Diatonic Harmonizer
 // Tests: SC-001, SC-002, SC-004, SC-007, SC-008, SC-009, FR-001, FR-006
+//
+// Phase 4 (User Story 2): Graceful Handling of Unvoiced Segments
+// Tests: SC-005, FR-004 confidence-gate hold-state, FR-004 resume-after-silence
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -411,4 +414,175 @@ TEST_CASE("PitchTracker: FR-006 getMidiNote returns committed note while getFreq
     float a4CenterFreq = midiNoteToFrequency(69);
     CHECK(freqAtTransition > a4CenterFreq - 5.0f);
     CHECK(freqAtTransition < b4CenterFreq + 1.0f);
+}
+
+// ==============================================================================
+// Phase 4 (User Story 2): Graceful Handling of Unvoiced Segments
+// ==============================================================================
+
+// ==============================================================================
+// T026: SC-005 -- Voiced/silent alternating test
+// ==============================================================================
+TEST_CASE("PitchTracker: SC-005 voiced/silent alternating holds last note during silence",
+          "[PitchTracker][SC-005][US2]") {
+    PitchTracker tracker;
+    tracker.prepare(kTestSampleRate, kTestWindowSize);
+
+    // 500ms of 440Hz sine (voiced segment)
+    const std::size_t voicedSamples = static_cast<std::size_t>(0.5 * kTestSampleRate);
+    auto voicedSignal = generateSine(440.0f, kTestSampleRate, voicedSamples);
+
+    // Feed voiced segment in blocks
+    for (std::size_t offset = 0; offset < voicedSamples; offset += 256) {
+        std::size_t remaining = voicedSamples - offset;
+        std::size_t thisBlock = (remaining < 256) ? remaining : 256;
+        tracker.pushBlock(voicedSignal.data() + offset, thisBlock);
+    }
+
+    // After 500ms of A4, should have committed note 69, isPitchValid == true
+    REQUIRE(tracker.getMidiNote() == 69);
+    REQUIRE(tracker.isPitchValid());
+
+    // 500ms of silence (unvoiced segment -- zero-filled buffer)
+    const std::size_t silentSamples = static_cast<std::size_t>(0.5 * kTestSampleRate);
+    std::vector<float> silentSignal(silentSamples, 0.0f);
+
+    // Feed silence in blocks, checking state after each block
+    bool pitchValidDuringSilence = true;
+    bool noteHeldDuringSilence = true;
+
+    for (std::size_t offset = 0; offset < silentSamples; offset += 256) {
+        std::size_t remaining = silentSamples - offset;
+        std::size_t thisBlock = (remaining < 256) ? remaining : 256;
+        tracker.pushBlock(silentSignal.data() + offset, thisBlock);
+
+        // After enough silence, isPitchValid should become false
+        // (confidence drops below threshold for silent input)
+        // getMidiNote should still hold the last valid note (69)
+        if (tracker.getMidiNote() != 69) {
+            noteHeldDuringSilence = false;
+        }
+    }
+
+    // After silence, the tracker should report:
+    // - isPitchValid() == false (confidence gate rejects silent frames)
+    CHECK_FALSE(tracker.isPitchValid());
+    // - getMidiNote() == 69 (last valid note held throughout silence)
+    CHECK(tracker.getMidiNote() == 69);
+    CHECK(noteHeldDuringSilence);
+}
+
+// ==============================================================================
+// T027: FR-004 -- Confidence-gate hold-state test (pitched then noise)
+// ==============================================================================
+TEST_CASE("PitchTracker: FR-004 confidence gate holds last note during white noise",
+          "[PitchTracker][FR-004][US2]") {
+    PitchTracker tracker;
+    tracker.prepare(kTestSampleRate, kTestWindowSize);
+
+    // Establish A4 (440Hz) -- feed 1 second to fully stabilize
+    auto a4Signal = generateSine(440.0f, kTestSampleRate,
+                                 static_cast<std::size_t>(kTestSampleRate));
+    tracker.pushBlock(a4Signal.data(), a4Signal.size());
+
+    REQUIRE(tracker.getMidiNote() == 69);
+    REQUIRE(tracker.isPitchValid());
+
+    // Record frequency before noise
+    float freqBeforeNoise = tracker.getFrequency();
+    REQUIRE(freqBeforeNoise > 0.0f);
+
+    // Generate 500ms of white noise using PRNG (low confidence expected)
+    const std::size_t noiseSamples = static_cast<std::size_t>(0.5 * kTestSampleRate);
+    std::vector<float> noiseSignal(noiseSamples);
+    std::mt19937 rng(12345);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    for (std::size_t i = 0; i < noiseSamples; ++i) {
+        noiseSignal[i] = dist(rng);
+    }
+
+    // Feed noise in blocks
+    for (std::size_t offset = 0; offset < noiseSamples; offset += 256) {
+        std::size_t remaining = noiseSamples - offset;
+        std::size_t thisBlock = (remaining < 256) ? remaining : 256;
+        tracker.pushBlock(noiseSignal.data() + offset, thisBlock);
+    }
+
+    // During/after noise:
+    // - isPitchValid() == false (low confidence frames are gated)
+    CHECK_FALSE(tracker.isPitchValid());
+
+    // - getMidiNote() == 69 (last valid note is held, not modified)
+    CHECK(tracker.getMidiNote() == 69);
+
+    // - getFrequency() is non-zero (smoother holds last valid value, not reset)
+    CHECK(tracker.getFrequency() > 0.0f);
+
+    // - getConfidence() returns the raw pass-through value from PitchDetector
+    //   (not 0 or -1 -- it is a direct delegation to detector_.getConfidence())
+    float rawConfidence = tracker.getConfidence();
+    // Confidence should be in [0, 1] range (valid detector output)
+    CHECK(rawConfidence >= 0.0f);
+    CHECK(rawConfidence <= 1.0f);
+    // For white noise, confidence should be low (below default threshold 0.5)
+    CHECK(rawConfidence < 0.5f);
+}
+
+// ==============================================================================
+// T028: FR-004 -- Resume-after-silence test
+// ==============================================================================
+TEST_CASE("PitchTracker: FR-004 tracker resumes to new note after silence",
+          "[PitchTracker][FR-004][US2]") {
+    PitchTracker tracker;
+    tracker.prepare(kTestSampleRate, kTestWindowSize);
+
+    // Phase 1: Establish A4 (440Hz)
+    auto a4Signal = generateSine(440.0f, kTestSampleRate,
+                                 static_cast<std::size_t>(kTestSampleRate));
+    tracker.pushBlock(a4Signal.data(), a4Signal.size());
+    REQUIRE(tracker.getMidiNote() == 69);
+    REQUIRE(tracker.isPitchValid());
+
+    // Phase 2: Feed silence to trigger confidence gate
+    const std::size_t silentSamples = static_cast<std::size_t>(0.5 * kTestSampleRate);
+    std::vector<float> silentSignal(silentSamples, 0.0f);
+    tracker.pushBlock(silentSignal.data(), silentSignal.size());
+
+    // After silence, isPitchValid should be false, note should be held
+    CHECK_FALSE(tracker.isPitchValid());
+    CHECK(tracker.getMidiNote() == 69);
+
+    // Phase 3: Feed C5 (523.25Hz) -- tracker should resume tracking
+    const std::size_t resumeSamples = static_cast<std::size_t>(1.0 * kTestSampleRate);
+    auto c5Signal = generateSine(523.25f, kTestSampleRate, resumeSamples);
+
+    // Feed C5 in blocks until tracker transitions
+    bool transitionedToC5 = false;
+    bool pitchBecameValid = false;
+
+    for (std::size_t offset = 0; offset < resumeSamples; offset += 256) {
+        std::size_t remaining = resumeSamples - offset;
+        std::size_t thisBlock = (remaining < 256) ? remaining : 256;
+        tracker.pushBlock(c5Signal.data() + offset, thisBlock);
+
+        if (tracker.isPitchValid()) {
+            pitchBecameValid = true;
+        }
+        if (tracker.getMidiNote() == 72) {
+            transitionedToC5 = true;
+        }
+        // Once both are true we can stop early
+        if (transitionedToC5 && pitchBecameValid) {
+            break;
+        }
+    }
+
+    // After feeding C5 (523.25Hz = MIDI 72), tracker should:
+    // - transition to MIDI note 72
+    CHECK(transitionedToC5);
+    // - report isPitchValid() == true
+    CHECK(pitchBecameValid);
+    // Final state check
+    CHECK(tracker.getMidiNote() == 72);
+    CHECK(tracker.isPitchValid());
 }
