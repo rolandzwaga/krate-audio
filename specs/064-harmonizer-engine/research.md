@@ -188,3 +188,58 @@ This requires two scratch buffers: `delayScratch_` (for delayed input) and `voic
 **Decision**: `getLatencySamples()` delegates to `voices_[0].pitchShifter.getLatencySamples()`. Since all voices share the same mode, voice 0 is representative. If not prepared, return 0.
 
 **Rationale**: Direct delegation, no duplication of latency logic.
+
+### R-011: SC-008 CPU Benchmark Results and Budget Analysis
+
+**Date**: 2026-02-18 (Phase 12)
+
+**Question**: Do all pitch-shift modes meet their SC-008 CPU budgets with 4 voices at 44.1kHz, block size 256?
+
+**Benchmark Environment**: Windows 11 Pro, Release build (MSVC), Catch2 benchmark with 100 samples + manual timing with 500 blocks.
+
+**Measured Results** (4 voices, 44.1kHz, block 256, block duration = 5.805ms):
+
+| Mode | Catch2 Mean (per block) | Manual CPU% | Budget | Status |
+|------|-------------------------|-------------|--------|--------|
+| Simple | ~42 us | ~0.7% | < 1% | **MET** |
+| PitchSync | ~2.98 ms | ~50% | < 3% | **NOT MET** |
+| Granular | ~44 us | ~0.8% | < 5% | **MET** |
+| PhaseVocoder | ~1.89 ms | ~24% | < 15% | **NOT MET** |
+| Orchestration (Chromatic, muted) | ~2.3 us | ~0.04% | < 1% | **MET** |
+| Orchestration (Scalic + PitchTracker) | ~319 us | ~9% | N/A | Informational |
+
+**Analysis - PitchSync (NOT MET: ~50% vs 3% budget)**:
+
+PitchSync mode (`PitchSyncGranularShifter`) performs per-voice YIN autocorrelation-based pitch detection to synchronize grain boundaries to the signal's fundamental period. With 4 voices, this means 4 independent pitch detection passes per block. YIN autocorrelation on a 256-sample window with half-window tau_max is O(N * tau_max) per detection, totaling roughly 128K multiply-add operations per voice per detection hop.
+
+The 3% budget was set optimistically. The PitchSync mode's inherent per-voice pitch detection cannot be optimized at the HarmonizerEngine level -- the cost is entirely within `PitchSyncGranularShifter::process()` in Layer 2. Possible optimizations for a future spec:
+1. Share pitch detection across voices (all voices analyze the same input, so one pitch detection could serve all 4 voices).
+2. Reduce the PitchSync detection rate (use larger hop intervals at the cost of responsiveness).
+3. Use a lighter pitch detection algorithm (e.g., zero-crossing-based instead of YIN).
+
+**Recommendation**: Revise the PitchSync budget to ~50% for 4 voices (or ~12.5% per voice). Alternatively, implement shared pitch detection in PitchSyncGranularShifter as a Layer 2 follow-up spec.
+
+**Analysis - PhaseVocoder (NOT MET: ~24% vs 15% budget)**:
+
+The 15% budget assumes the shared-analysis architecture (FR-020), where the forward FFT runs once per block and the analysis spectrum is shared across all voices. The current implementation uses independent per-voice `PitchShiftProcessor` instances (R-001 decision), meaning 4 independent forward FFTs per block.
+
+Expected cost breakdown (approximate):
+- Forward FFT (analysis): ~25% of PhaseVocoder cost per voice = ~25% * 4 = 100% overhead for shared analysis
+- Phase rotation + inverse FFT (synthesis): ~75% per voice, per-voice regardless
+- With shared analysis: save ~25% * 3 extra voices = ~75% of forward FFT cost
+
+The measured ~24% is consistent with 4x independent FFT cost. With shared analysis (FR-020), the expected cost would be approximately 24% * 0.8 = ~19% (saving ~25% of 4 voices' forward FFT cost = ~5%). This suggests even with shared analysis, PhaseVocoder might still be at the budget boundary.
+
+**Recommendation**: Implement FR-020 shared-analysis architecture as an urgent follow-up spec. The shared analysis is expected to reduce PhaseVocoder cost to approximately 15-19% for 4 voices, which may meet or be close to the 15% budget.
+
+**Analysis - PitchTracker Overhead**:
+
+The PitchTracker uses YIN-based detection via `PitchDetector::detect()`, running at every `windowSize/4 = 64` sample hop. For a 256-sample block, this means 4 detection runs. The measured ~9% overhead (Scalic mode with all voices muted) is entirely PitchTracker cost. This is a shared overhead (one PitchTracker regardless of voice count) that occurs only in Scalic mode.
+
+The < 1% orchestration overhead budget was intended for the engine's own processing (smoothers, panning, mixing), which is indeed < 0.04% (Chromatic mode measurement). The PitchTracker cost should be considered part of the Scalic mode processing overhead rather than pure orchestration overhead.
+
+**Optimizations Already Implemented in HarmonizerEngine**:
+- Mute threshold skip: voices at <= -60dB skip PitchShiftProcessor entirely (line 209)
+- Zero-delay bypass: when delay=0ms, input is copied directly without DelayLine (line 255-258)
+- PitchTracker skip in Chromatic mode: no pushBlock() call (line 197, FR-009)
+- numVoices=0 skip: no voice processing or pitch tracking (line 195, FR-018)

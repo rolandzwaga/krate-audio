@@ -413,12 +413,12 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 | Granular | < 5% |
 | PhaseVocoder | < 15% (independent per-voice, no shared analysis yet) |
 
-- [ ] T113 Write CPU benchmark test in `dsp/tests/unit/systems/harmonizer_engine_test.cpp` using Catch2 benchmark macros: 4 active voices, 44.1kHz, block 256, all 4 modes measured separately
-- [ ] T113b Write orchestration-overhead benchmark: configure engine with 4 voices at level <= -60 dB (all muted, `PitchShiftProcessor` bypassed per mute-threshold optimization) and measure engine CPU. This isolates PitchTracker + ScaleHarmonizer + panning + smoothing overhead. SC-008 requires this orchestration overhead to be less than 1% CPU regardless of mode. Record result alongside per-mode results.
-- [ ] T114 Build and run benchmark: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "HarmonizerEngine*benchmark*" --benchmark-samples 100`
-- [ ] T115 Record actual measured CPU percentages for each mode AND for the orchestration-overhead measurement from T113b. Confirm orchestration overhead < 1%.
-- [ ] T116 If any mode exceeds its SC-008 budget: investigate and optimize in `dsp/include/krate/dsp/systems/harmonizer_engine.h` (mute threshold skip, zero-delay bypass, skip PitchTracker in Chromatic mode per FR-009/FR-018 -- these are already in the spec)
-- [ ] T117 If PhaseVocoder exceeds 15%: document in research.md that the shared-analysis FR-020 optimization must be implemented as an urgent follow-up spec
+- [X] T113 Write CPU benchmark test in `dsp/tests/unit/systems/harmonizer_engine_test.cpp` using Catch2 benchmark macros: 4 active voices, 44.1kHz, block 256, all 4 modes measured separately
+- [X] T113b Write orchestration-overhead benchmark: configure engine with 4 voices at level <= -60 dB (all muted, `PitchShiftProcessor` bypassed per mute-threshold optimization) and measure engine CPU. This isolates PitchTracker + ScaleHarmonizer + panning + smoothing overhead. SC-008 requires this orchestration overhead to be less than 1% CPU regardless of mode. Record result alongside per-mode results.
+- [X] T114 Build and run benchmark: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "HarmonizerEngine*benchmark*" --benchmark-samples 100`
+- [X] T115 Record actual measured CPU percentages for each mode AND for the orchestration-overhead measurement from T113b. Results: Simple=0.7% (MET), PitchSync=50% (NOT MET, per-voice YIN), Granular=0.8% (MET), PhaseVocoder=24% (NOT MET, FR-020 deferred), Orchestration Chromatic=0.04% (MET), Orchestration Scalic+PT=9% (PitchTracker overhead). See research.md R-011.
+- [X] T116 If any mode exceeds its SC-008 budget: investigate and optimize in `dsp/include/krate/dsp/systems/harmonizer_engine.h` (mute threshold skip, zero-delay bypass, skip PitchTracker in Chromatic mode per FR-009/FR-018 -- these are already in the spec). Investigated: all optimizations already implemented. PitchSync and PhaseVocoder overage is in Layer 2 components, not optimizable at HarmonizerEngine layer. See research.md R-011.
+- [X] T117 If PhaseVocoder exceeds 15%: document in research.md that the shared-analysis FR-020 optimization must be implemented as an urgent follow-up spec. Documented in research.md R-011.
 - [ ] T118 Commit: "perf(harmonizer): add CPU benchmarks for all pitch-shift modes (SC-008)"
 
 **Checkpoint**: All per-mode CPU budgets verified or gaps documented.
