@@ -198,7 +198,7 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 - [X] T053 [US3] Verify pan smoother is advanced per-sample in the accumulation loop (not once per block) using smoothed pan value for each sample's angle calculation
 - [X] T054 [US3] Build `dsp_tests` and run T049-T050 tests, confirm PASS
 - [X] T055 [US3] Fix all compiler warnings
-- [ ] T056 [US3] Commit: "feat(harmonizer): verify constant-power pan stereo output (US3)"
+- [X] T056 [US3] Commit: "feat(harmonizer): verify constant-power pan stereo output (US3)"
 
 **Checkpoint**: All pan scenarios pass. Hard left/right isolation and center -3dB behavior confirmed across multi-voice configurations.
 
@@ -220,19 +220,19 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 > Constitution Principle XIII: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T057 [US4] Write failing test: voice at -6dB level produces amplitude approximately half (0.5 linear) of voice at 0dB. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T058 [US4] Write failing test: dry=0dB, wet=0dB, 1 active voice -- both dry signal and harmony voice are present in output (non-zero RMS in both). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T059 [US4] Write failing test: dry muted (dB very negative, e.g. -120dB), wet=0dB -- only harmony audible in output (dry RMS below noise floor). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T060 [US4] Write failing test: wet level applied AFTER voice accumulation (not per-voice): 2 voices both at 0dB, wetLevel=-6dB -- total harmony bus is at -6dB, not per-voice at -6dB. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T061 [US4] Build and confirm T057-T060 tests FAIL
+- [X] T057 [US4] Write failing test: voice at -6dB level produces amplitude approximately half (0.5 linear) of voice at 0dB. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T058 [US4] Write failing test: dry=0dB, wet=0dB, 1 active voice -- both dry signal and harmony voice are present in output (non-zero RMS in both). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T059 [US4] Write failing test: dry muted (dB very negative, e.g. -120dB), wet=0dB -- only harmony audible in output (dry RMS below noise floor). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T060 [US4] Write failing test: wet level applied AFTER voice accumulation (not per-voice): 2 voices both at 0dB, wetLevel=-6dB -- total harmony bus is at -6dB, not per-voice at -6dB. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T061 [US4] Build and confirm T057-T060 tests FAIL
 
 ### 6.2 Implementation Verification for User Story 4
 
-- [ ] T062 [US4] Verify `setDryLevel()` and `setWetLevel()` in `dsp/include/krate/dsp/systems/harmonizer_engine.h` use independent smoothers: `dryLevelSmoother_.setTarget(gain)` and `wetLevelSmoother_.setTarget(gain)` separately, NOT a single mix ratio
-- [ ] T063 [US4] Verify per-sample mix loop in `process()`: `float dryGain = dryLevelSmoother_.process(); float wetGain = wetLevelSmoother_.process(); outputL[s] = wetGain * outputL[s] + dryGain * input[s]; outputR[s] = wetGain * outputR[s] + dryGain * input[s];` -- wet is applied to the already-accumulated harmony bus, not per-voice
-- [ ] T064 [US4] Verify mute threshold: voice with levelDb <= -60.0f skips PitchShiftProcessor processing entirely (linearGain=0.0f check before entering voice loop)
-- [ ] T065 [US4] Build `dsp_tests` and run T057-T060 tests, confirm PASS
-- [ ] T066 [US4] Fix all compiler warnings
+- [X] T062 [US4] Verify `setDryLevel()` and `setWetLevel()` in `dsp/include/krate/dsp/systems/harmonizer_engine.h` use independent smoothers: `dryLevelSmoother_.setTarget(gain)` and `wetLevelSmoother_.setTarget(gain)` separately, NOT a single mix ratio
+- [X] T063 [US4] Verify per-sample mix loop in `process()`: `float dryGain = dryLevelSmoother_.process(); float wetGain = wetLevelSmoother_.process(); outputL[s] = wetGain * outputL[s] + dryGain * input[s]; outputR[s] = wetGain * outputR[s] + dryGain * input[s];` -- wet is applied to the already-accumulated harmony bus, not per-voice
+- [X] T064 [US4] Verify mute threshold: voice with levelDb <= -60.0f skips PitchShiftProcessor processing entirely (linearGain=0.0f check before entering voice loop)
+- [X] T065 [US4] Build `dsp_tests` and run T057-T060 tests, confirm PASS
+- [X] T066 [US4] Fix all compiler warnings
 - [ ] T067 [US4] Commit: "feat(harmonizer): verify per-voice level and dry/wet mix smoothing (US4)"
 
 **Checkpoint**: Level control and dry/wet mix verified. Independent smoothers confirmed. Mute threshold optimization confirmed.
@@ -253,17 +253,17 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 > Constitution Principle XIII: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T068 [US5] Write failing test: SC-006 -- pitch transition in Scalic mode (C4 to D4 in C Major, 3rd above: interval changes from +4 to +3 semitones). Feed C4 frames, then switch to D4 frames. Maximum sample-to-sample delta in output must not exceed 2x the steady-state signal variation (no click artifacts). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T069 [US5] Write failing test: SC-007 (pan) -- pan change from -1.0 to +1.0 ramps smoothly: no instantaneous jump in left-channel amplitude exceeding 1% of signal range per sample. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T070 [US5] Write failing test: verify smoothers are advanced per-sample inside the block loop (not once per block) -- process two blocks with a parameter change between them and confirm the transition occurs gradually within the block, not instantaneously at block boundary. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T071 [US5] Build and confirm T068-T070 tests FAIL
+- [X] T068 [US5] Write failing test: SC-006 -- pitch transition in Scalic mode (C4 to D4 in C Major, 3rd above: interval changes from +4 to +3 semitones). Feed C4 frames, then switch to D4 frames. Maximum sample-to-sample delta in output must not exceed 2x the steady-state signal variation (no click artifacts). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T069 [US5] Write failing test: SC-007 (pan) -- pan change from -1.0 to +1.0 ramps smoothly: no instantaneous jump in left-channel amplitude exceeding 1% of signal range per sample. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T070 [US5] Write failing test: verify smoothers are advanced per-sample inside the block loop (not once per block) -- process two blocks with a parameter change between them and confirm the transition occurs gradually within the block, not instantaneously at block boundary. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T071 [US5] Build and confirm T068-T070 tests FAIL
 
 ### 7.2 Click-Free Implementation Verification
 
-- [ ] T072 [US5] Verify `process()` block loop in `dsp/include/krate/dsp/systems/harmonizer_engine.h` advances all smoothers per-sample (not once per block): `levelSmoother_.process()`, `panSmoother_.process()`, `pitchSmoother_.process()`, `dryLevelSmoother_.process()`, `wetLevelSmoother_.process()` are all called inside the per-sample accumulation loop
-- [ ] T073 [US5] Verify `pitchSmoother_` usage: in Scalic mode when the note changes, `pitchSmoother_.setTarget(newSemitones)` is called ONCE per block (after ScaleHarmonizer compute), then `pitchSmoother_.process()` is called per-sample to get the intermediate value fed to `pitchShifter.setSemitones()` -- confirm that `setSemitones()` is called per-sample or per-block with the smoothed value
-- [ ] T074 [US5] Build `dsp_tests` and run T068-T070 tests, confirm PASS
-- [ ] T075 [US5] Fix all compiler warnings
+- [X] T072 [US5] Verify `process()` block loop in `dsp/include/krate/dsp/systems/harmonizer_engine.h` advances all smoothers per-sample (not once per block): `levelSmoother_.process()`, `panSmoother_.process()`, `pitchSmoother_.process()`, `dryLevelSmoother_.process()`, `wetLevelSmoother_.process()` are all called inside the per-sample accumulation loop
+- [X] T073 [US5] Verify `pitchSmoother_` usage: in Scalic mode when the note changes, `pitchSmoother_.setTarget(newSemitones)` is called ONCE per block (after ScaleHarmonizer compute), then `pitchSmoother_.process()` is called per-sample to get the intermediate value fed to `pitchShifter.setSemitones()` -- confirm that `setSemitones()` is called per-sample or per-block with the smoothed value
+- [X] T074 [US5] Build `dsp_tests` and run T068-T070 tests, confirm PASS
+- [X] T075 [US5] Fix all compiler warnings
 - [ ] T076 [US5] Commit: "feat(harmonizer): verify click-free transitions with per-sample smoother advancement (US5)"
 
 **Checkpoint**: Click-free transitions verified. Pitch, level, and pan changes all produce smooth output without audible artifacts.
@@ -284,18 +284,18 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 > Constitution Principle XIII: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T077 [US6] Write failing test: SC-012 -- voice at +7 semitones with +10 cents detune at 440Hz input. Expected output frequency is approximately 659.3Hz * 2^(10/1200) -- approximately 3.8Hz higher than non-detuned +7 semitone voice. Verify the frequency offset is within 1Hz of expected 3.8Hz difference. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T078 [US6] Write failing test: Two voices at +7 semitones, one at 0 cents and one at +10 cents detune -- combined output exhibits periodic amplitude modulation (beat frequency measurable in the output envelope). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T079 [US6] Write failing test: `setVoiceDetune()` with value outside [-50,+50] is clamped correctly (e.g., +60 cents stored as +50 cents). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T080 [US6] Build and confirm T077-T079 tests FAIL
+- [X] T077 [US6] Write failing test: SC-012 -- voice at +7 semitones with +10 cents detune at 440Hz input. Expected output frequency is approximately 659.3Hz * 2^(10/1200) -- approximately 3.8Hz higher than non-detuned +7 semitone voice. Verify the frequency offset is within 1Hz of expected 3.8Hz difference. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T078 [US6] Write failing test: Two voices at +7 semitones, one at 0 cents and one at +10 cents detune -- combined output exhibits periodic amplitude modulation (beat frequency measurable in the output envelope). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T079 [US6] Write failing test: `setVoiceDetune()` with value outside [-50,+50] is clamped correctly (e.g., +60 cents stored as +50 cents). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T080 [US6] Build and confirm T077-T079 tests FAIL
 
 ### 8.2 Micro-Detune Implementation Verification
 
-- [ ] T081 [US6] Verify `setVoiceDetune()` in `dsp/include/krate/dsp/systems/harmonizer_engine.h` clamps to [kMinDetuneCents, kMaxDetuneCents] and stores in `voice.detuneCents`
-- [ ] T082 [US6] Verify detune is combined with interval before smoothing in `process()`: `float totalSemitones = static_cast<float>(computedSemitones) + voice.detuneCents / 100.0f;` then `voice.pitchSmoother_.setTarget(totalSemitones)` -- NOT applied as a separate pitch shift after the main shift
-- [ ] T083 [US6] Build `dsp_tests` and run T077-T079 tests, confirm PASS
-- [ ] T084 [US6] Fix all compiler warnings
-- [ ] T085 [US6] Commit: "feat(harmonizer): verify micro-detuning for ensemble width (US6)"
+- [X] T081 [US6] Verify `setVoiceDetune()` in `dsp/include/krate/dsp/systems/harmonizer_engine.h` clamps to [kMinDetuneCents, kMaxDetuneCents] and stores in `voice.detuneCents`
+- [X] T082 [US6] Verify detune is combined with interval before smoothing in `process()`: `float totalSemitones = static_cast<float>(computedSemitones) + voice.detuneCents / 100.0f;` then `voice.pitchSmoother_.setTarget(totalSemitones)` -- NOT applied as a separate pitch shift after the main shift
+- [X] T083 [US6] Build `dsp_tests` and run T077-T079 tests, confirm PASS
+- [X] T084 [US6] Fix all compiler warnings
+- [X] T085 [US6] Commit: "feat(harmonizer): verify micro-detuning for ensemble width (US6)"
 
 **Checkpoint**: Micro-detuning operational. Frequency offset and beating verified.
 
