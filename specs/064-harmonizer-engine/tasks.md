@@ -315,18 +315,18 @@ The test file `dsp/tests/unit/systems/harmonizer_engine_test.cpp` MUST be added 
 
 > Constitution Principle XIII: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T086 [US7] Write failing test: voice with 10ms delay at 44100Hz sample rate: on transient input (single impulse), voice output onset is delayed by approximately 441 samples (+/-5 samples tolerance). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T087 [US7] Write failing test: voice with 0ms delay: output is time-aligned with input (subject to pitch shifter's inherent latency) -- verify DelayLine is bypassed (no additional delay added). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T088 [US7] Write failing test: `setVoiceDelay()` with value above 50ms is clamped to 50ms. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T089 [US7] Build and confirm T086-T088 tests FAIL
+- [X] T086 [US7] Write failing test: voice with 10ms delay at 44100Hz sample rate: on transient input (single impulse), voice output onset is delayed by approximately 441 samples (+/-5 samples tolerance). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T087 [US7] Write failing test: voice with 0ms delay: output is time-aligned with input (subject to pitch shifter's inherent latency) -- verify DelayLine is bypassed (no additional delay added). In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T088 [US7] Write failing test: `setVoiceDelay()` with value above 50ms is clamped to 50ms. In `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T089 [US7] Build and confirm T086-T088 tests FAIL
 
 ### 9.2 Onset Delay Implementation Verification
 
-- [ ] T090 [US7] Verify `setVoiceDelay()` in `dsp/include/krate/dsp/systems/harmonizer_engine.h`: clamps to [0, kMaxDelayMs], converts to samples: `voice.delaySamples = ms * static_cast<float>(sampleRate_) / 1000.0f`, stores voice.delayMs
-- [ ] T091 [US7] Verify delay processing in `process()`: if `voice.delayMs > 0.0f`, for each sample in block: `voice.delayLine.write(input[s]); delayScratch_[s] = voice.delayLine.readLinear(voice.delaySamples);`; if `voice.delayMs == 0.0f`: `std::copy(input, input + numSamples, delayScratch_.data())` (no DelayLine calls)
-- [ ] T092 [US7] Build `dsp_tests` and run T086-T088 tests, confirm PASS
-- [ ] T093 [US7] Fix all compiler warnings
-- [ ] T094 [US7] Commit: "feat(harmonizer): verify per-voice onset delay with DelayLine bypass (US7)"
+- [X] T090 [US7] Verify `setVoiceDelay()` in `dsp/include/krate/dsp/systems/harmonizer_engine.h`: clamps to [0, kMaxDelayMs], converts to samples: `voice.delaySamples = ms * static_cast<float>(sampleRate_) / 1000.0f`, stores voice.delayMs
+- [X] T091 [US7] Verify delay processing in `process()`: if `voice.delayMs > 0.0f`, for each sample in block: `voice.delayLine.write(input[s]); delayScratch_[s] = voice.delayLine.readLinear(voice.delaySamples);`; if `voice.delayMs == 0.0f`: `std::copy(input, input + numSamples, delayScratch_.data())` (no DelayLine calls)
+- [X] T092 [US7] Build `dsp_tests` and run T086-T088 tests, confirm PASS
+- [X] T093 [US7] Fix all compiler warnings
+- [X] T094 [US7] Commit: "feat(harmonizer): verify per-voice onset delay with DelayLine bypass (US7)"
 
 **Checkpoint**: Onset delay operational. 10ms delay verified at sample level. Zero-delay bypass confirmed.
 

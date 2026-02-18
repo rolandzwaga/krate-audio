@@ -2273,3 +2273,230 @@ TEST_CASE("HarmonizerEngine setVoiceDetune clamps to [-50,+50]",
     INFO("Expected frequency at -50 cents: " << expectedNeg << " Hz");
     REQUIRE(std::abs(freqNeg - expectedNeg) < 2.0f);
 }
+
+// =============================================================================
+// Phase 9: User Story 7 - Per-Voice Onset Delay (FR-003, FR-011)
+// =============================================================================
+
+// T086: Voice with 10ms delay at 44100Hz -- impulse onset delayed by ~441 samples
+// Uses Simple mode (0 latency) for clean impulse measurement.
+TEST_CASE("HarmonizerEngine onset delay 10ms delays output by ~441 samples",
+          "[systems][harmonizer][delay][FR-011]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 512;
+    constexpr float delayMs = 10.0f;
+    constexpr float expectedDelaySamples = delayMs *
+        static_cast<float>(sampleRate) / 1000.0f; // 441.0
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    engine.setDryLevel(-120.0f);   // Mute dry signal
+    engine.setWetLevel(0.0f);      // Wet at unity
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 0); // No pitch shift (identity)
+    engine.setVoiceLevel(0, 0.0f); // 0 dB
+    engine.setVoicePan(0, -1.0f);  // Hard left for easy measurement
+    engine.setVoiceDelay(0, delayMs);
+
+    // Create input with a single impulse at sample 0
+    // Process enough blocks to see the delayed output
+    constexpr std::size_t totalSamples = blockSize * 4; // 2048 samples
+    std::vector<float> input(totalSamples, 0.0f);
+    input[0] = 1.0f; // Impulse at sample 0
+
+    std::vector<float> outputL(totalSamples, 0.0f);
+    std::vector<float> outputR(totalSamples, 0.0f);
+
+    for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+        engine.process(input.data() + offset,
+                       outputL.data() + offset,
+                       outputR.data() + offset, blockSize);
+    }
+
+    // Find the first non-zero sample in the output (onset)
+    constexpr float threshold = 1e-6f;
+    std::size_t onsetSample = totalSamples; // sentinel
+    for (std::size_t s = 0; s < totalSamples; ++s) {
+        if (std::abs(outputL[s]) > threshold) {
+            onsetSample = s;
+            break;
+        }
+    }
+
+    INFO("Expected delay: " << expectedDelaySamples << " samples");
+    INFO("First non-zero sample at: " << onsetSample);
+    REQUIRE(onsetSample < totalSamples); // Must find a non-zero sample
+
+    // The onset should be approximately at the delay in samples.
+    // With Simple mode pitch shifter at 0 semitones (identity), the pitch
+    // shifter adds no latency, so the only delay is from the DelayLine.
+    float onsetFloat = static_cast<float>(onsetSample);
+    REQUIRE(std::abs(onsetFloat - expectedDelaySamples) <= 5.0f);
+}
+
+// T087: Voice with 0ms delay -- output is time-aligned with input (no additional delay)
+TEST_CASE("HarmonizerEngine onset delay 0ms produces time-aligned output",
+          "[systems][harmonizer][delay][FR-011]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 512;
+
+    // --- Engine with 0ms delay ---
+    Krate::DSP::HarmonizerEngine engine0ms;
+    engine0ms.prepare(sampleRate, blockSize);
+    engine0ms.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine0ms.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    engine0ms.setDryLevel(-120.0f);
+    engine0ms.setWetLevel(0.0f);
+    engine0ms.setNumVoices(1);
+    engine0ms.setVoiceInterval(0, 0); // Identity pitch shift
+    engine0ms.setVoiceLevel(0, 0.0f);
+    engine0ms.setVoicePan(0, -1.0f);
+    engine0ms.setVoiceDelay(0, 0.0f); // 0ms delay
+
+    // --- Engine with 10ms delay (for comparison) ---
+    Krate::DSP::HarmonizerEngine engine10ms;
+    engine10ms.prepare(sampleRate, blockSize);
+    engine10ms.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine10ms.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    engine10ms.setDryLevel(-120.0f);
+    engine10ms.setWetLevel(0.0f);
+    engine10ms.setNumVoices(1);
+    engine10ms.setVoiceInterval(0, 0);
+    engine10ms.setVoiceLevel(0, 0.0f);
+    engine10ms.setVoicePan(0, -1.0f);
+    engine10ms.setVoiceDelay(0, 10.0f); // 10ms delay
+
+    constexpr std::size_t totalSamples = 512 * 4;
+    std::vector<float> input(totalSamples, 0.0f);
+    input[0] = 1.0f; // Impulse
+
+    std::vector<float> outL0ms(totalSamples, 0.0f);
+    std::vector<float> outR0ms(totalSamples, 0.0f);
+    std::vector<float> outL10ms(totalSamples, 0.0f);
+    std::vector<float> outR10ms(totalSamples, 0.0f);
+
+    for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+        engine0ms.process(input.data() + offset,
+                          outL0ms.data() + offset,
+                          outR0ms.data() + offset, blockSize);
+        engine10ms.process(input.data() + offset,
+                           outL10ms.data() + offset,
+                           outR10ms.data() + offset, blockSize);
+    }
+
+    // Find onset for both
+    constexpr float threshold = 1e-6f;
+    std::size_t onset0ms = totalSamples;
+    std::size_t onset10ms = totalSamples;
+    for (std::size_t s = 0; s < totalSamples; ++s) {
+        if (onset0ms == totalSamples && std::abs(outL0ms[s]) > threshold) {
+            onset0ms = s;
+        }
+        if (onset10ms == totalSamples && std::abs(outL10ms[s]) > threshold) {
+            onset10ms = s;
+        }
+    }
+
+    INFO("0ms delay onset at sample: " << onset0ms);
+    INFO("10ms delay onset at sample: " << onset10ms);
+
+    // The 0ms delay output should have its onset at sample 0 or very close
+    // (Simple mode has 0 latency, so no pitch-shifter delay)
+    REQUIRE(onset0ms < totalSamples);
+    REQUIRE(onset0ms <= 1); // Should be at sample 0 or 1
+
+    // The 10ms delay should be noticeably later than the 0ms one
+    REQUIRE(onset10ms > onset0ms);
+    float delayDiff = static_cast<float>(onset10ms - onset0ms);
+    float expectedDelay = 10.0f * static_cast<float>(sampleRate) / 1000.0f;
+    INFO("Measured delay difference: " << delayDiff << " samples");
+    INFO("Expected delay difference: " << expectedDelay << " samples");
+    REQUIRE(std::abs(delayDiff - expectedDelay) <= 5.0f);
+}
+
+// T088: setVoiceDelay(60) clamped to 50ms
+TEST_CASE("HarmonizerEngine setVoiceDelay clamps to 50ms maximum",
+          "[systems][harmonizer][delay][FR-003]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 512;
+
+    // We test clamping by comparing two engines: one with 60ms (should clamp to 50ms)
+    // and one with 50ms (should match the clamped one).
+    constexpr float maxDelayMs = 50.0f;
+    constexpr float expectedDelaySamples = maxDelayMs *
+        static_cast<float>(sampleRate) / 1000.0f; // 2205.0
+
+    // --- Engine with 60ms (clamped to 50ms) ---
+    Krate::DSP::HarmonizerEngine engineClamped;
+    engineClamped.prepare(sampleRate, blockSize);
+    engineClamped.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engineClamped.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    engineClamped.setDryLevel(-120.0f);
+    engineClamped.setWetLevel(0.0f);
+    engineClamped.setNumVoices(1);
+    engineClamped.setVoiceInterval(0, 0);
+    engineClamped.setVoiceLevel(0, 0.0f);
+    engineClamped.setVoicePan(0, -1.0f);
+    engineClamped.setVoiceDelay(0, 60.0f); // Should clamp to 50ms
+
+    // --- Engine with exactly 50ms ---
+    Krate::DSP::HarmonizerEngine engine50;
+    engine50.prepare(sampleRate, blockSize);
+    engine50.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine50.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    engine50.setDryLevel(-120.0f);
+    engine50.setWetLevel(0.0f);
+    engine50.setNumVoices(1);
+    engine50.setVoiceInterval(0, 0);
+    engine50.setVoiceLevel(0, 0.0f);
+    engine50.setVoicePan(0, -1.0f);
+    engine50.setVoiceDelay(0, 50.0f);
+
+    // Use enough samples to see the 50ms delay
+    constexpr std::size_t totalSamples = blockSize * 8; // 4096 samples
+    std::vector<float> input(totalSamples, 0.0f);
+    input[0] = 1.0f; // Impulse
+
+    std::vector<float> outLClamped(totalSamples, 0.0f);
+    std::vector<float> outRClamped(totalSamples, 0.0f);
+    std::vector<float> outL50(totalSamples, 0.0f);
+    std::vector<float> outR50(totalSamples, 0.0f);
+
+    for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+        engineClamped.process(input.data() + offset,
+                              outLClamped.data() + offset,
+                              outRClamped.data() + offset, blockSize);
+        engine50.process(input.data() + offset,
+                         outL50.data() + offset,
+                         outR50.data() + offset, blockSize);
+    }
+
+    // Find onset for both
+    constexpr float threshold = 1e-6f;
+    std::size_t onsetClamped = totalSamples;
+    std::size_t onset50 = totalSamples;
+    for (std::size_t s = 0; s < totalSamples; ++s) {
+        if (onsetClamped == totalSamples && std::abs(outLClamped[s]) > threshold) {
+            onsetClamped = s;
+        }
+        if (onset50 == totalSamples && std::abs(outL50[s]) > threshold) {
+            onset50 = s;
+        }
+    }
+
+    INFO("Clamped (60ms) onset at sample: " << onsetClamped);
+    INFO("50ms onset at sample: " << onset50);
+    INFO("Expected delay: " << expectedDelaySamples << " samples");
+
+    REQUIRE(onsetClamped < totalSamples);
+    REQUIRE(onset50 < totalSamples);
+
+    // Both should produce identical onset (60ms was clamped to 50ms)
+    REQUIRE(onsetClamped == onset50);
+
+    // Verify the onset is at approximately 2205 samples
+    float onsetFloat = static_cast<float>(onset50);
+    REQUIRE(std::abs(onsetFloat - expectedDelaySamples) <= 5.0f);
+}
