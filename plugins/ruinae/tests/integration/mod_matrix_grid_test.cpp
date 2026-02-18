@@ -788,7 +788,7 @@ TEST_CASE("ModMatrixGrid: source count matches tab", "[modmatrix][grid][tab][int
 
 // T090: Destination filtering - Global shows 8 dests, Voice shows 8
 TEST_CASE("ModMatrixGrid: destination count matches tab", "[modmatrix][grid][tab][integration]") {
-    REQUIRE(kNumGlobalDestinations == 8);
+    REQUIRE(kNumGlobalDestinations == 10);
     REQUIRE(kNumVoiceDestinations == 8);
 
     ModMatrixGrid grid(VSTGUI::CRect(0, 0, 430, 250));

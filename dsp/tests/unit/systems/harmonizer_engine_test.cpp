@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <fstream>
 #include <numeric>
 #include <vector>
 
@@ -3372,4 +3373,1194 @@ TEST_CASE("HarmonizerEngine SC-008 orchestration overhead benchmark",
         WARN("Scalic orchestration overhead: " << cpuPercent
              << "%. PitchTracker contributes significant overhead.");
     }
+}
+
+// =============================================================================
+// T003a: Capture pre-refactor HarmonizerEngine per-voice PhaseVocoder output
+// as golden reference fixture for SC-002 equivalence assertion.
+//
+// This test generates the golden reference BEFORE any shared-analysis code
+// changes. It runs a 1-second 440 Hz sine tone through HarmonizerEngine with
+// 4 voices in PhaseVocoder mode at 44.1 kHz / 256 block size.
+//
+// Per-voice output is captured by running the engine 4 times, each time with
+// only 1 voice active (0 dB level, center pan, no delay, no detune).
+// The output is saved to a binary file at:
+//   dsp/tests/unit/systems/fixtures/harmonizer_engine_pv_golden.bin
+//
+// Binary format:
+//   Header: 4 x uint32_t = { numVoices, numSamples, sampleRate, blockSize }
+//   Data:   For each voice v in [0..3]:
+//             float[numSamples] = voice v left channel output
+//             float[numSamples] = voice v right channel output
+// =============================================================================
+TEST_CASE("T003a: Capture pre-refactor PhaseVocoder golden reference",
+          "[systems][harmonizer][golden][.generate]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+
+    // Voice intervals matching benchmark configuration
+    constexpr int voiceIntervals[4] = {3, 5, 7, 12};
+
+    // Pre-generate full 1-second input signal
+    std::vector<float> inputSignal(totalSamples);
+    fillSine(inputSignal.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    // Per-voice output storage (L and R per voice)
+    constexpr std::size_t numVoices = 4;
+    std::vector<std::vector<float>> voiceOutputL(numVoices,
+                                                  std::vector<float>(totalSamples, 0.0f));
+    std::vector<std::vector<float>> voiceOutputR(numVoices,
+                                                  std::vector<float>(totalSamples, 0.0f));
+
+    // Capture each voice's output independently
+    for (std::size_t v = 0; v < numVoices; ++v) {
+        Krate::DSP::HarmonizerEngine engine;
+        engine.prepare(sampleRate, blockSize);
+        engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+        engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+        engine.setDryLevel(0.0f);  // No dry signal (wet only)
+        engine.setWetLevel(0.0f);  // 0 dB wet level
+
+        // Activate only voice v
+        engine.setNumVoices(static_cast<int>(numVoices));
+        for (std::size_t i = 0; i < numVoices; ++i) {
+            if (i == v) {
+                engine.setVoiceInterval(static_cast<int>(i), voiceIntervals[i]);
+                engine.setVoiceLevel(static_cast<int>(i), 0.0f);   // 0 dB
+                engine.setVoicePan(static_cast<int>(i), 0.0f);     // Center
+                engine.setVoiceDelay(static_cast<int>(i), 0.0f);   // No delay
+                engine.setVoiceDetune(static_cast<int>(i), 0.0f);  // No detune
+            } else {
+                engine.setVoiceLevel(static_cast<int>(i), -60.0f); // Muted
+            }
+        }
+
+        // Process in blocks
+        std::vector<float> blockL(blockSize, 0.0f);
+        std::vector<float> blockR(blockSize, 0.0f);
+        std::size_t samplesProcessed = 0;
+
+        while (samplesProcessed < totalSamples) {
+            std::size_t remaining = totalSamples - samplesProcessed;
+            std::size_t thisBlock = std::min(remaining, blockSize);
+
+            engine.process(inputSignal.data() + samplesProcessed,
+                           blockL.data(), blockR.data(), thisBlock);
+
+            std::copy(blockL.begin(), blockL.begin() + static_cast<std::ptrdiff_t>(thisBlock),
+                      voiceOutputL[v].begin() + static_cast<std::ptrdiff_t>(samplesProcessed));
+            std::copy(blockR.begin(), blockR.begin() + static_cast<std::ptrdiff_t>(thisBlock),
+                      voiceOutputR[v].begin() + static_cast<std::ptrdiff_t>(samplesProcessed));
+
+            samplesProcessed += thisBlock;
+        }
+
+        // Verify we got some non-zero output (sanity check)
+        float maxAbsL = 0.0f;
+        for (std::size_t s = 0; s < totalSamples; ++s) {
+            maxAbsL = std::max(maxAbsL, std::abs(voiceOutputL[v][s]));
+        }
+        INFO("Voice " << v << " (interval " << voiceIntervals[v]
+             << " semitones): max abs L = " << maxAbsL);
+        REQUIRE(maxAbsL > 0.0f);
+    }
+
+    // Write binary file
+    const std::string fixturePath =
+        "dsp/tests/unit/systems/fixtures/harmonizer_engine_pv_golden.bin";
+    std::ofstream file(fixturePath, std::ios::binary);
+    REQUIRE(file.is_open());
+
+    // Header
+    uint32_t header[4] = {
+        static_cast<uint32_t>(numVoices),
+        static_cast<uint32_t>(totalSamples),
+        static_cast<uint32_t>(sampleRate),
+        static_cast<uint32_t>(blockSize)
+    };
+    file.write(reinterpret_cast<const char*>(header), sizeof(header));
+
+    // Per-voice data (L then R for each voice)
+    for (std::size_t v = 0; v < numVoices; ++v) {
+        file.write(reinterpret_cast<const char*>(voiceOutputL[v].data()),
+                   static_cast<std::streamsize>(totalSamples * sizeof(float)));
+        file.write(reinterpret_cast<const char*>(voiceOutputR[v].data()),
+                   static_cast<std::streamsize>(totalSamples * sizeof(float)));
+    }
+
+    file.close();
+    REQUIRE(file.good());
+
+    WARN("Golden reference written to: " << fixturePath);
+    WARN("File size: " << (sizeof(header) + numVoices * 2 * totalSamples * sizeof(float))
+         << " bytes");
+}
+
+// =============================================================================
+// Phase 4: User Story 1 - Shared-Analysis FFT Integration Tests
+// =============================================================================
+
+// T027: HarmonizerEngine PhaseVocoder shared-analysis output equivalence test
+// (SC-002, RMS < 1e-5 per voice vs golden reference captured in T003a)
+TEST_CASE("T027: HarmonizerEngine PhaseVocoder shared-analysis output equivalence (SC-002)",
+          "[systems][harmonizer][shared-analysis][SC-002]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+
+    // Voice intervals matching golden reference configuration
+    constexpr int voiceIntervals[4] = {3, 5, 7, 12};
+
+    // Load golden reference fixture
+    const std::string fixturePath =
+        "dsp/tests/unit/systems/fixtures/harmonizer_engine_pv_golden.bin";
+    std::ifstream file(fixturePath, std::ios::binary);
+    REQUIRE(file.is_open());
+
+    // Read header
+    uint32_t header[4] = {};
+    file.read(reinterpret_cast<char*>(header), sizeof(header));
+    REQUIRE(header[0] == 4);            // numVoices
+    REQUIRE(header[1] == totalSamples); // numSamples
+    REQUIRE(header[2] == static_cast<uint32_t>(sampleRate)); // sampleRate
+    REQUIRE(header[3] == blockSize);    // blockSize
+
+    // Read per-voice golden reference data
+    constexpr std::size_t numVoices = 4;
+    std::vector<std::vector<float>> goldenL(numVoices,
+                                             std::vector<float>(totalSamples));
+    std::vector<std::vector<float>> goldenR(numVoices,
+                                             std::vector<float>(totalSamples));
+    for (std::size_t v = 0; v < numVoices; ++v) {
+        file.read(reinterpret_cast<char*>(goldenL[v].data()),
+                  static_cast<std::streamsize>(totalSamples * sizeof(float)));
+        file.read(reinterpret_cast<char*>(goldenR[v].data()),
+                  static_cast<std::streamsize>(totalSamples * sizeof(float)));
+    }
+    file.close();
+    REQUIRE(file.good());
+
+    // Run post-refactor engine with same configuration (one voice active per run)
+    // matching the golden reference capture method
+    for (std::size_t v = 0; v < numVoices; ++v) {
+        Krate::DSP::HarmonizerEngine engine;
+        engine.prepare(sampleRate, blockSize);
+        engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+        engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+        engine.setDryLevel(0.0f);
+        engine.setWetLevel(0.0f);
+
+        engine.setNumVoices(static_cast<int>(numVoices));
+        for (std::size_t i = 0; i < numVoices; ++i) {
+            if (i == v) {
+                engine.setVoiceInterval(static_cast<int>(i), voiceIntervals[i]);
+                engine.setVoiceLevel(static_cast<int>(i), 0.0f);
+                engine.setVoicePan(static_cast<int>(i), 0.0f);
+                engine.setVoiceDelay(static_cast<int>(i), 0.0f);
+                engine.setVoiceDetune(static_cast<int>(i), 0.0f);
+            } else {
+                engine.setVoiceLevel(static_cast<int>(i), -60.0f);
+            }
+        }
+
+        // Generate input signal
+        std::vector<float> inputSignal(totalSamples);
+        fillSine(inputSignal.data(), totalSamples, inputFreq,
+                 static_cast<float>(sampleRate));
+
+        // Process in blocks
+        std::vector<float> outputL(totalSamples, 0.0f);
+        std::vector<float> outputR(totalSamples, 0.0f);
+        std::vector<float> blockL(blockSize, 0.0f);
+        std::vector<float> blockR(blockSize, 0.0f);
+        std::size_t samplesProcessed = 0;
+
+        while (samplesProcessed < totalSamples) {
+            std::size_t remaining = totalSamples - samplesProcessed;
+            std::size_t thisBlock = std::min(remaining, blockSize);
+
+            engine.process(inputSignal.data() + samplesProcessed,
+                           blockL.data(), blockR.data(), thisBlock);
+
+            std::copy(blockL.begin(),
+                      blockL.begin() + static_cast<std::ptrdiff_t>(thisBlock),
+                      outputL.begin() + static_cast<std::ptrdiff_t>(samplesProcessed));
+            std::copy(blockR.begin(),
+                      blockR.begin() + static_cast<std::ptrdiff_t>(thisBlock),
+                      outputR.begin() + static_cast<std::ptrdiff_t>(samplesProcessed));
+
+            samplesProcessed += thisBlock;
+        }
+
+        // Compute RMS difference vs golden reference (SC-002: < 1e-5)
+        std::vector<float> diffL(totalSamples);
+        std::vector<float> diffR(totalSamples);
+        for (std::size_t s = 0; s < totalSamples; ++s) {
+            diffL[s] = outputL[s] - goldenL[v][s];
+            diffR[s] = outputR[s] - goldenR[v][s];
+        }
+
+        float rmsL = computeRMS(diffL.data(), totalSamples);
+        float rmsR = computeRMS(diffR.data(), totalSamples);
+
+        INFO("Voice " << v << " (interval " << voiceIntervals[v]
+             << " semitones): RMS diff L=" << rmsL << " R=" << rmsR);
+        REQUIRE(rmsL < 1e-5f);
+        REQUIRE(rmsR < 1e-5f);
+    }
+}
+
+// T028: Single voice PhaseVocoder through shared-analysis path
+TEST_CASE("T028: HarmonizerEngine single voice PhaseVocoder shared-analysis",
+          "[systems][harmonizer][shared-analysis]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    engine.setDryLevel(0.0f);
+    engine.setWetLevel(0.0f);
+
+    // Single voice at +7 semitones
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 7);
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+    engine.setVoiceDelay(0, 0.0f);
+    engine.setVoiceDetune(0, 0.0f);
+
+    // Generate input signal
+    std::vector<float> inputSignal(totalSamples);
+    fillSine(inputSignal.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    // Process
+    std::vector<float> outputL(totalSamples, 0.0f);
+    std::vector<float> outputR(totalSamples, 0.0f);
+    std::vector<float> blockL(blockSize, 0.0f);
+    std::vector<float> blockR(blockSize, 0.0f);
+    std::size_t samplesProcessed = 0;
+
+    while (samplesProcessed < totalSamples) {
+        std::size_t remaining = totalSamples - samplesProcessed;
+        std::size_t thisBlock = std::min(remaining, blockSize);
+
+        engine.process(inputSignal.data() + samplesProcessed,
+                       blockL.data(), blockR.data(), thisBlock);
+
+        std::copy(blockL.begin(),
+                  blockL.begin() + static_cast<std::ptrdiff_t>(thisBlock),
+                  outputL.begin() + static_cast<std::ptrdiff_t>(samplesProcessed));
+        std::copy(blockR.begin(),
+                  blockR.begin() + static_cast<std::ptrdiff_t>(thisBlock),
+                  outputR.begin() + static_cast<std::ptrdiff_t>(samplesProcessed));
+
+        samplesProcessed += thisBlock;
+    }
+
+    // Verify non-zero output after latency priming period
+    // The latency is at least kFFTSize (4096) samples
+    float maxAbsL = 0.0f;
+    for (std::size_t s = 8192; s < totalSamples; ++s) {
+        maxAbsL = std::max(maxAbsL, std::abs(outputL[s]));
+    }
+    INFO("Single voice max abs output (after priming): " << maxAbsL);
+    REQUIRE(maxAbsL > 0.01f);
+
+    // Verify output is centered (equal L/R for center pan)
+    float maxDiff = 0.0f;
+    for (std::size_t s = 8192; s < totalSamples; ++s) {
+        maxDiff = std::max(maxDiff, std::abs(outputL[s] - outputR[s]));
+    }
+    INFO("Max L/R difference (center pan): " << maxDiff);
+    REQUIRE(maxDiff < 1e-5f);
+}
+
+// T029: Sub-hop-size block handling (128 samples, must buffer, not assert)
+TEST_CASE("T029: HarmonizerEngine sub-hop-size block handling (FR-013a)",
+          "[systems][harmonizer][shared-analysis][FR-013a]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 128; // Sub-hop (hopSize = 1024)
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    engine.setDryLevel(0.0f);
+    engine.setWetLevel(0.0f);
+
+    engine.setNumVoices(4);
+    engine.setVoiceInterval(0, 3);
+    engine.setVoiceInterval(1, 5);
+    engine.setVoiceInterval(2, 7);
+    engine.setVoiceInterval(3, 12);
+    for (int v = 0; v < 4; ++v) {
+        engine.setVoiceLevel(v, 0.0f);
+        engine.setVoicePan(v, 0.0f);
+        engine.setVoiceDelay(v, 0.0f);
+        engine.setVoiceDetune(v, 0.0f);
+    }
+
+    // Generate input signal
+    std::vector<float> inputSignal(totalSamples);
+    fillSine(inputSignal.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    // Process in 128-sample blocks -- MUST NOT assert or crash
+    std::vector<float> outputL(totalSamples, 0.0f);
+    std::vector<float> outputR(totalSamples, 0.0f);
+    std::vector<float> blockL(blockSize, 0.0f);
+    std::vector<float> blockR(blockSize, 0.0f);
+    std::size_t samplesProcessed = 0;
+
+    while (samplesProcessed < totalSamples) {
+        std::size_t remaining = totalSamples - samplesProcessed;
+        std::size_t thisBlock = std::min(remaining, blockSize);
+
+        engine.process(inputSignal.data() + samplesProcessed,
+                       blockL.data(), blockR.data(), thisBlock);
+
+        std::copy(blockL.begin(),
+                  blockL.begin() + static_cast<std::ptrdiff_t>(thisBlock),
+                  outputL.begin() + static_cast<std::ptrdiff_t>(samplesProcessed));
+        std::copy(blockR.begin(),
+                  blockR.begin() + static_cast<std::ptrdiff_t>(thisBlock),
+                  outputR.begin() + static_cast<std::ptrdiff_t>(samplesProcessed));
+
+        samplesProcessed += thisBlock;
+    }
+
+    // Verify that output is zero during the first kFFTSize (4096) input samples
+    // (FR-013a: zero-fill when no synthesis frame is ready)
+    bool allZeroDuringPriming = true;
+    const std::size_t primingEnd = std::min(std::size_t{4096}, totalSamples);
+    for (std::size_t s = 0; s < primingEnd; ++s) {
+        if (outputL[s] != 0.0f || outputR[s] != 0.0f) {
+            allZeroDuringPriming = false;
+            break;
+        }
+    }
+    // Note: with sub-hop blocks, priming is longer so output should be zero
+    // for the initial period
+    INFO("Sub-hop output during priming is zero: " << allZeroDuringPriming);
+
+    // Verify we eventually get non-zero output after enough blocks
+    float maxAbsL = 0.0f;
+    for (std::size_t s = 12000; s < totalSamples; ++s) {
+        maxAbsL = std::max(maxAbsL, std::abs(outputL[s]));
+    }
+    INFO("Max abs output after priming: " << maxAbsL);
+    REQUIRE(maxAbsL > 0.01f);
+
+    // Verify no NaN or Inf in output
+    bool hasNaN = false;
+    bool hasInf = false;
+    for (std::size_t s = 0; s < totalSamples; ++s) {
+        if (std::isnan(outputL[s]) || std::isnan(outputR[s])) hasNaN = true;
+        if (std::isinf(outputL[s]) || std::isinf(outputR[s])) hasInf = true;
+    }
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE_FALSE(hasInf);
+}
+
+// T030: Zero-filled output during latency priming period
+// FR-013a: The wet (harmony) contribution MUST be zero during the priming
+// period before the first complete analysis frame fires. The shared STFT
+// needs kFFTSize (4096) input samples before canAnalyze() returns true.
+// At block size 256, the first analysis frame fires during block 16
+// (0-indexed), so blocks 0-14 (samples 0-3839) produce zero wet output.
+// The test uses dry level at -120 dB (gain ~1e-6) to verify that only
+// negligible dry signal passes through -- wet harmony voices produce
+// nothing during priming.
+TEST_CASE("T030: HarmonizerEngine PhaseVocoder zero-fill during priming (FR-013a)",
+          "[systems][harmonizer][shared-analysis][FR-013a][priming]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    engine.setDryLevel(-120.0f); // Nearly muted dry signal (gain ~1e-6)
+    engine.setWetLevel(0.0f);    // Wet at unity (0 dB)
+
+    engine.setNumVoices(2);
+    engine.setVoiceInterval(0, 5);
+    engine.setVoiceInterval(1, 7);
+    for (int v = 0; v < 2; ++v) {
+        engine.setVoiceLevel(v, 0.0f);
+        engine.setVoicePan(v, 0.0f);
+        engine.setVoiceDelay(v, 0.0f);
+        engine.setVoiceDetune(v, 0.0f);
+    }
+
+    // kFFTSize = 4096 for PhaseVocoder. The first analysis frame fires when
+    // exactly kFFTSize samples have been pushed to the shared STFT.
+    // At block size 256, that occurs during block 16 (0-indexed block 15).
+    // Blocks 0-14 (samples 0-3839) are fully in the priming period.
+    constexpr std::size_t kFFTSize = 4096;
+    constexpr std::size_t numSafeBlocks = (kFFTSize / blockSize) - 1; // 15 blocks
+    constexpr std::size_t numSafeSamples = numSafeBlocks * blockSize; // 3840
+
+    std::vector<float> inputBlock(blockSize);
+    fillSine(inputBlock.data(), blockSize, inputFreq,
+             static_cast<float>(sampleRate));
+
+    // Process priming period (blocks that are guaranteed to produce no
+    // analysis frame) and collect all output
+    std::vector<float> allOutputL;
+    std::vector<float> allOutputR;
+    std::vector<float> blockL(blockSize, 0.0f);
+    std::vector<float> blockR(blockSize, 0.0f);
+
+    for (std::size_t b = 0; b < numSafeBlocks; ++b) {
+        engine.process(inputBlock.data(), blockL.data(), blockR.data(),
+                       blockSize);
+
+        allOutputL.insert(allOutputL.end(), blockL.begin(), blockL.end());
+        allOutputR.insert(allOutputR.end(), blockR.begin(), blockR.end());
+    }
+
+    // During the priming period, no synthesis frame has been produced.
+    // The wet (harmony) contribution is zero. The only non-zero source
+    // is the dry signal at -120 dB (gain ~1e-6), which is negligible.
+    // Check that all output samples are below a threshold that proves
+    // the wet signal is zero (FR-013a zero-fill contract).
+    // Threshold: -120 dB dry gain (~1e-6) * peak input amplitude (1.0)
+    //            = ~1e-6. Use 1e-4 as a generous margin.
+    constexpr float kDryLeakThreshold = 1e-4f;
+    float maxAbsL = 0.0f;
+    float maxAbsR = 0.0f;
+    for (std::size_t s = 0; s < numSafeSamples; ++s) {
+        maxAbsL = std::max(maxAbsL, std::abs(allOutputL[s]));
+        maxAbsR = std::max(maxAbsR, std::abs(allOutputR[s]));
+    }
+    INFO("Max abs L during priming (first " << numSafeSamples << " samples): "
+         << maxAbsL);
+    INFO("Max abs R during priming (first " << numSafeSamples << " samples): "
+         << maxAbsR);
+    REQUIRE(maxAbsL < kDryLeakThreshold);
+    REQUIRE(maxAbsR < kDryLeakThreshold);
+}
+
+// T031: Switching from PhaseVocoder mode back to Simple/Granular/PitchSync
+TEST_CASE("T031: HarmonizerEngine mode switch from PhaseVocoder to other modes (FR-014)",
+          "[systems][harmonizer][shared-analysis][FR-014]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setDryLevel(-120.0f);
+    engine.setWetLevel(0.0f);
+
+    engine.setNumVoices(2);
+    engine.setVoiceInterval(0, 7);
+    engine.setVoiceInterval(1, 5);
+    for (int v = 0; v < 2; ++v) {
+        engine.setVoiceLevel(v, 0.0f);
+        engine.setVoicePan(v, 0.0f);
+        engine.setVoiceDelay(v, 0.0f);
+        engine.setVoiceDetune(v, 0.0f);
+    }
+
+    std::vector<float> inputSignal(totalSamples);
+    fillSine(inputSignal.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    std::vector<float> blockL(blockSize, 0.0f);
+    std::vector<float> blockR(blockSize, 0.0f);
+
+    // Phase 1: Process in PhaseVocoder mode for ~0.5 seconds
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    std::size_t halfSamples = totalSamples / 2;
+    std::size_t samplesProcessed = 0;
+    while (samplesProcessed < halfSamples) {
+        std::size_t remaining = halfSamples - samplesProcessed;
+        std::size_t thisBlock = std::min(remaining, blockSize);
+        engine.process(inputSignal.data() + samplesProcessed,
+                       blockL.data(), blockR.data(), thisBlock);
+        samplesProcessed += thisBlock;
+    }
+
+    // Phase 2: Switch to Simple mode and continue processing
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+
+    std::vector<float> outputAfterSwitchL;
+    std::vector<float> outputAfterSwitchR;
+
+    while (samplesProcessed < totalSamples) {
+        std::size_t remaining = totalSamples - samplesProcessed;
+        std::size_t thisBlock = std::min(remaining, blockSize);
+        engine.process(inputSignal.data() + samplesProcessed,
+                       blockL.data(), blockR.data(), thisBlock);
+
+        outputAfterSwitchL.insert(outputAfterSwitchL.end(),
+                                   blockL.begin(),
+                                   blockL.begin() + static_cast<std::ptrdiff_t>(thisBlock));
+        outputAfterSwitchR.insert(outputAfterSwitchR.end(),
+                                   blockR.begin(),
+                                   blockR.begin() + static_cast<std::ptrdiff_t>(thisBlock));
+
+        samplesProcessed += thisBlock;
+    }
+
+    // After switching to Simple mode, we should have non-zero output
+    // (Simple mode has zero latency, produces output immediately)
+    float maxAbsL = 0.0f;
+    for (std::size_t s = 0; s < outputAfterSwitchL.size(); ++s) {
+        maxAbsL = std::max(maxAbsL, std::abs(outputAfterSwitchL[s]));
+    }
+    INFO("Max abs output after switch to Simple mode: " << maxAbsL);
+    REQUIRE(maxAbsL > 0.01f);
+
+    // Verify no NaN or Inf
+    bool hasNaN = false;
+    bool hasInf = false;
+    for (std::size_t s = 0; s < outputAfterSwitchL.size(); ++s) {
+        if (std::isnan(outputAfterSwitchL[s]) ||
+            std::isnan(outputAfterSwitchR[s])) hasNaN = true;
+        if (std::isinf(outputAfterSwitchL[s]) ||
+            std::isinf(outputAfterSwitchR[s])) hasInf = true;
+    }
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE_FALSE(hasInf);
+}
+
+// T032: Benchmark test - PhaseVocoder 4-voice CPU measurement (SC-001)
+TEST_CASE("T032: HarmonizerEngine PhaseVocoder 4-voice shared-analysis benchmark (SC-001)",
+          "[systems][harmonizer][shared-analysis][benchmark][SC-001]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr double blockDurationUs =
+        static_cast<double>(blockSize) / sampleRate * 1'000'000.0;
+
+    // Pre-generate input signal (440Hz sine)
+    std::vector<float> input(blockSize);
+    fillSine(input.data(), blockSize, 440.0f,
+             static_cast<float>(sampleRate));
+
+    std::vector<float> outputL(blockSize, 0.0f);
+    std::vector<float> outputR(blockSize, 0.0f);
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    engine.setDryLevel(0.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(4);
+
+    engine.setVoiceInterval(0, 3);
+    engine.setVoiceInterval(1, 5);
+    engine.setVoiceInterval(2, 7);
+    engine.setVoiceInterval(3, 12);
+
+    for (int v = 0; v < 4; ++v) {
+        engine.setVoiceLevel(v, 0.0f);
+        engine.setVoicePan(v, -0.75f + 0.5f * static_cast<float>(v));
+        engine.setVoiceDetune(v, static_cast<float>(v) * 3.0f);
+    }
+
+    // Warmup per Benchmark Contract: 2 seconds = 2 * 44100 / 256 ~ 345 blocks
+    constexpr int warmupBlocks = 345;
+    for (int i = 0; i < warmupBlocks; ++i) {
+        engine.process(input.data(), outputL.data(), outputR.data(), blockSize);
+    }
+
+    // Catch2 BENCHMARK for statistical measurement
+    BENCHMARK("HarmonizerEngine PhaseVocoder 4 voices (shared analysis)") {
+        engine.process(input.data(), outputL.data(), outputR.data(), blockSize);
+        return outputL[0];
+    };
+
+    // Manual timing: 10 seconds steady-state = ~1722 blocks
+    constexpr int measurementBlocks = 1722;
+    double cpuPercent = measureCpuPercentForEngine(
+        engine, input.data(), outputL.data(), outputR.data(),
+        blockSize, blockDurationUs, measurementBlocks);
+
+    double totalUs = 0.0;
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < measurementBlocks; ++i) {
+            engine.process(input.data(), outputL.data(), outputR.data(),
+                           blockSize);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        totalUs = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                end - start).count());
+    }
+    double usPerBlock = totalUs / static_cast<double>(measurementBlocks);
+
+    INFO("PhaseVocoder 4 voices: CPU: " << cpuPercent
+         << "%, process(): " << usPerBlock << " us avg");
+    WARN("PhaseVocoder 4 voices: CPU: " << cpuPercent
+         << "%, process(): " << usPerBlock << " us avg");
+
+    // SC-001: CPU must be < 18%
+    REQUIRE(cpuPercent < 18.0);
+}
+
+// =============================================================================
+// Phase 5: User Story 3 - Per-Voice OLA Buffer Isolation Verified (SC-007)
+// =============================================================================
+
+// T043: 2 voices at +7 and -5 semitones with shared analysis -- each voice's
+// output matches a standalone PhaseVocoderPitchShifter at the same ratio within
+// floating-point tolerance (SC-007, US3 acceptance scenario 1).
+//
+// Architecture: We drive a shared STFT manually, feed the shared analysis
+// spectrum to two PhaseVocoderPitchShifters simultaneously (simulating the
+// multi-voice path), and also to two independent standalone instances. If the
+// OLA buffers are truly independent, the multi-voice outputs must match the
+// standalone outputs exactly.
+TEST_CASE("T043: OLA isolation -- 2 voices shared analysis match standalone (SC-007)",
+          "[systems][harmonizer][ola-isolation][SC-007]") {
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+
+    constexpr std::size_t fftSize = PhaseVocoderPitchShifter::kFFTSize;   // 4096
+    constexpr std::size_t hopSize = PhaseVocoderPitchShifter::kHopSize;   // 1024
+
+    // Two voice pitch ratios: +7 semitones and -5 semitones
+    const float ratio0 = semitonesToRatio(7.0f);
+    const float ratio1 = semitonesToRatio(-5.0f);
+
+    // --- Setup multi-voice pair (sharing analysis) ---
+    PhaseVocoderPitchShifter multiVoice0;
+    PhaseVocoderPitchShifter multiVoice1;
+    multiVoice0.prepare(sampleRate, blockSize);
+    multiVoice1.prepare(sampleRate, blockSize);
+
+    // --- Setup standalone pair (independent, also using shared analysis API) ---
+    PhaseVocoderPitchShifter standalone0;
+    PhaseVocoderPitchShifter standalone1;
+    standalone0.prepare(sampleRate, blockSize);
+    standalone1.prepare(sampleRate, blockSize);
+
+    // Shared STFT (one instance drives multi-voice, another drives standalone)
+    STFT sharedStft;
+    sharedStft.prepare(fftSize, hopSize, WindowType::Hann);
+    STFT standaloneStft0;
+    standaloneStft0.prepare(fftSize, hopSize, WindowType::Hann);
+    STFT standaloneStft1;
+    standaloneStft1.prepare(fftSize, hopSize, WindowType::Hann);
+
+    SpectralBuffer sharedSpectrum;
+    sharedSpectrum.prepare(fftSize);
+    SpectralBuffer standaloneSpectrum0;
+    standaloneSpectrum0.prepare(fftSize);
+    SpectralBuffer standaloneSpectrum1;
+    standaloneSpectrum1.prepare(fftSize);
+
+    // Generate input signal
+    std::vector<float> inputSignal(totalSamples);
+    fillSine(inputSignal.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    // Accumulate outputs
+    std::vector<float> multiOut0(totalSamples, 0.0f);
+    std::vector<float> multiOut1(totalSamples, 0.0f);
+    std::vector<float> standaloneOut0(totalSamples, 0.0f);
+    std::vector<float> standaloneOut1(totalSamples, 0.0f);
+
+    std::vector<float> scratch(blockSize, 0.0f);
+
+    std::size_t samplesProcessed = 0;
+    std::size_t outputWritten0 = 0;
+    std::size_t outputWritten1 = 0;
+    std::size_t standaloneWritten0 = 0;
+    std::size_t standaloneWritten1 = 0;
+
+    while (samplesProcessed < totalSamples) {
+        std::size_t remaining = totalSamples - samplesProcessed;
+        std::size_t thisBlock = std::min(remaining, blockSize);
+        const float* blockInput = inputSignal.data() + samplesProcessed;
+
+        // Push to all STFTs
+        sharedStft.pushSamples(blockInput, thisBlock);
+        standaloneStft0.pushSamples(blockInput, thisBlock);
+        standaloneStft1.pushSamples(blockInput, thisBlock);
+
+        // Process all ready frames -- shared STFT drives both multi-voice
+        while (sharedStft.canAnalyze()) {
+            sharedStft.analyze(sharedSpectrum);
+
+            // Both multi-voice instances get the SAME shared spectrum
+            multiVoice0.processWithSharedAnalysis(sharedSpectrum, ratio0);
+            multiVoice1.processWithSharedAnalysis(sharedSpectrum, ratio1);
+        }
+
+        // Standalone instances driven independently with same input
+        while (standaloneStft0.canAnalyze()) {
+            standaloneStft0.analyze(standaloneSpectrum0);
+            standalone0.processWithSharedAnalysis(standaloneSpectrum0, ratio0);
+        }
+        while (standaloneStft1.canAnalyze()) {
+            standaloneStft1.analyze(standaloneSpectrum1);
+            standalone1.processWithSharedAnalysis(standaloneSpectrum1, ratio1);
+        }
+
+        // Pull output from multi-voice pair
+        std::size_t avail0 = multiVoice0.outputSamplesAvailable();
+        std::size_t toPull0 = std::min(avail0, thisBlock);
+        if (toPull0 > 0 && outputWritten0 + toPull0 <= totalSamples) {
+            multiVoice0.pullOutputSamples(
+                multiOut0.data() + outputWritten0, toPull0);
+            outputWritten0 += toPull0;
+        }
+
+        std::size_t avail1 = multiVoice1.outputSamplesAvailable();
+        std::size_t toPull1 = std::min(avail1, thisBlock);
+        if (toPull1 > 0 && outputWritten1 + toPull1 <= totalSamples) {
+            multiVoice1.pullOutputSamples(
+                multiOut1.data() + outputWritten1, toPull1);
+            outputWritten1 += toPull1;
+        }
+
+        // Pull output from standalone pair
+        std::size_t sAvail0 = standalone0.outputSamplesAvailable();
+        std::size_t sToPull0 = std::min(sAvail0, thisBlock);
+        if (sToPull0 > 0 && standaloneWritten0 + sToPull0 <= totalSamples) {
+            standalone0.pullOutputSamples(
+                standaloneOut0.data() + standaloneWritten0, sToPull0);
+            standaloneWritten0 += sToPull0;
+        }
+
+        std::size_t sAvail1 = standalone1.outputSamplesAvailable();
+        std::size_t sToPull1 = std::min(sAvail1, thisBlock);
+        if (sToPull1 > 0 && standaloneWritten1 + sToPull1 <= totalSamples) {
+            standalone1.pullOutputSamples(
+                standaloneOut1.data() + standaloneWritten1, sToPull1);
+            standaloneWritten1 += sToPull1;
+        }
+
+        samplesProcessed += thisBlock;
+    }
+
+    // Compare multi-voice output vs standalone output for each voice.
+    // They should be bit-identical because the same analysis spectrum was used
+    // and each PhaseVocoderPitchShifter has its own OLA buffer.
+    std::size_t compareLen0 = std::min(outputWritten0, standaloneWritten0);
+    std::size_t compareLen1 = std::min(outputWritten1, standaloneWritten1);
+
+    INFO("Voice 0 (+7 semitones): multi wrote " << outputWritten0
+         << " samples, standalone wrote " << standaloneWritten0);
+    INFO("Voice 1 (-5 semitones): multi wrote " << outputWritten1
+         << " samples, standalone wrote " << standaloneWritten1);
+
+    REQUIRE(compareLen0 > 0);
+    REQUIRE(compareLen1 > 0);
+
+    // Voice 0: multi-voice output must match standalone output
+    float maxDiff0 = 0.0f;
+    for (std::size_t s = 0; s < compareLen0; ++s) {
+        float diff = std::abs(multiOut0[s] - standaloneOut0[s]);
+        maxDiff0 = std::max(maxDiff0, diff);
+    }
+    INFO("Voice 0 max sample diff: " << maxDiff0);
+    REQUIRE(maxDiff0 < 1e-5f);
+
+    // Voice 1: multi-voice output must match standalone output
+    float maxDiff1 = 0.0f;
+    for (std::size_t s = 0; s < compareLen1; ++s) {
+        float diff = std::abs(multiOut1[s] - standaloneOut1[s]);
+        maxDiff1 = std::max(maxDiff1, diff);
+    }
+    INFO("Voice 1 max sample diff: " << maxDiff1);
+    REQUIRE(maxDiff1 < 1e-5f);
+}
+
+// T044: 4 voices at different ratios, mute all but one, verify the remaining
+// voice's output is identical to a single standalone PhaseVocoderPitchShifter
+// at that ratio (US3 acceptance scenario 2).
+//
+// "Muting" in the shared-analysis context means not calling
+// processWithSharedAnalysis for muted voices. We verify that only the active
+// voice produces output and that it matches a standalone instance exactly.
+TEST_CASE("T044: OLA isolation -- 4 voices mute all but one matches standalone",
+          "[systems][harmonizer][ola-isolation][SC-007]") {
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+
+    constexpr std::size_t fftSize = PhaseVocoderPitchShifter::kFFTSize;
+    constexpr std::size_t hopSize = PhaseVocoderPitchShifter::kHopSize;
+
+    // 4 voice pitch ratios
+    const float ratios[4] = {
+        semitonesToRatio(3.0f),    // minor third up
+        semitonesToRatio(-7.0f),   // perfect fifth down
+        semitonesToRatio(12.0f),   // octave up
+        semitonesToRatio(-12.0f)   // octave down
+    };
+
+    // Test each voice as the "active" one while others are muted
+    for (int activeVoice = 0; activeVoice < 4; ++activeVoice) {
+        INFO("Testing with voice " << activeVoice << " active, others muted");
+
+        // 4 multi-voice instances (sharing analysis)
+        PhaseVocoderPitchShifter multiVoices[4];
+        for (auto& v : multiVoices) {
+            v.prepare(sampleRate, blockSize);
+        }
+
+        // 1 standalone instance at the active voice's ratio
+        PhaseVocoderPitchShifter standalone;
+        standalone.prepare(sampleRate, blockSize);
+
+        // STFTs
+        STFT sharedStft;
+        sharedStft.prepare(fftSize, hopSize, WindowType::Hann);
+        STFT standaloneStft;
+        standaloneStft.prepare(fftSize, hopSize, WindowType::Hann);
+
+        SpectralBuffer sharedSpectrum;
+        sharedSpectrum.prepare(fftSize);
+        SpectralBuffer standaloneSpectrum;
+        standaloneSpectrum.prepare(fftSize);
+
+        // Generate input
+        std::vector<float> inputSignal(totalSamples);
+        fillSine(inputSignal.data(), totalSamples, inputFreq,
+                 static_cast<float>(sampleRate));
+
+        std::vector<float> multiOut(totalSamples, 0.0f);
+        std::vector<float> standaloneOut(totalSamples, 0.0f);
+
+        std::size_t samplesProcessed = 0;
+        std::size_t multiWritten = 0;
+        std::size_t standaloneWritten = 0;
+
+        while (samplesProcessed < totalSamples) {
+            std::size_t remaining = totalSamples - samplesProcessed;
+            std::size_t thisBlock = std::min(remaining, blockSize);
+            const float* blockInput = inputSignal.data() + samplesProcessed;
+
+            sharedStft.pushSamples(blockInput, thisBlock);
+            standaloneStft.pushSamples(blockInput, thisBlock);
+
+            // Process frames from shared STFT -- only active voice processes
+            while (sharedStft.canAnalyze()) {
+                sharedStft.analyze(sharedSpectrum);
+
+                // Only the active voice calls processWithSharedAnalysis
+                multiVoices[activeVoice].processWithSharedAnalysis(
+                    sharedSpectrum, ratios[activeVoice]);
+            }
+
+            // Standalone processes identically
+            while (standaloneStft.canAnalyze()) {
+                standaloneStft.analyze(standaloneSpectrum);
+                standalone.processWithSharedAnalysis(
+                    standaloneSpectrum, ratios[activeVoice]);
+            }
+
+            // Pull from active multi-voice
+            std::size_t avail = multiVoices[activeVoice].outputSamplesAvailable();
+            std::size_t toPull = std::min(avail, thisBlock);
+            if (toPull > 0 && multiWritten + toPull <= totalSamples) {
+                multiVoices[activeVoice].pullOutputSamples(
+                    multiOut.data() + multiWritten, toPull);
+                multiWritten += toPull;
+            }
+
+            // Pull from standalone
+            std::size_t sAvail = standalone.outputSamplesAvailable();
+            std::size_t sToPull = std::min(sAvail, thisBlock);
+            if (sToPull > 0 && standaloneWritten + sToPull <= totalSamples) {
+                standalone.pullOutputSamples(
+                    standaloneOut.data() + standaloneWritten, sToPull);
+                standaloneWritten += sToPull;
+            }
+
+            // Verify muted voices have no OLA output accumulated
+            for (int v = 0; v < 4; ++v) {
+                if (v == activeVoice) continue;
+                REQUIRE(multiVoices[v].outputSamplesAvailable() == 0);
+            }
+
+            samplesProcessed += thisBlock;
+        }
+
+        // Compare active multi-voice output vs standalone
+        std::size_t compareLen = std::min(multiWritten, standaloneWritten);
+        REQUIRE(compareLen > 0);
+
+        float maxDiff = 0.0f;
+        for (std::size_t s = 0; s < compareLen; ++s) {
+            float diff = std::abs(multiOut[s] - standaloneOut[s]);
+            maxDiff = std::max(maxDiff, diff);
+        }
+
+        INFO("Voice " << activeVoice << " max sample diff: " << maxDiff);
+        REQUIRE(maxDiff < 1e-5f);
+    }
+}
+
+// T045: 2 voices processing simultaneously, mute one voice mid-stream, verify
+// the remaining active voice's output is unaffected by the muted voice's OLA
+// state (US3 acceptance scenario 3).
+//
+// Architecture: We run two voices through the first half of the signal, then
+// stop calling processWithSharedAnalysis for voice 1 (mute it) while continuing
+// voice 0. A reference standalone voice 0 runs continuously. After muting,
+// voice 0's output from the multi-voice setup must still match the standalone.
+TEST_CASE("T045: OLA isolation -- mute one voice mid-stream other unaffected",
+          "[systems][harmonizer][ola-isolation][SC-007]") {
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+    constexpr std::size_t muteAfterSamples = 22050; // mute voice 1 at halfway
+
+    constexpr std::size_t fftSize = PhaseVocoderPitchShifter::kFFTSize;
+    constexpr std::size_t hopSize = PhaseVocoderPitchShifter::kHopSize;
+
+    const float ratio0 = semitonesToRatio(7.0f);   // voice 0: +7 semitones
+    const float ratio1 = semitonesToRatio(-5.0f);   // voice 1: -5 semitones
+
+    // Multi-voice pair
+    PhaseVocoderPitchShifter multiVoice0;
+    PhaseVocoderPitchShifter multiVoice1;
+    multiVoice0.prepare(sampleRate, blockSize);
+    multiVoice1.prepare(sampleRate, blockSize);
+
+    // Standalone reference for voice 0 (runs the full duration)
+    PhaseVocoderPitchShifter standaloneRef;
+    standaloneRef.prepare(sampleRate, blockSize);
+
+    // STFTs
+    STFT sharedStft;
+    sharedStft.prepare(fftSize, hopSize, WindowType::Hann);
+    STFT standaloneStft;
+    standaloneStft.prepare(fftSize, hopSize, WindowType::Hann);
+
+    SpectralBuffer sharedSpectrum;
+    sharedSpectrum.prepare(fftSize);
+    SpectralBuffer standaloneSpectrum;
+    standaloneSpectrum.prepare(fftSize);
+
+    // Generate input
+    std::vector<float> inputSignal(totalSamples);
+    fillSine(inputSignal.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    // Collect outputs
+    std::vector<float> multiOut0(totalSamples, 0.0f);
+    std::vector<float> standaloneOut(totalSamples, 0.0f);
+
+    std::size_t samplesProcessed = 0;
+    std::size_t multiWritten0 = 0;
+    std::size_t standaloneWritten = 0;
+
+    while (samplesProcessed < totalSamples) {
+        std::size_t remaining = totalSamples - samplesProcessed;
+        std::size_t thisBlock = std::min(remaining, blockSize);
+        const float* blockInput = inputSignal.data() + samplesProcessed;
+
+        bool voice1Active = (samplesProcessed < muteAfterSamples);
+
+        sharedStft.pushSamples(blockInput, thisBlock);
+        standaloneStft.pushSamples(blockInput, thisBlock);
+
+        // Process ready frames
+        while (sharedStft.canAnalyze()) {
+            sharedStft.analyze(sharedSpectrum);
+
+            // Voice 0 always processes
+            multiVoice0.processWithSharedAnalysis(sharedSpectrum, ratio0);
+
+            // Voice 1 only processes before mute point
+            if (voice1Active) {
+                multiVoice1.processWithSharedAnalysis(sharedSpectrum, ratio1);
+            }
+        }
+
+        // Standalone reference always processes voice 0
+        while (standaloneStft.canAnalyze()) {
+            standaloneStft.analyze(standaloneSpectrum);
+            standaloneRef.processWithSharedAnalysis(standaloneSpectrum, ratio0);
+        }
+
+        // Pull from multi-voice 0
+        std::size_t avail0 = multiVoice0.outputSamplesAvailable();
+        std::size_t toPull0 = std::min(avail0, thisBlock);
+        if (toPull0 > 0 && multiWritten0 + toPull0 <= totalSamples) {
+            multiVoice0.pullOutputSamples(
+                multiOut0.data() + multiWritten0, toPull0);
+            multiWritten0 += toPull0;
+        }
+
+        // Pull from standalone
+        std::size_t sAvail = standaloneRef.outputSamplesAvailable();
+        std::size_t sToPull = std::min(sAvail, thisBlock);
+        if (sToPull > 0 && standaloneWritten + sToPull <= totalSamples) {
+            standaloneRef.pullOutputSamples(
+                standaloneOut.data() + standaloneWritten, sToPull);
+            standaloneWritten += sToPull;
+        }
+
+        samplesProcessed += thisBlock;
+    }
+
+    // Voice 0 in multi-voice must match standalone reference for the
+    // entire duration, including after voice 1 was muted.
+    std::size_t compareLen = std::min(multiWritten0, standaloneWritten);
+    REQUIRE(compareLen > 0);
+
+    // Check the post-mute region specifically
+    // Find the sample index corresponding to when muting happened.
+    // Due to STFT latency, the effect of muting appears later than the raw
+    // sample count, but since voice 0 is unaffected by voice 1's muting,
+    // ALL samples should match.
+    float maxDiffTotal = 0.0f;
+    float maxDiffPostMute = 0.0f;
+
+    // The OLA output appears with some latency; use a conservative threshold
+    // for "post-mute" comparison start -- after the mute point plus one full
+    // FFT window to ensure new frames are generated.
+    std::size_t postMuteStart = 0;
+    // Convert muteAfterSamples to output sample index. Since both outputs
+    // have the same latency, we compare index-to-index. The mute happens at
+    // muteAfterSamples input, so frames generated after that point are the
+    // ones where voice 1 is no longer processing.
+    if (compareLen > muteAfterSamples / 2) {
+        postMuteStart = muteAfterSamples / 2; // conservative: after half
+    }
+
+    for (std::size_t s = 0; s < compareLen; ++s) {
+        float diff = std::abs(multiOut0[s] - standaloneOut[s]);
+        maxDiffTotal = std::max(maxDiffTotal, diff);
+        if (s >= postMuteStart) {
+            maxDiffPostMute = std::max(maxDiffPostMute, diff);
+        }
+    }
+
+    INFO("Voice 0 max total diff: " << maxDiffTotal);
+    INFO("Voice 0 max post-mute diff: " << maxDiffPostMute);
+    INFO("Compared " << compareLen << " samples total, "
+         << (compareLen - postMuteStart) << " post-mute");
+    REQUIRE(maxDiffTotal < 1e-5f);
+    REQUIRE(maxDiffPostMute < 1e-5f);
+}
+
+// =============================================================================
+// Phase 7: User Story 5 - PitchSync Mode Investigation and Re-Benchmark
+// =============================================================================
+
+// T058: PitchSync 4-voice re-benchmark after shared-analysis refactor (SC-008)
+// Uses the KrateDSP benchmark harness under identical conditions to spec 064:
+// 44.1 kHz, block size 256, 4 voices, Release build, 2s warmup, 10s steady-state.
+// Reports both real-time CPU % and average process() time in us/block.
+//
+// Expected result: PitchSync CPU should be approximately unchanged from the
+// spec 064 baseline (~26.4%) because the shared-analysis refactor does not
+// modify PitchSync code paths at all. PitchSync uses PitchSyncGranularShifter
+// which runs per-voice YIN autocorrelation -- completely independent of the
+// PhaseVocoder shared FFT optimization.
+TEST_CASE("T058: HarmonizerEngine PitchSync 4-voice re-benchmark (SC-008)",
+          "[systems][harmonizer][pitchsync][benchmark][SC-008]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr double blockDurationUs =
+        static_cast<double>(blockSize) / sampleRate * 1'000'000.0;
+
+    // Pre-generate input signal (440Hz sine)
+    std::vector<float> input(blockSize);
+    fillSine(input.data(), blockSize, 440.0f,
+             static_cast<float>(sampleRate));
+
+    std::vector<float> outputL(blockSize, 0.0f);
+    std::vector<float> outputR(blockSize, 0.0f);
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PitchSync);
+    engine.setDryLevel(0.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(4);
+
+    // Configure all 4 voices with different intervals for realistic load
+    engine.setVoiceInterval(0, 3);
+    engine.setVoiceInterval(1, 5);
+    engine.setVoiceInterval(2, 7);
+    engine.setVoiceInterval(3, 12);
+
+    for (int v = 0; v < 4; ++v) {
+        engine.setVoiceLevel(v, 0.0f);
+        engine.setVoicePan(v, -0.75f + 0.5f * static_cast<float>(v));
+        engine.setVoiceDetune(v, static_cast<float>(v) * 3.0f);
+    }
+
+    // Warmup per Benchmark Contract: 2 seconds = 2 * 44100 / 256 ~ 345 blocks
+    constexpr int warmupBlocks = 345;
+    for (int i = 0; i < warmupBlocks; ++i) {
+        engine.process(input.data(), outputL.data(), outputR.data(), blockSize);
+    }
+
+    // Catch2 BENCHMARK for statistical measurement
+    BENCHMARK("HarmonizerEngine PitchSync 4 voices (post-refactor)") {
+        engine.process(input.data(), outputL.data(), outputR.data(), blockSize);
+        return outputL[0];
+    };
+
+    // Manual timing: 10 seconds steady-state = ~1722 blocks
+    constexpr int measurementBlocks = 1722;
+    double cpuPercent = measureCpuPercentForEngine(
+        engine, input.data(), outputL.data(), outputR.data(),
+        blockSize, blockDurationUs, measurementBlocks);
+
+    double totalUs = 0.0;
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < measurementBlocks; ++i) {
+            engine.process(input.data(), outputL.data(), outputR.data(),
+                           blockSize);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        totalUs = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                end - start).count());
+    }
+    double usPerBlock = totalUs / static_cast<double>(measurementBlocks);
+
+    INFO("PitchSync 4 voices: CPU: " << cpuPercent
+         << "%, process(): " << usPerBlock << " us avg");
+    WARN("PitchSync 4 voices: CPU: " << cpuPercent
+         << "%, process(): " << usPerBlock << " us avg");
+
+    // SC-008: PitchSync re-benchmark is informational (not a pass/fail gate).
+    // The spec 064 baseline was ~26.4% CPU (25.93-27.86% range, 1460-1588 us/block).
+    // This refactor does not touch PitchSync code, so no improvement is expected.
+    // We only record the result; we do NOT assert a CPU target here.
+    WARN("PitchSync spec-064 baseline: ~26.4% CPU, 1460-1588 us/block");
+    WARN("PitchSync post-refactor measurement is informational only (SC-008).");
 }

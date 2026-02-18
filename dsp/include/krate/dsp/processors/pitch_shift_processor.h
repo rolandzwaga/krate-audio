@@ -19,13 +19,14 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cmath>
 #include <memory>
 #include <vector>
-#include <algorithm>
 
 // Layer 0 dependencies
 #include <krate/dsp/core/db_utils.h>
@@ -284,6 +285,93 @@ public:
     ///
     /// @pre isPrepared() == true
     [[nodiscard]] std::size_t getLatencySamples() const noexcept;
+
+    //=========================================================================
+    // Shared-Analysis API (spec 065)
+    //=========================================================================
+
+    /// @brief Process one analysis frame using shared analysis, bypassing internal STFT.
+    ///
+    /// When mode is PhaseVocoder: delegates to internal PhaseVocoderPitchShifter's
+    /// processWithSharedAnalysis(). The pitch ratio is passed directly without
+    /// internal parameter smoothing (the caller is responsible for smoothing).
+    ///
+    /// When mode is NOT PhaseVocoder (Simple, Granular, PitchSync): no-op.
+    /// No frame is pushed to the OLA buffer. pullSharedAnalysisOutput() will
+    /// return 0 for this frame.
+    ///
+    /// @param analysis  Read-only reference to pre-computed analysis spectrum.
+    /// @param pitchRatio  Pitch ratio for this frame (direct, not smoothed).
+    ///
+    /// @pre prepare() has been called.
+    /// @pre Mode is set via setMode() before calling.
+    void processWithSharedAnalysis(const SpectralBuffer& analysis,
+                                   float pitchRatio) noexcept;
+
+    /// @brief Synthesize one frame as a unity-pitch passthrough (FR-025).
+    ///
+    /// Called by HarmonizerEngine for voices whose pitch ratio is near unity.
+    /// Passes the analysis spectrum directly to the OLA buffer without going
+    /// through processFrame(). This matches the latency behavior of the
+    /// internal processUnityPitch() method for output equivalence (SC-002).
+    ///
+    /// When mode is NOT PhaseVocoder: no-op.
+    ///
+    /// @param analysis  Read-only reference to pre-computed analysis spectrum.
+    ///                  Must have numBins() == kFFTSize / 2 + 1 (2049).
+    void synthesizePassthrough(const SpectralBuffer& analysis) noexcept;
+
+    /// @brief Pull output samples from the PhaseVocoder OLA buffer after
+    ///        processWithSharedAnalysis() calls.
+    ///
+    /// @param output      Destination buffer.
+    /// @param maxSamples  Maximum samples to pull.
+    /// @return            Samples actually written (may be less if OLA has fewer).
+    ///
+    /// When mode is NOT PhaseVocoder: returns 0, output untouched.
+    std::size_t pullSharedAnalysisOutput(float* output,
+                                         std::size_t maxSamples) noexcept;
+
+    /// @brief Query available output samples from the PhaseVocoder OLA buffer.
+    ///
+    /// @return Samples available, or 0 if mode is not PhaseVocoder.
+    [[nodiscard]] std::size_t sharedAnalysisSamplesAvailable() const noexcept;
+
+    //=========================================================================
+    // Shared Pitch Detection API (PitchSync optimization)
+    //=========================================================================
+
+    /// @brief Process PitchSync audio with externally-provided pitch detection.
+    ///
+    /// When mode is PitchSync: delegates to PitchSyncGranularShifter's
+    /// processWithSharedPitch(), bypassing the internal per-voice PitchDetector.
+    /// The caller (HarmonizerEngine) runs a single shared PitchDetector and
+    /// passes the results to all voices, eliminating 75% of redundant
+    /// autocorrelation computation for 4-voice configurations.
+    ///
+    /// When mode is NOT PitchSync: falls back to standard process().
+    ///
+    /// @param input           Input samples
+    /// @param output          Output samples (can equal input)
+    /// @param numSamples      Number of samples to process
+    /// @param sharedPeriod    Detected pitch period in samples (shared detector)
+    /// @param sharedConfidence Detection confidence [0,1] (shared detector)
+    void processWithSharedPitch(const float* input, float* output,
+                                std::size_t numSamples,
+                                float sharedPeriod,
+                                float sharedConfidence) noexcept;
+
+    /// @brief Get the PhaseVocoder's FFT size for shared STFT configuration.
+    /// @return 4096 (compile-time constant).
+    [[nodiscard]] static constexpr std::size_t getPhaseVocoderFFTSize() noexcept {
+        return 4096;
+    }
+
+    /// @brief Get the PhaseVocoder's hop size for shared STFT configuration.
+    /// @return 1024 (compile-time constant).
+    [[nodiscard]] static constexpr std::size_t getPhaseVocoderHopSize() noexcept {
+        return 1024;
+    }
 
 private:
     //=========================================================================
@@ -785,63 +873,49 @@ public:
             pitchDetector_.push(input[i]);
 
             // Update grain size based on detected pitch
-            updateGrainSize();
+            updateGrainSizeFromDetector();
 
-            // Crossfade parameters based on current grain size
-            const float crossfadeLength = maxDelay_ * 0.4f;  // 40% crossfade
-            const float crossfadeRate = 1.0f / crossfadeLength;
-            const float triggerThreshold = crossfadeLength;
+            processGranularSample(output, i, pitchRatio, delayChange, bufferSizeF);
+        }
+    }
 
-            // Read from both delay taps
-            float readPos1 = static_cast<float>(writePos_) - delay1_;
-            float readPos2 = static_cast<float>(writePos_) - delay2_;
-
-            if (readPos1 < 0.0f) readPos1 += bufferSizeF;
-            if (readPos2 < 0.0f) readPos2 += bufferSizeF;
-
-            float sample1 = readInterpolated(readPos1);
-            float sample2 = readInterpolated(readPos2);
-
-            // Hann window crossfade
-            std::size_t fadeIdx = static_cast<std::size_t>(crossfadePhase_ *
-                                  static_cast<float>(crossfadeWindowSize_));
-            if (fadeIdx >= crossfadeWindowSize_) fadeIdx = crossfadeWindowSize_ - 1;
-
-            float gain2 = crossfadeWindow_[fadeIdx];
-            float gain1 = 1.0f - gain2;
-
-            output[i] = sample1 * gain1 + sample2 * gain2;
-
-            // Update both delays
-            delay1_ += delayChange;
-            delay2_ += delayChange;
-
-            // Check if we need to start a crossfade
-            if (!needsCrossfade_) {
-                bool approachingLimit = (delayChange < 0.0f && delay1_ <= minDelay_ + triggerThreshold) ||
-                                        (delayChange > 0.0f && delay1_ >= maxDelay_ - triggerThreshold);
-
-                if (approachingLimit) {
-                    delay2_ = (pitchRatio > 1.0f) ? maxDelay_ : minDelay_;
-                    needsCrossfade_ = true;
-                }
+    /// @brief Process audio with externally-provided pitch detection results.
+    ///
+    /// Same granular synthesis as process(), but skips the internal
+    /// PitchDetector. Used by HarmonizerEngine to share a single pitch
+    /// detection across all PitchSync voices (eliminates 75% redundant work).
+    ///
+    /// @param input         Input samples
+    /// @param output        Output samples (can equal input for in-place)
+    /// @param numSamples    Number of samples to process
+    /// @param pitchRatio    Pitch shift ratio (e.g. 2.0 = octave up)
+    /// @param sharedPeriod  Detected pitch period in samples (from shared detector)
+    /// @param sharedConfidence  Detection confidence [0,1] (from shared detector)
+    void processWithSharedPitch(const float* input, float* output,
+                                std::size_t numSamples, float pitchRatio,
+                                float sharedPeriod,
+                                float sharedConfidence) noexcept {
+        // At unity pitch, pass through
+        if (std::abs(pitchRatio - 1.0f) < 0.0001f) {
+            if (input != output) {
+                std::copy(input, input + numSamples, output);
             }
+            return;
+        }
 
-            // Manage crossfade
-            if (needsCrossfade_) {
-                crossfadePhase_ += crossfadeRate;
+        pitchRatio = std::clamp(pitchRatio, 0.25f, 4.0f);
 
-                if (crossfadePhase_ >= 1.0f) {
-                    crossfadePhase_ = 0.0f;
-                    needsCrossfade_ = false;
-                    std::swap(delay1_, delay2_);
-                }
-            }
+        const float delayChange = 1.0f - pitchRatio;
+        const float bufferSizeF = static_cast<float>(bufferSize_);
 
-            delay1_ = std::clamp(delay1_, minDelay_, maxDelay_);
-            delay2_ = std::clamp(delay2_, minDelay_, maxDelay_);
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            // Write to buffer (still needed for granular read-back)
+            buffer_[writePos_] = input[i];
 
-            writePos_ = (writePos_ + 1) % bufferSize_;
+            // Use shared pitch detection results instead of internal detector
+            updateGrainSizeFromPeriod(sharedPeriod, sharedConfidence);
+
+            processGranularSample(output, i, pitchRatio, delayChange, bufferSizeF);
         }
     }
 
@@ -861,10 +935,85 @@ public:
     }
 
 private:
-    /// @brief Update grain size based on pitch detection
-    void updateGrainSize() noexcept {
-        float period = pitchDetector_.getDetectedPeriod();
+    /// @brief Core per-sample granular synthesis (shared by process and processWithSharedPitch)
+    void processGranularSample(float* output, std::size_t i,
+                               float pitchRatio, float delayChange,
+                               float bufferSizeF) noexcept {
+        // Crossfade parameters based on current grain size
+        const float crossfadeLength = maxDelay_ * 0.4f;  // 40% crossfade
+        const float crossfadeRate = 1.0f / crossfadeLength;
+        const float triggerThreshold = crossfadeLength;
 
+        // Read from both delay taps
+        float readPos1 = static_cast<float>(writePos_) - delay1_;
+        float readPos2 = static_cast<float>(writePos_) - delay2_;
+
+        if (readPos1 < 0.0f) readPos1 += bufferSizeF;
+        if (readPos2 < 0.0f) readPos2 += bufferSizeF;
+
+        float sample1 = readInterpolated(readPos1);
+        float sample2 = readInterpolated(readPos2);
+
+        // Hann window crossfade
+        std::size_t fadeIdx = static_cast<std::size_t>(crossfadePhase_ *
+                              static_cast<float>(crossfadeWindowSize_));
+        if (fadeIdx >= crossfadeWindowSize_) fadeIdx = crossfadeWindowSize_ - 1;
+
+        float gain2 = crossfadeWindow_[fadeIdx];
+        float gain1 = 1.0f - gain2;
+
+        output[i] = sample1 * gain1 + sample2 * gain2;
+
+        // Update both delays
+        delay1_ += delayChange;
+        delay2_ += delayChange;
+
+        // Check if we need to start a crossfade
+        if (!needsCrossfade_) {
+            bool approachingLimit = (delayChange < 0.0f && delay1_ <= minDelay_ + triggerThreshold) ||
+                                    (delayChange > 0.0f && delay1_ >= maxDelay_ - triggerThreshold);
+
+            if (approachingLimit) {
+                delay2_ = (pitchRatio > 1.0f) ? maxDelay_ : minDelay_;
+                needsCrossfade_ = true;
+            }
+        }
+
+        // Manage crossfade
+        if (needsCrossfade_) {
+            crossfadePhase_ += crossfadeRate;
+
+            if (crossfadePhase_ >= 1.0f) {
+                crossfadePhase_ = 0.0f;
+                needsCrossfade_ = false;
+                std::swap(delay1_, delay2_);
+            }
+        }
+
+        delay1_ = std::clamp(delay1_, minDelay_, maxDelay_);
+        delay2_ = std::clamp(delay2_, minDelay_, maxDelay_);
+
+        writePos_ = (writePos_ + 1) % bufferSize_;
+    }
+
+    /// @brief Update grain size from internal pitch detector
+    void updateGrainSizeFromDetector() noexcept {
+        applyGrainSize(pitchDetector_.getDetectedPeriod());
+    }
+
+    /// @brief Update grain size from externally-provided pitch period
+    /// @param period  Detected period in samples
+    /// @param confidence  Detection confidence [0,1]; uses default period if below threshold
+    void updateGrainSizeFromPeriod(float period, float confidence) noexcept {
+        if (confidence < PitchDetector::kConfidenceThreshold) {
+            // Low confidence: use default period (same behavior as internal detector)
+            period = PitchDetector::kDefaultPeriodMs * 0.001f * sampleRate_;
+        }
+        applyGrainSize(period);
+    }
+
+    /// @brief Apply detected period to grain size (common logic)
+    void applyGrainSize(float period) noexcept {
         // Use 2x period for grain size (gives one complete cycle + crossfade)
         float grainSizeF = period * kPeriodMultiplier;
 
@@ -1108,8 +1257,8 @@ public:
             // Analyze frame
             stft_.analyze(analysisSpectrum_);
 
-            // Phase vocoder pitch shift
-            processFrame(pitchRatio);
+            // Phase vocoder pitch shift (FR-023: pass analysis/synthesis by reference)
+            processFrame(analysisSpectrum_, synthesisSpectrum_, pitchRatio);
 
             // Synthesize frame
             ola_.synthesize(synthesisSpectrum_);
@@ -1130,6 +1279,110 @@ public:
     [[nodiscard]] std::size_t getLatencySamples() const noexcept {
         // Total latency: FFT size + hop size
         return kFFTSize + kHopSize;
+    }
+
+    //=========================================================================
+    // Shared-Analysis API (spec 065)
+    //=========================================================================
+
+    /// @brief Process one analysis frame using an externally provided spectrum.
+    ///
+    /// Performs synthesis-only processing: phase rotation, optional phase locking,
+    /// optional transient detection, optional formant preservation, synthesis iFFT,
+    /// and overlap-add. Bypasses internal STFT analysis entirely.
+    ///
+    /// @param analysis  Read-only reference to the pre-computed analysis spectrum.
+    ///                  Must have numBins() == kFFTSize / 2 + 1 (2049).
+    ///                  The caller MUST NOT modify this spectrum during or after
+    ///                  the call. The reference is only valid for the duration
+    ///                  of this call (FR-024).
+    /// @param pitchRatio  Pitch ratio for this frame (e.g., 1.0594 for +1 semitone).
+    ///                    Clamped to [0.25, 4.0].
+    ///
+    /// @pre  prepare() has been called.
+    /// @pre  analysis.numBins() == kFFTSize / 2 + 1 (= 2049 for kFFTSize = 4096).
+    /// @post One synthesis frame has been added to the internal OLA buffer.
+    ///       Use outputSamplesAvailable() and pullOutputSamples() to retrieve output.
+    ///
+    /// In degenerate conditions (unprepared, FFT size mismatch), the method is a
+    /// no-op: no frame is pushed to the OLA buffer. pullOutputSamples() will
+    /// return 0 for this frame.
+    ///
+    /// @note This method MUST NOT apply unity-pitch bypass internally. The caller
+    ///       (HarmonizerEngine) is responsible for detecting unity pitch and
+    ///       routing accordingly (FR-025).
+    void processWithSharedAnalysis(const SpectralBuffer& analysis,
+                                   float pitchRatio) noexcept {
+        // Guard: not prepared
+        if (!ola_.isPrepared()) return;
+
+        // Guard: numBins mismatch (FR-008)
+        constexpr std::size_t kExpectedBins = kFFTSize / 2 + 1;
+        assert(analysis.numBins() == kExpectedBins &&
+               "SpectralBuffer numBins mismatch: expected kFFTSize / 2 + 1");
+        if (analysis.numBins() != kExpectedBins) return;
+
+        // Clamp pitch ratio
+        pitchRatio = std::clamp(pitchRatio, 0.25f, 4.0f);
+
+        // FR-025: Do NOT apply unity-pitch bypass here.
+        // The caller is responsible for unity-pitch routing.
+
+        // Process one frame using the external analysis spectrum
+        processFrame(analysis, synthesisSpectrum_, pitchRatio);
+
+        // Synthesize via OLA
+        ola_.synthesize(synthesisSpectrum_);
+    }
+
+    /// @brief Synthesize one frame as a unity-pitch passthrough.
+    ///
+    /// Passes the analysis spectrum directly to OLA synthesis without
+    /// going through processFrame(). Matches the behavior of the internal
+    /// processUnityPitch() method for output equivalence (SC-002).
+    ///
+    /// This is called by HarmonizerEngine when a voice's pitch ratio is
+    /// near unity (FR-025: caller responsible for unity-pitch routing).
+    ///
+    /// @param analysis  Read-only reference to the pre-computed analysis spectrum.
+    /// @pre  prepare() has been called.
+    /// @pre  analysis.numBins() == kFFTSize / 2 + 1.
+    void synthesizePassthrough(const SpectralBuffer& analysis) noexcept {
+        if (!ola_.isPrepared()) return;
+        constexpr std::size_t kExpectedBins = kFFTSize / 2 + 1;
+        if (analysis.numBins() != kExpectedBins) return;
+
+        ola_.synthesize(analysis);
+    }
+
+    /// @brief Pull processed samples from the internal OLA buffer.
+    ///
+    /// @param output      Destination buffer. Must have room for at least
+    ///                    maxSamples floats.
+    /// @param maxSamples  Maximum number of samples to pull.
+    /// @return            Number of samples actually written to output.
+    ///                    May be less than maxSamples if fewer are available.
+    ///
+    /// @pre  prepare() has been called.
+    /// @post Up to maxSamples are copied from OLA buffer to output.
+    ///       OLA buffer advances accordingly.
+    std::size_t pullOutputSamples(float* output, std::size_t maxSamples) noexcept {
+        if (!ola_.isPrepared() || output == nullptr) return 0;
+
+        std::size_t available = ola_.samplesAvailable();
+        std::size_t toPull = std::min(maxSamples, available);
+        if (toPull == 0) return 0;
+
+        ola_.pullSamples(output, toPull);
+        return toPull;
+    }
+
+    /// @brief Query how many samples are available in the OLA buffer.
+    ///
+    /// @return Number of samples that can be pulled via pullOutputSamples().
+    [[nodiscard]] std::size_t outputSamplesAvailable() const noexcept {
+        if (!ola_.isPrepared()) return 0;
+        return ola_.samplesAvailable();
     }
 
 private:
@@ -1154,15 +1407,33 @@ private:
         }
     }
 
-    /// @brief Phase vocoder frame processing
-    void processFrame(float pitchRatio) noexcept {
+    /// @brief Phase vocoder frame processing (FR-023: accepts analysis/synthesis by reference).
+    ///
+    /// Performs the core phase vocoder pitch shift on a single analysis frame:
+    /// 1. Extracts magnitude and computes instantaneous frequency from phase differences
+    /// 2. Optionally extracts original spectral envelope (formant preservation)
+    /// 3. Optionally detects transients and resets synthesis phases
+    /// 4. Optionally performs identity phase locking (peak detection + region assignment)
+    /// 5. Resamples the spectrum at the target pitch ratio with phase accumulation
+    /// 6. Optionally applies formant correction to the shifted spectrum
+    ///
+    /// The analysis spectrum is borrowed read-only for the duration of this call
+    /// (FR-024: no reference or pointer is retained after return).
+    ///
+    /// @param analysis  Read-only reference to the analysis spectrum (magnitude + phase).
+    ///                  Must have numBins() == kFFTSize / 2 + 1 (2049).
+    /// @param synthesis  Output synthesis spectrum (written with pitch-shifted Cartesian data).
+    ///                   Reset and populated during this call.
+    /// @param pitchRatio  Pitch ratio for this frame (e.g., 1.0594 for +1 semitone).
+    void processFrame(const SpectralBuffer& analysis, SpectralBuffer& synthesis,
+                      float pitchRatio) noexcept {
         const std::size_t numBins = kFFTSize / 2 + 1;
 
         // Step 1: Extract magnitude and compute instantaneous frequency
         for (std::size_t k = 0; k < numBins; ++k) {
-            // Get magnitude and phase
-            magnitude_[k] = analysisSpectrum_.getMagnitude(k);
-            float phase = analysisSpectrum_.getPhase(k);
+            // Get magnitude and phase from the analysis parameter (not internal member)
+            magnitude_[k] = analysis.getMagnitude(k);
+            float phase = analysis.getPhase(k);
 
             // Compute phase difference from previous frame
             float phaseDiff = phase - prevPhase_[k];
@@ -1249,7 +1520,7 @@ private:
         wasLocked_ = phaseLockingEnabled_;
 
         // Step 2: Pitch shift by scaling frequencies and resampling spectrum
-        synthesisSpectrum_.reset();
+        synthesis.reset();
 
         if (phaseLockingEnabled_ && numPeaks_ > 0) {
             // Two-pass synthesis: peaks first, then non-peaks
@@ -1280,7 +1551,7 @@ private:
 
                 float real = mag * std::cos(synthPhase_[k]);
                 float imag = mag * std::sin(synthPhase_[k]);
-                synthesisSpectrum_.setCartesian(k, real, imag);
+                synthesis.setCartesian(k, real, imag);
             }
 
             // Pass 2: Process NON-PEAK bins (use peak phases from Pass 1)
@@ -1324,7 +1595,7 @@ private:
 
                 float real = mag * std::cos(phaseForOutput);
                 float imag = mag * std::sin(phaseForOutput);
-                synthesisSpectrum_.setCartesian(k, real, imag);
+                synthesis.setCartesian(k, real, imag);
             }
         } else {
             // Basic path: standard per-bin phase accumulation (pre-modification behavior)
@@ -1357,7 +1628,7 @@ private:
                 // Set synthesis bin (Cartesian form)
                 float real = mag * std::cos(synthPhase_[k]);
                 float imag = mag * std::sin(synthPhase_[k]);
-                synthesisSpectrum_.setCartesian(k, real, imag);
+                synthesis.setCartesian(k, real, imag);
             }
         }
 
@@ -1382,7 +1653,7 @@ private:
                 // Reconstruct Cartesian form with adjusted magnitude
                 float real = adjustedMag * std::cos(synthPhase_[k]);
                 float imag = adjustedMag * std::sin(synthPhase_[k]);
-                synthesisSpectrum_.setCartesian(k, real, imag);
+                synthesis.setCartesian(k, real, imag);
             }
         }
     }
@@ -1433,6 +1704,13 @@ private:
     float sampleRate_ = 44100.0f;
 };
 
+// Compile-time verification that PitchShiftProcessor's FFT/hop accessors
+// match PhaseVocoderPitchShifter's constants (spec 065, FR-011)
+static_assert(PitchShiftProcessor::getPhaseVocoderFFTSize() == PhaseVocoderPitchShifter::kFFTSize,
+              "PitchShiftProcessor FFT size must match PhaseVocoderPitchShifter::kFFTSize");
+static_assert(PitchShiftProcessor::getPhaseVocoderHopSize() == PhaseVocoderPitchShifter::kHopSize,
+              "PitchShiftProcessor hop size must match PhaseVocoderPitchShifter::kHopSize");
+
 // ==============================================================================
 // PitchShiftProcessor Implementation
 // ==============================================================================
@@ -1456,6 +1734,43 @@ struct PitchShiftProcessor::Impl {
     // Parameter smoothers
     OnePoleSmoother semitoneSmoother;
     OnePoleSmoother centsSmoother;
+
+    // Shared-analysis delegation methods (spec 065)
+    void processWithSharedAnalysis(const SpectralBuffer& analysis,
+                                   float pitchRatio) noexcept {
+        if (!prepared) return;
+        if (mode != PitchMode::PhaseVocoder) return;
+        phaseVocoderShifter.processWithSharedAnalysis(analysis, pitchRatio);
+    }
+
+    void synthesizePassthrough(const SpectralBuffer& analysis) noexcept {
+        if (!prepared) return;
+        if (mode != PitchMode::PhaseVocoder) return;
+        phaseVocoderShifter.synthesizePassthrough(analysis);
+    }
+
+    std::size_t pullSharedAnalysisOutput(float* output,
+                                         std::size_t maxSamples) noexcept {
+        if (!prepared || mode != PitchMode::PhaseVocoder) return 0;
+        return phaseVocoderShifter.pullOutputSamples(output, maxSamples);
+    }
+
+    std::size_t sharedAnalysisSamplesAvailable() const noexcept {
+        if (!prepared || mode != PitchMode::PhaseVocoder) return 0;
+        return phaseVocoderShifter.outputSamplesAvailable();
+    }
+
+    // Shared pitch detection delegation (PitchSync optimization)
+    void processWithSharedPitch(const float* input, float* output,
+                                std::size_t numSamples, float pitchRatio,
+                                float sharedPeriod,
+                                float sharedConfidence) noexcept {
+        if (!prepared) return;
+        if (mode != PitchMode::PitchSync) return;
+        pitchSyncShifter.processWithSharedPitch(input, output, numSamples,
+                                                 pitchRatio, sharedPeriod,
+                                                 sharedConfidence);
+    }
 };
 
 inline PitchShiftProcessor::PitchShiftProcessor() noexcept
@@ -1621,6 +1936,63 @@ inline std::size_t PitchShiftProcessor::getLatencySamples() const noexcept {
             return pImpl_->pitchSyncShifter.getLatencySamples();
     }
     return 0;
+}
+
+// Shared-analysis delegation wrappers (spec 065)
+
+inline void PitchShiftProcessor::processWithSharedAnalysis(
+    const SpectralBuffer& analysis, float pitchRatio) noexcept {
+    pImpl_->processWithSharedAnalysis(analysis, pitchRatio);
+}
+
+inline std::size_t PitchShiftProcessor::pullSharedAnalysisOutput(
+    float* output, std::size_t maxSamples) noexcept {
+    return pImpl_->pullSharedAnalysisOutput(output, maxSamples);
+}
+
+inline std::size_t PitchShiftProcessor::sharedAnalysisSamplesAvailable() const noexcept {
+    return pImpl_->sharedAnalysisSamplesAvailable();
+}
+
+inline void PitchShiftProcessor::synthesizePassthrough(
+    const SpectralBuffer& analysis) noexcept {
+    pImpl_->synthesizePassthrough(analysis);
+}
+
+inline void PitchShiftProcessor::processWithSharedPitch(
+    const float* input, float* output, std::size_t numSamples,
+    float sharedPeriod, float sharedConfidence) noexcept {
+    if (!pImpl_->prepared || input == nullptr || output == nullptr || numSamples == 0) {
+        return;
+    }
+
+    // Update smoother targets
+    pImpl_->semitoneSmoother.setTarget(pImpl_->semitones);
+    pImpl_->centsSmoother.setTarget(pImpl_->cents);
+
+    // Sub-block processing with smoothing (same pattern as standard process())
+    std::size_t samplesProcessed = 0;
+    while (samplesProcessed < numSamples) {
+        const std::size_t subBlockSize = std::min(kSmoothingSubBlockSize,
+                                                   numSamples - samplesProcessed);
+
+        pImpl_->semitoneSmoother.advanceSamples(subBlockSize);
+        pImpl_->centsSmoother.advanceSamples(subBlockSize);
+
+        const float smoothedSemitones = pImpl_->semitoneSmoother.getCurrentValue();
+        const float smoothedCents = pImpl_->centsSmoother.getCurrentValue();
+        const float totalSemitones = smoothedSemitones + smoothedCents / 100.0f;
+        const float pitchRatio = semitonesToRatio(totalSemitones);
+
+        const float* subInput = input + samplesProcessed;
+        float* subOutput = output + samplesProcessed;
+
+        pImpl_->processWithSharedPitch(subInput, subOutput, subBlockSize,
+                                        pitchRatio, sharedPeriod,
+                                        sharedConfidence);
+
+        samplesProcessed += subBlockSize;
+    }
 }
 
 } // namespace Krate::DSP

@@ -39,5 +39,16 @@ void computePolarBulk(const float* complexData, size_t numBins,
 void reconstructCartesianBulk(const float* mags, const float* phases,
                                size_t numBins, float* complexData) noexcept;
 
+/// @brief In-place power spectrum for pffft ordered real-FFT output
+///
+/// Computes |X(k)|^2 for each bin in pffft's ordered format:
+///   [DC, Nyquist, Re(1), Im(1), Re(2), Im(2), ...]
+/// After: DC^2, Nyquist^2, and each complex bin becomes [Re^2+Im^2, 0].
+///
+/// @param spectrum pffft ordered spectrum buffer (modified in-place, must be SIMD-aligned)
+/// @param fftSize  FFT size (number of floats in the buffer)
+/// @note SIMD-accelerated with runtime ISA dispatch
+void computePowerSpectrumPffft(float* spectrum, size_t fftSize) noexcept;
+
 } // namespace DSP
 } // namespace Krate

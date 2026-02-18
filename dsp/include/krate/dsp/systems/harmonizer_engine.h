@@ -23,8 +23,11 @@
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/scale_harmonizer.h>
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/primitives/pitch_detector.h>
 #include <krate/dsp/primitives/pitch_tracker.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/primitives/spectral_buffer.h>
+#include <krate/dsp/primitives/stft.h>
 #include <krate/dsp/processors/pitch_shift_processor.h>
 
 #include <algorithm>
@@ -55,6 +58,16 @@ enum class HarmonyMode : uint8_t {
 /// Orchestrates shared pitch analysis, per-voice pitch shifting, level/pan
 /// mixing, and mono-to-stereo constant-power panning. Composes existing
 /// Layer 0-2 components without introducing new DSP algorithms.
+///
+/// @par Shared-Analysis Architecture (spec 065)
+/// In PhaseVocoder mode, the engine runs a single forward FFT analysis per
+/// block and shares the resulting spectrum across all active voices via
+/// const reference (FR-017, FR-019). Each voice performs only its own
+/// phase rotation, synthesis iFFT, and OLA reconstruction. This eliminates
+/// 75% of forward FFT computation for 4 voices. Per-voice onset delays
+/// are applied post-pitch in PhaseVocoder mode (FR-025). In all other modes
+/// (Simple, Granular, PitchSync), the standard per-voice process() path
+/// is used unchanged (FR-014).
 ///
 /// @par Real-Time Safety
 /// All processing methods are noexcept. Zero heap allocations after prepare().
@@ -128,6 +141,17 @@ public:
         delayScratch_.resize(maxBlockSize, 0.0f);
         voiceScratch_.resize(maxBlockSize, 0.0f);
 
+        // Prepare shared pitch detector (PitchSync mode optimization)
+        // Same window size (256) as the per-voice detectors in PitchSyncGranularShifter
+        sharedPitchDetector_.prepare(sampleRate, 256);
+
+        // Prepare shared-analysis resources for PhaseVocoder mode (spec 065)
+        constexpr auto fftSize = PitchShiftProcessor::getPhaseVocoderFFTSize();
+        constexpr auto hopSize = PitchShiftProcessor::getPhaseVocoderHopSize();
+        sharedStft_.prepare(fftSize, hopSize, WindowType::Hann);
+        sharedAnalysisSpectrum_.prepare(fftSize);
+        pvVoiceScratch_.resize(maxBlockSize, 0.0f);
+
         prepared_ = true;
     }
 
@@ -158,6 +182,14 @@ public:
         // Zero scratch buffers
         std::fill(delayScratch_.begin(), delayScratch_.end(), 0.0f);
         std::fill(voiceScratch_.begin(), voiceScratch_.end(), 0.0f);
+
+        // Reset shared pitch detector
+        sharedPitchDetector_.reset();
+
+        // Reset shared-analysis resources (spec 065)
+        sharedStft_.reset();
+        sharedAnalysisSpectrum_.reset();
+        std::fill(pvVoiceScratch_.begin(), pvVoiceScratch_.end(), 0.0f);
 
         // Reset pitch tracking state
         lastDetectedNote_ = -1;
@@ -201,79 +233,270 @@ public:
                 }
             }
 
-            // Step 2-5: Process each active voice
-            for (int v = 0; v < numActiveVoices_; ++v) {
-                auto& voice = voices_[static_cast<std::size_t>(v)];
+            if (pitchShiftMode_ == PitchMode::PhaseVocoder) {
+                // ====== SHARED-ANALYSIS PATH (spec 065) ======
 
-                // Skip muted voices (optimization)
-                if (voice.linearGain == 0.0f) {
-                    continue;
-                }
+                // Step 2: Compute pitch parameters for all active voices
+                // (same as standard path: pitch smoother target + advancement)
+                for (int v = 0; v < numActiveVoices_; ++v) {
+                    auto& voice = voices_[static_cast<std::size_t>(v)];
+                    if (voice.linearGain == 0.0f) {
+                        // Still advance smoothers for muted voices
+                        voice.pitchSmoother.setTarget(0.0f);
+                        (void)voice.pitchSmoother.process();
+                        if (numSamples > 1) {
+                            voice.pitchSmoother.advanceSamples(numSamples - 1);
+                        }
+                        voice.levelSmoother.advanceSamples(numSamples);
+                        voice.panSmoother.advanceSamples(numSamples);
+                        continue;
+                    }
 
-                // Step 2: Compute target semitones
-                float targetSemitones = 0.0f;
-                if (harmonyMode_ == HarmonyMode::Chromatic) {
-                    // Chromatic: interval is raw semitones
-                    targetSemitones = static_cast<float>(voice.interval) +
-                                     voice.detuneCents / 100.0f;
-                } else {
-                    // Scalic: compute via ScaleHarmonizer
-                    if (lastDetectedNote_ >= 0) {
-                        auto result = scaleHarmonizer_.calculate(
-                            lastDetectedNote_, voice.interval);
-                        targetSemitones = static_cast<float>(result.semitones) +
-                                          voice.detuneCents / 100.0f;
+                    float targetSemitones = 0.0f;
+                    if (harmonyMode_ == HarmonyMode::Chromatic) {
+                        targetSemitones = static_cast<float>(voice.interval) +
+                                         voice.detuneCents / 100.0f;
                     } else {
-                        // No valid note detected yet; use 0 semitones + detune
-                        targetSemitones = voice.detuneCents / 100.0f;
+                        if (lastDetectedNote_ >= 0) {
+                            auto result = scaleHarmonizer_.calculate(
+                                lastDetectedNote_, voice.interval);
+                            targetSemitones = static_cast<float>(result.semitones) +
+                                              voice.detuneCents / 100.0f;
+                        } else {
+                            targetSemitones = voice.detuneCents / 100.0f;
+                        }
+                    }
+
+                    voice.pitchSmoother.setTarget(targetSemitones);
+                    float smoothedPitch = voice.pitchSmoother.process();
+                    if (numSamples > 1) {
+                        voice.pitchSmoother.advanceSamples(numSamples - 1);
+                    }
+
+                    // Store the smoothed pitch for use during frame processing.
+                    // We set it on the PitchShiftProcessor so the formant
+                    // preserve state is consistent.
+                    voice.pitchShifter.setSemitones(smoothedPitch);
+                }
+
+                // Step 3: Push input to shared STFT (once for all voices)
+                sharedStft_.pushSamples(input, numSamples);
+
+                // Step 4: Process all ready analysis frames
+                while (sharedStft_.canAnalyze()) {
+                    sharedStft_.analyze(sharedAnalysisSpectrum_);
+
+                    // Pass shared spectrum to each active voice
+                    for (int v = 0; v < numActiveVoices_; ++v) {
+                        auto& voice = voices_[static_cast<std::size_t>(v)];
+                        if (voice.linearGain == 0.0f) continue;
+
+                        float pitchRatio = semitonesToRatio(
+                            voice.pitchShifter.getSemitones());
+
+                        // FR-025: Unity-pitch bypass at engine level
+                        // Matches PhaseVocoderPitchShifter::processUnityPitch()
+                        // behavior for SC-002 output equivalence
+                        if (std::abs(pitchRatio - 1.0f) < 0.0001f) {
+                            voice.pitchShifter.synthesizePassthrough(
+                                sharedAnalysisSpectrum_);
+                        } else {
+                            voice.pitchShifter.processWithSharedAnalysis(
+                                sharedAnalysisSpectrum_, pitchRatio);
+                        }
                     }
                 }
 
-                // Set pitch smoother target (once per block, FR-017 step 2)
-                voice.pitchSmoother.setTarget(targetSemitones);
+                // Step 5: Pull output from each voice and apply level/pan/delay
+                for (int v = 0; v < numActiveVoices_; ++v) {
+                    auto& voice = voices_[static_cast<std::size_t>(v)];
+                    if (voice.linearGain == 0.0f) continue;
 
-                // Get smoothed pitch value for this block and set on shifter
-                // Per FR-017 step 4: pitch smoother target set once per block,
-                // smoothed value passed to setSemitones() once per block.
-                // PitchShiftProcessor has its own internal 10ms smoother.
-                float smoothedPitch = voice.pitchSmoother.process();
-                voice.pitchShifter.setSemitones(smoothedPitch);
+                    // Pull OLA output into pvVoiceScratch_
+                    std::size_t available =
+                        voice.pitchShifter.sharedAnalysisSamplesAvailable();
+                    std::size_t toPull = std::min(numSamples, available);
 
-                // Advance pitch smoother to end of block (it was only
-                // advanced 1 sample above; advance the remaining samples)
-                if (numSamples > 1) {
-                    voice.pitchSmoother.advanceSamples(numSamples - 1);
-                }
+                    // FR-013a/T037: Zero-fill pvVoiceScratch_ first, then
+                    // overwrite with pulled samples. Samples not covered by
+                    // pullSharedAnalysisOutput remain zero.
+                    std::fill(pvVoiceScratch_.begin(),
+                              pvVoiceScratch_.begin() +
+                                  static_cast<std::ptrdiff_t>(numSamples),
+                              0.0f);
+                    if (toPull > 0) {
+                        voice.pitchShifter.pullSharedAnalysisOutput(
+                            pvVoiceScratch_.data(), toPull);
+                    }
 
-                // Step 3: Process delay line (FR-011)
-                if (voice.delayMs > 0.0f) {
+                    // FR-025: Apply per-voice delay POST-pitch in PV mode
+                    if (voice.delayMs > 0.0f) {
+                        for (std::size_t s = 0; s < numSamples; ++s) {
+                            voice.delayLine.write(pvVoiceScratch_[s]);
+                            voiceScratch_[s] = voice.delayLine.readLinear(
+                                voice.delaySamples);
+                        }
+                    } else {
+                        std::copy(pvVoiceScratch_.data(),
+                                  pvVoiceScratch_.data() +
+                                      static_cast<std::ptrdiff_t>(numSamples),
+                                  voiceScratch_.data());
+                    }
+
+                    // Per-sample accumulation with level and pan smoothing
                     for (std::size_t s = 0; s < numSamples; ++s) {
-                        voice.delayLine.write(input[s]);
-                        delayScratch_[s] = voice.delayLine.readLinear(
-                            voice.delaySamples);
+                        float levelGain = voice.levelSmoother.process();
+                        float panVal = voice.panSmoother.process();
+
+                        // Constant-power pan (FR-005)
+                        float angle = (panVal + 1.0f) * kPi * 0.25f;
+                        float leftGain = std::cos(angle);
+                        float rightGain = std::sin(angle);
+
+                        float sample = voiceScratch_[s] * levelGain;
+                        outputL[s] += sample * leftGain;
+                        outputR[s] += sample * rightGain;
                     }
-                } else {
-                    // Bypass delay line -- copy input directly
-                    std::copy(input, input + numSamples, delayScratch_.data());
                 }
+            } else if (pitchShiftMode_ == PitchMode::PitchSync) {
+                // ====== SHARED PITCH DETECTION PATH (PitchSync optimization) ======
+                // Run a single PitchDetector on the input and pass results to all voices.
+                // Eliminates 75% redundant autocorrelation for 4-voice configurations.
 
-                // Step 4: Process pitch shift
-                voice.pitchShifter.process(delayScratch_.data(),
-                                           voiceScratch_.data(), numSamples);
+                // Step 2a: Run shared pitch detection ONCE for all voices
+                sharedPitchDetector_.pushBlock(input, numSamples);
+                const float sharedPeriod = sharedPitchDetector_.getDetectedPeriod();
+                const float sharedConfidence = sharedPitchDetector_.getConfidence();
 
-                // Step 5: Per-sample accumulation with level and pan smoothing
-                for (std::size_t s = 0; s < numSamples; ++s) {
-                    float levelGain = voice.levelSmoother.process();
-                    float panVal = voice.panSmoother.process();
+                for (int v = 0; v < numActiveVoices_; ++v) {
+                    auto& voice = voices_[static_cast<std::size_t>(v)];
 
-                    // Constant-power pan (FR-005)
-                    float angle = (panVal + 1.0f) * kPi * 0.25f;
-                    float leftGain = std::cos(angle);
-                    float rightGain = std::sin(angle);
+                    // Skip muted voices (optimization)
+                    if (voice.linearGain == 0.0f) {
+                        continue;
+                    }
 
-                    float sample = voiceScratch_[s] * levelGain;
-                    outputL[s] += sample * leftGain;
-                    outputR[s] += sample * rightGain;
+                    // Step 2b: Compute target semitones (same as standard path)
+                    float targetSemitones = 0.0f;
+                    if (harmonyMode_ == HarmonyMode::Chromatic) {
+                        targetSemitones = static_cast<float>(voice.interval) +
+                                         voice.detuneCents / 100.0f;
+                    } else {
+                        if (lastDetectedNote_ >= 0) {
+                            auto result = scaleHarmonizer_.calculate(
+                                lastDetectedNote_, voice.interval);
+                            targetSemitones = static_cast<float>(result.semitones) +
+                                              voice.detuneCents / 100.0f;
+                        } else {
+                            targetSemitones = voice.detuneCents / 100.0f;
+                        }
+                    }
+
+                    voice.pitchSmoother.setTarget(targetSemitones);
+
+                    float smoothedPitch = voice.pitchSmoother.process();
+                    voice.pitchShifter.setSemitones(smoothedPitch);
+
+                    if (numSamples > 1) {
+                        voice.pitchSmoother.advanceSamples(numSamples - 1);
+                    }
+
+                    // Step 3: Process delay line (pre-pitch in non-PV modes)
+                    if (voice.delayMs > 0.0f) {
+                        for (std::size_t s = 0; s < numSamples; ++s) {
+                            voice.delayLine.write(input[s]);
+                            delayScratch_[s] = voice.delayLine.readLinear(
+                                voice.delaySamples);
+                        }
+                    } else {
+                        std::copy(input, input + numSamples, delayScratch_.data());
+                    }
+
+                    // Step 4: Process pitch shift with shared pitch detection
+                    voice.pitchShifter.processWithSharedPitch(
+                        delayScratch_.data(), voiceScratch_.data(), numSamples,
+                        sharedPeriod, sharedConfidence);
+
+                    // Step 5: Per-sample accumulation with level and pan smoothing
+                    for (std::size_t s = 0; s < numSamples; ++s) {
+                        float levelGain = voice.levelSmoother.process();
+                        float panVal = voice.panSmoother.process();
+
+                        // Constant-power pan (FR-005)
+                        float angle = (panVal + 1.0f) * kPi * 0.25f;
+                        float leftGain = std::cos(angle);
+                        float rightGain = std::sin(angle);
+
+                        float sample = voiceScratch_[s] * levelGain;
+                        outputL[s] += sample * leftGain;
+                        outputR[s] += sample * rightGain;
+                    }
+                }
+            } else {
+                // ====== STANDARD PER-VOICE PATH (Simple, Granular) ======
+
+                for (int v = 0; v < numActiveVoices_; ++v) {
+                    auto& voice = voices_[static_cast<std::size_t>(v)];
+
+                    // Skip muted voices (optimization)
+                    if (voice.linearGain == 0.0f) {
+                        continue;
+                    }
+
+                    // Step 2: Compute target semitones
+                    float targetSemitones = 0.0f;
+                    if (harmonyMode_ == HarmonyMode::Chromatic) {
+                        targetSemitones = static_cast<float>(voice.interval) +
+                                         voice.detuneCents / 100.0f;
+                    } else {
+                        if (lastDetectedNote_ >= 0) {
+                            auto result = scaleHarmonizer_.calculate(
+                                lastDetectedNote_, voice.interval);
+                            targetSemitones = static_cast<float>(result.semitones) +
+                                              voice.detuneCents / 100.0f;
+                        } else {
+                            targetSemitones = voice.detuneCents / 100.0f;
+                        }
+                    }
+
+                    voice.pitchSmoother.setTarget(targetSemitones);
+
+                    float smoothedPitch = voice.pitchSmoother.process();
+                    voice.pitchShifter.setSemitones(smoothedPitch);
+
+                    if (numSamples > 1) {
+                        voice.pitchSmoother.advanceSamples(numSamples - 1);
+                    }
+
+                    // Step 3: Process delay line (pre-pitch in non-PV modes)
+                    if (voice.delayMs > 0.0f) {
+                        for (std::size_t s = 0; s < numSamples; ++s) {
+                            voice.delayLine.write(input[s]);
+                            delayScratch_[s] = voice.delayLine.readLinear(
+                                voice.delaySamples);
+                        }
+                    } else {
+                        std::copy(input, input + numSamples, delayScratch_.data());
+                    }
+
+                    // Step 4: Process pitch shift
+                    voice.pitchShifter.process(delayScratch_.data(),
+                                               voiceScratch_.data(), numSamples);
+
+                    // Step 5: Per-sample accumulation with level and pan smoothing
+                    for (std::size_t s = 0; s < numSamples; ++s) {
+                        float levelGain = voice.levelSmoother.process();
+                        float panVal = voice.panSmoother.process();
+
+                        // Constant-power pan (FR-005)
+                        float angle = (panVal + 1.0f) * kPi * 0.25f;
+                        float leftGain = std::cos(angle);
+                        float rightGain = std::sin(angle);
+
+                        float sample = voiceScratch_[s] * levelGain;
+                        outputL[s] += sample * leftGain;
+                        outputR[s] += sample * rightGain;
+                    }
                 }
             }
         }
@@ -475,6 +698,17 @@ private:
     // Scratch buffers (pre-allocated in prepare())
     std::vector<float> delayScratch_;   // Delayed input per voice
     std::vector<float> voiceScratch_;   // Pitch-shifted voice output
+
+    // Shared pitch detection (PitchSync mode optimization)
+    // Runs a single PitchDetector on the mono input and passes results to all
+    // PitchSync voices, eliminating 75% redundant autocorrelation for 4 voices.
+    PitchDetector sharedPitchDetector_;
+
+    // Shared-analysis resources (PhaseVocoder mode only, spec 065)
+    // All three are pre-allocated in prepare() and never resized in process().
+    STFT sharedStft_;                          ///< Shared forward FFT; runs once per block instead of per-voice (FR-017)
+    SpectralBuffer sharedAnalysisSpectrum_;     ///< Shared analysis result; passed as const ref to all voices (FR-019)
+    std::vector<float> pvVoiceScratch_;         ///< Per-voice OLA output scratch buffer; sized to maxBlockSize
 
     // State
     double      sampleRate_       = 44100.0;

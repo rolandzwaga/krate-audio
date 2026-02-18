@@ -2092,7 +2092,7 @@ class HarmonizerEngine {
 };
 ```
 
-**Signal Flow:**
+**Signal Flow (non-PhaseVocoder modes):**
 ```
 Input (mono) -----------------------------------------------+---> Dry Path
   |                                                         |
@@ -2108,6 +2108,24 @@ Input (mono) -----------------------------------------------+---> Dry Path
                                                    outputL = dryGain*input + wetGain*harmonyL
                                                    outputR = dryGain*input + wetGain*harmonyR
 ```
+
+**Signal Flow (PhaseVocoder mode, shared-analysis, since 0.22.0):**
+```
+Input (mono) --+--> sharedStft_ [pushSamples -> analyze(FFT)] --> sharedAnalysisSpectrum_
+               |                                                        |  (const ref)
+               +--> PitchTracker (shared, Scalic only)                  |
+               |       |                                                |
+               |       +--> ScaleHarmonizer                             |
+               |                                                        |
+               |    Voice 0: [processWithSharedAnalysis] -> [pullOLA] -> [DelayLine] -> [Level/Pan] --+
+               |    Voice 1: [processWithSharedAnalysis] -> [pullOLA] -> [DelayLine] -> [Level/Pan] --+-> Harmony
+               |    Voice 2: [processWithSharedAnalysis] -> [pullOLA] -> [DelayLine] -> [Level/Pan] --+     Bus
+               |    Voice 3: [processWithSharedAnalysis] -> [pullOLA] -> [DelayLine] -> [Level/Pan] --+
+               |                                                                                      |
+               +---> Dry Path                                                                         v
+                                                                    outputL/R = dry + wet * harmony
+```
+Note: In PhaseVocoder mode, per-voice delays are applied POST-pitch (after OLA output), not pre-pitch. See FR-025 / R-004.
 
 **Key Features:**
 - Composes PitchShiftProcessor x4 (L2), PitchTracker (L1), ScaleHarmonizer (L0), OnePoleSmoother x14 (L1), DelayLine x4 (L1)
@@ -2128,8 +2146,55 @@ Input (mono) -----------------------------------------------+---> Dry Path
 - Header-only, zero allocations in process(), all methods noexcept
 - Dependencies: Layer 0 (ScaleHarmonizer, db_utils, math_constants), Layer 1 (PitchTracker, OnePoleSmoother, DelayLine), Layer 2 (PitchShiftProcessor)
 
-**FR-020 Note (Shared-Analysis FFT Deferral):**
-The spec requires shared-analysis FFT architecture in PhaseVocoder mode (forward FFT once, shared across voices). The current PitchShiftProcessor API treats each instance as fully independent with no mechanism to inject external analysis spectra. Phase 1 uses independent per-voice PitchShiftProcessor instances, which is functionally correct but does not achieve the shared-analysis CPU optimization. A follow-up spec will modify PhaseVocoderPitchShifter (Layer 2) to accept pre-computed analysis spectra, then update HarmonizerEngine to use shared analysis. See plan.md R-001 and research.md R-011 for details.
+**Shared-Analysis FFT Architecture (since 0.22.0, spec 065):**
+
+In PhaseVocoder mode, `HarmonizerEngine` owns a shared STFT instance and analysis spectrum buffer. The forward FFT runs once per block, and the analysis result is passed as a `const SpectralBuffer&` to each active voice's `PitchShiftProcessor::processWithSharedAnalysis()`. This eliminates 75% of forward FFT computation (3 of 4 redundant FFTs removed) while preserving per-voice independence for all synthesis state (phase accumulators, OLA buffers, formant/transient/phase-locking state).
+
+**New private members** (all pre-allocated in `prepare()`, zero allocations in `process()`):
+
+| Member | Type | Purpose |
+|--------|------|---------|
+| `sharedStft_` | `STFT` | Shared forward FFT; configured with `kFFTSize=4096`, `kHopSize=1024`, Hann window (FR-017) |
+| `sharedAnalysisSpectrum_` | `SpectralBuffer` | Shared analysis result; passed as `const SpectralBuffer&` to all voices (FR-019) |
+| `pvVoiceScratch_` | `std::vector<float>` | Per-voice OLA output scratch buffer; sized to `maxBlockSize` |
+
+**PhaseVocoder mode branch in `process()`:**
+
+```
+process() flow (PhaseVocoder mode):
+  1. Compute per-voice pitch targets and smooth
+  2. Push input to sharedStft_ once (all voices share one FFT)
+  3. While sharedStft_.canAnalyze():
+     a. sharedStft_.analyze(sharedAnalysisSpectrum_)
+     b. For each active voice:
+        - Unity pitch (|ratio - 1.0| < 0.0001): synthesizePassthrough(spectrum)
+        - Otherwise: processWithSharedAnalysis(spectrum, ratio)
+  4. For each active voice:
+     a. Pull OLA output into pvVoiceScratch_ (zero-fill first, FR-013a)
+     b. Apply per-voice delay POST-pitch (FR-025, R-004)
+     c. Apply level, pan, accumulate into outputL/outputR
+```
+
+In non-PhaseVocoder modes (Simple, Granular, PitchSync), the standard per-voice `PitchShiftProcessor::process()` path is used unchanged.
+
+**Delay-Post-Pitch Design (R-004, FR-025):**
+
+In PhaseVocoder mode, per-voice onset delays (0-50ms humanization offsets) are applied AFTER pitch shifting (post-OLA output), not before. The shared STFT receives the raw, undelayed input signal. This differs from non-PhaseVocoder modes where delays remain pre-pitch-shifting. The rationale:
+- Per-voice delays are timing offsets for humanization; they are audibly transparent when moved post-pitch
+- Applying delays pre-pitch in the shared-analysis path would require a separate forward FFT per unique delay value, eliminating the shared-analysis benefit entirely
+- Moving the delay is safe because 0-50ms onset delays do not meaningfully affect spectral content
+
+**Sub-Hop-Size Block Handling (FR-013a):**
+
+When `process()` is called with fewer input samples than `hopSize` (1024), the shared STFT buffers incoming samples without triggering analysis. Output samples for which no synthesis frame was produced are zero-filled. This is correct behavior, not an error. Hosts deliver arbitrary buffer sizes and all are valid.
+
+**Zero-Fill Contract:**
+
+HarmonizerEngine is responsible for zero-filling output positions not covered by `pullSharedAnalysisOutput()`. This applies during: (a) OLA priming period before the first complete synthesis frame, (b) sub-hop blocks where no new frame was computed. The zero-fill happens in `pvVoiceScratch_` before pulling OLA output.
+
+**Lifecycle integration:**
+- `prepare()`: Calls `sharedStft_.prepare(fftSize, hopSize, WindowType::Hann)`, `sharedAnalysisSpectrum_.prepare(fftSize)`, `pvVoiceScratch_.resize(maxBlockSize, 0.0f)`
+- `reset()`: Calls `sharedStft_.reset()`, `sharedAnalysisSpectrum_.reset()`, zero-fills `pvVoiceScratch_`
 
 **When to Use:**
 - Generating diatonic or chromatic harmony voices from a monophonic input
@@ -2177,3 +2242,20 @@ float confidence = harmonizer.getPitchConfidence();
 // Latency compensation
 std::size_t latency = harmonizer.getLatencySamples();
 ```
+
+**Review Trigger (Shared-Analysis Pattern Extraction):**
+
+The "shared STFT + per-voice synthesis" pattern is currently implemented directly in `HarmonizerEngine`. After implementing **spectral freeze or multi-voice chorus** (or any second multi-voice spectral system):
+- Does the new feature need shared FFT analysis across multiple consumers? If so, extract the pattern into a reusable utility class (e.g., `SharedSpectralAnalyzer`).
+- Does the new feature use `PitchShiftProcessor::processWithSharedAnalysis()`? If so, the API design is validated for reuse.
+
+Until a second consumer appears, the pattern remains inline in `HarmonizerEngine` to avoid premature abstraction. See [065-shared-analysis-fft-refactor/plan.md](../065-shared-analysis-fft-refactor/plan.md) Higher-Layer Reusability Analysis for the full decision log.
+
+**Deferred Optimizations (FR-020, FR-021, FR-022):**
+
+The following shared-interpretation optimizations are explicitly deferred to a post-benchmark spec:
+- Shared peak detection (running peak detection once on the shared magnitude spectrum and broadcasting to all voices)
+- Shared transient detection (running transient detector once and broadcasting boolean result)
+- Shared original-envelope extraction (extracting spectral envelope once for formant preservation)
+
+These push from "analysis shared, voices independent" toward "analysis + interpretation shared, voices parameterized" -- a different architecture requiring profiling evidence before crossing. The clean separation established by spec 065 (shared analysis, independent voice interpretation) must be validated first.

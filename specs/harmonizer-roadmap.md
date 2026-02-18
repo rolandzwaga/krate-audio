@@ -1,6 +1,6 @@
 # Harmonizer Effect Development Roadmap
 
-**Status**: In Progress (Phase 1, Phase 2A, Phase 2B, Phase 3 complete) | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
+**Status**: Complete (Phases 1-4A done; Phase 5 SIMD remains independent future work) | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
 
 A comprehensive, dependency-ordered development roadmap for the Harmonizer effect in the KrateDSP shared library. Every phase maps directly to existing codebase building blocks, identifies gaps, and provides implementation-level detail.
 
@@ -15,9 +15,10 @@ A comprehensive, dependency-ordered development roadmap for the Harmonizer effec
 5. [Phase 2: Phase Vocoder Quality Improvements](#phase-2-phase-vocoder-quality-improvements)
 6. [Phase 3: Pitch Tracking Robustness](#phase-3-pitch-tracking-robustness)
 7. [Phase 4: Multi-Voice Harmonizer Engine](#phase-4-multi-voice-harmonizer-engine)
-8. [Phase 5: SIMD Optimization](#phase-5-simd-optimization)
-9. [Dependency Graph](#dependency-graph)
-10. [Risk Analysis](#risk-analysis)
+8. [Phase 4A: Shared-Analysis FFT Refactor](#phase-4a-shared-analysis-fft-refactor)
+9. [Phase 5: SIMD Optimization](#phase-5-simd-optimization)
+10. [Dependency Graph](#dependency-graph)
+11. [Risk Analysis](#risk-analysis)
 
 ---
 
@@ -38,10 +39,10 @@ The KrateDSP library already provides **~80% of the required DSP components** fo
 Phase 1: ScaleHarmonizer (L0) ✅ ────────┐
                                           │
 Phase 2A: Identity Phase Locking (L2) ✅ ┤
-                                          ├──► Phase 4: HarmonizerEngine (L3)
-Phase 2B: Spectral Transient Det. (L1) ✅ ┤
-                                          │
-Phase 3: PitchTracker (L1) ✅ ────────────┘
+                                          ├──► Phase 4: HarmonizerEngine (L3) ✅
+Phase 2B: Spectral Transient Det. (L1) ✅ ┤        │
+                                          │        ▼
+Phase 3: PitchTracker (L1) ✅ ────────────┘  Phase 4A: Shared-Analysis FFT ✅
                                                Phase 5: SIMD (independent)
 ```
 
@@ -119,8 +120,8 @@ Every component below has been verified to exist in the codebase with its exact 
 | 2 | **PitchTracker** | 1 | LOW | Nothing | Smoothed pitch detection with hysteresis & confidence gating | **COMPLETE** (spec 063, `pitch_tracker.h`) |
 | 3 | **Identity Phase Locking** | 2 | LOW-MED | Nothing | Laroche-Dolson phase locking for `PhaseVocoderPitchShifter` | **COMPLETE** (spec 061, integrated into `PhaseVocoderPitchShifter`) |
 | 4 | **SpectralTransientDetector** | 1 | LOW-MED | Nothing | Spectral flux transient detection + phase reset for phase vocoder | **COMPLETE** (spec 062, `spectral_transient_detector.h` + phase reset integrated into `PhaseVocoderPitchShifter`) |
-| 5 | **HarmonizerEngine** | 3 | MODERATE | 1, 2, 3, 4 | Multi-voice orchestration with harmony modes | **MISSING** |
-| 6 | **SIMD Math Header** | 0 | MODERATE | Nothing | Vectorized `atan2`, `sincos`, `log`, `exp` for spectral pipeline | **MISSING** |
+| 5 | **HarmonizerEngine** | 3 | MODERATE | 1, 2, 3, 4 | Multi-voice orchestration with harmony modes | **COMPLETE** (spec 064, `harmonizer_engine.h`) |
+| 6 | **SIMD Math Header** | 0 | MODERATE | Nothing | Vectorized `atan2`, `sincos`, `log`, `exp` for spectral pipeline | **NOT STARTED** (independent future work) |
 
 ### Components Already Available (No Gap)
 
@@ -583,12 +584,13 @@ private:
 
 ---
 
-## Phase 4: Multi-Voice Harmonizer Engine
+## Phase 4: Multi-Voice Harmonizer Engine -- COMPLETE
 
 **Layer**: 3 (System)
 **Blocks**: Plugin integration (Iterum harmonizer effect, or standalone)
 **Effort**: ~4-6 days
 **Depends On**: Phase 1, Phase 2, Phase 3
+**Status**: Complete -- implemented in spec [064-harmonizer-engine](064-harmonizer-engine/spec.md), merged to main.
 
 ### Why This Exists
 
@@ -835,6 +837,63 @@ However, since each voice uses its own `PitchShiftProcessor` instance (which int
 
 ---
 
+## Phase 4A: Shared-Analysis FFT Refactor -- COMPLETE
+
+**Layer**: 2-3 (Processors + Systems)
+**Blocks**: Nothing (performance optimization for PhaseVocoder mode)
+**Effort**: ~2-3 days
+**Depends On**: Phase 4 (HarmonizerEngine must exist first)
+**Status**: Complete -- implemented in spec [065-shared-analysis-fft-refactor](065-shared-analysis-fft-refactor/spec.md), merged to main.
+
+### Why This Exists
+
+The Phase 4 HarmonizerEngine runs 4 independent `PitchShiftProcessor` instances in PhaseVocoder mode, each performing its own forward FFT on the same input signal. This means 4 identical forward FFTs per hop -- 3 of which are redundant. This phase eliminates 75% of that redundant computation by sharing a single forward FFT analysis across all voices.
+
+### What Was Added
+
+#### Layer 2: PhaseVocoderPitchShifter
+
+- **Refactored `processFrame()`** signature: `void processFrame(const SpectralBuffer& analysis, SpectralBuffer& synthesis, float pitchRatio) noexcept` -- accepts externally-provided analysis spectrum as `const` reference (FR-023, zero-copy)
+- **`processWithSharedAnalysis(const SpectralBuffer&, std::size_t)`** -- new entry point that bypasses internal STFT, feeding pre-computed analysis directly into the phase vocoder pipeline
+- **`pullOutputSamples(float*, std::size_t)`** -- frame-at-a-time output pulling from per-voice OLA buffer
+- **`outputSamplesAvailable()`** -- query how many synthesized samples are ready
+- **`synthesizePassthrough()`** -- optimized path for unity-pitch voices (no phase modification)
+
+#### Layer 2: PitchShiftProcessor (pImpl Delegation)
+
+- **`processWithSharedAnalysis()`** -- delegates to PhaseVocoder impl; no-op for other modes (FR-009/FR-009a)
+- **`pullSharedAnalysisOutput()`** / **`sharedAnalysisSamplesAvailable()`** -- pImpl delegation
+- **`getPhaseVocoderFFTSize()`** (4096) / **`getPhaseVocoderHopSize()`** (1024) -- `static constexpr` accessors for engine coordination
+
+#### Layer 3: HarmonizerEngine
+
+- **`sharedStft_`** (STFT) -- single shared STFT instance, fed input once per block
+- **`sharedAnalysisSpectrum_`** (SpectralBuffer) -- shared analysis result, passed as `const&` to all voices
+- **`pvVoiceScratch_`** (scratch buffer) -- per-voice OLA output pulling
+- **Modified `process()`**: PhaseVocoder path now pushes input to shared STFT once, loops `while (sharedStft_.canAnalyze())`, dispatches analysis to all voices via `processWithSharedAnalysis()`, pulls OLA output per voice
+- **Delay-post-pitch design (FR-025)**: Per-voice onset delays moved from pre-pitch to post-pitch in PhaseVocoder mode only (enables sharing the forward FFT across voices with different delays)
+- **Zero-fill contract (FR-013a)**: Output zero-filled for samples where no synthesis frame is ready during priming
+
+### Performance Results
+
+| Metric | Before (Phase 4) | After (Phase 4A) | Target |
+|--------|------------------|-------------------|--------|
+| PhaseVocoder 4-voice CPU | ~7.0% | ~6.4% | <18% (SC-001) |
+| Output equivalence (RMS) | -- | 0.0 (exact match) | <1e-5 (SC-002) |
+| PitchSync 4-voice CPU | ~27.1% | ~27.1% (unchanged) | N/A |
+| All tests passing | 5,630 | 5,658 | 0 regressions (SC-004) |
+
+### Files Modified
+
+| File | Layer | Changes |
+|------|-------|---------|
+| `dsp/include/krate/dsp/processors/pitch_shift_processor.h` | L2 | Refactored `processFrame()`, added shared-analysis API, pImpl delegation |
+| `dsp/include/krate/dsp/systems/harmonizer_engine.h` | L3 | Added shared STFT/spectrum/scratch, modified `prepare()`/`reset()`/`process()` |
+| `dsp/tests/unit/processors/pitch_shift_processor_test.cpp` | Tests | 18 new tests (backward compat, shared-analysis equivalence, delegation) |
+| `dsp/tests/unit/systems/harmonizer_engine_test.cpp` | Tests | 11 new tests (golden reference, OLA isolation, benchmark, mode switching) |
+
+---
+
 ## Phase 5: SIMD Optimization
 
 **Layer**: 0-1 (Core + Primitives)
@@ -974,7 +1033,7 @@ From research doc Section 3.1: The cepstral pipeline `log(|X[k]|) → IFFT → l
 
 ```
 Phase 1: ScaleHarmonizer (L0) ✅                       Phase 5: SIMD (L0-1)
-   │  [COMPLETE]                                         [3-5 days, independent]
+   │  [COMPLETE]                                         [NOT STARTED, independent]
    │
    │  Phase 2A: Identity Phase Locking (L2) ✅
    │     │  [COMPLETE]
@@ -988,10 +1047,13 @@ Phase 1: ScaleHarmonizer (L0) ✅                       Phase 5: SIMD (L0-1)
    └──┬──┴──┬──┘
       │     │
       ▼     ▼
-   Phase 4: HarmonizerEngine (L3)
-      │  [4-6 days]
+   Phase 4: HarmonizerEngine (L3) ✅
+      │  [COMPLETE - spec 064]
       ▼
-     DONE
+   Phase 4A: Shared-Analysis FFT (L2-3) ✅
+      │  [COMPLETE - spec 065]
+      ▼
+     DONE (Phase 5 SIMD remains as independent future work)
 ```
 
 ### Parallelization Opportunities
@@ -1001,22 +1063,25 @@ Phase 1: ScaleHarmonizer (L0) ✅                       Phase 5: SIMD (L0-1)
 | Phase 1: ScaleHarmonizer ✅ | Phase 2A: Phase Locking ✅ | Phase 2B: Transient Det. ✅ | Phase 3: PitchTracker ✅ |
 | COMPLETE | COMPLETE | COMPLETE | COMPLETE |
 | ↓ | ↓ | ↓ | ↓ |
-| **Merge point: Phase 4 starts (all prerequisites complete)** | | | |
+| **Merge point: Phase 4 (all prerequisites complete)** ✅ | | | |
+| ↓ | | | |
+| **Phase 4A: Shared-Analysis FFT** ✅ | | | |
 
 Phase 5 (SIMD) is fully independent and can run at any time.
 
 ### Estimated Total Timeline
 
-| Phase | Duration | Cumulative (Serial) | Cumulative (Parallel) |
-|-------|----------|--------------------|-----------------------|
-| Phase 1 | 1-2 days | 1-2 days | 2-3 days (P1+P2+P3 parallel) |
-| Phase 2A | 2-3 days | 3-5 days | (included above) |
-| Phase 2B | 1-2 days | 4-7 days | (included above) |
-| Phase 3 | 1-2 days | 5-9 days | (included above) |
-| Phase 4 | 4-6 days | 9-15 days | 6-9 days |
-| Phase 5 | 3-5 days | 12-20 days | 9-14 days (parallel with P4 or after) |
+| Phase | Duration | Status |
+|-------|----------|--------|
+| Phase 1: ScaleHarmonizer | 1-2 days | ✅ COMPLETE (spec 060) |
+| Phase 2A: Identity Phase Locking | 2-3 days | ✅ COMPLETE (spec 061) |
+| Phase 2B: Spectral Transient Det. | 1-2 days | ✅ COMPLETE (spec 062) |
+| Phase 3: PitchTracker | 1-2 days | ✅ COMPLETE (spec 063) |
+| Phase 4: HarmonizerEngine | 4-6 days | ✅ COMPLETE (spec 064) |
+| Phase 4A: Shared-Analysis FFT | 2-3 days | ✅ COMPLETE (spec 065) |
+| Phase 5: SIMD Optimization | 3-5 days | NOT STARTED (independent future work) |
 
-**Estimated total: 9-14 working days (2-3 weeks) with parallelization.**
+**Phases 1-4A complete. Phase 5 (SIMD) remains as independent future optimization work.**
 
 ---
 
@@ -1066,13 +1131,16 @@ EXISTING (reuse directly):          ~80% of DSP functionality
 ├── Window functions (Hann, Hamming, Blackman, Kaiser)
 └── ShimmerDelay (pitch-shift-in-feedback reference architecture)
 
-NEW (must build):                   ~20% of DSP functionality
-├── ScaleHarmonizer (L0) -- COMPLETE (spec 060, scale_harmonizer.h)
-├── PitchTracker (L1) -- COMPLETE (spec 063, pitch_tracker.h)
-├── SpectralTransientDetector (L1) -- COMPLETE (spec 062, spectral_transient_detector.h + phase reset)
-├── Identity Phase Locking (L2) -- COMPLETE (spec 061, integrated into PhaseVocoderPitchShifter)
-├── HarmonizerEngine (L3) -- orchestration of existing components
-└── SIMD Math Header (L0) -- vectorized atan2/sincos/log/exp
+NEW (built):                        ~20% of DSP functionality
+├── ScaleHarmonizer (L0) ✅ -- spec 060, scale_harmonizer.h
+├── PitchTracker (L1) ✅ -- spec 063, pitch_tracker.h
+├── SpectralTransientDetector (L1) ✅ -- spec 062, spectral_transient_detector.h + phase reset
+├── Identity Phase Locking (L2) ✅ -- spec 061, integrated into PhaseVocoderPitchShifter
+├── HarmonizerEngine (L3) ✅ -- spec 064, harmonizer_engine.h (multi-voice orchestration)
+├── Shared-Analysis FFT (L2-3) ✅ -- spec 065, shared forward FFT across PhaseVocoder voices
+└── SIMD Math Header (L0) -- NOT STARTED (independent future optimization)
 ```
 
-The majority of "new" code is either **musical intelligence** (ScaleHarmonizer, PitchTracker -- pure math/logic), **quality improvements** to existing algorithms (phase locking, transient detection), or **orchestration** (HarmonizerEngine composing existing components). The only genuinely new DSP algorithm is the spectral flux transient detector, which is a well-documented ~20-line computation.
+All harmonizer DSP functionality is **COMPLETE** (Phases 1-4A). The engine supports 4 voices with Chromatic/Scalic harmony modes, all 4 pitch shift modes (Simple, Granular, PitchSync, PhaseVocoder), formant preservation, identity phase locking, spectral transient detection with phase reset, and shared-analysis FFT optimization for PhaseVocoder mode.
+
+Phase 5 (SIMD Math Header) remains as independent future optimization work -- it improves throughput of scalar transcendental functions (`atan2`, `sincos`, `log`, `exp`) but is not required for correct operation.

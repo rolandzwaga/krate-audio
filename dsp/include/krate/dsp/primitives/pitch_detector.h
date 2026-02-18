@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <krate/dsp/primitives/fft_autocorrelation.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -93,7 +95,11 @@ public:
 
         // Allocate buffers
         buffer_.resize(windowSize_, 0.0f);
+        linearBuffer_.resize(windowSize_, 0.0f);
         autocorr_.resize(maxLag_ + 1, 0.0f);
+
+        // Prepare FFT-based autocorrelation (O(N log N) instead of O(N * maxLag))
+        fftAutocorr_.prepare(windowSize_);
 
         reset();
     }
@@ -174,38 +180,17 @@ public:
     }
 
 private:
-    /// @brief Compute normalized autocorrelation
+    /// @brief Compute normalized autocorrelation using FFT (O(N log N))
     void computeAutocorrelation() noexcept {
-        // Compute energy for normalization
-        float energy = 0.0f;
-        for (std::size_t i = 0; i < windowSize_; ++i) {
-            energy += buffer_[i] * buffer_[i];
-        }
+        // Linearize the circular buffer: copy from writePos_ to end, then start to writePos_
+        // This gives us a contiguous signal with the oldest sample first.
+        const std::size_t tail = windowSize_ - writePos_;
+        std::copy_n(buffer_.data() + writePos_, tail, linearBuffer_.data());
+        std::copy_n(buffer_.data(), writePos_, linearBuffer_.data() + tail);
 
-        if (energy < 1e-10f) {
-            // Silence - no pitch
-            std::fill(autocorr_.begin(), autocorr_.end(), 0.0f);
-            return;
-        }
-
-        // Compute autocorrelation for each lag
-        for (std::size_t lag = minLag_; lag <= maxLag_; ++lag) {
-            float sum = 0.0f;
-            float energyLag = 0.0f;
-
-            for (std::size_t i = 0; i < windowSize_ - lag; ++i) {
-                // Circular buffer read
-                const std::size_t idx1 = (writePos_ + i) % windowSize_;
-                const std::size_t idx2 = (writePos_ + i + lag) % windowSize_;
-
-                sum += buffer_[idx1] * buffer_[idx2];
-                energyLag += buffer_[idx2] * buffer_[idx2];
-            }
-
-            // Normalized autocorrelation
-            const float denom = std::sqrt(energy * energyLag);
-            autocorr_[lag] = (denom > 1e-10f) ? (sum / denom) : 0.0f;
-        }
+        // Delegate to FFT-based autocorrelation (SIMD-accelerated via pffft)
+        fftAutocorr_.compute(linearBuffer_.data(), windowSize_,
+                             autocorr_.data(), minLag_, maxLag_);
     }
 
     /// @brief Find the pitch period from autocorrelation peaks
@@ -261,7 +246,9 @@ private:
 
     // State
     std::vector<float> buffer_;
+    std::vector<float> linearBuffer_;  // Linearized copy of circular buffer for FFT
     std::vector<float> autocorr_;
+    FFTAutocorrelation fftAutocorr_;   // O(N log N) autocorrelation via pffft
     std::size_t writePos_ = 0;
     std::size_t samplesSinceLastDetect_ = 0;
 
