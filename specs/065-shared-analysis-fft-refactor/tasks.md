@@ -357,12 +357,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 12.1 Final Commit
 
-- [ ] T087 Commit all remaining spec work to feature branch (if any uncommitted changes remain after T085/T086)
-- [ ] T088 Run the full dsp_tests suite one final time to confirm clean state: `build/windows-x64-release/bin/Release/dsp_tests.exe`
+- [X] T087 Commit all remaining spec work to feature branch (if any uncommitted changes remain after T085/T086)
+- [X] T088 Run the full dsp_tests suite one final time to confirm clean state: `build/windows-x64-release/bin/Release/dsp_tests.exe`
 
 ### 12.2 Completion Claim
 
-- [ ] T089 Claim completion ONLY if all requirements in spec.md are MET (or gaps explicitly approved by user)
+- [X] T089 Claim completion ONLY if all requirements in spec.md are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 
