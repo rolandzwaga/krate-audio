@@ -3110,3 +3110,503 @@ TEST_CASE("PhaseVocoder process() backward compat: transient phase reset produce
     REQUIRE(rms > 0.01f);
     REQUIRE_FALSE(hasInvalidSamples(output.data(), kTotalSamples));
 }
+
+// ==============================================================================
+// Phase 3: US2 - Shared-Analysis API Tests (spec 065)
+// ==============================================================================
+// These tests verify the new processWithSharedAnalysis(), pullOutputSamples(),
+// outputSamplesAvailable() methods on PhaseVocoderPitchShifter, and the
+// delegation / accessor methods on PitchShiftProcessor.
+//
+// Constitution Principle XII: Tests written before implementation.
+// ==============================================================================
+
+// T010: processWithSharedAnalysis() produces output identical to process()
+// SC-003: max sample-level error < 1e-5
+TEST_CASE("PhaseVocoder processWithSharedAnalysis produces identical output to process",
+          "[pitch][spec065][US2][SC-003]") {
+    // Set up two identical shifters
+    PhaseVocoderPitchShifter standardShifter;
+    standardShifter.prepare(kTestSampleRate, kTestBlockSize);
+
+    PhaseVocoderPitchShifter sharedShifter;
+    sharedShifter.prepare(kTestSampleRate, kTestBlockSize);
+
+    // Set up a shared STFT matching the PhaseVocoder's configuration
+    STFT sharedStft;
+    SpectralBuffer sharedSpectrum;
+    sharedStft.prepare(PhaseVocoderPitchShifter::kFFTSize,
+                       PhaseVocoderPitchShifter::kHopSize, WindowType::Hann);
+    sharedSpectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+    const float pitchRatio = std::pow(2.0f, 7.0f / 12.0f);  // +7 semitones
+
+    // Generate a 1-second 440 Hz sine tone
+    constexpr size_t kTotalSamples = 44100;
+    std::vector<float> input(kTotalSamples);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    std::vector<float> standardOutput(kTotalSamples, 0.0f);
+    std::vector<float> sharedOutput(kTotalSamples, 0.0f);
+
+    // Process with standard path
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        standardShifter.process(input.data() + offset,
+                                standardOutput.data() + offset,
+                                blockSize, pitchRatio);
+    }
+
+    // Process with shared-analysis path
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+
+        // Push samples to shared STFT
+        sharedStft.pushSamples(input.data() + offset, blockSize);
+
+        // Process all ready frames
+        while (sharedStft.canAnalyze()) {
+            sharedStft.analyze(sharedSpectrum);
+            sharedShifter.processWithSharedAnalysis(sharedSpectrum, pitchRatio);
+        }
+
+        // Pull output samples
+        size_t available = sharedShifter.outputSamplesAvailable();
+        size_t toPull = std::min(blockSize, available);
+        if (toPull > 0) {
+            sharedShifter.pullOutputSamples(sharedOutput.data() + offset, toPull);
+        }
+        // Zero-fill remaining (during latency priming)
+        for (size_t i = toPull; i < blockSize; ++i) {
+            sharedOutput[offset + i] = 0.0f;
+        }
+    }
+
+    // Compare outputs: max sample error must be < 1e-5
+    float maxError = 0.0f;
+    for (size_t i = 0; i < kTotalSamples; ++i) {
+        float err = std::abs(standardOutput[i] - sharedOutput[i]);
+        if (err > maxError) maxError = err;
+    }
+
+    REQUIRE(maxError < 1e-5f);
+}
+
+// T011: processWithSharedAnalysis() with formant preservation enabled
+// produces identical output to standard path (FR-005)
+TEST_CASE("PhaseVocoder processWithSharedAnalysis with formant preservation matches standard path",
+          "[pitch][spec065][US2][FR-005]") {
+    PhaseVocoderPitchShifter standardShifter;
+    standardShifter.prepare(kTestSampleRate, kTestBlockSize);
+    standardShifter.setFormantPreserve(true);
+
+    PhaseVocoderPitchShifter sharedShifter;
+    sharedShifter.prepare(kTestSampleRate, kTestBlockSize);
+    sharedShifter.setFormantPreserve(true);
+
+    STFT sharedStft;
+    SpectralBuffer sharedSpectrum;
+    sharedStft.prepare(PhaseVocoderPitchShifter::kFFTSize,
+                       PhaseVocoderPitchShifter::kHopSize, WindowType::Hann);
+    sharedSpectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+    const float pitchRatio = std::pow(2.0f, 5.0f / 12.0f);  // +5 semitones
+
+    constexpr size_t kTotalSamples = 44100;
+    std::vector<float> input(kTotalSamples);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    std::vector<float> standardOutput(kTotalSamples, 0.0f);
+    std::vector<float> sharedOutput(kTotalSamples, 0.0f);
+
+    // Standard path
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        standardShifter.process(input.data() + offset,
+                                standardOutput.data() + offset,
+                                blockSize, pitchRatio);
+    }
+
+    // Shared-analysis path
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        sharedStft.pushSamples(input.data() + offset, blockSize);
+
+        while (sharedStft.canAnalyze()) {
+            sharedStft.analyze(sharedSpectrum);
+            sharedShifter.processWithSharedAnalysis(sharedSpectrum, pitchRatio);
+        }
+
+        size_t available = sharedShifter.outputSamplesAvailable();
+        size_t toPull = std::min(blockSize, available);
+        if (toPull > 0) {
+            sharedShifter.pullOutputSamples(sharedOutput.data() + offset, toPull);
+        }
+        for (size_t i = toPull; i < blockSize; ++i) {
+            sharedOutput[offset + i] = 0.0f;
+        }
+    }
+
+    float maxError = 0.0f;
+    for (size_t i = 0; i < kTotalSamples; ++i) {
+        float err = std::abs(standardOutput[i] - sharedOutput[i]);
+        if (err > maxError) maxError = err;
+    }
+    REQUIRE(maxError < 1e-5f);
+}
+
+// T012: processWithSharedAnalysis() with identity phase locking
+// SC-006: max error < 1e-5
+TEST_CASE("PhaseVocoder processWithSharedAnalysis with phase locking matches standard path",
+          "[pitch][spec065][US2][SC-006]") {
+    PhaseVocoderPitchShifter standardShifter;
+    standardShifter.prepare(kTestSampleRate, kTestBlockSize);
+    standardShifter.setPhaseLocking(true);
+
+    PhaseVocoderPitchShifter sharedShifter;
+    sharedShifter.prepare(kTestSampleRate, kTestBlockSize);
+    sharedShifter.setPhaseLocking(true);
+
+    STFT sharedStft;
+    SpectralBuffer sharedSpectrum;
+    sharedStft.prepare(PhaseVocoderPitchShifter::kFFTSize,
+                       PhaseVocoderPitchShifter::kHopSize, WindowType::Hann);
+    sharedSpectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+    const float pitchRatio = std::pow(2.0f, 3.0f / 12.0f);  // +3 semitones
+
+    constexpr size_t kTotalSamples = 44100;
+    std::vector<float> input(kTotalSamples);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    std::vector<float> standardOutput(kTotalSamples, 0.0f);
+    std::vector<float> sharedOutput(kTotalSamples, 0.0f);
+
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        standardShifter.process(input.data() + offset,
+                                standardOutput.data() + offset,
+                                blockSize, pitchRatio);
+    }
+
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        sharedStft.pushSamples(input.data() + offset, blockSize);
+
+        while (sharedStft.canAnalyze()) {
+            sharedStft.analyze(sharedSpectrum);
+            sharedShifter.processWithSharedAnalysis(sharedSpectrum, pitchRatio);
+        }
+
+        size_t available = sharedShifter.outputSamplesAvailable();
+        size_t toPull = std::min(blockSize, available);
+        if (toPull > 0) {
+            sharedShifter.pullOutputSamples(sharedOutput.data() + offset, toPull);
+        }
+        for (size_t i = toPull; i < blockSize; ++i) {
+            sharedOutput[offset + i] = 0.0f;
+        }
+    }
+
+    float maxError = 0.0f;
+    for (size_t i = 0; i < kTotalSamples; ++i) {
+        float err = std::abs(standardOutput[i] - sharedOutput[i]);
+        if (err > maxError) maxError = err;
+    }
+    REQUIRE(maxError < 1e-5f);
+}
+
+// T013: processWithSharedAnalysis() with transient detection and phase reset
+// FR-004
+TEST_CASE("PhaseVocoder processWithSharedAnalysis with transient detection matches standard path",
+          "[pitch][spec065][US2][FR-004]") {
+    PhaseVocoderPitchShifter standardShifter;
+    standardShifter.prepare(kTestSampleRate, kTestBlockSize);
+    standardShifter.setPhaseReset(true);
+
+    PhaseVocoderPitchShifter sharedShifter;
+    sharedShifter.prepare(kTestSampleRate, kTestBlockSize);
+    sharedShifter.setPhaseReset(true);
+
+    STFT sharedStft;
+    SpectralBuffer sharedSpectrum;
+    sharedStft.prepare(PhaseVocoderPitchShifter::kFFTSize,
+                       PhaseVocoderPitchShifter::kHopSize, WindowType::Hann);
+    sharedSpectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+    const float pitchRatio = std::pow(2.0f, -5.0f / 12.0f);  // -5 semitones
+
+    constexpr size_t kTotalSamples = 44100;
+    std::vector<float> input(kTotalSamples);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    std::vector<float> standardOutput(kTotalSamples, 0.0f);
+    std::vector<float> sharedOutput(kTotalSamples, 0.0f);
+
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        standardShifter.process(input.data() + offset,
+                                standardOutput.data() + offset,
+                                blockSize, pitchRatio);
+    }
+
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        sharedStft.pushSamples(input.data() + offset, blockSize);
+
+        while (sharedStft.canAnalyze()) {
+            sharedStft.analyze(sharedSpectrum);
+            sharedShifter.processWithSharedAnalysis(sharedSpectrum, pitchRatio);
+        }
+
+        size_t available = sharedShifter.outputSamplesAvailable();
+        size_t toPull = std::min(blockSize, available);
+        if (toPull > 0) {
+            sharedShifter.pullOutputSamples(sharedOutput.data() + offset, toPull);
+        }
+        for (size_t i = toPull; i < blockSize; ++i) {
+            sharedOutput[offset + i] = 0.0f;
+        }
+    }
+
+    float maxError = 0.0f;
+    for (size_t i = 0; i < kTotalSamples; ++i) {
+        float err = std::abs(standardOutput[i] - sharedOutput[i]);
+        if (err > maxError) maxError = err;
+    }
+    REQUIRE(maxError < 1e-5f);
+}
+
+// T014: processWithSharedAnalysis() is a no-op when unprepared
+// FR-008a: pullOutputSamples() returns 0 after no-op call
+TEST_CASE("PhaseVocoder processWithSharedAnalysis is no-op when unprepared",
+          "[pitch][spec065][US2][FR-008a]") {
+    PhaseVocoderPitchShifter shifter;
+    // Do NOT call prepare()
+
+    // Create a valid spectrum
+    SpectralBuffer spectrum;
+    spectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+    // Call should be a no-op (no crash, no OLA write)
+    shifter.processWithSharedAnalysis(spectrum, 1.5f);
+
+    // outputSamplesAvailable should return 0
+    REQUIRE(shifter.outputSamplesAvailable() == 0);
+
+    // pullOutputSamples should return 0
+    float dummy[256] = {};
+    REQUIRE(shifter.pullOutputSamples(dummy, 256) == 0);
+}
+
+// T015: processWithSharedAnalysis() is no-op when SpectralBuffer has wrong numBins
+// FR-008: debug assert fires on mismatch, release no-op
+TEST_CASE("PhaseVocoder processWithSharedAnalysis is no-op with wrong numBins",
+          "[pitch][spec065][US2][FR-008]") {
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(kTestSampleRate, kTestBlockSize);
+
+    // Create a spectrum with WRONG FFT size (2048 instead of 4096)
+    SpectralBuffer wrongSpectrum;
+    wrongSpectrum.prepare(2048);  // numBins = 1025, expected 2049
+
+    // In release builds, this should be a no-op
+    // (In debug builds, an assertion would fire -- but we test release behavior)
+    shifter.processWithSharedAnalysis(wrongSpectrum, 1.5f);
+
+    // No frame should have been added to OLA
+    REQUIRE(shifter.outputSamplesAvailable() == 0);
+
+    float dummy[256] = {};
+    REQUIRE(shifter.pullOutputSamples(dummy, 256) == 0);
+}
+
+// T016: pullOutputSamples() returns 0 during OLA priming period
+// FR-008a: no garbage audio before first complete synthesis frame
+TEST_CASE("PhaseVocoder pullOutputSamples returns 0 during priming period",
+          "[pitch][spec065][US2][FR-008a]") {
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(kTestSampleRate, kTestBlockSize);
+
+    // Before any processing, outputSamplesAvailable() should be 0
+    REQUIRE(shifter.outputSamplesAvailable() == 0);
+
+    // pullOutputSamples should return 0
+    float dummy[256] = {};
+    REQUIRE(shifter.pullOutputSamples(dummy, 256) == 0);
+}
+
+// T017: PitchShiftProcessor delegation tests
+// FR-009, FR-009a: no-op for non-PhaseVocoder modes
+TEST_CASE("PitchShiftProcessor shared-analysis delegation",
+          "[pitch][spec065][US2][FR-009]") {
+    SECTION("PhaseVocoder mode delegates to internal PhaseVocoderPitchShifter") {
+        PitchShiftProcessor processor;
+        processor.prepare(kTestSampleRate, kTestBlockSize);
+        processor.setMode(PitchMode::PhaseVocoder);
+
+        // Set up shared STFT
+        STFT sharedStft;
+        SpectralBuffer sharedSpectrum;
+        sharedStft.prepare(PitchShiftProcessor::getPhaseVocoderFFTSize(),
+                           PitchShiftProcessor::getPhaseVocoderHopSize(),
+                           WindowType::Hann);
+        sharedSpectrum.prepare(PitchShiftProcessor::getPhaseVocoderFFTSize());
+
+        const float pitchRatio = std::pow(2.0f, 7.0f / 12.0f);
+
+        // Generate enough input to fill one STFT frame
+        constexpr size_t kInputSize = 8192;
+        std::vector<float> input(kInputSize);
+        generateSine(input.data(), kInputSize, 440.0f, kTestSampleRate);
+
+        // Push samples and process frames via shared-analysis
+        sharedStft.pushSamples(input.data(), kInputSize);
+        while (sharedStft.canAnalyze()) {
+            sharedStft.analyze(sharedSpectrum);
+            processor.processWithSharedAnalysis(sharedSpectrum, pitchRatio);
+        }
+
+        // Should have output available
+        REQUIRE(processor.sharedAnalysisSamplesAvailable() > 0);
+
+        // Pull output
+        std::vector<float> output(kInputSize, 0.0f);
+        size_t pulled = processor.pullSharedAnalysisOutput(output.data(), kInputSize);
+        REQUIRE(pulled > 0);
+    }
+
+    SECTION("Simple mode processWithSharedAnalysis is no-op") {
+        PitchShiftProcessor processor;
+        processor.prepare(kTestSampleRate, kTestBlockSize);
+        processor.setMode(PitchMode::Simple);
+
+        SpectralBuffer spectrum;
+        spectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+        processor.processWithSharedAnalysis(spectrum, 1.5f);
+        REQUIRE(processor.pullSharedAnalysisOutput(nullptr, 0) == 0);
+        REQUIRE(processor.sharedAnalysisSamplesAvailable() == 0);
+    }
+
+    SECTION("Granular mode processWithSharedAnalysis is no-op") {
+        PitchShiftProcessor processor;
+        processor.prepare(kTestSampleRate, kTestBlockSize);
+        processor.setMode(PitchMode::Granular);
+
+        SpectralBuffer spectrum;
+        spectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+        processor.processWithSharedAnalysis(spectrum, 1.5f);
+        REQUIRE(processor.pullSharedAnalysisOutput(nullptr, 0) == 0);
+        REQUIRE(processor.sharedAnalysisSamplesAvailable() == 0);
+    }
+
+    SECTION("PitchSync mode processWithSharedAnalysis is no-op") {
+        PitchShiftProcessor processor;
+        processor.prepare(kTestSampleRate, kTestBlockSize);
+        processor.setMode(PitchMode::PitchSync);
+
+        SpectralBuffer spectrum;
+        spectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+        processor.processWithSharedAnalysis(spectrum, 1.5f);
+        REQUIRE(processor.pullSharedAnalysisOutput(nullptr, 0) == 0);
+        REQUIRE(processor.sharedAnalysisSamplesAvailable() == 0);
+    }
+}
+
+// T018: getPhaseVocoderFFTSize() and getPhaseVocoderHopSize() accessors
+// FR-011
+TEST_CASE("PitchShiftProcessor FFT size and hop size accessors",
+          "[pitch][spec065][US2][FR-011]") {
+    REQUIRE(PitchShiftProcessor::getPhaseVocoderFFTSize() == 4096);
+    REQUIRE(PitchShiftProcessor::getPhaseVocoderHopSize() == 1024);
+}
+
+// T018a: One call to processWithSharedAnalysis() adds exactly one frame to OLA
+// FR-007: outputSamplesAvailable() increases by kHopSize per call
+TEST_CASE("PhaseVocoder processWithSharedAnalysis adds exactly one frame per call",
+          "[pitch][spec065][US2][FR-007]") {
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(kTestSampleRate, kTestBlockSize);
+
+    STFT sharedStft;
+    SpectralBuffer sharedSpectrum;
+    sharedStft.prepare(PhaseVocoderPitchShifter::kFFTSize,
+                       PhaseVocoderPitchShifter::kHopSize, WindowType::Hann);
+    sharedSpectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+    const float pitchRatio = std::pow(2.0f, 3.0f / 12.0f);
+
+    // Generate enough input for multiple frames
+    constexpr size_t kInputSize = 8192;
+    std::vector<float> input(kInputSize);
+    generateSine(input.data(), kInputSize, 440.0f, kTestSampleRate);
+
+    sharedStft.pushSamples(input.data(), kInputSize);
+
+    // Process frames one at a time and check OLA buffer growth
+    size_t frameCount = 0;
+    while (sharedStft.canAnalyze()) {
+        size_t beforeAvailable = shifter.outputSamplesAvailable();
+
+        sharedStft.analyze(sharedSpectrum);
+        shifter.processWithSharedAnalysis(sharedSpectrum, pitchRatio);
+
+        size_t afterAvailable = shifter.outputSamplesAvailable();
+
+        // Each call should add exactly kHopSize samples
+        REQUIRE(afterAvailable - beforeAvailable == PhaseVocoderPitchShifter::kHopSize);
+        ++frameCount;
+    }
+
+    // Should have processed at least one frame
+    REQUIRE(frameCount > 0);
+}
+
+// T018b: processWithSharedAnalysis() with unity pitch ratio does NOT apply bypass
+// FR-025: unity bypass is the caller's responsibility
+TEST_CASE("PhaseVocoder processWithSharedAnalysis does not bypass at unity pitch",
+          "[pitch][spec065][US2][FR-025]") {
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(kTestSampleRate, kTestBlockSize);
+
+    STFT sharedStft;
+    SpectralBuffer sharedSpectrum;
+    sharedStft.prepare(PhaseVocoderPitchShifter::kFFTSize,
+                       PhaseVocoderPitchShifter::kHopSize, WindowType::Hann);
+    sharedSpectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+    // Unity pitch ratio (1.0)
+    const float pitchRatio = 1.0f;
+
+    constexpr size_t kInputSize = 8192;
+    std::vector<float> input(kInputSize);
+    generateSine(input.data(), kInputSize, 440.0f, kTestSampleRate);
+
+    sharedStft.pushSamples(input.data(), kInputSize);
+
+    // Process all available frames at unity pitch
+    size_t framesProcessed = 0;
+    while (sharedStft.canAnalyze()) {
+        sharedStft.analyze(sharedSpectrum);
+        shifter.processWithSharedAnalysis(sharedSpectrum, pitchRatio);
+        ++framesProcessed;
+    }
+
+    // Must have processed at least one frame
+    REQUIRE(framesProcessed > 0);
+
+    // Output samples should be available (the method DID process, not bypass)
+    REQUIRE(shifter.outputSamplesAvailable() > 0);
+
+    // Pull output and verify it's non-zero (actual processed audio)
+    std::vector<float> output(shifter.outputSamplesAvailable(), 0.0f);
+    size_t pulled = shifter.pullOutputSamples(output.data(), output.size());
+    REQUIRE(pulled > 0);
+
+    // The output should contain non-zero data (processed through phase vocoder)
+    float rms = calculateRMS(output.data(), pulled);
+    REQUIRE(rms > 0.01f);
+}

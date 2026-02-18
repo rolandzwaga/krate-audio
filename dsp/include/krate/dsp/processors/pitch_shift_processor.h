@@ -19,13 +19,14 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cmath>
 #include <memory>
 #include <vector>
-#include <algorithm>
 
 // Layer 0 dependencies
 #include <krate/dsp/core/db_utils.h>
@@ -284,6 +285,56 @@ public:
     ///
     /// @pre isPrepared() == true
     [[nodiscard]] std::size_t getLatencySamples() const noexcept;
+
+    //=========================================================================
+    // Shared-Analysis API (spec 065)
+    //=========================================================================
+
+    /// @brief Process one analysis frame using shared analysis, bypassing internal STFT.
+    ///
+    /// When mode is PhaseVocoder: delegates to internal PhaseVocoderPitchShifter's
+    /// processWithSharedAnalysis(). The pitch ratio is passed directly without
+    /// internal parameter smoothing (the caller is responsible for smoothing).
+    ///
+    /// When mode is NOT PhaseVocoder (Simple, Granular, PitchSync): no-op.
+    /// No frame is pushed to the OLA buffer. pullSharedAnalysisOutput() will
+    /// return 0 for this frame.
+    ///
+    /// @param analysis  Read-only reference to pre-computed analysis spectrum.
+    /// @param pitchRatio  Pitch ratio for this frame (direct, not smoothed).
+    ///
+    /// @pre prepare() has been called.
+    /// @pre Mode is set via setMode() before calling.
+    void processWithSharedAnalysis(const SpectralBuffer& analysis,
+                                   float pitchRatio) noexcept;
+
+    /// @brief Pull output samples from the PhaseVocoder OLA buffer after
+    ///        processWithSharedAnalysis() calls.
+    ///
+    /// @param output      Destination buffer.
+    /// @param maxSamples  Maximum samples to pull.
+    /// @return            Samples actually written (may be less if OLA has fewer).
+    ///
+    /// When mode is NOT PhaseVocoder: returns 0, output untouched.
+    std::size_t pullSharedAnalysisOutput(float* output,
+                                         std::size_t maxSamples) noexcept;
+
+    /// @brief Query available output samples from the PhaseVocoder OLA buffer.
+    ///
+    /// @return Samples available, or 0 if mode is not PhaseVocoder.
+    [[nodiscard]] std::size_t sharedAnalysisSamplesAvailable() const noexcept;
+
+    /// @brief Get the PhaseVocoder's FFT size for shared STFT configuration.
+    /// @return 4096 (compile-time constant).
+    [[nodiscard]] static constexpr std::size_t getPhaseVocoderFFTSize() noexcept {
+        return 4096;
+    }
+
+    /// @brief Get the PhaseVocoder's hop size for shared STFT configuration.
+    /// @return 1024 (compile-time constant).
+    [[nodiscard]] static constexpr std::size_t getPhaseVocoderHopSize() noexcept {
+        return 1024;
+    }
 
 private:
     //=========================================================================
@@ -1132,6 +1183,90 @@ public:
         return kFFTSize + kHopSize;
     }
 
+    //=========================================================================
+    // Shared-Analysis API (spec 065)
+    //=========================================================================
+
+    /// @brief Process one analysis frame using an externally provided spectrum.
+    ///
+    /// Performs synthesis-only processing: phase rotation, optional phase locking,
+    /// optional transient detection, optional formant preservation, synthesis iFFT,
+    /// and overlap-add. Bypasses internal STFT analysis entirely.
+    ///
+    /// @param analysis  Read-only reference to the pre-computed analysis spectrum.
+    ///                  Must have numBins() == kFFTSize / 2 + 1 (2049).
+    ///                  The caller MUST NOT modify this spectrum during or after
+    ///                  the call. The reference is only valid for the duration
+    ///                  of this call (FR-024).
+    /// @param pitchRatio  Pitch ratio for this frame (e.g., 1.0594 for +1 semitone).
+    ///                    Clamped to [0.25, 4.0].
+    ///
+    /// @pre  prepare() has been called.
+    /// @pre  analysis.numBins() == kFFTSize / 2 + 1 (= 2049 for kFFTSize = 4096).
+    /// @post One synthesis frame has been added to the internal OLA buffer.
+    ///       Use outputSamplesAvailable() and pullOutputSamples() to retrieve output.
+    ///
+    /// In degenerate conditions (unprepared, FFT size mismatch), the method is a
+    /// no-op: no frame is pushed to the OLA buffer. pullOutputSamples() will
+    /// return 0 for this frame.
+    ///
+    /// @note This method MUST NOT apply unity-pitch bypass internally. The caller
+    ///       (HarmonizerEngine) is responsible for detecting unity pitch and
+    ///       routing accordingly (FR-025).
+    void processWithSharedAnalysis(const SpectralBuffer& analysis,
+                                   float pitchRatio) noexcept {
+        // Guard: not prepared
+        if (!ola_.isPrepared()) return;
+
+        // Guard: numBins mismatch (FR-008)
+        constexpr std::size_t kExpectedBins = kFFTSize / 2 + 1;
+        assert(analysis.numBins() == kExpectedBins &&
+               "SpectralBuffer numBins mismatch: expected kFFTSize / 2 + 1");
+        if (analysis.numBins() != kExpectedBins) return;
+
+        // Clamp pitch ratio
+        pitchRatio = std::clamp(pitchRatio, 0.25f, 4.0f);
+
+        // FR-025: Do NOT apply unity-pitch bypass here.
+        // The caller is responsible for unity-pitch routing.
+
+        // Process one frame using the external analysis spectrum
+        processFrame(analysis, synthesisSpectrum_, pitchRatio);
+
+        // Synthesize via OLA
+        ola_.synthesize(synthesisSpectrum_);
+    }
+
+    /// @brief Pull processed samples from the internal OLA buffer.
+    ///
+    /// @param output      Destination buffer. Must have room for at least
+    ///                    maxSamples floats.
+    /// @param maxSamples  Maximum number of samples to pull.
+    /// @return            Number of samples actually written to output.
+    ///                    May be less than maxSamples if fewer are available.
+    ///
+    /// @pre  prepare() has been called.
+    /// @post Up to maxSamples are copied from OLA buffer to output.
+    ///       OLA buffer advances accordingly.
+    std::size_t pullOutputSamples(float* output, std::size_t maxSamples) noexcept {
+        if (!ola_.isPrepared() || output == nullptr) return 0;
+
+        std::size_t available = ola_.samplesAvailable();
+        std::size_t toPull = std::min(maxSamples, available);
+        if (toPull == 0) return 0;
+
+        ola_.pullSamples(output, toPull);
+        return toPull;
+    }
+
+    /// @brief Query how many samples are available in the OLA buffer.
+    ///
+    /// @return Number of samples that can be pulled via pullOutputSamples().
+    [[nodiscard]] std::size_t outputSamplesAvailable() const noexcept {
+        if (!ola_.isPrepared()) return 0;
+        return ola_.samplesAvailable();
+    }
+
 private:
     /// @brief Process unity pitch ratio with proper latency
     void processUnityPitch(const float* input, float* output, std::size_t numSamples) noexcept {
@@ -1438,6 +1573,13 @@ private:
     float sampleRate_ = 44100.0f;
 };
 
+// Compile-time verification that PitchShiftProcessor's FFT/hop accessors
+// match PhaseVocoderPitchShifter's constants (spec 065, FR-011)
+static_assert(PitchShiftProcessor::getPhaseVocoderFFTSize() == PhaseVocoderPitchShifter::kFFTSize,
+              "PitchShiftProcessor FFT size must match PhaseVocoderPitchShifter::kFFTSize");
+static_assert(PitchShiftProcessor::getPhaseVocoderHopSize() == PhaseVocoderPitchShifter::kHopSize,
+              "PitchShiftProcessor hop size must match PhaseVocoderPitchShifter::kHopSize");
+
 // ==============================================================================
 // PitchShiftProcessor Implementation
 // ==============================================================================
@@ -1461,6 +1603,25 @@ struct PitchShiftProcessor::Impl {
     // Parameter smoothers
     OnePoleSmoother semitoneSmoother;
     OnePoleSmoother centsSmoother;
+
+    // Shared-analysis delegation methods (spec 065)
+    void processWithSharedAnalysis(const SpectralBuffer& analysis,
+                                   float pitchRatio) noexcept {
+        if (!prepared) return;
+        if (mode != PitchMode::PhaseVocoder) return;
+        phaseVocoderShifter.processWithSharedAnalysis(analysis, pitchRatio);
+    }
+
+    std::size_t pullSharedAnalysisOutput(float* output,
+                                         std::size_t maxSamples) noexcept {
+        if (!prepared || mode != PitchMode::PhaseVocoder) return 0;
+        return phaseVocoderShifter.pullOutputSamples(output, maxSamples);
+    }
+
+    std::size_t sharedAnalysisSamplesAvailable() const noexcept {
+        if (!prepared || mode != PitchMode::PhaseVocoder) return 0;
+        return phaseVocoderShifter.outputSamplesAvailable();
+    }
 };
 
 inline PitchShiftProcessor::PitchShiftProcessor() noexcept
@@ -1626,6 +1787,22 @@ inline std::size_t PitchShiftProcessor::getLatencySamples() const noexcept {
             return pImpl_->pitchSyncShifter.getLatencySamples();
     }
     return 0;
+}
+
+// Shared-analysis delegation wrappers (spec 065)
+
+inline void PitchShiftProcessor::processWithSharedAnalysis(
+    const SpectralBuffer& analysis, float pitchRatio) noexcept {
+    pImpl_->processWithSharedAnalysis(analysis, pitchRatio);
+}
+
+inline std::size_t PitchShiftProcessor::pullSharedAnalysisOutput(
+    float* output, std::size_t maxSamples) noexcept {
+    return pImpl_->pullSharedAnalysisOutput(output, maxSamples);
+}
+
+inline std::size_t PitchShiftProcessor::sharedAnalysisSamplesAvailable() const noexcept {
+    return pImpl_->sharedAnalysisSamplesAvailable();
 }
 
 } // namespace Krate::DSP
