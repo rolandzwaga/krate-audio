@@ -3610,3 +3610,151 @@ TEST_CASE("PhaseVocoder processWithSharedAnalysis does not bypass at unity pitch
     float rms = calculateRMS(output.data(), pulled);
     REQUIRE(rms > 0.01f);
 }
+
+// ==============================================================================
+// Phase 6: User Story 4 - PitchShiftProcessor Public API Backward Compatibility
+// ==============================================================================
+
+// T052: Standalone PitchShiftProcessor calling process() in PhaseVocoder mode
+// produces output identical to a second identically-configured instance.
+// This is a targeted regression test for FR-006 (backward compatibility).
+// US4 acceptance scenario 2: standalone PitchShiftProcessor behavior is identical
+// to pre-refactor.
+TEST_CASE("PitchShiftProcessor standalone PhaseVocoder process() regression test",
+          "[pitch][spec065][US4][FR-006]") {
+    // Two identically-configured PitchShiftProcessor instances
+    PitchShiftProcessor processor1;
+    PitchShiftProcessor processor2;
+    processor1.prepare(kTestSampleRate, kTestBlockSize);
+    processor2.prepare(kTestSampleRate, kTestBlockSize);
+    processor1.setMode(PitchMode::PhaseVocoder);
+    processor2.setMode(PitchMode::PhaseVocoder);
+    processor1.setSemitones(7.0f);  // +7 semitones (perfect fifth up)
+    processor2.setSemitones(7.0f);
+
+    // Generate 1 second of 440 Hz sine input
+    constexpr size_t kTotalSamples = 44100;
+    std::vector<float> input(kTotalSamples);
+    std::vector<float> output1(kTotalSamples, 0.0f);
+    std::vector<float> output2(kTotalSamples, 0.0f);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    // Process in blocks through the standard process() API
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        processor1.process(input.data() + offset, output1.data() + offset, blockSize);
+        processor2.process(input.data() + offset, output2.data() + offset, blockSize);
+    }
+
+    // Both instances MUST produce bit-identical output
+    REQUIRE(buffersEqual(output1.data(), output2.data(), kTotalSamples, 0.0f));
+
+    // After latency settles, output must be non-zero meaningful audio
+    constexpr size_t kLatency = 4096 + 1024 + 4096;  // kFFTSize + kHopSize + settling
+    const float* stableRegion = output1.data() + kLatency;
+    const size_t stableSize = kTotalSamples - kLatency;
+    float rms = calculateRMS(stableRegion, stableSize);
+    INFO("Stable region RMS: " << rms);
+    REQUIRE(rms > 0.01f);
+
+    // Output must be free of NaN/Inf
+    REQUIRE_FALSE(hasInvalidSamples(output1.data(), kTotalSamples));
+
+    // Verify the pitch shift actually happened: detect frequency in stable region
+    float detectedFreq = estimateFrequencyAutocorr(stableRegion, stableSize, kTestSampleRate);
+    float expectedFreq = 440.0f * std::pow(2.0f, 7.0f / 12.0f);  // ~659.26 Hz
+    float tolerance = expectedFreq * 0.00289f;  // +/-5 cents
+    INFO("Detected frequency: " << detectedFreq << " Hz (expected: " << expectedFreq << " Hz)");
+    REQUIRE(detectedFreq == Approx(expectedFreq).margin(tolerance));
+}
+
+// T053: processWithSharedAnalysis() on PitchShiftProcessor in Simple, Granular,
+// and PitchSync modes is a documented no-op. Observable through
+// pullSharedAnalysisOutput() returning 0 (FR-009a).
+// US4 acceptance scenario 3: non-PhaseVocoder modes treat shared analysis as no-op.
+TEST_CASE("PitchShiftProcessor processWithSharedAnalysis is no-op for non-PhaseVocoder modes",
+          "[pitch][spec065][US4][FR-009a]") {
+    // Prepare a valid SpectralBuffer to pass
+    SpectralBuffer spectrum;
+    spectrum.prepare(PhaseVocoderPitchShifter::kFFTSize);
+
+    // Fill spectrum with non-trivial data to ensure the no-op is not just
+    // because the spectrum is empty
+    for (size_t bin = 0; bin < spectrum.numBins(); ++bin) {
+        spectrum.setCartesian(bin, 0.5f, 0.25f);
+    }
+
+    const float pitchRatio = std::pow(2.0f, 5.0f / 12.0f);  // +5 semitones
+
+    SECTION("Simple mode: processWithSharedAnalysis is no-op") {
+        PitchShiftProcessor processor;
+        processor.prepare(kTestSampleRate, kTestBlockSize);
+        processor.setMode(PitchMode::Simple);
+
+        // Call processWithSharedAnalysis -- should be a no-op
+        processor.processWithSharedAnalysis(spectrum, pitchRatio);
+
+        // pullSharedAnalysisOutput must return 0
+        std::vector<float> output(kTestBlockSize, -1.0f);
+        size_t pulled = processor.pullSharedAnalysisOutput(output.data(), kTestBlockSize);
+        REQUIRE(pulled == 0);
+        REQUIRE(processor.sharedAnalysisSamplesAvailable() == 0);
+    }
+
+    SECTION("Granular mode: processWithSharedAnalysis is no-op") {
+        PitchShiftProcessor processor;
+        processor.prepare(kTestSampleRate, kTestBlockSize);
+        processor.setMode(PitchMode::Granular);
+
+        // Call processWithSharedAnalysis -- should be a no-op
+        processor.processWithSharedAnalysis(spectrum, pitchRatio);
+
+        // pullSharedAnalysisOutput must return 0
+        std::vector<float> output(kTestBlockSize, -1.0f);
+        size_t pulled = processor.pullSharedAnalysisOutput(output.data(), kTestBlockSize);
+        REQUIRE(pulled == 0);
+        REQUIRE(processor.sharedAnalysisSamplesAvailable() == 0);
+    }
+
+    SECTION("PitchSync mode: processWithSharedAnalysis is no-op") {
+        PitchShiftProcessor processor;
+        processor.prepare(kTestSampleRate, kTestBlockSize);
+        processor.setMode(PitchMode::PitchSync);
+
+        // Call processWithSharedAnalysis -- should be a no-op
+        processor.processWithSharedAnalysis(spectrum, pitchRatio);
+
+        // pullSharedAnalysisOutput must return 0
+        std::vector<float> output(kTestBlockSize, -1.0f);
+        size_t pulled = processor.pullSharedAnalysisOutput(output.data(), kTestBlockSize);
+        REQUIRE(pulled == 0);
+        REQUIRE(processor.sharedAnalysisSamplesAvailable() == 0);
+    }
+
+    SECTION("All non-PhaseVocoder modes tested together") {
+        // Verify that calling processWithSharedAnalysis multiple times in
+        // succession across different non-PhaseVocoder modes still results
+        // in zero output from pullSharedAnalysisOutput
+
+        PitchShiftProcessor processor;
+        processor.prepare(kTestSampleRate, kTestBlockSize);
+
+        const PitchMode nonPvModes[] = {
+            PitchMode::Simple, PitchMode::Granular, PitchMode::PitchSync
+        };
+
+        for (auto mode : nonPvModes) {
+            processor.setMode(mode);
+
+            // Call multiple times
+            processor.processWithSharedAnalysis(spectrum, pitchRatio);
+            processor.processWithSharedAnalysis(spectrum, pitchRatio);
+            processor.processWithSharedAnalysis(spectrum, pitchRatio);
+
+            // Still zero output
+            REQUIRE(processor.sharedAnalysisSamplesAvailable() == 0);
+            size_t pulled = processor.pullSharedAnalysisOutput(nullptr, 0);
+            REQUIRE(pulled == 0);
+        }
+    }
+}

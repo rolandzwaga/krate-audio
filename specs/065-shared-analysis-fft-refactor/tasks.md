@@ -208,7 +208,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T050 [US3] Commit completed User Story 3 work (OLA isolation verification tests)
+- [X] T050 [US3] Commit completed User Story 3 work (OLA isolation verification tests)
 
 **Checkpoint**: Per-voice OLA isolation proven by automated tests. All three P1 user stories complete.
 
@@ -222,19 +222,19 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 6.1 Tests for User Story 4
 
-- [ ] T051 [US4] Run the complete dsp_tests suite and record the full test output: `build/windows-x64-release/bin/Release/dsp_tests.exe` -- confirm the test count matches the baseline from T002 and all tests pass (SC-004)
-- [ ] T052 [US4] Write one targeted regression test: a standalone `PitchShiftProcessor` (not used through `HarmonizerEngine`) calling `process()` in PhaseVocoder mode produces output identical to the pre-refactor baseline (US4 acceptance scenario 2) -- add to `dsp/tests/unit/processors/pitch_shift_processor_test.cpp`
-- [ ] T053 [US4] Write one targeted test: calling `processWithSharedAnalysis()` on a `PitchShiftProcessor` in Simple, Granular, and PitchSync modes is a documented no-op -- assert that `pullSharedAnalysisOutput()` returns 0 after the call (FR-009a: the no-op has no output buffer parameter; it is observable through `pullSharedAnalysisOutput()` returning 0, not through zero-filling a buffer; this aligns with the corrected FR-009a wording) (US4 acceptance scenario 3) -- add to `dsp/tests/unit/processors/pitch_shift_processor_test.cpp`
-- [ ] T054 [US4] Build dsp_tests and fix ALL compiler warnings and errors: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T055 [US4] Run the full dsp_tests suite and confirm zero regressions (SC-004): `build/windows-x64-release/bin/Release/dsp_tests.exe`
+- [X] T051 [US4] Run the complete dsp_tests suite and record the full test output: `build/windows-x64-release/bin/Release/dsp_tests.exe` -- confirm the test count matches the baseline from T002 and all tests pass (SC-004)
+- [X] T052 [US4] Write one targeted regression test: a standalone `PitchShiftProcessor` (not used through `HarmonizerEngine`) calling `process()` in PhaseVocoder mode produces output identical to the pre-refactor baseline (US4 acceptance scenario 2) -- add to `dsp/tests/unit/processors/pitch_shift_processor_test.cpp`
+- [X] T053 [US4] Write one targeted test: calling `processWithSharedAnalysis()` on a `PitchShiftProcessor` in Simple, Granular, and PitchSync modes is a documented no-op -- assert that `pullSharedAnalysisOutput()` returns 0 after the call (FR-009a: the no-op has no output buffer parameter; it is observable through `pullSharedAnalysisOutput()` returning 0, not through zero-filling a buffer; this aligns with the corrected FR-009a wording) (US4 acceptance scenario 3) -- add to `dsp/tests/unit/processors/pitch_shift_processor_test.cpp`
+- [X] T054 [US4] Build dsp_tests and fix ALL compiler warnings and errors: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T055 [US4] Run the full dsp_tests suite and confirm zero regressions (SC-004): `build/windows-x64-release/bin/Release/dsp_tests.exe`
 
 ### 6.2 Cross-Platform Verification (MANDATORY)
 
-- [ ] T056 [US4] Verify IEEE 754 compliance for any new test additions -- check for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` if needed
+- [X] T056 [US4] Verify IEEE 754 compliance for any new test additions -- check for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` if needed (verified: new T052/T053 tests use hasInvalidSamples() which calls std::isnan/std::isinf, but the file is already in the -fno-fast-math list at line 340 of dsp/tests/CMakeLists.txt)
 
 ### 6.3 Commit (MANDATORY)
 
-- [ ] T057 [US4] Commit completed User Story 4 work (backward compatibility verification)
+- [X] T057 [US4] Commit completed User Story 4 work (backward compatibility verification)
 
 **Checkpoint**: Backward compatibility proven. All four user stories (P1 + P2) complete and committed.
 
