@@ -67,10 +67,10 @@ This is required because VST3 SDK enables `-ffast-math` globally, breaking `std:
 
 **Note**: No new directories are required. The header goes into the existing `dsp/include/krate/dsp/primitives/` directory and the test goes into `dsp/tests/unit/primitives/` - both already exist.
 
-- [ ] T001 Register `pitch_tracker.h` in `dsp/CMakeLists.txt` by adding it to the `KRATE_DSP_PRIMITIVES_HEADERS` list (follow existing pattern for `pitch_detector.h`)
-- [ ] T002 Register `pitch_tracker_test.cpp` in `dsp/tests/CMakeLists.txt` by adding it to the test sources list (follow existing pattern for `pitch_detector_test.cpp`)
-- [ ] T003 Add `dsp/tests/unit/primitives/pitch_tracker_test.cpp` to the `-fno-fast-math` source file properties list in `dsp/tests/CMakeLists.txt` to ensure IEEE 754 compliance on Clang/GCC
-- [ ] T004 Verify the build system change compiles cleanly: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests` (expect linker error for missing test file, not a CMake error)
+- [X] T001 Register `pitch_tracker.h` in `dsp/CMakeLists.txt` by adding it to the `KRATE_DSP_PRIMITIVES_HEADERS` list (follow existing pattern for `pitch_detector.h`)
+- [X] T002 Register `pitch_tracker_test.cpp` in `dsp/tests/CMakeLists.txt` by adding it to the test sources list (follow existing pattern for `pitch_detector_test.cpp`)
+- [X] T003 Add `dsp/tests/unit/primitives/pitch_tracker_test.cpp` to the `-fno-fast-math` source file properties list in `dsp/tests/CMakeLists.txt` to ensure IEEE 754 compliance on Clang/GCC
+- [X] T004 Verify the build system change compiles cleanly: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests` (expect linker error for missing test file, not a CMake error)
 
 ---
 
@@ -80,8 +80,8 @@ This is required because VST3 SDK enables `-ffast-math` globally, breaking `std:
 
 **CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T005 Create the empty class skeleton `dsp/include/krate/dsp/primitives/pitch_tracker.h` matching the API contract in `specs/063-pitch-tracker/contracts/pitch_tracker_api.h` exactly: class declaration with all public methods, all private member fields (with defaults from data-model.md), all constants, correct `#include` directives (`pitch_detector.h`, `smoother.h`, `pitch_utils.h`, `midi_utils.h`), and `namespace Krate::DSP`. All method bodies MUST return stub values (`return {};`, `return 0;`, `return 0.0f;`, `return false;`) so the code compiles but tests fail.
-- [ ] T006 Verify the skeleton compiles without errors or warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T005 Create the empty class skeleton `dsp/include/krate/dsp/primitives/pitch_tracker.h` matching the API contract in `specs/063-pitch-tracker/contracts/pitch_tracker_api.h` exactly: class declaration with all public methods, all private member fields (with defaults from data-model.md), all constants, correct `#include` directives (`pitch_detector.h`, `smoother.h`, `pitch_utils.h`, `midi_utils.h`), and `namespace Krate::DSP`. All method bodies MUST return stub values (`return {};`, `return 0;`, `return 0.0f;`, `return false;`) so the code compiles but tests fail.
+- [X] T006 Verify the skeleton compiles without errors or warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
 
 **Checkpoint**: The empty PitchTracker class skeleton compiles cleanly. All user story test writing can now begin.
 
@@ -99,39 +99,39 @@ This is required because VST3 SDK enables `-ffast-math` globally, breaking `std:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins. The skeleton from T005 ensures they compile but fail.
 
-- [ ] T007 [P] [US1] Write SC-001 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed 2 seconds of 440Hz sine at 44100Hz into `PitchTracker::pushBlock()`, verify `getMidiNote()` returns 69 with zero note switches over the observation window
-- [ ] T008 [P] [US1] Write SC-002 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed 2 seconds of 440Hz sine with +/- 20 cents random jitter (hysteresis default 50 cents), verify zero note switches
-- [ ] T009 [P] [US1] Write SC-004 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed A4 (440Hz) then B4 (493.88Hz) transition, verify exactly one note switch (69 -> 71) occurring within 100ms of the transition point
-- [ ] T010 [P] [US1] Write SC-007 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: measure incremental CPU overhead of PitchTracker beyond PitchDetector (verify it is negligible; test comment documents the budget is <0.1% at 44.1kHz)
-- [ ] T011 [P] [US1] Write SC-008 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: inspect implementation that `pushBlock()` contains no allocating calls (code inspection test with assertion that allocator call count is zero - or document as inspection-only with a comment citing FR-011)
-- [ ] T012 [P] [US1] Write SC-009 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed a 512-sample block with 256-sample window, verify tracker state reflects the SECOND detection result (second hop processed), not just the first
-- [ ] T013 [P] [US1] Write FR-001 pushBlock/internal-detect test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: verify `pushBlock()` with a block larger than windowSize triggers multiple pipeline executions (observable via note state changes reflecting multiple hops)
-- [ ] T014 [P] [US1] Write FR-006 frequency-smoother separation test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: verify `getMidiNote()` returns the committed integer note while `getFrequency()` returns a smoothed value that is NOT the exact center frequency of the note immediately after commitment (smoother lags behind)
-- [ ] T015 [US1] Verify ALL User Story 1 tests compile and FAIL (no implementation yet): `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
+- [X] T007 [P] [US1] Write SC-001 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed 2 seconds of 440Hz sine at 44100Hz into `PitchTracker::pushBlock()`, verify `getMidiNote()` returns 69 with zero note switches over the observation window
+- [X] T008 [P] [US1] Write SC-002 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed 2 seconds of 440Hz sine with +/- 20 cents random jitter (hysteresis default 50 cents), verify zero note switches
+- [X] T009 [P] [US1] Write SC-004 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed A4 (440Hz) then B4 (493.88Hz) transition, verify exactly one note switch (69 -> 71) occurring within 100ms of the transition point
+- [X] T010 [P] [US1] Write SC-007 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: measure incremental CPU overhead of PitchTracker beyond PitchDetector (verify it is negligible; test comment documents the budget is <0.1% at 44.1kHz)
+- [X] T011 [P] [US1] Write SC-008 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: inspect implementation that `pushBlock()` contains no allocating calls (code inspection test with assertion that allocator call count is zero - or document as inspection-only with a comment citing FR-011)
+- [X] T012 [P] [US1] Write SC-009 test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed a 512-sample block with 256-sample window, verify tracker state reflects the SECOND detection result (second hop processed), not just the first
+- [X] T013 [P] [US1] Write FR-001 pushBlock/internal-detect test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: verify `pushBlock()` with a block larger than windowSize triggers multiple pipeline executions (observable via note state changes reflecting multiple hops)
+- [X] T014 [P] [US1] Write FR-006 frequency-smoother separation test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: verify `getMidiNote()` returns the committed integer note while `getFrequency()` returns a smoothed value that is NOT the exact center frequency of the note immediately after commitment (smoother lags behind)
+- [X] T015 [US1] Verify ALL User Story 1 tests compile and FAIL (no implementation yet): `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
 
 ### 3.2 Implementation for User Story 1
 
-- [ ] T016 [US1] Implement `prepare()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: call `detector_.prepare(sampleRate, windowSize)`, compute `hopSize_ = windowSize / 4`, compute `minNoteDurationSamples_ = static_cast<std::size_t>(minNoteDurationMs_ / 1000.0 * sampleRate)`, configure `frequencySmoother_.configure(kDefaultFrequencySmoothingMs, static_cast<float>(sampleRate))`, store `sampleRate_` and `windowSize_`, then call `reset()`
-- [ ] T017 [US1] Implement `reset()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: zero `pitchHistory_`, reset `historyIndex_`, `historyCount_`, `currentNote_ = -1`, `candidateNote_ = -1`, `noteHoldTimer_ = 0`, `samplesSinceLastHop_ = 0`, `pitchValid_ = false`, `smoothedFrequency_ = 0.0f`, call `detector_.reset()` and `frequencySmoother_.reset()`
-- [ ] T018 [US1] Implement `computeMedian()` const helper in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: copy `historyCount_` entries from `pitchHistory_` ring buffer into a scratch `std::array<float, kMaxMedianSize>`, perform insertion sort on the scratch array, return the middle element. Handle the `historyCount_ == 0` edge case by returning 0.0f. Handle `medianSize_ == 1` by returning `pitchHistory_[historyIndex_ == 0 ? 0 : historyIndex_ - 1]` (last written value) as an optimization.
-- [ ] T019 [US1] Implement `runPipeline()` private method in `dsp/include/krate/dsp/primitives/pitch_tracker.h` covering all five stages in the fixed order from spec.md:
+- [X] T016 [US1] Implement `prepare()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: call `detector_.prepare(sampleRate, windowSize)`, compute `hopSize_ = windowSize / 4`, compute `minNoteDurationSamples_ = static_cast<std::size_t>(minNoteDurationMs_ / 1000.0 * sampleRate)`, configure `frequencySmoother_.configure(kDefaultFrequencySmoothingMs, static_cast<float>(sampleRate))`, store `sampleRate_` and `windowSize_`, then call `reset()`
+- [X] T017 [US1] Implement `reset()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: zero `pitchHistory_`, reset `historyIndex_`, `historyCount_`, `currentNote_ = -1`, `candidateNote_ = -1`, `noteHoldTimer_ = 0`, `samplesSinceLastHop_ = 0`, `pitchValid_ = false`, `smoothedFrequency_ = 0.0f`, call `detector_.reset()` and `frequencySmoother_.reset()`
+- [X] T018 [US1] Implement `computeMedian()` const helper in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: copy `historyCount_` entries from `pitchHistory_` ring buffer into a scratch `std::array<float, kMaxMedianSize>`, perform insertion sort on the scratch array, return the middle element. Handle the `historyCount_ == 0` edge case by returning 0.0f. Handle `medianSize_ == 1` by returning `pitchHistory_[historyIndex_ == 0 ? 0 : historyIndex_ - 1]` (last written value) as an optimization.
+- [X] T019 [US1] Implement `runPipeline()` private method in `dsp/include/krate/dsp/primitives/pitch_tracker.h` covering all five stages in the fixed order from spec.md:
   - Stage 1 (Confidence Gate): read `detector_.getConfidence()`; if below `confidenceThreshold_`, set `pitchValid_ = false` and return early
   - Stage 2 (Median Filter): set `pitchValid_ = true`, write `detector_.getDetectedFrequency()` into `pitchHistory_[historyIndex_]`, increment `historyIndex_` mod `medianSize_`, increment `historyCount_` capped at `medianSize_`, compute `medianFreq = computeMedian()`
   - Stage 3 (Hysteresis): if `currentNote_ == -1`, proceed to stage 4 unconditionally; else compute cents distance as `std::abs(frequencyToMidiNote(medianFreq) - static_cast<float>(currentNote_)) * 100.0f`; if distance <= `hysteresisThreshold_`, clear `candidateNote_` and return; else set `candidateNote_ = static_cast<int>(std::round(frequencyToMidiNote(medianFreq)))`
   - Stage 4 (Min Note Duration): if `currentNote_ == -1`, commit immediately: set `currentNote_ = static_cast<int>(std::round(frequencyToMidiNote(medianFreq)))`, set `candidateNote_ = -1`, `noteHoldTimer_ = 0`, call `frequencySmoother_.snapTo(midiNoteToFrequency(currentNote_))`; else if `candidateNote_` unchanged, increment `noteHoldTimer_` by `hopSize_`; if `noteHoldTimer_ >= minNoteDurationSamples_`, commit candidate; if `candidateNote_` changed, reset `noteHoldTimer_ = 0`
   - Stage 5 (Frequency Smoother): call `frequencySmoother_.setTarget(midiNoteToFrequency(currentNote_))` when note committed; advance smoother with `frequencySmoother_.advanceSamples(hopSize_)`, update `smoothedFrequency_ = frequencySmoother_.getCurrentValue()`
-- [ ] T020 [US1] Implement `pushBlock()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: iterate over all `numSamples` input samples; for each sample call `detector_.push(samples[i])` and increment `samplesSinceLastHop_`; when `samplesSinceLastHop_ >= hopSize_`, call `runPipeline()` and reset `samplesSinceLastHop_ = 0`
-- [ ] T021 [US1] Implement query methods in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: `getFrequency()` returns `smoothedFrequency_`, `getMidiNote()` returns `currentNote_`, `getConfidence()` returns `detector_.getConfidence()`, `isPitchValid()` returns `pitchValid_`
-- [ ] T022 [US1] Build DSP tests and verify zero compiler warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T023 [US1] Run User Story 1 tests and verify they pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
+- [X] T020 [US1] Implement `pushBlock()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: iterate over all `numSamples` input samples; for each sample call `detector_.push(samples[i])` and increment `samplesSinceLastHop_`; when `samplesSinceLastHop_ >= hopSize_`, call `runPipeline()` and reset `samplesSinceLastHop_ = 0`
+- [X] T021 [US1] Implement query methods in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: `getFrequency()` returns `smoothedFrequency_`, `getMidiNote()` returns `currentNote_`, `getConfidence()` returns `detector_.getConfidence()`, `isPitchValid()` returns `pitchValid_`
+- [X] T022 [US1] Build DSP tests and verify zero compiler warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T023 [US1] Run User Story 1 tests and verify they pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
 
 ### 3.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T024 [US1] Verify `dsp/tests/unit/primitives/pitch_tracker_test.cpp` is listed in the `-fno-fast-math` source file properties in `dsp/tests/CMakeLists.txt` (added in T003). Re-verify the CMakeLists block is syntactically correct by doing a clean build.
+- [X] T024 [US1] Verify `dsp/tests/unit/primitives/pitch_tracker_test.cpp` is listed in the `-fno-fast-math` source file properties in `dsp/tests/CMakeLists.txt` (added in T003). Re-verify the CMakeLists block is syntactically correct by doing a clean build.
 
 ### 3.4 Commit (MANDATORY)
 
-- [ ] T025 [US1] Commit User Story 1 work: `git commit` with message "Implement PitchTracker core pipeline (US1: stable pitch input)"
+- [X] T025 [US1] Commit User Story 1 work: `git commit` with message "Implement PitchTracker core pipeline (US1: stable pitch input)"
 
 **Checkpoint**: PitchTracker core pipeline is fully functional and committed. SC-001, SC-002, SC-004, SC-007, SC-008, SC-009 verified.
 

@@ -72,6 +72,7 @@ add_executable(dsp_tests
     unit/primitives/wavefolder_test.cpp
     unit/primitives/chebyshev_shaper_test.cpp
     unit/primitives/pitch_detector_test.cpp
+    unit/primitives/pitch_tracker_test.cpp
     unit/primitives/test_rolling_capture_buffer.cpp
     unit/primitives/test_slice_pool.cpp
     unit/primitives/one_pole_test.cpp
@@ -301,6 +302,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/wavefolder_test.cpp
         unit/primitives/chebyshev_shaper_test.cpp
         unit/primitives/pitch_detector_test.cpp
+        unit/primitives/pitch_tracker_test.cpp
         unit/primitives/test_rolling_capture_buffer.cpp
         unit/primitives/test_slice_pool.cpp
         unit/primitives/one_pole_test.cpp
