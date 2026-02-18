@@ -819,3 +819,98 @@ No Layer 1+ dependencies. Standard library: `<algorithm>`, `<array>`, `<cmath>`,
 
 - **HarmonizerEngine (Layer 3, Phase 4 of harmonizer roadmap):** Primary downstream consumer. Will use `ScaleHarmonizer` to compute intervals for multi-voice pitch shifting.
 - **UI scale selector (Phase 5):** May use `ScaleType` enum values for dropdown population.
+
+---
+
+## SIMD Batch Math Utilities
+**Path:** [spectral_simd.h](../../dsp/include/krate/dsp/core/spectral_simd.h) | **Since:** 0.20.0
+
+SIMD-accelerated bulk math operations for spectral processing arrays. All functions use Google Highway for runtime ISA dispatch (SSE2/AVX2/AVX-512/NEON) with automatic scalar tail handling for non-SIMD-width counts. Zero heap allocations, `noexcept`, branchless SIMD hot loops.
+
+### Constants
+
+```cpp
+inline constexpr float kMinLogInput = 1e-10f;     // Minimum input for log operations (clamps zero/negative)
+inline constexpr float kMaxPow10Output = 1e6f;     // Maximum output for pow10 (prevents overflow to inf)
+```
+
+`kMinLogInput` is the single source of truth for minimum-magnitude clamping in log/pow paths. Callers (including `FormantPreserver`) delegate clamping to the batch functions rather than defining separate constants.
+
+### batchLog10
+
+```cpp
+void batchLog10(const float* input, float* output, std::size_t count) noexcept;
+```
+
+Computes element-wise `log10(x)` for a float array. Non-positive inputs are clamped to `kMinLogInput` before computing log10 (using `hn::Max` in the SIMD path), producing a finite negative result instead of NaN or -inf. Uses Highway `hn::Log10` (2 ULP accuracy).
+
+**When to use:**
+- Converting magnitude spectra to log-magnitude for cepstral analysis (e.g., `FormantPreserver::extractEnvelope()`)
+- Any bulk log10 computation on spectral bin arrays (spectral compressor, loudness analysis)
+- Replacing scalar `std::log10()` loops over arrays of 64+ elements for measurable speedup
+
+**Do NOT use when:**
+- You need a single scalar log10 (use `std::log10` directly)
+- You need natural log (use `std::log` or a future `batchLog` if added)
+
+### batchPow10
+
+```cpp
+void batchPow10(const float* input, float* output, std::size_t count) noexcept;
+```
+
+Computes element-wise `10^x` for a float array. Implemented as `exp(x * ln(10))` using Highway `hn::Exp` (1 ULP accuracy). Output is clamped to `[kMinLogInput, kMaxPow10Output]` to prevent infinity and maintain consistency with downstream consumers.
+
+**When to use:**
+- Converting log-magnitude envelopes back to linear magnitude (e.g., `FormantPreserver::reconstructEnvelope()`)
+- Any bulk pow10 computation on spectral bin arrays
+- Replacing scalar `std::pow(10.0f, x)` loops over arrays of 64+ elements for measurable speedup
+
+**Do NOT use when:**
+- You need a single scalar pow10 (use `std::pow(10.0f, x)` directly)
+- You need general exponentiation with arbitrary base (use `std::pow`)
+
+### batchWrapPhase
+
+```cpp
+void batchWrapPhase(const float* input, float* output, std::size_t count) noexcept;  // out-of-place
+void batchWrapPhase(float* data, std::size_t count) noexcept;                         // in-place
+```
+
+Wraps an array of phase values to the [-pi, +pi] range using the branchless formula: `output[k] = input[k] - 2*pi * round(input[k] / (2*pi))`. Uses Highway `hn::Round` (exact, round-to-nearest-even). Handles arbitrarily large phase values in O(1) per element (no while-loop iteration).
+
+**When to use:**
+- Wrapping arrays of phase differences or accumulated phases in spectral processing
+- Replacing scalar `wrapPhase()` loops over arrays of 64+ elements for measurable speedup
+- Phase normalization in phase vocoder pipelines (phase difference, phase accumulation)
+
+**Do NOT use when:**
+- You need to wrap a single scalar phase value (use `wrapPhase()` from `spectral_utils.h`)
+- You need oscillator phase wrapping to [0, 1) (use `phase_utils.h::wrapPhase(double)` instead)
+
+### Performance
+
+All three batch functions achieve >= 2x speedup over scalar equivalents on 2049-element arrays (Release build, x86-64). Typical speedup is 3-8x on AVX2.
+
+| Function | Scalar Equivalent | Min Speedup |
+|----------|-------------------|-------------|
+| `batchLog10` | `std::log10()` loop | 2x |
+| `batchPow10` | `std::pow(10.0f, x)` loop | 2x |
+| `batchWrapPhase` | `wrapPhase()` loop | 2x |
+
+### Accuracy
+
+| Function | Max Error | Reference |
+|----------|-----------|-----------|
+| `batchLog10` | < 1e-5 abs vs `std::log10` | Highway `hn::Log10` (2 ULP) |
+| `batchPow10` | < 1e-5 rel vs `std::pow(10,x)` | Highway `hn::Exp` (1 ULP) |
+| `batchWrapPhase` | < 1e-6 abs vs scalar `wrapPhase` | Highway `hn::Round` (exact) |
+
+### Consumers
+
+- **FormantPreserver (Layer 2):** Calls `batchLog10` in `extractEnvelope()` and `batchPow10` in `reconstructEnvelope()` for SIMD-accelerated cepstral envelope processing.
+- **Future spectral processors:** Any Layer 1+ component performing bulk log/exp/phase operations on spectral bin arrays.
+
+### Dependencies
+
+No Layer 1+ dependencies. Uses Google Highway (v1.2.0, already linked PRIVATE to KrateDSP). Standard library: `<cstddef>`.
