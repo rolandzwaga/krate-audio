@@ -1108,8 +1108,8 @@ public:
             // Analyze frame
             stft_.analyze(analysisSpectrum_);
 
-            // Phase vocoder pitch shift
-            processFrame(pitchRatio);
+            // Phase vocoder pitch shift (FR-023: pass analysis/synthesis by reference)
+            processFrame(analysisSpectrum_, synthesisSpectrum_, pitchRatio);
 
             // Synthesize frame
             ola_.synthesize(synthesisSpectrum_);
@@ -1154,15 +1154,20 @@ private:
         }
     }
 
-    /// @brief Phase vocoder frame processing
-    void processFrame(float pitchRatio) noexcept {
+    /// @brief Phase vocoder frame processing (FR-023: accepts analysis/synthesis by reference)
+    ///
+    /// @param analysis  Read-only reference to the analysis spectrum (magnitude + phase).
+    /// @param synthesis  Output synthesis spectrum (written with pitch-shifted Cartesian data).
+    /// @param pitchRatio  Pitch ratio for this frame (e.g., 1.0594 for +1 semitone).
+    void processFrame(const SpectralBuffer& analysis, SpectralBuffer& synthesis,
+                      float pitchRatio) noexcept {
         const std::size_t numBins = kFFTSize / 2 + 1;
 
         // Step 1: Extract magnitude and compute instantaneous frequency
         for (std::size_t k = 0; k < numBins; ++k) {
-            // Get magnitude and phase
-            magnitude_[k] = analysisSpectrum_.getMagnitude(k);
-            float phase = analysisSpectrum_.getPhase(k);
+            // Get magnitude and phase from the analysis parameter (not internal member)
+            magnitude_[k] = analysis.getMagnitude(k);
+            float phase = analysis.getPhase(k);
 
             // Compute phase difference from previous frame
             float phaseDiff = phase - prevPhase_[k];
@@ -1249,7 +1254,7 @@ private:
         wasLocked_ = phaseLockingEnabled_;
 
         // Step 2: Pitch shift by scaling frequencies and resampling spectrum
-        synthesisSpectrum_.reset();
+        synthesis.reset();
 
         if (phaseLockingEnabled_ && numPeaks_ > 0) {
             // Two-pass synthesis: peaks first, then non-peaks
@@ -1280,7 +1285,7 @@ private:
 
                 float real = mag * std::cos(synthPhase_[k]);
                 float imag = mag * std::sin(synthPhase_[k]);
-                synthesisSpectrum_.setCartesian(k, real, imag);
+                synthesis.setCartesian(k, real, imag);
             }
 
             // Pass 2: Process NON-PEAK bins (use peak phases from Pass 1)
@@ -1324,7 +1329,7 @@ private:
 
                 float real = mag * std::cos(phaseForOutput);
                 float imag = mag * std::sin(phaseForOutput);
-                synthesisSpectrum_.setCartesian(k, real, imag);
+                synthesis.setCartesian(k, real, imag);
             }
         } else {
             // Basic path: standard per-bin phase accumulation (pre-modification behavior)
@@ -1357,7 +1362,7 @@ private:
                 // Set synthesis bin (Cartesian form)
                 float real = mag * std::cos(synthPhase_[k]);
                 float imag = mag * std::sin(synthPhase_[k]);
-                synthesisSpectrum_.setCartesian(k, real, imag);
+                synthesis.setCartesian(k, real, imag);
             }
         }
 
@@ -1382,7 +1387,7 @@ private:
                 // Reconstruct Cartesian form with adjusted magnitude
                 float real = adjustedMag * std::cos(synthPhase_[k]);
                 float imag = adjustedMag * std::sin(synthPhase_[k]);
-                synthesisSpectrum_.setCartesian(k, real, imag);
+                synthesis.setCartesian(k, real, imag);
             }
         }
     }

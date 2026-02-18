@@ -2961,3 +2961,152 @@ TEST_CASE("PitchShiftProcessor rapid automation with sub-block smoothing is clic
     INFO("Clicks detected during rapid automation (>100 changes/sec): " << clicks.size());
     REQUIRE(clicks.empty());
 }
+
+// ==============================================================================
+// Spec 065: processFrame refactor backward compatibility tests (T004)
+// ==============================================================================
+// These tests verify that the standard process() path continues to produce
+// correct output after the processFrame() signature refactor (FR-006, FR-023).
+// The refactor changes processFrame(float pitchRatio) to
+// processFrame(const SpectralBuffer&, SpectralBuffer&, float pitchRatio).
+// process() now calls processFrame(analysisSpectrum_, synthesisSpectrum_, pitchRatio).
+// All outputs must be identical to the pre-refactor behavior.
+
+TEST_CASE("PhaseVocoder process() backward compat: pitch shift up produces non-zero output",
+          "[pitch][spec065][processFrame_refactor]") {
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(kTestSampleRate, kTestBlockSize);
+
+    // +7 semitones (perfect fifth up)
+    const float pitchRatio = std::pow(2.0f, 7.0f / 12.0f);
+
+    // Process enough samples for multiple frames (> kFFTSize + kHopSize for latency)
+    constexpr size_t kTotalSamples = 44100;  // 1 second at 44.1kHz
+    std::vector<float> input(kTotalSamples);
+    std::vector<float> output(kTotalSamples, 0.0f);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    // Process in blocks
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        shifter.process(input.data() + offset, output.data() + offset, blockSize, pitchRatio);
+    }
+
+    // After latency, output must be non-zero and non-NaN
+    constexpr size_t kLatency = 4096 + 1024;  // kFFTSize + kHopSize
+    const float* stableRegion = output.data() + kLatency + 4096;
+    const size_t stableSize = kTotalSamples - kLatency - 4096;
+
+    float rms = calculateRMS(stableRegion, stableSize);
+    REQUIRE(rms > 0.01f);
+    REQUIRE_FALSE(hasInvalidSamples(output.data(), kTotalSamples));
+}
+
+TEST_CASE("PhaseVocoder process() backward compat: two runs produce identical output",
+          "[pitch][spec065][processFrame_refactor]") {
+    // Create two identical shifters
+    PhaseVocoderPitchShifter shifter1;
+    PhaseVocoderPitchShifter shifter2;
+    shifter1.prepare(kTestSampleRate, kTestBlockSize);
+    shifter2.prepare(kTestSampleRate, kTestBlockSize);
+
+    const float pitchRatio = std::pow(2.0f, 5.0f / 12.0f);  // +5 semitones
+
+    constexpr size_t kTotalSamples = 22050;  // 0.5s
+    std::vector<float> input(kTotalSamples);
+    std::vector<float> output1(kTotalSamples, 0.0f);
+    std::vector<float> output2(kTotalSamples, 0.0f);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        shifter1.process(input.data() + offset, output1.data() + offset, blockSize, pitchRatio);
+        shifter2.process(input.data() + offset, output2.data() + offset, blockSize, pitchRatio);
+    }
+
+    // Outputs must be bit-identical
+    REQUIRE(buffersEqual(output1.data(), output2.data(), kTotalSamples, 0.0f));
+}
+
+TEST_CASE("PhaseVocoder process() backward compat: phase locking produces output",
+          "[pitch][spec065][processFrame_refactor]") {
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(kTestSampleRate, kTestBlockSize);
+    shifter.setPhaseLocking(true);
+
+    const float pitchRatio = std::pow(2.0f, 7.0f / 12.0f);
+
+    constexpr size_t kTotalSamples = 22050;
+    std::vector<float> input(kTotalSamples);
+    std::vector<float> output(kTotalSamples, 0.0f);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        shifter.process(input.data() + offset, output.data() + offset, blockSize, pitchRatio);
+    }
+
+    // After latency, output must contain signal
+    constexpr size_t kLatency = 4096 + 1024;
+    const float* stableRegion = output.data() + kLatency + 4096;
+    const size_t stableSize = kTotalSamples - kLatency - 4096;
+
+    float rms = calculateRMS(stableRegion, stableSize);
+    REQUIRE(rms > 0.01f);
+    REQUIRE_FALSE(hasInvalidSamples(output.data(), kTotalSamples));
+}
+
+TEST_CASE("PhaseVocoder process() backward compat: formant preservation produces output",
+          "[pitch][spec065][processFrame_refactor]") {
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(kTestSampleRate, kTestBlockSize);
+    shifter.setFormantPreserve(true);
+
+    const float pitchRatio = std::pow(2.0f, 12.0f / 12.0f);  // +1 octave
+
+    constexpr size_t kTotalSamples = 22050;
+    std::vector<float> input(kTotalSamples);
+    std::vector<float> output(kTotalSamples, 0.0f);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        shifter.process(input.data() + offset, output.data() + offset, blockSize, pitchRatio);
+    }
+
+    constexpr size_t kLatency = 4096 + 1024;
+    const float* stableRegion = output.data() + kLatency + 4096;
+    const size_t stableSize = kTotalSamples - kLatency - 4096;
+
+    // Formant preservation with +1 octave attenuates signal; RMS is lower
+    float rms = calculateRMS(stableRegion, stableSize);
+    REQUIRE(rms > 0.001f);
+    REQUIRE_FALSE(hasInvalidSamples(output.data(), kTotalSamples));
+}
+
+TEST_CASE("PhaseVocoder process() backward compat: transient phase reset produces output",
+          "[pitch][spec065][processFrame_refactor]") {
+    PhaseVocoderPitchShifter shifter;
+    shifter.prepare(kTestSampleRate, kTestBlockSize);
+    shifter.setPhaseReset(true);
+
+    const float pitchRatio = std::pow(2.0f, -5.0f / 12.0f);  // -5 semitones
+
+    constexpr size_t kTotalSamples = 22050;
+    std::vector<float> input(kTotalSamples);
+    std::vector<float> output(kTotalSamples, 0.0f);
+    generateSine(input.data(), kTotalSamples, 440.0f, kTestSampleRate);
+
+    for (size_t offset = 0; offset < kTotalSamples; offset += kTestBlockSize) {
+        const size_t blockSize = std::min(kTestBlockSize, kTotalSamples - offset);
+        shifter.process(input.data() + offset, output.data() + offset, blockSize, pitchRatio);
+    }
+
+    constexpr size_t kLatency = 4096 + 1024;
+    const float* stableRegion = output.data() + kLatency + 4096;
+    const size_t stableSize = kTotalSamples - kLatency - 4096;
+
+    float rms = calculateRMS(stableRegion, stableSize);
+    REQUIRE(rms > 0.01f);
+    REQUIRE_FALSE(hasInvalidSamples(output.data(), kTotalSamples));
+}
