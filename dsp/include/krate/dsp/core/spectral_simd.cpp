@@ -109,6 +109,50 @@ void ReconstructCartesianImpl(const float* HWY_RESTRICT mags,
     }
 }
 
+// -----------------------------------------------------------------------------
+// ComputePowerSpectrumPffftImpl: in-place |X(k)|^2 for pffft ordered format
+// -----------------------------------------------------------------------------
+// pffft ordered real output: [DC, Nyquist, Re(1), Im(1), Re(2), Im(2), ...]
+// Computes power spectrum in-place: Re(k) = Re(k)^2 + Im(k)^2, Im(k) = 0
+
+// NOLINTNEXTLINE(misc-use-internal-linkage) exported via HWY_EXPORT
+void ComputePowerSpectrumPffftImpl(float* HWY_RESTRICT spectrum, size_t fftSize) {
+    // DC and Nyquist are real-only (scalar)
+    spectrum[0] = spectrum[0] * spectrum[0];
+    spectrum[1] = spectrum[1] * spectrum[1];
+
+    // Complex bins 1..fftSize/2-1 are interleaved [Re, Im] starting at index 2
+    const size_t numComplexBins = fftSize / 2 - 1;
+    float* complexStart = spectrum + 2;
+
+    const hn::ScalableTag<float> d;
+    const size_t N = hn::Lanes(d);
+    const auto zero = hn::Zero(d);
+
+    size_t k = 0;
+
+    // SIMD loop: process N complex bins per iteration
+    for (; k + N <= numComplexBins; k += N) {
+        hn::Vec<decltype(d)> re;
+        hn::Vec<decltype(d)> im;
+        hn::LoadInterleaved2(d, complexStart + k * 2, re, im);
+
+        // Power = Re^2 + Im^2
+        const auto power = hn::MulAdd(im, im, hn::Mul(re, re));
+
+        // Store [power, 0, power, 0, ...]
+        hn::StoreInterleaved2(power, zero, d, complexStart + k * 2);
+    }
+
+    // Scalar tail for remaining bins
+    for (; k < numComplexBins; ++k) {
+        const float re = complexStart[k * 2];
+        const float im = complexStart[k * 2 + 1];
+        complexStart[k * 2] = re * re + im * im;
+        complexStart[k * 2 + 1] = 0.0f;
+    }
+}
+
 }  // namespace HWY_NAMESPACE
 }  // namespace DSP
 }  // namespace Krate
@@ -129,6 +173,7 @@ namespace DSP {
 
 HWY_EXPORT(ComputePolarImpl);
 HWY_EXPORT(ReconstructCartesianImpl);
+HWY_EXPORT(ComputePowerSpectrumPffftImpl);
 
 void computePolarBulk(const float* complexData, size_t numBins,
                       float* mags, float* phases) noexcept {
@@ -138,6 +183,10 @@ void computePolarBulk(const float* complexData, size_t numBins,
 void reconstructCartesianBulk(const float* mags, const float* phases,
                                size_t numBins, float* complexData) noexcept {
     HWY_DYNAMIC_DISPATCH(ReconstructCartesianImpl)(mags, phases, numBins, complexData);
+}
+
+void computePowerSpectrumPffft(float* spectrum, size_t fftSize) noexcept {
+    HWY_DYNAMIC_DISPATCH(ComputePowerSpectrumPffftImpl)(spectrum, fftSize);
 }
 
 }  // namespace DSP

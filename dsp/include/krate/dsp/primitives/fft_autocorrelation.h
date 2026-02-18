@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <krate/dsp/core/spectral_simd.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -161,16 +163,8 @@ public:
         // Step 2: Forward FFT (SIMD-accelerated)
         pffft_transform_ordered(setup_, padded_, spectrum_, work_, PFFFT_FORWARD);
 
-        // Step 3: Power spectrum |X(k)|^2
-        // pffft ordered format for real: [DC, Nyquist, Re(1), Im(1), Re(2), Im(2), ...]
-        spectrum_[0] = spectrum_[0] * spectrum_[0];         // DC^2
-        spectrum_[1] = spectrum_[1] * spectrum_[1];         // Nyquist^2
-        for (std::size_t k = 1; k < fftSize_ / 2; ++k) {
-            const float re = spectrum_[2 * k];
-            const float im = spectrum_[2 * k + 1];
-            spectrum_[2 * k] = re * re + im * im;
-            spectrum_[2 * k + 1] = 0.0f;
-        }
+        // Step 3: Power spectrum |X(k)|^2 (SIMD-accelerated via Highway)
+        computePowerSpectrumPffft(spectrum_, fftSize_);
 
         // Step 4: Inverse FFT -> raw (unnormalized) autocorrelation
         pffft_transform_ordered(setup_, spectrum_, result_, work_, PFFFT_BACKWARD);
