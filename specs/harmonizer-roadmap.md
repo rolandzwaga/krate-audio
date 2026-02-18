@@ -1,6 +1,6 @@
 # Harmonizer Effect Development Roadmap
 
-**Status**: In Progress (Phase 1, Phase 2A complete) | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
+**Status**: In Progress (Phase 1, Phase 2A, Phase 2B complete) | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
 
 A comprehensive, dependency-ordered development roadmap for the Harmonizer effect in the KrateDSP shared library. Every phase maps directly to existing codebase building blocks, identifies gaps, and provides implementation-level detail.
 
@@ -39,7 +39,7 @@ Phase 1: ScaleHarmonizer (L0) ✅ ────────┐
                                           │
 Phase 2A: Identity Phase Locking (L2) ✅ ┤
                                           ├──► Phase 4: HarmonizerEngine (L3)
-Phase 2B: Spectral Transient Det. (L1) ──┤
+Phase 2B: Spectral Transient Det. (L1) ✅ ┤
                                           │
 Phase 3: PitchTracker (L1) ──────────────┘
                                                Phase 5: SIMD (independent)
@@ -118,7 +118,7 @@ Every component below has been verified to exist in the codebase with its exact 
 | 1 | **ScaleHarmonizer** | 0 | LOW | Nothing | Diatonic interval calculation (core musical intelligence) | **COMPLETE** (spec 060, `scale_harmonizer.h`) |
 | 2 | **PitchTracker** | 1 | LOW | Nothing | Smoothed pitch detection with hysteresis & confidence gating | **MISSING** (`PitchDetector` exists but output is raw/jittery, no smoothing or note-hold logic) |
 | 3 | **Identity Phase Locking** | 2 | LOW-MED | Nothing | Laroche-Dolson phase locking for `PhaseVocoderPitchShifter` | **COMPLETE** (spec 061, integrated into `PhaseVocoderPitchShifter`) |
-| 4 | **SpectralTransientDetector** | 1 | LOW-MED | Nothing | Spectral flux transient detection + phase reset for phase vocoder | **CONFIRMED MISSING** (existing `TransientDetector` is time-domain/modulation-source, not spectral) |
+| 4 | **SpectralTransientDetector** | 1 | LOW-MED | Nothing | Spectral flux transient detection + phase reset for phase vocoder | **COMPLETE** (spec 062, `spectral_transient_detector.h` + phase reset integrated into `PhaseVocoderPitchShifter`) |
 | 5 | **HarmonizerEngine** | 3 | MODERATE | 1, 2, 3, 4 | Multi-voice orchestration with harmony modes | **MISSING** |
 | 6 | **SIMD Math Header** | 0 | MODERATE | Nothing | Vectorized `atan2`, `sincos`, `log`, `exp` for spectral pipeline | **MISSING** |
 
@@ -147,7 +147,7 @@ Every component below has been verified to exist in the codebase with its exact 
 | ~~Diatonic interval lookup~~ | ~~`quantizePitch()` snaps to scale degrees~~ | **RESOLVED**: `ScaleHarmonizer` (spec 060) provides full diatonic interval computation for 8 scales + chromatic, any key. |
 | Robust pitch tracking | `PitchDetector` provides raw pitch | No median filtering, hysteresis, confidence gating, or minimum note duration |
 | ~~Phase-locked pitch shifting~~ | ~~`PhaseVocoderPitchShifter` does phase vocoder~~ | **RESOLVED**: Identity phase locking (Laroche-Dolson 1999) implemented in spec 061 with peak detection, region-of-influence assignment, and phase-locked propagation. |
-| Transient-aware pitch shifting | `TransientDetector` detects transients | Time-domain (envelope derivative), not spectral flux. No phase reset integration with phase vocoder. |
+| ~~Transient-aware pitch shifting~~ | ~~`TransientDetector` detects transients~~ | **RESOLVED**: `SpectralTransientDetector` (spec 062) provides spectral flux onset detection with phase reset integration in `PhaseVocoderPitchShifter`. |
 
 ---
 
@@ -374,16 +374,19 @@ static constexpr std::size_t kMaxPeaks = 512;
 - Verify sin/cos only called for peak bins (count calls or measure CPU reduction)
 - Toggle test: `setPhaseLocking(true/false)` doesn't introduce clicks
 
-### Phase 2B: Spectral Transient Detection & Phase Reset
+### Phase 2B: Spectral Transient Detection & Phase Reset -- COMPLETE
 
-**Files to create:**
+**Status**: Complete -- implemented in spec [062-spectral-transient-detector](062-spectral-transient-detector/spec.md), merged to main.
+
+**Files created:**
 - `dsp/include/krate/dsp/primitives/spectral_transient_detector.h`
 - `dsp/tests/unit/primitives/spectral_transient_detector_test.cpp`
+- `dsp/tests/unit/processors/phase_reset_test.cpp`
 
-**Files to modify:**
-- `dsp/include/krate/dsp/processors/pitch_shift_processor.h` (integrate phase reset)
-- `dsp/CMakeLists.txt` (add to `KRATE_DSP_PRIMITIVES_HEADERS`)
-- `dsp/tests/CMakeLists.txt` (add test)
+**Files modified:**
+- `dsp/include/krate/dsp/processors/pitch_shift_processor.h` (integrated phase reset)
+- `dsp/CMakeLists.txt` (added to `KRATE_DSP_PRIMITIVES_HEADERS`)
+- `dsp/tests/CMakeLists.txt` (added tests)
 
 **Note**: Named `SpectralTransientDetector` to distinguish from the existing time-domain `TransientDetector` (L2), which is a modulation source based on envelope derivative analysis. This component operates on magnitude spectra, not audio samples.
 
@@ -966,8 +969,8 @@ Phase 1: ScaleHarmonizer (L0) ✅                       Phase 5: SIMD (L0-1)
    │  Phase 2A: Identity Phase Locking (L2) ✅
    │     │  [COMPLETE]
    │     │
-   │  Phase 2B: SpectralTransientDetector (L1)
-   │     │  [1-2 days, parallel with P1]
+   │  Phase 2B: SpectralTransientDetector (L1) ✅
+   │     │  [COMPLETE]
    │     │
    │  Phase 3: PitchTracker (L1)
    │     │  [1-2 days, parallel with P1]
@@ -1056,7 +1059,7 @@ EXISTING (reuse directly):          ~80% of DSP functionality
 NEW (must build):                   ~20% of DSP functionality
 ├── ScaleHarmonizer (L0) -- COMPLETE (spec 060, scale_harmonizer.h)
 ├── PitchTracker (L1) -- median filter + hysteresis + confidence gate
-├── SpectralTransientDetector (L1) -- spectral flux onset detection
+├── SpectralTransientDetector (L1) -- COMPLETE (spec 062, spectral_transient_detector.h + phase reset)
 ├── Identity Phase Locking (L2) -- COMPLETE (spec 061, integrated into PhaseVocoderPitchShifter)
 ├── HarmonizerEngine (L3) -- orchestration of existing components
 └── SIMD Math Header (L0) -- vectorized atan2/sincos/log/exp

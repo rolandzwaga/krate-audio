@@ -109,29 +109,22 @@ test result (all suites passing with counts), any test failures you fixed.
 
 Wait for the agent to return.
 
-**Spawn `speckit-comply` agent** to verify the phase (code review only — no build/test):
+**Spawn `speckit-comply` agent** to verify the phase (code review only):
 
 ```
-Verify Phase {N} of spec {feature-name} implementation.
+Verify Phase {N} of spec {feature-name}.
 
 Feature dir: {FEATURE_DIR}/
 Mode: Phase Verification (Code Review Only)
 
-Read these files:
-- tasks.md (Phase {N} — check all tasks are marked [X])
-- spec.md (FR-xxx and SC-xxx requirements covered by this phase)
-- plan.md (architecture decisions that should be reflected)
+Read tasks.md (Phase {N} ONLY) and spec.md. For each task marked [X]:
+1. Read the code/file the task describes
+2. Verify it matches the task description
+3. Check for cheating: relaxed thresholds, placeholder/stub code, removed scope
 
-Then verify (CODE REVIEW ONLY — do NOT build, run tests, run clang-tidy, or run pluginval):
-1. Check every task marked [X] in Phase {N} — read the actual code to verify work was done
-2. For each FR-xxx/SC-xxx covered by this phase: read the code, cite file:line evidence
-3. Check for constitution violations (XVI cheating, XIII test-first if TDD specified)
-4. Verify the implement agent reported a clean build (0 warnings) and all tests passing
-
-Do NOT build the project, run tests, run clang-tidy, or run pluginval. The implement agent
-already did build+test as a mandatory gate. Your job is independent code review only.
-
-Output the compliance report. Do NOT modify any files.
+Do NOT run any commands (no build, test, git, clang-tidy, pluginval).
+Do NOT load plan.md, constitution.md, CLAUDE.md, or quickstart.md.
+Keep the report concise — only elaborate on failures.
 ```
 
 Wait for the comply agent to return. Parse its report:
@@ -165,12 +158,20 @@ When done, summarize what you changed, build result, test result.
 
 Wait for the agent to return.
 
-**Spawn `speckit-comply` agent** again to re-verify (same Code Review Only prompt as above):
+**Spawn `speckit-comply` agent** again to re-verify (same concise prompt as above):
 
 ```
 Re-verify Phase {N} of spec {feature-name} after fixes.
 
-{same Code Review Only Phase Verification prompt as before — no build/test/clang-tidy/pluginval}
+Feature dir: {FEATURE_DIR}/
+Mode: Phase Verification (Code Review Only)
+
+Read tasks.md (Phase {N} ONLY) and spec.md. For each task marked [X]:
+1. Read the code/file the task describes
+2. Verify it matches the task description
+3. Check for cheating: relaxed thresholds, placeholder/stub code, removed scope
+
+Do NOT run any commands. Keep the report concise.
 ```
 
 - **If PASS**: Move to the next phase.

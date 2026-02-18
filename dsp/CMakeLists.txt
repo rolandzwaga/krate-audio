@@ -105,6 +105,7 @@ set(KRATE_DSP_PRIMITIVES_HEADERS
     include/krate/dsp/primitives/oversampler.h
     include/krate/dsp/primitives/reverse_buffer.h
     include/krate/dsp/primitives/sample_rate_reducer.h
+    include/krate/dsp/primitives/pitch_tracker.h
     include/krate/dsp/primitives/smoother.h
     include/krate/dsp/primitives/spectral_buffer.h
     include/krate/dsp/primitives/spectral_transient_detector.h
