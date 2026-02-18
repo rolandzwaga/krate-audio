@@ -1,6 +1,6 @@
 # Harmonizer Effect Development Roadmap
 
-**Status**: In Progress (Phase 1, Phase 2A, Phase 2B complete) | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
+**Status**: In Progress (Phase 1, Phase 2A, Phase 2B, Phase 3 complete) | **Created**: 2026-02-17 | **Source**: [DSP-HARMONIZER-RESEARCH.md](DSP-HARMONIZER-RESEARCH.md)
 
 A comprehensive, dependency-ordered development roadmap for the Harmonizer effect in the KrateDSP shared library. Every phase maps directly to existing codebase building blocks, identifies gaps, and provides implementation-level detail.
 
@@ -41,7 +41,7 @@ Phase 2A: Identity Phase Locking (L2) ✅ ┤
                                           ├──► Phase 4: HarmonizerEngine (L3)
 Phase 2B: Spectral Transient Det. (L1) ✅ ┤
                                           │
-Phase 3: PitchTracker (L1) ──────────────┘
+Phase 3: PitchTracker (L1) ✅ ────────────┘
                                                Phase 5: SIMD (independent)
 ```
 
@@ -116,7 +116,7 @@ Every component below has been verified to exist in the codebase with its exact 
 | # | Component | Layer | Complexity | Blocked By | Harmonizer Role | Status |
 |---|-----------|-------|-----------|------------|-----------------|--------|
 | 1 | **ScaleHarmonizer** | 0 | LOW | Nothing | Diatonic interval calculation (core musical intelligence) | **COMPLETE** (spec 060, `scale_harmonizer.h`) |
-| 2 | **PitchTracker** | 1 | LOW | Nothing | Smoothed pitch detection with hysteresis & confidence gating | **MISSING** (`PitchDetector` exists but output is raw/jittery, no smoothing or note-hold logic) |
+| 2 | **PitchTracker** | 1 | LOW | Nothing | Smoothed pitch detection with hysteresis & confidence gating | **COMPLETE** (spec 063, `pitch_tracker.h`) |
 | 3 | **Identity Phase Locking** | 2 | LOW-MED | Nothing | Laroche-Dolson phase locking for `PhaseVocoderPitchShifter` | **COMPLETE** (spec 061, integrated into `PhaseVocoderPitchShifter`) |
 | 4 | **SpectralTransientDetector** | 1 | LOW-MED | Nothing | Spectral flux transient detection + phase reset for phase vocoder | **COMPLETE** (spec 062, `spectral_transient_detector.h` + phase reset integrated into `PhaseVocoderPitchShifter`) |
 | 5 | **HarmonizerEngine** | 3 | MODERATE | 1, 2, 3, 4 | Multi-voice orchestration with harmony modes | **MISSING** |
@@ -145,7 +145,7 @@ Every component below has been verified to exist in the codebase with its exact 
 | Need | What Exists | Gap |
 |------|------------|-----|
 | ~~Diatonic interval lookup~~ | ~~`quantizePitch()` snaps to scale degrees~~ | **RESOLVED**: `ScaleHarmonizer` (spec 060) provides full diatonic interval computation for 8 scales + chromatic, any key. |
-| Robust pitch tracking | `PitchDetector` provides raw pitch | No median filtering, hysteresis, confidence gating, or minimum note duration |
+| ~~Robust pitch tracking~~ | ~~`PitchDetector` provides raw pitch~~ | **RESOLVED**: `PitchTracker` (spec 063) wraps `PitchDetector` with 5-stage pipeline: confidence gating, median filtering, hysteresis, minimum note duration, and frequency smoothing. |
 | ~~Phase-locked pitch shifting~~ | ~~`PhaseVocoderPitchShifter` does phase vocoder~~ | **RESOLVED**: Identity phase locking (Laroche-Dolson 1999) implemented in spec 061 with peak detection, region-of-influence assignment, and phase-locked propagation. |
 | ~~Transient-aware pitch shifting~~ | ~~`TransientDetector` detects transients~~ | **RESOLVED**: `SpectralTransientDetector` (spec 062) provides spectral flux onset detection with phase reset integration in `PhaseVocoderPitchShifter`. |
 
@@ -461,12 +461,13 @@ From research doc Section 3.2: "At detected transients, reset synthesis phase to
 
 ---
 
-## Phase 3: Pitch Tracking Robustness
+## Phase 3: Pitch Tracking Robustness -- COMPLETE
 
 **Layer**: 1 (Primitives)
 **Blocks**: Phase 4 (HarmonizerEngine depends on stable pitch tracking)
 **Effort**: ~1-2 days
 **Depends On**: Nothing (can run in parallel with Phase 1 and Phase 2)
+**Status**: Complete -- implemented in spec [063-pitch-tracker](063-pitch-tracker/spec.md), merged to main.
 
 ### Why This Exists
 
@@ -972,8 +973,8 @@ Phase 1: ScaleHarmonizer (L0) ✅                       Phase 5: SIMD (L0-1)
    │  Phase 2B: SpectralTransientDetector (L1) ✅
    │     │  [COMPLETE]
    │     │
-   │  Phase 3: PitchTracker (L1)
-   │     │  [1-2 days, parallel with P1]
+   │  Phase 3: PitchTracker (L1) ✅
+   │     │  [COMPLETE]
    │     │
    └──┬──┴──┬──┘
       │     │
@@ -988,10 +989,10 @@ Phase 1: ScaleHarmonizer (L0) ✅                       Phase 5: SIMD (L0-1)
 
 | Parallel Track A | Parallel Track B | Parallel Track C | Parallel Track D |
 |-----------------|-----------------|-----------------|-----------------|
-| Phase 1: ScaleHarmonizer | Phase 2A: Phase Locking | Phase 2B: Transient Det. | Phase 3: PitchTracker |
-| (1-2 days) | (2-3 days) | (1-2 days) | (1-2 days) |
+| Phase 1: ScaleHarmonizer ✅ | Phase 2A: Phase Locking ✅ | Phase 2B: Transient Det. ✅ | Phase 3: PitchTracker ✅ |
+| COMPLETE | COMPLETE | COMPLETE | COMPLETE |
 | ↓ | ↓ | ↓ | ↓ |
-| **Merge point: Phase 4 starts (all complete)** | | | |
+| **Merge point: Phase 4 starts (all prerequisites complete)** | | | |
 
 Phase 5 (SIMD) is fully independent and can run at any time.
 
@@ -1058,7 +1059,7 @@ EXISTING (reuse directly):          ~80% of DSP functionality
 
 NEW (must build):                   ~20% of DSP functionality
 ├── ScaleHarmonizer (L0) -- COMPLETE (spec 060, scale_harmonizer.h)
-├── PitchTracker (L1) -- median filter + hysteresis + confidence gate
+├── PitchTracker (L1) -- COMPLETE (spec 063, pitch_tracker.h)
 ├── SpectralTransientDetector (L1) -- COMPLETE (spec 062, spectral_transient_detector.h + phase reset)
 ├── Identity Phase Locking (L2) -- COMPLETE (spec 061, integrated into PhaseVocoderPitchShifter)
 ├── HarmonizerEngine (L3) -- orchestration of existing components
