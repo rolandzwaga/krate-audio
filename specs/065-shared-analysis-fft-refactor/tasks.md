@@ -285,8 +285,8 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 9.2 Final Commit
 
-- [ ] T069 Commit architecture documentation updates
-- [ ] T070 Verify all spec work is committed to feature branch: `git status` should show clean working tree
+- [X] T069 Commit architecture documentation updates
+- [X] T070 Verify all spec work is committed to feature branch: `git status` should show clean working tree
 
 **Checkpoint**: Architecture documentation reflects all new functionality
 
