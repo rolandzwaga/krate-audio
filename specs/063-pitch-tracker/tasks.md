@@ -225,30 +225,30 @@ The median filter was implemented in T018 and T019. US4 tests verify the ring bu
 
 ### 6.1 Tests for User Story 3 (Write FIRST - Must FAIL)
 
-- [ ] T046 [P] [US3] Write `setMinNoteDuration()` effect test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed 5 rapid note changes per second (200ms per note), verify that with default 50ms min duration the tracker suppresses SOME transitions (fewer output switches than input), then set duration to 20ms and verify MORE transitions pass through
-- [ ] T047 [P] [US3] Write `setHysteresisThreshold()` effect test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed a signal hovering at the boundary between two notes (within 50 cents); with default 50 cent hysteresis verify no switching; reduce to 10 cents and verify the tracker may switch
-- [ ] T048 [P] [US3] Write `setConfidenceThreshold()` effect test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed a signal with medium confidence (e.g. 0.35); with default threshold 0.5 verify frames are rejected (isPitchValid() == false); lower threshold to 0.2 and verify frames are accepted (isPitchValid() == true)
-- [ ] T049 [P] [US3] Write `setMedianFilterSize()` validation test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: set size to 1 and verify median of single value is that value; set size to 11 and verify maximum window operates correctly; set size to 0 or 12 and verify it is clamped to valid range [1, kMaxMedianSize]
-- [ ] T050 [P] [US3] Write `setMedianFilterSize()` history-reset test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: establish 5 history entries, then call `setMedianFilterSize(3)`, verify `historyCount_` is reset to 0 (history cleared on size change, per contract doc)
-- [ ] T051 [P] [US3] Write `setMinNoteDuration(0ms)` edge case test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: verify immediate note transitions (no hold timer delay); also test `setHysteresisThreshold(0)` produces a tracker that proposes a candidate on any pitch change
-- [ ] T052 [US3] Verify new User Story 3 tests compile and FAIL: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
+- [X] T046 [P] [US3] Write `setMinNoteDuration()` effect test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed 5 rapid note changes per second (200ms per note), verify that with default 50ms min duration the tracker suppresses SOME transitions (fewer output switches than input), then set duration to 20ms and verify MORE transitions pass through
+- [X] T047 [P] [US3] Write `setHysteresisThreshold()` effect test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed a signal hovering at the boundary between two notes (within 50 cents); with default 50 cent hysteresis verify no switching; reduce to 10 cents and verify the tracker may switch
+- [X] T048 [P] [US3] Write `setConfidenceThreshold()` effect test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: feed a signal with medium confidence (e.g. 0.35); with default threshold 0.5 verify frames are rejected (isPitchValid() == false); lower threshold to 0.2 and verify frames are accepted (isPitchValid() == true)
+- [X] T049 [P] [US3] Write `setMedianFilterSize()` validation test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: set size to 1 and verify median of single value is that value; set size to 11 and verify maximum window operates correctly; set size to 0 or 12 and verify it is clamped to valid range [1, kMaxMedianSize]
+- [X] T050 [P] [US3] Write `setMedianFilterSize()` history-reset test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: establish 5 history entries, then call `setMedianFilterSize(3)`, verify `historyCount_` is reset to 0 (history cleared on size change, per contract doc)
+- [X] T051 [P] [US3] Write `setMinNoteDuration(0ms)` edge case test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: verify immediate note transitions (no hold timer delay); also test `setHysteresisThreshold(0)` produces a tracker that proposes a candidate on any pitch change
+- [X] T052 [US3] Verify new User Story 3 tests compile and FAIL: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
 
 ### 6.2 Implementation for User Story 3
 
-- [ ] T053 [US3] Implement `setMedianFilterSize()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: clamp `size` to `[1, kMaxMedianSize]`, update `medianSize_`, reset `historyIndex_ = 0` and `historyCount_ = 0` (clear history on size change per contract spec)
-- [ ] T054 [US3] Implement `setHysteresisThreshold()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: store `cents` in `hysteresisThreshold_` (no clamping required; 0 is valid and disables hysteresis)
-- [ ] T055 [US3] Implement `setConfidenceThreshold()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: store `threshold` in `confidenceThreshold_`
-- [ ] T056 [US3] Implement `setMinNoteDuration()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: store `ms` in `minNoteDurationMs_`, recompute `minNoteDurationSamples_ = static_cast<std::size_t>(ms / 1000.0 * sampleRate_)` (0ms -> 0 samples -> immediate commit)
-- [ ] T057 [US3] Build DSP tests and verify zero compiler warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T058 [US3] Run all PitchTracker tests and verify they pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
+- [X] T053 [US3] Implement `setMedianFilterSize()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: clamp `size` to `[1, kMaxMedianSize]`, update `medianSize_`, reset `historyIndex_ = 0` and `historyCount_ = 0` (clear history on size change per contract spec)
+- [X] T054 [US3] Implement `setHysteresisThreshold()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: store `cents` in `hysteresisThreshold_` (no clamping required; 0 is valid and disables hysteresis)
+- [X] T055 [US3] Implement `setConfidenceThreshold()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: store `threshold` in `confidenceThreshold_`
+- [X] T056 [US3] Implement `setMinNoteDuration()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: store `ms` in `minNoteDurationMs_`, recompute `minNoteDurationSamples_ = static_cast<std::size_t>(ms / 1000.0 * sampleRate_)` (0ms -> 0 samples -> immediate commit)
+- [X] T057 [US3] Build DSP tests and verify zero compiler warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T058 [US3] Run all PitchTracker tests and verify they pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T059 [US3] No new source files added; confirm the existing `-fno-fast-math` entry covers these test cases.
+- [X] T059 [US3] No new source files added; confirm the existing `-fno-fast-math` entry covers these test cases.
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T060 [US3] Commit User Story 3 work: `git commit` with message "Implement and test configuration setters (US3: configurable tracking behavior)"
+- [X] T060 [US3] Commit User Story 3 work: `git commit` with message "Implement and test configuration setters (US3: configurable tracking behavior)"
 
 **Checkpoint**: All four configuration setters implemented and tested. All three US3 acceptance scenarios verified.
 
@@ -258,17 +258,17 @@ The median filter was implemented in T018 and T019. US4 tests verify the ring bu
 
 **Purpose**: Verify all functional requirements not fully exercised by user story tests. These are cross-cutting correctness checks derived from spec.md FR requirements and edge cases section.
 
-- [ ] T061 [P] Write FR-007 prepare() reset-state test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: call `prepare()` after establishing tracking state, verify all state is reset (currentNote_ == -1, historyCount_ == 0, smoothedFrequency_ == 0)
-- [ ] T062 [P] Write FR-008 reset() preserves-config test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: configure non-default parameters, call `reset()`, verify configuration values are unchanged (medianSize_ still set, hysteresisThreshold_ still set) but state is cleared
-- [ ] T063 [P] Write FR-015 first-detection-bypasses-both-stages test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: verify that with `currentNote_ == -1`, the first confident detection with high confidence commits a note IMMEDIATELY without waiting for `minNoteDurationSamples_` and without hysteresis check
-- [ ] T064 [P] Write FR-016 sub-hop block accumulation test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: call `pushBlock()` with a block smaller than `hopSize` (e.g., 32 samples with 64-sample hop), verify tracker state is unchanged (no pipeline run triggered, `isPitchValid()` returns same value as before)
-- [ ] T065 [P] Write FR-012 layer-boundary test as a comment/compile-time check in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: include only `<krate/dsp/primitives/pitch_tracker.h>` and verify it compiles without needing any Layer 2+ headers (documents the layer constraint)
-- [ ] T066 [P] Write prepare() with non-default sample rate test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: call `prepare(48000.0, 256)`, verify `minNoteDurationSamples_` is recomputed correctly (50ms * 48000 = 2400 samples vs 2205 at 44100)
-- [ ] T066b [P] Write re-prepare with sample rate change test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: call `prepare(44100.0, 256)`, establish tracking state (feed pitched signal until `currentNote_ != -1`), then call `prepare(48000.0, 256)`, verify (a) all state is fully reset (`currentNote_ == -1`, `historyCount_ == 0`, `isPitchValid() == false`) AND (b) `minNoteDurationSamples_` is recomputed for 48000Hz (2400 samples), not left at the 44100Hz value (2205 samples). This covers the edge case documented in spec.md: "What happens when `prepare()` is called with a new sample rate while the tracker has existing state?"
-- [ ] T067 Build DSP tests and verify zero warnings, run all tests: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
-- [ ] T068 Fix any implementation gaps revealed by edge case tests in `dsp/include/krate/dsp/primitives/pitch_tracker.h`
-- [ ] T069 Run full DSP test suite (not just PitchTracker) to confirm no regressions: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
-- [ ] T070 Commit edge case test work: `git commit` with message "Add edge case and FR coverage tests for PitchTracker"
+- [X] T061 [P] Write FR-007 prepare() reset-state test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: call `prepare()` after establishing tracking state, verify all state is reset (currentNote_ == -1, historyCount_ == 0, smoothedFrequency_ == 0)
+- [X] T062 [P] Write FR-008 reset() preserves-config test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: configure non-default parameters, call `reset()`, verify configuration values are unchanged (medianSize_ still set, hysteresisThreshold_ still set) but state is cleared
+- [X] T063 [P] Write FR-015 first-detection-bypasses-both-stages test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: verify that with `currentNote_ == -1`, the first confident detection with high confidence commits a note IMMEDIATELY without waiting for `minNoteDurationSamples_` and without hysteresis check
+- [X] T064 [P] Write FR-016 sub-hop block accumulation test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: call `pushBlock()` with a block smaller than `hopSize` (e.g., 32 samples with 64-sample hop), verify tracker state is unchanged (no pipeline run triggered, `isPitchValid()` returns same value as before)
+- [X] T065 [P] Write FR-012 layer-boundary test as a comment/compile-time check in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: include only `<krate/dsp/primitives/pitch_tracker.h>` and verify it compiles without needing any Layer 2+ headers (documents the layer constraint)
+- [X] T066 [P] Write prepare() with non-default sample rate test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: call `prepare(48000.0, 256)`, verify `minNoteDurationSamples_` is recomputed correctly (50ms * 48000 = 2400 samples vs 2205 at 44100)
+- [X] T066b [P] Write re-prepare with sample rate change test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: call `prepare(44100.0, 256)`, establish tracking state (feed pitched signal until `currentNote_ != -1`), then call `prepare(48000.0, 256)`, verify (a) all state is fully reset (`currentNote_ == -1`, `historyCount_ == 0`, `isPitchValid() == false`) AND (b) `minNoteDurationSamples_` is recomputed for 48000Hz (2400 samples), not left at the 44100Hz value (2205 samples). This covers the edge case documented in spec.md: "What happens when `prepare()` is called with a new sample rate while the tracker has existing state?"
+- [X] T067 Build DSP tests and verify zero warnings, run all tests: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
+- [X] T068 Fix any implementation gaps revealed by edge case tests in `dsp/include/krate/dsp/primitives/pitch_tracker.h`
+- [X] T069 Run full DSP test suite (not just PitchTracker) to confirm no regressions: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
+- [X] T070 Commit edge case test work: `git commit` with message "Add edge case and FR coverage tests for PitchTracker"
 
 **Checkpoint**: All 16 FR requirements and 9 SC requirements are covered by at least one test.
 
@@ -278,10 +278,10 @@ The median filter was implemented in T018 and T019. US4 tests verify the ring bu
 
 **Purpose**: Code quality, documentation style, and doxygen comment completeness.
 
-- [ ] T071 [P] Review all doxygen comments in `dsp/include/krate/dsp/primitives/pitch_tracker.h` against the contract in `specs/063-pitch-tracker/contracts/pitch_tracker_api.h`; fill in any missing `@param`, `@return`, `@post`, `@note` tags to match the contract level of detail
-- [ ] T072 [P] Review `runPipeline()` implementation for the two optimization opportunities identified in plan.md SIMD section: (1) early-out when confidence < threshold (already part of stage 1 design), (2) skip median sort when `medianSize_ == 1` (return single value directly). Implement (2) if not already present.
-- [ ] T073 Rebuild and run full test suite after polish changes: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
-- [ ] T074 Commit polish work: `git commit` with message "Polish PitchTracker comments and optimizations"
+- [X] T071 [P] Review all doxygen comments in `dsp/include/krate/dsp/primitives/pitch_tracker.h` against the contract in `specs/063-pitch-tracker/contracts/pitch_tracker_api.h`; fill in any missing `@param`, `@return`, `@post`, `@note` tags to match the contract level of detail
+- [X] T072 [P] Review `runPipeline()` implementation for the two optimization opportunities identified in plan.md SIMD section: (1) early-out when confidence < threshold (already part of stage 1 design), (2) skip median sort when `medianSize_ == 1` (return single value directly). Implement (2) if not already present.
+- [X] T073 Rebuild and run full test suite after polish changes: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
+- [X] T074 Commit polish work: `git commit` with message "Polish PitchTracker comments and optimizations"
 
 ---
 
@@ -291,8 +291,8 @@ The median filter was implemented in T018 and T019. US4 tests verify the ring bu
 
 > **Constitution Principle XIV**: Every spec implementation MUST update architecture documentation as a final task.
 
-- [ ] T075 Update `specs/_architecture_/layer-1-primitives.md`: add a PitchTracker section documenting purpose ("5-stage post-processing wrapper around PitchDetector for stable harmonizer pitch input"), public API summary (all 9 public methods with brief descriptions), file location (`dsp/include/krate/dsp/primitives/pitch_tracker.h`), dependencies (PitchDetector L1, OnePoleSmoother L1, pitch_utils.h L0, midi_utils.h L0), usage example from quickstart.md, and "when to use this" guidance (Phase 4 HarmonizerEngine integration)
-- [ ] T076 Commit architecture documentation: `git commit` with message "Document PitchTracker in layer-1-primitives architecture doc"
+- [X] T075 Update `specs/_architecture_/layer-1-primitives.md`: add a PitchTracker section documenting purpose ("5-stage post-processing wrapper around PitchDetector for stable harmonizer pitch input"), public API summary (all 9 public methods with brief descriptions), file location (`dsp/include/krate/dsp/primitives/pitch_tracker.h`), dependencies (PitchDetector L1, OnePoleSmoother L1, pitch_utils.h L0, midi_utils.h L0), usage example from quickstart.md, and "when to use this" guidance (Phase 4 HarmonizerEngine integration)
+- [X] T076 Commit architecture documentation: `git commit` with message "Document PitchTracker in layer-1-primitives architecture doc"
 
 **Checkpoint**: Architecture documentation reflects the new PitchTracker component.
 
@@ -304,12 +304,12 @@ The median filter was implemented in T018 and T019. US4 tests verify the ring bu
 
 > **Pre-commit Quality Gate**: Run clang-tidy to catch potential bugs, performance issues, and style violations.
 
-- [ ] T077 Generate compile_commands.json if not current: run `cmake --preset windows-ninja` from VS Developer PowerShell (required for clang-tidy)
-- [ ] T078 Run clang-tidy on DSP target: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
-- [ ] T079 Fix all clang-tidy errors in `dsp/include/krate/dsp/primitives/pitch_tracker.h` and `dsp/tests/unit/primitives/pitch_tracker_test.cpp` (blocking issues must be resolved)
-- [ ] T080 Review clang-tidy warnings and fix where appropriate; add `// NOLINT(rule): reason` suppressions only where the warning is a false positive in DSP context
-- [ ] T081 Rebuild and run full test suite after clang-tidy fixes: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
-- [ ] T082 Commit clang-tidy fixes: `git commit` with message "Fix clang-tidy findings in PitchTracker"
+- [X] T077 Generate compile_commands.json if not current: run `cmake --preset windows-ninja` from VS Developer PowerShell (required for clang-tidy)
+- [X] T078 Run clang-tidy on DSP target: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
+- [X] T079 Fix all clang-tidy errors in `dsp/include/krate/dsp/primitives/pitch_tracker.h` and `dsp/tests/unit/primitives/pitch_tracker_test.cpp` (blocking issues must be resolved)
+- [X] T080 Review clang-tidy warnings and fix where appropriate; add `// NOLINT(rule): reason` suppressions only where the warning is a false positive in DSP context
+- [X] T081 Rebuild and run full test suite after clang-tidy fixes: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/dsp/tests/Release/dsp_tests.exe`
+- [X] T082 Commit clang-tidy fixes: `git commit` with message "Fix clang-tidy findings in PitchTracker"
 
 **Checkpoint**: Static analysis clean. Ready for completion verification.
 
@@ -323,14 +323,14 @@ The median filter was implemented in T018 and T019. US4 tests verify the ring bu
 
 ### 11.1 Requirements Verification
 
-- [ ] T083 Re-read each FR-001 through FR-016 from `specs/063-pitch-tracker/spec.md` and locate the exact line(s) in `dsp/include/krate/dsp/primitives/pitch_tracker.h` that satisfy each one; record file path + line number for the compliance table
-- [ ] T084 Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*" --success` and capture the full output; verify each SC-001 through SC-009 test name appears with PASSED status; copy actual measured values for SC-007 CPU budget
-- [ ] T085 Search for disqualifying patterns in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: `grep -n "TODO\|FIXME\|placeholder\|stub\|new\b\|delete\b\|malloc\|free"` -- review each match; occurrences in comments, string literals, or `noexcept` are acceptable. All matches inside processing method bodies (`pushBlock`, `runPipeline`, `computeMedian`, query methods) MUST be absent.
-- [ ] T086 Verify no test thresholds were relaxed from spec: compare each SC-xxx numeric bound in `dsp/tests/unit/primitives/pitch_tracker_test.cpp` against the original spec.md requirement
+- [X] T083 Re-read each FR-001 through FR-016 from `specs/063-pitch-tracker/spec.md` and locate the exact line(s) in `dsp/include/krate/dsp/primitives/pitch_tracker.h` that satisfy each one; record file path + line number for the compliance table
+- [X] T084 Run `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*" --success` and capture the full output; verify each SC-001 through SC-009 test name appears with PASSED status; copy actual measured values for SC-007 CPU budget
+- [X] T085 Search for disqualifying patterns in `dsp/include/krate/dsp/primitives/pitch_tracker.h`: `grep -n "TODO\|FIXME\|placeholder\|stub\|new\b\|delete\b\|malloc\|free"` -- review each match; occurrences in comments, string literals, or `noexcept` are acceptable. All matches inside processing method bodies (`pushBlock`, `runPipeline`, `computeMedian`, query methods) MUST be absent.
+- [X] T086 Verify no test thresholds were relaxed from spec: compare each SC-xxx numeric bound in `dsp/tests/unit/primitives/pitch_tracker_test.cpp` against the original spec.md requirement
 
 ### 11.2 Fill Compliance Table in spec.md
 
-- [ ] T087 Update `specs/063-pitch-tracker/spec.md` "Implementation Verification" section: fill the compliance table with MET/NOT MET status, specific file paths and line numbers from T083, and actual test output values from T084. Mark overall status as COMPLETE or NOT COMPLETE.
+- [X] T087 Update `specs/063-pitch-tracker/spec.md` "Implementation Verification" section: fill the compliance table with MET/NOT MET status, specific file paths and line numbers from T083, and actual test output values from T084. Mark overall status as COMPLETE or NOT COMPLETE.
 
 ### 11.3 Honest Self-Check
 
@@ -342,7 +342,7 @@ Answer these questions before claiming completion. If ANY answer is "yes", you C
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T088 All self-check questions answered "no" (or gaps documented honestly in spec.md with user notification)
+- [X] T088 All self-check questions answered "no" (or gaps documented honestly in spec.md with user notification)
 
 **Checkpoint**: Honest assessment complete. Ready for final completion claim.
 

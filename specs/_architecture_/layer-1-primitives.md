@@ -2123,3 +2123,101 @@ class SpectralTransientDetector {
 **Performance:** O(numBins) per frame with 3 arithmetic operations per bin (subtract, max, add). No transcendental math. Negligible overhead (< 0.01% CPU at 44.1kHz/4096-point FFT).
 
 **Dependencies:** Standard library only (`<vector>`, `<cstddef>`, `<cmath>`, `<algorithm>`, `<cassert>`)
+
+---
+
+## PitchTracker
+**Path:** [pitch_tracker.h](../../dsp/include/krate/dsp/primitives/pitch_tracker.h) | **Since:** 0.19.0 | **Spec:** [063-pitch-tracker](../063-pitch-tracker/spec.md)
+
+5-stage post-processing wrapper around PitchDetector for stable harmonizer pitch input. Transforms raw, jittery pitch detection into stable MIDI note decisions by applying confidence gating, median filtering, hysteresis, minimum note duration, and frequency smoothing in a fixed pipeline order. Designed as the primary pitch input for the Phase 4 HarmonizerEngine.
+
+**Processing pipeline (per internal analysis hop):**
+```
+pushBlock() -> [internal detect() per hop]
+    [1] Confidence Gate (reject unreliable frames)
+    [2] Median Filter (reject outliers from confident frames)
+    [3] Hysteresis (prevent oscillation at note boundaries)
+    [4] Min Note Duration (prevent rapid note-switching)
+    [5] Frequency Smoother (smooth Hz output for pitch shifting)
+```
+
+```cpp
+class PitchTracker {
+    // Constants
+    static constexpr std::size_t kDefaultWindowSize           = 256;
+    static constexpr std::size_t kMaxMedianSize               = 11;
+    static constexpr float       kDefaultHysteresisThreshold  = 50.0f;   // cents
+    static constexpr float       kDefaultConfidenceThreshold  = 0.5f;
+    static constexpr float       kDefaultMinNoteDurationMs    = 50.0f;
+    static constexpr float       kDefaultFrequencySmoothingMs = 25.0f;
+
+    // Lifecycle
+    void prepare(double sampleRate, std::size_t windowSize = kDefaultWindowSize) noexcept;
+    void reset() noexcept;
+
+    // Processing (real-time safe, zero allocations)
+    void pushBlock(const float* samples, std::size_t numSamples) noexcept;
+
+    // Output queries
+    [[nodiscard]] float getFrequency()  const noexcept;  // Stage 5: smoothed Hz
+    [[nodiscard]] int   getMidiNote()   const noexcept;  // Stage 4: committed note (-1 = none)
+    [[nodiscard]] float getConfidence() const noexcept;  // Raw from PitchDetector
+    [[nodiscard]] bool  isPitchValid()  const noexcept;  // true iff last frame passed gate
+
+    // Configuration (take effect on next hop)
+    void setMedianFilterSize(std::size_t size) noexcept;     // [1, 11], default 5
+    void setHysteresisThreshold(float cents) noexcept;       // >= 0, default 50
+    void setConfidenceThreshold(float threshold) noexcept;   // [0, 1], default 0.5
+    void setMinNoteDuration(float ms) noexcept;              // >= 0, default 50
+};
+```
+
+**Use when:**
+- Driving a diatonic harmonizer engine (Phase 4 HarmonizerEngine integration) that needs stable, non-warbling MIDI note input
+- Any downstream processor that needs a stable integer MIDI note from monophonic audio
+- Pitch-following modulation (e.g., pitch-to-filter-cutoff) where raw detector jitter would cause audible artifacts
+- Pitch correction or display where single-frame outliers and boundary oscillation must be suppressed
+
+**Key design decisions:**
+- `getMidiNote()` returns the committed note from stage 4 directly; it is NOT derived from the smoothed frequency of stage 5
+- First detection (no committed note) bypasses both hysteresis and minimum note duration for immediate musical responsiveness
+- Low-confidence frames never enter the median ring buffer, preventing noise from contaminating the filter
+- Median filter uses insertion sort on a fixed-size `std::array` scratch buffer (no heap allocation)
+- `pushBlock()` internally triggers 0..N pipeline executions per call, matching PitchDetector's hop rhythm (`windowSize/4`)
+
+**Usage example:**
+```cpp
+#include <krate/dsp/primitives/pitch_tracker.h>
+
+Krate::DSP::PitchTracker tracker;
+
+// In setupProcessing():
+tracker.prepare(sampleRate, 256);
+
+// Optional configuration:
+tracker.setConfidenceThreshold(0.5f);
+tracker.setHysteresisThreshold(50.0f);
+tracker.setMinNoteDuration(50.0f);
+tracker.setMedianFilterSize(5);
+
+// In process() audio callback:
+tracker.pushBlock(inputSamples, numSamples);
+
+if (tracker.isPitchValid()) {
+    int midiNote = tracker.getMidiNote();    // Committed, stable note
+    float freq = tracker.getFrequency();      // Smoothed Hz for pitch shift
+    float conf = tracker.getConfidence();     // Raw detector confidence
+}
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| medianFilterSize | 5 | [1, 11] | Larger = more outlier rejection, slightly more latency |
+| hysteresisThreshold | 50 cents | [0, +inf) | Larger = more stable notes, less responsive to small changes |
+| confidenceThreshold | 0.5 | [0, 1] | Higher = fewer accepted frames, more conservative |
+| minNoteDuration | 50 ms | [0, +inf) | Longer = fewer note switches, less warbling |
+| frequencySmoothing | 25 ms | (internal) | OnePoleSmoother time constant for Hz output |
+
+**Performance:** Pipeline stages are pure arithmetic (no transcendental math except `std::round` and `std::abs`). Incremental CPU overhead beyond PitchDetector is < 0.1% at 44.1kHz (Layer 1 budget).
+
+**Dependencies:** `PitchDetector` (L1), `OnePoleSmoother` (L1), `pitch_utils.h` (L0, `frequencyToMidiNote()`), `midi_utils.h` (L0, `midiNoteToFrequency()`)

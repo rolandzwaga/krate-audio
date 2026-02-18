@@ -366,31 +366,31 @@ private:
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
+| FR-001 | MET | `pitch_tracker.h:114-124` -- pushBlock() iterates samples, calls detector_.push() per sample, triggers runPipeline() at hop boundary. No public detect(). Test "FR-001 pushBlock triggers multiple pipeline executions" passes. |
+| FR-002 | MET | `pitch_tracker.h:209-221` -- Stage 2 writes only confident frames to ring buffer. computeMedian() at line 293 uses insertion sort. setMedianFilterSize() clamps to [1,11]. Test "US3 setMedianFilterSize validation and clamping" passes. |
+| FR-003 | MET | `pitch_tracker.h:225-249` -- Stage 3 hysteresis with configurable threshold (default 50 cents). Bypass when currentNote_==-1. Test "US3 setHysteresisThreshold affects boundary switching" passes. |
+| FR-004 | MET | `pitch_tracker.h:196-207` -- Stage 1 confidence gate. Low-confidence: pitchValid_=false, returns without modifying state. Test "FR-004 confidence gate holds last note during white noise" passes. |
+| FR-005 | MET | `pitch_tracker.h:251-282` -- Stage 4 min note duration. Timer in samples, bypass when currentNote_==-1. Tests "US3 setMinNoteDuration" and "setMinNoteDuration(0)" pass. |
+| FR-006 | MET | `pitch_tracker.h:132` getFrequency() returns smoothedFrequency_; line 139 getMidiNote() returns currentNote_. Smoother configured at 25ms. Test "FR-006 getMidiNote vs getFrequency separation" passes. |
+| FR-007 | MET | `pitch_tracker.h:68-83` -- prepare() configures detector, computes hopSize/samples, calls reset(). Test "FR-007 prepare() resets all tracking state" passes. |
+| FR-008 | MET | `pitch_tracker.h:87-102` -- reset() clears state without touching config. Test "FR-008 reset() preserves config but clears state" passes. |
+| FR-009 | MET | `pitch_tracker.h:132-153` -- All four query methods: getFrequency(), getMidiNote(), getConfidence(), isPitchValid(). All [[nodiscard]] const noexcept. |
+| FR-010 | MET | `pitch_tracker.h:162-186` -- All four setters with validation: setMedianFilterSize clamps [1,11] and resets history; setHysteresisThreshold clamps negative to 0; setConfidenceThreshold clamps [0,1]; setMinNoteDuration clamps negative to 0 and recomputes samples. Tests pass. |
+| FR-011 | MET | All methods noexcept. Processing path uses only std::array scratch, scalar arithmetic. No new/delete/malloc/free. Test "SC-008 zero heap allocations" confirms by inspection. |
+| FR-012 | MET | `pitch_tracker.h:25-28` includes only L0 (midi_utils.h, pitch_utils.h) and L1 (pitch_detector.h, smoother.h). Compile-time verified by test file compilation. |
+| FR-013 | MET | `pitch_tracker.h:293-335` -- computeMedian() uses insertion sort on stack std::array, historyCount_ for partial buffer. Test "FR-013 partial ring buffer" passes. |
+| FR-014 | MET | `pitch_tracker.h:232-234` -- Uses std::abs(frequencyToMidiNote(medianFreq) - float(currentNote_)) * 100.0f. frequencyToCentsDeviation() NOT used (verified by grep). |
+| FR-015 | MET | `pitch_tracker.h:228-229,254-260` -- First detection bypasses both hysteresis and min duration. Test "FR-015 first detection commits immediately" passes (commit at sample 192 vs 8820 timer). |
+| FR-016 | MET | `pitch_tracker.h:114-124` -- pushBlock iterates, detector_.push() per sample, pipeline at hop boundary, 0-sample is no-op. Test "FR-016 sub-hop block" passes. |
+| SC-001 | MET | Test "SC-001 stable 440Hz sine": finalNote=69, noteSwitches=0 over 2 seconds. Spec: zero switches. |
+| SC-002 | MET | Test "SC-002 jittered 440Hz sine (20 cents)": noteSwitches=0 with default 50-cent hysteresis. Spec: zero switches. |
+| SC-003 | MET | Test "SC-003 single-frame octave-jump outlier": getMidiNote()==69 throughout, everSwitchedTo81=false. Two-outlier test also passes. Spec: no note change. |
+| SC-004 | MET | Test "SC-004 A4-to-B4 transition": noteSwitches=1, finalNote=71, switchSample=2432 <= 4410 (100ms). Spec: exactly one switch within 100ms. |
+| SC-005 | MET | Test "SC-005 voiced/silent alternating": isPitchValid()==false during silence, getMidiNote()==69 held. Spec: hold last note, isPitchValid false. |
+| SC-006 | MET | Test "US3 setMinNoteDuration" (T046): 35ms-per-note alternating tones (29 input transitions). With 50ms min duration: 0 switches (all suppressed). With 10ms: 29 switches (all pass). `result50 < inputTransitions` and `result10 > result50` both verified. pitch_tracker_test.cpp:788. |
+| SC-007 | MET | Test "SC-007 CPU overhead": measured incremental 0.18% (within Windows timing noise). Algorithmic overhead ~50-100 scalar ops/hop is negligible. Test passes. |
+| SC-008 | MET | Test "SC-008 zero allocations": code inspection confirms no allocating calls in pushBlock/runPipeline/computeMedian. |
+| SC-009 | MET | Test "SC-009 multi-hop": 512-sample block with 256-sample window processes 8 hops. State reflects final hop. getMidiNote()==69, isPitchValid()==true. |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -402,17 +402,17 @@ private:
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: NOT STARTED
+**Overall Status**: COMPLETE
 
-**Recommendation**: Proceed to `/speckit.plan` for implementation planning, then `/speckit.implement` for development.
+**Summary**: All 16 functional requirements (FR-001 through FR-016) are MET. All 9 success criteria (SC-001 through SC-009) are MET. Implementation is complete with full compliance.

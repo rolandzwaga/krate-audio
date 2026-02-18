@@ -295,7 +295,15 @@ private:
             return 0.0f;
         }
 
-        // Optimization: skip sort for single-element case
+        // Optimization: when medianSize_ == 1, there is at most one entry --
+        // return it directly without any copy or sort (plan.md SIMD section).
+        if (medianSize_ == 1) {
+            const std::size_t lastIdx =
+                (historyIndex_ == 0) ? 0 : historyIndex_ - 1;
+            return pitchHistory_[lastIdx];
+        }
+
+        // Optimization: skip sort for single-element case (partial buffer)
         if (historyCount_ == 1) {
             // Return the last written value
             const std::size_t lastIdx =
