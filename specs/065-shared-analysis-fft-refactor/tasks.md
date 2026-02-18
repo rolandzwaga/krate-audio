@@ -192,19 +192,19 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T043 [P] [US3] Write test: 2 voices at +7 and -5 semitones with shared analysis -- each voice's output matches a standalone `PhaseVocoderPitchShifter` at the same ratio within floating-point tolerance (SC-007, US3 acceptance scenario 1) -- add to `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T044 [P] [US3] Write test: 4 voices at different ratios, mute all but one, verify the remaining voice's output is identical to a single standalone `PhaseVocoderPitchShifter` at that ratio (US3 acceptance scenario 2) -- add to `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
-- [ ] T045 [P] [US3] Write test: 2 voices processing simultaneously, mute one voice mid-stream, verify the remaining active voice's output is unaffected by the muted voice's OLA state (US3 acceptance scenario 3) -- add to `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T043 [P] [US3] Write test: 2 voices at +7 and -5 semitones with shared analysis -- each voice's output matches a standalone `PhaseVocoderPitchShifter` at the same ratio within floating-point tolerance (SC-007, US3 acceptance scenario 1) -- add to `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T044 [P] [US3] Write test: 4 voices at different ratios, mute all but one, verify the remaining voice's output is identical to a single standalone `PhaseVocoderPitchShifter` at that ratio (US3 acceptance scenario 2) -- add to `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
+- [X] T045 [P] [US3] Write test: 2 voices processing simultaneously, mute one voice mid-stream, verify the remaining active voice's output is unaffected by the muted voice's OLA state (US3 acceptance scenario 3) -- add to `dsp/tests/unit/systems/harmonizer_engine_test.cpp`
 
 ### 5.2 Verify or Fix OLA Isolation
 
-- [ ] T046 [US3] Build dsp_tests and fix ALL compiler warnings and errors: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T047 [US3] Run all US3 OLA isolation tests. If any fail, identify the isolation violation and fix it in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` or `dsp/include/krate/dsp/systems/harmonizer_engine.h` -- OLA buffers MUST be strictly per-voice (FR-018 this spec; spec-064-FR-021 established the same requirement in the predecessor spec)
-- [ ] T048 [US3] Run the full dsp_tests suite and confirm zero regressions: `build/windows-x64-release/bin/Release/dsp_tests.exe`
+- [X] T046 [US3] Build dsp_tests and fix ALL compiler warnings and errors: `cmake --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T047 [US3] Run all US3 OLA isolation tests. If any fail, identify the isolation violation and fix it in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` or `dsp/include/krate/dsp/systems/harmonizer_engine.h` -- OLA buffers MUST be strictly per-voice (FR-018 this spec; spec-064-FR-021 established the same requirement in the predecessor spec)
+- [X] T048 [US3] Run the full dsp_tests suite and confirm zero regressions: `build/windows-x64-release/bin/Release/dsp_tests.exe`
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T049 [US3] Verify IEEE 754 compliance for the new US3 tests in `dsp/tests/unit/systems/harmonizer_engine_test.cpp` -- check for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` if needed
+- [X] T049 [US3] Verify IEEE 754 compliance for the new US3 tests in `dsp/tests/unit/systems/harmonizer_engine_test.cpp` -- check for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` if needed (verified: new T043/T044/T045 tests do not use IEEE 754 functions; file already in -fno-fast-math list at line 390 from T041)
 
 ### 5.4 Commit (MANDATORY)
 

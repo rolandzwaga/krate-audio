@@ -4016,3 +4016,456 @@ TEST_CASE("T032: HarmonizerEngine PhaseVocoder 4-voice shared-analysis benchmark
     // SC-001: CPU must be < 18%
     REQUIRE(cpuPercent < 18.0);
 }
+
+// =============================================================================
+// Phase 5: User Story 3 - Per-Voice OLA Buffer Isolation Verified (SC-007)
+// =============================================================================
+
+// T043: 2 voices at +7 and -5 semitones with shared analysis -- each voice's
+// output matches a standalone PhaseVocoderPitchShifter at the same ratio within
+// floating-point tolerance (SC-007, US3 acceptance scenario 1).
+//
+// Architecture: We drive a shared STFT manually, feed the shared analysis
+// spectrum to two PhaseVocoderPitchShifters simultaneously (simulating the
+// multi-voice path), and also to two independent standalone instances. If the
+// OLA buffers are truly independent, the multi-voice outputs must match the
+// standalone outputs exactly.
+TEST_CASE("T043: OLA isolation -- 2 voices shared analysis match standalone (SC-007)",
+          "[systems][harmonizer][ola-isolation][SC-007]") {
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+
+    constexpr std::size_t fftSize = PhaseVocoderPitchShifter::kFFTSize;   // 4096
+    constexpr std::size_t hopSize = PhaseVocoderPitchShifter::kHopSize;   // 1024
+
+    // Two voice pitch ratios: +7 semitones and -5 semitones
+    const float ratio0 = semitonesToRatio(7.0f);
+    const float ratio1 = semitonesToRatio(-5.0f);
+
+    // --- Setup multi-voice pair (sharing analysis) ---
+    PhaseVocoderPitchShifter multiVoice0;
+    PhaseVocoderPitchShifter multiVoice1;
+    multiVoice0.prepare(sampleRate, blockSize);
+    multiVoice1.prepare(sampleRate, blockSize);
+
+    // --- Setup standalone pair (independent, also using shared analysis API) ---
+    PhaseVocoderPitchShifter standalone0;
+    PhaseVocoderPitchShifter standalone1;
+    standalone0.prepare(sampleRate, blockSize);
+    standalone1.prepare(sampleRate, blockSize);
+
+    // Shared STFT (one instance drives multi-voice, another drives standalone)
+    STFT sharedStft;
+    sharedStft.prepare(fftSize, hopSize, WindowType::Hann);
+    STFT standaloneStft0;
+    standaloneStft0.prepare(fftSize, hopSize, WindowType::Hann);
+    STFT standaloneStft1;
+    standaloneStft1.prepare(fftSize, hopSize, WindowType::Hann);
+
+    SpectralBuffer sharedSpectrum;
+    sharedSpectrum.prepare(fftSize);
+    SpectralBuffer standaloneSpectrum0;
+    standaloneSpectrum0.prepare(fftSize);
+    SpectralBuffer standaloneSpectrum1;
+    standaloneSpectrum1.prepare(fftSize);
+
+    // Generate input signal
+    std::vector<float> inputSignal(totalSamples);
+    fillSine(inputSignal.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    // Accumulate outputs
+    std::vector<float> multiOut0(totalSamples, 0.0f);
+    std::vector<float> multiOut1(totalSamples, 0.0f);
+    std::vector<float> standaloneOut0(totalSamples, 0.0f);
+    std::vector<float> standaloneOut1(totalSamples, 0.0f);
+
+    std::vector<float> scratch(blockSize, 0.0f);
+
+    std::size_t samplesProcessed = 0;
+    std::size_t outputWritten0 = 0;
+    std::size_t outputWritten1 = 0;
+    std::size_t standaloneWritten0 = 0;
+    std::size_t standaloneWritten1 = 0;
+
+    while (samplesProcessed < totalSamples) {
+        std::size_t remaining = totalSamples - samplesProcessed;
+        std::size_t thisBlock = std::min(remaining, blockSize);
+        const float* blockInput = inputSignal.data() + samplesProcessed;
+
+        // Push to all STFTs
+        sharedStft.pushSamples(blockInput, thisBlock);
+        standaloneStft0.pushSamples(blockInput, thisBlock);
+        standaloneStft1.pushSamples(blockInput, thisBlock);
+
+        // Process all ready frames -- shared STFT drives both multi-voice
+        while (sharedStft.canAnalyze()) {
+            sharedStft.analyze(sharedSpectrum);
+
+            // Both multi-voice instances get the SAME shared spectrum
+            multiVoice0.processWithSharedAnalysis(sharedSpectrum, ratio0);
+            multiVoice1.processWithSharedAnalysis(sharedSpectrum, ratio1);
+        }
+
+        // Standalone instances driven independently with same input
+        while (standaloneStft0.canAnalyze()) {
+            standaloneStft0.analyze(standaloneSpectrum0);
+            standalone0.processWithSharedAnalysis(standaloneSpectrum0, ratio0);
+        }
+        while (standaloneStft1.canAnalyze()) {
+            standaloneStft1.analyze(standaloneSpectrum1);
+            standalone1.processWithSharedAnalysis(standaloneSpectrum1, ratio1);
+        }
+
+        // Pull output from multi-voice pair
+        std::size_t avail0 = multiVoice0.outputSamplesAvailable();
+        std::size_t toPull0 = std::min(avail0, thisBlock);
+        if (toPull0 > 0 && outputWritten0 + toPull0 <= totalSamples) {
+            multiVoice0.pullOutputSamples(
+                multiOut0.data() + outputWritten0, toPull0);
+            outputWritten0 += toPull0;
+        }
+
+        std::size_t avail1 = multiVoice1.outputSamplesAvailable();
+        std::size_t toPull1 = std::min(avail1, thisBlock);
+        if (toPull1 > 0 && outputWritten1 + toPull1 <= totalSamples) {
+            multiVoice1.pullOutputSamples(
+                multiOut1.data() + outputWritten1, toPull1);
+            outputWritten1 += toPull1;
+        }
+
+        // Pull output from standalone pair
+        std::size_t sAvail0 = standalone0.outputSamplesAvailable();
+        std::size_t sToPull0 = std::min(sAvail0, thisBlock);
+        if (sToPull0 > 0 && standaloneWritten0 + sToPull0 <= totalSamples) {
+            standalone0.pullOutputSamples(
+                standaloneOut0.data() + standaloneWritten0, sToPull0);
+            standaloneWritten0 += sToPull0;
+        }
+
+        std::size_t sAvail1 = standalone1.outputSamplesAvailable();
+        std::size_t sToPull1 = std::min(sAvail1, thisBlock);
+        if (sToPull1 > 0 && standaloneWritten1 + sToPull1 <= totalSamples) {
+            standalone1.pullOutputSamples(
+                standaloneOut1.data() + standaloneWritten1, sToPull1);
+            standaloneWritten1 += sToPull1;
+        }
+
+        samplesProcessed += thisBlock;
+    }
+
+    // Compare multi-voice output vs standalone output for each voice.
+    // They should be bit-identical because the same analysis spectrum was used
+    // and each PhaseVocoderPitchShifter has its own OLA buffer.
+    std::size_t compareLen0 = std::min(outputWritten0, standaloneWritten0);
+    std::size_t compareLen1 = std::min(outputWritten1, standaloneWritten1);
+
+    INFO("Voice 0 (+7 semitones): multi wrote " << outputWritten0
+         << " samples, standalone wrote " << standaloneWritten0);
+    INFO("Voice 1 (-5 semitones): multi wrote " << outputWritten1
+         << " samples, standalone wrote " << standaloneWritten1);
+
+    REQUIRE(compareLen0 > 0);
+    REQUIRE(compareLen1 > 0);
+
+    // Voice 0: multi-voice output must match standalone output
+    float maxDiff0 = 0.0f;
+    for (std::size_t s = 0; s < compareLen0; ++s) {
+        float diff = std::abs(multiOut0[s] - standaloneOut0[s]);
+        maxDiff0 = std::max(maxDiff0, diff);
+    }
+    INFO("Voice 0 max sample diff: " << maxDiff0);
+    REQUIRE(maxDiff0 < 1e-5f);
+
+    // Voice 1: multi-voice output must match standalone output
+    float maxDiff1 = 0.0f;
+    for (std::size_t s = 0; s < compareLen1; ++s) {
+        float diff = std::abs(multiOut1[s] - standaloneOut1[s]);
+        maxDiff1 = std::max(maxDiff1, diff);
+    }
+    INFO("Voice 1 max sample diff: " << maxDiff1);
+    REQUIRE(maxDiff1 < 1e-5f);
+}
+
+// T044: 4 voices at different ratios, mute all but one, verify the remaining
+// voice's output is identical to a single standalone PhaseVocoderPitchShifter
+// at that ratio (US3 acceptance scenario 2).
+//
+// "Muting" in the shared-analysis context means not calling
+// processWithSharedAnalysis for muted voices. We verify that only the active
+// voice produces output and that it matches a standalone instance exactly.
+TEST_CASE("T044: OLA isolation -- 4 voices mute all but one matches standalone",
+          "[systems][harmonizer][ola-isolation][SC-007]") {
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+
+    constexpr std::size_t fftSize = PhaseVocoderPitchShifter::kFFTSize;
+    constexpr std::size_t hopSize = PhaseVocoderPitchShifter::kHopSize;
+
+    // 4 voice pitch ratios
+    const float ratios[4] = {
+        semitonesToRatio(3.0f),    // minor third up
+        semitonesToRatio(-7.0f),   // perfect fifth down
+        semitonesToRatio(12.0f),   // octave up
+        semitonesToRatio(-12.0f)   // octave down
+    };
+
+    // Test each voice as the "active" one while others are muted
+    for (int activeVoice = 0; activeVoice < 4; ++activeVoice) {
+        INFO("Testing with voice " << activeVoice << " active, others muted");
+
+        // 4 multi-voice instances (sharing analysis)
+        PhaseVocoderPitchShifter multiVoices[4];
+        for (auto& v : multiVoices) {
+            v.prepare(sampleRate, blockSize);
+        }
+
+        // 1 standalone instance at the active voice's ratio
+        PhaseVocoderPitchShifter standalone;
+        standalone.prepare(sampleRate, blockSize);
+
+        // STFTs
+        STFT sharedStft;
+        sharedStft.prepare(fftSize, hopSize, WindowType::Hann);
+        STFT standaloneStft;
+        standaloneStft.prepare(fftSize, hopSize, WindowType::Hann);
+
+        SpectralBuffer sharedSpectrum;
+        sharedSpectrum.prepare(fftSize);
+        SpectralBuffer standaloneSpectrum;
+        standaloneSpectrum.prepare(fftSize);
+
+        // Generate input
+        std::vector<float> inputSignal(totalSamples);
+        fillSine(inputSignal.data(), totalSamples, inputFreq,
+                 static_cast<float>(sampleRate));
+
+        std::vector<float> multiOut(totalSamples, 0.0f);
+        std::vector<float> standaloneOut(totalSamples, 0.0f);
+
+        std::size_t samplesProcessed = 0;
+        std::size_t multiWritten = 0;
+        std::size_t standaloneWritten = 0;
+
+        while (samplesProcessed < totalSamples) {
+            std::size_t remaining = totalSamples - samplesProcessed;
+            std::size_t thisBlock = std::min(remaining, blockSize);
+            const float* blockInput = inputSignal.data() + samplesProcessed;
+
+            sharedStft.pushSamples(blockInput, thisBlock);
+            standaloneStft.pushSamples(blockInput, thisBlock);
+
+            // Process frames from shared STFT -- only active voice processes
+            while (sharedStft.canAnalyze()) {
+                sharedStft.analyze(sharedSpectrum);
+
+                // Only the active voice calls processWithSharedAnalysis
+                multiVoices[activeVoice].processWithSharedAnalysis(
+                    sharedSpectrum, ratios[activeVoice]);
+            }
+
+            // Standalone processes identically
+            while (standaloneStft.canAnalyze()) {
+                standaloneStft.analyze(standaloneSpectrum);
+                standalone.processWithSharedAnalysis(
+                    standaloneSpectrum, ratios[activeVoice]);
+            }
+
+            // Pull from active multi-voice
+            std::size_t avail = multiVoices[activeVoice].outputSamplesAvailable();
+            std::size_t toPull = std::min(avail, thisBlock);
+            if (toPull > 0 && multiWritten + toPull <= totalSamples) {
+                multiVoices[activeVoice].pullOutputSamples(
+                    multiOut.data() + multiWritten, toPull);
+                multiWritten += toPull;
+            }
+
+            // Pull from standalone
+            std::size_t sAvail = standalone.outputSamplesAvailable();
+            std::size_t sToPull = std::min(sAvail, thisBlock);
+            if (sToPull > 0 && standaloneWritten + sToPull <= totalSamples) {
+                standalone.pullOutputSamples(
+                    standaloneOut.data() + standaloneWritten, sToPull);
+                standaloneWritten += sToPull;
+            }
+
+            // Verify muted voices have no OLA output accumulated
+            for (int v = 0; v < 4; ++v) {
+                if (v == activeVoice) continue;
+                REQUIRE(multiVoices[v].outputSamplesAvailable() == 0);
+            }
+
+            samplesProcessed += thisBlock;
+        }
+
+        // Compare active multi-voice output vs standalone
+        std::size_t compareLen = std::min(multiWritten, standaloneWritten);
+        REQUIRE(compareLen > 0);
+
+        float maxDiff = 0.0f;
+        for (std::size_t s = 0; s < compareLen; ++s) {
+            float diff = std::abs(multiOut[s] - standaloneOut[s]);
+            maxDiff = std::max(maxDiff, diff);
+        }
+
+        INFO("Voice " << activeVoice << " max sample diff: " << maxDiff);
+        REQUIRE(maxDiff < 1e-5f);
+    }
+}
+
+// T045: 2 voices processing simultaneously, mute one voice mid-stream, verify
+// the remaining active voice's output is unaffected by the muted voice's OLA
+// state (US3 acceptance scenario 3).
+//
+// Architecture: We run two voices through the first half of the signal, then
+// stop calling processWithSharedAnalysis for voice 1 (mute it) while continuing
+// voice 0. A reference standalone voice 0 runs continuously. After muting,
+// voice 0's output from the multi-voice setup must still match the standalone.
+TEST_CASE("T045: OLA isolation -- mute one voice mid-stream other unaffected",
+          "[systems][harmonizer][ola-isolation][SC-007]") {
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr std::size_t totalSamples = 44100; // 1 second
+    constexpr std::size_t muteAfterSamples = 22050; // mute voice 1 at halfway
+
+    constexpr std::size_t fftSize = PhaseVocoderPitchShifter::kFFTSize;
+    constexpr std::size_t hopSize = PhaseVocoderPitchShifter::kHopSize;
+
+    const float ratio0 = semitonesToRatio(7.0f);   // voice 0: +7 semitones
+    const float ratio1 = semitonesToRatio(-5.0f);   // voice 1: -5 semitones
+
+    // Multi-voice pair
+    PhaseVocoderPitchShifter multiVoice0;
+    PhaseVocoderPitchShifter multiVoice1;
+    multiVoice0.prepare(sampleRate, blockSize);
+    multiVoice1.prepare(sampleRate, blockSize);
+
+    // Standalone reference for voice 0 (runs the full duration)
+    PhaseVocoderPitchShifter standaloneRef;
+    standaloneRef.prepare(sampleRate, blockSize);
+
+    // STFTs
+    STFT sharedStft;
+    sharedStft.prepare(fftSize, hopSize, WindowType::Hann);
+    STFT standaloneStft;
+    standaloneStft.prepare(fftSize, hopSize, WindowType::Hann);
+
+    SpectralBuffer sharedSpectrum;
+    sharedSpectrum.prepare(fftSize);
+    SpectralBuffer standaloneSpectrum;
+    standaloneSpectrum.prepare(fftSize);
+
+    // Generate input
+    std::vector<float> inputSignal(totalSamples);
+    fillSine(inputSignal.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate));
+
+    // Collect outputs
+    std::vector<float> multiOut0(totalSamples, 0.0f);
+    std::vector<float> standaloneOut(totalSamples, 0.0f);
+
+    std::size_t samplesProcessed = 0;
+    std::size_t multiWritten0 = 0;
+    std::size_t standaloneWritten = 0;
+
+    while (samplesProcessed < totalSamples) {
+        std::size_t remaining = totalSamples - samplesProcessed;
+        std::size_t thisBlock = std::min(remaining, blockSize);
+        const float* blockInput = inputSignal.data() + samplesProcessed;
+
+        bool voice1Active = (samplesProcessed < muteAfterSamples);
+
+        sharedStft.pushSamples(blockInput, thisBlock);
+        standaloneStft.pushSamples(blockInput, thisBlock);
+
+        // Process ready frames
+        while (sharedStft.canAnalyze()) {
+            sharedStft.analyze(sharedSpectrum);
+
+            // Voice 0 always processes
+            multiVoice0.processWithSharedAnalysis(sharedSpectrum, ratio0);
+
+            // Voice 1 only processes before mute point
+            if (voice1Active) {
+                multiVoice1.processWithSharedAnalysis(sharedSpectrum, ratio1);
+            }
+        }
+
+        // Standalone reference always processes voice 0
+        while (standaloneStft.canAnalyze()) {
+            standaloneStft.analyze(standaloneSpectrum);
+            standaloneRef.processWithSharedAnalysis(standaloneSpectrum, ratio0);
+        }
+
+        // Pull from multi-voice 0
+        std::size_t avail0 = multiVoice0.outputSamplesAvailable();
+        std::size_t toPull0 = std::min(avail0, thisBlock);
+        if (toPull0 > 0 && multiWritten0 + toPull0 <= totalSamples) {
+            multiVoice0.pullOutputSamples(
+                multiOut0.data() + multiWritten0, toPull0);
+            multiWritten0 += toPull0;
+        }
+
+        // Pull from standalone
+        std::size_t sAvail = standaloneRef.outputSamplesAvailable();
+        std::size_t sToPull = std::min(sAvail, thisBlock);
+        if (sToPull > 0 && standaloneWritten + sToPull <= totalSamples) {
+            standaloneRef.pullOutputSamples(
+                standaloneOut.data() + standaloneWritten, sToPull);
+            standaloneWritten += sToPull;
+        }
+
+        samplesProcessed += thisBlock;
+    }
+
+    // Voice 0 in multi-voice must match standalone reference for the
+    // entire duration, including after voice 1 was muted.
+    std::size_t compareLen = std::min(multiWritten0, standaloneWritten);
+    REQUIRE(compareLen > 0);
+
+    // Check the post-mute region specifically
+    // Find the sample index corresponding to when muting happened.
+    // Due to STFT latency, the effect of muting appears later than the raw
+    // sample count, but since voice 0 is unaffected by voice 1's muting,
+    // ALL samples should match.
+    float maxDiffTotal = 0.0f;
+    float maxDiffPostMute = 0.0f;
+
+    // The OLA output appears with some latency; use a conservative threshold
+    // for "post-mute" comparison start -- after the mute point plus one full
+    // FFT window to ensure new frames are generated.
+    std::size_t postMuteStart = 0;
+    // Convert muteAfterSamples to output sample index. Since both outputs
+    // have the same latency, we compare index-to-index. The mute happens at
+    // muteAfterSamples input, so frames generated after that point are the
+    // ones where voice 1 is no longer processing.
+    if (compareLen > muteAfterSamples / 2) {
+        postMuteStart = muteAfterSamples / 2; // conservative: after half
+    }
+
+    for (std::size_t s = 0; s < compareLen; ++s) {
+        float diff = std::abs(multiOut0[s] - standaloneOut[s]);
+        maxDiffTotal = std::max(maxDiffTotal, diff);
+        if (s >= postMuteStart) {
+            maxDiffPostMute = std::max(maxDiffPostMute, diff);
+        }
+    }
+
+    INFO("Voice 0 max total diff: " << maxDiffTotal);
+    INFO("Voice 0 max post-mute diff: " << maxDiffPostMute);
+    INFO("Compared " << compareLen << " samples total, "
+         << (compareLen - postMuteStart) << " post-mute");
+    REQUIRE(maxDiffTotal < 1e-5f);
+    REQUIRE(maxDiffPostMute < 1e-5f);
+}
