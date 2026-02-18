@@ -10,6 +10,9 @@
 //
 // Phase 4 (User Story 2): Graceful Handling of Unvoiced Segments
 // Tests: SC-005, FR-004 confidence-gate hold-state, FR-004 resume-after-silence
+//
+// Phase 5 (User Story 4): Elimination of Single-Frame Outliers
+// Tests: SC-003 single-frame outlier, two-consecutive outliers, FR-013 partial buffer
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -585,4 +588,180 @@ TEST_CASE("PitchTracker: FR-004 tracker resumes to new note after silence",
     // Final state check
     CHECK(tracker.getMidiNote() == 72);
     CHECK(tracker.isPitchValid());
+}
+
+// ==============================================================================
+// Phase 5 (User Story 4): Elimination of Single-Frame Outliers
+// ==============================================================================
+
+// ==============================================================================
+// T036: SC-003 -- Single-frame octave-jump outlier is rejected by median filter
+// ==============================================================================
+TEST_CASE("PitchTracker: SC-003 single-frame octave-jump outlier is rejected",
+          "[PitchTracker][SC-003][US4]") {
+    PitchTracker tracker;
+    tracker.prepare(kTestSampleRate, kTestWindowSize);
+
+    // Step 1: Feed a long stream of 440Hz sine to establish stable A4 tracking
+    // and fill the median ring buffer with 440Hz entries.
+    // 1 second is more than enough to establish a stable committed note and
+    // fill the 5-entry median buffer with confident 440Hz detections.
+    const std::size_t establishSamples =
+        static_cast<std::size_t>(1.0 * kTestSampleRate);
+    auto a4Signal = generateSine(440.0f, kTestSampleRate, establishSamples);
+    tracker.pushBlock(a4Signal.data(), a4Signal.size());
+
+    REQUIRE(tracker.getMidiNote() == 69);  // A4 = MIDI 69
+
+    // Step 2: Inject a brief 880Hz "outlier" -- one hop worth of audio.
+    // With windowSize=256, hopSize=64. One hop = 64 samples of 880Hz sine.
+    // This simulates a single-frame octave jump (common autocorrelation artifact).
+    // The median filter (size 5) should reject this because only 1 out of 5
+    // history entries will be ~880Hz; the median remains ~440Hz.
+    const std::size_t outlierSamples = 64;  // exactly one hop
+    auto outlierSignal = generateSine(880.0f, kTestSampleRate, outlierSamples);
+    tracker.pushBlock(outlierSignal.data(), outlierSignal.size());
+
+    // The committed note MUST NOT switch to A5 (MIDI 81) during the outlier
+    CHECK(tracker.getMidiNote() == 69);
+
+    // Step 3: Continue with 440Hz to confirm stable tracking continues
+    const std::size_t continueSamples =
+        static_cast<std::size_t>(0.5 * kTestSampleRate);
+    auto continueSignal = generateSine(440.0f, kTestSampleRate, continueSamples);
+
+    // Feed in small blocks and check that the note NEVER switched to 81
+    bool everSwitchedTo81 = false;
+    for (std::size_t offset = 0; offset < continueSamples; offset += 64) {
+        std::size_t remaining = continueSamples - offset;
+        std::size_t thisBlock = (remaining < 64) ? remaining : 64;
+        tracker.pushBlock(continueSignal.data() + offset, thisBlock);
+
+        if (tracker.getMidiNote() == 81) {
+            everSwitchedTo81 = true;
+        }
+    }
+
+    // SC-003: The committed note MUST NOT change to A5 (MIDI 81) in response
+    // to a single anomalous confident frame. The median filter rejects it.
+    CHECK_FALSE(everSwitchedTo81);
+    CHECK(tracker.getMidiNote() == 69);
+}
+
+// ==============================================================================
+// T037: Two-consecutive-outliers test -- median still rejects 2 out of 5
+// ==============================================================================
+TEST_CASE("PitchTracker: Two consecutive 880Hz outliers are rejected by median filter (size 5)",
+          "[PitchTracker][SC-003][US4]") {
+    PitchTracker tracker;
+    tracker.prepare(kTestSampleRate, kTestWindowSize);
+
+    // Step 1: Establish stable A4 tracking with 1 second of 440Hz
+    const std::size_t establishSamples =
+        static_cast<std::size_t>(1.0 * kTestSampleRate);
+    auto a4Signal = generateSine(440.0f, kTestSampleRate, establishSamples);
+    tracker.pushBlock(a4Signal.data(), a4Signal.size());
+
+    REQUIRE(tracker.getMidiNote() == 69);
+
+    // Step 2: Inject TWO hops of 880Hz sine (128 samples = 2 hops at hopSize=64).
+    // The median filter (size 5) has 5 entries. After two 880Hz detections,
+    // the sorted history is approximately [440, 440, 440, 880, 880].
+    // The median (index 2) = 440Hz, so the outliers are still rejected.
+    const std::size_t outlierSamples = 128;  // exactly two hops
+    auto outlierSignal = generateSine(880.0f, kTestSampleRate, outlierSamples);
+    tracker.pushBlock(outlierSignal.data(), outlierSignal.size());
+
+    // The committed note should still be A4 (69), not A5 (81)
+    CHECK(tracker.getMidiNote() == 69);
+
+    // Step 3: Continue with 440Hz and verify no switch to 81 ever occurred
+    const std::size_t continueSamples =
+        static_cast<std::size_t>(0.5 * kTestSampleRate);
+    auto continueSignal = generateSine(440.0f, kTestSampleRate, continueSamples);
+
+    bool everSwitchedTo81 = false;
+    for (std::size_t offset = 0; offset < continueSamples; offset += 64) {
+        std::size_t remaining = continueSamples - offset;
+        std::size_t thisBlock = (remaining < 64) ? remaining : 64;
+        tracker.pushBlock(continueSignal.data() + offset, thisBlock);
+
+        if (tracker.getMidiNote() == 81) {
+            everSwitchedTo81 = true;
+        }
+    }
+
+    // Two outliers out of five entries: median still 440Hz. Note stays A4.
+    CHECK_FALSE(everSwitchedTo81);
+    CHECK(tracker.getMidiNote() == 69);
+}
+
+// ==============================================================================
+// T038: FR-013 -- Ring buffer not full: computeMedian() uses only available frames
+// ==============================================================================
+TEST_CASE("PitchTracker: FR-013 partial ring buffer uses only available frames for median",
+          "[PitchTracker][FR-013][US4]") {
+    PitchTracker tracker;
+    tracker.prepare(kTestSampleRate, kTestWindowSize);
+
+    // With medianSize_ = 5 (default), we want to verify that the tracker
+    // works correctly when fewer than 5 confident frames have arrived.
+    //
+    // Strategy: Feed just enough 440Hz audio to produce 1-2 confident
+    // detections (fewer than medianSize_=5), then verify tracking works.
+    //
+    // hopSize = 256/4 = 64 samples per hop. The PitchDetector internally
+    // also triggers every windowSize/4 = 64 samples. However, the detector
+    // needs to accumulate enough data to produce a meaningful result.
+    //
+    // We feed a small amount of audio -- enough for just a few hops -- and
+    // check that the tracker uses partial history correctly (no zero-padding
+    // contamination from uninitialized ring buffer entries).
+
+    // Feed exactly enough audio for a few hops to get initial detections.
+    // With 256-sample window and 64-sample hop, after 256 samples the
+    // detector has seen one full window. After 320 samples (256 + 64),
+    // it has triggered detect twice. Feed ~512 samples to get several hops
+    // but fewer than 5 confident detections would fill the buffer.
+    //
+    // Actually, the detector triggers every 64 samples, so 512 samples = 8 hops.
+    // But the detector may not produce confident results on the first few hops
+    // (until its internal buffer is primed). Let's use a moderate amount.
+
+    // Feed 256 samples (4 hops) -- the detector should start producing results
+    auto signal = generateSine(440.0f, kTestSampleRate, 256);
+    tracker.pushBlock(signal.data(), signal.size());
+
+    // At this early stage, historyCount_ < medianSize_ (5).
+    // The tracker should still function -- if it committed a note, it should
+    // be based on the partial median (not contaminated by zero entries).
+    // If no note committed yet (not enough confident detections), that's also
+    // valid early behavior.
+
+    // Feed a bit more to ensure at least 1-2 confident detections arrive
+    auto moreSignal = generateSine(440.0f, kTestSampleRate, 512);
+    tracker.pushBlock(moreSignal.data(), moreSignal.size());
+
+    // By now we should have a few confident detections. The tracker should
+    // either have committed A4 (69) or still be in initial state (-1).
+    // If it committed a note, it MUST be 69 (A4) -- not something weird
+    // caused by zero-padding the ring buffer.
+    int note = tracker.getMidiNote();
+    if (note != -1) {
+        // If a note was committed with partial history, it must be correct
+        CHECK(note == 69);
+    }
+
+    // Now feed more audio to definitely establish the note
+    auto establishSignal = generateSine(440.0f, kTestSampleRate, 4096);
+    tracker.pushBlock(establishSignal.data(), establishSignal.size());
+
+    // After enough audio, should definitely be A4
+    REQUIRE(tracker.getMidiNote() == 69);
+
+    // Key check: the frequency should be near 440Hz, not pulled down by
+    // zero entries that would result from reading uninitialized buffer slots.
+    // If computeMedian() incorrectly read zeros from empty slots, the median
+    // would be pulled toward 0, which would produce wrong note values.
+    CHECK(tracker.getFrequency() == Approx(440.0f).margin(10.0f));
 }

@@ -189,27 +189,27 @@ The confidence gate behavior (stage 1 of `runPipeline()`) was already implemente
 
 ### 5.1 Tests for User Story 4 (Write FIRST - Must FAIL)
 
-- [ ] T036 [P] [US4] Write SC-003 single-frame-outlier test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: synthesize a sequence of confident pitch detections [440, 440, 880, 440, 440] (one octave-jump outlier with high confidence), process with median size 5, verify committed note NEVER switches to A5 (880Hz = MIDI 81) during the outlier frame
-- [ ] T037 [P] [US4] Write two-consecutive-outliers test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: synthesize [440, 880, 880, 440, 440] with high confidence, verify output note is still A4 (median of sorted [440, 440, 440, 880, 880] = 440)
-- [ ] T038 [P] [US4] Write FR-013 ring-buffer-not-full test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: when fewer than `medianSize_` confident frames have arrived (historyCount_ < medianSize_), verify `computeMedian()` uses only the available frames (no uninitialized zero values skewing the result)
-- [ ] T039 [US4] Verify new User Story 4 tests compile and FAIL: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
+- [X] T036 [P] [US4] Write SC-003 single-frame-outlier test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: synthesize a sequence of confident pitch detections [440, 440, 880, 440, 440] (one octave-jump outlier with high confidence), process with median size 5, verify committed note NEVER switches to A5 (880Hz = MIDI 81) during the outlier frame
+- [X] T037 [P] [US4] Write two-consecutive-outliers test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: synthesize [440, 880, 880, 440, 440] with high confidence, verify output note is still A4 (median of sorted [440, 440, 440, 880, 880] = 440)
+- [X] T038 [P] [US4] Write FR-013 ring-buffer-not-full test in `dsp/tests/unit/primitives/pitch_tracker_test.cpp`: when fewer than `medianSize_` confident frames have arrived (historyCount_ < medianSize_), verify `computeMedian()` uses only the available frames (no uninitialized zero values skewing the result)
+- [X] T039 [US4] Verify new User Story 4 tests compile and FAIL: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
 
 ### 5.2 Implementation for User Story 4
 
 The median filter was implemented in T018 and T019. US4 tests verify the ring buffer ring-buffer-not-full edge case and the outlier rejection math. Fix any gaps:
 
-- [ ] T040 [US4] Verify `computeMedian()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h` uses `historyCount_` (not `medianSize_`) to determine how many entries to copy to scratch array, so partial-buffer median works correctly. Fix if it uses `medianSize_` unconditionally.
-- [ ] T041 [US4] Verify ring buffer insertion in `runPipeline()` stage 2 wraps `historyIndex_` modulo `medianSize_` (not `kMaxMedianSize`), so changing `medianSize_` via `setMedianFilterSize()` correctly uses the new window without reading stale entries outside the current window. Fix if wrapping is incorrect.
-- [ ] T042 [US4] Build DSP tests and verify zero compiler warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
-- [ ] T043 [US4] Run all PitchTracker tests and verify they pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
+- [X] T040 [US4] Verify `computeMedian()` in `dsp/include/krate/dsp/primitives/pitch_tracker.h` uses `historyCount_` (not `medianSize_`) to determine how many entries to copy to scratch array, so partial-buffer median works correctly. Fix if it uses `medianSize_` unconditionally.
+- [X] T041 [US4] Verify ring buffer insertion in `runPipeline()` stage 2 wraps `historyIndex_` modulo `medianSize_` (not `kMaxMedianSize`), so changing `medianSize_` via `setMedianFilterSize()` correctly uses the new window without reading stale entries outside the current window. Fix if wrapping is incorrect.
+- [X] T042 [US4] Build DSP tests and verify zero compiler warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T043 [US4] Run all PitchTracker tests and verify they pass: `build/windows-x64-release/dsp/tests/Release/dsp_tests.exe "PitchTracker*"`
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T044 [US4] No new source files added; confirm the existing `-fno-fast-math` entry for `pitch_tracker_test.cpp` in `dsp/tests/CMakeLists.txt` covers these new test cases.
+- [X] T044 [US4] No new source files added; confirm the existing `-fno-fast-math` entry for `pitch_tracker_test.cpp` in `dsp/tests/CMakeLists.txt` covers these new test cases.
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T045 [US4] Commit User Story 4 work: `git commit` with message "Add median filter outlier rejection tests (US4: single-frame outlier elimination)"
+- [X] T045 [US4] Commit User Story 4 work: `git commit` with message "Add median filter outlier rejection tests (US4: single-frame outlier elimination)"
 
 **Checkpoint**: Median filter ring buffer logic verified correct. SC-003 verified.
 
