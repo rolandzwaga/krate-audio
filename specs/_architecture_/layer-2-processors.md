@@ -581,6 +581,177 @@ Layer 0 (math_constants.h), Layer 1 (spectral_transient_detector.h, spectral_uti
 - Duxbury, C., Davies, M., & Sandler, M. (2002). "Separation of transient information in musical audio using multiresolution analysis techniques." Proc. DAFx.
 - Roebel, A. (2003). "A new approach to transient processing in the phase vocoder." Proc. DAFx.
 
+### Shared-Analysis External Spectrum Injection (PhaseVocoderPitchShifter)
+
+**Path:** [pitch_shift_processor.h](../../dsp/include/krate/dsp/processors/pitch_shift_processor.h) | **Since:** 0.22.0 | **Spec:** [065-shared-analysis-fft-refactor](../065-shared-analysis-fft-refactor/spec.md)
+
+The `PhaseVocoderPitchShifter` supports external analysis spectrum injection via `processWithSharedAnalysis()`. This allows a caller (e.g., `HarmonizerEngine`) that owns a shared forward FFT to inject a pre-computed analysis spectrum, bypassing the per-instance STFT entirely. The instance performs only synthesis (phase rotation, iFFT, OLA reconstruction) using the externally provided spectrum. Output samples are retrieved separately via `pullOutputSamples()`.
+
+This pattern eliminates redundant forward FFT computation in multi-voice scenarios where all voices analyze the identical input signal (e.g., 4-voice harmonizer saves 75% of forward FFT cost).
+
+#### API
+
+```cpp
+class PhaseVocoderPitchShifter {
+    // ... existing API ...
+
+    // Shared-analysis injection (since 0.22.0)
+    void processWithSharedAnalysis(const SpectralBuffer& analysis,
+                                   float pitchRatio) noexcept;
+
+    // Unity-pitch passthrough for shared-analysis path (since 0.22.0)
+    void synthesizePassthrough(const SpectralBuffer& analysis) noexcept;
+
+    // Output retrieval from OLA buffer (since 0.22.0)
+    std::size_t pullOutputSamples(float* output, std::size_t maxSamples) noexcept;
+    [[nodiscard]] std::size_t outputSamplesAvailable() const noexcept;
+};
+```
+
+- `processWithSharedAnalysis(analysis, pitchRatio)` -- Processes one analysis frame using the externally provided spectrum. Calls the internal `processFrame(analysis, synthesisSpectrum_, pitchRatio)` and then `ola_.synthesize(synthesisSpectrum_)`. Exactly one frame is added to the OLA buffer per call (FR-007). Does NOT apply unity-pitch bypass internally (FR-025: the caller is responsible for detecting unity pitch and routing to `synthesizePassthrough()` instead). Validates `analysis.numBins() == kFFTSize / 2 + 1` (2049); on mismatch, debug assert fires, release build silently returns without OLA write. Also returns silently if `prepare()` has not been called.
+- `synthesizePassthrough(analysis)` -- For unity-pitch voices in the shared-analysis path: passes the analysis spectrum directly to the OLA synthesizer without phase rotation. Matches the behavior of the standard `process()` path's unity-pitch bypass.
+- `pullOutputSamples(output, maxSamples)` -- Copies up to `maxSamples` from the internal OLA buffer into `output`. Returns the number of samples actually written. Returns 0 if OLA is not prepared or no samples are available.
+- `outputSamplesAvailable()` -- Returns the number of samples ready in the OLA buffer.
+
+#### processFrame() Refactored Signature
+
+As part of this spec, `processFrame()` was refactored from a one-parameter private method reading/writing internal members to a three-parameter private method:
+
+```cpp
+// Before (0.21.0):
+void processFrame(float pitchRatio) noexcept;  // read analysisSpectrum_, write synthesisSpectrum_
+
+// After (0.22.0):
+void processFrame(const SpectralBuffer& analysis, SpectralBuffer& synthesis,
+                  float pitchRatio) noexcept;
+```
+
+The `analysis` parameter is a `const SpectralBuffer&` (enforcing read-only access at compile time). The `synthesis` parameter is a `SpectralBuffer&` (output, reset and populated during the call). This design:
+- Eliminates ~11 MB/sec of unnecessary memory bandwidth (no spectrum copying)
+- Enforces const-correctness: accidental writes to the shared spectrum are compile-time errors
+- Keeps the analysis spectrum hot in L1 cache via shared read-only access across voices
+- Enables future SIMD-across-voices and parallel voice processing (shared data is immutable)
+
+The existing `process()` method calls `processFrame(analysisSpectrum_, synthesisSpectrum_, pitchRatio)` using internal members, maintaining exact backward compatibility.
+
+#### When to Use This
+
+Use `processWithSharedAnalysis()` when:
+- A caller owns the forward FFT and wants to inject a pre-computed analysis spectrum
+- Multiple instances need to analyze the identical input (shared FFT eliminates redundant computation)
+- Frame-level timing is managed by the caller's STFT (not by the per-instance input buffering)
+
+Do NOT use when:
+- The instance processes a unique input signal (use the standard `process()` method)
+- The caller does not own an STFT instance with matching FFT size and hop size
+
+#### Usage Example
+
+```cpp
+// Caller owns the shared STFT and analysis spectrum
+STFT sharedStft;
+SpectralBuffer sharedSpectrum;
+sharedStft.prepare(4096, 1024, WindowType::Hann);
+sharedSpectrum.prepare(4096);
+
+// Multiple PhaseVocoderPitchShifter instances (e.g., 4 harmony voices)
+std::array<PhaseVocoderPitchShifter, 4> voices;
+for (auto& v : voices) v.prepare(44100.0, 256);
+
+// In process():
+sharedStft.pushSamples(input, numSamples);
+while (sharedStft.canAnalyze()) {
+    sharedStft.analyze(sharedSpectrum);  // Forward FFT once
+
+    for (int i = 0; i < 4; ++i) {
+        float ratio = semitonesToRatio(voiceSemitones[i]);
+        if (std::abs(ratio - 1.0f) < 0.0001f) {
+            voices[i].synthesizePassthrough(sharedSpectrum);
+        } else {
+            voices[i].processWithSharedAnalysis(sharedSpectrum, ratio);
+        }
+    }
+}
+
+// Pull output from each voice's OLA buffer
+for (int i = 0; i < 4; ++i) {
+    std::size_t available = voices[i].outputSamplesAvailable();
+    std::size_t toPull = std::min(numSamples, available);
+    if (toPull > 0) {
+        voices[i].pullOutputSamples(voiceOutput.data(), toPull);
+    }
+}
+```
+
+#### Degenerate Conditions
+
+| Condition | Behavior |
+|-----------|----------|
+| `prepare()` not called | Silent no-op; no frame pushed to OLA |
+| `analysis.numBins()` mismatch | Debug assert; release silent no-op |
+| Unity pitch ratio (1.0) | NOT auto-bypassed; caller must route to `synthesizePassthrough()` |
+| OLA priming period (before first complete frame) | `pullOutputSamples()` returns 0; caller zero-fills output |
+
+#### Spectrum Lifetime Contract (FR-024)
+
+Voices SHALL NOT retain references, pointers, or copies of the analysis spectrum outside of a `processFrame()` call. The analysis spectrum is valid only for the duration of the current frame processing call. No per-voice member variable stores a pointer or reference to the externally provided `SpectralBuffer`.
+
+#### Dependencies
+
+Layer 0 (math_constants.h), Layer 1 (spectral_utils.h `wrapPhase()`, spectral_buffer.h, stft.h, overlap_add), Layer 2 peer (formant_preserver.h, spectral_transient_detector.h -- both unchanged)
+
+#### References
+
+- Laroche, J. & Dolson, M. (1999). "New phase-vocoder techniques for pitch-shifting, harmonizing and other exotic effects." IEEE WASPAA. Describes shared-analysis harmonizer architecture.
+- Smith, J.O. (CCRMA). "Constant-Overlap-Add (COLA) Constraint." Spectral Audio Signal Processing. COLA condition requiring per-voice OLA buffers.
+
+### Shared-Analysis Delegation (PitchShiftProcessor)
+
+**Path:** [pitch_shift_processor.h](../../dsp/include/krate/dsp/processors/pitch_shift_processor.h) | **Since:** 0.22.0 | **Spec:** [065-shared-analysis-fft-refactor](../065-shared-analysis-fft-refactor/spec.md)
+
+The `PitchShiftProcessor` public API (pImpl wrapper around mode-specific pitch shifters) exposes shared-analysis delegation methods and compile-time FFT/hop size accessors. These methods delegate to the internal `PhaseVocoderPitchShifter` when in PhaseVocoder mode and are documented no-ops in all other modes.
+
+#### API
+
+```cpp
+class PitchShiftProcessor {
+    // ... existing API ...
+
+    // Shared-analysis delegation (since 0.22.0)
+    void processWithSharedAnalysis(const SpectralBuffer& analysis,
+                                   float pitchRatio) noexcept;
+    void synthesizePassthrough(const SpectralBuffer& analysis) noexcept;
+    std::size_t pullSharedAnalysisOutput(float* output,
+                                         std::size_t maxSamples) noexcept;
+    [[nodiscard]] std::size_t sharedAnalysisSamplesAvailable() const noexcept;
+
+    // FFT/hop size accessors (since 0.22.0)
+    [[nodiscard]] static constexpr std::size_t getPhaseVocoderFFTSize() noexcept;  // returns 4096
+    [[nodiscard]] static constexpr std::size_t getPhaseVocoderHopSize() noexcept;  // returns 1024
+};
+```
+
+- `processWithSharedAnalysis(analysis, pitchRatio)` -- In PhaseVocoder mode: delegates to `PhaseVocoderPitchShifter::processWithSharedAnalysis()`. In Simple, Granular, or PitchSync modes: no-op (FR-009a). The no-op is observable through `pullSharedAnalysisOutput()` returning 0.
+- `synthesizePassthrough(analysis)` -- In PhaseVocoder mode: delegates to `PhaseVocoderPitchShifter::synthesizePassthrough()`. In other modes: no-op.
+- `pullSharedAnalysisOutput(output, maxSamples)` -- In PhaseVocoder mode: delegates to `PhaseVocoderPitchShifter::pullOutputSamples()`. In other modes: returns 0, output untouched.
+- `sharedAnalysisSamplesAvailable()` -- In PhaseVocoder mode: delegates to `PhaseVocoderPitchShifter::outputSamplesAvailable()`. In other modes: returns 0.
+- `getPhaseVocoderFFTSize()` -- Returns `PhaseVocoderPitchShifter::kFFTSize` (4096). Compile-time constant.
+- `getPhaseVocoderHopSize()` -- Returns `PhaseVocoderPitchShifter::kHopSize` (1024). Compile-time constant.
+
+Compile-time static assertions verify that these accessors match the underlying constants.
+
+#### FR-009a No-Op Contract
+
+When `processWithSharedAnalysis()` is called in any mode other than PhaseVocoder, the method returns immediately without invoking any DSP processing and without pushing a frame to the OLA buffer. The method has no output buffer parameter; the no-op is observable through `pullSharedAnalysisOutput()` returning 0 samples. This makes the no-op deterministically testable.
+
+#### When to Use This
+
+Use the `PitchShiftProcessor` shared-analysis methods when:
+- You are `HarmonizerEngine` (or similar Layer 3 system) orchestrating multi-voice pitch shifting with a shared forward FFT
+- You need mode-agnostic delegation: the shared-analysis call is safe in any mode (no-op for non-PhaseVocoder)
+
+Use `getPhaseVocoderFFTSize()` and `getPhaseVocoderHopSize()` to configure a shared STFT instance with matching parameters.
+
 ---
 
 ## Diffuser

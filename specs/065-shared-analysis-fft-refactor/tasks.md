@@ -253,7 +253,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 7.2 Commit (MANDATORY)
 
-- [ ] T060 [US5] Commit completed User Story 5 work (PitchSync re-benchmark and analysis)
+- [X] T060 [US5] Commit completed User Story 5 work (PitchSync re-benchmark and analysis)
 
 **Checkpoint**: PitchSync re-benchmark documented. All five user stories complete.
 
@@ -263,11 +263,11 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 **Purpose**: Zero-allocation verification, code inspection, and any cleanup identified during implementation.
 
-- [ ] T061 [P] Verify SC-005 (zero heap allocations during processing): code inspection of `processWithSharedAnalysis()`, `pullOutputSamples()`, `HarmonizerEngine::process()` PhaseVocoder path -- confirm all allocations happen only in `prepare()` and that no `std::vector` resize, `new`/`delete`, or `std::make_unique` appears in any audio-path method
-- [ ] T062 [P] Verify FR-024 (no spectrum pointer retention): code inspection of `PhaseVocoderPitchShifter` and `PitchShiftProcessor::Impl` -- confirm no member variable stores a pointer or reference to the externally provided `SpectralBuffer` beyond the duration of a `processFrame()` call
-- [ ] T063 [P] Verify FR-019 (const-reference enforcement): confirm that `sharedAnalysisSpectrum_` is passed only as `const SpectralBuffer&` to all voice methods and that no voice method has a non-const overload path that could accept it
-- [ ] T064 Review and update any inline documentation comments for the new methods in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` and `dsp/include/krate/dsp/systems/harmonizer_engine.h` to match the final implementation (doxygen-style comments per existing code conventions)
-- [ ] T065 Run the full dsp_tests suite one final time to confirm clean state: `build/windows-x64-release/bin/Release/dsp_tests.exe`
+- [X] T061 [P] Verify SC-005 (zero heap allocations during processing): code inspection of `processWithSharedAnalysis()`, `pullOutputSamples()`, `HarmonizerEngine::process()` PhaseVocoder path -- confirm all allocations happen only in `prepare()` and that no `std::vector` resize, `new`/`delete`, or `std::make_unique` appears in any audio-path method
+- [X] T062 [P] Verify FR-024 (no spectrum pointer retention): code inspection of `PhaseVocoderPitchShifter` and `PitchShiftProcessor::Impl` -- confirm no member variable stores a pointer or reference to the externally provided `SpectralBuffer` beyond the duration of a `processFrame()` call
+- [X] T063 [P] Verify FR-019 (const-reference enforcement): confirm that `sharedAnalysisSpectrum_` is passed only as `const SpectralBuffer&` to all voice methods and that no voice method has a non-const overload path that could accept it
+- [X] T064 Review and update any inline documentation comments for the new methods in `dsp/include/krate/dsp/processors/pitch_shift_processor.h` and `dsp/include/krate/dsp/systems/harmonizer_engine.h` to match the final implementation (doxygen-style comments per existing code conventions)
+- [X] T065 Run the full dsp_tests suite one final time to confirm clean state: `build/windows-x64-release/bin/Release/dsp_tests.exe`
 
 ---
 
@@ -279,9 +279,9 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 9.1 Architecture Documentation Update
 
-- [ ] T066 Update `specs/_architecture_/layer-2-processors.md` (or equivalent architecture inventory file) to document the new `processWithSharedAnalysis()` / `pullOutputSamples()` / `outputSamplesAvailable()` public methods added to `PhaseVocoderPitchShifter`, including: purpose, full public API signatures, file location (`dsp/include/krate/dsp/processors/pitch_shift_processor.h`), "when to use this" (when a caller owns the forward FFT and wants to inject a pre-computed analysis spectrum), usage example, and note that `processFrame()` now accepts `const SpectralBuffer& analysis` and `SpectralBuffer& synthesis` parameters
-- [ ] T067 Update `specs/_architecture_/layer-3-systems.md` (or equivalent architecture inventory file) to document the shared-analysis pattern added to `HarmonizerEngine`: shared STFT + SpectralBuffer members, the PhaseVocoder mode branch in `process()`, the delay-post-pitch design decision (R-004), and the "review trigger" for when a second multi-voice spectral system should prompt extracting the pattern into a reusable utility
-- [ ] T068 Update `specs/_architecture_/layer-2-processors.md` to document the new `PitchShiftProcessor` shared-analysis delegation methods (`processWithSharedAnalysis`, `pullSharedAnalysisOutput`, `sharedAnalysisSamplesAvailable`, `getPhaseVocoderFFTSize`, `getPhaseVocoderHopSize`) and the FR-009a no-op contract for non-PhaseVocoder modes
+- [X] T066 Update `specs/_architecture_/layer-2-processors.md` (or equivalent architecture inventory file) to document the new `processWithSharedAnalysis()` / `pullOutputSamples()` / `outputSamplesAvailable()` public methods added to `PhaseVocoderPitchShifter`, including: purpose, full public API signatures, file location (`dsp/include/krate/dsp/processors/pitch_shift_processor.h`), "when to use this" (when a caller owns the forward FFT and wants to inject a pre-computed analysis spectrum), usage example, and note that `processFrame()` now accepts `const SpectralBuffer& analysis` and `SpectralBuffer& synthesis` parameters
+- [X] T067 Update `specs/_architecture_/layer-3-systems.md` (or equivalent architecture inventory file) to document the shared-analysis pattern added to `HarmonizerEngine`: shared STFT + SpectralBuffer members, the PhaseVocoder mode branch in `process()`, the delay-post-pitch design decision (R-004), and the "review trigger" for when a second multi-voice spectral system should prompt extracting the pattern into a reusable utility
+- [X] T068 Update `specs/_architecture_/layer-2-processors.md` to document the new `PitchShiftProcessor` shared-analysis delegation methods (`processWithSharedAnalysis`, `pullSharedAnalysisOutput`, `sharedAnalysisSamplesAvailable`, `getPhaseVocoderFFTSize`, `getPhaseVocoderHopSize`) and the FR-009a no-op contract for non-PhaseVocoder modes
 
 ### 9.2 Final Commit
 

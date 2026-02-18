@@ -58,6 +58,16 @@ enum class HarmonyMode : uint8_t {
 /// mixing, and mono-to-stereo constant-power panning. Composes existing
 /// Layer 0-2 components without introducing new DSP algorithms.
 ///
+/// @par Shared-Analysis Architecture (spec 065)
+/// In PhaseVocoder mode, the engine runs a single forward FFT analysis per
+/// block and shares the resulting spectrum across all active voices via
+/// const reference (FR-017, FR-019). Each voice performs only its own
+/// phase rotation, synthesis iFFT, and OLA reconstruction. This eliminates
+/// 75% of forward FFT computation for 4 voices. Per-voice onset delays
+/// are applied post-pitch in PhaseVocoder mode (FR-025). In all other modes
+/// (Simple, Granular, PitchSync), the standard per-voice process() path
+/// is used unchanged (FR-014).
+///
 /// @par Real-Time Safety
 /// All processing methods are noexcept. Zero heap allocations after prepare().
 /// No locks, no I/O, no exceptions in the process path.
@@ -608,9 +618,10 @@ private:
     std::vector<float> voiceScratch_;   // Pitch-shifted voice output
 
     // Shared-analysis resources (PhaseVocoder mode only, spec 065)
-    STFT sharedStft_;                          ///< Shared forward FFT
-    SpectralBuffer sharedAnalysisSpectrum_;     ///< Shared analysis result
-    std::vector<float> pvVoiceScratch_;         ///< Scratch buffer for PV voice OLA output
+    // All three are pre-allocated in prepare() and never resized in process().
+    STFT sharedStft_;                          ///< Shared forward FFT; runs once per block instead of per-voice (FR-017)
+    SpectralBuffer sharedAnalysisSpectrum_;     ///< Shared analysis result; passed as const ref to all voices (FR-019)
+    std::vector<float> pvVoiceScratch_;         ///< Per-voice OLA output scratch buffer; sized to maxBlockSize
 
     // State
     double      sampleRate_       = 44100.0;

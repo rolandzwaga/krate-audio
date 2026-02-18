@@ -308,12 +308,17 @@ public:
     void processWithSharedAnalysis(const SpectralBuffer& analysis,
                                    float pitchRatio) noexcept;
 
-    /// @brief Synthesize one frame as a unity-pitch passthrough.
+    /// @brief Synthesize one frame as a unity-pitch passthrough (FR-025).
     ///
-    /// Called by HarmonizerEngine for unity-pitch voices (FR-025).
-    /// Passes the analysis spectrum directly to OLA without processFrame().
+    /// Called by HarmonizerEngine for voices whose pitch ratio is near unity.
+    /// Passes the analysis spectrum directly to the OLA buffer without going
+    /// through processFrame(). This matches the latency behavior of the
+    /// internal processUnityPitch() method for output equivalence (SC-002).
+    ///
+    /// When mode is NOT PhaseVocoder: no-op.
     ///
     /// @param analysis  Read-only reference to pre-computed analysis spectrum.
+    ///                  Must have numBins() == kFFTSize / 2 + 1 (2049).
     void synthesizePassthrough(const SpectralBuffer& analysis) noexcept;
 
     /// @brief Pull output samples from the PhaseVocoder OLA buffer after
@@ -1317,10 +1322,23 @@ private:
         }
     }
 
-    /// @brief Phase vocoder frame processing (FR-023: accepts analysis/synthesis by reference)
+    /// @brief Phase vocoder frame processing (FR-023: accepts analysis/synthesis by reference).
+    ///
+    /// Performs the core phase vocoder pitch shift on a single analysis frame:
+    /// 1. Extracts magnitude and computes instantaneous frequency from phase differences
+    /// 2. Optionally extracts original spectral envelope (formant preservation)
+    /// 3. Optionally detects transients and resets synthesis phases
+    /// 4. Optionally performs identity phase locking (peak detection + region assignment)
+    /// 5. Resamples the spectrum at the target pitch ratio with phase accumulation
+    /// 6. Optionally applies formant correction to the shifted spectrum
+    ///
+    /// The analysis spectrum is borrowed read-only for the duration of this call
+    /// (FR-024: no reference or pointer is retained after return).
     ///
     /// @param analysis  Read-only reference to the analysis spectrum (magnitude + phase).
+    ///                  Must have numBins() == kFFTSize / 2 + 1 (2049).
     /// @param synthesis  Output synthesis spectrum (written with pitch-shifted Cartesian data).
+    ///                   Reset and populated during this call.
     /// @param pitchRatio  Pitch ratio for this frame (e.g., 1.0594 for +1 semitone).
     void processFrame(const SpectralBuffer& analysis, SpectralBuffer& synthesis,
                       float pitchRatio) noexcept {
