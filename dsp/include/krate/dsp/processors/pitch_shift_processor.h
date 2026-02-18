@@ -308,6 +308,14 @@ public:
     void processWithSharedAnalysis(const SpectralBuffer& analysis,
                                    float pitchRatio) noexcept;
 
+    /// @brief Synthesize one frame as a unity-pitch passthrough.
+    ///
+    /// Called by HarmonizerEngine for unity-pitch voices (FR-025).
+    /// Passes the analysis spectrum directly to OLA without processFrame().
+    ///
+    /// @param analysis  Read-only reference to pre-computed analysis spectrum.
+    void synthesizePassthrough(const SpectralBuffer& analysis) noexcept;
+
     /// @brief Pull output samples from the PhaseVocoder OLA buffer after
     ///        processWithSharedAnalysis() calls.
     ///
@@ -1237,6 +1245,26 @@ public:
         ola_.synthesize(synthesisSpectrum_);
     }
 
+    /// @brief Synthesize one frame as a unity-pitch passthrough.
+    ///
+    /// Passes the analysis spectrum directly to OLA synthesis without
+    /// going through processFrame(). Matches the behavior of the internal
+    /// processUnityPitch() method for output equivalence (SC-002).
+    ///
+    /// This is called by HarmonizerEngine when a voice's pitch ratio is
+    /// near unity (FR-025: caller responsible for unity-pitch routing).
+    ///
+    /// @param analysis  Read-only reference to the pre-computed analysis spectrum.
+    /// @pre  prepare() has been called.
+    /// @pre  analysis.numBins() == kFFTSize / 2 + 1.
+    void synthesizePassthrough(const SpectralBuffer& analysis) noexcept {
+        if (!ola_.isPrepared()) return;
+        constexpr std::size_t kExpectedBins = kFFTSize / 2 + 1;
+        if (analysis.numBins() != kExpectedBins) return;
+
+        ola_.synthesize(analysis);
+    }
+
     /// @brief Pull processed samples from the internal OLA buffer.
     ///
     /// @param output      Destination buffer. Must have room for at least
@@ -1612,6 +1640,12 @@ struct PitchShiftProcessor::Impl {
         phaseVocoderShifter.processWithSharedAnalysis(analysis, pitchRatio);
     }
 
+    void synthesizePassthrough(const SpectralBuffer& analysis) noexcept {
+        if (!prepared) return;
+        if (mode != PitchMode::PhaseVocoder) return;
+        phaseVocoderShifter.synthesizePassthrough(analysis);
+    }
+
     std::size_t pullSharedAnalysisOutput(float* output,
                                          std::size_t maxSamples) noexcept {
         if (!prepared || mode != PitchMode::PhaseVocoder) return 0;
@@ -1803,6 +1837,11 @@ inline std::size_t PitchShiftProcessor::pullSharedAnalysisOutput(
 
 inline std::size_t PitchShiftProcessor::sharedAnalysisSamplesAvailable() const noexcept {
     return pImpl_->sharedAnalysisSamplesAvailable();
+}
+
+inline void PitchShiftProcessor::synthesizePassthrough(
+    const SpectralBuffer& analysis) noexcept {
+    pImpl_->synthesizePassthrough(analysis);
 }
 
 } // namespace Krate::DSP
