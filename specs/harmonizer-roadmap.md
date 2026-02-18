@@ -901,22 +901,35 @@ The Phase 4 HarmonizerEngine runs 4 independent `PitchShiftProcessor` instances 
 **Effort**: ~3-5 days
 **Depends On**: Nothing (can run in parallel with all other phases)
 
+> **Status note (updated 2026-02-18)**: Several sub-phases in this section have been completed by prior specs and are now superseded. The implementation strategy also changed from Pommier sse_mathfun (SSE-only, referenced in the original research) to Google Highway (cross-platform, already integrated). See individual sub-phase notes below.
+>
+> - **Phase 5A** (Vectorized Math Header, `simd_math.h`): **SUPERSEDED**. Google Highway, already integrated via FetchContent, provides equivalent or superior functionality (`hn::Log10`, `hn::Exp`, `hn::Sin`, `hn::Cos`, `hn::Atan2`, `hn::Sqrt`) with cross-platform runtime ISA dispatch. No separate `simd_math.h` is needed or created.
+> - **Phase 5B** (Batch Spectral Conversions, Cart-to-Polar / Polar-to-Cart): **COMPLETE**. `computePolarBulk()` and `reconstructCartesianBulk()` are implemented in `dsp/include/krate/dsp/core/spectral_simd.h/.cpp` using Highway. Called by `SpectralBuffer`.
+> - **Phase 5C** (Vectorized Phase Wrapping): **COMPLETE** via spec 066. `batchWrapPhase()` is implemented in `spectral_simd.h/.cpp` using Highway `hn::Round` (cross-platform, not the SSE-only `_mm_round_ps` originally described). The scalar `wrapPhase()` / `wrapPhaseFast()` in `spectral_utils.h` remain unchanged for single-value use.
+> - **Phase 5D** (Vectorized Formant Preserver): **COMPLETE** via spec 066. `FormantPreserver::extractEnvelope()` and `reconstructEnvelope()` use `batchLog10()` and `batchPow10()` from `spectral_simd.h` instead of scalar `std::log10`/`std::pow` loops. Implementation uses Highway `hn::Log10` and `hn::Exp`, not Pommier `log_ps`/`exp_ps`.
+>
+> **Remaining work**: Tier 3 operations (windowing, phase diff, overlap-add, spectral multiply/divide) and Tier 2 Priority 4 (multi-voice SoA layout) remain as future optimization opportunities.
+
 ### Why This Exists
 
 The phase vocoder pipeline has ~10 distinct stages. The research doc (Section 2.4, Section 10) provides a detailed per-step SIMD analysis. Three operations dominate non-FFT CPU cost and have massive SIMD speedup potential:
 
 | Operation | Current | SIMD Speedup | % of PV CPU |
 |-----------|---------|-------------|-------------|
-| Cart-to-Polar (`atan2`, `sqrt`) | Scalar `std::atan2`, `std::sqrt` | 10-50x | 15-25% |
-| Polar-to-Cart (`sin`, `cos`) | Scalar `std::sin`, `std::cos` | 3-8x | 10-15% |
-| `log`/`exp` (formant cepstrum) | Scalar `std::log10`, `std::pow` | 4-40x | 5-10% |
+| Cart-to-Polar (`atan2`, `sqrt`) | ~~Scalar `std::atan2`, `std::sqrt`~~ COMPLETE (Highway `hn::Atan2`, `hn::Sqrt` in `spectral_simd.h`) | 10-50x | 15-25% |
+| Polar-to-Cart (`sin`, `cos`) | ~~Scalar `std::sin`, `std::cos`~~ COMPLETE (Highway `hn::Sin`, `hn::Cos` in `spectral_simd.h`) | 3-8x | 10-15% |
+| `log`/`exp` (formant cepstrum) | ~~Scalar `std::log10`, `std::pow`~~ COMPLETE via spec 066 (Highway `hn::Log10`, `hn::Exp` in `spectral_simd.h`) | 4-40x | 5-10% |
 
-The research doc explicitly recommends (Section 10): "Add a vectorized math header wrapping Pommier's sse_mathfun. pffft already demonstrates this library is compatible with our build."
+The research doc explicitly recommends (Section 10): "Add a vectorized math header wrapping Pommier's sse_mathfun. pffft already demonstrates this library is compatible with our build." This recommendation was superseded by the decision to use Google Highway, which is already integrated and provides cross-platform SIMD with no additional dependency.
 
-### Phase 5A: Vectorized Math Header
+### Phase 5A: Vectorized Math Header -- SUPERSEDED
 
-**Files to create:**
-- `dsp/include/krate/dsp/core/simd_math.h`
+**Status**: Superseded by Google Highway integration. No `simd_math.h` is created.
+
+**Original plan (for historical reference):**
+
+**Files to create (original plan -- not implemented):**
+- ~~`dsp/include/krate/dsp/core/simd_math.h`~~
 
 **Algorithm sources** (from research doc Section 10):
 - **Pommier sse_mathfun** ([source](https://github.com/RJVB/sse_mathfun)): SSE `sin_ps`, `cos_ps`, `sincos_ps`, `log_ps`, `exp_ps`. Max error 2.38e-7 vs scalar. Already proven compatible via pffft.
@@ -940,10 +953,14 @@ __m128 sqrt_ps_fast(__m128 x);  // rsqrt + Newton-Raphson, ~22-bit accuracy
 - Scalar fallback for unsupported platforms
 - Use `pffft_aligned_malloc` or `alignas(16)` for aligned allocations
 
-### Phase 5B: Batch Spectral Conversions
+### Phase 5B: Batch Spectral Conversions -- COMPLETE
 
-**Files to modify:**
-- `dsp/include/krate/dsp/primitives/spectral_buffer.h`
+**Status**: Complete. `computePolarBulk()` and `reconstructCartesianBulk()` are in `dsp/include/krate/dsp/core/spectral_simd.h/.cpp` (not in `spectral_buffer.h` as originally planned -- the functions were placed in Layer 0 core rather than Layer 1 primitives, and called by `SpectralBuffer`).
+
+**Original plan (for historical reference):**
+
+**Files to modify (original plan):**
+- ~~`dsp/include/krate/dsp/primitives/spectral_buffer.h`~~
 
 Add batch SIMD functions using the vectorized math header:
 ```cpp
@@ -958,10 +975,14 @@ void batchPolarToCartesian(const float* magnitudes, const float* phases,
 
 Process 4 bins at a time. This replaces the current scalar `Complex::magnitude()` (`std::sqrt`) and `Complex::phase()` (`std::atan2`) -- the single highest-impact optimization (research doc Section 10).
 
-### Phase 5C: Vectorized Phase Wrapping
+### Phase 5C: Vectorized Phase Wrapping -- COMPLETE (spec 066)
 
-**Files to modify:**
-- `dsp/include/krate/dsp/primitives/spectral_utils.h`
+**Status**: Complete via spec 066. `batchWrapPhase()` (both overloads) is in `dsp/include/krate/dsp/core/spectral_simd.h/.cpp` using Highway `hn::Round` (cross-platform). The scalar `wrapPhase()` / `wrapPhaseFast()` in `spectral_utils.h` remain unchanged. The function was placed in Layer 0 (`spectral_simd.h`) rather than modifying `spectral_utils.h` as originally planned.
+
+**Original plan (for historical reference):**
+
+**Files to modify (original plan -- not implemented as described):**
+- ~~`dsp/include/krate/dsp/primitives/spectral_utils.h`~~
 
 From research doc Section 2.4 -- phase wrapping in 4 SSE instructions:
 ```cpp
@@ -975,12 +996,16 @@ __m128 wrapPhaseSSE(__m128 delta) {
 
 Replaces the current scalar while-loop `wrapPhase()` for batch processing. The scalar version remains for single-value use.
 
-### Phase 5D: Vectorized Formant Preserver
+### Phase 5D: Vectorized Formant Preserver -- COMPLETE (spec 066)
+
+**Status**: Complete via spec 066. `FormantPreserver::extractEnvelope()` calls `batchLog10()` and `reconstructEnvelope()` calls `batchPow10()` from `spectral_simd.h`, replacing the scalar `std::log10`/`std::pow` loops. Implementation uses Highway `hn::Log10` / `hn::Exp` rather than Pommier `log_ps`/`exp_ps` (see Phase 5A supersession note above).
+
+**Original plan (for historical reference):**
 
 **Files to modify:**
 - `dsp/include/krate/dsp/processors/formant_preserver.h`
 
-From research doc Section 3.1: The cepstral pipeline `log(|X[k]|) → IFFT → lifter → FFT → exp()` has `log`/`exp` as dominant non-FFT cost. Replace scalar `std::log10`/`std::pow` with batched `log_ps`/`exp_ps` from `simd_math.h`.
+From research doc Section 3.1: The cepstral pipeline `log(|X[k]|) → IFFT → lifter → FFT → exp()` has `log`/`exp` as dominant non-FFT cost. ~~Replace scalar `std::log10`/`std::pow` with batched `log_ps`/`exp_ps` from `simd_math.h`.~~ (Completed using `batchLog10`/`batchPow10` from `spectral_simd.h` via Highway.)
 
 ### Test Plan
 
@@ -999,13 +1024,13 @@ From research doc Section 3.1: The cepstral pipeline `log(|X[k]|) → IFFT → l
 |-----------|--------|
 | FFT/IFFT (pffft) | ~4x via SSE radix-4 butterflies. 30-40% of total CPU |
 
-**Tier 2: High Impact (This Phase)**
-| Priority | Operation | Speedup | Key Intrinsics |
-|----------|-----------|---------|----------------|
-| 1 | Cart-to-Polar (`atan2`, `sqrt`) | 10-50x | Pommier `atan2_ps`, `_mm_rsqrt_ps` + NR |
-| 2 | Polar-to-Cart (`sin`, `cos`) | 3-8x | Pommier `sincos_ps` |
-| 3 | `log`/`exp` (formant cepstrum) | 4-40x | Pommier `log_ps`/`exp_ps` |
-| 4 | Multi-voice parallel processing | 3-4x | SoA layout across 4 voices in `__m128` |
+**Tier 2: High Impact**
+| Priority | Operation | Speedup | Implementation | Status |
+|----------|-----------|---------|----------------|--------|
+| 1 | Cart-to-Polar (`atan2`, `sqrt`) | 10-50x | Highway `hn::Atan2`, `hn::Sqrt` in `spectral_simd.h` | COMPLETE |
+| 2 | Polar-to-Cart (`sin`, `cos`) | 3-8x | Highway `hn::Sin`, `hn::Cos` in `spectral_simd.h` | COMPLETE |
+| 3 | `log`/`exp` (formant cepstrum) | 4-40x | Highway `hn::Log10`, `hn::Exp` via `batchLog10`/`batchPow10` in `spectral_simd.h` (spec 066) | COMPLETE |
+| 4 | Multi-voice parallel processing | 3-4x | SoA layout across 4 voices in SIMD lanes | Future |
 
 **Tier 3: Moderate (auto-vectorize first, explicit SIMD only if needed)**
 | Priority | Operation | Speedup |
@@ -1025,7 +1050,7 @@ From research doc Section 3.1: The cepstral pipeline `log(|X[k]|) → IFFT → l
 
 ### File Locations
 
-- Header: `dsp/include/krate/dsp/core/simd_math.h`
+- ~~Header: `dsp/include/krate/dsp/core/simd_math.h`~~ (superseded -- Highway used directly; all new SIMD functions are in `dsp/include/krate/dsp/core/spectral_simd.h`)
 
 ---
 

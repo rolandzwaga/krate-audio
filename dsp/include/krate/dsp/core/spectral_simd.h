@@ -21,6 +21,13 @@
 namespace Krate {
 namespace DSP {
 
+/// Minimum input value for log operations. Clamps zero/negative to avoid NaN/inf.
+/// Shared constant: FormantPreserver and batchLog10 use this instead of separate equivalents.
+inline constexpr float kMinLogInput = 1e-10f;
+
+/// Maximum output value for pow10 operations. Prevents overflow to infinity.
+inline constexpr float kMaxPow10Output = 1e6f;
+
 /// @brief Bulk compute magnitude and phase from interleaved Complex data
 /// @param complexData Pointer to interleaved {real, imag} float pairs
 /// @param numBins Number of complex bins (NOT number of floats)
@@ -49,6 +56,37 @@ void reconstructCartesianBulk(const float* mags, const float* phases,
 /// @param fftSize  FFT size (number of floats in the buffer)
 /// @note SIMD-accelerated with runtime ISA dispatch
 void computePowerSpectrumPffft(float* spectrum, size_t fftSize) noexcept;
+
+/// @brief Batch compute log10(x) for an array of floats using SIMD
+/// @param input Input array of float values
+/// @param output Output array (must hold count floats)
+/// @param count Number of elements
+/// @note Non-positive inputs are clamped to kMinLogInput before log10
+/// @note SIMD-accelerated with runtime ISA dispatch
+void batchLog10(const float* input, float* output, std::size_t count) noexcept;
+
+/// @brief Batch compute 10^x for an array of floats using SIMD
+/// @param input Input array of float values (exponents)
+/// @param output Output array (must hold count floats)
+/// @param count Number of elements
+/// @note Output clamped to [kMinLogInput, kMaxPow10Output]
+/// @note SIMD-accelerated with runtime ISA dispatch
+void batchPow10(const float* input, float* output, std::size_t count) noexcept;
+
+/// @brief Batch wrap phase values to [-pi, +pi] range using SIMD (out-of-place)
+/// @param input Input array of phase values in radians
+/// @param output Output array (must hold count floats)
+/// @param count Number of elements
+/// @note Uses branchless round-and-subtract formula
+/// @note SIMD-accelerated with runtime ISA dispatch
+void batchWrapPhase(const float* input, float* output, std::size_t count) noexcept;
+
+/// @brief Batch wrap phase values to [-pi, +pi] range using SIMD (in-place)
+/// @param data Array of phase values in radians (modified in-place)
+/// @param count Number of elements
+/// @note Uses branchless round-and-subtract formula
+/// @note SIMD-accelerated with runtime ISA dispatch
+void batchWrapPhase(float* data, std::size_t count) noexcept;
 
 } // namespace DSP
 } // namespace Krate

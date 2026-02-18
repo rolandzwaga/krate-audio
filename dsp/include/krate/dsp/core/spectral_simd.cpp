@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 
 // =============================================================================
 // Per-Target SIMD Kernels (compiled once per ISA target)
@@ -153,6 +154,111 @@ void ComputePowerSpectrumPffftImpl(float* HWY_RESTRICT spectrum, size_t fftSize)
     }
 }
 
+// -----------------------------------------------------------------------------
+// BatchLog10Impl: compute log10(x) for array with SIMD (T019)
+// -----------------------------------------------------------------------------
+
+// NOLINTNEXTLINE(misc-use-internal-linkage) exported via HWY_EXPORT
+void BatchLog10Impl(const float* HWY_RESTRICT input,
+                    float* HWY_RESTRICT output, size_t count) {
+    const hn::ScalableTag<float> d;
+    const size_t N = hn::Lanes(d);
+    const auto minVal = hn::Set(d, 1e-10f);  // kMinLogInput
+
+    size_t k = 0;
+    for (; k + N <= count; k += N) {
+        auto v = hn::LoadU(d, input + k);
+        v = hn::Max(v, minVal);  // Branchless clamp
+        hn::StoreU(hn::Log10(d, v), d, output + k);
+    }
+    // Scalar tail
+    for (; k < count; ++k) {
+        float val = std::max(input[k], 1e-10f);
+        output[k] = std::log10(val);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// BatchPow10Impl: compute 10^x for array with SIMD (T020)
+// -----------------------------------------------------------------------------
+
+// NOLINTNEXTLINE(misc-use-internal-linkage) exported via HWY_EXPORT
+void BatchPow10Impl(const float* HWY_RESTRICT input,
+                    float* HWY_RESTRICT output, size_t count) {
+    const hn::ScalableTag<float> d;
+    const size_t N = hn::Lanes(d);
+    const auto ln10 = hn::Set(d, std::numbers::ln10_v<float>);
+    const auto minVal = hn::Set(d, 1e-10f);       // kMinLogInput
+    const auto maxVal = hn::Set(d, 1e6f);          // kMaxPow10Output
+
+    size_t k = 0;
+    for (; k + N <= count; k += N) {
+        const auto v = hn::LoadU(d, input + k);
+        auto result = hn::Exp(d, hn::Mul(v, ln10));  // e^(x * ln(10)) = 10^x
+        result = hn::Max(result, minVal);  // Clamp min
+        result = hn::Min(result, maxVal);  // Clamp max
+        hn::StoreU(result, d, output + k);
+    }
+    // Scalar tail
+    for (; k < count; ++k) {
+        float val = std::pow(10.0f, input[k]);
+        val = std::max(1e-10f, std::min(val, 1e6f));
+        output[k] = val;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// BatchWrapPhaseImpl: wrap phase to [-pi,pi] out-of-place with SIMD (T021)
+// -----------------------------------------------------------------------------
+
+// NOLINTNEXTLINE(misc-use-internal-linkage) exported via HWY_EXPORT
+void BatchWrapPhaseImpl(const float* HWY_RESTRICT input,
+                        float* HWY_RESTRICT output, size_t count) {
+    const hn::ScalableTag<float> d;
+    const size_t N = hn::Lanes(d);
+    const auto twoPi = hn::Set(d, 6.283185307f);    // 2 * pi
+    const auto invTwoPi = hn::Set(d, 0.159154943f);  // 1 / (2 * pi)
+
+    size_t k = 0;
+    for (; k + N <= count; k += N) {
+        const auto v = hn::LoadU(d, input + k);
+        const auto n = hn::Round(hn::Mul(v, invTwoPi));
+        hn::StoreU(hn::NegMulAdd(n, twoPi, v), d, output + k);  // v - n * twoPi
+    }
+    // Scalar tail (using same branchless formula for consistency)
+    constexpr float kTwoPiScalar = 6.283185307f;
+    constexpr float kInvTwoPiScalar = 0.159154943f;
+    for (; k < count; ++k) {
+        float n = std::round(input[k] * kInvTwoPiScalar);
+        output[k] = input[k] - n * kTwoPiScalar;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// BatchWrapPhaseInPlaceImpl: wrap phase to [-pi,pi] in-place with SIMD (T022)
+// -----------------------------------------------------------------------------
+
+// NOLINTNEXTLINE(misc-use-internal-linkage) exported via HWY_EXPORT
+void BatchWrapPhaseInPlaceImpl(float* HWY_RESTRICT data, size_t count) {
+    const hn::ScalableTag<float> d;
+    const size_t N = hn::Lanes(d);
+    const auto twoPi = hn::Set(d, 6.283185307f);
+    const auto invTwoPi = hn::Set(d, 0.159154943f);
+
+    size_t k = 0;
+    for (; k + N <= count; k += N) {
+        const auto v = hn::LoadU(d, data + k);
+        const auto n = hn::Round(hn::Mul(v, invTwoPi));
+        hn::StoreU(hn::NegMulAdd(n, twoPi, v), d, data + k);
+    }
+    constexpr float kTwoPiScalar = 6.283185307f;
+    constexpr float kInvTwoPiScalar = 0.159154943f;
+    for (; k < count; ++k) {
+        float n = std::round(data[k] * kInvTwoPiScalar);
+        data[k] = data[k] - n * kTwoPiScalar;
+    }
+}
+
 }  // namespace HWY_NAMESPACE
 }  // namespace DSP
 }  // namespace Krate
@@ -174,6 +280,10 @@ namespace DSP {
 HWY_EXPORT(ComputePolarImpl);
 HWY_EXPORT(ReconstructCartesianImpl);
 HWY_EXPORT(ComputePowerSpectrumPffftImpl);
+HWY_EXPORT(BatchLog10Impl);
+HWY_EXPORT(BatchPow10Impl);
+HWY_EXPORT(BatchWrapPhaseImpl);
+HWY_EXPORT(BatchWrapPhaseInPlaceImpl);
 
 void computePolarBulk(const float* complexData, size_t numBins,
                       float* mags, float* phases) noexcept {
@@ -187,6 +297,22 @@ void reconstructCartesianBulk(const float* mags, const float* phases,
 
 void computePowerSpectrumPffft(float* spectrum, size_t fftSize) noexcept {
     HWY_DYNAMIC_DISPATCH(ComputePowerSpectrumPffftImpl)(spectrum, fftSize);
+}
+
+void batchLog10(const float* input, float* output, std::size_t count) noexcept {
+    HWY_DYNAMIC_DISPATCH(BatchLog10Impl)(input, output, count);
+}
+
+void batchPow10(const float* input, float* output, std::size_t count) noexcept {
+    HWY_DYNAMIC_DISPATCH(BatchPow10Impl)(input, output, count);
+}
+
+void batchWrapPhase(const float* input, float* output, std::size_t count) noexcept {
+    HWY_DYNAMIC_DISPATCH(BatchWrapPhaseImpl)(input, output, count);
+}
+
+void batchWrapPhase(float* data, std::size_t count) noexcept {
+    HWY_DYNAMIC_DISPATCH(BatchWrapPhaseInPlaceImpl)(data, count);
 }
 
 }  // namespace DSP
