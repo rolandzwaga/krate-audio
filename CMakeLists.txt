@@ -207,6 +207,27 @@ smtg_mark_includes_as_system(sdk_common)
 smtg_mark_includes_as_system(sdk)
 smtg_mark_includes_as_system(sdk_hosting)
 smtg_mark_includes_as_system(base)
+smtg_mark_includes_as_system(pluginterfaces)
+smtg_mark_includes_as_system(vstgui)
+smtg_mark_includes_as_system(vstgui_uidescription)
+smtg_mark_includes_as_system(vstgui_support)
+
+# Suppress warnings from VST3 SDK / VSTGUI source file compilations on GCC/Clang.
+# These are third-party sources we cannot modify.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # -Wformat: int64 format string mismatch (long int vs long long int) in fstring.cpp, ustring.cpp
+    target_compile_options(base PRIVATE -Wno-format)
+    target_compile_options(pluginterfaces PRIVATE -Wno-format)
+    # -Wsuggest-override: missing override in cscrollview.cpp
+    # -Wcpp: #warning TODO directives in cairobitmap.cpp, x11frame.cpp
+    if(TARGET vstgui)
+        target_compile_options(vstgui PRIVATE -Wno-suggest-override -Wno-cpp)
+    endif()
+    # -Wsuggest-override passed to C compiler for wayland protocol .c files
+    if(TARGET vstgui_wayland_protocols)
+        target_compile_options(vstgui_wayland_protocols PRIVATE -Wno-suggest-override)
+    endif()
+endif()
 
 # ==============================================================================
 # Testing Configuration (Constitution Principle VIII)
