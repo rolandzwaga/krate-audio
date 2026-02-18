@@ -321,19 +321,19 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 11.1 Requirements Verification
 
-- [ ] T076 Verify FR-001 through FR-019 and FR-023 through FR-025: for each, open the implementation file, find the code satisfying it, record the file path and line number in the spec.md compliance table -- DO NOT fill from memory. Note: FR-025 (delay-post-pitch in PhaseVocoder mode) is a new requirement added during analysis; verify the HarmonizerEngine implementation applies delays after `pullSharedAnalysisOutput()` in the PhaseVocoder path.
-- [ ] T077 Verify SC-001 (PhaseVocoder 4-voice CPU < 18%): record the actual measured value from T040 vs the spec target, report both real-time CPU % and µs/block
-- [ ] T078 Verify SC-002 (HarmonizerEngine output equivalence RMS < 1e-5 per voice): run the equivalence test from T027 and record the actual RMS difference
-- [ ] T079 Verify SC-003 (processWithSharedAnalysis output identical to process(), max error < 1e-5): run the equivalence test from T010 and record the actual max sample error
-- [ ] T080 Verify SC-004 (zero regressions in dsp_tests): record the full test count and confirm it matches T002 baseline
-- [ ] T081 Verify SC-005 (zero heap allocations in audio path): record the result of the code inspection from T061
-- [ ] T082 Verify SC-006 (phase locking quality preserved, error < 1e-5): run the phase locking equivalence test from T012 and record the actual max error
-- [ ] T083 Verify SC-007 (per-voice OLA independence): record the results of the isolation tests from T043, T044, T045
-- [ ] T084 Verify SC-008 (PitchSync re-benchmark documented): record the measured values from T058
+- [X] T076 Verify FR-001 through FR-019 and FR-023 through FR-025: for each, open the implementation file, find the code satisfying it, record the file path and line number in the spec.md compliance table -- DO NOT fill from memory. Note: FR-025 (delay-post-pitch in PhaseVocoder mode) is a new requirement added during analysis; verify the HarmonizerEngine implementation applies delays after `pullSharedAnalysisOutput()` in the PhaseVocoder path.
+- [X] T077 Verify SC-001 (PhaseVocoder 4-voice CPU < 18%): record the actual measured value from T040 vs the spec target, report both real-time CPU % and µs/block
+- [X] T078 Verify SC-002 (HarmonizerEngine output equivalence RMS < 1e-5 per voice): run the equivalence test from T027 and record the actual RMS difference
+- [X] T079 Verify SC-003 (processWithSharedAnalysis output identical to process(), max error < 1e-5): run the equivalence test from T010 and record the actual max sample error
+- [X] T080 Verify SC-004 (zero regressions in dsp_tests): record the full test count and confirm it matches T002 baseline
+- [X] T081 Verify SC-005 (zero heap allocations in audio path): record the result of the code inspection from T061
+- [X] T082 Verify SC-006 (phase locking quality preserved, error < 1e-5): run the phase locking equivalence test from T012 and record the actual max error
+- [X] T083 Verify SC-007 (per-voice OLA independence): record the results of the isolation tests from T043, T044, T045
+- [X] T084 Verify SC-008 (PitchSync re-benchmark documented): record the measured values from T058
 
 ### 11.2 Fill Compliance Table in spec.md
 
-- [ ] T085 Update `specs/065-shared-analysis-fft-refactor/spec.md` "Implementation Verification" section with compliance status, file paths, line numbers, test names, and measured values for every FR-xxx and SC-xxx row (including the new FR-025 row added during analysis) -- no row may be filled with only "implemented" or "test passes" without specific evidence
+- [X] T085 Update `specs/065-shared-analysis-fft-refactor/spec.md` "Implementation Verification" section with compliance status, file paths, line numbers, test names, and measured values for every FR-xxx and SC-xxx row (including the new FR-025 row added during analysis) -- no row may be filled with only "implemented" or "test passes" without specific evidence
 
 ### 11.3 Honest Self-Check
 
@@ -345,7 +345,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T086 All self-check questions answered "no" (or gaps documented honestly in spec.md)
+- [X] T086 All self-check questions answered "no" (or gaps documented honestly in spec.md)
 
 **Checkpoint**: Honest assessment complete -- ready for final phase
 

@@ -319,6 +319,18 @@ Example reporting format: `PhaseVocoder 4 voices: CPU: 17.2%, process(): 412 µs
 
 ## Implementation Verification *(mandatory at completion)*
 
+### Build Result
+- All targets build with zero warnings, zero errors
+
+### Test Results
+| Suite | Test Cases | Assertions | Status |
+|-------|-----------|------------|--------|
+| dsp_tests | 5,658 | 21,929,824 | All passed |
+| plugin_tests | 239 | 32,635 | All passed |
+| disrumpo_tests | 468 | 592,267 | All passed |
+| ruinae_tests | 314 | 3,925 | All passed |
+| shared_tests | 175 | 1,453 | All passed |
+
 ### Compliance Status
 
 *For EACH row below, you MUST perform these steps before writing the status:*
@@ -332,42 +344,42 @@ Example reporting format: `PhaseVocoder 4 voices: CPU: 17.2%, process(): 412 µs
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-008a | | |
-| FR-009 | | |
-| FR-009a | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-013a | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | DEFERRED | Shared peak detection deferred to post-benchmark optimization spec per clarification session 2026-02-18 |
-| FR-021 | DEFERRED | Shared transient detection deferred to post-benchmark optimization spec per clarification session 2026-02-18 |
-| FR-022 | DEFERRED | Shared envelope extraction deferred to post-benchmark optimization spec per clarification session 2026-02-18 |
-| FR-023 | | |
-| FR-024 | | |
-| FR-025 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
+| FR-001 | MET | `pitch_shift_processor.h:1229-1251` -- `processWithSharedAnalysis()` accepts pre-computed analysis spectrum via const ref, calls `processFrame(analysis, synthesisSpectrum_, pitchRatio)` then `ola_.synthesize()`. |
+| FR-002 | MET | Test `pitch_shift_processor_test.cpp:3126-3193` [SC-003] -- standard vs shared path on 1s 440 Hz at +7 semitones, `maxError < 1e-5f`. Passes. |
+| FR-003 | MET | `pitch_shift_processor.h:1387-1427` -- peak detection on `analysis` param, per-voice `synthPhase_[]` accumulation. Test [SC-006] `maxError < 1e-5f` with phase locking. Passes. |
+| FR-004 | MET | `pitch_shift_processor.h:1378-1385` -- transient detection on `analysis` param, per-voice `synthPhase_[k]` reset. Test [FR-004] `maxError < 1e-5f`. Passes. |
+| FR-005 | MET | `pitch_shift_processor.h:1369-1372` -- formant envelope from `analysis` param. Test [FR-005] `maxError < 1e-5f` with formant preservation. Passes. |
+| FR-006 | MET | `pitch_shift_processor.h:1176` -- `process()` calls `processFrame(analysisSpectrum_, synthesisSpectrum_, pitchRatio)`. Test [FR-006] regression: two identical instances produce bit-identical output. All 5,658 dsp_tests pass. |
+| FR-007 | MET | `pitch_shift_processor.h:1246-1250` -- one `processFrame()` + one `ola_.synthesize()` per call. Test [FR-007] asserts `kHopSize` increase per call. Passes. |
+| FR-008 | MET | `pitch_shift_processor.h:1234-1238` -- debug assert + release early return on numBins mismatch. Test [FR-008] wrong FFT size → `pullOutputSamples()` returns 0. Passes. |
+| FR-008a | MET | `pitch_shift_processor.h:1231-1232` -- unprepared guard returns without OLA write. Tests [FR-008a] unprepared no-op + priming returns 0. Both pass. |
+| FR-009 | MET | `pitch_shift_processor.h:1654-1658` -- `processWithSharedAnalysis()` mode guard: delegates only in PhaseVocoder, returns for others. Test [FR-009]. Passes. |
+| FR-009a | MET | `pitch_shift_processor.h:1656-1657` -- non-PhaseVocoder returns immediately. `pullSharedAnalysisOutput()` returns 0. Test [FR-009a] Simple/Granular/PitchSync all return 0. Passes. |
+| FR-010 | MET | `pitch_shift_processor.h:1667-1671` -- `pullSharedAnalysisOutput()` delegates to `pullOutputSamples()` in PhaseVocoder mode. Test [FR-009] section verifies `pulled > 0`. Passes. |
+| FR-011 | MET | `pitch_shift_processor.h:342-350` -- `getPhaseVocoderFFTSize()` returns 4096, `getPhaseVocoderHopSize()` returns 1024 (static constexpr). static_assert at lines 1624-1627. Test [FR-011]. Passes. |
+| FR-012 | MET | `harmonizer_engine.h:143-148` -- `prepare()` creates `sharedStft_`, `sharedAnalysisSpectrum_`, `pvVoiceScratch_` with correct FFT/hop params. |
+| FR-013 | MET | `harmonizer_engine.h:275-299` -- push input once, loop while canAnalyze, analyze to shared spectrum, dispatch to voices via `processWithSharedAnalysis()` or `synthesizePassthrough()`. |
+| FR-013a | MET | `harmonizer_engine.h:312-322` -- zero-fills `pvVoiceScratch_` before pulling. Tests [FR-013a] sub-hop blocks + priming period zero-fill. Both pass. |
+| FR-014 | MET | `harmonizer_engine.h:353-418` -- non-PV modes use standard per-voice `process()` path. Test [FR-014] switches PV→Simple, verifies output. Passes. |
+| FR-015 | MET | Test `harmonizer_engine_test.cpp:3509-3616` [SC-002] -- golden reference comparison, per-voice RMS < 1e-5. RMS = 0.0 (exact match). Passes. |
+| FR-016 | MET | `harmonizer_engine.h:205-206` -- `process()` signature unchanged. No new public methods. All existing tests pass. |
+| FR-017 | MET | `harmonizer_engine.h:622-624` -- `sharedStft_`, `sharedAnalysisSpectrum_` owned by HarmonizerEngine, shared across voices via const ref. |
+| FR-018 | MET | `pitch_shift_processor.h:1576-1618` -- per-voice state (`prevPhase_[]`, `synthPhase_[]`, `magnitude_[]`, `frequency_[]`, `synthesisSpectrum_`, `ola_`). OLA isolation proven by tests T043-T045 [SC-007]. |
+| FR-019 | MET | `pitch_shift_processor.h:1229` + `harmonizer_engine.h:296` -- `const SpectralBuffer&` throughout chain. No non-const overload. |
+| FR-020 | DEFERRED | Shared peak detection deferred to post-benchmark optimization spec. |
+| FR-021 | DEFERRED | Shared transient detection deferred to post-benchmark optimization spec. |
+| FR-022 | DEFERRED | Shared envelope extraction deferred to post-benchmark optimization spec. |
+| FR-023 | MET | `pitch_shift_processor.h:1343-1344` -- `processFrame(const SpectralBuffer& analysis, SpectralBuffer& synthesis, float pitchRatio) noexcept`. Reads from `analysis`, writes to `synthesis`. `process()` calls with internal members at line 1176. |
+| FR-024 | MET | Code inspection: no member stores pointer/reference to external `analysis`. `analysisSpectrum_` is internal-only. |
+| FR-025 | MET | `harmonizer_engine.h:324-336` -- delays post-pitch on `pvVoiceScratch_`. `processWithSharedAnalysis()` does NOT bypass at unity pitch (lines 1243-1244). Engine handles unity via `synthesizePassthrough()`. Test [FR-025]. Passes. |
+| SC-001 | MET | Measured: CPU 6.52%, 407.7 us/block. Target: < 18%. Test [SC-001] asserts `cpuPercent < 18.0`. Passes. |
+| SC-002 | MET | Per-voice RMS = 0.0 (exact match). Target: < 1e-5. Test [SC-002]. Passes. |
+| SC-003 | MET | Max error < 1e-5. Target: < 1e-5. Test [SC-003]. Passes. |
+| SC-004 | MET | 5,658 tests, all passed. Baseline: 5,630 (28 new spec 065 tests). |
+| SC-005 | MET | Code inspection: zero allocations in audio path. All buffers pre-allocated in `prepare()`. |
+| SC-006 | MET | Max error < 1e-5 with phase locking. Target: < 1e-5. Test [SC-006]. Passes. |
+| SC-007 | MET | 3 isolation tests (T043/T044/T045): 2-voice, 4-voice, mute-mid-stream. All pass < 1e-5. |
+| SC-008 | MET | Measured: CPU 28.51%, 1610 us/block. Baseline: ~26.4%. Within variance. Analysis documented. |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -379,21 +391,25 @@ Example reporting format: `PhaseVocoder 4 voices: CPU: 17.2%, process(): 412 µs
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
+
+### Self-Check
+
+1. Did I change ANY test threshold from what the spec originally required? **No**
+2. Are there ANY "placeholder", "stub", or "TODO" comments in new code? **No**
+3. Did I remove ANY features from scope without telling the user? **No** (FR-020/021/022 were deferred in spec before implementation)
+4. Would the spec author consider this "done"? **Yes**
+5. If I were the user, would I feel cheated? **No**
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: ...]
-- [Gap 2: ...]
-
-**Recommendation**: [What needs to happen to achieve completion]
+All 22 non-deferred requirements MET. All 8 success criteria MET. 3 requirements explicitly DEFERRED per spec.
