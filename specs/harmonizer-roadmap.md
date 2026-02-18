@@ -656,8 +656,8 @@ public:
     // =========================================================================
     static constexpr int kMaxVoices = 4;
     static constexpr float kMaxDelayMs = 50.0f;
-    static constexpr float kMinLevel = -60.0f;   // dB
-    static constexpr float kMaxLevel = 6.0f;     // dB
+    static constexpr float kMinLevel = -60.0f;   // dB  NOTE: renamed to kMinLevelDb in final contract (harmonizer_engine_api.h)
+    static constexpr float kMaxLevel = 6.0f;     // dB  NOTE: renamed to kMaxLevelDb in final contract (harmonizer_engine_api.h)
 
     // =========================================================================
     // Lifecycle
@@ -671,13 +671,13 @@ public:
     // Voice Configuration
     // =========================================================================
     void setNumVoices(int count) noexcept;              // [0, kMaxVoices]
-    [[nodiscard]] int getNumVoices() const noexcept;
+    [[nodiscard]] int getNumVoices() const noexcept;   // NOTE: confirmed in final contract (harmonizer_engine_api.h) after spec analysis remediation
 
     void setVoiceInterval(int voice, int diatonicSteps) noexcept; // +2 = 3rd above
     void setVoiceLevel(int voice, float dB) noexcept;             // [-60, +6]
     void setVoicePan(int voice, float pan) noexcept;              // [-1, +1]
     void setVoiceDelay(int voice, float ms) noexcept;             // [0, 50]
-    void setVoiceDetune(int voice, float cents) noexcept;         // [-100, +100]
+    void setVoiceDetune(int voice, float cents) noexcept;         // [-100, +100] NOTE: revised to [-50, +50] in spec (see Per-Voice Micro-Detuning note below)
 
     // =========================================================================
     // Global Configuration
@@ -714,6 +714,10 @@ private:
     ScaleHarmonizer scaleHarmonizer_;
 
     // Per-voice processing
+    // NOTE: This Voice struct is a draft. The finalized version in data-model.md and
+    // harmonizer_engine_api.h uses `levelDb` (not `level`), removes the `active` bool
+    // (activation is controlled by numActiveVoices_), and adds `targetSemitones`,
+    // `linearGain`, and `delaySamples` as computed fields.
     struct Voice {
         PitchShiftProcessor pitchShifter;
         DelayLine delayLine;
@@ -730,7 +734,10 @@ private:
     std::array<Voice, kMaxVoices> voices_;
 
     // Global settings
-    HarmonyMode harmonyMode_ = HarmonyMode::Scalic;
+    // NOTE: Default changed to HarmonyMode::Chromatic in the finalized spec (2026-02-18).
+    // Chromatic is the safer default: it works without pitch tracking and avoids
+    // unexpected CPU usage on construction. See spec.md Assumptions section.
+    HarmonyMode harmonyMode_ = HarmonyMode::Scalic;  // NOTE: use Chromatic in final implementation
     int numActiveVoices_ = 0;
     float dryLevel_ = 0.0f;  // linear
     float wetLevel_ = 1.0f;  // linear
@@ -770,6 +777,8 @@ private:
 ### Per-Voice Micro-Detuning (research doc Section 4.3)
 
 "Micro-pitch detuning between voices (a few cents) creates natural 'ensemble' width." Each voice has an independent `detuneCents` parameter (+/- 100 cents) added on top of the computed diatonic shift. This creates natural beating and width, especially useful when multiple voices share the same interval.
+
+> **Spec Revision (2026-02-18)**: The detune range was revised from [-100, +100] cents to **[-50, +50] cents** per clarification session. Half-semitone maximum keeps the parameter a true ensemble-width detuning effect; beyond 50 cents a voice begins to sound like a distinct pitch rather than a natural imprecision offset. The constant `kMinDetuneCents = -50.0f` and `kMaxDetuneCents = 50.0f` reflect this in `harmonizer_engine_api.h`.
 
 ### Stereo Panning (following UnisonEngine pattern)
 

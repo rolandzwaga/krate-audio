@@ -2041,3 +2041,139 @@ engine.noteOff(60);
 engine.noteOff(64);
 engine.noteOff(67);
 ```
+
+---
+
+## HarmonizerEngine
+**Path:** [harmonizer_engine.h](../../dsp/include/krate/dsp/systems/harmonizer_engine.h) | **Since:** 0.21.0
+
+Multi-voice harmonizer engine orchestrating shared pitch analysis, per-voice pitch shifting, level/pan mixing, and mono-to-stereo constant-power panning. Composes existing Layer 0-2 components without introducing new DSP algorithms. Supports two harmony intelligence modes: Chromatic (fixed semitone shifts, no pitch tracking) and Scalic (diatonic intervals in a configured key/scale, with pitch tracking).
+
+```cpp
+enum class HarmonyMode : uint8_t { Chromatic = 0, Scalic = 1 };
+
+class HarmonizerEngine {
+    static constexpr int kMaxVoices = 4;
+
+    // Lifecycle
+    void prepare(double sampleRate, std::size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Processing (mono in, stereo out)
+    void process(const float* input, float* outputL, float* outputR,
+                 std::size_t numSamples) noexcept;
+
+    // Global configuration
+    void setHarmonyMode(HarmonyMode mode) noexcept;
+    void setNumVoices(int count) noexcept;              // [0, 4]
+    [[nodiscard]] int getNumVoices() const noexcept;
+    void setKey(int rootNote) noexcept;                  // [0, 11] (C=0 through B=11)
+    void setScale(ScaleType type) noexcept;
+    void setPitchShiftMode(PitchMode mode) noexcept;
+    void setFormantPreserve(bool enable) noexcept;
+    void setDryLevel(float dB) noexcept;
+    void setWetLevel(float dB) noexcept;
+
+    // Per-voice configuration
+    void setVoiceInterval(int voiceIndex, int diatonicSteps) noexcept;  // [-24, +24]
+    void setVoiceLevel(int voiceIndex, float dB) noexcept;              // [-60, +6]
+    void setVoicePan(int voiceIndex, float pan) noexcept;               // [-1, +1]
+    void setVoiceDelay(int voiceIndex, float ms) noexcept;              // [0, 50]
+    void setVoiceDetune(int voiceIndex, float cents) noexcept;          // [-50, +50]
+
+    // UI feedback queries (read-only)
+    [[nodiscard]] float getDetectedPitch() const noexcept;
+    [[nodiscard]] int getDetectedNote() const noexcept;
+    [[nodiscard]] float getPitchConfidence() const noexcept;
+
+    // Latency reporting
+    [[nodiscard]] std::size_t getLatencySamples() const noexcept;
+};
+```
+
+**Signal Flow:**
+```
+Input (mono) -----------------------------------------------+---> Dry Path
+  |                                                         |
+  +--> PitchTracker (shared, Scalic only)                   |
+  |       |                                                 |
+  |       +--> ScaleHarmonizer (shared)                     |
+  |               |                                         |
+  +--> Voice 0: [DelayLine] -> [PitchShiftProcessor] -> [Level/Pan] --+
+  +--> Voice 1: [DelayLine] -> [PitchShiftProcessor] -> [Level/Pan] --+-> Harmony Bus
+  +--> Voice 2: [DelayLine] -> [PitchShiftProcessor] -> [Level/Pan] --+     |
+  +--> Voice 3: [DelayLine] -> [PitchShiftProcessor] -> [Level/Pan] --+     |
+                                                                      v     v
+                                                   outputL = dryGain*input + wetGain*harmonyL
+                                                   outputR = dryGain*input + wetGain*harmonyR
+```
+
+**Key Features:**
+- Composes PitchShiftProcessor x4 (L2), PitchTracker (L1), ScaleHarmonizer (L0), OnePoleSmoother x14 (L1), DelayLine x4 (L1)
+- Two harmony modes: Chromatic (fixed semitone shifts, PitchTracker bypassed) and Scalic (diatonic intervals with pitch tracking)
+- 4 pre-allocated voices with per-voice interval, level, pan, delay, and micro-detune
+- Constant-power pan law: `cos((pan+1)*pi/4)`, `sin((pan+1)*pi/4)` (same formula as UnisonEngine)
+- 5 smoothing time constants: pitch=10ms, level/pan=5ms, dry/wet=10ms
+- Independent dry/wet level smoothers (NOT a single mix ratio)
+- Wet level applied as master fader AFTER all voice accumulation
+- Mute threshold at -60 dB: voices skip PitchShiftProcessor entirely when muted
+- Zero-delay bypass: DelayLine skipped when onset delay is 0ms
+- PitchTracker not fed audio in Chromatic mode or when numVoices=0 (CPU optimization)
+- Micro-detuning added on top of computed interval before pitch smoothing
+- Hold-last-note: when PitchTracker reports invalid pitch, last valid interval is held
+- Latency matches underlying PitchShiftProcessor for the configured mode
+- Safe no-op: process() zero-fills outputs if called before prepare()
+- 4 pitch-shift modes: Simple, PitchSync, Granular, PhaseVocoder (via PitchShiftProcessor)
+- Header-only, zero allocations in process(), all methods noexcept
+- Dependencies: Layer 0 (ScaleHarmonizer, db_utils, math_constants), Layer 1 (PitchTracker, OnePoleSmoother, DelayLine), Layer 2 (PitchShiftProcessor)
+
+**FR-020 Note (Shared-Analysis FFT Deferral):**
+The spec requires shared-analysis FFT architecture in PhaseVocoder mode (forward FFT once, shared across voices). The current PitchShiftProcessor API treats each instance as fully independent with no mechanism to inject external analysis spectra. Phase 1 uses independent per-voice PitchShiftProcessor instances, which is functionally correct but does not achieve the shared-analysis CPU optimization. A follow-up spec will modify PhaseVocoderPitchShifter (Layer 2) to accept pre-computed analysis spectra, then update HarmonizerEngine to use shared analysis. See plan.md R-001 and research.md R-011 for details.
+
+**When to Use:**
+- Generating diatonic or chromatic harmony voices from a monophonic input
+- Plugin harmonizer effect (wrap in Layer 4 effect for Iterum harmonizer delay mode)
+- Any pitch-shifting application requiring multi-voice stereo output with per-voice control
+- Fixed-interval pitch effects (octave up, perfect fifth) in Chromatic mode
+- Musical harmonies in a configured key/scale in Scalic mode
+
+**Example:**
+```cpp
+HarmonizerEngine harmonizer;
+harmonizer.prepare(44100.0, 512);
+
+// Scalic mode: diatonic harmony in C Major
+harmonizer.setHarmonyMode(HarmonyMode::Scalic);
+harmonizer.setKey(0);  // C
+harmonizer.setScale(ScaleType::Major);
+harmonizer.setPitchShiftMode(PitchMode::PhaseVocoder);
+
+// Configure 2 voices: 3rd above and 5th above
+harmonizer.setNumVoices(2);
+harmonizer.setVoiceInterval(0, 2);      // 3rd above (diatonic steps)
+harmonizer.setVoiceLevel(0, 0.0f);      // 0 dB
+harmonizer.setVoicePan(0, -0.5f);       // Slightly left
+harmonizer.setVoiceDetune(0, 5.0f);     // +5 cents
+
+harmonizer.setVoiceInterval(1, 4);      // 5th above
+harmonizer.setVoiceLevel(1, -3.0f);     // -3 dB
+harmonizer.setVoicePan(1, 0.5f);        // Slightly right
+harmonizer.setVoiceDetune(1, -5.0f);    // -5 cents
+
+// Dry/wet levels
+harmonizer.setDryLevel(0.0f);           // Dry at unity
+harmonizer.setWetLevel(-3.0f);          // Wet at -3 dB
+
+// Process audio (mono in, stereo out)
+std::array<float, 512> outputL{}, outputR{};
+harmonizer.process(monoInput, outputL.data(), outputR.data(), 512);
+
+// UI feedback
+float pitch = harmonizer.getDetectedPitch();    // ~440.0 for A4 input
+int note = harmonizer.getDetectedNote();         // 69 (A4)
+float confidence = harmonizer.getPitchConfidence();
+
+// Latency compensation
+std::size_t latency = harmonizer.getLatencySamples();
+```

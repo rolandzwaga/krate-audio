@@ -7,6 +7,9 @@ This file provides guidance for AI assistants working on this VST3 plugin projec
 This is a **monorepo** for Krate Audio plugins, featuring:
 - **KrateDSP**: Shared DSP library at `dsp/` (namespace: `Krate::DSP`)
 - **Iterum**: Delay plugin at `plugins/iterum/`
+- **Disrumpo**: Multi-band distortion plugin at `plugins/disrumpo/`
+- **Ruinae**: Synthesizer plugin at `plugins/ruinae/`
+- **Shared plugin infrastructure** at `plugins/shared/` (presets, UI components, MIDI, platform)
 - **Steinberg VST3 SDK** (not JUCE or other frameworks)
 - **VSTGUI** for user interface
 - **Modern C++20**
@@ -16,12 +19,30 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 ```
 ├── dsp/                      # Shared KrateDSP library
 │   ├── include/krate/dsp/    # Public headers (use <krate/dsp/...>)
-│   └── tests/                # DSP unit tests
-├── plugins/iterum/           # Iterum plugin
-│   ├── src/                  # Plugin source
-│   ├── tests/                # Plugin tests
-│   └── resources/            # UI, presets, installers
-├── tests/                    # Shared test infrastructure
+│   │   ├── core/             # Layer 0: utilities, math, interpolation
+│   │   ├── primitives/       # Layer 1: delay lines, filters, FFT
+│   │   ├── processors/       # Layer 2: grain, pitch shift, diffusion
+│   │   ├── systems/          # Layer 3: engines, feedback networks
+│   │   └── effects/          # Layer 4: complete delay effects
+│   └── tests/unit/           # DSP unit tests (mirrored by layer)
+├── plugins/
+│   ├── iterum/               # Iterum delay plugin
+│   │   ├── src/              # Plugin source
+│   │   ├── tests/            # Plugin tests (unit + approval)
+│   │   └── resources/        # UI, presets, installers
+│   ├── disrumpo/             # Disrumpo multi-band distortion plugin
+│   │   ├── src/              # Plugin source
+│   │   ├── tests/            # Plugin tests
+│   │   └── resources/        # UI, presets, installers
+│   ├── ruinae/               # Ruinae synthesizer plugin
+│   │   ├── src/              # Plugin source
+│   │   └── tests/            # Plugin tests
+│   └── shared/               # Shared plugin infrastructure
+│       ├── src/              # Presets, UI components, MIDI, platform
+│       └── tests/            # Shared tests
+├── tests/                    # Shared test helpers + benchmarks
+├── tools/                    # Dev tools (pluginval, clang-tidy, testbench)
+├── specs/                    # Feature specifications (numbered)
 ├── extern/vst3sdk/           # VST3 SDK (shared)
 └── extern/pffft/             # SIMD-optimized FFT (BSD, marton78 fork)
 ```
@@ -70,10 +91,10 @@ The audio thread has **hard real-time constraints**. No allocations, locks, exce
 Processor and Controller are **separate components**:
 
 ```cpp
-// Processor (audio thread) - plugins/iterum/src/processor/
+// Processor (audio thread) - plugins/{plugin}/src/processor/
 class Processor : public Steinberg::Vst::AudioEffect { /* Audio ONLY */ };
 
-// Controller (UI thread) - plugins/iterum/src/controller/
+// Controller (UI thread) - plugins/{plugin}/src/controller/
 class Controller : public Steinberg::Vst::EditControllerEx1 { /* UI ONLY */ };
 ```
 
@@ -170,15 +191,52 @@ dsp/                              # Shared KrateDSP library (Krate::DSP namespac
 │   ├── processors/               # Layer 2
 │   ├── systems/                  # Layer 3
 │   └── effects/                  # Layer 4
-└── tests/                        # DSP unit tests
+└── tests/unit/                   # DSP unit tests (mirrored by layer)
+    ├── core/
+    ├── primitives/
+    ├── processors/
+    ├── systems/
+    └── effects/
 
-plugins/iterum/                   # Iterum plugin
+plugins/iterum/                   # Iterum delay plugin
+├── src/
+│   ├── entry.cpp, plugin_ids.h, version.h, delay_mode.h
+│   ├── processor/                # Audio processor
+│   ├── controller/               # UI controller + parameter helpers
+│   ├── parameters/               # Per-mode parameter registration helpers
+│   ├── ui/                       # Custom UI views (tap pattern editor)
+│   └── preset/                   # Preset configuration
+├── tests/
+│   ├── unit/{controller,parameters,preset,ui,vst,processor}/
+│   └── approval/                 # Approval tests with golden references
+└── resources/                    # UI, presets, installers
+
+plugins/disrumpo/                 # Disrumpo multi-band distortion plugin
 ├── src/
 │   ├── entry.cpp, plugin_ids.h, version.h
-│   ├── processor/processor.{h,cpp}
-│   └── controller/controller.{h,cpp}
-├── tests/                        # Plugin tests (unit, integration, approval)
-└── resources/                    # UI, presets, installers
+│   ├── processor/
+│   ├── controller/               # + custom views (morph pad, spectrum, etc.)
+│   ├── dsp/                      # Plugin-local DSP (morph engine, sweep, bands)
+│   └── preset/
+├── tests/
+└── resources/
+
+plugins/ruinae/                   # Ruinae synthesizer plugin
+├── src/
+│   ├── entry.cpp, plugin_ids.h, version.h
+│   ├── processor/
+│   ├── controller/
+│   ├── engine/                   # Synth engine, voice, effects chain
+│   └── parameters/               # Per-section param helpers
+└── tests/
+
+plugins/shared/                   # Shared plugin infrastructure
+├── src/
+│   ├── preset/                   # Preset manager, data source, browser logic
+│   ├── ui/                       # Reusable UI components (arc knob, etc.)
+│   ├── midi/                     # MIDI CC manager
+│   └── platform/                 # Platform-specific helpers (preset paths)
+└── tests/
 ```
 
 **Include patterns:**
@@ -217,6 +275,14 @@ The `FFT` class (`dsp/include/krate/dsp/primitives/fft.h`) uses **pffft** ([mart
 - **pffft output format**: For real transforms, ordered output is `[DC, Nyquist, Re(1), Im(1), Re(2), Im(2), ...]` — conversion to/from our `Complex[N/2+1]` format happens inside `fft.h`
 - **Inverse normalization**: pffft does NOT normalize the inverse transform; `FFT::inverse()` applies `1/N` scaling
 
+### Google Highway (SIMD-Accelerated Math)
+
+KrateDSP uses [Google Highway](https://github.com/google/highway) (v1.2.0, Apache-2.0) for SIMD-accelerated spectral math. Fetched via FetchContent in root `CMakeLists.txt`.
+
+- **Runtime dispatch**: Automatically uses best available ISA (SSE2/AVX2/AVX-512 on x86, NEON on ARM)
+- **Build integration**: Linked PRIVATE to KrateDSP — no Highway headers in public API
+- **Used for**: `spectral_simd.cpp` and related spectral processing internals
+
 ## DSP Implementation Rules
 
 See `dsp-architecture` skill for interpolation selection, oversampling, DC blocking, feedback safety, and performance budgets.
@@ -241,7 +307,14 @@ For **bug fixes**, step 1 is "Write test reproducing the bug" and verify it fail
 
 Run after any plugin source changes:
 ```bash
-tools/pluginval.exe --strictness-level 5 --validate "build/VST3/Release/Iterum.vst3"
+# Iterum
+tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Iterum.vst3"
+
+# Disrumpo
+tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Disrumpo.vst3"
+
+# Ruinae
+tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"
 ```
 
 Skip for docs-only, CI config, or test-only changes.
@@ -295,7 +368,13 @@ CMAKE="/c/Program Files/CMake/bin/cmake.exe"
 
 # Run DSP tests
 "$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests
-build/windows-x64-release/dsp/tests/Release/dsp_tests.exe
+build/windows-x64-release/bin/Release/dsp_tests.exe
+
+# Run plugin-specific tests
+"$CMAKE" --build build/windows-x64-release --config Release --target plugin_tests    # Iterum
+"$CMAKE" --build build/windows-x64-release --config Release --target disrumpo_tests  # Disrumpo
+"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests    # Ruinae
+"$CMAKE" --build build/windows-x64-release --config Release --target shared_tests    # Shared infra
 
 # Run all tests via CTest
 ctest --test-dir build/windows-x64-release -C Release --output-on-failure
@@ -305,7 +384,10 @@ ctest --test-dir build/windows-x64-release -C Release --output-on-failure
 "$CMAKE" --build build/windows-x64-debug --config Debug
 ```
 
-**Note:** The plugin build may fail on the post-build copy step (permission error copying to `C:/Program Files/Common Files/VST3/`). This is fine - the actual compilation succeeded. The built plugin is at `build/windows-x64-release/VST3/Release/Iterum.vst3/`.
+**Note:** The plugin build may fail on the post-build copy step (permission error copying to `C:/Program Files/Common Files/VST3/`). This is fine - the actual compilation succeeded. Built plugins are at:
+- `build/windows-x64-release/VST3/Release/Iterum.vst3/`
+- `build/windows-x64-release/VST3/Release/Disrumpo.vst3/`
+- `build/windows-x64-release/VST3/Release/Ruinae.vst3/`
 
 ### AddressSanitizer (ASan)
 
@@ -362,6 +444,7 @@ Use clang-tidy for static analysis to catch bugs, performance issues, and style 
 ./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
 ./tools/run-clang-tidy.ps1 -Target iterum -BuildDir build/windows-ninja
 ./tools/run-clang-tidy.ps1 -Target disrumpo -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja
 
 # Apply automatic fixes (use with caution, review changes)
 ./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja -Fix
@@ -390,10 +473,16 @@ cmake --preset linux-release   # or macos-release (generates compile_commands.js
 
 | Task | File(s) |
 |------|---------|
-| Add parameter | plugins/iterum/src/plugin_ids.h → processor → controller → uidesc |
-| Add DSP component | dsp/include/krate/dsp/{layer}/ → dsp/tests/{layer}/ |
-| Add plugin test | plugins/iterum/tests/ |
-| Change UI | plugins/iterum/resources/editor.uidesc |
+| Add Iterum parameter | plugins/iterum/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
+| Add Disrumpo parameter | plugins/disrumpo/src/plugin_ids.h → processor → controller → uidesc |
+| Add Ruinae parameter | plugins/ruinae/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
+| Add DSP component | dsp/include/krate/dsp/{layer}/ → dsp/tests/unit/{layer}/ |
+| Add Iterum test | plugins/iterum/tests/unit/{section}/ |
+| Add Disrumpo test | plugins/disrumpo/tests/ |
+| Add Ruinae test | plugins/ruinae/tests/unit/ |
+| Add shared component | plugins/shared/src/{section}/ → plugins/shared/tests/ |
+| Change Iterum UI | plugins/iterum/resources/editor.uidesc |
+| Change Disrumpo UI | plugins/disrumpo/resources/editor.uidesc |
 
 | Your Layer | Location | Can Include |
 |------------|----------|-------------|
