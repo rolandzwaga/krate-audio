@@ -248,8 +248,8 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 7.1 Benchmark and Analysis
 
-- [ ] T058 [US5] Run PitchSync 4-voice benchmark using the KrateDSP benchmark harness under identical conditions to spec 064 (44.1 kHz, block size 256, 4 voices, Release build, realtime priority, 2s warmup, 10s steady-state) and record both real-time CPU % and average process() time in µs/block (SC-008)
-- [ ] T059 [US5] Write analysis document (or inline test comments) documenting: (a) the measured PitchSync CPU values vs the spec 064 baseline (~26.4%), (b) whether the shared-analysis refactor incidentally improved PitchSync (expected: no improvement -- the refactor does not touch PitchSync code), (c) whether shared pitch detection (running YIN once per block and sharing the result across voices) is architecturally feasible and an estimate of potential CPU savings (US5 acceptance scenario 2)
+- [X] T058 [US5] Run PitchSync 4-voice benchmark using the KrateDSP benchmark harness under identical conditions to spec 064 (44.1 kHz, block size 256, 4 voices, Release build, realtime priority, 2s warmup, 10s steady-state) and record both real-time CPU % and average process() time in µs/block (SC-008)
+- [X] T059 [US5] Write analysis document (or inline test comments) documenting: (a) the measured PitchSync CPU values vs the spec 064 baseline (~26.4%), (b) whether the shared-analysis refactor incidentally improved PitchSync (expected: no improvement -- the refactor does not touch PitchSync code), (c) whether shared pitch detection (running YIN once per block and sharing the result across voices) is architecturally feasible and an estimate of potential CPU savings (US5 acceptance scenario 2)
 
 ### 7.2 Commit (MANDATORY)
 

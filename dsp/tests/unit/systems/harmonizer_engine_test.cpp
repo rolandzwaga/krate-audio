@@ -4469,3 +4469,97 @@ TEST_CASE("T045: OLA isolation -- mute one voice mid-stream other unaffected",
     REQUIRE(maxDiffTotal < 1e-5f);
     REQUIRE(maxDiffPostMute < 1e-5f);
 }
+
+// =============================================================================
+// Phase 7: User Story 5 - PitchSync Mode Investigation and Re-Benchmark
+// =============================================================================
+
+// T058: PitchSync 4-voice re-benchmark after shared-analysis refactor (SC-008)
+// Uses the KrateDSP benchmark harness under identical conditions to spec 064:
+// 44.1 kHz, block size 256, 4 voices, Release build, 2s warmup, 10s steady-state.
+// Reports both real-time CPU % and average process() time in us/block.
+//
+// Expected result: PitchSync CPU should be approximately unchanged from the
+// spec 064 baseline (~26.4%) because the shared-analysis refactor does not
+// modify PitchSync code paths at all. PitchSync uses PitchSyncGranularShifter
+// which runs per-voice YIN autocorrelation -- completely independent of the
+// PhaseVocoder shared FFT optimization.
+TEST_CASE("T058: HarmonizerEngine PitchSync 4-voice re-benchmark (SC-008)",
+          "[systems][harmonizer][pitchsync][benchmark][SC-008]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr double blockDurationUs =
+        static_cast<double>(blockSize) / sampleRate * 1'000'000.0;
+
+    // Pre-generate input signal (440Hz sine)
+    std::vector<float> input(blockSize);
+    fillSine(input.data(), blockSize, 440.0f,
+             static_cast<float>(sampleRate));
+
+    std::vector<float> outputL(blockSize, 0.0f);
+    std::vector<float> outputR(blockSize, 0.0f);
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PitchSync);
+    engine.setDryLevel(0.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(4);
+
+    // Configure all 4 voices with different intervals for realistic load
+    engine.setVoiceInterval(0, 3);
+    engine.setVoiceInterval(1, 5);
+    engine.setVoiceInterval(2, 7);
+    engine.setVoiceInterval(3, 12);
+
+    for (int v = 0; v < 4; ++v) {
+        engine.setVoiceLevel(v, 0.0f);
+        engine.setVoicePan(v, -0.75f + 0.5f * static_cast<float>(v));
+        engine.setVoiceDetune(v, static_cast<float>(v) * 3.0f);
+    }
+
+    // Warmup per Benchmark Contract: 2 seconds = 2 * 44100 / 256 ~ 345 blocks
+    constexpr int warmupBlocks = 345;
+    for (int i = 0; i < warmupBlocks; ++i) {
+        engine.process(input.data(), outputL.data(), outputR.data(), blockSize);
+    }
+
+    // Catch2 BENCHMARK for statistical measurement
+    BENCHMARK("HarmonizerEngine PitchSync 4 voices (post-refactor)") {
+        engine.process(input.data(), outputL.data(), outputR.data(), blockSize);
+        return outputL[0];
+    };
+
+    // Manual timing: 10 seconds steady-state = ~1722 blocks
+    constexpr int measurementBlocks = 1722;
+    double cpuPercent = measureCpuPercentForEngine(
+        engine, input.data(), outputL.data(), outputR.data(),
+        blockSize, blockDurationUs, measurementBlocks);
+
+    double totalUs = 0.0;
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < measurementBlocks; ++i) {
+            engine.process(input.data(), outputL.data(), outputR.data(),
+                           blockSize);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        totalUs = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                end - start).count());
+    }
+    double usPerBlock = totalUs / static_cast<double>(measurementBlocks);
+
+    INFO("PitchSync 4 voices: CPU: " << cpuPercent
+         << "%, process(): " << usPerBlock << " us avg");
+    WARN("PitchSync 4 voices: CPU: " << cpuPercent
+         << "%, process(): " << usPerBlock << " us avg");
+
+    // SC-008: PitchSync re-benchmark is informational (not a pass/fail gate).
+    // The spec 064 baseline was ~26.4% CPU (25.93-27.86% range, 1460-1588 us/block).
+    // This refactor does not touch PitchSync code, so no improvement is expected.
+    // We only record the result; we do NOT assert a CPU target here.
+    WARN("PitchSync spec-064 baseline: ~26.4% CPU, 1460-1588 us/block");
+    WARN("PitchSync post-refactor measurement is informational only (SC-008).");
+}
