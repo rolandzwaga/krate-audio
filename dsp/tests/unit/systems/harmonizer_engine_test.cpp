@@ -3744,7 +3744,8 @@ TEST_CASE("T029: HarmonizerEngine sub-hop-size block handling (FR-013a)",
     // Verify that output is zero during the first kFFTSize (4096) input samples
     // (FR-013a: zero-fill when no synthesis frame is ready)
     bool allZeroDuringPriming = true;
-    for (std::size_t s = 0; s < 4096 && s < totalSamples; ++s) {
+    const std::size_t primingEnd = std::min(std::size_t{4096}, totalSamples);
+    for (std::size_t s = 0; s < primingEnd; ++s) {
         if (outputL[s] != 0.0f || outputR[s] != 0.0f) {
             allZeroDuringPriming = false;
             break;

@@ -300,14 +300,14 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 10.1 Run Clang-Tidy Analysis
 
-- [ ] T071 Generate compile_commands.json for clang-tidy by running `cmake --preset windows-ninja` from a VS Developer PowerShell (one-time setup if not already done)
-- [ ] T072 Run clang-tidy on all modified source files: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
+- [X] T071 Generate compile_commands.json for clang-tidy by running `cmake --preset windows-ninja` from a VS Developer PowerShell (one-time setup if not already done)
+- [X] T072 Run clang-tidy on all modified source files: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
 
 ### 10.2 Address Findings
 
-- [ ] T073 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T074 Review warnings and fix where appropriate; add `// NOLINT(rule-name): reason` comments for any warnings intentionally suppressed in DSP code (e.g., magic constants used for FFT sizes)
-- [ ] T075 Rebuild and re-run dsp_tests after clang-tidy fixes: `cmake --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe`
+- [X] T073 Fix all errors reported by clang-tidy (blocking issues)
+- [X] T074 Review warnings and fix where appropriate; add `// NOLINT(rule-name): reason` comments for any warnings intentionally suppressed in DSP code (e.g., magic constants used for FFT sizes)
+- [X] T075 Rebuild and re-run dsp_tests after clang-tidy fixes: `cmake --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe`
 
 **Checkpoint**: Static analysis clean -- ready for completion verification
 

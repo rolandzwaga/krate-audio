@@ -3062,7 +3062,7 @@ TEST_CASE("PhaseVocoder process() backward compat: formant preservation produces
     shifter.prepare(kTestSampleRate, kTestBlockSize);
     shifter.setFormantPreserve(true);
 
-    const float pitchRatio = std::pow(2.0f, 12.0f / 12.0f);  // +1 octave
+    const float pitchRatio = 2.0f;  // +1 octave (2^(12/12))
 
     constexpr size_t kTotalSamples = 22050;
     std::vector<float> input(kTotalSamples);
