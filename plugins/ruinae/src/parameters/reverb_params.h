@@ -14,7 +14,7 @@ struct RuinaeReverbParams {
     std::atomic<float> size{0.5f};        // 0-1
     std::atomic<float> damping{0.5f};     // 0-1
     std::atomic<float> width{1.0f};       // 0-1
-    std::atomic<float> mix{0.3f};         // 0-1
+    std::atomic<float> mix{0.5f};         // 0-1
     std::atomic<float> preDelayMs{0.0f};  // 0-100 ms
     std::atomic<float> diffusion{0.7f};   // 0-1
     std::atomic<bool> freeze{false};

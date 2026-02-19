@@ -22,7 +22,7 @@ struct RuinaeDelayParams {
     std::atomic<int> type{0};          // RuinaeDelayType (0-4)
     std::atomic<float> timeMs{500.0f}; // 1-5000 ms
     std::atomic<float> feedback{0.4f}; // 0-1.2
-    std::atomic<float> mix{0.0f};      // 0-1
+    std::atomic<float> mix{0.5f};      // 0-1
     std::atomic<bool> sync{true};      // default: synced
     std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};
 
