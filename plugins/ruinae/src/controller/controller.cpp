@@ -739,6 +739,24 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
+    // PW knob visual disable (068-osc-type-params FR-016)
+    // Dim PW knob when PolyBLEP waveform is not Pulse (index 3)
+    if (tag == kOscAWaveformId && oscAPWKnob_) {
+        int wf = static_cast<int>(value * 4.0 + 0.5);
+        oscAPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
+    }
+    if (tag == kOscBWaveformId && oscBPWKnob_) {
+        int wf = static_cast<int>(value * 4.0 + 0.5);
+        oscBPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
+    }
+    // Null PW knob pointers when osc type switches away from PolyBLEP (type 0)
+    if (tag == kOscATypeId && value > 0.01) {
+        oscAPWKnob_ = nullptr;
+    }
+    if (tag == kOscBTypeId && value > 0.01) {
+        oscBPWKnob_ = nullptr;
+    }
+
     // Push mixer parameter changes to XYMorphPad.
     // When processor modulation pointers are active, skip — the poll timer
     // handles position updates (including unmodulated base position when offset=0).
@@ -861,6 +879,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         fxExpandPhaserChevron_ = nullptr;
         fxExpandHarmonizerChevron_ = nullptr;
         harmonizerVoiceRows_.fill(nullptr);
+        oscAPWKnob_ = nullptr;
+        oscBPWKnob_ = nullptr;
         expandedFxPanel_ = -1;
 
         // Envelope expand/collapse cleanup
@@ -1049,6 +1069,30 @@ VSTGUI::CView* Controller::verifyView(
                 modMatrixGrid_->setActiveTab(tab);
             }
         });
+    }
+
+    // PW knob visual disable (068-osc-type-params FR-016)
+    // Capture PW knobs from PolyBLEP templates and apply initial alpha state
+    {
+        const auto* viewName = attributes.getAttributeValue("custom-view-name");
+        if (viewName) {
+            if (*viewName == "OscAPWKnob") {
+                oscAPWKnob_ = view;
+                // Apply initial alpha based on current waveform
+                auto* wfParam = getParameterObject(kOscAWaveformId);
+                if (wfParam) {
+                    int wf = static_cast<int>(wfParam->getNormalized() * 4.0 + 0.5);
+                    view->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
+                }
+            } else if (*viewName == "OscBPWKnob") {
+                oscBPWKnob_ = view;
+                auto* wfParam = getParameterObject(kOscBWaveformId);
+                if (wfParam) {
+                    int wf = static_cast<int>(wfParam->getNormalized() * 4.0 + 0.5);
+                    view->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
+                }
+            }
+        }
     }
 
     // Wire named containers by custom-view-name

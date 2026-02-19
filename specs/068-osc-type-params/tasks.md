@@ -360,21 +360,21 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 8.1 Static Analysis
 
-- [ ] T063 Run clang-tidy on all modified DSP files: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` (requires Ninja build configured; if not configured, run from VS Developer PowerShell per CLAUDE.md)
+- [X] T063 Run clang-tidy on all modified DSP files: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` (requires Ninja build configured; if not configured, run from VS Developer PowerShell per CLAUDE.md)
 
-- [ ] T064 Run clang-tidy on all modified Ruinae plugin files: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja`
+- [X] T064 Run clang-tidy on all modified Ruinae plugin files: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja`
 
-- [ ] T065 [P] Fix all clang-tidy errors (blocking); review warnings and fix where appropriate for non-DSP code; add `// NOLINT(reason)` for any intentionally suppressed DSP-specific warnings
+- [X] T065 [P] Fix all clang-tidy errors (blocking); review warnings and fix where appropriate for non-DSP code; add `// NOLINT(reason)` for any intentionally suppressed DSP-specific warnings
 
 ### 8.2 Full Test Suite
 
-- [ ] T066 Run full test suite: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests ruinae_tests && build/windows-x64-release/bin/Release/dsp_tests.exe && build/windows-x64-release/bin/Release/ruinae_tests.exe` -- verify zero failures
+- [X] T066 Run full test suite: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests ruinae_tests && build/windows-x64-release/bin/Release/dsp_tests.exe && build/windows-x64-release/bin/Release/ruinae_tests.exe` -- verify zero failures
 
 ### 8.3 Architecture Documentation
 
-- [ ] T067 Update `specs/_architecture_/layer-3-systems.md` to document the new `OscParam` enum and `setParam()` virtual method pattern: purpose (type-specific parameter dispatch without ABI-breaking virtual method proliferation), public API summary, extensibility guidance (gaps of 10 in enum for future additions), and when to use vs when not to use. If `specs/_architecture_/layer-3-systems.md` does not yet exist, create it following the section file format used by other architecture docs in `specs/_architecture_/` and add an entry to `specs/_architecture_/README.md` per Constitution XIV
+- [X] T067 Update `specs/_architecture_/layer-3-systems.md` to document the new `OscParam` enum and `setParam()` virtual method pattern: purpose (type-specific parameter dispatch without ABI-breaking virtual method proliferation), public API summary, extensibility guidance (gaps of 10 in enum for future additions), and when to use vs when not to use. If `specs/_architecture_/layer-3-systems.md` does not yet exist, create it following the section file format used by other architecture docs in `specs/_architecture_/` and add an entry to `specs/_architecture_/README.md` per Constitution XIV
 
-- [ ] T068 Commit architecture documentation updates
+- [X] T068 Commit architecture documentation updates
 
 ---
 
@@ -384,9 +384,9 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.1 Requirements Verification
 
-- [ ] T069 **Review ALL FR-xxx requirements** from `specs/068-osc-type-params/spec.md` against actual implementation code: open each relevant file, read the implementation, confirm the requirement is met, note the file and line number as evidence
+- [X] T069 **Review ALL FR-xxx requirements** from `specs/068-osc-type-params/spec.md` against actual implementation code: open each relevant file, read the implementation, confirm the requirement is met, note the file and line number as evidence
 
-- [ ] T070 **Review ALL SC-xxx success criteria** from `specs/068-osc-type-params/spec.md` against actual test output: run the specific tests or measurements, copy actual output, compare against spec thresholds:
+- [X] T070 **Review ALL SC-xxx success criteria** from `specs/068-osc-type-params/spec.md` against actual test output: run the specific tests or measurements, copy actual output, compare against spec thresholds:
   - SC-001: 60 total parameters (30 per oscillator) produce audible changes (verify via manual test or automated check)
   - SC-002: Type switching with sustained note produces no glitches or crashes (verify via pluginval)
   - SC-003: Round-trip save/load test output (exact values within floating-point epsilon)
@@ -396,17 +396,17 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
   - SC-007: All 20 UI template switches correctly show/hide controls
   - SC-008: pluginval strictness 5 passes
 
-- [ ] T071 Search for cheating patterns in all new/modified code: no `// placeholder`, `// TODO`, `// FIXME` comments; no test thresholds relaxed from spec; no features quietly removed from scope
+- [X] T071 Search for cheating patterns in all new/modified code: no `// placeholder`, `// TODO`, `// FIXME` comments; no test thresholds relaxed from spec; no features quietly removed from scope
 
 ### 9.2 Fill Compliance Table
 
-- [ ] T072 Update the "Implementation Verification" section in `specs/068-osc-type-params/spec.md` with MET/NOT MET/PARTIAL/DEFERRED status for each FR-001 through FR-016 and SC-001 through SC-008, citing specific file paths, line numbers, test names, and measured values for each row
+- [X] T072 Update the "Implementation Verification" section in `specs/068-osc-type-params/spec.md` with MET/NOT MET/PARTIAL/DEFERRED status for each FR-001 through FR-016 and SC-001 through SC-008, citing specific file paths, line numbers, test names, and measured values for each row
 
 ### 9.3 Final Commit
 
-- [ ] T073 Commit compliance table update and any final fixes
+- [X] T073 Commit compliance table update and any final fixes
 
-- [ ] T074 Verify feature branch `068-osc-type-params` contains all committed work and all tests pass
+- [X] T074 Verify feature branch `068-osc-type-params` contains all committed work and all tests pass
 
 **Checkpoint**: Honest assessment complete. Implementation Verification table in spec.md is filled with concrete evidence for every requirement.
 

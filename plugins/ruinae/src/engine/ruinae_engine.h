@@ -834,6 +834,16 @@ public:
         for (auto& voice : voices_) { voice.setOscBType(type); }
     }
 
+    /// @brief Set a type-specific parameter on OSC A for all voices (068-osc-type-params FR-010).
+    void setOscAParam(OscParam param, float value) noexcept {
+        for (auto& voice : voices_) { voice.setOscAParam(param, value); }
+    }
+
+    /// @brief Set a type-specific parameter on OSC B for all voices (068-osc-type-params FR-010).
+    void setOscBParam(OscParam param, float value) noexcept {
+        for (auto& voice : voices_) { voice.setOscBParam(param, value); }
+    }
+
     void setOscATuneSemitones(float semitones) noexcept {
         if (detail::isNaN(semitones) || detail::isInf(semitones)) return;
         for (auto& voice : voices_) { voice.setOscATuneSemitones(semitones); }

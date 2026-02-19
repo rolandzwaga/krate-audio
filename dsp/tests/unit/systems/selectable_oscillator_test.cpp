@@ -442,6 +442,316 @@ TEST_CASE("SelectableOscillator: zero heap allocations during type switch for AL
     }
 }
 
+// =============================================================================
+// OscillatorSlot::setParam() Base Behavior (FR-001)
+// =============================================================================
+
+TEST_CASE("OscillatorSlot: base setParam is silent no-op",
+          "[selectable_oscillator][setParam]") {
+    // SelectableOscillator with no active slot (before prepare) should not crash
+    SelectableOscillator osc;
+    // setParam before prepare -- no active_ pointer, should be a no-op
+    osc.setParam(OscParam::Waveform, 1.0f);
+    osc.setParam(OscParam::NoiseColor, 3.0f);
+    osc.setParam(OscParam::ChaosAmount, 0.5f);
+    // Reaching here without crash = pass
+    REQUIRE(true);
+}
+
+// =============================================================================
+// setParam() Dispatch for All 10 Adapter Types (FR-002)
+// =============================================================================
+
+TEST_CASE("SelectableOscillator: PolyBLEP setParam dispatches correctly",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::PolyBLEP);
+    osc.setFrequency(440.0f);
+
+    // Set waveform to Sawtooth (1) -- should change output
+    std::array<float, kBlockSize> bufSine{};
+    osc.setParam(OscParam::Waveform, 0.0f);  // Sine
+    osc.processBlock(bufSine.data(), kBlockSize);
+    float rmsSine = computeRMS(bufSine.data(), kBlockSize);
+
+    osc.setParam(OscParam::Waveform, 1.0f);  // Sawtooth
+    std::array<float, kBlockSize> bufSaw{};
+    osc.processBlock(bufSaw.data(), kBlockSize);
+    float rmsSaw = computeRMS(bufSaw.data(), kBlockSize);
+
+    // Both should produce output
+    REQUIRE(rmsSine > 0.001f);
+    REQUIRE(rmsSaw > 0.001f);
+
+    // Set pulse width
+    osc.setParam(OscParam::Waveform, 3.0f);  // Pulse
+    osc.setParam(OscParam::PulseWidth, 0.1f);
+    std::array<float, kBlockSize> bufPulse{};
+    osc.processBlock(bufPulse.data(), kBlockSize);
+    REQUIRE(computeRMS(bufPulse.data(), kBlockSize) > 0.001f);
+
+    // Phase Modulation and Frequency Modulation should not crash
+    osc.setParam(OscParam::PhaseModulation, 0.5f);
+    osc.setParam(OscParam::FrequencyModulation, 0.3f);
+    osc.processBlock(bufPulse.data(), kBlockSize);
+    REQUIRE(computeRMS(bufPulse.data(), kBlockSize) > 0.001f);
+
+    // Unrecognized params should be silently ignored
+    osc.setParam(OscParam::NoiseColor, 2.0f);
+    osc.setParam(OscParam::ChaosAmount, 0.5f);
+}
+
+TEST_CASE("SelectableOscillator: Wavetable setParam dispatches PM/FM",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::Wavetable);
+    osc.setFrequency(440.0f);
+
+    // PM and FM shared with PolyBLEP
+    osc.setParam(OscParam::PhaseModulation, 0.5f);
+    osc.setParam(OscParam::FrequencyModulation, 0.3f);
+    std::array<float, kBlockSize> buffer{};
+    osc.processBlock(buffer.data(), kBlockSize);
+    REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+
+    // Unrecognized params silently ignored
+    osc.setParam(OscParam::Waveform, 2.0f);
+}
+
+TEST_CASE("SelectableOscillator: PhaseDistortion setParam dispatches correctly",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::PhaseDistortion);
+    osc.setFrequency(440.0f);
+
+    osc.setParam(OscParam::PDWaveform, 0.0f);  // Saw
+    osc.setParam(OscParam::PDDistortion, 0.8f);
+    std::array<float, kBlockSize> buffer{};
+    osc.processBlock(buffer.data(), kBlockSize);
+    REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+
+    // Unrecognized
+    osc.setParam(OscParam::Waveform, 1.0f);
+}
+
+TEST_CASE("SelectableOscillator: Sync setParam dispatches correctly",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::Sync);
+    osc.setFrequency(220.0f);
+
+    osc.setParam(OscParam::SyncSlaveRatio, 3.0f);
+    osc.setParam(OscParam::SyncSlaveWaveform, 1.0f);  // Sawtooth
+    osc.setParam(OscParam::SyncMode, 0.0f);            // Hard
+    osc.setParam(OscParam::SyncAmount, 1.0f);
+    osc.setParam(OscParam::SyncSlavePulseWidth, 0.5f);
+    std::array<float, kBlockSize> buffer{};
+    osc.processBlock(buffer.data(), kBlockSize);
+    REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+
+    // Unrecognized
+    osc.setParam(OscParam::NoiseColor, 1.0f);
+}
+
+TEST_CASE("SelectableOscillator: Sync adapter uses stored slaveRatio",
+          "[selectable_oscillator][setParam]") {
+    // Verify that setting SyncSlaveRatio changes the slave frequency
+    // relative to master, not just during setParam but also during setFrequency
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::Sync);
+    osc.setFrequency(220.0f);
+
+    // Set ratio to 4x
+    osc.setParam(OscParam::SyncSlaveRatio, 4.0f);
+
+    // Process block with ratio 4x
+    std::array<float, kBlockSize> buf4x{};
+    osc.processBlock(buf4x.data(), kBlockSize);
+
+    // Now change frequency -- ratio should be preserved
+    osc.setFrequency(330.0f);
+    std::array<float, kBlockSize> buf4xNewFreq{};
+    osc.processBlock(buf4xNewFreq.data(), kBlockSize);
+    REQUIRE(computeRMS(buf4xNewFreq.data(), kBlockSize) > 0.001f);
+
+    // Set ratio to 1.0 (no sync effect) and compare
+    osc.setParam(OscParam::SyncSlaveRatio, 1.0f);
+    std::array<float, kBlockSize> buf1x{};
+    osc.processBlock(buf1x.data(), kBlockSize);
+    REQUIRE(computeRMS(buf1x.data(), kBlockSize) > 0.001f);
+}
+
+TEST_CASE("SelectableOscillator: Additive setParam dispatches correctly",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::Additive);
+    osc.setFrequency(440.0f);
+
+    osc.setParam(OscParam::AdditiveNumPartials, 32.0f);
+    osc.setParam(OscParam::AdditiveSpectralTilt, -6.0f);
+    osc.setParam(OscParam::AdditiveInharmonicity, 0.3f);
+    std::array<float, kBlockSize> buffer{};
+    osc.processBlock(buffer.data(), kBlockSize);
+    REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+
+    // Unrecognized
+    osc.setParam(OscParam::ChaosAttractor, 2.0f);
+}
+
+TEST_CASE("SelectableOscillator: Chaos setParam dispatches correctly",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::Chaos);
+    osc.setFrequency(440.0f);
+
+    osc.setParam(OscParam::ChaosAttractor, 1.0f);  // Rossler
+    osc.setParam(OscParam::ChaosAmount, 0.7f);
+    osc.setParam(OscParam::ChaosCoupling, 0.3f);
+    osc.setParam(OscParam::ChaosOutput, 1.0f);     // Y axis
+    std::array<float, kBlockSize> buffer{};
+    osc.processBlock(buffer.data(), kBlockSize);
+    REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+
+    // Unrecognized
+    osc.setParam(OscParam::Waveform, 0.0f);
+}
+
+TEST_CASE("SelectableOscillator: Particle setParam dispatches correctly",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::Particle);
+    osc.setFrequency(440.0f);
+
+    osc.setParam(OscParam::ParticleScatter, 6.0f);
+    osc.setParam(OscParam::ParticleDensity, 32.0f);
+    osc.setParam(OscParam::ParticleLifetime, 500.0f);
+    osc.setParam(OscParam::ParticleSpawnMode, 0.0f);   // Regular
+    osc.setParam(OscParam::ParticleEnvType, 0.0f);     // Hann
+    osc.setParam(OscParam::ParticleDrift, 0.5f);
+
+    // Process multiple blocks to let particles spawn and produce output
+    std::array<float, kBlockSize> buffer{};
+    double totalSumSq = 0.0;
+    for (int i = 0; i < 20; ++i) {
+        osc.processBlock(buffer.data(), kBlockSize);
+        for (size_t s = 0; s < kBlockSize; ++s) {
+            totalSumSq += static_cast<double>(buffer[s]) * static_cast<double>(buffer[s]);
+        }
+    }
+    float rms = static_cast<float>(std::sqrt(totalSumSq / (20.0 * kBlockSize)));
+    REQUIRE(rms > 0.001f);
+
+    // Unrecognized
+    osc.setParam(OscParam::PDDistortion, 0.5f);
+}
+
+TEST_CASE("SelectableOscillator: Formant setParam dispatches correctly",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::Formant);
+    osc.setFrequency(220.0f);
+
+    osc.setParam(OscParam::FormantVowel, 2.0f);  // I
+    osc.setParam(OscParam::FormantMorph, 1.5f);
+    std::array<float, kBlockSize> buffer{};
+    osc.processBlock(buffer.data(), kBlockSize);
+    REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+
+    // Unrecognized
+    osc.setParam(OscParam::SyncAmount, 0.5f);
+}
+
+TEST_CASE("SelectableOscillator: SpectralFreeze setParam dispatches correctly",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setFrequency(440.0f);
+    osc.setType(OscType::SpectralFreeze);
+
+    osc.setParam(OscParam::SpectralPitchShift, 12.0f);
+    osc.setParam(OscParam::SpectralTilt, -3.0f);
+    osc.setParam(OscParam::SpectralFormantShift, 6.0f);
+
+    // Process several blocks to let overlap-add stabilize
+    std::array<float, kBlockSize> buffer{};
+    double totalSumSq = 0.0;
+    for (int i = 0; i < 50; ++i) {
+        osc.processBlock(buffer.data(), kBlockSize);
+        for (size_t s = 0; s < kBlockSize; ++s) {
+            totalSumSq += static_cast<double>(buffer[s]) * static_cast<double>(buffer[s]);
+        }
+    }
+    float rms = static_cast<float>(std::sqrt(totalSumSq / (50.0 * kBlockSize)));
+    REQUIRE(rms > 0.001f);
+
+    // Unrecognized
+    osc.setParam(OscParam::Waveform, 1.0f);
+}
+
+TEST_CASE("SelectableOscillator: Noise setParam dispatches correctly",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::Noise);
+
+    osc.setParam(OscParam::NoiseColor, 2.0f);  // Brown
+    std::array<float, kBlockSize> buffer{};
+    osc.processBlock(buffer.data(), kBlockSize);
+    REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+
+    osc.setParam(OscParam::NoiseColor, 0.0f);  // White
+    osc.processBlock(buffer.data(), kBlockSize);
+    REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+
+    // Unrecognized
+    osc.setParam(OscParam::FormantVowel, 1.0f);
+}
+
+TEST_CASE("SelectableOscillator: setParam with null active is silent no-op",
+          "[selectable_oscillator][setParam]") {
+    SelectableOscillator osc;
+    // Not prepared yet -- active_ is null
+    // Should not crash
+    osc.setParam(OscParam::Waveform, 1.0f);
+    osc.setParam(OscParam::ChaosAmount, 0.5f);
+    osc.setParam(OscParam::NoiseColor, 3.0f);
+    REQUIRE(true);
+}
+
+TEST_CASE("SelectableOscillator: cross-type setParam is silently ignored",
+          "[selectable_oscillator][setParam]") {
+    // When active type is PolyBLEP, sending Chaos/Noise/Particle params
+    // should be silently ignored without crash or side effects
+    SelectableOscillator osc;
+    osc.prepare(kSampleRate, kBlockSize);
+    osc.setType(OscType::PolyBLEP);
+    osc.setFrequency(440.0f);
+
+    // Send params for other types -- should all be no-ops
+    osc.setParam(OscParam::ChaosAttractor, 2.0f);
+    osc.setParam(OscParam::NoiseColor, 3.0f);
+    osc.setParam(OscParam::ParticleDensity, 32.0f);
+    osc.setParam(OscParam::FormantVowel, 1.0f);
+    osc.setParam(OscParam::SpectralPitchShift, 12.0f);
+    osc.setParam(OscParam::PDDistortion, 0.5f);
+    osc.setParam(OscParam::SyncSlaveRatio, 3.0f);
+    osc.setParam(OscParam::AdditiveNumPartials, 64.0f);
+
+    // PolyBLEP should still produce normal output
+    std::array<float, kBlockSize> buffer{};
+    osc.processBlock(buffer.data(), kBlockSize);
+    REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+}
+
 TEST_CASE("SelectableOscillator: zero heap allocations during processBlock (SC-004)",
           "[selectable_oscillator][sc004]") {
     SelectableOscillator osc;

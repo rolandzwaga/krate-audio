@@ -791,6 +791,88 @@ void Processor::applyParamsToEngine() {
     engine_.setOscBPhaseMode(oscBParams_.phase.load(std::memory_order_relaxed) >= 0.5f
         ? PhaseMode::Continuous : PhaseMode::Reset);
 
+    // --- OSC A Type-Specific Parameters (068-osc-type-params) ---
+    {
+        using Krate::DSP::OscParam;
+        // Read denormalized DSP-domain values from atomics and forward to engine.
+        // Integer atomics are cast to float -- the adapter casts back internally.
+        const float oscAValues[] = {
+            static_cast<float>(oscAParams_.waveform.load(std::memory_order_relaxed)),         // 0: Waveform
+            oscAParams_.pulseWidth.load(std::memory_order_relaxed),                           // 1: PulseWidth
+            oscAParams_.phaseMod.load(std::memory_order_relaxed),                             // 2: PhaseModulation
+            oscAParams_.freqMod.load(std::memory_order_relaxed),                              // 3: FrequencyModulation
+            static_cast<float>(oscAParams_.pdWaveform.load(std::memory_order_relaxed)),       // 4: PDWaveform
+            oscAParams_.pdDistortion.load(std::memory_order_relaxed),                         // 5: PDDistortion
+            oscAParams_.syncRatio.load(std::memory_order_relaxed),                            // 6: SyncSlaveRatio
+            static_cast<float>(oscAParams_.syncWaveform.load(std::memory_order_relaxed)),     // 7: SyncSlaveWaveform
+            static_cast<float>(oscAParams_.syncMode.load(std::memory_order_relaxed)),         // 8: SyncMode
+            oscAParams_.syncAmount.load(std::memory_order_relaxed),                           // 9: SyncAmount
+            oscAParams_.syncPulseWidth.load(std::memory_order_relaxed),                       // 10: SyncSlavePulseWidth
+            static_cast<float>(oscAParams_.additivePartials.load(std::memory_order_relaxed)), // 11: AdditiveNumPartials
+            oscAParams_.additiveTilt.load(std::memory_order_relaxed),                         // 12: AdditiveSpectralTilt
+            oscAParams_.additiveInharm.load(std::memory_order_relaxed),                       // 13: AdditiveInharmonicity
+            static_cast<float>(oscAParams_.chaosAttractor.load(std::memory_order_relaxed)),   // 14: ChaosAttractor
+            oscAParams_.chaosAmount.load(std::memory_order_relaxed),                          // 15: ChaosAmount
+            oscAParams_.chaosCoupling.load(std::memory_order_relaxed),                        // 16: ChaosCoupling
+            static_cast<float>(oscAParams_.chaosOutput.load(std::memory_order_relaxed)),      // 17: ChaosOutput
+            oscAParams_.particleScatter.load(std::memory_order_relaxed),                      // 18: ParticleScatter
+            oscAParams_.particleDensity.load(std::memory_order_relaxed),                      // 19: ParticleDensity
+            oscAParams_.particleLifetime.load(std::memory_order_relaxed),                     // 20: ParticleLifetime
+            static_cast<float>(oscAParams_.particleSpawnMode.load(std::memory_order_relaxed)),// 21: ParticleSpawnMode
+            static_cast<float>(oscAParams_.particleEnvType.load(std::memory_order_relaxed)),  // 22: ParticleEnvType
+            oscAParams_.particleDrift.load(std::memory_order_relaxed),                        // 23: ParticleDrift
+            static_cast<float>(oscAParams_.formantVowel.load(std::memory_order_relaxed)),     // 24: FormantVowel
+            oscAParams_.formantMorph.load(std::memory_order_relaxed),                         // 25: FormantMorph
+            oscAParams_.spectralPitch.load(std::memory_order_relaxed),                        // 26: SpectralPitchShift
+            oscAParams_.spectralTilt.load(std::memory_order_relaxed),                         // 27: SpectralTilt
+            oscAParams_.spectralFormant.load(std::memory_order_relaxed),                      // 28: SpectralFormantShift
+            static_cast<float>(oscAParams_.noiseColor.load(std::memory_order_relaxed)),       // 29: NoiseColor
+        };
+        for (size_t i = 0; i < Ruinae::kOscTypeSpecificParamCount; ++i) {
+            engine_.setOscAParam(Ruinae::kParamIdToOscParam[i], oscAValues[i]);
+        }
+    }
+
+    // --- OSC B Type-Specific Parameters (068-osc-type-params) ---
+    {
+        using Krate::DSP::OscParam;
+        const float oscBValues[] = {
+            static_cast<float>(oscBParams_.waveform.load(std::memory_order_relaxed)),
+            oscBParams_.pulseWidth.load(std::memory_order_relaxed),
+            oscBParams_.phaseMod.load(std::memory_order_relaxed),
+            oscBParams_.freqMod.load(std::memory_order_relaxed),
+            static_cast<float>(oscBParams_.pdWaveform.load(std::memory_order_relaxed)),
+            oscBParams_.pdDistortion.load(std::memory_order_relaxed),
+            oscBParams_.syncRatio.load(std::memory_order_relaxed),
+            static_cast<float>(oscBParams_.syncWaveform.load(std::memory_order_relaxed)),
+            static_cast<float>(oscBParams_.syncMode.load(std::memory_order_relaxed)),
+            oscBParams_.syncAmount.load(std::memory_order_relaxed),
+            oscBParams_.syncPulseWidth.load(std::memory_order_relaxed),
+            static_cast<float>(oscBParams_.additivePartials.load(std::memory_order_relaxed)),
+            oscBParams_.additiveTilt.load(std::memory_order_relaxed),
+            oscBParams_.additiveInharm.load(std::memory_order_relaxed),
+            static_cast<float>(oscBParams_.chaosAttractor.load(std::memory_order_relaxed)),
+            oscBParams_.chaosAmount.load(std::memory_order_relaxed),
+            oscBParams_.chaosCoupling.load(std::memory_order_relaxed),
+            static_cast<float>(oscBParams_.chaosOutput.load(std::memory_order_relaxed)),
+            oscBParams_.particleScatter.load(std::memory_order_relaxed),
+            oscBParams_.particleDensity.load(std::memory_order_relaxed),
+            oscBParams_.particleLifetime.load(std::memory_order_relaxed),
+            static_cast<float>(oscBParams_.particleSpawnMode.load(std::memory_order_relaxed)),
+            static_cast<float>(oscBParams_.particleEnvType.load(std::memory_order_relaxed)),
+            oscBParams_.particleDrift.load(std::memory_order_relaxed),
+            static_cast<float>(oscBParams_.formantVowel.load(std::memory_order_relaxed)),
+            oscBParams_.formantMorph.load(std::memory_order_relaxed),
+            oscBParams_.spectralPitch.load(std::memory_order_relaxed),
+            oscBParams_.spectralTilt.load(std::memory_order_relaxed),
+            oscBParams_.spectralFormant.load(std::memory_order_relaxed),
+            static_cast<float>(oscBParams_.noiseColor.load(std::memory_order_relaxed)),
+        };
+        for (size_t i = 0; i < Ruinae::kOscTypeSpecificParamCount; ++i) {
+            engine_.setOscBParam(Ruinae::kParamIdToOscParam[i], oscBValues[i]);
+        }
+    }
+
     // --- Mixer ---
     engine_.setMixMode(static_cast<MixMode>(
         mixerParams_.mode.load(std::memory_order_relaxed)));

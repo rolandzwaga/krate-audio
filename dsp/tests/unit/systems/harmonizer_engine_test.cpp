@@ -4765,7 +4765,7 @@ TEST_CASE("Harmonizer artifact: pitch shift mode change is click-free",
     // completely different signal.
     constexpr std::size_t checkWindow = 4 * blockSize; // first 4 blocks
     float maxDelta = 0.0f;
-    for (std::size_t i = 1; i < checkWindow && i < postSwitchSamples; ++i) {
+    for (std::size_t i = 1; i < checkWindow; ++i) {
         float delta = std::abs(postL[i] - postL[i - 1]);
         if (delta > maxDelta) maxDelta = delta;
     }

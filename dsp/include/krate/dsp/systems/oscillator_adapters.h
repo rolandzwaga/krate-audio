@@ -143,6 +143,8 @@ public:
     }
 
     void setFrequency(float hz) noexcept override {
+        currentFrequency_ = hz;
+
         // Group A: Standard setFrequency
         if constexpr (std::is_same_v<OscT, PolyBlepOscillator> ||
                       std::is_same_v<OscT, WavetableOscillator> ||
@@ -156,15 +158,176 @@ public:
                            std::is_same_v<OscT, FormantOscillator>) {
             osc_.setFundamental(hz);
         }
-        // Group C: Dual frequency (sync)
+        // Group C: Dual frequency (sync) -- use stored ratio instead of hardcoded 2x
         else if constexpr (std::is_same_v<OscT, SyncOscillator>) {
             osc_.setMasterFrequency(hz);
-            osc_.setSlaveFrequency(hz * 2.0f);
+            osc_.setSlaveFrequency(hz * slaveRatio_);
         }
         // Group D: No frequency control (SpectralFreeze, Noise)
         else {
             (void)hz;
         }
+    }
+
+    void setParam(OscParam param, float value) noexcept override {
+        // PolyBLEP
+        if constexpr (std::is_same_v<OscT, PolyBlepOscillator>) {
+            switch (param) {
+                case OscParam::Waveform:
+                    osc_.setWaveform(static_cast<OscWaveform>(static_cast<int>(value)));
+                    break;
+                case OscParam::PulseWidth:
+                    osc_.setPulseWidth(value);
+                    break;
+                case OscParam::PhaseModulation:
+                    osc_.setPhaseModulation(value);
+                    break;
+                case OscParam::FrequencyModulation:
+                    osc_.setFrequencyModulation(value);
+                    break;
+                default: break;
+            }
+        }
+        // Wavetable (shared PM/FM with PolyBLEP)
+        else if constexpr (std::is_same_v<OscT, WavetableOscillator>) {
+            switch (param) {
+                case OscParam::PhaseModulation:
+                    osc_.setPhaseModulation(value);
+                    break;
+                case OscParam::FrequencyModulation:
+                    osc_.setFrequencyModulation(value);
+                    break;
+                default: break;
+            }
+        }
+        // Phase Distortion
+        else if constexpr (std::is_same_v<OscT, PhaseDistortionOscillator>) {
+            switch (param) {
+                case OscParam::PDWaveform:
+                    osc_.setWaveform(static_cast<PDWaveform>(static_cast<int>(value)));
+                    break;
+                case OscParam::PDDistortion:
+                    osc_.setDistortion(value);
+                    break;
+                default: break;
+            }
+        }
+        // Sync
+        else if constexpr (std::is_same_v<OscT, SyncOscillator>) {
+            switch (param) {
+                case OscParam::SyncSlaveRatio:
+                    slaveRatio_ = value;
+                    osc_.setSlaveFrequency(currentFrequency_ * value);
+                    break;
+                case OscParam::SyncSlaveWaveform:
+                    osc_.setSlaveWaveform(static_cast<OscWaveform>(static_cast<int>(value)));
+                    break;
+                case OscParam::SyncMode:
+                    osc_.setSyncMode(static_cast<SyncMode>(static_cast<int>(value)));
+                    break;
+                case OscParam::SyncAmount:
+                    osc_.setSyncAmount(value);
+                    break;
+                case OscParam::SyncSlavePulseWidth:
+                    osc_.setSlavePulseWidth(value);
+                    break;
+                default: break;
+            }
+        }
+        // Additive
+        else if constexpr (std::is_same_v<OscT, AdditiveOscillator>) {
+            switch (param) {
+                case OscParam::AdditiveNumPartials:
+                    osc_.setNumPartials(static_cast<size_t>(value));
+                    break;
+                case OscParam::AdditiveSpectralTilt:
+                    osc_.setSpectralTilt(value);
+                    break;
+                case OscParam::AdditiveInharmonicity:
+                    osc_.setInharmonicity(value);
+                    break;
+                default: break;
+            }
+        }
+        // Chaos
+        else if constexpr (std::is_same_v<OscT, ChaosOscillator>) {
+            switch (param) {
+                case OscParam::ChaosAttractor:
+                    osc_.setAttractor(static_cast<ChaosAttractor>(static_cast<int>(value)));
+                    break;
+                case OscParam::ChaosAmount:
+                    osc_.setChaos(value);
+                    break;
+                case OscParam::ChaosCoupling:
+                    osc_.setCoupling(value);
+                    break;
+                case OscParam::ChaosOutput:
+                    osc_.setOutput(static_cast<size_t>(value));
+                    break;
+                default: break;
+            }
+        }
+        // Particle
+        else if constexpr (std::is_same_v<OscT, ParticleOscillator>) {
+            switch (param) {
+                case OscParam::ParticleScatter:
+                    osc_.setFrequencyScatter(value);
+                    break;
+                case OscParam::ParticleDensity:
+                    osc_.setDensity(value);
+                    break;
+                case OscParam::ParticleLifetime:
+                    osc_.setLifetime(value);
+                    break;
+                case OscParam::ParticleSpawnMode:
+                    osc_.setSpawnMode(static_cast<SpawnMode>(static_cast<int>(value)));
+                    break;
+                case OscParam::ParticleEnvType:
+                    osc_.setEnvelopeType(static_cast<GrainEnvelopeType>(static_cast<int>(value)));
+                    break;
+                case OscParam::ParticleDrift:
+                    osc_.setDriftAmount(value);
+                    break;
+                default: break;
+            }
+        }
+        // Formant
+        else if constexpr (std::is_same_v<OscT, FormantOscillator>) {
+            switch (param) {
+                case OscParam::FormantVowel:
+                    osc_.setVowel(static_cast<Vowel>(static_cast<int>(value)));
+                    break;
+                case OscParam::FormantMorph:
+                    osc_.setMorphPosition(value);
+                    break;
+                default: break;
+            }
+        }
+        // Spectral Freeze
+        else if constexpr (std::is_same_v<OscT, SpectralFreezeOscillator>) {
+            switch (param) {
+                case OscParam::SpectralPitchShift:
+                    osc_.setPitchShift(value);
+                    break;
+                case OscParam::SpectralTilt:
+                    osc_.setSpectralTilt(value);
+                    break;
+                case OscParam::SpectralFormantShift:
+                    osc_.setFormantShift(value);
+                    break;
+                default: break;
+            }
+        }
+        // Noise
+        else if constexpr (std::is_same_v<OscT, NoiseOscillator>) {
+            switch (param) {
+                case OscParam::NoiseColor:
+                    osc_.setColor(static_cast<NoiseColor>(static_cast<int>(value)));
+                    break;
+                default: break;
+            }
+        }
+        // Other types: silent no-op (base class default)
     }
 
     void processBlock(float* output, size_t numSamples) noexcept override {
@@ -234,6 +397,11 @@ private:
 
     OscT osc_;
     double sampleRate_{44100.0};
+    float currentFrequency_{440.0f};
+
+    // SyncOscillator slave-to-master frequency ratio (default 2x).
+    // Used by setFrequency() and setParam(SyncSlaveRatio).
+    float slaveRatio_{2.0f};
 
     // Resource pointer for WavetableOscillator (non-owning, set at construction).
     // Unused by other oscillator types but only wastes 8 bytes per adapter.
