@@ -358,7 +358,7 @@ inline void registerDelayParams(Steinberg::Vst::ParameterContainer& parameters) 
         ParameterInfo::kCanAutomate, kDelayTimeId);
     parameters.addParameter(STR16("Delay Feedback"), STR16("%"), 0, 0.333,
         ParameterInfo::kCanAutomate, kDelayFeedbackId);
-    parameters.addParameter(STR16("Delay Mix"), STR16("%"), 0, 0.0,
+    parameters.addParameter(STR16("Delay Mix"), STR16("%"), 0, 0.5,
         ParameterInfo::kCanAutomate, kDelayMixId);
     parameters.addParameter(STR16("Delay Sync"), STR16(""), 1, 1.0,
         ParameterInfo::kCanAutomate, kDelaySyncId);

@@ -74,7 +74,7 @@ inline void registerReverbParams(Steinberg::Vst::ParameterContainer& parameters)
         ParameterInfo::kCanAutomate, kReverbDampingId);
     parameters.addParameter(STR16("Reverb Width"), STR16(""), 0, 1.0,
         ParameterInfo::kCanAutomate, kReverbWidthId);
-    parameters.addParameter(STR16("Reverb Mix"), STR16("%"), 0, 0.3,
+    parameters.addParameter(STR16("Reverb Mix"), STR16("%"), 0, 0.5,
         ParameterInfo::kCanAutomate, kReverbMixId);
     parameters.addParameter(STR16("Reverb Pre-Delay"), STR16("ms"), 0, 0.0,
         ParameterInfo::kCanAutomate, kReverbPreDelayId);
