@@ -47,9 +47,46 @@
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
+#include "vstgui/lib/cviewcontainer.h"
+#include "vstgui/lib/events.h"
 
 #include <cmath>
 #include <cstring>
+
+namespace {
+
+// Custom editor that intercepts right-clicks over StepPatternEditor.
+// VST3Editor::onMouseEvent consumes ALL right-clicks for context menus
+// before views see them, so we must handle it at this level.
+class RuinaeEditor : public VSTGUI::VST3Editor {
+public:
+    RuinaeEditor(Steinberg::Vst::EditController* controller,
+                 VSTGUI::UTF8StringPtr templateName,
+                 VSTGUI::UTF8StringPtr xmlFile)
+        : VST3Editor(controller, templateName, xmlFile) {}
+
+    void onMouseEvent(VSTGUI::MouseEvent& event, VSTGUI::CFrame* frame) override {
+        if (event.type == VSTGUI::EventType::MouseDown && event.buttonState.isRight()) {
+            auto nonScaledPos = event.mousePosition;
+            frame->getTransform().transform(nonScaledPos);
+            VSTGUI::CViewContainer::ViewList views;
+            if (frame->getViewsAt(nonScaledPos, views,
+                    VSTGUI::GetViewOptions().deep())) {
+                for (const auto& view : views) {
+                    if (auto* spe = dynamic_cast<Krate::Plugins::StepPatternEditor*>(view.get())) {
+                        auto localPos = spe->translateToLocal(nonScaledPos);
+                        spe->handleRightClick(localPos);
+                        event.consumed = true;
+                        return;
+                    }
+                }
+            }
+        }
+        VST3Editor::onMouseEvent(event, frame);
+    }
+};
+
+} // anonymous namespace
 
 namespace Ruinae {
 
@@ -387,7 +424,7 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* /*state*
 
 Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString name) {
     if (Steinberg::FIDStringsEqual(name, Steinberg::Vst::ViewType::kEditor)) {
-        auto* editor = new VSTGUI::VST3Editor(this, "editor", "editor.uidesc");
+        auto* editor = new RuinaeEditor(this, "editor", "editor.uidesc");
         return editor;
     }
     return nullptr;
@@ -630,8 +667,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             stepPatternEditor_->setNumSteps(steps);
         } else if (tag == kTranceGateEuclideanEnabledId) {
             stepPatternEditor_->setEuclideanEnabled(value >= 0.5);
-            if (euclideanRegenButton_)
-                euclideanRegenButton_->setVisible(value >= 0.5);
+            if (euclideanControlsGroup_)
+                euclideanControlsGroup_->setVisible(value >= 0.5);
         } else if (tag == kTranceGateEuclideanHitsId) {
             int hits = std::clamp(
                 static_cast<int>(std::round(value * 32.0)), 0, 32);
@@ -794,7 +831,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         ampEnvDisplay_ = nullptr;
         filterEnvDisplay_ = nullptr;
         modEnvDisplay_ = nullptr;
-        euclideanRegenButton_ = nullptr;
+        euclideanControlsGroup_ = nullptr;
         lfo1RateGroup_ = nullptr;
         lfo2RateGroup_ = nullptr;
         lfo1NoteValueGroup_ = nullptr;
@@ -864,14 +901,8 @@ VSTGUI::CView* Controller::verifyView(
             control->registerControlListener(this);
         }
 
-        // Track the Euclidean regen button for visibility toggling
-        if (tag == static_cast<int32_t>(kActionEuclideanRegenTag)) {
-            euclideanRegenButton_ = view;
-            // Set initial visibility from current Euclidean enabled state
-            auto* param = getParameterObject(kTranceGateEuclideanEnabledId);
-            bool enabled = (param != nullptr) && param->getNormalized() >= 0.5;
-            view->setVisible(enabled);
-        }
+        // Euclidean controls container is now tracked via custom-view-name
+        // (see EuclideanControlsGroup in createCustomView section)
     }
 
     // Populate the pattern preset dropdown (identified by custom-id, no control-tag)
@@ -1144,6 +1175,13 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kTranceGateTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
+            }
+            // Euclidean controls group (hidden when euclidean mode is off)
+            else if (*name == "EuclideanControlsGroup") {
+                euclideanControlsGroup_ = container;
+                auto* param = getParameterObject(kTranceGateEuclideanEnabledId);
+                bool enabled = (param != nullptr) && param->getNormalized() >= 0.5;
+                container->setVisible(enabled);
             }
             // Poly/Mono visibility groups (toggled by voice mode)
             else if (*name == "PolyGroup") {

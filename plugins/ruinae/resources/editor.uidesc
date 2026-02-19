@@ -2495,29 +2495,10 @@
                   tooltip="Enable trance gate"
                   transparent="false"/>
 
-            <view class="ToggleButton" origin="56, 14" size="50, 18"
-                  control-tag="TranceGateSync"
-                  default-value="1.0"
-                  title="Sync"
-                  title-position="right"
-                  font="~ NormalFontSmaller"
-                  font-color="trance-gate"
-                  text-color="trance-gate"
-                  tooltip="Enable tempo sync"
-                  transparent="true"/>
-
-            <view class="CTextLabel" origin="120, 16" size="52, 14"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="left" transparent="true" title="Step size"/>
-            <view class="COptionMenu" origin="172, 14" size="70, 18"
-                  control-tag="TranceGateNoteValue" default-value="0"
-                  font="~ NormalFontSmaller" font-color="text-menu"
-                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
-
-            <view class="CTextLabel" origin="252, 16" size="60, 14"
+            <view class="CTextLabel" origin="56, 16" size="60, 14"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="left" transparent="true" title="Step count"/>
-            <view class="COptionMenu" origin="312, 14" size="56, 18"
+            <view class="COptionMenu" origin="116, 14" size="56, 18"
                   control-tag="TranceGateNumSteps" default-value="0.467"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
@@ -2552,19 +2533,21 @@
                   icon-style="shift-right" tooltip="Shift pattern right"
                   transparent="false"/>
 
-            <!-- Euclidean action buttons -->
-            <view class="ToggleButton" origin="216, 110" size="26, 26"
-                  control-tag="TranceGateEuclideanEnabled" default-value="0"
-                  tooltip="Enable euclidean mode"
-                  transparent="false"/>
-            <view class="ActionButton" origin="244, 110" size="26, 26"
-                  control-tag="ActionEuclideanRegen" default-value="0"
-                  icon-style="regen" tooltip="Regenerate pattern"
-                  transparent="false"/>
+            <!-- Sync toggle -->
+            <view class="ToggleButton" origin="260, 113" size="50, 18"
+                  control-tag="TranceGateSync"
+                  default-value="1.0"
+                  title="Sync"
+                  title-position="right"
+                  font="~ NormalFontSmaller"
+                  font-color="trance-gate"
+                  text-color="trance-gate"
+                  tooltip="Enable tempo sync"
+                  transparent="true"/>
 
-            <!-- Parameter knobs: Rate, Depth, Attack, Release, Phase -->
+            <!-- Parameter controls: Rate/Note, Depth, Attack, Release, Phase -->
             <!-- Rate (hidden when sync active — default sync=on) -->
-            <view class="CViewContainer" origin="375, 108" size="48, 38"
+            <view class="CViewContainer" origin="316, 108" size="48, 38"
                   custom-view-name="TranceGateRateGroup" transparent="true"
                   visible="false">
                 <view class="ArcKnob" origin="0, 0" size="28, 28"
@@ -2575,7 +2558,7 @@
                       text-alignment="center" transparent="true" title="Rate"/>
             </view>
             <!-- Note Value (visible when sync active — default sync=on) -->
-            <view class="CViewContainer" origin="375, 108" size="80, 38"
+            <view class="CViewContainer" origin="316, 108" size="80, 38"
                   custom-view-name="TranceGateNoteValueGroup" transparent="true">
                 <view class="COptionMenu" origin="0, 4" size="70, 20"
                       control-tag="TranceGateNoteValue"
@@ -2589,48 +2572,62 @@
                       text-alignment="center" transparent="true" title="Note"/>
             </view>
 
-            <view class="ArcKnob" origin="448, 108" size="28, 28"
+            <view class="ArcKnob" origin="404, 108" size="28, 28"
                   control-tag="TranceGateDepth" default-value="0.5"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="442, 136" size="40, 10"
+            <view class="CTextLabel" origin="398, 136" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Depth"/>
 
-            <view class="ArcKnob" origin="516, 108" size="28, 28"
+            <view class="ArcKnob" origin="452, 108" size="28, 28"
                   control-tag="TranceGateAttack" default-value="0.2"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="510, 136" size="42, 10"
+            <view class="CTextLabel" origin="445, 136" size="42, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Attack"/>
 
-            <view class="ArcKnob" origin="584, 108" size="28, 28"
+            <view class="ArcKnob" origin="500, 108" size="28, 28"
                   control-tag="TranceGateRelease" default-value="0.3"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="576, 136" size="46, 10"
+            <view class="CTextLabel" origin="491, 136" size="46, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Release"/>
 
-            <view class="ArcKnob" origin="652, 108" size="28, 28"
+            <view class="ArcKnob" origin="548, 108" size="28, 28"
                   control-tag="TranceGatePhaseOffset" default-value="0.0"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="646, 136" size="40, 10"
+            <view class="CTextLabel" origin="542, 136" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Phase"/>
 
-            <!-- Euclidean parameter knobs: Hits, Rotate -->
-            <view class="ArcKnob" origin="740, 108" size="28, 28"
-                  control-tag="TranceGateEuclideanHits" default-value="0.5"
-                  arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="734, 136" size="40, 10"
+            <!-- Euclidean toggle (always visible) -->
+            <view class="ToggleButton" origin="777, 110" size="26, 26"
+                  control-tag="TranceGateEuclideanEnabled" default-value="0"
+                  tooltip="Enable euclidean mode"
+                  transparent="false"/>
+            <view class="CTextLabel" origin="764, 136" size="52, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Hits"/>
-
-            <view class="ArcKnob" origin="808, 108" size="28, 28"
-                  control-tag="TranceGateEuclideanRotation" default-value="0.0"
-                  arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="800, 136" size="44, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Rotate"/>
+                  text-alignment="center" transparent="true" title="Euclidean"/>
+            <!-- Euclidean controls (hidden when euclidean off) -->
+            <view class="CViewContainer" origin="805, 108" size="100, 38"
+                  custom-view-name="EuclideanControlsGroup" transparent="true">
+                <view class="ActionButton" origin="0, 2" size="26, 26"
+                      control-tag="ActionEuclideanRegen" default-value="0"
+                      icon-style="regen" tooltip="Regenerate pattern"
+                      transparent="false"/>
+                <view class="ArcKnob" origin="28, 0" size="28, 28"
+                      control-tag="TranceGateEuclideanHits" default-value="0.5"
+                      arc-color="trance-gate" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="22, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Hits"/>
+                <view class="ArcKnob" origin="58, 0" size="28, 28"
+                      control-tag="TranceGateEuclideanRotation" default-value="0.0"
+                      arc-color="trance-gate" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="50, 28" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Rotate"/>
+            </view>
         </view>
 
         <!-- Row 4: Modulation -->

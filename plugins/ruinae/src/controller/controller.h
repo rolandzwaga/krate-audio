@@ -212,8 +212,8 @@ private:
     Krate::Plugins::ADSRDisplay* filterEnvDisplay_ = nullptr;
     Krate::Plugins::ADSRDisplay* modEnvDisplay_ = nullptr;
 
-    /// Euclidean regen button - hidden when Euclidean mode is off
-    VSTGUI::CView* euclideanRegenButton_ = nullptr;
+    /// Euclidean controls container (regen, hits, rotate) - hidden when Euclidean mode is off
+    VSTGUI::CView* euclideanControlsGroup_ = nullptr;
 
     /// LFO Rate groups - hidden when tempo sync is active
     VSTGUI::CView* lfo1RateGroup_ = nullptr;

@@ -180,6 +180,19 @@ public:
 
     [[nodiscard]] float getPhaseOffset() const { return phaseOffset_; }
 
+    /// Right-click handler: set step to 0. Called from editor subclass since
+    /// VST3Editor intercepts right-clicks at the frame level for context menus.
+    void handleRightClick(const VSTGUI::CPoint& localPos) {
+        int step = getStepFromPoint(localPos);
+        if (step < 0) return;
+        notifyBeginEdit(step);
+        stepLevels_[static_cast<size_t>(step)] = 0.0f;
+        notifyStepChange(step, 0.0f);
+        notifyEndEdit(step);
+        if (euclideanEnabled_) isModified_ = true;
+        setDirty();
+    }
+
     // =========================================================================
     // Euclidean Mode API (FR-018 through FR-023)
     // =========================================================================
