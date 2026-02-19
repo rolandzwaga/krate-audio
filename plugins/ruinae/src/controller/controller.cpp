@@ -31,8 +31,10 @@
 #include "parameters/mod_matrix_params.h"
 #include "parameters/global_filter_params.h"
 #include "parameters/delay_params.h"
+#include "parameters/fx_enable_params.h"
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
+#include "parameters/harmonizer_params.h"
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
 #include "parameters/rungler_params.h"
@@ -147,6 +149,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerDelayParams(parameters);
     registerReverbParams(parameters);
     registerPhaserParams(parameters);
+    registerHarmonizerParams(parameters);
     registerMonoModeParams(parameters);
     registerMacroParams(parameters);
     registerRunglerParams(parameters);
@@ -326,6 +329,14 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             loadPitchFollowerParamsToController(streamer, setParam);
             loadTransientParamsToController(streamer, setParam);
         }
+
+        // v16: Harmonizer params + enable flag
+        if (version >= 16) {
+            loadHarmonizerParamsToController(streamer, setParam);
+            Steinberg::int8 i8 = 0;
+            if (streamer.readInt8(i8))
+                setParam(kHarmonizerEnabledId, i8 != 0 ? 1.0 : 0.0);
+        }
     }
 
     // =========================================================================
@@ -424,6 +435,8 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatReverbParam(id, valueNormalized, string);
     } else if (id >= kPhaserBaseId && id <= kPhaserEndId) {
         result = formatPhaserParam(id, valueNormalized, string);
+    } else if (id >= kHarmonizerBaseId && id <= kHarmonizerEndId) {
+        result = formatHarmonizerParam(id, valueNormalized, string);
     } else if (id >= kMonoBaseId && id <= kMonoEndId) {
         result = formatMonoModeParam(id, valueNormalized, string);
     } else if (id >= kMacroBaseId && id <= kMacroEndId) {
@@ -667,6 +680,18 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         if (monoGroup_) monoGroup_->setVisible(value >= 0.5);
     }
 
+    // Harmonizer voice row dimming based on NumVoices
+    if (tag == kHarmonizerNumVoicesId) {
+        int numVoices = static_cast<int>(
+            value * (kHarmonizerNumVoicesCount - 1) + 0.5) + 1;
+        for (int i = 0; i < 4; ++i) {
+            if (harmonizerVoiceRows_[static_cast<size_t>(i)]) {
+                harmonizerVoiceRows_[static_cast<size_t>(i)]->setAlphaValue(
+                    i < numVoices ? 1.0f : 0.3f);
+            }
+        }
+    }
+
     // Push mixer parameter changes to XYMorphPad
     if (xyMorphPad_) {
         if (tag == kMixerPositionId) {
@@ -753,9 +778,12 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         fxDetailDelay_ = nullptr;
         fxDetailReverb_ = nullptr;
         fxDetailPhaser_ = nullptr;
+        fxDetailHarmonizer_ = nullptr;
         fxExpandDelayChevron_ = nullptr;
         fxExpandReverbChevron_ = nullptr;
         fxExpandPhaserChevron_ = nullptr;
+        fxExpandHarmonizerChevron_ = nullptr;
+        harmonizerVoiceRows_.fill(nullptr);
         expandedFxPanel_ = -1;
 
         // Envelope expand/collapse cleanup
@@ -789,7 +817,7 @@ VSTGUI::CView* Controller::verifyView(
     auto* control = dynamic_cast<VSTGUI::CControl*>(view);
     if (control) {
         auto tag = control->getTag();
-        if (tag >= static_cast<int32_t>(kActionTransformInvertTag) && tag <= static_cast<int32_t>(kActionFxExpandPhaserTag)) {
+        if (tag >= static_cast<int32_t>(kActionTransformInvertTag) && tag <= static_cast<int32_t>(kActionFxExpandHarmonizerTag)) {
             control->registerControlListener(this);
         }
 
@@ -964,6 +992,19 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "PhaserDetail") {
                 fxDetailPhaser_ = container;
                 container->setVisible(false);
+            } else if (*name == "HarmonizerDetail") {
+                fxDetailHarmonizer_ = container;
+                container->setVisible(false); // FR-023: collapsed by default
+            }
+            // Harmonizer voice rows (for dimming based on NumVoices)
+            else if (*name == "HarmonizerVoice1") {
+                harmonizerVoiceRows_[0] = container;
+            } else if (*name == "HarmonizerVoice2") {
+                harmonizerVoiceRows_[1] = container;
+            } else if (*name == "HarmonizerVoice3") {
+                harmonizerVoiceRows_[2] = container;
+            } else if (*name == "HarmonizerVoice4") {
+                harmonizerVoiceRows_[3] = container;
             }
             // LFO Rate groups (hidden when tempo sync is active)
             else if (*name == "LFO1RateGroup") {
@@ -1095,6 +1136,7 @@ VSTGUI::CView* Controller::verifyView(
         if (tag == kActionFxExpandDelayTag)  fxExpandDelayChevron_ = ctrl;
         if (tag == kActionFxExpandReverbTag) fxExpandReverbChevron_ = ctrl;
         if (tag == kActionFxExpandPhaserTag) fxExpandPhaserChevron_ = ctrl;
+        if (tag == kActionFxExpandHarmonizerTag) fxExpandHarmonizerChevron_ = ctrl;
 
         // Settings drawer: capture gear button and register as listener
         if (tag == static_cast<int32_t>(kActionSettingsToggleTag)) {
@@ -1123,9 +1165,10 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
 
     // Toggle buttons: respond to both on/off clicks (no value guard)
     switch (tag) {
-        case kActionFxExpandDelayTag:   toggleFxDetail(0); return;
-        case kActionFxExpandReverbTag:  toggleFxDetail(1); return;
-        case kActionFxExpandPhaserTag:  toggleFxDetail(2); return;
+        case kActionFxExpandDelayTag:       toggleFxDetail(0); return;
+        case kActionFxExpandReverbTag:      toggleFxDetail(1); return;
+        case kActionFxExpandPhaserTag:      toggleFxDetail(2); return;
+        case kActionFxExpandHarmonizerTag:  toggleFxDetail(3); return;
         case kActionEnvExpandAmpTag:    toggleEnvExpand(0); return;
         case kActionEnvExpandFilterTag: toggleEnvExpand(1); return;
         case kActionEnvExpandModTag:    toggleEnvExpand(2); return;
@@ -1687,8 +1730,9 @@ void Controller::selectModulationRoute(int sourceIndex, int destIndex) {
 void Controller::toggleFxDetail(int panelIndex) {
     bool opening = (expandedFxPanel_ != panelIndex);
 
-    VSTGUI::CViewContainer* panels[] = {fxDetailDelay_, fxDetailReverb_, fxDetailPhaser_};
-    for (int i = 0; i < 3; ++i) {
+    VSTGUI::CViewContainer* panels[] = {
+        fxDetailDelay_, fxDetailReverb_, fxDetailPhaser_, fxDetailHarmonizer_};
+    for (int i = 0; i < 4; ++i) {
         if (panels[i]) {
             panels[i]->setVisible(i == panelIndex && opening);
         }
@@ -1696,8 +1740,10 @@ void Controller::toggleFxDetail(int panelIndex) {
     expandedFxPanel_ = opening ? panelIndex : -1;
 
     // Reset the OTHER chevrons so only one appears expanded at a time
-    VSTGUI::CControl* chevrons[] = {fxExpandDelayChevron_, fxExpandReverbChevron_, fxExpandPhaserChevron_};
-    for (int i = 0; i < 3; ++i) {
+    VSTGUI::CControl* chevrons[] = {
+        fxExpandDelayChevron_, fxExpandReverbChevron_,
+        fxExpandPhaserChevron_, fxExpandHarmonizerChevron_};
+    for (int i = 0; i < 4; ++i) {
         if (i != panelIndex && chevrons[i]) {
             chevrons[i]->setValue(0.f);
             chevrons[i]->invalid();

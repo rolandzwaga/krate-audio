@@ -193,20 +193,26 @@ public:
     // Lifecycle
     // -------------------------------------------------------------------------
 
-    /// @brief Prepare synthesis processor (simple version, no window normalization)
+    /// @brief Prepare synthesis processor
     /// @param fftSize FFT size (must match STFT)
     /// @param hopSize Frame advance (must match STFT)
     /// @param window Window type (for COLA normalization)
     /// @param kaiserBeta Kaiser beta parameter (only used if window == Kaiser)
+    /// @param applySynthesisWindow If true, apply synthesis window to IFFT output
+    ///        before overlap-add. Required for spectral modification processors
+    ///        (e.g. phase vocoder pitch shifting) at >=75% overlap where Hann²
+    ///        satisfies COLA. Must NOT be used at 50% overlap (Hann² not COLA).
     /// @note NOT real-time safe (allocates memory)
     void prepare(
         size_t fftSize,
         size_t hopSize,
         WindowType window = WindowType::Hann,
-        float kaiserBeta = 9.0f
+        float kaiserBeta = 9.0f,
+        bool applySynthesisWindow = false
     ) noexcept {
         fftSize_ = fftSize;
         hopSize_ = hopSize;
+        applySynthesisWindow_ = applySynthesisWindow;
 
         // Prepare internal FFT
         fft_.prepare(fftSize);
@@ -214,14 +220,19 @@ public:
         // Generate synthesis window and compute COLA normalization factor
         synthesisWindow_ = Window::generate(window, fftSize, kaiserBeta);
 
-        // Compute COLA sum: at any position, sum of overlapping windows
-        // This is the same as what verifyCOLA computes
+        // Compute COLA sum based on whether synthesis window is applied
+        // Without synthesis window: COLA sum = sum of w[k] at hop positions
+        // With synthesis window: COLA sum = sum of w[k]² at hop positions (Hann²)
         const size_t numOverlaps = (fftSize + hopSize - 1) / hopSize;
         float colaSum = 0.0f;
         for (size_t frame = 0; frame < numOverlaps; ++frame) {
             const size_t idx = frame * hopSize;
             if (idx < fftSize) {
-                colaSum += synthesisWindow_[idx];
+                if (applySynthesisWindow) {
+                    colaSum += synthesisWindow_[idx] * synthesisWindow_[idx];
+                } else {
+                    colaSum += synthesisWindow_[idx];
+                }
             }
         }
         // Normalization: divide by COLA sum to get unity gain reconstruction
@@ -259,11 +270,18 @@ public:
         fft_.inverse(input.data(), ifftBuffer_.data());
 
         // Overlap-add: Add IFFT result to output buffer with COLA normalization
-        // Note: We use analysis-only windowing (window applied in STFT::analyze() only)
-        // The Hann window at 50% overlap naturally satisfies COLA (sums to 1.0)
-        // Synthesis window is not applied here to avoid Hann² which does NOT satisfy COLA at 50%
-        for (size_t i = 0; i < fftSize_; ++i) {
-            outputBuffer_[i] += ifftBuffer_[i] * colaNormalization_;
+        // When applySynthesisWindow_ is true, we apply the window to the IFFT output
+        // before accumulation. This is essential for spectral modification (e.g. PV
+        // pitch shifting) where the IFFT output no longer has the smooth taper of
+        // the original analysis window, causing boundary discontinuities.
+        if (applySynthesisWindow_) {
+            for (size_t i = 0; i < fftSize_; ++i) {
+                outputBuffer_[i] += ifftBuffer_[i] * synthesisWindow_[i] * colaNormalization_;
+            }
+        } else {
+            for (size_t i = 0; i < fftSize_; ++i) {
+                outputBuffer_[i] += ifftBuffer_[i] * colaNormalization_;
+            }
         }
 
         // Mark hopSize more samples as ready
@@ -319,6 +337,7 @@ private:
     std::vector<float> outputBuffer_;
     std::vector<float> ifftBuffer_;
     float colaNormalization_ = 1.0f;
+    bool applySynthesisWindow_ = false;
     size_t fftSize_ = 0;
     size_t hopSize_ = 0;
     size_t samplesReady_ = 0;

@@ -254,10 +254,15 @@ private:
     VSTGUI::CViewContainer* fxDetailDelay_ = nullptr;
     VSTGUI::CViewContainer* fxDetailReverb_ = nullptr;
     VSTGUI::CViewContainer* fxDetailPhaser_ = nullptr;
+    VSTGUI::CViewContainer* fxDetailHarmonizer_ = nullptr;
     VSTGUI::CControl* fxExpandDelayChevron_ = nullptr;
     VSTGUI::CControl* fxExpandReverbChevron_ = nullptr;
     VSTGUI::CControl* fxExpandPhaserChevron_ = nullptr;
-    int expandedFxPanel_ = -1;  // -1=none, 0=delay, 1=reverb, 2=phaser
+    VSTGUI::CControl* fxExpandHarmonizerChevron_ = nullptr;
+    int expandedFxPanel_ = -1;  // -1=none, 0=delay, 1=reverb, 2=phaser, 3=harmonizer
+
+    // Harmonizer voice row containers (for dimming based on NumVoices)
+    std::array<VSTGUI::CViewContainer*, 4> harmonizerVoiceRows_{};
 
     // Envelope expand/collapse state
     VSTGUI::CViewContainer* envGroupAmp_ = nullptr;

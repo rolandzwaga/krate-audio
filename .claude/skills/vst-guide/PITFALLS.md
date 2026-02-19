@@ -252,7 +252,42 @@ The flow for proxy parameter (BROKEN):
 
 ---
 
-### Pitfall 8: Cached View Pointers + UIViewSwitchContainer = Dangling Pointers
+### Pitfall 8: COptionMenu Bound to RangeParameter Instead of StringListParameter
+
+**Symptom:** Dropdown defaults to first entry and snaps back to it on any selection. The displayed value is wrong (e.g., shows "-23 steps" instead of "0 steps"), and selecting any item immediately reverts to the first item ("-24 steps").
+
+**Root Cause:** The parameter was registered with `parameters.addParameter(title, units, stepCount, default, flags, id)` which creates a `RangeParameter`. `COptionMenu` requires a `StringListParameter` (with `kIsList` flag) to populate its dropdown entries. Without string entries, the menu has 0 items and cannot function.
+
+**This is NOT the same as Pitfall 1** (which is about `toPlain()` behavior). Even with correct `stepCount`, a `RangeParameter` has no string list for `COptionMenu` to display.
+
+**Wrong:**
+```cpp
+// Creates a RangeParameter — COptionMenu can't populate entries from this
+parameters.addParameter(title, STR16("steps"), 48,
+    0.5, ParameterInfo::kCanAutomate, voiceIntervalIds[v]);
+```
+
+**Right:**
+```cpp
+// Creates a StringListParameter — COptionMenu auto-populates entries
+auto* param = new StringListParameter(title, id, nullptr,
+    ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+for (int step = -24; step <= 24; ++step) {
+    param->appendString(STR16("...")); // one entry per discrete value
+}
+auto defaultNorm = param->toNormalized(24.0); // index 24 = "0 steps"
+param->setNormalized(defaultNorm);
+param->getInfo().defaultNormalizedValue = defaultNorm;
+parameters.addParameter(param);
+```
+
+**Key rule:** ANY parameter bound to a `COptionMenu` in the uidesc MUST be a `StringListParameter`. If you see `class="COptionMenu"` in the uidesc referencing a control-tag, the parameter registered for that tag MUST use `createDropdownParameter()`, `createDropdownParameterWithDefault()`, or manually construct a `StringListParameter`. A `RangeParameter` with `stepCount > 0` is NOT sufficient — it has the right number of steps but no string entries for the menu.
+
+**Note on defaultNormalizedValue:** `StringListParameter` constructor sets `defaultNormalizedValue = 0.0`. Calling `setNormalized()` only changes the current value, NOT the default in `ParameterInfo`. You must also set `param->getInfo().defaultNormalizedValue` explicitly if the default is not index 0.
+
+---
+
+### Pitfall 9: Cached View Pointers + UIViewSwitchContainer = Dangling Pointers
 
 **Problem:** UIViewSwitchContainer destroys and recreates template view hierarchies on every switch. If the controller caches raw pointers to views inside those templates, the pointers become dangling when the template is torn down.
 
@@ -298,5 +333,6 @@ When `UIViewSwitchContainer` tears down the old template, `CView::removed()` fir
 5. **Read the source** - When stuck, read VSTGUI/VST3 SDK source code
 6. **Create helpers** - Prevent future mistakes with helper functions that enforce correct usage
 7. **Check parameter units** - Verify normalized values are converted to the units DSP APIs expect
-8. **Proxy parameters need hidden controls** - UIViewSwitchContainer uses IControlListener on CControls, not IDependent on Parameters
-9. **Null cached view pointers on removal** - Views inside UIViewSwitchContainer templates get destroyed on every switch; wire `removed()` callbacks to null cached pointers
+8. **COptionMenu needs StringListParameter** - A `RangeParameter` with correct `stepCount` is NOT enough; `COptionMenu` requires `StringListParameter` with `kIsList` to populate entries
+9. **Proxy parameters need hidden controls** - UIViewSwitchContainer uses IControlListener on CControls, not IDependent on Parameters
+10. **Null cached view pointers on removal** - Views inside UIViewSwitchContainer templates get destroyed on every switch; wire `removed()` callbacks to null cached pointers

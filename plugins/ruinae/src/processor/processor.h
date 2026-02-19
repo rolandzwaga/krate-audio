@@ -38,6 +38,7 @@
 #include "parameters/delay_params.h"
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
+#include "parameters/harmonizer_params.h"
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
 #include "parameters/rungler_params.h"
@@ -74,7 +75,7 @@ namespace Ruinae {
 // v13: Macro and Rungler params
 // v14: Settings params (pitch bend range, velocity curve, tuning ref, alloc mode, steal mode, gain comp)
 // v15: Mod source params (Env Follower, S&H, Random, Pitch Follower, Transient)
-constexpr Steinberg::int32 kCurrentStateVersion = 15;
+constexpr Steinberg::int32 kCurrentStateVersion = 16;
 
 // ==============================================================================
 // Processor Class
@@ -172,10 +173,12 @@ private:
     std::atomic<bool> delayEnabled_{false};
     std::atomic<bool> reverbEnabled_{false};
     std::atomic<bool> phaserEnabled_{false};
+    std::atomic<bool> harmonizerEnabled_{false};
 
     RuinaeDelayParams delayParams_;
     RuinaeReverbParams reverbParams_;
     RuinaePhaserParams phaserParams_;
+    RuinaeHarmonizerParams harmonizerParams_;
     MonoModeParams monoModeParams_;
     MacroParams macroParams_;
     RunglerParams runglerParams_;

@@ -32,7 +32,7 @@
 // =============================================================================
 // DEBUG: Phaser signal path tracing (remove after debugging)
 // =============================================================================
-#define RUINAE_PHASER_DEBUG 1
+#define RUINAE_PHASER_DEBUG 0
 
 #if RUINAE_PHASER_DEBUG
 #include <cstdarg>
@@ -415,6 +415,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     savePitchFollowerParams(pitchFollowerParams_, streamer);
     saveTransientParams(transientParams_, streamer);
 
+    // v16: Harmonizer params + enable flag
+    saveHarmonizerParams(harmonizerParams_, streamer);
+    streamer.writeInt8(harmonizerEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
+
     return Steinberg::kResultTrue;
 }
 
@@ -569,6 +573,14 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             loadTransientParams(transientParams_, streamer);
         }
         // Note: For version < 15, all mod source params keep their struct defaults
+
+        // v16: Harmonizer params + enable flag
+        if (version >= 16) {
+            loadHarmonizerParams(harmonizerParams_, streamer);
+            Steinberg::int8 i8 = 0;
+            if (streamer.readInt8(i8))
+                harmonizerEnabled_.store(i8 != 0, std::memory_order_relaxed);
+        }
     }
 
     // =========================================================================
@@ -671,6 +683,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             phaserEnabled_.store(value >= 0.5, std::memory_order_relaxed);
             logPhaser("[RUINAE][PARAM] kPhaserEnabledId received: raw=%.4f -> enabled=%d\n",
                 value, (value >= 0.5) ? 1 : 0);
+        } else if (paramId == kHarmonizerEnabledId) {
+            harmonizerEnabled_.store(value >= 0.5, std::memory_order_relaxed);
         } else if (paramId >= kDelayBaseId && paramId <= kDelayEndId) {
             handleDelayParamChange(delayParams_, paramId, value);
         } else if (paramId >= kReverbBaseId && paramId <= kReverbEndId) {
@@ -696,6 +710,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handlePitchFollowerParamChange(pitchFollowerParams_, paramId, value);
         } else if (paramId >= kTransientBaseId && paramId <= kTransientEndId) {
             handleTransientParamChange(transientParams_, paramId, value);
+        } else if (paramId >= kHarmonizerBaseId && paramId <= kHarmonizerEndId) {
+            handleHarmonizerParamChange(harmonizerParams_, paramId, value);
         }
     }
 }
@@ -1021,6 +1037,30 @@ void Processor::applyParamsToEngine() {
         auto mapping = getNoteValueFromDropdown(
             phaserParams_.noteValue.load(std::memory_order_relaxed));
         engine_.setPhaserNoteValue(mapping.note, mapping.modifier);
+    }
+
+    // --- Harmonizer ---
+    engine_.setHarmonizerEnabled(harmonizerEnabled_.load(std::memory_order_relaxed));
+    engine_.setHarmonizerHarmonyMode(harmonizerParams_.harmonyMode.load(std::memory_order_relaxed));
+    engine_.setHarmonizerKey(harmonizerParams_.key.load(std::memory_order_relaxed));
+    engine_.setHarmonizerScale(harmonizerParams_.scale.load(std::memory_order_relaxed));
+    engine_.setHarmonizerPitchShiftMode(harmonizerParams_.pitchShiftMode.load(std::memory_order_relaxed));
+    engine_.setHarmonizerFormantPreserve(harmonizerParams_.formantPreserve.load(std::memory_order_relaxed));
+    engine_.setHarmonizerNumVoices(harmonizerParams_.numVoices.load(std::memory_order_relaxed));
+    engine_.setHarmonizerDryLevel(harmonizerParams_.dryLevelDb.load(std::memory_order_relaxed));
+    engine_.setHarmonizerWetLevel(harmonizerParams_.wetLevelDb.load(std::memory_order_relaxed));
+    for (int v = 0; v < 4; ++v) {
+        auto vi = static_cast<size_t>(v);
+        engine_.setHarmonizerVoiceInterval(v,
+            harmonizerParams_.voiceInterval[vi].load(std::memory_order_relaxed));
+        engine_.setHarmonizerVoiceLevel(v,
+            harmonizerParams_.voiceLevelDb[vi].load(std::memory_order_relaxed));
+        engine_.setHarmonizerVoicePan(v,
+            harmonizerParams_.voicePan[vi].load(std::memory_order_relaxed));
+        engine_.setHarmonizerVoiceDelay(v,
+            harmonizerParams_.voiceDelayMs[vi].load(std::memory_order_relaxed));
+        engine_.setHarmonizerVoiceDetune(v,
+            harmonizerParams_.voiceDetuneCents[vi].load(std::memory_order_relaxed));
     }
 
     // --- Macros ---

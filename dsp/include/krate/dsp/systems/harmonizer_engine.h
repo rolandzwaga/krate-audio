@@ -353,9 +353,21 @@ public:
                         float leftGain = std::cos(angle);
                         float rightGain = std::sin(angle);
 
-                        float sample = voiceScratch_[s] * levelGain;
+                        // Quadratic fade-in curve: gentle start, avoids click
+                        // when pitch shifter delay line begins producing output
+                        float fadeGain = voice.fadeInGain * voice.fadeInGain;
+                        float sample = voiceScratch_[s] * levelGain * fadeGain;
                         outputL[s] += sample * leftGain;
                         outputR[s] += sample * rightGain;
+
+                        // Advance voice fade-in (linear ramp, applied quadratically)
+                        if (voice.fadeInGain < 1.0f) {
+                            voice.fadeInGain += voice.fadeInIncrement;
+                            if (voice.fadeInGain >= 1.0f) {
+                                voice.fadeInGain = 1.0f;
+                                voice.fadeInIncrement = 0.0f;
+                            }
+                        }
                     }
                 }
             } else if (pitchShiftMode_ == PitchMode::PitchSync) {
@@ -427,9 +439,21 @@ public:
                         float leftGain = std::cos(angle);
                         float rightGain = std::sin(angle);
 
-                        float sample = voiceScratch_[s] * levelGain;
+                        // Quadratic fade-in curve: gentle start, avoids click
+                        // when pitch shifter delay line begins producing output
+                        float fadeGain = voice.fadeInGain * voice.fadeInGain;
+                        float sample = voiceScratch_[s] * levelGain * fadeGain;
                         outputL[s] += sample * leftGain;
                         outputR[s] += sample * rightGain;
+
+                        // Advance voice fade-in (linear ramp, applied quadratically)
+                        if (voice.fadeInGain < 1.0f) {
+                            voice.fadeInGain += voice.fadeInIncrement;
+                            if (voice.fadeInGain >= 1.0f) {
+                                voice.fadeInGain = 1.0f;
+                                voice.fadeInIncrement = 0.0f;
+                            }
+                        }
                     }
                 }
             } else {
@@ -493,9 +517,21 @@ public:
                         float leftGain = std::cos(angle);
                         float rightGain = std::sin(angle);
 
-                        float sample = voiceScratch_[s] * levelGain;
+                        // Quadratic fade-in curve: gentle start, avoids click
+                        // when pitch shifter delay line begins producing output
+                        float fadeGain = voice.fadeInGain * voice.fadeInGain;
+                        float sample = voiceScratch_[s] * levelGain * fadeGain;
                         outputL[s] += sample * leftGain;
                         outputR[s] += sample * rightGain;
+
+                        // Advance voice fade-in (linear ramp, applied quadratically)
+                        if (voice.fadeInGain < 1.0f) {
+                            voice.fadeInGain += voice.fadeInIncrement;
+                            if (voice.fadeInGain >= 1.0f) {
+                                voice.fadeInGain = 1.0f;
+                                voice.fadeInIncrement = 0.0f;
+                            }
+                        }
                     }
                 }
             }
@@ -522,7 +558,27 @@ public:
 
     /// @brief Set the number of active harmony voices. Clamped to [0, kMaxVoices].
     void setNumVoices(int count) noexcept {
-        numActiveVoices_ = std::clamp(count, 0, kMaxVoices);
+        const int newCount = std::clamp(count, 0, kMaxVoices);
+        // Fade in newly activated voices to prevent click.
+        // Only when voices are already active (mid-stream addition).
+        // Initial enable (0→N) is handled by the effects chain crossfade +
+        // applyVoiceFadeIn() called from the effects chain.
+        if (newCount > numActiveVoices_ && numActiveVoices_ > 0) {
+            static constexpr float kVoiceFadeInMs = 100.0f;
+            const float fadeInSamples = kVoiceFadeInMs * static_cast<float>(sampleRate_) / 1000.0f;
+            const float increment = (fadeInSamples > 0.0f) ? (1.0f / fadeInSamples) : 1.0f;
+            for (int v = numActiveVoices_; v < newCount; ++v) {
+                auto& voice = voices_[static_cast<std::size_t>(v)];
+                voice.fadeInGain = 0.0f;
+                voice.fadeInIncrement = increment;
+                // Don't reset pitch shifter — clearing the delay line creates
+                // a hard edge when it refills. The fade-in handles the transition.
+                voice.levelSmoother.snapToTarget();
+                voice.panSmoother.snapToTarget();
+                voice.pitchSmoother.snapToTarget();
+            }
+        }
+        numActiveVoices_ = newCount;
     }
 
     /// @brief Get the current number of active harmony voices.
@@ -542,6 +598,7 @@ public:
 
     /// @brief Set the pitch shifting algorithm for all voices.
     void setPitchShiftMode(PitchMode mode) noexcept {
+        if (mode == pitchShiftMode_) return;
         pitchShiftMode_ = mode;
         for (auto& voice : voices_) {
             voice.pitchShifter.setMode(mode);
@@ -613,6 +670,33 @@ public:
                              1000.0f;
     }
 
+    /// @brief Snap all internal smoothers to their current targets.
+    /// Call this when transitioning from disabled to enabled to avoid
+    /// a fade-in from zero (smoothers don't advance while disabled).
+    void snapParameters() noexcept {
+        dryLevelSmoother_.snapToTarget();
+        wetLevelSmoother_.snapToTarget();
+        for (auto& voice : voices_) {
+            voice.levelSmoother.snapToTarget();
+            voice.panSmoother.snapToTarget();
+            voice.pitchSmoother.snapToTarget();
+        }
+    }
+
+    /// @brief Apply a per-voice fade-in ramp for all active voices.
+    /// Called by the effects chain when enabling the harmonizer, to smooth
+    /// pitch shifter startup transients during the crossfade transition.
+    void applyVoiceFadeIn() noexcept {
+        static constexpr float kFadeInMs = 100.0f;
+        const float fadeInSamples = kFadeInMs * static_cast<float>(sampleRate_) / 1000.0f;
+        const float increment = (fadeInSamples > 0.0f) ? (1.0f / fadeInSamples) : 1.0f;
+        for (int v = 0; v < numActiveVoices_; ++v) {
+            auto& voice = voices_[static_cast<std::size_t>(v)];
+            voice.fadeInGain = 0.0f;
+            voice.fadeInIncrement = increment;
+        }
+    }
+
     /// @brief Set the micro-detuning for a specific voice.
     void setVoiceDetune(int voiceIndex, float cents) noexcept {
         if (voiceIndex < 0 || voiceIndex >= kMaxVoices) return;
@@ -672,6 +756,10 @@ private:
         float targetSemitones = 0.0f; // total semitone shift (interval + detune)
         float linearGain      = 1.0f; // dbToGain(levelDb), 0 if muted
         float delaySamples    = 0.0f; // delayMs * sampleRate / 1000
+
+        // Fade-in on activation (prevents click when numVoices increases)
+        float fadeInGain      = 1.0f; // 0→1 ramp over ~5ms
+        float fadeInIncrement = 0.0f; // per-sample increment (0 = not fading)
     };
 
     // =========================================================================

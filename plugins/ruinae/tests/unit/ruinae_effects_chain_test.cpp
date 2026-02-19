@@ -89,8 +89,9 @@ void prepareChain(RuinaeEffectsChain& chain, double sampleRate = kSampleRate,
 }
 
 /// Settle the chain by processing enough audio to fill the latency compensation
-/// delay (typically 1024 samples). Use a sine wave as the settling signal.
-void settleChain(RuinaeEffectsChain& chain, size_t numBlocks = 8,
+/// delay (6144 samples: spectral FFT 1024 + harmonizer PV 5120).
+/// Use a sine wave as the settling signal.
+void settleChain(RuinaeEffectsChain& chain, size_t numBlocks = 16,
                  double sampleRate = kSampleRate, size_t blockSize = kBlockSize) {
     for (size_t b = 0; b < numBlocks; ++b) {
         std::vector<float> left(blockSize);
@@ -186,8 +187,8 @@ TEST_CASE("RuinaeEffectsChain FR-006: dry pass-through at default settings",
         chain.processBlock(tempL.data(), tempR.data(), kBlockSize);
     }
 
-    // Process an impulse
-    constexpr size_t kLen = 4096;
+    // Process an impulse - buffer must be larger than latency
+    constexpr size_t kLen = 8192;
     std::vector<float> left(kLen, 0.0f);
     std::vector<float> right(kLen, 0.0f);
     left[0] = 1.0f;
@@ -195,11 +196,11 @@ TEST_CASE("RuinaeEffectsChain FR-006: dry pass-through at default settings",
 
     chain.processBlock(left.data(), right.data(), kLen);
 
-    // Compensation delay is 1024 samples (integer-read = sample-perfect)
+    // Compensation delay is 6144 samples (spectral FFT 1024 + harmonizer PV 5120)
     const size_t latency = chain.getLatencySamples();
-    REQUIRE(latency == 1024);
+    REQUIRE(latency == 6144);
 
-    // The impulse should appear at exactly sample 1024
+    // The impulse should appear at exactly the latency offset
     INFO("Output at latency (" << latency << "): " << left[latency]);
     REQUIRE(left[latency] == Approx(1.0f).margin(1e-6f));
     REQUIRE(right[latency] == Approx(1.0f).margin(1e-6f));
@@ -305,19 +306,19 @@ TEST_CASE("RuinaeEffectsChain FR-009: setDelayType selects active delay",
     SECTION("set to Tape") {
         chain.setDelayType(RuinaeDelayType::Tape);
         // After pre-warm + crossfade the active type updates.
-        // Pre-warm: max(50ms, 20ms) = 2205 samples. Crossfade: 30ms = 1323 samples.
-        // Total: ~3528 samples. Use 8192 for margin.
-        std::vector<float> left(8192, 0.0f);
-        std::vector<float> right(8192, 0.0f);
-        chain.processBlock(left.data(), right.data(), 8192);
+        // Pre-warm: max(50ms, 20ms) * sr/1000 + targetLatency = 2205 + 6144 = 8349.
+        // Crossfade: 30ms = 1323 samples. Total: ~9672. Use 16384 for margin.
+        std::vector<float> left(16384, 0.0f);
+        std::vector<float> right(16384, 0.0f);
+        chain.processBlock(left.data(), right.data(), 16384);
         REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Tape);
     }
 
     SECTION("set to Spectral") {
         chain.setDelayType(RuinaeDelayType::Spectral);
-        std::vector<float> left(8192, 0.0f);
-        std::vector<float> right(8192, 0.0f);
-        chain.processBlock(left.data(), right.data(), 8192);
+        std::vector<float> left(16384, 0.0f);
+        std::vector<float> right(16384, 0.0f);
+        chain.processBlock(left.data(), right.data(), 16384);
         REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Spectral);
     }
 }
@@ -437,8 +438,10 @@ TEST_CASE("RuinaeEffectsChain all 5 delay types produce different outputs",
         reverbParams.mix = 0.0f;
         chain.setReverbParams(reverbParams);
 
-        // Process crossfade to completion
-        constexpr size_t kTotalSamples = 8192;
+        // Process crossfade to completion. Latency is 6144 samples and
+        // impulse is placed at 2048, so output appears at ~8192+.
+        // Use 16384 samples to capture both crossfade and impulse response.
+        constexpr size_t kTotalSamples = 16384;
         std::vector<float> left(kTotalSamples, 0.0f);
         std::vector<float> right(kTotalSamples, 0.0f);
 
@@ -531,8 +534,9 @@ TEST_CASE("RuinaeEffectsChain FR-022: reverb processes delay output not dry inpu
     params2.roomSize = 0.7f;
     chain2.setReverbParams(params2);
 
-    // Process same impulse through both
-    constexpr size_t kLen = 8192;
+    // Process same impulse through both. Need buffer larger than latency (6144)
+    // + delay time (100ms = 4410) to capture the delayed output.
+    constexpr size_t kLen = 16384;
     std::vector<float> left1(kLen, 0.0f), right1(kLen, 0.0f);
     std::vector<float> left2(kLen, 0.0f), right2(kLen, 0.0f);
     left1[0] = 1.0f; right1[0] = 1.0f;
@@ -633,8 +637,10 @@ TEST_CASE("RuinaeEffectsChain FR-010: crossfade blends outgoing and incoming",
     // Start with Digital, switch to Tape
     chain.setDelayType(RuinaeDelayType::Tape);
 
-    // Process through pre-warm + crossfade (need ~4552 samples total)
-    for (int b = 0; b < 10; ++b) {
+    // Process through pre-warm + crossfade.
+    // Pre-warm: max(50ms, 20ms) * sr/1000 + 6144 = 2205 + 6144 = 8349.
+    // Crossfade: 30ms = 1323. Total: ~9672. Need 9672/512 = ~19 blocks.
+    for (int b = 0; b < 24; ++b) {
         std::vector<float> left(kBlockSize);
         std::vector<float> right(kBlockSize);
         fillSine(left.data(), kBlockSize, 440.0f, kSampleRate, 0.5f);
@@ -674,11 +680,11 @@ TEST_CASE("RuinaeEffectsChain FR-011: crossfade duration 25-50ms",
         samplesProcessed += 64;
     }
 
-    // Total transition = pre-warm (20ms + 23ms comp) + crossfade (30ms) = ~73ms
+    // Total transition = pre-warm (20ms + 6144/44100*1000=139ms comp) + crossfade (30ms) = ~189ms
     float durationMs = static_cast<float>(samplesProcessed) / static_cast<float>(kSampleRate) * 1000.0f;
     INFO("Transition completed in " << durationMs << " ms (" << samplesProcessed << " samples)");
     REQUIRE(durationMs >= 25.0f);
-    REQUIRE(durationMs <= 100.0f);  // pre-warm (20ms+23ms comp) + crossfade (30ms) + block overshoot
+    REQUIRE(durationMs <= 250.0f);  // pre-warm (20ms+139ms comp) + crossfade (30ms) + block overshoot
 }
 
 TEST_CASE("RuinaeEffectsChain FR-012: fast-track on type switch during crossfade",
@@ -699,8 +705,9 @@ TEST_CASE("RuinaeEffectsChain FR-012: fast-track on type switch during crossfade
     chain.setDelayType(RuinaeDelayType::Granular);
 
     // After cancelling the first pre-warm, a new pre-warm + crossfade starts.
-    // Need ~4552 samples (50ms pre-warm + 1024 comp + 30ms crossfade) to complete.
-    for (int block = 0; block < 32; ++block) {
+    // Need ~9672 samples (50ms pre-warm + 6144 comp + 30ms crossfade) to complete.
+    // 9672/256 = ~38 blocks. Use 48 for margin.
+    for (int block = 0; block < 48; ++block) {
         std::fill(left.begin(), left.end(), 0.0f);
         std::fill(right.begin(), right.end(), 0.0f);
         chain.processBlock(left.data(), right.data(), 256);
@@ -736,8 +743,9 @@ TEST_CASE("RuinaeEffectsChain FR-013: outgoing delay reset after crossfade compl
     }
 
     // Switch Digital -> Tape (pre-warm + crossfade completes, Digital should be reset)
+    // Pre-warm: max(50ms,20ms)*sr/1000+6144=8349. Crossfade: 1323. Total: ~9672 = ~19 blocks of 512.
     chain.setDelayType(RuinaeDelayType::Tape);
-    for (int block = 0; block < 10; ++block) {
+    for (int block = 0; block < 24; ++block) {
         std::vector<float> left(kBlockSize, 0.0f);
         std::vector<float> right(kBlockSize, 0.0f);
         chain.processBlock(left.data(), right.data(), kBlockSize);
@@ -746,7 +754,7 @@ TEST_CASE("RuinaeEffectsChain FR-013: outgoing delay reset after crossfade compl
 
     // Switch Tape -> Digital (pre-warm + crossfade completes)
     chain.setDelayType(RuinaeDelayType::Digital);
-    for (int block = 0; block < 10; ++block) {
+    for (int block = 0; block < 24; ++block) {
         std::vector<float> left(kBlockSize, 0.0f);
         std::vector<float> right(kBlockSize, 0.0f);
         chain.processBlock(left.data(), right.data(), kBlockSize);
@@ -847,9 +855,8 @@ TEST_CASE("RuinaeEffectsChain SC-002: crossfade produces no discontinuities",
     SECTION("DC signal crossfade has no steps > -60 dBFS") {
         // DC has zero natural step size, so any step is purely an artifact.
         // With pre-warming, the incoming delay's buffer is filled before the
-        // crossfade starts. Measurement covers 12 blocks (6144 samples),
-        // well beyond the pre-warm (2205) + crossfade (1323) = 3528 total,
-        // verifying there is NO delay-line-fill step at any point.
+        // crossfade starts. Measurement covers the full pre-warm + crossfade
+        // window (~9672 samples), verifying there is NO delay-line-fill step.
         RuinaeEffectsChain chain;
         prepareChain(chain);
         chain.setDelayMix(0.5f);
@@ -873,7 +880,7 @@ TEST_CASE("RuinaeEffectsChain SC-002: crossfade produces no discontinuities",
         float worstStep = 0.0f;
         float prevSample = 0.0f;
         bool first = true;
-        for (int b = 0; b < 12; ++b) {
+        for (int b = 0; b < 24; ++b) {
             std::vector<float> left(kBlockSize, 0.5f);
             std::vector<float> right(kBlockSize, 0.5f);
             chain.processBlock(left.data(), right.data(), kBlockSize);
@@ -913,7 +920,7 @@ TEST_CASE("RuinaeEffectsChain SC-008: 10 consecutive type switches click-free",
 
     constexpr size_t kBlock = 512;
     constexpr size_t kWarmup = 4;
-    constexpr size_t kBlocksPerSwitch = 10;  // Need ~4552 samples for pre-warm(3229)+crossfade(1323)
+    constexpr size_t kBlocksPerSwitch = 24;  // Need ~9672 samples for pre-warm(8349)+crossfade(1323)
     constexpr size_t kNumSwitches = 10;
     constexpr size_t kTotalBlocks = kWarmup + kBlocksPerSwitch * kNumSwitches;
     constexpr size_t kTotalSamples = kTotalBlocks * kBlock;
@@ -988,9 +995,8 @@ TEST_CASE("RuinaeEffectsChain pre-warm eliminates delay-line-fill artifact",
     // causing a step of ~0.25 (= -12 dBFS). With pre-warming, the buffer
     // is already full when the crossfade starts, so no step occurs.
     //
-    // Measurement: 12 blocks (6144 samples) covers pre-warm (2205) +
-    // crossfade (1323) + post-crossfade region well beyond the old
-    // artifact point. Worst step must be < -60 dBFS.
+    // Measurement covers full pre-warm (~8349 samples) + crossfade (1323) +
+    // post-crossfade. Worst step must be < -60 dBFS.
     RuinaeEffectsChain chain;
     prepareChain(chain);
 
@@ -1018,7 +1024,7 @@ TEST_CASE("RuinaeEffectsChain pre-warm eliminates delay-line-fill artifact",
     bool first = true;
     size_t globalSample = 0;
 
-    for (int b = 0; b < 12; ++b) {
+    for (int b = 0; b < 24; ++b) {
         std::vector<float> left(kBlockSize, 0.5f);
         std::vector<float> right(kBlockSize, 0.5f);
         chain.processBlock(left.data(), right.data(), kBlockSize);
@@ -1054,10 +1060,10 @@ TEST_CASE("RuinaeEffectsChain FR-026: getLatencySamples returns spectral delay F
     prepareChain(chain);
 
     size_t latency = chain.getLatencySamples();
-    // Spectral delay default FFT size is 1024
+    // Spectral delay FFT (1024) + harmonizer PhaseVocoder worst-case (5120) = 6144
     INFO("Latency: " << latency << " samples");
     REQUIRE(latency > 0);
-    REQUIRE(latency == 1024);  // Default FFT size
+    REQUIRE(latency == 6144);  // Spectral FFT + harmonizer PV
 }
 
 TEST_CASE("RuinaeEffectsChain FR-027: latency constant across delay type switches (SC-007)",
@@ -1071,10 +1077,10 @@ TEST_CASE("RuinaeEffectsChain FR-027: latency constant across delay type switche
     for (int typeIdx = 0; typeIdx < 5; ++typeIdx) {
         chain.setDelayType(static_cast<RuinaeDelayType>(typeIdx));
 
-        // Process to complete pre-warm + crossfade
-        std::vector<float> left(8192, 0.0f);
-        std::vector<float> right(8192, 0.0f);
-        chain.processBlock(left.data(), right.data(), 8192);
+        // Process to complete pre-warm + crossfade (~9672 samples needed)
+        std::vector<float> left(16384, 0.0f);
+        std::vector<float> right(16384, 0.0f);
+        chain.processBlock(left.data(), right.data(), 16384);
 
         size_t latencyAfter = chain.getLatencySamples();
         INFO("Type " << typeIdx << " latency: " << latencyAfter);
@@ -1095,7 +1101,8 @@ TEST_CASE("RuinaeEffectsChain latency compensation for non-spectral delays",
     chain.setReverbParams(reverbParams);
 
     // Process an impulse through Digital (has compensation)
-    constexpr size_t kLen = 4096;
+    // Buffer must be larger than latency (6144) to find the impulse
+    constexpr size_t kLen = 8192;
     std::vector<float> left(kLen, 0.0f);
     std::vector<float> right(kLen, 0.0f);
     left[0] = 1.0f;
@@ -1353,7 +1360,8 @@ TEST_CASE("RuinaeEffectsChain phaser modifies signal after prepare+reset",
     chain.setPhaserCenterFrequency(1000.0f);
 
     // Generate a harmonically rich signal (sum of harmonics = pseudo-sawtooth)
-    constexpr size_t kLen = 8192;
+    // Buffer must be large enough for latency (6144) + analysis window
+    constexpr size_t kLen = 16384;
     std::vector<float> left(kLen), right(kLen);
     std::vector<float> origLeft(kLen), origRight(kLen);
     // Sum first 10 harmonics of 220 Hz for rich spectral content
@@ -1388,4 +1396,464 @@ TEST_CASE("RuinaeEffectsChain phaser modifies signal after prepare+reset",
     INFO("Max difference between phased and original: " << maxDiff);
     // With aggressive settings and rich signal, phaser should clearly modify audio
     REQUIRE(maxDiff > 0.05f);
+}
+
+// =============================================================================
+// Harmonizer Enable Volume Drop Regression Test
+// =============================================================================
+// Verifies that enabling the harmonizer does not cause a transient volume drop.
+// Bug: HarmonizerEngine's dry/wet smoothers start at current_=0 and only advance
+// when process() is called. While disabled, process() is never called, so
+// enabling causes a fade-in from silence instead of instant unity gain.
+
+TEST_CASE("Harmonizer enable produces no volume drop on first block",
+          "[systems][ruinae_effects_chain][harmonizer][regression]") {
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+
+    // Configure harmonizer as dry-only pass-through:
+    // dry=0dB (unity), wet=-60dB (silent), 0 voices
+    chain.setHarmonizerDryLevel(0.0f);    // 0 dB = unity
+    chain.setHarmonizerWetLevel(-60.0f);  // effectively muted
+    chain.setHarmonizerNumVoices(0);
+
+    // Settle the chain (fills latency compensation delays)
+    settleChain(chain, 20);
+
+    // Process several blocks with harmonizer DISABLED to establish baseline
+    constexpr size_t kTestBlock = 512;
+    std::vector<float> left(kTestBlock);
+    std::vector<float> right(kTestBlock);
+
+    // Use identical L/R so mono sum (L+R)*0.5 = original signal level
+    fillSine(left.data(), kTestBlock, 440.0f, kSampleRate, 0.5f);
+    fillSine(right.data(), kTestBlock, 440.0f, kSampleRate, 0.5f);
+
+    // Save input for re-use
+    std::vector<float> inputL(left.begin(), left.end());
+    std::vector<float> inputR(right.begin(), right.end());
+
+    // Baseline: harmonizer disabled, signal passes through unmodified
+    chain.setHarmonizerEnabled(false);
+    chain.processBlock(left.data(), right.data(), kTestBlock);
+
+    // Now ENABLE harmonizer and process the very first block
+    std::copy(inputL.begin(), inputL.end(), left.begin());
+    std::copy(inputR.begin(), inputR.end(), right.begin());
+    chain.setHarmonizerEnabled(true);
+    chain.processBlock(left.data(), right.data(), kTestBlock);
+
+    // Check early samples (not sample 0 which is sin(0)=0).
+    // The harmonizer in dry-only mode with identical L/R should produce:
+    //   output[s] = dryGain * (L+R)*0.5 = dryGain * input[s]
+    // If dry smoother is snapped to target (1.0), output ≈ input.
+    // If dry smoother starts from 0, output ≈ 0.002 * input (heavily attenuated).
+    constexpr size_t kCheckSample = 10;  // Non-zero sine sample
+    float outVal = std::abs(left[kCheckSample]);
+    float inVal = std::abs(inputL[kCheckSample]);
+    REQUIRE(inVal > 0.01f);  // Sanity: input is non-zero
+
+    float sampleRatio = outVal / inVal;
+    INFO("Sample " << kCheckSample << ": output=" << outVal
+         << " input=" << inVal << " ratio=" << sampleRatio);
+
+    // With the bug (smoother from 0), ratio at sample 10 is ~0.02.
+    // With the fix (snapped smoother), ratio should be ~1.0.
+    REQUIRE(sampleRatio > 0.9f);
+}
+
+// =============================================================================
+// Harmonizer Artifact Detection Tests (Effects Chain Level)
+// =============================================================================
+// These test the harmonizer integration into the effects chain, where artifacts
+// can arise from the bypass/enable transition boundary.
+
+// ---------------------------------------------------------------------------
+// Test: Enable harmonizer mid-stream -- click detection at transition boundary
+// ---------------------------------------------------------------------------
+// When the harmonizer is disabled, signal passes through at unity gain.
+// When enabled, the harmonizer's dry/wet blend applies. The transition between
+// these two states must be seamless -- no click at the boundary sample.
+TEST_CASE("Effects chain: harmonizer enable produces no click artifact",
+          "[systems][ruinae_effects_chain][harmonizer][artifact]") {
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+
+    // Configure harmonizer with audible wet signal so enable makes a
+    // real difference (not just dry passthrough)
+    chain.setHarmonizerHarmonyMode(0);  // Chromatic
+    chain.setHarmonizerPitchShiftMode(0); // Simple
+    chain.setHarmonizerDryLevel(-6.0f);  // dry at -6 dB
+    chain.setHarmonizerWetLevel(-6.0f);  // wet at -6 dB
+    chain.setHarmonizerNumVoices(1);
+    chain.setHarmonizerVoiceInterval(0, 7);
+    chain.setHarmonizerVoiceLevel(0, 0.0f);
+
+    // Generate one continuous signal for settle + pre + post (no phase breaks)
+    constexpr size_t kBlock = 512;
+    constexpr size_t kSettleBlocks = 20;
+    constexpr size_t kPreBlocks = 5;
+    constexpr size_t kPostBlocks = 20;
+    constexpr size_t kTotalBlocks = kSettleBlocks + kPreBlocks + kPostBlocks;
+    constexpr size_t kTotalSamples = kTotalBlocks * kBlock;
+    constexpr float kFreq = 440.0f;
+    constexpr float kSR = static_cast<float>(kSampleRate);
+    const float phaseInc = 2.0f * 3.14159265358979323846f * kFreq / kSR;
+
+    std::vector<float> inputL(kTotalSamples), inputR(kTotalSamples);
+    for (size_t i = 0; i < kTotalSamples; ++i) {
+        float phase = phaseInc * static_cast<float>(i);
+        inputL[i] = 0.5f * std::sin(phase);
+        inputR[i] = inputL[i];
+    }
+
+    // Process settle blocks (harmonizer disabled, continuous input)
+    std::vector<float> outL(kTotalSamples), outR(kTotalSamples);
+    size_t pos = 0;
+    for (size_t b = 0; b < kSettleBlocks; ++b) {
+        std::copy(inputL.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputL.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outL.begin() + static_cast<std::ptrdiff_t>(pos));
+        std::copy(inputR.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputR.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outR.begin() + static_cast<std::ptrdiff_t>(pos));
+        chain.processBlock(outL.data() + pos, outR.data() + pos, kBlock);
+        pos += kBlock;
+    }
+
+    // Process pre-blocks (harmonizer still disabled)
+    for (size_t b = 0; b < kPreBlocks; ++b) {
+        std::copy(inputL.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputL.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outL.begin() + static_cast<std::ptrdiff_t>(pos));
+        std::copy(inputR.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputR.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outR.begin() + static_cast<std::ptrdiff_t>(pos));
+        chain.processBlock(outL.data() + pos, outR.data() + pos, kBlock);
+        pos += kBlock;
+    }
+
+    // Enable harmonizer and process post-blocks
+    chain.setHarmonizerEnabled(true);
+    for (size_t b = 0; b < kPostBlocks; ++b) {
+        std::copy(inputL.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputL.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outL.begin() + static_cast<std::ptrdiff_t>(pos));
+        std::copy(inputR.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputR.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outR.begin() + static_cast<std::ptrdiff_t>(pos));
+        chain.processBlock(outL.data() + pos, outR.data() + pos, kBlock);
+        pos += kBlock;
+    }
+
+    // Analyze from start of pre-blocks to end of post-blocks (skip settle)
+    size_t analyzeStart = kSettleBlocks * kBlock;
+    size_t analyzeLen = (kPreBlocks + kPostBlocks) * kBlock;
+
+    Krate::DSP::TestUtils::ClickDetectorConfig clickCfg;
+    clickCfg.sampleRate = kSR;
+    clickCfg.detectionThreshold = 5.0f;
+    clickCfg.energyThresholdDb = -50.0f;
+
+    Krate::DSP::TestUtils::ClickDetector detector(clickCfg);
+    detector.prepare();
+
+    auto clicks = detector.detect(outL.data() + analyzeStart, analyzeLen);
+    INFO("Harmonizer enable transition: " << clicks.size() << " clicks");
+    CHECK(clicks.empty());
+}
+
+// ---------------------------------------------------------------------------
+// Test: Disable harmonizer mid-stream -- click detection
+// ---------------------------------------------------------------------------
+// Disable transition: harmonizer output suddenly replaced by bypass signal.
+// Without a crossfade, this is a discontinuity if the harmonizer was
+// modifying the signal (e.g., pitch-shifted wet component).
+TEST_CASE("Effects chain: harmonizer disable produces no click artifact",
+          "[systems][ruinae_effects_chain][harmonizer][artifact]") {
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+
+    // Enable harmonizer with audible wet signal
+    chain.setHarmonizerEnabled(true);
+    chain.setHarmonizerHarmonyMode(0);    // Chromatic
+    chain.setHarmonizerPitchShiftMode(0); // Simple
+    chain.setHarmonizerDryLevel(-6.0f);   // dry at -6 dB
+    chain.setHarmonizerWetLevel(-6.0f);   // wet at -6 dB (audible)
+    chain.setHarmonizerNumVoices(1);
+    chain.setHarmonizerVoiceInterval(0, 7);  // +7 semitones
+    chain.setHarmonizerVoiceLevel(0, 0.0f);
+
+    // Generate one continuous signal for settle + pre + post (no phase breaks)
+    constexpr size_t kBlock = 512;
+    constexpr size_t kSettleBlocks = 30;
+    constexpr size_t kPreBlocks = 10;
+    constexpr size_t kPostBlocks = 20;
+    constexpr size_t kTotalBlocks = kSettleBlocks + kPreBlocks + kPostBlocks;
+    constexpr size_t kTotalSamples = kTotalBlocks * kBlock;
+    constexpr float kFreq = 440.0f;
+    constexpr float kSR = static_cast<float>(kSampleRate);
+    const float phaseInc = 2.0f * 3.14159265358979323846f * kFreq / kSR;
+
+    std::vector<float> inputL(kTotalSamples), inputR(kTotalSamples);
+    for (size_t i = 0; i < kTotalSamples; ++i) {
+        float phase = phaseInc * static_cast<float>(i);
+        inputL[i] = 0.5f * std::sin(phase);
+        inputR[i] = inputL[i];
+    }
+
+    // Process settle blocks (harmonizer enabled, continuous input)
+    std::vector<float> outL(kTotalSamples), outR(kTotalSamples);
+    size_t pos = 0;
+    for (size_t b = 0; b < kSettleBlocks; ++b) {
+        std::copy(inputL.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputL.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outL.begin() + static_cast<std::ptrdiff_t>(pos));
+        std::copy(inputR.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputR.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outR.begin() + static_cast<std::ptrdiff_t>(pos));
+        chain.processBlock(outL.data() + pos, outR.data() + pos, kBlock);
+        pos += kBlock;
+    }
+
+    // Process pre-blocks (harmonizer still enabled, steady state)
+    for (size_t b = 0; b < kPreBlocks; ++b) {
+        std::copy(inputL.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputL.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outL.begin() + static_cast<std::ptrdiff_t>(pos));
+        std::copy(inputR.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputR.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outR.begin() + static_cast<std::ptrdiff_t>(pos));
+        chain.processBlock(outL.data() + pos, outR.data() + pos, kBlock);
+        pos += kBlock;
+    }
+
+    // Disable harmonizer and process post-blocks
+    chain.setHarmonizerEnabled(false);
+    for (size_t b = 0; b < kPostBlocks; ++b) {
+        std::copy(inputL.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputL.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outL.begin() + static_cast<std::ptrdiff_t>(pos));
+        std::copy(inputR.begin() + static_cast<std::ptrdiff_t>(pos),
+                  inputR.begin() + static_cast<std::ptrdiff_t>(pos + kBlock),
+                  outR.begin() + static_cast<std::ptrdiff_t>(pos));
+        chain.processBlock(outL.data() + pos, outR.data() + pos, kBlock);
+        pos += kBlock;
+    }
+
+    // Analyze from start of pre-blocks to end of post-blocks (skip settle)
+    size_t analyzeStart = kSettleBlocks * kBlock;
+    size_t analyzeLen = (kPreBlocks + kPostBlocks) * kBlock;
+
+    Krate::DSP::TestUtils::ClickDetectorConfig clickCfg;
+    clickCfg.sampleRate = kSR;
+    clickCfg.detectionThreshold = 5.0f;
+    clickCfg.energyThresholdDb = -50.0f;
+
+    Krate::DSP::TestUtils::ClickDetector detector(clickCfg);
+    detector.prepare();
+
+    auto clicks = detector.detect(outL.data() + analyzeStart, analyzeLen);
+    std::string disableMsg = "Harmonizer disable: " + std::to_string(clicks.size()) + " clicks. ";
+    for (const auto& c : clicks) {
+        size_t globalSample = c.sampleIndex + analyzeStart;
+        disableMsg += "sample=" + std::to_string(globalSample) +
+                      " (block " + std::to_string(globalSample / kBlock) + ")" +
+                      " t=" + std::to_string(c.timeSeconds) + "s" +
+                      " amp=" + std::to_string(c.amplitude) + ". ";
+    }
+    INFO(disableMsg);
+    CHECK(clicks.empty());
+}
+
+// =============================================================================
+// Harmonizer Wet Level Diagnostic
+// =============================================================================
+// Measures actual harmonizer wet output levels through the effects chain
+// to diagnose the low-volume bug reported by the user.
+
+TEST_CASE("Effects chain: harmonizer wet output level diagnostic",
+          "[systems][ruinae_effects_chain][harmonizer][diagnostic]") {
+
+    constexpr size_t kBlock = 512;
+    constexpr double kSR = 44100.0;
+    constexpr size_t kWarmupBlocks = 40;  // ~465ms settle time
+    constexpr size_t kMeasureBlocks = 20; // ~232ms measurement window
+    constexpr size_t kTotalBlocks = kWarmupBlocks + kMeasureBlocks;
+
+    // Generate a continuous 440Hz sine at 0.5 amplitude as the test signal
+    const size_t totalSamples = kTotalBlocks * kBlock;
+    std::vector<float> sineL(totalSamples), sineR(totalSamples);
+    fillSine(sineL.data(), totalSamples, 440.0f, kSR, 0.5f);
+    fillSine(sineR.data(), totalSamples, 440.0f, kSR, 0.5f);
+
+    // Measure input RMS for reference
+    const size_t measureStart = kWarmupBlocks * kBlock;
+    const size_t measureLen = kMeasureBlocks * kBlock;
+    float inputRMS = calculateRMS(sineL.data() + measureStart, measureLen);
+    INFO("Input RMS: " << inputRMS);
+
+    // Helper: run harmonizer through effects chain and measure output RMS
+    auto measureEffectsChainHarmonizer = [&](
+        const char* label,
+        float dryLevelDb, float wetLevelDb,
+        int numVoices, int pitchMode,
+        int v0Interval, float v0LevelDb, float v0Pan,
+        int v1Interval = 0, float v1LevelDb = 0.0f,
+        int v2Interval = 0, float v2LevelDb = 0.0f,
+        int v3Interval = 0, float v3LevelDb = 0.0f
+    ) -> std::pair<float, float> {
+        RuinaeEffectsChain chain;
+        chain.prepare(kSR, kBlock);
+
+        // Set harmonizer params BEFORE enabling (simulates normal plugin flow
+        // where applyParamsToEngine runs every block even when disabled)
+        chain.setHarmonizerHarmonyMode(0);  // Chromatic
+        chain.setHarmonizerPitchShiftMode(pitchMode);
+        chain.setHarmonizerDryLevel(dryLevelDb);
+        chain.setHarmonizerWetLevel(wetLevelDb);
+        chain.setHarmonizerNumVoices(numVoices);
+        chain.setHarmonizerVoiceInterval(0, v0Interval);
+        chain.setHarmonizerVoiceLevel(0, v0LevelDb);
+        chain.setHarmonizerVoicePan(0, v0Pan);
+        if (numVoices > 1) {
+            chain.setHarmonizerVoiceInterval(1, v1Interval);
+            chain.setHarmonizerVoiceLevel(1, v1LevelDb);
+            chain.setHarmonizerVoicePan(1, 0.0f);
+        }
+        if (numVoices > 2) {
+            chain.setHarmonizerVoiceInterval(2, v2Interval);
+            chain.setHarmonizerVoiceLevel(2, v2LevelDb);
+            chain.setHarmonizerVoicePan(2, 0.0f);
+        }
+        if (numVoices > 3) {
+            chain.setHarmonizerVoiceInterval(3, v3Interval);
+            chain.setHarmonizerVoiceLevel(3, v3LevelDb);
+            chain.setHarmonizerVoicePan(3, 0.0f);
+        }
+
+        // Run a few blocks with harmonizer disabled first (like the plugin does)
+        for (size_t b = 0; b < 5; ++b) {
+            std::vector<float> tmpL(sineL.begin() + static_cast<std::ptrdiff_t>(b * kBlock),
+                                     sineL.begin() + static_cast<std::ptrdiff_t>((b+1) * kBlock));
+            std::vector<float> tmpR(sineR.begin() + static_cast<std::ptrdiff_t>(b * kBlock),
+                                     sineR.begin() + static_cast<std::ptrdiff_t>((b+1) * kBlock));
+            chain.processBlock(tmpL.data(), tmpR.data(), kBlock);
+        }
+
+        // Enable harmonizer (this triggers snapParameters + fade-in)
+        chain.setHarmonizerEnabled(true);
+
+        // Process the remaining blocks
+        std::vector<float> outL(totalSamples, 0.0f);
+        std::vector<float> outR(totalSamples, 0.0f);
+        for (size_t b = 0; b < kTotalBlocks; ++b) {
+            std::copy(sineL.begin() + static_cast<std::ptrdiff_t>(b * kBlock),
+                      sineL.begin() + static_cast<std::ptrdiff_t>((b+1) * kBlock),
+                      outL.begin() + static_cast<std::ptrdiff_t>(b * kBlock));
+            std::copy(sineR.begin() + static_cast<std::ptrdiff_t>(b * kBlock),
+                      sineR.begin() + static_cast<std::ptrdiff_t>((b+1) * kBlock),
+                      outR.begin() + static_cast<std::ptrdiff_t>(b * kBlock));
+
+            // Re-set params every block (like applyParamsToEngine does)
+            chain.setHarmonizerEnabled(true);
+            chain.setHarmonizerDryLevel(dryLevelDb);
+            chain.setHarmonizerWetLevel(wetLevelDb);
+            chain.setHarmonizerNumVoices(numVoices);
+            chain.setHarmonizerVoiceInterval(0, v0Interval);
+            chain.setHarmonizerVoiceLevel(0, v0LevelDb);
+            chain.setHarmonizerVoicePan(0, v0Pan);
+            if (numVoices > 1) {
+                chain.setHarmonizerVoiceInterval(1, v1Interval);
+                chain.setHarmonizerVoiceLevel(1, v1LevelDb);
+                chain.setHarmonizerVoicePan(1, 0.0f);
+            }
+            if (numVoices > 2) {
+                chain.setHarmonizerVoiceInterval(2, v2Interval);
+                chain.setHarmonizerVoiceLevel(2, v2LevelDb);
+                chain.setHarmonizerVoicePan(2, 0.0f);
+            }
+            if (numVoices > 3) {
+                chain.setHarmonizerVoiceInterval(3, v3Interval);
+                chain.setHarmonizerVoiceLevel(3, v3LevelDb);
+                chain.setHarmonizerVoicePan(3, 0.0f);
+            }
+
+            chain.processBlock(
+                outL.data() + static_cast<std::ptrdiff_t>(b * kBlock),
+                outR.data() + static_cast<std::ptrdiff_t>(b * kBlock),
+                kBlock);
+        }
+
+        float rms = calculateRMS(outL.data() + measureStart, measureLen);
+        float peak = peakAbsolute(outL.data() + measureStart, measureLen);
+        float ratio = (inputRMS > 0.0f) ? rms / inputRMS : 0.0f;
+        INFO(label << " RMS: " << rms << "  Peak: " << peak
+             << "  Ratio: " << ratio << "  dB: " << linearToDbFS(rms));
+        return {rms, peak};
+    };
+
+    SECTION("Wet only, 1 voice Simple +7st, wet 0dB") {
+        auto [rms, peak] = measureEffectsChainHarmonizer(
+            "Simple +7st wet-only",
+            -60.0f, 0.0f,       // dry muted, wet 0dB
+            1, 0,                // 1 voice, Simple mode
+            7, 0.0f, 0.0f);     // +7 semitones, 0dB level, center pan
+        CHECK(rms > inputRMS * 0.3f);
+    }
+
+    SECTION("Wet only, 1 voice Simple +7st, wet +6dB") {
+        auto [rms, peak] = measureEffectsChainHarmonizer(
+            "Simple +7st wet+6dB",
+            -60.0f, 6.0f,       // dry muted, wet +6dB
+            1, 0,                // 1 voice, Simple mode
+            7, 0.0f, 0.0f);     // +7 semitones, 0dB level, center pan
+        CHECK(rms > inputRMS * 0.5f);
+    }
+
+    SECTION("4 voices Simple, default intervals (0), wet 0dB") {
+        auto [rms, peak] = measureEffectsChainHarmonizer(
+            "4 voices unison wet-only",
+            -60.0f, 0.0f,       // dry muted, wet 0dB
+            4, 0,                // 4 voices, Simple mode
+            0, 0.0f, 0.0f,      // V1: unison, 0dB, center
+            0, 0.0f,             // V2: unison, 0dB
+            0, 0.0f,             // V3: unison, 0dB
+            0, 0.0f);            // V4: unison, 0dB
+        CHECK(rms > inputRMS * 1.0f);
+    }
+
+    SECTION("Dry 50% + wet 100% (user scenario)") {
+        // User sets dry knob to 50% (norm 0.5 = -27dB) and wet to 100% (norm 1.0 = +6dB)
+        float dryDb = 0.5f * 66.0f - 60.0f;  // -27 dB
+        float wetDb = 1.0f * 66.0f - 60.0f;  // +6 dB
+        auto [rms, peak] = measureEffectsChainHarmonizer(
+            "User scenario: dry50% wet100%",
+            dryDb, wetDb,        // -27dB dry, +6dB wet
+            4, 0,                // 4 voices, Simple mode
+            7, 0.0f, 0.0f,      // V1: +7st, 0dB, center
+            0, 0.0f,             // V2: unison, 0dB
+            0, 0.0f,             // V3: unison, 0dB
+            0, 0.0f);            // V4: unison, 0dB
+        INFO("Expected: wet should dominate. Dry is -27dB, wet is +6dB");
+        CHECK(rms > inputRMS * 0.5f);
+    }
+
+    SECTION("Dry off + wet 100%, 1 voice PV +7st") {
+        auto [rms, peak] = measureEffectsChainHarmonizer(
+            "PV +7st wet-only +6dB",
+            -60.0f, 6.0f,       // dry muted, wet +6dB
+            1, 2,                // 1 voice, PhaseVocoder
+            7, 0.0f, 0.0f);     // +7 semitones, 0dB level, center pan
+        CHECK(rms > inputRMS * 0.3f);
+    }
+
+    SECTION("Dry off + wet 100%, 1 voice Granular +7st") {
+        auto [rms, peak] = measureEffectsChainHarmonizer(
+            "Granular +7st wet-only +6dB",
+            -60.0f, 6.0f,       // dry muted, wet +6dB
+            1, 1,                // 1 voice, Granular
+            7, 0.0f, 0.0f);     // +7 semitones, 0dB level, center pan
+        CHECK(rms > inputRMS * 0.3f);
+    }
 }

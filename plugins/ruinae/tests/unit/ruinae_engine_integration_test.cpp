@@ -5,9 +5,9 @@
 // These tests verify the complete signal chain from MIDI input through all
 // processing stages to stereo output.
 //
-// Note: The effects chain includes a spectral delay with 1024-sample FFT size,
-// which introduces latency. Tests must process multiple blocks before expecting
-// audio output.
+// Note: The effects chain includes a spectral delay (1024-sample FFT) plus
+// harmonizer PhaseVocoder (5120-sample) latency = 6144 total. Tests must
+// process multiple blocks before expecting audio output.
 //
 // Reference: specs/044-engine-composition/spec.md
 // ==============================================================================
@@ -40,8 +40,9 @@ using Catch::Approx;
 static constexpr size_t kBlockSize = 512;
 
 /// Number of warm-up blocks to process before expecting audio.
-/// The effects chain has latency compensation (spectral delay FFT = 1024 samples).
-static constexpr int kWarmUpBlocks = 10;
+/// The effects chain has latency compensation (spectral delay FFT 1024 +
+/// harmonizer PhaseVocoder 5120 = 6144 samples = 12 blocks of 512).
+static constexpr int kWarmUpBlocks = 16;
 
 static float findPeak(const float* buffer, size_t numSamples) {
     float peak = 0.0f;
@@ -811,12 +812,12 @@ TEST_CASE("RuinaeEngine integration: portamento frequency at midpoint",
         engine.noteOn(72, 100);
 
         // 100ms glide at 44100 Hz = 4410 samples. Midpoint at 50ms = 2205 samples.
-        // The effects chain adds 1024 samples of latency compensation
-        // (spectral delay FFT size), so the midpoint appears at the output
-        // at sample 2205 + 1024 = 3229.
-        // Process 11 blocks of 256 = 2816 samples, then capture 3 blocks (768).
-        // Analysis center at output sample 3200 → portamento sample 2176 (~49.3ms).
-        for (int i = 0; i < 11; ++i) {
+        // The effects chain adds 6144 samples of latency compensation
+        // (spectral FFT 1024 + harmonizer PV 5120), so the midpoint appears
+        // at the output at sample 2205 + 6144 = 8349.
+        // Process 31 blocks of 256 = 7936 samples, then capture 3 blocks (768).
+        // Analysis center at output sample 8320 → portamento sample 2176 (~49.3ms).
+        for (int i = 0; i < 31; ++i) {
             engine.processBlock(left.data(), right.data(), kSmallBlock);
         }
 
@@ -867,9 +868,10 @@ TEST_CASE("RuinaeEngine integration: mode switching discontinuity",
         engine.noteOn(64, 100);
         engine.noteOn(67, 100);
 
-        // Process several blocks to establish steady-state audio
+        // Process several blocks to establish steady-state audio.
+        // Need enough blocks for latency (6144/512=12 blocks) + settling.
         std::vector<float> left(kBlockSize), right(kBlockSize);
-        for (int i = 0; i < 20; ++i) {
+        for (int i = 0; i < 30; ++i) {
             engine.processBlock(left.data(), right.data(), kBlockSize);
         }
 

@@ -417,4 +417,76 @@ inline const Steinberg::Vst::TChar* const kPhaserWaveformStrings[] = {
     STR16("Square"),
 };
 
+// =============================================================================
+// Harmonizer: HarmonyMode dropdown (2 modes, stepCount = 1)
+// =============================================================================
+
+inline constexpr int kHarmonyModeCount = 2;
+
+inline const Steinberg::Vst::TChar* const kHarmonyModeStrings[] = {
+    STR16("Chromatic"),
+    STR16("Scalic"),
+};
+
+// =============================================================================
+// Harmonizer: Key dropdown (12 keys, stepCount = 11)
+// =============================================================================
+
+inline constexpr int kHarmonizerKeyCount = 12;
+
+inline const Steinberg::Vst::TChar* const kHarmonizerKeyStrings[] = {
+    STR16("C"), STR16("C#"), STR16("D"), STR16("Eb"),
+    STR16("E"), STR16("F"), STR16("F#"), STR16("G"),
+    STR16("Ab"), STR16("A"), STR16("Bb"), STR16("B"),
+};
+
+// =============================================================================
+// Harmonizer: Scale dropdown (9 types, stepCount = 8)
+// =============================================================================
+
+inline constexpr int kHarmonizerScaleCount = 9;
+
+inline const Steinberg::Vst::TChar* const kHarmonizerScaleStrings[] = {
+    STR16("Major"), STR16("Natural Minor"), STR16("Harmonic Minor"),
+    STR16("Melodic Minor"), STR16("Dorian"), STR16("Mixolydian"),
+    STR16("Phrygian"), STR16("Lydian"), STR16("Chromatic"),
+};
+
+// =============================================================================
+// Harmonizer: PitchShiftMode dropdown (4 modes, stepCount = 3)
+// =============================================================================
+
+inline constexpr int kHarmonizerPitchModeCount = 4;
+
+inline const Steinberg::Vst::TChar* const kHarmonizerPitchModeStrings[] = {
+    STR16("Simple"), STR16("Granular"),
+    STR16("Phase Vocoder"), STR16("Pitch Sync"),
+};
+
+// =============================================================================
+// Harmonizer: NumVoices dropdown (4 options: 1-4, stepCount = 3)
+// =============================================================================
+
+inline constexpr int kHarmonizerNumVoicesCount = 4;
+
+inline const Steinberg::Vst::TChar* const kHarmonizerNumVoicesStrings[] = {
+    STR16("1"), STR16("2"), STR16("3"), STR16("4"),
+};
+
+// =============================================================================
+// Harmonizer: Interval helpers (49 options: -24 to +24, stepCount = 48)
+// =============================================================================
+
+inline constexpr int kHarmonizerIntervalCount = 49;
+
+// Helper: convert dropdown index (0..48) to diatonic step value (-24..+24)
+inline int harmonizerIntervalFromIndex(int index) {
+    return std::clamp(index - 24, -24, 24);
+}
+
+// Helper: convert diatonic step value to dropdown index
+inline int harmonizerIntervalToIndex(int interval) {
+    return std::clamp(interval + 24, 0, 48);
+}
+
 } // namespace Ruinae

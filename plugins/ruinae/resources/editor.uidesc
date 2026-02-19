@@ -370,11 +370,43 @@
         <control-tag name="ActionTransformShiftLeft" tag="10008"/>
         <control-tag name="ActionEuclideanRegen" tag="10009"/>
 
+        <!-- FX: Harmonizer -->
+        <control-tag name="HarmonizerEnabled" tag="1503"/>
+        <control-tag name="HarmonizerHarmonyMode" tag="2800"/>
+        <control-tag name="HarmonizerKey" tag="2801"/>
+        <control-tag name="HarmonizerScale" tag="2802"/>
+        <control-tag name="HarmonizerPitchShiftMode" tag="2803"/>
+        <control-tag name="HarmonizerFormantPreserve" tag="2804"/>
+        <control-tag name="HarmonizerNumVoices" tag="2805"/>
+        <control-tag name="HarmonizerDryLevel" tag="2806"/>
+        <control-tag name="HarmonizerWetLevel" tag="2807"/>
+        <control-tag name="HarmonizerVoice1Interval" tag="2810"/>
+        <control-tag name="HarmonizerVoice1Level" tag="2811"/>
+        <control-tag name="HarmonizerVoice1Pan" tag="2812"/>
+        <control-tag name="HarmonizerVoice1Delay" tag="2813"/>
+        <control-tag name="HarmonizerVoice1Detune" tag="2814"/>
+        <control-tag name="HarmonizerVoice2Interval" tag="2820"/>
+        <control-tag name="HarmonizerVoice2Level" tag="2821"/>
+        <control-tag name="HarmonizerVoice2Pan" tag="2822"/>
+        <control-tag name="HarmonizerVoice2Delay" tag="2823"/>
+        <control-tag name="HarmonizerVoice2Detune" tag="2824"/>
+        <control-tag name="HarmonizerVoice3Interval" tag="2830"/>
+        <control-tag name="HarmonizerVoice3Level" tag="2831"/>
+        <control-tag name="HarmonizerVoice3Pan" tag="2832"/>
+        <control-tag name="HarmonizerVoice3Delay" tag="2833"/>
+        <control-tag name="HarmonizerVoice3Detune" tag="2834"/>
+        <control-tag name="HarmonizerVoice4Interval" tag="2840"/>
+        <control-tag name="HarmonizerVoice4Level" tag="2841"/>
+        <control-tag name="HarmonizerVoice4Pan" tag="2842"/>
+        <control-tag name="HarmonizerVoice4Delay" tag="2843"/>
+        <control-tag name="HarmonizerVoice4Detune" tag="2844"/>
+
         <!-- FX Expand/Collapse Chevrons (UI-only actions) -->
 
         <control-tag name="ActionFxExpandDelay" tag="10011"/>
         <control-tag name="ActionFxExpandReverb" tag="10012"/>
         <control-tag name="ActionFxExpandPhaser" tag="10018"/>
+        <control-tag name="ActionFxExpandHarmonizer" tag="10022"/>
 
         <!-- Envelope Expand/Collapse Chevrons (UI-only actions) -->
         <control-tag name="ActionEnvExpandAmp" tag="10013"/>
@@ -2735,6 +2767,24 @@
                       on-color="master" off-color="text-secondary"
                       tooltip="Expand phaser settings"
                       transparent="true"/>
+
+                <!-- Harmonizer group -->
+                <view class="ToggleButton" origin="680, 4" size="80, 20"
+                      control-tag="HarmonizerEnabled"
+                      default-value="0.0"
+                      title="Harmonizer"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      text-color="master"
+                      transparent="true"/>
+                <view class="ToggleButton" origin="770, 4" size="20, 20"
+                      control-tag="ActionFxExpandHarmonizer"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="master" off-color="text-secondary"
+                      tooltip="Expand harmonizer settings"
+                      transparent="true"/>
             </view>
 
             <!-- Delay detail panel (initially hidden, shown by controller) -->
@@ -2970,6 +3020,294 @@
                 <view class="CTextLabel" origin="488, 26" size="90, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Waveform"/>
+            </view>
+
+            <!-- Harmonizer detail panel (initially hidden, shown by controller) -->
+            <view class="CViewContainer" origin="4, 44" size="895, 120"
+                  custom-view-name="HarmonizerDetail" transparent="true">
+
+                <!-- Global controls row -->
+                <view class="COptionMenu" origin="8, 4" size="80, 20"
+                      control-tag="HarmonizerHarmonyMode"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="8, 26" size="80, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Mode"/>
+
+                <view class="COptionMenu" origin="98, 4" size="60, 20"
+                      control-tag="HarmonizerKey"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="98, 26" size="60, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Key"/>
+
+                <view class="COptionMenu" origin="168, 4" size="100, 20"
+                      control-tag="HarmonizerScale"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="168, 26" size="100, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Scale"/>
+
+                <view class="COptionMenu" origin="278, 4" size="100, 20"
+                      control-tag="HarmonizerPitchShiftMode"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="278, 26" size="100, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Pitch Mode"/>
+
+                <view class="ToggleButton" origin="390, 4" size="60, 20"
+                      control-tag="HarmonizerFormantPreserve"
+                      default-value="0.0"
+                      title="Formant"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="effects"
+                      text-color="effects"
+                      transparent="true"/>
+
+                <view class="COptionMenu" origin="460, 4" size="60, 20"
+                      control-tag="HarmonizerNumVoices"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="460, 26" size="60, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Voices"/>
+
+                <view class="ArcKnob" origin="540, 0" size="28, 28"
+                      control-tag="HarmonizerDryLevel"
+                      default-value="0.909"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="534, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Dry"/>
+
+                <view class="ArcKnob" origin="590, 0" size="28, 28"
+                      control-tag="HarmonizerWetLevel"
+                      default-value="0.818"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="584, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Wet"/>
+
+                <!-- Voice controls — two-column layout -->
+                <!-- Left column: Voice 1 & Voice 2 -->
+                <view class="CViewContainer" origin="8, 40" size="260, 34"
+                      custom-view-name="HarmonizerVoice1" transparent="true">
+                    <view class="CTextLabel" origin="0, 1" size="48, 16"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="left" transparent="true" title="Voice 1"/>
+                    <view class="COptionMenu" origin="50, 0" size="60, 18"
+                          control-tag="HarmonizerVoice1Interval"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                    <view class="ArcKnob" origin="122, -2" size="22, 22"
+                          control-tag="HarmonizerVoice1Level"
+                          default-value="0.909"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="158, -2" size="22, 22"
+                          control-tag="HarmonizerVoice1Pan"
+                          default-value="0.5"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="194, -2" size="22, 22"
+                          control-tag="HarmonizerVoice1Delay"
+                          default-value="0.0"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="230, -2" size="22, 22"
+                          control-tag="HarmonizerVoice1Detune"
+                          default-value="0.5"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="50, 22" size="60, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Interval"/>
+                    <view class="CTextLabel" origin="116, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Level"/>
+                    <view class="CTextLabel" origin="152, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Pan"/>
+                    <view class="CTextLabel" origin="188, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Delay"/>
+                    <view class="CTextLabel" origin="224, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Detune"/>
+                </view>
+
+                <view class="CViewContainer" origin="8, 78" size="260, 34"
+                      custom-view-name="HarmonizerVoice2" transparent="true">
+                    <view class="CTextLabel" origin="0, 1" size="48, 16"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="left" transparent="true" title="Voice 2"/>
+                    <view class="COptionMenu" origin="50, 0" size="60, 18"
+                          control-tag="HarmonizerVoice2Interval"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                    <view class="ArcKnob" origin="122, -2" size="22, 22"
+                          control-tag="HarmonizerVoice2Level"
+                          default-value="0.909"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="158, -2" size="22, 22"
+                          control-tag="HarmonizerVoice2Pan"
+                          default-value="0.5"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="194, -2" size="22, 22"
+                          control-tag="HarmonizerVoice2Delay"
+                          default-value="0.0"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="230, -2" size="22, 22"
+                          control-tag="HarmonizerVoice2Detune"
+                          default-value="0.5"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="50, 22" size="60, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Interval"/>
+                    <view class="CTextLabel" origin="116, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Level"/>
+                    <view class="CTextLabel" origin="152, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Pan"/>
+                    <view class="CTextLabel" origin="188, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Delay"/>
+                    <view class="CTextLabel" origin="224, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Detune"/>
+                </view>
+
+                <!-- Right column: Voice 3 & Voice 4 -->
+                <view class="CViewContainer" origin="320, 40" size="260, 34"
+                      custom-view-name="HarmonizerVoice3" transparent="true">
+                    <view class="CTextLabel" origin="0, 1" size="48, 16"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="left" transparent="true" title="Voice 3"/>
+                    <view class="COptionMenu" origin="50, 0" size="60, 18"
+                          control-tag="HarmonizerVoice3Interval"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                    <view class="ArcKnob" origin="122, -2" size="22, 22"
+                          control-tag="HarmonizerVoice3Level"
+                          default-value="0.909"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="158, -2" size="22, 22"
+                          control-tag="HarmonizerVoice3Pan"
+                          default-value="0.5"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="194, -2" size="22, 22"
+                          control-tag="HarmonizerVoice3Delay"
+                          default-value="0.0"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="230, -2" size="22, 22"
+                          control-tag="HarmonizerVoice3Detune"
+                          default-value="0.5"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="50, 22" size="60, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Interval"/>
+                    <view class="CTextLabel" origin="116, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Level"/>
+                    <view class="CTextLabel" origin="152, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Pan"/>
+                    <view class="CTextLabel" origin="188, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Delay"/>
+                    <view class="CTextLabel" origin="224, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Detune"/>
+                </view>
+
+                <view class="CViewContainer" origin="320, 78" size="260, 34"
+                      custom-view-name="HarmonizerVoice4" transparent="true">
+                    <view class="CTextLabel" origin="0, 1" size="48, 16"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="left" transparent="true" title="Voice 4"/>
+                    <view class="COptionMenu" origin="50, 0" size="60, 18"
+                          control-tag="HarmonizerVoice4Interval"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                    <view class="ArcKnob" origin="122, -2" size="22, 22"
+                          control-tag="HarmonizerVoice4Level"
+                          default-value="0.909"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="158, -2" size="22, 22"
+                          control-tag="HarmonizerVoice4Pan"
+                          default-value="0.5"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="194, -2" size="22, 22"
+                          control-tag="HarmonizerVoice4Delay"
+                          default-value="0.0"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="ArcKnob" origin="230, -2" size="22, 22"
+                          control-tag="HarmonizerVoice4Detune"
+                          default-value="0.5"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="50, 22" size="60, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Interval"/>
+                    <view class="CTextLabel" origin="116, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Level"/>
+                    <view class="CTextLabel" origin="152, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Pan"/>
+                    <view class="CTextLabel" origin="188, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Delay"/>
+                    <view class="CTextLabel" origin="224, 22" size="34, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Detune"/>
+                </view>
             </view>
         </view>
 
