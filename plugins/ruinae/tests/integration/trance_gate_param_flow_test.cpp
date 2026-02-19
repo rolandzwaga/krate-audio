@@ -183,11 +183,9 @@ struct TranceGateFixture {
         processor.setupProcessing(setup);
         processor.setActive(true);
 
-        // Enable delay and reverb (effects chain defaults to disabled)
-        TGParamChanges enableParams;
-        enableParams.addChange(Ruinae::kDelayEnabledId, 1.0);
-        enableParams.addChange(Ruinae::kReverbEnabledId, 1.0);
-        processWithParams(enableParams);
+        // Effects chain stays disabled — trance gate operates per-voice before
+        // effects, and delay/reverb feedback accumulates energy over time which
+        // confounds sequential energy comparisons.
     }
 
     ~TranceGateFixture() {
@@ -271,11 +269,11 @@ TEST_CASE("TranceGate enable/disable affects audio output",
     TranceGateFixture f;
     f.startNote();
 
-    // Let sound stabilize (3 blocks)
-    f.processBlocksAndMeasureEnergy(3);
+    // Let sound stabilize (amp envelope attack + a few blocks margin)
+    f.processBlocksAndMeasureEnergy(30);
 
-    // Measure baseline energy with gate OFF (default)
-    double energyDisabled = f.processBlocksAndMeasureEnergy(10);
+    // Measure baseline energy with gate OFF (default).
+    double energyDisabled = f.processBlocksAndMeasureEnergy(50);
     CHECK(energyDisabled > 0.0);
 
     // Enable trance gate with alternating step pattern for maximum gating effect
@@ -290,7 +288,7 @@ TEST_CASE("TranceGate enable/disable affects audio output",
             static_cast<Steinberg::Vst::ParamID>(Ruinae::kTranceGateStepLevel0Id + i),
             (i % 2 == 0) ? 0.0 : 1.0);
     }
-    double energyEnabled = f.applyParamsAndMeasureEnergy(enableGate, 10);
+    double energyEnabled = f.applyParamsAndMeasureEnergy(enableGate, 50);
 
     // Gated output should have noticeably less energy than ungated
     INFO("Energy disabled: " << energyDisabled << ", enabled: " << energyEnabled);
@@ -301,7 +299,7 @@ TEST_CASE("TranceGate depth parameter propagates",
           "[trance_gate][param_flow][integration]") {
     TranceGateFixture f;
     f.startNote();
-    f.processBlocksAndMeasureEnergy(3);
+    f.processBlocksAndMeasureEnergy(30);
 
     // Enable gate with depth=0 (should produce no audible gating)
     TGParamChanges gateDepthZero;
@@ -314,12 +312,12 @@ TEST_CASE("TranceGate depth parameter propagates",
             static_cast<Steinberg::Vst::ParamID>(Ruinae::kTranceGateStepLevel0Id + i),
             (i % 2 == 0) ? 0.0 : 1.0);
     }
-    double energyDepthZero = f.applyParamsAndMeasureEnergy(gateDepthZero, 10);
+    double energyDepthZero = f.applyParamsAndMeasureEnergy(gateDepthZero, 50);
 
     // Now set depth to 1.0 (full gating)
     TGParamChanges depthFull;
     depthFull.addChange(Ruinae::kTranceGateDepthId, 1.0);
-    double energyDepthFull = f.applyParamsAndMeasureEnergy(depthFull, 10);
+    double energyDepthFull = f.applyParamsAndMeasureEnergy(depthFull, 50);
 
     // Depth=0 should have more energy than depth=1 (full gating removes signal)
     INFO("Energy depth=0: " << energyDepthZero << ", depth=1: " << energyDepthFull);
@@ -330,7 +328,7 @@ TEST_CASE("TranceGate rate parameter propagates in free-run mode",
           "[trance_gate][param_flow][integration]") {
     TranceGateFixture f;
     f.startNote();
-    f.processBlocksAndMeasureEnergy(3);
+    f.processBlocksAndMeasureEnergy(30);
 
     // Enable gate in free-run mode with step 0 = 1.0, all others = 0.0.
     // At slow rate, the gate lingers on step 0 (full signal) for a long time.
@@ -348,12 +346,12 @@ TEST_CASE("TranceGate rate parameter propagates in free-run mode",
             static_cast<Steinberg::Vst::ParamID>(Ruinae::kTranceGateStepLevel0Id + i),
             0.0);
     }
-    double energySlow = f.applyParamsAndMeasureEnergy(slowRate, 10);
+    double energySlow = f.applyParamsAndMeasureEnergy(slowRate, 50);
 
     // Now switch to fast rate (100 Hz) — step 0 flashes past, rest is silence
     TGParamChanges fastRate;
     fastRate.addChange(Ruinae::kTranceGateRateId, 1.0); // 1.0 → 100 Hz
-    double energyFast = f.applyParamsAndMeasureEnergy(fastRate, 10);
+    double energyFast = f.applyParamsAndMeasureEnergy(fastRate, 50);
 
     // Slow rate keeps the high step much longer → more energy
     INFO("Energy slow rate: " << energySlow << ", fast rate: " << energyFast);
@@ -364,7 +362,7 @@ TEST_CASE("TranceGate step levels propagate",
           "[trance_gate][param_flow][integration]") {
     TranceGateFixture f;
     f.startNote();
-    f.processBlocksAndMeasureEnergy(3);
+    f.processBlocksAndMeasureEnergy(30);
 
     // Enable gate with all steps at 1.0 (passthrough — gate has no effect)
     TGParamChanges allOnes;
@@ -377,7 +375,7 @@ TEST_CASE("TranceGate step levels propagate",
             static_cast<Steinberg::Vst::ParamID>(Ruinae::kTranceGateStepLevel0Id + i),
             1.0);
     }
-    double energyAllOnes = f.applyParamsAndMeasureEnergy(allOnes, 10);
+    double energyAllOnes = f.applyParamsAndMeasureEnergy(allOnes, 50);
 
     // Set all steps to 0.0 (full silence)
     TGParamChanges allZeros;
@@ -386,7 +384,7 @@ TEST_CASE("TranceGate step levels propagate",
             static_cast<Steinberg::Vst::ParamID>(Ruinae::kTranceGateStepLevel0Id + i),
             0.0);
     }
-    double energyAllZeros = f.applyParamsAndMeasureEnergy(allZeros, 10);
+    double energyAllZeros = f.applyParamsAndMeasureEnergy(allZeros, 50);
 
     // All-ones should have significant energy; all-zeros should have much less.
     // Note: not near-zero because delay/reverb effects tails persist independently.
@@ -399,7 +397,7 @@ TEST_CASE("TranceGate numSteps parameter propagates",
           "[trance_gate][param_flow][integration]") {
     TranceGateFixture f;
     f.startNote();
-    f.processBlocksAndMeasureEnergy(3);
+    f.processBlocksAndMeasureEnergy(30);
 
     // Enable gate with 2 steps: step 0=0.0, step 1=1.0 → 50% duty cycle
     TGParamChanges twoSteps;
@@ -412,15 +410,18 @@ TEST_CASE("TranceGate numSteps parameter propagates",
     // Set step 0 = 0, step 1 = 1 (rest don't matter with numSteps=2)
     twoSteps.addChange(Ruinae::kTranceGateStepLevel0Id, 0.0);
     twoSteps.addChange(Ruinae::kTranceGateStepLevel1Id, 1.0);
-    double energyTwoSteps = f.applyParamsAndMeasureEnergy(twoSteps, 10);
+    double energyTwoSteps = f.applyParamsAndMeasureEnergy(twoSteps, 50);
 
     // Now switch to 4 steps: 0,0,0,1 → 25% duty cycle (less energy expected)
     TGParamChanges fourSteps;
     // 4 steps: (4 - 2) / 30 = 0.0667
     fourSteps.addChange(Ruinae::kTranceGateNumStepsId, 2.0 / 30.0);
+    // Must explicitly set all 4 steps (steps 0,1 carry over from previous phase)
+    fourSteps.addChange(Ruinae::kTranceGateStepLevel0Id, 0.0);
+    fourSteps.addChange(Ruinae::kTranceGateStepLevel1Id, 0.0);
     fourSteps.addChange(Ruinae::kTranceGateStepLevel2Id, 0.0);
     fourSteps.addChange(Ruinae::kTranceGateStepLevel3Id, 1.0);
-    double energyFourSteps = f.applyParamsAndMeasureEnergy(fourSteps, 10);
+    double energyFourSteps = f.applyParamsAndMeasureEnergy(fourSteps, 50);
 
     // Different step count should produce measurably different energy
     INFO("Energy 2 steps: " << energyTwoSteps << ", 4 steps: " << energyFourSteps);
@@ -433,7 +434,7 @@ TEST_CASE("TranceGate attack/release parameters propagate",
           "[trance_gate][param_flow][integration]") {
     TranceGateFixture f;
     f.startNote();
-    f.processBlocksAndMeasureEnergy(3);
+    f.processBlocksAndMeasureEnergy(30);
 
     // Enable gate with very short attack and release
     TGParamChanges shortEnv;
@@ -449,13 +450,13 @@ TEST_CASE("TranceGate attack/release parameters propagate",
             static_cast<Steinberg::Vst::ParamID>(Ruinae::kTranceGateStepLevel0Id + i),
             (i % 2 == 0) ? 0.0 : 1.0);
     }
-    double energyShortEnv = f.applyParamsAndMeasureEnergy(shortEnv, 10);
+    double energyShortEnv = f.applyParamsAndMeasureEnergy(shortEnv, 50);
 
     // Now set very long release (50ms)
     TGParamChanges longRelease;
     // Release: 1.0 → 50ms
     longRelease.addChange(Ruinae::kTranceGateReleaseId, 1.0);
-    double energyLongRelease = f.applyParamsAndMeasureEnergy(longRelease, 10);
+    double energyLongRelease = f.applyParamsAndMeasureEnergy(longRelease, 50);
 
     // Long release should retain more energy (slower decay between steps)
     INFO("Energy short env: " << energyShortEnv << ", long release: " << energyLongRelease);
@@ -481,7 +482,7 @@ TEST_CASE("TranceGate tempo sync parameter propagates",
     f.data.processContext = &context;
 
     f.startNote();
-    f.processBlocksAndMeasureEnergy(3);
+    f.processBlocksAndMeasureEnergy(30);
 
     // Enable gate in tempo sync mode
     TGParamChanges syncOn;
@@ -493,13 +494,13 @@ TEST_CASE("TranceGate tempo sync parameter propagates",
             static_cast<Steinberg::Vst::ParamID>(Ruinae::kTranceGateStepLevel0Id + i),
             (i % 2 == 0) ? 0.0 : 1.0);
     }
-    double energySync = f.applyParamsAndMeasureEnergy(syncOn, 10);
+    double energySync = f.applyParamsAndMeasureEnergy(syncOn, 50);
 
     // Switch to free-run with a very different rate
     TGParamChanges freeRun;
     freeRun.addChange(Ruinae::kTranceGateTempoSyncId, 0.0); // free-run
     freeRun.addChange(Ruinae::kTranceGateRateId, 1.0);       // 100 Hz
-    double energyFreeRun = f.applyParamsAndMeasureEnergy(freeRun, 10);
+    double energyFreeRun = f.applyParamsAndMeasureEnergy(freeRun, 50);
 
     // The two modes should produce different energy profiles
     INFO("Energy sync: " << energySync << ", free-run: " << energyFreeRun);
@@ -512,7 +513,7 @@ TEST_CASE("Multiple TranceGate params in same block",
           "[trance_gate][param_flow][integration]") {
     TranceGateFixture f;
     f.startNote();
-    f.processBlocksAndMeasureEnergy(3);
+    f.processBlocksAndMeasureEnergy(30);
 
     // Send all trance gate parameters simultaneously — should not crash
     TGParamChanges allParams;

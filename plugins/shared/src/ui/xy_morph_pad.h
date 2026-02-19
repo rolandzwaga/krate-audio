@@ -139,6 +139,10 @@ public:
     /// @brief Get the Y modulation range.
     [[nodiscard]] float getModulationRangeY() const { return modRangeY_; }
 
+    /// @brief Check if the user is currently dragging the cursor.
+    /// Used to suppress modulation animation during user interaction.
+    [[nodiscard]] bool isDragging() const { return isDragging_; }
+
     // --- Gradient corner colors ---
 
     void setColorBottomLeft(VSTGUI::CColor color) { colorBottomLeft_ = color; }

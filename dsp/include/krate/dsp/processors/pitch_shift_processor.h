@@ -1099,8 +1099,10 @@ public:
         // Prepare STFT analysis
         stft_.prepare(kFFTSize, kHopSize, WindowType::Hann);
 
-        // Prepare overlap-add synthesis
-        ola_.prepare(kFFTSize, kHopSize, WindowType::Hann);
+        // Prepare overlap-add synthesis with synthesis windowing enabled
+        // PV pitch shifting modifies the spectrum, so IFFT output needs windowing
+        // to avoid boundary discontinuities. Hann² at 75% overlap is COLA-compliant.
+        ola_.prepare(kFFTSize, kHopSize, WindowType::Hann, 9.0f, true);
 
         // Prepare spectral buffers
         analysisSpectrum_.prepare(kFFTSize);

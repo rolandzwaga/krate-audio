@@ -455,6 +455,22 @@ public:
     void setTransientDecay(float ms) noexcept { globalModEngine_.setTransientDecay(ms); }
 
     // =========================================================================
+    // Modulation State Query (for UI feedback)
+    // =========================================================================
+
+    /// @brief Get the current global modulation offset for a destination.
+    /// Call after processBlock() to read the most recent modulation state.
+    [[nodiscard]] float getGlobalModOffset(RuinaeModDest dest) const noexcept {
+        return globalModEngine_.getModulationOffset(static_cast<uint32_t>(dest));
+    }
+
+    /// @brief Get the base (unmodulated) mix position [0,1].
+    [[nodiscard]] float getBaseMixPosition() const noexcept { return voiceMixPosition_; }
+
+    /// @brief Get the base (unmodulated) mix tilt in dB [-12,+12].
+    [[nodiscard]] float getBaseMixTilt() const noexcept { return voiceMixTilt_; }
+
+    // =========================================================================
     // Performance Controllers (FR-023, FR-024, FR-025)
     // =========================================================================
 
@@ -571,6 +587,22 @@ public:
         effectsChain_.setPhaserNoteValue(value, modifier);
     }
     void setPhaserTempo(float bpm) noexcept { effectsChain_.setPhaserTempo(bpm); }
+
+    // Harmonizer (spec 067)
+    void setHarmonizerEnabled(bool enabled) noexcept { effectsChain_.setHarmonizerEnabled(enabled); }
+    void setHarmonizerHarmonyMode(int mode) noexcept { effectsChain_.setHarmonizerHarmonyMode(mode); }
+    void setHarmonizerKey(int rootNote) noexcept { effectsChain_.setHarmonizerKey(rootNote); }
+    void setHarmonizerScale(int scaleType) noexcept { effectsChain_.setHarmonizerScale(scaleType); }
+    void setHarmonizerPitchShiftMode(int mode) noexcept { effectsChain_.setHarmonizerPitchShiftMode(mode); }
+    void setHarmonizerFormantPreserve(bool enabled) noexcept { effectsChain_.setHarmonizerFormantPreserve(enabled); }
+    void setHarmonizerNumVoices(int count) noexcept { effectsChain_.setHarmonizerNumVoices(count); }
+    void setHarmonizerDryLevel(float dB) noexcept { effectsChain_.setHarmonizerDryLevel(dB); }
+    void setHarmonizerWetLevel(float dB) noexcept { effectsChain_.setHarmonizerWetLevel(dB); }
+    void setHarmonizerVoiceInterval(int voiceIndex, int steps) noexcept { effectsChain_.setHarmonizerVoiceInterval(voiceIndex, steps); }
+    void setHarmonizerVoiceLevel(int voiceIndex, float dB) noexcept { effectsChain_.setHarmonizerVoiceLevel(voiceIndex, dB); }
+    void setHarmonizerVoicePan(int voiceIndex, float pan) noexcept { effectsChain_.setHarmonizerVoicePan(voiceIndex, pan); }
+    void setHarmonizerVoiceDelay(int voiceIndex, float ms) noexcept { effectsChain_.setHarmonizerVoiceDelay(voiceIndex, ms); }
+    void setHarmonizerVoiceDetune(int voiceIndex, float cents) noexcept { effectsChain_.setHarmonizerVoiceDetune(voiceIndex, cents); }
 
     /// @brief Get total processing latency from effects chain (FR-028).
     [[nodiscard]] size_t getLatencySamples() const noexcept {

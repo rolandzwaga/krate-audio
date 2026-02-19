@@ -14,6 +14,9 @@ add_executable(ruinae_tests
     unit/ruinae_voice_test.cpp
     unit/ruinae_effects_chain_test.cpp
 
+    # Harmonizer Parameter Tests (067-ruinae-harmonizer)
+    unit/harmonizer_params_test.cpp
+
     # Plugin Shell Tests (045-plugin-shell)
     unit/processor_bus_test.cpp
     unit/param_denorm_test.cpp
@@ -38,8 +41,10 @@ add_executable(ruinae_tests
     integration/tempo_sync_test.cpp
     integration/param_flow_test.cpp
     integration/trance_gate_param_flow_test.cpp
+    integration/harmonizer_param_flow_test.cpp
     integration/controller_state_test.cpp
     integration/mod_source_pipeline_test.cpp
+    integration/morph_pad_modulation_test.cpp
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
@@ -82,8 +87,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/tempo_sync_test.cpp
         integration/param_flow_test.cpp
         integration/trance_gate_param_flow_test.cpp
+        integration/harmonizer_param_flow_test.cpp
         integration/controller_state_test.cpp
         integration/mod_source_pipeline_test.cpp
+        integration/morph_pad_modulation_test.cpp
         unit/controller_params_test.cpp
         unit/controller_display_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"

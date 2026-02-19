@@ -921,7 +921,7 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 | 1200-1299 | Chaos Mod (Rate, Type, Depth) | 3 |
 | 1300-1355 | Mod Matrix (8 slots: Source/Dest/Amount 1300-1323, Curve/Smooth/Scale/Bypass 1324-1355) | 56 |
 | 1400-1499 | Global Filter (Enabled, Type, Cutoff, Resonance) | 4 |
-| 1500-1599 | Freeze (Enabled, Toggle) | 2 |
+| 1500-1599 | FX Enable (1500 kDelayEnabledId, 1501 kReverbEnabledId, 1502 kPhaserEnabledId, 1503 kHarmonizerEnabledId) + Freeze (Enabled, Toggle) | 6 |
 | 1600-1699 | Delay (Type, Time, Feedback, Mix, Sync, NoteValue) | 6 |
 | 1700-1799 | Reverb (Size, Damping, Width, Mix, PreDelay, Diffusion, Freeze, ModRate, ModDepth) | 9 |
 | 1800-1899 | Mono Mode (Priority, Legato, Portamento, PortaMode) | 4 |
@@ -929,6 +929,7 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 | 2000-2099 | Macros (Macro 1-4 Value) | 4 |
 | 2100-2199 | Rungler (Osc1Freq, Osc2Freq, Depth, Filter, Bits, LoopMode) | 6 |
 | 2200-2299 | Settings (PitchBendRange, VelocityCurve, TuningRef, AllocMode, StealMode, GainComp) | 6 |
+| 2800-2899 | Harmonizer (HarmonyMode, Key, Scale, PitchShiftMode, FormantPreserve, NumVoices, DryLevel, WetLevel, Voice1-4 Interval/Level/Pan/Delay/Detune) | 28 |
 
 ### Global Parameters (IDs 0-5)
 
@@ -1093,13 +1094,14 @@ No controller code changes are needed. The dropdown auto-populates and the view 
 
 #### FX Chevron Expand/Collapse Pattern
 
-The Effects row uses controller-managed UI state (not VST parameters) to show/hide detail panels. Three `CViewContainer` detail panels are identified by `custom-view-name` attribute in `verifyView()`:
+The Effects row uses controller-managed UI state (not VST parameters) to show/hide detail panels. Four `CViewContainer` detail panels are identified by `custom-view-name` attribute in `verifyView()`:
 
 | Panel | custom-view-name | Action Tag |
 |-------|-----------------|------------|
 | Freeze | `FreezeDetail` | `kActionFxExpandFreezeTag` (10010) |
 | Delay | `DelayDetail` | `kActionFxExpandDelayTag` (10011) |
 | Reverb | `ReverbDetail` | `kActionFxExpandReverbTag` (10012) |
+| Harmonizer | `HarmonizerDetail` | `kActionFxExpandHarmonizerTag` (10022) |
 
 Chevron buttons are `COnOffButton` controls using action tags (not `control-tag` bindings). When clicked, `valueChanged()` in the controller calls `toggleFxDetail(panelIndex)`, which shows the selected panel and hides the others. Only one panel is visible at a time. All panel pointers are nulled in `willClose()` to prevent dangling references.
 

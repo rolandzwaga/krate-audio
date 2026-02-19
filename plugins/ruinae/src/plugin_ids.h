@@ -45,7 +45,7 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   1200-1299: Chaos Mod (Rate, Type, Depth)
 //   1300-1399: Modulation Matrix (Source, Dest, Amount x 8 slots)
 //   1400-1499: Global Filter (Enabled, Type, Cutoff, Resonance)
-//   1500-1599: FX Enable (Delay, Reverb, Phaser)
+//   1500-1599: FX Enable (Delay, Reverb, Phaser, Harmonizer)
 //   1600-1699: Delay Effect (Type, Time, Feedback, Mix, Sync, ...)
 //   1700-1799: Reverb (Size, Damping, Width, Mix, PreDelay, ...)
 //   1800-1899: Mono Mode (Priority, Legato, Portamento Time, PortaMode)
@@ -58,6 +58,9 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   2500-2599: Random
 //   2600-2699: Pitch Follower
 //   2700-2799: Transient Detector
+//   2800-2899: Harmonizer (HarmonyMode, Key, Scale, PitchShiftMode,
+//              FormantPreserve, NumVoices, DryLevel, WetLevel,
+//              Voice1-4 Interval/Level/Pan/Delay/Detune)
 // ==============================================================================
 
 enum ParameterIDs : Steinberg::Vst::ParamID {
@@ -78,7 +81,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     //   1200-1299: Chaos Mod
     //   1300-1399: Mod Matrix
     //   1400-1499: Global Filter
-    //   1500-1502: FX Enables
+    //   1500-1503: FX Enables (Delay, Reverb, Phaser, Harmonizer)
     //   1600-1699: Delay
     //   1700-1799: Reverb
     //   1800-1899: Mono Mode
@@ -91,6 +94,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     //   2500-2599: Random
     //   2600-2699: Pitch Follower
     //   2700-2799: Transient Detector
+    //   2800-2899: Harmonizer
     // ==========================================================================
 
     // ==========================================================================
@@ -475,11 +479,12 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kGlobalFilterEndId = 1499,
 
     // ==========================================================================
-    // FX Enable Parameters (1500-1502)
+    // FX Enable Parameters (1500-1503)
     // ==========================================================================
     kDelayEnabledId = 1500,    // on/off (default: on)
     kReverbEnabledId = 1501,   // on/off (default: on)
     kPhaserEnabledId = 1502,   // on/off (default: on)
+    kHarmonizerEnabledId = 1503, // on/off (default: off)
 
     // ==========================================================================
     // Delay Effect Parameters (1600-1699)
@@ -679,7 +684,52 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kTransientEndId = 2799,
 
     // ==========================================================================
-    kNumParameters = 2800,
+    // Harmonizer Parameters (2800-2899)
+    // ==========================================================================
+    kHarmonizerBaseId = 2800,
+
+    // Global harmonizer params (2800-2807)
+    kHarmonizerHarmonyModeId = 2800,    // Chromatic/Scalic (dropdown, 2 entries)
+    kHarmonizerKeyId = 2801,             // C through B (dropdown, 12 entries)
+    kHarmonizerScaleId = 2802,           // 9 scale types (dropdown, 9 entries)
+    kHarmonizerPitchShiftModeId = 2803,  // Simple/Granular/PhaseVocoder/PitchSync (dropdown, 4 entries)
+    kHarmonizerFormantPreserveId = 2804, // on/off toggle
+    kHarmonizerNumVoicesId = 2805,       // 1-4 (dropdown, 4 entries)
+    kHarmonizerDryLevelId = 2806,        // -60 to +6 dB (default 0 dB = norm ~0.909)
+    kHarmonizerWetLevelId = 2807,        // -60 to +6 dB (default -6 dB = norm ~0.818)
+
+    // Per-voice params: Voice 1 (2810-2814)
+    kHarmonizerVoice1IntervalId = 2810,  // -24 to +24 diatonic steps (default 0)
+    kHarmonizerVoice1LevelId = 2811,     // -60 to +6 dB (default 0 dB)
+    kHarmonizerVoice1PanId = 2812,       // -1 to +1 (default 0 = center)
+    kHarmonizerVoice1DelayId = 2813,     // 0 to 50 ms (default 0)
+    kHarmonizerVoice1DetuneId = 2814,    // -50 to +50 cents (default 0)
+
+    // Per-voice params: Voice 2 (2820-2824)
+    kHarmonizerVoice2IntervalId = 2820,
+    kHarmonizerVoice2LevelId = 2821,
+    kHarmonizerVoice2PanId = 2822,
+    kHarmonizerVoice2DelayId = 2823,
+    kHarmonizerVoice2DetuneId = 2824,
+
+    // Per-voice params: Voice 3 (2830-2834)
+    kHarmonizerVoice3IntervalId = 2830,
+    kHarmonizerVoice3LevelId = 2831,
+    kHarmonizerVoice3PanId = 2832,
+    kHarmonizerVoice3DelayId = 2833,
+    kHarmonizerVoice3DetuneId = 2834,
+
+    // Per-voice params: Voice 4 (2840-2844)
+    kHarmonizerVoice4IntervalId = 2840,
+    kHarmonizerVoice4LevelId = 2841,
+    kHarmonizerVoice4PanId = 2842,
+    kHarmonizerVoice4DelayId = 2843,
+    kHarmonizerVoice4DetuneId = 2844,
+
+    kHarmonizerEndId = 2899,
+
+    // ==========================================================================
+    kNumParameters = 2900,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)
@@ -706,6 +756,9 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // Phaser FX Detail Panel Expand/Collapse Chevron (UI-only)
     kActionFxExpandPhaserTag = 10018,
+
+    // Harmonizer FX Detail Panel Expand/Collapse Chevron (UI-only)
+    kActionFxExpandHarmonizerTag = 10022,
 
     // Modulation Source View Mode Tab (UI-only, ephemeral - not saved with state)
     kModSourceViewModeTag = 10019,

@@ -3,7 +3,7 @@
 // ==============================================================================
 // Stereo effects chain for the Ruinae synthesizer composing existing Layer 4
 // effects into a fixed-order processing chain:
-//   Voice Sum -> Phaser -> Delay -> Reverb -> Output
+//   Voice Sum -> Phaser -> Delay -> Harmonizer -> Reverb -> Output
 //
 // Features:
 // - Stereo phaser with tempo sync
@@ -29,6 +29,7 @@
 #include <krate/dsp/effects/tape_delay.h>
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/processors/phaser.h>
+#include <krate/dsp/systems/harmonizer_engine.h>
 #include "ruinae_types.h"
 
 #include <algorithm>
@@ -39,7 +40,7 @@
 #include <vector>
 
 // DEBUG: Phaser signal path tracing (remove after debugging)
-#define RUINAE_FX_CHAIN_DEBUG 1
+#define RUINAE_FX_CHAIN_DEBUG 0
 #if RUINAE_FX_CHAIN_DEBUG
 #include <cstdarg>
 #include <cstdio>
@@ -80,7 +81,7 @@ namespace Krate::DSP {
 /// @brief Stereo effects chain for the Ruinae synthesizer (Layer 3).
 ///
 /// Composes existing effects into a fixed-order processing chain:
-///   Voice Sum -> Phaser -> Delay -> Reverb -> Output
+///   Voice Sum -> Phaser -> Delay -> Harmonizer -> Reverb -> Output
 ///
 /// Features:
 /// - Five selectable delay types with click-free crossfade switching
@@ -147,8 +148,22 @@ public:
         // Prepare reverb
         reverb_.prepare(sampleRate);
 
-        // Query spectral delay latency for compensation
-        targetLatencySamples_ = spectralDelay_.getLatencySamples();
+        // Prepare harmonizer
+        harmonizer_.prepare(sampleRate, maxBlockSize);
+
+        // Pre-allocate scratch buffers for harmonizer
+        harmonizerMonoScratch_.resize(maxBlockSize, 0.0f);
+        harmonizerDryL_.resize(maxBlockSize, 0.0f);
+        harmonizerDryR_.resize(maxBlockSize, 0.0f);
+
+        // Query worst-case harmonizer latency by temporarily setting PhaseVocoder mode
+        // (FR-019: must query after setting PV mode for worst-case, FR-020: constant)
+        harmonizer_.setPitchShiftMode(PitchMode::PhaseVocoder);
+        const size_t harmonizerLatency = harmonizer_.getLatencySamples();
+        harmonizer_.setPitchShiftMode(PitchMode::Simple); // Reset to default
+
+        // Combined worst-case: spectral delay + harmonizer PhaseVocoder
+        targetLatencySamples_ = spectralDelay_.getLatencySamples() + harmonizerLatency;
 
         // Prepare compensation delays (2 shared pairs: active + standby)
         if (targetLatencySamples_ > 0) {
@@ -186,6 +201,15 @@ public:
         granularDelay_.reset();
         spectralDelay_.reset();
         reverb_.reset();
+
+        // Reset harmonizer
+        harmonizer_.reset();
+        std::fill(harmonizerMonoScratch_.begin(), harmonizerMonoScratch_.end(), 0.0f);
+        std::fill(harmonizerDryL_.begin(), harmonizerDryL_.end(), 0.0f);
+        std::fill(harmonizerDryR_.begin(), harmonizerDryR_.end(), 0.0f);
+        harmonizerFadeState_ = HarmonizerFadeState::Off;
+        harmonizerFadeAlpha_ = 0.0f;
+        harmonizerFadeIncrement_ = 0.0f;
 
         // Reset compensation delays
         for (size_t i = 0; i < 2; ++i) {
@@ -543,6 +567,71 @@ public:
     void setPhaserTempo(float bpm) noexcept { phaser_.setTempo(bpm); }
 
     // =========================================================================
+    // Harmonizer Control (spec 067)
+    // =========================================================================
+
+    void setHarmonizerEnabled(bool enabled) noexcept {
+        if (enabled && !harmonizerEnabled_) {
+            harmonizer_.snapParameters();
+            harmonizerNeedsPrime_ = true; // Apply voice fade-in on first process
+            harmonizerEnabled_ = true;
+            harmonizerFadeState_ = HarmonizerFadeState::FadingIn;
+            harmonizerFadeAlpha_ = 0.0f;
+            harmonizerFadeIncrement_ = 1000.0f /
+                (kHarmonizerCrossfadeMs * static_cast<float>(sampleRate_));
+        } else if (!enabled && harmonizerEnabled_) {
+            // Keep harmonizer enabled during fade-out so it still processes
+            harmonizerFadeState_ = HarmonizerFadeState::FadingOut;
+            harmonizerFadeAlpha_ = 1.0f;
+            harmonizerFadeIncrement_ = 1000.0f /
+                (kHarmonizerCrossfadeMs * static_cast<float>(sampleRate_));
+        }
+    }
+
+    // Global setters
+    void setHarmonizerHarmonyMode(int mode) noexcept {
+        harmonizer_.setHarmonyMode(static_cast<HarmonyMode>(std::clamp(mode, 0, 1)));
+    }
+    void setHarmonizerKey(int rootNote) noexcept {
+        harmonizer_.setKey(std::clamp(rootNote, 0, 11));
+    }
+    void setHarmonizerScale(int scaleType) noexcept {
+        harmonizer_.setScale(static_cast<ScaleType>(std::clamp(scaleType, 0, 8)));
+    }
+    void setHarmonizerPitchShiftMode(int mode) noexcept {
+        harmonizer_.setPitchShiftMode(static_cast<PitchMode>(std::clamp(mode, 0, 3)));
+    }
+    void setHarmonizerFormantPreserve(bool enabled) noexcept {
+        harmonizer_.setFormantPreserve(enabled);
+    }
+    void setHarmonizerNumVoices(int count) noexcept {
+        harmonizer_.setNumVoices(count);
+    }
+    void setHarmonizerDryLevel(float dB) noexcept {
+        harmonizer_.setDryLevel(dB);
+    }
+    void setHarmonizerWetLevel(float dB) noexcept {
+        harmonizer_.setWetLevel(dB);
+    }
+
+    // Per-voice setters
+    void setHarmonizerVoiceInterval(int voiceIndex, int diatonicSteps) noexcept {
+        harmonizer_.setVoiceInterval(voiceIndex, diatonicSteps);
+    }
+    void setHarmonizerVoiceLevel(int voiceIndex, float dB) noexcept {
+        harmonizer_.setVoiceLevel(voiceIndex, dB);
+    }
+    void setHarmonizerVoicePan(int voiceIndex, float pan) noexcept {
+        harmonizer_.setVoicePan(voiceIndex, pan);
+    }
+    void setHarmonizerVoiceDelay(int voiceIndex, float ms) noexcept {
+        harmonizer_.setVoiceDelay(voiceIndex, ms);
+    }
+    void setHarmonizerVoiceDetune(int voiceIndex, float cents) noexcept {
+        harmonizer_.setVoiceDetune(voiceIndex, cents);
+    }
+
+    // =========================================================================
     // Latency (FR-026, FR-027)
     // =========================================================================
 
@@ -733,7 +822,71 @@ private:
         }
 
         // ---------------------------------------------------------------
-        // Slot 2: Reverb (FR-005, FR-022)
+        // Slot 2: Harmonizer (spec 067, between delay and reverb)
+        // ---------------------------------------------------------------
+        if (harmonizerEnabled_) {
+            // Apply per-voice fade-in on first process after enable.
+            // This runs AFTER all parameter setters (numVoices, levels, etc.)
+            // have been called by the processor, so voices are configured.
+            if (harmonizerNeedsPrime_) {
+                harmonizer_.applyVoiceFadeIn();
+                harmonizerNeedsPrime_ = false;
+            }
+            if (harmonizerFadeState_ == HarmonizerFadeState::On) {
+                // Steady state: just process
+                for (size_t i = 0; i < numSamples; ++i) {
+                    harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
+                }
+                harmonizer_.process(harmonizerMonoScratch_.data(),
+                                    left, right, numSamples);
+            } else if (harmonizerFadeState_ == HarmonizerFadeState::FadingIn) {
+                // Save dry signal
+                std::memcpy(harmonizerDryL_.data(), left, numSamples * sizeof(float));
+                std::memcpy(harmonizerDryR_.data(), right, numSamples * sizeof(float));
+                // Process harmonizer
+                for (size_t i = 0; i < numSamples; ++i) {
+                    harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
+                }
+                harmonizer_.process(harmonizerMonoScratch_.data(),
+                                    left, right, numSamples);
+                // Crossfade: dry -> harmonizer
+                for (size_t i = 0; i < numSamples; ++i) {
+                    float alpha = harmonizerFadeAlpha_;
+                    left[i] = harmonizerDryL_[i] * (1.0f - alpha) + left[i] * alpha;
+                    right[i] = harmonizerDryR_[i] * (1.0f - alpha) + right[i] * alpha;
+                    harmonizerFadeAlpha_ += harmonizerFadeIncrement_;
+                    if (harmonizerFadeAlpha_ >= 1.0f) {
+                        harmonizerFadeAlpha_ = 1.0f;
+                        harmonizerFadeState_ = HarmonizerFadeState::On;
+                    }
+                }
+            } else if (harmonizerFadeState_ == HarmonizerFadeState::FadingOut) {
+                // Save dry signal
+                std::memcpy(harmonizerDryL_.data(), left, numSamples * sizeof(float));
+                std::memcpy(harmonizerDryR_.data(), right, numSamples * sizeof(float));
+                // Process harmonizer
+                for (size_t i = 0; i < numSamples; ++i) {
+                    harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
+                }
+                harmonizer_.process(harmonizerMonoScratch_.data(),
+                                    left, right, numSamples);
+                // Crossfade: harmonizer -> dry
+                for (size_t i = 0; i < numSamples; ++i) {
+                    float alpha = harmonizerFadeAlpha_;
+                    left[i] = harmonizerDryL_[i] * (1.0f - alpha) + left[i] * alpha;
+                    right[i] = harmonizerDryR_[i] * (1.0f - alpha) + right[i] * alpha;
+                    harmonizerFadeAlpha_ -= harmonizerFadeIncrement_;
+                    if (harmonizerFadeAlpha_ <= 0.0f) {
+                        harmonizerFadeAlpha_ = 0.0f;
+                        harmonizerFadeState_ = HarmonizerFadeState::Off;
+                        harmonizerEnabled_ = false;
+                    }
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Slot 3: Reverb (FR-005, FR-022)
         // ---------------------------------------------------------------
         if (reverbEnabled_) {
             reverb_.processBlock(left, right, numSamples);
@@ -877,6 +1030,8 @@ private:
     bool delayEnabled_ = false;
     bool reverbEnabled_ = false;
     bool phaserEnabled_ = false;
+    bool harmonizerEnabled_ = false;
+    bool harmonizerNeedsPrime_ = false; // Apply voice fade-in on first process
 
     // Phaser slot (before delay)
     Phaser phaser_;
@@ -905,6 +1060,19 @@ private:
     bool preWarming_ = false;
     size_t preWarmRemaining_ = 0;
     float currentDelayTimeMs_ = 50.0f;
+
+    // Harmonizer slot (spec 067)
+    HarmonizerEngine harmonizer_;
+    std::vector<float> harmonizerMonoScratch_;
+    std::vector<float> harmonizerDryL_;
+    std::vector<float> harmonizerDryR_;
+
+    // Harmonizer enable/disable crossfade
+    enum class HarmonizerFadeState { Off, FadingIn, On, FadingOut };
+    static constexpr float kHarmonizerCrossfadeMs = 10.0f;
+    HarmonizerFadeState harmonizerFadeState_ = HarmonizerFadeState::Off;
+    float harmonizerFadeAlpha_ = 0.0f;
+    float harmonizerFadeIncrement_ = 0.0f;
 
     // Reverb slot
     Reverb reverb_;

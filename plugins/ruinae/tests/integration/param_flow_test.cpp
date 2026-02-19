@@ -266,10 +266,10 @@ TEST_CASE("Parameter changes affect subsequent audio blocks", "[param_flow][inte
     f.data.inputParameterChanges = &emptyParams;
     f.processor.process(f.data);
 
-    // Process a few blocks to get audio going
+    // Process enough blocks to get past effects chain latency (6144/256 = 24 blocks)
     EmptyEventList noEvents;
     f.data.inputEvents = &noEvents;
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 30; ++i) {
         std::fill(f.outL.begin(), f.outL.end(), 0.0f);
         std::fill(f.outR.begin(), f.outR.end(), 0.0f);
         f.processor.process(f.data);
@@ -293,11 +293,11 @@ TEST_CASE("Parameter changes affect subsequent audio blocks", "[param_flow][inte
     std::fill(f.outR.begin(), f.outR.end(), 0.0f);
     f.processor.process(f.data);
 
-    // Process a few more blocks with gain at zero
+    // Process enough blocks for gain=0 to take effect through the latency pipeline
     TestParamChanges noParamChanges;
     f.data.inputParameterChanges = &noParamChanges;
     float peakAfter = 0.0f;
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 30; ++i) {
         std::fill(f.outL.begin(), f.outL.end(), 0.0f);
         std::fill(f.outR.begin(), f.outR.end(), 0.0f);
         f.processor.process(f.data);
@@ -365,13 +365,13 @@ TEST_CASE("Section param changes produce measurable output difference", "[param_
         return {peak, energy};
     };
 
-    // Collect output after a note has been playing for a few blocks
+    // Collect output after a note has been playing for enough blocks to pass latency
     auto collectOutput = [&](ParamFlowFixture& fix, TestParamChanges* paramChange = nullptr) {
-        // Process a few blocks for the sound to stabilize
+        // Process enough blocks for latency (6144/256=24) + stabilization
         TestParamChanges empty;
         TestParamChanges& pc = paramChange ? *paramChange : empty;
         fix.data.inputParameterChanges = &pc;
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 30; ++i) {
             std::fill(fix.outL.begin(), fix.outL.end(), 0.0f);
             std::fill(fix.outR.begin(), fix.outR.end(), 0.0f);
             fix.processor.process(fix.data);
@@ -397,7 +397,7 @@ TEST_CASE("Section param changes produce measurable output difference", "[param_
         {"OSC A Type",       Ruinae::kOscATypeId,         0.9},    // Noise vs PolyBLEP
         {"OSC A Level",      Ruinae::kOscALevelId,        0.0},    // Silence vs full
         {"Filter Cutoff",    Ruinae::kFilterCutoffId,     0.0},    // 20 Hz vs default
-        {"Distortion Drive", Ruinae::kDistortionDriveId,  1.0},    // Full drive vs none
+        {"Distortion Type",  Ruinae::kDistortionTypeId,   0.5},    // Non-clean type vs Clean
         {"Delay Mix",        Ruinae::kDelayMixId,         1.0},    // Full wet vs dry
         {"Reverb Mix",       Ruinae::kReverbMixId,        1.0},    // Full wet vs dry
     };

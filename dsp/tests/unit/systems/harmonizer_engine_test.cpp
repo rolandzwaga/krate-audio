@@ -4564,3 +4564,767 @@ TEST_CASE("T058: HarmonizerEngine PitchSync 4-voice re-benchmark (SC-008)",
     WARN("PitchSync spec-064 baseline: ~26.4% CPU, 1460-1588 us/block");
     WARN("PitchSync post-refactor measurement is informational only (SC-008).");
 }
+
+// =============================================================================
+// Artifact Detection Tests: Clicks, Pops, and Discontinuities
+// =============================================================================
+// These tests use the project's artifact_detection.h infrastructure to detect
+// audible artifacts in the harmonizer output under various conditions.
+// Each test targets a specific artifact source identified during investigation.
+// =============================================================================
+
+#include <artifact_detection.h>
+
+// Helper: process many blocks and collect output into a single buffer
+static void processAndCollect(Krate::DSP::HarmonizerEngine& engine,
+                              const float* input, std::size_t totalSamples,
+                              std::size_t blockSize,
+                              std::vector<float>& outL,
+                              std::vector<float>& outR) {
+    outL.resize(totalSamples, 0.0f);
+    outR.resize(totalSamples, 0.0f);
+    for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+        std::size_t n = std::min(blockSize, totalSamples - offset);
+        engine.process(input + offset, outL.data() + offset,
+                       outR.data() + offset, n);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 1: PhaseVocoder mode -- steady-state artifact-free output
+// ---------------------------------------------------------------------------
+// The existing smoothness tests (SC-006, SC-007) only use Simple mode.
+// PhaseVocoder mode has different artifact characteristics (OLA artifacts,
+// phase incoherence). This test verifies steady-state PV output is click-free.
+TEST_CASE("Harmonizer artifact: PhaseVocoder steady-state is click-free",
+          "[systems][harmonizer][artifact][pv]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr float sampleRateF = static_cast<float>(sampleRate);
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    engine.setDryLevel(-120.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 7); // +7 semitones (perfect fifth)
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+
+    // Generate input: long sine tone
+    constexpr std::size_t warmupSamples = 50 * blockSize;  // ~290ms priming
+    constexpr std::size_t testSamples = 200 * blockSize;   // ~1.2s test
+    constexpr std::size_t totalSamples = warmupSamples + testSamples;
+
+    std::vector<float> input(totalSamples);
+    fillSine(input.data(), totalSamples, inputFreq, sampleRateF);
+
+    std::vector<float> outL, outR;
+    processAndCollect(engine, input.data(), totalSamples, blockSize, outL, outR);
+
+    // Run click detection on the test region (skip warmup/priming)
+    Krate::DSP::TestUtils::ClickDetectorConfig clickCfg;
+    clickCfg.sampleRate = sampleRateF;
+    clickCfg.detectionThreshold = 5.0f;
+    clickCfg.energyThresholdDb = -50.0f;
+
+    Krate::DSP::TestUtils::ClickDetector detector(clickCfg);
+    detector.prepare();
+
+    auto clicksL = detector.detect(outL.data() + warmupSamples, testSamples);
+    auto clicksR = detector.detect(outR.data() + warmupSamples, testSamples);
+
+    INFO("PhaseVocoder steady-state: " << clicksL.size() << " clicks (L), "
+         << clicksR.size() << " clicks (R)");
+    for (auto& c : clicksL) {
+        INFO("  Click at sample " << c.sampleIndex << " (t="
+             << c.timeSeconds << "s), amplitude=" << c.amplitude);
+    }
+
+    CHECK(clicksL.empty());
+    CHECK(clicksR.empty());
+}
+
+// ---------------------------------------------------------------------------
+// Test 2: Interval change during playback (PhaseVocoder)
+// ---------------------------------------------------------------------------
+// Changing the voice interval at runtime while PV is processing could cause
+// phase discontinuities in the overlap-add synthesis.
+TEST_CASE("Harmonizer artifact: interval change during PV playback is smooth",
+          "[systems][harmonizer][artifact][pv][transition]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr float sampleRateF = static_cast<float>(sampleRate);
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    engine.setDryLevel(-120.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 7); // start at +7 semitones
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+
+    // Warm up until PV is producing stable output
+    constexpr std::size_t warmupSamples = 60 * blockSize;
+    std::vector<float> warmInput(warmupSamples);
+    fillSine(warmInput.data(), warmupSamples, inputFreq, sampleRateF);
+
+    std::vector<float> dummyL(warmupSamples), dummyR(warmupSamples);
+    processAndCollect(engine, warmInput.data(), warmupSamples, blockSize,
+                      dummyL, dummyR);
+
+    // Now change interval from +7 to +12 semitones and capture transition
+    engine.setVoiceInterval(0, 12);
+
+    // Continue with phase-continuous input to avoid input discontinuity
+    constexpr std::size_t transitionSamples = 100 * blockSize; // ~580ms
+    const float phaseInc2 = Krate::DSP::kTwoPi * inputFreq / sampleRateF;
+    const float startPhase2 = phaseInc2 * static_cast<float>(warmupSamples);
+    std::vector<float> transInput(transitionSamples);
+    fillSine(transInput.data(), transitionSamples, inputFreq, sampleRateF,
+             0.5f, startPhase2);
+
+    std::vector<float> transL, transR;
+    processAndCollect(engine, transInput.data(), transitionSamples, blockSize,
+                      transL, transR);
+
+    // Detect clicks in the transition
+    Krate::DSP::TestUtils::ClickDetectorConfig clickCfg;
+    clickCfg.sampleRate = sampleRateF;
+    clickCfg.detectionThreshold = 4.5f; // slightly more sensitive during transition
+    clickCfg.energyThresholdDb = -50.0f;
+
+    Krate::DSP::TestUtils::ClickDetector detector(clickCfg);
+    detector.prepare();
+
+    auto clicks = detector.detect(transL.data(), transitionSamples);
+
+    INFO("PV interval change: " << clicks.size() << " clicks detected");
+    for (auto& c : clicks) {
+        INFO("  Click at sample " << c.sampleIndex << " (t="
+             << c.timeSeconds << "s), amplitude=" << c.amplitude);
+    }
+
+    CHECK(clicks.empty());
+}
+
+// ---------------------------------------------------------------------------
+// Test 3: Pitch shift mode change at runtime
+// ---------------------------------------------------------------------------
+// setPitchShiftMode() calls voice.pitchShifter.reset() which clears all
+// internal state. If audio is flowing, this causes a discontinuity.
+TEST_CASE("Harmonizer artifact: pitch shift mode change is click-free",
+          "[systems][harmonizer][artifact][mode-switch]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr float sampleRateF = static_cast<float>(sampleRate);
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    engine.setDryLevel(-120.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 7);
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+
+    // Warm up in Simple mode
+    constexpr std::size_t warmupSamples = 30 * blockSize;
+    std::vector<float> warmInput(warmupSamples);
+    fillSine(warmInput.data(), warmupSamples, inputFreq, sampleRateF);
+
+    std::vector<float> dummyL(warmupSamples), dummyR(warmupSamples);
+    processAndCollect(engine, warmInput.data(), warmupSamples, blockSize,
+                      dummyL, dummyR);
+
+    // Switch mode from Simple to PhaseVocoder mid-stream
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+
+    // Process several blocks after the switch
+    constexpr std::size_t postSwitchSamples = 80 * blockSize;
+    std::vector<float> postInput(postSwitchSamples);
+    fillSine(postInput.data(), postSwitchSamples, inputFreq, sampleRateF);
+
+    std::vector<float> postL, postR;
+    processAndCollect(engine, postInput.data(), postSwitchSamples, blockSize,
+                      postL, postR);
+
+    // Use max-delta check for the first few blocks after switch.
+    // A hard reset of the pitch shifter while audio is flowing will cause
+    // an abrupt transition from the old mode's output to silence or a
+    // completely different signal.
+    constexpr std::size_t checkWindow = 4 * blockSize; // first 4 blocks
+    float maxDelta = 0.0f;
+    for (std::size_t i = 1; i < checkWindow && i < postSwitchSamples; ++i) {
+        float delta = std::abs(postL[i] - postL[i - 1]);
+        if (delta > maxDelta) maxDelta = delta;
+    }
+
+    // Measure steady-state delta for comparison (later in the buffer)
+    float steadyMaxDelta = 0.0f;
+    std::size_t steadyStart = postSwitchSamples - 4 * blockSize;
+    for (std::size_t i = steadyStart + 1; i < postSwitchSamples; ++i) {
+        float delta = std::abs(postL[i] - postL[i - 1]);
+        if (delta > steadyMaxDelta) steadyMaxDelta = delta;
+    }
+
+    INFO("Mode switch: max delta in first 4 blocks = " << maxDelta);
+    INFO("Steady-state max delta = " << steadyMaxDelta);
+
+    // The transition delta should not exceed 4x steady state.
+    // A hard click would produce deltas approaching full-scale (1.0+).
+    CHECK(maxDelta < 4.0f * std::max(steadyMaxDelta, 0.001f));
+}
+
+// ---------------------------------------------------------------------------
+// Test 4: Enable/disable transition produces no click
+// ---------------------------------------------------------------------------
+// In the effects chain, setHarmonizerEnabled(true) calls snapParameters()
+// but there's no crossfade between the bypass signal and the harmonizer output.
+// The harmonizer's dry/wet blend starts from whatever the smoother state is,
+// which could differ from the bypass signal level.
+TEST_CASE("Harmonizer artifact: enable transition is click-free",
+          "[systems][harmonizer][artifact][enable]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr float sampleRateF = static_cast<float>(sampleRate);
+
+    // Test at the HarmonizerEngine level: simulate the enable transition.
+    // When disabled, signal passes through unchanged (gain 1.0).
+    // When enabled, the harmonizer applies dry/wet processing.
+    // If the dry smoother isn't at unity when first enabled, there's a click.
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    // Set dry at 0dB (unity) and wet at -120dB (muted)
+    // This should mean harmonizer output ~= input (pure passthrough)
+    engine.setDryLevel(0.0f);
+    engine.setWetLevel(-120.0f);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 7);
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+
+    // Snap parameters so smoothers are at target
+    engine.snapParameters();
+
+    // Generate a continuous sine that represents the signal the effects chain
+    // was passing through while harmonizer was disabled
+    constexpr std::size_t totalSamples = 10 * blockSize;
+    std::vector<float> input(totalSamples);
+    fillSine(input.data(), totalSamples, inputFreq, sampleRateF, 0.5f);
+
+    // Simulate the transition: the FIRST call to process after enable.
+    // Build a reference of what bypass would look like (just input * dryGain=1.0)
+    std::vector<float> outL(totalSamples), outR(totalSamples);
+    for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+        std::size_t n = std::min(blockSize, totalSamples - offset);
+        engine.process(input.data() + offset, outL.data() + offset,
+                       outR.data() + offset, n);
+    }
+
+    // Build a "bypass" reference: what the signal was before harmonizer enabled
+    // (just the input signal at unity gain)
+    // Check that the first block doesn't have a discontinuity vs the input
+    float maxFirstBlockDiff = 0.0f;
+    for (std::size_t i = 0; i < blockSize; ++i) {
+        float diff = std::abs(outL[i] - input[i]);
+        if (diff > maxFirstBlockDiff) maxFirstBlockDiff = diff;
+    }
+
+    INFO("Max diff between harmonizer output and bypass in first block: "
+         << maxFirstBlockDiff);
+
+    // With dry=0dB, wet=-120dB, the output should be very close to the input.
+    // A large diff means the dry smoother didn't snap properly.
+    CHECK(maxFirstBlockDiff < 0.01f);
+
+    // Also run click detection on the output
+    Krate::DSP::TestUtils::ClickDetectorConfig clickCfg;
+    clickCfg.sampleRate = sampleRateF;
+    clickCfg.detectionThreshold = 5.0f;
+
+    Krate::DSP::TestUtils::ClickDetector detector(clickCfg);
+    detector.prepare();
+
+    auto clicks = detector.detect(outL.data(), totalSamples);
+    INFO("Enable transition: " << clicks.size() << " clicks");
+    CHECK(clicks.empty());
+}
+
+// ---------------------------------------------------------------------------
+// Test 5: numVoices change at runtime (voices appearing/disappearing)
+// ---------------------------------------------------------------------------
+// Changing numVoices from 1 to 4 mid-stream adds 3 new voices whose smoothers
+// may not be at appropriate starting values, causing pops.
+TEST_CASE("Harmonizer artifact: numVoices increase is click-free",
+          "[systems][harmonizer][artifact][voices]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 440.0f;
+    constexpr float sampleRateF = static_cast<float>(sampleRate);
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+    engine.setDryLevel(-120.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 7);
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+
+    // Warm up with 1 voice
+    constexpr std::size_t warmupSamples = 20 * blockSize;
+    std::vector<float> warmInput(warmupSamples);
+    fillSine(warmInput.data(), warmupSamples, inputFreq, sampleRateF);
+
+    std::vector<float> dummyL(warmupSamples), dummyR(warmupSamples);
+    processAndCollect(engine, warmInput.data(), warmupSamples, blockSize,
+                      dummyL, dummyR);
+
+    // Measure last block's max delta as steady-state baseline
+    float steadyMaxDelta = 0.0f;
+    for (std::size_t i = warmupSamples - blockSize + 1; i < warmupSamples; ++i) {
+        float d = std::abs(dummyL[i] - dummyL[i - 1]);
+        if (d > steadyMaxDelta) steadyMaxDelta = d;
+    }
+
+    // Now increase to 4 voices with large intervals
+    engine.setNumVoices(4);
+    engine.setVoiceInterval(1, 12);  // octave up
+    engine.setVoiceLevel(1, 0.0f);
+    engine.setVoicePan(1, 0.5f);
+    engine.setVoiceInterval(2, -12); // octave down
+    engine.setVoiceLevel(2, 0.0f);
+    engine.setVoicePan(2, -0.5f);
+    engine.setVoiceInterval(3, 5);   // fourth
+    engine.setVoiceLevel(3, 0.0f);
+    engine.setVoicePan(3, 0.0f);
+
+    // Continue with phase-continuous input to avoid input discontinuity
+    constexpr std::size_t postSamples = 20 * blockSize;
+    const float phaseInc = Krate::DSP::kTwoPi * inputFreq / sampleRateF;
+    const float startPhase = phaseInc * static_cast<float>(warmupSamples);
+    std::vector<float> postInput(postSamples);
+    fillSine(postInput.data(), postSamples, inputFreq, sampleRateF,
+             0.5f, startPhase);
+
+    std::vector<float> postL, postR;
+    processAndCollect(engine, postInput.data(), postSamples, blockSize,
+                      postL, postR);
+
+    // Check the first few blocks after the change for clicks
+    Krate::DSP::TestUtils::ClickDetectorConfig clickCfg;
+    clickCfg.sampleRate = sampleRateF;
+    clickCfg.detectionThreshold = 4.5f;
+    clickCfg.energyThresholdDb = -50.0f;
+
+    Krate::DSP::TestUtils::ClickDetector detector(clickCfg);
+    detector.prepare();
+
+    auto clicks = detector.detect(postL.data(), postSamples);
+
+    INFO("numVoices change: " << clicks.size() << " clicks detected");
+    CHECK(clicks.empty());
+}
+
+// ---------------------------------------------------------------------------
+// Test 6: PhaseVocoder large interval change (octave+ jumps)
+// ---------------------------------------------------------------------------
+// Large pitch ratio changes in PV mode can cause phase vocoder artifacts
+// due to rapid phase advancement changes in the synthesis stage.
+TEST_CASE("Harmonizer artifact: PV large interval jump is click-free",
+          "[systems][harmonizer][artifact][pv][large-jump]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float inputFreq = 261.63f; // C4
+    constexpr float sampleRateF = static_cast<float>(sampleRate);
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    engine.setDryLevel(-120.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, -12); // start at -12 semitones (octave down)
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+
+    // Warm up
+    constexpr std::size_t warmupSamples = 60 * blockSize;
+    std::vector<float> warmInput(warmupSamples);
+    fillSine(warmInput.data(), warmupSamples, inputFreq, sampleRateF);
+
+    std::vector<float> dummyL(warmupSamples), dummyR(warmupSamples);
+    processAndCollect(engine, warmInput.data(), warmupSamples, blockSize,
+                      dummyL, dummyR);
+
+    // Jump from -12 to +12 semitones (2-octave jump!)
+    engine.setVoiceInterval(0, 12);
+
+    // Continue with phase-continuous input
+    constexpr std::size_t postSamples = 100 * blockSize;
+    const float phaseInc6 = Krate::DSP::kTwoPi * inputFreq / sampleRateF;
+    const float startPhase6 = phaseInc6 * static_cast<float>(warmupSamples);
+    std::vector<float> postInput(postSamples);
+    fillSine(postInput.data(), postSamples, inputFreq, sampleRateF,
+             0.5f, startPhase6);
+
+    std::vector<float> postL, postR;
+    processAndCollect(engine, postInput.data(), postSamples, blockSize,
+                      postL, postR);
+
+    // LPC-based detection is better for PV artifacts which may not be
+    // simple step discontinuities but rather tonal irregularities
+    Krate::DSP::TestUtils::LPCDetectorConfig lpcCfg;
+    lpcCfg.sampleRate = sampleRateF;
+    lpcCfg.lpcOrder = 16;
+    lpcCfg.frameSize = 512;
+    lpcCfg.hopSize = 256;
+    lpcCfg.threshold = 6.0f; // moderate sensitivity
+
+    Krate::DSP::TestUtils::LPCDetector lpcDetector(lpcCfg);
+    lpcDetector.prepare();
+
+    // Skip the first ~50ms of transition where the pitch smoother is ramping
+    std::size_t skipSamples = static_cast<std::size_t>(0.05 * sampleRate);
+    std::size_t analyzeLen = postSamples - skipSamples;
+
+    auto lpcClicks = lpcDetector.detect(postL.data() + skipSamples, analyzeLen);
+
+    // Also run click detector
+    Krate::DSP::TestUtils::ClickDetectorConfig clickCfg;
+    clickCfg.sampleRate = sampleRateF;
+    clickCfg.detectionThreshold = 5.0f;
+    clickCfg.energyThresholdDb = -50.0f;
+
+    Krate::DSP::TestUtils::ClickDetector clickDetector(clickCfg);
+    clickDetector.prepare();
+
+    auto clicks = clickDetector.detect(postL.data() + skipSamples, analyzeLen);
+
+    INFO("PV large jump: " << clicks.size() << " click detections, "
+         << lpcClicks.size() << " LPC detections");
+    for (auto& c : clicks) {
+        INFO("  Click at sample " << (c.sampleIndex + skipSamples)
+             << ", amplitude=" << c.amplitude);
+    }
+
+    CHECK(clicks.empty());
+    CHECK(lpcClicks.size() < 3); // Allow very few LPC anomalies during ramp
+}
+
+// ---------------------------------------------------------------------------
+// Test 7: Complex input signal (harmonically rich) through PhaseVocoder
+// ---------------------------------------------------------------------------
+// All existing tests use clean sine waves. Real synth output is harmonically
+// rich and interacts differently with the phase vocoder.
+TEST_CASE("Harmonizer artifact: complex signal through PV is click-free",
+          "[systems][harmonizer][artifact][pv][complex-input]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 256;
+    constexpr float baseFreq = 220.0f; // A3
+    constexpr float sampleRateF = static_cast<float>(sampleRate);
+
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(sampleRate, blockSize);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
+    engine.setDryLevel(-120.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(1);
+    engine.setVoiceInterval(0, 7); // perfect fifth up
+    engine.setVoiceLevel(0, 0.0f);
+    engine.setVoicePan(0, 0.0f);
+
+    // Generate a harmonically rich sawtooth-like signal (sum of harmonics)
+    constexpr std::size_t warmupSamples = 60 * blockSize;
+    constexpr std::size_t testSamples = 150 * blockSize;
+    constexpr std::size_t totalSamples = warmupSamples + testSamples;
+
+    std::vector<float> input(totalSamples, 0.0f);
+    // Additive synthesis: fundamental + 5 harmonics with decreasing amplitude
+    for (int harmonic = 1; harmonic <= 6; ++harmonic) {
+        float freq = baseFreq * static_cast<float>(harmonic);
+        float amp = 0.3f / static_cast<float>(harmonic); // 1/n roll-off
+        for (std::size_t i = 0; i < totalSamples; ++i) {
+            input[i] += amp * std::sin(
+                Krate::DSP::kTwoPi * freq * static_cast<float>(i) / sampleRateF);
+        }
+    }
+
+    std::vector<float> outL, outR;
+    processAndCollect(engine, input.data(), totalSamples, blockSize, outL, outR);
+
+    // Run click detection on the test region (skip warmup)
+    Krate::DSP::TestUtils::ClickDetectorConfig clickCfg;
+    clickCfg.sampleRate = sampleRateF;
+    clickCfg.detectionThreshold = 5.0f;
+    clickCfg.energyThresholdDb = -50.0f;
+
+    Krate::DSP::TestUtils::ClickDetector detector(clickCfg);
+    detector.prepare();
+
+    auto clicks = detector.detect(outL.data() + warmupSamples, testSamples);
+
+    INFO("Complex input PV: " << clicks.size() << " clicks detected");
+    for (auto& c : clicks) {
+        INFO("  Click at sample " << (c.sampleIndex + warmupSamples)
+             << " (t=" << c.timeSeconds << "s), amplitude=" << c.amplitude);
+    }
+
+    CHECK(clicks.empty());
+
+    // Also check spectral anomalies
+    Krate::DSP::TestUtils::SpectralAnomalyConfig specCfg;
+    specCfg.sampleRate = sampleRateF;
+    specCfg.fftSize = 512;
+    specCfg.hopSize = 256;
+    specCfg.flatnessThreshold = 0.6f; // tonal signal should have low flatness
+
+    Krate::DSP::TestUtils::SpectralAnomalyDetector specDetector(specCfg);
+    specDetector.prepare();
+
+    auto anomalies = specDetector.detect(outL.data() + warmupSamples, testSamples);
+
+    INFO("Complex input PV: " << anomalies.size() << " spectral anomalies");
+    // Allow some frames near the start where the PV is settling
+    CHECK(anomalies.size() < 5);
+}
+
+// =============================================================================
+// Wet Output Level Diagnostic Test
+// =============================================================================
+// Measures actual RMS output of the harmonizer under various configurations
+// to diagnose the "wet signal is extremely quiet" issue reported by the user.
+
+static float diagRMS(const float* buf, std::size_t n) {
+    double sum = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        sum += static_cast<double>(buf[i]) * static_cast<double>(buf[i]);
+    }
+    return static_cast<float>(std::sqrt(sum / static_cast<double>(n)));
+}
+
+static float diagPeak(const float* buf, std::size_t n) {
+    float peak = 0.0f;
+    for (std::size_t i = 0; i < n; ++i) {
+        float a = std::fabs(buf[i]);
+        if (a > peak) peak = a;
+    }
+    return peak;
+}
+
+TEST_CASE("Harmonizer wet output level diagnostic",
+          "[systems][harmonizer][level][diagnostic]") {
+    using namespace Krate::DSP;
+
+    constexpr double sampleRate = 44100.0;
+    constexpr std::size_t blockSize = 512;
+    constexpr float inputFreq = 440.0f;
+    constexpr float inputAmp = 0.5f;
+
+    // We'll process enough to get past any startup latency
+    // PV latency is ~5120 samples, so let's do 32768 total
+    constexpr std::size_t totalSamples = 32768;
+    constexpr std::size_t warmupSamples = 8192; // skip first 8k
+    constexpr std::size_t measureSamples = totalSamples - warmupSamples;
+
+    std::vector<float> input(totalSamples);
+    fillSine(input.data(), totalSamples, inputFreq,
+             static_cast<float>(sampleRate), inputAmp);
+
+    float inputRMS = computeRMS(input.data() + warmupSamples, measureSamples);
+    INFO("Input RMS: " << inputRMS);
+
+    // Helper: run engine and return RMS of left output after warmup
+    auto runEngine = [&](auto configureFn) -> std::pair<float, float> {
+        HarmonizerEngine engine;
+        engine.prepare(sampleRate, blockSize);
+
+        configureFn(engine);
+        engine.snapParameters();
+
+        std::vector<float> outL(totalSamples, 0.0f);
+        std::vector<float> outR(totalSamples, 0.0f);
+
+        for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+            std::size_t chunk = std::min(blockSize, totalSamples - offset);
+            engine.process(input.data() + offset,
+                           outL.data() + offset,
+                           outR.data() + offset, chunk);
+        }
+
+        float rmsL = diagRMS(outL.data() + warmupSamples, measureSamples);
+        float peakL = diagPeak(outL.data() + warmupSamples, measureSamples);
+        return {rmsL, peakL};
+    };
+
+    SECTION("Baseline: dry only, no voices") {
+        auto [rms, peak] = runEngine([](HarmonizerEngine& e) {
+            e.setDryLevel(0.0f);    // 0 dB = unity
+            e.setWetLevel(-120.0f); // muted
+            e.setNumVoices(0);
+        });
+        INFO("Dry-only RMS: " << rms << "  Peak: " << peak);
+        INFO("Ratio to input: " << rms / inputRMS);
+        CHECK(rms > inputRMS * 0.9f); // should be ~unity
+    }
+
+    SECTION("1 voice, Simple mode, +7 semitones, wet only") {
+        auto [rms, peak] = runEngine([](HarmonizerEngine& e) {
+            e.setHarmonyMode(HarmonyMode::Chromatic);
+            e.setPitchShiftMode(PitchMode::Simple);
+            e.setDryLevel(-120.0f);
+            e.setWetLevel(0.0f);  // 0 dB = unity
+            e.setNumVoices(1);
+            e.setVoiceInterval(0, 7); // perfect fifth
+            e.setVoiceLevel(0, 0.0f); // 0 dB
+            e.setVoicePan(0, 0.0f);   // center
+        });
+        INFO("1 voice Simple +7st RMS: " << rms << "  Peak: " << peak);
+        INFO("Ratio to input: " << rms / inputRMS);
+        CHECK(rms > inputRMS * 0.3f); // should be substantial
+    }
+
+    SECTION("4 voices, Simple mode, various intervals, wet only") {
+        auto [rms, peak] = runEngine([](HarmonizerEngine& e) {
+            e.setHarmonyMode(HarmonyMode::Chromatic);
+            e.setPitchShiftMode(PitchMode::Simple);
+            e.setDryLevel(-120.0f);
+            e.setWetLevel(0.0f);
+            e.setNumVoices(4);
+            e.setVoiceInterval(0, 3);  // minor third
+            e.setVoiceInterval(1, 5);  // fourth
+            e.setVoiceInterval(2, 7);  // fifth
+            e.setVoiceInterval(3, 12); // octave
+            for (int v = 0; v < 4; ++v) {
+                e.setVoiceLevel(v, 0.0f);
+                e.setVoicePan(v, 0.0f);
+            }
+        });
+        INFO("4 voices Simple RMS: " << rms << "  Peak: " << peak);
+        INFO("Ratio to input: " << rms / inputRMS);
+        CHECK(rms > inputRMS * 0.5f);
+    }
+
+    SECTION("1 voice, Granular mode, +7 semitones, wet only") {
+        auto [rms, peak] = runEngine([](HarmonizerEngine& e) {
+            e.setHarmonyMode(HarmonyMode::Chromatic);
+            e.setPitchShiftMode(PitchMode::Granular);
+            e.setDryLevel(-120.0f);
+            e.setWetLevel(0.0f);
+            e.setNumVoices(1);
+            e.setVoiceInterval(0, 7);
+            e.setVoiceLevel(0, 0.0f);
+            e.setVoicePan(0, 0.0f);
+        });
+        INFO("1 voice Granular +7st RMS: " << rms << "  Peak: " << peak);
+        INFO("Ratio to input: " << rms / inputRMS);
+        CHECK(rms > inputRMS * 0.3f);
+    }
+
+    SECTION("1 voice, PhaseVocoder mode, +7 semitones, wet only") {
+        auto [rms, peak] = runEngine([](HarmonizerEngine& e) {
+            e.setHarmonyMode(HarmonyMode::Chromatic);
+            e.setPitchShiftMode(PitchMode::PhaseVocoder);
+            e.setDryLevel(-120.0f);
+            e.setWetLevel(0.0f);
+            e.setNumVoices(1);
+            e.setVoiceInterval(0, 7);
+            e.setVoiceLevel(0, 0.0f);
+            e.setVoicePan(0, 0.0f);
+        });
+        INFO("1 voice PV +7st RMS: " << rms << "  Peak: " << peak);
+        INFO("Ratio to input: " << rms / inputRMS);
+        CHECK(rms > inputRMS * 0.3f);
+    }
+
+    SECTION("1 voice, PitchSync mode, +7 semitones, wet only") {
+        auto [rms, peak] = runEngine([](HarmonizerEngine& e) {
+            e.setHarmonyMode(HarmonyMode::Chromatic);
+            e.setPitchShiftMode(PitchMode::PitchSync);
+            e.setDryLevel(-120.0f);
+            e.setWetLevel(0.0f);
+            e.setNumVoices(1);
+            e.setVoiceInterval(0, 7);
+            e.setVoiceLevel(0, 0.0f);
+            e.setVoicePan(0, 0.0f);
+        });
+        INFO("1 voice PitchSync +7st RMS: " << rms << "  Peak: " << peak);
+        INFO("Ratio to input: " << rms / inputRMS);
+        CHECK(rms > inputRMS * 0.3f);
+    }
+
+    SECTION("Effects chain integration: harmonizer wet level") {
+        // Simulate what the effects chain does: stereo -> mono -> harmonizer
+        HarmonizerEngine engine;
+        engine.prepare(sampleRate, blockSize);
+        engine.setHarmonyMode(HarmonyMode::Chromatic);
+        engine.setPitchShiftMode(PitchMode::Simple);
+        engine.setDryLevel(-120.0f);
+        engine.setWetLevel(0.0f);
+        engine.setNumVoices(4);
+        engine.setVoiceInterval(0, 3);
+        engine.setVoiceInterval(1, 5);
+        engine.setVoiceInterval(2, 7);
+        engine.setVoiceInterval(3, 12);
+        for (int v = 0; v < 4; ++v) {
+            engine.setVoiceLevel(v, 0.0f);
+            engine.setVoicePan(v, 0.0f);
+        }
+        engine.snapParameters();
+
+        // Create stereo input (identical L/R like mono synth)
+        std::vector<float> stereoL(totalSamples);
+        std::vector<float> stereoR(totalSamples);
+        fillSine(stereoL.data(), totalSamples, inputFreq,
+                 static_cast<float>(sampleRate), inputAmp);
+        std::copy(stereoL.begin(), stereoL.end(), stereoR.begin());
+
+        // Do what the effects chain does: mono sum then process
+        std::vector<float> monoInput(totalSamples);
+        std::vector<float> outL(totalSamples, 0.0f);
+        std::vector<float> outR(totalSamples, 0.0f);
+
+        for (std::size_t offset = 0; offset < totalSamples; offset += blockSize) {
+            std::size_t chunk = std::min(blockSize, totalSamples - offset);
+
+            // Effects chain mono conversion: (L+R)*0.5
+            for (std::size_t i = 0; i < chunk; ++i) {
+                monoInput[offset + i] = (stereoL[offset + i] + stereoR[offset + i]) * 0.5f;
+            }
+
+            // Harmonizer overwrites outL/outR
+            engine.process(monoInput.data() + offset,
+                           outL.data() + offset,
+                           outR.data() + offset, chunk);
+        }
+
+        float rmsL = diagRMS(outL.data() + warmupSamples, measureSamples);
+        float peakL = diagPeak(outL.data() + warmupSamples, measureSamples);
+        float monoRMS = diagRMS(monoInput.data() + warmupSamples, measureSamples);
+
+        INFO("Mono input RMS: " << monoRMS);
+        INFO("Effects chain sim output RMS: " << rmsL << "  Peak: " << peakL);
+        INFO("Ratio to mono input: " << rmsL / monoRMS);
+        INFO("Ratio to original stereo: " << rmsL / inputRMS);
+        CHECK(rmsL > monoRMS * 0.5f);
+    }
+}
