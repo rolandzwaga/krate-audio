@@ -228,6 +228,27 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Process audio through the engine
     engine_.processBlock(outputL, outputR, numSamples);
 
+    // Update morph pad modulated position for UI animation
+    {
+        using Krate::DSP::RuinaeModDest;
+        const float morphOffset = engine_.getGlobalModOffset(
+            RuinaeModDest::AllVoiceMorphPosition);
+        const float tiltOffset = engine_.getGlobalModOffset(
+            RuinaeModDest::AllVoiceSpectralTilt);
+
+        const float baseX = mixerParams_.position.load(std::memory_order_relaxed);
+        modulatedMorphX_.store(
+            std::clamp(baseX + morphOffset, 0.0f, 1.0f),
+            std::memory_order_relaxed);
+
+        // Tilt: base is dB [-12,+12], offset is normalized scaled by 24 → dB
+        const float baseTiltDb = mixerParams_.tilt.load(std::memory_order_relaxed);
+        const float modTiltDb = std::clamp(
+            baseTiltDb + tiltOffset * 24.0f, -12.0f, 12.0f);
+        modulatedMorphY_.store(
+            (modTiltDb + 12.0f) / 24.0f, std::memory_order_relaxed);
+    }
+
     // Update shared playback position atomics for controller UI
     tranceGatePlaybackStep_.store(
         engine_.getTranceGateCurrentStep(), std::memory_order_relaxed);
@@ -326,6 +347,25 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                         reinterpret_cast<intptr_t>(&envVoiceActive_)));
                 sendMessage(msg);
                 envDisplayMessageSent_ = true;
+            }
+        }
+    }
+
+    // Send morph pad modulation pointers to controller (one-time setup)
+    if (!morphPadModMessageSent_) {
+        auto msg = Steinberg::owned(allocateMessage());
+        if (msg) {
+            msg->setMessageID("MorphPadModulation");
+            auto* attrs = msg->getAttributes();
+            if (attrs) {
+                attrs->setInt("morphXPtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&modulatedMorphX_)));
+                attrs->setInt("morphYPtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&modulatedMorphY_)));
+                sendMessage(msg);
+                morphPadModMessageSent_ = true;
             }
         }
     }

@@ -170,6 +170,8 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
 }
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
+    modulatedMorphXPtr_ = nullptr;
+    modulatedMorphYPtr_ = nullptr;
     playbackPollTimer_ = nullptr;
     tranceGatePlaybackStepPtr_ = nullptr;
     isTransportPlayingPtr_ = nullptr;
@@ -499,21 +501,9 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
                 static_cast<intptr_t>(playingPtr));
         }
 
-        // Start a poll timer to push playback state to the editor (~30fps)
-        if (tranceGatePlaybackStepPtr_ && !playbackPollTimer_) {
-            playbackPollTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
-                [this](VSTGUI::CVSTGUITimer*) {
-                    if (!stepPatternEditor_) return;
-                    if (tranceGatePlaybackStepPtr_) {
-                        stepPatternEditor_->setPlaybackStep(
-                            tranceGatePlaybackStepPtr_->load(std::memory_order_relaxed));
-                    }
-                    if (isTransportPlayingPtr_) {
-                        stepPatternEditor_->setPlaying(
-                            isTransportPlayingPtr_->load(std::memory_order_relaxed));
-                    }
-                }, 33); // ~30fps
-        }
+        // Timer is created in didOpen() where VSTGUI frame is active.
+        // notify() may be called before the editor opens, so CVSTGUITimer
+        // created here would have no message loop to fire on.
 
         return Steinberg::kResultOk;
     }
@@ -556,6 +546,26 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
 
         // Wire the atomic pointers to existing ADSRDisplay instances
         wireEnvDisplayPlayback();
+
+        return Steinberg::kResultOk;
+    }
+
+    if (strcmp(message->getMessageID(), "MorphPadModulation") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        Steinberg::int64 val = 0;
+        if (attrs->getInt("morphXPtr", val) == Steinberg::kResultOk) {
+            modulatedMorphXPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+        if (attrs->getInt("morphYPtr", val) == Steinberg::kResultOk) {
+            modulatedMorphYPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+
+        // Timer is created in didOpen() where VSTGUI frame is active.
 
         return Steinberg::kResultOk;
     }
@@ -692,8 +702,10 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
-    // Push mixer parameter changes to XYMorphPad
-    if (xyMorphPad_) {
+    // Push mixer parameter changes to XYMorphPad.
+    // When processor modulation pointers are active, skip — the poll timer
+    // handles position updates (including unmodulated base position when offset=0).
+    if (xyMorphPad_ && !modulatedMorphXPtr_) {
         if (tag == kMixerPositionId) {
             xyMorphPad_->setMorphPosition(
                 static_cast<float>(value), xyMorphPad_->getMorphY());
@@ -742,6 +754,34 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
 
 void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     activeEditor_ = editor;
+
+    // Create a unified UI poll timer (~30fps) for all processor→UI feedback.
+    // MUST be created here (not in notify()) because CVSTGUITimer requires an
+    // active VSTGUI frame with a message loop. notify() is called by the host
+    // before the editor opens, so timers created there never fire.
+    if (!playbackPollTimer_) {
+        playbackPollTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+            [this](VSTGUI::CVSTGUITimer*) {
+                // Trance gate step indicator
+                if (stepPatternEditor_) {
+                    if (tranceGatePlaybackStepPtr_) {
+                        stepPatternEditor_->setPlaybackStep(
+                            tranceGatePlaybackStepPtr_->load(std::memory_order_relaxed));
+                    }
+                    if (isTransportPlayingPtr_) {
+                        stepPatternEditor_->setPlaying(
+                            isTransportPlayingPtr_->load(std::memory_order_relaxed));
+                    }
+                }
+                // Morph pad modulation animation
+                if (xyMorphPad_ && modulatedMorphXPtr_ && modulatedMorphYPtr_
+                    && !xyMorphPad_->isDragging()) {
+                    const float modX = modulatedMorphXPtr_->load(std::memory_order_relaxed);
+                    const float modY = modulatedMorphYPtr_->load(std::memory_order_relaxed);
+                    xyMorphPad_->setMorphPosition(modX, modY);
+                }
+            }, 33); // ~30fps
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -800,6 +840,9 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         settingsDrawerOpen_ = false;
         settingsDrawerProgress_ = 0.0f;
         settingsDrawerTargetOpen_ = false;
+
+        // Stop poll timer when editor closes (will be recreated in didOpen)
+        playbackPollTimer_ = nullptr;
 
         activeEditor_ = nullptr;
     }

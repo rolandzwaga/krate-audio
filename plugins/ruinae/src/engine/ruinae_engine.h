@@ -455,6 +455,22 @@ public:
     void setTransientDecay(float ms) noexcept { globalModEngine_.setTransientDecay(ms); }
 
     // =========================================================================
+    // Modulation State Query (for UI feedback)
+    // =========================================================================
+
+    /// @brief Get the current global modulation offset for a destination.
+    /// Call after processBlock() to read the most recent modulation state.
+    [[nodiscard]] float getGlobalModOffset(RuinaeModDest dest) const noexcept {
+        return globalModEngine_.getModulationOffset(static_cast<uint32_t>(dest));
+    }
+
+    /// @brief Get the base (unmodulated) mix position [0,1].
+    [[nodiscard]] float getBaseMixPosition() const noexcept { return voiceMixPosition_; }
+
+    /// @brief Get the base (unmodulated) mix tilt in dB [-12,+12].
+    [[nodiscard]] float getBaseMixTilt() const noexcept { return voiceMixTilt_; }
+
+    // =========================================================================
     // Performance Controllers (FR-023, FR-024, FR-025)
     // =========================================================================
 

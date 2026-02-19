@@ -232,6 +232,17 @@ private:
     bool envDisplayMessageSent_ = false;
 
     // ==========================================================================
+    // Morph Pad Modulation Display (shared with controller via IMessage pointer)
+    // ==========================================================================
+
+    /// Modulated morph position (normalized [0,1]) for XYMorphPad animation
+    std::atomic<float> modulatedMorphX_{0.5f};
+    /// Modulated spectral tilt (normalized [0,1]) for XYMorphPad animation
+    std::atomic<float> modulatedMorphY_{0.5f};
+
+    bool morphPadModMessageSent_ = false;
+
+    // ==========================================================================
     // Voice Route State (communicated via IMessage, T085-T086)
     // ==========================================================================
 

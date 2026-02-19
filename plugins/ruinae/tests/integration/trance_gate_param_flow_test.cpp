@@ -183,11 +183,9 @@ struct TranceGateFixture {
         processor.setupProcessing(setup);
         processor.setActive(true);
 
-        // Enable delay and reverb (effects chain defaults to disabled)
-        TGParamChanges enableParams;
-        enableParams.addChange(Ruinae::kDelayEnabledId, 1.0);
-        enableParams.addChange(Ruinae::kReverbEnabledId, 1.0);
-        processWithParams(enableParams);
+        // Effects chain stays disabled — trance gate operates per-voice before
+        // effects, and delay/reverb feedback accumulates energy over time which
+        // confounds sequential energy comparisons.
     }
 
     ~TranceGateFixture() {
@@ -271,11 +269,10 @@ TEST_CASE("TranceGate enable/disable affects audio output",
     TranceGateFixture f;
     f.startNote();
 
-    // Let sound stabilize past effects chain latency (6144/256=24 blocks + margin)
+    // Let sound stabilize (amp envelope attack + a few blocks margin)
     f.processBlocksAndMeasureEnergy(30);
 
     // Measure baseline energy with gate OFF (default).
-    // Use 50 blocks to ensure post-latency audio dominates (latency=6144/256=24 blocks).
     double energyDisabled = f.processBlocksAndMeasureEnergy(50);
     CHECK(energyDisabled > 0.0);
 
@@ -419,6 +416,9 @@ TEST_CASE("TranceGate numSteps parameter propagates",
     TGParamChanges fourSteps;
     // 4 steps: (4 - 2) / 30 = 0.0667
     fourSteps.addChange(Ruinae::kTranceGateNumStepsId, 2.0 / 30.0);
+    // Must explicitly set all 4 steps (steps 0,1 carry over from previous phase)
+    fourSteps.addChange(Ruinae::kTranceGateStepLevel0Id, 0.0);
+    fourSteps.addChange(Ruinae::kTranceGateStepLevel1Id, 0.0);
     fourSteps.addChange(Ruinae::kTranceGateStepLevel2Id, 0.0);
     fourSteps.addChange(Ruinae::kTranceGateStepLevel3Id, 1.0);
     double energyFourSteps = f.applyParamsAndMeasureEnergy(fourSteps, 50);

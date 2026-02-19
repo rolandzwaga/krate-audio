@@ -284,6 +284,10 @@ private:
     std::atomic<bool>* isTransportPlayingPtr_ = nullptr;
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> playbackPollTimer_;
 
+    // Morph pad modulated position shared from processor via IMessage pointer
+    std::atomic<float>* modulatedMorphXPtr_ = nullptr;
+    std::atomic<float>* modulatedMorphYPtr_ = nullptr;
+
     // Envelope display state shared from processor via IMessage pointer
     std::atomic<float>* ampEnvOutputPtr_ = nullptr;
     std::atomic<int>* ampEnvStagePtr_ = nullptr;
