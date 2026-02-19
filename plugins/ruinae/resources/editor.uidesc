@@ -2698,55 +2698,10 @@
             transparent="true"
         >
             <!-- FX strip (always visible) — Enable + Mix + Expand only -->
+            <!-- Order matches signal path: Phaser → Delay → Harmonizer → Reverb -->
             <view class="CViewContainer" origin="4, 14" size="895, 28" transparent="true">
-                <!-- Delay group -->
-                <view class="ToggleButton" origin="0, 4" size="50, 20"
-                      control-tag="DelayEnabled"
-                      default-value="1.0"
-                      title="Delay"
-                      title-position="right"
-                      font="~ NormalFontSmaller"
-                      font-color="master"
-                      text-color="master"
-                      transparent="true"/>
-                <view class="ArcKnob" origin="60, 0" size="28, 28"
-                      control-tag="DelayMix"
-                      default-value="0.5"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="ToggleButton" origin="100, 4" size="20, 20"
-                      control-tag="ActionFxExpandDelay"
-                      icon-style="chevron"
-                      on-orientation="down" off-orientation="right"
-                      on-color="master" off-color="text-secondary"
-                      tooltip="Expand delay settings"
-                      transparent="true"/>
-
-                <!-- Reverb group -->
-                <view class="ToggleButton" origin="230, 4" size="60, 20"
-                      control-tag="ReverbEnabled"
-                      default-value="1.0"
-                      title="Reverb"
-                      title-position="right"
-                      font="~ NormalFontSmaller"
-                      font-color="master"
-                      text-color="master"
-                      transparent="true"/>
-                <view class="ArcKnob" origin="300, 0" size="28, 28"
-                      control-tag="ReverbMix"
-                      default-value="0.5"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="ToggleButton" origin="340, 4" size="20, 20"
-                      control-tag="ActionFxExpandReverb"
-                      icon-style="chevron"
-                      on-orientation="down" off-orientation="right"
-                      on-color="master" off-color="text-secondary"
-                      tooltip="Expand reverb settings"
-                      transparent="true"/>
-
                 <!-- Phaser group -->
-                <view class="ToggleButton" origin="475, 4" size="60, 20"
+                <view class="ToggleButton" origin="0, 4" size="60, 20"
                       control-tag="PhaserEnabled"
                       default-value="1.0"
                       title="Phaser"
@@ -2755,12 +2710,12 @@
                       font-color="master"
                       text-color="master"
                       transparent="true"/>
-                <view class="ArcKnob" origin="540, 0" size="28, 28"
+                <view class="ArcKnob" origin="65, 0" size="28, 28"
                       control-tag="PhaserMix"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="ToggleButton" origin="580, 4" size="20, 20"
+                <view class="ToggleButton" origin="105, 4" size="20, 20"
                       control-tag="ActionFxExpandPhaser"
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
@@ -2768,8 +2723,31 @@
                       tooltip="Expand phaser settings"
                       transparent="true"/>
 
+                <!-- Delay group -->
+                <view class="ToggleButton" origin="195, 4" size="50, 20"
+                      control-tag="DelayEnabled"
+                      default-value="1.0"
+                      title="Delay"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      text-color="master"
+                      transparent="true"/>
+                <view class="ArcKnob" origin="255, 0" size="28, 28"
+                      control-tag="DelayMix"
+                      default-value="0.5"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="ToggleButton" origin="295, 4" size="20, 20"
+                      control-tag="ActionFxExpandDelay"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="master" off-color="text-secondary"
+                      tooltip="Expand delay settings"
+                      transparent="true"/>
+
                 <!-- Harmonizer group -->
-                <view class="ToggleButton" origin="680, 4" size="80, 20"
+                <view class="ToggleButton" origin="430, 4" size="80, 20"
                       control-tag="HarmonizerEnabled"
                       default-value="0.0"
                       title="Harmonizer"
@@ -2778,151 +2756,39 @@
                       font-color="master"
                       text-color="master"
                       transparent="true"/>
-                <view class="ToggleButton" origin="770, 4" size="20, 20"
+                <view class="ToggleButton" origin="520, 4" size="20, 20"
                       control-tag="ActionFxExpandHarmonizer"
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
                       on-color="master" off-color="text-secondary"
                       tooltip="Expand harmonizer settings"
                       transparent="true"/>
-            </view>
 
-            <!-- Delay detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="895, 112"
-                  custom-view-name="DelayDetail" transparent="true">
-
-                <!-- Left panel: Common delay controls (260px) -->
-                <view class="COptionMenu" origin="8, 10" size="120, 20"
-                      control-tag="DelayType"
+                <!-- Reverb group -->
+                <view class="ToggleButton" origin="660, 4" size="60, 20"
+                      control-tag="ReverbEnabled"
+                      default-value="1.0"
+                      title="Reverb"
+                      title-position="right"
                       font="~ NormalFontSmaller"
                       font-color="master"
-                      back-color="bg-dropdown"
-                      frame-color="frame-dropdown-dim"
-                      transparent="false"/>
-                <view class="CTextLabel" origin="8, 32" size="120, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Type"/>
-
-                <view class="ToggleButton" origin="148, 12" size="50, 20"
-                      control-tag="DelaySync"
-                      default-value="1.0"
-                      title="Sync"
-                      title-position="right"
-                      font="~ NormalFontSmaller"
-                      font-color="effects"
-                      text-color="effects"
+                      text-color="master"
                       transparent="true"/>
-
-                <!-- Time group (hidden when synced) -->
-                <view class="CViewContainer" origin="8, 56" size="110, 28"
-                      custom-view-name="DelayTimeGroup" transparent="true">
-                    <view class="ArcKnob" origin="0, 0" size="28, 28"
-                          control-tag="DelayTime"
-                          default-value="0.1"
-                          arc-color="effects"
-                          guide-color="knob-guide"/>
-                </view>
-                <!-- NoteValue group (shown when synced — default) -->
-                <view class="CViewContainer" origin="8, 56" size="110, 28"
-                      custom-view-name="DelayNoteValueGroup" transparent="true">
-                    <view class="COptionMenu" origin="0, 4" size="80, 20"
-                          control-tag="DelayNoteValue"
-                          font="~ NormalFontSmaller"
-                          font-color="master"
-                          back-color="bg-dropdown"
-                          frame-color="frame-dropdown-dim"
-                          transparent="false"/>
-                </view>
-                <view class="CTextLabel" origin="2, 86" size="44, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Time"/>
-
-                <view class="ArcKnob" origin="168, 56" size="28, 28"
-                      control-tag="DelayFeedback"
-                      default-value="0.333"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="156, 86" size="52, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Feedback"/>
-
-                <!-- Right panel: Type-specific controls -->
-                <view class="UIViewSwitchContainer"
-                      origin="270, 0" size="615, 112"
-                      template-names="Delay_Digital,Delay_Tape,Delay_PingPong,Delay_Granular,Delay_Spectral"
-                      template-switch-control="DelayType"
-                      transparent="true"/>
-            </view>
-
-            <!-- Reverb detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="895, 46"
-                  custom-view-name="ReverbDetail" transparent="true">
-                <view class="ArcKnob" origin="8, 0" size="32, 32"
-                      control-tag="ReverbSize"
+                <view class="ArcKnob" origin="730, 0" size="28, 28"
+                      control-tag="ReverbMix"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="4, 34" size="40, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Size"/>
-                <view class="ArcKnob" origin="48, 0" size="32, 32"
-                      control-tag="ReverbDamping"
-                      default-value="0.5"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="44, 34" size="40, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Damp"/>
-                <view class="ArcKnob" origin="88, 0" size="32, 32"
-                      control-tag="ReverbWidth"
-                      default-value="1.0"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="84, 34" size="40, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Width"/>
-                <view class="ArcKnob" origin="128, 0" size="32, 32"
-                      control-tag="ReverbPreDelay"
-                      default-value="0.0"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="124, 34" size="40, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Pre-D"/>
-                <view class="ArcKnob" origin="168, 0" size="32, 32"
-                      control-tag="ReverbDiffusion"
-                      default-value="0.7"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="164, 34" size="40, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Diff"/>
-                <view class="ArcKnob" origin="228, 0" size="32, 32"
-                      control-tag="ReverbModRate"
-                      default-value="0.25"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="224, 34" size="40, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Rate"/>
-                <view class="ArcKnob" origin="268, 0" size="32, 32"
-                      control-tag="ReverbModDepth"
-                      default-value="0.0"
-                      arc-color="effects"
-                      guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="264, 34" size="40, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Mod"/>
-                <view class="ToggleButton" origin="320, 8" size="60, 20"
-                      control-tag="ReverbFreeze"
-                      title="Freeze"
-                      title-position="right"
-                      font="~ NormalFontSmaller"
-                      font-color="effects"
-                      text-color="effects"
-                      tooltip="Freeze reverb tail"
+                <view class="ToggleButton" origin="770, 4" size="20, 20"
+                      control-tag="ActionFxExpandReverb"
+                      icon-style="chevron"
+                      on-orientation="down" off-orientation="right"
+                      on-color="master" off-color="text-secondary"
+                      tooltip="Expand reverb settings"
                       transparent="true"/>
             </view>
+
+            <!-- Detail panels ordered by signal path: Phaser → Delay → Harmonizer → Reverb -->
 
             <!-- Phaser detail panel (initially hidden, shown by controller) -->
             <view class="CViewContainer" origin="4, 44" size="895, 60"
@@ -3020,6 +2886,73 @@
                 <view class="CTextLabel" origin="488, 26" size="90, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Waveform"/>
+            </view>
+
+            <!-- Delay detail panel (initially hidden, shown by controller) -->
+            <view class="CViewContainer" origin="4, 44" size="895, 112"
+                  custom-view-name="DelayDetail" transparent="true">
+
+                <!-- Left panel: Common delay controls (260px) -->
+                <view class="COptionMenu" origin="8, 10" size="120, 20"
+                      control-tag="DelayType"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="8, 32" size="120, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Type"/>
+
+                <view class="ToggleButton" origin="148, 12" size="50, 20"
+                      control-tag="DelaySync"
+                      default-value="1.0"
+                      title="Sync"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="effects"
+                      text-color="effects"
+                      transparent="true"/>
+
+                <!-- Time group (hidden when synced) -->
+                <view class="CViewContainer" origin="8, 56" size="110, 28"
+                      custom-view-name="DelayTimeGroup" transparent="true">
+                    <view class="ArcKnob" origin="0, 0" size="28, 28"
+                          control-tag="DelayTime"
+                          default-value="0.1"
+                          arc-color="effects"
+                          guide-color="knob-guide"/>
+                </view>
+                <!-- NoteValue group (shown when synced — default) -->
+                <view class="CViewContainer" origin="8, 56" size="110, 28"
+                      custom-view-name="DelayNoteValueGroup" transparent="true">
+                    <view class="COptionMenu" origin="0, 4" size="80, 20"
+                          control-tag="DelayNoteValue"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                </view>
+                <view class="CTextLabel" origin="2, 86" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Time"/>
+
+                <view class="ArcKnob" origin="168, 56" size="28, 28"
+                      control-tag="DelayFeedback"
+                      default-value="0.333"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="156, 86" size="52, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Feedback"/>
+
+                <!-- Right panel: Type-specific controls -->
+                <view class="UIViewSwitchContainer"
+                      origin="270, 0" size="615, 112"
+                      template-names="Delay_Digital,Delay_Tape,Delay_PingPong,Delay_Granular,Delay_Spectral"
+                      template-switch-control="DelayType"
+                      transparent="true"/>
             </view>
 
             <!-- Harmonizer detail panel (initially hidden, shown by controller) -->
@@ -3308,6 +3241,76 @@
                           font="~ NormalFontSmaller" font-color="text-secondary"
                           text-alignment="center" transparent="true" title="Detune"/>
                 </view>
+            </view>
+
+            <!-- Reverb detail panel (initially hidden, shown by controller) -->
+            <view class="CViewContainer" origin="4, 44" size="895, 46"
+                  custom-view-name="ReverbDetail" transparent="true">
+                <view class="ArcKnob" origin="8, 0" size="32, 32"
+                      control-tag="ReverbSize"
+                      default-value="0.5"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="4, 34" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Size"/>
+                <view class="ArcKnob" origin="48, 0" size="32, 32"
+                      control-tag="ReverbDamping"
+                      default-value="0.5"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="44, 34" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Damp"/>
+                <view class="ArcKnob" origin="88, 0" size="32, 32"
+                      control-tag="ReverbWidth"
+                      default-value="1.0"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="84, 34" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Width"/>
+                <view class="ArcKnob" origin="128, 0" size="32, 32"
+                      control-tag="ReverbPreDelay"
+                      default-value="0.0"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="124, 34" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Pre-D"/>
+                <view class="ArcKnob" origin="168, 0" size="32, 32"
+                      control-tag="ReverbDiffusion"
+                      default-value="0.7"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="164, 34" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Diff"/>
+                <view class="ArcKnob" origin="228, 0" size="32, 32"
+                      control-tag="ReverbModRate"
+                      default-value="0.25"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="224, 34" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Rate"/>
+                <view class="ArcKnob" origin="268, 0" size="32, 32"
+                      control-tag="ReverbModDepth"
+                      default-value="0.0"
+                      arc-color="effects"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="264, 34" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Mod"/>
+                <view class="ToggleButton" origin="320, 8" size="60, 20"
+                      control-tag="ReverbFreeze"
+                      title="Freeze"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="effects"
+                      text-color="effects"
+                      tooltip="Freeze reverb tail"
+                      transparent="true"/>
             </view>
         </view>
 
