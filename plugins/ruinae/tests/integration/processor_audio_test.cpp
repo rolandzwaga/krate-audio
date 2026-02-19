@@ -485,3 +485,193 @@ TEST_CASE("Processor phaser end-to-end: phaser ON vs OFF produces different outp
     REQUIRE(maxAbs > 0.01f);     // Verify we actually have audio
     REQUIRE(maxDiff > 0.05f);    // Phaser must clearly modify the signal
 }
+
+// =============================================================================
+// Mono mode: processor-level integration test
+// =============================================================================
+// Reproduces user-reported issue: switching VoiceMode to Mono via parameter
+// change, then playing MIDI notes, produces no audio.
+// Tests the full VST3 pipeline: parameter change → processParameterChanges →
+// applyParamsToEngine → processEvents → engine_.processBlock.
+
+TEST_CASE("Processor mono mode produces audio via parameter change",
+          "[processor][integration][mono-silence-bug]") {
+    Ruinae::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == Steinberg::kResultTrue);
+
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = 512;
+    REQUIRE(processor.setupProcessing(setup) == Steinberg::kResultTrue);
+    REQUIRE(processor.setActive(true) == Steinberg::kResultTrue);
+
+    constexpr size_t kBlockSize = 512;
+    constexpr int kWarmUpBlocks = 20;  // Account for effects chain latency
+
+    // Helper: run one process block with optional param changes and events
+    auto processBlock = [&](Steinberg::Vst::IParameterChanges* params,
+                            Steinberg::Vst::IEventList* events,
+                            float* outL, float* outR) {
+        float* channelBuffers[2] = {outL, outR};
+        Steinberg::Vst::AudioBusBuffers outputBus{};
+        outputBus.numChannels = 2;
+        outputBus.channelBuffers32 = channelBuffers;
+
+        MockParameterChanges emptyParams;
+        MockEventList emptyEvents;
+
+        Steinberg::Vst::ProcessData data{};
+        data.processMode = Steinberg::Vst::kRealtime;
+        data.symbolicSampleSize = Steinberg::Vst::kSample32;
+        data.numSamples = static_cast<Steinberg::int32>(kBlockSize);
+        data.numInputs = 0;
+        data.inputs = nullptr;
+        data.numOutputs = 1;
+        data.outputs = &outputBus;
+        data.inputParameterChanges = params ? params : &emptyParams;
+        data.inputEvents = events ? events : &emptyEvents;
+        data.processContext = nullptr;
+
+        return processor.process(data);
+    };
+
+    std::vector<float> outL(kBlockSize, 0.0f);
+    std::vector<float> outR(kBlockSize, 0.0f);
+
+    SECTION("switch to mono via parameter then noteOn produces audio") {
+        // Step 1: Send VoiceMode = 1.0 (Mono) parameter change
+        MockParamChangesWithData monoParams;
+        monoParams.addChange(Ruinae::kVoiceModeId, 1.0);  // 1.0 = Mono
+
+        processBlock(&monoParams, nullptr, outL.data(), outR.data());
+
+        // Step 2: Send noteOn in subsequent block
+        MockEventList events;
+        events.addNoteOn(60, 0.8f);
+
+        processBlock(nullptr, &events, outL.data(), outR.data());
+
+        // Step 3: Process warm-up blocks
+        bool hasAudio = false;
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            std::fill(outL.begin(), outL.end(), 0.0f);
+            std::fill(outR.begin(), outR.end(), 0.0f);
+            processBlock(nullptr, nullptr, outL.data(), outR.data());
+            if (hasNonZeroSamples(outL.data(), kBlockSize) ||
+                hasNonZeroSamples(outR.data(), kBlockSize)) {
+                hasAudio = true;
+            }
+        }
+
+        INFO("Mono mode via parameter change should produce audio");
+        REQUIRE(hasAudio);
+    }
+
+    SECTION("mono param change and noteOn in same block produces audio") {
+        // Simultaneous parameter change and MIDI event (same process call)
+        MockParamChangesWithData monoParams;
+        monoParams.addChange(Ruinae::kVoiceModeId, 1.0);
+
+        MockEventList events;
+        events.addNoteOn(60, 0.8f);
+
+        processBlock(&monoParams, &events, outL.data(), outR.data());
+
+        // Process warm-up blocks
+        bool hasAudio = false;
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            std::fill(outL.begin(), outL.end(), 0.0f);
+            std::fill(outR.begin(), outR.end(), 0.0f);
+            processBlock(nullptr, nullptr, outL.data(), outR.data());
+            if (hasNonZeroSamples(outL.data(), kBlockSize) ||
+                hasNonZeroSamples(outR.data(), kBlockSize)) {
+                hasAudio = true;
+            }
+        }
+
+        INFO("Mono param + noteOn in same block should produce audio");
+        REQUIRE(hasAudio);
+    }
+
+    SECTION("poly noteOn then switch to mono continues producing audio") {
+        // Play note in poly mode first
+        MockEventList noteOnEvent;
+        noteOnEvent.addNoteOn(60, 0.8f);
+        processBlock(nullptr, &noteOnEvent, outL.data(), outR.data());
+
+        // Warm up poly mode
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            processBlock(nullptr, nullptr, outL.data(), outR.data());
+        }
+
+        // Switch to mono mode
+        MockParamChangesWithData monoParams;
+        monoParams.addChange(Ruinae::kVoiceModeId, 1.0);
+        processBlock(&monoParams, nullptr, outL.data(), outR.data());
+
+        // Check audio continues after switch
+        bool hasAudio = false;
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            std::fill(outL.begin(), outL.end(), 0.0f);
+            std::fill(outR.begin(), outR.end(), 0.0f);
+            processBlock(nullptr, nullptr, outL.data(), outR.data());
+            if (hasNonZeroSamples(outL.data(), kBlockSize) ||
+                hasNonZeroSamples(outR.data(), kBlockSize)) {
+                hasAudio = true;
+            }
+        }
+
+        INFO("Switching to mono with held note should continue producing audio");
+        REQUIRE(hasAudio);
+    }
+
+    SECTION("poly play, release, switch mono, new note produces audio") {
+        // Play and release in poly mode
+        MockEventList noteOn;
+        noteOn.addNoteOn(60, 0.8f);
+        processBlock(nullptr, &noteOn, outL.data(), outR.data());
+
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            processBlock(nullptr, nullptr, outL.data(), outR.data());
+        }
+
+        MockEventList noteOff;
+        noteOff.addNoteOff(60);
+        processBlock(nullptr, &noteOff, outL.data(), outR.data());
+
+        // Let release tail complete
+        for (int i = 0; i < 40; ++i) {
+            processBlock(nullptr, nullptr, outL.data(), outR.data());
+        }
+
+        // Switch to mono
+        MockParamChangesWithData monoParams;
+        monoParams.addChange(Ruinae::kVoiceModeId, 1.0);
+        processBlock(&monoParams, nullptr, outL.data(), outR.data());
+
+        // Play new note in mono
+        MockEventList newNote;
+        newNote.addNoteOn(64, 0.8f);
+        processBlock(nullptr, &newNote, outL.data(), outR.data());
+
+        // Check for audio
+        bool hasAudio = false;
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            std::fill(outL.begin(), outL.end(), 0.0f);
+            std::fill(outR.begin(), outR.end(), 0.0f);
+            processBlock(nullptr, nullptr, outL.data(), outR.data());
+            if (hasNonZeroSamples(outL.data(), kBlockSize) ||
+                hasNonZeroSamples(outR.data(), kBlockSize)) {
+                hasAudio = true;
+            }
+        }
+
+        INFO("Poly→release→mono→new note should produce audio");
+        REQUIRE(hasAudio);
+    }
+
+    processor.setActive(false);
+    processor.terminate();
+}
