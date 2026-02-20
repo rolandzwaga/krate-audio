@@ -180,6 +180,17 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         parameters.addParameter(modViewParam);
     }
 
+    // UI-only: Main tab selector (4 entries), ephemeral, not persisted
+    {
+        auto* tabParam = new Steinberg::Vst::StringListParameter(
+            STR16("Main Tab"), kMainTabTag);
+        tabParam->appendString(STR16("SOUND"));
+        tabParam->appendString(STR16("MOD"));
+        tabParam->appendString(STR16("FX"));
+        tabParam->appendString(STR16("SEQ"));
+        parameters.addParameter(tabParam);
+    }
+
     registerModMatrixParams(parameters);
     registerGlobalFilterParams(parameters);
     registerFxEnableParams(parameters);
@@ -666,6 +677,12 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         oscBPWKnob_ = nullptr;
     }
 
+    // Tab switch: null out pointers for views that live inside tab templates
+    if (tag == kMainTabTag) {
+        int newTab = static_cast<int>(std::round(value * 3.0));
+        onTabChanged(newTab);
+    }
+
     // Push mixer parameter changes to XYMorphPad.
     // When processor modulation pointers are active, skip — the poll timer
     // handles position updates (including unmodulated base position when offset=0).
@@ -778,25 +795,9 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         polyGroup_ = nullptr;
         monoGroup_ = nullptr;
 
-        // FX detail panel cleanup (T092)
-        fxDetailDelay_ = nullptr;
-        fxDetailReverb_ = nullptr;
-        fxDetailPhaser_ = nullptr;
-        fxDetailHarmonizer_ = nullptr;
-        fxExpandDelayChevron_ = nullptr;
-        fxExpandReverbChevron_ = nullptr;
-        fxExpandPhaserChevron_ = nullptr;
-        fxExpandHarmonizerChevron_ = nullptr;
         harmonizerVoiceRows_.fill(nullptr);
         oscAPWKnob_ = nullptr;
         oscBPWKnob_ = nullptr;
-        expandedFxPanel_ = -1;
-
-        // Envelope expand/collapse cleanup
-        envGroupAmp_ = nullptr;
-        envGroupFilter_ = nullptr;
-        envGroupMod_ = nullptr;
-        expandedEnvPanel_ = -1;
 
         // Settings drawer cleanup
         settingsDrawer_ = nullptr;
@@ -822,16 +823,14 @@ VSTGUI::CView* Controller::verifyView(
     const VSTGUI::IUIDescription* /*description*/,
     VSTGUI::VST3Editor* /*editor*/) {
 
-    // Register as sub-listener for action buttons (transforms, FX/env chevrons)
+    // Register as sub-listener for action buttons (transforms, Euclidean regen)
     // NOTE: Excludes settings tags (10020, 10021) which are registered explicitly below.
     // Double-registration causes valueChanged to be called twice, toggling drawer twice.
     auto* control = dynamic_cast<VSTGUI::CControl*>(view);
     if (control) {
         auto tag = control->getTag();
         if (tag >= static_cast<int32_t>(kActionTransformInvertTag) &&
-            tag <= static_cast<int32_t>(kActionFxExpandHarmonizerTag) &&
-            tag != static_cast<int32_t>(kActionSettingsToggleTag) &&
-            tag != static_cast<int32_t>(kActionSettingsOverlayTag)) {
+            tag <= static_cast<int32_t>(kActionEuclideanRegenTag)) {
             control->registerControlListener(this);
         }
 
@@ -1014,22 +1013,8 @@ VSTGUI::CView* Controller::verifyView(
     if (container) {
         const auto* name = attributes.getAttributeValue("custom-view-name");
         if (name) {
-            // FX detail panels (T089)
-            if (*name == "DelayDetail") {
-                fxDetailDelay_ = container;
-                container->setVisible(false);
-            } else if (*name == "ReverbDetail") {
-                fxDetailReverb_ = container;
-                container->setVisible(false);
-            } else if (*name == "PhaserDetail") {
-                fxDetailPhaser_ = container;
-                container->setVisible(false);
-            } else if (*name == "HarmonizerDetail") {
-                fxDetailHarmonizer_ = container;
-                container->setVisible(false); // FR-023: collapsed by default
-            }
             // Harmonizer voice rows (for dimming based on NumVoices)
-            else if (*name == "HarmonizerVoice1") {
+            if (*name == "HarmonizerVoice1") {
                 harmonizerVoiceRows_[0] = container;
             } else if (*name == "HarmonizerVoice2") {
                 harmonizerVoiceRows_[1] = container;
@@ -1153,14 +1138,6 @@ VSTGUI::CView* Controller::verifyView(
                 bool isMono = (voiceModeParam != nullptr) && voiceModeParam->getNormalized() >= 0.5;
                 container->setVisible(isMono);
             }
-            // Envelope expand/collapse groups
-            else if (*name == "EnvGroupAmp") {
-                envGroupAmp_ = container;
-            } else if (*name == "EnvGroupFilter") {
-                envGroupFilter_ = container;
-            } else if (*name == "EnvGroupMod") {
-                envGroupMod_ = container;
-            }
             // Settings drawer container
             else if (*name == "SettingsDrawer") {
                 settingsDrawer_ = container;
@@ -1168,16 +1145,10 @@ VSTGUI::CView* Controller::verifyView(
         }
     }
 
-    // Capture FX expand chevron controls by tag
+    // Settings drawer: capture gear button and register as listener
     auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view);
     if (ctrl) {
         auto tag = ctrl->getTag();
-        if (tag == kActionFxExpandDelayTag)  fxExpandDelayChevron_ = ctrl;
-        if (tag == kActionFxExpandReverbTag) fxExpandReverbChevron_ = ctrl;
-        if (tag == kActionFxExpandPhaserTag) fxExpandPhaserChevron_ = ctrl;
-        if (tag == kActionFxExpandHarmonizerTag) fxExpandHarmonizerChevron_ = ctrl;
-
-        // Settings drawer: capture gear button and register as listener
         if (tag == static_cast<int32_t>(kActionSettingsToggleTag)) {
             gearButton_ = ctrl;
             ctrl->registerControlListener(this);
@@ -1204,13 +1175,6 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
 
     // Toggle buttons: respond to both on/off clicks (no value guard)
     switch (tag) {
-        case kActionFxExpandDelayTag:       toggleFxDetail(0); return;
-        case kActionFxExpandReverbTag:      toggleFxDetail(1); return;
-        case kActionFxExpandPhaserTag:      toggleFxDetail(2); return;
-        case kActionFxExpandHarmonizerTag:  toggleFxDetail(3); return;
-        case kActionEnvExpandAmpTag:    toggleEnvExpand(0); return;
-        case kActionEnvExpandFilterTag: toggleEnvExpand(1); return;
-        case kActionEnvExpandModTag:    toggleEnvExpand(2); return;
         case kActionSettingsToggleTag:  toggleSettingsDrawer(); return;
         case kActionSettingsOverlayTag:
             if (settingsDrawerOpen_) toggleSettingsDrawer();
@@ -1762,83 +1726,50 @@ void Controller::selectModulationRoute(int sourceIndex, int destIndex) {
     }
 }
 
-// ==============================================================================
-// FX Detail Panel Expand/Collapse (T090)
-// ==============================================================================
+void Controller::onTabChanged([[maybe_unused]] int newTab) {
+    // UIViewSwitchContainer destroys views from the old template before
+    // instantiating the new one. All cached pointers to views that live
+    // inside tab templates become dangling. Null them here; verifyView()
+    // will re-populate when the new template is created.
 
-void Controller::toggleFxDetail(int panelIndex) {
-    bool opening = (expandedFxPanel_ != panelIndex);
+    // SOUND tab residents
+    oscAPWKnob_ = nullptr;
+    oscBPWKnob_ = nullptr;
+    xyMorphPad_ = nullptr;
+    polyGroup_ = nullptr;
+    monoGroup_ = nullptr;
 
-    VSTGUI::CViewContainer* panels[] = {
-        fxDetailDelay_, fxDetailReverb_, fxDetailPhaser_, fxDetailHarmonizer_};
-    for (int i = 0; i < 4; ++i) {
-        if (panels[i]) {
-            panels[i]->setVisible(i == panelIndex && opening);
-        }
-    }
-    expandedFxPanel_ = opening ? panelIndex : -1;
+    // MOD tab residents
+    modMatrixGrid_ = nullptr;
+    ringIndicators_.fill(nullptr);
+    lfo1RateGroup_ = nullptr;
+    lfo2RateGroup_ = nullptr;
+    lfo1NoteValueGroup_ = nullptr;
+    lfo2NoteValueGroup_ = nullptr;
+    chaosRateGroup_ = nullptr;
+    chaosNoteValueGroup_ = nullptr;
+    shRateGroup_ = nullptr;
+    shNoteValueGroup_ = nullptr;
+    randomRateGroup_ = nullptr;
+    randomNoteValueGroup_ = nullptr;
 
-    // Reset the OTHER chevrons so only one appears expanded at a time
-    VSTGUI::CControl* chevrons[] = {
-        fxExpandDelayChevron_, fxExpandReverbChevron_,
-        fxExpandPhaserChevron_, fxExpandHarmonizerChevron_};
-    for (int i = 0; i < 4; ++i) {
-        if (i != panelIndex && chevrons[i]) {
-            chevrons[i]->setValue(0.f);
-            chevrons[i]->invalid();
-        }
-    }
-}
+    // FX tab residents
+    harmonizerVoiceRows_.fill(nullptr);
+    delayTimeGroup_ = nullptr;
+    delayNoteValueGroup_ = nullptr;
+    phaserRateGroup_ = nullptr;
+    phaserNoteValueGroup_ = nullptr;
+    // (FX detail/chevron pointers removed — panels always visible in Tab_Fx)
 
-// ==============================================================================
-// Envelope Expand/Collapse
-// ==============================================================================
+    // SEQ tab residents
+    stepPatternEditor_ = nullptr;
+    euclideanControlsGroup_ = nullptr;
+    tranceGateRateGroup_ = nullptr;
+    tranceGateNoteValueGroup_ = nullptr;
+    presetDropdown_ = nullptr;
 
-void Controller::toggleEnvExpand(int panelIndex) {
-    VSTGUI::CViewContainer* groups[] = {envGroupAmp_, envGroupFilter_, envGroupMod_};
-    Krate::Plugins::ADSRDisplay* displays[] = {ampEnvDisplay_, filterEnvDisplay_, modEnvDisplay_};
-
-    // Original container rects (relative to fieldset)
-    static constexpr VSTGUI::CRect kOrigGroupRects[] = {
-        {8, 14, 240, 120},    // AMP
-        {248, 14, 480, 120},  // FILTER
-        {488, 14, 718, 120},  // MOD
-    };
-    // Original display rect (relative to group container) — same for all three
-    static constexpr VSTGUI::CRect kOrigDisplayRect = {16, 0, 230, 106};
-    // Expanded rects
-    static constexpr VSTGUI::CRect kExpandedGroupRect = {8, 14, 718, 120};
-    static constexpr VSTGUI::CRect kExpandedDisplayRect = {16, 0, 710, 106};
-
-    if (expandedEnvPanel_ == panelIndex) {
-        // Collapse: restore all three
-        for (int i = 0; i < 3; ++i) {
-            if (groups[i]) {
-                groups[i]->setViewSize(kOrigGroupRects[i]);
-                groups[i]->setVisible(true);
-            }
-            if (displays[i]) {
-                displays[i]->setViewSize(kOrigDisplayRect);
-            }
-        }
-        expandedEnvPanel_ = -1;
-    } else {
-        // Expand: hide others, resize target
-        for (int i = 0; i < 3; ++i) {
-            if (i == panelIndex) {
-                if (groups[i]) {
-                    groups[i]->setViewSize(kExpandedGroupRect);
-                    groups[i]->setVisible(true);
-                }
-                if (displays[i]) {
-                    displays[i]->setViewSize(kExpandedDisplayRect);
-                }
-            } else {
-                if (groups[i]) groups[i]->setVisible(false);
-            }
-        }
-        expandedEnvPanel_ = panelIndex;
-    }
+    // NOTE: Envelope displays (ampEnvDisplay_, filterEnvDisplay_, modEnvDisplay_)
+    // are persistent (in editor template, not tab templates) — do NOT null them here.
 }
 
 void Controller::toggleSettingsDrawer() {
@@ -1864,9 +1795,9 @@ void Controller::toggleSettingsDrawer() {
             float t = settingsDrawerProgress_;
             float eased = 1.0f - (1.0f - t) * (1.0f - t);
 
-            // Map eased progress to x position: closed=925, open=705
-            constexpr float kClosedX = 1200.0f;
-            constexpr float kOpenX = 980.0f;
+            // Map eased progress to x position
+            constexpr float kClosedX = 1400.0f;
+            constexpr float kOpenX = 1180.0f;
             float x = kClosedX + (kOpenX - kClosedX) * eased;
 
             if (settingsDrawer_) {

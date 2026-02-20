@@ -184,11 +184,9 @@ private:
     /// Select a modulation route for cross-component communication (FR-027)
     void selectModulationRoute(int sourceIndex, int destIndex);
 
-    /// Toggle FX detail panel visibility (expand one, collapse others)
-    void toggleFxDetail(int panelIndex);
-
-    /// Toggle envelope panel expand/collapse (resize + visibility)
-    void toggleEnvExpand(int panelIndex);
+    /// Null out cached view pointers for the old tab before UIViewSwitchContainer
+    /// destroys them. Called from setParamNormalized() when kMainTabTag changes.
+    void onTabChanged(int newTab);
 
     /// Toggle settings drawer open/closed with animation
     void toggleSettingsDrawer();
@@ -250,17 +248,6 @@ private:
     VSTGUI::CView* polyGroup_ = nullptr;
     VSTGUI::CView* monoGroup_ = nullptr;
 
-    // FX detail panel expand/collapse state
-    VSTGUI::CViewContainer* fxDetailDelay_ = nullptr;
-    VSTGUI::CViewContainer* fxDetailReverb_ = nullptr;
-    VSTGUI::CViewContainer* fxDetailPhaser_ = nullptr;
-    VSTGUI::CViewContainer* fxDetailHarmonizer_ = nullptr;
-    VSTGUI::CControl* fxExpandDelayChevron_ = nullptr;
-    VSTGUI::CControl* fxExpandReverbChevron_ = nullptr;
-    VSTGUI::CControl* fxExpandPhaserChevron_ = nullptr;
-    VSTGUI::CControl* fxExpandHarmonizerChevron_ = nullptr;
-    int expandedFxPanel_ = -1;  // -1=none, 0=delay, 1=reverb, 2=phaser, 3=harmonizer
-
     // Harmonizer voice row containers (for dimming based on NumVoices)
     std::array<VSTGUI::CViewContainer*, 4> harmonizerVoiceRows_{};
 
@@ -269,12 +256,6 @@ private:
     // when the PolyBLEP template is the active view for that oscillator.
     VSTGUI::CView* oscAPWKnob_ = nullptr;
     VSTGUI::CView* oscBPWKnob_ = nullptr;
-
-    // Envelope expand/collapse state
-    VSTGUI::CViewContainer* envGroupAmp_ = nullptr;
-    VSTGUI::CViewContainer* envGroupFilter_ = nullptr;
-    VSTGUI::CViewContainer* envGroupMod_ = nullptr;
-    int expandedEnvPanel_ = -1;  // -1=none, 0=amp, 1=filter, 2=mod
 
     // Settings drawer state
     VSTGUI::CViewContainer* settingsDrawer_ = nullptr;

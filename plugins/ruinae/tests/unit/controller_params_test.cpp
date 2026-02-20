@@ -267,25 +267,7 @@ TEST_CASE("Harmonizer parameters are registered after initialize", "[controller]
 // T035: kActionFxExpandHarmonizerTag is handled by the controller
 // =============================================================================
 
-TEST_CASE("Controller handles kActionFxExpandHarmonizerTag in valueChanged", "[controller][harmonizer]") {
-    // This test verifies that the controller switch case includes the harmonizer
-    // expand tag. We can't fully test UI toggling without a live editor, but we
-    // can verify the tag is in the accepted range for control listener registration
-    // and that toggleFxDetail(3) doesn't crash when panel pointers are null.
-    auto* ctrl = makeControllerRaw();
-
-    // kActionFxExpandHarmonizerTag must be within the registered listener range
-    // (kActionTransformInvertTag ... kActionFxExpandHarmonizerTag)
-    CHECK(Ruinae::kActionFxExpandHarmonizerTag >= Ruinae::kActionTransformInvertTag);
-
-    // Call toggleFxDetail with null panels should not crash
-    // (This exercises the code path that valueChanged would take)
-    // We cannot directly call the private toggleFxDetail, but we verify the tag
-    // exists and is wired in the controller by checking it's a valid tag value.
-    CHECK(Ruinae::kActionFxExpandHarmonizerTag == 10022);
-
-    ctrl->terminate();
-}
+// (FX expand test removed — FX panels are always visible in Tab_Fx now)
 
 // =============================================================================
 // Bug Regression: Harmonizer voice interval dropdowns must be StringListParameter

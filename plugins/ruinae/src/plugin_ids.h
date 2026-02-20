@@ -803,14 +803,9 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kActionTransformShiftLeftTag = 10008,
     kActionEuclideanRegenTag = 10009,
 
-    // FX Detail Panel Expand/Collapse Chevrons (UI-only, not VST parameters)
-    kActionFxExpandDelayTag = 10011,
-    kActionFxExpandReverbTag = 10012,
+    // (FX expand tags 10011, 10012 removed — panels always visible in Tab_Fx)
 
-    // Envelope Expand/Collapse Chevrons (UI-only, not VST parameters)
-    kActionEnvExpandAmpTag = 10013,
-    kActionEnvExpandFilterTag = 10014,
-    kActionEnvExpandModTag = 10015,
+    // (Env expand tags 10013-10015 removed — envelopes always visible in persistent strip)
 
     // Filter View Mode Tab (UI-only, ephemeral - not saved with state)
     kFilterViewModeTag = 10016,
@@ -818,11 +813,9 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // Distortion View Mode Tab (UI-only, ephemeral - not saved with state)
     kDistortionViewModeTag = 10017,
 
-    // Phaser FX Detail Panel Expand/Collapse Chevron (UI-only)
-    kActionFxExpandPhaserTag = 10018,
+    // (FX expand tag 10018 removed — phaser always visible in Tab_Fx)
 
-    // Harmonizer FX Detail Panel Expand/Collapse Chevron (UI-only)
-    kActionFxExpandHarmonizerTag = 10022,
+    // (FX expand tag 10022 removed — harmonizer always visible in Tab_Fx)
 
     // Modulation Source View Mode Tab (UI-only, ephemeral - not saved with state)
     kModSourceViewModeTag = 10019,
@@ -832,6 +825,10 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // Settings Drawer Click-Outside Overlay (UI-only, dismiss gesture)
     kActionSettingsOverlayTag = 10021,
+
+    // Main Tab Selector (UI-only, ephemeral - not saved with state)
+    // Drives UIViewSwitchContainer: SOUND=0, MOD=1, FX=2, SEQ=3
+    kMainTabTag = 10023,
 };
 
 // ==============================================================================
