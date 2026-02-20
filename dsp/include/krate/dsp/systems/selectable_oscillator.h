@@ -188,6 +188,23 @@ public:
     }
 
     // =========================================================================
+    // Type-Specific Parameter Control (068-osc-type-params)
+    // =========================================================================
+
+    /// @brief Set a type-specific parameter on the active oscillator.
+    ///
+    /// Forwards to the active OscillatorSlot's setParam(). If the active slot
+    /// does not handle the given OscParam, it is silently discarded (FR-001).
+    ///
+    /// @param param The parameter identifier
+    /// @param value The parameter value (in DSP domain, NOT normalized)
+    void setParam(OscParam param, float value) noexcept {
+        if (active_) {
+            active_->setParam(param, value);
+        }
+    }
+
+    // =========================================================================
     // Processing (FR-004)
     // =========================================================================
 

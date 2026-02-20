@@ -2259,3 +2259,111 @@ The following shared-interpretation optimizations are explicitly deferred to a p
 - Shared original-envelope extraction (extracting spectral envelope once for formant preservation)
 
 These push from "analysis shared, voices independent" toward "analysis + interpretation shared, voices parameterized" -- a different architecture requiring profiling evidence before crossing. The clean separation established by spec 065 (shared analysis, independent voice interpretation) must be validated first.
+
+---
+
+## OscParam and setParam() -- Type-Specific Oscillator Parameter Dispatch
+**Path:** [oscillator_types.h](../../dsp/include/krate/dsp/systems/oscillator_types.h), [oscillator_slot.h](../../dsp/include/krate/dsp/systems/oscillator_slot.h), [oscillator_adapters.h](../../dsp/include/krate/dsp/systems/oscillator_adapters.h), [selectable_oscillator.h](../../dsp/include/krate/dsp/systems/selectable_oscillator.h) | **Since:** 0.21.0
+
+A unified parameter dispatch pattern for routing type-specific parameters to the 10 oscillator types supported by `SelectableOscillator`. Instead of adding a new virtual method per parameter (which would break ABI and bloat the vtable), a single `setParam(OscParam, float)` method routes all type-specific values through one virtual call.
+
+```cpp
+// Enum identifying every type-specific oscillator parameter (oscillator_types.h)
+enum class OscParam : uint16_t {
+    // PolyBLEP (shared PM/FM with Wavetable)
+    Waveform = 0, PulseWidth, PhaseModulation, FrequencyModulation,
+    // Phase Distortion
+    PDWaveform = 10, PDDistortion,
+    // Sync
+    SyncSlaveRatio = 20, SyncSlaveWaveform, SyncMode, SyncAmount, SyncSlavePulseWidth,
+    // Additive
+    AdditiveNumPartials = 30, AdditiveSpectralTilt, AdditiveInharmonicity,
+    // Chaos
+    ChaosAttractor = 40, ChaosAmount, ChaosCoupling, ChaosOutput,
+    // Particle
+    ParticleScatter = 50, ParticleDensity, ParticleLifetime, ParticleSpawnMode,
+    ParticleEnvType, ParticleDrift,
+    // Formant
+    FormantVowel = 60, FormantMorph,
+    // Spectral Freeze
+    SpectralPitchShift = 70, SpectralTilt, SpectralFormantShift,
+    // Noise
+    NoiseColor = 80,
+};
+
+// Base virtual method (oscillator_slot.h) -- unconditional no-op
+class OscillatorSlot {
+    virtual void setParam(OscParam param, float value) noexcept {
+        (void)param; (void)value;
+    }
+};
+
+// Adapter override (oscillator_adapters.h) -- if constexpr dispatch per OscT
+template <typename OscT>
+class OscillatorAdapter : public OscillatorSlot {
+    void setParam(OscParam param, float value) noexcept override;
+    // Uses if constexpr(std::is_same_v<OscT, ...>) blocks to call the
+    // correct setter (e.g., osc_.setWaveform(), osc_.setChaos(), etc.)
+};
+
+// Forwarding (selectable_oscillator.h)
+class SelectableOscillator {
+    void setParam(OscParam param, float value) noexcept {
+        if (active_) active_->setParam(param, value);
+    }
+};
+```
+
+**Design Rationale:**
+- **Single virtual call**: Adding 30+ virtual methods to `OscillatorSlot` would create massive vtable bloat and require changing the base class for every new parameter. `setParam()` is one virtual call that handles all current and future type-specific parameters.
+- **Compile-time dispatch**: Inside `OscillatorAdapter<OscT>`, `if constexpr` ensures each adapter only compiles the code paths relevant to its oscillator type. Unrecognized `OscParam` values are silently discarded (no assertion, no logging -- real-time safe).
+- **Zero overhead for irrelevant params**: When `OscParam::ChaosAmount` is sent to a `PolyBlepOscillator` adapter, the `if constexpr` block for `ChaosOscillator` is not compiled, and the switch falls through to the no-op default.
+
+**Extensibility -- Gaps of 10:**
+
+Each oscillator type group starts at a multiple of 10 (PolyBLEP=0, PD=10, Sync=20, ..., Noise=80). This leaves room for up to 10 parameters per type before needing to renumber. To add a new parameter to an existing type:
+
+1. Add the enum value in the type's gap (e.g., `ParticleNewParam = 56` for Particle group 50-59)
+2. Add the `if constexpr` dispatch case in `OscillatorAdapter<ParticleOscillator>::setParam()`
+3. No changes needed to `OscillatorSlot`, `SelectableOscillator`, or any other adapter
+
+To add a new oscillator type:
+
+1. Assign the next group at a multiple of 10 (e.g., `NewOscParam = 90`)
+2. Create the `OscillatorAdapter<NewOscillator>` specialization with its `setParam()` dispatch
+3. Add the type to `SelectableOscillator`'s factory
+
+**When to Use:**
+- Routing any oscillator-specific parameter from the plugin layer down to the DSP layer
+- Any parameter that is meaningful to only one (or a few) oscillator types
+- Parameters that need to be forwarded through voice/engine layers without those layers knowing the oscillator type
+
+**When NOT to Use:**
+- Parameters common to ALL oscillator types (frequency, gain, phase mode) -- these have dedicated virtual methods on `OscillatorSlot` already (e.g., `setFrequency()`, `setGain()`)
+- Non-oscillator parameters (filter cutoff, envelope times, etc.) -- these belong to their own systems
+
+**Plugin Integration Pattern:**
+
+At the plugin level, a `constexpr` lookup table maps VST parameter ID offsets to `OscParam` values:
+
+```cpp
+// In osc_a_params.h
+constexpr Krate::DSP::OscParam kParamIdToOscParam[] = {
+    OscParam::Waveform,           // offset 0 (paramId 110)
+    OscParam::PulseWidth,         // offset 1 (paramId 111)
+    // ...30 entries total
+};
+
+// In processor.cpp applyParamsToEngine():
+auto oscParamIndex = paramId - 110;
+auto oscParam = kParamIdToOscParam[oscParamIndex];
+engine_.setOscAParam(oscParam, dspValue);
+```
+
+This avoids a 30-case switch statement and provides O(1) compile-time constant lookup.
+
+**Related Components:**
+- OscillatorSlot (Layer 3): base class with the virtual `setParam()` method
+- OscillatorAdapter<OscT> (Layer 3): template adapter with `if constexpr` dispatch
+- SelectableOscillator (Layer 3): runtime type-switching wrapper that forwards `setParam()`
+- All 10 oscillator types at Layers 1-2: the actual DSP targets of parameter dispatch

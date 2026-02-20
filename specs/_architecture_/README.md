@@ -4,7 +4,7 @@ Living inventory of components and APIs. Reference before writing specs to avoid
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document.
 
-**Last Updated**: 2026-02-16 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
+**Last Updated**: 2026-02-20 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
 
 ## Repository Structure
 
@@ -45,7 +45,7 @@ This architecture documentation is split into the following sections:
 | [Layer 0: Core Utilities](layer-0-core.md) | Mathematical utilities, constants, window functions, PRNG, tempo sync, fast math, interpolation |
 | [Layer 1: DSP Primitives](layer-1-primitives.md) | DelayLine, LFO, Biquad, Oversampler, FFT, STFT, DCBlocker, Waveshaper, Wavefolder, LadderFilter |
 | [Layer 2: DSP Processors](layer-2-processors.md) | EnvelopeFollower, Saturation, TubeStage, DiodeClipper, WavefolderProcessor, TapeSaturator, FuzzProcessor, BitcrusherProcessor, DynamicsProcessor, FormantPreserver, SpectralFreezeOscillator |
-| [Layer 3: System Components](layer-3-systems.md) | DelayEngine, FeedbackNetwork, ModulationMatrix, ModulationEngine, CharacterProcessor, TapManager, GrainCloud, AmpChannel |
+| [Layer 3: System Components](layer-3-systems.md) | DelayEngine, FeedbackNetwork, ModulationMatrix, ModulationEngine, CharacterProcessor, TapManager, GrainCloud, AmpChannel, OscParam/setParam dispatch pattern |
 | [Layer 4: User Features](layer-4-features.md) | Complete delay modes: Tape, BBD, Digital, PingPong, MultiTap, Reverse, Shimmer, Spectral, Freeze, Ducking, Granular |
 | [Plugin Architecture](plugin-architecture.md) | VST3 components, parameter flow, state flow, UI components |
 | [Plugin Parameter System](plugin-parameter-system.md) | Parameter pack pattern, mod source parameter flows, denormalization mappings |

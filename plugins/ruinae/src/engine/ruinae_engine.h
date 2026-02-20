@@ -113,6 +113,7 @@ public:
         , polyphonyCount_(8)
         , masterGain_(1.0f)
         , gainCompensation_(1.0f / std::sqrt(8.0f))
+        , smoothedGainCompensation_(1.0f / std::sqrt(8.0f))
         , gainCompensationEnabled_(true)
         , softLimitEnabled_(true)
         , globalFilterEnabled_(false)
@@ -174,6 +175,9 @@ public:
         timestampCounter_ = 0;
         noteOnTimestamps_.fill(0);
         monoVoiceNote_ = -1;
+        // Snap gain smoother to current target (no ramp on init)
+        smoothedGainCompensation_ = (mode_ == VoiceMode::Mono)
+            ? 1.0f : gainCompensation_;
 
         // Recalculate pan positions
         recalculatePanPositions();
@@ -776,8 +780,17 @@ public:
         effectsChain_.processBlock(mixBufferL_.data(), mixBufferR_.data(), numSamples);
 
         // Step 11-13: Apply master gain, soft limiter, NaN/Inf flush
-        const float effectiveGain = modulatedMasterGain * gainCompensation_;
+        // In mono mode, only 1 voice is active — use compensation of 1.0
+        // instead of 1/sqrt(polyphonyCount_) which would attenuate needlessly.
+        const float targetCompensation = (mode_ == VoiceMode::Mono)
+            ? 1.0f : gainCompensation_;
+        // Per-sample one-pole smoothing (~5ms at 44.1kHz) for click-free
+        // gain transitions when switching between poly and mono modes.
+        constexpr float kGainSmoothCoeff = 0.005f;
         for (size_t s = 0; s < numSamples; ++s) {
+            smoothedGainCompensation_ += kGainSmoothCoeff
+                * (targetCompensation - smoothedGainCompensation_);
+            const float effectiveGain = modulatedMasterGain * smoothedGainCompensation_;
             // Step 11: Master gain with compensation
             mixBufferL_[s] *= effectiveGain;
             mixBufferR_[s] *= effectiveGain;
@@ -819,6 +832,16 @@ public:
 
     void setOscBType(OscType type) noexcept {
         for (auto& voice : voices_) { voice.setOscBType(type); }
+    }
+
+    /// @brief Set a type-specific parameter on OSC A for all voices (068-osc-type-params FR-010).
+    void setOscAParam(OscParam param, float value) noexcept {
+        for (auto& voice : voices_) { voice.setOscAParam(param, value); }
+    }
+
+    /// @brief Set a type-specific parameter on OSC B for all voices (068-osc-type-params FR-010).
+    void setOscBParam(OscParam param, float value) noexcept {
+        for (auto& voice : voices_) { voice.setOscBParam(param, value); }
     }
 
     void setOscATuneSemitones(float semitones) noexcept {
@@ -1754,6 +1777,7 @@ private:
     size_t polyphonyCount_;
     float masterGain_;
     float gainCompensation_;
+    float smoothedGainCompensation_; ///< Smoothed per-sample for click-free mode switching
     bool gainCompensationEnabled_;
     bool softLimitEnabled_;
     bool globalFilterEnabled_;

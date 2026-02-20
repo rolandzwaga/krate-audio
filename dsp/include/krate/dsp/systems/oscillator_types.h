@@ -46,4 +46,68 @@ enum class PhaseMode : uint8_t {
     Continuous            ///< Attempt to preserve phase across type switch
 };
 
+// =============================================================================
+// OscParam Enumeration
+// =============================================================================
+
+/// @brief Type-specific oscillator parameter identifiers.
+///
+/// Used with OscillatorSlot::setParam() to set type-specific parameters
+/// without adding per-parameter virtual methods to the interface. Groups
+/// are spaced by 10 to allow future per-type parameter additions without
+/// renumbering.
+///
+/// @note Values are DSP-domain (not normalized VST values).
+/// @note Adapters silently ignore OscParam values they don't recognize.
+enum class OscParam : uint16_t {
+    // PolyBLEP (Waveform/PulseWidth unique to PolyBLEP;
+    // PhaseModulation/FrequencyModulation shared with Wavetable)
+    Waveform = 0,
+    PulseWidth,
+    PhaseModulation,
+    FrequencyModulation,
+
+    // Phase Distortion
+    PDWaveform = 10,
+    PDDistortion,
+
+    // Sync
+    SyncSlaveRatio = 20,
+    SyncSlaveWaveform,
+    SyncMode,
+    SyncAmount,
+    SyncSlavePulseWidth,
+
+    // Additive
+    AdditiveNumPartials = 30,
+    AdditiveSpectralTilt,
+    AdditiveInharmonicity,
+
+    // Chaos
+    ChaosAttractor = 40,
+    ChaosAmount,
+    ChaosCoupling,
+    ChaosOutput,
+
+    // Particle
+    ParticleScatter = 50,
+    ParticleDensity,
+    ParticleLifetime,
+    ParticleSpawnMode,
+    ParticleEnvType,
+    ParticleDrift,
+
+    // Formant
+    FormantVowel = 60,
+    FormantMorph,
+
+    // Spectral Freeze
+    SpectralPitchShift = 70,
+    SpectralTilt,
+    SpectralFormantShift,
+
+    // Noise
+    NoiseColor = 80,
+};
+
 } // namespace Krate::DSP

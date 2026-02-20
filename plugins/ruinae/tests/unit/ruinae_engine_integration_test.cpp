@@ -1605,3 +1605,242 @@ TEST_CASE("RuinaeEngine: Chaos tempo sync produces modulation at tempo-correlate
     // Should produce audible modulation over 3 seconds.
     REQUIRE(rmsVariation > 2.0f);
 }
+
+// =============================================================================
+// Integration Test: Mono mode produces audio (bug reproduction)
+// =============================================================================
+// Reproduces the user-reported bug: switching to mono mode produces no audio.
+// Tests multiple scenarios: fresh start in mono, poly→mono switch, and
+// SpectralMorph mode which uses FFT-based overlap-add processing that can
+// fail with sample-by-sample voice processing.
+
+TEST_CASE("RuinaeEngine integration: mono mode produces audio",
+          "[ruinae-engine-integration][mono][mono-silence-bug]") {
+    RuinaeEngine engine;
+    engine.prepare(44100.0, kBlockSize);
+    engine.setSoftLimitEnabled(false);  // Disable for cleaner signal analysis
+
+    SECTION("fresh mono mode: noteOn produces non-zero output") {
+        // Simulate user starting with mono mode selected
+        engine.setMode(VoiceMode::Mono);
+        engine.noteOn(60, 100);
+
+        bool hasAudio = processAndCheckForAudio(engine);
+        INFO("Fresh mono mode should produce audio after warm-up");
+        REQUIRE(hasAudio);
+    }
+
+    SECTION("poly-to-mono switch then new note produces audio") {
+        // Start in poly mode (default), play a note, release, switch to mono
+        engine.noteOn(60, 100);
+        // Process some blocks in poly mode
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+        // Release the note
+        engine.noteOff(60);
+        // Let the release complete
+        for (int i = 0; i < 20; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+
+        // Switch to mono mode
+        engine.setMode(VoiceMode::Mono);
+
+        // Play a NEW note in mono mode
+        engine.noteOn(64, 100);
+
+        bool hasAudio = processAndCheckForAudio(engine);
+        INFO("Poly→mono switch then new note should produce audio");
+        REQUIRE(hasAudio);
+    }
+
+    SECTION("poly-to-mono switch without prior notes then new note") {
+        // Switch to mono without any prior note activity (clean switch)
+        engine.setMode(VoiceMode::Mono);
+
+        // Play a note
+        engine.noteOn(60, 100);
+
+        bool hasAudio = processAndCheckForAudio(engine);
+        INFO("Clean poly→mono switch then note should produce audio");
+        REQUIRE(hasAudio);
+    }
+
+    SECTION("mono mode: voice[0] output RMS is comparable to poly mode") {
+        // Compare mono vs poly output levels to detect extreme attenuation
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+
+        // Poly mode reference
+        engine.noteOn(60, 100);
+        float polyRms = 0.0f;
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+            polyRms += computeRMS(left.data(), kBlockSize);
+        }
+        engine.noteOff(60);
+        // Let release complete
+        for (int i = 0; i < 40; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+
+        // Switch to mono and play same note
+        engine.setMode(VoiceMode::Mono);
+        engine.noteOn(60, 100);
+        float monoRms = 0.0f;
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+            monoRms += computeRMS(left.data(), kBlockSize);
+        }
+
+        INFO("Poly accumulated RMS: " << polyRms);
+        INFO("Mono accumulated RMS: " << monoRms);
+        INFO("Mono should be at least 10% of poly level (not silent)");
+        REQUIRE(monoRms > 0.0f);
+        if (polyRms > 0.0f) {
+            REQUIRE(monoRms > polyRms * 0.1f);
+        }
+    }
+
+    SECTION("mono mode with SpectralMorph mix produces continuous audio") {
+        // SpectralMorph uses FFT-based overlap-add which could break with
+        // the per-sample processing in processBlockMono.
+        // The overlap-add buffer accumulates samples but the pull logic is
+        // gated behind canAnalyze(), meaning only ~1/hopSize samples are
+        // non-zero when called sample-by-sample.
+        engine.setMode(VoiceMode::Mono);
+        engine.setMixMode(MixMode::SpectralMorph);
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        // Extra warm-up for SpectralMorph FFT latency
+        for (int i = 0; i < kWarmUpBlocks * 2; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+
+        // Check steady-state output density
+        engine.processBlock(left.data(), right.data(), kBlockSize);
+        size_t nonZeroCount = 0;
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            if (left[i] != 0.0f) ++nonZeroCount;
+        }
+
+        INFO("SpectralMorph mono non-zero samples: " << nonZeroCount
+             << " / " << kBlockSize);
+        INFO("SpectralMorph + mono should have continuous audio, not sparse");
+        // At least 50% of samples should be non-zero
+        // (SpectralMorph may have some zeros but should not be almost all zeros)
+        REQUIRE(nonZeroCount > kBlockSize / 2);
+    }
+
+    SECTION("mono mode per-sample output is not mostly zeros") {
+        // Detect the overlap-add issue: if processBlock is called with 1 sample
+        // at a time, STFT-based processors produce output only every hopSize samples.
+        // This test checks that most samples are non-zero in the steady-state region.
+        engine.setMode(VoiceMode::Mono);
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        // Warm up through effects chain latency
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+
+        // Process one more block and count non-zero samples
+        engine.processBlock(left.data(), right.data(), kBlockSize);
+        size_t nonZeroCount = 0;
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            if (left[i] != 0.0f) ++nonZeroCount;
+        }
+
+        INFO("Non-zero sample count: " << nonZeroCount << " / " << kBlockSize);
+        INFO("Mono mode should have continuous audio, not sparse samples");
+        // At least 90% of samples should be non-zero in steady state
+        REQUIRE(nonZeroCount > kBlockSize * 9 / 10);
+    }
+
+    SECTION("mono mode with SpectralDistortion produces continuous audio") {
+        // SpectralDistortion also uses STFT overlap-add, same issue as SpectralMorph
+        engine.setMode(VoiceMode::Mono);
+        engine.setDistortionType(RuinaeDistortionType::SpectralDistortion);
+        engine.setDistortionMix(1.0f);
+        engine.setDistortionDrive(0.5f);
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        for (int i = 0; i < kWarmUpBlocks * 2; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+
+        engine.processBlock(left.data(), right.data(), kBlockSize);
+        size_t nonZeroCount = 0;
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            if (left[i] != 0.0f) ++nonZeroCount;
+        }
+
+        INFO("SpectralDistortion mono non-zero samples: " << nonZeroCount
+             << " / " << kBlockSize);
+        INFO("SpectralDistortion + mono should have continuous audio");
+        REQUIRE(nonZeroCount > kBlockSize / 2);
+    }
+
+    SECTION("repeated setMode(Mono) on each block does not kill voice") {
+        // Simulate applyParamsToEngine calling setMode every block
+        engine.setMode(VoiceMode::Mono);
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        bool hasAudio = false;
+        for (int i = 0; i < kWarmUpBlocks * 2; ++i) {
+            // Simulate processor calling setMode every block
+            engine.setMode(VoiceMode::Mono);
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+            if (hasNonZeroSamples(left.data(), kBlockSize)) hasAudio = true;
+        }
+
+        REQUIRE(hasAudio);
+    }
+
+    SECTION("mono mode gain compensation uses 1.0 not 1/sqrt(polyphony)") {
+        // Bug fix: mono mode should not be attenuated by polyphony-based
+        // gain compensation since only 1 voice is active.
+        engine.setGainCompensationEnabled(true);
+        engine.setPolyphony(8); // 1/sqrt(8) = 0.354 — would make mono ~9dB quieter
+
+        // Measure poly mode RMS with 1 voice
+        engine.setMode(VoiceMode::Poly);
+        engine.noteOn(60, 100);
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+        engine.processBlock(left.data(), right.data(), kBlockSize);
+        float polyRms = computeRMS(left.data(), kBlockSize);
+        engine.noteOff(60);
+        // Let voice release
+        for (int i = 0; i < kWarmUpBlocks * 4; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+
+        // Measure mono mode RMS with same note
+        engine.setMode(VoiceMode::Mono);
+        engine.noteOn(60, 100);
+        for (int i = 0; i < kWarmUpBlocks; ++i) {
+            engine.processBlock(left.data(), right.data(), kBlockSize);
+        }
+        engine.processBlock(left.data(), right.data(), kBlockSize);
+        float monoRms = computeRMS(left.data(), kBlockSize);
+
+        INFO("Poly RMS (1 voice, polyphony=8): " << polyRms);
+        INFO("Mono RMS (polyphony=8): " << monoRms);
+        // Mono should be LOUDER than poly (no 1/sqrt(8) attenuation)
+        // Before fix: mono ≈ poly. After fix: mono ≈ poly * sqrt(8) ≈ poly * 2.83
+        if (polyRms > 0.0f) {
+            float ratio = monoRms / polyRms;
+            INFO("Mono/Poly ratio: " << ratio << " (expected ~2.83 with polyphony=8)");
+            REQUIRE(ratio > 2.0f); // Mono should be at least 2x louder
+        }
+        REQUIRE(monoRms > 0.0f);
+    }
+}
