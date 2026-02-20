@@ -26,6 +26,7 @@
 #include "color_utils.h"
 
 #include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/cframe.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
@@ -568,8 +569,23 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
 
-        if (!isDragging_)
+        if (!isDragging_) {
+            // Update cursor based on what's under the mouse
+            auto* frame = getFrame();
+            if (frame) {
+                DragTarget hover = hitTest(where);
+                bool isInteractive =
+                    hover == DragTarget::PeakPoint ||
+                    hover == DragTarget::SustainPoint ||
+                    hover == DragTarget::EndPoint ||
+                    hover == DragTarget::BezierHandle ||
+                    hover == DragTarget::ModeToggle;
+                frame->setCursor(isInteractive
+                    ? VSTGUI::kCursorHand
+                    : VSTGUI::kCursorDefault);
+            }
             return VSTGUI::kMouseEventNotHandled;
+        }
 
         float deltaX = static_cast<float>(where.x - lastDragPoint_.x);
         float deltaY = static_cast<float>(where.y - lastDragPoint_.y);
@@ -598,6 +614,15 @@ public:
         isDragging_ = false;
         dragTarget_ = DragTarget::None;
 
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        auto* frame = getFrame();
+        if (frame)
+            frame->setCursor(VSTGUI::kCursorDefault);
         return VSTGUI::kMouseEventHandled;
     }
 

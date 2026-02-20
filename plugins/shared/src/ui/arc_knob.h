@@ -25,15 +25,20 @@
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
+#include "vstgui/lib/controls/ctextlabel.h"
+#include "vstgui/lib/cfont.h"
 #include "vstgui/uidescription/iviewcreator.h"
 #include "vstgui/uidescription/uiviewfactory.h"
 #include "vstgui/uidescription/uiviewcreator.h"
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/detail/uiviewcreatorattributes.h"
 
+#include "public.sdk/source/vst/vstguieditor.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
 
 namespace Krate::Plugins {
 
@@ -133,6 +138,8 @@ public:
         mouseState_.oldButton = buttons();  // Use int32_t assignment to avoid deprecated implicit copy
         mouseState_.active = true;
 
+        showValuePopup();
+
         return VSTGUI::kMouseEventHandled;
     }
 
@@ -163,6 +170,8 @@ public:
         if (isDirty())
             invalid();
 
+        updateValuePopup();
+
         return VSTGUI::kMouseEventHandled;
     }
 
@@ -170,6 +179,7 @@ public:
         VSTGUI::CPoint& /*where*/,
         const VSTGUI::CButtonState& /*buttons*/) override {
         if (mouseState_.active) {
+            hideValuePopup();
             mouseState_.active = false;
             endEdit();
         }
@@ -178,6 +188,7 @@ public:
 
     VSTGUI::CMouseEventResult onMouseCancel() override {
         if (mouseState_.active) {
+            hideValuePopup();
             value = mouseState_.entryValue;
             if (isDirty()) {
                 valueChanged();
@@ -187,6 +198,11 @@ public:
             endEdit();
         }
         return VSTGUI::kMouseEventHandled;
+    }
+
+    bool removed(VSTGUI::CView* parent) override {
+        hideValuePopup();
+        return CKnobBase::removed(parent);
     }
 
     CLASS_METHODS(ArcKnob, CKnobBase)
@@ -353,6 +369,134 @@ private:
     }
 
     // =========================================================================
+    // Value Popup Helpers
+    // =========================================================================
+
+    /// Navigate view hierarchy to get the VST3 EditController.
+    [[nodiscard]] Steinberg::Vst::EditController* getEditController() const {
+        auto* frame = getFrame();
+        if (!frame)
+            return nullptr;
+        auto* editor = dynamic_cast<Steinberg::Vst::VSTGUIEditor*>(frame->getEditor());
+        if (!editor)
+            return nullptr;
+        return editor->getController();
+    }
+
+    /// Get the formatted parameter value string via EditController.
+    /// Falls back to percentage display if controller is unavailable.
+    bool getFormattedValue(std::string& result) const {
+        if (getTag() >= 0) {
+            auto* controller = getEditController();
+            if (controller) {
+                Steinberg::Vst::String128 str128{};
+                if (controller->getParamStringByValue(
+                        static_cast<Steinberg::Vst::ParamID>(getTag()),
+                        getValueNormalized(), str128) == Steinberg::kResultOk) {
+                    result.clear();
+                    for (int i = 0; i < 128 && str128[i] != 0; ++i)
+                        result += static_cast<char>(str128[i]);
+                    if (!result.empty())
+                        return true;
+                }
+            }
+        }
+        // Fallback: display percentage
+        int pct = static_cast<int>(getValueNormalized() * 100.0f + 0.5f);
+        result = std::to_string(pct) + "%";
+        return true;
+    }
+
+    /// Show the value popup below the knob.
+    void showValuePopup() {
+        auto* frame = getFrame();
+        if (!frame || valuePopup_)
+            return;
+
+        std::string text;
+        if (!getFormattedValue(text))
+            return;
+
+        // Estimate popup dimensions
+        constexpr VSTGUI::CCoord kCharWidth = 7.0;
+        constexpr VSTGUI::CCoord kPaddingH = 12.0;
+        constexpr VSTGUI::CCoord kPopupHeight = 20.0;
+        constexpr VSTGUI::CCoord kGap = 4.0;
+
+        auto popupWidth = static_cast<VSTGUI::CCoord>(text.size()) * kCharWidth + kPaddingH * 2;
+        popupWidth = std::max(popupWidth, 36.0);
+
+        // Position below knob center in frame coordinates.
+        // CView::localToFrame doesn't add the view's own offset, so start
+        // in parent coordinates (using getViewSize() which is in parent coords).
+        VSTGUI::CRect vs = getViewSize();
+        VSTGUI::CPoint bottomCenter(
+            vs.left + vs.getWidth() / 2.0, vs.bottom);
+        localToFrame(bottomCenter);
+
+        VSTGUI::CRect popupRect(
+            bottomCenter.x - popupWidth / 2.0,
+            bottomCenter.y + kGap,
+            bottomCenter.x + popupWidth / 2.0,
+            bottomCenter.y + kGap + kPopupHeight);
+
+        // Create styled label
+        int32_t style = VSTGUI::CParamDisplay::kRoundRectStyle
+                      | VSTGUI::CParamDisplay::kNoFrame;
+        valuePopup_ = new VSTGUI::CTextLabel(popupRect, text.c_str(), nullptr, style);
+
+        auto* font = new VSTGUI::CFontDesc("", 11);
+        valuePopup_->setFont(font);
+        font->forget();
+
+        valuePopup_->setFontColor(VSTGUI::CColor(240, 240, 240));
+        valuePopup_->setBackColor(VSTGUI::CColor(30, 30, 30, 220));
+        valuePopup_->setRoundRectRadius(4.0);
+        valuePopup_->setHoriAlign(VSTGUI::kCenterText);
+        valuePopup_->setMouseEnabled(false);
+
+        frame->addView(valuePopup_);
+    }
+
+    /// Update the popup text with the current parameter value.
+    void updateValuePopup() {
+        if (!valuePopup_)
+            return;
+
+        std::string text;
+        if (!getFormattedValue(text))
+            return;
+
+        valuePopup_->setText(text.c_str());
+
+        // Resize to fit new text
+        constexpr VSTGUI::CCoord kCharWidth = 7.0;
+        constexpr VSTGUI::CCoord kPaddingH = 12.0;
+
+        auto newWidth = static_cast<VSTGUI::CCoord>(text.size()) * kCharWidth + kPaddingH * 2;
+        newWidth = std::max(newWidth, 36.0);
+
+        VSTGUI::CRect r = valuePopup_->getViewSize();
+        VSTGUI::CCoord centerX = (r.left + r.right) / 2.0;
+        r.left = centerX - newWidth / 2.0;
+        r.right = centerX + newWidth / 2.0;
+        valuePopup_->setViewSize(r);
+        valuePopup_->setMouseableArea(r);
+
+        valuePopup_->invalid();
+    }
+
+    /// Remove the popup from the frame.
+    void hideValuePopup() {
+        if (!valuePopup_)
+            return;
+        auto* frame = getFrame();
+        if (frame)
+            frame->removeView(valuePopup_, true);
+        valuePopup_ = nullptr;
+    }
+
+    // =========================================================================
     // State
     // =========================================================================
 
@@ -366,6 +510,8 @@ private:
         bool active = false;
     };
     MouseState mouseState_;
+
+    VSTGUI::CTextLabel* valuePopup_ = nullptr;  // Owned by frame when visible
 
     float modRange_ = 0.0f;
 

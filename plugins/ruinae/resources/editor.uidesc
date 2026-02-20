@@ -37,13 +37,13 @@
         <!-- Envelope colors (with alpha variants) -->
         <color name="amp-env" rgba="#508CC8ff"/>
         <color name="amp-env-fill" rgba="#508CC840"/>
-        <color name="amp-env-dim" rgba="#508CC880"/>
+        <color name="amp-env-dim" rgba="#508CC8cc"/>
         <color name="filter-env" rgba="#DCAA3Cff"/>
         <color name="filter-env-fill" rgba="#DCAA3C40"/>
-        <color name="filter-env-dim" rgba="#DCAA3C80"/>
+        <color name="filter-env-dim" rgba="#DCAA3Ccc"/>
         <color name="mod-env" rgba="#A05AC8ff"/>
         <color name="mod-env-fill" rgba="#A05AC840"/>
-        <color name="mod-env-dim" rgba="#A05AC880"/>
+        <color name="mod-env-dim" rgba="#A05AC8cc"/>
 
         <!-- XY Pad gradient corners -->
         <color name="xy-bottom-left" rgba="#3C6C99ff"/>
