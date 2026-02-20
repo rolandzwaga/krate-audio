@@ -91,7 +91,7 @@ public:
 namespace Ruinae {
 
 // State version must match processor
-constexpr Steinberg::int32 kControllerStateVersion = 3;
+constexpr Steinberg::int32 kControllerStateVersion = 1;
 
 // Maps destination index to the actual VST parameter ID of that knob.
 // Tab-dependent: voice tab and global tab have different mappings.
@@ -236,177 +236,86 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Read state version (must match Processor::getState format)
     Steinberg::int32 version = 0;
     if (!streamer.readInt32(version)) {
         return Steinberg::kResultTrue; // Empty stream, keep defaults
     }
 
-    // Lambda to sync controller parameter display
+    if (version != 1) {
+        return Steinberg::kResultTrue; // Unknown version, keep defaults
+    }
+
     auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
         setParamNormalized(id, value);
     };
 
-    // Helper: load common packs before mod matrix (version-aware mixer loading)
-    auto loadCommonPacks = [&](Steinberg::int32 ver) {
-        loadGlobalParamsToController(streamer, setParam);
-        loadOscAParamsToController(streamer, setParam);
-        loadOscBParamsToController(streamer, setParam);
-        // v4 added MixerShift field to mixer pack
-        if (ver >= 4)
-            loadMixerParamsToController(streamer, setParam);
-        else
-            loadMixerParamsToControllerV3(streamer, setParam);
-        // v7 added SVF gain, env filter, self-osc; v6 added SVF slope/drive
-        if (ver >= 7)
-            loadFilterParamsToControllerV6(streamer, setParam);
-        else if (ver >= 6)
-            loadFilterParamsToControllerV5(streamer, setParam);
-        else if (ver >= 5)
-            loadFilterParamsToControllerV4(streamer, setParam);
-        else
-            loadFilterParamsToController(streamer, setParam);
-        loadDistortionParamsToController(streamer, setParam);
-        loadTranceGateParamsToController(streamer, setParam);
-        loadAmpEnvParamsToController(streamer, setParam);
-        loadFilterEnvParamsToController(streamer, setParam);
-        loadModEnvParamsToController(streamer, setParam);
-        loadLFO1ParamsToController(streamer, setParam);
-        loadLFO2ParamsToController(streamer, setParam);
-        loadChaosModParamsToController(streamer, setParam);
-    };
+    // Load all parameter packs in deterministic order (matching Processor::getState)
+    loadGlobalParamsToController(streamer, setParam);
+    loadOscAParamsToController(streamer, setParam);
+    loadOscBParamsToController(streamer, setParam);
+    loadMixerParamsToController(streamer, setParam);
+    loadFilterParamsToController(streamer, setParam);
+    loadDistortionParamsToController(streamer, setParam);
+    loadTranceGateParamsToController(streamer, setParam);
+    loadAmpEnvParamsToController(streamer, setParam);
+    loadFilterEnvParamsToController(streamer, setParam);
+    loadModEnvParamsToController(streamer, setParam);
+    loadLFO1ParamsToController(streamer, setParam);
+    loadLFO2ParamsToController(streamer, setParam);
+    loadChaosModParamsToController(streamer, setParam);
+    loadModMatrixParamsToController(streamer, setParam);
+    loadGlobalFilterParamsToController(streamer, setParam);
+    loadDelayParamsToController(streamer, setParam);
+    loadReverbParamsToController(streamer, setParam);
+    loadMonoModeParamsToController(streamer, setParam);
 
-    auto loadPostModMatrix = [&](Steinberg::int32 ver) {
-        loadGlobalFilterParamsToController(streamer, setParam);
-        if (ver <= 7) {
-            // v1-v7 had freeze params here (2 x int32); skip them
-            Steinberg::int32 dummy = 0;
-            streamer.readInt32(dummy);
-            streamer.readInt32(dummy);
-        }
-        if (ver >= 9)
-            loadDelayParamsToControllerV9(streamer, setParam);
-        else
-            loadDelayParamsToController(streamer, setParam);
-        loadReverbParamsToController(streamer, setParam);
-        loadMonoModeParamsToController(streamer, setParam);
-    };
-
-    if (version == 1) {
-        // v1: base mod matrix only (source, dest, amount per slot)
-        loadCommonPacks(version);
-        loadModMatrixParamsToControllerV1(streamer, setParam);
-        loadPostModMatrix(version);
-    } else if (version >= 2) {
-        // v2+: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
-        // v3+ adds voice routes via IMessage from processor (not from stream)
-        // v4+ adds MixerShift to mixer pack (handled by loadCommonPacks)
-        // v8: removed freeze effect
-        loadCommonPacks(version);
-        loadModMatrixParamsToController(streamer, setParam);
-        loadPostModMatrix(version);
-
-        // v3+: skip voice routes (16 slots x 14 bytes each = 224 bytes)
-        if (version >= 3) {
-            for (int i = 0; i < 16; ++i) {
-                Steinberg::int8 i8 = 0; float fv = 0;
-                streamer.readInt8(i8);   // source
-                streamer.readInt8(i8);   // destination
-                streamer.readFloat(fv);  // amount
-                streamer.readInt8(i8);   // curve
-                streamer.readFloat(fv);  // smoothMs
-                streamer.readInt8(i8);   // scale
-                streamer.readInt8(i8);   // bypass
-                streamer.readInt8(i8);   // active
-            }
-        }
-
-        // v10: FX enable flags
-        if (version >= 10) {
-            Steinberg::int8 i8 = 0;
-            if (streamer.readInt8(i8))
-                setParam(kDelayEnabledId, i8 != 0 ? 1.0 : 0.0);
-            if (streamer.readInt8(i8))
-                setParam(kReverbEnabledId, i8 != 0 ? 1.0 : 0.0);
-        }
-
-        // v11: Phaser params + enable flag
-        if (version >= 11) {
-            loadPhaserParamsToController(streamer, setParam);
-            Steinberg::int8 i8 = 0;
-            if (streamer.readInt8(i8))
-                setParam(kPhaserEnabledId, i8 != 0 ? 1.0 : 0.0);
-        }
-
-        // v12: Extended LFO params
-        if (version >= 12) {
-            loadLFO1ExtendedParamsToController(streamer, setParam);
-            loadLFO2ExtendedParamsToController(streamer, setParam);
-        }
-
-        // v13: Macro and Rungler params
-        if (version >= 13) {
-            loadMacroParamsToController(streamer, setParam);
-            loadRunglerParamsToController(streamer, setParam);
-        }
-
-        // v14: Settings params
-        if (version >= 14) {
-            loadSettingsParamsToController(streamer, setParam);
-        }
-        // For version < 14, settings params keep their registration defaults
-        // EXCEPT gain compensation must be OFF for old presets (registration default is ON)
-        if (version < 14) {
-            setParam(kSettingsGainCompensationId, 0.0); // OFF for pre-spec-058 presets
-        }
-
-        // v15: Mod source params
-        if (version >= 15) {
-            loadEnvFollowerParamsToController(streamer, setParam);
-            loadSampleHoldParamsToController(streamer, setParam);
-            loadRandomParamsToController(streamer, setParam);
-            loadPitchFollowerParamsToController(streamer, setParam);
-            loadTransientParamsToController(streamer, setParam);
-        }
-
-        // v16: Harmonizer params + enable flag
-        if (version >= 16) {
-            loadHarmonizerParamsToController(streamer, setParam);
-            Steinberg::int8 i8 = 0;
-            if (streamer.readInt8(i8))
-                setParam(kHarmonizerEnabledId, i8 != 0 ? 1.0 : 0.0);
-        }
+    // Skip voice routes (16 slots, processor-only data)
+    for (int i = 0; i < 16; ++i) {
+        Steinberg::int8 i8 = 0; float fv = 0;
+        streamer.readInt8(i8);   // source
+        streamer.readInt8(i8);   // destination
+        streamer.readFloat(fv);  // amount
+        streamer.readInt8(i8);   // curve
+        streamer.readFloat(fv);  // smoothMs
+        streamer.readInt8(i8);   // scale
+        streamer.readInt8(i8);   // bypass
+        streamer.readInt8(i8);   // active
     }
 
-    // =========================================================================
-    // ModSource enum migration (FR-009a): Rungler inserted at position 10
-    // Old presets (version < 13) have SampleHold=10, PitchFollower=11,
-    // Transient=12. These must shift +1 to make room for Rungler=10.
-    // Controller stores normalized values, so we denormalize, migrate,
-    // and renormalize using the current kModSourceCount (14).
-    // =========================================================================
-    if (version >= 1 && version < 13) {
-        const Steinberg::Vst::ParamID srcIds[] = {
-            kModMatrixSlot0SourceId, kModMatrixSlot1SourceId,
-            kModMatrixSlot2SourceId, kModMatrixSlot3SourceId,
-            kModMatrixSlot4SourceId, kModMatrixSlot5SourceId,
-            kModMatrixSlot6SourceId, kModMatrixSlot7SourceId,
-        };
-        constexpr double kMaxSourceIdx =
-            static_cast<double>(kModSourceCount - 1); // 13.0
-        for (const auto& srcId : srcIds) {
-            double norm = getParamNormalized(srcId);
-            int sourceIdx =
-                static_cast<int>(norm * kMaxSourceIdx + 0.5);
-            if (sourceIdx >= 10) {
-                sourceIdx += 1;
-                setParam(srcId,
-                         static_cast<double>(sourceIdx) / kMaxSourceIdx);
-            }
-        }
-    }
+    // FX enable flags
+    Steinberg::int8 i8 = 0;
+    if (streamer.readInt8(i8))
+        setParam(kDelayEnabledId, i8 != 0 ? 1.0 : 0.0);
+    if (streamer.readInt8(i8))
+        setParam(kReverbEnabledId, i8 != 0 ? 1.0 : 0.0);
 
-    // Unknown versions (v0 or negative): keep defaults (fail closed)
+    // Phaser params + enable flag
+    loadPhaserParamsToController(streamer, setParam);
+    if (streamer.readInt8(i8))
+        setParam(kPhaserEnabledId, i8 != 0 ? 1.0 : 0.0);
+
+    // Extended LFO params
+    loadLFO1ExtendedParamsToController(streamer, setParam);
+    loadLFO2ExtendedParamsToController(streamer, setParam);
+
+    // Macro and Rungler params
+    loadMacroParamsToController(streamer, setParam);
+    loadRunglerParamsToController(streamer, setParam);
+
+    // Settings params
+    loadSettingsParamsToController(streamer, setParam);
+
+    // Mod source params
+    loadEnvFollowerParamsToController(streamer, setParam);
+    loadSampleHoldParamsToController(streamer, setParam);
+    loadRandomParamsToController(streamer, setParam);
+    loadPitchFollowerParamsToController(streamer, setParam);
+    loadTransientParamsToController(streamer, setParam);
+
+    // Harmonizer params + enable flag
+    loadHarmonizerParamsToController(streamer, setParam);
+    if (streamer.readInt8(i8))
+        setParam(kHarmonizerEnabledId, i8 != 0 ? 1.0 : 0.0);
 
     return Steinberg::kResultTrue;
 }

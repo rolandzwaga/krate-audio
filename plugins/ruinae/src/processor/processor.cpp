@@ -416,8 +416,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveReverbParams(reverbParams_, streamer);
     saveMonoModeParams(monoModeParams_, streamer);
 
-    // Save voice route state (T085-T086)
-    // Write 16 VoiceModRoute structs (14 bytes each = 224 bytes total)
+    // Voice routes (16 slots)
     for (const auto& r : voiceRoutes_) {
         streamer.writeInt8(static_cast<Steinberg::int8>(r.source));
         streamer.writeInt8(static_cast<Steinberg::int8>(r.destination));
@@ -429,33 +428,33 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         streamer.writeInt8(static_cast<Steinberg::int8>(r.active));
     }
 
-    // v10: FX enable flags
+    // FX enable flags
     streamer.writeInt8(delayEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
     streamer.writeInt8(reverbEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
 
-    // v11: Phaser params + enable flag
+    // Phaser params + enable flag
     savePhaserParams(phaserParams_, streamer);
     streamer.writeInt8(phaserEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
 
-    // v12: Extended LFO params
+    // Extended LFO params
     saveLFO1ExtendedParams(lfo1Params_, streamer);
     saveLFO2ExtendedParams(lfo2Params_, streamer);
 
-    // v13: Macro and Rungler params
+    // Macro and Rungler params
     saveMacroParams(macroParams_, streamer);
     saveRunglerParams(runglerParams_, streamer);
 
-    // v14: Settings params
+    // Settings params
     saveSettingsParams(settingsParams_, streamer);
 
-    // v15: Mod source params
+    // Mod source params
     saveEnvFollowerParams(envFollowerParams_, streamer);
     saveSampleHoldParams(sampleHoldParams_, streamer);
     saveRandomParams(randomParams_, streamer);
     savePitchFollowerParams(pitchFollowerParams_, streamer);
     saveTransientParams(transientParams_, streamer);
 
-    // v16: Harmonizer params + enable flag
+    // Harmonizer params + enable flag
     saveHarmonizerParams(harmonizerParams_, streamer);
     streamer.writeInt8(harmonizerEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
 
@@ -465,189 +464,89 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
 Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Read state version
     Steinberg::int32 version = 0;
     if (!streamer.readInt32(version)) {
         return Steinberg::kResultTrue; // Empty stream, keep defaults
     }
 
-    // Helper: load all packs except mod matrix, with version-aware mixer loading
-    auto loadCommonPacks = [&](Steinberg::int32 ver) -> bool {
-        if (!loadGlobalParams(globalParams_, streamer)) return false;
-        if (!loadOscAParams(oscAParams_, streamer)) return false;
-        if (!loadOscBParams(oscBParams_, streamer)) return false;
-        // v4 added MixerShift field to mixer pack
-        if (ver >= 4) {
-            if (!loadMixerParams(mixerParams_, streamer)) return false;
-        } else {
-            if (!loadMixerParamsV3(mixerParams_, streamer)) return false;
-        }
-        // v7 added SVF gain, env filter, self-osc; v6 added SVF slope/drive; v5 added type-specific
-        if (ver >= 7) {
-            if (!loadFilterParamsV6(filterParams_, streamer)) return false;
-        } else if (ver >= 6) {
-            if (!loadFilterParamsV5(filterParams_, streamer)) return false;
-        } else if (ver >= 5) {
-            if (!loadFilterParamsV4(filterParams_, streamer)) return false;
-        } else {
-            if (!loadFilterParams(filterParams_, streamer)) return false;
-        }
-        if (!loadDistortionParams(distortionParams_, streamer)) return false;
-        if (!loadTranceGateParams(tranceGateParams_, streamer)) return false;
-        if (!loadAmpEnvParams(ampEnvParams_, streamer)) return false;
-        if (!loadFilterEnvParams(filterEnvParams_, streamer)) return false;
-        if (!loadModEnvParams(modEnvParams_, streamer)) return false;
-        if (!loadLFO1Params(lfo1Params_, streamer)) return false;
-        if (!loadLFO2Params(lfo2Params_, streamer)) return false;
-        if (!loadChaosModParams(chaosModParams_, streamer)) return false;
-        return true;
-    };
-
-    auto loadPostModMatrix = [&](Steinberg::int32 ver) -> bool {
-        if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return false;
-        if (ver <= 7) {
-            // v1-v7 had freeze params here (2 x int32); skip them
-            Steinberg::int32 dummy = 0;
-            if (!streamer.readInt32(dummy)) return false;
-            if (!streamer.readInt32(dummy)) return false;
-        }
-        if (ver >= 9) {
-            if (!loadDelayParamsV9(delayParams_, streamer)) return false;
-        } else {
-            if (!loadDelayParams(delayParams_, streamer)) return false;
-        }
-        if (!loadReverbParams(reverbParams_, streamer)) return false;
-        if (!loadMonoModeParams(monoModeParams_, streamer)) return false;
-        return true;
-    };
-
-    if (version == 1) {
-        // v1: base mod matrix only (source, dest, amount per slot)
-        if (!loadCommonPacks(version)) return Steinberg::kResultTrue;
-        if (!loadModMatrixParamsV1(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadPostModMatrix(version)) return Steinberg::kResultTrue;
-    } else if (version == 2) {
-        // v2: extended mod matrix (source, dest, amount, curve, smooth, scale, bypass)
-        if (!loadCommonPacks(version)) return Steinberg::kResultTrue;
-        if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadPostModMatrix(version)) return Steinberg::kResultTrue;
-    } else if (version >= 3) {
-        // v3: v2 + voice modulation routes
-        // v4: added MixerShift to mixer pack (handled by loadCommonPacks)
-        // v8: removed freeze effect
-        if (!loadCommonPacks(version)) return Steinberg::kResultTrue;
-        if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadPostModMatrix(version)) return Steinberg::kResultTrue;
-
-        // Load voice routes (16 slots, added in v3)
-        for (auto& r : voiceRoutes_) {
-            Steinberg::int8 i8 = 0;
-            if (!streamer.readInt8(i8)) break;
-            r.source = static_cast<uint8_t>(i8);
-            if (!streamer.readInt8(i8)) break;
-            r.destination = static_cast<uint8_t>(i8);
-            if (!streamer.readFloat(r.amount)) break;
-            if (!streamer.readInt8(i8)) break;
-            r.curve = static_cast<uint8_t>(i8);
-            if (!streamer.readFloat(r.smoothMs)) break;
-            if (!streamer.readInt8(i8)) break;
-            r.scale = static_cast<uint8_t>(i8);
-            if (!streamer.readInt8(i8)) break;
-            r.bypass = static_cast<uint8_t>(i8);
-            if (!streamer.readInt8(i8)) break;
-            r.active = static_cast<uint8_t>(i8);
-        }
-
-        // Send voice route state to controller for UI sync
-        sendVoiceModRouteState();
-
-        // v10: FX enable flags
-        if (version >= 10) {
-            Steinberg::int8 i8 = 0;
-            if (streamer.readInt8(i8))
-                delayEnabled_.store(i8 != 0, std::memory_order_relaxed);
-            if (streamer.readInt8(i8))
-                reverbEnabled_.store(i8 != 0, std::memory_order_relaxed);
-        }
-
-        // v11: Phaser params + enable flag
-        if (version >= 11) {
-            loadPhaserParams(phaserParams_, streamer);
-            Steinberg::int8 i8 = 0;
-            if (streamer.readInt8(i8))
-                phaserEnabled_.store(i8 != 0, std::memory_order_relaxed);
-        }
-
-        // v12: Extended LFO params
-        if (version >= 12) {
-            loadLFO1ExtendedParams(lfo1Params_, streamer);
-            loadLFO2ExtendedParams(lfo2Params_, streamer);
-        }
-
-        // v13: Macro and Rungler params
-        if (version >= 13) {
-            loadMacroParams(macroParams_, streamer);
-            loadRunglerParams(runglerParams_, streamer);
-        }
-
-        // v14: Settings params
-        if (version >= 14) {
-            loadSettingsParams(settingsParams_, streamer);
-        } else {
-            // Backward compatibility: old presets get these defaults
-            // (matching hardcoded behavior before this spec)
-            settingsParams_.pitchBendRangeSemitones.store(2.0f, std::memory_order_relaxed);
-            settingsParams_.velocityCurve.store(0, std::memory_order_relaxed);    // Linear
-            settingsParams_.tuningReferenceHz.store(440.0f, std::memory_order_relaxed);
-            settingsParams_.voiceAllocMode.store(1, std::memory_order_relaxed);   // Oldest
-            settingsParams_.voiceStealMode.store(0, std::memory_order_relaxed);   // Hard
-            settingsParams_.gainCompensation.store(false, std::memory_order_relaxed); // OFF for old presets
-        }
-
-        // v15: Mod source params
-        if (version >= 15) {
-            loadEnvFollowerParams(envFollowerParams_, streamer);
-            loadSampleHoldParams(sampleHoldParams_, streamer);
-            loadRandomParams(randomParams_, streamer);
-            loadPitchFollowerParams(pitchFollowerParams_, streamer);
-            loadTransientParams(transientParams_, streamer);
-        }
-        // Note: For version < 15, all mod source params keep their struct defaults
-
-        // v16: Harmonizer params + enable flag
-        if (version >= 16) {
-            loadHarmonizerParams(harmonizerParams_, streamer);
-            Steinberg::int8 i8 = 0;
-            if (streamer.readInt8(i8))
-                harmonizerEnabled_.store(i8 != 0, std::memory_order_relaxed);
-        }
+    if (version != 1) {
+        return Steinberg::kResultTrue; // Unknown version, keep defaults
     }
 
-    // =========================================================================
-    // Settings backward compatibility for v1-v2 (which don't enter the v3+ block)
-    // Struct default is gainCompensation=true, but old presets must be false.
-    // Other settings struct defaults are correct for old presets.
-    // =========================================================================
-    if (version >= 1 && version < 3) {
-        settingsParams_.gainCompensation.store(false, std::memory_order_relaxed);
-    }
+    // Load all parameter packs in deterministic order (matching getState)
+    if (!loadGlobalParams(globalParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadOscAParams(oscAParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadOscBParams(oscBParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadMixerParams(mixerParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadFilterParams(filterParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadDistortionParams(distortionParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadTranceGateParams(tranceGateParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadAmpEnvParams(ampEnvParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadFilterEnvParams(filterEnvParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadModEnvParams(modEnvParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadLFO1Params(lfo1Params_, streamer)) return Steinberg::kResultTrue;
+    if (!loadLFO2Params(lfo2Params_, streamer)) return Steinberg::kResultTrue;
+    if (!loadChaosModParams(chaosModParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadDelayParams(delayParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadReverbParams(reverbParams_, streamer)) return Steinberg::kResultTrue;
+    if (!loadMonoModeParams(monoModeParams_, streamer)) return Steinberg::kResultTrue;
 
-    // =========================================================================
-    // ModSource enum migration (FR-009a): Rungler inserted at position 10
-    // Old presets (version < 13) have SampleHold=10, PitchFollower=11,
-    // Transient=12. These must shift +1 to make room for Rungler=10.
-    // Voice routes use VoiceModSource (separate enum), no migration needed.
-    // =========================================================================
-    if (version >= 1 && version < 13) {
-        for (auto& slot : modMatrixParams_.slots) {
-            int src = slot.source.load(std::memory_order_relaxed);
-            if (src >= 10) {
-                slot.source.store(src + 1, std::memory_order_relaxed);
-            }
-        }
+    // Voice routes (16 slots)
+    for (auto& r : voiceRoutes_) {
+        Steinberg::int8 i8 = 0;
+        if (!streamer.readInt8(i8)) break;
+        r.source = static_cast<uint8_t>(i8);
+        if (!streamer.readInt8(i8)) break;
+        r.destination = static_cast<uint8_t>(i8);
+        if (!streamer.readFloat(r.amount)) break;
+        if (!streamer.readInt8(i8)) break;
+        r.curve = static_cast<uint8_t>(i8);
+        if (!streamer.readFloat(r.smoothMs)) break;
+        if (!streamer.readInt8(i8)) break;
+        r.scale = static_cast<uint8_t>(i8);
+        if (!streamer.readInt8(i8)) break;
+        r.bypass = static_cast<uint8_t>(i8);
+        if (!streamer.readInt8(i8)) break;
+        r.active = static_cast<uint8_t>(i8);
     }
+    sendVoiceModRouteState();
 
-    // Unknown future versions (v0 or negative): keep safe defaults
+    // FX enable flags
+    Steinberg::int8 i8 = 0;
+    if (streamer.readInt8(i8))
+        delayEnabled_.store(i8 != 0, std::memory_order_relaxed);
+    if (streamer.readInt8(i8))
+        reverbEnabled_.store(i8 != 0, std::memory_order_relaxed);
+
+    // Phaser params + enable flag
+    loadPhaserParams(phaserParams_, streamer);
+    if (streamer.readInt8(i8))
+        phaserEnabled_.store(i8 != 0, std::memory_order_relaxed);
+
+    // Extended LFO params
+    loadLFO1ExtendedParams(lfo1Params_, streamer);
+    loadLFO2ExtendedParams(lfo2Params_, streamer);
+
+    // Macro and Rungler params
+    loadMacroParams(macroParams_, streamer);
+    loadRunglerParams(runglerParams_, streamer);
+
+    // Settings params
+    loadSettingsParams(settingsParams_, streamer);
+
+    // Mod source params
+    loadEnvFollowerParams(envFollowerParams_, streamer);
+    loadSampleHoldParams(sampleHoldParams_, streamer);
+    loadRandomParams(randomParams_, streamer);
+    loadPitchFollowerParams(pitchFollowerParams_, streamer);
+    loadTransientParams(transientParams_, streamer);
+
+    // Harmonizer params + enable flag
+    loadHarmonizerParams(harmonizerParams_, streamer);
+    if (streamer.readInt8(i8))
+        harmonizerEnabled_.store(i8 != 0, std::memory_order_relaxed);
 
     return Steinberg::kResultTrue;
 }

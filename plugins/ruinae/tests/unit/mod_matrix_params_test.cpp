@@ -204,53 +204,6 @@ TEST_CASE("Mod matrix params round-trip: base + detail", "[modmatrix][state]") {
     }
 }
 
-TEST_CASE("Mod matrix V1 load preserves base, defaults detail", "[modmatrix][state][migration]") {
-    Ruinae::ModMatrixParams original;
-
-    // Set up base params only (as v1 would have)
-    for (int i = 0; i < 8; ++i) {
-        auto& slot = original.slots[static_cast<size_t>(i)];
-        slot.source.store(i % Ruinae::kModSourceCount);
-        slot.dest.store(i % Ruinae::kModDestCount);
-        slot.amount.store(-0.5f + static_cast<float>(i) * 0.15f);
-    }
-
-    // Save as V1 format (source, dest, amount only)
-    Steinberg::MemoryStream stream;
-    Steinberg::IBStreamer streamer(&stream, kLittleEndian);
-    for (int i = 0; i < 8; ++i) {
-        streamer.writeInt32(original.slots[static_cast<size_t>(i)].source.load());
-        streamer.writeInt32(original.slots[static_cast<size_t>(i)].dest.load());
-        streamer.writeFloat(original.slots[static_cast<size_t>(i)].amount.load());
-    }
-
-    // Load with V1 function
-    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
-    Steinberg::IBStreamer reader(&stream, kLittleEndian);
-    Ruinae::ModMatrixParams loaded;
-    REQUIRE(Ruinae::loadModMatrixParamsV1(loaded, reader));
-
-    // Verify base params preserved
-    for (int i = 0; i < 8; ++i) {
-        INFO("Slot " << i);
-        REQUIRE(loaded.slots[static_cast<size_t>(i)].source.load()
-                == original.slots[static_cast<size_t>(i)].source.load());
-        REQUIRE(loaded.slots[static_cast<size_t>(i)].dest.load()
-                == original.slots[static_cast<size_t>(i)].dest.load());
-        REQUIRE(loaded.slots[static_cast<size_t>(i)].amount.load()
-                == Approx(original.slots[static_cast<size_t>(i)].amount.load()).margin(0.001f));
-    }
-
-    // Verify detail params have defaults
-    for (int i = 0; i < 8; ++i) {
-        INFO("Slot " << i << " detail defaults");
-        REQUIRE(loaded.slots[static_cast<size_t>(i)].curve.load() == 0);     // Linear
-        REQUIRE(loaded.slots[static_cast<size_t>(i)].smoothMs.load() == 0.0f);
-        REQUIRE(loaded.slots[static_cast<size_t>(i)].scale.load() == 2);     // x1
-        REQUIRE(loaded.slots[static_cast<size_t>(i)].bypass.load() == 0);    // Off
-    }
-}
-
 TEST_CASE("Mod matrix full processor state round-trip with detail params", "[modmatrix][state][integration]") {
     // Create processor, set mod matrix params, save, load, verify
     auto proc1 = makeProcessor();

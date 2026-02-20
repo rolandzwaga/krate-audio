@@ -59,23 +59,8 @@
 
 namespace Ruinae {
 
-// State version for serialization
-// v1: Original 19 parameter packs (base mod matrix: source, dest, amount only)
-// v2: Extended mod matrix with detail params (curve, smooth, scale, bypass)
-// v3: Voice modulation routes (16 slots, IMessage-based, persisted in state)
-// v4: Added MixerShift parameter to mixer pack
-// v5: Added filter type-specific params (ladder slope/drive, formant morph/gender, comb damping)
-// v6: Added SVF slope/drive params
-// v7: Added SVF gain, envelope filter, and self-oscillating filter params
-// v8: Removed freeze effect from effects chain
-// v9: Added type-specific delay parameters (51 new params)
-// v10: Added FX enable parameters (delay/reverb on/off)
-// v11: Added phaser params + enable flag
-// v12: Extended LFO params (phase offset, retrigger, note value, unipolar, fade-in, symmetry, quantize)
-// v13: Macro and Rungler params
-// v14: Settings params (pitch bend range, velocity curve, tuning ref, alloc mode, steal mode, gain comp)
-// v15: Mod source params (Env Follower, S&H, Random, Pitch Follower, Transient)
-constexpr Steinberg::int32 kCurrentStateVersion = 16;
+// State version for serialization (pre-release; bump when format changes)
+constexpr Steinberg::int32 kCurrentStateVersion = 1;
 
 // ==============================================================================
 // Processor Class

@@ -392,16 +392,15 @@ inline void saveFilterParams(const RuinaeFilterParams& params, Steinberg::IBStre
     streamer.writeFloat(params.resonance.load(std::memory_order_relaxed));
     streamer.writeFloat(params.envAmount.load(std::memory_order_relaxed));
     streamer.writeFloat(params.keyTrack.load(std::memory_order_relaxed));
-    // Type-specific (v4+)
+    // Type-specific
     streamer.writeInt32(params.ladderSlope.load(std::memory_order_relaxed));
     streamer.writeFloat(params.ladderDrive.load(std::memory_order_relaxed));
     streamer.writeFloat(params.formantMorph.load(std::memory_order_relaxed));
     streamer.writeFloat(params.formantGender.load(std::memory_order_relaxed));
     streamer.writeFloat(params.combDamping.load(std::memory_order_relaxed));
-    // SVF-specific (v6+)
+    // SVF-specific
     streamer.writeInt32(params.svfSlope.load(std::memory_order_relaxed));
     streamer.writeFloat(params.svfDrive.load(std::memory_order_relaxed));
-    // New filter types (v7+)
     streamer.writeFloat(params.svfGain.load(std::memory_order_relaxed));
     streamer.writeInt32(params.envSubType.load(std::memory_order_relaxed));
     streamer.writeFloat(params.envSensitivity.load(std::memory_order_relaxed));
@@ -427,12 +426,7 @@ inline bool loadFilterParams(RuinaeFilterParams& params, Steinberg::IBStreamer& 
     params.envAmount.store(floatVal, std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.keyTrack.store(floatVal, std::memory_order_relaxed);
-    return true;
-}
-
-inline bool loadFilterParamsV4(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
-    if (!loadFilterParams(params, streamer)) return false;
-    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    // Type-specific
     if (!streamer.readInt32(intVal)) return false;
     params.ladderSlope.store(intVal, std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
@@ -443,22 +437,11 @@ inline bool loadFilterParamsV4(RuinaeFilterParams& params, Steinberg::IBStreamer
     params.formantGender.store(floatVal, std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.combDamping.store(floatVal, std::memory_order_relaxed);
-    return true;
-}
-
-inline bool loadFilterParamsV5(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
-    if (!loadFilterParamsV4(params, streamer)) return false;
-    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    // SVF-specific
     if (!streamer.readInt32(intVal)) return false;
     params.svfSlope.store(intVal, std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.svfDrive.store(floatVal, std::memory_order_relaxed);
-    return true;
-}
-
-inline bool loadFilterParamsV6(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
-    if (!loadFilterParamsV5(params, streamer)) return false;
-    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
     // SVF gain
     if (!streamer.readFloat(floatVal)) return false;
     params.svfGain.store(floatVal, std::memory_order_relaxed);
@@ -494,7 +477,6 @@ inline void loadFilterParamsToController(
     if (streamer.readInt32(intVal))
         setParam(kFilterTypeId, static_cast<double>(intVal) / (kFilterTypeCount - 1));
     if (streamer.readFloat(floatVal)) {
-        // Inverse of exponential: normalized = log(hz/20) / log(1000)
         double norm = (floatVal > 20.0f) ? std::log(floatVal / 20.0f) / std::log(1000.0f) : 0.0;
         setParam(kFilterCutoffId, std::clamp(norm, 0.0, 1.0));
     }
@@ -504,13 +486,7 @@ inline void loadFilterParamsToController(
         setParam(kFilterEnvAmountId, static_cast<double>((floatVal + 48.0f) / 96.0f));
     if (streamer.readFloat(floatVal))
         setParam(kFilterKeyTrackId, static_cast<double>(floatVal));
-}
-
-template<typename SetParamFunc>
-inline void loadFilterParamsToControllerV4(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadFilterParamsToController(streamer, setParam);
-    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    // Type-specific
     if (streamer.readInt32(intVal))
         setParam(kFilterLadderSlopeId, static_cast<double>(intVal - 1) / 3.0);
     if (streamer.readFloat(floatVal))
@@ -521,25 +497,12 @@ inline void loadFilterParamsToControllerV4(
         setParam(kFilterFormantGenderId, static_cast<double>((floatVal + 1.0f) / 2.0f));
     if (streamer.readFloat(floatVal))
         setParam(kFilterCombDampingId, static_cast<double>(floatVal));
-}
-
-template<typename SetParamFunc>
-inline void loadFilterParamsToControllerV5(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadFilterParamsToControllerV4(streamer, setParam);
-    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
+    // SVF-specific
     if (streamer.readInt32(intVal))
         setParam(kFilterSvfSlopeId, static_cast<double>(intVal - 1));
     if (streamer.readFloat(floatVal))
         setParam(kFilterSvfDriveId, static_cast<double>(floatVal / 24.0f));
-}
-
-template<typename SetParamFunc>
-inline void loadFilterParamsToControllerV6(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    loadFilterParamsToControllerV5(streamer, setParam);
-    Steinberg::int32 intVal = 0; float floatVal = 0.0f;
-    // SVF gain: -24..+24 -> 0..1
+    // SVF gain
     if (streamer.readFloat(floatVal))
         setParam(kFilterSvfGainId, static_cast<double>((floatVal + 24.0f) / 48.0f));
     // Envelope filter
@@ -550,12 +513,10 @@ inline void loadFilterParamsToControllerV6(
     if (streamer.readFloat(floatVal))
         setParam(kFilterEnvFltDepthId, static_cast<double>(floatVal));
     if (streamer.readFloat(floatVal)) {
-        // Inverse of exponential: 0.1*5000^x = ms -> x = log(ms/0.1)/log(5000)
         double norm = (floatVal > 0.1f) ? std::log(floatVal / 0.1) / std::log(5000.0) : 0.0;
         setParam(kFilterEnvFltAttackId, std::clamp(norm, 0.0, 1.0));
     }
     if (streamer.readFloat(floatVal)) {
-        // Inverse of exponential: 1*5000^x = ms -> x = log(ms)/log(5000)
         double norm = (floatVal > 1.0f) ? std::log(static_cast<double>(floatVal)) / std::log(5000.0) : 0.0;
         setParam(kFilterEnvFltReleaseId, std::clamp(norm, 0.0, 1.0));
     }
@@ -569,7 +530,6 @@ inline void loadFilterParamsToControllerV6(
     if (streamer.readFloat(floatVal))
         setParam(kFilterSelfOscShapeId, static_cast<double>(floatVal));
     if (streamer.readFloat(floatVal)) {
-        // Inverse of exponential: 10*200^x = ms -> x = log(ms/10)/log(200)
         double norm = (floatVal > 10.0f) ? std::log(floatVal / 10.0) / std::log(200.0) : 0.0;
         setParam(kFilterSelfOscReleaseId, std::clamp(norm, 0.0, 1.0));
     }

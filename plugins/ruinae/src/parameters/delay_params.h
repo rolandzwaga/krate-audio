@@ -641,35 +641,17 @@ inline Steinberg::tresult formatDelayParam(
 }
 
 // =============================================================================
-// State Save/Load — Base (v1-v8 compatible)
+// State Save/Load
 // =============================================================================
 
-inline void saveDelayParamsBase(const RuinaeDelayParams& params, Steinberg::IBStreamer& streamer) {
+inline void saveDelayParams(const RuinaeDelayParams& params, Steinberg::IBStreamer& streamer) {
+    // Common params
     streamer.writeInt32(params.type.load(std::memory_order_relaxed));
     streamer.writeFloat(params.timeMs.load(std::memory_order_relaxed));
     streamer.writeFloat(params.feedback.load(std::memory_order_relaxed));
     streamer.writeFloat(params.mix.load(std::memory_order_relaxed));
     streamer.writeInt32(params.sync.load(std::memory_order_relaxed) ? 1 : 0);
     streamer.writeInt32(params.noteValue.load(std::memory_order_relaxed));
-}
-
-inline bool loadDelayParams(RuinaeDelayParams& params, Steinberg::IBStreamer& streamer) {
-    Steinberg::int32 iv = 0; float fv = 0.0f;
-    if (!streamer.readInt32(iv)) { return false; } params.type.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.timeMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.feedback.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.mix.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.sync.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.noteValue.store(iv, std::memory_order_relaxed);
-    return true;
-}
-
-// =============================================================================
-// State Save/Load — v9+ (type-specific parameters)
-// =============================================================================
-
-inline void saveDelayParams(const RuinaeDelayParams& params, Steinberg::IBStreamer& streamer) {
-    saveDelayParamsBase(params, streamer);
 
     // Digital
     streamer.writeInt32(params.digitalEra.load(std::memory_order_relaxed));
@@ -733,10 +715,22 @@ inline void saveDelayParams(const RuinaeDelayParams& params, Steinberg::IBStream
     streamer.writeFloat(params.pingPongModRateHz.load(std::memory_order_relaxed));
 }
 
-inline bool loadDelayParamsV9(RuinaeDelayParams& params, Steinberg::IBStreamer& streamer) {
-    if (!loadDelayParams(params, streamer)) return false;
-
+inline bool loadDelayParams(RuinaeDelayParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
+
+    // Common
+    if (!streamer.readInt32(iv)) return false;
+    params.type.store(iv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) return false;
+    params.timeMs.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) return false;
+    params.feedback.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) return false;
+    params.mix.store(fv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) return false;
+    params.sync.store(iv != 0, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) return false;
+    params.noteValue.store(iv, std::memory_order_relaxed);
 
     // Digital
     if (!streamer.readInt32(iv)) return false;
@@ -861,21 +855,14 @@ template<typename SetParamFunc>
 inline void loadDelayParamsToController(
     Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
+
+    // Common
     if (streamer.readInt32(iv)) setParam(kDelayTypeId, static_cast<double>(iv) / (kDelayTypeCount - 1));
     if (streamer.readFloat(fv)) setParam(kDelayTimeId, static_cast<double>((fv - 1.0f) / 4999.0f));
     if (streamer.readFloat(fv)) setParam(kDelayFeedbackId, static_cast<double>(fv / 1.2f));
     if (streamer.readFloat(fv)) setParam(kDelayMixId, static_cast<double>(fv));
     if (streamer.readInt32(iv)) setParam(kDelaySyncId, iv != 0 ? 1.0 : 0.0);
     if (streamer.readInt32(iv)) setParam(kDelayNoteValueId, static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
-}
-
-template<typename SetParamFunc>
-inline void loadDelayParamsToControllerV9(
-    Steinberg::IBStreamer& streamer, SetParamFunc setParam) {
-    // Read base fields first
-    loadDelayParamsToController(streamer, setParam);
-
-    Steinberg::int32 iv = 0; float fv = 0.0f;
 
     // Digital
     if (streamer.readInt32(iv)) setParam(kDelayDigitalEraId, static_cast<double>(iv) / (kDigitalEraCount - 1));
