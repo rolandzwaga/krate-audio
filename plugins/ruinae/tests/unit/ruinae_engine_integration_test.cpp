@@ -673,8 +673,9 @@ TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
     engine.prepare(44100.0, kBlockSize);
     engine.setSoftLimitEnabled(false);
 
-    SECTION("gain compensation follows 1/sqrt(N) for N=1,2,4,8 (SC-005)") {
-        // Measure RMS for N=1 as reference
+    SECTION("single voice volume unchanged by polyphony setting") {
+        // Playing 1 note should produce the same volume regardless of the
+        // configured polyphony count (compensation is based on active voices).
         engine.setPolyphony(1);
         engine.noteOn(60, 100);
 
@@ -682,8 +683,8 @@ TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
         float rms1 = processAndAccumulateRMS(engine, left, right);
         REQUIRE(rms1 > 0.001f);
 
-        // Test N=2, 4, 8 — each should scale as 1/sqrt(N)
-        const std::array<size_t, 3> polyphonyCounts = {2, 4, 8};
+        // Same single note at higher polyphony counts — RMS should match
+        const std::array<size_t, 3> polyphonyCounts = {2, 8, 16};
         for (size_t n : polyphonyCounts) {
             engine.reset();
             engine.setPolyphony(n);
@@ -692,13 +693,68 @@ TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
             float rmsN = processAndAccumulateRMS(engine, left, right);
             REQUIRE(rmsN > 0.001f);
 
-            float expectedRatio = 1.0f / std::sqrt(static_cast<float>(n));
-            float actualRatio = rmsN / rms1;
-            INFO("N=" << n << ": expected ratio=" << expectedRatio
-                 << ", actual=" << actualRatio);
-            // 25% tolerance as per spec
-            REQUIRE(actualRatio == Approx(expectedRatio).margin(expectedRatio * 0.25f));
+            float ratio = rmsN / rms1;
+            INFO("polyphony=" << n << ": ratio=" << ratio << " (expected ~1.0)");
+            // Should be close to 1.0 — polyphony setting alone doesn't attenuate
+            REQUIRE(ratio == Approx(1.0f).margin(0.1f));
         }
+    }
+
+    SECTION("compensation scales with actual active voice count") {
+        // Playing N simultaneous notes with compensation enabled should
+        // produce roughly the same total RMS as 1 note (1/sqrt(N) compensates
+        // the sqrt(N) RMS growth from N uncorrelated voices).
+        engine.setPolyphony(8);
+        engine.setGainCompensationEnabled(true);
+        engine.noteOn(60, 100); // 1 voice
+
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        float rms1 = processAndAccumulateRMS(engine, left, right);
+        REQUIRE(rms1 > 0.001f);
+
+        // Now play 4 simultaneous notes
+        engine.reset();
+        engine.setPolyphony(8);
+        engine.noteOn(48, 100);
+        engine.noteOn(55, 100);
+        engine.noteOn(60, 100);
+        engine.noteOn(67, 100);
+
+        float rms4 = processAndAccumulateRMS(engine, left, right);
+        REQUIRE(rms4 > 0.001f);
+
+        float ratio = rms4 / rms1;
+        INFO("4 voices / 1 voice ratio: " << ratio
+             << " (expected ~1.0 with compensation)");
+        // With compensation: should be roughly equal (tolerance for voice
+        // correlation, different note frequencies, and envelope timing)
+        REQUIRE(ratio < 2.0f);
+        REQUIRE(ratio > 0.3f);
+    }
+
+    SECTION("compensation disabled: voices sum without attenuation") {
+        engine.setPolyphony(8);
+        engine.setGainCompensationEnabled(false);
+        engine.noteOn(60, 100);
+
+        std::vector<float> left(kBlockSize), right(kBlockSize);
+        float rms1 = processAndAccumulateRMS(engine, left, right);
+        REQUIRE(rms1 > 0.001f);
+
+        // Play 4 simultaneous notes without compensation
+        engine.reset();
+        engine.setPolyphony(8);
+        engine.setGainCompensationEnabled(false);
+        engine.noteOn(48, 100);
+        engine.noteOn(55, 100);
+        engine.noteOn(60, 100);
+        engine.noteOn(67, 100);
+
+        float rms4 = processAndAccumulateRMS(engine, left, right);
+        float ratio = rms4 / rms1;
+        INFO("4 voices / 1 voice ratio (no compensation): " << ratio);
+        // Without compensation: 4 uncorrelated voices → ~sqrt(4) = ~2x louder
+        REQUIRE(ratio > 1.3f);
     }
 }
 
@@ -1802,11 +1858,11 @@ TEST_CASE("RuinaeEngine integration: mono mode produces audio",
         REQUIRE(hasAudio);
     }
 
-    SECTION("mono mode gain compensation uses 1.0 not 1/sqrt(polyphony)") {
-        // Bug fix: mono mode should not be attenuated by polyphony-based
-        // gain compensation since only 1 voice is active.
+    SECTION("mono and poly with 1 voice have same volume") {
+        // Both mono mode and poly mode with a single active voice use
+        // compensation=1.0 (dynamic, based on actual active voice count).
         engine.setGainCompensationEnabled(true);
-        engine.setPolyphony(8); // 1/sqrt(8) = 0.354 — would make mono ~9dB quieter
+        engine.setPolyphony(8);
 
         // Measure poly mode RMS with 1 voice
         engine.setMode(VoiceMode::Poly);
@@ -1834,13 +1890,11 @@ TEST_CASE("RuinaeEngine integration: mono mode produces audio",
 
         INFO("Poly RMS (1 voice, polyphony=8): " << polyRms);
         INFO("Mono RMS (polyphony=8): " << monoRms);
-        // Mono should be LOUDER than poly (no 1/sqrt(8) attenuation)
-        // Before fix: mono ≈ poly. After fix: mono ≈ poly * sqrt(8) ≈ poly * 2.83
-        if (polyRms > 0.0f) {
-            float ratio = monoRms / polyRms;
-            INFO("Mono/Poly ratio: " << ratio << " (expected ~2.83 with polyphony=8)");
-            REQUIRE(ratio > 2.0f); // Mono should be at least 2x louder
-        }
+        REQUIRE(polyRms > 0.0f);
         REQUIRE(monoRms > 0.0f);
+        // Both should be roughly equal — 1 active voice = compensation 1.0
+        float ratio = monoRms / polyRms;
+        INFO("Mono/Poly ratio: " << ratio << " (expected ~1.0)");
+        REQUIRE(ratio == Approx(1.0f).margin(0.25f));
     }
 }

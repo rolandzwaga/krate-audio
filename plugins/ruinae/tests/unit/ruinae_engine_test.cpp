@@ -231,10 +231,9 @@ TEST_CASE("RuinaeEngine polyphony configuration", "[ruinae-engine][poly][US1]") 
         // Clamped to 16
     }
 
-    SECTION("gain compensation recalculated on setPolyphony") {
-        // With polyphony = 1, gain compensation = 1/sqrt(1) = 1.0
-        // With polyphony = 4, gain compensation = 1/sqrt(4) = 0.5
-        // We can verify this indirectly by checking output levels
+    SECTION("gain compensation based on active voices not polyphony setting") {
+        // With dynamic gain compensation, a single active voice always gets
+        // compensation=1.0 regardless of the polyphony setting.
         engine.setPolyphony(1);
         engine.noteOn(60, 100);
 
@@ -250,10 +249,10 @@ TEST_CASE("RuinaeEngine polyphony configuration", "[ruinae-engine][poly][US1]") 
         engine.processBlock(left4.data(), right4.data(), 512);
         float rms4 = computeRMS(left4.data(), 512);
 
-        // Single voice with polyphony=1 should be louder than polyphony=4
-        // (both have 1 active voice but different gain compensation)
+        // Both have 1 active voice → same compensation → same volume
         if (rms1 > 0.0f && rms4 > 0.0f) {
-            REQUIRE(rms1 > rms4);
+            float ratio = rms4 / rms1;
+            REQUIRE(ratio == Catch::Approx(1.0f).margin(0.1f));
         }
     }
 }

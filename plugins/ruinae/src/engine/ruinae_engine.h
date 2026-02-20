@@ -112,8 +112,7 @@ public:
         : mode_(VoiceMode::Poly)
         , polyphonyCount_(8)
         , masterGain_(1.0f)
-        , gainCompensation_(1.0f / std::sqrt(8.0f))
-        , smoothedGainCompensation_(1.0f / std::sqrt(8.0f))
+        , smoothedGainCompensation_(1.0f)
         , gainCompensationEnabled_(true)
         , softLimitEnabled_(true)
         , globalFilterEnabled_(false)
@@ -175,9 +174,8 @@ public:
         timestampCounter_ = 0;
         noteOnTimestamps_.fill(0);
         monoVoiceNote_ = -1;
-        // Snap gain smoother to current target (no ramp on init)
-        smoothedGainCompensation_ = (mode_ == VoiceMode::Mono)
-            ? 1.0f : gainCompensation_;
+        // Snap gain smoother: no voices active at prepare time
+        smoothedGainCompensation_ = 1.0f;
 
         // Recalculate pan positions
         recalculatePanPositions();
@@ -265,11 +263,6 @@ public:
             if (event.type == VoiceEvent::Type::NoteOff) {
                 voices_[event.voiceIndex].noteOff();
             }
-        }
-
-        // Recalculate gain compensation: 1/sqrt(N) if enabled
-        if (gainCompensationEnabled_) {
-            gainCompensation_ = 1.0f / std::sqrt(static_cast<float>(polyphonyCount_));
         }
 
         // Recalculate pan positions for new voice count
@@ -629,12 +622,9 @@ public:
     }
 
     /// @brief Enable/disable automatic 1/sqrt(N) gain compensation.
-    /// When disabled, voice count changes do not affect output gain.
+    /// When disabled, active voice count does not affect output gain.
     void setGainCompensationEnabled(bool enabled) noexcept {
         gainCompensationEnabled_ = enabled;
-        gainCompensation_ = enabled
-            ? 1.0f / std::sqrt(static_cast<float>(polyphonyCount_))
-            : 1.0f;
     }
 
     // =========================================================================
@@ -748,12 +738,19 @@ public:
         // Step 6: Process pitch bend smoother once per block
         [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend();
 
+        // Count active voices BEFORE processing (voices may finish mid-block,
+        // but they still contributed audio). Used for dynamic gain compensation.
+        uint32_t activeVoicesThisBlock = 0;
         if (mode_ == VoiceMode::Poly) {
+            for (size_t i = 0; i < polyphonyCount_; ++i) {
+                if (voices_[i].isActive()) ++activeVoicesThisBlock;
+            }
             processBlockPoly(numSamples, allVoiceFilterCutoffOffset,
                              allVoiceMorphOffset, allVoiceTranceGateOffset,
                              allVoiceTiltOffset, allVoiceResonanceOffset,
                              allVoiceFilterEnvAmtOffset);
         } else {
+            activeVoicesThisBlock = voices_[0].isActive() ? 1 : 0;
             processBlockMono(numSamples, allVoiceFilterCutoffOffset,
                              allVoiceMorphOffset, allVoiceTranceGateOffset,
                              allVoiceTiltOffset, allVoiceResonanceOffset,
@@ -780,10 +777,14 @@ public:
         effectsChain_.processBlock(mixBufferL_.data(), mixBufferR_.data(), numSamples);
 
         // Step 11-13: Apply master gain, soft limiter, NaN/Inf flush
-        // In mono mode, only 1 voice is active — use compensation of 1.0
-        // instead of 1/sqrt(polyphonyCount_) which would attenuate needlessly.
-        const float targetCompensation = (mode_ == VoiceMode::Mono)
-            ? 1.0f : gainCompensation_;
+        // Dynamic gain compensation: 1/sqrt(activeVoices) keeps perceived
+        // loudness constant regardless of how many voices are sounding.
+        // With 0 or 1 active voice, no attenuation is needed.
+        float targetCompensation = 1.0f;
+        if (gainCompensationEnabled_ && activeVoicesThisBlock > 1) {
+            targetCompensation = 1.0f / std::sqrt(
+                static_cast<float>(activeVoicesThisBlock));
+        }
         // Per-sample one-pole smoothing (~5ms at 44.1kHz) for click-free
         // gain transitions when switching between poly and mono modes.
         constexpr float kGainSmoothCoeff = 0.005f;
@@ -1776,8 +1777,7 @@ private:
     VoiceMode mode_;
     size_t polyphonyCount_;
     float masterGain_;
-    float gainCompensation_;
-    float smoothedGainCompensation_; ///< Smoothed per-sample for click-free mode switching
+    float smoothedGainCompensation_; ///< Smoothed per-sample for click-free transitions
     bool gainCompensationEnabled_;
     bool softLimitEnabled_;
     bool globalFilterEnabled_;
