@@ -1800,15 +1800,15 @@ void Controller::toggleEnvExpand(int panelIndex) {
 
     // Original container rects (relative to fieldset)
     static constexpr VSTGUI::CRect kOrigGroupRects[] = {
-        {8, 14, 178, 134},    // AMP
-        {190, 14, 360, 134},  // FILTER
-        {372, 14, 542, 134},  // MOD
+        {8, 14, 240, 120},    // AMP
+        {248, 14, 480, 120},  // FILTER
+        {488, 14, 718, 120},  // MOD
     };
     // Original display rect (relative to group container) — same for all three
-    static constexpr VSTGUI::CRect kOrigDisplayRect = {16, 0, 170, 120};
+    static constexpr VSTGUI::CRect kOrigDisplayRect = {16, 0, 230, 106};
     // Expanded rects
-    static constexpr VSTGUI::CRect kExpandedGroupRect = {8, 14, 542, 134};
-    static constexpr VSTGUI::CRect kExpandedDisplayRect = {16, 0, 534, 120};
+    static constexpr VSTGUI::CRect kExpandedGroupRect = {8, 14, 718, 120};
+    static constexpr VSTGUI::CRect kExpandedDisplayRect = {16, 0, 710, 106};
 
     if (expandedEnvPanel_ == panelIndex) {
         // Collapse: restore all three
@@ -1865,8 +1865,8 @@ void Controller::toggleSettingsDrawer() {
             float eased = 1.0f - (1.0f - t) * (1.0f - t);
 
             // Map eased progress to x position: closed=925, open=705
-            constexpr float kClosedX = 925.0f;
-            constexpr float kOpenX = 705.0f;
+            constexpr float kClosedX = 1200.0f;
+            constexpr float kOpenX = 980.0f;
             float x = kClosedX + (kOpenX - kClosedX) * eased;
 
             if (settingsDrawer_) {

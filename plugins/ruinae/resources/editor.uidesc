@@ -485,7 +485,7 @@
     <!-- ================================================================ -->
 
     <!-- PolyBLEP: Waveform dropdown, PW knob, PM knob, FM knob (4 controls) -->
-    <template name="OscA_PolyBLEP" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_PolyBLEP" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="52, 18"
               control-tag="OscAWaveform" default-value="0.25"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -512,7 +512,7 @@
     </template>
 
     <!-- Wavetable: PM knob, FM knob (2 controls, shared IDs with PolyBLEP) -->
-    <template name="OscA_Wavetable" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_Wavetable" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
               control-tag="OscAPhaseMod" default-value="0.5"
               arc-color="osc-a" guide-color="knob-guide"/>
@@ -528,7 +528,7 @@
     </template>
 
     <!-- Phase Distortion: PD Waveform dropdown, Distortion knob (2 controls) -->
-    <template name="OscA_PhaseDist" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_PhaseDist" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="60, 18"
               control-tag="OscAPDWaveform" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -542,7 +542,7 @@
     </template>
 
     <!-- Sync: Ratio knob, Waveform dropdown, Mode dropdown, Amount knob, PW knob (5 controls) -->
-    <template name="OscA_Sync" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_Sync" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="0, 2" size="28, 28"
               control-tag="OscASyncRatio" default-value="0.143"
               arc-color="osc-a" guide-color="knob-guide"/>
@@ -572,7 +572,7 @@
     </template>
 
     <!-- Additive: Partials knob, Tilt knob, Inharm knob (3 controls) -->
-    <template name="OscA_Additive" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_Additive" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
               control-tag="OscAAdditivePartials" default-value="0.118"
               arc-color="osc-a" guide-color="knob-guide"/>
@@ -594,7 +594,7 @@
     </template>
 
     <!-- Chaos: Attractor dropdown, Amount knob, Coupling knob, Output dropdown (4 controls) -->
-    <template name="OscA_Chaos" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_Chaos" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="52, 18"
               control-tag="OscAChaosAttractor" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -618,7 +618,7 @@
     </template>
 
     <!-- Particle: Scatter, Density, Lifetime knobs + SpawnMode, EnvType dropdowns + Drift knob (6 controls) -->
-    <template name="OscA_Particle" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_Particle" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="0, 2" size="24, 24"
               control-tag="OscAParticleScatter" default-value="0.25"
               arc-color="osc-a" guide-color="knob-guide"/>
@@ -654,7 +654,7 @@
     </template>
 
     <!-- Formant: Vowel dropdown, Morph knob (2 controls) -->
-    <template name="OscA_Formant" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_Formant" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="44, 18"
               control-tag="OscAFormantVowel" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -668,7 +668,7 @@
     </template>
 
     <!-- Spectral Freeze: Pitch knob, Tilt knob, Formant knob (3 controls) -->
-    <template name="OscA_SpectralFreeze" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_SpectralFreeze" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
               control-tag="OscASpectralPitch" default-value="0.5"
               arc-color="osc-a" guide-color="knob-guide"/>
@@ -690,7 +690,7 @@
     </template>
 
     <!-- Noise: Color dropdown (1 control) -->
-    <template name="OscA_Noise" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscA_Noise" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="60, 18"
               control-tag="OscANoiseColor" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -702,7 +702,7 @@
     <!-- ================================================================ -->
 
     <!-- PolyBLEP: Waveform dropdown, PW knob, PM knob, FM knob (4 controls) -->
-    <template name="OscB_PolyBLEP" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_PolyBLEP" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="52, 18"
               control-tag="OscBWaveform" default-value="0.25"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -729,7 +729,7 @@
     </template>
 
     <!-- Wavetable: PM knob, FM knob (2 controls, shared IDs with PolyBLEP) -->
-    <template name="OscB_Wavetable" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_Wavetable" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
               control-tag="OscBPhaseMod" default-value="0.5"
               arc-color="osc-b" guide-color="knob-guide"/>
@@ -745,7 +745,7 @@
     </template>
 
     <!-- Phase Distortion: PD Waveform dropdown, Distortion knob (2 controls) -->
-    <template name="OscB_PhaseDist" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_PhaseDist" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="60, 18"
               control-tag="OscBPDWaveform" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -759,7 +759,7 @@
     </template>
 
     <!-- Sync: Ratio knob, Waveform dropdown, Mode dropdown, Amount knob, PW knob (5 controls) -->
-    <template name="OscB_Sync" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_Sync" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="0, 2" size="28, 28"
               control-tag="OscBSyncRatio" default-value="0.143"
               arc-color="osc-b" guide-color="knob-guide"/>
@@ -789,7 +789,7 @@
     </template>
 
     <!-- Additive: Partials knob, Tilt knob, Inharm knob (3 controls) -->
-    <template name="OscB_Additive" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_Additive" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
               control-tag="OscBAdditivePartials" default-value="0.118"
               arc-color="osc-b" guide-color="knob-guide"/>
@@ -811,7 +811,7 @@
     </template>
 
     <!-- Chaos: Attractor dropdown, Amount knob, Coupling knob, Output dropdown (4 controls) -->
-    <template name="OscB_Chaos" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_Chaos" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="52, 18"
               control-tag="OscBChaosAttractor" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -835,7 +835,7 @@
     </template>
 
     <!-- Particle: Scatter, Density, Lifetime knobs + SpawnMode, EnvType dropdowns + Drift knob (6 controls) -->
-    <template name="OscB_Particle" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_Particle" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="0, 2" size="24, 24"
               control-tag="OscBParticleScatter" default-value="0.25"
               arc-color="osc-b" guide-color="knob-guide"/>
@@ -871,7 +871,7 @@
     </template>
 
     <!-- Formant: Vowel dropdown, Morph knob (2 controls) -->
-    <template name="OscB_Formant" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_Formant" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="44, 18"
               control-tag="OscBFormantVowel" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -885,7 +885,7 @@
     </template>
 
     <!-- Spectral Freeze: Pitch knob, Tilt knob, Formant knob (3 controls) -->
-    <template name="OscB_SpectralFreeze" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_SpectralFreeze" size="260, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
               control-tag="OscBSpectralPitch" default-value="0.5"
               arc-color="osc-b" guide-color="knob-guide"/>
@@ -907,7 +907,7 @@
     </template>
 
     <!-- Noise: Color dropdown (1 control) -->
-    <template name="OscB_Noise" size="212, 32" class="CViewContainer" transparent="true">
+    <template name="OscB_Noise" size="260, 32" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="2, 7" size="60, 18"
               control-tag="OscBNoiseColor" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -919,7 +919,7 @@
     <!-- ================================================================ -->
 
     <!-- General view: Cutoff, Resonance, Env Amount, Key Track -->
-    <template name="Filter_General" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_General" size="208, 88" class="CViewContainer" transparent="true">
         <!-- Row 1: Cutoff + Resonance + Env Amount -->
         <view class="ArcKnob" origin="8, 0" size="36, 36"
               control-tag="FilterCutoff" default-value="0.5"
@@ -956,9 +956,9 @@
     </template>
 
     <!-- Type-specific view: nested UIViewSwitchContainer by FilterType -->
-    <template name="Filter_TypeSpecific" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_TypeSpecific" size="208, 88" class="CViewContainer" transparent="true">
         <view class="UIViewSwitchContainer"
-              origin="0, 0" size="154, 96"
+              origin="0, 0" size="208, 88"
               template-names="Filter_SVF_LP,Filter_SVF_HP,Filter_SVF_BP,Filter_SVF_Notch,Filter_Ladder,Filter_Formant,Filter_Comb,Filter_SVF_Allpass,Filter_SVF_Peak,Filter_SVF_LowShelf,Filter_SVF_HighShelf,Filter_EnvFilter,Filter_SelfOsc"
               template-switch-control="FilterType"
               transparent="true"/>
@@ -969,7 +969,7 @@
     <!-- ================================================================ -->
 
     <!-- SVF LP: Slope + Drive -->
-    <template name="Filter_SVF_LP" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_SVF_LP" size="208, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterSvfSlope" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -986,7 +986,7 @@
     </template>
 
     <!-- SVF HP: Slope + Drive -->
-    <template name="Filter_SVF_HP" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_SVF_HP" size="208, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterSvfSlope" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1003,7 +1003,7 @@
     </template>
 
     <!-- SVF BP: Slope + Drive -->
-    <template name="Filter_SVF_BP" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_SVF_BP" size="208, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterSvfSlope" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1020,7 +1020,7 @@
     </template>
 
     <!-- SVF Notch: Slope + Drive -->
-    <template name="Filter_SVF_Notch" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_SVF_Notch" size="208, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterSvfSlope" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1037,7 +1037,7 @@
     </template>
 
     <!-- Ladder: Slope selector + Drive knob -->
-    <template name="Filter_Ladder" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_Ladder" size="208, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterLadderSlope" default-value="1.0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1054,7 +1054,7 @@
     </template>
 
     <!-- Formant: Vowel Morph + Gender -->
-    <template name="Filter_Formant" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_Formant" size="208, 88" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="8, 0" size="36, 36"
               control-tag="FilterFormantMorph" default-value="0.0"
               arc-color="filter" guide-color="knob-guide"/>
@@ -1070,7 +1070,7 @@
     </template>
 
     <!-- Comb: Damping -->
-    <template name="Filter_Comb" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_Comb" size="208, 88" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="8, 0" size="36, 36"
               control-tag="FilterCombDamping" default-value="0.0"
               arc-color="filter" guide-color="knob-guide"/>
@@ -1080,7 +1080,7 @@
     </template>
 
     <!-- SVF Allpass: Slope + Drive (same layout as SVF LP) -->
-    <template name="Filter_SVF_Allpass" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_SVF_Allpass" size="208, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterSvfSlope" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1097,7 +1097,7 @@
     </template>
 
     <!-- SVF Peak: Slope + Drive + Gain -->
-    <template name="Filter_SVF_Peak" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_SVF_Peak" size="208, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterSvfSlope" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1111,16 +1111,16 @@
         <view class="CTextLabel" origin="76, 36" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Drive"/>
-        <view class="ArcKnob" origin="8, 48" size="36, 36"
+        <view class="ArcKnob" origin="8, 44" size="36, 36"
               control-tag="FilterSvfGain" default-value="0.5"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 84" size="52, 12"
+        <view class="CTextLabel" origin="0, 76" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Gain"/>
     </template>
 
     <!-- SVF Low Shelf: Slope + Drive + Gain -->
-    <template name="Filter_SVF_LowShelf" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_SVF_LowShelf" size="208, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterSvfSlope" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1134,16 +1134,16 @@
         <view class="CTextLabel" origin="76, 36" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Drive"/>
-        <view class="ArcKnob" origin="8, 48" size="36, 36"
+        <view class="ArcKnob" origin="8, 44" size="36, 36"
               control-tag="FilterSvfGain" default-value="0.5"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 84" size="52, 12"
+        <view class="CTextLabel" origin="0, 76" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Gain"/>
     </template>
 
     <!-- SVF High Shelf: Slope + Drive + Gain -->
-    <template name="Filter_SVF_HighShelf" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_SVF_HighShelf" size="208, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="60, 18"
               control-tag="FilterSvfSlope" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1157,16 +1157,16 @@
         <view class="CTextLabel" origin="76, 36" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Drive"/>
-        <view class="ArcKnob" origin="8, 48" size="36, 36"
+        <view class="ArcKnob" origin="8, 44" size="36, 36"
               control-tag="FilterSvfGain" default-value="0.5"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 84" size="52, 12"
+        <view class="CTextLabel" origin="0, 76" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Gain"/>
     </template>
 
     <!-- Envelope Filter: SubType + Sensitivity + Depth + Direction + Attack + Release -->
-    <template name="Filter_EnvFilter" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_EnvFilter" size="208, 88" class="CViewContainer" transparent="true">
         <!-- Row 1: SubType dropdown + Sensitivity knob + Depth knob -->
         <view class="COptionMenu" origin="8, 4" size="56, 18"
               control-tag="FilterEnvFltSubType" default-value="0"
@@ -1188,29 +1188,29 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Depth"/>
         <!-- Row 2: Direction dropdown + Attack knob + Release knob -->
-        <view class="COptionMenu" origin="8, 52" size="56, 18"
+        <view class="COptionMenu" origin="8, 46" size="56, 18"
               control-tag="FilterEnvFltDirection" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
               back-color="bg-dropdown" frame-color="frame-dropdown"/>
-        <view class="CTextLabel" origin="8, 72" size="56, 12"
+        <view class="CTextLabel" origin="8, 66" size="56, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Dir"/>
-        <view class="ArcKnob" origin="72, 48" size="36, 36"
+        <view class="ArcKnob" origin="72, 42" size="36, 36"
               control-tag="FilterEnvFltAttack" default-value="0.35"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="64, 84" size="52, 12"
+        <view class="CTextLabel" origin="64, 76" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Attack"/>
-        <view class="ArcKnob" origin="116, 48" size="36, 36"
+        <view class="ArcKnob" origin="116, 42" size="36, 36"
               control-tag="FilterEnvFltRelease" default-value="0.54"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="108, 84" size="44, 12"
+        <view class="CTextLabel" origin="108, 76" size="44, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Release"/>
     </template>
 
     <!-- Self-Oscillating Filter: Glide + Ext Mix + Shape + Release -->
-    <template name="Filter_SelfOsc" size="154, 96" class="CViewContainer" transparent="true">
+    <template name="Filter_SelfOsc" size="208, 88" class="CViewContainer" transparent="true">
         <!-- Row 1: Glide + Ext Mix -->
         <view class="ArcKnob" origin="8, 0" size="36, 36"
               control-tag="FilterSelfOscGlide" default-value="0.0"
@@ -1225,16 +1225,16 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Ext Mix"/>
         <!-- Row 2: Shape + Release -->
-        <view class="ArcKnob" origin="8, 48" size="36, 36"
+        <view class="ArcKnob" origin="8, 44" size="36, 36"
               control-tag="FilterSelfOscShape" default-value="0.0"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 84" size="52, 12"
+        <view class="CTextLabel" origin="0, 76" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Shape"/>
-        <view class="ArcKnob" origin="84, 48" size="36, 36"
+        <view class="ArcKnob" origin="84, 44" size="36, 36"
               control-tag="FilterSelfOscRelease" default-value="0.47"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="76, 84" size="52, 12"
+        <view class="CTextLabel" origin="76, 76" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Release"/>
     </template>
@@ -1244,16 +1244,16 @@
     <!-- ================================================================ -->
 
     <!-- Distortion General view: nested switch hides controls for Clean -->
-    <template name="Distortion_General" size="171, 96" class="CViewContainer" transparent="true">
+    <template name="Distortion_General" size="216, 88" class="CViewContainer" transparent="true">
         <view class="UIViewSwitchContainer"
-              origin="0, 0" size="171, 96"
+              origin="0, 0" size="216, 88"
               template-names="Dist_Clean,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active"
               template-switch-control="DistortionType"
               transparent="true"/>
     </template>
 
     <!-- General controls for active (non-Clean) distortion types: Drive + Mix -->
-    <template name="Dist_General_Active" size="171, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_General_Active" size="216, 88" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="8, 4" size="36, 36"
               control-tag="DistortionDrive" default-value="0.5"
               arc-color="distortion" guide-color="knob-guide"/>
@@ -1270,23 +1270,23 @@
     </template>
 
     <!-- Distortion Type-Specific view: nested switch on DistortionType -->
-    <template name="Distortion_TypeSpecific" size="171, 96" class="CViewContainer" transparent="true">
+    <template name="Distortion_TypeSpecific" size="216, 88" class="CViewContainer" transparent="true">
         <view class="UIViewSwitchContainer"
-              origin="0, 0" size="171, 96"
+              origin="0, 0" size="216, 88"
               template-names="Dist_Clean,Dist_Chaos,Dist_Spectral,Dist_Granular,Dist_Wavefolder,Dist_Tape"
               template-switch-control="DistortionType"
               transparent="true"/>
     </template>
 
     <!-- Clean: no type-specific params -->
-    <template name="Dist_Clean" size="171, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Clean" size="216, 88" class="CViewContainer" transparent="true">
         <view class="CTextLabel" origin="0, 36" size="146, 20"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="No parameters"/>
     </template>
 
     <!-- Chaos Waveshaper: Model dropdown, Speed + Coupling knobs -->
-    <template name="Dist_Chaos" size="171, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Chaos" size="216, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="110, 18"
               control-tag="DistortionChaosModel" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1308,7 +1308,7 @@
     </template>
 
     <!-- Spectral Distortion: Mode + Curve dropdowns, Bits knob -->
-    <template name="Dist_Spectral" size="171, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Spectral" size="216, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="62, 18"
               control-tag="DistortionSpectralMode" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1327,7 +1327,7 @@
     </template>
 
     <!-- Granular Distortion: Size + Density + Variation + Jitter knobs -->
-    <template name="Dist_Granular" size="171, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Granular" size="216, 88" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="8, 4" size="36, 36"
               control-tag="DistortionGrainSize" default-value="0.47"
               arc-color="distortion" guide-color="knob-guide"/>
@@ -1342,23 +1342,23 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Density"/>
 
-        <view class="ArcKnob" origin="8, 52" size="36, 36"
+        <view class="ArcKnob" origin="8, 46" size="36, 36"
               control-tag="DistortionGrainVariation" default-value="0.0"
               arc-color="distortion" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 88" size="52, 12"
+        <view class="CTextLabel" origin="0, 76" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Var"/>
 
-        <view class="ArcKnob" origin="72, 52" size="36, 36"
+        <view class="ArcKnob" origin="72, 46" size="36, 36"
               control-tag="DistortionGrainJitter" default-value="0.0"
               arc-color="distortion" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="64, 88" size="52, 12"
+        <view class="CTextLabel" origin="64, 76" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Jitter"/>
     </template>
 
     <!-- Wavefolder: Type dropdown -->
-    <template name="Dist_Wavefolder" size="171, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Wavefolder" size="216, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="110, 18"
               control-tag="DistortionFoldType" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1366,7 +1366,7 @@
     </template>
 
     <!-- Tape Saturator: Model dropdown, Saturation + Bias knobs -->
-    <template name="Dist_Tape" size="171, 96" class="CViewContainer" transparent="true">
+    <template name="Dist_Tape" size="216, 88" class="CViewContainer" transparent="true">
         <view class="COptionMenu" origin="8, 4" size="110, 18"
               control-tag="DistortionTapeModel" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
@@ -1392,7 +1392,7 @@
     <!-- ================================================================== -->
 
     <!-- Digital: Era, Age, Limiter, Width | ModDepth, ModRate, ModWaveform | WavefoldAmt, WavefoldModel, WavefoldSym -->
-    <template name="Delay_Digital" size="615, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_Digital" size="880, 100" class="CViewContainer" transparent="true">
         <!-- Row A (y=4): Era, Age, Limiter, Width, ModWaveform — 5 items, ~118px spacing -->
         <view class="COptionMenu" origin="8, 6" size="80, 18"
               control-tag="DelayDigitalEra" default-value="0"
@@ -1471,7 +1471,7 @@
     </template>
 
     <!-- Tape: Inertia, Wear, Saturation, Age, Splice, SpliceInt | Head1, Head2, Head3 -->
-    <template name="Delay_Tape" size="615, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_Tape" size="880, 100" class="CViewContainer" transparent="true">
         <!-- Row A (y=4): 6 knobs, ~96px spacing -->
         <view class="ArcKnob" origin="14, 4" size="28, 28"
               control-tag="DelayTapeInertia" default-value="0.222"
@@ -1584,7 +1584,7 @@
     </template>
 
     <!-- PingPong: LRRatio, CrossFeed, Width, ModDepth, ModRate (single row, centered) -->
-    <template name="Delay_PingPong" size="615, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_PingPong" size="880, 100" class="CViewContainer" transparent="true">
         <!-- Single row, vertically centered (y=20), 5 items, ~118px spacing -->
         <view class="COptionMenu" origin="28, 24" size="60, 18"
               control-tag="DelayPingPongRatio" default-value="0"
@@ -1624,7 +1624,7 @@
     </template>
 
     <!-- Granular: Size, Density, Pitch, PitchQuant, PitchSpray, PosSpray, Reverse | PanSpray, Jitter, Texture, Width, Envelope, Freeze -->
-    <template name="Delay_Granular" size="615, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_Granular" size="880, 100" class="CViewContainer" transparent="true">
         <!-- Row A (y=4): 7 items, ~84px spacing -->
         <view class="ArcKnob" origin="14, 4" size="28, 28"
               control-tag="DelayGranularSize" default-value="0.184"
@@ -1725,7 +1725,7 @@
     </template>
 
     <!-- Spectral: FFTSize, Spread, Direction, Curve | Tilt, Diffusion, Width, Freeze -->
-    <template name="Delay_Spectral" size="615, 112" class="CViewContainer" transparent="true">
+    <template name="Delay_Spectral" size="880, 100" class="CViewContainer" transparent="true">
         <!-- Row A (y=4): 4 items, ~148px spacing -->
         <view class="COptionMenu" origin="24, 6" size="60, 18"
               control-tag="DelaySpectralFFTSize" default-value="0.333"
@@ -1795,7 +1795,7 @@
     <!-- Mod Source Templates (for UIViewSwitchContainer)                  -->
     <!-- ================================================================ -->
 
-    <template name="ModSource_LFO1" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_LFO1" size="180, 100" class="CViewContainer" transparent="true">
         <!-- Row 1: Rate/NoteValue | Shape | Depth | Phase -->
         <!-- Rate (hidden when sync active) -->
         <view class="CViewContainer" origin="0, 0" size="36, 38"
@@ -1884,7 +1884,7 @@
               text-alignment="center" transparent="true" title="Quantize"/>
     </template>
 
-    <template name="ModSource_LFO2" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_LFO2" size="180, 100" class="CViewContainer" transparent="true">
         <!-- Row 1: Rate/NoteValue | Shape | Depth | Phase -->
         <!-- Rate (hidden when sync active) -->
         <view class="CViewContainer" origin="0, 0" size="36, 38"
@@ -1973,7 +1973,7 @@
               text-alignment="center" transparent="true" title="Quantize"/>
     </template>
 
-    <template name="ModSource_Chaos" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_Chaos" size="180, 100" class="CViewContainer" transparent="true">
         <!-- Row 1: Rate/NoteValue | Type | Depth -->
         <!-- Rate (hidden when sync active) -->
         <view class="CViewContainer" origin="0, 0" size="36, 38"
@@ -2026,7 +2026,7 @@
               font-size="9"/>
     </template>
 
-    <template name="ModSource_Macros" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_Macros" size="180, 100" class="CViewContainer" transparent="true">
         <!-- M1 -->
         <view class="ArcKnob" origin="4, 0" size="28, 28"
               control-tag="Macro1Value" default-value="0.0"
@@ -2056,7 +2056,7 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="M4"/>
     </template>
-    <template name="ModSource_Rungler" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_Rungler" size="180, 100" class="CViewContainer" transparent="true">
         <!-- Row 1: Osc1 Freq, Osc2 Freq, Depth, Filter -->
         <view class="ArcKnob" origin="4, 0" size="28, 28"
               control-tag="RunglerOsc1Freq" default-value="0.4337"
@@ -2095,7 +2095,7 @@
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
     </template>
-    <template name="ModSource_EnvFollower" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_EnvFollower" size="180, 100" class="CViewContainer" transparent="true">
         <!-- Sensitivity -->
         <view class="ArcKnob" origin="4, 0" size="28, 28"
               control-tag="EnvFollowerSensitivity" default-value="0.5"
@@ -2118,7 +2118,7 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Rel"/>
     </template>
-    <template name="ModSource_SampleHold" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_SampleHold" size="180, 100" class="CViewContainer" transparent="true">
         <!-- Rate (hidden when sync active) -->
         <view class="CViewContainer" origin="0, 0" size="36, 38"
               custom-view-name="SHRateGroup" transparent="true">
@@ -2158,7 +2158,7 @@
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
     </template>
-    <template name="ModSource_Random" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_Random" size="180, 100" class="CViewContainer" transparent="true">
         <!-- Rate (hidden when sync active) -->
         <view class="CViewContainer" origin="0, 0" size="36, 38"
               custom-view-name="RandomRateGroup" transparent="true">
@@ -2198,7 +2198,7 @@
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
     </template>
-    <template name="ModSource_PitchFollower" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_PitchFollower" size="180, 100" class="CViewContainer" transparent="true">
         <!-- Min Hz -->
         <view class="ArcKnob" origin="4, 0" size="28, 28"
               control-tag="PitchFollowerMinHz" default-value="0.4307"
@@ -2228,7 +2228,7 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Speed"/>
     </template>
-    <template name="ModSource_Transient" size="158, 120" class="CViewContainer" transparent="true">
+    <template name="ModSource_Transient" size="180, 100" class="CViewContainer" transparent="true">
         <!-- Sensitivity -->
         <view class="ArcKnob" origin="4, 0" size="28, 28"
               control-tag="TransientSensitivity" default-value="0.5"
@@ -2254,9 +2254,9 @@
 
     <template
         name="editor"
-        minSize="925, 880"
-        maxSize="925, 880"
-        size="925, 880"
+        minSize="1200, 720"
+        maxSize="1200, 720"
+        size="1200, 720"
         background-color="bg-main"
         class="CViewContainer"
     >
@@ -2266,13 +2266,13 @@
         <view
             class="CViewContainer"
             origin="0, 0"
-            size="900, 30"
+            size="1176, 28"
             transparent="true"
         >
             <!-- Plugin Title -->
             <view
                 class="CTextLabel"
-                origin="12, 4"
+                origin="12, 3"
                 size="120, 22"
                 title="RUINAE"
                 font="~ NormalFontVeryBig"
@@ -2284,51 +2284,51 @@
             <!-- Preset Browser -->
             <view
                 class="PresetBrowserView"
-                origin="500, 2"
-                size="392, 26"
+                origin="700, 1"
+                size="468, 26"
                 transparent="true"
             />
         </view>
 
         <!-- ============================================================ -->
-        <!-- ROW 1: SOUND SOURCE (y=32, height=160)                       -->
+        <!-- ROW 1: SOUND SOURCE (y=30, height=140)                       -->
         <!-- ============================================================ -->
         <view
             class="CViewContainer"
-            origin="0, 32"
-            size="900, 160"
+            origin="0, 30"
+            size="1200, 140"
             transparent="true"
         />
 
-        <!-- ROW 2: TIMBRE & DYNAMICS (y=194, height=138) -->
+        <!-- ROW 2: TIMBRE & DYNAMICS (y=172, height=124) -->
         <view
             class="CViewContainer"
-            origin="0, 194"
-            size="900, 138"
+            origin="0, 172"
+            size="1200, 124"
             transparent="true"
         />
 
-        <!-- ROW 3: TRANCE GATE (y=370, height=160) -->
+        <!-- ROW 3: TRANCE GATE (y=298, height=132) -->
         <view
             class="CViewContainer"
-            origin="0, 384"
-            size="900, 160"
+            origin="0, 298"
+            size="1200, 132"
             transparent="true"
         />
 
-        <!-- ROW 4: MODULATION (y=532, height=160) -->
+        <!-- ROW 4: MODULATION (y=432, height=132) -->
         <view
             class="CViewContainer"
-            origin="0, 546"
-            size="900, 160"
+            origin="0, 432"
+            size="1200, 132"
             transparent="true"
         />
 
-        <!-- ROW 5: EFFECTS & OUTPUT (y=694, height=80) -->
+        <!-- ROW 5: EFFECTS (y=566, height=152) -->
         <view
             class="CViewContainer"
-            origin="0, 708"
-            size="900, 80"
+            origin="0, 566"
+            size="1200, 152"
             transparent="true"
         />
 
@@ -2341,8 +2341,8 @@
         <!-- OSC A (blue accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 32"
-            size="220, 160"
+            origin="8, 30"
+            size="268, 140"
             fieldset-title="OSC A"
             fieldset-color="osc-a"
             fieldset-radius="4"
@@ -2352,46 +2352,46 @@
         >
             <!-- T024: OscillatorTypeSelector -->
             <view class="OscillatorTypeSelector"
-                  origin="16, 44" size="180, 28"
+                  origin="16, 28" size="230, 28"
                   control-tag="OscAType" osc-identity="a"
                   min-value="0" max-value="1"
                   default-value="0"/>
 
             <!-- T025: Tune knob -->
-            <view class="ArcKnob" origin="16, 78" size="36, 36"
+            <view class="ArcKnob" origin="16, 58" size="36, 36"
                   control-tag="OscATune" default-value="0.5"
                   arc-color="osc-a" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="8, 114" size="52, 12"
+            <view class="CTextLabel" origin="8, 94" size="52, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Tune"/>
 
             <!-- T026: Detune knob -->
-            <view class="ArcKnob" origin="66, 78" size="36, 36"
+            <view class="ArcKnob" origin="76, 58" size="36, 36"
                   control-tag="OscAFine" default-value="0.5"
                   arc-color="osc-a" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="58, 114" size="52, 12"
+            <view class="CTextLabel" origin="68, 94" size="52, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Detune"/>
 
             <!-- T027: Level knob -->
-            <view class="ArcKnob" origin="116, 78" size="36, 36"
+            <view class="ArcKnob" origin="136, 58" size="36, 36"
                   control-tag="OscALevel" default-value="0.5"
                   arc-color="osc-a" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="108, 114" size="52, 12"
+            <view class="CTextLabel" origin="128, 94" size="52, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Level"/>
 
             <!-- T028: Phase knob -->
-            <view class="ArcKnob" origin="166, 78" size="36, 36"
+            <view class="ArcKnob" origin="196, 58" size="36, 36"
                   control-tag="OscAPhase" default-value="0.5"
                   arc-color="osc-a" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="158, 114" size="52, 12"
+            <view class="CTextLabel" origin="188, 94" size="52, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Phase"/>
 
             <!-- T029: UIViewSwitchContainer for type-specific params -->
             <view class="UIViewSwitchContainer"
-                  origin="4, 126" size="212, 32"
+                  origin="4, 106" size="260, 32"
                   template-names="OscA_PolyBLEP,OscA_Wavetable,OscA_PhaseDist,OscA_Sync,OscA_Additive,OscA_Chaos,OscA_Particle,OscA_Formant,OscA_SpectralFreeze,OscA_Noise"
                   template-switch-control="OscAType"
                   transparent="true"/>
@@ -2400,8 +2400,8 @@
         <!-- SPECTRAL MORPH (gold accent) -->
         <view
             class="FieldsetContainer"
-            origin="236, 32"
-            size="300, 160"
+            origin="284, 30"
+            size="364, 140"
             fieldset-title="SPECTRAL MORPH"
             fieldset-color="spectral-morph"
             fieldset-radius="4"
@@ -2411,7 +2411,7 @@
         >
             <!-- T036: XYMorphPad (230x108, non-square is fine) -->
             <view class="XYMorphPad"
-                  origin="8, 14" size="280, 108"
+                  origin="8, 14" size="344, 92"
                   control-tag="MixPosition" secondary-tag="MixerTilt"
                   color-bottom-left="xy-bottom-left" color-top-left="osc-a"
                   color-bottom-right="xy-bottom-right" color-top-right="osc-b"
@@ -2419,16 +2419,16 @@
 
             <!-- T037: Mode dropdown (below pad) -->
             <view class="COptionMenu"
-                  origin="8, 126" size="80, 18"
+                  origin="8, 110" size="80, 18"
                   control-tag="MixerMode" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
             <!-- T038: Shift knob (below pad, right side) -->
-            <view class="ArcKnob" origin="250, 124" size="28, 28"
+            <view class="ArcKnob" origin="320, 108" size="28, 28"
                   control-tag="MixerShift" default-value="0.5"
                   arc-color="spectral-morph" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="244, 148" size="40, 12"
+            <view class="CTextLabel" origin="314, 132" size="40, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Shift"/>
         </view>
@@ -2436,8 +2436,8 @@
         <!-- OSC B (orange accent) -->
         <view
             class="FieldsetContainer"
-            origin="544, 32"
-            size="220, 160"
+            origin="656, 30"
+            size="268, 140"
             fieldset-title="OSC B"
             fieldset-color="osc-b"
             fieldset-radius="4"
@@ -2447,46 +2447,46 @@
         >
             <!-- T030: OscillatorTypeSelector -->
             <view class="OscillatorTypeSelector"
-                  origin="16, 44" size="180, 28"
+                  origin="16, 28" size="230, 28"
                   control-tag="OscBType" osc-identity="b"
                   min-value="0" max-value="1"
                   default-value="0"/>
 
             <!-- T031: Tune knob -->
-            <view class="ArcKnob" origin="16, 78" size="36, 36"
+            <view class="ArcKnob" origin="16, 58" size="36, 36"
                   control-tag="OscBTune" default-value="0.5"
                   arc-color="osc-b" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="8, 114" size="52, 12"
+            <view class="CTextLabel" origin="8, 94" size="52, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Tune"/>
 
             <!-- T032: Detune knob -->
-            <view class="ArcKnob" origin="66, 78" size="36, 36"
+            <view class="ArcKnob" origin="76, 58" size="36, 36"
                   control-tag="OscBFine" default-value="0.5"
                   arc-color="osc-b" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="58, 114" size="52, 12"
+            <view class="CTextLabel" origin="68, 94" size="52, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Detune"/>
 
             <!-- T033: Level knob -->
-            <view class="ArcKnob" origin="116, 78" size="36, 36"
+            <view class="ArcKnob" origin="136, 58" size="36, 36"
                   control-tag="OscBLevel" default-value="0.5"
                   arc-color="osc-b" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="108, 114" size="52, 12"
+            <view class="CTextLabel" origin="128, 94" size="52, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Level"/>
 
             <!-- T034: Phase knob -->
-            <view class="ArcKnob" origin="166, 78" size="36, 36"
+            <view class="ArcKnob" origin="196, 58" size="36, 36"
                   control-tag="OscBPhase" default-value="0.5"
                   arc-color="osc-b" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="158, 114" size="52, 12"
+            <view class="CTextLabel" origin="188, 94" size="52, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Phase"/>
 
             <!-- T035: UIViewSwitchContainer for type-specific params -->
             <view class="UIViewSwitchContainer"
-                  origin="4, 126" size="212, 32"
+                  origin="4, 106" size="260, 32"
                   template-names="OscB_PolyBLEP,OscB_Wavetable,OscB_PhaseDist,OscB_Sync,OscB_Additive,OscB_Chaos,OscB_Particle,OscB_Formant,OscB_SpectralFreeze,OscB_Noise"
                   template-switch-control="OscBType"
                   transparent="true"/>
@@ -2497,8 +2497,8 @@
         <!-- FILTER (cyan accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 194"
-            size="170, 138"
+            origin="8, 172"
+            size="224, 124"
             fieldset-title="FILTER"
             fieldset-color="filter"
             fieldset-radius="4"
@@ -2522,7 +2522,7 @@
 
             <!-- Switched content: General or Type-specific view -->
             <view class="UIViewSwitchContainer"
-                  origin="0, 38" size="154, 96"
+                  origin="0, 34" size="208, 88"
                   template-names="Filter_General,Filter_TypeSpecific"
                   template-switch-control="FilterViewMode"
                   transparent="true"/>
@@ -2531,8 +2531,8 @@
         <!-- DISTORTION (red accent) -->
         <view
             class="FieldsetContainer"
-            origin="186, 194"
-            size="179, 138"
+            origin="240, 172"
+            size="232, 124"
             fieldset-title="DISTORTION"
             fieldset-color="distortion"
             fieldset-radius="4"
@@ -2557,7 +2557,7 @@
 
             <!-- Switchable content area -->
             <view class="UIViewSwitchContainer"
-                  origin="0, 38" size="171, 96"
+                  origin="0, 34" size="216, 88"
                   template-names="Distortion_General,Distortion_TypeSpecific"
                   template-switch-control="DistortionViewMode"
                   transparent="true"/>
@@ -2566,8 +2566,8 @@
         <!-- ENVELOPES (gray accent) -->
         <view
             class="FieldsetContainer"
-            origin="373, 194"
-            size="544, 138"
+            origin="480, 172"
+            size="720, 124"
             fieldset-title="ENVELOPES"
             fieldset-color="envelopes"
             fieldset-radius="4"
@@ -2578,7 +2578,7 @@
             <!-- ======================================================== -->
             <!-- ENV 1 - Amp Envelope group (blue amp-env)              -->
             <!-- ======================================================== -->
-            <view class="CViewContainer" origin="8, 14" size="170, 120"
+            <view class="CViewContainer" origin="8, 14" size="232, 106"
                   custom-view-name="EnvGroupAmp" transparent="true">
                 <view class="ToggleButton" origin="0, 0" size="14, 28"
                       control-tag="ActionEnvExpandAmp"
@@ -2591,7 +2591,7 @@
                       font="~ NormalFontSmaller" font-color="amp-env"
                       text-alignment="center" transparent="true"
                       text-rotation="270" title="AMP"/>
-                <view class="ADSRDisplay" origin="16, 0" size="154, 120"
+                <view class="ADSRDisplay" origin="16, 0" size="214, 106"
                       control-tag="AmpEnvAttack"
                       fill-color="amp-env-fill" stroke-color="amp-env"
                       control-point-color="amp-env"
@@ -2602,7 +2602,7 @@
             <!-- ======================================================== -->
             <!-- ENV 2 - Filter Envelope group (gold filter-env)            -->
             <!-- ======================================================== -->
-            <view class="CViewContainer" origin="190, 14" size="170, 120"
+            <view class="CViewContainer" origin="248, 14" size="232, 106"
                   custom-view-name="EnvGroupFilter" transparent="true">
                 <view class="ToggleButton" origin="0, 0" size="14, 28"
                       control-tag="ActionEnvExpandFilter"
@@ -2615,7 +2615,7 @@
                       font="~ NormalFontSmaller" font-color="filter-env"
                       text-alignment="center" transparent="true"
                       text-rotation="270" title="FILTER"/>
-                <view class="ADSRDisplay" origin="16, 0" size="154, 120"
+                <view class="ADSRDisplay" origin="16, 0" size="214, 106"
                       control-tag="FilterEnvAttack"
                       fill-color="filter-env-fill" stroke-color="filter-env"
                       control-point-color="filter-env"
@@ -2626,7 +2626,7 @@
             <!-- ======================================================== -->
             <!-- ENV 3 - Mod Envelope group (purple mod-env)              -->
             <!-- ======================================================== -->
-            <view class="CViewContainer" origin="372, 14" size="170, 120"
+            <view class="CViewContainer" origin="488, 14" size="230, 106"
                   custom-view-name="EnvGroupMod" transparent="true">
                 <view class="ToggleButton" origin="0, 0" size="14, 28"
                       control-tag="ActionEnvExpandMod"
@@ -2639,7 +2639,7 @@
                       font="~ NormalFontSmaller" font-color="mod-env"
                       text-alignment="center" transparent="true"
                       text-rotation="270" title="MOD"/>
-                <view class="ADSRDisplay" origin="16, 0" size="154, 120"
+                <view class="ADSRDisplay" origin="16, 0" size="214, 106"
                       control-tag="ModEnvAttack"
                       fill-color="mod-env-fill" stroke-color="mod-env"
                       control-point-color="mod-env"
@@ -2648,56 +2648,13 @@
             </view>
         </view>
 
-        <!-- Row 2.5: Global Filter -->
-
-        <!-- GLOBAL FILTER (rose accent) -->
-        <view
-            class="FieldsetContainer"
-            origin="8, 334"
-            size="909, 50"
-            fieldset-title="GLOBAL FILTER"
-            fieldset-color="global-filter"
-            fieldset-radius="4"
-            fieldset-line-width="1"
-            fieldset-font-size="10"
-            transparent="true"
-        >
-            <!-- On/Off toggle -->
-            <view class="ToggleButton" origin="8, 16" size="40, 18"
-                  control-tag="GlobalFilterEnabled" default-value="0"
-                  tooltip="Enable global filter"
-                  transparent="false"/>
-
-            <!-- Type dropdown -->
-            <view class="COptionMenu" origin="56, 16" size="90, 18"
-                  control-tag="GlobalFilterType"
-                  font="~ NormalFontSmaller" font-color="text-menu"
-                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
-
-            <!-- Cutoff knob + label (beside, to the right) -->
-            <view class="ArcKnob" origin="200, 14" size="24, 24"
-                  control-tag="GlobalFilterCutoff" default-value="0.574"
-                  arc-color="global-filter" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="228, 18" size="40, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="left" transparent="true" title="Cutoff"/>
-
-            <!-- Resonance knob + label (beside, to the right) -->
-            <view class="ArcKnob" origin="320, 14" size="24, 24"
-                  control-tag="GlobalFilterResonance" default-value="0.020"
-                  arc-color="global-filter" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="348, 18" size="36, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="left" transparent="true" title="Reso"/>
-        </view>
-
         <!-- Row 3: Trance Gate -->
 
         <!-- TRANCE GATE (gold accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 384"
-            size="909, 160"
+            origin="8, 298"
+            size="1184, 132"
             fieldset-title="TRANCE GATE"
             fieldset-color="trance-gate"
             fieldset-radius="4"
@@ -2724,7 +2681,7 @@
             <!-- ======================================================== -->
             <!-- Step Pattern Editor (full width)                          -->
             <!-- ======================================================== -->
-            <view class="StepPatternEditor" origin="8, 36" size="893, 68"
+            <view class="StepPatternEditor" origin="8, 32" size="1168, 56"
                   transparent="false"/>
 
             <!-- ======================================================== -->
@@ -2732,27 +2689,27 @@
             <!-- ======================================================== -->
 
             <!-- Pattern preset dropdown (no control-tag to avoid VST3Editor PCL recursion) -->
-            <view class="COptionMenu" origin="8, 112" size="110, 22"
+            <view class="COptionMenu" origin="8, 92" size="110, 22"
                   custom-id="preset-dropdown" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
             <!-- Transform buttons -->
-            <view class="ActionButton" origin="126, 110" size="26, 26"
+            <view class="ActionButton" origin="126, 90" size="26, 26"
                   control-tag="ActionTransformInvert" default-value="0"
                   icon-style="invert" tooltip="Invert pattern"
                   transparent="false"/>
-            <view class="ActionButton" origin="154, 110" size="26, 26"
+            <view class="ActionButton" origin="154, 90" size="26, 26"
                   control-tag="ActionTransformShiftLeft" default-value="0"
                   icon-style="shift-left" tooltip="Shift pattern left"
                   transparent="false"/>
-            <view class="ActionButton" origin="182, 110" size="26, 26"
+            <view class="ActionButton" origin="182, 90" size="26, 26"
                   control-tag="ActionTransformShiftRight" default-value="0"
                   icon-style="shift-right" tooltip="Shift pattern right"
                   transparent="false"/>
 
             <!-- Sync toggle -->
-            <view class="ToggleButton" origin="260, 113" size="50, 18"
+            <view class="ToggleButton" origin="260, 93" size="50, 18"
                   control-tag="TranceGateSync"
                   default-value="1.0"
                   title="Sync"
@@ -2765,7 +2722,7 @@
 
             <!-- Parameter controls: Rate/Note, Depth, Attack, Release, Phase -->
             <!-- Rate (hidden when sync active — default sync=on) -->
-            <view class="CViewContainer" origin="316, 108" size="48, 38"
+            <view class="CViewContainer" origin="316, 88" size="48, 38"
                   custom-view-name="TranceGateRateGroup" transparent="true"
                   visible="false">
                 <view class="ArcKnob" origin="0, 0" size="28, 28"
@@ -2776,7 +2733,7 @@
                       text-alignment="center" transparent="true" title="Rate"/>
             </view>
             <!-- Note Value (visible when sync active — default sync=on) -->
-            <view class="CViewContainer" origin="316, 108" size="80, 38"
+            <view class="CViewContainer" origin="316, 88" size="80, 38"
                   custom-view-name="TranceGateNoteValueGroup" transparent="true">
                 <view class="COptionMenu" origin="0, 4" size="70, 20"
                       control-tag="TranceGateNoteValue"
@@ -2790,44 +2747,44 @@
                       text-alignment="center" transparent="true" title="Note"/>
             </view>
 
-            <view class="ArcKnob" origin="404, 108" size="28, 28"
+            <view class="ArcKnob" origin="404, 88" size="28, 28"
                   control-tag="TranceGateDepth" default-value="0.5"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="398, 136" size="40, 10"
+            <view class="CTextLabel" origin="398, 116" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Depth"/>
 
-            <view class="ArcKnob" origin="452, 108" size="28, 28"
+            <view class="ArcKnob" origin="452, 88" size="28, 28"
                   control-tag="TranceGateAttack" default-value="0.2"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="445, 136" size="42, 10"
+            <view class="CTextLabel" origin="445, 116" size="42, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Attack"/>
 
-            <view class="ArcKnob" origin="500, 108" size="28, 28"
+            <view class="ArcKnob" origin="500, 88" size="28, 28"
                   control-tag="TranceGateRelease" default-value="0.3"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="491, 136" size="46, 10"
+            <view class="CTextLabel" origin="491, 116" size="46, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Release"/>
 
-            <view class="ArcKnob" origin="548, 108" size="28, 28"
+            <view class="ArcKnob" origin="548, 88" size="28, 28"
                   control-tag="TranceGatePhaseOffset" default-value="0.0"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="542, 136" size="40, 10"
+            <view class="CTextLabel" origin="542, 116" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Phase"/>
 
             <!-- Euclidean toggle (always visible) -->
-            <view class="ToggleButton" origin="777, 110" size="26, 26"
+            <view class="ToggleButton" origin="1052, 90" size="26, 26"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
                   tooltip="Enable euclidean mode"
                   transparent="false"/>
-            <view class="CTextLabel" origin="764, 136" size="52, 10"
+            <view class="CTextLabel" origin="1039, 116" size="52, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Euclidean"/>
             <!-- Euclidean controls (hidden when euclidean off) -->
-            <view class="CViewContainer" origin="805, 108" size="100, 38"
+            <view class="CViewContainer" origin="1080, 88" size="100, 38"
                   custom-view-name="EuclideanControlsGroup" transparent="true">
                 <view class="ActionButton" origin="0, 2" size="26, 26"
                       control-tag="ActionEuclideanRegen" default-value="0"
@@ -2853,8 +2810,8 @@
         <!-- MODULATION (green accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 546"
-            size="909, 160"
+            origin="8, 432"
+            size="1184, 132"
             fieldset-title="MODULATION"
             fieldset-color="modulation"
             fieldset-radius="4"
@@ -2874,7 +2831,7 @@
             <!-- Mod Source View (switched by dropdown via parameter)     -->
             <!-- ======================================================== -->
             <view class="UIViewSwitchContainer"
-                  origin="0, 36" size="158, 120"
+                  origin="0, 36" size="180, 100"
                   template-names="ModSource_LFO1,ModSource_LFO2,ModSource_Chaos,ModSource_Macros,ModSource_Rungler,ModSource_EnvFollower,ModSource_SampleHold,ModSource_Random,ModSource_PitchFollower,ModSource_Transient"
                   template-switch-control="ModSourceViewMode"
                   transparent="true"/>
@@ -2882,19 +2839,19 @@
             <!-- ======================================================== -->
             <!-- T072: CategoryTabBar (Global | Voice)                     -->
             <!-- ======================================================== -->
-            <view class="CategoryTabBar" origin="168, 14" size="340, 18"
+            <view class="CategoryTabBar" origin="190, 14" size="480, 18"
                   transparent="false"/>
 
             <!-- ======================================================== -->
             <!-- T073: ModMatrixGrid                                       -->
             <!-- ======================================================== -->
-            <view class="ModMatrixGrid" origin="168, 34" size="340, 108"
+            <view class="ModMatrixGrid" origin="190, 34" size="480, 84"
                   transparent="false"/>
 
             <!-- ======================================================== -->
             <!-- T074: ModHeatmap                                          -->
             <!-- ======================================================== -->
-            <view class="ModHeatmap" origin="516, 14" size="385, 128"
+            <view class="ModHeatmap" origin="668, 14" size="508, 104"
                   transparent="false"/>
         </view>
 
@@ -2903,8 +2860,8 @@
         <!-- EFFECTS (gray accent) -->
         <view
             class="FieldsetContainer"
-            origin="8, 708"
-            size="909, 160"
+            origin="8, 566"
+            size="1184, 152"
             fieldset-title="EFFECTS"
             fieldset-color="effects"
             fieldset-radius="4"
@@ -2914,7 +2871,7 @@
         >
             <!-- FX strip (always visible) — Enable + Mix + Expand only -->
             <!-- Order matches signal path: Phaser → Delay → Harmonizer → Reverb -->
-            <view class="CViewContainer" origin="4, 14" size="895, 28" transparent="true">
+            <view class="CViewContainer" origin="4, 14" size="1168, 28" transparent="true">
                 <!-- Phaser group -->
                 <view class="ToggleButton" origin="0, 4" size="60, 20"
                       control-tag="PhaserEnabled"
@@ -2939,7 +2896,7 @@
                       transparent="true"/>
 
                 <!-- Delay group -->
-                <view class="ToggleButton" origin="195, 4" size="50, 20"
+                <view class="ToggleButton" origin="292, 4" size="50, 20"
                       control-tag="DelayEnabled"
                       default-value="1.0"
                       title="Delay"
@@ -2948,12 +2905,12 @@
                       font-color="master"
                       text-color="master"
                       transparent="true"/>
-                <view class="ArcKnob" origin="255, 0" size="28, 28"
+                <view class="ArcKnob" origin="352, 0" size="28, 28"
                       control-tag="DelayMix"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="ToggleButton" origin="295, 4" size="20, 20"
+                <view class="ToggleButton" origin="392, 4" size="20, 20"
                       control-tag="ActionFxExpandDelay"
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
@@ -2962,7 +2919,7 @@
                       transparent="true"/>
 
                 <!-- Harmonizer group -->
-                <view class="ToggleButton" origin="430, 4" size="80, 20"
+                <view class="ToggleButton" origin="584, 4" size="80, 20"
                       control-tag="HarmonizerEnabled"
                       default-value="0.0"
                       title="Harmonizer"
@@ -2971,7 +2928,7 @@
                       font-color="master"
                       text-color="master"
                       transparent="true"/>
-                <view class="ToggleButton" origin="520, 4" size="20, 20"
+                <view class="ToggleButton" origin="674, 4" size="20, 20"
                       control-tag="ActionFxExpandHarmonizer"
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
@@ -2980,7 +2937,7 @@
                       transparent="true"/>
 
                 <!-- Reverb group -->
-                <view class="ToggleButton" origin="660, 4" size="60, 20"
+                <view class="ToggleButton" origin="876, 4" size="60, 20"
                       control-tag="ReverbEnabled"
                       default-value="1.0"
                       title="Reverb"
@@ -2989,12 +2946,12 @@
                       font-color="master"
                       text-color="master"
                       transparent="true"/>
-                <view class="ArcKnob" origin="730, 0" size="28, 28"
+                <view class="ArcKnob" origin="946, 0" size="28, 28"
                       control-tag="ReverbMix"
                       default-value="0.5"
                       arc-color="effects"
                       guide-color="knob-guide"/>
-                <view class="ToggleButton" origin="770, 4" size="20, 20"
+                <view class="ToggleButton" origin="986, 4" size="20, 20"
                       control-tag="ActionFxExpandReverb"
                       icon-style="chevron"
                       on-orientation="down" off-orientation="right"
@@ -3006,7 +2963,7 @@
             <!-- Detail panels ordered by signal path: Phaser → Delay → Harmonizer → Reverb -->
 
             <!-- Phaser detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="895, 60"
+            <view class="CViewContainer" origin="4, 44" size="1168, 60"
                   custom-view-name="PhaserDetail" transparent="true">
 
                 <!-- Rate / Sync section -->
@@ -3104,7 +3061,7 @@
             </view>
 
             <!-- Delay detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="895, 112"
+            <view class="CViewContainer" origin="4, 44" size="1168, 100"
                   custom-view-name="DelayDetail" transparent="true">
 
                 <!-- Left panel: Common delay controls (260px) -->
@@ -3164,14 +3121,14 @@
 
                 <!-- Right panel: Type-specific controls -->
                 <view class="UIViewSwitchContainer"
-                      origin="270, 0" size="615, 112"
+                      origin="270, 0" size="880, 100"
                       template-names="Delay_Digital,Delay_Tape,Delay_PingPong,Delay_Granular,Delay_Spectral"
                       template-switch-control="DelayType"
                       transparent="true"/>
             </view>
 
             <!-- Harmonizer detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="895, 120"
+            <view class="CViewContainer" origin="4, 44" size="1168, 100"
                   custom-view-name="HarmonizerDetail" transparent="true">
 
                 <!-- Global controls row -->
@@ -3260,7 +3217,7 @@
 
                 <!-- Voice controls — two-column layout -->
                 <!-- Left column: Voice 1 & Voice 2 -->
-                <view class="CViewContainer" origin="8, 40" size="260, 34"
+                <view class="CViewContainer" origin="8, 42" size="280, 34"
                       custom-view-name="HarmonizerVoice1" transparent="true">
                     <view class="CTextLabel" origin="0, 1" size="48, 16"
                           font="~ NormalFontSmaller" font-color="text-secondary"
@@ -3309,7 +3266,7 @@
                           text-alignment="center" transparent="true" title="Detune"/>
                 </view>
 
-                <view class="CViewContainer" origin="8, 78" size="260, 34"
+                <view class="CViewContainer" origin="296, 42" size="280, 34"
                       custom-view-name="HarmonizerVoice2" transparent="true">
                     <view class="CTextLabel" origin="0, 1" size="48, 16"
                           font="~ NormalFontSmaller" font-color="text-secondary"
@@ -3359,7 +3316,7 @@
                 </view>
 
                 <!-- Right column: Voice 3 & Voice 4 -->
-                <view class="CViewContainer" origin="320, 40" size="260, 34"
+                <view class="CViewContainer" origin="584, 42" size="280, 34"
                       custom-view-name="HarmonizerVoice3" transparent="true">
                     <view class="CTextLabel" origin="0, 1" size="48, 16"
                           font="~ NormalFontSmaller" font-color="text-secondary"
@@ -3408,7 +3365,7 @@
                           text-alignment="center" transparent="true" title="Detune"/>
                 </view>
 
-                <view class="CViewContainer" origin="320, 78" size="260, 34"
+                <view class="CViewContainer" origin="872, 42" size="280, 34"
                       custom-view-name="HarmonizerVoice4" transparent="true">
                     <view class="CTextLabel" origin="0, 1" size="48, 16"
                           font="~ NormalFontSmaller" font-color="text-secondary"
@@ -3459,7 +3416,7 @@
             </view>
 
             <!-- Reverb detail panel (initially hidden, shown by controller) -->
-            <view class="CViewContainer" origin="4, 44" size="895, 46"
+            <view class="CViewContainer" origin="4, 44" size="1168, 46"
                   custom-view-name="ReverbDetail" transparent="true">
                 <view class="ArcKnob" origin="8, 0" size="32, 32"
                       control-tag="ReverbSize"
@@ -3529,12 +3486,12 @@
             </view>
         </view>
 
-        <!-- Voice & Output (silver accent) — Row 1, right of OSC B -->
+        <!-- MASTER (silver accent) — Row 1, right of OSC B -->
         <view
             class="FieldsetContainer"
-            origin="772, 32"
-            size="145, 160"
-            fieldset-title="Voice &amp; Output"
+            origin="932, 30"
+            size="260, 140"
+            fieldset-title="MASTER"
             fieldset-color="master"
             fieldset-radius="4"
             fieldset-line-width="1"
@@ -3570,7 +3527,7 @@
                   transparent="true"/>
 
             <!-- Row 2: Polyphony dropdown (visible when Voice Mode = Poly) -->
-            <view class="CViewContainer" origin="8, 36" size="137, 18"
+            <view class="CViewContainer" origin="8, 36" size="120, 18"
                   custom-view-name="PolyGroup" transparent="true">
                 <view class="COptionMenu" origin="0, 0" size="85, 18"
                       control-tag="Polyphony"
@@ -3582,7 +3539,7 @@
                       transparent="false"/>
             </view>
             <!-- Mono controls (visible when Voice Mode = Mono) -->
-            <view class="CViewContainer" origin="8, 36" size="137, 18"
+            <view class="CViewContainer" origin="8, 36" size="120, 18"
                   custom-view-name="MonoGroup" transparent="true"
                   visible="false">
                 <view class="ToggleButton" origin="0, 0" size="22, 18"
@@ -3636,26 +3593,48 @@
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Width knob (functional, wired to parameter) -->
-            <view class="ArcKnob" origin="14, 104" size="28, 28"
+            <!-- Global Filter (merged from Row 2.5) -->
+            <view class="ToggleButton" origin="130, 14" size="40, 18"
+                  control-tag="GlobalFilterEnabled" default-value="0"
+                  tooltip="Enable global filter"
+                  transparent="false"/>
+            <view class="COptionMenu" origin="174, 14" size="80, 18"
+                  control-tag="GlobalFilterType"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
+            <view class="ArcKnob" origin="138, 38" size="24, 24"
+                  control-tag="GlobalFilterCutoff" default-value="0.574"
+                  arc-color="global-filter" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="130, 62" size="40, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Cutoff"/>
+            <view class="ArcKnob" origin="190, 38" size="24, 24"
+                  control-tag="GlobalFilterResonance" default-value="0.020"
+                  arc-color="global-filter" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="182, 62" size="40, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Reso"/>
+
+            <!-- Width knob (moved to right column) -->
+            <view class="ArcKnob" origin="138, 80" size="28, 28"
                   control-tag="Width"
                   default-value="0.5"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="10, 132" size="36, 10"
+            <view class="CTextLabel" origin="134, 108" size="36, 10"
                   title="Width"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
                   text-alignment="center"
                   transparent="true"/>
 
-            <!-- Spread knob (functional, wired to parameter) -->
-            <view class="ArcKnob" origin="62, 104" size="28, 28"
+            <!-- Spread knob (moved to right column) -->
+            <view class="ArcKnob" origin="190, 80" size="28, 28"
                   control-tag="Spread"
                   default-value="0"
                   arc-color="master"
                   guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="58, 132" size="40, 10"
+            <view class="CTextLabel" origin="186, 108" size="40, 10"
                   title="Spread"
                   font="~ NormalFontSmaller"
                   font-color="text-secondary"
@@ -3663,7 +3642,7 @@
                   transparent="true"/>
 
             <!-- Soft Limit toggle (bottom) -->
-            <view class="ToggleButton" origin="20, 146" size="80, 14"
+            <view class="ToggleButton" origin="20, 118" size="80, 14"
                   control-tag="SoftLimit"
                   title="Soft Limit"
                   font="~ NormalFontSmaller"
@@ -3674,7 +3653,7 @@
         </view>
 
         <!-- Settings Drawer Click-Outside Overlay (transparent, catches clicks to dismiss) -->
-        <view class="ToggleButton" origin="0, 0" size="925, 880"
+        <view class="ToggleButton" origin="0, 0" size="1200, 720"
               control-tag="ActionSettingsOverlay"
               custom-view-name="SettingsOverlay"
               icon-style=""
@@ -3686,8 +3665,8 @@
         <!-- Settings Drawer (slides in from right edge) -->
         <view
             class="CViewContainer"
-            origin="925, 0"
-            size="220, 880"
+            origin="1200, 0"
+            size="220, 720"
             background-color="bg-drawer"
             custom-view-name="SettingsDrawer"
             transparent="false"
