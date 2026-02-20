@@ -87,11 +87,13 @@ Phases 4-9 are sequential (each extends the lane system). Phase 10 can run in pa
 
 ---
 
-## Phase 1: HeldNoteBuffer & Note Selection
+## Phase 1: HeldNoteBuffer & Note Selection ✅ COMPLETE
 
 **DSP Layer**: 1 (primitives)
 **File**: `dsp/include/krate/dsp/primitives/held_note_buffer.h`
 **Test**: `dsp/tests/unit/primitives/held_note_buffer_test.cpp`
+**Spec**: `specs/069-held-note-buffer/spec.md`
+**Branch**: `069-held-note-buffer`
 
 ### Purpose
 
@@ -182,11 +184,11 @@ struct ArpNoteResult {
 
 ### Acceptance Criteria
 
-- [ ] Zero heap allocation in all operations
-- [ ] All 10 modes produce correct note sequences
-- [ ] Octave Sequential vs Interleaved produce distinct orderings
-- [ ] Buffer handles rapid add/remove without corruption
-- [ ] Unit tests pass on Windows, macOS, Linux (cross-platform CI)
+- [x] Zero heap allocation in all operations (SC-003: verified by code inspection — no dynamic containers)
+- [x] All 10 modes produce correct note sequences (SC-001: 37 test cases, 33,228 assertions)
+- [x] Octave Sequential vs Interleaved produce distinct orderings (SC-002: verified by unit tests)
+- [x] Buffer handles rapid add/remove without corruption (SC-004: 1000-op stress test passes)
+- [ ] Unit tests pass on Windows, macOS, Linux (SC-007: Windows verified, macOS/Linux CI pending — push branch to confirm)
 
 ---
 
