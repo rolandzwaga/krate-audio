@@ -282,10 +282,10 @@
         <control-tag name="AmpEnvRelease" tag="703"/>
 
         <!-- Envelopes: Filter (ENV 2) -->
-        <control-tag name="FilterEnvFltAttack" tag="800"/>
+        <control-tag name="FilterEnvAttack" tag="800"/>
         <control-tag name="FilterEnvDecay" tag="801"/>
         <control-tag name="FilterEnvSustain" tag="802"/>
-        <control-tag name="FilterEnvFltRelease" tag="803"/>
+        <control-tag name="FilterEnvRelease" tag="803"/>
 
         <!-- Envelopes: Mod (ENV 3) -->
         <control-tag name="ModEnvAttack" tag="900"/>
@@ -2616,7 +2616,7 @@
                       text-alignment="center" transparent="true"
                       text-rotation="270" title="FILTER"/>
                 <view class="ADSRDisplay" origin="16, 0" size="154, 120"
-                      control-tag="FilterEnvFltAttack"
+                      control-tag="FilterEnvAttack"
                       fill-color="filter-env-fill" stroke-color="filter-env"
                       control-point-color="filter-env"
                       background-color="bg-display" grid-color="grid"
