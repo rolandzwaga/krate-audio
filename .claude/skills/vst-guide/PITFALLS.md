@@ -324,6 +324,89 @@ When `UIViewSwitchContainer` tears down the old template, `CView::removed()` fir
 
 ---
 
+### 2026-02-20: Settings Drawer Toggle Does Nothing
+
+**Symptom:** Clicking the gear icon in the Ruinae "Voices & Output" section did nothing — the settings drawer didn't open.
+
+**Root Cause:** When the Harmonizer feature was added (commit 161cfa4), the listener registration range in `verifyView()` was extended from `kActionFxExpandPhaserTag` (10018) to `kActionFxExpandHarmonizerTag` (10022). This inadvertently included `kActionSettingsToggleTag` (10020) and `kActionSettingsOverlayTag` (10021) in the range.
+
+These tags were ALSO registered explicitly later in `verifyView()`:
+```cpp
+if (tag == kActionSettingsToggleTag) {
+    gearButton_ = ctrl;
+    ctrl->registerControlListener(this);  // Second registration!
+}
+```
+
+VSTGUI's `DispatchList::add()` does NOT check for duplicates — it simply appends to a vector. When clicked, `valueChanged()` was called twice:
+1. First call: `settingsDrawerTargetOpen_` toggles false→true, animation timer starts
+2. Second call: `settingsDrawerTargetOpen_` toggles true→false, timer already running so returns early
+
+The drawer animation immediately reversed because the target was toggled twice.
+
+**Solution:** Exclude the settings tags from the range check:
+```cpp
+if (tag >= kActionTransformInvertTag && tag <= kActionFxExpandHarmonizerTag &&
+    tag != kActionSettingsToggleTag &&
+    tag != kActionSettingsOverlayTag) {
+    control->registerControlListener(this);
+}
+```
+
+**Lesson:** When extending tag ranges for listener registration, audit ALL tags in the new range to ensure none are already registered explicitly. Adding comments documenting which tag values a range covers helps prevent this.
+
+---
+
+### Pitfall 10: Duplicate IControlListener Registration via Overlapping Tag Ranges
+
+**Problem:** When using a range-based registration pattern for action buttons, extending the range to include new tags can inadvertently capture tags that are also registered explicitly elsewhere. VSTGUI's `DispatchList::add()` does NOT check for duplicates — calling `registerControlListener()` twice with the same listener adds it twice, causing `valueChanged()` to be called twice per click.
+
+**Symptom:** Toggle buttons appear to do nothing. The action fires twice, toggling state back to the original value (e.g., open→close drawer instantly).
+
+**Wrong:**
+```cpp
+// Range-based registration for action buttons
+if (tag >= kActionTransformInvertTag && tag <= kActionFxExpandHarmonizerTag) {
+    control->registerControlListener(this);  // Registers 10006-10022
+}
+
+// Later: explicit registration for settings drawer
+if (tag == kActionSettingsToggleTag) {  // tag 10020 — ALREADY IN RANGE ABOVE!
+    gearButton_ = ctrl;
+    ctrl->registerControlListener(this);  // DUPLICATE! valueChanged called twice
+}
+```
+
+When a new tag (`kActionFxExpandHarmonizerTag = 10022`) was added and the range extended, it inadvertently included `kActionSettingsToggleTag = 10020` which was also registered explicitly below.
+
+**Right:**
+```cpp
+// Explicitly exclude tags that have their own registration
+if (tag >= kActionTransformInvertTag && tag <= kActionFxExpandHarmonizerTag &&
+    tag != kActionSettingsToggleTag &&
+    tag != kActionSettingsOverlayTag) {
+    control->registerControlListener(this);
+}
+```
+
+**Prevention checklist:**
+1. When extending tag ranges, audit ALL tags in the new range
+2. Document which tags each range-based registration covers
+3. Consider using explicit tag lists instead of ranges for clarity:
+   ```cpp
+   static constexpr std::array kActionButtonTags = {
+       kActionTransformInvertTag, kActionFxExpandDelayTag, ...
+   };
+   if (std::find(kActionButtonTags.begin(), kActionButtonTags.end(), tag) != kActionButtonTags.end()) {
+       control->registerControlListener(this);
+   }
+   ```
+4. Add logging to `valueChanged()` during development to catch unexpected double-calls
+
+**Key insight:** VSTGUI's listener pattern DOES NOT deduplicate. Calling `registerControlListener(listener)` twice adds the listener twice. This is intentional (some use cases need it), but it's a footgun when tag ranges overlap.
+
+---
+
 ## Key Takeaways
 
 1. **Use the right parameter type** - `StringListParameter` for dropdowns, `RangeParameter` for ranges
@@ -336,3 +419,4 @@ When `UIViewSwitchContainer` tears down the old template, `CView::removed()` fir
 8. **COptionMenu needs StringListParameter** - A `RangeParameter` with correct `stepCount` is NOT enough; `COptionMenu` requires `StringListParameter` with `kIsList` to populate entries
 9. **Proxy parameters need hidden controls** - UIViewSwitchContainer uses IControlListener on CControls, not IDependent on Parameters
 10. **Null cached view pointers on removal** - Views inside UIViewSwitchContainer templates get destroyed on every switch; wire `removed()` callbacks to null cached pointers
+11. **Tag ranges can overlap** - When extending range-based listener registration, verify the new range doesn't include tags already registered explicitly elsewhere; `registerControlListener()` does NOT deduplicate

@@ -914,10 +914,15 @@ VSTGUI::CView* Controller::verifyView(
     VSTGUI::VST3Editor* /*editor*/) {
 
     // Register as sub-listener for action buttons (transforms, FX/env chevrons)
+    // NOTE: Excludes settings tags (10020, 10021) which are registered explicitly below.
+    // Double-registration causes valueChanged to be called twice, toggling drawer twice.
     auto* control = dynamic_cast<VSTGUI::CControl*>(view);
     if (control) {
         auto tag = control->getTag();
-        if (tag >= static_cast<int32_t>(kActionTransformInvertTag) && tag <= static_cast<int32_t>(kActionFxExpandHarmonizerTag)) {
+        if (tag >= static_cast<int32_t>(kActionTransformInvertTag) &&
+            tag <= static_cast<int32_t>(kActionFxExpandHarmonizerTag) &&
+            tag != static_cast<int32_t>(kActionSettingsToggleTag) &&
+            tag != static_cast<int32_t>(kActionSettingsOverlayTag)) {
             control->registerControlListener(this);
         }
 
