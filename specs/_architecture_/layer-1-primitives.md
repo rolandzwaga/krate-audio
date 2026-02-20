@@ -2221,3 +2221,142 @@ if (tracker.isPitchValid()) {
 **Performance:** Pipeline stages are pure arithmetic (no transcendental math except `std::round` and `std::abs`). Incremental CPU overhead beyond PitchDetector is < 0.1% at 44.1kHz (Layer 1 budget).
 
 **Dependencies:** `PitchDetector` (L1), `OnePoleSmoother` (L1), `pitch_utils.h` (L0, `frequencyToMidiNote()`), `midi_utils.h` (L0, `midiNoteToFrequency()`)
+
+---
+
+## HeldNoteBuffer (Arpeggiator Note Tracking)
+**Path:** [held_note_buffer.h](../../dsp/include/krate/dsp/primitives/held_note_buffer.h) | **Since:** 0.19.0 | **Spec:** [069-held-note-buffer](../069-held-note-buffer/spec.md)
+
+Fixed-capacity (32-note), heap-free buffer tracking currently held MIDI notes for arpeggiator pattern generation. Maintains two parallel views: pitch-sorted (ascending MIDI note number) for directional arp modes, and insertion-ordered (chronological noteOn order) for AsPlayed mode. Uses a monotonically increasing insertion counter for chronological ordering.
+
+**Use when:**
+- Building an arpeggiator that needs to track held MIDI notes with multiple sort orders
+- Phase 2 `ArpeggiatorCore` (Layer 3) will compose `HeldNoteBuffer` + `NoteSelector` + `SequencerCore`
+- Ruinae Processor (Phase 3) will own a `HeldNoteBuffer` and feed it MIDI events from the host
+
+**Note on ODR safety:** The names `HeldNote`, `HeldNoteBuffer`, `ArpMode`, `OctaveMode`, `ArpNoteResult`, and `NoteSelector` are unique within the `Krate::DSP` namespace. Before creating any new class with a similar name, search the codebase to avoid ODR violations.
+
+**Types provided:**
+
+```cpp
+/// Single held MIDI note with insertion-order tracking.
+struct HeldNote {
+    uint8_t note{0};          // MIDI note number (0-127)
+    uint8_t velocity{0};      // MIDI velocity (1-127; 0 never stored)
+    uint16_t insertOrder{0};  // Monotonically increasing counter
+};
+
+/// Arpeggiator pattern mode (10 modes).
+enum class ArpMode : uint8_t {
+    Up, Down, UpDown, DownUp, Converge, Diverge, Random, Walk, AsPlayed, Chord
+};
+
+/// Octave expansion ordering mode.
+enum class OctaveMode : uint8_t {
+    Sequential,   // Complete pattern at each octave before advancing
+    Interleaved   // Each note at all octave transpositions before next note
+};
+
+/// Result of NoteSelector::advance(). Fixed-capacity, no heap allocation.
+struct ArpNoteResult {
+    std::array<uint8_t, 32> notes{};       // MIDI note numbers (with octave offset applied)
+    std::array<uint8_t, 32> velocities{};  // Corresponding velocities
+    size_t count{0};                        // Number of valid entries (0 = empty, 1 = single, N = chord)
+};
+```
+
+**HeldNoteBuffer public API:**
+
+```cpp
+class HeldNoteBuffer {
+    static constexpr size_t kMaxNotes = 32;
+
+    void noteOn(uint8_t note, uint8_t velocity) noexcept;  // Add/update note
+    void noteOff(uint8_t note) noexcept;                    // Remove note (silently ignores unknown)
+    void clear() noexcept;                                   // Remove all notes, reset insert counter
+    [[nodiscard]] size_t size() const noexcept;              // Number of held notes
+    [[nodiscard]] bool empty() const noexcept;               // True if no notes held
+    [[nodiscard]] std::span<const HeldNote> byPitch() const noexcept;        // Pitch-ascending view
+    [[nodiscard]] std::span<const HeldNote> byInsertOrder() const noexcept;  // Chronological view
+};
+```
+
+| Operation | Complexity | Description |
+|-----------|------------|-------------|
+| `noteOn` (new) | O(N) | Linear scan for duplicate check + insertion sort into pitch-sorted array |
+| `noteOn` (update) | O(N) | Linear scan to find + update velocity in both arrays |
+| `noteOff` | O(N) | Linear scan + shift-left removal from both arrays |
+| `clear` | O(1) | Reset size and counter |
+| `byPitch` / `byInsertOrder` | O(1) | Return `std::span` view over internal array |
+
+**Key behaviors:**
+- Duplicate `noteOn` updates velocity without creating a second entry
+- `noteOn` when full (32 notes) silently ignores the new note
+- `noteOff` for a note not in the buffer is silently ignored
+- `clear()` resets the insertion order counter to 0
+- Zero heap allocation (SC-003) -- all storage is `std::array`
+
+**Dependencies:** `<array>`, `<cstdint>`, `<cstddef>`, `<span>`, `<algorithm>`
+
+---
+
+## NoteSelector (Arpeggiator Note Selection Engine)
+**Path:** [held_note_buffer.h](../../dsp/include/krate/dsp/primitives/held_note_buffer.h) | **Since:** 0.19.0 | **Spec:** [069-held-note-buffer](../069-held-note-buffer/spec.md)
+
+Stateful traversal engine for arpeggiator note selection. Implements all 10 `ArpMode` patterns with octave range expansion (1-4 octaves) in both Sequential and Interleaved ordering. Receives a `const HeldNoteBuffer&` on each `advance()` call and produces the next note(s) to play. Holds no internal reference to any buffer.
+
+**Use when:**
+- Phase 2 `ArpeggiatorCore` (Layer 3) will call `advance()` once per arp step tick
+- Any arpeggiator that needs configurable pattern traversal with octave expansion
+- Testing arp patterns independently of timing/sequencing logic
+
+**Note on ODR safety:** `NoteSelector` is defined in the same header as `HeldNoteBuffer`. Both are unique names within `Krate::DSP`.
+
+```cpp
+class NoteSelector {
+    // Construction
+    explicit NoteSelector(uint32_t seed = 1) noexcept;  // PRNG seed for Random/Walk
+
+    // Configuration
+    void setMode(ArpMode mode) noexcept;                // Sets mode and calls reset()
+    void setOctaveRange(int octaves) noexcept;           // [1, 4], clamped
+    void setOctaveMode(OctaveMode mode) noexcept;        // Sequential or Interleaved
+
+    // Pattern traversal
+    [[nodiscard]] ArpNoteResult advance(const HeldNoteBuffer& held) noexcept;
+
+    // Reset to beginning of pattern (all mode state cleared)
+    void reset() noexcept;
+};
+```
+
+| Mode | Pattern (notes C3, E3, G3) | Description |
+|------|---------------------------|-------------|
+| Up | 60, 64, 67, 60, 64, 67, ... | Ascending pitch, wrap at top |
+| Down | 67, 64, 60, 67, 64, 60, ... | Descending pitch, wrap at bottom |
+| UpDown | 60, 64, 67, 64, 60, 64, ... | Ping-pong, no endpoint repeat |
+| DownUp | 67, 64, 60, 64, 67, 64, ... | Ping-pong descending first |
+| Converge | 60, 67, 64, 60, 67, 64, ... | Outside-in alternation |
+| Diverge | 64, 60, 67, 64, 60, 67, ... | Center outward (odd count) |
+| Random | uniform random selection | Xorshift32 PRNG, seeded |
+| Walk | random +/-1 step, clamped | Xorshift32 PRNG, bounded |
+| AsPlayed | insertion order (chronological) | Uses `byInsertOrder()` view |
+| Chord | all notes simultaneously | `count = N`, no octave transposition |
+
+| Octave Mode | Example (Up, [C3, E3], range 3) | Description |
+|-------------|--------------------------------|-------------|
+| Sequential | 60, 64, 72, 76, 84, 88 | Complete pattern at each octave |
+| Interleaved | 60, 72, 84, 64, 76, 88 | Each note at all octaves before next |
+
+**Key behaviors:**
+- Empty buffer returns `ArpNoteResult` with `count == 0` for all modes
+- Index clamping on buffer mutation: if notes are removed mid-pattern, the internal index is clamped to `[0, size-1]` before the next access
+- `reset()` clears all internal state: `noteIndex_`, `pingPongPos_`, `octaveOffset_`, `walkIndex_`, `convergeStep_`, `direction_`
+- MIDI note clamping (FR-028): octave transposition clamps result to 127 maximum
+- Chord mode ignores octave range (FR-020)
+- Single note held: all modes return that note (except Chord which returns `count == 1`)
+- Zero heap allocation (SC-003) -- `ArpNoteResult` uses `std::array<uint8_t, 32>`
+
+**Layer 0 dependency:** Uses `Xorshift32` from `core/random.h` for deterministic random selection in Random and Walk modes.
+
+**Dependencies:** `core/random.h` (Xorshift32), `<algorithm>` (std::min, std::clamp), `<span>`
