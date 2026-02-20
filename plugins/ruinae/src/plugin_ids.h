@@ -117,7 +117,39 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kOscAFineId = 102,         // -100 to +100 cents
     kOscALevelId = 103,        // 0-1
     kOscAPhaseId = 104,        // 0-1
-    // Type-specific params start at 110
+
+    // Type-specific params (110-139) -- 068-osc-type-params
+    kOscAWaveformId = 110,     // PolyBLEP waveform (5 values: Sine/Saw/Square/Pulse/Triangle)
+    kOscAPulseWidthId = 111,   // PolyBLEP pulse width (0.01-0.99)
+    kOscAPhaseModId = 112,     // Phase modulation (shared PolyBLEP/Wavetable) (-1 to +1)
+    kOscAFreqModId = 113,      // Frequency modulation (shared PolyBLEP/Wavetable) (-1 to +1)
+    kOscAPDWaveformId = 114,   // PD waveform (8 values)
+    kOscAPDDistortionId = 115, // PD distortion/DCW (0-1)
+    kOscASyncRatioId = 116,    // Sync slave ratio (1.0-8.0)
+    kOscASyncWaveformId = 117, // Sync slave waveform (5 values)
+    kOscASyncModeId = 118,     // Sync mode (3 values: Hard/Reverse/PhaseAdvance)
+    kOscASyncAmountId = 119,   // Sync amount (0-1)
+    kOscASyncPulseWidthId = 120, // Sync slave pulse width (0.01-0.99)
+    kOscAAdditivePartialsId = 121, // Additive num partials (1-128)
+    kOscAAdditiveTiltId = 122, // Additive spectral tilt (-24 to +24 dB/oct)
+    kOscAAdditiveInharmId = 123, // Additive inharmonicity (0-1)
+    kOscAChaosAttractorId = 124, // Chaos attractor (5 values)
+    kOscAChaosAmountId = 125,  // Chaos amount (0-1)
+    kOscAChaosCouplingId = 126, // Chaos coupling (0-1)
+    kOscAChaosOutputId = 127,  // Chaos output axis (3 values: X/Y/Z)
+    kOscAParticleScatterId = 128, // Particle freq scatter (0-12 st)
+    kOscAParticleDensityId = 129, // Particle density (1-64)
+    kOscAParticleLifetimeId = 130, // Particle lifetime (5-2000 ms)
+    kOscAParticleSpawnModeId = 131, // Particle spawn mode (3 values)
+    kOscAParticleEnvTypeId = 132, // Particle envelope type (6 values)
+    kOscAParticleDriftId = 133, // Particle drift (0-1)
+    kOscAFormantVowelId = 134, // Formant vowel (5 values: A/E/I/O/U)
+    kOscAFormantMorphId = 135, // Formant morph (0-4)
+    kOscASpectralPitchId = 136, // Spectral pitch shift (-24 to +24 st)
+    kOscASpectralTiltId = 137, // Spectral tilt (-12 to +12 dB/oct)
+    kOscASpectralFormantId = 138, // Spectral formant shift (-12 to +12 st)
+    kOscANoiseColorId = 139,   // Noise color (6 values: White/Pink/Brown/Blue/Violet/Grey)
+
     kOscAEndId = 199,
 
     // ==========================================================================
@@ -129,7 +161,39 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kOscBFineId = 202,         // -100 to +100 cents
     kOscBLevelId = 203,        // 0-1
     kOscBPhaseId = 204,        // 0-1
-    // Type-specific params start at 210
+
+    // Type-specific params (210-239) -- 068-osc-type-params (mirrors OSC A +100)
+    kOscBWaveformId = 210,
+    kOscBPulseWidthId = 211,
+    kOscBPhaseModId = 212,
+    kOscBFreqModId = 213,
+    kOscBPDWaveformId = 214,
+    kOscBPDDistortionId = 215,
+    kOscBSyncRatioId = 216,
+    kOscBSyncWaveformId = 217,
+    kOscBSyncModeId = 218,
+    kOscBSyncAmountId = 219,
+    kOscBSyncPulseWidthId = 220,
+    kOscBAdditivePartialsId = 221,
+    kOscBAdditiveTiltId = 222,
+    kOscBAdditiveInharmId = 223,
+    kOscBChaosAttractorId = 224,
+    kOscBChaosAmountId = 225,
+    kOscBChaosCouplingId = 226,
+    kOscBChaosOutputId = 227,
+    kOscBParticleScatterId = 228,
+    kOscBParticleDensityId = 229,
+    kOscBParticleLifetimeId = 230,
+    kOscBParticleSpawnModeId = 231,
+    kOscBParticleEnvTypeId = 232,
+    kOscBParticleDriftId = 233,
+    kOscBFormantVowelId = 234,
+    kOscBFormantMorphId = 235,
+    kOscBSpectralPitchId = 236,
+    kOscBSpectralTiltId = 237,
+    kOscBSpectralFormantId = 238,
+    kOscBNoiseColorId = 239,
+
     kOscBEndId = 299,
 
     // ==========================================================================

@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include <krate/dsp/systems/oscillator_types.h>
+
 #include <cstddef>
 
 namespace Krate::DSP {
@@ -57,6 +59,17 @@ public:
     /// @param numSamples Number of samples to generate
     /// @note Must be real-time safe — no allocations, no blocking
     virtual void processBlock(float* output, size_t numSamples) noexcept = 0;
+
+    /// @brief Set a type-specific parameter on this oscillator.
+    /// @param param The parameter identifier
+    /// @param value The parameter value (in DSP domain, NOT normalized)
+    /// @note Base class implementation is an unconditional silent no-op.
+    ///       Subclasses override to handle parameters relevant to their type.
+    ///       Unrecognized OscParam values MUST be silently ignored.
+    /// @note Must be real-time safe: no allocation, no logging, no assertion.
+    virtual void setParam(OscParam param, float value) noexcept {
+        (void)param; (void)value;
+    }
 
     /// @brief Report the latency introduced by this oscillator.
     /// @return Latency in samples (0 for most types, FFT size for spectral types)

@@ -489,4 +489,108 @@ inline int harmonizerIntervalToIndex(int interval) {
     return std::clamp(interval + 24, 0, 48);
 }
 
+// =============================================================================
+// Oscillator type-specific dropdowns (068-osc-type-params)
+// =============================================================================
+
+// OscWaveform dropdown (5 waveforms, stepCount = 4)
+// Shared by PolyBLEP Waveform and Sync Slave Waveform
+inline constexpr int kOscWaveformCount = 5;
+
+inline const Steinberg::Vst::TChar* const kOscWaveformStrings[] = {
+    STR16("Sine"),
+    STR16("Sawtooth"),
+    STR16("Square"),
+    STR16("Pulse"),
+    STR16("Triangle"),
+};
+
+// PD Waveform dropdown (8 waveforms, stepCount = 7)
+inline constexpr int kPDWaveformCount = 8;
+
+inline const Steinberg::Vst::TChar* const kPDWaveformStrings[] = {
+    STR16("Saw"),
+    STR16("Square"),
+    STR16("Pulse"),
+    STR16("DoubleSine"),
+    STR16("HalfSine"),
+    STR16("ResSaw"),
+    STR16("ResTri"),
+    STR16("ResTrap"),
+};
+
+// Sync Mode dropdown (3 modes, stepCount = 2)
+inline constexpr int kSyncModeCount = 3;
+
+inline const Steinberg::Vst::TChar* const kSyncModeStrings[] = {
+    STR16("Hard"),
+    STR16("Reverse"),
+    STR16("Phase Advance"),
+};
+
+// Chaos Attractor dropdown (5 attractors, stepCount = 4)
+inline constexpr int kChaosAttractorCount = 5;
+
+inline const Steinberg::Vst::TChar* const kChaosAttractorStrings[] = {
+    STR16("Lorenz"),
+    STR16("Rossler"),
+    STR16("Chua"),
+    STR16("Duffing"),
+    STR16("Van der Pol"),
+};
+
+// Chaos Output dropdown (3 axes, stepCount = 2)
+inline constexpr int kChaosOutputCount = 3;
+
+inline const Steinberg::Vst::TChar* const kChaosOutputStrings[] = {
+    STR16("X"),
+    STR16("Y"),
+    STR16("Z"),
+};
+
+// Particle Spawn Mode dropdown (3 modes, stepCount = 2)
+inline constexpr int kParticleSpawnModeCount = 3;
+
+inline const Steinberg::Vst::TChar* const kParticleSpawnModeStrings[] = {
+    STR16("Regular"),
+    STR16("Random"),
+    STR16("Burst"),
+};
+
+// Particle Envelope Type dropdown (6 types, stepCount = 5)
+inline constexpr int kParticleEnvTypeCount = 6;
+
+inline const Steinberg::Vst::TChar* const kParticleEnvTypeStrings[] = {
+    STR16("Hann"),
+    STR16("Trap"),
+    STR16("Sine"),
+    STR16("Blackman"),
+    STR16("Linear"),
+    STR16("Exp"),
+};
+
+// Formant Vowel dropdown (5 vowels, stepCount = 4)
+inline constexpr int kFormantVowelCount = 5;
+
+inline const Steinberg::Vst::TChar* const kFormantVowelStrings[] = {
+    STR16("A"),
+    STR16("E"),
+    STR16("I"),
+    STR16("O"),
+    STR16("U"),
+};
+
+// Noise Color dropdown (6 colors, stepCount = 5)
+// Exposes 6 of 8 NoiseColor enum values (Velvet and RadioStatic omitted per R-006)
+inline constexpr int kNoiseColorCount = 6;
+
+inline const Steinberg::Vst::TChar* const kNoiseColorStrings[] = {
+    STR16("White"),
+    STR16("Pink"),
+    STR16("Brown"),
+    STR16("Blue"),
+    STR16("Violet"),
+    STR16("Grey"),
+};
+
 } // namespace Ruinae

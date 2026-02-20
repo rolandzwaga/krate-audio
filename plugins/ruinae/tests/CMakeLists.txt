@@ -17,6 +17,13 @@ add_executable(ruinae_tests
     # Harmonizer Parameter Tests (067-ruinae-harmonizer)
     unit/harmonizer_params_test.cpp
 
+    # Oscillator Type-Specific Parameter Tests (068-osc-type-params)
+    unit/parameters/osc_params_test.cpp
+    unit/parameters/osc_state_test.cpp
+    unit/vst/voice_osc_param_test.cpp
+    unit/vst/engine_osc_param_test.cpp
+    unit/vst/osc_ab_independence_test.cpp
+
     # Plugin Shell Tests (045-plugin-shell)
     unit/processor_bus_test.cpp
     unit/param_denorm_test.cpp

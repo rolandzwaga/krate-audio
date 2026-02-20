@@ -264,6 +264,12 @@ private:
     // Harmonizer voice row containers (for dimming based on NumVoices)
     std::array<VSTGUI::CViewContainer*, 4> harmonizerVoiceRows_{};
 
+    // PW knob visual disable (068-osc-type-params FR-016)
+    // These live inside UIViewSwitchContainer templates and are only valid
+    // when the PolyBLEP template is the active view for that oscillator.
+    VSTGUI::CView* oscAPWKnob_ = nullptr;
+    VSTGUI::CView* oscBPWKnob_ = nullptr;
+
     // Envelope expand/collapse state
     VSTGUI::CViewContainer* envGroupAmp_ = nullptr;
     VSTGUI::CViewContainer* envGroupFilter_ = nullptr;

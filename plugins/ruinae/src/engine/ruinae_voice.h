@@ -482,6 +482,20 @@ public:
         oscB_.setType(type);
     }
 
+    /// @brief Set a type-specific parameter on OSC A (068-osc-type-params FR-009).
+    ///
+    /// Forwards directly to the active oscillator slot via the OscillatorSlot
+    /// virtual interface. Unrecognized OscParam values are silently discarded
+    /// by the adapter (FR-001).
+    void setOscAParam(OscParam param, float value) noexcept {
+        oscA_.setParam(param, value);
+    }
+
+    /// @brief Set a type-specific parameter on OSC B (068-osc-type-params FR-009).
+    void setOscBParam(OscParam param, float value) noexcept {
+        oscB_.setParam(param, value);
+    }
+
     /// @brief Set OSC A phase mode (Reset or Continuous).
     void setOscAPhaseMode(PhaseMode mode) noexcept {
         oscA_.setPhaseMode(mode);

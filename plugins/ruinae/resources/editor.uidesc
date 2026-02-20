@@ -137,6 +137,37 @@
         <control-tag name="OscAFine" tag="102"/>
         <control-tag name="OscALevel" tag="103"/>
         <control-tag name="OscAPhase" tag="104"/>
+        <!-- OSC A Type-Specific (068-osc-type-params) -->
+        <control-tag name="OscAWaveform" tag="110"/>
+        <control-tag name="OscAPulseWidth" tag="111"/>
+        <control-tag name="OscAPhaseMod" tag="112"/>
+        <control-tag name="OscAFreqMod" tag="113"/>
+        <control-tag name="OscAPDWaveform" tag="114"/>
+        <control-tag name="OscAPDDistortion" tag="115"/>
+        <control-tag name="OscASyncRatio" tag="116"/>
+        <control-tag name="OscASyncWaveform" tag="117"/>
+        <control-tag name="OscASyncMode" tag="118"/>
+        <control-tag name="OscASyncAmount" tag="119"/>
+        <control-tag name="OscASyncPulseWidth" tag="120"/>
+        <control-tag name="OscAAdditivePartials" tag="121"/>
+        <control-tag name="OscAAdditiveTilt" tag="122"/>
+        <control-tag name="OscAAdditiveInharm" tag="123"/>
+        <control-tag name="OscAChaosAttractor" tag="124"/>
+        <control-tag name="OscAChaosAmount" tag="125"/>
+        <control-tag name="OscAChaosCoupling" tag="126"/>
+        <control-tag name="OscAChaosOutput" tag="127"/>
+        <control-tag name="OscAParticleScatter" tag="128"/>
+        <control-tag name="OscAParticleDensity" tag="129"/>
+        <control-tag name="OscAParticleLifetime" tag="130"/>
+        <control-tag name="OscAParticleSpawnMode" tag="131"/>
+        <control-tag name="OscAParticleEnvType" tag="132"/>
+        <control-tag name="OscAParticleDrift" tag="133"/>
+        <control-tag name="OscAFormantVowel" tag="134"/>
+        <control-tag name="OscAFormantMorph" tag="135"/>
+        <control-tag name="OscASpectralPitch" tag="136"/>
+        <control-tag name="OscASpectralTilt" tag="137"/>
+        <control-tag name="OscASpectralFormant" tag="138"/>
+        <control-tag name="OscANoiseColor" tag="139"/>
 
         <!-- OSC B -->
         <control-tag name="OscBType" tag="200"/>
@@ -144,6 +175,37 @@
         <control-tag name="OscBFine" tag="202"/>
         <control-tag name="OscBLevel" tag="203"/>
         <control-tag name="OscBPhase" tag="204"/>
+        <!-- OSC B Type-Specific (068-osc-type-params) -->
+        <control-tag name="OscBWaveform" tag="210"/>
+        <control-tag name="OscBPulseWidth" tag="211"/>
+        <control-tag name="OscBPhaseMod" tag="212"/>
+        <control-tag name="OscBFreqMod" tag="213"/>
+        <control-tag name="OscBPDWaveform" tag="214"/>
+        <control-tag name="OscBPDDistortion" tag="215"/>
+        <control-tag name="OscBSyncRatio" tag="216"/>
+        <control-tag name="OscBSyncWaveform" tag="217"/>
+        <control-tag name="OscBSyncMode" tag="218"/>
+        <control-tag name="OscBSyncAmount" tag="219"/>
+        <control-tag name="OscBSyncPulseWidth" tag="220"/>
+        <control-tag name="OscBAdditivePartials" tag="221"/>
+        <control-tag name="OscBAdditiveTilt" tag="222"/>
+        <control-tag name="OscBAdditiveInharm" tag="223"/>
+        <control-tag name="OscBChaosAttractor" tag="224"/>
+        <control-tag name="OscBChaosAmount" tag="225"/>
+        <control-tag name="OscBChaosCoupling" tag="226"/>
+        <control-tag name="OscBChaosOutput" tag="227"/>
+        <control-tag name="OscBParticleScatter" tag="228"/>
+        <control-tag name="OscBParticleDensity" tag="229"/>
+        <control-tag name="OscBParticleLifetime" tag="230"/>
+        <control-tag name="OscBParticleSpawnMode" tag="231"/>
+        <control-tag name="OscBParticleEnvType" tag="232"/>
+        <control-tag name="OscBParticleDrift" tag="233"/>
+        <control-tag name="OscBFormantVowel" tag="234"/>
+        <control-tag name="OscBFormantMorph" tag="235"/>
+        <control-tag name="OscBSpectralPitch" tag="236"/>
+        <control-tag name="OscBSpectralTilt" tag="237"/>
+        <control-tag name="OscBSpectralFormant" tag="238"/>
+        <control-tag name="OscBNoiseColor" tag="239"/>
 
         <!-- Spectral Morph (Mixer) -->
         <control-tag name="MixerMode" tag="300"/>
@@ -220,10 +282,10 @@
         <control-tag name="AmpEnvRelease" tag="703"/>
 
         <!-- Envelopes: Filter (ENV 2) -->
-        <control-tag name="FilterEnvFltAttack" tag="800"/>
+        <control-tag name="FilterEnvAttack" tag="800"/>
         <control-tag name="FilterEnvDecay" tag="801"/>
         <control-tag name="FilterEnvSustain" tag="802"/>
-        <control-tag name="FilterEnvFltRelease" tag="803"/>
+        <control-tag name="FilterEnvRelease" tag="803"/>
 
         <!-- Envelopes: Mod (ENV 3) -->
         <control-tag name="ModEnvAttack" tag="900"/>
@@ -419,281 +481,437 @@
     </control-tags>
 
     <!-- ================================================================ -->
-    <!-- OSC A Type-Specific Templates (T022)                             -->
+    <!-- OSC A Type-Specific Templates (068-osc-type-params)              -->
     <!-- ================================================================ -->
 
-    <!-- PolyBLEP: Pulse Width -->
+    <!-- PolyBLEP: Waveform dropdown, PW knob, PM knob, FM knob (4 controls) -->
     <template name="OscA_PolyBLEP" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="COptionMenu" origin="2, 7" size="52, 18"
+              control-tag="OscAWaveform" default-value="0.25"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="58, 2" size="28, 28"
+              control-tag="OscAPulseWidth" default-value="0.5"
+              custom-view-name="OscAPWKnob"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="56, 20" size="32, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="PW"/>
+              text-alignment="center" transparent="true" title="PW"/>
+        <view class="ArcKnob" origin="110, 2" size="28, 28"
+              control-tag="OscAPhaseMod" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="108, 20" size="32, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="PM"/>
+        <view class="ArcKnob" origin="160, 2" size="28, 28"
+              control-tag="OscAFreqMod" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="158, 20" size="32, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="FM"/>
     </template>
 
-    <!-- Wavetable: Position, Frame -->
+    <!-- Wavetable: PM knob, FM knob (2 controls, shared IDs with PolyBLEP) -->
     <template name="OscA_Wavetable" size="212, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              control-tag="OscAPhaseMod" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="8, 20" size="32, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Pos"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="PM"/>
+        <view class="ArcKnob" origin="60, 2" size="28, 28"
+              control-tag="OscAFreqMod" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="58, 20" size="32, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Frame"/>
+              text-alignment="center" transparent="true" title="FM"/>
     </template>
 
-    <!-- PhaseDist: Amount, Symmetry -->
+    <!-- Phase Distortion: PD Waveform dropdown, Distortion knob (2 controls) -->
     <template name="OscA_PhaseDist" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="COptionMenu" origin="2, 7" size="60, 18"
+              control-tag="OscAPDWaveform" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="70, 2" size="28, 28"
+              control-tag="OscAPDDistortion" default-value="0.0"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="64, 20" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Amt"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
-              font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Sym"/>
+              text-alignment="center" transparent="true" title="DCW"/>
     </template>
 
-    <!-- Sync: Ratio, Shape -->
+    <!-- Sync: Ratio knob, Waveform dropdown, Mode dropdown, Amount knob, PW knob (5 controls) -->
     <template name="OscA_Sync" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="ArcKnob" origin="0, 2" size="28, 28"
+              control-tag="OscASyncRatio" default-value="0.143"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 20" size="28, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Ratio"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="Rat"/>
+        <view class="COptionMenu" origin="30, 7" size="40, 18"
+              control-tag="OscASyncWaveform" default-value="0.25"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="COptionMenu" origin="74, 7" size="40, 18"
+              control-tag="OscASyncMode" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="118, 2" size="28, 28"
+              control-tag="OscASyncAmount" default-value="1.0"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="116, 20" size="32, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Shape"/>
+              text-alignment="center" transparent="true" title="Amt"/>
+        <view class="ArcKnob" origin="160, 2" size="28, 28"
+              control-tag="OscASyncPulseWidth" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="158, 20" size="32, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="PW"/>
     </template>
 
-    <!-- Additive: Harmonics, Rolloff -->
+    <!-- Additive: Partials knob, Tilt knob, Inharm knob (3 controls) -->
     <template name="OscA_Additive" size="212, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              control-tag="OscAAdditivePartials" default-value="0.118"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="4, 20" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Harm"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="Parts"/>
+        <view class="ArcKnob" origin="60, 2" size="28, 28"
+              control-tag="OscAAdditiveTilt" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="56, 20" size="36, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Roll"/>
+              text-alignment="center" transparent="true" title="Tilt"/>
+        <view class="ArcKnob" origin="110, 2" size="28, 28"
+              control-tag="OscAAdditiveInharm" default-value="0.0"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="104, 20" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Inhm"/>
     </template>
 
-    <!-- Chaos: Complexity, Feedback -->
+    <!-- Chaos: Attractor dropdown, Amount knob, Coupling knob, Output dropdown (4 controls) -->
     <template name="OscA_Chaos" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="COptionMenu" origin="2, 7" size="52, 18"
+              control-tag="OscAChaosAttractor" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="58, 2" size="28, 28"
+              control-tag="OscAChaosAmount" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="54, 20" size="36, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Cmplx"/>
+              text-alignment="center" transparent="true" title="Amt"/>
         <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              control-tag="OscAChaosCoupling" default-value="0.0"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="96, 20" size="36, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Fdbk"/>
+              text-alignment="center" transparent="true" title="Cpl"/>
+        <view class="COptionMenu" origin="142, 7" size="36, 18"
+              control-tag="OscAChaosOutput" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
     </template>
 
-    <!-- Particle: Density, Spread -->
+    <!-- Particle: Scatter, Density, Lifetime knobs + SpawnMode, EnvType dropdowns + Drift knob (6 controls) -->
     <template name="OscA_Particle" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="ArcKnob" origin="0, 2" size="24, 24"
+              control-tag="OscAParticleScatter" default-value="0.25"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 20" size="24, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Dens"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="Sct"/>
+        <view class="ArcKnob" origin="28, 2" size="24, 24"
+              control-tag="OscAParticleDensity" default-value="0.238"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="26, 20" size="28, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Sprd"/>
+              text-alignment="center" transparent="true" title="Den"/>
+        <view class="ArcKnob" origin="56, 2" size="24, 24"
+              control-tag="OscAParticleLifetime" default-value="0.0977"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="54, 20" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Life"/>
+        <view class="COptionMenu" origin="84, 7" size="36, 18"
+              control-tag="OscAParticleSpawnMode" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="COptionMenu" origin="124, 7" size="36, 18"
+              control-tag="OscAParticleEnvType" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="164, 2" size="24, 24"
+              control-tag="OscAParticleDrift" default-value="0.0"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="162, 20" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drft"/>
     </template>
 
-    <!-- Formant: Vowel, Resonance -->
+    <!-- Formant: Vowel dropdown, Morph knob (2 controls) -->
     <template name="OscA_Formant" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="COptionMenu" origin="2, 7" size="44, 18"
+              control-tag="OscAFormantVowel" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="54, 2" size="28, 28"
+              control-tag="OscAFormantMorph" default-value="0.0"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="48, 20" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Vowel"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
-              font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Reso"/>
+              text-alignment="center" transparent="true" title="Morph"/>
     </template>
 
-    <!-- SpectralFreeze: FreezeAmt, Blur -->
+    <!-- Spectral Freeze: Pitch knob, Tilt knob, Formant knob (3 controls) -->
     <template name="OscA_SpectralFreeze" size="212, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              control-tag="OscASpectralPitch" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="4, 20" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Frz"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="Pitch"/>
+        <view class="ArcKnob" origin="60, 2" size="28, 28"
+              control-tag="OscASpectralTilt" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="56, 20" size="36, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Blur"/>
+              text-alignment="center" transparent="true" title="Tilt"/>
+        <view class="ArcKnob" origin="110, 2" size="28, 28"
+              control-tag="OscASpectralFormant" default-value="0.5"
+              arc-color="osc-a" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="104, 20" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Fmt"/>
     </template>
 
-    <!-- Noise: Color, Bandwidth -->
+    <!-- Noise: Color dropdown (1 control) -->
     <template name="OscA_Noise" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
-              font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Color"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-a" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
-              font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="BW"/>
+        <view class="COptionMenu" origin="2, 7" size="60, 18"
+              control-tag="OscANoiseColor" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
     </template>
 
     <!-- ================================================================ -->
-    <!-- OSC B Type-Specific Templates (T023)                             -->
+    <!-- OSC B Type-Specific Templates (068-osc-type-params)              -->
     <!-- ================================================================ -->
 
-    <!-- PolyBLEP: Pulse Width -->
+    <!-- PolyBLEP: Waveform dropdown, PW knob, PM knob, FM knob (4 controls) -->
     <template name="OscB_PolyBLEP" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="COptionMenu" origin="2, 7" size="52, 18"
+              control-tag="OscBWaveform" default-value="0.25"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="58, 2" size="28, 28"
+              control-tag="OscBPulseWidth" default-value="0.5"
+              custom-view-name="OscBPWKnob"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="56, 20" size="32, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="PW"/>
+              text-alignment="center" transparent="true" title="PW"/>
+        <view class="ArcKnob" origin="110, 2" size="28, 28"
+              control-tag="OscBPhaseMod" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="108, 20" size="32, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="PM"/>
+        <view class="ArcKnob" origin="160, 2" size="28, 28"
+              control-tag="OscBFreqMod" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="158, 20" size="32, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="FM"/>
     </template>
 
-    <!-- Wavetable: Position, Frame -->
+    <!-- Wavetable: PM knob, FM knob (2 controls, shared IDs with PolyBLEP) -->
     <template name="OscB_Wavetable" size="212, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              control-tag="OscBPhaseMod" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="8, 20" size="32, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Pos"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="PM"/>
+        <view class="ArcKnob" origin="60, 2" size="28, 28"
+              control-tag="OscBFreqMod" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="58, 20" size="32, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Frame"/>
+              text-alignment="center" transparent="true" title="FM"/>
     </template>
 
-    <!-- PhaseDist: Amount, Symmetry -->
+    <!-- Phase Distortion: PD Waveform dropdown, Distortion knob (2 controls) -->
     <template name="OscB_PhaseDist" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="COptionMenu" origin="2, 7" size="60, 18"
+              control-tag="OscBPDWaveform" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="70, 2" size="28, 28"
+              control-tag="OscBPDDistortion" default-value="0.0"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="64, 20" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Amt"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
-              font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Sym"/>
+              text-alignment="center" transparent="true" title="DCW"/>
     </template>
 
-    <!-- Sync: Ratio, Shape -->
+    <!-- Sync: Ratio knob, Waveform dropdown, Mode dropdown, Amount knob, PW knob (5 controls) -->
     <template name="OscB_Sync" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="ArcKnob" origin="0, 2" size="28, 28"
+              control-tag="OscBSyncRatio" default-value="0.143"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 20" size="28, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Ratio"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="Rat"/>
+        <view class="COptionMenu" origin="30, 7" size="40, 18"
+              control-tag="OscBSyncWaveform" default-value="0.25"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="COptionMenu" origin="74, 7" size="40, 18"
+              control-tag="OscBSyncMode" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="118, 2" size="28, 28"
+              control-tag="OscBSyncAmount" default-value="1.0"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="116, 20" size="32, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Shape"/>
+              text-alignment="center" transparent="true" title="Amt"/>
+        <view class="ArcKnob" origin="160, 2" size="28, 28"
+              control-tag="OscBSyncPulseWidth" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="158, 20" size="32, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="PW"/>
     </template>
 
-    <!-- Additive: Harmonics, Rolloff -->
+    <!-- Additive: Partials knob, Tilt knob, Inharm knob (3 controls) -->
     <template name="OscB_Additive" size="212, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              control-tag="OscBAdditivePartials" default-value="0.118"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="4, 20" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Harm"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="Parts"/>
+        <view class="ArcKnob" origin="60, 2" size="28, 28"
+              control-tag="OscBAdditiveTilt" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="56, 20" size="36, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Roll"/>
+              text-alignment="center" transparent="true" title="Tilt"/>
+        <view class="ArcKnob" origin="110, 2" size="28, 28"
+              control-tag="OscBAdditiveInharm" default-value="0.0"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="104, 20" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Inhm"/>
     </template>
 
-    <!-- Chaos: Complexity, Feedback -->
+    <!-- Chaos: Attractor dropdown, Amount knob, Coupling knob, Output dropdown (4 controls) -->
     <template name="OscB_Chaos" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="COptionMenu" origin="2, 7" size="52, 18"
+              control-tag="OscBChaosAttractor" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="58, 2" size="28, 28"
+              control-tag="OscBChaosAmount" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="54, 20" size="36, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Cmplx"/>
+              text-alignment="center" transparent="true" title="Amt"/>
         <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              control-tag="OscBChaosCoupling" default-value="0.0"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="96, 20" size="36, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Fdbk"/>
+              text-alignment="center" transparent="true" title="Cpl"/>
+        <view class="COptionMenu" origin="142, 7" size="36, 18"
+              control-tag="OscBChaosOutput" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
     </template>
 
-    <!-- Particle: Density, Spread -->
+    <!-- Particle: Scatter, Density, Lifetime knobs + SpawnMode, EnvType dropdowns + Drift knob (6 controls) -->
     <template name="OscB_Particle" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="ArcKnob" origin="0, 2" size="24, 24"
+              control-tag="OscBParticleScatter" default-value="0.25"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 20" size="24, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Dens"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="Sct"/>
+        <view class="ArcKnob" origin="28, 2" size="24, 24"
+              control-tag="OscBParticleDensity" default-value="0.238"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="26, 20" size="28, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Sprd"/>
+              text-alignment="center" transparent="true" title="Den"/>
+        <view class="ArcKnob" origin="56, 2" size="24, 24"
+              control-tag="OscBParticleLifetime" default-value="0.0977"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="54, 20" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Life"/>
+        <view class="COptionMenu" origin="84, 7" size="36, 18"
+              control-tag="OscBParticleSpawnMode" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="COptionMenu" origin="124, 7" size="36, 18"
+              control-tag="OscBParticleEnvType" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="164, 2" size="24, 24"
+              control-tag="OscBParticleDrift" default-value="0.0"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="162, 20" size="28, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Drft"/>
     </template>
 
-    <!-- Formant: Vowel, Resonance -->
+    <!-- Formant: Vowel dropdown, Morph knob (2 controls) -->
     <template name="OscB_Formant" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+        <view class="COptionMenu" origin="2, 7" size="44, 18"
+              control-tag="OscBFormantVowel" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="ArcKnob" origin="54, 2" size="28, 28"
+              control-tag="OscBFormantMorph" default-value="0.0"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="48, 20" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Vowel"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
-              font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Reso"/>
+              text-alignment="center" transparent="true" title="Morph"/>
     </template>
 
-    <!-- SpectralFreeze: FreezeAmt, Blur -->
+    <!-- Spectral Freeze: Pitch knob, Tilt knob, Formant knob (3 controls) -->
     <template name="OscB_SpectralFreeze" size="212, 32" class="CViewContainer" transparent="true">
         <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
+              control-tag="OscBSpectralPitch" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="4, 20" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Frz"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
+              text-alignment="center" transparent="true" title="Pitch"/>
+        <view class="ArcKnob" origin="60, 2" size="28, 28"
+              control-tag="OscBSpectralTilt" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="56, 20" size="36, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Blur"/>
+              text-alignment="center" transparent="true" title="Tilt"/>
+        <view class="ArcKnob" origin="110, 2" size="28, 28"
+              control-tag="OscBSpectralFormant" default-value="0.5"
+              arc-color="osc-b" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="104, 20" size="40, 10"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Fmt"/>
     </template>
 
-    <!-- Noise: Color, Bandwidth -->
+    <!-- Noise: Color dropdown (1 control) -->
     <template name="OscB_Noise" size="212, 32" class="CViewContainer" transparent="true">
-        <view class="ArcKnob" origin="10, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="40, 8" size="52, 12"
-              font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Color"/>
-        <view class="ArcKnob" origin="100, 2" size="28, 28"
-              default-value="0.5" arc-color="osc-b" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="130, 8" size="52, 12"
-              font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="BW"/>
+        <view class="COptionMenu" origin="2, 7" size="60, 18"
+              control-tag="OscBNoiseColor" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
     </template>
 
     <!-- ================================================================ -->
@@ -2398,7 +2616,7 @@
                       text-alignment="center" transparent="true"
                       text-rotation="270" title="FILTER"/>
                 <view class="ADSRDisplay" origin="16, 0" size="154, 120"
-                      control-tag="FilterEnvFltAttack"
+                      control-tag="FilterEnvAttack"
                       fill-color="filter-env-fill" stroke-color="filter-env"
                       control-point-color="filter-env"
                       background-color="bg-display" grid-color="grid"
