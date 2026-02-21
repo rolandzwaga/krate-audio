@@ -811,10 +811,121 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpSwingId = 3008,            // 0-75% continuous
     kArpLatchModeId = 3009,        // 3-entry list: Off/Hold/Add
     kArpRetriggerId = 3010,        // 3-entry list: Off/Note/Beat
-    kArpEndId = 3099,
+    // 3011-3019: reserved for future base arp params
+
+    // --- Velocity Lane (3020-3052) ---
+    kArpVelocityLaneLengthId = 3020, // discrete: 1-32
+    kArpVelocityLaneStep0Id  = 3021, // continuous: 0.0-1.0
+    kArpVelocityLaneStep1Id  = 3022,
+    kArpVelocityLaneStep2Id  = 3023,
+    kArpVelocityLaneStep3Id  = 3024,
+    kArpVelocityLaneStep4Id  = 3025,
+    kArpVelocityLaneStep5Id  = 3026,
+    kArpVelocityLaneStep6Id  = 3027,
+    kArpVelocityLaneStep7Id  = 3028,
+    kArpVelocityLaneStep8Id  = 3029,
+    kArpVelocityLaneStep9Id  = 3030,
+    kArpVelocityLaneStep10Id = 3031,
+    kArpVelocityLaneStep11Id = 3032,
+    kArpVelocityLaneStep12Id = 3033,
+    kArpVelocityLaneStep13Id = 3034,
+    kArpVelocityLaneStep14Id = 3035,
+    kArpVelocityLaneStep15Id = 3036,
+    kArpVelocityLaneStep16Id = 3037,
+    kArpVelocityLaneStep17Id = 3038,
+    kArpVelocityLaneStep18Id = 3039,
+    kArpVelocityLaneStep19Id = 3040,
+    kArpVelocityLaneStep20Id = 3041,
+    kArpVelocityLaneStep21Id = 3042,
+    kArpVelocityLaneStep22Id = 3043,
+    kArpVelocityLaneStep23Id = 3044,
+    kArpVelocityLaneStep24Id = 3045,
+    kArpVelocityLaneStep25Id = 3046,
+    kArpVelocityLaneStep26Id = 3047,
+    kArpVelocityLaneStep27Id = 3048,
+    kArpVelocityLaneStep28Id = 3049,
+    kArpVelocityLaneStep29Id = 3050,
+    kArpVelocityLaneStep30Id = 3051,
+    kArpVelocityLaneStep31Id = 3052,
+    // 3053-3059: reserved for velocity lane metadata
+
+    // --- Gate Lane (3060-3092) ---
+    kArpGateLaneLengthId = 3060,     // discrete: 1-32
+    kArpGateLaneStep0Id  = 3061,     // continuous: 0.01-2.0
+    kArpGateLaneStep1Id  = 3062,
+    kArpGateLaneStep2Id  = 3063,
+    kArpGateLaneStep3Id  = 3064,
+    kArpGateLaneStep4Id  = 3065,
+    kArpGateLaneStep5Id  = 3066,
+    kArpGateLaneStep6Id  = 3067,
+    kArpGateLaneStep7Id  = 3068,
+    kArpGateLaneStep8Id  = 3069,
+    kArpGateLaneStep9Id  = 3070,
+    kArpGateLaneStep10Id = 3071,
+    kArpGateLaneStep11Id = 3072,
+    kArpGateLaneStep12Id = 3073,
+    kArpGateLaneStep13Id = 3074,
+    kArpGateLaneStep14Id = 3075,
+    kArpGateLaneStep15Id = 3076,
+    kArpGateLaneStep16Id = 3077,
+    kArpGateLaneStep17Id = 3078,
+    kArpGateLaneStep18Id = 3079,
+    kArpGateLaneStep19Id = 3080,
+    kArpGateLaneStep20Id = 3081,
+    kArpGateLaneStep21Id = 3082,
+    kArpGateLaneStep22Id = 3083,
+    kArpGateLaneStep23Id = 3084,
+    kArpGateLaneStep24Id = 3085,
+    kArpGateLaneStep25Id = 3086,
+    kArpGateLaneStep26Id = 3087,
+    kArpGateLaneStep27Id = 3088,
+    kArpGateLaneStep28Id = 3089,
+    kArpGateLaneStep29Id = 3090,
+    kArpGateLaneStep30Id = 3091,
+    kArpGateLaneStep31Id = 3092,
+    // 3093-3099: reserved for gate lane metadata
+
+    // --- Pitch Lane (3100-3132) ---
+    // NOTE: 3100 was formerly kNumParameters; sentinel is now 3200
+    kArpPitchLaneLengthId = 3100,    // discrete: 1-32
+    kArpPitchLaneStep0Id  = 3101,    // discrete: -24 to +24
+    kArpPitchLaneStep1Id  = 3102,
+    kArpPitchLaneStep2Id  = 3103,
+    kArpPitchLaneStep3Id  = 3104,
+    kArpPitchLaneStep4Id  = 3105,
+    kArpPitchLaneStep5Id  = 3106,
+    kArpPitchLaneStep6Id  = 3107,
+    kArpPitchLaneStep7Id  = 3108,
+    kArpPitchLaneStep8Id  = 3109,
+    kArpPitchLaneStep9Id  = 3110,
+    kArpPitchLaneStep10Id = 3111,
+    kArpPitchLaneStep11Id = 3112,
+    kArpPitchLaneStep12Id = 3113,
+    kArpPitchLaneStep13Id = 3114,
+    kArpPitchLaneStep14Id = 3115,
+    kArpPitchLaneStep15Id = 3116,
+    kArpPitchLaneStep16Id = 3117,
+    kArpPitchLaneStep17Id = 3118,
+    kArpPitchLaneStep18Id = 3119,
+    kArpPitchLaneStep19Id = 3120,
+    kArpPitchLaneStep20Id = 3121,
+    kArpPitchLaneStep21Id = 3122,
+    kArpPitchLaneStep22Id = 3123,
+    kArpPitchLaneStep23Id = 3124,
+    kArpPitchLaneStep24Id = 3125,
+    kArpPitchLaneStep25Id = 3126,
+    kArpPitchLaneStep26Id = 3127,
+    kArpPitchLaneStep27Id = 3128,
+    kArpPitchLaneStep28Id = 3129,
+    kArpPitchLaneStep29Id = 3130,
+    kArpPitchLaneStep30Id = 3131,
+    kArpPitchLaneStep31Id = 3132,
+    // 3133-3199: reserved for future phases 5-8
+
+    kArpEndId = 3199,
 
     // ==========================================================================
-    kNumParameters = 3100,
+    kNumParameters = 3200,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

@@ -99,6 +99,7 @@ add_executable(dsp_tests
     unit/primitives/noise_oscillator_test.cpp
     unit/primitives/spectral_transient_detector_test.cpp
     unit/primitives/held_note_buffer_test.cpp
+    unit/primitives/arp_lane_test.cpp
 
     # Layer 2: Processors
     unit/processors/multimode_filter_test.cpp
