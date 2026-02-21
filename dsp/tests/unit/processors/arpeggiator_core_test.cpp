@@ -4652,3 +4652,361 @@ TEST_CASE("ArpeggiatorCore: Polymetric_VelGatePitch_LCM105",
     }
     CHECK_FALSE(foundEarlyRepeat);
 }
+
+// =============================================================================
+// Phase 6: User Story 4 -- Polymetric Pattern Discovery (072-independent-lanes)
+// =============================================================================
+
+// T054: Polymetric characterization tests
+
+TEST_CASE("ArpeggiatorCore: Polymetric_CoprimeLengths_NoEarlyRepeat",
+          "[processors][arpeggiator_core]") {
+    // SC-001: vel=3, gate=5, pitch=7 (all coprime), LCM=105.
+    // Collect [velocity, note, gateOffset] triples for 105 steps.
+    // Confirm no step j in [1..104] equals step 0.
+    // Uses different step values than Polymetric_VelGatePitch_LCM105 to provide
+    // additional coverage with a distinct value set.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(75.0f);
+    arp.noteOn(64, 100);
+
+    // Velocity lane: length=3, steps=[0.9, 0.4, 0.7]
+    arp.velocityLane().setLength(3);
+    arp.velocityLane().setStep(0, 0.9f);
+    arp.velocityLane().setStep(1, 0.4f);
+    arp.velocityLane().setStep(2, 0.7f);
+
+    // Gate lane: length=5, steps=[0.6, 1.1, 0.3, 1.8, 0.9]
+    arp.gateLane().setLength(5);
+    arp.gateLane().setStep(0, 0.6f);
+    arp.gateLane().setStep(1, 1.1f);
+    arp.gateLane().setStep(2, 0.3f);
+    arp.gateLane().setStep(3, 1.8f);
+    arp.gateLane().setStep(4, 0.9f);
+
+    // Pitch lane: length=7, steps=[0, 2, -3, 5, -7, 11, -1]
+    arp.pitchLane().setLength(7);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 2);
+    arp.pitchLane().setStep(2, -3);
+    arp.pitchLane().setStep(3, 5);
+    arp.pitchLane().setStep(4, -7);
+    arp.pitchLane().setStep(5, 11);
+    arp.pitchLane().setStep(6, -1);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Collect at least 105 steps
+    auto events = collectEvents(arp, ctx, 60000);
+    auto noteOns = filterNoteOns(events);
+    auto noteOffs = filterNoteOffs(events);
+
+    REQUIRE(noteOns.size() >= 105);
+    REQUIRE(noteOffs.size() >= 105);
+
+    // Extract triple at step 0
+    uint8_t vel0 = noteOns[0].velocity;
+    uint8_t note0 = noteOns[0].note;
+    int32_t gate0 = noteOffs[0].sampleOffset - noteOns[0].sampleOffset;
+
+    // Verify no step j in [1..104] has the same triple as step 0
+    bool foundEarlyRepeat = false;
+    size_t earlyRepeatStep = 0;
+    for (size_t j = 1; j < 105; ++j) {
+        int32_t gateJ = noteOffs[j].sampleOffset - noteOns[j].sampleOffset;
+        if (noteOns[j].velocity == vel0 && noteOns[j].note == note0 &&
+            gateJ == gate0) {
+            foundEarlyRepeat = true;
+            earlyRepeatStep = j;
+            break;
+        }
+    }
+    INFO("Early repeat found at step " << earlyRepeatStep
+         << " (vel=" << static_cast<int>(vel0)
+         << ", note=" << static_cast<int>(note0)
+         << ", gate=" << gate0 << ")");
+    CHECK_FALSE(foundEarlyRepeat);
+}
+
+TEST_CASE("ArpeggiatorCore: Polymetric_CoprimeLengths_RepeatAtLCM",
+          "[processors][arpeggiator_core]") {
+    // Same coprime lengths (3,5,7) => LCM=105.
+    // Verify triple at step 105 equals triple at step 0 (full cycle restores).
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(75.0f);
+    arp.noteOn(64, 100);
+
+    // Velocity lane: length=3, steps=[0.9, 0.4, 0.7]
+    arp.velocityLane().setLength(3);
+    arp.velocityLane().setStep(0, 0.9f);
+    arp.velocityLane().setStep(1, 0.4f);
+    arp.velocityLane().setStep(2, 0.7f);
+
+    // Gate lane: length=5, steps=[0.6, 1.1, 0.3, 1.8, 0.9]
+    arp.gateLane().setLength(5);
+    arp.gateLane().setStep(0, 0.6f);
+    arp.gateLane().setStep(1, 1.1f);
+    arp.gateLane().setStep(2, 0.3f);
+    arp.gateLane().setStep(3, 1.8f);
+    arp.gateLane().setStep(4, 0.9f);
+
+    // Pitch lane: length=7, steps=[0, 2, -3, 5, -7, 11, -1]
+    arp.pitchLane().setLength(7);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 2);
+    arp.pitchLane().setStep(2, -3);
+    arp.pitchLane().setStep(3, 5);
+    arp.pitchLane().setStep(4, -7);
+    arp.pitchLane().setStep(5, 11);
+    arp.pitchLane().setStep(6, -1);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Collect at least 106 steps (need step 105 which is index 105)
+    auto events = collectEvents(arp, ctx, 60000);
+    auto noteOns = filterNoteOns(events);
+    auto noteOffs = filterNoteOffs(events);
+
+    REQUIRE(noteOns.size() >= 106);
+    REQUIRE(noteOffs.size() >= 106);
+
+    // Step 105 should equal step 0 (LCM cycle complete)
+    int32_t gate0 = noteOffs[0].sampleOffset - noteOns[0].sampleOffset;
+    int32_t gate105 = noteOffs[105].sampleOffset - noteOns[105].sampleOffset;
+
+    CHECK(noteOns[105].velocity == noteOns[0].velocity);
+    CHECK(noteOns[105].note == noteOns[0].note);
+    CHECK(gate105 == gate0);
+}
+
+TEST_CASE("ArpeggiatorCore: Polymetric_AllLength1_ConstantBehavior",
+          "[processors][arpeggiator_core]") {
+    // US4 acceptance scenario 2 / SC-001 degenerate case:
+    // All lanes length=1 with values [0.7, 1.3, +5]; 20 steps; every step
+    // produces the same triple.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.noteOn(60, 100);
+
+    // All lanes length=1
+    arp.velocityLane().setLength(1);
+    arp.velocityLane().setStep(0, 0.7f);
+
+    arp.gateLane().setLength(1);
+    arp.gateLane().setStep(0, 1.3f);
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 5);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 3000);
+    auto noteOns = filterNoteOns(events);
+    auto noteOffs = filterNoteOffs(events);
+
+    REQUIRE(noteOns.size() >= 20);
+    REQUIRE(noteOffs.size() >= 20);
+
+    // Every step should produce the same velocity, note, and gate duration
+    uint8_t expectedVel = noteOns[0].velocity;
+    uint8_t expectedNote = noteOns[0].note;
+    int32_t expectedGate = noteOffs[0].sampleOffset - noteOns[0].sampleOffset;
+
+    // Verify expected values make sense: vel = round(100 * 0.7) = 70, note = 60+5 = 65
+    CHECK(expectedVel == 70);
+    CHECK(expectedNote == 65);
+
+    for (size_t i = 1; i < 20; ++i) {
+        int32_t gateI = noteOffs[i].sampleOffset - noteOns[i].sampleOffset;
+        INFO("Step " << i << ": vel=" << static_cast<int>(noteOns[i].velocity)
+             << " note=" << static_cast<int>(noteOns[i].note)
+             << " gate=" << gateI);
+        CHECK(noteOns[i].velocity == expectedVel);
+        CHECK(noteOns[i].note == expectedNote);
+        CHECK(gateI == expectedGate);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: Polymetric_AllSameLengthN_Lockstep",
+          "[processors][arpeggiator_core]") {
+    // US4 acceptance scenario 3: vel=gate=pitch=4; 8 steps;
+    // step 4 triple == step 0 triple, step 5 triple == step 1 triple.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.noteOn(60, 100);
+
+    // All lanes length=4 with distinct values
+    arp.velocityLane().setLength(4);
+    arp.velocityLane().setStep(0, 1.0f);
+    arp.velocityLane().setStep(1, 0.5f);
+    arp.velocityLane().setStep(2, 0.3f);
+    arp.velocityLane().setStep(3, 0.8f);
+
+    arp.gateLane().setLength(4);
+    arp.gateLane().setStep(0, 0.5f);
+    arp.gateLane().setStep(1, 1.0f);
+    arp.gateLane().setStep(2, 1.5f);
+    arp.gateLane().setStep(3, 0.7f);
+
+    arp.pitchLane().setLength(4);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 3);
+    arp.pitchLane().setStep(2, 7);
+    arp.pitchLane().setStep(3, -2);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 3000);
+    auto noteOns = filterNoteOns(events);
+    auto noteOffs = filterNoteOffs(events);
+
+    REQUIRE(noteOns.size() >= 8);
+    REQUIRE(noteOffs.size() >= 8);
+
+    // Since all lanes have length 4, the combined pattern repeats every 4 steps.
+    // Step 4 == step 0, step 5 == step 1, step 6 == step 2, step 7 == step 3.
+    for (size_t i = 0; i < 4; ++i) {
+        int32_t gateI = noteOffs[i].sampleOffset - noteOns[i].sampleOffset;
+        int32_t gateI4 = noteOffs[i + 4].sampleOffset - noteOns[i + 4].sampleOffset;
+        INFO("Step " << i << " vs Step " << (i + 4));
+        CHECK(noteOns[i].velocity == noteOns[i + 4].velocity);
+        CHECK(noteOns[i].note == noteOns[i + 4].note);
+        CHECK(gateI == gateI4);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: Polymetric_LanePause_WhenHeldBufferEmpty",
+          "[processors][arpeggiator_core]") {
+    // FR-022: When held note buffer becomes empty (Latch Off, key release),
+    // lanes PAUSE at their current position (do NOT reset to step 0).
+    // When new notes are held, lanes resume from where they left off.
+    //
+    // Strategy: Use a large block size to control exactly how many arp steps
+    // fire. At 120 BPM, eighth note = 11025 samples. With blockSize=11025,
+    // exactly 1 step fires per block (the step boundary aligns with the
+    // block boundary, so each processBlock fires exactly one step).
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 11025);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setLatchMode(LatchMode::Off);
+
+    // Set up velocity lane with 4 distinct values
+    arp.velocityLane().setLength(4);
+    arp.velocityLane().setStep(0, 1.0f);
+    arp.velocityLane().setStep(1, 0.5f);
+    arp.velocityLane().setStep(2, 0.3f);
+    arp.velocityLane().setStep(3, 0.8f);
+
+    // Set up pitch lane with 4 distinct values
+    arp.pitchLane().setLength(4);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 3);
+    arp.pitchLane().setStep(2, 7);
+    arp.pitchLane().setStep(3, -2);
+
+    // Hold a note
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 11025;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Fire 2 arp steps. At 120 BPM, eighth note = 11025 samples.
+    // Block 1 fires step 0 at offset 0, block 2 fires step 1 at offset 0
+    // (step boundary aligns with block), block 3 captures any events.
+    auto events1 = collectEvents(arp, ctx, 3);
+    auto noteOns1 = filterNoteOns(events1);
+    REQUIRE(noteOns1.size() >= 2);
+    size_t stepsFired = noteOns1.size();
+
+    // Step 0: vel=1.0 -> velocity=100, pitch=0 -> note=60
+    // Step 1: vel=0.5 -> velocity=50, pitch=3 -> note=63
+    CHECK(noteOns1[0].velocity == 100);
+    CHECK(noteOns1[0].note == 60);
+    CHECK(noteOns1[1].velocity == 50);
+    CHECK(noteOns1[1].note == 63);
+
+    // After firing stepsFired steps, lanes have advanced stepsFired positions.
+    // Lane position = stepsFired % laneLength.
+    size_t expectedPos = stepsFired % 4;
+
+    // Now release the note -- heldNotes becomes empty, lanes should pause
+    arp.noteOff(60);
+
+    // Process many blocks with empty held buffer -- lanes should not advance
+    auto events2 = collectEvents(arp, ctx, 100);
+    auto noteOns2 = filterNoteOns(events2);
+
+    // No NoteOn events should be generated (no held notes)
+    CHECK(noteOns2.empty());
+
+    // Verify lanes are still at the position where they paused (not reset to 0)
+    CHECK(arp.velocityLane().currentStep() == expectedPos);
+    CHECK(arp.pitchLane().currentStep() == expectedPos);
+
+    // Now press a new note -- lanes should resume from where they left off
+    arp.noteOn(60, 100);
+
+    auto events3 = collectEvents(arp, ctx, 2);
+    auto noteOns3 = filterNoteOns(events3);
+    REQUIRE(noteOns3.size() >= 1);
+
+    // The expected velocity and pitch values at the resumed position
+    std::array<float, 4> velSteps = {1.0f, 0.5f, 0.3f, 0.8f};
+    std::array<int8_t, 4> pitchSteps = {0, 3, 7, -2};
+
+    // First note after resume should use lane value at expectedPos
+    uint8_t expectedVel = static_cast<uint8_t>(
+        std::clamp(static_cast<int>(std::round(100.0f * velSteps[expectedPos])), 1, 127));
+    uint8_t expectedNote = static_cast<uint8_t>(
+        std::clamp(60 + static_cast<int>(pitchSteps[expectedPos]), 0, 127));
+
+    INFO("Resumed at lane position " << expectedPos
+         << ": expected vel=" << static_cast<int>(expectedVel)
+         << " note=" << static_cast<int>(expectedNote));
+    CHECK(noteOns3[0].velocity == expectedVel);
+    CHECK(noteOns3[0].note == expectedNote);
+
+    // Verify the lane did NOT reset to step 0 by confirming the resumed
+    // value differs from step 0 (which would be vel=100, note=60)
+    if (expectedPos != 0) {
+        CHECK((noteOns3[0].velocity != 100 || noteOns3[0].note != 60));
+    }
+}

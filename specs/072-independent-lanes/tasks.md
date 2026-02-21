@@ -345,22 +345,22 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins. These tests exercise already-implemented code -- they may not fail to compile, but should fail due to incorrect polymetric behavior if any lane counter is accidentally shared.
 
-- [ ] T054 [P] Write polymetric characterization tests in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
+- [X] T054 [P] Write polymetric characterization tests in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
   - **Test: Polymetric_CoprimeLengths_NoEarlyRepeat** -- vel=3, gate=5, pitch=7; collect [velScale, gateScale, pitchOffset] triples for 105 steps; confirm no triple at step j (1..104) equals triple at step 0 (SC-001 no-early-repeat condition)
   - **Test: Polymetric_CoprimeLengths_RepeatAtLCM** -- same setup; triple at step 105 equals triple at step 0 (full cycle restores)
   - **Test: Polymetric_AllLength1_ConstantBehavior** -- all lanes length=1 with values [0.7, 1.3, +5]; run 20 steps; every step produces same triple (SC-001 degenerate case, US4 acceptance scenario 2)
   - **Test: Polymetric_AllSameLengthN_Lockstep** -- vel=gate=pitch=4; run 8 steps; verify step 4 triple == step 0 triple, step 5 triple == step 1 triple (US4 acceptance scenario 3)
   - **Test: Polymetric_LanePause_WhenHeldBufferEmpty** -- advance all lanes 2 steps, trigger "no held notes" condition, trigger "new held notes", verify lanes resume from step 2 (not step 0) per FR-022 edge case
-- [ ] T055 Confirm T054 tests FAIL or expose any implementation bugs: build and run
+- [X] T055 Confirm T054 tests FAIL or expose any implementation bugs: build and run
 
 ### 6.2 Fix Any Polymetric Bugs Found
 
-- [ ] T056 [US4] If T055 reveals any bugs (e.g., lanes accidentally sharing a counter, lane not pausing correctly), fix the bug in `dsp/include/krate/dsp/processors/arpeggiator_core.h`, re-run tests, confirm all pass
-- [ ] T057 [US4] Build `dsp_tests` and verify ALL polymetric tests pass: `dsp_tests.exe "[processors][arpeggiator_core]"`
+- [X] T056 [US4] If T055 reveals any bugs (e.g., lanes accidentally sharing a counter, lane not pausing correctly), fix the bug in `dsp/include/krate/dsp/processors/arpeggiator_core.h`, re-run tests, confirm all pass
+- [X] T057 [US4] Build `dsp_tests` and verify ALL polymetric tests pass: `dsp_tests.exe "[processors][arpeggiator_core]"`
 
 ### 6.3 Cross-Platform Verification
 
-- [ ] T058 [US4] Verify IEEE 754 compliance: polymetric tests use integer comparisons for note/velocity values; confirm no floating-point equality comparison issues -- gate scale comparisons should use `Approx().margin()` if comparing float step values directly
+- [X] T058 [US4] Verify IEEE 754 compliance: polymetric tests use integer comparisons for note/velocity values; confirm no floating-point equality comparison issues -- gate scale comparisons should use `Approx().margin()` if comparing float step values directly
 
 ### 6.4 Commit User Story 4
 
