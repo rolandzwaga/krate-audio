@@ -930,6 +930,7 @@ void loadGlobalParamsToController(...);  // Sync Controller display from state
 | 2100-2199 | Rungler (Osc1Freq, Osc2Freq, Depth, Filter, Bits, LoopMode) | 6 |
 | 2200-2299 | Settings (PitchBendRange, VelocityCurve, TuningRef, AllocMode, StealMode, GainComp) | 6 |
 | 2800-2899 | Harmonizer (HarmonyMode, Key, Scale, PitchShiftMode, FormantPreserve, NumVoices, DryLevel, WetLevel, Voice1-4 Interval/Level/Pan/Delay/Detune) | 28 |
+| 3000-3099 | Arpeggiator (Enabled, Mode, OctaveRange, OctaveMode, TempoSync, NoteValue, FreeRate, GateLength, Swing, LatchMode, Retrigger) | 11 |
 
 ### Global Parameters (IDs 0-5)
 

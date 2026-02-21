@@ -1,6 +1,6 @@
 ---
 name: testing-guide
-description: VST3 plugin testing patterns and practices. Use when writing tests, debugging test failures, adding new test cases, when tests don't appear after changes, or when working with DSP algorithms that need verification. Covers build verification, DSP testing strategies, artifact detection, spectral analysis, Catch2 patterns, and VST3 validation.
+description: VST3 plugin testing patterns and practices. Use when writing tests, debugging test failures, adding new test cases, when tests don't appear after changes, or when working with DSP algorithms that need verification. Covers build verification, DSP testing strategies, integration testing (processor-level wiring, parameter application, host environment), artifact detection, spectral analysis, Catch2 patterns, and VST3 validation.
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
@@ -57,6 +57,7 @@ For complete commands and examples, see [QUICK-START.md](QUICK-START.md).
 
 - **Build commands**: See [QUICK-START.md](QUICK-START.md)
 - **DSP testing strategies**: See [DSP-TESTING.md](DSP-TESTING.md)
+- **Integration testing**: See [INTEGRATION-TESTING.md](INTEGRATION-TESTING.md) **(READ THIS for any processor-level feature)**
 - **VST3-specific testing**: See [VST3-TESTING.md](VST3-TESTING.md)
 - **Catch2 patterns & test doubles**: See [PATTERNS.md](PATTERNS.md)
 - **Anti-patterns to avoid**: See [ANTI-PATTERNS.md](ANTI-PATTERNS.md)
@@ -197,8 +198,16 @@ Test composed DSP processors with their dependencies.
 **Scope:** Layer 2 (Processors) and Layer 3 (Systems)
 
 ### Integration Tests
-Test complete signal paths through the plugin.
-**Scope:** Full plugin, VST3 host interaction
+Test that components work correctly **when wired together** in the processor. This is where
+the most costly bugs hide — sub-components that work perfectly in isolation but fail when
+integrated due to wiring bugs, per-block configuration resets, or host environment assumptions.
+
+**Scope:** Processor-level wiring, parameter application, host environment, multi-block behavior.
+**See:** [INTEGRATION-TESTING.md](INTEGRATION-TESTING.md) for complete patterns, anti-patterns, and checklist.
+
+**Critical rule:** Integration tests must verify **behavioral correctness**, not just presence
+of output. "Audio exists" is necessary but grossly insufficient — verify the output is
+**correct** (right notes, right timing, right values).
 
 ### Regression Tests
 Capture known-good outputs for comparison (golden masters).

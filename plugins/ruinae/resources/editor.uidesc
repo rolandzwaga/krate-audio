@@ -29,6 +29,7 @@
         <color name="distortion" rgba="#E8644Cff"/>
         <color name="envelopes" rgba="#808088ff"/>
         <color name="trance-gate" rgba="#DCA83Cff"/>
+        <color name="arpeggiator" rgba="#C87850ff"/>
         <color name="modulation" rgba="#5AC882ff"/>
         <color name="effects" rgba="#6E7078ff"/>
         <color name="master" rgba="#C8C8CCff"/>
@@ -277,6 +278,19 @@
         <control-tag name="TranceGateEuclideanHits" tag="609"/>
         <control-tag name="TranceGateEuclideanRotation" tag="610"/>
         <control-tag name="TranceGatePhaseOffset" tag="611"/>
+
+        <!-- Arpeggiator -->
+        <control-tag name="ArpEnabled" tag="3000"/>
+        <control-tag name="ArpMode" tag="3001"/>
+        <control-tag name="ArpOctaveRange" tag="3002"/>
+        <control-tag name="ArpOctaveMode" tag="3003"/>
+        <control-tag name="ArpTempoSync" tag="3004"/>
+        <control-tag name="ArpNoteValue" tag="3005"/>
+        <control-tag name="ArpFreeRate" tag="3006"/>
+        <control-tag name="ArpGateLength" tag="3007"/>
+        <control-tag name="ArpSwing" tag="3008"/>
+        <control-tag name="ArpLatchMode" tag="3009"/>
+        <control-tag name="ArpRetrigger" tag="3010"/>
 
         <!-- Envelopes: Amp (ENV 1) -->
         <control-tag name="AmpEnvAttack" tag="700"/>
@@ -2941,12 +2955,12 @@
     <template name="Tab_Seq" size="1400, 620" class="CViewContainer" transparent="true">
 
         <!-- ============================================================ -->
-        <!-- TRANCE GATE (full-size)                                       -->
+        <!-- TRANCE GATE (reduced height)                                  -->
         <!-- ============================================================ -->
         <view
             class="FieldsetContainer"
             origin="8, 4"
-            size="1384, 612"
+            size="1384, 390"
             fieldset-title="TRANCE GATE"
             fieldset-color="trance-gate"
             fieldset-radius="4"
@@ -3079,9 +3093,129 @@
                       text-alignment="center" transparent="true" title="Rotate"/>
             </view>
 
-            <!-- Full-size Step Pattern Editor -->
-            <view class="StepPatternEditor" origin="8, 56" size="1368, 548"
+            <!-- Step Pattern Editor (reduced height) -->
+            <view class="StepPatternEditor" origin="8, 56" size="1368, 326"
                   transparent="false"/>
+        </view>
+
+        <!-- Horizontal divider between Trance Gate and Arpeggiator -->
+        <view class="CViewContainer" origin="8, 396" size="1384, 1"
+              background-color="#FFFFFF18" transparent="false"/>
+
+        <!-- ============================================================ -->
+        <!-- ARPEGGIATOR (FR-014, FR-015, FR-016)                          -->
+        <!-- ============================================================ -->
+        <view
+            class="FieldsetContainer"
+            origin="8, 400"
+            size="1384, 216"
+            fieldset-title="ARPEGGIATOR"
+            fieldset-color="arpeggiator"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
+            transparent="true"
+        >
+            <!-- Row 1 (y=14): Enabled, Mode, Octave Range, Octave Mode -->
+            <view class="ToggleButton" origin="8, 14" size="40, 18"
+                  control-tag="ArpEnabled" default-value="0"
+                  tooltip="Enable arpeggiator"
+                  transparent="false"/>
+
+            <view class="CTextLabel" origin="56, 16" size="36, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Mode"/>
+            <view class="COptionMenu" origin="92, 14" size="100, 18"
+                  control-tag="ArpMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+            <view class="CTextLabel" origin="204, 16" size="52, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Octaves"/>
+            <view class="COptionMenu" origin="256, 14" size="48, 18"
+                  control-tag="ArpOctaveRange" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+            <view class="CTextLabel" origin="316, 16" size="52, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Oct Mode"/>
+            <view class="COptionMenu" origin="370, 14" size="100, 18"
+                  control-tag="ArpOctaveMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+            <!-- Row 1 right side: Latch Mode, Retrigger -->
+            <view class="CTextLabel" origin="488, 16" size="36, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Latch"/>
+            <view class="COptionMenu" origin="524, 14" size="72, 18"
+                  control-tag="ArpLatchMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+            <view class="CTextLabel" origin="608, 16" size="56, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Retrigger"/>
+            <view class="COptionMenu" origin="664, 14" size="72, 18"
+                  control-tag="ArpRetrigger" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+            <!-- Row 2 (y=46): Sync toggle, Rate/NoteValue, Gate Length, Swing knobs -->
+            <view class="ToggleButton" origin="8, 50" size="50, 18"
+                  control-tag="ArpTempoSync"
+                  default-value="1.0"
+                  title="Sync"
+                  title-position="right"
+                  font="~ NormalFontSmaller"
+                  font-color="arpeggiator"
+                  text-color="arpeggiator"
+                  tooltip="Enable tempo sync"
+                  transparent="true"/>
+
+            <!-- Free Rate (hidden when sync active) -->
+            <view class="CViewContainer" origin="66, 44" size="48, 38"
+                  custom-view-name="ArpRateGroup" transparent="true"
+                  visible="false">
+                <view class="ArcKnob" origin="0, 0" size="28, 28"
+                      control-tag="ArpFreeRate" default-value="0.07"
+                      arc-color="arpeggiator" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Rate"/>
+            </view>
+            <!-- Note Value (visible when sync active) -->
+            <view class="CViewContainer" origin="66, 44" size="80, 38"
+                  custom-view-name="ArpNoteValueGroup" transparent="true">
+                <view class="COptionMenu" origin="0, 4" size="70, 20"
+                      control-tag="ArpNoteValue"
+                      font="~ NormalFontSmaller"
+                      font-color="arpeggiator"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="0, 28" size="70, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Note"/>
+            </view>
+
+            <!-- Gate Length knob -->
+            <view class="ArcKnob" origin="160, 44" size="28, 28"
+                  control-tag="ArpGateLength" default-value="0.397"
+                  arc-color="arpeggiator" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="148, 72" size="52, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Gate"/>
+
+            <!-- Swing knob -->
+            <view class="ArcKnob" origin="216, 44" size="28, 28"
+                  control-tag="ArpSwing" default-value="0.0"
+                  arc-color="arpeggiator" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="206, 72" size="48, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Swing"/>
         </view>
 
     </template>

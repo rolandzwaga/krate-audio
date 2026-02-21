@@ -48,6 +48,9 @@
 #include "parameters/random_params.h"
 #include "parameters/pitch_follower_params.h"
 #include "parameters/transient_params.h"
+#include "parameters/arpeggiator_params.h"
+
+#include <krate/dsp/processors/arpeggiator_core.h>
 
 #include "ui/mod_matrix_types.h"
 
@@ -173,6 +176,24 @@ private:
     RandomParams randomParams_;
     PitchFollowerParams pitchFollowerParams_;
     TransientParams transientParams_;
+    ArpeggiatorParams arpParams_;
+
+    // ==========================================================================
+    // Arpeggiator Engine (FR-010)
+    // ==========================================================================
+
+    Krate::DSP::ArpeggiatorCore arpCore_;
+    std::array<Krate::DSP::ArpEvent, 128> arpEvents_{};
+    bool wasTransportPlaying_{false};
+
+    // Previous arp param values -- only call setters that reset internal state
+    // (step index, swing counter) when the value actually changes.
+    Krate::DSP::ArpMode prevArpMode_{Krate::DSP::ArpMode::Up};
+    int prevArpOctaveRange_{1};
+    Krate::DSP::OctaveMode prevArpOctaveMode_{Krate::DSP::OctaveMode::Sequential};
+    int prevArpNoteValue_{10};  // kNoteValueDefaultIndex
+    Krate::DSP::LatchMode prevArpLatchMode_{Krate::DSP::LatchMode::Off};
+    Krate::DSP::ArpRetriggerMode prevArpRetrigger_{Krate::DSP::ArpRetriggerMode::Off};
 
     // ==========================================================================
     // DSP Engine
