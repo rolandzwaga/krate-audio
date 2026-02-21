@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 4 complete — Sequencer foundation) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 5 complete — Per-step modifiers) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -497,11 +497,13 @@ kArpPitchLaneStep0Id        = 3101,  // through Step31Id = 3132
 
 ---
 
-## Phase 5: Per-Step Modifiers — Slide, Accent, Tie, Rest
+## Phase 5: Per-Step Modifiers — Slide, Accent, Tie, Rest ✅ COMPLETE
 
 **DSP Layer**: 2 (processors)
 **Files**: Extend `arpeggiator_core.h`
 **Test**: Extend `arpeggiator_core_test.cpp`
+**Spec**: `specs/073-per-step-mods/spec.md`
+**Branch**: `073-per-step-mods`
 **Depends on**: Phase 4
 
 ### Purpose
@@ -569,11 +571,11 @@ kArpSlideTimeId             = 3181,  // portamento time for slide (ms)
 
 ### Acceptance Criteria
 
-- [ ] Each modifier produces correct event behavior
-- [ ] Slide produces audible portamento between notes
-- [ ] Accent is clearly louder than non-accented steps
-- [ ] Tie sustains without audible retrigger
-- [ ] Modifiers interact correctly with gate lane (tie overrides gate)
+- [x] Each modifier produces correct event behavior (34 FRs MET: Rest/Tie/Slide/Accent all verified with 70+ tests)
+- [x] Slide produces audible portamento between notes (FR-015, FR-033, FR-034: legato ArpEvent → engine noteOn with portamento in both Poly and Mono modes)
+- [x] Accent is clearly louder than non-accented steps (FR-019, SC-004: 8 accent/velocity combinations tested including overflow clamping)
+- [x] Tie sustains without audible retrigger (FR-011, SC-005: 3-step tie chain verified with zero events in tied region)
+- [x] Modifiers interact correctly with gate lane (tie overrides gate) (FR-012: Tie_OverridesGateLane test passes; priority chain Rest > Tie > Slide > Accent verified)
 
 ---
 
