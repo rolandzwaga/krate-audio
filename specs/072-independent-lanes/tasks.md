@@ -520,17 +520,17 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 11.1 Requirements Verification
 
-- [ ] T086 Re-read each FR-001 through FR-034 from `specs/072-independent-lanes/spec.md` against the actual implementation -- open the implementation file for each FR, find the specific code, record the file path and line number. Do NOT work from memory.
-- [ ] T087 Re-read each SC-001 through SC-007 from spec.md and run (or read output of) the specific test that verifies it. For SC-002 (bit-identical) and SC-004 (round-trip), copy the actual test output. For SC-003 (zero allocation), confirm by code inspection (no new/delete/malloc/vector/string in advance() or processBlock() paths).
-- [ ] T088 Search for cheating patterns in all new/modified files:
+- [X] T086 Re-read each FR-001 through FR-034 from `specs/072-independent-lanes/spec.md` against the actual implementation -- open the implementation file for each FR, find the specific code, record the file path and line number. Do NOT work from memory.
+- [X] T087 Re-read each SC-001 through SC-007 from spec.md and run (or read output of) the specific test that verifies it. For SC-002 (bit-identical) and SC-004 (round-trip), copy the actual test output. For SC-003 (zero allocation), confirm by code inspection (no new/delete/malloc/vector/string in advance() or processBlock() paths).
+- [X] T088 Search for cheating patterns in all new/modified files:
   - No `// placeholder` or `// TODO` in new code
   - No test thresholds relaxed from spec requirements (SC-002 is zero-tolerance)
   - No features quietly removed from scope (all 34 FRs must be addressed)
 
 ### 11.2 Fill Compliance Table in spec.md
 
-- [ ] T089 Update `specs/072-independent-lanes/spec.md` "Implementation Verification" section -- fill every row with: status (MET/NOT MET/PARTIAL), file path, line number, test name, actual measured value. No row may contain only "implemented" or "works" without specifics.
-- [ ] T090 Mark overall status honestly (COMPLETE / NOT COMPLETE / PARTIAL) and document any gaps
+- [X] T089 Update `specs/072-independent-lanes/spec.md` "Implementation Verification" section -- fill every row with: status (MET/NOT MET/PARTIAL), file path, line number, test name, actual measured value. No row may contain only "implemented" or "works" without specifics.
+- [X] T090 Mark overall status honestly (COMPLETE / NOT COMPLETE / PARTIAL) and document any gaps
 
 ### 11.3 Honest Self-Check
 
@@ -542,7 +542,7 @@ Answer these questions before claiming completion. If ANY answer is "yes", do NO
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T091 All self-check questions answered "no" (or gaps documented honestly in spec.md)
+- [X] T091 All self-check questions answered "no" (or gaps documented honestly in spec.md)
 
 **Checkpoint**: Honest assessment complete - ready for final phase.
 
