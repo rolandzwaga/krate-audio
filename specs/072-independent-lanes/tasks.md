@@ -552,13 +552,13 @@ Answer these questions before claiming completion. If ANY answer is "yes", do NO
 
 ### 12.1 Final Build and Test Run
 
-- [ ] T092 Run full build: `cmake --build build/windows-x64-release --config Release` -- zero errors
-- [ ] T093 Run all tests: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure` -- 100% pass
-- [ ] T094 Verify all spec work is committed to the `072-independent-lanes` feature branch: `git log --oneline -10` should show all phase commits
+- [X] T092 Run full build: `cmake --build build/windows-x64-release --config Release` -- zero errors
+- [X] T093 Run all tests: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure` -- 100% pass
+- [X] T094 Verify all spec work is committed to the `072-independent-lanes` feature branch: `git log --oneline -10` should show all phase commits
 
 ### 12.2 Completion Claim
 
-- [ ] T095 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user). If any FR or SC is NOT MET, document the gap in spec.md and notify the user before claiming done.
+- [X] T095 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user). If any FR or SC is NOT MET, document the gap in spec.md and notify the user before claiming done.
 
 ---
 
