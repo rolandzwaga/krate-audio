@@ -5886,7 +5886,7 @@ class TranceGate {
 ## ArpeggiatorCore
 **Path:** [arpeggiator_core.h](../../dsp/include/krate/dsp/processors/arpeggiator_core.h) | **Since:** 0.11.0
 
-Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Header-only, zero heap allocation in all methods.
+Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains three `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`) that advance independently on each arp step, enabling polymetric lane patterns. Header-only, zero heap allocation in all methods.
 
 ```cpp
 enum class LatchMode : uint8_t { Off, Hold, Add };
@@ -5925,6 +5925,14 @@ class ArpeggiatorCore {
     void setLatchMode(LatchMode mode) noexcept;
     void setRetrigger(ArpRetriggerMode mode) noexcept;
 
+    // Lane accessors (Spec 072)
+    ArpLane<float>& velocityLane() noexcept;          // Per-step velocity scaling [0,1]
+    ArpLane<float>& gateLane() noexcept;              // Per-step gate multiplier [0.01,2.0]
+    ArpLane<int8_t>& pitchLane() noexcept;            // Per-step pitch offset [-24,+24] semitones
+    const ArpLane<float>& velocityLane() const noexcept;
+    const ArpLane<float>& gateLane() const noexcept;
+    const ArpLane<int8_t>& pitchLane() const noexcept;
+
     // Processing
     size_t processBlock(const BlockContext& ctx,
                         std::span<ArpEvent> outputEvents) noexcept;
@@ -5939,6 +5947,7 @@ class ArpeggiatorCore {
 - Swing timing for shuffle rhythms (0-75%)
 - Gate length control (1-200%) including legato overlap at gate > 100%
 - Chord mode support (NoteSelector returns multiple notes simultaneously)
+- Per-step velocity shaping, gate length modulation, and pitch offset via independent lanes (Spec 072)
 
 **Usage example:**
 
@@ -5966,6 +5975,14 @@ size_t count = arp.processBlock(ctx, events);
 - `LatchMode` (Off, Hold, Add) -- controls how the arp handles key release. Defined in `arpeggiator_core.h` for use by the Ruinae plugin parameter mapping.
 - `ArpRetriggerMode` (Off, Note, Beat) -- controls when the arp pattern resets. Named distinctly from `RetriggerMode` in `envelope_utils.h` to prevent ODR violations.
 
-**Memory:** ~300 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state). Header-only, real-time safe, single-threaded.
+**Lane integration (Spec 072):**
+- `velocityLane_` (`ArpLane<float>`): Each step value scales note velocity via `velocity * velScale`, clamped to [1, 127]. Default step[0] = 1.0 (passthrough).
+- `gateLane_` (`ArpLane<float>`): Each step value multiplies gate duration via `calculateGateDuration(float gateLaneValue)`, clamped to minimum 1 sample. Default step[0] = 1.0 (no change).
+- `pitchLane_` (`ArpLane<int8_t>`): Each step value is added to the note number, clamped to [0, 127]. Default step[0] = 0 (no offset).
+- `resetLanes()`: Private method that calls `reset()` on all three lanes. Invoked from `reset()`, retrigger (Note mode on `noteOn()`), and transport-restart (Beat mode on bar boundary in `processBlock()`).
+- `calculateGateDuration(float gateLaneValue = 1.0f)`: Extended signature multiplies the global gate formula by the lane value: `std::max(size_t{1}, static_cast<size_t>(static_cast<double>(stepDuration) * static_cast<double>(gatePct) / 100.0 * static_cast<double>(gateLaneValue)))`. When `gateLaneValue == 1.0f`, produces bit-identical results to the Phase 3 formula (SC-002).
+- In `fireStep()`: velocity, gate, and pitch lanes each call `advance()` once per step tick. Chord mode applies the same lane values to all notes in the chord equally.
 
-**Dependencies:** Layer 0 (block_context.h, note_value.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult)
+**Memory:** ~400 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 3 ArpLane instances). Header-only, real-time safe, single-threaded.
+
+**Dependencies:** Layer 0 (block_context.h, note_value.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)

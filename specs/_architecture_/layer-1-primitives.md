@@ -2360,3 +2360,54 @@ class NoteSelector {
 **Layer 0 dependency:** Uses `Xorshift32` from `core/random.h` for deterministic random selection in Random and Walk modes.
 
 **Dependencies:** `core/random.h` (Xorshift32), `<algorithm>` (std::min, std::clamp), `<span>`
+
+---
+
+## ArpLane<T, MaxSteps>
+**Path:** [arp_lane.h](../../dsp/include/krate/dsp/primitives/arp_lane.h) | **Since:** 0.20.0 | **Spec:** [072-independent-lanes](../072-independent-lanes/spec.md)
+
+Fixed-capacity step lane for arpeggiator polymetric patterns. Stores up to `MaxSteps` values of type `T` with independent position tracking. Each lane advances its own counter on every arp step, enabling polymetric rhythms when lanes have coprime lengths (e.g., velocity=3, gate=5, pitch=7 produces a combined pattern that repeats every LCM=105 steps).
+
+**Use when:**
+- You need a fixed-capacity, zero-allocation, step-advancing container with independent cycling for arpeggiator lane patterns
+- Building polymetric step sequencer lanes that cycle at different lengths
+- Any per-step modulation source that must advance independently of the main arp pattern
+
+```cpp
+template <typename T, size_t MaxSteps = 32>
+class ArpLane {
+    // Length control
+    void setLength(size_t len) noexcept;           // Clamp to [1, MaxSteps]; wraps position to 0 if >= new length
+    [[nodiscard]] size_t length() const noexcept;
+
+    // Step value access
+    void setStep(size_t index, T value) noexcept;  // Index clamped to [0, length_-1]
+    [[nodiscard]] T getStep(size_t index) const noexcept;  // Returns T{} if index >= length_
+
+    // Playback
+    [[nodiscard]] T advance() noexcept;            // Returns current step value, then advances position
+    void reset() noexcept;                          // Resets position to 0
+    [[nodiscard]] size_t currentStep() const noexcept;
+};
+```
+
+**Supported types:**
+| Type | Lane | Value Range | Default | Identity Value |
+|------|------|-------------|---------|----------------|
+| `float` | Velocity | 0.0-1.0 | 1.0 | 1.0 (no scaling) |
+| `float` | Gate | 0.01-2.0 | 1.0 | 1.0 (no multiplier) |
+| `int8_t` | Pitch | -24 to +24 | 0 | 0 (no offset) |
+| `uint8_t` | (planned) | varies | 0 | Phases 5-8: modifiers, ratchet, conditions |
+
+**Key behaviors:**
+- `std::array<T, MaxSteps>` backing store -- zero heap allocation, real-time safe
+- Default construction: `length_ = 1`, `position_ = 0`, all steps value-initialized to `T{}`
+- `setLength()` clamps to `[1, MaxSteps]`; if current position >= new length, position wraps to 0
+- `advance()` returns `steps_[position_]` then increments position modulo length
+- `setStep()` clamps index to `[0, length_-1]` (writes to highest valid index if out of range)
+- `getStep()` returns `T{}` if the original index >= length (safe default for unset steps)
+- All methods are `noexcept` -- no exceptions, no allocations, no I/O
+
+**Memory:** `sizeof(std::array<T, MaxSteps>) + 2 * sizeof(size_t)` per instance (~34-48 bytes for `ArpLane<float, 32>` with padding). Header-only, real-time safe, single-threaded.
+
+**Dependencies:** `<array>`, `<cstddef>`, `<cstdint>`, `<algorithm>` (std::min, std::clamp)

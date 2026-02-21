@@ -18,10 +18,12 @@
 
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/primitives/arp_lane.h>
 #include <krate/dsp/primitives/held_note_buffer.h>
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -106,6 +108,18 @@ public:
     static constexpr float kMaxSwing = 75.0f;
 
     // =========================================================================
+    // Construction (072-independent-lanes: lane defaults for SC-002)
+    // =========================================================================
+
+    ArpeggiatorCore() noexcept {
+        // Set velocity lane default: length=1, step[0]=1.0f (full passthrough)
+        // This ensures SC-002 bit-identical backward compat from first use.
+        velocityLane_.setStep(0, 1.0f);
+        // Set gate lane default: length=1, step[0]=1.0f (pure global gate)
+        gateLane_.setStep(0, 1.0f);
+    }
+
+    // =========================================================================
     // Lifecycle (FR-003, FR-004)
     // =========================================================================
 
@@ -132,6 +146,7 @@ public:
         latchActive_ = false;
         selector_.reset();
         heldNotes_.clear();
+        resetLanes();
     }
 
     // =========================================================================
@@ -157,6 +172,7 @@ public:
         if (retriggerMode_ == ArpRetriggerMode::Note) {
             selector_.reset();
             swingStepCounter_ = 0;
+            resetLanes();
         }
     }
 
@@ -195,10 +211,15 @@ public:
     // Configuration (FR-008 through FR-018)
     // =========================================================================
 
-    /// @brief Enable or disable the arpeggiator (FR-008).
+    /// @brief Enable or disable the arpeggiator (FR-008, FR-022).
+    /// Disable->enable transition resets all lane positions to step 0.
     inline void setEnabled(bool enabled) noexcept {
         if (enabled_ && !enabled) {
             needsDisableNoteOff_ = true;
+        }
+        if (!enabled_ && enabled) {
+            // FR-022: disable/enable transition resets lanes
+            resetLanes();
         }
         enabled_ = enabled;
     }
@@ -256,6 +277,34 @@ public:
     /// @brief Set retrigger mode (FR-018).
     inline void setRetrigger(ArpRetriggerMode mode) noexcept {
         retriggerMode_ = mode;
+    }
+
+    // =========================================================================
+    // Lane Accessors (072-independent-lanes, FR-010 through FR-024)
+    // =========================================================================
+
+    /// @brief Access velocity lane for configuration.
+    ArpLane<float>& velocityLane() noexcept { return velocityLane_; }
+
+    /// @brief Access velocity lane (const).
+    [[nodiscard]] const ArpLane<float>& velocityLane() const noexcept {
+        return velocityLane_;
+    }
+
+    /// @brief Access gate lane for configuration.
+    ArpLane<float>& gateLane() noexcept { return gateLane_; }
+
+    /// @brief Access gate lane (const).
+    [[nodiscard]] const ArpLane<float>& gateLane() const noexcept {
+        return gateLane_;
+    }
+
+    /// @brief Access pitch lane for configuration.
+    ArpLane<int8_t>& pitchLane() noexcept { return pitchLane_; }
+
+    /// @brief Access pitch lane (const).
+    [[nodiscard]] const ArpLane<int8_t>& pitchLane() const noexcept {
+        return pitchLane_;
     }
 
     // =========================================================================
@@ -457,6 +506,7 @@ public:
                 // Bar boundary: reset selector and swing counter (FR-023)
                 selector_.reset();
                 swingStepCounter_ = 0;
+                resetLanes();
                 // Invalidate bar boundary so it doesn't fire again this block
                 barBoundaryOffset = SIZE_MAX;
 
@@ -594,12 +644,14 @@ private:
     }
 
     /// @brief Calculate gate duration in samples from current step duration.
-    /// Gate duration = stepDuration * gateLengthPercent / 100, clamped min 1.
-    inline size_t calculateGateDuration() const noexcept {
-        size_t dur = static_cast<size_t>(
+    /// Gate duration = stepDuration * gateLengthPercent / 100 * gateLaneValue,
+    /// clamped to minimum 1 sample (FR-014: ensures NoteOff always fires).
+    /// @param gateLaneValue Gate lane multiplier (default 1.0f for backward compat)
+    inline size_t calculateGateDuration(float gateLaneValue = 1.0f) const noexcept {
+        return std::max(size_t{1}, static_cast<size_t>(
             static_cast<double>(currentStepDuration_) *
-            static_cast<double>(gateLengthPercent_) / 100.0);
-        return (dur > 0) ? dur : 1;
+            static_cast<double>(gateLengthPercent_) / 100.0 *
+            static_cast<double>(gateLaneValue)));
     }
 
     /// @brief Decrement all pending NoteOff samplesRemaining by given amount.
@@ -681,8 +733,29 @@ private:
         ArpNoteResult result = selector_.advance(heldNotes_);
 
         if (result.count > 0) {
-            // Calculate gate duration based on current step duration
-            size_t gateDuration = calculateGateDuration();
+            // Advance lanes (once per step, regardless of chord size)
+            float velScale = velocityLane_.advance();
+            float gateScale = gateLane_.advance();
+            int8_t pitchOffset = pitchLane_.advance();
+
+            // Apply velocity scaling to all notes in this step (FR-011)
+            for (size_t i = 0; i < result.count; ++i) {
+                int scaledVel = static_cast<int>(
+                    std::round(result.velocities[i] * velScale));
+                result.velocities[i] = static_cast<uint8_t>(
+                    std::clamp(scaledVel, 1, 127));
+            }
+
+            // Apply pitch offset to all notes in this step (FR-017, FR-018)
+            for (size_t i = 0; i < result.count; ++i) {
+                int offsetNote = static_cast<int>(result.notes[i]) +
+                                 static_cast<int>(pitchOffset);
+                result.notes[i] = static_cast<uint8_t>(
+                    std::clamp(offsetNote, 0, 127));
+            }
+
+            // Calculate gate duration with lane multiplier (FR-014)
+            size_t gateDuration = calculateGateDuration(gateScale);
 
             if (result.count > 1) {
                 // FR-022: Chord mode -- emit NoteOff for all previously
@@ -793,11 +866,31 @@ private:
     }
 
     // =========================================================================
+    // Lane Reset (072-independent-lanes)
+    // =========================================================================
+
+    /// @brief Reset all lane positions to step 0.
+    /// Called from reset(), retrigger, and transport restart points.
+    void resetLanes() noexcept {
+        velocityLane_.reset();
+        gateLane_.reset();
+        pitchLane_.reset();
+    }
+
+    // =========================================================================
     // Composed Components (Layer 1)
     // =========================================================================
 
     HeldNoteBuffer heldNotes_;
     NoteSelector selector_{42};  ///< Seed 42 for deterministic random
+
+    // =========================================================================
+    // Lane Containers (072-independent-lanes, Layer 1)
+    // =========================================================================
+
+    ArpLane<float> velocityLane_;   ///< Velocity multiplier per step (default: length=1, step[0]=1.0f)
+    ArpLane<float> gateLane_;       ///< Gate duration multiplier per step (default: length=1, step[0]=1.0f)
+    ArpLane<int8_t> pitchLane_;    ///< Semitone offset per step (default: length=1, step[0]=0)
 
     // =========================================================================
     // Configuration State

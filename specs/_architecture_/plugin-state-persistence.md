@@ -25,6 +25,7 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
 | 14 | 058 | Settings params (2 floats + 4 int32s = 24 bytes): pitch bend range, velocity curve, tuning reference, voice alloc mode, voice steal mode, gain compensation |
 | **15** | **059** | **Mod source params (3+4+4+4+3 = 18 values, 72 bytes): Env Follower (3 floats), S&H (2 floats + 2 int32s), Random (2 floats + 2 int32s), Pitch Follower (4 floats), Transient (3 floats)** |
 | **--** | **071** | **Arpeggiator params (7 int32s + 3 floats + 1 int32 = 44 bytes): enabled, mode, octaveRange, octaveMode, tempoSync, noteValue, freeRate, gateLength, swing, latchMode, retrigger. EOF-safe loading (no version bump), appended after harmonizer enable flag** |
+| **--** | **072** | **Arpeggiator lane data (396 bytes appended after base arp params): velocity lane (int32 length + 32 floats), gate lane (int32 length + 32 floats), pitch lane (int32 length + 32 int32s). EOF-safe loading (no version bump)** |
 
 ---
 
@@ -76,6 +77,14 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
                       // octaveMode, tempoSync, noteValue, freeRate, gateLength, swing,
                       // latchMode, retrigger. loadArpParams() returns false on truncated
                       // stream -- arp defaults preserved (disabled, Up mode, 1 octave, etc.)
+
+--- New in Spec 072 (EOF-safe, no version bump, appended after arp base params) ---
+[ArpLaneData]         // 396 bytes total, appended after ArpeggiatorParams:
+                      //   [int32: velocityLaneLength] [float x32: velocityLaneSteps]  (132 bytes)
+                      //   [int32: gateLaneLength]     [float x32: gateLaneSteps]      (132 bytes)
+                      //   [int32: pitchLaneLength]    [int32 x32: pitchLaneSteps]     (132 bytes)
+                      // loadArpParams() continues EOF-safe reading after base params;
+                      // if stream ends mid-lane, remaining lanes keep defaults
 ```
 
 ---
@@ -273,6 +282,62 @@ For presets saved before Spec 071 (stream ends before arp data), all arp paramet
 | Retrigger | 0 (Off) | No retrigger |
 
 No explicit backward-compatibility overrides are needed. Since `enabled` defaults to `false`, old presets behave identically to before -- the arpeggiator is invisible and inactive.
+
+---
+
+## Arpeggiator Lane Data Backward Compatibility (Spec 072)
+
+### Background
+
+Spec 072 added 99 lane parameters (IDs 3020-3132) to the arpeggiator parameter pack, serialized as 396 bytes appended after the 11 base arp parameters. Like the base arp params (Spec 071), lane data uses EOF-safe loading without a version bump.
+
+### Serialization Format (396 bytes)
+
+```
+[int32: velocityLaneLength]            // 4 bytes
+[float x32: velocityLaneSteps[0..31]]  // 128 bytes
+[int32: gateLaneLength]                // 4 bytes
+[float x32: gateLaneSteps[0..31]]      // 128 bytes
+[int32: pitchLaneLength]               // 4 bytes
+[int32 x32: pitchLaneSteps[0..31]]     // 128 bytes
+                                       // Total: 396 bytes
+```
+
+All 32 step values are written regardless of the active lane length. This ensures round-trip fidelity: step values beyond the active length are preserved through save/load cycles, not reset to defaults.
+
+### EOF-Safe Loading Pattern
+
+Lane loading continues the EOF-safe pattern established by the base arp params. Each lane's data is read sequentially; if any read fails, the remaining lanes keep their struct defaults:
+
+```cpp
+// After loading base 11 arp params...
+
+// Velocity lane (EOF-safe)
+int32 velLen;
+if (!streamer.readInt32(velLen)) return true;  // No lane data = Phase 3 preset, keep defaults
+params.velocityLaneLength.store(std::clamp(velLen, 1, 32), relaxed);
+for (int i = 0; i < 32; ++i) {
+    float val;
+    if (!streamer.readFloat(val)) return true;  // Partial = keep remaining defaults
+    params.velocityLaneSteps[i].store(std::clamp(val, 0.0f, 1.0f), relaxed);
+}
+
+// Gate lane (EOF-safe)
+// ... same pattern ...
+
+// Pitch lane (EOF-safe)
+// ... same pattern, reading int32 values for steps ...
+```
+
+### Backward Compatibility
+
+| Preset Source | Lane Data Present? | Behavior |
+|---------------|-------------------|----------|
+| Phase 3 (Spec 071, no lanes) | No | All lanes at identity defaults: vel length=1/step=1.0, gate length=1/step=1.0, pitch length=1/step=0 |
+| Phase 4 (Spec 072, velocity only) | Partial (velocity only) | Velocity lane restored, gate/pitch lanes at defaults |
+| Phase 4 (Spec 072, all lanes) | Yes | All lanes fully restored |
+
+Lane identity defaults ensure that presets without lane data produce bit-identical output to Phase 3: velocity scale 1.0 = no change, gate multiplier 1.0 = no change, pitch offset 0 = no change.
 
 ---
 
