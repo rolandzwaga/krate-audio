@@ -13,6 +13,8 @@
 
 #include <krate/dsp/core/note_value.h>
 
+#include <cmath>
+
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/vsttypes.h"
