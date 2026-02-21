@@ -133,6 +133,7 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/spectral_freeze_oscillator.h
     include/krate/dsp/processors/mono_handler.h
     include/krate/dsp/processors/note_processor.h
+    include/krate/dsp/processors/arpeggiator_core.h
 )
 
 # Layer 3: Systems
