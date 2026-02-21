@@ -127,7 +127,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T013 [P] Write failing tests for ArpeggiatorCore velocity lane integration in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
+- [X] T013 [P] Write failing tests for ArpeggiatorCore velocity lane integration in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
   - **Test: VelocityLane_DefaultIsPassthrough** -- with default lane (length=1, step=1.0), arp output velocity equals input velocity (SC-002 backward compat)
   - **Test: VelocityLane_ScalesVelocity** -- set velocity lane length=4, steps=[1.0, 0.3, 0.3, 0.7], run 8 arp steps, verify output velocities follow cycle
   - **Test: VelocityLane_ClampsToMinimum1** -- set step value 0.0, verify output velocity is 1 (not 0), per FR-011 floor of 1
@@ -135,22 +135,22 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
   - **Test: VelocityLane_LengthChange_MidPlayback** -- set length=4, advance 2 steps, change length=3, verify no crash and lane cycles at new length
   - **Test: VelocityLane_ResetOnRetrigger** -- advance lane mid-cycle, trigger noteOn with retrigger=Note, verify velocityLane().currentStep()==0
   - **Test: BitIdentical_VelocityDefault** -- capture output of 100 steps with default lane, compare to Phase 3 expected values byte-for-byte (same int velocity values)
-- [ ] T014 Confirm T013 tests FAIL because ArpeggiatorCore does not yet have velocity lane members: build and observe compile errors or test failures
+- [X] T014 Confirm T013 tests FAIL because ArpeggiatorCore does not yet have velocity lane members: build and observe compile errors or test failures
 
 ### 3.2 Tests for Velocity Parameter Handling (Write FIRST - Must FAIL)
 
-- [ ] T015 [P] Write failing tests in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`:
+- [X] T015 [P] Write failing tests in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`:
   - **Test: ArpVelLaneLength_Registration** -- verify `kArpVelocityLaneLengthId` is registered as discrete param range [1,32] default 1
   - **Test: ArpVelLaneStep_Registration** -- verify step params 3021-3052 are registered with range [0,1] default 1.0
   - **Test: ArpVelLaneLength_Denormalize** -- `handleArpParamChange(3020, 0.0)` -> atomicLength=1; `(3020, 1.0)` -> 32; `(3020, 0.5)` -> ~17
   - **Test: ArpVelLaneStep_Denormalize** -- `handleArpParamChange(3021, 0.0)` -> step[0]=0.0f; `(3021, 1.0)` -> step[0]=1.0f; `(3021, 0.5)` -> step[0]=0.5f
   - **Test: ArpVelParams_SaveLoad_RoundTrip** -- save state with non-default velocity lane values, load into fresh params, verify all 33 values match
   - **Test: ArpVelParams_BackwardCompat** -- load a Phase 3 stream (no lane data), verify velocityLaneLength==1 and all steps==1.0f
-- [ ] T016 Confirm T015 tests FAIL: build `ruinae_tests` and observe failures
+- [X] T016 Confirm T015 tests FAIL: build `ruinae_tests` and observe failures
 
 ### 3.3 Implementation for User Story 1 - DSP Layer
 
-- [ ] T017 Modify `dsp/include/krate/dsp/processors/arpeggiator_core.h` to add velocity lane per `specs/072-independent-lanes/contracts/arpeggiator_core_extension.md`:
+- [X] T017 Modify `dsp/include/krate/dsp/processors/arpeggiator_core.h` to add velocity lane per `specs/072-independent-lanes/contracts/arpeggiator_core_extension.md`:
   - Add `#include <krate/dsp/primitives/arp_lane.h>` include
   - Add `ArpLane<float> velocityLane_` private member with field initializer setting step[0]=1.0f
   - Add public `velocityLane()` accessor (mutable and const overloads)
@@ -160,12 +160,12 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
   - Add `void resetLanes() noexcept` private method (initially just calls `velocityLane_.reset()`)
   - Modify `fireStep()` to call `float velScale = velocityLane_.advance()`, then for each note: `int scaledVel = static_cast<int>(std::round(velocities[i] * velScale)); velocities[i] = static_cast<uint8_t>(std::clamp(scaledVel, 1, 127));`
   - Default step[0]=1.0f must be set during construction or field initialization so SC-002 is preserved from first use
-- [ ] T018 Build `dsp_tests` and verify all ArpeggiatorCore velocity lane tests from T013 pass: `dsp_tests.exe "[processors][arpeggiator_core]"` (existing tests use the two-tag format `[processors][arpeggiator_core]`; new lane tests must use the same tag)
-- [ ] T019 Fix any compiler warnings in `arpeggiator_core.h` (zero warnings required)
+- [X] T018 Build `dsp_tests` and verify all ArpeggiatorCore velocity lane tests from T013 pass: `dsp_tests.exe "[processors][arpeggiator_core]"` (existing tests use the two-tag format `[processors][arpeggiator_core]`; new lane tests must use the same tag)
+- [X] T019 Fix any compiler warnings in `arpeggiator_core.h` (zero warnings required)
 
 ### 3.4 Implementation for User Story 1 - Plugin Layer
 
-- [ ] T020 Modify `plugins/ruinae/src/parameters/arpeggiator_params.h` to add velocity lane atomic storage per `specs/072-independent-lanes/data-model.md`:
+- [X] T020 Modify `plugins/ruinae/src/parameters/arpeggiator_params.h` to add velocity lane atomic storage per `specs/072-independent-lanes/data-model.md`:
   - Add `std::atomic<int> velocityLaneLength{1}` member
   - Add `std::array<std::atomic<float>, 32> velocityLaneSteps{}` member
   - In constructor: initialize all `velocityLaneSteps[i]` to `1.0f` via `store(1.0f, std::memory_order_relaxed)` loop
@@ -174,20 +174,20 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
   - Extend `formatArpParam()`: format velocity lane length as "N steps"; format velocity lane steps as percentage (e.g. "70%")
   - Extend `saveArpParams()`: write `velocityLaneLength` (int32) then all 32 `velocityLaneSteps` (float each)
   - Extend `loadArpParams()`: read `velocityLaneLength` and 32 steps with EOF-safe pattern (return false on read failure, keeping defaults)
-- [ ] T021 Modify `plugins/ruinae/src/processor/processor.cpp` `applyParamsToArp()` function to push velocity lane data to ArpeggiatorCore:
+- [X] T021 Modify `plugins/ruinae/src/processor/processor.cpp` `applyParamsToArp()` function to push velocity lane data to ArpeggiatorCore:
   - Read `arpParams_.velocityLaneLength.load()` and call `arp_.velocityLane().setLength(len)`
   - Loop i=0..31: read `arpParams_.velocityLaneSteps[i].load()` and call `arp_.velocityLane().setStep(i, val)`
   - Note: step values can be set unconditionally (they don't trigger arp resets, per plan.md gotcha)
-- [ ] T022 Modify `plugins/ruinae/src/controller/controller.cpp`:
+- [X] T022 Modify `plugins/ruinae/src/controller/controller.cpp`:
   - Update the arp param range check in `formatArpParam()` (or equivalent) from `id <= kArpEndId` old value to new 3199 boundary
   - Ensure `handleParamChange` forwards velocity lane IDs (3020-3052) to `arpParams_.handleArpParamChange()`
-- [ ] T023 Build `ruinae_tests` and verify all velocity lane param tests from T015 pass: `ruinae_tests.exe "[arp][params]"` (actual tag in arpeggiator_params_test.cpp is the two-tag format `[arp][params]`, not `[arp_params]`)
-- [ ] T024 Fix any compiler warnings in modified plugin files (zero warnings required)
+- [X] T023 Build `ruinae_tests` and verify all velocity lane param tests from T015 pass: `ruinae_tests.exe "[arp][params]"` (actual tag in arpeggiator_params_test.cpp is the two-tag format `[arp][params]`, not `[arp_params]`)
+- [X] T024 Fix any compiler warnings in modified plugin files (zero warnings required)
 
 ### 3.5 Cross-Platform Verification
 
-- [ ] T025 [US1] Verify IEEE 754 compliance: check `arpeggiator_core_test.cpp` and `arpeggiator_params_test.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage -- if found, add affected files to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` and `plugins/ruinae/tests/CMakeLists.txt`
-- [ ] T026 [US1] Verify SC-002 (bit-identical backward compat): run BitIdentical_VelocityDefault test, confirm zero mismatches across 1000+ steps at multiple tempos (minimum: 120, 140, and 180 BPM) — SC-002 requires 1000+ steps, not 100+
+- [X] T025 [US1] Verify IEEE 754 compliance: check `arpeggiator_core_test.cpp` and `arpeggiator_params_test.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage -- if found, add affected files to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` and `plugins/ruinae/tests/CMakeLists.txt`
+- [X] T026 [US1] Verify SC-002 (bit-identical backward compat): run BitIdentical_VelocityDefault test, confirm zero mismatches across 1000+ steps at multiple tempos (minimum: 120, 140, and 180 BPM) — SC-002 requires 1000+ steps, not 100+
 
 ### 3.6 Commit User Story 1
 

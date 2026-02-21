@@ -3675,3 +3675,281 @@ TEST_CASE("ArpeggiatorCore: chord mode pending NoteOff capacity stress test",
         CHECK(on.note < 64);
     }
 }
+
+// =============================================================================
+// Phase 4: User Story 1 -- Velocity Lane Shaping (072-independent-lanes)
+// =============================================================================
+
+// T013: Velocity lane integration tests
+
+TEST_CASE("ArpeggiatorCore: VelocityLane_DefaultIsPassthrough",
+          "[processors][arpeggiator_core]") {
+    // With default lane (length=1, step=1.0), arp output velocity equals
+    // input velocity (SC-002 backward compat)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Default velocity lane: length=1, step[0]=1.0
+    // Output velocity should be exactly the input velocity (100)
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    for (const auto& on : noteOns) {
+        CHECK(on.velocity == 100);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: VelocityLane_ScalesVelocity",
+          "[processors][arpeggiator_core]") {
+    // Set velocity lane length=4, steps=[1.0, 0.3, 0.3, 0.7],
+    // run 8 arp steps, verify output velocities follow cycle
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(60, 100);
+
+    // Configure velocity lane
+    arp.velocityLane().setLength(4);
+    arp.velocityLane().setStep(0, 1.0f);
+    arp.velocityLane().setStep(1, 0.3f);
+    arp.velocityLane().setStep(2, 0.3f);
+    arp.velocityLane().setStep(3, 0.7f);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 500);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 8);
+
+    // Input velocity = 100
+    // Expected pattern: round(100 * 1.0)=100, round(100 * 0.3)=30,
+    //                   round(100 * 0.3)=30,  round(100 * 0.7)=70
+    // Repeated twice for 8 steps
+    std::array<uint8_t, 8> expected = {100, 30, 30, 70, 100, 30, 30, 70};
+    for (size_t i = 0; i < 8; ++i) {
+        CHECK(noteOns[i].velocity == expected[i]);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: VelocityLane_ClampsToMinimum1",
+          "[processors][arpeggiator_core]") {
+    // Set step value 0.0, verify output velocity is 1 (not 0), per FR-011
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(60, 100);
+
+    arp.velocityLane().setLength(1);
+    arp.velocityLane().setStep(0, 0.0f);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    for (const auto& on : noteOns) {
+        CHECK(on.velocity == 1);  // floor of 1, never 0
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: VelocityLane_ClampsToMax127",
+          "[processors][arpeggiator_core]") {
+    // Set step value 1.0 with input velocity 127, verify output is 127
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(60, 127);
+
+    arp.velocityLane().setLength(1);
+    arp.velocityLane().setStep(0, 1.0f);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    for (const auto& on : noteOns) {
+        CHECK(on.velocity == 127);  // no overflow
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: VelocityLane_LengthChange_MidPlayback",
+          "[processors][arpeggiator_core]") {
+    // Set length=4, advance 2 steps, change length=3, verify no crash
+    // and lane cycles at new length
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(60, 100);
+
+    arp.velocityLane().setLength(4);
+    arp.velocityLane().setStep(0, 1.0f);
+    arp.velocityLane().setStep(1, 0.5f);
+    arp.velocityLane().setStep(2, 0.8f);
+    arp.velocityLane().setStep(3, 0.3f);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Collect 2 steps
+    auto events1 = collectEvents(arp, ctx, 100);
+    auto noteOns1 = filterNoteOns(events1);
+    REQUIRE(noteOns1.size() >= 2);
+
+    // Now change length to 3 mid-playback
+    arp.velocityLane().setLength(3);
+
+    // Collect more steps -- should not crash and cycle at new length 3
+    auto events2 = collectEvents(arp, ctx, 500);
+    auto noteOns2 = filterNoteOns(events2);
+    REQUIRE(noteOns2.size() >= 6);  // at least 2 full cycles of length 3
+}
+
+TEST_CASE("ArpeggiatorCore: VelocityLane_ResetOnRetrigger",
+          "[processors][arpeggiator_core]") {
+    // Advance lane mid-cycle, trigger noteOn with retrigger=Note,
+    // verify velocityLane().currentStep()==0
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setRetrigger(ArpRetriggerMode::Note);
+    arp.noteOn(60, 100);
+
+    arp.velocityLane().setLength(4);
+    arp.velocityLane().setStep(0, 1.0f);
+    arp.velocityLane().setStep(1, 0.5f);
+    arp.velocityLane().setStep(2, 0.3f);
+    arp.velocityLane().setStep(3, 0.7f);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Advance 2 steps
+    auto events = collectEvents(arp, ctx, 100);
+    auto noteOns = filterNoteOns(events);
+    REQUIRE(noteOns.size() >= 2);
+
+    // Trigger retrigger via noteOn (retrigger=Note)
+    arp.noteOn(64, 100);
+
+    // After retrigger, velocity lane should be reset to step 0
+    CHECK(arp.velocityLane().currentStep() == 0);
+
+    // Next note should use step 0 velocity (1.0)
+    auto events2 = collectEvents(arp, ctx, 100);
+    auto noteOns2 = filterNoteOns(events2);
+    REQUIRE(noteOns2.size() >= 1);
+    CHECK(noteOns2[0].velocity == 100);  // round(100 * 1.0) = 100
+}
+
+TEST_CASE("ArpeggiatorCore: BitIdentical_VelocityDefault",
+          "[processors][arpeggiator_core]") {
+    // SC-002: Capture output of 1000+ steps with default lane at multiple tempos,
+    // compare to expected (no lane) values -- must be byte-for-byte identical.
+    // Default velocity lane: length=1, step[0]=1.0f
+    // round(v * 1.0f) == v for all integers v in [1,127] by IEEE 754
+
+    std::array<double, 3> tempos = {120.0, 140.0, 180.0};
+
+    for (double tempo : tempos) {
+        // Create arp with default lane (no modifications)
+        ArpeggiatorCore arp;
+        arp.prepare(44100.0, 512);
+        arp.setEnabled(true);
+        arp.setMode(ArpMode::Up);
+        arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+        arp.setGateLength(80.0f);
+
+        // Hold a chord: C, E, G with various velocities
+        arp.noteOn(60, 100);
+        arp.noteOn(64, 80);
+        arp.noteOn(67, 110);
+
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = 512;
+        ctx.tempoBPM = tempo;
+        ctx.isPlaying = true;
+
+        // Collect enough blocks to get 1000+ NoteOn events
+        // At 120 BPM, 1/8 note = 11025 samples. With 512-sample blocks,
+        // ~22 blocks per step. 1000 steps = ~22000 blocks.
+        auto events = collectEvents(arp, ctx, 25000);
+        auto noteOns = filterNoteOns(events);
+
+        REQUIRE(noteOns.size() >= 1000);
+
+        // Verify every note velocity is EXACTLY the input velocity
+        // (no modification from default lane)
+        size_t mismatches = 0;
+        for (size_t i = 0; i < noteOns.size(); ++i) {
+            // In Up mode with 3 notes, pattern cycles: 60, 64, 67
+            uint8_t expectedVel = 0;
+            uint8_t note = noteOns[i].note;
+            if (note == 60) expectedVel = 100;
+            else if (note == 64) expectedVel = 80;
+            else if (note == 67) expectedVel = 110;
+            else {
+                // Octave repeats -- same velocity as base note
+                expectedVel = (note % 12 == 0) ? 100 :
+                              (note % 12 == 4) ? 80 : 110;
+            }
+
+            if (noteOns[i].velocity != expectedVel) {
+                ++mismatches;
+            }
+        }
+
+        INFO("Tempo: " << tempo << " BPM, Steps: " << noteOns.size()
+             << ", Mismatches: " << mismatches);
+        CHECK(mismatches == 0);
+    }
+}

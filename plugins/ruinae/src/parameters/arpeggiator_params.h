@@ -22,6 +22,7 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cstdio>
 
@@ -35,6 +36,7 @@ namespace Ruinae {
 // applyParamsToEngine).
 
 struct ArpeggiatorParams {
+    // Base arp params (Phase 3)
     std::atomic<bool>  enabled{false};
     std::atomic<int>   mode{0};              // 0=Up..9=Chord
     std::atomic<int>   octaveRange{1};       // 1-4
@@ -46,6 +48,16 @@ struct ArpeggiatorParams {
     std::atomic<float> swing{0.0f};          // 0-75%
     std::atomic<int>   latchMode{0};         // 0=Off, 1=Hold, 2=Add
     std::atomic<int>   retrigger{0};         // 0=Off, 1=Note, 2=Beat
+
+    // Velocity lane (072-independent-lanes, US1)
+    std::atomic<int>   velocityLaneLength{1};   // 1-32
+    std::array<std::atomic<float>, 32> velocityLaneSteps{};
+
+    ArpeggiatorParams() {
+        for (auto& step : velocityLaneSteps) {
+            step.store(1.0f, std::memory_order_relaxed);
+        }
+    }
 };
 
 // =============================================================================
@@ -121,7 +133,21 @@ inline void handleArpParamChange(
                 std::clamp(static_cast<int>(value * 2.0 + 0.5), 0, 2),
                 std::memory_order_relaxed);
             break;
+
+        // --- Velocity Lane (072-independent-lanes, US1) ---
+        case kArpVelocityLaneLengthId:
+            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
+            params.velocityLaneLength.store(
+                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                std::memory_order_relaxed);
+            break;
         default:
+            // Velocity lane steps: 3021-3052
+            if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
+                float vel = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                params.velocityLaneSteps[id - kArpVelocityLaneStep0Id].store(
+                    vel, std::memory_order_relaxed);
+            }
             break;
     }
 }
@@ -196,6 +222,27 @@ inline void registerArpParams(
     parameters.addParameter(createDropdownParameter(
         STR16("Arp Retrigger"), kArpRetriggerId,
         {STR16("Off"), STR16("Note"), STR16("Beat")}));
+
+    // --- Velocity Lane (072-independent-lanes, US1) ---
+
+    // Velocity lane length: RangeParameter 1-32, default 1, stepCount 31
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Vel Lane Len"), kArpVelocityLaneLengthId,
+                          STR16(""), 1, 32, 1, 31,
+                          ParameterInfo::kCanAutomate));
+
+    // Velocity lane steps: loop 0-31, RangeParameter 0.0-1.0, default 1.0
+    for (int i = 0; i < 32; ++i) {
+        char name[48];
+        snprintf(name, sizeof(name), "Arp Vel Step %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(name);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpVelocityLaneStep0Id + i),
+                STR16(""), 0.0, 1.0, 1.0, 0,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
 }
 
 // =============================================================================
@@ -279,7 +326,23 @@ inline Steinberg::tresult formatArpParam(
             UString(string, 128).fromAscii(kRetrigNames[idx]);
             return kResultOk;
         }
+
+        // --- Velocity Lane (072-independent-lanes, US1) ---
+        case kArpVelocityLaneLengthId: {
+            char8 text[32];
+            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            snprintf(text, sizeof(text), "%d steps", len);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
         default:
+            // Velocity lane steps: display as percentage
+            if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
+                char8 text[32];
+                snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+                UString(string, 128).fromAscii(text);
+                return kResultOk;
+            }
             break;
     }
     return kResultFalse;
@@ -307,6 +370,12 @@ inline void saveArpParams(
     streamer.writeFloat(params.swing.load(std::memory_order_relaxed));
     streamer.writeInt32(params.latchMode.load(std::memory_order_relaxed));
     streamer.writeInt32(params.retrigger.load(std::memory_order_relaxed));
+
+    // --- Velocity Lane (072-independent-lanes, US1) ---
+    streamer.writeInt32(params.velocityLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeFloat(params.velocityLaneSteps[i].load(std::memory_order_relaxed));
+    }
 }
 
 // =============================================================================
@@ -355,6 +424,17 @@ inline bool loadArpParams(
 
     if (!streamer.readInt32(intVal)) return false;
     params.retrigger.store(std::clamp(intVal, 0, 2), std::memory_order_relaxed);
+
+    // --- Velocity Lane (072-independent-lanes, US1) ---
+    // EOF-safe: if lane data is missing (Phase 3 preset), keep defaults
+    if (!streamer.readInt32(intVal)) return true;  // base params loaded OK
+    params.velocityLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readFloat(floatVal)) return false;
+        params.velocityLaneSteps[i].store(
+            std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+    }
 
     return true;
 }

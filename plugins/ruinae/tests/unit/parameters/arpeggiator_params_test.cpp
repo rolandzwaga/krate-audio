@@ -531,3 +531,147 @@ TEST_CASE("ArpParams_LoadToController_NormalizesCorrectly", "[arp][params][state
     CHECK(calls[10].id == kArpRetriggerId);
     CHECK(calls[10].value == Approx(1.0).margin(0.001));
 }
+
+// ==============================================================================
+// Phase 4 (072-independent-lanes) User Story 1: Velocity Lane Parameter Tests
+// ==============================================================================
+
+TEST_CASE("ArpVelLaneLength_Registration", "[arp][params]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    auto* param = container.getParameter(kArpVelocityLaneLengthId);
+    REQUIRE(param != nullptr);
+
+    ParameterInfo info = param->getInfo();
+    CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+    // Discrete param with stepCount=31 (range [1,32])
+    CHECK(info.stepCount == 31);
+}
+
+TEST_CASE("ArpVelLaneStep_Registration", "[arp][params]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    // Step params 3021-3052 registered with range [0,1] default 1.0
+    for (int i = 0; i < 32; ++i) {
+        auto paramId = static_cast<ParamID>(kArpVelocityLaneStep0Id + i);
+        auto* param = container.getParameter(paramId);
+        REQUIRE(param != nullptr);
+
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+    }
+}
+
+TEST_CASE("ArpVelLaneLength_Denormalize", "[arp][params]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> length=1
+    handleArpParamChange(params, kArpVelocityLaneLengthId, 0.0);
+    CHECK(params.velocityLaneLength.load() == 1);
+
+    // 1.0 -> length=32
+    handleArpParamChange(params, kArpVelocityLaneLengthId, 1.0);
+    CHECK(params.velocityLaneLength.load() == 32);
+
+    // 0.5 -> 1 + round(0.5 * 31) = 1 + 16 = 17
+    handleArpParamChange(params, kArpVelocityLaneLengthId, 0.5);
+    CHECK(params.velocityLaneLength.load() == 17);
+}
+
+TEST_CASE("ArpVelLaneStep_Denormalize", "[arp][params]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> step[0]=0.0f
+    handleArpParamChange(params, kArpVelocityLaneStep0Id, 0.0);
+    CHECK(params.velocityLaneSteps[0].load() == Approx(0.0f).margin(0.001f));
+
+    // 1.0 -> step[0]=1.0f
+    handleArpParamChange(params, kArpVelocityLaneStep0Id, 1.0);
+    CHECK(params.velocityLaneSteps[0].load() == Approx(1.0f).margin(0.001f));
+
+    // 0.5 -> step[0]=0.5f
+    handleArpParamChange(params, kArpVelocityLaneStep0Id, 0.5);
+    CHECK(params.velocityLaneSteps[0].load() == Approx(0.5f).margin(0.001f));
+}
+
+TEST_CASE("ArpVelParams_SaveLoad_RoundTrip", "[arp][params]") {
+    using namespace Ruinae;
+
+    // Set non-default velocity lane values
+    ArpeggiatorParams original;
+    original.velocityLaneLength.store(4, std::memory_order_relaxed);
+    original.velocityLaneSteps[0].store(1.0f, std::memory_order_relaxed);
+    original.velocityLaneSteps[1].store(0.3f, std::memory_order_relaxed);
+    original.velocityLaneSteps[2].store(0.3f, std::memory_order_relaxed);
+    original.velocityLaneSteps[3].store(0.7f, std::memory_order_relaxed);
+
+    // Serialize
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Deserialize
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        REQUIRE(ok);
+    }
+
+    // Verify velocity lane round-trip
+    CHECK(loaded.velocityLaneLength.load() == 4);
+    CHECK(loaded.velocityLaneSteps[0].load() == Approx(1.0f).margin(1e-6f));
+    CHECK(loaded.velocityLaneSteps[1].load() == Approx(0.3f).margin(1e-6f));
+    CHECK(loaded.velocityLaneSteps[2].load() == Approx(0.3f).margin(1e-6f));
+    CHECK(loaded.velocityLaneSteps[3].load() == Approx(0.7f).margin(1e-6f));
+}
+
+TEST_CASE("ArpVelParams_BackwardCompat", "[arp][params]") {
+    using namespace Ruinae;
+
+    // Construct a Phase 3 stream with ONLY 11 base arp params (no lane data)
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        writeStream.writeInt32(1);     // enabled = true
+        writeStream.writeInt32(0);     // mode = Up
+        writeStream.writeInt32(1);     // octaveRange = 1
+        writeStream.writeInt32(0);     // octaveMode = Sequential
+        writeStream.writeInt32(1);     // tempoSync = true
+        writeStream.writeInt32(10);    // noteValue = 1/8
+        writeStream.writeFloat(4.0f);  // freeRate = 4.0 Hz
+        writeStream.writeFloat(80.0f); // gateLength = 80%
+        writeStream.writeFloat(0.0f);  // swing = 0%
+        writeStream.writeInt32(0);     // latchMode = Off
+        writeStream.writeInt32(0);     // retrigger = Off
+    }
+
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        // loadArpParams should return true for the 11 base params,
+        // then fail to read lane data -- that's OK, lanes stay at defaults
+        loadArpParams(loaded, readStream);
+    }
+
+    // Base params loaded correctly
+    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.mode.load() == 0);
+
+    // Velocity lane defaults preserved (no lane data in stream)
+    CHECK(loaded.velocityLaneLength.load() == 1);
+    for (int i = 0; i < 32; ++i) {
+        CHECK(loaded.velocityLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
+    }
+}

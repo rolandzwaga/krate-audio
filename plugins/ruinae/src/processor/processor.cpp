@@ -1263,6 +1263,17 @@ void Processor::applyParamsToEngine() {
             prevArpRetrigger_ = retrigger;
         }
     }
+    // --- Velocity Lane (072-independent-lanes, US1) ---
+    {
+        const auto velLen = arpParams_.velocityLaneLength.load(std::memory_order_relaxed);
+        arpCore_.velocityLane().setLength(static_cast<size_t>(velLen));
+        for (int i = 0; i < 32; ++i) {
+            arpCore_.velocityLane().setStep(
+                static_cast<size_t>(i),
+                arpParams_.velocityLaneSteps[i].load(std::memory_order_relaxed));
+        }
+    }
+
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));
 }
