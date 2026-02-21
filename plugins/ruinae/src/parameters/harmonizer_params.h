@@ -370,23 +370,49 @@ inline void saveHarmonizerParams(const RuinaeHarmonizerParams& params, Steinberg
 inline bool loadHarmonizerParams(RuinaeHarmonizerParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     // Global ints
-    if (!streamer.readInt32(iv)) return false; params.harmonyMode.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.key.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.scale.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.pitchShiftMode.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.formantPreserve.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false; params.numVoices.store(iv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv))
+        return false;
+    params.harmonyMode.store(iv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv))
+        return false;
+    params.key.store(iv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv))
+        return false;
+    params.scale.store(iv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv))
+        return false;
+    params.pitchShiftMode.store(iv, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv))
+        return false;
+    params.formantPreserve.store(iv != 0, std::memory_order_relaxed);
+    if (!streamer.readInt32(iv))
+        return false;
+    params.numVoices.store(iv, std::memory_order_relaxed);
     // Global floats
-    if (!streamer.readFloat(fv)) return false; params.dryLevelDb.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false; params.wetLevelDb.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv))
+        return false;
+    params.dryLevelDb.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv))
+        return false;
+    params.wetLevelDb.store(fv, std::memory_order_relaxed);
     // Per-voice (4 voices)
     for (int v = 0; v < 4; ++v) {
         auto vi = static_cast<size_t>(v);
-        if (!streamer.readInt32(iv)) return false; params.voiceInterval[vi].store(iv, std::memory_order_relaxed);
-        if (!streamer.readFloat(fv)) return false; params.voiceLevelDb[vi].store(fv, std::memory_order_relaxed);
-        if (!streamer.readFloat(fv)) return false; params.voicePan[vi].store(fv, std::memory_order_relaxed);
-        if (!streamer.readFloat(fv)) return false; params.voiceDelayMs[vi].store(fv, std::memory_order_relaxed);
-        if (!streamer.readFloat(fv)) return false; params.voiceDetuneCents[vi].store(fv, std::memory_order_relaxed);
+        if (!streamer.readInt32(iv))
+            return false;
+        params.voiceInterval[vi].store(iv, std::memory_order_relaxed);
+        if (!streamer.readFloat(fv))
+            return false;
+        params.voiceLevelDb[vi].store(fv, std::memory_order_relaxed);
+        if (!streamer.readFloat(fv))
+            return false;
+        params.voicePan[vi].store(fv, std::memory_order_relaxed);
+        if (!streamer.readFloat(fv))
+            return false;
+        params.voiceDelayMs[vi].store(fv, std::memory_order_relaxed);
+        if (!streamer.readFloat(fv))
+            return false;
+        params.voiceDetuneCents[vi].store(fv, std::memory_order_relaxed);
     }
     return true;
 }

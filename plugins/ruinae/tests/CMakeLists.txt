@@ -53,6 +53,11 @@ add_executable(ruinae_tests
     integration/mod_source_pipeline_test.cpp
     integration/morph_pad_modulation_test.cpp
 
+    # Arpeggiator Tests (071-arp-engine-integration)
+    unit/parameters/arpeggiator_params_test.cpp
+    unit/processor/arp_integration_test.cpp
+    unit/controller/arp_controller_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp

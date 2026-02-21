@@ -86,8 +86,9 @@ Processor::setState()
 | **2500-2599** | **Random** | **`random_params.h`** | **4** |
 | **2600-2699** | **Pitch Follower** | **`pitch_follower_params.h`** | **4** |
 | **2700-2799** | **Transient** | **`transient_params.h`** | **3** |
+| **3000-3099** | **Arpeggiator** | **`arpeggiator_params.h`** | **11** |
 
-**Sentinel**: `kNumParameters = 2800`
+**Sentinel**: `kNumParameters = 3100`
 
 ---
 
@@ -639,6 +640,127 @@ Controller loading requires inverse mapping:
 
 ---
 
+## Arpeggiator Parameters (Spec 071)
+
+**File**: `plugins/ruinae/src/parameters/arpeggiator_params.h`
+**IDs**: 3000-3010 (reserved range 3000-3099 for future lane parameters)
+
+### Purpose
+
+Atomic thread-safe bridge for arpeggiator parameters between the UI/host thread (writes normalized values via `processParameterChanges`) and the audio thread (reads plain values in `applyParamsToEngine` and forwards them to `ArpeggiatorCore`). Follows the same parameter pack pattern as all other Ruinae sections (`trance_gate_params.h` is the direct reference pattern).
+
+### ArpeggiatorParams Struct
+
+```cpp
+struct ArpeggiatorParams {
+    std::atomic<bool>  enabled{false};
+    std::atomic<int>   mode{0};              // 0=Up..9=Chord (ArpMode enum)
+    std::atomic<int>   octaveRange{1};       // 1-4
+    std::atomic<int>   octaveMode{0};        // 0=Sequential, 1=Interleaved (OctaveMode enum)
+    std::atomic<bool>  tempoSync{true};
+    std::atomic<int>   noteValue{10};        // Index into note value dropdown (default 1/8 note)
+    std::atomic<float> freeRate{4.0f};       // 0.5-50 Hz
+    std::atomic<float> gateLength{80.0f};    // 1-200%
+    std::atomic<float> swing{0.0f};          // 0-75%
+    std::atomic<int>   latchMode{0};         // 0=Off, 1=Hold, 2=Add (LatchMode enum)
+    std::atomic<int>   retrigger{0};         // 0=Off, 1=Note, 2=Beat (ArpRetriggerMode enum)
+};
+```
+
+### Public API (6 Functions)
+
+| Function | Purpose | Called From |
+|----------|---------|-------------|
+| `handleArpParamChange(params, id, value)` | Denormalize VST 0-1 to plain values, store with `memory_order_relaxed` | `Processor::processParameterChanges()` |
+| `registerArpParams(parameters)` | Register all 11 parameters with `kCanAutomate` flag and readable names | `Controller::initialize()` |
+| `formatArpParam(id, valueNormalized, string)` | Produce human-readable display strings for each parameter | `Controller::getParamStringByValue()` |
+| `saveArpParams(params, streamer)` | Serialize 11 fields to IBStreamer in fixed order | `Processor::getState()` |
+| `loadArpParams(params, streamer)` | Deserialize 11 fields from IBStreamer; returns false gracefully on truncated stream (backward compat) | `Processor::setState()` |
+| `loadArpParamsToController(streamer, setParam)` | Read 11 fields and call `setParam(id, normalizedValue)` for each, converting plain to normalized | `Controller::setComponentState()` |
+
+### Parameter Details
+
+| ID | Name | Display | Type | Default (Norm) | Mapping |
+|----|------|---------|------|----------------|---------|
+| 3000 | Arp Enabled | on/off | ToggleParameter | 0.0 (off) | Boolean: `norm >= 0.5` |
+| 3001 | Arp Mode | StringListParameter | Up/Down/.../Chord | 0.0 (Up) | Discrete: 10 entries, stepCount=9 |
+| 3002 | Arp Octave Range | "1"/"2"/"3"/"4" | RangeParameter | 0.0 (1 oct) | Discrete: `1 + round(norm * 3)`, stepCount=3 |
+| 3003 | Arp Octave Mode | StringListParameter | Sequential/Interleaved | 0.0 (Sequential) | Discrete: 2 entries, stepCount=1 |
+| 3004 | Arp Tempo Sync | on/off | ToggleParameter | 1.0 (on) | Boolean: `norm >= 0.5` |
+| 3005 | Arp Note Value | dropdown | `createNoteValueDropdown()` | 0.5 (1/8 note) | Discrete: 21 entries, stepCount=20 |
+| 3006 | Arp Free Rate | "X.X Hz" | Parameter | 0.0707 (4 Hz) | Linear: `0.5 + norm * 49.5` |
+| 3007 | Arp Gate Length | "XX%" | Parameter | 0.3960 (80%) | Linear: `1 + norm * 199` |
+| 3008 | Arp Swing | "X%" | Parameter | 0.0 (0%) | Linear: `norm * 75` |
+| 3009 | Arp Latch Mode | StringListParameter | Off/Hold/Add | 0.0 (Off) | Discrete: 3 entries, stepCount=2 |
+| 3010 | Arp Retrigger | StringListParameter | Off/Note/Beat | 0.0 (Off) | Discrete: 3 entries, stepCount=2 |
+
+### Format Strings
+
+| Parameter | Examples |
+|-----------|----------|
+| Mode | "Up", "Down", "UpDown", "DownUp", "Converge", "Diverge", "Random", "Walk", "AsPlayed", "Chord" |
+| Octave Range | "1", "2", "3", "4" |
+| Octave Mode | "Sequential", "Interleaved" |
+| Free Rate | "4.0 Hz" |
+| Gate Length | "80%" |
+| Swing | "0%" |
+| Latch Mode | "Off", "Hold", "Add" |
+| Retrigger | "Off", "Note", "Beat" |
+| Note Value | Same strings as trance gate (from `note_value_ui.h`) |
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToEngine():
+arpCore_.setMode(static_cast<Krate::DSP::ArpMode>(arpParams_.mode.load(relaxed)));
+arpCore_.setOctaveRange(arpParams_.octaveRange.load(relaxed));
+arpCore_.setOctaveMode(static_cast<Krate::DSP::OctaveMode>(arpParams_.octaveMode.load(relaxed)));
+arpCore_.setTempoSync(arpParams_.tempoSync.load(relaxed));
+auto noteMapping = Krate::DSP::getNoteValueFromDropdown(arpParams_.noteValue.load(relaxed));
+arpCore_.setNoteValue(noteMapping.noteValue, noteMapping.modifier);
+arpCore_.setFreeRate(arpParams_.freeRate.load(relaxed));
+arpCore_.setGateLength(arpParams_.gateLength.load(relaxed));
+arpCore_.setSwing(arpParams_.swing.load(relaxed));  // Takes 0-75 percent as-is, NOT normalized
+arpCore_.setLatchMode(static_cast<Krate::DSP::LatchMode>(arpParams_.latchMode.load(relaxed)));
+arpCore_.setRetrigger(static_cast<Krate::DSP::ArpRetriggerMode>(arpParams_.retrigger.load(relaxed)));
+arpCore_.setEnabled(arpParams_.enabled.load(relaxed));  // MUST be called LAST (may queue cleanup note-offs)
+```
+
+### State Persistence
+
+Arpeggiator state consists of 7 int32s + 3 floats + 1 int32 written sequentially:
+```
+[int32: enabled] [int32: mode] [int32: octaveRange] [int32: octaveMode]
+[int32: tempoSync] [int32: noteValue] [float: freeRate] [float: gateLength]
+[float: swing] [int32: latchMode] [int32: retrigger]
+```
+
+`loadArpParams()` returns `false` without corrupting state when the stream ends early (backward compatibility with presets saved before spec 071). The arp params are appended after the last existing state data (harmonizer enable flag).
+
+Controller loading requires inverse mapping:
+- Enabled/TempoSync: `bool ? 1.0 : 0.0` converts to boolean normalized
+- Mode: `index / 9.0` converts index to normalized [0, 1]
+- Octave Range: `(range - 1) / 3.0` converts 1-4 to normalized [0, 1]
+- Octave Mode: `index / 1.0` (identity) converts index to normalized
+- Note Value: `index / 20.0` converts index to normalized
+- Free Rate: `(hz - 0.5) / 49.5` converts Hz back to normalized
+- Gate Length: `(pct - 1.0) / 199.0` converts percentage back to normalized
+- Swing: `pct / 75.0` converts percentage back to normalized
+- Latch Mode: `index / 2.0` converts index to normalized
+- Retrigger: `index / 2.0` converts index to normalized
+
+### When to Use This
+
+Extend `ArpeggiatorParams` when adding new arpeggiator features:
+- **Phase 4 (Independent Lane Architecture)**: Add lane step parameters in the reserved 3020-3199 ID range
+- **Phase 5 (Slide/Legato)**: Add slide/legato toggle parameters
+- **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations
+- **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes expected
+
+The reserved range `kArpEndId = 3099` accommodates future lane parameters without requiring an ID allocation change.
+
+---
+
 ## Denormalization Mappings Reference
 
 | Mapping | Parameters | Formula |
@@ -659,7 +781,8 @@ Controller loading requires inverse mapping:
 | Bipolar | Tune (-24/+24), Mod Amount (-1/+1) | `normalized * range - offset` |
 | Discrete (stepped) | Pitch Bend Range (0-24st) | `round(normalized * 24)` |
 | Discrete | Rungler Bits (4-16) | `4 + round(normalized * 12)` |
-| Boolean | Loop Mode, Enabled flags, Gain Comp, S&H Sync, Rnd Sync | `normalized >= 0.5` |
+| Linear (offset+scale) | Arp Free Rate (0.5-50Hz), Arp Gate Length (1-200%), Arp Swing (0-75%) | `offset + normalized * range` |
+| Boolean | Loop Mode, Enabled flags, Gain Comp, S&H Sync, Rnd Sync, Arp Enabled, Arp Tempo Sync | `normalized >= 0.5` |
 
 ---
 

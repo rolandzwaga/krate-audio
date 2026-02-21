@@ -352,6 +352,9 @@ Before committing, check for these smells:
 | Using std::isfinite | `std::isnan()`, `std::isfinite()`, `std::isinf()` | Use bit-level checks from `db_utils.h` |
 | Build Paranoia | Rebuilding when tests ran successfully | Trust the output; only `--clean-first` if tests don't appear |
 | Loop Assertion | `REQUIRE`/`INFO` inside >100-iteration loops | Collect metrics in loop, assert once after |
+| Existence Check | `hasNonZeroSamples()` as sole verification | Verify output is **correct** (notes, timing, values) |
+| Perfect Host | Fixture always sets kPlaying/kTempoValid | Also test with minimal/degraded host conditions |
+| Reset Trap | Setter called every block in applyParams | Change-detection guard + test with same-value-every-block |
 
 ---
 
@@ -672,3 +675,173 @@ for (float freq : testFreqs) {
 > Collect scalar metrics in the loop body using plain C++ (min, max, sum, count, bool flags).
 > Assert on the collected metrics once after the loop exits.
 > Use INFO before the post-loop REQUIRE to provide diagnostic context on failure.
+
+---
+
+## 14. The Existence Check (Integration Anti-Pattern)
+
+> **THIS CAUSED TWO SHIPPED BUGS IN THE ARP INTEGRATION (071)**
+>
+> Checking `hasNonZeroSamples()` ("is there audio?") does NOT verify the feature works.
+> It only verifies the processor didn't crash and something made noise.
+
+**Problem:** Integration tests check for the existence of output rather than its correctness.
+
+```cpp
+// BAD: This test passed while the arp only played one note repeatedly!
+TEST_CASE("Arp produces audio when enabled", "[arp][integration]") {
+    enableArp();
+    sendChord(60, 64, 67);  // C, E, G
+
+    bool audioFound = false;
+    for (int i = 0; i < 60; ++i) {
+        processBlock();
+        if (hasNonZeroSamples(outL.data(), blockSize)) {
+            audioFound = true;
+            break;
+        }
+    }
+    REQUIRE(audioFound);  // PASSES! But only note 60 (C) is ever played.
+}
+```
+
+**Why this is broken:** The arp DID produce audio — it just played C4 repeatedly because
+`setMode()` was resetting the step index every block. The test never checked WHICH notes
+were being played.
+
+### The Fix: Verify Behavioral Correctness
+
+```cpp
+// GOOD: Verify the output is CORRECT, not just PRESENT
+TEST_CASE("Arp cycles through all chord notes", "[arp][integration]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+
+    arp.noteOn(60, 100);  // C4
+    arp.noteOn(64, 100);  // E4
+    arp.noteOn(67, 100);  // G4
+
+    std::set<uint8_t> notesHeard;
+    for (int block = 0; block < 100; ++block) {
+        size_t n = arp.processBlock(ctx, events);
+        for (size_t i = 0; i < n; ++i)
+            if (events[i].type == ArpEvent::Type::NoteOn)
+                notesHeard.insert(events[i].note);
+    }
+
+    REQUIRE(notesHeard.size() == 3);  // All 3 notes, not just 1
+}
+```
+
+### The Rule
+
+> **"Audio present" is a necessary condition, not a sufficient one.**
+>
+> After confirming output exists, ALWAYS add a second test that verifies the output is
+> **correct**: right notes, right timing, right values, right modulation shape.
+>
+> See [INTEGRATION-TESTING.md](INTEGRATION-TESTING.md) for the complete integration test checklist.
+
+---
+
+## 15. The Perfect Host (Integration Anti-Pattern)
+
+> **Testing only with ideal host conditions misses real-world failures.**
+
+**Problem:** All test fixtures set up a "perfect" host with `kPlaying`, `kTempoValid`, and
+`kTimeSigValid` always active. Real hosts vary wildly.
+
+```cpp
+// BAD: Every test assumes the perfect DAW environment
+struct TestFixture {
+    TestFixture() {
+        processContext.state = ProcessContext::kPlaying       // Always!
+                            | ProcessContext::kTempoValid     // Always!
+                            | ProcessContext::kTimeSigValid;  // Always!
+        processContext.tempo = 120.0;
+    }
+};
+```
+
+**What happened:** The arp produced silence in Plugin Buddy (a simple host that never sets
+`kPlaying`). No test ever simulated a host without transport.
+
+### The Fix
+
+```cpp
+// GOOD: Also test with degraded host conditions
+TEST_CASE("Feature works without host transport", "[integration]") {
+    processContext.state = 0;  // Nothing set
+    processContext.tempo = 0.0;
+
+    enableFeature();
+    sendNote(60, 0.8f);
+    // ... verify it still works ...
+}
+```
+
+### The Rule
+
+> **Every feature that reads ProcessContext must have at least one test with minimal context.**
+>
+> See [INTEGRATION-TESTING.md](INTEGRATION-TESTING.md) for the host conditions matrix.
+
+---
+
+## 16. The Reset Trap (Integration Anti-Pattern)
+
+> **Calling configuration setters every block can silently destroy stateful behavior.**
+
+**Problem:** `applyParamsToEngine()` runs every audio block. Some sub-component setters
+have side effects (reset step index, clear buffer, reinitialize state). Calling them
+unconditionally every block breaks multi-block behavior.
+
+```cpp
+// BAD: In applyParamsToEngine(), called 86 times/second at 44.1kHz/512 block
+arpCore_.setMode(static_cast<ArpMode>(arpParams_.mode.load()));
+// NoteSelector::setMode() calls reset(), resetting step index to 0.
+// The arp never advances past the first note!
+```
+
+### The Fix: Change-Detection Guards
+
+```cpp
+// GOOD: Only call setters when value changes
+const auto mode = static_cast<ArpMode>(arpParams_.mode.load());
+if (mode != prevArpMode_) {
+    arpCore_.setMode(mode);
+    prevArpMode_ = mode;
+}
+```
+
+### The Required Test
+
+```cpp
+TEST_CASE("Calling setMode every block prevents note advance", "[integration][bug]") {
+    SECTION("BUG: same setter every block resets state") {
+        for (int block = 0; block < 100; ++block) {
+            arp.setMode(ArpMode::Up);  // Same value! But resets step index.
+            arp.processBlock(ctx, events);
+        }
+        CHECK(notesHeard.size() == 1);  // Only first note ever played
+    }
+
+    SECTION("FIX: setter only on change") {
+        // setMode called once in setup, not called again
+        for (int block = 0; block < 100; ++block) {
+            arp.processBlock(ctx, events);
+        }
+        REQUIRE(notesHeard.size() == 3);  // All notes cycle correctly
+    }
+}
+```
+
+### The Rule
+
+> **Before calling ANY setter in `applyParamsToEngine()`, check whether it resets internal
+> state. If it does, guard it with change detection. Always write a test that calls the
+> setter every block with the same value and verifies multi-block behavior isn't broken.**
+>
+> See [INTEGRATION-TESTING.md](INTEGRATION-TESTING.md) for the setter side-effect table.

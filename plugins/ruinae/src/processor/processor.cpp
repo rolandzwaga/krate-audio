@@ -115,6 +115,9 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     // Prepare engine (allocates internal buffers)
     engine_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
 
+    // Prepare arpeggiator (FR-008)
+    arpCore_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
+
     logPhaser("[RUINAE] setupProcessing: sampleRate=%.0f maxBlock=%d\n", sampleRate_, maxBlockSize_);
 
     return AudioEffect::setupProcessing(setup);
@@ -124,6 +127,7 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     if (state) {
         // Activating: reset DSP state
         engine_.reset();
+        arpCore_.reset();
         std::fill(mixBufferL_.begin(), mixBufferL_.end(), 0.0f);
         std::fill(mixBufferR_.begin(), mixBufferR_.end(), 0.0f);
     }
@@ -168,34 +172,64 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 #endif
 
     // Build and forward BlockContext from host tempo/transport
+    Krate::DSP::BlockContext blockCtx;
     {
-        Krate::DSP::BlockContext ctx;
-        ctx.sampleRate = sampleRate_;
-        ctx.blockSize = (data.numSamples > 0) ? static_cast<size_t>(data.numSamples) : 0;
+        blockCtx.sampleRate = sampleRate_;
+        blockCtx.blockSize = (data.numSamples > 0) ? static_cast<size_t>(data.numSamples) : 0;
 
         if (data.processContext) {
             auto* pc = data.processContext;
             if (pc->state & Steinberg::Vst::ProcessContext::kTempoValid) {
-                ctx.tempoBPM = pc->tempo;
+                blockCtx.tempoBPM = pc->tempo;
             }
             if (pc->state & Steinberg::Vst::ProcessContext::kTimeSigValid) {
-                ctx.timeSignatureNumerator = static_cast<uint8_t>(pc->timeSigNumerator);
-                ctx.timeSignatureDenominator = static_cast<uint8_t>(pc->timeSigDenominator);
+                blockCtx.timeSignatureNumerator = static_cast<uint8_t>(pc->timeSigNumerator);
+                blockCtx.timeSignatureDenominator = static_cast<uint8_t>(pc->timeSigDenominator);
             }
-            ctx.isPlaying = (pc->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
+            blockCtx.isPlaying = (pc->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
             if (pc->state & Steinberg::Vst::ProcessContext::kProjectTimeMusicValid) {
                 // Convert musical time (beats) to samples approximation
-                ctx.transportPositionSamples = static_cast<int64_t>(
-                    pc->projectTimeMusic * (60.0 / ctx.tempoBPM) * ctx.sampleRate);
+                blockCtx.transportPositionSamples = static_cast<int64_t>(
+                    pc->projectTimeMusic * (60.0 / blockCtx.tempoBPM) * blockCtx.sampleRate);
             }
         }
 
-        engine_.setBlockContext(ctx);
+        engine_.setBlockContext(blockCtx);
     }
 
-    // Process MIDI events
+    // Process MIDI events (FR-006: branches on arp enabled state)
     if (data.inputEvents) {
         processEvents(data.inputEvents);
+    }
+
+    // Arp block processing (FR-007, FR-017, FR-018)
+    // Must run after processEvents() and before engine_.processBlock()
+    if (arpParams_.enabled.load(std::memory_order_relaxed)) {
+        // FR-017: setEnabled(false) queues cleanup note-offs internally.
+        // The processBlock() call below drains them through the standard
+        // routing loop, ensuring every note-on has a matching note-off.
+
+        // The arp must always advance when enabled, regardless of host
+        // transport state. Simple hosts (e.g., Plugin Buddy) may never set
+        // kPlaying, and even in DAWs the arp should be playable without
+        // pressing Play. We force isPlaying=true so ArpeggiatorCore's
+        // internal timing always runs. The arp uses tempoBPM (always
+        // available, default 120) for tempo-sync timing.
+        Krate::DSP::BlockContext arpCtx = blockCtx;
+        arpCtx.isPlaying = true;
+
+        // Process arp block (processBlock takes std::span<ArpEvent>, returns event count)
+        size_t numArpEvents = arpCore_.processBlock(arpCtx, arpEvents_);
+
+        // Route arp events to engine (FR-007)
+        for (size_t i = 0; i < numArpEvents; ++i) {
+            const auto& evt = arpEvents_[i];
+            if (evt.type == Krate::DSP::ArpEvent::Type::NoteOn) {
+                engine_.noteOn(evt.note, evt.velocity);
+            } else {
+                engine_.noteOff(evt.note);
+            }
+        }
     }
 
     // Check if we have audio to process
@@ -458,6 +492,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveHarmonizerParams(harmonizerParams_, streamer);
     streamer.writeInt8(harmonizerEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
 
+    // Arpeggiator params (FR-011)
+    saveArpParams(arpParams_, streamer);
+
     return Steinberg::kResultTrue;
 }
 
@@ -547,6 +584,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     loadHarmonizerParams(harmonizerParams_, streamer);
     if (streamer.readInt8(i8))
         harmonizerEnabled_.store(i8 != 0, std::memory_order_relaxed);
+
+    // Arpeggiator params (FR-011) -- backward compat: loadArpParams returns
+    // false on truncated/old streams, leaving arpParams_ at defaults
+    loadArpParams(arpParams_, streamer);
 
     return Steinberg::kResultTrue;
 }
@@ -651,6 +692,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleTransientParamChange(transientParams_, paramId, value);
         } else if (paramId >= kHarmonizerBaseId && paramId <= kHarmonizerEndId) {
             handleHarmonizerParamChange(harmonizerParams_, paramId, value);
+        } else if (paramId >= kArpBaseId && paramId <= kArpEndId) {
+            handleArpParamChange(arpParams_, paramId, value);
         }
     }
 }
@@ -1162,6 +1205,66 @@ void Processor::applyParamsToEngine() {
     engine_.setTransientSensitivity(transientParams_.sensitivity.load(std::memory_order_relaxed));
     engine_.setTransientAttack(transientParams_.attackMs.load(std::memory_order_relaxed));
     engine_.setTransientDecay(transientParams_.decayMs.load(std::memory_order_relaxed));
+
+    // --- Arpeggiator (FR-009) ---
+    // IMPORTANT: Only call setters when the value actually changes.
+    // Several ArpeggiatorCore setters (setMode, setRetrigger) reset internal
+    // state (step index, swing counter). Calling them unconditionally every
+    // block would prevent the arp from ever advancing past step 0.
+    {
+        const auto modeInt = arpParams_.mode.load(std::memory_order_relaxed);
+        const auto mode = static_cast<ArpMode>(modeInt);
+        if (mode != prevArpMode_) {
+            arpCore_.setMode(mode);
+            prevArpMode_ = mode;
+        }
+    }
+    {
+        const auto octaveRange = arpParams_.octaveRange.load(std::memory_order_relaxed);
+        if (octaveRange != prevArpOctaveRange_) {
+            arpCore_.setOctaveRange(octaveRange);
+            prevArpOctaveRange_ = octaveRange;
+        }
+    }
+    {
+        const auto octaveMode = static_cast<OctaveMode>(
+            arpParams_.octaveMode.load(std::memory_order_relaxed));
+        if (octaveMode != prevArpOctaveMode_) {
+            arpCore_.setOctaveMode(octaveMode);
+            prevArpOctaveMode_ = octaveMode;
+        }
+    }
+    arpCore_.setTempoSync(arpParams_.tempoSync.load(std::memory_order_relaxed));
+    {
+        const auto noteValue = arpParams_.noteValue.load(std::memory_order_relaxed);
+        if (noteValue != prevArpNoteValue_) {
+            auto mapping = getNoteValueFromDropdown(noteValue);
+            arpCore_.setNoteValue(mapping.note, mapping.modifier);
+            prevArpNoteValue_ = noteValue;
+        }
+    }
+    arpCore_.setFreeRate(arpParams_.freeRate.load(std::memory_order_relaxed));
+    arpCore_.setGateLength(arpParams_.gateLength.load(std::memory_order_relaxed));
+    // setSwing() takes 0-75 percent as-is, NOT normalized 0-1
+    arpCore_.setSwing(arpParams_.swing.load(std::memory_order_relaxed));
+    {
+        const auto latchMode = static_cast<LatchMode>(
+            arpParams_.latchMode.load(std::memory_order_relaxed));
+        if (latchMode != prevArpLatchMode_) {
+            arpCore_.setLatchMode(latchMode);
+            prevArpLatchMode_ = latchMode;
+        }
+    }
+    {
+        const auto retrigger = static_cast<ArpRetriggerMode>(
+            arpParams_.retrigger.load(std::memory_order_relaxed));
+        if (retrigger != prevArpRetrigger_) {
+            arpCore_.setRetrigger(retrigger);
+            prevArpRetrigger_ = retrigger;
+        }
+    }
+    // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
+    arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));
 }
 
 // ==============================================================================
@@ -1174,6 +1277,7 @@ void Processor::processEvents(Steinberg::Vst::IEventList* events) {
     }
 
     const Steinberg::int32 numEvents = events->getEventCount();
+    const bool arpEnabled = arpParams_.enabled.load(std::memory_order_relaxed);
 
     for (Steinberg::int32 i = 0; i < numEvents; ++i) {
         Steinberg::Vst::Event event{};
@@ -1184,21 +1288,37 @@ void Processor::processEvents(Steinberg::Vst::IEventList* events) {
         switch (event.type) {
             case Steinberg::Vst::Event::kNoteOnEvent: {
                 // Velocity-0 noteOn is treated as noteOff per MIDI convention
+                auto pitch = static_cast<uint8_t>(event.noteOn.pitch);
                 auto velocity = static_cast<uint8_t>(
                     event.noteOn.velocity * 127.0f + 0.5f);
                 if (velocity == 0) {
-                    engine_.noteOff(static_cast<uint8_t>(event.noteOn.pitch));
+                    // FR-006: velocity-0 note-on = note-off, respects arp branch
+                    if (arpEnabled) {
+                        arpCore_.noteOff(pitch);
+                    } else {
+                        engine_.noteOff(pitch);
+                    }
                 } else {
-                    engine_.noteOn(
-                        static_cast<uint8_t>(event.noteOn.pitch),
-                        velocity);
+                    // FR-006: route note-on based on arp enabled state
+                    if (arpEnabled) {
+                        arpCore_.noteOn(pitch, velocity);
+                    } else {
+                        engine_.noteOn(pitch, velocity);
+                    }
                 }
                 break;
             }
 
-            case Steinberg::Vst::Event::kNoteOffEvent:
-                engine_.noteOff(static_cast<uint8_t>(event.noteOff.pitch));
+            case Steinberg::Vst::Event::kNoteOffEvent: {
+                // FR-006: route note-off based on arp enabled state
+                auto pitch = static_cast<uint8_t>(event.noteOff.pitch);
+                if (arpEnabled) {
+                    arpCore_.noteOff(pitch);
+                } else {
+                    engine_.noteOff(pitch);
+                }
                 break;
+            }
 
             default:
                 // Ignore unsupported event types gracefully

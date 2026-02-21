@@ -4,7 +4,7 @@ Living inventory of components and APIs. Reference before writing specs to avoid
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document.
 
-**Last Updated**: 2026-02-20 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
+**Last Updated**: 2026-02-21 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
 
 ## Repository Structure
 

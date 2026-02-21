@@ -21,6 +21,7 @@
 #include "vstgui/lib/controls/ccontrol.h"
 #include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/lib/cviewcontainer.h"
+#include "parameters/arpeggiator_params.h"
 #include "preset/preset_manager.h"
 
 #include <array>
@@ -243,6 +244,10 @@ private:
     /// Trance Gate Rate/NoteValue groups - toggled by sync state
     VSTGUI::CView* tranceGateRateGroup_ = nullptr;
     VSTGUI::CView* tranceGateNoteValueGroup_ = nullptr;
+
+    /// Arp Rate/NoteValue groups - toggled by sync state (FR-016)
+    VSTGUI::CViewContainer* arpRateGroup_ = nullptr;
+    VSTGUI::CViewContainer* arpNoteValueGroup_ = nullptr;
 
     /// Poly/Mono visibility groups - toggled by voice mode
     VSTGUI::CView* polyGroup_ = nullptr;

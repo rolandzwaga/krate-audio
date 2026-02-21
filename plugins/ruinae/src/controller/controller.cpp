@@ -44,6 +44,7 @@
 #include "parameters/random_params.h"
 #include "parameters/pitch_follower_params.h"
 #include "parameters/transient_params.h"
+#include "parameters/arpeggiator_params.h"
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
@@ -207,6 +208,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerRandomParams(parameters);
     registerPitchFollowerParams(parameters);
     registerTransientParams(parameters);
+    registerArpParams(parameters);
 
     // ==========================================================================
     // Initialize Preset Manager
@@ -328,6 +330,10 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     if (streamer.readInt8(i8))
         setParam(kHarmonizerEnabledId, i8 != 0 ? 1.0 : 0.0);
 
+    // Arpeggiator params (FR-012) -- backward compat: silently returns on
+    // truncated/old streams, leaving arp controller params at defaults
+    loadArpParamsToController(streamer, setParam);
+
     return Steinberg::kResultTrue;
 }
 
@@ -414,6 +420,8 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatPitchFollowerParam(id, valueNormalized, string);
     } else if (id >= kTransientBaseId && id <= kTransientEndId) {
         result = formatTransientParam(id, valueNormalized, string);
+    } else if (id >= kArpBaseId && id <= kArpEndId) {
+        result = formatArpParam(id, valueNormalized, string);
     }
 
     // Fall back to default implementation for unhandled parameters
@@ -641,6 +649,11 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         if (tranceGateRateGroup_) tranceGateRateGroup_->setVisible(value < 0.5);
         if (tranceGateNoteValueGroup_) tranceGateNoteValueGroup_->setVisible(value >= 0.5);
     }
+    // Toggle Arp Rate/NoteValue visibility based on sync state (FR-016)
+    if (tag == kArpTempoSyncId) {
+        if (arpRateGroup_) arpRateGroup_->setVisible(value < 0.5);
+        if (arpNoteValueGroup_) arpNoteValueGroup_->setVisible(value >= 0.5);
+    }
     // Toggle Poly/Mono visibility based on voice mode
     if (tag == kVoiceModeId) {
         if (polyGroup_) polyGroup_->setVisible(value < 0.5);
@@ -792,6 +805,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         phaserNoteValueGroup_ = nullptr;
         tranceGateRateGroup_ = nullptr;
         tranceGateNoteValueGroup_ = nullptr;
+        arpRateGroup_ = nullptr;
+        arpNoteValueGroup_ = nullptr;
         polyGroup_ = nullptr;
         monoGroup_ = nullptr;
 
@@ -1116,6 +1131,18 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "TranceGateNoteValueGroup") {
                 tranceGateNoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kTranceGateTempoSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
+            }
+            // Arp Rate/NoteValue groups (toggled by sync state, FR-016)
+            else if (*name == "ArpRateGroup") {
+                arpRateGroup_ = container;
+                auto* syncParam = getParameterObject(kArpTempoSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
+            } else if (*name == "ArpNoteValueGroup") {
+                arpNoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kArpTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             }
@@ -1766,6 +1793,8 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     euclideanControlsGroup_ = nullptr;
     tranceGateRateGroup_ = nullptr;
     tranceGateNoteValueGroup_ = nullptr;
+    arpRateGroup_ = nullptr;
+    arpNoteValueGroup_ = nullptr;
     presetDropdown_ = nullptr;
 
     // NOTE: Envelope displays (ampEnvDisplay_, filterEnvDisplay_, modEnvDisplay_)

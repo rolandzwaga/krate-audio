@@ -61,6 +61,9 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   2800-2899: Harmonizer (HarmonyMode, Key, Scale, PitchShiftMode,
 //              FormantPreserve, NumVoices, DryLevel, WetLevel,
 //              Voice1-4 Interval/Level/Pan/Delay/Detune)
+//   3000-3099: Arpeggiator (Enabled, Mode, OctaveRange, OctaveMode,
+//              TempoSync, NoteValue, FreeRate, GateLength, Swing,
+//              LatchMode, Retrigger)
 // ==============================================================================
 
 enum ParameterIDs : Steinberg::Vst::ParamID {
@@ -95,6 +98,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     //   2600-2699: Pitch Follower
     //   2700-2799: Transient Detector
     //   2800-2899: Harmonizer
+    //   3000-3099: Arpeggiator
     // ==========================================================================
 
     // ==========================================================================
@@ -793,7 +797,24 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kHarmonizerEndId = 2899,
 
     // ==========================================================================
-    kNumParameters = 2900,
+    // Arpeggiator Parameters (3000-3099)
+    // ==========================================================================
+    kArpBaseId = 3000,
+    kArpEnabledId = 3000,          // on/off toggle
+    kArpModeId = 3001,             // 10-entry list: Up/Down/UpDown/DownUp/Converge/Diverge/Random/Walk/AsPlayed/Chord
+    kArpOctaveRangeId = 3002,      // 1-4 integer range
+    kArpOctaveModeId = 3003,       // 2-entry list: Sequential/Interleaved
+    kArpTempoSyncId = 3004,        // on/off toggle
+    kArpNoteValueId = 3005,        // 21-entry dropdown (same as TG/LFO)
+    kArpFreeRateId = 3006,         // 0.5-50 Hz continuous
+    kArpGateLengthId = 3007,       // 1-200% continuous
+    kArpSwingId = 3008,            // 0-75% continuous
+    kArpLatchModeId = 3009,        // 3-entry list: Off/Hold/Add
+    kArpRetriggerId = 3010,        // 3-entry list: Off/Note/Beat
+    kArpEndId = 3099,
+
+    // ==========================================================================
+    kNumParameters = 3100,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

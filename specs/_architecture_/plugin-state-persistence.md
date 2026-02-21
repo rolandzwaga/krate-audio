@@ -24,6 +24,7 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
 | 13 | 057 | Macro params (4 floats) + Rungler params (4 floats + 2 int32s) + ModSource enum migration |
 | 14 | 058 | Settings params (2 floats + 4 int32s = 24 bytes): pitch bend range, velocity curve, tuning reference, voice alloc mode, voice steal mode, gain compensation |
 | **15** | **059** | **Mod source params (3+4+4+4+3 = 18 values, 72 bytes): Env Follower (3 floats), S&H (2 floats + 2 int32s), Random (2 floats + 2 int32s), Pitch Follower (4 floats), Transient (3 floats)** |
+| **--** | **071** | **Arpeggiator params (7 int32s + 3 floats + 1 int32 = 44 bytes): enabled, mode, octaveRange, octaveMode, tempoSync, noteValue, freeRate, gateLength, swing, latchMode, retrigger. EOF-safe loading (no version bump), appended after harmonizer enable flag** |
 
 ---
 
@@ -69,6 +70,12 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
 [RandomParams]        // 2 floats + 2 int32s (16 bytes): rateHz, sync, noteValue, smoothness
 [PitchFollowerParams] // 4 floats (16 bytes): minHz, maxHz, confidence, speedMs
 [TransientParams]     // 3 floats (12 bytes): sensitivity, attackMs, decayMs
+
+--- New in Spec 071 (EOF-safe, no version bump) ---
+[ArpeggiatorParams]   // 7 int32s + 3 floats + 1 int32 (44 bytes): enabled, mode, octaveRange,
+                      // octaveMode, tempoSync, noteValue, freeRate, gateLength, swing,
+                      // latchMode, retrigger. loadArpParams() returns false on truncated
+                      // stream -- arp defaults preserved (disabled, Up mode, 1 octave, etc.)
 ```
 
 ---
@@ -238,6 +245,34 @@ For presets saved before Spec 059 (version < 15), all mod source parameters defa
 | Transient | Decay | 50 ms | Medium decay envelope |
 
 No explicit backward-compatibility overrides are needed (unlike Settings/Gain Compensation). The struct member initializers provide correct defaults for old presets.
+
+---
+
+## Arpeggiator Parameters Backward Compatibility (Spec 071)
+
+### Background
+
+Spec 071 added 11 arpeggiator parameters (IDs 3000-3010) as a new parameter pack appended after the harmonizer enable flag. Unlike previous parameter packs, the arpeggiator uses EOF-safe loading without a version bump -- `loadArpParams()` returns `false` gracefully on truncated streams, leaving all arp params at their struct defaults.
+
+### Backward Compatibility
+
+For presets saved before Spec 071 (stream ends before arp data), all arp parameters default to their struct initializer values:
+
+| Parameter | Default | Notes |
+|-----------|---------|-------|
+| Enabled | false (OFF) | Arp disabled -- no behavior change for old presets |
+| Mode | 0 (Up) | Standard ascending pattern |
+| Octave Range | 1 | Single octave |
+| Octave Mode | 0 (Sequential) | Standard octave traversal |
+| Tempo Sync | true (ON) | Sync to host tempo by default |
+| Note Value | 10 (1/8 note) | Standard eighth note subdivision |
+| Free Rate | 4.0 Hz | Medium rate for free-running mode |
+| Gate Length | 80% | Standard gate length |
+| Swing | 0% | No swing |
+| Latch Mode | 0 (Off) | No latch |
+| Retrigger | 0 (Off) | No retrigger |
+
+No explicit backward-compatibility overrides are needed. Since `enabled` defaults to `false`, old presets behave identically to before -- the arpeggiator is invisible and inactive.
 
 ---
 
