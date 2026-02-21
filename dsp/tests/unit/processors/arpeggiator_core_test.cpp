@@ -4309,3 +4309,346 @@ TEST_CASE("ArpeggiatorCore: Polymetric_VelGate_LCM",
         CHECK(gate1 == gate2);
     }
 }
+
+// =============================================================================
+// Phase 5: User Story 3 -- Pitch Offset Lane (072-independent-lanes)
+// =============================================================================
+
+// T041: Pitch lane integration tests
+
+TEST_CASE("ArpeggiatorCore: PitchLane_DefaultIsPassthrough",
+          "[processors][arpeggiator_core]") {
+    // With default lane (length=1, step=0), output note == NoteSelector output
+    // (no offset), SC-002 backward compat
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Default pitch lane: length=1, step[0]=0
+    // Output note should be exactly the input note (60)
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    for (const auto& on : noteOns) {
+        CHECK(on.note == 60);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: PitchLane_AddsOffset",
+          "[processors][arpeggiator_core]") {
+    // Set pitch lane length=4, steps=[0, 7, 12, -5], hold note 60,
+    // run 4 steps, verify output notes [60, 67, 72, 55]
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(60, 100);
+
+    // Configure pitch lane
+    arp.pitchLane().setLength(4);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 7);
+    arp.pitchLane().setStep(2, 12);
+    arp.pitchLane().setStep(3, -5);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 500);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 8);
+
+    // Base note = 60. Expected pattern: 60+0=60, 60+7=67, 60+12=72, 60+(-5)=55
+    // Repeated twice for 8 steps
+    std::array<uint8_t, 8> expected = {60, 67, 72, 55, 60, 67, 72, 55};
+    for (size_t i = 0; i < 8; ++i) {
+        INFO("Step " << i << ": expected=" << static_cast<int>(expected[i])
+             << " actual=" << static_cast<int>(noteOns[i].note));
+        CHECK(noteOns[i].note == expected[i]);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: PitchLane_ClampsHigh",
+          "[processors][arpeggiator_core]") {
+    // Base note 120 + offset +12 -> output 127 (not 132 or wrapped)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(120, 100);
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 12);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    for (const auto& on : noteOns) {
+        CHECK(on.note == 127);  // clamped, not 132
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: PitchLane_ClampsLow",
+          "[processors][arpeggiator_core]") {
+    // Base note 5 + offset -24 -> output 0 (not negative or wrapped)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(5, 100);
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, -24);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    for (const auto& on : noteOns) {
+        CHECK(on.note == 0);  // clamped, not negative
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: PitchLane_NoteStillFires_WhenClamped",
+          "[processors][arpeggiator_core]") {
+    // Clamped note still generates a noteOn event (not silenced per FR-018)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(120, 100);
+
+    arp.pitchLane().setLength(2);
+    arp.pitchLane().setStep(0, 24);   // 120 + 24 = 144 -> clamped to 127
+    arp.pitchLane().setStep(1, -24);  // 120 - 24 = 96 -> no clamp
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 500);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 4);
+    // Step 0: 127 (clamped, but still fires)
+    CHECK(noteOns[0].note == 127);
+    CHECK(noteOns[0].velocity > 0);
+    // Step 1: 96 (no clamp)
+    CHECK(noteOns[1].note == 96);
+    // Step 2: 127 again (cycle repeats)
+    CHECK(noteOns[2].note == 127);
+    // Step 3: 96 again
+    CHECK(noteOns[3].note == 96);
+}
+
+TEST_CASE("ArpeggiatorCore: PitchLane_ResetOnRetrigger",
+          "[processors][arpeggiator_core]") {
+    // Advance pitch lane mid-cycle, trigger retrigger, verify
+    // pitchLane().currentStep()==0
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setRetrigger(ArpRetriggerMode::Note);
+    arp.noteOn(60, 100);
+
+    arp.pitchLane().setLength(4);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 7);
+    arp.pitchLane().setStep(2, 12);
+    arp.pitchLane().setStep(3, -5);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Advance 2 steps
+    auto events = collectEvents(arp, ctx, 100);
+    auto noteOns = filterNoteOns(events);
+    REQUIRE(noteOns.size() >= 2);
+
+    // Trigger retrigger via noteOn (retrigger=Note)
+    arp.noteOn(64, 100);
+
+    // After retrigger, pitch lane should be reset to step 0
+    CHECK(arp.pitchLane().currentStep() == 0);
+
+    // Next note should use step 0 pitch offset (0)
+    auto events2 = collectEvents(arp, ctx, 100);
+    auto noteOns2 = filterNoteOns(events2);
+    REQUIRE(noteOns2.size() >= 1);
+    // With pitch offset 0, the note should be one of the held notes unmodified
+    // After retrigger with Up mode and notes [60, 64], first note = 60
+    CHECK(noteOns2[0].note == 60);
+}
+
+TEST_CASE("ArpeggiatorCore: PitchLane_LengthChange_MidPlayback",
+          "[processors][arpeggiator_core]") {
+    // Set length=4, advance 2 steps, change length=3, no crash
+    // and cycles at new length
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(60, 100);
+
+    arp.pitchLane().setLength(4);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 7);
+    arp.pitchLane().setStep(2, 12);
+    arp.pitchLane().setStep(3, -5);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Advance 2 steps
+    auto events = collectEvents(arp, ctx, 100);
+    auto noteOns = filterNoteOns(events);
+    REQUIRE(noteOns.size() >= 2);
+
+    // Change length mid-playback
+    arp.pitchLane().setLength(3);
+
+    // Should not crash; collect more events
+    auto events2 = collectEvents(arp, ctx, 500);
+    auto noteOns2 = filterNoteOns(events2);
+    REQUIRE(noteOns2.size() >= 6);
+
+    // After setLength(3), position wraps to 0, so the lane cycles through
+    // steps [0, 7, 12] at length 3. The note pattern repeats.
+    // Since the base note is 60 cycling in Up mode (only 1 note held),
+    // we should see the pitch offsets applied in the 3-step cycle.
+    // Verify cycle length = 3 by checking 6 consecutive notes
+    for (size_t i = 0; i < 3; ++i) {
+        CHECK(noteOns2[i].note == noteOns2[i + 3].note);
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: Polymetric_VelGatePitch_LCM105",
+          "[processors][arpeggiator_core]") {
+    // SC-001: velocity=3, gate=5, pitch=7, 105 steps, verify full LCM cycle
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.noteOn(60, 100);
+
+    // Velocity lane: length=3, steps=[1.0, 0.5, 0.8]
+    arp.velocityLane().setLength(3);
+    arp.velocityLane().setStep(0, 1.0f);
+    arp.velocityLane().setStep(1, 0.5f);
+    arp.velocityLane().setStep(2, 0.8f);
+
+    // Gate lane: length=5, steps=[0.5, 0.8, 1.0, 1.2, 1.5]
+    arp.gateLane().setLength(5);
+    arp.gateLane().setStep(0, 0.5f);
+    arp.gateLane().setStep(1, 0.8f);
+    arp.gateLane().setStep(2, 1.0f);
+    arp.gateLane().setStep(3, 1.2f);
+    arp.gateLane().setStep(4, 1.5f);
+
+    // Pitch lane: length=7, steps=[0, 3, 7, 12, -5, -12, 5]
+    arp.pitchLane().setLength(7);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 3);
+    arp.pitchLane().setStep(2, 7);
+    arp.pitchLane().setStep(3, 12);
+    arp.pitchLane().setStep(4, -5);
+    arp.pitchLane().setStep(5, -12);
+    arp.pitchLane().setStep(6, 5);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    // Collect 210 steps (2 full LCM cycles of 105)
+    auto events = collectEvents(arp, ctx, 60000);
+    auto noteOns = filterNoteOns(events);
+    auto noteOffs = filterNoteOffs(events);
+
+    REQUIRE(noteOns.size() >= 210);
+    REQUIRE(noteOffs.size() >= 210);
+
+    // Verify that steps 0-104 match steps 105-209 (full LCM cycle repeats)
+    for (size_t i = 0; i < 105; ++i) {
+        INFO("Step " << i << " vs Step " << (i + 105));
+        CHECK(noteOns[i].velocity == noteOns[i + 105].velocity);
+        CHECK(noteOns[i].note == noteOns[i + 105].note);
+    }
+
+    // Also verify gate pattern repeats by checking noteOff-to-noteOn offsets
+    for (size_t i = 0; i < 105; ++i) {
+        int32_t gate1 = noteOffs[i].sampleOffset - noteOns[i].sampleOffset;
+        int32_t gate2 = noteOffs[i + 105].sampleOffset - noteOns[i + 105].sampleOffset;
+        INFO("Step " << i << " gate: " << gate1 << " vs " << gate2);
+        CHECK(gate1 == gate2);
+    }
+
+    // Verify no earlier repeat: check that no step j in [1, 104] has the
+    // exact same [velocity, note, gateOffset] triple as step 0
+    uint8_t vel0 = noteOns[0].velocity;
+    uint8_t note0 = noteOns[0].note;
+    int32_t gate0 = noteOffs[0].sampleOffset - noteOns[0].sampleOffset;
+
+    bool foundEarlyRepeat = false;
+    for (size_t j = 1; j < 105; ++j) {
+        int32_t gateJ = noteOffs[j].sampleOffset - noteOns[j].sampleOffset;
+        if (noteOns[j].velocity == vel0 && noteOns[j].note == note0 && gateJ == gate0) {
+            INFO("Early repeat at step " << j);
+            foundEarlyRepeat = true;
+            break;
+        }
+    }
+    CHECK_FALSE(foundEarlyRepeat);
+}

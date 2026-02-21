@@ -808,3 +808,153 @@ TEST_CASE("ArpGateParams_BackwardCompat", "[arp][params]") {
         CHECK(loaded.gateLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
     }
 }
+
+// ==============================================================================
+// Phase 5 (072-independent-lanes) User Story 3: Pitch Lane Parameter Tests
+// ==============================================================================
+
+TEST_CASE("ArpPitchLaneLength_Registration", "[arp][params]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    auto* param = container.getParameter(kArpPitchLaneLengthId);
+    REQUIRE(param != nullptr);
+
+    ParameterInfo info = param->getInfo();
+    CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+    // Discrete param with stepCount=31 (range [1,32])
+    CHECK(info.stepCount == 31);
+}
+
+TEST_CASE("ArpPitchLaneStep_Registration", "[arp][params]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    // Step params 3101-3132 registered as discrete [-24,+24] default 0
+    for (int i = 0; i < 32; ++i) {
+        auto paramId = static_cast<ParamID>(kArpPitchLaneStep0Id + i);
+        auto* param = container.getParameter(paramId);
+        REQUIRE(param != nullptr);
+
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+        // Discrete param with stepCount=48 (range [-24,+24])
+        CHECK(info.stepCount == 48);
+    }
+
+    // FR-034: Verify std::atomic<int> is lock-free
+    Ruinae::ArpeggiatorParams params;
+    REQUIRE(params.pitchLaneSteps[0].is_lock_free());
+}
+
+TEST_CASE("ArpPitchLaneStep_Denormalize", "[arp][params]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> -24 + round(0.0 * 48) = -24
+    handleArpParamChange(params, kArpPitchLaneStep0Id, 0.0);
+    CHECK(params.pitchLaneSteps[0].load() == -24);
+
+    // 1.0 -> -24 + round(1.0 * 48) = -24 + 48 = +24
+    handleArpParamChange(params, kArpPitchLaneStep0Id, 1.0);
+    CHECK(params.pitchLaneSteps[0].load() == 24);
+
+    // 0.5 -> -24 + round(0.5 * 48) = -24 + 24 = 0
+    handleArpParamChange(params, kArpPitchLaneStep0Id, 0.5);
+    CHECK(params.pitchLaneSteps[0].load() == 0);
+}
+
+TEST_CASE("ArpPitchParams_SaveLoad_RoundTrip", "[arp][params]") {
+    using namespace Ruinae;
+
+    // Set non-default pitch lane values including negative offsets
+    ArpeggiatorParams original;
+    original.pitchLaneLength.store(4, std::memory_order_relaxed);
+    original.pitchLaneSteps[0].store(0, std::memory_order_relaxed);
+    original.pitchLaneSteps[1].store(7, std::memory_order_relaxed);
+    original.pitchLaneSteps[2].store(-12, std::memory_order_relaxed);
+    original.pitchLaneSteps[3].store(-24, std::memory_order_relaxed);
+
+    // Serialize
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Deserialize
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        REQUIRE(ok);
+    }
+
+    // Verify pitch lane round-trip
+    CHECK(loaded.pitchLaneLength.load() == 4);
+    CHECK(loaded.pitchLaneSteps[0].load() == 0);
+    CHECK(loaded.pitchLaneSteps[1].load() == 7);
+    CHECK(loaded.pitchLaneSteps[2].load() == -12);
+    CHECK(loaded.pitchLaneSteps[3].load() == -24);
+}
+
+TEST_CASE("ArpPitchParams_BackwardCompat", "[arp][params]") {
+    using namespace Ruinae;
+
+    // Construct a stream with 11 base params + velocity lane + gate lane (no pitch lane)
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        // 11 base params
+        writeStream.writeInt32(1);     // enabled = true
+        writeStream.writeInt32(0);     // mode = Up
+        writeStream.writeInt32(1);     // octaveRange = 1
+        writeStream.writeInt32(0);     // octaveMode = Sequential
+        writeStream.writeInt32(1);     // tempoSync = true
+        writeStream.writeInt32(10);    // noteValue = 1/8
+        writeStream.writeFloat(4.0f);  // freeRate = 4.0 Hz
+        writeStream.writeFloat(80.0f); // gateLength = 80%
+        writeStream.writeFloat(0.0f);  // swing = 0%
+        writeStream.writeInt32(0);     // latchMode = Off
+        writeStream.writeInt32(0);     // retrigger = Off
+
+        // Velocity lane data (33 values)
+        writeStream.writeInt32(1);     // velocityLaneLength = 1
+        for (int i = 0; i < 32; ++i) {
+            writeStream.writeFloat(1.0f); // all steps = 1.0f
+        }
+
+        // Gate lane data (33 values)
+        writeStream.writeInt32(1);     // gateLaneLength = 1
+        for (int i = 0; i < 32; ++i) {
+            writeStream.writeFloat(1.0f); // all steps = 1.0f
+        }
+        // NO pitch lane data -- stream ends here
+    }
+
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        loadArpParams(loaded, readStream);
+    }
+
+    // Base params loaded correctly
+    CHECK(loaded.enabled.load() == true);
+
+    // Velocity lane loaded correctly
+    CHECK(loaded.velocityLaneLength.load() == 1);
+
+    // Gate lane loaded correctly
+    CHECK(loaded.gateLaneLength.load() == 1);
+
+    // Pitch lane defaults preserved (no pitch lane data in stream)
+    CHECK(loaded.pitchLaneLength.load() == 1);
+    for (int i = 0; i < 32; ++i) {
+        CHECK(loaded.pitchLaneSteps[i].load() == 0);
+    }
+}

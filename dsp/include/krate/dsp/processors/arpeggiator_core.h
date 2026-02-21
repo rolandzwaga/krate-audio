@@ -294,6 +294,14 @@ public:
         return gateLane_;
     }
 
+    /// @brief Access pitch lane for configuration.
+    ArpLane<int8_t>& pitchLane() noexcept { return pitchLane_; }
+
+    /// @brief Access pitch lane (const).
+    [[nodiscard]] const ArpLane<int8_t>& pitchLane() const noexcept {
+        return pitchLane_;
+    }
+
     // =========================================================================
     // Processing (FR-019 through FR-024)
     // =========================================================================
@@ -723,6 +731,7 @@ private:
             // Advance lanes (once per step, regardless of chord size)
             float velScale = velocityLane_.advance();
             float gateScale = gateLane_.advance();
+            int8_t pitchOffset = pitchLane_.advance();
 
             // Apply velocity scaling to all notes in this step (FR-011)
             for (size_t i = 0; i < result.count; ++i) {
@@ -730,6 +739,14 @@ private:
                     std::round(result.velocities[i] * velScale));
                 result.velocities[i] = static_cast<uint8_t>(
                     std::clamp(scaledVel, 1, 127));
+            }
+
+            // Apply pitch offset to all notes in this step (FR-017, FR-018)
+            for (size_t i = 0; i < result.count; ++i) {
+                int offsetNote = static_cast<int>(result.notes[i]) +
+                                 static_cast<int>(pitchOffset);
+                result.notes[i] = static_cast<uint8_t>(
+                    std::clamp(offsetNote, 0, 127));
             }
 
             // Calculate gate duration with lane multiplier (FR-014)
@@ -852,6 +869,7 @@ private:
     void resetLanes() noexcept {
         velocityLane_.reset();
         gateLane_.reset();
+        pitchLane_.reset();
     }
 
     // =========================================================================
@@ -867,6 +885,7 @@ private:
 
     ArpLane<float> velocityLane_;   ///< Velocity multiplier per step (default: length=1, step[0]=1.0f)
     ArpLane<float> gateLane_;       ///< Gate duration multiplier per step (default: length=1, step[0]=1.0f)
+    ArpLane<int8_t> pitchLane_;    ///< Semitone offset per step (default: length=1, step[0]=0)
 
     // =========================================================================
     // Configuration State

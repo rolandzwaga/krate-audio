@@ -1283,6 +1283,17 @@ void Processor::applyParamsToEngine() {
                 arpParams_.gateLaneSteps[i].load(std::memory_order_relaxed));
         }
     }
+    // --- Pitch Lane (072-independent-lanes, US3) ---
+    {
+        const auto pitchLen = arpParams_.pitchLaneLength.load(std::memory_order_relaxed);
+        arpCore_.pitchLane().setLength(static_cast<size_t>(pitchLen));
+        for (int i = 0; i < 32; ++i) {
+            int val = std::clamp(
+                arpParams_.pitchLaneSteps[i].load(std::memory_order_relaxed), -24, 24);
+            arpCore_.pitchLane().setStep(
+                static_cast<size_t>(i), static_cast<int8_t>(val));
+        }
+    }
 
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));

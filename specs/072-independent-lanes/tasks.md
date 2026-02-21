@@ -276,7 +276,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T041 [P] Write failing tests for ArpeggiatorCore pitch lane integration in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
+- [X] T041 [P] Write failing tests for ArpeggiatorCore pitch lane integration in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
   - **Test: PitchLane_DefaultIsPassthrough** -- default lane (length=1, step=0), output note == NoteSelector output (no offset), SC-002 backward compat
   - **Test: PitchLane_AddsOffset** -- set pitch lane length=4, steps=[0, 7, 12, -5], hold note 60, run 4 steps, verify output notes [60, 67, 72, 55]
   - **Test: PitchLane_ClampsHigh** -- base note 120 + offset +12 -> output 127 (not 132 or wrapped)
@@ -285,28 +285,28 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
   - **Test: PitchLane_ResetOnRetrigger** -- advance pitch lane mid-cycle, trigger retrigger, verify `pitchLane().currentStep()==0`
   - **Test: PitchLane_LengthChange_MidPlayback** -- set length=4, advance 2 steps, change length=3, no crash and cycles at new length
   - **Test: Polymetric_VelGatePitch_LCM105** -- velocity=3, gate=5, pitch=7, run 105 steps, verify step 0 combo == step 105 combo AND no earlier repeat (SC-001)
-- [ ] T042 [P] Write failing tests in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`:
+- [X] T042 [P] Write failing tests in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`:
   - **Test: ArpPitchLaneLength_Registration** -- `kArpPitchLaneLengthId` registered discrete [1,32] default 1
   - **Test: ArpPitchLaneStep_Registration** -- step params 3101-3132 registered as discrete [-24,+24] default 0
   - **Test: ArpPitchLaneStep_Denormalize** -- `handleArpParamChange(3101, 0.0)` -> step[0]=-24; `(3101, 1.0)` -> step[0]=+24; `(3101, 0.5)` -> step[0]=0
   - **Test: ArpPitchParams_SaveLoad_RoundTrip** -- save/load preserves all 33 pitch lane values including negative offsets
   - **Test: ArpPitchParams_BackwardCompat** -- Phase 3 stream loads with pitchLaneLength==1, all steps==0
-- [ ] T043 Confirm T041 and T042 tests FAIL: build and observe failures
+- [X] T043 Confirm T041 and T042 tests FAIL: build and observe failures
 
 ### 5.2 Implementation for User Story 3 - DSP Layer
 
-- [ ] T044 Modify `dsp/include/krate/dsp/processors/arpeggiator_core.h` to add pitch lane:
+- [X] T044 Modify `dsp/include/krate/dsp/processors/arpeggiator_core.h` to add pitch lane:
   - Add `ArpLane<int8_t> pitchLane_` private member (default value-initialized to 0, which is the identity for pitch offset)
   - Add public `pitchLane()` accessors (mutable and const overloads)
   - Add `pitchLane_.reset()` call in `resetLanes()` private method
   - Modify `fireStep()`: call `int8_t pitchOffset = pitchLane_.advance()` after velocity and gate advances; for each note apply `int offsetNote = static_cast<int>(notes[i]) + static_cast<int>(pitchOffset); notes[i] = static_cast<uint8_t>(std::clamp(offsetNote, 0, 127));`
   - Verify Chord mode: the pitch offset applies to all notes in a chord equally (same pitchOffset variable used in the loop over result.count)
-- [ ] T045 Build `dsp_tests` and verify all pitch lane tests from T041 pass: `dsp_tests.exe "[processors][arpeggiator_core]"`
-- [ ] T046 Fix any compiler warnings (zero warnings required)
+- [X] T045 Build `dsp_tests` and verify all pitch lane tests from T041 pass: `dsp_tests.exe "[processors][arpeggiator_core]"`
+- [X] T046 Fix any compiler warnings (zero warnings required)
 
 ### 5.3 Implementation for User Story 3 - Plugin Layer
 
-- [ ] T047 Modify `plugins/ruinae/src/parameters/arpeggiator_params.h` to add pitch lane atomic storage:
+- [X] T047 Modify `plugins/ruinae/src/parameters/arpeggiator_params.h` to add pitch lane atomic storage:
   - Add `std::atomic<int> pitchLaneLength{1}` member
   - Add `std::array<std::atomic<int>, 32> pitchLaneSteps{}` member (value-initialized to 0)
   - No special constructor needed (0 default via value-initialization is correct for pitch)
@@ -316,16 +316,16 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
   - Extend `formatArpParam()`: pitch length as "N steps"; pitch steps as semitone value (e.g. "+7 st", "-5 st", "0 st")
   - Extend `saveArpParams()`: write `pitchLaneLength` (int32) then 32 pitch steps (int32 each)
   - Extend `loadArpParams()`: EOF-safe read of pitch lane data; convert stored int32 to int8_t when pushing to ArpeggiatorCore (clamp to [-24,24] before cast)
-- [ ] T048 Modify `plugins/ruinae/src/processor/processor.cpp` `applyParamsToArp()` to push pitch lane to ArpeggiatorCore:
+- [X] T048 Modify `plugins/ruinae/src/processor/processor.cpp` `applyParamsToArp()` to push pitch lane to ArpeggiatorCore:
   - Read `arpParams_.pitchLaneLength.load()` and call `arp_.pitchLane().setLength(len)`
   - Loop i=0..31: read `arpParams_.pitchLaneSteps[i].load()`, clamp to [-24,24], cast to int8_t, call `arp_.pitchLane().setStep(i, static_cast<int8_t>(val))`
-- [ ] T049 Build `ruinae_tests` and verify all pitch lane param tests from T042 pass: `ruinae_tests.exe "[arp][params]"`
-- [ ] T050 Fix any compiler warnings in modified plugin files (zero warnings required)
+- [X] T049 Build `ruinae_tests` and verify all pitch lane param tests from T042 pass: `ruinae_tests.exe "[arp][params]"`
+- [X] T050 Fix any compiler warnings in modified plugin files (zero warnings required)
 
 ### 5.4 Cross-Platform Verification
 
-- [ ] T051 [US3] Verify IEEE 754 compliance for pitch lane tests: pitch operations are integer arithmetic (no floating-point), but confirm no new NaN/isnan usage was introduced in test files
-- [ ] T052 [US3] Verify SC-001 polymetric LCM=105: run Polymetric_VelGatePitch_LCM105 test, confirm the full 105-step cycle has no earlier repeat
+- [X] T051 [US3] Verify IEEE 754 compliance for pitch lane tests: pitch operations are integer arithmetic (no floating-point), but confirm no new NaN/isnan usage was introduced in test files
+- [X] T052 [US3] Verify SC-001 polymetric LCM=105: run Polymetric_VelGatePitch_LCM105 test, confirm the full 105-step cycle has no earlier repeat
 
 ### 5.5 Commit User Story 3
 

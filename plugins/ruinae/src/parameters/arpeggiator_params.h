@@ -57,6 +57,10 @@ struct ArpeggiatorParams {
     std::atomic<int>   gateLaneLength{1};       // 1-32
     std::array<std::atomic<float>, 32> gateLaneSteps{};
 
+    // Pitch lane (072-independent-lanes, US3)
+    std::atomic<int>   pitchLaneLength{1};      // 1-32
+    std::array<std::atomic<int>, 32> pitchLaneSteps{};  // -24 to +24 (int for lock-free guarantee)
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -64,6 +68,7 @@ struct ArpeggiatorParams {
         for (auto& step : gateLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
         }
+        // pitchLaneSteps default to 0 via value-initialization -- correct identity for pitch
     }
 };
 
@@ -157,6 +162,14 @@ inline void handleArpParamChange(
                 std::memory_order_relaxed);
             break;
 
+        // --- Pitch Lane (072-independent-lanes, US3) ---
+        case kArpPitchLaneLengthId:
+            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
+            params.pitchLaneLength.store(
+                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                std::memory_order_relaxed);
+            break;
+
         default:
             // Velocity lane steps: 3021-3052
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -169,6 +182,13 @@ inline void handleArpParamChange(
                 float gate = std::clamp(static_cast<float>(0.01 + value * 1.99), 0.01f, 2.0f);
                 params.gateLaneSteps[id - kArpGateLaneStep0Id].store(
                     gate, std::memory_order_relaxed);
+            }
+            // Pitch lane steps: 3101-3132
+            else if (id >= kArpPitchLaneStep0Id && id <= kArpPitchLaneStep31Id) {
+                int pitch = std::clamp(
+                    static_cast<int>(-24.0 + std::round(value * 48.0)), -24, 24);
+                params.pitchLaneSteps[id - kArpPitchLaneStep0Id].store(
+                    pitch, std::memory_order_relaxed);
             }
             break;
     }
@@ -286,6 +306,27 @@ inline void registerArpParams(
                 STR16(""), 0.01, 2.0, 1.0, 0,
                 ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
     }
+
+    // --- Pitch Lane (072-independent-lanes, US3) ---
+
+    // Pitch lane length: RangeParameter 1-32, default 1, stepCount 31
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Pitch Lane Len"), kArpPitchLaneLengthId,
+                          STR16(""), 1, 32, 1, 31,
+                          ParameterInfo::kCanAutomate));
+
+    // Pitch lane steps: loop 0-31, RangeParameter -24 to +24, default 0, stepCount 48
+    for (int i = 0; i < 32; ++i) {
+        char name[48];
+        snprintf(name, sizeof(name), "Arp Pitch Step %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(name);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpPitchLaneStep0Id + i),
+                STR16("st"), -24, 24, 0, 48,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
 }
 
 // =============================================================================
@@ -388,6 +429,15 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
 
+        // --- Pitch Lane (072-independent-lanes, US3) ---
+        case kArpPitchLaneLengthId: {
+            char8 text[32];
+            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            snprintf(text, sizeof(text), "%d steps", len);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+
         default:
             // Velocity lane steps: display as percentage
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -401,6 +451,19 @@ inline Steinberg::tresult formatArpParam(
                 char8 text[32];
                 double gateVal = 0.01 + value * 1.99;
                 snprintf(text, sizeof(text), "%.2fx", gateVal);
+                UString(string, 128).fromAscii(text);
+                return kResultOk;
+            }
+            // Pitch lane steps: display as semitone offset
+            if (id >= kArpPitchLaneStep0Id && id <= kArpPitchLaneStep31Id) {
+                char8 text[32];
+                int pitch = std::clamp(
+                    static_cast<int>(-24.0 + std::round(value * 48.0)), -24, 24);
+                if (pitch > 0) {
+                    snprintf(text, sizeof(text), "+%d st", pitch);
+                } else {
+                    snprintf(text, sizeof(text), "%d st", pitch);
+                }
                 UString(string, 128).fromAscii(text);
                 return kResultOk;
             }
@@ -442,6 +505,12 @@ inline void saveArpParams(
     streamer.writeInt32(params.gateLaneLength.load(std::memory_order_relaxed));
     for (int i = 0; i < 32; ++i) {
         streamer.writeFloat(params.gateLaneSteps[i].load(std::memory_order_relaxed));
+    }
+
+    // --- Pitch Lane (072-independent-lanes, US3) ---
+    streamer.writeInt32(params.pitchLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.pitchLaneSteps[i].load(std::memory_order_relaxed));
     }
 }
 
@@ -512,6 +581,17 @@ inline bool loadArpParams(
         if (!streamer.readFloat(floatVal)) return false;
         params.gateLaneSteps[i].store(
             std::clamp(floatVal, 0.01f, 2.0f), std::memory_order_relaxed);
+    }
+
+    // --- Pitch Lane (072-independent-lanes, US3) ---
+    // EOF-safe: if pitch lane data is missing (pre-US3 preset), keep defaults
+    if (!streamer.readInt32(intVal)) return true;  // gate lane loaded OK
+    params.pitchLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;
+        params.pitchLaneSteps[i].store(
+            std::clamp(intVal, -24, 24), std::memory_order_relaxed);
     }
 
     return true;
