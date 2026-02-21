@@ -88,10 +88,11 @@ Processor::setState()
 | **2700-2799** | **Transient** | **`transient_params.h`** | **3** |
 | **3000-3010** | **Arpeggiator (base)** | **`arpeggiator_params.h`** | **11** |
 | **3020-3132** | **Arpeggiator Lanes** | **`arpeggiator_params.h`** | **99** |
+| **3140-3181** | **Arpeggiator Modifiers** | **`arpeggiator_params.h`** | **35** |
 
-**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3199 (future phases 5-8)
+**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3139 (reserved), 3173-3179 (reserved), 3182-3189 (reserved), 3190-3199 (future phases 6-8)
 
-**Sentinel**: `kArpEndId = 3199`, `kNumParameters = 3200`
+**Sentinel**: `kArpEndId = 3199`, `kNumParameters = 3200` (unchanged by Spec 073 -- all 35 modifier IDs fit within the existing 3133-3199 reserved range)
 
 ---
 
@@ -756,7 +757,8 @@ Controller loading requires inverse mapping:
 
 Extend `ArpeggiatorParams` when adding new arpeggiator features:
 - **Phase 4 (Independent Lane Architecture)**: Lane step parameters added in 3020-3132 ID range (done -- see below)
-- **Phase 5 (Slide/Legato)**: Add slide/legato toggle parameters in reserved 3133-3199 range
+- **Phase 5 (Per-Step Modifiers)**: Modifier lane parameters added in 3140-3181 ID range (done -- see [Modifier Parameters section](#arpeggiator-modifier-parameters-spec-073) below)
+- **Phase 6 (Ratcheting)**: Add ratchet lane parameters in reserved 3190-3199 range (may need to expand kArpEndId)
 - **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations
 - **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes expected
 
@@ -880,6 +882,80 @@ Lane data (396 bytes) is appended after the 11 base arp parameters:
 ```
 
 Loading uses EOF-safe pattern: if the stream ends mid-lane, remaining lanes keep their struct defaults (velocity/gate steps = 1.0, pitch steps = 0). Phase 3 presets (no lane data) load with all lanes at identity values automatically.
+
+---
+
+## Arpeggiator Modifier Parameters (Spec 073)
+
+**File**: `plugins/ruinae/src/parameters/arpeggiator_params.h`
+**IDs**: 3140-3181 (35 parameters: 1 length + 32 steps + 2 config)
+
+### Purpose
+
+Per-step modifier flags for TB-303-inspired Rest, Tie, Slide, and Accent behavior. Each step stores a `uint8_t` bitmask of `ArpStepFlags` values. The modifier lane advances independently of the velocity, gate, and pitch lanes, enabling polymetric modifier patterns.
+
+### Modifier Parameter ID Allocation
+
+| ID | Name | Type | Range | Default | Flags |
+|----|------|------|-------|---------|-------|
+| 3140 | Arp Mod Lane Len | Discrete (int) | 1-32 | 1 | `kCanAutomate` |
+| 3141-3172 | Arp Mod Step 0-31 | Discrete (int) | 0-255 | 1 (kStepActive) | `kCanAutomate \| kIsHidden` |
+| 3173-3179 | *(reserved)* | - | - | - | - |
+| 3180 | Arp Accent Velocity | Discrete (int) | 0-127 | 30 | `kCanAutomate` |
+| 3181 | Arp Slide Time | Continuous (float) | 0-500 ms | 60 ms (norm: 0.12) | `kCanAutomate` |
+| 3182-3189 | *(reserved)* | - | - | - | - |
+
+**Note**: 35 new parameters total. `kArpEndId = 3199` and `kNumParameters = 3200` are unchanged -- all modifier IDs fit within the existing reserved range (3133-3199). Step parameters (3141-3172) have `kIsHidden` (not shown in generic host UIs, consistent with Phase 4 lane step params). Length (3140) and config params (3180, 3181) are visible.
+
+### Denormalization
+
+| Parameter | Formula | Step Count |
+|-----------|---------|------------|
+| Modifier Lane Length | `1 + round(norm * 31)` | 31 |
+| Modifier Lane Steps | `round(norm * 255)` | 255 |
+| Accent Velocity | `round(norm * 127)` | 127 |
+| Slide Time | `norm * 500.0f` | 0 (continuous) |
+
+### ArpeggiatorParams Struct Extension
+
+```cpp
+struct ArpeggiatorParams {
+    // ... existing 11 base arp fields (Spec 071) ...
+    // ... existing velocity/gate/pitch lane fields (Spec 072) ...
+
+    // Modifier lane (Spec 073)
+    std::atomic<int> modifierLaneLength{1};                  // [1, 32]
+    std::atomic<int> modifierLaneSteps[32];                  // [0, 255], init to 1 (kStepActive)
+    std::atomic<int> accentVelocity{30};                     // [0, 127]
+    std::atomic<float> slideTime{60.0f};                     // [0.0, 500.0] ms
+};
+```
+
+**Note:** Modifier lane steps use `std::atomic<int>` (not `std::atomic<uint8_t>`) for guaranteed lock-free operation. The conversion to `uint8_t` for `ArpLane<uint8_t>::setStep()` happens at the DSP boundary in `processor.cpp::applyParamsToArp()`.
+
+### Format Strings
+
+| Parameter | Examples |
+|-----------|----------|
+| Modifier Lane Length | "1 steps", "4 steps", "32 steps" |
+| Modifier Lane Steps | "0x01", "0x0F", "0x00" |
+| Accent Velocity | "0", "30", "127" |
+| Slide Time | "0 ms", "60 ms", "500 ms" |
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToArp():
+// Expand-write-shrink pattern (same as velocity/gate/pitch lanes):
+arp_.modifierLane().setLength(32);  // expand to allow writing all 32 indices
+for (int i = 0; i < 32; ++i)
+    arp_.modifierLane().setStep(i, static_cast<uint8_t>(arpParams_.modifierLaneSteps[i].load(relaxed)));
+arp_.modifierLane().setLength(static_cast<size_t>(arpParams_.modifierLaneLength.load(relaxed)));  // shrink
+
+arp_.setAccentVelocity(arpParams_.accentVelocity.load(relaxed));
+arp_.setSlideTime(arpParams_.slideTime.load(relaxed));
+engine_.setPortamentoTime(arpParams_.slideTime.load(relaxed));  // forwarded to engine unconditionally
+```
 
 ---
 

@@ -31,6 +31,20 @@
 namespace Krate::DSP {
 
 // =============================================================================
+// ArpStepFlags (073-per-step-mods, FR-001)
+// =============================================================================
+
+/// @brief Per-step modifier flags stored as bitmask in modifier lane.
+/// Multiple flags can be combined on a single step.
+/// If kStepActive is not set, the step is a rest (silence).
+enum ArpStepFlags : uint8_t {
+    kStepActive = 0x01,   ///< Note fires. Off = Rest.
+    kStepTie    = 0x02,   ///< Sustain previous note, no retrigger
+    kStepSlide  = 0x04,   ///< Legato noteOn, suppress previous noteOff, portamento
+    kStepAccent = 0x08,   ///< Velocity boost by accentVelocity_ amount
+};
+
+// =============================================================================
 // Enumerations (FR-027, FR-028)
 // =============================================================================
 
@@ -61,6 +75,7 @@ struct ArpEvent {
     uint8_t note{0};          ///< MIDI note number (0-127)
     uint8_t velocity{0};      ///< MIDI velocity (0-127)
     int32_t sampleOffset{0};  ///< Sample position within block [0, blockSize-1]
+    bool legato{false};       ///< When true: suppress envelope retrigger, apply portamento
 };
 
 // =============================================================================
@@ -117,6 +132,10 @@ public:
         velocityLane_.setStep(0, 1.0f);
         // Set gate lane default: length=1, step[0]=1.0f (pure global gate)
         gateLane_.setStep(0, 1.0f);
+        // Set modifier lane default: length=1, step[0]=kStepActive (0x01)
+        // ArpLane<uint8_t> zero-initializes steps to 0x00 = Rest. Without this
+        // call, the default modifier lane would silence every arp note.
+        modifierLane_.setStep(0, static_cast<uint8_t>(kStepActive));
     }
 
     // =========================================================================
@@ -305,6 +324,42 @@ public:
     /// @brief Access pitch lane (const).
     [[nodiscard]] const ArpLane<int8_t>& pitchLane() const noexcept {
         return pitchLane_;
+    }
+
+    // =========================================================================
+    // Modifier Lane Accessors (073-per-step-mods, FR-024)
+    // =========================================================================
+
+    /// @brief Access the modifier lane for reading/writing step values.
+    ArpLane<uint8_t>& modifierLane() noexcept { return modifierLane_; }
+
+    /// @brief Const access to the modifier lane.
+    [[nodiscard]] const ArpLane<uint8_t>& modifierLane() const noexcept {
+        return modifierLane_;
+    }
+
+    /// @brief Set the accent velocity boost amount.
+    /// @param amount Additive velocity boost for accented steps (0-127).
+    void setAccentVelocity(int amount) noexcept {
+        accentVelocity_ = std::clamp(amount, 0, 127);
+    }
+
+    /// @brief Set the slide portamento time.
+    /// @param ms Portamento duration in milliseconds (0-500).
+    void setSlideTime(float ms) noexcept {
+        slideTimeMs_ = std::clamp(ms, 0.0f, 500.0f);
+    }
+
+    /// @brief Get the current accent velocity boost amount.
+    /// @return Clamped accent velocity value in [0, 127].
+    [[nodiscard]] int accentVelocity() const noexcept {
+        return accentVelocity_;
+    }
+
+    /// @brief Get the current slide portamento time.
+    /// @return Clamped slide time in milliseconds in [0, 500].
+    [[nodiscard]] float slideTimeMs() const noexcept {
+        return slideTimeMs_;
     }
 
     // =========================================================================
@@ -733,10 +788,69 @@ private:
         ArpNoteResult result = selector_.advance(heldNotes_);
 
         if (result.count > 0) {
-            // Advance lanes (once per step, regardless of chord size)
+            // Advance all lanes (once per step, regardless of chord size)
             float velScale = velocityLane_.advance();
             float gateScale = gateLane_.advance();
             int8_t pitchOffset = pitchLane_.advance();
+            uint8_t modifierFlags = modifierLane_.advance();
+
+            // --- Modifier evaluation (073-per-step-mods) ---
+            // Priority: Rest > Tie > Slide > Accent
+
+            // Rest: kStepActive not set -> suppress noteOn, emit noteOff for previous
+            if (!(modifierFlags & kStepActive)) {
+                // Cancel pending noteOffs first to prevent double NoteOff emission
+                // (emitDuePendingNoteOffs would otherwise re-emit for these notes)
+                cancelPendingNoteOffsForCurrentNotes();
+
+                // Emit noteOff for all currently sounding notes
+                for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
+                    outputEvents[eventCount++] = ArpEvent{
+                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                }
+                currentArpNoteCount_ = 0;
+                tieActive_ = false;
+
+                // Increment swing step counter and recalculate duration
+                ++swingStepCounter_;
+                currentStepDuration_ = calculateStepDuration(ctx);
+                return;
+            }
+
+            // Tie: kStepTie set -> sustain previous notes, no new noteOn (FR-011)
+            if (modifierFlags & kStepTie) {
+                if (currentArpNoteCount_ > 0) {
+                    // Cancel pending noteOffs: tie overrides gate (FR-012)
+                    cancelPendingNoteOffsForCurrentNotes();
+                    tieActive_ = true;
+
+                    // Increment swing step counter and recalculate duration
+                    ++swingStepCounter_;
+                    currentStepDuration_ = calculateStepDuration(ctx);
+                    return;
+                }
+                // No preceding note -> behaves as rest (FR-013)
+                tieActive_ = false;
+                ++swingStepCounter_;
+                currentStepDuration_ = calculateStepDuration(ctx);
+                return;
+            }
+
+            // Active step (not Rest, not Tie): end any tie chain (FR-014)
+            // If ending a tie chain, emit noteOffs for tie-sustained notes
+            // before normal note emission (their pending noteOffs were cancelled).
+            if (tieActive_) {
+                for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
+                    outputEvents[eventCount++] = ArpEvent{
+                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                }
+                currentArpNoteCount_ = 0;
+            }
+            tieActive_ = false;
+
+            // Slide evaluation (FR-015, FR-016, FR-017)
+            // Determine if this is a slide step with a preceding sounding note
+            bool isSlide = (modifierFlags & kStepSlide) != 0 && currentArpNoteCount_ > 0;
 
             // Apply velocity scaling to all notes in this step (FR-011)
             for (size_t i = 0; i < result.count; ++i) {
@@ -744,6 +858,17 @@ private:
                     std::round(result.velocities[i] * velScale));
                 result.velocities[i] = static_cast<uint8_t>(
                     std::clamp(scaledVel, 1, 127));
+            }
+
+            // Accent: boost velocity after lane scaling (FR-019, FR-020)
+            // Accent applies to any step that emits a noteOn (Active and Slide).
+            // Rest and Tie return early above, so this code only runs for note-emitting steps.
+            if ((modifierFlags & kStepAccent) && accentVelocity_ > 0) {
+                for (size_t i = 0; i < result.count; ++i) {
+                    int boosted = static_cast<int>(result.velocities[i]) + accentVelocity_;
+                    result.velocities[i] = static_cast<uint8_t>(
+                        std::clamp(boosted, 1, 127));
+                }
             }
 
             // Apply pitch offset to all notes in this step (FR-017, FR-018)
@@ -757,7 +882,62 @@ private:
             // Calculate gate duration with lane multiplier (FR-014)
             size_t gateDuration = calculateGateDuration(gateScale);
 
-            if (result.count > 1) {
+            // Peek at next modifier step: if the next step is a Tie or Slide step,
+            // skip scheduling gate-based noteOffs so the notes sustain into
+            // the next step (FR-012: Tie overrides gate; FR-015: Slide suppresses
+            // previous noteOff to keep currentArpNoteCount_ > 0 for legato).
+            uint8_t nextModFlags = modifierLane_.getStep(
+                static_cast<size_t>(modifierLane_.currentStep()));
+            bool nextStepIsTie = (nextModFlags & kStepActive) != 0 &&
+                                 (nextModFlags & kStepTie) != 0;
+            bool nextStepIsSlide = (nextModFlags & kStepActive) != 0 &&
+                                   (nextModFlags & kStepSlide) != 0;
+            bool suppressGateNoteOff = nextStepIsTie || nextStepIsSlide;
+
+            if (isSlide) {
+                // Slide: suppress previous noteOffs, emit legato noteOns (FR-015)
+                cancelPendingNoteOffsForCurrentNotes();
+                // Do NOT emit noteOffs for currently sounding notes
+
+                if (result.count > 1) {
+                    // Chord slide: emit legato noteOns for all new chord notes
+                    for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
+                        outputEvents[eventCount++] = ArpEvent{
+                            ArpEvent::Type::NoteOn,
+                            result.notes[i],
+                            result.velocities[i],
+                            sampleOffset,
+                            true};  // legato=true
+                    }
+                    // Track all new chord notes as currently sounding
+                    for (size_t i = 0; i < result.count && i < 32; ++i) {
+                        currentArpNotes_[i] = result.notes[i];
+                    }
+                    currentArpNoteCount_ = result.count < 32 ? result.count : 32;
+                } else {
+                    // Single note slide
+                    if (eventCount < maxEvents) {
+                        outputEvents[eventCount++] = ArpEvent{
+                            ArpEvent::Type::NoteOn,
+                            result.notes[0],
+                            result.velocities[0],
+                            sampleOffset,
+                            true};  // legato=true
+                    }
+                    // Replace the previous note tracking with the new note
+                    currentArpNotes_[0] = result.notes[0];
+                    currentArpNoteCount_ = 1;
+                }
+
+                // Schedule gate-based noteOffs for the new slide notes
+                // (unless next step is Tie or Slide)
+                if (!suppressGateNoteOff) {
+                    for (size_t i = 0; i < result.count; ++i) {
+                        addPendingNoteOff(result.notes[i], gateDuration, outputEvents,
+                                           eventCount, maxEvents);
+                    }
+                }
+            } else if (result.count > 1) {
                 // FR-022: Chord mode -- emit NoteOff for all previously
                 // sounding notes first (to replace the previous chord)
                 for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
@@ -782,9 +962,12 @@ private:
                 currentArpNoteCount_ = result.count < 32 ? result.count : 32;
 
                 // Schedule PendingNoteOff for each chord note (FR-026)
-                for (size_t i = 0; i < result.count; ++i) {
-                    addPendingNoteOff(result.notes[i], gateDuration, outputEvents,
-                                       eventCount, maxEvents);
+                // Skip if next step is Tie or Slide (FR-012, FR-015)
+                if (!suppressGateNoteOff) {
+                    for (size_t i = 0; i < result.count; ++i) {
+                        addPendingNoteOff(result.notes[i], gateDuration, outputEvents,
+                                           eventCount, maxEvents);
+                    }
                 }
             } else {
                 // Single note path (result.count == 1)
@@ -803,11 +986,17 @@ private:
                 }
 
                 // Schedule NoteOff for this note.
-                addPendingNoteOff(result.notes[0], gateDuration, outputEvents,
-                                   eventCount, maxEvents);
+                // Skip if next step is Tie or Slide (FR-012, FR-015)
+                if (!suppressGateNoteOff) {
+                    addPendingNoteOff(result.notes[0], gateDuration, outputEvents,
+                                       eventCount, maxEvents);
+                }
             }
         } else {
             // result.count == 0: buffer became empty between steps (defensive).
+            // Advance modifier lane in defensive branch too (FR-010)
+            modifierLane_.advance();
+
             // Treat as rest -- no NoteOn emitted. Emit NoteOff for any
             // currently sounding arp note to prevent stuck notes (FR-024).
             for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
@@ -832,6 +1021,24 @@ private:
                 currentArpNotes_[i] = currentArpNotes_[currentArpNoteCount_ - 1];
                 --currentArpNoteCount_;
                 return;
+            }
+        }
+    }
+
+    /// @brief Cancel all pending noteOffs for currently sounding notes.
+    /// Used by Tie evaluation to override gate-based noteOff scheduling (FR-012).
+    inline void cancelPendingNoteOffsForCurrentNotes() noexcept {
+        for (size_t n = 0; n < currentArpNoteCount_; ++n) {
+            uint8_t note = currentArpNotes_[n];
+            // Remove all pending noteOffs matching this note
+            size_t i = 0;
+            while (i < pendingNoteOffCount_) {
+                if (pendingNoteOffs_[i].note == note) {
+                    pendingNoteOffs_[i] = pendingNoteOffs_[pendingNoteOffCount_ - 1];
+                    --pendingNoteOffCount_;
+                } else {
+                    ++i;
+                }
             }
         }
     }
@@ -875,6 +1082,8 @@ private:
         velocityLane_.reset();
         gateLane_.reset();
         pitchLane_.reset();
+        modifierLane_.reset();   // 073-per-step-mods: reset modifier lane position
+        tieActive_ = false;       // 073-per-step-mods: reset tie chain state
     }
 
     // =========================================================================
@@ -891,6 +1100,15 @@ private:
     ArpLane<float> velocityLane_;   ///< Velocity multiplier per step (default: length=1, step[0]=1.0f)
     ArpLane<float> gateLane_;       ///< Gate duration multiplier per step (default: length=1, step[0]=1.0f)
     ArpLane<int8_t> pitchLane_;    ///< Semitone offset per step (default: length=1, step[0]=0)
+    ArpLane<uint8_t> modifierLane_; ///< Bitmask per step (default: length=1, step[0]=kStepActive)
+
+    // =========================================================================
+    // Modifier Configuration (073-per-step-mods)
+    // =========================================================================
+
+    int accentVelocity_{30};        ///< Additive velocity boost for accented steps (0-127)
+    float slideTimeMs_{60.0f};      ///< Portamento duration (0-500ms). Stored for API symmetry.
+    bool tieActive_{false};         ///< True when in a tie chain. Cleared by resetLanes().
 
     // =========================================================================
     // Configuration State

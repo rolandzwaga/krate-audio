@@ -61,6 +61,14 @@ struct ArpeggiatorParams {
     std::atomic<int>   pitchLaneLength{1};      // 1-32
     std::array<std::atomic<int>, 32> pitchLaneSteps{};  // -24 to +24 (int for lock-free guarantee)
 
+    // --- Modifier Lane (073-per-step-mods) ---
+    std::atomic<int>   modifierLaneLength{1};      // 1-32
+    std::array<std::atomic<int>, 32> modifierLaneSteps{};  // uint8_t bitmask stored as int (lock-free)
+
+    // Modifier configuration
+    std::atomic<int>   accentVelocity{30};         // 0-127
+    std::atomic<float> slideTime{60.0f};           // 0-500 ms
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -69,6 +77,10 @@ struct ArpeggiatorParams {
             step.store(1.0f, std::memory_order_relaxed);
         }
         // pitchLaneSteps default to 0 via value-initialization -- correct identity for pitch
+        // modifierLaneSteps default to 1 (kStepActive) -- active, no modifiers
+        for (auto& step : modifierLaneSteps) {
+            step.store(1, std::memory_order_relaxed);  // kStepActive = 0x01
+        }
     }
 };
 
@@ -170,6 +182,28 @@ inline void handleArpParamChange(
                 std::memory_order_relaxed);
             break;
 
+        // --- Modifier Lane (073-per-step-mods) ---
+        case kArpModifierLaneLengthId:
+            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
+            params.modifierLaneLength.store(
+                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                std::memory_order_relaxed);
+            break;
+
+        case kArpAccentVelocityId:
+            // RangeParameter: 0-1 -> 0-127 (stepCount=127)
+            params.accentVelocity.store(
+                std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
+                std::memory_order_relaxed);
+            break;
+
+        case kArpSlideTimeId:
+            // Continuous Parameter: 0-1 -> 0-500ms
+            params.slideTime.store(
+                std::clamp(static_cast<float>(value * 500.0), 0.0f, 500.0f),
+                std::memory_order_relaxed);
+            break;
+
         default:
             // Velocity lane steps: 3021-3052
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -189,6 +223,13 @@ inline void handleArpParamChange(
                     static_cast<int>(-24.0 + std::round(value * 48.0)), -24, 24);
                 params.pitchLaneSteps[id - kArpPitchLaneStep0Id].store(
                     pitch, std::memory_order_relaxed);
+            }
+            // Modifier lane steps: 3141-3172
+            else if (id >= kArpModifierLaneStep0Id && id <= kArpModifierLaneStep31Id) {
+                int step = std::clamp(
+                    static_cast<int>(std::round(value * 255.0)), 0, 255);
+                params.modifierLaneSteps[id - kArpModifierLaneStep0Id].store(
+                    step, std::memory_order_relaxed);
             }
             break;
     }
@@ -327,6 +368,38 @@ inline void registerArpParams(
                 STR16("st"), -24, 24, 0, 48,
                 ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
     }
+
+    // --- Modifier Lane (073-per-step-mods) ---
+
+    // Modifier lane length: RangeParameter 1-32, default 1, stepCount 31
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Mod Lane Len"), kArpModifierLaneLengthId,
+                          STR16(""), 1, 32, 1, 31,
+                          ParameterInfo::kCanAutomate));
+
+    // Modifier lane steps: loop 0-31, RangeParameter 0-255, default 1 (kStepActive), stepCount 255
+    for (int i = 0; i < 32; ++i) {
+        char name[48];
+        snprintf(name, sizeof(name), "Arp Mod Step %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(name);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpModifierLaneStep0Id + i),
+                STR16(""), 0, 255, 1, 255,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
+
+    // Accent velocity: RangeParameter 0-127, default 30, stepCount 127
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Accent Vel"), kArpAccentVelocityId,
+                          STR16(""), 0, 127, 30, 127,
+                          ParameterInfo::kCanAutomate));
+
+    // Slide time: Continuous Parameter 0-1, default 0.12 (maps to 60ms)
+    parameters.addParameter(STR16("Arp Slide Time"), STR16("ms"), 0,
+        0.12,
+        ParameterInfo::kCanAutomate, kArpSlideTimeId);
 }
 
 // =============================================================================
@@ -438,6 +511,28 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
 
+        // --- Modifier Lane (073-per-step-mods) ---
+        case kArpModifierLaneLengthId: {
+            char8 text[32];
+            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            snprintf(text, sizeof(text), "%d steps", len);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpAccentVelocityId: {
+            char8 text[32];
+            int vel = std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127);
+            snprintf(text, sizeof(text), "%d", vel);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpSlideTimeId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f ms", value * 500.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+
         default:
             // Velocity lane steps: display as percentage
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -464,6 +559,15 @@ inline Steinberg::tresult formatArpParam(
                 } else {
                     snprintf(text, sizeof(text), "%d st", pitch);
                 }
+                UString(string, 128).fromAscii(text);
+                return kResultOk;
+            }
+            // Modifier lane steps: display as hex
+            if (id >= kArpModifierLaneStep0Id && id <= kArpModifierLaneStep31Id) {
+                char8 text[32];
+                int step = std::clamp(
+                    static_cast<int>(std::round(value * 255.0)), 0, 255);
+                snprintf(text, sizeof(text), "0x%02X", step);
                 UString(string, 128).fromAscii(text);
                 return kResultOk;
             }
@@ -512,6 +616,14 @@ inline void saveArpParams(
     for (int i = 0; i < 32; ++i) {
         streamer.writeInt32(params.pitchLaneSteps[i].load(std::memory_order_relaxed));
     }
+
+    // --- Modifier Lane (073-per-step-mods) ---
+    streamer.writeInt32(params.modifierLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.modifierLaneSteps[i].load(std::memory_order_relaxed));
+    }
+    streamer.writeInt32(params.accentVelocity.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.slideTime.load(std::memory_order_relaxed));
 }
 
 // =============================================================================
@@ -594,6 +706,27 @@ inline bool loadArpParams(
             std::clamp(intVal, -24, 24), std::memory_order_relaxed);
     }
 
+    // --- Modifier Lane (073-per-step-mods) ---
+    // EOF-safe: if modifier data is missing entirely (Phase 4 preset), keep defaults.
+    // If modifier data is partially present (truncated after length), return false (corrupt).
+    if (!streamer.readInt32(intVal)) return true;  // EOF at first modifier field = Phase 4 compat
+    params.modifierLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+
+    // From here, EOF signals a corrupt stream (length was present but steps are not)
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;  // Corrupt: length present but no step data
+        params.modifierLaneSteps[i].store(
+            std::clamp(intVal, 0, 255), std::memory_order_relaxed);
+    }
+
+    // Accent velocity
+    if (!streamer.readInt32(intVal)) return false;  // Corrupt: steps present but no accentVelocity
+    params.accentVelocity.store(std::clamp(intVal, 0, 127), std::memory_order_relaxed);
+
+    // Slide time
+    if (!streamer.readFloat(floatVal)) return false;  // Corrupt: accentVelocity present but no slideTime
+    params.slideTime.store(std::clamp(floatVal, 0.0f, 500.0f), std::memory_order_relaxed);
+
     return true;
 }
 
@@ -667,6 +800,65 @@ inline void loadArpParamsToController(
     // retrigger (int32 -> normalized: index / 2)
     if (streamer.readInt32(intVal))
         setParam(kArpRetriggerId, static_cast<double>(std::clamp(intVal, 0, 2)) / 2.0);
+    else return;
+
+    // --- Velocity Lane (072-independent-lanes, US1) ---
+    // EOF-safe: if lane data is missing (Phase 3 preset), keep controller defaults
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpVelocityLaneLengthId,
+        static_cast<double>(std::clamp(intVal, 1, 32) - 1) / 31.0);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readFloat(floatVal)) return;
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpVelocityLaneStep0Id + i),
+            static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
+    }
+
+    // --- Gate Lane (072-independent-lanes, US2) ---
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpGateLaneLengthId,
+        static_cast<double>(std::clamp(intVal, 1, 32) - 1) / 31.0);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readFloat(floatVal)) return;
+        // Gate lane: [0.01, 2.0] -> normalized: (val - 0.01) / 1.99
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpGateLaneStep0Id + i),
+            static_cast<double>((std::clamp(floatVal, 0.01f, 2.0f) - 0.01f) / 1.99f));
+    }
+
+    // --- Pitch Lane (072-independent-lanes, US3) ---
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpPitchLaneLengthId,
+        static_cast<double>(std::clamp(intVal, 1, 32) - 1) / 31.0);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return;
+        // Pitch lane: [-24, +24] -> normalized: (val + 24) / 48
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpPitchLaneStep0Id + i),
+            static_cast<double>(std::clamp(intVal, -24, 24) + 24) / 48.0);
+    }
+
+    // --- Modifier Lane (073-per-step-mods) ---
+    // EOF-safe: if modifier data is missing (Phase 4 preset), keep controller defaults
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpModifierLaneLengthId,
+        static_cast<double>(std::clamp(intVal, 1, 32) - 1) / 31.0);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return;
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpModifierLaneStep0Id + i),
+            static_cast<double>(std::clamp(intVal, 0, 255)) / 255.0);
+    }
+
+    // Accent velocity: int32 -> normalized: value / 127
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpAccentVelocityId,
+        static_cast<double>(std::clamp(intVal, 0, 127)) / 127.0);
+
+    // Slide time: float -> normalized: value / 500
+    if (!streamer.readFloat(floatVal)) return;
+    setParam(kArpSlideTimeId,
+        static_cast<double>(std::clamp(floatVal, 0.0f, 500.0f)) / 500.0);
 }
 
 } // namespace Ruinae

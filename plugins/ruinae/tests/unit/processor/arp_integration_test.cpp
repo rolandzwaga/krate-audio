@@ -1685,3 +1685,200 @@ TEST_CASE("SC006_AllLaneParamsRegistered", "[arp][integration]") {
     // SC-006: 99 total lane params
     CHECK(laneParamCount == 99);
 }
+
+// =============================================================================
+// Phase 5 (US3) Tests: Slide engine integration (073 T035)
+// =============================================================================
+
+TEST_CASE("ArpIntegration_SlidePassesLegatoToEngine",
+          "[arp][integration][slide]") {
+    // FR-032, SC-003: Configure a Slide step, run processBlock, verify that
+    // the engine receives a legato noteOn. Since we can't easily mock the engine,
+    // we verify indirectly by: enabling arp, setting a Slide modifier step,
+    // sending notes, and checking that audio is produced (the slide path through
+    // engine_.noteOn(note, vel, true) works without crash/silence).
+    ArpIntegrationFixture f;
+
+    // Enable arp and set up modifier lane with Slide on step 1
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        // Set modifier lane length = 2
+        params.addChange(Ruinae::kArpModifierLaneLengthId, 1.0 / 31.0);  // denorm: 1 + round(1/31 * 31) = 2
+        // Step 0: Active (0x01) -> normalized 1.0/255.0
+        params.addChange(Ruinae::kArpModifierLaneStep0Id, 1.0 / 255.0);
+        // Step 1: Active|Slide (0x05) -> normalized 5.0/255.0
+        params.addChange(static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpModifierLaneStep0Id + 1),
+                         5.0 / 255.0);
+        f.processBlockWithParams(params);
+    }
+    f.clearEvents();
+
+    // Send two notes for the arp to cycle through
+    f.events.addNoteOn(60, 0.8f);
+    f.events.addNoteOn(64, 0.8f);
+    f.processBlock();
+    f.clearEvents();
+
+    // Process enough blocks to cover at least 2 arp steps.
+    // At 120 BPM, 1/8 note = ~11025 samples, block = 512 samples, so ~22 blocks/step.
+    bool audioFound = false;
+    for (int i = 0; i < 60; ++i) {
+        f.processBlock();
+        if (hasNonZeroSamples(f.outL.data(), f.kBlockSize)) {
+            audioFound = true;
+        }
+    }
+
+    // Audio should be produced -- engine_.noteOn(note, vel, true) accepted the legato flag
+    REQUIRE(audioFound);
+}
+
+TEST_CASE("ArpIntegration_NormalStepPassesLegatoFalse",
+          "[arp][integration][slide]") {
+    // FR-032: Normal Active step produces engine_.noteOn(note, vel, false).
+    // Verify by: enabling arp with all-Active modifier lane (default), sending
+    // notes, and checking audio is produced.
+    ArpIntegrationFixture f;
+
+    // Enable arp (default modifier lane is all-Active, legato=false)
+    f.enableArp();
+
+    // Send a note
+    f.events.addNoteOn(60, 0.8f);
+    f.processBlock();
+    f.clearEvents();
+
+    // Process blocks and verify audio output
+    bool audioFound = false;
+    for (int i = 0; i < 60; ++i) {
+        f.processBlock();
+        if (hasNonZeroSamples(f.outL.data(), f.kBlockSize)) {
+            audioFound = true;
+            break;
+        }
+    }
+
+    // Normal noteOn with legato=false should produce audio normally
+    REQUIRE(audioFound);
+}
+
+// =============================================================================
+// Phase 8 (073-per-step-mods) US6: Modifier Lane Persistence Integration (T062)
+// =============================================================================
+
+TEST_CASE("ModifierParams_SC010_AllRegistered", "[arp][integration]") {
+    // SC-010: Enumerate param IDs 3140-3181; verify all 35 present;
+    // length/config params have kCanAutomate without kIsHidden;
+    // step params have kCanAutomate AND kIsHidden.
+    using namespace Ruinae;
+    using namespace Steinberg::Vst;
+
+    ParameterContainer container;
+    registerArpParams(container);
+
+    int modifierParamCount = 0;
+
+    // Modifier lane length (3140): kCanAutomate, NOT kIsHidden
+    {
+        auto* param = container.getParameter(kArpModifierLaneLengthId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+        ++modifierParamCount;
+    }
+
+    // Modifier lane steps (3141-3172): kCanAutomate AND kIsHidden
+    for (int i = 0; i < 32; ++i) {
+        auto paramId = static_cast<ParamID>(kArpModifierLaneStep0Id + i);
+        auto* param = container.getParameter(paramId);
+        INFO("Modifier step param " << i << " (ID " << paramId << ")");
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+        ++modifierParamCount;
+    }
+
+    // Accent velocity (3180): kCanAutomate, NOT kIsHidden
+    {
+        auto* param = container.getParameter(kArpAccentVelocityId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+        ++modifierParamCount;
+    }
+
+    // Slide time (3181): kCanAutomate
+    {
+        auto* param = container.getParameter(kArpSlideTimeId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        ++modifierParamCount;
+    }
+
+    // SC-010: 35 total modifier params
+    CHECK(modifierParamCount == 35);
+}
+
+TEST_CASE("ModifierParams_FlowToCore", "[arp][integration]") {
+    // FR-031: Set modifier params via handleArpParamChange, call applyParamsToArp(),
+    // verify arp_.modifierLane().length() and step values match.
+    using namespace Krate::DSP;
+    using namespace Ruinae;
+
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setTempoSync(true);
+
+    // Simulate param changes via handleArpParamChange
+    ArpeggiatorParams params;
+
+    // Set modifier lane length = 4
+    handleArpParamChange(params, kArpModifierLaneLengthId, 3.0 / 31.0);  // 1 + round(3/31 * 31) = 4
+    // Set step 0 = Active|Slide (0x05)
+    handleArpParamChange(params, kArpModifierLaneStep0Id, 5.0 / 255.0);
+    // Set step 1 = Active|Accent (0x09)
+    handleArpParamChange(params, static_cast<Steinberg::Vst::ParamID>(kArpModifierLaneStep0Id + 1),
+                         9.0 / 255.0);
+    // Set step 2 = Rest (0x00)
+    handleArpParamChange(params, static_cast<Steinberg::Vst::ParamID>(kArpModifierLaneStep0Id + 2),
+                         0.0);
+    // Set step 3 = Active (0x01)
+    handleArpParamChange(params, static_cast<Steinberg::Vst::ParamID>(kArpModifierLaneStep0Id + 3),
+                         1.0 / 255.0);
+
+    // Verify atomic storage
+    CHECK(params.modifierLaneLength.load() == 4);
+    CHECK(params.modifierLaneSteps[0].load() == 5);
+    CHECK(params.modifierLaneSteps[1].load() == 9);
+    CHECK(params.modifierLaneSteps[2].load() == 0);
+    CHECK(params.modifierLaneSteps[3].load() == 1);
+
+    // Simulate applyParamsToArp: push modifier lane data to ArpeggiatorCore
+    // Using expand-write-shrink pattern
+    {
+        const auto modLen = params.modifierLaneLength.load(std::memory_order_relaxed);
+        arp.modifierLane().setLength(32);
+        for (int i = 0; i < 32; ++i) {
+            arp.modifierLane().setStep(
+                static_cast<size_t>(i),
+                static_cast<uint8_t>(params.modifierLaneSteps[i].load(std::memory_order_relaxed)));
+        }
+        arp.modifierLane().setLength(static_cast<size_t>(modLen));
+    }
+    arp.setAccentVelocity(params.accentVelocity.load(std::memory_order_relaxed));
+    arp.setSlideTime(params.slideTime.load(std::memory_order_relaxed));
+
+    // Verify the ArpeggiatorCore lane values match
+    CHECK(arp.modifierLane().length() == 4);
+    CHECK(arp.modifierLane().getStep(0) == 5);
+    CHECK(arp.modifierLane().getStep(1) == 9);
+    CHECK(arp.modifierLane().getStep(2) == 0);
+    CHECK(arp.modifierLane().getStep(3) == 1);
+}

@@ -112,6 +112,10 @@ Steps:
 
 Keep it short. Only elaborate on failures.
 
+**IMPORTANT:** Do NOT classify issues by severity (no "minor", "non-blocking", "suggestion",
+"nit", "low priority"). Every issue in the Issues list is a **mandatory fix**. If something
+isn't worth fixing, don't list it. If you list it, it must be fixed — no exceptions.
+
 ### Final Completion Report
 
 ```

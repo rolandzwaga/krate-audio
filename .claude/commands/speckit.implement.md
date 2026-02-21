@@ -145,7 +145,10 @@ Read quickstart.md for build/test commands.
 The compliance agent found these issues:
 {paste the comply agent's issues list here}
 
-Fix ONLY the issues listed above. Do NOT re-implement tasks that already passed.
+Fix ALL issues listed above — every single one, regardless of severity.
+Do NOT skip, defer, or deprioritize any issue. Minor issues, naming issues,
+and non-blocking findings must be fixed with the same urgency as blocking ones.
+Do NOT re-implement tasks that already passed.
 
 BUILD+TEST GATE (mandatory before finishing):
 1. Build ONCE using the build command from quickstart.md — ZERO warnings required.

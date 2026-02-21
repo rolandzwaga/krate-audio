@@ -584,6 +584,8 @@ kArpSlideTimeId             = 3181,  // portamento time for slide (ms)
 **Test**: Extend `arpeggiator_core_test.cpp`
 **Depends on**: Phase 4
 
+**IMPORTANT -- Parameter ID Range**: Phase 6 allocates `kArpRatchetLaneLengthId = 3190` through `kArpRatchetLaneStep31Id = 3222`. ID 3222 exceeds the current `kArpEndId = 3199`. Phase 6 implementers MUST update `kArpEndId` to at least 3222 and `kNumParameters` to at least 3223 in `plugins/ruinae/src/plugin_ids.h`.
+
 ### Purpose
 
 Subdivide individual arp steps into rapid retriggered repetitions (1-4 per step).
