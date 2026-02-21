@@ -495,7 +495,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 10.1 Run Clang-Tidy Analysis
 
-- [ ] T081 Run clang-tidy on all modified/new source files:
+- [X] T081 Run clang-tidy on all modified/new source files:
   ```powershell
   # Windows (PowerShell) - run from repo root
   ./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
@@ -505,9 +505,9 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 10.2 Address Findings
 
-- [ ] T082 Fix all errors reported by clang-tidy (blocking issues) in `dsp/include/krate/dsp/primitives/arp_lane.h` and `dsp/include/krate/dsp/processors/arpeggiator_core.h`
-- [ ] T083 Fix all errors reported by clang-tidy in `plugins/ruinae/src/parameters/arpeggiator_params.h`, `processor.cpp`, and `controller.cpp`
-- [ ] T084 Review warnings and fix where appropriate; document any intentional suppressions with NOLINT comment and reason (DSP code may have legitimate magic number exceptions)
+- [X] T082 Fix all errors reported by clang-tidy (blocking issues) in `dsp/include/krate/dsp/primitives/arp_lane.h` and `dsp/include/krate/dsp/processors/arpeggiator_core.h`
+- [X] T083 Fix all errors reported by clang-tidy in `plugins/ruinae/src/parameters/arpeggiator_params.h`, `processor.cpp`, and `controller.cpp`
+- [X] T084 Review warnings and fix where appropriate; document any intentional suppressions with NOLINT comment and reason (DSP code may have legitimate magic number exceptions)
 - [ ] T085 **Commit clang-tidy fixes**: `git commit -m "Fix clang-tidy findings for 072 independent lanes"`
 
 **Checkpoint**: Static analysis clean - ready for completion verification.

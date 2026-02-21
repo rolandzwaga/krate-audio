@@ -3939,8 +3939,10 @@ TEST_CASE("ArpeggiatorCore: BitIdentical_VelocityDefault",
             else if (note == 67) expectedVel = 110;
             else {
                 // Octave repeats -- same velocity as base note
-                expectedVel = (note % 12 == 0) ? 100 :
-                              (note % 12 == 4) ? 80 : 110;
+                int mod = note % 12;
+                if (mod == 0) expectedVel = 100;
+                else if (mod == 4) expectedVel = 80;
+                else expectedVel = 110;
             }
 
             if (noteOns[i].velocity != expectedVel) {
@@ -4035,10 +4037,10 @@ TEST_CASE("ArpeggiatorCore: GateLane_MultipliesGlobalGate",
             static_cast<double>(stepDuration) *
             static_cast<double>(80.0f) / 100.0 *
             static_cast<double>(gateSteps[i])));
-        int32_t actualGate = noteOffs[i].sampleOffset - noteOns[i].sampleOffset;
+        size_t actualGate = static_cast<size_t>(noteOffs[i].sampleOffset - noteOns[i].sampleOffset);
         INFO("Step " << i << ": expected gate=" << expectedGate
              << ", actual=" << actualGate);
-        CHECK(static_cast<size_t>(actualGate) == expectedGate);
+        CHECK(actualGate == expectedGate);
     }
 }
 
