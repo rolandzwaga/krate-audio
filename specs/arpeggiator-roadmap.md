@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: Planning | **Created**: 2026-02-20
+**Status**: In Progress (Phase 2 complete) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -192,11 +192,13 @@ struct ArpNoteResult {
 
 ---
 
-## Phase 2: Arpeggiator Core — Timing & Event Generation
+## Phase 2: Arpeggiator Core — Timing & Event Generation ✅ COMPLETE
 
 **DSP Layer**: 2 (processors)
 **File**: `dsp/include/krate/dsp/processors/arpeggiator_core.h`
 **Test**: `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+**Spec**: `specs/070-arpeggiator-core/spec.md`
+**Branch**: `070-arpeggiator-core`
 **Depends on**: Phase 1
 
 ### Purpose
@@ -287,11 +289,11 @@ The arp must track which note(s) it most recently triggered so it can emit corre
 
 ### Acceptance Criteria
 
-- [ ] Sample-accurate event timing (within 1 sample of expected position)
-- [ ] Zero allocation in processBlock()
-- [ ] All latch and retrigger combinations work correctly
-- [ ] Swing produces audibly correct shuffle at various percentages
-- [ ] Gate overlap (>100%) produces legato — noteOff after next noteOn
+- [x] Sample-accurate event timing (within 1 sample of expected position) (SC-001: verified at 60/120/200 BPM with 1/4, 1/8, 1/16, 1/8T — 100+ steps each)
+- [x] Zero allocation in processBlock() (SC-003: code inspection confirmed — no new/delete/malloc/vector/string/map)
+- [x] All latch and retrigger combinations work correctly (SC-004: 3+ tests per latch mode; SC-005: 2+ tests per retrigger mode)
+- [x] Swing produces audibly correct shuffle at various percentages (SC-006: verified at 0%/25%/50%/75% with correct even/odd ratios)
+- [x] Gate overlap (>100%) produces legato — noteOff after next noteOn (SC-007: verified at 150% and 200%)
 
 ---
 
