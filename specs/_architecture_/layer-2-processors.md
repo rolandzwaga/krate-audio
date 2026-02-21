@@ -5886,11 +5886,19 @@ class TranceGate {
 ## ArpeggiatorCore
 **Path:** [arpeggiator_core.h](../../dsp/include/krate/dsp/processors/arpeggiator_core.h) | **Since:** 0.11.0
 
-Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains three `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`) that advance independently on each arp step, enabling polymetric lane patterns. Header-only, zero heap allocation in all methods.
+Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains three `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`) and a modifier lane (`ArpLane<uint8_t> modifierLane_`) that stores per-step bitmask flags (`ArpStepFlags`). All four lanes advance independently on each arp step, enabling polymetric lane patterns. Header-only, zero heap allocation in all methods.
 
 ```cpp
 enum class LatchMode : uint8_t { Off, Hold, Add };
 enum class ArpRetriggerMode : uint8_t { Off, Note, Beat };
+
+// Per-step modifier bitmask flags (Spec 073)
+enum ArpStepFlags : uint8_t {
+    kStepActive = 0x01,  // Step produces a noteOn (cleared = Rest)
+    kStepTie    = 0x02,  // Sustain previous note (suppress noteOff and noteOn)
+    kStepSlide  = 0x04,  // Legato transition (suppress noteOff, emit legato noteOn)
+    kStepAccent = 0x08   // Velocity boost by accentVelocity_ amount
+};
 
 struct ArpEvent {
     enum class Type : uint8_t { NoteOn, NoteOff };
@@ -5898,6 +5906,7 @@ struct ArpEvent {
     uint8_t note{0};
     uint8_t velocity{0};
     int32_t sampleOffset{0};
+    bool legato{false};   // true for slide/legato behavior (Spec 073)
 };
 
 class ArpeggiatorCore {
@@ -5924,6 +5933,8 @@ class ArpeggiatorCore {
     void setSwing(float percent) noexcept;            // [0, 75] %
     void setLatchMode(LatchMode mode) noexcept;
     void setRetrigger(ArpRetriggerMode mode) noexcept;
+    void setAccentVelocity(int amount) noexcept;      // [0, 127] (Spec 073)
+    void setSlideTime(float ms) noexcept;             // [0.0, 500.0] ms (Spec 073)
 
     // Lane accessors (Spec 072)
     ArpLane<float>& velocityLane() noexcept;          // Per-step velocity scaling [0,1]
@@ -5932,6 +5943,10 @@ class ArpeggiatorCore {
     const ArpLane<float>& velocityLane() const noexcept;
     const ArpLane<float>& gateLane() const noexcept;
     const ArpLane<int8_t>& pitchLane() const noexcept;
+
+    // Modifier lane accessor (Spec 073)
+    ArpLane<uint8_t>& modifierLane() noexcept;        // Per-step bitmask flags (ArpStepFlags)
+    const ArpLane<uint8_t>& modifierLane() const noexcept;
 
     // Processing
     size_t processBlock(const BlockContext& ctx,
@@ -5974,15 +5989,23 @@ size_t count = arp.processBlock(ctx, events);
 **Enumerations:**
 - `LatchMode` (Off, Hold, Add) -- controls how the arp handles key release. Defined in `arpeggiator_core.h` for use by the Ruinae plugin parameter mapping.
 - `ArpRetriggerMode` (Off, Note, Beat) -- controls when the arp pattern resets. Named distinctly from `RetriggerMode` in `envelope_utils.h` to prevent ODR violations.
+- `ArpStepFlags` (kStepActive=0x01, kStepTie=0x02, kStepSlide=0x04, kStepAccent=0x08) -- per-step modifier bitmask flags (Spec 073). Underlying type is `uint8_t`. Flags are combinable via bitwise OR; priority evaluation order in `fireStep()` is Rest (Active not set) > Tie > Slide > Accent.
 
 **Lane integration (Spec 072):**
 - `velocityLane_` (`ArpLane<float>`): Each step value scales note velocity via `velocity * velScale`, clamped to [1, 127]. Default step[0] = 1.0 (passthrough).
 - `gateLane_` (`ArpLane<float>`): Each step value multiplies gate duration via `calculateGateDuration(float gateLaneValue)`, clamped to minimum 1 sample. Default step[0] = 1.0 (no change).
 - `pitchLane_` (`ArpLane<int8_t>`): Each step value is added to the note number, clamped to [0, 127]. Default step[0] = 0 (no offset).
-- `resetLanes()`: Private method that calls `reset()` on all three lanes. Invoked from `reset()`, retrigger (Note mode on `noteOn()`), and transport-restart (Beat mode on bar boundary in `processBlock()`).
+- `resetLanes()`: Private method that calls `reset()` on all four lanes (velocity, gate, pitch, modifier) and resets `tieActive_` state to `false`. Invoked from `reset()`, retrigger (Note mode on `noteOn()`), and transport-restart (Beat mode on bar boundary in `processBlock()`).
 - `calculateGateDuration(float gateLaneValue = 1.0f)`: Extended signature multiplies the global gate formula by the lane value: `std::max(size_t{1}, static_cast<size_t>(static_cast<double>(stepDuration) * static_cast<double>(gatePct) / 100.0 * static_cast<double>(gateLaneValue)))`. When `gateLaneValue == 1.0f`, produces bit-identical results to the Phase 3 formula (SC-002).
-- In `fireStep()`: velocity, gate, and pitch lanes each call `advance()` once per step tick. Chord mode applies the same lane values to all notes in the chord equally.
+- In `fireStep()`: velocity, gate, pitch, and modifier lanes each call `advance()` once per step tick. Chord mode applies the same lane values to all notes in the chord equally.
 
-**Memory:** ~400 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 3 ArpLane instances). Header-only, real-time safe, single-threaded.
+**Modifier lane integration (Spec 073):**
+- `modifierLane_` (`ArpLane<uint8_t>`): Each step value is a bitmask of `ArpStepFlags`. Default step[0] = `kStepActive` (0x01, normal note output).
+- Exposes accessor: `modifierLane()`; configuration setters: `setAccentVelocity(int)`, `setSlideTime(float)`.
+- `ArpEvent` extended with `bool legato{false}` for slide/legato behavior. When a Slide step is evaluated in `fireStep()`, the emitted `ArpEvent` has `legato = true`, signaling the engine to apply portamento and suppress envelope retrigger.
+- Modifier evaluation priority in `fireStep()`: Rest (kStepActive not set) > Tie (kStepTie) > Slide (kStepSlide) > Accent (kStepAccent). Rest suppresses noteOn and emits pending noteOffs. Tie sustains the previous note across steps. Slide emits a legato noteOn without preceding noteOff. Accent boosts velocity by `accentVelocity_` after velocity lane scaling.
+- In `fireStep()`: modifier lane advances in both the normal path and the `result.count == 0` defensive branch (held buffer empty), ensuring all four lanes advance exactly once per arp step tick regardless of held note state.
+
+**Memory:** ~500 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 4 ArpLane instances + modifier config). Header-only, real-time safe, single-threaded.
 
 **Dependencies:** Layer 0 (block_context.h, note_value.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)

@@ -225,7 +225,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         for (size_t i = 0; i < numArpEvents; ++i) {
             const auto& evt = arpEvents_[i];
             if (evt.type == Krate::DSP::ArpEvent::Type::NoteOn) {
-                engine_.noteOn(evt.note, evt.velocity);
+                engine_.noteOn(evt.note, evt.velocity, evt.legato);
             } else {
                 engine_.noteOff(evt.note);
             }
@@ -1299,6 +1299,22 @@ void Processor::applyParamsToEngine() {
         }
         arpCore_.pitchLane().setLength(static_cast<size_t>(pitchLen));
     }
+    // --- Modifier Lane (073-per-step-mods) ---
+    {
+        const auto modLen = arpParams_.modifierLaneLength.load(std::memory_order_relaxed);
+        arpCore_.modifierLane().setLength(32);  // Expand first (FR-031)
+        for (int i = 0; i < 32; ++i) {
+            arpCore_.modifierLane().setStep(
+                static_cast<size_t>(i),
+                static_cast<uint8_t>(arpParams_.modifierLaneSteps[i].load(
+                    std::memory_order_relaxed)));
+        }
+        arpCore_.modifierLane().setLength(static_cast<size_t>(modLen));  // Shrink to actual
+    }
+    arpCore_.setAccentVelocity(arpParams_.accentVelocity.load(std::memory_order_relaxed));
+    arpCore_.setSlideTime(arpParams_.slideTime.load(std::memory_order_relaxed));
+    // Forward slide time to engine for both Poly and Mono portamento (FR-034)
+    engine_.setPortamentoTime(arpParams_.slideTime.load(std::memory_order_relaxed));
 
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));

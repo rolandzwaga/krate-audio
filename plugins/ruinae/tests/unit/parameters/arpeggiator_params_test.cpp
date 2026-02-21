@@ -1200,3 +1200,467 @@ TEST_CASE("LanePersistence_PitchNegativeValues", "[arp][params]") {
     CHECK(loaded.pitchLaneSteps[3].load() == 12);
     CHECK(loaded.pitchLaneSteps[4].load() == 24);
 }
+
+// ==============================================================================
+// Phase 3 (073-per-step-mods): Modifier Lane Parameter Tests (T018)
+// ==============================================================================
+
+TEST_CASE("ArpModifierLaneLength_Registration", "[arp][params]") {
+    // FR-026, FR-027: kArpModifierLaneLengthId registered as RangeParameter [1,32]
+    // default 1, kCanAutomate, NOT kIsHidden
+    using namespace Ruinae;
+    ParameterContainer container;
+    registerArpParams(container);
+
+    auto* param = container.getParameter(kArpModifierLaneLengthId);
+    REQUIRE(param != nullptr);
+
+    ParameterInfo info = param->getInfo();
+    CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+    CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+}
+
+TEST_CASE("ArpModifierLaneStep_Registration", "[arp][params]") {
+    // FR-026, FR-027: Step params 3141-3172 registered [0,255] default 1 (kStepActive),
+    // with kCanAutomate AND kIsHidden
+    using namespace Ruinae;
+    ParameterContainer container;
+    registerArpParams(container);
+
+    for (int i = 0; i < 32; ++i) {
+        auto* param = container.getParameter(
+            static_cast<ParamID>(kArpModifierLaneStep0Id + i));
+        INFO("Modifier step param " << i << " (ID " << (kArpModifierLaneStep0Id + i) << ")");
+        REQUIRE(param != nullptr);
+
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+    }
+}
+
+TEST_CASE("ArpAccentVelocity_Registration", "[arp][params]") {
+    // FR-026, FR-027: kArpAccentVelocityId registered as RangeParameter [0,127]
+    // default 30, kCanAutomate, NOT kIsHidden
+    using namespace Ruinae;
+    ParameterContainer container;
+    registerArpParams(container);
+
+    auto* param = container.getParameter(kArpAccentVelocityId);
+    REQUIRE(param != nullptr);
+
+    ParameterInfo info = param->getInfo();
+    CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+    CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+}
+
+TEST_CASE("ArpSlideTime_Registration", "[arp][params]") {
+    // FR-026, FR-027: kArpSlideTimeId registered as continuous Parameter [0,1]
+    // default 0.12, kCanAutomate
+    using namespace Ruinae;
+    ParameterContainer container;
+    registerArpParams(container);
+
+    auto* param = container.getParameter(kArpSlideTimeId);
+    REQUIRE(param != nullptr);
+
+    ParameterInfo info = param->getInfo();
+    CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+}
+
+TEST_CASE("ArpModifierLaneLength_Denormalize", "[arp][params]") {
+    // FR-028: handleArpParamChange denormalizes modifier lane length correctly
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> length 1
+    handleArpParamChange(params, kArpModifierLaneLengthId, 0.0);
+    CHECK(params.modifierLaneLength.load() == 1);
+
+    // 1.0 -> length 32
+    handleArpParamChange(params, kArpModifierLaneLengthId, 1.0);
+    CHECK(params.modifierLaneLength.load() == 32);
+
+    // 16.0/31.0 -> rounds to 16 -> 1 + 16 = 17
+    handleArpParamChange(params, kArpModifierLaneLengthId, 16.0 / 31.0);
+    CHECK(params.modifierLaneLength.load() == 17);
+}
+
+TEST_CASE("ArpModifierLaneStep_Denormalize", "[arp][params]") {
+    // FR-028: handleArpParamChange denormalizes modifier step values correctly
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> step[0] = 0
+    handleArpParamChange(params, kArpModifierLaneStep0Id, 0.0);
+    CHECK(params.modifierLaneSteps[0].load() == 0);
+
+    // 1.0/255.0 -> step[0] = 1
+    handleArpParamChange(params, kArpModifierLaneStep0Id, 1.0 / 255.0);
+    CHECK(params.modifierLaneSteps[0].load() == 1);
+
+    // 1.0 -> step[0] = 255
+    handleArpParamChange(params, kArpModifierLaneStep0Id, 1.0);
+    CHECK(params.modifierLaneSteps[0].load() == 255);
+}
+
+TEST_CASE("ArpAccentVelocity_Denormalize", "[arp][params]") {
+    // FR-028: handleArpParamChange denormalizes accent velocity correctly
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> accentVelocity = 0
+    handleArpParamChange(params, kArpAccentVelocityId, 0.0);
+    CHECK(params.accentVelocity.load() == 0);
+
+    // 30.0/127.0 -> 30
+    handleArpParamChange(params, kArpAccentVelocityId, 30.0 / 127.0);
+    CHECK(params.accentVelocity.load() == 30);
+
+    // 1.0 -> 127
+    handleArpParamChange(params, kArpAccentVelocityId, 1.0);
+    CHECK(params.accentVelocity.load() == 127);
+}
+
+TEST_CASE("ArpSlideTime_Denormalize", "[arp][params]") {
+    // FR-028: handleArpParamChange denormalizes slide time correctly
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> slideTime = 0.0
+    handleArpParamChange(params, kArpSlideTimeId, 0.0);
+    CHECK(params.slideTime.load() == Approx(0.0f).margin(0.001f));
+
+    // 0.12 -> ~60ms
+    handleArpParamChange(params, kArpSlideTimeId, 0.12);
+    CHECK(params.slideTime.load() == Approx(60.0f).margin(0.1f));
+
+    // 1.0 -> 500ms
+    handleArpParamChange(params, kArpSlideTimeId, 1.0);
+    CHECK(params.slideTime.load() == Approx(500.0f).margin(0.001f));
+}
+
+// ==============================================================================
+// Phase 8 (073-per-step-mods) User Story 6: Modifier Lane Persistence Tests (T061)
+// ==============================================================================
+
+TEST_CASE("ModifierLane_SaveLoad_RoundTrip", "[arp][params][state]") {
+    // SC-007: Configure modifier lane length=8, distinct flag combinations per step,
+    // accentVelocity=35, slideTime=50.0f; save; fresh params; load; verify all 35 match.
+    using namespace Ruinae;
+
+    ArpeggiatorParams original;
+    original.modifierLaneLength.store(8, std::memory_order_relaxed);
+    // Set steps 0-7 to distinct flag combinations
+    original.modifierLaneSteps[0].store(0x01, std::memory_order_relaxed);  // Active
+    original.modifierLaneSteps[1].store(0x03, std::memory_order_relaxed);  // Active|Tie
+    original.modifierLaneSteps[2].store(0x05, std::memory_order_relaxed);  // Active|Slide
+    original.modifierLaneSteps[3].store(0x09, std::memory_order_relaxed);  // Active|Accent
+    original.modifierLaneSteps[4].store(0x0F, std::memory_order_relaxed);  // All flags
+    original.modifierLaneSteps[5].store(0x00, std::memory_order_relaxed);  // Rest
+    original.modifierLaneSteps[6].store(0x0D, std::memory_order_relaxed);  // Active|Slide|Accent
+    original.modifierLaneSteps[7].store(0x0B, std::memory_order_relaxed);  // Active|Tie|Accent
+    original.accentVelocity.store(35, std::memory_order_relaxed);
+    original.slideTime.store(50.0f, std::memory_order_relaxed);
+
+    // Serialize
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Deserialize into fresh params
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        REQUIRE(ok);
+    }
+
+    // Verify all 35 modifier values match
+    CHECK(loaded.modifierLaneLength.load() == 8);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Modifier step " << i);
+        CHECK(loaded.modifierLaneSteps[i].load() ==
+              original.modifierLaneSteps[i].load());
+    }
+    CHECK(loaded.accentVelocity.load() == 35);
+    CHECK(loaded.slideTime.load() == Approx(50.0f).margin(0.001f));
+}
+
+TEST_CASE("ModifierLane_BackwardCompat_Phase4Stream", "[arp][params][state][compat]") {
+    // FR-030, SC-008: Construct IBStream with only Phase 4 data (11 base + 99 lane params);
+    // load; verify no crash, defaults: length=1, steps=1, accent=30, slideTime=60.0f
+    using namespace Ruinae;
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        // 11 base params
+        writeStream.writeInt32(1);     // enabled = true
+        writeStream.writeInt32(0);     // mode = Up
+        writeStream.writeInt32(1);     // octaveRange = 1
+        writeStream.writeInt32(0);     // octaveMode = Sequential
+        writeStream.writeInt32(1);     // tempoSync = true
+        writeStream.writeInt32(10);    // noteValue = 1/8
+        writeStream.writeFloat(4.0f);  // freeRate = 4.0 Hz
+        writeStream.writeFloat(80.0f); // gateLength = 80%
+        writeStream.writeFloat(0.0f);  // swing = 0%
+        writeStream.writeInt32(0);     // latchMode = Off
+        writeStream.writeInt32(0);     // retrigger = Off
+
+        // Velocity lane data (33 values)
+        writeStream.writeInt32(1);     // velocityLaneLength = 1
+        for (int i = 0; i < 32; ++i) {
+            writeStream.writeFloat(1.0f);
+        }
+
+        // Gate lane data (33 values)
+        writeStream.writeInt32(1);     // gateLaneLength = 1
+        for (int i = 0; i < 32; ++i) {
+            writeStream.writeFloat(1.0f);
+        }
+
+        // Pitch lane data (33 values)
+        writeStream.writeInt32(1);     // pitchLaneLength = 1
+        for (int i = 0; i < 32; ++i) {
+            writeStream.writeInt32(0);
+        }
+        // NO modifier lane data -- stream ends here (Phase 4 preset)
+    }
+
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        // Should return true: Phase 4 preset with no modifier data
+        REQUIRE(ok == true);
+    }
+
+    // Base params loaded correctly
+    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.mode.load() == 0);
+
+    // Modifier lane defaults preserved
+    CHECK(loaded.modifierLaneLength.load() == 1);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Modifier step " << i);
+        CHECK(loaded.modifierLaneSteps[i].load() == 1);  // kStepActive
+    }
+    CHECK(loaded.accentVelocity.load() == 30);
+    CHECK(loaded.slideTime.load() == Approx(60.0f).margin(0.001f));
+}
+
+TEST_CASE("ModifierLane_PartialStream_LengthOnly_ReturnsFalse", "[arp][params][state][compat]") {
+    // FR-030: Phase 4 data + ONLY modifierLaneLength; load returns false (corrupt).
+    // This distinguishes from Phase 4 backward-compat (EOF at length read = true)
+    // vs. partial modifier section (EOF after length read = false).
+    using namespace Ruinae;
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        // 11 base params
+        writeStream.writeInt32(1);     // enabled = true
+        writeStream.writeInt32(0);     // mode = Up
+        writeStream.writeInt32(1);     // octaveRange = 1
+        writeStream.writeInt32(0);     // octaveMode = Sequential
+        writeStream.writeInt32(1);     // tempoSync = true
+        writeStream.writeInt32(10);    // noteValue = 1/8
+        writeStream.writeFloat(4.0f);  // freeRate = 4.0 Hz
+        writeStream.writeFloat(80.0f); // gateLength = 80%
+        writeStream.writeFloat(0.0f);  // swing = 0%
+        writeStream.writeInt32(0);     // latchMode = Off
+        writeStream.writeInt32(0);     // retrigger = Off
+
+        // Velocity lane data (33 values)
+        writeStream.writeInt32(1);
+        for (int i = 0; i < 32; ++i) {
+            writeStream.writeFloat(1.0f);
+        }
+
+        // Gate lane data (33 values)
+        writeStream.writeInt32(1);
+        for (int i = 0; i < 32; ++i) {
+            writeStream.writeFloat(1.0f);
+        }
+
+        // Pitch lane data (33 values)
+        writeStream.writeInt32(1);
+        for (int i = 0; i < 32; ++i) {
+            writeStream.writeInt32(0);
+        }
+
+        // ONLY modifier lane length (truncated -- no step data after)
+        writeStream.writeInt32(4);
+    }
+
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        // Should return false: modifier length present but steps missing (corrupt)
+        CHECK(ok == false);
+    }
+}
+
+TEST_CASE("ModifierLane_StepValues_BeyondActiveLength_Preserved", "[arp][params][state]") {
+    // Set modifier lane length=4, set steps 4-31 to non-default values; save/load;
+    // verify steps 4-31 preserved (all 32 serialized).
+    using namespace Ruinae;
+
+    ArpeggiatorParams original;
+    original.modifierLaneLength.store(4, std::memory_order_relaxed);
+    // Set steps beyond active length to non-default values
+    for (int i = 4; i < 32; ++i) {
+        original.modifierLaneSteps[i].store(0x0F, std::memory_order_relaxed);  // All flags
+    }
+
+    // Serialize
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Deserialize
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        REQUIRE(ok);
+    }
+
+    // Verify length
+    CHECK(loaded.modifierLaneLength.load() == 4);
+
+    // Verify steps beyond active length are preserved
+    for (int i = 4; i < 32; ++i) {
+        INFO("Modifier step " << i);
+        CHECK(loaded.modifierLaneSteps[i].load() == 0x0F);
+    }
+}
+
+TEST_CASE("ModifierLane_SlideTime_FloatPrecision", "[arp][params][state]") {
+    // Save slideTime=60.0f; load; verify with Approx().margin(0.001f).
+    using namespace Ruinae;
+
+    ArpeggiatorParams original;
+    original.slideTime.store(60.0f, std::memory_order_relaxed);
+
+    // Serialize
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Deserialize
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        REQUIRE(ok);
+    }
+
+    CHECK(loaded.slideTime.load() == Approx(60.0f).margin(0.001f));
+}
+
+// ==============================================================================
+// Phase 9: SC-010 FormatArpParam Tests (073-per-step-mods edge cases)
+// ==============================================================================
+
+TEST_CASE("SC010_FormatArpParam_ModifierLaneLength", "[arp][params][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // Normalized value for length 8: (8-1)/31 = 7/31
+    double norm8 = 7.0 / 31.0;
+    auto result = formatArpParam(kArpModifierLaneLengthId, norm8, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "8 steps");
+
+    // Length 1 at norm 0.0
+    result = formatArpParam(kArpModifierLaneLengthId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "1 steps");
+
+    // Length 32 at norm 1.0
+    result = formatArpParam(kArpModifierLaneLengthId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "32 steps");
+}
+
+TEST_CASE("SC010_FormatArpParam_ModifierStep", "[arp][params][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // Step value 5 -> normalized = 5/255
+    double norm5 = 5.0 / 255.0;
+    auto result = formatArpParam(kArpModifierLaneStep0Id, norm5, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0x05");
+
+    // Step value 0 -> norm 0.0
+    result = formatArpParam(kArpModifierLaneStep0Id, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0x00");
+
+    // Step value 255 -> norm 1.0
+    result = formatArpParam(kArpModifierLaneStep0Id, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0xFF");
+
+    // Step value 1 (kStepActive) -> norm 1/255
+    double norm1 = 1.0 / 255.0;
+    result = formatArpParam(kArpModifierLaneStep0Id, norm1, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0x01");
+}
+
+TEST_CASE("SC010_FormatArpParam_AccentVelocity", "[arp][params][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // Accent velocity 30 -> norm = 30/127
+    double norm30 = 30.0 / 127.0;
+    auto result = formatArpParam(kArpAccentVelocityId, norm30, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "30");
+
+    // Accent velocity 0 -> norm 0.0
+    result = formatArpParam(kArpAccentVelocityId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0");
+
+    // Accent velocity 127 -> norm 1.0
+    result = formatArpParam(kArpAccentVelocityId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "127");
+}
+
+TEST_CASE("SC010_FormatArpParam_SlideTime", "[arp][params][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // Slide time 60ms -> norm = 60/500 = 0.12
+    auto result = formatArpParam(kArpSlideTimeId, 0.12, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "60 ms");
+
+    // Slide time 0ms -> norm 0.0
+    result = formatArpParam(kArpSlideTimeId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0 ms");
+
+    // Slide time 500ms -> norm 1.0
+    result = formatArpParam(kArpSlideTimeId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "500 ms");
+}

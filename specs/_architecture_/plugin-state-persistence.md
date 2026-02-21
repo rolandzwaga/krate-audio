@@ -85,6 +85,20 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
                       //   [int32: pitchLaneLength]    [int32 x32: pitchLaneSteps]     (132 bytes)
                       // loadArpParams() continues EOF-safe reading after base params;
                       // if stream ends mid-lane, remaining lanes keep defaults
+
+--- New in Spec 073 (EOF-safe, no version bump, appended after pitch lane data) ---
+[ArpModifierLaneData] // 140 bytes total, appended after ArpLaneData:
+                      //   [int32: modifierLaneLength]                                 (4 bytes)
+                      //   [int32 x32: modifierLaneSteps]                              (128 bytes)
+                      //   [int32: accentVelocity]                                     (4 bytes)
+                      //   [float: slideTime]                                          (4 bytes)
+                      // EOF-safe backward-compatible loading:
+                      //   - EOF at modifierLaneLength read = Phase 4 preset, return true
+                      //     (all modifier fields retain defaults: length=1, steps=kStepActive,
+                      //      accentVelocity=30, slideTime=60.0f)
+                      //   - EOF after modifierLaneLength (partial modifier data) = corrupt
+                      //     stream, return false
+                      // Phase 4 presets load with all modifier defaults automatically
 ```
 
 ---

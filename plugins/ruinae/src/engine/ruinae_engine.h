@@ -221,13 +221,26 @@ public:
     /// In Mono mode, routes through MonoHandler.
     /// @param note MIDI note number (0-127)
     /// @param velocity MIDI velocity (0-127, 0 treated as noteOff)
-    void noteOn(uint8_t note, uint8_t velocity) noexcept {
+    void noteOn(uint8_t note, uint8_t velocity, bool legato = false) noexcept {
         if (!prepared_) return;
 
-        if (mode_ == VoiceMode::Poly) {
-            dispatchPolyNoteOn(note, velocity);
+        if (legato) {
+            // Legato noteOn: suppress envelope retrigger, apply portamento
+            if (mode_ == VoiceMode::Poly) {
+                dispatchPolyLegatoNoteOn(note, velocity);
+            } else {
+                // Mono mode: route through MonoHandler with legato behavior.
+                // Temporarily enable legato on the MonoHandler, dispatch, restore.
+                monoHandler_.setLegato(true);
+                dispatchMonoNoteOn(note, velocity);
+                monoHandler_.setLegato(userLegato_);
+            }
         } else {
-            dispatchMonoNoteOn(note, velocity);
+            if (mode_ == VoiceMode::Poly) {
+                dispatchPolyNoteOn(note, velocity);
+            } else {
+                dispatchMonoNoteOn(note, velocity);
+            }
         }
     }
 
@@ -1266,12 +1279,17 @@ public:
     }
 
     void setLegato(bool enabled) noexcept {
+        userLegato_ = enabled;
         monoHandler_.setLegato(enabled);
     }
 
     void setPortamentoTime(float ms) noexcept {
         if (detail::isNaN(ms) || detail::isInf(ms)) return;
         monoHandler_.setPortamentoTime(ms);
+        // For Poly slide: set portamento time on each voice (FR-034)
+        for (size_t i = 0; i < kMaxPolyphony; ++i) {
+            voices_[i].setPortamentoTime(ms);
+        }
     }
 
     void setPortamentoMode(PortaMode mode) noexcept {
@@ -1412,6 +1430,30 @@ private:
                     break;
                 }
             }
+        }
+    }
+
+    /// @brief Poly legato noteOn: find the most recently active voice and
+    /// glide its pitch to the new note without retriggering envelopes (FR-033).
+    /// Falls back to normal dispatchPolyNoteOn if no active voice is found.
+    void dispatchPolyLegatoNoteOn(uint8_t note, uint8_t velocity) noexcept {
+        // Primary: find active voice by note-on timestamp (most recent)
+        int bestVoice = -1;
+        uint64_t bestTimestamp = 0;
+        for (size_t i = 0; i < polyphonyCount_; ++i) {
+            if (voices_[i].isActive() && noteOnTimestamps_[i] > bestTimestamp) {
+                bestTimestamp = noteOnTimestamps_[i];
+                bestVoice = static_cast<int>(i);
+            }
+        }
+
+        if (bestVoice >= 0) {
+            float freq = noteProcessor_.getFrequency(note);
+            voices_[static_cast<size_t>(bestVoice)].glideToFrequency(freq);
+            noteOnTimestamps_[static_cast<size_t>(bestVoice)] = ++timestampCounter_;
+        } else {
+            // No active voice found, fall back to normal noteOn
+            dispatchPolyNoteOn(note, velocity);
         }
     }
 
@@ -1789,6 +1831,7 @@ private:
     std::array<uint64_t, kMaxPolyphony> noteOnTimestamps_;
     std::array<float, kMaxPolyphony> voicePanPositions_;
     int8_t monoVoiceNote_;
+    bool userLegato_{false};    ///< Cached user legato setting for save/restore during arp slide
     BlockContext blockContext_{};
     float globalFilterCutoffHz_;
     float globalFilterResonance_;

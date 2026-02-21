@@ -272,10 +272,36 @@ public:
     }
 
     /// @brief Update oscillator frequencies without retriggering envelopes (FR-030).
+    /// Sets the frequency immediately without initiating a portamento ramp.
+    /// For legato transitions with glide, use glideToFrequency() instead.
     void setFrequency(float hz) noexcept {
         if (detail::isNaN(hz) || detail::isInf(hz)) return;
-        noteFrequency_ = (hz < 0.0f) ? 0.0f : hz;
+        float freq = (hz < 0.0f) ? 0.0f : hz;
+        noteFrequency_ = freq;
         updateOscFrequencies();
+    }
+
+    /// @brief Initiate a portamento glide from the current frequency to the target (FR-034).
+    /// If portamentoTimeMs_ > 0 and the voice already has a frequency, starts a ramp.
+    /// Otherwise falls through to an immediate setFrequency().
+    /// Used by poly legato noteOn (dispatchPolyLegatoNoteOn) for arp slide steps.
+    void glideToFrequency(float hz) noexcept {
+        if (detail::isNaN(hz) || detail::isInf(hz)) return;
+        float freq = (hz < 0.0f) ? 0.0f : hz;
+        if (portamentoTimeMs_ > 0.0f && noteFrequency_ > 0.0f) {
+            // Initiate portamento ramp (073-per-step-mods, FR-034)
+            portamentoSourceFreq_ = noteFrequency_;
+            portamentoTargetFreq_ = freq;
+            portamentoProgress_ = 0.0f;
+        }
+        noteFrequency_ = freq;
+        updateOscFrequencies();
+    }
+
+    /// @brief Set portamento/glide time for legato pitch transitions (FR-034).
+    /// @param ms Duration in milliseconds. 0 = instant (no glide).
+    void setPortamentoTime(float ms) noexcept {
+        portamentoTimeMs_ = std::max(0.0f, ms);
     }
 
     /// @brief Check if the voice is producing audio (FR-021).
@@ -316,6 +342,22 @@ public:
         if (!ampEnv_.isActive()) {
             std::fill(output, output + numSamples, 0.0f);
             return;
+        }
+
+        // Per-voice portamento ramp (073-per-step-mods, FR-034)
+        // Advance portamento at block rate: compute interpolated frequency
+        // and update oscillators before block processing.
+        if (portamentoProgress_ < 1.0f && portamentoTimeMs_ > 0.0f
+            && portamentoSourceFreq_ > 0.0f && portamentoTargetFreq_ > 0.0f) {
+            float portaIncrement = static_cast<float>(numSamples)
+                / (portamentoTimeMs_ * 0.001f * static_cast<float>(sampleRate_));
+            portamentoProgress_ = std::min(portamentoProgress_ + portaIncrement, 1.0f);
+            // Exponential interpolation for perceptually linear pitch glide
+            float currentFreq = portamentoSourceFreq_
+                * std::pow(portamentoTargetFreq_ / portamentoSourceFreq_,
+                           portamentoProgress_);
+            noteFrequency_ = currentFreq;
+            updateOscFrequencies();
         }
 
         // Step 1: Generate OSC A
@@ -1427,6 +1469,12 @@ private:
     double sampleRate_{0.0};
     size_t maxBlockSize_{0};
     bool prepared_{false};
+
+    // Per-voice portamento (073-per-step-mods, FR-034)
+    float portamentoTimeMs_{0.0f};      ///< Portamento glide duration (ms). 0 = instant.
+    float portamentoSourceFreq_{0.0f};  ///< Frequency at start of portamento
+    float portamentoTargetFreq_{0.0f};  ///< Target frequency
+    float portamentoProgress_{1.0f};    ///< 0.0 = start, 1.0 = complete
 };
 
 } // namespace Krate::DSP
