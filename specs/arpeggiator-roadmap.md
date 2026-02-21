@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: Planning | **Created**: 2026-02-20
+**Status**: In Progress (Phase 2 complete) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -43,7 +43,7 @@ The arpeggiator is decomposed into **12 phases**. The first 3 phases produce a *
 
 | Component | Phase Used | How |
 |---|---|---|
-| `SequencerCore` | 2 | Master clock, direction, swing |
+| `SequencerCore` | 2 | Timing math pattern (conceptual reuse only — not composed directly; see Phase 2 design decisions) |
 | `EuclideanPattern` | 7 | Timing lane rhythm generation |
 | `VoiceAllocator` | 3 | Arp triggers notes through existing allocator |
 | `MonoHandler` | 5 | Portamento mechanism for slide |
@@ -192,16 +192,18 @@ struct ArpNoteResult {
 
 ---
 
-## Phase 2: Arpeggiator Core — Timing & Event Generation
+## Phase 2: Arpeggiator Core — Timing & Event Generation ✅ COMPLETE
 
 **DSP Layer**: 2 (processors)
 **File**: `dsp/include/krate/dsp/processors/arpeggiator_core.h`
 **Test**: `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+**Spec**: `specs/070-arpeggiator-core/spec.md`
+**Branch**: `070-arpeggiator-core`
 **Depends on**: Phase 1
 
 ### Purpose
 
-Combines HeldNoteBuffer + NoteSelector + SequencerCore into a self-contained arp processor that consumes MIDI input and emits timed arp events.
+Combines HeldNoteBuffer + NoteSelector with a dedicated integer timing accumulator to produce a self-contained arp processor that consumes MIDI input and emits timed arp events. Uses the same timing math pattern as SequencerCore (tempo-to-samples conversion, swing formula) but does NOT compose SequencerCore directly — SequencerCore tracks per-sample gate state, while ArpeggiatorCore emits discrete events at specific sample offsets within a block (see spec.md Clarifications Q1 and research.md Q1).
 
 ### Components
 
@@ -239,7 +241,7 @@ class ArpeggiatorCore {
     void setGateLength(float percent);       // 1-200%
     void setSwing(float percent);            // 0-75%
     void setLatchMode(LatchMode mode);       // Off, Hold, Add
-    void setRetrigger(RetriggerMode mode);   // Off, Note, Beat
+    void setRetrigger(ArpRetriggerMode mode);   // Off, Note, Beat -- ArpRetriggerMode, NOT RetriggerMode (ODR hazard: RetriggerMode in envelope_utils.h has values Hard/Legato)
 
     // Per-block processing — fills output event buffer
     // Returns number of events written
@@ -249,8 +251,8 @@ class ArpeggiatorCore {
 private:
     HeldNoteBuffer heldNotes_;
     NoteSelector selector_;
-    // Reuse SequencerCore for timing, or custom accumulator
-    // Track currently-playing arp note for noteOff generation
+    // Dedicated integer timing accumulator (NOT SequencerCore)
+    // Track currently-playing arp notes for noteOff generation (array, for Chord mode)
 };
 ```
 
@@ -258,7 +260,7 @@ private:
 - Sample-accurate event generation: events have `sampleOffset` within the block
 - Gate length determines when noteOff fires relative to the step duration
 - Gate > 100% means notes overlap (legato arpeggio)
-- Swing implemented as SequencerCore already supports it
+- Swing implemented using the same formula as SequencerCore (even steps * (1 + swing), odd steps * (1 - swing)), but computed inline — SequencerCore is not composed
 - When disabled, `processBlock()` returns 0 events — passthrough handled by caller
 - Latch Hold: on all-keys-released, heldNotes_ persists; new keys replace
 - Latch Add: new keys are appended to existing heldNotes_
@@ -267,11 +269,12 @@ private:
 
 ### State Management
 
-The arp must track which note it most recently triggered so it can emit a corresponding noteOff:
-- `currentArpNote_` — the MIDI note currently sounding from the arp
-- On each step tick: emit noteOff for `currentArpNote_`, then noteOn for the new note
+The arp must track which note(s) it most recently triggered so it can emit corresponding noteOff events:
+- `currentArpNotes_` — fixed-capacity array (32) of MIDI notes currently sounding from the arp (supports Chord mode where multiple notes sound simultaneously; FR-025)
+- `currentArpNoteCount_` — number of valid entries in `currentArpNotes_`
+- On each step tick: emit noteOff for all `currentArpNotes_`, then noteOn for the new note(s)
 - For gate < 100%: noteOff fires at `gateLength * stepDuration` samples after noteOn
-- Maintain a pending noteOff with its sample deadline
+- `pendingNoteOffs_` — fixed-capacity array (32) tracking noteOff deadlines that span across block boundaries (FR-026)
 
 ### Test Coverage
 
@@ -286,11 +289,11 @@ The arp must track which note it most recently triggered so it can emit a corres
 
 ### Acceptance Criteria
 
-- [ ] Sample-accurate event timing (within 1 sample of expected position)
-- [ ] Zero allocation in processBlock()
-- [ ] All latch and retrigger combinations work correctly
-- [ ] Swing produces audibly correct shuffle at various percentages
-- [ ] Gate overlap (>100%) produces legato — noteOff after next noteOn
+- [x] Sample-accurate event timing (within 1 sample of expected position) (SC-001: verified at 60/120/200 BPM with 1/4, 1/8, 1/16, 1/8T — 100+ steps each)
+- [x] Zero allocation in processBlock() (SC-003: code inspection confirmed — no new/delete/malloc/vector/string/map)
+- [x] All latch and retrigger combinations work correctly (SC-004: 3+ tests per latch mode; SC-005: 2+ tests per retrigger mode)
+- [x] Swing produces audibly correct shuffle at various percentages (SC-006: verified at 0%/25%/50%/75% with correct even/odd ratios)
+- [x] Gate overlap (>100%) produces legato — noteOff after next noteOn (SC-007: verified at 150% and 200%)
 
 ---
 

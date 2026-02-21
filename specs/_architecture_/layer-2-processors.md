@@ -5880,3 +5880,92 @@ class TranceGate {
 **Memory:** ~200 bytes per instance (32-float pattern array + 2 smoothers + timing state). Header-only, real-time safe, single-threaded.
 
 **Dependencies:** Layer 0 (euclidean_pattern.h, note_value.h), Layer 1 (OnePoleSmoother from smoother.h)
+
+---
+
+## ArpeggiatorCore
+**Path:** [arpeggiator_core.h](../../dsp/include/krate/dsp/processors/arpeggiator_core.h) | **Since:** 0.11.0
+
+Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Header-only, zero heap allocation in all methods.
+
+```cpp
+enum class LatchMode : uint8_t { Off, Hold, Add };
+enum class ArpRetriggerMode : uint8_t { Off, Note, Beat };
+
+struct ArpEvent {
+    enum class Type : uint8_t { NoteOn, NoteOff };
+    Type type{Type::NoteOn};
+    uint8_t note{0};
+    uint8_t velocity{0};
+    int32_t sampleOffset{0};
+};
+
+class ArpeggiatorCore {
+    static constexpr size_t kMaxEvents = 64;
+    static constexpr size_t kMaxPendingNoteOffs = 32;
+
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+
+    // MIDI Input
+    void noteOn(uint8_t note, uint8_t velocity) noexcept;
+    void noteOff(uint8_t note) noexcept;
+
+    // Configuration
+    void setEnabled(bool enabled) noexcept;
+    void setMode(ArpMode mode) noexcept;
+    void setOctaveRange(int octaves) noexcept;       // [1, 4]
+    void setOctaveMode(OctaveMode mode) noexcept;
+    void setTempoSync(bool sync) noexcept;
+    void setNoteValue(NoteValue val, NoteModifier mod) noexcept;
+    void setFreeRate(float hz) noexcept;              // [0.5, 50.0] Hz
+    void setGateLength(float percent) noexcept;       // [1, 200] %
+    void setSwing(float percent) noexcept;            // [0, 75] %
+    void setLatchMode(LatchMode mode) noexcept;
+    void setRetrigger(ArpRetriggerMode mode) noexcept;
+
+    // Processing
+    size_t processBlock(const BlockContext& ctx,
+                        std::span<ArpEvent> outputEvents) noexcept;
+};
+```
+
+**When to use:**
+- MIDI arpeggiator with sample-accurate event timing (NoteOn/NoteOff at exact sample offsets)
+- Tempo-synced or free-running rate arpeggio generation
+- Three latch modes: Off (stop on release), Hold (sustain pattern, replace on new input), Add (accumulate notes)
+- Three retrigger modes: Off (continue), Note (reset on noteOn), Beat (reset at bar boundaries)
+- Swing timing for shuffle rhythms (0-75%)
+- Gate length control (1-200%) including legato overlap at gate > 100%
+- Chord mode support (NoteSelector returns multiple notes simultaneously)
+
+**Usage example:**
+
+```cpp
+ArpeggiatorCore arp;
+arp.prepare(44100.0, 512);
+arp.setEnabled(true);
+arp.setMode(ArpMode::Up);
+arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+arp.setGateLength(80.0f);
+arp.noteOn(60, 100);
+arp.noteOn(64, 100);
+
+std::array<ArpEvent, 64> events;
+BlockContext ctx;
+ctx.sampleRate = 44100.0;
+ctx.blockSize = 512;
+ctx.tempoBPM = 120.0;
+ctx.isPlaying = true;
+size_t count = arp.processBlock(ctx, events);
+// events[0..count-1] contain sample-accurate NoteOn/NoteOff events
+```
+
+**Enumerations:**
+- `LatchMode` (Off, Hold, Add) -- controls how the arp handles key release. Defined in `arpeggiator_core.h` for use by the Ruinae plugin parameter mapping.
+- `ArpRetriggerMode` (Off, Note, Beat) -- controls when the arp pattern resets. Named distinctly from `RetriggerMode` in `envelope_utils.h` to prevent ODR violations.
+
+**Memory:** ~300 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state). Header-only, real-time safe, single-threaded.
+
+**Dependencies:** Layer 0 (block_context.h, note_value.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult)

@@ -89,6 +89,7 @@
 // Layer 2: Processors
 #include <krate/dsp/processors/aliasing_effect.h>
 #include <krate/dsp/processors/allpass_saturator.h>
+#include <krate/dsp/processors/arpeggiator_core.h>
 #include <krate/dsp/processors/audio_rate_filter_fm.h>
 #include <krate/dsp/processors/bitcrusher_processor.h>
 #include <krate/dsp/processors/chaos_mod_source.h>
