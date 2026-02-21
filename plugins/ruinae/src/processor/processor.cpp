@@ -1212,8 +1212,8 @@ void Processor::applyParamsToEngine() {
     // state (step index, swing counter). Calling them unconditionally every
     // block would prevent the arp from ever advancing past step 0.
     {
-        const auto mode = static_cast<ArpMode>(
-            arpParams_.mode.load(std::memory_order_relaxed));
+        const auto modeInt = arpParams_.mode.load(std::memory_order_relaxed);
+        const auto mode = static_cast<ArpMode>(modeInt);
         if (mode != prevArpMode_) {
             arpCore_.setMode(mode);
             prevArpMode_ = mode;

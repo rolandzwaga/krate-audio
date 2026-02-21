@@ -18,12 +18,14 @@
 
 #include "base/source/fstreamer.h"
 #include "public.sdk/source/common/memorystream.h"
+#include "public.sdk/source/vst/vstparameters.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <set>
 #include <vector>
 
@@ -1070,4 +1072,327 @@ TEST_CASE("ArpIntegration_DefaultSettings_WorksWithoutTransport",
     }
 
     REQUIRE(audioFound);  // Arp MUST produce sound even without host transport
+}
+
+TEST_CASE("ArpCore_AllModes_ProduceDistinctPatterns",
+          "[arp][integration][modes]") {
+    // Verify every arp mode produces a distinct note pattern from a 3-note chord.
+    using namespace Krate::DSP;
+
+    const char* modeNames[] = {
+        "Up", "Down", "UpDown", "DownUp", "Converge",
+        "Diverge", "Random", "Walk", "AsPlayed", "Chord"
+    };
+
+    // Collect first 12 note-on pitches for each mode
+    std::array<std::vector<uint8_t>, 10> sequences;
+
+    for (int m = 0; m < 10; ++m) {
+        ArpeggiatorCore arp;
+        arp.prepare(44100.0, 512);
+        arp.setEnabled(true);
+        arp.setMode(static_cast<ArpMode>(m));
+        arp.setTempoSync(true);
+
+        arp.noteOn(60, 100);  // C4
+        arp.noteOn(64, 100);  // E4
+        arp.noteOn(67, 100);  // G4
+
+        BlockContext ctx{.sampleRate = 44100.0, .blockSize = 512,
+                         .tempoBPM = 120.0, .isPlaying = true};
+        std::array<ArpEvent, 128> events{};
+
+        for (int block = 0; block < 200 && sequences[m].size() < 12; ++block) {
+            size_t n = arp.processBlock(ctx, events);
+            for (size_t i = 0; i < n && sequences[m].size() < 12; ++i) {
+                if (events[i].type == ArpEvent::Type::NoteOn) {
+                    sequences[m].push_back(events[i].note);
+                }
+            }
+        }
+
+        // Log the sequence for diagnostic purposes
+        std::string seq;
+        for (auto note : sequences[m]) {
+            seq += std::to_string(note) + " ";
+        }
+        INFO("Mode " << m << " (" << modeNames[m] << "): " << seq);
+        REQUIRE(sequences[m].size() >= 6);  // Should produce at least 6 notes
+    }
+
+    // Up and Down must be different
+    CHECK(sequences[0] != sequences[1]);
+
+    // UpDown must differ from Up (has a descending portion)
+    CHECK(sequences[0] != sequences[2]);
+
+    // DownUp must differ from Down
+    CHECK(sequences[1] != sequences[3]);
+
+    // UpDown and DownUp must differ from each other
+    CHECK(sequences[2] != sequences[3]);
+
+    // Converge and Diverge must differ from Up
+    CHECK(sequences[0] != sequences[4]);
+    CHECK(sequences[0] != sequences[5]);
+
+    // AsPlayed (insertion order) must differ from Up (pitch order)
+    // since notes were inserted as 60, 64, 67 which happens to be pitch order
+    // for this chord, so AsPlayed may equal Up here. Skip this check.
+
+    // Chord mode: should play all 3 notes simultaneously
+    // (multiple notes per step, not one at a time)
+    // We can check that it has all 3 notes in the first step
+    if (sequences[9].size() >= 3) {
+        std::set<uint8_t> chordNotes(sequences[9].begin(), sequences[9].begin() + 3);
+        CHECK(chordNotes.count(60) == 1);
+        CHECK(chordNotes.count(64) == 1);
+        CHECK(chordNotes.count(67) == 1);
+    }
+}
+
+// =============================================================================
+// Parameter Chain Tests: handleArpParamChange → atomic → applyParamsToEngine
+// =============================================================================
+// These tests verify the FULL parameter denormalization chain, mimicking
+// exactly what happens when a COptionMenu sends a normalized value through
+// the VST3 parameter system to the processor.
+
+TEST_CASE("ArpParamChain_ModeNormalization_AllValues", "[arp][integration][params]") {
+    // Test that handleArpParamChange correctly denormalizes all 10 mode values
+    // from the normalized [0,1] range that StringListParameter uses.
+    Ruinae::ArpeggiatorParams params;
+
+    // StringListParameter with 10 entries has stepCount = 9.
+    // Normalized values: index / stepCount = index / 9
+    const int stepCount = 9;
+    const char* modeNames[] = {
+        "Up", "Down", "UpDown", "DownUp", "Converge",
+        "Diverge", "Random", "Walk", "AsPlayed", "Chord"
+    };
+
+    for (int expectedIndex = 0; expectedIndex <= stepCount; ++expectedIndex) {
+        double normalizedValue = static_cast<double>(expectedIndex) / stepCount;
+
+        Ruinae::handleArpParamChange(params, Ruinae::kArpModeId, normalizedValue);
+
+        int storedMode = params.mode.load(std::memory_order_relaxed);
+        INFO("Mode " << modeNames[expectedIndex] << ": normalized=" << normalizedValue
+             << " expected=" << expectedIndex << " got=" << storedMode);
+        REQUIRE(storedMode == expectedIndex);
+    }
+}
+
+TEST_CASE("ArpParamChain_ModeChangeReachesCore", "[arp][integration][params]") {
+    // Test the FULL chain: handleArpParamChange → atomic → change detection →
+    // arpCore.setMode → processBlock produces correct pattern.
+    // This mimics exactly what happens in Processor::processParameterChanges()
+    // followed by Processor::applyParamsToEngine().
+    using namespace Krate::DSP;
+
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setTempoSync(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+
+    // Add a chord (C4, E4, G4) - distinct enough to detect mode differences
+    arp.noteOn(60, 100);
+    arp.noteOn(64, 100);
+    arp.noteOn(67, 100);
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    std::array<ArpEvent, 128> events{};
+
+    // Simulate the processor's atomic + change-detection pattern
+    Ruinae::ArpeggiatorParams params;
+    ArpMode prevMode = ArpMode::Up;
+
+    // Collect note sequences for each mode, going through the full param chain
+    std::map<int, std::vector<uint8_t>> sequences;
+
+    for (int modeIdx = 0; modeIdx <= 9; ++modeIdx) {
+        // Step 1: Simulate COptionMenu sending normalized value via parameter system
+        double normalizedValue = static_cast<double>(modeIdx) / 9.0;
+        Ruinae::handleArpParamChange(params, Ruinae::kArpModeId, normalizedValue);
+
+        // Step 2: Simulate applyParamsToEngine() change-detection pattern
+        const auto modeInt = params.mode.load(std::memory_order_relaxed);
+        const auto mode = static_cast<ArpMode>(modeInt);
+        if (mode != prevMode) {
+            arp.setMode(mode);
+            prevMode = mode;
+        }
+
+        // Step 3: Process blocks and collect note events
+        std::vector<uint8_t> noteSequence;
+        for (int block = 0; block < 100; ++block) {
+            size_t n = arp.processBlock(ctx, events);
+            for (size_t i = 0; i < n; ++i) {
+                if (events[i].type == ArpEvent::Type::NoteOn) {
+                    noteSequence.push_back(events[i].note);
+                }
+            }
+        }
+
+        sequences[modeIdx] = noteSequence;
+        INFO("Mode " << modeIdx << ": " << noteSequence.size() << " notes");
+        REQUIRE(!noteSequence.empty());
+    }
+
+    // Verify key distinctions between modes
+    // Up (0) must differ from Down (1) - ascending vs descending
+    REQUIRE(sequences[0] != sequences[1]);
+
+    // Random (6) must differ from Up (0) - random vs ascending
+    // (With 100 blocks at 120 BPM, there should be many notes)
+    CHECK(sequences[0] != sequences[6]);
+
+    // UpDown (2) must differ from Up (0) - ping-pong vs one-direction
+    CHECK(sequences[0] != sequences[2]);
+
+    // Chord (9) should have different structure (all notes per step)
+    CHECK(sequences[0] != sequences[9]);
+}
+
+TEST_CASE("ArpParamChain_ProcessorModeChange", "[arp][integration][params]") {
+    // End-to-end test through the actual Processor using parameter changes.
+    // This tests the complete path: IParameterChanges → processParameterChanges →
+    // handleArpParamChange → atomic → applyParamsToEngine → arpCore.setMode.
+    ArpIntegrationFixture f;
+
+    // Enable arp
+    f.enableArp();
+
+    // Send a chord
+    f.events.addNoteOn(60, 0.8f);
+    f.events.addNoteOn(64, 0.8f);
+    f.events.addNoteOn(67, 0.8f);
+    f.processBlock();
+    f.clearEvents();
+
+    // Let arp run for a bit with default mode (Up)
+    for (int i = 0; i < 30; ++i) f.processBlock();
+
+    // Now change mode to Down via parameter change (normalized value = 1/9)
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpModeId, 1.0 / 9.0);
+        f.processBlockWithParams(params);
+    }
+
+    // Process more blocks with Down mode
+    bool audioAfterModeChange = false;
+    for (int i = 0; i < 60; ++i) {
+        f.processBlock();
+        if (hasNonZeroSamples(f.outL.data(), f.kBlockSize)) {
+            audioAfterModeChange = true;
+        }
+    }
+    REQUIRE(audioAfterModeChange);
+
+    // Now change to Random mode (normalized value = 6/9)
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpModeId, 6.0 / 9.0);
+        f.processBlockWithParams(params);
+    }
+
+    // Process blocks with Random mode - should still produce audio
+    bool audioAfterRandomMode = false;
+    for (int i = 0; i < 60; ++i) {
+        f.processBlock();
+        if (hasNonZeroSamples(f.outL.data(), f.kBlockSize)) {
+            audioAfterRandomMode = true;
+        }
+    }
+    REQUIRE(audioAfterRandomMode);
+
+    // Change to Chord mode (normalized value = 9/9 = 1.0)
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpModeId, 1.0);
+        f.processBlockWithParams(params);
+    }
+
+    bool audioAfterChordMode = false;
+    for (int i = 0; i < 60; ++i) {
+        f.processBlock();
+        if (hasNonZeroSamples(f.outL.data(), f.kBlockSize)) {
+            audioAfterChordMode = true;
+        }
+    }
+    REQUIRE(audioAfterChordMode);
+}
+
+TEST_CASE("ArpParamChain_VSTGUIValueFlow", "[arp][integration][params]") {
+    // Simulate the EXACT value flow from VSTGUI COptionMenu through the VST3 SDK:
+    //
+    // 1. StringListParameter with 10 entries (stepCount=9)
+    // 2. COptionMenu stores raw index, min=0, max=stepCount
+    //    getValueNormalized() = float(index) / float(stepCount) [float division!]
+    // 3. performEdit sends this float-precision normalized value to host
+    // 4. Processor receives it as ParamValue (double) and denormalizes
+    //
+    // This tests for float→double precision mismatch in the normalization chain.
+
+    using namespace Steinberg::Vst;
+
+    // Create the actual StringListParameter used by the controller
+    StringListParameter modeParam(STR16("Arp Mode"), Ruinae::kArpModeId, nullptr,
+        ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+    modeParam.appendString(STR16("Up"));
+    modeParam.appendString(STR16("Down"));
+    modeParam.appendString(STR16("UpDown"));
+    modeParam.appendString(STR16("DownUp"));
+    modeParam.appendString(STR16("Converge"));
+    modeParam.appendString(STR16("Diverge"));
+    modeParam.appendString(STR16("Random"));
+    modeParam.appendString(STR16("Walk"));
+    modeParam.appendString(STR16("AsPlayed"));
+    modeParam.appendString(STR16("Chord"));
+
+    REQUIRE(modeParam.getInfo().stepCount == 9);
+
+    const char* modeNames[] = {
+        "Up", "Down", "UpDown", "DownUp", "Converge",
+        "Diverge", "Random", "Walk", "AsPlayed", "Chord"
+    };
+
+    Ruinae::ArpeggiatorParams params;
+
+    for (int index = 0; index <= 9; ++index) {
+        // Simulate COptionMenu value flow:
+        // COptionMenu stores value as index, min=0, max=stepCount
+        // getValueNormalized() does: (float(index) - 0.0f) / (float(stepCount) - 0.0f)
+        // This is FLOAT division, which may introduce precision errors
+        float controlMin = 0.0f;
+        float controlMax = static_cast<float>(modeParam.getInfo().stepCount);
+        float controlValue = static_cast<float>(index);
+        float vstguiNormalized = (controlValue - controlMin) / (controlMax - controlMin);
+
+        // VST3Editor casts this to ParamValue (double) before sending
+        ParamValue normalizedValue = static_cast<ParamValue>(vstguiNormalized);
+
+        // The processor's handleArpParamChange denormalizes this
+        Ruinae::handleArpParamChange(params, Ruinae::kArpModeId, normalizedValue);
+
+        int storedMode = params.mode.load(std::memory_order_relaxed);
+        INFO("Mode " << modeNames[index] << " (index=" << index
+             << "): float_norm=" << vstguiNormalized
+             << " double_norm=" << normalizedValue
+             << " expected=" << index << " got=" << storedMode);
+        REQUIRE(storedMode == index);
+
+        // Also test with SDK's toNormalized for comparison
+        ParamValue sdkNorm = modeParam.toNormalized(static_cast<ParamValue>(index));
+        Ruinae::handleArpParamChange(params, Ruinae::kArpModeId, sdkNorm);
+        int sdkStoredMode = params.mode.load(std::memory_order_relaxed);
+        INFO("  SDK normalized=" << sdkNorm << " sdk_got=" << sdkStoredMode);
+        CHECK(sdkStoredMode == index);
+    }
 }
