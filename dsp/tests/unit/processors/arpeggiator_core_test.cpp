@@ -5010,3 +5010,179 @@ TEST_CASE("ArpeggiatorCore: Polymetric_LanePause_WhenHeldBufferEmpty",
         CHECK((noteOns3[0].velocity != 100 || noteOns3[0].note != 60));
     }
 }
+
+// =============================================================================
+// Phase 8: Edge Case Hardening
+// =============================================================================
+
+TEST_CASE("ArpeggiatorCore: EdgeCase_ChordMode_LaneAppliesToAll",
+          "[processors][arpeggiator_core][edge]") {
+    // Spec edge case: "Lane values apply to all notes in the chord equally"
+    // Enable chord mode with 2 notes held; verify BOTH chord notes get the
+    // same velocity scale, gate multiplier, and pitch offset on each step.
+
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Chord);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+
+    // Velocity lane: step 0 = 0.5 (half velocity)
+    arp.velocityLane().setLength(2);
+    arp.velocityLane().setStep(0, 0.5f);
+    arp.velocityLane().setStep(1, 0.8f);
+
+    // Gate lane: step 0 = 1.5 (150% gate)
+    arp.gateLane().setLength(2);
+    arp.gateLane().setStep(0, 1.5f);
+    arp.gateLane().setStep(1, 0.5f);
+
+    // Pitch lane: step 0 = +7 semitones
+    arp.pitchLane().setLength(2);
+    arp.pitchLane().setStep(0, 7);
+    arp.pitchLane().setStep(1, -3);
+
+    // Hold 2 notes: C4=60 velocity=100, E4=64 velocity=80
+    arp.noteOn(60, 100);
+    arp.noteOn(64, 80);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    // Collect enough events to see at least 2 chord steps
+    auto events = collectEvents(arp, ctx, 500);
+    auto noteOns = filterNoteOns(events);
+    auto noteOffs = filterNoteOffs(events);
+
+    // At least 4 NoteOn events (2 notes per chord, at least 2 steps)
+    REQUIRE(noteOns.size() >= 4);
+
+    // Find first chord step: first 2 NoteOns at the same sampleOffset
+    int32_t firstChordOffset = noteOns[0].sampleOffset;
+    CHECK(noteOns[1].sampleOffset == firstChordOffset);
+
+    // Both notes in the first chord step should have the same pitch offset applied:
+    // Note 60 + 7 = 67, Note 64 + 7 = 71
+    std::array<uint8_t, 2> expectedNotes1 = {67, 71};
+    std::array<uint8_t, 2> actualNotes1 = {noteOns[0].note, noteOns[1].note};
+    std::sort(actualNotes1.begin(), actualNotes1.end());
+    CHECK(actualNotes1[0] == expectedNotes1[0]);
+    CHECK(actualNotes1[1] == expectedNotes1[1]);
+
+    // Both notes should have velocity scaled by 0.5:
+    // 100 * 0.5 = 50, 80 * 0.5 = 40
+    for (size_t i = 0; i < 2; ++i) {
+        if (noteOns[i].note == 67) {
+            CHECK(noteOns[i].velocity == 50); // round(100 * 0.5)
+        }
+        if (noteOns[i].note == 71) {
+            CHECK(noteOns[i].velocity == 40); // round(80 * 0.5)
+        }
+    }
+
+    // Both notes should have the same gate duration (based on same gateScale=1.5)
+    // Find the NoteOff for each note in the first chord and compare durations
+    std::vector<int32_t> gateDurations;
+    for (size_t i = 0; i < 2; ++i) {
+        uint8_t note = noteOns[i].note;
+        int32_t onOffset = noteOns[i].sampleOffset;
+        for (const auto& off : noteOffs) {
+            if (off.note == note && off.sampleOffset > onOffset) {
+                gateDurations.push_back(off.sampleOffset - onOffset);
+                break;
+            }
+        }
+    }
+    REQUIRE(gateDurations.size() == 2);
+    CHECK(gateDurations[0] == gateDurations[1]);
+
+    // Verify the second chord step uses lane step 1 values (pitch=-3):
+    // Note 60 + (-3) = 57, Note 64 + (-3) = 61
+    // Find second chord step (noteOns[2] and noteOns[3])
+    if (noteOns.size() >= 4) {
+        int32_t secondChordOffset = noteOns[2].sampleOffset;
+        CHECK(noteOns[3].sampleOffset == secondChordOffset);
+
+        std::array<uint8_t, 2> expectedNotes2 = {57, 61};
+        std::array<uint8_t, 2> actualNotes2 = {noteOns[2].note, noteOns[3].note};
+        std::sort(actualNotes2.begin(), actualNotes2.end());
+        CHECK(actualNotes2[0] == expectedNotes2[0]);
+        CHECK(actualNotes2[1] == expectedNotes2[1]);
+
+        // Velocity scaled by 0.8: 100*0.8=80, 80*0.8=64
+        for (size_t i = 2; i < 4; ++i) {
+            if (noteOns[i].note == 57) {
+                CHECK(noteOns[i].velocity == 80); // round(100 * 0.8)
+            }
+            if (noteOns[i].note == 61) {
+                CHECK(noteOns[i].velocity == 64); // round(80 * 0.8)
+            }
+        }
+    }
+}
+
+TEST_CASE("ArpeggiatorCore: EdgeCase_LaneResetOnTransportStop",
+          "[processors][arpeggiator_core][edge]") {
+    // FR-022 / Spec edge case: Transport stop triggers reset() on the
+    // ArpeggiatorCore, which calls resetLanes() -- all lane positions
+    // return to step 0.
+
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 11025);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+
+    // Set up distinct lane lengths to track positions
+    arp.velocityLane().setLength(4);
+    arp.velocityLane().setStep(0, 1.0f);
+    arp.velocityLane().setStep(1, 0.5f);
+    arp.velocityLane().setStep(2, 0.3f);
+    arp.velocityLane().setStep(3, 0.8f);
+
+    arp.gateLane().setLength(3);
+    arp.gateLane().setStep(0, 1.0f);
+    arp.gateLane().setStep(1, 0.5f);
+    arp.gateLane().setStep(2, 1.5f);
+
+    arp.pitchLane().setLength(5);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 3);
+    arp.pitchLane().setStep(2, 7);
+    arp.pitchLane().setStep(3, -2);
+    arp.pitchLane().setStep(4, 5);
+
+    // Hold a note and fire a few arp steps to advance lanes
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 11025;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    // Fire a few steps to advance all lane positions
+    auto events1 = collectEvents(arp, ctx, 4);
+    auto noteOns1 = filterNoteOns(events1);
+    REQUIRE(noteOns1.size() >= 2);
+
+    // Lanes should have advanced past step 0
+    // (exact position depends on step count, but at least velocity/gate/pitch
+    // lanes should not all be at 0)
+
+    // Simulate transport stop then restart via reset()
+    // The spec says: "Transport stop triggers reset() on the ArpeggiatorCore"
+    arp.reset();
+
+    // Verify ALL three lanes report currentStep()==0
+    CHECK(arp.velocityLane().currentStep() == 0);
+    CHECK(arp.gateLane().currentStep() == 0);
+    CHECK(arp.pitchLane().currentStep() == 0);
+}

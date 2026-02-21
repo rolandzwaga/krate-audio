@@ -272,3 +272,56 @@ TEST_CASE("ArpLane: currentStep returns correct position before and after advanc
     lane.advance(); // wraps
     REQUIRE(lane.currentStep() == 0);
 }
+
+// =============================================================================
+// Edge Case: MaxSteps=1 template parameter
+// =============================================================================
+
+TEST_CASE("ArpLane: EdgeCase_MaxStepsTemplate - ArpLane<float, 1> always returns same value",
+          "[arp_lane][primitives][edge]")
+{
+    ArpLane<float, 1> lane;
+    REQUIRE(lane.length() == 1);
+
+    lane.setStep(0, 0.75f);
+
+    // Advance 5 times: always returns the same value, position never changes
+    for (int i = 0; i < 5; ++i) {
+        INFO("Iteration " << i);
+        float val = lane.advance();
+        REQUIRE(val == Catch::Approx(0.75f));
+        // After advance, position wraps: (0+1)%1 == 0, so always 0
+        REQUIRE(lane.currentStep() == 0);
+    }
+}
+
+// =============================================================================
+// Edge Case: All 32 steps set to distinct values, verify full cycle repeats
+// =============================================================================
+
+TEST_CASE("ArpLane: EdgeCase_AllStepsSet - full 32-step cycle repeats exactly twice",
+          "[arp_lane][primitives][edge]")
+{
+    ArpLane<int8_t> lane;
+    lane.setLength(32);
+
+    // Set all 32 steps to distinct values: -16 through +15
+    for (size_t i = 0; i < 32; ++i) {
+        lane.setStep(i, static_cast<int8_t>(static_cast<int>(i) - 16));
+    }
+
+    // Advance 64 times and collect values
+    std::array<int8_t, 64> collected{};
+    for (size_t i = 0; i < 64; ++i) {
+        collected[i] = lane.advance();
+    }
+
+    // Verify the full 32-step cycle repeats exactly twice
+    for (size_t i = 0; i < 32; ++i) {
+        int8_t expected = static_cast<int8_t>(static_cast<int>(i) - 16);
+        INFO("Step " << i << " (first cycle)");
+        REQUIRE(collected[i] == expected);
+        INFO("Step " << i << " (second cycle)");
+        REQUIRE(collected[i + 32] == expected);
+    }
+}

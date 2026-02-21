@@ -418,22 +418,22 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 8.1 Full Build Validation
 
-- [ ] T069 [P] Build full Ruinae plugin (not just tests): `cmake --build build/windows-x64-release --config Release` and verify zero compiler errors and zero warnings
-- [ ] T070 [P] Run all DSP tests: `dsp_tests.exe` (all tags) and verify 100% pass
-- [ ] T071 [P] Run all Ruinae plugin tests: `ruinae_tests.exe` and verify 100% pass
+- [X] T069 [P] Build full Ruinae plugin (not just tests): `cmake --build build/windows-x64-release --config Release` and verify zero compiler errors and zero warnings
+- [X] T070 [P] Run all DSP tests: `dsp_tests.exe` (all tags) and verify 100% pass
+- [X] T071 [P] Run all Ruinae plugin tests: `ruinae_tests.exe` and verify 100% pass
 
 ### 8.2 Edge Case Hardening
 
-- [ ] T072 Add edge case test in `dsp/tests/unit/primitives/arp_lane_test.cpp`:
+- [X] T072 Add edge case test in `dsp/tests/unit/primitives/arp_lane_test.cpp`:
   - **Test: EdgeCase_MaxStepsTemplate** -- `ArpLane<float, 1>` (MaxSteps=1): advance 5 times, always returns same value, position never changes
   - **Test: EdgeCase_AllStepsSet** -- set all 32 steps in `ArpLane<int8_t>` to distinct values, advance 64 times, verify the full 32-step cycle repeats exactly twice
-- [ ] T073 Add edge case test in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
+- [X] T073 Add edge case test in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
   - **Test: EdgeCase_ChordMode_LaneAppliesToAll** -- enable chord mode with 2 notes held; verify both chord notes get the same velocity scale, gate multiplier, and pitch offset on each step (spec edge case: "Lane values apply to all notes in the chord equally")
   - **Test: EdgeCase_LaneResetOnTransportStop** -- trigger transport-stop reset sequence, verify all three lanes report `currentStep()==0`
 
 ### 8.3 Pluginval Verification
 
-- [ ] T074 Run pluginval at strictness level 5 on the built Ruinae plugin:
+- [X] T074 Run pluginval at strictness level 5 on the built Ruinae plugin:
   ```
   tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"
   ```
