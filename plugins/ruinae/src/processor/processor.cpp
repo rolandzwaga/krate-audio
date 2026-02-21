@@ -1264,35 +1264,40 @@ void Processor::applyParamsToEngine() {
         }
     }
     // --- Velocity Lane (072-independent-lanes, US1) ---
+    // Expand to max length before writing steps to prevent index clamping,
+    // then set the actual length afterward.
     {
         const auto velLen = arpParams_.velocityLaneLength.load(std::memory_order_relaxed);
-        arpCore_.velocityLane().setLength(static_cast<size_t>(velLen));
+        arpCore_.velocityLane().setLength(32);
         for (int i = 0; i < 32; ++i) {
             arpCore_.velocityLane().setStep(
                 static_cast<size_t>(i),
                 arpParams_.velocityLaneSteps[i].load(std::memory_order_relaxed));
         }
+        arpCore_.velocityLane().setLength(static_cast<size_t>(velLen));
     }
     // --- Gate Lane (072-independent-lanes, US2) ---
     {
         const auto gateLen = arpParams_.gateLaneLength.load(std::memory_order_relaxed);
-        arpCore_.gateLane().setLength(static_cast<size_t>(gateLen));
+        arpCore_.gateLane().setLength(32);
         for (int i = 0; i < 32; ++i) {
             arpCore_.gateLane().setStep(
                 static_cast<size_t>(i),
                 arpParams_.gateLaneSteps[i].load(std::memory_order_relaxed));
         }
+        arpCore_.gateLane().setLength(static_cast<size_t>(gateLen));
     }
     // --- Pitch Lane (072-independent-lanes, US3) ---
     {
         const auto pitchLen = arpParams_.pitchLaneLength.load(std::memory_order_relaxed);
-        arpCore_.pitchLane().setLength(static_cast<size_t>(pitchLen));
+        arpCore_.pitchLane().setLength(32);
         for (int i = 0; i < 32; ++i) {
             int val = std::clamp(
                 arpParams_.pitchLaneSteps[i].load(std::memory_order_relaxed), -24, 24);
             arpCore_.pitchLane().setStep(
                 static_cast<size_t>(i), static_cast<int8_t>(val));
         }
+        arpCore_.pitchLane().setLength(static_cast<size_t>(pitchLen));
     }
 
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params

@@ -211,10 +211,15 @@ public:
     // Configuration (FR-008 through FR-018)
     // =========================================================================
 
-    /// @brief Enable or disable the arpeggiator (FR-008).
+    /// @brief Enable or disable the arpeggiator (FR-008, FR-022).
+    /// Disable->enable transition resets all lane positions to step 0.
     inline void setEnabled(bool enabled) noexcept {
         if (enabled_ && !enabled) {
             needsDisableNoteOff_ = true;
+        }
+        if (!enabled_ && enabled) {
+            // FR-022: disable/enable transition resets lanes
+            resetLanes();
         }
         enabled_ = enabled;
     }

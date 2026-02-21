@@ -380,29 +380,29 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T060 [P] Write failing tests in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`:
+- [X] T060 [P] Write failing tests in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`:
   - **Test: LanePersistence_FullRoundTrip** -- configure velocity length=5 with distinct step values (set steps 0-4 to non-default values, leaving steps 5-31 at default 1.0f), gate length=3, pitch length=7 with non-zero offsets; call `saveArpParams(stream)`, create fresh params, call `loadArpParams(stream)`, compare all 99 lane values (3 lengths + 96 steps) with `REQUIRE` (SC-004 exact match). IMPORTANT: also verify that step values BEYOND the active length (e.g., velocity steps 5-31 when velocity length=5) are round-tripped correctly at their stored values, not reset to defaults — the serialization writes all 32 steps regardless of active length.
   - **Test: LanePersistence_Phase3Compat_NoLaneData** -- construct IBStream with only 11-param arp data (no lane section); call `loadArpParams(stream)` on fresh params; verify: no crash, `velocityLaneLength==1`, all `velocityLaneSteps[i]==1.0f`, `gateLaneLength==1`, all `gateLaneSteps[i]==1.0f`, `pitchLaneLength==1`, all `pitchLaneSteps[i]==0` (SC-005)
   - **Test: LanePersistence_PartialLaneData** -- construct stream with 11 arp params + velocity lane only (stream ends mid gate lane); verify no crash, velocity lane restored, gate/pitch lanes at defaults
   - **Test: LanePersistence_PitchNegativeValues** -- save pitch lane with offsets [-24, -12, 0, +12, +24]; load; verify all signed values preserved correctly (no sign-loss from int32 round-trip)
-- [ ] T061 [P] Write failing tests in `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`:
+- [X] T061 [P] Write failing tests in `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`:
   - **Test: ArpIntegration_LaneParamsFlowToCore** -- set lane params via `handleArpParamChange`, call `applyParamsToArp()`, verify `arp_.velocityLane().length()` and step values match what was set
   - **Test: ArpIntegration_AllLanesReset_OnDisable** -- set non-default lane values, call the disable/enable sequence, verify all lane `currentStep()==0` (FR-022, SC-007)
   - **Test: SC006_AllLaneParamsRegistered** -- enumerate all registered param IDs in range [3020,3132]; verify each expected ID is present and check flags separately for two groups: (a) length params (3020, 3060, 3100) MUST have `kCanAutomate` and MUST NOT have `kIsHidden`; (b) step params (3021-3052, 3061-3092, 3101-3132) MUST have both `kCanAutomate` and `kIsHidden` (SC-006, 99 total params)
-- [ ] T062 Confirm T060 and T061 tests FAIL: build and observe failures
+- [X] T062 Confirm T060 and T061 tests FAIL: build and observe failures
 
 ### 7.2 Fix Persistence Implementation
 
 > Note: The `saveArpParams`/`loadArpParams` extensions were specified in US1-US3 phases. If they were not fully implemented there, complete them here. This phase focuses on end-to-end verification and fixing any gaps.
 
-- [ ] T063 [US5] Verify `saveArpParams()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` writes all three lanes in order: int32 velocityLaneLength, 32 floats velocityLaneSteps, int32 gateLaneLength, 32 floats gateLaneSteps, int32 pitchLaneLength, 32 int32s pitchLaneSteps -- per `specs/072-independent-lanes/contracts/parameter_ids.md` serialization format (total 396 bytes of lane data)
-- [ ] T064 [US5] Verify `loadArpParams()` reads in the same order with EOF-safe returns at each step -- if any read fails, remaining lanes stay at defaults, return false
-- [ ] T065 [US5] Build `ruinae_tests` and verify all persistence tests from T060-T061 pass: `ruinae_tests.exe "[arp][params]"` and `ruinae_tests.exe "[arp][integration]"`
-- [ ] T066 [US5] Fix any compiler warnings (zero warnings required)
+- [X] T063 [US5] Verify `saveArpParams()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` writes all three lanes in order: int32 velocityLaneLength, 32 floats velocityLaneSteps, int32 gateLaneLength, 32 floats gateLaneSteps, int32 pitchLaneLength, 32 int32s pitchLaneSteps -- per `specs/072-independent-lanes/contracts/parameter_ids.md` serialization format (total 396 bytes of lane data)
+- [X] T064 [US5] Verify `loadArpParams()` reads in the same order with EOF-safe returns at each step -- if any read fails, remaining lanes stay at defaults, return false
+- [X] T065 [US5] Build `ruinae_tests` and verify all persistence tests from T060-T061 pass: `ruinae_tests.exe "[arp][params]"` and `ruinae_tests.exe "[arp][integration]"`
+- [X] T066 [US5] Fix any compiler warnings (zero warnings required)
 
 ### 7.3 Cross-Platform Verification
 
-- [ ] T067 [US5] Verify IEEE 754 compliance: persistence tests compare float step values -- use `Approx().margin(1e-6f)` for float comparisons (MSVC/Clang may differ slightly in float representation). Exception: exact bit-identical is required only for SC-004 integer round-trip (pitch steps stored as int32, not float)
+- [X] T067 [US5] Verify IEEE 754 compliance: persistence tests compare float step values -- use `Approx().margin(1e-6f)` for float comparisons (MSVC/Clang may differ slightly in float representation). Exception: exact bit-identical is required only for SC-004 integer round-trip (pitch steps stored as int32, not float)
 
 ### 7.4 Commit User Story 5
 

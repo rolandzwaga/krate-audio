@@ -958,3 +958,245 @@ TEST_CASE("ArpPitchParams_BackwardCompat", "[arp][params]") {
         CHECK(loaded.pitchLaneSteps[i].load() == 0);
     }
 }
+
+// ==============================================================================
+// Phase 7 (072-independent-lanes) User Story 5: Lane State Persistence Tests
+// ==============================================================================
+
+TEST_CASE("LanePersistence_FullRoundTrip", "[arp][params]") {
+    using namespace Ruinae;
+
+    // Configure velocity length=5, gate length=3, pitch length=7 with non-default values
+    ArpeggiatorParams original;
+
+    // Set non-default base arp params to make this a complete round-trip test
+    original.enabled.store(true, std::memory_order_relaxed);
+    original.mode.store(2, std::memory_order_relaxed);
+    original.gateLength.store(60.0f, std::memory_order_relaxed);
+
+    // Velocity lane: length=5, steps 0-4 set to distinct values, steps 5-31 left at default 1.0f
+    original.velocityLaneLength.store(5, std::memory_order_relaxed);
+    original.velocityLaneSteps[0].store(0.1f, std::memory_order_relaxed);
+    original.velocityLaneSteps[1].store(0.25f, std::memory_order_relaxed);
+    original.velocityLaneSteps[2].store(0.5f, std::memory_order_relaxed);
+    original.velocityLaneSteps[3].store(0.75f, std::memory_order_relaxed);
+    original.velocityLaneSteps[4].store(0.9f, std::memory_order_relaxed);
+    // Steps 5-31 remain at default 1.0f -- they should ALSO be preserved
+
+    // Gate lane: length=3, steps 0-2 set to distinct values
+    original.gateLaneLength.store(3, std::memory_order_relaxed);
+    original.gateLaneSteps[0].store(0.5f, std::memory_order_relaxed);
+    original.gateLaneSteps[1].store(1.5f, std::memory_order_relaxed);
+    original.gateLaneSteps[2].store(0.01f, std::memory_order_relaxed);
+    // Steps 3-31 remain at default 1.0f
+
+    // Pitch lane: length=7, steps 0-6 set to distinct values including negatives
+    original.pitchLaneLength.store(7, std::memory_order_relaxed);
+    original.pitchLaneSteps[0].store(-24, std::memory_order_relaxed);
+    original.pitchLaneSteps[1].store(-12, std::memory_order_relaxed);
+    original.pitchLaneSteps[2].store(-5, std::memory_order_relaxed);
+    original.pitchLaneSteps[3].store(0, std::memory_order_relaxed);
+    original.pitchLaneSteps[4].store(7, std::memory_order_relaxed);
+    original.pitchLaneSteps[5].store(12, std::memory_order_relaxed);
+    original.pitchLaneSteps[6].store(24, std::memory_order_relaxed);
+    // Steps 7-31 remain at default 0
+
+    // Also set a step BEYOND the active length to a non-default value
+    // to verify that steps beyond active length also round-trip
+    original.velocityLaneSteps[10].store(0.42f, std::memory_order_relaxed);
+    original.gateLaneSteps[15].store(1.8f, std::memory_order_relaxed);
+    original.pitchLaneSteps[20].store(-7, std::memory_order_relaxed);
+
+    // Serialize
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Deserialize into fresh params
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        REQUIRE(ok);
+    }
+
+    // SC-004: Verify ALL 99 lane values (3 lengths + 96 steps) match exactly
+
+    // Velocity lane
+    CHECK(loaded.velocityLaneLength.load() == 5);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Velocity step " << i);
+        CHECK(loaded.velocityLaneSteps[i].load() ==
+            Approx(original.velocityLaneSteps[i].load()).margin(1e-6f));
+    }
+
+    // Gate lane
+    CHECK(loaded.gateLaneLength.load() == 3);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Gate step " << i);
+        CHECK(loaded.gateLaneSteps[i].load() ==
+            Approx(original.gateLaneSteps[i].load()).margin(1e-6f));
+    }
+
+    // Pitch lane
+    CHECK(loaded.pitchLaneLength.load() == 7);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Pitch step " << i);
+        CHECK(loaded.pitchLaneSteps[i].load() == original.pitchLaneSteps[i].load());
+    }
+
+    // Verify steps BEYOND active length round-trip correctly
+    CHECK(loaded.velocityLaneSteps[10].load() == Approx(0.42f).margin(1e-6f));
+    CHECK(loaded.gateLaneSteps[15].load() == Approx(1.8f).margin(1e-6f));
+    CHECK(loaded.pitchLaneSteps[20].load() == -7);
+}
+
+TEST_CASE("LanePersistence_Phase3Compat_NoLaneData", "[arp][params]") {
+    using namespace Ruinae;
+
+    // Construct IBStream with only 11-param arp data (no lane data)
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        writeStream.writeInt32(1);     // enabled = true
+        writeStream.writeInt32(0);     // mode = Up
+        writeStream.writeInt32(1);     // octaveRange = 1
+        writeStream.writeInt32(0);     // octaveMode = Sequential
+        writeStream.writeInt32(1);     // tempoSync = true
+        writeStream.writeInt32(10);    // noteValue = 1/8
+        writeStream.writeFloat(4.0f);  // freeRate = 4.0 Hz
+        writeStream.writeFloat(80.0f); // gateLength = 80%
+        writeStream.writeFloat(0.0f);  // swing = 0%
+        writeStream.writeInt32(0);     // latchMode = Off
+        writeStream.writeInt32(0);     // retrigger = Off
+    }
+
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        // SC-005: Load should not crash. Base params return true; lane data is missing.
+        loadArpParams(loaded, readStream);
+    }
+
+    // SC-005: Verify all lane defaults
+    // Velocity lane defaults
+    CHECK(loaded.velocityLaneLength.load() == 1);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Velocity step " << i);
+        CHECK(loaded.velocityLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
+    }
+
+    // Gate lane defaults
+    CHECK(loaded.gateLaneLength.load() == 1);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Gate step " << i);
+        CHECK(loaded.gateLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
+    }
+
+    // Pitch lane defaults
+    CHECK(loaded.pitchLaneLength.load() == 1);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Pitch step " << i);
+        CHECK(loaded.pitchLaneSteps[i].load() == 0);
+    }
+}
+
+TEST_CASE("LanePersistence_PartialLaneData", "[arp][params]") {
+    using namespace Ruinae;
+
+    // Construct stream with 11 arp params + velocity lane only; stream ends mid gate lane
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        // 11 base params
+        writeStream.writeInt32(1);     // enabled = true
+        writeStream.writeInt32(0);     // mode = Up
+        writeStream.writeInt32(1);     // octaveRange = 1
+        writeStream.writeInt32(0);     // octaveMode = Sequential
+        writeStream.writeInt32(1);     // tempoSync = true
+        writeStream.writeInt32(10);    // noteValue = 1/8
+        writeStream.writeFloat(4.0f);  // freeRate = 4.0 Hz
+        writeStream.writeFloat(80.0f); // gateLength = 80%
+        writeStream.writeFloat(0.0f);  // swing = 0%
+        writeStream.writeInt32(0);     // latchMode = Off
+        writeStream.writeInt32(0);     // retrigger = Off
+
+        // Velocity lane data (33 values -- length + 32 steps)
+        writeStream.writeInt32(4);     // velocityLaneLength = 4
+        for (int i = 0; i < 32; ++i) {
+            writeStream.writeFloat(i < 4 ? 0.5f : 1.0f);
+        }
+        // NO gate lane data, NO pitch lane data -- stream ends here
+    }
+
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        // Should not crash. Velocity restored, gate/pitch at defaults.
+        loadArpParams(loaded, readStream);
+    }
+
+    // Velocity lane restored
+    CHECK(loaded.velocityLaneLength.load() == 4);
+    CHECK(loaded.velocityLaneSteps[0].load() == Approx(0.5f).margin(1e-6f));
+    CHECK(loaded.velocityLaneSteps[1].load() == Approx(0.5f).margin(1e-6f));
+    CHECK(loaded.velocityLaneSteps[2].load() == Approx(0.5f).margin(1e-6f));
+    CHECK(loaded.velocityLaneSteps[3].load() == Approx(0.5f).margin(1e-6f));
+    CHECK(loaded.velocityLaneSteps[4].load() == Approx(1.0f).margin(1e-6f));
+
+    // Gate lane at defaults (not present in stream)
+    CHECK(loaded.gateLaneLength.load() == 1);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Gate step " << i);
+        CHECK(loaded.gateLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
+    }
+
+    // Pitch lane at defaults (not present in stream)
+    CHECK(loaded.pitchLaneLength.load() == 1);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Pitch step " << i);
+        CHECK(loaded.pitchLaneSteps[i].load() == 0);
+    }
+}
+
+TEST_CASE("LanePersistence_PitchNegativeValues", "[arp][params]") {
+    using namespace Ruinae;
+
+    // Save pitch lane with offsets [-24, -12, 0, +12, +24]
+    ArpeggiatorParams original;
+    original.pitchLaneLength.store(5, std::memory_order_relaxed);
+    original.pitchLaneSteps[0].store(-24, std::memory_order_relaxed);
+    original.pitchLaneSteps[1].store(-12, std::memory_order_relaxed);
+    original.pitchLaneSteps[2].store(0, std::memory_order_relaxed);
+    original.pitchLaneSteps[3].store(12, std::memory_order_relaxed);
+    original.pitchLaneSteps[4].store(24, std::memory_order_relaxed);
+
+    // Serialize
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Deserialize
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        REQUIRE(ok);
+    }
+
+    // Verify all signed values preserved correctly (no sign-loss from int32 round-trip)
+    CHECK(loaded.pitchLaneLength.load() == 5);
+    CHECK(loaded.pitchLaneSteps[0].load() == -24);
+    CHECK(loaded.pitchLaneSteps[1].load() == -12);
+    CHECK(loaded.pitchLaneSteps[2].load() == 0);
+    CHECK(loaded.pitchLaneSteps[3].load() == 12);
+    CHECK(loaded.pitchLaneSteps[4].load() == 24);
+}
