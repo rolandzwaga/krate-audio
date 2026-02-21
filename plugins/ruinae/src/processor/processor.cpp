@@ -1273,6 +1273,16 @@ void Processor::applyParamsToEngine() {
                 arpParams_.velocityLaneSteps[i].load(std::memory_order_relaxed));
         }
     }
+    // --- Gate Lane (072-independent-lanes, US2) ---
+    {
+        const auto gateLen = arpParams_.gateLaneLength.load(std::memory_order_relaxed);
+        arpCore_.gateLane().setLength(static_cast<size_t>(gateLen));
+        for (int i = 0; i < 32; ++i) {
+            arpCore_.gateLane().setStep(
+                static_cast<size_t>(i),
+                arpParams_.gateLaneSteps[i].load(std::memory_order_relaxed));
+        }
+    }
 
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));

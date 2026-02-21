@@ -115,6 +115,8 @@ public:
         // Set velocity lane default: length=1, step[0]=1.0f (full passthrough)
         // This ensures SC-002 bit-identical backward compat from first use.
         velocityLane_.setStep(0, 1.0f);
+        // Set gate lane default: length=1, step[0]=1.0f (pure global gate)
+        gateLane_.setStep(0, 1.0f);
     }
 
     // =========================================================================
@@ -282,6 +284,14 @@ public:
     /// @brief Access velocity lane (const).
     [[nodiscard]] const ArpLane<float>& velocityLane() const noexcept {
         return velocityLane_;
+    }
+
+    /// @brief Access gate lane for configuration.
+    ArpLane<float>& gateLane() noexcept { return gateLane_; }
+
+    /// @brief Access gate lane (const).
+    [[nodiscard]] const ArpLane<float>& gateLane() const noexcept {
+        return gateLane_;
     }
 
     // =========================================================================
@@ -621,12 +631,14 @@ private:
     }
 
     /// @brief Calculate gate duration in samples from current step duration.
-    /// Gate duration = stepDuration * gateLengthPercent / 100, clamped min 1.
-    inline size_t calculateGateDuration() const noexcept {
-        size_t dur = static_cast<size_t>(
+    /// Gate duration = stepDuration * gateLengthPercent / 100 * gateLaneValue,
+    /// clamped to minimum 1 sample (FR-014: ensures NoteOff always fires).
+    /// @param gateLaneValue Gate lane multiplier (default 1.0f for backward compat)
+    inline size_t calculateGateDuration(float gateLaneValue = 1.0f) const noexcept {
+        return std::max(size_t{1}, static_cast<size_t>(
             static_cast<double>(currentStepDuration_) *
-            static_cast<double>(gateLengthPercent_) / 100.0);
-        return (dur > 0) ? dur : 1;
+            static_cast<double>(gateLengthPercent_) / 100.0 *
+            static_cast<double>(gateLaneValue)));
     }
 
     /// @brief Decrement all pending NoteOff samplesRemaining by given amount.
@@ -708,8 +720,9 @@ private:
         ArpNoteResult result = selector_.advance(heldNotes_);
 
         if (result.count > 0) {
-            // Advance velocity lane (once per step, regardless of chord size)
+            // Advance lanes (once per step, regardless of chord size)
             float velScale = velocityLane_.advance();
+            float gateScale = gateLane_.advance();
 
             // Apply velocity scaling to all notes in this step (FR-011)
             for (size_t i = 0; i < result.count; ++i) {
@@ -719,8 +732,8 @@ private:
                     std::clamp(scaledVel, 1, 127));
             }
 
-            // Calculate gate duration based on current step duration
-            size_t gateDuration = calculateGateDuration();
+            // Calculate gate duration with lane multiplier (FR-014)
+            size_t gateDuration = calculateGateDuration(gateScale);
 
             if (result.count > 1) {
                 // FR-022: Chord mode -- emit NoteOff for all previously
@@ -838,6 +851,7 @@ private:
     /// Called from reset(), retrigger, and transport restart points.
     void resetLanes() noexcept {
         velocityLane_.reset();
+        gateLane_.reset();
     }
 
     // =========================================================================
@@ -852,6 +866,7 @@ private:
     // =========================================================================
 
     ArpLane<float> velocityLane_;   ///< Velocity multiplier per step (default: length=1, step[0]=1.0f)
+    ArpLane<float> gateLane_;       ///< Gate duration multiplier per step (default: length=1, step[0]=1.0f)
 
     // =========================================================================
     // Configuration State

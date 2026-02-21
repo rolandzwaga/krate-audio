@@ -53,8 +53,15 @@ struct ArpeggiatorParams {
     std::atomic<int>   velocityLaneLength{1};   // 1-32
     std::array<std::atomic<float>, 32> velocityLaneSteps{};
 
+    // Gate lane (072-independent-lanes, US2)
+    std::atomic<int>   gateLaneLength{1};       // 1-32
+    std::array<std::atomic<float>, 32> gateLaneSteps{};
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
+            step.store(1.0f, std::memory_order_relaxed);
+        }
+        for (auto& step : gateLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
         }
     }
@@ -141,12 +148,27 @@ inline void handleArpParamChange(
                 std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
                 std::memory_order_relaxed);
             break;
+
+        // --- Gate Lane (072-independent-lanes, US2) ---
+        case kArpGateLaneLengthId:
+            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
+            params.gateLaneLength.store(
+                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                std::memory_order_relaxed);
+            break;
+
         default:
             // Velocity lane steps: 3021-3052
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
                 float vel = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
                 params.velocityLaneSteps[id - kArpVelocityLaneStep0Id].store(
                     vel, std::memory_order_relaxed);
+            }
+            // Gate lane steps: 3061-3092
+            else if (id >= kArpGateLaneStep0Id && id <= kArpGateLaneStep31Id) {
+                float gate = std::clamp(static_cast<float>(0.01 + value * 1.99), 0.01f, 2.0f);
+                params.gateLaneSteps[id - kArpGateLaneStep0Id].store(
+                    gate, std::memory_order_relaxed);
             }
             break;
     }
@@ -243,6 +265,27 @@ inline void registerArpParams(
                 STR16(""), 0.0, 1.0, 1.0, 0,
                 ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
     }
+
+    // --- Gate Lane (072-independent-lanes, US2) ---
+
+    // Gate lane length: RangeParameter 1-32, default 1, stepCount 31
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Gate Lane Len"), kArpGateLaneLengthId,
+                          STR16(""), 1, 32, 1, 31,
+                          ParameterInfo::kCanAutomate));
+
+    // Gate lane steps: loop 0-31, RangeParameter 0.01-2.0, default 1.0
+    for (int i = 0; i < 32; ++i) {
+        char name[48];
+        snprintf(name, sizeof(name), "Arp Gate Step %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(name);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpGateLaneStep0Id + i),
+                STR16(""), 0.01, 2.0, 1.0, 0,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
 }
 
 // =============================================================================
@@ -335,11 +378,29 @@ inline Steinberg::tresult formatArpParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+
+        // --- Gate Lane (072-independent-lanes, US2) ---
+        case kArpGateLaneLengthId: {
+            char8 text[32];
+            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            snprintf(text, sizeof(text), "%d steps", len);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+
         default:
             // Velocity lane steps: display as percentage
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
                 char8 text[32];
                 snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+                UString(string, 128).fromAscii(text);
+                return kResultOk;
+            }
+            // Gate lane steps: display as multiplier
+            if (id >= kArpGateLaneStep0Id && id <= kArpGateLaneStep31Id) {
+                char8 text[32];
+                double gateVal = 0.01 + value * 1.99;
+                snprintf(text, sizeof(text), "%.2fx", gateVal);
                 UString(string, 128).fromAscii(text);
                 return kResultOk;
             }
@@ -375,6 +436,12 @@ inline void saveArpParams(
     streamer.writeInt32(params.velocityLaneLength.load(std::memory_order_relaxed));
     for (int i = 0; i < 32; ++i) {
         streamer.writeFloat(params.velocityLaneSteps[i].load(std::memory_order_relaxed));
+    }
+
+    // --- Gate Lane (072-independent-lanes, US2) ---
+    streamer.writeInt32(params.gateLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeFloat(params.gateLaneSteps[i].load(std::memory_order_relaxed));
     }
 }
 
@@ -434,6 +501,17 @@ inline bool loadArpParams(
         if (!streamer.readFloat(floatVal)) return false;
         params.velocityLaneSteps[i].store(
             std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+    }
+
+    // --- Gate Lane (072-independent-lanes, US2) ---
+    // EOF-safe: if gate lane data is missing (pre-US2 preset), keep defaults
+    if (!streamer.readInt32(intVal)) return true;  // velocity lane loaded OK
+    params.gateLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readFloat(floatVal)) return false;
+        params.gateLaneSteps[i].store(
+            std::clamp(floatVal, 0.01f, 2.0f), std::memory_order_relaxed);
     }
 
     return true;

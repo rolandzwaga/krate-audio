@@ -207,7 +207,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T028 [P] Write failing tests for ArpeggiatorCore gate lane integration in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
+- [X] T028 [P] Write failing tests for ArpeggiatorCore gate lane integration in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`:
   - **Test: GateLane_DefaultIsPassthrough** -- default lane (length=1, step=1.0), gate duration = same as Phase 3 formula (SC-002 backward compat for gate)
   - **Test: GateLane_MultipliesGlobalGate** -- set gate lane length=3, steps=[0.5, 1.0, 1.5], global gate=80%, run 3 steps, verify noteOff sample offsets match computed durations: `stepDuration * 0.80 * 0.5`, `stepDuration * 0.80 * 1.0`, `stepDuration * 0.80 * 1.5` (using same cast chain as existing formula for bit-identical double math)
   - **Test: GateLane_LegatolOverlap** -- set gate lane value 1.5 and global gate 100% (effective 150%), verify arpeggiator handles noteOff firing after next noteOn without crash
@@ -216,29 +216,29 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
   - **Test: BitIdentical_GateDefault** -- 1000+ steps with default gate lane at tempos 120, 140, 180 BPM, compare noteOff sample offsets byte-for-byte to Phase 3 expected values (SC-002 strict bit-identical for gate; 1000+ steps required by SC-002, not 100+)
   - **Test: GateLane_MinimumOneSample** -- configure gate lane value = 0.01 (minimum) and global gate = 1% (minimum), verify the computed gate duration is at least 1 sample regardless of rounding -- ensures NoteOff always fires and no stuck note can occur (FR-014 minimum gate clamp)
   - **Test: Polymetric_VelGate_LCM** -- velocity lane length=3, gate lane length=5, run 15 steps, verify the combined [vel, gate] pair at step 15 equals the pair at step 0 (US2 acceptance scenario 3)
-- [ ] T029 [P] Write failing tests in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`:
+- [X] T029 [P] Write failing tests in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`:
   - **Test: ArpGateLaneLength_Registration** -- `kArpGateLaneLengthId` registered as discrete param [1,32] default 1
   - **Test: ArpGateLaneStep_Registration** -- step params 3061-3092 registered with range [0.01, 2.0] default 1.0
   - **Test: ArpGateLaneStep_Denormalize** -- `handleArpParamChange(3061, 0.0)` -> step[0]=0.01f; `(3061, 1.0)` -> step[0]=2.0f; `(3061, 0.5)` -> ~1.005f
   - **Test: ArpGateParams_SaveLoad_RoundTrip** -- save/load preserves all 33 gate lane values
   - **Test: ArpGateParams_BackwardCompat** -- Phase 3 stream loads with gateLaneLength==1, all steps==1.0f
-- [ ] T030 Confirm T028 and T029 tests FAIL: build and observe failures
+- [X] T030 Confirm T028 and T029 tests FAIL: build and observe failures
 
 ### 4.2 Implementation for User Story 2 - DSP Layer
 
-- [ ] T031 Modify `dsp/include/krate/dsp/processors/arpeggiator_core.h` to add gate lane:
+- [X] T031 Modify `dsp/include/krate/dsp/processors/arpeggiator_core.h` to add gate lane:
   - Add `ArpLane<float> gateLane_` private member with field initializer setting step[0]=1.0f
   - Add public `gateLane()` accessors (mutable and const overloads)
   - Add `gateLane_.reset()` call in `resetLanes()` private method
   - Modify `calculateGateDuration()` signature to `size_t calculateGateDuration(float gateLaneValue = 1.0f) const noexcept`
   - Change the gate formula to: `std::max(size_t{1}, static_cast<size_t>(static_cast<double>(currentStepDuration_) * static_cast<double>(gateLengthPercent_) / 100.0 * static_cast<double>(gateLaneValue)))` -- preserving the same cast chain for IEEE 754 bit-identical behavior when `gateLaneValue==1.0f`, and clamping to a minimum of 1 sample so a NoteOff is always emitted (FR-014)
   - In `fireStep()`: call `float gateScale = gateLane_.advance()` after velocity advance, pass `gateScale` to `calculateGateDuration(gateScale)`
-- [ ] T032 Build `dsp_tests` and verify all gate lane tests from T028 pass: `dsp_tests.exe "[processors][arpeggiator_core]"`
-- [ ] T033 Fix any compiler warnings (zero warnings required)
+- [X] T032 Build `dsp_tests` and verify all gate lane tests from T028 pass: `dsp_tests.exe "[processors][arpeggiator_core]"`
+- [X] T033 Fix any compiler warnings (zero warnings required)
 
 ### 4.3 Implementation for User Story 2 - Plugin Layer
 
-- [ ] T034 Modify `plugins/ruinae/src/parameters/arpeggiator_params.h` to add gate lane atomic storage:
+- [X] T034 Modify `plugins/ruinae/src/parameters/arpeggiator_params.h` to add gate lane atomic storage:
   - Add `std::atomic<int> gateLaneLength{1}` member
   - Add `std::array<std::atomic<float>, 32> gateLaneSteps{}` member
   - In constructor: initialize all `gateLaneSteps[i]` to `1.0f`
@@ -247,16 +247,16 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
   - Extend `formatArpParam()`: gate length as "N steps"; gate steps as multiplier (e.g. "1.50x")
   - Extend `saveArpParams()`: write `gateLaneLength` (int32) then 32 gate steps (float each)
   - Extend `loadArpParams()`: EOF-safe read of gate lane data
-- [ ] T035 Modify `plugins/ruinae/src/processor/processor.cpp` `applyParamsToArp()` to push gate lane to ArpeggiatorCore:
+- [X] T035 Modify `plugins/ruinae/src/processor/processor.cpp` `applyParamsToArp()` to push gate lane to ArpeggiatorCore:
   - Read `arpParams_.gateLaneLength.load()` and call `arp_.gateLane().setLength(len)`
   - Loop i=0..31: read `arpParams_.gateLaneSteps[i].load()` and call `arp_.gateLane().setStep(i, val)`
-- [ ] T036 Build `ruinae_tests` and verify all gate lane param tests from T029 pass: `ruinae_tests.exe "[arp][params]"`
-- [ ] T037 Fix any compiler warnings in modified plugin files (zero warnings required)
+- [X] T036 Build `ruinae_tests` and verify all gate lane param tests from T029 pass: `ruinae_tests.exe "[arp][params]"`
+- [X] T037 Fix any compiler warnings in modified plugin files (zero warnings required)
 
 ### 4.4 Cross-Platform Verification
 
-- [ ] T038 [US2] Verify IEEE 754 compliance for gate lane tests: the BitIdentical_GateDefault test relies on the double-precision cast chain -- confirm `arpeggiator_core_test.cpp` is in the `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` (SC-002 requires this for the gate calculation)
-- [ ] T039 [US2] Verify SC-002 gate bit-identity: run BitIdentical_GateDefault test across 1000+ steps at 3 tempos (120, 140, 180 BPM), confirm zero noteOff offset differences vs Phase 3 — SC-002 requires 1000+ steps
+- [X] T038 [US2] Verify IEEE 754 compliance for gate lane tests: the BitIdentical_GateDefault test relies on the double-precision cast chain -- confirm `arpeggiator_core_test.cpp` is in the `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` (SC-002 requires this for the gate calculation)
+- [X] T039 [US2] Verify SC-002 gate bit-identity: run BitIdentical_GateDefault test across 1000+ steps at 3 tempos (120, 140, 180 BPM), confirm zero noteOff offset differences vs Phase 3 — SC-002 requires 1000+ steps
 
 ### 4.5 Commit User Story 2
 
