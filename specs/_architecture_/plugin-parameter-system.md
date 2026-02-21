@@ -86,9 +86,12 @@ Processor::setState()
 | **2500-2599** | **Random** | **`random_params.h`** | **4** |
 | **2600-2699** | **Pitch Follower** | **`pitch_follower_params.h`** | **4** |
 | **2700-2799** | **Transient** | **`transient_params.h`** | **3** |
-| **3000-3099** | **Arpeggiator** | **`arpeggiator_params.h`** | **11** |
+| **3000-3010** | **Arpeggiator (base)** | **`arpeggiator_params.h`** | **11** |
+| **3020-3132** | **Arpeggiator Lanes** | **`arpeggiator_params.h`** | **99** |
 
-**Sentinel**: `kNumParameters = 3100`
+**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3199 (future phases 5-8)
+
+**Sentinel**: `kArpEndId = 3199`, `kNumParameters = 3200`
 
 ---
 
@@ -643,7 +646,7 @@ Controller loading requires inverse mapping:
 ## Arpeggiator Parameters (Spec 071)
 
 **File**: `plugins/ruinae/src/parameters/arpeggiator_params.h`
-**IDs**: 3000-3010 (reserved range 3000-3099 for future lane parameters)
+**IDs**: 3000-3010 (base), 3020-3132 (lanes) -- see [Lane Parameters section](#arpeggiator-lane-parameters-spec-072) below
 
 ### Purpose
 
@@ -752,12 +755,131 @@ Controller loading requires inverse mapping:
 ### When to Use This
 
 Extend `ArpeggiatorParams` when adding new arpeggiator features:
-- **Phase 4 (Independent Lane Architecture)**: Add lane step parameters in the reserved 3020-3199 ID range
-- **Phase 5 (Slide/Legato)**: Add slide/legato toggle parameters
+- **Phase 4 (Independent Lane Architecture)**: Lane step parameters added in 3020-3132 ID range (done -- see below)
+- **Phase 5 (Slide/Legato)**: Add slide/legato toggle parameters in reserved 3133-3199 range
 - **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations
 - **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes expected
 
-The reserved range `kArpEndId = 3099` accommodates future lane parameters without requiring an ID allocation change.
+The sentinel `kArpEndId = 3199` accommodates future lane parameters and arp extensions without requiring an ID allocation change.
+
+---
+
+## Arpeggiator Lane Parameters (Spec 072)
+
+**File**: `plugins/ruinae/src/parameters/arpeggiator_params.h`
+**IDs**: 3020-3132 (99 parameters across 3 lanes)
+
+### Purpose
+
+Per-step lane parameters for independent polymetric lane cycling in the arpeggiator. Each lane has a length parameter (how many steps before cycling) and 32 step value parameters. The lanes advance independently, creating polymetric patterns when lanes have different lengths.
+
+Follows the `trance_gate_params.h` pattern of registering per-step parameters in a loop with `kCanAutomate | kIsHidden` flags (step params are automated but not shown in generic host UIs).
+
+### Lane Parameter ID Allocation
+
+| Range | Lane | Length ID | Step 0 ID | Step 31 ID | Count |
+|-------|------|-----------|-----------|------------|-------|
+| 3020-3052 | Velocity | 3020 | 3021 | 3052 | 33 |
+| 3053-3059 | *(reserved for velocity lane metadata)* | - | - | - | 0 |
+| 3060-3092 | Gate | 3060 | 3061 | 3092 | 33 |
+| 3093-3099 | *(reserved for gate lane metadata)* | - | - | - | 0 |
+| 3100-3132 | Pitch | 3100 | 3101 | 3132 | 33 |
+| 3133-3199 | *(reserved for future phases 5-8)* | - | - | - | 0 |
+
+**Note**: ID 3100 was formerly the `kNumParameters` sentinel value. The sentinel was simultaneously updated to 3200 when pitch lane IDs were allocated, so there is no collision.
+
+### Velocity Lane Parameters (3020-3052)
+
+| ID | Name | Type | Range | Default | Flags |
+|----|------|------|-------|---------|-------|
+| 3020 | Arp Vel Lane Len | Discrete (int) | 1-32 | 1 | `kCanAutomate` |
+| 3021-3052 | Arp Vel Step 1-32 | Continuous (float) | 0.0-1.0 | 1.0 | `kCanAutomate \| kIsHidden` |
+
+**Denormalization**: Length: `1 + round(norm * 31)`, stepCount=31. Steps: identity (norm = value).
+
+### Gate Lane Parameters (3060-3092)
+
+| ID | Name | Type | Range | Default | Flags |
+|----|------|------|-------|---------|-------|
+| 3060 | Arp Gate Lane Len | Discrete (int) | 1-32 | 1 | `kCanAutomate` |
+| 3061-3092 | Arp Gate Step 1-32 | Continuous (float) | 0.01-2.0 | 1.0 | `kCanAutomate \| kIsHidden` |
+
+**Denormalization**: Length: `1 + round(norm * 31)`, stepCount=31. Steps: `0.01 + norm * 1.99`, stepCount=0 (continuous).
+
+### Pitch Lane Parameters (3100-3132)
+
+| ID | Name | Type | Range | Default | Flags |
+|----|------|------|-------|---------|-------|
+| 3100 | Arp Pitch Lane Len | Discrete (int) | 1-32 | 1 | `kCanAutomate` |
+| 3101-3132 | Arp Pitch Step 1-32 | Discrete (int) | -24 to +24 | 0 | `kCanAutomate \| kIsHidden` |
+
+**Denormalization**: Length: `1 + round(norm * 31)`, stepCount=31. Steps: `-24 + round(norm * 48)`, stepCount=48.
+
+### ArpeggiatorParams Struct Extension
+
+```cpp
+struct ArpeggiatorParams {
+    // ... existing 11 base arp fields (Spec 071) ...
+
+    // Velocity lane (Spec 072)
+    std::atomic<int> velocityLaneLength{1};               // [1, 32]
+    std::array<std::atomic<float>, 32> velocityLaneSteps{};  // [0.0, 1.0], init to 1.0f
+
+    // Gate lane (Spec 072)
+    std::atomic<int> gateLaneLength{1};                   // [1, 32]
+    std::array<std::atomic<float>, 32> gateLaneSteps{};   // [0.01, 2.0], init to 1.0f
+
+    // Pitch lane (Spec 072)
+    std::atomic<int> pitchLaneLength{1};                  // [1, 32]
+    std::array<std::atomic<int>, 32> pitchLaneSteps{};    // [-24, +24], init to 0
+};
+```
+
+**Note:** Pitch lane steps use `std::atomic<int>` (not `std::atomic<int8_t>`) for guaranteed lock-free operation. The conversion to `int8_t` for `ArpLane<int8_t>::setStep()` happens at the DSP boundary in `processor.cpp::applyParamsToArp()`.
+
+### Format Strings
+
+| Parameter | Examples |
+|-----------|----------|
+| Velocity Lane Length | "1 steps", "4 steps", "32 steps" |
+| Velocity Lane Steps | "100%", "70%", "30%" |
+| Gate Lane Length | "1 steps", "3 steps" |
+| Gate Lane Steps | "0.50x", "1.00x", "1.50x" |
+| Pitch Lane Length | "1 steps", "7 steps" |
+| Pitch Lane Steps | "+7 st", "-5 st", "0 st" |
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToArp():
+int velLen = arpParams_.velocityLaneLength.load(relaxed);
+arp_.velocityLane().setLength(static_cast<size_t>(velLen));
+for (int i = 0; i < 32; ++i)
+    arp_.velocityLane().setStep(i, arpParams_.velocityLaneSteps[i].load(relaxed));
+
+int gateLen = arpParams_.gateLaneLength.load(relaxed);
+arp_.gateLane().setLength(static_cast<size_t>(gateLen));
+for (int i = 0; i < 32; ++i)
+    arp_.gateLane().setStep(i, arpParams_.gateLaneSteps[i].load(relaxed));
+
+int pitchLen = arpParams_.pitchLaneLength.load(relaxed);
+arp_.pitchLane().setLength(static_cast<size_t>(pitchLen));
+for (int i = 0; i < 32; ++i) {
+    int val = std::clamp(arpParams_.pitchLaneSteps[i].load(relaxed), -24, 24);
+    arp_.pitchLane().setStep(i, static_cast<int8_t>(val));
+}
+```
+
+### State Persistence
+
+Lane data (396 bytes) is appended after the 11 base arp parameters:
+```
+[int32: velocityLaneLength] [float x32: velocityLaneSteps]    // 132 bytes
+[int32: gateLaneLength]     [float x32: gateLaneSteps]        // 132 bytes
+[int32: pitchLaneLength]    [int32 x32: pitchLaneSteps]       // 132 bytes
+```
+
+Loading uses EOF-safe pattern: if the stream ends mid-lane, remaining lanes keep their struct defaults (velocity/gate steps = 1.0, pitch steps = 0). Phase 3 presets (no lane data) load with all lanes at identity values automatically.
 
 ---
 

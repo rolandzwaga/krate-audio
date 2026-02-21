@@ -451,7 +451,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.1 Layer 1 Primitives Documentation
 
-- [ ] T076 Modify `specs/_architecture_/layer-1-primitives.md` to add ArpLane<T> entry:
+- [X] T076 Modify `specs/_architecture_/layer-1-primitives.md` to add ArpLane<T> entry:
   - Component name: `ArpLane<T, MaxSteps>`
   - Purpose: Fixed-capacity step lane for arpeggiator polymetric patterns; stores up to MaxSteps values of type T with independent position tracking
   - Public API summary: `setLength()`, `length()`, `setStep()`, `getStep()`, `advance()`, `reset()`, `currentStep()`
@@ -461,7 +461,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.2 Layer 2 Processors Documentation
 
-- [ ] T077 Modify `specs/_architecture_/layer-2-processors.md` to update ArpeggiatorCore entry:
+- [X] T077 Modify `specs/_architecture_/layer-2-processors.md` to update ArpeggiatorCore entry:
   - Add: "Contains three ArpLane<T> members (velocity: float, gate: float, pitch: int8_t) that advance independently on each arp step"
   - Add: "Exposes lane accessors: velocityLane(), gateLane(), pitchLane()"
   - Add: "resetLanes() resets all lane positions to 0; called from reset(), retrigger, and transport-restart points"
@@ -469,14 +469,14 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.3 Plugin Parameter System Documentation
 
-- [ ] T078 Modify `specs/_architecture_/plugin-parameter-system.md` to document lane parameter IDs:
+- [X] T078 Modify `specs/_architecture_/plugin-parameter-system.md` to document lane parameter IDs:
   - Add the 3020-3132 ID block with a table showing each lane's length and step parameter ranges
   - Note kArpEndId=3199, kNumParameters=3200
   - Reference the trance_gate_params.h pattern as the precedent for per-step parameter registration
 
 ### 9.4 Plugin State Persistence Documentation
 
-- [ ] T079 Modify `specs/_architecture_/plugin-state-persistence.md` to document lane serialization:
+- [X] T079 Modify `specs/_architecture_/plugin-state-persistence.md` to document lane serialization:
   - Add lane serialization format (396 bytes appended after existing 11 arp params)
   - Document the EOF-safe backward-compatible loading pattern
   - Note: Phase 3 presets load with lane defaults automatically
