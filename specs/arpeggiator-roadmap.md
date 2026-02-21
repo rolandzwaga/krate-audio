@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 2 complete) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 4 complete — Sequencer foundation) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -297,7 +297,7 @@ The arp must track which note(s) it most recently triggered so it can emit corre
 
 ---
 
-## Phase 3: Ruinae Integration — Processor & Parameters
+## Phase 3: Ruinae Integration — Processor & Parameters ✅ COMPLETE
 
 **Plugin Layer**: `plugins/ruinae/`
 **Files**:
@@ -307,6 +307,8 @@ The arp must track which note(s) it most recently triggered so it can emit corre
 - `plugins/ruinae/src/controller/controller.cpp` — parameter registration
 - `plugins/ruinae/resources/editor.uidesc` — basic UI controls in SEQ tab
 **Test**: `plugins/ruinae/tests/unit/processor/arpeggiator_integration_test.cpp`
+**Spec**: `specs/071-arp-engine-integration/spec.md`
+**Branch**: `071-arp-engine-integration`
 **Depends on**: Phase 2
 
 ### Purpose
@@ -395,22 +397,24 @@ Add arp parameters to `Processor::getState()` / `setState()` following the exist
 
 ### Acceptance Criteria
 
-- [ ] Arp plays notes when enabled with keys held and transport running
-- [ ] All 11 parameters controllable from host (automation, presets)
-- [ ] State save/load preserves all arp settings
-- [ ] Pluginval level 5 passes
-- [ ] No audio glitches on arp enable/disable transitions
-- [ ] Zero compiler warnings
+- [x] Arp plays notes when enabled with keys held and transport running
+- [x] All 11 parameters controllable from host (automation, presets)
+- [x] State save/load preserves all arp settings
+- [x] Pluginval level 5 passes
+- [x] No audio glitches on arp enable/disable transitions
+- [x] Zero compiler warnings
 
 ---
 
-## Phase 4: Independent Lane Architecture
+## Phase 4: Independent Lane Architecture ✅ COMPLETE
 
 **DSP Layer**: 1 (primitives) + 2 (processors)
 **Files**:
 - `dsp/include/krate/dsp/primitives/arp_lane.h` — generic lane container
 - `dsp/include/krate/dsp/processors/arpeggiator_core.h` — extend with lanes
 **Test**: `dsp/tests/unit/primitives/arp_lane_test.cpp`
+**Spec**: `specs/072-independent-lanes/spec.md`
+**Branch**: `072-independent-lanes`
 **Depends on**: Phase 3
 
 ### Purpose
@@ -486,10 +490,10 @@ kArpPitchLaneStep0Id        = 3101,  // through Step31Id = 3132
 
 ### Acceptance Criteria
 
-- [ ] Lanes cycle independently at different lengths
-- [ ] Lane values correctly applied to arp events (pitch offset, velocity scale, gate length)
-- [ ] Lane state serialized/deserialized with plugin state
-- [ ] No allocation in advance() path
+- [x] Lanes cycle independently at different lengths
+- [x] Lane values correctly applied to arp events (pitch offset, velocity scale, gate length)
+- [x] Lane state serialized/deserialized with plugin state
+- [x] No allocation in advance() path
 
 ---
 
