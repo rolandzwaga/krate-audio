@@ -400,19 +400,19 @@ Note: The `setEuclideanEnabled()` method was implemented in Task Group 1 (T019).
 
 ### 9.1 Architecture Documentation Update
 
-- [ ] T112 [P] Update `specs/_architecture_/layer-2-processors.md` to update the `ArpeggiatorCore` entry with Euclidean state additions:
+- [X] T112 [P] Update `specs/_architecture_/layer-2-processors.md` to update the `ArpeggiatorCore` entry with Euclidean state additions:
   - New members: `euclideanEnabled_`, `euclideanHits_`, `euclideanSteps_`, `euclideanRotation_`, `euclideanPosition_`, `euclideanPattern_`
   - New private helper: `regenerateEuclideanPattern()`
   - New public setters: `setEuclideanSteps()`, `setEuclideanHits()`, `setEuclideanRotation()`, `setEuclideanEnabled()`
   - New public getters: `euclideanEnabled()`, `euclideanHits()`, `euclideanSteps()`, `euclideanRotation()`
   - Evaluation order: Euclidean gating -> Modifier priority chain (Rest > Tie > Slide > Accent) -> Ratcheting
   - Note: Phase 8 Conditional Trig will insert its check between Euclidean gating and Modifier evaluation
-- [ ] T113 [P] Update `specs/_architecture_/plugin-parameter-system.md` (if it exists) to document Euclidean parameter IDs 3230-3233:
+- [X] T113 [P] Update `specs/_architecture_/plugin-parameter-system.md` (if it exists) to document Euclidean parameter IDs 3230-3233:
   - 4 new parameters: enabled (3230, toggle), hits (3231, RangeParameter 0-32), steps (3232, RangeParameter 2-32), rotation (3233, RangeParameter 0-31)
   - All 4 have kCanAutomate; none have kIsHidden
   - kArpEndId=3299 and kNumParameters=3300 unchanged
   - 3234-3299 reserved for Phase 8 Conditional Trig and Phase 9 Spice/Dice
-- [ ] T114 [P] Update `specs/_architecture_/plugin-state-persistence.md` (if it exists) to document Euclidean serialization format:
+- [X] T114 [P] Update `specs/_architecture_/plugin-state-persistence.md` (if it exists) to document Euclidean serialization format:
   - 4 int32 fields appended after ratchet lane data: euclideanEnabled, euclideanHits, euclideanSteps, euclideanRotation
   - EOF at first Euclidean field = Phase 6 backward compat (return true, keep defaults)
   - EOF after first field = corrupt stream (return false)

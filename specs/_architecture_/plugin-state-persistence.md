@@ -99,6 +99,33 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
                       //   - EOF after modifierLaneLength (partial modifier data) = corrupt
                       //     stream, return false
                       // Phase 4 presets load with all modifier defaults automatically
+
+--- New in Spec 074 (EOF-safe, no version bump, appended after modifier data) ---
+[ArpRatchetLaneData]  // 132 bytes total, appended after ArpModifierLaneData:
+                      //   [int32: ratchetLaneLength]                                  (4 bytes)
+                      //   [int32 x32: ratchetLaneSteps]                               (128 bytes)
+                      // EOF-safe backward-compatible loading:
+                      //   - EOF at ratchetLaneLength read = Phase 5 preset, return true
+                      //     (ratchet fields retain defaults: length=1, steps=1)
+                      //   - EOF after ratchetLaneLength (partial ratchet data) = corrupt
+                      //     stream, return false
+                      // Phase 5 presets load with all ratchet defaults automatically
+
+--- New in Spec 075 (EOF-safe, no version bump, appended after ratchet data) ---
+[ArpEuclideanData]    // 16 bytes total, appended after ArpRatchetLaneData:
+                      //   [int32: euclideanEnabled (0 or 1)]                          (4 bytes)
+                      //   [int32: euclideanHits (0-32)]                               (4 bytes)
+                      //   [int32: euclideanSteps (2-32)]                              (4 bytes)
+                      //   [int32: euclideanRotation (0-31)]                           (4 bytes)
+                      // EOF-safe backward-compatible loading:
+                      //   - EOF at euclideanEnabled read = Phase 6 preset, return true
+                      //     (all Euclidean fields retain defaults: enabled=false, hits=4,
+                      //      steps=8, rotation=0)
+                      //   - EOF after euclideanEnabled (remaining fields missing) = corrupt
+                      //     stream, return false
+                      //   - Out-of-range values are clamped silently:
+                      //     hits to [0, 32], steps to [2, 32], rotation to [0, 31]
+                      // Phase 6 presets load with Euclidean disabled automatically
 ```
 
 ---
@@ -352,6 +379,101 @@ for (int i = 0; i < 32; ++i) {
 | Phase 4 (Spec 072, all lanes) | Yes | All lanes fully restored |
 
 Lane identity defaults ensure that presets without lane data produce bit-identical output to Phase 3: velocity scale 1.0 = no change, gate multiplier 1.0 = no change, pitch offset 0 = no change.
+
+---
+
+## Arpeggiator Ratchet Lane Data Backward Compatibility (Spec 074)
+
+### Background
+
+Spec 074 added 33 ratchet lane parameters (IDs 3190-3222) to the arpeggiator parameter pack, serialized as 132 bytes appended after the modifier lane data. Like previous arp data, ratchet lane data uses EOF-safe loading without a version bump. The sentinel was expanded from `kArpEndId = 3199` / `kNumParameters = 3200` to `kArpEndId = 3299` / `kNumParameters = 3300` to accommodate ratchet lane IDs beyond 3199.
+
+### Serialization Format (132 bytes)
+
+```
+[int32: ratchetLaneLength]             // 4 bytes
+[int32 x32: ratchetLaneSteps[0..31]]   // 128 bytes
+                                       // Total: 132 bytes
+```
+
+All 32 step values are written regardless of the active lane length. Step values are clamped to [1, 4] on load.
+
+### EOF-Safe Loading Pattern
+
+Ratchet lane loading continues the EOF-safe pattern. The first field (ratchetLaneLength) at EOF indicates a Phase 5 preset (return true, keep defaults). EOF after the first field indicates a corrupt stream (return false).
+
+### Backward Compatibility
+
+| Preset Source | Ratchet Data Present? | Behavior |
+|---------------|----------------------|----------|
+| Phase 5 (Spec 073, no ratchet) | No | Ratchet lane at identity defaults: length=1, step[0]=1 (no ratcheting) |
+| Phase 6 (Spec 074, with ratchet) | Yes | Ratchet lane fully restored |
+
+Ratchet identity defaults (all steps = 1) produce bit-identical output to Phase 5: ratchet count 1 means no sub-step retriggering.
+
+---
+
+## Arpeggiator Euclidean Data Backward Compatibility (Spec 075)
+
+### Background
+
+Spec 075 added 4 Euclidean timing parameters (IDs 3230-3233) to the arpeggiator parameter pack, serialized as 16 bytes appended after the ratchet lane data. Like previous arp data, Euclidean data uses EOF-safe loading without a version bump. The sentinel values (`kArpEndId = 3299`, `kNumParameters = 3300`) are unchanged from Phase 6.
+
+### Serialization Format (16 bytes)
+
+```
+[int32: euclideanEnabled (0 or 1)]     // 4 bytes
+[int32: euclideanHits (0-32)]          // 4 bytes
+[int32: euclideanSteps (2-32)]         // 4 bytes
+[int32: euclideanRotation (0-31)]      // 4 bytes
+                                       // Total: 16 bytes
+```
+
+### EOF-Safe Loading Pattern
+
+Euclidean data loading uses a **tiered EOF-safe pattern**:
+
+```cpp
+// After loading ratchet lane data...
+
+// First Euclidean field: EOF = Phase 6 backward compat (return true)
+if (!streamer.readInt32(intVal)) return true;  // No Euclidean data = Phase 6 preset
+params.euclideanEnabled.store(intVal != 0, relaxed);
+
+// Subsequent fields: EOF = corrupt stream (return false)
+if (!streamer.readInt32(intVal)) return false;  // Partial = corrupt
+params.euclideanHits.store(std::clamp(intVal, 0, 32), relaxed);
+
+if (!streamer.readInt32(intVal)) return false;
+params.euclideanSteps.store(std::clamp(intVal, 2, 32), relaxed);
+
+if (!streamer.readInt32(intVal)) return false;
+params.euclideanRotation.store(std::clamp(intVal, 0, 31), relaxed);
+
+return true;
+```
+
+The key distinction from other EOF-safe patterns: only the **first** Euclidean field (euclideanEnabled) at EOF is treated as backward compatibility (return true). If euclideanEnabled was successfully read but subsequent fields are missing, this indicates a corrupt stream (return false), not a legitimate older preset format.
+
+### Controller Sync
+
+When `loadArpParamsToController()` reads Euclidean data, it propagates values to the controller via `setParamNormalized()` with inverse mappings:
+
+| Parameter | Inverse Mapping |
+|-----------|----------------|
+| Euclidean Enabled | `intVal != 0 ? 1.0 : 0.0` |
+| Euclidean Hits | `clamp(intVal, 0, 32) / 32.0` |
+| Euclidean Steps | `(clamp(intVal, 2, 32) - 2) / 30.0` |
+| Euclidean Rotation | `clamp(intVal, 0, 31) / 31.0` |
+
+### Backward Compatibility
+
+| Preset Source | Euclidean Data Present? | Behavior |
+|---------------|------------------------|----------|
+| Phase 6 (Spec 074, no Euclidean) | No | All Euclidean fields at defaults: enabled=false, hits=4, steps=8, rotation=0 |
+| Phase 7 (Spec 075, with Euclidean) | Yes | All Euclidean fields fully restored |
+
+Euclidean identity defaults (enabled=false) produce bit-identical output to Phase 6: Euclidean gating is inactive, all steps fire normally.
 
 ---
 

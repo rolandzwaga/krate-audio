@@ -89,10 +89,12 @@ Processor::setState()
 | **3000-3010** | **Arpeggiator (base)** | **`arpeggiator_params.h`** | **11** |
 | **3020-3132** | **Arpeggiator Lanes** | **`arpeggiator_params.h`** | **99** |
 | **3140-3181** | **Arpeggiator Modifiers** | **`arpeggiator_params.h`** | **35** |
+| **3190-3222** | **Arpeggiator Ratchet Lane** | **`arpeggiator_params.h`** | **33** |
+| **3230-3233** | **Arpeggiator Euclidean** | **`arpeggiator_params.h`** | **4** |
 
-**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3139 (reserved), 3173-3179 (reserved), 3182-3189 (reserved), 3190-3199 (future phases 6-8)
+**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3139 (reserved), 3173-3179 (reserved), 3182-3189 (reserved), 3223-3229 (reserved), 3234-3299 (reserved for future arp phases: Conditional Trig, Spice/Dice)
 
-**Sentinel**: `kArpEndId = 3199`, `kNumParameters = 3200` (unchanged by Spec 073 -- all 35 modifier IDs fit within the existing 3133-3199 reserved range)
+**Sentinel**: `kArpEndId = 3299`, `kNumParameters = 3300` (updated in Spec 074 to accommodate ratchet lane IDs 3190-3222; unchanged by Specs 075)
 
 ---
 
@@ -758,11 +760,14 @@ Controller loading requires inverse mapping:
 Extend `ArpeggiatorParams` when adding new arpeggiator features:
 - **Phase 4 (Independent Lane Architecture)**: Lane step parameters added in 3020-3132 ID range (done -- see below)
 - **Phase 5 (Per-Step Modifiers)**: Modifier lane parameters added in 3140-3181 ID range (done -- see [Modifier Parameters section](#arpeggiator-modifier-parameters-spec-073) below)
-- **Phase 6 (Ratcheting)**: Add ratchet lane parameters in reserved 3190-3199 range (may need to expand kArpEndId)
+- **Phase 6 (Ratcheting)**: Ratchet lane parameters added in 3190-3222 ID range (done -- see [Ratchet Lane Parameters section](#arpeggiator-ratchet-lane-parameters-spec-074) below)
+- **Phase 7 (Euclidean Timing)**: Euclidean parameters added in 3230-3233 ID range (done -- see [Euclidean Parameters section](#arpeggiator-euclidean-parameters-spec-075) below)
+- **Phase 8 (Conditional Trig)**: Future -- will use IDs in the 3234-3299 reserved range
+- **Phase 9 (Spice/Dice + Humanize)**: Future -- will use IDs in the 3234-3299 reserved range
 - **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations
 - **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes expected
 
-The sentinel `kArpEndId = 3199` accommodates future lane parameters and arp extensions without requiring an ID allocation change.
+The sentinel `kArpEndId = 3299` accommodates future lane parameters and arp extensions without requiring an ID allocation change.
 
 ---
 
@@ -959,6 +964,125 @@ engine_.setPortamentoTime(arpParams_.slideTime.load(relaxed));  // forwarded to 
 
 ---
 
+## Arpeggiator Ratchet Lane Parameters (Spec 074)
+
+**File**: `plugins/ruinae/src/parameters/arpeggiator_params.h`
+**IDs**: 3190-3222 (33 parameters: 1 length + 32 steps)
+
+### Purpose
+
+Per-step ratchet counts for sub-step retriggering within arp steps. Each step stores a subdivision count (1-4), where 1 means normal playback and 2-4 produce rapid retriggered repetitions within the step's duration. The ratchet lane advances independently of all other lanes, participating in the polymetric lane system.
+
+### Ratchet Parameter ID Allocation
+
+| ID | Name | Type | Range | Default | Flags |
+|----|------|------|-------|---------|-------|
+| 3190 | Arp Ratchet Lane Len | Discrete (int) | 1-32 | 1 | `kCanAutomate` |
+| 3191-3222 | Arp Ratch Step 0-31 | Discrete (int) | 1-4 | 1 | `kCanAutomate \| kIsHidden` |
+
+**Denormalization**: Length: `1 + round(norm * 31)`, stepCount=31. Steps: `1 + round(norm * 3)`, stepCount=3.
+
+### ArpeggiatorParams Struct Extension
+
+```cpp
+struct ArpeggiatorParams {
+    // ... existing base + velocity/gate/pitch lane + modifier lane fields ...
+
+    // Ratchet lane (Spec 074)
+    std::atomic<int> ratchetLaneLength{1};                  // [1, 32]
+    std::atomic<int> ratchetLaneSteps[32];                  // [1, 4], init to 1
+};
+```
+
+### Format Strings
+
+| Parameter | Examples |
+|-----------|----------|
+| Ratchet Lane Length | "1 steps", "4 steps", "32 steps" |
+| Ratchet Lane Steps | "1x", "2x", "3x", "4x" |
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToArp():
+// Expand-write-shrink pattern (same as other lanes):
+arp_.ratchetLane().setLength(32);
+for (int i = 0; i < 32; ++i) {
+    int val = std::clamp(arpParams_.ratchetLaneSteps[i].load(relaxed), 1, 4);
+    arp_.ratchetLane().setStep(i, static_cast<uint8_t>(val));
+}
+arp_.ratchetLane().setLength(static_cast<size_t>(arpParams_.ratchetLaneLength.load(relaxed)));
+```
+
+---
+
+## Arpeggiator Euclidean Parameters (Spec 075)
+
+**File**: `plugins/ruinae/src/parameters/arpeggiator_params.h`
+**IDs**: 3230-3233 (4 parameters)
+
+### Purpose
+
+Euclidean timing controls for Bjorklund-algorithm rhythmic gating. The Euclidean pattern determines which arp steps fire notes (hits) and which are silent (rests). Three parameters (Hits, Steps, Rotation) define the pattern; a fourth (Enabled) toggles the mode on/off. When disabled, all steps fire normally (Phase 6 behavior).
+
+### Euclidean Parameter ID Allocation
+
+| ID | Name | Type | Range | Default (Norm) | Flags |
+|----|------|------|-------|----------------|-------|
+| 3230 | Arp Euclidean | Toggle | 0-1 | 0.0 (Off) | `kCanAutomate` |
+| 3231 | Arp Euclidean Hits | RangeParameter | 0-32 | 4 (norm: 4/32) | `kCanAutomate` |
+| 3232 | Arp Euclidean Steps | RangeParameter | 2-32 | 8 (norm: 6/30) | `kCanAutomate` |
+| 3233 | Arp Euclidean Rotation | RangeParameter | 0-31 | 0 (norm: 0.0) | `kCanAutomate` |
+
+All 4 parameters have `kCanAutomate` and none have `kIsHidden` -- all are user-facing controls. The UI for Euclidean controls (Hits/Steps/Rotation knobs with visual pattern display) is deferred to Phase 11.
+
+### Denormalization
+
+| Parameter | Formula | Step Count |
+|-----------|---------|------------|
+| Euclidean Enabled | `norm >= 0.5` | 1 |
+| Euclidean Hits | `clamp(round(norm * 32), 0, 32)` | 32 |
+| Euclidean Steps | `clamp(2 + round(norm * 30), 2, 32)` | 30 |
+| Euclidean Rotation | `clamp(round(norm * 31), 0, 31)` | 31 |
+
+### ArpeggiatorParams Struct Extension
+
+```cpp
+struct ArpeggiatorParams {
+    // ... existing base + lane + modifier + ratchet fields ...
+
+    // Euclidean Timing (Spec 075)
+    std::atomic<bool> euclideanEnabled{false};    // default off
+    std::atomic<int>  euclideanHits{4};           // default 4
+    std::atomic<int>  euclideanSteps{8};          // default 8
+    std::atomic<int>  euclideanRotation{0};       // default 0
+};
+```
+
+### Format Strings
+
+| Parameter | Examples |
+|-----------|----------|
+| Euclidean Enabled | "Off", "On" |
+| Euclidean Hits | "0 hits", "3 hits", "5 hits", "32 hits" |
+| Euclidean Steps | "2 steps", "8 steps", "16 steps", "32 steps" |
+| Euclidean Rotation | "0", "3", "7", "31" |
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToEngine():
+// Prescribed call order: steps -> hits -> rotation -> enabled (FR-032)
+// Steps must be set before hits so clamping uses the correct step count.
+// Enabled must be set last so gating activates only after pattern is fully computed.
+arpCore_.setEuclideanSteps(arpParams_.euclideanSteps.load(relaxed));
+arpCore_.setEuclideanHits(arpParams_.euclideanHits.load(relaxed));
+arpCore_.setEuclideanRotation(arpParams_.euclideanRotation.load(relaxed));
+arpCore_.setEuclideanEnabled(arpParams_.euclideanEnabled.load(relaxed));
+```
+
+---
+
 ## Denormalization Mappings Reference
 
 | Mapping | Parameters | Formula |
@@ -980,7 +1104,10 @@ engine_.setPortamentoTime(arpParams_.slideTime.load(relaxed));  // forwarded to 
 | Discrete (stepped) | Pitch Bend Range (0-24st) | `round(normalized * 24)` |
 | Discrete | Rungler Bits (4-16) | `4 + round(normalized * 12)` |
 | Linear (offset+scale) | Arp Free Rate (0.5-50Hz), Arp Gate Length (1-200%), Arp Swing (0-75%) | `offset + normalized * range` |
-| Boolean | Loop Mode, Enabled flags, Gain Comp, S&H Sync, Rnd Sync, Arp Enabled, Arp Tempo Sync | `normalized >= 0.5` |
+| Discrete (offset+scale) | Arp Euclidean Hits (0-32), Ratchet Steps (1-4) | `round(normalized * range)` or `offset + round(normalized * range)` |
+| Discrete (offset+scale) | Arp Euclidean Steps (2-32) | `2 + round(normalized * 30)` |
+| Discrete (scaled) | Arp Euclidean Rotation (0-31) | `round(normalized * 31)` |
+| Boolean | Loop Mode, Enabled flags, Gain Comp, S&H Sync, Rnd Sync, Arp Enabled, Arp Tempo Sync, Arp Euclidean Enabled | `normalized >= 0.5` |
 
 ---
 
