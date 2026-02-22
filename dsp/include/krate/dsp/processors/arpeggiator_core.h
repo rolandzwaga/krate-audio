@@ -1010,6 +1010,42 @@ private:
             uint8_t modifierFlags = modifierLane_.advance();
             uint8_t ratchetCount = std::max(uint8_t{1}, ratchetLane_.advance());  // 074-ratcheting (FR-004)
 
+            // --- 075-euclidean-timing: Euclidean gating check (FR-011, FR-012) ---
+            // Evaluated AFTER all lane advances but BEFORE modifier evaluation.
+            // All lanes above advance unconditionally on every step tick,
+            // including Euclidean rest steps (FR-004, FR-011).
+            if (euclideanEnabled_) {
+                bool isHitStep = EuclideanPattern::isHit(
+                    euclideanPattern_,
+                    static_cast<int>(euclideanPosition_),
+                    euclideanSteps_);
+
+                // Advance position unconditionally (FR-012)
+                euclideanPosition_ = (euclideanPosition_ + 1)
+                    % static_cast<size_t>(euclideanSteps_);
+
+                if (!isHitStep) {
+                    // Euclidean rest path (FR-004, FR-006, FR-007):
+                    // Cancel pending noteOffs to prevent double emission
+                    cancelPendingNoteOffsForCurrentNotes();
+
+                    // Emit noteOff for all currently sounding notes
+                    for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
+                        outputEvents[eventCount++] = ArpEvent{
+                            ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                    }
+                    currentArpNoteCount_ = 0;
+
+                    // Break any active tie chain (FR-007)
+                    tieActive_ = false;
+
+                    // Increment swing step counter and recalculate duration
+                    ++swingStepCounter_;
+                    currentStepDuration_ = calculateStepDuration(ctx);
+                    return;
+                }
+            }
+
             // --- Modifier evaluation (073-per-step-mods) ---
             // Priority: Rest > Tie > Slide > Accent
 
@@ -1301,6 +1337,13 @@ private:
             modifierLane_.advance();
             ratchetLane_.advance();          // 074-ratcheting: keep ratchet lane synchronized (FR-036)
             ratchetSubStepsRemaining_ = 0;   // 074-ratcheting: clear any pending sub-steps
+
+            // 075-euclidean-timing (FR-035): advance Euclidean position in
+            // defensive branch to prevent desync with other lanes
+            if (euclideanEnabled_) {
+                euclideanPosition_ = (euclideanPosition_ + 1)
+                    % static_cast<size_t>(euclideanSteps_);
+            }
 
             // Treat as rest -- no NoteOn emitted. Emit NoteOff for any
             // currently sounding arp note to prevent stuck notes (FR-024).
