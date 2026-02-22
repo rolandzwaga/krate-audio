@@ -1882,3 +1882,455 @@ TEST_CASE("ModifierParams_FlowToCore", "[arp][integration]") {
     CHECK(arp.modifierLane().getStep(2) == 0);
     CHECK(arp.modifierLane().getStep(3) == 1);
 }
+
+// =============================================================================
+// Phase 7 (074-ratcheting) US5: Ratcheting State Persistence Integration Tests
+// =============================================================================
+
+// T069: State round-trip: ratchet lane length 6 with steps [1,2,3,4,2,1]
+// survives save/load cycle unchanged (SC-007, FR-033)
+TEST_CASE("RatchetParams_StateRoundTrip_LanePersists", "[arp][integration][ratchet][state]") {
+    using namespace Ruinae;
+
+    // Create original params and set ratchet lane data
+    ArpeggiatorParams original;
+    original.ratchetLaneLength.store(6, std::memory_order_relaxed);
+    const int expectedSteps[] = {1, 2, 3, 4, 2, 1};
+    for (int i = 0; i < 6; ++i) {
+        original.ratchetLaneSteps[i].store(expectedSteps[i], std::memory_order_relaxed);
+    }
+
+    // Save to stream
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        saveArpParams(original, writer);
+    }
+
+    // Load into fresh params
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE(ok);
+    }
+
+    // Verify all ratchet lane values match
+    CHECK(loaded.ratchetLaneLength.load() == 6);
+    for (int i = 0; i < 6; ++i) {
+        INFO("Step " << i);
+        CHECK(loaded.ratchetLaneSteps[i].load() == expectedSteps[i]);
+    }
+    // Steps beyond lane length should be default (1)
+    for (int i = 6; i < 32; ++i) {
+        INFO("Step " << i << " (beyond lane length)");
+        CHECK(loaded.ratchetLaneSteps[i].load() == 1);
+    }
+}
+
+// T070: Phase 5 backward compatibility: loadArpParams() with stream ending at EOF
+// before ratchetLaneLength returns true and defaults ratchet to length 1 / all steps 1
+// (SC-008, FR-034)
+TEST_CASE("RatchetParams_Phase5BackwardCompat_DefaultsOnEOF", "[arp][integration][ratchet][state]") {
+    using namespace Ruinae;
+
+    // Create a Phase 5 preset (everything up to slide time, but NO ratchet data)
+    ArpeggiatorParams phase5Params;
+    phase5Params.enabled.store(true, std::memory_order_relaxed);
+    phase5Params.mode.store(3, std::memory_order_relaxed);
+    phase5Params.swing.store(25.0f, std::memory_order_relaxed);
+
+    // Save WITHOUT ratchet fields (simulate Phase 5 serialization)
+    // We'll save the params, but then we'll create a truncated stream
+    // that ends right after the slide time field (Phase 5 end).
+    auto fullStream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(fullStream, kLittleEndian);
+        // Write the Phase 5 format (all fields BEFORE ratchet)
+        writer.writeInt32(phase5Params.enabled.load() ? 1 : 0);
+        writer.writeInt32(phase5Params.mode.load());
+        writer.writeInt32(phase5Params.octaveRange.load());
+        writer.writeInt32(phase5Params.octaveMode.load());
+        writer.writeInt32(phase5Params.tempoSync.load() ? 1 : 0);
+        writer.writeInt32(phase5Params.noteValue.load());
+        writer.writeFloat(phase5Params.freeRate.load());
+        writer.writeFloat(phase5Params.gateLength.load());
+        writer.writeFloat(phase5Params.swing.load());
+        writer.writeInt32(phase5Params.latchMode.load());
+        writer.writeInt32(phase5Params.retrigger.load());
+        // Velocity lane
+        writer.writeInt32(phase5Params.velocityLaneLength.load());
+        for (int i = 0; i < 32; ++i) writer.writeFloat(phase5Params.velocityLaneSteps[i].load());
+        // Gate lane
+        writer.writeInt32(phase5Params.gateLaneLength.load());
+        for (int i = 0; i < 32; ++i) writer.writeFloat(phase5Params.gateLaneSteps[i].load());
+        // Pitch lane
+        writer.writeInt32(phase5Params.pitchLaneLength.load());
+        for (int i = 0; i < 32; ++i) writer.writeInt32(phase5Params.pitchLaneSteps[i].load());
+        // Modifier lane
+        writer.writeInt32(phase5Params.modifierLaneLength.load());
+        for (int i = 0; i < 32; ++i) writer.writeInt32(phase5Params.modifierLaneSteps[i].load());
+        writer.writeInt32(phase5Params.accentVelocity.load());
+        writer.writeFloat(phase5Params.slideTime.load());
+        // NO ratchet data follows -- this is a Phase 5 stream
+    }
+
+    // Load the Phase 5 stream
+    fullStream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(fullStream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE(ok);  // Must return true (backward compat)
+    }
+
+    // Ratchet values should be at defaults
+    CHECK(loaded.ratchetLaneLength.load() == 1);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Step " << i);
+        CHECK(loaded.ratchetLaneSteps[i].load() == 1);
+    }
+
+    // Non-ratchet values should have loaded correctly
+    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.mode.load() == 3);
+    CHECK(loaded.swing.load() == Approx(25.0f).margin(0.01f));
+}
+
+// T071: Corrupt stream: loadArpParams() returns false when ratchetLaneLength is read
+// but stream ends before all 32 step values (FR-034)
+TEST_CASE("RatchetParams_CorruptStream_ReturnsFalse", "[arp][integration][ratchet][state]") {
+    using namespace Ruinae;
+
+    // Create a stream with ratchet length but incomplete step data
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        // Write full Phase 5 data first
+        ArpeggiatorParams p;
+        writer.writeInt32(p.enabled.load() ? 1 : 0);
+        writer.writeInt32(p.mode.load());
+        writer.writeInt32(p.octaveRange.load());
+        writer.writeInt32(p.octaveMode.load());
+        writer.writeInt32(p.tempoSync.load() ? 1 : 0);
+        writer.writeInt32(p.noteValue.load());
+        writer.writeFloat(p.freeRate.load());
+        writer.writeFloat(p.gateLength.load());
+        writer.writeFloat(p.swing.load());
+        writer.writeInt32(p.latchMode.load());
+        writer.writeInt32(p.retrigger.load());
+        // Velocity lane
+        writer.writeInt32(1);
+        for (int i = 0; i < 32; ++i) writer.writeFloat(1.0f);
+        // Gate lane
+        writer.writeInt32(1);
+        for (int i = 0; i < 32; ++i) writer.writeFloat(1.0f);
+        // Pitch lane
+        writer.writeInt32(1);
+        for (int i = 0; i < 32; ++i) writer.writeInt32(0);
+        // Modifier lane
+        writer.writeInt32(1);
+        for (int i = 0; i < 32; ++i) writer.writeInt32(1);
+        writer.writeInt32(30);   // accent velocity
+        writer.writeFloat(60.0f); // slide time
+        // Ratchet length (present)
+        writer.writeInt32(4);
+        // Only write 5 of 32 step values (truncated / corrupt)
+        for (int i = 0; i < 5; ++i) writer.writeInt32(2);
+        // Stream ends mid-steps -- corrupt
+    }
+
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE_FALSE(ok);  // Must return false (corrupt stream)
+    }
+}
+
+// T072: Parameter registration: all 33 ratchet parameter IDs (3190-3222) are registered
+// (SC-010, FR-028, FR-030)
+TEST_CASE("RatchetParams_SC010_AllRegistered", "[arp][integration][ratchet]") {
+    using namespace Ruinae;
+    using namespace Steinberg::Vst;
+
+    ParameterContainer container;
+    registerArpParams(container);
+
+    int ratchetParamCount = 0;
+
+    // Ratchet lane length (3190): kCanAutomate, NOT kIsHidden
+    {
+        auto* param = container.getParameter(kArpRatchetLaneLengthId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+        ++ratchetParamCount;
+    }
+
+    // Ratchet lane steps (3191-3222): kCanAutomate AND kIsHidden
+    for (int i = 0; i < 32; ++i) {
+        auto paramId = static_cast<ParamID>(kArpRatchetLaneStep0Id + i);
+        auto* param = container.getParameter(paramId);
+        INFO("Ratchet step param " << i << " (ID " << paramId << ")");
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+        ++ratchetParamCount;
+    }
+
+    // 33 total ratchet params
+    CHECK(ratchetParamCount == 33);
+}
+
+// T073: formatArpParam: kArpRatchetLaneLengthId with value for length 3 displays "3 steps"
+// (SC-010)
+TEST_CASE("RatchetParams_FormatLength_DisplaysSteps", "[arp][integration][ratchet]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+
+    // Length 3: normalized = (3-1)/31 = 2/31
+    auto result = formatArpParam(kArpRatchetLaneLengthId, 2.0 / 31.0, str);
+    REQUIRE(result == Steinberg::kResultOk);
+    char text[128];
+    Steinberg::UString(str, 128).toAscii(text, 128);
+    CHECK(std::string(text) == "3 steps");
+
+    // Length 1: normalized = 0
+    result = formatArpParam(kArpRatchetLaneLengthId, 0.0, str);
+    REQUIRE(result == Steinberg::kResultOk);
+    Steinberg::UString(str, 128).toAscii(text, 128);
+    CHECK(std::string(text) == "1 steps");
+
+    // Length 32: normalized = 1.0
+    result = formatArpParam(kArpRatchetLaneLengthId, 1.0, str);
+    REQUIRE(result == Steinberg::kResultOk);
+    Steinberg::UString(str, 128).toAscii(text, 128);
+    CHECK(std::string(text) == "32 steps");
+}
+
+// T074: formatArpParam: ratchet step IDs display "1x"/"2x"/"3x"/"4x" (SC-010)
+TEST_CASE("RatchetParams_FormatStep_DisplaysNx", "[arp][integration][ratchet]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+    char text[128];
+
+    // Value 1: normalized = (1-1)/3 = 0
+    auto result = formatArpParam(kArpRatchetLaneStep0Id, 0.0, str);
+    REQUIRE(result == Steinberg::kResultOk);
+    Steinberg::UString(str, 128).toAscii(text, 128);
+    CHECK(std::string(text) == "1x");
+
+    // Value 2: normalized = (2-1)/3 = 1/3
+    result = formatArpParam(kArpRatchetLaneStep0Id, 1.0 / 3.0, str);
+    REQUIRE(result == Steinberg::kResultOk);
+    Steinberg::UString(str, 128).toAscii(text, 128);
+    CHECK(std::string(text) == "2x");
+
+    // Value 3: normalized = (3-1)/3 = 2/3
+    result = formatArpParam(kArpRatchetLaneStep0Id, 2.0 / 3.0, str);
+    REQUIRE(result == Steinberg::kResultOk);
+    Steinberg::UString(str, 128).toAscii(text, 128);
+    CHECK(std::string(text) == "3x");
+
+    // Value 4: normalized = 1.0
+    result = formatArpParam(kArpRatchetLaneStep0Id, 1.0, str);
+    REQUIRE(result == Steinberg::kResultOk);
+    Steinberg::UString(str, 128).toAscii(text, 128);
+    CHECK(std::string(text) == "4x");
+
+    // Also test a step in the middle of the range (step 15)
+    result = formatArpParam(static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 15),
+                            2.0 / 3.0, str);
+    REQUIRE(result == Steinberg::kResultOk);
+    Steinberg::UString(str, 128).toAscii(text, 128);
+    CHECK(std::string(text) == "3x");
+}
+
+// T075: applyParamsToEngine() expand-write-shrink: ratchet lane length and
+// all 32 step values are correctly transferred to ArpeggiatorCore (FR-035)
+TEST_CASE("RatchetParams_ApplyToEngine_ExpandWriteShrink", "[arp][integration][ratchet]") {
+    using namespace Krate::DSP;
+    using namespace Ruinae;
+
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setTempoSync(true);
+
+    // Simulate param changes
+    ArpeggiatorParams params;
+    handleArpParamChange(params, kArpRatchetLaneLengthId, 5.0 / 31.0);  // length=6
+    // Steps: [1, 2, 3, 4, 2, 1] for the first 6
+    handleArpParamChange(params, kArpRatchetLaneStep0Id, 0.0);           // 1
+    handleArpParamChange(params, static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 1), 1.0 / 3.0); // 2
+    handleArpParamChange(params, static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 2), 2.0 / 3.0); // 3
+    handleArpParamChange(params, static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 3), 1.0);       // 4
+    handleArpParamChange(params, static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 4), 1.0 / 3.0); // 2
+    handleArpParamChange(params, static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 5), 0.0);       // 1
+
+    // Verify atomic storage
+    CHECK(params.ratchetLaneLength.load() == 6);
+    CHECK(params.ratchetLaneSteps[0].load() == 1);
+    CHECK(params.ratchetLaneSteps[1].load() == 2);
+    CHECK(params.ratchetLaneSteps[2].load() == 3);
+    CHECK(params.ratchetLaneSteps[3].load() == 4);
+    CHECK(params.ratchetLaneSteps[4].load() == 2);
+    CHECK(params.ratchetLaneSteps[5].load() == 1);
+
+    // Simulate applyParamsToEngine: expand-write-shrink pattern
+    {
+        const auto ratchetLen = params.ratchetLaneLength.load(std::memory_order_relaxed);
+        arp.ratchetLane().setLength(32);  // Expand
+        for (int i = 0; i < 32; ++i) {
+            int val = std::clamp(
+                params.ratchetLaneSteps[i].load(std::memory_order_relaxed), 1, 4);
+            arp.ratchetLane().setStep(
+                static_cast<size_t>(i), static_cast<uint8_t>(val));
+        }
+        arp.ratchetLane().setLength(static_cast<size_t>(ratchetLen));  // Shrink
+    }
+
+    // Verify the ArpeggiatorCore lane values match
+    CHECK(arp.ratchetLane().length() == 6);
+    CHECK(arp.ratchetLane().getStep(0) == 1);
+    CHECK(arp.ratchetLane().getStep(1) == 2);
+    CHECK(arp.ratchetLane().getStep(2) == 3);
+    CHECK(arp.ratchetLane().getStep(3) == 4);
+    CHECK(arp.ratchetLane().getStep(4) == 2);
+    CHECK(arp.ratchetLane().getStep(5) == 1);
+}
+
+// T075b: Controller state sync after load: after loadArpParamsToController loads
+// ratchet lane data, getParamNormalized returns correct values (FR-038)
+TEST_CASE("RatchetParams_ControllerSync_AfterLoad", "[arp][integration][ratchet][state]") {
+    using namespace Ruinae;
+
+    // Create params with ratchet data
+    ArpeggiatorParams original;
+    original.ratchetLaneLength.store(6, std::memory_order_relaxed);
+    const int steps[] = {1, 2, 3, 4, 2, 1};
+    for (int i = 0; i < 6; ++i)
+        original.ratchetLaneSteps[i].store(steps[i], std::memory_order_relaxed);
+
+    // Save to stream
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        saveArpParams(original, writer);
+    }
+
+    // Read via loadArpParamsToController, capturing setParamNormalized calls
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::map<Steinberg::Vst::ParamID, double> capturedParams;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        loadArpParamsToController(reader,
+            [&capturedParams](Steinberg::Vst::ParamID id, double val) {
+                capturedParams[id] = val;
+            });
+    }
+
+    // Verify ratchet lane length was set: normalized = (6-1)/31 = 5/31
+    REQUIRE(capturedParams.count(kArpRatchetLaneLengthId) > 0);
+    CHECK(capturedParams[kArpRatchetLaneLengthId] == Approx(5.0 / 31.0).margin(0.001));
+
+    // Verify ratchet step values
+    // Step 0: value=1, normalized = (1-1)/3 = 0
+    REQUIRE(capturedParams.count(kArpRatchetLaneStep0Id) > 0);
+    CHECK(capturedParams[kArpRatchetLaneStep0Id] == Approx(0.0).margin(0.001));
+
+    // Step 1: value=2, normalized = (2-1)/3 = 1/3
+    auto step1Id = static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 1);
+    REQUIRE(capturedParams.count(step1Id) > 0);
+    CHECK(capturedParams[step1Id] == Approx(1.0 / 3.0).margin(0.001));
+
+    // Step 2: value=3, normalized = (3-1)/3 = 2/3
+    auto step2Id = static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 2);
+    REQUIRE(capturedParams.count(step2Id) > 0);
+    CHECK(capturedParams[step2Id] == Approx(2.0 / 3.0).margin(0.001));
+
+    // Step 3: value=4, normalized = (4-1)/3 = 1.0
+    auto step3Id = static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 3);
+    REQUIRE(capturedParams.count(step3Id) > 0);
+    CHECK(capturedParams[step3Id] == Approx(1.0).margin(0.001));
+
+    // Step 4: value=2, normalized = 1/3
+    auto step4Id = static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 4);
+    REQUIRE(capturedParams.count(step4Id) > 0);
+    CHECK(capturedParams[step4Id] == Approx(1.0 / 3.0).margin(0.001));
+
+    // Step 5: value=1, normalized = 0
+    auto step5Id = static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + 5);
+    REQUIRE(capturedParams.count(step5Id) > 0);
+    CHECK(capturedParams[step5Id] == Approx(0.0).margin(0.001));
+}
+
+// T076: applyParamsToEngine() called every block does not reset ratchet sub-step
+// state mid-pattern (FR-039)
+TEST_CASE("RatchetParams_ApplyEveryBlock_NoSubStepReset", "[arp][integration][ratchet]") {
+    using namespace Krate::DSP;
+    using namespace Ruinae;
+
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setTempoSync(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+
+    // Set ratchet lane: length=1, step[0]=4 (all steps ratchet 4x)
+    arp.ratchetLane().setLength(1);
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(4));
+
+    // Hold a note
+    arp.noteOn(60, 100);
+
+    BlockContext ctx{.sampleRate = 44100.0, .blockSize = 512,
+                     .tempoBPM = 120.0, .isPlaying = true};
+    std::array<ArpEvent, 128> events{};
+
+    // Process blocks, applying expand-write-shrink EVERY block (simulating
+    // what the processor does). Count noteOn events to verify all 4 sub-steps fire.
+    ArpeggiatorParams params;
+    params.ratchetLaneLength.store(1, std::memory_order_relaxed);
+    params.ratchetLaneSteps[0].store(4, std::memory_order_relaxed);
+
+    int noteOnCount = 0;
+    // Process enough blocks for at least 4 full steps (4 * 4 = 16 sub-steps)
+    // At 120 BPM, 1/8 note = 11025 samples = ~21.5 blocks of 512
+    // 100 blocks * 512 = 51200 samples = ~4.6 steps
+    for (int block = 0; block < 100; ++block) {
+        // Simulate applyParamsToEngine every block
+        {
+            const auto rLen = params.ratchetLaneLength.load(std::memory_order_relaxed);
+            arp.ratchetLane().setLength(32);
+            for (int i = 0; i < 32; ++i) {
+                int val = std::clamp(
+                    params.ratchetLaneSteps[i].load(std::memory_order_relaxed), 1, 4);
+                arp.ratchetLane().setStep(
+                    static_cast<size_t>(i), static_cast<uint8_t>(val));
+            }
+            arp.ratchetLane().setLength(static_cast<size_t>(rLen));
+        }
+
+        size_t n = arp.processBlock(ctx, events);
+        for (size_t i = 0; i < n; ++i) {
+            if (events[i].type == ArpEvent::Type::NoteOn) {
+                ++noteOnCount;
+            }
+        }
+    }
+
+    // At 120 BPM, 1/8 note = 11025 samples. 100 blocks * 512 = 51200 samples.
+    // That covers ~4.6 steps, so at ratchet 4 we expect at least 12 noteOn events
+    // (3 full steps * 4 sub-steps = 12). If applyParamsToEngine reset sub-step state,
+    // we'd see far fewer because sub-steps would restart each block.
+    REQUIRE(noteOnCount >= 12);
+}

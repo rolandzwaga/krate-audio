@@ -101,7 +101,7 @@ struct ArpEvent {
 /// arp.noteOn(60, 100);
 /// arp.noteOn(64, 100);
 ///
-/// std::array<ArpEvent, 64> events;
+/// std::array<ArpEvent, 128> events;
 /// BlockContext ctx;
 /// ctx.isPlaying = true;
 /// size_t count = arp.processBlock(ctx, events);
@@ -112,7 +112,7 @@ public:
     // Constants
     // =========================================================================
 
-    static constexpr size_t kMaxEvents = 64;
+    static constexpr size_t kMaxEvents = 128;
     static constexpr size_t kMaxPendingNoteOffs = 32;
     static constexpr double kMinSampleRate = 1000.0;
     static constexpr float kMinFreeRate = 0.5f;
@@ -136,6 +136,10 @@ public:
         // ArpLane<uint8_t> zero-initializes steps to 0x00 = Rest. Without this
         // call, the default modifier lane would silence every arp note.
         modifierLane_.setStep(0, static_cast<uint8_t>(kStepActive));
+        // Set ratchet lane default: length=1, step[0]=1 (no ratcheting)
+        // ArpLane<uint8_t> zero-initializes steps to 0, which for ratchet
+        // would mean count 0 (invalid). Must explicitly set to 1 (FR-003).
+        ratchetLane_.setStep(0, static_cast<uint8_t>(1));
     }
 
     // =========================================================================
@@ -235,6 +239,8 @@ public:
     inline void setEnabled(bool enabled) noexcept {
         if (enabled_ && !enabled) {
             needsDisableNoteOff_ = true;
+            ratchetSubStepsRemaining_ = 0;  // 074-ratcheting: clear pending sub-steps (FR-026)
+            ratchetSubStepCounter_ = 0;
         }
         if (!enabled_ && enabled) {
             // FR-022: disable/enable transition resets lanes
@@ -338,6 +344,18 @@ public:
         return modifierLane_;
     }
 
+    // =========================================================================
+    // Ratchet Lane Accessors (074-ratcheting, FR-006)
+    // =========================================================================
+
+    /// @brief Access the ratchet lane for reading/writing step values.
+    ArpLane<uint8_t>& ratchetLane() noexcept { return ratchetLane_; }
+
+    /// @brief Const access to the ratchet lane.
+    [[nodiscard]] const ArpLane<uint8_t>& ratchetLane() const noexcept {
+        return ratchetLane_;
+    }
+
     /// @brief Set the accent velocity boost amount.
     /// @param amount Additive velocity boost for accented steps (0-127).
     void setAccentVelocity(int amount) noexcept {
@@ -421,6 +439,8 @@ public:
                 }
                 currentArpNoteCount_ = 0;
                 pendingNoteOffCount_ = 0;
+                ratchetSubStepsRemaining_ = 0;  // 074-ratcheting (FR-027)
+                ratchetSubStepCounter_ = 0;
             }
             wasPlaying_ = false;
             return eventCount;
@@ -510,13 +530,29 @@ public:
             size_t samplesUntilBlockEnd = blockSize - samplesProcessed;
             size_t jump = samplesUntilBlockEnd;  // default: consume to block end
 
+            // 074-ratcheting: sub-step boundary timing (FR-014)
+            size_t samplesUntilSubStep = SIZE_MAX;
+            if (ratchetSubStepsRemaining_ > 0) {
+                samplesUntilSubStep = ratchetSubStepDuration_ - ratchetSubStepCounter_;
+            }
+
             // Determine which event fires first
-            enum class NextEvent { BlockEnd, NoteOff, Step, BarBoundary };
+            // Priority: BarBoundary > NoteOff > Step > SubStep (FR-014)
+            enum class NextEvent { BlockEnd, NoteOff, Step, SubStep, BarBoundary };
             NextEvent next = NextEvent::BlockEnd;
 
             if (samplesUntilStep <= jump) {
                 jump = samplesUntilStep;
                 next = NextEvent::Step;
+            }
+            // SubStep: lower priority than Step (FR-014)
+            if (samplesUntilSubStep < jump) {
+                jump = samplesUntilSubStep;
+                next = NextEvent::SubStep;
+            } else if (samplesUntilSubStep == jump && next == NextEvent::BlockEnd) {
+                // SubStep fires at block end boundary -- process SubStep
+                jump = samplesUntilSubStep;
+                next = NextEvent::SubStep;
             }
             if (samplesUntilNoteOff < jump ||
                 (samplesUntilNoteOff == jump && next != NextEvent::Step)) {
@@ -531,12 +567,18 @@ public:
                 samplesUntilStep <= samplesUntilBlockEnd) {
                 next = NextEvent::NoteOff;
             }
+            // If NoteOff and SubStep fire at the same sample, process NoteOff first
+            if (samplesUntilNoteOff == samplesUntilSubStep &&
+                samplesUntilSubStep <= samplesUntilBlockEnd) {
+                next = NextEvent::NoteOff;
+            }
             // Bar boundary: must fire before or at same time as step
             if (samplesUntilBar < jump) {
                 jump = samplesUntilBar;
                 next = NextEvent::BarBoundary;
-            } else if (samplesUntilBar == jump && next == NextEvent::Step) {
-                // Bar boundary and step at same sample: bar reset first
+            } else if (samplesUntilBar == jump &&
+                       (next == NextEvent::Step || next == NextEvent::SubStep)) {
+                // Bar boundary and step/substep at same sample: bar reset first
                 next = NextEvent::BarBoundary;
             }
 
@@ -544,6 +586,10 @@ public:
             sampleCounter_ += jump;
             samplesProcessed += jump;
             decrementPendingNoteOffs(jump);
+            // 074-ratcheting: advance sub-step counter (FR-016)
+            if (ratchetSubStepsRemaining_ > 0) {
+                ratchetSubStepCounter_ += jump;
+            }
 
             if (next == NextEvent::BlockEnd) {
                 // No events fire -- we consumed the rest of the block
@@ -592,18 +638,35 @@ public:
                 if (sampleCounter_ >= currentStepDuration_) {
                     // Step fires at same offset -- process it
                     sampleCounter_ = 0;
+                    // 074-ratcheting: recalculate before fireStep (FR-025)
+                    currentStepDuration_ = calculateStepDuration(ctx);
                     fireStep(ctx, sampleOffset, outputEvents, eventCount, maxEvents,
                              samplesProcessed, blockSize);
+                }
+                // 074-ratcheting: NoteOff-coincident SubStep check (FR-015)
+                // If a sub-step boundary also fires at this same sample, process it
+                else if (ratchetSubStepsRemaining_ > 0 &&
+                         ratchetSubStepCounter_ >= ratchetSubStepDuration_) {
+                    fireSubStep(ctx, sampleOffset, outputEvents, eventCount, maxEvents);
                 }
             } else if (next == NextEvent::Step) {
                 // Step boundary reached
                 sampleCounter_ = 0;
+                // 074-ratcheting: Recalculate step duration before fireStep.
+                // The previous step's fireStep() already incremented swingStepCounter_
+                // but may have deferred the recalculation (when ratchetCount > 1).
+                // This ensures fireStep() sees the correct base duration for
+                // sub-step calculations. (FR-025)
+                currentStepDuration_ = calculateStepDuration(ctx);
 
                 // First emit any pending NoteOffs that are also due at this sample
                 emitDuePendingNoteOffs(sampleOffset, outputEvents, eventCount, maxEvents);
 
                 fireStep(ctx, sampleOffset, outputEvents, eventCount, maxEvents,
                          samplesProcessed, blockSize);
+            } else if (next == NextEvent::SubStep) {
+                // 074-ratcheting: Sub-step boundary reached (FR-015)
+                fireSubStep(ctx, sampleOffset, outputEvents, eventCount, maxEvents);
             }
         }
 
@@ -776,6 +839,82 @@ private:
         ++pendingNoteOffCount_;
     }
 
+    /// @brief Fire a ratchet sub-step: emit noteOn(s), schedule noteOff, advance state.
+    /// Called from processBlock() when NextEvent::SubStep fires or when a NoteOff
+    /// coincides with a sub-step boundary. (074-ratcheting, FR-015)
+    inline void fireSubStep([[maybe_unused]] const BlockContext& ctx,
+                             int32_t sampleOffset,
+                             std::span<ArpEvent> outputEvents,
+                             size_t& eventCount,
+                             size_t maxEvents) noexcept {
+        // (1) Emit pending NoteOffs due at this sample offset FIRST (FR-021 ordering)
+        emitDuePendingNoteOffs(sampleOffset, outputEvents, eventCount, maxEvents);
+
+        // (2) Emit noteOn for ratcheted note(s)
+        if (ratchetNoteCount_ > 1) {
+            // Chord mode: emit noteOn for all chord notes
+            for (size_t i = 0; i < ratchetNoteCount_ && eventCount < maxEvents; ++i) {
+                outputEvents[eventCount++] = ArpEvent{
+                    ArpEvent::Type::NoteOn,
+                    ratchetNotes_[i],
+                    ratchetVelocities_[i],
+                    sampleOffset,
+                    false};  // Sub-steps after first are never legato
+            }
+            // Update currentArpNotes_ tracking
+            for (size_t i = 0; i < ratchetNoteCount_ && i < 32; ++i) {
+                currentArpNotes_[i] = ratchetNotes_[i];
+            }
+            currentArpNoteCount_ = ratchetNoteCount_ < 32 ? ratchetNoteCount_ : 32;
+        } else {
+            // Single note mode
+            if (eventCount < maxEvents) {
+                outputEvents[eventCount++] = ArpEvent{
+                    ArpEvent::Type::NoteOn,
+                    ratchetNote_,
+                    ratchetVelocity_,
+                    sampleOffset,
+                    false};  // Sub-steps after first are never legato
+            }
+            currentArpNotes_[0] = ratchetNote_;
+            currentArpNoteCount_ = 1;
+        }
+
+        // (3) Schedule pending noteOff at ratchetGateDuration_
+        // For the last sub-step, check look-ahead: if next step is Tie/Slide,
+        // suppress the gate noteOff so the note sustains into the next step (FR-022).
+        // Sub-steps 0 through N-2 always schedule their noteOffs normally.
+        bool suppressGateNoteOff = false;
+        if (ratchetIsLastSubStep_) {
+            uint8_t nextModFlags = modifierLane_.getStep(
+                static_cast<size_t>(modifierLane_.currentStep()));
+            bool nextStepIsTie = (nextModFlags & kStepActive) != 0 &&
+                                 (nextModFlags & kStepTie) != 0;
+            bool nextStepIsSlide = (nextModFlags & kStepActive) != 0 &&
+                                   (nextModFlags & kStepSlide) != 0;
+            suppressGateNoteOff = nextStepIsTie || nextStepIsSlide;
+        }
+
+        if (!suppressGateNoteOff) {
+            if (ratchetNoteCount_ > 1) {
+                for (size_t i = 0; i < ratchetNoteCount_; ++i) {
+                    addPendingNoteOff(ratchetNotes_[i], ratchetGateDuration_,
+                                       outputEvents, eventCount, maxEvents);
+                }
+            } else {
+                addPendingNoteOff(ratchetNote_, ratchetGateDuration_,
+                                   outputEvents, eventCount, maxEvents);
+            }
+        }
+
+        // (4) Decrement remaining count and reset counter
+        --ratchetSubStepsRemaining_;
+        ratchetSubStepCounter_ = 0;
+
+        // Update last-sub-step flag for next sub-step
+        ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1);
+    }
+
     /// @brief Fire a step: advance NoteSelector, emit NoteOn, schedule NoteOff.
     inline void fireStep(const BlockContext& ctx,
                           int32_t sampleOffset,
@@ -793,6 +932,7 @@ private:
             float gateScale = gateLane_.advance();
             int8_t pitchOffset = pitchLane_.advance();
             uint8_t modifierFlags = modifierLane_.advance();
+            uint8_t ratchetCount = std::max(uint8_t{1}, ratchetLane_.advance());  // 074-ratcheting (FR-004)
 
             // --- Modifier evaluation (073-per-step-mods) ---
             // Priority: Rest > Tie > Slide > Accent
@@ -860,6 +1000,14 @@ private:
                     std::clamp(scaledVel, 1, 127));
             }
 
+            // 074-ratcheting (FR-020): Capture pre-accent velocities for
+            // subsequent sub-steps. Accent applies to first sub-step only;
+            // remaining sub-steps use these un-accented velocities.
+            std::array<uint8_t, 32> preAccentVelocities{};
+            for (size_t i = 0; i < result.count && i < 32; ++i) {
+                preAccentVelocities[i] = result.velocities[i];
+            }
+
             // Accent: boost velocity after lane scaling (FR-019, FR-020)
             // Accent applies to any step that emits a noteOn (Active and Slide).
             // Rest and Tie return early above, so this code only runs for note-emitting steps.
@@ -893,6 +1041,84 @@ private:
             bool nextStepIsSlide = (nextModFlags & kStepActive) != 0 &&
                                    (nextModFlags & kStepSlide) != 0;
             bool suppressGateNoteOff = nextStepIsTie || nextStepIsSlide;
+
+            // =================================================================
+            // 074-ratcheting: Ratchet subdivision (FR-007 through FR-013)
+            // =================================================================
+            if (ratchetCount > 1) {
+                // Sub-step timing: integer division (FR-007)
+                size_t subStepDuration = currentStepDuration_ / static_cast<size_t>(ratchetCount);
+
+                // Sub-step gate: inline calculation using subStepDuration (FR-010)
+                size_t subGateDuration = std::max(size_t{1}, static_cast<size_t>(
+                    static_cast<double>(subStepDuration) *
+                    static_cast<double>(gateLengthPercent_) / 100.0 *
+                    static_cast<double>(gateScale)));
+
+                // Emit first sub-step (sub-step 0) in fireStep.
+                // Remaining sub-steps emitted by processBlock SubStep handler.
+
+                // Slide handling for first sub-step (FR-019)
+                if (isSlide) {
+                    cancelPendingNoteOffsForCurrentNotes();
+                }
+
+                // Emit noteOffs for currently sounding notes (replace previous)
+                if (!isSlide) {
+                    for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
+                        outputEvents[eventCount++] = ArpEvent{
+                            ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                    }
+                    currentArpNoteCount_ = 0;
+                }
+
+                // Emit first sub-step noteOns
+                for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
+                    outputEvents[eventCount++] = ArpEvent{
+                        ArpEvent::Type::NoteOn,
+                        result.notes[i],
+                        result.velocities[i],
+                        sampleOffset,
+                        isSlide};  // legato on first sub-step if Slide
+                }
+
+                // Track currently sounding notes
+                for (size_t i = 0; i < result.count && i < 32; ++i) {
+                    currentArpNotes_[i] = result.notes[i];
+                }
+                currentArpNoteCount_ = result.count < 32 ? result.count : 32;
+
+                // Store ratchet state for remaining sub-steps (FR-011)
+                ratchetSubStepDuration_ = subStepDuration;
+                ratchetGateDuration_ = subGateDuration;
+                ratchetSubStepCounter_ = 0;
+                ratchetSubStepsRemaining_ = static_cast<uint8_t>(ratchetCount - 1);
+                ratchetNoteCount_ = result.count < 32 ? result.count : 32;
+
+                // Store note/velocity for sub-steps (FR-020: pre-accent velocity)
+                // result.velocities has accent applied; subsequent sub-steps
+                // use preAccentVelocities (velocity lane scaling only, no boost).
+                if (result.count == 1) {
+                    ratchetNote_ = result.notes[0];
+                    ratchetVelocity_ = preAccentVelocities[0];
+                }
+                for (size_t i = 0; i < ratchetNoteCount_; ++i) {
+                    ratchetNotes_[i] = result.notes[i];
+                    ratchetVelocities_[i] = preAccentVelocities[i];
+                }
+
+                // Determine if next sub-step is the last (for look-ahead)
+                ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1);
+
+                // Schedule gate noteOff for first sub-step
+                // First sub-step always schedules gate (look-ahead only on last sub-step)
+                for (size_t i = 0; i < result.count; ++i) {
+                    addPendingNoteOff(result.notes[i], subGateDuration, outputEvents,
+                                       eventCount, maxEvents);
+                }
+            } else {
+                // ratchetCount == 1: normal (Phase 5) note emission path
+                ratchetSubStepsRemaining_ = 0;  // Ensure no stale sub-step state (FR-013)
 
             if (isSlide) {
                 // Slide: suppress previous noteOffs, emit legato noteOns (FR-015)
@@ -992,10 +1218,13 @@ private:
                                        eventCount, maxEvents);
                 }
             }
+            } // end ratchetCount == 1 else branch
         } else {
             // result.count == 0: buffer became empty between steps (defensive).
             // Advance modifier lane in defensive branch too (FR-010)
             modifierLane_.advance();
+            ratchetLane_.advance();          // 074-ratcheting: keep ratchet lane synchronized (FR-036)
+            ratchetSubStepsRemaining_ = 0;   // 074-ratcheting: clear any pending sub-steps
 
             // Treat as rest -- no NoteOn emitted. Emit NoteOff for any
             // currently sounding arp note to prevent stuck notes (FR-024).
@@ -1009,8 +1238,15 @@ private:
         // Increment swing step counter
         ++swingStepCounter_;
 
-        // Recalculate step duration for next step (with swing)
-        currentStepDuration_ = calculateStepDuration(ctx);
+        // Recalculate step duration for next step (with swing).
+        // 074-ratcheting: When ratchet sub-steps are pending (ratchetCount > 1),
+        // do NOT recalculate. Keep currentStepDuration_ at the CURRENT step's
+        // value so the step boundary timer fires at the correct time (end of
+        // the current ratcheted step). The processBlock() Step handler
+        // recalculates before calling fireStep() for the next step. (FR-025)
+        if (ratchetSubStepsRemaining_ == 0) {
+            currentStepDuration_ = calculateStepDuration(ctx);
+        }
     }
 
     /// @brief Remove a note from the currentArpNotes_ tracking array.
@@ -1084,6 +1320,9 @@ private:
         pitchLane_.reset();
         modifierLane_.reset();   // 073-per-step-mods: reset modifier lane position
         tieActive_ = false;       // 073-per-step-mods: reset tie chain state
+        ratchetLane_.reset();              // 074-ratcheting: reset ratchet lane position
+        ratchetSubStepsRemaining_ = 0;     // 074-ratcheting: clear sub-step state
+        ratchetSubStepCounter_ = 0;
     }
 
     // =========================================================================
@@ -1101,6 +1340,7 @@ private:
     ArpLane<float> gateLane_;       ///< Gate duration multiplier per step (default: length=1, step[0]=1.0f)
     ArpLane<int8_t> pitchLane_;    ///< Semitone offset per step (default: length=1, step[0]=0)
     ArpLane<uint8_t> modifierLane_; ///< Bitmask per step (default: length=1, step[0]=kStepActive)
+    ArpLane<uint8_t> ratchetLane_;  ///< Per-step ratchet count 1-4 (default: length=1, step[0]=1)
 
     // =========================================================================
     // Modifier Configuration (073-per-step-mods)
@@ -1109,6 +1349,21 @@ private:
     int accentVelocity_{30};        ///< Additive velocity boost for accented steps (0-127)
     float slideTimeMs_{60.0f};      ///< Portamento duration (0-500ms). Stored for API symmetry.
     bool tieActive_{false};         ///< True when in a tie chain. Cleared by resetLanes().
+
+    // =========================================================================
+    // Ratchet Sub-Step State (074-ratcheting, FR-011)
+    // =========================================================================
+
+    uint8_t ratchetSubStepsRemaining_{0};      ///< Sub-steps left to fire (0 = inactive)
+    size_t ratchetSubStepDuration_{0};         ///< Duration per sub-step in samples
+    size_t ratchetSubStepCounter_{0};          ///< Sample counter within current sub-step
+    uint8_t ratchetNote_{0};                   ///< MIDI note for retriggers (single note)
+    uint8_t ratchetVelocity_{0};               ///< Non-accented velocity for retriggers
+    size_t ratchetGateDuration_{0};            ///< Gate duration per sub-step
+    bool ratchetIsLastSubStep_{false};         ///< True when firing last sub-step (for look-ahead)
+    std::array<uint8_t, 32> ratchetNotes_{};   ///< Chord mode note numbers
+    std::array<uint8_t, 32> ratchetVelocities_{}; ///< Chord mode velocities
+    size_t ratchetNoteCount_{0};               ///< Chord mode note count
 
     // =========================================================================
     // Configuration State

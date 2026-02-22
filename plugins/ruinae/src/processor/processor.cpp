@@ -1315,6 +1315,18 @@ void Processor::applyParamsToEngine() {
     arpCore_.setSlideTime(arpParams_.slideTime.load(std::memory_order_relaxed));
     // Forward slide time to engine for both Poly and Mono portamento (FR-034)
     engine_.setPortamentoTime(arpParams_.slideTime.load(std::memory_order_relaxed));
+    // --- Ratchet Lane (074-ratcheting, FR-035) ---
+    {
+        const auto ratchetLen = arpParams_.ratchetLaneLength.load(std::memory_order_relaxed);
+        arpCore_.ratchetLane().setLength(32);  // Expand first
+        for (int i = 0; i < 32; ++i) {
+            int val = std::clamp(
+                arpParams_.ratchetLaneSteps[i].load(std::memory_order_relaxed), 1, 4);
+            arpCore_.ratchetLane().setStep(
+                static_cast<size_t>(i), static_cast<uint8_t>(val));
+        }
+        arpCore_.ratchetLane().setLength(static_cast<size_t>(ratchetLen));  // Shrink to actual
+    }
 
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));

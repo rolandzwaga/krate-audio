@@ -963,10 +963,46 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpSlideTimeId          = 3181,    // continuous: 0-500ms (Parameter, default 60ms)
     // 3182-3189: reserved
 
-    kArpEndId = 3199,
+    // --- Ratchet Lane (074-ratcheting, 3190-3222) ---
+    kArpRatchetLaneLengthId  = 3190,    // discrete: 1-32 (RangeParameter, stepCount=31)
+    kArpRatchetLaneStep0Id   = 3191,    // discrete: 1-4 (RangeParameter, stepCount=3)
+    kArpRatchetLaneStep1Id   = 3192,
+    kArpRatchetLaneStep2Id   = 3193,
+    kArpRatchetLaneStep3Id   = 3194,
+    kArpRatchetLaneStep4Id   = 3195,
+    kArpRatchetLaneStep5Id   = 3196,
+    kArpRatchetLaneStep6Id   = 3197,
+    kArpRatchetLaneStep7Id   = 3198,
+    kArpRatchetLaneStep8Id   = 3199,
+    kArpRatchetLaneStep9Id   = 3200,
+    kArpRatchetLaneStep10Id  = 3201,
+    kArpRatchetLaneStep11Id  = 3202,
+    kArpRatchetLaneStep12Id  = 3203,
+    kArpRatchetLaneStep13Id  = 3204,
+    kArpRatchetLaneStep14Id  = 3205,
+    kArpRatchetLaneStep15Id  = 3206,
+    kArpRatchetLaneStep16Id  = 3207,
+    kArpRatchetLaneStep17Id  = 3208,
+    kArpRatchetLaneStep18Id  = 3209,
+    kArpRatchetLaneStep19Id  = 3210,
+    kArpRatchetLaneStep20Id  = 3211,
+    kArpRatchetLaneStep21Id  = 3212,
+    kArpRatchetLaneStep22Id  = 3213,
+    kArpRatchetLaneStep23Id  = 3214,
+    kArpRatchetLaneStep24Id  = 3215,
+    kArpRatchetLaneStep25Id  = 3216,
+    kArpRatchetLaneStep26Id  = 3217,
+    kArpRatchetLaneStep27Id  = 3218,
+    kArpRatchetLaneStep28Id  = 3219,
+    kArpRatchetLaneStep29Id  = 3220,
+    kArpRatchetLaneStep30Id  = 3221,
+    kArpRatchetLaneStep31Id  = 3222,
+    // 3223-3299: reserved for future arp phases (Euclidean, Conditional Trig)
+
+    kArpEndId = 3299,
 
     // ==========================================================================
-    kNumParameters = 3200,
+    kNumParameters = 3300,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

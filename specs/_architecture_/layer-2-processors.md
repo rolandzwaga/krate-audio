@@ -5886,7 +5886,7 @@ class TranceGate {
 ## ArpeggiatorCore
 **Path:** [arpeggiator_core.h](../../dsp/include/krate/dsp/processors/arpeggiator_core.h) | **Since:** 0.11.0
 
-Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains three `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`) and a modifier lane (`ArpLane<uint8_t> modifierLane_`) that stores per-step bitmask flags (`ArpStepFlags`). All four lanes advance independently on each arp step, enabling polymetric lane patterns. Header-only, zero heap allocation in all methods.
+Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains five `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`, modifier: `uint8_t`, ratchet: `uint8_t`) that advance independently on each arp step, enabling polymetric lane patterns. The ratchet lane (Spec 074) stores per-step subdivision counts (1-4); when a step has ratchet count N > 1, `fireStep()` emits the first sub-step and initializes sub-step tracking state, then `processBlock()` emits the remaining N-1 sub-steps via a `NextEvent::SubStep` event type in the jump-ahead loop. Header-only, zero heap allocation in all methods.
 
 ```cpp
 enum class LatchMode : uint8_t { Off, Hold, Add };
@@ -5910,7 +5910,7 @@ struct ArpEvent {
 };
 
 class ArpeggiatorCore {
-    static constexpr size_t kMaxEvents = 64;
+    static constexpr size_t kMaxEvents = 128;   // Increased from 64 for ratcheted Chord mode (Spec 074)
     static constexpr size_t kMaxPendingNoteOffs = 32;
 
     // Lifecycle
@@ -5948,6 +5948,10 @@ class ArpeggiatorCore {
     ArpLane<uint8_t>& modifierLane() noexcept;        // Per-step bitmask flags (ArpStepFlags)
     const ArpLane<uint8_t>& modifierLane() const noexcept;
 
+    // Ratchet lane accessor (Spec 074)
+    ArpLane<uint8_t>& ratchetLane() noexcept;         // Per-step ratchet count [1-4]
+    const ArpLane<uint8_t>& ratchetLane() const noexcept;
+
     // Processing
     size_t processBlock(const BlockContext& ctx,
                         std::span<ArpEvent> outputEvents) noexcept;
@@ -5963,6 +5967,7 @@ class ArpeggiatorCore {
 - Gate length control (1-200%) including legato overlap at gate > 100%
 - Chord mode support (NoteSelector returns multiple notes simultaneously)
 - Per-step velocity shaping, gate length modulation, and pitch offset via independent lanes (Spec 072)
+- Per-step ratcheting (1-4 sub-step retriggered repetitions) via independent ratchet lane (Spec 074)
 
 **Usage example:**
 
@@ -5976,7 +5981,12 @@ arp.setGateLength(80.0f);
 arp.noteOn(60, 100);
 arp.noteOn(64, 100);
 
-std::array<ArpEvent, 64> events;
+// Configure ratchet: step 0 = normal (1x), step 1 = double (2x)
+arp.ratchetLane().setLength(2);
+arp.ratchetLane().setStep(0, static_cast<uint8_t>(1));
+arp.ratchetLane().setStep(1, static_cast<uint8_t>(2));
+
+std::array<ArpEvent, 128> events;  // Must be >= kMaxEvents (128)
 BlockContext ctx;
 ctx.sampleRate = 44100.0;
 ctx.blockSize = 512;
@@ -5984,6 +5994,7 @@ ctx.tempoBPM = 120.0;
 ctx.isPlaying = true;
 size_t count = arp.processBlock(ctx, events);
 // events[0..count-1] contain sample-accurate NoteOn/NoteOff events
+// Step 1 will produce 2 evenly-spaced noteOn/noteOff pairs within its duration
 ```
 
 **Enumerations:**
@@ -5995,17 +6006,85 @@ size_t count = arp.processBlock(ctx, events);
 - `velocityLane_` (`ArpLane<float>`): Each step value scales note velocity via `velocity * velScale`, clamped to [1, 127]. Default step[0] = 1.0 (passthrough).
 - `gateLane_` (`ArpLane<float>`): Each step value multiplies gate duration via `calculateGateDuration(float gateLaneValue)`, clamped to minimum 1 sample. Default step[0] = 1.0 (no change).
 - `pitchLane_` (`ArpLane<int8_t>`): Each step value is added to the note number, clamped to [0, 127]. Default step[0] = 0 (no offset).
-- `resetLanes()`: Private method that calls `reset()` on all four lanes (velocity, gate, pitch, modifier) and resets `tieActive_` state to `false`. Invoked from `reset()`, retrigger (Note mode on `noteOn()`), and transport-restart (Beat mode on bar boundary in `processBlock()`).
+- `resetLanes()`: Private method that calls `reset()` on all five lanes (velocity, gate, pitch, modifier, ratchet) and resets `tieActive_` state to `false`, clears ratchet sub-step state (`ratchetSubStepsRemaining_ = 0`, `ratchetSubStepCounter_ = 0`). Invoked from `reset()`, retrigger (Note mode on `noteOn()`), and transport-restart (Beat mode on bar boundary in `processBlock()`).
 - `calculateGateDuration(float gateLaneValue = 1.0f)`: Extended signature multiplies the global gate formula by the lane value: `std::max(size_t{1}, static_cast<size_t>(static_cast<double>(stepDuration) * static_cast<double>(gatePct) / 100.0 * static_cast<double>(gateLaneValue)))`. When `gateLaneValue == 1.0f`, produces bit-identical results to the Phase 3 formula (SC-002).
-- In `fireStep()`: velocity, gate, pitch, and modifier lanes each call `advance()` once per step tick. Chord mode applies the same lane values to all notes in the chord equally.
+- In `fireStep()`: velocity, gate, pitch, modifier, and ratchet lanes each call `advance()` once per step tick. Chord mode applies the same lane values to all notes in the chord equally.
 
 **Modifier lane integration (Spec 073):**
 - `modifierLane_` (`ArpLane<uint8_t>`): Each step value is a bitmask of `ArpStepFlags`. Default step[0] = `kStepActive` (0x01, normal note output).
 - Exposes accessor: `modifierLane()`; configuration setters: `setAccentVelocity(int)`, `setSlideTime(float)`.
 - `ArpEvent` extended with `bool legato{false}` for slide/legato behavior. When a Slide step is evaluated in `fireStep()`, the emitted `ArpEvent` has `legato = true`, signaling the engine to apply portamento and suppress envelope retrigger.
 - Modifier evaluation priority in `fireStep()`: Rest (kStepActive not set) > Tie (kStepTie) > Slide (kStepSlide) > Accent (kStepAccent). Rest suppresses noteOn and emits pending noteOffs. Tie sustains the previous note across steps. Slide emits a legato noteOn without preceding noteOff. Accent boosts velocity by `accentVelocity_` after velocity lane scaling.
-- In `fireStep()`: modifier lane advances in both the normal path and the `result.count == 0` defensive branch (held buffer empty), ensuring all four lanes advance exactly once per arp step tick regardless of held note state.
+- In `fireStep()`: modifier lane advances in both the normal path and the `result.count == 0` defensive branch (held buffer empty), ensuring all five lanes advance exactly once per arp step tick regardless of held note state.
 
-**Memory:** ~500 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 4 ArpLane instances + modifier config). Header-only, real-time safe, single-threaded.
+**Ratchet lane integration (Spec 074):**
+- `ratchetLane_` (`ArpLane<uint8_t>`): Each step value stores a subdivision count from 1 to 4. Default length = 1, default step[0] = 1 (no ratcheting). Cycles independently of all other lanes, participating in the polymetric lane system.
+- Exposes const and non-const `ratchetLane()` accessors following the same pattern as `velocityLane()`, `gateLane()`, `pitchLane()`, and `modifierLane()`.
+- **Constructor initialization**: `ratchetLane_.setStep(0, static_cast<uint8_t>(1))` -- ArpLane<uint8_t> zero-initializes steps to 0, which would be an invalid ratchet count. The constructor explicitly sets step 0 to 1.
+- **Ratchet count clamping**: At the DSP read site in `fireStep()`, the ratchet value is always clamped via `std::max(uint8_t{1}, ratchetLane_.advance())`, providing defense-in-depth against invalid count 0.
+
+**Ratchet sub-step state members (Spec 074):**
+- `ratchetSubStepsRemaining_` (`uint8_t`, default 0): Number of sub-steps left to fire after the first one emitted by `fireStep()`. When 0, no ratchet sub-step processing occurs in `processBlock()`.
+- `ratchetSubStepDuration_` (`size_t`, default 0): Duration per sub-step in samples, calculated as `currentStepDuration_ / ratchetCount` (integer division).
+- `ratchetSubStepCounter_` (`size_t`, default 0): Sample counter tracking progress within the current sub-step interval. Reset to 0 after each sub-step fires.
+- `ratchetNote_` (`uint8_t`, default 0): MIDI note number for single-note ratchet retriggering.
+- `ratchetVelocity_` (`uint8_t`, default 0): Non-accented velocity for sub-steps 2..N. Stores the velocity BEFORE accent is applied (the first sub-step uses the accented velocity emitted directly from `fireStep()`).
+- `ratchetGateDuration_` (`size_t`, default 0): Per-sub-step gate duration in samples, calculated as `max(1, subStepDuration * gateLengthPercent_ / 100 * gateLaneValue)`. Uses `subStepDuration` (not `currentStepDuration_`) as the base, computed inline rather than via `calculateGateDuration()`.
+- `ratchetIsLastSubStep_` (`bool`, default false): True when the sub-step about to fire is the final one. Used to conditionally apply Tie/Slide look-ahead: only the last sub-step checks the next step's modifier flags; intermediate sub-steps always schedule their gate noteOffs normally.
+- `ratchetNotes_` (`std::array<uint8_t, 32>`, default {}): Chord mode MIDI note numbers for ratchet retriggering.
+- `ratchetVelocities_` (`std::array<uint8_t, 32>`, default {}): Chord mode non-accented velocities for sub-steps 2..N.
+- `ratchetNoteCount_` (`size_t`, default 0): Number of notes in chord mode ratcheting (1 for single note mode).
+
+**`fireStep()` ratchet initialization pattern (Spec 074):**
+
+The ratchet lane is advanced in `fireStep()` at the same call site as the other four lane advances (velocity, gate, pitch, modifier). The initialization follows this sequence:
+
+1. **Lane advance**: `uint8_t ratchetCount = std::max(uint8_t{1}, ratchetLane_.advance())` -- advances the ratchet lane and clamps the returned value to minimum 1.
+2. **Modifier evaluation happens FIRST**: Rest and Tie modifiers are evaluated before the ratchet initialization block. If the step is Rest (kStepActive not set) or Tie, `fireStep()` returns early without initializing any ratchet sub-step state. This ensures Rest and Tie suppress ratcheting entirely.
+3. **Ratchet count 1 (identity)**: When `ratchetCount == 1`, the existing non-ratcheted code path executes unchanged, producing bit-identical output to pre-ratchet behavior.
+4. **Ratchet count > 1 (subdivision)**: When `ratchetCount > 1` and the step is active (not Rest/Tie):
+   - Calculate `subStepDuration = currentStepDuration_ / ratchetCount`
+   - Calculate per-sub-step gate inline: `max(1, subStepDuration * gatePercent/100 * gateLaneValue)`
+   - Emit the **first sub-step** noteOn with modifiers applied (Accent boosts velocity; Slide sets `legato = true`)
+   - Store the **pre-accent** velocity in `ratchetVelocity_` (or `ratchetVelocities_[]` for chord mode) for subsequent sub-steps
+   - Initialize all ratchet state: `ratchetSubStepsRemaining_ = ratchetCount - 1`, counter = 0, note/velocity/gate/duration stored
+   - Set `ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1)`
+   - Schedule pending noteOff for the first sub-step (unless it is the last sub-step with Tie/Slide look-ahead suppression)
+5. **Defensive branch (`result.count == 0`)**: When the held note buffer is empty, the ratchet lane still advances via `ratchetLane_.advance()` and `ratchetSubStepsRemaining_` is set to 0, keeping all five lanes synchronized.
+
+**`processBlock()` SubStep handler pattern (Spec 074):**
+
+The `processBlock()` jump-ahead loop is extended with a `NextEvent::SubStep` event type. The local enum becomes:
+
+```cpp
+enum class NextEvent { BlockEnd, NoteOff, Step, SubStep, BarBoundary };
+```
+
+**Event priority rule**: `BarBoundary > NoteOff > Step > SubStep`. SubStep has the lowest priority. When SubStep coincides with BarBoundary, the bar boundary fires and clears sub-step state. When SubStep coincides with NoteOff, the NoteOff fires first (consistent with FR-021 ordering). When SubStep coincides with Step, the Step fires (a new step starts, overriding pending sub-steps).
+
+**Sub-step distance calculation**: When `ratchetSubStepsRemaining_ > 0`, the loop computes `samplesUntilSubStep = ratchetSubStepDuration_ - ratchetSubStepCounter_` and includes it in the minimum-jump calculation.
+
+**Time advance**: After each jump, `ratchetSubStepCounter_ += jump` when `ratchetSubStepsRemaining_ > 0`.
+
+**SubStep handler** (implemented as `fireSubStep()` private method):
+1. `emitDuePendingNoteOffs(sampleOffset)` -- emit all pending noteOffs due at this sample offset BEFORE the noteOn (FR-021 ordering)
+2. Emit noteOn(s) for ratcheted note(s) using stored `ratchetNote_`/`ratchetVelocity_` (single) or `ratchetNotes_`/`ratchetVelocities_`/`ratchetNoteCount_` (chord). Sub-steps after the first always use `legato = false`.
+3. Update `currentArpNotes_`/`currentArpNoteCount_` tracking
+4. Check `ratchetIsLastSubStep_` flag: if true, read the next step's modifier flags and suppress gate noteOff if next step is Tie or Slide (look-ahead). Intermediate sub-steps always schedule their gate noteOffs.
+5. `addPendingNoteOff()` -- schedule the new gate noteOff at `ratchetGateDuration_` (unless suppressed by look-ahead)
+6. Decrement `ratchetSubStepsRemaining_`, reset `ratchetSubStepCounter_ = 0`
+7. Update `ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1)` for the next sub-step
+
+**NoteOff-coincident SubStep**: After processing a `NextEvent::NoteOff` event, the loop checks whether `ratchetSubStepCounter_ >= ratchetSubStepDuration_` and `ratchetSubStepsRemaining_ > 0`. If both are true, the SubStep handler fires at the same sample offset, following the pattern used when NoteOff and Step coincide in the existing implementation.
+
+**State clearing**: Ratchet sub-step state (`ratchetSubStepsRemaining_`, `ratchetSubStepCounter_`) is cleared in three locations:
+- `resetLanes()` (called from `reset()`, retrigger, bar boundary)
+- `setEnabled(false)` (disable path, FR-026)
+- Transport stop (`!ctx.isPlaying && wasPlaying_` path in `processBlock()`, FR-027)
+
+**`kMaxEvents` update (Spec 074):**
+- Increased from 64 to 128. Worst case: Chord mode with 16 held notes, ratchet count 4, produces 4 sub-steps x 16 notes x 2 events (NoteOn + NoteOff) = 128 events within a single step duration. The processor-side `arpEvents_` buffer in `processor.h` was already 128 elements; only the DSP constant needed updating.
+
+**Memory:** ~600 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 5 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays). Header-only, real-time safe, single-threaded.
 
 **Dependencies:** Layer 0 (block_context.h, note_value.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)
