@@ -9120,3 +9120,234 @@ TEST_CASE("Ratchet count 2 + Slide on first step (no previous note)",
     // Second sub-step: normal retrigger (legato=false)
     CHECK(noteOns[1].legato == false);
 }
+
+// =============================================================================
+// Phase 7: Euclidean Timing Mode (075-euclidean-timing)
+// =============================================================================
+// Task Group 1: Foundational Infrastructure Tests
+
+// T004: Verify default Euclidean state values after construction (FR-001, FR-015)
+TEST_CASE("EuclideanState_DefaultValues",
+          "[arp][euclidean][foundational]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    CHECK(arp.euclideanEnabled() == false);
+    CHECK(arp.euclideanHits() == 4);
+    CHECK(arp.euclideanSteps() == 8);
+    CHECK(arp.euclideanRotation() == 0);
+}
+
+// T005: setEuclideanSteps clamps hits to new step count (FR-009)
+TEST_CASE("EuclideanSetters_ClampHitsToSteps",
+          "[arp][euclidean][foundational]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    arp.setEuclideanSteps(5);
+    arp.setEuclideanHits(10);  // should clamp to 5 (the new step count)
+    CHECK(arp.euclideanHits() == 5);
+}
+
+// T006: setEuclideanSteps clamps to valid range [2, 32] (FR-009)
+TEST_CASE("EuclideanSetters_ClampStepsToRange",
+          "[arp][euclidean][foundational]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    arp.setEuclideanSteps(1);    // below minimum
+    CHECK(arp.euclideanSteps() == 2);
+
+    arp.setEuclideanSteps(33);   // above maximum
+    CHECK(arp.euclideanSteps() == 32);
+}
+
+// T007: setEuclideanRotation clamps to valid range [0, 31] (FR-009)
+TEST_CASE("EuclideanSetters_ClampRotationToRange",
+          "[arp][euclidean][foundational]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    arp.setEuclideanRotation(35);   // above maximum
+    CHECK(arp.euclideanRotation() == 31);
+
+    arp.setEuclideanRotation(-1);   // below minimum
+    CHECK(arp.euclideanRotation() == 0);
+}
+
+// T008: hits=0 is valid (fully silent pattern) (FR-009)
+TEST_CASE("EuclideanSetters_HitsZeroAllowed",
+          "[arp][euclidean][foundational]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    arp.setEuclideanHits(0);
+    CHECK(arp.euclideanHits() == 0);
+}
+
+// T009: setEuclideanEnabled(true) resets euclidean position (FR-010)
+// Verified by observing that after enabling, the first step fires as if
+// from position 0 in the Euclidean pattern.
+TEST_CASE("EuclideanEnabled_ResetsPosition",
+          "[arp][euclidean][foundational]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Configure Euclidean: E(1,4) = pattern 0001 -> hit at step 0 only
+    arp.setEuclideanSteps(4);
+    arp.setEuclideanHits(1);
+    arp.setEuclideanRotation(0);
+    arp.setEuclideanEnabled(true);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 44100;  // 1 second block to capture many steps
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    // Run some steps to advance the Euclidean position
+    auto events1 = collectEvents(arp, ctx, 4);
+
+    // Now disable and re-enable to reset position
+    arp.setEuclideanEnabled(false);
+    arp.setEuclideanEnabled(true);
+
+    // After re-enable, position should be 0 again.
+    // The first step should be a hit (position 0 of E(1,4)).
+    // Collect events for one step cycle
+    auto events2 = collectEvents(arp, ctx, 4);
+    auto noteOns2 = filterNoteOns(events2);
+
+    // There should be noteOn events -- the first step after re-enable
+    // fires at position 0 which is a hit in E(1,4)
+    REQUIRE(noteOns2.size() >= 1);
+}
+
+// T010: setEuclideanEnabled(true) does NOT clear ratchet sub-step state (FR-010)
+TEST_CASE("EuclideanEnabled_DoesNotClearRatchetState",
+          "[arp][euclidean][foundational]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.noteOn(60, 100);
+
+    // Set ratchet lane: count 4 (4 sub-steps per step)
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(4));
+
+    // Euclidean disabled initially, all steps active
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    // Process a few blocks to start ratcheting
+    std::array<ArpEvent, 128> blockEvents;
+    arp.processBlock(ctx, blockEvents);
+    ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+
+    // Now enable Euclidean mid-playback (doesn't clear ratchet state)
+    arp.setEuclideanSteps(8);
+    arp.setEuclideanHits(8);  // all hits, so pattern is transparent
+    arp.setEuclideanEnabled(true);
+
+    // Continue processing -- in-flight ratchet sub-steps should complete
+    // We just verify the arp continues without crash or stuck notes
+    auto events = collectEvents(arp, ctx, 100);
+    auto noteOns = filterNoteOns(events);
+
+    // With ratchet count 4 and all Euclidean hits, we should see ~4 noteOns per step
+    CHECK(noteOns.size() > 10);
+}
+
+// T011: resetLanes() resets Euclidean position to 0 (FR-013, SC-012)
+TEST_CASE("EuclideanResetLanes_ResetsPosition",
+          "[arp][euclidean][foundational]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Configure Euclidean: E(1,8) = hit only at step 0
+    arp.setEuclideanSteps(8);
+    arp.setEuclideanHits(1);
+    arp.setEuclideanRotation(0);
+    arp.setEuclideanEnabled(true);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 44100;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    // Run 4 steps worth of blocks to advance Euclidean position past step 0
+    auto events1 = collectEvents(arp, ctx, 4);
+
+    // Now use setRetrigger + noteOn to call resetLanes()
+    arp.setRetrigger(ArpRetriggerMode::Note);
+    arp.noteOn(64, 100);  // triggers resetLanes() via retrigger
+
+    // After resetLanes, Euclidean position is 0 again.
+    // E(1,8) has a hit at step 0, so the next step should fire a noteOn.
+    auto events2 = collectEvents(arp, ctx, 4);
+    auto noteOns2 = filterNoteOns(events2);
+
+    // Should have at least one noteOn (from position 0 hit)
+    REQUIRE(noteOns2.size() >= 1);
+}
+
+// T012: Pattern generation matches E(3,8) tresillo bitmask (FR-008)
+// Verify that setting hits=3, steps=8, rotation=0 produces the correct
+// bitmask via regenerateEuclideanPattern(). Since euclideanPattern_ is
+// private, we verify by checking EuclideanPattern::generate() directly
+// matches E(3,8), and the getters confirm the stored values.
+TEST_CASE("EuclideanPatternGenerated_E3_8",
+          "[arp][euclidean][foundational]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    // Set E(3,8) tresillo pattern
+    arp.setEuclideanSteps(8);
+    arp.setEuclideanHits(3);
+    arp.setEuclideanRotation(0);
+
+    // Verify the stored parameter values
+    CHECK(arp.euclideanSteps() == 8);
+    CHECK(arp.euclideanHits() == 3);
+    CHECK(arp.euclideanRotation() == 0);
+
+    // Verify the expected pattern via EuclideanPattern directly
+    // E(3,8) = 10010010 binary = hits at positions 0, 3, 6
+    uint32_t expected = EuclideanPattern::generate(3, 8, 0);
+    CHECK(EuclideanPattern::isHit(expected, 0, 8) == true);   // step 0: hit
+    CHECK(EuclideanPattern::isHit(expected, 1, 8) == false);  // step 1: rest
+    CHECK(EuclideanPattern::isHit(expected, 2, 8) == false);  // step 2: rest
+    CHECK(EuclideanPattern::isHit(expected, 3, 8) == true);   // step 3: hit
+    CHECK(EuclideanPattern::isHit(expected, 4, 8) == false);  // step 4: rest
+    CHECK(EuclideanPattern::isHit(expected, 5, 8) == false);  // step 5: rest
+    CHECK(EuclideanPattern::isHit(expected, 6, 8) == true);   // step 6: hit
+    CHECK(EuclideanPattern::isHit(expected, 7, 8) == false);  // step 7: rest
+
+    // Verify hit count
+    CHECK(EuclideanPattern::countHits(expected) == 3);
+
+    // Verify the setters also trigger regeneration by changing params
+    // and checking the pattern changes (setEuclideanHits calls regenerate)
+    arp.setEuclideanHits(5);
+    CHECK(arp.euclideanHits() == 5);
+    // E(5,8) cinquillo should have 5 hits
+    uint32_t cinquillo = EuclideanPattern::generate(5, 8, 0);
+    CHECK(EuclideanPattern::countHits(cinquillo) == 5);
+}

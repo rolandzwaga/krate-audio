@@ -17,6 +17,7 @@
 #pragma once
 
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/primitives/arp_lane.h>
 #include <krate/dsp/primitives/held_note_buffer.h>
@@ -140,6 +141,11 @@ public:
         // ArpLane<uint8_t> zero-initializes steps to 0, which for ratchet
         // would mean count 0 (invalid). Must explicitly set to 1 (FR-003).
         ratchetLane_.setStep(0, static_cast<uint8_t>(1));
+
+        // 075-euclidean-timing: initialize pattern from defaults (FR-001)
+        // Without this, euclideanPattern_ would be 0 (the member initializer)
+        // instead of the correct E(4,8,0) bitmask.
+        regenerateEuclideanPattern();
     }
 
     // =========================================================================
@@ -170,6 +176,7 @@ public:
         selector_.reset();
         heldNotes_.clear();
         resetLanes();
+        regenerateEuclideanPattern();  // 075-euclidean-timing: regenerate from current params (FR-014)
     }
 
     // =========================================================================
@@ -354,6 +361,75 @@ public:
     /// @brief Const access to the ratchet lane.
     [[nodiscard]] const ArpLane<uint8_t>& ratchetLane() const noexcept {
         return ratchetLane_;
+    }
+
+    // =========================================================================
+    // Euclidean Timing Setters (075-euclidean-timing, FR-009, FR-010)
+    // =========================================================================
+
+    /// @brief Set the number of steps in the Euclidean pattern.
+    /// Clamps to [kMinSteps (2), kMaxSteps (32)].
+    /// Also re-clamps euclideanHits_ to [0, new step count].
+    /// Regenerates the pattern bitmask.
+    inline void setEuclideanSteps(int steps) noexcept {
+        euclideanSteps_ = std::clamp(steps,
+            EuclideanPattern::kMinSteps, EuclideanPattern::kMaxSteps);
+        // Re-clamp hits against new step count
+        euclideanHits_ = std::clamp(euclideanHits_, 0, euclideanSteps_);
+        regenerateEuclideanPattern();
+    }
+
+    /// @brief Set the number of hit pulses in the Euclidean pattern.
+    /// Clamps to [0, euclideanSteps_].
+    /// Regenerates the pattern bitmask.
+    inline void setEuclideanHits(int hits) noexcept {
+        euclideanHits_ = std::clamp(hits, 0, euclideanSteps_);
+        regenerateEuclideanPattern();
+    }
+
+    /// @brief Set the rotation offset for the Euclidean pattern.
+    /// Clamps to [0, kMaxSteps - 1 (31)].
+    /// Regenerates the pattern bitmask.
+    inline void setEuclideanRotation(int rotation) noexcept {
+        euclideanRotation_ = std::clamp(rotation, 0,
+            EuclideanPattern::kMaxSteps - 1);
+        regenerateEuclideanPattern();
+    }
+
+    /// @brief Enable or disable Euclidean timing mode.
+    /// When transitioning from disabled to enabled, resets euclideanPosition_ to 0.
+    /// Does NOT clear ratchet sub-step state (in-flight sub-steps complete normally).
+    inline void setEuclideanEnabled(bool enabled) noexcept {
+        if (!euclideanEnabled_ && enabled) {
+            // Transitioning from disabled to enabled: reset position (FR-010)
+            euclideanPosition_ = 0;
+            // Do NOT clear ratchet sub-step state -- in-flight sub-steps complete
+        }
+        euclideanEnabled_ = enabled;
+    }
+
+    // =========================================================================
+    // Euclidean Timing Getters (075-euclidean-timing, FR-015)
+    // =========================================================================
+
+    /// @brief Check if Euclidean timing mode is enabled.
+    [[nodiscard]] inline bool euclideanEnabled() const noexcept {
+        return euclideanEnabled_;
+    }
+
+    /// @brief Get the number of hit pulses in the Euclidean pattern.
+    [[nodiscard]] inline int euclideanHits() const noexcept {
+        return euclideanHits_;
+    }
+
+    /// @brief Get the number of steps in the Euclidean pattern.
+    [[nodiscard]] inline int euclideanSteps() const noexcept {
+        return euclideanSteps_;
+    }
+
+    /// @brief Get the rotation offset for the Euclidean pattern.
+    [[nodiscard]] inline int euclideanRotation() const noexcept {
+        return euclideanRotation_;
     }
 
     /// @brief Set the accent velocity boost amount.
@@ -1309,6 +1385,17 @@ private:
     }
 
     // =========================================================================
+    // Euclidean Pattern Helper (075-euclidean-timing, FR-008)
+    // =========================================================================
+
+    /// @brief Regenerate the Euclidean pattern bitmask from current parameters.
+    /// Called by setters and constructor to keep euclideanPattern_ in sync.
+    inline void regenerateEuclideanPattern() noexcept {
+        euclideanPattern_ = EuclideanPattern::generate(
+            euclideanHits_, euclideanSteps_, euclideanRotation_);
+    }
+
+    // =========================================================================
     // Lane Reset (072-independent-lanes)
     // =========================================================================
 
@@ -1323,6 +1410,7 @@ private:
         ratchetLane_.reset();              // 074-ratcheting: reset ratchet lane position
         ratchetSubStepsRemaining_ = 0;     // 074-ratcheting: clear sub-step state
         ratchetSubStepCounter_ = 0;
+        euclideanPosition_ = 0;            // 075-euclidean-timing: reset Euclidean position (FR-013)
     }
 
     // =========================================================================
@@ -1364,6 +1452,17 @@ private:
     std::array<uint8_t, 32> ratchetNotes_{};   ///< Chord mode note numbers
     std::array<uint8_t, 32> ratchetVelocities_{}; ///< Chord mode velocities
     size_t ratchetNoteCount_{0};               ///< Chord mode note count
+
+    // =========================================================================
+    // Euclidean Timing State (075-euclidean-timing, FR-001)
+    // =========================================================================
+
+    bool euclideanEnabled_{false};        ///< Whether Euclidean gating is active
+    int euclideanHits_{4};                ///< Number of pulses (k), range [0, 32]
+    int euclideanSteps_{8};               ///< Number of steps (n), range [2, 32]
+    int euclideanRotation_{0};            ///< Rotation offset, range [0, 31]
+    size_t euclideanPosition_{0};         ///< Current position in Euclidean pattern
+    uint32_t euclideanPattern_{0};        ///< Pre-computed bitmask from generate()
 
     // =========================================================================
     // Configuration State
