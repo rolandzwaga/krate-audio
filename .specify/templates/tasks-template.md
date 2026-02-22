@@ -30,6 +30,15 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 Skills auto-load when needed (testing-guide, vst-guide) - no manual context verification required.
 
+### Integration Tests (MANDATORY When Applicable)
+
+If the feature **wires a sub-component into the processor** (MIDI routing, audio chain, parameter application via `applyParamsToEngine()`, stateful per-block processing, or host context dependency), integration tests are **required** — not optional. See `INTEGRATION-TESTING.md` in the testing-guide skill for the full checklist and anti-patterns.
+
+Key rules:
+- **Behavioral correctness over existence checks**: Verify the output is *correct*, not just *present*. "Audio exists" is not a valid integration test.
+- **Test degraded host conditions**: Not just ideal `kPlaying | kTempoValid` — also no transport, no tempo, `nullptr` process context.
+- **Test per-block configuration safety**: Ensure setters called every block in `applyParamsToEngine()` don't silently reset stateful components.
+
 ### Example Todo List Structure
 
 ```
