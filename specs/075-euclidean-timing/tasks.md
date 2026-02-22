@@ -433,26 +433,26 @@ Note: The `setEuclideanEnabled()` method was implemented in Task Group 1 (T019).
 
 ### 10.1 Requirements Verification
 
-- [ ] T117 Open `dsp/include/krate/dsp/processors/arpeggiator_core.h` and verify each of the following against actual code (record file location and line number): FR-001 (6 members exist), FR-002 (disabled = Phase 6 behavior), FR-003 (position advances once per step), FR-004 (rest: all lanes advance, noteOff emitted), FR-005 (hit: step fires normally), FR-006 (Euclidean before modifier), FR-007 (rest breaks tie chain), FR-008 (pattern regenerated on param change), FR-009 (clamping in setters), FR-010 (enabled: position reset, ratchet not cleared), FR-011 (fireStep flow order), FR-012 (position advances unconditionally), FR-013 (resetLanes resets position), FR-014 (reset regenerates pattern), FR-015 (getters exist), FR-016 (rest suppresses ratchet), FR-017 (hit: ratchet applies), FR-018 (evaluation order: Euclidean before modifier), FR-019 (modifier Rest on hit step works), FR-020 (modifier Tie interactions), FR-021 (Chord mode), FR-022 (swing orthogonal), FR-023 (disable: no additional cleanup), FR-024 (enable: resetLanes called), FR-035 (defensive branch advances position)
-- [ ] T118 Open `plugins/ruinae/src/plugin_ids.h` and verify FR-025 (4 param IDs 3230-3233 present), FR-026 (kArpEndId=3299, kNumParameters=3300 unchanged) against actual code
-- [ ] T119 Open `plugins/ruinae/src/parameters/arpeggiator_params.h` and verify FR-027 (kCanAutomate, no kIsHidden), FR-028 (4 atomic members), FR-029 (dispatch for 4 IDs), FR-030 (Euclidean data serialized after ratchet), FR-031 (EOF handling: first field = compat, subsequent = corrupt; out-of-range clamped), FR-033 (formatArpParam outputs), FR-034 (controller sync via setParamNormalized) against actual code
-- [ ] T120 Open `plugins/ruinae/src/processor/processor.cpp` and verify FR-032 (prescribed setter order: steps -> hits -> rotation -> enabled) against actual code
+- [X] T117 Open `dsp/include/krate/dsp/processors/arpeggiator_core.h` and verify each of the following against actual code (record file location and line number): FR-001 (6 members exist), FR-002 (disabled = Phase 6 behavior), FR-003 (position advances once per step), FR-004 (rest: all lanes advance, noteOff emitted), FR-005 (hit: step fires normally), FR-006 (Euclidean before modifier), FR-007 (rest breaks tie chain), FR-008 (pattern regenerated on param change), FR-009 (clamping in setters), FR-010 (enabled: position reset, ratchet not cleared), FR-011 (fireStep flow order), FR-012 (position advances unconditionally), FR-013 (resetLanes resets position), FR-014 (reset regenerates pattern), FR-015 (getters exist), FR-016 (rest suppresses ratchet), FR-017 (hit: ratchet applies), FR-018 (evaluation order: Euclidean before modifier), FR-019 (modifier Rest on hit step works), FR-020 (modifier Tie interactions), FR-021 (Chord mode), FR-022 (swing orthogonal), FR-023 (disable: no additional cleanup), FR-024 (enable: resetLanes called), FR-035 (defensive branch advances position)
+- [X] T118 Open `plugins/ruinae/src/plugin_ids.h` and verify FR-025 (4 param IDs 3230-3233 present), FR-026 (kArpEndId=3299, kNumParameters=3300 unchanged) against actual code
+- [X] T119 Open `plugins/ruinae/src/parameters/arpeggiator_params.h` and verify FR-027 (kCanAutomate, no kIsHidden), FR-028 (4 atomic members), FR-029 (dispatch for 4 IDs), FR-030 (Euclidean data serialized after ratchet), FR-031 (EOF handling: first field = compat, subsequent = corrupt; out-of-range clamped), FR-033 (formatArpParam outputs), FR-034 (controller sync via setParamNormalized) against actual code
+- [X] T120 Open `plugins/ruinae/src/processor/processor.cpp` and verify FR-032 (prescribed setter order: steps -> hits -> rotation -> enabled) against actual code
 
 ### 10.2 Success Criteria Verification
 
 Run ALL tests and verify each SC against actual test output (not memory or assumption):
 
-- [ ] T121 Run `dsp_tests` and record actual output for SC-001 (5+ known patterns: E(3,8) tresillo, E(8,8), E(0,8), E(5,8) cinquillo, E(5,16) bossa nova), SC-002 (all rotations distinct), SC-003 (polymetric: steps=5 + velocity=3 = 15 steps cycle), SC-004 (Euclidean disabled = Phase 6 identical), SC-005 (on/off transitions), SC-006 (rest breaks tie chain), SC-007 (ratchet interaction), SC-010 (zero heap allocation in Euclidean code paths), SC-012 (position reset on retrigger): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe`
-- [ ] T122 Run `ruinae_tests` and record actual output for SC-008 (round-trip: all 4 values preserved), SC-009 (Phase 6 preset loads with defaults), SC-011 (4 param IDs registered automatable, display formatting correct): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe`
+- [X] T121 Run `dsp_tests` and record actual output for SC-001 (5+ known patterns: E(3,8) tresillo, E(8,8), E(0,8), E(5,8) cinquillo, E(5,16) bossa nova), SC-002 (all rotations distinct), SC-003 (polymetric: steps=5 + velocity=3 = 15 steps cycle), SC-004 (Euclidean disabled = Phase 6 identical), SC-005 (on/off transitions), SC-006 (rest breaks tie chain), SC-007 (ratchet interaction), SC-010 (zero heap allocation in Euclidean code paths), SC-012 (position reset on retrigger): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe`
+- [X] T122 Run `ruinae_tests` and record actual output for SC-008 (round-trip: all 4 values preserved), SC-009 (Phase 6 preset loads with defaults), SC-011 (4 param IDs registered automatable, display formatting correct): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe`
 
 ### 10.3 Fill Compliance Table in spec.md
 
-- [ ] T123 Update `specs/075-euclidean-timing/spec.md` "Implementation Verification" section: fill in every FR-001 through FR-035 and SC-001 through SC-012 row with Status (MET/NOT MET/PARTIAL/DEFERRED) and Evidence (file path, line number, test name, actual measured value). No row may be left blank or contain only "implemented".
-- [ ] T124 Mark overall status in spec.md as COMPLETE / NOT COMPLETE / PARTIAL based on honest assessment
+- [X] T123 Update `specs/075-euclidean-timing/spec.md` "Implementation Verification" section: fill in every FR-001 through FR-035 and SC-001 through SC-012 row with Status (MET/NOT MET/PARTIAL/DEFERRED) and Evidence (file path, line number, test name, actual measured value). No row may be left blank or contain only "implemented".
+- [X] T124 Mark overall status in spec.md as COMPLETE / NOT COMPLETE / PARTIAL based on honest assessment
 
 ### 10.4 Self-Check
 
-- [ ] T125 Answer all 5 self-check questions: (1) Did any test threshold change from spec? (2) Any placeholder/stub/TODO in new code? (3) Any features removed from scope without user approval? (4) Would the spec author consider this done? (5) Would the user feel cheated? All answers must be "no" to claim COMPLETE.
+- [X] T125 Answer all 5 self-check questions: (1) Did any test threshold change from spec? (2) Any placeholder/stub/TODO in new code? (3) Any features removed from scope without user approval? (4) Would the spec author consider this done? (5) Would the user feel cheated? All answers must be "no" to claim COMPLETE.
 
 **Checkpoint**: Honest assessment complete. Compliance table filled with evidence. Ready for final phase.
 
@@ -462,12 +462,12 @@ Run ALL tests and verify each SC against actual test output (not memory or assum
 
 ### 11.1 Final Build and Test Run
 
-- [ ] T126 Run all tests one final time to confirm clean state: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release && ctest --test-dir build/windows-x64-release -C Release --output-on-failure`
-- [ ] T127 Commit all remaining spec work to feature branch `075-euclidean-timing`
+- [X] T126 Run all tests one final time to confirm clean state: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release && ctest --test-dir build/windows-x64-release -C Release --output-on-failure`
+- [X] T127 Commit all remaining spec work to feature branch `075-euclidean-timing`
 
 ### 11.2 Completion Claim
 
-- [ ] T128 Claim completion ONLY if all FR-xxx and SC-xxx rows in spec.md are MET (or gaps explicitly approved by user). If any gap exists, document it honestly and do NOT mark as COMPLETE.
+- [X] T128 Claim completion ONLY if all FR-xxx and SC-xxx rows in spec.md are MET (or gaps explicitly approved by user). If any gap exists, document it honestly and do NOT mark as COMPLETE.
 
 **Checkpoint**: Spec implementation honestly complete.
 
