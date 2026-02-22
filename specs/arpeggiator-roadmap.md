@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 5 complete — Per-step modifiers) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 6 complete — Ratcheting) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -35,7 +35,7 @@ The arpeggiator is decomposed into **12 phases**. The first 3 phases produce a *
 | Milestone | After Phase | What You Get |
 |---|---|---|
 | **MVP** | 3 | Working arp with 10 modes, tempo sync, gate, latch, octave range. Playable. |
-| **Sequencer** | 6 | Per-step velocity/gate/pitch/ratchet lanes, TB-303 modifiers. Deep. |
+| **Sequencer** ✅ | 6 | Per-step velocity/gate/pitch/ratchet lanes, TB-303 modifiers. Deep. |
 | **Generative** | 9 | Euclidean rhythms, conditional trigs, Spice/Dice mutation. Unique. |
 | **Complete** | 12 | Mod matrix integration, dedicated UI, preset arp patterns. Polished. |
 
@@ -579,14 +579,14 @@ kArpSlideTimeId             = 3181,  // portamento time for slide (ms)
 
 ---
 
-## Phase 6: Ratcheting
+## Phase 6: Ratcheting ✅ COMPLETE
 
 **DSP Layer**: 2 (processors)
 **Files**: Extend `arpeggiator_core.h`, add `ArpLane<uint8_t> ratchetLane_`
 **Test**: Extend `arpeggiator_core_test.cpp`
+**Spec**: `specs/074-ratcheting/spec.md`
+**Branch**: `074-ratcheting`
 **Depends on**: Phase 4
-
-**IMPORTANT -- Parameter ID Range**: Phase 6 allocates `kArpRatchetLaneLengthId = 3190` through `kArpRatchetLaneStep31Id = 3222`. ID 3222 exceeds the current `kArpEndId = 3199`. Phase 6 implementers MUST update `kArpEndId` to at least 3222 and `kNumParameters` to at least 3223 in `plugins/ruinae/src/plugin_ids.h`.
 
 ### Purpose
 
@@ -634,10 +634,17 @@ kArpRatchetLaneStep0Id      = 3191,  // through Step31Id = 3222
 
 ### Acceptance Criteria
 
-- [ ] Ratchet subdivisions are sample-accurate
-- [ ] Each ratchet retrig is a distinct noteOn/noteOff pair
-- [ ] No timing drift over many ratcheted steps
-- [ ] Ratchet count 1 is identical to no-ratchet behavior
+- [x] Ratchet subdivisions are sample-accurate (SC-001, SC-002: 4 test cases verify exact sample offsets for ratchet 1/2/3/4)
+- [x] Each ratchet retrig is a distinct noteOn/noteOff pair (SC-001: verified for all ratchet counts)
+- [x] No timing drift over many ratcheted steps (SC-011: zero drift after 100 consecutive ratchet-4 steps)
+- [x] Ratchet count 1 is identical to no-ratchet behavior (SC-003: bit-identical output at 120/140/180 BPM)
+- [x] Per-sub-step gate length with correct Tie/Slide look-ahead on last sub-step only (SC-004: 3+ gate/ratchet combinations verified)
+- [x] Modifier interaction correct: Rest/Tie suppress, Accent/Slide first-sub-step-only (SC-005: 6 modifier tests pass)
+- [x] Ratchet lane cycles independently (polymetric) (SC-006: 15-step combined cycle verified)
+- [x] State persistence with Phase 5 backward compatibility (SC-007, SC-008: round-trip and EOF compat pass)
+- [x] Zero heap allocation in ratchet code paths (SC-009: code inspection confirmed)
+- [x] All 33 parameter IDs registered with correct flags (SC-010: kArpEndId=3299, kNumParameters=3300)
+- [x] 43 new tests (34 DSP + 9 integration), pluginval L5 pass, clang-tidy 0 findings
 
 ---
 
