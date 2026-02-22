@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 7 complete — Euclidean Timing) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 8 complete — Conditional Trigs) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -36,7 +36,8 @@ The arpeggiator is decomposed into **12 phases**. The first 3 phases produce a *
 |---|---|---|
 | **MVP** | 3 | Working arp with 10 modes, tempo sync, gate, latch, octave range. Playable. |
 | **Sequencer** ✅ | 6 | Per-step velocity/gate/pitch/ratchet lanes, TB-303 modifiers. Deep. |
-| **Generative** | 9 | Euclidean rhythms, conditional trigs, Spice/Dice mutation. Unique. |
+| **Conditional** ✅ | 8 | Euclidean rhythms, conditional trigs (probability, A:B ratios, Fill, First). Evolving. |
+| **Generative** | 9 | Spice/Dice mutation, humanize. Unique. |
 | **Complete** | 12 | Mod matrix integration, dedicated UI, preset arp patterns. Polished. |
 
 ### Existing Components Reused
@@ -713,11 +714,13 @@ kArpEuclideanRotationId     = 3233,  // 0-31
 
 ---
 
-## Phase 8: Conditional Trig System
+## Phase 8: Conditional Trig System ✅ COMPLETE
 
 **DSP Layer**: 2 (processors)
 **Files**: Extend `arpeggiator_core.h`, add condition lane
 **Test**: Extend `arpeggiator_core_test.cpp`
+**Spec**: `specs/076-conditional-trigs/spec.md`
+**Branch**: `076-conditional-trigs`
 **Depends on**: Phase 7 (because Euclidean determines which steps exist to apply conditions to)
 
 ### Purpose
@@ -780,10 +783,22 @@ On each step:
 
 ### Acceptance Criteria
 
-- [ ] Probability conditions produce statistically correct distribution
-- [ ] A:B ratios are deterministic and cycle correctly
-- [ ] Fill toggle works as a real-time performance control
-- [ ] Conditions compose correctly with Euclidean timing and rest flags
+- [x] Probability conditions produce statistically correct distribution (SC-001: Prob10/25/50/75/90 all within +/-3% over 10,000 iterations)
+- [x] A:B ratios are deterministic and cycle correctly (SC-002: all 9 ratios verified across 12 loops with exact loop indices)
+- [x] Fill toggle works as a real-time performance control (SC-004: Fill/NotFill toggle, preserved across resets, step-boundary responsive)
+- [x] Conditions compose correctly with Euclidean timing and rest flags (SC-006: Euclidean rest = condition not evaluated/PRNG not consumed; Euclidean hit + condition fail = rest)
+- [x] First-loop-only condition fires once then never again until reset (SC-003: verified with length-1 and length-4 lanes)
+- [x] Default Always condition = Phase 7 identical output (SC-005: zero-tolerance bit-identical at 120/140/180 BPM)
+- [x] Condition + modifier/ratchet interactions correct (SC-007: condition fail breaks tie, suppresses ratchet; condition pass respects modifier Rest)
+- [x] Polymetric cycling with condition lane (SC-008: condition lane 3 + velocity lane 5 = 15-step cycle)
+- [x] State round-trip preserves all condition values (SC-009: length, 32 steps, fill toggle all preserved exactly)
+- [x] Phase 7 backward compatibility (SC-010: old presets default to length=1, all Always, fill=off)
+- [x] Zero heap allocation in condition paths (SC-011: code inspection confirmed)
+- [x] 34 parameter IDs registered with correct flags (SC-012: steps hidden, length/fill visible, all automatable)
+- [x] Loop count lifecycle correct (SC-013: resets on retrigger/re-enable, NOT on disable alone)
+- [x] Dedicated PRNG (seed 7919) distinct from NoteSelector (seed 42) (SC-014: sequences differ)
+- [x] 51 new tests (37 DSP + 7 param + 7 integration), pluginval L5 pass, clang-tidy 0 findings
+- [x] 48/48 functional requirements MET, 14/14 success criteria MET
 
 ---
 

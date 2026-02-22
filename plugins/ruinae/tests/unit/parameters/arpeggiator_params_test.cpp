@@ -1855,3 +1855,177 @@ TEST_CASE("EuclideanParams_HandleParamChange_Rotation", "[arp][params][euclidean
     handleArpParamChange(params, kArpEuclideanRotationId, 1.0);
     CHECK(params.euclideanRotation.load() == 31);
 }
+
+// ==============================================================================
+// Phase 7 (076-conditional-trigs) Task Group 4: Condition Parameter Tests
+// ==============================================================================
+
+// T079: All 34 condition parameter IDs registered with correct flags (SC-012, FR-040)
+TEST_CASE("ConditionParams_AllRegistered_CorrectFlags", "[arp][params][condition]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    // kArpConditionLaneLengthId (3240): kCanAutomate, NOT kIsHidden
+    {
+        auto* param = container.getParameter(kArpConditionLaneLengthId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+    }
+
+    // All 32 step IDs (3241-3272): kCanAutomate AND kIsHidden
+    for (int i = 0; i < 32; ++i) {
+        INFO("Condition step ID " << (kArpConditionLaneStep0Id + i));
+        auto* param = container.getParameter(
+            static_cast<ParamID>(kArpConditionLaneStep0Id + i));
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+    }
+
+    // kArpFillToggleId (3280): kCanAutomate, NOT kIsHidden
+    {
+        auto* param = container.getParameter(kArpFillToggleId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+    }
+}
+
+// T080: formatArpParam for condition lane length (SC-012, FR-047)
+TEST_CASE("ConditionParams_FormatLaneLength", "[arp][params][condition][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // 0.0 -> "1 step" (singular)
+    auto result = formatArpParam(kArpConditionLaneLengthId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "1 step");
+
+    // 7.0/31.0 -> "8 steps" (plural)
+    result = formatArpParam(kArpConditionLaneLengthId, 7.0 / 31.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "8 steps");
+
+    // 1.0 -> "32 steps"
+    result = formatArpParam(kArpConditionLaneLengthId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "32 steps");
+}
+
+// T081: formatArpParam for all 18 condition display values (SC-012, FR-047)
+TEST_CASE("ConditionParams_FormatStepValues", "[arp][params][condition][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // Map of normalized values to expected display strings
+    // For step IDs, normalized value maps via round(value * 17) to index 0-17
+    static const struct {
+        double normValue;
+        const char* expected;
+    } kExpected[] = {
+        { 0.0 / 17.0, "Always" },   // idx 0
+        { 1.0 / 17.0, "10%" },      // idx 1
+        { 2.0 / 17.0, "25%" },      // idx 2
+        { 3.0 / 17.0, "50%" },      // idx 3
+        { 4.0 / 17.0, "75%" },      // idx 4
+        { 5.0 / 17.0, "90%" },      // idx 5
+        { 6.0 / 17.0, "1:2" },      // idx 6
+        { 7.0 / 17.0, "2:2" },      // idx 7
+        { 8.0 / 17.0, "1:3" },      // idx 8
+        { 9.0 / 17.0, "2:3" },      // idx 9
+        { 10.0 / 17.0, "3:3" },     // idx 10
+        { 11.0 / 17.0, "1:4" },     // idx 11
+        { 12.0 / 17.0, "2:4" },     // idx 12
+        { 13.0 / 17.0, "3:4" },     // idx 13
+        { 14.0 / 17.0, "4:4" },     // idx 14
+        { 15.0 / 17.0, "1st" },     // idx 15
+        { 16.0 / 17.0, "Fill" },    // idx 16
+        { 1.0, "!Fill" },           // idx 17
+    };
+
+    for (const auto& [normValue, expected] : kExpected) {
+        INFO("Condition index for norm " << normValue << " expected: " << expected);
+        auto result = formatArpParam(kArpConditionLaneStep0Id, normValue, string);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(string) == expected);
+    }
+}
+
+// T082: formatArpParam for fill toggle (SC-012, FR-047)
+TEST_CASE("ConditionParams_FormatFillToggle", "[arp][params][condition][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // 0.0 -> "Off"
+    auto result = formatArpParam(kArpFillToggleId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "Off");
+
+    // 1.0 -> "On"
+    result = formatArpParam(kArpFillToggleId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "On");
+}
+
+// T083: handleArpParamChange for condition lane length (FR-042)
+TEST_CASE("ConditionParams_HandleParamChange_LaneLength", "[arp][params][condition][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> conditionLaneLength == 1
+    handleArpParamChange(params, kArpConditionLaneLengthId, 0.0);
+    CHECK(params.conditionLaneLength.load() == 1);
+
+    // 7.0/31.0 -> conditionLaneLength == 8
+    handleArpParamChange(params, kArpConditionLaneLengthId, 7.0 / 31.0);
+    CHECK(params.conditionLaneLength.load() == 8);
+
+    // 1.0 -> conditionLaneLength == 32
+    handleArpParamChange(params, kArpConditionLaneLengthId, 1.0);
+    CHECK(params.conditionLaneLength.load() == 32);
+}
+
+// T084: handleArpParamChange for condition step values (FR-042)
+TEST_CASE("ConditionParams_HandleParamChange_StepValues", "[arp][params][condition][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> step 0 == 0 (Always)
+    handleArpParamChange(params, kArpConditionLaneStep0Id, 0.0);
+    CHECK(params.conditionLaneSteps[0].load() == 0);
+
+    // 3.0/17.0 -> step 0 == 3 (Prob50)
+    handleArpParamChange(params, kArpConditionLaneStep0Id, 3.0 / 17.0);
+    CHECK(params.conditionLaneSteps[0].load() == 3);
+
+    // 1.0 -> step 0 == 17 (NotFill)
+    handleArpParamChange(params, kArpConditionLaneStep0Id, 1.0);
+    CHECK(params.conditionLaneSteps[0].load() == 17);
+}
+
+// T085: handleArpParamChange for fill toggle (FR-042)
+TEST_CASE("ConditionParams_HandleParamChange_FillToggle", "[arp][params][condition][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> fillToggle == false
+    handleArpParamChange(params, kArpFillToggleId, 0.0);
+    CHECK(params.fillToggle.load() == false);
+
+    // 0.4 -> fillToggle == false (threshold at 0.5)
+    handleArpParamChange(params, kArpFillToggleId, 0.4);
+    CHECK(params.fillToggle.load() == false);
+
+    // 0.5 -> fillToggle == true
+    handleArpParamChange(params, kArpFillToggleId, 0.5);
+    CHECK(params.fillToggle.load() == true);
+
+    // 1.0 -> fillToggle == true
+    handleArpParamChange(params, kArpFillToggleId, 1.0);
+    CHECK(params.fillToggle.load() == true);
+}

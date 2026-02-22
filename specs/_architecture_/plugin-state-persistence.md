@@ -126,6 +126,21 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
                       //   - Out-of-range values are clamped silently:
                       //     hits to [0, 32], steps to [2, 32], rotation to [0, 31]
                       // Phase 6 presets load with Euclidean disabled automatically
+
+--- New in Spec 076 (EOF-safe, no version bump, appended after Euclidean data) ---
+[ArpConditionLaneData] // 136 bytes total, appended after ArpEuclideanData:
+                      //   [int32: conditionLaneLength (1-32)]                         (4 bytes)
+                      //   [int32 x32: conditionLaneSteps[0..31] (0-17 each)]          (128 bytes)
+                      //   [int32: fillToggle (0 or 1)]                                (4 bytes)
+                      // EOF-safe backward-compatible loading:
+                      //   - EOF at conditionLaneLength read = Phase 7 preset, return true
+                      //     (all condition fields retain defaults: length=1, steps=0 (Always),
+                      //      fillToggle=false)
+                      //   - EOF after conditionLaneLength (partial condition data) = corrupt
+                      //     stream, return false
+                      //   - Out-of-range values are clamped silently:
+                      //     length to [1, 32], steps to [0, 17]
+                      // Phase 7 presets load with all conditions defaulting to Always
 ```
 
 ---
@@ -474,6 +489,70 @@ When `loadArpParamsToController()` reads Euclidean data, it propagates values to
 | Phase 7 (Spec 075, with Euclidean) | Yes | All Euclidean fields fully restored |
 
 Euclidean identity defaults (enabled=false) produce bit-identical output to Phase 6: Euclidean gating is inactive, all steps fire normally.
+
+---
+
+## Arpeggiator Condition Lane Data Backward Compatibility (Spec 076)
+
+### Background
+
+Spec 076 added 34 condition lane parameters (IDs 3240-3272 for condition lane, 3280 for fill toggle) to the arpeggiator parameter pack, serialized as 136 bytes appended after the Euclidean data. Like previous arp data, condition lane data uses EOF-safe loading without a version bump. The sentinel values (`kArpEndId = 3299`, `kNumParameters = 3300`) are unchanged from Phase 7.
+
+### Serialization Format (136 bytes)
+
+```
+[int32: conditionLaneLength]              // 4 bytes (1-32)
+[int32 x32: conditionLaneSteps[0..31]]    // 128 bytes (0-17 each)
+[int32: fillToggle (0 or 1)]              // 4 bytes
+                                          // Total: 136 bytes
+```
+
+All 32 step values are written regardless of the active lane length. Step values are clamped to [0, 17] on load. The fill toggle is serialized as the last field.
+
+### EOF-Safe Loading Pattern
+
+Condition lane data loading uses a **tiered EOF-safe pattern** identical to the Euclidean pattern:
+
+```cpp
+// After loading Euclidean data...
+
+// First condition field: EOF = Phase 7 backward compat (return true)
+if (!streamer.readInt32(intVal)) return true;  // No condition data = Phase 7 preset
+params.conditionLaneLength.store(std::clamp(intVal, 1, 32), relaxed);
+
+// Subsequent fields: EOF = corrupt stream (return false)
+for (int i = 0; i < 32; ++i) {
+    if (!streamer.readInt32(intVal)) return false;  // Partial = corrupt
+    params.conditionLaneSteps[i].store(std::clamp(intVal, 0, 17), relaxed);
+}
+
+// Fill toggle
+if (!streamer.readInt32(intVal)) return false;  // Partial = corrupt
+params.fillToggle.store(intVal != 0, relaxed);
+
+return true;
+```
+
+The key distinction: only the **first** condition field (`conditionLaneLength`) at EOF is treated as backward compatibility (return true). If `conditionLaneLength` was successfully read but subsequent fields are missing, this indicates a corrupt stream (return false), not a legitimate older preset format.
+
+### Controller Sync
+
+When `loadArpParamsToController()` reads condition data, it propagates values to the controller via `setParamNormalized()` with inverse mappings:
+
+| Parameter | Inverse Mapping |
+|-----------|----------------|
+| Condition Lane Length | `(clamp(intVal, 1, 32) - 1) / 31.0` |
+| Condition Lane Steps | `clamp(intVal, 0, 17) / 17.0` |
+| Fill Toggle | `intVal != 0 ? 1.0 : 0.0` |
+
+### Backward Compatibility
+
+| Preset Source | Condition Data Present? | Behavior |
+|---------------|------------------------|----------|
+| Phase 7 (Spec 075, no conditions) | No | All condition fields at defaults: length=1, steps=0 (Always), fillToggle=false |
+| Phase 8 (Spec 076, with conditions) | Yes | All condition fields fully restored |
+
+Condition identity defaults (length=1, all steps=Always, fill off) produce bit-identical output to Phase 7: all steps that pass Euclidean gating fire unconditionally.
 
 ---
 

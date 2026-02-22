@@ -79,6 +79,11 @@ struct ArpeggiatorParams {
     std::atomic<int>  euclideanSteps{8};          // default 8
     std::atomic<int>  euclideanRotation{0};       // default 0
 
+    // --- Condition Lane (076-conditional-trigs) ---
+    std::atomic<int>   conditionLaneLength{1};       // 1-32
+    std::array<std::atomic<int>, 32> conditionLaneSteps{};  // 0-17 (TrigCondition, int for lock-free)
+    std::atomic<bool>  fillToggle{false};            // Fill mode toggle
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -95,6 +100,7 @@ struct ArpeggiatorParams {
         for (auto& step : ratchetLaneSteps) {
             step.store(1, std::memory_order_relaxed);
         }
+        // conditionLaneSteps default to 0 (TrigCondition::Always) via value-initialization -- correct
     }
 };
 
@@ -249,6 +255,17 @@ inline void handleArpParamChange(
                 std::memory_order_relaxed);
             break;
 
+        // --- Condition Lane (076-conditional-trigs) ---
+        case kArpConditionLaneLengthId:
+            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
+            params.conditionLaneLength.store(
+                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                std::memory_order_relaxed);
+            break;
+        case kArpFillToggleId:
+            params.fillToggle.store(value >= 0.5, std::memory_order_relaxed);
+            break;
+
         default:
             // Velocity lane steps: 3021-3052
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -282,6 +299,13 @@ inline void handleArpParamChange(
                     static_cast<int>(1.0 + std::round(value * 3.0)), 1, 4);
                 params.ratchetLaneSteps[id - kArpRatchetLaneStep0Id].store(
                     ratchet, std::memory_order_relaxed);
+            }
+            // Condition lane steps: 3241-3272 (076-conditional-trigs)
+            else if (id >= kArpConditionLaneStep0Id && id <= kArpConditionLaneStep31Id) {
+                int step = std::clamp(
+                    static_cast<int>(std::round(value * 17.0)), 0, 17);
+                params.conditionLaneSteps[id - kArpConditionLaneStep0Id].store(
+                    step, std::memory_order_relaxed);
             }
             break;
     }
@@ -497,6 +521,31 @@ inline void registerArpParams(
         new RangeParameter(STR16("Arp Euclidean Rotation"), kArpEuclideanRotationId,
                           STR16(""), 0, 31, 0, 31,
                           ParameterInfo::kCanAutomate));
+
+    // --- Condition Lane (076-conditional-trigs) ---
+
+    // Condition lane length: RangeParameter 1-32, default 1, stepCount 31
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Cond Lane Len"), kArpConditionLaneLengthId,
+                          STR16(""), 1, 32, 1, 31,
+                          ParameterInfo::kCanAutomate));
+
+    // Condition lane steps: loop 0-31, RangeParameter 0-17, default 0 (Always), stepCount 17
+    for (int i = 0; i < 32; ++i) {
+        char name[48];
+        snprintf(name, sizeof(name), "Arp Cond Step %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(name);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpConditionLaneStep0Id + i),
+                STR16(""), 0, 17, 0, 17,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
+
+    // Fill toggle: Toggle (0 or 1), default off
+    parameters.addParameter(STR16("Arp Fill"), STR16(""), 1, 0.0,
+        ParameterInfo::kCanAutomate, kArpFillToggleId);
 }
 
 // =============================================================================
@@ -666,6 +715,19 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
 
+        // --- Condition Lane (076-conditional-trigs) ---
+        case kArpConditionLaneLengthId: {
+            char8 text[32];
+            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            snprintf(text, sizeof(text), len == 1 ? "%d step" : "%d steps", len);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpFillToggleId: {
+            UString(string, 128).fromAscii(value >= 0.5 ? "On" : "Off");
+            return kResultOk;
+        }
+
         default:
             // Velocity lane steps: display as percentage
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -711,6 +773,19 @@ inline Steinberg::tresult formatArpParam(
                     static_cast<int>(1.0 + std::round(value * 3.0)), 1, 4);
                 snprintf(text, sizeof(text), "%dx", ratchet);
                 UString(string, 128).fromAscii(text);
+                return kResultOk;
+            }
+            // Condition lane steps: display TrigCondition name (076-conditional-trigs)
+            if (id >= kArpConditionLaneStep0Id && id <= kArpConditionLaneStep31Id) {
+                static const char* const kCondNames[] = {
+                    "Always", "10%", "25%", "50%", "75%", "90%",
+                    "1:2", "2:2", "1:3", "2:3", "3:3",
+                    "1:4", "2:4", "3:4", "4:4",
+                    "1st", "Fill", "!Fill"
+                };
+                int idx = std::clamp(
+                    static_cast<int>(std::round(value * 17.0)), 0, 17);
+                UString(string, 128).fromAscii(kCondNames[idx]);
                 return kResultOk;
             }
             break;
@@ -778,6 +853,13 @@ inline void saveArpParams(
     streamer.writeInt32(params.euclideanHits.load(std::memory_order_relaxed));
     streamer.writeInt32(params.euclideanSteps.load(std::memory_order_relaxed));
     streamer.writeInt32(params.euclideanRotation.load(std::memory_order_relaxed));
+
+    // --- Condition Lane (076-conditional-trigs) ---
+    streamer.writeInt32(params.conditionLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.conditionLaneSteps[i].load(std::memory_order_relaxed));
+    }
+    streamer.writeInt32(params.fillToggle.load(std::memory_order_relaxed) ? 1 : 0);
 }
 
 // =============================================================================
@@ -907,6 +989,22 @@ inline bool loadArpParams(
 
     if (!streamer.readInt32(intVal)) return false;
     params.euclideanRotation.store(std::clamp(intVal, 0, 31), std::memory_order_relaxed);
+
+    // --- Condition Lane (076-conditional-trigs) ---
+    // EOF-safe: if condition data is missing entirely (Phase 7 preset), keep defaults.
+    if (!streamer.readInt32(intVal)) return true;  // EOF at first condition field = Phase 7 compat
+    params.conditionLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+
+    // From here, EOF signals a corrupt stream (length was present but steps are not)
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;  // Corrupt: length present but no step data
+        params.conditionLaneSteps[i].store(
+            std::clamp(intVal, 0, 17), std::memory_order_relaxed);
+    }
+
+    // Fill toggle
+    if (!streamer.readInt32(intVal)) return false;  // Corrupt: steps present but no fill toggle
+    params.fillToggle.store(intVal != 0, std::memory_order_relaxed);
 
     return true;
 }
@@ -1069,6 +1167,22 @@ inline void loadArpParamsToController(
     if (!streamer.readInt32(intVal)) return;
     setParam(kArpEuclideanRotationId,
         static_cast<double>(std::clamp(intVal, 0, 31)) / 31.0);
+
+    // --- Condition Lane (076-conditional-trigs) ---
+    // EOF-safe: if condition data is missing (Phase 7 preset), keep controller defaults
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpConditionLaneLengthId,
+        static_cast<double>(std::clamp(intVal, 1, 32) - 1) / 31.0);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return;
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpConditionLaneStep0Id + i),
+            static_cast<double>(std::clamp(intVal, 0, 17)) / 17.0);
+    }
+
+    // Fill toggle
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpFillToggleId, intVal != 0 ? 1.0 : 0.0);
 }
 
 } // namespace Ruinae
