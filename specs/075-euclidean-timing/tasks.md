@@ -420,8 +420,8 @@ Note: The `setEuclideanEnabled()` method was implemented in Task Group 1 (T019).
 
 ### 9.2 Final Commit
 
-- [ ] T115 Commit architecture documentation updates
-- [ ] T116 Verify all spec work is committed to feature branch `075-euclidean-timing`: `git log --oneline -10` to confirm all phase commits are present
+- [X] T115 Commit architecture documentation updates
+- [X] T116 Verify all spec work is committed to feature branch `075-euclidean-timing`: `git log --oneline -10` to confirm all phase commits are present
 
 **Checkpoint**: Architecture documentation reflects all Euclidean timing functionality added in this spec.
 
