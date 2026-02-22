@@ -227,7 +227,7 @@ Note: The `setEuclideanEnabled()` method was implemented in Task Group 1 (T019).
 
 ### 5.4 Commit User Story 4
 
-- [ ] T068 [US4] Commit completed User Story 4 work: Euclidean mode on/off transitions verified, in-flight ratchet completion verified, no stuck notes, all tests passing
+- [X] T068 [US4] Commit completed User Story 4 work: Euclidean mode on/off transitions verified, in-flight ratchet completion verified, no stuck notes, all tests passing
 
 **Checkpoint**: User Story 4 fully functional. SC-005 passes. US1-US3 tests still pass.
 
@@ -246,54 +246,54 @@ Note: The `setEuclideanEnabled()` method was implemented in Task Group 1 (T019).
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T069 [P] Write failing test "EuclideanParams_AllRegistered_WithCanAutomate" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: verify that all 4 parameter IDs 3230, 3231, 3232, 3233 are registered with `kCanAutomate` flag; verify none have `kIsHidden`. (SC-011, FR-025, FR-026, FR-027)
-- [ ] T070 [P] Write failing test "EuclideanParams_FormatEnabled" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `formatArpParam(kArpEuclideanEnabledId, 0.0)` and verify output is "Off"; call with 1.0 and verify "On". (SC-011, FR-033)
-- [ ] T071 [P] Write failing test "EuclideanParams_FormatHits" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `formatArpParam(kArpEuclideanHitsId, 0.0)` and verify "0 hits"; call with `3.0/32.0` and verify "3 hits"; call with `5.0/32.0` and verify "5 hits"; call with 1.0 and verify "32 hits". (SC-011, FR-033)
-- [ ] T072 [P] Write failing test "EuclideanParams_FormatSteps" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `formatArpParam(kArpEuclideanStepsId, 0.0)` and verify "2 steps"; call with `6.0/30.0` and verify "8 steps"; call with 1.0 and verify "32 steps". (SC-011, FR-033)
-- [ ] T073 [P] Write failing test "EuclideanParams_FormatRotation" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `formatArpParam(kArpEuclideanRotationId, 0.0)` and verify "0"; call with `3.0/31.0` and verify "3"; call with 1.0 and verify "31". (SC-011, FR-033)
-- [ ] T074 [P] Write failing test "EuclideanParams_HandleParamChange_Enabled" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `handleArpParamChange(kArpEuclideanEnabledId, 0.0)` and verify `euclideanEnabled == false`; call with 1.0 and verify `euclideanEnabled == true`; call with 0.4 and verify false (threshold at 0.5). (FR-029)
-- [ ] T075 [P] Write failing test "EuclideanParams_HandleParamChange_Hits" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `handleArpParamChange(kArpEuclideanHitsId, 0.0)` -> hits=0; call with `3.0/32.0` -> hits=3; call with 1.0 -> hits=32. (FR-029)
-- [ ] T076 [P] Write failing test "EuclideanParams_HandleParamChange_Steps" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `handleArpParamChange(kArpEuclideanStepsId, 0.0)` -> steps=2; call with `6.0/30.0` -> steps=8; call with 1.0 -> steps=32. (FR-029)
-- [ ] T077 [P] Write failing test "EuclideanParams_HandleParamChange_Rotation" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `handleArpParamChange(kArpEuclideanRotationId, 0.0)` -> rotation=0; call with `3.0/31.0` -> rotation=3; call with 1.0 -> rotation=31. (FR-029)
+- [X] T069 [P] Write failing test "EuclideanParams_AllRegistered_WithCanAutomate" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: verify that all 4 parameter IDs 3230, 3231, 3232, 3233 are registered with `kCanAutomate` flag; verify none have `kIsHidden`. (SC-011, FR-025, FR-026, FR-027)
+- [X] T070 [P] Write failing test "EuclideanParams_FormatEnabled" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `formatArpParam(kArpEuclideanEnabledId, 0.0)` and verify output is "Off"; call with 1.0 and verify "On". (SC-011, FR-033)
+- [X] T071 [P] Write failing test "EuclideanParams_FormatHits" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `formatArpParam(kArpEuclideanHitsId, 0.0)` and verify "0 hits"; call with `3.0/32.0` and verify "3 hits"; call with `5.0/32.0` and verify "5 hits"; call with 1.0 and verify "32 hits". (SC-011, FR-033)
+- [X] T072 [P] Write failing test "EuclideanParams_FormatSteps" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `formatArpParam(kArpEuclideanStepsId, 0.0)` and verify "2 steps"; call with `6.0/30.0` and verify "8 steps"; call with 1.0 and verify "32 steps". (SC-011, FR-033)
+- [X] T073 [P] Write failing test "EuclideanParams_FormatRotation" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `formatArpParam(kArpEuclideanRotationId, 0.0)` and verify "0"; call with `3.0/31.0` and verify "3"; call with 1.0 and verify "31". (SC-011, FR-033)
+- [X] T074 [P] Write failing test "EuclideanParams_HandleParamChange_Enabled" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `handleArpParamChange(kArpEuclideanEnabledId, 0.0)` and verify `euclideanEnabled == false`; call with 1.0 and verify `euclideanEnabled == true`; call with 0.4 and verify false (threshold at 0.5). (FR-029)
+- [X] T075 [P] Write failing test "EuclideanParams_HandleParamChange_Hits" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `handleArpParamChange(kArpEuclideanHitsId, 0.0)` -> hits=0; call with `3.0/32.0` -> hits=3; call with 1.0 -> hits=32. (FR-029)
+- [X] T076 [P] Write failing test "EuclideanParams_HandleParamChange_Steps" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `handleArpParamChange(kArpEuclideanStepsId, 0.0)` -> steps=2; call with `6.0/30.0` -> steps=8; call with 1.0 -> steps=32. (FR-029)
+- [X] T077 [P] Write failing test "EuclideanParams_HandleParamChange_Rotation" in `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp`: call `handleArpParamChange(kArpEuclideanRotationId, 0.0)` -> rotation=0; call with `3.0/31.0` -> rotation=3; call with 1.0 -> rotation=31. (FR-029)
 
 ### 6.2 Implementation for Task Group 3
 
-- [ ] T078 [P] [US1] Add 4 Euclidean parameter IDs to `plugins/ruinae/src/plugin_ids.h` within the existing reserved range (after ratchet IDs, before `kArpEndId`):
+- [X] T078 [P] [US1] Add 4 Euclidean parameter IDs to `plugins/ruinae/src/plugin_ids.h` within the existing reserved range (after ratchet IDs, before `kArpEndId`):
   - `kArpEuclideanEnabledId = 3230`
   - `kArpEuclideanHitsId = 3231`
   - `kArpEuclideanStepsId = 3232`
   - `kArpEuclideanRotationId = 3233`
   - Add comment: `// 3234-3299: reserved for future arp phases (Conditional Trig, Spice/Dice)`
   - Verify: `kArpEndId = 3299` and `kNumParameters = 3300` remain unchanged. (FR-025, FR-026, plan.md section 10)
-- [ ] T079 [P] [US1] Extend `ArpeggiatorParams` struct in `plugins/ruinae/src/parameters/arpeggiator_params.h` with 4 atomic Euclidean members after the ratchet lane members (FR-028, plan.md section 11):
+- [X] T079 [P] [US1] Extend `ArpeggiatorParams` struct in `plugins/ruinae/src/parameters/arpeggiator_params.h` with 4 atomic Euclidean members after the ratchet lane members (FR-028, plan.md section 11):
   - `std::atomic<bool> euclideanEnabled{false}`
   - `std::atomic<int> euclideanHits{4}`
   - `std::atomic<int> euclideanSteps{8}`
   - `std::atomic<int> euclideanRotation{0}`
-- [ ] T080 [US1] Extend `handleArpParamChange()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with 4 new cases (FR-029, plan.md section 12):
+- [X] T080 [US1] Extend `handleArpParamChange()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with 4 new cases (FR-029, plan.md section 12):
   - `kArpEuclideanEnabledId`: store `value >= 0.5` as bool
   - `kArpEuclideanHitsId`: store `clamp(round(value * 32), 0, 32)` as int
   - `kArpEuclideanStepsId`: store `clamp(2 + round(value * 30), 2, 32)` as int
   - `kArpEuclideanRotationId`: store `clamp(round(value * 31), 0, 31)` as int
-- [ ] T081 [US1] Extend `registerArpParams()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with 4 Euclidean parameter registrations after the ratchet lane registrations (FR-025, FR-027, plan.md section 13):
+- [X] T081 [US1] Extend `registerArpParams()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with 4 Euclidean parameter registrations after the ratchet lane registrations (FR-025, FR-027, plan.md section 13):
   - `kArpEuclideanEnabledId`: Toggle parameter (0-1, default 0, stepCount 1, kCanAutomate)
   - `kArpEuclideanHitsId`: RangeParameter (0-32, default 4, stepCount 32, kCanAutomate)
   - `kArpEuclideanStepsId`: RangeParameter (2-32, default 8, stepCount 30, kCanAutomate)
   - `kArpEuclideanRotationId`: RangeParameter (0-31, default 0, stepCount 31, kCanAutomate)
-- [ ] T082 [US1] Extend `formatArpParam()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with 4 new cases (FR-033, plan.md section 14):
+- [X] T082 [US1] Extend `formatArpParam()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with 4 new cases (FR-033, plan.md section 14):
   - `kArpEuclideanEnabledId`: "Off" or "On"
   - `kArpEuclideanHitsId`: "%d hits" format
   - `kArpEuclideanStepsId`: "%d steps" format
   - `kArpEuclideanRotationId`: "%d" format (integer only)
-- [ ] T083 [US1] Build and verify all Task Group 3 tests from T069-T077 pass with zero compiler warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests`
+- [X] T083 [US1] Build and verify all Task Group 3 tests from T069-T077 pass with zero compiler warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests`
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T084 [US1] Verify IEEE 754 compliance: check new test files for IEEE 754 function usage. Parameter registration and formatting tests use integers and strings -- no floating-point issues expected, but confirm.
+- [X] T084 [US1] Verify IEEE 754 compliance: check new test files for IEEE 754 function usage. Parameter registration and formatting tests use integers and strings -- no floating-point issues expected, but confirm.
 
 ### 6.4 Commit Task Group 3
 
-- [ ] T085 [US1] Commit completed Task Group 3 work: parameter IDs (3230-3233) in plugin_ids.h, ArpeggiatorParams atomic storage, handleArpParamChange dispatch, registerArpParams registration, formatArpParam display, all tests passing
+- [X] T085 [US1] Commit completed Task Group 3 work: parameter IDs (3230-3233) in plugin_ids.h, ArpeggiatorParams atomic storage, handleArpParamChange dispatch, registerArpParams registration, formatArpParam display, all tests passing
 
 **Checkpoint**: All 4 Euclidean parameter IDs are registered with the host as automatable. Display formatting is correct. Denormalization is correct. SC-011 passes.
 

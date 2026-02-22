@@ -1664,3 +1664,194 @@ TEST_CASE("SC010_FormatArpParam_SlideTime", "[arp][params][format]") {
     CHECK(result == Steinberg::kResultOk);
     CHECK(toString128(string) == "500 ms");
 }
+
+// ==============================================================================
+// Phase 6 (075-euclidean-timing) Task Group 3: Euclidean Parameter Tests
+// ==============================================================================
+
+// T069: All 4 Euclidean parameter IDs registered with kCanAutomate, none kIsHidden
+TEST_CASE("EuclideanParams_AllRegistered_WithCanAutomate", "[arp][params][euclidean]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    // All 4 Euclidean parameter IDs must be present
+    constexpr ParamID euclideanIds[] = {
+        kArpEuclideanEnabledId,   // 3230
+        kArpEuclideanHitsId,      // 3231
+        kArpEuclideanStepsId,     // 3232
+        kArpEuclideanRotationId,  // 3233
+    };
+
+    for (auto id : euclideanIds) {
+        INFO("Parameter ID " << id);
+        auto* param = container.getParameter(id);
+        REQUIRE(param != nullptr);
+
+        ParameterInfo info = param->getInfo();
+        // kCanAutomate must be set
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        // kIsHidden must NOT be set -- all are user-facing
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+    }
+}
+
+// T070: formatArpParam for Euclidean Enabled: "Off" / "On"
+TEST_CASE("EuclideanParams_FormatEnabled", "[arp][params][euclidean][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // 0.0 -> "Off"
+    auto result = formatArpParam(kArpEuclideanEnabledId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "Off");
+
+    // 1.0 -> "On"
+    result = formatArpParam(kArpEuclideanEnabledId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "On");
+}
+
+// T071: formatArpParam for Euclidean Hits: "%d hits"
+TEST_CASE("EuclideanParams_FormatHits", "[arp][params][euclidean][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // 0.0 -> "0 hits"
+    auto result = formatArpParam(kArpEuclideanHitsId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0 hits");
+
+    // 3.0/32.0 -> "3 hits"
+    result = formatArpParam(kArpEuclideanHitsId, 3.0 / 32.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "3 hits");
+
+    // 5.0/32.0 -> "5 hits"
+    result = formatArpParam(kArpEuclideanHitsId, 5.0 / 32.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "5 hits");
+
+    // 1.0 -> "32 hits"
+    result = formatArpParam(kArpEuclideanHitsId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "32 hits");
+}
+
+// T072: formatArpParam for Euclidean Steps: "%d steps"
+TEST_CASE("EuclideanParams_FormatSteps", "[arp][params][euclidean][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // 0.0 -> "2 steps"
+    auto result = formatArpParam(kArpEuclideanStepsId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "2 steps");
+
+    // 6.0/30.0 -> "8 steps"
+    result = formatArpParam(kArpEuclideanStepsId, 6.0 / 30.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "8 steps");
+
+    // 1.0 -> "32 steps"
+    result = formatArpParam(kArpEuclideanStepsId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "32 steps");
+}
+
+// T073: formatArpParam for Euclidean Rotation: "%d"
+TEST_CASE("EuclideanParams_FormatRotation", "[arp][params][euclidean][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // 0.0 -> "0"
+    auto result = formatArpParam(kArpEuclideanRotationId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0");
+
+    // 3.0/31.0 -> "3"
+    result = formatArpParam(kArpEuclideanRotationId, 3.0 / 31.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "3");
+
+    // 1.0 -> "31"
+    result = formatArpParam(kArpEuclideanRotationId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "31");
+}
+
+// T074: handleArpParamChange for Euclidean Enabled
+TEST_CASE("EuclideanParams_HandleParamChange_Enabled", "[arp][params][euclidean][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> false
+    handleArpParamChange(params, kArpEuclideanEnabledId, 0.0);
+    CHECK(params.euclideanEnabled.load() == false);
+
+    // 1.0 -> true
+    handleArpParamChange(params, kArpEuclideanEnabledId, 1.0);
+    CHECK(params.euclideanEnabled.load() == true);
+
+    // 0.4 -> false (threshold at 0.5)
+    handleArpParamChange(params, kArpEuclideanEnabledId, 0.4);
+    CHECK(params.euclideanEnabled.load() == false);
+
+    // 0.5 -> true (threshold at 0.5)
+    handleArpParamChange(params, kArpEuclideanEnabledId, 0.5);
+    CHECK(params.euclideanEnabled.load() == true);
+}
+
+// T075: handleArpParamChange for Euclidean Hits
+TEST_CASE("EuclideanParams_HandleParamChange_Hits", "[arp][params][euclidean][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> hits=0
+    handleArpParamChange(params, kArpEuclideanHitsId, 0.0);
+    CHECK(params.euclideanHits.load() == 0);
+
+    // 3.0/32.0 -> hits=3
+    handleArpParamChange(params, kArpEuclideanHitsId, 3.0 / 32.0);
+    CHECK(params.euclideanHits.load() == 3);
+
+    // 1.0 -> hits=32
+    handleArpParamChange(params, kArpEuclideanHitsId, 1.0);
+    CHECK(params.euclideanHits.load() == 32);
+}
+
+// T076: handleArpParamChange for Euclidean Steps
+TEST_CASE("EuclideanParams_HandleParamChange_Steps", "[arp][params][euclidean][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> steps=2
+    handleArpParamChange(params, kArpEuclideanStepsId, 0.0);
+    CHECK(params.euclideanSteps.load() == 2);
+
+    // 6.0/30.0 -> steps=8
+    handleArpParamChange(params, kArpEuclideanStepsId, 6.0 / 30.0);
+    CHECK(params.euclideanSteps.load() == 8);
+
+    // 1.0 -> steps=32
+    handleArpParamChange(params, kArpEuclideanStepsId, 1.0);
+    CHECK(params.euclideanSteps.load() == 32);
+}
+
+// T077: handleArpParamChange for Euclidean Rotation
+TEST_CASE("EuclideanParams_HandleParamChange_Rotation", "[arp][params][euclidean][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> rotation=0
+    handleArpParamChange(params, kArpEuclideanRotationId, 0.0);
+    CHECK(params.euclideanRotation.load() == 0);
+
+    // 3.0/31.0 -> rotation=3
+    handleArpParamChange(params, kArpEuclideanRotationId, 3.0 / 31.0);
+    CHECK(params.euclideanRotation.load() == 3);
+
+    // 1.0 -> rotation=31
+    handleArpParamChange(params, kArpEuclideanRotationId, 1.0);
+    CHECK(params.euclideanRotation.load() == 31);
+}

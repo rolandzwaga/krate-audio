@@ -671,9 +671,9 @@ When Euclidean mode is enabled:
 
 ```cpp
 kArpEuclideanEnabledId      = 3230,
-kArpEuclideanHitsId         = 3231,  // 1-32
+kArpEuclideanHitsId         = 3231,  // 0-32
 kArpEuclideanStepsId        = 3232,  // 2-32
-kArpEuclideanRotationId     = 3233,  // 0 to steps-1
+kArpEuclideanRotationId     = 3233,  // 0-31
 ```
 
 ### Notable Euclidean Rhythms to Test
@@ -682,7 +682,7 @@ kArpEuclideanRotationId     = 3233,  // 0 to steps-1
 |---|---|---|
 | E(3,8) | `10010010` | Cuban tresillo |
 | E(5,8) | `10110110` | Cuban cinquillo |
-| E(5,16) | `1000100010001000` | Bossa nova |
+| E(5,16) | `1001001000100100` | Bossa nova |
 | E(7,12) | `101101010110` | West African bell |
 | E(7,16) | `1001010100101010` | Samba |
 

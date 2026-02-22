@@ -73,6 +73,12 @@ struct ArpeggiatorParams {
     std::atomic<int>   ratchetLaneLength{1};       // 1-32
     std::array<std::atomic<int>, 32> ratchetLaneSteps{};  // 1-4 (int for lock-free guarantee)
 
+    // --- Euclidean Timing (075-euclidean-timing) ---
+    std::atomic<bool> euclideanEnabled{false};    // default off
+    std::atomic<int>  euclideanHits{4};           // default 4
+    std::atomic<int>  euclideanSteps{8};          // default 8
+    std::atomic<int>  euclideanRotation{0};       // default 0
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -217,6 +223,29 @@ inline void handleArpParamChange(
             // RangeParameter: 0-1 -> 1-32 (stepCount=31)
             params.ratchetLaneLength.store(
                 std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                std::memory_order_relaxed);
+            break;
+
+        // --- Euclidean Timing (075-euclidean-timing) ---
+        case kArpEuclideanEnabledId:
+            params.euclideanEnabled.store(value >= 0.5, std::memory_order_relaxed);
+            break;
+        case kArpEuclideanHitsId:
+            // RangeParameter: 0-1 -> 0-32 (stepCount=32)
+            params.euclideanHits.store(
+                std::clamp(static_cast<int>(std::round(value * 32.0)), 0, 32),
+                std::memory_order_relaxed);
+            break;
+        case kArpEuclideanStepsId:
+            // RangeParameter: 0-1 -> 2-32 (stepCount=30)
+            params.euclideanSteps.store(
+                std::clamp(static_cast<int>(2.0 + std::round(value * 30.0)), 2, 32),
+                std::memory_order_relaxed);
+            break;
+        case kArpEuclideanRotationId:
+            // RangeParameter: 0-1 -> 0-31 (stepCount=31)
+            params.euclideanRotation.store(
+                std::clamp(static_cast<int>(std::round(value * 31.0)), 0, 31),
                 std::memory_order_relaxed);
             break;
 
@@ -444,6 +473,30 @@ inline void registerArpParams(
                 STR16(""), 1, 4, 1, 3,
                 ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
     }
+
+    // --- Euclidean Timing (075-euclidean-timing) ---
+
+    // Euclidean enabled: Toggle (0 or 1), default off
+    parameters.addParameter(STR16("Arp Euclidean"), STR16(""), 1, 0.0,
+        ParameterInfo::kCanAutomate, kArpEuclideanEnabledId);
+
+    // Euclidean hits: RangeParameter 0-32, default 4, stepCount 32
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Euclidean Hits"), kArpEuclideanHitsId,
+                          STR16(""), 0, 32, 4, 32,
+                          ParameterInfo::kCanAutomate));
+
+    // Euclidean steps: RangeParameter 2-32, default 8, stepCount 30
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Euclidean Steps"), kArpEuclideanStepsId,
+                          STR16(""), 2, 32, 8, 30,
+                          ParameterInfo::kCanAutomate));
+
+    // Euclidean rotation: RangeParameter 0-31, default 0, stepCount 31
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Euclidean Rotation"), kArpEuclideanRotationId,
+                          STR16(""), 0, 31, 0, 31,
+                          ParameterInfo::kCanAutomate));
 }
 
 // =============================================================================
@@ -582,6 +635,33 @@ inline Steinberg::tresult formatArpParam(
             char8 text[32];
             int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
             snprintf(text, sizeof(text), "%d steps", len);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+
+        // --- Euclidean Timing (075-euclidean-timing) ---
+        case kArpEuclideanEnabledId: {
+            UString(string, 128).fromAscii(value >= 0.5 ? "On" : "Off");
+            return kResultOk;
+        }
+        case kArpEuclideanHitsId: {
+            char8 text[32];
+            int hits = std::clamp(static_cast<int>(std::round(value * 32.0)), 0, 32);
+            snprintf(text, sizeof(text), "%d hits", hits);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpEuclideanStepsId: {
+            char8 text[32];
+            int steps = std::clamp(static_cast<int>(2.0 + std::round(value * 30.0)), 2, 32);
+            snprintf(text, sizeof(text), "%d steps", steps);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpEuclideanRotationId: {
+            char8 text[32];
+            int rot = std::clamp(static_cast<int>(std::round(value * 31.0)), 0, 31);
+            snprintf(text, sizeof(text), "%d", rot);
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
