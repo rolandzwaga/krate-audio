@@ -69,6 +69,10 @@ struct ArpeggiatorParams {
     std::atomic<int>   accentVelocity{30};         // 0-127
     std::atomic<float> slideTime{60.0f};           // 0-500 ms
 
+    // --- Ratchet Lane (074-ratcheting) ---
+    std::atomic<int>   ratchetLaneLength{1};       // 1-32
+    std::array<std::atomic<int>, 32> ratchetLaneSteps{};  // 1-4 (int for lock-free guarantee)
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -80,6 +84,10 @@ struct ArpeggiatorParams {
         // modifierLaneSteps default to 1 (kStepActive) -- active, no modifiers
         for (auto& step : modifierLaneSteps) {
             step.store(1, std::memory_order_relaxed);  // kStepActive = 0x01
+        }
+        // ratchetLaneSteps default to 1 (no ratcheting) -- 074-ratcheting (FR-031)
+        for (auto& step : ratchetLaneSteps) {
+            step.store(1, std::memory_order_relaxed);
         }
     }
 };
@@ -204,6 +212,14 @@ inline void handleArpParamChange(
                 std::memory_order_relaxed);
             break;
 
+        // --- Ratchet Lane (074-ratcheting) ---
+        case kArpRatchetLaneLengthId:
+            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
+            params.ratchetLaneLength.store(
+                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                std::memory_order_relaxed);
+            break;
+
         default:
             // Velocity lane steps: 3021-3052
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -230,6 +246,13 @@ inline void handleArpParamChange(
                     static_cast<int>(std::round(value * 255.0)), 0, 255);
                 params.modifierLaneSteps[id - kArpModifierLaneStep0Id].store(
                     step, std::memory_order_relaxed);
+            }
+            // Ratchet lane steps: 3191-3222 (074-ratcheting)
+            else if (id >= kArpRatchetLaneStep0Id && id <= kArpRatchetLaneStep31Id) {
+                int ratchet = std::clamp(
+                    static_cast<int>(1.0 + std::round(value * 3.0)), 1, 4);
+                params.ratchetLaneSteps[id - kArpRatchetLaneStep0Id].store(
+                    ratchet, std::memory_order_relaxed);
             }
             break;
     }
@@ -400,6 +423,27 @@ inline void registerArpParams(
     parameters.addParameter(STR16("Arp Slide Time"), STR16("ms"), 0,
         0.12,
         ParameterInfo::kCanAutomate, kArpSlideTimeId);
+
+    // --- Ratchet Lane (074-ratcheting) ---
+
+    // Ratchet lane length: RangeParameter 1-32, default 1, stepCount 31
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Ratchet Lane Len"), kArpRatchetLaneLengthId,
+                          STR16(""), 1, 32, 1, 31,
+                          ParameterInfo::kCanAutomate));
+
+    // Ratchet lane steps: loop 0-31, RangeParameter 1-4, default 1, stepCount 3
+    for (int i = 0; i < 32; ++i) {
+        char name[48];
+        snprintf(name, sizeof(name), "Arp Ratchet Step %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(name);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpRatchetLaneStep0Id + i),
+                STR16(""), 1, 4, 1, 3,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
 }
 
 // =============================================================================
@@ -533,6 +577,15 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
 
+        // --- Ratchet Lane (074-ratcheting) ---
+        case kArpRatchetLaneLengthId: {
+            char8 text[32];
+            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            snprintf(text, sizeof(text), "%d steps", len);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+
         default:
             // Velocity lane steps: display as percentage
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -568,6 +621,15 @@ inline Steinberg::tresult formatArpParam(
                 int step = std::clamp(
                     static_cast<int>(std::round(value * 255.0)), 0, 255);
                 snprintf(text, sizeof(text), "0x%02X", step);
+                UString(string, 128).fromAscii(text);
+                return kResultOk;
+            }
+            // Ratchet lane steps: display as "Nx" (074-ratcheting)
+            if (id >= kArpRatchetLaneStep0Id && id <= kArpRatchetLaneStep31Id) {
+                char8 text[32];
+                int ratchet = std::clamp(
+                    static_cast<int>(1.0 + std::round(value * 3.0)), 1, 4);
+                snprintf(text, sizeof(text), "%dx", ratchet);
                 UString(string, 128).fromAscii(text);
                 return kResultOk;
             }
@@ -624,6 +686,12 @@ inline void saveArpParams(
     }
     streamer.writeInt32(params.accentVelocity.load(std::memory_order_relaxed));
     streamer.writeFloat(params.slideTime.load(std::memory_order_relaxed));
+
+    // --- Ratchet Lane (074-ratcheting) ---
+    streamer.writeInt32(params.ratchetLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.ratchetLaneSteps[i].load(std::memory_order_relaxed));
+    }
 }
 
 // =============================================================================
@@ -726,6 +794,18 @@ inline bool loadArpParams(
     // Slide time
     if (!streamer.readFloat(floatVal)) return false;  // Corrupt: accentVelocity present but no slideTime
     params.slideTime.store(std::clamp(floatVal, 0.0f, 500.0f), std::memory_order_relaxed);
+
+    // --- Ratchet Lane (074-ratcheting) ---
+    // EOF-safe: if ratchet data is missing entirely (Phase 5 preset), keep defaults.
+    if (!streamer.readInt32(intVal)) return true;  // EOF at first ratchet field = Phase 5 compat
+    params.ratchetLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+
+    // From here, EOF signals a corrupt stream (length was present but steps are not)
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;  // Corrupt: length present but no step data
+        params.ratchetLaneSteps[i].store(
+            std::clamp(intVal, 1, 4), std::memory_order_relaxed);
+    }
 
     return true;
 }
@@ -859,6 +939,18 @@ inline void loadArpParamsToController(
     if (!streamer.readFloat(floatVal)) return;
     setParam(kArpSlideTimeId,
         static_cast<double>(std::clamp(floatVal, 0.0f, 500.0f)) / 500.0);
+
+    // --- Ratchet Lane (074-ratcheting) ---
+    // EOF-safe: if ratchet data is missing (Phase 5 preset), keep controller defaults
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpRatchetLaneLengthId,
+        static_cast<double>(std::clamp(intVal, 1, 32) - 1) / 31.0);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return;
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + i),
+            static_cast<double>(std::clamp(intVal, 1, 4) - 1) / 3.0);
+    }
 }
 
 } // namespace Ruinae
