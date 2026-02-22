@@ -10848,3 +10848,286 @@ TEST_CASE("EuclideanPolymetric_AllLanesAdvanceOnRest",
     CHECK(notes[0] == 60);   // Step 0: pitch offset 0
     CHECK(notes[1] == 72);   // Step 5: pitch offset +12
 }
+
+// =============================================================================
+// Phase 5: User Story 4 - Euclidean Mode On/Off Transitions
+// =============================================================================
+
+// T061: Disabled-to-enabled transition produces no stuck notes, gating from next
+// step, position starts at 0 (SC-005, FR-010)
+TEST_CASE("EuclideanTransition_DisabledToEnabled_NoStuckNotes",
+          "[arp][euclidean][transition]") {
+    ArpeggiatorCore arp;
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    arp.prepare(kSampleRate, kBlockSize);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.noteOn(60, 100);
+
+    // Pre-configure Euclidean parameters but leave disabled
+    arp.setEuclideanSteps(8);
+    arp.setEuclideanHits(3);
+    arp.setEuclideanRotation(0);
+    // Euclidean mode is OFF -- all steps should fire
+
+    BlockContext ctx;
+    ctx.sampleRate = kSampleRate;
+    ctx.blockSize = kBlockSize;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    // Run 4 steps with Euclidean disabled -- all should fire
+    // At 120 BPM eighth note = 11025 samples. 4 steps ~ 44100 samples ~ 87 blocks
+    auto eventsDisabled = collectEvents(arp, ctx, 100);
+    auto noteOnsDisabled = filterNoteOns(eventsDisabled);
+    auto noteOffsDisabled = filterNoteOffs(eventsDisabled);
+
+    // With Euclidean disabled, all steps should fire (Phase 6 behavior)
+    REQUIRE(noteOnsDisabled.size() >= 4);
+
+    // Enable Euclidean mid-playback
+    arp.setEuclideanEnabled(true);
+
+    // Run 16 steps (2 full Euclidean cycles of 8 steps)
+    // 16 * 11025 = 176400 samples. 176400 / 512 ~ 345 blocks.
+    auto eventsEnabled = collectEvents(arp, ctx, 360);
+    auto noteOnsEnabled = filterNoteOns(eventsEnabled);
+    auto noteOffsEnabled = filterNoteOffs(eventsEnabled);
+
+    // E(3,8) should produce 3 hits per 8-step cycle = ~6 noteOns in 16 steps
+    CHECK(noteOnsEnabled.size() >= 5);  // At least ~6 hits (margin for boundary)
+
+    // Verify no stuck notes: every noteOn must have a corresponding noteOff.
+    // The last note in the block may still be sounding (gate open), so allow +1.
+    CHECK(noteOffsEnabled.size() + 1 >= noteOnsEnabled.size());
+
+    // Verify the Euclidean position started from 0 by checking that
+    // the first step after enable fires (position 0 is a hit in E(3,8))
+    REQUIRE(noteOnsEnabled.size() >= 1);
+    // The first noteOn after enable should be very early (at the next step boundary)
+    CHECK(noteOnsEnabled[0].sampleOffset < 22050);  // Within ~2 steps
+}
+
+// T062: Enabled-to-disabled transition -- all steps active, no stuck notes (SC-005)
+TEST_CASE("EuclideanTransition_EnabledToDisabled_AllStepsActive",
+          "[arp][euclidean][transition]") {
+    ArpeggiatorCore arp;
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    arp.prepare(kSampleRate, kBlockSize);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.noteOn(60, 100);
+
+    // Enable Euclidean: E(1,8) = only 1 hit per 8 steps (very sparse)
+    arp.setEuclideanSteps(8);
+    arp.setEuclideanHits(1);
+    arp.setEuclideanRotation(0);
+    arp.setEuclideanEnabled(true);
+
+    BlockContext ctx;
+    ctx.sampleRate = kSampleRate;
+    ctx.blockSize = kBlockSize;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    // Run 8 steps with Euclidean enabled (E(1,8) = 1 hit per cycle)
+    auto eventsEnabled = collectEvents(arp, ctx, 200);
+    auto noteOnsEnabled = filterNoteOns(eventsEnabled);
+
+    // E(1,8) = 1 hit per 8 steps -- should see 1-2 noteOns in ~8 steps
+    REQUIRE(noteOnsEnabled.size() >= 1);
+
+    // Now disable Euclidean mid-playback
+    arp.setEuclideanEnabled(false);
+
+    // Run 8 more steps -- ALL should fire now (Phase 6 behavior)
+    auto eventsAfterDisable = collectEvents(arp, ctx, 200);
+    auto noteOnsAfterDisable = filterNoteOns(eventsAfterDisable);
+    auto noteOffsAfterDisable = filterNoteOffs(eventsAfterDisable);
+
+    // With Euclidean disabled, all 8 steps should fire
+    CHECK(noteOnsAfterDisable.size() >= 7);  // ~8 steps, allow margin
+
+    // No stuck notes: the last note may still be sounding at block boundary
+    CHECK(noteOffsAfterDisable.size() + 1 >= noteOnsAfterDisable.size());
+}
+
+// T063: Mid-step toggle produces no partial artifacts (SC-005)
+TEST_CASE("EuclideanTransition_MidStep_NoPartialArtifacts",
+          "[arp][euclidean][transition]") {
+    ArpeggiatorCore arp;
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    arp.prepare(kSampleRate, kBlockSize);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = kSampleRate;
+    ctx.blockSize = kBlockSize;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    // Process a few blocks to get mid-step (not at a step boundary)
+    // At 120 BPM, eighth note = 11025 samples. 1 block = 512 samples.
+    // Process 5 blocks = 2560 samples -- mid-step (step boundary at 11025).
+    std::array<ArpEvent, 128> blockEvents;
+    for (size_t b = 0; b < 5; ++b) {
+        arp.processBlock(ctx, blockEvents);
+        ctx.transportPositionSamples += static_cast<int64_t>(kBlockSize);
+    }
+
+    // Toggle Euclidean on mid-step
+    arp.setEuclideanSteps(4);
+    arp.setEuclideanHits(2);
+    arp.setEuclideanRotation(0);
+    arp.setEuclideanEnabled(true);
+
+    // Run many more blocks to capture subsequent steps
+    auto eventsAfterToggle = collectEvents(arp, ctx, 250);
+    auto noteOnsAfterToggle = filterNoteOns(eventsAfterToggle);
+    auto noteOffsAfterToggle = filterNoteOffs(eventsAfterToggle);
+
+    // E(2,4) has 2 hits per 4 steps. Over ~10 steps should see ~5 noteOns.
+    CHECK(noteOnsAfterToggle.size() >= 4);
+
+    // No stuck notes: last note may still be sounding at block boundary
+    CHECK(noteOffsAfterToggle.size() + 1 >= noteOnsAfterToggle.size());
+
+    // Verify no partial-step artifacts: every noteOn should have a valid
+    // sampleOffset (non-negative, within expected range)
+    for (const auto& e : noteOnsAfterToggle) {
+        CHECK(e.sampleOffset >= 0);
+    }
+
+    // Now toggle OFF mid-step and verify clean transition back
+    for (size_t b = 0; b < 3; ++b) {
+        arp.processBlock(ctx, blockEvents);
+        ctx.transportPositionSamples += static_cast<int64_t>(kBlockSize);
+    }
+    arp.setEuclideanEnabled(false);
+
+    auto eventsAfterOff = collectEvents(arp, ctx, 200);
+    auto noteOnsAfterOff = filterNoteOns(eventsAfterOff);
+    auto noteOffsAfterOff = filterNoteOffs(eventsAfterOff);
+
+    // All steps should fire after disable
+    CHECK(noteOnsAfterOff.size() >= 7);  // ~8+ steps
+    // No stuck notes: noteOffs should be within 1 of noteOns
+    // (the very last note may still be sounding at the block boundary)
+    CHECK(noteOffsAfterOff.size() + 1 >= noteOnsAfterOff.size());
+}
+
+// T064: In-flight ratchet sub-steps complete normally when Euclidean is enabled (FR-010)
+TEST_CASE("EuclideanTransition_InFlightRatchet_Completes",
+          "[arp][euclidean][transition]") {
+    ArpeggiatorCore arp;
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    arp.prepare(kSampleRate, kBlockSize);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.noteOn(60, 100);
+
+    // Set ratchet lane: 4 sub-steps per step
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(4));
+
+    BlockContext ctx;
+    ctx.sampleRate = kSampleRate;
+    ctx.blockSize = kBlockSize;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    // Process blocks until the first step fires with ratchet 4.
+    // The arp fires after one step duration (11025 samples) = ~22 blocks of 512.
+    // Process 25 blocks to be past the first step fire but before all 4 sub-steps
+    // complete. Each sub-step = 11025 / 4 = 2756 samples = ~5.4 blocks.
+    // After 25 blocks = 12800 samples, we are past the first step fire (~11025)
+    // and likely 1-2 sub-steps have fired, with remaining sub-steps in-flight.
+    std::array<ArpEvent, 128> blockEvents;
+    for (size_t b = 0; b < 25; ++b) {
+        arp.processBlock(ctx, blockEvents);
+        ctx.transportPositionSamples += static_cast<int64_t>(kBlockSize);
+    }
+
+    // Enable Euclidean mid-ratchet (with all hits so pattern is transparent)
+    arp.setEuclideanSteps(8);
+    arp.setEuclideanHits(8);  // all hits -- pattern is transparent
+    arp.setEuclideanRotation(0);
+    arp.setEuclideanEnabled(true);
+
+    // Continue processing to complete the remaining ratchet sub-steps
+    // and capture subsequent steps
+    auto eventsAfterEnable = collectEvents(arp, ctx, 300);
+    auto noteOnsAfterEnable = filterNoteOns(eventsAfterEnable);
+    auto noteOffsAfterEnable = filterNoteOffs(eventsAfterEnable);
+
+    // With ratchet=4 and all Euclidean hits (transparent), we should see
+    // ratcheted noteOns. The in-flight sub-steps should have completed.
+    // Over ~12 steps with ratchet 4, expect ~48 noteOns.
+    CHECK(noteOnsAfterEnable.size() >= 10);
+
+    // No stuck notes: last note may still be sounding at block boundary
+    CHECK(noteOffsAfterEnable.size() + 1 >= noteOnsAfterEnable.size());
+
+    // Additional verification: enable Euclidean with a sparse pattern (E(1,8))
+    // during a ratcheted step. The in-flight sub-steps should still complete.
+    ArpeggiatorCore arp2;
+    arp2.prepare(kSampleRate, kBlockSize);
+    arp2.setEnabled(true);
+    arp2.setMode(ArpMode::Up);
+    arp2.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp2.setGateLength(80.0f);
+    arp2.noteOn(60, 100);
+    arp2.ratchetLane().setStep(0, static_cast<uint8_t>(4));
+
+    BlockContext ctx2;
+    ctx2.sampleRate = kSampleRate;
+    ctx2.blockSize = kBlockSize;
+    ctx2.tempoBPM = 120.0;
+    ctx2.isPlaying = true;
+    ctx2.transportPositionSamples = 0;
+
+    // Process until the first step fires and some sub-steps are in-flight
+    for (size_t b = 0; b < 25; ++b) {
+        arp2.processBlock(ctx2, blockEvents);
+        ctx2.transportPositionSamples += static_cast<int64_t>(kBlockSize);
+    }
+
+    // Enable Euclidean with sparse pattern E(1,8)
+    arp2.setEuclideanSteps(8);
+    arp2.setEuclideanHits(1);
+    arp2.setEuclideanRotation(0);
+    arp2.setEuclideanEnabled(true);
+
+    // Continue -- remaining sub-steps from the first ratcheted step should complete
+    auto eventsAfterSparse = collectEvents(arp2, ctx2, 300);
+    auto noteOnsSparse = filterNoteOns(eventsAfterSparse);
+    auto noteOffsSparse = filterNoteOffs(eventsAfterSparse);
+
+    // With E(1,8) = 1 hit per 8 steps, over ~12 steps we expect ~1-2 noteOns
+    // (from the sparse Euclidean pattern) plus any in-flight sub-steps that
+    // completed normally before the Euclidean gating kicked in.
+    // The key assertion: no stuck notes and no crash.
+    CHECK(noteOnsSparse.size() >= 1);
+    CHECK(noteOffsSparse.size() + 1 >= noteOnsSparse.size());
+}

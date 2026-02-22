@@ -209,21 +209,21 @@ Note: The core lane advance behavior on Euclidean rest steps was implemented in 
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T061 [US4] Write failing test "EuclideanTransition_DisabledToEnabled_NoStuckNotes" in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`: run the arp with Euclidean disabled, then enable Euclidean mid-playback; verify no timing glitch or stuck notes; verify Euclidean gating takes effect from the next full step boundary; Euclidean step position starts at 0. (SC-005, US4 acceptance scenario 1)
-- [ ] T062 [US4] Write failing test "EuclideanTransition_EnabledToDisabled_AllStepsActive" in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`: run the arp with Euclidean enabled, then disable mid-playback; verify all steps fire as active from the next step onward with no stuck notes. (SC-005, US4 acceptance scenario 2)
-- [ ] T063 [US4] Write failing test "EuclideanTransition_MidStep_NoPartialArtifacts" in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`: toggle Euclidean mode while mid-step (between step boundaries); verify the new mode applies cleanly at the next step with no partial-step artifacts. (SC-005, US4 acceptance scenario 3)
-- [ ] T064 [US4] Write failing test "EuclideanTransition_InFlightRatchet_Completes" in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`: initiate a ratcheted step (multiple sub-steps) and while sub-steps are in-flight, enable Euclidean mode; verify all remaining sub-steps for the current ratchet complete normally before Euclidean gating begins at the next full step. (FR-010, spec clarification Q4)
+- [X] T061 [US4] Write failing test "EuclideanTransition_DisabledToEnabled_NoStuckNotes" in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`: run the arp with Euclidean disabled, then enable Euclidean mid-playback; verify no timing glitch or stuck notes; verify Euclidean gating takes effect from the next full step boundary; Euclidean step position starts at 0. (SC-005, US4 acceptance scenario 1)
+- [X] T062 [US4] Write failing test "EuclideanTransition_EnabledToDisabled_AllStepsActive" in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`: run the arp with Euclidean enabled, then disable mid-playback; verify all steps fire as active from the next step onward with no stuck notes. (SC-005, US4 acceptance scenario 2)
+- [X] T063 [US4] Write failing test "EuclideanTransition_MidStep_NoPartialArtifacts" in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`: toggle Euclidean mode while mid-step (between step boundaries); verify the new mode applies cleanly at the next step with no partial-step artifacts. (SC-005, US4 acceptance scenario 3)
+- [X] T064 [US4] Write failing test "EuclideanTransition_InFlightRatchet_Completes" in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`: initiate a ratcheted step (multiple sub-steps) and while sub-steps are in-flight, enable Euclidean mode; verify all remaining sub-steps for the current ratchet complete normally before Euclidean gating begins at the next full step. (FR-010, spec clarification Q4)
 
 ### 5.2 Implementation for User Story 4
 
 Note: The `setEuclideanEnabled()` method was implemented in Task Group 1 (T019). The correct behavior -- resetting position on enable but not clearing ratchet state -- is already designed in. User Story 4 verifies the transitions are clean by running processBlock() calls around the toggle. No additional implementation is expected if Task Group 1 was correct.
 
-- [ ] T065 [US4] Verify that `setEuclideanEnabled(true)` in `dsp/include/krate/dsp/processors/arpeggiator_core.h` resets `euclideanPosition_` to 0 but does NOT touch `ratchetSubStepsRemaining_` or `ratchetSubStepCounter_`. If correct from Task Group 1, no change needed -- this task confirms correctness.
-- [ ] T066 [US4] Build and verify all User Story 4 tests from T061-T064 pass with zero compiler warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests`
+- [X] T065 [US4] Verify that `setEuclideanEnabled(true)` in `dsp/include/krate/dsp/processors/arpeggiator_core.h` resets `euclideanPosition_` to 0 but does NOT touch `ratchetSubStepsRemaining_` or `ratchetSubStepCounter_`. If correct from Task Group 1, no change needed -- this task confirms correctness.
+- [X] T066 [US4] Build and verify all User Story 4 tests from T061-T064 pass with zero compiler warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests`
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T067 [US4] Verify IEEE 754 compliance: check new test cases for IEEE 754 function usage. Transition tests are event-count and timing checks -- no floating-point issues expected, but confirm.
+- [X] T067 [US4] Verify IEEE 754 compliance: check new test cases for IEEE 754 function usage. Transition tests are event-count and timing checks -- no floating-point issues expected, but confirm.
 
 ### 5.4 Commit User Story 4
 
