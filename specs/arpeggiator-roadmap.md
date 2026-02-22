@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 6 complete — Ratcheting) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 7 complete — Euclidean Timing) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -648,11 +648,13 @@ kArpRatchetLaneStep0Id      = 3191,  // through Step31Id = 3222
 
 ---
 
-## Phase 7: Euclidean Timing Mode
+## Phase 7: Euclidean Timing Mode ✅ COMPLETE
 
 **DSP Layer**: 2 (processors)
 **Files**: Extend `arpeggiator_core.h`, reuse `euclidean_pattern.h`
 **Test**: Extend `arpeggiator_core_test.cpp`
+**Spec**: `specs/075-euclidean-timing/spec.md`
+**Branch**: `075-euclidean-timing`
 **Depends on**: Phase 4
 
 ### Purpose
@@ -697,10 +699,17 @@ kArpEuclideanRotationId     = 3233,  // 0-31
 
 ### Acceptance Criteria
 
-- [ ] Euclidean patterns match Bjorklund algorithm reference output
-- [ ] Rotation produces audibly different rhythms from same hits/steps
-- [ ] Integrates with existing lane system (Euclidean only controls which steps fire)
-- [ ] Realtime-safe pattern generation (EuclideanPattern is already O(n))
+- [x] Euclidean patterns match Bjorklund algorithm reference output (SC-001: 5 known patterns verified — E(3,8) tresillo, E(8,8), E(0,8), E(5,8) cinquillo, E(5,16) bossa nova)
+- [x] Rotation produces audibly different rhythms from same hits/steps (SC-002: all 16 rotations of E(5,16) are distinct with exactly 5 hits each)
+- [x] Integrates with existing lane system (Euclidean only controls which steps fire) (SC-003: polymetric cycling verified — Euclidean steps=5 + velocity lane=3 = 15-step combined cycle)
+- [x] Realtime-safe pattern generation (SC-010: zero heap allocation confirmed — EuclideanPattern::generate() is constexpr/static/noexcept, all state uses fixed-size types)
+- [x] Euclidean disabled = Phase 6 identical output (SC-004: zero-tolerance test at 120/140/180 BPM — same notes, velocities, offsets, legato flags)
+- [x] On/off transitions clean with no stuck notes (SC-005: 4 transition tests pass)
+- [x] Rest breaks tie chain, ratchet interaction correct (SC-006, SC-007: verified)
+- [x] State round-trip preserves all 4 values, Phase 6 backward compat (SC-008, SC-009: verified)
+- [x] 4 parameter IDs (3230-3233) registered with kCanAutomate (SC-011: verified)
+- [x] 44 new tests (37 DSP + 6 integration + 1 param registration), pluginval L5 pass, clang-tidy 0 findings
+- [x] 35/35 functional requirements MET, 12/12 success criteria MET
 
 ---
 
