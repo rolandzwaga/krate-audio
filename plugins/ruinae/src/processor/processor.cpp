@@ -1328,6 +1328,17 @@ void Processor::applyParamsToEngine() {
         arpCore_.ratchetLane().setLength(static_cast<size_t>(ratchetLen));  // Shrink to actual
     }
 
+    // --- Euclidean Timing (075-euclidean-timing) ---
+    // Prescribed call order: steps -> hits -> rotation -> enabled (FR-032)
+    arpCore_.setEuclideanSteps(
+        arpParams_.euclideanSteps.load(std::memory_order_relaxed));
+    arpCore_.setEuclideanHits(
+        arpParams_.euclideanHits.load(std::memory_order_relaxed));
+    arpCore_.setEuclideanRotation(
+        arpParams_.euclideanRotation.load(std::memory_order_relaxed));
+    arpCore_.setEuclideanEnabled(
+        arpParams_.euclideanEnabled.load(std::memory_order_relaxed));
+
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));
 }

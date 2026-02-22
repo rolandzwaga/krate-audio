@@ -5886,7 +5886,7 @@ class TranceGate {
 ## ArpeggiatorCore
 **Path:** [arpeggiator_core.h](../../dsp/include/krate/dsp/processors/arpeggiator_core.h) | **Since:** 0.11.0
 
-Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains five `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`, modifier: `uint8_t`, ratchet: `uint8_t`) that advance independently on each arp step, enabling polymetric lane patterns. The ratchet lane (Spec 074) stores per-step subdivision counts (1-4); when a step has ratchet count N > 1, `fireStep()` emits the first sub-step and initializes sub-step tracking state, then `processBlock()` emits the remaining N-1 sub-steps via a `NextEvent::SubStep` event type in the jump-ahead loop. Header-only, zero heap allocation in all methods.
+Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains five `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`, modifier: `uint8_t`, ratchet: `uint8_t`) that advance independently on each arp step, enabling polymetric lane patterns. The ratchet lane (Spec 074) stores per-step subdivision counts (1-4); when a step has ratchet count N > 1, `fireStep()` emits the first sub-step and initializes sub-step tracking state, then `processBlock()` emits the remaining N-1 sub-steps via a `NextEvent::SubStep` event type in the jump-ahead loop. Euclidean timing mode (Spec 075) adds a pre-fire gating check in `fireStep()` using the existing `EuclideanPattern` class (Layer 0) to determine which steps fire notes (hits) and which are silent (rests). Header-only, zero heap allocation in all methods.
 
 ```cpp
 enum class LatchMode : uint8_t { Off, Hold, Add };
@@ -5952,6 +5952,16 @@ class ArpeggiatorCore {
     ArpLane<uint8_t>& ratchetLane() noexcept;         // Per-step ratchet count [1-4]
     const ArpLane<uint8_t>& ratchetLane() const noexcept;
 
+    // Euclidean timing (Spec 075)
+    void setEuclideanSteps(int steps) noexcept;       // [2, 32], re-clamps hits, regenerates pattern
+    void setEuclideanHits(int hits) noexcept;         // [0, euclideanSteps_], regenerates pattern
+    void setEuclideanRotation(int rotation) noexcept; // [0, 31], regenerates pattern
+    void setEuclideanEnabled(bool enabled) noexcept;  // false->true resets position to 0
+    [[nodiscard]] bool euclideanEnabled() const noexcept;
+    [[nodiscard]] int euclideanHits() const noexcept;
+    [[nodiscard]] int euclideanSteps() const noexcept;
+    [[nodiscard]] int euclideanRotation() const noexcept;
+
     // Processing
     size_t processBlock(const BlockContext& ctx,
                         std::span<ArpEvent> outputEvents) noexcept;
@@ -5968,6 +5978,7 @@ class ArpeggiatorCore {
 - Chord mode support (NoteSelector returns multiple notes simultaneously)
 - Per-step velocity shaping, gate length modulation, and pitch offset via independent lanes (Spec 072)
 - Per-step ratcheting (1-4 sub-step retriggered repetitions) via independent ratchet lane (Spec 074)
+- Euclidean timing mode for Bjorklund-algorithm rhythmic gating (E(k,n) patterns like tresillo, cinquillo, bossa nova) with rotation (Spec 075)
 
 **Usage example:**
 
@@ -5995,6 +6006,14 @@ ctx.isPlaying = true;
 size_t count = arp.processBlock(ctx, events);
 // events[0..count-1] contain sample-accurate NoteOn/NoteOff events
 // Step 1 will produce 2 evenly-spaced noteOn/noteOff pairs within its duration
+
+// Configure Euclidean timing: E(3,8) tresillo pattern (Spec 075)
+arp.setEuclideanSteps(8);
+arp.setEuclideanHits(3);
+arp.setEuclideanRotation(0);
+arp.setEuclideanEnabled(true);
+// Steps 0, 3, 6 will fire noteOn; steps 1, 2, 4, 5, 7 are silent rests
+// All lanes (velocity, gate, pitch, modifier, ratchet) still advance on rest steps
 ```
 
 **Enumerations:**
@@ -6085,6 +6104,56 @@ enum class NextEvent { BlockEnd, NoteOff, Step, SubStep, BarBoundary };
 **`kMaxEvents` update (Spec 074):**
 - Increased from 64 to 128. Worst case: Chord mode with 16 held notes, ratchet count 4, produces 4 sub-steps x 16 notes x 2 events (NoteOn + NoteOff) = 128 events within a single step duration. The processor-side `arpEvents_` buffer in `processor.h` was already 128 elements; only the DSP constant needed updating.
 
-**Memory:** ~600 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 5 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays). Header-only, real-time safe, single-threaded.
+**Euclidean timing integration (Spec 075):**
 
-**Dependencies:** Layer 0 (block_context.h, note_value.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)
+Euclidean timing mode adds a pre-fire gating check in `fireStep()` that determines which steps fire notes (hits) and which are silent (rests), using the Bjorklund algorithm via the existing `EuclideanPattern` class (Layer 0).
+
+*Euclidean state members:*
+- `euclideanEnabled_` (`bool`, default `false`): Whether Euclidean timing mode is active. When `false`, the arp behaves identically to Phase 6 (all steps fire).
+- `euclideanHits_` (`int`, default 4): Number of pulses (k) in the E(k,n) pattern, range [0, 32]. A value of 0 produces an all-silent pattern; a value equal to `euclideanSteps_` produces an all-active pattern.
+- `euclideanSteps_` (`int`, default 8): Number of steps (n) in the E(k,n) pattern, range [2, 32].
+- `euclideanRotation_` (`int`, default 0): Rotation offset applied to the pattern, range [0, 31]. Different rotations of the same E(k,n) produce distinct rhythmic variants.
+- `euclideanPosition_` (`size_t`, default 0): Current step position in the Euclidean pattern, range [0, euclideanSteps_-1]. Advances once per arp step tick, wrapping at `euclideanSteps_`.
+- `euclideanPattern_` (`uint32_t`, default 0 as member initializer): Pre-computed bitmask from `EuclideanPattern::generate()`. The constructor calls `regenerateEuclideanPattern()` so the field holds E(4,8,0) at construction time.
+
+*Private helper:*
+- `regenerateEuclideanPattern()`: Calls `EuclideanPattern::generate(euclideanHits_, euclideanSteps_, euclideanRotation_)` and stores the result in `euclideanPattern_`. Called by all three parameter setters, the constructor, and `reset()`.
+
+*Setter methods:*
+- `setEuclideanSteps(int steps)`: Clamps steps to [EuclideanPattern::kMinSteps (2), EuclideanPattern::kMaxSteps (32)], re-clamps `euclideanHits_` to [0, new step count], calls `regenerateEuclideanPattern()`.
+- `setEuclideanHits(int hits)`: Clamps hits to [0, `euclideanSteps_`], calls `regenerateEuclideanPattern()`.
+- `setEuclideanRotation(int rotation)`: Clamps rotation to [0, EuclideanPattern::kMaxSteps - 1 (31)], calls `regenerateEuclideanPattern()`.
+- `setEuclideanEnabled(bool enabled)`: When transitioning from disabled to enabled, resets `euclideanPosition_` to 0 but does NOT clear ratchet sub-step state (in-flight sub-steps complete normally). When transitioning from enabled to disabled, no cleanup is needed.
+
+*Getter methods:*
+- `euclideanEnabled()`, `euclideanHits()`, `euclideanSteps()`, `euclideanRotation()`: Return the current configuration values (not the bitmask). All are `[[nodiscard]] inline ... const noexcept`.
+
+*Evaluation order in `fireStep()`:*
+1. All lane advances (velocity, gate, pitch, modifier, ratchet) -- unconditional on every step tick
+2. **Euclidean gating** -- if enabled, checks `EuclideanPattern::isHit()` at current position, advances position. If rest: emits noteOff for sounding notes, breaks tie chain (`tieActive_ = false`), increments swing counter, recalculates step duration, returns early.
+3. *(Future: Phase 8 Conditional Trig will insert its check here, between Euclidean gating and modifier evaluation)*
+4. Modifier priority chain (Rest > Tie > Slide > Accent)
+5. Ratcheting
+
+*Lifecycle integration:*
+- `resetLanes()`: Resets `euclideanPosition_` to 0 (after ratchet state reset). Ensures retrigger (Note and Beat modes) and enable/disable transitions restart the Euclidean pattern from step 0.
+- `reset()`: Calls `resetLanes()` then `regenerateEuclideanPattern()` to regenerate the pattern from current parameters.
+- Constructor: Calls `regenerateEuclideanPattern()` after member initialization so `euclideanPattern_` starts as E(4,8,0) rather than zero.
+
+*Defensive branch:*
+- In the `result.count == 0` branch in `fireStep()` (held buffer empty), `euclideanPosition_` advances when Euclidean is enabled, keeping all lane positions synchronized.
+
+*Euclidean rest behavior:*
+- No noteOn is emitted.
+- A noteOff is emitted for any currently sounding note(s).
+- The tie chain is broken (`tieActive_ = false`).
+- Ratcheting is suppressed (ratchet count is discarded, no sub-steps fire).
+- The step still consumes swing timing (swing counter advances, step duration recalculated).
+- All lanes (velocity, gate, pitch, modifier, ratchet) have already advanced before the Euclidean check.
+
+*Euclidean hit behavior:*
+- The step proceeds through normal modifier evaluation and ratcheting, exactly as if Euclidean were disabled.
+
+**Memory:** ~600 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 5 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays + Euclidean state: 6 scalar members ~24 bytes). Header-only, real-time safe, single-threaded.
+
+**Dependencies:** Layer 0 (block_context.h, note_value.h, euclidean_pattern.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)

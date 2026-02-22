@@ -997,7 +997,12 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpRatchetLaneStep29Id  = 3220,
     kArpRatchetLaneStep30Id  = 3221,
     kArpRatchetLaneStep31Id  = 3222,
-    // 3223-3299: reserved for future arp phases (Euclidean, Conditional Trig)
+    // --- Euclidean Timing (075-euclidean-timing, 3230-3233) ---
+    kArpEuclideanEnabledId   = 3230,    // discrete: 0-1 (on/off toggle)
+    kArpEuclideanHitsId      = 3231,    // discrete: 0-32
+    kArpEuclideanStepsId     = 3232,    // discrete: 2-32
+    kArpEuclideanRotationId  = 3233,    // discrete: 0-31
+    // 3234-3299: reserved for future arp phases (Conditional Trig, Spice/Dice)
 
     kArpEndId = 3299,
 
