@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <utility>
 #include <vector>
 
 using namespace Krate::DSP;
@@ -9404,7 +9405,8 @@ TEST_CASE("EuclideanGating_Tresillo_E3_8",
     constexpr size_t kFirstStepOffset = kStepDuration;  // first step fires at 1 duration
 
     for (size_t i = 0; i < std::min(noteOns.size(), size_t{3}); ++i) {
-        size_t expectedStep = (i == 0) ? 0 : (i == 1) ? 3 : 6;
+        constexpr size_t kExpectedSteps[] = {0, 3, 6};
+        size_t expectedStep = kExpectedSteps[i];
         size_t expectedOffset = kFirstStepOffset + expectedStep * kStepDuration;
         size_t actualOffset = static_cast<size_t>(noteOns[i].sampleOffset);
         // Within one block size tolerance
@@ -9417,7 +9419,7 @@ TEST_CASE("EuclideanGating_Tresillo_E3_8",
     size_t endOfCycle = kFirstStepOffset + 8 * kStepDuration;
     size_t noteOnsInFirst8Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < endOfCycle) {
+        if (std::cmp_less(e.sampleOffset, endOfCycle)) {
             ++noteOnsInFirst8Steps;
         }
     }
@@ -9556,7 +9558,7 @@ TEST_CASE("EuclideanGating_Cinquillo_E5_8",
     size_t endOfCycle = kFirstStepOffset + 8 * kStepDuration;
     size_t noteOnsInFirst8Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < endOfCycle) {
+        if (std::cmp_less(e.sampleOffset, endOfCycle)) {
             ++noteOnsInFirst8Steps;
         }
     }
@@ -9616,7 +9618,7 @@ TEST_CASE("EuclideanGating_BossaNova_E5_16",
     size_t stepDuration16th = static_cast<size_t>(kSampleRate * 60.0 / 120.0 / 4.0);  // ~5512
     size_t noteOnsInFirst16Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < 16 * stepDuration16th) {
+        if (std::cmp_less(e.sampleOffset, 16 * stepDuration16th)) {
             ++noteOnsInFirst16Steps;
         }
     }
@@ -9834,7 +9836,7 @@ TEST_CASE("EuclideanRestStep_AllLanesAdvance",
     constexpr size_t kStepDuration = 11025;
     size_t noteOnsIn15Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < 15 * kStepDuration) {
+        if (std::cmp_less(e.sampleOffset, 15 * kStepDuration)) {
             ++noteOnsIn15Steps;
         }
     }
@@ -9900,7 +9902,7 @@ TEST_CASE("EuclideanRestStep_BreaksTieChain",
     size_t endOfCycle = kFirstStepOffset + 4 * kStepDuration;
     size_t noteOnsIn4Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < endOfCycle) {
+        if (std::cmp_less(e.sampleOffset, endOfCycle)) {
             ++noteOnsIn4Steps;
         }
     }
@@ -9913,7 +9915,7 @@ TEST_CASE("EuclideanRestStep_BreaksTieChain",
     // Verify at least 1 noteOff from the Euclidean rest within the first cycle.
     size_t noteOffsIn4Steps = 0;
     for (const auto& e : noteOffs) {
-        if (static_cast<size_t>(e.sampleOffset) < endOfCycle) {
+        if (std::cmp_less(e.sampleOffset, endOfCycle)) {
             ++noteOffsIn4Steps;
         }
     }
@@ -10004,7 +10006,7 @@ TEST_CASE("EuclideanHitStep_RatchetApplies",
     size_t endOfCycle = kFirstStepOffset + 8 * kStepDuration;
     size_t noteOnsIn8Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < endOfCycle) {
+        if (std::cmp_less(e.sampleOffset, endOfCycle)) {
             ++noteOnsIn8Steps;
         }
     }
@@ -10093,7 +10095,7 @@ TEST_CASE("EuclideanHitStep_ModifierTieApplies",
     constexpr size_t kStepDuration = 11025;
     size_t noteOnsIn8Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < 8 * kStepDuration) {
+        if (std::cmp_less(e.sampleOffset, 8 * kStepDuration)) {
             ++noteOnsIn8Steps;
         }
     }
@@ -10147,7 +10149,7 @@ TEST_CASE("EuclideanRestStep_ModifierTie_TieChainBroken",
     size_t endOfCycle = kFirstStepOffset + 4 * kStepDuration;
     size_t noteOnsIn4Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < endOfCycle) {
+        if (std::cmp_less(e.sampleOffset, endOfCycle)) {
             ++noteOnsIn4Steps;
         }
     }
@@ -10157,7 +10159,7 @@ TEST_CASE("EuclideanRestStep_ModifierTie_TieChainBroken",
     // The rest overrides the Tie modifier and emits noteOff for sounding notes.
     size_t noteOffsIn4Steps = 0;
     for (const auto& e : noteOffs) {
-        if (static_cast<size_t>(e.sampleOffset) < endOfCycle) {
+        if (std::cmp_less(e.sampleOffset, endOfCycle)) {
             ++noteOffsIn4Steps;
         }
     }
@@ -10202,7 +10204,7 @@ TEST_CASE("EuclideanChordMode_HitFiresAll_RestSilencesAll",
     constexpr size_t kStepDuration = 11025;
     size_t noteOnsIn2Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < 2 * kStepDuration) {
+        if (std::cmp_less(e.sampleOffset, 2 * kStepDuration)) {
             ++noteOnsIn2Steps;
         }
     }
@@ -10435,7 +10437,7 @@ TEST_CASE("EuclideanSwing_Orthogonal",
     constexpr size_t kApproxCycleDuration = 88200;
     size_t noteOnsInFirstCycle = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < kApproxCycleDuration) {
+        if (std::cmp_less(e.sampleOffset, kApproxCycleDuration)) {
             ++noteOnsInFirstCycle;
         }
     }
@@ -10495,7 +10497,7 @@ TEST_CASE("EuclideanPolymetric_Steps5_VelocityLength3",
     size_t endOf15Steps = kFirstStepOffset + 15 * kStepDuration;
     size_t noteOnsIn15Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < endOf15Steps) {
+        if (std::cmp_less(e.sampleOffset, endOf15Steps)) {
             ++noteOnsIn15Steps;
         }
     }
@@ -10527,7 +10529,7 @@ TEST_CASE("EuclideanPolymetric_Steps5_VelocityLength3",
     // Collect velocities of noteOns in the first 15 steps.
     std::vector<uint8_t> velocities;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < endOf15Steps) {
+        if (std::cmp_less(e.sampleOffset, endOf15Steps)) {
             velocities.push_back(e.velocity);
         }
     }
@@ -10621,7 +10623,7 @@ TEST_CASE("EuclideanPolymetric_RatchetInterplay",
     constexpr size_t kStepDuration = 11025;
     size_t noteOnsIn24Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < 24 * kStepDuration) {
+        if (std::cmp_less(e.sampleOffset, 24 * kStepDuration)) {
             ++noteOnsIn24Steps;
         }
     }
@@ -10634,7 +10636,7 @@ TEST_CASE("EuclideanPolymetric_RatchetInterplay",
     // (steps 0, 3, 6 are hits with ratchet 1, 1, 1 -> 3 noteOns)
     size_t noteOnsIn8Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < 8 * kStepDuration) {
+        if (std::cmp_less(e.sampleOffset, 8 * kStepDuration)) {
             ++noteOnsIn8Steps;
         }
     }
@@ -10703,7 +10705,7 @@ TEST_CASE("EuclideanPolymetric_ModifierInterplay",
     size_t endOfCycle1 = kFirstStepOffset + 8 * kStepDuration;
     size_t noteOnsIn8Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < endOfCycle1) {
+        if (std::cmp_less(e.sampleOffset, endOfCycle1)) {
             ++noteOnsIn8Steps;
         }
     }
@@ -10713,7 +10715,7 @@ TEST_CASE("EuclideanPolymetric_ModifierInterplay",
     // Step 1 has Tie modifier, but Euclidean rest overrides -> noteOff emitted.
     size_t noteOffsIn8Steps = 0;
     for (const auto& e : noteOffs) {
-        if (static_cast<size_t>(e.sampleOffset) < endOfCycle1) {
+        if (std::cmp_less(e.sampleOffset, endOfCycle1)) {
             ++noteOffsIn8Steps;
         }
     }
@@ -10805,7 +10807,7 @@ TEST_CASE("EuclideanPolymetric_AllLanesAdvanceOnRest",
     constexpr size_t kStepDuration = 11025;
     size_t noteOnsIn10Steps = 0;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < 10 * kStepDuration) {
+        if (std::cmp_less(e.sampleOffset, 10 * kStepDuration)) {
             ++noteOnsIn10Steps;
         }
     }
@@ -10825,7 +10827,7 @@ TEST_CASE("EuclideanPolymetric_AllLanesAdvanceOnRest",
     // position 1 (only advancing on hits), giving vel=50 instead of vel=25.
     std::vector<uint8_t> velocities;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < 10 * kStepDuration) {
+        if (std::cmp_less(e.sampleOffset, 10 * kStepDuration)) {
             velocities.push_back(e.velocity);
         }
     }
@@ -10840,7 +10842,7 @@ TEST_CASE("EuclideanPolymetric_AllLanesAdvanceOnRest",
     // Step 5: pitch lane pos 1 -> offset=+12 -> note=72
     std::vector<uint8_t> notes;
     for (const auto& e : noteOns) {
-        if (static_cast<size_t>(e.sampleOffset) < 10 * kStepDuration) {
+        if (std::cmp_less(e.sampleOffset, 10 * kStepDuration)) {
             notes.push_back(e.note);
         }
     }

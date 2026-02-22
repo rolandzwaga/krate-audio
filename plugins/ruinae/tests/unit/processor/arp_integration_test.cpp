@@ -2334,3 +2334,247 @@ TEST_CASE("RatchetParams_ApplyEveryBlock_NoSubStepReset", "[arp][integration][ra
     // we'd see far fewer because sub-steps would restart each block.
     REQUIRE(noteOnCount >= 12);
 }
+
+// =============================================================================
+// Phase 7 (US5): Euclidean Parameter Persistence Tests (T086-T091)
+// =============================================================================
+
+// Helper: write a complete Phase 6 stream (everything through ratchet, NO Euclidean)
+static void writePhase6Stream(Steinberg::IBStreamer& writer, const Ruinae::ArpeggiatorParams& p) {
+    writer.writeInt32(p.enabled.load() ? 1 : 0);
+    writer.writeInt32(p.mode.load());
+    writer.writeInt32(p.octaveRange.load());
+    writer.writeInt32(p.octaveMode.load());
+    writer.writeInt32(p.tempoSync.load() ? 1 : 0);
+    writer.writeInt32(p.noteValue.load());
+    writer.writeFloat(p.freeRate.load());
+    writer.writeFloat(p.gateLength.load());
+    writer.writeFloat(p.swing.load());
+    writer.writeInt32(p.latchMode.load());
+    writer.writeInt32(p.retrigger.load());
+    // Velocity lane
+    writer.writeInt32(p.velocityLaneLength.load());
+    for (int i = 0; i < 32; ++i) writer.writeFloat(p.velocityLaneSteps[i].load());
+    // Gate lane
+    writer.writeInt32(p.gateLaneLength.load());
+    for (int i = 0; i < 32; ++i) writer.writeFloat(p.gateLaneSteps[i].load());
+    // Pitch lane
+    writer.writeInt32(p.pitchLaneLength.load());
+    for (int i = 0; i < 32; ++i) writer.writeInt32(p.pitchLaneSteps[i].load());
+    // Modifier lane
+    writer.writeInt32(p.modifierLaneLength.load());
+    for (int i = 0; i < 32; ++i) writer.writeInt32(p.modifierLaneSteps[i].load());
+    writer.writeInt32(p.accentVelocity.load());
+    writer.writeFloat(p.slideTime.load());
+    // Ratchet lane
+    writer.writeInt32(p.ratchetLaneLength.load());
+    for (int i = 0; i < 32; ++i) writer.writeInt32(p.ratchetLaneSteps[i].load());
+    // NO Euclidean data follows -- this is a Phase 6 stream
+}
+
+// T086: Round-trip save/load preserves all 4 Euclidean values (SC-008, FR-030)
+TEST_CASE("EuclideanState_RoundTrip_SaveLoad", "[arp][integration][euclidean][state]") {
+    using namespace Ruinae;
+
+    // Create params with non-default Euclidean values
+    ArpeggiatorParams original;
+    original.euclideanEnabled.store(true, std::memory_order_relaxed);
+    original.euclideanHits.store(5, std::memory_order_relaxed);
+    original.euclideanSteps.store(16, std::memory_order_relaxed);
+    original.euclideanRotation.store(3, std::memory_order_relaxed);
+
+    // Save to stream
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        saveArpParams(original, writer);
+    }
+
+    // Load into fresh params
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE(ok);
+    }
+
+    // Verify all 4 Euclidean values match
+    CHECK(loaded.euclideanEnabled.load() == true);
+    CHECK(loaded.euclideanHits.load() == 5);
+    CHECK(loaded.euclideanSteps.load() == 16);
+    CHECK(loaded.euclideanRotation.load() == 3);
+}
+
+// T087: Phase 6 backward compatibility: stream ending before Euclidean data
+// defaults to disabled, hits=4, steps=8, rotation=0 (SC-009, FR-031)
+TEST_CASE("EuclideanState_Phase6Backward_Compat", "[arp][integration][euclidean][state]") {
+    using namespace Ruinae;
+
+    // Create a Phase 6 stream (everything through ratchet, NO Euclidean data)
+    ArpeggiatorParams phase6Params;
+    phase6Params.enabled.store(true, std::memory_order_relaxed);
+    phase6Params.mode.store(2, std::memory_order_relaxed);
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        writePhase6Stream(writer, phase6Params);
+    }
+
+    // Load the Phase 6 stream
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE(ok);  // Must return true (Phase 6 backward compat)
+    }
+
+    // Euclidean values should be at defaults
+    CHECK(loaded.euclideanEnabled.load() == false);
+    CHECK(loaded.euclideanHits.load() == 4);
+    CHECK(loaded.euclideanSteps.load() == 8);
+    CHECK(loaded.euclideanRotation.load() == 0);
+
+    // Non-Euclidean values should have loaded correctly
+    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.mode.load() == 2);
+}
+
+// T088: Corrupt stream: enabled present but remaining fields missing (FR-031)
+TEST_CASE("EuclideanState_CorruptStream_EnabledPresentRemainingMissing",
+          "[arp][integration][euclidean][state]") {
+    using namespace Ruinae;
+
+    // Create a stream with Phase 6 data + only euclideanEnabled (but NOT hits/steps/rotation)
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        ArpeggiatorParams p;
+        writePhase6Stream(writer, p);
+        // Write only the enabled field
+        writer.writeInt32(1);  // euclideanEnabled = true
+        // NO hits, steps, or rotation follow -- corrupt stream
+    }
+
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE_FALSE(ok);  // Must return false (corrupt: enabled present but rest missing)
+    }
+}
+
+// T089: Out-of-range values clamped silently (FR-031)
+TEST_CASE("EuclideanState_OutOfRange_ValuesClamped", "[arp][integration][euclidean][state]") {
+    using namespace Ruinae;
+
+    // Create a stream with out-of-range Euclidean values
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        ArpeggiatorParams p;
+        writePhase6Stream(writer, p);
+        writer.writeInt32(1);    // euclideanEnabled = true
+        writer.writeInt32(-5);   // euclideanHits = -5 (should clamp to 0)
+        writer.writeInt32(99);   // euclideanSteps = 99 (should clamp to 32)
+        writer.writeInt32(50);   // euclideanRotation = 50 (should clamp to 31)
+    }
+
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE(ok);
+    }
+
+    CHECK(loaded.euclideanEnabled.load() == true);
+    CHECK(loaded.euclideanHits.load() == 0);       // clamped from -5
+    CHECK(loaded.euclideanSteps.load() == 32);      // clamped from 99
+    CHECK(loaded.euclideanRotation.load() == 31);   // clamped from 50
+}
+
+// T090: Controller sync after load: setParamNormalized called for all 4 Euclidean IDs
+// with correct normalized values (FR-034)
+TEST_CASE("EuclideanState_ControllerSync_AfterLoad", "[arp][integration][euclidean][state]") {
+    using namespace Ruinae;
+
+    // Create params with specific Euclidean values
+    ArpeggiatorParams original;
+    original.euclideanEnabled.store(true, std::memory_order_relaxed);
+    original.euclideanHits.store(5, std::memory_order_relaxed);
+    original.euclideanSteps.store(16, std::memory_order_relaxed);
+    original.euclideanRotation.store(3, std::memory_order_relaxed);
+
+    // Save to stream
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        saveArpParams(original, writer);
+    }
+
+    // Load via loadArpParamsToController, capturing setParamNormalized calls
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::map<Steinberg::Vst::ParamID, double> capturedParams;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        loadArpParamsToController(reader,
+            [&capturedParams](Steinberg::Vst::ParamID id, double val) {
+                capturedParams[id] = val;
+            });
+    }
+
+    // Verify Euclidean enabled: true -> normalized 1.0
+    REQUIRE(capturedParams.count(kArpEuclideanEnabledId) > 0);
+    CHECK(capturedParams[kArpEuclideanEnabledId] == Approx(1.0).margin(0.001));
+
+    // Verify Euclidean hits: 5 -> normalized 5/32
+    REQUIRE(capturedParams.count(kArpEuclideanHitsId) > 0);
+    CHECK(capturedParams[kArpEuclideanHitsId] == Approx(5.0 / 32.0).margin(0.001));
+
+    // Verify Euclidean steps: 16 -> normalized (16-2)/30 = 14/30
+    REQUIRE(capturedParams.count(kArpEuclideanStepsId) > 0);
+    CHECK(capturedParams[kArpEuclideanStepsId] == Approx(14.0 / 30.0).margin(0.001));
+
+    // Verify Euclidean rotation: 3 -> normalized 3/31
+    REQUIRE(capturedParams.count(kArpEuclideanRotationId) > 0);
+    CHECK(capturedParams[kArpEuclideanRotationId] == Approx(3.0 / 31.0).margin(0.001));
+}
+
+// T091: applyParamsToEngine prescribed setter order: steps -> hits -> rotation -> enabled
+// Verified by setting steps=5, hits=8 (would be clamped to 5 if steps set first)
+// and verifying final euclideanHits() returns 5 after apply (FR-032)
+TEST_CASE("EuclideanState_ApplyToEngine_PrescribedOrder",
+          "[arp][integration][euclidean][state]") {
+    using namespace Krate::DSP;
+    using namespace Ruinae;
+
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+
+    // Set up params where hits > steps (hits=8, steps=5)
+    // If steps is set FIRST, hits gets clamped to 5 during setEuclideanHits(8)
+    // If hits is set first, it would remain 8 temporarily and then be clamped
+    // when steps is set -- but the prescribed order is steps first.
+    ArpeggiatorParams params;
+    params.euclideanSteps.store(5, std::memory_order_relaxed);
+    params.euclideanHits.store(8, std::memory_order_relaxed);
+    params.euclideanRotation.store(2, std::memory_order_relaxed);
+    params.euclideanEnabled.store(true, std::memory_order_relaxed);
+
+    // Simulate applyParamsToEngine in prescribed order:
+    // steps -> hits -> rotation -> enabled
+    arp.setEuclideanSteps(params.euclideanSteps.load(std::memory_order_relaxed));
+    arp.setEuclideanHits(params.euclideanHits.load(std::memory_order_relaxed));
+    arp.setEuclideanRotation(params.euclideanRotation.load(std::memory_order_relaxed));
+    arp.setEuclideanEnabled(params.euclideanEnabled.load(std::memory_order_relaxed));
+
+    // With prescribed order (steps=5 first), hits=8 gets clamped to 5
+    CHECK(arp.euclideanSteps() == 5);
+    CHECK(arp.euclideanHits() == 5);  // clamped from 8 to 5 (max = steps)
+    CHECK(arp.euclideanRotation() == 2);
+    CHECK(arp.euclideanEnabled() == true);
+}

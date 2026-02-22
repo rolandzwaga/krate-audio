@@ -312,46 +312,46 @@ Note: The `setEuclideanEnabled()` method was implemented in Task Group 1 (T019).
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T086 [P] [US5] Write failing test "EuclideanState_RoundTrip_SaveLoad" in `plugins/ruinae/tests/unit/processor/arpeggiator_integration_test.cpp`: configure euclideanEnabled=true, euclideanHits=5, euclideanSteps=16, euclideanRotation=3; call `saveArpParams()`; create fresh `ArpeggiatorParams`; call `loadArpParams()` on the saved stream; verify all 4 values are identical. (SC-008, FR-030)
-- [ ] T087 [P] [US5] Write failing test "EuclideanState_Phase6Backward_Compat" in the same test file: construct an IBStream containing only Phase 6 data (ending at the last ratchet field without any Euclidean data); call `loadArpParams()`; verify: return value is `true` (success), `euclideanEnabled == false`, `euclideanHits == 4`, `euclideanSteps == 8`, `euclideanRotation == 0`. Arpeggiator output must be identical to Phase 6 behavior. (SC-009, FR-031, spec FR-031 backward compat)
-- [ ] T088 [P] [US5] Write failing test "EuclideanState_CorruptStream_EnabledPresentRemainingMissing" in the same test file: construct an IBStream with Phase 6 data plus only the euclideanEnabled int32 (but NOT hits/steps/rotation); call `loadArpParams()`; verify return value is `false` (corrupt stream -- enabled was present but remaining fields are not). (FR-031)
-- [ ] T089 [P] [US5] Write failing test "EuclideanState_OutOfRange_ValuesClamped" in the same test file: construct an IBStream with euclideanHits=-5, euclideanSteps=99, euclideanRotation=50; call `loadArpParams()`; verify hits is clamped to 0, steps to 32, rotation to 31. Out-of-range values are clamped silently. (FR-031)
-- [ ] T090 [P] [US5] Write failing test "EuclideanState_ControllerSync_AfterLoad" in the same test file: call `loadArpParamsToController()` after loading state with euclideanEnabled=true, hits=5, steps=16, rotation=3; verify `setParamNormalized()` is called for all 4 Euclidean parameter IDs (3230-3233) with correct normalized values. (FR-034)
-- [ ] T091 [US5] Write failing test "EuclideanState_ApplyToEngine_PrescribedOrder" in the same test file: verify that `applyParamsToEngine()` calls `setEuclideanSteps()` first, then `setEuclideanHits()`, then `setEuclideanRotation()`, then `setEuclideanEnabled()` last -- confirming the prescribed order (FR-032). This can be verified by configuring steps=5, hits=8 (would be clamped to 5 if steps set first) and verifying the final `euclideanHits()` returns 5 after apply.
+- [X] T086 [P] [US5] Write failing test "EuclideanState_RoundTrip_SaveLoad" in `plugins/ruinae/tests/unit/processor/arpeggiator_integration_test.cpp`: configure euclideanEnabled=true, euclideanHits=5, euclideanSteps=16, euclideanRotation=3; call `saveArpParams()`; create fresh `ArpeggiatorParams`; call `loadArpParams()` on the saved stream; verify all 4 values are identical. (SC-008, FR-030)
+- [X] T087 [P] [US5] Write failing test "EuclideanState_Phase6Backward_Compat" in the same test file: construct an IBStream containing only Phase 6 data (ending at the last ratchet field without any Euclidean data); call `loadArpParams()`; verify: return value is `true` (success), `euclideanEnabled == false`, `euclideanHits == 4`, `euclideanSteps == 8`, `euclideanRotation == 0`. Arpeggiator output must be identical to Phase 6 behavior. (SC-009, FR-031, spec FR-031 backward compat)
+- [X] T088 [P] [US5] Write failing test "EuclideanState_CorruptStream_EnabledPresentRemainingMissing" in the same test file: construct an IBStream with Phase 6 data plus only the euclideanEnabled int32 (but NOT hits/steps/rotation); call `loadArpParams()`; verify return value is `false` (corrupt stream -- enabled was present but remaining fields are not). (FR-031)
+- [X] T089 [P] [US5] Write failing test "EuclideanState_OutOfRange_ValuesClamped" in the same test file: construct an IBStream with euclideanHits=-5, euclideanSteps=99, euclideanRotation=50; call `loadArpParams()`; verify hits is clamped to 0, steps to 32, rotation to 31. Out-of-range values are clamped silently. (FR-031)
+- [X] T090 [P] [US5] Write failing test "EuclideanState_ControllerSync_AfterLoad" in the same test file: call `loadArpParamsToController()` after loading state with euclideanEnabled=true, hits=5, steps=16, rotation=3; verify `setParamNormalized()` is called for all 4 Euclidean parameter IDs (3230-3233) with correct normalized values. (FR-034)
+- [X] T091 [US5] Write failing test "EuclideanState_ApplyToEngine_PrescribedOrder" in the same test file: verify that `applyParamsToEngine()` calls `setEuclideanSteps()` first, then `setEuclideanHits()`, then `setEuclideanRotation()`, then `setEuclideanEnabled()` last -- confirming the prescribed order (FR-032). This can be verified by configuring steps=5, hits=8 (would be clamped to 5 if steps set first) and verifying the final `euclideanHits()` returns 5 after apply.
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T092 [US5] Extend `saveArpParams()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` to write 4 Euclidean fields as int32 AFTER existing ratchet lane data (FR-030, plan.md section 16):
+- [X] T092 [US5] Extend `saveArpParams()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` to write 4 Euclidean fields as int32 AFTER existing ratchet lane data (FR-030, plan.md section 16):
   - `streamer.writeInt32(euclideanEnabled ? 1 : 0)`
   - `streamer.writeInt32(euclideanHits)`
   - `streamer.writeInt32(euclideanSteps)`
   - `streamer.writeInt32(euclideanRotation)`
-- [ ] T093 [US5] Extend `loadArpParams()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with EOF-safe Euclidean deserialization after ratchet data (FR-031, plan.md section 17):
+- [X] T093 [US5] Extend `loadArpParams()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with EOF-safe Euclidean deserialization after ratchet data (FR-031, plan.md section 17):
   - Replace the final `return true` after ratchet section with the Euclidean read block
   - First field (euclideanEnabled): if `readInt32` fails at EOF, `return true` (Phase 6 compat)
   - Subsequent fields (hits, steps, rotation): if `readInt32` fails, `return false` (corrupt stream)
   - Clamp all values silently: hits to [0,32], steps to [2,32], rotation to [0,31]
-- [ ] T094 [US5] Extend `loadArpParamsToController()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with EOF-safe Euclidean controller sync after ratchet sync (FR-034, plan.md section 18):
+- [X] T094 [US5] Extend `loadArpParamsToController()` in `plugins/ruinae/src/parameters/arpeggiator_params.h` with EOF-safe Euclidean controller sync after ratchet sync (FR-034, plan.md section 18):
   - First field (euclideanEnabled): if `readInt32` fails, `return` (Phase 6 compat)
   - Subsequent fields: if `readInt32` fails, `return`
   - Call `setParam(kArpEuclideanEnabledId, intVal != 0 ? 1.0 : 0.0)`
   - Call `setParam(kArpEuclideanHitsId, static_cast<double>(clamp(intVal, 0, 32)) / 32.0)`
   - Call `setParam(kArpEuclideanStepsId, static_cast<double>(clamp(intVal, 2, 32) - 2) / 30.0)`
   - Call `setParam(kArpEuclideanRotationId, static_cast<double>(clamp(intVal, 0, 31)) / 31.0)`
-- [ ] T095 [US5] Extend `applyParamsToEngine()` in `plugins/ruinae/src/processor/processor.cpp` with Euclidean parameter transfer in the prescribed order (FR-032, plan.md section 19):
+- [X] T095 [US5] Extend `applyParamsToEngine()` in `plugins/ruinae/src/processor/processor.cpp` with Euclidean parameter transfer in the prescribed order (FR-032, plan.md section 19):
   - `arpCore_.setEuclideanSteps(arpParams_.euclideanSteps.load(std::memory_order_relaxed))`
   - `arpCore_.setEuclideanHits(arpParams_.euclideanHits.load(std::memory_order_relaxed))`
   - `arpCore_.setEuclideanRotation(arpParams_.euclideanRotation.load(std::memory_order_relaxed))`
   - `arpCore_.setEuclideanEnabled(arpParams_.euclideanEnabled.load(std::memory_order_relaxed))`
-- [ ] T096 [US5] Build and verify all User Story 5 tests from T086-T091 pass with zero compiler warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests`
+- [X] T096 [US5] Build and verify all User Story 5 tests from T086-T091 pass with zero compiler warnings: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests`
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T097 [US5] Verify IEEE 754 compliance: check new test files in `plugins/ruinae/tests/` for IEEE 754 function usage and update `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt` if needed. Serialization tests use integer arithmetic only -- no floating-point issues expected, but confirm.
+- [X] T097 [US5] Verify IEEE 754 compliance: check new test files in `plugins/ruinae/tests/` for IEEE 754 function usage and update `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt` if needed. Serialization tests use integer arithmetic only -- no floating-point issues expected, but confirm.
 
 ### 7.4 Commit User Story 5
 
-- [ ] T098 [US5] Commit completed User Story 5 work: `saveArpParams()` Euclidean serialization, `loadArpParams()` with EOF-safe backward compat, `loadArpParamsToController()` controller sync, `applyParamsToEngine()` prescribed setter order, all integration tests passing
+- [X] T098 [US5] Commit completed User Story 5 work: `saveArpParams()` Euclidean serialization, `loadArpParams()` with EOF-safe backward compat, `loadArpParamsToController()` controller sync, `applyParamsToEngine()` prescribed setter order, all integration tests passing
 
 **Checkpoint**: User Story 5 fully functional. SC-008 (round-trip) and SC-009 (Phase 6 backward compat) pass. All DSP tests (US1-US4) still pass.
 
@@ -363,34 +363,34 @@ Note: The `setEuclideanEnabled()` method was implemented in Task Group 1 (T019).
 
 ### 8.1 Full Build Validation
 
-- [ ] T099 [P] Build full Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release` -- verify zero compiler errors and zero warnings
-- [ ] T100 [P] Run all DSP tests: `build/windows-x64-release/bin/Release/dsp_tests.exe` -- verify 100% pass
-- [ ] T101 [P] Run all Ruinae tests: `build/windows-x64-release/bin/Release/ruinae_tests.exe` -- verify 100% pass
+- [X] T099 [P] Build full Ruinae plugin: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release` -- verify zero compiler errors and zero warnings
+- [X] T100 [P] Run all DSP tests: `build/windows-x64-release/bin/Release/dsp_tests.exe` -- verify 100% pass
+- [X] T101 [P] Run all Ruinae tests: `build/windows-x64-release/bin/Release/ruinae_tests.exe` -- verify 100% pass
 
 ### 8.2 Heap Allocation Audit (SC-010)
 
-- [ ] T102 Audit all Euclidean-related code paths in `dsp/include/krate/dsp/processors/arpeggiator_core.h` (the Euclidean gating block in `fireStep()`, the defensive branch extension, `regenerateEuclideanPattern()`, setters, `resetLanes()` extension, `reset()` extension) by code inspection: confirm no `new`, `delete`, `malloc`, `free`, `std::vector`, `std::string`, or `std::map` in these paths. `EuclideanPattern::generate()` is constexpr and allocation-free (already verified in existing Layer 0 tests). Document inspection result. (SC-010)
+- [X] T102 Audit all Euclidean-related code paths in `dsp/include/krate/dsp/processors/arpeggiator_core.h` (the Euclidean gating block in `fireStep()`, the defensive branch extension, `regenerateEuclideanPattern()`, setters, `resetLanes()` extension, `reset()` extension) by code inspection: confirm no `new`, `delete`, `malloc`, `free`, `std::vector`, `std::string`, or `std::map` in these paths. `EuclideanPattern::generate()` is constexpr and allocation-free (already verified in existing Layer 0 tests). Document inspection result. (SC-010)
 
 ### 8.3 Edge Case Verification
 
-- [ ] T103 Verify edge case: hits > steps is handled -- `EuclideanPattern::generate()` clamps hits to steps internally; verify `setEuclideanSteps()` also re-clamps `euclideanHits_` so the stored member value is consistent with the pattern
-- [ ] T104 Verify edge case: steps < 2 is clamped to 2 -- confirm `setEuclideanSteps(1)` results in `euclideanSteps_ == 2` and a valid pattern
-- [ ] T105 Verify edge case: rotation >= steps wraps correctly -- confirm `setEuclideanRotation()` clamp and `EuclideanPattern::generate()` rotation wrapping produce the expected pattern
+- [X] T103 Verify edge case: hits > steps is handled -- `EuclideanPattern::generate()` clamps hits to steps internally; verify `setEuclideanSteps()` also re-clamps `euclideanHits_` so the stored member value is consistent with the pattern
+- [X] T104 Verify edge case: steps < 2 is clamped to 2 -- confirm `setEuclideanSteps(1)` results in `euclideanSteps_ == 2` and a valid pattern
+- [X] T105 Verify edge case: rotation >= steps wraps correctly -- confirm `setEuclideanRotation()` clamp and `EuclideanPattern::generate()` rotation wrapping produce the expected pattern
 
 ### 8.4 Pluginval Verification
 
-- [ ] T106 Run pluginval on Ruinae after all plugin integration changes: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` -- verify zero failures at strictness level 5. If failures occur (common causes: parameter count mismatch, state save/load ordering issue), diagnose and fix.
+- [X] T106 Run pluginval on Ruinae after all plugin integration changes: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` -- verify zero failures at strictness level 5. If failures occur (common causes: parameter count mismatch, state save/load ordering issue), diagnose and fix.
 
 ### 8.5 Clang-Tidy Static Analysis
 
-- [ ] T107 Run clang-tidy on all modified DSP files: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` -- verify zero errors
-- [ ] T108 Run clang-tidy on all modified Ruinae plugin files: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja` -- verify zero errors
-- [ ] T109 Fix all clang-tidy errors (blocking issues) in `dsp/include/krate/dsp/processors/arpeggiator_core.h` and `plugins/ruinae/src/parameters/arpeggiator_params.h` and `plugins/ruinae/src/processor/processor.cpp` -- pay attention to the `static_cast<int>(euclideanPosition_)` cast in `isHit()` call (size_t -> int) and any narrowing conversion warnings
-- [ ] T110 Review clang-tidy warnings and fix where appropriate; add `// NOLINT(rule-name): reason` for any intentional suppressions -- document any in the commit message
+- [X] T107 Run clang-tidy on all modified DSP files: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` -- verify zero errors
+- [X] T108 Run clang-tidy on all modified Ruinae plugin files: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja` -- verify zero errors
+- [X] T109 Fix all clang-tidy errors (blocking issues) in `dsp/include/krate/dsp/processors/arpeggiator_core.h` and `plugins/ruinae/src/parameters/arpeggiator_params.h` and `plugins/ruinae/src/processor/processor.cpp` -- pay attention to the `static_cast<int>(euclideanPosition_)` cast in `isHit()` call (size_t -> int) and any narrowing conversion warnings
+- [X] T110 Review clang-tidy warnings and fix where appropriate; add `// NOLINT(rule-name): reason` for any intentional suppressions -- document any in the commit message
 
 ### 8.6 Commit Polish
 
-- [ ] T111 Commit polish phase: heap allocation audit results documented, edge cases verified, pluginval passed, clang-tidy clean
+- [X] T111 Commit polish phase: heap allocation audit results documented, edge cases verified, pluginval passed, clang-tidy clean
 
 ---
 

@@ -772,6 +772,12 @@ inline void saveArpParams(
     for (int i = 0; i < 32; ++i) {
         streamer.writeInt32(params.ratchetLaneSteps[i].load(std::memory_order_relaxed));
     }
+
+    // --- Euclidean Timing (075-euclidean-timing) ---
+    streamer.writeInt32(params.euclideanEnabled.load(std::memory_order_relaxed) ? 1 : 0);
+    streamer.writeInt32(params.euclideanHits.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.euclideanSteps.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.euclideanRotation.load(std::memory_order_relaxed));
 }
 
 // =============================================================================
@@ -886,6 +892,21 @@ inline bool loadArpParams(
         params.ratchetLaneSteps[i].store(
             std::clamp(intVal, 1, 4), std::memory_order_relaxed);
     }
+
+    // --- Euclidean Timing (075-euclidean-timing) ---
+    // EOF-safe: if Euclidean data is missing entirely (Phase 6 preset), keep defaults.
+    if (!streamer.readInt32(intVal)) return true;  // EOF at first Euclidean field = Phase 6 compat
+    params.euclideanEnabled.store(intVal != 0, std::memory_order_relaxed);
+
+    // From here, EOF signals a corrupt stream (enabled was present but remaining fields are not)
+    if (!streamer.readInt32(intVal)) return false;
+    params.euclideanHits.store(std::clamp(intVal, 0, 32), std::memory_order_relaxed);
+
+    if (!streamer.readInt32(intVal)) return false;
+    params.euclideanSteps.store(std::clamp(intVal, 2, 32), std::memory_order_relaxed);
+
+    if (!streamer.readInt32(intVal)) return false;
+    params.euclideanRotation.store(std::clamp(intVal, 0, 31), std::memory_order_relaxed);
 
     return true;
 }
@@ -1031,6 +1052,23 @@ inline void loadArpParamsToController(
         setParam(static_cast<Steinberg::Vst::ParamID>(kArpRatchetLaneStep0Id + i),
             static_cast<double>(std::clamp(intVal, 1, 4) - 1) / 3.0);
     }
+
+    // --- Euclidean Timing (075-euclidean-timing) ---
+    // EOF-safe: if Euclidean data is missing (Phase 6 preset), keep controller defaults
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpEuclideanEnabledId, intVal != 0 ? 1.0 : 0.0);
+
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpEuclideanHitsId,
+        static_cast<double>(std::clamp(intVal, 0, 32)) / 32.0);
+
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpEuclideanStepsId,
+        static_cast<double>(std::clamp(intVal, 2, 32) - 2) / 30.0);
+
+    if (!streamer.readInt32(intVal)) return;
+    setParam(kArpEuclideanRotationId,
+        static_cast<double>(std::clamp(intVal, 0, 31)) / 31.0);
 }
 
 } // namespace Ruinae
