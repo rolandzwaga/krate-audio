@@ -767,6 +767,7 @@ Extend `ArpeggiatorParams` when adding new arpeggiator features:
 - **Phase 7 (Euclidean Timing)**: Euclidean parameters added in 3230-3233 ID range (done -- see [Euclidean Parameters section](#arpeggiator-euclidean-parameters-spec-075) below)
 - **Phase 8 (Conditional Trig)**: Condition lane parameters added in 3240-3272 ID range + fill toggle at 3280 (done -- see [Condition Lane Parameters section](#arpeggiator-condition-lane-parameters-spec-076) below)
 - **Phase 9 (Spice/Dice + Humanize)**: Spice/Dice/Humanize parameters added in 3290-3292 ID range (done -- see [Spice/Dice/Humanize Parameters section](#arpeggiator-spicedicehumanize-parameters-spec-077) below)
+- **Phase 9.5 (Ratchet Swing)**: Ratchet swing parameter added at ID 3293 (done -- see [Ratchet Swing Parameter section](#arpeggiator-ratchet-swing-parameter) below)
 - **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations
 - **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes expected
 
@@ -1016,6 +1017,63 @@ for (int i = 0; i < 32; ++i) {
 }
 arp_.ratchetLane().setLength(static_cast<size_t>(arpParams_.ratchetLaneLength.load(relaxed)));
 ```
+
+---
+
+## Arpeggiator Ratchet Swing Parameter
+
+**File**: `plugins/ruinae/src/parameters/arpeggiator_params.h`
+**ID**: 3293
+
+### Purpose
+
+A continuous "ratchet swing" parameter that applies a long-short ratio to consecutive pairs of ratcheted sub-steps. At 50% (default), sub-steps are equally spaced (identical to pre-swing behavior). At 67%, the feel is triplet-like. At 75%, the feel is dotted-note-like. Only affects steps with ratchet count >= 2; ratchet count 1 is unaffected.
+
+### Parameter ID
+
+| ID | Name | Type | Range | Default (Norm) | Flags |
+|----|------|------|-------|----------------|-------|
+| 3293 | Arp Ratchet Swing | Continuous | 50%-75% | 0.0 (= 50%) | `kCanAutomate` |
+
+**Denormalization**: `50.0 + value * 25.0` (maps normalized 0.0-1.0 to 50%-75%).
+
+### ArpeggiatorParams Struct Extension
+
+```cpp
+struct ArpeggiatorParams {
+    // ... existing fields ...
+
+    // Ratchet swing
+    std::atomic<float> ratchetSwing{50.0f};  // [50.0, 75.0] percent
+};
+```
+
+### Format String
+
+| Parameter | Examples |
+|-----------|----------|
+| Ratchet Swing | "50%", "67%", "75%" |
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToArp():
+arpCore_.setRatchetSwing(arpParams_.ratchetSwing.load(std::memory_order_relaxed));
+```
+
+### Core Math
+
+For a pair of sub-steps with combined duration `pairDuration = 2 * baseDuration`:
+- **Long** sub-step (even index): `round(pairDuration * swingRatio)`
+- **Short** sub-step (odd index): `pairDuration - longDuration` (exact complement)
+
+Per ratchet count:
+| Count | Sub-step durations |
+|-------|--------------------|
+| 1 | No effect |
+| 2 | `[long, short]` — one pair |
+| 3 | `[long, short, base]` — one pair + unpaired remainder |
+| 4 | `[long, short, long, short]` — two pairs |
 
 ---
 

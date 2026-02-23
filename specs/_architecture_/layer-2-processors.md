@@ -6092,17 +6092,20 @@ arp.setHumanize(0.3f);     // 30% humanize = +/-6ms timing, +/-4.5 velocity, +/-
 - **Constructor initialization**: `ratchetLane_.setStep(0, static_cast<uint8_t>(1))` -- ArpLane<uint8_t> zero-initializes steps to 0, which would be an invalid ratchet count. The constructor explicitly sets step 0 to 1.
 - **Ratchet count clamping**: At the DSP read site in `fireStep()`, the ratchet value is always clamped via `std::max(uint8_t{1}, ratchetLane_.advance())`, providing defense-in-depth against invalid count 0.
 
-**Ratchet sub-step state members (Spec 074):**
+**Ratchet sub-step state members (Spec 074 + Ratchet Swing):**
 - `ratchetSubStepsRemaining_` (`uint8_t`, default 0): Number of sub-steps left to fire after the first one emitted by `fireStep()`. When 0, no ratchet sub-step processing occurs in `processBlock()`.
-- `ratchetSubStepDuration_` (`size_t`, default 0): Duration per sub-step in samples, calculated as `currentStepDuration_ / ratchetCount` (integer division).
+- `ratchetSubStepDurations_` (`std::array<size_t, 4>`, default {}): Per-sub-step durations in samples, computed by `computeSwungSubStepDurations()`. When swing is 50% (default), all entries equal `currentStepDuration_ / ratchetCount`. When swing > 50%, even-indexed sub-steps (long) get `round(pairDuration * swingRatio)` and odd-indexed sub-steps (short) get the complement. Replaces the former single `ratchetSubStepDuration_`.
 - `ratchetSubStepCounter_` (`size_t`, default 0): Sample counter tracking progress within the current sub-step interval. Reset to 0 after each sub-step fires.
+- `ratchetSubStepIndex_` (`uint8_t`, default 0): Index of the current sub-step being played (0-based). Incremented in `fireSubStep()` before emitting the noteOn. Reset to 0 alongside `ratchetSubStepsRemaining_` in all clear paths.
+- `ratchetTotalSubSteps_` (`uint8_t`, default 0): Total sub-step count for the current step. Stored at initialization for reference.
 - `ratchetNote_` (`uint8_t`, default 0): MIDI note number for single-note ratchet retriggering.
 - `ratchetVelocity_` (`uint8_t`, default 0): Non-accented velocity for sub-steps 2..N. Stores the velocity BEFORE accent is applied (the first sub-step uses the accented velocity emitted directly from `fireStep()`).
-- `ratchetGateDuration_` (`size_t`, default 0): Per-sub-step gate duration in samples, calculated as `max(1, subStepDuration * gateLengthPercent_ / 100 * gateLaneValue)`. Uses `subStepDuration` (not `currentStepDuration_`) as the base, computed inline rather than via `calculateGateDuration()`.
+- `ratchetGateDurations_` (`std::array<size_t, 4>`, default {}): Per-sub-step gate durations in samples, computed by `computeSwungSubStepDurations()`. Each entry is `max(1, subStepDuration[i] * gateLengthPercent_ / 100 * gateLaneValue)`, using the per-sub-step duration (not the uniform base). Replaces the former single `ratchetGateDuration_`.
 - `ratchetIsLastSubStep_` (`bool`, default false): True when the sub-step about to fire is the final one. Used to conditionally apply Tie/Slide look-ahead: only the last sub-step checks the next step's modifier flags; intermediate sub-steps always schedule their gate noteOffs normally.
 - `ratchetNotes_` (`std::array<uint8_t, 32>`, default {}): Chord mode MIDI note numbers for ratchet retriggering.
 - `ratchetVelocities_` (`std::array<uint8_t, 32>`, default {}): Chord mode non-accented velocities for sub-steps 2..N.
 - `ratchetNoteCount_` (`size_t`, default 0): Number of notes in chord mode ratcheting (1 for single note mode).
+- `ratchetSwing_` (`float`, default 0.50f): Swing ratio stored as 0.50-0.75. Set via `setRatchetSwing(float percent)` which clamps the input to [50, 75] and divides by 100.
 
 **`fireStep()` ratchet initialization pattern (Spec 074):**
 
@@ -6112,13 +6115,13 @@ The ratchet lane is advanced in `fireStep()` at the same call site as the other 
 2. **Modifier evaluation happens FIRST**: Rest and Tie modifiers are evaluated before the ratchet initialization block. If the step is Rest (kStepActive not set) or Tie, `fireStep()` returns early without initializing any ratchet sub-step state. This ensures Rest and Tie suppress ratcheting entirely.
 3. **Ratchet count 1 (identity)**: When `ratchetCount == 1`, the existing non-ratcheted code path executes unchanged, producing bit-identical output to pre-ratchet behavior.
 4. **Ratchet count > 1 (subdivision)**: When `ratchetCount > 1` and the step is active (not Rest/Tie):
-   - Calculate `subStepDuration = currentStepDuration_ / ratchetCount`
-   - Calculate per-sub-step gate inline: `max(1, subStepDuration * gatePercent/100 * gateLaneValue)`
+   - Call `computeSwungSubStepDurations(currentStepDuration_, ratchetCount, gateScale, gateOffsetRatio)` to fill `ratchetSubStepDurations_[]` and `ratchetGateDurations_[]` arrays with per-sub-step values (swing-aware)
+   - Set `ratchetSubStepIndex_ = 0` and `ratchetTotalSubSteps_ = ratchetCount`
    - Emit the **first sub-step** noteOn with modifiers applied (Accent boosts velocity; Slide sets `legato = true`)
    - Store the **pre-accent** velocity in `ratchetVelocity_` (or `ratchetVelocities_[]` for chord mode) for subsequent sub-steps
-   - Initialize all ratchet state: `ratchetSubStepsRemaining_ = ratchetCount - 1`, counter = 0, note/velocity/gate/duration stored
+   - Initialize all ratchet state: `ratchetSubStepsRemaining_ = ratchetCount - 1`, counter = 0, note/velocity stored
    - Set `ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1)`
-   - Schedule pending noteOff for the first sub-step (unless it is the last sub-step with Tie/Slide look-ahead suppression)
+   - Schedule pending noteOff using `ratchetGateDurations_[0]` for the first sub-step (unless it is the last sub-step with Tie/Slide look-ahead suppression)
 5. **Defensive branch (`result.count == 0`)**: When the held note buffer is empty, the ratchet lane still advances via `ratchetLane_.advance()` and `ratchetSubStepsRemaining_` is set to 0. The condition lane also advances via `conditionLane_.advance()` with loop count wrap detection (Spec 076), keeping all six lanes synchronized.
 
 **`processBlock()` SubStep handler pattern (Spec 074):**
@@ -6131,7 +6134,7 @@ enum class NextEvent { BlockEnd, NoteOff, Step, SubStep, BarBoundary };
 
 **Event priority rule**: `BarBoundary > NoteOff > Step > SubStep`. SubStep has the lowest priority. When SubStep coincides with BarBoundary, the bar boundary fires and clears sub-step state. When SubStep coincides with NoteOff, the NoteOff fires first (consistent with FR-021 ordering). When SubStep coincides with Step, the Step fires (a new step starts, overriding pending sub-steps).
 
-**Sub-step distance calculation**: When `ratchetSubStepsRemaining_ > 0`, the loop computes `samplesUntilSubStep = ratchetSubStepDuration_ - ratchetSubStepCounter_` and includes it in the minimum-jump calculation.
+**Sub-step distance calculation**: When `ratchetSubStepsRemaining_ > 0`, the loop computes `samplesUntilSubStep = ratchetSubStepDurations_[ratchetSubStepIndex_] - ratchetSubStepCounter_` and includes it in the minimum-jump calculation. The index selects the correct (swing-aware) duration for the current sub-step.
 
 **Time advance**: After each jump, `ratchetSubStepCounter_ += jump` when `ratchetSubStepsRemaining_ > 0`.
 
@@ -6140,7 +6143,7 @@ enum class NextEvent { BlockEnd, NoteOff, Step, SubStep, BarBoundary };
 2. Emit noteOn(s) for ratcheted note(s) using stored `ratchetNote_`/`ratchetVelocity_` (single) or `ratchetNotes_`/`ratchetVelocities_`/`ratchetNoteCount_` (chord). Sub-steps after the first always use `legato = false`.
 3. Update `currentArpNotes_`/`currentArpNoteCount_` tracking
 4. Check `ratchetIsLastSubStep_` flag: if true, read the next step's modifier flags and suppress gate noteOff if next step is Tie or Slide (look-ahead). Intermediate sub-steps always schedule their gate noteOffs.
-5. `addPendingNoteOff()` -- schedule the new gate noteOff at `ratchetGateDuration_` (unless suppressed by look-ahead)
+5. `addPendingNoteOff()` -- schedule the new gate noteOff at `ratchetGateDurations_[ratchetSubStepIndex_]` (unless suppressed by look-ahead)
 6. Decrement `ratchetSubStepsRemaining_`, reset `ratchetSubStepCounter_ = 0`
 7. Update `ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1)` for the next sub-step
 

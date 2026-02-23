@@ -154,6 +154,15 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
                       // NOT serialized: diceTrigger (momentary action, not stored state),
                       //   overlay arrays (ephemeral generative state, revert to identity on load)
                       // Phase 8 presets load with Spice=0%, Humanize=0% (Phase 8-identical output)
+
+--- New: Ratchet Swing (EOF-safe, no version bump, appended after spice/humanize data) ---
+[ArpRatchetSwingData] // 4 bytes total, appended after ArpSpiceHumanizeData:
+                      //   [float: ratchetSwing (50.0-75.0)]                              (4 bytes)
+                      // EOF-safe backward-compatible loading:
+                      //   - EOF at ratchetSwing read = Phase 9 preset, return true
+                      //     (ratchetSwing retains default: 50.0f = no swing)
+                      //   - Out-of-range values are clamped silently to [50.0, 75.0]
+                      // Phase 9 presets load with RatchetSwing=50% (equally-spaced sub-steps)
 ```
 
 ---
