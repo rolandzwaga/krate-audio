@@ -48,21 +48,22 @@ namespace DSP {
 /// allpass filters and modulating their break frequencies with an LFO.
 /// N allpass stages produce N/2 notches in the frequency response.
 ///
-/// @par Topology (mix-before-feedback)
+/// @par Topology (additive mix, feedback from allpass output)
 /// @code
-/// Input
-///   |
-///   +-- feedbackState * feedback (tanh soft-clipped) --->+
-///   |                                                    |
-///   v                                                    |
-/// [Allpass Cascade (N stages)] ---> wet                  |
-///   |                                                    |
-///   v                                                    |
-/// [Mix: dry * (1-mix) + wet * mix] ---> output           |
-///   |                                                    |
-///   +---------------------------------------------------+
-///   (feedbackState = output for next sample)
+/// Input ----+---> dry
+///           |
+///           +-- feedbackState * feedback (tanh soft-clipped) --->+
+///           |                                                    |
+///           v                                                    |
+///         [Allpass Cascade (N stages)] ---> wet ---> feedbackState
+///           |                                         (for next sample)
+///           v
+///         [Additive Mix: dry + mix * wet] ---> output
 /// @endcode
+///
+/// The dry signal is always present. The mix parameter controls how much
+/// of the allpass (wet) signal is added. At mix=1.0 this gives maximum
+/// phaser depth with deep notches where dry and wet cancel.
 ///
 /// @par Constitution Compliance
 /// - Real-time safe: noexcept, no allocations, no locks
@@ -157,6 +158,9 @@ public:
 
     /// Minimum sweep frequency to prevent DC (Hz)
     static constexpr float kMinSweepFreq = 20.0f;
+
+    /// Maximum sweep range in octaves (at depth=1.0)
+    static constexpr float kMaxSweepOctaves = 3.5f;
 
     // =========================================================================
     // Lifecycle
@@ -379,8 +383,8 @@ public:
     // Mix Control
     // =========================================================================
 
-    /// @brief Set the dry/wet mix.
-    /// @param dryWet Mix in range [0.0, 1.0] (0 = dry, 1 = wet)
+    /// @brief Set the dry/wet mix (additive).
+    /// @param dryWet Mix in range [0.0, 1.0] (0 = dry only, 1 = max phaser depth)
     void setMix(float dryWet) noexcept {
         mix_ = std::clamp(dryWet, kMinMix, kMaxMix);
         mixSmoother_.setTarget(mix_);
@@ -487,14 +491,13 @@ public:
         // Flush denormals from signal (FR-016)
         signal = detail::flushDenormal(signal);
 
-        // Mix dry and wet
+        // Additive mix: dry signal always present, wet signal scaled by mix
         const float dry = input;
         const float wet = signal;
-        const float output = dry * (1.0f - smoothedMix) + wet * smoothedMix;
+        const float output = dry + smoothedMix * wet;
 
-        // Store feedback state (from mixed output, mix-before-feedback topology)
-        feedbackStateL_ = output;
-        feedbackStateL_ = detail::flushDenormal(feedbackStateL_);
+        // Store feedback state from allpass output (not mixed output)
+        feedbackStateL_ = detail::flushDenormal(wet);
 
         return output;
     }
@@ -567,8 +570,8 @@ public:
             }
             signalL = detail::flushDenormal(signalL);
 
-            const float outputL = inputL * (1.0f - smoothedMix) + signalL * smoothedMix;
-            feedbackStateL_ = detail::flushDenormal(outputL);
+            const float outputL = inputL + smoothedMix * signalL;
+            feedbackStateL_ = detail::flushDenormal(signalL);
             left[i] = outputL;
 
             // Process right channel
@@ -590,8 +593,8 @@ public:
             }
             signalR = detail::flushDenormal(signalR);
 
-            const float outputR = inputR * (1.0f - smoothedMix) + signalR * smoothedMix;
-            feedbackStateR_ = detail::flushDenormal(outputR);
+            const float outputR = inputR + smoothedMix * signalR;
+            feedbackStateR_ = detail::flushDenormal(signalR);
             right[i] = outputR;
         }
     }
@@ -612,17 +615,14 @@ private:
             return centerFreq;
         }
 
-        // Calculate min/max from center and depth (FR-007)
-        float minFreq = centerFreq * (1.0f - depth);
-        float maxFreq = centerFreq * (1.0f + depth);
+        // Calculate min/max from center and depth using octave-based mapping (FR-007)
+        // Symmetric in log-frequency: depth=0.5 gives kMaxSweepOctaves/2 octaves each direction
+        const float octaves = depth * kMaxSweepOctaves;
+        float minFreq = centerFreq * std::pow(2.0f, -octaves);
+        float maxFreq = centerFreq * std::pow(2.0f, octaves);
 
-        // Clamp min to prevent negative/zero frequencies
+        // Clamp min to prevent sub-audible frequencies
         minFreq = std::max(minFreq, kMinSweepFreq);
-
-        // Ensure max > min
-        if (maxFreq <= minFreq) {
-            maxFreq = minFreq * 1.01f;
-        }
 
         // Map LFO [-1, +1] to [0, 1]
         const float lfoNorm = (lfoValue + 1.0f) * 0.5f;
