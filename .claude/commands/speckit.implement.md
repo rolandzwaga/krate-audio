@@ -219,22 +219,33 @@ Perform final completion verification for spec {feature-name}.
 Feature dir: {FEATURE_DIR}/
 Mode: Final Completion Verification
 
-Read quickstart.md for build and test commands.
+CRITICAL — COMMAND BUDGET (hard limit on Bash tool calls):
+You may run AT MOST these 4 Bash commands during this entire task:
+1. ONE build (e.g., cmake --build ...)
+2. ONE dsp_tests run (e.g., dsp_tests.exe — no flags, no tag filters)
+3. ONE ruinae_tests run (e.g., ruinae_tests.exe — no flags, no tag filters)
+4. ONE pluginval run (if plugin code was changed)
+That is 4 Bash calls TOTAL. Not per requirement — TOTAL for the whole task.
+If quickstart.md lists additional test executables, each gets ONE run (still no filters).
+Every other tool call must be Read/Glob/Grep (reading code and test files).
 
 Steps:
 1. Read spec.md — list ALL FR-xxx and SC-xxx requirements
-2. For EACH requirement individually:
-   a. Find the implementation code — cite file:line
-   b. Find the test — cite test name and actual result
-   c. For SC-xxx with numeric targets — run/read actual values, compare against spec
-3. Build the project using commands from quickstart.md — verify 0 warnings
-4. Run full test suite — ALL tests must pass (Constitution Section VIII)
-5. Run pluginval if plugin code was changed:
+2. Read the implementation source files to verify each FR/SC against actual code (cite file:line)
+3. Read the test source files to identify test names covering each requirement
+4. Run the build command from quickstart.md ONCE — verify 0 warnings
+5. Run dsp_tests.exe ONCE (no arguments) — save the output
+6. Run ruinae_tests.exe ONCE (no arguments) — save the output
+7. Run pluginval ONCE if plugin code was changed:
    tools/pluginval.exe --strictness-level 5 --validate "<path to built .vst3>"
    (Check quickstart.md for the correct plugin path)
-6. Do NOT run clang-tidy — it already ran in Phase N-1.0 (Static Analysis).
-7. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
-8. Produce the full compliance table with REAL evidence
+8. Do NOT run clang-tidy — it already ran in Phase N-1.0 (Static Analysis).
+9. Use the saved build/test output from steps 4-7 to fill the compliance table
+10. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
+
+For SC-xxx with numeric targets: read the test source code to find the expected
+values/ranges, then confirm the test passed in the full suite run (steps 5-6).
+Do NOT re-run tests with filters to get individual SC results.
 
 Output the final compliance report with:
 - Build result: 0 warnings confirmed

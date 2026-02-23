@@ -91,10 +91,12 @@ Processor::setState()
 | **3140-3181** | **Arpeggiator Modifiers** | **`arpeggiator_params.h`** | **35** |
 | **3190-3222** | **Arpeggiator Ratchet Lane** | **`arpeggiator_params.h`** | **33** |
 | **3230-3233** | **Arpeggiator Euclidean** | **`arpeggiator_params.h`** | **4** |
+| **3240-3272** | **Arpeggiator Condition Lane** | **`arpeggiator_params.h`** | **33** |
+| **3280** | **Arpeggiator Fill Toggle** | **`arpeggiator_params.h`** | **1** |
 
-**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3139 (reserved), 3173-3179 (reserved), 3182-3189 (reserved), 3223-3229 (reserved), 3234-3299 (reserved for future arp phases: Conditional Trig, Spice/Dice)
+**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3139 (reserved), 3173-3179 (reserved), 3182-3189 (reserved), 3223-3229 (reserved), 3234-3239 (reserved gap before condition lane; reserved for use before Phase 9), 3273-3279 (reserved gap between condition step IDs and fill toggle; reserved for future condition-lane extensions), 3281-3299 (reserved for future arp phases: Spice/Dice)
 
-**Sentinel**: `kArpEndId = 3299`, `kNumParameters = 3300` (updated in Spec 074 to accommodate ratchet lane IDs 3190-3222; unchanged by Specs 075)
+**Sentinel**: `kArpEndId = 3299`, `kNumParameters = 3300` (updated in Spec 074 to accommodate ratchet lane IDs 3190-3222; unchanged by Specs 075 and 076)
 
 ---
 
@@ -762,8 +764,8 @@ Extend `ArpeggiatorParams` when adding new arpeggiator features:
 - **Phase 5 (Per-Step Modifiers)**: Modifier lane parameters added in 3140-3181 ID range (done -- see [Modifier Parameters section](#arpeggiator-modifier-parameters-spec-073) below)
 - **Phase 6 (Ratcheting)**: Ratchet lane parameters added in 3190-3222 ID range (done -- see [Ratchet Lane Parameters section](#arpeggiator-ratchet-lane-parameters-spec-074) below)
 - **Phase 7 (Euclidean Timing)**: Euclidean parameters added in 3230-3233 ID range (done -- see [Euclidean Parameters section](#arpeggiator-euclidean-parameters-spec-075) below)
-- **Phase 8 (Conditional Trig)**: Future -- will use IDs in the 3234-3299 reserved range
-- **Phase 9 (Spice/Dice + Humanize)**: Future -- will use IDs in the 3234-3299 reserved range
+- **Phase 8 (Conditional Trig)**: Condition lane parameters added in 3240-3272 ID range + fill toggle at 3280 (done -- see [Condition Lane Parameters section](#arpeggiator-condition-lane-parameters-spec-076) below)
+- **Phase 9 (Spice/Dice + Humanize)**: Future -- will use IDs in the 3281-3299 reserved range
 - **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations
 - **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes expected
 
@@ -1083,6 +1085,79 @@ arpCore_.setEuclideanEnabled(arpParams_.euclideanEnabled.load(relaxed));
 
 ---
 
+## Arpeggiator Condition Lane Parameters (Spec 076)
+
+**File**: `plugins/ruinae/src/parameters/arpeggiator_params.h`
+**IDs**: 3240-3272 (condition lane: 1 length + 32 steps), 3280 (fill toggle) -- 34 parameters total
+
+### Purpose
+
+Per-step conditional trigger parameters for Elektron-inspired pattern evolution. Each step stores a `TrigCondition` enum value (0-17) determining whether the step fires. The condition lane cycles independently of all other lanes, enabling polymetric conditional patterns. A fill toggle parameter provides real-time performance control for Fill/NotFill conditions.
+
+### Condition Lane Parameter ID Allocation
+
+| ID | Name | Type | Range | Default | Flags |
+|----|------|------|-------|---------|-------|
+| 3240 | Arp Cond Lane Len | Discrete (int) | 1-32 | 1 | `kCanAutomate` |
+| 3241-3272 | Arp Cond Step 0-31 | Discrete (int) | 0-17 | 0 (Always) | `kCanAutomate \| kIsHidden` |
+| 3280 | Arp Fill | Toggle | 0-1 | 0 (Off) | `kCanAutomate` |
+
+**Reserved gaps**:
+- 3234-3239: Reserved gap before condition lane (reserved for use before Phase 9)
+- 3273-3279: Reserved gap between condition step IDs and fill toggle (reserved for future condition-lane extensions)
+
+### Denormalization
+
+| Parameter | Formula | Step Count |
+|-----------|---------|------------|
+| Condition Lane Length | `1 + round(norm * 31)` | 31 |
+| Condition Lane Steps | `round(norm * 17)` | 17 |
+| Fill Toggle | `norm >= 0.5` | 1 |
+
+### ArpeggiatorParams Struct Extension
+
+```cpp
+struct ArpeggiatorParams {
+    // ... existing base + lane + modifier + ratchet + euclidean fields ...
+
+    // Condition Lane (Spec 076)
+    std::atomic<int>   conditionLaneLength{1};              // [1, 32]
+    std::array<std::atomic<int>, 32> conditionLaneSteps{};  // [0, 17] (TrigCondition, int for lock-free)
+    std::atomic<bool>  fillToggle{false};                   // Fill mode toggle
+};
+```
+
+**Note:** Condition lane steps use `std::atomic<int>` (not `std::atomic<uint8_t>`) for guaranteed lock-free operation. The conversion to `uint8_t` for `ArpLane<uint8_t>::setStep()` happens at the DSP boundary in `processor.cpp::applyParamsToEngine()`, with clamping to [0, 17].
+
+### Format Strings
+
+| Parameter | Examples |
+|-----------|----------|
+| Condition Lane Length | "1 step", "4 steps", "32 steps" (singular "step" when length == 1) |
+| Condition Lane Steps | "Always", "10%", "25%", "50%", "75%", "90%", "1:2", "2:2", "1:3", "2:3", "3:3", "1:4", "2:4", "3:4", "4:4", "1st", "Fill", "!Fill" |
+| Fill Toggle | "Off", "On" |
+
+The 18 condition display strings are stored in a static `const char* const kCondNames[]` array (stack-local, allocation-free).
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToEngine():
+// Condition lane: expand-write-shrink pattern (same as other lanes)
+{
+    const auto condLen = arpParams_.conditionLaneLength.load(relaxed);
+    arpCore_.conditionLane().setLength(32);  // Expand first
+    for (int i = 0; i < 32; ++i) {
+        int val = std::clamp(arpParams_.conditionLaneSteps[i].load(relaxed), 0, 17);
+        arpCore_.conditionLane().setStep(static_cast<size_t>(i), static_cast<uint8_t>(val));
+    }
+    arpCore_.conditionLane().setLength(static_cast<size_t>(condLen));  // Shrink to actual
+}
+arpCore_.setFillActive(arpParams_.fillToggle.load(relaxed));
+```
+
+---
+
 ## Denormalization Mappings Reference
 
 | Mapping | Parameters | Formula |
@@ -1106,8 +1181,8 @@ arpCore_.setEuclideanEnabled(arpParams_.euclideanEnabled.load(relaxed));
 | Linear (offset+scale) | Arp Free Rate (0.5-50Hz), Arp Gate Length (1-200%), Arp Swing (0-75%) | `offset + normalized * range` |
 | Discrete (offset+scale) | Arp Euclidean Hits (0-32), Ratchet Steps (1-4) | `round(normalized * range)` or `offset + round(normalized * range)` |
 | Discrete (offset+scale) | Arp Euclidean Steps (2-32) | `2 + round(normalized * 30)` |
-| Discrete (scaled) | Arp Euclidean Rotation (0-31) | `round(normalized * 31)` |
-| Boolean | Loop Mode, Enabled flags, Gain Comp, S&H Sync, Rnd Sync, Arp Enabled, Arp Tempo Sync, Arp Euclidean Enabled | `normalized >= 0.5` |
+| Discrete (scaled) | Arp Euclidean Rotation (0-31), Arp Condition Steps (0-17) | `round(normalized * 31)` or `round(normalized * 17)` |
+| Boolean | Loop Mode, Enabled flags, Gain Comp, S&H Sync, Rnd Sync, Arp Enabled, Arp Tempo Sync, Arp Euclidean Enabled, Arp Fill Toggle | `normalized >= 0.5` |
 
 ---
 

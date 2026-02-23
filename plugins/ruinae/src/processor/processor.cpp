@@ -1339,6 +1339,20 @@ void Processor::applyParamsToEngine() {
     arpCore_.setEuclideanEnabled(
         arpParams_.euclideanEnabled.load(std::memory_order_relaxed));
 
+    // --- Condition Lane (076-conditional-trigs) ---
+    {
+        const auto condLen = arpParams_.conditionLaneLength.load(std::memory_order_relaxed);
+        arpCore_.conditionLane().setLength(32);  // Expand first
+        for (int i = 0; i < 32; ++i) {
+            int val = std::clamp(
+                arpParams_.conditionLaneSteps[i].load(std::memory_order_relaxed), 0, 17);
+            arpCore_.conditionLane().setStep(
+                static_cast<size_t>(i), static_cast<uint8_t>(val));
+        }
+        arpCore_.conditionLane().setLength(static_cast<size_t>(condLen));  // Shrink to actual
+    }
+    arpCore_.setFillActive(arpParams_.fillToggle.load(std::memory_order_relaxed));
+
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));
 }

@@ -1002,7 +1002,47 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpEuclideanHitsId      = 3231,    // discrete: 0-32
     kArpEuclideanStepsId     = 3232,    // discrete: 2-32
     kArpEuclideanRotationId  = 3233,    // discrete: 0-31
-    // 3234-3299: reserved for future arp phases (Conditional Trig, Spice/Dice)
+    // 3234-3239: reserved (gap before condition lane; reserved for use before Phase 9)
+
+    // --- Condition Lane (076-conditional-trigs, 3240-3272) ---
+    kArpConditionLaneLengthId = 3240,   // discrete: 1-32 (RangeParameter, stepCount=31)
+    kArpConditionLaneStep0Id  = 3241,   // discrete: 0-17 (RangeParameter, stepCount=17)
+    kArpConditionLaneStep1Id  = 3242,
+    kArpConditionLaneStep2Id  = 3243,
+    kArpConditionLaneStep3Id  = 3244,
+    kArpConditionLaneStep4Id  = 3245,
+    kArpConditionLaneStep5Id  = 3246,
+    kArpConditionLaneStep6Id  = 3247,
+    kArpConditionLaneStep7Id  = 3248,
+    kArpConditionLaneStep8Id  = 3249,
+    kArpConditionLaneStep9Id  = 3250,
+    kArpConditionLaneStep10Id = 3251,
+    kArpConditionLaneStep11Id = 3252,
+    kArpConditionLaneStep12Id = 3253,
+    kArpConditionLaneStep13Id = 3254,
+    kArpConditionLaneStep14Id = 3255,
+    kArpConditionLaneStep15Id = 3256,
+    kArpConditionLaneStep16Id = 3257,
+    kArpConditionLaneStep17Id = 3258,
+    kArpConditionLaneStep18Id = 3259,
+    kArpConditionLaneStep19Id = 3260,
+    kArpConditionLaneStep20Id = 3261,
+    kArpConditionLaneStep21Id = 3262,
+    kArpConditionLaneStep22Id = 3263,
+    kArpConditionLaneStep23Id = 3264,
+    kArpConditionLaneStep24Id = 3265,
+    kArpConditionLaneStep25Id = 3266,
+    kArpConditionLaneStep26Id = 3267,
+    kArpConditionLaneStep27Id = 3268,
+    kArpConditionLaneStep28Id = 3269,
+    kArpConditionLaneStep29Id = 3270,
+    kArpConditionLaneStep30Id = 3271,
+    kArpConditionLaneStep31Id = 3272,
+    // 3273-3279: reserved (gap between condition step IDs and fill toggle; reserved for future condition-lane extensions)
+
+    // --- Fill Toggle (076-conditional-trigs, 3280) ---
+    kArpFillToggleId          = 3280,   // discrete: 0-1 (latching toggle)
+    // 3281-3299: reserved for future arp phases (Spice/Dice)
 
     kArpEndId = 3299,
 

@@ -5886,11 +5886,24 @@ class TranceGate {
 ## ArpeggiatorCore
 **Path:** [arpeggiator_core.h](../../dsp/include/krate/dsp/processors/arpeggiator_core.h) | **Since:** 0.11.0
 
-Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains five `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`, modifier: `uint8_t`, ratchet: `uint8_t`) that advance independently on each arp step, enabling polymetric lane patterns. The ratchet lane (Spec 074) stores per-step subdivision counts (1-4); when a step has ratchet count N > 1, `fireStep()` emits the first sub-step and initializes sub-step tracking state, then `processBlock()` emits the remaining N-1 sub-steps via a `NextEvent::SubStep` event type in the jump-ahead loop. Euclidean timing mode (Spec 075) adds a pre-fire gating check in `fireStep()` using the existing `EuclideanPattern` class (Layer 0) to determine which steps fire notes (hits) and which are silent (rests). Header-only, zero heap allocation in all methods.
+Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains six `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`, modifier: `uint8_t`, ratchet: `uint8_t`, condition: `uint8_t`) that advance independently on each arp step, enabling polymetric lane patterns. The ratchet lane (Spec 074) stores per-step subdivision counts (1-4); when a step has ratchet count N > 1, `fireStep()` emits the first sub-step and initializes sub-step tracking state, then `processBlock()` emits the remaining N-1 sub-steps via a `NextEvent::SubStep` event type in the jump-ahead loop. Euclidean timing mode (Spec 075) adds a pre-fire gating check in `fireStep()` using the existing `EuclideanPattern` class (Layer 0) to determine which steps fire notes (hits) and which are silent (rests). Conditional trig system (Spec 076) adds per-step condition evaluation (probability, A:B ratios, First-loop-only, Fill/NotFill) between Euclidean gating and modifier evaluation, creating patterns that evolve over multiple loops. Header-only, zero heap allocation in all methods.
 
 ```cpp
 enum class LatchMode : uint8_t { Off, Hold, Add };
 enum class ArpRetriggerMode : uint8_t { Off, Note, Beat };
+
+// Conditional trigger type (Spec 076)
+enum class TrigCondition : uint8_t {
+    Always = 0,       // Step fires unconditionally (default)
+    Prob10, Prob25, Prob50, Prob75, Prob90,     // Probability (10/25/50/75/90%)
+    Ratio_1_2, Ratio_2_2,                       // A:B ratios (mod 2)
+    Ratio_1_3, Ratio_2_3, Ratio_3_3,            // A:B ratios (mod 3)
+    Ratio_1_4, Ratio_2_4, Ratio_3_4, Ratio_4_4, // A:B ratios (mod 4)
+    First,            // Fire only on first loop (loopCount == 0)
+    Fill,             // Fire only when fill mode is active
+    NotFill,          // Fire only when fill mode is NOT active
+    kCount            // Sentinel (18). Not a valid condition.
+};
 
 // Per-step modifier bitmask flags (Spec 073)
 enum ArpStepFlags : uint8_t {
@@ -5952,6 +5965,14 @@ class ArpeggiatorCore {
     ArpLane<uint8_t>& ratchetLane() noexcept;         // Per-step ratchet count [1-4]
     const ArpLane<uint8_t>& ratchetLane() const noexcept;
 
+    // Condition lane accessor (Spec 076)
+    ArpLane<uint8_t>& conditionLane() noexcept;       // Per-step TrigCondition enum [0-17]
+    const ArpLane<uint8_t>& conditionLane() const noexcept;
+
+    // Fill mode (Spec 076)
+    void setFillActive(bool active) noexcept;         // Set fill mode toggle (real-time safe)
+    [[nodiscard]] bool fillActive() const noexcept;   // Get current fill mode state
+
     // Euclidean timing (Spec 075)
     void setEuclideanSteps(int steps) noexcept;       // [2, 32], re-clamps hits, regenerates pattern
     void setEuclideanHits(int hits) noexcept;         // [0, euclideanSteps_], regenerates pattern
@@ -5979,6 +6000,7 @@ class ArpeggiatorCore {
 - Per-step velocity shaping, gate length modulation, and pitch offset via independent lanes (Spec 072)
 - Per-step ratcheting (1-4 sub-step retriggered repetitions) via independent ratchet lane (Spec 074)
 - Euclidean timing mode for Bjorklund-algorithm rhythmic gating (E(k,n) patterns like tresillo, cinquillo, bossa nova) with rotation (Spec 075)
+- Conditional triggers for evolving multi-loop patterns: probability (10/25/50/75/90%), A:B ratios (1:2 through 4:4), First-loop-only, Fill/NotFill performance toggle (Spec 076)
 
 **Usage example:**
 
@@ -6013,28 +6035,36 @@ arp.setEuclideanHits(3);
 arp.setEuclideanRotation(0);
 arp.setEuclideanEnabled(true);
 // Steps 0, 3, 6 will fire noteOn; steps 1, 2, 4, 5, 7 are silent rests
-// All lanes (velocity, gate, pitch, modifier, ratchet) still advance on rest steps
+// All lanes (velocity, gate, pitch, modifier, ratchet, condition) still advance on rest steps
+
+// Configure conditional triggers: Prob50 on step 0, Fill on step 1 (Spec 076)
+arp.conditionLane().setLength(2);
+arp.conditionLane().setStep(0, static_cast<uint8_t>(TrigCondition::Prob50));
+arp.conditionLane().setStep(1, static_cast<uint8_t>(TrigCondition::Fill));
+arp.setFillActive(true);   // Fill-conditioned steps fire when fill is active
+// Step 0 fires ~50% of the time; step 1 fires only when fill mode is ON
 ```
 
 **Enumerations:**
 - `LatchMode` (Off, Hold, Add) -- controls how the arp handles key release. Defined in `arpeggiator_core.h` for use by the Ruinae plugin parameter mapping.
 - `ArpRetriggerMode` (Off, Note, Beat) -- controls when the arp pattern resets. Named distinctly from `RetriggerMode` in `envelope_utils.h` to prevent ODR violations.
 - `ArpStepFlags` (kStepActive=0x01, kStepTie=0x02, kStepSlide=0x04, kStepAccent=0x08) -- per-step modifier bitmask flags (Spec 073). Underlying type is `uint8_t`. Flags are combinable via bitwise OR; priority evaluation order in `fireStep()` is Rest (Active not set) > Tie > Slide > Accent.
+- `TrigCondition` (Always=0 through NotFill=17, kCount=18) -- per-step conditional trigger type (Spec 076). Underlying type is `uint8_t`. Values 0-17 are valid conditions; kCount (18) is a sentinel for bounds checking. Stored in `ArpLane<uint8_t>`. Always (0) is the default (unconditional fire).
 
 **Lane integration (Spec 072):**
 - `velocityLane_` (`ArpLane<float>`): Each step value scales note velocity via `velocity * velScale`, clamped to [1, 127]. Default step[0] = 1.0 (passthrough).
 - `gateLane_` (`ArpLane<float>`): Each step value multiplies gate duration via `calculateGateDuration(float gateLaneValue)`, clamped to minimum 1 sample. Default step[0] = 1.0 (no change).
 - `pitchLane_` (`ArpLane<int8_t>`): Each step value is added to the note number, clamped to [0, 127]. Default step[0] = 0 (no offset).
-- `resetLanes()`: Private method that calls `reset()` on all five lanes (velocity, gate, pitch, modifier, ratchet) and resets `tieActive_` state to `false`, clears ratchet sub-step state (`ratchetSubStepsRemaining_ = 0`, `ratchetSubStepCounter_ = 0`). Invoked from `reset()`, retrigger (Note mode on `noteOn()`), and transport-restart (Beat mode on bar boundary in `processBlock()`).
+- `resetLanes()`: Private method that calls `reset()` on all six lanes (velocity, gate, pitch, modifier, ratchet, condition) and resets `tieActive_` state to `false`, clears ratchet sub-step state (`ratchetSubStepsRemaining_ = 0`, `ratchetSubStepCounter_ = 0`), resets `conditionLane_` position to 0 and `loopCount_` to 0 (Spec 076). The `fillActive_` flag and `conditionRng_` state are intentionally NOT reset (FR-022, FR-035). Invoked from `reset()`, retrigger (Note mode on `noteOn()`), and transport-restart (Beat mode on bar boundary in `processBlock()`).
 - `calculateGateDuration(float gateLaneValue = 1.0f)`: Extended signature multiplies the global gate formula by the lane value: `std::max(size_t{1}, static_cast<size_t>(static_cast<double>(stepDuration) * static_cast<double>(gatePct) / 100.0 * static_cast<double>(gateLaneValue)))`. When `gateLaneValue == 1.0f`, produces bit-identical results to the Phase 3 formula (SC-002).
-- In `fireStep()`: velocity, gate, pitch, modifier, and ratchet lanes each call `advance()` once per step tick. Chord mode applies the same lane values to all notes in the chord equally.
+- In `fireStep()`: velocity, gate, pitch, modifier, ratchet, and condition lanes each call `advance()` once per step tick. Chord mode applies the same lane values to all notes in the chord equally.
 
 **Modifier lane integration (Spec 073):**
 - `modifierLane_` (`ArpLane<uint8_t>`): Each step value is a bitmask of `ArpStepFlags`. Default step[0] = `kStepActive` (0x01, normal note output).
 - Exposes accessor: `modifierLane()`; configuration setters: `setAccentVelocity(int)`, `setSlideTime(float)`.
 - `ArpEvent` extended with `bool legato{false}` for slide/legato behavior. When a Slide step is evaluated in `fireStep()`, the emitted `ArpEvent` has `legato = true`, signaling the engine to apply portamento and suppress envelope retrigger.
 - Modifier evaluation priority in `fireStep()`: Rest (kStepActive not set) > Tie (kStepTie) > Slide (kStepSlide) > Accent (kStepAccent). Rest suppresses noteOn and emits pending noteOffs. Tie sustains the previous note across steps. Slide emits a legato noteOn without preceding noteOff. Accent boosts velocity by `accentVelocity_` after velocity lane scaling.
-- In `fireStep()`: modifier lane advances in both the normal path and the `result.count == 0` defensive branch (held buffer empty), ensuring all five lanes advance exactly once per arp step tick regardless of held note state.
+- In `fireStep()`: modifier lane advances in both the normal path and the `result.count == 0` defensive branch (held buffer empty), ensuring all six lanes advance exactly once per arp step tick regardless of held note state.
 
 **Ratchet lane integration (Spec 074):**
 - `ratchetLane_` (`ArpLane<uint8_t>`): Each step value stores a subdivision count from 1 to 4. Default length = 1, default step[0] = 1 (no ratcheting). Cycles independently of all other lanes, participating in the polymetric lane system.
@@ -6069,7 +6099,7 @@ The ratchet lane is advanced in `fireStep()` at the same call site as the other 
    - Initialize all ratchet state: `ratchetSubStepsRemaining_ = ratchetCount - 1`, counter = 0, note/velocity/gate/duration stored
    - Set `ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1)`
    - Schedule pending noteOff for the first sub-step (unless it is the last sub-step with Tie/Slide look-ahead suppression)
-5. **Defensive branch (`result.count == 0`)**: When the held note buffer is empty, the ratchet lane still advances via `ratchetLane_.advance()` and `ratchetSubStepsRemaining_` is set to 0, keeping all five lanes synchronized.
+5. **Defensive branch (`result.count == 0`)**: When the held note buffer is empty, the ratchet lane still advances via `ratchetLane_.advance()` and `ratchetSubStepsRemaining_` is set to 0. The condition lane also advances via `conditionLane_.advance()` with loop count wrap detection (Spec 076), keeping all six lanes synchronized.
 
 **`processBlock()` SubStep handler pattern (Spec 074):**
 
@@ -6129,19 +6159,19 @@ Euclidean timing mode adds a pre-fire gating check in `fireStep()` that determin
 - `euclideanEnabled()`, `euclideanHits()`, `euclideanSteps()`, `euclideanRotation()`: Return the current configuration values (not the bitmask). All are `[[nodiscard]] inline ... const noexcept`.
 
 *Evaluation order in `fireStep()`:*
-1. All lane advances (velocity, gate, pitch, modifier, ratchet) -- unconditional on every step tick
-2. **Euclidean gating** -- if enabled, checks `EuclideanPattern::isHit()` at current position, advances position. If rest: emits noteOff for sounding notes, breaks tie chain (`tieActive_ = false`), increments swing counter, recalculates step duration, returns early.
-3. *(Future: Phase 8 Conditional Trig will insert its check here, between Euclidean gating and modifier evaluation)*
+1. All lane advances (velocity, gate, pitch, modifier, ratchet, condition) -- unconditional on every step tick. Condition lane wrap detection: if `conditionLane_.currentStep() == 0` after advance, `++loopCount_` (Spec 076).
+2. **Euclidean gating** -- if enabled, checks `EuclideanPattern::isHit()` at current position, advances position. If rest: emits noteOff for sounding notes, breaks tie chain (`tieActive_ = false`), increments swing counter, recalculates step duration, returns early. Condition is NOT evaluated on Euclidean rest steps; PRNG is NOT consumed.
+3. **Condition evaluation** (Spec 076) -- calls `evaluateCondition(condValue)`. If condition fails: identical cleanup to Euclidean rest (cancel pending noteOffs, emit noteOff for sounding notes, `currentArpNoteCount_ = 0`, `tieActive_ = false`, increment swing counter, recalculate step duration, return early). If condition passes: proceeds to modifier evaluation.
 4. Modifier priority chain (Rest > Tie > Slide > Accent)
 5. Ratcheting
 
 *Lifecycle integration:*
-- `resetLanes()`: Resets `euclideanPosition_` to 0 (after ratchet state reset). Ensures retrigger (Note and Beat modes) and enable/disable transitions restart the Euclidean pattern from step 0.
+- `resetLanes()`: Resets `euclideanPosition_` to 0 (after ratchet state reset). Also resets `conditionLane_` position to 0 and `loopCount_` to 0 (Spec 076). `fillActive_` and `conditionRng_` are intentionally NOT reset. Ensures retrigger (Note and Beat modes) and enable/disable transitions restart the Euclidean pattern and condition lane from step 0.
 - `reset()`: Calls `resetLanes()` then `regenerateEuclideanPattern()` to regenerate the pattern from current parameters.
-- Constructor: Calls `regenerateEuclideanPattern()` after member initialization so `euclideanPattern_` starts as E(4,8,0) rather than zero.
+- Constructor: Calls `regenerateEuclideanPattern()` after member initialization so `euclideanPattern_` starts as E(4,8,0) rather than zero. Also calls `conditionLane_.setStep(0, static_cast<uint8_t>(TrigCondition::Always))` for explicit clarity (Spec 076).
 
 *Defensive branch:*
-- In the `result.count == 0` branch in `fireStep()` (held buffer empty), `euclideanPosition_` advances when Euclidean is enabled, keeping all lane positions synchronized.
+- In the `result.count == 0` branch in `fireStep()` (held buffer empty), `euclideanPosition_` advances when Euclidean is enabled. The condition lane also advances with loop count wrap detection (Spec 076). All lane positions remain synchronized.
 
 *Euclidean rest behavior:*
 - No noteOn is emitted.
@@ -6149,11 +6179,53 @@ Euclidean timing mode adds a pre-fire gating check in `fireStep()` that determin
 - The tie chain is broken (`tieActive_ = false`).
 - Ratcheting is suppressed (ratchet count is discarded, no sub-steps fire).
 - The step still consumes swing timing (swing counter advances, step duration recalculated).
-- All lanes (velocity, gate, pitch, modifier, ratchet) have already advanced before the Euclidean check.
+- All lanes (velocity, gate, pitch, modifier, ratchet, condition) have already advanced before the Euclidean check.
+- Condition evaluation is NOT performed; PRNG is NOT consumed (Spec 076).
 
 *Euclidean hit behavior:*
-- The step proceeds through normal modifier evaluation and ratcheting, exactly as if Euclidean were disabled.
+- The step proceeds through condition evaluation, then modifier evaluation and ratcheting, exactly as if Euclidean were disabled.
 
-**Memory:** ~600 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 5 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays + Euclidean state: 6 scalar members ~24 bytes). Header-only, real-time safe, single-threaded.
+**Conditional trig integration (Spec 076):**
 
-**Dependencies:** Layer 0 (block_context.h, note_value.h, euclidean_pattern.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)
+The conditional trig system adds per-step condition evaluation between Euclidean gating and modifier evaluation, creating an Elektron-inspired three-layer gating chain: Euclidean (structural rhythm) -> Condition (evolutionary/probabilistic) -> Modifier (articulation overrides).
+
+*New include:*
+- `<krate/dsp/core/random.h>` -- for `Xorshift32` PRNG used by probability conditions.
+
+*Condition state members:*
+- `conditionLane_` (`ArpLane<uint8_t>`, default length 1, step[0] = 0 = TrigCondition::Always): Per-step condition values. Advances once per arp step tick alongside all other lanes. The lane wraps independently, creating polymetric conditional patterns when combined with lanes of different lengths.
+- `loopCount_` (`size_t`, default 0): Condition lane cycle counter. Increments when `conditionLane_` wraps from its last step back to step 0 (detected by checking `conditionLane_.currentStep() == 0` after advance). Used by A:B ratio conditions (`loopCount_ % B == A - 1`) and the First condition (`loopCount_ == 0`). Reset to 0 by `resetLanes()`. NOT reset on lane length changes -- the counter continues uninterrupted across length changes.
+- `fillActive_` (`bool`, default `false`): Fill mode performance toggle. Set by `setFillActive(bool)`, read by Fill and NotFill conditions. Intentionally NOT reset by `resetLanes()` or `reset()` -- it is a performance control (like a sustain pedal) that persists across resets. Not serialized in DSP state; the plugin parameter system drives it.
+- `conditionRng_` (`Xorshift32`, seed 7919): Dedicated PRNG for probability condition evaluation. Seeded with a fixed prime (7919, distinct from NoteSelector's seed of 42) at construction time. Consumed once per step for probability conditions (Prob10/25/50/75/90). NOT consumed for non-probability conditions (Always, A:B, First, Fill, NotFill). Intentionally NOT reset by `resetLanes()` or `reset()` -- ensures non-repeating probability sequences across pattern restarts.
+
+*Private helper:*
+- `evaluateCondition(uint8_t condition) noexcept -> bool`: Evaluates a TrigCondition value and returns true if the step should fire. Implements an 18-way switch dispatch:
+  - Always: return true
+  - Prob10/25/50/75/90: `conditionRng_.nextUnipolar() < threshold` (thresholds: 0.10f, 0.25f, 0.50f, 0.75f, 0.90f)
+  - Ratio_1_2 through Ratio_4_4: `loopCount_ % B == A - 1`
+  - First: `loopCount_ == 0`
+  - Fill: `fillActive_`
+  - NotFill: `!fillActive_`
+  - default (>= kCount): return true (defensive fallback for out-of-range values)
+
+*Public methods:*
+- `conditionLane()` (const + non-const): Access the condition lane for reading/writing step values. Follows the same pattern as all other lane accessors.
+- `setFillActive(bool active) noexcept`: Set fill mode active state. Real-time safe, no side effects beyond storing the boolean.
+- `fillActive() const noexcept`: Get current fill mode state.
+
+*Condition-fail rest path:*
+- Identical cleanup to Euclidean rest: cancel pending noteOffs for current notes, emit noteOff for all currently sounding notes, set `currentArpNoteCount_ = 0`, set `tieActive_ = false` (breaks tie chain), increment `swingStepCounter_`, recalculate `currentStepDuration_`, return early. Modifiers and ratcheting are NOT evaluated.
+
+*Condition-pass behavior:*
+- The step proceeds to modifier evaluation as normal. The condition is transparent -- it only gates whether the step enters the modifier evaluation pipeline. A condition-passing step with modifier Rest is still silent (modifier Rest still applies).
+
+*Condition and chord mode:*
+- In Chord mode, the condition applies uniformly to all chord notes. A condition pass fires all chord notes; a condition fail silences all.
+
+*Loop count special cases:*
+- Length-1 condition lane: wraps on every step, so `loopCount_` increments on every step. A:B ratios effectively operate per-step rather than per-loop (valid degenerate case).
+- `loopCount_` uses `size_t` (64-bit). No overflow concern (would take ~11.7 billion years at maximum rate).
+
+**Memory:** ~640 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 6 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays + Euclidean state: 6 scalar members ~24 bytes + Condition state: conditionLane_ ~40 bytes + loopCount_ 8 bytes + fillActive_ 1 byte + conditionRng_ 4 bytes ~53 bytes). Header-only, real-time safe, single-threaded.
+
+**Dependencies:** Layer 0 (block_context.h, note_value.h, euclidean_pattern.h, random.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)

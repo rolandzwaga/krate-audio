@@ -19,6 +19,7 @@
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/random.h>
 #include <krate/dsp/primitives/arp_lane.h>
 #include <krate/dsp/primitives/held_note_buffer.h>
 
@@ -62,6 +63,34 @@ enum class ArpRetriggerMode : uint8_t {
     Off = 0,  ///< Never auto-reset
     Note,     ///< Reset on each incoming noteOn
     Beat      ///< Reset at bar boundaries
+};
+
+// =============================================================================
+// TrigCondition (076-conditional-trigs, FR-001, FR-002)
+// =============================================================================
+
+/// @brief Conditional trigger type for per-step condition evaluation.
+/// Each arp step has exactly one condition (not a bitmask).
+enum class TrigCondition : uint8_t {
+    Always = 0,       ///< Step fires unconditionally (default)
+    Prob10,           ///< ~10% probability
+    Prob25,           ///< ~25% probability
+    Prob50,           ///< ~50% probability
+    Prob75,           ///< ~75% probability
+    Prob90,           ///< ~90% probability
+    Ratio_1_2,        ///< Fire on 1st of every 2 loops
+    Ratio_2_2,        ///< Fire on 2nd of every 2 loops
+    Ratio_1_3,        ///< Fire on 1st of every 3 loops
+    Ratio_2_3,        ///< Fire on 2nd of every 3 loops
+    Ratio_3_3,        ///< Fire on 3rd of every 3 loops
+    Ratio_1_4,        ///< Fire on 1st of every 4 loops
+    Ratio_2_4,        ///< Fire on 2nd of every 4 loops
+    Ratio_3_4,        ///< Fire on 3rd of every 4 loops
+    Ratio_4_4,        ///< Fire on 4th of every 4 loops
+    First,            ///< Fire only on first loop (loopCount == 0)
+    Fill,             ///< Fire only when fill mode is active
+    NotFill,          ///< Fire only when fill mode is NOT active
+    kCount            ///< Sentinel (18). Not a valid condition.
 };
 
 // =============================================================================
@@ -146,6 +175,11 @@ public:
         // Without this, euclideanPattern_ would be 0 (the member initializer)
         // instead of the correct E(4,8,0) bitmask.
         regenerateEuclideanPattern();
+
+        // 076-conditional-trigs: initialize condition lane default (FR-005)
+        // ArpLane<uint8_t> zero-initializes to 0 = TrigCondition::Always,
+        // but explicit set for clarity and consistency.
+        conditionLane_.setStep(0, static_cast<uint8_t>(TrigCondition::Always));
     }
 
     // =========================================================================
@@ -431,6 +465,28 @@ public:
     [[nodiscard]] inline int euclideanRotation() const noexcept {
         return euclideanRotation_;
     }
+
+    // =========================================================================
+    // Condition Lane Accessors (076-conditional-trigs, FR-007)
+    // =========================================================================
+
+    /// @brief Access the condition lane for reading/writing step values.
+    ArpLane<uint8_t>& conditionLane() noexcept { return conditionLane_; }
+
+    /// @brief Const access to the condition lane.
+    [[nodiscard]] const ArpLane<uint8_t>& conditionLane() const noexcept {
+        return conditionLane_;
+    }
+
+    // =========================================================================
+    // Fill Mode (076-conditional-trigs, FR-020, FR-021)
+    // =========================================================================
+
+    /// @brief Set fill mode active state. Real-time safe, no side effects.
+    void setFillActive(bool active) noexcept { fillActive_ = active; }
+
+    /// @brief Get current fill mode state.
+    [[nodiscard]] bool fillActive() const noexcept { return fillActive_; }
 
     /// @brief Set the accent velocity boost amount.
     /// @param amount Additive velocity boost for accented steps (0-127).
@@ -991,6 +1047,61 @@ private:
         ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1);
     }
 
+    // =========================================================================
+    // Condition Evaluation (076-conditional-trigs, FR-013)
+    // =========================================================================
+
+    /// @brief Evaluate a TrigCondition for the current step.
+    /// @param condition The condition to evaluate (TrigCondition enum as uint8_t)
+    /// @return true if the step should fire, false if it should be treated as rest
+    /// Consumes conditionRng_ only for probability conditions (Prob10-Prob90).
+    /// Uses loopCount_ for A:B ratio and First conditions.
+    /// Uses fillActive_ for Fill/NotFill conditions.
+    /// Values >= kCount are treated as Always (defensive fallback).
+    inline bool evaluateCondition(uint8_t condition) noexcept {
+        const auto cond = static_cast<TrigCondition>(condition);
+        switch (cond) {
+            case TrigCondition::Always:
+                return true;
+            case TrigCondition::Prob10:
+                return conditionRng_.nextUnipolar() < 0.10f;
+            case TrigCondition::Prob25:
+                return conditionRng_.nextUnipolar() < 0.25f;
+            case TrigCondition::Prob50:
+                return conditionRng_.nextUnipolar() < 0.50f;
+            case TrigCondition::Prob75:
+                return conditionRng_.nextUnipolar() < 0.75f;
+            case TrigCondition::Prob90:
+                return conditionRng_.nextUnipolar() < 0.90f;
+            case TrigCondition::Ratio_1_2:
+                return loopCount_ % 2 == 0;
+            case TrigCondition::Ratio_2_2:
+                return loopCount_ % 2 == 1;
+            case TrigCondition::Ratio_1_3:
+                return loopCount_ % 3 == 0;
+            case TrigCondition::Ratio_2_3:
+                return loopCount_ % 3 == 1;
+            case TrigCondition::Ratio_3_3:
+                return loopCount_ % 3 == 2;
+            case TrigCondition::Ratio_1_4:
+                return loopCount_ % 4 == 0;
+            case TrigCondition::Ratio_2_4:
+                return loopCount_ % 4 == 1;
+            case TrigCondition::Ratio_3_4:
+                return loopCount_ % 4 == 2;
+            case TrigCondition::Ratio_4_4:
+                return loopCount_ % 4 == 3;
+            case TrigCondition::First:
+                return loopCount_ == 0;
+            case TrigCondition::Fill:
+                return fillActive_;
+            case TrigCondition::NotFill:
+                return !fillActive_;
+            default:
+                return true;  // Out-of-range: treat as Always (defensive)
+        }
+    }
+
     /// @brief Fire a step: advance NoteSelector, emit NoteOn, schedule NoteOff.
     inline void fireStep(const BlockContext& ctx,
                           int32_t sampleOffset,
@@ -1009,6 +1120,15 @@ private:
             int8_t pitchOffset = pitchLane_.advance();
             uint8_t modifierFlags = modifierLane_.advance();
             uint8_t ratchetCount = std::max(uint8_t{1}, ratchetLane_.advance());  // 074-ratcheting (FR-004)
+            uint8_t condValue = conditionLane_.advance();  // 076-conditional-trigs (FR-006)
+
+            // 076-conditional-trigs: detect loop count wrap (FR-011)
+            // After advance, if position wrapped back to 0, the lane completed one cycle.
+            // For length 1, this fires on every step (correct per FR-018).
+            // The actual loopCount_ increment is deferred to AFTER condition evaluation
+            // so that the current step evaluates against the pre-increment loopCount_.
+            // This ensures First (loopCount_ == 0) fires on the very first step.
+            const bool conditionLaneWrapped = (conditionLane_.currentStep() == 0);
 
             // --- 075-euclidean-timing: Euclidean gating check (FR-011, FR-012) ---
             // Evaluated AFTER all lane advances but BEFORE modifier evaluation.
@@ -1042,8 +1162,49 @@ private:
                     // Increment swing step counter and recalculate duration
                     ++swingStepCounter_;
                     currentStepDuration_ = calculateStepDuration(ctx);
+
+                    // 076-conditional-trigs: deferred loopCount_ increment (FR-011)
+                    // Must happen even on Euclidean rest (condition not evaluated but
+                    // loop counter still tracks lane cycles).
+                    if (conditionLaneWrapped) {
+                        ++loopCount_;
+                    }
                     return;
                 }
+            }
+
+            // --- 076-conditional-trigs: Condition evaluation (FR-012, FR-014) ---
+            // Evaluated AFTER Euclidean gating but BEFORE modifier evaluation.
+            // If condition fails, treat as rest (identical to Euclidean rest path).
+            if (!evaluateCondition(condValue)) {
+                // Condition-fail rest path: identical to Euclidean rest path
+                cancelPendingNoteOffsForCurrentNotes();
+
+                // Emit noteOff for all currently sounding notes
+                for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
+                    outputEvents[eventCount++] = ArpEvent{
+                        ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
+                }
+                currentArpNoteCount_ = 0;
+
+                // Break any active tie chain (FR-029)
+                tieActive_ = false;
+
+                // Increment swing step counter and recalculate duration
+                ++swingStepCounter_;
+                currentStepDuration_ = calculateStepDuration(ctx);
+
+                // 076-conditional-trigs: deferred loopCount_ increment (FR-011)
+                if (conditionLaneWrapped) {
+                    ++loopCount_;
+                }
+                return;
+            }
+
+            // 076-conditional-trigs: deferred loopCount_ increment (FR-011)
+            // Condition passed -- increment loop count if the lane wrapped this step.
+            if (conditionLaneWrapped) {
+                ++loopCount_;
             }
 
             // --- Modifier evaluation (073-per-step-mods) ---
@@ -1336,6 +1497,11 @@ private:
             // Advance modifier lane in defensive branch too (FR-010)
             modifierLane_.advance();
             ratchetLane_.advance();          // 074-ratcheting: keep ratchet lane synchronized (FR-036)
+            conditionLane_.advance();        // 076-conditional-trigs: keep condition lane synchronized (FR-037)
+            // 076-conditional-trigs: check condition lane wrap for loopCount_ increment (FR-037)
+            if (conditionLane_.currentStep() == 0) {
+                ++loopCount_;
+            }
             ratchetSubStepsRemaining_ = 0;   // 074-ratcheting: clear any pending sub-steps
 
             // 075-euclidean-timing (FR-035): advance Euclidean position in
@@ -1454,6 +1620,10 @@ private:
         ratchetSubStepsRemaining_ = 0;     // 074-ratcheting: clear sub-step state
         ratchetSubStepCounter_ = 0;
         euclideanPosition_ = 0;            // 075-euclidean-timing: reset Euclidean position (FR-013)
+        conditionLane_.reset();              // 076-conditional-trigs: reset condition lane position
+        loopCount_ = 0;                      // 076-conditional-trigs: reset loop counter
+        // fillActive_ intentionally NOT reset (FR-022: performance control)
+        // conditionRng_ intentionally NOT reset (FR-035: continuous randomness)
     }
 
     // =========================================================================
@@ -1506,6 +1676,15 @@ private:
     int euclideanRotation_{0};            ///< Rotation offset, range [0, 31]
     size_t euclideanPosition_{0};         ///< Current position in Euclidean pattern
     uint32_t euclideanPattern_{0};        ///< Pre-computed bitmask from generate()
+
+    // =========================================================================
+    // Condition State (076-conditional-trigs)
+    // =========================================================================
+
+    ArpLane<uint8_t> conditionLane_;     ///< Per-step condition (TrigCondition as uint8_t)
+    size_t loopCount_{0};                ///< Condition lane cycle counter
+    bool fillActive_{false};             ///< Fill mode performance toggle
+    Xorshift32 conditionRng_{7919};      ///< Dedicated PRNG for probability (prime seed)
 
     // =========================================================================
     // Configuration State
