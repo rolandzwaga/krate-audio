@@ -1365,6 +1365,9 @@ void Processor::applyParamsToEngine() {
     }
     arpCore_.setHumanize(arpParams_.humanize.load(std::memory_order_relaxed));
 
+    // --- Ratchet Swing (078-ratchet-swing) ---
+    arpCore_.setRatchetSwing(arpParams_.ratchetSwing.load(std::memory_order_relaxed));
+
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));
 }

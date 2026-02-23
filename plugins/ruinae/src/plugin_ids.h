@@ -1047,7 +1047,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpSpiceId               = 3290,   // continuous: 0.0-1.0 (displayed as 0-100%)
     kArpDiceTriggerId         = 3291,   // discrete: 0-1 (momentary trigger, edge-detected)
     kArpHumanizeId            = 3292,   // continuous: 0.0-1.0 (displayed as 0-100%)
-    // IDs 3293-3299 reserved for future phases
+    kArpRatchetSwingId        = 3293,   // continuous: 0.0-1.0 (displayed as 50-75%)
 
     kArpEndId = 3299,
 

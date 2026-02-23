@@ -290,6 +290,7 @@ public:
             needsDisableNoteOff_ = true;
             ratchetSubStepsRemaining_ = 0;  // 074-ratcheting: clear pending sub-steps (FR-026)
             ratchetSubStepCounter_ = 0;
+            ratchetSubStepIndex_ = 0;
         }
         if (!enabled_ && enabled) {
             // FR-022: disable/enable transition resets lanes
@@ -520,6 +521,14 @@ public:
         return slideTimeMs_;
     }
 
+    /// @brief Set ratchet swing as percentage 50-75%.
+    /// Controls the long-short ratio within ratcheted sub-step pairs.
+    /// 50% = equal spacing (default), 67% = triplet feel, 75% = dotted feel.
+    /// Stored internally as 0.50-0.75 (divided by 100).
+    void setRatchetSwing(float percent) noexcept {
+        ratchetSwing_ = std::clamp(percent, 50.0f, 75.0f) / 100.0f;
+    }
+
     // =========================================================================
     // Spice/Dice & Humanize (077-spice-dice-humanize)
     // =========================================================================
@@ -623,6 +632,7 @@ public:
                 pendingNoteOffCount_ = 0;
                 ratchetSubStepsRemaining_ = 0;  // 074-ratcheting (FR-027)
                 ratchetSubStepCounter_ = 0;
+                ratchetSubStepIndex_ = 0;
             }
             wasPlaying_ = false;
             return eventCount;
@@ -713,9 +723,10 @@ public:
             size_t jump = samplesUntilBlockEnd;  // default: consume to block end
 
             // 074-ratcheting: sub-step boundary timing (FR-014)
+            // 078-ratchet-swing: use per-sub-step duration from array
             size_t samplesUntilSubStep = SIZE_MAX;
             if (ratchetSubStepsRemaining_ > 0) {
-                samplesUntilSubStep = ratchetSubStepDuration_ - ratchetSubStepCounter_;
+                samplesUntilSubStep = ratchetSubStepDurations_[ratchetSubStepIndex_] - ratchetSubStepCounter_;
             }
 
             // Determine which event fires first
@@ -826,9 +837,9 @@ public:
                              samplesProcessed, blockSize);
                 }
                 // 074-ratcheting: NoteOff-coincident SubStep check (FR-015)
-                // If a sub-step boundary also fires at this same sample, process it
+                // 078-ratchet-swing: use per-sub-step duration from array
                 else if (ratchetSubStepsRemaining_ > 0 &&
-                         ratchetSubStepCounter_ >= ratchetSubStepDuration_) {
+                         ratchetSubStepCounter_ >= ratchetSubStepDurations_[ratchetSubStepIndex_]) {
                     fireSubStep(ctx, sampleOffset, outputEvents, eventCount, maxEvents);
                 }
             } else if (next == NextEvent::Step) {
@@ -954,6 +965,59 @@ private:
             static_cast<double>(gateLaneValue)));
     }
 
+    /// @brief Compute per-sub-step durations and gate durations with ratchet swing.
+    /// Groups sub-steps into consecutive pairs and applies swingRatio to each pair.
+    /// Odd remainder (count 3) keeps baseDuration for the last sub-step.
+    inline void computeSwungSubStepDurations(
+        size_t stepDuration, uint8_t ratchetCount,
+        float gateScale, float gateOffsetRatio) noexcept
+    {
+        const size_t baseDuration = stepDuration / static_cast<size_t>(ratchetCount);
+        const size_t numPairs = static_cast<size_t>(ratchetCount) / 2;
+        const bool hasRemainder = (ratchetCount % 2) != 0;
+
+        for (size_t pair = 0; pair < numPairs; ++pair) {
+            const size_t pairDuration = 2 * baseDuration;
+            const size_t longDur = static_cast<size_t>(
+                std::round(static_cast<double>(pairDuration) *
+                           static_cast<double>(ratchetSwing_)));
+            const size_t shortDur = pairDuration - longDur;
+
+            const size_t evenIdx = pair * 2;
+            const size_t oddIdx = evenIdx + 1;
+
+            ratchetSubStepDurations_[evenIdx] = (longDur > 0) ? longDur : 1;
+            ratchetSubStepDurations_[oddIdx] = (shortDur > 0) ? shortDur : 1;
+
+            // Gate for each sub-step: subStepDuration * gate% / 100 * gateScale
+            auto computeGate = [&](size_t dur) -> size_t {
+                size_t gate = std::max(size_t{1}, static_cast<size_t>(
+                    static_cast<double>(dur) *
+                    static_cast<double>(gateLengthPercent_) / 100.0 *
+                    static_cast<double>(gateScale)));
+                // Apply humanize gate offset
+                int32_t humanizedGate = static_cast<int32_t>(gate)
+                    + static_cast<int32_t>(static_cast<float>(gate) * gateOffsetRatio);
+                return static_cast<size_t>(std::max(int32_t{1}, humanizedGate));
+            };
+            ratchetGateDurations_[evenIdx] = computeGate(longDur > 0 ? longDur : 1);
+            ratchetGateDurations_[oddIdx] = computeGate(shortDur > 0 ? shortDur : 1);
+        }
+
+        if (hasRemainder) {
+            const size_t lastIdx = static_cast<size_t>(ratchetCount) - 1;
+            ratchetSubStepDurations_[lastIdx] = (baseDuration > 0) ? baseDuration : 1;
+            size_t gate = std::max(size_t{1}, static_cast<size_t>(
+                static_cast<double>(baseDuration) *
+                static_cast<double>(gateLengthPercent_) / 100.0 *
+                static_cast<double>(gateScale)));
+            int32_t humanizedGate = static_cast<int32_t>(gate)
+                + static_cast<int32_t>(static_cast<float>(gate) * gateOffsetRatio);
+            ratchetGateDurations_[lastIdx] = static_cast<size_t>(
+                std::max(int32_t{1}, humanizedGate));
+        }
+    }
+
     /// @brief Decrement all pending NoteOff samplesRemaining by given amount.
     inline void decrementPendingNoteOffs(size_t samples) noexcept {
         for (size_t i = 0; i < pendingNoteOffCount_; ++i) {
@@ -1032,6 +1096,9 @@ private:
         // (1) Emit pending NoteOffs due at this sample offset FIRST (FR-021 ordering)
         emitDuePendingNoteOffs(sampleOffset, outputEvents, eventCount, maxEvents);
 
+        // 078-ratchet-swing: advance sub-step index to the sub-step being fired
+        ++ratchetSubStepIndex_;
+
         // (2) Emit noteOn for ratcheted note(s)
         if (ratchetNoteCount_ > 1) {
             // Chord mode: emit noteOn for all chord notes
@@ -1062,7 +1129,8 @@ private:
             currentArpNoteCount_ = 1;
         }
 
-        // (3) Schedule pending noteOff at ratchetGateDuration_
+        // (3) Schedule pending noteOff using per-sub-step gate duration
+        // 078-ratchet-swing: use ratchetGateDurations_[ratchetSubStepIndex_]
         // For the last sub-step, check look-ahead: if next step is Tie/Slide,
         // suppress the gate noteOff so the note sustains into the next step (FR-022).
         // Sub-steps 0 through N-2 always schedule their noteOffs normally.
@@ -1077,14 +1145,15 @@ private:
             suppressGateNoteOff = nextStepIsTie || nextStepIsSlide;
         }
 
+        const size_t subGate = ratchetGateDurations_[ratchetSubStepIndex_];
         if (!suppressGateNoteOff) {
             if (ratchetNoteCount_ > 1) {
                 for (size_t i = 0; i < ratchetNoteCount_; ++i) {
-                    addPendingNoteOff(ratchetNotes_[i], ratchetGateDuration_,
+                    addPendingNoteOff(ratchetNotes_[i], subGate,
                                        outputEvents, eventCount, maxEvents);
                 }
             } else {
-                addPendingNoteOff(ratchetNote_, ratchetGateDuration_,
+                addPendingNoteOff(ratchetNote_, subGate,
                                    outputEvents, eventCount, maxEvents);
             }
         }
@@ -1446,20 +1515,11 @@ private:
             // 074-ratcheting: Ratchet subdivision (FR-007 through FR-013)
             // =================================================================
             if (ratchetCount > 1) {
-                // Sub-step timing: integer division (FR-007)
-                size_t subStepDuration = currentStepDuration_ / static_cast<size_t>(ratchetCount);
-
-                // Sub-step gate: inline calculation using subStepDuration (FR-010)
-                size_t subGateDuration = std::max(size_t{1}, static_cast<size_t>(
-                    static_cast<double>(subStepDuration) *
-                    static_cast<double>(gateLengthPercent_) / 100.0 *
-                    static_cast<double>(gateScale)));
-                // 077-spice-dice-humanize: apply humanize gate offset to sub-step gate (FR-021)
-                {
-                    int32_t humanizedSubGate = static_cast<int32_t>(subGateDuration)
-                        + static_cast<int32_t>(static_cast<float>(subGateDuration) * gateOffsetRatio);
-                    subGateDuration = static_cast<size_t>(std::max(int32_t{1}, humanizedSubGate));
-                }
+                // 078-ratchet-swing: compute per-sub-step durations with swing
+                computeSwungSubStepDurations(currentStepDuration_, ratchetCount,
+                                             gateScale, gateOffsetRatio);
+                ratchetSubStepIndex_ = 0;
+                ratchetTotalSubSteps_ = ratchetCount;
 
                 // Emit first sub-step (sub-step 0) in fireStep.
                 // Remaining sub-steps emitted by processBlock SubStep handler.
@@ -1495,8 +1555,6 @@ private:
                 currentArpNoteCount_ = result.count < 32 ? result.count : 32;
 
                 // Store ratchet state for remaining sub-steps (FR-011)
-                ratchetSubStepDuration_ = subStepDuration;
-                ratchetGateDuration_ = subGateDuration;
                 ratchetSubStepCounter_ = 0;
                 ratchetSubStepsRemaining_ = static_cast<uint8_t>(ratchetCount - 1);
                 ratchetNoteCount_ = result.count < 32 ? result.count : 32;
@@ -1516,15 +1574,16 @@ private:
                 // Determine if next sub-step is the last (for look-ahead)
                 ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1);
 
-                // Schedule gate noteOff for first sub-step
+                // Schedule gate noteOff for first sub-step (sub-step index 0)
                 // First sub-step always schedules gate (look-ahead only on last sub-step)
                 for (size_t i = 0; i < result.count; ++i) {
-                    addPendingNoteOff(result.notes[i], subGateDuration, outputEvents,
-                                       eventCount, maxEvents);
+                    addPendingNoteOff(result.notes[i], ratchetGateDurations_[0],
+                                       outputEvents, eventCount, maxEvents);
                 }
             } else {
                 // ratchetCount == 1: normal (Phase 5) note emission path
                 ratchetSubStepsRemaining_ = 0;  // Ensure no stale sub-step state (FR-013)
+                ratchetSubStepIndex_ = 0;
 
             if (isSlide) {
                 // Slide: suppress previous noteOffs, emit legato noteOns (FR-015)
@@ -1636,6 +1695,7 @@ private:
                 ++loopCount_;
             }
             ratchetSubStepsRemaining_ = 0;   // 074-ratcheting: clear any pending sub-steps
+            ratchetSubStepIndex_ = 0;
 
             // 075-euclidean-timing (FR-035): advance Euclidean position in
             // defensive branch to prevent desync with other lanes
@@ -1757,6 +1817,7 @@ private:
         ratchetLane_.reset();              // 074-ratcheting: reset ratchet lane position
         ratchetSubStepsRemaining_ = 0;     // 074-ratcheting: clear sub-step state
         ratchetSubStepCounter_ = 0;
+        ratchetSubStepIndex_ = 0;
         euclideanPosition_ = 0;            // 075-euclidean-timing: reset Euclidean position (FR-013)
         conditionLane_.reset();              // 076-conditional-trigs: reset condition lane position
         loopCount_ = 0;                      // 076-conditional-trigs: reset loop counter
@@ -1798,15 +1859,18 @@ private:
     // =========================================================================
 
     uint8_t ratchetSubStepsRemaining_{0};      ///< Sub-steps left to fire (0 = inactive)
-    size_t ratchetSubStepDuration_{0};         ///< Duration per sub-step in samples
+    std::array<size_t, 4> ratchetSubStepDurations_{}; ///< Per-sub-step durations in samples
+    std::array<size_t, 4> ratchetGateDurations_{};    ///< Per-sub-step gate durations
+    uint8_t ratchetSubStepIndex_{0};           ///< Which sub-step we're counting through
+    uint8_t ratchetTotalSubSteps_{0};          ///< Total ratchet count for current step
     size_t ratchetSubStepCounter_{0};          ///< Sample counter within current sub-step
     uint8_t ratchetNote_{0};                   ///< MIDI note for retriggers (single note)
     uint8_t ratchetVelocity_{0};               ///< Non-accented velocity for retriggers
-    size_t ratchetGateDuration_{0};            ///< Gate duration per sub-step
     bool ratchetIsLastSubStep_{false};         ///< True when firing last sub-step (for look-ahead)
     std::array<uint8_t, 32> ratchetNotes_{};   ///< Chord mode note numbers
     std::array<uint8_t, 32> ratchetVelocities_{}; ///< Chord mode velocities
     size_t ratchetNoteCount_{0};               ///< Chord mode note count
+    float ratchetSwing_{0.50f};                ///< Ratchet swing ratio 0.50-0.75
 
     // =========================================================================
     // Euclidean Timing State (075-euclidean-timing, FR-001)

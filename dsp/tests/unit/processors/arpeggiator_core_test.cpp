@@ -9124,6 +9124,328 @@ TEST_CASE("Ratchet count 2 + Slide on first step (no previous note)",
 }
 
 // =============================================================================
+// Ratchet Swing (078-ratchet-swing)
+// =============================================================================
+// Tests for the continuous ratchet swing parameter that applies a long-short
+// ratio to consecutive pairs of sub-steps.
+
+// T070: Default 50% swing produces identical sub-step gaps to current behavior
+TEST_CASE("Ratchet swing 50% produces equal sub-step durations (backward compat)",
+          "[arp][ratchet-swing]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.setRatchetSwing(50.0f);  // explicit default
+
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(2));
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    auto events = collectEvents(arp, ctx, 50);
+    auto noteOns = filterNoteOns(events);
+
+    // At 120 BPM, 1/8 note = 11025 samples. With ratchet 2 at 50% swing:
+    // baseDuration = 11025 / 2 = 5512, pairDuration = 2 * 5512 = 11024
+    // long = round(11024 * 0.50) = 5512, short = 11024 - 5512 = 5512
+    // Same as equal spacing: both sub-steps = 5512
+    REQUIRE(noteOns.size() >= 2);
+    int32_t gap = noteOns[1].sampleOffset - noteOns[0].sampleOffset;
+    CHECK(gap == 5512);
+
+    // Check step 1 also has equal sub-steps
+    if (noteOns.size() >= 4) {
+        int32_t gap2 = noteOns[3].sampleOffset - noteOns[2].sampleOffset;
+        CHECK(gap2 == 5512);
+    }
+}
+
+// T071: Ratchet 2 at 67% swing produces correct long-short pair
+TEST_CASE("Ratchet 2 at 67% swing: long-short pair",
+          "[arp][ratchet-swing]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.setRatchetSwing(67.0f);
+
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(2));
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    auto events = collectEvents(arp, ctx, 50);
+    auto noteOns = filterNoteOns(events);
+
+    // stepDuration = 11025 (at 120BPM, 1/8 note, 44100Hz)
+    // baseDuration = 11025 / 2 = 5512
+    // pairDuration = 2 * 5512 = 11024
+    // swingRatio = 67 / 100 = 0.67
+    // long = round(11024 * 0.67) = round(7386.08) = 7386
+    // short = 11024 - 7386 = 3638
+    REQUIRE(noteOns.size() >= 2);
+    int32_t gap = noteOns[1].sampleOffset - noteOns[0].sampleOffset;
+    CHECK(gap == 7386);
+
+    // Verify full step: gap between step 0 first sub-step and step 1 first sub-step
+    // = stepDuration = 11025 (step boundary timer drives the full step duration;
+    // the pair sum 7386+3638=11024 fills within the step, 1 sample absorbed at end)
+    if (noteOns.size() >= 3) {
+        int32_t stepGap = noteOns[2].sampleOffset - noteOns[0].sampleOffset;
+        CHECK(stepGap == 11025);
+    }
+}
+
+// T072: Ratchet 4 at 75% swing produces two long-short pairs
+TEST_CASE("Ratchet 4 at 75% swing: two long-short pairs",
+          "[arp][ratchet-swing]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.setRatchetSwing(75.0f);
+
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(4));
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    auto events = collectEvents(arp, ctx, 50);
+    auto noteOns = filterNoteOns(events);
+
+    // stepDuration = 11025
+    // baseDuration = 11025 / 4 = 2756
+    // pairDuration = 2 * 2756 = 5512
+    // swingRatio = 75 / 100 = 0.75
+    // long = round(5512 * 0.75) = round(4134) = 4134
+    // short = 5512 - 4134 = 1378
+    // Gaps: [4134, 1378, 4134, 1378]
+    REQUIRE(noteOns.size() >= 4);
+
+    int32_t gap01 = noteOns[1].sampleOffset - noteOns[0].sampleOffset;
+    int32_t gap12 = noteOns[2].sampleOffset - noteOns[1].sampleOffset;
+    int32_t gap23 = noteOns[3].sampleOffset - noteOns[2].sampleOffset;
+
+    CHECK(gap01 == 4134);
+    CHECK(gap12 == 1378);
+    CHECK(gap23 == 4134);
+
+    // The last sub-step (index 3) has duration 1378, filling to step end
+}
+
+// T073: Ratchet 3 at 67% swing: one pair + unpaired remainder
+TEST_CASE("Ratchet 3 at 67% swing: one pair + base remainder",
+          "[arp][ratchet-swing]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.setRatchetSwing(67.0f);
+
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(3));
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    auto events = collectEvents(arp, ctx, 50);
+    auto noteOns = filterNoteOns(events);
+
+    // stepDuration = 11025
+    // baseDuration = 11025 / 3 = 3675
+    // pairDuration = 2 * 3675 = 7350
+    // swingRatio = 0.67
+    // long = round(7350 * 0.67) = round(4924.5) = 4924 (rounds to even)
+    // short = 7350 - 4924 = 2426
+    // Third sub-step (unpaired): baseDuration = 3675
+    // Gaps: [4924, 2426, 3675]
+    REQUIRE(noteOns.size() >= 3);
+
+    int32_t gap01 = noteOns[1].sampleOffset - noteOns[0].sampleOffset;
+    int32_t gap12 = noteOns[2].sampleOffset - noteOns[1].sampleOffset;
+
+    // Allow ±1 for rounding
+    CHECK(std::abs(gap01 - 4924) <= 1);
+    CHECK(std::abs(gap12 - 2426) <= 1);
+
+    // Verify total: first sub-step of next step should be at step boundary
+    if (noteOns.size() >= 4) {
+        int32_t stepTotal = noteOns[3].sampleOffset - noteOns[0].sampleOffset;
+        CHECK(std::abs(stepTotal - 11025) <= 1);
+    }
+}
+
+// T074: Ratchet 1 with swing has no effect (single note per step)
+TEST_CASE("Ratchet 1 with swing: no effect",
+          "[arp][ratchet-swing]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.setRatchetSwing(75.0f);  // Max swing, but ratchet 1
+
+    // Ratchet lane default is 1 (no ratcheting)
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    auto events = collectEvents(arp, ctx, 50);
+    auto noteOns = filterNoteOns(events);
+
+    // Should produce exactly 1 noteOn per step, spaced by 11025 samples
+    REQUIRE(noteOns.size() >= 2);
+    int32_t gap = noteOns[1].sampleOffset - noteOns[0].sampleOffset;
+    CHECK(gap == 11025);
+}
+
+// T075: Gate duration scales with sub-step duration (long sub-step -> longer gate)
+TEST_CASE("Ratchet swing: gate scales with sub-step duration",
+          "[arp][ratchet-swing]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);  // 50% gate for clear measurement
+    arp.setRatchetSwing(75.0f);
+
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(2));
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    auto events = collectEvents(arp, ctx, 50);
+    auto noteOns = filterNoteOns(events);
+    auto noteOffs = filterNoteOffs(events);
+
+    // long = round(11024 * 0.75) = 8268
+    // short = 11024 - 8268 = 2756
+    // Gate at 50%: longGate = round(8268 * 0.50) = 4134
+    //              shortGate = round(2756 * 0.50) = 1378
+    REQUIRE(noteOns.size() >= 2);
+    REQUIRE(noteOffs.size() >= 2);
+
+    // Find noteOff for first sub-step (long)
+    int32_t firstOnset = noteOns[0].sampleOffset;
+    int32_t firstNoteOff = -1;
+    for (const auto& e : noteOffs) {
+        if (e.note == noteOns[0].note && e.sampleOffset > firstOnset) {
+            firstNoteOff = e.sampleOffset;
+            break;
+        }
+    }
+    REQUIRE(firstNoteOff > 0);
+    int32_t longGate = firstNoteOff - firstOnset;
+
+    // Find noteOff for second sub-step (short)
+    int32_t secondOnset = noteOns[1].sampleOffset;
+    int32_t secondNoteOff = -1;
+    for (const auto& e : noteOffs) {
+        if (e.note == noteOns[1].note && e.sampleOffset > secondOnset) {
+            secondNoteOff = e.sampleOffset;
+            break;
+        }
+    }
+    REQUIRE(secondNoteOff > 0);
+    int32_t shortGate = secondNoteOff - secondOnset;
+
+    // Long gate should be larger than short gate
+    CHECK(longGate > shortGate);
+    // Verify approximate values (allow ±2 for rounding)
+    CHECK(std::abs(longGate - 4134) <= 2);
+    CHECK(std::abs(shortGate - 1378) <= 2);
+}
+
+// T076: Step swing + ratchet swing interaction
+TEST_CASE("Step swing modifies total duration, ratchet swing subdivides within",
+          "[arp][ratchet-swing]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(80.0f);
+    arp.setSwing(50.0f);           // 50% step swing
+    arp.setRatchetSwing(67.0f);    // 67% ratchet swing
+
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(2));
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    auto events = collectEvents(arp, ctx, 100);
+    auto noteOns = filterNoteOns(events);
+
+    // Step swing at 50% on 1/8 note (11025 base):
+    // Even step (step 0): 11025 * (1 + 0.50) = 16537
+    // Odd step (step 1): 11025 * (1 - 0.50) = 5512
+    //
+    // Ratchet 2 at 67% on step 0 (duration 16537):
+    // baseDuration = 16537 / 2 = 8268
+    // pairDuration = 2 * 8268 = 16536
+    // long = round(16536 * 0.67) = round(11079.12) = 11079
+    // short = 16536 - 11079 = 5457
+    REQUIRE(noteOns.size() >= 2);
+    int32_t gap = noteOns[1].sampleOffset - noteOns[0].sampleOffset;
+    CHECK(std::abs(gap - 11079) <= 1);
+
+    // Ratchet 2 at 67% on step 1 (duration 5512):
+    // baseDuration = 5512 / 2 = 2756
+    // pairDuration = 2 * 2756 = 5512
+    // long = round(5512 * 0.67) = round(3693.04) = 3693
+    // short = 5512 - 3693 = 1819
+    if (noteOns.size() >= 4) {
+        int32_t gap2 = noteOns[3].sampleOffset - noteOns[2].sampleOffset;
+        CHECK(std::abs(gap2 - 3693) <= 1);
+    }
+}
+
+// =============================================================================
 // Phase 7: Euclidean Timing Mode (075-euclidean-timing)
 // =============================================================================
 // Task Group 1: Foundational Infrastructure Tests

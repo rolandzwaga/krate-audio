@@ -89,6 +89,9 @@ struct ArpeggiatorParams {
     std::atomic<bool>  diceTrigger{false};
     std::atomic<float> humanize{0.0f};
 
+    // --- Ratchet Swing (078-ratchet-swing) ---
+    std::atomic<float> ratchetSwing{50.0f};    // 50-75%
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -286,6 +289,14 @@ inline void handleArpParamChange(
         case kArpHumanizeId:
             params.humanize.store(
                 std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                std::memory_order_relaxed);
+            break;
+
+        // --- Ratchet Swing (078-ratchet-swing) ---
+        case kArpRatchetSwingId:
+            // Continuous Parameter: 0-1 -> 50-75%
+            params.ratchetSwing.store(
+                std::clamp(static_cast<float>(50.0 + value * 25.0), 50.0f, 75.0f),
                 std::memory_order_relaxed);
             break;
 
@@ -583,6 +594,12 @@ inline void registerArpParams(
     // Humanize amount: Continuous 0-1, default 0.0 (0%)
     parameters.addParameter(STR16("Arp Humanize"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kArpHumanizeId);
+
+    // --- Ratchet Swing (078-ratchet-swing) ---
+    // Ratchet swing: Continuous 0-1, default 0.0 (= 50%)
+    // Normalized default: (50 - 50) / 25 = 0.0
+    parameters.addParameter(STR16("Arp Ratchet Swing"), STR16("%"), 0, 0.0,
+        ParameterInfo::kCanAutomate, kArpRatchetSwingId);
 }
 
 // =============================================================================
@@ -783,6 +800,14 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
 
+        // --- Ratchet Swing (078-ratchet-swing) ---
+        case kArpRatchetSwingId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f%%", 50.0 + value * 25.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+
         default:
             // Velocity lane steps: display as percentage
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -920,6 +945,9 @@ inline void saveArpParams(
     streamer.writeFloat(params.spice.load(std::memory_order_relaxed));
     streamer.writeFloat(params.humanize.load(std::memory_order_relaxed));
     // diceTrigger and overlay arrays NOT serialized (ephemeral, FR-030, FR-037)
+
+    // --- Ratchet Swing (078-ratchet-swing) ---
+    streamer.writeFloat(params.ratchetSwing.load(std::memory_order_relaxed));
 }
 
 // =============================================================================
@@ -1073,6 +1101,11 @@ inline bool loadArpParams(
 
     if (!streamer.readFloat(floatVal)) return false;  // Corrupt: spice present but no humanize
     params.humanize.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+
+    // --- Ratchet Swing (078-ratchet-swing) ---
+    // EOF-safe: if ratchet swing data is missing (Phase 9 preset), keep default (50%)
+    if (!streamer.readFloat(floatVal)) return true;
+    params.ratchetSwing.store(std::clamp(floatVal, 50.0f, 75.0f), std::memory_order_relaxed);
 
     return true;
 }
@@ -1260,6 +1293,13 @@ inline void loadArpParamsToController(
     if (!streamer.readFloat(floatVal)) return;
     setParam(kArpHumanizeId, static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
     // diceTrigger is NOT synced (transient action)
+
+    // --- Ratchet Swing (078-ratchet-swing) ---
+    // EOF-safe: if ratchet swing data is missing (Phase 9 preset), keep controller default
+    if (!streamer.readFloat(floatVal)) return;
+    // float [50, 75] -> normalized: (val - 50) / 25
+    setParam(kArpRatchetSwingId,
+        static_cast<double>((std::clamp(floatVal, 50.0f, 75.0f) - 50.0f) / 25.0f));
 }
 
 } // namespace Ruinae
