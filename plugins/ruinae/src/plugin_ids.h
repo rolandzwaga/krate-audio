@@ -1042,7 +1042,12 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     // --- Fill Toggle (076-conditional-trigs, 3280) ---
     kArpFillToggleId          = 3280,   // discrete: 0-1 (latching toggle)
-    // 3281-3299: reserved for future arp phases (Spice/Dice)
+
+    // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
+    kArpSpiceId               = 3290,   // continuous: 0.0-1.0 (displayed as 0-100%)
+    kArpDiceTriggerId         = 3291,   // discrete: 0-1 (momentary trigger, edge-detected)
+    kArpHumanizeId            = 3292,   // continuous: 0.0-1.0 (displayed as 0-100%)
+    // IDs 3293-3299 reserved for future phases
 
     kArpEndId = 3299,
 

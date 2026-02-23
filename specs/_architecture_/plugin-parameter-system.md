@@ -93,10 +93,11 @@ Processor::setState()
 | **3230-3233** | **Arpeggiator Euclidean** | **`arpeggiator_params.h`** | **4** |
 | **3240-3272** | **Arpeggiator Condition Lane** | **`arpeggiator_params.h`** | **33** |
 | **3280** | **Arpeggiator Fill Toggle** | **`arpeggiator_params.h`** | **1** |
+| **3290-3292** | **Arpeggiator Spice/Dice/Humanize** | **`arpeggiator_params.h`** | **3** |
 
-**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3139 (reserved), 3173-3179 (reserved), 3182-3189 (reserved), 3223-3229 (reserved), 3234-3239 (reserved gap before condition lane; reserved for use before Phase 9), 3273-3279 (reserved gap between condition step IDs and fill toggle; reserved for future condition-lane extensions), 3281-3299 (reserved for future arp phases: Spice/Dice)
+**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3139 (reserved), 3173-3179 (reserved), 3182-3189 (reserved), 3223-3229 (reserved), 3234-3239 (reserved gap before condition lane; reserved for use before Phase 9), 3273-3279 (reserved gap between condition step IDs and fill toggle; reserved for future condition-lane extensions), 3281-3289 (reserved), 3293-3299 (reserved for future arp phases)
 
-**Sentinel**: `kArpEndId = 3299`, `kNumParameters = 3300` (updated in Spec 074 to accommodate ratchet lane IDs 3190-3222; unchanged by Specs 075 and 076)
+**Sentinel**: `kArpEndId = 3299`, `kNumParameters = 3300` (updated in Spec 074 to accommodate ratchet lane IDs 3190-3222; unchanged by Specs 075, 076, and 077)
 
 ---
 
@@ -765,7 +766,7 @@ Extend `ArpeggiatorParams` when adding new arpeggiator features:
 - **Phase 6 (Ratcheting)**: Ratchet lane parameters added in 3190-3222 ID range (done -- see [Ratchet Lane Parameters section](#arpeggiator-ratchet-lane-parameters-spec-074) below)
 - **Phase 7 (Euclidean Timing)**: Euclidean parameters added in 3230-3233 ID range (done -- see [Euclidean Parameters section](#arpeggiator-euclidean-parameters-spec-075) below)
 - **Phase 8 (Conditional Trig)**: Condition lane parameters added in 3240-3272 ID range + fill toggle at 3280 (done -- see [Condition Lane Parameters section](#arpeggiator-condition-lane-parameters-spec-076) below)
-- **Phase 9 (Spice/Dice + Humanize)**: Future -- will use IDs in the 3281-3299 reserved range
+- **Phase 9 (Spice/Dice + Humanize)**: Spice/Dice/Humanize parameters added in 3290-3292 ID range (done -- see [Spice/Dice/Humanize Parameters section](#arpeggiator-spicedicehumanize-parameters-spec-077) below)
 - **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations
 - **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes expected
 
@@ -1158,6 +1159,109 @@ arpCore_.setFillActive(arpParams_.fillToggle.load(relaxed));
 
 ---
 
+## Arpeggiator Spice/Dice/Humanize Parameters (Spec 077)
+
+**File**: `plugins/ruinae/src/parameters/arpeggiator_params.h`
+**IDs**: 3290-3292 (3 parameters: Spice, Dice trigger, Humanize)
+
+### Purpose
+
+Controlled randomization (Spice/Dice) and timing humanization for the arpeggiator. Spice blends between original lane values and a random variation overlay. The Dice trigger generates new random overlay values. Humanize adds per-step random offsets to timing, velocity, and gate for organic feel. All three parameters are automatable.
+
+### Spice/Dice/Humanize Parameter ID Allocation
+
+| ID | Name | Type | Range | Default (Norm) | Flags |
+|----|------|------|-------|----------------|-------|
+| 3290 | Arp Spice | Continuous (float) | 0.0-1.0 | 0.0 (0%) | `kCanAutomate` |
+| 3291 | Arp Dice | Discrete (int) | 0-1 | 0 (idle) | `kCanAutomate` |
+| 3292 | Arp Humanize | Continuous (float) | 0.0-1.0 | 0.0 (0%) | `kCanAutomate` |
+
+All 3 parameters have `kCanAutomate` and none have `kIsHidden` -- all are user-facing controls. The UI for Spice knob, Dice button, and Humanize knob is deferred to Phase 11 (Arpeggiator UI). IDs 3293-3299 are reserved for future phases.
+
+### Denormalization
+
+| Parameter | Formula | Step Count |
+|-----------|---------|------------|
+| Spice | Identity: `norm` (0-1 maps directly to 0-100%) | 0 (continuous) |
+| Dice Trigger | `norm >= 0.5` triggers action | 1 (discrete 2-step) |
+| Humanize | Identity: `norm` (0-1 maps directly to 0-100%) | 0 (continuous) |
+
+### ArpeggiatorParams Struct Extension
+
+```cpp
+struct ArpeggiatorParams {
+    // ... existing base + lane + modifier + ratchet + euclidean + condition fields ...
+
+    // Spice/Dice & Humanize (Spec 077)
+    std::atomic<float> spice{0.0f};           // [0.0, 1.0] blend amount
+    std::atomic<bool>  diceTrigger{false};    // Rising-edge trigger (momentary)
+    std::atomic<float> humanize{0.0f};        // [0.0, 1.0] humanize amount
+};
+```
+
+**Note:** The Dice trigger uses `std::atomic<bool>` (not `std::atomic<int>`) because it is a momentary edge-detected action, not a stored parameter value. The `compare_exchange_strong` pattern in `applyParamsToEngine()` guarantees exactly-once consumption per rising edge.
+
+### Format Strings
+
+| Parameter | Examples |
+|-----------|----------|
+| Spice | "0%", "50%", "100%" |
+| Dice Trigger | "--" (idle), "Roll" (triggered) |
+| Humanize | "0%", "50%", "100%" |
+
+### handleArpParamChange() Dispatch
+
+```cpp
+case kArpSpiceId:
+    params.spice.store(std::clamp(static_cast<float>(value), 0.0f, 1.0f), relaxed);
+    break;
+case kArpDiceTriggerId:
+    if (value >= 0.5) params.diceTrigger.store(true, relaxed);  // Rising edge only
+    break;
+case kArpHumanizeId:
+    params.humanize.store(std::clamp(static_cast<float>(value), 0.0f, 1.0f), relaxed);
+    break;
+```
+
+### Engine Forwarding
+
+```cpp
+// In applyParamsToEngine():
+arpCore_.setSpice(arpParams_.spice.load(relaxed));
+
+// Dice trigger: consume rising edge via compare_exchange_strong
+{
+    bool expected = true;
+    if (arpParams_.diceTrigger.compare_exchange_strong(expected, false, relaxed)) {
+        arpCore_.triggerDice();
+    }
+}
+
+arpCore_.setHumanize(arpParams_.humanize.load(relaxed));
+```
+
+The Dice trigger uses `compare_exchange_strong` (not plain load/store) to guarantee exactly-once consumption per rising edge and eliminate check-then-act races.
+
+### State Persistence
+
+Spice and Humanize are serialized as 2 floats (8 bytes) appended after the Phase 8 `fillToggle` field:
+```
+[float: spice]       // 4 bytes (0.0-1.0)
+[float: humanize]    // 4 bytes (0.0-1.0)
+```
+
+The Dice trigger (`diceTrigger`) is NOT serialized -- it is a momentary action, not stored state. The random overlay arrays are NOT serialized -- they are ephemeral and revert to identity defaults on load.
+
+### Backward Compatibility
+
+| Preset Source | Spice/Humanize Data Present? | Behavior |
+|---------------|------------------------------|----------|
+| Phase 8 (Spec 076, no Spice/Humanize) | No | EOF at first Spice read = return true. Spice=0%, Humanize=0%. Arp output identical to Phase 8. |
+| Phase 9 (Spec 077, with Spice/Humanize) | Yes | Both values fully restored. |
+| Corrupt (Spice present, Humanize missing) | Partial | Spice read succeeds, Humanize EOF = return false (corrupt stream). |
+
+---
+
 ## Denormalization Mappings Reference
 
 | Mapping | Parameters | Formula |
@@ -1182,7 +1286,9 @@ arpCore_.setFillActive(arpParams_.fillToggle.load(relaxed));
 | Discrete (offset+scale) | Arp Euclidean Hits (0-32), Ratchet Steps (1-4) | `round(normalized * range)` or `offset + round(normalized * range)` |
 | Discrete (offset+scale) | Arp Euclidean Steps (2-32) | `2 + round(normalized * 30)` |
 | Discrete (scaled) | Arp Euclidean Rotation (0-31), Arp Condition Steps (0-17) | `round(normalized * 31)` or `round(normalized * 17)` |
+| Identity (continuous) | Arp Spice (0-100%), Arp Humanize (0-100%) | `normalized` (1:1) |
 | Boolean | Loop Mode, Enabled flags, Gain Comp, S&H Sync, Rnd Sync, Arp Enabled, Arp Tempo Sync, Arp Euclidean Enabled, Arp Fill Toggle | `normalized >= 0.5` |
+| Boolean (edge-detected) | Arp Dice Trigger | `normalized >= 0.5` sets `diceTrigger = true` (rising edge only) |
 
 ---
 

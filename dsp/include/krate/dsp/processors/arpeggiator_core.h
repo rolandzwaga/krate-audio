@@ -180,6 +180,14 @@ public:
         // ArpLane<uint8_t> zero-initializes to 0 = TrigCondition::Always,
         // but explicit set for clarity and consistency.
         conditionLane_.setStep(0, static_cast<uint8_t>(TrigCondition::Always));
+
+        // 077-spice-dice-humanize: initialize overlay arrays to identity (FR-002)
+        // velocity = 1.0 (full passthrough), gate = 1.0 (full passthrough),
+        // ratchet = 1 (no subdivision), condition = 0 (Always)
+        velocityOverlay_.fill(1.0f);
+        gateOverlay_.fill(1.0f);
+        ratchetOverlay_.fill(1);
+        conditionOverlay_.fill(static_cast<uint8_t>(TrigCondition::Always));
     }
 
     // =========================================================================
@@ -510,6 +518,48 @@ public:
     /// @return Clamped slide time in milliseconds in [0, 500].
     [[nodiscard]] float slideTimeMs() const noexcept {
         return slideTimeMs_;
+    }
+
+    // =========================================================================
+    // Spice/Dice & Humanize (077-spice-dice-humanize)
+    // =========================================================================
+
+    /// Set Spice blend amount (0.0 = original, 1.0 = full overlay).
+    void setSpice(float value) noexcept {
+        spice_ = std::clamp(value, 0.0f, 1.0f);
+    }
+
+    /// Get current Spice blend amount.
+    [[nodiscard]] float spice() const noexcept { return spice_; }
+
+    /// Set Humanize amount (0.0 = quantized, 1.0 = max variation).
+    void setHumanize(float value) noexcept {
+        humanize_ = std::clamp(value, 0.0f, 1.0f);
+    }
+
+    /// Get current Humanize amount.
+    [[nodiscard]] float humanize() const noexcept { return humanize_; }
+
+    /// Generate new random overlay values for all four lanes (FR-005).
+    /// Real-time safe: no allocation, no exceptions, no I/O.
+    void triggerDice() noexcept {
+        // Velocity: 32 unipolar floats in [0.0, 1.0]
+        for (auto& v : velocityOverlay_) {
+            v = spiceDiceRng_.nextUnipolar();
+        }
+        // Gate: 32 unipolar floats in [0.0, 1.0]
+        for (auto& g : gateOverlay_) {
+            g = spiceDiceRng_.nextUnipolar();
+        }
+        // Ratchet: 32 values in [1, 4]
+        for (auto& r : ratchetOverlay_) {
+            r = static_cast<uint8_t>(spiceDiceRng_.next() % 4 + 1);
+        }
+        // Condition: 32 values in [0, 17]
+        for (auto& c : conditionOverlay_) {
+            c = static_cast<uint8_t>(
+                spiceDiceRng_.next() % static_cast<uint32_t>(TrigCondition::kCount));
+        }
     }
 
     // =========================================================================
@@ -1114,6 +1164,12 @@ private:
         ArpNoteResult result = selector_.advance(heldNotes_);
 
         if (result.count > 0) {
+            // 077-spice-dice-humanize: capture overlay indices BEFORE lane advances (FR-010)
+            const size_t velStep = velocityLane_.currentStep();
+            const size_t gateStep = gateLane_.currentStep();
+            const size_t ratchetStep = ratchetLane_.currentStep();
+            const size_t condStep = conditionLane_.currentStep();
+
             // Advance all lanes (once per step, regardless of chord size)
             float velScale = velocityLane_.advance();
             float gateScale = gateLane_.advance();
@@ -1121,6 +1177,24 @@ private:
             uint8_t modifierFlags = modifierLane_.advance();
             uint8_t ratchetCount = std::max(uint8_t{1}, ratchetLane_.advance());  // 074-ratcheting (FR-004)
             uint8_t condValue = conditionLane_.advance();  // 076-conditional-trigs (FR-006)
+
+            // 077-spice-dice-humanize: apply Spice blend (FR-008, FR-009)
+            if (spice_ > 0.0f) {
+                // Velocity: linear interpolation (FR-009)
+                velScale = velScale + (velocityOverlay_[velStep] - velScale) * spice_;
+                // Gate: linear interpolation
+                gateScale = gateScale + (gateOverlay_[gateStep] - gateScale) * spice_;
+                // Ratchet: lerp + round to integer (FR-008)
+                float ratchetBlend = static_cast<float>(ratchetCount)
+                    + (static_cast<float>(ratchetOverlay_[ratchetStep])
+                       - static_cast<float>(ratchetCount)) * spice_;
+                ratchetCount = static_cast<uint8_t>(
+                    std::clamp(static_cast<int>(std::round(ratchetBlend)), 1, 4));
+                // Condition: threshold blend (FR-008)
+                if (spice_ >= 0.5f) {
+                    condValue = conditionOverlay_[condStep];
+                }
+            }
 
             // 076-conditional-trigs: detect loop count wrap (FR-011)
             // After advance, if position wrapped back to 0, the lane completed one cycle.
@@ -1169,6 +1243,10 @@ private:
                     if (conditionLaneWrapped) {
                         ++loopCount_;
                     }
+                    // 077-spice-dice-humanize: consume humanize PRNG on skipped step (FR-023)
+                    (void)humanizeRng_.nextFloat();  // timing (discarded)
+                    (void)humanizeRng_.nextFloat();  // velocity (discarded)
+                    (void)humanizeRng_.nextFloat();  // gate (discarded)
                     return;
                 }
             }
@@ -1198,6 +1276,10 @@ private:
                 if (conditionLaneWrapped) {
                     ++loopCount_;
                 }
+                // 077-spice-dice-humanize: consume humanize PRNG on skipped step (FR-023)
+                (void)humanizeRng_.nextFloat();  // timing (discarded)
+                (void)humanizeRng_.nextFloat();  // velocity (discarded)
+                (void)humanizeRng_.nextFloat();  // gate (discarded)
                 return;
             }
 
@@ -1227,6 +1309,10 @@ private:
                 // Increment swing step counter and recalculate duration
                 ++swingStepCounter_;
                 currentStepDuration_ = calculateStepDuration(ctx);
+                // 077-spice-dice-humanize: consume humanize PRNG on skipped step (FR-023)
+                (void)humanizeRng_.nextFloat();  // timing (discarded)
+                (void)humanizeRng_.nextFloat();  // velocity (discarded)
+                (void)humanizeRng_.nextFloat();  // gate (discarded)
                 return;
             }
 
@@ -1240,12 +1326,20 @@ private:
                     // Increment swing step counter and recalculate duration
                     ++swingStepCounter_;
                     currentStepDuration_ = calculateStepDuration(ctx);
+                    // 077-spice-dice-humanize: consume humanize PRNG on skipped step (FR-023, FR-024)
+                    (void)humanizeRng_.nextFloat();  // timing (discarded)
+                    (void)humanizeRng_.nextFloat();  // velocity (discarded)
+                    (void)humanizeRng_.nextFloat();  // gate (discarded)
                     return;
                 }
                 // No preceding note -> behaves as rest (FR-013)
                 tieActive_ = false;
                 ++swingStepCounter_;
                 currentStepDuration_ = calculateStepDuration(ctx);
+                // 077-spice-dice-humanize: consume humanize PRNG on skipped step (FR-023, FR-024)
+                (void)humanizeRng_.nextFloat();  // timing (discarded)
+                (void)humanizeRng_.nextFloat();  // velocity (discarded)
+                (void)humanizeRng_.nextFloat();  // gate (discarded)
                 return;
             }
 
@@ -1300,8 +1394,41 @@ private:
                     std::clamp(offsetNote, 0, 127));
             }
 
+            // 077-spice-dice-humanize: Humanize offsets (FR-014, FR-022 steps 11-14)
+            // Always consume 3 PRNG values for deterministic advancement (FR-018)
+            const float timingRand = humanizeRng_.nextFloat();    // [-1, 1]
+            const float velocityRand = humanizeRng_.nextFloat();  // [-1, 1]
+            const float gateRand = humanizeRng_.nextFloat();      // [-1, 1]
+
+            // Compute humanized timing offset (FR-015)
+            const int32_t maxTimingOffsetSamples =
+                static_cast<int32_t>(sampleRate_ * 0.020f);  // 20ms
+            int32_t timingOffsetSamples =
+                static_cast<int32_t>(timingRand * static_cast<float>(maxTimingOffsetSamples) * humanize_);
+            int32_t humanizedSampleOffset = std::clamp(
+                sampleOffset + timingOffsetSamples,
+                static_cast<int32_t>(0),
+                static_cast<int32_t>(blockSize) - 1);
+
+            // Compute humanized velocity offset (FR-016)
+            int velocityOffset = static_cast<int>(velocityRand * 15.0f * humanize_);
+            // Apply to all notes in result (after accent)
+            for (size_t i = 0; i < result.count; ++i) {
+                int humanizedVel = static_cast<int>(result.velocities[i]) + velocityOffset;
+                result.velocities[i] = static_cast<uint8_t>(std::clamp(humanizedVel, 1, 127));
+            }
+
+            // Compute humanized gate offset ratio (FR-017, FR-021)
+            float gateOffsetRatio = gateRand * 0.10f * humanize_;
+
             // Calculate gate duration with lane multiplier (FR-014)
             size_t gateDuration = calculateGateDuration(gateScale);
+            // Apply humanize gate offset (FR-017)
+            {
+                int32_t humanizedGateDuration = static_cast<int32_t>(gateDuration)
+                    + static_cast<int32_t>(static_cast<float>(gateDuration) * gateOffsetRatio);
+                gateDuration = static_cast<size_t>(std::max(int32_t{1}, humanizedGateDuration));
+            }
 
             // Peek at next modifier step: if the next step is a Tie or Slide step,
             // skip scheduling gate-based noteOffs so the notes sustain into
@@ -1327,6 +1454,12 @@ private:
                     static_cast<double>(subStepDuration) *
                     static_cast<double>(gateLengthPercent_) / 100.0 *
                     static_cast<double>(gateScale)));
+                // 077-spice-dice-humanize: apply humanize gate offset to sub-step gate (FR-021)
+                {
+                    int32_t humanizedSubGate = static_cast<int32_t>(subGateDuration)
+                        + static_cast<int32_t>(static_cast<float>(subGateDuration) * gateOffsetRatio);
+                    subGateDuration = static_cast<size_t>(std::max(int32_t{1}, humanizedSubGate));
+                }
 
                 // Emit first sub-step (sub-step 0) in fireStep.
                 // Remaining sub-steps emitted by processBlock SubStep handler.
@@ -1345,13 +1478,13 @@ private:
                     currentArpNoteCount_ = 0;
                 }
 
-                // Emit first sub-step noteOns
+                // 077-spice-dice-humanize: Emit first sub-step noteOns at humanized offset (FR-019)
                 for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
                         ArpEvent::Type::NoteOn,
                         result.notes[i],
                         result.velocities[i],
-                        sampleOffset,
+                        humanizedSampleOffset,
                         isSlide};  // legato on first sub-step if Slide
                 }
 
@@ -1405,7 +1538,7 @@ private:
                             ArpEvent::Type::NoteOn,
                             result.notes[i],
                             result.velocities[i],
-                            sampleOffset,
+                            humanizedSampleOffset,
                             true};  // legato=true
                     }
                     // Track all new chord notes as currently sounding
@@ -1420,7 +1553,7 @@ private:
                             ArpEvent::Type::NoteOn,
                             result.notes[0],
                             result.velocities[0],
-                            sampleOffset,
+                            humanizedSampleOffset,
                             true};  // legato=true
                     }
                     // Replace the previous note tracking with the new note
@@ -1445,13 +1578,13 @@ private:
                 }
                 currentArpNoteCount_ = 0;
 
-                // Emit NoteOn for ALL chord notes at the same sampleOffset
+                // Emit NoteOn for ALL chord notes at the same humanized offset
                 for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
                     outputEvents[eventCount++] = ArpEvent{
                         ArpEvent::Type::NoteOn,
                         result.notes[i],
                         result.velocities[i],
-                        sampleOffset};
+                        humanizedSampleOffset};
                 }
 
                 // Track all chord notes as currently sounding (FR-025)
@@ -1475,7 +1608,7 @@ private:
                         ArpEvent::Type::NoteOn,
                         result.notes[0],
                         result.velocities[0],
-                        sampleOffset};
+                        humanizedSampleOffset};
                 }
 
                 // Track currently sounding note (FR-025)
@@ -1518,6 +1651,11 @@ private:
                     ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, sampleOffset};
             }
             currentArpNoteCount_ = 0;
+
+            // 077-spice-dice-humanize: consume humanize PRNG in defensive branch (FR-041)
+            (void)humanizeRng_.nextFloat();  // timing (discarded)
+            (void)humanizeRng_.nextFloat();  // velocity (discarded)
+            (void)humanizeRng_.nextFloat();  // gate (discarded)
         }
 
         // Increment swing step counter
@@ -1624,6 +1762,10 @@ private:
         loopCount_ = 0;                      // 076-conditional-trigs: reset loop counter
         // fillActive_ intentionally NOT reset (FR-022: performance control)
         // conditionRng_ intentionally NOT reset (FR-035: continuous randomness)
+        // 077-spice-dice-humanize: overlays/Spice/Humanize intentionally NOT reset (FR-025-029)
+        // velocityOverlay_, gateOverlay_, ratchetOverlay_, conditionOverlay_ preserved
+        // spice_, humanize_ preserved (user-controlled parameters)
+        // spiceDiceRng_, humanizeRng_ preserved (continuous randomness, like conditionRng_)
     }
 
     // =========================================================================
@@ -1685,6 +1827,22 @@ private:
     size_t loopCount_{0};                ///< Condition lane cycle counter
     bool fillActive_{false};             ///< Fill mode performance toggle
     Xorshift32 conditionRng_{7919};      ///< Dedicated PRNG for probability (prime seed)
+
+    // =========================================================================
+    // Spice/Dice State (077-spice-dice-humanize)
+    // =========================================================================
+
+    /// Variation overlay arrays generated by triggerDice().
+    /// Indexed by each lane's own step position (polymetric-aware).
+    std::array<float, 32> velocityOverlay_{};    ///< [0.0, 1.0] velocity scaling
+    std::array<float, 32> gateOverlay_{};        ///< [0.0, 1.0] gate scaling
+    std::array<uint8_t, 32> ratchetOverlay_{};   ///< [1, 4] ratchet count
+    std::array<uint8_t, 32> conditionOverlay_{}; ///< [0, 17] TrigCondition value
+
+    float spice_{0.0f};                          ///< Blend amount [0, 1]
+    float humanize_{0.0f};                       ///< Humanize amount [0, 1]
+    Xorshift32 spiceDiceRng_{31337};             ///< PRNG for overlay generation
+    Xorshift32 humanizeRng_{48271};              ///< PRNG for per-step offsets
 
     // =========================================================================
     // Configuration State

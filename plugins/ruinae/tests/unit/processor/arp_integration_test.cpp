@@ -2882,3 +2882,256 @@ TEST_CASE("ConditionState_ApplyToEngine_ExpandWriteShrink",
     CHECK(arp.conditionLane().getStep(3) == 17);
     CHECK(arp.fillActive() == true);
 }
+
+// =============================================================================
+// Phase 9 (077-spice-dice-humanize, US4): Spice/Humanize State Persistence
+// =============================================================================
+
+// Helper: writes a Phase 8 stream (everything through fillToggle, NO spice/humanize data)
+static void writePhase8Stream(Steinberg::IBStreamer& writer, const Ruinae::ArpeggiatorParams& p) {
+    writePhase7Stream(writer, p);
+    // Condition data (Phase 8)
+    writer.writeInt32(p.conditionLaneLength.load());
+    for (int i = 0; i < 32; ++i) {
+        writer.writeInt32(p.conditionLaneSteps[i].load());
+    }
+    writer.writeInt32(p.fillToggle.load() ? 1 : 0);
+    // NO spice/humanize data follows -- this is a Phase 8 stream
+}
+
+// T077: State round-trip: Spice=0.35, Humanize=0.25 survive save/load exactly.
+// diceTrigger=true should NOT be saved (SC-010, FR-037)
+TEST_CASE("SpiceHumanize_StateRoundTrip_ExactMatch",
+          "[arp][integration][spice-dice-humanize][state]") {
+    using namespace Ruinae;
+
+    ArpeggiatorParams original;
+    original.spice.store(0.35f, std::memory_order_relaxed);
+    original.humanize.store(0.25f, std::memory_order_relaxed);
+    original.diceTrigger.store(true, std::memory_order_relaxed);  // should NOT be saved
+
+    // Save to stream
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        saveArpParams(original, writer);
+    }
+
+    // Load into fresh params
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE(ok);
+    }
+
+    // Verify Spice and Humanize round-trip exactly
+    CHECK(loaded.spice.load() == Approx(0.35f).margin(0.001f));
+    CHECK(loaded.humanize.load() == Approx(0.25f).margin(0.001f));
+
+    // Verify diceTrigger was NOT serialized (should be default=false)
+    CHECK(loaded.diceTrigger.load() == false);
+}
+
+// T078: Phase 8 backward compatibility: stream ending after fillToggle (no
+// Spice/Humanize data) returns true with defaults 0%/0% (SC-011, FR-038)
+TEST_CASE("SpiceHumanize_Phase8BackwardCompat_DefaultsApply",
+          "[arp][integration][spice-dice-humanize][state]") {
+    using namespace Ruinae;
+
+    // Create a Phase 8 preset (everything through fillToggle, NO spice/humanize)
+    ArpeggiatorParams phase8Params;
+    phase8Params.enabled.store(true, std::memory_order_relaxed);
+    phase8Params.mode.store(2, std::memory_order_relaxed);
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        writePhase8Stream(writer, phase8Params);
+    }
+
+    // Load the Phase 8 stream
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE(ok);  // Must return true (Phase 8 backward compat)
+    }
+
+    // Spice/Humanize should be at defaults
+    CHECK(loaded.spice.load() == Approx(0.0f).margin(0.001f));
+    CHECK(loaded.humanize.load() == Approx(0.0f).margin(0.001f));
+
+    // Non-spice values should have loaded correctly
+    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.mode.load() == 2);
+}
+
+// T079: Corrupt stream: Spice present but Humanize missing returns false
+TEST_CASE("SpiceHumanize_CorruptStream_SpicePresentHumanizeMissing",
+          "[arp][integration][spice-dice-humanize][state]") {
+    using namespace Ruinae;
+
+    // Create a stream with Phase 8 data + spice float but no humanize
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        ArpeggiatorParams p;
+        writePhase8Stream(writer, p);
+        // Write only the spice field
+        writer.writeFloat(0.5f);  // spice = 0.5
+        // NO humanize follows -- corrupt stream
+    }
+
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loaded;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, reader);
+        REQUIRE_FALSE(ok);  // Must return false (corrupt: spice present but humanize missing)
+    }
+}
+
+// T080: Controller sync after load: setParamNormalized called for kArpSpiceId
+// and kArpHumanizeId with correct values; kArpDiceTriggerId NOT synced (FR-040)
+TEST_CASE("SpiceHumanize_ControllerSync_AfterLoad",
+          "[arp][integration][spice-dice-humanize][state]") {
+    using namespace Ruinae;
+
+    // Create params with spice and humanize
+    ArpeggiatorParams original;
+    original.spice.store(0.35f, std::memory_order_relaxed);
+    original.humanize.store(0.25f, std::memory_order_relaxed);
+
+    // Save to stream
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        saveArpParams(original, writer);
+    }
+
+    // Read via loadArpParamsToController, capturing setParamNormalized calls
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::map<Steinberg::Vst::ParamID, double> capturedParams;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        loadArpParamsToController(reader,
+            [&capturedParams](Steinberg::Vst::ParamID id, double val) {
+                capturedParams[id] = val;
+            });
+    }
+
+    // Verify Spice was synced
+    REQUIRE(capturedParams.count(kArpSpiceId) > 0);
+    CHECK(capturedParams[kArpSpiceId] == Approx(0.35).margin(0.001));
+
+    // Verify Humanize was synced
+    REQUIRE(capturedParams.count(kArpHumanizeId) > 0);
+    CHECK(capturedParams[kArpHumanizeId] == Approx(0.25).margin(0.001));
+
+    // Verify Dice trigger was NOT synced (transient action)
+    CHECK(capturedParams.count(kArpDiceTriggerId) == 0);
+}
+
+// T081: Overlay is ephemeral: NOT restored after save/load.
+// Trigger Dice, save state, load into fresh ArpeggiatorCore -- overlay should
+// be identity (default), not the random values from before save (FR-030)
+TEST_CASE("SpiceHumanize_OverlayEphemeral_NotRestoredAfterLoad",
+          "[arp][integration][spice-dice-humanize][state]") {
+    using namespace Krate::DSP;
+    using namespace Ruinae;
+
+    // Step 1: Create arp, trigger Dice, run with Spice=1.0, capture velocities
+    ArpeggiatorCore arp1;
+    arp1.prepare(44100.0, 512);
+    arp1.setEnabled(true);
+    arp1.setMode(ArpMode::Up);
+    arp1.setTempoSync(true);
+    arp1.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp1.setGateLength(80.0f);
+
+    arp1.noteOn(60, 100);
+    arp1.triggerDice();
+    arp1.setSpice(1.0f);
+
+    BlockContext ctx{.sampleRate = 44100.0, .blockSize = 512,
+                     .tempoBPM = 120.0, .isPlaying = true};
+
+    std::array<ArpEvent, 128> events{};
+    std::vector<uint8_t> preDiceVelocities;
+
+    for (int block = 0; block < 200; ++block) {
+        size_t n = arp1.processBlock(ctx, events);
+        for (size_t i = 0; i < n; ++i) {
+            if (events[i].type == ArpEvent::Type::NoteOn) {
+                preDiceVelocities.push_back(events[i].velocity);
+            }
+        }
+        if (preDiceVelocities.size() >= 8) break;
+    }
+    REQUIRE(preDiceVelocities.size() >= 8);
+
+    // Step 2: Save params (only spice + humanize are serialized, NOT overlay)
+    ArpeggiatorParams params;
+    params.spice.store(1.0f, std::memory_order_relaxed);
+    params.humanize.store(0.0f, std::memory_order_relaxed);
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writer(stream, kLittleEndian);
+        saveArpParams(params, writer);
+    }
+
+    // Step 3: Load into fresh params and create fresh ArpeggiatorCore
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    ArpeggiatorParams loadedParams;
+    {
+        Steinberg::IBStreamer reader(stream, kLittleEndian);
+        bool ok = loadArpParams(loadedParams, reader);
+        REQUIRE(ok);
+    }
+
+    ArpeggiatorCore arp2;
+    arp2.prepare(44100.0, 512);
+    arp2.setEnabled(true);
+    arp2.setMode(ArpMode::Up);
+    arp2.setTempoSync(true);
+    arp2.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp2.setGateLength(80.0f);
+    arp2.setSpice(loadedParams.spice.load());  // 1.0
+    // Note: triggerDice() NOT called -- overlay should be identity
+
+    arp2.noteOn(60, 100);
+
+    std::vector<uint8_t> postLoadVelocities;
+    for (int block = 0; block < 200; ++block) {
+        size_t n = arp2.processBlock(ctx, events);
+        for (size_t i = 0; i < n; ++i) {
+            if (events[i].type == ArpEvent::Type::NoteOn) {
+                postLoadVelocities.push_back(events[i].velocity);
+            }
+        }
+        if (postLoadVelocities.size() >= 8) break;
+    }
+    REQUIRE(postLoadVelocities.size() >= 8);
+
+    // Step 4: Verify the two velocity sequences differ.
+    // arp1 had random overlay (from triggerDice), arp2 has identity overlay.
+    // With identity overlay at Spice=1.0, the velocity should reflect overlay values
+    // of 1.0 (identity), so all velocities should be 100 (original noteOn velocity).
+    // The pre-dice velocities should NOT all be 100 (they should be random).
+    bool allPostLoadAre100 = true;
+    for (size_t i = 0; i < std::min(postLoadVelocities.size(), size_t{8}); ++i) {
+        if (postLoadVelocities[i] != 100) allPostLoadAre100 = false;
+    }
+    CHECK(allPostLoadAre100);  // Identity overlay at Spice=1.0 -> velocity = base velocity
+
+    // At least some pre-dice velocities should NOT be 100 (they're random overlay values)
+    bool anyPreDiceNot100 = false;
+    for (size_t i = 0; i < std::min(preDiceVelocities.size(), size_t{8}); ++i) {
+        if (preDiceVelocities[i] != 100) anyPreDiceNot100 = true;
+    }
+    CHECK(anyPreDiceNot100);  // Random overlay at Spice=1.0 -> velocities differ from base
+}

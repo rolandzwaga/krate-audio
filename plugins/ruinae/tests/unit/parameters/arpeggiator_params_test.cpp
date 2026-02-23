@@ -2029,3 +2029,161 @@ TEST_CASE("ConditionParams_HandleParamChange_FillToggle", "[arp][params][conditi
     handleArpParamChange(params, kArpFillToggleId, 1.0);
     CHECK(params.fillToggle.load() == true);
 }
+
+// ==============================================================================
+// Phase 6 (077-spice-dice-humanize) Task Group 5: Spice/Dice/Humanize Parameter Tests
+// ==============================================================================
+
+// T061: All 3 Spice/Dice/Humanize params registered with kCanAutomate, none kIsHidden
+TEST_CASE("SpiceHumanize_AllThreeParams_Registered", "[arp][params][spice][humanize]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    // kArpSpiceId (3290): kCanAutomate, NOT kIsHidden
+    {
+        auto* param = container.getParameter(kArpSpiceId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+    }
+
+    // kArpDiceTriggerId (3291): kCanAutomate, NOT kIsHidden
+    {
+        auto* param = container.getParameter(kArpDiceTriggerId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+    }
+
+    // kArpHumanizeId (3292): kCanAutomate, NOT kIsHidden
+    {
+        auto* param = container.getParameter(kArpHumanizeId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+    }
+
+    // Verify sentinels unchanged
+    CHECK(kArpEndId == 3299);
+    CHECK(kNumParameters == 3300);
+}
+
+// T062: formatArpParam for Spice: percentage display
+TEST_CASE("SpiceHumanize_FormatSpice_Percentage", "[arp][params][spice][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // 0.0 -> "0%"
+    auto result = formatArpParam(kArpSpiceId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0%");
+
+    // 0.5 -> "50%"
+    result = formatArpParam(kArpSpiceId, 0.5, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "50%");
+
+    // 1.0 -> "100%"
+    result = formatArpParam(kArpSpiceId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "100%");
+}
+
+// T063: formatArpParam for Dice trigger: "--" / "Roll"
+TEST_CASE("SpiceHumanize_FormatDiceTrigger", "[arp][params][spice][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // 0.0 -> "--"
+    auto result = formatArpParam(kArpDiceTriggerId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "--");
+
+    // 0.5 -> "Roll"
+    result = formatArpParam(kArpDiceTriggerId, 0.5, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "Roll");
+
+    // 1.0 -> "Roll"
+    result = formatArpParam(kArpDiceTriggerId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "Roll");
+}
+
+// T064: formatArpParam for Humanize: percentage display
+TEST_CASE("SpiceHumanize_FormatHumanize_Percentage", "[arp][params][humanize][format]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 string;
+
+    // 0.0 -> "0%"
+    auto result = formatArpParam(kArpHumanizeId, 0.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "0%");
+
+    // 0.5 -> "50%"
+    result = formatArpParam(kArpHumanizeId, 0.5, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "50%");
+
+    // 1.0 -> "100%"
+    result = formatArpParam(kArpHumanizeId, 1.0, string);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(string) == "100%");
+}
+
+// T065: handleArpParamChange for Spice: clamped float storage
+TEST_CASE("SpiceHumanize_HandleParamChange_SpiceStored", "[arp][params][spice][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.35 -> spice == 0.35f
+    handleArpParamChange(params, kArpSpiceId, 0.35);
+    CHECK(params.spice.load() == Approx(0.35f).margin(0.001f));
+
+    // -0.1 (below range, clamped) -> spice == 0.0f
+    handleArpParamChange(params, kArpSpiceId, -0.1);
+    CHECK(params.spice.load() == Approx(0.0f).margin(0.001f));
+
+    // 1.5 (above range, clamped) -> spice == 1.0f
+    handleArpParamChange(params, kArpSpiceId, 1.5);
+    CHECK(params.spice.load() == Approx(1.0f).margin(0.001f));
+}
+
+// T066: handleArpParamChange for Dice trigger: rising edge detection
+TEST_CASE("SpiceHumanize_HandleParamChange_DiceTriggerRisingEdge", "[arp][params][spice][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.0 -> diceTrigger remains false
+    handleArpParamChange(params, kArpDiceTriggerId, 0.0);
+    CHECK(params.diceTrigger.load() == false);
+
+    // 1.0 -> diceTrigger set to true (rising edge)
+    handleArpParamChange(params, kArpDiceTriggerId, 1.0);
+    CHECK(params.diceTrigger.load() == true);
+
+    // Reset for fresh test
+    params.diceTrigger.store(false, std::memory_order_relaxed);
+
+    // 0.4 (below 0.5 threshold) -> diceTrigger remains false
+    handleArpParamChange(params, kArpDiceTriggerId, 0.4);
+    CHECK(params.diceTrigger.load() == false);
+
+    // 0.5 (at threshold) -> diceTrigger set to true
+    handleArpParamChange(params, kArpDiceTriggerId, 0.5);
+    CHECK(params.diceTrigger.load() == true);
+}
+
+// T067: handleArpParamChange for Humanize: clamped float storage
+TEST_CASE("SpiceHumanize_HandleParamChange_HumanizeStored", "[arp][params][humanize][denorm]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    // 0.75 -> humanize == 0.75f
+    handleArpParamChange(params, kArpHumanizeId, 0.75);
+    CHECK(params.humanize.load() == Approx(0.75f).margin(0.001f));
+}

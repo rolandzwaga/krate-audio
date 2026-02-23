@@ -84,6 +84,11 @@ struct ArpeggiatorParams {
     std::array<std::atomic<int>, 32> conditionLaneSteps{};  // 0-17 (TrigCondition, int for lock-free)
     std::atomic<bool>  fillToggle{false};            // Fill mode toggle
 
+    // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
+    std::atomic<float> spice{0.0f};
+    std::atomic<bool>  diceTrigger{false};
+    std::atomic<float> humanize{0.0f};
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -264,6 +269,24 @@ inline void handleArpParamChange(
             break;
         case kArpFillToggleId:
             params.fillToggle.store(value >= 0.5, std::memory_order_relaxed);
+            break;
+
+        // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
+        case kArpSpiceId:
+            params.spice.store(
+                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                std::memory_order_relaxed);
+            break;
+        case kArpDiceTriggerId:
+            // Discrete 2-step: set to true on rising edge (normalized >= 0.5)
+            if (value >= 0.5) {
+                params.diceTrigger.store(true, std::memory_order_relaxed);
+            }
+            break;
+        case kArpHumanizeId:
+            params.humanize.store(
+                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                std::memory_order_relaxed);
             break;
 
         default:
@@ -546,6 +569,20 @@ inline void registerArpParams(
     // Fill toggle: Toggle (0 or 1), default off
     parameters.addParameter(STR16("Arp Fill"), STR16(""), 1, 0.0,
         ParameterInfo::kCanAutomate, kArpFillToggleId);
+
+    // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
+
+    // Spice amount: Continuous 0-1, default 0.0 (0%)
+    parameters.addParameter(STR16("Arp Spice"), STR16("%"), 0, 0.0,
+        ParameterInfo::kCanAutomate, kArpSpiceId);
+
+    // Dice trigger: Discrete 2-step (0 = idle, 1 = trigger), default 0
+    parameters.addParameter(STR16("Arp Dice"), STR16(""), 1, 0.0,
+        ParameterInfo::kCanAutomate, kArpDiceTriggerId);
+
+    // Humanize amount: Continuous 0-1, default 0.0 (0%)
+    parameters.addParameter(STR16("Arp Humanize"), STR16("%"), 0, 0.0,
+        ParameterInfo::kCanAutomate, kArpHumanizeId);
 }
 
 // =============================================================================
@@ -728,6 +765,24 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
 
+        // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
+        case kArpSpiceId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpDiceTriggerId: {
+            UString(string, 128).fromAscii(value >= 0.5 ? "Roll" : "--");
+            return kResultOk;
+        }
+        case kArpHumanizeId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+
         default:
             // Velocity lane steps: display as percentage
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -860,6 +915,11 @@ inline void saveArpParams(
         streamer.writeInt32(params.conditionLaneSteps[i].load(std::memory_order_relaxed));
     }
     streamer.writeInt32(params.fillToggle.load(std::memory_order_relaxed) ? 1 : 0);
+
+    // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
+    streamer.writeFloat(params.spice.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.humanize.load(std::memory_order_relaxed));
+    // diceTrigger and overlay arrays NOT serialized (ephemeral, FR-030, FR-037)
 }
 
 // =============================================================================
@@ -1005,6 +1065,14 @@ inline bool loadArpParams(
     // Fill toggle
     if (!streamer.readInt32(intVal)) return false;  // Corrupt: steps present but no fill toggle
     params.fillToggle.store(intVal != 0, std::memory_order_relaxed);
+
+    // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
+    // EOF-safe: if Spice/Humanize data is missing (Phase 8 preset), keep defaults (FR-038)
+    if (!streamer.readFloat(floatVal)) return true;  // EOF at first Spice field = Phase 8 compat
+    params.spice.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+
+    if (!streamer.readFloat(floatVal)) return false;  // Corrupt: spice present but no humanize
+    params.humanize.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
 
     return true;
 }
@@ -1183,6 +1251,15 @@ inline void loadArpParamsToController(
     // Fill toggle
     if (!streamer.readInt32(intVal)) return;
     setParam(kArpFillToggleId, intVal != 0 ? 1.0 : 0.0);
+
+    // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
+    // EOF-safe: if Spice/Humanize data is missing (Phase 8 preset), keep controller defaults
+    if (!streamer.readFloat(floatVal)) return;
+    setParam(kArpSpiceId, static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
+
+    if (!streamer.readFloat(floatVal)) return;
+    setParam(kArpHumanizeId, static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
+    // diceTrigger is NOT synced (transient action)
 }
 
 } // namespace Ruinae
