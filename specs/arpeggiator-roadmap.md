@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 8 complete — Conditional Trigs) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 9 complete — Spice/Dice & Humanize) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -37,7 +37,7 @@ The arpeggiator is decomposed into **12 phases**. The first 3 phases produce a *
 | **MVP** | 3 | Working arp with 10 modes, tempo sync, gate, latch, octave range. Playable. |
 | **Sequencer** ✅ | 6 | Per-step velocity/gate/pitch/ratchet lanes, TB-303 modifiers. Deep. |
 | **Conditional** ✅ | 8 | Euclidean rhythms, conditional trigs (probability, A:B ratios, Fill, First). Evolving. |
-| **Generative** | 9 | Spice/Dice mutation, humanize. Unique. |
+| **Generative** ✅ | 9 | Spice/Dice mutation, humanize. Unique. |
 | **Complete** | 12 | Mod matrix integration, dedicated UI, preset arp patterns. Polished. |
 
 ### Existing Components Reused
@@ -802,11 +802,13 @@ On each step:
 
 ---
 
-## Phase 9: Generative Features — Spice/Dice & Humanize
+## Phase 9: Generative Features — Spice/Dice & Humanize ✅ COMPLETE
 
 **DSP Layer**: 2 (processors)
 **Files**: Extend `arpeggiator_core.h`
 **Test**: Extend `arpeggiator_core_test.cpp`
+**Spec**: `specs/077-spice-dice-humanize/spec.md`
+**Branch**: `077-spice-dice-humanize`
 **Depends on**: Phase 8
 
 ### Purpose
@@ -858,10 +860,17 @@ kArpHumanizeId              = 3292,  // 0-100%
 
 ### Acceptance Criteria
 
-- [ ] Spice/Dice preserves original pattern (Spice 0% always recovers it)
-- [ ] Dice is re-triggerable and produces different results each time
-- [ ] Humanize produces musically natural variation (not chaotic)
-- [ ] All randomization is real-time safe (no allocation, fast PRNG)
+- [x] Spice/Dice preserves original pattern (Spice 0% always recovers it) (SC-001: zero-tolerance bit-identical at 120/140/180 BPM across 1000+ steps)
+- [x] Dice is re-triggerable and produces different results each time (SC-004: consecutive triggerDice() calls produce different overlays)
+- [x] Humanize produces musically natural variation (not chaotic) (SC-006/007/008: timing +/-20ms, velocity +/-15, gate +/-10% at full Humanize; SC-009: linear scaling at 50%)
+- [x] All randomization is real-time safe (no allocation, fast PRNG) (SC-012: zero heap allocation confirmed by code inspection; triggerDice() is noexcept)
+- [x] Spice blend correct for all lane types: velocity/gate lerp, ratchet round, condition threshold (SC-002/003: 4 blend formula tests pass)
+- [x] Humanize PRNG consumed on every step including skips (FR-023: 5 skip points + defensive branch verified)
+- [x] Plugin integration: 3 params (3290-3292) registered, automatable, correct display (SC-013: all verified)
+- [x] State persistence: round-trip preserves Spice/Humanize; Phase 8 backward compat (SC-010/011: verified)
+- [x] Spice and Humanize compose correctly without interference (SC-015: both effects measurably present)
+- [x] 45 new tests (33 DSP + 7 param + 5 integration), pluginval L5 pass, clang-tidy 0 findings
+- [x] 41/41 functional requirements MET, 15/15 success criteria MET
 
 ---
 

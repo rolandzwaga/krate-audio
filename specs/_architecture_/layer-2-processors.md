@@ -5886,7 +5886,7 @@ class TranceGate {
 ## ArpeggiatorCore
 **Path:** [arpeggiator_core.h](../../dsp/include/krate/dsp/processors/arpeggiator_core.h) | **Since:** 0.11.0
 
-Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains six `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`, modifier: `uint8_t`, ratchet: `uint8_t`, condition: `uint8_t`) that advance independently on each arp step, enabling polymetric lane patterns. The ratchet lane (Spec 074) stores per-step subdivision counts (1-4); when a step has ratchet count N > 1, `fireStep()` emits the first sub-step and initializes sub-step tracking state, then `processBlock()` emits the remaining N-1 sub-steps via a `NextEvent::SubStep` event type in the jump-ahead loop. Euclidean timing mode (Spec 075) adds a pre-fire gating check in `fireStep()` using the existing `EuclideanPattern` class (Layer 0) to determine which steps fire notes (hits) and which are silent (rests). Conditional trig system (Spec 076) adds per-step condition evaluation (probability, A:B ratios, First-loop-only, Fill/NotFill) between Euclidean gating and modifier evaluation, creating patterns that evolve over multiple loops. Header-only, zero heap allocation in all methods.
+Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains six `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`, modifier: `uint8_t`, ratchet: `uint8_t`, condition: `uint8_t`) that advance independently on each arp step, enabling polymetric lane patterns. The ratchet lane (Spec 074) stores per-step subdivision counts (1-4); when a step has ratchet count N > 1, `fireStep()` emits the first sub-step and initializes sub-step tracking state, then `processBlock()` emits the remaining N-1 sub-steps via a `NextEvent::SubStep` event type in the jump-ahead loop. Euclidean timing mode (Spec 075) adds a pre-fire gating check in `fireStep()` using the existing `EuclideanPattern` class (Layer 0) to determine which steps fire notes (hits) and which are silent (rests). Conditional trig system (Spec 076) adds per-step condition evaluation (probability, A:B ratios, First-loop-only, Fill/NotFill) between Euclidean gating and modifier evaluation, creating patterns that evolve over multiple loops. Spice/Dice variation overlay (Spec 077) adds four parallel overlay arrays blended with original lane values via a Spice knob (0-100%), and a Humanize system adds per-step random timing/velocity/gate offsets via a dedicated PRNG. Header-only, zero heap allocation in all methods.
 
 ```cpp
 enum class LatchMode : uint8_t { Off, Hold, Add };
@@ -5973,6 +5973,13 @@ class ArpeggiatorCore {
     void setFillActive(bool active) noexcept;         // Set fill mode toggle (real-time safe)
     [[nodiscard]] bool fillActive() const noexcept;   // Get current fill mode state
 
+    // Spice/Dice & Humanize (Spec 077)
+    void setSpice(float value) noexcept;              // Blend amount [0, 1], clamped
+    [[nodiscard]] float spice() const noexcept;       // Get current Spice blend amount
+    void setHumanize(float value) noexcept;           // Humanize amount [0, 1], clamped
+    [[nodiscard]] float humanize() const noexcept;    // Get current Humanize amount
+    void triggerDice() noexcept;                      // Generate new random overlay (128 PRNG calls)
+
     // Euclidean timing (Spec 075)
     void setEuclideanSteps(int steps) noexcept;       // [2, 32], re-clamps hits, regenerates pattern
     void setEuclideanHits(int hits) noexcept;         // [0, euclideanSteps_], regenerates pattern
@@ -6001,6 +6008,8 @@ class ArpeggiatorCore {
 - Per-step ratcheting (1-4 sub-step retriggered repetitions) via independent ratchet lane (Spec 074)
 - Euclidean timing mode for Bjorklund-algorithm rhythmic gating (E(k,n) patterns like tresillo, cinquillo, bossa nova) with rotation (Spec 075)
 - Conditional triggers for evolving multi-loop patterns: probability (10/25/50/75/90%), A:B ratios (1:2 through 4:4), First-loop-only, Fill/NotFill performance toggle (Spec 076)
+- Spice/Dice controlled randomization: non-destructive variation overlay on velocity, gate, ratchet, and condition lanes with blend knob (0-100%) (Spec 077)
+- Humanize micro-timing: per-step random offsets for timing (+/-20ms), velocity (+/-15), and gate (+/-10%) for organic feel (Spec 077)
 
 **Usage example:**
 
@@ -6043,6 +6052,17 @@ arp.conditionLane().setStep(0, static_cast<uint8_t>(TrigCondition::Prob50));
 arp.conditionLane().setStep(1, static_cast<uint8_t>(TrigCondition::Fill));
 arp.setFillActive(true);   // Fill-conditioned steps fire when fill is active
 // Step 0 fires ~50% of the time; step 1 fires only when fill mode is ON
+
+// Configure Spice/Dice: random variation overlay (Spec 077)
+arp.triggerDice();         // Generate random overlay values for all 4 lanes
+arp.setSpice(0.5f);        // 50% blend between original lane values and overlay
+// velocity = lerp(original, overlay, 0.5), gate = lerp(original, overlay, 0.5)
+// ratchet = round(lerp(original, overlay, 0.5)), condition = threshold at 50%
+
+// Configure Humanize: per-step random offsets (Spec 077)
+arp.setHumanize(0.3f);     // 30% humanize = +/-6ms timing, +/-4.5 velocity, +/-3% gate
+// Both Spice and Humanize compose: Spice modifies lane-read values (macro variation),
+// then Humanize adds per-step micro-offsets on top of the already-Spiced values
 ```
 
 **Enumerations:**
@@ -6055,7 +6075,7 @@ arp.setFillActive(true);   // Fill-conditioned steps fire when fill is active
 - `velocityLane_` (`ArpLane<float>`): Each step value scales note velocity via `velocity * velScale`, clamped to [1, 127]. Default step[0] = 1.0 (passthrough).
 - `gateLane_` (`ArpLane<float>`): Each step value multiplies gate duration via `calculateGateDuration(float gateLaneValue)`, clamped to minimum 1 sample. Default step[0] = 1.0 (no change).
 - `pitchLane_` (`ArpLane<int8_t>`): Each step value is added to the note number, clamped to [0, 127]. Default step[0] = 0 (no offset).
-- `resetLanes()`: Private method that calls `reset()` on all six lanes (velocity, gate, pitch, modifier, ratchet, condition) and resets `tieActive_` state to `false`, clears ratchet sub-step state (`ratchetSubStepsRemaining_ = 0`, `ratchetSubStepCounter_ = 0`), resets `conditionLane_` position to 0 and `loopCount_` to 0 (Spec 076). The `fillActive_` flag and `conditionRng_` state are intentionally NOT reset (FR-022, FR-035). Invoked from `reset()`, retrigger (Note mode on `noteOn()`), and transport-restart (Beat mode on bar boundary in `processBlock()`).
+- `resetLanes()`: Private method that calls `reset()` on all six lanes (velocity, gate, pitch, modifier, ratchet, condition) and resets `tieActive_` state to `false`, clears ratchet sub-step state (`ratchetSubStepsRemaining_ = 0`, `ratchetSubStepCounter_ = 0`), resets `conditionLane_` position to 0 and `loopCount_` to 0 (Spec 076). The `fillActive_` flag and `conditionRng_` state are intentionally NOT reset (FR-022, FR-035). The overlay arrays (`velocityOverlay_`, `gateOverlay_`, `ratchetOverlay_`, `conditionOverlay_`), `spice_`, `humanize_`, `spiceDiceRng_`, and `humanizeRng_` are intentionally NOT reset -- they are generative state and user-controlled parameters that persist until explicitly changed (Spec 077, FR-025 through FR-029). Invoked from `reset()`, retrigger (Note mode on `noteOn()`), and transport-restart (Beat mode on bar boundary in `processBlock()`).
 - `calculateGateDuration(float gateLaneValue = 1.0f)`: Extended signature multiplies the global gate formula by the lane value: `std::max(size_t{1}, static_cast<size_t>(static_cast<double>(stepDuration) * static_cast<double>(gatePct) / 100.0 * static_cast<double>(gateLaneValue)))`. When `gateLaneValue == 1.0f`, produces bit-identical results to the Phase 3 formula (SC-002).
 - In `fireStep()`: velocity, gate, pitch, modifier, ratchet, and condition lanes each call `advance()` once per step tick. Chord mode applies the same lane values to all notes in the chord equally.
 
@@ -6166,7 +6186,7 @@ Euclidean timing mode adds a pre-fire gating check in `fireStep()` that determin
 5. Ratcheting
 
 *Lifecycle integration:*
-- `resetLanes()`: Resets `euclideanPosition_` to 0 (after ratchet state reset). Also resets `conditionLane_` position to 0 and `loopCount_` to 0 (Spec 076). `fillActive_` and `conditionRng_` are intentionally NOT reset. Ensures retrigger (Note and Beat modes) and enable/disable transitions restart the Euclidean pattern and condition lane from step 0.
+- `resetLanes()`: Resets `euclideanPosition_` to 0 (after ratchet state reset). Also resets `conditionLane_` position to 0 and `loopCount_` to 0 (Spec 076). `fillActive_` and `conditionRng_` are intentionally NOT reset. Overlay arrays, `spice_`, `humanize_`, `spiceDiceRng_`, and `humanizeRng_` are intentionally NOT reset (Spec 077, FR-025 through FR-029). Ensures retrigger (Note and Beat modes) and enable/disable transitions restart the Euclidean pattern and condition lane from step 0 without disturbing the user's generative state.
 - `reset()`: Calls `resetLanes()` then `regenerateEuclideanPattern()` to regenerate the pattern from current parameters.
 - Constructor: Calls `regenerateEuclideanPattern()` after member initialization so `euclideanPattern_` starts as E(4,8,0) rather than zero. Also calls `conditionLane_.setStep(0, static_cast<uint8_t>(TrigCondition::Always))` for explicit clarity (Spec 076).
 
@@ -6226,6 +6246,146 @@ The conditional trig system adds per-step condition evaluation between Euclidean
 - Length-1 condition lane: wraps on every step, so `loopCount_` increments on every step. A:B ratios effectively operate per-step rather than per-loop (valid degenerate case).
 - `loopCount_` uses `size_t` (64-bit). No overflow concern (would take ~11.7 billion years at maximum rate).
 
-**Memory:** ~640 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 6 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays + Euclidean state: 6 scalar members ~24 bytes + Condition state: conditionLane_ ~40 bytes + loopCount_ 8 bytes + fillActive_ 1 byte + conditionRng_ 4 bytes ~53 bytes). Header-only, real-time safe, single-threaded.
+**Spice/Dice variation overlay integration (Spec 077):**
+
+The Spice/Dice system adds controlled randomization via four parallel variation overlay arrays that blend with original lane values. The Dice trigger generates new random values; the Spice knob (0-100%) controls the blend ratio. At Spice 0%, the arp output is identical to Phase 8 behavior (overlay has no effect). At Spice 100%, overlay values completely replace original lane values.
+
+*Spice/Dice state members:*
+- `velocityOverlay_` (`std::array<float, 32>`, default all 1.0f): Random velocity scaling factors in [0.0, 1.0]. Identity value 1.0f at construction ensures Spice 0% passthrough.
+- `gateOverlay_` (`std::array<float, 32>`, default all 1.0f): Random gate scaling factors in [0.0, 1.0]. Identity value 1.0f.
+- `ratchetOverlay_` (`std::array<uint8_t, 32>`, default all 1): Random ratchet counts in [1, 4]. Identity value 1 (no subdivision).
+- `conditionOverlay_` (`std::array<uint8_t, 32>`, default all 0 = TrigCondition::Always): Random TrigCondition values in [0, 17]. Identity value 0 (Always = unconditional fire).
+- `spice_` (`float`, default 0.0f): Blend amount [0.0, 1.0]. Set by `setSpice(float)` with clamping.
+- `spiceDiceRng_` (`Xorshift32`, seed 31337): Dedicated PRNG for overlay generation. Seeded with a fixed prime (31337, distinct from conditionRng_ seed 7919, humanizeRng_ seed 48271, and NoteSelector seed 42). Consumed only when `triggerDice()` is called (128 calls per trigger: 32 `nextUnipolar()` for velocity, 32 `nextUnipolar()` for gate, 32 `next() % 4 + 1` for ratchet, 32 `next() % kCount` for condition). Intentionally NOT reset by `resetLanes()` or `reset()` -- the PRNG state determines the next overlay generated.
+
+*Public methods:*
+- `setSpice(float value) noexcept`: Set Spice blend amount, clamped to [0.0, 1.0].
+- `spice() const noexcept`: Get current Spice blend amount. `[[nodiscard]]`.
+- `triggerDice() noexcept`: Generate new random overlay values for all four lanes using `spiceDiceRng_`. Real-time safe: no allocation, no exceptions, no I/O. Performs only 128 PRNG calls and array writes.
+
+*Spice blend in `fireStep()`:*
+
+The Spice blend block executes after all lane advances and before Euclidean gating. It uses overlay indices captured BEFORE lane advances (via `currentStep()`) to maintain per-lane polymetric correspondence:
+
+```cpp
+// Step 0: Capture overlay indices BEFORE lane advances
+const size_t velStep = velocityLane_.currentStep();
+const size_t gateStep = gateLane_.currentStep();
+const size_t ratchetStep = ratchetLane_.currentStep();
+const size_t condStep = conditionLane_.currentStep();
+
+// Step 2: All lane advances (unchanged)
+float velScale = velocityLane_.advance();
+// ... (gate, pitch, modifier, ratchet, condition) ...
+
+// Step 3: Spice blend (early-out at Spice == 0)
+if (spice_ > 0.0f) {
+    velScale = velScale + (velocityOverlay_[velStep] - velScale) * spice_;       // lerp
+    gateScale = gateScale + (gateOverlay_[gateStep] - gateScale) * spice_;       // lerp
+    float ratchetBlend = float(ratchetCount) + (float(ratchetOverlay_[ratchetStep])
+                         - float(ratchetCount)) * spice_;
+    ratchetCount = uint8_t(std::clamp(int(std::round(ratchetBlend)), 1, 4));     // round
+    if (spice_ >= 0.5f) condValue = conditionOverlay_[condStep];                 // threshold
+}
+```
+
+Blend formulas:
+- Velocity/Gate: Linear interpolation `a + (b - a) * t` where a = original, b = overlay, t = spice.
+- Ratchet: Lerp then `std::round()` (not truncation) then clamp to [1, 4].
+- Condition: Threshold switch at spice >= 0.5 (discrete enum, not interpolable).
+
+*Overlay state persistence:*
+- Overlay arrays are preserved across `reset()` and `resetLanes()` -- they are generative state set by explicit Dice trigger, not playback state.
+- `spice_` value is preserved across `reset()` and `resetLanes()` -- it is a user-controlled parameter.
+- `spiceDiceRng_` is preserved across `reset()` and `resetLanes()` -- ensures next `triggerDice()` produces a different overlay.
+- Overlay arrays are NOT serialized in plugin state (ephemeral per FR-030). On load, overlays revert to identity defaults. Only the Spice amount is serialized.
+
+**Humanize system integration (Spec 077):**
+
+The Humanize system adds per-step random micro-offsets to timing, velocity, and gate for organic feel. It is independent of Spice/Dice and composes additively: Spice modifies lane-read values (macro variation), then Humanize adds per-step offsets on top (micro variation).
+
+*Humanize state members:*
+- `humanize_` (`float`, default 0.0f): Humanize amount [0.0, 1.0]. Scales all three offset ranges linearly. At 0.0, offsets are zero (PRNG still consumed). Set by `setHumanize(float)` with clamping.
+- `humanizeRng_` (`Xorshift32`, seed 48271): Dedicated PRNG for per-step random offsets. Seeded with a fixed prime (48271, distinct from conditionRng_ seed 7919, spiceDiceRng_ seed 31337, and NoteSelector seed 42). Consumed 3 values per step ALWAYS -- including Euclidean rests, condition fails, modifier Rests, Tie steps, and the defensive branch. Intentionally NOT reset by `resetLanes()` or `reset()` -- ensures non-repeating humanization across pattern restarts.
+
+*Public methods:*
+- `setHumanize(float value) noexcept`: Set Humanize amount, clamped to [0.0, 1.0].
+- `humanize() const noexcept`: Get current Humanize amount. `[[nodiscard]]`.
+
+*PRNG consumption contract:*
+- `humanizeRng_` is consumed exactly 3 values per arp step, regardless of whether the step fires:
+  - Call 1: `humanizeRng_.nextFloat()` -- timing offset (bipolar [-1, 1])
+  - Call 2: `humanizeRng_.nextFloat()` -- velocity offset (bipolar [-1, 1])
+  - Call 3: `humanizeRng_.nextFloat()` -- gate offset (bipolar [-1, 1])
+- This contract is enforced at all 5 skip points in `fireStep()` (Euclidean rest, condition fail, modifier Rest, Tie with preceding note, Tie without preceding note) and in the defensive `result.count == 0` branch.
+- The contract ensures the humanize sequence position depends only on total step count, not on which steps fire.
+
+*Humanize offsets in `fireStep()`:*
+
+Humanize offsets are computed after accent application and before note emission (FR-022 step 11-14):
+
+```cpp
+// Always consume 3 PRNG values (even at humanize_ == 0.0)
+const float timingRand = humanizeRng_.nextFloat();    // [-1, 1]
+const float velocityRand = humanizeRng_.nextFloat();  // [-1, 1]
+const float gateRand = humanizeRng_.nextFloat();      // [-1, 1]
+
+// Timing: +/-20ms at full humanize, post-clamped to [0, blockSize-1]
+int32_t maxTimingOffset = int32_t(sampleRate_ * 0.020f);
+int32_t timingOffset = int32_t(timingRand * float(maxTimingOffset) * humanize_);
+int32_t humanizedOffset = std::clamp(sampleOffset + timingOffset, 0, int32_t(blockSize) - 1);
+
+// Velocity: +/-15 at full humanize, post-clamped to [1, 127]
+int velocityOffset = int(velocityRand * 15.0f * humanize_);
+
+// Gate: +/-10% at full humanize, minimum 1 sample
+float gateOffsetRatio = gateRand * 0.10f * humanize_;
+```
+
+*Ratcheted step humanize interaction:*
+- Timing offset: Applied to first sub-step onset only. Subsequent sub-steps maintain their relative subdivision timing.
+- Velocity offset: Applied to first sub-step only. Sub-steps 2..N use pre-accent velocities (per Phase 6 behavior).
+- Gate offset: Applied to all sub-steps uniformly (same `gateOffsetRatio` for each sub-step gate calculation).
+
+*Humanize state persistence:*
+- `humanize_` value is preserved across `reset()` and `resetLanes()` -- user-controlled parameter.
+- `humanizeRng_` is preserved across `reset()` and `resetLanes()` -- ensures non-repeating humanization across restarts.
+
+**Updated `fireStep()` evaluation order (Spec 077, FR-022):**
+
+The complete evaluation order after all Spec 071-077 changes:
+
+0. **Capture overlay indices** (`velStep`, `gateStep`, `ratchetStep`, `condStep` via `currentStep()` before any advance)
+1. NoteSelector advance (`selector_.advance()`)
+2. All lane advances (velocity, gate, pitch, modifier, ratchet, condition)
+3. **Spice blend** (velocity lerp, gate lerp, ratchet round, condition threshold) -- uses indices from step 0
+4. Euclidean gating check (if rest: consume humanizeRng_ x3, return early)
+5. Condition lane wrap detection and `loopCount_` increment
+6. Condition evaluation using Spice-blended condValue (if fail: consume humanizeRng_ x3, return early)
+7. Modifier evaluation -- Rest (consume humanizeRng_ x3, return early) > Tie (consume humanizeRng_ x3, return early) > Slide > Accent
+8. Velocity scaling (using Spice-blended velScale)
+9. Pre-accent velocity capture
+10. Accent application
+11. Pitch offset application
+12. **Humanize PRNG consumption** (3 calls always: timing, velocity, gate)
+13. **Humanize velocity offset** applied to all notes in result
+14. Gate duration calculation (using Spice-blended gateScale)
+15. **Humanize gate offset** applied to computed gate duration
+16. **Humanize timing offset** applied to noteOn sample offset (post-clamped)
+17. Note emission at humanized sample offset
+18. Ratcheting (using Spice-blended ratchet count, humanized gate, humanized first-sub-step onset)
+
+**PRNG seed inventory (4 distinct seeds):**
+
+| PRNG | Seed | Purpose | Consumption Pattern |
+|------|------|---------|-------------------|
+| NoteSelector (Random/Walk modes) | 42 | Note selection randomization | Per NoteSelector advance |
+| `conditionRng_` (Spec 076) | 7919 | Probability condition evaluation | Once per step for probability conditions only |
+| `spiceDiceRng_` (Spec 077) | 31337 | Overlay generation via `triggerDice()` | 128 calls per Dice trigger |
+| `humanizeRng_` (Spec 077) | 48271 | Per-step timing/velocity/gate offsets | 3 calls per step (always) |
+
+All four seeds are distinct primes ensuring statistically independent sequences.
+
+**Memory:** ~1280 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 6 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays + Euclidean state: 6 scalar members ~24 bytes + Condition state: conditionLane_ ~40 bytes + loopCount_ 8 bytes + fillActive_ 1 byte + conditionRng_ 4 bytes ~53 bytes + Spice/Dice state: velocityOverlay_ 128 bytes + gateOverlay_ 128 bytes + ratchetOverlay_ 32 bytes + conditionOverlay_ 32 bytes + spice_ 4 bytes + humanize_ 4 bytes + spiceDiceRng_ 4 bytes + humanizeRng_ 4 bytes ~336 bytes). Header-only, real-time safe, single-threaded.
 
 **Dependencies:** Layer 0 (block_context.h, note_value.h, euclidean_pattern.h, random.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)

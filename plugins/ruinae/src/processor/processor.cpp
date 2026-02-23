@@ -1353,6 +1353,18 @@ void Processor::applyParamsToEngine() {
     }
     arpCore_.setFillActive(arpParams_.fillToggle.load(std::memory_order_relaxed));
 
+    // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
+    arpCore_.setSpice(arpParams_.spice.load(std::memory_order_relaxed));
+    // Dice trigger: consume rising edge via compare_exchange_strong (FR-036)
+    {
+        bool expected = true;
+        if (arpParams_.diceTrigger.compare_exchange_strong(
+                expected, false, std::memory_order_relaxed)) {
+            arpCore_.triggerDice();
+        }
+    }
+    arpCore_.setHumanize(arpParams_.humanize.load(std::memory_order_relaxed));
+
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));
 }

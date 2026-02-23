@@ -141,6 +141,19 @@ Plugin state is persisted as a versioned binary stream using Steinberg's `IBStre
                       //   - Out-of-range values are clamped silently:
                       //     length to [1, 32], steps to [0, 17]
                       // Phase 7 presets load with all conditions defaulting to Always
+
+--- New in Spec 077 (EOF-safe, no version bump, appended after condition lane data) ---
+[ArpSpiceHumanizeData] // 8 bytes total, appended after ArpConditionLaneData:
+                      //   [float: spice (0.0-1.0)]                                   (4 bytes)
+                      //   [float: humanize (0.0-1.0)]                                (4 bytes)
+                      // EOF-safe backward-compatible loading:
+                      //   - EOF at spice read = Phase 8 preset, return true
+                      //     (spice and humanize retain defaults: 0.0f each)
+                      //   - EOF after spice (humanize missing) = corrupt stream, return false
+                      //   - Out-of-range values are clamped silently to [0.0, 1.0]
+                      // NOT serialized: diceTrigger (momentary action, not stored state),
+                      //   overlay arrays (ephemeral generative state, revert to identity on load)
+                      // Phase 8 presets load with Spice=0%, Humanize=0% (Phase 8-identical output)
 ```
 
 ---
@@ -553,6 +566,74 @@ When `loadArpParamsToController()` reads condition data, it propagates values to
 | Phase 8 (Spec 076, with conditions) | Yes | All condition fields fully restored |
 
 Condition identity defaults (length=1, all steps=Always, fill off) produce bit-identical output to Phase 7: all steps that pass Euclidean gating fire unconditionally.
+
+---
+
+## Arpeggiator Spice/Dice/Humanize Data Backward Compatibility (Spec 077)
+
+### Background
+
+Spec 077 added 3 Spice/Dice/Humanize parameters (IDs 3290-3292) to the arpeggiator parameter pack. Only 2 fields are serialized (Spice and Humanize as floats, 8 bytes total), appended after the condition lane's `fillToggle` field. The Dice trigger is a momentary action (not serialized). The random overlay arrays are ephemeral generative state (not serialized -- they revert to identity defaults on load). Like previous arp data, Spice/Humanize data uses EOF-safe loading without a version bump. The sentinel values (`kArpEndId = 3299`, `kNumParameters = 3300`) are unchanged from Phase 8.
+
+### Serialization Format (8 bytes)
+
+```
+[float: spice (0.0-1.0)]         // 4 bytes
+[float: humanize (0.0-1.0)]      // 4 bytes
+                                  // Total: 8 bytes
+```
+
+### EOF-Safe Loading Pattern
+
+Spice/Humanize data loading uses a **tiered EOF-safe pattern** consistent with previous arp extensions:
+
+```cpp
+// After loading condition lane data (including fillToggle)...
+
+// First Spice field: EOF = Phase 8 backward compat (return true)
+if (!streamer.readFloat(floatVal)) return true;  // No Spice data = Phase 8 preset
+params.spice.store(std::clamp(floatVal, 0.0f, 1.0f), relaxed);
+
+// Second field (Humanize): EOF = corrupt stream (return false)
+if (!streamer.readFloat(floatVal)) return false;  // Spice present but Humanize missing = corrupt
+params.humanize.store(std::clamp(floatVal, 0.0f, 1.0f), relaxed);
+
+return true;
+```
+
+The key distinction: only the **first** Spice/Humanize field (`spice`) at EOF is treated as backward compatibility (return true). If `spice` was successfully read but `humanize` is missing, this indicates a corrupt stream (return false), not a legitimate older preset format.
+
+### Controller Sync
+
+When `loadArpParamsToController()` reads Spice/Humanize data, it propagates values to the controller via `setParamNormalized()`:
+
+| Parameter | Inverse Mapping |
+|-----------|----------------|
+| Spice | Identity: `clamp(floatVal, 0.0f, 1.0f)` (normalized = plain value) |
+| Humanize | Identity: `clamp(floatVal, 0.0f, 1.0f)` (normalized = plain value) |
+
+The Dice trigger is NOT synced to the controller (transient action, not restored on load).
+
+### What Is NOT Serialized
+
+| Data | Reason |
+|------|--------|
+| `diceTrigger` | Momentary action, not stored state. Resets to false on load. |
+| `velocityOverlay_` (32 floats) | Ephemeral generative state. Reverts to identity (1.0f) on load. |
+| `gateOverlay_` (32 floats) | Ephemeral generative state. Reverts to identity (1.0f) on load. |
+| `ratchetOverlay_` (32 uint8_t) | Ephemeral generative state. Reverts to identity (1) on load. |
+| `conditionOverlay_` (32 uint8_t) | Ephemeral generative state. Reverts to identity (0 = Always) on load. |
+
+The overlay is regenerated fresh by pressing the Dice button after loading. This follows the design principle that "the degree of variation (Spice amount) is preserved, but the specific random pattern is not."
+
+### Backward Compatibility
+
+| Preset Source | Spice/Humanize Data Present? | Behavior |
+|---------------|------------------------------|----------|
+| Phase 8 (Spec 076, no Spice/Humanize) | No | All Spice/Humanize fields at defaults: spice=0.0, humanize=0.0 |
+| Phase 9 (Spec 077, with Spice/Humanize) | Yes | Both values fully restored |
+
+Spice/Humanize identity defaults (spice=0.0, humanize=0.0) produce bit-identical output to Phase 8: no overlay blend (Spice at 0% passthrough), no timing/velocity/gate offsets (Humanize at 0% means zero offsets).
 
 ---
 
