@@ -630,8 +630,12 @@ public:
         float wetR = mid - width * side;
 
         // -- Step 13: Dry/wet mix (FR-011) --
-        left = (1.0f - mix) * dryL + mix * wetL;
-        right = (1.0f - mix) * dryR + mix * wetR;
+        // Equal-power crossfade preserves perceived volume when dry and wet
+        // signals are decorrelated (which they always are for reverb).
+        const float dryGain = std::cos(mix * kHalfPi);
+        const float wetGain = std::sin(mix * kHalfPi);
+        left = dryGain * dryL + wetGain * wetL;
+        right = dryGain * dryR + wetGain * wetR;
 
         // -- Step 14: Advance LFO phase --
         lfoPhase_ += lfoPhaseIncrement_;
