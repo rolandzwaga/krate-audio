@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 10 complete — Modulation Integration) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 10 complete — Modulation Integration, Phase 11 UI designed) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -20,9 +20,11 @@ A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases b
 10. [Phase 8: Conditional Trig System](#phase-8-conditional-trig-system)
 11. [Phase 9: Generative Features — Spice/Dice & Humanize](#phase-9-generative-features--spicedice--humanize)
 12. [Phase 10: Modulation Integration](#phase-10-modulation-integration)
-13. [Phase 11: Arpeggiator UI](#phase-11-arpeggiator-ui)
-14. [Phase 12: Presets & Polish](#phase-12-presets--polish)
-15. [Risk Analysis](#risk-analysis)
+13. [Phase 11a: Layout Restructure & Lane Framework](#phase-11a-layout-restructure--lane-framework)
+14. [Phase 11b: Specialized Lane Types](#phase-11b-specialized-lane-types)
+15. [Phase 11c: Interaction Polish](#phase-11c-interaction-polish)
+16. [Phase 12: Presets & Polish](#phase-12-presets--polish)
+17. [Risk Analysis](#risk-analysis)
 
 ---
 
@@ -80,12 +82,16 @@ Phase 3: Ruinae integration - processor, params, basic UI
     |
     +---> Phase 10: Modulation integration (independent of 4-9)
     |
-    +---> Phase 11: Dedicated arpeggiator UI (after 4-9)
+    +---> Phase 11a: Layout restructure + lane framework (vel/gate)
               |
-              +---> Phase 12: Presets & polish
+              +---> Phase 11b: Specialized lanes (pitch/ratchet/modifier/condition)
+              |
+              +---> Phase 11c: Interaction polish (trail, transforms, copy/paste)
+                        |
+                        +---> Phase 12: Presets & polish
 ```
 
-Phases 4-9 are sequential (each extends the lane system). Phase 10 can run in parallel with 4-9. Phase 11 waits for all features to stabilize.
+Phases 4-9 are sequential (each extends the lane system). Phase 10 can run in parallel with 4-9. Phase 11a-c are sequential UI phases, each producing a usable increment.
 
 ---
 
@@ -933,78 +939,337 @@ No new DSP components or parameter IDs. The existing ModulationEngine writes off
 
 ---
 
-## Phase 11: Arpeggiator UI
+## Phase 11 — Arpeggiator UI (Overview)
+
+Phase 11 is split into three sequential sub-phases. Each produces a usable, testable increment.
+
+### Design Principles
+
+- **Reuse over rebuild**: Extend `StepPatternEditor` rather than creating from scratch. New custom views only for lane types that fundamentally differ from bar charts (modifier bitmask, condition enum).
+- **Stacked multi-lane view**: All lanes visible simultaneously in a vertically scrollable container, sized to content. No tab-switching between lanes.
+- **Per-lane playheads**: Each lane tracks its own position independently (polymetric support). Playhead includes a 2-3 step fading trail and an X overlay on steps that were evaluated but skipped (by condition/probability).
+- **Left-aligned steps**: Shorter lanes display wider bars. Step 1 always aligns across lanes, making polymetric relationships visually obvious.
+- **Collapsible lanes**: Each lane header is clickable to collapse/expand. Collapsed state shows a miniature bar/dot preview in the lane's accent color.
+- **Progressive disclosure**: Warm/primary lanes (velocity, gate) at top; cooler/specialized lanes (modifier, condition) at bottom.
+
+### Lane Color Palette
+
+Cohesive earth-tone family under the arpeggiator copper (#C87850):
+
+| Lane | Color | Hex | Rationale |
+|------|-------|-----|-----------|
+| Velocity | Copper | `#D0845C` | Warmest — primary lane, closest to parent |
+| Gate | Sand | `#C8A464` | Pairs naturally with velocity |
+| Pitch | Sage | `#6CA8A0` | Cool contrast for the "musical" lane |
+| Ratchet | Lavender | `#9880B0` | Distinctive for the "exotic" rhythmic feature |
+| Modifier | Rose | `#C0707C` | Alert-adjacent tone for flags/toggles |
+| Condition | Slate | `#7C90B0` | Cool neutral for logic/probability |
+
+All colors at similar saturation (~40-50%) and lightness (~55-60%) to avoid visual noise against the #1A1A1E background.
+
+### SEQ Tab Layout (1400 x 620 content area)
+
+The Trance Gate is shrunk from 390px to ~100px, freeing ~510px for the arpeggiator.
+
+```
+SEQ Tab (1400 x 620)
++================================================================+ y=0
+|  TRANCE GATE  [ON] Steps:[16] [Presets▾] [↕][←][→]            |
+|  Sync:[●] Rate:[1/16▾] Depth:[●] Atk:[●] Rel:[●] Phase:[●]   |
+|  [Eucl] Hits:[●] Rot:[●]                                      | ~26px toolbar
+|  ┌──────────────────────────────────────────────────────────┐  |
+|  │  Thin StepPatternEditor bars (~70px)                     │  |
+|  └──────────────────────────────────────────────────────────┘  |
++================================================================+ y≈104
+|  ─── divider ───                                               |
++================================================================+ y≈108
+|  ARPEGGIATOR  [ON] Mode:[Up▾] Oct:[2] [Seq▾]                  |
+|  Sync:[●] Rate:[1/16▾] Gate:[●] Swing:[●]                     |
+|  Latch:[Hold▾] Retrig:[Note▾]                                 | ~40px toolbar
++----------------------------------------------------------------+ y≈148
+|                                                                |
+|  SCROLLABLE LANE EDITOR (CScrollView, ~390px viewport)        |
+|  ┌──────────────────────────────────────────────────────────┐  |
+|  │ ▼ VEL  [16▾] ████▓▓██  ████▓▓  ██████   [↕][←][→][?]  │  |
+|  │               copper bars, 0-1 normalized       ~70px    │  |
+|  │                                                          │  |
+|  │ ▼ GATE [16▾] ██▓▓████  ████▓▓  ▓▓████   [↕][←][→][?]  │  |
+|  │               sand bars, 0-200% gate length     ~70px    │  |
+|  │                                                          │  |
+|  │ ▼ PITCH [8▾]  ▲    ▲                    [↕][←][→][?]   │  |
+|  │               ─────── 0 ────────                         │  |
+|  │                          ▼    ▼                          │  |
+|  │               sage bipolar bars, -24..+24 semi   ~70px   │  |
+|  │                                                          │  |
+|  │ ▼ RATCH [8▾] [2] [1] [3] [1] [4] [1]   [↕][←][→][?]  │  |
+|  │               lavender blocks, click cycles 1-4  ~36px   │  |
+|  │                                                          │  |
+|  │ ▼ MOD  [16▾]                             [↕][←][→][?]  │  |
+|  │  Rest    ·  ●  ·  ·  ·  ●  ·  ·  ·  ·  ·  ·  ●  ·    │  |
+|  │  Tie     ·  ·  ●──●  ·  ·  ·  ·  ·  ·  ●──●  ·  ·    │  |
+|  │  Slide   ·  ·  ·  ·  ●  ·  ·  ·  ·  ·  ·  ·  ·  ●   ~44px│
+|  │  Accent  ●  ·  ·  ·  ·  ·  ●  ·  ·  ●  ·  ·  ·  ·    │  |
+|  │               rose toggle dots per step                  │  |
+|  │                                                          │  |
+|  │ ▼ COND  [8▾] [⚡][½][⚡][¼][2x][⚡][F][⚡] [↕][←][→][?] │  |
+|  │               slate icons + popup menu           ~28px   │  |
+|  │               Alw 50% Alw 25% Ev2 Alw Fill Alw          │  |
+|  └──────────────────────────────────────────────────────────┘  |
+|  ◄ per-lane playhead with trail, ✕ on skipped steps ►         |
+|                                                                |
++================================================================+ y≈540
+|  Euclidean: [ON] Hits:[●] Steps:[●] Rot:[●]  ○●○●●○●●        |
+|  Humanize:[●]  Spice:[●]  RatchSwing:[●]    [DICE]  [FILL]   |
++================================================================+ y≈620
+```
+
+**Lane header legend**: `▼` = collapse toggle, `[16▾]` = length dropdown, `[↕]` = invert, `[←][→]` = shift L/R, `[?]` = randomize.
+
+### Lane Height Summary
+
+| Lane | Expanded Height | Content |
+|------|----------------|---------|
+| Velocity | ~70px | Bar chart (0.0-1.0) |
+| Gate | ~70px | Bar chart (0-200%) |
+| Pitch | ~70px | Bipolar bars (-24..+24), center line at 0 |
+| Ratchet | ~36px | Discrete blocks (1-4), click to cycle |
+| Modifier | ~44px | 4-row dot toggle grid (Rest/Tie/Slide/Accent) |
+| Condition | ~28px | Icon per step + popup menu (18 conditions) |
+| **Headers** | ~16px × 6 | Label, length control, transform buttons |
+| **Total** | ~414px | Fits in 390px viewport with 1 lane collapsed or small scroll |
+
+### Mouse Interaction Summary
+
+| Lane Type | Click | Drag | Right-Click |
+|-----------|-------|------|-------------|
+| Bar (Vel/Gate) | Set step level | Paint across steps | Set to 0 |
+| Bipolar (Pitch) | Set semitone (snap to integer) | Paint, up=positive down=negative | Set to 0 |
+| Discrete (Ratchet) | Cycle 1→2→3→4→1 | Drag up/down to change | Reset to 1 |
+| Toggle (Modifier) | Toggle individual flag dot | — | — |
+| Enum (Condition) | Open COptionMenu popup | — | Reset to Always |
+| Lane header | Collapse/expand lane | — | Copy/paste context menu |
+
+### Components to Build or Extend
+
+| Component | Approach | Location |
+|-----------|----------|----------|
+| **ArpLaneEditor** | Subclass of StepPatternEditor | `plugins/shared/src/ui/arp_lane_editor.h` |
+| **ArpLaneContainer** | CScrollView holding stacked lanes | `plugins/shared/src/ui/arp_lane_container.h` |
+| **ArpModifierLane** | New custom CView (4-row dot grid) | `plugins/shared/src/ui/arp_modifier_lane.h` |
+| **ArpConditionLane** | New custom CView (icon + popup) | `plugins/shared/src/ui/arp_condition_lane.h` |
+| **ArpRatchetLane** | ArpLaneEditor in discrete mode | Extension of ArpLaneEditor |
+| **ArpPitchLane** | ArpLaneEditor in bipolar mode | Extension of ArpLaneEditor |
+
+---
+
+## Phase 11a: Layout Restructure & Lane Framework
 
 **Plugin Layer**: `plugins/ruinae/` and `plugins/shared/`
 **Files**:
-- `plugins/ruinae/resources/editor.uidesc` — arp section layout
-- Potentially new custom views in `plugins/shared/src/ui/`
-**Depends on**: Phases 4-9 (all features stable)
+- `plugins/ruinae/resources/editor.uidesc` — SEQ tab layout restructure
+- `plugins/shared/src/ui/arp_lane_editor.h` — ArpLaneEditor (StepPatternEditor subclass)
+- `plugins/shared/src/ui/arp_lane_container.h` — scrollable lane container
+**Depends on**: Phases 4-10 (all arp engine features stable)
 
 ### Purpose
 
-Build a dedicated, polished arpeggiator UI in the SEQ tab. Replace the basic controls from Phase 3 with a full lane editor.
+Restructure the SEQ tab layout and build the lane editor framework. Prove the architecture with the two simplest lane types (velocity and gate).
 
-### UI Layout Concept
+### Scope
 
-```
-+--------------------------------------------------+
-| [ARP ON/OFF]  Mode: [Up    v]  Oct: [2] [Seq v]  |
-|                                                   |
-| Rate: [1/16 v]  Gate: [80%]  Swing: [25%]        |
-| Latch: [Hold v]  Retrig: [Note v]                |
-|                                                   |
-| +-- Lane Editor --------------------------------+ |
-| | Lane: [Velocity v] [Gate v] [Pitch v] ...     | |
-| |                                               | |
-| |  Step Pattern Editor                          | |
-| |  (reuse/adapt StepPatternEditor component)    | |
-| |  Shows current lane's steps with playhead     | |
-| |  Length control per lane                       | |
-| |                                               | |
-| +-----------------------------------------------+ |
-|                                                   |
-| Euclidean: [ON] Hits: [5] Steps: [8] Rot: [0]    |
-| Humanize: [30%]  Spice: [50%]  [DICE]  [FILL]    |
-+--------------------------------------------------+
-```
-
-### Key UI Components
-
-1. **Lane Tab Selector**: Switch between editing velocity, gate, pitch, ratchet, modifier, condition lanes
-2. **Step Pattern Editor** (reuse from `plugins/shared/src/ui/step_pattern_editor.h`):
-   - Visual step bars with click-to-edit
-   - Playhead indicator showing current step position
-   - Length control per lane (independent)
-3. **Modifier Step Editor**: Special view for the bitmask lane — toggle buttons for Rest/Tie/Slide/Accent per step
-4. **Condition Step Editor**: Dropdown per step for trig condition selection
-5. **Euclidean Controls**: Hits/Steps/Rotation knobs with visual pattern display (dots like TranceGate)
-
-### Design Decisions
-
-- The StepPatternEditor already handles most of what's needed (bar display, click editing, Euclidean dots, playhead)
-- May need to extend it for:
-  - Signed values (pitch lane: -24 to +24, centered at 0)
-  - Integer steps (ratchet: 1-4)
-  - Bitmask mode (modifier flags)
-- Alternatively, create a new `ArpLaneEditor` that wraps StepPatternEditor with lane-specific value mapping
+1. **Shrink Trance Gate**: Consolidate toolbar to single compact row (~26px), reduce StepPatternEditor to ~70px. Total Trance Gate height: ~100px.
+2. **Expand Arpeggiator section**: Move existing Phase 3 controls into a compact toolbar row (~40px).
+3. **ArpLaneEditor**: Subclass StepPatternEditor with:
+   - Lane type enum (Velocity, Gate, Pitch, Ratchet — bar-based lanes)
+   - Value range mapping (normalized ↔ plain value per lane type)
+   - Lane accent color
+   - Per-lane length control bound to parameter
+   - Per-lane playhead position (independent of other lanes)
+   - Collapsible header with miniature bar preview when collapsed
+4. **ArpLaneContainer**: CScrollView that stacks ArpLaneEditor instances vertically. Handles:
+   - Dynamic height calculation based on expanded/collapsed state
+   - Scroll when total content exceeds viewport (~390px)
+   - Left-aligned steps across lanes (wider bars for shorter lanes)
+5. **Velocity lane**: ArpLaneEditor in default mode (0.0-1.0 bars). Wire to `kArpVelocityLaneStep0Id`..`kArpVelocityLaneStep31Id`.
+6. **Gate lane**: ArpLaneEditor with 0-200% range. Wire to `kArpGateLaneStep0Id`..`kArpGateLaneStep31Id`.
+7. **Basic playhead**: Per-lane step highlight synced from audio thread via controller callback. No trail yet.
+8. **Lane color scheme**: Register Velocity (#D0845C) and Gate (#C8A464) colors in uidesc.
 
 ### Acceptance Criteria
 
-- [ ] All lanes editable via UI with visual feedback
-- [ ] Playhead accurately tracks arp position in real-time
-- [ ] Lane length changes take effect immediately
-- [ ] Euclidean pattern visualized as dots/active indicators
+- [ ] Trance Gate section ≤ 100px tall, fully functional at reduced size
+- [ ] Velocity and Gate lanes visible, editable, with per-lane playhead
+- [ ] Lane collapse/expand works, collapsed lanes show miniature preview
+- [ ] Scrollable container scrolls when both lanes are expanded
+- [ ] Per-lane length dropdown changes step count immediately
+- [ ] Parameter changes round-trip: UI → processor → UI (host automation works)
+- [ ] No allocations in draw/mouse paths (verified with ASan)
+- [ ] Pluginval level 5 passes
+
+---
+
+## Phase 11b: Specialized Lane Types
+
+**Plugin Layer**: `plugins/shared/` and `plugins/ruinae/`
+**Files**:
+- `plugins/shared/src/ui/arp_lane_editor.h` — bipolar + discrete modes
+- `plugins/shared/src/ui/arp_modifier_lane.h` — new modifier toggle view
+- `plugins/shared/src/ui/arp_condition_lane.h` — new condition icon view
+- `plugins/ruinae/resources/editor.uidesc` — add remaining lanes
+**Depends on**: Phase 11a
+
+### Purpose
+
+Implement the four specialized lane types that require custom rendering and interaction beyond standard bar charts.
+
+### Scope
+
+1. **Pitch lane** (ArpLaneEditor, bipolar mode):
+   - Center line drawn at 0 semitones
+   - Bars extend up (positive) or down (negative) from center
+   - Range: -24 to +24 semitones
+   - Snap to integer semitone values (no fractional)
+   - Drag up from center = positive, down = negative
+   - Wire to `kArpPitchLaneStep0Id`..`kArpPitchLaneStep31Id`
+   - Lane color: Sage (#6CA8A0)
+
+2. **Ratchet lane** (ArpLaneEditor, discrete mode):
+   - Stacked blocks visualization (1-4 blocks per step)
+   - Click to cycle: 1→2→3→4→1
+   - Drag up/down to change value
+   - Right-click resets to 1
+   - Wire to `kArpRatchetLaneStep0Id`..`kArpRatchetLaneStep31Id`
+   - Lane color: Lavender (#9880B0)
+
+3. **Modifier lane** (ArpModifierLane, new custom CView):
+   - 4-row dot grid layout: Rest, Tie, Slide, Accent
+   - Each dot is a clickable toggle (filled ● = active, outline ○ = inactive)
+   - Row labels on the left margin
+   - Steps aligned to match other lanes (left-aligned, width matches lane length)
+   - Collapsible with miniature dot preview
+   - Wire to `kArpModifierLaneStep0Id`..`kArpModifierLaneStep31Id` (bitmask encoding)
+   - Lane color: Rose (#C0707C)
+
+4. **Condition lane** (ArpConditionLane, new custom CView):
+   - One icon cell per step showing the active condition
+   - Condition label text below icon (abbreviated: "Alw", "50%", "Ev2", etc.)
+   - Click opens COptionMenu popup with all 18 conditions
+   - Right-click resets to Always
+   - Tooltips on hover showing full condition name
+   - Steps aligned with other lanes
+   - Collapsible with miniature icon preview
+   - Wire to `kArpConditionLaneStep0Id`..`kArpConditionLaneStep31Id`
+   - Lane color: Slate (#7C90B0)
+
+5. **Integrate all lanes into ArpLaneContainer** in display order: Velocity, Gate, Pitch, Ratchet, Modifier, Condition.
+
+### Condition Icons Reference
+
+| Index | Name | Abbrev | Icon Concept |
+|-------|------|--------|--------------|
+| 0 | Always | Alw | ⚡ (bolt) |
+| 1 | 50% | 50% | ½ |
+| 2 | 25% | 25% | ¼ |
+| 3 | 75% | 75% | ¾ |
+| 4 | Every 2 | Ev2 | 2× |
+| 5 | Every 3 | Ev3 | 3× |
+| 6 | Every 4 | Ev4 | 4× |
+| 7 | Every 5 | Ev5 | 5× |
+| 8 | Every 8 | Ev8 | 8× |
+| 9 | First | 1st | ▶ |
+| 10 | Last | Lst | ◀ |
+| 11 | Odd | Odd | ╫ |
+| 12 | Even | Evn | ═ |
+| 13 | 1:2 | 1:2 | ratio |
+| 14 | 2:3 | 2:3 | ratio |
+| 15 | 3:4 | 3:4 | ratio |
+| 16 | Fill | Fill | F |
+| 17 | Not Fill | !F | F̶ |
+
+### Acceptance Criteria
+
+- [ ] All 6 lanes visible and editable in the stacked lane editor
+- [ ] Pitch lane: center line visible, bars go up/down, snap to semitone
+- [ ] Ratchet lane: click cycles 1→2→3→4→1, blocks visualization correct
+- [ ] Modifier lane: 4-row dot grid, each flag toggleable independently per step
+- [ ] Condition lane: icon display, click opens popup with all 18 options
+- [ ] All lanes collapse/expand with miniature previews
+- [ ] Left-alignment correct: step 1 lines up across lanes with different lengths
+- [ ] All parameter wiring functional (automation, state save/load)
+- [ ] No allocations in draw/mouse paths
+- [ ] Pluginval level 5 passes
+
+---
+
+## Phase 11c: Interaction Polish
+
+**Plugin Layer**: `plugins/shared/` and `plugins/ruinae/`
+**Files**:
+- All arp UI components from 11a/11b
+- `plugins/ruinae/resources/editor.uidesc` — bottom bar, Euclidean section
+**Depends on**: Phase 11b
+
+### Purpose
+
+Add playback feedback, pattern manipulation tools, and generative controls that make the arpeggiator feel alive and performance-ready.
+
+### Scope
+
+1. **Playhead trail**: Current step = bright highlight, previous 2-3 steps = fading highlight. Per-lane (each lane's playhead position is independent). ~30fps refresh via timer.
+
+2. **Step activity indicators**: When a step is evaluated but skipped (by condition, probability, or rest flag), show a small X overlay on that step. Requires audio thread → controller communication of "step N was skipped" events via IMessage.
+
+3. **Per-lane transform buttons** (on lane header right side):
+   - Invert (↕): Mirror values around center (0.5 for bar lanes, 0 for pitch)
+   - Shift Left (←): Rotate pattern one step left
+   - Shift Right (→): Rotate pattern one step right
+   - Randomize (?): Fill lane with random values appropriate to the lane type
+   - Reuse existing ActionButton component and transform logic from StepPatternEditor
+
+4. **Copy/paste** (right-click context menu on lane header):
+   - Copy lane pattern (values + length)
+   - Paste to same lane type (overwrite)
+   - Paste shape to different lane type (normalize source range → target range)
+   - Clipboard is in-memory, plugin-scoped (not system clipboard)
+
+5. **Euclidean dual visualization**:
+   - **Circular dot display**: Reuse TranceGate-style dots in the bottom bar, showing the E(k,n) pattern as a ring
+   - **Linear overlay**: In the lane editor, overlay Euclidean active/inactive indicators above the step bars (dots like StepPatternEditor already supports)
+   - Both update live when Hits/Steps/Rotation knobs change
+
+6. **Bottom bar — Generative controls**:
+   - Euclidean section: Enable toggle, Hits knob, Steps knob, Rotation knob, circular dot display
+   - Humanize knob (0-100%)
+   - Spice knob (0-100%)
+   - Ratchet Swing knob (50-75%)
+   - Dice button (ActionButton, momentary — triggers pattern variation)
+   - Fill toggle (ToggleButton — fills rests on alternate cycles)
+   - All wired to existing parameter IDs from engine phases
+
+7. **Color scheme finalization**: Register all 6 lane colors + dim/fill variants in uidesc. Ensure collapsed preview, playhead, and trail all use the correct lane color.
+
+### Acceptance Criteria
+
+- [ ] Playhead trail visible: current step bright, 2-3 previous steps fading
+- [ ] Skipped steps show X overlay within ~1 frame of the skip event
+- [ ] Per-lane transforms (invert, shift L/R, randomize) work for all 6 lane types
+- [ ] Copy/paste: same-type paste preserves values exactly; cross-type paste maps range
+- [ ] Euclidean circular dots display in bottom bar, update live with knob changes
+- [ ] Euclidean linear overlay visible in lane editor when Euclidean enabled
 - [ ] Dice button triggers audible pattern variation
-- [ ] Fill toggle is responsive for live performance
+- [ ] Fill toggle is responsive for live performance (no UI lag)
+- [ ] All generative controls (Humanize, Spice, Ratchet Swing) wired and functional
+- [ ] Full color scheme applied: each lane has distinct accent, collapsed previews colored
 - [ ] UI is responsive and doesn't block audio thread
+- [ ] No allocations in draw/mouse/timer paths
+- [ ] Pluginval level 5 passes
 
 ---
 
 ## Phase 12: Presets & Polish
 
 **Plugin Layer**: `plugins/ruinae/`
-**Depends on**: Phase 11
+**Depends on**: Phase 11c
 
 ### Purpose
 
@@ -1064,7 +1329,7 @@ Arp patterns are part of the synth preset (saved in plugin state). Additionally,
 | **Sample-accurate timing complexity** | Medium — events spanning block boundaries | Medium | Careful bookkeeping of pending noteOff deadlines across blocks |
 | **Gate overlap (>100%) voice stealing** | Medium — overlapping notes consume voices | Low | Document that legato arp in poly mode uses 2+ voices per step |
 | **Euclidean + Conditional interaction** | Low — complex evaluation order | Medium | Clear precedence: Euclidean determines rhythm, conditions filter on top |
-| **UI complexity** | Medium — 6 editable lanes is a lot of UI | High | Progressive disclosure: show basic controls by default, lanes in expandable section |
+| **UI complexity** | Medium — 6 editable lanes is a lot of UI | Medium | Stacked scrollable lanes with collapse/expand; content-sized heights; 3-phase incremental build |
 | **Slide in poly mode** | Medium — portamento is typically mono | Medium | Implement as legato noteOn flag; voice allocator routes to same voice |
 | **Preset compatibility** | Medium — adding arp state to existing presets | Low | Default to arp disabled — old presets load fine, arp off |
 | **Spice/Dice state** | Low — random overlay is ephemeral | Low | Don't serialize the random overlay, only the original pattern + spice amount |
