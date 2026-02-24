@@ -4,7 +4,7 @@ Living inventory of components and APIs. Reference before writing specs to avoid
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document.
 
-**Last Updated**: 2026-02-21 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
+**Last Updated**: 2026-02-24 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
 
 ## Repository Structure
 
@@ -50,7 +50,7 @@ This architecture documentation is split into the following sections:
 | [Plugin Architecture](plugin-architecture.md) | VST3 components, parameter flow, state flow, UI components |
 | [Plugin Parameter System](plugin-parameter-system.md) | Parameter pack pattern, mod source parameter flows, denormalization mappings |
 | [Plugin State Persistence](plugin-state-persistence.md) | State version history, stream format, ModSource enum migration, backward compatibility |
-| [Plugin UI Patterns](plugin-ui-patterns.md) | Sync visibility switching, mod source dropdown view switching, template conventions |
+| [Plugin UI Patterns](plugin-ui-patterns.md) | Sync visibility switching, mod source dropdown view switching, ArpLaneEditor, ArpLaneContainer, template conventions |
 | [Testing](testing.md) | Testing layers, test helpers infrastructure (artifact detection, signal metrics, golden reference) |
 | [Quick Reference](quick-reference.md) | Layer inclusion rules, common include patterns, ODR prevention |
 
@@ -66,6 +66,27 @@ This architecture documentation is split into the following sections:
 | Layer 3 | Layers 0-2 |
 | Layer 4 | Layers 0-3 |
 | Plugin | All DSP layers |
+
+---
+
+## Shared UI Components
+
+Reusable VSTGUI custom views in `plugins/shared/src/ui/`. Full API documentation in [Plugin Architecture](plugin-architecture.md) and [Plugin UI Patterns](plugin-ui-patterns.md).
+
+| Component | Location | Purpose | Since |
+|-----------|----------|---------|-------|
+| StepPatternEditor | [`step_pattern_editor.h`](../../plugins/shared/src/ui/step_pattern_editor.h) | Visual step pattern editor for bar-chart sequences (Spec 046) | 0.1.0 |
+| ArpLaneEditor | [`arp_lane_editor.h`](../../plugins/shared/src/ui/arp_lane_editor.h) | StepPatternEditor subclass for arp lane editing with collapsible header and accent color (Spec 079) | 0.22.0 |
+| ArpLaneContainer | [`arp_lane_container.h`](../../plugins/shared/src/ui/arp_lane_container.h) | CViewContainer subclass with manual vertical scroll for stacked arp lanes (Spec 079) | 0.22.0 |
+| ArcKnob | [`arc_knob.h`](../../plugins/shared/src/ui/arc_knob.h) | Minimal arc-style knob control | 0.1.0 |
+| FieldsetContainer | [`fieldset_container.h`](../../plugins/shared/src/ui/fieldset_container.h) | Labeled container with rounded border and title | 0.1.0 |
+| XYMorphPad | [`xy_morph_pad.h`](../../plugins/shared/src/ui/xy_morph_pad.h) | 2D XY pad for dual-parameter control (Spec 047) | 0.1.0 |
+| ADSRDisplay | [`adsr_display.h`](../../plugins/shared/src/ui/adsr_display.h) | Interactive ADSR envelope editor with curve shaping (Spec 048) | 0.18.0 |
+| ModMatrixGrid | [`mod_matrix_grid.h`](../../plugins/shared/src/ui/mod_matrix_grid.h) | Slot-based modulation route list with tabs (Spec 049) | 0.19.0 |
+| ModRingIndicator | [`mod_ring_indicator.h`](../../plugins/shared/src/ui/mod_ring_indicator.h) | Colored arc overlay on destination knobs (Spec 049) | 0.19.0 |
+| ModHeatmap | [`mod_heatmap.h`](../../plugins/shared/src/ui/mod_heatmap.h) | Source-by-destination routing heatmap (Spec 049) | 0.19.0 |
+| BipolarSlider | [`bipolar_slider.h`](../../plugins/shared/src/ui/bipolar_slider.h) | Bipolar (-1 to +1) slider control (Spec 049) | 0.19.0 |
+| OscillatorTypeSelector | [`oscillator_type_selector.h`](../../plugins/shared/src/ui/oscillator_type_selector.h) | Dropdown tile grid oscillator type chooser (Spec 050) | 0.19.0 |
 
 ---
 
