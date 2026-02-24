@@ -132,7 +132,7 @@ After implementing tests, verify:
 
 ### 2.7 Commit Phase 2
 
-- [ ] T021 Commit shared UI components: `feat(shared): implement ArpLaneEditor and ArpLaneContainer with tests`
+- [X] T021 Commit shared UI components: `feat(shared): implement ArpLaneEditor and ArpLaneContainer with tests`
 
 **Checkpoint**: Shared components compile, ViewCreators registered, all unit tests pass. All user story phases may now begin (US1 and US2 directly; US3-US6 build on controller wiring from US1/US2).
 
@@ -146,30 +146,30 @@ After implementing tests, verify:
 
 ### 3.1 Tests for Velocity Lane Wiring (Write FIRST -- Must FAIL)
 
-- [ ] T022 Create or extend `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` with failing tests for velocity lane wiring: verify that after `controller.initialize()`, the controller has registered the velocity lane's step parameters (`kArpVelocityLaneStep0Id` through `kArpVelocityLaneStep31Id`, IDs 3021-3052) and the length parameter (`kArpVelocityLaneLengthId`, ID 3020). If the file does not exist, create it; if it exists, extend it.
-- [ ] T023 Create `plugins/ruinae/tests/integration/arp_lane_param_flow_test.cpp` with failing tests for velocity lane parameter round-trip: set a parameter to 0.75 via `setParamNormalized()`, read it back, verify the value is 0.75 within `Approx().margin(1e-6f)` (SC-007). This file is dedicated to arp lane parameter flow tests and will be extended in subsequent phases.
+- [X] T022 Create or extend `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` with failing tests for velocity lane wiring: verify that after `controller.initialize()`, the controller has registered the velocity lane's step parameters (`kArpVelocityLaneStep0Id` through `kArpVelocityLaneStep31Id`, IDs 3021-3052) and the length parameter (`kArpVelocityLaneLengthId`, ID 3020). If the file does not exist, create it; if it exists, extend it.
+- [X] T023 Create `plugins/ruinae/tests/integration/arp_lane_param_flow_test.cpp` with failing tests for velocity lane parameter round-trip: set a parameter to 0.75 via `setParamNormalized()`, read it back, verify the value is 0.75 within `Approx().margin(1e-6f)` (SC-007). This file is dedicated to arp lane parameter flow tests and will be extended in subsequent phases.
 
 ### 3.2 Implementation: Velocity Lane Wiring
 
-- [ ] T024 Modify `plugins/ruinae/src/plugin_ids.h`: add `kArpVelocityPlayheadId = 3294` and `kArpGatePlayheadId = 3295` in the reserved gap after `kArpRatchetSwingId` (these are needed by both US1 and US5, define them now to avoid merge conflicts)
-- [ ] T025 Modify `plugins/ruinae/src/parameters/arpeggiator_params.h`: add registration calls for `kArpVelocityPlayheadId` (3294) and `kArpGatePlayheadId` (3295) as hidden non-automatable parameters with `ParameterInfo::kIsHidden` flag and range 0.0-1.0; these MUST NOT be saved to preset state
-- [ ] T026 Modify `plugins/ruinae/src/controller/controller.h`: add `ArpLaneContainer* arpLaneContainer_ = nullptr;` and `ArpLaneEditor* velocityLane_ = nullptr;` member pointers; add `ArpLaneEditor* gateLane_ = nullptr;` (needed for US2 wiring, declare together to avoid redundant header edits)
-- [ ] T027 Modify `plugins/ruinae/src/controller/controller.cpp` in `initialize()`: construct a `ArpLaneEditor` for velocity lane with `setLaneName("VEL")`, `setLaneType(ArpLaneType::kVelocity)`, `setAccentColor(CColor{208,132,92,255})`, `setDisplayRange(0.0f, 1.0f, "1.0", "0.0")`, `setStepLevelBaseParamId(kArpVelocityLaneStep0Id)`, `setLengthParamId(kArpVelocityLaneLengthId)`, `setPlayheadParamId(kArpVelocityPlayheadId)`, and `setParameterCallback`/`setBeginEditCallback`/`setEndEditCallback` using the same callback pattern as the existing Trance Gate wiring
-- [ ] T028 Modify `plugins/ruinae/src/controller/controller.cpp` in `verifyView()`: cast to `ArpLaneContainer*` and store in `arpLaneContainer_`; then call `arpLaneContainer_->addLane(velocityLane_)` to register the velocity lane (gate lane added in US2)
-- [ ] T029 Modify `plugins/ruinae/src/controller/controller.cpp` in `willClose()`: null `arpLaneContainer_`, `velocityLane_`, and `gateLane_` pointers to prevent dangling access
-- [ ] T030 Modify `plugins/ruinae/src/controller/controller.cpp` in `setParamNormalized()`: when `paramId` is in range `kArpVelocityLaneStep0Id..kArpVelocityLaneStep31Id`, call the corresponding `velocityLane_->setStepLevel(index, value)` and `velocityLane_->setDirty(true)` (matching the pattern already used for trance gate step parameters)
+- [X] T024 Modify `plugins/ruinae/src/plugin_ids.h`: add `kArpVelocityPlayheadId = 3294` and `kArpGatePlayheadId = 3295` in the reserved gap after `kArpRatchetSwingId` (these are needed by both US1 and US5, define them now to avoid merge conflicts)
+- [X] T025 Modify `plugins/ruinae/src/parameters/arpeggiator_params.h`: add registration calls for `kArpVelocityPlayheadId` (3294) and `kArpGatePlayheadId` (3295) as hidden non-automatable parameters with `ParameterInfo::kIsHidden` flag and range 0.0-1.0; these MUST NOT be saved to preset state
+- [X] T026 Modify `plugins/ruinae/src/controller/controller.h`: add `ArpLaneContainer* arpLaneContainer_ = nullptr;` and `ArpLaneEditor* velocityLane_ = nullptr;` member pointers; add `ArpLaneEditor* gateLane_ = nullptr;` (needed for US2 wiring, declare together to avoid redundant header edits)
+- [X] T027 Modify `plugins/ruinae/src/controller/controller.cpp` in `initialize()`: construct a `ArpLaneEditor` for velocity lane with `setLaneName("VEL")`, `setLaneType(ArpLaneType::kVelocity)`, `setAccentColor(CColor{208,132,92,255})`, `setDisplayRange(0.0f, 1.0f, "1.0", "0.0")`, `setStepLevelBaseParamId(kArpVelocityLaneStep0Id)`, `setLengthParamId(kArpVelocityLaneLengthId)`, `setPlayheadParamId(kArpVelocityPlayheadId)`, and `setParameterCallback`/`setBeginEditCallback`/`setEndEditCallback` using the same callback pattern as the existing Trance Gate wiring
+- [X] T028 Modify `plugins/ruinae/src/controller/controller.cpp` in `verifyView()`: cast to `ArpLaneContainer*` and store in `arpLaneContainer_`; then call `arpLaneContainer_->addLane(velocityLane_)` to register the velocity lane (gate lane added in US2)
+- [X] T029 Modify `plugins/ruinae/src/controller/controller.cpp` in `willClose()`: null `arpLaneContainer_`, `velocityLane_`, and `gateLane_` pointers to prevent dangling access
+- [X] T030 Modify `plugins/ruinae/src/controller/controller.cpp` in `setParamNormalized()`: when `paramId` is in range `kArpVelocityLaneStep0Id..kArpVelocityLaneStep31Id`, call the corresponding `velocityLane_->setStepLevel(index, value)` and `velocityLane_->setDirty(true)` (matching the pattern already used for trance gate step parameters)
 
 ### 3.3 Verify US1 Tests Pass
 
-- [ ] T031 Build `ruinae_tests` target and run -- confirm T022/T023 tests now pass; verify zero regressions in existing `arp_controller_test.cpp` and `param_flow_test.cpp`
+- [X] T031 Build `ruinae_tests` target and run -- confirm T022/T023 tests now pass; verify zero regressions in existing `arp_controller_test.cpp` and `param_flow_test.cpp`
 
 ### 3.4 Cross-Platform Verification
 
-- [ ] T032 [US1] Verify IEEE 754 compliance for any new test files added in T022/T023 -- if `std::isnan`/`std::isfinite` is used, add to `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt`
+- [X] T032 [US1] Verify IEEE 754 compliance for any new test files added in T022/T023 -- if `std::isnan`/`std::isfinite` is used, add to `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt`
 
 ### 3.5 Commit US1
 
-- [ ] T033 [US1] Commit velocity lane wiring: `feat(ruinae): wire velocity lane (US1 - velocity lane editing MVP)`
+- [X] T033 [US1] Commit velocity lane wiring: `feat(ruinae): wire velocity lane (US1 - velocity lane editing MVP)`
 
 **Checkpoint**: Velocity lane parameters registered, controller wiring complete, parameter round-trip verified. Velocity lane editing is functional as the MVP deliverable.
 

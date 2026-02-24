@@ -32,6 +32,8 @@ namespace Krate::Plugins {
 class PresetBrowserView;
 class SavePresetDialogView;
 class StepPatternEditor;
+class ArpLaneEditor;
+class ArpLaneContainer;
 class XYMorphPad;
 class ADSRDisplay;
 class ModMatrixGrid;
@@ -248,6 +250,11 @@ private:
     /// Arp Rate/NoteValue groups - toggled by sync state (FR-016)
     VSTGUI::CViewContainer* arpRateGroup_ = nullptr;
     VSTGUI::CViewContainer* arpNoteValueGroup_ = nullptr;
+
+    /// Arp lane container and lane editors (079-layout-framework)
+    Krate::Plugins::ArpLaneContainer* arpLaneContainer_ = nullptr;
+    Krate::Plugins::ArpLaneEditor* velocityLane_ = nullptr;
+    Krate::Plugins::ArpLaneEditor* gateLane_ = nullptr;
 
     /// Poly/Mono visibility groups - toggled by voice mode
     VSTGUI::CView* polyGroup_ = nullptr;

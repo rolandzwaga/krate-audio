@@ -1,13 +1,20 @@
 // ==============================================================================
-// Arpeggiator Controller Tests (071-arp-engine-integration)
+// Arpeggiator Controller Tests (071-arp-engine-integration, 079-layout-framework)
 // ==============================================================================
 // Tests for controller-level arp integration: tempo sync visibility toggle,
-// parameter registration verification.
+// parameter registration verification, velocity/gate lane wiring.
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 #include "parameters/arpeggiator_params.h"
 #include "plugin_ids.h"
+#include "controller/controller.h"
+
+#include "pluginterfaces/vst/vsttypes.h"
+#include "public.sdk/source/vst/vstparameters.h"
+
+using Catch::Approx;
 
 TEST_CASE("ArpController placeholder - struct accessible from controller tests", "[arp][controller]") {
     Ruinae::ArpeggiatorParams params;
@@ -75,4 +82,70 @@ TEST_CASE("ArpController_TempoSyncToggle_SwitchesVisibility", "[arp][controller]
         REQUIRE((normalizedDefault < 0.5) == false);   // rate hidden
         REQUIRE((normalizedDefault >= 0.5) == true);    // note value visible
     }
+}
+
+// ==============================================================================
+// T022: Velocity Lane Parameter Registration (079-layout-framework, US1)
+// ==============================================================================
+// Verify that after calling registerArpParams(), the velocity lane parameters
+// are properly registered: kArpVelocityLaneStep0Id through
+// kArpVelocityLaneStep31Id (IDs 3021-3052) and kArpVelocityLaneLengthId (3020).
+// Also verify playhead parameter IDs are defined.
+// ==============================================================================
+
+TEST_CASE("VelocityLane_ParameterIds_CorrectRange", "[arp][controller][velocity]") {
+    SECTION("Velocity lane step IDs span 3021-3052") {
+        REQUIRE(Ruinae::kArpVelocityLaneStep0Id == 3021);
+        REQUIRE(Ruinae::kArpVelocityLaneStep31Id == 3052);
+
+        // All 32 steps should be contiguous
+        for (int i = 0; i < 32; ++i) {
+            REQUIRE(static_cast<int>(Ruinae::kArpVelocityLaneStep0Id) + i ==
+                    3021 + i);
+        }
+    }
+
+    SECTION("Velocity lane length ID is 3020") {
+        REQUIRE(Ruinae::kArpVelocityLaneLengthId == 3020);
+    }
+
+    SECTION("Playhead parameter IDs are defined") {
+        REQUIRE(Ruinae::kArpVelocityPlayheadId == 3294);
+        REQUIRE(Ruinae::kArpGatePlayheadId == 3295);
+    }
+}
+
+TEST_CASE("VelocityLane_ParameterRegistration_AllStepsRegistered", "[arp][controller][velocity]") {
+    // Create a Controller, call initialize(), and verify parameter objects exist
+    Ruinae::Controller controller;
+
+    // Initialize the controller (registers all parameters)
+    auto result = controller.initialize(nullptr);
+    REQUIRE(result == Steinberg::kResultOk);
+
+    SECTION("Velocity lane length parameter is registered") {
+        auto* param = controller.getParameterObject(Ruinae::kArpVelocityLaneLengthId);
+        REQUIRE(param != nullptr);
+    }
+
+    SECTION("All 32 velocity lane step parameters are registered") {
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                Ruinae::kArpVelocityLaneStep0Id + i);
+            auto* param = controller.getParameterObject(paramId);
+            REQUIRE(param != nullptr);
+        }
+    }
+
+    SECTION("Velocity playhead parameter is registered") {
+        auto* param = controller.getParameterObject(Ruinae::kArpVelocityPlayheadId);
+        REQUIRE(param != nullptr);
+    }
+
+    SECTION("Gate playhead parameter is registered") {
+        auto* param = controller.getParameterObject(Ruinae::kArpGatePlayheadId);
+        REQUIRE(param != nullptr);
+    }
+
+    controller.terminate();
 }

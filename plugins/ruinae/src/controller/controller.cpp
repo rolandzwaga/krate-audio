@@ -7,6 +7,8 @@
 #include "version.h"
 #include "preset/ruinae_preset_config.h"
 #include "ui/step_pattern_editor.h"
+#include "ui/arp_lane_editor.h"
+#include "ui/arp_lane_container.h"
 #include "ui/xy_morph_pad.h"
 #include "ui/adsr_display.h"
 #include "ui/mod_matrix_grid.h"
@@ -618,6 +620,15 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
+    // Push velocity lane parameter changes to ArpLaneEditor (079-layout-framework)
+    if (velocityLane_) {
+        if (tag >= kArpVelocityLaneStep0Id && tag <= kArpVelocityLaneStep31Id) {
+            int stepIndex = static_cast<int>(tag - kArpVelocityLaneStep0Id);
+            velocityLane_->setStepLevel(stepIndex, static_cast<float>(value));
+            velocityLane_->setDirty(true);
+        }
+    }
+
     // Toggle LFO Rate/NoteValue visibility based on sync state
     if (tag == kLFO1SyncId) {
         if (lfo1RateGroup_) lfo1RateGroup_->setVisible(value < 0.5);
@@ -789,6 +800,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (activeEditor_ == editor) {
         stepPatternEditor_ = nullptr;
+        arpLaneContainer_ = nullptr;
+        velocityLane_ = nullptr;
+        gateLane_ = nullptr;
         presetDropdown_ = nullptr;
         xyMorphPad_ = nullptr;
         modMatrixGrid_ = nullptr;
@@ -946,6 +960,62 @@ VSTGUI::CView* Controller::verifyView(
             spe->setPhaseOffset(
                 static_cast<float>(phaseParam->getNormalized()));
         }
+    }
+
+    // Wire ArpLaneContainer and construct arp lanes (079-layout-framework)
+    auto* arpContainer = dynamic_cast<Krate::Plugins::ArpLaneContainer*>(view);
+    if (arpContainer) {
+        arpLaneContainer_ = arpContainer;
+
+        // Construct velocity lane (US1)
+        velocityLane_ = new Krate::Plugins::ArpLaneEditor(
+            VSTGUI::CRect(0, 0, 500, 86), nullptr, -1);
+        velocityLane_->setLaneName("VEL");
+        velocityLane_->setLaneType(Krate::Plugins::ArpLaneType::kVelocity);
+        velocityLane_->setAccentColor(VSTGUI::CColor{208, 132, 92, 255});
+        velocityLane_->setDisplayRange(0.0f, 1.0f, "1.0", "0.0");
+        velocityLane_->setStepLevelBaseParamId(kArpVelocityLaneStep0Id);
+        velocityLane_->setLengthParamId(kArpVelocityLaneLengthId);
+        velocityLane_->setPlayheadParamId(kArpVelocityPlayheadId);
+
+        // Wire performEdit callback (editor -> host)
+        velocityLane_->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        velocityLane_->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(paramId);
+            });
+        velocityLane_->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+
+        // Sync current parameter values to the velocity lane
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpVelocityLaneStep0Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                velocityLane_->setStepLevel(i,
+                    static_cast<float>(paramObj->getNormalized()));
+            }
+        }
+
+        // Sync numSteps from velocity lane length parameter
+        auto* velLenParam = getParameterObject(kArpVelocityLaneLengthId);
+        if (velLenParam) {
+            double val = velLenParam->getNormalized();
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+            velocityLane_->setNumSteps(steps);
+        }
+
+        // Add velocity lane to container (container takes ownership)
+        arpLaneContainer_->addLane(velocityLane_);
+
+        // Gate lane will be added here in US2 (Phase 4)
     }
 
     // Wire XYMorphPad callbacks
@@ -1798,6 +1868,9 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
 
     // SEQ tab residents
     stepPatternEditor_ = nullptr;
+    arpLaneContainer_ = nullptr;
+    velocityLane_ = nullptr;
+    gateLane_ = nullptr;
     euclideanControlsGroup_ = nullptr;
     tranceGateRateGroup_ = nullptr;
     tranceGateNoteValueGroup_ = nullptr;
