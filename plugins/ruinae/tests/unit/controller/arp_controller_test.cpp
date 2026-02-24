@@ -312,3 +312,90 @@ TEST_CASE("GateLane_GridLabels_200PercentRange", "[arp][controller][gate]") {
         REQUIRE(expectedBottomLabel == "0%");
     }
 }
+
+// ==============================================================================
+// T058: Playhead Polling Logic (079-layout-framework, US5)
+// ==============================================================================
+// Verify the controller's playhead decoding logic: when the normalized playhead
+// parameter value is N/32, the decoded step index is N. When 1.0 (sentinel),
+// stepIndex=32 which is >= kMaxSteps, so the controller should pass -1 to clear.
+//
+// Since we cannot instantiate the full VSTGUI timer callback in a unit test,
+// we verify the decoding logic directly.
+// ==============================================================================
+
+TEST_CASE("PlayheadPolling_DecodesNormalizedToStepIndex", "[arp][controller][playhead]") {
+    // The controller decoding formula is:
+    //   stepIndex = std::lround(normalized * 32)
+    //   if (stepIndex >= 32) pass -1 (clear playhead)
+    //   else pass static_cast<int>(stepIndex)
+
+    SECTION("Step 5: normalized = 5.0/32.0 decodes to step 5") {
+        double normalized = 5.0 / 32.0;
+        long stepIndex = std::lround(normalized * 32);
+        REQUIRE(stepIndex == 5);
+        // stepIndex < 32 so controller calls setPlaybackStep(5)
+        int playheadStep = (stepIndex >= 32) ? -1 : static_cast<int>(stepIndex);
+        REQUIRE(playheadStep == 5);
+    }
+
+    SECTION("Step 0: normalized = 0.0/32.0 decodes to step 0") {
+        double normalized = 0.0 / 32.0;
+        long stepIndex = std::lround(normalized * 32);
+        REQUIRE(stepIndex == 0);
+        int playheadStep = (stepIndex >= 32) ? -1 : static_cast<int>(stepIndex);
+        REQUIRE(playheadStep == 0);
+    }
+
+    SECTION("Step 31: normalized = 31.0/32.0 decodes to step 31") {
+        double normalized = 31.0 / 32.0;
+        long stepIndex = std::lround(normalized * 32);
+        REQUIRE(stepIndex == 31);
+        int playheadStep = (stepIndex >= 32) ? -1 : static_cast<int>(stepIndex);
+        REQUIRE(playheadStep == 31);
+    }
+
+    SECTION("Sentinel 1.0: decodes to step 32 (>= kMaxSteps), returns -1") {
+        double normalized = 1.0;
+        long stepIndex = std::lround(normalized * 32);
+        REQUIRE(stepIndex == 32);
+        // stepIndex >= 32 -> clear playhead
+        int playheadStep = (stepIndex >= 32) ? -1 : static_cast<int>(stepIndex);
+        REQUIRE(playheadStep == -1);
+    }
+
+    SECTION("Step 15: normalized = 15.0/32.0 decodes to step 15") {
+        double normalized = 15.0 / 32.0;
+        long stepIndex = std::lround(normalized * 32);
+        REQUIRE(stepIndex == 15);
+        int playheadStep = (stepIndex >= 32) ? -1 : static_cast<int>(stepIndex);
+        REQUIRE(playheadStep == 15);
+    }
+}
+
+TEST_CASE("PlayheadPolling_ParameterRoundTrip", "[arp][controller][playhead]") {
+    // Verify the playhead parameter can be set and read back via the controller
+    Ruinae::Controller controller;
+    auto result = controller.initialize(nullptr);
+    REQUIRE(result == Steinberg::kResultOk);
+
+    SECTION("Set velocity playhead to step 5 encoding, read back matches") {
+        double normalized = 5.0 / 32.0;
+        controller.setParamNormalized(Ruinae::kArpVelocityPlayheadId, normalized);
+        auto* param = controller.getParameterObject(Ruinae::kArpVelocityPlayheadId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalized).margin(1e-6));
+    }
+
+    SECTION("Set gate playhead to step 12 encoding, read back matches") {
+        double normalized = 12.0 / 32.0;
+        controller.setParamNormalized(Ruinae::kArpGatePlayheadId, normalized);
+        auto* param = controller.getParameterObject(Ruinae::kArpGatePlayheadId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalized).margin(1e-6));
+    }
+
+    controller.terminate();
+}

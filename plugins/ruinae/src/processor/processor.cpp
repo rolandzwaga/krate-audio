@@ -230,6 +230,52 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 engine_.noteOff(evt.note);
             }
         }
+
+        // 079-layout-framework US5: Write per-lane playhead positions to output
+        // parameters. The controller polls these at ~30fps to update the UI.
+        // Encoding: stepIndex / 32.0 (kMaxSteps as denominator, consistent
+        // regardless of actual lane length).
+        if (data.outputParameterChanges) {
+            constexpr float kMaxStepsF = 32.0f;
+            const auto velStep = static_cast<float>(
+                arpCore_.velocityLane().currentStep());
+            const auto gateStep = static_cast<float>(
+                arpCore_.gateLane().currentStep());
+
+            Steinberg::int32 queueIndex = 0;
+            auto* velQueue = data.outputParameterChanges->addParameterData(
+                kArpVelocityPlayheadId, queueIndex);
+            if (velQueue) {
+                Steinberg::int32 pointIndex = 0;
+                velQueue->addPoint(0, static_cast<double>(velStep / kMaxStepsF),
+                                   pointIndex);
+            }
+            auto* gateQueue = data.outputParameterChanges->addParameterData(
+                kArpGatePlayheadId, queueIndex);
+            if (gateQueue) {
+                Steinberg::int32 pointIndex = 0;
+                gateQueue->addPoint(0, static_cast<double>(gateStep / kMaxStepsF),
+                                    pointIndex);
+            }
+        }
+    } else {
+        // 079-layout-framework US5: Arp disabled -- write sentinel (1.0f) to
+        // indicate no playback. Decoded as stepIndex=32 >= kMaxSteps -> -1.
+        if (data.outputParameterChanges) {
+            Steinberg::int32 queueIndex = 0;
+            auto* velQueue = data.outputParameterChanges->addParameterData(
+                kArpVelocityPlayheadId, queueIndex);
+            if (velQueue) {
+                Steinberg::int32 pointIndex = 0;
+                velQueue->addPoint(0, 1.0, pointIndex);
+            }
+            auto* gateQueue = data.outputParameterChanges->addParameterData(
+                kArpGatePlayheadId, queueIndex);
+            if (gateQueue) {
+                Steinberg::int32 pointIndex = 0;
+                gateQueue->addPoint(0, 1.0, pointIndex);
+            }
+        }
     }
 
     // Check if we have audio to process

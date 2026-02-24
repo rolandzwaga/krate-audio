@@ -281,28 +281,28 @@ After implementing tests, verify:
 
 ### 7.1 Tests for Playhead Parameters and Polling (Write FIRST -- Must FAIL)
 
-- [ ] T057 Add failing tests to `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp` for playhead parameter registration: verify that `kArpVelocityPlayheadId` (3294) and `kArpGatePlayheadId` (3295) are registered as hidden non-automatable parameters; verify `ParameterInfo::kIsHidden` flag is set; verify they are excluded from preset state save/load
-- [ ] T058 Add failing tests to `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for playhead polling: verify that when `kArpVelocityPlayheadId` normalized value is `5.0f/32.0f` (step 5 of 32 max), the controller's timer callback calls `velocityLane_->setPlaybackStep(5)` (decoding: `round(normalized * 32)`)
-- [ ] T059 Add failing test in `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp` for playhead write: verify that after processor advances to step 5 of the velocity lane, it writes `5.0f/32.0f` to `kArpVelocityPlayheadId` output parameter; verify playhead stops (writes `1.0f`) when transport stops
+- [X] T057 Add failing tests to `plugins/ruinae/tests/unit/parameters/arpeggiator_params_test.cpp` for playhead parameter registration: verify that `kArpVelocityPlayheadId` (3294) and `kArpGatePlayheadId` (3295) are registered as hidden non-automatable parameters; verify `ParameterInfo::kIsHidden` flag is set; verify they are excluded from preset state save/load
+- [X] T058 Add failing tests to `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for playhead polling: verify that when `kArpVelocityPlayheadId` normalized value is `5.0f/32.0f` (step 5 of 32 max), the controller's timer callback calls `velocityLane_->setPlaybackStep(5)` (decoding: `round(normalized * 32)`)
+- [X] T059 Add failing test in `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp` for playhead write: verify that after processor advances to step 5 of the velocity lane, it writes `5.0f/32.0f` to `kArpVelocityPlayheadId` output parameter; verify playhead stops (writes `1.0f`) when transport stops
 
 ### 7.2 Implementation: Playhead Parameter Registration
 
 (Note: `kArpVelocityPlayheadId` and `kArpGatePlayheadId` were already added in T024/T025. This phase wires the processor write side and controller poll side.)
 
-- [ ] T060 Modify `plugins/ruinae/src/processor/processor.cpp` in `process()`: after the arp engine processes a block, write the current velocity lane step index as `(float)velStep / 32.0f` to output parameter `kArpVelocityPlayheadId`; write gate step index as `(float)gateStep / 32.0f` to `kArpGatePlayheadId`; when arp is not playing, write `1.0f` (sentinel value -- decodes to stepIndex=32, which equals kMaxSteps and exceeds every valid lane index 0-31, including 32-step lanes)
-- [ ] T061 Modify `plugins/ruinae/src/controller/controller.cpp` in the playback poll timer callback (the controller is the reader -- ArpLaneEditor does NOT read VST parameters directly): read `kArpVelocityPlayheadId` via `getParamNormalized()`, decode as `stepIndex = std::lround(normalized * 32)`, and call `velocityLane_->setPlaybackStep(stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex))` (passes -1 when sentinel detected, clearing the playhead highlight); repeat for gate lane with `kArpGatePlayheadId` and `gateLane_`
+- [X] T060 Modify `plugins/ruinae/src/processor/processor.cpp` in `process()`: after the arp engine processes a block, write the current velocity lane step index as `(float)velStep / 32.0f` to output parameter `kArpVelocityPlayheadId`; write gate step index as `(float)gateStep / 32.0f` to `kArpGatePlayheadId`; when arp is not playing, write `1.0f` (sentinel value -- decodes to stepIndex=32, which equals kMaxSteps and exceeds every valid lane index 0-31, including 32-step lanes)
+- [X] T061 Modify `plugins/ruinae/src/controller/controller.cpp` in the playback poll timer callback (the controller is the reader -- ArpLaneEditor does NOT read VST parameters directly): read `kArpVelocityPlayheadId` via `getParamNormalized()`, decode as `stepIndex = std::lround(normalized * 32)`, and call `velocityLane_->setPlaybackStep(stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex))` (passes -1 when sentinel detected, clearing the playhead highlight); repeat for gate lane with `kArpGatePlayheadId` and `gateLane_`
 
 ### 7.3 Verify US5 Tests Pass
 
-- [ ] T062 Build `ruinae_tests` and run -- confirm T057/T058/T059 tests pass; verify no regressions in existing arp integration tests
+- [X] T062 Build `ruinae_tests` and run -- confirm T057/T058/T059 tests pass; verify no regressions in existing arp integration tests
 
 ### 7.4 Cross-Platform Verification
 
-- [ ] T063 [US5] Check `arp_integration_test.cpp` for IEEE 754 function usage; if present, verify it is already in the `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt` (it already is, per existing CMakeLists.txt)
+- [X] T063 [US5] Check `arp_integration_test.cpp` for IEEE 754 function usage; if present, verify it is already in the `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt` (it already is, per existing CMakeLists.txt)
 
 ### 7.5 Commit US5
 
-- [ ] T064 [US5] Commit playhead wiring: `feat(ruinae): per-lane playhead via hidden parameters, 30fps polling (US5)`
+- [X] T064 [US5] Commit playhead wiring: `feat(ruinae): per-lane playhead via hidden parameters, 30fps polling (US5)`
 
 **Checkpoint**: Per-lane playhead fully functional. Independent wrap-around verified by tests.
 

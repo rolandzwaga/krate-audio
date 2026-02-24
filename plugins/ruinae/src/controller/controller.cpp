@@ -814,6 +814,29 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     const float modY = modulatedMorphYPtr_->load(std::memory_order_relaxed);
                     xyMorphPad_->setMorphPosition(modX, modY);
                 }
+
+                // 079-layout-framework US5: Poll arp lane playhead parameters.
+                // The processor writes step indices as normalized values
+                // (stepIndex / 32.0). We decode and forward to each lane.
+                constexpr long kMaxSteps = 32;
+                if (velocityLane_) {
+                    auto* param = getParameterObject(kArpVelocityPlayheadId);
+                    if (param) {
+                        double normalized = param->getNormalized();
+                        long stepIndex = std::lround(normalized * kMaxSteps);
+                        velocityLane_->setPlaybackStep(
+                            stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex));
+                    }
+                }
+                if (gateLane_) {
+                    auto* param = getParameterObject(kArpGatePlayheadId);
+                    if (param) {
+                        double normalized = param->getNormalized();
+                        long stepIndex = std::lround(normalized * kMaxSteps);
+                        gateLane_->setPlaybackStep(
+                            stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex));
+                    }
+                }
             }, 33); // ~30fps
     }
 }
