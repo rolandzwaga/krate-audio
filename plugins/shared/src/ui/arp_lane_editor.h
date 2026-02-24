@@ -94,7 +94,8 @@ public:
         , bottomLabel_(other.bottomLabel_)
         , lengthParamId_(other.lengthParamId_)
         , playheadParamId_(other.playheadParamId_)
-        , isCollapsed_(other.isCollapsed_) {
+        , isCollapsed_(other.isCollapsed_)
+        , expandedHeight_(other.expandedHeight_) {
         // Re-derive colors from accent
         setAccentColor(accentColor_);
     }
@@ -156,6 +157,10 @@ public:
     // =========================================================================
 
     void setCollapsed(bool collapsed) {
+        if (!isCollapsed_ && collapsed) {
+            // Transitioning from expanded to collapsed: save expanded height
+            expandedHeight_ = static_cast<float>(getViewSize().getHeight());
+        }
         isCollapsed_ = collapsed;
         if (collapseCallback_) {
             collapseCallback_();
@@ -174,7 +179,12 @@ public:
     // =========================================================================
 
     /// Get expanded height: total view height (header + body)
+    /// Returns the stored expanded height if available (survives collapse/expand cycles),
+    /// otherwise returns the current view size height.
     [[nodiscard]] float getExpandedHeight() const {
+        if (expandedHeight_ > 0.0f) {
+            return expandedHeight_;
+        }
         return static_cast<float>(getViewSize().getHeight());
     }
 
@@ -403,6 +413,7 @@ private:
     uint32_t lengthParamId_ = 0;
     uint32_t playheadParamId_ = 0;
     bool isCollapsed_ = false;
+    float expandedHeight_ = 0.0f;
     std::function<void()> collapseCallback_;
     std::function<void(uint32_t, float)> lengthParamCallback_;
 };

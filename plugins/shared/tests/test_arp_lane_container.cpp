@@ -196,3 +196,85 @@ TEST_CASE("Left-alignment preserved with three lanes of different step counts", 
     REQUIRE(static_cast<float>(r1.left) == Approx(static_cast<float>(r2.left)).margin(0.01f));
     REQUIRE(static_cast<float>(r2.left) == Approx(static_cast<float>(r3.left)).margin(0.01f));
 }
+
+// ==============================================================================
+// Dynamic Height with Collapse Tests (T052)
+// ==============================================================================
+
+TEST_CASE("Collapsing both lanes reduces totalContentHeight to 32px",
+          "[arp_lane_container][collapse][dynamic_height]") {
+    auto container = makeContainer(390.0f);
+
+    auto* lane1 = makeArpLane(86.0f);
+    auto* lane2 = makeArpLane(86.0f);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+
+    // Both expanded: 86 + 86 = 172
+    REQUIRE(container.getTotalContentHeight() == Approx(172.0f).margin(0.01f));
+
+    // Collapse lane 0 -> 16 + 86 = 102 (FR-011)
+    lane1->setCollapsed(true);
+    REQUIRE(container.getTotalContentHeight() == Approx(16.0f + 86.0f).margin(0.01f));
+
+    // Collapse lane 1 as well -> 16 + 16 = 32 (SC-004)
+    lane2->setCollapsed(true);
+    REQUIRE(container.getTotalContentHeight() == Approx(32.0f).margin(0.01f));
+}
+
+TEST_CASE("Expanding both lanes restores totalContentHeight",
+          "[arp_lane_container][collapse][dynamic_height]") {
+    auto container = makeContainer(390.0f);
+
+    auto* lane1 = makeArpLane(86.0f);
+    auto* lane2 = makeArpLane(86.0f);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+
+    // Collapse both
+    lane1->setCollapsed(true);
+    lane2->setCollapsed(true);
+    REQUIRE(container.getTotalContentHeight() == Approx(32.0f).margin(0.01f));
+
+    // Expand both -> back to 172
+    lane1->setCollapsed(false);
+    lane2->setCollapsed(false);
+    REQUIRE(container.getTotalContentHeight() == Approx(172.0f).margin(0.01f));
+}
+
+// ==============================================================================
+// Scroll Clamping After Collapse Tests (T053)
+// ==============================================================================
+
+TEST_CASE("Scroll offset clamps to 0 when content shrinks below viewport after collapse",
+          "[arp_lane_container][collapse][scroll_clamp]") {
+    // Use a small viewport so scrolling is initially possible
+    auto container = makeContainer(390.0f);
+
+    auto* lane1 = makeArpLane(86.0f);
+    auto* lane2 = makeArpLane(86.0f);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+
+    // Content = 172, viewport = 390 -> max scroll = 0, so scrollOffset stays 0
+    // Manually set scrollOffset to 30 via setScrollOffset
+    // (since max scroll is 0, it would clamp immediately -- so use a smaller viewport first)
+    container.setViewportHeight(100.0f);
+    // Now max scroll = 172 - 100 = 72
+    container.setScrollOffset(30.0f);
+    REQUIRE(container.getScrollOffset() == Approx(30.0f).margin(0.01f));
+
+    // Restore viewport to 390
+    container.setViewportHeight(390.0f);
+
+    // Collapse both lanes -> content = 32, viewport = 390 -> max scroll = 0
+    lane1->setCollapsed(true);
+    lane2->setCollapsed(true);
+
+    // After recalculateLayout (triggered by collapse callback), scrollOffset must be 0
+    REQUIRE(container.getTotalContentHeight() == Approx(32.0f).margin(0.01f));
+    REQUIRE(container.getScrollOffset() == Approx(0.0f).margin(0.01f));
+}

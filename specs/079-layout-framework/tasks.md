@@ -237,7 +237,7 @@ After implementing tests, verify:
 
 ### 5.5 Commit US3
 
-- [ ] T050 [US3] Commit step count control: `feat: per-lane step count control with left-alignment (US3)`
+- [X] T050 [US3] Commit step count control: `feat: per-lane step count control with left-alignment (US3)`
 
 **Checkpoint**: All three P1 user stories complete. Per-lane step count with left-alignment proven.
 
@@ -253,21 +253,21 @@ After implementing tests, verify:
 
 > These tests can be written against the ArpLaneEditor and ArpLaneContainer unit tests added in Phase 2, extending them with collapse-specific assertions.
 
-- [ ] T051 Add failing tests to `plugins/shared/tests/test_arp_lane_editor.cpp` for miniature preview rendering: construct an ArpLaneEditor with 16 steps all set to 0.8 (via `setStepLevel()`), collapse it, call `draw()` (or verify `drawMiniaturePreview()` logic produces expected color/bar count), verify the preview uses `getColorForLevel(0.8f)` which should return the accent color
-- [ ] T052 Add failing tests to `plugins/shared/tests/test_arp_lane_container.cpp` for dynamic height: create container with two lanes each 86px tall, collapse lane 0 (`setCollapsed(true)`), call `recalculateLayout()`, verify `getTotalContentHeight()` == `16.0f + 86.0f`; then collapse lane 1, verify `getTotalContentHeight()` == `32.0f` (FR-011, SC-004)
-- [ ] T053 Add failing test for scroll clamping after collapse: with viewport 390.0f, content 172.0f, scrollOffset set to 30.0f, collapse both lanes so content=32.0f, call `recalculateLayout()`, verify `getScrollOffset()` clamps to 0.0f (content fits in viewport)
+- [X] T051 Add failing tests to `plugins/shared/tests/test_arp_lane_editor.cpp` for miniature preview rendering: construct an ArpLaneEditor with 16 steps all set to 0.8 (via `setStepLevel()`), collapse it, call `draw()` (or verify `drawMiniaturePreview()` logic produces expected color/bar count), verify the preview uses `getColorForLevel(0.8f)` which should return the accent color
+- [X] T052 Add failing tests to `plugins/shared/tests/test_arp_lane_container.cpp` for dynamic height: create container with two lanes each 86px tall, collapse lane 0 (`setCollapsed(true)`), call `recalculateLayout()`, verify `getTotalContentHeight()` == `16.0f + 86.0f`; then collapse lane 1, verify `getTotalContentHeight()` == `32.0f` (FR-011, SC-004)
+- [X] T053 Add failing test for scroll clamping after collapse: with viewport 390.0f, content 172.0f, scrollOffset set to 30.0f, collapse both lanes so content=32.0f, call `recalculateLayout()`, verify `getScrollOffset()` clamps to 0.0f (content fits in viewport)
 
 ### 6.2 Verify US4 Tests Pass
 
-- [ ] T054 Build `shared_tests` -- confirm T051/T052/T053 tests pass; collapse/expand was already partially implemented in T016/T017 -- this phase adds targeted tests for the miniature preview and dynamic height behavior
+- [X] T054 Build `shared_tests` -- confirm T051/T052/T053 tests pass; collapse/expand was already partially implemented in T016/T017 -- this phase adds targeted tests for the miniature preview and dynamic height behavior
 
 ### 6.3 Cross-Platform Verification
 
-- [ ] T055 [US4] Verify IEEE 754 compliance for collapse test additions
+- [X] T055 [US4] Verify IEEE 754 compliance for collapse test additions
 
 ### 6.4 Commit US4
 
-- [ ] T056 [US4] Commit collapse/expand test coverage: `test: collapsible lane headers and dynamic height (US4)`
+- [X] T056 [US4] Commit collapse/expand test coverage: `test: collapsible lane headers and dynamic height (US4)`
 
 **Checkpoint**: Collapsible lane behavior is fully verified. Two P2 user stories remaining.
 

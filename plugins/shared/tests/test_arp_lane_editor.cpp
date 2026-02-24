@@ -188,3 +188,62 @@ TEST_CASE("setNumSteps clamps to valid range [kMinSteps, kMaxSteps]", "[arp_lane
     editor.setNumSteps(64); // Above kMaxSteps (32)
     REQUIRE(editor.getNumSteps() == StepPatternEditor::kMaxSteps);
 }
+
+// ==============================================================================
+// Miniature Preview Rendering Tests (T051)
+// ==============================================================================
+
+TEST_CASE("Collapsed ArpLaneEditor with high levels uses accent color via getColorForLevel",
+          "[arp_lane_editor][collapse][preview]") {
+    auto editor = makeArpLaneEditor(16);
+    editor.setAccentColor(CColor{208, 132, 92, 255});
+
+    // Set all 16 steps to 0.8 (at the accent threshold)
+    for (int i = 0; i < 16; ++i) {
+        editor.setStepLevel(i, 0.8f);
+    }
+
+    editor.setCollapsed(true);
+    REQUIRE(editor.isCollapsed());
+
+    // getColorForLevel(0.8f) should return the accent color (level >= 0.80f)
+    CColor color = editor.getColorForLevel(0.8f);
+    REQUIRE(color == editor.getBarColorAccent());
+}
+
+TEST_CASE("Collapsed ArpLaneEditor preserves step data for miniature preview",
+          "[arp_lane_editor][collapse][preview]") {
+    auto editor = makeArpLaneEditor(16);
+
+    // Set specific step levels before collapsing
+    for (int i = 0; i < 16; ++i) {
+        editor.setStepLevel(i, 0.8f);
+    }
+
+    editor.setCollapsed(true);
+
+    // Verify step data is still accessible after collapse (needed for miniature preview)
+    for (int i = 0; i < 16; ++i) {
+        REQUIRE(editor.getStepLevel(i) == Approx(0.8f).margin(0.001f));
+    }
+}
+
+TEST_CASE("getColorForLevel returns correct color tiers for miniature preview",
+          "[arp_lane_editor][collapse][preview]") {
+    auto editor = makeArpLaneEditor(16);
+    CColor accent{208, 132, 92, 255};
+    editor.setAccentColor(accent);
+
+    // Verify color tiers used in miniature preview rendering:
+    // level >= 0.80 -> accent color
+    CColor highColor = editor.getColorForLevel(0.8f);
+    REQUIRE(highColor == editor.getBarColorAccent());
+
+    // level >= 0.40 and < 0.80 -> normal color
+    CColor midColor = editor.getColorForLevel(0.5f);
+    REQUIRE(midColor == editor.getBarColorNormal());
+
+    // level > 0 and < 0.40 -> ghost color
+    CColor lowColor = editor.getColorForLevel(0.2f);
+    REQUIRE(lowColor == editor.getBarColorGhost());
+}
