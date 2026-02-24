@@ -101,7 +101,10 @@ public:
         , backgroundColor_(other.backgroundColor_)
         , playbackColor_(other.playbackColor_)
         , textColor_(other.textColor_)
-        , stepLevelBaseParamId_(other.stepLevelBaseParamId_) {
+        , stepLevelBaseParamId_(other.stepLevelBaseParamId_)
+        , rightClickResetLevel_(other.rightClickResetLevel_)
+        , barAreaTopOffset_(other.barAreaTopOffset_)
+        , barAreaLeftOffset_(other.barAreaLeftOffset_) {
         rng_.seed(static_cast<unsigned>(
             std::chrono::steady_clock::now().time_since_epoch().count()));
     }
@@ -155,6 +158,8 @@ public:
         }
     }
 
+    [[nodiscard]] int getPlaybackStep() const { return playbackStep_; }
+
     void setPlaying(bool playing) {
         if (playing == isPlaying_) return;
         isPlaying_ = playing;
@@ -180,17 +185,27 @@ public:
 
     [[nodiscard]] float getPhaseOffset() const { return phaseOffset_; }
 
-    /// Right-click handler: set step to 0. Called from editor subclass since
-    /// VST3Editor intercepts right-clicks at the frame level for context menus.
+    /// Right-click handler: reset step to the configured reset level.
+    /// Called from editor subclass since VST3Editor intercepts right-clicks
+    /// at the frame level for context menus.
     void handleRightClick(const VSTGUI::CPoint& localPos) {
         int step = getStepFromPoint(localPos);
         if (step < 0) return;
         notifyBeginEdit(step);
-        stepLevels_[static_cast<size_t>(step)] = 0.0f;
-        notifyStepChange(step, 0.0f);
+        stepLevels_[static_cast<size_t>(step)] = rightClickResetLevel_;
+        notifyStepChange(step, rightClickResetLevel_);
         notifyEndEdit(step);
         if (euclideanEnabled_) isModified_ = true;
         setDirty();
+    }
+
+    /// Set the normalized level used when right-clicking to reset a step.
+    /// Default is 0.0 (standard bar mode). For bipolar modes, set to 0.5.
+    void setRightClickResetLevel(float level) {
+        rightClickResetLevel_ = std::clamp(level, 0.0f, 1.0f);
+    }
+    [[nodiscard]] float getRightClickResetLevel() const {
+        return rightClickResetLevel_;
     }
 
     // =========================================================================
@@ -382,6 +397,14 @@ public:
     /// Default is 0.0f, which preserves existing behavior.
     void setBarAreaTopOffset(float offset) { barAreaTopOffset_ = offset; }
 
+    /// Set a left offset for the bar area (overrides kGridLabelWidth).
+    /// Default is kGridLabelWidth (24.0f). Set to a larger value (e.g., 40.0f)
+    /// to align with lanes that have wider left margins (e.g., ArpModifierLane).
+    void setBarAreaLeftOffset(float offset) { barAreaLeftOffset_ = offset; }
+
+    /// Get the current bar area left offset.
+    [[nodiscard]] float getBarAreaLeftOffset() const { return barAreaLeftOffset_; }
+
     // =========================================================================
     // Layout Computation (public for testability)
     // =========================================================================
@@ -399,7 +422,7 @@ public:
             bottom -= kEuclideanDotHeight;
         }
 
-        float left = static_cast<float>(vs.left) + kGridLabelWidth;
+        float left = static_cast<float>(vs.left) + barAreaLeftOffset_;
         float right = static_cast<float>(vs.right);
 
         return VSTGUI::CRect(left, top, right, bottom);
@@ -676,6 +699,56 @@ public:
 
     CLASS_METHODS(StepPatternEditor, CControl)
 
+protected:
+    // =========================================================================
+    // Subclass-accessible Interaction Helpers
+    // =========================================================================
+
+    /// Update a step level with edit notification (beginEdit on first touch)
+    void updateStepLevel(int step, float level) {
+        if (step < 0 || step >= numSteps_) return;
+
+        auto idx = static_cast<size_t>(step);
+
+        // Begin edit on first touch of this step
+        if (!dirtySteps_.test(idx)) {
+            notifyBeginEdit(step);
+            dirtySteps_.set(idx);
+        }
+
+        stepLevels_[idx] = std::clamp(level, 0.0f, 1.0f);
+        notifyStepChange(step, stepLevels_[idx]);
+
+        if (euclideanEnabled_) isModified_ = true;
+        setDirty();
+    }
+
+    void notifyBeginEdit(int step) {
+        if (beginEditCallback_ && stepLevelBaseParamId_ > 0) {
+            beginEditCallback_(stepLevelBaseParamId_ + static_cast<uint32_t>(step));
+        }
+    }
+
+    void notifyEndEdit(int step) {
+        if (endEditCallback_ && stepLevelBaseParamId_ > 0) {
+            endEditCallback_(stepLevelBaseParamId_ + static_cast<uint32_t>(step));
+        }
+    }
+
+    void notifyStepChange(int step, float level) {
+        if (paramCallback_ && stepLevelBaseParamId_ > 0) {
+            paramCallback_(stepLevelBaseParamId_ + static_cast<uint32_t>(step), level);
+        }
+    }
+
+    // Drag state (accessible by subclasses for custom interaction modes)
+    bool isDragging_ = false;
+    std::bitset<kMaxSteps> dirtySteps_;
+    std::array<float, kMaxSteps> preDragLevels_{};
+    float dragStartY_ = 0.0f;
+    bool fineMode_ = false;
+    int lastDragStep_ = -1;
+
 private:
     // =========================================================================
     // Drawing Helpers
@@ -686,8 +759,8 @@ private:
 
         VSTGUI::CRect vs = getViewSize();
         float indicatorTop = static_cast<float>(vs.top);
-        float indicatorLeft = static_cast<float>(vs.left) + kGridLabelWidth;
-        float indicatorWidth = static_cast<float>(vs.getWidth()) - kGridLabelWidth;
+        float indicatorLeft = static_cast<float>(vs.left) + barAreaLeftOffset_;
+        float indicatorWidth = static_cast<float>(vs.getWidth()) - barAreaLeftOffset_;
 
         // Background track
         VSTGUI::CRect track(indicatorLeft, indicatorTop,
@@ -912,24 +985,6 @@ private:
     // Interaction Helpers
     // =========================================================================
 
-    void updateStepLevel(int step, float level) {
-        if (step < 0 || step >= numSteps_) return;
-
-        auto idx = static_cast<size_t>(step);
-
-        // Begin edit on first touch of this step
-        if (!dirtySteps_.test(idx)) {
-            notifyBeginEdit(step);
-            dirtySteps_.set(idx);
-        }
-
-        stepLevels_[idx] = std::clamp(level, 0.0f, 1.0f);
-        notifyStepChange(step, stepLevels_[idx]);
-
-        if (euclideanEnabled_) isModified_ = true;
-        setDirty();
-    }
-
     void cancelDrag() {
         if (!isDragging_) return;
 
@@ -948,28 +1003,6 @@ private:
         dirtySteps_.reset();
         lastDragStep_ = -1;
         setDirty();
-    }
-
-    // =========================================================================
-    // Parameter Notification Helpers
-    // =========================================================================
-
-    void notifyBeginEdit(int step) {
-        if (beginEditCallback_ && stepLevelBaseParamId_ > 0) {
-            beginEditCallback_(stepLevelBaseParamId_ + static_cast<uint32_t>(step));
-        }
-    }
-
-    void notifyEndEdit(int step) {
-        if (endEditCallback_ && stepLevelBaseParamId_ > 0) {
-            endEditCallback_(stepLevelBaseParamId_ + static_cast<uint32_t>(step));
-        }
-    }
-
-    void notifyStepChange(int step, float level) {
-        if (paramCallback_ && stepLevelBaseParamId_ > 0) {
-            paramCallback_(stepLevelBaseParamId_ + static_cast<uint32_t>(step), level);
-        }
     }
 
     // =========================================================================
@@ -1048,6 +1081,7 @@ private:
 
     // Bar area top offset (for subclass headers, e.g., ArpLaneEditor)
     float barAreaTopOffset_ = 0.0f;
+    float barAreaLeftOffset_ = kGridLabelWidth;
 
     // Euclidean mode
     bool euclideanEnabled_ = false;
@@ -1055,14 +1089,6 @@ private:
     int euclideanRotation_ = 0;
     uint32_t euclideanPattern_ = 0;
     bool isModified_ = false;
-
-    // Drag state
-    bool isDragging_ = false;
-    std::bitset<kMaxSteps> dirtySteps_;
-    std::array<float, kMaxSteps> preDragLevels_{};
-    float dragStartY_ = 0.0f;
-    bool fineMode_ = false;
-    int lastDragStep_ = -1;
 
     // Zoom/scroll
     float zoomLevel_ = 1.0f;
@@ -1084,6 +1110,9 @@ private:
     EditCallback beginEditCallback_;
     EditCallback endEditCallback_;
     uint32_t stepLevelBaseParamId_ = 0;
+
+    // Right-click reset
+    float rightClickResetLevel_ = 0.0f;
 
     // Timer
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> refreshTimer_;

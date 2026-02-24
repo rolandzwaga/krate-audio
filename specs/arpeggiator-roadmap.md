@@ -992,28 +992,28 @@ SEQ Tab (1400 x 620)
 |                                                                |
 |  SCROLLABLE LANE EDITOR (CScrollView, ~390px viewport)        |
 |  ┌──────────────────────────────────────────────────────────┐  |
-|  │ ▼ VEL  [16▾] ████▓▓██  ████▓▓  ██████   [↕][←][→][?]  │  |
+|  │ ▼ VEL  [16▾] ████▓▓██  ████▓▓  ██████               │  |
 |  │               copper bars, 0-1 normalized       ~70px    │  |
 |  │                                                          │  |
-|  │ ▼ GATE [16▾] ██▓▓████  ████▓▓  ▓▓████   [↕][←][→][?]  │  |
+|  │ ▼ GATE [16▾] ██▓▓████  ████▓▓  ▓▓████               │  |
 |  │               sand bars, 0-200% gate length     ~70px    │  |
 |  │                                                          │  |
-|  │ ▼ PITCH [8▾]  ▲    ▲                    [↕][←][→][?]   │  |
+|  │ ▼ PITCH [8▾]  ▲    ▲                                │  |
 |  │               ─────── 0 ────────                         │  |
 |  │                          ▼    ▼                          │  |
 |  │               sage bipolar bars, -24..+24 semi   ~70px   │  |
 |  │                                                          │  |
-|  │ ▼ RATCH [8▾] [2] [1] [3] [1] [4] [1]   [↕][←][→][?]  │  |
+|  │ ▼ RATCH [8▾] [2] [1] [3] [1] [4] [1]               │  |
 |  │               lavender blocks, click cycles 1-4  ~36px   │  |
 |  │                                                          │  |
-|  │ ▼ MOD  [16▾]                             [↕][←][→][?]  │  |
+|  │ ▼ MOD  [16▾]                                         │  |
 |  │  Rest    ·  ●  ·  ·  ·  ●  ·  ·  ·  ·  ·  ·  ●  ·    │  |
 |  │  Tie     ·  ·  ●──●  ·  ·  ·  ·  ·  ·  ●──●  ·  ·    │  |
 |  │  Slide   ·  ·  ·  ·  ●  ·  ·  ·  ·  ·  ·  ·  ·  ●   ~44px│
 |  │  Accent  ●  ·  ·  ·  ·  ·  ●  ·  ·  ●  ·  ·  ·  ·    │  |
 |  │               rose toggle dots per step                  │  |
 |  │                                                          │  |
-|  │ ▼ COND  [8▾] [⚡][½][⚡][¼][2x][⚡][F][⚡] [↕][←][→][?] │  |
+|  │ ▼ COND  [8▾] [⚡][½][⚡][¼][2x][⚡][F][⚡]          │  |
 |  │               slate icons + popup menu           ~28px   │  |
 |  │               Alw 50% Alw 25% Ev2 Alw Fill Alw          │  |
 |  └──────────────────────────────────────────────────────────┘  |
@@ -1025,7 +1025,7 @@ SEQ Tab (1400 x 620)
 +================================================================+ y≈620
 ```
 
-**Lane header legend**: `▼` = collapse toggle, `[16▾]` = length dropdown, `[↕]` = invert, `[←][→]` = shift L/R, `[?]` = randomize.
+**Lane header legend**: `▼` = collapse toggle, `[16▾]` = length dropdown. Note: transform buttons (`[↕]` invert, `[←][→]` shift, `[?]` randomize) are Phase 11c scope and are NOT implemented in Phase 11b.
 
 ### Lane Height Summary
 
@@ -1167,26 +1167,28 @@ Implement the four specialized lane types that require custom rendering and inte
 
 ### Condition Icons Reference
 
-| Index | Name | Abbrev | Icon Concept |
-|-------|------|--------|--------------|
-| 0 | Always | Alw | ⚡ (bolt) |
-| 1 | 50% | 50% | ½ |
-| 2 | 25% | 25% | ¼ |
-| 3 | 75% | 75% | ¾ |
-| 4 | Every 2 | Ev2 | 2× |
-| 5 | Every 3 | Ev3 | 3× |
-| 6 | Every 4 | Ev4 | 4× |
-| 7 | Every 5 | Ev5 | 5× |
-| 8 | Every 8 | Ev8 | 8× |
-| 9 | First | 1st | ▶ |
-| 10 | Last | Lst | ◀ |
-| 11 | Odd | Odd | ╫ |
-| 12 | Even | Evn | ═ |
-| 13 | 1:2 | 1:2 | ratio |
-| 14 | 2:3 | 2:3 | ratio |
-| 15 | 3:4 | 3:4 | ratio |
-| 16 | Fill | Fill | F |
-| 17 | Not Fill | !F | F̶ |
+> Updated to match the TrigCondition enum as implemented in Phase 8 (specs/076-conditional-trigs/). The original roadmap table was a pre-implementation draft and has been superseded.
+
+| Index | Enum Value | Name | Abbrev | Icon Concept |
+|-------|-----------|------|--------|--------------|
+| 0 | Always | Always | Alw | bolt |
+| 1 | Prob10 | 10% | 10% | dice |
+| 2 | Prob25 | 25% | 25% | dice |
+| 3 | Prob50 | 50% | 50% | half |
+| 4 | Prob75 | 75% | 75% | three-quarter |
+| 5 | Prob90 | 90% | 90% | dice |
+| 6 | Ratio_1_2 | Every 2 | Ev2 | 2x |
+| 7 | Ratio_2_2 | 2nd of 2 | 2:2 | ratio |
+| 8 | Ratio_1_3 | Every 3 | Ev3 | 3x |
+| 9 | Ratio_2_3 | 2nd of 3 | 2:3 | ratio |
+| 10 | Ratio_3_3 | 3rd of 3 | 3:3 | ratio |
+| 11 | Ratio_1_4 | Every 4 | Ev4 | 4x |
+| 12 | Ratio_2_4 | 2nd of 4 | 2:4 | ratio |
+| 13 | Ratio_3_4 | 3rd of 4 | 3:4 | ratio |
+| 14 | Ratio_4_4 | 4th of 4 | 4:4 | ratio |
+| 15 | First | First | 1st | play arrow |
+| 16 | Fill | Fill | Fill | F |
+| 17 | NotFill | Not Fill | !F | F strikethrough |
 
 ### Acceptance Criteria
 

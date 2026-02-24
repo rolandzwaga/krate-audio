@@ -9,6 +9,8 @@
 #include "ui/step_pattern_editor.h"
 #include "ui/arp_lane_editor.h"
 #include "ui/arp_lane_container.h"
+#include "ui/arp_modifier_lane.h"
+#include "ui/arp_condition_lane.h"
 #include "ui/xy_morph_pad.h"
 #include "ui/adsr_display.h"
 #include "ui/mod_matrix_grid.h"
@@ -650,6 +652,66 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
+    // Push pitch lane parameter changes (080-specialized-lane-types)
+    if (pitchLane_) {
+        if (tag >= kArpPitchLaneStep0Id && tag < kArpPitchLaneStep0Id + 32) {
+            int stepIndex = static_cast<int>(tag - kArpPitchLaneStep0Id);
+            pitchLane_->setStepLevel(stepIndex, static_cast<float>(value));
+            pitchLane_->setDirty(true);
+        } else if (tag == kArpPitchLaneLengthId) {
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            pitchLane_->setNumSteps(steps);
+            pitchLane_->setDirty(true);
+        }
+    }
+
+    // Push ratchet lane parameter changes (080-specialized-lane-types)
+    if (ratchetLane_) {
+        if (tag >= kArpRatchetLaneStep0Id && tag < kArpRatchetLaneStep0Id + 32) {
+            int stepIndex = static_cast<int>(tag - kArpRatchetLaneStep0Id);
+            ratchetLane_->setStepLevel(stepIndex, static_cast<float>(value));
+            ratchetLane_->setDirty(true);
+        } else if (tag == kArpRatchetLaneLengthId) {
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            ratchetLane_->setNumSteps(steps);
+            ratchetLane_->setDirty(true);
+        }
+    }
+
+    // Push modifier lane parameter changes (080-specialized-lane-types)
+    if (modifierLane_) {
+        if (tag >= kArpModifierLaneStep0Id && tag < kArpModifierLaneStep0Id + 32) {
+            int stepIndex = static_cast<int>(tag - kArpModifierLaneStep0Id);
+            auto flags = static_cast<uint8_t>(
+                std::clamp(static_cast<int>(std::round(value * 255.0)), 0, 255));
+            modifierLane_->setStepFlags(stepIndex, flags);
+            modifierLane_->setDirty(true);
+        } else if (tag == kArpModifierLaneLengthId) {
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            modifierLane_->setNumSteps(steps);
+            modifierLane_->setDirty(true);
+        }
+    }
+
+    // Push condition lane parameter changes (080-specialized-lane-types)
+    if (conditionLane_) {
+        if (tag >= kArpConditionLaneStep0Id && tag < kArpConditionLaneStep0Id + 32) {
+            int stepIndex = static_cast<int>(tag - kArpConditionLaneStep0Id);
+            auto condIndex = static_cast<uint8_t>(
+                std::clamp(static_cast<int>(std::round(value * 17.0)), 0, 17));
+            conditionLane_->setStepCondition(stepIndex, condIndex);
+            conditionLane_->setDirty(true);
+        } else if (tag == kArpConditionLaneLengthId) {
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            conditionLane_->setNumSteps(steps);
+            conditionLane_->setDirty(true);
+        }
+    }
+
     // Toggle LFO Rate/NoteValue visibility based on sync state
     if (tag == kLFO1SyncId) {
         if (lfo1RateGroup_) lfo1RateGroup_->setVisible(value < 0.5);
@@ -837,6 +899,44 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                             stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex));
                     }
                 }
+
+                // 080-specialized-lane-types US7: Poll playhead params for 4 new lanes.
+                if (pitchLane_) {
+                    auto* param = getParameterObject(kArpPitchPlayheadId);
+                    if (param) {
+                        double normalized = param->getNormalized();
+                        long stepIndex = std::lround(normalized * kMaxSteps);
+                        pitchLane_->setPlaybackStep(
+                            stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex));
+                    }
+                }
+                if (ratchetLane_) {
+                    auto* param = getParameterObject(kArpRatchetPlayheadId);
+                    if (param) {
+                        double normalized = param->getNormalized();
+                        long stepIndex = std::lround(normalized * kMaxSteps);
+                        ratchetLane_->setPlaybackStep(
+                            stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex));
+                    }
+                }
+                if (modifierLane_) {
+                    auto* param = getParameterObject(kArpModifierPlayheadId);
+                    if (param) {
+                        double normalized = param->getNormalized();
+                        long stepIndex = std::lround(normalized * kMaxSteps);
+                        modifierLane_->setPlayheadStep(
+                            stepIndex >= kMaxSteps ? -1 : static_cast<int32_t>(stepIndex));
+                    }
+                }
+                if (conditionLane_) {
+                    auto* param = getParameterObject(kArpConditionPlayheadId);
+                    if (param) {
+                        double normalized = param->getNormalized();
+                        long stepIndex = std::lround(normalized * kMaxSteps);
+                        conditionLane_->setPlayheadStep(
+                            stepIndex >= kMaxSteps ? -1 : static_cast<int32_t>(stepIndex));
+                    }
+                }
             }, 33); // ~30fps
     }
 }
@@ -847,6 +947,10 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         arpLaneContainer_ = nullptr;
         velocityLane_ = nullptr;
         gateLane_ = nullptr;
+        pitchLane_ = nullptr;
+        ratchetLane_ = nullptr;
+        modifierLane_ = nullptr;
+        conditionLane_ = nullptr;
         presetDropdown_ = nullptr;
         xyMorphPad_ = nullptr;
         modMatrixGrid_ = nullptr;
@@ -1106,6 +1210,186 @@ VSTGUI::CView* Controller::verifyView(
 
         // Add gate lane to container below velocity lane
         arpLaneContainer_->addLane(gateLane_);
+
+        // Construct pitch lane (080-specialized-lane-types, US5)
+        pitchLane_ = new Krate::Plugins::ArpLaneEditor(
+            VSTGUI::CRect(0, 0, 500, 86), nullptr, -1);
+        pitchLane_->setLaneName("PITCH");
+        pitchLane_->setLaneType(Krate::Plugins::ArpLaneType::kPitch);
+        pitchLane_->setAccentColor(VSTGUI::CColor{108, 168, 160, 255});
+        pitchLane_->setDisplayRange(-24.0f, 24.0f, "+24", "-24");
+        pitchLane_->setStepLevelBaseParamId(kArpPitchLaneStep0Id);
+        pitchLane_->setLengthParamId(kArpPitchLaneLengthId);
+        pitchLane_->setPlayheadParamId(kArpPitchPlayheadId);
+
+        pitchLane_->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        pitchLane_->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(paramId);
+            });
+        pitchLane_->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+
+        // Sync current parameter values to the pitch lane
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpPitchLaneStep0Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                pitchLane_->setStepLevel(i,
+                    static_cast<float>(paramObj->getNormalized()));
+            }
+        }
+
+        auto* pitchLenParam = getParameterObject(kArpPitchLaneLengthId);
+        if (pitchLenParam) {
+            double val = pitchLenParam->getNormalized();
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+            pitchLane_->setNumSteps(steps);
+        }
+
+        arpLaneContainer_->addLane(pitchLane_);
+
+        // Construct ratchet lane (080-specialized-lane-types, US5)
+        ratchetLane_ = new Krate::Plugins::ArpLaneEditor(
+            VSTGUI::CRect(0, 0, 500, 52), nullptr, -1);
+        ratchetLane_->setLaneName("RATCH");
+        ratchetLane_->setLaneType(Krate::Plugins::ArpLaneType::kRatchet);
+        ratchetLane_->setAccentColor(VSTGUI::CColor{152, 128, 176, 255});
+        ratchetLane_->setDisplayRange(1.0f, 4.0f, "4", "1");
+        ratchetLane_->setStepLevelBaseParamId(kArpRatchetLaneStep0Id);
+        ratchetLane_->setLengthParamId(kArpRatchetLaneLengthId);
+        ratchetLane_->setPlayheadParamId(kArpRatchetPlayheadId);
+
+        ratchetLane_->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        ratchetLane_->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(paramId);
+            });
+        ratchetLane_->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+
+        // Sync current parameter values to the ratchet lane
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpRatchetLaneStep0Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                ratchetLane_->setStepLevel(i,
+                    static_cast<float>(paramObj->getNormalized()));
+            }
+        }
+
+        auto* ratchetLenParam = getParameterObject(kArpRatchetLaneLengthId);
+        if (ratchetLenParam) {
+            double val = ratchetLenParam->getNormalized();
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+            ratchetLane_->setNumSteps(steps);
+        }
+
+        arpLaneContainer_->addLane(ratchetLane_);
+
+        // Construct modifier lane (080-specialized-lane-types, US5)
+        modifierLane_ = new Krate::Plugins::ArpModifierLane(
+            VSTGUI::CRect(0, 0, 500, 60), nullptr, -1);
+        modifierLane_->setLaneName("MOD");
+        modifierLane_->setAccentColor(VSTGUI::CColor{192, 112, 124, 255});
+        modifierLane_->setStepFlagBaseParamId(kArpModifierLaneStep0Id);
+        modifierLane_->setLengthParamId(kArpModifierLaneLengthId);
+        modifierLane_->setPlayheadParamId(kArpModifierPlayheadId);
+
+        modifierLane_->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        modifierLane_->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(paramId);
+            });
+        modifierLane_->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+
+        // Sync current parameter values to the modifier lane
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpModifierLaneStep0Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                float normalized = static_cast<float>(paramObj->getNormalized());
+                auto flags = static_cast<uint8_t>(
+                    std::clamp(static_cast<int>(std::round(normalized * 255.0f)), 0, 255));
+                modifierLane_->setStepFlags(i, flags);
+            }
+        }
+
+        auto* modLenParam = getParameterObject(kArpModifierLaneLengthId);
+        if (modLenParam) {
+            double val = modLenParam->getNormalized();
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+            modifierLane_->setNumSteps(steps);
+        }
+
+        arpLaneContainer_->addLane(modifierLane_);
+
+        // Construct condition lane (080-specialized-lane-types, US5)
+        conditionLane_ = new Krate::Plugins::ArpConditionLane(
+            VSTGUI::CRect(0, 0, 500, 44), nullptr, -1);
+        conditionLane_->setLaneName("COND");
+        conditionLane_->setAccentColor(VSTGUI::CColor{124, 144, 176, 255});
+        conditionLane_->setStepConditionBaseParamId(kArpConditionLaneStep0Id);
+        conditionLane_->setLengthParamId(kArpConditionLaneLengthId);
+        conditionLane_->setPlayheadParamId(kArpConditionPlayheadId);
+
+        conditionLane_->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        conditionLane_->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(paramId);
+            });
+        conditionLane_->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+
+        // Sync current parameter values to the condition lane
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpConditionLaneStep0Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                float normalized = static_cast<float>(paramObj->getNormalized());
+                auto condIndex = static_cast<uint8_t>(
+                    std::clamp(static_cast<int>(std::round(normalized * 17.0f)), 0, 17));
+                conditionLane_->setStepCondition(i, condIndex);
+            }
+        }
+
+        auto* condLenParam = getParameterObject(kArpConditionLaneLengthId);
+        if (condLenParam) {
+            double val = condLenParam->getNormalized();
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+            conditionLane_->setNumSteps(steps);
+        }
+
+        arpLaneContainer_->addLane(conditionLane_);
     }
 
     // Wire XYMorphPad callbacks
@@ -1961,6 +2245,10 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     arpLaneContainer_ = nullptr;
     velocityLane_ = nullptr;
     gateLane_ = nullptr;
+    pitchLane_ = nullptr;
+    ratchetLane_ = nullptr;
+    modifierLane_ = nullptr;
+    conditionLane_ = nullptr;
     euclideanControlsGroup_ = nullptr;
     tranceGateRateGroup_ = nullptr;
     tranceGateNoteValueGroup_ = nullptr;

@@ -34,6 +34,8 @@ class SavePresetDialogView;
 class StepPatternEditor;
 class ArpLaneEditor;
 class ArpLaneContainer;
+class ArpModifierLane;
+class ArpConditionLane;
 class XYMorphPad;
 class ADSRDisplay;
 class ModMatrixGrid;
@@ -251,10 +253,14 @@ private:
     VSTGUI::CViewContainer* arpRateGroup_ = nullptr;
     VSTGUI::CViewContainer* arpNoteValueGroup_ = nullptr;
 
-    /// Arp lane container and lane editors (079-layout-framework)
+    /// Arp lane container and lane editors (079-layout-framework + 080-specialized-lane-types)
     Krate::Plugins::ArpLaneContainer* arpLaneContainer_ = nullptr;
     Krate::Plugins::ArpLaneEditor* velocityLane_ = nullptr;
     Krate::Plugins::ArpLaneEditor* gateLane_ = nullptr;
+    Krate::Plugins::ArpLaneEditor* pitchLane_ = nullptr;
+    Krate::Plugins::ArpLaneEditor* ratchetLane_ = nullptr;
+    Krate::Plugins::ArpModifierLane* modifierLane_ = nullptr;
+    Krate::Plugins::ArpConditionLane* conditionLane_ = nullptr;
 
     /// Poly/Mono visibility groups - toggled by voice mode
     VSTGUI::CView* polyGroup_ = nullptr;

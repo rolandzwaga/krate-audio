@@ -10,6 +10,7 @@
 //   - Display range labels (top/bottom grid labels)
 //   - Per-lane playhead parameter binding
 //   - Miniature bar preview when collapsed
+//   - IArpLane interface for polymorphic container management
 //
 // This component is plugin-agnostic: it communicates via callbacks and
 // configurable parameter IDs. No dependency on any specific plugin.
@@ -17,6 +18,8 @@
 // Registered as "ArpLaneEditor" via VSTGUI ViewCreator system.
 // ==============================================================================
 
+#include "arp_lane.h"
+#include "arp_lane_header.h"
 #include "step_pattern_editor.h"
 #include "color_utils.h"
 
@@ -47,27 +50,28 @@ namespace Krate::Plugins {
 enum class ArpLaneType {
     kVelocity = 0,
     kGate = 1,
-    kPitch = 2,    // Phase 11b placeholder
-    kRatchet = 3   // Phase 11b placeholder
+    kPitch = 2,
+    kRatchet = 3
 };
 
 // ==============================================================================
 // ArpLaneEditor Control
 // ==============================================================================
 
-class ArpLaneEditor : public StepPatternEditor {
+class ArpLaneEditor : public StepPatternEditor, public IArpLane {
 public:
     // =========================================================================
     // Constants
     // =========================================================================
 
-    static constexpr float kHeaderHeight = 16.0f;
+    static constexpr float kHeaderHeight = ArpLaneHeader::kHeight;
     static constexpr float kMiniPreviewHeight = 12.0f;
     static constexpr float kMiniPreviewPaddingTop = 2.0f;
     static constexpr float kMiniPreviewPaddingBottom = 2.0f;
-    static constexpr float kCollapseTriangleSize = 8.0f;
-    static constexpr float kLengthDropdownX = 80.0f;
-    static constexpr float kLengthDropdownWidth = 36.0f;
+
+    /// Shared left margin for step content alignment across all arp lane types (FR-049).
+    /// Must match ArpModifierLane::kLeftMargin and ArpConditionLane::kLeftMargin.
+    static constexpr float kStepContentLeftMargin = 40.0f;
 
     // =========================================================================
     // Construction
@@ -81,6 +85,8 @@ public:
         setAccentColor(accentColor_);
         // Offset the bar area down by the header height
         setBarAreaTopOffset(kHeaderHeight);
+        // Align bar area left offset with kStepContentLeftMargin (FR-049)
+        setBarAreaLeftOffset(kStepContentLeftMargin);
     }
 
     ArpLaneEditor(const ArpLaneEditor& other)
@@ -92,10 +98,9 @@ public:
         , displayMax_(other.displayMax_)
         , topLabel_(other.topLabel_)
         , bottomLabel_(other.bottomLabel_)
-        , lengthParamId_(other.lengthParamId_)
         , playheadParamId_(other.playheadParamId_)
-        , isCollapsed_(other.isCollapsed_)
-        , expandedHeight_(other.expandedHeight_) {
+        , expandedHeight_(other.expandedHeight_)
+        , header_(other.header_) {
         // Re-derive colors from accent
         setAccentColor(accentColor_);
     }
@@ -104,14 +109,27 @@ public:
     // Lane Configuration
     // =========================================================================
 
-    void setLaneType(ArpLaneType type) { laneType_ = type; }
+    void setLaneType(ArpLaneType type) {
+        laneType_ = type;
+        // Pitch mode: right-click resets to 0.5 (0 semitones center line)
+        if (type == ArpLaneType::kPitch) {
+            setRightClickResetLevel(0.5f);
+        } else {
+            setRightClickResetLevel(0.0f);
+        }
+    }
     [[nodiscard]] ArpLaneType getLaneType() const { return laneType_; }
 
-    void setLaneName(const std::string& name) { laneName_ = name; }
+    void setLaneName(const std::string& name) {
+        laneName_ = name;
+        header_.setLaneName(name);
+    }
     [[nodiscard]] const std::string& getLaneName() const { return laneName_; }
 
     void setAccentColor(const VSTGUI::CColor& color) {
         accentColor_ = color;
+        header_.setAccentColor(color);
+
         // Derive normal and ghost colors
         VSTGUI::CColor normal = darkenColor(color, 0.6f);
         VSTGUI::CColor ghost = darkenColor(color, 0.35f);
@@ -139,58 +157,99 @@ public:
     [[nodiscard]] float getDisplayMax() const { return displayMax_; }
 
     // =========================================================================
+    // Discrete Mode Helpers (kRatchet)
+    // =========================================================================
+
+    /// Decode discrete count (1-4) from normalized step level (0.0-1.0).
+    /// Formula: count = clamp(1 + round(normalized * 3.0), 1, 4)
+    [[nodiscard]] int getDiscreteCount(int step) const {
+        float normalized = getStepLevel(step);
+        return std::clamp(
+            static_cast<int>(1.0f + std::round(normalized * 3.0f)), 1, 4);
+    }
+
+    /// Encode discrete count (1-4) to normalized step level.
+    /// Formula: normalized = (count - 1) / 3.0
+    void setDiscreteCount(int step, int count) {
+        count = std::clamp(count, 1, 4);
+        float normalized = static_cast<float>(count - 1) / 3.0f;
+        setStepLevel(step, normalized);
+    }
+
+    /// Click-cycle discrete value: 1->2->3->4->1
+    void handleDiscreteClick(int step) {
+        int count = getDiscreteCount(step);
+        int nextCount = (count % 4) + 1;
+        notifyBeginEdit(step);
+        float newNormalized = static_cast<float>(nextCount - 1) / 3.0f;
+        setStepLevel(step, newNormalized);
+        notifyStepChange(step, newNormalized);
+        notifyEndEdit(step);
+        setDirty();
+    }
+
+    // =========================================================================
     // Parameter Binding
     // =========================================================================
 
-    void setLengthParamId(uint32_t paramId) { lengthParamId_ = paramId; }
-    [[nodiscard]] uint32_t getLengthParamId() const { return lengthParamId_; }
+    void setLengthParamId(uint32_t paramId) {
+        header_.setLengthParamId(paramId);
+    }
+    [[nodiscard]] uint32_t getLengthParamId() const {
+        return header_.getLengthParamId();
+    }
 
     void setLengthParamCallback(std::function<void(uint32_t, float)> cb) {
-        lengthParamCallback_ = std::move(cb);
+        header_.setLengthParamCallback(std::move(cb));
     }
 
     void setPlayheadParamId(uint32_t paramId) { playheadParamId_ = paramId; }
     [[nodiscard]] uint32_t getPlayheadParamId() const { return playheadParamId_; }
 
     // =========================================================================
-    // Collapse/Expand
+    // IArpLane Interface Implementation
     // =========================================================================
 
-    void setCollapsed(bool collapsed) {
-        if (!isCollapsed_ && collapsed) {
-            // Transitioning from expanded to collapsed: save expanded height
-            expandedHeight_ = static_cast<float>(getViewSize().getHeight());
-        }
-        isCollapsed_ = collapsed;
-        if (collapseCallback_) {
-            collapseCallback_();
-        }
-        setDirty();
-    }
+    VSTGUI::CView* getView() override { return this; }
 
-    [[nodiscard]] bool isCollapsed() const { return isCollapsed_; }
-
-    void setCollapseCallback(std::function<void()> cb) {
-        collapseCallback_ = std::move(cb);
-    }
-
-    // =========================================================================
-    // Height Queries
-    // =========================================================================
-
-    /// Get expanded height: total view height (header + body)
-    /// Returns the stored expanded height if available (survives collapse/expand cycles),
-    /// otherwise returns the current view size height.
-    [[nodiscard]] float getExpandedHeight() const {
+    [[nodiscard]] float getExpandedHeight() const override {
         if (expandedHeight_ > 0.0f) {
             return expandedHeight_;
         }
         return static_cast<float>(getViewSize().getHeight());
     }
 
-    /// Get collapsed height: just the header
-    [[nodiscard]] float getCollapsedHeight() const {
-        return kHeaderHeight;
+    [[nodiscard]] float getCollapsedHeight() const override {
+        return ArpLaneHeader::kHeight;
+    }
+
+    [[nodiscard]] bool isCollapsed() const override {
+        return header_.isCollapsed();
+    }
+
+    void setCollapsed(bool collapsed) override {
+        if (!header_.isCollapsed() && collapsed) {
+            // Transitioning from expanded to collapsed: save expanded height
+            expandedHeight_ = static_cast<float>(getViewSize().getHeight());
+        }
+        header_.setCollapsed(collapsed);
+        if (collapseCallback_) {
+            collapseCallback_();
+        }
+        setDirty();
+    }
+
+    void setPlayheadStep(int32_t step) override {
+        setPlaybackStep(step);
+    }
+
+    void setLength(int32_t length) override {
+        setNumSteps(length);
+        header_.setNumSteps(length);
+    }
+
+    void setCollapseCallback(std::function<void()> cb) override {
+        collapseCallback_ = std::move(cb);
     }
 
     // =========================================================================
@@ -201,15 +260,36 @@ public:
         context->setDrawMode(VSTGUI::kAntiAliasing | VSTGUI::kNonIntegralMode);
 
         VSTGUI::CRect vs = getViewSize();
+        VSTGUI::CRect headerRect(vs.left, vs.top, vs.right, vs.top + kHeaderHeight);
 
-        if (isCollapsed_) {
+        // Keep header numSteps in sync
+        header_.setNumSteps(getNumSteps());
+
+        if (isCollapsed()) {
             // Draw header with miniature preview
-            drawHeader(context, vs);
+            header_.draw(context, headerRect);
             drawMiniaturePreview(context, vs);
         } else {
-            // Draw header, then delegate body to base class
-            drawHeader(context, vs);
-            StepPatternEditor::draw(context);
+            // Draw header
+            header_.draw(context, headerRect);
+
+            // Dispatch body drawing by lane type
+            if (laneType_ == ArpLaneType::kPitch) {
+                // Pitch mode: background + grid + bipolar bars + labels + playback
+                StepPatternEditor::draw(context);
+                // Overlay: bipolar bars replace the standard bars
+                // (base class already drew standard bars; we overdraw with bipolar)
+                drawBipolarBars(context);
+                drawBipolarGridLabels(context);
+            } else if (laneType_ == ArpLaneType::kRatchet) {
+                // Ratchet mode: background + grid + stacked blocks + playback
+                StepPatternEditor::draw(context);
+                // Overlay: discrete blocks replace the standard bars
+                drawDiscreteBlocks(context);
+            } else {
+                // Standard bar mode (velocity, gate)
+                StepPatternEditor::draw(context);
+            }
         }
 
         setDirty(false);
@@ -222,31 +302,81 @@ public:
         VSTGUI::CRect vs = getViewSize();
         VSTGUI::CRect headerRect(vs.left, vs.top, vs.right, vs.top + kHeaderHeight);
 
-        // Check if click is in the header area
-        if (headerRect.pointInside(where)) {
-            float localX = static_cast<float>(where.x - vs.left);
+        // Track collapse state before header interaction
+        bool wasCollapsed = isCollapsed();
 
-            // Toggle zone is the left ~24px (triangle + padding)
-            if (localX < 24.0f) {
-                setCollapsed(!isCollapsed_);
-                return VSTGUI::kMouseEventHandled;
+        // Delegate header interaction to ArpLaneHeader
+        if (header_.handleMouseDown(where, headerRect, getFrame())) {
+            // If collapse state changed, fire the collapse callback
+            if (isCollapsed() != wasCollapsed && collapseCallback_) {
+                collapseCallback_();
             }
-
-            // Length dropdown zone
-            if (localX >= kLengthDropdownX &&
-                localX < kLengthDropdownX + kLengthDropdownWidth) {
-                openLengthDropdown(where);
-                return VSTGUI::kMouseEventHandled;
-            }
+            setDirty();
+            return VSTGUI::kMouseEventHandled;
         }
 
         // If collapsed, don't delegate to base class
-        if (isCollapsed_) {
+        if (isCollapsed()) {
             return VSTGUI::kMouseEventHandled;
+        }
+
+        // Pitch mode: custom bipolar interaction
+        if (laneType_ == ArpLaneType::kPitch) {
+            return handleBipolarMouseDown(where, buttons);
+        }
+
+        // Ratchet mode: custom discrete interaction
+        if (laneType_ == ArpLaneType::kRatchet) {
+            return handleDiscreteMouseDown(where, buttons);
         }
 
         // Delegate to base class for bar interaction
         return StepPatternEditor::onMouseDown(where, buttons);
+    }
+
+    VSTGUI::CMouseEventResult onMouseMoved(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override {
+
+        // Pitch mode: custom bipolar drag
+        if (laneType_ == ArpLaneType::kPitch && isDragging_) {
+            return handleBipolarMouseMoved(where, buttons);
+        }
+
+        // Ratchet mode: custom discrete drag
+        if (laneType_ == ArpLaneType::kRatchet && discreteIsDragging_) {
+            return handleDiscreteMouseMoved(where, buttons);
+        }
+
+        // Delegate to base class for standard drag
+        return StepPatternEditor::onMouseMoved(where, buttons);
+    }
+
+    VSTGUI::CMouseEventResult onMouseUp(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override {
+
+        // Ratchet mode: handle click (click = <4px movement) vs drag
+        if (laneType_ == ArpLaneType::kRatchet && discreteIsDragging_) {
+            float deltaY = static_cast<float>(where.y) - discreteClickStartY_;
+            if (std::abs(deltaY) < 4.0f) {
+                // This was a click, not a drag
+                handleDiscreteClick(discreteClickStep_);
+            }
+            // End edit for dirty steps
+            for (int i = 0; i < kMaxSteps; ++i) {
+                if (dirtySteps_.test(static_cast<size_t>(i))) {
+                    notifyEndEdit(i);
+                }
+            }
+            discreteIsDragging_ = false;
+            isDragging_ = false;
+            dirtySteps_.reset();
+            lastDragStep_ = -1;
+            return VSTGUI::kMouseEventHandled;
+        }
+
+        return StepPatternEditor::onMouseUp(where, buttons);
     }
 
     CLASS_METHODS(ArpLaneEditor, StepPatternEditor)
@@ -256,118 +386,25 @@ private:
     // Drawing Helpers
     // =========================================================================
 
-    void drawHeader(VSTGUI::CDrawContext* context, const VSTGUI::CRect& vs) {
-        // Header background
-        VSTGUI::CRect headerRect(vs.left, vs.top, vs.right, vs.top + kHeaderHeight);
-        VSTGUI::CColor headerBg{30, 30, 33, 255};
-        context->setFillColor(headerBg);
-        context->drawRect(headerRect, VSTGUI::kDrawFilled);
-
-        // Collapse triangle
-        drawCollapseTriangle(context, vs);
-
-        // Lane name label
-        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 9.0);
-        context->setFont(font);
-        context->setFontColor(accentColor_);
-
-        VSTGUI::CRect nameRect(vs.left + 20.0, vs.top + 1.0,
-                                vs.left + 80.0, vs.top + kHeaderHeight - 1.0);
-        context->drawString(VSTGUI::UTF8String(laneName_), nameRect,
-                           VSTGUI::kLeftText);
-
-        // Length dropdown label (shows current step count)
-        VSTGUI::CColor labelColor{160, 160, 165, 255};
-        context->setFontColor(labelColor);
-
-        std::string lengthText = std::to_string(getNumSteps());
-        VSTGUI::CRect lengthRect(vs.left + kLengthDropdownX, vs.top + 1.0,
-                                  vs.left + kLengthDropdownX + kLengthDropdownWidth,
-                                  vs.top + kHeaderHeight - 1.0);
-        context->drawString(VSTGUI::UTF8String(lengthText), lengthRect,
-                           VSTGUI::kCenterText);
-
-        // Small dropdown indicator triangle
-        float triX = static_cast<float>(vs.left) + kLengthDropdownX + kLengthDropdownWidth - 6.0f;
-        float triY = static_cast<float>(vs.top) + kHeaderHeight / 2.0f;
-        auto triPath = VSTGUI::owned(context->createGraphicsPath());
-        if (triPath) {
-            triPath->beginSubpath(VSTGUI::CPoint(triX - 2.5, triY - 1.5));
-            triPath->addLine(VSTGUI::CPoint(triX + 2.5, triY - 1.5));
-            triPath->addLine(VSTGUI::CPoint(triX, triY + 1.5));
-            triPath->closeSubpath();
-            context->setFillColor(labelColor);
-            context->drawGraphicsPath(triPath, VSTGUI::CDrawContext::kPathFilled);
-        }
-    }
-
-    void openLengthDropdown(const VSTGUI::CPoint& where) {
-        auto* frame = getFrame();
-        if (!frame) return;
-
-        // Create option menu with values kMinSteps through kMaxSteps
-        VSTGUI::CRect menuRect(where.x, where.y, where.x + 1, where.y + 1);
-        auto* menu = new VSTGUI::COptionMenu(menuRect, nullptr, -1);
-
-        for (int i = kMinSteps; i <= kMaxSteps; ++i) {
-            menu->addEntry(std::to_string(i));
-        }
-
-        // Set current selection
-        int currentIndex = getNumSteps() - kMinSteps;
-        menu->setCurrent(currentIndex);
-
-        // Show popup and handle selection
-        menu->setListener(nullptr);
-        menu->popup(frame, where);
-
-        int selectedIndex = menu->getCurrentIndex();
-        if (selectedIndex >= 0) {
-            int newSteps = selectedIndex + kMinSteps;
-            if (newSteps != getNumSteps()) {
-                setNumSteps(newSteps);
-                setDirty(true);
-
-                // Notify via callback with normalized value
-                if (lengthParamCallback_ && lengthParamId_ != 0) {
-                    float normalized = static_cast<float>(newSteps - 1) / 31.0f;
-                    lengthParamCallback_(lengthParamId_, normalized);
-                }
-            }
-        }
-
-        menu->forget();
-    }
-
-    void drawCollapseTriangle(VSTGUI::CDrawContext* context,
-                              const VSTGUI::CRect& vs) {
-        auto path = VSTGUI::owned(context->createGraphicsPath());
-        if (!path) return;
-
-        float cx = static_cast<float>(vs.left) + 10.0f;
-        float cy = static_cast<float>(vs.top) + kHeaderHeight / 2.0f;
-        float half = kCollapseTriangleSize / 2.0f;
-
-        if (isCollapsed_) {
-            // Right-pointing triangle (>)
-            path->beginSubpath(VSTGUI::CPoint(cx - half * 0.5f, cy - half));
-            path->addLine(VSTGUI::CPoint(cx + half * 0.5f, cy));
-            path->addLine(VSTGUI::CPoint(cx - half * 0.5f, cy + half));
-            path->closeSubpath();
-        } else {
-            // Down-pointing triangle (v)
-            path->beginSubpath(VSTGUI::CPoint(cx - half, cy - half * 0.5f));
-            path->addLine(VSTGUI::CPoint(cx + half, cy - half * 0.5f));
-            path->addLine(VSTGUI::CPoint(cx, cy + half * 0.5f));
-            path->closeSubpath();
-        }
-
-        context->setFillColor(VSTGUI::CColor{180, 180, 185, 255});
-        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
-    }
-
     void drawMiniaturePreview(VSTGUI::CDrawContext* context,
                               const VSTGUI::CRect& vs) {
+        if (laneType_ == ArpLaneType::kPitch) {
+            VSTGUI::CRect previewRect(
+                vs.left + 80.0, vs.top + kMiniPreviewPaddingTop,
+                vs.right - 4.0, vs.top + kHeaderHeight - kMiniPreviewPaddingBottom);
+            drawBipolarMiniPreview(context, previewRect);
+            return;
+        }
+
+        if (laneType_ == ArpLaneType::kRatchet) {
+            VSTGUI::CRect previewRect(
+                vs.left + 80.0, vs.top + kMiniPreviewPaddingTop,
+                vs.right - 4.0, vs.top + kHeaderHeight - kMiniPreviewPaddingBottom);
+            drawDiscreteMiniPreview(context, previewRect);
+            return;
+        }
+
+        // Standard bar preview (velocity, gate)
         int steps = getNumSteps();
         if (steps <= 0) return;
 
@@ -400,6 +437,433 @@ private:
     }
 
     // =========================================================================
+    // Bipolar Mode Drawing (FR-001, FR-002, FR-007, FR-008, FR-010)
+    // =========================================================================
+
+    /// Draw bipolar bars extending from center line (kPitch mode).
+    /// Overlays on top of the base class draw. The base class draws standard
+    /// bars from bottom, but for pitch we need bars from center. We overdraw
+    /// the bar area background first, then draw bipolar bars.
+    void drawBipolarBars(VSTGUI::CDrawContext* context) {
+        VSTGUI::CRect barArea = getBarArea();
+        float barHeight = static_cast<float>(barArea.getHeight());
+        float centerY = static_cast<float>(barArea.top) + barHeight / 2.0f;
+
+        // Overdraw bar area background to cover base class bars
+        context->setFillColor(getEditorBackgroundColor());
+        context->drawRect(barArea, VSTGUI::kDrawFilled);
+
+        // Draw grid lines for bipolar mode
+        context->setFrameColor(getGridColor());
+        context->setLineWidth(1.0);
+        context->setLineStyle(VSTGUI::kLineSolid);
+
+        // Grid lines at 0.0, 0.25, 0.50, 0.75, 1.0 (in normalized space)
+        const float gridLevels[] = {0.0f, 0.25f, 0.50f, 0.75f, 1.0f};
+        for (float gLevel : gridLevels) {
+            float y = static_cast<float>(barArea.top) + barHeight * (1.0f - gLevel);
+            context->drawLine(
+                VSTGUI::CPoint(barArea.left, y),
+                VSTGUI::CPoint(barArea.right, y));
+        }
+
+        // Draw center line more prominently
+        VSTGUI::CColor centerLineColor = getGridColor();
+        centerLineColor.alpha = static_cast<uint8_t>(
+            std::min(255, static_cast<int>(centerLineColor.alpha) + 40));
+        context->setFrameColor(centerLineColor);
+        context->drawLine(
+            VSTGUI::CPoint(barArea.left, centerY),
+            VSTGUI::CPoint(barArea.right, centerY));
+
+        // Draw bipolar bars
+        int visibleStart = 0;
+        int visibleEnd = getNumSteps();
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        if (visibleEnd <= 0) return;
+
+        float stepWidth = barAreaWidth / static_cast<float>(visibleEnd);
+        float padding = 1.5f;
+
+        for (int i = visibleStart; i < visibleEnd; ++i) {
+            float normalized = getStepLevel(i);
+            float signedValue = (normalized - 0.5f) * 2.0f; // -1.0 to +1.0
+
+            float barLeft = static_cast<float>(barArea.left) +
+                static_cast<float>(i) * stepWidth + padding;
+            float barRight = barLeft + stepWidth - 2.0f * padding;
+            if (barRight <= barLeft) continue;
+
+            if (std::abs(signedValue) < 0.001f) {
+                // Zero: draw outline at center
+                VSTGUI::CRect zeroRect(barLeft, centerY - 1.0f, barRight, centerY + 1.0f);
+                context->setFrameColor(getSilentOutlineColor());
+                context->setLineWidth(1.0);
+                context->drawRect(zeroRect, VSTGUI::kDrawStroked);
+                continue;
+            }
+
+            float barTop, barBottom;
+            if (signedValue > 0.0f) {
+                barTop = centerY - (signedValue * barHeight / 2.0f);
+                barBottom = centerY;
+            } else {
+                barTop = centerY;
+                barBottom = centerY + (std::abs(signedValue) * barHeight / 2.0f);
+            }
+
+            VSTGUI::CColor barColor = getColorForLevel(std::abs(signedValue));
+            context->setFillColor(barColor);
+            VSTGUI::CRect bar(barLeft, barTop, barRight, barBottom);
+            context->drawRect(bar, VSTGUI::kDrawFilled);
+        }
+
+        // Redraw playback indicator (was covered by overdraw)
+        drawBipolarPlaybackOverlay(context);
+    }
+
+    /// Draw bipolar grid labels: "+24" at top, "0" at center, "-24" at bottom
+    void drawBipolarGridLabels(VSTGUI::CDrawContext* context) {
+        VSTGUI::CRect barArea = getBarArea();
+        float barHeight = static_cast<float>(barArea.getHeight());
+        float centerY = static_cast<float>(barArea.top) + barHeight / 2.0f;
+
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 9.0);
+        context->setFont(font);
+        context->setFontColor(getTextColor());
+
+        // Top label: "+24"
+        VSTGUI::CRect topLabelRect(
+            getViewSize().left, static_cast<float>(barArea.top) - 6.0f,
+            static_cast<float>(barArea.left) - 2.0f,
+            static_cast<float>(barArea.top) + 6.0f);
+        context->drawString(VSTGUI::UTF8String(topLabel_), topLabelRect,
+                           VSTGUI::kRightText, true);
+
+        // Center label: "0"
+        VSTGUI::CRect centerLabelRect(
+            getViewSize().left, centerY - 6.0f,
+            static_cast<float>(barArea.left) - 2.0f,
+            centerY + 6.0f);
+        context->drawString(VSTGUI::UTF8String("0"), centerLabelRect,
+                           VSTGUI::kRightText, true);
+
+        // Bottom label: "-24"
+        VSTGUI::CRect bottomLabelRect(
+            getViewSize().left, static_cast<float>(barArea.bottom) - 6.0f,
+            static_cast<float>(barArea.left) - 2.0f,
+            static_cast<float>(barArea.bottom) + 6.0f);
+        context->drawString(VSTGUI::UTF8String(bottomLabel_), bottomLabelRect,
+                           VSTGUI::kRightText, true);
+    }
+
+    /// Draw a playback overlay in bipolar mode
+    void drawBipolarPlaybackOverlay(VSTGUI::CDrawContext* context) {
+        int step = getPlaybackStep();
+        if (step < 0 || step >= getNumSteps()) return;
+
+        VSTGUI::CRect barArea = getBarArea();
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        int numSteps = getNumSteps();
+        if (numSteps <= 0) return;
+
+        float stepWidth = barAreaWidth / static_cast<float>(numSteps);
+        float barLeft = static_cast<float>(barArea.left) + static_cast<float>(step) * stepWidth;
+        float barRight = barLeft + stepWidth;
+
+        VSTGUI::CColor overlayColor = accentColor_;
+        overlayColor.alpha = 40;
+        context->setFillColor(overlayColor);
+        VSTGUI::CRect overlay(barLeft, barArea.top, barRight, barArea.bottom);
+        context->drawRect(overlay, VSTGUI::kDrawFilled);
+    }
+
+    /// Draw bipolar mini preview for collapsed pitch lane (FR-010)
+    void drawBipolarMiniPreview(VSTGUI::CDrawContext* context,
+                                const VSTGUI::CRect& previewRect) {
+        int steps = getNumSteps();
+        if (steps <= 0) return;
+
+        float previewWidth = static_cast<float>(previewRect.getWidth());
+        float previewHeight = static_cast<float>(previewRect.getHeight());
+        if (previewWidth <= 0.0f || previewHeight <= 0.0f) return;
+
+        float centerY = static_cast<float>(previewRect.top) + previewHeight / 2.0f;
+        float barWidth = previewWidth / static_cast<float>(steps);
+
+        for (int i = 0; i < steps; ++i) {
+            float normalized = getStepLevel(i);
+            float signedValue = (normalized - 0.5f) * 2.0f;
+
+            if (std::abs(signedValue) < 0.001f) continue;
+
+            float barLeft = static_cast<float>(previewRect.left) +
+                static_cast<float>(i) * barWidth + 0.5f;
+            float barRight = barLeft + barWidth - 1.0f;
+            if (barRight <= barLeft) continue;
+
+            float barTop, barBottom;
+            if (signedValue > 0.0f) {
+                barTop = centerY - (signedValue * previewHeight / 2.0f);
+                barBottom = centerY;
+            } else {
+                barTop = centerY;
+                barBottom = centerY + (std::abs(signedValue) * previewHeight / 2.0f);
+            }
+
+            context->setFillColor(accentColor_);
+            VSTGUI::CRect bar(barLeft, barTop, barRight, barBottom);
+            context->drawRect(bar, VSTGUI::kDrawFilled);
+        }
+    }
+
+    // =========================================================================
+    // Bipolar Mode Interaction (FR-003, FR-004, FR-005, FR-006)
+    // =========================================================================
+
+    /// Snap a raw normalized level (0-1) to the nearest integer semitone.
+    /// Returns the snapped normalized value.
+    [[nodiscard]] static float snapBipolarToSemitone(float rawNormalized) {
+        // Canonical formula from spec:
+        // Decode: semitones = round((normalized - 0.5) * 48.0)
+        // Encode: normalized = 0.5 + semitones / 48.0
+        float semitones = std::round((rawNormalized - 0.5f) * 48.0f);
+        semitones = std::clamp(semitones, -24.0f, 24.0f);
+        return 0.5f + semitones / 48.0f;
+    }
+
+    /// Handle mouse down in kPitch mode: set step to snapped bipolar value
+    VSTGUI::CMouseEventResult handleBipolarMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) {
+
+        if ((buttons & VSTGUI::kLButton) == 0)
+            return VSTGUI::kMouseEventNotHandled;
+
+        int step = getStepFromPoint(where);
+        if (step < 0) return VSTGUI::kMouseEventNotHandled;
+
+        // Start drag gesture
+        isDragging_ = true;
+        dirtySteps_.reset();
+        preDragLevels_[0] = 0.0f; // Just to initialize (base class stores all)
+        lastDragStep_ = step;
+
+        // Get raw level from Y and snap to semitone
+        float rawLevel = getLevelFromY(static_cast<float>(where.y));
+        float snappedLevel = snapBipolarToSemitone(rawLevel);
+        updateStepLevel(step, snappedLevel);
+
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    /// Handle mouse moved in kPitch mode: paint across steps with snapping
+    VSTGUI::CMouseEventResult handleBipolarMouseMoved(
+        VSTGUI::CPoint& where,
+        [[maybe_unused]] const VSTGUI::CButtonState& buttons) {
+
+        int step = getStepFromPoint(where);
+        if (step < 0) return VSTGUI::kMouseEventHandled;
+
+        float rawLevel = getLevelFromY(static_cast<float>(where.y));
+        float snappedLevel = snapBipolarToSemitone(rawLevel);
+
+        // Paint mode: fill steps between last and current
+        if (lastDragStep_ >= 0 && step != lastDragStep_) {
+            int from = std::min(lastDragStep_, step);
+            int to = std::max(lastDragStep_, step);
+            for (int i = from; i <= to; ++i) {
+                if (i < getNumSteps()) {
+                    updateStepLevel(i, snappedLevel);
+                }
+            }
+        } else {
+            updateStepLevel(step, snappedLevel);
+        }
+
+        lastDragStep_ = step;
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    // =========================================================================
+    // Discrete Mode Drawing (FR-011, FR-012, FR-016, FR-018, FR-019)
+    // =========================================================================
+
+    /// Draw stacked blocks for ratchet/discrete mode.
+    /// Overlays on top of the base class draw. The base class draws standard
+    /// bars from bottom, but for ratchet we need stacked blocks. We overdraw
+    /// the bar area background first, then draw discrete blocks.
+    void drawDiscreteBlocks(VSTGUI::CDrawContext* context) {
+        VSTGUI::CRect barArea = getBarArea();
+        float barHeight = static_cast<float>(barArea.getHeight());
+
+        // Overdraw bar area background to cover base class bars
+        context->setFillColor(getEditorBackgroundColor());
+        context->drawRect(barArea, VSTGUI::kDrawFilled);
+
+        // Redraw grid lines
+        context->setFrameColor(getGridColor());
+        context->setLineWidth(1.0);
+        context->setLineStyle(VSTGUI::kLineSolid);
+
+        // Grid lines at 25%, 50%, 75%
+        const float gridLevels[] = {0.25f, 0.50f, 0.75f};
+        for (float gLevel : gridLevels) {
+            float y = static_cast<float>(barArea.top) + barHeight * (1.0f - gLevel);
+            context->drawLine(
+                VSTGUI::CPoint(barArea.left, y),
+                VSTGUI::CPoint(barArea.right, y));
+        }
+
+        // Draw stacked blocks
+        int numSteps = getNumSteps();
+        if (numSteps <= 0) return;
+
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        float stepWidth = barAreaWidth / static_cast<float>(numSteps);
+        float blockGap = 2.0f;
+        float blockHeight = (barHeight - 3.0f * blockGap) / 4.0f;
+
+        for (int i = 0; i < numSteps; ++i) {
+            int count = getDiscreteCount(i);
+
+            float barLeft = static_cast<float>(barArea.left) +
+                static_cast<float>(i) * stepWidth + kBarPadding;
+            float barRight = barLeft + stepWidth - 2.0f * kBarPadding;
+            if (barRight <= barLeft) continue;
+
+            VSTGUI::CColor blockColor = getColorForLevel(
+                static_cast<float>(count) / 4.0f);
+
+            for (int b = 0; b < count; ++b) {
+                float blockBottom = static_cast<float>(barArea.bottom) -
+                    static_cast<float>(b) * (blockHeight + blockGap);
+                float blockTop = blockBottom - blockHeight;
+
+                VSTGUI::CRect block(barLeft, blockTop, barRight, blockBottom);
+                context->setFillColor(blockColor);
+                context->drawRect(block, VSTGUI::kDrawFilled);
+            }
+        }
+
+        // Redraw playback indicator (was covered by overdraw)
+        drawDiscretePlaybackOverlay(context);
+    }
+
+    /// Draw playback overlay for discrete mode
+    void drawDiscretePlaybackOverlay(VSTGUI::CDrawContext* context) {
+        int step = getPlaybackStep();
+        if (step < 0 || step >= getNumSteps()) return;
+
+        VSTGUI::CRect barArea = getBarArea();
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        int numSteps = getNumSteps();
+        if (numSteps <= 0) return;
+
+        float stepWidth = barAreaWidth / static_cast<float>(numSteps);
+        float barLeft = static_cast<float>(barArea.left) +
+            static_cast<float>(step) * stepWidth;
+        float barRight = barLeft + stepWidth;
+
+        VSTGUI::CColor overlayColor = accentColor_;
+        overlayColor.alpha = 40;
+        context->setFillColor(overlayColor);
+        VSTGUI::CRect overlay(barLeft, barArea.top, barRight, barArea.bottom);
+        context->drawRect(overlay, VSTGUI::kDrawFilled);
+    }
+
+    /// Draw discrete mini preview for collapsed ratchet lane (FR-019)
+    void drawDiscreteMiniPreview(VSTGUI::CDrawContext* context,
+                                 const VSTGUI::CRect& previewRect) {
+        int steps = getNumSteps();
+        if (steps <= 0) return;
+
+        float previewWidth = static_cast<float>(previewRect.getWidth());
+        float previewHeight = static_cast<float>(previewRect.getHeight());
+        if (previewWidth <= 0.0f || previewHeight <= 0.0f) return;
+
+        float barWidth = previewWidth / static_cast<float>(steps);
+
+        for (int i = 0; i < steps; ++i) {
+            int count = getDiscreteCount(i);
+            float fraction = static_cast<float>(count) / 4.0f;
+
+            float barLeft = static_cast<float>(previewRect.left) +
+                static_cast<float>(i) * barWidth + 0.5f;
+            float barRight = barLeft + barWidth - 1.0f;
+            if (barRight <= barLeft) continue;
+
+            float barTop = static_cast<float>(previewRect.top) +
+                previewHeight * (1.0f - fraction);
+            float barBottom = static_cast<float>(previewRect.bottom);
+
+            context->setFillColor(accentColor_);
+            VSTGUI::CRect bar(barLeft, barTop, barRight, barBottom);
+            context->drawRect(bar, VSTGUI::kDrawFilled);
+        }
+    }
+
+    // =========================================================================
+    // Discrete Mode Interaction (FR-013, FR-014, FR-015)
+    // =========================================================================
+
+    /// Handle mouse down in kRatchet mode
+    VSTGUI::CMouseEventResult handleDiscreteMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) {
+
+        if ((buttons & VSTGUI::kLButton) == 0)
+            return VSTGUI::kMouseEventNotHandled;
+
+        int step = getStepFromPoint(where);
+        if (step < 0) return VSTGUI::kMouseEventNotHandled;
+
+        // Start drag/click tracking
+        discreteIsDragging_ = true;
+        isDragging_ = true; // Keep base class aware
+        dirtySteps_.reset();
+        lastDragStep_ = step;
+
+        // Record start position for click detection
+        discreteClickStartY_ = static_cast<float>(where.y);
+        discreteClickStep_ = step;
+        discreteDragStartValue_ = getDiscreteCount(step);
+        discreteDragAccumY_ = 0.0f;
+        discreteHasEnteredDrag_ = false;
+
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    /// Handle mouse moved in kRatchet mode
+    VSTGUI::CMouseEventResult handleDiscreteMouseMoved(
+        VSTGUI::CPoint& where,
+        [[maybe_unused]] const VSTGUI::CButtonState& buttons) {
+
+        float deltaY = static_cast<float>(where.y) - discreteClickStartY_;
+
+        // Check if we've entered drag mode (>= 4px threshold)
+        if (!discreteHasEnteredDrag_) {
+            if (std::abs(deltaY) < 4.0f) {
+                return VSTGUI::kMouseEventHandled; // Still in click zone
+            }
+            discreteHasEnteredDrag_ = true;
+        }
+
+        // In drag mode: compute level change from total delta
+        // Negative deltaY (up) = increase count, positive (down) = decrease
+        int levelChange = static_cast<int>(-deltaY / 8.0f);
+        int newCount = std::clamp(discreteDragStartValue_ + levelChange, 1, 4);
+
+        int step = discreteClickStep_;
+        if (step >= 0 && step < getNumSteps()) {
+            float newNormalized = static_cast<float>(newCount - 1) / 3.0f;
+            updateStepLevel(step, newNormalized);
+        }
+
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    // =========================================================================
     // State
     // =========================================================================
 
@@ -410,12 +874,18 @@ private:
     float displayMax_ = 1.0f;
     std::string topLabel_ = "1.0";
     std::string bottomLabel_ = "0.0";
-    uint32_t lengthParamId_ = 0;
     uint32_t playheadParamId_ = 0;
-    bool isCollapsed_ = false;
     float expandedHeight_ = 0.0f;
     std::function<void()> collapseCallback_;
-    std::function<void(uint32_t, float)> lengthParamCallback_;
+    ArpLaneHeader header_;
+
+    // Discrete mode drag state
+    bool discreteIsDragging_ = false;
+    float discreteClickStartY_ = 0.0f;
+    int discreteClickStep_ = -1;
+    int discreteDragStartValue_ = 1;
+    float discreteDragAccumY_ = 0.0f;
+    bool discreteHasEnteredDrag_ = false;
 };
 
 // =============================================================================

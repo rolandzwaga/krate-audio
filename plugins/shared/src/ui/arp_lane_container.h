@@ -3,7 +3,7 @@
 // ==============================================================================
 // ArpLaneContainer - Vertically-Scrolling Lane Container
 // ==============================================================================
-// A CViewContainer subclass that stacks ArpLaneEditor instances vertically,
+// A CViewContainer subclass that stacks IArpLane instances vertically,
 // manages dynamic height on collapse/expand, and provides manual scroll offset.
 //
 // Children are added programmatically (NOT from XML). ArpLaneContainer manages
@@ -12,6 +12,7 @@
 // Registered as "ArpLaneContainer" via VSTGUI ViewCreator system.
 // ==============================================================================
 
+#include "arp_lane.h"
 #include "arp_lane_editor.h"
 
 #include "vstgui/lib/cviewcontainer.h"
@@ -67,9 +68,9 @@ public:
     // Lane Management
     // =========================================================================
 
-    void addLane(ArpLaneEditor* lane) {
+    void addLane(IArpLane* lane) {
         lanes_.push_back(lane);
-        addView(lane);
+        addView(lane->getView());
 
         // Set collapse callback so layout is recalculated when a lane
         // collapses or expands
@@ -80,18 +81,18 @@ public:
         recalculateLayout();
     }
 
-    void removeLane(ArpLaneEditor* lane) {
+    void removeLane(IArpLane* lane) {
         auto it = std::find(lanes_.begin(), lanes_.end(), lane);
         if (it != lanes_.end()) {
             lanes_.erase(it);
         }
-        removeView(lane, true);
+        removeView(lane->getView(), true);
         recalculateLayout();
     }
 
     [[nodiscard]] size_t getLaneCount() const { return lanes_.size(); }
 
-    [[nodiscard]] ArpLaneEditor* getLane(size_t index) const {
+    [[nodiscard]] IArpLane* getLane(size_t index) const {
         if (index >= lanes_.size()) return nullptr;
         return lanes_[index];
     }
@@ -128,8 +129,10 @@ public:
             float visualY = contentY - scrollOffset_;
             VSTGUI::CRect laneRect(0.0, visualY, containerWidth,
                                     visualY + laneHeight);
-            lane->setViewSize(laneRect);
-            lane->setMouseableArea(laneRect);
+
+            auto* view = lane->getView();
+            view->setViewSize(laneRect);
+            view->setMouseableArea(laneRect);
 
             contentY += laneHeight;
         }
@@ -206,7 +209,7 @@ private:
 
     float viewportHeight_ = 390.0f;
     float scrollOffset_ = 0.0f;
-    std::vector<ArpLaneEditor*> lanes_;
+    std::vector<IArpLane*> lanes_;
     float totalContentHeight_ = 0.0f;
 };
 

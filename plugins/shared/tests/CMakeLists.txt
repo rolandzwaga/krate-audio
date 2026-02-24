@@ -10,6 +10,9 @@ add_executable(shared_tests
     test_step_pattern_editor.cpp
     test_arp_lane_editor.cpp
     test_arp_lane_container.cpp
+    test_arp_lane_header.cpp
+    test_arp_modifier_lane.cpp
+    test_arp_condition_lane.cpp
     test_toggle_button.cpp
     test_xy_morph_pad.cpp
     test_adsr_display.cpp

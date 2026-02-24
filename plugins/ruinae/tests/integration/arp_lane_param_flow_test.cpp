@@ -292,3 +292,263 @@ TEST_CASE("VelocityLane_StatePersistence_RoundTrip", "[arp][integration][state][
     proc2->terminate();
     controller.terminate();
 }
+
+// ==============================================================================
+// T089: Parameter Automation Verification for 4 New Lane Types (FR-047, G1)
+// ==============================================================================
+// Verifies that:
+//   (a) setParamNormalized for each new lane's step params stores the correct value
+//   (b) setParamNormalized for each new lane's length param stores the correct value
+//   (c) setParamNormalized for each new lane's playhead param stores the correct value
+//   (d) State round-trip preserves all 4 new lane types' step values and lengths
+// ==============================================================================
+
+TEST_CASE("PitchLane_ParameterRoundTrip_ValuePreserved", "[arp][integration][pitch][T089]") {
+    Ruinae::Controller controller;
+    auto result = controller.initialize(nullptr);
+    REQUIRE(result == Steinberg::kResultOk);
+
+    SECTION("Pitch step 0 set to 0.75, read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpPitchLaneStep0Id);
+        controller.setParamNormalized(paramId, 0.75);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(0.75).margin(1e-6));
+    }
+
+    SECTION("Pitch lane length set to 8 steps, read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpPitchLaneLengthId);
+        double normalizedFor8Steps = 7.0 / 31.0;
+        controller.setParamNormalized(paramId, normalizedFor8Steps);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalizedFor8Steps).margin(1e-6));
+    }
+
+    SECTION("Pitch playhead set to step 5, read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpPitchPlayheadId);
+        double normalized = 5.0 / 32.0;
+        controller.setParamNormalized(paramId, normalized);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalized).margin(1e-6));
+    }
+
+    controller.terminate();
+}
+
+TEST_CASE("RatchetLane_ParameterRoundTrip_ValuePreserved", "[arp][integration][ratchet][T089]") {
+    Ruinae::Controller controller;
+    auto result = controller.initialize(nullptr);
+    REQUIRE(result == Steinberg::kResultOk);
+
+    SECTION("Ratchet step 0 set to 2/3 (count=3), read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpRatchetLaneStep0Id);
+        double normalizedFor3 = 2.0 / 3.0;
+        controller.setParamNormalized(paramId, normalizedFor3);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalizedFor3).margin(1e-6));
+    }
+
+    SECTION("Ratchet lane length set to 12, read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpRatchetLaneLengthId);
+        double normalizedFor12 = 11.0 / 31.0;
+        controller.setParamNormalized(paramId, normalizedFor12);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalizedFor12).margin(1e-6));
+    }
+
+    SECTION("Ratchet playhead set to step 7, read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpRatchetPlayheadId);
+        double normalized = 7.0 / 32.0;
+        controller.setParamNormalized(paramId, normalized);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalized).margin(1e-6));
+    }
+
+    controller.terminate();
+}
+
+TEST_CASE("ModifierLane_ParameterRoundTrip_ValuePreserved", "[arp][integration][modifier][T089]") {
+    Ruinae::Controller controller;
+    auto result = controller.initialize(nullptr);
+    REQUIRE(result == Steinberg::kResultOk);
+
+    SECTION("Modifier step 0 set to 9/15 (kStepActive|kStepAccent), read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpModifierLaneStep0Id);
+        double normalizedFor9 = 9.0 / 15.0;
+        controller.setParamNormalized(paramId, normalizedFor9);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalizedFor9).margin(1e-6));
+    }
+
+    SECTION("Modifier lane length set to 16, read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpModifierLaneLengthId);
+        double normalizedFor16 = 15.0 / 31.0;
+        controller.setParamNormalized(paramId, normalizedFor16);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalizedFor16).margin(1e-6));
+    }
+
+    SECTION("Modifier playhead set to step 3, read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpModifierPlayheadId);
+        double normalized = 3.0 / 32.0;
+        controller.setParamNormalized(paramId, normalized);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalized).margin(1e-6));
+    }
+
+    controller.terminate();
+}
+
+TEST_CASE("ConditionLane_ParameterRoundTrip_ValuePreserved", "[arp][integration][condition][T089]") {
+    Ruinae::Controller controller;
+    auto result = controller.initialize(nullptr);
+    REQUIRE(result == Steinberg::kResultOk);
+
+    SECTION("Condition step 0 set to 5/17 (90%), read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpConditionLaneStep0Id);
+        double normalizedFor5 = 5.0 / 17.0;
+        controller.setParamNormalized(paramId, normalizedFor5);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalizedFor5).margin(1e-6));
+    }
+
+    SECTION("Condition lane length set to 4, read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpConditionLaneLengthId);
+        double normalizedFor4 = 3.0 / 31.0;
+        controller.setParamNormalized(paramId, normalizedFor4);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalizedFor4).margin(1e-6));
+    }
+
+    SECTION("Condition playhead set to step 2, read back matches") {
+        auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpConditionPlayheadId);
+        double normalized = 2.0 / 32.0;
+        controller.setParamNormalized(paramId, normalized);
+        auto* param = controller.getParameterObject(paramId);
+        REQUIRE(param != nullptr);
+        double readBack = param->getNormalized();
+        REQUIRE(readBack == Approx(normalized).margin(1e-6));
+    }
+
+    controller.terminate();
+}
+
+TEST_CASE("AllNewLanes_StatePersistence_RoundTrip", "[arp][integration][state][T089][FR-047]") {
+    // --- Step 1: Create processor and set non-default values for all 4 new lanes ---
+    auto proc1 = makeArpFlowProcessor();
+
+    ArpFlowParamChanges changes;
+
+    // Pitch lane: step 0-3 with distinct values, length 8
+    changes.add(Ruinae::kArpPitchLaneStep0Id, 0.75);       // +12 semitones
+    changes.add(Ruinae::kArpPitchLaneStep0Id + 1, 0.25);   // -12 semitones
+    changes.add(Ruinae::kArpPitchLaneStep0Id + 2, 0.5);    // 0 semitones
+    changes.add(Ruinae::kArpPitchLaneStep0Id + 3, 1.0);    // +24 semitones
+    changes.add(Ruinae::kArpPitchLaneLengthId, 7.0 / 31.0); // 8 steps
+
+    // Ratchet lane: step 0-1, length 4
+    changes.add(Ruinae::kArpRatchetLaneStep0Id, 2.0 / 3.0);  // count=3
+    changes.add(Ruinae::kArpRatchetLaneStep0Id + 1, 1.0);     // count=4
+    changes.add(Ruinae::kArpRatchetLaneLengthId, 3.0 / 31.0); // 4 steps
+
+    // Modifier lane: step 0-1, length 8
+    changes.add(Ruinae::kArpModifierLaneStep0Id, 9.0 / 15.0);  // kStepActive|kStepAccent
+    changes.add(Ruinae::kArpModifierLaneStep0Id + 1, 3.0 / 15.0); // kStepActive|kStepTie
+    changes.add(Ruinae::kArpModifierLaneLengthId, 7.0 / 31.0);  // 8 steps
+
+    // Condition lane: step 0-1, length 8
+    changes.add(Ruinae::kArpConditionLaneStep0Id, 5.0 / 17.0);  // 90%
+    changes.add(Ruinae::kArpConditionLaneStep0Id + 1, 16.0 / 17.0); // Fill
+    changes.add(Ruinae::kArpConditionLaneLengthId, 7.0 / 31.0);  // 8 steps
+
+    proc1->processParameterChanges(&changes);
+
+    // --- Step 2: Save processor state ---
+    Steinberg::MemoryStream stream;
+    REQUIRE(proc1->getState(&stream) == Steinberg::kResultTrue);
+
+    // --- Step 3: Create fresh processor and restore ---
+    auto proc2 = makeArpFlowProcessor();
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(proc2->setState(&stream) == Steinberg::kResultTrue);
+
+    // --- Step 4: Save from restored processor ---
+    Steinberg::MemoryStream stream2;
+    REQUIRE(proc2->getState(&stream2) == Steinberg::kResultTrue);
+
+    // --- Step 5: Sync controller ---
+    Ruinae::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+
+    stream2.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(controller.setComponentState(&stream2) == Steinberg::kResultTrue);
+
+    // --- Step 6: Verify all values round-trip ---
+    SECTION("Pitch step 0 reads back 0.75") {
+        double val = controller.getParamNormalized(Ruinae::kArpPitchLaneStep0Id);
+        CHECK(val == Approx(0.75).margin(1e-6));
+    }
+    SECTION("Pitch step 3 reads back 1.0") {
+        double val = controller.getParamNormalized(
+            static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpPitchLaneStep0Id + 3));
+        CHECK(val == Approx(1.0).margin(1e-6));
+    }
+    SECTION("Pitch lane length reads back 8 steps") {
+        double val = controller.getParamNormalized(Ruinae::kArpPitchLaneLengthId);
+        CHECK(val == Approx(7.0 / 31.0).margin(1e-6));
+    }
+    SECTION("Ratchet step 0 reads back 2/3") {
+        double val = controller.getParamNormalized(Ruinae::kArpRatchetLaneStep0Id);
+        CHECK(val == Approx(2.0 / 3.0).margin(1e-6));
+    }
+    SECTION("Ratchet lane length reads back 4 steps") {
+        double val = controller.getParamNormalized(Ruinae::kArpRatchetLaneLengthId);
+        CHECK(val == Approx(3.0 / 31.0).margin(1e-6));
+    }
+    SECTION("Modifier step 0 reads back 9/15") {
+        double val = controller.getParamNormalized(Ruinae::kArpModifierLaneStep0Id);
+        CHECK(val == Approx(9.0 / 15.0).margin(1e-6));
+    }
+    SECTION("Modifier lane length reads back 8 steps") {
+        double val = controller.getParamNormalized(Ruinae::kArpModifierLaneLengthId);
+        CHECK(val == Approx(7.0 / 31.0).margin(1e-6));
+    }
+    SECTION("Condition step 0 reads back 5/17") {
+        double val = controller.getParamNormalized(Ruinae::kArpConditionLaneStep0Id);
+        CHECK(val == Approx(5.0 / 17.0).margin(1e-6));
+    }
+    SECTION("Condition step 1 reads back 16/17") {
+        double val = controller.getParamNormalized(
+            static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpConditionLaneStep0Id + 1));
+        CHECK(val == Approx(16.0 / 17.0).margin(1e-6));
+    }
+    SECTION("Condition lane length reads back 8 steps") {
+        double val = controller.getParamNormalized(Ruinae::kArpConditionLaneLengthId);
+        CHECK(val == Approx(7.0 / 31.0).margin(1e-6));
+    }
+
+    proc1->terminate();
+    proc2->terminate();
+    controller.terminate();
+}
