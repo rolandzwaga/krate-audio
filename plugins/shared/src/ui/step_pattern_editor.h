@@ -375,13 +375,21 @@ public:
     [[nodiscard]] VSTGUI::CColor getTextColor() const { return textColor_; }
 
     // =========================================================================
+    // Subclass Layout Support
+    // =========================================================================
+
+    /// Set a top offset for the bar area (e.g., for subclass headers)
+    /// Default is 0.0f, which preserves existing behavior.
+    void setBarAreaTopOffset(float offset) { barAreaTopOffset_ = offset; }
+
+    // =========================================================================
     // Layout Computation (public for testability)
     // =========================================================================
 
     /// Get the bar area rectangle (the region where bars are drawn)
     [[nodiscard]] VSTGUI::CRect getBarArea() const {
         VSTGUI::CRect vs = getViewSize();
-        float top = static_cast<float>(vs.top) + kPhaseOffsetHeight;
+        float top = static_cast<float>(vs.top) + kPhaseOffsetHeight + barAreaTopOffset_;
         float bottom = static_cast<float>(vs.bottom) - kStepLabelHeight - kPlaybackIndicatorHeight;
 
         if (numSteps_ >= 24 && zoomLevel_ > 1.0f) {
@@ -1037,6 +1045,9 @@ private:
 
     // Phase offset
     float phaseOffset_ = 0.0f;
+
+    // Bar area top offset (for subclass headers, e.g., ArpLaneEditor)
+    float barAreaTopOffset_ = 0.0f;
 
     // Euclidean mode
     bool euclideanEnabled_ = false;
