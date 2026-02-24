@@ -768,7 +768,7 @@ Extend `ArpeggiatorParams` when adding new arpeggiator features:
 - **Phase 8 (Conditional Trig)**: Condition lane parameters added in 3240-3272 ID range + fill toggle at 3280 (done -- see [Condition Lane Parameters section](#arpeggiator-condition-lane-parameters-spec-076) below)
 - **Phase 9 (Spice/Dice + Humanize)**: Spice/Dice/Humanize parameters added in 3290-3292 ID range (done -- see [Spice/Dice/Humanize Parameters section](#arpeggiator-spicedicehumanize-parameters-spec-077) below)
 - **Phase 9.5 (Ratchet Swing)**: Ratchet swing parameter added at ID 3293 (done -- see [Ratchet Swing Parameter section](#arpeggiator-ratchet-swing-parameter) below)
-- **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations
+- **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations (done -- no new parameter IDs; 5 arp params exposed as mod destinations via RuinaeModDest enum extension + processor-side mod offset application in `applyParamsToEngine()`; see [Arp Modulation Destination Pattern](plugin-architecture.md#arp-modulation-destination-pattern-spec-078))
 - **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes expected
 
 The sentinel `kArpEndId = 3299` accommodates future lane parameters and arp extensions without requiring an ID allocation change.

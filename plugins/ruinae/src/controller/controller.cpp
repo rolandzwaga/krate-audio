@@ -122,6 +122,14 @@ static constexpr std::array<Steinberg::Vst::ParamID,
     kMixerTiltId,             // 7: All Voice Spectral Tilt
     kFilterResonanceId,       // 8: All Voice Resonance
     kFilterEnvAmountId,       // 9: All Voice Filter Env Amount
+    // Arpeggiator destinations (078-modulation-integration)
+    // Note: index 10 always maps to kArpFreeRateId regardless of tempo-sync
+    // mode. Dynamic mode-aware indicator is deferred to Phase 11.
+    kArpFreeRateId,           // 10: Arp Rate
+    kArpGateLengthId,         // 11: Arp Gate Length
+    kArpOctaveRangeId,        // 12: Arp Octave Range
+    kArpSwingId,              // 13: Arp Swing
+    kArpSpiceId,              // 14: Arp Spice
 }};
 
 // Compile-time validation: param ID arrays must match destination registries

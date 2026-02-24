@@ -1868,7 +1868,10 @@ Complete polyphonic Ruinae synthesizer engine composing 16 RuinaeVoice instances
 enum class RuinaeModDest : uint32_t {
     GlobalFilterCutoff = 64, GlobalFilterResonance = 65,
     MasterVolume = 66, EffectMix = 67,
-    AllVoiceFilterCutoff = 68, AllVoiceMorphPosition = 69, AllVoiceTranceGateRate = 70
+    AllVoiceFilterCutoff = 68, AllVoiceMorphPosition = 69, AllVoiceTranceGateRate = 70,
+    AllVoiceSpectralTilt = 71, AllVoiceResonance = 72, AllVoiceFilterEnvAmt = 73,
+    // Arpeggiator destinations (Spec 078)
+    ArpRate = 74, ArpGateLength = 75, ArpOctaveRange = 76, ArpSwing = 77, ArpSpice = 78
 };
 
 class RuinaeEngine {
@@ -1982,7 +1985,7 @@ Mono mode:
 - Stereo output with equal-power pan law: `leftGain = cos(pan * pi/2)`, `rightGain = sin(pan * pi/2)`
 - Stereo spread distributes voice pan positions evenly across field
 - Stereo width via Mid/Side encoding
-- Global ModulationEngine with 7 engine-level destinations (RuinaeModDest enum, values 64-70)
+- Global ModulationEngine with 15 engine-level destinations (RuinaeModDest enum, values 64-78: 10 global + 5 arp)
 - Previous block's output fed back as audio input for global modulation
 - Gain compensation: `1/sqrt(polyphonyCount)` based on configured voice count
 - Soft limiting: `Sigmoid::tanh()` prevents output exceeding [-1, +1]

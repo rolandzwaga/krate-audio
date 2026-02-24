@@ -61,7 +61,7 @@ enum class ModDestination : uint8_t {
 inline constexpr int kNumVoiceDestinations = 8;
 
 /// Number of destinations visible in the Global tab (matching DSP kModDestCount)
-inline constexpr int kNumGlobalDestinations = 10;
+inline constexpr int kNumGlobalDestinations = 15;
 
 // ==============================================================================
 // ModRoute Struct
@@ -157,8 +157,8 @@ inline constexpr std::array<ModDestInfo, 8> kVoiceDestNames = {{
     {"Spectral Tilt",      "Spectral Tilt",  "Tilt"},
 }};
 
-/// Global tab destinations (indices 0-9): matching DSP RuinaeModDest 64-73
-inline constexpr std::array<ModDestInfo, 10> kGlobalDestNames = {{
+/// Global tab destinations (indices 0-14): matching DSP RuinaeModDest 64-78
+inline constexpr std::array<ModDestInfo, 15> kGlobalDestNames = {{
     {"Global Filter Cutoff",    "Global Flt Cutoff",     "GFCt"},
     {"Global Filter Resonance", "Global Flt Reso",       "GFRs"},
     {"Master Volume",           "Master Volume",         "Mstr"},
@@ -169,6 +169,12 @@ inline constexpr std::array<ModDestInfo, 10> kGlobalDestNames = {{
     {"All Voice Spectral Tilt", "All Voice Spectral Tilt", "VTlt"},
     {"All Voice Resonance",     "All Voice Resonance",   "VRso"},
     {"All Voice Flt Env Amt",   "All Voice Flt Env Amt", "VEnv"},
+    // Arpeggiator destinations (078-modulation-integration)
+    {"Arp Rate",                "Arp Rate",              "ARate"},
+    {"Arp Gate Length",         "Arp Gate",              "AGat"},
+    {"Arp Octave Range",        "Arp Octave",            "AOct"},
+    {"Arp Swing",               "Arp Swing",             "ASwg"},
+    {"Arp Spice",               "Arp Spice",             "ASpc"},
 }};
 
 // ==============================================================================

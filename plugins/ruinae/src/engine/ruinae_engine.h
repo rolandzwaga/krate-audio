@@ -73,8 +73,22 @@ enum class RuinaeModDest : uint32_t {
     AllVoiceTranceGateRate = 70,  ///< Offset forwarded to all voices' trance gate rate
     AllVoiceSpectralTilt   = 71,  ///< Offset forwarded to all voices' spectral tilt
     AllVoiceResonance      = 72,  ///< Offset forwarded to all voices' filter resonance
-    AllVoiceFilterEnvAmt   = 73   ///< Offset forwarded to all voices' filter env amount
+    AllVoiceFilterEnvAmt   = 73,  ///< Offset forwarded to all voices' filter env amount
+    // Arpeggiator modulation destinations (078-modulation-integration)
+    ArpRate                = 74,  ///< Arp rate/speed modulation
+    ArpGateLength          = 75,  ///< Arp gate length modulation
+    ArpOctaveRange         = 76,  ///< Arp octave range modulation
+    ArpSwing               = 77,  ///< Arp swing modulation
+    ArpSpice               = 78   ///< Arp spice amount modulation
 };
+
+// FR-020: Validate linear mapping from UI index to enum value.
+// modDestFromIndex() computes GlobalFilterCutoff + index, so ArpRate must be
+// exactly GlobalFilterCutoff + 10 (since ArpRate is at UI index 10).
+static_assert(static_cast<uint32_t>(RuinaeModDest::ArpRate) ==
+              static_cast<uint32_t>(RuinaeModDest::GlobalFilterCutoff) + 10,
+              "ArpRate enum value must equal GlobalFilterCutoff + 10 "
+              "for modDestFromIndex() to work correctly");
 
 // =============================================================================
 // RuinaeEngine Class (FR-001 through FR-044)

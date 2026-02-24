@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 9 complete — Spice/Dice & Humanize) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 10 complete — Modulation Integration) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -38,7 +38,8 @@ The arpeggiator is decomposed into **12 phases**. The first 3 phases produce a *
 | **Sequencer** ✅ | 6 | Per-step velocity/gate/pitch/ratchet lanes, TB-303 modifiers. Deep. |
 | **Conditional** ✅ | 8 | Euclidean rhythms, conditional trigs (probability, A:B ratios, Fill, First). Evolving. |
 | **Generative** ✅ | 9 | Spice/Dice mutation, humanize. Unique. |
-| **Complete** | 12 | Mod matrix integration, dedicated UI, preset arp patterns. Polished. |
+| **Modulated** ✅ | 10 | Arp params as mod destinations (rate, gate, octave, swing, spice). Expressive. |
+| **Complete** | 12 | Dedicated UI, preset arp patterns. Polished. |
 
 ### Existing Components Reused
 
@@ -874,10 +875,17 @@ kArpHumanizeId              = 3292,  // 0-100%
 
 ---
 
-## Phase 10: Modulation Integration
+## Phase 10: Modulation Integration ✅ COMPLETE
 
 **Plugin Layer**: `plugins/ruinae/`
-**Files**: Extend modulation engine routing, parameter registration
+**Files**:
+- `plugins/ruinae/src/engine/ruinae_engine.h` — RuinaeModDest enum extension (ArpRate=74 through ArpSpice=78)
+- `plugins/shared/src/ui/mod_matrix_types.h` — kNumGlobalDestinations 10→15, kGlobalDestNames extended
+- `plugins/ruinae/src/controller/controller.cpp` — kGlobalDestParamIds extended
+- `plugins/ruinae/src/processor/processor.cpp` — mod offset reads + application in applyParamsToEngine()
+**Test**: `plugins/ruinae/tests/unit/processor/arp_mod_integration_test.cpp`
+**Spec**: `specs/078-modulation-integration/spec.md`
+**Branch**: `078-modulation-integration`
 **Depends on**: Phase 3 (independent of Phases 4-9)
 
 ### Purpose
@@ -886,31 +894,42 @@ Expose arpeggiator parameters as modulation destinations in the existing Modulat
 
 ### Modulation Destinations
 
-| Parameter | Mod Destination ID | Range | Musical Effect |
-|---|---|---|---|
-| Arp Rate | `kModDestArpRate` | +/- 50% of current rate | Accelerando/ritardando |
-| Gate Length | `kModDestArpGate` | +/- 100% | Dynamic staccato/legato |
-| Octave Range | `kModDestArpOctave` | +/- 3 octaves | Expanding/contracting range |
-| Swing | `kModDestArpSwing` | +/- 50% | Shifting groove feel |
-| Spice | `kModDestArpSpice` | 0-100% | Dynamic randomness amount |
+| Parameter | RuinaeModDest | Dest Index | Formula | Range |
+|---|---|---|---|---|
+| Arp Rate | ArpRate = 74 | 10 | `baseRate * (1.0 + 0.5 * offset)` | [0.5, 50.0] Hz |
+| Gate Length | ArpGateLength = 75 | 11 | `baseGate + 100.0 * offset` | [1.0, 200.0]% |
+| Octave Range | ArpOctaveRange = 76 | 12 | `baseOctave + round(3.0 * offset)` | [1, 4] |
+| Swing | ArpSwing = 77 | 13 | `baseSwing + 50.0 * offset` | [0.0, 75.0]% |
+| Spice | ArpSpice = 78 | 14 | `baseSpice + offset` (bipolar) | [0.0, 1.0] |
 
 ### Implementation
 
-The existing ModulationEngine already supports adding new destinations. Each destination is a float pointer that the mod engine writes to per block. The arp reads these modulated values instead of raw parameter values.
+No new DSP components or parameter IDs. The existing ModulationEngine writes offsets per block; the processor reads them in `applyParamsToEngine()` and applies modulated values to arpCore_ setters. Rate modulation handles both free-rate and tempo-sync modes. Octave range uses change detection via `prevArpOctaveRange_`. Mod reads are skipped when arp is disabled (FR-015).
 
 ### Test Coverage
 
-- LFO modulating arp rate produces audible speed changes
-- Envelope modulating gate produces dynamic articulation
-- Macro knob controlling spice produces controllable randomness
-- Modulation doesn't cause out-of-range values (clamping)
+- 27 test cases covering all 5 destinations: free-rate +/-, tempo-sync +/-, gate +/-, octave expansion/clamping/change-detection, swing +/clamp, spice bipolar/clamp/negative, zero-offset identity
+- Save/load roundtrip for single and all-5 destinations
+- Phase 9 preset backward compatibility
+- Existing destination unchanged after extension
+- 10,000-block stress test (zero NaN/Inf)
+- All 5 destinations simultaneous
 
 ### Acceptance Criteria
 
-- [ ] At least 5 arp parameters available as mod destinations
-- [ ] Modulation is sample-accurate per block
-- [ ] No clicks or glitches when mod values change rapidly
-- [ ] Mod routings serialize/deserialize correctly
+- [x] All 5 arp parameters available as mod destinations in UI dropdown (SC-001: kGlobalDestNames indices 10-14)
+- [x] Modulation is block-rate accurate with 1-block latency (SC-002: ArpRateFreeMode_PositiveOffset test passes)
+- [x] No clicks or glitches when mod values change rapidly (SC-003: 10,000-block stress test, 0 NaN, 0 Inf)
+- [x] Mod routings serialize/deserialize correctly (SC-004: save/load roundtrip byte-identical)
+- [x] Zero mod offset = Phase 9 identical behavior (SC-005: zero-offset tests pass for rate, gate, swing)
+- [x] All formulas produce correct effective values (SC-006: 15 formula tests pass)
+- [x] Real-time safe: zero heap allocation in mod application path (SC-007: code inspection confirmed)
+- [x] Existing destinations unchanged (SC-008: 508 tests, 8800 assertions all pass)
+- [x] Phase 9 presets load without error (SC-009: Phase9Preset_NoArpModActive test passes)
+- [x] static_assert protects enum mapping invariant (SC-010: ArpRate == GlobalFilterCutoff + 10)
+- [x] Pluginval strictness 5 pass (SC-011: exit code 0)
+- [x] Clang-tidy 0 errors, 0 warnings (SC-012: 235 files analyzed)
+- [x] 20/20 functional requirements MET, 12/12 success criteria MET
 
 ---
 

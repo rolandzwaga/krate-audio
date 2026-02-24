@@ -1027,6 +1027,175 @@ if (streamer.readFloat(floatVal))
 
 `plugins/ruinae/src/parameters/dropdown_mappings.h` provides enum-to-string mappings for all discrete parameters (OscType, FilterType, DistortionType, Waveform, MonoMode, PortaMode, SVFMode, ModSource, RuinaeModDest, ChaosType, NumSteps).
 
+### Arp Modulation Destination Pattern (Spec 078)
+
+The arpeggiator modulation integration (Spec 078) established a pattern for exposing plugin-layer parameters as modulation destinations in the existing ModulationEngine. This pattern requires no new DSP components, no new parameter IDs, and no state serialization changes. It is the recommended approach for adding future modulation destinations.
+
+#### Architecture Overview
+
+The modulation destination system spans three layers:
+
+```
+DSP Layer (enum)           UI/Shared Layer (registry)      Plugin Layer (wiring)
+RuinaeModDest enum         kGlobalDestNames array           kGlobalDestParamIds array
+  in ruinae_engine.h         in mod_matrix_types.h            in controller.cpp
+  Values: 64-78              Indices: 0-14                    Indices: 0-14
+        |                          |                               |
+        v                          v                               v
+ModulationEngine           Mod matrix UI dropdown           Controller indicator
+  getModulationOffset()      (source, dest, amount)           routing display
+        |
+        v
+Processor::applyParamsToEngine()
+  reads offset, applies formula, calls ArpeggiatorCore setter
+```
+
+#### RuinaeModDest Enum Extension
+
+**File**: `plugins/ruinae/src/engine/ruinae_engine.h` (lines 66-83)
+
+The `RuinaeModDest` enum defines DSP-side modulation destination IDs. Values start at 64 to avoid collision with per-voice modulation destination IDs. The enum is organized in groups:
+
+| Group | Enum Values | UI Indices | Purpose |
+|-------|-------------|------------|---------|
+| Global engine destinations | 64-73 | 0-9 | Filter, Volume, Effects, Voice parameters |
+| Arpeggiator destinations | 74-78 | 10-14 | Rate, Gate, Octave, Swing, Spice |
+
+```cpp
+enum class RuinaeModDest : uint32_t {
+    GlobalFilterCutoff     = 64,  // ... existing 10 destinations (64-73)
+    AllVoiceFilterEnvAmt   = 73,
+    // Arpeggiator modulation destinations (078-modulation-integration)
+    ArpRate                = 74,  ///< Arp rate/speed modulation
+    ArpGateLength          = 75,  ///< Arp gate length modulation
+    ArpOctaveRange         = 76,  ///< Arp octave range modulation
+    ArpSwing               = 77,  ///< Arp swing modulation
+    ArpSpice               = 78   ///< Arp spice amount modulation
+};
+```
+
+All values (64-78) are well below `kMaxModDestinations = 128` in `ModulationEngine`.
+
+#### modDestFromIndex() Linear Mapping Invariant
+
+**File**: `plugins/ruinae/src/parameters/dropdown_mappings.h` (line 205)
+
+The function `modDestFromIndex()` maps a UI dropdown index to a `RuinaeModDest` enum value using:
+
+```cpp
+inline RuinaeModDest modDestFromIndex(int index) {
+    return static_cast<RuinaeModDest>(
+        static_cast<uint32_t>(RuinaeModDest::GlobalFilterCutoff) + index);
+}
+```
+
+This means UI index `i` always maps to enum value `64 + i`. The invariant is protected by a compile-time assertion:
+
+```cpp
+// File: plugins/ruinae/src/engine/ruinae_engine.h (lines 85-89)
+static_assert(static_cast<uint32_t>(RuinaeModDest::ArpRate) ==
+              static_cast<uint32_t>(RuinaeModDest::GlobalFilterCutoff) + 10,
+              "ArpRate enum value must equal GlobalFilterCutoff + 10 "
+              "for modDestFromIndex() to work correctly");
+```
+
+**CRITICAL**: When adding new destinations, enum values MUST be contiguous from `GlobalFilterCutoff` (64) upward. Any gap or re-ordering breaks the linear mapping and causes silent DSP routing errors.
+
+#### UI Destination Registry
+
+**File**: `plugins/shared/src/ui/mod_matrix_types.h`
+
+Two constants must be updated together:
+
+| Constant | Current Value | Purpose |
+|----------|---------------|---------|
+| `kNumGlobalDestinations` | 15 | Total destination count (line 64) |
+| `kGlobalDestNames` | 15 entries | Display names for dropdown (lines 161-184) |
+
+An existing `static_assert` at line 223 enforces `kGlobalDestNames.size() == kNumGlobalDestinations`.
+
+#### Controller Param ID Mapping
+
+**File**: `plugins/ruinae/src/controller/controller.cpp`
+
+The `kGlobalDestParamIds` array maps each destination UI index to a VST parameter ID for indicator routing. Each new destination must have a corresponding arp parameter ID entry:
+
+| UI Index | Destination | Param ID |
+|----------|-------------|----------|
+| 10 | Arp Rate | `kArpFreeRateId` (3006) |
+| 11 | Arp Gate Length | `kArpGateLengthId` (3007) |
+| 12 | Arp Octave Range | `kArpOctaveRangeId` (3002) |
+| 13 | Arp Swing | `kArpSwingId` (3008) |
+| 14 | Arp Spice | `kArpSpiceId` (3290) |
+
+**Accepted limitation**: Index 10 always maps to `kArpFreeRateId` regardless of tempo-sync mode. The mod matrix indicator always highlights the free-rate knob, even when tempo-synced.
+
+An existing `static_assert` enforces `kGlobalDestParamIds.size() == kGlobalDestNames.size()`.
+
+#### Processor-Side Mod Offset Application Pattern
+
+**File**: `plugins/ruinae/src/processor/processor.cpp`, `applyParamsToEngine()` (lines 1239-1337)
+
+The mod offset application follows a strict 5-step pattern for each destination:
+
+```
+1. Read base value from atomic param:     baseRate = arpParams_.freeRate.load(relaxed)
+2. Read mod offset from engine:           rateOffset = engine_.getGlobalModOffset(RuinaeModDest::ArpRate)
+3. Compute effective value per formula:    effectiveRate = baseRate * (1.0f + 0.5f * rateOffset)
+4. Clamp to valid range:                  std::clamp(effectiveRate, 0.5f, 50.0f)
+5. Pass to ArpeggiatorCore setter:        arpCore_.setFreeRate(effectiveRate)
+```
+
+**Enabled guard (FR-015)**: All 5 offset reads are wrapped in `if (arpParams_.enabled.load(relaxed))`. When the arp is disabled, the `else` branch uses raw parameter values without reading mod offsets. On re-enable, the first block reads whatever offset the ModulationEngine most recently computed (maximum 1-block staleness, identical to normal operation latency).
+
+**Per-destination formulas:**
+
+| Destination | Formula | Range | Unit |
+|-------------|---------|-------|------|
+| Rate (free mode) | `baseRate * (1.0 + 0.5 * offset)` | [0.5, 50.0] | Hz |
+| Rate (tempo-sync) | `baseDuration / (1.0 + 0.5 * offset)` converted to Hz | [0.5, 50.0] | Hz |
+| Gate Length | `baseGate + 100.0 * offset` | [1.0, 200.0] | % |
+| Octave Range | `baseOctave + round(3.0 * offset)` | [1, 4] | int |
+| Swing | `baseSwing + 50.0 * offset` | [0.0, 75.0] | % |
+| Spice | `baseSpice + offset` | [0.0, 1.0] | normalized |
+
+**Tempo-sync rate override**: When the arp is tempo-synced and `rateOffset != 0`, the processor computes an equivalent free rate from the modulated step duration, then temporarily sets `arpCore_.setTempoSync(false)` and `arpCore_.setFreeRate(effectiveHz)`. When `rateOffset == 0`, normal tempo-sync behavior is preserved. This approach is necessary because ArpeggiatorCore has no API to override step duration while keeping tempo-sync active.
+
+**Octave range change detection**: `prevArpOctaveRange_` tracks the EFFECTIVE (modulated) value, not the raw base. `setOctaveRange()` is only called when the effective value changes, preventing unnecessary selector resets that would break the arp pattern.
+
+**Real-time safety**: All operations are array lookups (getGlobalModOffset is a single array index) plus inline arithmetic (multiply, add, clamp, round). Zero allocations, zero locks, zero exceptions.
+
+#### How to Add Future Mod Destinations
+
+To add a new modulation destination (e.g., effects chain parameters, trance gate parameters), follow these steps:
+
+1. **Extend `RuinaeModDest` enum** in `ruinae_engine.h`:
+   - Add new entries after `ArpSpice = 78` with the next sequential values (79, 80, ...)
+   - Add a `static_assert` confirming the linear mapping invariant (new entry == `GlobalFilterCutoff + newIndex`)
+
+2. **Update `kNumGlobalDestinations`** in `mod_matrix_types.h` to the new total count
+
+3. **Extend `kGlobalDestNames`** in `mod_matrix_types.h`:
+   - Append new `ModDestInfo` entries with full name, medium name, and short abbreviation
+   - Update the array template parameter to match the new count
+
+4. **Extend `kGlobalDestParamIds`** in `controller.cpp`:
+   - Append the VST parameter ID that corresponds to each new destination
+   - The existing `static_assert` will catch any size mismatch
+
+5. **Add mod offset application** in `processor.cpp` `applyParamsToEngine()`:
+   - Follow the 5-step pattern: read base, read offset, compute effective, clamp, call setter
+   - Choose the appropriate formula (multiplicative for rate-like params, additive for range-like params)
+   - Guard with an enabled check if the feature can be disabled
+
+6. **Write integration tests** using the Macro source for deterministic offset control:
+   - Route Macro to the new destination with known amount
+   - Set Macro value
+   - Process blocks to let mod engine compute offsets
+   - Verify effective parameter value matches expected formula
+
+**No changes needed to**: `ModulationEngine`, `ArpeggiatorCore` (or target DSP component), state serialization, `plugin_ids.h`, or the mod matrix UI components (they iterate over `kNumGlobalDestinations` automatically).
+
 ### Shared Utilities
 
 | File | Purpose | Origin |
