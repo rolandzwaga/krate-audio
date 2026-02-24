@@ -626,6 +626,27 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             int stepIndex = static_cast<int>(tag - kArpVelocityLaneStep0Id);
             velocityLane_->setStepLevel(stepIndex, static_cast<float>(value));
             velocityLane_->setDirty(true);
+        } else if (tag == kArpVelocityLaneLengthId) {
+            // Denormalize: RangeParameter 1-32, stepCount=31
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            velocityLane_->setNumSteps(steps);
+            velocityLane_->setDirty(true);
+        }
+    }
+
+    // Push gate lane parameter changes to ArpLaneEditor (079-layout-framework, US2)
+    if (gateLane_) {
+        if (tag >= kArpGateLaneStep0Id && tag <= kArpGateLaneStep31Id) {
+            int stepIndex = static_cast<int>(tag - kArpGateLaneStep0Id);
+            gateLane_->setStepLevel(stepIndex, static_cast<float>(value));
+            gateLane_->setDirty(true);
+        } else if (tag == kArpGateLaneLengthId) {
+            // Denormalize: RangeParameter 1-32, stepCount=31
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            gateLane_->setNumSteps(steps);
+            gateLane_->setDirty(true);
         }
     }
 
@@ -1015,7 +1036,53 @@ VSTGUI::CView* Controller::verifyView(
         // Add velocity lane to container (container takes ownership)
         arpLaneContainer_->addLane(velocityLane_);
 
-        // Gate lane will be added here in US2 (Phase 4)
+        // Construct gate lane (US2)
+        gateLane_ = new Krate::Plugins::ArpLaneEditor(
+            VSTGUI::CRect(0, 0, 500, 86), nullptr, -1);
+        gateLane_->setLaneName("GATE");
+        gateLane_->setLaneType(Krate::Plugins::ArpLaneType::kGate);
+        gateLane_->setAccentColor(VSTGUI::CColor{200, 164, 100, 255});
+        gateLane_->setDisplayRange(0.0f, 2.0f, "200%", "0%");
+        gateLane_->setStepLevelBaseParamId(kArpGateLaneStep0Id);
+        gateLane_->setLengthParamId(kArpGateLaneLengthId);
+        gateLane_->setPlayheadParamId(kArpGatePlayheadId);
+
+        // Wire performEdit callback (editor -> host)
+        gateLane_->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        gateLane_->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(paramId);
+            });
+        gateLane_->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+
+        // Sync current parameter values to the gate lane
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpGateLaneStep0Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                gateLane_->setStepLevel(i,
+                    static_cast<float>(paramObj->getNormalized()));
+            }
+        }
+
+        // Sync numSteps from gate lane length parameter
+        auto* gateLenParam = getParameterObject(kArpGateLaneLengthId);
+        if (gateLenParam) {
+            double val = gateLenParam->getNormalized();
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+            gateLane_->setNumSteps(steps);
+        }
+
+        // Add gate lane to container below velocity lane
+        arpLaneContainer_->addLane(gateLane_);
     }
 
     // Wire XYMorphPad callbacks

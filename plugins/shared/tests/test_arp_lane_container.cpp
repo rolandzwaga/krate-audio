@@ -146,3 +146,53 @@ TEST_CASE("removeLane repositions remaining lanes correctly", "[arp_lane_contain
     lane2Rect = lane2->getViewSize();
     REQUIRE(static_cast<float>(lane2Rect.top) == Approx(0.0f).margin(0.01f));
 }
+
+// ==============================================================================
+// Left-Alignment Tests (T043)
+// ==============================================================================
+
+TEST_CASE("All lanes have the same left origin after recalculateLayout", "[arp_lane_container][alignment]") {
+    auto container = makeContainer();
+
+    // Create lanes with different step counts to simulate different bar widths
+    auto* lane1 = makeArpLane(86.0f);
+    auto* lane2 = makeArpLane(86.0f);
+
+    lane1->setNumSteps(16);
+    lane2->setNumSteps(8);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+
+    // After recalculateLayout (called by addLane), both lanes should share
+    // the same left origin (left-alignment regardless of step count)
+    CRect lane1Rect = lane1->getViewSize();
+    CRect lane2Rect = lane2->getViewSize();
+
+    REQUIRE(static_cast<float>(lane1Rect.left) ==
+            Approx(static_cast<float>(lane2Rect.left)).margin(0.01f));
+}
+
+TEST_CASE("Left-alignment preserved with three lanes of different step counts", "[arp_lane_container][alignment]") {
+    auto container = makeContainer();
+
+    auto* lane1 = makeArpLane(86.0f);
+    auto* lane2 = makeArpLane(86.0f);
+    auto* lane3 = makeArpLane(86.0f);
+
+    lane1->setNumSteps(16);
+    lane2->setNumSteps(8);
+    lane3->setNumSteps(32);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+    container.addLane(lane3);
+
+    CRect r1 = lane1->getViewSize();
+    CRect r2 = lane2->getViewSize();
+    CRect r3 = lane3->getViewSize();
+
+    // All lanes must share the same left origin
+    REQUIRE(static_cast<float>(r1.left) == Approx(static_cast<float>(r2.left)).margin(0.01f));
+    REQUIRE(static_cast<float>(r2.left) == Approx(static_cast<float>(r3.left)).margin(0.01f));
+}

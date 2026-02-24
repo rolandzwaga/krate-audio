@@ -155,3 +155,36 @@ TEST_CASE("ArpLaneEditor constructor sets barAreaTopOffset to kHeaderHeight", "[
     REQUIRE(static_cast<float>(arpBarArea.top) ==
             Approx(static_cast<float>(plainBarArea.top) + expectedShift).margin(0.01f));
 }
+
+// ==============================================================================
+// Length Parameter Binding Tests (T042)
+// ==============================================================================
+
+TEST_CASE("setLengthParamId stores and retrieves the param ID", "[arp_lane_editor][length]") {
+    auto editor = makeArpLaneEditor();
+    editor.setLengthParamId(3020);
+    REQUIRE(editor.getLengthParamId() == 3020);
+}
+
+TEST_CASE("setLengthParamId default is zero", "[arp_lane_editor][length]") {
+    auto editor = makeArpLaneEditor();
+    REQUIRE(editor.getLengthParamId() == 0);
+}
+
+TEST_CASE("setNumSteps changes bar count and getNumSteps returns it", "[arp_lane_editor][length]") {
+    auto editor = makeArpLaneEditor(16);
+    REQUIRE(editor.getNumSteps() == 16);
+
+    editor.setNumSteps(8);
+    REQUIRE(editor.getNumSteps() == 8);
+}
+
+TEST_CASE("setNumSteps clamps to valid range [kMinSteps, kMaxSteps]", "[arp_lane_editor][length]") {
+    auto editor = makeArpLaneEditor(16);
+
+    editor.setNumSteps(1); // Below kMinSteps (2)
+    REQUIRE(editor.getNumSteps() == StepPatternEditor::kMinSteps);
+
+    editor.setNumSteps(64); // Above kMaxSteps (32)
+    REQUIRE(editor.getNumSteps() == StepPatternEditor::kMaxSteps);
+}

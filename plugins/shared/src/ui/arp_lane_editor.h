@@ -25,6 +25,7 @@
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
 #include "vstgui/lib/cfont.h"
+#include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/uidescription/iviewcreator.h"
 #include "vstgui/uidescription/uiviewfactory.h"
 #include "vstgui/uidescription/uiviewcreator.h"
@@ -65,6 +66,8 @@ public:
     static constexpr float kMiniPreviewPaddingTop = 2.0f;
     static constexpr float kMiniPreviewPaddingBottom = 2.0f;
     static constexpr float kCollapseTriangleSize = 8.0f;
+    static constexpr float kLengthDropdownX = 80.0f;
+    static constexpr float kLengthDropdownWidth = 36.0f;
 
     // =========================================================================
     // Construction
@@ -209,12 +212,20 @@ public:
         VSTGUI::CRect vs = getViewSize();
         VSTGUI::CRect headerRect(vs.left, vs.top, vs.right, vs.top + kHeaderHeight);
 
-        // Check if click is in the collapse toggle zone (left side of header)
+        // Check if click is in the header area
         if (headerRect.pointInside(where)) {
             float localX = static_cast<float>(where.x - vs.left);
+
             // Toggle zone is the left ~24px (triangle + padding)
             if (localX < 24.0f) {
                 setCollapsed(!isCollapsed_);
+                return VSTGUI::kMouseEventHandled;
+            }
+
+            // Length dropdown zone
+            if (localX >= kLengthDropdownX &&
+                localX < kLengthDropdownX + kLengthDropdownWidth) {
+                openLengthDropdown(where);
                 return VSTGUI::kMouseEventHandled;
             }
         }
@@ -254,6 +265,68 @@ private:
                                 vs.left + 80.0, vs.top + kHeaderHeight - 1.0);
         context->drawString(VSTGUI::UTF8String(laneName_), nameRect,
                            VSTGUI::kLeftText);
+
+        // Length dropdown label (shows current step count)
+        VSTGUI::CColor labelColor{160, 160, 165, 255};
+        context->setFontColor(labelColor);
+
+        std::string lengthText = std::to_string(getNumSteps());
+        VSTGUI::CRect lengthRect(vs.left + kLengthDropdownX, vs.top + 1.0,
+                                  vs.left + kLengthDropdownX + kLengthDropdownWidth,
+                                  vs.top + kHeaderHeight - 1.0);
+        context->drawString(VSTGUI::UTF8String(lengthText), lengthRect,
+                           VSTGUI::kCenterText);
+
+        // Small dropdown indicator triangle
+        float triX = static_cast<float>(vs.left) + kLengthDropdownX + kLengthDropdownWidth - 6.0f;
+        float triY = static_cast<float>(vs.top) + kHeaderHeight / 2.0f;
+        auto triPath = VSTGUI::owned(context->createGraphicsPath());
+        if (triPath) {
+            triPath->beginSubpath(VSTGUI::CPoint(triX - 2.5, triY - 1.5));
+            triPath->addLine(VSTGUI::CPoint(triX + 2.5, triY - 1.5));
+            triPath->addLine(VSTGUI::CPoint(triX, triY + 1.5));
+            triPath->closeSubpath();
+            context->setFillColor(labelColor);
+            context->drawGraphicsPath(triPath, VSTGUI::CDrawContext::kPathFilled);
+        }
+    }
+
+    void openLengthDropdown(const VSTGUI::CPoint& where) {
+        auto* frame = getFrame();
+        if (!frame) return;
+
+        // Create option menu with values kMinSteps through kMaxSteps
+        VSTGUI::CRect menuRect(where.x, where.y, where.x + 1, where.y + 1);
+        auto* menu = new VSTGUI::COptionMenu(menuRect, nullptr, -1);
+
+        for (int i = kMinSteps; i <= kMaxSteps; ++i) {
+            menu->addEntry(std::to_string(i));
+        }
+
+        // Set current selection
+        int currentIndex = getNumSteps() - kMinSteps;
+        menu->setCurrent(currentIndex);
+
+        // Show popup and handle selection
+        menu->setListener(nullptr);
+        menu->popup(frame, where);
+
+        int selectedIndex = menu->getCurrentIndex();
+        if (selectedIndex >= 0) {
+            int newSteps = selectedIndex + kMinSteps;
+            if (newSteps != getNumSteps()) {
+                setNumSteps(newSteps);
+                setDirty(true);
+
+                // Notify via callback with normalized value
+                if (lengthParamCallback_ && lengthParamId_ != 0) {
+                    float normalized = static_cast<float>(newSteps - 1) / 31.0f;
+                    lengthParamCallback_(lengthParamId_, normalized);
+                }
+            }
+        }
+
+        menu->forget();
     }
 
     void drawCollapseTriangle(VSTGUI::CDrawContext* context,

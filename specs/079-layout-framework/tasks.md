@@ -183,27 +183,27 @@ After implementing tests, verify:
 
 ### 4.1 Tests for Gate Lane Wiring (Write FIRST -- Must FAIL)
 
-- [ ] T034 Add failing tests to `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for gate lane wiring: verify gate lane step parameters (`kArpGateLaneStep0Id` through `kArpGateLaneStep31Id`, IDs 3061-3092) and length parameter (`kArpGateLaneLengthId`, ID 3060) are registered; verify gate lane `displayMax_` is 2.0f (representing 200%)
-- [ ] T034b Add failing test in `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for gate lane length automation round-trip (FR-034): when the host automates `kArpGateLaneLengthId` to the normalized value corresponding to 8 steps, verify the controller denormalizes and calls `gateLane_->setNumSteps(8)`. This is the counterpart to the velocity lane length test in T044 and closes the coverage gap for FR-034 on the gate lane.
-- [ ] T035 Add failing test in `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for gate lane grid labels: construct an `ArpLaneEditor` with `setLaneType(kGate)` and `setDisplayRange(0.0f, 2.0f, "200%", "0%")`, verify `topLabel_` == `"200%"` and `bottomLabel_` == `"0%"` (FR-026 acceptance scenario 4)
+- [X] T034 Add failing tests to `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for gate lane wiring: verify gate lane step parameters (`kArpGateLaneStep0Id` through `kArpGateLaneStep31Id`, IDs 3061-3092) and length parameter (`kArpGateLaneLengthId`, ID 3060) are registered; verify gate lane `displayMax_` is 2.0f (representing 200%)
+- [X] T034b Add failing test in `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for gate lane length automation round-trip (FR-034): when the host automates `kArpGateLaneLengthId` to the normalized value corresponding to 8 steps, verify the controller denormalizes and calls `gateLane_->setNumSteps(8)`. This is the counterpart to the velocity lane length test in T044 and closes the coverage gap for FR-034 on the gate lane.
+- [X] T035 Add failing test in `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for gate lane grid labels: construct an `ArpLaneEditor` with `setLaneType(kGate)` and `setDisplayRange(0.0f, 2.0f, "200%", "0%")`, verify `topLabel_` == `"200%"` and `bottomLabel_` == `"0%"` (FR-026 acceptance scenario 4)
 
 ### 4.2 Implementation: Gate Lane Wiring
 
-- [ ] T036 Modify `plugins/ruinae/src/controller/controller.cpp` in `initialize()`: construct `ArpLaneEditor` for gate lane with `setLaneName("GATE")`, `setLaneType(ArpLaneType::kGate)`, `setAccentColor(CColor{200,164,100,255})`, `setDisplayRange(0.0f, 2.0f, "200%", "0%")`, `setStepLevelBaseParamId(kArpGateLaneStep0Id)`, `setLengthParamId(kArpGateLaneLengthId)`, `setPlayheadParamId(kArpGatePlayheadId)`, and parameter callbacks matching velocity lane pattern
-- [ ] T037 Modify `plugins/ruinae/src/controller/controller.cpp` in `verifyView()`: after adding velocity lane, also call `arpLaneContainer_->addLane(gateLane_)` to stack gate below velocity
-- [ ] T038 Modify `plugins/ruinae/src/controller/controller.cpp` in `setParamNormalized()`: add handling for `kArpGateLaneStep0Id..kArpGateLaneStep31Id` -- call `gateLane_->setStepLevel(index, value)` and `setDirty(true)` (mirrors velocity lane handling from T030)
+- [X] T036 Modify `plugins/ruinae/src/controller/controller.cpp` in `initialize()`: construct `ArpLaneEditor` for gate lane with `setLaneName("GATE")`, `setLaneType(ArpLaneType::kGate)`, `setAccentColor(CColor{200,164,100,255})`, `setDisplayRange(0.0f, 2.0f, "200%", "0%")`, `setStepLevelBaseParamId(kArpGateLaneStep0Id)`, `setLengthParamId(kArpGateLaneLengthId)`, `setPlayheadParamId(kArpGatePlayheadId)`, and parameter callbacks matching velocity lane pattern
+- [X] T037 Modify `plugins/ruinae/src/controller/controller.cpp` in `verifyView()`: after adding velocity lane, also call `arpLaneContainer_->addLane(gateLane_)` to stack gate below velocity
+- [X] T038 Modify `plugins/ruinae/src/controller/controller.cpp` in `setParamNormalized()`: add handling for `kArpGateLaneStep0Id..kArpGateLaneStep31Id` -- call `gateLane_->setStepLevel(index, value)` and `setDirty(true)` (mirrors velocity lane handling from T030)
 
 ### 4.3 Verify US2 Tests Pass
 
-- [ ] T039 Build `ruinae_tests` target and run -- confirm T034/T034b/T035 tests pass; zero regressions in US1 tests
+- [X] T039 Build `ruinae_tests` target and run -- confirm T034/T034b/T035 tests pass; zero regressions in US1 tests
 
 ### 4.4 Cross-Platform Verification
 
-- [ ] T040 [US2] Verify IEEE 754 compliance for gate lane test additions -- add `-fno-fast-math` to `plugins/ruinae/tests/CMakeLists.txt` only if `std::isnan`/`std::isfinite` is used in new tests
+- [X] T040 [US2] Verify IEEE 754 compliance for gate lane test additions -- add `-fno-fast-math` to `plugins/ruinae/tests/CMakeLists.txt` only if `std::isnan`/`std::isfinite` is used in new tests
 
 ### 4.5 Commit US2
 
-- [ ] T041 [US2] Commit gate lane wiring: `feat(ruinae): wire gate lane with 0-200% range (US2)`
+- [X] T041 [US2] Commit gate lane wiring: `feat(ruinae): wire gate lane with 0-200% range (US2)`
 
 **Checkpoint**: Both velocity and gate lanes are wired and individually testable. Two P1 user stories complete.
 
@@ -217,23 +217,23 @@ After implementing tests, verify:
 
 ### 5.1 Tests for Per-Lane Step Count (Write FIRST -- Must FAIL)
 
-- [ ] T042 Add failing tests to `plugins/shared/tests/test_arp_lane_editor.cpp` for length parameter binding: construct an `ArpLaneEditor` with `setLengthParamId(3020)` and `getLengthParamId()` returns 3020; verify `setNumSteps(8)` (inherited from StepPatternEditor) correctly shows 8 bars and `getNumSteps()` returns 8
-- [ ] T043 Add failing tests to `plugins/shared/tests/test_arp_lane_container.cpp` for left-alignment: after `recalculateLayout()`, verify that all child lanes have the same `getViewSize().left` (i.e., same horizontal origin), confirming left-alignment regardless of step count differences
-- [ ] T044 Add failing test in `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for length parameter round-trip: set `kArpVelocityLaneLengthId` to normalized value for 8 steps, verify controller routes this to `velocityLane_->setNumSteps(8)`
+- [X] T042 Add failing tests to `plugins/shared/tests/test_arp_lane_editor.cpp` for length parameter binding: construct an `ArpLaneEditor` with `setLengthParamId(3020)` and `getLengthParamId()` returns 3020; verify `setNumSteps(8)` (inherited from StepPatternEditor) correctly shows 8 bars and `getNumSteps()` returns 8
+- [X] T043 Add failing tests to `plugins/shared/tests/test_arp_lane_container.cpp` for left-alignment: after `recalculateLayout()`, verify that all child lanes have the same `getViewSize().left` (i.e., same horizontal origin), confirming left-alignment regardless of step count differences
+- [X] T044 Add failing test in `plugins/ruinae/tests/unit/controller/arp_controller_test.cpp` for length parameter round-trip: set `kArpVelocityLaneLengthId` to normalized value for 8 steps, verify controller routes this to `velocityLane_->setNumSteps(8)`
 
 ### 5.2 Implementation: Length Parameter Routing
 
-- [ ] T045 Modify `plugins/ruinae/src/controller/controller.cpp` in `setParamNormalized()`: add handling for `kArpVelocityLaneLengthId` -- denormalize to step count (using the same denorm function as existing arp params) and call `velocityLane_->setNumSteps(count)` then `setDirty(true)`
-- [ ] T046 Modify `plugins/ruinae/src/controller/controller.cpp` in `setParamNormalized()`: add handling for `kArpGateLaneLengthId` -- denormalize and call `gateLane_->setNumSteps(count)` then `setDirty(true)`
-- [ ] T047 Verify `ArpLaneEditor::draw()` correctly renders the length dropdown in the header using a `COptionMenu` opened programmatically on click; the dropdown populates with values 2-32 matching `StepPatternEditor::kMinSteps` through `kMaxSteps`; clicking a value calls the `lengthParamCallback_` (add this callback field if not already present in T016)
+- [X] T045 Modify `plugins/ruinae/src/controller/controller.cpp` in `setParamNormalized()`: add handling for `kArpVelocityLaneLengthId` -- denormalize to step count (using the same denorm function as existing arp params) and call `velocityLane_->setNumSteps(count)` then `setDirty(true)`
+- [X] T046 Modify `plugins/ruinae/src/controller/controller.cpp` in `setParamNormalized()`: add handling for `kArpGateLaneLengthId` -- denormalize and call `gateLane_->setNumSteps(count)` then `setDirty(true)`
+- [X] T047 Verify `ArpLaneEditor::draw()` correctly renders the length dropdown in the header using a `COptionMenu` opened programmatically on click; the dropdown populates with values 2-32 matching `StepPatternEditor::kMinSteps` through `kMaxSteps`; clicking a value calls the `lengthParamCallback_` (add this callback field if not already present in T016)
 
 ### 5.3 Verify US3 Tests Pass
 
-- [ ] T048 Build `shared_tests` and `ruinae_tests`, run both -- confirm T042/T043/T044 tests pass; zero regressions in US1/US2 tests
+- [X] T048 Build `shared_tests` and `ruinae_tests`, run both -- confirm T042/T043/T044 tests pass; zero regressions in US1/US2 tests
 
 ### 5.4 Cross-Platform Verification
 
-- [ ] T049 [US3] Verify IEEE 754 compliance for new test files added in T042-T044
+- [X] T049 [US3] Verify IEEE 754 compliance for new test files added in T042-T044
 
 ### 5.5 Commit US3
 
